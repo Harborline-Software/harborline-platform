@@ -14,7 +14,7 @@ const parse = (spec, args = {}, surfaceName = 'forms.builder') =>
   parseProposal({ schema:'pilot.proposal/3', surface:surfaceName, command:spec.id, args }, surfaceName, specs)
 
 // An adapter that honours the contract: refuses anything it was not handed by classify.
-const adapter = { execute: receipt => { assertDispatched(receipt); return { ok: true } } }
+const adapter = { execute: receipt => { assertDispatched(receipt, 'form#1'); return { ok: true } } }
 
 test('a receipt minted by classify is the only thing the adapter accepts', () => {
   const d = classifyProposal(parse(ap, { a: 1 }), 'form#1')
