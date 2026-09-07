@@ -113,7 +113,10 @@ jobs:
           retention-days: 14
 
   publish-libraries:
-    needs: phase-4-gate
+    # A push to main is a landing the repository's own gate already proved (the phase-4 receipt bound
+    # to the tested tree), so publication follows the landing, not the ubuntu rerun of the gate, which
+    # has never been green here (ADR 0084: required checks grow only from green). The job still packs
+    # through the gate's producer and pushes with --skip-duplicate, so a same-tree push publishes nothing.
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
