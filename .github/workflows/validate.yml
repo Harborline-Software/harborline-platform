@@ -28,7 +28,7 @@ jobs:
     if: vars.ACTIONS_ENABLED == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Consumer-neutral boundary
         # This repo had no such fence, and that is why it was the one that regressed. The consumer
         # codename was declared absent everywhere on 2026-08-17 (migration registry entry 094), and
