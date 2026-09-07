@@ -23,7 +23,10 @@ import { parsePackageFixtureArguments } from './package-fixture-selection.mjs'
 import { computePackageVersion, writePackageVersionProps } from './package-version.mjs'
 import { resolvePinnedDotnet } from './resolve-dotnet.mjs'
 
-const options = parsePackageFixtureArguments(process.argv.slice(2))
+// Publication reuses the gate producer; combining this mode with gate/record flags is refused.
+const packLibraries = process.argv.length === 3 && process.argv[2] === '--pack-libraries'
+const options = parsePackageFixtureArguments(packLibraries
+  ? ['--only', 'platform-dotnet-package-group'] : process.argv.slice(2))
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const reactRoot = resolve(root, 'projections/react/ui/hlp.ui.button')
 const formsRoot = resolve(root, 'projections/typescript/contracts/hlp.contracts.forms')
@@ -276,6 +279,9 @@ function assertNpmContributionTypeSurface(installed) {
 // runFixtureStep. Before this, a wedged restore among the ~20 serial ones was indistinguishable
 // silence, and the outer budget could only ever say "the whole fixture step".
 function run(executable, args, options = {}) {
+  if (executable === dotnet.executable && args[0] === 'pack') {
+    args = [...args, '-nodeReuse:false', '-maxcpucount:6']
+  }
   return runFixtureStep(executable, args, { cwd: options.cwd ?? root, env: options.env })
 }
 
@@ -894,6 +900,15 @@ function verifyNuget() {
   }
   const ambiguousAssemblies = [...assemblyOwners].filter(([, owners]) => owners.length > 1)
   if (ambiguousAssemblies.length) throw new Error(`NuGet assembly ambiguity: ${JSON.stringify(ambiguousAssemblies)}`)
+
+  if (packLibraries) {
+    for (const entry of inspections) {
+      if (entry.version !== packedVersion) throw new Error(`Packed version mismatch: ${entry.id} ${entry.version} != ${packedVersion}`)
+    }
+    const manifest = inspections.map(({ id, version, artifactSha256 }) => ({ id, version, sha256: artifactSha256 }))
+    writeFileSync(resolve(nugetArtifacts, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`)
+    return { id: 'platform-dotnet-package-group', status: 'PASS', packages: manifest }
+  }
 
   const consumer = resolve(fixtureRoot, 'nuget-consumer')
   const packageCache = resolve(fixtureRoot, 'nuget-packages')
