@@ -11,7 +11,7 @@
   ],
   "sourceRepository": {
     "name": "harborline-api",
-    "remote": "https://github.com/Harborline-Software/harborline-api-archive.git",
+    "remote": "https://github.com/Harborline-Software/harborline-api.git",
     "localPathEnv": "HARBORLINE_API_REPO"
   },
   "cache": {
@@ -25,8 +25,8 @@
       "packageName": "@harborline-software/api-contracts",
       "tarball": "harborline-software-api-contracts-0.1.0-alpha.1.tgz",
       "packagePath": "packages/contracts",
-      "ref": "cb0843174fdbf312846f0382f406f9158fe3e09d",
-      "sha256": "56a98f51af61714440fbfe731d6d50cb7eb63ce71b61aecea15a5ec4c95dfa5b",
+      "ref": "c618a009e62edb87a2a7d3293bdbf7c060515753",
+      "sha256": "8bfccf2b4f98c1a6f0a74efab5bed89f5b80eda607a64bbaabffcbfd9e9e8a25",
       "buildOrder": 0,
       "requiresSiblingBuild": []
     },
@@ -36,8 +36,8 @@
       "packageName": "@harborline-software/capability-host",
       "tarball": "harborline-software-capability-host-0.0.0.tgz",
       "packagePath": "apps/capability-host",
-      "ref": "cb0843174fdbf312846f0382f406f9158fe3e09d",
-      "sha256": "deeb2d7afd7aa2599cb1f93db619cfa1894a186a28b68e747a2b57c1b6b3c0ca",
+      "ref": "c618a009e62edb87a2a7d3293bdbf7c060515753",
+      "sha256": "bbb44ca470783359b5bea9e242262c38a8376c536c6fe8571fa0328bfadc68f4",
       "buildOrder": 1,
       "requiresSiblingBuild": [
         "contracts"

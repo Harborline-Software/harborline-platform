@@ -76,7 +76,7 @@ jobs:
         # HARBORLINE_API_READ_TOKEN: a fine-grained PAT with read-only Contents access to
         # Harborline-Software/harborline-api, added as an Actions secret on THIS repo. Until the
         # secret exists this step fails loudly here rather than deep inside the gate.
-        run: git clone --quiet "https://x-access-token:${HARBORLINE_API_READ_TOKEN}@github.com/Harborline-Software/harborline-api.git" "$RUNNER_TEMP/harborline-api"
+        run: git clone --quiet "https://github.com/Harborline-Software/harborline-api.git" "$RUNNER_TEMP/harborline-api"
         env:
           HARBORLINE_API_READ_TOKEN: ${{ secrets.HARBORLINE_API_READ_TOKEN }}
       - run: npm run gate:phase4
