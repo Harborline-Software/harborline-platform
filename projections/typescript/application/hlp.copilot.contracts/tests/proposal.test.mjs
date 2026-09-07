@@ -23,3 +23,9 @@ test('stream fence maps one-to-one to pinned proposal/extract tests', () => {
   const s=new ProposalTextSplitter(); assert.equal(s.push('hello ```js'),'hello '); assert.equal(s.push('{"x":1}```'),''); assert.deepEqual(s.end().json,{x:1})
 })
 
+test('args that cannot be frozen are invalid-args, never an exception out of parse', () => {
+  let deep = {}; for (let i = 0; i < 200000; i++) deep = { nested: deep }
+  assert.deepEqual(parseProposal({schema:'pilot.proposal/3',surface:'forms.builder',command:'draft.edit',args:{deep}},'forms.builder',specs), { ok:false, code:'invalid-args' })
+  const accessor = {}; Object.defineProperty(accessor, 'x', { get() { return 1 }, enumerable: true })
+  assert.deepEqual(parseProposal({schema:'pilot.proposal/3',surface:'forms.builder',command:'draft.edit',args:{accessor}},'forms.builder',specs), { ok:false, code:'invalid-args' })
+})

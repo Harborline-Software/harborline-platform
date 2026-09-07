@@ -23,7 +23,11 @@ export function parseProposal(raw: unknown, surface: string, specs: readonly Com
   if (!spec) return { ok: false, code: 'unknown-command' }
   const args = spec.argsSchema(raw.args ?? {})
   if (!args.ok) return { ok: false, code: 'invalid-args' }
-  const frozenArgs = freezeArgs(args.args)
+  // The freeze is the module's own untrusted-input boundary: a provider payload that cannot be frozen
+  // (accessors, functions, foreign prototypes, or nesting deep enough to exhaust the stack) is invalid
+  // args, never an exception escaping parse (110 slice 2 review 1).
+  let frozenArgs: unknown
+  try { frozenArgs = freezeArgs(args.args) } catch { return { ok: false, code: 'invalid-args' } }
   const result: ParseOk = Object.freeze({ ok: true, proposal: Object.freeze({ schema: PILOT_PROPOSAL_SCHEMA, surface, command: spec.id, args: frozenArgs }), spec })
   parsed.set(result, Object.freeze({ surface, command: spec.id, args: frozenArgs, tier: spec.classification.tier }))
   return result
