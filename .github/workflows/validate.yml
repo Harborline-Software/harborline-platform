@@ -51,7 +51,7 @@ jobs:
             projections/react/ui/hlp.ui.button/package-lock.json
             gallery/projections/react/package-lock.json
             gallery/tests/package-lock.json
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v6
         with:
           # The repo's pinned SDK lives in global.json; reading it here means an SDK bump
           # cannot silently strand CI on the old version (which is exactly what happened
