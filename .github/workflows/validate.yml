@@ -1,31 +1,11 @@
 name: validate
-# ---------------------------------------------------------------------------
-# ACTIONS_ENABLED - the switch that decides whether this workflow may run.
-#
-# Every job below is guarded by `if: vars.ACTIONS_ENABLED == 'true'`. The variable is UNSET, so
-# every job reports "skipped" and GitHub allocates no runner and bills no minutes. The condition is
-# evaluated before runner allocation, which is why this keeps working while the account is over its
-# Actions limit - a guarded job never reaches the point where billing refuses it.
-#
-# Why it exists: this org is on the free plan with private repos, and Actions minutes ran out on
-# 2026-08-24. Until the repositories are public (where Actions is free), CI here is a duplicate of
-# work that already happens locally, and a red check that never ran teaches people to ignore checks.
-#
-# Verification does NOT depend on this flag. Run locally instead:
-#     npm run gate:phase4      # the same gate this workflow runs, and the one ADR-0004 requires
-#
-# To turn it back on, per repository:
-#     gh variable set ACTIONS_ENABLED --body true
-# and to turn it off again:
-#     gh variable delete ACTIONS_ENABLED
-# ---------------------------------------------------------------------------
+# Public repository: validate every pull request and main landing.
 on:
   pull_request:
   push:
     branches: [main]
 jobs:
   phase-4-gate:
-    if: vars.ACTIONS_ENABLED == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -131,3 +111,81 @@ jobs:
           path: gallery/tests/playwright-report/
           if-no-files-found: warn
           retention-days: 14
+
+  publish-libraries:
+    needs: phase-4-gate
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      PACKAGE_IDS: >-
+        Harborline.Blocks.ActivityTimeline
+        Harborline.Blocks.Aggregates
+        Harborline.Blocks.BuilderDefinitions
+        Harborline.Blocks.Calendar
+        Harborline.Blocks.EntityViews
+        Harborline.Blocks.InspectionReview
+        Harborline.Blocks.RelativeChains
+        Harborline.Blocks.Reports
+        Harborline.Blocks.Scheduling
+        Harborline.Blocks.Workflow
+        Harborline.Blocks.Workflow.Interpreter
+        Harborline.Contracts
+        Harborline.Foundation
+        Harborline.Foundation.Authorization
+        Harborline.Foundation.Forms
+        Harborline.Foundation.Forms.Engine
+        Harborline.Foundation.MultiTenancy
+        Harborline.Foundation.RuleAuthoring
+        Harborline.Foundation.RuleEngine
+        Harborline.Foundation.Scheduling
+        Harborline.Foundation.Session
+        Harborline.Kernel.SchemaValidation
+        Harborline.Kernel.WorkItems
+        Harborline.UIAdapters.Blazor
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+      - name: Pack the gate's libraries at the content-derived version
+        run: node tooling/verify-package-fixtures.mjs --pack-libraries
+      - name: Verify publication inventory and packed versions
+        run: node --test tooling/tests/publish-libraries.test.mjs tooling/tests/publish-libraries.packed.mjs
+      - name: Upload package manifest
+        uses: actions/upload-artifact@v7
+        with:
+          name: platform-libraries-${{ github.sha }}
+          path: artifacts/packages/nuget/manifest.json
+          if-no-files-found: error
+      - name: Publish to GitHub Packages
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          dotnet nuget add source \
+            --username "${GITHUB_ACTOR}" \
+            --password "${GH_TOKEN}" \
+            --store-password-in-clear-text \
+            --configfile NuGet.Config \
+            --name github \
+            "https://nuget.pkg.github.com/${GITHUB_REPOSITORY_OWNER}/index.json"
+          version=$(node --input-type=module -e "import {computePackageVersion} from './tooling/package-version.mjs'; console.log(computePackageVersion())")
+          for id in $PACKAGE_IDS; do
+            if output=$(dotnet nuget push "artifacts/packages/nuget/${id}.${version}.nupkg" \
+              --source github --api-key "${GH_TOKEN}" --skip-duplicate --force-english-output 2>&1); then
+              if grep -Eiq 'already exists|already been pushed|Conflict' <<< "$output"; then
+                echo "SKIPPED $id $version"
+              else
+                echo "PUSHED $id $version"
+              fi
+            else
+              printf '%s\n' "$output" >&2
+              exit 1
+            fi
+          done
