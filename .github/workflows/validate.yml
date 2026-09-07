@@ -28,7 +28,7 @@ jobs:
     if: vars.ACTIONS_ENABLED == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Consumer-neutral boundary
         # This repo had no such fence, and that is why it was the one that regressed. The consumer
         # codename was declared absent everywhere on 2026-08-17 (migration registry entry 094), and
@@ -51,7 +51,7 @@ jobs:
             projections/react/ui/hlp.ui.button/package-lock.json
             gallery/projections/react/package-lock.json
             gallery/tests/package-lock.json
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v6
         with:
           # The repo's pinned SDK lives in global.json; reading it here means an SDK bump
           # cannot silently strand CI on the old version (which is exactly what happened
@@ -76,7 +76,7 @@ jobs:
         # HARBORLINE_API_READ_TOKEN: a fine-grained PAT with read-only Contents access to
         # Harborline-Software/harborline-api, added as an Actions secret on THIS repo. Until the
         # secret exists this step fails loudly here rather than deep inside the gate.
-        run: git clone --quiet "https://x-access-token:${HARBORLINE_API_READ_TOKEN}@github.com/Harborline-Software/harborline-api.git" "$RUNNER_TEMP/harborline-api"
+        run: git clone --quiet "https://github.com/Harborline-Software/harborline-api.git" "$RUNNER_TEMP/harborline-api"
         env:
           HARBORLINE_API_READ_TOKEN: ${{ secrets.HARBORLINE_API_READ_TOKEN }}
       - run: npm run gate:phase4

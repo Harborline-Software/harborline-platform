@@ -39,6 +39,41 @@ const EXPIRED_AT_POLISH = {
   'hlp.ui.date-time-field': 'DateTimeField.stories.tsx',
 }
 
+// Ticket 253: the public repository starts a fresh history, so the commits these pins name live only
+// in the archive. The two derivation tests below need that history; when the clone carries it (an
+// `archive` remote, or the polish commit itself) they run against it, and when it does not they are
+// skipped BY NAME rather than failing on a history that was never there. The verdicts themselves
+// are judged by surface digests (design-review.mjs) and do not depend on this.
+const carriesArchiveHistory = (() => {
+  try {
+    git('cat-file', '-e', `${POLISH}^{commit}`)
+    return true
+  } catch {
+    return false
+  }
+})()
+const HISTORY_REF = (() => {
+  try {
+    git('rev-parse', '--verify', '--quiet', 'archive/main')
+    return 'archive/main'
+  } catch {
+    return 'origin/main'
+  }
+})()
+// In a fresh public history the derivation cannot run, and a skip would hide a hand-edited pin. The
+// fresh-history facts are asserted instead: the root commit postdates every verdict, and no record's
+// pin resolves here (a pin re-pointed at a public commit would resolve, and fail).
+function assertFreshHistoryFacts() {
+  const root = git('rev-list', '--max-parents=0', 'HEAD').trim()
+  const rootDate = Date.parse(git('log', '-1', '--format=%cI', root).trim())
+  for (const record of records()) {
+    assert.ok(rootDate > Date.parse(record.recordedAt),
+      `${record.moduleId}: the history root ${root.slice(0, 12)} does not postdate the verdict, so its pin should be derivable here and is not`)
+    assert.throws(() => git('cat-file', '-e', `${record.reference.pin}^{commit}`),
+      `${record.moduleId}: pin ${record.reference.pin.slice(0, 12)} resolves in a history that cannot contain the verdict commit`)
+  }
+}
+
 const records = () => readdirSync(recordsRoot).filter(name => name.endsWith('.json')).sort()
   .map(name => JSON.parse(readFileSync(resolve(recordsRoot, name), 'utf8')))
 
@@ -55,8 +90,9 @@ test('every design-review record binds a surface, so none can reach the gate on 
 // The pin is derived, not written down by hand, so it can be recomputed from the record itself and
 // must come back the same. A pin edited to a friendlier commit fails here.
 test('every pin is the commit the verdict was actually given against', () => {
+  if (!carriesArchiveHistory) return assertFreshHistoryFacts()
   for (const record of records()) {
-    const {commit} = resolvePin(platformRoot, record)
+    const {commit} = resolvePin(platformRoot, record, HISTORY_REF)
     assert.equal(commit, record.reference.pin, `${record.moduleId} names a pin its own revision and date do not resolve to`)
   }
 })
@@ -66,6 +102,11 @@ test('every pin is the commit the verdict was actually given against', () => {
 // Migrate against today's tree instead and every module in both sets stands, because the record
 // would carry the digests of the tree it is being compared with.
 test('the migration is judged at the polish pin: the changed modules expire and the rest stand', t => {
+  if (!carriesArchiveHistory) {
+    assertFreshHistoryFacts()
+    assert.throws(() => git('cat-file', '-e', `${POLISH}^{commit}`), 'the polish commit resolves in a fresh history')
+    return
+  }
   const scratchRoot = mkdtempSync(resolve(tmpdir(), 'design-review-polish-'))
   const scratch = resolve(scratchRoot, 'tree')
   git('worktree', 'add', '--detach', '--quiet', scratch, POLISH)
