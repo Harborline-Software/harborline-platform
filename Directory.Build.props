@@ -10,6 +10,10 @@
   </PropertyGroup>
   <PropertyGroup>
     <TargetFramework>net11.0</TargetFramework>
+    <!-- Package identity is declared in the project body, after this file is imported.
+         Apply this shared library target before the SDK infers framework references/paths. -->
+    <HarborlineLibraryTargetFramework>net10.0</HarborlineLibraryTargetFramework>
+    <BeforeMicrosoftNETSdkTargets>$(MSBuildThisFileDirectory)projections/dotnet/Harborline.PackageTargetFramework.props</BeforeMicrosoftNETSdkTargets>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>

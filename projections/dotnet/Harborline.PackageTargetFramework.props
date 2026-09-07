@@ -1,0 +1,27 @@
+<Project>
+  <!-- BeforeMicrosoftNETSdkTargets runs after project declarations and before framework inference.
+       Directory.Build.targets would be too late; the framework identifier and paths already exist.
+       This file lives under the package-version input roots, so its changes invalidate the feed. -->
+  <PropertyGroup Condition="'$(IsPackable)' == 'true' and $(PackageId.StartsWith('Harborline.'))">
+    <TargetFramework>$(HarborlineLibraryTargetFramework)</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(IsPackable)' == 'true' and $(PackageId.StartsWith('Harborline.'))">
+    <PackageVersion Update="Microsoft.AspNetCore.Components.Web;Microsoft.Extensions.DependencyInjection;Microsoft.Extensions.DependencyInjection.Abstractions"
+                    Version="$(HarborlineReleasedMicrosoftPackageVersion)" />
+    <!-- These libraries expose DI registrations. net11 supplies the abstractions in the shared
+         framework; net10 requires the package. Keep the dependency on its actual callers. -->
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions"
+                      Condition="'$(PackageId)' == 'Harborline.Blocks.ActivityTimeline'
+                        or '$(PackageId)' == 'Harborline.Blocks.Calendar'
+                        or '$(PackageId)' == 'Harborline.Blocks.Reports'
+                        or '$(PackageId)' == 'Harborline.Blocks.Scheduling'
+                        or '$(PackageId)' == 'Harborline.Blocks.Workflow'
+                        or '$(PackageId)' == 'Harborline.Blocks.Workflow.Interpreter'
+                        or '$(PackageId)' == 'Harborline.Foundation.Forms'
+                        or '$(PackageId)' == 'Harborline.Foundation.Forms.Engine'
+                        or '$(PackageId)' == 'Harborline.Foundation.Scheduling'
+                        or '$(PackageId)' == 'Harborline.Kernel.WorkItems'" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions"
+                      Condition="'$(PackageId)' == 'Harborline.Blocks.Scheduling'" />
+  </ItemGroup>
+</Project>
