@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "projection": "react",
+  "moduleId": "hlp.ui.page",
+  "scenarios": [
+    {
+      "scenarioId": "page.structure",
+      "sha256": "2a0e635211a23f227870127461c0305900278e0993a34dcd64a549192aa70da3",
+      "bytes": 18075,
+      "artifact": "../baselines/sha256/2a0e635211a23f227870127461c0305900278e0993a34dcd64a549192aa70da3.png"
+    },
+    {
+      "scenarioId": "page.options",
+      "sha256": "e78ae8565986f8f91350823dc62fce7a3f067d7097b3469aab198683de09555e",
+      "bytes": 18826,
+      "artifact": "../baselines/sha256/e78ae8565986f8f91350823dc62fce7a3f067d7097b3469aab198683de09555e.png"
+    },
+    {
+      "scenarioId": "page.keyboard-responsive",
+      "sha256": "77539a308ad4a0260155d476f4c256c1a07f26ce3ac4f97eb436c3a29032f2d2",
+      "bytes": 18624,
+      "artifact": "../baselines/sha256/77539a308ad4a0260155d476f4c256c1a07f26ce3ac4f97eb436c3a29032f2d2.png"
+    },
+    {
+      "scenarioId": "page.locale-en",
+      "sha256": "17bd75846255a8e5b2d5c65418d24b8c32721a78d97e7ef5ae05b4f215533aa6",
+      "bytes": 16101,
+      "artifact": "../baselines/sha256/17bd75846255a8e5b2d5c65418d24b8c32721a78d97e7ef5ae05b4f215533aa6.png"
+    },
+    {
+      "scenarioId": "page.locale-pseudo",
+      "sha256": "f007cfd202d04bad9bc5355c6a15ccae15e21d6ae723988fbe51fa3fa3f2281d",
+      "bytes": 21527,
+      "artifact": "../baselines/sha256/f007cfd202d04bad9bc5355c6a15ccae15e21d6ae723988fbe51fa3fa3f2281d.png"
+    },
+    {
+      "scenarioId": "page.locale-ar",
+      "sha256": "484c19ee2077a73002e8b902ba64e7af7621b05cdc2dd7c3d2f6cf5b7f3f3717",
+      "bytes": 15829,
+      "artifact": "../baselines/sha256/484c19ee2077a73002e8b902ba64e7af7621b05cdc2dd7c3d2f6cf5b7f3f3717.png"
+    },
+    {
+      "scenarioId": "page.theme-light",
+      "sha256": "30a5f114cf30f6dd6450f1dfb250ba07fd7ab2cd3a642331caae84b7932c3f8d",
+      "bytes": 16116,
+      "artifact": "../baselines/sha256/30a5f114cf30f6dd6450f1dfb250ba07fd7ab2cd3a642331caae84b7932c3f8d.png"
+    },
+    {
+      "scenarioId": "page.theme-dark",
+      "sha256": "ad372aa3f3fdd09232cc17b786d5fd0324cb89067611ef98ae6fc468107247b2",
+      "bytes": 15593,
+      "artifact": "../baselines/sha256/ad372aa3f3fdd09232cc17b786d5fd0324cb89067611ef98ae6fc468107247b2.png"
+    }
+  ]
+}

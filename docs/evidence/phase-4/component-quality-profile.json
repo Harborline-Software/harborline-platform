@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 2,
+  "recordedAt": "2026-08-07T21:38:32Z",
+  "moduleId": "hlp.ui.button",
+  "status": "PASS",
+  "profile": "specs/modules/ui/hlp.ui.button/quality.yaml",
+  "fixture": "conformance/hlp.ui.button/quality-fixtures.yaml",
+  "dimensions": {
+    "accessibility": {
+      "disposition": "required",
+      "caseIds": [
+        "button.quality.accessible-name",
+        "button.quality.loading-status",
+        "button.quality.keyboard",
+        "button.quality.focus-visible",
+        "button.quality.disabled-loading",
+        "button.quality.forced-colors",
+        "button.quality.reduced-motion",
+        "button.quality.reflow-200"
+      ]
+    },
+    "internationalization": {
+      "disposition": "required",
+      "caseIds": [
+        "button.quality.locale-language",
+        "button.quality.translated-owned-strings",
+        "button.quality.rtl-mixed-direction",
+        "button.quality.pseudo-expansion",
+        "button.quality.formatting-applicability"
+      ],
+      "localeFixtures": ["en-US", "en-XA", "ar-SA"],
+      "componentOwnedKeys": ["common.loading"],
+      "localeSensitiveFormatting": {
+        "disposition": "not-applicable",
+        "rationale": "Button owns no locale-sensitive values; caller content remains caller-formatted."
+      }
+    },
+    "theming": {
+      "disposition": "required",
+      "caseIds": [
+        "button.quality.theme-light",
+        "button.quality.theme-dark",
+        "button.quality.theme-interaction-states",
+        "button.quality.theme-public-tokens",
+        "button.quality.theme-runtime-switch",
+        "button.quality.theme-contrast",
+        "button.quality.theme-reflow-200",
+        "button.quality.theme-reduced-motion",
+        "button.quality.theme-visual-parity"
+      ],
+      "fixtures": ["light", "dark"],
+      "forcedColorsIndependent": true
+    }
+  },
+  "stages": ["contract", "projection-native", "package-consumer", "gallery", "clean-clone"],
+  "results": {
+    "profileCases": 22,
+    "nativeTests": {"react": 49, "blazor": 15, "passed": 64},
+    "packedPublicConsumers": 2,
+    "galleryScenarios": 16,
+    "accessibilityScans": 32,
+    "visualParityComparisons": 22,
+    "browserQualityTests": 51,
+    "themeFixtureProjectionChecks": 4,
+    "runtimeThemeSwitchChecks": 2,
+    "contrastRatioAssertions": 32,
+    "themeReflowChecks": 4,
+    "themeReducedMotionChecks": 4
+  },
+  "invariants": {
+    "publicPackageInterfacesOnly": true,
+    "npmIdentityChanged": false,
+    "nugetIdentityChanged": false,
+    "assemblyIdentityChanged": false,
+    "productIdentityChanged": false,
+    "packageIdentityAuthorityChanged": false,
+    "distributionAuthorityRepository": null,
+    "externalRemoteCreated": false
+  }
+}

@@ -1,0 +1,261 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.date-field",
+  "sourceFixture": "conformance/hlp.ui.date-field/fixtures.yaml",
+  "qualityFixture": "conformance/hlp.ui.date-field/quality-fixtures.yaml",
+  "galleryInterface": {
+    "probeAttribute": "data-gallery-probe",
+    "scenarioAttribute": "data-gallery-scenario",
+    "projectionTitles": {
+      "react": "Platform/Date Field",
+      "blazor": "Platform/Date Field"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "date-field.defaults",
+      "name": "Value and bounds",
+      "surface": "defaults",
+      "sourceCaseIds": [
+        "date-field.native",
+        "date-field.raw-roundtrip",
+        "date-field.bounds"
+      ],
+      "sourceQualityCaseIds": [
+        "date-field.quality.native",
+        "date-field.quality.name",
+        "date-field.quality.focus"
+      ],
+      "content": {
+        "blurb": "Raw date values remain browser-native and FormField-aware.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "name": "issued",
+          "value": "2026-08-09",
+          "min": "2026-01-01",
+          "max": "2026-12-31"
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "label",
+            "text": "Issue date",
+            "child": {
+              "control": "input",
+              "type": "date",
+              "name": "issued",
+              "value": "2026-08-09",
+              "min": "2026-01-01",
+              "max": "2026-12-31"
+            }
+          },
+          {
+            "control": "span",
+            "text": "YYYY-MM-DD"
+          },
+          {
+            "control": "label",
+            "text": "Due date",
+            "required": true,
+            "child": {
+              "control": "input",
+              "type": "date",
+              "name": "due",
+              "value": "2026-09-09",
+              "required": true
+            }
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "date-field.states",
+      "name": "States and descriptions",
+      "surface": "states",
+      "sourceCaseIds": [
+        "date-field.clear",
+        "date-field.disabled",
+        "date-field.invalid",
+        "date-field.description"
+      ],
+      "sourceQualityCaseIds": [
+        "date-field.quality.description",
+        "date-field.quality.reflow",
+        "date-field.quality.forced-colors"
+      ],
+      "content": {
+        "blurb": "Raw date values remain browser-native and FormField-aware.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "name": "issued",
+          "value": "2026-08-09",
+          "min": "2026-01-01",
+          "max": "2026-12-31",
+          "disabled": true
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "label",
+            "text": "Issue date",
+            "child": {
+              "control": "input",
+              "type": "date",
+              "name": "issued",
+              "value": "2026-08-09",
+              "min": "2026-01-01",
+              "max": "2026-12-31",
+              "disabled": true
+            }
+          },
+          {
+            "control": "span",
+            "text": "Choose a valid accounting date"
+          },
+          {
+            "control": "strong",
+            "text": "Date is required"
+          }
+        ],
+        "footer": [],
+        "inherits": "date-field.defaults"
+      }
+    },
+    {
+      "id": "date-field.rtl-theme",
+      "name": "RTL and theme",
+      "surface": "rtl-theme",
+      "sourceCaseIds": [
+        "date-field.naming",
+        "date-field.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "date-field.quality.raw-value",
+        "date-field.quality.rtl",
+        "date-field.quality.pseudo",
+        "date-field.quality.light-dark",
+        "date-field.quality.tokens",
+        "date-field.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "Raw date values remain browser-native and FormField-aware.",
+        "environment": {
+          "locale": "ar-SA",
+          "direction": "rtl",
+          "theme": "dark",
+          "catalog": {}
+        },
+        "props": {
+          "name": "issued",
+          "value": "2026-08-09",
+          "min": "2026-01-01",
+          "max": "2026-12-31"
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "label",
+            "text": "تاريخ الإصدار",
+            "child": {
+              "control": "input",
+              "type": "date",
+              "name": "issued",
+              "value": "2026-08-09",
+              "min": "2026-01-01",
+              "max": "2026-12-31"
+            }
+          },
+          {
+            "control": "span",
+            "text": "YYYY-MM-DD"
+          },
+          {
+            "control": "label",
+            "text": "تاريخ الاستحقاق",
+            "required": true,
+            "child": {
+              "control": "input",
+              "type": "date",
+              "name": "due",
+              "value": "2026-09-09",
+              "required": true
+            }
+          }
+        ],
+        "footer": [],
+        "inherits": "date-field.defaults"
+      }
+    },
+    {
+      "id": "date-field.content",
+      "name": "Content resilience",
+      "surface": "long-content",
+      "sourceCaseIds": [
+        "date-field.native",
+        "date-field.description"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "Carries a long certification label, the grouped value 1,284,905, escaped Bay 4 <grid C-7> & 8 copy, and the name Ordnance Survey — Niño Ångström.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<><FormField name=\"certification-date\" label={'Awaiting third-party structural certification review'} hint={'1,284,905'}><DateField name=\"certification-date\" value=\"2026-08-09\" onChange={()=>{}} /></FormField><FormField name=\"survey-date\" label={'Ordnance Survey — Niño Ångström'} error={'Bay 4 <grid C-7> & 8'}><DateField name=\"survey-date\" value=\"2026-09-09\" onChange={()=>{}} /></FormField></>",
+            "blazor": "<HarborlineFormField Name=\"certification-date\" Label=\"@(\"Awaiting third-party structural certification review\")\" Hint=\"@(\"1,284,905\")\"><HarborlineDateField Name=\"certification-date\" Value=\"2026-08-09\" /></HarborlineFormField><HarborlineFormField Name=\"survey-date\" Label=\"@(\"Ordnance Survey — Niño Ångström\")\" Error=\"@(\"Bay 4 <grid C-7> & 8\")\"><HarborlineDateField Name=\"survey-date\" Value=\"2026-09-09\" /></HarborlineFormField>",
+            "rationale": "The closed control vocabulary cannot express FormField-wrapped DateField controls with hostile-but-valid labels, hints, and errors."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "date-field.error-state",
+      "name": "Error state",
+      "surface": "invalid-input",
+      "sourceCaseIds": [
+        "date-field.invalid",
+        "date-field.description"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "The required date field exposes its invalid state and visible recovery message.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<FormField name=\"inspection-date\" label=\"Inspection date\" error=\"Enter a valid inspection date\" required><DateField name=\"inspection-date\" value=\"\" error required onChange={()=>{}} /></FormField>",
+            "blazor": "<HarborlineFormField Name=\"inspection-date\" Label=\"Inspection date\" Error=\"Enter a valid inspection date\" Required=\"true\"><HarborlineDateField Name=\"inspection-date\" Value=\"\" Error=\"true\" Required=\"true\" /></HarborlineFormField>",
+            "rationale": "The closed descriptors cannot express the DateField component's invalid state together with its FormField-provided accessible label and recovery message."
+          }
+        ],
+        "footer": []
+      }
+    }
+  ]
+}

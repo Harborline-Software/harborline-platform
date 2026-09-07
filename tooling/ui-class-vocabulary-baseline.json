@@ -1,0 +1,106 @@
+{
+  "hlp.ui.accordion blazor": [
+    "hl-accordion__panel"
+  ],
+  "hlp.ui.accordion react": [
+    "hl-accordion__panel"
+  ],
+  "hlp.ui.action-menu react": [
+    "hl-action-menu__item-label"
+  ],
+  "hlp.ui.app-shell blazor": [
+    "hl-app-shell__capability-guidance",
+    "hl-app-shell__group",
+    "hl-app-shell__group-add",
+    "hl-app-shell__mode",
+    "hl-app-shell__panel-action"
+  ],
+  "hlp.ui.app-shell react": [
+    "hl-app-shell__capability-guidance",
+    "hl-app-shell__group",
+    "hl-app-shell__group-add",
+    "hl-app-shell__mode",
+    "hl-app-shell__panel-action"
+  ],
+  "hlp.ui.badge blazor": [
+    "hl-badge__icon"
+  ],
+  "hlp.ui.badge react": [
+    "hl-badge__icon"
+  ],
+  "hlp.ui.button blazor": [
+    "hl-button",
+    "hl-button--",
+    "hl-button--fill-",
+    "hl-button--icon-only",
+    "hl-button--inert",
+    "hl-button--rounded-",
+    "hl-button--size-",
+    "hl-button__icon",
+    "hl-button__icon--trailing",
+    "hl-button__loading-indicator",
+    "hl-button__loading-indicator--small"
+  ],
+  "hlp.ui.chart blazor": [
+    "hl-chart__series"
+  ],
+  "hlp.ui.chart react": [
+    "hl-chart__series"
+  ],
+  "hlp.ui.collapsible blazor": [
+    "hl-collapsible--disabled",
+    "hl-collapsible__region",
+    "hl-collapsible__titles"
+  ],
+  "hlp.ui.collapsible react": [
+    "hl-collapsible--disabled"
+  ],
+  "hlp.ui.context-menu blazor": [
+    "hl-context-menu-trigger",
+    "hl-context-menu__icon"
+  ],
+  "hlp.ui.context-menu react": [
+    "hl-context-menu__icon"
+  ],
+  "hlp.ui.empty-state blazor": [
+    "hl-empty-state--"
+  ],
+  "hlp.ui.empty-state react": [
+    "hl-empty-state--"
+  ],
+  "hlp.ui.form-field blazor": [
+    "hl-form-field--error"
+  ],
+  "hlp.ui.form-field react": [
+    "hl-form-field--error"
+  ],
+  "hlp.ui.input blazor": [
+    "hl-input--fill-",
+    "hl-input--invalid",
+    "hl-input--rounded-",
+    "hl-input--size-",
+    "hl-input__control--adorned"
+  ],
+  "hlp.ui.input react": [
+    "hl-input__control--adorned"
+  ],
+  "hlp.ui.notification-center blazor": [
+    "hl-notification-center__trigger--touch"
+  ],
+  "hlp.ui.page blazor": [
+    "hl-page__body--padding-",
+    "hl-page__heading"
+  ],
+  "hlp.ui.table blazor": [
+    "hl-table--density-",
+    "hl-table-scroll",
+    "hl-table__cell--density-"
+  ],
+  "hlp.ui.text-area blazor": [
+    "hl-text-area-wrap"
+  ],
+  "hlp.ui.tooltip blazor": [
+    "hl-tooltip",
+    "hl-tooltip--"
+  ]
+}

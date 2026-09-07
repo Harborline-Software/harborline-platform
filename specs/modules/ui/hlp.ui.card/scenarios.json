@@ -1,0 +1,159 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.card",
+  "sourceFixture": "conformance/hlp.ui.card/fixtures.yaml",
+  "qualityFixture": "conformance/hlp.ui.card/quality-fixtures.yaml",
+  "galleryInterface": {
+    "probeAttribute": "data-gallery-probe",
+    "scenarioAttribute": "data-gallery-scenario",
+    "projectionTitles": {
+      "react": "Platform/Card",
+      "blazor": "Platform/Card"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "card.defaults",
+      "name": "Defaults",
+      "surface": "defaults",
+      "sourceCaseIds": [
+        "card.defaults",
+        "card.heading-level",
+        "card.region-composition"
+      ],
+      "sourceQualityCaseIds": [
+        "card.quality.heading"
+      ],
+      "content": {
+        "blurb": "Caller-owned regions retain semantic headings and logical separators.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "variant": "outlined",
+          "orientation": "vertical",
+          "separators": false
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<CardHeader><CardTitle as=\"h3\">Inspection summary</CardTitle></CardHeader>\n<CardContent>Three rooms remain ready for review.</CardContent>",
+            "blazor": "<HarborlineCardHeader><HarborlineCardTitle Level=\"3\">Inspection summary</HarborlineCardTitle></HarborlineCardHeader>\n<HarborlineCardContent>Three rooms remain ready for review.</HarborlineCardContent>",
+            "rationale": "The closed descriptor vocabulary has no card-header, card-title, card-content, or heading control, so it cannot preserve the caller-owned region composition and level-three semantic heading."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "card.horizontal",
+      "name": "Horizontal separators",
+      "surface": "horizontal-separators",
+      "sourceCaseIds": [
+        "card.horizontal",
+        "card.separators",
+        "card.padding"
+      ],
+      "sourceQualityCaseIds": [
+        "card.quality.reflow",
+        "card.quality.rtl"
+      ],
+      "content": {
+        "blurb": "Caller-owned regions retain semantic headings and logical separators.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "variant": "outlined",
+          "orientation": "horizontal",
+          "separators": true
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<CardHeader><CardTitle as=\"h3\">Inspection summary</CardTitle></CardHeader>\n<CardContent>Three rooms remain ready for review.</CardContent>",
+            "blazor": "<HarborlineCardHeader><HarborlineCardTitle Level=\"3\">Inspection summary</HarborlineCardTitle></HarborlineCardHeader>\n<HarborlineCardContent>Three rooms remain ready for review.</HarborlineCardContent>",
+            "rationale": "The closed descriptor vocabulary has no card-header, card-title, card-content, or heading control, so it cannot preserve the caller-owned region composition and level-three semantic heading."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "card.themes",
+      "name": "Appearances and theme",
+      "surface": "appearances-theme",
+      "sourceCaseIds": [
+        "card.appearances",
+        "card.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "card.quality.caller-content",
+        "card.quality.pseudo",
+        "card.quality.light-dark",
+        "card.quality.tokens",
+        "card.quality.forced-colors",
+        "card.quality.contrast",
+        "card.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "Caller-owned regions retain semantic headings and logical separators.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "dark",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "function Surface({ variant = 'outlined', horizontal = false }) {\n  return <Card variant={variant} orientation={horizontal ? 'horizontal' : 'vertical'} separators={horizontal}>\n    <CardHeader><CardTitle as=\"h3\">Inspection summary</CardTitle></CardHeader>\n    <CardContent>Three rooms remain ready for review.</CardContent>\n  </Card>\n}\n<div className=\"hl-gallery-feedback-grid\"><Surface variant=\"flat\" /><Surface variant=\"raised\" /><Surface variant=\"outlined\" /><Surface variant=\"elevated\" /></div>",
+            "blazor": "<HarborlineCard Appearance=\"Appearance\" Orientation=\"@(Horizontal ? CardOrientation.Horizontal : CardOrientation.Vertical)\" Separators=\"Horizontal\">\n  <HarborlineCardHeader><HarborlineCardTitle Level=\"3\">Inspection summary</HarborlineCardTitle></HarborlineCardHeader>\n  <HarborlineCardContent>Three rooms remain ready for review.</HarborlineCardContent>\n</HarborlineCard>\n<div class=\"hl-gallery-feedback-grid\">\n  <CardSurface Appearance=\"CardAppearance.Flat\" /><CardSurface Appearance=\"CardAppearance.Raised\" /><CardSurface Appearance=\"CardAppearance.Outlined\" /><CardSurface Appearance=\"CardAppearance.Elevated\" />\n</div>",
+            "rationale": "This scenario renders four separate cards with distinct appearance props inside a layout grid. The closed vocabulary cannot declare multiple module instances with per-instance props, and it also lacks controls for the cards' header, level-three title, and content regions."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "card.content",
+      "name": "Content resilience",
+      "surface": "long-content",
+      "sourceCaseIds": [
+        "card.defaults",
+        "card.region-composition"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "This card carries an overlong heading, a grouped large number, escaped angle brackets and an ampersand, and a name with diacritics and an em dash.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<Card><CardHeader><CardTitle as=\"h3\">{'Awaiting third-party structural certification review'}</CardTitle></CardHeader><CardContent>{'1,284,905 · Bay 4 <grid C-7> & 8 · Ordnance Survey — Niño Ångström'}</CardContent></Card>",
+            "blazor": "<HarborlineCard><HarborlineCardHeader><HarborlineCardTitle Level=\"3\">@(\"Awaiting third-party structural certification review\")</HarborlineCardTitle></HarborlineCardHeader><HarborlineCardContent>@(\"1,284,905 · Bay 4 <grid C-7> & 8 · Ordnance Survey — Niño Ångström\")</HarborlineCardContent></HarborlineCard>",
+            "rationale": "The closed control vocabulary has no card-region controls and cannot preserve a semantic card heading and content containing hostile-but-valid text."
+          }
+        ],
+        "footer": []
+      }
+    }
+  ]
+}

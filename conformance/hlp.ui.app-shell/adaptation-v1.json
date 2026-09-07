@@ -1,0 +1,339 @@
+{
+  "breakpointLadder": [
+    {
+      "width": 599,
+      "expected": "compact"
+    },
+    {
+      "width": 600,
+      "expected": "medium"
+    },
+    {
+      "width": 839,
+      "expected": "medium"
+    },
+    {
+      "width": 840,
+      "expected": "expanded"
+    },
+    {
+      "width": 1199,
+      "expected": "expanded"
+    },
+    {
+      "width": 1200,
+      "expected": "large"
+    },
+    {
+      "width": 1599,
+      "expected": "large"
+    },
+    {
+      "width": 1600,
+      "expected": "extra-large"
+    }
+  ],
+  "initialOpenPanelIds": [
+    "notifications",
+    "pilot"
+  ],
+  "sheetCloseTarget": 44,
+  "transitions": [
+    {
+      "id": "compact-to-expanded-and-back",
+      "steps": [
+        {
+          "width": 599,
+          "expectedBreakpoint": "compact",
+          "expectedContainerKinds": {
+            "notifications": "bottom-sheet",
+            "pilot": "bottom-sheet"
+          }
+        },
+        {
+          "width": 840,
+          "expectedBreakpoint": "expanded",
+          "expectedContainerKinds": {
+            "notifications": "side-sheet",
+            "pilot": "side-sheet"
+          }
+        },
+        {
+          "width": 599,
+          "expectedBreakpoint": "compact",
+          "expectedContainerKinds": {
+            "notifications": "bottom-sheet",
+            "pilot": "bottom-sheet"
+          }
+        }
+      ]
+    },
+    {
+      "id": "medium-to-expanded-and-back",
+      "steps": [
+        {
+          "width": 600,
+          "expectedBreakpoint": "medium",
+          "expectedContainerKinds": {
+            "notifications": "side-sheet",
+            "pilot": "side-sheet"
+          }
+        },
+        {
+          "width": 840,
+          "expectedBreakpoint": "expanded",
+          "expectedContainerKinds": {
+            "notifications": "side-sheet",
+            "pilot": "side-sheet"
+          }
+        },
+        {
+          "width": 600,
+          "expectedBreakpoint": "medium",
+          "expectedContainerKinds": {
+            "notifications": "side-sheet",
+            "pilot": "side-sheet"
+          }
+        }
+      ]
+    },
+    {
+      "id": "expanded-to-compact-and-back",
+      "steps": [
+        {
+          "width": 840,
+          "expectedBreakpoint": "expanded",
+          "expectedContainerKinds": {
+            "notifications": "side-sheet",
+            "pilot": "side-sheet"
+          }
+        },
+        {
+          "width": 599,
+          "expectedBreakpoint": "compact",
+          "expectedContainerKinds": {
+            "notifications": "bottom-sheet",
+            "pilot": "bottom-sheet"
+          }
+        },
+        {
+          "width": 840,
+          "expectedBreakpoint": "expanded",
+          "expectedContainerKinds": {
+            "notifications": "side-sheet",
+            "pilot": "side-sheet"
+          }
+        }
+      ]
+    },
+    {
+      "id": "waiting-sheet-docks-at-large",
+      "openPanelIds": [
+        "notifications",
+        "pilot",
+        "documents",
+        "reports"
+      ],
+      "steps": [
+        {
+          "width": 1199,
+          "expectedBreakpoint": "expanded",
+          "expectedContainerKinds": {
+            "notifications": "side-sheet",
+            "pilot": "side-sheet",
+            "documents": "side-sheet",
+            "reports": "side-sheet"
+          }
+        },
+        {
+          "width": 1200,
+          "expectedBreakpoint": "large",
+          "expectedContainerKinds": {
+            "notifications": "docked",
+            "pilot": "docked",
+            "documents": "side-sheet",
+            "reports": "side-sheet"
+          }
+        },
+        {
+          "width": 1199,
+          "expectedBreakpoint": "expanded",
+          "expectedContainerKinds": {
+            "notifications": "side-sheet",
+            "pilot": "side-sheet",
+            "documents": "side-sheet",
+            "reports": "side-sheet"
+          }
+        }
+      ]
+    }
+  ],
+  "contentFloorCases": [
+    {
+      "width": 840,
+      "spread": false,
+      "openPanelIds": [
+        "notifications",
+        "pilot",
+        "documents"
+      ],
+      "expectedContainerKinds": {
+        "notifications": "docked",
+        "pilot": "docked",
+        "documents": "side-sheet"
+      }
+    },
+    {
+      "width": 1200,
+      "spread": false,
+      "openPanelIds": [
+        "notifications",
+        "pilot",
+        "documents",
+        "reports",
+        "runs"
+      ],
+      "expectedContainerKinds": {
+        "notifications": "docked",
+        "pilot": "docked",
+        "documents": "docked",
+        "reports": "docked",
+        "runs": "side-sheet"
+      }
+    },
+    {
+      "width": 1200,
+      "spread": true,
+      "openPanelIds": [
+        "notifications",
+        "pilot",
+        "documents"
+      ],
+      "expectedContainerKinds": {
+        "notifications": "docked",
+        "pilot": "docked",
+        "documents": "side-sheet"
+      }
+    }
+  ],
+  "spreadAvailabilityCases": [
+    {
+      "width": 1600,
+      "spreadUnavailable": true,
+      "reason": "Two panes cannot meet their 300px minimums.",
+      "expectedDisabled": true
+    },
+    {
+      "width": 599,
+      "spreadUnavailable": false,
+      "reason": null,
+      "expectedDisabled": false
+    }
+  ],
+  "classPlacementCases": [
+    {
+      "widths": [
+        320,
+        599
+      ],
+      "expectedBreakpoint": "compact",
+      "openPanelIds": [
+        "notifications",
+        "pilot",
+        "documents",
+        "reports"
+      ],
+      "expectedContainerKinds": {
+        "notifications": "bottom-sheet",
+        "pilot": "bottom-sheet",
+        "documents": "bottom-sheet",
+        "reports": "bottom-sheet"
+      }
+    },
+    {
+      "widths": [
+        600,
+        719,
+        720,
+        839
+      ],
+      "expectedBreakpoint": "medium",
+      "openPanelIds": [
+        "notifications",
+        "pilot",
+        "documents",
+        "reports"
+      ],
+      "expectedContainerKinds": {
+        "notifications": "side-sheet",
+        "pilot": "side-sheet",
+        "documents": "side-sheet",
+        "reports": "side-sheet"
+      }
+    },
+    {
+      "widths": [
+        840,
+        1019,
+        1020,
+        1199
+      ],
+      "expectedBreakpoint": "expanded",
+      "openPanelIds": [
+        "notifications",
+        "pilot",
+        "documents",
+        "reports"
+      ],
+      "expectedContainerKinds": {
+        "notifications": "side-sheet",
+        "pilot": "side-sheet",
+        "documents": "side-sheet",
+        "reports": "side-sheet"
+      }
+    },
+    {
+      "widths": [
+        1200,
+        1319,
+        1320,
+        1599
+      ],
+      "expectedBreakpoint": "large",
+      "openPanelIds": [
+        "notifications",
+        "pilot",
+        "documents",
+        "reports"
+      ],
+      "expectedContainerKinds": {
+        "notifications": "docked",
+        "pilot": "docked",
+        "documents": "side-sheet",
+        "reports": "side-sheet"
+      }
+    },
+    {
+      "widths": [
+        1600,
+        1919,
+        1920,
+        2400
+      ],
+      "expectedBreakpoint": "extra-large",
+      "openPanelIds": [
+        "notifications",
+        "pilot",
+        "documents",
+        "reports"
+      ],
+      "expectedContainerKinds": {
+        "notifications": "docked",
+        "pilot": "docked",
+        "documents": "docked",
+        "reports": "docked"
+      }
+    }
+  ],
+  "railNote": "The rendered rows here mount with the rail on screen (railCapable), so their placement counts the 216px rail: a class docks floor((classWidth - 216 - 420) / 300) panes. contentFloorCases are model rows with no rail and are unchanged. Placement stays constant inside a class; only the dock WIDTH follows the measured shell size."
+}

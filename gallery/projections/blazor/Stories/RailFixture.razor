@@ -1,0 +1,80 @@
+<HarborlineLayersRail Lenses="@Lenses"
+                    State="@state"
+                    StateChanged="SetState"
+                    Canvas="@Canvas"
+                    Provenance="@Provenance"
+                    Labels="@Labels"
+                    Compact="@Compact"
+                    ShowProvenance
+                    OnInsert="Insert" />
+
+@code {
+  [Parameter, EditorRequired] public string ScenarioId { get; set; } = "layers-rail.structure";
+  [Parameter] public bool Compact { get; set; }
+
+  private string selectedId = "location";
+  private LayersState state = LayersState.Initialize(["layout", "rules", "access"], "layout");
+  private bool initialized;
+  private bool IsArabic => ScenarioId == "layers-rail.locale-ar";
+  private bool IsPseudo => ScenarioId == "layers-rail.locale-pseudo";
+  private bool IsContent => ScenarioId == "layers-rail.content";
+
+  protected override void OnParametersSet()
+  {
+    if (!initialized)
+    {
+      state = LayersState.Initialize(["layout", "rules", "access"], ScenarioId == "layers-rail.provenance" ? null : "layout");
+      initialized = true;
+    }
+  }
+
+  private IReadOnlyList<AspectLens> Lenses => IsContent ? ContentLenses : BaseLenses;
+
+  private static IReadOnlyList<AspectLens> BaseLenses { get; } =
+  [
+    new("layout", "Layout", LensTone.Muted, AspectLensKind.Colorize, _ => new(true, "base")),
+    new("rules", "Rules", LensTone.Warning, AspectLensKind.Filter, id => new(id == "pose", id == "pose" ? "1 rule" : null), Empty: "Add a rule to a selected field."),
+    new("access", "Access", LensTone.Danger, AspectLensKind.Colorize, id => new(true, id == "structure" ? "tenant" : null))
+  ];
+
+  private static IReadOnlyList<AspectLens> ContentLenses { get; } =
+  [
+    new("layout", "Layout", LensTone.Muted, AspectLensKind.Colorize, id => new(true, id == "location" ? "1,284,905" : null)),
+    new("rules", "Rules", LensTone.Warning, AspectLensKind.Filter, id => new(id == "pose", id == "pose" ? "1 rule" : null), Empty: "Add a rule to a selected field."),
+    new("access", "Access", LensTone.Danger, AspectLensKind.Colorize, id => new(true, id == "structure" ? "tenant" : null))
+  ];
+
+  private CanvasModel Canvas => new(IsContent ? ContentNodes : BaseNodes, selectedId, id => { selectedId = id; InvokeAsync(StateHasChanged); });
+
+  private static IReadOnlyList<CanvasNode> BaseNodes { get; } =
+  [
+    new("structure", "section", "Structure", 0, null, HasChildren: true),
+    new("location", "field", "Placement", 1, "structure", "Blueprint coordinate"),
+    new("pose", "field", "Photo pose", 1, "structure", "Position and orientation")
+  ];
+
+  private static IReadOnlyList<CanvasNode> ContentNodes { get; } =
+  [
+    new("structure", "section", "Awaiting third-party structural certification review", 0, null, HasChildren: true),
+    new("location", "field", "Bay 4 <grid C-7> & 8", 1, "structure", "Blueprint coordinate"),
+    new("pose", "field", "Ordnance Survey — Niño Ångström", 1, "structure", "Position and orientation")
+  ];
+
+  private ProvenanceResolver Provenance { get; } = new(id => id == "pose"
+    ? new(ProvenanceSource.Unknown, [], false, true, false)
+    : new(ProvenanceSource.Tenant, [ProvenanceSource.Base, ProvenanceSource.Tenant], true, false, true));
+
+  private RailLabels Labels => IsArabic ? ArabicLabels : IsPseudo && Compact ? PseudoLabels with { RailRegion = $"{PseudoLabels.RailRegion} — compact" } : IsPseudo ? PseudoLabels : DefaultRailLabels.Value;
+
+  private static RailLabels ArabicLabels { get; } = new(
+    "العدسات", "المخطط", "إدراج", lens => $"تبديل عدسة {lens}", lens => $"عرض عدسة {lens}", count => $"+{count}", tier => tier,
+    "مقفل", "المصدر غير معروف", "أضف الحقل الأول.", "طي", "توسيع", "الطبقات", lens => $"العرض: {lens}", "الخروج من العدسة", number => $"اضغط {number}");
+
+  private static RailLabels PseudoLabels { get; } = new(
+    "⟦ Ļëñšëš ··· ⟧", "⟦ Øûţļîñë ··· ⟧", "⟦ Îñšëřţ ··· ⟧", lens => $"⟦ Ţøĝĝļë {lens} ļëñš ···· ⟧", lens => $"⟦ Šhøŵ {lens} øñ çåñṽåš ······ ⟧",
+    count => $"+{count}", tier => $"⟦ {tier} šøûřçë ··· ⟧", "⟦ Ļøçķëđ ··· ⟧", "⟦ šøûřçë ûñķñøŵñ ···· ⟧", "⟦ Åđđ ÿøûř ƒîřšţ šţřûçţûřë ƒîëļđ ······ ⟧",
+    "⟦ Çøļļåþšë ··· ⟧", "⟦ Ëxþåñđ ··· ⟧", "⟦ Šţřûçţûřë ļåÿëřš ······ ⟧", lens => $"⟦ Ṽîëŵîñĝ: {lens} ··· ⟧", "⟦ Ëxîţ ļëñš ··· ⟧", number => $"⟦ þřëšš {number} ··· ⟧");
+
+  private void SetState(LayersState next) => state = next;
+  private void Insert() { }
+}

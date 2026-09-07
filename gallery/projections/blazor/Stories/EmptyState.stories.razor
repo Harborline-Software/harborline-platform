@@ -1,0 +1,13 @@
+@attribute [Stories("Platform/Empty State")]
+
+<Stories TComponent="EmptyStateScenario">
+    <Story Name="Informational"><Arguments><Arg For="_ => _.ScenarioId" Value='"empty-state.informational"' /></Arguments><Template><EmptyStateScenario @attributes="context.Args" /></Template></Story>
+    <Story Name="Positive"><Arguments><Arg For="_ => _.ScenarioId" Value='"empty-state.positive"' /></Arguments><Template><EmptyStateScenario @attributes="context.Args" /></Template></Story>
+    <Story Name="Actionable"><Arguments><Arg For="_ => _.ScenarioId" Value='"empty-state.actionable"' /></Arguments><Template><EmptyStateScenario @attributes="context.Args" /></Template></Story>
+    <Story Name="Host accessibility"><Arguments><Arg For="_ => _.ScenarioId" Value='"empty-state.host-accessibility"' /></Arguments><Template><EmptyStateScenario @attributes="context.Args" /></Template></Story>
+    <Story Name="Pseudo locale"><Arguments><Arg For="_ => _.ScenarioId" Value='"empty-state.locale-pseudo"' /></Arguments><Template><EmptyStateScenario @attributes="context.Args" /></Template></Story>
+    <Story Name="Arabic locale"><Arguments><Arg For="_ => _.ScenarioId" Value='"empty-state.locale-ar"' /></Arguments><Template><EmptyStateScenario @attributes="context.Args" /></Template></Story>
+    <Story Name="Light theme"><Arguments><Arg For="_ => _.ScenarioId" Value='"empty-state.theme-light"' /></Arguments><Template><EmptyStateScenario @attributes="context.Args" /></Template></Story>
+    <Story Name="Dark theme"><Arguments><Arg For="_ => _.ScenarioId" Value='"empty-state.theme-dark"' /></Arguments><Template><EmptyStateScenario @attributes="context.Args" /></Template></Story>
+    <Story Name="Content resilience"><Arguments><Arg For="_ => _.ScenarioId" Value='"empty-state.content"' /></Arguments><Template><EmptyStateScenario @attributes="context.Args" /></Template></Story>
+</Stories>

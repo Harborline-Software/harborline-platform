@@ -1,0 +1,69 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Forms
+@inherits HarborlineComponentBase
+
+<div class="hl-text-area__root hl-text-area-wrap" data-hl-auto-resize="@(AutoResize ? "true" : null)" data-hl-counter="@(ShowCounter ? "true" : null)">
+    <textarea id="@EffectiveId" name="@Name" value="@CurrentValue" rows="@Rows"
+              maxlength="@MaxLength" required="@EffectiveRequired" disabled="@EffectiveDisabled"
+              aria-labelledby="@EffectiveLabelledBy" aria-describedby="@EffectiveDescribedBy"
+              aria-invalid="@(EffectiveError ? "true" : null)"
+              aria-required="@(EffectiveRequired ? "true" : null)"
+              data-hl-fill-mode="@FillName" data-hl-invalid="@(EffectiveError ? "true" : null)" data-hl-resize="@ResizeName" data-hl-rounded="@RoundedName" data-hl-size="@SizeName"
+              class="@CombineClasses("hl-text-area", $"hl-text-area--size-{SizeName}", $"hl-text-area--fill-{FillName}", $"hl-text-area--rounded-{RoundedName}", $"hl-text-area--resize-{ResizeName}", EffectiveError ? "hl-text-area--error" : null, EffectiveDisabled ? "hl-text-area--disabled" : null)"
+              style="@CombineStyles()" @oninput="HandleInputAsync" @attributes="AdditionalAttributes"></textarea>
+    @if (ShowCounter)
+    {
+        <span class="hl-text-area__counter" aria-hidden="true">@CurrentValue.Length@if (MaxLength is not null) {<text>/@MaxLength</text>}</span>
+    }
+</div>
+
+@code {
+    [CascadingParameter] public FormFieldContextValue? FieldContext { get; set; }
+    [Parameter] public string? Id { get; set; }
+    [Parameter] public string? Name { get; set; }
+    [Parameter] public string? Value { get; set; }
+    [Parameter] public string? DefaultValue { get; set; }
+    [Parameter] public EventCallback<string> ValueChanged { get; set; }
+    [Parameter] public int Rows { get; set; } = 3;
+    [Parameter] public TextAreaResize Resize { get; set; } = TextAreaResize.Vertical;
+    [Parameter] public bool AutoResize { get; set; }
+    [Parameter] public bool ShowCounter { get; set; }
+    [Parameter] public int? MaxLength { get; set; }
+    [Parameter] public TextAreaSize Size { get; set; } = TextAreaSize.Medium;
+    [Parameter] public TextAreaFillMode FillMode { get; set; } = TextAreaFillMode.Solid;
+    [Parameter] public TextAreaRounded Rounded { get; set; } = TextAreaRounded.Medium;
+    [Parameter] public bool Error { get; set; }
+    [Parameter] public bool Invalid { get; set; }
+    [Parameter] public bool? Required { get; set; }
+    [Parameter] public bool? Disabled { get; set; }
+    [Parameter] public string? LabelledBy { get; set; }
+    [Parameter] public string? DescribedBy { get; set; }
+
+    private string localValue = string.Empty;
+    private bool initialized;
+    private string CurrentValue => Value ?? localValue;
+    private string? EffectiveId => Id ?? FieldContext?.Id;
+    private string? EffectiveLabelledBy => LabelledBy ?? FieldContext?.LabelId;
+    private string? EffectiveDescribedBy => DescribedBy ?? FieldContext?.DescribedBy;
+    private bool EffectiveRequired => Required ?? FieldContext?.Required ?? false;
+    private bool EffectiveDisabled => Disabled ?? FieldContext?.Disabled ?? false;
+    private bool EffectiveError => Error || Invalid;
+    private string ResizeName => (AutoResize ? TextAreaResize.None : Resize).ToString().ToLowerInvariant();
+    private string SizeName => Size switch { TextAreaSize.Small => "sm", TextAreaSize.Large => "lg", _ => "md" };
+    private string FillName => FillMode.ToString().ToLowerInvariant();
+    private string RoundedName => Rounded.ToString().ToLowerInvariant();
+
+    protected override void OnParametersSet()
+    {
+        if (initialized) return;
+        localValue = DefaultValue ?? string.Empty;
+        initialized = true;
+    }
+
+    private async Task HandleInputAsync(ChangeEventArgs args)
+    {
+        if (EffectiveDisabled) return;
+        var next = args.Value?.ToString() ?? string.Empty;
+        if (Value is null) localValue = next;
+        await ValueChanged.InvokeAsync(next);
+    }
+}

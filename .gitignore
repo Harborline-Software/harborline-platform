@@ -1,0 +1,21 @@
+node_modules/
+dist/
+coverage/
+.vite/
+test-results/
+playwright-report/
+debug-storybook.log
+bin/
+obj/
+artifacts/
+.packages/
+*.tgz
+*.nupkg
+*.snupkg
+.DS_Store
+
+# Agent tooling state. tooling/validate-repository.mjs treats these as prohibited
+# source paths, so they must never be committed to this repository.
+.claude/
+.codex/
+.wolf/

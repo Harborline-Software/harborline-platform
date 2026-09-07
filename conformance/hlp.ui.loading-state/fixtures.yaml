@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.loading-state",
+  "fixtureRevision": 1,
+  "cases": [
+    {"id": "loading-state.default", "input": {"label": "Loading"}, "expected": {"element": "div", "variant": "page", "heightRem": 12, "centered": true}},
+    {"id": "loading-state.inline", "input": {"label": "Loading results", "variant": "inline"}, "expected": {"element": "p", "pageHeightApplied": false}},
+    {"id": "loading-state.announcement", "input": {"label": "Loading"}, "expected": {"role": "status", "ariaLive": "polite"}},
+    {"id": "loading-state.label", "input": {"label": "Loading inspections"}, "expected": {"visibleText": "Loading inspections", "accessibleName": "Loading inspections"}},
+    {"id": "loading-state.label-update", "input": {"labels": ["Loading inspections", "Loading attachments"]}, "expected": {"sameStatusRegion": true, "latestVisible": "Loading attachments", "politeAnnouncement": true}},
+    {"id": "loading-state.semantic-tone", "input": {"variants": ["page", "inline"]}, "expected": {"tone": "muted-foreground", "sameTokenBothVariants": true}},
+    {"id": "loading-state.locale-direction", "input": {"label": "جارٍ التحميل", "locale": "ar-SA", "direction": "rtl"}, "expected": {"lang": "ar-SA", "dir": "rtl"}},
+    {"id": "loading-state.host-attributes", "input": {"attributes": {"class": "consumer", "data-case": "shared", "aria-atomic": "true"}}, "expected": {"attributesPreserved": true}},
+    {"id": "loading-state.variant-classes", "input": {"label": "Loading inspections", "variants": ["page", "inline"]}, "expected": {"pageClasses": ["hl-loading-state", "hl-loading-state--page"], "inlineClasses": ["hl-loading-state", "hl-loading-state--inline"], "labelClasses": ["hl-loading-state__label"]}},
+    {"id": "loading-state.projection-equivalence", "input": {"projections": ["react", "blazor"], "variants": ["page", "inline"]}, "expected": {"semanticDomEquivalent": true, "visualStatesEquivalent": true}}
+  ]
+}

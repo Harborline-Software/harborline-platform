@@ -1,0 +1,51 @@
+.hl-scroll-affordance {
+  min-inline-size: 0;
+  scrollbar-gutter: stable;
+}
+
+.hl-scroll-affordance--horizontal {
+  overflow-x: auto;
+}
+
+.hl-scroll-affordance--vertical {
+  overflow-y: auto;
+}
+
+.hl-scroll-affordance--horizontal.hl-scroll-affordance--snap {
+  scroll-snap-type: x mandatory;
+}
+
+.hl-scroll-affordance--vertical.hl-scroll-affordance--snap {
+  scroll-snap-type: y mandatory;
+}
+
+.hl-scroll-affordance--snap > * {
+  scroll-snap-align: start;
+}
+
+.hl-scroll-affordance:focus-visible {
+  outline: 2px solid var(--hl-focus, Highlight);
+  outline-offset: 2px;
+}
+
+.hl-scroll-affordance__status {
+  block-size: 1px;
+  clip-path: inset(50%);
+  inline-size: 1px;
+  margin: -1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+}
+
+@media (forced-colors: active) {
+  .hl-scroll-affordance:focus-visible {
+    outline-color: Highlight;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hl-scroll-affordance {
+    scroll-behavior: auto;
+  }
+}

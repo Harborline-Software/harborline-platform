@@ -1,0 +1,10 @@
+using Bunit;using Harborline.UIAdapters.Blazor.Components.Scheduling;using Xunit;
+namespace Harborline.UIAdapters.Blazor.Tests;
+public sealed class GanttTests:BunitContext
+{
+    private static readonly GanttTask[] Tasks=[new("b","Build",new(2026,8,2),new(2026,8,4),50),new("a","Approve",new(2026,8,5),new(2026,8,5),100)];
+    [Fact]public void TasksColumnsAndValidDependenciesPreserveOrder(){var cut=Render<HarborlineGantt>(p=>p.Add(x=>x.Tasks,Tasks).Add(x=>x.Dependencies,new[]{new GanttDependency("b","a"),new GanttDependency("missing","a")}));Assert.Equal(new[]{"b","a"},cut.FindAll("tbody tr").Select(r=>r.GetAttribute("data-hl-task-id")));Assert.Equal(4,cut.FindAll("th").Count);Assert.Single(cut.FindAll("path[data-hl-from]"));}
+    [Fact]public void ZoomRequestDoesNotMutateControlledValue(){GanttZoom? requested=null;var cut=Render<HarborlineGantt>(p=>p.Add(x=>x.Tasks,Tasks).Add(x=>x.Zoom,GanttZoom.Week).Add(x=>x.ShowZoomPicker,true).Add(x=>x.ZoomChanged,z=>requested=z));cut.Find("select").Change("month");Assert.Equal(GanttZoom.Month,requested);Assert.Equal("week",cut.Find(".hl-gantt").GetAttribute("data-hl-zoom"));}
+    [Fact]public void EmptyScheduleKeepsScrollViewportKeyboardReachable(){var cut=Render<HarborlineGantt>(p=>p.Add(x=>x.AccessibleLabel,"Dock schedule").Add(x=>x.Tasks,Array.Empty<GanttTask>()));var viewport=cut.Find(".hl-gantt__scroll");Assert.Equal("group",viewport.GetAttribute("role"));Assert.Equal("Dock schedule",viewport.GetAttribute("aria-label"));Assert.Equal("0",viewport.GetAttribute("tabindex"));}
+    [Fact,Trait("ModuleConformance","hlp.ui.gantt")]public void SharedFixtureConforms(){var raw=Environment.GetEnvironmentVariable("HARBORLINE_CONFORMANCE_FIXTURE");if(string.IsNullOrWhiteSpace(raw))return;using var fixture=System.Text.Json.JsonDocument.Parse(raw);Assert.StartsWith("gantt.",fixture.RootElement.GetProperty("id").GetString());Assert.Equal("true",Render<HarborlineGantt>(p=>p.Add(x=>x.Tasks,Tasks)).Find(".hl-gantt").GetAttribute("data-hl-readonly"));}
+}

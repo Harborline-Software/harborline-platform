@@ -1,0 +1,52 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Layout
+@inherits HarborlineComponentBase
+
+<div class="@CombineClasses("hl-page")" style="@CombineStyles()" @attributes="AdditionalAttributes">
+  <header class="hl-page__header" data-sticky="@(Sticky ? "true" : null)" data-hl-sticky="@(Sticky ? "true" : null)">
+    <div class="hl-page__heading hl-page__heading-copy">
+      @switch (HeadingLevel)
+      {
+        case PageHeadingLevel.H1: <h1 class="hl-page__title">@Title</h1> break;
+        case PageHeadingLevel.H2: <h2 class="hl-page__title">@Title</h2> break;
+        case PageHeadingLevel.H3: <h3 class="hl-page__title">@Title</h3> break;
+        default: throw new InvalidOperationException("unsupported-page-option");
+      }
+      @if (Subtitle is not null)
+      {
+        <div class="hl-page__subtitle">@Subtitle</div>
+      }
+    </div>
+    @if (Actions is not null)
+    {
+      <div class="hl-page__actions">@Actions</div>
+    }
+  </header>
+  <section tabindex="0" class="@BodyClasses" data-hl-padding="@PaddingName">@ChildContent</section>
+</div>
+
+@code {
+  [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
+  [Parameter] public RenderFragment? Subtitle { get; set; }
+  [Parameter] public RenderFragment? Actions { get; set; }
+  [Parameter] public RenderFragment? ChildContent { get; set; }
+  [Parameter] public bool Sticky { get; set; } = true;
+  [Parameter] public PageHeadingLevel HeadingLevel { get; set; } = PageHeadingLevel.H1;
+  [Parameter] public PageBodyPadding BodyPadding { get; set; } = PageBodyPadding.Md;
+  [Parameter] public string? BodyClass { get; set; }
+
+  private string BodyClasses => string.Join(" ", new[] { "hl-page__body", $"hl-page__body--padding-{PaddingName}", BodyClass }.Where(value => !string.IsNullOrWhiteSpace(value)));
+  private string PaddingName => BodyPadding switch
+  {
+    PageBodyPadding.None => "none",
+    PageBodyPadding.Sm => "sm",
+    PageBodyPadding.Md => "md",
+    PageBodyPadding.Lg => "lg",
+    _ => throw new InvalidOperationException("unsupported-page-option")
+  };
+
+  protected override void OnParametersSet()
+  {
+    if (string.IsNullOrWhiteSpace(Title)) throw new InvalidOperationException("page-title-required");
+    _ = PaddingName;
+  }
+}

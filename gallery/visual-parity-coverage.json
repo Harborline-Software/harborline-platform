@@ -1,0 +1,671 @@
+{
+  "schemaVersion": 1,
+  "rule": "Every gallery scenario on which visual parity is NOT asserted is listed here, by id, with a reason. The set must equal the discovered set: a new scenario without a visual-parity quality case fails the gallery validator, and a row that is now compared must be deleted.",
+  "modules": {
+    "hlp.ui.accordion": {
+      "reason": "not yet declared; recorded as the baseline gap by control ticket 147",
+      "uncompared": [
+        "accordion.content",
+        "accordion.defaults",
+        "accordion.states"
+      ]
+    },
+    "hlp.ui.action-menu": {
+      "reason": "not yet declared; recorded as the baseline gap by control ticket 147",
+      "uncompared": [
+        "action-menu.content",
+        "action-menu.defaults",
+        "action-menu.dismissal",
+        "action-menu.keyboard",
+        "action-menu.locale-ar",
+        "action-menu.locale-en",
+        "action-menu.locale-pseudo",
+        "action-menu.pointer"
+      ]
+    },
+    "hlp.ui.activity-log": {
+      "reason": "not yet declared; recorded as the baseline gap by control ticket 147",
+      "uncompared": [
+        "activity-log.content",
+        "activity-log.disclosure",
+        "activity-log.empty",
+        "activity-log.invalid",
+        "activity-log.list",
+        "activity-log.locale-ar",
+        "activity-log.locale-en",
+        "activity-log.locale-pseudo",
+        "activity-log.responsive",
+        "activity-log.table"
+      ]
+    },
+    "hlp.ui.alert": {
+      "reason": "not yet declared; recorded as the baseline gap by control ticket 147",
+      "uncompared": [
+        "alert.content",
+        "alert.dismissal",
+        "alert.variants"
+      ]
+    },
+    "hlp.ui.app-layout": {
+      "reason": "not yet declared; recorded as the baseline gap by control ticket 147",
+      "uncompared": [
+        "app-layout.content",
+        "app-layout.dismissal-scroll",
+        "app-layout.drawer-state",
+        "app-layout.locale-ar",
+        "app-layout.locale-en",
+        "app-layout.locale-pseudo",
+        "app-layout.performance",
+        "app-layout.rail-breakpoints",
+        "app-layout.structure-modes"
+      ]
+    },
+    "hlp.ui.app-shell": {
+      "reason": "not yet declared; recorded as the baseline gap by control ticket 147",
+      "uncompared": [
+        "app-shell.actions-endpanel",
+        "app-shell.content",
+        "app-shell.locale-ar",
+        "app-shell.locale-en",
+        "app-shell.locale-pseudo",
+        "app-shell.performance",
+        "app-shell.pins-threads",
+        "app-shell.rail-collapsed",
+        "app-shell.structure",
+        "app-shell.switchers"
+      ]
+    },
+    "hlp.ui.badge": {
+      "reason": "not yet declared; recorded as the baseline gap by control ticket 147",
+      "uncompared": [
+        "badge.content",
+        "badge.overlays",
+        "badge.variants"
+      ]
+    },
+    "hlp.ui.breadcrumb": {
+      "reason": "not yet declared; recorded as the baseline gap by control ticket 147",
+      "uncompared": [
+        "breadcrumb.content",
+        "breadcrumb.defaults",
+        "breadcrumb.navigation"
+      ]
+    },
+    "hlp.ui.button": {
+      "reason": "not yet declared; recorded as the baseline gap by control ticket 147",
+      "uncompared": [
+        "button.accessibility",
+        "button.content",
+        "button.defaults",
+        "button.disabled",
+        "button.error-state",
+        "button.fills",
+        "button.host-attributes",
+        "button.icons",
+        "button.loading",
+        "button.locale-ar",
+        "button.locale-en",
+        "button.locale-pseudo",
+        "button.radii",
+        "button.rtl",
+        "button.sizes",
+        "button.theme-dark",
+        "button.theme-light",
+        "button.variants"
+      ]
+    },
+    "hlp.ui.card": {
+      "reason": "not yet declared; recorded as the baseline gap by control ticket 147",
+      "uncompared": [
+        "card.content",
+        "card.defaults",
+        "card.horizontal"
+      ]
+    },
+    "hlp.ui.chart": {
+      "reason": "not yet declared; recorded as the baseline gap by control ticket 147",
+      "uncompared": [
+        "chart.accessible-data",
+        "chart.donut-missing",
+        "chart.large-data",
+        "chart.line-series",
+        "chart.locale-ar",
+        "chart.locale-en",
+        "chart.locale-pseudo",
+        "chart.replacement",
+        "chart.validation"
+      ]
+    },
+    "hlp.ui.chat": {
+      "reason": "not yet declared; recorded as the baseline gap by control ticket 147",
+      "uncompared": [
+        "chat.controlled-composer",
+        "chat.empty-suggestions",
+        "chat.large-data",
+        "chat.locale-ar",
+        "chat.locale-pseudo",
+        "chat.replacement-validation",
+        "chat.streaming-keyboard"
+      ]
+    },
+    "hlp.ui.check-box": {
+      "reason": "not yet declared; recorded as the baseline gap by control ticket 147",
+      "uncompared": [
+        "check-box.content",
+        "check-box.defaults",
+        "check-box.error-state",
+        "check-box.states"
+      ]
+    },
+    "hlp.ui.chip": {
+      "reason": "not yet declared; recorded as the baseline gap by control ticket 147",
+      "uncompared": [
+        "chip.content",
+        "chip.defaults",
+        "chip.interactions",
+        "chip.invalid",
+        "chip.locale-ar"
+      ]
+    },
+    "hlp.ui.collapsible": {
+      "reason": "not yet declared; recorded as the baseline gap by control ticket 147",
+      "uncompared": [
+        "collapsible.content",
+        "collapsible.defaults",
+        "collapsible.states"
+      ]
+    },
+    "hlp.ui.confirm-dialog": {
+      "reason": "not yet declared; recorded as the baseline gap by control ticket 147",
+      "uncompared": [
+        "confirm-dialog.action-pair",
+        "confirm-dialog.content",
+        "confirm-dialog.destructive",
+        "confirm-dialog.labels",
+        "confirm-dialog.reflow-rtl"
+      ]
+    },
+    "hlp.ui.context-menu": {
+      "reason": "not yet declared; recorded as the baseline gap by control ticket 147",
+      "uncompared": [
+        "context-menu.closed",
+        "context-menu.content",
+        "context-menu.groups",
+        "context-menu.keyboard",
+        "context-menu.locale-ar",
+        "context-menu.locale-en",
+        "context-menu.locale-pseudo",
+        "context-menu.pointer"
+      ]
+    },
+    "hlp.ui.conversation-list": {
+      "reason": "not yet declared; recorded as the baseline gap by control ticket 147",
+      "uncompared": [
+        "conversation-list.content",
+        "conversation-list.delete",
+        "conversation-list.empty",
+        "conversation-list.invalid",
+        "conversation-list.locale-ar",
+        "conversation-list.rename",
+        "conversation-list.rows"
+      ]
+    },
+    "hlp.ui.data-export-button": {
+      "reason": "not yet declared; recorded as the baseline gap by control ticket 147",
+      "uncompared": [
+        "data-export-button.content",
+        "data-export.defaults",
+        "data-export.states"
+      ]
+    },
+    "hlp.ui.data-grid": {
+      "reason": "not yet declared; recorded as the baseline gap by control ticket 147",
+      "uncompared": [
+        "data-grid.empty-state",
+        "data-grid.keyboard-focus",
+        "data-grid.locale-ar",
+        "data-grid.locale-pseudo",
+        "data-grid.replacement-state"
+      ]
+    },
+    "hlp.ui.date-field": {
+      "reason": "not yet declared; recorded as the baseline gap by control ticket 147",
+      "uncompared": [
+        "date-field.content",
+        "date-field.defaults",
+        "date-field.error-state",
+        "date-field.states"
+      ]
+    },
+    "hlp.ui.date-time-field": {
+      "reason": "not yet declared; recorded as the baseline gap by control ticket 147",
+      "uncompared": [
+        "date-time-field.content",
+        "date-time-field.defaults",
+        "date-time-field.error-state",
+        "date-time-field.states"
+      ]
+    },
+    "hlp.ui.detail-panel": {
+      "reason": "not yet declared; recorded as the baseline gap by control ticket 147",
+      "uncompared": [
+        "detail-panel.content",
+        "detail-panel.docked",
+        "detail-panel.locale-ar",
+        "detail-panel.locale-en",
+        "detail-panel.locale-pseudo",
+        "detail-panel.sheet"
+      ]
+    },
+    "hlp.ui.dialog": {
+      "reason": "not yet declared; recorded as the baseline gap by control ticket 147",
+      "uncompared": [
+        "dialog.content",
+        "dialog.dismissal-focus",
+        "dialog.independent-dismissal",
+        "dialog.lifecycle-content",
+        "dialog.locale-ar",
+        "dialog.locale-pseudo",
+        "dialog.replacement",
+        "dialog.scroll-reflow"
+      ]
+    },
+    "hlp.ui.empty-state": {
+      "reason": "not yet declared; recorded as the baseline gap by control ticket 147",
+      "uncompared": [
+        "empty-state.actionable",
+        "empty-state.content",
+        "empty-state.host-accessibility",
+        "empty-state.informational",
+        "empty-state.locale-ar",
+        "empty-state.locale-pseudo",
+        "empty-state.positive"
+      ]
+    },
+    "hlp.ui.error-card": {
+      "reason": "not yet declared; recorded as the baseline gap by control ticket 147",
+      "uncompared": [
+        "error-card.content",
+        "error-card.default",
+        "error-card.host-attributes",
+        "error-card.locale-ar",
+        "error-card.locale-en",
+        "error-card.locale-pseudo",
+        "error-card.message",
+        "error-card.no-retry",
+        "error-card.retry"
+      ]
+    },
+    "hlp.ui.form-field": {
+      "reason": "not yet declared; recorded as the baseline gap by control ticket 147",
+      "uncompared": [
+        "form-field.content",
+        "form-field.defaults",
+        "form-field.error-state",
+        "form-field.states"
+      ]
+    },
+    "hlp.ui.gantt": {
+      "reason": "not yet declared; recorded as the baseline gap by control ticket 147",
+      "uncompared": [
+        "gantt.empty-columns",
+        "gantt.large-data",
+        "gantt.locale-ar",
+        "gantt.locale-fr",
+        "gantt.locale-pseudo",
+        "gantt.overview",
+        "gantt.replacement-validation",
+        "gantt.zoom-navigation"
+      ]
+    },
+    "hlp.ui.guarded-control": {
+      "reason": "not yet declared; recorded as the baseline gap by control ticket 147",
+      "uncompared": [
+        "guarded-control.content",
+        "guarded-control.covered",
+        "guarded-control.keyboard-recovery",
+        "guarded-control.locale-ar",
+        "guarded-control.locale-en",
+        "guarded-control.locale-pseudo",
+        "guarded-control.two-step"
+      ]
+    },
+    "hlp.ui.icon-button": {
+      "reason": "not yet declared; recorded as the baseline gap by control ticket 147",
+      "uncompared": [
+        "icon-button.content",
+        "icon-button.defaults",
+        "icon-button.states"
+      ]
+    },
+    "hlp.ui.input": {
+      "reason": "not yet declared; recorded as the baseline gap by control ticket 147",
+      "uncompared": [
+        "input.adornments",
+        "input.appearance",
+        "input.content",
+        "input.defaults",
+        "input.error-state",
+        "input.locale-ar",
+        "input.locale-en",
+        "input.locale-pseudo",
+        "input.states"
+      ]
+    },
+    "hlp.ui.layers-rail": {
+      "reason": "not yet declared; recorded as the baseline gap by control ticket 147",
+      "uncompared": [
+        "layers-rail.content",
+        "layers-rail.lenses",
+        "layers-rail.locale-ar",
+        "layers-rail.locale-en",
+        "layers-rail.locale-pseudo",
+        "layers-rail.outline",
+        "layers-rail.provenance",
+        "layers-rail.structure"
+      ]
+    },
+    "hlp.ui.loading-state": {
+      "reason": "not yet declared; recorded as the baseline gap by control ticket 147",
+      "uncompared": [
+        "loading-state.content",
+        "loading-state.default",
+        "loading-state.host-attributes",
+        "loading-state.inline",
+        "loading-state.label-update",
+        "loading-state.locale-ar",
+        "loading-state.locale-en",
+        "loading-state.locale-pseudo"
+      ]
+    },
+    "hlp.ui.notification-center": {
+      "reason": "not yet declared; recorded as the baseline gap by control ticket 147",
+      "uncompared": [
+        "notification-center.actions",
+        "notification-center.content",
+        "notification-center.empty-badges",
+        "notification-center.groups",
+        "notification-center.keyboard-dismissal",
+        "notification-center.locale-ar",
+        "notification-center.locale-en",
+        "notification-center.locale-pseudo"
+      ]
+    },
+    "hlp.ui.number-field": {
+      "reason": "not yet declared; recorded as the baseline gap by control ticket 147",
+      "uncompared": [
+        "number-field.content",
+        "number-field.defaults",
+        "number-field.error-state",
+        "number-field.states"
+      ]
+    },
+    "hlp.ui.numeric-text-box": {
+      "reason": "not yet declared; recorded as the baseline gap by control ticket 147",
+      "uncompared": [
+        "numeric-text-box.appearance-reflow",
+        "numeric-text-box.content",
+        "numeric-text-box.controlled-replacement",
+        "numeric-text-box.defaults",
+        "numeric-text-box.disabled-readonly",
+        "numeric-text-box.editing-commit",
+        "numeric-text-box.error-state",
+        "numeric-text-box.formats",
+        "numeric-text-box.locale-ar",
+        "numeric-text-box.locale-pseudo",
+        "numeric-text-box.stepping-bounds"
+      ]
+    },
+    "hlp.ui.page": {
+      "reason": "not yet declared; recorded as the baseline gap by control ticket 147",
+      "uncompared": [
+        "page.content",
+        "page.keyboard-responsive",
+        "page.locale-ar",
+        "page.locale-en",
+        "page.locale-pseudo",
+        "page.options",
+        "page.structure"
+      ]
+    },
+    "hlp.ui.popover": {
+      "reason": "not yet declared; recorded as the baseline gap by control ticket 147",
+      "uncompared": [
+        "popover.content",
+        "popover.defaults",
+        "popover.dismissal"
+      ]
+    },
+    "hlp.ui.radio-group": {
+      "reason": "not yet declared; recorded as the baseline gap by control ticket 147",
+      "uncompared": [
+        "radio-group.content",
+        "radio-group.defaults",
+        "radio-group.error-state",
+        "radio-group.states"
+      ]
+    },
+    "hlp.ui.scheduler": {
+      "reason": "not yet declared; recorded as the baseline gap by control ticket 147",
+      "uncompared": [
+        "scheduler.editing-recurrence",
+        "scheduler.large-data",
+        "scheduler.locale-ar",
+        "scheduler.locale-pseudo",
+        "scheduler.month-agenda",
+        "scheduler.narrow-reflow",
+        "scheduler.navigation-layout",
+        "scheduler.now-readonly",
+        "scheduler.views-state"
+      ]
+    },
+    "hlp.ui.schema-form": {
+      "reason": "not yet declared; recorded as the baseline gap by control ticket 147",
+      "uncompared": [
+        "schema-form.content",
+        "schema-form.controls-structure",
+        "schema-form.empty-state",
+        "schema-form.error-state",
+        "schema-form.rules-gate",
+        "schema-form.validation"
+      ]
+    },
+    "hlp.ui.scroll-affordance": {
+      "reason": "not yet declared; recorded as the baseline gap by control ticket 147",
+      "uncompared": [
+        "scroll-affordance.axes-overflow",
+        "scroll-affordance.keyboard-status",
+        "scroll-affordance.locale-ar",
+        "scroll-affordance.locale-pseudo",
+        "scroll-affordance.replacement-host",
+        "scroll-affordance.snap-fade",
+        "scroll-affordance.theme-dark",
+        "scroll-affordance.theme-light"
+      ]
+    },
+    "hlp.ui.search-input": {
+      "reason": "not yet declared; recorded as the baseline gap by control ticket 147",
+      "uncompared": [
+        "search-input.content",
+        "search-input.debounce",
+        "search-input.defaults",
+        "search-input.locale-ar",
+        "search-input.locale-en",
+        "search-input.locale-pseudo",
+        "search-input.sync-clear"
+      ]
+    },
+    "hlp.ui.segmented-control": {
+      "reason": "not yet declared; recorded as the baseline gap by control ticket 147",
+      "uncompared": [
+        "segmented-control.activation",
+        "segmented-control.content",
+        "segmented-control.keyboard",
+        "segmented-control.locale-ar",
+        "segmented-control.locale-en",
+        "segmented-control.locale-pseudo",
+        "segmented-control.sizing",
+        "segmented-control.structure"
+      ]
+    },
+    "hlp.ui.select-field": {
+      "reason": "not yet declared; recorded as the baseline gap by control ticket 147",
+      "uncompared": [
+        "select-field.content",
+        "select-field.error-state",
+        "select-field.keyboard-dismissal",
+        "select-field.locale-ar",
+        "select-field.locale-en",
+        "select-field.locale-pseudo",
+        "select-field.selection",
+        "select-field.states"
+      ]
+    },
+    "hlp.ui.separator": {
+      "reason": "not yet declared; recorded as the baseline gap by control ticket 147",
+      "uncompared": [
+        "separator.content",
+        "separator.decorative",
+        "separator.semantic"
+      ]
+    },
+    "hlp.ui.sheet": {
+      "reason": "not yet declared; recorded as the baseline gap by control ticket 147",
+      "uncompared": [
+        "sheet.content",
+        "sheet.dismissal",
+        "sheet.lifecycle"
+      ]
+    },
+    "hlp.ui.side-nav": {
+      "reason": "not yet declared; recorded as the baseline gap by control ticket 147",
+      "uncompared": [
+        "side-nav.activation-states",
+        "side-nav.collapsed-badges",
+        "side-nav.content",
+        "side-nav.locale-ar",
+        "side-nav.locale-pseudo",
+        "side-nav.replacement",
+        "side-nav.structure-active"
+      ]
+    },
+    "hlp.ui.spinner": {
+      "reason": "not yet declared; recorded as the baseline gap by control ticket 147",
+      "uncompared": [
+        "spinner.content",
+        "spinner.sizes-colors",
+        "spinner.types"
+      ]
+    },
+    "hlp.ui.spotlight": {
+      "reason": "not yet declared; recorded as the baseline gap by control ticket 147",
+      "uncompared": [
+        "spotlight.content",
+        "spotlight.empty-state",
+        "spotlight.interaction",
+        "spotlight.results"
+      ]
+    },
+    "hlp.ui.switch-field": {
+      "reason": "not yet declared; recorded as the baseline gap by control ticket 147",
+      "uncompared": [
+        "switch-field.activation-states",
+        "switch-field.appearance-replacement",
+        "switch-field.content",
+        "switch-field.controlled-form",
+        "switch-field.locale-ar",
+        "switch-field.locale-pseudo"
+      ]
+    },
+    "hlp.ui.switch": {
+      "reason": "not yet declared; recorded as the baseline gap by control ticket 147",
+      "uncompared": [
+        "switch.activation-validation",
+        "switch.content",
+        "switch.error-state",
+        "switch.locale-ar",
+        "switch.locale-en",
+        "switch.locale-pseudo",
+        "switch.sizing",
+        "switch.states"
+      ]
+    },
+    "hlp.ui.table": {
+      "reason": "not yet declared; recorded as the baseline gap by control ticket 147",
+      "uncompared": [
+        "table.content",
+        "table.density",
+        "table.reflow",
+        "table.semantic"
+      ]
+    },
+    "hlp.ui.text-area": {
+      "reason": "not yet declared; recorded as the baseline gap by control ticket 147",
+      "uncompared": [
+        "text-area.content",
+        "text-area.editing",
+        "text-area.error-state",
+        "text-area.variants"
+      ]
+    },
+    "hlp.ui.text-box": {
+      "reason": "not yet declared; recorded as the baseline gap by control ticket 147",
+      "uncompared": [
+        "text-box.appearance-reflow",
+        "text-box.attributes-keyboard",
+        "text-box.clear-reveal",
+        "text-box.content",
+        "text-box.error-state",
+        "text-box.locale-ar",
+        "text-box.locale-pseudo",
+        "text-box.ownership-form",
+        "text-box.replacement"
+      ]
+    },
+    "hlp.ui.toaster": {
+      "reason": "not yet declared; recorded as the baseline gap by control ticket 147",
+      "uncompared": [
+        "toaster.action-promise",
+        "toaster.content",
+        "toaster.error-state",
+        "toaster.locale-ar",
+        "toaster.locale-en",
+        "toaster.locale-pseudo",
+        "toaster.positions",
+        "toaster.queue-lifecycle",
+        "toaster.variants-roles"
+      ]
+    },
+    "hlp.ui.tooltip": {
+      "reason": "not yet declared; recorded as the baseline gap by control ticket 147",
+      "uncompared": [
+        "tooltip.content",
+        "tooltip.interaction",
+        "tooltip.lifecycle"
+      ]
+    },
+    "hlp.ui.user-menu": {
+      "reason": "not yet declared; recorded as the baseline gap by control ticket 147",
+      "uncompared": [
+        "user-menu.content",
+        "user-menu.custom-dialog",
+        "user-menu.disclosure",
+        "user-menu.identity",
+        "user-menu.locale-ar",
+        "user-menu.locale-en",
+        "user-menu.locale-pseudo",
+        "user-menu.placement-dismissal",
+        "user-menu.simple-menu"
+      ]
+    },
+    "hlp.ui.window": {
+      "reason": "not yet declared; recorded as the baseline gap by control ticket 147",
+      "uncompared": [
+        "window.content",
+        "window.geometry",
+        "window.modal",
+        "window.states"
+      ]
+    }
+  }
+}

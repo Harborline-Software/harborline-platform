@@ -1,0 +1,8 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Layout
+@inherits HarborlineComponentBase
+<div class="@CombineClasses("hl-card__header")" style="@CombineStyles()" data-hl-padding="@PaddingName" @attributes="AdditionalAttributes">@ChildContent</div>
+@code {
+    [CascadingParameter] private HarborlineCardContext? Context { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    private string PaddingName => Context?.Padding switch { CardPadding.Small => "sm", CardPadding.Medium => "md", CardPadding.Large => "lg", _ => "none" };
+}

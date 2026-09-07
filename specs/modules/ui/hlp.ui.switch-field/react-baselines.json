@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "projection": "react",
+  "moduleId": "hlp.ui.switch-field",
+  "scenarios": [
+    {
+      "scenarioId": "switch-field.controlled-form",
+      "sha256": "b0fe4d4e31930abc3369f6b70141e35eb4a6221e400009b053c5a06cc745d933",
+      "bytes": 12786,
+      "artifact": "../baselines/sha256/b0fe4d4e31930abc3369f6b70141e35eb4a6221e400009b053c5a06cc745d933.png"
+    },
+    {
+      "scenarioId": "switch-field.activation-states",
+      "sha256": "0ea456f0799867f12e26b97650bab66ef22a9e0d9f113d800b84700ee0c9fbd2",
+      "bytes": 24856,
+      "artifact": "../baselines/sha256/0ea456f0799867f12e26b97650bab66ef22a9e0d9f113d800b84700ee0c9fbd2.png"
+    },
+    {
+      "scenarioId": "switch-field.appearance-replacement",
+      "sha256": "6dc5c948bebc9468e69f655a7e8be54d944b764915018b9c4b509877bb82b687",
+      "bytes": 30883,
+      "artifact": "../baselines/sha256/6dc5c948bebc9468e69f655a7e8be54d944b764915018b9c4b509877bb82b687.png"
+    },
+    {
+      "scenarioId": "switch-field.locale-pseudo",
+      "sha256": "8b96865093a302804115a2bb2902cd064822ad8fbc1f50f19d32dbce2a2a9790",
+      "bytes": 14568,
+      "artifact": "../baselines/sha256/8b96865093a302804115a2bb2902cd064822ad8fbc1f50f19d32dbce2a2a9790.png"
+    },
+    {
+      "scenarioId": "switch-field.locale-ar",
+      "sha256": "083d8b6d021fd3eea215c9c6b9f52f379ae9eef6c24e86ef712253813d1f0ab2",
+      "bytes": 11480,
+      "artifact": "../baselines/sha256/083d8b6d021fd3eea215c9c6b9f52f379ae9eef6c24e86ef712253813d1f0ab2.png"
+    },
+    {
+      "scenarioId": "switch-field.theme-light",
+      "sha256": "6590dcc03246818c38e1f7131f526b4d6390d5e4406e744fc2b5ac6b9692dce2",
+      "bytes": 22634,
+      "artifact": "../baselines/sha256/6590dcc03246818c38e1f7131f526b4d6390d5e4406e744fc2b5ac6b9692dce2.png"
+    },
+    {
+      "scenarioId": "switch-field.theme-dark",
+      "sha256": "fc6185080684dd0e1995120dbc61ea4b62a6ac17df6f56326037632ebca6689f",
+      "bytes": 22847,
+      "artifact": "../baselines/sha256/fc6185080684dd0e1995120dbc61ea4b62a6ac17df6f56326037632ebca6689f.png"
+    }
+  ]
+}

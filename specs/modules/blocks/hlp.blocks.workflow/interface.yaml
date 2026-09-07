@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.blocks.workflow",
+  "interfaceRevision": 2,
+  "status": "frozen",
+  "purpose": "Own the workflow engine core — the typed state-machine runtime, the provider-neutral durable-execution seams (store port, dispatcher, admission gate, effect broker, definition-store port, typed step handlers), and the built-in durable file-journal store — without importing an entity store, an EF/SQLite host topology, a financial cluster, or a UI framework.",
+  "dependencies": [],
+  "callerInterface": {
+    "name": "IWorkflowRuntime / IWorkflowTriggerDispatcher / IWorkflowDefinitionStore / IWorkflowDefinitionExecutionStore / IWorkflowEffectBroker",
+    "operations": [
+      "StartAsync(definition, initialContext, cancellationToken) -> WorkflowInstance",
+      "FireAsync(instanceId, trigger, cancellationToken) -> WorkflowInstance",
+      "GetAsync(instanceId, cancellationToken) -> WorkflowInstance?",
+      "DispatchAsync(workflowTrigger, cancellationToken) -> Advanced|Parked|ReplayedNoOp|UnknownInstance|Terminal",
+      "RegisterAsync(model, authoredJson, cancellationToken) -> WorkflowDefinitionRecord (fail-closed admission before any write)",
+      "GetCurrentPublishedAsync / GetAsync / PublishAsync / WithdrawAsync / RestorePackProjectionAsync / ListByTenantAsync",
+      "GetAdmittedCurrentPublishedAsync / GetAdmittedAsync (execution face: re-admitting reads only)",
+      "Classify(capabilityRef) -> CP|AP; BuildAutonomousEffect(request) -> WorkflowEffect; ConfirmAndBuildEffect(request, proposer, confirmer) -> WorkflowEffect; RecordOverride(request, confirmer)"
+    ],
+    "context": "All durable state lives behind the IWorkflowStore seam a host supplies. The engine composes ports, never a persistence backend. Confirmer and proposer identities are server-derived, never payload-supplied."
+  },
+  "invariants": [
+    "The idempotency key derives from (instance, iteration, step) with a cross-architecture byte-stable v5 GUID derivation, never from a freshly minted id.",
+    "The atomic-advance contract co-commits effect, outcome event, idempotency row, and instance position in one store transaction; a redelivered trigger replays as a no-op.",
+    "A loop-back park bumps the durable iteration counter and escalates to a terminal Failed state at the max-iterations cap; the counter is read back on resume, never recomputed.",
+    "An action with no explicit CP/AP classification is refused at admission; the declared class must equal the class derived from the canonical capability-authority registry; an unknown capability derives CP.",
+    "A CP action admits only when a HumanAction transition gates its firing, or every incoming transition of its non-initial on-enter state is a HumanAction.",
+    "The definition store admits fail-closed at register, keeps (tenant, key, version) revisions immutable, resolves current-published to the highest published version, and isolates tenants.",
+    "The execution face exposes only re-admitting reads, so a definition loaded for execution is always re-validated against the current registry.",
+    "Only a System-owned Pack-provenance projection can traverse the restore seam; forward-only publication is otherwise preserved.",
+    "The effect-factory resolve and build surface is internal; hosts register effects through the public delegate seam and the broker is the sole Build caller.",
+    "A CP effect builds only through the confirm path under separation of duties: a non-human confirmer is refused, and an agent-proposed op requires a distinct human confirmer.",
+    "An OutboundExternal effect classifies CP regardless of its registry authority.",
+    "Every CP confirm and override feeds the counting decision sink so the override rate is owned, never merely asserted.",
+    "The engine core references no financial assembly and imports no financial type.",
+    "The built-in durable adapter is a versioned append-only file journal with authenticated headers and checksummed payload frames: each atomic advance stages the effect first, appends one frame carrying effect payloads, the outcome event with the next per-instance monotonic sequence, the idempotency row, and the instance position, and flushes it to durable storage before updating indexes.",
+    "Recovery truncates only an authenticated incomplete final frame and fails startup on corruption or unknown versions; committed frames survive a process kill without adapter disposal.",
+    "The durable loop-back iteration counter and the pinned definition version are persisted with the park and read back verbatim on resume, never recomputed.",
+    "The built-in durable workflow adapter holds one exclusive process lock for its lifetime and is a single-process/single-node adapter; it does not claim distributed leases or multi-node high availability.",
+    "The durable store registration refuses layering over an already-registered store.",
+    "Route-level semantics narrow to the engine seams: cross-tenant and absent instances are indistinguishable at the caller interface, admission refusals fail closed before persistence, and real HTTP status mapping is proven by the package-only loopback host."
+  ],
+  "errors": [
+    "workflow.admission.action_unclassified",
+    "workflow.admission.classification_mismatch",
+    "workflow.admission.cp_reachable_without_human_task",
+    "workflow.admission.initial_state_missing",
+    "workflow.admission.dead_end_state",
+    "workflow.admission.terminal_has_outgoing",
+    "workflow.admission.unreachable_state",
+    "workflow.admission.dangling_reference",
+    "workflow.admission.action_binding_invalid",
+    "workflow.admission.duplicate_id",
+    "workflow.effect.unregistered_capability",
+    "workflow.effect.cp_requires_confirmation",
+    "workflow.effect.ap_not_confirmable",
+    "workflow.approval.separation_of_duties_violation"
+  ],
+  "selectedDesign": {
+    "choice": "One packable engine-core assembly carrying the typed runtime plus the durable seams, with an in-process definition-store implementation behind the two-faced store port and a Harborline-owned embedded capability-authority registry.",
+    "rejected": [
+      "Copy the earlier source EntityStore-backed definition store and its pack-projection query topology.",
+      "Copy the local-node-host EF/SQLite workflow store, routes, or seeds into the engine core.",
+      "Embed the earlier source carrier-sdk registry file by cross-package link instead of a Harborline-owned source.",
+      "Expose the effect-factory resolve/build surface publicly and police it with source scans alone."
+    ]
+  },
+  "behaviorEvidence": {
+    "sourceCapture": "migration://preprocessing/workflows/generated/workflow-engine-source.json",
+    "boundaryDecision": "migration://preprocessing/workflows/workflows-behavior-map.md"
+  },
+  "package": {"nuget": "Harborline.Blocks.Workflow", "assembly": "Harborline.Blocks.Workflow", "distribution": "internal-only"}
+}

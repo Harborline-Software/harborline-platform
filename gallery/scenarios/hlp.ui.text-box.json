@@ -1,0 +1,443 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.text-box",
+  "sourceFixture": "conformance/hlp.ui.text-box/fixtures.yaml",
+  "qualityFixture": "conformance/hlp.ui.text-box/quality-fixtures.yaml",
+  "galleryInterface": {
+    "probeAttribute": "data-gallery-probe",
+    "scenarioAttribute": "data-gallery-scenario",
+    "projectionTitles": {
+      "react": "Platform/Text Box",
+      "blazor": "Platform/Text Box"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "text-box.ownership-form",
+      "name": "Value ownership and form state",
+      "surface": "ownership-form",
+      "sourceCaseIds": [
+        "text-box.defaults",
+        "text-box.controlled-change",
+        "text-box.uncontrolled-default",
+        "text-box.default-once",
+        "text-box.external-replacement",
+        "text-box.form-context",
+        "text-box.validation"
+      ],
+      "sourceQualityCaseIds": [
+        "text-box.quality.name-state"
+      ],
+      "content": {
+        "blurb": "Controlled and uncontrolled raw strings preserve Form Field identity, description, required, invalid, and disabled state.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {
+          "controlled": {
+            "kind": "string",
+            "initial": "Pier 14"
+          }
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<FormField name=\"structureName\" label=\"Structure name\" hint=\"Use the registered structural identifier.\" required><TextBox name=\"structureName\" value={controlled} onChange={(next) => setControlled(next)} required /></FormField><FormField name=\"assetTag\" label=\"Asset tag\" error=\"Asset tag is required.\"><TextBox name=\"assetTag\" defaultValue=\"Initial A-104\" error /></FormField><FormField name=\"lockedRecord\" label=\"Locked record\" disabled><TextBox name=\"lockedRecord\" value=\"Read-only source\" onChange={() => {}} /></FormField><button type=\"button\" onClick={() => setControlled(current => current === 'Pier 14' ? 'Pier 96' : 'Pier 14')}>Replace controlled value</button>",
+            "blazor": "<HarborlineTextBox Value=\"@value\" ValueChanged=\"@(next => value = next)\" Name=\"structure-name\" AccessibleName=\"@Label\" Placeholder=\"@Placeholder\" ClearButton=\"true\" Error=\"true\" Required=\"true\" /><HarborlineTextBox DefaultValue=\"secret\" Type=\"password\" ShowReveal=\"true\" AccessibleName=\"Password\" Prefix=\"@HashPrefix\" Suffix=\"@IdSuffix\" />",
+            "rationale": "React's three FormField compositions include visible hint and error content and disabled field semantics that cannot be expressed faithfully by the closed controls; the Blazor lane instead renders two unrelated text boxes, so both exact lane structures are retained."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "text-box.clear-reveal",
+      "name": "Clear, reveal, and composed actions",
+      "surface": "clear-reveal",
+      "sourceCaseIds": [
+        "text-box.clear-visible",
+        "text-box.clear-action",
+        "text-box.clear-disabled",
+        "text-box.password-reveal",
+        "text-box.reveal-disabled",
+        "text-box.prefix-suffix-actions",
+        "text-box.targets-focus"
+      ],
+      "sourceQualityCaseIds": [
+        "text-box.quality.actions-targets"
+      ],
+      "content": {
+        "blurb": "Keyboard-reachable clear and password actions compose after caller suffix content and retain the editing context.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {
+          "value": {
+            "kind": "string",
+            "initial": "Blueprint C-14"
+          }
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<TextBox aria-label=\"Clearable structure name\" clearButton name=\"clearableStructure\" value={value} onChange={(next) => setValue(next)} prefix={<span aria-hidden=\"true\">⌖</span>} suffix={<span>Verified</span>} /><TextBox aria-label=\"Structure access code\" name=\"structureCode\" showReveal type=\"password\" value=\"Harborline-2026\" onChange={() => {}} /><TextBox aria-label=\"Disabled structure access code\" disabled name=\"disabledCode\" showReveal type=\"password\" value=\"Locked\" onChange={() => {}} />",
+            "blazor": "<HarborlineTextBox Value=\"@value\" ValueChanged=\"@(next => value = next)\" Name=\"structure-name\" AccessibleName=\"Structure name\" Placeholder=\"Enter structure name\" ClearButton=\"true\" /><HarborlineTextBox DefaultValue=\"secret\" Type=\"password\" ShowReveal=\"true\" AccessibleName=\"Password\" Prefix=\"@HashPrefix\" Suffix=\"@IdSuffix\" />",
+            "rationale": "Prefix and suffix slots, their ordering relative to generated clear/reveal actions, and the disabled reveal composition cannot be encoded by an input descriptor in the closed vocabulary; the lanes also render different fixtures."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "text-box.attributes-keyboard",
+      "name": "Input attributes and keyboard handler",
+      "surface": "attributes-keyboard",
+      "sourceCaseIds": [
+        "text-box.host-input-attributes",
+        "text-box.keyboard-handler"
+      ],
+      "content": {
+        "blurb": "Identity, autocomplete, ARIA, tab order, and caller keyboard handling target the native input exactly once.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {
+          "value": {
+            "kind": "string",
+            "initial": "Blueprint C-14"
+          },
+          "keys": {
+            "kind": "array",
+            "initial": []
+          }
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<label>Structure display name<TextBox aria-label=\"Structure display name\" autoComplete=\"organization\" clearButton data-owner=\"app\" id=\"structure-display-name\" name=\"structureDisplayName\" onChange={(next) => setValue(next)} onKeyDown={(event) => setKeys(current => [...current.slice(-3), event.key])} placeholder=\"Enter structure name\" prefix={<span aria-hidden=\"true\">⌂</span>} suffix={<span>Verified</span>} tabIndex={0} type=\"text\" value={value} /></label>",
+            "blazor": "<HarborlineTextBox Value=\"@value\" ValueChanged=\"@(next => value = next)\" Name=\"structure-name\" AccessibleName=\"Structure name\" Placeholder=\"Enter structure name\" ClearButton=\"true\" /><HarborlineTextBox DefaultValue=\"secret\" Type=\"password\" ShowReveal=\"true\" AccessibleName=\"Password\" Prefix=\"@HashPrefix\" Suffix=\"@IdSuffix\" />",
+            "rationale": "The React input requires prefix and suffix slots inside a label plus a keyboard callback, which the closed input descriptor cannot encode faithfully; Blazor renders a different generic two-input fixture."
+          },
+          {
+            "control": "output",
+            "live": "polite",
+            "text": "Keys: none; value: {value}"
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "text-box.appearance-reflow",
+      "name": "Appearance and narrow reflow",
+      "surface": "appearance-reflow",
+      "sourceCaseIds": [
+        "text-box.appearance"
+      ],
+      "sourceQualityCaseIds": [
+        "text-box.quality.reflow",
+        "text-box.quality.forced-colors"
+      ],
+      "content": {
+        "blurb": "Sizes, fills, rounding, prefix, suffix, and actions remain usable at a narrow 200-percent surface.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "input",
+            "aria-label": "Small flat value",
+            "clearButton": true,
+            "fillMode": "flat",
+            "rounded": "small",
+            "size": "sm",
+            "value": "Grid C-14"
+          },
+          {
+            "control": "input",
+            "aria-label": "Medium solid value",
+            "clearButton": true,
+            "fillMode": "solid",
+            "rounded": "medium",
+            "size": "md",
+            "value": "Grid C-14"
+          },
+          {
+            "control": "input",
+            "aria-label": "Large outline value",
+            "clearButton": true,
+            "fillMode": "outline",
+            "rounded": "full",
+            "size": "lg",
+            "value": "Grid C-14"
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "text-box.replacement",
+      "name": "Complete controlled replacement",
+      "surface": "replacement",
+      "sourceCaseIds": [
+        "text-box.replacement"
+      ],
+      "content": {
+        "blurb": "Caller replacement remains authoritative while reveal state never mutates the raw value.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {
+          "value": {
+            "kind": "string",
+            "initial": "Revision 1"
+          },
+          "keys": {
+            "kind": "array",
+            "initial": []
+          }
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<label>Structure display name<TextBox aria-label=\"Structure display name\" autoComplete=\"organization\" clearButton data-owner=\"app\" id=\"structure-display-name\" name=\"structureDisplayName\" onChange={() => {}} onKeyDown={(event) => setKeys(current => [...current.slice(-3), event.key])} placeholder=\"Enter structure name\" prefix={<span aria-hidden=\"true\">⌂</span>} showReveal suffix={<span>Verified</span>} tabIndex={0} type=\"password\" value={value} /></label>",
+            "blazor": "<HarborlineTextBox Value=\"@value\" ValueChanged=\"@(next => value = next)\" Name=\"structure-name\" AccessibleName=\"Structure name\" Placeholder=\"Enter structure name\" ClearButton=\"true\" /><HarborlineTextBox DefaultValue=\"secret\" Type=\"password\" ShowReveal=\"true\" AccessibleName=\"Password\" Prefix=\"@HashPrefix\" Suffix=\"@IdSuffix\" />",
+            "rationale": "The React control combines prefix and suffix slots, generated clear and reveal actions, and an intentionally ignored change callback; these cannot be represented faithfully by the closed input descriptor, and Blazor renders a different fixture."
+          },
+          {
+            "control": "output",
+            "live": "polite",
+            "text": "Keys: none; value: {value}"
+          },
+          {
+            "control": "button",
+            "text": "Replace caller value"
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "text-box.locale-pseudo",
+      "name": "Pseudo-localized actions",
+      "surface": "locale-pseudo",
+      "sourceCaseIds": [
+        "text-box.locale-rtl-labels"
+      ],
+      "sourceQualityCaseIds": [
+        "text-box.quality.catalog",
+        "text-box.quality.pseudo"
+      ],
+      "content": {
+        "blurb": "Expanded placeholder, clear, reveal, and description copy reflow without clipping.",
+        "environment": {
+          "locale": "en-XA",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {
+            "common.clear": "⟦ Çļëåř ţhë çûřřëñţ ṽåļûë ······ ⟧",
+            "forms.textBox.showPassword": "⟦ Šhøŵ þåššŵøřđ ······ ⟧",
+            "forms.textBox.hidePassword": "⟦ Hîđë þåššŵøřđ ······ ⟧"
+          }
+        },
+        "props": {},
+        "state": {
+          "value": {
+            "kind": "string",
+            "initial": "⟦ Šţřûçţûřë Åļþhå ······ ⟧"
+          },
+          "keys": {
+            "kind": "array",
+            "initial": []
+          }
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<label>⟦ Šţřûçţûřë đîšþļåÿ ñåmë ······ ⟧<TextBox aria-label=\"⟦ Šţřûçţûřë đîšþļåÿ ñåmë ······ ⟧\" autoComplete=\"organization\" clearButton data-owner=\"app\" id=\"structure-display-name\" name=\"structureDisplayName\" onChange={(next) => setValue(next)} onKeyDown={(event) => setKeys(current => [...current.slice(-3), event.key])} placeholder=\"⟦ Ëñţëř å ļøñĝ šţřûçţûřë ñåmë ········ ⟧\" prefix={<span aria-hidden=\"true\">⌂</span>} suffix={<span>⟦ Ṽëřîƒîëđ ··· ⟧</span>} tabIndex={0} type=\"text\" value={value} /></label>",
+            "blazor": "<HarborlineTextBox Value=\"@value\" ValueChanged=\"@(next => value = next)\" Name=\"structure-name\" AccessibleName=\"Structure name\" Placeholder=\"⟦ Ëñţëř å đëšçřîþţîṽë šţřûçţûřë ñåmë ········ ⟧\" ClearButton=\"true\" /><HarborlineTextBox DefaultValue=\"secret\" Type=\"password\" ShowReveal=\"true\" AccessibleName=\"Password\" Prefix=\"@HashPrefix\" Suffix=\"@IdSuffix\" />",
+            "rationale": "The localized React input uses prefix and suffix slots and generated localized action labels that cannot be encoded within a closed input descriptor; Blazor has different label, placeholder, value, and second-input content."
+          },
+          {
+            "control": "output",
+            "live": "polite",
+            "text": "Keys: none; value: {value}"
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "text-box.locale-ar",
+      "name": "Arabic right-to-left editor",
+      "surface": "locale-ar",
+      "sourceCaseIds": [
+        "text-box.locale-rtl-labels"
+      ],
+      "content": {
+        "blurb": "Prefix, input, suffix, and actions follow logical order while explicit direction remains available.",
+        "environment": {
+          "locale": "ar-SA",
+          "direction": "rtl",
+          "theme": "light",
+          "catalog": {
+            "common.clear": "مسح القيمة",
+            "forms.textBox.showPassword": "إظهار كلمة المرور",
+            "forms.textBox.hidePassword": "إخفاء كلمة المرور"
+          }
+        },
+        "props": {},
+        "state": {
+          "value": {
+            "kind": "string",
+            "initial": "الهيكل ألف"
+          },
+          "keys": {
+            "kind": "array",
+            "initial": []
+          }
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<label>اسم الهيكل<TextBox aria-label=\"اسم الهيكل\" autoComplete=\"organization\" clearButton data-owner=\"app\" dir=\"rtl\" id=\"structure-display-name\" name=\"structureDisplayName\" onChange={(next) => setValue(next)} onKeyDown={(event) => setKeys(current => [...current.slice(-3), event.key])} placeholder=\"أدخل اسم الهيكل\" prefix={<span aria-hidden=\"true\">⌂</span>} suffix={<span>معتمد</span>} tabIndex={0} type=\"text\" value={value} /></label>",
+            "blazor": "<HarborlineTextBox Value=\"@value\" ValueChanged=\"@(next => value = next)\" Name=\"structure-name\" AccessibleName=\"اسم الهيكل\" Placeholder=\"أدخل اسم الهيكل\" ClearButton=\"true\" /><HarborlineTextBox DefaultValue=\"secret\" Type=\"password\" ShowReveal=\"true\" AccessibleName=\"Password\" Prefix=\"@HashPrefix\" Suffix=\"@IdSuffix\" />",
+            "rationale": "The RTL React input uses directional prefix and suffix slots and localized generated clear text that cannot be encoded within a closed input descriptor; Blazor renders a different second password input and initial value."
+          },
+          {
+            "control": "output",
+            "live": "polite",
+            "text": "Keys: none; value: {value}"
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "text-box.theme-light",
+      "name": "Light theme",
+      "surface": "theme-light",
+      "sourceCaseIds": [
+        "text-box.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "text-box.quality.light-dark",
+        "text-box.quality.tokens",
+        "text-box.quality.visual-parity"
+      ],
+      "content": {
+        "inherits": "text-box.attributes-keyboard",
+        "blurb": "Control, validation, action, filled, and focus states use Harborline light tokens.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        }
+      }
+    },
+    {
+      "id": "text-box.theme-dark",
+      "name": "Dark theme",
+      "surface": "theme-dark",
+      "sourceCaseIds": [
+        "text-box.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "text-box.quality.light-dark",
+        "text-box.quality.tokens",
+        "text-box.quality.visual-parity"
+      ],
+      "content": {
+        "inherits": "text-box.attributes-keyboard",
+        "blurb": "The same raw-string editor states on the Harborline dark surface.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "dark",
+          "catalog": {}
+        }
+      }
+    },
+    {
+      "id": "text-box.content",
+      "name": "Content resilience",
+      "surface": "long-content",
+      "sourceCaseIds": [
+        "text-box.defaults",
+        "text-box.controlled-change"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "Four text boxes carry an overlong label, a grouped large number, escaped angle brackets and an ampersand, and a diacritic-rich name with an em dash.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<><TextBox aria-label=\"Long content\" defaultValue=\"Awaiting third-party structural certification review\" /><TextBox aria-label=\"Large number\" defaultValue=\"1,284,905\" /><TextBox aria-label=\"Escaped content\" defaultValue={'Bay 4 <grid C-7> & 8'} /><TextBox aria-label=\"Unusual name\" defaultValue=\"Ordnance Survey — Niño Ångström\" /></>",
+            "blazor": "<HarborlineTextBox AccessibleName=\"Long content\" DefaultValue=\"Awaiting third-party structural certification review\" /><HarborlineTextBox AccessibleName=\"Large number\" DefaultValue=\"1,284,905\" /><HarborlineTextBox AccessibleName=\"Escaped content\" DefaultValue=\"@(\"Bay 4 <grid C-7> & 8\")\" /><HarborlineTextBox AccessibleName=\"Unusual name\" DefaultValue=\"Ordnance Survey — Niño Ångström\" />",
+            "rationale": "The closed control vocabulary cannot express four text boxes whose raw values must preserve hostile-but-valid content identically across both projection lanes."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "text-box.error-state",
+      "name": "Error state",
+      "surface": "invalid-input",
+      "sourceCaseIds": [
+        "text-box.validation"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "The text box renders its declared invalid state with an accessible name.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<TextBox aria-label=\"Vessel name\" defaultValue=\"Invalid berth assignment\" error name=\"vessel-name\" />",
+            "blazor": "<HarborlineTextBox AccessibleName=\"Vessel name\" DefaultValue=\"Invalid berth assignment\" Error=\"true\" Name=\"vessel-name\" />",
+            "rationale": "The closed control vocabulary cannot express the TextBox error prop and its invalid visual and accessibility semantics in both projection lanes."
+          }
+        ],
+        "footer": []
+      }
+    }
+  ]
+}

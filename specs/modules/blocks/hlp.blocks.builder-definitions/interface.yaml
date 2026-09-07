@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.blocks.builder-definitions",
+  "interfaceRevision": 1,
+  "status": "draft",
+  "purpose": "Own the narrow Forms/Workflows definition-key suggestion and tenant-scoped durable archive lifecycle shared by both builders.",
+  "dependencies": [],
+  "sourceSurface": {
+    "repository": "shipyard",
+    "commit": "3410883405996dc8e4871418a441f52970d9994e",
+    "paths": ["apps/carrier/src/definitions/slug.ts:13-36", "apps/carrier/src/definitions/archiveStore.ts:17-58"]
+  },
+  "capabilities": {
+    "keys": ["deterministic ASCII kebab suggestion", ".v1 suffix", "exact-case collision suffixing"],
+    "lifecycle": ["tenant and definition-kind scoped archive", "idempotent archive", "idempotent unarchive", "restart-durable visibility"]
+  },
+  "keyAuthoritySeam": {
+    "name": "IDefinitionKeyAuthority",
+    "operation": "ResolveAsync",
+    "ruling": "No implementation in revision 1; either UI-suggested plus server-validated or server-allocated policy may bind later."
+  },
+  "invariants": [
+    "DefinitionKeySuggester is advisory and never claims allocation authority.",
+    "Archive state is isolated by exact tenant, DefinitionKind, and definition key.",
+    "Archive and unarchive are idempotent and never delete authored definitions.",
+    "Lifecycle state survives construction of a new store over the same durable path.",
+    "Pilot manager registration, handlers, navigation, and React snapshots are excluded app-host concerns."
+  ],
+  "errors": [
+    {"code":"definition-key-required", "when":"A lifecycle operation receives an empty key."},
+    {"code":"definition-tenant-required", "when":"A lifecycle operation receives an empty tenant."},
+    {"code":"definition-lifecycle-corrupt", "when":"Persisted lifecycle state cannot be decoded."}
+  ],
+  "presentation": {"disposition":"not-applicable", "rationale":"The module stores lifecycle state and suggests keys; managers render it."},
+  "distribution": "internal-only"
+}

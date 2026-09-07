@@ -1,0 +1,653 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.app-shell",
+  "fixtureRevision": 2,
+  "cases": [
+    {
+      "id": "app-shell.structure",
+      "input": {
+        "shellId": "ops",
+        "workspaces": 2,
+        "body": "content",
+        "brandText": "Harborline"
+      },
+      "expected": {
+        "mainCount": 1,
+        "navigationCount": 1,
+        "dataShellId": "ops",
+        "brandCount": 1,
+        "switcherTriggerCount": 1
+      }
+    },
+    {
+      "id": "app-shell.id-required",
+      "input": {
+        "shellId": null
+      },
+      "expected": {
+        "errors": [
+          "app-shell-id-required"
+        ]
+      }
+    },
+    {
+      "id": "app-shell.body-required",
+      "input": {
+        "body": null
+      },
+      "expected": {
+        "errors": [
+          "app-shell-body-required"
+        ]
+      }
+    },
+    {
+      "id": "app-shell.duplicate-identity",
+      "input": {
+        "duplicate": "item-vs-thread"
+      },
+      "expected": {
+        "errors": [
+          "duplicate-nav-identity"
+        ]
+      }
+    },
+    {
+      "id": "app-shell.unsupported-shape",
+      "input": {
+        "threadWithThreads": true
+      },
+      "expected": {
+        "errors": [
+          "unsupported-nav-shape"
+        ]
+      }
+    },
+    {
+      "id": "app-shell.single-workspace-hides-switcher",
+      "input": {
+        "workspaces": 1
+      },
+      "expected": {
+        "switcherTriggerCount": 0,
+        "groupsRendered": true
+      }
+    },
+    {
+      "id": "app-shell.workspace-switch",
+      "input": {
+        "workspaces": 2,
+        "select": "second"
+      },
+      "expected": {
+        "activeChangeRequests": 1,
+        "renderedGroupsFromSecond": true,
+        "menuClosed": true
+      }
+    },
+    {
+      "id": "app-shell.workspace-unknown-controlled",
+      "input": {
+        "activeWorkspaceId": "ghost"
+      },
+      "expected": {
+        "groupRowCount": 0,
+        "correctionRequests": 1,
+        "renderedFollowsSupplied": true
+      }
+    },
+    {
+      "id": "app-shell.header-switcher-single-option-static",
+      "input": {
+        "headerOptions": 1
+      },
+      "expected": {
+        "staticLabelCount": 1,
+        "triggerButtonCount": 0
+      }
+    },
+    {
+      "id": "app-shell.header-switcher-active-first",
+      "input": {
+        "headerOptions": 5,
+        "activeId": "c",
+        "pinned": [
+          "e"
+        ]
+      },
+      "expected": {
+        "menuOrder": [
+          "c",
+          "e",
+          "a",
+          "b",
+          "d"
+        ]
+      }
+    },
+    {
+      "id": "app-shell.switcher-filter-threshold",
+      "input": {
+        "headerOptions": [
+          7,
+          8
+        ]
+      },
+      "expected": {
+        "filterInputCount": [
+          0,
+          1
+        ]
+      }
+    },
+    {
+      "id": "app-shell.switcher-directory-item",
+      "input": {
+        "directoryLabel": "All tenants"
+      },
+      "expected": {
+        "footerItemCount": 1,
+        "invokeRequests": 1
+      }
+    },
+    {
+      "id": "app-shell.switcher-trigger-truncation",
+      "input": {
+        "label": "Metro Transit Authority"
+      },
+      "expected": {
+        "singleLine": true,
+        "fullLabelInTitle": true
+      }
+    },
+    {
+      "id": "app-shell.pin-lifecycle",
+      "input": {
+        "pin": "inspections",
+        "thenUnpin": true
+      },
+      "expected": {
+        "pinnedZoneAfterPin": [
+          "inspections"
+        ],
+        "pinnedZoneAfterUnpin": [],
+        "pinsChangeRequests": 2
+      }
+    },
+    {
+      "id": "app-shell.pin-moved-not-copied",
+      "input": {
+        "pinned": [
+          "inspections"
+        ],
+        "activeItemId": "inspections"
+      },
+      "expected": {
+        "itemRenderCount": 1,
+        "inPinnedZone": true,
+        "inSourceGroup": false,
+        "ariaCurrentCount": 1
+      }
+    },
+    {
+      "id": "app-shell.pin-cap",
+      "input": {
+        "pinCap": 8,
+        "pinnedCount": 8,
+        "pinRequest": "ninth"
+      },
+      "expected": {
+        "pinsChangeRequests": 0,
+        "pinnedZoneCount": 8
+      }
+    },
+    {
+      "id": "app-shell.pin-orphan-retention",
+      "input": {
+        "storedPins": [
+          "gone",
+          "inspections"
+        ],
+        "navContains": [
+          "inspections"
+        ]
+      },
+      "expected": {
+        "pinnedZone": [
+          "inspections"
+        ],
+        "storageStillContains": [
+          "gone",
+          "inspections"
+        ]
+      }
+    },
+    {
+      "id": "app-shell.role-allowed",
+      "input": {
+        "requiredRoles": [
+          {
+            "vocabulary": "sys.platform-roles",
+            "name": "auditor"
+          }
+        ],
+        "heldRoles": [
+          {
+            "vocabulary": "sys.platform-roles",
+            "name": "auditor"
+          }
+        ]
+      },
+      "expected": {
+        "visible": true
+      }
+    },
+    {
+      "id": "app-shell.role-denied",
+      "input": {
+        "requiredRoles": [
+          {
+            "vocabulary": "sys.platform-roles",
+            "name": "auditor"
+          }
+        ],
+        "heldRoles": []
+      },
+      "expected": {
+        "visible": false
+      }
+    },
+    {
+      "id": "app-shell.role-unknown-fail-closed",
+      "input": {
+        "requiredRoles": [
+          {
+            "vocabulary": "tax.roles",
+            "name": "missing"
+          }
+        ],
+        "heldRoles": [
+          {
+            "vocabulary": "tax.roles",
+            "name": "missing"
+          }
+        ]
+      },
+      "expected": {
+        "visible": false
+      }
+    },
+    {
+      "id": "app-shell.shared-workflow-role",
+      "input": {
+        "role": {
+          "vocabulary": "sys.platform-roles",
+          "name": "auditor"
+        },
+        "consumers": [
+          "workflow-action",
+          "workflow-transition",
+          "form-section",
+          "rail-item"
+        ]
+      },
+      "expected": {
+        "registrations": 1,
+        "allResolve": true
+      }
+    },
+    {
+      "id": "app-shell.hidden-pin-retention",
+      "input": {
+        "storedPins": [
+          "unknown"
+        ],
+        "roleVisible": false
+      },
+      "expected": {
+        "rendered": false,
+        "storageStillContains": [
+          "unknown"
+        ]
+      }
+    },
+    {
+      "id": "app-shell.pin-toggle-isolation",
+      "input": {
+        "clickPinOn": "inspections"
+      },
+      "expected": {
+        "navigateRequests": 0,
+        "pinsChangeRequests": 1,
+        "focusOnToggle": true
+      }
+    },
+    {
+      "id": "app-shell.thread-rows-under-item",
+      "input": {
+        "threadsUnder": "inspections",
+        "count": 2
+      },
+      "expected": {
+        "threadRowCount": 2,
+        "indentedUnderOwner": true,
+        "activateRequests": 1,
+        "routing": false
+      }
+    },
+    {
+      "id": "app-shell.thread-group-level",
+      "input": {
+        "groupThreads": 2
+      },
+      "expected": {
+        "itemlessThreadRowCount": 2
+      }
+    },
+    {
+      "id": "app-shell.thread-actions-menu",
+      "input": {
+        "actions": [
+          "rename",
+          "archive"
+        ],
+        "destructive": [
+          "delete"
+        ]
+      },
+      "expected": {
+        "kebabCount": 1,
+        "menuEntryCount": 3,
+        "destructiveAfterDivider": true,
+        "actionRequests": 1
+      }
+    },
+    {
+      "id": "app-shell.thread-inline-rename",
+      "input": {
+        "editing": true,
+        "type": "Trip audit",
+        "key": "Enter"
+      },
+      "expected": {
+        "renameRequests": [
+          [
+            "Trip audit"
+          ]
+        ],
+        "labelUnchangedUntilNewData": true,
+        "escapeCancelRequests": 1
+      }
+    },
+    {
+      "id": "app-shell.thread-in-drawer",
+      "input": {
+        "railCapable": false,
+        "mobileOpen": true,
+        "threadsUnder": "inspections"
+      },
+      "expected": {
+        "drawerThreadRowCount": 2,
+        "drawerInvariantsCarried": true
+      }
+    },
+    {
+      "id": "app-shell.collapse-controlled",
+      "input": {
+        "collapsed": false,
+        "request": "collapse"
+      },
+      "expected": {
+        "collapsedChangeRequests": 1,
+        "renderedCollapsed": false
+      }
+    },
+    {
+      "id": "app-shell.collapse-uncontrolled-restore",
+      "input": {
+        "stored": {
+          "v": 1,
+          "value": true
+        }
+      },
+      "expected": {
+        "firstPaintCollapsed": false,
+        "restoredCollapsed": true,
+        "restoreUpdates": 1
+      }
+    },
+    {
+      "id": "app-shell.persistence-fallback",
+      "input": {
+        "stored": [
+          "not-json",
+          "{\"v\":99,\"value\":true}",
+          "{\"v\":1,\"value\":\"nope\"}"
+        ]
+      },
+      "expected": {
+        "allFallBackToDefaults": true,
+        "errorsThrown": 0
+      }
+    },
+    {
+      "id": "app-shell.actions-overflow",
+      "input": {
+        "railCapable": false,
+        "actions": [
+          {
+            "id": "bell",
+            "overflow": true
+          },
+          {
+            "id": "ai",
+            "overflow": true
+          }
+        ]
+      },
+      "expected": {
+        "rowEntryCount": 0,
+        "overflowMenuCount": 1,
+        "overflowEntryCount": 2,
+        "invokeRequests": 1
+      }
+    },
+    {
+      "id": "app-shell.declared-toggle-breakpoint",
+      "input": {
+        "widths": [1199, 1200],
+        "panelId": "documents"
+      },
+      "expected": {
+        "inlineAt1199": false,
+        "panelsAt1199": true,
+        "inlineAt1200": true,
+        "panelsAt1200": false
+      }
+    },
+    {
+      "id": "app-shell.shortcut-commands",
+      "input": {
+        "keys": [
+          "Mod+B",
+          "Mod+K"
+        ]
+      },
+      "expected": {
+        "collapseToggles": 1,
+        "searchCommandRequests": 1,
+        "defaultPrevented": true
+      }
+    },
+    {
+      "id": "app-shell.shortcut-disabled",
+      "input": {
+        "shortcuts": {
+          "openSearch": null
+        },
+        "keys": [
+          "Mod+K"
+        ]
+      },
+      "expected": {
+        "searchCommandRequests": 0
+      }
+    },
+    {
+      "id": "app-shell.shortcut-editable-guard",
+      "input": {
+        "focusIn": "input",
+        "keys": [
+          "Mod+B"
+        ]
+      },
+      "expected": {
+        "collapseToggles": 0
+      }
+    },
+    {
+      "id": "app-shell.end-panel-open-overlay",
+      "input": {
+        "endPanelOpen": true,
+        "content": "pilot"
+      },
+      "expected": {
+        "complementaryCount": 1,
+        "withinPageContentRow": true,
+        "panelHeaderTitleCount": 1,
+        "expandToggleRequests": 1,
+        "closeRequests": 1,
+        "resizeSeparatorCount": 1,
+        "widthCssPixels": 400
+      }
+    },
+    {
+      "id": "app-shell.end-panel-expanded",
+      "input": {
+        "endPanelOpen": true,
+        "endPanelExpanded": true
+      },
+      "expected": {
+        "panelFillsPageArea": true,
+        "railVisible": true,
+        "pageColumnHidden": true,
+        "resizeSeparatorCount": 0
+      }
+    },
+    {
+      "id": "app-shell.end-panel-narrow-forced-expanded",
+      "input": {
+        "railCapable": false,
+        "endPanelOpen": true,
+        "endPanelExpanded": false
+      },
+      "expected": {
+        "panelFillsPageArea": true,
+        "reportedExpanded": false
+      }
+    },
+    {
+      "id": "app-shell.end-panel-no-content-inert",
+      "input": {
+        "endPanel": null,
+        "endPanelOpen": true
+      },
+      "expected": {
+        "complementaryCount": 0
+      }
+    },
+    {
+      "id": "app-shell.rtl-safe-area",
+      "input": {
+        "direction": "rtl"
+      },
+      "expected": {
+        "railLogicalStart": true,
+        "endPanelLogicalEnd": true,
+        "pinAndKebabMirrored": true
+      }
+    },
+    {
+      "id": "app-shell.host-attributes",
+      "input": {
+        "className": "host",
+        "data-case": "shell"
+      },
+      "expected": {
+        "rootPreservesAll": true
+      }
+    },
+    {
+      "id": "app-shell.projection-equivalence",
+      "input": {
+        "projections": [
+          "react",
+          "blazor"
+        ]
+      },
+      "expected": {
+        "structureOrderStateRequestsEqual": true
+      }
+    },
+    {
+      "id": "app-shell.chrome-kernel-order",
+      "input": { "renderActualShell": true, "packAttemptsZoneOrder": ["footer", "head"] },
+      "expected": { "surfaces": ["bar", "rail", "content", "dock"], "barSlots": ["mark", "window-menu", "rail-toggle", "find", "breadcrumb", "cluster"], "railZones": ["head", "mode", "primary-action", "workspaces", "pinned", "groups", "recent", "suggested", "footer"] }
+    },
+    {
+      "id": "app-shell.chrome-law-mutations",
+      "input": { "renderActualShell": true, "fixture": "chrome-law-mutations.json" },
+      "expected": { "packZoneOrderRejected": true, "deniedCreateAbsentWithGuidance": true, "notificationUsesCountNotDot": true, "contentFloor": 420 }
+    },
+    {
+      "id": "app-shell.zone-presence",
+      "input": { "createActions": 0, "mode": null, "recent": [], "suggested": null, "pinned": [] },
+      "expected": { "absent": ["mode", "primary-action", "groups", "recent", "suggested"], "present": ["head", "workspaces", "pinned", "footer"], "disabledCount": 0, "pinnedEmptyNamed": true }
+    },
+    {
+      "id": "app-shell.primary-action-cardinality",
+      "input": { "cardinalities": [0, 1, 2, 3, 4] },
+      "expected": { "forms": ["absent", "single", "split", "split", "absent"], "commandNUsesDeclaredDefault": true }
+    },
+    {
+      "id": "app-shell.semantic-counts-addresses",
+      "input": { "workload": 4, "unread": 3, "renamedLabel": true },
+      "expected": { "workloadOnRail": true, "unreadOnBell": true, "notificationDotCount": 0, "footerCount": 0, "addressStableAcrossRename": true }
+    },
+    {
+      "id": "app-shell.layout-contract",
+      "input": { "railOpen": true, "dockOpen": true },
+      "expected": { "barHeight": 34, "railStartWidth": 216, "railResizable": true, "contentFloor": 420, "dockShrinksFirst": true }
+    },
+    {
+      "id": "app-shell.material-collapse",
+      "input": { "widths": [599, 600, 839, 840, 1199, 1200, 1599, 1600], "declaredPanelSet": ["notifications", "pilot", "documents", "notes"] },
+      "expected": { "breakpoints": ["compact", "medium", "medium", "expanded", "expanded", "large", "large", "extra-large"], "liveInBarWhenDeclared": ["notifications", "pilot"], "largeDeclaredOrder": true }
+    },
+    {
+      "id": "app-shell.panel-set-live-absent",
+      "input": { "renderActualShell": true, "declaration": "api-58-pack-navigation.json", "declaredPanelSet": ["documents", "notes"] },
+      "expected": { "present": ["documents", "notes"], "absentFromBar": ["notifications", "pilot"] }
+    },
+    {
+      "id": "app-shell.panel-set-live-present",
+      "input": { "renderActualShell": true, "declaredPanelSet": ["notifications", "pilot", "documents", "notes"], "capabilityGate": { "binding": "assets.create", "available": false, "guidance": "Request the Maintainer role to create assets." } },
+      "expected": { "presentInBar": ["notifications", "pilot"], "capabilityControlAbsent": true, "pointOfWorkGuidance": true }
+    },
+    {
+      "id": "app-shell.complete-shortcuts",
+      "input": { "keys": ["Mod+K", "Mod+N", "Mod+\\", "Mod+Shift+I", "Mod+I", "Mod+1..9"] },
+      "expected": { "handled": ["Mod+K", "Mod+N", "Mod+\\", "Mod+Shift+I", "Mod+1..9"], "unbound": ["Mod+I"] }
+    },
+    {
+      "id": "app-shell.visual-tab-order",
+      "input": { "renderActualShell": true, "dockOpen": true },
+      "expected": { "order": ["bar", "rail", "content", "dock"] }
+    },
+    {
+      "id": "app-shell.themed-scroll-regions",
+      "input": { "regions": ["rail", "switcher", "content", "dock"] },
+      "expected": { "transparentTrack": true, "thumbToken": "--color-border", "thumbInset": 3, "hoverToken": "--color-muted-foreground", "grabTarget": 24, "minimumContrast": "3:1" }
+    }
+  ]
+}

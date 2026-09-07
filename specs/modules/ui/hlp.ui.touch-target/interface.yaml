@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.touch-target",
+  "interfaceRevision": 1,
+  "semantics": {"operation": "provide the complete reusable 44-by-44 touch-hit-area affordance family without enlarging visual glyphs", "observableOutput": "Three deterministic projection-owned affordances: box growth, unpositioned pseudo overlay, and positioned pseudo overlay."},
+  "sourceSurface": {"repository": "shipyard", "commit": "a5036ff8b500e0d857d7e0a698408e7cf7f6cf31", "path": "packages/ui-react/src/lib/touchTarget.ts", "blob": "e79e7b9a10c89a8cfc96f8ba4c39076758c817e6", "capturedExports": ["touchTarget", "touchTargetPseudoOverlay", "touchTargetPseudo"]},
+  "invariants": [
+    "The box affordance establishes a minimum 44 by 44 logical hit area while leaving glyph sizing to the caller.",
+    "The overlay affordance centers a transparent 44 by 44 pseudo-element and does not establish or replace positioning.",
+    "The positioned overlay adds a relative containing block and otherwise preserves the overlay affordance.",
+    "Packed neighboring controls use box growth unless the host proves overlay boundaries do not conflict.",
+    "The neutral contract describes measurable hit-area intent; React maps it to Tailwind classes and Blazor/.NET maps it to equivalent CSS classes or tokens.",
+    "No affordance changes accessible name, role, focus order, event handling, glyph dimensions, or host action semantics."
+  ],
+  "errors": [{"code": "unsafe-overlap", "when": "A projection treats overlapping pseudo hit areas as the default for packed controls."}],
+  "performance": {"operation": "O(1) immutable affordance lookup with no I/O"},
+  "presentation": {"disposition": "not-applicable", "rationale": "The support module contributes hit-area affordances consumed by visual controls and does not render standalone chrome."},
+  "cases": [
+    {"id": "touch-target.complete-surface"}, {"id": "touch-target.box-floor"},
+    {"id": "touch-target.overlay-floor"}, {"id": "touch-target.overlay-centered"},
+    {"id": "touch-target.overlay-unpositioned"}, {"id": "touch-target.positioned-overlay"},
+    {"id": "touch-target.glyph-independent"}, {"id": "touch-target.projection-equivalence"}
+  ]
+}

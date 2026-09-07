@@ -1,0 +1,161 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.data-export-button",
+  "sourceFixture": "conformance/hlp.ui.data-export-button/fixtures.yaml",
+  "qualityFixture": "conformance/hlp.ui.data-export-button/quality-fixtures.yaml",
+  "galleryInterface": {
+    "probeAttribute": "data-gallery-probe",
+    "scenarioAttribute": "data-gallery-scenario",
+    "projectionTitles": {
+      "react": "Platform/Data Export Button",
+      "blazor": "Platform/Data Export Button"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "data-export.defaults",
+      "name": "Formats",
+      "surface": "defaults",
+      "sourceCaseIds": [
+        "data-export.defaults",
+        "data-export.custom-formats",
+        "data-export.localized-labels"
+      ],
+      "sourceQualityCaseIds": [
+        "data-export.quality.menu-button",
+        "data-export.quality.localized-labels"
+      ],
+      "content": {
+        "blurb": "Formats",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "text",
+            "text": "Data export"
+          },
+          {
+            "control": "raw",
+            "react": "<DataExportButton label=\"Export data\" formats={['csv','xlsx','pdf','json','md']} onExport={()=>undefined}/>",
+            "blazor": "<HarborlineDataExportButton Label=\"Export data\" Formats=\"AllFormats\" OnExport=\"HandleExport\"/>\n@code { private static readonly IReadOnlyList<ExportFormat> AllFormats=[ExportFormat.Csv,ExportFormat.Xlsx,ExportFormat.Pdf,ExportFormat.Json,ExportFormat.Md]; private static Task HandleExport(ExportFormat format)=>Task.CompletedTask; }",
+            "rationale": "The closed descriptor vocabulary has no export menu-button, format-menu, or menu-item control, so it cannot express the five-format DataExportButton without losing its structure and behavior."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "data-export.states",
+      "name": "States and keyboard",
+      "surface": "states",
+      "sourceCaseIds": [
+        "data-export.open-close",
+        "data-export.keyboard",
+        "data-export.invoke",
+        "data-export.async-busy",
+        "data-export.disabled-loading"
+      ],
+      "sourceQualityCaseIds": [
+        "data-export.quality.keyboard",
+        "data-export.quality.busy",
+        "data-export.quality.focus"
+      ],
+      "content": {
+        "blurb": "States and keyboard",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "inherits": "data-export.defaults",
+        "bodyAppend": [
+          {
+            "control": "raw",
+            "react": "<><DataExportButton disabled onExport={()=>undefined}/><DataExportButton loading onExport={()=>undefined}/></>",
+            "blazor": "<HarborlineDataExportButton Disabled OnExport=\"HandleExport\"/><HarborlineDataExportButton Loading OnExport=\"HandleExport\"/>",
+            "rationale": "The closed descriptor vocabulary cannot represent two additional DataExportButton component instances while preserving their distinct disabled and loading props and export-menu behavior."
+          }
+        ]
+      }
+    },
+    {
+      "id": "data-export.rtl-theme",
+      "name": "RTL and theme",
+      "surface": "rtl-theme",
+      "sourceCaseIds": [
+        "data-export.host-attributes",
+        "data-export.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "data-export.quality.rtl",
+        "data-export.quality.pseudo",
+        "data-export.quality.light-dark",
+        "data-export.quality.tokens",
+        "data-export.quality.forced-colors",
+        "data-export.quality.reduced-motion",
+        "data-export.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "RTL and theme",
+        "environment": {
+          "locale": "ar-SA",
+          "direction": "rtl",
+          "theme": "dark",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "text",
+            "text": "Data export"
+          },
+          {
+            "control": "raw",
+            "react": "<DataExportButton label=\"تصدير\" formats={['csv','xlsx','pdf','json','md']} onExport={()=>undefined}/>",
+            "blazor": "<HarborlineDataExportButton Label=\"تصدير\" Formats=\"AllFormats\" OnExport=\"HandleExport\"/>\n@code { private static readonly IReadOnlyList<ExportFormat> AllFormats=[ExportFormat.Csv,ExportFormat.Xlsx,ExportFormat.Pdf,ExportFormat.Json,ExportFormat.Md]; private static Task HandleExport(ExportFormat format)=>Task.CompletedTask; }",
+            "rationale": "The closed descriptor vocabulary has no export menu-button, format-menu, or menu-item control, so it cannot express the RTL five-format DataExportButton without losing its structure and behavior."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "data-export-button.content",
+      "name": "Content resilience",
+      "surface": "long-content",
+      "sourceCaseIds": [
+        "data-export.defaults",
+        "data-export.localized-labels"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "The export control carries one long label containing a grouped large number, escaped hostile text, and an unusual name with diacritics.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<DataExportButton label={'Awaiting third-party structural certification review — 1,284,905 — Bay 4 <grid C-7> & 8 — Ordnance Survey — Niño Ångström'} formats={['csv','xlsx','pdf','json','md']} onExport={()=>undefined}/>",
+            "blazor": "<HarborlineDataExportButton Label=\"@ContentLabel\" Formats=\"AllFormats\" OnExport=\"HandleExport\"/>\n@code { private const string ContentLabel = \"Awaiting third-party structural certification review — 1,284,905 — Bay 4 <grid C-7> & 8 — Ordnance Survey — Niño Ångström\"; private static readonly IReadOnlyList<ExportFormat> AllFormats=[ExportFormat.Csv,ExportFormat.Xlsx,ExportFormat.Pdf,ExportFormat.Json,ExportFormat.Md]; private static Task HandleExport(ExportFormat format)=>Task.CompletedTask; }",
+            "rationale": "The closed descriptor vocabulary cannot express the export menu-button while preserving its hostile-but-valid custom label."
+          }
+        ],
+        "footer": []
+      }
+    }
+  ]
+}

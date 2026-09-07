@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "projection": "react",
+  "moduleId": "hlp.ui.gantt",
+  "scenarios": [
+    {
+      "scenarioId": "gantt.overview",
+      "sha256": "8ecdc717920db86e0798f6dd0355390efb8cf68108c0120ecd4b818630d82011",
+      "bytes": 20533,
+      "artifact": "../baselines/sha256/8ecdc717920db86e0798f6dd0355390efb8cf68108c0120ecd4b818630d82011.png"
+    },
+    {
+      "scenarioId": "gantt.empty-columns",
+      "sha256": "cc3e6f04af5b43a4317bedc8ee6996f1277e5f720a5174d886074e9c372b0ed5",
+      "bytes": 11153,
+      "artifact": "../baselines/sha256/cc3e6f04af5b43a4317bedc8ee6996f1277e5f720a5174d886074e9c372b0ed5.png"
+    },
+    {
+      "scenarioId": "gantt.zoom-navigation",
+      "sha256": "245c7036426a41eb5e3dfaac6173e0076df433a6360fe08e56d6407223f1b54a",
+      "bytes": 26095,
+      "artifact": "../baselines/sha256/245c7036426a41eb5e3dfaac6173e0076df433a6360fe08e56d6407223f1b54a.png"
+    },
+    {
+      "scenarioId": "gantt.replacement-validation",
+      "sha256": "a2e299cc94ec64794491aff993d6d36e9e44cacead735020c149a5bbea267442",
+      "bytes": 16949,
+      "artifact": "../baselines/sha256/a2e299cc94ec64794491aff993d6d36e9e44cacead735020c149a5bbea267442.png"
+    },
+    {
+      "scenarioId": "gantt.large-data",
+      "sha256": "f416c915595efa6e18d06e97fd1402e12c154bc315d3404a92bc212c61680854",
+      "bytes": 68689,
+      "artifact": "../baselines/sha256/f416c915595efa6e18d06e97fd1402e12c154bc315d3404a92bc212c61680854.png"
+    },
+    {
+      "scenarioId": "gantt.locale-fr",
+      "sha256": "a42f28997e684da9163d9bb0c290a95872416135e58e2b087cfe87b4ef847fb5",
+      "bytes": 20288,
+      "artifact": "../baselines/sha256/a42f28997e684da9163d9bb0c290a95872416135e58e2b087cfe87b4ef847fb5.png"
+    },
+    {
+      "scenarioId": "gantt.locale-pseudo",
+      "sha256": "2810fc04b70de7599190d2dcc639684ef2f682fb40dc295029b9e71434a839af",
+      "bytes": 34667,
+      "artifact": "../baselines/sha256/2810fc04b70de7599190d2dcc639684ef2f682fb40dc295029b9e71434a839af.png"
+    },
+    {
+      "scenarioId": "gantt.locale-ar",
+      "sha256": "5ea7d297874f11de24ab869811fb88e57e35dc0d3036e17bec71469ded2a3220",
+      "bytes": 21088,
+      "artifact": "../baselines/sha256/5ea7d297874f11de24ab869811fb88e57e35dc0d3036e17bec71469ded2a3220.png"
+    },
+    {
+      "scenarioId": "gantt.theme-light",
+      "sha256": "2fe7f355adf2058ebaa9d4975bc32f4e369f62f996ab49b31959eef70c93f48b",
+      "bytes": 19224,
+      "artifact": "../baselines/sha256/2fe7f355adf2058ebaa9d4975bc32f4e369f62f996ab49b31959eef70c93f48b.png"
+    },
+    {
+      "scenarioId": "gantt.theme-dark",
+      "sha256": "3ea7df484f86d702d62c6488e86b336517a23dc9f7e11c8fdd718bdcb04bd1cd",
+      "bytes": 18410,
+      "artifact": "../baselines/sha256/3ea7df484f86d702d62c6488e86b336517a23dc9f7e11c8fdd718bdcb04bd1cd.png"
+    }
+  ]
+}

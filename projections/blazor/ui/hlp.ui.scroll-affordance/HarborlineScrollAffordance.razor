@@ -1,0 +1,87 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Layout
+@inherits HarborlineComponentBase
+@implements IAsyncDisposable
+@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.JSInterop
+@using Harborline.UIAdapters.Blazor.Browser
+@using Harborline.UIAdapters.Blazor.Localization
+@inject IJSRuntime JavaScript
+
+<div @ref="host" role="group" aria-label="@AriaLabel" tabindex="@(state.CanScroll ? 0 : (int?)null)"
+     class="@CombineClasses("hl-scroll-affordance", $"hl-scroll-affordance--{OrientationToken}", Snap ? "hl-scroll-affordance--snap" : null)"
+     style="@CombineStyles(MaskStyle)" data-hl-scrollable="@(state.CanScroll ? "true" : null)"
+     data-hl-at-start="@(state.CanScroll && state.AtStart ? "true" : null)" data-hl-at-end="@(state.CanScroll && state.AtEnd ? "true" : null)"
+     @onkeydown="HandleKeyDownAsync" @attributes="AdditionalAttributes">@ChildContent</div>
+<div aria-live="polite" aria-atomic="true" class="hl-scroll-affordance__status">@StatusText</div>
+
+@code {
+  [CascadingParameter] private HarborlineLocaleContext? LocaleContext { get; set; }
+  [Parameter, EditorRequired] public string AriaLabel { get; set; } = string.Empty;
+  [Parameter] public ScrollAffordanceOrientation Orientation { get; set; } = ScrollAffordanceOrientation.Horizontal;
+  [Parameter] public bool Snap { get; set; }
+  [Parameter] public double FadeSize { get; set; } = 24;
+  [Parameter] public int? ItemCount { get; set; }
+  [Parameter] public double? InitialAnchor { get; set; }
+  [Parameter] public RenderFragment? ChildContent { get; set; }
+
+  private ElementReference host;
+  private IJSObjectReference? module;
+  private IJSObjectReference? connection;
+  private DotNetObjectReference<HarborlineScrollAffordance>? callback;
+  private ScrollAffordanceMeasurement measurement = new(0, 0, 0);
+  private ScrollAffordanceState state = new(false, true, true, null, null, new Dictionary<string, int>());
+  private string OrientationToken => Orientation == ScrollAffordanceOrientation.Horizontal ? "horizontal" : "vertical";
+  private string? MaskStyle => state.MaskImage is null ? null : $"mask-image:{state.MaskImage};-webkit-mask-image:{state.MaskImage}";
+  private string StatusText => state.AnnouncementKey is null ? string.Empty : Resolve(state.AnnouncementKey, state.AnnouncementArguments);
+
+  protected override void OnParametersSet()
+  {
+    if (string.IsNullOrWhiteSpace(AriaLabel)) throw new InvalidOperationException("missing-accessible-name");
+    if (!double.IsFinite(FadeSize) || FadeSize < 0) throw new InvalidOperationException("invalid-fade-size");
+    if (ItemCount is < 0) throw new InvalidOperationException("invalid-item-count");
+    if (InitialAnchor is double anchor && (!double.IsFinite(anchor) || anchor < 0)) throw new InvalidOperationException("invalid-initial-anchor");
+  }
+
+  protected override async Task OnAfterRenderAsync(bool firstRender)
+  {
+    if (!firstRender) return;
+    module = await JavaScript.InvokeAsync<IJSObjectReference>("import", "./_content/Harborline.UIAdapters.Blazor/scroll-affordance-component.js");
+    callback = DotNetObjectReference.Create(this);
+    connection = await module.InvokeAsync<IJSObjectReference>("connect", host, callback, Orientation == ScrollAffordanceOrientation.Horizontal, InitialAnchor);
+  }
+
+  [JSInvokable]
+  public Task OnMeasuredAsync(ScrollAffordanceMeasurement next)
+  {
+    measurement = next;
+    state = ScrollAffordancePolicy.Resolve(next, new(Orientation, FadeSize, ItemCount));
+    return InvokeAsync(StateHasChanged);
+  }
+
+  private async Task HandleKeyDownAsync(KeyboardEventArgs args)
+  {
+    var result = ScrollAffordancePolicy.ResolveKey(args.Key, measurement, Orientation);
+    if (result.Handled && connection is not null) await connection.InvokeVoidAsync("scrollTo", result.RawTarget);
+  }
+
+  private string Resolve(string key, IReadOnlyDictionary<string, int> values)
+  {
+    var variables = values.ToDictionary(pair => pair.Key, pair => (object?)pair.Value);
+    var fallback = key switch
+    {
+      "scrollAffordance.showingOne" => "Scrollable, showing {index} of {total}",
+      "scrollAffordance.showingRange" => "Scrollable, showing {start} to {end} of {total}",
+      "scrollAffordance.endReached" => "Scrollable region, end reached",
+      "scrollAffordance.moreAvailable" => "Scrollable region, more content available, use arrow keys to scroll",
+      _ => "Scrollable region, {percent}% scrolled, use arrow keys to scroll",
+    };
+    return LocaleContext?.ResolveString(key, variables, fallback) ?? variables.Aggregate(fallback, (text, pair) => text.Replace($"{{{pair.Key}}}", pair.Value?.ToString(), StringComparison.Ordinal));
+  }
+
+  public async ValueTask DisposeAsync()
+  {
+    if (connection is not null) { try { await connection.InvokeVoidAsync("dispose"); } catch (JSDisconnectedException) { } await connection.DisposeAsync(); }
+    if (module is not null) { try { await module.DisposeAsync(); } catch (JSDisconnectedException) { } }
+    callback?.Dispose();
+  }
+}

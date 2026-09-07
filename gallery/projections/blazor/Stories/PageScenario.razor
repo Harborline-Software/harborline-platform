@@ -1,0 +1,70 @@
+<section class="hl-gallery-scene" data-gallery-probe data-gallery-scenario="@ScenarioId" data-theme="@Theme" dir="@Direction">
+  <header class="hl-gallery-heading">
+    <h2>@Copy.Title</h2>
+    <p>@Copy.Description</p>
+  </header>
+  <div class="hl-gallery-stage">
+    @if (ScenarioId == "page.content")
+    {
+      <div style="height: 360px; min-width: 0">
+        <HarborlinePage Title="@("Awaiting third-party structural certification review")">
+          <Subtitle>@("Ordnance Survey — Niño Ångström")</Subtitle>
+          <Actions><button type="button">@("Review affected inspection records and continue")</button></Actions>
+          <ChildContent><p>@("1,284,905 records at Bay 4 <grid C-7> & 8")</p></ChildContent>
+        </HarborlinePage>
+      </div>
+    }
+    else
+    {
+      <div style="height: 360px; min-width: 0">
+      <HarborlinePage id="structure-health-page"
+                    class="hl-gallery-record"
+                    BodyClass="hl-gallery-feedback-stack"
+                    Title="@Title"
+                    HeadingLevel="@HeadingLevel"
+                    Sticky="@Sticky"
+                    BodyPadding="@BodyPadding">
+        <Subtitle>@Subtitle</Subtitle>
+        <Actions><button type="button">@ActionLabel</button></Actions>
+        <ChildContent>
+          <p>Harborline route content remains independent from the application shell landmark.</p>
+          @for (var index = 1; index <= 8; index++)
+          {
+            <p>Inspection row @index: placement and pose captured.</p>
+          }
+        </ChildContent>
+      </HarborlinePage>
+      </div>
+    }
+  </div>
+</section>
+
+@code {
+  [Parameter, EditorRequired] public string ScenarioId { get; set; } = "page.structure";
+
+  private (string Title, string Description) Copy => ScenarioId switch
+  {
+    "page.structure" => ("Header and body structure", "One header landmark sits above a keyboard-scrollable section; the application shell retains the main landmark."),
+    "page.options" => ("Padding, sticky, and heading levels", "Closed heading, padding, and sticky options change chrome without changing body ownership."),
+    "page.keyboard-responsive" => ("Keyboard scroll and responsive actions", "The body accepts focus and actions wrap below the title at phone width."),
+    "page.locale-en" => ("English locale", "Caller-owned title, subtitle, actions, and body content are preserved."),
+    "page.locale-pseudo" => ("Pseudo locale", "Expanded title and action copy wrap without clipping."),
+    "page.locale-ar" => ("Arabic locale", "Logical action placement follows RTL while preserving content order."),
+    "page.theme-light" => ("Light theme", "Header, body, boundary, and focus states use public light-theme tokens."),
+    "page.theme-dark" => ("Dark theme", "The same route shell on the Harborline dark surface."),
+    "page.content" => ("Content resilience", "Hostile page content carries a long action label, the grouped number 1,284,905, escaped angle brackets and an ampersand, and a name with diacritics and an em dash."),
+    _ => ("Page", "Route page chrome.")
+  };
+
+  private bool IsArabic => ScenarioId == "page.locale-ar";
+  private bool IsPseudo => ScenarioId == "page.locale-pseudo";
+  private string Direction => IsArabic ? "rtl" : "ltr";
+  private string? Theme => ScenarioId switch { "page.theme-light" => "light", "page.theme-dark" => "dark", _ => null };
+  private string Title => IsArabic ? "صحة الهيكل" : IsPseudo ? "⟦ Šţřûçţûřë hëåļţh åñđ îñšþëçţîøñ šûmmåřÿ ········ ⟧" : "Structure health";
+  private string Subtitle => IsArabic ? "مراجعة عمليات الفحص الأخيرة" : IsPseudo ? "⟦ Řëṽîëŵ řëçëñţ îñšþëçţîøñ åçţîṽîţÿ ······ ⟧" : "Review recent inspection activity";
+  private string ActionLabel => IsArabic ? "تحديث التقرير" : IsPseudo ? "⟦ Řëƒřëšh ţhë šţřûçţûřë řëþøřţ ······ ⟧" : "Refresh report";
+  private bool Options => ScenarioId == "page.options";
+  private PageHeadingLevel HeadingLevel => Options ? PageHeadingLevel.H2 : PageHeadingLevel.H1;
+  private bool Sticky => !Options;
+  private PageBodyPadding BodyPadding => Options ? PageBodyPadding.Lg : PageBodyPadding.Md;
+}

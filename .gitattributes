@@ -1,0 +1,25 @@
+# Line endings are decided here rather than by whichever tool last wrote a file.
+#
+# This repository was mixed: 2,714 files stored LF and 102 stored CRLF, with nothing choosing between
+# them. That is not cosmetic here. Provenance contentHashes are sha256 over the bytes of specific
+# files, and the phase-4 receipt binds a commit to the tree it tested -- so a tool that rewrites a
+# file with the other line ending changes those hashes and invalidates that binding, while the
+# content it wrote is perfectly correct. The failure is silent: the tool succeeds and only the
+# evidence breaks, somewhere else, later.
+#
+# text=auto stores text as LF; eol=lf checks it out as LF on every platform, so the working tree, the
+# index, the hashes and the receipt all agree. The 102 CRLF files were renormalized in the commit that
+# added this file, deliberately and once, rather than drifting in as each was next touched.
+* text=auto eol=lf
+
+# PNG captures and any other binary must never be touched. text=auto already detects these, but the
+# detection is a heuristic over the first bytes and this is not something to leave to a heuristic.
+*.png binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.nupkg binary
+*.tgz binary
+
+# Shell scripts must be LF or they do not run. Covered above; stated so a reader need not derive it.
+*.sh text eol=lf

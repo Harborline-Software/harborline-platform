@@ -1,0 +1,38 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Feedback
+@inherits Harborline.UIAdapters.Blazor.Base.HarborlineComponentBase
+
+<div role="alert" class="@CombineClasses("hl-error-card", VariantClass)" style="@CombineStyles()" data-hl-tone="destructive-soft" @attributes="AdditionalAttributes">
+    @if (Variant == ErrorCardVariant.Page)
+    {
+        <h2 class="hl-error-card__title" data-hl-tone="destructive">@Title</h2>
+    }
+    else
+    {
+        <p class="hl-error-card__title" data-hl-tone="destructive">@Title</p>
+    }
+    @if (!string.IsNullOrEmpty(Message))
+    {
+        <p class="hl-error-card__message" data-hl-tone="muted">@Message</p>
+    }
+    @if (OnRetry.HasDelegate)
+    {
+        <button type="button" class="hl-error-card__retry" data-hl-tone="destructive" @onclick="OnRetry">@EffectiveRetryLabel</button>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
+    [Parameter] public string? Message { get; set; }
+    [Parameter] public EventCallback OnRetry { get; set; }
+    [Parameter] public string? RetryLabel { get; set; }
+    [Parameter] public ErrorCardVariant Variant { get; set; } = ErrorCardVariant.Default;
+
+    private string VariantClass => $"hl-error-card--{Variant.ToString().ToLowerInvariant()}";
+    private string EffectiveRetryLabel => RetryLabel ?? "Retry";
+
+    protected override void OnParametersSet()
+    {
+        if (string.IsNullOrWhiteSpace(Title)) throw new InvalidOperationException("title-required");
+        if (OnRetry.HasDelegate && string.IsNullOrWhiteSpace(EffectiveRetryLabel)) throw new InvalidOperationException("retry-label-required");
+    }
+}

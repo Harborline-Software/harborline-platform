@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "note": "Captured, not judged. No budget exists yet; ticket 098 defines this gate as capture until explicit budgets are set.",
+  "modules": {
+    "hlp.ui.empty-state": {
+      "reactDurationMs": 1955,
+      "blazorDurationMs": 10163
+    },
+    "hlp.ui.table": {
+      "reactDurationMs": 3689,
+      "blazorDurationMs": 5220
+    },
+    "hlp.ui.window": {
+      "reactDurationMs": 1961,
+      "blazorDurationMs": 3774
+    },
+    "hlp.ui.app-layout": {
+      "reactDurationMs": 2221,
+      "blazorDurationMs": 3460
+    },
+    "hlp.ui.chart": {
+      "reactDurationMs": 2016,
+      "blazorDurationMs": 5509
+    },
+    "hlp.ui.chat": {
+      "reactDurationMs": 4611,
+      "blazorDurationMs": 4707
+    },
+    "hlp.ui.data-grid": {
+      "reactDurationMs": 4535,
+      "blazorDurationMs": 3628
+    },
+    "hlp.ui.gantt": {
+      "reactDurationMs": 2550,
+      "blazorDurationMs": 6470
+    },
+    "hlp.ui.numeric-text-box": {
+      "reactDurationMs": 2010,
+      "blazorDurationMs": 3452
+    },
+    "hlp.ui.scheduler": {
+      "reactDurationMs": 2450,
+      "blazorDurationMs": 3825
+    },
+    "hlp.ui.schema-form": {
+      "reactDurationMs": 2332,
+      "blazorDurationMs": 5157
+    }
+  }
+}

@@ -1,0 +1,216 @@
+.hl-spotlight__portal {
+  --hl-spotlight-surface: var(--hl-popover, var(--hl-surface, Canvas));
+  --hl-spotlight-text: var(--hl-popover-foreground, var(--hl-foreground, CanvasText));
+  --hl-spotlight-muted: var(--hl-muted-foreground, GrayText);
+  --hl-spotlight-border: var(--hl-border, color-mix(in srgb, CanvasText 24%, Canvas));
+  --hl-spotlight-hover: var(--hl-muted, color-mix(in srgb, CanvasText 8%, Canvas));
+  --hl-spotlight-active: var(--hl-selected, var(--hl-accent, color-mix(in srgb, Highlight 14%, Canvas)));
+  --hl-spotlight-active-text: var(--hl-foreground, CanvasText);
+  --hl-spotlight-focus: var(--hl-focus, #8a3ffc);
+  --hl-spotlight-overlay: var(--hl-overlay, rgb(0 0 0 / 48%));
+  --hl-spotlight-shadow: var(--hl-shadow-overlay, 0 1rem 3rem rgb(15 23 42 / 28%));
+}
+
+.hl-spotlight__portal {
+  inset: 0;
+  position: fixed;
+  z-index: var(--hl-layer-modal, 1000);
+}
+
+.hl-spotlight__scrim {
+  background: var(--hl-spotlight-overlay);
+  inset: 0;
+  position: fixed;
+}
+
+.hl-spotlight {
+  animation: hl-spotlight-enter 180ms cubic-bezier(0.16, 1, 0.3, 1);
+  background: var(--hl-spotlight-surface);
+  border: 1px solid var(--hl-spotlight-border);
+  border-radius: var(--hl-radius-lg, 0.75rem);
+  box-shadow: var(--hl-spotlight-shadow);
+  box-sizing: border-box;
+  color: var(--hl-spotlight-text);
+  inline-size: min(36rem, calc(100dvw - 2rem));
+  inset-block-start: min(15dvh, 8rem);
+  inset-inline-start: 50%;
+  max-block-size: calc(100dvh - 2rem);
+  max-inline-size: calc(100dvw - 2rem);
+  overflow: hidden;
+  position: fixed;
+  transform: translateX(-50%);
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.hl-spotlight__query-row {
+  align-items: center;
+  border-block-end: 1px solid var(--hl-spotlight-border);
+  display: flex;
+  gap: 0.75rem;
+  min-block-size: 3.5rem;
+  padding-inline: 1rem;
+}
+
+.hl-spotlight__search-icon {
+  block-size: 1rem;
+  color: var(--hl-spotlight-muted);
+  flex: none;
+  inline-size: 1rem;
+  stroke: currentColor;
+  stroke-width: 2;
+}
+
+.hl-spotlight__query {
+  background: transparent;
+  border: 0;
+  color: inherit;
+  flex: 1 1 auto;
+  font: inherit;
+  min-inline-size: 0;
+  outline: none;
+  padding-block: 1rem;
+  text-align: start;
+}
+
+.hl-spotlight__query::placeholder { color: var(--hl-spotlight-muted); opacity: 1; }
+
+.hl-spotlight__escape,
+.hl-spotlight__shortcut,
+.hl-spotlight__badge {
+  background: var(--hl-spotlight-hover);
+  border: 1px solid var(--hl-spotlight-border);
+  border-radius: 0.25rem;
+  color: var(--hl-spotlight-muted);
+  flex: none;
+  font: inherit;
+  font-size: 0.75rem;
+  padding: 0.125rem 0.375rem;
+}
+
+.hl-spotlight__results {
+  max-block-size: min(24rem, 60dvh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-block: 0.5rem;
+  scrollbar-color: var(--hl-spotlight-border) transparent;
+}
+
+.hl-spotlight__group-label {
+  color: var(--hl-spotlight-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  overflow-wrap: anywhere;
+  padding-block: 0.75rem 0.25rem;
+  padding-inline: 1rem;
+  text-align: start;
+}
+
+.hl-spotlight__option {
+  align-items: center;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  display: flex;
+  gap: 0.75rem;
+  margin-inline: 0.5rem;
+  min-block-size: 2.5rem;
+  padding-block: 0.5rem;
+  padding-inline: 0.75rem;
+  transition: background-color 120ms ease-out, color 120ms ease-out;
+}
+
+.hl-spotlight__option:hover:not(.hl-spotlight__option--active) { background: var(--hl-spotlight-hover); }
+.hl-spotlight__option:active { background: color-mix(in srgb, var(--hl-spotlight-active) 82%, var(--hl-spotlight-text)); }
+
+.hl-spotlight__option--active {
+  background: var(--hl-spotlight-active);
+  color: var(--hl-spotlight-active-text);
+  outline: 1px solid color-mix(in srgb, currentColor 35%, transparent);
+}
+
+.hl-spotlight__icon { color: currentColor; flex: none; }
+
+.hl-spotlight__label {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+  text-align: start;
+}
+
+.hl-spotlight__description {
+  color: var(--hl-spotlight-muted);
+  flex: 0 1 45%;
+  font-size: 0.75rem;
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+  text-align: start;
+}
+
+.hl-spotlight__option--active .hl-spotlight__description { color: currentColor; }
+
+.hl-spotlight__empty,
+.hl-spotlight__loading {
+  color: var(--hl-spotlight-muted);
+  overflow-wrap: anywhere;
+  padding-block: 1.5rem;
+  padding-inline: 1rem;
+  text-align: center;
+}
+
+.hl-spotlight__loading { padding-block: 0.5rem; text-align: start; }
+
+.hl-spotlight__footer {
+  background: color-mix(in srgb, var(--hl-spotlight-hover) 72%, transparent);
+  border-block-start: 1px solid var(--hl-spotlight-border);
+  overflow-wrap: anywhere;
+  color: var(--hl-spotlight-muted);
+  font-size: 0.75rem;
+  padding-block: 0.5rem;
+  padding-inline: 1rem;
+  text-align: start;
+}
+
+@keyframes hl-spotlight-enter {
+  from { opacity: 0; transform: translate(-50%, 0.5rem) scale(0.985); }
+  to { opacity: 1; transform: translateX(-50%) scale(1); }
+}
+
+.hl-spotlight :focus-visible {
+  outline: 2px solid var(--hl-spotlight-focus);
+  outline-offset: 2px;
+}
+
+.hl-spotlight__sr-only {
+  block-size: 1px;
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  inline-size: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+}
+
+[data-theme='dark'] .hl-spotlight,
+.hl-spotlight[data-theme='dark'] {
+  --hl-spotlight-border: var(--hl-border, color-mix(in srgb, CanvasText 36%, Canvas));
+}
+
+@media (max-width: 30rem) {
+  .hl-spotlight { inset-block-start: 1rem; }
+  .hl-spotlight__description { flex-basis: 100%; }
+  .hl-spotlight__option { align-items: flex-start; flex-wrap: wrap; }
+}
+
+@media (forced-colors: active) {
+  .hl-spotlight,
+  .hl-spotlight__option,
+  .hl-spotlight__escape,
+  .hl-spotlight__shortcut,
+  .hl-spotlight__badge { border-color: CanvasText; forced-color-adjust: auto; }
+  .hl-spotlight__option--active { background: Highlight; color: HighlightText; outline-color: Highlight; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hl-spotlight { animation: none; scroll-behavior: auto; transition: none; }
+  .hl-spotlight__option { transition: none; }
+}

@@ -1,0 +1,250 @@
+@namespace Harborline.UIAdapters.Blazor.Components.DataDisplay
+@inherits HarborlineComponentBase
+@using System.Globalization
+@using Harborline.UIAdapters.Blazor.Localization
+
+<figure aria-label="@ResolvedAccessibleName" dir="@Direction"
+        class="@CombineClasses("hl-chart")" style="@CombineStyles()"
+        data-chart-kind="@Kind" data-legend="@(ShowLegend ? "visible" : "hidden")"
+        data-motion="@(Motion == ChartMotion.Disabled ? "disabled" : "host")"
+        data-tooltip="@(ShowTooltip ? "enabled" : "disabled")"
+        data-hl-chart-kind="@Kind" data-hl-legend="@(ShowLegend ? "visible" : "hidden")"
+        data-hl-tooltip="@(ShowTooltip ? "enabled" : "disabled")" @attributes="AdditionalAttributes">
+    @if (!string.IsNullOrWhiteSpace(Title))
+    {
+        <figcaption class="hl-chart__title">@Title</figcaption>
+    }
+    <div class="hl-chart__visual" data-chart-state="@(IsEmpty ? "empty" : "plotted")">
+        @if (IsEmpty)
+        {
+            <p class="hl-chart__empty" data-chart-empty="true">@EmptyText</p>
+        }
+        else if (Definition is LineChartDefinition line)
+        {
+            <svg aria-hidden="true" class="hl-chart__graphic" focusable="false" viewBox="0 0 640 320">
+                <line class="hl-chart__axis" x1="28" x2="612" y1="292" y2="292"></line>
+                <line class="hl-chart__axis" x1="28" x2="28" y1="28" y2="292"></line>
+                @for (var seriesIndex = 0; seriesIndex < line.Series.Count; seriesIndex++)
+                {
+                    var series = line.Series[seriesIndex];
+                    <g class="hl-chart__series" data-series-name="@series.Name" style="@SeriesStyle(seriesIndex)">
+                        <path class="hl-chart__line" d="@LinePath(line, series)" pathLength="1"
+                              stroke-dasharray="@StrokeDashArray(seriesIndex)"></path>
+                        @if (ShowPoints(line))
+                        {
+                            @for (var pointIndex = 0; pointIndex < series.Values.Count; pointIndex++)
+                            {
+                                var value = series.Values[pointIndex];
+                                <g data-category="@line.Categories[pointIndex]" data-point-state="@(value is null ? "missing" : "present")">
+                                    @if (value is double point)
+                                    {
+                                        <circle class="hl-chart__point" cx="@X(line, pointIndex)" cy="@Y(line, point)" r="@(seriesIndex % 2 == 0 ? 4 : 3)">
+                                            @if (ShowTooltip)
+                                            {
+                                                <title>@($"{series.Name} · {line.Categories[pointIndex]} · {FormatValue(point)}")</title>
+                                            }
+                                        </circle>
+                                    }
+                                </g>
+                            }
+                        }
+                    </g>
+                }
+            </svg>
+        }
+        else if (Definition is DonutChartDefinition donut)
+        {
+            <svg aria-hidden="true" class="hl-chart__graphic" focusable="false" viewBox="0 0 640 320">
+                @foreach (var slice in DonutPaths(donut))
+                {
+                    <path class="hl-chart__slice" d="@slice.Path" data-slice="@slice.Slice.Label" style="@SeriesStyle(slice.Index)">
+                        @if (ShowTooltip)
+                        {
+                            <title>@($"{slice.Slice.Label} · {FormatValue(slice.Slice.Value ?? 0)}")</title>
+                        }
+                    </path>
+                }
+            </svg>
+        }
+    </div>
+    @if (ShowLegend)
+    {
+        <ul class="hl-chart__legend" data-chart-legend="visible">
+            @for (var index = 0; index < LegendLabels.Count; index++)
+            {
+                <li class="hl-chart__legend-item">
+                    <span aria-hidden="true" class="hl-chart__legend-key" data-pattern="@(index % 3)" style="@SeriesStyle(index)"></span>
+                    <span>@LegendLabels[index]</span>
+                </li>
+            }
+        </ul>
+    }
+    <details class="hl-chart__data">
+        <summary>@ResolvedDataSummaryLabel</summary>
+        <div class="hl-chart__table-scroll">
+            <table>
+                @if (Definition is LineChartDefinition accessibleLine)
+                {
+                    <thead><tr><th scope="col">@SeriesLabel</th>@foreach (var category in accessibleLine.Categories){<th scope="col">@category</th>}</tr></thead>
+                    <tbody>
+                        @for (var row = 0; row < accessibleLine.Series.Count; row++)
+                        {
+                            var series = accessibleLine.Series[row];
+                            <tr data-chart-row="@row"><th scope="row">@series.Name</th>@foreach(var value in series.Values){<td data-value-state="@(value is null ? "missing" : "present")">@(value is double number ? FormatValue(number) : "null")</td>}</tr>
+                        }
+                    </tbody>
+                }
+                else if (Definition is DonutChartDefinition accessibleDonut)
+                {
+                    <thead><tr><th scope="col">@ItemLabel</th><th scope="col">@ValueLabel</th></tr></thead>
+                    <tbody>@for(var row = 0; row < accessibleDonut.Slices.Count; row++){var slice = accessibleDonut.Slices[row];<tr data-chart-row="@row"><th scope="row">@slice.Label</th><td data-value-state="@(slice.Value is null ? "missing" : "present")">@(slice.Value is double number ? FormatValue(number) : "null")</td></tr>}</tbody>
+                }
+            </table>
+        </div>
+    </details>
+</figure>
+
+@code {
+    private const double Width = 640;
+    private const double Height = 320;
+    private const double Inset = 28;
+
+    [CascadingParameter] private HarborlineLocaleContext? LocaleContext { get; set; }
+    [Parameter, EditorRequired] public ChartDefinition Definition { get; set; } = null!;
+    [Parameter] public string? AccessibleName { get; set; }
+    [Parameter] public string? Title { get; set; }
+    [Parameter] public string? DataSummaryLabel { get; set; }
+    [Parameter] public string? Empty { get; set; }
+    [Parameter] public bool ShowLegend { get; set; } = true;
+    [Parameter] public bool ShowTooltip { get; set; } = true;
+    [Parameter] public ChartMotion Motion { get; set; } = ChartMotion.Host;
+
+    private string Direction => LocaleContext?.Direction ?? "ltr";
+    private string ResolvedAccessibleName => FirstNonblank(AccessibleName, Title, Translate("charts.chart", "Chart")) ?? "Chart";
+    private string ResolvedDataSummaryLabel => FirstNonblank(DataSummaryLabel) ?? $"{ResolvedAccessibleName}: {ValueLabel}";
+    private string SeriesLabel => Translate("charts.series", "Series");
+    private string ItemLabel => Translate("charts.item", "Item");
+    private string ValueLabel => Translate("charts.value", "Value");
+    private string Kind => Definition is DonutChartDefinition ? "donut" : "line";
+    // A chart handed nothing to plot draws EmptyText instead of a coordinate space; Bounds() would
+    // otherwise invent a 0-1 range and put axes and a numeric scale over no data. React decides the
+    // same way, from the same counts.
+    private bool IsEmpty => Definition switch
+    {
+        LineChartDefinition line => !line.Series.SelectMany(series => series.Values).Any(value => value is not null),
+        DonutChartDefinition donut => !donut.Slices.Any(slice => slice.Value is not null),
+        _ => false
+    };
+    private string EmptyText => FirstNonblank(Empty, Resolve("charts.empty")) ?? "No data to display";
+    private IReadOnlyList<string> LegendLabels => Definition switch
+    {
+        LineChartDefinition line => line.Series.Select(series => series.Name).ToArray(),
+        DonutChartDefinition donut => donut.Slices.Select(slice => slice.Label).ToArray(),
+        _ => []
+    };
+
+    protected override void OnParametersSet()
+    {
+        ArgumentNullException.ThrowIfNull(Definition);
+        Validate(Definition);
+    }
+
+    private static string? FirstNonblank(params string?[] values) => values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))?.Trim();
+    private string Translate(string key, string fallback) => LocaleContext?.ResolveString(key, instanceOverride: fallback) ?? fallback;
+    // Catalog first, then the caller's default: ResolveString echoes the key when nothing carries it.
+    private string? Resolve(string key) => LocaleContext?.ResolveString(key) is {} value && value != key ? value : null;
+    private static string SeriesStyle(int index) => $"--hl-chart-series:var(--hl-chart-series-{index % 6 + 1})";
+    private static string? StrokeDashArray(int index) => (index % 3) switch { 1 => "0.04 0.02", 2 => "0.01 0.015", _ => null };
+    private static bool ShowPoints(LineChartDefinition definition) => definition.Categories.Count * definition.Series.Count <= 1_000;
+
+    private static void Validate(ChartDefinition definition)
+    {
+        switch (definition)
+        {
+            case LineChartDefinition line:
+                if (line.Series.Any(series => string.IsNullOrWhiteSpace(series.Name))) throw new InvalidOperationException("label-required");
+                if (line.Series.GroupBy(series => series.Name, StringComparer.Ordinal).Any(group => group.Count() > 1)) throw new InvalidOperationException("duplicate-series-name");
+                if (line.Series.Any(series => series.Values.Count != line.Categories.Count)) throw new InvalidOperationException("category-value-count-mismatch");
+                if (line.Series.SelectMany(series => series.Values).Any(value => value is double number && !double.IsFinite(number))) throw new InvalidOperationException("non-finite-value");
+                break;
+            case DonutChartDefinition donut:
+                if (donut.Slices.Any(slice => string.IsNullOrWhiteSpace(slice.Label))) throw new InvalidOperationException("label-required");
+                if (donut.Slices.Any(slice => slice.Value is double number && !double.IsFinite(number))) throw new InvalidOperationException("non-finite-value");
+                break;
+            default:
+                throw new ArgumentException("Unsupported chart definition.", nameof(definition));
+        }
+    }
+
+    private static (double Minimum, double Span) Bounds(LineChartDefinition definition)
+    {
+        var finite = definition.Series.SelectMany(series => series.Values).OfType<double>().ToArray();
+        var minimum = finite.Length == 0 ? 0 : finite.Min();
+        var maximum = finite.Length == 0 ? 1 : finite.Max();
+        return (minimum, Math.Abs(maximum - minimum) < double.Epsilon ? 1 : maximum - minimum);
+    }
+
+    private static string X(LineChartDefinition definition, int index)
+    {
+        var value = definition.Categories.Count <= 1 ? Width / 2 : Inset + index * (Width - Inset * 2) / (definition.Categories.Count - 1);
+        return value.ToString("0.###", CultureInfo.InvariantCulture);
+    }
+
+    private static string Y(LineChartDefinition definition, double value)
+    {
+        var bounds = Bounds(definition);
+        var result = Height - Inset - (value - bounds.Minimum) * (Height - Inset * 2) / bounds.Span;
+        return result.ToString("0.###", CultureInfo.InvariantCulture);
+    }
+
+    private static string LinePath(LineChartDefinition definition, LineChartSeries series)
+    {
+        var commands = new List<string>();
+        var drawing = false;
+        for (var index = 0; index < series.Values.Count; index++)
+        {
+            if (series.Values[index] is not double value) { drawing = false; continue; }
+            commands.Add($"{(drawing ? "L" : "M")} {X(definition, index)} {Y(definition, value)}");
+            drawing = true;
+        }
+        return string.Join(' ', commands);
+    }
+
+    private static (double X, double Y) PointOnCircle(double angle, double radius) =>
+        (Width / 2 + Math.Cos(angle) * radius, Height / 2 + Math.Sin(angle) * radius);
+
+    private static string DonutPath(double start, double end)
+    {
+        const double outer = 118;
+        const double inner = 68;
+        var outerStart = PointOnCircle(start, outer);
+        var outerEnd = PointOnCircle(end, outer);
+        var innerEnd = PointOnCircle(end, inner);
+        var innerStart = PointOnCircle(start, inner);
+        var largeArc = end - start > Math.PI ? 1 : 0;
+        return FormattableString.Invariant($"M {outerStart.X} {outerStart.Y} A {outer} {outer} 0 {largeArc} 1 {outerEnd.X} {outerEnd.Y} L {innerEnd.X} {innerEnd.Y} A {inner} {inner} 0 {largeArc} 0 {innerStart.X} {innerStart.Y} Z");
+    }
+
+    private static IReadOnlyList<(int Index, DonutChartSlice Slice, string Path)> DonutPaths(DonutChartDefinition definition)
+    {
+        var rendered = definition.Slices.Where(slice => slice.Value is not null).ToArray();
+        var total = rendered.Sum(slice => Math.Abs(slice.Value ?? 0));
+        var angle = -Math.PI / 2;
+        var paths = new List<(int, DonutChartSlice, string)>();
+        for (var index = 0; index < rendered.Length; index++)
+        {
+            var sweep = total == 0 ? 0 : Math.Abs(rendered[index].Value ?? 0) / total * Math.PI * 2;
+            var start = angle;
+            angle += sweep;
+            paths.Add((index, rendered[index], DonutPath(start, angle)));
+        }
+        return paths;
+    }
+
+    private string FormatValue(double value)
+    {
+        if (LocaleContext is null) return value.ToString("G", CultureInfo.InvariantCulture);
+        try { return LocaleContext.FormatNumber((decimal)value, maximumFractionDigits: 3); }
+        catch { return value.ToString("G", CultureInfo.InvariantCulture); }
+    }
+}

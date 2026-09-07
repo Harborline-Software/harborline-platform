@@ -1,0 +1,17 @@
+@attribute [Stories("Platform/Chat")]
+<Stories TComponent="ChatScenario">
+  @foreach (var scenario in Scenarios)
+  {
+    <Story Name="@scenario.Name"><Arguments><Arg For="_ => _.ScenarioId" Value="@scenario.Id" /></Arguments><Template><ChatScenario @attributes="context.Args" /></Template></Story>
+  }
+</Stories>
+@code {
+  private static readonly (string Id, string Name)[] Scenarios =
+  [
+    ("chat.empty-suggestions", "Empty state and suggestions"), ("chat.app-conversation", "Harborline conversation"),
+    ("chat.controlled-composer", "Controlled composer"), ("chat.streaming-keyboard", "Streaming and keyboard navigation"),
+    ("chat.replacement-validation", "Replacement and validation"), ("chat.large-data", "Bounded conversation under load"),
+    ("chat.locale-pseudo", "Pseudo locale"), ("chat.locale-ar", "Arabic RTL and localized time"),
+    ("chat.theme-light", "Light theme"), ("chat.theme-dark", "Dark theme")
+  ];
+}

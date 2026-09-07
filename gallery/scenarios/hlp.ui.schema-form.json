@@ -1,0 +1,256 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.schema-form",
+  "sourceFixture": "conformance/hlp.ui.schema-form/fixtures.yaml",
+  "qualityFixture": "conformance/hlp.ui.schema-form/quality-fixtures.yaml",
+  "galleryInterface": {
+    "probeAttribute": "data-gallery-probe",
+    "scenarioAttribute": "data-gallery-scenario",
+    "projectionTitles": {
+      "react": "Platform/Schema Form",
+      "blazor": "Platform/Schema Form"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "schema-form.controls-structure",
+      "name": "Ordered controls and collections",
+      "surface": "controls-structure",
+      "sourceCaseIds": [
+        "schema-form.section-order",
+        "schema-form.hint-registry",
+        "schema-form.hint-fallback",
+        "schema-form.unavailable-value",
+        "schema-form.nested-group-set",
+        "schema-form.collection-cardinality"
+      ],
+      "sourceQualityCaseIds": [
+        "schema-form.quality.field-labelling",
+        "schema-form.quality.reflow",
+        "schema-form.quality.tab-order",
+        "schema-form.quality.collection-controls",
+        "schema-form.quality.forced-colors"
+      ],
+      "content": {
+        "blurb": "Registry resolution, fallback, nested updates, and bounded rows share one caller-defined order.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<SchemaForm controls={ { bespoke: bespokeControl } } initialValues={ { berthCode: 'D-14', arrivalWindow: '04:00–06:00', cargoShape: { kind: 'bulk' }, agent: { name: 'North Harbor Agency', sibling: 'preserved' }, charges: [{ description: 'Pilotage' }] } } onSubmit={ validSubmit } strings={ ENGLISH_STRINGS } view={ CONTROLS_VIEW } />",
+            "blazor": "<HarborlineSchemaForm Controls=\"CustomControls\" InitialValues=\"ControlsValues\" OnSubmit=\"ValidSubmit\" Strings=\"EnglishStrings\" View=\"ControlsView\" />",
+            "rationale": "The rendered form is generated from a caller-supplied schema containing ordered sections, a custom registry renderer, an unknown-hint fallback, an unavailable structured value, a nested group, and a bounded collection. The closed descriptor vocabulary cannot declare that schema or its dynamic collection behavior without silently approximating it."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "schema-form.rules-gate",
+      "name": "Rule outcomes and save gate",
+      "surface": "rules-gate",
+      "sourceCaseIds": [
+        "schema-form.rule-visibility",
+        "schema-form.rule-required",
+        "schema-form.rule-readonly",
+        "schema-form.rule-computed",
+        "schema-form.rule-presentation",
+        "schema-form.submit-blocked",
+        "schema-form.candidate-complete"
+      ],
+      "sourceQualityCaseIds": [
+        "schema-form.quality.hidden-not-announced",
+        "schema-form.quality.focus-survives-rehide",
+        "schema-form.quality.tokens"
+      ],
+      "content": {
+        "blurb": "Visibility, required, read-only, computed, and presentation outcomes project before save.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<SchemaForm initialValues={ { contact: '', reference: 'REQ-2048', total: 0, status: 'Awaiting review', internalNote: 'Retained in the submitted candidate' } } onSubmit={ validSubmit } ruleGraph={ RULE_GRAPH } strings={ ENGLISH_STRINGS } view={ RULES_VIEW } />",
+            "blazor": "<HarborlineSchemaForm InitialValues=\"RulesValues\" OnSubmit=\"ValidSubmit\" RuleGraph=\"RuleGraph\" Strings=\"EnglishStrings\" View=\"RulesView\" />",
+            "rationale": "The rendered form depends on a rule-graph evaluation that simultaneously changes visibility, required and read-only states, resolves a computed currency value, adds presentation metadata, and blocks saving while pending. Those schema and rule outcomes cannot be represented by the closed descriptor controls."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "schema-form.validation",
+      "name": "Inline and summary validation",
+      "surface": "validation",
+      "sourceCaseIds": [
+        "schema-form.validation-inline",
+        "schema-form.validation-summary",
+        "schema-form.summary-focus"
+      ],
+      "sourceQualityCaseIds": [
+        "schema-form.quality.error-association",
+        "schema-form.quality.summary-focus"
+      ],
+      "content": {
+        "blurb": "Save to inspect inline association, summary partitioning, and summary focus.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<SchemaForm initialValues={ { name: '', email: 'ops@example.test' } } onSubmit={ validationSubmit } strings={ ENGLISH_STRINGS } view={ VALIDATION_VIEW } />",
+            "blazor": "<HarborlineSchemaForm InitialValues=\"ValidationValues\" OnSubmit=\"ValidationSubmit\" Strings=\"EnglishStrings\" View=\"ValidationView\" />",
+            "rationale": "The scenario requires schema-driven inline error association, partitioning deeper and root JSON-pointer errors into a focusable summary, and moving focus after submission. The closed vocabulary has no form-schema, validation-error, error-summary, or focus descriptor."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "schema-form.locale-theme",
+      "name": "Caller locales and dark theme",
+      "surface": "locale-theme",
+      "sourceCaseIds": [
+        "schema-form.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "schema-form.quality.caller-copy",
+        "schema-form.quality.rtl",
+        "schema-form.quality.pseudo",
+        "schema-form.quality.currency-format",
+        "schema-form.quality.date-format",
+        "schema-form.quality.number-format",
+        "schema-form.quality.light-dark",
+        "schema-form.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "Pseudo-expanded and Arabic copy exercise locale formatting, logical direction, and shared theme tokens.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "dark",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<><SchemaForm initialValues={ { replacementCost: 1234567.89, completion: 62.5, inspectionDate: '2026-08-13' } } localeChain={ ['en-XA'] } onSubmit={ validSubmit } strings={ PSEUDO_STRINGS } view={ PSEUDO_VIEW } /><SchemaForm initialValues={ { amount: 1234567.89, date: '2026-08-13' } } localeChain={ ['ar'] } onSubmit={ validSubmit } strings={ ARABIC_STRINGS } view={ ARABIC_VIEW } /></>",
+            "blazor": "<HarborlineSchemaForm InitialValues=\"PseudoValues\" LocaleChain=\"PseudoLocale\" OnSubmit=\"ValidSubmit\" Strings=\"PseudoStrings\" View=\"PseudoView\" /><HarborlineSchemaForm InitialValues=\"ArabicValues\" LocaleChain=\"ArabicLocale\" OnSubmit=\"ValidSubmit\" Strings=\"ArabicStrings\" View=\"ArabicView\" />",
+            "rationale": "One dark gallery scene renders two independent schema forms: an en-XA form with currency, percentage, and date formatting and an Arabic form with RTL-localized currency and date formatting. A single closed environment cannot encode both nested locale contexts, and the descriptor vocabulary cannot express the schema controls or locale-aware formatters."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "schema-form.content",
+      "name": "Content resilience",
+      "surface": "long-content",
+      "sourceCaseIds": [
+        "schema-form.section-order",
+        "schema-form.hint-fallback"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "Hostile form content carries a label longer than its control, a grouped large number, escaped angle brackets and an ampersand, and a name with diacritics and an em dash.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<SchemaForm initialValues={{ longLabel: 'Certified', largeNumber: '1,284,905', escapedText: 'Bay 4 <grid C-7> & 8', surveyor: 'Ordnance Survey — Niño Ångström' }} onSubmit={validSubmit} strings={ENGLISH_STRINGS} view={CONTENT_VIEW} />",
+            "blazor": "<HarborlineSchemaForm InitialValues=\"ContentValues\" OnSubmit=\"ValidSubmit\" Strings=\"EnglishStrings\" View=\"ContentView\" />",
+            "rationale": "The schema-driven field labels and caller values require form controls and field semantics that the closed control vocabulary cannot express."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "schema-form.empty-state",
+      "name": "Empty state",
+      "surface": "empty",
+      "sourceCaseIds": [
+        "schema-form.rule-visibility"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "The schema form renders its caller-provided empty message when the supplied view has no visible fields.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<SchemaForm initialValues={{}} onSubmit={validSubmit} strings={ENGLISH_STRINGS} view={EMPTY_VIEW} />",
+            "blazor": "<HarborlineSchemaForm InitialValues=\"EmptyValues\" OnSubmit=\"ValidSubmit\" Strings=\"EnglishStrings\" View=\"EmptyView\" />",
+            "rationale": "The closed control vocabulary has no schema-form control and cannot express an empty form view or the component's localized empty string in both projection lanes."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "schema-form.error-state",
+      "name": "Error state",
+      "surface": "invalid-input",
+      "sourceCaseIds": [
+        "schema-form.validation-inline",
+        "schema-form.validation-summary"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "The schema form renders caller-provided validation errors inline and in its accessible summary after submission.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<SchemaForm initialValues={{ name: '', email: 'ops@example.test' }} onSubmit={validationSubmit} strings={ENGLISH_STRINGS} view={VALIDATION_VIEW} />",
+            "blazor": "<HarborlineSchemaForm InitialValues=\"ValidationValues\" OnSubmit=\"ValidationSubmit\" Strings=\"EnglishStrings\" View=\"ValidationView\" />",
+            "rationale": "The closed control vocabulary has no schema-form validation result, inline error association, or focusable error-summary control for either projection lane."
+          }
+        ],
+        "footer": []
+      }
+    }
+  ]
+}

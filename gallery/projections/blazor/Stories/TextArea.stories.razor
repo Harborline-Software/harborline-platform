@@ -1,0 +1,8 @@
+@attribute [Stories("Platform/Text Area")]
+<Stories TComponent="TextAreaScenario">
+    <Story Name="Editing and metadata"><Arguments><Arg For="_ => _.ScenarioId" Value='"text-area.editing"' /></Arguments><Template><TextAreaScenario @attributes="context.Args" /></Template></Story>
+    <Story Name="Variants and counter"><Arguments><Arg For="_ => _.ScenarioId" Value='"text-area.variants"' /></Arguments><Template><TextAreaScenario @attributes="context.Args" /></Template></Story>
+    <Story Name="Locale and theme"><Arguments><Arg For="_ => _.ScenarioId" Value='"text-area.locale-theme"' /></Arguments><Template><TextAreaScenario @attributes="context.Args" /></Template></Story>
+    <Story Name="Content resilience"><Arguments><Arg For="_ => _.ScenarioId" Value='"text-area.content"'/></Arguments><Template><TextAreaScenario @attributes="context.Args"/></Template></Story>
+    <Story Name="Error state"><Arguments><Arg For="_ => _.ScenarioId" Value='"text-area.error-state"'/></Arguments><Template><TextAreaScenario @attributes="context.Args"/></Template></Story>
+</Stories>

@@ -1,0 +1,35 @@
+<section class="hl-gallery-scene" data-gallery-probe data-gallery-scenario="@ScenarioId" data-theme="@Theme" dir="@Direction">
+    <header class="hl-gallery-heading"><h2>@Title</h2><p>Modal state, focus restoration, placement, and caller-owned copy.</p></header>
+    <div class="hl-gallery-stage">
+        @if (ScenarioId == "sheet.content")
+        {
+        <HarborlineSheet DefaultOpen="true">
+            <HarborlineSheetTrigger>@("Awaiting third-party structural certification review")</HarborlineSheetTrigger>
+            <HarborlineSheetContent CloseLabel="Close content sheet" Side="SheetSide.Right" HasDescription="true">
+                <HarborlineSheetHeader><HarborlineSheetTitle>@("Ordnance Survey — Niño Ångström")</HarborlineSheetTitle><HarborlineSheetDescription>@("Bay 4 <grid C-7> & 8")</HarborlineSheetDescription></HarborlineSheetHeader>
+                <p>1,284,905</p>
+                <HarborlineSheetFooter><HarborlineSheetClose>Close</HarborlineSheetClose></HarborlineSheetFooter>
+            </HarborlineSheetContent>
+        </HarborlineSheet>
+        }
+        else
+        {
+        <HarborlineSheet DefaultOpen="true">
+            <HarborlineSheetTrigger>@(Localized ? "فتح" : "Open filters")</HarborlineSheetTrigger>
+            <HarborlineSheetContent CloseLabel="@(Localized ? "إغلاق" : "Close filters")" Side="@Side" HasDescription="true">
+                <HarborlineSheetHeader><HarborlineSheetTitle>@(Localized ? "مرشحات البحث" : "Search filters")</HarborlineSheetTitle><HarborlineSheetDescription>@(Localized ? "ضيّق نتائج الهياكل." : "Narrow the structure results.")</HarborlineSheetDescription></HarborlineSheetHeader>
+                <p>@(Localized ? "حالة الفحص والموقع." : "Inspection state and location.")</p>
+                <HarborlineSheetFooter><HarborlineSheetClose>@(Localized ? "تم" : "Apply filters")</HarborlineSheetClose></HarborlineSheetFooter>
+            </HarborlineSheetContent>
+        </HarborlineSheet>
+        }
+    </div>
+</section>
+@code {
+    [Parameter, EditorRequired] public string ScenarioId { get; set; } = "sheet.lifecycle";
+    private bool Localized => ScenarioId == "sheet.locale-theme";
+    private string Title => ScenarioId == "sheet.content" ? "Content resilience" : Localized ? "المرشحات" : ScenarioId == "sheet.dismissal" ? "Dismissal and focus" : "Lifecycle and sides";
+    private string? Theme => Localized ? "dark" : null;
+    private string? Direction => Localized ? "rtl" : null;
+    private SheetSide Side => ScenarioId == "sheet.lifecycle" ? SheetSide.Right : SheetSide.Left;
+}

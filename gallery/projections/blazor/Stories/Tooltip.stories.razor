@@ -1,0 +1,7 @@
+@attribute [Stories("Platform/Tooltip")]
+<Stories TComponent="TooltipScenario">
+    <Story Name="Delayed lifecycle"><Arguments><Arg For="_ => _.ScenarioId" Value='"tooltip.lifecycle"' /></Arguments><Template><TooltipScenario @attributes="context.Args" /></Template></Story>
+    <Story Name="Focus and dismissal"><Arguments><Arg For="_ => _.ScenarioId" Value='"tooltip.interaction"' /></Arguments><Template><TooltipScenario @attributes="context.Args" /></Template></Story>
+    <Story Name="Locale and theme"><Arguments><Arg For="_ => _.ScenarioId" Value='"tooltip.locale-theme"' /></Arguments><Template><TooltipScenario @attributes="context.Args" /></Template></Story>
+    <Story Name="Content resilience"><Arguments><Arg For="_ => _.ScenarioId" Value='"tooltip.content"'/></Arguments><Template><TooltipScenario @attributes="context.Args"/></Template></Story>
+</Stories>

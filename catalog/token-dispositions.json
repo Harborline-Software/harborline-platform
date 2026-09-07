@@ -1,0 +1,432 @@
+{
+  "schemaVersion": 1,
+  "note": "Ticket 106 acceptance 4. A token here has been decided; a token NOT here is still an open question. All 57 entries signed off by CIC on 2026-08-26.",
+  "dispositions": {
+    "--hl-accent-foreground": {
+      "disposition": "registry-addition",
+      "decidedBy": "CIC",
+      "proposed": false,
+      "rationale": "The registry has an accent surface but no foreground role that guarantees readable content on it. A reviewed registry addition would give every accented control the same contrast contract.",
+      "decidedOn": "2026-08-26"
+    },
+    "--hl-accent-muted": {
+      "disposition": "registry-addition",
+      "decidedBy": "CIC",
+      "proposed": false,
+      "rationale": "The existing accent token does not express the quieter emphasis used by side navigation. A registry addition would make that reusable theme role explicit instead of preserving module-owned colors.",
+      "decidedOn": "2026-08-26"
+    },
+    "--hl-accent-strong": {
+      "disposition": "registry-addition",
+      "decidedBy": "CIC",
+      "proposed": false,
+      "rationale": "No current registry token represents a stronger accent tier. Adding the role would let emphasis remain theme-controlled without treating one module's literal as the standard.",
+      "decidedOn": "2026-08-26"
+    },
+    "--hl-app-shell-switcher-max": {
+      "disposition": "module-correction",
+      "decidedBy": "CIC",
+      "proposed": false,
+      "rationale": "This is a fixed app-shell layout cap, not a shared theme value. The module should own the dimension directly unless the component later supplies it as a genuine runtime input.",
+      "decidedOn": "2026-08-26"
+    },
+    "--hl-card-foreground": {
+      "disposition": "alias",
+      "target": "--hl-foreground",
+      "decidedBy": "CIC",
+      "proposed": false,
+      "rationale": "Card content uses the registry's standard foreground role. Aliasing the older compound name removes a redundant source of text color.",
+      "decidedOn": "2026-08-26"
+    },
+    "--hl-chart-accent-1": {
+      "disposition": "registry-addition",
+      "decidedBy": "CIC",
+      "proposed": false,
+      "rationale": "The registry has no categorical chart palette. A reviewed first chart slot would keep series color themeable and coordinated with the remaining slots.",
+      "decidedOn": "2026-08-26"
+    },
+    "--hl-chart-accent-2": {
+      "disposition": "registry-addition",
+      "decidedBy": "CIC",
+      "proposed": false,
+      "rationale": "The registry has no categorical chart palette. A reviewed second chart slot would replace the module's independent light and dark values.",
+      "decidedOn": "2026-08-26"
+    },
+    "--hl-chart-accent-3": {
+      "disposition": "registry-addition",
+      "decidedBy": "CIC",
+      "proposed": false,
+      "rationale": "The registry has no categorical chart palette. A reviewed third chart slot would make this series color part of the shared theme contract.",
+      "decidedOn": "2026-08-26"
+    },
+    "--hl-chart-accent-4": {
+      "disposition": "registry-addition",
+      "decidedBy": "CIC",
+      "proposed": false,
+      "rationale": "The registry has no categorical chart palette. A reviewed fourth chart slot would prevent the chart module from maintaining its own theme pair.",
+      "decidedOn": "2026-08-26"
+    },
+    "--hl-chart-accent-5": {
+      "disposition": "registry-addition",
+      "decidedBy": "CIC",
+      "proposed": false,
+      "rationale": "The registry has no categorical chart palette, and a danger color is not a stable substitute for a data series. A reviewed fifth chart slot would preserve that distinction.",
+      "decidedOn": "2026-08-26"
+    },
+    "--hl-chart-accent-6": {
+      "disposition": "registry-addition",
+      "decidedBy": "CIC",
+      "proposed": false,
+      "rationale": "The registry has no categorical chart palette. A reviewed sixth chart slot would complete the shared series set used by the chart module.",
+      "decidedOn": "2026-08-26"
+    },
+    "--hl-color-accent-subtle": {
+      "disposition": "alias",
+      "target": "--hl-accent",
+      "decidedBy": "CIC",
+      "proposed": false,
+      "rationale": "This is a naming-era variant of the registry's soft accent surface. Reusing --hl-accent keeps selected and subtly accented surfaces on one theme value.",
+      "decidedOn": "2026-08-26"
+    },
+    "--hl-color-border": {
+      "disposition": "alias",
+      "target": "--hl-border",
+      "decidedBy": "CIC",
+      "proposed": false,
+      "rationale": "The color-prefixed name duplicates the registry's semantic border token. The alias removes a second naming era without adding a new theme role.",
+      "decidedOn": "2026-08-26"
+    },
+    "--hl-color-danger": {
+      "disposition": "alias",
+      "target": "--hl-danger",
+      "decidedBy": "CIC",
+      "proposed": false,
+      "rationale": "The registry already owns the danger role under --hl-danger. The color-prefixed spelling is an unnecessary second name for the same semantic value.",
+      "decidedOn": "2026-08-26"
+    },
+    "--hl-color-focus": {
+      "disposition": "alias",
+      "target": "--hl-focus",
+      "decidedBy": "CIC",
+      "proposed": false,
+      "rationale": "The registry already defines the focus-ring color as --hl-focus. Aliasing the color-prefixed spelling keeps focus treatment under that single contract.",
+      "decidedOn": "2026-08-26"
+    },
+    "--hl-color-on-primary": {
+      "disposition": "alias",
+      "target": "--hl-primary-foreground",
+      "decidedBy": "CIC",
+      "proposed": false,
+      "rationale": "Content placed on a primary surface is the registry's primary foreground role. The alias reconciles two names for the same contrast responsibility.",
+      "decidedOn": "2026-08-26"
+    },
+    "--hl-color-popover": {
+      "disposition": "alias",
+      "target": "--hl-surface",
+      "decidedBy": "CIC",
+      "proposed": false,
+      "rationale": "Popover panels use the shared surface role already defined by the registry. A component-specific color name would create another owner for the same theme value.",
+      "decidedOn": "2026-08-26"
+    },
+    "--hl-color-primary": {
+      "disposition": "alias",
+      "target": "--hl-primary",
+      "decidedBy": "CIC",
+      "proposed": false,
+      "rationale": "The registry already defines the primary role without the color prefix. Aliasing the later spelling preserves one authority for primary emphasis.",
+      "decidedOn": "2026-08-26"
+    },
+    "--hl-color-surface": {
+      "disposition": "alias",
+      "target": "--hl-surface",
+      "decidedBy": "CIC",
+      "proposed": false,
+      "rationale": "The color-prefixed name duplicates the registry's surface token. The alias removes a second naming era and its independent fallback values.",
+      "decidedOn": "2026-08-26"
+    },
+    "--hl-color-surface-hover": {
+      "disposition": "alias",
+      "target": "--hl-hover",
+      "decidedBy": "CIC",
+      "proposed": false,
+      "rationale": "This token expresses the shared hover surface already registered as --hl-hover. Aliasing it keeps interactive surface feedback consistent across modules.",
+      "decidedOn": "2026-08-26"
+    },
+    "--hl-color-surface-muted": {
+      "disposition": "alias",
+      "target": "--hl-muted",
+      "decidedBy": "CIC",
+      "proposed": false,
+      "rationale": "A muted surface is already represented by --hl-muted. The color-prefixed variant should resolve to that existing theme role instead of carrying another light and dark pair.",
+      "decidedOn": "2026-08-26"
+    },
+    "--hl-color-surface-subtle": {
+      "disposition": "alias",
+      "target": "--hl-muted",
+      "decidedBy": "CIC",
+      "proposed": false,
+      "rationale": "The registry's muted surface is the existing semantic home for subtle neutral backgrounds. Aliasing this naming-era variant avoids inventing a near-duplicate tier.",
+      "decidedOn": "2026-08-26"
+    },
+    "--hl-color-text": {
+      "disposition": "alias",
+      "target": "--hl-foreground",
+      "decidedBy": "CIC",
+      "proposed": false,
+      "rationale": "The registry already names ordinary text as --hl-foreground. The color-prefixed token is a second naming era for that same role.",
+      "decidedOn": "2026-08-26"
+    },
+    "--hl-color-text-muted": {
+      "disposition": "alias",
+      "target": "--hl-muted-foreground",
+      "decidedBy": "CIC",
+      "proposed": false,
+      "rationale": "The registry already owns subdued text through --hl-muted-foreground. Aliasing the color-prefixed spelling keeps muted text on one theme value.",
+      "decidedOn": "2026-08-26"
+    },
+    "--hl-danger-soft": {
+      "disposition": "registry-addition",
+      "decidedBy": "CIC",
+      "proposed": false,
+      "rationale": "The registry defines danger emphasis but no low-intensity danger surface. A reviewed addition would support destructive hover and status backgrounds without module-owned literals.",
+      "decidedOn": "2026-08-26"
+    },
+    "--hl-destructive": {
+      "disposition": "alias",
+      "target": "--hl-danger",
+      "decidedBy": "CIC",
+      "proposed": false,
+      "rationale": "This is a synonym for the registry's danger token, and the #b42318 fallbacks duplicate --hl-danger's light value. Different surviving fallbacks remain a human design question rather than evidence for another synonym.",
+      "decidedOn": "2026-08-26"
+    },
+    "--hl-destructive-border": {
+      "disposition": "registry-addition",
+      "decidedBy": "CIC",
+      "proposed": false,
+      "rationale": "No registry token represents the border of a danger surface. A human-reviewed addition must also settle the canonical danger-era name before this fallback can be removed.",
+      "decidedOn": "2026-08-26"
+    },
+    "--hl-destructive-foreground": {
+      "disposition": "registry-addition",
+      "decidedBy": "CIC",
+      "proposed": false,
+      "rationale": "The registry has no foreground role for content on a danger surface. A human-reviewed addition must choose both its contrast values and its canonical danger-era name.",
+      "decidedOn": "2026-08-26"
+    },
+    "--hl-destructive-soft": {
+      "disposition": "alias",
+      "target": "--hl-danger-soft",
+      "decidedBy": "CIC",
+      "proposed": false,
+      "rationale": "This is the destructive-era spelling of the proposed soft danger role. Aliasing it to --hl-danger-soft prevents two names from surviving for the same semantic surface.",
+      "decidedOn": "2026-08-26"
+    },
+    "--hl-disabled": {
+      "disposition": "registry-addition",
+      "decidedBy": "CIC",
+      "proposed": false,
+      "rationale": "No registry token represents a disabled control surface. Repeated use across modules warrants one reviewed theme value instead of parallel fallbacks.",
+      "decidedOn": "2026-08-26"
+    },
+    "--hl-disabled-foreground": {
+      "disposition": "registry-addition",
+      "decidedBy": "CIC",
+      "proposed": false,
+      "rationale": "The registry has no foreground role for disabled content. A shared addition would establish one contrast contract for every disabled control.",
+      "decidedOn": "2026-08-26"
+    },
+    "--hl-font-sans": {
+      "disposition": "module-correction",
+      "decidedBy": "CIC",
+      "proposed": false,
+      "rationale": "Only the chat module asks for this token, and its fallback is the platform sans stack. The module should inherit the application font instead of inventing a registry scale for one consumer.",
+      "decidedOn": "2026-08-26"
+    },
+    "--hl-info": {
+      "disposition": "registry-addition",
+      "decidedBy": "CIC",
+      "proposed": false,
+      "rationale": "The registry covers success, warning, and danger but has no informational status role. A reviewed addition would complete that shared status vocabulary.",
+      "decidedOn": "2026-08-26"
+    },
+    "--hl-info-soft": {
+      "disposition": "registry-addition",
+      "decidedBy": "CIC",
+      "proposed": false,
+      "rationale": "No registry token represents a low-intensity informational surface. Adding it beside the core info role would keep status backgrounds theme-controlled.",
+      "decidedOn": "2026-08-26"
+    },
+    "--hl-input": {
+      "disposition": "alias",
+      "target": "--hl-control-border",
+      "decidedBy": "CIC",
+      "proposed": false,
+      "rationale": "The date controls use this token for their input boundary, which the registry already names --hl-control-border. The alias removes framework-era vocabulary from that shared role.",
+      "decidedOn": "2026-08-26"
+    },
+    "--hl-input-border": {
+      "disposition": "alias",
+      "target": "--hl-control-border",
+      "decidedBy": "CIC",
+      "proposed": false,
+      "rationale": "The registry already has a dedicated border token for controls. Aliasing the more literal input name keeps all control boundaries under the same theme contract.",
+      "decidedOn": "2026-08-26"
+    },
+    "--hl-layer-modal": {
+      "disposition": "registry-addition",
+      "decidedBy": "CIC",
+      "proposed": false,
+      "rationale": "The registry has no elevation or stacking scale for modal content. A human-reviewed layer token is required before competing module fallbacks can be reconciled.",
+      "decidedOn": "2026-08-26"
+    },
+    "--hl-layer-popover": {
+      "disposition": "registry-addition",
+      "decidedBy": "CIC",
+      "proposed": false,
+      "rationale": "No registry role defines where popovers sit in the stacking order. A reviewed addition would make that relationship explicit instead of local to one component.",
+      "decidedOn": "2026-08-26"
+    },
+    "--hl-layer-tooltip": {
+      "disposition": "registry-addition",
+      "decidedBy": "CIC",
+      "proposed": false,
+      "rationale": "No registry role defines the tooltip layer. Adding it as part of a reviewed stacking scale would prevent isolated z-index ownership.",
+      "decidedOn": "2026-08-26"
+    },
+    "--hl-overlay": {
+      "disposition": "registry-addition",
+      "decidedBy": "CIC",
+      "proposed": false,
+      "rationale": "The registry has no scrim color for modal surfaces. Dialog and sheet already share the role, so a reviewed addition would replace their duplicate literal.",
+      "decidedOn": "2026-08-26"
+    },
+    "--hl-page-bg": {
+      "disposition": "alias",
+      "target": "--hl-background",
+      "decidedBy": "CIC",
+      "proposed": false,
+      "rationale": "A page background is the canvas role already registered as --hl-background. The module-prefixed spelling adds no distinct theme meaning.",
+      "decidedOn": "2026-08-26"
+    },
+    "--hl-popover": {
+      "disposition": "alias",
+      "target": "--hl-surface",
+      "decidedBy": "CIC",
+      "proposed": false,
+      "rationale": "A popover panel uses the shared surface role already present in the registry. The component name should not become a second owner of the same background value.",
+      "decidedOn": "2026-08-26"
+    },
+    "--hl-popover-foreground": {
+      "disposition": "alias",
+      "target": "--hl-foreground",
+      "decidedBy": "CIC",
+      "proposed": false,
+      "rationale": "Popover content uses the standard foreground role. Aliasing the compound name removes another component-specific spelling for ordinary text.",
+      "decidedOn": "2026-08-26"
+    },
+    "--hl-primary-soft": {
+      "disposition": "alias",
+      "target": "--hl-accent",
+      "decidedBy": "CIC",
+      "proposed": false,
+      "rationale": "The registry's accent token is already the low-intensity primary surface. Aliasing this alternate name keeps soft primary emphasis on that existing value.",
+      "decidedOn": "2026-08-26"
+    },
+    "--hl-radius-lg": {
+      "disposition": "module-correction",
+      "decidedBy": "CIC",
+      "proposed": false,
+      "rationale": "No radius scale exists in the registry, and the modules disagree on the large value. Following the hlp.ui.badge precedent, each module should use its explicit rem value until a shared scale is decided on its own merits.",
+      "decidedOn": "2026-08-26"
+    },
+    "--hl-radius-md": {
+      "disposition": "module-correction",
+      "decidedBy": "CIC",
+      "proposed": false,
+      "rationale": "No radius scale exists in the registry, and the modules use several medium values. Following the hlp.ui.badge precedent, those references should become explicit rem values rather than create a scale by accident.",
+      "decidedOn": "2026-08-26"
+    },
+    "--hl-radius-sm": {
+      "disposition": "module-correction",
+      "decidedBy": "CIC",
+      "proposed": false,
+      "rationale": "No radius scale exists in the registry, and one token name currently hides different small radii. Following the hlp.ui.badge precedent, modules should keep the intended rem values directly.",
+      "decidedOn": "2026-08-26"
+    },
+    "--hl-ring": {
+      "disposition": "alias",
+      "target": "--hl-focus",
+      "decidedBy": "CIC",
+      "proposed": false,
+      "rationale": "The ring is the focus indicator already represented by --hl-focus. Aliasing the framework-era name keeps keyboard focus on one registry value.",
+      "decidedOn": "2026-08-26"
+    },
+    "--hl-secondary": {
+      "disposition": "alias",
+      "target": "--hl-muted",
+      "decidedBy": "CIC",
+      "proposed": false,
+      "rationale": "These secondary surfaces serve the registry's muted surface role. Aliasing them avoids maintaining a parallel neutral background tier with no distinct contract.",
+      "decidedOn": "2026-08-26"
+    },
+    "--hl-secondary-foreground": {
+      "disposition": "alias",
+      "target": "--hl-foreground",
+      "decidedBy": "CIC",
+      "proposed": false,
+      "rationale": "Secondary controls use the ordinary foreground role already defined by the registry. The compound token is another name for that same text responsibility.",
+      "decidedOn": "2026-08-26"
+    },
+    "--hl-shadow-overlay": {
+      "disposition": "registry-addition",
+      "decidedBy": "CIC",
+      "proposed": false,
+      "rationale": "The registry has no shadow vocabulary for floating overlays. A reviewed overlay shadow would let spotlight and window share one elevation treatment.",
+      "decidedOn": "2026-08-26"
+    },
+    "--hl-shadow-raised": {
+      "disposition": "registry-addition",
+      "decidedBy": "CIC",
+      "proposed": false,
+      "rationale": "No equivalent elevation token exists in the registry, and modules currently disagree on the shadow. A human-reviewed addition should establish the shared raised treatment.",
+      "decidedOn": "2026-08-26"
+    },
+    "--hl-subtle": {
+      "disposition": "alias",
+      "target": "--hl-muted",
+      "decidedBy": "CIC",
+      "proposed": false,
+      "rationale": "The subtle neutral surface is the registry's muted role. Aliasing the shorter name avoids creating a near-duplicate background tier.",
+      "decidedOn": "2026-08-26"
+    },
+    "--hl-success-soft": {
+      "disposition": "registry-addition",
+      "decidedBy": "CIC",
+      "proposed": false,
+      "rationale": "The registry defines success emphasis but no low-intensity success surface. A reviewed addition would keep positive status backgrounds inside the shared theme.",
+      "decidedOn": "2026-08-26"
+    },
+    "--hl-surface-subtle": {
+      "disposition": "alias",
+      "target": "--hl-muted",
+      "decidedBy": "CIC",
+      "proposed": false,
+      "rationale": "A subtle neutral surface is already covered by the registry's muted role. The alias reconciles another naming era instead of preserving module-specific theme pairs.",
+      "decidedOn": "2026-08-26"
+    },
+    "--hl-warning-soft": {
+      "disposition": "registry-addition",
+      "decidedBy": "CIC",
+      "proposed": false,
+      "rationale": "The registry defines warning emphasis but no low-intensity warning surface. A reviewed addition would give warning backgrounds the same shared ownership as the core status color.",
+      "decidedOn": "2026-08-26"
+    },
+    "--hl-z-dropdown": {
+      "disposition": "registry-addition",
+      "decidedBy": "CIC",
+      "proposed": false,
+      "rationale": "The registry has no dropdown layer, and current modules use competing fallback values. A named addition needs human review as part of the stacking scale.",
+      "decidedOn": "2026-08-26"
+    }
+  }
+}

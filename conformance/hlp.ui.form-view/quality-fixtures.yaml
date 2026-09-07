@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.form-view",
+  "accessibilityCases": [
+    {"id": "form-view.quality.redaction", "expected": {"withheldValuesAbsent": true, "uiHintsCannotRestore": true}},
+    {"id": "form-view.quality.plain-content", "expected": {"htmlNodeKindAbsent": true, "markupRemainsText": true}},
+    {"id": "form-view.quality.validation-location", "expected": {"rfc6901Pointers": true, "rootErrorsPreserved": true}},
+    {"id": "form-view.quality.semantic-intents", "expected": {"required": true, "readOnlyDistinctFromRedaction": true, "presentationSeverityPreserved": true}}
+  ],
+  "internationalizationCases": [
+    {"id": "form-view.quality.locale-chain", "expected": {"branches": ["exact", "primary", "default", "first", "fallback", "empty"], "allCovered": true}},
+    {"id": "form-view.quality.unicode", "expected": {"text": "فحص السلامة", "bytePreserved": true}},
+    {"id": "form-view.quality.stable-codes", "expected": {"validationCodesLocaleIndependent": true, "paramsStructured": true}},
+    {"id": "form-view.quality.logical-layout", "expected": {"physicalCoordinatesAbsent": true, "logicalAlignmentIntents": true}},
+    {"id": "form-view.quality.formatting-applicability", "expected": {"disposition": "not-applicable", "requiresRationale": true}}
+  ],
+  "themingCases": []
+}

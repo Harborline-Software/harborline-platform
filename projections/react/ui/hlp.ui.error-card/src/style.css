@@ -1,0 +1,132 @@
+.hl-error-card {
+  --hl-error-card-surface: var(--hl-destructive-soft, #fef3f2);
+  --hl-error-card-border: var(--hl-destructive-border, #fecdca);
+  --hl-error-card-title: var(--hl-danger);
+  --hl-error-card-message: var(--hl-muted-foreground, #475467);
+  --hl-error-card-retry: var(--hl-danger, var(--hl-destructive, #b42318));
+  --hl-error-card-retry-hover: color-mix(in srgb, var(--hl-error-card-retry) 88%, CanvasText);
+  --hl-error-card-retry-active: color-mix(in srgb, var(--hl-error-card-retry) 76%, CanvasText);
+  --hl-error-card-retry-foreground: var(--hl-destructive-foreground, #ffffff);
+  --hl-error-card-focus: var(--hl-focus, #8a3ffc);
+}
+
+.hl-error-card {
+  background: var(--hl-error-card-surface);
+  border: 1px solid var(--hl-error-card-border);
+  border-radius: 0.5rem;
+  box-sizing: border-box;
+  color: var(--hl-error-card-title);
+  max-inline-size: 100%;
+  overflow-wrap: anywhere;
+  text-align: start;
+}
+
+.hl-error-card--page { padding: 2rem; }
+.hl-error-card--default { padding: 1.5rem; }
+.hl-error-card--compact { padding: 1rem; }
+
+.hl-error-card__title {
+  color: var(--hl-error-card-title);
+  font: inherit;
+  font-weight: 600;
+  margin: 0;
+  text-wrap: pretty;
+}
+
+.hl-error-card--page .hl-error-card__title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1.75rem;
+}
+
+.hl-error-card__message {
+  color: var(--hl-error-card-message);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  margin: 0.25rem 0 0;
+  max-inline-size: 70ch;
+  text-wrap: pretty;
+}
+
+.hl-error-card__retry {
+  background: var(--hl-error-card-retry);
+  border: 0;
+  border-radius: 0.25rem;
+  box-sizing: border-box;
+  box-shadow: 0 0.0625rem 0.125rem rgb(16 24 40 / 18%);
+  color: var(--hl-error-card-retry-foreground);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.25rem;
+  margin-block-start: 0.75rem;
+  max-inline-size: 100%;
+  padding: 0.5rem 1rem;
+  text-align: center;
+  transition: background-color 150ms ease, box-shadow 150ms ease;
+  white-space: normal;
+}
+
+.hl-error-card--compact .hl-error-card__retry {
+  font-size: 0.75rem;
+  line-height: 1rem;
+  margin-block-start: 0.5rem;
+  padding: 0.25rem 0.75rem;
+}
+
+.hl-error-card__retry:hover { background: var(--hl-error-card-retry-hover); }
+.hl-error-card__retry:active { background: var(--hl-error-card-retry-active); }
+
+.hl-error-card__retry:focus-visible {
+  outline: 2px solid var(--hl-error-card-focus);
+  outline-offset: 2px;
+}
+
+[data-theme='dark'] .hl-error-card,
+.hl-error-card[data-theme='dark'] {
+  --hl-error-card-surface: var(--hl-destructive-soft, #3b1219);
+  --hl-error-card-border: var(--hl-destructive-border, #a83f4c);
+  --hl-error-card-title: var(--hl-destructive, #ffb4ab);
+  --hl-error-card-message: var(--hl-muted-foreground, #f1d5d8);
+  --hl-error-card-retry: var(--hl-danger, var(--hl-destructive, #ffb4ab));
+  --hl-error-card-retry-hover: color-mix(in srgb, var(--hl-error-card-retry) 88%, CanvasText);
+  --hl-error-card-retry-active: color-mix(in srgb, var(--hl-error-card-retry) 76%, CanvasText);
+  --hl-error-card-retry-foreground: var(--hl-background, #081a36);
+  --hl-error-card-focus: var(--hl-focus, #be95ff);
+}
+
+[data-theme='dark'] .hl-error-card[data-hl-tone='destructive-soft'] .hl-error-card__retry[data-hl-tone='destructive'] {
+  background: var(--hl-error-card-retry);
+  color: var(--hl-error-card-retry-foreground);
+}
+
+[data-theme='dark'] .hl-error-card[data-hl-tone='destructive-soft'] .hl-error-card__retry[data-hl-tone='destructive']:hover { background: var(--hl-error-card-retry-hover); }
+[data-theme='dark'] .hl-error-card[data-hl-tone='destructive-soft'] .hl-error-card__retry[data-hl-tone='destructive']:active { background: var(--hl-error-card-retry-active); }
+
+@media (forced-colors: active) {
+  .hl-error-card {
+    background: Canvas;
+    border-color: CanvasText;
+    color: CanvasText;
+    forced-color-adjust: auto;
+  }
+
+  .hl-error-card__title,
+  .hl-error-card__message { color: CanvasText; }
+
+  .hl-error-card__retry {
+    background: ButtonFace;
+    border-color: ButtonText;
+    color: ButtonText;
+  }
+
+  .hl-error-card__retry:focus-visible { outline-color: Highlight; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hl-error-card__retry {
+    transition-delay: 0s;
+    transition-duration: 0.01ms;
+  }
+}

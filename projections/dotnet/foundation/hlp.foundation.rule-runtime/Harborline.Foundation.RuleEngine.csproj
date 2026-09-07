@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <HarborlinePublicDistributionAuthorized>false</HarborlinePublicDistributionAuthorized>
+    <PackageId>Harborline.Foundation.RuleEngine</PackageId>
+    <AssemblyName>Harborline.Foundation.RuleEngine</AssemblyName>
+    <RootNamespace>Harborline.Foundation.RuleEngine</RootNamespace>
+    <Description>Deterministic harborline-jsonlogic/v1 integrity runtime shared by Harborline Forms, Calculations, and workflow guards.</Description>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageReleaseNotes>Internal-only projection; public distribution is not authorized.</PackageReleaseNotes>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Harborline.Foundation.RuleEngine.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../contracts/hlp.contracts.identities/Harborline.Contracts.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="/" />
+    <None Include="../../../../LICENSE" Link="LICENSE" Pack="true" PackagePath="/" />
+  </ItemGroup>
+</Project>

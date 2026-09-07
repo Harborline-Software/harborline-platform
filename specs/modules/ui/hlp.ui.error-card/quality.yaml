@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.error-card",
+  "profileRevision": 1,
+  "riskTier": "A",
+  "fixture": "conformance/hlp.ui.error-card/quality-fixtures.yaml",
+  "dimensions": {
+    "accessibility": {"disposition": "required", "caseIds": ["error-card.quality.alert", "error-card.quality.heading", "error-card.quality.retry-keyboard", "error-card.quality.focus", "error-card.quality.forced-colors", "error-card.quality.reflow-200"]},
+    "internationalization": {"disposition": "required", "caseIds": ["error-card.quality.caller-text", "error-card.quality.locale-direction", "error-card.quality.rtl", "error-card.quality.pseudo-expansion", "error-card.quality.formatting-applicability"], "localeSensitiveFormatting": {"disposition": "not-applicable", "rationale": "Error Card owns no dates, numbers, currencies, quantities, or lists; callers supply already localized title, message, and retry text."}},
+    "theming": {"disposition": "required", "caseIds": ["error-card.quality.theme-light", "error-card.quality.theme-dark", "error-card.quality.theme-states", "error-card.quality.theme-tokens", "error-card.quality.runtime-switch", "error-card.quality.contrast", "error-card.quality.reduced-motion", "error-card.quality.visual-parity"]}
+  },
+  "componentStages": [
+    {"id": "contract", "dimensions": ["accessibility", "internationalization", "theming"], "gate": "profile and neutral fixture validation"},
+    {"id": "projection-native", "dimensions": ["accessibility", "internationalization", "theming"], "gate": "public React and Blazor native tests"},
+    {"id": "package-consumer", "dimensions": ["accessibility", "internationalization", "theming"], "gate": "packed npm and NuGet consumers"},
+    {"id": "gallery", "dimensions": ["accessibility", "internationalization", "theming"], "gate": "Axe, browser behavior, themes, locales, motion, and visual parity"},
+    {"id": "clean-clone", "dimensions": ["accessibility", "internationalization", "theming"], "gate": "complete repository gate from the recorded commit"}
+  ]
+}

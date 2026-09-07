@@ -1,0 +1,30 @@
+<section class="hl-gallery-scene" data-gallery-probe data-gallery-scenario="@ScenarioId" data-theme="@Theme" dir="@Direction">
+    <header class="hl-gallery-heading"><h2>@Title</h2><p>@Description</p></header>
+    @if (!visible) { <button type="button" @onclick="() => visible = true">Restore window</button> }
+    @if (visible) {
+        <HarborlineWindow Title="@WindowTitle" Width="440" Height="280" Top="120" Left="120" Modal="@Modal" State="@state" StateChanged="value => state = value" Closed="() => visible = false"
+                        AccessibleLabel="@(Localized ? "نافذة" : "Window")" CloseLabel="@(Localized ? "إغلاق" : "Close")" MinimizeLabel="@(Localized ? "تصغير" : "Minimize")"
+                        MaximizeLabel="@(Localized ? "تكبير" : "Maximize")" RestoreLabel="@(Localized ? "استعادة" : "Restore")" ResizeWidthLabel="@(Localized ? "تغيير العرض" : "Resize width")"
+                        ResizeHeightLabel="@(Localized ? "تغيير الارتفاع" : "Resize height")" ResizeBothLabel="@(Localized ? "تغيير الحجم" : "Resize width and height")">
+            <ActionsBar><HarborlineWindowActionsBar>@if (ScenarioId == "window.content") { <button type="button">@("1,284,905")</button> } else if (Localized) { <button type="button">حفظ</button> } else { <button type="button">Save</button> }</HarborlineWindowActionsBar></ActionsBar>
+            <ChildContent>
+                @if (ScenarioId == "window.content") { <p>@("Bay 4 <grid C-7> & 8")</p><button type="button">@("Ordnance Survey — Niño Ångström")</button> }
+                else if (Localized) { <p>التقط صورة وحدد موضعها في المخطط.</p><button type="button">بدء الالتقاط</button> }
+                else { <p>Capture a photo and place it within the blueprint.</p><button type="button">Start capture</button> }
+            </ChildContent>
+        </HarborlineWindow>
+    }
+</section>
+@code {
+    [Parameter, EditorRequired] public string ScenarioId { get; set; } = "window.states";
+    private HarborlineWindowState state = HarborlineWindowState.Default;
+    private bool visible = true;
+    private bool Localized => ScenarioId == "window.locale-theme";
+    private bool IsContent => ScenarioId == "window.content";
+    private bool Modal => ScenarioId == "window.modal";
+    private string Title => IsContent ? "Content resilience" : Localized ? "نافذة الفحص" : ScenarioId == "window.geometry" ? "Movement and resize" : Modal ? "Modal focus and dismissal" : "Window states";
+    private string Description => IsContent ? "Hostile window content carries a title longer than its title bar, a grouped large number, escaped angle brackets and an ampersand, and a name with diacritics and an em dash." : "State, geometry, actions, focus, and localized controls.";
+    private string? Theme => Localized ? "dark" : null;
+    private string? Direction => Localized ? "rtl" : null;
+    private RenderFragment WindowTitle => builder => builder.AddContent(0, IsContent ? "Awaiting third-party structural certification review" : Localized ? "فحص الهيكل" : "Structure inspection");
+}

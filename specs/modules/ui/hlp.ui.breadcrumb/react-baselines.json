@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "projection": "react",
+  "moduleId": "hlp.ui.breadcrumb",
+  "scenarios": [
+    {
+      "scenarioId": "breadcrumb.defaults",
+      "sha256": "63ebf0e5c7f0960613973a602bcd6febfd380fae1210356b10dbbb552604fd99",
+      "bytes": 9007,
+      "artifact": "../baselines/sha256/63ebf0e5c7f0960613973a602bcd6febfd380fae1210356b10dbbb552604fd99.png"
+    },
+    {
+      "scenarioId": "breadcrumb.navigation",
+      "sha256": "9c830a92cb8540765728fa86b87c30e31186e84aaa8797e6b7c42417b8360586",
+      "bytes": 8719,
+      "artifact": "../baselines/sha256/9c830a92cb8540765728fa86b87c30e31186e84aaa8797e6b7c42417b8360586.png"
+    },
+    {
+      "scenarioId": "breadcrumb.rtl-theme",
+      "sha256": "a30adde23ead389475298afb25dc8061ed9bd639f3758821a51c1d05064026ac",
+      "bytes": 7705,
+      "artifact": "../baselines/sha256/a30adde23ead389475298afb25dc8061ed9bd639f3758821a51c1d05064026ac.png"
+    }
+  ]
+}

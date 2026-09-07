@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "projection": "react",
+  "moduleId": "hlp.ui.action-menu",
+  "scenarios": [
+    {
+      "scenarioId": "action-menu.defaults",
+      "sha256": "2f7c23a805933f78538107c3aace89565fb34cc4eff7fa4d570be24d36f41940",
+      "bytes": 3363,
+      "artifact": "../baselines/sha256/2f7c23a805933f78538107c3aace89565fb34cc4eff7fa4d570be24d36f41940.png"
+    },
+    {
+      "scenarioId": "action-menu.pointer",
+      "sha256": "87b50c7859f2883158eab3cd93a46655743a9ce7200cee80617759d21df88e54",
+      "bytes": 8813,
+      "artifact": "../baselines/sha256/87b50c7859f2883158eab3cd93a46655743a9ce7200cee80617759d21df88e54.png"
+    },
+    {
+      "scenarioId": "action-menu.keyboard",
+      "sha256": "d5f280d25a9bb9ac35a9e4e89ba24584eff7a01747c258fad8bc9b1296deb2d4",
+      "bytes": 8606,
+      "artifact": "../baselines/sha256/d5f280d25a9bb9ac35a9e4e89ba24584eff7a01747c258fad8bc9b1296deb2d4.png"
+    },
+    {
+      "scenarioId": "action-menu.dismissal",
+      "sha256": "dc42743036baf337a75a2165675bc42d67ba60230cb96927cf3ac8bc361ad040",
+      "bytes": 4198,
+      "artifact": "../baselines/sha256/dc42743036baf337a75a2165675bc42d67ba60230cb96927cf3ac8bc361ad040.png"
+    },
+    {
+      "scenarioId": "action-menu.locale-en",
+      "sha256": "2f7c23a805933f78538107c3aace89565fb34cc4eff7fa4d570be24d36f41940",
+      "bytes": 3363,
+      "artifact": "../baselines/sha256/2f7c23a805933f78538107c3aace89565fb34cc4eff7fa4d570be24d36f41940.png"
+    },
+    {
+      "scenarioId": "action-menu.locale-pseudo",
+      "sha256": "2f7c23a805933f78538107c3aace89565fb34cc4eff7fa4d570be24d36f41940",
+      "bytes": 3363,
+      "artifact": "../baselines/sha256/2f7c23a805933f78538107c3aace89565fb34cc4eff7fa4d570be24d36f41940.png"
+    },
+    {
+      "scenarioId": "action-menu.locale-ar",
+      "sha256": "2bb0a0131607e5c3b40a8e826321e24d70f161cd7cca14c8d7a42ba6a439aa81",
+      "bytes": 2960,
+      "artifact": "../baselines/sha256/2bb0a0131607e5c3b40a8e826321e24d70f161cd7cca14c8d7a42ba6a439aa81.png"
+    },
+    {
+      "scenarioId": "action-menu.theme-light",
+      "sha256": "2f7c23a805933f78538107c3aace89565fb34cc4eff7fa4d570be24d36f41940",
+      "bytes": 3363,
+      "artifact": "../baselines/sha256/2f7c23a805933f78538107c3aace89565fb34cc4eff7fa4d570be24d36f41940.png"
+    },
+    {
+      "scenarioId": "action-menu.theme-dark",
+      "sha256": "29633112442c51e015753354543ad02a135ae6d5da6c7cb191b71d098e912746",
+      "bytes": 3423,
+      "artifact": "../baselines/sha256/29633112442c51e015753354543ad02a135ae6d5da6c7cb191b71d098e912746.png"
+    }
+  ]
+}

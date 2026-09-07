@@ -1,0 +1,162 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.alert",
+  "sourceFixture": "conformance/hlp.ui.alert/fixtures.yaml",
+  "qualityFixture": "conformance/hlp.ui.alert/quality-fixtures.yaml",
+  "galleryInterface": {
+    "probeAttribute": "data-gallery-probe",
+    "scenarioAttribute": "data-gallery-scenario",
+    "projectionTitles": {
+      "react": "Platform/Alert",
+      "blazor": "Platform/Alert"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "alert.variants",
+      "name": "Variants",
+      "surface": "defaults",
+      "sourceCaseIds": [
+        "alert.status-roles",
+        "alert.urgent-roles",
+        "alert.title-body-action"
+      ],
+      "sourceQualityCaseIds": [
+        "alert.quality.roles",
+        "alert.quality.light-dark"
+      ],
+      "content": {
+        "blurb": "Variants",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<><Alert title=\"Information\">Review the latest changes.</Alert><Alert variant=\"success\" title=\"Saved\">Record updated.</Alert><Alert variant=\"warning\">Approval is required.</Alert><Alert variant=\"error\">Export failed.</Alert></>",
+            "blazor": "<HarborlineAlert Title=\"Information\">Review the latest changes.</HarborlineAlert><HarborlineAlert Variant=\"AlertVariant.Success\" Title=\"Saved\">Record updated.</HarborlineAlert><HarborlineAlert Variant=\"AlertVariant.Warning\">Approval is required.</HarborlineAlert><HarborlineAlert Variant=\"AlertVariant.Error\">Export failed.</HarborlineAlert>",
+            "rationale": "The scenario renders four sibling Alert module instances with different per-instance props; the closed descriptor vocabulary has no Alert control or grouping control that can preserve those component boundaries and variants."
+          }
+        ],
+        "footer": []
+      },
+      "states": [
+        "default",
+        "success",
+        "warning",
+        "error"
+      ]
+    },
+    {
+      "id": "alert.dismissal",
+      "name": "Dismissal",
+      "surface": "states",
+      "sourceCaseIds": [
+        "alert.dismiss",
+        "alert.localized-dismiss",
+        "alert.nonclosable"
+      ],
+      "sourceQualityCaseIds": [
+        "alert.quality.dismiss-name",
+        "alert.quality.focus",
+        "alert.quality.localized-dismiss"
+      ],
+      "content": {
+        "blurb": "Dismissal",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "variant": "warning",
+          "closable": true,
+          "dismissLabel": "Close notice"
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "text",
+            "text": "This notice can be dismissed."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "alert.rtl-theme",
+      "name": "RTL and theme",
+      "surface": "rtl-theme",
+      "sourceCaseIds": [
+        "alert.host-attributes",
+        "alert.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "alert.quality.rtl",
+        "alert.quality.pseudo",
+        "alert.quality.tokens",
+        "alert.quality.forced-colors",
+        "alert.quality.reduced-motion",
+        "alert.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "RTL and theme",
+        "environment": {
+          "locale": "ar-SA",
+          "direction": "rtl",
+          "theme": "dark",
+          "catalog": {}
+        },
+        "props": {
+          "variant": "info",
+          "closable": true,
+          "dismissLabel": "إغلاق التنبيه"
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "text",
+            "text": "اكتملت المزامنة"
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "alert.content",
+      "name": "Content resilience",
+      "surface": "long-content",
+      "sourceCaseIds": [
+        "alert.title-body-action",
+        "alert.status-roles"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "This alert carries an overlong title, a grouped large number, escaped angle brackets and an ampersand, and a name with diacritics and an em dash.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<Alert title=\"Awaiting third-party structural certification review\">{'1,284,905 · Bay 4 <grid C-7> & 8 · Ordnance Survey — Niño Ångström'}</Alert>",
+            "blazor": "<HarborlineAlert Title=\"Awaiting third-party structural certification review\">@(\"1,284,905 · Bay 4 <grid C-7> & 8 · Ordnance Survey — Niño Ångström\")</HarborlineAlert>",
+            "rationale": "The closed control vocabulary has no alert control and cannot preserve an alert title and body containing hostile-but-valid text."
+          }
+        ],
+        "footer": []
+      }
+    }
+  ]
+}

@@ -1,0 +1,168 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.tooltip",
+  "sourceFixture": "conformance/hlp.ui.tooltip/fixtures.yaml",
+  "qualityFixture": "conformance/hlp.ui.tooltip/quality-fixtures.yaml",
+  "galleryInterface": {
+    "probeAttribute": "data-gallery-probe",
+    "scenarioAttribute": "data-gallery-scenario",
+    "projectionTitles": {
+      "react": "Platform/Tooltip",
+      "blazor": "Platform/Tooltip"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "tooltip.lifecycle",
+      "name": "Delayed lifecycle",
+      "surface": "defaults",
+      "sourceCaseIds": [
+        "tooltip.closed",
+        "tooltip.delayed-hover",
+        "tooltip.cancel-delay",
+        "tooltip.controlled",
+        "tooltip.default-open",
+        "tooltip.sides"
+      ],
+      "sourceQualityCaseIds": [
+        "tooltip.quality.relationship",
+        "tooltip.quality.reflow"
+      ],
+      "content": {
+        "blurb": "Hover and focus ownership share one accessible description.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "content": "View structure details",
+          "side": "top",
+          "delayDuration": 0,
+          "defaultOpen": true
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "button",
+            "text": "Details"
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "tooltip.interaction",
+      "name": "Focus and dismissal",
+      "surface": "states",
+      "sourceCaseIds": [
+        "tooltip.focus-blur",
+        "tooltip.escape",
+        "tooltip.relationship",
+        "tooltip.host-classes"
+      ],
+      "sourceQualityCaseIds": [
+        "tooltip.quality.keyboard",
+        "tooltip.quality.focus",
+        "tooltip.quality.dismissal",
+        "tooltip.quality.forced-colors",
+        "tooltip.quality.reduced-motion"
+      ],
+      "content": {
+        "blurb": "Hover and focus ownership share one accessible description.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "content": "View structure details",
+          "side": "right",
+          "delayDuration": 0,
+          "defaultOpen": true
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "button",
+            "text": "Details"
+          }
+        ],
+        "footer": [],
+        "inherits": "tooltip.lifecycle"
+      }
+    },
+    {
+      "id": "tooltip.locale-theme",
+      "name": "Locale and theme",
+      "surface": "rtl-theme",
+      "sourceCaseIds": [
+        "tooltip.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "tooltip.quality.caller-copy",
+        "tooltip.quality.rtl",
+        "tooltip.quality.pseudo",
+        "tooltip.quality.light-dark",
+        "tooltip.quality.tokens",
+        "tooltip.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "Hover and focus ownership share one accessible description.",
+        "environment": {
+          "locale": "ar-SA",
+          "direction": "rtl",
+          "theme": "dark",
+          "catalog": {}
+        },
+        "props": {
+          "content": "عرض تفاصيل الهيكل",
+          "side": "right",
+          "delayDuration": 0,
+          "defaultOpen": true
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "button",
+            "text": "التفاصيل"
+          }
+        ],
+        "footer": [],
+        "inherits": "tooltip.lifecycle"
+      }
+    },
+    {
+      "id": "tooltip.content",
+      "name": "Content resilience",
+      "surface": "long-content",
+      "sourceCaseIds": [
+        "tooltip.default-open",
+        "tooltip.relationship"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "The long trigger label and tooltip copy carry the grouped number 1,284,905, escaped angle brackets and an ampersand, and a name with diacritics and an em dash.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<Tooltip content={'1,284,905 records for Ordnance Survey — Niño Ångström at Bay 4 <grid C-7> & 8'} delayDuration={0} defaultOpen><button type=\"button\">{'Review affected inspection records and continue import'}</button></Tooltip>",
+            "blazor": "<HarborlineTooltip Content=\"@(\"1,284,905 records for Ordnance Survey — Niño Ångström at Bay 4 <grid C-7> & 8\")\" DelayDuration=\"0\" DefaultOpen=\"true\"><HarborlineTooltipTrigger>@(\"Review affected inspection records and continue import\")</HarborlineTooltipTrigger></HarborlineTooltip>",
+            "rationale": "The closed control vocabulary cannot express the tooltip wrapper and its hostile-but-valid content while preserving the trigger relationship."
+          }
+        ],
+        "footer": []
+      }
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.spotlight",
+  "verdict": "approved",
+  "reviewer": "cic",
+  "recordedAt": "2026-08-27T05:32:43.187Z",
+  "notes": "needs polish as it doesn't look like the same design language",
+  "reference": {
+    "revision": "b636ba7609abb8c26ca5c74caca13e58e435c190ab88b653969188d99269077d",
+    "source": "gallery/scenarios/hlp.ui.spotlight.json",
+    "pin": "e4c44eca8918b135e2dcd36060a8e8582d336f89",
+    "surface": {
+      "conformance/hlp.ui.spotlight/fixtures.yaml": "bfc77dd511df5ed3e44c6a25625306db265ecf28be790195a04b555619b48f8e",
+      "conformance/hlp.ui.spotlight/quality-fixtures.yaml": "2c3d0e6c4a63301aed54c2dbbb36edd64bb2a93183714d325d79d514b782b395",
+      "gallery/projections/blazor/Stories/Spotlight.stories.razor": "ecd83a746adb2db0550e56ad92ea29617dda3052470bfb224fdc635d81e5a0c9",
+      "gallery/projections/blazor/Stories/SpotlightScenario.razor": "8cb7d04f41278f8826182212e06d205793d9efbc97192e7ba224921902b48efe",
+      "gallery/projections/react/src/Spotlight.stories.tsx": "4818e15fff1974653f084f98b6518d9c4ac8c502a14abef155d49ac9e875e391",
+      "gallery/scenarios/hlp.ui.spotlight.json": "51affb319f86ac23ad82668c85107662550c31579148410ff6de502b015ec610",
+      "projections/blazor/ui/hlp.ui.spotlight/ShipyardSpotlight.razor": "c8a26abd26828321e3184ab5a00f52724e1d4fc11fb3b2860c363b02d3c3e219",
+      "projections/blazor/ui/hlp.ui.spotlight/SpotlightTypes.cs": "e5f40dd458ad821242f0a08fadff90688c1631ff085ef788ffd438b9c920bb89",
+      "projections/blazor/ui/hlp.ui.spotlight/wwwroot/spotlight.css": "2371f6296da86b55dc4e6175af8d8a99a9e586acc21f7aa3bdf6c62470f56d70",
+      "projections/blazor/ui/hlp.ui.spotlight/wwwroot/spotlight.js": "888d6552dd8dd7370839db50a937507187d261e15dca3c3f05720db3e1e89853",
+      "projections/react/ui/hlp.ui.spotlight/src/Spotlight.tsx": "48506dc6cc3dd36fc030194e492992a36affcebe3cf9a359ddbb665296cc1d11",
+      "projections/react/ui/hlp.ui.spotlight/src/index.ts": "b855b37e8dcf5d030918c8d6369943d6be7145a5ddf90fde7620fdbe74b5947c",
+      "projections/react/ui/hlp.ui.spotlight/src/style.css": "0fe33d887b964449c80a819c2720a807a0b2411b3445f538ca525f312654149f",
+      "specs/modules/ui/hlp.ui.spotlight/scenarios.json": "51affb319f86ac23ad82668c85107662550c31579148410ff6de502b015ec610",
+      "specs/modules/ui/hlp.ui.spotlight/style.css": "0fe33d887b964449c80a819c2720a807a0b2411b3445f538ca525f312654149f"
+    }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "name": "harborline-platform-npm-clean-consumer",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@types/react": "19.2.18",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "typescript": "5.9.3"
+  }
+}

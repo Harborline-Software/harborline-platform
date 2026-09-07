@@ -1,0 +1,8 @@
+@attribute [Stories("Platform/Spotlight")]
+<Stories TComponent="SpotlightScenario">
+    <Story Name="Ranked results"><Arguments><Arg For="_ => _.ScenarioId" Value='"spotlight.results"' /></Arguments><Template><SpotlightScenario @attributes="context.Args" /></Template></Story>
+    <Story Name="Keyboard and selection"><Arguments><Arg For="_ => _.ScenarioId" Value='"spotlight.interaction"' /></Arguments><Template><SpotlightScenario @attributes="context.Args" /></Template></Story>
+    <Story Name="Locale and theme"><Arguments><Arg For="_ => _.ScenarioId" Value='"spotlight.locale-theme"' /></Arguments><Template><SpotlightScenario @attributes="context.Args" /></Template></Story>
+    <Story Name="Content resilience"><Arguments><Arg For="_ => _.ScenarioId" Value='"spotlight.content"'/></Arguments><Template><SpotlightScenario @attributes="context.Args"/></Template></Story>
+    <Story Name="Empty state"><Arguments><Arg For="_ => _.ScenarioId" Value='"spotlight.empty-state"'/></Arguments><Template><SpotlightScenario @attributes="context.Args"/></Template></Story>
+</Stories>

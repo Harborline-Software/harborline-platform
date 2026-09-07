@@ -1,0 +1,176 @@
+@using System.Globalization
+
+<section class="hl-gallery-scene" data-gallery-probe data-gallery-scenario="@ScenarioId" data-theme="@SceneTheme" dir="@SceneDirection">
+  <header class="hl-gallery-heading"><h2>@Copy.Title</h2><p>@Copy.Description</p></header>
+  <div class="hl-gallery-stage" style="min-width:0">
+    @switch (ScenarioId)
+    {
+      case "chat.empty-suggestions":
+        <div style="display:grid;gap:1rem;grid-template-columns:repeat(auto-fit, minmax(min(100%, 20rem), 1fr))">
+          <HarborlineChat Messages="@EmptyMessages" User="@CurrentUser" Style="block-size:320px;border:1px solid var(--hl-border, #64748b)">
+            <Empty><span>No inspection conversation yet.</span></Empty>
+          </HarborlineChat>
+          <HarborlineChat Messages="@EmptyMessages" User="@CurrentUser" OnSubmit="NoopSubmit" Suggestions="@Suggestions" Style="block-size:320px;border:1px solid var(--hl-border, #64748b)">
+            <Empty><span>Choose a prompt or describe the placement question.</span></Empty>
+          </HarborlineChat>
+        </div>
+        break;
+      case "chat.app-conversation":
+        <div style="block-size:420px">
+          <HarborlineChat Messages="@Conversation" User="@CurrentUser" ShowAvatar="false" MessageContentTemplate="@EvidenceMessage" data-owner="app" Style="height:100%;border:1px solid var(--hl-border, #64748b)" />
+        </div>
+        break;
+      case "chat.controlled-composer":
+        <div>
+          <HarborlineChat Messages="@controlledMessages" User="@CurrentUser" InputValue="@controlledInput" InputValueChanged="SetControlledInput" OnSubmit="SubmitControlled" Suggestions="@Suggestions" Style="block-size:420px;border:1px solid var(--hl-border, #64748b)">
+            <Empty><span>Suggestions are available before the first user message.</span></Empty>
+          </HarborlineChat>
+          <p aria-live="polite" style="margin-block-end:0">@lastSubmission</p>
+        </div>
+        break;
+      case "chat.streaming-keyboard":
+        <HarborlineChat Messages="@StreamingMessages" User="@CurrentUser" InputValue="Waiting for the current response" InputValueChanged="NoopInput" OnSubmit="NoopSubmit" ComposerDisabled ShowTypingIndicator ShowAvatar="false" Style="block-size:420px;border:1px solid var(--hl-border, #64748b)" />
+        break;
+      case "chat.replacement-validation":
+        <div style="display:grid;gap:1rem">
+          <button type="button" @onclick="ToggleRevision">Show revision @(revision == 1 ? 2 : 1)</button>
+          <HarborlineChat Messages="@ReplacementMessages" User="@CurrentUser" Style="block-size:300px;border:1px solid var(--hl-border, #64748b)" />
+          <aside aria-label="Stable validation codes">
+            <strong>Stable validation codes</strong>
+            <p style="margin-block-end:0">duplicate-message-id · controlled-composer-handler-required · accessible-user-name-required · invalid-message-timestamp</p>
+          </aside>
+        </div>
+        break;
+      case "chat.large-data":
+        <HarborlineChat Messages="@LargeMessages" User="@CurrentUser" ShowAvatar="false" data-gallery-message-count="256" Style="block-size:520px;border:1px solid var(--hl-border, #64748b)" />
+        break;
+      case "chat.locale-pseudo":
+        <HarborlineLocaleProvider Locale="en-XA" Catalog="@PseudoCatalog">
+          <HarborlineChat Messages="@PseudoMessages" User="@PseudoUser" OnSubmit="NoopSubmit" MessageContentTemplate="@EvidenceMessage" Style="block-size:420px;border:1px solid var(--hl-border, #64748b)" />
+        </HarborlineLocaleProvider>
+        break;
+      case "chat.locale-ar":
+        <HarborlineLocaleProvider Locale="ar-SA">
+          <HarborlineChat Messages="@ArabicMessages" User="@ArabicUser" Direction="rtl" OnSubmit="NoopSubmit" Style="block-size:420px;border:1px solid var(--hl-border, #64748b)" />
+        </HarborlineLocaleProvider>
+        break;
+      case "chat.theme-light":
+        <HarborlineChat Messages="@Conversation" User="@CurrentUser" OnSubmit="NoopSubmit" MessageContentTemplate="@EvidenceMessage" data-theme="light" Style="block-size:440px;border:1px solid var(--hl-border, #64748b)" />
+        break;
+      case "chat.theme-dark":
+        <HarborlineChat Messages="@Conversation" User="@CurrentUser" OnSubmit="NoopSubmit" MessageContentTemplate="@EvidenceMessage" data-theme="dark" Style="block-size:440px;border:1px solid var(--hl-border, #64748b)" />
+        break;
+    }
+  </div>
+</section>
+
+@code {
+  [Parameter, EditorRequired] public string ScenarioId { get; set; } = "chat.empty-suggestions";
+
+  private static readonly ChatParticipant CurrentUser = new("Casey Morgan");
+  private static readonly ChatParticipant Assistant = new("Harborline Copilot");
+  private static readonly ChatParticipant PseudoUser = new("⟦ Çåšëÿ Møřĝåñ ···· ⟧");
+  private static readonly ChatParticipant PseudoAssistant = new("⟦ Håřƀøřļîñë Çøþîļøţ ······ ⟧");
+  private static readonly ChatParticipant ArabicUser = new("ليلى");
+  private static readonly ChatParticipant ArabicAssistant = new("مساعد هاربورلاين");
+  private static readonly IReadOnlyList<ChatMessage> EmptyMessages = Array.Empty<ChatMessage>();
+
+  private static readonly IReadOnlyList<ChatSuggestion> Suggestions =
+  [
+    new("Explain the conflict", "Explain the clearance conflict"),
+    new("Suggest next step", "Suggest the next inspection step")
+  ];
+
+  private static readonly IReadOnlyList<ChatMessage> Conversation =
+  [
+    new("capture-request", CurrentUser, ChatMessageRole.User, "Place the west-wall capture on the Level 2 blueprint.", ChatMessageStatus.Complete, ParseInstant("2026-01-02T15:02:00Z")),
+    new("capture-result", Assistant, ChatMessageRole.Assistant, "The pose aligns with grid C-7. I found one clearance conflict near the service chase.", ChatMessageStatus.Complete, ParseInstant("2026-01-02T15:04:05Z")),
+    new("review-state", new ChatParticipant("Inspection workflow"), ChatMessageRole.System, "Placement evidence is ready for review.", ChatMessageStatus.Complete)
+  ];
+
+  private static readonly IReadOnlyList<ChatMessage> StreamingMessages =
+  [
+    Conversation[0],
+    new("streaming-result", Assistant, ChatMessageRole.Assistant, "Comparing capture geometry with Level 2…", ChatMessageStatus.Streaming, ParseInstant("2026-01-02T15:04:05Z"))
+  ];
+
+  private static readonly IReadOnlyList<ChatMessage> LargeMessages = Enumerable.Range(0, 256)
+    .Select(index => new ChatMessage(
+      $"load-message-{index + 1}",
+      index % 2 == 0 ? CurrentUser : Assistant,
+      index % 2 == 0 ? ChatMessageRole.User : ChatMessageRole.Assistant,
+      $"Inspection message {index + 1}: structure grid {(char)('A' + index % 8)}-{index % 12 + 1}.",
+      ChatMessageStatus.Complete))
+    .ToArray();
+
+  private static readonly IReadOnlyList<ChatMessage> PseudoMessages =
+  [
+    new("pseudo-user", PseudoUser, ChatMessageRole.User, "⟦ Þļåçë ţĥë çåþţûřë ŵîţĥîñ ţĥë šëļëçţëđ ƀļûëþřîñţ šţřûçţûřë. ········ ⟧"),
+    new("pseudo-assistant", PseudoAssistant, ChatMessageRole.Assistant, "⟦ Þļåçëmëñţ îš řëåđÿ ƒøř řëṽîëŵ; øñë çļëåřåñçë çøñƒļîçţ řëmåîñš. ·········· ⟧")
+  ];
+
+  private static readonly IReadOnlyList<ChatMessage> ArabicMessages =
+  [
+    new("arabic-user", ArabicUser, ChatMessageRole.User, "ضع الصورة عند الشبكة ج-٧.", Timestamp: ParseInstant("2026-01-02T15:02:00Z")),
+    new("arabic-assistant", ArabicAssistant, ChatMessageRole.Assistant, "تمت محاذاة الوضعية مع المخطط.", Timestamp: ParseInstant("2026-01-02T15:04:05Z"))
+  ];
+
+  private static readonly IReadOnlyDictionary<string, string> PseudoCatalog = new Dictionary<string, string>
+  {
+    ["ai.chat.conversation"] = "⟦ Šþåţîåļ îñšþëçţîøñ çøñṽëřšåţîøñ ······ ⟧",
+    ["ai.chat.inputLabel"] = "⟦ Mëššåĝë ···· ⟧",
+    ["ai.chat.placeholder"] = "⟦ Åšķ åƀøûţ ţĥë çåþţûřëđ þøšë ········ ⟧",
+    ["ai.send"] = "⟦ Šëñđ ···· ⟧"
+  };
+
+  private readonly List<ChatMessage> controlledMessages = [];
+  private string controlledInput = "Review grid C-7";
+  private string lastSubmission = "No prompt submitted yet.";
+  private int revision = 1;
+
+  private (string Title, string Description) Copy => ScenarioId switch
+  {
+    "chat.empty-suggestions" => ("Empty state and suggestions", "The conversation log retains its accessible shell while starter prompts remain reachable."),
+    "chat.app-conversation" => ("Harborline conversation", "Ordered roles, bounded custom content, hidden avatars, and host-owned fill height match the Harborline Copilot surface."),
+    "chat.controlled-composer" => ("Controlled composer", "The host owns draft state, receives one trimmed prompt, and removes suggestions after the first user message."),
+    "chat.streaming-keyboard" => ("Streaming and keyboard navigation", "Partial assistant text is quiet, typing remains announced, and adjacent articles support arrow-key focus."),
+    "chat.replacement-validation" => ("Replacement and validation", "Complete replacement removes stale messages while stable contract errors remain projection-neutral."),
+    "chat.large-data" => ("Bounded conversation under load", "Two hundred fifty-six ordered messages exercise the Tier-C structural boundary inside one scroll owner."),
+    "chat.locale-pseudo" => ("Pseudo locale", "Expanded participant names, messages, and composer copy remain readable without clipping."),
+    "chat.locale-ar" => ("Arabic RTL and localized time", "Logical ownership alignment and localized instants remain intact in a right-to-left conversation."),
+    "chat.theme-light" => ("Light theme", "Conversation, controls, focus, and status surfaces use the public light tokens."),
+    "chat.theme-dark" => ("Dark theme", "The same semantic conversation uses the public dark tokens without changing behavior."),
+    _ => throw new InvalidOperationException($"Unknown Chat scenario '{ScenarioId}'.")
+  };
+
+  private string? SceneTheme => ScenarioId == "chat.theme-dark" ? "dark" : null;
+  private string SceneDirection => ScenarioId == "chat.locale-ar" ? "rtl" : "ltr";
+  private IReadOnlyList<ChatMessage> ReplacementMessages => revision == 1
+    ? Conversation.Take(2).ToArray()
+    : [new ChatMessage("replacement-only", Assistant, ChatMessageRole.Assistant, "Revision 2 is authoritative; no stale revision 1 rows remain.", ChatMessageStatus.Complete)];
+
+  private RenderFragment<ChatMessage> EvidenceMessage => message => builder =>
+  {
+    builder.OpenElement(0, "div");
+    builder.OpenElement(1, "strong");
+    builder.AddContent(2, message.Status == ChatMessageStatus.Error ? "Needs attention" : "Spatial evidence");
+    builder.CloseElement();
+    builder.OpenElement(3, "p");
+    builder.AddAttribute(4, "style", "margin:0.25rem 0 0");
+    builder.AddContent(5, message.Text);
+    builder.CloseElement();
+    builder.CloseElement();
+  };
+
+  private static DateTimeOffset ParseInstant(string value) => DateTimeOffset.Parse(value, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal);
+  private Task NoopSubmit(string _) => Task.CompletedTask;
+  private Task NoopInput(string _) => Task.CompletedTask;
+  private Task SetControlledInput(string value) { controlledInput = value; return Task.CompletedTask; }
+  private Task SubmitControlled(string text)
+  {
+    lastSubmission = $"Submitted once: {text}";
+    controlledMessages.Add(new ChatMessage($"submitted-{controlledMessages.Count + 1}", CurrentUser, ChatMessageRole.User, text, ChatMessageStatus.Complete, ParseInstant("2026-01-02T15:06:00Z")));
+    return Task.CompletedTask;
+  }
+  private void ToggleRevision() => revision = revision == 1 ? 2 : 1;
+}

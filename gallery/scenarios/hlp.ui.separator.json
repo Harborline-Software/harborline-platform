@@ -1,0 +1,150 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.separator",
+  "sourceFixture": "conformance/hlp.ui.separator/fixtures.yaml",
+  "qualityFixture": "conformance/hlp.ui.separator/quality-fixtures.yaml",
+  "galleryInterface": {
+    "probeAttribute": "data-gallery-probe",
+    "scenarioAttribute": "data-gallery-scenario",
+    "projectionTitles": {
+      "react": "Platform/Separator",
+      "blazor": "Platform/Separator"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "separator.decorative",
+      "name": "Decorative",
+      "surface": "decorative",
+      "sourceCaseIds": [
+        "separator.decorative-horizontal",
+        "separator.blank-label"
+      ],
+      "sourceQualityCaseIds": [
+        "separator.quality.decorative"
+      ],
+      "content": {
+        "blurb": "Rules remain decorative by default and expose orientation only when semantic.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<Separator decorative={true} label={undefined} />",
+            "blazor": "<HarborlineSeparator Decorative=\"true\" Label=\"null\" />",
+            "rationale": "The rendered Separator component has no corresponding control in the closed descriptor vocabulary."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "separator.semantic",
+      "name": "Semantic orientations",
+      "surface": "semantic-orientations",
+      "sourceCaseIds": [
+        "separator.semantic-horizontal",
+        "separator.semantic-vertical"
+      ],
+      "sourceQualityCaseIds": [
+        "separator.quality.semantic",
+        "separator.quality.reflow"
+      ],
+      "content": {
+        "blurb": "Rules remain decorative by default and expose orientation only when semantic.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<><Separator decorative={false} label={undefined} /><Separator decorative={false} orientation=\"vertical\" /></>",
+            "blazor": "<><HarborlineSeparator Decorative=\"false\" Label=\"null\" /><HarborlineSeparator Decorative=\"false\" Orientation=\"SeparatorOrientation.Vertical\" /></>",
+            "rationale": "The scenario renders horizontal and vertical Separator component instances, and the closed descriptor vocabulary has no separator control or orientation-bearing structural equivalent."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "separator.labeled-theme",
+      "name": "Labeled RTL and theme",
+      "surface": "labeled-rtl-theme",
+      "sourceCaseIds": [
+        "separator.labeled",
+        "separator.host-attributes",
+        "separator.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "separator.quality.caller-label",
+        "separator.quality.rtl",
+        "separator.quality.pseudo",
+        "separator.quality.light-dark",
+        "separator.quality.tokens",
+        "separator.quality.forced-colors",
+        "separator.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "Rules remain decorative by default and expose orientation only when semantic.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "rtl",
+          "theme": "dark",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<Separator decorative={false} label=\"أو\" />",
+            "blazor": "<HarborlineSeparator Decorative=\"false\" Label=\"أو\" />",
+            "rationale": "The rendered labeled Separator component has no corresponding control in the closed descriptor vocabulary; a generic text descriptor would lose its separator semantics."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "separator.content",
+      "name": "Content resilience",
+      "surface": "long-content",
+      "sourceCaseIds": [
+        "separator.labeled",
+        "separator.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "A single overlong label carries the grouped number 1,284,905, escaped angle brackets and ampersand in Bay 4 <grid C-7> & 8, and the diacritic-rich name Ordnance Survey — Niño Ångström.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<Separator decorative={false} label={'Awaiting third-party structural certification review — 1,284,905 — Bay 4 <grid C-7> & 8 — Ordnance Survey — Niño Ångström'} />",
+            "blazor": "<HarborlineSeparator Decorative=\"false\" Label=\"@(\"Awaiting third-party structural certification review — 1,284,905 — Bay 4 <grid C-7> & 8 — Ordnance Survey — Niño Ångström\")\" />",
+            "rationale": "The closed control vocabulary has no separator control and cannot express a labeled separator carrying hostile-but-valid text."
+          }
+        ],
+        "footer": []
+      }
+    }
+  ]
+}

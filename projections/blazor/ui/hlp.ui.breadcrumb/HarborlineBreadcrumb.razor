@@ -1,0 +1,43 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Navigation
+@inherits HarborlineComponentBase
+
+@* Ticket 124: an empty trail renders nothing at all, not an empty landmark. A breadcrumb states
+   where the current page sits in a hierarchy; with no crumbs there is no location to state, so
+   there is no honest sentence to write (contrast hlp.ui.chart and hlp.ui.accordion, which keep a
+   frame the reader asked to be filled and therefore carry an `empty` parameter). What was
+   reachable and undesigned here was the empty navigation landmark this used to emit. *@
+@if (Items.Count > 0)
+{
+    <nav class="@CombineClasses("hl-breadcrumb")" style="@CombineStyles()" aria-label="@AccessibleLabel" @attributes="AdditionalAttributes">
+        <ol class="hl-breadcrumb__list">
+        @for (var index = 0; index < Items.Count; index++)
+        {
+            var item = Items[index];
+            var current = item.Current ?? index == Items.Count - 1;
+            <li class="hl-breadcrumb__item" @key="item.Id">
+                @if (index > 0)
+                {
+                    <span class="hl-breadcrumb__separator" aria-hidden="true">
+                    @if (Separator is null) { <svg class="hl-breadcrumb__separator-icon" viewBox="0 0 16 16" fill="none"><path d="m6 3.5 4 4.5-4 4.5" /></svg> }
+                    else { @Separator }
+                    </span>
+                }
+                @if (!string.IsNullOrWhiteSpace(item.Href) && !current)
+                {
+                    <a class="hl-breadcrumb__link" href="@item.Href">@item.Label</a>
+                }
+                else
+                {
+                    <span class="@(current ? "hl-breadcrumb__text hl-breadcrumb__text--current" : "hl-breadcrumb__text")" aria-current="@(current ? "page" : null)">@item.Label</span>
+                }
+            </li>
+        }
+        </ol>
+    </nav>
+}
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<HarborlineBreadcrumbItem> Items { get; set; } = [];
+    [Parameter] public RenderFragment? Separator { get; set; }
+    [Parameter] public string AccessibleLabel { get; set; } = "Breadcrumb";
+}

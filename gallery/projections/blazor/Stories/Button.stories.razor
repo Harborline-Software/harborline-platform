@@ -1,0 +1,70 @@
+@attribute [Stories("Platform/Button")]
+
+<Stories TComponent="ButtonScenario">
+    <Story Name="Defaults">
+        <Arguments><Arg For="_ => _.ScenarioId" Value='"button.defaults"' /></Arguments>
+        <Template><ButtonScenario @attributes="context.Args" /></Template>
+    </Story>
+    <Story Name="Variants">
+        <Arguments><Arg For="_ => _.ScenarioId" Value='"button.variants"' /></Arguments>
+        <Template><ButtonScenario @attributes="context.Args" /></Template>
+    </Story>
+    <Story Name="Sizes">
+        <Arguments><Arg For="_ => _.ScenarioId" Value='"button.sizes"' /></Arguments>
+        <Template><ButtonScenario @attributes="context.Args" /></Template>
+    </Story>
+    <Story Name="Fill modes">
+        <Arguments><Arg For="_ => _.ScenarioId" Value='"button.fills"' /></Arguments>
+        <Template><ButtonScenario @attributes="context.Args" /></Template>
+    </Story>
+    <Story Name="Radii">
+        <Arguments><Arg For="_ => _.ScenarioId" Value='"button.radii"' /></Arguments>
+        <Template><ButtonScenario @attributes="context.Args" /></Template>
+    </Story>
+    <Story Name="Loading">
+        <Arguments><Arg For="_ => _.ScenarioId" Value='"button.loading"' /></Arguments>
+        <Template><ButtonScenario @attributes="context.Args" /></Template>
+    </Story>
+    <Story Name="Disabled">
+        <Arguments><Arg For="_ => _.ScenarioId" Value='"button.disabled"' /></Arguments>
+        <Template><ButtonScenario @attributes="context.Args" /></Template>
+    </Story>
+    <Story Name="Icons">
+        <Arguments><Arg For="_ => _.ScenarioId" Value='"button.icons"' /></Arguments>
+        <Template><ButtonScenario @attributes="context.Args" /></Template>
+    </Story>
+    <Story Name="Accessibility">
+        <Arguments><Arg For="_ => _.ScenarioId" Value='"button.accessibility"' /></Arguments>
+        <Template><ButtonScenario @attributes="context.Args" /></Template>
+    </Story>
+    <Story Name="Host attributes">
+        <Arguments><Arg For="_ => _.ScenarioId" Value='"button.host-attributes"' /></Arguments>
+        <Template><ButtonScenario @attributes="context.Args" /></Template>
+    </Story>
+    <Story Name="Right to left">
+        <Arguments><Arg For="_ => _.ScenarioId" Value='"button.rtl"' /></Arguments>
+        <Template><ButtonScenario @attributes="context.Args" /></Template>
+    </Story>
+    <Story Name="Light theme">
+        <Arguments><Arg For="_ => _.ScenarioId" Value='"button.theme-light"' /></Arguments>
+        <Template><ButtonScenario @attributes="context.Args" /></Template>
+    </Story>
+    <Story Name="Dark theme">
+        <Arguments><Arg For="_ => _.ScenarioId" Value='"button.theme-dark"' /></Arguments>
+        <Template><ButtonScenario @attributes="context.Args" /></Template>
+    </Story>
+    <Story Name="English locale">
+        <Arguments><Arg For="_ => _.ScenarioId" Value='"button.locale-en"' /></Arguments>
+        <Template><ButtonScenario @attributes="context.Args" /></Template>
+    </Story>
+    <Story Name="Pseudo locale">
+        <Arguments><Arg For="_ => _.ScenarioId" Value='"button.locale-pseudo"' /></Arguments>
+        <Template><ButtonScenario @attributes="context.Args" /></Template>
+    </Story>
+    <Story Name="Arabic locale">
+        <Arguments><Arg For="_ => _.ScenarioId" Value='"button.locale-ar"' /></Arguments>
+        <Template><ButtonScenario @attributes="context.Args" /></Template>
+    </Story>
+    <Story Name="Content resilience"><Arguments><Arg For="_ => _.ScenarioId" Value='"button.content"'/></Arguments><Template><ButtonScenario @attributes="context.Args"/></Template></Story>
+    <Story Name="Error state"><Arguments><Arg For="_ => _.ScenarioId" Value='"button.error-state"'/></Arguments><Template><ButtonScenario @attributes="context.Args"/></Template></Story>
+</Stories>

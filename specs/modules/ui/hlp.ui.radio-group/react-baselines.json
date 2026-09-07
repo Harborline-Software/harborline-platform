@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "projection": "react",
+  "moduleId": "hlp.ui.radio-group",
+  "scenarios": [
+    {
+      "scenarioId": "radio-group.defaults",
+      "sha256": "b61b78a71abc0ddb294f969c0a408f0bd5b04b1d9539d32b1b6d2e21d39639bd",
+      "bytes": 12177,
+      "artifact": "../baselines/sha256/b61b78a71abc0ddb294f969c0a408f0bd5b04b1d9539d32b1b6d2e21d39639bd.png"
+    },
+    {
+      "scenarioId": "radio-group.states",
+      "sha256": "1877e9ee156ca569b4263ded9c7e2af44cbc400d813c07f580a47414cb168590",
+      "bytes": 12808,
+      "artifact": "../baselines/sha256/1877e9ee156ca569b4263ded9c7e2af44cbc400d813c07f580a47414cb168590.png"
+    },
+    {
+      "scenarioId": "radio-group.rtl-theme",
+      "sha256": "02c4fafe1b1d017457f5dc3268b97e8229f63ad98f04221d0be1e33161044a5e",
+      "bytes": 11412,
+      "artifact": "../baselines/sha256/02c4fafe1b1d017457f5dc3268b97e8229f63ad98f04221d0be1e33161044a5e.png"
+    }
+  ]
+}

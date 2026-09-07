@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.kernel.work-items",
+  "interfaceRevision": 1,
+  "cases": [
+    {"id": "approve", "initialStep": "review", "outcome": "approve", "expectedStep": "done", "expectedStatus": "Completed", "expectedIteration": 0},
+    {"id": "rework", "initialStep": "review", "outcome": "rework", "expectedStep": "inspect", "expectedStatus": "Parked", "expectedIteration": 1},
+    {"id": "idempotency-conflict", "expect": "same-key-different-content-conflicts"},
+    {"id": "tenant-isolation", "expect": "foreign-and-absent-indistinguishable"},
+    {"id": "concurrent-version", "expect": "exactly-one-commit"},
+    {"id": "restart-recovery", "expect": "park-and-iteration-survive"}
+  ]
+}

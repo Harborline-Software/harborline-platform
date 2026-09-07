@@ -1,0 +1,399 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.switch-field",
+  "sourceFixture": "conformance/hlp.ui.switch-field/fixtures.yaml",
+  "qualityFixture": "conformance/hlp.ui.switch-field/quality-fixtures.yaml",
+  "galleryInterface": {
+    "probeAttribute": "data-gallery-probe",
+    "scenarioAttribute": "data-gallery-scenario",
+    "projectionTitles": {
+      "react": "Platform/Switch Field",
+      "blazor": "Platform/Switch Field"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "switch-field.controlled-form",
+      "name": "Controlled form compatibility",
+      "surface": "controlled-form",
+      "sourceCaseIds": [
+        "switch-field.defaults",
+        "switch-field.id-fallback",
+        "switch-field.checked",
+        "switch-field.label",
+        "switch-field.form-context"
+      ],
+      "sourceQualityCaseIds": [
+        "switch-field.quality.name-state"
+      ],
+      "content": {
+        "blurb": "The deprecated field seam delegates controlled value, identity, labels, descriptions, and form metadata to Switch.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {
+          "checkedMd": {
+            "kind": "flag",
+            "initial": true
+          },
+          "requestsMd": {
+            "kind": "counter",
+            "initial": 0
+          }
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<FormField name={`showArchived-${size}`} label={label} hint={description} required={invalid} error={invalid ? 'Choose whether archived structures are included.' : undefined}>{control}</FormField>\n<SwitchField accessibleName={label} checked={checked} description={undefined} disabled={false} error={false} label={undefined} name={`showArchived-${size}`} onCheckedChange={...} required={false} size=\"md\" />\n<output aria-live=\"polite\">Requests: {requests}</output>",
+            "blazor": "<HarborlineSwitchField Name=\"published\" Checked=\"@md\" CheckedChanged=\"@(next => md = next)\" Label=\"Published\" Description=\"Visible to workspace users\" Error=\"false\" Required=\"false\" />",
+            "rationale": "The React scenario intentionally composes FormField with SwitchField while suppressing the switch's own label and description, and includes a live request counter. The closed descriptors cannot express that component composition or the lane discrepancy that Blazor renders one bare field with different copy and no output."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "switch-field.activation-states",
+      "name": "Activation and validation states",
+      "surface": "activation-states",
+      "sourceCaseIds": [
+        "switch-field.pointer",
+        "switch-field.keyboard",
+        "switch-field.disabled",
+        "switch-field.validation"
+      ],
+      "sourceQualityCaseIds": [
+        "switch-field.quality.target"
+      ],
+      "content": {
+        "blurb": "Pointer, Enter, and Space request one change while disabled state suppresses every request.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {
+          "checkedDefaultMd": {
+            "kind": "flag",
+            "initial": true
+          },
+          "requestsDefaultMd": {
+            "kind": "counter",
+            "initial": 0
+          },
+          "checkedInvalidMd": {
+            "kind": "flag",
+            "initial": true
+          },
+          "requestsInvalidMd": {
+            "kind": "counter",
+            "initial": 0
+          },
+          "checkedDisabledLg": {
+            "kind": "flag",
+            "initial": true
+          },
+          "requestsDisabledLg": {
+            "kind": "counter",
+            "initial": 0
+          }
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<SwitchFieldFixture scenarioId={scenarioId} size=\"md\" />\n<SwitchFieldFixture invalid scenarioId={scenarioId} size=\"md\" />\n<SwitchFieldFixture disabled scenarioId={scenarioId} size=\"lg\" />",
+            "blazor": "<HarborlineSwitchField Name=\"published\" Checked=\"@md\" CheckedChanged=\"@(next => md = next)\" Label=\"Published\" Description=\"Visible to workspace users\" Error=\"true\" Required=\"true\" />",
+            "rationale": "The closed input descriptor cannot preserve three SwitchField component variants with sizes, component validation, disabled behavior, controlled state, and a separate live request output for each. Blazor also renders only one invalid field, so both exact lane structures are required."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "switch-field.appearance-replacement",
+      "name": "Appearance and replacement",
+      "surface": "appearance-replacement",
+      "sourceCaseIds": [
+        "switch-field.appearance",
+        "switch-field.replacement"
+      ],
+      "content": {
+        "blurb": "Canonical sizes and caller replacements remain visually and behaviorally equivalent to Switch.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {
+          "checkedSm": {
+            "kind": "flag",
+            "initial": false
+          },
+          "requestsSm": {
+            "kind": "counter",
+            "initial": 0
+          },
+          "checkedMd": {
+            "kind": "flag",
+            "initial": true
+          },
+          "requestsMd": {
+            "kind": "counter",
+            "initial": 0
+          },
+          "checkedLg": {
+            "kind": "flag",
+            "initial": true
+          },
+          "requestsLg": {
+            "kind": "counter",
+            "initial": 0
+          }
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<SwitchFieldFixture scenarioId={scenarioId} size=\"sm\" />\n<SwitchFieldFixture scenarioId={scenarioId} size=\"md\" />\n<SwitchFieldFixture scenarioId={scenarioId} size=\"lg\" />\n// Each fixture renders: <output aria-live=\"polite\">Controlled value {checked ? 'on' : 'off'}; requests logged without replacement: {requests}</output>\n// and <button type=\"button\" onClick={() => setChecked(current => !current)}>Replace caller value</button>",
+            "blazor": "<HarborlineSwitchField Name=\"published\" Checked=\"@md\" CheckedChanged=\"@(next => md = next)\" Label=\"Published\" Description=\"Visible to workspace users\" Error=\"false\" Required=\"false\" />",
+            "rationale": "This scenario depends on three component sizes, deliberately non-replacing change requests, per-instance live output, and caller-value replacement buttons. Those component semantics cannot be represented by the closed generic controls, and Blazor renders a materially different single field."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "switch-field.locale-pseudo",
+      "name": "Pseudo-localized compatibility",
+      "surface": "locale-pseudo",
+      "sourceCaseIds": [
+        "switch-field.label"
+      ],
+      "sourceQualityCaseIds": [
+        "switch-field.quality.catalog"
+      ],
+      "content": {
+        "blurb": "Expanded label, description, and state copy reflow without creating adapter-specific chrome.",
+        "environment": {
+          "locale": "en-XA",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {
+          "checkedMd": {
+            "kind": "flag",
+            "initial": true
+          },
+          "requestsMd": {
+            "kind": "counter",
+            "initial": 0
+          }
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<SwitchField accessibleName=\"⟦ Šhøŵ åřçhîṽëđ šţřûçţûřëš ········ ⟧\" checked={checked} description=\"⟦ Îñçļûđë îñåçţîṽë řëçøřđš îñ šëåřçh řëšûļţš ········ ⟧\" label=\"⟦ Šhøŵ åřçhîṽëđ šţřûçţûřëš ········ ⟧\" name=\"showArchived-md\" onCheckedChange={...} size=\"md\" />\n<output aria-live=\"polite\">Requests: {requests}</output>",
+            "blazor": "<HarborlineSwitchField Name=\"published\" Checked=\"@md\" CheckedChanged=\"@(next => md = next)\" Label=\"⟦ Þûɓļîšĥëđ šţåţë ······ ⟧\" Description=\"Visible to workspace users\" Error=\"false\" Required=\"false\" />",
+            "rationale": "The generic input descriptor cannot capture SwitchField's accessible name, visible label, description, controlled change contract, and live request output as one component. Raw also exposes the lanes' different pseudo-localized label and description copy."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "switch-field.locale-ar",
+      "name": "Arabic right-to-left switch",
+      "surface": "locale-ar",
+      "sourceCaseIds": [
+        "switch-field.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "switch-field.quality.rtl"
+      ],
+      "content": {
+        "blurb": "Track, thumb, label, description, and state copy follow logical direction.",
+        "environment": {
+          "locale": "ar-SA",
+          "direction": "rtl",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {
+          "checkedMd": {
+            "kind": "flag",
+            "initial": true
+          },
+          "requestsMd": {
+            "kind": "counter",
+            "initial": 0
+          }
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<SwitchField accessibleName=\"إظهار الهياكل المؤرشفة\" checked={checked} description=\"تضمين السجلات غير النشطة في النتائج\" label=\"إظهار الهياكل المؤرشفة\" name=\"showArchived-md\" onCheckedChange={...} size=\"md\" />\n<output aria-live=\"polite\">Requests: {requests}</output>",
+            "blazor": "<HarborlineSwitchField Name=\"published\" Checked=\"@md\" CheckedChanged=\"@(next => md = next)\" Label=\"منشور\" Description=\"مرئي للمستخدمين\" Error=\"false\" Required=\"false\" />",
+            "rationale": "The generic input descriptor cannot retain the component's label, description, accessible name, controlled change behavior, and live output under RTL. Raw is also necessary to declare the lanes' different Arabic copy."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "switch-field.theme-light",
+      "name": "Light theme",
+      "surface": "theme-light",
+      "sourceCaseIds": [
+        "switch-field.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "switch-field.quality.light-dark",
+        "switch-field.quality.tokens",
+        "switch-field.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "The compatibility wrapper uses only authoritative Switch light-theme tokens.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {
+          "checkedSm": {
+            "kind": "flag",
+            "initial": false
+          },
+          "requestsSm": {
+            "kind": "counter",
+            "initial": 0
+          },
+          "checkedMd": {
+            "kind": "flag",
+            "initial": true
+          },
+          "requestsMd": {
+            "kind": "counter",
+            "initial": 0
+          },
+          "checkedLg": {
+            "kind": "flag",
+            "initial": true
+          },
+          "requestsLg": {
+            "kind": "counter",
+            "initial": 0
+          }
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<SwitchFieldFixture scenarioId={scenarioId} size=\"sm\" />\n<SwitchFieldFixture scenarioId={scenarioId} size=\"md\" />\n<SwitchFieldFixture scenarioId={scenarioId} size=\"lg\" />",
+            "blazor": "@SwitchFixture(SwitchSize.Sm, sm)\n@SwitchFixture(SwitchSize.Md, md)\n@SwitchFixture(SwitchSize.Lg, lg)",
+            "rationale": "The closed input descriptor has no SwitchField size contract and cannot preserve the three small, medium, and large component instances with their controlled checked values and individual live request outputs."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "switch-field.theme-dark",
+      "name": "Dark theme",
+      "surface": "theme-dark",
+      "sourceCaseIds": [
+        "switch-field.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "switch-field.quality.light-dark",
+        "switch-field.quality.tokens",
+        "switch-field.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "The same controlled compatibility seam on the Harborline dark surface.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "dark",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {
+          "checkedSm": {
+            "kind": "flag",
+            "initial": false
+          },
+          "requestsSm": {
+            "kind": "counter",
+            "initial": 0
+          },
+          "checkedMd": {
+            "kind": "flag",
+            "initial": true
+          },
+          "requestsMd": {
+            "kind": "counter",
+            "initial": 0
+          },
+          "checkedLg": {
+            "kind": "flag",
+            "initial": true
+          },
+          "requestsLg": {
+            "kind": "counter",
+            "initial": 0
+          }
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<SwitchFieldFixture scenarioId={scenarioId} size=\"sm\" />\n<SwitchFieldFixture scenarioId={scenarioId} size=\"md\" />\n<SwitchFieldFixture scenarioId={scenarioId} size=\"lg\" />",
+            "blazor": "@SwitchFixture(SwitchSize.Sm, sm)\n@SwitchFixture(SwitchSize.Md, md)\n@SwitchFixture(SwitchSize.Lg, lg)",
+            "rationale": "The closed input descriptor has no SwitchField size contract and cannot preserve the three small, medium, and large component instances with their controlled checked values and individual live request outputs."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "switch-field.content",
+      "name": "Content resilience",
+      "surface": "long-content",
+      "sourceCaseIds": [
+        "switch-field.label",
+        "switch-field.replacement"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "Two controlled switch fields expose a long label, a grouped large number, escaped angle brackets and ampersand text, and a name with diacritics and an em dash.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<><SwitchField name=\"content-long\" checked label={'Awaiting third-party structural certification review'} accessibleName={'Awaiting third-party structural certification review'} description={'Bay 4 <grid C-7> & 8'} onText={'1,284,905'} onCheckedChange={()=>{}} /><SwitchField name=\"content-name\" checked={false} label={'Ordnance Survey — Niño Ångström'} accessibleName={'Ordnance Survey — Niño Ångström'} onCheckedChange={()=>{}} /></>",
+            "blazor": "<HarborlineSwitchField Name=\"content-long\" Checked=\"true\" Label=\"@(\"Awaiting third-party structural certification review\")\" AccessibleName=\"@(\"Awaiting third-party structural certification review\")\" Description=\"@(\"Bay 4 <grid C-7> & 8\")\" OnText=\"@(\"1,284,905\")\" /><HarborlineSwitchField Name=\"content-name\" Checked=\"false\" Label=\"@(\"Ordnance Survey — Niño Ångström\")\" AccessibleName=\"@(\"Ordnance Survey — Niño Ångström\")\" />",
+            "rationale": "The closed input descriptor cannot express two controlled SwitchField instances carrying hostile-but-valid visible labels, descriptions, and state copy."
+          }
+        ],
+        "footer": []
+      }
+    }
+  ]
+}

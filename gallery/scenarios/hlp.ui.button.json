@@ -1,0 +1,701 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.button",
+  "sourceFixture": "conformance/hlp.ui.button/fixtures.yaml",
+  "qualityFixture": "conformance/hlp.ui.button/quality-fixtures.yaml",
+  "galleryInterface": {
+    "probeAttribute": "data-gallery-probe",
+    "scenarioAttribute": "data-gallery-scenario",
+    "projectionTitles": {
+      "react": "Platform/Button",
+      "blazor": "Platform/Button"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "button.defaults",
+      "name": "Defaults",
+      "surface": "default",
+      "sourceCaseIds": [
+        "button.defaults"
+      ],
+      "content": {
+        "blurb": "The neutral action and its preserved type=button default.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "button",
+            "text": "Save changes"
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "button.variants",
+      "name": "Variants",
+      "surface": "variant",
+      "sourceCaseIds": [
+        "button.appearance"
+      ],
+      "content": {
+        "blurb": "The complete canonical intent vocabulary.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "button",
+            "text": "primary",
+            "intent": "primary"
+          },
+          {
+            "control": "button",
+            "text": "secondary",
+            "intent": "secondary"
+          },
+          {
+            "control": "button",
+            "text": "danger",
+            "intent": "danger"
+          },
+          {
+            "control": "button",
+            "text": "warning",
+            "intent": "warning"
+          },
+          {
+            "control": "button",
+            "text": "info",
+            "intent": "info"
+          },
+          {
+            "control": "button",
+            "text": "success",
+            "intent": "success"
+          },
+          {
+            "control": "button",
+            "text": "light",
+            "intent": "light"
+          },
+          {
+            "control": "button",
+            "text": "dark",
+            "intent": "dark"
+          },
+          {
+            "control": "button",
+            "text": "subtle",
+            "intent": "subtle"
+          },
+          {
+            "control": "button",
+            "text": "transparent",
+            "intent": "transparent"
+          }
+        ],
+        "footer": []
+      },
+      "states": [
+        "error"
+      ]
+    },
+    {
+      "id": "button.sizes",
+      "name": "Sizes",
+      "surface": "size",
+      "sourceCaseIds": [
+        "button.defaults",
+        "button.appearance"
+      ],
+      "content": {
+        "blurb": "Compact, standard, and prominent control heights.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<div className=\"hl-gallery-stack\" key={size}><span className=\"hl-gallery-label\">{label}</span><Button intent=\"primary\" size={size}>{label}</Button></div>",
+            "blazor": "<div class=\"hl-gallery-stack\"><span class=\"hl-gallery-label\">@size</span><HarborlineButton Variant=\"ButtonVariant.Primary\" Size=\"size\">@size</HarborlineButton></div>",
+            "rationale": "Each size is rendered inside a div stack, but div is not in the closed descriptor vocabulary."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "button.fills",
+      "name": "Fill modes",
+      "surface": "fill",
+      "sourceCaseIds": [
+        "button.appearance"
+      ],
+      "content": {
+        "blurb": "One semantic color across the five supported treatments.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "button",
+            "text": "solid",
+            "fillMode": "solid",
+            "themeColor": "primary"
+          },
+          {
+            "control": "button",
+            "text": "outline",
+            "fillMode": "outline",
+            "themeColor": "primary"
+          },
+          {
+            "control": "button",
+            "text": "flat",
+            "fillMode": "flat",
+            "themeColor": "primary"
+          },
+          {
+            "control": "button",
+            "text": "link",
+            "fillMode": "link",
+            "themeColor": "primary"
+          },
+          {
+            "control": "button",
+            "text": "clear",
+            "fillMode": "clear",
+            "themeColor": "primary"
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "button.radii",
+      "name": "Radii",
+      "surface": "radius",
+      "sourceCaseIds": [
+        "button.appearance"
+      ],
+      "content": {
+        "blurb": "Square through fully rounded geometry.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "button",
+            "text": "none",
+            "intent": "primary",
+            "rounded": "none"
+          },
+          {
+            "control": "button",
+            "text": "small",
+            "intent": "primary",
+            "rounded": "small"
+          },
+          {
+            "control": "button",
+            "text": "medium",
+            "intent": "primary",
+            "rounded": "medium"
+          },
+          {
+            "control": "button",
+            "text": "large",
+            "intent": "primary",
+            "rounded": "large"
+          },
+          {
+            "control": "button",
+            "text": "full",
+            "intent": "primary",
+            "rounded": "full"
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "button.loading",
+      "name": "Loading",
+      "surface": "loading",
+      "sourceCaseIds": [
+        "button.loading"
+      ],
+      "content": {
+        "blurb": "Focusable and inert while keeping its visible label.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "button",
+            "text": "Saving changes",
+            "intent": "primary",
+            "loading": true
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "button.disabled",
+      "name": "Disabled",
+      "surface": "disabled",
+      "sourceCaseIds": [
+        "button.disabled"
+      ],
+      "content": {
+        "blurb": "Native disabled semantics with reduced emphasis.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "button",
+            "text": "Primary",
+            "intent": "primary",
+            "disabled": true
+          },
+          {
+            "control": "button",
+            "text": "Secondary",
+            "disabled": true
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "button.icons",
+      "name": "Icons",
+      "surface": "icon",
+      "sourceCaseIds": [
+        "button.content-order",
+        "button.accessible-name"
+      ],
+      "content": {
+        "blurb": "Leading, trailing, and named icon-only content.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<><Button intent=\"primary\" leadingIcon={<GalleryIcon>+</GalleryIcon>}>Create</Button><Button trailingIcon={<GalleryIcon>→</GalleryIcon>}>Continue</Button><Button size=\"icon\" intent=\"subtle\" aria-label=\"Add item\"><GalleryIcon>+</GalleryIcon></Button></>",
+            "blazor": "<HarborlineButton Variant=\"ButtonVariant.Primary\"><LeadingIcon><span class=\"hl-gallery-icon\" aria-hidden=\"true\">+</span></LeadingIcon><ChildContent>Create</ChildContent></HarborlineButton><HarborlineButton><TrailingIcon><span class=\"hl-gallery-icon\" aria-hidden=\"true\">→</span></TrailingIcon><ChildContent>Continue</ChildContent></HarborlineButton><HarborlineButton Variant=\"ButtonVariant.Subtle\" aria-label=\"Add item\"><Icon><span class=\"hl-gallery-icon\" aria-hidden=\"true\">+</span></Icon></HarborlineButton>",
+            "rationale": "The leading, trailing, and icon-only named slots cannot be represented by the closed descriptor controls without losing slot placement."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "button.accessibility",
+      "name": "Accessibility",
+      "surface": "accessibility",
+      "sourceCaseIds": [
+        "button.accessible-name",
+        "button.loading"
+      ],
+      "content": {
+        "blurb": "Explicit naming and busy-state semantics.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<Button size=\"icon\" intent=\"primary\" aria-label=\"Add item\"><GalleryIcon>+</GalleryIcon></Button>",
+            "blazor": "<HarborlineButton Variant=\"ButtonVariant.Primary\" aria-label=\"Add item\"><Icon><span class=\"hl-gallery-icon\" aria-hidden=\"true\">+</span></Icon></HarborlineButton>",
+            "rationale": "The icon-only button uses an icon child or named Icon slot that the closed descriptor vocabulary cannot encode faithfully."
+          },
+          {
+            "control": "button",
+            "text": "Saving",
+            "loading": true,
+            "aria-describedby": "saving-help"
+          },
+          {
+            "control": "span",
+            "id": "saving-help",
+            "className": "hl-gallery-sr-only",
+            "text": "Your changes are being saved."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "button.host-attributes",
+      "name": "Host attributes",
+      "surface": "host-attribute",
+      "sourceCaseIds": [
+        "button.host-attributes"
+      ],
+      "content": {
+        "blurb": "Consumer ARIA, data, class, and form attributes survive.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<><Button aria-controls=\"settings-panel\" data-case=\"shared\" className=\"consumer\" form=\"profile\">Open settings</Button><div id=\"settings-panel\" hidden>Settings</div><form id=\"profile\" hidden /></>",
+            "blazor": "<HarborlineButton aria-controls=\"settings-panel\" data-case=\"shared\" Class=\"consumer\" Form=\"profile\">Open settings</HarborlineButton><div id=\"settings-panel\" hidden>Settings</div><form id=\"profile\" hidden></form>",
+            "rationale": "The scenario requires hidden div and form targets, neither of which is in the closed descriptor vocabulary."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "button.rtl",
+      "name": "Right to left",
+      "surface": "rtl",
+      "sourceCaseIds": [
+        "button.content-order"
+      ],
+      "sourceQualityCaseIds": [
+        "button.quality.rtl-mixed-direction"
+      ],
+      "content": {
+        "blurb": "Logical content order under an Arabic locale.",
+        "environment": {
+          "locale": "ar-SA",
+          "direction": "rtl",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<HarborlineLocaleProvider locale=\"ar-SA\"><Button intent=\"primary\" leadingIcon={<GalleryIcon>←</GalleryIcon>} trailingIcon={<GalleryIcon>✓</GalleryIcon>}>حفظ التغييرات</Button></HarborlineLocaleProvider>",
+            "blazor": "<HarborlineLocaleProvider Locale=\"ar-SA\"><HarborlineButton Variant=\"ButtonVariant.Primary\"><LeadingIcon><span class=\"hl-gallery-icon\" aria-hidden=\"true\">←</span></LeadingIcon><TrailingIcon><span class=\"hl-gallery-icon\" aria-hidden=\"true\">✓</span></TrailingIcon><ChildContent>حفظ التغييرات</ChildContent></HarborlineButton></HarborlineLocaleProvider>",
+            "rationale": "The directional leading and trailing named icon slots cannot be represented faithfully by the closed descriptor controls."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "button.theme-light",
+      "name": "Light theme",
+      "surface": "theme-light",
+      "sourceCaseIds": [
+        "button.appearance",
+        "button.loading",
+        "button.disabled",
+        "button.accessible-name"
+      ],
+      "sourceQualityCaseIds": [
+        "button.quality.theme-light",
+        "button.quality.theme-interaction-states",
+        "button.quality.theme-public-tokens",
+        "button.quality.theme-runtime-switch",
+        "button.quality.theme-contrast",
+        "button.quality.theme-reflow-200",
+        "button.quality.theme-reduced-motion",
+        "button.quality.theme-visual-parity"
+      ],
+      "content": {
+        "blurb": "Interaction, status, icon, border, text, and background states on the neutral light fixture.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "button",
+            "text": "Primary",
+            "intent": "primary",
+            "data-theme-state": "interactive"
+          },
+          {
+            "control": "button",
+            "text": "Secondary",
+            "data-theme-state": "secondary"
+          },
+          {
+            "control": "button",
+            "text": "Disabled",
+            "intent": "primary",
+            "disabled": true,
+            "data-theme-state": "disabled"
+          },
+          {
+            "control": "button",
+            "text": "Loading",
+            "intent": "primary",
+            "loading": true,
+            "data-theme-state": "loading"
+          },
+          {
+            "control": "raw",
+            "react": "<Button size=\"icon\" intent=\"primary\" aria-label=\"Add item\" data-theme-state=\"icon\"><GalleryIcon>+</GalleryIcon></Button>",
+            "blazor": "<HarborlineButton Variant=\"ButtonVariant.Primary\" aria-label=\"Add item\" data-theme-state=\"icon\"><Icon><span class=\"hl-gallery-icon\" aria-hidden=\"true\">+</span></Icon></HarborlineButton>",
+            "rationale": "The icon-only button uses an icon child or named Icon slot that the closed descriptor vocabulary cannot encode faithfully."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "button.theme-dark",
+      "name": "Dark theme",
+      "surface": "theme-dark",
+      "sourceCaseIds": [
+        "button.appearance",
+        "button.loading",
+        "button.disabled",
+        "button.accessible-name"
+      ],
+      "sourceQualityCaseIds": [
+        "button.quality.theme-dark",
+        "button.quality.theme-interaction-states",
+        "button.quality.theme-public-tokens",
+        "button.quality.theme-runtime-switch",
+        "button.quality.theme-contrast",
+        "button.quality.theme-reflow-200",
+        "button.quality.theme-reduced-motion",
+        "button.quality.theme-visual-parity"
+      ],
+      "content": {
+        "blurb": "Interaction, status, icon, border, text, and background states on the neutral dark fixture.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "dark",
+          "catalog": {}
+        },
+        "inherits": "button.theme-light"
+      }
+    },
+    {
+      "id": "button.locale-en",
+      "name": "English locale",
+      "surface": "locale-en",
+      "sourceCaseIds": [
+        "button.loading"
+      ],
+      "sourceQualityCaseIds": [
+        "button.quality.locale-language",
+        "button.quality.translated-owned-strings"
+      ],
+      "content": {
+        "blurb": "Source-language label and component-owned loading status.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {
+            "common.loading": "Loading"
+          }
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "button",
+            "text": "Saving changes",
+            "intent": "primary",
+            "loading": true
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "button.locale-pseudo",
+      "name": "Pseudo locale",
+      "surface": "locale-pseudo",
+      "sourceCaseIds": [
+        "button.loading"
+      ],
+      "sourceQualityCaseIds": [
+        "button.quality.locale-language",
+        "button.quality.translated-owned-strings",
+        "button.quality.pseudo-expansion"
+      ],
+      "content": {
+        "blurb": "Expanded development-only copy exposes extraction and reflow defects.",
+        "environment": {
+          "locale": "en-XA",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {
+            "common.loading": "⟦ Ļøåđîñĝ ···· ⟧"
+          }
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "button",
+            "text": "⟦ Šåṽîñĝ çhåñĝéš ······ ⟧",
+            "intent": "primary",
+            "loading": true
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "button.locale-ar",
+      "name": "Arabic locale",
+      "surface": "locale-ar",
+      "sourceCaseIds": [
+        "button.loading",
+        "button.content-order"
+      ],
+      "sourceQualityCaseIds": [
+        "button.quality.locale-language",
+        "button.quality.translated-owned-strings",
+        "button.quality.rtl-mixed-direction"
+      ],
+      "content": {
+        "blurb": "Translated status, RTL flow, and an isolated LTR identifier.",
+        "environment": {
+          "locale": "ar-SA",
+          "direction": "rtl",
+          "theme": "light",
+          "catalog": {
+            "common.loading": "جارٍ التحميل"
+          }
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<HarborlineLocaleProvider locale=\"ar-SA\" catalog={{ 'common.loading': 'جارٍ التحميل' }}><Button intent=\"primary\" loading>جارٍ حفظ التغييرات <bdi dir=\"ltr\">INV-2048</bdi></Button></HarborlineLocaleProvider>",
+            "blazor": "<HarborlineLocaleProvider Locale=\"ar-SA\" Catalog=\"ArabicCatalog\"><HarborlineButton Variant=\"ButtonVariant.Primary\" Loading>جارٍ حفظ التغييرات <bdi dir=\"ltr\">INV-2048</bdi></HarborlineButton></HarborlineLocaleProvider>",
+            "rationale": "The required bdi element that isolates the LTR identifier is not in the closed descriptor vocabulary."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "button.content",
+      "name": "Content resilience",
+      "surface": "long-content",
+      "sourceCaseIds": [
+        "button.defaults",
+        "button.content-order"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "Buttons carry an overlong action label, the grouped number 1,284,905, escaped angle brackets and an ampersand, and a name with diacritics and an em dash.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<><Button>{'Awaiting third-party structural certification review'}</Button><Button intent=\"primary\">{'1,284,905'}</Button><Button intent=\"danger\">{'Bay 4 <grid C-7> & 8'}</Button><Button intent=\"success\">{'Ordnance Survey — Niño Ångström'}</Button></>",
+            "blazor": "<HarborlineButton>@(\"Awaiting third-party structural certification review\")</HarborlineButton><HarborlineButton Variant=\"ButtonVariant.Primary\">@(\"1,284,905\")</HarborlineButton><HarborlineButton Variant=\"ButtonVariant.Danger\">@(\"Bay 4 <grid C-7> & 8\")</HarborlineButton><HarborlineButton Variant=\"ButtonVariant.Success\">@(\"Ordnance Survey — Niño Ångström\")</HarborlineButton>",
+            "rationale": "The raw branch preserves four equivalent buttons and ensures hostile-but-valid strings are rendered as text in both projections."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "button.error-state",
+      "name": "Error state",
+      "surface": "invalid-input",
+      "sourceCaseIds": [
+        "button.appearance"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "A destructive action uses the component's error appearance.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<Button themeColor=\"error\">Delete vessel record</Button>",
+            "blazor": "<HarborlineButton Variant=\"ButtonVariant.Danger\">Delete vessel record</HarborlineButton>",
+            "rationale": "The lanes expose the same destructive semantic through their real error-theme and danger-variant APIs."
+          }
+        ],
+        "footer": []
+      }
+    }
+  ]
+}

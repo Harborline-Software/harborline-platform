@@ -1,0 +1,247 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Buttons
+@inherits HarborlineComponentBase
+@implements IAsyncDisposable
+@using System.Runtime.ExceptionServices
+@using Microsoft.JSInterop
+@using Microsoft.AspNetCore.Components.Routing
+@using Harborline.UIAdapters.Blazor.Localization
+@inject IJSRuntime JavaScript
+@inject NavigationManager Navigation
+
+<div @ref="Root" class="@CombineClasses("hl-guarded-control")" style="@CombineStyles()" dir="@(LocaleContext?.Direction)"
+     data-state="@StateName" data-guard-action="@Action" data-guard-classification="@ClassificationId" data-hl-motion="full" @attributes="AdditionalAttributes">
+  <span role="status" aria-live="polite" aria-atomic="true" class="hl-visually-hidden">@announcement</span>
+  @if (State == GuardedControlState.Covered)
+  {
+    <button @ref="CoveredElement" type="button" class="hl-guarded-control__action" disabled="@IsInert"
+            aria-describedby="@DescribedBy" aria-label="@CoveredName" data-guard-state="covered" @onclick="ActivateAsync">
+      <span aria-hidden="true">▣</span><span>@Label</span>
+    </button>
+  }
+  else
+  {
+    <button @ref="ArmedElement" type="button" class="hl-guarded-control__action hl-guarded-control__action--armed"
+            disabled="@(State == GuardedControlState.Committing || IsInert)" aria-describedby="@DescribedBy"
+            aria-label="@(State == GuardedControlState.Armed ? ArmedName : CommittingName)" data-guard-state="@StateName"
+            @onclick="ActivateAsync" @onkeydown="HandleArmedKeyAsync">
+      <span aria-hidden="true">□</span><span>@Label</span>
+      @if (State == GuardedControlState.Armed)
+      {
+        <span role="timer" aria-label="@DurationText" class="hl-guarded-control__timer">@DurationText</span>
+      }
+      else
+      {
+        <span>@LoadingText</span>
+      }
+    </button>
+  }
+</div>
+
+@code {
+  private const int ArmWindowMilliseconds = 5000;
+  [CascadingParameter] private HarborlineLocaleContext? LocaleContext { get; set; }
+  [Parameter, EditorRequired] public string Action { get; set; } = string.Empty;
+  [Parameter, EditorRequired] public string ClassificationId { get; set; } = string.Empty;
+  [Parameter, EditorRequired] public string Label { get; set; } = string.Empty;
+  [Parameter] public EventCallback OnCommit { get; set; }
+  [Parameter] public EventCallback<GuardedControlEvent> OnEvent { get; set; }
+  [Parameter] public bool Disabled { get; set; }
+  [Parameter] public string? DescribedBy { get; set; }
+
+  public GuardedControlState State { get; private set; } = GuardedControlState.Covered;
+  private bool configured = true;
+  private bool commitLatch;
+  private bool focusArmed;
+  private bool focusCovered;
+  private bool deferredFocus;
+  private bool disposed;
+  private bool navigationSubscribed;
+  private int remainingSeconds = 5;
+  private string announcement = string.Empty;
+  private CancellationTokenSource? attempt;
+  private IJSObjectReference? module;
+  private IJSObjectReference? hostObservation;
+  private DotNetObjectReference<HarborlineGuardedControl>? self;
+  private ElementReference Root, CoveredElement, ArmedElement;
+  private string StateName => State.ToString().ToLowerInvariant();
+  private bool IsInert => Disabled || !configured;
+  private string IsolatedLabel => $"\u2068{Label}\u2069";
+  private IReadOnlyDictionary<string, object?> MessageVariables => new Dictionary<string, object?> { ["action"] = IsolatedLabel, ["duration"] = DurationText };
+  private string CoveredName => Resolve("chrome.guard.covered.label", "Guarded action: {action}. Activate to arm.");
+  private string ArmedName => Resolve("chrome.guard.armed.label", "Armed for {action}. Activate again within {duration} to commit.");
+  private string CommittingName => Resolve("chrome.guard.committing.label", "Committing {action}.");
+  private string LoadingText => LocaleContext?.ResolveString("common.loading", new Dictionary<string, object?>(), "Loading") ?? "Loading";
+  private string DurationText
+  {
+    get
+    {
+      var number = LocaleContext?.FormatNumber(remainingSeconds) ?? remainingSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture);
+      var fallback = remainingSeconds == 1 ? "in {seconds} second" : "in {seconds} seconds";
+      return LocaleContext?.ResolveString(remainingSeconds == 1 ? "chrome.guard.duration.one" : "chrome.guard.duration.other", new Dictionary<string, object?> { ["seconds"] = number }, fallback) ?? fallback.Replace("{seconds}", number, StringComparison.Ordinal);
+    }
+  }
+
+  protected override void OnParametersSet()
+  {
+    configured = !string.IsNullOrWhiteSpace(Action) && !string.IsNullOrWhiteSpace(ClassificationId) && !string.IsNullOrWhiteSpace(Label) && OnCommit.HasDelegate;
+    if (Disabled && State == GuardedControlState.Armed) _ = InvokeAsync(() => RecoverAsync(GuardedControlRecoveryReason.BecameDisabled, true));
+  }
+
+  private string Resolve(string key, string fallback) => LocaleContext?.ResolveString(key, MessageVariables, fallback) ?? MessageVariables.Aggregate(fallback, (text, pair) => text.Replace($"{{{pair.Key}}}", pair.Value?.ToString(), StringComparison.Ordinal));
+
+  private async Task ActivateAsync()
+  {
+    if (IsInert || disposed) return;
+    if (State == GuardedControlState.Covered) await ArmAsync();
+    else if (State == GuardedControlState.Armed) await CommitAsync();
+  }
+
+  private async Task ArmAsync()
+  {
+    if (State != GuardedControlState.Covered || commitLatch) return;
+    attempt = new CancellationTokenSource();
+    remainingSeconds = 5;
+    await TransitionAsync(GuardedControlState.Armed, "arm");
+    announcement = ArmedName;
+    focusArmed = true;
+    _ = RunDeadlineAsync(attempt.Token);
+  }
+
+  private async Task CommitAsync()
+  {
+    if (State != GuardedControlState.Armed || commitLatch || disposed) return;
+    commitLatch = true;
+    CancelAttempt();
+    await TransitionAsync(GuardedControlState.Committing, "commit");
+    try
+    {
+      await OnCommit.InvokeAsync();
+      await SettleAsync(GuardedControlCommitOutcome.Completed);
+    }
+    catch (Exception error)
+    {
+      await SettleAsync(GuardedControlCommitOutcome.Rejected);
+      ExceptionDispatchInfo.Capture(error).Throw();
+    }
+  }
+
+  private async Task SettleAsync(GuardedControlCommitOutcome outcome)
+  {
+    if (State != GuardedControlState.Committing) return;
+    await TransitionAsync(GuardedControlState.Covered, outcome == GuardedControlCommitOutcome.Completed ? "commit-completed" : "commit-rejected");
+    announcement = outcome == GuardedControlCommitOutcome.Completed
+      ? Resolve("chrome.guard.completed.announce", "Guard restored for {action}.")
+      : Resolve("chrome.guard.rejected.announce", "Could not complete {action}. Guard restored.");
+    focusCovered = true;
+    commitLatch = false;
+    await OnEvent.InvokeAsync(new GuardedControlCommitSettled(outcome));
+  }
+
+  private async Task RunDeadlineAsync(CancellationToken cancellationToken)
+  {
+    try
+    {
+      for (var elapsed = 1000; elapsed <= ArmWindowMilliseconds; elapsed += 1000)
+      {
+        await Task.Delay(1000, cancellationToken);
+        if (cancellationToken.IsCancellationRequested || State != GuardedControlState.Armed) return;
+        remainingSeconds = Math.Max(0, 5 - elapsed / 1000);
+        await InvokeAsync(StateHasChanged);
+      }
+      await InvokeAsync(() => RecoverAsync(GuardedControlRecoveryReason.Timeout, true));
+    }
+    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
+  }
+
+  private Task HandleArmedKeyAsync(KeyboardEventArgs args) => args.Key == "Escape" ? RecoverAsync(GuardedControlRecoveryReason.Escape, true) : Task.CompletedTask;
+
+  [JSInvokable]
+  public Task RecoverFromHostAsync(string reason) => reason switch
+  {
+    "navigation" => RecoverAsync(GuardedControlRecoveryReason.Navigation, true),
+    "document-hidden" => RecoverAsync(GuardedControlRecoveryReason.DocumentHidden, false),
+    "window-blur" => RecoverAsync(GuardedControlRecoveryReason.WindowBlur, false),
+    _ => Task.CompletedTask
+  };
+
+  [JSInvokable]
+  public async Task RestoreDeferredFocusAsync()
+  {
+    if (!deferredFocus || disposed || State != GuardedControlState.Covered) return;
+    deferredFocus = false;
+    focusCovered = true;
+    await InvokeAsync(StateHasChanged);
+  }
+
+  private async Task RecoverAsync(GuardedControlRecoveryReason reason, bool restoreNow)
+  {
+    if (State != GuardedControlState.Armed || disposed) return;
+    CancelAttempt();
+    await TransitionAsync(GuardedControlState.Covered, reason.ToString().ToLowerInvariant());
+    announcement = Resolve("chrome.guard.recovered.announce", "Guard restored for {action}.");
+    focusCovered = restoreNow;
+    deferredFocus = !restoreNow;
+    await OnEvent.InvokeAsync(new GuardedControlRecovered(reason));
+  }
+
+  private async Task TransitionAsync(GuardedControlState next, string cause)
+  {
+    var previous = State;
+    State = next;
+    await OnEvent.InvokeAsync(new GuardedControlTransition(previous, next, cause));
+    await InvokeAsync(StateHasChanged);
+  }
+
+  protected override async Task OnAfterRenderAsync(bool firstRender)
+  {
+    if (firstRender)
+    {
+      try
+      {
+        module = await JavaScript.InvokeAsync<IJSObjectReference>("import", "./_content/Harborline.UIAdapters.Blazor/guarded-control.js");
+        self = DotNetObjectReference.Create(this);
+        hostObservation = await module.InvokeAsync<IJSObjectReference>("observe", Root, self, 800);
+        Navigation.LocationChanged += HandleLocationChanged;
+        navigationSubscribed = true;
+      }
+      catch (Exception) when (!disposed)
+      {
+        configured = false;
+        announcement = Resolve("chrome.guard.host-unavailable.announce", "This guarded action is unavailable.");
+        await InvokeAsync(StateHasChanged);
+        return;
+      }
+    }
+    if (focusArmed)
+    {
+      focusArmed = false;
+      await module!.InvokeVoidAsync("focus", ArmedElement);
+    }
+    if (focusCovered)
+    {
+      focusCovered = false;
+      await module!.InvokeVoidAsync("focus", CoveredElement);
+    }
+  }
+
+  private void CancelAttempt()
+  {
+    if (attempt is null) return;
+    attempt.Cancel();
+    attempt.Dispose();
+    attempt = null;
+  }
+
+  private void HandleLocationChanged(object? sender, LocationChangedEventArgs args) => _ = InvokeAsync(() => RecoverAsync(GuardedControlRecoveryReason.Navigation, true));
+
+  public async ValueTask DisposeAsync()
+  {
+    disposed = true;
+    CancelAttempt();
+    if (navigationSubscribed) Navigation.LocationChanged -= HandleLocationChanged;
+    if (hostObservation is not null) try { await hostObservation.InvokeVoidAsync("dispose"); } catch (JSDisconnectedException) { }
+    if (hostObservation is not null) try { await hostObservation.DisposeAsync(); } catch (JSDisconnectedException) { }
+    if (module is not null) try { await module.DisposeAsync(); } catch (JSDisconnectedException) { }
+    self?.Dispose();
+  }
+}

@@ -1,0 +1,57 @@
+{
+  "schema": "harborline.scheduling.problem-draft/v0",
+  "id": "construction-residential-new.feasible",
+  "version": "0.1.0",
+  "title": "Synthetic new residential schedule",
+  "timezone": "UTC",
+  "metadata": { "synthetic": true, "fixtureKind": "feasible", "safety": "Architecture-only synthetic project data." },
+  "anchors": [
+    { "id": "anchor-start", "label": "Synthetic start", "kind": "date", "value": "2026-09-01" }
+  ],
+  "windows": [
+    { "id": "horizon", "label": "Build horizon", "start": "2026-09-01", "end": "2027-02-28" },
+    { "id": "foundation-window", "label": "Foundation window", "start": "2026-09-01", "end": "2026-09-30" },
+    { "id": "rough-window", "label": "Rough-in window", "start": "2026-10-01", "end": "2026-11-15" }
+  ],
+  "locations": [
+    { "id": "lot", "label": "Synthetic lot", "tags": ["site"] },
+    { "id": "structure", "label": "Synthetic structure", "parentId": "lot", "tags": ["building"] }
+  ],
+  "phases": [
+    { "id": "phase-foundation", "label": "Foundation", "sequence": 1, "locationRefs": ["lot"] },
+    { "id": "phase-rough", "label": "Rough-in", "sequence": 2, "locationRefs": ["structure"], "predecessorPhaseRefs": ["phase-foundation"] }
+  ],
+  "resources": [
+    { "id": "resource-foundation-crew", "label": "Synthetic foundation crew", "kind": "pool", "capabilities": [{ "capabilityRef": "cap.foundation", "count": 1 }], "availabilityWindowRefs": ["horizon"], "capacity": { "quantity": 6, "unit": "crew-day", "cumulative": true, "windowRefs": ["horizon"] }, "locationRefs": ["lot"] },
+    { "id": "resource-rough-crew", "label": "Synthetic rough-in crew", "kind": "pool", "capabilities": [{ "capabilityRef": "cap.rough-in", "count": 1 }], "availabilityWindowRefs": ["horizon"], "capacity": { "quantity": 8, "unit": "crew-day", "cumulative": true, "windowRefs": ["horizon"] }, "locationRefs": ["structure"] },
+    { "id": "resource-equipment", "label": "Synthetic equipment", "kind": "asset", "capabilities": [{ "capabilityRef": "cap.lift", "count": 1 }], "availabilityWindowRefs": ["horizon"], "locationRefs": ["lot"] },
+    { "id": "authority-funding", "label": "Synthetic funding authority", "kind": "party", "capabilities": [{ "capabilityRef": "cap.funding-approval", "count": 1 }], "availabilityWindowRefs": ["horizon"] },
+    { "id": "authority-inspection", "label": "Synthetic inspection authority", "kind": "party", "capabilities": [{ "capabilityRef": "cap.inspection", "count": 1 }], "availabilityWindowRefs": ["horizon"] }
+  ],
+  "capacityPools": [
+    { "id": "pool-crew-days", "label": "Crew-day pool", "amount": 14, "unit": "crew-day", "cumulative": true, "windowRefs": ["horizon"], "resourceRefs": ["resource-foundation-crew", "resource-rough-crew"] },
+    { "id": "pool-equipment", "label": "Equipment pool", "amount": 2, "unit": "equipment-day", "cumulative": true, "windowRefs": ["horizon"], "resourceRefs": ["resource-equipment"] }
+  ],
+  "policies": [
+    { "id": "policy-funding", "label": "Funding milestone policy", "kind": "approval", "ref": "policy://synthetic/funding" },
+    { "id": "policy-inspection", "label": "Inspection policy", "kind": "approval", "ref": "policy://synthetic/inspection" },
+    { "id": "policy-commit", "label": "Proposal-only commit policy", "kind": "commit", "ref": "policy://synthetic/proposal-only" }
+  ],
+  "constraints": [
+    { "id": "constraint-foundation-window", "label": "Foundation window", "severity": "hard", "kind": "window", "ruleRef": "rule://synthetic/foundation-window", "appliesToRefs": ["demand:delivery", "demand:foundation"] },
+    { "id": "constraint-precedence", "label": "Rough-in after foundation", "severity": "hard", "kind": "precedence", "ruleRef": "rule://synthetic/residential-order", "appliesToRefs": ["demand:rough-in"] },
+    { "id": "constraint-cashflow", "label": "Prefer funding alignment", "severity": "soft", "kind": "cashflow", "calculationRef": "calc://synthetic/cashflow", "appliesToRefs": ["demand:rough-in"] }
+  ],
+  "approvals": [
+    { "id": "approval-funding", "label": "Funding milestone approval", "requirementKind": "funding", "scope": "phase", "subjectRefs": ["phase:phase-rough"], "authorityRef": "resource:authority-funding", "policyRef": "policy-funding", "requiredCapabilityRefs": ["cap.funding-approval"], "satisfierRefs": ["resource:authority-funding"] },
+    { "id": "approval-inspection", "label": "Rough inspection approval", "requirementKind": "inspection", "scope": "demand", "subjectRefs": ["demand:rough-in"], "authorityRef": "resource:authority-inspection", "policyRef": "policy-inspection", "requiredCapabilityRefs": ["cap.inspection"], "satisfierRefs": ["resource:authority-inspection"] }
+  ],
+  "demands": [
+    { "id": "delivery", "label": "Synthetic long-lead delivery", "duration": { "amount": 1, "unit": "day" }, "windowRefs": ["foundation-window"], "phaseRef": "phase-foundation", "locationRefs": ["lot"], "requiredCapabilities": [{ "capabilityRef": "cap.foundation", "count": 1 }], "capacityUsage": [{ "capacityPoolId": "pool-crew-days", "amount": 1, "unit": "crew-day", "mode": "consume" }], "repetition": { "kind": "fixed-count", "count": 1, "every": { "amount": 1, "unit": "week" } }, "constraintRefs": ["constraint-foundation-window"] },
+    { "id": "foundation", "label": "Synthetic foundation work", "duration": { "amount": 5, "unit": "day" }, "windowRefs": ["foundation-window"], "phaseRef": "phase-foundation", "locationRefs": ["lot"], "requiredCapabilities": [{ "capabilityRef": "cap.foundation", "count": 1 }], "capacityUsage": [{ "capacityPoolId": "pool-crew-days", "amount": 5, "unit": "crew-day", "mode": "consume" }], "predecessors": [{ "demandId": "delivery", "relation": "finish-to-start", "minGap": { "amount": 1, "unit": "day" }, "constraintRef": "constraint-precedence" }], "constraintRefs": ["constraint-foundation-window", "constraint-precedence"] },
+    { "id": "rough-in", "label": "Synthetic rough-in and inspection prep", "duration": { "amount": 6, "unit": "day" }, "windowRefs": ["rough-window"], "phaseRef": "phase-rough", "locationRefs": ["structure"], "requiredCapabilities": [{ "capabilityRef": "cap.rough-in", "count": 1 }, { "capabilityRef": "cap.lift", "count": 1 }], "capacityUsage": [{ "capacityPoolId": "pool-crew-days", "amount": 6, "unit": "crew-day", "mode": "consume" }, { "capacityPoolId": "pool-equipment", "amount": 2, "unit": "equipment-day", "mode": "occupy" }], "predecessors": [{ "demandId": "foundation", "relation": "finish-to-start", "minGap": { "amount": 3, "unit": "day" }, "constraintRef": "constraint-precedence" }], "constraintRefs": ["constraint-precedence"], "softConstraintRefs": ["constraint-cashflow"], "approvalRequirementRefs": ["approval-funding", "approval-inspection"] }
+  ],
+  "strategy": { "alias": "heuristic", "parameters": { "candidateLimit": 56 } },
+  "commitment": { "mode": "proposal-only", "horizonWindowRef": "horizon", "capacityPoolRefs": ["pool-crew-days", "pool-equipment"], "policyRefs": ["policy-commit"] },
+  "resultMetadata": { "expectedOutcome": "feasible", "deterministicSeed": "synthetic-residential-ok", "explanationRefs": ["demand:delivery", "demand:foundation", "demand:rough-in", "approval:approval-funding"] }
+}

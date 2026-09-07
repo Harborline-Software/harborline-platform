@@ -1,0 +1,235 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.number-field",
+  "sourceFixture": "conformance/hlp.ui.number-field/fixtures.yaml",
+  "qualityFixture": "conformance/hlp.ui.number-field/quality-fixtures.yaml",
+  "galleryInterface": {
+    "probeAttribute": "data-gallery-probe",
+    "scenarioAttribute": "data-gallery-scenario",
+    "projectionTitles": {
+      "react": "Platform/Number Field",
+      "blazor": "Platform/Number Field"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "number-field.defaults",
+      "name": "Raw values and constraints",
+      "surface": "defaults",
+      "sourceCaseIds": [
+        "number-field.native",
+        "number-field.numeric-value",
+        "number-field.raw-string",
+        "number-field.constraints"
+      ],
+      "sourceQualityCaseIds": [
+        "number-field.quality.native",
+        "number-field.quality.name",
+        "number-field.quality.focus"
+      ],
+      "content": {
+        "blurb": "Intermediate numeric text is never parsed or clamped by the adapter.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "name": "quantity",
+          "value": "42.50",
+          "min": 0,
+          "max": 100,
+          "step": 0.5
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "label",
+            "text": "Quantity",
+            "hint": "0–100",
+            "child": {
+              "control": "input",
+              "type": "number",
+              "name": "quantity",
+              "value": "42.50",
+              "min": 0,
+              "max": 100,
+              "step": 0.5
+            }
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "number-field.states",
+      "name": "States and descriptions",
+      "surface": "states",
+      "sourceCaseIds": [
+        "number-field.empty",
+        "number-field.disabled",
+        "number-field.invalid",
+        "number-field.description",
+        "number-field.tab-order"
+      ],
+      "sourceQualityCaseIds": [
+        "number-field.quality.description",
+        "number-field.quality.reflow",
+        "number-field.quality.forced-colors"
+      ],
+      "content": {
+        "blurb": "Intermediate numeric text is never parsed or clamped by the adapter.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "name": "quantity",
+          "value": "42.50",
+          "min": 0,
+          "max": 100,
+          "step": 0.5,
+          "error": true,
+          "disabled": true
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "label",
+            "text": "Quantity",
+            "hint": "0–100",
+            "error": "Quantity is out of range",
+            "disabled": true,
+            "child": {
+              "control": "input",
+              "type": "number",
+              "name": "quantity",
+              "value": "42.50",
+              "min": 0,
+              "max": 100,
+              "step": 0.5,
+              "error": true,
+              "disabled": true
+            }
+          }
+        ],
+        "footer": [],
+        "inherits": "number-field.defaults"
+      }
+    },
+    {
+      "id": "number-field.rtl-theme",
+      "name": "RTL and theme",
+      "surface": "rtl-theme",
+      "sourceCaseIds": [
+        "number-field.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "number-field.quality.raw-value",
+        "number-field.quality.rtl",
+        "number-field.quality.pseudo",
+        "number-field.quality.light-dark",
+        "number-field.quality.tokens",
+        "number-field.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "Intermediate numeric text is never parsed or clamped by the adapter.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "rtl",
+          "theme": "dark",
+          "catalog": {}
+        },
+        "props": {
+          "name": "quantity",
+          "value": "42.50",
+          "min": 0,
+          "max": 100,
+          "step": 0.5
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "label",
+            "text": "الكمية",
+            "hint": "0–100",
+            "child": {
+              "control": "input",
+              "type": "number",
+              "name": "quantity",
+              "value": "42.50",
+              "min": 0,
+              "max": 100,
+              "step": 0.5
+            }
+          }
+        ],
+        "footer": [],
+        "inherits": "number-field.defaults"
+      }
+    },
+    {
+      "id": "number-field.content",
+      "name": "Content resilience",
+      "surface": "long-content",
+      "sourceCaseIds": [
+        "number-field.numeric-value",
+        "number-field.description"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "Carries a long certification label, the grouped value 1,284,905, escaped Bay 4 <grid C-7> & 8 copy, and the name Ordnance Survey — Niño Ångström.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<><FormField name=\"certification-count\" label={'Awaiting third-party structural certification review'} hint={'1,284,905'}><NumberField name=\"certification-count\" value={1284905} onChange={()=>{}} /></FormField><FormField name=\"survey-count\" label={'Ordnance Survey — Niño Ångström'} error={'Bay 4 <grid C-7> & 8'}><NumberField name=\"survey-count\" value={8} onChange={()=>{}} /></FormField></>",
+            "blazor": "<HarborlineFormField Name=\"certification-count\" Label=\"@(\"Awaiting third-party structural certification review\")\" Hint=\"@(\"1,284,905\")\"><HarborlineNumberField Name=\"certification-count\" Value=\"1284905\" /></HarborlineFormField><HarborlineFormField Name=\"survey-count\" Label=\"@(\"Ordnance Survey — Niño Ångström\")\" Error=\"@(\"Bay 4 <grid C-7> & 8\")\"><HarborlineNumberField Name=\"survey-count\" Value=\"8\" /></HarborlineFormField>",
+            "rationale": "The closed control vocabulary cannot express FormField-wrapped NumberField controls with hostile-but-valid labels, hints, and errors."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "number-field.error-state",
+      "name": "Error state",
+      "surface": "invalid-input",
+      "sourceCaseIds": [
+        "number-field.invalid",
+        "number-field.description"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "The number field renders its declared invalid state with an accessible name.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<NumberField aria-label=\"Inspection quantity\" error name=\"inspection-quantity\" onChange={() => {}} value=\"128\" />",
+            "blazor": "<HarborlineNumberField AccessibleLabel=\"Inspection quantity\" Error=\"true\" Name=\"inspection-quantity\" Value=\"128\" />",
+            "rationale": "The closed control vocabulary cannot express the NumberField error prop and its invalid visual and accessibility semantics in both projection lanes."
+          }
+        ],
+        "footer": []
+      }
+    }
+  ]
+}

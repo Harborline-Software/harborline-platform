@@ -1,0 +1,76 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Feedback
+@inherits HarborlineComponentBase
+
+<span class="hl-tooltip__trigger">
+ <CascadingValue Value="Context" IsFixed="true">@ChildContent</CascadingValue>
+ @if (IsOpen)
+ {
+  <span id="@Context.ContentId" role="tooltip" data-side="@SideName"
+        class="@CombineClasses("hl-tooltip__content", "hl-tooltip", $"hl-tooltip--{SideName}")"
+        style="@CombineStyles()" @attributes="AdditionalAttributes">@Content</span>
+ }
+</span>
+
+@code {
+    [Parameter, EditorRequired] public string Content { get; set; } = string.Empty;
+    [Parameter] public TooltipSide Side { get; set; } = TooltipSide.Top;
+    [Parameter] public int DelayDuration { get; set; } = 700;
+    [Parameter] public int? SkipDelayDuration { get; set; }
+    [Parameter] public bool? Open { get; set; }
+    [Parameter] public bool DefaultOpen { get; set; }
+    [Parameter] public EventCallback<bool> OpenChanged { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private bool localOpen;
+    private bool initialized;
+    private bool hovered;
+    private bool focused;
+    private CancellationTokenSource? pending;
+    private readonly string contentId = $"hl-tooltip-{Guid.NewGuid():N}";
+    private TooltipContext? context;
+    private bool IsOpen => Open ?? localOpen;
+    private string SideName => Side.ToString().ToLowerInvariant();
+    private TooltipContext Context => context ??= new(() => IsOpen, SetOwnershipAsync, DismissAsync, contentId);
+
+    protected override void OnParametersSet()
+    {
+        if (!initialized) { localOpen = DefaultOpen; initialized = true; }
+    }
+
+    private async Task SetOwnershipAsync(bool active, bool focusOwner)
+    {
+        if (focusOwner) focused = active; else hovered = active;
+        if (active)
+        {
+            CancelPending();
+            pending = new CancellationTokenSource();
+            try
+            {
+                await Task.Delay(Math.Max(0, DelayDuration), pending.Token);
+                await SetOpenAsync(true);
+            }
+            catch (OperationCanceledException) { }
+            return;
+        }
+        if (hovered || focused) return;
+        CancelPending();
+        await SetOpenAsync(false);
+    }
+
+    private async Task DismissAsync()
+    {
+        CancelPending();
+        await SetOpenAsync(false);
+    }
+
+    private async Task SetOpenAsync(bool next)
+    {
+        if (IsOpen == next) return;
+        if (Open is null) localOpen = next;
+        await OpenChanged.InvokeAsync(next);
+        StateHasChanged();
+    }
+
+    private void CancelPending() { pending?.Cancel(); pending?.Dispose(); pending = null; }
+    protected override void Dispose(bool disposing) { if (disposing) CancelPending(); base.Dispose(disposing); }
+}

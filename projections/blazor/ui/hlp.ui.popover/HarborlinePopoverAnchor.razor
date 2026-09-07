@@ -1,0 +1,16 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Feedback
+@inherits HarborlineComponentBase
+
+<span @ref="anchor" class="@CombineClasses("hl-popover-anchor")" style="@CombineStyles()" @attributes="AdditionalAttributes">@ChildContent</span>
+
+@code {
+    [CascadingParameter] public PopoverContext? Context { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    private ElementReference anchor;
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (Context is null) return;
+        Context.AnchorElement = anchor;
+        Context.HasAnchor = true;
+    }
+}

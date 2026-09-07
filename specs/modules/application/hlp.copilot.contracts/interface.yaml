@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.copilot.contracts",
+  "interfaceRevision": 1,
+  "status": "draft",
+  "purpose": "Provider-neutral Pilot proposal safety and descriptor contracts: envelope validation, classification, manifest generation, context-key fencing, and the descriptor/executor import fence.",
+  "dependencies": [],
+  "sourceSurface": {
+    "repository": "shipyard",
+    "commit": "3410883405996dc8e4871418a441f52970d9994e",
+    "paths": [
+      "apps/carrier/src/copilot/proposal/schema.ts",
+      "apps/carrier/src/copilot/proposal/classify.ts",
+      "apps/carrier/src/copilot/proposal/extract.ts",
+      "apps/carrier/src/copilot/proposal/pilotToolManifest.ts",
+      "apps/carrier/src/copilot/registry/types.ts",
+      "apps/carrier/src/copilot/registry/manifest.ts",
+      "apps/carrier/src/copilot/registry/surfaceExec.ts"
+    ]
+  },
+  "ownership": {
+    "owner": "platform",
+    "adapters": "application",
+    "ruling": "2026-08-17 migration ticket 091: platform-owned Pilot substrate with app-owned host/effect adapters behind the adapter contract (adapter-contract.md in this directory)"
+  },
+  "contract": {
+    "proposalEnvelope": {
+      "schema": "pilot.proposal/3",
+      "required": ["schema", "surface", "command", "args"],
+      "unknownProperties": "reject",
+      "semantics": [
+        "Treat every envelope as untrusted input.",
+        "Validate the complete envelope before classification.",
+        "Never coerce, partially accept, or execute during parsing."
+      ]
+    },
+    "classifications": {
+      "ap": "reversible, draft-local, visible and undoable; may auto-apply only after revalidation.",
+      "cp": "consequential or persisted; requires a distinct human Apply gesture after revalidation.",
+      "never": "absent from manifests and rejected in depth; requires archetype and card-insufficiency justification."
+    },
+    "neverArchetypes": [
+      "irreversible-bulk",
+      "security-access-control",
+      "engine-parked",
+      "human-authority-gate",
+      "agent-self-repoint"
+    ],
+    "staleFence": {
+      "contextKey": "opaque app-issued snapshot identity",
+      "rule": "The app adapter must compare expectedContextKey to the live key immediately before effect execution and fail closed on mismatch."
+    },
+    "descriptorFence": {
+      "providerReachable": ["surface", "route predicate", "pure specs", "manifest formatter", "bounded context reader"],
+      "forbidden": ["executor references", "stores", "fetch", "host globals", "React", "storage", "mutation verbs"]
+    },
+    "threeSubsets": {
+      "sharedCapability": "descriptor may project to both palette and Pilot entry points",
+      "paletteOnly": "human UI verb; never assigned a Pilot classification",
+      "pilotOnly": "argument-bearing proposal command with no static palette equivalent"
+    }
+  }
+}

@@ -1,0 +1,24 @@
+@attribute [Stories("Platform/Toaster")]
+<Stories TComponent="ToasterScenario">
+  @foreach (var scenario in Scenarios)
+  {
+    <Story Name="@scenario.Name"><Arguments><Arg For="_ => _.ScenarioId" Value="@scenario.Id" /></Arguments><Template><ToasterScenario @attributes="context.Args" /></Template></Story>
+  }
+  <Story Name="Content resilience"><Arguments><Arg For="_ => _.ScenarioId" Value='"toaster.content"'/></Arguments><Template><ToasterScenario @attributes="context.Args"/></Template></Story>
+  <Story Name="Error state"><Arguments><Arg For="_ => _.ScenarioId" Value='"toaster.error-state"'/></Arguments><Template><ToasterScenario @attributes="context.Args"/></Template></Story>
+</Stories>
+
+@code {
+  private static readonly (string Id, string Name)[] Scenarios =
+  [
+    ("toaster.variants-roles", "Variants and live-region roles"),
+    ("toaster.queue-lifecycle", "Queue, timing, and dismissal"),
+    ("toaster.action-promise", "Action and tracked operation"),
+    ("toaster.positions", "Physical positions"),
+    ("toaster.locale-en", "English locale"),
+    ("toaster.locale-pseudo", "Pseudo locale"),
+    ("toaster.locale-ar", "Arabic locale"),
+    ("toaster.theme-light", "Light theme"),
+    ("toaster.theme-dark", "Dark theme"),
+  ];
+}

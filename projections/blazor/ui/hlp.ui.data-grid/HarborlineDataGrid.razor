@@ -1,0 +1,540 @@
+@namespace Harborline.UIAdapters.Blazor.Components.DataDisplay
+@typeparam TRow
+@inherits HarborlineComponentBase
+@implements IAsyncDisposable
+@using System.Globalization
+@using System.Numerics
+@using Microsoft.JSInterop
+@using Harborline.UIAdapters.Blazor.Localization
+@inject IJSRuntime JavaScript
+
+<div @ref="grid" aria-colcount="@VisibleColumns.Count" aria-label="@ResolvedLabel" aria-rowcount="@VisibleEntries.Count"
+     class="@CombineClasses("hl-data-grid")" data-zebra="@(Zebra ? "true" : "false")" dir="@Direction"
+     role="@GridRole" style="@CombineStyles(ColumnStyle)" @attributes="AdditionalAttributes">
+  @if (LazyChildren.Count > 0) { <div class="hl-data-grid__aggregate-note">Aggregates: loaded children only</div> }
+  <div class="hl-data-grid__scroller">
+  <div class="hl-data-grid__header" role="rowgroup">
+    <div class="hl-data-grid__row hl-data-grid__row--header" role="row">
+      @for (var columnIndex = 0; columnIndex < VisibleColumns.Count; columnIndex++)
+      {
+        var column = VisibleColumns[columnIndex];
+        <div aria-colindex="@(columnIndex + 1)" class="hl-data-grid__header-cell" id="@ColumnHeaderId(columnIndex)" role="columnheader">@column.Header</div>
+      }
+    </div>
+  </div>
+  <div @ref="viewport" class="hl-data-grid__viewport" data-rendered-row-count="@WindowEntries.Count" role="rowgroup">
+    <div class="hl-data-grid__canvas" style="block-size:@CanvasHeight">
+      @if (WindowEntries.Count == 0)
+      {
+        <div class="hl-data-grid__row hl-data-grid__row--empty" role="row">
+          <div class="hl-data-grid__cell hl-data-grid__empty" role="gridcell">@ResolvedEmpty</div>
+        </div>
+      }
+      else
+      {
+        @for (var offset = 0; offset < WindowEntries.Count; offset++)
+        {
+          var entry = WindowEntries[offset];
+          var logicalIndex = BoundedStart + offset;
+          var rowStyle = $"inset-block-start:{logicalIndex * RowHeight}px;{ColumnStyle}";
+          @if (entry.IsGroup)
+          {
+            var collapsed = IsCollapsed(entry);
+            var childState = ChildState(entry);
+            <div aria-level="@(entry.Depth + 1)" aria-rowindex="@(logicalIndex + 1)"
+                 class="hl-data-grid__row hl-data-grid__row--group" data-group-id="@entry.Key" data-hl-group="@entry.Key"
+                 data-children-state="@childState" aria-busy="@(childState == "loading" ? "true" : null)" role="row" style="@rowStyle">
+              @for (var columnIndex = 0; columnIndex < VisibleColumns.Count; columnIndex++)
+              {
+                var cellColumnIndex = columnIndex;
+                var column = VisibleColumns[cellColumnIndex];
+                @if (cellColumnIndex == 0)
+                {
+                  <div aria-colindex="1" aria-expanded="@((!collapsed).ToString().ToLowerInvariant())" class="hl-data-grid__cell hl-data-grid__group-cell"
+                       data-column-id="@column.Id" data-grid-entry-key="@entry.Key" data-group-depth="@entry.Depth" role="gridcell"
+                       tabindex="@TabIndex(entry.Key, column.Id)" @onclick="@(() => ToggleGroupAsync(entry))"
+                       @onfocus="@(() => SetFocus(entry.Key, column.Id))" @onkeydown="@(args => HandleKeyAsync(args, logicalIndex, 0, entry))">
+                    <span aria-hidden="true" class="hl-data-grid__disclosure" data-collapsed="@(collapsed ? "true" : "false")"><svg fill="none" focusable="false" viewBox="0 0 16 16"><path d="m4 6 4 4 4-4"></path></svg></span>
+                    <span class="hl-data-grid__group-cell-content">@entry.Label (@(entry.Lazy?.Count ?? entry.LeafCount))</span>
+                    @if (childState == "loading") { <span role="status">Loading children…</span> }
+                    @if (childState == "failed") { <span role="alert">Children failed to load. Collapse and expand to retry.</span> }
+                    <span class="hl-data-grid__visually-hidden">@(collapsed ? ExpandGroupLabel : CollapseGroupLabel)</span>
+                  </div>
+                }
+                else
+                {
+                  <div aria-colindex="@(cellColumnIndex + 1)" class="hl-data-grid__cell hl-data-grid__group-cell" data-column-id="@column.Id" data-aggregate-scope="@(entry.Lazy is null ? null : "loaded")" role="gridcell">
+                    <span class="hl-data-grid__group-cell-content">@BranchCell(entry, column)</span>
+                  </div>
+                }
+              }
+            </div>
+          }
+          else
+          {
+            var row = entry.Row!;
+            <div aria-rowindex="@(logicalIndex + 1)" aria-selected="@((List.SelectedRowId == entry.RowId).ToString().ToLowerInvariant())"
+                 class="hl-data-grid__row hl-data-grid__row--leaf"
+                 data-leaf-index="@entry.LeafOrdinal" data-row-id="@entry.RowId" data-hl-row-id="@entry.RowId"
+                 data-zebra-stripe="@(Zebra && entry.LeafOrdinal % 2 == 1 ? "alternate" : "base")"
+                 role="row" style="@rowStyle"
+                 @onclick="@(() => SelectRowAsync(entry.RowId!))" @ondblclick="@(() => OnRowActivate.InvokeAsync(new DataGridRowActivation(entry.RowId!)))">
+              @for (var columnIndex = 0; columnIndex < VisibleColumns.Count; columnIndex++)
+              {
+                var cellColumnIndex = columnIndex;
+                var column = VisibleColumns[cellColumnIndex];
+                <div aria-colindex="@(cellColumnIndex + 1)" aria-describedby="@ColumnHeaderId(cellColumnIndex)"
+                     class="hl-data-grid__cell" data-column-id="@column.Id" data-grid-entry-key="@entry.Key" role="gridcell"
+                     tabindex="@TabIndex(entry.Key, column.Id)" @onfocus="@(() => SetFocus(entry.Key, column.Id))"
+                     @onkeydown="@(args => HandleKeyAsync(args, logicalIndex, cellColumnIndex, entry))">
+                  @if (column.CellTemplate is null)
+                  {
+                    @DefaultCell(column.Value(row))
+                  }
+                  else
+                  {
+                    @column.CellTemplate(row)
+                  }
+                </div>
+              }
+            </div>
+          }
+        }
+      }
+    </div>
+  </div>
+  </div>
+</div>
+
+@code {
+  private const int WindowSize = 32;
+  private const int RowHeight = 44;
+  private const int MinimumColumnWidth = 160;
+  private readonly string instanceId = $"hl-data-grid-{Guid.NewGuid():N}";
+  private readonly HashSet<string> collapsedGroups = new(StringComparer.Ordinal);
+  private readonly HashSet<string> expandedLazy = new(StringComparer.Ordinal);
+  private readonly Dictionary<string, string> pendingChildren = new(StringComparer.Ordinal);
+  private ElementReference grid;
+  private ElementReference viewport;
+  private IJSObjectReference? module;
+  private IJSObjectReference? connection;
+  private DotNetObjectReference<HarborlineDataGrid<TRow>>? callback;
+  private string? focusedEntryKey;
+  private string? focusedColumnId;
+  private IReadOnlyList<DataGridColumn<TRow>> lastVisibleColumns = [];
+  private int? availableWidth;
+  private DataGridListState internalListState = DataGridListState.Empty;
+  private IReadOnlyDictionary<string, double>? publishedWidths;
+  private bool restoreFocus;
+  private bool disposed;
+
+  [CascadingParameter] private HarborlineLocaleContext? LocaleContext { get; set; }
+  [Parameter, EditorRequired] public IReadOnlyList<TRow> Rows { get; set; } = [];
+  [Parameter, EditorRequired] public Func<TRow, string> GetRowId { get; set; } = _ => string.Empty;
+  [Parameter, EditorRequired] public IReadOnlyList<DataGridColumn<TRow>> Columns { get; set; } = [];
+  [Parameter] public IReadOnlyList<string> Grouping { get; set; } = [];
+  [Parameter] public IReadOnlyDictionary<string, DataGridChildren<TRow>> LazyChildren { get; set; } = new Dictionary<string, DataGridChildren<TRow>>();
+  [Parameter] public EventCallback<DataGridChildrenRequest> OnChildrenRequest { get; set; }
+  [Parameter] public bool Zebra { get; set; }
+  [Parameter] public string? AccessibleLabel { get; set; }
+  [Parameter] public string? Empty { get; set; }
+  [Parameter] public DataGridListState? ListState { get; set; }
+  [Parameter] public EventCallback<DataGridListState> ListStateChanged { get; set; }
+  [Parameter] public EventCallback<DataGridRowActivation> OnRowActivate { get; set; }
+
+  private DataGridListState List => ListState ?? internalListState;
+  private int WindowStart => (int)Math.Floor(List.ScrollTop / RowHeight);
+
+  private Task PublishListAsync(DataGridListState next)
+  {
+    internalListState = next;
+    return ListStateChanged.InvokeAsync(next);
+  }
+
+  private Task SelectRowAsync(string rowId) =>
+    List.SelectedRowId == rowId ? Task.CompletedTask : PublishListAsync(List with { SelectedRowId = rowId });
+
+  private string Direction => LocaleContext?.Direction ?? "ltr";
+  private string GridRole => Grouping is { Count: > 0 } || LazyChildren.Count > 0 ? "treegrid" : "grid";
+  private string ResolvedLabel => LocaleContext?.ResolveString("dataGrid.label", instanceOverride: AccessibleLabel) ?? AccessibleLabel ?? "Data grid";
+  private string ResolvedEmpty => Empty ?? LocaleContext?.ResolveString("dataGrid.noResults", instanceOverride: "No results.") ?? "No results.";
+  private string ExpandGroupLabel => LocaleContext?.ResolveString("dataGrid.expandGroup", instanceOverride: "Expand group") ?? "Expand group";
+  private string CollapseGroupLabel => LocaleContext?.ResolveString("dataGrid.collapseGroup", instanceOverride: "Collapse group") ?? "Collapse group";
+  private IReadOnlyList<DataGridColumn<TRow>> VisibleColumns
+  {
+    get
+    {
+      if (availableWidth is null or <= 0) return Columns;
+      var capacity = Math.Max(1, availableWidth.Value / MinimumColumnWidth);
+      if (capacity >= Columns.Count) return Columns;
+      var retained = Columns.OrderByDescending(column => column.RemovalPriority).ThenBy(column => column.Id, StringComparer.Ordinal).Take(capacity).Select(column => column.Id).ToHashSet(StringComparer.Ordinal);
+      return Columns.Where(column => retained.Contains(column.Id)).ToArray();
+    }
+  }
+  private string ColumnStyle => $"--hl-data-grid-columns:repeat({Math.Max(VisibleColumns.Count, 1)}, minmax(10rem, 1fr))";
+  // Entries and VisibleEntries are read on the order of one thousand times per render at 10,000
+  // rows (the render loop re-evaluates WindowEntries.Count per iteration, TabIndex reads
+  // VisibleEntries per cell, CanvasHeight and BoundedStart read it again), so each one is built
+  // once per parameter set and once per disclosure change rather than once per access. The caches
+  // are invalidated in OnParametersSet (parameters may have changed the rows, grouping or lazy
+  // children) and in ToggleGroupAsync (collapse state changes what is visible); windowStart moves
+  // only the window, which is keyed on BoundedStart.
+  private IReadOnlyList<GridEntry>? entriesCache;
+  private IReadOnlyList<GridEntry>? visibleCache;
+  private IReadOnlyList<GridEntry>? windowCache;
+  private int windowCacheStart = -1;
+  private IReadOnlyList<GridEntry> Entries => entriesCache ??= BuildEntries();
+  private IReadOnlyList<GridEntry> VisibleEntries => visibleCache ??= FlattenVisible(Entries);
+  private int BoundedStart => Math.Min(Math.Max(0, WindowStart), Math.Max(0, VisibleEntries.Count - WindowSize));
+  private IReadOnlyList<GridEntry> WindowEntries
+  {
+    get
+    {
+      var visible = VisibleEntries;
+      var start = BoundedStart;
+      if (windowCache is null || windowCacheStart != start)
+      {
+        windowCacheStart = start;
+        windowCache = [.. visible.Skip(start).Take(WindowSize)];
+      }
+      return windowCache;
+    }
+  }
+  private void InvalidateEntries() { entriesCache = null; InvalidateVisible(); }
+  private void InvalidateVisible() { visibleCache = null; windowCache = null; }
+  private string CanvasHeight => $"{Math.Max(WindowEntries.Count > 0 ? VisibleEntries.Count * RowHeight : RowHeight, RowHeight)}px";
+
+  protected override void OnParametersSet()
+  {
+    InvalidateEntries();
+    availableWidth ??= List.RestoredWidth;
+    ArgumentNullException.ThrowIfNull(Rows); ArgumentNullException.ThrowIfNull(GetRowId); ArgumentNullException.ThrowIfNull(Columns); ArgumentNullException.ThrowIfNull(Grouping);
+    if (LazyChildren.Count > 0 && !OnChildrenRequest.HasDelegate) throw new InvalidOperationException("children-request-required");
+    var rowIds = Rows.Select(GetRowId).ToArray();
+    if (rowIds.Any(string.IsNullOrWhiteSpace)) throw new InvalidOperationException("row-id-required");
+    if (rowIds.Distinct(StringComparer.Ordinal).Count() != rowIds.Length) throw new InvalidOperationException("duplicate-row-id");
+    if (Columns.Any(column => string.IsNullOrWhiteSpace(column.Id))) throw new InvalidOperationException("column-id-required");
+    if (Columns.Select(column => column.Id).Distinct(StringComparer.Ordinal).Count() != Columns.Count) throw new InvalidOperationException("duplicate-column-id");
+    if (Grouping.Any(group => Columns.All(column => !string.Equals(column.Id, group, StringComparison.Ordinal)))) throw new InvalidOperationException("unknown-grouping-column");
+    var validGroups = Entries.Where(entry => entry.IsGroup).Select(entry => entry.Key).ToHashSet(StringComparer.Ordinal);
+    collapsedGroups.RemoveWhere(key => !validGroups.Contains(key));
+    expandedLazy.RemoveWhere(key => !validGroups.Contains(key));
+    foreach (var id in pendingChildren.Keys.ToArray())
+    {
+      var previous = pendingChildren[id];
+      if (!validGroups.Contains($"row:{id}") || !LazyChildren.TryGetValue(id, out var state) ||
+          DataGridChildrenSnapshot.CompletesRequest(state, previous, GetRowId)) pendingChildren.Remove(id);
+      else pendingChildren[id] = DataGridChildrenSnapshot.Key(state, GetRowId);
+    }
+    var visible = VisibleEntries;
+    if (focusedEntryKey is null || visible.All(entry => entry.Key != focusedEntryKey)) focusedEntryKey = visible.FirstOrDefault()?.Key;
+    var visibleColumns = VisibleColumns;
+    if (visibleColumns.Count == 0) focusedColumnId = null;
+    else if (focusedColumnId is null || visibleColumns.All(column => column.Id != focusedColumnId))
+    {
+      var shouldRestoreFocus = focusedColumnId is not null && focusedEntryKey is not null;
+      focusedColumnId = RecoverFocusColumn(lastVisibleColumns, visibleColumns, focusedColumnId);
+      restoreFocus |= shouldRestoreFocus;
+    }
+    lastVisibleColumns = visibleColumns.ToArray();
+  }
+
+  protected override async Task OnAfterRenderAsync(bool firstRender)
+  {
+    if (firstRender)
+    {
+      module = await JavaScript.InvokeAsync<IJSObjectReference>("import", "./_content/Harborline.UIAdapters.Blazor/data-grid-component.js");
+      callback = DotNetObjectReference.Create(this);
+      connection = await module.InvokeAsync<IJSObjectReference>("connect", grid, viewport, callback, List.ScrollTop);
+    }
+    if (restoreFocus && connection is not null && focusedEntryKey is not null && focusedColumnId is not null)
+    {
+      restoreFocus = false;
+      await connection.InvokeVoidAsync("focus", focusedEntryKey, focusedColumnId);
+    }
+  }
+
+  [JSInvokable]
+  public Task OnScrolledAsync(double scrollTop, bool focusWithin = false)
+  {
+    if (disposed) return Task.CompletedTask;
+    var limited = Math.Min((int)Math.Floor(scrollTop / RowHeight), Math.Max(0, VisibleEntries.Count - WindowSize));
+    return InvokeAsync(async () =>
+    {
+      // A scroll is not a peek. The single tab stop follows the window so the grid stays keyboard
+      // reachable, and the selection is left exactly where the user put it.
+      if (focusWithin && limited < VisibleEntries.Count)
+      {
+        var entry = VisibleEntries[limited];
+        focusedEntryKey = entry.Key;
+        if (entry.IsGroup && VisibleColumns.Count > 0) focusedColumnId = VisibleColumns[0].Id;
+        restoreFocus = true;
+      }
+      await PublishListAsync(List with { ScrollTop = limited * (double)RowHeight });
+      StateHasChanged();
+    });
+  }
+
+  [JSInvokable]
+  public Task OnResizedAsync(double width, bool focusWithin = false)
+  {
+    var previousColumns = VisibleColumns;
+    availableWidth = (int)Math.Floor(width);
+    var visibleColumns = VisibleColumns;
+    if (visibleColumns.Count == 0) focusedColumnId = null;
+    else if (focusedColumnId is null || visibleColumns.All(column => column.Id != focusedColumnId))
+      focusedColumnId = RecoverFocusColumn(previousColumns, visibleColumns, focusedColumnId);
+    lastVisibleColumns = visibleColumns.ToArray();
+    restoreFocus = focusWithin && focusedEntryKey is not null && focusedColumnId is not null;
+    // Compared against what THIS grid last published, not against the incoming parameter: a host
+    // that ignores ListStateChanged would otherwise be re-published on every measurement.
+    var measured = visibleColumns.Count == 0
+      ? (IReadOnlyDictionary<string, double>)new Dictionary<string, double>(StringComparer.Ordinal)
+      : visibleColumns.ToDictionary(column => column.Id, _ => availableWidth.Value / (double)visibleColumns.Count, StringComparer.Ordinal);
+    if (publishedWidths is not null && DataGridListState.SameWidths(publishedWidths, measured)) return InvokeAsync(StateHasChanged);
+    publishedWidths = measured;
+    return InvokeAsync(async () => { await PublishListAsync(List with { ColumnWidths = measured }); StateHasChanged(); });
+  }
+
+  private string ColumnHeaderId(int index) => $"{instanceId}-column-{index}";
+  private static string RecoverFocusColumn(IReadOnlyList<DataGridColumn<TRow>> previousColumns, IReadOnlyList<DataGridColumn<TRow>> visibleColumns, string? focusedColumnId)
+  {
+    var previousIndex = 0;
+    for (var index = 0; index < previousColumns.Count; index++)
+      if (previousColumns[index].Id == focusedColumnId) { previousIndex = index; break; }
+    return visibleColumns[Math.Clamp(previousIndex, 0, visibleColumns.Count - 1)].Id;
+  }
+  private int TabIndex(string entryKey, string columnId) =>
+    focusedEntryKey == entryKey && focusedColumnId == columnId || focusedEntryKey is null && VisibleEntries.FirstOrDefault()?.Key == entryKey && VisibleColumns.FirstOrDefault()?.Id == columnId ? 0 : -1;
+  private void SetFocus(string entryKey, string columnId) { focusedEntryKey = entryKey; focusedColumnId = columnId; }
+
+  private IReadOnlyList<GridEntry> BuildEntries()
+  {
+    var result = new List<GridEntry>();
+    var leaf = 0;
+    AddGroups(Rows.Select((row, index) => (row, index)).ToArray(), 0, "root", result, ref leaf);
+    var expanded = new List<GridEntry>();
+    var ids = new HashSet<string>(StringComparer.Ordinal);
+    leaf = 0;
+    foreach (var entry in result)
+      if (entry.IsGroup) expanded.Add(entry);
+      else AddLazy(entry.Row!, entry.ParentKey, Grouping.Count, expanded, ids, ref leaf);
+    var loaded = expanded.Where(entry => entry.Lazy is not null).ToDictionary(entry => entry.RowId!, entry => entry.Leaves, StringComparer.Ordinal);
+    for (var index = 0; index < expanded.Count; index++)
+      if (expanded[index].IsGroup && expanded[index].Lazy is null)
+        expanded[index] = expanded[index] with { Leaves = expanded[index].Leaves.SelectMany(row => loaded.TryGetValue(GetRowId(row), out var leaves) ? leaves : new[] { row }).ToArray() };
+    return expanded;
+  }
+
+  private void AddLazy(TRow row, string? parent, int depth, List<GridEntry> output, HashSet<string> ids, ref int leaf)
+  {
+    var id = GetRowId(row);
+    if (string.IsNullOrWhiteSpace(id)) throw new InvalidOperationException("row-id-required");
+    if (!ids.Add(id)) throw new InvalidOperationException("duplicate-row-id");
+    if (!LazyChildren.TryGetValue(id, out var lazy)) { output.Add(GridEntry.Leaf(id, row, leaf++) with { ParentKey = parent }); return; }
+    if (lazy.Count < 0 || lazy.State is not ("unloaded" or "loading" or "loaded" or "failed")) throw new InvalidOperationException("invalid-lazy-children");
+    var position = output.Count;
+    var key = $"row:{id}";
+    output.Add(GridEntry.Group(key, depth, Columns.Count == 0 ? "" : GroupText(Columns[0].Value(row)), []) with { ParentKey = parent, RowId = id, Lazy = lazy });
+    foreach (var child in lazy.Children) AddLazy(child, key, depth + 1, output, ids, ref leaf);
+    output[position] = output[position] with { Leaves = output.Skip(position + 1).Where(entry => !entry.IsGroup).Select(entry => entry.Row!).ToArray() };
+  }
+
+  private void AddGroups(IReadOnlyList<(TRow Row, int Index)> source, int depth, string parent, List<GridEntry> output, ref int leaf)
+  {
+    if (depth >= Grouping.Count)
+    {
+      foreach (var item in source) output.Add(GridEntry.Leaf(GetRowId(item.Row), item.Row, leaf++));
+      return;
+    }
+    var column = Columns.First(candidate => candidate.Id == Grouping[depth]);
+    foreach (var group in source.GroupBy(item => ValueIdentity(column.Value(item.Row), column.ValueKind)))
+    {
+      var rows = group.ToArray();
+      var key = $"{parent}/group:{depth}:{column.Id.Length}:{column.Id}:{group.Key.Length}:{group.Key}";
+      output.Add(GridEntry.Group(key, depth, GroupText(column.Value(rows[0].Row)), rows.Select(item => item.Row).ToArray()));
+      var childStart = output.Count;
+      AddGroups(rows, depth + 1, key, output, ref leaf);
+      for (var index = childStart; index < output.Count; index++)
+        output[index] = output[index] with { ParentKey = output[index].ParentKey ?? key };
+    }
+  }
+
+  private IReadOnlyList<GridEntry> FlattenVisible(IReadOnlyList<GridEntry> entries)
+  {
+    var result = new List<GridEntry>(entries.Count);
+    var hiddenParents = new HashSet<string>(StringComparer.Ordinal);
+    foreach (var entry in entries)
+    {
+      if (entry.ParentKey is not null && hiddenParents.Contains(entry.ParentKey))
+      {
+        if (entry.IsGroup) hiddenParents.Add(entry.Key);
+        continue;
+      }
+      result.Add(entry);
+      if (entry.IsGroup && IsCollapsed(entry)) hiddenParents.Add(entry.Key);
+    }
+    return result;
+  }
+
+  private bool IsCollapsed(GridEntry entry) => entry.Lazy is null ? collapsedGroups.Contains(entry.Key) : !expandedLazy.Contains(entry.Key);
+  private string? ChildState(GridEntry entry) => entry.Lazy is null ? null : pendingChildren.ContainsKey(entry.RowId!) ? "loading" : entry.Lazy.State;
+  private async Task ToggleGroupAsync(GridEntry entry, bool? expand = null)
+  {
+    var open = expand ?? IsCollapsed(entry);
+    if (entry.Lazy is null) { if (open) collapsedGroups.Remove(entry.Key); else collapsedGroups.Add(entry.Key); }
+    else
+    {
+      if (open) expandedLazy.Add(entry.Key); else expandedLazy.Remove(entry.Key);
+      if (open && entry.Lazy.State is "unloaded" or "failed" && !pendingChildren.ContainsKey(entry.RowId!))
+      {
+        pendingChildren[entry.RowId!] = DataGridChildrenSnapshot.Key(entry.Lazy, GetRowId);
+        await OnChildrenRequest.InvokeAsync(new DataGridChildrenRequest(entry.RowId!));
+      }
+    }
+    InvalidateVisible();
+  }
+
+  private async Task HandleKeyAsync(KeyboardEventArgs args, int visibleIndex, int columnIndex, GridEntry entry)
+  {
+    var nextRow = visibleIndex;
+    var nextColumn = columnIndex;
+    var handled = true;
+    // drilldown-model.md row 0: only a row-changing Arrow key peeks. Home/End/Ctrl+Home/Ctrl+End
+    // are focus, not selection.
+    var peek = false;
+    switch (args.Key)
+    {
+      case "ArrowDown": nextRow++; peek = true; break;
+      case "ArrowUp": nextRow--; peek = true; break;
+      case "ArrowRight": if (entry.IsGroup) await ToggleGroupAsync(entry, true); else nextColumn++; break;
+      case "ArrowLeft": if (entry.IsGroup) await ToggleGroupAsync(entry, false); else nextColumn--; break;
+      case "Home": if (args.CtrlKey || args.MetaKey) nextRow = 0; nextColumn = 0; break;
+      case "End": if (args.CtrlKey || args.MetaKey) nextRow = VisibleEntries.Count - 1; nextColumn = Columns.Count - 1; break;
+      // drilldown-model.md row 1: Enter commits, never peeks. Selection is untouched and the grid
+      // does not navigate — it emits the declared host action with the row id.
+      case "Enter": if (entry.IsGroup) await ToggleGroupAsync(entry); else { await OnRowActivate.InvokeAsync(new DataGridRowActivation(entry.RowId!)); return; } break;
+      case " ": if (entry.IsGroup) await ToggleGroupAsync(entry); else handled = false; break;
+      default: handled = false; break;
+    }
+    if (!handled || VisibleEntries.Count == 0 || VisibleColumns.Count == 0) return;
+    var visible = VisibleEntries;
+    nextRow = Math.Clamp(nextRow, 0, visible.Count - 1);
+    nextColumn = visible[nextRow].IsGroup ? 0 : Math.Clamp(nextColumn, 0, VisibleColumns.Count - 1);
+    var target = visible[nextRow];
+    focusedEntryKey = target.Key;
+    focusedColumnId = VisibleColumns[nextColumn].Id;
+    restoreFocus = true;
+    // One publish, never two: the scroll move and the peek are decided together and written once.
+    var next = List;
+    if (nextRow < BoundedStart) next = next with { ScrollTop = nextRow * (double)RowHeight };
+    else if (nextRow >= BoundedStart + WindowSize) next = next with { ScrollTop = (nextRow - WindowSize + 1) * (double)RowHeight };
+    if (peek && !target.IsGroup && target.RowId != next.SelectedRowId) next = next with { SelectedRowId = target.RowId };
+    if (!ReferenceEquals(next, List)) await PublishListAsync(next);
+  }
+
+  private static string GroupText(object? value) => value switch
+  {
+    null => string.Empty,
+    DateTime date => date.ToString("O", CultureInfo.InvariantCulture),
+    DateTimeOffset date => date.ToString("O", CultureInfo.InvariantCulture),
+    _ => Convert.ToString(value, CultureInfo.InvariantCulture) ?? string.Empty,
+  };
+
+  private static string DefaultCell(object? value) => value switch
+  {
+    null => string.Empty,
+    bool flag => flag.ToString().ToLowerInvariant(),
+    DateTime date => date.ToString("O", CultureInfo.InvariantCulture),
+    DateTimeOffset date => date.ToString("O", CultureInfo.InvariantCulture),
+    _ => Convert.ToString(value, CultureInfo.InvariantCulture) ?? string.Empty,
+  };
+
+  private static string BranchCell(GridEntry entry, DataGridColumn<TRow> column)
+  {
+    var values = entry.Leaves.Select(column.Value).GroupBy(value => ValueIdentity(value, column.ValueKind)).Select(group => group.First()).ToArray();
+    return values.Length > 1 ? $"mixed — {values.Length} {column.ValueKind.ToString().ToLowerInvariant()}" : DefaultCell(values.SingleOrDefault());
+  }
+
+  private static string ValueIdentity(object? value, DataGridValueKind valueKind) => value switch
+  {
+    null => "null:",
+    DateTime date when valueKind == DataGridValueKind.Date => $"date:{new DateTimeOffset(date.ToUniversalTime()).ToUnixTimeMilliseconds()}",
+    DateTimeOffset date when valueKind == DataGridValueKind.Date => $"date:{date.ToUnixTimeMilliseconds()}",
+    string text when valueKind == DataGridValueKind.Date && DateTimeOffset.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var date) => $"date:{date.ToUnixTimeMilliseconds()}",
+    DateTime date => $"date:{date.ToUniversalTime():yyyy-MM-dd'T'HH:mm:ss.fff'Z'}",
+    DateTimeOffset date => $"date:{date.UtcDateTime:yyyy-MM-dd'T'HH:mm:ss.fff'Z'}",
+    string text => $"string:{text}",
+    bool flag => $"boolean:{flag}",
+    _ when value is byte or sbyte or short or ushort or int or uint or long or ulong or nint or nuint or Int128 or UInt128 or Half or float or double or decimal or BigInteger => $"number:{EcmaScriptNumberToString(ToEcmaScriptNumber(value))}",
+    _ => $"object:{GroupText(value)}",
+  };
+
+  private static double ToEcmaScriptNumber(object value) => value switch
+  {
+    byte number => number,
+    sbyte number => number,
+    short number => number,
+    ushort number => number,
+    int number => number,
+    uint number => number,
+    long number => number,
+    ulong number => number,
+    nint number => number,
+    nuint number => number,
+    Int128 number => (double)number,
+    UInt128 number => (double)number,
+    Half number => (double)number,
+    float number => number,
+    double number => number,
+    decimal number => (double)number,
+    BigInteger number => double.Parse(number.ToString(CultureInfo.InvariantCulture), NumberStyles.Float, CultureInfo.InvariantCulture),
+    _ => throw new ArgumentOutOfRangeException(nameof(value)),
+  };
+
+  private static string EcmaScriptNumberToString(double value)
+  {
+    if (double.IsNaN(value)) return "NaN";
+    if (value == 0) return "0";
+    if (double.IsPositiveInfinity(value)) return "Infinity";
+    if (double.IsNegativeInfinity(value)) return "-Infinity";
+
+    var shortest = value.ToString("G", CultureInfo.InvariantCulture);
+    var exponentMarker = shortest.IndexOfAny(['e', 'E']);
+    if (exponentMarker < 0) return shortest;
+
+    var negative = shortest[0] == '-';
+    var coefficient = shortest[(negative ? 1 : 0)..exponentMarker];
+    var digits = coefficient.Replace(".", string.Empty, StringComparison.Ordinal);
+    var exponent = int.Parse(shortest[(exponentMarker + 1)..], CultureInfo.InvariantCulture);
+    var decimalPoint = exponent + 1;
+    var sign = negative ? "-" : string.Empty;
+
+    if (decimalPoint is > 0 and <= 21)
+      return decimalPoint >= digits.Length
+        ? sign + digits + new string('0', decimalPoint - digits.Length)
+        : sign + digits.Insert(decimalPoint, ".");
+    if (decimalPoint is <= 0 and > -6)
+      return sign + "0." + new string('0', -decimalPoint) + digits;
+
+    var scientificExponent = decimalPoint - 1;
+    var mantissa = digits.Length == 1 ? digits : digits.Insert(1, ".");
+    return sign + mantissa + "e" + (scientificExponent >= 0 ? "+" : string.Empty) + scientificExponent.ToString(CultureInfo.InvariantCulture);
+  }
+
+  public async ValueTask DisposeAsync()
+  {
+    disposed = true;
+    if (connection is not null) { try { await connection.InvokeVoidAsync("dispose"); } catch (JSDisconnectedException) { } await connection.DisposeAsync(); }
+    if (module is not null) { try { await module.DisposeAsync(); } catch (JSDisconnectedException) { } }
+    callback?.Dispose();
+  }
+
+  private sealed record GridEntry(bool IsGroup, string Key, int Depth, TRow? Row, string? RowId, string Label, int LeafOrdinal, IReadOnlyList<TRow> Leaves, string? ParentKey)
+  {
+    public DataGridChildren<TRow>? Lazy { get; init; }
+    public int LeafCount => Leaves.Count;
+    public static GridEntry Group(string key, int depth, string label, IReadOnlyList<TRow> leaves) => new(true, key, depth, default, null, label, -1, leaves, null);
+    public static GridEntry Leaf(string rowId, TRow row, int leafOrdinal) => new(false, $"row:{rowId}", 0, row, rowId, string.Empty, leafOrdinal, [], null);
+  }
+}

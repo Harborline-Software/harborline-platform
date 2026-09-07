@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.confirm-dialog",
+  "accessibilityCases": [
+    {
+      "id": "confirm-dialog.quality.action-pair-name",
+      "expected": {
+        "twoActions": true,
+        "eachAccessiblyNamed": true,
+        "cancelPrecedesConfirm": true,
+        "noRedundantDialogRole": true
+      }
+    },
+    {
+      "id": "confirm-dialog.quality.reflow",
+      "expected": {
+        "longLabelWraps": true,
+        "actionPairOverflows": false,
+        "narrowViewportUsable": true
+      }
+    },
+    {
+      "id": "confirm-dialog.quality.keyboard",
+      "expected": {
+        "bothActionsTabReachable": true,
+        "focusVisibleRingPresent": true,
+        "activationByEnterAndSpace": true
+      }
+    }
+  ],
+  "internationalizationCases": [
+    {
+      "id": "confirm-dialog.quality.catalog",
+      "expected": {
+        "labelsFromCatalog": true,
+        "rawKeyRendered": false,
+        "explicitLabelWins": true
+      }
+    },
+    {
+      "id": "confirm-dialog.quality.rtl",
+      "expected": {
+        "directionInherited": true,
+        "actionPairMirrored": true,
+        "directionNotSetByModule": true
+      }
+    }
+  ],
+  "themingCases": [
+    {
+      "id": "confirm-dialog.quality.tokens",
+      "expected": {
+        "actionColoursFromTokens": true,
+        "hardcodedHexOutsideFallbacks": false
+      }
+    },
+    {
+      "id": "confirm-dialog.quality.forced-colors",
+      "expected": {
+        "actionsRemainDistinguishable": true,
+        "destructiveRemainsDistinguishable": true,
+        "borderPresent": true
+      }
+    },
+    {
+      "id": "confirm-dialog.quality.reduced-motion",
+      "expected": {
+        "noModuleOwnedAnimation": true,
+        "shellTransitionRespectsPreference": true
+      }
+    },
+    {
+      "id": "confirm-dialog.quality.visual-parity",
+      "expected": {
+        "projectionsAgree": true
+      }
+    }
+  ]
+}

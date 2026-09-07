@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.chip",
+  "verdict": "approved",
+  "reviewer": "cic",
+  "recordedAt": "2026-08-26T20:11:09.425Z",
+  "reference": {
+    "revision": "4f4073aec16e9e649098936d3813658f58cdb4fda916e9b62c1a272384fe19f7",
+    "source": "gallery/scenarios/hlp.ui.chip.json",
+    "pin": "cc9eb48ed68c5033ec128cd53c40b1d2786bee66",
+    "surface": {
+      "conformance/hlp.ui.chip/fixtures.yaml": "222417424e5c1e57db90adc29a53387f762c8497e297f9d76f3ea73f8b4d50a1",
+      "conformance/hlp.ui.chip/quality-fixtures.yaml": "4d50ffc08e8b1a7c7eb6a01bc5d7b6b429abc46064e604bc214ba6757b554360",
+      "gallery/projections/blazor/Stories/Chip.stories.razor": "61d098905a52966f53c6550eaf97040d38e1d07868b6d16cb27607cb431ad7a9",
+      "gallery/projections/blazor/Stories/ChipScenario.razor": "0b1a84acc897eefa9a366c13d49a1b32d0c3e79b6d7cd5b6f38c2d69c1dc25c2",
+      "gallery/projections/react/src/Chip.stories.tsx": "da9fc5d94af6bc01acf2819ba13acfa8ee9dfd754308fbc357ac47e22b7e5412",
+      "gallery/scenarios/hlp.ui.chip.json": "2721fe3cbe603a646e49d7d22aedcd2b1ad366fd3f8af20842c2dd6730f23813",
+      "projections/blazor/ui/hlp.ui.chip/ChipTypes.cs": "cbc8998cdcd4e065a800766ff1a153d360475c3ede5d7950232781c03079446b",
+      "projections/blazor/ui/hlp.ui.chip/ShipyardChip.razor": "f36dcb7508e453f44e355964da97530b780669ccfe9d590e59dd017c6636b3ea",
+      "projections/blazor/ui/hlp.ui.chip/wwwroot/chip.css": "3037d2342d45f3f772a3a5dd36caeb1687ef2e60e09086fdadb64e0370258940",
+      "projections/react/ui/hlp.ui.chip/src/Chip.tsx": "13c28d4c5a8bc99cbc402b6c252c86134c33dc240b11a8d948a9015f0ec97962",
+      "projections/react/ui/hlp.ui.chip/src/index.ts": "5ee943fbfacc1337b3d7037bf055ad05fce3a47cf5b24eb89c2f0cc2d2e77213",
+      "projections/react/ui/hlp.ui.chip/src/style.css": "7053e876cef1ae2d32e885546887c9589df6b2d893358bafcdce71d0549c0710",
+      "specs/modules/ui/hlp.ui.chip/scenarios.json": "2721fe3cbe603a646e49d7d22aedcd2b1ad366fd3f8af20842c2dd6730f23813",
+      "specs/modules/ui/hlp.ui.chip/style.css": "7053e876cef1ae2d32e885546887c9589df6b2d893358bafcdce71d0549c0710"
+    }
+  }
+}

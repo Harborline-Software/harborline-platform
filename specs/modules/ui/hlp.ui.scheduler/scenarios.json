@@ -1,0 +1,460 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.scheduler",
+  "sourceFixture": "conformance/hlp.ui.scheduler/fixtures.yaml",
+  "qualityFixture": "conformance/hlp.ui.scheduler/quality-fixtures.yaml",
+  "galleryInterface": {
+    "probeAttribute": "data-gallery-probe",
+    "scenarioAttribute": "data-gallery-scenario",
+    "projectionTitles": {
+      "react": "Platform/Scheduler",
+      "blazor": "Platform/Scheduler"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "scheduler.views-state",
+      "name": "Views and controlled state",
+      "surface": "views-state",
+      "sourceCaseIds": [
+        "scheduler.defaults-empty",
+        "scheduler.event-normalization",
+        "scheduler.controlled-view",
+        "scheduler.uncontrolled-view",
+        "scheduler.controlled-date",
+        "scheduler.custom-views"
+      ],
+      "sourceQualityCaseIds": [
+        "scheduler.quality.structure-names"
+      ],
+      "content": {
+        "blurb": "Four views, caller-selected subsets, controlled view, and controlled date retain one request per action.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {
+          "view": {
+            "kind": "string",
+            "initial": "day"
+          },
+          "date": {
+            "kind": "string",
+            "initial": "2026-08-11"
+          },
+          "requests": {
+            "kind": "array",
+            "initial": []
+          }
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<Scheduler data={baseEvents} now={frozenNow} onDateChange={(next) => { setDate(next); remember(`date:${next.toISOString().slice(0, 10)}`) }} onViewChange={(next) => { setView(next); remember(`view:${next}`) }} selectedDate={date} view={view} views={[{ type: 'day', title: 'Day' }, { type: 'agenda', title: 'Agenda' }]} workDayStart={8} workDayEnd={18} workDays={[1, 2, 3, 4, 5]} />",
+            "blazor": "<HarborlineScheduler AccessibleName=\"Agenda\" Data=\"@Events\" DefaultDate=\"@SelectedDate\" DefaultView=\"@InitialView\" Now=\"@FrozenNow\" WorkDayStart=\"8\" WorkDayEnd=\"18\" />",
+            "rationale": "The closed vocabulary has no scheduler control for calendar grids, view switching, event chips, navigation, or controlled date/view callbacks."
+          },
+          {
+            "control": "output",
+            "live": "polite",
+            "text": "Controlled day · 8/11/2026 · requests none"
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "scheduler.navigation-layout",
+      "name": "Navigation and calendar layout",
+      "surface": "navigation-layout",
+      "sourceCaseIds": [
+        "scheduler.navigation",
+        "scheduler.day-week-layout",
+        "scheduler.all-day",
+        "scheduler.overlap",
+        "scheduler.work-calendar"
+      ],
+      "content": {
+        "blurb": "Day and week navigation preserve all-day bands, overlaps, work-hour shading, and stable event identity.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {
+          "view": {
+            "kind": "string",
+            "initial": "week"
+          },
+          "date": {
+            "kind": "string",
+            "initial": "2026-08-11"
+          },
+          "requests": {
+            "kind": "array",
+            "initial": []
+          }
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<Scheduler data={baseEvents} now={frozenNow} onDateChange={(next) => { setDate(next); remember(`date:${next.toISOString().slice(0, 10)}`) }} onViewChange={(next) => { setView(next); remember(`view:${next}`) }} selectedDate={date} view={view} workDayStart={8} workDayEnd={18} workDays={[1, 2, 3, 4, 5]} workingHours={{ start: 9, end: 17 }} />",
+            "blazor": "<HarborlineScheduler AccessibleName=\"Agenda\" Data=\"@Events\" DefaultDate=\"@SelectedDate\" DefaultView=\"@InitialView\" Now=\"@FrozenNow\" WorkDayStart=\"8\" WorkDayEnd=\"18\" />",
+            "rationale": "The closed vocabulary cannot represent the week grid, all-day band, overlapping timed events, work-hour shading, or scheduler navigation."
+          },
+          {
+            "control": "output",
+            "live": "polite",
+            "text": "Controlled week · 8/11/2026 · requests none"
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "scheduler.month-agenda",
+      "name": "Month drilldown and agenda",
+      "surface": "month-agenda",
+      "sourceCaseIds": [
+        "scheduler.month-more-drilldown",
+        "scheduler.agenda-empty-order"
+      ],
+      "content": {
+        "blurb": "Month overflow drills into a day while agenda orders future events and names its empty state.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<Scheduler accessibleName=\"Month schedule\" data={[...baseEvents, ...Array.from({ length: 4 }, (_, index) => ({ id: `month-${index}`, title: `Additional review ${index + 1}`, start: at(0, 14 + index), end: at(0, 15 + index) }))]} defaultDate={selectedDate} now={frozenNow} readOnly view=\"month\" />\n<Scheduler accessibleName=\"Agenda schedule\" data={[]} defaultDate={selectedDate} now={frozenNow} readOnly view=\"agenda\" />",
+            "blazor": "<HarborlineScheduler AccessibleName=\"Agenda\" Data=\"@Events\" DefaultDate=\"@SelectedDate\" DefaultView=\"@InitialView\" Now=\"@FrozenNow\" ReadOnly=\"@ReadOnly\" />",
+            "rationale": "The closed vocabulary cannot express month cells, overflow drilldown, a second agenda scheduler, event ordering, or the scheduler empty state."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "scheduler.narrow-reflow",
+      "name": "Narrow responsive schedule",
+      "surface": "narrow-reflow",
+      "sourceCaseIds": [
+        "scheduler.narrow-default",
+        "scheduler.horizontal-affordance",
+        "scheduler.appearance-reflow"
+      ],
+      "sourceQualityCaseIds": [
+        "scheduler.quality.targets-reflow",
+        "scheduler.quality.status",
+        "scheduler.quality.forced-colors"
+      ],
+      "content": {
+        "blurb": "Uncontrolled narrow mode defaults to agenda while an explicit week remains horizontally keyboard-scrollable.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<div className=\"hl-gallery-feedback-stack\" style={{ maxWidth: 320 }}><div style={{ height: 340 }}><Scheduler accessibleName=\"Responsive agenda schedule\" data={baseEvents} defaultDate={selectedDate} now={frozenNow} readOnly /></div><div style={{ height: 460 }}><Scheduler accessibleName=\"Responsive week schedule\" data={baseEvents} now={frozenNow} readOnly selectedDate={selectedDate} view=\"week\" /></div></div>",
+            "blazor": "<HarborlineScheduler AccessibleName=\"Agenda\" Data=\"@Events\" DefaultDate=\"@SelectedDate\" DefaultView=\"@InitialView\" Now=\"@FrozenNow\" Narrow=\"true\" />",
+            "rationale": "The closed vocabulary cannot express two responsive scheduler surfaces, narrow-mode view selection, calendar reflow, or horizontal keyboard scrolling."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "scheduler.now-readonly",
+      "name": "Current time and read-only policy",
+      "surface": "now-readonly",
+      "sourceCaseIds": [
+        "scheduler.now-controlled-tick",
+        "scheduler.anchor-now-action",
+        "scheduler.readonly"
+      ],
+      "content": {
+        "blurb": "A frozen current-time line anchors deterministically and read-only mode removes every mutation path.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<Scheduler data={baseEvents} now={frozenNow} readOnly={true} selectedDate={selectedDate} view=\"day\" />",
+            "blazor": "<HarborlineScheduler AccessibleName=\"Agenda\" Data=\"@Events\" DefaultDate=\"@SelectedDate\" DefaultView=\"@InitialView\" Now=\"@FrozenNow\" ReadOnly=\"@ReadOnly\" />",
+            "rationale": "The closed vocabulary cannot express a scheduler time grid, frozen now line, event rendering, or removal of scheduler mutation affordances."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "scheduler.editing-recurrence",
+      "name": "Editing and recurrence workflow",
+      "surface": "editing-recurrence",
+      "sourceCaseIds": [
+        "scheduler.event-create-move-edit-delete",
+        "scheduler.model-fields",
+        "scheduler.rrule-parse",
+        "scheduler.recurrence-expand",
+        "scheduler.recurrence-exceptions",
+        "scheduler.recurrence-dialog"
+      ],
+      "content": {
+        "blurb": "Provider-neutral CRUD requests and bounded occurrence-or-series decisions preserve recurrence identity.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {
+          "events": {
+            "kind": "array",
+            "initial": []
+          },
+          "requests": {
+            "kind": "array",
+            "initial": []
+          }
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<Scheduler data={events} defaultDate={selectedDate} defaultView=\"week\" now={frozenNow} onEventAdd={(event) => { setEvents(current => [...current, event]); remember(`add:${event.id}`) }} onEventDelete={(event) => { setEvents(current => current.filter(candidate => candidate.id !== event.id)); remember(`delete:${event.id}`) }} onEventUpdate={(event) => { setEvents(current => current.map(candidate => candidate.id === event.id ? event : candidate)); remember(`update:${event.id}`) }} />",
+            "blazor": "<HarborlineScheduler AccessibleName=\"Agenda\" Data=\"@Events\" DefaultDate=\"@SelectedDate\" DefaultView=\"@InitialView\" Now=\"@FrozenNow\" EventAdded=\"@(item => last = $\"Added {item.Title}\")\" EventUpdated=\"@(item => last = $\"Updated {item.Title}\")\" EventDeleted=\"@(item => last = $\"Deleted {item.Title}\")\" />",
+            "rationale": "The closed vocabulary cannot express scheduler CRUD gestures, recurrence expansion and dialogs, event identity, or occurrence-versus-series decisions."
+          },
+          {
+            "control": "output",
+            "live": "polite",
+            "text": "RRULE parsed · 8 bounded occurrences · requests none"
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "scheduler.large-data",
+      "name": "Bounded large schedule",
+      "surface": "large-data",
+      "sourceCaseIds": [
+        "scheduler.large-data",
+        "scheduler.replacement"
+      ],
+      "content": {
+        "blurb": "Two hundred fifty-six visible events and dense overlap retain unique chips, bounded chrome, and deterministic replacement.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {
+          "revision": {
+            "kind": "counter",
+            "initial": 1
+          }
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<Scheduler data={events} defaultDate={selectedDate} now={frozenNow} readOnly view=\"agenda\" />",
+            "blazor": "<HarborlineScheduler AccessibleName=\"Agenda\" Data=\"@Events\" DefaultDate=\"@SelectedDate\" DefaultView=\"@InitialView\" Now=\"@FrozenNow\" />",
+            "rationale": "The closed vocabulary cannot express 256 scheduler events, dense event layout, bounded calendar chrome, or identity-preserving data replacement."
+          }
+        ],
+        "footer": [
+          {
+            "control": "button",
+            "text": "Replace 256 events"
+          },
+          {
+            "control": "output",
+            "live": "polite",
+            "text": "Revision 1 · 256 unique events"
+          }
+        ]
+      }
+    },
+    {
+      "id": "scheduler.locale-pseudo",
+      "name": "Pseudo-localized schedule",
+      "surface": "locale-pseudo",
+      "sourceCaseIds": [
+        "scheduler.appearance-reflow"
+      ],
+      "sourceQualityCaseIds": [
+        "scheduler.quality.catalog",
+        "scheduler.quality.pseudo"
+      ],
+      "content": {
+        "blurb": "Expanded toolbar, view, empty, recurrence, and overflow copy remains usable in every view.",
+        "environment": {
+          "locale": "en-XA",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {
+            "scheduler.day": "⟦ Đåÿ ··· ⟧",
+            "scheduler.week": "⟦ Ŵëëķ ··· ⟧",
+            "scheduler.month": "⟦ Møñţh ···· ⟧",
+            "scheduler.agenda": "⟦ Åĝëñđå ······ ⟧",
+            "scheduler.today": "⟦ Ţøđåÿ ···· ⟧",
+            "scheduler.previous": "⟦ Þřëṽîøûš ······ ⟧",
+            "scheduler.next": "⟦ Ñëxţ ··· ⟧",
+            "scheduler.now": "⟦ Ñøŵ ··· ⟧",
+            "scheduler.allDay": "⟦ Åļļ đåÿ ······ ⟧",
+            "scheduler.noUpcomingEvents": "⟦ Ñø ûþçømîñĝ šçhëđûļëđ ëṽëñţš ········ ⟧",
+            "scheduler.more": "⟦ +{count} møřë šçhëđûļëđ ëṽëñţš ······ ⟧",
+            "scheduler.editRecurringEvent": "⟦ Ëđîţ řëçûřřîñĝ ëṽëñţ ······ ⟧",
+            "scheduler.deleteRecurringEvent": "⟦ Đëļëţë řëçûřřîñĝ ëṽëñţ ······ ⟧"
+          }
+        },
+        "props": {},
+        "state": {
+          "count": {
+            "kind": "counter",
+            "initial": 0
+          }
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<Scheduler data={baseEvents.map(event => ({ ...event, title: `⟦ ${event.title} ······ ⟧`, description: event.description ? `⟦ ${event.description} ······ ⟧` : undefined }))} now={frozenNow} readOnly selectedDate={selectedDate} view=\"month\" />",
+            "blazor": "<HarborlineLocaleProvider Locale=\"en-XA\" Direction=\"ltr\"><HarborlineScheduler AccessibleName=\"Agenda\" Data=\"@Events\" DefaultDate=\"@SelectedDate\" DefaultView=\"@InitialView\" Now=\"@FrozenNow\" ReadOnly=\"@ReadOnly\" /></HarborlineLocaleProvider>",
+            "rationale": "The closed vocabulary cannot represent a localized month scheduler, overflow controls, event chips, or recurrence UI."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "scheduler.locale-ar",
+      "name": "Arabic date, time, and direction",
+      "surface": "locale-ar",
+      "sourceCaseIds": [
+        "scheduler.locale-rtl"
+      ],
+      "sourceQualityCaseIds": [
+        "scheduler.quality.date-time-formats"
+      ],
+      "content": {
+        "blurb": "Locale formatting, chevrons, grid placement, and overlays follow right-to-left direction.",
+        "environment": {
+          "locale": "ar-SA",
+          "direction": "rtl",
+          "theme": "light",
+          "catalog": {
+            "scheduler.day": "اليوم",
+            "scheduler.week": "الأسبوع",
+            "scheduler.month": "الشهر",
+            "scheduler.agenda": "جدول الأعمال",
+            "scheduler.today": "اليوم الحالي",
+            "scheduler.previous": "السابق",
+            "scheduler.next": "التالي",
+            "scheduler.now": "الآن",
+            "scheduler.allDay": "طوال اليوم",
+            "scheduler.noUpcomingEvents": "لا توجد أحداث قادمة",
+            "scheduler.more": "+{count} إضافية"
+          }
+        },
+        "props": {},
+        "state": {
+          "count": {
+            "kind": "counter",
+            "initial": 0
+          }
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<Scheduler data={baseEvents.map((event, index) => ({ ...event, title: ['مراجعة سلامة الهيكل', 'التقاط صورة مع الوضعية', 'موضع المخطط', 'تسليم الفحص', 'التحقق الميداني'][index] }))} now={frozenNow} readOnly selectedDate={selectedDate} view=\"agenda\" />",
+            "blazor": "<HarborlineLocaleProvider Locale=\"ar-SA\" Direction=\"rtl\"><HarborlineScheduler AccessibleName=\"Agenda\" Data=\"@Events\" DefaultDate=\"@SelectedDate\" DefaultView=\"@InitialView\" Now=\"@FrozenNow\" ReadOnly=\"@ReadOnly\" /></HarborlineLocaleProvider>",
+            "rationale": "The closed vocabulary cannot represent an RTL agenda scheduler, localized date/time layout, directional navigation, or event overlays."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "scheduler.theme-light",
+      "name": "Light theme",
+      "surface": "theme-light",
+      "sourceCaseIds": [
+        "scheduler.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "scheduler.quality.light-dark",
+        "scheduler.quality.tokens",
+        "scheduler.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "Calendar surface, work hours, events, now line, overlay, and focus use Harborline light tokens.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<section data-theme=\"light\"><Scheduler data={baseEvents} now={frozenNow} readOnly selectedDate={selectedDate} view=\"day\" /></section>",
+            "blazor": "<section data-theme=\"light\"><HarborlineScheduler AccessibleName=\"Agenda\" Data=\"@Events\" DefaultDate=\"@SelectedDate\" DefaultView=\"@InitialView\" Now=\"@FrozenNow\" ReadOnly=\"@ReadOnly\" /></section>",
+            "rationale": "The closed vocabulary cannot represent the themed scheduler surface, work-hour regions, event chips, now line, overlays, or focus treatment."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "scheduler.theme-dark",
+      "name": "Dark theme",
+      "surface": "theme-dark",
+      "sourceCaseIds": [
+        "scheduler.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "scheduler.quality.light-dark",
+        "scheduler.quality.tokens",
+        "scheduler.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "The same deep scheduling seam on the Harborline dark surface.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "dark",
+          "catalog": {}
+        },
+        "inherits": "scheduler.theme-light"
+      }
+    }
+  ]
+}

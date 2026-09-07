@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "projection": "react",
+  "moduleId": "hlp.ui.form-field",
+  "scenarios": [
+    {
+      "scenarioId": "form-field.defaults",
+      "sha256": "505df365bce1221774325ce0b537c7cdf9588b07604b934afcb46c5ea82b21eb",
+      "bytes": 7901,
+      "artifact": "../baselines/sha256/505df365bce1221774325ce0b537c7cdf9588b07604b934afcb46c5ea82b21eb.png"
+    },
+    {
+      "scenarioId": "form-field.states",
+      "sha256": "e8a1c7b204212cc91483c82418408d8046f312f75d5e9ffd33c15286f2cbd1c9",
+      "bytes": 8266,
+      "artifact": "../baselines/sha256/e8a1c7b204212cc91483c82418408d8046f312f75d5e9ffd33c15286f2cbd1c9.png"
+    },
+    {
+      "scenarioId": "form-field.rtl-theme",
+      "sha256": "9f2dcff16dcb2ea3c244480803de0706312d6ff3b2bc92107b8efc021ba754ec",
+      "bytes": 8320,
+      "artifact": "../baselines/sha256/9f2dcff16dcb2ea3c244480803de0706312d6ff3b2bc92107b8efc021ba754ec.png"
+    }
+  ]
+}

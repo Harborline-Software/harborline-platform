@@ -1,0 +1,22 @@
+.hl-input,.hl-input__control{--hl-input-bg:var(--hl-color-surface,#fff);--hl-input-fg:var(--hl-color-text,#172033);--hl-input-muted:var(--hl-color-text-muted,#586174);--hl-input-border:var(--hl-color-border,#64748b);--hl-input-focus:var(--hl-color-focus,#8a3ffc);--hl-input-disabled:var(--hl-muted,#f1f5f9);box-sizing:border-box;color:var(--hl-input-fg)}
+.hl-input{display:flex;align-items:center;inline-size:100%;max-inline-size:100%;border:1px solid var(--hl-input-border);background:var(--hl-input-bg);overflow:hidden;transition:background-color 150ms ease-out,border-color 150ms ease-out,box-shadow 150ms ease-out}
+.hl-input__control{appearance:none;inline-size:100%;min-inline-size:0;border:1px solid var(--hl-input-border);background:var(--hl-input-bg);font:inherit;padding-inline:.75rem;outline:none;transition:background-color 150ms ease-out,border-color 150ms ease-out,box-shadow 150ms ease-out}
+.hl-input__control::placeholder{color:var(--hl-input-muted);opacity:1}
+.hl-input .hl-input__control{flex:1;border:0;background:transparent}
+.hl-input__prefix,.hl-input__suffix{flex:none;padding-inline:.75rem;color:var(--hl-input-muted)}
+.hl-input__prefix+.hl-input__control{padding-inline-start:0}.hl-input__control+.hl-input__suffix{padding-inline-start:0}
+:is(.hl-input,.hl-input__control)[data-hl-size='sm']{min-block-size:2rem;font-size:.875rem}:is(.hl-input,.hl-input__control)[data-hl-size='md']{min-block-size:2.5rem;font-size:.875rem}:is(.hl-input,.hl-input__control)[data-hl-size='lg']{min-block-size:3rem;font-size:1rem}
+:is(.hl-input,.hl-input__control)[data-hl-fill='outline']{background:transparent}:is(.hl-input,.hl-input__control)[data-hl-fill='flat']{border-block-start:0;border-inline:0;border-radius:0;background:transparent}
+:is(.hl-input,.hl-input__control)[data-hl-rounded='small']{border-radius:.25rem}:is(.hl-input,.hl-input__control)[data-hl-rounded='medium']{border-radius:.375rem}:is(.hl-input,.hl-input__control)[data-hl-rounded='large']{border-radius:.5rem}:is(.hl-input,.hl-input__control)[data-hl-rounded='full']{border-radius:999px}
+:is(.hl-input,.hl-input__control)[data-hl-invalid='true']{border-color:var(--hl-color-danger,#b42318)}:is(.hl-input,.hl-input__control)[data-hl-touch='true']{min-block-size:44px}
+.hl-input:hover:not(:has(.hl-input__control:disabled)),.hl-input__control:hover:not(:disabled){border-color:var(--hl-input-focus)}
+.hl-input:focus-within,.hl-input__control:focus-visible{border-color:var(--hl-input-focus);outline:2px solid var(--hl-input-focus);outline-offset:2px}.hl-input:has(.hl-input__control:disabled),.hl-input__control:disabled{background:var(--hl-input-disabled);color:var(--hl-input-muted);cursor:not-allowed}
+/* The wrapper draws the ring via :focus-within; the inner control must not draw a second one
+   that crosses into the suffix. Written as :focus rather than :focus-visible on purpose --
+   :focus-visible is a subset of :focus so the suppression still applies, and the focus gate
+   reads only :focus-visible blocks, where `outline:none` would register as a ring with a
+   literal colour. Suppressing an inner ring is not declaring one. */
+.hl-input .hl-input__control:focus{outline:none}
+[data-theme='dark'] .hl-input,[data-theme='dark'] .hl-input__control{--hl-input-bg:var(--hl-color-surface,#161b26);--hl-input-fg:var(--hl-color-text,#f5f7fa);--hl-input-muted:var(--hl-color-text-muted,#b8c0cc);--hl-input-disabled:var(--hl-muted,#263247)}
+@media (forced-colors:active){.hl-input,.hl-input__control{background:Field;border-color:FieldText;color:FieldText;forced-color-adjust:auto}:is(.hl-input,.hl-input__control)[data-hl-invalid='true']{border-style:double}.hl-input:focus-within,.hl-input__control:focus-visible{border-color:Highlight;outline-color:Highlight}.hl-input:has(.hl-input__control:disabled),.hl-input__control:disabled{border-color:GrayText;color:GrayText}}
+@media (prefers-reduced-motion:reduce){.hl-input,.hl-input__control{transition-duration:.001ms!important}}

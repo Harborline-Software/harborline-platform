@@ -1,0 +1,85 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Forms.Inputs
+@inherits HarborlineComponentBase
+@using Harborline.UIAdapters.Blazor.Components.Forms
+@using Harborline.UIAdapters.Blazor.Localization
+
+<span class="@CombineClasses("hl-switch", ResolvedDisabled ? "hl-switch--disabled" : null)" style="@CombineStyles()" data-hl-size="@SizeToken" dir="@ResolvedDirection">
+  <button type="button" role="switch" id="@ResolvedId" aria-checked="@EffectiveChecked.ToString().ToLowerInvariant()"
+          aria-label="@AccessibleName" aria-labelledby="@LabelledBy" aria-describedby="@DescribedBy"
+          aria-invalid="@(Error ? "true" : null)" aria-required="@(ResolvedRequired ? "true" : null)"
+          disabled="@ResolvedDisabled" class="@(Error ? "hl-switch__control hl-switch__control--invalid" : "hl-switch__control")" data-hl-checked="@(EffectiveChecked ? "true" : null)"
+          @onclick="ToggleAsync" @attributes="AdditionalAttributes"><span aria-hidden="true" class="hl-switch__thumb"></span></button>
+  @if (!string.IsNullOrWhiteSpace(Label)) { <label id="@LocalLabelId" for="@ResolvedId" class="hl-switch__label">@Label</label> }
+  <span class="hl-switch__state" aria-hidden="true">@(EffectiveChecked ? ResolvedOnText : ResolvedOffText)</span>
+  @if (!string.IsNullOrWhiteSpace(Description)) { <span id="@DescriptionId" class="hl-switch__description">@Description</span> }
+  @if (Error) { <span aria-hidden="true" class="hl-switch__error-indicator">!</span> }
+  @if (!string.IsNullOrWhiteSpace(Name)) { <input type="hidden" name="@Name" value="@(EffectiveChecked ? "on" : "off")" disabled="@ResolvedDisabled" /> }
+</span>
+
+@code {
+  [CascadingParameter] private FormFieldContextValue? FieldContext { get; set; }
+  [CascadingParameter] private HarborlineLocaleContext? LocaleContext { get; set; }
+  [Parameter] public bool? Checked { get; set; }
+  [Parameter] public bool DefaultChecked { get; set; }
+  [Parameter] public EventCallback<bool> CheckedChanged { get; set; }
+  [Parameter] public bool Value { get; set; }
+  [Parameter] public EventCallback<bool> ValueChanged { get; set; }
+  [Parameter] public bool IsOn { get; set; }
+  [Parameter] public EventCallback<bool> IsOnChanged { get; set; }
+  [Parameter] public bool? Disabled { get; set; }
+  [Parameter] public bool Enabled { get; set; } = true;
+  [Parameter] public string? Label { get; set; }
+  [Parameter] public string? AccessibleName { get; set; }
+  [Parameter] public string? Description { get; set; }
+  [Parameter] public string? OnText { get; set; }
+  [Parameter] public string? OffText { get; set; }
+  [Parameter] public string? OnLabel { get; set; }
+  [Parameter] public string? OffLabel { get; set; }
+  [Parameter] public SwitchSize Size { get; set; } = SwitchSize.Md;
+  [Parameter] public string? Id { get; set; }
+  [Parameter] public string? Name { get; set; }
+  [Parameter] public bool Error { get; set; }
+  [Parameter] public bool? Required { get; set; }
+  [Parameter] public string? Direction { get; set; }
+
+  private bool internalChecked;
+  private bool initialized;
+  private string InstanceId { get; } = $"hl-switch-{Guid.NewGuid():N}";
+  private string DescriptionId => $"{InstanceId}-description";
+  private string LocalLabelId => $"{InstanceId}-label";
+  private string ResolvedId => Id ?? FieldContext?.Id ?? InstanceId;
+  private bool EffectiveChecked => Checked ?? (IsOnChanged.HasDelegate ? IsOn : ValueChanged.HasDelegate ? Value : internalChecked);
+  private bool ResolvedDisabled => (Disabled ?? FieldContext?.Disabled ?? false) || !Enabled;
+  private bool ResolvedRequired => Required ?? FieldContext?.Required ?? false;
+  private string ResolvedDirection => Direction ?? LocaleContext?.Direction ?? "ltr";
+  private string ResolvedOnText => LocalizedText("forms.switch.on", OnText ?? OnLabel, "On");
+  private string ResolvedOffText => LocalizedText("forms.switch.off", OffText ?? OffLabel, "Off");
+
+  // Instance override, then catalog, then fallback. A catalog miss echoes the key back, so an
+  // echoed key counts as unresolved rather than as user-facing text.
+  private string LocalizedText(string key, string? instanceOverride, string fallback)
+  {
+    if (!string.IsNullOrWhiteSpace(instanceOverride)) return LocaleContext?.ResolveString(key, instanceOverride: instanceOverride) ?? instanceOverride;
+    var resolved = LocaleContext?.ResolveString(key);
+    return string.IsNullOrEmpty(resolved) || resolved == key ? fallback : resolved;
+  }
+  private string? LabelledBy => !string.IsNullOrWhiteSpace(Label) ? LocalLabelId : AccessibleName is null ? FieldContext?.LabelId : null;
+  private string? DescribedBy => string.Join(" ", new[]{FieldContext?.DescribedBy,!string.IsNullOrWhiteSpace(Description)?DescriptionId:null}.Where(value=>!string.IsNullOrWhiteSpace(value)));
+  private string SizeToken => Size switch { SwitchSize.Sm => "sm", SwitchSize.Lg => "lg", SwitchSize.Md => "md", _ => throw new InvalidOperationException("unsupported-switch-size") };
+
+  protected override void OnParametersSet()
+  {
+    if (!initialized) { internalChecked = DefaultChecked; initialized = true; }
+    if (string.IsNullOrWhiteSpace(Label) && string.IsNullOrWhiteSpace(AccessibleName) && string.IsNullOrWhiteSpace(FieldContext?.LabelId)) throw new InvalidOperationException("accessible-switch-label-required");
+  }
+
+  private async Task ToggleAsync()
+  {
+    if (ResolvedDisabled) return;
+    var next = !EffectiveChecked;
+    if (Checked is null && !ValueChanged.HasDelegate && !IsOnChanged.HasDelegate) internalChecked = next;
+    if (CheckedChanged.HasDelegate) await CheckedChanged.InvokeAsync(next);
+    else if (ValueChanged.HasDelegate) await ValueChanged.InvokeAsync(next);
+    else if (IsOnChanged.HasDelegate) await IsOnChanged.InvokeAsync(next);
+  }
+}

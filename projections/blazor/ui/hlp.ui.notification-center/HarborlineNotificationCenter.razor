@@ -1,0 +1,144 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Navigation
+@inherits HarborlineComponentBase
+@implements IAsyncDisposable
+@using Microsoft.JSInterop
+@using Harborline.UIAdapters.Blazor.Browser
+@using Harborline.UIAdapters.Blazor.Localization
+@inject IOutsidePointerObserver OutsidePointer
+@inject IJSRuntime JavaScript
+
+<div @ref="Root" class="@CombineClasses("hl-notification-center")" style="@CombineStyles()" dir="@(Direction ?? LocaleContext?.Direction)" @attributes="AdditionalAttributes">
+  <button @ref="Trigger" type="button" class="hl-notification-center__trigger @(CanShowRail ? null : "hl-notification-center__trigger--touch")"
+          aria-label="@BellLabel" aria-haspopup="dialog" aria-expanded="@open.ToString().ToLowerInvariant()" aria-controls="@DialogId"
+          data-hl-touch="@(!CanShowRail ? "true" : null)" @onclick="ToggleAsync">
+    <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M14 21h-4"/></svg>
+    @if (ShowNumericBadge) { <span aria-hidden="true" class="hl-notification-center__badge">@BadgeText</span> }
+    else if (ShowDot) { <span class="hl-notification-center__dot" aria-hidden="true"></span> }
+  </button>
+  @if (open)
+  {
+    <section @ref="Dialog" id="@DialogId" role="dialog" aria-modal="false" aria-label="@Labels.Title" class="hl-popover__content hl-notification-center__dialog" @onkeydown="HandleDialogKeyAsync">
+      <header class="hl-notification-center__header"><h2>@Labels.Title</h2>@if(UnreadCount > 0 && OnMarkAllRead.HasDelegate){<button type="button" @onclick="MarkAllReadAsync">@Labels.MarkAllRead</button>}</header>
+      @if (ResolvedGroups.Count > 1)
+      {
+        <div role="tablist" aria-label="@Labels.Title" class="hl-notification-center__tabs">
+          <button type="button" role="tab" aria-selected="@(activeKind is null ? "true" : "false")" @onclick="() => SetKind(null)">@Labels.All</button>
+          @foreach (var group in ResolvedGroups) { <button type="button" role="tab" aria-selected="@(activeKind == group.Kind ? "true" : "false")" @onclick="() => SetKind(group.Kind)">@group.Label</button> }
+        </div>
+      }
+      <div class="hl-notification-center__scroll">
+        @if (VisibleItems.Count == 0)
+        {
+          <p class="hl-notification-center__empty">@Labels.Empty</p>
+        }
+        else
+        {
+          <ul class="hl-notification-center__items">
+            @foreach (var item in VisibleItems)
+            {
+              <li class="hl-notification-center__item" data-hl-kind="@item.Kind" data-hl-read="@(item.Read ? "true" : null)">
+                <div class="hl-notification-center__item-copy">
+                  @if (!item.Read) { <span role="img" class="hl-notification-center__unread" aria-label="@Labels.Unread"></span> }
+                  <strong>@item.Title</strong>@if(item.Actor is not null){<span>@item.Actor</span>}@if(item.Body is not null){<p>@item.Body</p>}@if(item.Preview is not null){<code>@item.Preview</code>}<time>@item.Timestamp</time>
+                </div>
+                @if (item.Kind == "proposal")
+                {
+                  <div class="hl-notification-center__actions"><button type="button" disabled="@actionLatch" aria-label="@($"{Labels.Confirm}: {item.Title}")" @onclick="() => DecideAsync(item, true)">@Labels.Confirm</button><button type="button" disabled="@actionLatch" aria-label="@($"{Labels.Deny}: {item.Title}")" @onclick="() => DecideAsync(item, false)">@Labels.Deny</button></div>
+                }
+                else
+                {
+                  <div class="hl-notification-center__actions">@if(OnAction.HasDelegate){<button type="button" @onclick="() => OnAction.InvokeAsync(item)">@item.Title</button>}@if(OnDismiss.HasDelegate){<button type="button" class="hl-notification-center__dismiss" aria-label="@Labels.Dismiss(item.Title)" @onclick="() => OnDismiss.InvokeAsync(item)"><svg aria-hidden="true" fill="none" focusable="false" viewBox="0 0 16 16"><path d="M3 3l10 10M13 3 3 13"></path></svg></button>}</div>
+                }
+              </li>
+            }
+          </ul>
+        }
+      </div>
+      @if (ShowViewAll) { <footer><button type="button" @onclick="ViewAllAsync">@Labels.ViewAll</button></footer> }
+    </section>
+  }
+</div>
+
+@code {
+  [CascadingParameter] private HarborlineLocaleContext? LocaleContext { get; set; }
+  [Parameter, EditorRequired] public IReadOnlyList<NotificationCenterItem> Items { get; set; } = [];
+  [Parameter] public IReadOnlyList<NotificationGroup>? Groups { get; set; }
+  [Parameter] public EventCallback<NotificationCenterItem> OnConfirm { get; set; }
+  [Parameter] public EventCallback<NotificationCenterItem> OnDeny { get; set; }
+  [Parameter] public EventCallback<NotificationCenterItem> OnAction { get; set; }
+  [Parameter] public EventCallback OnMarkAllRead { get; set; }
+  [Parameter] public EventCallback<NotificationCenterItem> OnDismiss { get; set; }
+  [Parameter] public EventCallback OnViewAll { get; set; }
+  [Parameter] public int MaxVisible { get; set; } = 10;
+  [Parameter] public NotificationBadgeMode BadgeMode { get; set; } = NotificationBadgeMode.Unread;
+  [Parameter] public Func<int, string> FormatCount { get; set; } = count => count.ToString(System.Globalization.CultureInfo.InvariantCulture);
+  [Parameter] public Func<NotificationCounts, string>? GetBellLabel { get; set; }
+  [Parameter] public NotificationCenterLabels Labels { get; set; } = NotificationCenterLabels.English;
+  [Parameter] public bool CanShowRail { get; set; } = true;
+  [Parameter] public string? Direction { get; set; }
+
+  private bool open;
+  private bool actionLatch;
+  private bool focusDialog;
+  private bool focusTrigger;
+  private string? activeKind;
+  private string DialogId { get; } = $"hl-notifications-{Guid.NewGuid():N}";
+  private ElementReference Root, Trigger, Dialog;
+  private IOutsidePointerRegistration? outsideRegistration;
+  private IJSObjectReference? module;
+  private int UnreadCount => Items.Count(item => !item.Read);
+  private int PendingCount => Items.Count(item => item.Kind == "proposal");
+  private int OtherUnreadCount => Items.Count(item => item.Kind != "proposal" && !item.Read);
+  private bool ShowNumericBadge => BadgeMode == NotificationBadgeMode.Decisions ? PendingCount > 0 : UnreadCount > 0;
+  private bool ShowDot => BadgeMode == NotificationBadgeMode.Decisions && PendingCount == 0 && OtherUnreadCount > 0;
+  private int BadgeValue => BadgeMode == NotificationBadgeMode.Decisions ? PendingCount : UnreadCount;
+  private string BadgeText => BadgeValue > 99 ? $"{FormatCount(99)}+" : FormatCount(BadgeValue);
+  private string BellLabel => GetBellLabel?.Invoke(new(PendingCount, UnreadCount, BadgeMode)) ?? DefaultBellLabel();
+  private IReadOnlyList<NotificationGroup> ResolvedGroups => Groups ?? Items.Aggregate(new List<NotificationGroup>(), (groups, item) => { if (groups.All(group => group.Kind != item.Kind)) groups.Add(new(item.Kind, KindLabel(item.Kind))); return groups; });
+  private IReadOnlyList<NotificationCenterItem> FilteredItems => activeKind is null ? Items : Items.Where(item => item.Kind == activeKind).ToArray();
+  private IReadOnlyList<NotificationCenterItem> VisibleItems => FilteredItems.Take(MaxVisible).ToArray();
+  private bool ShowViewAll => OnViewAll.HasDelegate || FilteredItems.Count > MaxVisible;
+
+  protected override void OnParametersSet()
+  {
+    if (Items.GroupBy(item => item.Id, StringComparer.Ordinal).Any(group => group.Count() > 1)) throw new InvalidOperationException("duplicate-notification-id");
+    if (MaxVisible < 0) throw new InvalidOperationException("invalid-notification-limit");
+    if (string.IsNullOrWhiteSpace(BellLabel) || string.IsNullOrWhiteSpace(Labels.Title)) throw new InvalidOperationException("accessible-notification-label-required");
+  }
+
+  private string DefaultBellLabel()
+  {
+    if (BadgeMode == NotificationBadgeMode.Decisions)
+    {
+      if (PendingCount > 0) return $"{Labels.Title}, {FormatCount(PendingCount)} approval pending";
+      if (OtherUnreadCount > 0) return $"{Labels.Title}, {FormatCount(OtherUnreadCount)} unread";
+      return Labels.Title;
+    }
+    return UnreadCount > 0 ? $"{Labels.Title}, {FormatCount(UnreadCount)} unread" : Labels.Title;
+  }
+
+  private static string KindLabel(string kind) => kind.Length == 0 ? kind : char.ToUpperInvariant(kind[0]) + kind[1..];
+  private void SetKind(string? kind) => activeKind = kind;
+
+  private async Task ToggleAsync() { if (open) await CloseAsync(true); else await OpenAsync(); }
+  private async Task OpenAsync() { open = true; actionLatch = false; focusDialog = true; await InvokeAsync(StateHasChanged); }
+  private async Task CloseAsync(bool restoreFocus) { if (!open) return; open = false; actionLatch = false; if (outsideRegistration is not null) await outsideRegistration.DisposeAsync(); outsideRegistration = null; focusTrigger = restoreFocus; await InvokeAsync(StateHasChanged); }
+  private Task HandleDialogKeyAsync(KeyboardEventArgs args) => args.Key == "Escape" ? CloseAsync(true) : Task.CompletedTask;
+  private async Task DecideAsync(NotificationCenterItem item, bool confirm) { if (actionLatch) return; actionLatch = true; if (confirm) await OnConfirm.InvokeAsync(item); else await OnDeny.InvokeAsync(item); await CloseAsync(true); }
+  private async Task MarkAllReadAsync() => await OnMarkAllRead.InvokeAsync();
+  private async Task ViewAllAsync() { await OnViewAll.InvokeAsync(); await CloseAsync(true); }
+
+  protected override async Task OnAfterRenderAsync(bool firstRender)
+  {
+    if (firstRender) module = await JavaScript.InvokeAsync<IJSObjectReference>("import", "./_content/Harborline.UIAdapters.Blazor/notification-center.js");
+    if (open && outsideRegistration is null) outsideRegistration = await OutsidePointer.ObserveAsync([Root], _ => new ValueTask(CloseAsync(false)));
+    if (focusDialog) { focusDialog = false; await module!.InvokeVoidAsync("positionDialog", Trigger, Dialog); await module!.InvokeVoidAsync("focusFirst", Dialog); }
+    if (focusTrigger) { focusTrigger = false; await module!.InvokeVoidAsync("focus", Trigger); }
+  }
+
+  public async ValueTask DisposeAsync()
+  {
+    if (outsideRegistration is not null) await outsideRegistration.DisposeAsync();
+    if (module is not null) try { await module.DisposeAsync(); } catch (JSDisconnectedException) { }
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "react": ["../hlp.ui.button/node_modules/@types/react/index.d.ts"],
+      "react/jsx-runtime": ["../hlp.ui.button/node_modules/@types/react/jsx-runtime.d.ts"],
+      "@harborline-software/contracts/forms": ["../../../typescript/contracts/hlp.contracts.forms/dist/forms.d.ts"],
+      "@harborline-software/rule-engine": ["../../../typescript/foundation/hlp.foundation.rule-runtime/dist/index.d.ts"],
+      "@harborline-platform/hlp.ui.form-view": ["../hlp.ui.form-view/dist/index.d.ts"],
+      "@harborline-platform/hlp.ui.schema-form": ["../hlp.ui.schema-form/dist/index.d.ts"]
+    },
+    "types": []
+  },
+  "include": ["src/useFormRuleGraph.tsx", "src/index.ts"],
+  "exclude": ["src/__tests__", "src/test-setup.ts", "dist", "node_modules"]
+}

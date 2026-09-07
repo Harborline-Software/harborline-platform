@@ -1,0 +1,159 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.icon-button",
+  "sourceFixture": "conformance/hlp.ui.icon-button/fixtures.yaml",
+  "qualityFixture": "conformance/hlp.ui.icon-button/quality-fixtures.yaml",
+  "galleryInterface": {
+    "probeAttribute": "data-gallery-probe",
+    "scenarioAttribute": "data-gallery-scenario",
+    "projectionTitles": {
+      "react": "Platform/Icon Button",
+      "blazor": "Platform/Icon Button"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "icon-button.defaults",
+      "name": "Defaults",
+      "surface": "defaults",
+      "sourceCaseIds": [
+        "icon-button.invoke",
+        "icon-button.accessible-name",
+        "icon-button.form-type"
+      ],
+      "sourceQualityCaseIds": [
+        "icon-button.quality.name",
+        "icon-button.quality.touch",
+        "icon-button.quality.focus"
+      ],
+      "content": {
+        "blurb": "Accessible icon-only commands preserve native button behavior and hit geometry.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<IconButton aria-label=\"Add item\"><span aria-hidden=\"true\">+</span></IconButton>",
+            "blazor": "<HarborlineIconButton AccessibleName=\"Add item\"><Icon><span aria-hidden=\"true\">+</span></Icon></HarborlineIconButton>",
+            "rationale": "The icon-only button requires an icon child in React and a named Icon slot in Blazor; the closed descriptor vocabulary cannot encode that slot structure faithfully."
+          }
+        ],
+        "footer": []
+      },
+      "states": [
+        "default"
+      ]
+    },
+    {
+      "id": "icon-button.states",
+      "name": "States and sizes",
+      "surface": "states-sizes",
+      "sourceCaseIds": [
+        "icon-button.disabled-noop",
+        "icon-button.loading-noop",
+        "icon-button.variants",
+        "icon-button.sizes"
+      ],
+      "sourceQualityCaseIds": [
+        "icon-button.quality.busy",
+        "icon-button.quality.light-dark",
+        "icon-button.quality.reduced-motion"
+      ],
+      "content": {
+        "blurb": "Accessible icon-only commands preserve native button behavior and hit geometry.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<><IconButton aria-label=\"Default action\"><span aria-hidden=\"true\">+</span></IconButton><IconButton aria-label=\"Ghost action\" variant=\"ghost\" size=\"sm\"><span aria-hidden=\"true\">+</span></IconButton><IconButton aria-label=\"Outline action\" variant=\"outline\" size=\"lg\"><span aria-hidden=\"true\">+</span></IconButton><IconButton aria-label=\"Destructive action\" variant=\"destructive\" size=\"touch\"><span aria-hidden=\"true\">+</span></IconButton><IconButton aria-label=\"Loading action\" loading><span aria-hidden=\"true\">+</span></IconButton><IconButton aria-label=\"Disabled action\" disabled><span aria-hidden=\"true\">+</span></IconButton></>",
+            "blazor": "<HarborlineIconButton AccessibleName=\"Default action\"><Icon><span aria-hidden=\"true\">+</span></Icon></HarborlineIconButton><HarborlineIconButton AccessibleName=\"Ghost action\" Appearance=\"IconButtonAppearance.Ghost\" Size=\"IconButtonSize.Small\"><Icon><span aria-hidden=\"true\">+</span></Icon></HarborlineIconButton><HarborlineIconButton AccessibleName=\"Outline action\" Appearance=\"IconButtonAppearance.Outline\" Size=\"IconButtonSize.Large\"><Icon><span aria-hidden=\"true\">+</span></Icon></HarborlineIconButton><HarborlineIconButton AccessibleName=\"Destructive action\" Appearance=\"IconButtonAppearance.Destructive\" Size=\"IconButtonSize.Touch\"><Icon><span aria-hidden=\"true\">+</span></Icon></HarborlineIconButton><HarborlineIconButton AccessibleName=\"Loading action\" Loading><Icon><span aria-hidden=\"true\">+</span></Icon></HarborlineIconButton><HarborlineIconButton AccessibleName=\"Disabled action\" Disabled><Icon><span aria-hidden=\"true\">+</span></Icon></HarborlineIconButton>",
+            "rationale": "Each icon-only button requires an icon child in React and a named Icon slot in Blazor; the closed descriptor vocabulary cannot encode that slot structure faithfully."
+          }
+        ],
+        "footer": []
+      },
+      "states": [
+        "error"
+      ]
+    },
+    {
+      "id": "icon-button.rtl-theme",
+      "name": "RTL and theme",
+      "surface": "rtl-theme",
+      "sourceCaseIds": [
+        "icon-button.host-attributes",
+        "icon-button.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "icon-button.quality.localized-name",
+        "icon-button.quality.rtl",
+        "icon-button.quality.tokens",
+        "icon-button.quality.forced-colors",
+        "icon-button.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "Accessible icon-only commands preserve native button behavior and hit geometry.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "rtl",
+          "theme": "dark",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<IconButton aria-label=\"إضافة عنصر\"><span aria-hidden=\"true\">+</span></IconButton>",
+            "blazor": "<HarborlineIconButton AccessibleName=\"إضافة عنصر\"><Icon><span aria-hidden=\"true\">+</span></Icon></HarborlineIconButton>",
+            "rationale": "The icon-only button requires an icon child in React and a named Icon slot in Blazor; the closed descriptor vocabulary cannot encode that slot structure faithfully."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "icon-button.content",
+      "name": "Content resilience",
+      "surface": "long-content",
+      "sourceCaseIds": [
+        "icon-button.accessible-name",
+        "icon-button.variants"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "Icon-only commands carry accessible labels with an overlong action, the grouped number 1,284,905, escaped angle brackets and an ampersand, and a name with diacritics and an em dash.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<><IconButton aria-label=\"Awaiting third-party structural certification review\"><span aria-hidden=\"true\">+</span></IconButton><IconButton aria-label=\"1,284,905\"><span aria-hidden=\"true\">+</span></IconButton><IconButton aria-label=\"Bay 4 <grid C-7> & 8\"><span aria-hidden=\"true\">+</span></IconButton><IconButton aria-label=\"Ordnance Survey — Niño Ångström\"><span aria-hidden=\"true\">+</span></IconButton></>",
+            "blazor": "<HarborlineIconButton AccessibleName=\"Awaiting third-party structural certification review\"><Icon><span aria-hidden=\"true\">+</span></Icon></HarborlineIconButton><HarborlineIconButton AccessibleName=\"1,284,905\"><Icon><span aria-hidden=\"true\">+</span></Icon></HarborlineIconButton><HarborlineIconButton AccessibleName=\"Bay 4 <grid C-7> & 8\"><Icon><span aria-hidden=\"true\">+</span></Icon></HarborlineIconButton><HarborlineIconButton AccessibleName=\"Ordnance Survey — Niño Ångström\"><Icon><span aria-hidden=\"true\">+</span></Icon></HarborlineIconButton>",
+            "rationale": "The icon slots require raw projection markup while the accessible-name props carry the hostile-but-valid content equivalently."
+          }
+        ],
+        "footer": []
+      }
+    }
+  ]
+}

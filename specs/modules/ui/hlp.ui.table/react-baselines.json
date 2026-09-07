@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "projection": "react",
+  "moduleId": "hlp.ui.table",
+  "scenarios": [
+    {
+      "scenarioId": "table.semantic",
+      "sha256": "e5c1567277cd87a2fbf163838884720d549c79fbe0f7381d98dd2485eb1b257c",
+      "bytes": 11743,
+      "artifact": "../baselines/sha256/e5c1567277cd87a2fbf163838884720d549c79fbe0f7381d98dd2485eb1b257c.png"
+    },
+    {
+      "scenarioId": "table.density",
+      "sha256": "b6ac47a1b7445f0101cf60e7b95e9134121801f67604098d090638e01deb32e6",
+      "bytes": 11053,
+      "artifact": "../baselines/sha256/b6ac47a1b7445f0101cf60e7b95e9134121801f67604098d090638e01deb32e6.png"
+    },
+    {
+      "scenarioId": "table.reflow",
+      "sha256": "3b4ff443e8a4f1045aac4195563b491f14334bdf136d1f4af88e448310e1b50b",
+      "bytes": 12309,
+      "artifact": "../baselines/sha256/3b4ff443e8a4f1045aac4195563b491f14334bdf136d1f4af88e448310e1b50b.png"
+    },
+    {
+      "scenarioId": "table.theme",
+      "sha256": "603e0dc873dc734c42a7db3c789de575be145f7f3e11359bc3db6eeca9846cf2",
+      "bytes": 11750,
+      "artifact": "../baselines/sha256/603e0dc873dc734c42a7db3c789de575be145f7f3e11359bc3db6eeca9846cf2.png"
+    }
+  ]
+}

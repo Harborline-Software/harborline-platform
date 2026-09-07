@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.rail-labels",
+  "fixtureRevision": 1,
+  "cases": [
+    {"id": "rail-labels.complete-surface", "input": {"requiredMembers": 16, "exports": ["RailLabels", "defaultRailLabels"]}, "expected": {"requiredMembers": 16, "missing": [], "extraRuntimeOwners": 0}},
+    {"id": "rail-labels.static-defaults", "input": {}, "expected": {"lensesHeading": "Lenses", "outlineHeading": "Outline", "insert": "Insert", "locked": "Locked — inherited from a higher tier", "unresolvedSource": "source: unknown", "empty": "Add your first field — press ⌘K or the + above.", "collapseNode": "Collapse", "expandNode": "Expand", "railRegion": "Layers", "exitLens": "Exit lens (back to Layout)"}},
+    {"id": "rail-labels.toggle", "input": "Dependencies", "expected": "Toggle Dependencies lens"},
+    {"id": "rail-labels.activate", "input": "Validation", "expected": "Show Validation lens on the canvas"},
+    {"id": "rail-labels.passive-count", "input": 12, "expected": "+12"},
+    {"id": "rail-labels.source", "input": "tenant", "expected": "tenant"},
+    {"id": "rail-labels.viewing", "input": "Access", "expected": "Viewing: Access"},
+    {"id": "rail-labels.shortcut", "input": 3, "expected": "press 3"},
+    {"id": "rail-labels.host-override", "input": {"railRegion": "Capas", "toggleResult": "Alternar lente Seguridad"}, "expected": {"preserved": true, "defaultMerged": false}},
+    {"id": "rail-labels.unicode", "input": {"lens": "سلامة", "result": "عرض عدسة سلامة"}, "expected": {"bytePreserved": true, "directionInjected": false}},
+    {"id": "rail-labels.plain-text", "input": "<b>Layers</b>", "expected": {"value": "<b>Layers</b>", "htmlInterpreted": false}},
+    {"id": "rail-labels.projection-equivalence", "input": {"lens": "Cost", "count": 4, "shortcut": 2}, "expected": {"typescriptEqualsDotnet": true}}
+  ]
+}

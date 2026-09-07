@@ -1,0 +1,60 @@
+<section class="hl-gallery-scene" data-gallery-probe data-gallery-scenario="@ScenarioId" data-theme="@Theme" dir="@Direction">
+  <header class="hl-gallery-heading"><h2>@Copy.Title</h2><p>@Copy.Description</p></header>
+  <div class="hl-gallery-stage hl-gallery-feedback-grid">
+    <HarborlineLocaleProvider Locale="@Locale" Direction="@Direction">
+      @if (ScenarioId == "switch-field.content")
+      {
+        <HarborlineSwitchField Name="content-long" Checked="@md" CheckedChanged="@(next => md = next)" Label="@("Awaiting third-party structural certification review")" AccessibleName="@("Awaiting third-party structural certification review")" Description="@("Bay 4 <grid C-7> & 8")" OnText="@("1,284,905")" />
+        <HarborlineSwitchField Name="content-name" Checked="@sm" CheckedChanged="@(next => sm = next)" Label="@("Ordnance Survey — Niño Ångström")" AccessibleName="@("Ordnance Survey — Niño Ångström")" />
+      }
+      else if (IsTheme)
+      {
+        @SwitchFixture(SwitchSize.Sm, sm)
+        @SwitchFixture(SwitchSize.Md, md)
+        @SwitchFixture(SwitchSize.Lg, lg)
+      }
+      else
+      {
+        <HarborlineSwitchField Name="published" Checked="@md" CheckedChanged="@(next => md = next)" Label="@Label" Description="@Description"
+                             Error="@(ScenarioId == "switch-field.activation-states")" Required="@(ScenarioId == "switch-field.activation-states")" />
+      }
+    </HarborlineLocaleProvider>
+  </div>
+</section>
+
+@code {
+  [Parameter, EditorRequired] public string ScenarioId { get; set; } = "switch-field.controlled-form";
+  private bool sm;
+  private bool md = true;
+  private bool lg = true;
+  private bool IsArabic => ScenarioId == "switch-field.locale-ar";
+  private bool IsPseudo => ScenarioId == "switch-field.locale-pseudo";
+  private bool IsTheme => ScenarioId is "switch-field.theme-light" or "switch-field.theme-dark";
+  private string Locale => IsArabic ? "ar-SA" : IsPseudo ? "en-XA" : "en-US";
+  private string Direction => IsArabic ? "rtl" : "ltr";
+  private string Label => IsArabic ? "منشور" : IsPseudo ? "⟦ Þûɓļîšĥëđ šţåţë ······ ⟧" : "Published";
+  private string Description => IsArabic ? "مرئي للمستخدمين" : "Visible to workspace users";
+  private RenderFragment SwitchFixture(SwitchSize size, bool value) => builder =>
+  {
+    var token = size.ToString().ToLowerInvariant();
+    builder.OpenElement(0, "div"); builder.AddAttribute(1, "class", "hl-gallery-feedback-stack");
+    builder.OpenComponent<HarborlineSwitchField>(2); builder.AddAttribute(3, "Name", $"showArchived-{token}"); builder.AddAttribute(4, "Checked", value);
+    builder.AddAttribute(5, "CheckedChanged", EventCallback.Factory.Create<bool>(this, next => { if (size == SwitchSize.Sm) sm = next; else if (size == SwitchSize.Md) md = next; else lg = next; }));
+    builder.AddAttribute(6, "AccessibleName", $"Show archived structures · {token}"); builder.AddAttribute(7, "Label", $"Show archived structures · {token}");
+    builder.AddAttribute(8, "Description", "Include inactive records in search results"); builder.AddAttribute(9, "Size", size); builder.CloseComponent();
+    builder.OpenElement(10, "output"); builder.AddAttribute(11, "aria-live", "polite"); builder.AddContent(12, "Requests: 0"); builder.CloseElement(); builder.CloseElement();
+  };
+  private static readonly IReadOnlyDictionary<string, (string Title, string Description)> CopyByScenario = new Dictionary<string, (string, string)>
+  {
+    ["switch-field.controlled-form"] = ("Controlled form compatibility", "The deprecated field seam delegates controlled value, identity, labels, descriptions, and form metadata to Switch."),
+    ["switch-field.activation-states"] = ("Activation and validation states", "Pointer, Enter, and Space request one change while disabled state suppresses every request."),
+    ["switch-field.appearance-replacement"] = ("Appearance and replacement", "Canonical sizes and caller replacements remain visually and behaviorally equivalent to Switch."),
+    ["switch-field.locale-pseudo"] = ("Pseudo-localized compatibility", "Expanded label, description, and state copy reflow without creating adapter-specific chrome."),
+    ["switch-field.locale-ar"] = ("Arabic right-to-left switch", "Track, thumb, label, description, and state copy follow logical direction."),
+    ["switch-field.theme-light"] = ("Light theme", "The compatibility wrapper uses only authoritative Switch light-theme tokens."),
+    ["switch-field.theme-dark"] = ("Dark theme", "The same controlled compatibility seam on the Harborline dark surface."),
+    ["switch-field.content"] = ("Content resilience", "Two controlled switch fields carry hostile-but-valid labels, descriptions, and state copy."),
+  };
+  private (string Title, string Description) Copy => CopyByScenario[ScenarioId];
+  private string? Theme => ScenarioId switch { "switch-field.theme-light" => "light", "switch-field.theme-dark" => "dark", _ => null };
+}

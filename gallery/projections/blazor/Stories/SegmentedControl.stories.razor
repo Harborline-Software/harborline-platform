@@ -1,0 +1,23 @@
+@attribute [Stories("Platform/Segmented Control")]
+<Stories TComponent="SegmentedControlScenario">
+  @foreach (var scenario in Scenarios)
+  {
+    <Story Name="@scenario.Name"><Arguments><Arg For="_ => _.ScenarioId" Value="@scenario.Id" /></Arguments><Template><SegmentedControlScenario @attributes="context.Args" /></Template></Story>
+  }
+</Stories>
+
+@code {
+  private static readonly (string Id, string Name)[] Scenarios =
+  [
+    ("segmented-control.structure", "Radio structure and state"),
+    ("segmented-control.activation", "Activation and disabled options"),
+    ("segmented-control.keyboard", "Keyboard selection"),
+    ("segmented-control.sizing", "Sizes, touch, and full width"),
+    ("segmented-control.locale-en", "English locale"),
+    ("segmented-control.locale-pseudo", "Pseudo locale"),
+    ("segmented-control.locale-ar", "Arabic locale"),
+    ("segmented-control.theme-light", "Light theme"),
+    ("segmented-control.theme-dark", "Dark theme"),
+    ("segmented-control.content", "Content resilience"),
+  ];
+}

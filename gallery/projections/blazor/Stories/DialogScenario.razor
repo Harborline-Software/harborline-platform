@@ -1,0 +1,66 @@
+<section class="hl-gallery-scene" data-gallery-probe data-gallery-scenario="@ScenarioId" data-theme="@Theme" dir="@Direction">
+  <header class="hl-gallery-heading"><h2>@Copy.Title</h2><p>@Copy.Description</p></header>
+  <div class="hl-gallery-stage" style="max-inline-size:@(IsLong ? "360px" : "720px")">
+    <HarborlineLocaleProvider Locale="@Locale" Direction="@Direction">
+      <div class="hl-gallery-feedback-stack" style="min-block-size:420px">
+        <button type="button" @onclick="@(() => open = true)">Open structure dialog</button>
+        <output aria-live="polite">Open-change requests: @requests</output>
+        @if (ScenarioId == "dialog.content")
+        {
+          <HarborlineDialog Open="@open" OpenChanged="SetOpen" Title="@ContentTitle" Description="@ContentDescription" Theme="@Theme">
+            <ChildContent><p>1,284,905</p></ChildContent>
+            <Footer><button type="button">Ordnance Survey — Niño Ångström</button></Footer>
+          </HarborlineDialog>
+        }
+        else
+        {
+        <HarborlineDialog Open="@open" OpenChanged="SetOpen" Title="@DialogTitle" Description="@DialogDescription" Theme="@Theme"
+                        CloseIcon="@(!Independent)" CloseOnOverlayClick="@(!Independent)" CloseOnEscape="true">
+          <ChildContent>
+            <div class="hl-gallery-feedback-stack">
+              <label>Blueprint grid reference<input value="C-14" /></label>
+              <button type="button">Preview pose</button>
+              @if (IsLong) { @for (var index = 0; index < 18; index++) { <p>Inspection note @(index + 1): preserve alignment with the primary structural axis.</p> } }
+            </div>
+          </ChildContent>
+          <Footer>
+            <div class="hl-gallery-button-row"><button type="button" @onclick="@(() => SetOpen(false))">Cancel</button><button type="button" @onclick="@(() => SetOpen(false))">Save placement</button></div>
+          </Footer>
+        </HarborlineDialog>
+        }
+      </div>
+    </HarborlineLocaleProvider>
+  </div>
+</section>
+
+@code {
+  [Parameter, EditorRequired] public string ScenarioId { get; set; } = "dialog.lifecycle-content";
+  private bool open = true;
+  private int requests;
+  private bool IsArabic => ScenarioId == "dialog.locale-ar";
+  private bool IsPseudo => ScenarioId == "dialog.locale-pseudo";
+  private bool IsLong => ScenarioId == "dialog.scroll-reflow";
+  private bool Independent => ScenarioId == "dialog.independent-dismissal";
+  private const string ContentTitle = "Awaiting third-party structural certification review";
+  private const string ContentDescription = "Bay 4 <grid C-7> & 8";
+  private string Locale => IsArabic ? "ar-SA" : IsPseudo ? "en-XA" : "en-US";
+  private string Direction => IsArabic ? "rtl" : "ltr";
+  private string DialogTitle => IsArabic ? "تعديل موضع الالتقاط داخل الهيكل" : IsPseudo ? "⟦ Ëđîţ þhøţø-ŵîţh-þøšë þļåçëmëñţ ········ ⟧" : "Edit structure placement";
+  private string DialogDescription => IsArabic ? "راجع المخطط وموضع الصورة قبل الحفظ." : IsPseudo ? "⟦ Řëṽîëŵ ţhë ƀļûëþřîñţ åñđ çåþţûřëđ þøšë ƀëƒøřë šåṽîñĝ. ········ ⟧" : "Review the blueprint and captured pose before saving.";
+  private static readonly IReadOnlyDictionary<string, (string Title, string Description)> CopyByScenario = new Dictionary<string, (string, string)>
+  {
+    ["dialog.lifecycle-content"] = ("Controlled lifecycle and content", "Title, description, body, footer, and nested controls share one controlled modal lifecycle."),
+    ["dialog.dismissal-focus"] = ("Dismissal and focus lifecycle", "Close, Escape, and overlay dismissal each request closure once before focus returns to the opener."),
+    ["dialog.independent-dismissal"] = ("Independent dismissal controls", "The close button and overlay are suppressed while Escape remains independently enabled."),
+    ["dialog.scroll-reflow"] = ("Scrollable body and narrow reflow", "Pinned chrome surrounds one keyboard-scrollable body at narrow widths and 200 percent zoom."),
+    ["dialog.replacement"] = ("Complete controlled replacement", "Title, description, body, footer, and policy follow the latest caller revision."),
+    ["dialog.locale-pseudo"] = ("Pseudo-localized modal", "Expanded modal copy and close chrome wrap without clipping or hiding controls."),
+    ["dialog.locale-ar"] = ("Arabic right-to-left modal", "Direction, logical spacing, focus order, and localized close chrome mirror under Arabic."),
+    ["dialog.theme-light"] = ("Light theme", "Overlay, surface, boundary, text, controls, and focus use Harborline light tokens."),
+    ["dialog.theme-dark"] = ("Dark theme", "The same controlled modal surface on the Harborline dark theme."),
+    ["dialog.content"] = ("Content resilience", "Hostile-but-valid copy remains text across the dialog title, description, body, and footer."),
+  };
+  private (string Title, string Description) Copy => CopyByScenario[ScenarioId];
+  private void SetOpen(bool next) { requests++; open = next; }
+  private string Theme => ScenarioId == "dialog.theme-dark" ? "dark" : "light";
+}

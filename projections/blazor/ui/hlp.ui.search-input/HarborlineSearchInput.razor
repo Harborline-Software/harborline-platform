@@ -1,0 +1,100 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Forms
+@inherits HarborlineComponentBase
+@using Harborline.UIAdapters.Blazor.Localization
+
+<div class="@CombineClasses("hl-search-input")" style="@CombineStyles()" dir="@(Direction ?? LocaleContext?.Direction)" aria-busy="@(busy ? "true" : "false")" @attributes="AdditionalAttributes">
+  <svg aria-hidden="true" viewBox="0 0 20 20" class="hl-search-input__search"><circle cx="8" cy="8" r="5"/><path d="m12 12 5 5"/></svg>
+  <input type="search" role="searchbox" value="@draft" placeholder="@ResolvedPlaceholder" aria-label="@ResolvedAccessibleLabel"
+         class="hl-search-input__control" @oninput="HandleInputAsync" />
+  @if (draft.Length > 0)
+  {
+    <button type="button" class="hl-search-input__clear" aria-label="@ResolvedClearLabel" @onclick="ClearAsync"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="m5 5 10 10M15 5 5 15" /></svg></button>
+  }
+</div>
+
+@code {
+  [CascadingParameter] private HarborlineLocaleContext? LocaleContext { get; set; }
+  [Parameter] public string Value { get; set; } = string.Empty;
+  [Parameter] public EventCallback<string> ValueChanged { get; set; }
+  [Parameter] public int DebounceMs { get; set; } = 200;
+  [Parameter] public string? Placeholder { get; set; }
+  [Parameter] public string? AccessibleLabel { get; set; }
+  [Parameter] public string? ClearLabel { get; set; }
+  [Parameter] public string? Direction { get; set; }
+
+  private string draft = string.Empty;
+  private string? lastHostValue;
+  private bool busy;
+  private bool disposed;
+  private CancellationTokenSource? pending;
+  private string ResolvedPlaceholder => LocaleContext?.ResolveString("structural.search.placeholder", instanceOverride: Placeholder) ?? Placeholder ?? "Search…";
+  private string ResolvedAccessibleLabel => AccessibleLabel ?? ResolvedPlaceholder;
+  private string ResolvedClearLabel => LocaleContext?.ResolveString("structural.search.clear", instanceOverride: ClearLabel) ?? ClearLabel ?? "Clear search";
+
+  protected override void OnParametersSet()
+  {
+    if (DebounceMs < 0) throw new InvalidOperationException("invalid-debounce-delay");
+    if (!string.Equals(lastHostValue, Value, StringComparison.Ordinal))
+    {
+      CancelPending();
+      lastHostValue = Value;
+      draft = Value;
+      busy = false;
+    }
+  }
+
+  private Task HandleInputAsync(ChangeEventArgs args)
+  {
+    draft = args.Value?.ToString() ?? string.Empty;
+    CancelPending();
+    var debounce = new CancellationTokenSource();
+    pending = debounce;
+    busy = true;
+    _ = PublishAfterDelayAsync(draft, debounce);
+    return Task.CompletedTask;
+  }
+
+  private async Task PublishAfterDelayAsync(string value, CancellationTokenSource debounce)
+  {
+    try
+    {
+      await Task.Delay(DebounceMs, debounce.Token).ConfigureAwait(false);
+      await InvokeAsync(async () =>
+      {
+        if (disposed || debounce.IsCancellationRequested || !ReferenceEquals(pending, debounce)) return;
+        await ValueChanged.InvokeAsync(value);
+        if (disposed || debounce.IsCancellationRequested || !ReferenceEquals(pending, debounce)) return;
+        pending = null;
+        debounce.Dispose();
+        busy = false;
+        StateHasChanged();
+      });
+    }
+    catch (OperationCanceledException) when (debounce.IsCancellationRequested)
+    {
+    }
+  }
+
+  private async Task ClearAsync()
+  {
+    CancelPending();
+    draft = string.Empty;
+    busy = false;
+    await ValueChanged.InvokeAsync(string.Empty);
+  }
+
+  private void CancelPending()
+  {
+    if (pending is null) return;
+    pending.Cancel();
+    pending.Dispose();
+    pending = null;
+  }
+
+  protected override void Dispose(bool disposing)
+  {
+    disposed = true;
+    CancelPending();
+    base.Dispose(disposing);
+  }
+}

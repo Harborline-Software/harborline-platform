@@ -1,0 +1,135 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Layout
+@inherits HarborlineComponentBase
+
+@if (Items.Count == 0)
+{
+    <div class="@CombineClasses("hl-accordion")" style="@CombineStyles()" data-hl-type="@ModeName" @attributes="AdditionalAttributes">
+        <p class="hl-accordion__empty" data-hl-empty="true">@EmptyText</p>
+    </div>
+}
+else
+{
+<div class="@CombineClasses("hl-accordion")" style="@CombineStyles()" data-hl-type="@ModeName" @attributes="AdditionalAttributes">
+@for (var index = 0; index < Items.Count; index++)
+{
+    var item = Items[index];
+    var expanded = CurrentExpanded.Contains(item.Id);
+    var headerId = $"{_instanceId}-header-{index}";
+    var panelId = $"{_instanceId}-panel-{index}";
+    <div class="hl-accordion__item" data-hl-expanded="@expanded.ToString().ToLowerInvariant()">
+        <h3 class="hl-accordion__heading">
+        @if (_pendingFocusId == item.Id)
+        {
+            <button @ref="_pendingFocusElement" class="hl-accordion__trigger" type="button" disabled="@item.Disabled"
+                    id="@headerId" aria-expanded="@(expanded ? "true" : "false")" aria-controls="@panelId"
+                    @onclick="() => ToggleAsync(item)" @onkeydown="args => HandleKeyAsync(args, item.Id)">
+                <span class="hl-accordion__title">@item.Heading</span>
+                <svg aria-hidden="true" class="hl-accordion__chevron" fill="none" viewBox="0 0 16 16"><path d="m4 6 4 4 4-4" /></svg>
+            </button>
+        }
+        else
+        {
+            <button class="hl-accordion__trigger" type="button" disabled="@item.Disabled"
+                    id="@headerId" aria-expanded="@(expanded ? "true" : "false")" aria-controls="@panelId"
+                    @onclick="() => ToggleAsync(item)" @onkeydown="args => HandleKeyAsync(args, item.Id)">
+                <span class="hl-accordion__title">@item.Heading</span>
+                <svg aria-hidden="true" class="hl-accordion__chevron" fill="none" viewBox="0 0 16 16"><path d="m4 6 4 4 4-4" /></svg>
+            </button>
+        }
+        </h3>
+        <div class="hl-accordion__panel" id="@panelId" role="region" aria-labelledby="@headerId" hidden="@(!expanded)">
+            <div class="hl-accordion__content">@item.Content</div>
+        </div>
+    </div>
+}
+</div>
+}
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<HarborlineAccordionItem> Items { get; set; } = [];
+    [Parameter] public AccordionMode Mode { get; set; } = AccordionMode.Single;
+    [Parameter] public bool Collapsible { get; set; } = true;
+    [Parameter] public IReadOnlyList<string>? ExpandedValues { get; set; }
+    [Parameter] public IReadOnlyList<string>? DefaultExpandedValues { get; set; }
+    [Parameter] public EventCallback<IReadOnlyList<string>> ExpandedValuesChanged { get; set; }
+    // Sentence drawn when Items is empty, in place of a bordered box with nothing in it.
+    [Parameter] public string? Empty { get; set; }
+
+    private readonly string _instanceId = $"hl-accordion-{Guid.NewGuid():N}";
+    private HashSet<string> _localExpanded = new(StringComparer.Ordinal);
+    private bool _initialized;
+    private string? _pendingFocusId;
+    private ElementReference _pendingFocusElement;
+    private const string EmptyDefault = "No sections to show.";
+    private string EmptyText => string.IsNullOrWhiteSpace(Empty) ? EmptyDefault : Empty;
+    private string ModeName => Mode.ToString().ToLowerInvariant();
+    private IReadOnlySet<string> CurrentExpanded => ExpandedValues is null
+        ? _localExpanded
+        : new HashSet<string>(ExpandedValues, StringComparer.Ordinal);
+
+    protected override void OnParametersSet()
+    {
+        if (_initialized) return;
+        var valid = new HashSet<string>(Items.Where(item => !item.Disabled).Select(item => item.Id), StringComparer.Ordinal);
+        var defaults = (DefaultExpandedValues ?? []).Where(valid.Contains);
+        _localExpanded = new HashSet<string>(Mode == AccordionMode.Single ? defaults.Take(1) : defaults, StringComparer.Ordinal);
+        if (Mode == AccordionMode.Single && !Collapsible && _localExpanded.Count == 0)
+        {
+            var first = Items.FirstOrDefault(item => !item.Disabled)?.Id;
+            if (first is not null) _localExpanded.Add(first);
+        }
+        _initialized = true;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_pendingFocusId is null) return;
+        _pendingFocusId = null;
+        await _pendingFocusElement.FocusAsync();
+    }
+
+    private async Task ToggleAsync(HarborlineAccordionItem item)
+    {
+        if (item.Disabled) return;
+        var current = new HashSet<string>(CurrentExpanded, StringComparer.Ordinal);
+        if (Mode == AccordionMode.Single)
+        {
+            if (current.Contains(item.Id))
+            {
+                if (!Collapsible) return;
+                current.Clear();
+            }
+            else
+            {
+                current.Clear();
+                current.Add(item.Id);
+            }
+        }
+        else if (!current.Remove(item.Id)) current.Add(item.Id);
+
+        var next = Items.Where(candidate => current.Contains(candidate.Id)).Select(candidate => candidate.Id).ToArray();
+        if (ExpandedValues is null) _localExpanded = new HashSet<string>(next, StringComparer.Ordinal);
+        await ExpandedValuesChanged.InvokeAsync(next);
+    }
+
+    private Task HandleKeyAsync(KeyboardEventArgs args, string currentId)
+    {
+        var enabled = Items.Where(item => !item.Disabled).Select(item => item.Id).ToArray();
+        if (enabled.Length == 0) return Task.CompletedTask;
+        var current = Array.IndexOf(enabled, currentId);
+        var next = args.Key switch
+        {
+            "ArrowDown" => (current + 1 + enabled.Length) % enabled.Length,
+            "ArrowUp" => (current - 1 + enabled.Length) % enabled.Length,
+            "Home" => 0,
+            "End" => enabled.Length - 1,
+            _ => -1,
+        };
+        if (next >= 0)
+        {
+            _pendingFocusId = enabled[next];
+            StateHasChanged();
+        }
+        return Task.CompletedTask;
+    }
+}

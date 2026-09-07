@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.sheet",
+  "verdict": "approved",
+  "reviewer": "cic",
+  "recordedAt": "2026-08-27T05:32:33.893Z",
+  "notes": "needs polish as it doesn't look like the same design language",
+  "reference": {
+    "revision": "d0f877643a6fe458cd9d552bb679e27be59fbeca9d1e52c6ffea9ca2da2cc066",
+    "source": "gallery/scenarios/hlp.ui.sheet.json",
+    "pin": "e4c44eca8918b135e2dcd36060a8e8582d336f89",
+    "surface": {
+      "conformance/hlp.ui.sheet/fixtures.yaml": "4bfa14f7232e5f673beb9354d4d229fdfe44c38b47ba9fe7f3a41f07e2b9b9dd",
+      "conformance/hlp.ui.sheet/quality-fixtures.yaml": "12718fda89046138063ba2f0a315e82cd6f5481cfcf395f7e80146a91e7a21a6",
+      "gallery/projections/blazor/Stories/Sheet.stories.razor": "c51b9e648fb1c47d85b8437eb61907523494557581e48ed513010c238f8ff443",
+      "gallery/projections/blazor/Stories/SheetScenario.razor": "eb437a1a952b2827f0202966570c941c0ffb04dcbb9ef9a56330c06612bd1816",
+      "gallery/projections/react/src/Sheet.stories.tsx": "3f23d5144da0978c65937e5fa74890923c056785f9d2a8fa982724a40519a618",
+      "gallery/scenarios/hlp.ui.sheet.json": "4d48721c6c7720a23df95d4b455fa2ebf3be5cb97d6d43517bdf66758a255cb5",
+      "projections/blazor/ui/hlp.ui.sheet/SheetTypes.cs": "ecdb447f45e273bffae4e7c583256ad60b035f1ed06a3158806c7f57cd907832",
+      "projections/blazor/ui/hlp.ui.sheet/ShipyardSheet.razor": "c21deb4b2cde7650c0abe1ac75f6b14454cf7d8725d8db114a1454a8d39f4cc2",
+      "projections/blazor/ui/hlp.ui.sheet/ShipyardSheetClose.razor": "4d7f511f447e14ff1625dd54c961060bbcaeddad56a6dc79e7b54064037d60da",
+      "projections/blazor/ui/hlp.ui.sheet/ShipyardSheetContent.razor": "56aeb7e344934be31fae1c879ae2e3179ebfc72a9808c9fd47a2ccc92cfdb3ce",
+      "projections/blazor/ui/hlp.ui.sheet/ShipyardSheetDescription.razor": "0256e9fb981a22d9f7d7e3fa40c5f3707ebf94b1ed2544fab9bb286ef3aa4d7a",
+      "projections/blazor/ui/hlp.ui.sheet/ShipyardSheetFooter.razor": "355395defc2735e6dc1873d665eb0b3bbe412976a58772c4852fbeed5d8321f0",
+      "projections/blazor/ui/hlp.ui.sheet/ShipyardSheetHeader.razor": "10f41d18ce34c0444ba8fc83ba8f4967e1b6127ba52c9ab8a6ccb3b36dd05af3",
+      "projections/blazor/ui/hlp.ui.sheet/ShipyardSheetTitle.razor": "d855d9cf19ef3dad68bf9facfc506dacc1289a6c6456356e339d179e5378c11b",
+      "projections/blazor/ui/hlp.ui.sheet/ShipyardSheetTrigger.razor": "bf455ba31bab7060a18d42402887101b9bf4560d36bfd12ca7e2b2f3aa99bafa",
+      "projections/blazor/ui/hlp.ui.sheet/wwwroot/sheet.css": "c89143d41514c850888002f0bc73fc5e44383589c1b4d57f514c3d40e7edf1ef",
+      "projections/blazor/ui/hlp.ui.sheet/wwwroot/sheet.js": "e400e00cf75a72c927d24d42010462a4172753499e946532a4b08373bde77610",
+      "projections/react/ui/hlp.ui.sheet/src/Sheet.tsx": "3c69b549cb7e6cbff1ca3a627ac87f2c8a89a41f26de119aa730a04d41163687",
+      "projections/react/ui/hlp.ui.sheet/src/index.ts": "c704c05f64fe18e31973bb686cf7f2c77ffe53cf335e806d0b6fa6e5cf9d78bf",
+      "projections/react/ui/hlp.ui.sheet/src/style.css": "e58877470fdeb6c2eeb08f4e0b0e6d8ef07bf9cf66b2e8791cfbeacf2ba4d42d",
+      "specs/modules/ui/hlp.ui.sheet/scenarios.json": "4d48721c6c7720a23df95d4b455fa2ebf3be5cb97d6d43517bdf66758a255cb5",
+      "specs/modules/ui/hlp.ui.sheet/style.css": "e58877470fdeb6c2eeb08f4e0b0e6d8ef07bf9cf66b2e8791cfbeacf2ba4d42d"
+    }
+  }
+}

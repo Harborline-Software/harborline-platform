@@ -1,0 +1,101 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.loading-state",
+  "profileRevision": 1,
+  "riskTier": "A",
+  "fixture": "conformance/hlp.ui.loading-state/quality-fixtures.yaml",
+  "dimensions": {
+    "accessibility": {
+      "disposition": "required",
+      "caseIds": [
+        "loading-state.quality.status",
+        "loading-state.quality.live-region",
+        "loading-state.quality.visible-label",
+        "loading-state.quality.forced-colors",
+        "loading-state.quality.reflow-200"
+      ]
+    },
+    "internationalization": {
+      "disposition": "required",
+      "caseIds": [
+        "loading-state.quality.caller-label",
+        "loading-state.quality.locale-direction",
+        "loading-state.quality.rtl",
+        "loading-state.quality.pseudo-expansion",
+        "loading-state.quality.formatting-applicability"
+      ],
+      "localeSensitiveFormatting": {
+        "disposition": "not-applicable",
+        "rationale": "Loading State owns no dates, numbers, currencies, quantities, or lists; its label is caller-localized text."
+      }
+    },
+    "theming": {
+      "disposition": "required",
+      "caseIds": [
+        "loading-state.quality.theme-light",
+        "loading-state.quality.theme-dark",
+        "loading-state.quality.theme-states",
+        "loading-state.quality.theme-tokens",
+        "loading-state.quality.runtime-switch",
+        "loading-state.quality.contrast",
+        "loading-state.quality.reduced-motion",
+        "loading-state.quality.visual-parity"
+      ]
+    }
+  },
+  "componentStages": [
+    {
+      "id": "contract",
+      "dimensions": [
+        "accessibility",
+        "internationalization",
+        "theming"
+      ],
+      "gate": "profile and neutral fixture validation"
+    },
+    {
+      "id": "projection-native",
+      "dimensions": [
+        "accessibility",
+        "internationalization",
+        "theming"
+      ],
+      "gate": "public React and Blazor native tests"
+    },
+    {
+      "id": "package-consumer",
+      "dimensions": [
+        "accessibility",
+        "internationalization",
+        "theming"
+      ],
+      "gate": "packed npm and NuGet consumers"
+    },
+    {
+      "id": "gallery",
+      "dimensions": [
+        "accessibility",
+        "internationalization",
+        "theming"
+      ],
+      "gate": "Axe, browser behavior, themes, locales, motion, and visual parity"
+    },
+    {
+      "id": "clean-clone",
+      "dimensions": [
+        "accessibility",
+        "internationalization",
+        "theming"
+      ],
+      "gate": "complete repository gate from the recorded commit"
+    }
+  ],
+  "gates": {
+    "assertFocusQuality": {
+      "disposition": "not-applicable",
+      "rationale": "The catalog records this module as a non-interactive component, so it owns no focusable element and a focus ring would have nothing to attach to.",
+      "decidedBy": "Chris Wood",
+      "rule": "non-interactive-components-own-no-focus"
+    }
+  }
+}

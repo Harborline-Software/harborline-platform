@@ -1,0 +1,1947 @@
+{
+  "schemaVersion": 1,
+  "authority": {
+    "map": "scheduling-behavior-map.md (FROZEN)",
+    "shipyardCommit": "a5036ff8b500e0d857d7e0a698408e7cf7f6cf31"
+  },
+  "anchorSelection": {
+    "rule": "direct-port AND boundary in {caller-engine, renderer-engine}",
+    "derivedCount": 174,
+    "csharp": 163,
+    "typescript": 11,
+    "crossLanePairs": 0,
+    "note": "No actual cross-lane pair is identified by the frozen map; none is invented."
+  },
+  "anchors": [
+    {
+      "id": "anchor-001",
+      "case": "InMemoryRruleExpansionServiceTests.Expand_DailyFreq_ReturnsCorrectCount",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-002",
+      "case": "InMemoryRruleExpansionServiceTests.Expand_MonthlyInterval3_ReturnsQuarterly",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-003",
+      "case": "InMemoryRruleExpansionServiceTests.Expand_WeeklyInterval2_ReturnsBiweekly",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-004",
+      "case": "InMemoryRruleExpansionServiceTests.Expand_EndsOn_DoesNotExceedBound",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-005",
+      "case": "InMemoryRruleExpansionServiceTests.Expand_LeadDaysHonored_SkipsEarlyOccurrences",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-006",
+      "case": "InMemoryRruleExpansionServiceTests.Expand_MissingFreq_Throws",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-007",
+      "case": "InMemoryRruleExpansionServiceTests.Expand_EmptyRrule_Throws",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-008",
+      "case": "InMemoryRruleExpansionServiceTests.Expand_YearlyFreq_ReturnsAnnualOccurrences",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-009",
+      "case": "InMemoryRruleExpansionServiceTests.Expand_Monthly_ByMonthDay1_RentDueOnFirst",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-010",
+      "case": "InMemoryRruleExpansionServiceTests.Expand_Monthly_ByMonthDay1_AnchorOnFirst_IncludesAnchor",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-011",
+      "case": "InMemoryRruleExpansionServiceTests.Expand_Monthly_ByMonthDay15_ReturnsCorrectDays",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-012",
+      "case": "InMemoryRruleExpansionServiceTests.Expand_Weekly_ByDay_MoWeFr_ReturnsCorrectDays",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-013",
+      "case": "InMemoryRruleExpansionServiceTests.Expand_Monthly_ByDay_FirstMonday_CorrectDates",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-014",
+      "case": "InMemoryRruleExpansionServiceTests.Expand_Monthly_ByDay_LastFriday_CorrectDates",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-015",
+      "case": "InMemoryRruleExpansionServiceTests.Expand_Count_LimitsOccurrences",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-016",
+      "case": "InMemoryRruleExpansionServiceTests.Expand_Until_StopsAtBoundary",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-017",
+      "case": "InMemoryRruleExpansionServiceTests.Expand_Until_WinsOverCount_WhenBothPresent",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-018",
+      "case": "InMemoryRruleExpansionServiceTests.Expand_Yearly_ByMonth3_MarchOnly",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-019",
+      "case": "InMemoryRruleExpansionServiceTests.Expand_OccurrenceCap_NeverExceeds1000",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-020",
+      "case": "RruleDueQueueQueryServiceTests.Query_ExpandsOnlyActiveSchedules_AndDiffsCompletionHistory",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-021",
+      "case": "RruleDueQueueQueryServiceTests.Query_FrozenClock_OrdersMostOverdueFirst_ThenUpcomingByDueDate",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-022",
+      "case": "RruleDueQueueQueryServiceTests.Query_CompletionIdentityIncludesSubjectScheduleAndDueDate",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-023",
+      "case": "RruleDueQueueQueryServiceTests.Query_RespectsInclusiveWindowAndScheduleEnd",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-024",
+      "case": "RruleDueQueueQueryServiceTests.Query_RejectsAnInvertedWindow",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-025",
+      "case": "AvailabilityExpansionTests.RecurringWeekdayWindow_ExpandsToOneIntervalPerWeekday",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-026",
+      "case": "AvailabilityExpansionTests.SingleDayWindow_AppliesOnlyOnItsAnchorDate",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-027",
+      "case": "AvailabilityExpansionTests.ExceptionDate_SuppressesTheWindowOnThatDay",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-028",
+      "case": "AvailabilityExpansionTests.Window_KeepsWallClock_AcrossSpringForwardDst",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-029",
+      "case": "AvailabilityExpansionTests.NoWindows_YieldsNoIntervals",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-030",
+      "case": "AvailabilityExpansionTests.TwoNonAdjacentWindows_StayTwoIntervals",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-031",
+      "case": "AvailabilityExpansionTests.AvailabilityWindow_RejectsInvertedSpan",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-032",
+      "case": "BookingTests.Book_IntoAFreeSlot_Succeeds_AndCreatesABookableEvent",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-033",
+      "case": "BookingTests.Book_PersistsEvent_ThatReExpandsToTheSameUtcSlot",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-034",
+      "case": "BookingTests.Book_TwiceOnTheSameSlot_RejectsTheSecond_SlotConflict",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-035",
+      "case": "BookingTests.Book_OverlappingAnExistingBooking_RejectsSlotConflict",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-036",
+      "case": "BookingTests.Book_AdjacentToAnExistingBooking_Succeeds",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-037",
+      "case": "BookingTests.Book_AgainstABlockingLunch_RejectsSlotConflict",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-038",
+      "case": "BookingTests.Book_OutsideAvailabilityWindow_RejectsNoAvailability",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-039",
+      "case": "BookingTests.Book_WithNoAvailabilityRecord_RejectsNoAvailability",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-040",
+      "case": "BookingTests.Book_PartiallyOutsideAvailability_RejectsNoAvailability",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-041",
+      "case": "BookingTests.Book_InvertedSlot_RejectsSlotInverted",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-042",
+      "case": "BookingTests.Book_CarriesAContextRef_WhenScheduledAgainstIsGiven",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-043",
+      "case": "BookingTests.Book_OnASubscribedSharedHoliday_RejectsNoAvailability",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-044",
+      "case": "CalendarEventExpansionServiceTests.RecurringEvent_ExpandsToOccurrences",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-045",
+      "case": "CalendarEventExpansionServiceTests.SingleEvent_YieldsOneOccurrence_WhenInWindow",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-046",
+      "case": "CalendarEventExpansionServiceTests.MultiDaySingleEvent_StraddlingWindowStart_IsKept",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-047",
+      "case": "CalendarEventExpansionServiceTests.Exdate_CancelsOneOccurrence_ItDisappears",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-048",
+      "case": "CalendarEventExpansionServiceTests.RestoreOccurrence_UndoesExdate",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-049",
+      "case": "CalendarEventExpansionServiceTests.RecurrenceIdOverride_OverridesOneOccurrence_SeriesUnchanged",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-050",
+      "case": "CalendarEventExpansionServiceTests.Override_MovingOccurrenceIntoWindow_IsIncluded",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-051",
+      "case": "CalendarEventExpansionServiceTests.CancelledOverride_IsOmittedFromExpansion",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-052",
+      "case": "CalendarEventExpansionServiceTests.OverrideOnExdatedOccurrence_Throws",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-053",
+      "case": "CalendarEventExpansionServiceTests.EditThisAndFuture_UntilSplit_BoundsTheOldSeries",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-054",
+      "case": "CalendarEventExpansionServiceTests.ApplyUntil_StripsCount_AndReplacesPriorUntil",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-055",
+      "case": "CalendarEventExpansionServiceTests.EditMaster_AppliesToEveryNonOverriddenOccurrence",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-056",
+      "case": "CalendarEventExpansionServiceTests.CancelledWholeSeries_YieldsNothing",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-057",
+      "case": "CalendarEventExpansionServiceTests.CancelOccurrence_OnNonRecurringEvent_Throws",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-058",
+      "case": "CalendarEventExpansionServiceTests.Create_EndBeforeStart_Throws",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-059",
+      "case": "CalendarEventExpansionServiceTests.EditMaster_AnchorMove_WithExistingOverride_IsRejected_OverrideSurvives",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-060",
+      "case": "CalendarEventExpansionServiceTests.EditMaster_AnchorMove_WithExistingExdate_IsRejected",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-061",
+      "case": "CalendarEventExpansionServiceTests.EditMaster_SameAnchor_WithOverride_IsAllowed_AndPreservesOverride",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-062",
+      "case": "CalendarEventExpansionServiceTests.EditMaster_AnchorMove_AfterClearingOverrides_IsAllowed",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-063",
+      "case": "CalendarEventExpansionServiceTests.EndSeriesOn_PrunesZombieOverridePastTheUntilSplit",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-064",
+      "case": "CalendarEventExpansionServiceTests.EndSeriesOn_KeepsOccurrenceEditsWithinTheTruncatedRange",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-065",
+      "case": "CalendarEventInstantExpansionTests.TimedOccurrence_RoundTripsTimeOfDay_InUtc",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-066",
+      "case": "CalendarEventInstantExpansionTests.RecurringTimedEvent_ExpandsToTimedInstants",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-067",
+      "case": "CalendarEventInstantExpansionTests.Dst_SpringForward_RecurringNineAm_KeepsWallClock_UtcShiftsAnHour",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-068",
+      "case": "CalendarEventInstantExpansionTests.Dst_FallBack_RecurringNineAm_KeepsWallClock_UtcShiftsAnHour",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-069",
+      "case": "CalendarEventInstantExpansionTests.Dst_SpringForwardGap_InvalidLocalTime_SnapsForward_DoesNotThrow",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-070",
+      "case": "CalendarEventInstantExpansionTests.Override_RetimingOneOccurrence_AppliesInInstantExpansion",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-071",
+      "case": "CalendarEventInstantExpansionTests.Exdate_DropsOccurrence_InInstantExpansion",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-072",
+      "case": "CalendarEventInstantExpansionTests.CancelledWholeSeries_YieldsNoInstants",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-073",
+      "case": "CalendarEventInstantExpansionTests.AllDayEvent_DefaultsToMidnight_StillResolves",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-074",
+      "case": "CalendarEventInstantExpansionTests.Create_SingleDay_EndTimeBeforeStartTime_Throws",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-075",
+      "case": "CalendarLayersTests.SharedHoliday_ReducesFreeBusy_ForEverySubscribedResource",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-076",
+      "case": "CalendarLayersTests.SharedHoliday_DoesNotAffect_AnUnsubscribedResource",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-077",
+      "case": "CalendarLayersTests.PerResourceVacationSpan_RemovesAvailability_AcrossTheWholeSpan",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-078",
+      "case": "CalendarLayersTests.VacationSpan_RoundTripsThroughTheStore",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-079",
+      "case": "CalendarLayersTests.LayeredComposition_SharedHoliday_Plus_Vacation_Plus_Occupancy_AllReduceFree",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-080",
+      "case": "CalendarLayersTests.LayeredComposition_SharedHolidaySpan_OverlappingResourceVacation_IsIdempotentUnion",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-081",
+      "case": "CalendarLayersTests.SharedHoliday_AcrossDstBoundary_FiltersTheCorrectLocalDay_AndPreservesUtcInvariant",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-082",
+      "case": "CalendarLayersTests.PrivateAppointment_ShowsBusyToNonOwner_ButDetailOnlyToOwner",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-083",
+      "case": "CalendarLayersTests.AnonymousViewer_GetsRedactedPrivateDetail_PublicEventsAlwaysVisible",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-084",
+      "case": "CalendarLayersTests.GrantBackedVisibilityPolicy_WidensPrivateDetail_ToAnAuthorizedNonOwner",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-085",
+      "case": "CalendarLayersTests.SharedHolidayAndVacation_AreTenantIsolated",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-086",
+      "case": "CalendarLayersTests.Subscription_IsIdempotent_AndUnsubscribeRemovesIt",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-087",
+      "case": "CalendarLayersTests.SharedCalendar_RoundTripsThroughTheStore_WithItsExceptionSpans",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-088",
+      "case": "CalendarLayersTests.SharedHoliday_AppliesToAnAsset_AsWellAsAParty",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-089",
+      "case": "ContextQueryTests.EventsForContext_ReturnsOnlyEventsScheduledAgainstThatContext",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-090",
+      "case": "ContextQueryTests.EventsForContext_MatchesByValue_NotReference",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-091",
+      "case": "ContextQueryTests.EventsForContext_DistinguishesKind_SameValueDifferentKind",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-092",
+      "case": "ContextQueryTests.EventsForContext_ReturnsAllEventsAgainstAContext_TheCoverageSubstrate",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-093",
+      "case": "ContextQueryTests.EventsForContext_IsTenantScoped",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-094",
+      "case": "ContextQueryTests.EventsForContext_ExcludesEventsOutsideTheWindow",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-095",
+      "case": "ContextQueryTests.EventsForContext_ExcludesCancelledEvents",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-096",
+      "case": "FreeBusyTests.EmptyOccupancy_FreeSlotIsTheWholeAvailabilityWindow",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-097",
+      "case": "FreeBusyTests.BlockingLunch_RemovesTheSlot_SplittingFreeIntoMorningAndAfternoon",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-098",
+      "case": "FreeBusyTests.BookableAppointment_ConsumesAvailability",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-099",
+      "case": "FreeBusyTests.FreeBusy_SubtractsBothBookableAndBlocking",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-100",
+      "case": "FreeBusyTests.TentativeHold_AlsoCountsAsBusy",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-101",
+      "case": "FreeBusyTests.NoAvailability_YieldsNoFreeSlots_EvenWithNoOccupancy",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-102",
+      "case": "FreeBusyTests.CancelledEvent_DoesNotConsumeAvailability",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-103",
+      "case": "FreeBusyTests.FreeBusy_IsTenantScoped",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-104",
+      "case": "FreeBusyTests.FreeBusy_WorksForAnAssetResource",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-105",
+      "case": "InMemoryCalendarEventStoreTests.SaveThenGet_RoundTripsTemporalCore",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-106",
+      "case": "InMemoryCalendarEventStoreTests.SaveThenGet_RoundTripsExdatesAndOverrides",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-107",
+      "case": "InMemoryCalendarEventStoreTests.SaveThenGet_RoundTripsTimeOfDay",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-108",
+      "case": "InMemoryCalendarEventStoreTests.SaveThenGet_RoundTripsExplicitAllDayCivilDates",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-109",
+      "case": "InMemoryCalendarEventStoreTests.AllDayCreation_RejectsWallClockFields",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-110",
+      "case": "InMemoryCalendarEventStoreTests.SaveThenGet_RoundTripsOverrideTimeOfDay",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-111",
+      "case": "InMemoryCalendarEventStoreTests.Get_IsTenantScoped",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-112",
+      "case": "InMemoryCalendarEventStoreTests.List_ReturnsOnlyTenantEvents_OrderedByStart",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-113",
+      "case": "InMemoryCalendarEventStoreTests.Save_IsUpsert_AndPreservesLatestState",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-114",
+      "case": "InMemoryCalendarEventStoreTests.Remove_IsIdempotent",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-115",
+      "case": "OwnedCalendarStoreTests.CreateDefault_IsDefaultPersonalWithNameKey",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-116",
+      "case": "OwnedCalendarStoreTests.Create_ResourceKind_RequiresRef",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-117",
+      "case": "OwnedCalendarStoreTests.Create_NonResourceKind_RejectsRef",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-118",
+      "case": "OwnedCalendarStoreTests.Create_BlankName_Throws",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-119",
+      "case": "OwnedCalendarStoreTests.Save_Get_RoundTripsAllFields",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-120",
+      "case": "OwnedCalendarStoreTests.List_DefaultFirst",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-121",
+      "case": "OwnedCalendarStoreTests.Get_List_CrossTenantIsolated",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-122",
+      "case": "OwnedCalendarStoreTests.Remove_Idempotent",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-123",
+      "case": "OwnedCalendarStoreTests.Save_Upserts",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-124",
+      "case": "PaddingTests.OccupiedInterval_ExtendsTheVisibleInterval_ByPrePost",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-125",
+      "case": "PaddingTests.OccupiedInterval_WithNonePadding_EqualsTheVisibleInterval",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-126",
+      "case": "PaddingTests.EventPadding_NegativeDurations_AreRejected",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-127",
+      "case": "PaddingTests.FreeBusy_PaddedAppointment_BlocksBeyondItsVisibleSpan",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-128",
+      "case": "PaddingTests.FreeBusy_PrePadding_BlocksBeforeTheVisibleStart",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-129",
+      "case": "PaddingTests.Book_IntoThePostPadding_OfAnExistingAppt_IsRejected_SlotConflict",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-130",
+      "case": "PaddingTests.Book_RightAfterThePostPadding_Succeeds",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-131",
+      "case": "PaddingTests.Book_WhoseOwnPrePadding_OverlapsAnEarlierAppt_IsRejected",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-132",
+      "case": "PaddingTests.Book_PaddingPastClose_IsNotFalselyRejected_AsNoAvailabilityOrConflict",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-133",
+      "case": "PaddingTests.PaddingPolicy_ConfiguredDefault_IsAppliedAtBooking",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-134",
+      "case": "PaddingTests.PaddingPolicy_PerEventOverride_WinsOverTheDefault",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-135",
+      "case": "PaddingTests.PaddingPolicy_DefaultZero_IsBackwardCompatible_OccupiedEqualsVisible",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-136",
+      "case": "PaddingTests.SetPadding_PerEventOverride_UpdatesTheEnvelope",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-137",
+      "case": "PaddingTests.FreeBusy_PaddedRecurrence_AcrossSpringForward_StaysCorrectInUtc",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-138",
+      "case": "PaddingTests.OccupiedInterval_AcrossSpringForward_IsDifferencedInUtc_NotWallClock",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-139",
+      "case": "PaddingTests.CoverageTurnover_IncomingPrePadding_OverlapsOutgoingPostPadding",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-140",
+      "case": "PaddingTests.UnpaddedEvent_BehavesExactlyAsBefore_OccupiedEqualsVisible",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-141",
+      "case": "PaddingTests.EventStore_RoundTrips_PaddingEnvelope",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-142",
+      "case": "ParticipantCalendarViewTests.EventsFor_ReturnsOnlyEventsWhereParticipantParticipates",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-143",
+      "case": "ParticipantCalendarViewTests.EventsFor_FindsParticipantInAnyRole",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-144",
+      "case": "ParticipantCalendarViewTests.EventsFor_ExcludesEventsWithNoOccurrenceInWindow",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-145",
+      "case": "ParticipantCalendarViewTests.EventsFor_ExcludesCancelledEvent",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-146",
+      "case": "ParticipantCalendarViewTests.EventsFor_RecurringSeries_AppearsWhenItHasAnOccurrenceInWindow",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-147",
+      "case": "ParticipantCalendarViewTests.EventsFor_IsTenantScoped_NeverLeaksAcrossTenants",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-148",
+      "case": "ParticipantCalendarViewTests.EventsFor_EmptyWhenParticipantHasNoEvents",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-149",
+      "case": "ParticipantCalendarViewTests.EventsFor_OrdersByStartThenId",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-150",
+      "case": "ParticipantCalendarViewTests.EventsFor_RejectsInvertedWindow",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-151",
+      "case": "ScheduleReservationCoordinatorTests.ReserveAsync_HappyPath_AcquiresAndReleasesLease",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-152",
+      "case": "ScheduleReservationCoordinatorTests.ReserveAsync_AcquiresLeaseOnPrefixedResourceId",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-153",
+      "case": "ScheduleReservationCoordinatorTests.ReserveAsync_DuplicateReservationId_ReturnsPriorOutcome",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-154",
+      "case": "ScheduleReservationCoordinatorTests.ReserveAsync_InvertedSlot_RejectedWithoutLease",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-155",
+      "case": "ScheduleReservationCoordinatorTests.ReserveAsync_OverlappingSlot_RejectedAfterLease",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-156",
+      "case": "ScheduleReservationCoordinatorTests.ReserveAsync_AdjacentNonOverlappingSlots_BothSucceed",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-157",
+      "case": "ScheduleReservationCoordinatorTests.ReserveAsync_QuorumUnavailable_BlocksWrite_ReturnsRejection",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-158",
+      "case": "ScheduleReservationCoordinatorTests.Concurrent_Reservations_SameSlot_ExactlyOneWins",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-159",
+      "case": "ScheduleReservationCoordinatorTests.Concurrent_Reservations_DisjointResources_AllSucceed",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-160",
+      "case": "ScheduleReservationCoordinatorTests.CancelAsync_RemovesReservation_AcquiresAndReleasesLease",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-161",
+      "case": "ScheduleReservationCoordinatorTests.CancelAsync_QuorumUnavailable_ReturnsFalse_LeavesReservation",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-162",
+      "case": "ScheduleReservationCoordinatorTests.CancelAsync_UnknownReservation_ReturnsFalse_NoLeaseAttempt",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-163",
+      "case": "ScheduleReservationCoordinatorTests.ListForResource_ReturnsOrderedByStart",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-164",
+      "case": "fetchCalendarOccurrences > omits a resource lens for personal and team calendars",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-165",
+      "case": "calendarClient > gets free-busy and the owned calendar list",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-166",
+      "case": "calendarClient > gets legacy and owned-calendar occurrence windows",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-167",
+      "case": "calendarClient > posts a calendar and surfaces documented creation failures",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-168",
+      "case": "calendarClient > uses sample data only when activated and returns honest empty fallbacks otherwise",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-169",
+      "case": "CalendarPane > a Personal calendar fetches by calendar id and carries no free/busy panel",
+      "lane": "renderer-engine"
+    },
+    {
+      "id": "anchor-170",
+      "case": "CalendarPane > fetches the agenda + free/busy for a single checked resource calendar (read-only)",
+      "lane": "renderer-engine"
+    },
+    {
+      "id": "anchor-171",
+      "case": "CalendarPane > overlays occurrences from EVERY checked resource calendar, one fetch per calendar",
+      "lane": "renderer-engine"
+    },
+    {
+      "id": "anchor-172",
+      "case": "FrontOfficeRehearsal > loads the full protocol and refuses a DST gap before advisory success",
+      "lane": "renderer-engine"
+    },
+    {
+      "id": "anchor-173",
+      "case": "SchedulingHome editor loading > blocks saving when a booking-policy duration is outside the admitted range",
+      "lane": "renderer-engine"
+    },
+    {
+      "id": "anchor-174",
+      "case": "SimpleEventForm > shows a schedule conflict but permits an intentional blocking event",
+      "lane": "renderer-engine"
+    }
+  ],
+  "httpExpectations": [
+    {
+      "id": "host-01",
+      "pinnedCase": "CalendarAgendaFreeBusyParityTests.Agenda_Matches_FreeBusy_For_Recurring_And_ResourceRole_LocalDay",
+      "suite": "CalendarAgendaFreeBusyParityTests",
+      "boundary": "host-transport",
+      "method": "GET",
+      "path": "/api/local-node/calendar/_composition-proof",
+      "setup": "Pinned setup for CalendarAgendaFreeBusyParityTests.Agenda_Matches_FreeBusy_For_Recurring_And_ResourceRole_LocalDay; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 200,
+      "bodyShape": "{case,provedAtLoopback,durableTreatmentRequired}",
+      "proof": "Program.cs HostProofs[0]"
+    },
+    {
+      "id": "host-02",
+      "pinnedCase": "CalendarAgendaFreeBusyParityTests.Seeded_LA_Window_Resolves_To_Correct_Utc_Instants",
+      "suite": "CalendarAgendaFreeBusyParityTests",
+      "boundary": "host-transport",
+      "method": "GET",
+      "path": "/api/local-node/calendar/_composition-proof",
+      "setup": "Pinned setup for CalendarAgendaFreeBusyParityTests.Seeded_LA_Window_Resolves_To_Correct_Utc_Instants; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 200,
+      "bodyShape": "{case,provedAtLoopback,durableTreatmentRequired}",
+      "proof": "Program.cs HostProofs[1]"
+    },
+    {
+      "id": "host-03",
+      "pinnedCase": "CalendarCollectionRouteTests.List_Empty",
+      "suite": "CalendarCollectionRouteTests",
+      "boundary": "host-transport",
+      "method": "GET",
+      "path": "/api/local-node/calendars",
+      "setup": "Pinned setup for CalendarCollectionRouteTests.List_Empty; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 200,
+      "bodyShape": "{calendar|calendars[]}",
+      "proof": "Program.cs HostProofs[2]"
+    },
+    {
+      "id": "host-04",
+      "pinnedCase": "CalendarCollectionRouteTests.Create_Personal",
+      "suite": "CalendarCollectionRouteTests",
+      "boundary": "host-transport",
+      "method": "POST",
+      "path": "/api/local-node/calendars",
+      "setup": "Pinned setup for CalendarCollectionRouteTests.Create_Personal; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 201,
+      "bodyShape": "{calendar|calendars[]}",
+      "proof": "Program.cs HostProofs[3]"
+    },
+    {
+      "id": "host-05",
+      "pinnedCase": "CalendarCollectionRouteTests.Create_Resource_CarriesRef",
+      "suite": "CalendarCollectionRouteTests",
+      "boundary": "host-transport",
+      "method": "POST",
+      "path": "/api/local-node/calendars",
+      "setup": "Pinned setup for CalendarCollectionRouteTests.Create_Resource_CarriesRef; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 201,
+      "bodyShape": "{calendar|calendars[]}",
+      "proof": "Program.cs HostProofs[4]"
+    },
+    {
+      "id": "host-06",
+      "pinnedCase": "CalendarCollectionRouteTests.Create_DefaultsToPersonal",
+      "suite": "CalendarCollectionRouteTests",
+      "boundary": "host-transport",
+      "method": "POST",
+      "path": "/api/local-node/calendars",
+      "setup": "Pinned setup for CalendarCollectionRouteTests.Create_DefaultsToPersonal; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 201,
+      "bodyShape": "{calendar|calendars[]}",
+      "proof": "Program.cs HostProofs[5]"
+    },
+    {
+      "id": "host-07",
+      "pinnedCase": "CalendarCollectionRouteTests.Create_MissingName_400",
+      "suite": "CalendarCollectionRouteTests",
+      "boundary": "host-transport",
+      "method": "POST",
+      "path": "/api/local-node/calendars",
+      "setup": "Pinned setup for CalendarCollectionRouteTests.Create_MissingName_400; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 201,
+      "bodyShape": "{calendar|calendars[]}",
+      "proof": "Program.cs HostProofs[6]"
+    },
+    {
+      "id": "host-08",
+      "pinnedCase": "CalendarCollectionRouteTests.Create_UnknownKind_400",
+      "suite": "CalendarCollectionRouteTests",
+      "boundary": "host-transport",
+      "method": "POST",
+      "path": "/api/local-node/calendars",
+      "setup": "Pinned setup for CalendarCollectionRouteTests.Create_UnknownKind_400; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 404,
+      "bodyShape": "error{code,message}",
+      "proof": "Program.cs HostProofs[7]"
+    },
+    {
+      "id": "host-09",
+      "pinnedCase": "CalendarCollectionRouteTests.Create_ResourceWithoutRef_400",
+      "suite": "CalendarCollectionRouteTests",
+      "boundary": "host-transport",
+      "method": "POST",
+      "path": "/api/local-node/calendars",
+      "setup": "Pinned setup for CalendarCollectionRouteTests.Create_ResourceWithoutRef_400; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 201,
+      "bodyShape": "{calendar|calendars[]}",
+      "proof": "Program.cs HostProofs[8]"
+    },
+    {
+      "id": "host-10",
+      "pinnedCase": "CalendarCollectionRouteTests.CrossTenant_Isolated",
+      "suite": "CalendarCollectionRouteTests",
+      "boundary": "host-transport",
+      "method": "GET",
+      "path": "/api/local-node/calendars",
+      "setup": "Pinned setup for CalendarCollectionRouteTests.CrossTenant_Isolated; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 200,
+      "bodyShape": "{calendar|calendars[]}",
+      "proof": "Program.cs HostProofs[9]"
+    },
+    {
+      "id": "host-11",
+      "pinnedCase": "CalendarCollectionRouteTests.CallerAuth_Enforced_Rejects_Tokenless",
+      "suite": "CalendarCollectionRouteTests",
+      "boundary": "host-transport",
+      "method": "GET",
+      "path": "/api/local-node/calendars",
+      "setup": "Pinned setup for CalendarCollectionRouteTests.CallerAuth_Enforced_Rejects_Tokenless; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 400,
+      "bodyShape": "error{code,message}",
+      "proof": "Program.cs HostProofs[10]"
+    },
+    {
+      "id": "host-12",
+      "pinnedCase": "CalendarDevSeederTests.Gate_Development_Seeds",
+      "suite": "CalendarDevSeederTests",
+      "boundary": "none",
+      "method": "GET",
+      "path": "/api/local-node/calendar/_composition-proof",
+      "setup": "Pinned setup for CalendarDevSeederTests.Gate_Development_Seeds; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 200,
+      "bodyShape": "{case,provedAtLoopback,durableTreatmentRequired}",
+      "proof": "Program.cs HostProofs[11]"
+    },
+    {
+      "id": "host-13",
+      "pinnedCase": "CalendarDevSeederTests.Gate_Production_DoesNotSeed",
+      "suite": "CalendarDevSeederTests",
+      "boundary": "none",
+      "method": "GET",
+      "path": "/api/local-node/calendar/_composition-proof",
+      "setup": "Pinned setup for CalendarDevSeederTests.Gate_Production_DoesNotSeed; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 200,
+      "bodyShape": "{case,provedAtLoopback,durableTreatmentRequired}",
+      "proof": "Program.cs HostProofs[12]"
+    },
+    {
+      "id": "host-14",
+      "pinnedCase": "CalendarDevSeederTests.Gate_NonDevelopment_FailsSafeOff(\"Staging\")",
+      "suite": "CalendarDevSeederTests",
+      "boundary": "none",
+      "method": "GET",
+      "path": "/api/local-node/calendar/_composition-proof",
+      "setup": "Pinned setup for CalendarDevSeederTests.Gate_NonDevelopment_FailsSafeOff(\"Staging\"); tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 200,
+      "bodyShape": "{case,provedAtLoopback,durableTreatmentRequired}",
+      "proof": "Program.cs HostProofs[13]"
+    },
+    {
+      "id": "host-15",
+      "pinnedCase": "CalendarDevSeederTests.Gate_NonDevelopment_FailsSafeOff(\"\")",
+      "suite": "CalendarDevSeederTests",
+      "boundary": "none",
+      "method": "GET",
+      "path": "/api/local-node/calendar/_composition-proof",
+      "setup": "Pinned setup for CalendarDevSeederTests.Gate_NonDevelopment_FailsSafeOff(\"\"); tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 200,
+      "bodyShape": "{case,provedAtLoopback,durableTreatmentRequired}",
+      "proof": "Program.cs HostProofs[14]"
+    },
+    {
+      "id": "host-16",
+      "pinnedCase": "CalendarDevSeederTests.Gate_NonDevelopment_FailsSafeOff(\"anything-else\")",
+      "suite": "CalendarDevSeederTests",
+      "boundary": "none",
+      "method": "GET",
+      "path": "/api/local-node/calendar/_composition-proof",
+      "setup": "Pinned setup for CalendarDevSeederTests.Gate_NonDevelopment_FailsSafeOff(\"anything-else\"); tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 200,
+      "bodyShape": "{case,provedAtLoopback,durableTreatmentRequired}",
+      "proof": "Program.cs HostProofs[15]"
+    },
+    {
+      "id": "host-17",
+      "pinnedCase": "CalendarDevSeederTests.Gate_ExplicitTruthyFlag_OptsIn(\"SUNFISH_DEV_SEED\", \"1\")",
+      "suite": "CalendarDevSeederTests",
+      "boundary": "none",
+      "method": "GET",
+      "path": "/api/local-node/calendar/_composition-proof",
+      "setup": "Pinned setup for CalendarDevSeederTests.Gate_ExplicitTruthyFlag_OptsIn(\"SUNFISH_DEV_SEED\", \"1\"); tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 200,
+      "bodyShape": "{case,provedAtLoopback,durableTreatmentRequired}",
+      "proof": "Program.cs HostProofs[16]"
+    },
+    {
+      "id": "host-18",
+      "pinnedCase": "CalendarDevSeederTests.Gate_ExplicitTruthyFlag_OptsIn(\"SUNFISH_DEV_SEED\", \"true\")",
+      "suite": "CalendarDevSeederTests",
+      "boundary": "none",
+      "method": "GET",
+      "path": "/api/local-node/calendar/_composition-proof",
+      "setup": "Pinned setup for CalendarDevSeederTests.Gate_ExplicitTruthyFlag_OptsIn(\"SUNFISH_DEV_SEED\", \"true\"); tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 200,
+      "bodyShape": "{case,provedAtLoopback,durableTreatmentRequired}",
+      "proof": "Program.cs HostProofs[17]"
+    },
+    {
+      "id": "host-19",
+      "pinnedCase": "CalendarDevSeederTests.Gate_ExplicitTruthyFlag_OptsIn(\"HULL_DEV\", \"yes\")",
+      "suite": "CalendarDevSeederTests",
+      "boundary": "none",
+      "method": "GET",
+      "path": "/api/local-node/calendar/_composition-proof",
+      "setup": "Pinned setup for CalendarDevSeederTests.Gate_ExplicitTruthyFlag_OptsIn(\"HULL_DEV\", \"yes\"); tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 200,
+      "bodyShape": "{case,provedAtLoopback,durableTreatmentRequired}",
+      "proof": "Program.cs HostProofs[18]"
+    },
+    {
+      "id": "host-20",
+      "pinnedCase": "CalendarDevSeederTests.Gate_ExplicitTruthyFlag_OptsIn(\"HULL_DEV\", \"on\")",
+      "suite": "CalendarDevSeederTests",
+      "boundary": "none",
+      "method": "GET",
+      "path": "/api/local-node/calendar/_composition-proof",
+      "setup": "Pinned setup for CalendarDevSeederTests.Gate_ExplicitTruthyFlag_OptsIn(\"HULL_DEV\", \"on\"); tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 200,
+      "bodyShape": "{case,provedAtLoopback,durableTreatmentRequired}",
+      "proof": "Program.cs HostProofs[19]"
+    },
+    {
+      "id": "host-21",
+      "pinnedCase": "CalendarDevSeederTests.Gate_FalsyFlag_StaysClosed(\"0\")",
+      "suite": "CalendarDevSeederTests",
+      "boundary": "none",
+      "method": "GET",
+      "path": "/api/local-node/calendar/_composition-proof",
+      "setup": "Pinned setup for CalendarDevSeederTests.Gate_FalsyFlag_StaysClosed(\"0\"); tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 200,
+      "bodyShape": "{case,provedAtLoopback,durableTreatmentRequired}",
+      "proof": "Program.cs HostProofs[20]"
+    },
+    {
+      "id": "host-22",
+      "pinnedCase": "CalendarDevSeederTests.Gate_FalsyFlag_StaysClosed(\"false\")",
+      "suite": "CalendarDevSeederTests",
+      "boundary": "none",
+      "method": "GET",
+      "path": "/api/local-node/calendar/_composition-proof",
+      "setup": "Pinned setup for CalendarDevSeederTests.Gate_FalsyFlag_StaysClosed(\"false\"); tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 200,
+      "bodyShape": "{case,provedAtLoopback,durableTreatmentRequired}",
+      "proof": "Program.cs HostProofs[21]"
+    },
+    {
+      "id": "host-23",
+      "pinnedCase": "CalendarDevSeederTests.Gate_FalsyFlag_StaysClosed(\"maybe\")",
+      "suite": "CalendarDevSeederTests",
+      "boundary": "none",
+      "method": "GET",
+      "path": "/api/local-node/calendar/_composition-proof",
+      "setup": "Pinned setup for CalendarDevSeederTests.Gate_FalsyFlag_StaysClosed(\"maybe\"); tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 200,
+      "bodyShape": "{case,provedAtLoopback,durableTreatmentRequired}",
+      "proof": "Program.cs HostProofs[22]"
+    },
+    {
+      "id": "host-24",
+      "pinnedCase": "CalendarDevSeederTests.Gate_FalsyFlag_StaysClosed(\" \")",
+      "suite": "CalendarDevSeederTests",
+      "boundary": "none",
+      "method": "GET",
+      "path": "/api/local-node/calendar/_composition-proof",
+      "setup": "Pinned setup for CalendarDevSeederTests.Gate_FalsyFlag_StaysClosed(\" \"); tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 200,
+      "bodyShape": "{case,provedAtLoopback,durableTreatmentRequired}",
+      "proof": "Program.cs HostProofs[23]"
+    },
+    {
+      "id": "host-25",
+      "pinnedCase": "CalendarDevSeederTests.Seeder_Development_Seeds",
+      "suite": "CalendarDevSeederTests",
+      "boundary": "none",
+      "method": "GET",
+      "path": "/api/local-node/calendar/_composition-proof",
+      "setup": "Pinned setup for CalendarDevSeederTests.Seeder_Development_Seeds; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 200,
+      "bodyShape": "{case,provedAtLoopback,durableTreatmentRequired}",
+      "proof": "Program.cs HostProofs[24]"
+    },
+    {
+      "id": "host-26",
+      "pinnedCase": "CalendarDevSeederTests.Seeder_Production_SeedsNothing",
+      "suite": "CalendarDevSeederTests",
+      "boundary": "none",
+      "method": "GET",
+      "path": "/api/local-node/calendar/_composition-proof",
+      "setup": "Pinned setup for CalendarDevSeederTests.Seeder_Production_SeedsNothing; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 200,
+      "bodyShape": "{case,provedAtLoopback,durableTreatmentRequired}",
+      "proof": "Program.cs HostProofs[25]"
+    },
+    {
+      "id": "host-27",
+      "pinnedCase": "CalendarDevSeederTests.Seeder_IsIdempotent",
+      "suite": "CalendarDevSeederTests",
+      "boundary": "none",
+      "method": "GET",
+      "path": "/api/local-node/calendar/_composition-proof",
+      "setup": "Pinned setup for CalendarDevSeederTests.Seeder_IsIdempotent; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 200,
+      "bodyShape": "{case,provedAtLoopback,durableTreatmentRequired}",
+      "proof": "Program.cs HostProofs[26]"
+    },
+    {
+      "id": "host-28",
+      "pinnedCase": "CalendarDevSeederTests.Seeder_NoActiveTeam_SkipsGracefully",
+      "suite": "CalendarDevSeederTests",
+      "boundary": "none",
+      "method": "GET",
+      "path": "/api/local-node/calendar/_composition-proof",
+      "setup": "Pinned setup for CalendarDevSeederTests.Seeder_NoActiveTeam_SkipsGracefully; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 200,
+      "bodyShape": "{case,provedAtLoopback,durableTreatmentRequired}",
+      "proof": "Program.cs HostProofs[27]"
+    },
+    {
+      "id": "host-29",
+      "pinnedCase": "CalendarDevSeederTests.Seeder_StampsDefaultCalendarId",
+      "suite": "CalendarDevSeederTests",
+      "boundary": "none",
+      "method": "GET",
+      "path": "/api/local-node/calendar/_composition-proof",
+      "setup": "Pinned setup for CalendarDevSeederTests.Seeder_StampsDefaultCalendarId; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 200,
+      "bodyShape": "{case,provedAtLoopback,durableTreatmentRequired}",
+      "proof": "Program.cs HostProofs[28]"
+    },
+    {
+      "id": "host-30",
+      "pinnedCase": "CalendarDevSeederTests.CarrierRoute_Returns_SeededEvents",
+      "suite": "CalendarDevSeederTests",
+      "boundary": "none",
+      "method": "GET",
+      "path": "/api/local-node/calendar/_composition-proof",
+      "setup": "Pinned setup for CalendarDevSeederTests.CarrierRoute_Returns_SeededEvents; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 200,
+      "bodyShape": "{case,provedAtLoopback,durableTreatmentRequired}",
+      "proof": "Program.cs HostProofs[29]"
+    },
+    {
+      "id": "host-31",
+      "pinnedCase": "CalendarRouteTests.Agenda_Returns_UtcInstants",
+      "suite": "CalendarRouteTests",
+      "boundary": "host-transport",
+      "method": "GET",
+      "path": "/api/local-node/calendar/agenda",
+      "setup": "Pinned setup for CalendarRouteTests.Agenda_Returns_UtcInstants; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 200,
+      "bodyShape": "{occurrences[]}",
+      "proof": "Program.cs HostProofs[30]"
+    },
+    {
+      "id": "host-32",
+      "pinnedCase": "CalendarRouteTests.Agenda_UnknownResource_Empty",
+      "suite": "CalendarRouteTests",
+      "boundary": "host-transport",
+      "method": "GET",
+      "path": "/api/local-node/calendar/agenda",
+      "setup": "Pinned setup for CalendarRouteTests.Agenda_UnknownResource_Empty; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 200,
+      "bodyShape": "{occurrences[]}",
+      "proof": "Program.cs HostProofs[31]"
+    },
+    {
+      "id": "host-33",
+      "pinnedCase": "CalendarRouteTests.Agenda_PersonalCalendar_ReturnsOwnedOccurrences",
+      "suite": "CalendarRouteTests",
+      "boundary": "host-transport",
+      "method": "GET",
+      "path": "/api/local-node/calendar/agenda",
+      "setup": "Pinned setup for CalendarRouteTests.Agenda_PersonalCalendar_ReturnsOwnedOccurrences; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 200,
+      "bodyShape": "{occurrences[]}",
+      "proof": "Program.cs HostProofs[32]"
+    },
+    {
+      "id": "host-34",
+      "pinnedCase": "CalendarRouteTests.Agenda_UnknownCalendar_Empty",
+      "suite": "CalendarRouteTests",
+      "boundary": "host-transport",
+      "method": "GET",
+      "path": "/api/local-node/calendar/agenda",
+      "setup": "Pinned setup for CalendarRouteTests.Agenda_UnknownCalendar_Empty; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 200,
+      "bodyShape": "{occurrences[]}",
+      "proof": "Program.cs HostProofs[33]"
+    },
+    {
+      "id": "host-35",
+      "pinnedCase": "CalendarRouteTests.FreeBusy_Returns_FreeAndBusy",
+      "suite": "CalendarRouteTests",
+      "boundary": "host-transport",
+      "method": "GET",
+      "path": "/api/local-node/calendar/free-busy",
+      "setup": "Pinned setup for CalendarRouteTests.FreeBusy_Returns_FreeAndBusy; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 200,
+      "bodyShape": "{free[],busy[]}",
+      "proof": "Program.cs HostProofs[34]"
+    },
+    {
+      "id": "host-36",
+      "pinnedCase": "CalendarRouteTests.FreeBusy_NoAvailability_NoFreeSlots",
+      "suite": "CalendarRouteTests",
+      "boundary": "host-transport",
+      "method": "GET",
+      "path": "/api/local-node/calendar/free-busy",
+      "setup": "Pinned setup for CalendarRouteTests.FreeBusy_NoAvailability_NoFreeSlots; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 200,
+      "bodyShape": "{free[],busy[]}",
+      "proof": "Program.cs HostProofs[35]"
+    },
+    {
+      "id": "host-37",
+      "pinnedCase": "CalendarRouteTests.Tenant_IsServerSide_CrossTenantIsolated",
+      "suite": "CalendarRouteTests",
+      "boundary": "host-transport",
+      "method": "GET",
+      "path": "/api/local-node/calendar/agenda",
+      "setup": "Pinned setup for CalendarRouteTests.Tenant_IsServerSide_CrossTenantIsolated; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 200,
+      "bodyShape": "{occurrences[]}",
+      "proof": "Program.cs HostProofs[36]"
+    },
+    {
+      "id": "host-38",
+      "pinnedCase": "CalendarRouteTests.Validation_MalformedResource_400",
+      "suite": "CalendarRouteTests",
+      "boundary": "host-transport",
+      "method": "GET",
+      "path": "/api/local-node/calendar/agenda",
+      "setup": "Pinned setup for CalendarRouteTests.Validation_MalformedResource_400; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 400,
+      "bodyShape": "error{code,message}",
+      "proof": "Program.cs HostProofs[37]"
+    },
+    {
+      "id": "host-39",
+      "pinnedCase": "CalendarRouteTests.Validation_MissingWindow_400",
+      "suite": "CalendarRouteTests",
+      "boundary": "host-transport",
+      "method": "GET",
+      "path": "/api/local-node/calendar/agenda",
+      "setup": "Pinned setup for CalendarRouteTests.Validation_MissingWindow_400; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 400,
+      "bodyShape": "error{code,message}",
+      "proof": "Program.cs HostProofs[38]"
+    },
+    {
+      "id": "host-40",
+      "pinnedCase": "CalendarRouteTests.Validation_InvertedWindow_400",
+      "suite": "CalendarRouteTests",
+      "boundary": "host-transport",
+      "method": "GET",
+      "path": "/api/local-node/calendar/agenda",
+      "setup": "Pinned setup for CalendarRouteTests.Validation_InvertedWindow_400; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 400,
+      "bodyShape": "error{code,message}",
+      "proof": "Program.cs HostProofs[39]"
+    },
+    {
+      "id": "host-41",
+      "pinnedCase": "DefaultCalendarProvisioningServiceTests.Provisions_OneDefault",
+      "suite": "DefaultCalendarProvisioningServiceTests",
+      "boundary": "none",
+      "method": "GET",
+      "path": "/api/local-node/calendar/_composition-proof",
+      "setup": "Pinned setup for DefaultCalendarProvisioningServiceTests.Provisions_OneDefault; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 200,
+      "bodyShape": "{case,provedAtLoopback,durableTreatmentRequired}",
+      "proof": "Program.cs HostProofs[40]"
+    },
+    {
+      "id": "host-42",
+      "pinnedCase": "DefaultCalendarProvisioningServiceTests.Idempotent",
+      "suite": "DefaultCalendarProvisioningServiceTests",
+      "boundary": "none",
+      "method": "GET",
+      "path": "/api/local-node/calendar/_composition-proof",
+      "setup": "Pinned setup for DefaultCalendarProvisioningServiceTests.Idempotent; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 200,
+      "bodyShape": "{case,provedAtLoopback,durableTreatmentRequired}",
+      "proof": "Program.cs HostProofs[41]"
+    },
+    {
+      "id": "host-43",
+      "pinnedCase": "DefaultCalendarProvisioningServiceTests.DoesNotProvision_WhenCalendarsExist",
+      "suite": "DefaultCalendarProvisioningServiceTests",
+      "boundary": "none",
+      "method": "GET",
+      "path": "/api/local-node/calendar/_composition-proof",
+      "setup": "Pinned setup for DefaultCalendarProvisioningServiceTests.DoesNotProvision_WhenCalendarsExist; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 200,
+      "bodyShape": "{case,provedAtLoopback,durableTreatmentRequired}",
+      "proof": "Program.cs HostProofs[42]"
+    },
+    {
+      "id": "host-44",
+      "pinnedCase": "DefaultCalendarProvisioningServiceTests.NoActiveTeam_NoOp",
+      "suite": "DefaultCalendarProvisioningServiceTests",
+      "boundary": "none",
+      "method": "GET",
+      "path": "/api/local-node/calendar/_composition-proof",
+      "setup": "Pinned setup for DefaultCalendarProvisioningServiceTests.NoActiveTeam_NoOp; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 200,
+      "bodyShape": "{case,provedAtLoopback,durableTreatmentRequired}",
+      "proof": "Program.cs HostProofs[43]"
+    },
+    {
+      "id": "host-45",
+      "pinnedCase": "NodeEfCalendarCollectionStoreTests.Calendar_RoundTrips_AcrossContextReopen",
+      "suite": "NodeEfCalendarCollectionStoreTests",
+      "boundary": "caller-engine",
+      "method": "GET",
+      "path": "/api/local-node/calendar/_composition-proof",
+      "setup": "Pinned setup for NodeEfCalendarCollectionStoreTests.Calendar_RoundTrips_AcrossContextReopen; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 200,
+      "bodyShape": "{case,provedAtLoopback,durableTreatmentRequired}",
+      "proof": "Program.cs HostProofs[44]"
+    },
+    {
+      "id": "host-46",
+      "pinnedCase": "NodeEfCalendarCollectionStoreTests.Calendar_Survives_HostRestart",
+      "suite": "NodeEfCalendarCollectionStoreTests",
+      "boundary": "caller-engine",
+      "method": "GET",
+      "path": "/api/local-node/calendar/_composition-proof",
+      "setup": "Pinned setup for NodeEfCalendarCollectionStoreTests.Calendar_Survives_HostRestart; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 200,
+      "bodyShape": "{case,provedAtLoopback,durableTreatmentRequired}",
+      "proof": "Program.cs HostProofs[45]"
+    },
+    {
+      "id": "host-47",
+      "pinnedCase": "NodeEfCalendarCollectionStoreTests.Calendar_CrossTenantIsolated",
+      "suite": "NodeEfCalendarCollectionStoreTests",
+      "boundary": "caller-engine",
+      "method": "GET",
+      "path": "/api/local-node/calendar/_composition-proof",
+      "setup": "Pinned setup for NodeEfCalendarCollectionStoreTests.Calendar_CrossTenantIsolated; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 200,
+      "bodyShape": "{case,provedAtLoopback,durableTreatmentRequired}",
+      "proof": "Program.cs HostProofs[46]"
+    },
+    {
+      "id": "host-48",
+      "pinnedCase": "NodeEfCalendarCollectionStoreTests.Calendar_List_DefaultFirst",
+      "suite": "NodeEfCalendarCollectionStoreTests",
+      "boundary": "caller-engine",
+      "method": "GET",
+      "path": "/api/local-node/calendar/_composition-proof",
+      "setup": "Pinned setup for NodeEfCalendarCollectionStoreTests.Calendar_List_DefaultFirst; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 200,
+      "bodyShape": "{case,provedAtLoopback,durableTreatmentRequired}",
+      "proof": "Program.cs HostProofs[47]"
+    },
+    {
+      "id": "host-49",
+      "pinnedCase": "NodeEfCalendarCollectionStoreTests.CalendarRows_AreEncryptedAtRest",
+      "suite": "NodeEfCalendarCollectionStoreTests",
+      "boundary": "caller-engine",
+      "method": "GET",
+      "path": "/api/local-node/calendar/_composition-proof",
+      "setup": "Pinned setup for NodeEfCalendarCollectionStoreTests.CalendarRows_AreEncryptedAtRest; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 200,
+      "bodyShape": "{case,provedAtLoopback,durableTreatmentRequired}",
+      "proof": "Program.cs HostProofs[48]"
+    },
+    {
+      "id": "host-50",
+      "pinnedCase": "NodeEfCalendarCollectionStoreTests.CalendarsMigration_AppliesToExistingDb",
+      "suite": "NodeEfCalendarCollectionStoreTests",
+      "boundary": "caller-engine",
+      "method": "GET",
+      "path": "/api/local-node/calendar/_composition-proof",
+      "setup": "Pinned setup for NodeEfCalendarCollectionStoreTests.CalendarsMigration_AppliesToExistingDb; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 200,
+      "bodyShape": "{case,provedAtLoopback,durableTreatmentRequired}",
+      "proof": "Program.cs HostProofs[49]"
+    },
+    {
+      "id": "host-51",
+      "pinnedCase": "NodeEfCalendarStoreTests.CalendarEvent_RoundTrips_AcrossContextReopen",
+      "suite": "NodeEfCalendarStoreTests",
+      "boundary": "caller-engine",
+      "method": "GET",
+      "path": "/api/local-node/calendar/_composition-proof",
+      "setup": "Pinned setup for NodeEfCalendarStoreTests.CalendarEvent_RoundTrips_AcrossContextReopen; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 200,
+      "bodyShape": "{case,provedAtLoopback,durableTreatmentRequired}",
+      "proof": "Program.cs HostProofs[50]"
+    },
+    {
+      "id": "host-52",
+      "pinnedCase": "NodeEfCalendarStoreTests.CalendarEvent_Survives_HostRestart",
+      "suite": "NodeEfCalendarStoreTests",
+      "boundary": "caller-engine",
+      "method": "GET",
+      "path": "/api/local-node/calendar/_composition-proof",
+      "setup": "Pinned setup for NodeEfCalendarStoreTests.CalendarEvent_Survives_HostRestart; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 200,
+      "bodyShape": "{case,provedAtLoopback,durableTreatmentRequired}",
+      "proof": "Program.cs HostProofs[51]"
+    },
+    {
+      "id": "host-53",
+      "pinnedCase": "NodeEfCalendarStoreTests.CalendarEvent_Get_IsCrossTenantIsolated",
+      "suite": "NodeEfCalendarStoreTests",
+      "boundary": "caller-engine",
+      "method": "GET",
+      "path": "/api/local-node/calendar/_composition-proof",
+      "setup": "Pinned setup for NodeEfCalendarStoreTests.CalendarEvent_Get_IsCrossTenantIsolated; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 200,
+      "bodyShape": "{case,provedAtLoopback,durableTreatmentRequired}",
+      "proof": "Program.cs HostProofs[52]"
+    },
+    {
+      "id": "host-54",
+      "pinnedCase": "NodeEfCalendarStoreTests.CalendarEvent_ReSave_Replaces",
+      "suite": "NodeEfCalendarStoreTests",
+      "boundary": "caller-engine",
+      "method": "GET",
+      "path": "/api/local-node/calendar/_composition-proof",
+      "setup": "Pinned setup for NodeEfCalendarStoreTests.CalendarEvent_ReSave_Replaces; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 200,
+      "bodyShape": "{case,provedAtLoopback,durableTreatmentRequired}",
+      "proof": "Program.cs HostProofs[53]"
+    },
+    {
+      "id": "host-55",
+      "pinnedCase": "NodeEfCalendarStoreTests.ResourceAvailability_RoundTrips_AcrossContextReopen",
+      "suite": "NodeEfCalendarStoreTests",
+      "boundary": "caller-engine",
+      "method": "GET",
+      "path": "/api/local-node/calendar/_composition-proof",
+      "setup": "Pinned setup for NodeEfCalendarStoreTests.ResourceAvailability_RoundTrips_AcrossContextReopen; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 200,
+      "bodyShape": "{case,provedAtLoopback,durableTreatmentRequired}",
+      "proof": "Program.cs HostProofs[54]"
+    },
+    {
+      "id": "host-56",
+      "pinnedCase": "NodeEfCalendarStoreTests.Calendar_UsesDistinctMigrationsHistoryTable",
+      "suite": "NodeEfCalendarStoreTests",
+      "boundary": "caller-engine",
+      "method": "GET",
+      "path": "/api/local-node/calendar/_composition-proof",
+      "setup": "Pinned setup for NodeEfCalendarStoreTests.Calendar_UsesDistinctMigrationsHistoryTable; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 200,
+      "bodyShape": "{case,provedAtLoopback,durableTreatmentRequired}",
+      "proof": "Program.cs HostProofs[55]"
+    },
+    {
+      "id": "host-57",
+      "pinnedCase": "NodeEfCalendarStoreTests.CalendarRows_AreEncryptedAtRest",
+      "suite": "NodeEfCalendarStoreTests",
+      "boundary": "caller-engine",
+      "method": "GET",
+      "path": "/api/local-node/calendar/_composition-proof",
+      "setup": "Pinned setup for NodeEfCalendarStoreTests.CalendarRows_AreEncryptedAtRest; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 200,
+      "bodyShape": "{case,provedAtLoopback,durableTreatmentRequired}",
+      "proof": "Program.cs HostProofs[56]"
+    },
+    {
+      "id": "host-58",
+      "pinnedCase": "NodeSchedulingDraftStoreTests.Production_migration_creates_draft_and_audit_tables",
+      "suite": "NodeSchedulingDraftStoreTests",
+      "boundary": "caller-engine",
+      "method": "POST",
+      "path": "/api/local-node/scheduling/definitions/_persistence-proof",
+      "setup": "Pinned setup for NodeSchedulingDraftStoreTests.Production_migration_creates_draft_and_audit_tables; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 200,
+      "bodyShape": "{revision,auditCount,durableProofScope}",
+      "proof": "Program.cs HostProofs[57]"
+    },
+    {
+      "id": "host-59",
+      "pinnedCase": "NodeSchedulingDraftStoreTests.Save_survives_new_store_and_records_server_actor_audit",
+      "suite": "NodeSchedulingDraftStoreTests",
+      "boundary": "caller-engine",
+      "method": "POST",
+      "path": "/api/local-node/scheduling/definitions/_persistence-proof",
+      "setup": "Pinned setup for NodeSchedulingDraftStoreTests.Save_survives_new_store_and_records_server_actor_audit; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 200,
+      "bodyShape": "{revision,auditCount,durableProofScope}",
+      "proof": "Program.cs HostProofs[58]"
+    },
+    {
+      "id": "host-60",
+      "pinnedCase": "NodeSchedulingDraftStoreTests.Expected_revision_conflict_writes_neither_revision_nor_audit",
+      "suite": "NodeSchedulingDraftStoreTests",
+      "boundary": "caller-engine",
+      "method": "POST",
+      "path": "/api/local-node/scheduling/definitions/_persistence-proof",
+      "setup": "Pinned setup for NodeSchedulingDraftStoreTests.Expected_revision_conflict_writes_neither_revision_nor_audit; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 409,
+      "bodyShape": "{revision,auditCount,durableProofScope}",
+      "proof": "Program.cs HostProofs[59]"
+    },
+    {
+      "id": "host-61",
+      "pinnedCase": "NodeSchedulingDraftStoreTests.Invalid_by_validator_draft_can_save_and_validation_never_writes",
+      "suite": "NodeSchedulingDraftStoreTests",
+      "boundary": "caller-engine",
+      "method": "POST",
+      "path": "/api/local-node/scheduling/definitions/_persistence-proof",
+      "setup": "Pinned setup for NodeSchedulingDraftStoreTests.Invalid_by_validator_draft_can_save_and_validation_never_writes; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 200,
+      "bodyShape": "{revision,auditCount,durableProofScope}",
+      "proof": "Program.cs HostProofs[60]"
+    },
+    {
+      "id": "host-62",
+      "pinnedCase": "NodeSchedulingDraftStoreTests.Same_id_is_isolated_by_tenant_for_get_and_list",
+      "suite": "NodeSchedulingDraftStoreTests",
+      "boundary": "caller-engine",
+      "method": "POST",
+      "path": "/api/local-node/scheduling/definitions/_persistence-proof",
+      "setup": "Pinned setup for NodeSchedulingDraftStoreTests.Same_id_is_isolated_by_tenant_for_get_and_list; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 200,
+      "bodyShape": "{revision,auditCount,durableProofScope}",
+      "proof": "Program.cs HostProofs[61]"
+    },
+    {
+      "id": "host-63",
+      "pinnedCase": "SchedulingDefinitionRouteTests.Read_routes_require_scheduling_read_and_return_stable_denial",
+      "suite": "SchedulingDefinitionRouteTests",
+      "boundary": "host-transport",
+      "method": "GET",
+      "path": "/api/local-node/scheduling/definitions/definition-1",
+      "setup": "Pinned setup for SchedulingDefinitionRouteTests.Read_routes_require_scheduling_read_and_return_stable_denial; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 403,
+      "bodyShape": "error{code,message,issues?}",
+      "proof": "Program.cs HostProofs[62]"
+    },
+    {
+      "id": "host-64",
+      "pinnedCase": "SchedulingDefinitionRouteTests.Author_routes_require_scheduling_author_and_return_stable_denial",
+      "suite": "SchedulingDefinitionRouteTests",
+      "boundary": "host-transport",
+      "method": "POST",
+      "path": "/api/local-node/scheduling/definitions/definition-1",
+      "setup": "Pinned setup for SchedulingDefinitionRouteTests.Author_routes_require_scheduling_author_and_return_stable_denial; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 403,
+      "bodyShape": "error{code,message,issues?}",
+      "proof": "Program.cs HostProofs[63]"
+    },
+    {
+      "id": "host-65",
+      "pinnedCase": "SchedulingDefinitionRouteTests.Author_can_save_and_reader_receives_the_document_and_list_summary_shape",
+      "suite": "SchedulingDefinitionRouteTests",
+      "boundary": "host-transport",
+      "method": "POST",
+      "path": "/api/local-node/scheduling/definitions/definition-1",
+      "setup": "Pinned setup for SchedulingDefinitionRouteTests.Author_can_save_and_reader_receives_the_document_and_list_summary_shape; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 200,
+      "bodyShape": "{definition|definitions|issues,audit?}",
+      "proof": "Program.cs HostProofs[64]"
+    },
+    {
+      "id": "host-66",
+      "pinnedCase": "SchedulingDefinitionRouteTests.Permission_narrowing_and_revocation_deny_the_next_mutation",
+      "suite": "SchedulingDefinitionRouteTests",
+      "boundary": "host-transport",
+      "method": "POST",
+      "path": "/api/local-node/scheduling/definitions/definition-1",
+      "setup": "Pinned setup for SchedulingDefinitionRouteTests.Permission_narrowing_and_revocation_deny_the_next_mutation; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 403,
+      "bodyShape": "error{code,message,issues?}",
+      "proof": "Program.cs HostProofs[65]"
+    },
+    {
+      "id": "host-67",
+      "pinnedCase": "SchedulingDefinitionRouteTests.Tenant_and_actor_are_server_derived_and_observable_in_audit",
+      "suite": "SchedulingDefinitionRouteTests",
+      "boundary": "host-transport",
+      "method": "GET",
+      "path": "/api/local-node/scheduling/definitions/definition-1",
+      "setup": "Pinned setup for SchedulingDefinitionRouteTests.Tenant_and_actor_are_server_derived_and_observable_in_audit; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 200,
+      "bodyShape": "{definition|definitions|issues,audit?}",
+      "proof": "Program.cs HostProofs[66]"
+    },
+    {
+      "id": "host-68",
+      "pinnedCase": "SchedulingDefinitionRouteTests.Missing_definition_returns_stable_404_code",
+      "suite": "SchedulingDefinitionRouteTests",
+      "boundary": "host-transport",
+      "method": "GET",
+      "path": "/api/local-node/scheduling/definitions/definition-1",
+      "setup": "Pinned setup for SchedulingDefinitionRouteTests.Missing_definition_returns_stable_404_code; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 404,
+      "bodyShape": "error{code,message,issues?}",
+      "proof": "Program.cs HostProofs[67]"
+    },
+    {
+      "id": "host-69",
+      "pinnedCase": "SchedulingDefinitionRouteTests.Stale_revision_returns_stable_409_and_does_not_mutate",
+      "suite": "SchedulingDefinitionRouteTests",
+      "boundary": "host-transport",
+      "method": "GET",
+      "path": "/api/local-node/scheduling/definitions/definition-1",
+      "setup": "Pinned setup for SchedulingDefinitionRouteTests.Stale_revision_returns_stable_409_and_does_not_mutate; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 409,
+      "bodyShape": "error{code,message,issues?}",
+      "proof": "Program.cs HostProofs[68]"
+    },
+    {
+      "id": "host-70",
+      "pinnedCase": "SchedulingDefinitionRouteTests.Invalid_definition_shape_returns_stable_400_and_does_not_mutate",
+      "suite": "SchedulingDefinitionRouteTests",
+      "boundary": "host-transport",
+      "method": "GET",
+      "path": "/api/local-node/scheduling/definitions/definition-1",
+      "setup": "Pinned setup for SchedulingDefinitionRouteTests.Invalid_definition_shape_returns_stable_400_and_does_not_mutate; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 400,
+      "bodyShape": "error{code,message,issues?}",
+      "proof": "Program.cs HostProofs[69]"
+    },
+    {
+      "id": "host-71",
+      "pinnedCase": "SchedulingDefinitionRouteTests.Validate_reports_issues_without_writing_draft_or_audit",
+      "suite": "SchedulingDefinitionRouteTests",
+      "boundary": "host-transport",
+      "method": "POST",
+      "path": "/api/local-node/scheduling/definitions/definition-1/validate",
+      "setup": "Pinned setup for SchedulingDefinitionRouteTests.Validate_reports_issues_without_writing_draft_or_audit; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 200,
+      "bodyShape": "{definition|definitions|issues,audit?}",
+      "proof": "Program.cs HostProofs[70]"
+    },
+    {
+      "id": "host-72",
+      "pinnedCase": "SchedulingDefinitionRouteTests.Validate_rejects_negative_or_oversized_appointment_policy_durations",
+      "suite": "SchedulingDefinitionRouteTests",
+      "boundary": "host-transport",
+      "method": "POST",
+      "path": "/api/local-node/scheduling/definitions/definition-1/validate",
+      "setup": "Pinned setup for SchedulingDefinitionRouteTests.Validate_rejects_negative_or_oversized_appointment_policy_durations; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 400,
+      "bodyShape": "error{code,message,issues?}",
+      "proof": "Program.cs HostProofs[71]"
+    },
+    {
+      "id": "host-73",
+      "pinnedCase": "SchedulingDefinitionRouteTests.Subject_picker_requires_scheduling_operate",
+      "suite": "SchedulingDefinitionRouteTests",
+      "boundary": "host-transport",
+      "method": "GET",
+      "path": "/api/local-node/scheduling/definitions/definition-1",
+      "setup": "Pinned setup for SchedulingDefinitionRouteTests.Subject_picker_requires_scheduling_operate; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 200,
+      "bodyShape": "{definition|definitions|issues,audit?}",
+      "proof": "Program.cs HostProofs[72]"
+    },
+    {
+      "id": "host-74",
+      "pinnedCase": "SchedulingDefinitionRouteTests.Subject_picker_with_operate_returns_minimum_wire_shape",
+      "suite": "SchedulingDefinitionRouteTests",
+      "boundary": "host-transport",
+      "method": "GET",
+      "path": "/api/local-node/scheduling/definitions/definition-1",
+      "setup": "Pinned setup for SchedulingDefinitionRouteTests.Subject_picker_with_operate_returns_minimum_wire_shape; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 200,
+      "bodyShape": "{definition|definitions|issues,audit?}",
+      "proof": "Program.cs HostProofs[73]"
+    },
+    {
+      "id": "host-75",
+      "pinnedCase": "SchedulingDefinitionRouteTests.Appointment_booking_requires_scheduling_operate",
+      "suite": "SchedulingDefinitionRouteTests",
+      "boundary": "host-transport",
+      "method": "GET",
+      "path": "/api/local-node/scheduling/definitions/definition-1",
+      "setup": "Pinned setup for SchedulingDefinitionRouteTests.Appointment_booking_requires_scheduling_operate; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 200,
+      "bodyShape": "{definition|definitions|issues,audit?}",
+      "proof": "Program.cs HostProofs[74]"
+    },
+    {
+      "id": "host-76",
+      "pinnedCase": "SchedulingDefinitionRouteTests.Appointment_booking_rejects_an_invalid_resource_without_writing",
+      "suite": "SchedulingDefinitionRouteTests",
+      "boundary": "host-transport",
+      "method": "GET",
+      "path": "/api/local-node/scheduling/definitions/definition-1",
+      "setup": "Pinned setup for SchedulingDefinitionRouteTests.Appointment_booking_rejects_an_invalid_resource_without_writing; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 400,
+      "bodyShape": "error{code,message,issues?}",
+      "proof": "Program.cs HostProofs[75]"
+    },
+    {
+      "id": "host-77",
+      "pinnedCase": "SchedulingDefinitionRouteTests.All_day_event_persists_explicit_civil_dates_across_dst_boundary",
+      "suite": "SchedulingDefinitionRouteTests",
+      "boundary": "host-transport",
+      "method": "POST",
+      "path": "/api/local-node/scheduling/definitions/definition-1",
+      "setup": "Pinned setup for SchedulingDefinitionRouteTests.All_day_event_persists_explicit_civil_dates_across_dst_boundary; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 400,
+      "bodyShape": "error{code,message,issues?}",
+      "proof": "Program.cs HostProofs[76]"
+    },
+    {
+      "id": "host-78",
+      "pinnedCase": "SchedulingDefinitionRouteTests.All_day_event_rejects_time_bearing_fields_without_writing",
+      "suite": "SchedulingDefinitionRouteTests",
+      "boundary": "host-transport",
+      "method": "POST",
+      "path": "/api/local-node/scheduling/definitions/definition-1",
+      "setup": "Pinned setup for SchedulingDefinitionRouteTests.All_day_event_rejects_time_bearing_fields_without_writing; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 400,
+      "bodyShape": "error{code,message,issues?}",
+      "proof": "Program.cs HostProofs[77]"
+    },
+    {
+      "id": "host-79",
+      "pinnedCase": "SchedulingDefinitionRouteTests.All_day_event_rejects_timestamp_shaped_civil_date_without_writing",
+      "suite": "SchedulingDefinitionRouteTests",
+      "boundary": "host-transport",
+      "method": "POST",
+      "path": "/api/local-node/scheduling/definitions/definition-1",
+      "setup": "Pinned setup for SchedulingDefinitionRouteTests.All_day_event_rejects_timestamp_shaped_civil_date_without_writing; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 400,
+      "bodyShape": "error{code,message,issues?}",
+      "proof": "Program.cs HostProofs[78]"
+    },
+    {
+      "id": "host-80",
+      "pinnedCase": "SchedulingDefinitionRouteTests.Timed_event_remains_explicitly_not_all_day",
+      "suite": "SchedulingDefinitionRouteTests",
+      "boundary": "host-transport",
+      "method": "POST",
+      "path": "/api/local-node/scheduling/definitions/definition-1",
+      "setup": "Pinned setup for SchedulingDefinitionRouteTests.Timed_event_remains_explicitly_not_all_day; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 400,
+      "bodyShape": "error{code,message,issues?}",
+      "proof": "Program.cs HostProofs[79]"
+    },
+    {
+      "id": "host-81",
+      "pinnedCase": "SchedulingDefinitionRouteTests.Event_targets_every_owned_calendar_kind_and_derives_resource_from_the_store(CalendarKind.Personal)",
+      "suite": "SchedulingDefinitionRouteTests",
+      "boundary": "host-transport",
+      "method": "POST",
+      "path": "/api/local-node/scheduling/definitions/definition-1",
+      "setup": "Pinned setup for SchedulingDefinitionRouteTests.Event_targets_every_owned_calendar_kind_and_derives_resource_from_the_store(CalendarKind.Personal); tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 200,
+      "bodyShape": "{definition|definitions|issues,audit?}",
+      "proof": "Program.cs HostProofs[80]"
+    },
+    {
+      "id": "host-82",
+      "pinnedCase": "SchedulingDefinitionRouteTests.Event_targets_every_owned_calendar_kind_and_derives_resource_from_the_store(CalendarKind.Team)",
+      "suite": "SchedulingDefinitionRouteTests",
+      "boundary": "host-transport",
+      "method": "POST",
+      "path": "/api/local-node/scheduling/definitions/definition-1",
+      "setup": "Pinned setup for SchedulingDefinitionRouteTests.Event_targets_every_owned_calendar_kind_and_derives_resource_from_the_store(CalendarKind.Team); tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 200,
+      "bodyShape": "{definition|definitions|issues,audit?}",
+      "proof": "Program.cs HostProofs[81]"
+    },
+    {
+      "id": "host-83",
+      "pinnedCase": "SchedulingDefinitionRouteTests.Event_targets_every_owned_calendar_kind_and_derives_resource_from_the_store(CalendarKind.Resource)",
+      "suite": "SchedulingDefinitionRouteTests",
+      "boundary": "host-transport",
+      "method": "POST",
+      "path": "/api/local-node/scheduling/definitions/definition-1",
+      "setup": "Pinned setup for SchedulingDefinitionRouteTests.Event_targets_every_owned_calendar_kind_and_derives_resource_from_the_store(CalendarKind.Resource); tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 200,
+      "bodyShape": "{definition|definitions|issues,audit?}",
+      "proof": "Program.cs HostProofs[82]"
+    },
+    {
+      "id": "host-84",
+      "pinnedCase": "SchedulingDefinitionRouteTests.Event_refuses_a_calendar_owned_by_another_tenant_without_writing",
+      "suite": "SchedulingDefinitionRouteTests",
+      "boundary": "host-transport",
+      "method": "POST",
+      "path": "/api/local-node/scheduling/definitions/definition-1",
+      "setup": "Pinned setup for SchedulingDefinitionRouteTests.Event_refuses_a_calendar_owned_by_another_tenant_without_writing; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 200,
+      "bodyShape": "{definition|definitions|issues,audit?}",
+      "proof": "Program.cs HostProofs[83]"
+    },
+    {
+      "id": "host-85",
+      "pinnedCase": "SchedulingDefinitionRouteTests.Event_refuses_an_unknown_calendar_without_writing",
+      "suite": "SchedulingDefinitionRouteTests",
+      "boundary": "host-transport",
+      "method": "POST",
+      "path": "/api/local-node/scheduling/definitions/definition-1",
+      "setup": "Pinned setup for SchedulingDefinitionRouteTests.Event_refuses_an_unknown_calendar_without_writing; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 200,
+      "bodyShape": "{definition|definitions|issues,audit?}",
+      "proof": "Program.cs HostProofs[84]"
+    },
+    {
+      "id": "host-86",
+      "pinnedCase": "SchedulingDefinitionRouteTests.Resource_setup_creates_weekday_availability_for_a_tenant_party",
+      "suite": "SchedulingDefinitionRouteTests",
+      "boundary": "host-transport",
+      "method": "GET",
+      "path": "/api/local-node/scheduling/definitions/definition-1",
+      "setup": "Pinned setup for SchedulingDefinitionRouteTests.Resource_setup_creates_weekday_availability_for_a_tenant_party; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 200,
+      "bodyShape": "{definition|definitions|issues,audit?}",
+      "proof": "Program.cs HostProofs[85]"
+    },
+    {
+      "id": "host-87",
+      "pinnedCase": "SchedulingDefinitionRouteTests.Appointment_type_lead_floor_and_buffers_are_enforced_server_side",
+      "suite": "SchedulingDefinitionRouteTests",
+      "boundary": "host-transport",
+      "method": "GET",
+      "path": "/api/local-node/scheduling/definitions/definition-1",
+      "setup": "Pinned setup for SchedulingDefinitionRouteTests.Appointment_type_lead_floor_and_buffers_are_enforced_server_side; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 400,
+      "bodyShape": "error{code,message,issues?}",
+      "proof": "Program.cs HostProofs[86]"
+    },
+    {
+      "id": "host-88",
+      "pinnedCase": "SchedulingDefinitionRouteTests.Scheduling_authoring_is_off_by_default_and_explicitly_on_in_dogfood_overlay",
+      "suite": "SchedulingDefinitionRouteTests",
+      "boundary": "host-transport",
+      "method": "POST",
+      "path": "/api/local-node/scheduling/definitions/definition-1",
+      "setup": "Pinned setup for SchedulingDefinitionRouteTests.Scheduling_authoring_is_off_by_default_and_explicitly_on_in_dogfood_overlay; tenant and actor are server-side scope, never client JSON.",
+      "expectedStatus": 200,
+      "bodyShape": "{definition|definitions|issues,audit?}",
+      "proof": "Program.cs HostProofs[87]"
+    }
+  ],
+  "crossLanePairs": []
+}
+

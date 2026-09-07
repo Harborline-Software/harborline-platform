@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Harborline Platform — Blazor Story Canvas</title>
+  <base href="/" />
+  <link rel="preload" id="webassembly" />
+  <link rel="stylesheet" href="css/blazor-ui.css" />
+  <link rel="stylesheet" href="Harborline.Gallery.Blazor.styles.css" />
+  <link rel="stylesheet" href="_content/Harborline.UIAdapters.Blazor/context-menu.css" />
+  <link rel="stylesheet" href="_content/Harborline.UIAdapters.Blazor/feedback.css" />
+  <link rel="stylesheet" href="_content/Harborline.UIAdapters.Blazor/loading-state.css" />
+  <link rel="stylesheet" href="_content/Harborline.UIAdapters.Blazor/alert.css" />
+  <link rel="stylesheet" href="_content/Harborline.UIAdapters.Blazor/badge.css" />
+  <link rel="stylesheet" href="_content/Harborline.UIAdapters.Blazor/data-export-button.css" />
+  <link rel="stylesheet" href="_content/Harborline.UIAdapters.Blazor/empty-state.css" />
+  <link rel="stylesheet" href="_content/Harborline.UIAdapters.Blazor/accordion.css" />
+  <link rel="stylesheet" href="_content/Harborline.UIAdapters.Blazor/card.css" />
+  <link rel="stylesheet" href="_content/Harborline.UIAdapters.Blazor/icon-button.css" />
+  <link rel="stylesheet" href="_content/Harborline.UIAdapters.Blazor/separator.css" />
+  <link rel="stylesheet" href="_content/Harborline.UIAdapters.Blazor/breadcrumb.css" />
+  <link rel="stylesheet" href="_content/Harborline.UIAdapters.Blazor/check-box.css" />
+  <link rel="stylesheet" href="_content/Harborline.UIAdapters.Blazor/collapsible.css" />
+  <link rel="stylesheet" href="_content/Harborline.UIAdapters.Blazor/form-field.css" />
+  <link rel="stylesheet" href="_content/Harborline.UIAdapters.Blazor/date-field.css" />
+  <link rel="stylesheet" href="_content/Harborline.UIAdapters.Blazor/date-time-field.css" />
+  <link rel="stylesheet" href="_content/Harborline.UIAdapters.Blazor/number-field.css" />
+  <link rel="stylesheet" href="_content/Harborline.UIAdapters.Blazor/popover.css" />
+  <link rel="stylesheet" href="_content/Harborline.UIAdapters.Blazor/radio-group.css" />
+  <link rel="stylesheet" href="_content/Harborline.UIAdapters.Blazor/sheet.css" />
+  <link rel="stylesheet" href="_content/Harborline.UIAdapters.Blazor/spinner.css" />
+  <link rel="stylesheet" href="_content/Harborline.UIAdapters.Blazor/spotlight.css" />
+  <link rel="stylesheet" href="_content/Harborline.UIAdapters.Blazor/table.css" />
+  <link rel="stylesheet" href="_content/Harborline.UIAdapters.Blazor/text-area.css" />
+  <link rel="stylesheet" href="_content/Harborline.UIAdapters.Blazor/tooltip.css" />
+  <link rel="stylesheet" href="_content/Harborline.UIAdapters.Blazor/touch-target.css" />
+  <link rel="stylesheet" href="_content/Harborline.UIAdapters.Blazor/window.css" />
+  <link rel="stylesheet" href="_content/Harborline.UIAdapters.Blazor/action-menu.css" />
+  <link rel="stylesheet" href="_content/Harborline.UIAdapters.Blazor/activity-log.css" />
+  <link rel="stylesheet" href="_content/Harborline.UIAdapters.Blazor/chip.css" />
+  <link rel="stylesheet" href="_content/Harborline.UIAdapters.Blazor/conversation-list.css" />
+  <link rel="stylesheet" href="_content/Harborline.UIAdapters.Blazor/guarded-control.css" />
+  <link rel="stylesheet" href="_content/Harborline.UIAdapters.Blazor/input.css" />
+  <link rel="stylesheet" href="_content/Harborline.UIAdapters.Blazor/layers-rail.css" />
+  <link rel="stylesheet" href="_content/Harborline.UIAdapters.Blazor/notification-center.css" />
+  <link rel="stylesheet" href="_content/Harborline.UIAdapters.Blazor/page.css" />
+  <link rel="stylesheet" href="_content/Harborline.UIAdapters.Blazor/search-input.css" />
+  <link rel="stylesheet" href="_content/Harborline.UIAdapters.Blazor/segmented-control.css" />
+  <link rel="stylesheet" href="_content/Harborline.UIAdapters.Blazor/select-field.css" />
+  <link rel="stylesheet" href="_content/Harborline.UIAdapters.Blazor/switch.css" />
+  <link rel="stylesheet" href="_content/Harborline.UIAdapters.Blazor/toaster.css" />
+  <link rel="stylesheet" href="_content/Harborline.UIAdapters.Blazor/user-menu.css" />
+  <link rel="stylesheet" href="_content/Harborline.UIAdapters.Blazor/app-layout.css" />
+  <link rel="stylesheet" href="_content/Harborline.UIAdapters.Blazor/chart.css" />
+  <link rel="stylesheet" href="_content/Harborline.UIAdapters.Blazor/chat.css" />
+  <link rel="stylesheet" href="_content/Harborline.UIAdapters.Blazor/data-grid.css" />
+  <link rel="stylesheet" href="_content/Harborline.UIAdapters.Blazor/gantt.css" />
+  <link rel="stylesheet" href="_content/Harborline.UIAdapters.Blazor/numeric-text-box.css" />
+  <link rel="stylesheet" href="_content/Harborline.UIAdapters.Blazor/scroll-affordance-component.css" />
+  <link rel="stylesheet" href="_content/Harborline.UIAdapters.Blazor/dialog.css" />
+  <link rel="stylesheet" href="_content/Harborline.UIAdapters.Blazor/confirm-dialog.css" />
+  <link rel="stylesheet" href="_content/Harborline.UIAdapters.Blazor/schema-form.css" />
+  <link rel="stylesheet" href="_content/Harborline.UIAdapters.Blazor/side-nav.css" />
+  <link rel="stylesheet" href="_content/Harborline.UIAdapters.Blazor/text-box.css" />
+  <link rel="stylesheet" href="_content/Harborline.UIAdapters.Blazor/scheduler.css" />
+  <link rel="stylesheet" href="_content/Harborline.UIAdapters.Blazor/app-shell.css" />
+  <link rel="stylesheet" href="_content/Harborline.UIAdapters.Blazor/detail-panel.css" />
+  <link rel="stylesheet" href="gallery.css" />
+  <script type="importmap"></script>
+</head>
+<body>
+  <div id="app"></div>
+  <div id="blazor-error-ui">The story encountered an error. <a href="">Reload</a></div>
+  <script src="_framework/blazor.webassembly#[.{fingerprint}].js"></script>
+</body>
+</html>

@@ -1,0 +1,112 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Layout
+@inherits HarborlineComponentBase
+@implements IAsyncDisposable
+@using Microsoft.JSInterop
+@using Harborline.UIAdapters.Blazor.Browser
+@using Harborline.UIAdapters.Blazor.Localization
+@inject IMediaQueryObserver MediaQueries
+@inject IJSRuntime JavaScript
+
+<div class="@CombineClasses("hl-app-layout", HeaderFixed ? "hl-app-layout--fixed-header" : null, ContentScroll == AppContentScroll.Page ? "hl-app-layout--scroll-page" : "hl-app-layout--scroll-main")"
+     style="@CombineStyles()" data-side-nav-mode="@ModeToken" data-content-scroll="@ContentScrollToken" @attributes="AdditionalAttributes">
+  @if (ShouldOfferDrawer)
+  {
+    <button @ref="Trigger" type="button" class="hl-app-layout__nav-trigger" aria-label="@ResolvedMobileNavLabel" aria-haspopup="dialog"
+            aria-expanded="@IsDrawerOpen.ToString().ToLowerInvariant()" aria-controls="@DrawerId" @onclick="() => SetDrawerOpenAsync(true)"><svg aria-hidden="true" width="18" height="18" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.75" viewBox="0 0 20 20"><path d="M3 5.5h14M3 10h14M3 14.5h14" /></svg></button>
+  }
+  <div class="hl-app-layout__frame">
+    @if (Header is not null) { <header class="hl-app-layout__header">@Header</header> }
+    @if (ShouldRenderRail)
+    {
+      <nav class="hl-app-layout__rail" data-open="true" aria-label="@ResolvedMobileNavLabel">@SideNav</nav>
+    }
+    <main id="main" class="hl-app-layout__main">@ChildContent</main>
+  </div>
+  @if (ShouldOfferDrawer && IsDrawerOpen)
+  {
+    <div class="hl-app-layout__overlay" @onclick="() => SetDrawerOpenAsync(false, true)">
+      <div @ref="Drawer" id="@DrawerId" role="dialog" aria-modal="true" aria-label="@ResolvedMobileNavLabel" class="hl-app-layout__drawer" @onclick:stopPropagation @onkeydown="HandleDrawerKeyAsync">
+        <button type="button" data-hl-drawer-close="true" class="hl-app-layout__drawer-close" aria-label="@CloseNavigationLabel" @onclick="() => SetDrawerOpenAsync(false, true)"><svg aria-hidden="true" width="18" height="18" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.75" viewBox="0 0 20 20"><path d="m5 5 10 10M15 5 5 15" /></svg></button>
+        <nav aria-label="@ResolvedMobileNavLabel">@SideNav</nav>
+      </div>
+    </div>
+  }
+</div>
+
+@code {
+  // One decider (ticket 154): the rail gate is the capability policy's shared rail constant.
+  private const string RailQuery = Harborline.Foundation.Responsive.FormFactorQueries.MasterDetailRail;
+  [CascadingParameter] private HarborlineLocaleContext? LocaleContext { get; set; }
+  [Parameter] public RenderFragment? Header { get; set; }
+  [Parameter] public RenderFragment? SideNav { get; set; }
+  [Parameter, EditorRequired] public RenderFragment? ChildContent { get; set; }
+  [Parameter] public bool SideNavOpen { get; set; } = true;
+  [Parameter] public EventCallback<bool> SideNavOpenChanged { get; set; }
+  [Parameter] public SideNavMode SideNavMode { get; set; } = SideNavMode.Auto;
+  [Parameter] public bool HeaderFixed { get; set; }
+  [Parameter] public AppContentScroll ContentScroll { get; set; } = AppContentScroll.Main;
+  [Parameter] public bool? MobileNavOpen { get; set; }
+  [Parameter] public bool DefaultMobileNavOpen { get; set; }
+  [Parameter] public EventCallback<bool> MobileNavOpenChanged { get; set; }
+  [Parameter] public string? MobileNavLabel { get; set; }
+  [Parameter] public string CloseNavigationLabel { get; set; } = "Close navigation";
+
+  private bool railCapable;
+  private bool localDrawerOpen;
+  private bool initialized;
+  private bool focusDrawer;
+  private ElementReference Trigger, Drawer;
+  private IMediaQuerySubscription? mediaSubscription;
+  private IJSObjectReference? module;
+  private string DrawerId { get; } = $"hl-app-drawer-{Guid.NewGuid():N}";
+  private bool IsDrawerOpen => MobileNavOpen ?? localDrawerOpen;
+  private bool ShouldRenderRail => SideNav is not null && SideNavMode is not SideNavMode.Hidden and not SideNavMode.Overlay && railCapable && SideNavOpen;
+  private bool ShouldOfferDrawer => SideNav is not null && SideNavMode != SideNavMode.Hidden && (SideNavMode == SideNavMode.Overlay || !railCapable);
+  private string ModeToken => SideNavMode.ToString().ToLowerInvariant();
+  private string ContentScrollToken => ContentScroll.ToString().ToLowerInvariant();
+  private string ResolvedMobileNavLabel => LocaleContext?.ResolveString("navigation.mobile", instanceOverride: MobileNavLabel) ?? MobileNavLabel ?? "Navigation";
+
+  protected override void OnParametersSet()
+  {
+    if (!initialized) { localDrawerOpen = DefaultMobileNavOpen; initialized = true; }
+    if (ChildContent is null) throw new InvalidOperationException("app-layout-body-required");
+  }
+
+  protected override async Task OnAfterRenderAsync(bool firstRender)
+  {
+    if (firstRender)
+    {
+      mediaSubscription = await MediaQueries.ObserveAsync(RailQuery, OnMediaChangedAsync);
+      railCapable = mediaSubscription.Matches;
+      module = await JavaScript.InvokeAsync<IJSObjectReference>("import", "./_content/Harborline.UIAdapters.Blazor/app-layout.js");
+      if (IsDrawerOpen) await module.InvokeVoidAsync("focusAndTrap", Drawer);
+      await InvokeAsync(StateHasChanged);
+    }
+    if (focusDrawer && module is not null) { focusDrawer = false; await module.InvokeVoidAsync("focusAndTrap", Drawer); }
+  }
+
+  private async ValueTask OnMediaChangedAsync(MediaQueryChange change)
+  {
+    if (railCapable == change.Matches) return;
+    railCapable = change.Matches;
+    if (railCapable && IsDrawerOpen) await SetDrawerOpenAsync(false);
+    await InvokeAsync(StateHasChanged);
+  }
+
+  private async Task SetDrawerOpenAsync(bool next, bool restoreFocus = false)
+  {
+    if (IsDrawerOpen == next) return;
+    if (MobileNavOpen is null) localDrawerOpen = next;
+    await MobileNavOpenChanged.InvokeAsync(next);
+    focusDrawer = next;
+    await InvokeAsync(StateHasChanged);
+    if (!next && restoreFocus && module is not null) await module.InvokeVoidAsync("releaseAndFocus", Trigger);
+  }
+  private Task HandleDrawerKeyAsync(KeyboardEventArgs args)=>args.Key=="Escape"?SetDrawerOpenAsync(false,true):Task.CompletedTask;
+
+  public async ValueTask DisposeAsync()
+  {
+    if(mediaSubscription is not null)await mediaSubscription.DisposeAsync();
+    if(module is not null)try{await module.DisposeAsync();}catch(JSDisconnectedException){}
+  }
+}

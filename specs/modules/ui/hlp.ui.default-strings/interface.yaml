@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.default-strings",
+  "interfaceRevision": 1,
+  "semantics": {
+    "operation": "provide the complete application-essential UI string-key catalog, English fallback values, partial host overrides, and bounded runtime interpolation",
+    "observableOutput": "A deterministic resolved string for a known key without coupling the UI package to an application i18n runtime."
+  },
+  "invariants": [
+    "The frozen revision contains exactly 713 unique dot-namespaced keys from the pinned Harborline App source.",
+    "The default catalog is the sole source of the closed HarborlineStringKey vocabulary.",
+    "A host catalog may override any known key and may omit all other keys.",
+    "The module owns catalog data and interpolation only; runtime locale, direction, plural selection, formatter selection, and provider precedence belong to hlp.ui.locale-provider.",
+    "Single-brace named placeholders interpolate supplied string or numeric values.",
+    "Unknown or omitted placeholders remain visible rather than becoming empty text.",
+    "Numbers, dates, currencies, quantities, and lists are formatted by the caller before interpolation.",
+    "Catalog resolution performs no network access, persistent I/O, or dependency on react-i18next, FormatJS, Telerik, or Blazor localization services."
+  ],
+  "errors": [{"code": "unknown-key", "when": "A statically typed caller requests a key outside the frozen catalog vocabulary."}],
+  "performance": {"operation": "O(p) interpolation for template length p and O(1) catalog lookup", "catalogKeyCount": 713},
+  "presentation": {"disposition": "not-applicable", "rationale": "The catalog supplies localized text but renders no visual element itself."},
+  "cases": [
+    {"id": "default-strings.keyset"},
+    {"id": "default-strings.digest"},
+    {"id": "default-strings.namespaces"},
+    {"id": "default-strings.english-fallback"},
+    {"id": "default-strings.partial-override"},
+    {"id": "default-strings.empty-override"},
+    {"id": "default-strings.placeholder-shape"},
+    {"id": "default-strings.critical-families"},
+    {"id": "default-strings.interpolate-string"},
+    {"id": "default-strings.interpolate-number"},
+    {"id": "default-strings.missing-variable"},
+    {"id": "default-strings.no-variables"},
+    {"id": "default-strings.app-en-us-closure"},
+    {"id": "default-strings.runtime-neutral"}
+  ]
+}

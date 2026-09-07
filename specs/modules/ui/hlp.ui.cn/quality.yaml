@@ -1,0 +1,137 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.cn",
+  "profileRevision": 1,
+  "riskTier": "A",
+  "fixture": "conformance/hlp.ui.cn/quality-fixtures.yaml",
+  "dimensions": {
+    "accessibility": {
+      "disposition": "required",
+      "caseIds": [
+        "cn.quality.accessibility-tokens",
+        "cn.quality.forced-colors",
+        "cn.quality.focus-visible"
+      ]
+    },
+    "internationalization": {
+      "disposition": "required",
+      "caseIds": [
+        "cn.quality.rtl-modifiers",
+        "cn.quality.logical-utilities",
+        "cn.quality.unicode-token",
+        "cn.quality.formatting-applicability"
+      ],
+      "localeSensitiveFormatting": {
+        "disposition": "not-applicable",
+        "rationale": "Class composition owns no user-facing dates, numbers, currencies, quantities, lists, or translated text."
+      }
+    },
+    "theming": {
+      "disposition": "not-applicable",
+      "rationale": "The helper preserves and merges class tokens but does not define themes, visual styles, or color values."
+    }
+  },
+  "componentStages": [
+    {
+      "id": "contract",
+      "dimensions": [
+        "accessibility",
+        "internationalization",
+        "theming"
+      ],
+      "gate": "profile and neutral fixture validation"
+    },
+    {
+      "id": "projection-native",
+      "dimensions": [
+        "accessibility",
+        "internationalization",
+        "theming"
+      ],
+      "gate": "public TypeScript and .NET native tests"
+    },
+    {
+      "id": "package-consumer",
+      "dimensions": [
+        "accessibility",
+        "internationalization",
+        "theming"
+      ],
+      "gate": "packed npm and NuGet consumers"
+    },
+    {
+      "id": "gallery",
+      "dimensions": [
+        "accessibility",
+        "internationalization",
+        "theming"
+      ],
+      "gate": "integrated component galleries exercise merged class output"
+    },
+    {
+      "id": "clean-clone",
+      "dimensions": [
+        "accessibility",
+        "internationalization",
+        "theming"
+      ],
+      "gate": "complete repository gate from the recorded commit"
+    }
+  ],
+  "gates": {
+    "assertVisualParity": {
+      "disposition": "not-applicable",
+      "rationale": "The catalog already records presentation.disposition not-applicable for this module: it renders no interface. There is no pixel to compare, no focus to treat, no layout to reflow, no state to design, and nothing for a reviewer to look at.",
+      "decidedBy": "Chris Wood",
+      "rule": "non-rendering-modules-have-no-visual-gates"
+    },
+    "assertFocusQuality": {
+      "disposition": "not-applicable",
+      "rationale": "The catalog already records presentation.disposition not-applicable for this module: it renders no interface. There is no pixel to compare, no focus to treat, no layout to reflow, no state to design, and nothing for a reviewer to look at.",
+      "decidedBy": "Chris Wood",
+      "rule": "non-rendering-modules-have-no-visual-gates"
+    },
+    "assertResponsiveQuality": {
+      "disposition": "not-applicable",
+      "rationale": "The catalog already records presentation.disposition not-applicable for this module: it renders no interface. There is no pixel to compare, no focus to treat, no layout to reflow, no state to design, and nothing for a reviewer to look at.",
+      "decidedBy": "Chris Wood",
+      "rule": "non-rendering-modules-have-no-visual-gates"
+    },
+    "assertEmptyAndErrorStates": {
+      "disposition": "not-applicable",
+      "rationale": "The catalog already records presentation.disposition not-applicable for this module: it renders no interface. There is no pixel to compare, no focus to treat, no layout to reflow, no state to design, and nothing for a reviewer to look at.",
+      "decidedBy": "Chris Wood",
+      "rule": "non-rendering-modules-have-no-visual-gates"
+    },
+    "assertContentResilience": {
+      "disposition": "not-applicable",
+      "rationale": "The catalog already records presentation.disposition not-applicable for this module: it renders no interface. There is no pixel to compare, no focus to treat, no layout to reflow, no state to design, and nothing for a reviewer to look at.",
+      "decidedBy": "Chris Wood",
+      "rule": "non-rendering-modules-have-no-visual-gates"
+    },
+    "assertDesignReview": {
+      "disposition": "not-applicable",
+      "rationale": "The catalog already records presentation.disposition not-applicable for this module: it renders no interface. There is no pixel to compare, no focus to treat, no layout to reflow, no state to design, and nothing for a reviewer to look at.",
+      "decidedBy": "Chris Wood",
+      "rule": "non-rendering-modules-have-no-visual-gates"
+    },
+    "assertPerformanceProfile": {
+      "disposition": "not-applicable",
+      "rationale": "A runtime helper renders nothing, so it has no render to profile; its cost belongs to the caller that uses it and is measured there.",
+      "decidedBy": "Chris Wood",
+      "rule": "runtime-modules-have-no-performance-profile"
+    },
+    "assertStateCompleteness": {
+      "disposition": "not-applicable",
+      "rationale": "The catalog already records presentation.disposition not-applicable for this module: it renders no interface. There is no pixel to compare, no focus to treat, no layout to reflow, no state to design, and nothing for a reviewer to look at.",
+      "decidedBy": "Chris Wood",
+      "rule": "non-rendering-modules-have-no-visual-gates"
+    },
+    "assertInternationalization": {
+      "disposition": "not-applicable",
+      "rationale": "This module renders no text and formats no locale-sensitive value, so there is nothing for locale, pluralization, RTL or text expansion to act on. Excludes default-strings and locale-provider, which own text and locale resolution respectively.",
+      "decidedBy": "Chris Wood",
+      "rule": "text-free-modules-have-no-internationalization"
+    }
+  }
+}

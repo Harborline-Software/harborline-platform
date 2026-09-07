@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.blocks.entity-views",
+  "interfaceRevision": 2,
+  "status": "frozen",
+  "purpose": "Own the Views read model behind Harborline-owned ports: entity list/type-filter/detail-with-breadcrumb/containment-tree reads with the 404-only-null rule, condition history with provenance, the two previewed writes with typed rejections, breadcrumb resolution below any renderer with the no-raw-id rule, form-binding descriptors and navigation targets over the frozen Forms wire (Design B), and a development preview adapter that fails closed in Production.",
+  "dependencies": [{"moduleId": "hlp.contracts.identities", "minimumRevision": 1}, {"moduleId": "hlp.contracts.forms", "minimumRevision": 4}],
+  "callerInterface": {
+    "name": "IEntityReadStore / IConditionHistoryStore / IFormBindingSource / IViewNavigationTargets / BreadcrumbResolver",
+    "operations": [
+      "ListEntitiesAsync(type?) -> EntitySummary[] (display-name ordered)",
+      "GetEntityAsync(id) -> EntityDetail? (null MEANS not-found ONLY)",
+      "GetTreeAsync(containerId, asOf?) -> TreeView? (null = unknown container only)",
+      "CreateEntityAsync(body) -> EntityDetail (typed rejection on unknown type/validation)",
+      "AddEdgeAsync(body) -> EdgeSummary (contains wiring updates ContainerId + Path)",
+      "GetConditionHistoryAsync(entityId, asOf?) -> ConditionHistory (empty history for unknown entity)",
+      "GetSubmissionsAsync(entityId) -> SubmissionList (empty likewise)",
+      "ResolveBreadcrumb(path) -> labels (an unresolved ancestor yields a placeholder, never the raw id)",
+      "GetBoundFormsAsync(recordType) -> BoundFormDescriptor[] (explicit empty state)",
+      "FillForm(definition, entityId, recordName) -> '/forms?form={definition}&into={entityId}' + recordName state; ViewSubmission(formId, instanceId) -> '/forms?form={formId}&instance={instanceId}'",
+      "EntityViewsTenantScopes.ForTenant(tenantId) -> tenant-scoped IEntityReadStore/IConditionHistoryStore/ITypeCatalogStore (tenant is ambient — never on a port method)",
+      "ITypeCatalogStore: GetEffectiveCatalogAsync (immutable pack seed + tenant overrides), GetTypeAsync (null = unknown-or-other-tenant only), CreateTypeAsync/UpdateTypeAsync (editing a SEEDED type creates an override, never mutates the seed), RevertTypeAsync (pack seed effective again), bindings + capital-planning round-trip",
+      "ConditionCapture.CaptureFromSubmission -> one act, two artifacts; an out-of-range grade records NOTHING and returns a surfaced skip; an in-range capture returns no skip fields",
+      "SubmissionLinking.LinkFromCase(caseRef?, ...) -> links the submission to the case-resolved record via an injected resolver; a null/absent case ref leaves no link"
+    ],
+    "context": "Persistence lives behind the store ports a host supplies; the in-memory store is the test/dev double and the development preview adapter (pinned Harborline App seed tree, injected TimeProvider) throws in Production. The module references only the identity/forms contracts — never a Foundation aggregate, a Kernel, a host, or a UI framework."
+  },
+  "invariants": [
+    "GetEntityAsync/GetTreeAsync return null for not-found ONLY; every other failure surfaces as a typed EntityViewsException with a stable views.* code — a non-404 failure is never projected as absence.",
+    "Breadcrumb resolution is owned below the renderer: an unresolved ancestor yields a stable placeholder label and a raw entity id is never caller-visible in any breadcrumb result.",
+    "A contains edge updates the target's ContainerId and Path exactly as the pinned client wires them; a newly created entity is containable immediately.",
+    "Condition history and submissions return explicit empty collections for unknown entities, mirroring the pinned client, and carry provenance (sourceForm/sourceField, assessorRef) untouched.",
+    "Form-binding descriptors and navigation targets read the frozen Forms r4 wire only (Design B); the module never references the Harborline App Forms builder model — the dependency-pollution FAILED condition.",
+    "The development preview adapter fails closed in Production (views.preview.production_forbidden), takes an injected clock, and seeds the pinned Harborline App preview tree so dev and durable adapters stay indistinguishable through the same ports.",
+    "Wire timestamps remain ISO-8601 strings end to end; the default condition scale max is 5, mirroring the pinned ConditionRating default.",
+    "Tenant is ambient: no port method carries a tenant id; cross-tenant reads are indistinguishable from absence (the opaque 404 at the seam) via per-tenant store scoping.",
+    "The shared pack seed is immutable: editing a seeded type creates a tenant override and revert restores the seed; a tenant's created types are invisible to other tenants.",
+    "Condition capture is one act, two artifacts: an out-of-range grade records nothing and returns a surfaced skip (never silent success); an in-range capture returns no skip fields.",
+    "A submission links to a record only through a resolved case reference; no case reference leaves no link."
+  ],
+  "errors": [
+    "views.entity.unknown_type",
+    "views.entity.invalid",
+    "views.edge.unknown_entity",
+    "views.edge.invalid",
+    "views.store.unavailable",
+    "views.preview.production_forbidden",
+    "views.type.display_name_required",
+    "views.type.at_least_one_trait_required",
+    "views.type.form_version_required",
+    "views.type.invalid_form_version",
+    "views.type.condition_scale_min_two",
+    "views.type.life_years_non_negative",
+    "views.type.inspection_form_discipline_required",
+    "views.type.inspection_form_ref_required",
+    "views.type.seed_exists_use_put"
+  ],
+  "publicSeams": ["entity read-store port", "condition-history store port", "form-binding source port", "navigation-targets port", "injected clock"],
+  "conformance": {
+    "nativeTests": {"dotnet": 40},
+    "nativeTestNote": "20 Wave A tests re-prove the 19 pinned TS ledger rows plus the fail-closed guard; 20 Wave B tests re-prove the 20 pinned route rows' engine-observable semantics under their pinned DisplayNames (HTTP-status halves proven in the package consumer's loopback host)",
+    "packageFixture": "views-capability-vertical (9 anchors + four-pair fallback/store indistinguishability + FAILED-condition guards + the 20 HTTP rows in the loopback host)"
+  },
+  "selectedDesign": {
+    "choice": "One packable blocks assembly carrying the four ports, the read model with its two invariant rules held below the renderer, the in-memory store, and the fail-closed development preview adapter — persistence and HTTP transport stay host-side behind the ports for Wave B's narrowed seam.",
+    "rejected": [
+      "Port the pinned assetTreeClient with its browser-preview fallback inside a production client — the pinned fallback-in-production shape is a named FAILED condition.",
+      "Design A for fill-form navigation, coupling Views to the Harborline App Forms builder model (dependency pollution).",
+      "Copy the local-node-host EF/SQLCipher store and ASP.NET route composition into the module (legacy topology; its 20 route rows are re-proven at the narrowed seam in Wave B)."
+    ],
+    "reason": "The Views ledger's caller-observable semantics live in the read model and its two easily-lost invariants; the transport and persistence are host topology the boundary proposal replaces at narrowed seams."
+  },
+  "behaviorEvidence": {
+    "sourceCapture": "migration://preprocessing/views/generated/views-source.json",
+    "boundaryDecision": "migration://preprocessing/views/views-behavior-map.md"
+  },
+  "package": {"nuget": "Harborline.Blocks.EntityViews", "assembly": "Harborline.Blocks.EntityViews", "distribution": "internal-only"}
+}

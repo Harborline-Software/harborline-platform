@@ -1,0 +1,133 @@
+name: validate
+# ---------------------------------------------------------------------------
+# ACTIONS_ENABLED - the switch that decides whether this workflow may run.
+#
+# Every job below is guarded by `if: vars.ACTIONS_ENABLED == 'true'`. The variable is UNSET, so
+# every job reports "skipped" and GitHub allocates no runner and bills no minutes. The condition is
+# evaluated before runner allocation, which is why this keeps working while the account is over its
+# Actions limit - a guarded job never reaches the point where billing refuses it.
+#
+# Why it exists: this org is on the free plan with private repos, and Actions minutes ran out on
+# 2026-08-24. Until the repositories are public (where Actions is free), CI here is a duplicate of
+# work that already happens locally, and a red check that never ran teaches people to ignore checks.
+#
+# Verification does NOT depend on this flag. Run locally instead:
+#     npm run gate:phase4      # the same gate this workflow runs, and the one ADR-0004 requires
+#
+# To turn it back on, per repository:
+#     gh variable set ACTIONS_ENABLED --body true
+# and to turn it off again:
+#     gh variable delete ACTIONS_ENABLED
+# ---------------------------------------------------------------------------
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  phase-4-gate:
+    if: vars.ACTIONS_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Consumer-neutral boundary
+        # This repo had no such fence, and that is why it was the one that regressed. The consumer
+        # codename was declared absent everywhere on 2026-08-17 (migration registry entry 094), and
+        # the app-shell module reintroduced it four days later through fixtures, a spec scenario
+        # set, and a provenance note — because the only two copies of this check live in
+        # harborline-api and harborline-app and neither one reads this repository.
+        #
+        # Placed first: it is a git-grep and costs a second, and there is no reason to spend
+        # 40 minutes of gallery before reporting a name that should not be in the tree.
+        #
+        # This is CI-only for now. The binding check under ADR-0004 is the local phase-4 gate, and
+        # adding a step there means changing requiredStepIds in THREE files, which invalidates every
+        # existing receipt — a deliberate, coordinated change rather than a rider on this one.
+        run: bash eng/verify-boundaries.sh
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            projections/react/ui/hlp.ui.button/package-lock.json
+            gallery/projections/react/package-lock.json
+            gallery/tests/package-lock.json
+      - uses: actions/setup-dotnet@v4
+        with:
+          # The repo's pinned SDK lives in global.json; reading it here means an SDK bump
+          # cannot silently strand CI on the old version (which is exactly what happened
+          # when preview.7 landed in global.json while this file still said preview.6 -
+          # every check run failed in under a minute at resolve-dotnet).
+          global-json-file: global.json
+      - uses: pnpm/action-setup@v6
+        with:
+          # The gate's rule-runtime/rule-authoring clean-install steps shell out to pnpm
+          # (tooling/run-phase-4-gate.mjs); the runner ships none. 11.x matches the
+          # local toolchain the receipts are produced with.
+          version: 11
+      - name: Install gallery browser dependencies
+        working-directory: gallery/tests
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npx playwright install --with-deps chromium
+      - name: Mirror harborline-api for the feed resolver
+        # The app-shell package fixtures stage two cross-repo tarballs that
+        # tooling/resolve-appshell-feed.mjs rebuilds from harborline-api refs (this repo
+        # deliberately never stores the bytes). harborline-api is private, so the clone needs
+        # HARBORLINE_API_READ_TOKEN: a fine-grained PAT with read-only Contents access to
+        # Harborline-Software/harborline-api, added as an Actions secret on THIS repo. Until the
+        # secret exists this step fails loudly here rather than deep inside the gate.
+        run: git clone --quiet "https://x-access-token:${HARBORLINE_API_READ_TOKEN}@github.com/Harborline-Software/harborline-api.git" "$RUNNER_TEMP/harborline-api"
+        env:
+          HARBORLINE_API_READ_TOKEN: ${{ secrets.HARBORLINE_API_READ_TOKEN }}
+      - run: npm run gate:phase4
+        env:
+          HARBORLINE_API_REPO: ${{ runner.temp }}/harborline-api
+          # Control ticket 083. The gallery's ONLY leniency, and it exists only here: on a 2-core
+          # shared runner four visual-parity comparisons diverge for reasons not yet understood
+          # (see the CORRECTED note in gallery.spec.ts — they are lane-versus-lane, so the
+          # Windows-baseline story first recorded here cannot be the cause), two
+          # wall-clock-budget scenarios measure the runner rather than the component, and the
+          # Blazor circuit's cold start eats most of a 45s budget before a story renders. Each
+          # exemption is named by scenario id in gallery/tests/tests/gallery.spec.ts, the a11y half
+          # of every exempted scenario still runs, and a test asserts the named ids still exist —
+          # so this cannot rot into a wider allowance than it was written for. The LOCAL gate,
+          # which is the binding one per ADR-0004, is untouched.
+          HARBORLINE_CI_GALLERY: "1"
+          # One worker per core. The gallery config defaults to 4, tuned against an 8-core host
+          # where the local gate runs 8 — on a 2-core runner that is 2x oversubscription, and it is
+          # the leading explanation for the four readiness failures the 45s -> 90s timeout raise did
+          # NOT convert. Every gallery test drives two pages, and the Blazor one is server-side: it
+          # needs a live circuit back to a host process that a starved thread may never let
+          # establish, so BlazingStory.readyView() waits forever rather than slowly. That is exactly
+          # what identical failures at 45s and 90s look like.
+          #
+          # MEASURED 2026-08-23 (run 32647717020): correct. Zero readiness timeouts, zero readyView
+          # mentions, and the run finished in 49 minutes against the 79-minute baseline — halving the
+          # workers cost less wall-clock than the hangs did, so there is no correctness-for-latency
+          # trade here to weigh. Do not raise this back toward the config default without repeating
+          # that measurement; the default is tuned for an 8-core host.
+          PW_WORKERS: "2"
+      - name: Upload gallery failure evidence
+        # A failed pixel comparison is unfalsifiable without its images. assertLocatorVisualParity
+        # attaches the react, blazor, and diff PNGs through testInfo.attach, but the `line` reporter
+        # prints only the changed-pixel ratio and never writes those bodies out — so run 32647717020
+        # reported toaster.theme-light/dark at 0.0308 against a 0.015 budget and left NOTHING to
+        # look at. The only move that remained was to exempt a failure no one had seen, which is the
+        # manufactured pass the whole named-exemption design exists to prevent (control ticket 083).
+        #
+        # The path is playwright-report/, NOT test-results/. That distinction was measured, not
+        # guessed: under `line` alone test-results/ holds error-context.md and no attachment at all.
+        # playwright.config.ts adds the html reporter under this same CI flag, and that is what puts
+        # the PNGs on disk.
+        #
+        # Failure-only and gitignored, so a green run uploads nothing and no capture is ever
+        # committed. `warn` rather than `ignore` on an empty match: when the gate fails BEFORE the
+        # gallery there is legitimately nothing here, but a silent miss would look identical to the
+        # collection path breaking.
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: gallery-failure-evidence
+          path: gallery/tests/playwright-report/
+          if-no-files-found: warn
+          retention-days: 14

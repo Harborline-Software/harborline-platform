@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.contracts.workflow",
+  "interfaceRevision": 2,
+  "authority": {"notify.email": "AP", "ledger.post-journal-entry": "CP", "ledger.void-payment": "CP"},
+  "roleDefinitions": [{"roleDefinitionId":"3b69e3cb-ec5e-4ad7-8c90-16ebc1896102","role":{"vocabulary":"sys.platform-roles","name":"auditor"},"displayName":"Auditor","owner":{"kind":"Platform","ownerId":"harborline-platform"},"isSealed":true}],
+  "canonical": {
+    "key": "invoice-approval", "version": "1.0.0", "status": "Draft", "tenant": "tenant:acme",
+    "owner": {"scheme": "user", "value": "tenant-admin"},
+    "title": {"defaultLocale": "en", "values": {"en": "Invoice approval"}},
+    "subjectFormRef": {"formId": "invoice.v1", "version": "1.0.0"}, "mutability": "Locked", "initialState": "Draft",
+    "states": [
+      {"id": "Draft", "label": {"defaultLocale": "en", "values": {"en": "Draft"}}, "kind": "Normal"},
+      {"id": "PendingApproval", "label": {"defaultLocale": "en", "values": {"en": "Pending approval"}}, "kind": "Normal", "viewHint": "flow"},
+      {"id": "Posted", "label": {"defaultLocale": "en", "values": {"en": "Posted"}}, "kind": "Terminal"},
+      {"id": "Rejected", "label": {"defaultLocale": "en", "values": {"en": "Rejected"}}, "kind": "Terminal"}
+    ],
+    "triggers": [
+      {"id": "issued", "kind": "Event", "eventType": "Issued"},
+      {"id": "approve", "kind": "HumanAction", "task": "invoice-approval"},
+      {"id": "reject", "kind": "HumanAction", "task": "invoice-approval"}
+    ],
+    "transitions": [
+      {"id": "t-issue", "from": "Draft", "on": "issued", "to": "PendingApproval", "guard": "g-over-threshold"},
+      {"id": "t-approve", "from": "PendingApproval", "on": "approve", "to": "Posted", "requiredRoles": [{"vocabulary":"sys.platform-roles","name":"auditor"}]},
+      {"id": "t-reject", "from": "PendingApproval", "on": "reject", "to": "Rejected"}
+    ],
+    "actions": [{"id": "a-post-je", "on": {"transition": "t-approve"}, "kind": "CreateRecord", "capabilityRef": "ledger.post-journal-entry", "classification": "CP", "requiredRoles": [{"vocabulary":"sys.platform-roles","name":"auditor"}], "params": {"journal": "invoice"}}],
+    "guards": [{"id": "g-over-threshold", "tier": "JsonLogic", "scope": "Schema", "scopeTarget": "", "expression": "{\"and\":[{\">\":[{\"var\":\"field.amount\"},5000]},{\"<\":[{\"var\":\"wf.iteration\"},3]}]}", "action": "Validate"}],
+    "createdAt": "2026-06-30T00:00:00.000Z", "updatedAt": "2026-06-30T00:00:00.000Z"
+  },
+  "cases": [
+    {"id": "export-surface", "operation": "surface.exports", "expected": {"declarations": 16, "interfaces": 7, "typeAliases": 9, "closedLiteralMembers": 23}},
+    {"id": "closed-vocabulary", "operation": "closed.values", "expected": {"WorkflowDefinitionStatus": ["Draft", "Published", "Deprecated", "Withdrawn"], "WorkflowMutability": ["Locked", "Editable"], "WorkflowStateKind": ["Normal", "Terminal"], "WorkflowViewHint": ["flow", "gantt", "kanban"], "WorkflowTriggerKind": ["Event", "Schedule", "HumanAction", "DependencyComplete"], "WorkflowActionKind": ["Notify", "CreateRecord", "UpdateField", "InvokeService", "StartSubProcess", "EmitEvent"], "ActionClassification": ["CP", "AP"]}},
+    {"id": "canonical-round-trip", "operation": "wire.round-trip", "type": "WorkflowDefinition", "input": "$canonical", "expected": "same"},
+    {"id": "state-action-target", "operation": "wire.round-trip", "type": "WorkflowActionBinding", "input": {"id": "notify", "on": {"state": "Posted"}, "kind": "Notify", "capabilityRef": "notify.email", "classification": "AP"}, "expected": "same"},
+    {"id": "transition-action-target", "operation": "wire.round-trip", "type": "WorkflowActionBinding", "input": {"id": "post", "on": {"transition": "t-approve"}, "kind": "CreateRecord", "capabilityRef": "ledger.post-journal-entry", "classification": "CP"}, "expected": "same"},
+    {"id": "effect-params-open-json", "operation": "wire.round-trip", "type": "WorkflowEffectParams", "input": {"nested": {"items": [1, true, null]}, "future": "value"}, "expected": "same"},
+    {"id": "additive-object-field-tolerated", "operation": "wire.read", "type": "WorkflowState", "input": {"id": "A", "label": {"defaultLocale": "en", "values": {"en": "A"}}, "kind": "Terminal", "future": 2}, "expected": {"id": "A", "label": {"defaultLocale": "en", "values": {"en": "A"}}, "kind": "Terminal"}},
+    {"id": "unknown-closed-value-rejected", "operation": "wire.read", "type": "WorkflowTriggerKind", "input": "Manual", "expectedError": "unknown-closed-value"},
+    {"id": "missing-required-rejected", "operation": "wire.read", "type": "WorkflowState", "input": {"id": "A", "kind": "Terminal"}, "expectedError": "missing-required-property"},
+    {"id": "both-action-targets-rejected", "operation": "wire.read", "type": "WorkflowActionBinding", "input": {"id": "bad", "on": {"state": "A", "transition": "t"}, "kind": "Notify", "capabilityRef": "notify.email", "classification": "AP"}, "expectedError": "exclusive-union-mismatch"},
+    {"id": "neither-action-target-rejected", "operation": "wire.read", "type": "WorkflowActionBinding", "input": {"id": "bad", "on": {}, "kind": "Notify", "capabilityRef": "notify.email", "classification": "AP"}, "expectedError": "exclusive-union-mismatch"},
+    {"id": "qualified-action-role-round-trip", "operation": "wire.round-trip", "type": "WorkflowActionBinding", "input": {"id": "notify", "on": {"state": "Posted"}, "kind": "Notify", "capabilityRef": "notify.email", "classification": "AP", "requiredRoles":[{"vocabulary":"tax.roles","name":"InvoiceApprover"}]}, "expected": "same"},
+    {"id": "unknown-action-role-refused", "operation": "admission.mutate", "input": "$canonical", "mutation": {"unknownActionRole": true}, "expected": {"isValid": false, "codes": ["workflow.admission.unknown_role_reference"]}},
+    {"id": "unknown-transition-role-refused", "operation": "admission.mutate", "input": "$canonical", "mutation": {"unknownTransitionRole": true}, "expected": {"isValid": false, "codes": ["workflow.admission.unknown_role_reference"]}},
+    {"id": "canonical-admits", "operation": "admission.validate", "input": "$canonical", "expected": {"isValid": true, "codes": []}},
+    {"id": "autonomous-cp-refused", "operation": "admission.mutate", "input": "$canonical", "mutation": {"actionTransition": "t-issue"}, "expected": {"isValid": false, "codes": ["workflow.admission.cp_reachable_without_human_task"]}},
+    {"id": "classification-mismatch-refused", "operation": "admission.mutate", "input": "$canonical", "mutation": {"actionClassification": "AP"}, "expected": {"isValid": false, "codes": ["workflow.admission.classification_mismatch"]}},
+    {"id": "dangling-guard-refused", "operation": "admission.mutate", "input": "$canonical", "mutation": {"transitionGuard": "missing"}, "expected": {"isValid": false, "codes": ["workflow.admission.dangling_reference"]}},
+    {"id": "terminal-outgoing-refused", "operation": "admission.mutate", "input": "$canonical", "mutation": {"terminalOutgoing": true}, "expected": {"isValid": false, "codes": ["workflow.admission.terminal_has_outgoing"]}}
+  ]
+}

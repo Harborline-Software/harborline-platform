@@ -1,0 +1,14 @@
+@attribute [Stories("Platform/Context Menu")]
+
+<Stories TComponent="ContextMenuScenario">
+    <Story Name="Pointer open"><Arguments><Arg For="_ => _.ScenarioId" Value='"context-menu.pointer"' /></Arguments><Template><ContextMenuScenario @attributes="context.Args" /></Template></Story>
+    <Story Name="Closed"><Arguments><Arg For="_ => _.ScenarioId" Value='"context-menu.closed"' /></Arguments><Template><ContextMenuScenario @attributes="context.Args" /></Template></Story>
+    <Story Name="Keyboard and focus"><Arguments><Arg For="_ => _.ScenarioId" Value='"context-menu.keyboard"' /></Arguments><Template><ContextMenuScenario @attributes="context.Args" /></Template></Story>
+    <Story Name="Groups and states"><Arguments><Arg For="_ => _.ScenarioId" Value='"context-menu.groups"' /></Arguments><Template><ContextMenuScenario @attributes="context.Args" /></Template></Story>
+    <Story Name="English locale"><Arguments><Arg For="_ => _.ScenarioId" Value='"context-menu.locale-en"' /></Arguments><Template><ContextMenuScenario @attributes="context.Args" /></Template></Story>
+    <Story Name="Pseudo locale"><Arguments><Arg For="_ => _.ScenarioId" Value='"context-menu.locale-pseudo"' /></Arguments><Template><ContextMenuScenario @attributes="context.Args" /></Template></Story>
+    <Story Name="Arabic locale"><Arguments><Arg For="_ => _.ScenarioId" Value='"context-menu.locale-ar"' /></Arguments><Template><ContextMenuScenario @attributes="context.Args" /></Template></Story>
+    <Story Name="Light theme"><Arguments><Arg For="_ => _.ScenarioId" Value='"context-menu.theme-light"' /></Arguments><Template><ContextMenuScenario @attributes="context.Args" /></Template></Story>
+    <Story Name="Dark theme"><Arguments><Arg For="_ => _.ScenarioId" Value='"context-menu.theme-dark"' /></Arguments><Template><ContextMenuScenario @attributes="context.Args" /></Template></Story>
+    <Story Name="Content resilience"><Arguments><Arg For="_ => _.ScenarioId" Value='"context-menu.content"'/></Arguments><Template><ContextMenuScenario @attributes="context.Args"/></Template></Story>
+</Stories>

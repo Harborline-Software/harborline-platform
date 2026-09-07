@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.collapsible",
+  "verdict": "approved",
+  "reviewer": "cic",
+  "recordedAt": "2026-08-26T20:11:48.924Z",
+  "reference": {
+    "revision": "ddd98c47db91669b9c39540bb2ec735aac0a336c477dbcf6f2fa2b7364f97610",
+    "source": "gallery/scenarios/hlp.ui.collapsible.json",
+    "pin": "cc9eb48ed68c5033ec128cd53c40b1d2786bee66",
+    "surface": {
+      "conformance/hlp.ui.collapsible/fixtures.yaml": "edcd4f8c35c82de5e063c39fa2c654b0be055424d54a7970054abb8feea94394",
+      "conformance/hlp.ui.collapsible/quality-fixtures.yaml": "ec82652ebcc268c60a746768ca102929c9d498671bbb1d04a174ec46403cae6d",
+      "gallery/projections/blazor/Stories/Collapsible.stories.razor": "e772209735f398bef6ddcbeab69cab6b395cb26b87da6b984c3c13725c78fc8c",
+      "gallery/projections/blazor/Stories/CollapsibleScenario.razor": "628400414904b3332a59b1ee958fe6f325a326d5ddb3d156a68afb3b776d7dc4",
+      "gallery/projections/react/src/Collapsible.stories.tsx": "fdb896f933f5d3e0c3c8f45bc13a995b6629d7fb784c0223e27864ecd9cca0ee",
+      "gallery/scenarios/hlp.ui.collapsible.json": "d74dd9333a5f4566be0444e18e243f88e149033636db83414c9090dff8154576",
+      "projections/blazor/ui/hlp.ui.collapsible/ShipyardCollapsible.razor": "6bb5f1516001d21114b00e33c6037c355b86e7d39e7f6998634355b7f2f40a22",
+      "projections/blazor/ui/hlp.ui.collapsible/wwwroot/collapsible.css": "e5582e12c13b64b12aa49ee4202440f0b56f9779cbc81dfef3b68322177bfaab",
+      "projections/react/ui/hlp.ui.collapsible/src/Collapsible.tsx": "d781b4d0067a58819a1ddd267aa8015ff663d0b11194867ade862edf2b9d720b",
+      "projections/react/ui/hlp.ui.collapsible/src/index.ts": "c6b533e0b6f8f0bfac15d913c4139bca88b3ab0d74ea270396ea9bd8a162422d",
+      "projections/react/ui/hlp.ui.collapsible/src/style.css": "e5582e12c13b64b12aa49ee4202440f0b56f9779cbc81dfef3b68322177bfaab",
+      "specs/modules/ui/hlp.ui.collapsible/scenarios.json": "d74dd9333a5f4566be0444e18e243f88e149033636db83414c9090dff8154576",
+      "specs/modules/ui/hlp.ui.collapsible/style.css": "e5582e12c13b64b12aa49ee4202440f0b56f9779cbc81dfef3b68322177bfaab"
+    }
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.activity-log",
+  "verdict": "approved",
+  "reviewer": "cic",
+  "recordedAt": "2026-08-26T19:56:43.329Z",
+  "reference": {
+    "revision": "ddc9f94648e0763ba98734f5438a9b25b643daf03fed360a550000e9aba2e814",
+    "source": "gallery/scenarios/hlp.ui.activity-log.json",
+    "pin": "cc9eb48ed68c5033ec128cd53c40b1d2786bee66",
+    "surface": {
+      "conformance/hlp.ui.activity-log/fixtures.yaml": "f1ae321b5e09a5bcf7779e8de9c8d77044a8a3fe06c9bede2d5dc33c7cd7f2bb",
+      "conformance/hlp.ui.activity-log/quality-fixtures.yaml": "e6249f45c8d3034f1b8650399757063bc5f7442da40a124a4709dc4163a4776c",
+      "gallery/projections/blazor/Stories/ActivityLog.stories.razor": "ce8bb0891c789ab125360ff3a2b7b92bbf6d64bb5f6db2cccd373264e6dac9cc",
+      "gallery/projections/blazor/Stories/ActivityLogScenario.razor": "4842401b3094e765f4b00e33230d68db3722362eb8b440c1120f1f0d5d75b4f3",
+      "gallery/projections/react/src/ActivityLog.stories.tsx": "0019c5ea0b4c71743c7701b02de4f6901a14d968a7af78857867f5f742b9384f",
+      "gallery/scenarios/hlp.ui.activity-log.json": "31ed3e2de0e78b99ed393eebb941f5bbdbc9702ddd8e285a6bfd97967e56af58",
+      "projections/blazor/ui/hlp.ui.activity-log/ActivityLogTypes.cs": "b52cb39055e2f03b7a27ed60648a9f12f89a0b72abb1ef36810ba6ec63102273",
+      "projections/blazor/ui/hlp.ui.activity-log/ShipyardActivityLog.razor": "07a5cf4af2bca5f1c54bb3fbde9db23aace74af2e1cd7c3d0a92452e3c600783",
+      "projections/blazor/ui/hlp.ui.activity-log/wwwroot/activity-log.css": "933a92b5fe340fbb90f4a99b4266b4eedad842a168d9fb9fc2c4b46925044321",
+      "projections/react/ui/hlp.ui.activity-log/src/ActivityLog.tsx": "f40c7c538cfdc019270ddf25317580354dd33fcfb09cc99e0365d0a5c1013b48",
+      "projections/react/ui/hlp.ui.activity-log/src/index.ts": "da6787fd392a9bbd89413f87c563e516e8c6c6bfd6e9c2c7baa9d3daceda81ab",
+      "projections/react/ui/hlp.ui.activity-log/src/style.css": "b1467e2bede7fc42e5fc75c28a9df56fe633488138dd31806ceeaf1b694a7ec4",
+      "specs/modules/ui/hlp.ui.activity-log/scenarios.json": "31ed3e2de0e78b99ed393eebb941f5bbdbc9702ddd8e285a6bfd97967e56af58",
+      "specs/modules/ui/hlp.ui.activity-log/style.css": "b1467e2bede7fc42e5fc75c28a9df56fe633488138dd31806ceeaf1b694a7ec4"
+    }
+  }
+}

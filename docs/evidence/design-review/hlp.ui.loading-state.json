@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.loading-state",
+  "verdict": "approved",
+  "reviewer": "cic",
+  "recordedAt": "2026-08-27T05:31:13.969Z",
+  "notes": "should the loading state have a loading indicator too?",
+  "reference": {
+    "revision": "a2abe660db290b36ef6639a3bd2298cc4e9cd22819ed4289a4378c2980339b18",
+    "source": "gallery/scenarios/hlp.ui.loading-state.json",
+    "pin": "e4c44eca8918b135e2dcd36060a8e8582d336f89",
+    "surface": {
+      "conformance/hlp.ui.loading-state/fixtures.yaml": "ef07f4cfb553fbbf31d78b5b3dce90fff225c30b5ea21a8797ba9e1d45e51ed1",
+      "conformance/hlp.ui.loading-state/quality-fixtures.yaml": "ae28e73b7276b1c28b14a9cf67f2df313b90afcd879b1511b1b8135010320dfd",
+      "gallery/projections/blazor/Stories/LoadingState.stories.razor": "c3b2d6d6877fc44c6b6562e7b9628af5d812d5cffffb332f9006ec3244762b6c",
+      "gallery/projections/blazor/Stories/LoadingStateScenario.razor": "ba80a132d1bfdb1e2f1a76084add0c6f5b696a59d1229c54a0a35eab02377831",
+      "gallery/projections/react/src/LoadingState.stories.tsx": "4fe9a3557e03515d46439baf996f3c85ee2e4fba7917015eda1c42ed8ebdd79c",
+      "gallery/scenarios/hlp.ui.loading-state.json": "4fb4546b230e38663908787c70195a309d45aa1b308df6cc01896309e7b0e249",
+      "projections/blazor/ui/hlp.ui.loading-state/LoadingStateVariant.cs": "ba7aaf14bc949b87d2db3bf350fb5ff9cf5b24b876e199389348db8da2c1564e",
+      "projections/blazor/ui/hlp.ui.loading-state/ShipyardLoadingState.razor": "ff04937fbb811e423e17078107603217be8a4a5a8ee5ee450e252986afe45c33",
+      "projections/react/ui/hlp.ui.loading-state/src/LoadingState.tsx": "c1c15d1fdcd85176e408cd67dca0bd617e0b0dd85a99cdd6a36591fcf44bcafc",
+      "projections/react/ui/hlp.ui.loading-state/src/index.ts": "829e166e783872d79b174afabc885531a87a49f8480ca944fbf85514513689ca",
+      "projections/react/ui/hlp.ui.loading-state/src/style.css": "b646618d4e7143b9c579450139a1dcfaecbb013301b871ff579aca1c7fb22540",
+      "specs/modules/ui/hlp.ui.loading-state/scenarios.json": "4fb4546b230e38663908787c70195a309d45aa1b308df6cc01896309e7b0e249",
+      "specs/modules/ui/hlp.ui.loading-state/style.css": "b646618d4e7143b9c579450139a1dcfaecbb013301b871ff579aca1c7fb22540"
+    }
+  }
+}

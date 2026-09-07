@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.foundation.session",
+  "interfaceRevision": 1,
+  "status": "frozen",
+  "purpose": "Store authoritative server-side sessions and resolve a live session into the current tenant-bound actor without importing cookie transport, identity-provider validation, role persistence, or a database implementation.",
+  "dependencies": [
+    {"moduleId": "hlp.contracts.identities", "interfaceRevision": 1},
+    {"moduleId": "hlp.foundation.tenancy", "interfaceRevision": 1},
+    {"moduleId": "hlp.foundation.actor", "interfaceRevision": 1}
+  ],
+  "types": {
+    "SessionEstablishmentReason": ["PasswordLogin", "VerifyEmailCompletion", "MagicLinkConsume", "ExternalIdentity"],
+    "SessionRecord": {
+      "required": ["sessionId", "userId", "tenantId", "issuedUtc", "absoluteExpiryUtc", "lastSeenUtc", "reason"],
+      "operations": ["Touch(now)", "IsExpired(now, idleTimeout)"]
+    },
+    "ISessionStore": {
+      "members": [
+        "ValueTask CreateAsync(SessionRecord record, CancellationToken cancellationToken)",
+        "ValueTask<SessionRecord?> GetAsync(string sessionId, CancellationToken cancellationToken)",
+        "ValueTask<SessionRecord?> TouchAsync(string sessionId, DateTimeOffset now, CancellationToken cancellationToken)",
+        "ValueTask<bool> RemoveAsync(string sessionId, CancellationToken cancellationToken)"
+      ]
+    },
+    "SessionActorContext": {
+      "implements": "IAuthenticatedActorContext",
+      "members": ["string SessionId", "string UserId", "IReadOnlyList<string> Roles", "TenantMetadata Tenant"]
+    },
+    "ISessionResolver": {
+      "members": ["ValueTask<SessionActorContext?> ResolveAsync(string sessionId, ITenantContext tenantContext, IReadOnlyList<string> roles, DateTimeOffset now, TimeSpan idleTimeout, CancellationToken cancellationToken)"]
+    }
+  },
+  "selectedDesign": {
+    "choice": "store plus fail-closed session-to-actor resolver",
+    "rejected": "Expose only ISessionStore and repeat expiry, active-tenant, tenant-binding, touch, and actor projection in each host.",
+    "reason": "The resolver centralizes security-sensitive ordering while keeping transport, identity-provider, role-source, and persistence adapters replaceable."
+  },
+  "invariants": [
+    "The client carries only an opaque session id; authoritative user, tenant, and expiry values remain server-side.",
+    "Session ids, user ids, tenant ids, and time ranges are validated before storage.",
+    "Absolute and idle expiry use strict greater-than boundaries.",
+    "Unknown, revoked, malformed, inactive-tenant, sentinel-tenant, expired, and cross-tenant sessions resolve to null and never produce an actor context.",
+    "Expired sessions are removed before resolution returns.",
+    "A session is touched only after it passes tenant and expiry validation.",
+    "The resolved actor uses the session's UserId, the exact resolved TenantMetadata, and host-derived roles.",
+    "Cancellation is observed by store and resolver operations.",
+    "InMemorySessionStore is a single-process reference adapter; restart is fail-safe mass revocation and it is not an HA persistence claim."
+  ],
+  "notScope": [
+    "cookie or bearer-token transport",
+    "OIDC, Okta, password, email, magic-link, or MFA validation",
+    "role lookup or authorization policy",
+    "session id generation and establishment workflow",
+    "database-backed persistence and multi-instance revocation",
+    "browser login UI"
+  ],
+  "projectionPolicy": {
+    "dotnet": "canonical implementation and in-memory reference adapter",
+    "react": "session consumer",
+    "blazor": "consumer through authenticated host scope"
+  },
+  "fixture": "conformance/hlp.foundation.session/fixtures.yaml"
+}

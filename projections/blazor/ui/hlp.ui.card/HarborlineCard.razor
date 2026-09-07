@@ -1,0 +1,19 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Layout
+@inherits HarborlineComponentBase
+
+<CascadingValue Value="Context" IsFixed="false">
+<div class="@CombineClasses("hl-card")" style="@CombineStyles()" @attributes="AdditionalAttributes"
+     data-hl-variant="@Name(Appearance)" data-hl-padding="@PaddingName" data-hl-orientation="@Name(Orientation)"
+     data-hl-separators="@Separators.ToString().ToLowerInvariant()">@ChildContent</div>
+</CascadingValue>
+
+@code {
+    [Parameter] public CardAppearance Appearance { get; set; } = CardAppearance.Outlined;
+    [Parameter] public CardPadding Padding { get; set; } = CardPadding.Medium;
+    [Parameter] public CardOrientation Orientation { get; set; } = CardOrientation.Vertical;
+    [Parameter] public bool Separators { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    private HarborlineCardContext Context => new(Padding, Orientation);
+    private string PaddingName => Padding switch { CardPadding.Small => "sm", CardPadding.Medium => "md", CardPadding.Large => "lg", _ => "none" };
+    private static string Name<T>(T value) where T : Enum => value.ToString().ToLowerInvariant();
+}

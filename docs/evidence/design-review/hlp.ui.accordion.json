@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.accordion",
+  "verdict": "approved",
+  "reviewer": "cic",
+  "recordedAt": "2026-08-26T19:27:53.253Z",
+  "reference": {
+    "revision": "0e976dc87e9ad5660833cb76b05495e061d9e7eeb96031214675b3cea7e83cca",
+    "source": "gallery/scenarios/hlp.ui.accordion.json",
+    "pin": "cc9eb48ed68c5033ec128cd53c40b1d2786bee66",
+    "surface": {
+      "conformance/hlp.ui.accordion/fixtures.yaml": "7bf185a0523729fe1983b49c657245ec693e143a70c7692c02e9993626f08f96",
+      "conformance/hlp.ui.accordion/quality-fixtures.yaml": "8f384da1dbd7075d2b7a5482babcb1bef91c46c38e1b702a693b09b90cf3bfb6",
+      "gallery/projections/blazor/Stories/Accordion.stories.razor": "3545409e4d09e14ced1b53d835c308a05c5d311c4f323b4e0928524d783d8a17",
+      "gallery/projections/blazor/Stories/AccordionScenario.razor": "28d70f8e26eddc26ac745f2e4a18f567dd069e26ab3d8def04b6b4be5d31382b",
+      "gallery/projections/react/src/Accordion.stories.tsx": "066a2a99b90abf82ae491671ecc56fdcea4617ca322c40730ca0cfeecfb84a92",
+      "gallery/scenarios/hlp.ui.accordion.json": "939d68795b115c1c135aaebab98971f9d661c783c0e862f659a1269d9331306e",
+      "projections/blazor/ui/hlp.ui.accordion/AccordionTypes.cs": "40f7bed647b56c18d7339356785f178bceb27b7f73df725e2c8482605e38aeb8",
+      "projections/blazor/ui/hlp.ui.accordion/ShipyardAccordion.razor": "1b295bb98b3ba2e0fe82c8566da26859863043901e978111f5413d19e439b85c",
+      "projections/blazor/ui/hlp.ui.accordion/wwwroot/accordion.css": "449332546a20953c6e2eb1a2ab6c147c9ac449e266490cfc41488d567fbddd93",
+      "projections/react/ui/hlp.ui.accordion/src/Accordion.tsx": "d84c14c2ccc241e311f5543d5f28a96e5cc82a0f60f99f67d330a6123abee34e",
+      "projections/react/ui/hlp.ui.accordion/src/index.ts": "a2ffb3160e98fd702bc26897ba29993cba43ee9d6263c8a454ad93bcc44a5615",
+      "projections/react/ui/hlp.ui.accordion/src/style.css": "449332546a20953c6e2eb1a2ab6c147c9ac449e266490cfc41488d567fbddd93",
+      "specs/modules/ui/hlp.ui.accordion/scenarios.json": "939d68795b115c1c135aaebab98971f9d661c783c0e862f659a1269d9331306e",
+      "specs/modules/ui/hlp.ui.accordion/style.css": "449332546a20953c6e2eb1a2ab6c147c9ac449e266490cfc41488d567fbddd93"
+    }
+  }
+}

@@ -1,0 +1,1662 @@
+{
+  "rule": "Element-level lane divergences that exist on main today, registered BY SCENARIO, ELEMENT PATH and PROPERTY with the ticket that owns the fix. Exact both ways: a delta not listed here fails the gallery gate, and a listed row that no longer differs fails until it is deleted. Tolerances are never widened to admit a row. A row may carry a host (windows-11-x64, macos-x64-intel, macos-arm64) when the divergence was measured on that host only: on other hosts the row is IGNORED, neither asserted nor stale, so each host is held to its own census. A row without a host applies on every host. Never scope a row to a host without measuring it there with the measure flag.",
+  "measureFlag": "HARBORLINE_GALLERY_ELEMENT_MEASURE",
+  "divergences": [
+    {
+      "scenarioId": "action-menu.empty",
+      "path": ">div[1]>div[1]",
+      "property": "box",
+      "ticket": "147",
+      "note": "action-menu diverges per element on main; first seen by this probe"
+    },
+    {
+      "scenarioId": "action-menu.empty",
+      "path": ">div[1]>div[1]>button[1]",
+      "property": "box",
+      "ticket": "147",
+      "note": "action-menu diverges per element on main; first seen by this probe"
+    },
+    {
+      "scenarioId": "action-menu.empty",
+      "path": ">div[1]>div[1]>button[1]>svg[1]",
+      "property": "box",
+      "ticket": "147",
+      "note": "action-menu diverges per element on main; first seen by this probe"
+    },
+    {
+      "scenarioId": "action-menu.empty",
+      "path": ">div[1]>div[1]>button[1]>svg[1]>circle[1]",
+      "property": "box",
+      "ticket": "147",
+      "note": "action-menu diverges per element on main; first seen by this probe"
+    },
+    {
+      "scenarioId": "action-menu.empty",
+      "path": ">div[1]>div[1]>button[1]>svg[1]>circle[2]",
+      "property": "box",
+      "ticket": "147",
+      "note": "action-menu diverges per element on main; first seen by this probe"
+    },
+    {
+      "scenarioId": "action-menu.empty",
+      "path": ">div[1]>div[1]>button[1]>svg[1]>circle[3]",
+      "property": "box",
+      "ticket": "147",
+      "note": "action-menu diverges per element on main; first seen by this probe"
+    },
+    {
+      "scenarioId": "action-menu.theme-dark",
+      "path": ">div[1]>div[1]",
+      "property": "box",
+      "ticket": "147",
+      "note": "action-menu diverges per element on main; first seen by this probe"
+    },
+    {
+      "scenarioId": "action-menu.theme-dark",
+      "path": ">div[1]>div[1]>button[1]",
+      "property": "box",
+      "ticket": "147",
+      "note": "action-menu diverges per element on main; first seen by this probe"
+    },
+    {
+      "scenarioId": "action-menu.theme-dark",
+      "path": ">div[1]>div[1]>button[1]>svg[1]",
+      "property": "box",
+      "ticket": "147",
+      "note": "action-menu diverges per element on main; first seen by this probe"
+    },
+    {
+      "scenarioId": "action-menu.theme-dark",
+      "path": ">div[1]>div[1]>button[1]>svg[1]>circle[1]",
+      "property": "box",
+      "ticket": "147",
+      "note": "action-menu diverges per element on main; first seen by this probe"
+    },
+    {
+      "scenarioId": "action-menu.theme-dark",
+      "path": ">div[1]>div[1]>button[1]>svg[1]>circle[2]",
+      "property": "box",
+      "ticket": "147",
+      "note": "action-menu diverges per element on main; first seen by this probe"
+    },
+    {
+      "scenarioId": "action-menu.theme-dark",
+      "path": ">div[1]>div[1]>button[1]>svg[1]>circle[3]",
+      "property": "box",
+      "ticket": "147",
+      "note": "action-menu diverges per element on main; first seen by this probe"
+    },
+    {
+      "scenarioId": "action-menu.theme-light",
+      "path": ">div[1]>div[1]",
+      "property": "box",
+      "ticket": "147",
+      "note": "action-menu diverges per element on main; first seen by this probe"
+    },
+    {
+      "scenarioId": "action-menu.theme-light",
+      "path": ">div[1]>div[1]>button[1]",
+      "property": "box",
+      "ticket": "147",
+      "note": "action-menu diverges per element on main; first seen by this probe"
+    },
+    {
+      "scenarioId": "action-menu.theme-light",
+      "path": ">div[1]>div[1]>button[1]>svg[1]",
+      "property": "box",
+      "ticket": "147",
+      "note": "action-menu diverges per element on main; first seen by this probe"
+    },
+    {
+      "scenarioId": "action-menu.theme-light",
+      "path": ">div[1]>div[1]>button[1]>svg[1]>circle[1]",
+      "property": "box",
+      "ticket": "147",
+      "note": "action-menu diverges per element on main; first seen by this probe"
+    },
+    {
+      "scenarioId": "action-menu.theme-light",
+      "path": ">div[1]>div[1]>button[1]>svg[1]>circle[2]",
+      "property": "box",
+      "ticket": "147",
+      "note": "action-menu diverges per element on main; first seen by this probe"
+    },
+    {
+      "scenarioId": "action-menu.theme-light",
+      "path": ">div[1]>div[1]>button[1]>svg[1]>circle[3]",
+      "property": "box",
+      "ticket": "147",
+      "note": "action-menu diverges per element on main; first seen by this probe"
+    },
+    {
+      "scenarioId": "app-shell.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[1]>div[1]>header[1]>div[1]>div[2]>button[1]>svg[1]",
+      "property": "element",
+      "ticket": "141",
+      "note": "the canvas paints both lanes; the rail and panel chrome diverge",
+      "hiddenDescendants": {
+        "react": 1,
+        "blazor": 0
+      }
+    },
+    {
+      "scenarioId": "app-shell.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[1]>div[1]>header[1]>div[1]>div[3]>button[1]>svg[1]",
+      "property": "element",
+      "ticket": "141",
+      "note": "the canvas paints both lanes; the rail and panel chrome diverge",
+      "hiddenDescendants": {
+        "react": 2,
+        "blazor": 0
+      }
+    },
+    {
+      "scenarioId": "app-shell.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[1]>div[1]>header[1]>div[1]>div[4]>button[1]>svg[1]",
+      "property": "element",
+      "ticket": "141",
+      "note": "the canvas paints both lanes; the rail and panel chrome diverge",
+      "hiddenDescendants": {
+        "react": 2,
+        "blazor": 0
+      }
+    },
+    {
+      "scenarioId": "app-shell.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[1]>div[1]>header[1]>div[1]>div[5]",
+      "property": "box",
+      "ticket": "141",
+      "note": "the canvas paints both lanes; the rail and panel chrome diverge"
+    },
+    {
+      "scenarioId": "app-shell.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[1]>div[1]>header[1]>div[1]>div[5]>span[1]",
+      "property": "box",
+      "ticket": "141",
+      "note": "the canvas paints both lanes; the rail and panel chrome diverge"
+    },
+    {
+      "scenarioId": "app-shell.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[1]>div[1]>header[1]>div[1]>div[6]",
+      "property": "box",
+      "ticket": "141",
+      "note": "the canvas paints both lanes; the rail and panel chrome diverge"
+    },
+    {
+      "scenarioId": "app-shell.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[1]>div[1]>header[1]>div[1]>div[6]>button[1]",
+      "property": "box",
+      "ticket": "141",
+      "note": "the canvas paints both lanes; the rail and panel chrome diverge"
+    },
+    {
+      "scenarioId": "app-shell.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[1]>div[1]>header[1]>div[1]>div[6]>button[1]>svg[1]",
+      "property": "element",
+      "ticket": "141",
+      "note": "the canvas paints both lanes; the rail and panel chrome diverge",
+      "hiddenDescendants": {
+        "react": 2,
+        "blazor": 0
+      }
+    },
+    {
+      "scenarioId": "app-shell.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[1]>div[1]>header[1]>div[1]>div[6]>div[1]>button[1]>svg[1]",
+      "property": "element",
+      "ticket": "141",
+      "note": "the canvas paints both lanes; the rail and panel chrome diverge",
+      "hiddenDescendants": {
+        "react": 3,
+        "blazor": 0
+      }
+    },
+    {
+      "scenarioId": "app-shell.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[1]>div[1]>nav[1]>div[1]>div[1]>section[2]>div[2]>button[1]>svg[1]>path[1]",
+      "property": "box",
+      "ticket": "141",
+      "note": "the canvas paints both lanes; the rail and panel chrome diverge"
+    },
+    {
+      "scenarioId": "app-shell.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[1]>div[1]>nav[1]>div[1]>div[1]>section[2]>div[2]>div[1]>div[1]>button[2]>svg[1]",
+      "property": "element",
+      "ticket": "141",
+      "note": "the canvas paints both lanes; the rail and panel chrome diverge",
+      "hiddenDescendants": {
+        "react": 3,
+        "blazor": 0
+      }
+    },
+    {
+      "scenarioId": "app-shell.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[1]>div[1]>nav[1]>div[1]>div[1]>section[3]>div[2]>div[2]>button[1]>svg[1]>path[1]",
+      "property": "box",
+      "ticket": "141",
+      "note": "the canvas paints both lanes; the rail and panel chrome diverge"
+    },
+    {
+      "scenarioId": "app-shell.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[1]>div[1]>nav[1]>div[1]>div[1]>section[3]>div[2]>div[3]>button[1]>svg[1]>path[1]",
+      "property": "box",
+      "ticket": "141",
+      "note": "the canvas paints both lanes; the rail and panel chrome diverge"
+    },
+    {
+      "scenarioId": "app-shell.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[1]>div[1]>nav[1]>div[1]>div[1]>section[3]>div[2]>div[4]>button[1]>svg[1]>path[1]",
+      "property": "box",
+      "ticket": "141",
+      "note": "the canvas paints both lanes; the rail and panel chrome diverge"
+    },
+    {
+      "scenarioId": "app-shell.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[1]>div[1]>nav[1]>div[1]>div[1]>section[3]>div[3]>div[2]>button[1]>svg[1]>path[1]",
+      "property": "box",
+      "ticket": "141",
+      "note": "the canvas paints both lanes; the rail and panel chrome diverge"
+    },
+    {
+      "scenarioId": "app-shell.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[1]>div[1]>nav[1]>div[1]>div[1]>section[3]>div[3]>div[3]>button[1]>svg[1]>path[1]",
+      "property": "box",
+      "ticket": "141",
+      "note": "the canvas paints both lanes; the rail and panel chrome diverge"
+    },
+    {
+      "scenarioId": "app-shell.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[1]>div[1]>nav[1]>div[1]>div[1]>section[3]>div[3]>div[4]>button[1]>svg[1]>path[1]",
+      "property": "box",
+      "ticket": "141",
+      "note": "the canvas paints both lanes; the rail and panel chrome diverge"
+    },
+    {
+      "scenarioId": "app-shell.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[1]>div[1]>header[1]>div[1]>div[2]>button[1]>svg[1]",
+      "property": "element",
+      "ticket": "141",
+      "note": "the canvas paints both lanes; the rail and panel chrome diverge",
+      "hiddenDescendants": {
+        "react": 1,
+        "blazor": 0
+      }
+    },
+    {
+      "scenarioId": "app-shell.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[1]>div[1]>header[1]>div[1]>div[3]>button[1]>svg[1]",
+      "property": "element",
+      "ticket": "141",
+      "note": "the canvas paints both lanes; the rail and panel chrome diverge",
+      "hiddenDescendants": {
+        "react": 2,
+        "blazor": 0
+      }
+    },
+    {
+      "scenarioId": "app-shell.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[1]>div[1]>header[1]>div[1]>div[4]>button[1]>svg[1]",
+      "property": "element",
+      "ticket": "141",
+      "note": "the canvas paints both lanes; the rail and panel chrome diverge",
+      "hiddenDescendants": {
+        "react": 2,
+        "blazor": 0
+      }
+    },
+    {
+      "scenarioId": "app-shell.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[1]>div[1]>header[1]>div[1]>div[5]",
+      "property": "box",
+      "ticket": "141",
+      "note": "the canvas paints both lanes; the rail and panel chrome diverge"
+    },
+    {
+      "scenarioId": "app-shell.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[1]>div[1]>header[1]>div[1]>div[5]>span[1]",
+      "property": "box",
+      "ticket": "141",
+      "note": "the canvas paints both lanes; the rail and panel chrome diverge"
+    },
+    {
+      "scenarioId": "app-shell.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[1]>div[1]>header[1]>div[1]>div[6]",
+      "property": "box",
+      "ticket": "141",
+      "note": "the canvas paints both lanes; the rail and panel chrome diverge"
+    },
+    {
+      "scenarioId": "app-shell.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[1]>div[1]>header[1]>div[1]>div[6]>button[1]",
+      "property": "box",
+      "ticket": "141",
+      "note": "the canvas paints both lanes; the rail and panel chrome diverge"
+    },
+    {
+      "scenarioId": "app-shell.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[1]>div[1]>header[1]>div[1]>div[6]>button[1]>svg[1]",
+      "property": "element",
+      "ticket": "141",
+      "note": "the canvas paints both lanes; the rail and panel chrome diverge",
+      "hiddenDescendants": {
+        "react": 2,
+        "blazor": 0
+      }
+    },
+    {
+      "scenarioId": "app-shell.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[1]>div[1]>header[1]>div[1]>div[6]>div[1]>button[1]>svg[1]",
+      "property": "element",
+      "ticket": "141",
+      "note": "the canvas paints both lanes; the rail and panel chrome diverge",
+      "hiddenDescendants": {
+        "react": 3,
+        "blazor": 0
+      }
+    },
+    {
+      "scenarioId": "app-shell.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[1]>div[1]>nav[1]>div[1]>div[1]>section[2]>div[2]>button[1]>svg[1]>path[1]",
+      "property": "box",
+      "ticket": "141",
+      "note": "the canvas paints both lanes; the rail and panel chrome diverge"
+    },
+    {
+      "scenarioId": "app-shell.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[1]>div[1]>nav[1]>div[1]>div[1]>section[2]>div[2]>div[1]>div[1]>button[2]>svg[1]",
+      "property": "element",
+      "ticket": "141",
+      "note": "the canvas paints both lanes; the rail and panel chrome diverge",
+      "hiddenDescendants": {
+        "react": 3,
+        "blazor": 0
+      }
+    },
+    {
+      "scenarioId": "app-shell.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[1]>div[1]>nav[1]>div[1]>div[1]>section[3]>div[2]>div[2]>button[1]>svg[1]>path[1]",
+      "property": "box",
+      "ticket": "141",
+      "note": "the canvas paints both lanes; the rail and panel chrome diverge"
+    },
+    {
+      "scenarioId": "app-shell.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[1]>div[1]>nav[1]>div[1]>div[1]>section[3]>div[2]>div[3]>button[1]>svg[1]>path[1]",
+      "property": "box",
+      "ticket": "141",
+      "note": "the canvas paints both lanes; the rail and panel chrome diverge"
+    },
+    {
+      "scenarioId": "app-shell.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[1]>div[1]>nav[1]>div[1]>div[1]>section[3]>div[2]>div[4]>button[1]>svg[1]>path[1]",
+      "property": "box",
+      "ticket": "141",
+      "note": "the canvas paints both lanes; the rail and panel chrome diverge"
+    },
+    {
+      "scenarioId": "app-shell.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[1]>div[1]>nav[1]>div[1]>div[1]>section[3]>div[3]>div[2]>button[1]>svg[1]>path[1]",
+      "property": "box",
+      "ticket": "141",
+      "note": "the canvas paints both lanes; the rail and panel chrome diverge"
+    },
+    {
+      "scenarioId": "app-shell.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[1]>div[1]>nav[1]>div[1]>div[1]>section[3]>div[3]>div[3]>button[1]>svg[1]>path[1]",
+      "property": "box",
+      "ticket": "141",
+      "note": "the canvas paints both lanes; the rail and panel chrome diverge"
+    },
+    {
+      "scenarioId": "app-shell.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[1]>div[1]>nav[1]>div[1]>div[1]>section[3]>div[3]>div[4]>button[1]>svg[1]>path[1]",
+      "property": "box",
+      "ticket": "141",
+      "note": "the canvas paints both lanes; the rail and panel chrome diverge"
+    },
+    {
+      "scenarioId": "context-menu.theme-dark",
+      "path": ">div[1]>button[1]",
+      "property": "element",
+      "ticket": "147",
+      "note": "context-menu diverges per element on main; first seen by this probe",
+      "hiddenDescendants": {
+        "react": 0,
+        "blazor": 0
+      }
+    },
+    {
+      "scenarioId": "context-menu.theme-dark",
+      "path": ">div[1]>div[2]",
+      "property": "box",
+      "ticket": "147",
+      "note": "context-menu diverges per element on main; first seen by this probe"
+    },
+    {
+      "scenarioId": "context-menu.theme-dark",
+      "path": ">div[1]>div[2]>button[1]",
+      "property": "box",
+      "ticket": "147",
+      "note": "context-menu diverges per element on main; first seen by this probe"
+    },
+    {
+      "scenarioId": "context-menu.theme-dark",
+      "path": ">div[1]>div[2]>button[1]>span[1]",
+      "property": "box",
+      "ticket": "147",
+      "note": "context-menu diverges per element on main; first seen by this probe"
+    },
+    {
+      "scenarioId": "context-menu.theme-dark",
+      "path": ">div[1]>div[2]>button[1]>span[1]>span[1]",
+      "property": "box",
+      "ticket": "147",
+      "note": "context-menu diverges per element on main; first seen by this probe"
+    },
+    {
+      "scenarioId": "context-menu.theme-dark",
+      "path": ">div[1]>div[2]>button[1]>span[2]",
+      "property": "box",
+      "ticket": "147",
+      "note": "context-menu diverges per element on main; first seen by this probe"
+    },
+    {
+      "scenarioId": "context-menu.theme-dark",
+      "path": ">div[1]>div[2]>button[2]",
+      "property": "box",
+      "ticket": "147",
+      "note": "context-menu diverges per element on main; first seen by this probe"
+    },
+    {
+      "scenarioId": "context-menu.theme-dark",
+      "path": ">div[1]>div[2]>button[2]>span[1]",
+      "property": "box",
+      "ticket": "147",
+      "note": "context-menu diverges per element on main; first seen by this probe"
+    },
+    {
+      "scenarioId": "context-menu.theme-dark",
+      "path": ">div[1]>div[2]>button[3]",
+      "property": "box",
+      "ticket": "147",
+      "note": "context-menu diverges per element on main; first seen by this probe"
+    },
+    {
+      "scenarioId": "context-menu.theme-dark",
+      "path": ">div[1]>div[2]>button[3]>span[1]",
+      "property": "box",
+      "ticket": "147",
+      "note": "context-menu diverges per element on main; first seen by this probe"
+    },
+    {
+      "scenarioId": "context-menu.theme-dark",
+      "path": ">div[1]>div[2]>button[3]>span[1]>span[1]",
+      "property": "box",
+      "ticket": "147",
+      "note": "context-menu diverges per element on main; first seen by this probe"
+    },
+    {
+      "scenarioId": "context-menu.theme-dark",
+      "path": ">div[1]>div[2]>button[3]>span[2]",
+      "property": "box",
+      "ticket": "147",
+      "note": "context-menu diverges per element on main; first seen by this probe"
+    },
+    {
+      "scenarioId": "context-menu.theme-dark",
+      "path": ">div[1]>div[2]>div[1]",
+      "property": "box",
+      "ticket": "147",
+      "note": "context-menu diverges per element on main; first seen by this probe"
+    },
+    {
+      "scenarioId": "context-menu.theme-light",
+      "path": ">div[1]>button[1]",
+      "property": "element",
+      "ticket": "147",
+      "note": "context-menu diverges per element on main; first seen by this probe",
+      "hiddenDescendants": {
+        "react": 0,
+        "blazor": 0
+      }
+    },
+    {
+      "scenarioId": "context-menu.theme-light",
+      "path": ">div[1]>div[2]",
+      "property": "box",
+      "ticket": "147",
+      "note": "context-menu diverges per element on main; first seen by this probe"
+    },
+    {
+      "scenarioId": "context-menu.theme-light",
+      "path": ">div[1]>div[2]>button[1]",
+      "property": "box",
+      "ticket": "147",
+      "note": "context-menu diverges per element on main; first seen by this probe"
+    },
+    {
+      "scenarioId": "context-menu.theme-light",
+      "path": ">div[1]>div[2]>button[1]>span[1]",
+      "property": "box",
+      "ticket": "147",
+      "note": "context-menu diverges per element on main; first seen by this probe"
+    },
+    {
+      "scenarioId": "context-menu.theme-light",
+      "path": ">div[1]>div[2]>button[1]>span[1]>span[1]",
+      "property": "box",
+      "ticket": "147",
+      "note": "context-menu diverges per element on main; first seen by this probe"
+    },
+    {
+      "scenarioId": "context-menu.theme-light",
+      "path": ">div[1]>div[2]>button[1]>span[2]",
+      "property": "box",
+      "ticket": "147",
+      "note": "context-menu diverges per element on main; first seen by this probe"
+    },
+    {
+      "scenarioId": "context-menu.theme-light",
+      "path": ">div[1]>div[2]>button[2]",
+      "property": "box",
+      "ticket": "147",
+      "note": "context-menu diverges per element on main; first seen by this probe"
+    },
+    {
+      "scenarioId": "context-menu.theme-light",
+      "path": ">div[1]>div[2]>button[2]>span[1]",
+      "property": "box",
+      "ticket": "147",
+      "note": "context-menu diverges per element on main; first seen by this probe"
+    },
+    {
+      "scenarioId": "context-menu.theme-light",
+      "path": ">div[1]>div[2]>button[3]",
+      "property": "box",
+      "ticket": "147",
+      "note": "context-menu diverges per element on main; first seen by this probe"
+    },
+    {
+      "scenarioId": "context-menu.theme-light",
+      "path": ">div[1]>div[2]>button[3]>span[1]",
+      "property": "box",
+      "ticket": "147",
+      "note": "context-menu diverges per element on main; first seen by this probe"
+    },
+    {
+      "scenarioId": "context-menu.theme-light",
+      "path": ">div[1]>div[2]>button[3]>span[1]>span[1]",
+      "property": "box",
+      "ticket": "147",
+      "note": "context-menu diverges per element on main; first seen by this probe"
+    },
+    {
+      "scenarioId": "context-menu.theme-light",
+      "path": ">div[1]>div[2]>button[3]>span[2]",
+      "property": "box",
+      "ticket": "147",
+      "note": "context-menu diverges per element on main; first seen by this probe"
+    },
+    {
+      "scenarioId": "context-menu.theme-light",
+      "path": ">div[1]>div[2]>div[1]",
+      "property": "box",
+      "ticket": "147",
+      "note": "context-menu diverges per element on main; first seen by this probe"
+    },
+    {
+      "scenarioId": "notification-center.theme-dark",
+      "path": ">div[1]>div[1]>button[1]",
+      "property": "element",
+      "ticket": "147",
+      "note": "first seen by this probe; not yet diagnosed",
+      "hiddenDescendants": {
+        "react": 0,
+        "blazor": 3
+      }
+    },
+    {
+      "scenarioId": "notification-center.theme-dark",
+      "path": ">div[1]>div[1]>span[1]",
+      "property": "element",
+      "ticket": "147",
+      "note": "first seen by this probe; not yet diagnosed",
+      "hiddenDescendants": {
+        "react": 4,
+        "blazor": 0
+      }
+    },
+    {
+      "scenarioId": "notification-center.theme-light",
+      "path": ">div[1]>div[1]>button[1]",
+      "property": "element",
+      "ticket": "147",
+      "note": "first seen by this probe; not yet diagnosed",
+      "hiddenDescendants": {
+        "react": 0,
+        "blazor": 3
+      }
+    },
+    {
+      "scenarioId": "notification-center.theme-light",
+      "path": ">div[1]>div[1]>span[1]",
+      "property": "element",
+      "ticket": "147",
+      "note": "first seen by this probe; not yet diagnosed",
+      "hiddenDescendants": {
+        "react": 4,
+        "blazor": 0
+      }
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[2]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[4]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>div[1]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>div[1]>div[1]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>div[1]>div[1]>span[1]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>div[1]>div[1]>span[2]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>div[2]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>div[2]>div[1]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>div[2]>div[1]>span[1]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>div[2]>div[1]>span[2]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>div[3]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>div[3]>div[1]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>div[3]>div[1]>span[1]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>div[3]>div[1]>span[2]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[1]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[10]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[11]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[12]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[13]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[14]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[15]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[16]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[17]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[18]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[19]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[2]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[20]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[21]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[22]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[23]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[24]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[25]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[3]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[4]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[5]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[6]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[7]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[8]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[9]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[2]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[4]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>div[1]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>div[1]>div[1]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>div[1]>div[1]>span[1]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>div[1]>div[1]>span[2]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>div[2]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>div[2]>div[1]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>div[2]>div[1]>span[1]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>div[2]>div[1]>span[2]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>div[3]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>div[3]>div[1]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>div[3]>div[1]>span[1]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>div[3]>div[1]>span[2]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[1]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[10]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[11]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[12]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[13]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[14]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[15]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[16]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[17]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[18]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[19]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[2]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[20]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[21]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[22]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[23]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[24]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[25]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[3]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[4]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[5]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[6]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[7]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[8]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[9]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "schema-form.locale-theme",
+      "path": ">div[1]>form[1]>fieldset[1]>div[1]>div[1]>div[1]>div[1]>div[1]",
+      "property": "element",
+      "ticket": "147",
+      "note": "schema-form diverges per element on main; first seen by this probe",
+      "hiddenDescendants": {
+        "react": 4,
+        "blazor": 0
+      }
+    },
+    {
+      "scenarioId": "schema-form.locale-theme",
+      "path": ">div[1]>form[1]>fieldset[1]>div[1]>div[1]>div[1]>div[1]>input[1]",
+      "property": "box",
+      "ticket": "147",
+      "note": "schema-form diverges per element on main; first seen by this probe"
+    },
+    {
+      "scenarioId": "schema-form.locale-theme",
+      "path": ">div[1]>form[1]>fieldset[1]>div[1]>div[2]>div[1]>div[1]>div[1]",
+      "property": "element",
+      "ticket": "147",
+      "note": "schema-form diverges per element on main; first seen by this probe",
+      "hiddenDescendants": {
+        "react": 4,
+        "blazor": 0
+      }
+    },
+    {
+      "scenarioId": "schema-form.locale-theme",
+      "path": ">div[1]>form[1]>fieldset[1]>div[1]>div[2]>div[1]>div[1]>input[1]",
+      "property": "box",
+      "ticket": "147",
+      "note": "schema-form diverges per element on main; first seen by this probe"
+    },
+    {
+      "scenarioId": "schema-form.locale-theme",
+      "path": ">div[1]>form[2]>fieldset[1]>div[1]>div[1]>div[1]>div[1]>div[1]",
+      "property": "element",
+      "ticket": "147",
+      "note": "schema-form diverges per element on main; first seen by this probe",
+      "hiddenDescendants": {
+        "react": 4,
+        "blazor": 0
+      }
+    },
+    {
+      "scenarioId": "schema-form.locale-theme",
+      "path": ">div[1]>form[2]>fieldset[1]>div[1]>div[1]>div[1]>div[1]>input[1]",
+      "property": "box",
+      "ticket": "147",
+      "note": "schema-form diverges per element on main; first seen by this probe"
+    },
+    {
+      "scenarioId": "segmented-control.theme-dark",
+      "path": ">div[1]>div[1]>button[2]>span[1]",
+      "property": "element",
+      "ticket": "147",
+      "note": "segmented-control diverges per element on main; first seen by this probe",
+      "hiddenDescendants": {
+        "react": 0,
+        "blazor": 0
+      }
+    },
+    {
+      "scenarioId": "segmented-control.theme-dark",
+      "path": ">div[1]>div[2]>button[2]>span[1]",
+      "property": "element",
+      "ticket": "147",
+      "note": "segmented-control diverges per element on main; first seen by this probe",
+      "hiddenDescendants": {
+        "react": 0,
+        "blazor": 0
+      }
+    },
+    {
+      "scenarioId": "segmented-control.theme-dark",
+      "path": ">div[1]>div[3]>button[2]>span[1]",
+      "property": "element",
+      "ticket": "147",
+      "note": "segmented-control diverges per element on main; first seen by this probe",
+      "hiddenDescendants": {
+        "react": 0,
+        "blazor": 0
+      }
+    },
+    {
+      "scenarioId": "segmented-control.theme-dark",
+      "path": ">div[1]>div[4]>button[2]>span[1]",
+      "property": "element",
+      "ticket": "147",
+      "note": "segmented-control diverges per element on main; first seen by this probe",
+      "hiddenDescendants": {
+        "react": 0,
+        "blazor": 0
+      }
+    },
+    {
+      "scenarioId": "segmented-control.theme-light",
+      "path": ">div[1]>div[1]>button[2]>span[1]",
+      "property": "element",
+      "ticket": "147",
+      "note": "segmented-control diverges per element on main; first seen by this probe",
+      "hiddenDescendants": {
+        "react": 0,
+        "blazor": 0
+      }
+    },
+    {
+      "scenarioId": "segmented-control.theme-light",
+      "path": ">div[1]>div[2]>button[2]>span[1]",
+      "property": "element",
+      "ticket": "147",
+      "note": "segmented-control diverges per element on main; first seen by this probe",
+      "hiddenDescendants": {
+        "react": 0,
+        "blazor": 0
+      }
+    },
+    {
+      "scenarioId": "segmented-control.theme-light",
+      "path": ">div[1]>div[3]>button[2]>span[1]",
+      "property": "element",
+      "ticket": "147",
+      "note": "segmented-control diverges per element on main; first seen by this probe",
+      "hiddenDescendants": {
+        "react": 0,
+        "blazor": 0
+      }
+    },
+    {
+      "scenarioId": "segmented-control.theme-light",
+      "path": ">div[1]>div[4]>button[2]>span[1]",
+      "property": "element",
+      "ticket": "147",
+      "note": "segmented-control diverges per element on main; first seen by this probe",
+      "hiddenDescendants": {
+        "react": 0,
+        "blazor": 0
+      }
+    },
+    {
+      "scenarioId": "side-nav.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>nav[1]>div[1]",
+      "property": "element",
+      "ticket": "147",
+      "note": "a TAG-only difference, not a missing element: React spells the group container div, Blazor section, so the per-tag path stops matching and the whole group reads as absent in both directions. It is an absence today, and hiddenDescendants records how much of the component the row exempts; agreeing the tag is the fix.",
+      "hiddenDescendants": {
+        "react": 25,
+        "blazor": 0
+      }
+    },
+    {
+      "scenarioId": "side-nav.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>nav[1]>div[2]",
+      "property": "element",
+      "ticket": "147",
+      "note": "a TAG-only difference, not a missing element: React spells the group container div, Blazor section, so the per-tag path stops matching and the whole group reads as absent in both directions. It is an absence today, and hiddenDescendants records how much of the component the row exempts; agreeing the tag is the fix.",
+      "hiddenDescendants": {
+        "react": 8,
+        "blazor": 0
+      }
+    },
+    {
+      "scenarioId": "side-nav.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>nav[1]>section[1]",
+      "property": "element",
+      "ticket": "147",
+      "note": "a TAG-only difference, not a missing element: React spells the group container div, Blazor section, so the per-tag path stops matching and the whole group reads as absent in both directions. It is an absence today, and hiddenDescendants records how much of the component the row exempts; agreeing the tag is the fix.",
+      "hiddenDescendants": {
+        "react": 0,
+        "blazor": 25
+      }
+    },
+    {
+      "scenarioId": "side-nav.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>nav[1]>section[2]",
+      "property": "element",
+      "ticket": "147",
+      "note": "a TAG-only difference, not a missing element: React spells the group container div, Blazor section, so the per-tag path stops matching and the whole group reads as absent in both directions. It is an absence today, and hiddenDescendants records how much of the component the row exempts; agreeing the tag is the fix.",
+      "hiddenDescendants": {
+        "react": 0,
+        "blazor": 8
+      }
+    },
+    {
+      "scenarioId": "side-nav.theme-light",
+      "path": ">div[1]>div[1]>div[1]>nav[1]>div[1]",
+      "property": "element",
+      "ticket": "147",
+      "note": "a TAG-only difference, not a missing element: React spells the group container div, Blazor section, so the per-tag path stops matching and the whole group reads as absent in both directions. It is an absence today, and hiddenDescendants records how much of the component the row exempts; agreeing the tag is the fix.",
+      "hiddenDescendants": {
+        "react": 25,
+        "blazor": 0
+      }
+    },
+    {
+      "scenarioId": "side-nav.theme-light",
+      "path": ">div[1]>div[1]>div[1]>nav[1]>div[2]",
+      "property": "element",
+      "ticket": "147",
+      "note": "a TAG-only difference, not a missing element: React spells the group container div, Blazor section, so the per-tag path stops matching and the whole group reads as absent in both directions. It is an absence today, and hiddenDescendants records how much of the component the row exempts; agreeing the tag is the fix.",
+      "hiddenDescendants": {
+        "react": 8,
+        "blazor": 0
+      }
+    },
+    {
+      "scenarioId": "side-nav.theme-light",
+      "path": ">div[1]>div[1]>div[1]>nav[1]>section[1]",
+      "property": "element",
+      "ticket": "147",
+      "note": "a TAG-only difference, not a missing element: React spells the group container div, Blazor section, so the per-tag path stops matching and the whole group reads as absent in both directions. It is an absence today, and hiddenDescendants records how much of the component the row exempts; agreeing the tag is the fix.",
+      "hiddenDescendants": {
+        "react": 0,
+        "blazor": 25
+      }
+    },
+    {
+      "scenarioId": "side-nav.theme-light",
+      "path": ">div[1]>div[1]>div[1]>nav[1]>section[2]",
+      "property": "element",
+      "ticket": "147",
+      "note": "a TAG-only difference, not a missing element: React spells the group container div, Blazor section, so the per-tag path stops matching and the whole group reads as absent in both directions. It is an absence today, and hiddenDescendants records how much of the component the row exempts; agreeing the tag is the fix.",
+      "hiddenDescendants": {
+        "react": 0,
+        "blazor": 8
+      }
+    },
+    {
+      "scenarioId": "toaster.theme-dark",
+      "path": ">div[1]>div[1]",
+      "property": "box",
+      "ticket": "147",
+      "note": "toaster diverges per element on main; first seen by this probe"
+    },
+    {
+      "scenarioId": "toaster.theme-dark",
+      "path": ">div[1]>div[1]>button[1]",
+      "property": "element",
+      "ticket": "147",
+      "note": "a lane WRAPPER difference, not a missing element: the Blazor lane renders the toast region directly under the stage div where React nests it one div deeper, so every path below the wrapper is absent in one lane. It is an absence today, and hiddenDescendants records how much of the component the row exempts; re-anchoring the subtree is the fix, not a wider tolerance.",
+      "hiddenDescendants": {
+        "react": 0,
+        "blazor": 0
+      }
+    },
+    {
+      "scenarioId": "toaster.theme-dark",
+      "path": ">div[1]>div[1]>button[2]",
+      "property": "element",
+      "ticket": "147",
+      "note": "a lane WRAPPER difference, not a missing element: the Blazor lane renders the toast region directly under the stage div where React nests it one div deeper, so every path below the wrapper is absent in one lane. It is an absence today, and hiddenDescendants records how much of the component the row exempts; re-anchoring the subtree is the fix, not a wider tolerance.",
+      "hiddenDescendants": {
+        "react": 0,
+        "blazor": 0
+      }
+    },
+    {
+      "scenarioId": "toaster.theme-dark",
+      "path": ">div[1]>div[1]>div[1]",
+      "property": "element",
+      "ticket": "147",
+      "note": "a lane WRAPPER difference, not a missing element: the Blazor lane renders the toast region directly under the stage div where React nests it one div deeper, so every path below the wrapper is absent in one lane. It is an absence today, and hiddenDescendants records how much of the component the row exempts; re-anchoring the subtree is the fix, not a wider tolerance.",
+      "hiddenDescendants": {
+        "react": 2,
+        "blazor": 0
+      }
+    },
+    {
+      "scenarioId": "toaster.theme-dark",
+      "path": ">div[1]>div[1]>section[1]",
+      "property": "element",
+      "ticket": "147",
+      "note": "a lane WRAPPER difference, not a missing element: the Blazor lane renders the toast region directly under the stage div where React nests it one div deeper, so every path below the wrapper is absent in one lane. It is an absence today, and hiddenDescendants records how much of the component the row exempts; re-anchoring the subtree is the fix, not a wider tolerance.",
+      "hiddenDescendants": {
+        "react": 40,
+        "blazor": 0
+      }
+    },
+    {
+      "scenarioId": "toaster.theme-dark",
+      "path": ">div[1]>section[1]",
+      "property": "element",
+      "ticket": "147",
+      "note": "a lane WRAPPER difference, not a missing element: the Blazor lane renders the toast region directly under the stage div where React nests it one div deeper, so every path below the wrapper is absent in one lane. It is an absence today, and hiddenDescendants records how much of the component the row exempts; re-anchoring the subtree is the fix, not a wider tolerance.",
+      "hiddenDescendants": {
+        "react": 0,
+        "blazor": 40
+      }
+    },
+    {
+      "scenarioId": "toaster.theme-light",
+      "path": ">div[1]>div[1]",
+      "property": "box",
+      "ticket": "147",
+      "note": "toaster diverges per element on main; first seen by this probe"
+    },
+    {
+      "scenarioId": "toaster.theme-light",
+      "path": ">div[1]>div[1]>button[1]",
+      "property": "element",
+      "ticket": "147",
+      "note": "a lane WRAPPER difference, not a missing element: the Blazor lane renders the toast region directly under the stage div where React nests it one div deeper, so every path below the wrapper is absent in one lane. It is an absence today, and hiddenDescendants records how much of the component the row exempts; re-anchoring the subtree is the fix, not a wider tolerance.",
+      "hiddenDescendants": {
+        "react": 0,
+        "blazor": 0
+      }
+    },
+    {
+      "scenarioId": "toaster.theme-light",
+      "path": ">div[1]>div[1]>button[2]",
+      "property": "element",
+      "ticket": "147",
+      "note": "a lane WRAPPER difference, not a missing element: the Blazor lane renders the toast region directly under the stage div where React nests it one div deeper, so every path below the wrapper is absent in one lane. It is an absence today, and hiddenDescendants records how much of the component the row exempts; re-anchoring the subtree is the fix, not a wider tolerance.",
+      "hiddenDescendants": {
+        "react": 0,
+        "blazor": 0
+      }
+    },
+    {
+      "scenarioId": "toaster.theme-light",
+      "path": ">div[1]>div[1]>div[1]",
+      "property": "element",
+      "ticket": "147",
+      "note": "a lane WRAPPER difference, not a missing element: the Blazor lane renders the toast region directly under the stage div where React nests it one div deeper, so every path below the wrapper is absent in one lane. It is an absence today, and hiddenDescendants records how much of the component the row exempts; re-anchoring the subtree is the fix, not a wider tolerance.",
+      "hiddenDescendants": {
+        "react": 2,
+        "blazor": 0
+      }
+    },
+    {
+      "scenarioId": "toaster.theme-light",
+      "path": ">div[1]>div[1]>section[1]",
+      "property": "element",
+      "ticket": "147",
+      "note": "a lane WRAPPER difference, not a missing element: the Blazor lane renders the toast region directly under the stage div where React nests it one div deeper, so every path below the wrapper is absent in one lane. It is an absence today, and hiddenDescendants records how much of the component the row exempts; re-anchoring the subtree is the fix, not a wider tolerance.",
+      "hiddenDescendants": {
+        "react": 40,
+        "blazor": 0
+      }
+    },
+    {
+      "scenarioId": "toaster.theme-light",
+      "path": ">div[1]>section[1]",
+      "property": "element",
+      "ticket": "147",
+      "note": "a lane WRAPPER difference, not a missing element: the Blazor lane renders the toast region directly under the stage div where React nests it one div deeper, so every path below the wrapper is absent in one lane. It is an absence today, and hiddenDescendants records how much of the component the row exempts; re-anchoring the subtree is the fix, not a wider tolerance.",
+      "hiddenDescendants": {
+        "react": 0,
+        "blazor": 40
+      }
+    }
+  ]
+}

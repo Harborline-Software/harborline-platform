@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.cn",
+  "fixtureRevision": 1,
+  "cases": [
+    {"id": "cn.strings", "input": ["button", "primary"], "expected": "button primary"},
+    {"id": "cn.conditionals", "input": [{"kind": "string", "value": "button"}, {"kind": "boolean", "value": false}, {"kind": "null"}, {"kind": "undefined"}, {"kind": "string", "value": "active"}, {"kind": "string", "value": ""}], "expected": "button active"},
+    {"id": "cn.nested-arrays", "input": ["root", ["child", ["leaf"]]], "expected": "root child leaf"},
+    {"id": "cn.object-map", "input": {"kind": "object-entries", "entries": [["enabled", true], ["disabled", false], ["selected", true]]}, "expected": "enabled selected"},
+    {"id": "cn.tailwind-conflict", "input": ["p-2", "text-sm", "p-4", "text-lg"], "expected": "p-4 text-lg"},
+    {"id": "cn.modifier-conflict", "input": ["hover:bg-red-500", "hover:bg-blue-500", "focus:bg-green-500"], "expected": "hover:bg-blue-500 focus:bg-green-500"},
+    {"id": "cn.responsive-conflict", "input": ["md:p-2", "p-1", "md:p-6", "lg:p-8"], "expected": "p-1 md:p-6 lg:p-8"},
+    {"id": "cn.arbitrary-value-conflict", "input": ["w-[12px]", "w-[2rem]", "h-[12px]"], "expected": "w-[2rem] h-[12px]"},
+    {"id": "cn.important-modifier", "input": ["p-2", "p-4!", "p-6"], "expected": "p-4! p-6"},
+    {"id": "cn.negative-utility", "input": ["mt-2", "-mt-4", "mx-1"], "expected": "-mt-4 mx-1"},
+    {"id": "cn.duplicate", "input": ["block", "block", "custom", "custom"], "expected": "block custom custom"},
+    {"id": "cn.arbitrary-token", "input": ["custom-token", "tenant-theme", "data-[open=true]:block"], "expected": "custom-token tenant-theme data-[open=true]:block"},
+    {"id": "cn.empty", "input": [{"kind": "boolean", "value": false}, {"kind": "null"}, {"kind": "undefined"}, {"kind": "string", "value": ""}], "expected": ""},
+    {"id": "cn.projection-equivalence", "input": ["rtl:ms-2", "rtl:ms-4", "forced-colors:border", "theme-token"], "expected": {"value": "rtl:ms-4 forced-colors:border theme-token", "typescriptEqualsDotnet": true}}
+  ]
+}

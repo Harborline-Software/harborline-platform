@@ -1,0 +1,354 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.loading-state",
+  "sourceFixture": "conformance/hlp.ui.loading-state/fixtures.yaml",
+  "qualityFixture": "conformance/hlp.ui.loading-state/quality-fixtures.yaml",
+  "galleryInterface": {
+    "probeAttribute": "data-gallery-probe",
+    "scenarioAttribute": "data-gallery-scenario",
+    "projectionTitles": {
+      "react": "Platform/Loading State",
+      "blazor": "Platform/Loading State"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "loading-state.default",
+      "name": "Page",
+      "surface": "default",
+      "sourceCaseIds": [
+        "loading-state.default",
+        "loading-state.announcement",
+        "loading-state.label"
+      ],
+      "sourceQualityCaseIds": [
+        "loading-state.quality.status",
+        "loading-state.quality.live-region",
+        "loading-state.quality.visible-label"
+      ],
+      "content": {
+        "blurb": "A centered polite status with caller-owned visible text.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "label": "Loading inspections"
+        },
+        "state": {},
+        "body": [],
+        "footer": []
+      }
+    },
+    {
+      "id": "loading-state.inline",
+      "name": "Inline",
+      "surface": "inline",
+      "sourceCaseIds": [
+        "loading-state.inline",
+        "loading-state.semantic-tone"
+      ],
+      "sourceQualityCaseIds": [
+        "loading-state.quality.status",
+        "loading-state.quality.visible-label"
+      ],
+      "content": {
+        "blurb": "The compact status participates in surrounding content flow.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "label": "Loading results",
+          "variant": "inline"
+        },
+        "state": {},
+        "body": [],
+        "footer": []
+      }
+    },
+    {
+      "id": "loading-state.label-update",
+      "name": "Label update",
+      "surface": "label-update",
+      "sourceCaseIds": [
+        "loading-state.label-update",
+        "loading-state.announcement"
+      ],
+      "sourceQualityCaseIds": [
+        "loading-state.quality.live-region",
+        "loading-state.quality.caller-label"
+      ],
+      "content": {
+        "blurb": "The caller updates one persistent polite status region as work advances.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "label": "{label}",
+          "variant": "inline",
+          "data-update-region": true
+        },
+        "state": {
+          "label": {
+            "kind": "string",
+            "initial": "Loading inspections"
+          }
+        },
+        "body": [
+          {
+            "control": "button",
+            "text": "Advance caller state",
+            "action": "set",
+            "state": "label",
+            "value": "Loading attachments"
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "loading-state.host-attributes",
+      "name": "Host attributes",
+      "surface": "host-attribute",
+      "sourceCaseIds": [
+        "loading-state.host-attributes"
+      ],
+      "sourceQualityCaseIds": [
+        "loading-state.quality.status"
+      ],
+      "content": {
+        "blurb": "Consumer class, data, and atomic announcement attributes reach the status host.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "label": "Loading inspections",
+          "variant": "inline",
+          "className": "consumer",
+          "data-case": "shared",
+          "aria-atomic": "true"
+        },
+        "state": {},
+        "body": [],
+        "footer": []
+      }
+    },
+    {
+      "id": "loading-state.locale-en",
+      "name": "English locale",
+      "surface": "locale-en",
+      "sourceCaseIds": [
+        "loading-state.label",
+        "loading-state.locale-direction"
+      ],
+      "sourceQualityCaseIds": [
+        "loading-state.quality.caller-label",
+        "loading-state.quality.locale-direction"
+      ],
+      "content": {
+        "blurb": "Caller-localized visible text and direction propagate to the status.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "label": "Loading inspections",
+          "lang": "en-US",
+          "dir": "ltr"
+        },
+        "state": {},
+        "body": [],
+        "footer": []
+      }
+    },
+    {
+      "id": "loading-state.locale-pseudo",
+      "name": "Pseudo locale",
+      "surface": "locale-pseudo",
+      "sourceCaseIds": [
+        "loading-state.label",
+        "loading-state.locale-direction"
+      ],
+      "sourceQualityCaseIds": [
+        "loading-state.quality.caller-label",
+        "loading-state.quality.locale-direction",
+        "loading-state.quality.pseudo-expansion",
+        "loading-state.quality.formatting-applicability",
+        "loading-state.quality.reflow-200"
+      ],
+      "content": {
+        "blurb": "Expanded status text exposes clipping and fixed-width assumptions.",
+        "environment": {
+          "locale": "en-XA",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "label": "⟦ Ļøåđîñĝ îñšþëçţîøñš ······ ⟧",
+          "lang": "en-XA",
+          "dir": "ltr"
+        },
+        "state": {},
+        "body": [],
+        "footer": []
+      }
+    },
+    {
+      "id": "loading-state.locale-ar",
+      "name": "Arabic locale",
+      "surface": "locale-ar",
+      "sourceCaseIds": [
+        "loading-state.locale-direction"
+      ],
+      "sourceQualityCaseIds": [
+        "loading-state.quality.caller-label",
+        "loading-state.quality.locale-direction",
+        "loading-state.quality.rtl"
+      ],
+      "content": {
+        "blurb": "RTL status text keeps its order and logical alignment.",
+        "environment": {
+          "locale": "ar-SA",
+          "direction": "rtl",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "label": "جارٍ تحميل عمليات الفحص",
+          "lang": "ar-SA",
+          "dir": "rtl"
+        },
+        "state": {},
+        "body": [],
+        "footer": []
+      }
+    },
+    {
+      "id": "loading-state.theme-light",
+      "name": "Light theme",
+      "surface": "theme-light",
+      "sourceCaseIds": [
+        "loading-state.default",
+        "loading-state.inline",
+        "loading-state.semantic-tone"
+      ],
+      "sourceQualityCaseIds": [
+        "loading-state.quality.theme-light",
+        "loading-state.quality.theme-states",
+        "loading-state.quality.theme-tokens",
+        "loading-state.quality.runtime-switch",
+        "loading-state.quality.contrast",
+        "loading-state.quality.reduced-motion",
+        "loading-state.quality.visual-parity",
+        "loading-state.quality.forced-colors",
+        "loading-state.quality.reflow-200"
+      ],
+      "content": {
+        "blurb": "Page, inline, text, and surface roles on the neutral light fixture.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<div className=\"hl-gallery-feedback-grid\"><LoadingState label=\"Loading inspections\" /><LoadingState label=\"Loading attachments\" variant=\"inline\" /></div>",
+            "blazor": "<div class=\"hl-gallery-feedback-grid\">\n    <HarborlineLoadingState Label=\"Loading inspections\" />\n    <HarborlineLoadingState Label=\"Loading attachments\" Variant=\"LoadingStateVariant.Inline\" />\n</div>",
+            "rationale": "The scenario renders two loading-state component instances in a grid, but the closed body vocabulary has no loading-state control or component-instance descriptor."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "loading-state.theme-dark",
+      "name": "Dark theme",
+      "surface": "theme-dark",
+      "sourceCaseIds": [
+        "loading-state.default",
+        "loading-state.inline",
+        "loading-state.semantic-tone",
+        "loading-state.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "loading-state.quality.theme-dark",
+        "loading-state.quality.theme-states",
+        "loading-state.quality.theme-tokens",
+        "loading-state.quality.runtime-switch",
+        "loading-state.quality.contrast",
+        "loading-state.quality.reduced-motion",
+        "loading-state.quality.visual-parity",
+        "loading-state.quality.forced-colors",
+        "loading-state.quality.reflow-200"
+      ],
+      "content": {
+        "blurb": "The same non-interactive status vocabulary on the Harborline dark surface.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "dark",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<div className=\"hl-gallery-feedback-grid\"><LoadingState label=\"Loading inspections\" /><LoadingState label=\"Loading attachments\" variant=\"inline\" /></div>",
+            "blazor": "<div class=\"hl-gallery-feedback-grid\">\n    <HarborlineLoadingState Label=\"Loading inspections\" />\n    <HarborlineLoadingState Label=\"Loading attachments\" Variant=\"LoadingStateVariant.Inline\" />\n</div>",
+            "rationale": "The scenario renders two loading-state component instances in a grid, but the closed body vocabulary has no loading-state control or component-instance descriptor."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "loading-state.content",
+      "name": "Content resilience",
+      "surface": "long-content",
+      "sourceCaseIds": [
+        "loading-state.default",
+        "loading-state.label"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "The visible status label carries long copy, the grouped number 1,284,905, escaped angle brackets and an ampersand, and a name with diacritics and an em dash.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<LoadingState label={'Loading 1,284,905 records for Ordnance Survey — Niño Ångström at Bay 4 <grid C-7> & 8'} />",
+            "blazor": "<HarborlineLoadingState Label=\"@(\"Loading 1,284,905 records for Ordnance Survey — Niño Ångström at Bay 4 <grid C-7> & 8\")\" />",
+            "rationale": "The closed control vocabulary has no loading-state control and cannot safely encode a hostile-but-valid label containing markup-like text."
+          }
+        ],
+        "footer": []
+      }
+    }
+  ]
+}

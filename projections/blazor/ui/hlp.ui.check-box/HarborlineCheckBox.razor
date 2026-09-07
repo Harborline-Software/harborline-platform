@@ -1,0 +1,107 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Forms
+@using Microsoft.JSInterop
+@inherits HarborlineComponentBase
+@implements IAsyncDisposable
+@inject IJSRuntime JavaScript
+
+@if (string.IsNullOrWhiteSpace(Label))
+{
+    <span class="@RootClasses" style="@CombineStyles()">
+        @Control
+    </span>
+}
+else
+{
+    <label class="@RootClasses" style="@CombineStyles()">
+        @if (LabelPlacement == CheckBoxLabelPlacement.Before) { <span class="hl-check-box__label">@Label</span> }
+        @Control
+        @if (LabelPlacement == CheckBoxLabelPlacement.After) { <span class="hl-check-box__label">@Label</span> }
+    </label>
+}
+
+@code {
+    [Parameter] public CheckBoxState? Checked { get; set; }
+    [Parameter] public bool DefaultChecked { get; set; }
+    [Parameter] public EventCallback<bool> CheckedChanged { get; set; }
+    [Parameter] public string? Label { get; set; }
+    [Parameter] public CheckBoxLabelPlacement LabelPlacement { get; set; } = CheckBoxLabelPlacement.After;
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public bool Required { get; set; }
+    [Parameter] public bool Error { get; set; }
+    [Parameter] public string? Id { get; set; }
+    [Parameter] public string? Name { get; set; }
+    [Parameter] public string? Value { get; set; }
+    [Parameter] public string? DescribedBy { get; set; }
+    [Parameter] public CheckBoxSize Size { get; set; } = CheckBoxSize.Medium;
+
+    private CheckBoxState _localState;
+    private bool _initialized;
+    private bool _indeterminateApplied;
+    private ElementReference _input;
+    private IJSObjectReference? _module;
+    private CheckBoxState CurrentState => Checked ?? _localState;
+    private string SizeName => Size switch { CheckBoxSize.Small => "sm", CheckBoxSize.Large => "lg", _ => "md" };
+
+    // The authority stylesheet sizes and errors the control through the root modifier
+    // (.hl-check-box--lg .hl-check-box__control, .hl-check-box--error .hl-check-box__control),
+    // exactly as the React lane spells it, so both shapes of root carry the same class list.
+    private string RootClasses => CombineClasses(
+        "hl-check-box",
+        $"hl-check-box--{SizeName}",
+        Disabled ? "hl-check-box--disabled" : null,
+        Error ? "hl-check-box--error" : null);
+    private string AriaChecked => CurrentState == CheckBoxState.Mixed ? "mixed" : (CurrentState == CheckBoxState.Checked).ToString().ToLowerInvariant();
+    private RenderFragment Control => builder =>
+    {
+        builder.OpenElement(0, "input");
+        builder.AddAttribute(1, "type", "checkbox");
+        builder.AddAttribute(2, "class", "hl-check-box__control");
+        builder.AddAttribute(3, "id", Id);
+        builder.AddAttribute(4, "name", Name);
+        builder.AddAttribute(5, "value", Value);
+        builder.AddAttribute(6, "checked", CurrentState == CheckBoxState.Checked);
+        builder.AddAttribute(7, "disabled", Disabled);
+        builder.AddAttribute(8, "required", Required);
+        builder.AddAttribute(9, "aria-required", Required ? "true" : null);
+        builder.AddAttribute(10, "aria-invalid", Error ? "true" : null);
+        builder.AddAttribute(11, "aria-describedby", DescribedBy);
+        builder.AddAttribute(12, "aria-checked", AriaChecked);
+        builder.AddAttribute(13, "data-hl-state", CurrentState.ToString().ToLowerInvariant());
+        builder.AddAttribute(14, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, OnChangedAsync));
+        if (string.IsNullOrWhiteSpace(Label) && AdditionalAttributes is not null)
+            builder.AddMultipleAttributes(15, AdditionalAttributes);
+        builder.AddElementReferenceCapture(16, element => _input = element);
+        builder.CloseElement();
+    };
+
+    protected override void OnParametersSet()
+    {
+        if (_initialized) return;
+        _localState = DefaultChecked ? CheckBoxState.Checked : CheckBoxState.Unchecked;
+        _initialized = true;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        var indeterminate = CurrentState == CheckBoxState.Mixed;
+        if (indeterminate == _indeterminateApplied) return;
+        _module ??= await JavaScript.InvokeAsync<IJSObjectReference>(
+            "import", "./_content/Harborline.UIAdapters.Blazor/check-box.js");
+        await _module.InvokeVoidAsync("setIndeterminate", _input, indeterminate);
+        _indeterminateApplied = indeterminate;
+    }
+
+    private async Task OnChangedAsync(ChangeEventArgs args)
+    {
+        if (Disabled) return;
+        var next = args.Value is bool value ? value : CurrentState != CheckBoxState.Checked;
+        if (Checked is null) _localState = next ? CheckBoxState.Checked : CheckBoxState.Unchecked;
+        await CheckedChanged.InvokeAsync(next);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_module is not null)
+            await _module.DisposeAsync();
+    }
+}

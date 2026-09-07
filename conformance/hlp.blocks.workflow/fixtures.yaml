@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.blocks.workflow",
+  "interfaceRevision": 2,
+  "durableCases": [
+    {"id": "atomic-advance-crash-rolls-back", "expect": "staging-throw-appends-nothing; resume posts exactly once"},
+    {"id": "advance-survives-process-restart", "probe": "write-crash", "expect": "effect committed exactly once after kill without dispose"},
+    {"id": "park-survives-restart", "probe": "write-crash", "expect": "Parked at approve, iteration read back verbatim, resume advances once"},
+    {"id": "incomplete-final-frame-truncated", "probe": "write-partial-crash", "expect": "torn tail removed, committed rows intact"},
+    {"id": "corrupt-complete-frame-fails-closed", "expect": "InvalidDataException at open"},
+    {"id": "events-append-only-monotonic-seq", "expect": "per-instance Seq 1..n, history immutable"},
+    {"id": "exclusive-process-lock", "expect": "second open throws IOException"},
+    {"id": "single-node-disclaimer", "expect": "no distributed-lease or multi-node claim"}
+  ],
+  "dispatchCases": [
+    {"id": "autonomous-event-parks-cp", "trigger": "Event", "step": "Draft", "expected": "Parked", "expectedStep": "PendingApproval"},
+    {"id": "human-approve-advances-with-effect", "trigger": "HumanAction", "step": "PendingApproval", "decision": "approve", "expected": "Advanced", "expectedStep": "Posted", "expectedStatus": "Completed", "effectsStaged": 1},
+    {"id": "redelivered-trigger-replays", "trigger": "HumanAction", "step": "PendingApproval", "decision": "approve", "expected": "ReplayedNoOp|Terminal", "effectsStaged": 0},
+    {"id": "loop-back-park-bumps-iteration", "expect": "iteration+1-and-cap-escalates-to-Failed"},
+    {"id": "unknown-instance", "expected": "UnknownInstance"}
+  ],
+  "admissionCases": [
+    {"id": "unclassified-action", "expected": "workflow.admission.action_unclassified"},
+    {"id": "cp-on-autonomous-edge", "expected": "workflow.admission.cp_reachable_without_human_task"},
+    {"id": "declared-ap-registry-cp", "expected": "workflow.admission.classification_mismatch"},
+    {"id": "unknown-capability-derives-cp", "expect": "fail-closed-to-CP"},
+    {"id": "cp-on-human-approve-transition", "expected": "admitted"}
+  ],
+  "definitionStore": {
+    "registerAdmitsFailClosed": true,
+    "revisionsImmutablePer": "(tenant, key, version)",
+    "currentPublished": "highest-published-version",
+    "tenantIsolated": true,
+    "executionFace": "re-admitting-reads-only",
+    "packRestoreSentinel": {"provenance": "Pack", "owner": {"scheme": "system", "value": "__harborline"}}
+  },
+  "brokerCases": [
+    {"id": "ap-builds-autonomously", "capability": "notify.email", "path": "BuildAutonomousEffect", "expected": "effect"},
+    {"id": "cp-refuses-autonomous", "capability": "ledger.post-journal-entry", "path": "BuildAutonomousEffect", "expected": "workflow.effect.cp_requires_confirmation"},
+    {"id": "non-human-confirmer-refused", "path": "ConfirmAndBuildEffect", "expected": "workflow.approval.separation_of_duties_violation"},
+    {"id": "agent-self-confirm-refused", "path": "ConfirmAndBuildEffect", "expected": "workflow.approval.separation_of_duties_violation"},
+    {"id": "outbound-external-forces-cp", "reach": "OutboundExternal", "expected": "CP"}
+  ]
+}

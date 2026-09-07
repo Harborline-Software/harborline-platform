@@ -1,0 +1,170 @@
+{
+  "schemaVersion": 1,
+  "capability": "calculations",
+  "description": "The calculations authoring-lane cross-check corpus: 12 cases derived from the frozen calculations behavior map's anchor set (compile bridge, admission fence, rule-graph). Each case is driven through BOTH packed authoring lanes (@harborline-software/rule-authoring over @harborline-software/rule-engine, and Harborline.Foundation.RuleAuthoring over Harborline.Foundation.RuleEngine); each lane asserts the pinned expected verdict AND the engine lane cross-checks verdict identity against the renderer lane's written verdicts, case by case. Drafts are the authoring-model JSON; expression values are raw JSON (the .NET lane stringifies for its RuleDefinition wire shape).",
+  "cases": [
+    {
+      "id": "table-fires-low-band",
+      "op": "preview",
+      "ruleId": "invoice-route",
+      "draft": {
+        "skin": "table",
+        "scope": "Field",
+        "scopeTarget": "route",
+        "outputType": "Compute",
+        "hitPolicy": "first-match",
+        "columns": [{"id": "c1", "input": "amount", "valueType": "number"}],
+        "rows": [
+          {"id": "r1", "cells": {"c1": {"kind": "range", "lo": "0", "hi": "1000"}}, "output": "Auto-approve", "priority": 0},
+          {"id": "r2", "cells": {"c1": {"kind": "range", "lo": "1000", "hi": "5000"}}, "output": "Manager", "priority": 0},
+          {"id": "r3", "cells": {"c1": {"kind": "range", "lo": "5000", "hi": ""}}, "output": "Director", "priority": 0}
+        ],
+        "noMatch": {"kind": "default", "value": "Require approval"}
+      },
+      "sample": {"amount": 500},
+      "expected": {"value": "Auto-approve", "firedRowId": "r1", "traceCodes": ["rule.trace.value_computed"]}
+    },
+    {
+      "id": "table-inclusive-low-boundary",
+      "op": "preview",
+      "ruleId": "invoice-route",
+      "draftRef": "table-fires-low-band",
+      "sample": {"amount": 1000},
+      "expected": {"value": "Manager", "firedRowId": "r2", "traceCodes": ["rule.trace.value_computed"]}
+    },
+    {
+      "id": "table-open-top-5000-edge",
+      "op": "preview",
+      "ruleId": "invoice-route",
+      "draftRef": "table-fires-low-band",
+      "sample": {"amount": 5000},
+      "expected": {"value": "Director", "firedRowId": "r3", "traceCodes": ["rule.trace.value_computed"]}
+    },
+    {
+      "id": "table-otherwise-default",
+      "op": "preview",
+      "ruleId": "invoice-route",
+      "draftRef": "table-fires-low-band",
+      "sample": {"amount": -1},
+      "expected": {"value": "Require approval", "firedRowId": null, "traceCodes": ["rule.trace.value_computed"]}
+    },
+    {
+      "id": "table-priority-hit-policy",
+      "op": "preview",
+      "ruleId": "escalation",
+      "draft": {
+        "skin": "table",
+        "scope": "Field",
+        "scopeTarget": "route",
+        "outputType": "Compute",
+        "hitPolicy": "priority",
+        "columns": [{"id": "c1", "input": "amount", "valueType": "number"}],
+        "rows": [
+          {"id": "low", "cells": {"c1": {"kind": "compare", "op": ">=", "value": "0"}}, "output": "LOW", "priority": 1},
+          {"id": "high", "cells": {"c1": {"kind": "compare", "op": ">=", "value": "0"}}, "output": "HIGH", "priority": 5}
+        ],
+        "noMatch": {"kind": "default", "value": "none"}
+      },
+      "sample": {"amount": 10},
+      "expected": {"value": "HIGH", "firedRowId": "high", "traceCodes": ["rule.trace.value_computed"]}
+    },
+    {
+      "id": "table-first-match-hit-policy",
+      "op": "preview",
+      "ruleId": "escalation",
+      "draftRef": "table-priority-hit-policy",
+      "draftOverrides": {"hitPolicy": "first-match"},
+      "sample": {"amount": 10},
+      "expected": {"value": "LOW", "firedRowId": "low", "traceCodes": ["rule.trace.value_computed"]}
+    },
+    {
+      "id": "formula-binary-multiply",
+      "op": "preview",
+      "ruleId": "overtime",
+      "draft": {
+        "skin": "formula",
+        "scope": "Field",
+        "scopeTarget": "pay",
+        "outputType": "Compute",
+        "inputs": [
+          {"id": "i1", "ref": "hours", "type": "number"},
+          {"id": "i2", "ref": "rate", "type": "number"}
+        ],
+        "expression": {"kind": "binary", "op": "*", "left": {"kind": "ref", "ref": "hours"}, "right": {"kind": "ref", "ref": "rate"}}
+      },
+      "sample": {"hours": 10, "rate": 20},
+      "expected": {"value": 200, "firedRowId": null, "traceCodes": ["rule.trace.value_computed"]}
+    },
+    {
+      "id": "publish-blank-otherwise-refused",
+      "op": "publish-refusal",
+      "ruleKey": "blank-route",
+      "draft": {
+        "skin": "table",
+        "scope": "Field",
+        "scopeTarget": "outcome",
+        "outputType": "Compute",
+        "hitPolicy": "first-match",
+        "columns": [{"id": "c1", "input": "amount", "valueType": "number"}],
+        "rows": [{"id": "r1", "cells": {"c1": {"kind": "range", "lo": "0", "hi": ""}}, "output": "", "priority": 0}],
+        "noMatch": {"kind": "default", "value": ""}
+      },
+      "expected": {"ok": false, "code": "rule.skin.no_match_unresolved"}
+    },
+    {
+      "id": "publish-undeclared-ref-refused",
+      "op": "publish-refusal",
+      "ruleKey": "bad-formula",
+      "draft": {
+        "skin": "formula",
+        "scope": "Field",
+        "scopeTarget": "outcome",
+        "outputType": "Compute",
+        "inputs": [],
+        "expression": {"kind": "ref", "ref": "bonus"}
+      },
+      "expected": {"ok": false, "code": "rule.skin.formula_undeclared_ref"}
+    },
+    {
+      "id": "publish-monotonic-mint",
+      "op": "publish-mint",
+      "ruleKey": "route",
+      "draft": {
+        "skin": "table",
+        "scope": "Field",
+        "scopeTarget": "outcome",
+        "outputType": "Compute",
+        "hitPolicy": "first-match",
+        "columns": [{"id": "c1", "input": "amount", "valueType": "number"}],
+        "rows": [{"id": "r1", "cells": {"c1": {"kind": "range", "lo": "0", "hi": "100"}}, "output": "low", "priority": 0}],
+        "noMatch": {"kind": "default", "value": "high"}
+      },
+      "expected": {"versions": ["1.0.0", "1.0.1"]}
+    },
+    {
+      "id": "publish-downgrade-refused",
+      "op": "downgrade",
+      "ruleKey": "watermarked",
+      "seedVersions": ["2.4.9", "2.5.0"],
+      "downgrade": "2.4.10",
+      "draft": {
+        "skin": "formula",
+        "scope": "Field",
+        "scopeTarget": "outcome",
+        "outputType": "Compute",
+        "inputs": [],
+        "expression": null
+      },
+      "expected": {"refused": true, "versions": ["2.4.9", "2.5.0"], "nextVersion": "2.5.1"}
+    },
+    {
+      "id": "graph-cycle-compile-refused",
+      "op": "compile-cycle",
+      "rules": [
+        {"id": "cell.a", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "a", "expression": {"+": [{"var": "b"}, 1]}, "action": "Compute"},
+        {"id": "cell.b", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "b", "expression": {"+": [{"var": "a"}, 1]}, "action": "Compute"}
+      ],
+      "expected": {"code": "rule.compile.cycle"}
+    }
+  ]
+}

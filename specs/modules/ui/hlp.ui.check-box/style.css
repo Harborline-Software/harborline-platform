@@ -1,0 +1,133 @@
+.hl-check-box {
+  --hl-check-box-surface: var(--hl-background, #ffffff);
+  --hl-check-box-foreground: var(--hl-foreground, #172033);
+  --hl-check-box-muted: var(--hl-muted-foreground, #475569);
+  --hl-check-box-border: var(--hl-border, #64748b);
+  --hl-check-box-selected: var(--hl-primary, #0f62fe);
+  --hl-check-box-selected-foreground: var(--hl-primary-foreground, #ffffff);
+  --hl-check-box-focus: var(--hl-focus, #8a3ffc);
+  --hl-check-box-error: var(--hl-danger);
+}
+
+.hl-check-box {
+  align-items: center;
+  box-sizing: border-box;
+  color: var(--hl-check-box-foreground);
+  cursor: pointer;
+  display: inline-flex;
+  gap: 0.5rem;
+  min-block-size: 1.5rem;
+  min-inline-size: 1.5rem;
+  max-inline-size: 100%;
+  position: relative;
+  text-align: start;
+}
+
+.hl-check-box__control {
+  appearance: none;
+  background: var(--hl-check-box-surface);
+  border: 1px solid var(--hl-check-box-border);
+  border-radius: 0.1875rem;
+  box-sizing: border-box;
+  color: var(--hl-check-box-selected-foreground);
+  cursor: inherit;
+  flex: 0 0 auto;
+  margin: 0;
+  position: relative;
+  transition: background-color 150ms ease-out, border-color 150ms ease-out;
+}
+
+.hl-check-box--sm .hl-check-box__control { block-size: 0.875rem; inline-size: 0.875rem; }
+.hl-check-box--md .hl-check-box__control { block-size: 1rem; inline-size: 1rem; }
+.hl-check-box--lg .hl-check-box__control { block-size: 1.25rem; inline-size: 1.25rem; }
+
+.hl-check-box__control:checked,
+.hl-check-box__control:indeterminate {
+  background: var(--hl-check-box-selected);
+  border-color: var(--hl-check-box-selected);
+}
+
+.hl-check-box:hover .hl-check-box__control:not(:disabled) { border-color: var(--hl-check-box-selected); }
+.hl-check-box__control:active:not(:disabled):not(:checked):not(:indeterminate) { background: var(--hl-muted, #f1f5f9); }
+
+.hl-check-box__control:checked::after {
+  block-size: 0.52em;
+  border-block-end: 0.12em solid currentColor;
+  border-inline-end: 0.12em solid currentColor;
+  content: '';
+  inline-size: 0.28em;
+  inset-block-start: 46%;
+  inset-inline-start: 50%;
+  position: absolute;
+  transform: translate(-50%, -58%) rotate(45deg);
+}
+
+.hl-check-box__control:indeterminate::after {
+  background: currentColor;
+  block-size: 0.125rem;
+  content: '';
+  inline-size: 55%;
+  inset-block-start: 50%;
+  inset-inline-start: 50%;
+  position: absolute;
+  transform: translate(-50%, -50%);
+}
+
+.hl-check-box__control:focus-visible {
+  outline: 2px solid var(--hl-check-box-focus);
+  outline-offset: 2px;
+}
+
+.hl-check-box--error .hl-check-box__control { border-color: var(--hl-check-box-error); }
+
+.hl-check-box--disabled {
+  color: var(--hl-check-box-muted);
+  cursor: not-allowed;
+}
+
+.hl-check-box__control:disabled { background: var(--hl-muted, #f1f5f9); }
+
+.hl-check-box__label {
+  font: inherit;
+  line-height: 1.4;
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+  text-wrap: pretty;
+}
+
+.hl-check-box--sm .hl-check-box__label,
+.hl-check-box--md .hl-check-box__label { font-size: 0.875rem; }
+.hl-check-box--lg .hl-check-box__label { font-size: 1rem; }
+
+[data-theme='dark'] .hl-check-box,
+.hl-check-box[data-theme='dark'] {
+  --hl-check-box-surface: var(--hl-background, #182235);
+  --hl-check-box-foreground: var(--hl-foreground, #f8fafc);
+  --hl-check-box-muted: var(--hl-muted-foreground, #cbd5e1);
+  --hl-check-box-border: var(--hl-border, #94a3b8);
+  --hl-check-box-selected: var(--hl-primary, #93c5fd);
+  --hl-check-box-selected-foreground: var(--hl-primary-foreground, #0f172a);
+  --hl-check-box-focus: var(--hl-focus, #93c5fd);
+  --hl-check-box-error: var(--hl-destructive, #fca5a5);
+}
+
+@media (forced-colors: active) {
+  .hl-check-box,
+  .hl-check-box__control {
+    color: CanvasText;
+    forced-color-adjust: auto;
+  }
+
+  .hl-check-box__control:checked,
+  .hl-check-box__control:indeterminate {
+    background: Highlight;
+    border-color: Highlight;
+    color: HighlightText;
+  }
+
+  .hl-check-box__control:focus-visible { outline-color: Highlight; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hl-check-box__control { transition-duration: 0.01ms; }
+}

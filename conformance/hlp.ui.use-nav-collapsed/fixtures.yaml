@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.use-nav-collapsed",
+  "fixtureRevision": 1,
+  "cases": [
+    {"id":"nav-collapse.complete-surface","input":{},"expected":{"exports":["UseNavCollapsedOptions","UseNavCollapsedResult","useNavCollapsed"],"count":3}},
+    {"id":"nav-collapse.default-expanded","input":{"controlled":false,"defaultCollapsed":false,"narrow":false},"expected":{"collapsed":false,"requestCount":0}},
+    {"id":"nav-collapse.default-collapsed","input":{"controlled":false,"defaultCollapsed":true,"narrow":false},"expected":{"collapsed":true,"requestCount":0}},
+    {"id":"nav-collapse.narrow-auto","input":{"controlled":false,"defaultCollapsed":false,"narrow":true},"expected":{"collapsed":true,"baseCollapsed":false,"requestCount":0}},
+    {"id":"nav-collapse.narrow-to-wide-restores-base","input":{"controlled":false,"defaultCollapsed":false,"events":[{"type":"viewport","narrow":true},{"type":"viewport","narrow":false}]},"expected":{"collapsed":false,"baseCollapsed":false,"requestCount":0}},
+    {"id":"nav-collapse.explicit-override","input":{"controlled":false,"defaultCollapsed":false,"events":[{"type":"set","value":false},{"type":"viewport","narrow":true}]},"expected":{"collapsed":false,"userOverrode":true}},
+    {"id":"nav-collapse.controlled-toggle","input":{"controlled":true,"collapsed":false,"events":[{"type":"toggle"}]},"expected":{"collapsed":false,"requested":[true]}},
+    {"id":"nav-collapse.controlled-initial-narrow","input":{"controlled":true,"collapsed":false,"initialNarrow":true},"expected":{"collapsed":true,"requested":[],"requestCount":0}},
+    {"id":"nav-collapse.controlled-narrow-crossing","input":{"controlled":true,"collapsed":false,"events":[{"type":"viewport","narrow":false},{"type":"viewport","narrow":true},{"type":"viewport","narrow":true}]},"expected":{"requested":[true],"requestCount":1}},
+    {"id":"nav-collapse.custom-thresholds","input":{"width":899,"autoCollapseBelow":900,"overlayBelow":600},"expected":{"collapsed":true,"isOverlay":false,"autoQuery":"(max-width: 899px)","overlayQuery":"(max-width: 599px)"}},
+    {"id":"nav-collapse.disable-responsive","input":{"autoCollapseBelow":0,"overlayBelow":0,"narrow":true,"overlayMatch":true},"expected":{"collapsed":false,"isOverlay":false}},
+    {"id":"nav-collapse.overlay-independent","input":{"collapsed":false,"narrow":false,"overlayMatch":true},"expected":{"collapsed":false,"isOverlay":true}},
+    {"id":"nav-collapse.ssr-fail-closed","input":{"browserAvailable":false},"expected":{"narrow":false,"isOverlay":false,"collapsed":false}},
+    {"id":"nav-collapse.projection-equivalence","input":{"sequence":"default-narrow-explicit-wide-toggle"},"expected":{"typescriptEqualsDotnet":true}}
+  ]
+}

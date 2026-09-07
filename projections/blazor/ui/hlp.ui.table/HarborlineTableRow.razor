@@ -1,0 +1,4 @@
+@namespace Harborline.UIAdapters.Blazor.Components.DataDisplay
+@inherits HarborlineComponentBase
+<tr class="@CombineClasses("hl-table__row")" style="@CombineStyles()" @attributes="AdditionalAttributes">@ChildContent</tr>
+@code { [Parameter] public RenderFragment? ChildContent { get; set; } }

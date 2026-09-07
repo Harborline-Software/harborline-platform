@@ -1,0 +1,556 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.numeric-text-box",
+  "sourceFixture": "conformance/hlp.ui.numeric-text-box/fixtures.yaml",
+  "qualityFixture": "conformance/hlp.ui.numeric-text-box/quality-fixtures.yaml",
+  "galleryInterface": {
+    "probeAttribute": "data-gallery-probe",
+    "scenarioAttribute": "data-gallery-scenario",
+    "projectionTitles": {
+      "react": "Platform/Numeric Text Box",
+      "blazor": "Platform/Numeric Text Box"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "numeric-text-box.defaults",
+      "name": "Defaults and value ownership",
+      "surface": "defaults",
+      "sourceCaseIds": [
+        "numeric-text-box.defaults",
+        "numeric-text-box.controlled-value",
+        "numeric-text-box.controlled-null",
+        "numeric-text-box.uncontrolled-default",
+        "numeric-text-box.validation-identity"
+      ],
+      "sourceQualityCaseIds": [
+        "numeric-text-box.quality.naming-state",
+        "numeric-text-box.quality.targets"
+      ],
+      "content": {
+        "blurb": "Nullable controlled and uncontrolled values retain text-box semantics and stable form identity.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "strong",
+            "text": "Controlled value"
+          },
+          {
+            "control": "input",
+            "aria-label": "Controlled amount",
+            "id": "controlled-amount",
+            "name": "controlledAmount",
+            "required": true,
+            "value": 42
+          },
+          {
+            "control": "strong",
+            "text": "Controlled null"
+          },
+          {
+            "control": "input",
+            "aria-label": "Nullable amount",
+            "placeholder": "Amount",
+            "value": null
+          },
+          {
+            "control": "strong",
+            "text": "Uncontrolled default"
+          },
+          {
+            "control": "input",
+            "aria-label": "Initial amount",
+            "defaultValue": 99
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "numeric-text-box.editing-commit",
+      "name": "Editing and commit order",
+      "surface": "editing-commit",
+      "interaction": "keyboard-pointer",
+      "sourceCaseIds": [
+        "numeric-text-box.focus-raw",
+        "numeric-text-box.typing-buffer",
+        "numeric-text-box.blur-commit",
+        "numeric-text-box.enter-commit",
+        "numeric-text-box.empty-invalid-commit",
+        "numeric-text-box.focus-blur-order"
+      ],
+      "content": {
+        "blurb": "Focus reveals the raw value; Enter or blur strictly parses and commits once.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {
+          "requests": {
+            "kind": "array",
+            "initial": []
+          }
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<LabeledValue label=\"Replacement cost\" note=\"Focus to edit; press Enter or move focus to commit.\"><NumericTextBox aria-label=\"Replacement cost\" currency=\"USD\" format=\"c2\" min={0} onChange={requestValue} step={1} value={1234.5} /></LabeledValue>",
+            "blazor": "<LabeledNumericValue Label=\"Replacement cost\" Note=\"Focus to edit; press Enter or move focus to commit.\"><HarborlineNumericTextBox AccessibleLabel=\"Replacement cost\" Currency=\"USD\" Format=\"c2\" Min=\"0\" Step=\"1\" Value=\"1234.5\" ValueChanged=\"RequestValue\" /></LabeledNumericValue>",
+            "rationale": "The visible note is rendered by LabeledValue/LabeledNumericValue as a small element, which is not in the closed descriptor vocabulary."
+          },
+          {
+            "control": "output",
+            "live": "polite",
+            "text": "Requests: none"
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "numeric-text-box.stepping-bounds",
+      "name": "Stepping and bounds",
+      "surface": "stepping-bounds",
+      "interaction": "keyboard-pointer",
+      "sourceCaseIds": [
+        "numeric-text-box.commit-clamp",
+        "numeric-text-box.spinner-step",
+        "numeric-text-box.spinner-null-anchor",
+        "numeric-text-box.spinner-bound-disabled",
+        "numeric-text-box.step-not-snap"
+      ],
+      "content": {
+        "blurb": "Buttons and Arrow Up or Arrow Down apply the step and clamp at active bounds.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {
+          "requests": {
+            "kind": "array",
+            "initial": []
+          }
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<LabeledValue label=\"Useful life\" note=\"Focus to edit; press Enter or move focus to commit.\"><NumericTextBox aria-label=\"Replacement cost\" max={10} min={2} onChange={requestValue} step={2} value={8} /></LabeledValue>",
+            "blazor": "<LabeledNumericValue Label=\"Useful life\" Note=\"Focus to edit; press Enter or move focus to commit.\"><HarborlineNumericTextBox AccessibleLabel=\"Replacement cost\" Min=\"2\" Max=\"10\" Step=\"2\" Value=\"8\" ValueChanged=\"RequestValue\" /></LabeledNumericValue>",
+            "rationale": "The visible note is rendered by LabeledValue/LabeledNumericValue as a small element, which is not in the closed descriptor vocabulary."
+          },
+          {
+            "control": "output",
+            "live": "polite",
+            "text": "Requests: none"
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "numeric-text-box.formats",
+      "name": "Plain, currency, and percentage",
+      "surface": "formats",
+      "sourceCaseIds": [
+        "numeric-text-box.formatting"
+      ],
+      "sourceQualityCaseIds": [
+        "numeric-text-box.quality.number-formats",
+        "numeric-text-box.quality.catalog"
+      ],
+      "content": {
+        "blurb": "Display formatting follows locale and preserves explicit zero fraction digits.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "strong",
+            "text": "Plain"
+          },
+          {
+            "control": "input",
+            "aria-label": "Plain amount",
+            "locale": "en-US",
+            "value": 1234.5
+          },
+          {
+            "control": "strong",
+            "text": "Currency, zero decimals"
+          },
+          {
+            "control": "input",
+            "aria-label": "Replacement cost",
+            "currency": "USD",
+            "format": "c0",
+            "locale": "en-US",
+            "value": 1234.5
+          },
+          {
+            "control": "strong",
+            "text": "Percentage"
+          },
+          {
+            "control": "input",
+            "aria-label": "Completion",
+            "format": "p2",
+            "locale": "en-US",
+            "value": 0.125
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "numeric-text-box.controlled-replacement",
+      "name": "Controlled replacement",
+      "surface": "controlled-replacement",
+      "interaction": "keyboard-pointer",
+      "sourceCaseIds": [
+        "numeric-text-box.controlled-request",
+        "numeric-text-box.default-value-once",
+        "numeric-text-box.external-update",
+        "numeric-text-box.replacement",
+        "numeric-text-box.projection-equivalence"
+      ],
+      "content": {
+        "blurb": "Caller state remains authoritative across requests and complete value replacement.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {
+          "requests": {
+            "kind": "array",
+            "initial": []
+          },
+          "value": {
+            "kind": "counter",
+            "initial": 1234.5
+          }
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<LabeledValue label=\"Caller-owned replacement cost\" note=\"Requests are logged without changing the controlled value.\"><NumericTextBox aria-label=\"Replacement cost\" currency=\"USD\" format=\"c2\" min={0} onChange={requestValue} step={1} value={value} /></LabeledValue>",
+            "blazor": "<LabeledNumericValue Label=\"Caller-owned replacement cost\" Note=\"Requests are logged without changing the controlled value.\"><HarborlineNumericTextBox AccessibleLabel=\"Replacement cost\" Currency=\"USD\" Format=\"c2\" Min=\"0\" Step=\"1\" Value=\"@value\" ValueChanged=\"RequestValue\" /></LabeledNumericValue>",
+            "rationale": "The visible note is rendered by LabeledValue/LabeledNumericValue as a small element, which is not in the closed descriptor vocabulary."
+          },
+          {
+            "control": "output",
+            "live": "polite",
+            "text": "Requests: none"
+          },
+          {
+            "control": "button",
+            "text": "Replace caller value"
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "numeric-text-box.disabled-readonly",
+      "name": "Disabled and readonly",
+      "surface": "disabled-readonly",
+      "sourceCaseIds": [
+        "numeric-text-box.disabled-readonly"
+      ],
+      "sourceQualityCaseIds": [
+        "numeric-text-box.quality.naming-state"
+      ],
+      "content": {
+        "blurb": "Disabled controls remain perceivable; readonly values remove spinner actions and never emit.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "strong",
+            "text": "Disabled"
+          },
+          {
+            "control": "input",
+            "aria-label": "Disabled amount",
+            "disabled": true,
+            "value": 42
+          },
+          {
+            "control": "strong",
+            "text": "Readonly"
+          },
+          {
+            "control": "input",
+            "aria-label": "Readonly amount",
+            "readOnly": true,
+            "value": 42
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "numeric-text-box.appearance-reflow",
+      "name": "Appearance and narrow reflow",
+      "surface": "appearance-reflow",
+      "sourceCaseIds": [
+        "numeric-text-box.appearance"
+      ],
+      "sourceQualityCaseIds": [
+        "numeric-text-box.quality.reflow",
+        "numeric-text-box.quality.tokens",
+        "numeric-text-box.quality.forced-colors"
+      ],
+      "content": {
+        "blurb": "Sizes, fills, rounding, focus, and 44px actions remain usable in a narrow surface.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "strong",
+            "text": "Small · flat"
+          },
+          {
+            "control": "input",
+            "aria-label": "Small amount",
+            "fillMode": "flat",
+            "rounded": "small",
+            "size": "sm",
+            "value": 12.5
+          },
+          {
+            "control": "strong",
+            "text": "Medium · solid"
+          },
+          {
+            "control": "input",
+            "aria-label": "Medium amount",
+            "fillMode": "solid",
+            "rounded": "medium",
+            "size": "md",
+            "value": 12.5
+          },
+          {
+            "control": "strong",
+            "text": "Large · outline"
+          },
+          {
+            "control": "input",
+            "aria-label": "Large amount",
+            "fillMode": "outline",
+            "rounded": "full",
+            "size": "lg",
+            "value": 12.5
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "numeric-text-box.locale-pseudo",
+      "name": "Pseudo locale",
+      "surface": "locale-pseudo",
+      "sourceCaseIds": [
+        "numeric-text-box.locale-rtl-labels"
+      ],
+      "sourceQualityCaseIds": [
+        "numeric-text-box.quality.catalog",
+        "numeric-text-box.quality.pseudo"
+      ],
+      "content": {
+        "blurb": "Expanded placeholder and spinner labels remain visible without clipping.",
+        "environment": {
+          "locale": "en-XA",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "strong",
+            "text": "⟦ Řëþļåçëmëñţ çøšţ ······ ⟧"
+          },
+          {
+            "control": "input",
+            "aria-label": "⟦ Řëþļåçëmëñţ çøšţ ······ ⟧",
+            "decrementLabel": "⟦ Đëçřëåšë ṽåļûë ···· ⟧",
+            "incrementLabel": "⟦ Îñçřëåšë ṽåļûë ···· ⟧",
+            "placeholder": "⟦ Ëñţëř åñ åmøûñţ ········ ⟧",
+            "value": null
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "numeric-text-box.locale-ar",
+      "name": "Arabic direction with format override",
+      "surface": "locale-ar",
+      "sourceCaseIds": [
+        "numeric-text-box.locale-rtl-labels"
+      ],
+      "sourceQualityCaseIds": [
+        "numeric-text-box.quality.number-formats"
+      ],
+      "content": {
+        "blurb": "Direction follows Arabic context while French remains the explicit number-format locale.",
+        "environment": {
+          "locale": "ar-SA",
+          "direction": "rtl",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<LabeledValue label=\"تكلفة الاستبدال\" note=\"French formatting locale inside Arabic layout direction\"><NumericTextBox aria-label=\"تكلفة الاستبدال\" currency=\"EUR\" format=\"c2\" locale=\"fr-FR\" value={1234.5} /></LabeledValue>",
+            "blazor": "<LabeledNumericValue Label=\"تكلفة الاستبدال\" Note=\"French formatting locale inside Arabic layout direction\"><HarborlineNumericTextBox AccessibleLabel=\"تكلفة الاستبدال\" Currency=\"EUR\" Format=\"c2\" Locale=\"fr-FR\" Value=\"1234.5\" /></LabeledNumericValue>",
+            "rationale": "The visible note is rendered by LabeledValue/LabeledNumericValue as a small element, which is not in the closed descriptor vocabulary."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "numeric-text-box.theme-light",
+      "name": "Light theme",
+      "surface": "theme-light",
+      "sourceCaseIds": [
+        "numeric-text-box.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "numeric-text-box.quality.light-dark",
+        "numeric-text-box.quality.tokens",
+        "numeric-text-box.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "Semantic control, border, state, and focus tokens on the Harborline light surface.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "inherits": "numeric-text-box.editing-commit"
+      }
+    },
+    {
+      "id": "numeric-text-box.theme-dark",
+      "name": "Dark theme",
+      "surface": "theme-dark",
+      "sourceCaseIds": [
+        "numeric-text-box.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "numeric-text-box.quality.light-dark",
+        "numeric-text-box.quality.tokens",
+        "numeric-text-box.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "The same numeric editor states on the Harborline dark surface.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "dark",
+          "catalog": {}
+        },
+        "inherits": "numeric-text-box.editing-commit"
+      }
+    },
+    {
+      "id": "numeric-text-box.content",
+      "name": "Content resilience",
+      "surface": "long-content",
+      "sourceCaseIds": [
+        "numeric-text-box.formatting",
+        "numeric-text-box.validation-identity"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "Carries a long certification label, the grouped value 1,284,905, escaped Bay 4 <grid C-7> & 8 copy, and the name Ordnance Survey — Niño Ångström.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<><LabeledValue label=\"Awaiting third-party structural certification review\"><NumericTextBox aria-label=\"Awaiting third-party structural certification review\" decimals={0} value={1284905} /></LabeledValue><LabeledValue label=\"Ordnance Survey — Niño Ångström\" note={'Bay 4 <grid C-7> & 8'}><NumericTextBox aria-label=\"Ordnance Survey — Niño Ångström\" decimals={0} value={8} /></LabeledValue></>",
+            "blazor": "<LabeledNumericValue Label=\"Awaiting third-party structural certification review\"><HarborlineNumericTextBox AccessibleLabel=\"Awaiting third-party structural certification review\" Decimals=\"0\" Value=\"1284905\" /></LabeledNumericValue><LabeledNumericValue Label=\"Ordnance Survey — Niño Ångström\" Note=\"@(\"Bay 4 <grid C-7> & 8\")\"><HarborlineNumericTextBox AccessibleLabel=\"Ordnance Survey — Niño Ångström\" Decimals=\"0\" Value=\"8\" /></LabeledNumericValue>",
+            "rationale": "The closed control vocabulary cannot express NumericTextBox controls inside visible label and note wrappers carrying hostile-but-valid copy."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "numeric-text-box.error-state",
+      "name": "Error state",
+      "surface": "invalid-input",
+      "sourceCaseIds": [
+        "numeric-text-box.validation-identity"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "An invalid numeric value exposes the component's visual and semantic error state.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<LabeledValue label=\"Total amount\"><NumericTextBox aria-label=\"Total amount\" error value={125.5} /></LabeledValue>",
+            "blazor": "<LabeledNumericValue Label=\"Total amount\"><HarborlineNumericTextBox AccessibleLabel=\"Total amount\" Error Value=\"125.5\" /></LabeledNumericValue>",
+            "rationale": "The visible wrapper label and each lane's real accessible-name and error props render an equivalent invalid numeric control."
+          }
+        ],
+        "footer": []
+      }
+    }
+  ]
+}

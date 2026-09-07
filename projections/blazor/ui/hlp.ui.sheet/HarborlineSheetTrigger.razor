@@ -1,0 +1,16 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Layout
+@inherits HarborlineComponentBase
+
+<button @ref="trigger" id="@Context?.TriggerId" type="@Type" aria-haspopup="dialog"
+        aria-expanded="@(Context?.Open == true ? "true" : "false")" aria-controls="@Context?.ContentId"
+        class="@CombineClasses("hl-sheet__trigger")" style="@CombineStyles()"
+        @onclick="ToggleAsync" @attributes="AdditionalAttributes">@ChildContent</button>
+
+@code {
+    [CascadingParameter] public SheetContext? Context { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public string Type { get; set; } = "button";
+    private ElementReference trigger;
+    protected override void OnAfterRender(bool firstRender) { if (Context is not null) Context.TriggerElement = trigger; }
+    private Task ToggleAsync() => Context?.SetOpenAsync(Context.Open is false) ?? Task.CompletedTask;
+}

@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.guarded-control",
+  "profileRevision": 1,
+  "locales": {"en-US": {"direction": "ltr"}, "en-XA": {"direction": "ltr"}, "ar-SA": {"direction": "rtl"}},
+  "themes": [{"id": "light", "scenarioId": "guarded-control.theme-light"}, {"id": "dark", "scenarioId": "guarded-control.theme-dark"}],
+  "accessibilityCases": [
+    {"id": "guarded-control.quality.pattern", "expected": {"nativeButtons": true, "oneVisibleAction": true, "stateAndBusyExposed": true, "statusLiveRegion": true}},
+    {"id": "guarded-control.quality.keyboard", "expected": {"activationKeys": ["Enter", "Space"], "twoDistinctActivations": true, "escapeRecovers": true, "committingInert": true}},
+    {"id": "guarded-control.quality.focus", "expected": {"focusMovesOnArm": true, "returnsAfterRecovery": true, "returnsAfterCommitSettlement": true, "visibleIndicators": true}},
+    {"id": "guarded-control.quality.dismissal", "expected": {"escape": true, "timeout": true, "navigation": true, "documentHidden": true, "windowBlurAfterGrace": true, "idempotent": true}},
+    {"id": "guarded-control.quality.denial", "expected": {"disabledNative": true, "callerReasonAssociated": true, "interactionStateNotAuthorization": true}},
+    {"id": "guarded-control.quality.color", "expected": {"armedNotColorOnly": true, "committingNotColorOnly": true, "rejectionAnnounced": true}},
+    {"id": "guarded-control.quality.forced-colors", "expected": {"boundaryVisible": true, "focusVisible": true, "statesDistinguishable": true}},
+    {"id": "guarded-control.quality.reflow", "expected": {"viewportWidthCssPixels": 320, "rootFontPercent": 200, "noHorizontalPageScroll": true, "wholeMessagesWrap": true}}
+  ],
+  "internationalizationCases": [
+    {"id": "guarded-control.quality.locales", "expected": {"locales": ["en-US", "en-XA", "ar-SA"], "allOwnedMessagesLocalized": true}},
+    {"id": "guarded-control.quality.rtl", "expected": {"logicalLayout": true, "activationOrderPreserved": true}},
+    {"id": "guarded-control.quality.pseudo", "expected": {"minimumExpansionRatio": 1.3, "noClipping": true}},
+    {"id": "guarded-control.quality.duration", "expected": {"localeNumber": true, "pluralUnit": true, "wholeMessage": true, "hardcodedSuffix": false}},
+    {"id": "guarded-control.quality.bidi", "expected": {"interpolatedActionLabelIsolated": true, "surroundingDirectionPreserved": true}}
+  ],
+  "themingCases": [
+    {"id": "guarded-control.quality.themes", "expected": {"themes": ["light", "dark"], "runtimeSwitch": true}},
+    {"id": "guarded-control.quality.tokens", "expected": {"source": "public-css-custom-properties", "states": ["covered", "armed", "committing", "disabled", "focus"]}},
+    {"id": "guarded-control.quality.contrast", "expected": {"wcagLevel": "AA", "minimumTextRatio": 4.5, "minimumNonTextRatio": 3}},
+    {"id": "guarded-control.quality.reduced-motion", "expected": {"preference": "reduce", "maximumTransitionDurationMilliseconds": 1, "timingSemanticsUnchanged": true}},
+    {"id": "guarded-control.quality.visual-parity", "expected": {"projections": ["react", "blazor"], "themes": ["light", "dark"], "maximumChangedPixelRatio": 0.015}}
+  ]
+}

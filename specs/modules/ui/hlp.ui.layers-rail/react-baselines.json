@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "projection": "react",
+  "moduleId": "hlp.ui.layers-rail",
+  "scenarios": [
+    {
+      "scenarioId": "layers-rail.structure",
+      "sha256": "f2b6def4ce8c76c2a3bc85eb981e24233a89ca07e2622e0d6f3bc5126fff9644",
+      "bytes": 17693,
+      "artifact": "../baselines/sha256/f2b6def4ce8c76c2a3bc85eb981e24233a89ca07e2622e0d6f3bc5126fff9644.png"
+    },
+    {
+      "scenarioId": "layers-rail.lenses",
+      "sha256": "434dc0b5f99f9fee80b98094c44df375f05982a56bc9f557b076eb9c975ca57f",
+      "bytes": 18288,
+      "artifact": "../baselines/sha256/434dc0b5f99f9fee80b98094c44df375f05982a56bc9f557b076eb9c975ca57f.png"
+    },
+    {
+      "scenarioId": "layers-rail.outline",
+      "sha256": "a519372cdd0ae25d595bb797950d72027596cdaa5e8cb5e65cc487b36351fdea",
+      "bytes": 19412,
+      "artifact": "../baselines/sha256/a519372cdd0ae25d595bb797950d72027596cdaa5e8cb5e65cc487b36351fdea.png"
+    },
+    {
+      "scenarioId": "layers-rail.provenance",
+      "sha256": "ece568ee9a8115615094094a0bd644555275f318c93f7a05fca3a79dacd18115",
+      "bytes": 17180,
+      "artifact": "../baselines/sha256/ece568ee9a8115615094094a0bd644555275f318c93f7a05fca3a79dacd18115.png"
+    },
+    {
+      "scenarioId": "layers-rail.locale-en",
+      "sha256": "9b3b71208501a92bb3d500474b27eaa876ab35cc529efa11f128baba0ec82ada",
+      "bytes": 17265,
+      "artifact": "../baselines/sha256/9b3b71208501a92bb3d500474b27eaa876ab35cc529efa11f128baba0ec82ada.png"
+    },
+    {
+      "scenarioId": "layers-rail.locale-pseudo",
+      "sha256": "38f55c93bb1cc7bd6e18db96566da2daaf9ca95a6681d526c3d9e4ebe7204efb",
+      "bytes": 21723,
+      "artifact": "../baselines/sha256/38f55c93bb1cc7bd6e18db96566da2daaf9ca95a6681d526c3d9e4ebe7204efb.png"
+    },
+    {
+      "scenarioId": "layers-rail.locale-ar",
+      "sha256": "94eff12932cff0d16825b64073889b56c58407edba13a312d0ba83290a2f30a6",
+      "bytes": 17006,
+      "artifact": "../baselines/sha256/94eff12932cff0d16825b64073889b56c58407edba13a312d0ba83290a2f30a6.png"
+    },
+    {
+      "scenarioId": "layers-rail.theme-light",
+      "sha256": "9c4f9f4fad0f674c5cef3b51b1e0419007364610d4dfc40cae604866c6b9587d",
+      "bytes": 17760,
+      "artifact": "../baselines/sha256/9c4f9f4fad0f674c5cef3b51b1e0419007364610d4dfc40cae604866c6b9587d.png"
+    },
+    {
+      "scenarioId": "layers-rail.theme-dark",
+      "sha256": "f9585266fd087518cad22e33f4c2bcf69cc4cb47235cc79815d6930993e2821c",
+      "bytes": 16722,
+      "artifact": "../baselines/sha256/f9585266fd087518cad22e33f4c2bcf69cc4cb47235cc79815d6930993e2821c.png"
+    }
+  ]
+}

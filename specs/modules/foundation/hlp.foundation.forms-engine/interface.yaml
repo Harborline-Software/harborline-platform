@@ -1,0 +1,109 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.foundation.forms-engine",
+  "interfaceRevision": 8,
+  "status": "frozen",
+  "purpose": "Own the complete tenant-scoped Dynamic Forms authoring admission, render, validate, calculate, protect, submit, audit, projection-outbox, and recovery behavior behind narrow caller interfaces and production-safe ports.",
+  "dependencies": [
+    {"moduleId": "hlp.contracts.forms", "minimumRevision": 3},
+    {"moduleId": "hlp.contracts.identities", "minimumRevision": 1},
+    {"moduleId": "hlp.foundation.actor", "minimumRevision": 1},
+    {"moduleId": "hlp.foundation.forms", "minimumRevision": 3},
+    {"moduleId": "hlp.foundation.rule-runtime", "minimumRevision": 1},
+    {"moduleId": "hlp.foundation.tenancy", "minimumRevision": 1},
+    {"moduleId": "hlp.kernel.schema-validation", "minimumRevision": 1}
+  ],
+  "callerInterface": {
+    "name": "IFormEngine",
+    "operations": [
+      "RenderAsync(formId, optionalInstanceId, cancellationToken) -> FormView",
+      "ValidateAsync(formId, candidate, cancellationToken) -> ValidationResult",
+      "SubmitAsync(request, cancellationToken) -> FormSubmitReceipt",
+      "RecoverProjectionsAsync(maximumDeliveries, cancellationToken) -> FormProjectionRecoveryResult"
+    ],
+    "context": "Every operation resolves tenant, Party, actor, current host-derived roles, and verified capability for the requested action from one per-request context provider. No caller may body-supply tenant, Party, actor, or roles."
+  },
+  "authoringInterface": {
+    "name": "IFormDefinitionAuthoringPublisher",
+    "operations": [
+      "RegisterAndPublishAsync(draftDefinition, cancellationToken) -> publishedDefinition"
+    ],
+    "context": "The authoring host routes save-and-publish through one fail-closed boundary that compiles every Tier-2 rule and page guard, validates classification/lifecycle/access/residency/connector policy, and then commits registration plus publication through one atomic definition-store operation."
+  },
+  "ownedPorts": {
+    "requestContext": "Resolve one current authenticated tenant/Party/actor/roles scope and verify the operation capability; preserve the pinned Forms macaroon wire/HMAC chain, require one action-bound Harborline identifier plus exactly one matching action caveat so an actionless legacy token cannot gain authority through holder attenuation, reject malformed, expired, unknown, duplicate, empty, or missing capability material with one opaque denial, and discard bearer roles before current-role authorization.",
+    "fieldSecurity": "Resolve inherited form/section/container/field governance over the reuse-expanded definition; refuse unknown policy, impossible residency, ineligible jurisdiction, and missing subject scope. Apply tenant-bound versioned AES-256-GCM protection-at-rest, decrypt permission, and redaction. Return typed per-field dispositions; only the engine constructs readable JSON, and inconsistent adapter output fails closed.",
+    "submissionTransaction": "Atomically commit one immutable submission, one mutation audit envelope, and one projection outbox envelope; bind idempotency to tenant, form, key, and canonical accepted-candidate fingerprint. The built-in production adapter uses a versioned append-only file journal with authenticated headers and checksummed payload frames, preflights unique identities, flushes each complete frame to durable storage before updating indexes, truncates only an authenticated incomplete final frame, and fails startup on corruption or unknown versions.",
+    "readAudit": "Append typed per-field policy-read and decrypt evidence. Each decrypt grant is audited before that field's cleartext is released; a grant-audit failure withholds only that field, while denial-audit failure remains fail-closed.",
+    "projectionDelivery": "Lease one self-contained durable outbox envelope with tenant, Party, actor, form/version, instance, case reference, accepted protected values, and the engine submit instant. Suppress concurrent in-process delivery, release leases on cancellation/failure, and require sink idempotency for crash-boundary retries. Return typed reason/field/target skips; pending and failed rows remain recoverable after a new engine/adapter instance starts."
+  },
+  "capabilities": {
+    "render": ["load current published definition", "resolve bounded reusable references", "enforce section and field read roles", "project nested items and layout", "evaluate calculations and presentation rules", "withhold ciphertext", "decrypt only with current capability and successful audit"],
+    "validate": ["candidate byte ceiling", "schema lookup and stable errors", "rule evaluation", "hidden/read-only pruning", "calculated accepted values", "authorization failures", "provider and rule timeouts fail closed"],
+    "submit": ["section and field write authorization", "protect classified and undeclared values", "canonical request fingerprint", "idempotent receipt", "atomic submission/audit/outbox", "one submit instant", "accepted/pruned projection values", "case reference", "explicit projection status"],
+    "recovery": ["lease pending outbox rows", "idempotent delivery", "complete or retry", "restart recovery", "duplicate-attempt suppression"]
+  },
+  "invariants": [
+    "Unknown, inactive-tenant, cross-tenant, and absent instances are indistinguishable at the caller interface.",
+    "Render, validate, and submit use the same current published and reuse-resolved effective definition revision for one operation.",
+    "Current Okta/OIDC roles are resolved per request and are never accepted from a bearer payload or cached in a singleton engine.",
+    "Each current-request bearer carries one action-bound Harborline identifier and exactly one matching read or write caveat; legacy identifiers and multiple actions deny because additive source semantics otherwise let a bearer holder widen authority by continuing the HMAC chain.",
+    "The current-request capability adapter handles read, validate, and submit only; unattended projection recovery requires a separately registered job-scoped execution-context adapter because the pinned source defines no recovery bearer action.",
+    "Schema and rule provider timeouts fail closed; a rule timeout can never fall back to schema-only acceptance.",
+    "Only accepted values after authorization, pruning, and deterministic calculation enter protection, persistence, audit, and projection envelopes.",
+    "Sensitive cleartext never enters mutation audit or projection payloads and is never rendered when protection, policy, capability, or read-audit providers fail.",
+    "Encryption and authorization use separate domains: encrypted-field-aes for tenant key selection and forms-decrypt-on-render for short-lived decrypt authority.",
+    "Protected envelopes bind tenant, form, definition version, instance, and field as authenticated data; malformed envelopes, unknown suites or key versions, wrong-tenant capabilities, expired capabilities, and authentication failures are withheld.",
+    "Rule projection never receives decrypted sensitive values, preventing a computed field from laundering decrypted input into an unclassified output.",
+    "A successful submit makes submission, mutation audit, and outbox durable atomically or makes none of them durable.",
+    "The same idempotency key with the same canonical request fingerprint returns the original receipt; a different fingerprint conflicts.",
+    "Receipt, mutation audit, and outbox share exactly one engine submit instant.",
+    "The atomic outbox carries the resolved submission context and only accepted calculated/pruned values; projection adapters never receive the original candidate.",
+    "Projection skips are typed value-free outcomes with reason, field pointer, and optional target; infrastructure failure is pending, never a skip.",
+    "Outbox delivery is retryable across engine restarts; the store suppresses concurrent in-process attempts and the projection sink must make crash-boundary retries idempotent so duplicate attempts produce one observable effect.",
+    "The built-in durable submission adapter holds one exclusive process lock for its lifetime and is a single-process/single-node adapter; it does not claim distributed leases or multi-node high availability.",
+    "Production composition fails at startup when any mandatory persistence, security, audit, projection, or selected request-context adapter provider is missing; a job-scoped recovery context does not require browser bearer ports.",
+    "Production composition accepts field security only through the attested tenant-bound registration path with explicit storage jurisdiction, governance resolver, key provider, and decrypt-capability provider.",
+    "Authorization, governance, and protection operate on one reuse-expanded effective definition; any surviving reference fails before validation or persistence.",
+    "Classification is inherited monotonically, residency allowed sets intersect, prohibitions win, unknown classifications refuse, and subject-scoped policy never falls back to tenant protection.",
+    "Development/in-memory adapters refuse Production composition.",
+    "Authoring publication accepts Draft revisions only and runs rule plus policy admission before one atomic register-and-publish operation; malformed or cyclic rules, unsupported Power Fx, uncompilable guards, unresolved or relaxing policy, unsatisfiable residency, and unacknowledged sensitive connector inputs persist no definition."
+  ],
+  "resourceLimits": {
+    "candidateBytesDefault": 1048576,
+    "schemaValidationBudgetDefaultMilliseconds": 2000,
+    "ruleRuntimeLimits": "hlp.foundation.rule-runtime revision 1",
+    "projectionRecoveryBatchMaximum": 1000,
+    "fileJournalFrameBytesDefault": 16777216,
+    "fileJournalFrameBytesMaximum": 67108864
+  },
+  "errors": [
+    "form.engine.not-found",
+    "form.engine.denied",
+    "form.engine.resource-bound",
+    "form.engine.validation-failed",
+    "form.engine.provider-unavailable",
+    "form.engine.governance-refused",
+    "form.engine.idempotency-conflict",
+    "form.engine.projection-pending"
+  ],
+  "behaviorEvidence": {
+    "sourceCapture": "migration://preprocessing/forms/generated/forms-engine-source.json",
+    "dispositionLedger": "migration://preprocessing/forms/forms-engine-behavior-map.md",
+    "sourceExecutableCases": 80,
+    "directPorts": 67,
+    "newSeamReplacements": 13,
+    "unresolvedCases": 0
+  },
+  "selectedDesign": {
+    "choice": "One deep executable Forms module with bounded runtime and authoring-publication interfaces plus engine-owned ports; atomic submission/audit/outbox storage replaces legacy post-commit choreography.",
+    "rejected": [
+      "Copy the 26-project and 75-edge aggregate legacy closure.",
+      "Expose separate submission, audit, and outbox repositories for callers to orchestrate.",
+      "Use a contract/store-only or schema-only Forms substitute.",
+      "Cache tenant or role state in a singleton engine.",
+      "Treat projection delivery as an in-process post-save decorator without durable recovery."
+    ]
+  },
+  "package": {"nuget": "Harborline.Foundation.Forms.Engine", "assembly": "Harborline.Foundation.Forms.Engine", "distribution": "internal-only"}
+}

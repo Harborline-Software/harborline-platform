@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "pin": "3410883405996dc8e4871418a441f52970d9994e",
+  "sourceRoot": "apps/carrier/src",
+  "note": "Draft ledger. Generator must add per-declaration titles, source lines, and blob ids from pinned Git objects before implementation; file totals are closed here.",
+  "files": [
+    ["copilot/__tests__/CopilotFloatingWindow.test.tsx",4,5],["copilot/__tests__/CopilotPanel.test.tsx",32,32],["copilot/__tests__/copilot-two-views.test.tsx",4,4],["copilot/__tests__/echoProvider.test.ts",9,9],["copilot/__tests__/llmProvider.test.ts",14,14],["copilot/__tests__/resolvePilotProvider.test.ts",6,6],["copilot/__tests__/sheetDrag.test.ts",9,9],["copilot/__tests__/useBootHealth.test.tsx",2,2],["copilot/__tests__/useCopilot.test.tsx",12,12],["copilot/__tests__/useCopilotPanelWidth.test.tsx",6,6],["copilot/__tests__/useCopilotSettings.test.tsx",7,7],["copilot/__tests__/useCopilotShell.test.tsx",11,11],["copilot/__tests__/usePilotHistory.test.tsx",7,7],["copilot/history/__tests__/pilotHistoryStore.test.ts",9,9],["copilot/history/__tests__/transcriptExport.test.ts",3,3],["copilot/pilotSystemPrompt.test.ts",3,3],["copilot/proposal/__tests__/PilotProposalStrip.test.tsx",8,8],["copilot/proposal/__tests__/applyProposal.test.ts",14,14],["copilot/proposal/__tests__/classify.test.ts",5,5],["copilot/proposal/__tests__/commandRegistryManifest.test.ts",6,6],["copilot/proposal/__tests__/echoFormProposal.test.ts",16,16],["copilot/proposal/__tests__/extract.test.ts",10,10],["copilot/proposal/__tests__/schema.test.ts",21,21],["copilot/proposal/__tests__/structuralSafety.test.ts",19,19],["copilot/proposal/__tests__/unknownCommandNote.test.ts",4,4],["copilot/proposal/__tests__/usePilotProposals.test.tsx",8,8],["copilot/proposal/builderContext.test.ts",8,8],["copilot/proposal/echoSurfaceProposal.test.ts",5,5],["copilot/proposal/extract.test.ts",3,3],["copilot/proposal/pilotToolManifest.test.ts",3,3],["copilot/proposal/unknownCommandNote.test.ts",2,2],["copilot/proposal/workflowContext.test.ts",6,6],["copilot/registry/__tests__/federation.test.ts",17,17],["copilot/registry/__tests__/registryFence.test.ts",6,6],["copilot/registry/__tests__/w1LiveBattery.test.ts",1,1,"PILOT_LIVE_W1"],["copilot/registry/__tests__/w1Surfaces.test.ts",17,17],["copilot/registry/__tests__/w2LiveBattery.test.ts",1,1,"PILOT_LIVE_W2"],["copilot/registry/__tests__/w2Surfaces.test.ts",22,22],["copilot/registry/manifest.test.ts",5,5],["copilot/registry/surfaceExec.test.ts",3,3],["copilot/registry/surfaces/managers.test.ts",2,18],["copilot/registry/surfaces/runner.test.ts",7,17]
+  ],
+  "tupleShape": ["path","declared","expanded","environmentGate?"],
+  "correctedEachTitles": [
+    {"path":"copilot/__tests__/CopilotFloatingWindow.test.tsx","line":148,"expansions":2,"required":"explicit case title including input and expected mode"},
+    {"path":"copilot/registry/surfaces/managers.test.ts","line":6,"expansions":8,"required":"manager descriptor safety: $surface"},
+    {"path":"copilot/registry/surfaces/managers.test.ts","line":22,"expansions":8,"required":"manager executor fence: $surface"},
+    {"path":"copilot/registry/surfaces/runner.test.ts","line":70,"expansions":13,"required":"runner command classification: $command"}
+  ]
+}

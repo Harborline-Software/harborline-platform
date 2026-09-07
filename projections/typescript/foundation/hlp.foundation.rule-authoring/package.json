@@ -1,0 +1,45 @@
+{
+  "name": "@harborline-software/rule-authoring",
+  "version": "0.1.0-alpha.0",
+  "private": true,
+  "description": "Calculation authoring bridge (ADR 0146 D2/D5) — the Harborline port of the Harborline App rules authoring lane: decision-table and formula drafts, draft-to-skin lowering onto @harborline-software/rule-engine, advisory lint, blank seeds, the publish admission fence, and the versioned named-rule catalog over a pluggable store port (the Harborline replacement for the pinned localStorage interim). Owns no evaluator semantics: every rejection and evaluation flows through the packed rule engine.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint src --report-unused-disable-directives --max-warnings 0",
+    "clean": "rm -rf dist"
+  },
+  "peerDependencies": {
+    "@harborline-software/rule-engine": "0.1.0-alpha.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@typescript/native": "npm:typescript@^7.0.2",
+    "eslint": "^10.7.0",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
+    "typescript-eslint": "^8.63.0",
+    "vitest": "^4.1.10"
+  },
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Harborline-Software/harborline-platform.git",
+    "directory": "projections/typescript/foundation/hlp.foundation.rule-authoring"
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.loading-state",
+  "profileRevision": 1,
+  "locales": {"en-US": {"direction": "ltr", "label": "Loading inspections"}, "en-XA": {"direction": "ltr", "label": "⟦ Ļøåđîñĝ îñšþëçţîøñš ······ ⟧"}, "ar-SA": {"direction": "rtl", "label": "جارٍ تحميل عمليات الفحص"}},
+  "themes": [{"id": "light", "scenarioId": "loading-state.theme-light"}, {"id": "dark", "scenarioId": "loading-state.theme-dark"}],
+  "accessibilityCases": [
+    {"id": "loading-state.quality.status", "expected": {"role": "status", "labelVisible": true}},
+    {"id": "loading-state.quality.live-region", "expected": {"ariaLive": "polite", "announcesOnChange": true}},
+    {"id": "loading-state.quality.visible-label", "expected": {"visibleTextNamesStatus": true, "nonEmptyRequired": true}},
+    {"id": "loading-state.quality.forced-colors", "expected": {"statusVisible": true, "textNotTransparent": true}},
+    {"id": "loading-state.quality.reflow-200", "expected": {"viewportWidthCssPixels": 320, "rootFontPercent": 200, "horizontalOverflowCssPixels": 0}}
+  ],
+  "internationalizationCases": [
+    {"id": "loading-state.quality.caller-label", "expected": {"callerLocalized": true, "hardcodedLabel": false}},
+    {"id": "loading-state.quality.locale-direction", "expected": {"locales": ["en-US", "en-XA", "ar-SA"], "langAndDirPropagate": true}},
+    {"id": "loading-state.quality.rtl", "expected": {"logicalAlignment": true, "textOrderPreserved": true}},
+    {"id": "loading-state.quality.pseudo-expansion", "expected": {"minimumExpansionRatio": 1.3, "noClipping": true}},
+    {"id": "loading-state.quality.formatting-applicability", "expected": {"disposition": "not-applicable", "requiresRationale": true}}
+  ],
+  "themingCases": [
+    {"id": "loading-state.quality.theme-light", "expected": {"fixture": "light", "separateScenario": true}},
+    {"id": "loading-state.quality.theme-dark", "expected": {"fixture": "dark", "separateScenario": true}},
+    {"id": "loading-state.quality.theme-states", "expected": {"states": ["page", "inline", "text", "surface"], "bothThemes": true}},
+    {"id": "loading-state.quality.theme-tokens", "expected": {"source": "public-css-custom-properties", "packedArtifacts": ["npm", "nuget"]}},
+    {"id": "loading-state.quality.runtime-switch", "expected": {"from": "light", "to": "dark", "withoutRemount": true}},
+    {"id": "loading-state.quality.contrast", "expected": {"wcagLevel": "AA", "minimumTextRatio": 4.5}},
+    {"id": "loading-state.quality.reduced-motion", "expected": {"preference": "reduce", "maximumTransitionDurationMilliseconds": 1}},
+    {"id": "loading-state.quality.visual-parity", "expected": {"projections": ["react", "blazor"], "themes": ["light", "dark"], "maximumChangedPixelRatio": 0.015}}
+  ]
+}

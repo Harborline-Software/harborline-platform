@@ -1,0 +1,22 @@
+{
+  "schemaVersion":1,
+  "moduleId":"hlp.ui.use-scroll-affordance",
+  "fixtureRevision":1,
+  "cases":[
+    {"id":"scroll-affordance.complete-surface","input":{},"expected":{"exports":["ScrollAffordanceOrientation","UseScrollAffordanceOptions","ScrollAffordanceState","useScrollAffordance","handleScrollAffordanceKeyDown"],"count":5}},
+    {"id":"scroll-affordance.no-overflow","input":{"scrollSize":301,"clientSize":300,"position":0},"expected":{"canScroll":false,"atStart":true,"atEnd":true,"maskImage":null,"announcementKey":null}},
+    {"id":"scroll-affordance.horizontal-start","input":{"orientation":"horizontal","direction":"ltr","scrollSize":700,"clientSize":300,"position":0,"fadeSize":24},"expected":{"canScroll":true,"atStart":true,"atEnd":false,"fadeEdges":["end"],"maskDirection":"left"}},
+    {"id":"scroll-affordance.horizontal-middle","input":{"orientation":"horizontal","direction":"ltr","scrollSize":700,"clientSize":300,"position":200,"fadeSize":24},"expected":{"atStart":false,"atEnd":false,"fadeEdges":["start","end"],"maskDirection":"right"}},
+    {"id":"scroll-affordance.horizontal-end","input":{"orientation":"horizontal","direction":"ltr","scrollSize":700,"clientSize":300,"position":400},"expected":{"atStart":false,"atEnd":true,"fadeEdges":["start"],"maskDirection":"right"}},
+    {"id":"scroll-affordance.rtl-logical-edges","input":{"orientation":"horizontal","direction":"rtl","scrollSize":700,"clientSize":300,"rawPosition":-200},"expected":{"logicalPosition":200,"fadeEdges":["start","end"],"maskDirection":"left"}},
+    {"id":"scroll-affordance.vertical","input":{"orientation":"vertical","scrollSize":900,"clientSize":300,"position":300},"expected":{"fadeEdges":["start","end"],"towardStart":"top","towardEnd":"bottom"}},
+    {"id":"scroll-affordance.item-range","input":{"scrollSize":700,"clientSize":200,"position":100,"itemCount":7},"expected":{"announcementKey":"scrollAffordance.showingRange","arguments":{"start":2,"end":3,"total":7}}},
+    {"id":"scroll-affordance.generic-announcements","input":{"states":["start","middle","end"]},"expected":{"keys":["scrollAffordance.moreAvailable","scrollAffordance.percentScrolled","scrollAffordance.endReached"]}},
+    {"id":"scroll-affordance.keyboard-forward-back","input":{"clientSize":100,"scrollSize":500,"position":200,"keys":["ArrowRight","ArrowLeft"]},"expected":{"step":80,"forwardTarget":280,"backTarget":120,"preventDefault":true}},
+    {"id":"scroll-affordance.keyboard-extremes","input":{"clientSize":100,"scrollSize":500,"position":200,"keys":["Home","End"]},"expected":{"homeTarget":0,"endTarget":400,"clamped":true}},
+    {"id":"scroll-affordance.keyboard-rtl","input":{"orientation":"horizontal","direction":"rtl","rawPosition":-200,"clientSize":100,"scrollSize":500,"keys":["ArrowRight","ArrowLeft"]},"expected":{"logicalStep":80,"logicalBounds":[0,400],"physicalKeysPreserved":true}},
+    {"id":"scroll-affordance.ignored-key","input":{"key":"PageDown","position":200},"expected":{"target":200,"preventDefault":false}},
+    {"id":"scroll-affordance.debounce-remeasure-dispose","input":{"events":["scroll","scroll","resize","dispose"],"debounceMs":300},"expected":{"pendingAnnouncementTimers":1,"resizeRemeasured":true,"listenersAfterDispose":0,"timersAfterDispose":0}},
+    {"id":"scroll-affordance.projection-equivalence","input":{"allOrientations":true,"allDirections":true},"expected":{"typescriptEqualsDotnet":true}}
+  ]
+}

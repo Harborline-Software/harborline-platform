@@ -1,0 +1,18 @@
+{"schemaVersion":1,"moduleId":"hlp.ui.detail-panel","fixtureRevision":2,"cases":[
+{"id":"detail-panel.closed-renders-nothing","input":{"open":false},"expected":{"asideCount":0,"reservedSpace":false}},
+{"id":"detail-panel.open-docked","input":{"open":true,"railCapable":true,"label":"Elevator 2"},"expected":{"complementaryCount":1,"accessibleName":"Elevator 2","inlineEnd":true}},
+{"id":"detail-panel.label-required-name","input":{"label":"Standard King block"},"expected":{"accessibleName":"Standard King block"}},
+{"id":"detail-panel.width-clamp","input":{"widths":[100,360,4000]},"expected":{"cssPixels":[220,360,720]}},
+{"id":"detail-panel.dismiss-control","input":{"open":true},"expected":{"closeControlCount":1,"minimumTargetCssPixels":44,"closeRequests":1}},
+{"id":"detail-panel.not-dismissible","input":{"open":true,"dismissible":false},"expected":{"closeControlCount":0}},
+{"id":"detail-panel.controlled-open","input":{"open":true,"request":"close"},"expected":{"closeRequests":1,"renderedOpen":true}},
+{"id":"detail-panel.sheet-below-rail","input":{"open":true,"railCapable":false},"expected":{"sheetCount":1,"modal":true,"contentEquivalent":true}},
+{"id":"detail-panel.sheet-dismissal-focus","input":{"railCapable":false,"methods":["Escape","scrim"]},"expected":{"allClose":true,"focusRestored":true}},
+{"id":"detail-panel.viewport-transition-keeps-open","input":{"open":true,"transition":"docked-to-sheet-and-back"},"expected":{"stateRequests":0,"stillOpen":true}},
+{"id":"detail-panel.own-scroll","input":{"tallContent":true},"expected":{"panelScrolls":true,"pageScrollUnchanged":true}},
+{"id":"detail-panel.rtl","input":{"direction":"rtl"},"expected":{"logicalInlineEnd":true,"closeMirrored":true}},
+{"id":"detail-panel.host-attributes","input":{"className":"host","data-case":"panel"},"expected":{"rootPreservesAll":true}},
+{"id":"detail-panel.content-required","input":{"open":true,"children":null},"expected":{"errors":["detail-panel-content-required"]}},
+{"id":"detail-panel.projection-equivalence","input":{"projections":["react","blazor"]},"expected":{"structureStateFocusEqual":true}},
+{"id":"detail-panel.drilldown","input":{"fixture":"drilldown-v1.json"},"expected":{"transitionReplay":true,"facetTabsWithCounts":true,"onePushWithNamedBack":true,"secondPushRefusedByAbsence":true,"promoteRoute":"/runs/WO-8841","facetRememberedByDeclaredId":true}}
+]}

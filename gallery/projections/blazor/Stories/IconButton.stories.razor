@@ -1,0 +1,7 @@
+@attribute [Stories("Platform/Icon Button")]
+<Stories TComponent="IconButtonScenario">
+  <Story Name="Defaults"><Arguments><Arg For="_ => _.ScenarioId" Value='"icon-button.defaults"' /></Arguments><Template><IconButtonScenario @attributes="context.Args" /></Template></Story>
+  <Story Name="States and sizes"><Arguments><Arg For="_ => _.ScenarioId" Value='"icon-button.states"' /></Arguments><Template><IconButtonScenario @attributes="context.Args" /></Template></Story>
+  <Story Name="RTL and theme"><Arguments><Arg For="_ => _.ScenarioId" Value='"icon-button.rtl-theme"' /></Arguments><Template><IconButtonScenario @attributes="context.Args" /></Template></Story>
+  <Story Name="Content resilience"><Arguments><Arg For="_ => _.ScenarioId" Value='"icon-button.content"'/></Arguments><Template><IconButtonScenario @attributes="context.Args"/></Template></Story>
+</Stories>

@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.context-menu",
+  "verdict": "approved",
+  "reviewer": "cic",
+  "recordedAt": "2026-08-27T05:49:22.766Z",
+  "notes": "context menu is not listed in the react storybook",
+  "reference": {
+    "revision": "7466569f2b160cb3093dd7e7cfc4a91458a0b314b63e39c8c0284b69bc35b12c",
+    "source": "gallery/scenarios/hlp.ui.context-menu.json",
+    "pin": "cc9eb48ed68c5033ec128cd53c40b1d2786bee66",
+    "surface": {
+      "conformance/hlp.ui.context-menu/fixtures.yaml": "47e7b1c2667e0aa5541b1480dfc447dc583e32104639d06ad4c5716ab542f061",
+      "conformance/hlp.ui.context-menu/quality-fixtures.yaml": "cdf662fb1cfe269fe2b75c15cba521a39c3b6b7a8fd250a26fef983d1c67ebd9",
+      "gallery/projections/blazor/Stories/ContextMenu.stories.razor": "0c70164ee6464de5529a614d76b2ee52f3fa9070192d6af802c0973347a0fc8f",
+      "gallery/projections/blazor/Stories/ContextMenuScenario.razor": "ca213d77f00baa2690979998a6ff44acedfa6a1698990076d75b1e6527dd4b36",
+      "gallery/projections/react/src/ContextMenu.stories.tsx": "db4cde49a6ecb4a9626b9b9ea92d6ff33f7b74e7b34306852c44c4a3c87d59a5",
+      "gallery/scenarios/hlp.ui.context-menu.json": "f122899470f68baf1c9a06abe0d3ae72cd8a8feeec7b89c45c2741c6d64eff82",
+      "projections/blazor/ui/hlp.ui.context-menu/ContextMenuModel.cs": "16c7ce6ad5b8e5de139c6e5a4ce28e3e9c28b913c428ef7001d721e982e4dfa2",
+      "projections/blazor/ui/hlp.ui.context-menu/ShipyardContextMenu.razor": "9402fc337663c2ed51326f5d04bfcc0d3d4f67f69925df1dabaeef73a41adc4b",
+      "projections/blazor/ui/hlp.ui.context-menu/wwwroot/context-menu.css": "98fc8dbb83ef110f6b0f17abae5cccb54d56adc2c0e15c359f4108659bd6fce7",
+      "projections/blazor/ui/hlp.ui.context-menu/wwwroot/context-menu.js": "2a92a4d7ce9506766ff9ed5888ed63326d6825ef55ea71429c1c4865e6c0b30d",
+      "projections/react/ui/hlp.ui.context-menu/src/ContextMenu.tsx": "93ef99245f65d16f4071485b0a38c0defe64b95b951bb5954e3c59fbea450af2",
+      "projections/react/ui/hlp.ui.context-menu/src/style.css": "98fc8dbb83ef110f6b0f17abae5cccb54d56adc2c0e15c359f4108659bd6fce7",
+      "specs/modules/ui/hlp.ui.context-menu/scenarios.json": "f122899470f68baf1c9a06abe0d3ae72cd8a8feeec7b89c45c2741c6d64eff82",
+      "specs/modules/ui/hlp.ui.context-menu/style.css": "98fc8dbb83ef110f6b0f17abae5cccb54d56adc2c0e15c359f4108659bd6fce7"
+    }
+  }
+}

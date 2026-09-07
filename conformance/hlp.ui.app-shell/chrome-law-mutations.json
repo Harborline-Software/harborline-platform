@@ -1,0 +1,23 @@
+{
+  "packAttemptsZoneOrder": ["footer", "head"],
+  "deniedCreate": {
+    "permittedRoles": ["tax.roles/maintainer"],
+    "guidance": "Request the Maintainer role to create assets."
+  },
+  "notification": {
+    "unread": 3,
+    "render": "count",
+    "forbidden": "dot",
+    "panel": {
+      "id": "notifications",
+      "labelKey": "panels.notifications",
+      "binding": "panels.notifications.toggle",
+      "shortcut": "mod+shift+b",
+      "defaultWidth": 360,
+      "minimumHeight": 180,
+      "defaultOpen": false,
+      "traits": ["Live"]
+    }
+  },
+  "content": { "attemptedFloor": 419, "requiredFloor": 420 }
+}

@@ -1,0 +1,110 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Buttons
+@inherits Harborline.UIAdapters.Blazor.Base.HarborlineComponentBase
+@using Harborline.UIAdapters.Blazor.Localization
+@using Harborline.Foundation.Localization
+@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.JSInterop
+@implements IAsyncDisposable
+@inject IJSRuntime Javascript
+@if(Formats.Count == 1)
+{
+    var format = Formats[0];
+    <button type="button" dir="@Direction" class="@CombineClasses("hl-data-export", "hl-data-export--direct")" aria-busy="@(IsLoading ? "true" : null)" disabled="@IsBusy" @onclick="() => InvokeAsync(format)" @attributes="AdditionalAttributes">@TriggerLabel</button>
+}
+else
+{
+    <div @ref="RootElement" dir="@Direction" class="@CombineClasses("hl-data-export")" @attributes="AdditionalAttributes">
+        <button @ref="TriggerElement" type="button" aria-haspopup="menu" aria-expanded="@Open.ToString().ToLowerInvariant()" aria-controls="@MenuId" aria-busy="@(IsLoading ? "true" : null)" disabled="@IsBusy" @onclick="Toggle" @onkeydown="TriggerKeyDown">@TriggerLabel</button>
+        @if(Open){<div id="@MenuId" role="menu" class="hl-data-export__menu" @onkeydown="MenuKeyDown">@for(var index=0; index<Formats.Count; index++){var format=Formats[index];<button @key="format" type="button" role="menuitem" tabindex="@(index == FocusedIndex ? "0" : "-1")" data-format="@Slug(format)" @onclick="() => InvokeAsync(format)">@FormatLabel(format)</button>}</div>}
+    </div>
+}
+@code {
+    [CascadingParameter] private HarborlineLocaleContext? LocaleContext { get; set; }
+    [Parameter] public IReadOnlyList<ExportFormat> Formats { get; set; } = [ExportFormat.Csv, ExportFormat.Xlsx];
+    [Parameter, EditorRequired] public EventCallback<ExportFormat> OnExport { get; set; }
+    [Parameter] public string? Label { get; set; }
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public bool Loading { get; set; }
+    private bool Open { get; set; }
+    private ExportFormat? Busy { get; set; }
+    private int FocusedIndex { get; set; }
+    private bool FocusPending { get; set; }
+    private ElementReference RootElement { get; set; }
+    private ElementReference TriggerElement { get; set; }
+    private IJSObjectReference? Module { get; set; }
+    private IJSObjectReference? Connection { get; set; }
+    private DotNetObjectReference<HarborlineDataExportButton>? Reference { get; set; }
+    private string MenuId { get; } = $"hl-export-{Guid.NewGuid():N}";
+    private bool IsBusy => Disabled || Loading || Busy is not null;
+    private bool IsLoading => Loading || Busy is not null;
+    private string Direction => LocaleContext?.Direction ?? "ltr";
+    private string TriggerLabel => IsLoading ? Resolve("common.loading", "Loading") : Label ?? Resolve("buttons.export", "Export");
+    private void Toggle(){ if(!IsBusy) { Open=!Open; FocusedIndex=0; FocusPending=Open; } }
+    private void TriggerKeyDown(KeyboardEventArgs args){ if(IsBusy) return; if(args.Key is "ArrowDown" or "ArrowUp"){Open=true;FocusedIndex=args.Key=="ArrowDown"?0:Math.Max(0,Formats.Count-1);FocusPending=true;} }
+    private async Task MenuKeyDown(KeyboardEventArgs args){ if(args.Key=="Escape"){await CloseAsync(true);return;} if(Formats.Count==0)return; if(args.Key=="ArrowDown"){FocusedIndex=(FocusedIndex+1)%Formats.Count;FocusPending=true;} if(args.Key=="ArrowUp"){FocusedIndex=(FocusedIndex-1+Formats.Count)%Formats.Count;FocusPending=true;} }
+    private async Task InvokeAsync(ExportFormat format){ if(IsBusy)return; Open=false;Busy=format;try{await OnExport.InvokeAsync(format);}finally{Busy=null;} }
+    private string FormatLabel(ExportFormat format)=>Resolve($"buttons.format.{Slug(format)}", format.ToString().ToUpperInvariant());
+    // With no locale provider in scope this used to fall straight to `fallback`, which for a format
+    // label was the bare enum name -- "CSV" where React, whose provider falls back to the shared
+    // catalog, showed "CSV (.csv)". Same key, same catalog, two different strings on screen purely
+    // because one lane consulted the defaults and the other did not. Consult them here too, and keep
+    // the inline fallback only for a key the catalog does not carry.
+    private string Resolve(string key,string fallback)=>LocaleContext?.Translate(key)
+        ?? (HarborlineDefaultStrings.Values.TryGetValue(key, out var value) ? value : fallback);
+    private static string Slug(ExportFormat format)=>format.ToString().ToLowerInvariant();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // The single-format branch destroys RootElement while `Open` says nothing, so the early
+        // return has to dispose on the way out. Below it, the old `return` left a live connection
+        // holding an element that no longer exists.
+        if (Formats.Count <= 1)
+        {
+            await DisposeConnectionAsync();
+            return;
+        }
+        Module ??= await Javascript.InvokeAsync<IJSObjectReference>("import", "./_content/Harborline.UIAdapters.Blazor/data-export-button.js");
+        if (!Open)
+        {
+            await DisposeConnectionAsync();
+        }
+        else if (Connection is null)
+        {
+            Reference ??= DotNetObjectReference.Create(this);
+            Connection = await Module.InvokeAsync<IJSObjectReference>("connect", RootElement, TriggerElement, Reference);
+        }
+        if (Open && FocusPending)
+        {
+            FocusPending = false;
+            await Module.InvokeVoidAsync("focusActive", RootElement);
+        }
+    }
+
+    [JSInvokable]
+    public Task DismissFromJavaScriptAsync() => CloseAsync(false);
+
+    private async Task CloseAsync(bool restoreFocus)
+    {
+        if (!Open) return;
+        Open = false;
+        if (restoreFocus && Module is not null) await Module.InvokeVoidAsync("focusTrigger", TriggerElement);
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async ValueTask DisposeConnectionAsync()
+    {
+        if (Connection is null) return;
+        // data-export-button.js registers a capturing document listener that only its own dispose()
+        // removes; releasing the object reference alone left that listener behind for good.
+        try { await Connection.InvokeVoidAsync("dispose"); } catch (JSDisconnectedException) { }
+        await Connection.DisposeAsync();
+        Connection = null;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await DisposeConnectionAsync();
+        if (Module is not null) try { await Module.DisposeAsync(); } catch (JSDisconnectedException) { }
+        Reference?.Dispose();
+    }
+}

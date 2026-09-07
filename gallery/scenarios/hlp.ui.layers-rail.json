@@ -1,0 +1,350 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.layers-rail",
+  "sourceFixture": "conformance/hlp.ui.layers-rail/fixtures.yaml",
+  "qualityFixture": "conformance/hlp.ui.layers-rail/quality-fixtures.yaml",
+  "galleryInterface": {
+    "probeAttribute": "data-gallery-probe",
+    "scenarioAttribute": "data-gallery-scenario",
+    "projectionTitles": {
+      "react": "Platform/Layers Rail",
+      "blazor": "Platform/Layers Rail"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "layers-rail.structure",
+      "name": "Rail structure",
+      "surface": "structure",
+      "sourceCaseIds": [
+        "layers-rail.structure",
+        "layers-rail.lenses",
+        "layers-rail.active-status"
+      ],
+      "sourceQualityCaseIds": [
+        "layers-rail.quality.pattern",
+        "layers-rail.quality.status"
+      ],
+      "content": {
+        "blurb": "A named complementary rail orders the lens group above one outline tree.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "scenarioId": "layers-rail.structure",
+          "compact": false,
+          "showProvenance": true
+        },
+        "state": {
+          "selectedId": {
+            "kind": "string",
+            "initial": "location"
+          },
+          "activeLens": {
+            "kind": "string",
+            "initial": "layout"
+          }
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "return <LayersRail",
+            "blazor": "<HarborlineLayersRail Lenses=\"@Lenses\" State=\"@state\" StateChanged=\"SetState\" Canvas=\"@Canvas\" Provenance=\"@Provenance\" Labels=\"@Labels\" Compact=\"@Compact\" ShowProvenance OnInsert=\"Insert\" />",
+            "rationale": "The closed controls cannot express the composite lens toolbar, projected badges, provenance indicators, roving tree, nested outline nodes, or their component-owned keyboard behavior."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "layers-rail.lenses",
+      "name": "Lens states and shortcuts",
+      "surface": "lenses",
+      "interaction": "keyboard-pointer",
+      "sourceCaseIds": [
+        "layers-rail.toggle",
+        "layers-rail.shortcuts",
+        "layers-rail.filter-badges",
+        "layers-rail.continuity"
+      ],
+      "sourceQualityCaseIds": [
+        "layers-rail.quality.color",
+        "layers-rail.quality.dismissal"
+      ],
+      "content": {
+        "blurb": "Active and passive lenses preserve visible state while Escape returns to neutral.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "scenarioId": "layers-rail.lenses",
+          "compact": false,
+          "showProvenance": true
+        },
+        "inherits": "layers-rail.structure"
+      }
+    },
+    {
+      "id": "layers-rail.outline",
+      "name": "Outline keyboard and focus",
+      "surface": "outline",
+      "interaction": "keyboard",
+      "sourceCaseIds": [
+        "layers-rail.outline",
+        "layers-rail.tree-keyboard",
+        "layers-rail.collapse-focus",
+        "layers-rail.selection"
+      ],
+      "sourceQualityCaseIds": [
+        "layers-rail.quality.keyboard",
+        "layers-rail.quality.focus"
+      ],
+      "content": {
+        "blurb": "Roving tree focus, collapse fallback, and selection follow the APG keyboard model.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "scenarioId": "layers-rail.outline",
+          "compact": false,
+          "showProvenance": true
+        },
+        "inherits": "layers-rail.structure"
+      }
+    },
+    {
+      "id": "layers-rail.provenance",
+      "name": "Provenance, insert, and empty",
+      "surface": "provenance",
+      "interaction": "pointer",
+      "sourceCaseIds": [
+        "layers-rail.provenance",
+        "layers-rail.insert",
+        "layers-rail.empty",
+        "layers-rail.invalid-input"
+      ],
+      "sourceQualityCaseIds": [
+        "layers-rail.quality.forced-colors"
+      ],
+      "content": {
+        "blurb": "Source, lock, insert, and empty teaching signals remain explicit and host-owned.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "scenarioId": "layers-rail.provenance",
+          "compact": false,
+          "showProvenance": true
+        },
+        "state": {
+          "selectedId": {
+            "kind": "string",
+            "initial": "location"
+          },
+          "activeLens": {
+            "kind": "string",
+            "initial": ""
+          }
+        },
+        "inherits": "layers-rail.structure"
+      }
+    },
+    {
+      "id": "layers-rail.locale-en",
+      "name": "English locale",
+      "surface": "locale-en",
+      "sourceCaseIds": [
+        "layers-rail.structure"
+      ],
+      "sourceQualityCaseIds": [
+        "layers-rail.quality.locales"
+      ],
+      "content": {
+        "blurb": "All rail chrome is supplied through the frozen labels interface.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "scenarioId": "layers-rail.locale-en",
+          "compact": false,
+          "showProvenance": true
+        },
+        "inherits": "layers-rail.structure"
+      }
+    },
+    {
+      "id": "layers-rail.locale-pseudo",
+      "name": "Pseudo locale",
+      "surface": "locale-pseudo",
+      "sourceCaseIds": [
+        "layers-rail.compact",
+        "layers-rail.empty"
+      ],
+      "sourceQualityCaseIds": [
+        "layers-rail.quality.pseudo",
+        "layers-rail.quality.reflow"
+      ],
+      "content": {
+        "blurb": "Expanded rail labels and compact mode expose clipping and reflow defects.",
+        "environment": {
+          "locale": "en-XA",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "scenarioId": "layers-rail.locale-pseudo",
+          "compact": false,
+          "showProvenance": true
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<RailFixture scenarioId=",
+            "blazor": "<RailFixture ScenarioId=\"@ScenarioId\" />",
+            "rationale": "The normal pseudo-localized rail is the same composite widget as the base rail and cannot be expressed by the closed primitive controls."
+          },
+          {
+            "control": "raw",
+            "react": "<RailFixture scenarioId= … compact />",
+            "blazor": "<RailFixture ScenarioId=\"@ScenarioId\" Compact />",
+            "rationale": "The second compact pseudo-localized rail is a full composite rail; compact layout, lens projections, provenance, and tree behavior cannot be expressed by the closed primitive controls."
+          }
+        ],
+        "inherits": "layers-rail.structure"
+      }
+    },
+    {
+      "id": "layers-rail.locale-ar",
+      "name": "Arabic locale",
+      "surface": "locale-ar",
+      "sourceCaseIds": [
+        "layers-rail.structure",
+        "layers-rail.tree-keyboard"
+      ],
+      "sourceQualityCaseIds": [
+        "layers-rail.quality.rtl"
+      ],
+      "content": {
+        "blurb": "Logical indentation and alignment follow RTL while tree keys retain their meaning.",
+        "environment": {
+          "locale": "ar-SA",
+          "direction": "rtl",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "scenarioId": "layers-rail.locale-ar",
+          "compact": false,
+          "showProvenance": true
+        },
+        "inherits": "layers-rail.structure"
+      }
+    },
+    {
+      "id": "layers-rail.theme-light",
+      "name": "Light theme",
+      "surface": "theme-light",
+      "sourceCaseIds": [
+        "layers-rail.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "layers-rail.quality.themes",
+        "layers-rail.quality.tokens",
+        "layers-rail.quality.contrast",
+        "layers-rail.quality.reduced-motion",
+        "layers-rail.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "Lens, selection, provenance, focus, and outline states use public light-theme tokens.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "scenarioId": "layers-rail.theme-light",
+          "compact": false,
+          "showProvenance": true
+        },
+        "inherits": "layers-rail.structure"
+      }
+    },
+    {
+      "id": "layers-rail.theme-dark",
+      "name": "Dark theme",
+      "surface": "theme-dark",
+      "sourceCaseIds": [
+        "layers-rail.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "layers-rail.quality.themes",
+        "layers-rail.quality.tokens",
+        "layers-rail.quality.contrast",
+        "layers-rail.quality.reduced-motion",
+        "layers-rail.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "The same structural rail on the Harborline dark surface.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "dark",
+          "catalog": {}
+        },
+        "props": {
+          "scenarioId": "layers-rail.theme-dark",
+          "compact": false,
+          "showProvenance": true
+        },
+        "inherits": "layers-rail.structure"
+      }
+    },
+    {
+      "id": "layers-rail.content",
+      "name": "Content resilience",
+      "surface": "long-content",
+      "sourceCaseIds": [
+        "layers-rail.structure",
+        "layers-rail.lenses"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "Rail nodes and lens projections carry a long label, grouped large number, escaped hostile text, and an unusual name with diacritics.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<RailFixture scenarioId=\"layers-rail.content\" />",
+            "blazor": "<RailFixture ScenarioId=\"layers-rail.content\" />",
+            "rationale": "The closed descriptor vocabulary cannot express the composite rail's node collection, lens projections, provenance, and hostile-but-valid labels."
+          }
+        ],
+        "footer": []
+      }
+    }
+  ]
+}

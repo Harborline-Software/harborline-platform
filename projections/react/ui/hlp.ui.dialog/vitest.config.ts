@@ -1,0 +1,24 @@
+import { resolve } from 'node:path'
+
+const root = resolve(import.meta.dirname, '../hlp.ui.button')
+
+export default {
+  resolve: {
+    alias: {
+      react: resolve(root, 'node_modules/react'),
+      'react-dom': resolve(root, 'node_modules/react-dom'),
+      '@testing-library/react': resolve(root, 'node_modules/@testing-library/react'),
+      '@testing-library/user-event': resolve(root, 'node_modules/@testing-library/user-event'),
+      '@testing-library/jest-dom': resolve(root, 'node_modules/@testing-library/jest-dom'),
+      '@harborline-platform/hlp.ui.default-strings': resolve(import.meta.dirname, '../hlp.ui.default-strings/src/index.ts'),
+      '@harborline-platform/hlp.ui.locale-provider': resolve(import.meta.dirname, '../hlp.ui.locale-provider/src/index.ts'),
+      '@harborline-platform/hlp.ui.use-scroll-affordance': resolve(import.meta.dirname, '../hlp.ui.use-scroll-affordance/src/index.ts'),
+    },
+  },
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: ['./src/test-setup.ts'],
+    css: false,
+  },
+}

@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "outDir": "dist",
+    "rootDir": "src",
+    "types": [],
+    "paths": {
+      "@harborline-platform/hlp.ui.aspect-lens": ["../hlp.ui.aspect-lens/dist/index.d.ts"]
+    }
+  },
+  "include": ["src/toneStyle.ts", "src/index.ts"],
+  "exclude": ["src/__tests__", "dist", "node_modules"]
+}

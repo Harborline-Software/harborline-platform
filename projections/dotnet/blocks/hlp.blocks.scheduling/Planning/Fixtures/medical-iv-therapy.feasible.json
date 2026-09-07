@@ -1,0 +1,49 @@
+{
+  "schema": "harborline.scheduling.problem-draft/v0",
+  "id": "medical-iv-therapy.feasible",
+  "version": "0.1.0",
+  "title": "Synthetic IV therapy recurring capacity",
+  "timezone": "UTC",
+  "metadata": { "synthetic": true, "fixtureKind": "feasible", "safety": "Architecture-only synthetic timing; not clinical guidance." },
+  "anchors": [
+    { "id": "anchor-start", "label": "Synthetic session anchor", "kind": "date", "value": "2026-10-05" }
+  ],
+  "windows": [
+    { "id": "horizon", "label": "Synthetic session horizon", "start": "2026-10-05", "end": "2026-11-30" },
+    { "id": "session-window", "label": "Session window", "startOffset": { "anchorId": "anchor-start", "offset": { "amount": 0, "unit": "day" } }, "endOffset": { "anchorId": "anchor-start", "offset": { "amount": 42, "unit": "day" } } }
+  ],
+  "locations": [
+    { "id": "bay-a", "label": "Synthetic therapy bay", "tags": ["synthetic"] }
+  ],
+  "phases": [
+    { "id": "phase-prepare", "label": "Preparation phase", "sequence": 1, "locationRefs": ["bay-a"] },
+    { "id": "phase-observe", "label": "Observation phase", "sequence": 2, "locationRefs": ["bay-a"], "predecessorPhaseRefs": ["phase-prepare"] }
+  ],
+  "resources": [
+    { "id": "resource-chair", "label": "Synthetic chair pool", "kind": "pool", "capabilities": [{ "capabilityRef": "cap.chair", "count": 1 }], "availabilityWindowRefs": ["horizon"], "capacity": { "quantity": 3, "unit": "session", "cumulative": true, "windowRefs": ["horizon"] }, "locationRefs": ["bay-a"] },
+    { "id": "resource-nurse", "label": "Synthetic nurse pool", "kind": "pool", "capabilities": [{ "capabilityRef": "cap.nurse", "count": 1 }], "availabilityWindowRefs": ["horizon"], "locationRefs": ["bay-a"] },
+    { "id": "authority-operations", "label": "Synthetic capacity authority", "kind": "party", "capabilities": [{ "capabilityRef": "cap.capacity-approval", "count": 1 }], "availabilityWindowRefs": ["horizon"] }
+  ],
+  "capacityPools": [
+    { "id": "pool-chair-sessions", "label": "Chair session capacity", "amount": 3, "unit": "session", "cumulative": true, "windowRefs": ["horizon"], "resourceRefs": ["resource-chair"] }
+  ],
+  "policies": [
+    { "id": "policy-capacity", "label": "Capacity approval policy", "kind": "capacity", "ref": "policy://synthetic/session-capacity" },
+    { "id": "policy-commit", "label": "Proposal-only commit policy", "kind": "commit", "ref": "policy://synthetic/proposal-only" }
+  ],
+  "constraints": [
+    { "id": "constraint-session-window", "label": "Session window", "severity": "hard", "kind": "window", "ruleRef": "rule://synthetic/session-window", "appliesToRefs": ["demand:session-step"] },
+    { "id": "constraint-prep-before-observe", "label": "Preparation before observation", "severity": "hard", "kind": "precedence", "ruleRef": "rule://synthetic/prep-order", "appliesToRefs": ["demand:observation-step"] },
+    { "id": "constraint-load-smooth", "label": "Prefer smooth load", "severity": "soft", "kind": "spread", "calculationRef": "calc://synthetic/load", "appliesToRefs": ["demand:session-step"] }
+  ],
+  "approvals": [
+    { "id": "approval-capacity", "label": "Capacity approval", "requirementKind": "capacity", "scope": "commit", "subjectRefs": ["capacityPool:pool-chair-sessions"], "authorityRef": "resource:authority-operations", "policyRef": "policy-capacity", "requiredCapabilityRefs": ["cap.capacity-approval"], "satisfierRefs": ["resource:authority-operations"] }
+  ],
+  "demands": [
+    { "id": "session-step", "label": "Synthetic recurring session", "duration": { "amount": 2, "unit": "hour" }, "windowRefs": ["session-window"], "phaseRef": "phase-prepare", "locationRefs": ["bay-a"], "requiredCapabilities": [{ "capabilityRef": "cap.chair", "count": 1 }, { "capabilityRef": "cap.nurse", "count": 1 }], "capacityUsage": [{ "capacityPoolId": "pool-chair-sessions", "amount": 1, "unit": "session", "mode": "consume" }], "repetition": { "kind": "fixed-count", "count": 3, "every": { "amount": 14, "unit": "day" } }, "constraintRefs": ["constraint-session-window"], "softConstraintRefs": ["constraint-load-smooth"], "approvalRequirementRefs": ["approval-capacity"] },
+    { "id": "observation-step", "label": "Synthetic observation buffer", "duration": { "amount": 1, "unit": "hour" }, "windowRefs": ["session-window"], "phaseRef": "phase-observe", "locationRefs": ["bay-a"], "requiredCapabilities": [{ "capabilityRef": "cap.nurse", "count": 1 }], "predecessors": [{ "demandId": "session-step", "relation": "finish-to-start", "minGap": { "amount": 1, "unit": "hour" }, "constraintRef": "constraint-prep-before-observe" }], "constraintRefs": ["constraint-session-window", "constraint-prep-before-observe"], "approvalRequirementRefs": ["approval-capacity"] }
+  ],
+  "strategy": { "alias": "heuristic", "parameters": { "candidateLimit": 36 } },
+  "commitment": { "mode": "proposal-only", "horizonWindowRef": "horizon", "capacityPoolRefs": ["pool-chair-sessions"], "policyRefs": ["policy-commit"] },
+  "resultMetadata": { "expectedOutcome": "feasible", "deterministicSeed": "synthetic-iv-ok", "explanationRefs": ["demand:session-step", "capacityPool:pool-chair-sessions", "constraint:constraint-session-window"] }
+}

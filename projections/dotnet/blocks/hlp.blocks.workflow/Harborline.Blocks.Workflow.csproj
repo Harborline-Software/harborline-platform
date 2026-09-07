@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <HarborlinePublicDistributionAuthorized>false</HarborlinePublicDistributionAuthorized>
+    <PackageId>Harborline.Blocks.Workflow</PackageId>
+    <AssemblyName>Harborline.Blocks.Workflow</AssemblyName>
+    <RootNamespace>Harborline.Blocks.Workflow</RootNamespace>
+    <Description>Workflow engine core for Harborline Platform: typed state-machine runtime (declarative definition, fluent builder, in-memory runtime) plus the provider-neutral durable-execution core — the IWorkflowStore seam, the durable model, atomic-advance contract, cross-architecture-stable idempotency key, the four triggers and dispatcher with iteration caps, the fail-closed admission gate over a Harborline-owned capability-authority registry, the effect broker-PEP with confirm-time separation of duties, and the two-faced workflow definition store port.</Description>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageReleaseNotes>Internal-only projection; public distribution is not authorized.</PackageReleaseNotes>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- The Harborline-owned canonical capability→authority registry the admission validator and
+         broker-PEP derive an action's CP/AP class from (unknown ⇒ CP, fail-closed). Content
+         provenance: the pinned Shipyard command-authority.json blob the hlp.contracts.workflow
+         spec records as its authorityRegistry. -->
+    <EmbeddedResource Include="Durable\capability-authority.json">
+      <LogicalName>capability-authority.json</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Harborline.Blocks.Workflow.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="/" />
+    <None Include="../../../../LICENSE" Link="LICENSE" Pack="true" PackagePath="/" />
+  </ItemGroup>
+</Project>

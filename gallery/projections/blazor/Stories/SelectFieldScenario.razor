@@ -1,0 +1,74 @@
+@using Harborline.UIAdapters.Blazor.Components.Forms.Inputs
+
+<section class="hl-gallery-scene" data-gallery-probe data-gallery-scenario="@ScenarioId" data-theme="@Theme" dir="@Direction">
+  <header class="hl-gallery-heading"><h2>@Copy.Title</h2><p>@Copy.Description</p></header>
+  <div class="hl-gallery-stage hl-gallery-feedback-grid">
+    <HarborlineLocaleProvider Locale="@Locale">
+      @if (ScenarioId == "select-field.error-state")
+      {
+        <HarborlineSelectField AccessibleName="Inspection status" Error="true" Name="inspection-status" Options="@Options" Value="pending" />
+      }
+      else if(ScenarioId=="select-field.content")
+      {
+        <HarborlineSelectField Name="content-resilience" Value="long" Options="@ContentOptions" Open="true" AccessibleName="Content resilience options" />
+      }
+      else
+      {
+        <HarborlineSelectField Name="status-small" Value="@value" ValueChanged="SetValue" Options="@Options"
+                             Placeholder="@Placeholder" Size="@PrimarySize" AccessibleName="@AccessibleName" data-case="structure-status" />
+        @if (ScenarioId == "select-field.states" || Theme is not null)
+        {
+          <HarborlineSelectField Name="status-invalid" Value="active" ValueChanged="SetValue" Options="@Options"
+                               Size="SelectFieldSize.Md" AccessibleName="@AccessibleName" Error Required />
+          <HarborlineSelectField Name="status-disabled" Value="active" ValueChanged="SetValue" Options="@Options"
+                               Size="SelectFieldSize.Lg" AccessibleName="@AccessibleName" Disabled />
+        }
+      }
+    </HarborlineLocaleProvider>
+  </div>
+</section>
+
+@code {
+  [Parameter, EditorRequired] public string ScenarioId { get; set; } = "select-field.states";
+  private string value = string.Empty;
+  private string? configuredScenario;
+  private void SetValue(string next) => value = next;
+
+  protected override void OnParametersSet()
+  {
+    if (configuredScenario == ScenarioId) return;
+    configuredScenario = ScenarioId;
+    value = ScenarioId == "select-field.states" ? string.Empty : "active";
+  }
+
+  private (string Title, string Description) Copy => ScenarioId switch
+  {
+    "select-field.states" => ("Value, placeholder, and validation", "Controlled value, identity, placeholder, density, and validation metadata remain explicit."),
+    "select-field.selection" => ("Open and select", "The trigger opens one listbox and selection requests one value before closing."),
+    "select-field.keyboard-dismissal" => ("Keyboard, typeahead, and dismissal", "Keyboard navigation, typeahead, Escape, Tab, and outside pointer follow one deterministic lifecycle."),
+    "select-field.locale-en" => ("English locale", "The locale catalog supplies only absent chrome while caller option labels remain unchanged."),
+    "select-field.locale-pseudo" => ("Pseudo locale", "Expanded trigger and option copy remain viewport-clamped."),
+    "select-field.locale-ar" => ("Arabic locale", "Trigger icon, checkmark, and popup alignment follow logical direction."),
+    "select-field.theme-light" => ("Light theme", "Default, open, selected, invalid, disabled, and focus states use public tokens."),
+    "select-field.theme-dark" => ("Dark theme", "The same controlled selection surface on the Harborline dark theme."),
+    "select-field.content" => ("Content resilience", "Real option content spans an overlong label, a grouped large number, escaped markup characters, and a diacritic-rich name."),
+    "select-field.error-state" => ("Error state", "The select field renders its declared invalid state with an accessible name."),
+    _ => ("Select field", "Controlled selection.")
+  };
+
+  private bool IsArabic => ScenarioId == "select-field.locale-ar";
+  private bool IsPseudo => ScenarioId == "select-field.locale-pseudo";
+  private string Locale => IsArabic ? "ar-SA" : IsPseudo ? "en-XA" : "en-US";
+  private string Direction => IsArabic ? "rtl" : "ltr";
+  private string? Theme => ScenarioId switch { "select-field.theme-light" => "light", "select-field.theme-dark" => "dark", _ => null };
+  private SelectFieldSize PrimarySize => ScenarioId == "select-field.states" || Theme is not null ? SelectFieldSize.Sm : SelectFieldSize.Md;
+  private string AccessibleName => IsArabic ? "حالة الهيكل" : "Structure status";
+  private string? Placeholder => IsArabic ? "اختر الحالة" : IsPseudo ? "⟦ Çhøøšë å šţřûçţûřë šţåţûš ······ ⟧" : null;
+  private IReadOnlyList<SelectOption> Options => IsArabic
+    ? [new("active", "نشط"), new("pending", "في انتظار المراجعة"), new("archived", "مؤرشف")]
+    : IsPseudo
+      ? [new("active", "⟦ Active ······ ⟧"), new("pending", "⟦ Pending review ······ ⟧"), new("archived", "⟦ Archived ······ ⟧")]
+      : [new("active", "Active"), new("pending", "Pending review"), new("archived", "Archived")];
+  private static readonly IReadOnlyList<SelectOption> ContentOptions =
+    [new("long", "Awaiting third-party structural certification review"), new("number", "1,284,905"), new("escaped", "Bay 4 <grid C-7> & 8"), new("name", "Ordnance Survey — Niño Ångström")];
+}

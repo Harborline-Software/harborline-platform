@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 2,
+  "rule": "Each row is a lane divergence the 16px tile rule sees and the whole-capture changed-pixel ratio does not. A row records the worst-tile ratio MEASURED ON EACH GATE HOST, because the same divergence rasterises differently per platform: side-nav.theme-dark reads 0.3984 on Windows and 0.2891 on macOS. A run is held to ITS OWN host's measurement, plus or minus tolerance - above it the divergence got worse, below it the divergence is gone and the row must be deleted. A host with no row for a listed scenario FAILS, naming HARBORLINE_GALLERY_PARITY_MEASURE: add that host's measurement the first time it runs the gallery gate. Never judge one host by another host's number, and never widen a window with a number nobody measured. A resolved entry that names a host says the divergence is gone on THAT host only: the row stands for the other hosts and the named host is held to the frozen tile threshold.",
+  "tolerance": 0.03,
+  "resolved": [
+    {
+      "scenarioId": "app-shell.theme-dark",
+      "removedBy": "282",
+      "reason": "ticket 282 regenerated the 23 Blazor stylesheets as byte-identical copies of their authority; the lanes converged and the worst tile fell from 0.7344 to 0.2852 on windows-11-x64 and 0.7109 to 0.3008 on macos-x64-intel, under the frozen 0.34 tile threshold on both hosts, which now holds it"
+    },
+    {
+      "scenarioId": "app-shell.theme-light",
+      "removedBy": "282",
+      "reason": "same stylesheet convergence: 0.6133 to 0.2852 on windows-11-x64 and 0.5625 to 0.3086 on macos-x64-intel, under the frozen 0.34 tile threshold on both hosts"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
+      "host": "macos-arm64",
+      "removedBy": "147",
+      "reason": "measured on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 0.1875, under the frozen 0.34 tile threshold and under the 0.2656 noise ceiling, so that host is held to the frozen threshold like an unregistered scenario; windows-11-x64 keeps the row at 0.4023"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
+      "host": "macos-x64-intel",
+      "removedBy": "282",
+      "reason": "282 train B reconciled the scheduler stylesheet with its authority; on macos-x64-intel the worst tile fell from 0.3047 to 0.1875, under the frozen 0.34 tile threshold and under the 0.2656 noise ceiling, so that host is held to the frozen threshold. windows-11-x64 still measures 0.4023 and keeps its row"
+    },
+    {
+      "scenarioId": "side-nav.theme-dark",
+      "removedBy": "282",
+      "reason": "ticket 282 slice 10 reconciled the side-nav Blazor stylesheet with its authority (byte-identical copy, the lane-only class spellings dropped for the React ones); the lanes converged and the worst tile fell from 0.3984 to 0.1172 on windows-11-x64 and from 0.2891 to 0.1172 on macos-x64-intel and macos-arm64, re-measured on train C's own tree. Every host is now under the frozen 0.34 tile threshold, which holds them all"
+    },
+    {
+      "scenarioId": "side-nav.theme-light",
+      "removedBy": "282",
+      "reason": "same stylesheet convergence, re-measured on train C's own tree: the worst tile fell from 0.3867 to 0 on windows-11-x64 and from 0.3516 to 0 on macos-x64-intel and macos-arm64. The mac rows carried in the register were measured on train B, BEFORE the side-nav slice converged the stylesheets; on train C the two lanes rasterise identically on every host, so the row is gone for all of them and each is held to the frozen 0.34 tile threshold"
+    }
+  ],
+  "divergences": [
+    {
+      "scenarioId": "scheduler.theme-dark",
+      "measurements": [
+        {
+          "host": "windows-11-x64",
+          "worstTilePixelRatio": 0.5
+        },
+        {
+          "host": "macos-x64-intel",
+          "worstTilePixelRatio": 0.625
+        },
+        {
+          "host": "macos-arm64",
+          "worstTilePixelRatio": 0.625
+        }
+      ],
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
+      "measurements": [
+        {
+          "host": "windows-11-x64",
+          "worstTilePixelRatio": 0.4023
+        }
+      ],
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane"
+    }
+  ]
+}

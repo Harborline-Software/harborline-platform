@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.blocks.inspection-review",
+  "interfaceRevision": 2,
+  "status": "frozen",
+  "purpose": "Compose accepted Dynamic Forms submissions into deterministic, tenant-scoped inspection-review work without importing a general workflow interpreter, asset registry, or UI framework.",
+  "dependencies": [
+    {"moduleId": "hlp.contracts.forms", "minimumRevision": 4},
+    {"moduleId": "hlp.contracts.identities", "minimumRevision": 1},
+    {"moduleId": "hlp.contracts.workflow", "minimumRevision": 1},
+    {"moduleId": "hlp.foundation.actor", "minimumRevision": 1},
+    {"moduleId": "hlp.foundation.forms", "minimumRevision": 3},
+    {"moduleId": "hlp.foundation.forms-engine", "minimumRevision": 8},
+    {"moduleId": "hlp.foundation.tenancy", "minimumRevision": 1},
+    {"moduleId": "hlp.kernel.work-items", "minimumRevision": 1}
+  ],
+  "projectionInterface": {
+    "name": "InspectionReviewProjectionSink",
+    "operation": "DeliverAsync(FormProjectionEnvelope, cancellationToken) -> FormProjectionDeliveryResult",
+    "context": "The trusted Forms Engine envelope tenant must equal the current active tenant. Work Items resolves the current server-derived Party and owns mutation atomicity."
+  },
+  "callerInterface": {
+    "name": "IInspectionReviewService",
+    "operations": [
+      "ListSubjectsAsync(cancellationToken) -> IReadOnlyList<InspectionSubject>",
+      "GetSubjectAsync(subjectRef, cancellationToken) -> InspectionSubject?",
+      "ListPendingAsync(cancellationToken) -> IReadOnlyList<InspectionReviewView>",
+      "GetAsync(reviewId, cancellationToken) -> InspectionReviewView?",
+      "DecideAsync(reviewId, expectedVersion, approve|rework, idempotencyKey, optionalNote, cancellationToken) -> InspectionReviewMutationResult"
+    ],
+    "context": "Tenant and Party are resolved from the current authenticated server scope and never accepted from caller payloads."
+  },
+  "authorizationPort": {
+    "name": "IInspectionReviewAuthorizer",
+    "operation": "IsAllowedAsync(read-subjects|read-reviews|decide, cancellationToken) -> bool",
+    "context": "The adapter resolves current roles and policy from server authentication; the module never accepts roles in request payloads."
+  },
+  "invariants": [
+    "Only a tenant-owned frozen binding for the exact form revision can activate inspection review.",
+    "The projection reads only Forms Engine accepted calculated and pruned values; a client status field is never authoritative.",
+    "Condition classification, review identity, process definition, and work-item create key are deterministic and versioned.",
+    "At-least-once Forms projection delivery creates at most one review and exact replay returns the original result.",
+    "A changed projection under the same retry identity conflicts and remains recoverable rather than partially mutating.",
+    "The trusted projection-envelope tenant must equal one active non-system tenant before subject lookup or mutation.",
+    "The review subject must exist through the same-tenant subject-directory port; absent and foreign subjects produce one value-free skip.",
+    "Review callers choose only approve or rework and provide the expected snapshot version; arbitrary next state, workflow payload, actor, audit, or outbox data is impossible.",
+    "Every subject read, review read, and decision passes a mandatory server-side authorization port; denial is indistinguishable from no visible data.",
+    "Unknown, inactive-tenant, absent, foreign-tenant, completed, and non-inspection work are indistinguishable at list/detail/decision boundaries.",
+    "The frozen Workflow contract admission-checks the closed human-action process, but no arbitrary workflow graph is interpreted at runtime.",
+    "Work Items atomically owns state, event, fingerprint-bound receipt, Party audit, and module-generated outbox behavior.",
+    "A recovery scope mismatch leaves the Forms projection pending for retry under the correct trusted tenant scope."
+  ],
+  "errors": [
+    "inspection-review.denied",
+    "inspection-review.binding-invalid",
+    "inspection-review.condition-missing",
+    "inspection-review.condition-invalid",
+    "inspection-review.subject-unresolved",
+    "inspection-review.subject-not-found",
+    "inspection-review.idempotency-conflict",
+    "inspection-review.version-conflict",
+    "inspection-review.invalid-decision",
+    "inspection-review.projection-pending"
+  ],
+  "selectedDesign": {
+    "choice": "One form-projection adapter plus a typed inspection-review facade over the existing Forms Engine, Workflow contract, authenticated contexts, and Work Items packages.",
+    "rejected": [
+      "Copy the local-node declarative workflow interpreter and financial CP effect machinery.",
+      "Copy the broad inspections or asset-registry aggregates.",
+      "Trust the client-supplied form status as an authoritative condition outcome.",
+      "Expose Work Items, workflow storage, audit, outbox, React, Blazor, Telerik, Harborline App, or any external consumer product's types through the caller interface."
+    ]
+  },
+  "behaviorEvidence": {
+    "sourceCapture": "migration://preprocessing/inspection-review/generated/inspection-review-source.json",
+    "boundaryDecision": "migration://preprocessing/inspection-review/inspection-review-boundary.md"
+  },
+  "package": {"nuget": "Harborline.Blocks.InspectionReview", "assembly": "Harborline.Blocks.InspectionReview", "distribution": "internal-only"}
+}

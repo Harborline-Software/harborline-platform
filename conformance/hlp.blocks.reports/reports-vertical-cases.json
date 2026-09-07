@@ -1,0 +1,1116 @@
+{
+  "schemaVersion": 1,
+  "authority": {
+    "waveState": "preprocessing/reports/draft-hlf053/WAVE-STATE.md",
+    "shipyardCommit": "a5036ff8b500e0d857d7e0a698408e7cf7f6cf31",
+    "landedNativeTests": 193,
+    "earlierErroneousNativeCount": 195
+  },
+  "anchorSelection": {
+    "rule": "direct-port AND caller-engine",
+    "derivedCount": 162,
+    "arithmetic": "14 runner + 10 ledger determinism (8 concrete + 2 abstract-harness ledger rows, explicitly non-concrete) + 138 compute = 162",
+    "concreteEnumerated": 160,
+    "ledgerOnlyNonConcrete": 2,
+    "nativeSuiteArithmetic": "24+23+21+21+19+15+15+14+7+3+(21 Add* DI)+(2*5 concrete determinism)=193; abstract generic harness contributes 0",
+    "note": "The earlier 195 counted the abstract generic determinism harness as two executable cases. This corpus preserves the frozen 162 caller-engine anchor budget while labeling those two ledger-only rows honestly."
+  },
+  "anchors": [
+    {
+      "id": "anchor-001",
+      "case": "ReportRunnerTests.RunAsync_DispatchesToRegisteredCartridge",
+      "block": "runner",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-002",
+      "case": "ReportRunnerTests.RunAsync_UnknownKind_ThrowsUnknownReportKindException",
+      "block": "runner",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-003",
+      "case": "ReportRunnerTests.RunAsync_BindsTenantIdIntoContext",
+      "block": "runner",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-004",
+      "case": "ReportRunnerTests.RunAsync_CapturesSnapshotMarkerBeforeCartridgeInvocation",
+      "block": "runner",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-005",
+      "case": "ReportRunnerTests.RunAsync_BindsAsOfUtcFromClock",
+      "block": "runner",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-006",
+      "case": "ReportRunnerTests.RunAsync_BindsPrincipalIdIntoContext",
+      "block": "runner",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-007",
+      "case": "ReportRunnerTests.RunAsync_PropagatesCancellationTokenToCartridge",
+      "block": "runner",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-008",
+      "case": "ReportRunnerTests.RunAsync_PopulatesRunDuration",
+      "block": "runner",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-009",
+      "case": "ReportRunnerTests.RunAsync_PopulatesSnapshotMarkerInResult",
+      "block": "runner",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-010",
+      "case": "ReportRunnerTests.RunAsync_ResultImplementingProvisionalitySource_PropagatesIsProvisionalAndWarnings",
+      "block": "runner",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-011",
+      "case": "ReportRunnerTests.RunAsync_ResultWithoutProvisionalitySource_DefaultsToFalseAndEmpty",
+      "block": "runner",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-012",
+      "case": "ReportRunnerTests.RunAsync_CartridgeThrows_WrapsInReportCartridgeExecutionException",
+      "block": "runner",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-013",
+      "case": "ReportRunnerTests.RunAsync_ParameterValidationException_PassesThroughUnwrapped",
+      "block": "runner",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-014",
+      "case": "ReportRunnerTests.RunAsync_CartridgeThrowsOperationCanceled_SurfacesUnwrapped",
+      "block": "runner",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-015",
+      "case": "TrialBalanceDeterminismTests.ExecuteAsync_IsDeterministic_AcrossRepeatedRuns",
+      "block": "determinism",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-016",
+      "case": "TrialBalanceDeterminismTests.ExecuteAsync_SameMarker_SameResult",
+      "block": "determinism",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-017",
+      "case": "ProfitAndLossByPropertyDeterminismTests.ExecuteAsync_IsDeterministic_AcrossRepeatedRuns",
+      "block": "determinism",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-018",
+      "case": "ProfitAndLossByPropertyDeterminismTests.ExecuteAsync_SameMarker_SameResult",
+      "block": "determinism",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-019",
+      "case": "ArAgingSummaryDeterminismTests.ExecuteAsync_IsDeterministic_AcrossRepeatedRuns",
+      "block": "determinism",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-020",
+      "case": "ArAgingSummaryDeterminismTests.ExecuteAsync_SameMarker_SameResult",
+      "block": "determinism",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-021",
+      "case": "RentRollDeterminismTests.ExecuteAsync_IsDeterministic_AcrossRepeatedRuns",
+      "block": "determinism",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-022",
+      "case": "RentRollDeterminismTests.ExecuteAsync_SameMarker_SameResult",
+      "block": "determinism",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-023",
+      "case": "TrialBalanceCartridgeTests.TrialBalance_EmptyChart_ReturnsZeroTotalsAndEmptyRows",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-024",
+      "case": "TrialBalanceCartridgeTests.TrialBalance_SingleAccountWithBalance_AppearsInDebitColumn",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-025",
+      "case": "TrialBalanceCartridgeTests.TrialBalance_BalancedChart_IsBalancedTrue",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-026",
+      "case": "TrialBalanceCartridgeTests.TrialBalance_NeitherPeriodNorAsOfDate_ThrowsValidationException",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-027",
+      "case": "TrialBalanceCartridgeTests.TrialBalance_BothPeriodAndAsOfDate_ThrowsValidationException",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-028",
+      "case": "TrialBalanceCartridgeTests.TrialBalance_UnknownChart_ThrowsValidationException",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-029",
+      "case": "TrialBalanceCartridgeTests.TrialBalance_IncludeInactiveFalse_OmitsInactiveAccounts",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-030",
+      "case": "TrialBalanceCartridgeTests.TrialBalance_IncludeInactiveTrue_IncludesInactiveAccounts",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-031",
+      "case": "TrialBalanceCartridgeTests.TrialBalance_IncludeZeroFalse_OmitsZeroBalanceAccounts",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-032",
+      "case": "TrialBalanceCartridgeTests.TrialBalance_IncludeZeroTrue_IncludesZeroBalanceAccounts",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-033",
+      "case": "TrialBalanceCartridgeTests.TrialBalance_PeriodLocked_IsProvisionalFalse",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-034",
+      "case": "TrialBalanceCartridgeTests.TrialBalance_PeriodOpen_IsProvisionalTrue_WithWarning",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-035",
+      "case": "TrialBalanceCartridgeTests.TrialBalance_AsOfDateWithoutPeriod_IsProvisionalFalse",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-036",
+      "case": "TrialBalanceCartridgeTests.TrialBalance_Rows_AreOrderedByCodeThenIdStable",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-037",
+      "case": "TrialBalanceCartridgeTests.TrialBalance_PeriodFromDifferentChart_ThrowsValidationException",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-038",
+      "case": "BalanceSheetCartridgeTests.BalanceSheet_NeitherPeriodNorAsOfDate_ThrowsValidationException",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-039",
+      "case": "BalanceSheetCartridgeTests.BalanceSheet_BothPeriodAndAsOfDate_ThrowsValidationException",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-040",
+      "case": "BalanceSheetCartridgeTests.BalanceSheet_UnknownChart_ThrowsValidationException",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-041",
+      "case": "BalanceSheetCartridgeTests.BalanceSheet_PeriodFromDifferentChart_ThrowsValidationException",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-042",
+      "case": "BalanceSheetCartridgeTests.BalanceSheet_EmptyChart_ReturnsZeroTotalsAndIsBalanced",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-043",
+      "case": "BalanceSheetCartridgeTests.BalanceSheet_AccountingEquationBalances_WithTypicalEntry",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-044",
+      "case": "BalanceSheetCartridgeTests.BalanceSheet_AccountingEquationBalances_AssetsEqualLiabilitiesPlusEquity",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-045",
+      "case": "BalanceSheetCartridgeTests.BalanceSheet_ThreeSectionEquation_FullBalance",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-046",
+      "case": "BalanceSheetCartridgeTests.BalanceSheet_AsOfDate_ExcludesEntriesAfterCutoff",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-047",
+      "case": "BalanceSheetCartridgeTests.BalanceSheet_RevenueAndExpenseAccounts_ExcludedFromSections",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-048",
+      "case": "BalanceSheetCartridgeTests.BalanceSheet_IncludeZeroFalse_OmitsZeroBalanceAccounts",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-049",
+      "case": "BalanceSheetCartridgeTests.BalanceSheet_IncludeZeroTrue_IncludesZeroBalanceAccounts",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-050",
+      "case": "BalanceSheetCartridgeTests.BalanceSheet_IncludeInactiveFalse_OmitsInactiveAccounts",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-051",
+      "case": "BalanceSheetCartridgeTests.BalanceSheet_IncludeInactiveTrue_IncludesInactiveAccounts",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-052",
+      "case": "BalanceSheetCartridgeTests.BalanceSheet_Lines_AreOrderedByCodeThenIdStable",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-053",
+      "case": "BalanceSheetCartridgeTests.BalanceSheet_PeriodLocked_IsProvisionalFalse",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-054",
+      "case": "BalanceSheetCartridgeTests.BalanceSheet_PeriodOpen_IsProvisionalTrue_WithWarning",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-055",
+      "case": "BalanceSheetCartridgeTests.BalanceSheet_AsOfDateWithoutPeriod_IsProvisionalFalse",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-056",
+      "case": "BalanceSheetCartridgeTests.BalanceSheet_UnbalancedChart_IsBalancedFalseWithWarning",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-057",
+      "case": "BalanceSheetCartridgeTests.BalanceSheet_TenantIsolation_ExcludesOtherTenantEntries",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-058",
+      "case": "BalanceSheetCartridgeTests.BalanceSheetCartridge_KindIsBalanceSheet",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-059",
+      "case": "ProfitAndLossCartridgeTests.ProfitAndLoss_PeriodStartAfterPeriodEnd_ThrowsValidationException",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-060",
+      "case": "ProfitAndLossCartridgeTests.ProfitAndLoss_EmptyChart_ReturnsZeroTotals",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-061",
+      "case": "ProfitAndLossCartridgeTests.ProfitAndLoss_NetProfitEqualsRevenueMinusExpenses",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-062",
+      "case": "ProfitAndLossCartridgeTests.ProfitAndLoss_MultipleRevAccounts_TotalsCorrect",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-063",
+      "case": "ProfitAndLossCartridgeTests.ProfitAndLoss_NetLoss_NegativeNetProfit",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-064",
+      "case": "ProfitAndLossCartridgeTests.ProfitAndLoss_PeriodWindow_ExcludesEntriesOutsideWindow",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-065",
+      "case": "ProfitAndLossCartridgeTests.ProfitAndLoss_NoPeriodStart_IncludesAllHistoricEntries",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-066",
+      "case": "ProfitAndLossCartridgeTests.ProfitAndLoss_NoPeriodEnd_DefaultsToContextWallClock",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-067",
+      "case": "ProfitAndLossCartridgeTests.ProfitAndLoss_IncludeZeroFalse_OmitsZeroAccounts",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-068",
+      "case": "ProfitAndLossCartridgeTests.ProfitAndLoss_IncludeZeroTrue_IncludesZeroAccounts",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-069",
+      "case": "ProfitAndLossCartridgeTests.ProfitAndLoss_Lines_AreOrderedByCodeThenIdStable",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-070",
+      "case": "ProfitAndLossCartridgeTests.ProfitAndLoss_AssetAndBSAccounts_ExcludedFromLines",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-071",
+      "case": "ProfitAndLossCartridgeTests.ProfitAndLoss_TenantIsolation_ExcludesOtherTenantEntries",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-072",
+      "case": "ProfitAndLossCartridgeTests.ProfitAndLoss_ReversedEntries_ExcludedFromBalance",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-073",
+      "case": "ProfitAndLossCartridgeTests.ProfitAndLossCartridge_KindIsProfitAndLoss",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-074",
+      "case": "ProfitAndLossByPropertyCartridgeTests.PnL_EmptyJournal_ReturnsZeroTotalsAndEmptyPropertyRows",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-075",
+      "case": "ProfitAndLossByPropertyCartridgeTests.PnL_SingleRevenueEntry_TotalRevenueIsPositive",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-076",
+      "case": "ProfitAndLossByPropertyCartridgeTests.PnL_SingleExpenseEntry_TotalExpensesIsPositive",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-077",
+      "case": "ProfitAndLossByPropertyCartridgeTests.PnL_RevenueAndExpense_NetIncomeIsRevMinusExp",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-078",
+      "case": "ProfitAndLossByPropertyCartridgeTests.PnL_MultipleProperties_EachBucketedSeparately",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-079",
+      "case": "ProfitAndLossByPropertyCartridgeTests.PnL_NullPropertyId_RolledIntoUnassigned",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-080",
+      "case": "ProfitAndLossByPropertyCartridgeTests.PnL_UnassignedSortsLast",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-081",
+      "case": "ProfitAndLossByPropertyCartridgeTests.PnL_PropertyKeys_OrderedOrdinalAscendingUnassignedLast",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-082",
+      "case": "ProfitAndLossByPropertyCartridgeTests.PnL_EntryAfterPeriodEnd_Excluded",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-083",
+      "case": "ProfitAndLossByPropertyCartridgeTests.PnL_EntryBeforePeriodStart_Excluded",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-084",
+      "case": "ProfitAndLossByPropertyCartridgeTests.PnL_EntriesOnPeriodBoundaries_Included",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-085",
+      "case": "ProfitAndLossByPropertyCartridgeTests.PnL_PeriodStartAfterPeriodEnd_ThrowsValidationException",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-086",
+      "case": "ProfitAndLossByPropertyCartridgeTests.PnL_PropertyIdsFilter_OmitsOtherProperties",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-087",
+      "case": "ProfitAndLossByPropertyCartridgeTests.PnL_PropertyIdsFilter_ExcludesUnassigned",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-088",
+      "case": "ProfitAndLossByPropertyCartridgeTests.PnL_Totals_EqualSumOfByPropertyRows",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-089",
+      "case": "ProfitAndLossByPropertyCartridgeTests.PnL_DraftEntry_Excluded",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-090",
+      "case": "ProfitAndLossByPropertyCartridgeTests.PnL_EntriesForOtherChart_Excluded",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-091",
+      "case": "ProfitAndLossByPropertyCartridgeTests.PnL_RevenueLines_OrderedByAccountCodeOrdinal",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-092",
+      "case": "ProfitAndLossByPropertyCartridgeTests.PnL_NullPeriodEnd_DefaultsToContextDate",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-093",
+      "case": "ArAgingSummaryCartridgeTests.ArAgingSummary_EmptyChart_ReturnsZeroRowsAndZeroTotals",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-094",
+      "case": "ArAgingSummaryCartridgeTests.ArAgingSummary_SingleInvoiceCurrent_AppearsInCurrentBucket",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-095",
+      "case": "ArAgingSummaryCartridgeTests.ArAgingSummary_SingleInvoice90PlusDays_AppearsInTopDelinquent",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-096",
+      "case": "ArAgingSummaryCartridgeTests.ArAgingSummary_MultipleInvoicesSameCustomer_AggregatedInOneRow",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-097",
+      "case": "ArAgingSummaryCartridgeTests.ArAgingSummary_MultipleInvoicesSameProperty_AggregatedInOneRow",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-098",
+      "case": "ArAgingSummaryCartridgeTests.ArAgingSummary_InvoiceWithNullPropertyId_RolledIntoUnassigned",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-099",
+      "case": "ArAgingSummaryCartridgeTests.ArAgingSummary_UnassignedSortsLast",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-100",
+      "case": "ArAgingSummaryCartridgeTests.ArAgingSummary_CustomerIdsFilter_OmitsOtherCustomers",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-101",
+      "case": "ArAgingSummaryCartridgeTests.ArAgingSummary_PropertyIdsFilter_OmitsOtherProperties",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-102",
+      "case": "ArAgingSummaryCartridgeTests.ArAgingSummary_PropertyIdsFilter_ExcludesUnassigned",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-103",
+      "case": "ArAgingSummaryCartridgeTests.ArAgingSummary_TopDelinquentNNegative_ThrowsValidationException",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-104",
+      "case": "ArAgingSummaryCartridgeTests.ArAgingSummary_TopDelinquentNOverCap_ThrowsValidationException",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-105",
+      "case": "ArAgingSummaryCartridgeTests.ArAgingSummary_TopDelinquent_OrderedDescendingBy90Plus",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-106",
+      "case": "ArAgingSummaryCartridgeTests.ArAgingSummary_TopDelinquentN_RespectsCap",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-107",
+      "case": "ArAgingSummaryCartridgeTests.ArAgingSummary_TopDelinquentN_ZeroReturnsEmpty",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-108",
+      "case": "ArAgingSummaryCartridgeTests.ArAgingSummary_Totals_EqualSumOfByCustomerRows",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-109",
+      "case": "ArAgingSummaryCartridgeTests.ArAgingSummary_Totals_EqualSumOfByPropertyRows",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-110",
+      "case": "ArAgingSummaryCartridgeTests.ArAgingSummary_CustomerName_ResolvedFromPartyReadModel",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-111",
+      "case": "ArAgingSummaryCartridgeTests.ArAgingSummary_UnknownCustomer_FallsBackToPartyIdValue",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-112",
+      "case": "ArAgingSummaryCartridgeTests.ArAgingSummary_ExplicitAsOfDate_UsedForBucketClassification",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-113",
+      "case": "ArAgingSummaryCartridgeTests.ArAgingSummary_NullAsOfDate_DefaultsToContextDate",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-114",
+      "case": "ApAgingSummaryCartridgeTests.ApAgingSummary_EmptyChart_ReturnsZeroRowsAndZeroTotals",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-115",
+      "case": "ApAgingSummaryCartridgeTests.ApAgingSummary_SingleBillCurrent_AppearsInCurrentBucket",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-116",
+      "case": "ApAgingSummaryCartridgeTests.ApAgingSummary_SingleBill90PlusDays_AppearsInTopOverdue",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-117",
+      "case": "ApAgingSummaryCartridgeTests.ApAgingSummary_MultipleBillsSameVendor_AggregatedInOneRow",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-118",
+      "case": "ApAgingSummaryCartridgeTests.ApAgingSummary_MultipleBillsSameProperty_AggregatedInOneRow",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-119",
+      "case": "ApAgingSummaryCartridgeTests.ApAgingSummary_BillWithNullPropertyId_RolledIntoUnassigned",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-120",
+      "case": "ApAgingSummaryCartridgeTests.ApAgingSummary_UnassignedSortsLast",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-121",
+      "case": "ApAgingSummaryCartridgeTests.ApAgingSummary_VendorIdsFilter_OmitsOtherVendors",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-122",
+      "case": "ApAgingSummaryCartridgeTests.ApAgingSummary_PropertyIdsFilter_OmitsOtherProperties",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-123",
+      "case": "ApAgingSummaryCartridgeTests.ApAgingSummary_PropertyIdsFilter_ExcludesUnassigned",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-124",
+      "case": "ApAgingSummaryCartridgeTests.ApAgingSummary_TopOverdueNNegative_ThrowsValidationException",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-125",
+      "case": "ApAgingSummaryCartridgeTests.ApAgingSummary_TopOverdueNOverCap_ThrowsValidationException",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-126",
+      "case": "ApAgingSummaryCartridgeTests.ApAgingSummary_TopOverdue_OrderedDescendingBy90Plus",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-127",
+      "case": "ApAgingSummaryCartridgeTests.ApAgingSummary_TopOverdueN_RespectsCap",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-128",
+      "case": "ApAgingSummaryCartridgeTests.ApAgingSummary_TopOverdueN_ZeroReturnsEmpty",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-129",
+      "case": "ApAgingSummaryCartridgeTests.ApAgingSummary_Totals_EqualSumOfByVendorRows",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-130",
+      "case": "ApAgingSummaryCartridgeTests.ApAgingSummary_Totals_EqualSumOfByPropertyRows",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-131",
+      "case": "ApAgingSummaryCartridgeTests.ApAgingSummary_TenantIsolation_OtherTenantBillsExcluded",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-132",
+      "case": "ApAgingSummaryCartridgeTests.ApAgingSummary_VendorName_ResolvedFromPartyReadModel",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-133",
+      "case": "ApAgingSummaryCartridgeTests.ApAgingSummary_UnknownVendor_FallsBackToPartyIdValue",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-134",
+      "case": "ApAgingSummaryCartridgeTests.ApAgingSummary_ExplicitAsOfDate_UsedForBucketClassification",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-135",
+      "case": "ApAgingSummaryCartridgeTests.ApAgingSummary_NullAsOfDate_DefaultsToContextDate",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-136",
+      "case": "ApAgingSummaryCartridgeTests.ApAgingSummary_AllBuckets_PopulatedCorrectly",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-137",
+      "case": "RentRollCartridgeTests.RentRoll_NoProperties_ReturnsEmptyBlocksAndZeroPortfolio",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-138",
+      "case": "RentRollCartridgeTests.RentRoll_OnePropertyNoUnits_WhenAllLeasesExpired_ReturnVacantRows",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-139",
+      "case": "RentRollCartridgeTests.RentRoll_OneOccupiedUnit_ShowsTenantAndRent",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-140",
+      "case": "RentRollCartridgeTests.RentRoll_OneVacantUnit_IncludeVacantTrue_ShownAsVacant",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-141",
+      "case": "RentRollCartridgeTests.RentRoll_OneVacantUnit_IncludeVacantFalse_Omitted",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-142",
+      "case": "RentRollCartridgeTests.RentRoll_PropertyIdsFilter_OmitsOtherProperties",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-143",
+      "case": "RentRollCartridgeTests.RentRoll_AsOfDateInPast_ShowsLeasesActiveOnThatDate",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-144",
+      "case": "RentRollCartridgeTests.RentRoll_AsOfDateBeforeAnyLease_ShowsAllVacant",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-145",
+      "case": "RentRollCartridgeTests.RentRoll_LeaseEndingWithinWindow_ExpiringSoonTrue",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-146",
+      "case": "RentRollCartridgeTests.RentRoll_LeaseEndingOutsideWindow_ExpiringSoonFalse",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-147",
+      "case": "RentRollCartridgeTests.RentRoll_ExpiringWindowZero_OnlyLeasesEndingTodayAreExpiringSoon",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-148",
+      "case": "RentRollCartridgeTests.RentRoll_ExpiringWindowNegative_ThrowsValidationException",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-149",
+      "case": "RentRollCartridgeTests.RentRoll_TenantWithOpenInvoice_DelinquencyBucketReflectsAging",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-150",
+      "case": "RentRollCartridgeTests.RentRoll_TenantWithNoOpenInvoice_DelinquencyBucketIsNoBalance",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-151",
+      "case": "RentRollCartridgeTests.RentRoll_UnitNeverLeased_VacancyReasonIsNeverLeased",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-152",
+      "case": "RentRollCartridgeTests.RentRoll_UnitWithEndedLease_VacancyReasonIsEndOfTerm",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-153",
+      "case": "RentRollCartridgeTests.RentRoll_UnitWithCancelledLease_VacancyReasonIsTurnover",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-154",
+      "case": "RentRollCartridgeTests.RentRoll_PropertySummary_OccupancyRateIsOccupiedOverTotal",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-155",
+      "case": "RentRollCartridgeTests.RentRoll_PropertySummary_OccupancyRateAllVacant_IsZero",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-156",
+      "case": "RentRollCartridgeTests.RentRoll_PropertySummary_NoUnits_OccupancyRateIsZero",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-157",
+      "case": "RentRollCartridgeTests.RentRoll_PortfolioTotals_EqualSumAcrossProperties",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-158",
+      "case": "RentRollCartridgeTests.RentRoll_Properties_OrderedByNameThenId",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-159",
+      "case": "RentRollCartridgeTests.RentRoll_UnitsWithinProperty_OrderedByLabel",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-160",
+      "case": "RentRollCartridgeTests.RentRoll_CrossTenantLeases_OnlyOwnTenantVisible",
+      "block": "compute",
+      "lane": "caller-engine"
+    },
+    {
+      "id": "anchor-161",
+      "case": "ReportCartridgeDeterminismTests<TCartridge,TParams,TResult>.ExecuteAsync_IsDeterministic_AcrossRepeatedRuns",
+      "block": "determinism-ledger-only",
+      "lane": "caller-engine",
+      "concrete": false
+    },
+    {
+      "id": "anchor-162",
+      "case": "ReportCartridgeDeterminismTests<TCartridge,TParams,TResult>.ExecuteAsync_SameMarker_SameResult",
+      "block": "determinism-ledger-only",
+      "lane": "caller-engine",
+      "concrete": false
+    }
+  ],
+  "httpExpectations": [
+    {
+      "id": "http-01",
+      "pinnedCase": "ReportsRouteTests.Charts_PreSeed_Empty",
+      "method": "GET",
+      "path": "/api/local-node/charts",
+      "expectedStatus": 200,
+      "bodyShape": "charts:[]"
+    },
+    {
+      "id": "http-02",
+      "pinnedCase": "ReportsRouteTests.Charts_ListsInstallChart",
+      "method": "GET",
+      "path": "/api/local-node/charts",
+      "expectedStatus": 200,
+      "bodyShape": "charts:[{chartId,name,baseCurrency}]"
+    },
+    {
+      "id": "http-03",
+      "pinnedCase": "ReportsRouteTests.TrialBalance_ComputesNodeSide",
+      "method": "POST",
+      "path": "/api/local-node/reports/trial-balance",
+      "expectedStatus": 200,
+      "bodyShape": "ReportRunResult<TrialBalanceResult>; result.chartId; balanced debit=credit"
+    },
+    {
+      "id": "http-04",
+      "pinnedCase": "ReportsRouteTests.BalanceSheet_ComputesNodeSide",
+      "method": "POST",
+      "path": "/api/local-node/reports/balance-sheet",
+      "expectedStatus": 200,
+      "bodyShape": "ReportRunResult<BalanceSheetResult>; result.chartId"
+    },
+    {
+      "id": "http-05",
+      "pinnedCase": "ReportsRouteTests.ProfitAndLoss_ComputesNodeSide",
+      "method": "POST",
+      "path": "/api/local-node/reports/profit-and-loss",
+      "expectedStatus": 200,
+      "bodyShape": "ReportRunResult<ProfitAndLossResult>; result.chartId"
+    },
+    {
+      "id": "http-06",
+      "pinnedCase": "ReportsRouteTests.ProfitAndLossByProperty_ComputesNodeSide",
+      "method": "POST",
+      "path": "/api/local-node/reports/profit-and-loss-by-property",
+      "expectedStatus": 200,
+      "bodyShape": "ReportRunResult<ProfitAndLossByPropertyResult>; result.chartId"
+    },
+    {
+      "id": "http-07",
+      "pinnedCase": "ReportsRouteTests.ArAgingSummary_ComputesNodeSide",
+      "method": "POST",
+      "path": "/api/local-node/reports/ar-aging-summary",
+      "expectedStatus": 200,
+      "bodyShape": "ReportRunResult<ArAgingSummaryResult>; result.chartId + totals"
+    },
+    {
+      "id": "http-08",
+      "pinnedCase": "ReportsRouteTests.ApAgingSummary_ComputesNodeSide",
+      "method": "POST",
+      "path": "/api/local-node/reports/ap-aging-summary",
+      "expectedStatus": 200,
+      "bodyShape": "ReportRunResult<ApAgingSummaryResult>; result.chartId + totals"
+    },
+    {
+      "id": "http-09",
+      "pinnedCase": "ReportsRouteTests.ReportRun_UnknownChart_NotFound",
+      "method": "POST",
+      "path": "/api/local-node/reports/trial-balance",
+      "expectedStatus": 404,
+      "bodyShape": "uniform not-found"
+    },
+    {
+      "id": "http-10",
+      "pinnedCase": "ReportsRouteTests.ReportRun_PreSeed_NotFound",
+      "method": "POST",
+      "path": "/api/local-node/reports/trial-balance",
+      "expectedStatus": 404,
+      "bodyShape": "uniform not-found"
+    },
+    {
+      "id": "http-11",
+      "pinnedCase": "NodeReportsRouteActingMemberProvenanceTests.Run_ByTwoActingMembers_RecordsDistinctProvenancePrincipals",
+      "method": "POST",
+      "path": "/api/local-node/reports/trial-balance",
+      "expectedStatus": 200,
+      "bodyShape": "distinct deterministic requestedBy attribution per acting member"
+    },
+    {
+      "id": "http-12",
+      "pinnedCase": "NodeReportsRouteActingMemberProvenanceTests.Run_WithNoBoundPrincipal_RecordsTheOperatorFallback",
+      "method": "POST",
+      "path": "/api/local-node/reports/trial-balance",
+      "expectedStatus": 200,
+      "bodyShape": "deterministic operator-fallback requestedBy attribution"
+    }
+  ],
+  "clientContract": [
+    {
+      "id": "client-01",
+      "pinnedCase": "fetchRunReport gets and returns every workflow-run report wire shape from the resolved node",
+      "expectation": "WorkflowRunReport wire-shape round-trip, including nullable capabilityRef"
+    },
+    {
+      "id": "client-02",
+      "pinnedCase": "fetchRunReport preserves a reachable-node failure instead of returning preview data",
+      "expectation": "reachable-node failure passthrough"
+    },
+    {
+      "id": "client-03",
+      "pinnedCase": "fetchRunReport returns frozen mock rows without a network call when no node resolves",
+      "expectation": "no-node fallback outcome at Harborline client seam; fallback is not engine evidence"
+    }
+  ],
+  "crossLanePairs": [],
+  "crossLaneRuling": "Ruling 4: zero pairs. runReportClient is a wire client, not a renderer mirror; prototypes are not evidence.",
+  "exclusions": [
+    "blocks-reports-tax: ruled out and recorded; no tax rows or routes",
+    "RentRoll: engine-proven only; no HTTP route",
+    "WorkflowRunReport rows remain Workflows-owned; client seam only"
+  ]
+}

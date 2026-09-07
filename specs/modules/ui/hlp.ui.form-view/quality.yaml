@@ -1,0 +1,139 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.form-view",
+  "profileRevision": 1,
+  "riskTier": "A",
+  "fixture": "conformance/hlp.ui.form-view/quality-fixtures.yaml",
+  "dimensions": {
+    "accessibility": {
+      "disposition": "required",
+      "caseIds": [
+        "form-view.quality.redaction",
+        "form-view.quality.plain-content",
+        "form-view.quality.validation-location",
+        "form-view.quality.semantic-intents"
+      ]
+    },
+    "internationalization": {
+      "disposition": "required",
+      "caseIds": [
+        "form-view.quality.locale-chain",
+        "form-view.quality.unicode",
+        "form-view.quality.stable-codes",
+        "form-view.quality.logical-layout",
+        "form-view.quality.formatting-applicability"
+      ],
+      "localeSensitiveFormatting": {
+        "disposition": "not-applicable",
+        "rationale": "Form View support preserves values and localized text but does not format dates, numbers, currencies, quantities, or lists."
+      }
+    },
+    "theming": {
+      "disposition": "not-applicable",
+      "rationale": "Form View owns semantic presentation hints and layout intents; the mandatory SchemaForm renderer owns visual token resolution and theme evidence."
+    }
+  },
+  "componentStages": [
+    {
+      "id": "contract",
+      "dimensions": [
+        "accessibility",
+        "internationalization",
+        "theming"
+      ],
+      "gate": "profile and neutral fixture validation"
+    },
+    {
+      "id": "projection-native",
+      "dimensions": [
+        "accessibility",
+        "internationalization",
+        "theming"
+      ],
+      "gate": "public TypeScript and .NET native tests"
+    },
+    {
+      "id": "package-consumer",
+      "dimensions": [
+        "accessibility",
+        "internationalization",
+        "theming"
+      ],
+      "gate": "packed npm and NuGet consumers"
+    },
+    {
+      "id": "gallery",
+      "dimensions": [
+        "accessibility",
+        "internationalization",
+        "theming"
+      ],
+      "gate": "integrated SchemaForm gallery exercises the support contract"
+    },
+    {
+      "id": "clean-clone",
+      "dimensions": [
+        "accessibility",
+        "internationalization",
+        "theming"
+      ],
+      "gate": "complete repository gate from the recorded commit"
+    }
+  ],
+  "gates": {
+    "assertVisualParity": {
+      "disposition": "not-applicable",
+      "rationale": "The catalog already records presentation.disposition not-applicable for this module: it renders no interface. There is no pixel to compare, no focus to treat, no layout to reflow, no state to design, and nothing for a reviewer to look at.",
+      "decidedBy": "Chris Wood",
+      "rule": "non-rendering-modules-have-no-visual-gates"
+    },
+    "assertFocusQuality": {
+      "disposition": "not-applicable",
+      "rationale": "The catalog already records presentation.disposition not-applicable for this module: it renders no interface. There is no pixel to compare, no focus to treat, no layout to reflow, no state to design, and nothing for a reviewer to look at.",
+      "decidedBy": "Chris Wood",
+      "rule": "non-rendering-modules-have-no-visual-gates"
+    },
+    "assertResponsiveQuality": {
+      "disposition": "not-applicable",
+      "rationale": "The catalog already records presentation.disposition not-applicable for this module: it renders no interface. There is no pixel to compare, no focus to treat, no layout to reflow, no state to design, and nothing for a reviewer to look at.",
+      "decidedBy": "Chris Wood",
+      "rule": "non-rendering-modules-have-no-visual-gates"
+    },
+    "assertEmptyAndErrorStates": {
+      "disposition": "not-applicable",
+      "rationale": "The catalog already records presentation.disposition not-applicable for this module: it renders no interface. There is no pixel to compare, no focus to treat, no layout to reflow, no state to design, and nothing for a reviewer to look at.",
+      "decidedBy": "Chris Wood",
+      "rule": "non-rendering-modules-have-no-visual-gates"
+    },
+    "assertContentResilience": {
+      "disposition": "not-applicable",
+      "rationale": "The catalog already records presentation.disposition not-applicable for this module: it renders no interface. There is no pixel to compare, no focus to treat, no layout to reflow, no state to design, and nothing for a reviewer to look at.",
+      "decidedBy": "Chris Wood",
+      "rule": "non-rendering-modules-have-no-visual-gates"
+    },
+    "assertDesignReview": {
+      "disposition": "not-applicable",
+      "rationale": "The catalog already records presentation.disposition not-applicable for this module: it renders no interface. There is no pixel to compare, no focus to treat, no layout to reflow, no state to design, and nothing for a reviewer to look at.",
+      "decidedBy": "Chris Wood",
+      "rule": "non-rendering-modules-have-no-visual-gates"
+    },
+    "assertPerformanceProfile": {
+      "disposition": "not-applicable",
+      "rationale": "The catalog already records presentation.disposition not-applicable for this module: it renders no interface. There is no pixel to compare, no focus to treat, no layout to reflow, no state to design, and nothing for a reviewer to look at.",
+      "decidedBy": "Chris Wood",
+      "rule": "non-rendering-modules-have-no-visual-gates"
+    },
+    "assertStateCompleteness": {
+      "disposition": "not-applicable",
+      "rationale": "The catalog already records presentation.disposition not-applicable for this module: it renders no interface. There is no pixel to compare, no focus to treat, no layout to reflow, no state to design, and nothing for a reviewer to look at.",
+      "decidedBy": "Chris Wood",
+      "rule": "non-rendering-modules-have-no-visual-gates"
+    },
+    "assertInternationalization": {
+      "disposition": "not-applicable",
+      "rationale": "This module renders no text and formats no locale-sensitive value, so there is nothing for locale, pluralization, RTL or text expansion to act on. Excludes default-strings and locale-provider, which own text and locale resolution respectively.",
+      "decidedBy": "Chris Wood",
+      "rule": "text-free-modules-have-no-internationalization"
+    }
+  }
+}

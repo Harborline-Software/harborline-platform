@@ -1,0 +1,22 @@
+{
+  // Declaration build, for consumers that need this package's dist/index.d.ts without installing
+  // its dev dependencies.
+  //
+  // tsconfig.json cannot serve that purpose as written: its `exclude` names
+  // src/__tests__/**/*.test.ts, but this package's tests live BESIDE their sources
+  // (src/canonical.test.ts, src/skins/decision-table.test.ts, ...), so a `-p tsconfig.json` build
+  // pulls every test in and fails with "Cannot find module 'vitest'" on any checkout where
+  // node_modules is absent. tsconfig.json is deliberately left alone so `npm run typecheck` keeps
+  // covering the tests; this file exists so the DECLARATION build does not need them.
+  //
+  // Mirrors hlp.contracts.forms/tsconfig.build.json, the sibling that is pre-built for the same
+  // reason by the React UI package's build script.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "declaration": true,
+    "outDir": "dist",
+    "rootDir": "src"
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/**/*.test.ts", "dist"]
+}

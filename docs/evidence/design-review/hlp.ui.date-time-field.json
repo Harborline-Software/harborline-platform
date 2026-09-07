@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.date-time-field",
+  "verdict": "approved",
+  "reviewer": "cic",
+  "recordedAt": "2026-08-27T05:36:51.937Z",
+  "notes": "on react storybook i am unable to change the value of the date, but on blazor i can change the date to a different date such as 8/1/2026",
+  "reference": {
+    "revision": "113bbf393eb200f30144ccbb879ebd0cb5ecbcf87a80983959bee4f9dc679ed4",
+    "source": "gallery/scenarios/hlp.ui.date-time-field.json",
+    "pin": "cc9eb48ed68c5033ec128cd53c40b1d2786bee66",
+    "surface": {
+      "conformance/hlp.ui.date-time-field/fixtures.yaml": "1512f5548c1b4b4dbbef3d8212d112f946dd2ffb983b700fbf7b07cf9a8dab46",
+      "conformance/hlp.ui.date-time-field/quality-fixtures.yaml": "eb708d7a31128afe58c606d175dbd4ad4fb071277bffcd9c8325fb0b91da2cc8",
+      "gallery/projections/blazor/Stories/DateTimeField.stories.razor": "b215b3b0aa28270a1ff47170c12c7240551e62d37638428769abe05eb1ab4d70",
+      "gallery/projections/blazor/Stories/DateTimeFieldScenario.razor": "76ed0add349291e677c40997ef58a324789bd45c9694d7c2d7ffd84c0ab00ea9",
+      "gallery/projections/react/src/DateTimeField.stories.tsx": "9aede946413390050f7bc6d348782e7a1574dd89ec8c8db23074bb94b7bb69fc",
+      "gallery/scenarios/hlp.ui.date-time-field.json": "3d24ab2557edfc8559f70628d33cf05d25adab0ad96414507760da617de69aba",
+      "projections/blazor/ui/hlp.ui.date-time-field/ShipyardDateTimeField.razor": "c570727dd51eb74f68b381842b1c0a79e5a7ecadabc9ab208b07b6312f2bdbf1",
+      "projections/blazor/ui/hlp.ui.date-time-field/wwwroot/date-time-field.css": "3f736196b249c4d49d900170575cc300270713e3b10ae9e6f91ba3f54d494a16",
+      "projections/react/ui/hlp.ui.date-time-field/src/DateTimeField.tsx": "504444f6dcb9387ad7b3dec176379e742ac8024852aaedaaaf7d9eaa474bca97",
+      "projections/react/ui/hlp.ui.date-time-field/src/index.ts": "33a986a50e7f157104337e8e59b2a6699bdebf223f268c5b2f006b759d4ef31b",
+      "projections/react/ui/hlp.ui.date-time-field/src/style.css": "3f736196b249c4d49d900170575cc300270713e3b10ae9e6f91ba3f54d494a16",
+      "specs/modules/ui/hlp.ui.date-time-field/scenarios.json": "3d24ab2557edfc8559f70628d33cf05d25adab0ad96414507760da617de69aba",
+      "specs/modules/ui/hlp.ui.date-time-field/style.css": "3f736196b249c4d49d900170575cc300270713e3b10ae9e6f91ba3f54d494a16"
+    }
+  }
+}

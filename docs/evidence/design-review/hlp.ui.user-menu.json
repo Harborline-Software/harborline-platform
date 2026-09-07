@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.user-menu",
+  "verdict": "approved",
+  "reviewer": "cic",
+  "recordedAt": "2026-08-28T02:24:31.715Z",
+  "reference": {
+    "revision": "f4decccdb6159542caf3d53e6211d695681110c0d54ab7cd9ec2121e7d2791cf",
+    "source": "gallery/scenarios/hlp.ui.user-menu.json",
+    "pin": "dd2e4f201950cfec5cda72dd42f50be3837d0d7a",
+    "surface": {
+      "conformance/hlp.ui.user-menu/fixtures.yaml": "152dbe0cb7f5198914dda322c9111a4bc59b99ac1581ed8b003c044e5b407c07",
+      "conformance/hlp.ui.user-menu/quality-fixtures.yaml": "080f9d15bf797f4d37115d0b7cc94e2ed443ac7a5dff5ce11e1720b9b1740f3e",
+      "gallery/projections/blazor/Stories/UserMenu.stories.razor": "26199aa4d96d3e4c167864489e88d138c1981c1a20c382ef33c17693958bf319",
+      "gallery/projections/blazor/Stories/UserMenuScenario.razor": "37e8ed93464dffe6b56b0e79161ec8fca0fa1af71d80783d280f8dcd7e695468",
+      "gallery/projections/react/src/UserMenu.stories.tsx": "8138e6334caf9fd67e8fbde1aac91d3c80d021ceb743ee0f02b9d86f99fc31aa",
+      "gallery/scenarios/hlp.ui.user-menu.json": "550a9c8fd3b2319deb57f153585176c69da21590d27b6ff708dfea5aae8dd2d3",
+      "projections/blazor/ui/hlp.ui.user-menu/ShipyardUserMenu.razor": "2a476c58cb875f0692c80540e566dee640837d2b53567958436c180a10cfdc33",
+      "projections/blazor/ui/hlp.ui.user-menu/UserMenuTypes.cs": "8f0600edf13accc188474eee70ab1371937ada29c72cf02d866972b92e6a369f",
+      "projections/blazor/ui/hlp.ui.user-menu/wwwroot/user-menu.css": "a1faafbdcd497339cb8ee5f113a7219ba2aef7f98fe5d213f708ef3572a93b56",
+      "projections/blazor/ui/hlp.ui.user-menu/wwwroot/user-menu.js": "5c705e5238bab451f1a507dc0e91e1cd96a489d7a88c215b76b5105ab4e30d75",
+      "projections/react/ui/hlp.ui.user-menu/src/UserMenu.tsx": "9714bb7584855f870e2423ca1fe70044440407e01665330db5f686bf9fbbbe52",
+      "projections/react/ui/hlp.ui.user-menu/src/index.ts": "11cfb31c5e2039c9399ceea485a101bbba06d279db7544383472fc37be4c319a",
+      "projections/react/ui/hlp.ui.user-menu/src/style.css": "a1faafbdcd497339cb8ee5f113a7219ba2aef7f98fe5d213f708ef3572a93b56",
+      "specs/modules/ui/hlp.ui.user-menu/scenarios.json": "550a9c8fd3b2319deb57f153585176c69da21590d27b6ff708dfea5aae8dd2d3",
+      "specs/modules/ui/hlp.ui.user-menu/style.css": "a1faafbdcd497339cb8ee5f113a7219ba2aef7f98fe5d213f708ef3572a93b56"
+    }
+  }
+}

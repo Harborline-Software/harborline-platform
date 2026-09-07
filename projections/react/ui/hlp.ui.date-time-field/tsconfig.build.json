@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": [],
+    "paths": {
+      "react": ["../hlp.ui.button/node_modules/@types/react/index.d.ts"],
+      "react/jsx-runtime": ["../hlp.ui.button/node_modules/@types/react/jsx-runtime.d.ts"],
+      "@harborline-platform/hlp.ui.form-field-context": ["../hlp.ui.form-field/dist/FormFieldContext.d.ts"]
+    }
+  },
+  "include": ["src/DateTimeField.tsx", "src/index.ts"],
+  "exclude": ["src/__tests__", "src/test-setup.ts", "dist", "node_modules"]
+}

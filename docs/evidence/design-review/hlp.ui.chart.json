@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.chart",
+  "verdict": "approved",
+  "reviewer": "cic",
+  "recordedAt": "2026-08-27T05:35:43.761Z",
+  "notes": "the chart is missing basic features like axis labels, data point labels, tool tips",
+  "reference": {
+    "revision": "a6d866ed700006744debcdce20bb995328e13be884c39ba8e11c1708c4e90d18",
+    "source": "gallery/scenarios/hlp.ui.chart.json",
+    "pin": "f0869ebbf5f11c5506bc1d8859b2242d96d11e20",
+    "surface": {
+      "conformance/hlp.ui.chart/fixtures.yaml": "bef757c059ca391b8cf78cd8879431ef8618b9087b7b0d5f5e13ba471725e549",
+      "conformance/hlp.ui.chart/quality-fixtures.yaml": "04a6d1d06514cd5b68f57f943dd99af01ec9d52ebc3a6145c41e04a237b053a1",
+      "gallery/projections/blazor/Stories/Chart.stories.razor": "5ac320c5804761dd006fb1b3af08cc081a9f2384531a45ea921cf62f51faebd7",
+      "gallery/projections/blazor/Stories/ChartScenario.razor": "b85dffa8fb019ca3c73b1440caf13bb9285a8ac5641cb6c8c1b7cf363137d03e",
+      "gallery/projections/react/src/Chart.stories.tsx": "3c2fe84adadb5cb39f4032a9e9513e2346feddaf30de18458e3447bdf2e8296a",
+      "gallery/scenarios/hlp.ui.chart.json": "bc6ae890d543bbe42744a590d67b8f265ff5aeea0a411741e8383eb621a4a354",
+      "projections/blazor/ui/hlp.ui.chart/ChartTypes.cs": "2ba1f4bb868ecbb917fd8bad21227a1580d2a44f6592d747e6927989f9a10a32",
+      "projections/blazor/ui/hlp.ui.chart/ShipyardChart.razor": "8e2740404844ec31d002b5a9687f6c0f25c81cf5c9f6c8b30096047f930aab17",
+      "projections/blazor/ui/hlp.ui.chart/wwwroot/chart.css": "419c3c13c40aed5a502ba7cbee4f55d4dc1b2d292608cebd373413510f8a1287",
+      "projections/react/ui/hlp.ui.chart/src/Chart.tsx": "746fbdfcdc741486d64d827e952d53108f6daa869b62be1e06aea234cbd49d67",
+      "projections/react/ui/hlp.ui.chart/src/Chart.types.ts": "0861151f40573c8383bf224c103303ef010e23868c7c86cbd03c7d2d67b2fba2",
+      "projections/react/ui/hlp.ui.chart/src/chart-model.ts": "c269ab64c74e70546a0ba99ade4cc60edcaa4e41a96cf0c2148cb2d98209acf0",
+      "projections/react/ui/hlp.ui.chart/src/index.ts": "008428419eed6424e1058bfff89d947ec8b1ad3713662f8058b65571a07ce518",
+      "projections/react/ui/hlp.ui.chart/src/style.css": "a5428f988aa2d48b471dd267a24cd45afa6e2a97f2a67c639ae2172ad01d22ed",
+      "specs/modules/ui/hlp.ui.chart/scenarios.json": "bc6ae890d543bbe42744a590d67b8f265ff5aeea0a411741e8383eb621a4a354",
+      "specs/modules/ui/hlp.ui.chart/style.css": "a5428f988aa2d48b471dd267a24cd45afa6e2a97f2a67c639ae2172ad01d22ed"
+    }
+  }
+}

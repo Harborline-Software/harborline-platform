@@ -1,0 +1,93 @@
+/*
+ * hlp.ui.confirm-dialog — the action pair ONLY.
+ *
+ * Modal chrome (surface, overlay, focus lifecycle, scrolling) belongs to hlp.ui.dialog and is not
+ * restated here; this module composes it. Duplicating dialog's surface rules is the composition
+ * defect corrected in wave 04-01.
+ *
+ * Derived from the source's Tailwind utilities at earlier source commit a5036ff8 (ticket 063), mapped onto the destination
+ * token set rather than copied: the source used `bg-primary`/`hover:bg-primary/90`, which become a
+ * token plus a color-mix, so the hover step stays proportional under any theme instead of being a
+ * baked hex.
+ */
+
+.hl-confirm-dialog__cancel,
+.hl-confirm-dialog__confirm {
+  --hl-confirm-dialog-surface: var(--hl-surface, Canvas);
+  --hl-confirm-dialog-text: var(--hl-foreground, CanvasText);
+  --hl-confirm-dialog-border: var(--hl-border, color-mix(in srgb, CanvasText 24%, Canvas));
+  --hl-confirm-dialog-muted: var(--hl-muted, color-mix(in srgb, CanvasText 8%, Canvas));
+  --hl-confirm-dialog-focus: var(--hl-focus, Highlight);
+  --hl-confirm-dialog-accent: var(--hl-primary, Highlight);
+  --hl-confirm-dialog-accent-text: var(--hl-primary-foreground, Canvas);
+  --hl-confirm-dialog-danger: var(--hl-destructive, #b3261e);
+  --hl-confirm-dialog-danger-text: var(--hl-destructive-foreground, Canvas);
+}
+
+/*
+ * Shared shape. `min-inline-size: 0` and `overflow-wrap: break-word` carry the source's
+ * `min-w-0 max-w-full break-words` — they are what stops a long localized label from overflowing
+ * the footer, so they are load-bearing for the locale projection checks, not cosmetic.
+ */
+.hl-confirm-dialog__cancel,
+.hl-confirm-dialog__confirm {
+  border-radius: var(--hl-radius-md, 0.375rem);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.25rem;
+  max-inline-size: 100%;
+  min-inline-size: 0;
+  overflow-wrap: break-word;
+  padding-block: 0.5rem;
+  padding-inline: 1rem;
+}
+
+.hl-confirm-dialog__cancel:focus-visible,
+.hl-confirm-dialog__confirm:focus-visible {
+  outline: 2px solid var(--hl-confirm-dialog-focus);
+  outline-offset: 2px;
+}
+
+.hl-confirm-dialog__cancel {
+  background: var(--hl-confirm-dialog-surface);
+  border: 1px solid var(--hl-confirm-dialog-border);
+  color: var(--hl-confirm-dialog-text);
+}
+
+.hl-confirm-dialog__cancel:hover {
+  background: var(--hl-confirm-dialog-muted);
+}
+
+.hl-confirm-dialog__confirm {
+  background: var(--hl-confirm-dialog-accent);
+  border: 1px solid transparent;
+  color: var(--hl-confirm-dialog-accent-text);
+}
+
+.hl-confirm-dialog__confirm:hover {
+  background: color-mix(in srgb, var(--hl-confirm-dialog-accent) 90%, transparent);
+}
+
+.hl-confirm-dialog__confirm--destructive {
+  background: var(--hl-confirm-dialog-danger);
+  color: var(--hl-confirm-dialog-danger-text);
+}
+
+.hl-confirm-dialog__confirm--destructive:hover {
+  background: color-mix(in srgb, var(--hl-confirm-dialog-danger) 90%, transparent);
+}
+
+/*
+ * Forced colors flattens both backgrounds to the system button surface, which would make confirm
+ * and cancel indistinguishable — and the destructive variant indistinguishable from the default.
+ * An explicit border restores the affordance. The gate runs forced-colors checks, so this is
+ * asserted rather than assumed.
+ */
+@media (forced-colors: active) {
+  .hl-confirm-dialog__cancel,
+  .hl-confirm-dialog__confirm {
+    border: 1px solid ButtonBorder;
+  }
+}

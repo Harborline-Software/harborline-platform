@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.blocks.aggregates",
+  "interfaceRevision": 1,
+  "status": "draft",
+  "purpose": "Own provider-neutral aggregate definitions, validation, deterministic grouping, scalar folds, totals, limits, and neutral results over one authorized row snapshot.",
+  "dependencies": [],
+  "sourceSurface": {
+    "repository": "shipyard",
+    "commit": "3410883405996dc8e4871418a441f52970d9994e",
+    "paths": [
+      "packages/forms/src/rules/corpus/child-table.json:5-89",
+      "packages/forms/src/rules/corpus/cross-tier-divergence.json:83-94",
+      "packages/forms/src/rules/corpus/numeric-collation-determinism.json:27,104"
+    ]
+  },
+  "identity": {"tuple":["tenantId","definitionId","revision"],"tenantAuthority":"authenticated context","publishedRevisions":"immutable"},
+  "definition": {
+    "source": "logical sourceRef plus declared field contract",
+    "grouping": "ordered typed dimensions with null and direction policies",
+    "measures": ["sum","count","average","min","max"],
+    "filters": ["all","any","not","eq","neq","lt","lte","gt","gte","in","isNull","isNotNull"],
+    "totals": "explicit grouping-prefix subtotals and optional grand total",
+    "bounds": ["maxInputRows","maxGroups","maxResultCells"]
+  },
+  "canonicalValues": {
+    "string": "ordinal, case-sensitive, no Unicode normalization",
+    "number": "finite IEEE-754 binary64",
+    "decimal": "arbitrary-precision base-10 canonical string",
+    "date": "yyyy-MM-dd",
+    "dateTime": "canonical UTC ISO 8601 instant"
+  },
+  "evaluation": [
+    "Validate identity, fields, operators, types, totals, and effective bounds before source enumeration.",
+    "Authorize the trusted tenant and actor for every required source field before opening one snapshot.",
+    "Fail on missing fields and type mismatches; never coerce values to zero or text.",
+    "Filter before grouping; ordinary comparisons against null or unavailable are false.",
+    "Fold every detail, subtotal, and grand total directly from filtered source rows.",
+    "Sum and count have typed zero empty folds; average, min, and max have null empty folds.",
+    "Decimal average must terminate exactly or fail aggregates.measure.non_terminating_decimal.",
+    "Sort by declared typed order, null placement, and canonical-key tie-break; grand total is last.",
+    "Exceeding any bound fails the whole evaluation and never returns a partial successful result."
+  ],
+  "ports": ["IAggregateRowSource","IAggregateDefinitionStore","IAggregateAuthorization"],
+  "result": {"states":["value","null","unavailable"],"groupKinds":["detail","subtotal","grandTotal"],"snapshot":"opaque source token"},
+  "errors": [
+    {"code":"aggregates.definition.invalid","when":"Definition validation fails."},
+    {"code":"aggregates.source.forbidden","when":"The visible definition's source fields are not authorized."},
+    {"code":"aggregates.source.contract_mismatch","when":"A row violates its declared contract."},
+    {"code":"aggregates.evaluation.input_limit","when":"Input rows exceed the effective bound."},
+    {"code":"aggregates.evaluation.group_limit","when":"Result groups exceed the effective bound."},
+    {"code":"aggregates.evaluation.cell_limit","when":"Result cells exceed the effective bound."},
+    {"code":"aggregates.measure.type_mismatch","when":"A measure receives an incompatible value."},
+    {"code":"aggregates.measure.non_terminating_decimal","when":"An exact decimal average cannot terminate."}
+  ],
+  "containment": ["rule-runtime","forms","views","reports","financial","ASP.NET","EF","SQL","React","Blazor","DataGrid","PivotGrid"],
+  "presentation": {"disposition":"not-applicable","rationale":"The module returns neutral typed groups and owns no visual surface."},
+  "distribution": "internal-only"
+}

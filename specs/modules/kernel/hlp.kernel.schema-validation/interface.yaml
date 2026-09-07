@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.kernel.schema-validation",
+  "interfaceRevision": 1,
+  "status": "frozen",
+  "purpose": "Register content-addressed JSON Schema draft 2020-12 documents and validate Dynamic Forms payloads with bounded, stable, field-addressable failures without importing schema migration, federation, blob, epoch, or compaction concerns.",
+  "dependencies": [],
+  "types": {
+    "SchemaId": "non-empty content-derived string",
+    "Schema": ["Id", "JsonSchemaText", "ParentSchemas", "Tags", "ContentAddress"],
+    "SchemaValidationError": ["JsonPointer", "Message", "Code", "Params"],
+    "ISchemaRegistry": ["GetAsync", "RegisterAsync", "ValidateAsync", "ListAsync"]
+  },
+  "selectedDesign": {
+    "choice": "caller-backed validation registry",
+    "rejected": "copy the legacy registry's migration, lens, upcaster, epoch, compaction, blob, and event-bus closure",
+    "reason": "Forms callers require registration and validation semantics; unrelated registry topology would leak 26-project migration complexity into every clean consumer."
+  },
+  "invariants": [
+    "Logically equivalent schema objects with different property order or whitespace receive the same content address and schema id.",
+    "Only JSON Schema draft 2020-12 is accepted; malformed and foreign-dialect schemas fail registration.",
+    "Schema byte size and structural depth are bounded before schema compilation.",
+    "Schema pattern evaluation has an explicit match timeout and timeout fails closed.",
+    "Unknown schema ids throw SchemaNotFoundException and never imply permissive validation.",
+    "Invalid payload JSON returns an invalid result with stable code invalid-json.",
+    "Required-property failures are split onto the missing field's RFC 6901 pointer.",
+    "Validation codes and structured params are stable and locale-independent; Message remains an English fallback.",
+    "The reference adapter is single-process and makes no persistence claim."
+  ],
+  "notScope": ["schema migration", "lenses or upcasters", "epoch coordination", "compaction", "blob storage", "federation transport", "Forms authorization or persistence"],
+  "projectionPolicy": {"dotnet": "canonical implementation and in-memory reference adapter", "react": "consumer through Forms API", "blazor": "consumer through Forms Engine"},
+  "fixture": "conformance/hlp.kernel.schema-validation/fixtures.yaml"
+}

@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <HarborlinePublicDistributionAuthorized>false</HarborlinePublicDistributionAuthorized>
+    <PackageId>Harborline.Foundation.RuleAuthoring</PackageId>
+    <AssemblyName>Harborline.Foundation.RuleAuthoring</AssemblyName>
+    <RootNamespace>Harborline.Foundation.RuleAuthoring</RootNamespace>
+    <Description>Calculation authoring bridge for Harborline Platform (ADR 0146 D2/D5): decision-table and formula drafts, draft-to-skin lowering onto Harborline.Foundation.RuleEngine, advisory lint, blank seeds, the publish admission fence, and the versioned named-rule catalog over a pluggable store port. Owns no evaluator semantics — every rejection and evaluation flows through the rule engine.</Description>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageReleaseNotes>Internal-only projection; public distribution is not authorized.</PackageReleaseNotes>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Harborline.Foundation.RuleAuthoring.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../hlp.foundation.rule-runtime/Harborline.Foundation.RuleEngine.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="/" />
+    <None Include="../../../../LICENSE" Link="LICENSE" Pack="true" PackagePath="/" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,579 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.guarded-control",
+  "sourceFixture": "conformance/hlp.ui.guarded-control/fixtures.yaml",
+  "qualityFixture": "conformance/hlp.ui.guarded-control/quality-fixtures.yaml",
+  "galleryInterface": {
+    "probeAttribute": "data-gallery-probe",
+    "scenarioAttribute": "data-gallery-scenario",
+    "projectionTitles": {
+      "react": "Platform/Guarded Control",
+      "blazor": "Platform/Guarded Control"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "guarded-control.covered",
+      "name": "Covered and unavailable",
+      "surface": "covered",
+      "sourceCaseIds": [
+        "guarded-control.initial-covered",
+        "guarded-control.disabled",
+        "guarded-control.invalid-input"
+      ],
+      "sourceQualityCaseIds": [
+        "guarded-control.quality.pattern",
+        "guarded-control.quality.denial"
+      ],
+      "content": {
+        "blurb": "A visible action begins covered; caller-owned availability remains an interaction signal, not authorization.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {
+            "chrome.guard.covered.hint": "Guarded — activate to unlock",
+            "chrome.guard.armed.hint": "Armed — activate to {action}. {seconds} seconds remain.",
+            "chrome.guard.committing.status": "Committing {action}",
+            "chrome.guard.recovered.announce": "Guard restored.",
+            "chrome.guard.rejected.announce": "The action was not completed. Guard restored."
+          }
+        },
+        "props": {},
+        "state": {
+          "action": {
+            "kind": "string",
+            "initial": "Sign and save package"
+          },
+          "seconds": {
+            "kind": "counter",
+            "initial": 0
+          },
+          "commits": {
+            "kind": "counter",
+            "initial": 0
+          },
+          "disabledCommits": {
+            "kind": "counter",
+            "initial": 0
+          }
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<GuardedControl action=\"packages.export\" classificationId=\"significant-change\" label=\"Sign and save package\" onCommit={async () => setCommits(value => value + 1)} />",
+            "blazor": "<HarborlineGuardedControl Action=\"packages.export\" ClassificationId=\"significant-change\" Label=\"Sign and save package\" Disabled=\"false\" OnCommit=\"CommitAsync\" />",
+            "rationale": "The closed vocabulary has no guarded-control descriptor capable of expressing the covered, armed, committing, and recovery behavior."
+          },
+          {
+            "control": "output",
+            "live": "polite",
+            "text": "Commit requests: {commits}"
+          },
+          {
+            "control": "raw",
+            "react": "<GuardedControl action=\"packages.export\" classificationId=\"significant-change\" label=\"Sign and save package\" disabled describedBy=\"guard-denial\" onCommit={async () => setCommits(value => value + 1)} />",
+            "blazor": "<HarborlineGuardedControl Action=\"packages.export\" ClassificationId=\"significant-change\" Label=\"Sign and save package\" Disabled DescribedBy=\"guard-denial\" OnCommit=\"CommitAsync\" />",
+            "rationale": "The closed vocabulary has no guarded-control descriptor and cannot preserve its disabled denial association."
+          },
+          {
+            "control": "text",
+            "text": "Complete the affirmation before signing."
+          },
+          {
+            "control": "output",
+            "live": "polite",
+            "text": "Commit requests: {disabledCommits}"
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "guarded-control.two-step",
+      "name": "Arm and commit",
+      "surface": "two-step",
+      "interaction": "pointer",
+      "sourceCaseIds": [
+        "guarded-control.first-activation-arms",
+        "guarded-control.pointer-two-step",
+        "guarded-control.commit-once",
+        "guarded-control.committing-inert",
+        "guarded-control.commit-completed",
+        "guarded-control.commit-rejected",
+        "guarded-control.authorization-boundary"
+      ],
+      "sourceQualityCaseIds": [
+        "guarded-control.quality.color"
+      ],
+      "content": {
+        "blurb": "One activation arms and a distinct second activation invokes the caller operation at most once.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {
+            "chrome.guard.covered.hint": "Guarded — activate to unlock",
+            "chrome.guard.armed.hint": "Armed — activate to {action}. {seconds} seconds remain.",
+            "chrome.guard.committing.status": "Committing {action}",
+            "chrome.guard.recovered.announce": "Guard restored.",
+            "chrome.guard.rejected.announce": "The action was not completed. Guard restored."
+          }
+        },
+        "props": {},
+        "state": {
+          "action": {
+            "kind": "string",
+            "initial": "Sign and save package"
+          },
+          "seconds": {
+            "kind": "counter",
+            "initial": 0
+          },
+          "commits": {
+            "kind": "counter",
+            "initial": 0
+          }
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<GuardedControl action=\"packages.export\" classificationId=\"significant-change\" label=\"Sign and save package\" onCommit={async () => setCommits(value => value + 1)} />",
+            "blazor": "<HarborlineGuardedControl Action=\"packages.export\" ClassificationId=\"significant-change\" Label=\"Sign and save package\" Disabled=\"false\" OnCommit=\"CommitAsync\" />",
+            "rationale": "The closed vocabulary has no guarded-control descriptor capable of expressing the two-step arm-and-commit interaction."
+          },
+          {
+            "control": "output",
+            "live": "polite",
+            "text": "Commit requests: {commits}"
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "guarded-control.keyboard-recovery",
+      "name": "Keyboard, focus, and recovery",
+      "surface": "keyboard-recovery",
+      "interaction": "keyboard",
+      "sourceCaseIds": [
+        "guarded-control.keyboard-two-step",
+        "guarded-control.timeout-recovery",
+        "guarded-control.escape-recovery",
+        "guarded-control.host-recovery",
+        "guarded-control.recovery-race",
+        "guarded-control.became-disabled",
+        "guarded-control.focus",
+        "guarded-control.disposal"
+      ],
+      "sourceQualityCaseIds": [
+        "guarded-control.quality.keyboard",
+        "guarded-control.quality.focus",
+        "guarded-control.quality.dismissal"
+      ],
+      "content": {
+        "blurb": "Enter or Space arms, Escape recovers, and focus follows the visible action.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {
+            "chrome.guard.covered.hint": "Guarded — activate to unlock",
+            "chrome.guard.armed.hint": "Armed — activate to {action}. {seconds} seconds remain.",
+            "chrome.guard.committing.status": "Committing {action}",
+            "chrome.guard.recovered.announce": "Guard restored.",
+            "chrome.guard.rejected.announce": "The action was not completed. Guard restored."
+          }
+        },
+        "props": {},
+        "state": {
+          "action": {
+            "kind": "string",
+            "initial": "Sign and save package"
+          },
+          "seconds": {
+            "kind": "counter",
+            "initial": 0
+          },
+          "commits": {
+            "kind": "counter",
+            "initial": 0
+          }
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<GuardedControl action=\"packages.export\" classificationId=\"significant-change\" label=\"Sign and save package\" onCommit={async () => setCommits(value => value + 1)} />",
+            "blazor": "<HarborlineGuardedControl Action=\"packages.export\" ClassificationId=\"significant-change\" Label=\"Sign and save package\" Disabled=\"false\" OnCommit=\"CommitAsync\" />",
+            "rationale": "The closed vocabulary has no guarded-control descriptor capable of expressing keyboard arming, Escape recovery, or guarded focus behavior."
+          },
+          {
+            "control": "output",
+            "live": "polite",
+            "text": "Commit requests: {commits}"
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "guarded-control.locale-en",
+      "name": "English locale",
+      "surface": "locale-en",
+      "sourceCaseIds": [
+        "guarded-control.localization"
+      ],
+      "sourceQualityCaseIds": [
+        "guarded-control.quality.locales",
+        "guarded-control.quality.duration",
+        "guarded-control.quality.bidi"
+      ],
+      "content": {
+        "blurb": "Whole guard messages include a localized action label, countdown value, and duration unit.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {
+            "chrome.guard.covered.hint": "Guarded — activate to unlock",
+            "chrome.guard.armed.hint": "Armed — activate to {action}. {seconds} seconds remain.",
+            "chrome.guard.committing.status": "Committing {action}",
+            "chrome.guard.recovered.announce": "Guard restored.",
+            "chrome.guard.rejected.announce": "The action was not completed. Guard restored."
+          }
+        },
+        "props": {},
+        "state": {
+          "action": {
+            "kind": "string",
+            "initial": "Sign and save package"
+          },
+          "seconds": {
+            "kind": "counter",
+            "initial": 0
+          },
+          "commits": {
+            "kind": "counter",
+            "initial": 0
+          }
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<GuardedControl action=\"packages.export\" classificationId=\"significant-change\" label=\"Sign and save package\" onCommit={async () => setCommits(value => value + 1)} />",
+            "blazor": "<HarborlineGuardedControl Action=\"packages.export\" ClassificationId=\"significant-change\" Label=\"Sign and save package\" Disabled=\"false\" OnCommit=\"CommitAsync\" />",
+            "rationale": "The closed vocabulary has no guarded-control descriptor capable of rendering the localized whole guard messages."
+          },
+          {
+            "control": "output",
+            "live": "polite",
+            "text": "Commit requests: {commits}"
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "guarded-control.locale-pseudo",
+      "name": "Pseudo locale",
+      "surface": "locale-pseudo",
+      "sourceCaseIds": [
+        "guarded-control.localization"
+      ],
+      "sourceQualityCaseIds": [
+        "guarded-control.quality.pseudo",
+        "guarded-control.quality.reflow"
+      ],
+      "content": {
+        "blurb": "Expanded whole messages expose clipping and fixed-width assumptions.",
+        "environment": {
+          "locale": "en-XA",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {
+            "chrome.guard.covered.hint": "Guarded — activate to unlock",
+            "chrome.guard.armed.hint": "Armed — activate to {action}. {seconds} seconds remain.",
+            "chrome.guard.committing.status": "Committing {action}",
+            "chrome.guard.recovered.announce": "Guard restored.",
+            "chrome.guard.rejected.announce": "The action was not completed. Guard restored."
+          }
+        },
+        "props": {},
+        "state": {
+          "action": {
+            "kind": "string",
+            "initial": "⟦ Šîĝñ åñđ šåṽë ţhë þåçķåĝë ······ ⟧"
+          },
+          "seconds": {
+            "kind": "counter",
+            "initial": 0
+          },
+          "commits": {
+            "kind": "counter",
+            "initial": 0
+          }
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<GuardedControl action=\"packages.export\" classificationId=\"significant-change\" label=\"⟦ Šîĝñ åñđ šåṽë ţhë þåçķåĝë ······ ⟧\" onCommit={async () => setCommits(value => value + 1)} />",
+            "blazor": "<HarborlineGuardedControl Action=\"packages.export\" ClassificationId=\"significant-change\" Label=\"⟦ Šîĝñ åñđ šåṽë ţhë þåçķåĝë ······ ⟧\" Disabled=\"false\" OnCommit=\"CommitAsync\" />",
+            "rationale": "The closed vocabulary has no guarded-control descriptor capable of rendering the pseudo-localized guarded action and its state transitions."
+          },
+          {
+            "control": "output",
+            "live": "polite",
+            "text": "Commit requests: {commits}"
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "guarded-control.locale-ar",
+      "name": "Arabic locale",
+      "surface": "locale-ar",
+      "sourceCaseIds": [
+        "guarded-control.localization",
+        "guarded-control.rtl-motion"
+      ],
+      "sourceQualityCaseIds": [
+        "guarded-control.quality.rtl"
+      ],
+      "content": {
+        "blurb": "RTL layout and bidi-isolated action text preserve the two-step order.",
+        "environment": {
+          "locale": "ar-SA",
+          "direction": "rtl",
+          "theme": "light",
+          "catalog": {
+            "chrome.guard.covered.hint": "Guarded — activate to unlock",
+            "chrome.guard.armed.hint": "Armed — activate to {action}. {seconds} seconds remain.",
+            "chrome.guard.committing.status": "Committing {action}",
+            "chrome.guard.recovered.announce": "Guard restored.",
+            "chrome.guard.rejected.announce": "The action was not completed. Guard restored."
+          }
+        },
+        "props": {},
+        "state": {
+          "action": {
+            "kind": "string",
+            "initial": "توقيع وحفظ الحزمة"
+          },
+          "seconds": {
+            "kind": "counter",
+            "initial": 0
+          },
+          "commits": {
+            "kind": "counter",
+            "initial": 0
+          }
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<GuardedControl action=\"packages.export\" classificationId=\"significant-change\" label=\"توقيع وحفظ الحزمة\" onCommit={async () => setCommits(value => value + 1)} />",
+            "blazor": "<HarborlineGuardedControl Action=\"packages.export\" ClassificationId=\"significant-change\" Label=\"توقيع وحفظ الحزمة\" Disabled=\"false\" OnCommit=\"CommitAsync\" />",
+            "rationale": "The closed vocabulary has no guarded-control descriptor capable of preserving the RTL guarded interaction and bidi isolation."
+          },
+          {
+            "control": "output",
+            "live": "polite",
+            "text": "Commit requests: {commits}"
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "guarded-control.theme-light",
+      "name": "Light theme",
+      "surface": "theme-light",
+      "sourceCaseIds": [
+        "guarded-control.host-attributes",
+        "guarded-control.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "guarded-control.quality.themes",
+        "guarded-control.quality.tokens",
+        "guarded-control.quality.contrast",
+        "guarded-control.quality.forced-colors",
+        "guarded-control.quality.reduced-motion",
+        "guarded-control.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "Covered, armed, committing, disabled, focus, and recovery states use public semantic tokens.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {
+            "chrome.guard.covered.hint": "Guarded — activate to unlock",
+            "chrome.guard.armed.hint": "Armed — activate to {action}. {seconds} seconds remain.",
+            "chrome.guard.committing.status": "Committing {action}",
+            "chrome.guard.recovered.announce": "Guard restored.",
+            "chrome.guard.rejected.announce": "The action was not completed. Guard restored."
+          }
+        },
+        "props": {},
+        "state": {
+          "action": {
+            "kind": "string",
+            "initial": "Sign and save package"
+          },
+          "seconds": {
+            "kind": "counter",
+            "initial": 0
+          },
+          "commits": {
+            "kind": "counter",
+            "initial": 0
+          },
+          "disabledCommits": {
+            "kind": "counter",
+            "initial": 0
+          }
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<GuardedControl action=\"packages.export\" classificationId=\"significant-change\" label=\"Sign and save package\" onCommit={async () => setCommits(value => value + 1)} />",
+            "blazor": "<HarborlineGuardedControl Action=\"packages.export\" ClassificationId=\"significant-change\" Label=\"Sign and save package\" Disabled=\"false\" OnCommit=\"CommitAsync\" />",
+            "rationale": "The closed vocabulary has no guarded-control descriptor capable of exposing the component's semantic-token states."
+          },
+          {
+            "control": "output",
+            "live": "polite",
+            "text": "Commit requests: {commits}"
+          },
+          {
+            "control": "raw",
+            "react": "<GuardedControl action=\"packages.export\" classificationId=\"significant-change\" label=\"Sign and save package\" disabled describedBy=\"guard-denial\" onCommit={async () => setCommits(value => value + 1)} />",
+            "blazor": "<HarborlineGuardedControl Action=\"packages.export\" ClassificationId=\"significant-change\" Label=\"Sign and save package\" Disabled DescribedBy=\"guard-denial\" OnCommit=\"CommitAsync\" />",
+            "rationale": "The closed vocabulary has no guarded-control descriptor and cannot preserve its disabled denial association."
+          },
+          {
+            "control": "text",
+            "text": "Complete the affirmation before signing."
+          },
+          {
+            "control": "output",
+            "live": "polite",
+            "text": "Commit requests: {disabledCommits}"
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "guarded-control.theme-dark",
+      "name": "Dark theme",
+      "surface": "theme-dark",
+      "sourceCaseIds": [
+        "guarded-control.host-attributes",
+        "guarded-control.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "guarded-control.quality.themes",
+        "guarded-control.quality.tokens",
+        "guarded-control.quality.contrast",
+        "guarded-control.quality.forced-colors",
+        "guarded-control.quality.reduced-motion",
+        "guarded-control.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "The same guarded-action vocabulary on the Harborline dark surface.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "dark",
+          "catalog": {
+            "chrome.guard.covered.hint": "Guarded — activate to unlock",
+            "chrome.guard.armed.hint": "Armed — activate to {action}. {seconds} seconds remain.",
+            "chrome.guard.committing.status": "Committing {action}",
+            "chrome.guard.recovered.announce": "Guard restored.",
+            "chrome.guard.rejected.announce": "The action was not completed. Guard restored."
+          }
+        },
+        "props": {},
+        "state": {
+          "action": {
+            "kind": "string",
+            "initial": "Sign and save package"
+          },
+          "seconds": {
+            "kind": "counter",
+            "initial": 0
+          },
+          "commits": {
+            "kind": "counter",
+            "initial": 0
+          },
+          "disabledCommits": {
+            "kind": "counter",
+            "initial": 0
+          }
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<GuardedControl action=\"packages.export\" classificationId=\"significant-change\" label=\"Sign and save package\" onCommit={async () => setCommits(value => value + 1)} />",
+            "blazor": "<HarborlineGuardedControl Action=\"packages.export\" ClassificationId=\"significant-change\" Label=\"Sign and save package\" Disabled=\"false\" OnCommit=\"CommitAsync\" />",
+            "rationale": "The closed vocabulary has no guarded-control descriptor capable of exposing the component's semantic-token states."
+          },
+          {
+            "control": "output",
+            "live": "polite",
+            "text": "Commit requests: {commits}"
+          },
+          {
+            "control": "raw",
+            "react": "<GuardedControl action=\"packages.export\" classificationId=\"significant-change\" label=\"Sign and save package\" disabled describedBy=\"guard-denial\" onCommit={async () => setCommits(value => value + 1)} />",
+            "blazor": "<HarborlineGuardedControl Action=\"packages.export\" ClassificationId=\"significant-change\" Label=\"Sign and save package\" Disabled DescribedBy=\"guard-denial\" OnCommit=\"CommitAsync\" />",
+            "rationale": "The closed vocabulary has no guarded-control descriptor and cannot preserve its disabled denial association."
+          },
+          {
+            "control": "text",
+            "text": "Complete the affirmation before signing."
+          },
+          {
+            "control": "output",
+            "live": "polite",
+            "text": "Commit requests: {disabledCommits}"
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "guarded-control.content",
+      "name": "Content resilience",
+      "surface": "long-content",
+      "sourceCaseIds": [
+        "guarded-control.initial-covered",
+        "guarded-control.localization"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "Guarded action labels carry an overlong command, the grouped number 1,284,905, escaped angle brackets and an ampersand, and a name with diacritics and an em dash.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<><GuardFixture label=\"Awaiting third-party structural certification review\"/><GuardFixture label=\"1,284,905\"/><GuardFixture label=\"Bay 4 <grid C-7> & 8\"/><GuardFixture label=\"Ordnance Survey — Niño Ångström\"/></>",
+            "blazor": "<GuardFixture Label=\"Awaiting third-party structural certification review\"/><GuardFixture Label=\"1,284,905\"/><GuardFixture Label=\"Bay 4 <grid C-7> & 8\"/><GuardFixture Label=\"Ordnance Survey — Niño Ångström\"/>",
+            "rationale": "The guarded-control wrapper supplies each real required prop and its commit callback while preserving the same hostile-but-valid labels and outputs in both lanes."
+          }
+        ],
+        "footer": []
+      }
+    }
+  ]
+}

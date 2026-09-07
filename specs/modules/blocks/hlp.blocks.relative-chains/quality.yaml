@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.blocks.relative-chains",
+  "profileRevision": 2,
+  "riskTier": "A",
+  "dimensions": {
+    "determinism": {"disposition":"required","caseIds":["07","13","17"]},
+    "ledgerIntegrity": {"disposition":"required","caseIds":["14","15","16","18","19","20","24"]},
+    "portCompatibility": {"disposition":"required","caseIds":["11","12","21","22","23","24"]},
+    "security": {"disposition":"required","rationale":"Bounded reference sizes, node counts and numeric inputs prevent unbounded canonicalization and graph work."},
+    "accessibility": {"disposition":"not-applicable","rationale":"No presentation surface."},
+    "internationalization": {"disposition":"not-applicable","rationale":"References are opaque UTF-8 values with locale-invariant canonical encoding."}
+  },
+  "componentStages": [
+    {"id":"contract","dimensions":["determinism","ledgerIntegrity","security"],"gate":"JSON spec and catalog validation"},
+    {"id":"projection-native","dimensions":["determinism","ledgerIntegrity","portCompatibility"],"gate":"24 mapped xUnit declarations"},
+    {"id":"package-consumer","dimensions":["portCompatibility"],"gate":"wave 2 packed NuGet consumer"},
+    {"id":"clean-clone","dimensions":["determinism","ledgerIntegrity","portCompatibility","security"],"gate":"complete repository gate"}
+  ]
+}

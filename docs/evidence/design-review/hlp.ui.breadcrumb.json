@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.breadcrumb",
+  "verdict": "approved",
+  "reviewer": "cic",
+  "recordedAt": "2026-08-26T20:01:55.607Z",
+  "reference": {
+    "revision": "c4bcdb4182fe9b59907c46f849c857a8125b04b5f6439347ce2e0e92321c66e4",
+    "source": "gallery/scenarios/hlp.ui.breadcrumb.json",
+    "pin": "cc9eb48ed68c5033ec128cd53c40b1d2786bee66",
+    "surface": {
+      "conformance/hlp.ui.breadcrumb/fixtures.yaml": "9cbf57f94dbcff0205753ee739c997c68bcd7d8e760249294be5d03b98acd5b4",
+      "conformance/hlp.ui.breadcrumb/quality-fixtures.yaml": "f0f3b475ca8522d5eff980cc1824b53de8e4ef5ca355cca15c6883ecc8f84e4b",
+      "gallery/projections/blazor/Stories/Breadcrumb.stories.razor": "154f1589b51e8bc01bc166d0556e4d64204d18d84742bc70559f785fd4afb6e4",
+      "gallery/projections/blazor/Stories/BreadcrumbScenario.razor": "f84a195670ca3361392cbe3b2990604bfff66c35665da082763ca6c9c4300cd2",
+      "gallery/projections/react/src/Breadcrumb.stories.tsx": "03689797cf9d4a4518ff70b69ae0d588abdab12a5ce67cc280dd76b4407e5fa2",
+      "gallery/scenarios/hlp.ui.breadcrumb.json": "fad9ad202dfd5174865f81505c708a4f05f5742d0e4bbf51769acfc2010cd3f5",
+      "projections/blazor/ui/hlp.ui.breadcrumb/BreadcrumbTypes.cs": "9d62b1d66e540833adf539b89e3b89a34766502ddaaf2c66d1648c98e4ba048b",
+      "projections/blazor/ui/hlp.ui.breadcrumb/ShipyardBreadcrumb.razor": "7cba51257b330fa55afba1b1c53c8397d1cb08c14d03782f12658faee703d6e5",
+      "projections/blazor/ui/hlp.ui.breadcrumb/wwwroot/breadcrumb.css": "cc93f38efaf320296c28ad52c72457c95533757363a473c81459231816032016",
+      "projections/react/ui/hlp.ui.breadcrumb/src/Breadcrumb.tsx": "d66a9fac5607f609c2176b6c5dfa9e559dcd68117aaffcdcd744d24eb9e46642",
+      "projections/react/ui/hlp.ui.breadcrumb/src/index.ts": "a3663011ec29354b2088e5f6d862b3c68e7a14fa34ee170aaa9ba6f2c427b6c5",
+      "projections/react/ui/hlp.ui.breadcrumb/src/style.css": "3a8d0f427dbb5cdfb29fab3e2cebfe879d31272f39b42ec120dfd658ab70b348",
+      "specs/modules/ui/hlp.ui.breadcrumb/scenarios.json": "fad9ad202dfd5174865f81505c708a4f05f5742d0e4bbf51769acfc2010cd3f5",
+      "specs/modules/ui/hlp.ui.breadcrumb/style.css": "3a8d0f427dbb5cdfb29fab3e2cebfe879d31272f39b42ec120dfd658ab70b348"
+    }
+  }
+}

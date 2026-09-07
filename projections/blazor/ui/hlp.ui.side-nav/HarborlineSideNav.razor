@@ -1,0 +1,68 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Navigation
+@inherits HarborlineComponentBase
+@using Harborline.UIAdapters.Blazor.Localization
+
+<nav aria-label="@ResolvedLabel" class="@CombineClasses("hl-side-nav")"
+     style="@CombineStyles()" dir="@Direction" data-hl-collapsed="@(Collapsed ? "true" : null)" @attributes="AdditionalAttributes">
+  @if (Groups is { Count: > 0 })
+  {
+    @foreach (var group in Groups)
+    {
+      <section class="hl-side-nav__group" data-group-id="@group.Id" aria-labelledby="@(!Collapsed && !string.IsNullOrWhiteSpace(group.Label) ? $"{instanceId}-{group.Id}-label" : null)">
+        @if (!Collapsed && !string.IsNullOrWhiteSpace(group.Label)) { <h2 id="@($"{instanceId}-{group.Id}-label")" class="hl-side-nav__group-label">@group.Label</h2> }
+        <HarborlineSideNavItems Items="@group.Items" State="@state" Depth="0" />
+      </section>
+    }
+  }
+  else
+  {
+    <HarborlineSideNavItems Items="@Items" State="@state" Depth="0" />
+  }
+</nav>
+
+@code {
+  [CascadingParameter] private HarborlineLocaleContext? LocaleContext { get; set; }
+  [Parameter] public IReadOnlyList<SideNavNavigationItem> Items { get; set; } = [];
+  [Parameter] public IReadOnlyList<SideNavNavigationGroup>? Groups { get; set; }
+  [Parameter] public string? ActiveItemId { get; set; }
+  [Parameter] public bool Collapsed { get; set; }
+  [Parameter] public EventCallback<SideNavNavigationItem> ItemActivated { get; set; }
+  [Parameter] public string? NavigationLabel { get; set; }
+
+  private readonly string instanceId = $"hl-side-nav-{Guid.NewGuid():N}";
+  private readonly SideNavState state = new();
+  // Instance override, then catalog, then fallback. A catalog miss echoes the key back, so an
+  // echoed key counts as unresolved rather than as the accessible name.
+  private string ResolvedLabel
+  {
+    get
+    {
+      if (!string.IsNullOrWhiteSpace(NavigationLabel)) return LocaleContext?.ResolveString("navigation.label", instanceOverride: NavigationLabel) ?? NavigationLabel;
+      var resolved = LocaleContext?.ResolveString("navigation.label");
+      return string.IsNullOrEmpty(resolved) || resolved == "navigation.label" ? "Navigation" : resolved;
+    }
+  }
+  private string Direction => LocaleContext?.Direction ?? "ltr";
+
+  protected override void OnParametersSet()
+  {
+    ArgumentNullException.ThrowIfNull(Items);
+    var all = Groups is { Count: > 0 } ? Groups.SelectMany(group => group.Items).ToArray() : Items;
+    Validate(all);
+    if (Groups is not null && Groups.GroupBy(group => group.Id, StringComparer.Ordinal).Any(group => group.Count() > 1)) throw new InvalidOperationException("duplicate-id");
+    state.ActiveItemId = ActiveItemId;
+    state.Collapsed = Collapsed;
+    state.ItemActivated = ItemActivated;
+    state.ExpandActive(all);
+  }
+
+  private static void Validate(IEnumerable<SideNavNavigationItem> items)
+  {
+    var all = Flatten(items).ToArray();
+    if (all.Any(item => string.IsNullOrWhiteSpace(item.Id))) throw new InvalidOperationException("missing-id");
+    if (all.Any(item => string.IsNullOrWhiteSpace(item.Label))) throw new InvalidOperationException("missing-label");
+    if (all.GroupBy(item => item.Id, StringComparer.Ordinal).Any(group => group.Count() > 1)) throw new InvalidOperationException("duplicate-id");
+    if (all.Any(item => !string.IsNullOrWhiteSpace(item.Href) && item.Children is { Count: > 0 })) throw new InvalidOperationException("invalid-action");
+  }
+  private static IEnumerable<SideNavNavigationItem> Flatten(IEnumerable<SideNavNavigationItem> items) => items.SelectMany(item => new[] { item }.Concat(Flatten(item.Children ?? [])));
+}

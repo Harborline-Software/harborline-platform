@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.side-nav",
+  "verdict": "approved",
+  "reviewer": "cic",
+  "recordedAt": "2026-08-26T20:47:14.863Z",
+  "reference": {
+    "revision": "d550c95a597039061fcf7dada48c57ee9e3d27d7c99548bf0bc320825172da73",
+    "source": "gallery/scenarios/hlp.ui.side-nav.json",
+    "pin": "cc9eb48ed68c5033ec128cd53c40b1d2786bee66",
+    "surface": {
+      "conformance/hlp.ui.side-nav/fixtures.yaml": "dae9a197e69f7188b706baea1594b10d8818ed3ce5c2669d3656e217d1830127",
+      "conformance/hlp.ui.side-nav/quality-fixtures.yaml": "67c6b3d482e4d61124531b11b8130653ce61b478b84624db4beb7c3e6ebc13a0",
+      "gallery/projections/blazor/Stories/SideNav.stories.razor": "07ef85977c35723796b12afff314f8429c789eabd2c9577893e6207383845f27",
+      "gallery/projections/blazor/Stories/SideNavScenario.razor": "22ef83609a4861029708342dcab4320a8b36b15cc6c0a271ce9712e7e40b2ea1",
+      "gallery/projections/react/src/SideNav.stories.tsx": "36166660cff0f9c3b8b15564cb3206912487923aa4927283d3b80d74ce0fa094",
+      "gallery/scenarios/hlp.ui.side-nav.json": "45c462209b05a5c916926c951c1145ed675d289302585ad7bb23151cf0b7c3c2",
+      "projections/blazor/ui/hlp.ui.side-nav/ShipyardSideNav.razor": "0afa0ab75ef3e9306efb8cf3d69cc7c7ca73b812f1cc81fb9b32e668ef578c09",
+      "projections/blazor/ui/hlp.ui.side-nav/ShipyardSideNavItems.razor": "89838a0a01bf0d2e9a334955a19ebd0364ab9b99bd739b875e79c51cf5e5044e",
+      "projections/blazor/ui/hlp.ui.side-nav/SideNavTypes.cs": "e15d920f1d3ec012f89dd68415f91f6bcbe072ec9da9f3378e96aca41e70f6d4",
+      "projections/blazor/ui/hlp.ui.side-nav/wwwroot/side-nav.css": "a447a068be6bfd857d41884ba6a55aadedf2e5f9442292f6aecf68e1c4666e06",
+      "projections/react/ui/hlp.ui.side-nav/src/SideNav.tsx": "850084cc467765956e82b09f50f2c7c44c2e6e360e525f8b1932073082e48ef9",
+      "projections/react/ui/hlp.ui.side-nav/src/index.ts": "d5d13480a35ce8cd25bbdafe4dff3681d7dc65cf9fc11c74eb51cb4a02cbeba0",
+      "projections/react/ui/hlp.ui.side-nav/src/style.css": "2ae6a8a4913d63f0f375f91d327b6b9bfc3d6b1160e9930f5667f4c8e5637ec7",
+      "specs/modules/ui/hlp.ui.side-nav/scenarios.json": "45c462209b05a5c916926c951c1145ed675d289302585ad7bb23151cf0b7c3c2",
+      "specs/modules/ui/hlp.ui.side-nav/style.css": "2ae6a8a4913d63f0f375f91d327b6b9bfc3d6b1160e9930f5667f4c8e5637ec7"
+    }
+  }
+}

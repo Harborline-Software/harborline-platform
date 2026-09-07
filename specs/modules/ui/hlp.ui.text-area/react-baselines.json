@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "projection": "react",
+  "moduleId": "hlp.ui.text-area",
+  "scenarios": [
+    {
+      "scenarioId": "text-area.editing",
+      "sha256": "e9825c9d3661c1d8d0b345e92dbc99cdea31bce6397eee44b667c0ee4e461986",
+      "bytes": 9635,
+      "artifact": "../baselines/sha256/e9825c9d3661c1d8d0b345e92dbc99cdea31bce6397eee44b667c0ee4e461986.png"
+    },
+    {
+      "scenarioId": "text-area.variants",
+      "sha256": "71ea4cb21b4c950ec835bd23b1ae1f084bc3d7c0a5c7c043c3ec69ac17a0b83c",
+      "bytes": 9898,
+      "artifact": "../baselines/sha256/71ea4cb21b4c950ec835bd23b1ae1f084bc3d7c0a5c7c043c3ec69ac17a0b83c.png"
+    },
+    {
+      "scenarioId": "text-area.locale-theme",
+      "sha256": "327da9b5a07ad2b7ced19f4fe7df2c42228ae22035aaeafe7ad33158818b9f46",
+      "bytes": 8402,
+      "artifact": "../baselines/sha256/327da9b5a07ad2b7ced19f4fe7df2c42228ae22035aaeafe7ad33158818b9f46.png"
+    }
+  ]
+}

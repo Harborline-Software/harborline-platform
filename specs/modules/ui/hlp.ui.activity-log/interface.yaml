@@ -1,0 +1,25 @@
+{
+  "schemaVersion":1,
+  "moduleId":"hlp.ui.activity-log",
+  "interfaceRevision":1,
+  "semantics":{"operation":"render attributed activity entries in an explicit or responsive list/table layout with bounded disclosure","observableOutput":"A named history region, ordered visible entries, semantic timestamps, responsive layout, and one show-more request."},
+  "sourceSurface":{"repository":"shipyard","commit":"a5036ff8b500e0d857d7e0a698408e7cf7f6cf31","path":"packages/ui-react/src/components/navigation/ActivityLog.tsx","blob":"f4dd07672af46c78ae86ed0c653cad85d6ab4850","capturedExports":["ActivityEntry","ActivityLogLayout","ActivityLog","ActivityLogProps"]},
+  "dependencies":["hlp.ui.cn","hlp.ui.use-is-mobile","hlp.ui.use-media-query"],
+  "invariants":[
+    "Caller order is preserved and entry ids are stable and unique.",
+    "An explicit list or table layout always wins; otherwise mobile selects list and wider viewports select table.",
+    "List layout uses an ordered list and table layout uses headers for actor, action, and timestamp.",
+    "Each entry preserves caller-formatted timestamp display text and emits optional machineTimestamp separately as the time element dateTime value.",
+    "maxVisible less than or equal to zero shows all entries; a positive value truncates deterministically and exposes Show more only when hidden entries remain and a callback exists.",
+    "Show more invokes exactly once without mutating caller-owned entries.",
+    "Tone is a closed neutral, positive, warning, danger, or info semantic; legacy category strings may be compatibility-mapped internally and never carry meaning only through color.",
+    "The component owns no event domain, sorting, filtering, pagination, or date formatting.",
+    "Both lanes spell the table overflow container hl-activity-log__table-scroll, the action column header hl-activity-log__header--action, and the tone dot hl-activity-log__marker; the shared stylesheet defines every one of them and no lane-only alias exists."
+  ],
+  "errors":[{"code":"duplicate-entry-id","when":"Two entries use the same stable id."},{"code":"accessible-name-required","when":"The effective log label is empty."}],
+  "performance":{"operation":"O(n) rendering for n visible entries","maximumFixtureItems":500},
+  "presentation":{"disposition":"visual"},
+  "cases":[
+    {"id":"activity-log.empty"},{"id":"activity-log.list"},{"id":"activity-log.table"},{"id":"activity-log.responsive"},{"id":"activity-log.explicit-layout"},{"id":"activity-log.label"},{"id":"activity-log.detail-tone"},{"id":"activity-log.timestamp"},{"id":"activity-log.limit"},{"id":"activity-log.show-more"},{"id":"activity-log.no-show-more"},{"id":"activity-log.invalid-input"},{"id":"activity-log.table-classes"}
+  ]
+}

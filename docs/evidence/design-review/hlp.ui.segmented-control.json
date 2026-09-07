@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.segmented-control",
+  "verdict": "approved",
+  "reviewer": "cic",
+  "recordedAt": "2026-08-26T20:45:17.309Z",
+  "reference": {
+    "revision": "3b3f12e83995c5775f9f69975c05238885a3e8e9965de3580c10a0bbfd6641a1",
+    "source": "gallery/scenarios/hlp.ui.segmented-control.json",
+    "pin": "cc9eb48ed68c5033ec128cd53c40b1d2786bee66",
+    "surface": {
+      "conformance/hlp.ui.segmented-control/fixtures.yaml": "1442e1bec30c925efaa718bb7bb408533a213e7639be494aa87581b1d569081a",
+      "conformance/hlp.ui.segmented-control/quality-fixtures.yaml": "e6c60cb0e78a43ab19e2a30278e3bf43bdb62819b16ac49bdcd19d6db647f1d2",
+      "gallery/projections/blazor/Stories/SegmentedControl.stories.razor": "1705055c50b2171fb34d70c7b139625d30b2733bf1d6159e18ddf2cfc4f8fd53",
+      "gallery/projections/blazor/Stories/SegmentedControlScenario.razor": "ea933e1baaf6d1c13839f3f4b57efb126c36bf2e7a054aa0362b72684a4aaef9",
+      "gallery/projections/react/src/SegmentedControl.stories.tsx": "81af78a438dcfa5d604572241d174a3b4cab5b8a62d733bc132fe158a908f428",
+      "gallery/scenarios/hlp.ui.segmented-control.json": "a76c980df120193d90e362576947ae42e5c4e69d900d874ff6c78f963bc44ce1",
+      "projections/blazor/ui/hlp.ui.segmented-control/SegmentedControlTypes.cs": "eedf31d0d8f7c85fc01c718c8dc9b3bf5e60c858095b07ad4f7d9e994f9d0101",
+      "projections/blazor/ui/hlp.ui.segmented-control/ShipyardSegmentedControl.razor": "2fc1fb982e66dcf9d8c4d1e08742888dc2b8d18d6d067443337e0fa574cda119",
+      "projections/blazor/ui/hlp.ui.segmented-control/wwwroot/segmented-control.css": "bfd8d3bed536c954d44e28331c278d6eba6fb713f289e48ccd338673b178e351",
+      "projections/blazor/ui/hlp.ui.segmented-control/wwwroot/segmented-control.js": "f4ab9c15aefba2711d289ab8ddf688760d4bdf480d573240ebbe3597c11ec6df",
+      "projections/react/ui/hlp.ui.segmented-control/src/SegmentedControl.tsx": "eea7a3fd259a4f74520293c441345becb6082a4df4dd146ba85a7fdb06c7509e",
+      "projections/react/ui/hlp.ui.segmented-control/src/index.ts": "56640c05daa48142c28930626c992f953751b11b48a31bad865987b872e07580",
+      "projections/react/ui/hlp.ui.segmented-control/src/style.css": "1e479099f76adf96c1dcfef36d38c0543c94b77d74e1be46b490f90193a3da34",
+      "specs/modules/ui/hlp.ui.segmented-control/scenarios.json": "a76c980df120193d90e362576947ae42e5c4e69d900d874ff6c78f963bc44ce1",
+      "specs/modules/ui/hlp.ui.segmented-control/style.css": "1e479099f76adf96c1dcfef36d38c0543c94b77d74e1be46b490f90193a3da34"
+    }
+  }
+}

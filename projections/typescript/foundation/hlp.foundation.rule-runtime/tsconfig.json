@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2022"],
+    // Hermetic build: do NOT auto-include ambient `@types/*` packages discovered by
+    // walking up `node_modules/@types`. Without this, a non-isolated build (e.g. a
+    // worktree nested under a populated workspace) silently resolved `AbortSignal`
+    // from a parent `@types/node`, so `tsc` passed locally while CI's isolated
+    // `--ignore-workspace` build failed with TS2304. This pure-logic package needs no
+    // ambient types — `AbortSignal` is provided by the local `src/abort-signal.d.ts`
+    // shim — so pinning `types: []` makes the dist build deterministic across envs.
+    "types": [],
+    "declaration": true,
+    "declarationMap": false,
+    "emitDeclarationOnly": false,
+    "strict": true,
+    "skipLibCheck": true,
+    "outDir": "dist",
+    "rootDir": "src"
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/__tests__/**/*.test.ts", "dist"]
+}

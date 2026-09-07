@@ -1,0 +1,389 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.dialog",
+  "sourceFixture": "conformance/hlp.ui.dialog/fixtures.yaml",
+  "qualityFixture": "conformance/hlp.ui.dialog/quality-fixtures.yaml",
+  "galleryInterface": {
+    "probeAttribute": "data-gallery-probe",
+    "scenarioAttribute": "data-gallery-scenario",
+    "projectionTitles": {
+      "react": "Platform/Dialog",
+      "blazor": "Platform/Dialog"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "dialog.lifecycle-content",
+      "name": "Controlled lifecycle and content",
+      "surface": "lifecycle-content",
+      "sourceCaseIds": [
+        "dialog.closed-open-controlled",
+        "dialog.title-description",
+        "dialog.body-footer",
+        "dialog.modal-semantics",
+        "dialog.nested-content"
+      ],
+      "sourceQualityCaseIds": [
+        "dialog.quality.modal-name"
+      ],
+      "content": {
+        "blurb": "Title, description, body, footer, and nested controls share one controlled modal lifecycle.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "open": true,
+          "title": "Edit structure placement",
+          "description": "Review the blueprint and captured pose before saving.",
+          "closeIcon": true,
+          "closeOnOverlayClick": true,
+          "closeOnEscape": true
+        },
+        "opener": {
+          "control": "button",
+          "text": "Open structure dialog"
+        },
+        "status": {
+          "control": "output",
+          "live": "polite",
+          "text": "Open-change requests: {requests}"
+        },
+        "body": [
+          {
+            "control": "label",
+            "text": "Blueprint grid reference",
+            "child": {
+              "control": "input",
+              "value": "C-14"
+            }
+          },
+          {
+            "control": "button",
+            "text": "Preview pose"
+          }
+        ],
+        "footer": [
+          {
+            "control": "button",
+            "text": "Cancel",
+            "action": "close"
+          },
+          {
+            "control": "button",
+            "text": "Save placement",
+            "action": "close"
+          }
+        ],
+        "state": {
+          "requests": {
+            "kind": "counter",
+            "initial": 0
+          },
+          "revision": {
+            "kind": "counter",
+            "initial": 1
+          }
+        }
+      }
+    },
+    {
+      "id": "dialog.dismissal-focus",
+      "name": "Dismissal and focus lifecycle",
+      "surface": "dismissal-focus",
+      "sourceCaseIds": [
+        "dialog.close-control",
+        "dialog.escape-dismissal",
+        "dialog.overlay-dismissal",
+        "dialog.focus-entry-cycle-restore"
+      ],
+      "content": {
+        "blurb": "Close, Escape, and overlay dismissal each request closure once before focus returns to the opener.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "open": true,
+          "closeIcon": true,
+          "closeOnOverlayClick": true,
+          "closeOnEscape": true
+        },
+        "inherits": "dialog.lifecycle-content"
+      }
+    },
+    {
+      "id": "dialog.independent-dismissal",
+      "name": "Independent dismissal controls",
+      "surface": "independent-dismissal",
+      "sourceCaseIds": [
+        "dialog.independent-dismissal"
+      ],
+      "content": {
+        "blurb": "The close button and overlay are suppressed while Escape remains independently enabled.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "open": true,
+          "closeIcon": false,
+          "closeOnOverlayClick": false,
+          "closeOnEscape": true
+        },
+        "inherits": "dialog.lifecycle-content"
+      }
+    },
+    {
+      "id": "dialog.scroll-reflow",
+      "name": "Scrollable body and narrow reflow",
+      "surface": "scroll-reflow",
+      "sourceCaseIds": [
+        "dialog.scrollable-body",
+        "dialog.long-content-reflow"
+      ],
+      "sourceQualityCaseIds": [
+        "dialog.quality.reflow",
+        "dialog.quality.forced-colors"
+      ],
+      "content": {
+        "blurb": "Pinned chrome surrounds one keyboard-scrollable body at narrow widths and 200 percent zoom.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {},
+          "stageInlineSize": "360px"
+        },
+        "props": {
+          "open": true,
+          "closeIcon": true,
+          "closeOnOverlayClick": true,
+          "closeOnEscape": true
+        },
+        "inherits": "dialog.lifecycle-content",
+        "bodyAppend": [
+          {
+            "control": "repeat",
+            "count": 18,
+            "template": {
+              "control": "text",
+              "text": "Inspection note {n}: preserve alignment with the primary structural axis."
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "dialog.replacement",
+      "name": "Complete controlled replacement",
+      "surface": "replacement",
+      "sourceCaseIds": [
+        "dialog.replacement"
+      ],
+      "content": {
+        "blurb": "Title, description, body, footer, and policy follow the latest caller revision.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "open": true,
+          "title": "Edit structure placement · revision {revision}"
+        },
+        "inherits": "dialog.lifecycle-content"
+      }
+    },
+    {
+      "id": "dialog.locale-pseudo",
+      "name": "Pseudo-localized modal",
+      "surface": "locale-pseudo",
+      "sourceCaseIds": [
+        "dialog.title-description",
+        "dialog.long-content-reflow"
+      ],
+      "sourceQualityCaseIds": [
+        "dialog.quality.catalog",
+        "dialog.quality.pseudo"
+      ],
+      "content": {
+        "blurb": "Expanded modal copy and close chrome wrap without clipping or hiding controls.",
+        "environment": {
+          "locale": "en-XA",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {
+            "common.close": "⟦ Çļøšë đîåļøĝ ······ ⟧"
+          }
+        },
+        "props": {
+          "open": true,
+          "title": "⟦ Ëđîţ þhøţø-ŵîţh-þøšë þļåçëmëñţ ········ ⟧",
+          "description": "⟦ Řëṽîëŵ ţhë ƀļûëþřîñţ åñđ çåþţûřëđ þøšë ƀëƒøřë šåṽîñĝ. ········ ⟧"
+        },
+        "inherits": "dialog.lifecycle-content",
+        "body": [
+          {
+            "control": "label",
+            "text": "⟦ ßļûëþřîñţ ĝřîđ řëƒëřëñçë ······ ⟧",
+            "child": {
+              "control": "input",
+              "value": "C-14"
+            }
+          },
+          {
+            "control": "button",
+            "text": "⟦ Þřëṽîëŵ þøšë ······ ⟧"
+          }
+        ],
+        "footer": [
+          {
+            "control": "button",
+            "text": "⟦ Çåñçëļ ··· ⟧",
+            "action": "close"
+          },
+          {
+            "control": "button",
+            "text": "⟦ Šåṽë þļåçëmëñţ ······ ⟧",
+            "action": "close"
+          }
+        ]
+      }
+    },
+    {
+      "id": "dialog.locale-ar",
+      "name": "Arabic right-to-left modal",
+      "surface": "locale-ar",
+      "sourceCaseIds": [
+        "dialog.localized-close-rtl"
+      ],
+      "content": {
+        "blurb": "Direction, logical spacing, focus order, and localized close chrome mirror under Arabic.",
+        "environment": {
+          "locale": "ar-SA",
+          "direction": "rtl",
+          "theme": "light",
+          "catalog": {
+            "common.close": "إغلاق الحوار"
+          }
+        },
+        "props": {
+          "open": true,
+          "title": "تعديل موضع الالتقاط داخل الهيكل",
+          "description": "راجع المخطط وموضع الصورة قبل الحفظ."
+        },
+        "inherits": "dialog.lifecycle-content",
+        "body": [
+          {
+            "control": "label",
+            "text": "مرجع الشبكة",
+            "child": {
+              "control": "input",
+              "value": "C-14"
+            }
+          },
+          {
+            "control": "button",
+            "text": "معاينة الوضعية"
+          }
+        ],
+        "footer": [
+          {
+            "control": "button",
+            "text": "إلغاء",
+            "action": "close"
+          },
+          {
+            "control": "button",
+            "text": "حفظ الموضع",
+            "action": "close"
+          }
+        ]
+      }
+    },
+    {
+      "id": "dialog.theme-light",
+      "name": "Light theme",
+      "surface": "theme-light",
+      "sourceCaseIds": [
+        "dialog.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "dialog.quality.light-dark",
+        "dialog.quality.tokens",
+        "dialog.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "Overlay, surface, boundary, text, controls, and focus use Harborline light tokens.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "inherits": "dialog.lifecycle-content"
+      }
+    },
+    {
+      "id": "dialog.theme-dark",
+      "name": "Dark theme",
+      "surface": "theme-dark",
+      "sourceCaseIds": [
+        "dialog.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "dialog.quality.light-dark",
+        "dialog.quality.tokens",
+        "dialog.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "The same controlled modal surface on the Harborline dark theme.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "dark",
+          "catalog": {}
+        },
+        "inherits": "dialog.lifecycle-content"
+      }
+    },
+    {
+      "id": "dialog.content",
+      "name": "Content resilience",
+      "surface": "long-content",
+      "sourceCaseIds": [
+        "dialog.title-description",
+        "dialog.body-footer"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "Real content carries a long title, a grouped large number, escaped angle brackets and an ampersand, and a name with diacritics and an em dash.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<Dialog open onOpenChange={() => {}} title={'Awaiting third-party structural certification review'} description={'Bay 4 <grid C-7> & 8'} footer={<button type=\"button\">{'Ordnance Survey — Niño Ångström'}</button>}><p>{'1,284,905'}</p></Dialog>",
+            "blazor": "<HarborlineDialog Open=\"true\" Title=\"@(\"Awaiting third-party structural certification review\")\" Description=\"@(\"Bay 4 <grid C-7> & 8\")\"><ChildContent><p>1,284,905</p></ChildContent><Footer><button type=\"button\">Ordnance Survey — Niño Ångström</button></Footer></HarborlineDialog>",
+            "rationale": "The closed control vocabulary cannot express a dialog whose title, description, body, and footer simultaneously carry hostile-but-valid content."
+          }
+        ],
+        "footer": []
+      }
+    }
+  ]
+}

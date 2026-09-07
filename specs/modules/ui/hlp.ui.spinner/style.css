@@ -1,0 +1,18 @@
+.hl-spinner{display:inline-block;color:currentColor;animation:hl-spinner-spin 1s linear infinite;transform-origin:center}.hl-spinner--xs{width:.75rem;height:.75rem}.hl-spinner--sm{width:1rem;height:1rem}.hl-spinner--md{width:1.25rem;height:1.25rem}.hl-spinner--lg{width:1.5rem;height:1.5rem}.hl-spinner__track{opacity:.25}.hl-spinner__arc{opacity:.8}.hl-spinner--primary,.hl-spinner--info{color:var(--hl-primary)}.hl-spinner--secondary{color:var(--hl-muted-foreground)}.hl-spinner--tertiary{color:var(--hl-control-border)}.hl-spinner--success{color:var(--hl-success)}.hl-spinner--warning{color:var(--hl-warning)}.hl-spinner--error{color:var(--hl-danger)}.hl-spinner--inverse{color:var(--hl-primary-foreground)}/* The converging type draws a second arc meant to turn against the first. Both sit INSIDE the
+   root svg, which itself spins, so the child transform composed with the parent rather than
+   replacing it: the root turns +360deg/s and this arc turned -300deg/s of its own, netting a
+   +60deg/s crawl beside a fast arc instead of two turning symmetrically. That reads as an extra
+   fill drifting around. The root stops spinning for this type and each arc drives its own
+   rotation, so the two are genuinely opposite and equal. */
+.hl-spinner[data-hl-type='converging']{animation:none}
+/* transform-box is load-bearing. These arcs are <path> elements, and a path rotated about
+   `transform-origin: center` turns about the centre of ITS OWN bounding box unless the box is the
+   view-box -- (17,7) for the leading arc and (7,17) for the trailing one, not the ring's (12,12).
+   Each arc then orbits a different point, so the pair does not merely spin, it morphs: the shape
+   collapses into a hook and at one phase sweeps a bar straight across the ring. The single-arc
+   `ring` type never showed this because its animation is on the <svg> root, which is a box already. */
+.hl-spinner[data-hl-type='converging'] .hl-spinner__arc{animation:hl-spinner-spin 1s linear infinite;transform-box:view-box;transform-origin:center}
+/* Specificity, not order, decides this one. The rule above scores (0,3,0) and the reverse arc
+   carries both classes, so a bare `.hl-spinner__arc--reverse` at (0,1,0) lost the whole animation
+   shorthand and the two arcs turned the same way -- a converging spinner that never converged. */
+.hl-spinner[data-hl-type='converging'] .hl-spinner__arc--reverse{animation-name:hl-spinner-reverse}@keyframes hl-spinner-spin{to{transform:rotate(360deg)}}@keyframes hl-spinner-reverse{to{transform:rotate(-360deg)}}@media(prefers-reduced-motion:reduce){.hl-spinner,.hl-spinner__arc,.hl-spinner__arc--reverse{animation:none}}

@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.data-grid",
+  "verdict": "approved",
+  "reviewer": "cic",
+  "recordedAt": "2026-08-28T02:24:31.715Z",
+  "reference": {
+    "revision": "a47af9328ed05f29f78334774ea0771ebe67aa2f4a84b7f141c635636a55f64b",
+    "source": "gallery/scenarios/hlp.ui.data-grid.json",
+    "pin": "28e389ae42b64246f1c6d92e0002b78bc92791b3",
+    "surface": {
+      "conformance/hlp.ui.data-grid/fixtures.yaml": "5ea805121a4efdcc386e29c7649c5caa8dd03a653237243b9ed9eced542ef72e",
+      "conformance/hlp.ui.data-grid/quality-fixtures.yaml": "c6b26556aada76364834fd57b69d26d41a3181d47bfd459a878138b9161d730f",
+      "gallery/projections/blazor/Stories/DataGrid.stories.razor": "a7095af304a2c8b43ef26e5c766f9a058946686d15f8990430cc6690800d60e1",
+      "gallery/projections/blazor/Stories/DataGridScenario.razor": "3bc9ab5ca92da66befbae2708269881b7c8e4ec6fd9813102904a949743c7c9b",
+      "gallery/projections/react/src/DataGrid.stories.tsx": "6c61d9ffeb08ec750a84f9915d24aac23d07cd3d334a4de8597987bd95cb1ef7",
+      "gallery/scenarios/hlp.ui.data-grid.json": "3db24f57b8016ad90696a02f19c10df245abd2c4615d912dc53fdfcd278749ea",
+      "projections/blazor/ui/hlp.ui.data-grid/DataGridTypes.cs": "e481b32012595fd2facaf6a8d13ae6006d775293b2ec0c791daa4fb7b206f02b",
+      "projections/blazor/ui/hlp.ui.data-grid/ShipyardDataGrid.razor": "da65422b97de6b7441f53aa42dea537dc48333b9ced7332c7117e95f2995445b",
+      "projections/blazor/ui/hlp.ui.data-grid/wwwroot/data-grid-component.js": "0c1f1ea652198177cb124d9f3d72e218495282d6cc59aee6321fdebbd83da2ab",
+      "projections/blazor/ui/hlp.ui.data-grid/wwwroot/data-grid.css": "c5d00db2022a9b9eb1f5f0170a390e489660e2b77d3ab3efee55532067ec2c9a",
+      "projections/react/ui/hlp.ui.data-grid/src/DataGrid.tsx": "97401618813e9ec7c4f36f6cbeee8709fd0888ddf18a7285756dd871cd31f709",
+      "projections/react/ui/hlp.ui.data-grid/src/DataGrid.types.ts": "98e93dea97cc51b1f99a2c79d039ac02424c42ca8d76575f2d6cb5375ee6ded1",
+      "projections/react/ui/hlp.ui.data-grid/src/data-grid-model.ts": "af68097cc96dfad9fad55db66147a40476258a1669cbf3c15e0ecbb206979eea",
+      "projections/react/ui/hlp.ui.data-grid/src/index.ts": "bb2173fd8957f67a4cce55760c4330e1d7424bf412e59aee1fa70f6ac3f38fce",
+      "projections/react/ui/hlp.ui.data-grid/src/style.css": "deacf8fe036627c1d5e5b5b55159d7c4a906fa9d8d4acd612ec7fe221981afa5",
+      "specs/modules/ui/hlp.ui.data-grid/scenarios.json": "3db24f57b8016ad90696a02f19c10df245abd2c4615d912dc53fdfcd278749ea",
+      "specs/modules/ui/hlp.ui.data-grid/style.css": "deacf8fe036627c1d5e5b5b55159d7c4a906fa9d8d4acd612ec7fe221981afa5"
+    }
+  }
+}

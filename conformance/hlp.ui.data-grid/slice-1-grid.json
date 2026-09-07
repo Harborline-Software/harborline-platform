@@ -1,0 +1,149 @@
+{
+  "columns": [
+    { "id": "asset", "header": "Asset", "removalPriority": 100, "valueKind": "text" },
+    { "id": "reading", "header": "Reading", "removalPriority": 10, "valueKind": "number" },
+    { "id": "due", "header": "Due", "removalPriority": 60, "valueKind": "date" },
+    { "id": "status", "header": "Status", "removalPriority": 30, "valueKind": "text" }
+  ],
+  "rows": [
+    { "id": "a1", "asset": "Rig 4", "reading": 10, "due": "2026-09-04T00:00:00.000Z", "status": "open" },
+    { "id": "a2", "asset": "Rig 4", "reading": 20, "due": "2026-09-05T00:00:00.000Z", "status": "closed" },
+    { "id": "a3", "asset": "Rig 4", "reading": 20, "due": "2026-09-05T00:00:00.000Z", "status": "open" }
+  ],
+  "grouping": ["asset"],
+  "visibleColumnsByCapacity": [
+    { "capacity": 4, "ids": ["asset", "reading", "due", "status"] },
+    { "capacity": 3, "ids": ["asset", "due", "status"] },
+    { "capacity": 2, "ids": ["asset", "due"] },
+    { "capacity": 1, "ids": ["asset"] }
+  ],
+  "branchCells": [
+    "Rig 4 (3)",
+    "mixed — 2 number",
+    "mixed — 2 date",
+    "mixed — 2 text"
+  ],
+  "dateDistinctnessCases": [
+    {
+      "id": "same-instant-different-offset",
+      "values": ["2026-09-05T00:00:00.000Z", "2026-09-04T20:00:00.000-04:00"],
+      "expected": "single-valued"
+    },
+    {
+      "id": "different-instants",
+      "values": ["2026-09-04T00:00:00.000Z", "2026-09-05T00:00:00.000Z"],
+      "expected": "mixed — 2 date"
+    }
+  ],
+  "canonicalIdentityCases": [
+    { "id": "number-zero", "valueKind": "number", "runtimeType": "number", "value": 0, "expectedIdentity": "number:0" },
+    { "id": "number-exponent-threshold", "valueKind": "number", "runtimeType": "number", "value": 1e-7, "expectedIdentity": "number:1e-7" },
+    { "id": "number-decimal-spelling", "valueKind": "number", "runtimeType": "number", "value": 0.0000001, "expectedIdentity": "number:1e-7" },
+    { "id": "number-negative-zero", "valueKind": "number", "runtimeType": "number", "value": -0, "expectedIdentity": "number:0" },
+    { "id": "number-large-exponent-threshold", "valueKind": "number", "runtimeType": "number", "value": 1e21, "expectedIdentity": "number:1e+21" },
+    { "id": "number-large-fixed", "valueKind": "number", "runtimeType": "number", "value": 123456789012345680000, "expectedIdentity": "number:123456789012345680000" },
+    { "id": "number-positive-fraction", "valueKind": "number", "runtimeType": "number", "value": 1.5, "expectedIdentity": "number:1.5" },
+    { "id": "number-negative-fraction", "valueKind": "number", "runtimeType": "number", "value": -1.5, "expectedIdentity": "number:-1.5" },
+    { "id": "number-not-a-number", "valueKind": "number", "runtimeType": "numberSpecial", "value": "NaN", "expectedIdentity": "number:NaN" },
+    { "id": "number-max-safe-integer", "valueKind": "number", "runtimeType": "number", "value": 9007199254740991, "expectedIdentity": "number:9007199254740991" },
+    { "id": "number-two-to-53", "valueKind": "number", "runtimeType": "number", "value": 9007199254740992, "expectedIdentity": "number:9007199254740992" },
+    { "id": "number-two-to-53-plus-one", "valueKind": "number", "runtimeType": "number", "value": 9007199254740993, "expectedIdentity": "number:9007199254740992" },
+    { "id": "number-big-integer", "valueKind": "number", "runtimeType": "bigInteger", "value": "123456789012345678901234567890", "expectedIdentity": "number:1.2345678901234568e+29" },
+    { "id": "string-leading-space", "valueKind": "text", "runtimeType": "string", "value": " alpha", "expectedIdentity": "string: alpha" },
+    { "id": "string-trailing-space", "valueKind": "text", "runtimeType": "string", "value": "alpha ", "expectedIdentity": "string:alpha " },
+    { "id": "string-uppercase", "valueKind": "text", "runtimeType": "string", "value": "Alpha", "expectedIdentity": "string:Alpha" },
+    { "id": "string-lowercase", "valueKind": "text", "runtimeType": "string", "value": "alpha", "expectedIdentity": "string:alpha" },
+    { "id": "string-empty", "valueKind": "text", "runtimeType": "string", "value": "", "expectedIdentity": "string:" },
+    { "id": "null", "valueKind": "text", "runtimeType": "null", "value": null, "expectedIdentity": "null:" },
+    { "id": "date-string-utc", "valueKind": "date", "runtimeType": "string", "value": "2026-09-05T00:00:00.000Z", "expectedIdentity": "date:1788566400000" },
+    { "id": "date-string-offset", "valueKind": "date", "runtimeType": "string", "value": "2026-09-04T20:00:00.000-04:00", "expectedIdentity": "date:1788566400000" },
+    { "id": "date-time-offset-utc", "valueKind": "date", "runtimeType": "dateTimeOffset", "value": "2026-09-05T00:00:00.000Z", "expectedIdentity": "date:1788566400000" },
+    { "id": "date-time-offset-offset", "valueKind": "date", "runtimeType": "dateTimeOffset", "value": "2026-09-04T20:00:00.000-04:00", "expectedIdentity": "date:1788566400000" },
+    { "id": "date-time-utc", "valueKind": "date", "runtimeType": "dateTime", "value": "2026-09-05T00:00:00.000Z", "expectedIdentity": "date:1788566400000" },
+    { "id": "date-time-offset", "valueKind": "date", "runtimeType": "dateTime", "value": "2026-09-04T20:00:00.000-04:00", "expectedIdentity": "date:1788566400000" }
+  ],
+  "aggregateRepresentative": {
+    "rule": "first-by-source-order",
+    "valueKind": "date",
+    "values": ["2026-09-05T00:00:00.000Z", "2026-09-04T20:00:00.000-04:00"],
+    "expectedLabel": "2026-09-05T00:00:00.000Z"
+  },
+  "focusRecovery": {
+    "rule": "nearest-survivor-by-column-order",
+    "focusedColumnId": "status",
+    "afterCapacity": 2,
+    "expectedColumnId": "due"
+  },
+  "groupingIdentityCases": [
+    {
+      "id": "text",
+      "valueKind": "text",
+      "runtimeType": "string",
+      "rows": [
+        { "id": "text-1", "value": "alpha" },
+        { "id": "text-2", "value": "alpha" },
+        { "id": "text-3", "value": "beta" }
+      ],
+      "expectedGroupKeys": [
+        "root/group:0:5:value:12:string:alpha",
+        "root/group:0:5:value:11:string:beta"
+      ]
+    },
+    {
+      "id": "number",
+      "valueKind": "number",
+      "runtimeType": "number",
+      "rows": [
+        { "id": "number-1", "value": 10 },
+        { "id": "number-2", "value": 10 },
+        { "id": "number-3", "value": 20 }
+      ],
+      "expectedGroupKeys": [
+        "root/group:0:5:value:9:number:10",
+        "root/group:0:5:value:9:number:20"
+      ]
+    },
+    {
+      "id": "date-string",
+      "valueKind": "date",
+      "runtimeType": "string",
+      "rows": [
+        { "id": "date-string-1", "value": "2026-09-05T00:00:00.000Z" },
+        { "id": "date-string-2", "value": "2026-09-04T20:00:00.000-04:00" },
+        { "id": "date-string-3", "value": "2026-09-06T00:00:00.000Z" }
+      ],
+      "expectedGroupKeys": [
+        "root/group:0:5:value:18:date:1788566400000",
+        "root/group:0:5:value:18:date:1788652800000"
+      ]
+    },
+    {
+      "id": "date-time-offset",
+      "valueKind": "date",
+      "runtimeType": "dateTimeOffset",
+      "rows": [
+        { "id": "date-time-offset-1", "value": "2026-09-05T00:00:00.000Z" },
+        { "id": "date-time-offset-2", "value": "2026-09-04T20:00:00.000-04:00" },
+        { "id": "date-time-offset-3", "value": "2026-09-06T00:00:00.000Z" }
+      ],
+      "expectedGroupKeys": [
+        "root/group:0:5:value:18:date:1788566400000",
+        "root/group:0:5:value:18:date:1788652800000"
+      ]
+    },
+    {
+      "id": "date-time",
+      "valueKind": "date",
+      "runtimeType": "dateTime",
+      "rows": [
+        { "id": "date-time-1", "value": "2026-09-05T00:00:00.000Z" },
+        { "id": "date-time-2", "value": "2026-09-04T20:00:00.000-04:00" },
+        { "id": "date-time-3", "value": "2026-09-06T00:00:00.000Z" }
+      ],
+      "expectedGroupKeys": [
+        "root/group:0:5:value:18:date:1788566400000",
+        "root/group:0:5:value:18:date:1788652800000"
+      ]
+    }
+  ]
+}

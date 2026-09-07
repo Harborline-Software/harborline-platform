@@ -1,0 +1,14 @@
+{"schemaVersion":1,"moduleId":"hlp.ui.chip","fixtureRevision":1,"cases":[
+  {"id":"chip.content","input":{"text":"Priority"},"expected":{"text":"Priority","accessibleName":"Priority"}},
+  {"id":"chip.defaults","input":{},"expected":{"selected":false,"disabled":false,"removable":false,"fillMode":"solid","themeColor":"base","size":"md","rounded":"full"}},
+  {"id":"chip.uncontrolled-selection","input":{"defaultSelected":false,"activations":2},"expected":{"states":[true,false],"changeCount":2}},
+  {"id":"chip.controlled-selection","input":{"selected":false,"activations":1},"expected":{"renderedSelected":false,"requested":[true]}},
+  {"id":"chip.disabled","input":{"disabled":true,"selectable":true,"removable":true,"activations":2},"expected":{"selectionCount":0,"removeCount":0,"nativeDisabled":true}},
+  {"id":"chip.remove","input":{"removable":true,"removeLabel":"Remove Priority","keys":["Enter","Space","Backspace","Delete"]},"expected":{"separateButton":true,"accessibleName":"Remove Priority","minimumTarget":24,"removeCountPerActivation":1}},
+  {"id":"chip.remove-no-toggle","input":{"selected":false,"removable":true,"activateRemove":true},"expected":{"removeCount":1,"selectionCount":0,"propagationStopped":true}},
+  {"id":"chip.noninteractive","input":{"selectable":false,"removable":false,"onClick":false},"expected":{"element":"span","interactiveRole":null}},
+  {"id":"chip.icon-avatar","input":{"icon":true,"avatar":"person.png"},"expected":{"iconDecorative":true,"avatarDecorative":true,"order":["avatar","icon","text"]}},
+  {"id":"chip.style-axes","input":{"fillMode":"outline","themeColor":"warning","size":"lg","rounded":"small"},"expected":{"independentAxes":true}},
+  {"id":"chip.rtl","input":{"direction":"rtl"},"expected":{"logicalSpacing":true,"semanticsUnchanged":true}},
+  {"id":"chip.invalid-input","input":{"text":"","accessibleLabel":""},"expected":{"errors":["accessible-content-required"]}}
+]}

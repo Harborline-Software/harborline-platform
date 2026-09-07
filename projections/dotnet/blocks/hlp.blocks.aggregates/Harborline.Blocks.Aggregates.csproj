@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <HarborlinePublicDistributionAuthorized>false</HarborlinePublicDistributionAuthorized>
+    <PackageId>Harborline.Blocks.Aggregates</PackageId>
+    <AssemblyName>Harborline.Blocks.Aggregates</AssemblyName>
+    <RootNamespace>Harborline.Blocks.Aggregates</RootNamespace>
+    <Description>Provider-neutral, deterministic aggregation definitions and evaluation for Harborline Platform.</Description>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageReleaseNotes>Internal-only projection; public distribution is not authorized.</PackageReleaseNotes>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Harborline.Blocks.Aggregates.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="/" />
+    <None Include="../../../../LICENSE" Link="LICENSE" Pack="true" PackagePath="/" />
+  </ItemGroup>
+</Project>

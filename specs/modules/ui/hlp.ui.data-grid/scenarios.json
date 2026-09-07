@@ -1,0 +1,421 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.data-grid",
+  "sourceFixture": "conformance/hlp.ui.data-grid/fixtures.yaml",
+  "qualityFixture": "conformance/hlp.ui.data-grid/quality-fixtures.yaml",
+  "galleryInterface": {
+    "probeAttribute": "data-gallery-probe",
+    "scenarioAttribute": "data-gallery-scenario",
+    "projectionTitles": {
+      "react": "Platform/Data Grid",
+      "blazor": "Platform/Data Grid"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "data-grid.app-grid-dump",
+      "name": "Harborline grid dump",
+      "surface": "app-grid-dump",
+      "sourceCaseIds": [
+        "data-grid.app-grid-dump",
+        "data-grid.custom-cell",
+        "data-grid.zebra-grouping"
+      ],
+      "sourceQualityCaseIds": [
+        "data-grid.quality.relationships",
+        "data-grid.quality.row-metadata",
+        "data-grid.quality.tokens",
+        "data-grid.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "Sixty ordered assets retain stable identity, caller-owned status content, and leaf-only zebra presentation.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "accessibleName": "Asset inventory",
+          "columns": [
+            "Structure",
+            "Area",
+            "Inspection"
+          ],
+          "rowCount": 60,
+          "zebra": true
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<DataGrid accessibleName={isArabic ? 'مخزون الأصول' : isPseudo ? '⟦ Åššëţ îñṽëñţøřÿ ······ ⟧' : 'Asset inventory'} columns={columns} empty={isArabic ? 'لا توجد نتائج.' : undefined} getRowId={row => row.id} grouping={isKeyboard ? ['structure'] : undefined} rows={rows} zebra />",
+            "blazor": "<HarborlineDataGrid TRow=\"AssetRow\" AccessibleLabel=\"@AccessibleLabel\" Columns=\"@AssetColumnsForScenario\" Empty=\"@Empty\" GetRowId=\"@(row => row.Id)\" Grouping=\"@AssetGrouping\" Rows=\"@AssetRows\" Zebra />",
+            "rationale": "The closed controls cannot express a semantic data grid with column definitions, stable row identity, generated rows, zebra styling, or its custom status-cell behavior."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "data-grid.app-grouped-report",
+      "name": "Harborline grouped report",
+      "surface": "app-grouped-report",
+      "interaction": "keyboard",
+      "sourceCaseIds": [
+        "data-grid.app-grouped-report"
+      ],
+      "sourceQualityCaseIds": [
+        "data-grid.quality.relationships",
+        "data-grid.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "Three first-seen property groups retain every visible column and name mixed child values.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "accessibleName": "Grouped analytical report",
+          "columns": [
+            "Property",
+            "Category",
+            "Status",
+            "Replacement cost"
+          ],
+          "grouping": [
+            "property"
+          ],
+          "rowCount": 8,
+          "zebra": true
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<DataGrid accessibleName=\"Grouped analytical report\" columns={reportColumns} getRowId={row => row.id} grouping={['property']} rows={groupedReportRows} zebra />",
+            "blazor": "<HarborlineDataGrid TRow=\"ReportRow\" AccessibleLabel=\"Grouped analytical report\" Columns=\"@ReportColumns\" GetRowId=\"@(row => row.Id)\" Grouping=\"@PropertyGrouping\" Rows=\"@GroupedReportRows\" Zebra />",
+            "rationale": "The closed controls cannot express grid columns, first-seen row grouping, disclosure behavior, stable row identity, numeric value semantics, or zebra styling."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "data-grid.replacement-state",
+      "name": "Complete replacement",
+      "surface": "replacement-state",
+      "interaction": "pointer",
+      "sourceCaseIds": [
+        "data-grid.column-order",
+        "data-grid.row-replacement",
+        "data-grid.group-replacement",
+        "data-grid.identity-errors"
+      ],
+      "sourceQualityCaseIds": [
+        "data-grid.quality.row-metadata"
+      ],
+      "content": {
+        "blurb": "Rows, columns, groups, focus, and expansion follow the latest caller state without stale content.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "accessibleName": "Asset inventory",
+          "columns": [
+            "Structure",
+            "Area",
+            "Inspection"
+          ],
+          "rowCount": 12,
+          "zebra": true
+        },
+        "state": {
+          "revision": {
+            "kind": "counter",
+            "initial": 0
+          }
+        },
+        "body": [
+          {
+            "control": "button",
+            "text": "Replace rows and columns",
+            "action": "increment:revision"
+          },
+          {
+            "control": "raw",
+            "react": "<DataGrid accessibleName={isArabic ? 'مخزون الأصول' : isPseudo ? '⟦ Åššëţ îñṽëñţøřÿ ······ ⟧' : 'Asset inventory'} columns={columns} empty={isArabic ? 'لا توجد نتائج.' : undefined} getRowId={row => row.id} grouping={isKeyboard ? ['structure'] : undefined} rows={rows} zebra />",
+            "blazor": "<HarborlineDataGrid TRow=\"AssetRow\" AccessibleLabel=\"@AccessibleLabel\" Columns=\"@AssetColumnsForScenario\" Empty=\"@Empty\" GetRowId=\"@(row => row.Id)\" Grouping=\"@AssetGrouping\" Rows=\"@AssetRows\" Zebra />",
+            "rationale": "The closed controls cannot express atomic replacement of data-grid column and row collections, stable row identity, or the resulting grid focus and expansion reset."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "data-grid.keyboard-focus",
+      "name": "Keyboard and focus",
+      "surface": "keyboard-focus",
+      "interaction": "keyboard",
+      "sourceCaseIds": [
+        "data-grid.keyboard-small"
+      ],
+      "sourceQualityCaseIds": [
+        "data-grid.quality.reflow",
+        "data-grid.quality.forced-colors"
+      ],
+      "content": {
+        "blurb": "One tab stop supports arrows, Home, End, corner navigation, and group disclosure.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "accessibleName": "Asset inventory",
+          "columns": [
+            "Structure",
+            "Area",
+            "Inspection"
+          ],
+          "grouping": [
+            "structure"
+          ],
+          "rowCount": 3,
+          "zebra": true
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<DataGrid accessibleName={isArabic ? 'مخزون الأصول' : isPseudo ? '⟦ Åššëţ îñṽëñţøřÿ ······ ⟧' : 'Asset inventory'} columns={columns} empty={isArabic ? 'لا توجد نتائج.' : undefined} getRowId={row => row.id} grouping={isKeyboard ? ['structure'] : undefined} rows={rows} zebra />",
+            "blazor": "<HarborlineDataGrid TRow=\"AssetRow\" AccessibleLabel=\"@AccessibleLabel\" Columns=\"@AssetColumnsForScenario\" Empty=\"@Empty\" GetRowId=\"@(row => row.Id)\" Grouping=\"@AssetGrouping\" Rows=\"@AssetRows\" Zebra />",
+            "rationale": "The closed controls cannot express the grid's roving focus model, cell navigation, group disclosure, column definitions, or generated rows."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "data-grid.large-data",
+      "name": "Bounded large data",
+      "surface": "large-data",
+      "sourceCaseIds": [
+        "data-grid.large-data",
+        "data-grid.repeated-update",
+        "data-grid.provider-isolation",
+        "data-grid.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "data-grid.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "Ten thousand rows and twenty columns preserve total-row semantics through a bounded rendered window.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "accessibleName": "Large asset inventory",
+          "columnCount": 20,
+          "rowCount": 10000,
+          "zebra": true
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<DataGrid accessibleName=\"Large asset inventory\" columns={largeColumns} getRowId={row => row.id} rows={largeRows} zebra />",
+            "blazor": "<HarborlineDataGrid TRow=\"LargeRow\" AccessibleLabel=\"Large asset inventory\" Columns=\"@LargeColumns\" GetRowId=\"@(row => row.Id)\" Rows=\"@LargeRows\" Zebra />",
+            "rationale": "The closed controls cannot express a virtualized data grid, its twenty generated columns, ten thousand generated rows, stable identities, or bounded rendering behavior."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "data-grid.locale-pseudo",
+      "name": "Pseudo locale",
+      "surface": "locale-pseudo",
+      "sourceCaseIds": [
+        "data-grid.localized-context"
+      ],
+      "sourceQualityCaseIds": [
+        "data-grid.quality.labels",
+        "data-grid.quality.pseudo"
+      ],
+      "content": {
+        "blurb": "Expanded caller labels remain readable and reachable without changing source order.",
+        "environment": {
+          "locale": "en-XA",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "accessibleName": "⟦ Åššëţ îñṽëñţøřÿ ······ ⟧",
+          "columns": [
+            "⟦ Šţřûçţûřë ···· ⟧",
+            "⟦ Îñšþëçţîøñ åřëå ······ ⟧",
+            "⟦ Çûřřëñţ šţåţûš ······ ⟧"
+          ],
+          "rowCount": 12,
+          "zebra": true
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<DataGrid accessibleName={isArabic ? 'مخزون الأصول' : isPseudo ? '⟦ Åššëţ îñṽëñţøřÿ ······ ⟧' : 'Asset inventory'} columns={columns} empty={isArabic ? 'لا توجد نتائج.' : undefined} getRowId={row => row.id} grouping={isKeyboard ? ['structure'] : undefined} rows={rows} zebra />",
+            "blazor": "<HarborlineDataGrid TRow=\"AssetRow\" AccessibleLabel=\"@AccessibleLabel\" Columns=\"@AssetColumnsForScenario\" Empty=\"@Empty\" GetRowId=\"@(row => row.Id)\" Grouping=\"@AssetGrouping\" Rows=\"@AssetRows\" Zebra />",
+            "rationale": "The closed controls cannot express a localized semantic data grid with column definitions, generated rows, stable identities, and zebra styling."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "data-grid.locale-ar",
+      "name": "Arabic RTL",
+      "surface": "locale-ar",
+      "sourceCaseIds": [
+        "data-grid.localized-context"
+      ],
+      "sourceQualityCaseIds": [
+        "data-grid.quality.labels"
+      ],
+      "content": {
+        "blurb": "Direction and scrolling use logical edges while row, column, and grouping order remain caller-owned.",
+        "environment": {
+          "locale": "ar-SA",
+          "direction": "rtl",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "accessibleName": "مخزون الأصول",
+          "columns": [
+            "الهيكل",
+            "المنطقة",
+            "الحالة"
+          ],
+          "empty": "لا توجد نتائج.",
+          "rowCount": 12,
+          "zebra": true
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<DataGrid accessibleName={isArabic ? 'مخزون الأصول' : isPseudo ? '⟦ Åššëţ îñṽëñţøřÿ ······ ⟧' : 'Asset inventory'} columns={columns} empty={isArabic ? 'لا توجد نتائج.' : undefined} getRowId={row => row.id} grouping={isKeyboard ? ['structure'] : undefined} rows={rows} zebra />",
+            "blazor": "<HarborlineDataGrid TRow=\"AssetRow\" AccessibleLabel=\"@AccessibleLabel\" Columns=\"@AssetColumnsForScenario\" Empty=\"@Empty\" GetRowId=\"@(row => row.Id)\" Grouping=\"@AssetGrouping\" Rows=\"@AssetRows\" Zebra />",
+            "rationale": "The closed controls cannot express an RTL semantic data grid with localized columns, logical scrolling, generated rows, stable identities, and zebra styling."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "data-grid.theme-light",
+      "name": "Light theme",
+      "surface": "theme-light",
+      "sourceCaseIds": [
+        "data-grid.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "data-grid.quality.light-dark",
+        "data-grid.quality.tokens",
+        "data-grid.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "Semantic surface, border, grouping, status, and focus tokens on the Harborline light theme.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "accessibleName": "Asset inventory",
+          "columns": [
+            "Structure",
+            "Area",
+            "Inspection"
+          ],
+          "rowCount": 12,
+          "zebra": true
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<DataGrid accessibleName={isArabic ? 'مخزون الأصول' : isPseudo ? '⟦ Åššëţ îñṽëñţøřÿ ······ ⟧' : 'Asset inventory'} columns={columns} empty={isArabic ? 'لا توجد نتائج.' : undefined} getRowId={row => row.id} grouping={isKeyboard ? ['structure'] : undefined} rows={rows} zebra />",
+            "blazor": "<HarborlineDataGrid TRow=\"AssetRow\" AccessibleLabel=\"@AccessibleLabel\" Columns=\"@AssetColumnsForScenario\" Empty=\"@Empty\" GetRowId=\"@(row => row.Id)\" Grouping=\"@AssetGrouping\" Rows=\"@AssetRows\" Zebra />",
+            "rationale": "The closed controls cannot express a semantic data grid with tokenized surface, border, status and focus presentation, column definitions, generated rows, or stable row identity."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "data-grid.theme-dark",
+      "name": "Dark theme",
+      "surface": "theme-dark",
+      "sourceCaseIds": [
+        "data-grid.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "data-grid.quality.light-dark",
+        "data-grid.quality.tokens",
+        "data-grid.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "The same provider-neutral grid semantics on the Harborline dark theme.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "dark",
+          "catalog": {}
+        },
+        "inherits": "data-grid.theme-light"
+      }
+    },
+    {
+      "id": "data-grid.empty-state",
+      "name": "Empty state",
+      "surface": "empty",
+      "sourceCaseIds": [
+        "data-grid.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "The data grid renders caller-provided empty content while preserving its accessible grid name and columns.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<DataGrid accessibleName=\"Empty asset inventory\" columns={compactColumns} empty=\"No assets found.\" getRowId={row => row.id} rows={[]} />",
+            "blazor": "<HarborlineDataGrid TRow=\"AssetRow\" AccessibleLabel=\"Empty asset inventory\" Columns=\"@CompactColumns\" Empty=\"No assets found.\" GetRowId=\"@(row => row.Id)\" Rows=\"@EmptyAssetRows\" />",
+            "rationale": "The closed control vocabulary cannot express the data grid's empty prop, column structure, or accessible grid name in both projection lanes."
+          }
+        ],
+        "footer": []
+      }
+    }
+  ]
+}

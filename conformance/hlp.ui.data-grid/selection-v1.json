@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 1,
+  "fixtureRevision": 1,
+  "staticFixture": "slice-1-grid.json",
+  "authority": {
+    "peek": "drilldown-model.md row 0 — a single click or an Arrow key selects one row for peek; the list keeps that selection.",
+    "commit": "drilldown-model.md row 1 — Enter or a double click opens the row; the grid emits a declared host action and never navigates itself.",
+    "preservedListState": "L1701 — closing the inspector preserves the grid's scroll position, selection and column widths.",
+    "inspector": "tree-grid-model.md §5 — selection still drives the inspector."
+  },
+  "seam": {
+    "state": "listState / ListState",
+    "changed": "onListStateChange / ListStateChanged",
+    "commit": "onRowActivate / OnRowActivate",
+    "note": "One state object carries selection, scroll and column widths in and out. The grid never publishes selection through a second channel and never re-decides it downstream."
+  },
+  "initial": { "selectedRowId": null, "scrollTop": 0, "columnWidths": {} },
+  "commitKeys": ["Enter"],
+  "peekKeys": ["ArrowDown", "ArrowUp"],
+  "columnKeys": ["ArrowRight", "ArrowLeft"],
+  "rowHeight": 44,
+  "minimumColumnWidth": 160,
+  "transitions": [
+    { "id": "click peeks", "action": { "kind": "click", "rowId": "a1" }, "expect": { "selectedRowId": "a1", "activations": [], "ariaSelected": ["a1"] } },
+    { "id": "ArrowDown peeks the next row", "action": { "kind": "key", "rowId": "a1", "key": "ArrowDown" }, "expect": { "selectedRowId": "a2", "activations": [], "ariaSelected": ["a2"] } },
+    { "id": "ArrowUp peeks the previous row", "action": { "kind": "key", "rowId": "a2", "key": "ArrowUp" }, "expect": { "selectedRowId": "a1", "activations": [], "ariaSelected": ["a1"] } },
+    { "id": "Enter commits and never moves the selection", "action": { "kind": "key", "rowId": "a1", "key": "Enter" }, "expect": { "selectedRowId": "a1", "activations": ["a1"], "ariaSelected": ["a1"] } },
+    { "id": "ArrowRight walks columns without changing the selection", "action": { "kind": "key", "rowId": "a1", "key": "ArrowRight" }, "expect": { "selectedRowId": "a1", "activations": ["a1"], "ariaSelected": ["a1"] } },
+    { "id": "a double click commits the row it lands on", "action": { "kind": "doubleClick", "rowId": "a3" }, "expect": { "selectedRowId": "a3", "activations": ["a1", "a3"], "ariaSelected": ["a3"] } },
+    { "id": "grouping keeps the selection", "action": { "kind": "grouping", "grouping": ["asset"] }, "expect": { "selectedRowId": "a3", "activations": ["a1", "a3"], "ariaSelected": ["a3"] } },
+    { "id": "removing columns keeps the selection", "action": { "kind": "capacity", "capacity": 1 }, "expect": { "selectedRowId": "a3", "activations": ["a1", "a3"], "ariaSelected": ["a3"] } }
+  ],
+  "lazyExpansion": {
+    "branchId": "rig",
+    "branchAsset": "Rig 4",
+    "count": 612,
+    "childIds": ["a1", "a2", "a3"],
+    "selectRowId": "a2",
+    "collapseKey": "ArrowLeft",
+    "expandKey": "ArrowRight",
+    "note": "Selection is remembered by row id, not by a visible-row object: collapsing hides the row, re-expanding shows it selected again, and a re-materialised equal snapshot changes nothing."
+  },
+  "preservedListState": {
+    "rowCount": 120,
+    "idPrefix": "s",
+    "capacity": 2,
+    "scrollTop": 1760,
+    "selectRowId": "s45",
+    "expectedColumnIds": ["asset", "due"],
+    "expectedColumnWidths": { "asset": 160, "due": 160 },
+    "expectedFirstRenderedId": "s40",
+    "note": "Closing the inspector unmounts and remounts the grid. The remount is handed the published state and must render the same scroll offset, the same selection and the same retained columns on its FIRST render, before any width measurement."
+  },
+  "nonPeekGestures": {
+    "rowCount": 120,
+    "idPrefix": "n",
+    "scrollRowIndex": 60,
+    "startFocusRowId": "n5",
+    "startFocusColumnId": "reading",
+    "startSelections": [null, "n5", "n90"],
+    "note": "Selection changes ONLY on a declared peek gesture (peekKeys or a single click) or a host-supplied selectedRowId. Every route below moves focus and must leave selectedRowId exactly as it was, in both shells, from every starting selection in startSelections (none, a focused leaf, a leaf that the gesture leaves off screen). expectFocusRow/expectFocusColumn name the single rendered tab stop after the gesture: 'same' the cell it started on, 'first'/'last' the first/last visible row or column, 'windowStart' the first row of the new scroll window, 'none' no rendered tab stop; any other value is a literal column id.",
+    "gestures": [
+      { "id": "Home walks to the first column", "kind": "key", "key": "Home", "expectFocusRow": "same", "expectFocusColumn": "first" },
+      { "id": "End walks to the last column", "kind": "key", "key": "End", "expectFocusRow": "same", "expectFocusColumn": "last" },
+      { "id": "Ctrl+Home jumps to the first row", "kind": "key", "key": "Home", "ctrlKey": true, "expectFocusRow": "first", "expectFocusColumn": "first" },
+      { "id": "Ctrl+End jumps to the last row", "kind": "key", "key": "End", "ctrlKey": true, "expectFocusRow": "last", "expectFocusColumn": "last" },
+      { "id": "PageDown is not a grid gesture", "kind": "key", "key": "PageDown", "expectFocusRow": "same", "expectFocusColumn": "same" },
+      { "id": "PageUp is not a grid gesture", "kind": "key", "key": "PageUp", "expectFocusRow": "same", "expectFocusColumn": "same" },
+      { "id": "Tab leaves the grid", "kind": "key", "key": "Tab", "expectFocusRow": "same", "expectFocusColumn": "same" },
+      { "id": "a scroll with focus inside carries the tab stop into the new window", "kind": "scroll", "focusInside": true, "expectFocusRow": "windowStart", "expectFocusColumn": "same" },
+      { "id": "a scroll with focus outside carries nothing", "kind": "scroll", "focusInside": false, "expectFocusRow": "none", "expectFocusColumn": "none" },
+      { "id": "removing every removable column recovers focus onto the survivor", "kind": "capacity", "capacity": 1, "expectFocusRow": "same", "expectFocusColumn": "first" },
+      { "id": "replacing the column set keeps focus on a surviving column", "kind": "capacity", "capacity": 3, "expectFocusRow": "same", "expectFocusColumn": "due" }
+    ]
+  },
+  "validationCases": [
+    { "id": "commit-without-callback", "rowId": "a1", "expected": "no activation, no error" }
+  ]
+}

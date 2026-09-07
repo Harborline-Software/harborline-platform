@@ -1,0 +1,57 @@
+@if (Prefix is null && Suffix is null)
+{
+  <HarborlineInput Id="@Id" Name="@Name" Type="@Type" Value="@value" ValueChanged="HandleChanged"
+                 AccessibleLabel="@AccessibleLabel" Placeholder="@Placeholder" Direction="@Direction"
+                 InputMode="@InputMode" Size="@Size" FillMode="@FillMode" Rounded="@Rounded" @attributes="AdditionalAttributes" />
+}
+else if (Suffix is null)
+{
+  <HarborlineInput Id="@Id" Name="@Name" Type="@Type" Value="@value" ValueChanged="HandleChanged"
+                 AccessibleLabel="@AccessibleLabel" Placeholder="@Placeholder" Direction="@Direction"
+                 InputMode="@InputMode" Size="@Size" FillMode="@FillMode" Rounded="@Rounded" @attributes="AdditionalAttributes">
+    <Prefix>@Prefix</Prefix>
+  </HarborlineInput>
+}
+else if (Prefix is null)
+{
+  <HarborlineInput Id="@Id" Name="@Name" Type="@Type" Value="@value" ValueChanged="HandleChanged"
+                 AccessibleLabel="@AccessibleLabel" Placeholder="@Placeholder" Direction="@Direction"
+                 InputMode="@InputMode" Size="@Size" FillMode="@FillMode" Rounded="@Rounded" @attributes="AdditionalAttributes">
+    <Suffix>@Suffix</Suffix>
+  </HarborlineInput>
+}
+else
+{
+  <HarborlineInput Id="@Id" Name="@Name" Type="@Type" Value="@value" ValueChanged="HandleChanged"
+                 AccessibleLabel="@AccessibleLabel" Placeholder="@Placeholder" Direction="@Direction"
+                 InputMode="@InputMode" Size="@Size" FillMode="@FillMode" Rounded="@Rounded" @attributes="AdditionalAttributes">
+    <Prefix>@Prefix</Prefix><Suffix>@Suffix</Suffix>
+  </HarborlineInput>
+}
+
+@code {
+  [Parameter] public string? Id { get; set; }
+  [Parameter] public string? Name { get; set; }
+  [Parameter] public string Type { get; set; } = "text";
+  [Parameter] public string InitialValue { get; set; } = string.Empty;
+  [Parameter] public string? AccessibleLabel { get; set; }
+  [Parameter] public string? Placeholder { get; set; }
+  [Parameter] public string? Direction { get; set; }
+  [Parameter] public string? InputMode { get; set; }
+  [Parameter] public InputSize Size { get; set; } = InputSize.Md;
+  [Parameter] public InputFillMode FillMode { get; set; } = InputFillMode.Solid;
+  [Parameter] public InputRounded Rounded { get; set; } = InputRounded.Medium;
+  [Parameter] public RenderFragment? Prefix { get; set; }
+  [Parameter] public RenderFragment? Suffix { get; set; }
+  [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+  private string value = string.Empty;
+  private bool initialized;
+
+  protected override void OnParametersSet()
+  {
+    if (!initialized) { value = InitialValue; initialized = true; }
+  }
+
+  private void HandleChanged(string next) => value = next;
+}

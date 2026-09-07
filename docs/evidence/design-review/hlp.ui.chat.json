@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.chat",
+  "verdict": "approved",
+  "reviewer": "cic",
+  "recordedAt": "2026-08-26T20:08:53.451Z",
+  "reference": {
+    "revision": "bbdd0af51bfb3e817c8b43898965107f7a75aa66912591a118ddc5044a64f2ab",
+    "source": "gallery/scenarios/hlp.ui.chat.json",
+    "pin": "809d6b0fbcc37be25e2ec164883bd9379a15c457",
+    "surface": {
+      "conformance/hlp.ui.chat/fixtures.yaml": "36a0698aee0760df32c023ad35ddedeb5d9869e4e6b43324bd239cf5e35bdec1",
+      "conformance/hlp.ui.chat/quality-fixtures.yaml": "fc0710d9a8aeb145620194452980b10771f604b5bfb924d54f136c4b5ccefa13",
+      "gallery/projections/blazor/Stories/Chat.stories.razor": "17fa2433d458c5670bae3693b00a051177db99a79c16acdda3a3c573c336161e",
+      "gallery/projections/blazor/Stories/ChatScenario.razor": "a0340b1ccd95d2b0cee95d940606cbf189f06e96f2cbf3489ea52318cdcb1aec",
+      "gallery/projections/react/src/Chat.stories.tsx": "7f810e9d2e989168130154b546dc58d5ea5beb86fa171699319692e52a5e2f98",
+      "gallery/scenarios/hlp.ui.chat.json": "d9da777837ca2554e72cc0798112bd170fab5db46cc638a660baac40b5e80f58",
+      "projections/blazor/ui/hlp.ui.chat/ChatTypes.cs": "e2fadf5129f4cb721e11c675ca129b9134b100c48b482b5f2495f278f2eddf94",
+      "projections/blazor/ui/hlp.ui.chat/ShipyardChat.razor": "56d71985a1c22cee9779796266752657870597f581389af9a5a7cc9ee94510f6",
+      "projections/blazor/ui/hlp.ui.chat/wwwroot/chat.css": "f9fde924b278420add2f6f3af9bb20653e54721ecaaf66fc509c3c2c9635fa50",
+      "projections/blazor/ui/hlp.ui.chat/wwwroot/chat.js": "f02153cb8af6c8f9f27bdd9bfe8bc1836ed82af98819b126f4af9c7a058b2347",
+      "projections/react/ui/hlp.ui.chat/src/Chat.tsx": "f51e8b30f8a35a0a4d44cf6f2f911ee31d0713f5c5cab4a483b92e837c833f69",
+      "projections/react/ui/hlp.ui.chat/src/Chat.types.ts": "64ca74fb65df6bb9bfae42474bcda8dbb502344068eae4972a949213155036c0",
+      "projections/react/ui/hlp.ui.chat/src/chat-model.ts": "8a4e10b4f3c42eff394da3007f3b4534c81a5c33e9c5cc36a2ace14d86c0140d",
+      "projections/react/ui/hlp.ui.chat/src/index.ts": "fc9aa6daeb74ea054c76d8a6bbdeae03e14425918b0ab1b4b5d3296151a83e52",
+      "projections/react/ui/hlp.ui.chat/src/style.css": "9f6f3faf5c9edb4beba19aa9ecc1d80ca72e7fb9b2f45c60f60790d2ba560c8e",
+      "specs/modules/ui/hlp.ui.chat/scenarios.json": "d9da777837ca2554e72cc0798112bd170fab5db46cc638a660baac40b5e80f58",
+      "specs/modules/ui/hlp.ui.chat/style.css": "6a49af377952716a360a9e39bae7b1b465a0cb8b5e365ec2fff08d2acc279990"
+    }
+  }
+}

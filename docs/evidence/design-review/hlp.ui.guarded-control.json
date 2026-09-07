@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.guarded-control",
+  "verdict": "approved",
+  "reviewer": "cic",
+  "recordedAt": "2026-08-26T20:31:44.660Z",
+  "reference": {
+    "revision": "aa521e13999ef3b49953209cf3e210b75b5dad9708f7ab45245eacea787a00b3",
+    "source": "gallery/scenarios/hlp.ui.guarded-control.json",
+    "pin": "cc9eb48ed68c5033ec128cd53c40b1d2786bee66",
+    "surface": {
+      "conformance/hlp.ui.guarded-control/fixtures.yaml": "a74f5f9db8a752844314033ac10e21fe26e6fc1dc174e6c58fbb50d3889dd692",
+      "conformance/hlp.ui.guarded-control/quality-fixtures.yaml": "08e64211160135ad2481df97c5773ba5b0dda9ba26a64d52ccb4bdbaa0c05ac6",
+      "gallery/projections/blazor/Stories/GuardedControl.stories.razor": "0b475f5abec05d0a7fe5c1b15c4a6e7eb64180fa55ea055093574c7e9a68737f",
+      "gallery/projections/blazor/Stories/GuardedControlScenario.razor": "e133a49ca9c1829233db66caea6c1ec0b70aceaaf28c45b02fec619e35056702",
+      "gallery/projections/react/src/GuardedControl.stories.tsx": "d55bde07f05d129ca17d9dd1143d23859f71ce98400b0d893f3c92cc7f0ac7f5",
+      "gallery/scenarios/hlp.ui.guarded-control.json": "d05981b0d643f96c846ea146170744c72b3729442fd5a93387bb6f123c27178e",
+      "projections/blazor/ui/hlp.ui.guarded-control/GuardedControlTypes.cs": "e39bcaba9ef2b5239ab5acfeab53fecb8fd13d78f3b64e39c433208e313953ef",
+      "projections/blazor/ui/hlp.ui.guarded-control/ShipyardGuardedControl.razor": "36fd6faa286f17bd448afe4effa5dad4a5c18aafde8ab87535e2f8e5a12be64c",
+      "projections/blazor/ui/hlp.ui.guarded-control/wwwroot/guarded-control.css": "a8c9249fbb8219dd20892fc0614f65009618f8e07b95b73498b018c3574d4015",
+      "projections/blazor/ui/hlp.ui.guarded-control/wwwroot/guarded-control.js": "7621c4d248db62f947c44fe329e4225dbd69f3175e5e6948a9c2a58eb040eab0",
+      "projections/react/ui/hlp.ui.guarded-control/src/GuardedControl.tsx": "1f9a973ec5c432f8f37bfa3294b29cc350217aec70cd5f386cefe6a738ea1be2",
+      "projections/react/ui/hlp.ui.guarded-control/src/index.ts": "6e52845835984531f16aa52ad655e05da31dd0021aca5d4ccc326873e17bd40a",
+      "projections/react/ui/hlp.ui.guarded-control/src/style.css": "a8c9249fbb8219dd20892fc0614f65009618f8e07b95b73498b018c3574d4015",
+      "specs/modules/ui/hlp.ui.guarded-control/scenarios.json": "d05981b0d643f96c846ea146170744c72b3729442fd5a93387bb6f123c27178e",
+      "specs/modules/ui/hlp.ui.guarded-control/style.css": "a8c9249fbb8219dd20892fc0614f65009618f8e07b95b73498b018c3574d4015"
+    }
+  }
+}

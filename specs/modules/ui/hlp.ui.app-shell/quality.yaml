@@ -1,0 +1,185 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.app-shell",
+  "profileRevision": 1,
+  "riskTier": "C",
+  "fixture": "conformance/hlp.ui.app-shell/quality-fixtures.yaml",
+  "dimensions": {
+    "accessibility": {
+      "disposition": "required",
+      "caseIds": [
+        "app-shell.quality.landmarks",
+        "app-shell.quality.switcher-menu",
+        "app-shell.quality.pin-toggle",
+        "app-shell.quality.thread-rows",
+        "app-shell.quality.keyboard",
+        "app-shell.quality.focus",
+        "app-shell.quality.dismissal",
+        "app-shell.quality.targets",
+        "app-shell.quality.forced-colors",
+        "app-shell.quality.reflow",
+        "app-shell.quality.shell-scrollbars"
+      ]
+    },
+    "internationalization": {
+      "disposition": "required",
+      "caseIds": [
+        "app-shell.quality.locales",
+        "app-shell.quality.rtl",
+        "app-shell.quality.pseudo",
+        "app-shell.quality.safe-area"
+      ],
+      "localeSensitiveFormatting": {
+        "disposition": "not-applicable",
+        "rationale": "App Shell preserves caller content and catalog-backed chrome labels and formats no locale-sensitive values."
+      }
+    },
+    "theming": {
+      "disposition": "required",
+      "caseIds": [
+        "app-shell.quality.themes",
+        "app-shell.quality.tokens",
+        "app-shell.quality.contrast",
+        "app-shell.quality.reduced-motion",
+        "app-shell.quality.visual-parity"
+      ]
+    },
+    "keyboard": {
+      "disposition": "required",
+      "caseIds": [
+        "app-shell.quality.keyboard"
+      ]
+    },
+    "focus": {
+      "disposition": "required",
+      "caseIds": [
+        "app-shell.quality.focus"
+      ]
+    },
+    "dismissal": {
+      "disposition": "required",
+      "caseIds": [
+        "app-shell.quality.dismissal"
+      ]
+    },
+    "rtl": {
+      "disposition": "required",
+      "caseIds": [
+        "app-shell.quality.rtl"
+      ]
+    },
+    "reduced-motion": {
+      "disposition": "required",
+      "caseIds": [
+        "app-shell.quality.reduced-motion"
+      ]
+    },
+    "workflow": {
+      "disposition": "not-applicable"
+    },
+    "performance": {
+      "disposition": "required",
+      "caseIds": [
+        "app-shell.performance.repeated-update"
+      ]
+    },
+    "largeData": {
+      "disposition": "required",
+      "caseIds": [
+        "app-shell.performance.large-navigation"
+      ]
+    }
+  },
+  "componentStages": [
+    {
+      "id": "contract",
+      "dimensions": [
+        "accessibility",
+        "internationalization",
+        "theming",
+        "keyboard",
+        "focus",
+        "dismissal",
+        "rtl",
+        "reduced-motion",
+        "workflow",
+        "state",
+        "performance",
+        "largeData"
+      ],
+      "gate": "profile and neutral fixture validation"
+    },
+    {
+      "id": "projection-native",
+      "dimensions": [
+        "accessibility",
+        "internationalization",
+        "theming",
+        "keyboard",
+        "focus",
+        "dismissal",
+        "rtl",
+        "reduced-motion",
+        "state"
+      ],
+      "gate": "public React and Blazor native tests"
+    },
+    {
+      "id": "performance",
+      "dimensions": [
+        "state",
+        "performance",
+        "largeData"
+      ],
+      "gate": "typed deterministic 256-item and 96-update structural proof in both projections without a wall-clock threshold"
+    },
+    {
+      "id": "package-consumer",
+      "dimensions": [
+        "accessibility",
+        "internationalization",
+        "theming",
+        "keyboard",
+        "focus",
+        "dismissal",
+        "rtl",
+        "reduced-motion",
+        "state"
+      ],
+      "gate": "packed npm and NuGet consumers"
+    },
+    {
+      "id": "gallery",
+      "dimensions": [
+        "accessibility",
+        "internationalization",
+        "theming",
+        "keyboard",
+        "focus",
+        "dismissal",
+        "rtl",
+        "reduced-motion",
+        "state"
+      ],
+      "gate": "Axe, responsive shell workflows, themes, locales, motion, and visual parity"
+    },
+    {
+      "id": "clean-clone",
+      "dimensions": [
+        "accessibility",
+        "internationalization",
+        "theming",
+        "keyboard",
+        "focus",
+        "dismissal",
+        "rtl",
+        "reduced-motion",
+        "workflow",
+        "state",
+        "performance",
+        "largeData"
+      ],
+      "gate": "complete repository gate from the recorded commit"
+    }
+  ]
+}

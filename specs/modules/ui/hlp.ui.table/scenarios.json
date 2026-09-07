@@ -1,0 +1,193 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.table",
+  "sourceFixture": "conformance/hlp.ui.table/fixtures.yaml",
+  "qualityFixture": "conformance/hlp.ui.table/quality-fixtures.yaml",
+  "galleryInterface": {
+    "probeAttribute": "data-gallery-probe",
+    "scenarioAttribute": "data-gallery-scenario",
+    "projectionTitles": {
+      "react": "Platform/Table",
+      "blazor": "Platform/Table"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "table.semantic",
+      "name": "Semantic table",
+      "surface": "defaults",
+      "sourceCaseIds": [
+        "table.semantic-elements",
+        "table.header-scope",
+        "table.caption",
+        "table.host-attributes"
+      ],
+      "sourceQualityCaseIds": [
+        "table.quality.native",
+        "table.quality.caption",
+        "table.quality.keyboard",
+        "table.quality.focus"
+      ],
+      "content": {
+        "blurb": "Native table semantics remain available inside the overflow surface.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "density": "md"
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<Table density=\"md\"><TableCaption>Structure inspection summary</TableCaption><TableHead><TableRow><TableHeaderCell>Structure</TableHeaderCell><TableHeaderCell>Status</TableHeaderCell><TableHeaderCell>Updated</TableHeaderCell></TableRow></TableHead><TableBody><TableRow><TableCell>North Pier</TableCell><TableCell>Active</TableCell><TableCell>Today</TableCell></TableRow><TableRow><TableCell>Pump House</TableCell><TableCell>Review</TableCell><TableCell>Yesterday</TableCell></TableRow><TableRow><TableCell>Main Span</TableCell><TableCell>Active</TableCell><TableCell>Friday</TableCell></TableRow></TableBody></Table>",
+            "blazor": "<HarborlineTable Density=\"TableDensity.Medium\"><HarborlineTableCaption>Structure inspection summary</HarborlineTableCaption><HarborlineTableHead><HarborlineTableRow><HarborlineTableHeaderCell>Structure</HarborlineTableHeaderCell><HarborlineTableHeaderCell>Status</HarborlineTableHeaderCell><HarborlineTableHeaderCell>Updated</HarborlineTableHeaderCell></HarborlineTableRow></HarborlineTableHead><HarborlineTableBody><HarborlineTableRow><HarborlineTableCell>North Pier</HarborlineTableCell><HarborlineTableCell>Active</HarborlineTableCell><HarborlineTableCell>Today</HarborlineTableCell></HarborlineTableRow><HarborlineTableRow><HarborlineTableCell>Pump House</HarborlineTableCell><HarborlineTableCell>Review</HarborlineTableCell><HarborlineTableCell>Yesterday</HarborlineTableCell></HarborlineTableRow><HarborlineTableRow><HarborlineTableCell>Main Span</HarborlineTableCell><HarborlineTableCell>Active</HarborlineTableCell><HarborlineTableCell>Friday</HarborlineTableCell></HarborlineTableRow></HarborlineTableBody></HarborlineTable>",
+            "rationale": "The closed descriptor vocabulary has no table, caption, row group, row, header-cell, or data-cell controls, so it cannot preserve the native table structure and header semantics."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "table.density",
+      "name": "Density",
+      "surface": "states",
+      "sourceCaseIds": [
+        "table.density-default",
+        "table.density-small",
+        "table.ordered-replacement"
+      ],
+      "sourceQualityCaseIds": [
+        "table.quality.forced-colors",
+        "table.quality.reduced-motion"
+      ],
+      "content": {
+        "blurb": "Native table semantics remain available inside the overflow surface.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "density": "sm"
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<Table density=\"sm\"><TableCaption>Structure inspection summary</TableCaption><TableHead><TableRow><TableHeaderCell>Structure</TableHeaderCell><TableHeaderCell>Status</TableHeaderCell><TableHeaderCell>Updated</TableHeaderCell></TableRow></TableHead><TableBody><TableRow><TableCell>North Pier</TableCell><TableCell>Active</TableCell><TableCell>Today</TableCell></TableRow><TableRow><TableCell>Pump House</TableCell><TableCell>Review</TableCell><TableCell>Yesterday</TableCell></TableRow><TableRow><TableCell>Main Span</TableCell><TableCell>Active</TableCell><TableCell>Friday</TableCell></TableRow></TableBody></Table>",
+            "blazor": "<HarborlineTable Density=\"TableDensity.Small\"><HarborlineTableCaption>Structure inspection summary</HarborlineTableCaption><HarborlineTableHead><HarborlineTableRow><HarborlineTableHeaderCell>Structure</HarborlineTableHeaderCell><HarborlineTableHeaderCell>Status</HarborlineTableHeaderCell><HarborlineTableHeaderCell>Updated</HarborlineTableHeaderCell></HarborlineTableRow></HarborlineTableHead><HarborlineTableBody><HarborlineTableRow><HarborlineTableCell>North Pier</HarborlineTableCell><HarborlineTableCell>Active</HarborlineTableCell><HarborlineTableCell>Today</HarborlineTableCell></HarborlineTableRow><HarborlineTableRow><HarborlineTableCell>Pump House</HarborlineTableCell><HarborlineTableCell>Review</HarborlineTableCell><HarborlineTableCell>Yesterday</HarborlineTableCell></HarborlineTableRow><HarborlineTableRow><HarborlineTableCell>Main Span</HarborlineTableCell><HarborlineTableCell>Active</HarborlineTableCell><HarborlineTableCell>Friday</HarborlineTableCell></HarborlineTableRow></HarborlineTableBody></HarborlineTable>",
+            "rationale": "The closed descriptor vocabulary has no table, caption, row group, row, header-cell, or data-cell controls, so it cannot preserve the native table structure, header semantics, and small-density variant."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "table.reflow",
+      "name": "Narrow viewport",
+      "surface": "reflow",
+      "sourceCaseIds": [
+        "table.overflow-wrapper"
+      ],
+      "sourceQualityCaseIds": [
+        "table.quality.reflow",
+        "table.quality.caller-copy",
+        "table.quality.rtl",
+        "table.quality.pseudo"
+      ],
+      "content": {
+        "blurb": "Native table semantics remain available inside the overflow surface.",
+        "environment": {
+          "locale": "en-XA",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "density": "md",
+          "stageMaxWidth": 360
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<div className=\"hl-gallery-stage\" style={{ maxWidth: 360 }}><Table density=\"md\"><TableCaption>⟦ Šţřûçţûřë îñšþëçţîøñ šûmmåřÿ ······ ⟧</TableCaption><TableHead><TableRow><TableHeaderCell>Structure</TableHeaderCell><TableHeaderCell>Status</TableHeaderCell><TableHeaderCell>Updated</TableHeaderCell></TableRow></TableHead><TableBody><TableRow><TableCell>North Pier</TableCell><TableCell>Active</TableCell><TableCell>Today</TableCell></TableRow><TableRow><TableCell>Pump House</TableCell><TableCell>Review</TableCell><TableCell>Yesterday</TableCell></TableRow><TableRow><TableCell>Main Span</TableCell><TableCell>Active</TableCell><TableCell>Friday</TableCell></TableRow></TableBody></Table></div>",
+            "blazor": "<div class=\"hl-gallery-stage\" style=\"max-width:360px\"><HarborlineTable Density=\"TableDensity.Medium\"><HarborlineTableCaption>⟦ Šţřûçţûřë îñšþëçţîøñ šûmmåřÿ ······ ⟧</HarborlineTableCaption><HarborlineTableHead><HarborlineTableRow><HarborlineTableHeaderCell>Structure</HarborlineTableHeaderCell><HarborlineTableHeaderCell>Status</HarborlineTableHeaderCell><HarborlineTableHeaderCell>Updated</HarborlineTableHeaderCell></HarborlineTableRow></HarborlineTableHead><HarborlineTableBody><HarborlineTableRow><HarborlineTableCell>North Pier</HarborlineTableCell><HarborlineTableCell>Active</HarborlineTableCell><HarborlineTableCell>Today</HarborlineTableCell></HarborlineTableRow><HarborlineTableRow><HarborlineTableCell>Pump House</HarborlineTableCell><HarborlineTableCell>Review</HarborlineTableCell><HarborlineTableCell>Yesterday</HarborlineTableCell></HarborlineTableRow><HarborlineTableRow><HarborlineTableCell>Main Span</HarborlineTableCell><HarborlineTableCell>Active</HarborlineTableCell><HarborlineTableCell>Friday</HarborlineTableCell></HarborlineTableRow></HarborlineTableBody></HarborlineTable></div>",
+            "rationale": "The closed descriptor vocabulary has no table primitives or layout container, so it cannot preserve the native table structure, header semantics, and 360-pixel overflow-stage constraint."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "table.theme",
+      "name": "Theme parity",
+      "surface": "rtl-theme",
+      "sourceCaseIds": [
+        "table.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "table.quality.light-dark",
+        "table.quality.tokens",
+        "table.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "Native table semantics remain available inside the overflow surface.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "rtl",
+          "theme": "dark",
+          "catalog": {}
+        },
+        "props": {
+          "density": "md"
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<section data-theme=\"dark\" dir=\"rtl\"><Table density=\"md\"><TableCaption>Structure inspection summary</TableCaption><TableHead><TableRow><TableHeaderCell>Structure</TableHeaderCell><TableHeaderCell>Status</TableHeaderCell><TableHeaderCell>Updated</TableHeaderCell></TableRow></TableHead><TableBody><TableRow><TableCell>North Pier</TableCell><TableCell>Active</TableCell><TableCell>Today</TableCell></TableRow><TableRow><TableCell>Pump House</TableCell><TableCell>Review</TableCell><TableCell>Yesterday</TableCell></TableRow><TableRow><TableCell>Main Span</TableCell><TableCell>Active</TableCell><TableCell>Friday</TableCell></TableRow></TableBody></Table></section>",
+            "blazor": "<section data-theme=\"dark\" dir=\"rtl\"><HarborlineTable Density=\"TableDensity.Medium\"><HarborlineTableCaption>Structure inspection summary</HarborlineTableCaption><HarborlineTableHead><HarborlineTableRow><HarborlineTableHeaderCell>Structure</HarborlineTableHeaderCell><HarborlineTableHeaderCell>Status</HarborlineTableHeaderCell><HarborlineTableHeaderCell>Updated</HarborlineTableHeaderCell></HarborlineTableRow></HarborlineTableHead><HarborlineTableBody><HarborlineTableRow><HarborlineTableCell>North Pier</HarborlineTableCell><HarborlineTableCell>Active</HarborlineTableCell><HarborlineTableCell>Today</HarborlineTableCell></HarborlineTableRow><HarborlineTableRow><HarborlineTableCell>Pump House</HarborlineTableCell><HarborlineTableCell>Review</HarborlineTableCell><HarborlineTableCell>Yesterday</HarborlineTableCell></HarborlineTableRow><HarborlineTableRow><HarborlineTableCell>Main Span</HarborlineTableCell><HarborlineTableCell>Active</HarborlineTableCell><HarborlineTableCell>Friday</HarborlineTableCell></HarborlineTableRow></HarborlineTableBody></HarborlineTable></section>",
+            "rationale": "The closed descriptor vocabulary has no table, caption, row group, row, header-cell, or data-cell controls, so it cannot preserve the native table structure and header semantics under the dark RTL scene."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "table.content",
+      "name": "Content resilience",
+      "surface": "long-content",
+      "sourceCaseIds": [
+        "table.semantic-elements",
+        "table.caption"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "A dense table carries a long label, grouped large numbers, escaped hostile text, and unusual names with diacritics.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<Table density=\"sm\"><TableCaption>{'Awaiting third-party structural certification review'}</TableCaption><TableHead><TableRow><TableHeaderCell>Owner</TableHeaderCell><TableHeaderCell>Location</TableHeaderCell><TableHeaderCell>Records</TableHeaderCell><TableHeaderCell>Status</TableHeaderCell></TableRow></TableHead><TableBody><TableRow><TableCell>{'Ordnance Survey — Niño Ångström'}</TableCell><TableCell>{'Bay 4 <grid C-7> & 8'}</TableCell><TableCell>{'1,284,905'}</TableCell><TableCell>Awaiting review</TableCell></TableRow><TableRow><TableCell>Miyazaki — Élodie Brontë</TableCell><TableCell>Pier 12</TableCell><TableCell>984,321</TableCell><TableCell>Ready</TableCell></TableRow><TableRow><TableCell>Søren Łukasz</TableCell><TableCell>Dock 6</TableCell><TableCell>72,440</TableCell><TableCell>Pending</TableCell></TableRow><TableRow><TableCell>Zoë François</TableCell><TableCell>Warehouse 9</TableCell><TableCell>6,007</TableCell><TableCell>Archived</TableCell></TableRow></TableBody></Table>",
+            "blazor": "<HarborlineTable Density=\"TableDensity.Small\"><HarborlineTableCaption>@(\"Awaiting third-party structural certification review\")</HarborlineTableCaption><HarborlineTableHead><HarborlineTableRow><HarborlineTableHeaderCell>Owner</HarborlineTableHeaderCell><HarborlineTableHeaderCell>Location</HarborlineTableHeaderCell><HarborlineTableHeaderCell>Records</HarborlineTableHeaderCell><HarborlineTableHeaderCell>Status</HarborlineTableHeaderCell></HarborlineTableRow></HarborlineTableHead><HarborlineTableBody><HarborlineTableRow><HarborlineTableCell>@(\"Ordnance Survey — Niño Ångström\")</HarborlineTableCell><HarborlineTableCell>@(\"Bay 4 <grid C-7> & 8\")</HarborlineTableCell><HarborlineTableCell>@(\"1,284,905\")</HarborlineTableCell><HarborlineTableCell>Awaiting review</HarborlineTableCell></HarborlineTableRow><HarborlineTableRow><HarborlineTableCell>Miyazaki — Élodie Brontë</HarborlineTableCell><HarborlineTableCell>Pier 12</HarborlineTableCell><HarborlineTableCell>984,321</HarborlineTableCell><HarborlineTableCell>Ready</HarborlineTableCell></HarborlineTableRow><HarborlineTableRow><HarborlineTableCell>Søren Łukasz</HarborlineTableCell><HarborlineTableCell>Dock 6</HarborlineTableCell><HarborlineTableCell>72,440</HarborlineTableCell><HarborlineTableCell>Pending</HarborlineTableCell></HarborlineTableRow><HarborlineTableRow><HarborlineTableCell>Zoë François</HarborlineTableCell><HarborlineTableCell>Warehouse 9</HarborlineTableCell><HarborlineTableCell>6,007</HarborlineTableCell><HarborlineTableCell>Archived</HarborlineTableCell></HarborlineTableRow></HarborlineTableBody></HarborlineTable>",
+            "rationale": "The closed descriptor vocabulary cannot express a dense semantic table whose cells preserve hostile-but-valid text and unusually long content."
+          }
+        ],
+        "footer": []
+      }
+    }
+  ]
+}

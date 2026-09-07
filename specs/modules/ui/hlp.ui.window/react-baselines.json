@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "projection": "react",
+  "moduleId": "hlp.ui.window",
+  "scenarios": [
+    {
+      "scenarioId": "window.states",
+      "sha256": "234518b41bffabbb8504d9d17cef3ae425257359f8a8fe53dea60a7d22a75e24",
+      "bytes": 14406,
+      "artifact": "../baselines/sha256/234518b41bffabbb8504d9d17cef3ae425257359f8a8fe53dea60a7d22a75e24.png"
+    },
+    {
+      "scenarioId": "window.geometry",
+      "sha256": "acae9f7e2a2b3ad3913c7d48b5b50e14a537acc5890b1937fbef2af0fc1edbcd",
+      "bytes": 14645,
+      "artifact": "../baselines/sha256/acae9f7e2a2b3ad3913c7d48b5b50e14a537acc5890b1937fbef2af0fc1edbcd.png"
+    },
+    {
+      "scenarioId": "window.modal",
+      "sha256": "736a7df49a129c2a4e6d32affdefc8b71f22c2bd1b00c7f02697044337368042",
+      "bytes": 14429,
+      "artifact": "../baselines/sha256/736a7df49a129c2a4e6d32affdefc8b71f22c2bd1b00c7f02697044337368042.png"
+    },
+    {
+      "scenarioId": "window.locale-theme",
+      "sha256": "4713d0522084105b6d5ae7119d982a8f6222542ebd05314aa5c92fd864f291b1",
+      "bytes": 11549,
+      "artifact": "../baselines/sha256/4713d0522084105b6d5ae7119d982a8f6222542ebd05314aa5c92fd864f291b1.png"
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.switch",
+  "verdict": "approved",
+  "reviewer": "cic",
+  "recordedAt": "2026-08-27T05:32:56.309Z",
+  "reference": {
+    "revision": "b5430d4835071f49c3f2f7e7f9abf5d5c4ece3fc43149d0aabe414a07003edb8",
+    "source": "gallery/scenarios/hlp.ui.switch.json",
+    "pin": "cc9eb48ed68c5033ec128cd53c40b1d2786bee66",
+    "surface": {
+      "conformance/hlp.ui.switch/fixtures.yaml": "5687bd0ebd14f2ddc5343fb71fb9534ca1db1e9fefc2eb34e41e08eae934c8fd",
+      "conformance/hlp.ui.switch/quality-fixtures.yaml": "4bda43c83aea9dc85f3380e0b7ebaf3f114af81a8ae804c2e91ffa43594a6ba8",
+      "gallery/projections/blazor/Stories/Switch.stories.razor": "36cd2889ce56434f68871bbb5cc6b5edc501eeb56d58d0f2f67b117e03221a84",
+      "gallery/projections/blazor/Stories/SwitchScenario.razor": "c0f635b6711a649b971be4d70876b048404d247ab1544b6a134be222d886083c",
+      "gallery/projections/react/src/Switch.stories.tsx": "077bf0b2e99d094cd684a72cea292f720f88956edbdabc12666e8cece3850963",
+      "gallery/scenarios/hlp.ui.switch.json": "d57c6beeed451825801c7cc26e273972e3184cb9a129510891e54846a91056cd",
+      "projections/blazor/ui/hlp.ui.switch/ShipyardSwitch.razor": "1e98d8327c2b0a94bbbc070c5a4f8b9bf82f41f4d4726fe3a9f5ded5e4e561bd",
+      "projections/blazor/ui/hlp.ui.switch/SwitchTypes.cs": "a971b1c3ee1ee7b59e8464b37e1659a5f4f2f8baa661a4df2aeca5a16879f4cb",
+      "projections/blazor/ui/hlp.ui.switch/wwwroot/switch.css": "58bf09ac415ff9c5aeb94db3405905aa68775dc70e9462ae02bc581ae98228bf",
+      "projections/react/ui/hlp.ui.switch/src/Switch.tsx": "4946142c92385cc8eb1c4fa708eaa3c242e9717bdc8333b79363cf9165367efa",
+      "projections/react/ui/hlp.ui.switch/src/index.ts": "215eda28b459e98e9831b806513f1a95d1f18d082222c245a4e3e3589bf4b4fd",
+      "projections/react/ui/hlp.ui.switch/src/style.css": "58bf09ac415ff9c5aeb94db3405905aa68775dc70e9462ae02bc581ae98228bf",
+      "specs/modules/ui/hlp.ui.switch/scenarios.json": "d57c6beeed451825801c7cc26e273972e3184cb9a129510891e54846a91056cd",
+      "specs/modules/ui/hlp.ui.switch/style.css": "58bf09ac415ff9c5aeb94db3405905aa68775dc70e9462ae02bc581ae98228bf"
+    }
+  }
+}

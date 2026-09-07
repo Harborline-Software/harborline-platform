@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.button",
+  "verdict": "approved",
+  "reviewer": "cic",
+  "recordedAt": "2026-08-26T20:02:15.672Z",
+  "reference": {
+    "revision": "d47720f46d3ca46f92ca8ba1052b30250cf73f3605c92f884a2d2c5852162fef",
+    "source": "gallery/scenarios/hlp.ui.button.json",
+    "pin": "cc9eb48ed68c5033ec128cd53c40b1d2786bee66",
+    "surface": {
+      "conformance/hlp.ui.button/fixtures.yaml": "a0332438e88b1c819e6699d1530b0486dfb2cdd58ca01c588664180da9758c08",
+      "conformance/hlp.ui.button/quality-fixtures.yaml": "c4a16cb432bc2ed658078cd3ed1ef83e48fc267b555d41a2cf2a13dfeb37dbca",
+      "gallery/projections/blazor/Stories/Button.stories.razor": "66ec6ebd40ec340a4e0016abf1f927ed04e770bc4d64edb1c985f6471589fd66",
+      "gallery/projections/blazor/Stories/ButtonScenario.razor": "b91e41c49febb8c85c05b49f8776d897a44abf1cf51699236a81b3d24f2f5759",
+      "gallery/projections/react/src/Button.stories.tsx": "2805f2d59a2b613cc5c0afba876cf4f65241c95781fa24c1931bc9620d7a0247",
+      "gallery/scenarios/hlp.ui.button.json": "56ff6b38b61c8ade44df5bf5dd4b7fe71f53e82b46d4fb707cfb0edd5c55a094",
+      "projections/blazor/ui/hlp.ui.button/Base/ShipyardComponentBase.cs": "cbd24413f1514698d7ee692b99e08c013dedc19466f66f2f22e9626ff4196da0",
+      "projections/blazor/ui/hlp.ui.button/Components/Buttons/ButtonStyleBridge.cs": "6799fd0a1ada1484dc6d6d3ecee08a7fc08523a58cab9a97e7c8860fa2d5a7e8",
+      "projections/blazor/ui/hlp.ui.button/Components/Buttons/ShipyardButton.razor": "fb75dcbe5d234170207b0d79ecab35f5c70d69e801e026358d2c35b1a927a802",
+      "projections/blazor/ui/hlp.ui.button/Components/Buttons/ShipyardButton.razor.css": "36b6164a61bddb60d57ab06f72338b3a33fe8683851f15f9d18724f06654283c",
+      "projections/blazor/ui/hlp.ui.button/HarborlineUiServiceCollectionExtensions.cs": "af9022f726824fe80e550d84972e1093da7335f897f79758bbb6c163bc9c9434",
+      "projections/blazor/ui/hlp.ui.button/Localization/ShipyardLocaleContext.cs": "e5348827dc15eca4529e474aa7b03b6f83f7df13c850c52aa33c01be80ccfc00",
+      "projections/blazor/ui/hlp.ui.button/Localization/ShipyardLocaleProvider.razor": "c3536bf5506fe73fe2904de9bce22e184d900e3ad7423b606e1e8fb86579611d",
+      "projections/blazor/ui/hlp.ui.button/_Imports.razor": "2ff0f894582b2cea34c17faff17917d9ab0ca29c2b41354bda2195aa95d53ce4",
+      "projections/react/ui/hlp.ui.button/scripts/aggregate-entry.ts": "2dd3d4fc28be30ea0c3679eecc7aeb242dca72a1062ac45d7a902dbd2bca5233",
+      "projections/react/ui/hlp.ui.button/src/Button.tsx": "f87b95cb5dfdde94392dfae9b3bbc89531d3cc1a1ef0b4291d9f441ff990b962",
+      "projections/react/ui/hlp.ui.button/src/ButtonGroup.tsx": "33766b0f985ebd027a11d061b70a1801a4a0e0edee0c83be998d07912500cfc4",
+      "projections/react/ui/hlp.ui.button/src/Loader.tsx": "32b070e78d4815b53aa46f16a9a7e5edfdf56514c8db1b5f7937c01bd2e89c15",
+      "projections/react/ui/hlp.ui.button/src/cn.ts": "829bab4a4510f7b5007bdd84cbc863058a8df5c3391c10cb5b3dc8a2bdc5e0ea",
+      "projections/react/ui/hlp.ui.button/src/index.ts": "c368f5d7ea18105d2b86c5737055f3fad6b53a9e4bd4bd64332e82075e983ab4",
+      "projections/react/ui/hlp.ui.button/src/locale.tsx": "d27d9cfb8d3040ddb6f0f2d93c84af6dd3e923d7bcddef1c60de78951522de2b",
+      "projections/react/ui/hlp.ui.button/src/size.ts": "5d3230f1d247121652eb38c8faedf1ad833c1d4dc4d4cf433207b71be5a237a0",
+      "projections/react/ui/hlp.ui.button/src/style.css": "a4f37bac6403e2bd851e5150126c1e320272508f5b040c837a2861278b4e7830",
+      "specs/modules/ui/hlp.ui.button/scenarios.json": "56ff6b38b61c8ade44df5bf5dd4b7fe71f53e82b46d4fb707cfb0edd5c55a094",
+      "specs/modules/ui/hlp.ui.button/style.css": "a4f37bac6403e2bd851e5150126c1e320272508f5b040c837a2861278b4e7830"
+    }
+  }
+}

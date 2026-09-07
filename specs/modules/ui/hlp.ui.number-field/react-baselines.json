@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "projection": "react",
+  "moduleId": "hlp.ui.number-field",
+  "scenarios": [
+    {
+      "scenarioId": "number-field.defaults",
+      "sha256": "0affe1bda4469403fbc5bfbef0603ed60692312a4df37bf3498b82d2016cc0e2",
+      "bytes": 8509,
+      "artifact": "../baselines/sha256/0affe1bda4469403fbc5bfbef0603ed60692312a4df37bf3498b82d2016cc0e2.png"
+    },
+    {
+      "scenarioId": "number-field.states",
+      "sha256": "9dcca41ae1c463ef1bcbed1696230b5f8771a47a867c01966dc6b5e32bf98118",
+      "bytes": 8511,
+      "artifact": "../baselines/sha256/9dcca41ae1c463ef1bcbed1696230b5f8771a47a867c01966dc6b5e32bf98118.png"
+    },
+    {
+      "scenarioId": "number-field.rtl-theme",
+      "sha256": "c45ac03461e6e63eb2369d545d42ca50263331d0da3f5f85a49307063d5bd345",
+      "bytes": 7076,
+      "artifact": "../baselines/sha256/c45ac03461e6e63eb2369d545d42ca50263331d0da3f5f85a49307063d5bd345.png"
+    }
+  ]
+}

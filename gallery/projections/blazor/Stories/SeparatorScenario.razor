@@ -1,0 +1,21 @@
+<section class="hl-gallery-scene" data-gallery-probe data-gallery-scenario="@ScenarioId" data-theme="@Theme" dir="@Direction">
+  <header class="hl-gallery-heading"><h2>@Title</h2><p>Rules remain decorative by default and expose orientation only when semantic.</p></header>
+  <div class="hl-gallery-stage">@if (ScenarioId == "separator.content")
+  {
+    <HarborlineSeparator Decorative="false" Label="@("Awaiting third-party structural certification review — 1,284,905 — Bay 4 <grid C-7> & 8 — Ordnance Survey — Niño Ångström")" />
+  }
+  else
+  {<div style="@StageStyle">
+    <HarborlineSeparator Decorative="@(!Semantic && !Labeled)" Label="@(Labeled ? "أو" : null)" />
+    @if (Semantic) { <HarborlineSeparator Decorative="false" Orientation="SeparatorOrientation.Vertical" /> }
+  </div>}</div>
+</section>
+@code {
+  [Parameter, EditorRequired] public string ScenarioId { get; set; } = "separator.decorative";
+  private bool Semantic => ScenarioId == "separator.semantic";
+  private bool Labeled => ScenarioId == "separator.labeled-theme";
+  private string Title => ScenarioId == "separator.content" ? "Content resilience" : Semantic ? "Semantic orientations" : Labeled ? "Labeled RTL and theme" : "Decorative";
+  private string? Theme => Labeled ? "dark" : null;
+  private string? Direction => Labeled ? "rtl" : null;
+  private string StageStyle => Semantic ? "min-height:120px;display:flex;gap:2rem" : "display:block;gap:2rem";
+}

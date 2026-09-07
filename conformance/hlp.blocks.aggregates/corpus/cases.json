@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.blocks.aggregates",
+  "cases": [
+    {"id":"evidence.table.aggregate-sum","provenance":"semantics-derived"},
+    {"id":"evidence.table.aggregate-stats","provenance":"semantics-derived","note":"average/min/max/count selected; any/all evidence-not-selected for v1"},
+    {"id":"evidence.table.per-row-compute","provenance":"semantics-derived","disposition":"containment"},
+    {"id":"evidence.table.per-row-parent-reach-out","provenance":"semantics-derived","disposition":"containment"},
+    {"id":"evidence.table.cross-section-reference","provenance":"semantics-derived","disposition":"containment"},
+    {"id":"evidence.table.empty-aggregate","provenance":"semantics-derived"},
+    {"id":"evidence.table.aggregate-sum-money-exact","provenance":"semantics-derived"},
+    {"id":"evidence.money.F7-aggregate-sum-decimal-exact","provenance":"semantics-derived"},
+    {"id":"evidence.money.F7-aggregate-min-decimal","provenance":"semantics-derived"},
+    {"id":"evidence.num.aggregate-avg-repeating","provenance":"semantics-derived"},
+    {"id":"evidence.money.aggregate-sum-exact-decimal","provenance":"semantics-derived"},
+    {"id":"authored.definition-roundtrip","authored":true},{"id":"authored.result-roundtrip","authored":true},{"id":"authored.unknown-operator","authored":true},{"id":"authored.omitted-operator","authored":true},{"id":"authored.duplicate-key","authored":true},{"id":"authored.missing-field","authored":true},{"id":"authored.filter-type","authored":true},{"id":"authored.measure-type","authored":true},{"id":"authored.duplicate-subtotal","authored":true},{"id":"authored.host-bounds","authored":true},
+    {"id":"authored.scalar-operators","authored":true},{"id":"authored.null-ignore","authored":true},{"id":"authored.null-propagate","authored":true},{"id":"authored.unavailable-propagate","authored":true},{"id":"authored.missing-row-field","authored":true},{"id":"authored.zero-dimensions","authored":true},{"id":"authored.multidimensional-intersection","authored":true},{"id":"authored.null-bucket","authored":true},{"id":"authored.null-exclude","authored":true},{"id":"authored.subtotal","authored":true},{"id":"authored.grand-total","authored":true},{"id":"authored.total-from-rows","authored":true},{"id":"authored.ordinal-order","authored":true},{"id":"authored.source-order-independent","authored":true},{"id":"authored.input-limit","authored":true},{"id":"authored.group-limit","authored":true},{"id":"authored.cell-limit","authored":true},{"id":"authored.snapshot-token","authored":true},{"id":"authored.cancellation","authored":true},{"id":"authored.authorization-before-open","authored":true},{"id":"authored.filter-before-grouping","authored":true},{"id":"authored.non-terminating-decimal","authored":true}
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.blocks.builder-definitions",
+  "profileRevision": 1,
+  "riskTier": "A",
+  "dimensions": {
+    "durability": {"disposition":"required", "caseIds":["archive.starts-empty","archive.idempotent","archive.unarchive-idempotent","archive.namespaced"]},
+    "concurrency": {"disposition":"required", "rationale":"Lifecycle mutations serialize; key allocation is deliberately deferred behind IDefinitionKeyAuthority."},
+    "security": {"disposition":"required", "rationale":"Tenant and kind are mandatory durable key components; authorization remains a composing server-host responsibility."},
+    "accessibility": {"disposition":"not-applicable", "rationale":"No presentation surface."},
+    "internationalization": {"disposition":"not-applicable", "rationale":"Pinned slugging is deliberately ASCII and locale-invariant."},
+    "theming": {"disposition":"not-applicable", "rationale":"No presentation surface."}
+  },
+  "componentStages": [
+    {"id":"contract", "dimensions":["durability","concurrency","security"], "gate":"spec and catalog validation"},
+    {"id":"projection-native", "dimensions":["durability","concurrency","security"], "gate":"18 mapped xUnit declarations"},
+    {"id":"package-consumer", "dimensions":["durability","security"], "gate":"packed NuGet consumer"},
+    {"id":"clean-clone", "dimensions":["durability","concurrency","security"], "gate":"complete repository gate"}
+  ]
+}

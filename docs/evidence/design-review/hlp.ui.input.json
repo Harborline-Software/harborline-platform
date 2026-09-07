@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.input",
+  "verdict": "approved",
+  "reviewer": "cic",
+  "recordedAt": "2026-08-28T02:24:31.715Z",
+  "reference": {
+    "revision": "06459a9ec80bc2606459b3bbd9ad08f669077d2eb77642adf9fc28f8cef3dbd7",
+    "source": "gallery/scenarios/hlp.ui.input.json",
+    "pin": "28e389ae42b64246f1c6d92e0002b78bc92791b3",
+    "surface": {
+      "conformance/hlp.ui.input/fixtures.yaml": "3260f8fb50ac6650f47aa785d59f531f4e0a6180448ee58eeb73b6ebb0869382",
+      "conformance/hlp.ui.input/quality-fixtures.yaml": "4b98f7947600183c9f0a60e71943c6607a3c0d98f68f1c8c3cbee97a6d0def1f",
+      "gallery/projections/blazor/Stories/Input.stories.razor": "2b52449bd037988a99f54bcb89b8399df31b9af0c29766386ebed08a93c52d32",
+      "gallery/projections/blazor/Stories/InputScenario.razor": "c4977460a50865fccdd7f17bb1ffbdbc41df63eccfc7bf5dbdac6c5eb484ab36",
+      "gallery/projections/react/src/Input.stories.tsx": "e386297c55a3632e2c8b103394595c62febc83a19d2dda20f6888d5a7f362678",
+      "gallery/scenarios/hlp.ui.input.json": "9c45ebfc56e80832755f36868af1f2cec829005fb8a209aa4d3d9aafe5f86a98",
+      "projections/blazor/ui/hlp.ui.input/InputTypes.cs": "48af86f349a10b3c58b5fcdfd9dcba3d639a2630a248d6a94714b23bfa30b625",
+      "projections/blazor/ui/hlp.ui.input/ShipyardInput.razor": "95ee21368c1ce9fb3135b5ee72b532c3b4d7cbf3107db39e634d1e0f6cc39405",
+      "projections/blazor/ui/hlp.ui.input/wwwroot/input.css": "cd86d76f375c1bf11207dd3713e3402d857a87647f72c44fd3395aa020153859",
+      "projections/react/ui/hlp.ui.input/src/Input.tsx": "e96c7351f7c0179ee9dad7a7558bdb5c83e841e2c86bb5e8dc700724a3f50f63",
+      "projections/react/ui/hlp.ui.input/src/index.ts": "382adb021817e82afeb64a63921b6c655274e406e5b9248e152f4324e479f8c7",
+      "projections/react/ui/hlp.ui.input/src/style.css": "f62f43542adc677445381577f7a98192a6052dd2ec09fa9f2d9e7a5dd4760660",
+      "specs/modules/ui/hlp.ui.input/scenarios.json": "9c45ebfc56e80832755f36868af1f2cec829005fb8a209aa4d3d9aafe5f86a98",
+      "specs/modules/ui/hlp.ui.input/style.css": "f62f43542adc677445381577f7a98192a6052dd2ec09fa9f2d9e7a5dd4760660"
+    }
+  }
+}

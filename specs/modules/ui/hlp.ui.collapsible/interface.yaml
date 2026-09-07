@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.collapsible",
+  "interfaceRevision": 1,
+  "semantics": {"operation": "render the bounded Harborline App titled disclosure panel with optional subtitle and independent header actions", "observableOutput": "Equivalent open state, change emission, disabled behavior, trigger-region relationships, header action isolation, and host attributes in React and Blazor."},
+  "sourceSurface": {"repository": "shipyard", "commit": "a5036ff8b500e0d857d7e0a698408e7cf7f6cf31", "path": "packages/ui-react/src/components/layout/Collapsible.tsx", "blob": "bfd9e12e18dac2780eb6d8b8369ab5d3977c4dd9", "capturedExports": ["Collapsible"]},
+  "dependencies": ["hlp.ui.cn"],
+  "scopeDecision": {"authority":"HLF-050/HLF-052","included":"the production-caller-backed preset=panel titled disclosure capability","excluded":["uncalled headless Trigger/Content composition","zero-caller Panel family","ExpansionPanel compatibility identity"]},
+  "invariants": [
+    "A non-empty caller-owned title is required and is the trigger's accessible name; subtitle and header actions are optional caller-owned slots.",
+    "Controlled open state is never mutated locally; uncontrolled state initializes once from defaultOpen.",
+    "An enabled trigger activation emits the resulting open value exactly once; disabled state emits nothing and cannot toggle.",
+    "The trigger is a native type=button with aria-expanded and aria-controls referencing one content region.",
+    "Header actions are siblings of the disclosure trigger; activating an action never toggles the panel.",
+    "Closed content is unavailable to focus and assistive technology; opening restores the caller content without moving focus.",
+    "Consumer class, id, lang, dir, data, and aria attributes are preserved on the root panel.",
+    "Chevron direction is decorative and direction-safe; transitions become effectively immediate under reduced-motion preference.",
+    "The contract owns no persistence, localization lookup, authorization, network access, or uncalled headless composition API."
+  ],
+  "errors": [{"code":"title-required","when":"A projection is asked to render without a non-empty title."}],
+  "presentation": {"disposition":"required","gallery":"gallery/scenarios/hlp.ui.collapsible.json"},
+  "cases": [
+    {"id":"collapsible.initial-closed"},{"id":"collapsible.default-open"},{"id":"collapsible.controlled-change"},{"id":"collapsible.disabled-noop"},{"id":"collapsible.relationships"},{"id":"collapsible.header-action-isolation"},{"id":"collapsible.subtitle"},{"id":"collapsible.host-attributes"},{"id":"collapsible.title-required"},{"id":"collapsible.projection-equivalence"}
+  ]
+}

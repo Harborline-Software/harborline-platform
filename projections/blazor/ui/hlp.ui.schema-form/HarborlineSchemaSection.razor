@@ -1,0 +1,45 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Forms
+
+<fieldset @ref="sectionElement" class="hl-schema-form__section" data-schemaform-section="@Section.Id">
+    <legend>@Resolve(Section.Title)</legend>
+    @if (Section.Items is { Count: > 0 } items)
+    {
+        <HarborlineSchemaItems Action="@Action" ByField="@ByField" Disabled="@Disabled" FieldFocused="@FieldFocused"
+                             Items="@items" LocaleChain="@LocaleChain"
+                             Path="@RootPath" Registry="@Registry" SetValue="@SetValue" Strings="@Strings" />
+    }
+    else
+    {
+        <div class="hl-schema-form__fields">
+            @foreach (var field in Section.Fields)
+            {
+                <HarborlineSchemaField @key="field.Name" Disabled="@Disabled" Error="@FieldError(field.Name)"
+                                     Field="@field" Focused="@FieldFocused" LocaleChain="@LocaleChain" Path="@Path(field.Name)"
+                                     Registry="@Registry" SetValue="@SetValue" Strings="@Strings" />
+            }
+        </div>
+    }
+</fieldset>
+
+@code {
+    [Parameter, EditorRequired] public SchemaFormSection Section { get; set; } = default!;
+    [Parameter, EditorRequired] public IReadOnlyList<string> LocaleChain { get; set; } = [];
+    [Parameter, EditorRequired] public SchemaFormStrings Strings { get; set; } = new();
+    [Parameter, EditorRequired] public SchemaFormControlRegistry Registry { get; set; } = default!;
+    [Parameter, EditorRequired] public Func<IReadOnlyList<object>, object?, Task> SetValue { get; set; } = default!;
+    [Parameter, EditorRequired] public EventCallback<SchemaFormAction> Action { get; set; }
+    [Parameter, EditorRequired] public IReadOnlyDictionary<string, string> ByField { get; set; } =
+        new Dictionary<string, string>(StringComparer.Ordinal);
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public Action<string, ElementReference>? RegisterElement { get; set; }
+    [Parameter] public Action<string>? FieldFocused { get; set; }
+
+    private ElementReference sectionElement;
+
+    private string Resolve(SchemaFormText text) => SchemaFormTextResolver.Resolve(text, LocaleChain);
+    private string? FieldError(string name) => ByField.TryGetValue(name, out var error) ? error : null;
+    private static IReadOnlyList<object> RootPath { get; } = [];
+    private static IReadOnlyList<object> Path(string name) => [name];
+
+    protected override void OnAfterRender(bool firstRender) => RegisterElement?.Invoke(Section.Id, sectionElement);
+}

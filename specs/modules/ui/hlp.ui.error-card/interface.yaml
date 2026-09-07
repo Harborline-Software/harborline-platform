@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.error-card",
+  "interfaceRevision": 1,
+  "semantics": {
+    "operation": "present a localized error summary and optionally offer one retry action",
+    "observableOutput": "An alert region with variant-appropriate title semantics, optional message, and at most one retry activation."
+  },
+  "sourceSurface": {
+    "repository": "shipyard",
+    "commit": "a5036ff8b500e0d857d7e0a698408e7cf7f6cf31",
+    "react": {"path": "packages/ui-react/src/components/ErrorCard.tsx", "blob": "f7ff636e79a0fe8135c72c993d8c650369a0121b"},
+    "blazorCandidate": {"path": "packages/ui-adapters-blazor/Components/Feedback/HarborlineErrorCard.razor", "blob": "c5701f1f66abb5370986c4c71157e8316f05e5b7", "disposition": "incomplete-donor"}
+  },
+  "invariants": [
+    "The root is exposed as an alert and the title always contributes visible text.",
+    "Page variant uses a level-two heading; default and compact variants use non-heading emphasized text.",
+    "The optional message follows the title in logical DOM order.",
+    "A retry control renders only when a retry callback is supplied and activates exactly once per user action.",
+    "Retry text resolves from an explicit caller-localized retry label, then the source-compatible English fallback Retry.",
+    "Default, compact, and page variants change density without changing alert or retry semantics.",
+    "Host class, language, direction, and data/ARIA attributes survive projection.",
+    "Error, focus, hover, forced-colors, reduced-motion, RTL, 200-percent reflow, light theme, and dark theme states remain observable.",
+    "Both projections emit the same class list on the container, title, message, and retry control, so one authority stylesheet styles both lanes."
+  ],
+  "errors": [{"code": "title-required", "when": "The effective visible title is empty."}],
+  "performance": {"operation": "O(1) in-process rendering with no I/O"},
+  "compatibility": {"reactPublicIdentity": "@harborline-software/ui-react#ErrorCard", "blazorPublicIdentity": "Harborline.UIAdapters.Blazor / HarborlineErrorCard"},
+  "cases": [
+    {"id": "error-card.default"},
+    {"id": "error-card.page"},
+    {"id": "error-card.compact"},
+    {"id": "error-card.message"},
+    {"id": "error-card.retry"},
+    {"id": "error-card.no-retry"},
+    {"id": "error-card.localized-retry"},
+    {"id": "error-card.semantic-tone"},
+    {"id": "error-card.host-attributes"},
+    {"id": "error-card.class-vocabulary"},
+    {"id": "error-card.projection-equivalence"}
+  ]
+}

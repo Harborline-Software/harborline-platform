@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <PackageId>Harborline.Blocks.BuilderDefinitions.Tests</PackageId><IsPackable>false</IsPackable><IsTestProject>true</IsTestProject><AssemblyName>Harborline.Blocks.BuilderDefinitions.Tests</AssemblyName><RootNamespace>Harborline.Blocks.BuilderDefinitions.Tests</RootNamespace><GenerateDocumentationFile>false</GenerateDocumentationFile></PropertyGroup>
+  <ItemGroup><PackageReference Include="Microsoft.NET.Test.Sdk" /><PackageReference Include="xunit" /><PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all" /></ItemGroup>
+  <ItemGroup><ProjectReference Include="../hlp.blocks.builder-definitions/Harborline.Blocks.BuilderDefinitions.csproj" /></ItemGroup>
+</Project>

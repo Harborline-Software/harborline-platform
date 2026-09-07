@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 1,
+  "authority": {
+    "ledger": "preprocessing/app-shell/generated/appshell-source.json",
+    "classification": "preprocessing/app-shell/draft-hlf053/behavior-map.draft.md",
+    "wave": "preprocessing/app-shell/draft-hlf053/WAVE-STATE.md",
+    "shipyardHead": "3410883405996dc8e4871418a441f52970d9994e"
+  },
+  "narrowing": {
+    "candidateSet": 244,
+    "formula": "244 direct-port × (session-tenant ∪ route-host) = 160 session-tenant + 84 route-host; 244 - 84 navigation/routing-out-of-Wave-B - 152 without outcome-equivalent packed Session/Authorization/MultiTenancy operations = 8 proved anchors",
+    "provedSessionTenantAnchors": 8,
+    "additionalHullRowsOutsideCandidateSet": 12,
+    "entryEvidenceRowsOutsideConsumerClaim": 1,
+    "exclusions": [
+      {"count":84,"name":"direct-port × route-host","reason":"navigation and routing are outside Candidate B; the route registry is entry evidence only"},
+      {"count":6,"name":"app.accountRole UI rows","reason":"no role-display/UI carrier in the three packages"},
+      {"count":5,"name":"EnrollmentSection","reason":"no enrollment carrier"},
+      {"count":6,"name":"InvitePanel","reason":"no invitation carrier"},
+      {"count":11,"name":"JoinPanel","reason":"no join-admission carrier"},
+      {"count":6,"name":"FirstRunGate","reason":"no first-run UI carrier"},
+      {"count":7,"name":"GenesisWizard","reason":"no genesis carrier"},
+      {"count":3,"name":"restartOnboarding","reason":"no onboarding persistence carrier"},
+      {"count":14,"name":"useFirstRun","reason":"no first-run state carrier"},
+      {"count":6,"name":"WorkspaceSwitcher","reason":"navigation/UI is out of scope and unpackaged"},
+      {"count":13,"name":"NavPermissionsProvider","reason":"no navigation permission carrier; ticket 092 confirms this"},
+      {"count":20,"name":"useWorkspaceNav","reason":"navigation/routing out of scope and no carrier"},
+      {"count":7,"name":"useLifecyclePhase","reason":"no lifecycle/build-mode carrier; ticket 092 confirms this"},
+      {"count":7,"name":"TeamSwitcher","reason":"no team-list or switch carrier"},
+      {"count":10,"name":"AdminTeamAccessContainer","reason":"no team-access endpoint/client carrier"},
+      {"count":15,"name":"AdminTeamAccessPanel","reason":"no team-access UI carrier"},
+      {"count":5,"name":"RedeemInvitationPanel","reason":"no invitation-redeem carrier"},
+      {"count":7,"name":"TenantWorkspacePicker","reason":"no selection-ceremony/rotation carrier"},
+      {"count":4,"name":"remaining WebSessionGate rows","reason":"browser cookie transport, native-profile UI, and redemption handoff are not package operations"}
+    ],
+    "excludedSessionTenantCheck": "6+5+6+11+6+7+3+14+6+13+20+7+7+10+15+5+7+4 = 152"
+  },
+  "sessionTenantAnchors": [
+    {"caseId":"apps/carrier/src/webclient/WebSessionGate.test.tsx::WebSessionGate — #131 cookie session survives reload > boots to the login screen when no session cookie is present","packedProof":"SessionResolver.ResolveAsync returns null for absent opaque id"},
+    {"caseId":"apps/carrier/src/webclient/WebSessionGate.test.tsx::WebSessionGate — #131 cookie session survives reload > login → reload → STILL authenticated","packedProof":"stored SessionRecord resolves repeatedly and touches activity"},
+    {"caseId":"apps/carrier/src/webclient/WebSessionGate.test.tsx::WebSessionGate — #131 cookie session survives reload > shows Sign out only for an active web session and returns to focused login without reload","packedProof":"ISessionStore.RemoveAsync makes subsequent resolution null; UI focus is not claimed"},
+    {"caseId":"apps/carrier/src/webclient/WebSessionGate.test.tsx::WebSessionGate — #131 cookie session survives reload > a carrier:web-session-expired event bounces an authenticated gate back to login","packedProof":"expired record resolves null and is removed; browser event is not claimed"},
+    {"caseId":"apps/carrier/src/webclient/WebSessionGate.test.tsx::WebSessionGate — #2618 proactive absolute-expiry (idle) bounce > keeps an authed session until the exact expiry boundary, then redirects to login","packedProof":"SessionRecord.IsExpired uses strict now > boundary"},
+    {"caseId":"apps/carrier/src/webclient/WebSessionGate.test.tsx::WebSessionGate — #2618 proactive absolute-expiry (idle) bounce > redirects immediately on boot when the session is already past its absolute expiry","packedProof":"SessionResolver removes and returns null past absolute expiry"},
+    {"caseId":"apps/carrier/src/webclient/WebSessionGate.test.tsx::WebSessionGate — #131 cookie session survives reload > keeps the app locked and does not claim sign-out after a 401 response","packedProof":"revoked/absent stored session emits no actor; response/UI transport is not claimed"},
+    {"caseId":"apps/carrier/src/webclient/WebSessionGate.test.tsx::WebSessionGate — #131 cookie session survives reload > keeps the app locked and does not claim sign-out after a 500 response","packedProof":"unresolved session emits no actor; response/UI transport is not claimed"}
+  ],
+  "foreignTenantAuthoredChecks": [
+    {"id":"foreign-session-is-absent","expectedStatus":404,"proof":"SessionResolver returns null when SessionRecord.TenantId differs from ITenantContext.Tenant.Id"},
+    {"id":"tenant-query-does-not-leak","expectedTenant":"tenant-a","proof":"WhereTenant filters IMustHaveTenant by exact resolved TenantId"},
+    {"id":"never-anonymous-party","expectedFailure":"NoAuthenticatedPrincipal","proof":"PartyContext throws stable fail-closed exception rather than minting an anonymous PartyId"}
+  ],
+  "hullAdminRows": [
+    {"caseId":"apps/carrier/src/admin/AdminConsole.test.tsx::AdminConsole — resolve→render > changes the unlocked-pack set when the tenant tier selector changes","seams":["projectForTenant"]},
+    {"caseId":"apps/carrier/src/admin/AdminConsole.test.tsx::AdminConsole — resolve→render > renders the {tts, capability-runtime, kernel} closure for the default [tts] seed","seams":["CARRIER_CATALOG","CARRIER_SEED","resolveEdition"]},
+    {"caseId":"apps/carrier/src/admin/AdminConsole.test.tsx::AdminConsole — resolve→render > renders the D5 resolved-defaults cascade (voice + runtimeTimeoutMs)","seams":["resolveEdition"]},
+    {"caseId":"apps/carrier/src/admin/AdminConsole.test.tsx::AdminConsole — resolve→render > renders the provenance map with correct capability → provider attribution","seams":["resolveEdition"]},
+    {"caseId":"apps/carrier/src/admin/AdminConsole.test.tsx::AdminConsole — resolve→render > shows the empty-state until the synthetic conflict is toggled, then the D8 diagnostic","seams":["CompositionError"]},
+    {"caseId":"apps/carrier/src/admin/resolve-view.test.ts::projectView > delegates a representative edition and tenant tier unchanged","seams":["projectForTenant"]},
+    {"caseId":"apps/carrier/src/admin/resolve-view.test.ts::resolveView > degrades unexpected %j throws to an unknown diagnostic [expanded 1/3]","seams":["resolveEdition"]},
+    {"caseId":"apps/carrier/src/admin/resolve-view.test.ts::resolveView > degrades unexpected %j throws to an unknown diagnostic [expanded 2/3]","seams":["resolveEdition"]},
+    {"caseId":"apps/carrier/src/admin/resolve-view.test.ts::resolveView > degrades unexpected %j throws to an unknown diagnostic [expanded 3/3]","seams":["resolveEdition"]},
+    {"caseId":"apps/carrier/src/admin/resolve-view.test.ts::resolveView > keeps empty composition-error fields intact at the boundary","seams":["CompositionError"]},
+    {"caseId":"apps/carrier/src/admin/resolve-view.test.ts::resolveView > returns the resolved edition for a representative catalog and seed","seams":["resolveEdition"]},
+    {"caseId":"apps/carrier/src/admin/resolve-view.test.ts::resolveView > surfaces a typed composition diagnostic including optional detail","seams":["CompositionError"]}
+  ],
+  "routeContractEntry": [{"id":"carrier-route-registry-pin-to-head","verdict":"PASS","evidence":"tickets/089-hull-resolution-artifact-consumability/REPORT.md; zero diff for main.tsx, carrierExecutableRegistry.ts, carrierRouteObjects.tsx from authority pin to Shipyard HEAD"}],
+  "namedUnverifiables": [
+    "cookie attributes and browser reload transport", "tenant selection round-trip/rotation", "invitation redeem and join admission",
+    "team-access mutation", "offline mutation-queue replay", "non-anonymous browser-preview fallback principal"
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.foundation.tenancy",
+  "interfaceRevision": 1,
+  "cases": [
+    {"id": "metadata-defaults", "operation": "metadata.create", "input": {"id": "acme", "name": "acme"}, "expected": {"status": "Active", "properties": {}, "displayName": null, "locale": null, "createdAt": null}},
+    {"id": "context-unresolved", "operation": "context.is-resolved", "input": null, "expected": false},
+    {"id": "context-resolved", "operation": "context.is-resolved", "input": {"id": "acme", "name": "acme"}, "expected": true},
+    {"id": "context-filter", "operation": "query.where-tenant-context", "input": {"tenant": "acme", "rows": ["acme:a", "beta:b", "acme:c"]}, "expected": ["acme:a", "acme:c"]},
+    {"id": "id-filter", "operation": "query.where-tenant-id", "input": {"tenant": "beta", "rows": ["acme:a", "beta:b", "beta:c"]}, "expected": ["beta:b", "beta:c"]},
+    {"id": "unresolved-filter-rejected", "operation": "query.where-tenant-context", "input": {"tenant": null, "rows": ["acme:a"]}, "expectedError": "tenant-unresolved"},
+    {"id": "default-filter-rejected", "operation": "query.where-tenant-id", "input": {"tenant": "default-struct", "rows": ["acme:a"]}, "expectedError": "tenant-sentinel"},
+    {"id": "system-filter-rejected", "operation": "query.where-tenant-id", "input": {"tenant": "__system__", "rows": ["acme:a"]}, "expectedError": "tenant-sentinel"},
+    {"id": "empty-match", "operation": "query.where-tenant-context", "input": {"tenant": "unknown", "rows": ["acme:a", "beta:b"]}, "expected": []},
+    {"id": "all-match", "operation": "query.where-tenant-context", "input": {"tenant": "acme", "rows": ["acme:a", "acme:b"]}, "expected": ["acme:a", "acme:b"]},
+    {"id": "query-composable", "operation": "query.compose", "input": {"tenant": "acme", "rows": ["acme:a1", "acme:a2", "beta:b1"], "preFilterSuffix": "1"}, "expected": ["acme:a1"]},
+    {"id": "must-have-tenant-constraint", "operation": "query.generic-constraint", "expected": "IMustHaveTenant"},
+    {"id": "status-wire-values", "operation": "metadata.status-values", "expected": ["Active", "Suspended", "Decommissioning", "Archived"]}
+  ]
+}

@@ -1,0 +1,57 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Feedback
+@inherits Harborline.UIAdapters.Blazor.Base.HarborlineComponentBase
+
+<div class="@CombineClasses("hl-empty-state", $"hl-empty-state--{VariantName}")"
+     style="@CombineStyles()" data-hl-variant="@VariantName" @attributes="AdditionalAttributes">
+    <svg class="hl-empty-state__icon" data-hl-icon="@IconName" data-hl-tone="@IconTone"
+         aria-hidden="true" focusable="false" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="9" />
+        @if (Variant is EmptyStateVariant.Positive)
+        {
+            <path d="m8.25 12.25 2.35 2.35 5.15-5.2" />
+        }
+        else if (Variant is EmptyStateVariant.Actionable)
+        {
+            <path d="M12 8v8M8 12h8" />
+        }
+        else
+        {
+            <path d="M12 10.75v5.5" />
+            <path d="M12 7.75h.01" />
+        }
+    </svg>
+    <p class="hl-empty-state__title">@Title</p>
+    @if (!string.IsNullOrWhiteSpace(Description))
+    {
+        <p class="hl-empty-state__description">@Description</p>
+    }
+    @if (ActionLabel is not null)
+    {
+        <button type="button" class="hl-empty-state__action" @onclick="OnAction">@ActionLabel</button>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
+    [Parameter] public string? Description { get; set; }
+    [Parameter] public EmptyStateVariant Variant { get; set; } = EmptyStateVariant.Informational;
+    [Parameter] public string? ActionLabel { get; set; }
+    [Parameter] public EventCallback OnAction { get; set; }
+
+    private string VariantName => Variant.ToString().ToLowerInvariant();
+    private string IconName => Variant switch
+    {
+        EmptyStateVariant.Positive => "circle-check",
+        EmptyStateVariant.Actionable => "circle-plus",
+        _ => "info",
+    };
+    private string IconTone => Variant is EmptyStateVariant.Positive ? "success" : "muted";
+
+    protected override void OnParametersSet()
+    {
+        if (string.IsNullOrWhiteSpace(Title)) throw new InvalidOperationException("title-required");
+        var hasLabel = !string.IsNullOrWhiteSpace(ActionLabel);
+        if (hasLabel != OnAction.HasDelegate) throw new InvalidOperationException("action-incomplete");
+        ActionLabel = hasLabel ? ActionLabel : null;
+    }
+}

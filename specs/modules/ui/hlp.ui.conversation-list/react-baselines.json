@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "projection": "react",
+  "moduleId": "hlp.ui.conversation-list",
+  "scenarios": [
+    {
+      "scenarioId": "conversation-list.empty",
+      "sha256": "c0265da8a4abd0e9c20d14360a95096ee2e41b34859b874493c1f70b0c1ca543",
+      "bytes": 5580,
+      "artifact": "../baselines/sha256/c0265da8a4abd0e9c20d14360a95096ee2e41b34859b874493c1f70b0c1ca543.png"
+    },
+    {
+      "scenarioId": "conversation-list.rows",
+      "sha256": "9d7fe5caf383f3d5156459644dcf087028dd3c84be19b60b1168d8c7c3333e7b",
+      "bytes": 10916,
+      "artifact": "../baselines/sha256/9d7fe5caf383f3d5156459644dcf087028dd3c84be19b60b1168d8c7c3333e7b.png"
+    },
+    {
+      "scenarioId": "conversation-list.rename",
+      "sha256": "691755303a30de48db482b78f6eec335c5b74dd5fbd7a8651d0cf81bb4339816",
+      "bytes": 9278,
+      "artifact": "../baselines/sha256/691755303a30de48db482b78f6eec335c5b74dd5fbd7a8651d0cf81bb4339816.png"
+    },
+    {
+      "scenarioId": "conversation-list.delete",
+      "sha256": "c9e6277de519e62d68f0d6584adca0fcf822a22b9f5bf05df19c6257ed57e4d6",
+      "bytes": 10027,
+      "artifact": "../baselines/sha256/c9e6277de519e62d68f0d6584adca0fcf822a22b9f5bf05df19c6257ed57e4d6.png"
+    },
+    {
+      "scenarioId": "conversation-list.locale-ar",
+      "sha256": "8706b84cdc873e8aa9579fae6ddfa24cacf8385a1fdc7e4311236bccf5ebf15c",
+      "bytes": 10413,
+      "artifact": "../baselines/sha256/8706b84cdc873e8aa9579fae6ddfa24cacf8385a1fdc7e4311236bccf5ebf15c.png"
+    },
+    {
+      "scenarioId": "conversation-list.invalid",
+      "sha256": "a4f011463644d43cb16f30ca0a50a31433b4adf588fb2bf99dba63df10c01d66",
+      "bytes": 9870,
+      "artifact": "../baselines/sha256/a4f011463644d43cb16f30ca0a50a31433b4adf588fb2bf99dba63df10c01d66.png"
+    },
+    {
+      "scenarioId": "conversation-list.theme-light",
+      "sha256": "a4f011463644d43cb16f30ca0a50a31433b4adf588fb2bf99dba63df10c01d66",
+      "bytes": 9870,
+      "artifact": "../baselines/sha256/a4f011463644d43cb16f30ca0a50a31433b4adf588fb2bf99dba63df10c01d66.png"
+    },
+    {
+      "scenarioId": "conversation-list.theme-dark",
+      "sha256": "fd69be1ad43da8a6b742e95d1e8cf74283590d3a1db122489a28b0621af3802f",
+      "bytes": 10151,
+      "artifact": "../baselines/sha256/fd69be1ad43da8a6b742e95d1e8cf74283590d3a1db122489a28b0621af3802f.png"
+    }
+  ]
+}

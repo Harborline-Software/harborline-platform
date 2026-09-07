@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.check-box",
+  "interfaceRevision": 1,
+  "semantics": {"operation": "render a labelled binary or mixed-state checkbox with controlled and uncontrolled value semantics", "observableOutput": "Equivalent checked state, emitted Boolean value, labelling, validation, disabled behavior, sizing, and host form attributes in React and Blazor."},
+  "sourceSurface": {"repository": "shipyard", "commit": "a5036ff8b500e0d857d7e0a698408e7cf7f6cf31", "path": "packages/ui-react/src/components/forms/CheckBox.tsx", "blob": "ce08e4957b11540af74084fb7db06ba31b15a9b0", "capturedExports": ["CheckBox"]},
+  "dependencies": ["hlp.ui.cn"],
+  "vocabulary": {"states":["unchecked","checked","mixed"],"labelPlacements":["before","after"],"sizes":["sm","md","lg"]},
+  "invariants": [
+    "Controlled checked state is never mutated locally; uncontrolled state initializes once from defaultChecked.",
+    "User activation emits the resulting Boolean checked value exactly once; activation from mixed emits checked.",
+    "Disabled state prevents activation and value callbacks and exposes native disabled semantics.",
+    "Mixed state exposes the native indeterminate property and aria-checked=mixed while retaining a Boolean form submission value.",
+    "A supplied label is associated through one labelable control and may appear before or after it without changing activation behavior.",
+    "Required and error state expose native required, aria-required, and aria-invalid semantics without inventing validation text.",
+    "Name, value, id, described-by, class, data, and aria host attributes are preserved at their owning element.",
+    "The sm, md, and lg sizes change presentation only; state and accessible semantics remain equivalent."
+  ],
+  "errors": [],
+  "presentation": {"disposition":"required","gallery":"gallery/scenarios/hlp.ui.check-box.json"},
+  "cases": [
+    {"id":"check-box.uncontrolled"},{"id":"check-box.controlled"},{"id":"check-box.mixed"},{"id":"check-box.disabled-noop"},{"id":"check-box.label-placement"},{"id":"check-box.required-error"},{"id":"check-box.form-attributes"},{"id":"check-box.sizes"},{"id":"check-box.host-attributes"},{"id":"check-box.class-parity"},{"id":"check-box.projection-equivalence"}
+  ]
+}

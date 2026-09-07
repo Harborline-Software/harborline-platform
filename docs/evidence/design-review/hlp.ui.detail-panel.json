@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.detail-panel",
+  "verdict": "approved",
+  "reviewer": "cic",
+  "recordedAt": "2026-08-28T02:24:31.715Z",
+  "reference": {
+    "revision": "64b4ea13f7238ff77383547d9cbd0471bbd7eceb09500224a01d79029e78e9f1",
+    "source": "gallery/scenarios/hlp.ui.detail-panel.json",
+    "pin": "28e389ae42b64246f1c6d92e0002b78bc92791b3",
+    "surface": {
+      "conformance/hlp.ui.detail-panel/fixtures.yaml": "ea0f2be6094232114e7c8fc69007c705e8191355955fb4736016c6e10c0d9f78",
+      "conformance/hlp.ui.detail-panel/quality-fixtures.yaml": "f3670531c5128ee525781e9c23a4092bd3d2a4a54955c0281d32cb4b56def59c",
+      "gallery/projections/blazor/Stories/DetailPanel.stories.razor": "02f26af856aa18facae1cadd280bcb1daf0c7049602add42c96770fdeba884d2",
+      "gallery/projections/blazor/Stories/DetailPanelScenario.razor": "f513e9d6631f2be732cd5a72e36c59f7d6ce5eebc6b6284482bd083b1a51c7fa",
+      "gallery/projections/react/src/DetailPanel.stories.tsx": "e6e6cd84b92a1fe5c89975e86f241d166597faa606053c7b160113c9bbbe03a9",
+      "gallery/scenarios/hlp.ui.detail-panel.json": "a07f9bffca1db303b07c87b6cc0c828a714e953c9b62f79919da807750fb73b9",
+      "projections/blazor/ui/hlp.ui.detail-panel/ShipyardDetailPanel.razor": "a9cc85e383f30b6bd9315d554d7943a6e138f3847533d712edbd864aa43ecab7",
+      "projections/blazor/ui/hlp.ui.detail-panel/wwwroot/detail-panel.css": "ec16745d7cf40d21777c75138c08f772c38b70a5c54032af8f53b0a997e216d3",
+      "projections/react/ui/hlp.ui.detail-panel/src/DetailPanel.tsx": "1ee4debb1812e87740012aaaf4fd898ffd20541f64cab3f0c3eba3605447dc83",
+      "projections/react/ui/hlp.ui.detail-panel/src/index.ts": "809a9458b5db53fb12d9727435fbd7e52ca2d892df5f44c415501ed0b8bf2278",
+      "projections/react/ui/hlp.ui.detail-panel/src/style.css": "8dfdd4aa2fff14b149eee44240d8a8782cc5b80f39605b6820c0b3297457067d",
+      "specs/modules/ui/hlp.ui.detail-panel/scenarios.json": "a07f9bffca1db303b07c87b6cc0c828a714e953c9b62f79919da807750fb73b9",
+      "specs/modules/ui/hlp.ui.detail-panel/style.css": "8dfdd4aa2fff14b149eee44240d8a8782cc5b80f39605b6820c0b3297457067d"
+    }
+  }
+}

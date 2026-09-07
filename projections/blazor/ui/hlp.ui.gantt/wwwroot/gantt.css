@@ -1,0 +1,377 @@
+.hl-gantt {
+  --hl-gantt-surface: var(--hl-surface, var(--hl-background, Canvas));
+  --hl-gantt-foreground: var(--hl-foreground, CanvasText);
+  --hl-gantt-muted: var(--hl-muted-foreground, color-mix(in srgb, CanvasText 72%, Canvas));
+  --hl-gantt-border: var(--hl-border, color-mix(in srgb, CanvasText 28%, Canvas));
+  --hl-gantt-header: var(--hl-surface-subtle, var(--hl-muted, color-mix(in srgb, CanvasText 6%, Canvas)));
+  --hl-gantt-row-hover: color-mix(in srgb, var(--hl-gantt-header) 72%, transparent);
+  --hl-gantt-accent: var(--hl-primary, var(--hl-accent-strong, Highlight));
+  --hl-color-success: var(--hl-success, var(--hl-gantt-accent));
+  --hl-color-info: var(--hl-info, var(--hl-gantt-accent));
+  --hl-color-warning: var(--hl-warning, var(--hl-gantt-accent));
+  --hl-gantt-focus: var(--hl-focus, Highlight);
+  --hl-gantt-header-height: 4.125rem;
+  --hl-gantt-pane-width: 24rem;
+  --hl-gantt-timeline-width: max(24rem, 50vw);
+}
+
+.hl-gantt,
+.hl-gantt *,
+.hl-gantt *::before,
+.hl-gantt *::after {
+  box-sizing: border-box;
+}
+
+.hl-gantt {
+  background: var(--hl-gantt-surface);
+  border: 1px solid var(--hl-gantt-border);
+  border-radius: var(--hl-radius-lg, 0.75rem);
+  color: var(--hl-gantt-foreground);
+  font-size: 0.875rem;
+  inline-size: 100%;
+  line-height: 1.4;
+  max-inline-size: 100%;
+  min-inline-size: 0;
+  overflow: hidden;
+}
+
+.hl-gantt__zoom {
+  align-items: center;
+  background: var(--hl-gantt-header);
+  border-block-end: 1px solid var(--hl-gantt-border);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 0.8125rem;
+  font-weight: 650;
+  gap: 0.625rem;
+  justify-content: flex-end;
+  min-block-size: 3.25rem;
+  padding: 0.5rem 0.75rem;
+}
+
+.hl-gantt__zoom select {
+  background: var(--hl-gantt-surface);
+  border: 1px solid var(--hl-gantt-border);
+  border-radius: var(--hl-radius-md, 0.5rem);
+  color: var(--hl-gantt-foreground);
+  cursor: pointer;
+  font: inherit;
+  min-block-size: 2.5rem;
+  padding-block: 0.375rem;
+  padding-inline: 0.75rem 2rem;
+  transition: background-color 150ms ease-out, border-color 150ms ease-out;
+}
+
+.hl-gantt__zoom select:hover:not(:disabled) {
+  background: var(--hl-gantt-header);
+  border-color: color-mix(in srgb, var(--hl-gantt-accent) 45%, var(--hl-gantt-border));
+}
+
+.hl-gantt__zoom select:active:not(:disabled) {
+  border-color: var(--hl-gantt-accent);
+}
+
+.hl-gantt__zoom select:disabled {
+  color: var(--hl-gantt-muted);
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.hl-gantt__scroll {
+  max-block-size: min(42rem, 75vh);
+  max-inline-size: 100%;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-color: var(--hl-gantt-border) transparent;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+}
+
+.hl-gantt__scroll:focus-visible {
+  outline: 3px solid var(--hl-gantt-focus);
+  outline-offset: -3px;
+}
+
+.hl-gantt__table-wrap {
+  inline-size: max(100%, calc(var(--hl-gantt-pane-width) + var(--hl-gantt-timeline-width)));
+  min-inline-size: 0;
+  position: relative;
+}
+
+.hl-gantt__table {
+  border-collapse: separate;
+  border-spacing: 0;
+  inline-size: 100%;
+  min-inline-size: calc(var(--hl-gantt-pane-width) + var(--hl-gantt-timeline-width));
+  table-layout: fixed;
+  text-align: start;
+}
+
+.hl-gantt thead tr {
+  block-size: var(--hl-gantt-header-height);
+}
+
+.hl-gantt tbody tr {
+  block-size: var(--hl-gantt-row-height);
+}
+
+.hl-gantt th,
+.hl-gantt td {
+  block-size: var(--hl-gantt-row-height);
+  border-block-end: 1px solid var(--hl-gantt-border);
+  border-inline-end: 1px solid var(--hl-gantt-border);
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+  padding: 0.5rem 0.625rem;
+  text-align: start;
+  vertical-align: middle;
+}
+
+.hl-gantt :is(th, td)[data-gantt-column='title'] { inline-size: 10rem; }
+.hl-gantt :is(th, td)[data-gantt-column='start'],
+.hl-gantt :is(th, td)[data-gantt-column='end'] { inline-size: 7rem; }
+.hl-gantt :is(th, td)[data-gantt-column='progress'] { inline-size: 6rem; }
+.hl-gantt td[data-gantt-column] { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.hl-gantt th {
+  background: var(--hl-gantt-header);
+  block-size: var(--hl-gantt-header-height);
+  color: var(--hl-gantt-foreground);
+  font-size: 0.75rem;
+  font-weight: 650;
+  inset-block-start: 0;
+  letter-spacing: 0.01em;
+  line-height: 1.35;
+  position: sticky;
+  vertical-align: top;
+  z-index: 4;
+}
+
+.hl-gantt :is(th, td):last-child {
+  border-inline-end: 0;
+}
+
+.hl-gantt tbody tr:last-child td {
+  border-block-end: 0;
+}
+
+.hl-gantt tbody tr:hover td {
+  background: var(--hl-gantt-row-hover);
+}
+
+.hl-gantt td {
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.hl-gantt td:focus-visible,
+.hl-gantt__zoom select:focus-visible {
+  outline: 3px solid var(--hl-gantt-focus);
+  outline-offset: -3px;
+  position: relative;
+  z-index: 5;
+}
+
+.hl-gantt th.hl-gantt__timeline-heading,
+.hl-gantt td.hl-gantt__timeline-cell {
+  inline-size: var(--hl-gantt-timeline-width);
+  min-inline-size: 24rem;
+  padding-inline: 0;
+}
+
+.hl-gantt__timeline-title {
+  display: block;
+  overflow: hidden;
+  padding-inline: 0.625rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hl-gantt__scale {
+  block-size: 1.625rem;
+  border-block-start: 1px solid var(--hl-gantt-border);
+  display: block;
+  margin-block-start: 0.375rem;
+  overflow: hidden;
+  position: relative;
+}
+
+.hl-gantt__scale-mark {
+  border-inline-start: 1px solid var(--hl-gantt-border);
+  color: var(--hl-gantt-muted);
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+  inset-block: 0;
+  line-height: 1.25;
+  max-inline-size: 8rem;
+  overflow: hidden;
+  padding-block-start: 0.25rem;
+  padding-inline-start: 0.375rem;
+  position: absolute;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hl-gantt__timeline-cell {
+  block-size: var(--hl-gantt-row-height);
+  padding-block: 0;
+  position: relative;
+}
+
+.hl-gantt__bar {
+  align-items: center;
+  background: color-mix(in srgb, var(--hl-gantt-bar-color) 18%, var(--hl-gantt-surface));
+  block-size: calc(var(--hl-gantt-row-height) - 0.75rem);
+  border: 1px solid var(--hl-gantt-bar-color);
+  border-radius: var(--hl-radius-sm, 0.375rem);
+  box-shadow: 0 0.125rem 0.25rem color-mix(in srgb, var(--hl-gantt-bar-color) 22%, transparent);
+  display: flex;
+  gap: 0.375rem;
+  inset-block-start: 0.375rem;
+  inset-inline-start: var(--hl-gantt-bar-offset);
+  inline-size: max(0.5rem, var(--hl-gantt-bar-width));
+  min-block-size: 1.5rem;
+  min-inline-size: 0;
+  overflow: hidden;
+  padding: 0.125rem 0.375rem;
+  position: absolute;
+}
+
+.hl-gantt__bar-title,
+.hl-gantt__progress-text {
+  font-size: 0.75rem;
+  line-height: 1.2;
+  position: relative;
+  z-index: 1;
+}
+
+.hl-gantt__bar-title {
+  flex: 1 1 auto;
+  font-weight: 600;
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hl-gantt__progress-text {
+  flex: 0 0 auto;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.hl-gantt__progress {
+  background: color-mix(in srgb, var(--hl-gantt-bar-color) 30%, transparent);
+  inset-block: 0;
+  inset-inline-start: 0;
+  position: absolute;
+}
+
+.hl-gantt__dependencies {
+  block-size: var(--hl-gantt-dependencies-height);
+  inline-size: var(--hl-gantt-timeline-width);
+  inset-block-start: var(--hl-gantt-header-height);
+  inset-inline-end: 0;
+  overflow: visible;
+  pointer-events: none;
+  position: absolute;
+  z-index: 2;
+}
+
+/* The bars are placed with inset-inline-start, so they mirror under RTL. This layer does not: it is
+   an SVG whose coordinates are always measured from its left edge, so the connectors were drawn on
+   the opposite side of the chart from the bars they join. The layer spans exactly the timeline, so
+   mirroring it maps every x back onto its own bar. :dir() rather than [dir] because the component
+   accepts a dir prop that may disagree with an ancestor, and the bars follow the computed direction. */
+.hl-gantt:dir(rtl) .hl-gantt__dependencies {
+  transform: scaleX(-1);
+}
+
+.hl-gantt__dependency {
+  fill: none;
+  stroke: var(--hl-gantt-muted);
+  stroke-dasharray: 3 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.5;
+}
+
+.hl-gantt__empty {
+  color: var(--hl-gantt-muted);
+  font-size: 0.875rem;
+  padding: 3rem 1rem;
+  text-align: center;
+}
+
+.hl-gantt__sr-only {
+  block-size: 1px;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  inline-size: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+}
+
+[data-theme='dark'] .hl-gantt,
+.hl-gantt[data-theme='dark'] {
+  --hl-gantt-surface: var(--hl-surface, var(--hl-background, Canvas));
+  --hl-gantt-foreground: var(--hl-foreground, CanvasText);
+  --hl-gantt-muted: var(--hl-muted-foreground, color-mix(in srgb, CanvasText 74%, Canvas));
+  --hl-gantt-border: var(--hl-border, color-mix(in srgb, CanvasText 34%, Canvas));
+  --hl-gantt-header: var(--hl-surface-subtle, var(--hl-muted, color-mix(in srgb, CanvasText 9%, Canvas)));
+  --hl-gantt-accent: var(--hl-primary, var(--hl-accent-strong, Highlight));
+  --hl-gantt-focus: var(--hl-focus, Highlight);
+}
+
+@media (max-width: 48rem) {
+  .hl-gantt {
+    --hl-gantt-timeline-width: 24rem;
+  }
+
+  .hl-gantt__zoom {
+    align-items: stretch;
+  }
+
+  .hl-gantt__zoom select {
+    min-block-size: 44px;
+  }
+}
+
+@media (forced-colors: active) {
+  .hl-gantt,
+  .hl-gantt th,
+  .hl-gantt td,
+  .hl-gantt__bar {
+    border-color: CanvasText;
+  }
+
+  .hl-gantt__bar {
+    background: Canvas;
+    box-shadow: none;
+  }
+
+  .hl-gantt__progress {
+    background: Highlight;
+  }
+
+  .hl-gantt__dependency {
+    stroke: CanvasText;
+  }
+
+  .hl-gantt td:focus-visible,
+  .hl-gantt__scroll:focus-visible,
+  .hl-gantt__zoom select:focus-visible {
+    outline-color: Highlight;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hl-gantt *,
+  .hl-gantt *::before,
+  .hl-gantt *::after {
+    animation-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}

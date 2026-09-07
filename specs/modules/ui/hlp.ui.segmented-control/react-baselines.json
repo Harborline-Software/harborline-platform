@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "projection": "react",
+  "moduleId": "hlp.ui.segmented-control",
+  "scenarios": [
+    {
+      "scenarioId": "segmented-control.structure",
+      "sha256": "e1d76ff673413f69014e3c36130a18c893f3e3fb2390525ead33a85c430a0013",
+      "bytes": 9193,
+      "artifact": "../baselines/sha256/e1d76ff673413f69014e3c36130a18c893f3e3fb2390525ead33a85c430a0013.png"
+    },
+    {
+      "scenarioId": "segmented-control.activation",
+      "sha256": "2356d73e4c7f81b421dbf6ac58f4011f6aa21bac08d7ba08c054b603fb83a6c9",
+      "bytes": 10763,
+      "artifact": "../baselines/sha256/2356d73e4c7f81b421dbf6ac58f4011f6aa21bac08d7ba08c054b603fb83a6c9.png"
+    },
+    {
+      "scenarioId": "segmented-control.keyboard",
+      "sha256": "886160d57526160369957f73a028af8cc5bcbdf4dbfccd1029f0022f9f098fb1",
+      "bytes": 10393,
+      "artifact": "../baselines/sha256/886160d57526160369957f73a028af8cc5bcbdf4dbfccd1029f0022f9f098fb1.png"
+    },
+    {
+      "scenarioId": "segmented-control.sizing",
+      "sha256": "2ef26fe70d0de7c4ea5632a282109457916b9507e305551ea83e473623a94f08",
+      "bytes": 17773,
+      "artifact": "../baselines/sha256/2ef26fe70d0de7c4ea5632a282109457916b9507e305551ea83e473623a94f08.png"
+    },
+    {
+      "scenarioId": "segmented-control.locale-en",
+      "sha256": "a46d15404cd1b86844f5bd9237cbdc544f884687c1358d572d7b1fc96bbae62a",
+      "bytes": 7956,
+      "artifact": "../baselines/sha256/a46d15404cd1b86844f5bd9237cbdc544f884687c1358d572d7b1fc96bbae62a.png"
+    },
+    {
+      "scenarioId": "segmented-control.locale-pseudo",
+      "sha256": "bc055bd163a2f89abbc6e9c81e7deddf6e4e3368273108945dc2ab6ca3354974",
+      "bytes": 9686,
+      "artifact": "../baselines/sha256/bc055bd163a2f89abbc6e9c81e7deddf6e4e3368273108945dc2ab6ca3354974.png"
+    },
+    {
+      "scenarioId": "segmented-control.locale-ar",
+      "sha256": "38ecd3f557fc2bd5efd56068f4dfc6b11b66fd880bdf945e52eeb0c14d8b3d90",
+      "bytes": 8175,
+      "artifact": "../baselines/sha256/38ecd3f557fc2bd5efd56068f4dfc6b11b66fd880bdf945e52eeb0c14d8b3d90.png"
+    },
+    {
+      "scenarioId": "segmented-control.theme-light",
+      "sha256": "66e01dce86b3e77ee7ecc7d9eb53773f7d6633cb59cbe3282242494bc863b9d8",
+      "bytes": 16309,
+      "artifact": "../baselines/sha256/66e01dce86b3e77ee7ecc7d9eb53773f7d6633cb59cbe3282242494bc863b9d8.png"
+    },
+    {
+      "scenarioId": "segmented-control.theme-dark",
+      "sha256": "a03b3cd041fc947dd4b90e5072cdbabda2eff75a7d67c1634fcd1424e47fbbcc",
+      "bytes": 15832,
+      "artifact": "../baselines/sha256/a03b3cd041fc947dd4b90e5072cdbabda2eff75a7d67c1634fcd1424e47fbbcc.png"
+    }
+  ]
+}

@@ -1,0 +1,90 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Buttons
+@inherits Harborline.UIAdapters.Blazor.Base.HarborlineComponentBase
+@implements IAsyncDisposable
+@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.JSInterop
+@using Harborline.UIAdapters.Blazor.Browser
+@using Harborline.UIAdapters.Blazor.Localization
+@inject IOutsidePointerObserver OutsidePointer
+@inject IJSRuntime JavaScript
+
+<div @ref="Root" class="@CombineClasses("hl-action-menu")" dir="@(LocaleContext?.Direction)" @attributes="AdditionalAttributes">
+  <button @ref="TriggerElement" type="button" class="@CombineClasses("hl-action-menu__trigger", Trigger is null ? null : "hl-action-menu__trigger--custom")" aria-haspopup="menu" aria-expanded="@IsOpen.ToString().ToLowerInvariant()" aria-controls="@MenuId" aria-label="@ResolvedLabel" @onclick="ToggleAsync" @onkeydown="HandleTriggerKeyAsync">@if(Trigger is not null){@Trigger}else{<svg aria-hidden="true" viewBox="0 0 20 20" class="hl-action-menu__trigger-icon"><circle cx="4" cy="10" r="1.6"/><circle cx="10" cy="10" r="1.6"/><circle cx="16" cy="10" r="1.6"/></svg>}</button>
+  @if(IsOpen){
+    <div @ref="MenuElement" id="@MenuId" role="menu" tabindex="-1" class="hl-action-menu__menu" data-align="@(Alignment==ActionMenuAlignment.Right?"end":"start")" data-active-id="@ActiveItem?.Id" data-hl-state="@(IsEmpty?"empty":"populated")" @onkeydown="HandleMenuKeyAsync">
+      @if(IsEmpty){<p role="menuitem" aria-disabled="true" tabindex="-1" class="hl-action-menu__empty" data-hl-empty-message="true">@EmptyText</p>}
+      else{ foreach(var entry in Items){
+        if(entry is ActionMenuSeparator){<div role="separator" class="hl-action-menu__separator"></div>}
+        else if(entry is ActionMenuItem item){<button type="button" role="@(item.Checked is null?"menuitem":"menuitemcheckbox")" aria-checked="@(item.Checked?.ToString().ToLowerInvariant())" disabled="@item.Disabled" aria-disabled="@(item.Disabled?"true":null)" aria-keyshortcuts="@item.KeyShortcuts" tabindex="@(item==ActiveItem?0:-1)" data-active="@(item==ActiveItem?"true":null)" data-item-id="@item.Id" data-destructive="@(item.Destructive?"true":null)" class="hl-action-menu__item" @onclick="()=>SelectAsync(item)">@if(item.Checked is not null){<span aria-hidden="true" class="hl-action-menu__item-check" data-checked="@(item.Checked.Value?"true":"false")">@(item.Checked.Value?"✓":null)</span>}@if(item.Icon is not null){<span aria-hidden="true">@item.Icon</span>}<span>@item.Label</span>@if(item.ShortcutHint is not null){<span aria-hidden="true" class="hl-action-menu__item-hint">@item.ShortcutHint</span>}</button>}
+      }}
+    </div>
+  }
+</div>
+
+@code {
+  [CascadingParameter] private HarborlineLocaleContext? LocaleContext {get;set;}
+  [Parameter] public IReadOnlyList<ActionMenuEntry> Items {get;set;}=[];
+  [Parameter] public RenderFragment? Trigger {get;set;}
+  [Parameter] public string? AccessibleLabel {get;set;}
+  [Parameter] public ActionMenuAlignment Alignment {get;set;}=ActionMenuAlignment.Right;
+  [Parameter] public EventCallback<ActionMenuItem> OnSelect {get;set;}
+  /// <summary>disclosure-model.md §5 - the scope this menu is the home of. Two menus mounted for one
+  /// scope id in one shell instance is refused. Omitting it does not opt out: the shell derives the
+  /// scope from the nearest scope host, else the root surface, so every composed menu carries one.</summary>
+  [Parameter] public string? ScopeId {get;set;}
+  [CascadingParameter(Name=ActionMenuScopes.CascadingName)] private string? HostScopeId {get;set;}
+  private string ResolvedScopeId => string.IsNullOrWhiteSpace(ScopeId) ? (string.IsNullOrWhiteSpace(HostScopeId) ? ActionMenuScopes.RootScopeId : HostScopeId) : ScopeId;
+  /// <summary>disclosure-model.md - the facet ids of the object being shown. A facet is a place, so
+  /// it can never be an entry here.</summary>
+  [Parameter] public IReadOnlyList<string>? FacetIds {get;set;}
+  /// <summary>disclosure-model.md - "honest empty and unavailable states, phrased as what happened
+  /// and what to do". A menu holding nothing to draw says so rather than opening a blank box; the
+  /// trigger stays where it is because §5 makes it the one home for this scope. Overrides the
+  /// buttons.noActions catalog key.</summary>
+  [Parameter] public string? Empty {get;set;}
+  public bool IsOpen {get;private set;}
+  private string MenuId {get;}=$"hl-action-menu-{Guid.NewGuid():N}";
+  /// <summary>Nothing to draw: no entries at all, or separators only. An all-disabled menu still
+  /// draws items a user can read, so it is a different state and keeps its items.</summary>
+  private bool IsEmpty => !Items.OfType<ActionMenuItem>().Any();
+  private string EmptyText { get { var resolved=LocaleContext?.ResolveString("buttons.noActions")??"buttons.noActions"; return !string.IsNullOrWhiteSpace(Empty) ? Empty : (resolved=="buttons.noActions"?"No actions available":resolved); } }
+  private string ResolvedLabel => LocaleContext?.ResolveString("buttons.moreActions",instanceOverride:AccessibleLabel) ?? AccessibleLabel ?? "More actions";
+  private ElementReference Root,TriggerElement,MenuElement;
+  private IOutsidePointerRegistration? outsideRegistration;
+  private IJSObjectReference? domModule;
+  private int activeIndex=-1;
+  private bool focusMenu,focusTrigger;
+  private string typeahead="";
+  private DateTime typeaheadAt;
+  private ActionMenuItem? ActiveItem => activeIndex>=0&&activeIndex<Items.Count?Items[activeIndex] as ActionMenuItem:null;
+  private int[] Enabled => Items.Select((x,i)=>(x,i)).Where(x=>x.x is ActionMenuItem{Disabled:false}).Select(x=>x.i).ToArray();
+  private IDisposable? scopeClaim;
+  private string? claimedScopeId;
+  protected override void OnParametersSet(){
+    if(string.IsNullOrWhiteSpace(ResolvedLabel))throw new InvalidOperationException("accessible-name-required");
+    if(FacetIds is {Count:>0}){var facets=FacetIds.ToHashSet(StringComparer.Ordinal);if(Items.OfType<ActionMenuItem>().Any(x=>facets.Contains(x.Id)))throw new InvalidOperationException("action-menu-facet-not-an-item");}
+    if(ResolvedScopeId!=claimedScopeId){scopeClaim?.Dispose();scopeClaim=null;claimedScopeId=ResolvedScopeId;scopeClaim=ActionMenuScopes.Claim(JavaScript,ResolvedScopeId);}
+  }
+  private async Task ToggleAsync(){if(IsOpen)await CloseAsync(false);else await OpenAsync(first:true);}
+  private async Task OpenAsync(bool first){IsOpen=true;var enabled=Enabled;activeIndex=enabled.Length==0?-1:(first?enabled[0]:enabled[^1]);focusMenu=activeIndex>=0;await InvokeAsync(StateHasChanged);}
+  private async Task CloseAsync(bool restore){if(!IsOpen)return;IsOpen=false;activeIndex=-1;typeahead="";focusTrigger=restore;if(outsideRegistration is not null)await outsideRegistration.DisposeAsync();outsideRegistration=null;await InvokeAsync(StateHasChanged);}
+  private async Task SelectAsync(ActionMenuItem item){if(item.Disabled)return;await OnSelect.InvokeAsync(item);await CloseAsync(true);}
+  private async Task HandleTriggerKeyAsync(KeyboardEventArgs e){if(e.Key is "ArrowDown" or "Home"){await OpenAsync(true);}else if(e.Key is "ArrowUp" or "End"){await OpenAsync(false);}}
+  private async Task HandleMenuKeyAsync(KeyboardEventArgs e){
+    if(e.Key=="Escape"){await CloseAsync(true);return;} if(e.Key=="Tab"){await CloseAsync(false);return;}
+    var enabled=Enabled;if(enabled.Length==0)return;var slot=Array.IndexOf(enabled,activeIndex);
+    if(e.Key=="ArrowDown")activeIndex=enabled[(slot+1+enabled.Length)%enabled.Length];
+    else if(e.Key=="ArrowUp")activeIndex=enabled[(slot-1+enabled.Length)%enabled.Length];
+    else if(e.Key=="Home")activeIndex=enabled[0];else if(e.Key=="End")activeIndex=enabled[^1];
+    else if(e.Key is "Enter" or " "){if(ActiveItem is not null)await SelectAsync(ActiveItem);return;}
+    else if(e.Key.Length==1&&!char.IsControl(e.Key[0])){var now=DateTime.UtcNow;typeahead=now-typeaheadAt>TimeSpan.FromMilliseconds(700)?e.Key:typeahead+e.Key;typeaheadAt=now;var match=enabled.Select(i=>(i,item:(ActionMenuItem)Items[i])).FirstOrDefault(x=>x.item.Label.StartsWith(typeahead,StringComparison.CurrentCultureIgnoreCase));if(match.item is not null)activeIndex=match.i;}
+    else return;focusMenu=true;
+  }
+  protected override async Task OnAfterRenderAsync(bool firstRender){
+    if(IsOpen&&outsideRegistration is null)outsideRegistration=await OutsidePointer.ObserveAsync([Root],_=>new ValueTask(CloseAsync(false)));
+    if(focusMenu){focusMenu=false;await(await ModuleAsync()).InvokeVoidAsync("focusActive",MenuElement);}
+    if(focusTrigger){focusTrigger=false;await(await ModuleAsync()).InvokeVoidAsync("focus",TriggerElement);}
+  }
+  private async ValueTask<IJSObjectReference> ModuleAsync()=>domModule??=await JavaScript.InvokeAsync<IJSObjectReference>("import","./_content/Harborline.UIAdapters.Blazor/action-menu.js");
+  public async ValueTask DisposeAsync(){scopeClaim?.Dispose();scopeClaim=null;if(outsideRegistration is not null)await outsideRegistration.DisposeAsync();if(domModule is not null)try{await domModule.DisposeAsync();}catch(JSDisconnectedException){}}
+}

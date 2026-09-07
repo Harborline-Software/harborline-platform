@@ -1,0 +1,545 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.side-nav",
+  "sourceFixture": "conformance/hlp.ui.side-nav/fixtures.yaml",
+  "qualityFixture": "conformance/hlp.ui.side-nav/quality-fixtures.yaml",
+  "galleryInterface": {
+    "probeAttribute": "data-gallery-probe",
+    "scenarioAttribute": "data-gallery-scenario",
+    "projectionTitles": {
+      "react": "Platform/Side Nav",
+      "blazor": "Platform/Side Nav"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "side-nav.structure-active",
+      "name": "Groups, links, and active route",
+      "surface": "structure-active",
+      "sourceCaseIds": [
+        "side-nav.defaults",
+        "side-nav.groups-recursion",
+        "side-nav.active",
+        "side-nav.href"
+      ],
+      "sourceQualityCaseIds": [
+        "side-nav.quality.landmark-state"
+      ],
+      "content": {
+        "blurb": "Ordered groups and recursive items expose one current leaf without owning the route table.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "activeItemId": "calendar",
+          "className": "gallery-side-nav",
+          "collapsed": false,
+          "items": [
+            {
+              "id": "operations",
+              "label": "Operations",
+              "items": [
+                {
+                  "id": "overview",
+                  "label": "Overview",
+                  "icon": "⌂",
+                  "badge": "New",
+                  "href": "#overview"
+                },
+                {
+                  "id": "calendar",
+                  "label": "Schedule",
+                  "icon": "▦",
+                  "badge": "3"
+                },
+                {
+                  "id": "assets",
+                  "label": "Structures",
+                  "icon": "◇",
+                  "children": [
+                    {
+                      "id": "asset-map",
+                      "label": "Structure map",
+                      "icon": "⌖"
+                    },
+                    {
+                      "id": "asset-archive",
+                      "label": "Archived structures",
+                      "icon": "□",
+                      "disabled": true
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "administration",
+              "label": "Administration",
+              "items": [
+                {
+                  "id": "team",
+                  "label": "Team access",
+                  "icon": "◉"
+                }
+              ]
+            }
+          ]
+        },
+        "state": {
+          "activeId": {
+            "kind": "string",
+            "initial": "calendar"
+          },
+          "lastActivation": {
+            "kind": "string",
+            "initial": "none"
+          }
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<SideNav activeItemId={activeId} className=\"gallery-side-nav\" collapsed={collapsed} items={items} onItemActivate={(item) => { setActiveId(item.id); setLastActivation(item.label) }} />",
+            "blazor": "<HarborlineSideNav Groups=\"@Groups\" ActiveItemId=\"@active\" Collapsed=\"@Collapsed\" ItemActivated=\"Activate\" NavigationLabel=\"@NavigationLabel\" />",
+            "rationale": "The closed descriptor vocabulary has no navigation landmark, recursive group/item, disclosure, icon, badge, active-item, disabled-item, or link-target control, so the SideNav structure and activation wiring cannot be expressed without lane-native markup."
+          },
+          {
+            "control": "output",
+            "live": "polite",
+            "text": "Last activation: {lastActivation}"
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "side-nav.activation-states",
+      "name": "Activation, disclosure, and disabled state",
+      "surface": "activation-states",
+      "sourceCaseIds": [
+        "side-nav.activate",
+        "side-nav.disabled",
+        "side-nav.expand-collapse",
+        "side-nav.active-descendant",
+        "side-nav.keyboard-focus"
+      ],
+      "content": {
+        "blurb": "Buttons, links, disclosure, disabled policy, and visible focus retain native keyboard behavior.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "inherits": "side-nav.structure-active"
+      }
+    },
+    {
+      "id": "side-nav.collapsed-badges",
+      "name": "Collapsed rail, badges, and targets",
+      "surface": "collapsed-badges",
+      "sourceCaseIds": [
+        "side-nav.collapsed",
+        "side-nav.badge",
+        "side-nav.targets"
+      ],
+      "sourceQualityCaseIds": [
+        "side-nav.quality.targets-reflow",
+        "side-nav.quality.forced-colors"
+      ],
+      "content": {
+        "blurb": "The icon rail preserves names and tooltips while noninteractive badges remain outside activation targets.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "activeItemId": "calendar",
+          "className": "gallery-side-nav",
+          "collapsed": true,
+          "items": [
+            {
+              "id": "operations",
+              "label": "Operations",
+              "items": [
+                {
+                  "id": "overview",
+                  "label": "Overview",
+                  "icon": "⌂",
+                  "badge": "New",
+                  "href": "#overview"
+                },
+                {
+                  "id": "calendar",
+                  "label": "Schedule",
+                  "icon": "▦",
+                  "badge": "3"
+                },
+                {
+                  "id": "assets",
+                  "label": "Structures",
+                  "icon": "◇",
+                  "children": [
+                    {
+                      "id": "asset-map",
+                      "label": "Structure map",
+                      "icon": "⌖"
+                    },
+                    {
+                      "id": "asset-archive",
+                      "label": "Archived structures",
+                      "icon": "□",
+                      "disabled": true
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "administration",
+              "label": "Administration",
+              "items": [
+                {
+                  "id": "team",
+                  "label": "Team access",
+                  "icon": "◉"
+                }
+              ]
+            }
+          ]
+        },
+        "inherits": "side-nav.structure-active"
+      }
+    },
+    {
+      "id": "side-nav.replacement",
+      "name": "Complete model replacement",
+      "surface": "replacement",
+      "sourceCaseIds": [
+        "side-nav.host-class",
+        "side-nav.replacement"
+      ],
+      "content": {
+        "blurb": "The newest groups, active identity, labels, and callbacks replace the previous model without stale rows.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "state": {
+          "revision": {
+            "kind": "counter",
+            "initial": 1
+          },
+          "activeId": {
+            "kind": "string",
+            "initial": "calendar"
+          },
+          "lastActivation": {
+            "kind": "string",
+            "initial": "none"
+          }
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "] : [{ id: 'spatial', label: label('Spatial workspace', 'مساحة العمل المكانية'), items: [{ id: 'capture', label: label('Photo with pose', 'صورة مع الوضعية'), icon: icon('◎'), badge: <span>96</span> }, { id: 'blueprints', label: label('Blueprint placement', 'موضع المخطط'), icon: icon('▤') }] }]; <SideNav activeItemId={activeId} className=\"gallery-side-nav\" collapsed={collapsed} items={items} onItemActivate={(item: ActivatedItem) => { setActiveId(item.id); setLastActivation(item.label) }} />; <button type=\"button\" onClick={() => { setRevision(current => current === 1 ? 96 : 1); setActiveId('capture') }}>Replace navigation model</button>",
+            "blazor": "private IReadOnlyList<SideNavNavigationGroup> Groups => [new(\"operations\", [new(\"overview\", L(\"Overview\", \"نظرة عامة\"), Icon(\"⌂\"), Href: \"#overview\", TrailingContent: Badge(L(\"New\", \"جديد\"))), new(\"calendar\", L(\"Schedule\", \"الجدول\"), Icon(\"▦\"), TrailingContent: Badge(\"3\")), new(\"assets\", L(\"Structures\", \"الهياكل\"), Icon(\"◇\"), Children: [new(\"asset-map\", L(\"Structure map\", \"خريطة الهيكل\"), Icon(\"⌖\")), new(\"asset-archive\", L(\"Archived structures\", \"الهياكل المؤرشفة\"), Icon(\"□\"), Disabled: true)])], L(\"Operations\", \"العمليات\")), new(\"administration\", [new(\"team\", L(\"Team access\", \"وصول الفريق\"), Icon(\"◉\"))], L(\"Administration\", \"الإدارة\"))]; <HarborlineSideNav Groups=\"@Groups\" ActiveItemId=\"@active\" Collapsed=\"@Collapsed\" ItemActivated=\"Activate\" NavigationLabel=\"@NavigationLabel\" />",
+            "rationale": "The closed vocabulary cannot express either recursive navigation model or React's revision-dependent complete array replacement; Blazor has no replacement branch and continues to render its base Groups model."
+          },
+          {
+            "control": "output",
+            "live": "polite",
+            "text": "Last activation: {lastActivation}"
+          }
+        ],
+        "footer": [
+          {
+            "control": "button",
+            "text": "Replace navigation model",
+            "action": "replace"
+          }
+        ],
+        "inherits": "side-nav.structure-active"
+      }
+    },
+    {
+      "id": "side-nav.locale-pseudo",
+      "name": "Pseudo-localized navigation",
+      "surface": "locale-pseudo",
+      "sourceCaseIds": [
+        "side-nav.groups-recursion",
+        "side-nav.collapsed"
+      ],
+      "sourceQualityCaseIds": [
+        "side-nav.quality.catalog",
+        "side-nav.quality.pseudo"
+      ],
+      "content": {
+        "blurb": "Expanded group, item, tooltip, and badge copy reflows without clipping.",
+        "environment": {
+          "locale": "en-XA",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "activeItemId": "calendar",
+          "className": "gallery-side-nav",
+          "collapsed": false,
+          "items": [
+            {
+              "id": "operations",
+              "label": "⟦ Operations ······ ⟧",
+              "items": [
+                {
+                  "id": "overview",
+                  "label": "⟦ Overview ······ ⟧",
+                  "icon": "⌂",
+                  "badge": "⟦ New ······ ⟧",
+                  "href": "#overview"
+                },
+                {
+                  "id": "calendar",
+                  "label": "⟦ Schedule ······ ⟧",
+                  "icon": "▦",
+                  "badge": "3"
+                },
+                {
+                  "id": "assets",
+                  "label": "⟦ Structures ······ ⟧",
+                  "icon": "◇",
+                  "children": [
+                    {
+                      "id": "asset-map",
+                      "label": "⟦ Structure map ······ ⟧",
+                      "icon": "⌖"
+                    },
+                    {
+                      "id": "asset-archive",
+                      "label": "⟦ Archived structures ······ ⟧",
+                      "icon": "□",
+                      "disabled": true
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "administration",
+              "label": "⟦ Administration ······ ⟧",
+              "items": [
+                {
+                  "id": "team",
+                  "label": "⟦ Team access ······ ⟧",
+                  "icon": "◉"
+                }
+              ]
+            }
+          ]
+        },
+        "state": {
+          "activeId": {
+            "kind": "string",
+            "initial": "calendar"
+          },
+          "lastActivation": {
+            "kind": "string",
+            "initial": "none"
+          }
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<SideNav activeItemId={activeId} className=\"gallery-side-nav\" collapsed={collapsed} items={items} onItemActivate={(item) => { setActiveId(item.id); setLastActivation(item.label) }} />",
+            "blazor": "<HarborlineSideNav Groups=\"@Groups\" ActiveItemId=\"@active\" Collapsed=\"@Collapsed\" ItemActivated=\"Activate\" NavigationLabel=\"@NavigationLabel\" />",
+            "rationale": "The closed descriptor vocabulary cannot express the recursive navigation landmark and its localized group/item names, disclosures, icons, badges, active/disabled states, and activation wiring."
+          },
+          {
+            "control": "output",
+            "live": "polite",
+            "text": "Last activation: {lastActivation}"
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "side-nav.locale-ar",
+      "name": "Arabic right-to-left navigation",
+      "surface": "locale-ar",
+      "sourceCaseIds": [
+        "side-nav.rtl"
+      ],
+      "content": {
+        "blurb": "Indentation, disclosure, icons, badges, and tooltips follow logical direction.",
+        "environment": {
+          "locale": "ar-SA",
+          "direction": "rtl",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "activeItemId": "calendar",
+          "className": "gallery-side-nav",
+          "collapsed": false,
+          "items": [
+            {
+              "id": "operations",
+              "label": "العمليات",
+              "items": [
+                {
+                  "id": "overview",
+                  "label": "نظرة عامة",
+                  "icon": "⌂",
+                  "badge": "جديد",
+                  "href": "#overview"
+                },
+                {
+                  "id": "calendar",
+                  "label": "الجدول",
+                  "icon": "▦",
+                  "badge": "3"
+                },
+                {
+                  "id": "assets",
+                  "label": "الهياكل",
+                  "icon": "◇",
+                  "children": [
+                    {
+                      "id": "asset-map",
+                      "label": "خريطة الهيكل",
+                      "icon": "⌖"
+                    },
+                    {
+                      "id": "asset-archive",
+                      "label": "الهياكل المؤرشفة",
+                      "icon": "□",
+                      "disabled": true
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "administration",
+              "label": "الإدارة",
+              "items": [
+                {
+                  "id": "team",
+                  "label": "وصول الفريق",
+                  "icon": "◉"
+                }
+              ]
+            }
+          ]
+        },
+        "state": {
+          "activeId": {
+            "kind": "string",
+            "initial": "calendar"
+          },
+          "lastActivation": {
+            "kind": "string",
+            "initial": "none"
+          }
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<SideNav activeItemId={activeId} className=\"gallery-side-nav\" collapsed={collapsed} items={items} onItemActivate={(item) => { setActiveId(item.id); setLastActivation(item.label) }} />",
+            "blazor": "<HarborlineSideNav Groups=\"@Groups\" ActiveItemId=\"@active\" Collapsed=\"@Collapsed\" ItemActivated=\"Activate\" NavigationLabel=\"@NavigationLabel\" />",
+            "rationale": "The closed descriptor vocabulary cannot express the recursive right-to-left navigation landmark and its localized group/item names, disclosures, icons, badges, active/disabled states, and activation wiring."
+          },
+          {
+            "control": "output",
+            "live": "polite",
+            "text": "Last activation: {lastActivation}"
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "side-nav.theme-light",
+      "name": "Light theme",
+      "surface": "theme-light",
+      "sourceCaseIds": [
+        "side-nav.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "side-nav.quality.light-dark",
+        "side-nav.quality.tokens",
+        "side-nav.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "Navigation surface, active route, hover, disabled, badge, and focus use Harborline light tokens.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "inherits": "side-nav.structure-active"
+      }
+    },
+    {
+      "id": "side-nav.theme-dark",
+      "name": "Dark theme",
+      "surface": "theme-dark",
+      "sourceCaseIds": [
+        "side-nav.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "side-nav.quality.light-dark",
+        "side-nav.quality.tokens",
+        "side-nav.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "The same recursive navigation model on the Harborline dark surface.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "dark",
+          "catalog": {}
+        },
+        "inherits": "side-nav.structure-active"
+      }
+    },
+    {
+      "id": "side-nav.content",
+      "name": "Content resilience",
+      "surface": "long-content",
+      "sourceCaseIds": [
+        "side-nav.groups-recursion",
+        "side-nav.activate"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "Hostile navigation content carries a long item label, a grouped large number, escaped angle brackets and an ampersand, and a name with diacritics and an em dash.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "const items = [{id:'content',label:'Content resilience',items:[{id:'long',label:'Awaiting third-party structural certification review'},{id:'number',label:'1,284,905'},{id:'hostile',label:'Bay 4 <grid C-7> & 8'},{id:'name',label:'Ordnance Survey — Niño Ångström'}]}];\n<SideNav items={items} activeItemId=\"long\" navigationLabel=\"Content resilience navigation\" />",
+            "blazor": "<HarborlineSideNav Groups=\"@ContentGroups\" ActiveItemId=\"long\" NavigationLabel=\"Content resilience navigation\" />\n@code { private IReadOnlyList<SideNavNavigationGroup> ContentGroups => [new(\"content\", [new(\"long\", \"Awaiting third-party structural certification review\"), new(\"number\", \"1,284,905\"), new(\"hostile\", \"Bay 4 <grid C-7> & 8\"), new(\"name\", \"Ordnance Survey — Niño Ångström\")], \"Content resilience\")]; }",
+            "rationale": "The closed descriptor vocabulary cannot express a side-navigation group whose real item collection carries hostile-but-valid text."
+          }
+        ],
+        "footer": []
+      }
+    }
+  ]
+}

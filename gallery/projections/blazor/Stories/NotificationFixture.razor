@@ -1,0 +1,50 @@
+<HarborlineNotificationCenter Items="@Items"
+                            Groups="@Groups"
+                            Labels="@Labels"
+                            Direction="@Direction"
+                            BadgeMode="@BadgeMode"
+                            MaxVisible="2"
+                            FormatCount="FormatCount"
+                            GetBellLabel="BellLabel"
+                            OnConfirm="IgnoreItem"
+                            OnDeny="IgnoreItem"
+                            OnAction="IgnoreItem"
+                            OnMarkAllRead="Ignore"
+                            OnDismiss="IgnoreItem"
+                            OnViewAll="Ignore" />
+
+@code {
+  [Parameter, EditorRequired] public string ScenarioId { get; set; } = "notification-center.empty-badges";
+  [Parameter, EditorRequired] public IReadOnlyList<NotificationCenterItem> Items { get; set; } = [];
+  [Parameter] public NotificationBadgeMode BadgeMode { get; set; } = NotificationBadgeMode.Unread;
+
+  private bool IsArabic => ScenarioId == "notification-center.locale-ar";
+  private bool IsPseudo => ScenarioId == "notification-center.locale-pseudo";
+  private string Direction => IsArabic ? "rtl" : "ltr";
+  private NotificationCenterLabels Labels => IsArabic ? ArabicLabels : IsPseudo ? PseudoLabels : NotificationCenterLabels.English;
+  private IReadOnlyList<NotificationGroup> Groups =>
+  [
+    new("proposal", IsArabic ? "الموافقات" : IsPseudo ? "⟦ Åþþřøṽåļš ··· ⟧" : "Approvals"),
+    new("result", IsArabic ? "النتائج" : IsPseudo ? "⟦ Řëšûļţš ··· ⟧" : "Results"),
+    new("system", IsArabic ? "النظام" : IsPseudo ? "⟦ Šÿšţëm ··· ⟧" : "System")
+  ];
+
+  private static NotificationCenterLabels ArabicLabels { get; } = new(
+    "الإشعارات", "الكل", "تأكيد", "رفض", "وضع علامة مقروء", "عرض الكل", "لا توجد إشعارات", title => $"تجاهل: {title}", "غير مقروء");
+  private static NotificationCenterLabels PseudoLabels { get; } = new(
+    "⟦ Ñøţîƒîçåţîøñš ···· ⟧", "⟦ Åļļ ·· ⟧", "⟦ Çøñƒîřm ··· ⟧", "⟦ Đëñÿ ·· ⟧", "⟦ Måřķ åļļ řëåđ ···· ⟧", "⟦ Ṽîëŵ åļļ ··· ⟧",
+    "⟦ Ñø ñøţîƒîçåţîøñš ······ ⟧", title => $"⟦ Đîšmîšš: {title} ··· ⟧", "⟦ Ûñřëåđ ··· ⟧");
+
+  private string FormatCount(int count) => IsArabic
+    ? count.ToString(System.Globalization.CultureInfo.GetCultureInfo("ar-SA"))
+    : $"#{count}";
+
+  private string BellLabel(NotificationCounts counts) => IsArabic
+    ? $"الإشعارات، {(counts.Mode == NotificationBadgeMode.Decisions ? counts.Pending : counts.Unread)}"
+    : IsPseudo
+      ? $"⟦ Ñøţîƒîçåţîøñš, {(counts.Mode == NotificationBadgeMode.Decisions ? counts.Pending : counts.Unread)} ···· ⟧"
+      : $"Notifications, {(counts.Mode == NotificationBadgeMode.Decisions ? $"{counts.Pending} approvals pending" : $"{counts.Unread} unread")}";
+
+  private void Ignore() { }
+  private void IgnoreItem(NotificationCenterItem _) { }
+}

@@ -1,0 +1,8 @@
+<HarborlineCard Appearance="Appearance" Orientation="@(Horizontal ? CardOrientation.Horizontal : CardOrientation.Vertical)" Separators="Horizontal">
+  <HarborlineCardHeader><HarborlineCardTitle Level="3">Inspection summary</HarborlineCardTitle></HarborlineCardHeader>
+  <HarborlineCardContent>Three rooms remain ready for review.</HarborlineCardContent>
+</HarborlineCard>
+@code {
+  [Parameter] public CardAppearance Appearance { get; set; } = CardAppearance.Outlined;
+  [Parameter] public bool Horizontal { get; set; }
+}

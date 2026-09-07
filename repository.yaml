@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "repository": "harborline-platform",
+  "defaultBranch": "main",
+  "visibility": "private",
+  "remote": {"status": "active", "requiresMaintainerApproval": true},
+  "license": "MIT",
+  "phase": 4,
+  "sourceAuthority": "upstream-retained-until-zero-deferred-apis-and-separate-cutover-approval",
+  "packageIdentityAuthority": "harborline-converged-identity",
+  "packageDistributionAuthority": null,
+  "packageStrategy": "converge-on-harborline-identity",
+  "contractEvidenceDistribution": "local-content-addressed-upstream-origin-only",
+  "sourceRegistryAvailability": {"npm": false, "nuget": false},
+  "sourceRegistryFallbackAllowed": false,
+  "aggregateCompatibilityRecord": "RETIRED 2026-08-20 by control ticket 063 phase 2. Final result PASS (reportSha256 3e51c17815d34c1ad1fe952e6eadb1ab1179a4546e20bbc60b1cecc2068a09ba): npm 130 unchanged / 1103 classified, foundation 31 unchanged / 3396 classified, blazor 179 unchanged / 8562 classified, approvedRemovals 0. The gate compared the destination against the frozen source-era API; ticket 063 renames that identity, so the comparison becomes meaningless rather than failing. Evidence of the runs is retained in docs/evidence/phase-4/ and in the migration control plane; only the live gate is removed.",
+  "prohibitedSourceClasses": ["agent-factory", "ordinance", "agent-memory", "accelerators", "external-sibling-source", "build-output"]
+}

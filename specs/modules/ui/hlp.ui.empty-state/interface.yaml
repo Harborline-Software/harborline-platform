@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.empty-state",
+  "interfaceRevision": 1,
+  "semantics": {"operation": "render a centered empty-result explanation with a decorative semantic-variant icon and optional native action", "observableOutput": "Equivalent React and Blazor content, accessibility, variant, and action behavior."},
+  "sourceSurface": {"repository": "shipyard", "commit": "a5036ff8b500e0d857d7e0a698408e7cf7f6cf31", "path": "packages/ui-react/src/components/datagrid/EmptyState.tsx", "blob": "48de4c42c838eb0d4e207cf4227fc70f75b947a8", "capturedExports": ["EmptyStateVariant", "EmptyStateAction", "EmptyStateProps", "EmptyState"]},
+  "invariants": [
+    "Variant is closed to informational, positive, and actionable and selects only semantic icon/tone treatment.",
+    "Title is required, rendered as visible plain text, and cannot be whitespace-only.",
+    "Description is omitted when absent or whitespace-only and otherwise remains caller-localized plain text.",
+    "Every variant icon is decorative and hidden from assistive technology.",
+    "An action renders only when both a nonblank label and callback are supplied, uses a native button with type button, and invokes the callback exactly once per activation.",
+    "Variant never gates action behavior; informational and positive states may also carry actions.",
+    "Caller attributes, classes, language, and direction pass to the root without overriding owned semantic attributes.",
+    "React and Blazor use shared theme tokens and expose equivalent variant, content, focus, keyboard, RTL, forced-colors, reduced-motion, and action behavior."
+  ],
+  "errors": [
+    {"code": "title-required", "when": "Title is empty or whitespace-only."},
+    {"code": "action-incomplete", "when": "Only one of action label or callback is supplied."}
+  ],
+  "performance": {"operation": "O(n) render for caller text length n with no I/O", "maximumFixtureTextLength": 4096},
+  "presentation": {"disposition": "required", "gallery": "gallery/scenarios/hlp.ui.empty-state.json"},
+  "cases": [
+    {"id": "empty-state.informational"}, {"id": "empty-state.positive"}, {"id": "empty-state.actionable"},
+    {"id": "empty-state.description"}, {"id": "empty-state.no-description"}, {"id": "empty-state.action"},
+    {"id": "empty-state.no-action"}, {"id": "empty-state.action-any-variant"}, {"id": "empty-state.decorative-icon"},
+    {"id": "empty-state.native-button"}, {"id": "empty-state.host-attributes"}, {"id": "empty-state.invalid-title"},
+    {"id": "empty-state.incomplete-action"}, {"id": "empty-state.projection-equivalence"}
+  ]
+}

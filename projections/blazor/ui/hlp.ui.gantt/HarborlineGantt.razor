@@ -1,0 +1,242 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Scheduling
+@inherits HarborlineComponentBase
+@using System.Globalization
+@using Harborline.UIAdapters.Blazor.Localization
+
+<div aria-label="@ResolvedLabel" class="@CombineClasses("hl-gantt")" data-read-only="true" data-zoom="@ZoomToken"
+     data-hl-readonly="true" data-hl-zoom="@ZoomToken" dir="@Direction" role="region"
+     style="@CombineStyles($"--hl-gantt-row-height:{EffectiveRowHeight}px")" @attributes="AdditionalAttributes">
+  @if (ShowZoomPicker)
+  {
+    <label class="hl-gantt__zoom">
+      <span>@Translate("gantt.zoom", "Zoom")</span>
+      <select aria-label="@Translate("gantt.zoom", "Zoom")" value="@ZoomToken" @onchange="HandleZoomChangedAsync">
+        <option value="day">@Translate("gantt.day", "Day")</option>
+        <option value="week">@Translate("gantt.week", "Week")</option>
+        <option value="month">@Translate("gantt.month", "Month")</option>
+      </select>
+    </label>
+  }
+  <div aria-label="@ResolvedLabel" class="hl-gantt__scroll" role="group" tabindex="0">
+    <div class="hl-gantt__table-wrap">
+      <table aria-colcount="@ColumnCount" aria-label="@ResolvedLabel" aria-rowcount="@Tasks.Count" class="hl-gantt__table">
+        <caption class="hl-gantt__sr-only">@ResolvedLabel</caption>
+        <thead>
+          <tr>
+            @foreach (var column in EffectiveColumns)
+            {
+              <th data-gantt-column="@column.Field.ToString().ToLowerInvariant()" scope="col" style="@(column.Width is int width ? $"inline-size:{width}px" : null)">@ColumnTitle(column)</th>
+            }
+            <th class="hl-gantt__timeline-heading" scope="col">
+              <span class="hl-gantt__timeline-title">@Translate("gantt.name", "Name")</span>
+              <span aria-hidden="true" class="hl-gantt__scale" data-scale-count="@Scale.Count">
+                @foreach (var mark in Scale)
+                {
+                  <span class="hl-gantt__scale-mark" style="inset-inline-start:@Percent(mark.OffsetPercent)">@ScaleLabel(mark.Day)</span>
+                }
+              </span>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          @if (Tasks.Count == 0)
+          {
+            <tr><td class="hl-gantt__empty" colspan="@ColumnCount">@ResolvedEmpty</td></tr>
+          }
+          else
+          {
+            @for (var rowIndex = 0; rowIndex < Tasks.Count; rowIndex++)
+            {
+              var task = Tasks[rowIndex];
+              <tr data-task-id="@task.Id" data-task-row="@rowIndex" data-hl-task-id="@task.Id">
+                @for (var columnIndex = 0; columnIndex < EffectiveColumns.Count; columnIndex++)
+                {
+                  var cellColumn = columnIndex;
+                  var column = EffectiveColumns[cellColumn];
+                  <td data-gantt-cell="@($"{rowIndex}:{cellColumn}")" data-gantt-column="@column.Field.ToString().ToLowerInvariant()" tabindex="@TabIndex(rowIndex, cellColumn)"
+                      @onfocus="@(() => SetActiveCell(rowIndex, cellColumn))" @onkeydown="@(args => MoveCell(args, rowIndex, cellColumn))">@CellValue(task, column.Field)</td>
+                }
+                <td class="hl-gantt__timeline-cell" data-gantt-cell="@($"{rowIndex}:{EffectiveColumns.Count}")"
+                    tabindex="@TabIndex(rowIndex, EffectiveColumns.Count)" @onfocus="@(() => SetActiveCell(rowIndex, EffectiveColumns.Count))"
+                    @onkeydown="@(args => MoveCell(args, rowIndex, EffectiveColumns.Count))">
+                  <div aria-label="@BarLabel(task)" class="hl-gantt__bar" data-task-bar="@task.Id" style="@BarStyle(task)" role="img">
+                    <span class="hl-gantt__bar-title">@task.Title</span>
+                    <span class="hl-gantt__progress-text">@ProgressText(task.Progress)</span>
+                    <span aria-hidden="true" class="hl-gantt__progress" style="inline-size:@ProgressText(task.Progress)"></span>
+                  </div>
+                </td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+      @if (ValidDependencies.Count > 0 && Tasks.Count > 0)
+      {
+        <svg aria-hidden="true" class="hl-gantt__dependencies" focusable="false" preserveAspectRatio="none"
+             style="@($"--hl-gantt-dependencies-height:{Tasks.Count * EffectiveRowHeight}px")" viewBox="0 0 100 100">
+          @foreach (var edge in DependencyPaths)
+          {
+            <path class="hl-gantt__dependency" d="@edge.Path" data-dependency-from="@edge.Dependency.FromId" data-dependency-to="@edge.Dependency.ToId"
+                  data-hl-from="@edge.Dependency.FromId" data-hl-to="@edge.Dependency.ToId" vector-effect="non-scaling-stroke"></path>
+          }
+        </svg>
+      }
+    </div>
+  </div>
+</div>
+
+@code {
+  [CascadingParameter] private HarborlineLocaleContext? LocaleContext { get; set; }
+  [Parameter, EditorRequired] public IReadOnlyList<GanttTask> Tasks { get; set; } = [];
+  [Parameter] public IReadOnlyList<GanttDependency> Dependencies { get; set; } = [];
+  [Parameter] public IReadOnlyList<GanttColumn>? Columns { get; set; }
+  [Parameter] public GanttZoom Zoom { get; set; } = GanttZoom.Day;
+  [Parameter] public EventCallback<GanttZoom> ZoomChanged { get; set; }
+  [Parameter] public bool ShowZoomPicker { get; set; }
+  [Parameter] public int RowHeight { get; set; } = 36;
+  [Parameter] public string? AccessibleLabel { get; set; }
+  [Parameter] public string? Empty { get; set; }
+  [Parameter] public string? DirectionOverride { get; set; }
+
+  private int activeRow;
+  private int activeColumn;
+  private IReadOnlyList<GanttColumn> EffectiveColumns => Columns ?? [new(GanttColumnField.Title), new(GanttColumnField.Start), new(GanttColumnField.End)];
+  private int ColumnCount => EffectiveColumns.Count + 1;
+  private int EffectiveRowHeight => RowHeight > 0 ? RowHeight : 36;
+  private string Direction => DirectionOverride ?? LocaleContext?.Direction ?? "ltr";
+  private string Locale => LocaleContext?.Locale ?? "en-US";
+  private string ZoomToken => Zoom.ToString().ToLowerInvariant();
+  private string ResolvedLabel => !string.IsNullOrWhiteSpace(AccessibleLabel) ? AccessibleLabel.Trim() : Translate("gantt.title", "Title");
+  private string ResolvedEmpty => Empty ?? Translate("dataGrid.noResults", "No results.");
+  private DateOnly MinimumDate => Tasks.Count == 0 ? DateOnly.FromDayNumber(0) : Tasks.Min(task => task.Start);
+  private DateOnly MaximumDate => Tasks.Count == 0 ? DateOnly.FromDayNumber(0) : Tasks.Max(task => task.End);
+  private int TotalDays => MaximumDate.DayNumber - MinimumDate.DayNumber + 1;
+  private HashSet<string> TaskIds => Tasks.Select(task => task.Id).ToHashSet(StringComparer.Ordinal);
+  private IReadOnlyList<GanttDependency> ValidDependencies => Dependencies.Where(edge => TaskIds.Contains(edge.FromId) && TaskIds.Contains(edge.ToId)).ToArray();
+  private IReadOnlyList<ScaleMark> Scale => CreateScale();
+  private IReadOnlyList<DependencyPath> DependencyPaths => ValidDependencies.Select(edge =>
+  {
+    var fromIndex = Tasks.ToList().FindIndex(task => task.Id == edge.FromId);
+    var toIndex = Tasks.ToList().FindIndex(task => task.Id == edge.ToId);
+    var from = Geometry(Tasks[fromIndex]);
+    var to = Geometry(Tasks[toIndex]);
+    var path = FormattableString.Invariant($"M {from.Offset + from.Width} {(fromIndex + .5) / Tasks.Count * 100} L {to.Offset} {(toIndex + .5) / Tasks.Count * 100}");
+    return new DependencyPath(edge, path);
+  }).ToArray();
+
+  protected override void OnParametersSet()
+  {
+    ArgumentNullException.ThrowIfNull(Tasks); ArgumentNullException.ThrowIfNull(Dependencies);
+    if (Tasks.Any(task => string.IsNullOrWhiteSpace(task.Id))) throw new InvalidOperationException("task-id-required");
+    if (Tasks.GroupBy(task => task.Id, StringComparer.Ordinal).Any(group => group.Count() > 1)) throw new InvalidOperationException("duplicate-task-id");
+    if (Tasks.Any(task => string.IsNullOrWhiteSpace(task.Title))) throw new InvalidOperationException("task-title-required");
+    if (Tasks.Any(task => task.End < task.Start)) throw new InvalidOperationException("invalid-task-range");
+    if (Tasks.Any(task => task.Progress is double progress && (!double.IsFinite(progress) || progress is < 0 or > 100))) throw new InvalidOperationException("invalid-progress");
+    if (EffectiveColumns.Any(column => column.Width is <= 0)) throw new InvalidOperationException("invalid-column-width");
+    if (RowHeight <= 0) throw new ArgumentOutOfRangeException(nameof(RowHeight));
+    activeRow = Math.Min(activeRow, Math.Max(0, Tasks.Count - 1));
+    activeColumn = Math.Min(activeColumn, Math.Max(0, ColumnCount - 1));
+  }
+
+  private string Translate(string key, string fallback)
+  {
+    if (LocaleContext is null) return fallback;
+    var resolved = LocaleContext.Translate(key);
+    return string.Equals(resolved, key, StringComparison.Ordinal) ? fallback : resolved;
+  }
+  private Task HandleZoomChangedAsync(ChangeEventArgs args) => Enum.TryParse<GanttZoom>(args.Value?.ToString(), true, out var next) ? ZoomChanged.InvokeAsync(next) : Task.CompletedTask;
+  private string ColumnTitle(GanttColumn column) => column.Title ?? column.Field switch
+  {
+    GanttColumnField.Title => Translate("gantt.title", "Title"), GanttColumnField.Start => Translate("gantt.start", "Start"),
+    GanttColumnField.End => Translate("gantt.end", "End"), _ => Translate("gantt.progress", "Progress (%)"),
+  };
+  private string CellValue(GanttTask task, GanttColumnField field) => field switch
+  {
+    GanttColumnField.Title => task.Title, GanttColumnField.Start => FormatMediumDate(task.Start),
+    GanttColumnField.End => FormatMediumDate(task.End), _ => ProgressText(task.Progress),
+  };
+  private string BarLabel(GanttTask task) => $"{task.Title}: {FormatMediumDate(task.Start)} – {FormatMediumDate(task.End)}, {ProgressText(task.Progress)}";
+  private static string ProgressText(double? value) => $"{(value ?? 0).ToString("0.###", CultureInfo.InvariantCulture)}%";
+  private int TabIndex(int row, int column) => activeRow == row && activeColumn == column ? 0 : -1;
+  private void SetActiveCell(int row, int column) { activeRow = row; activeColumn = column; }
+  private Task MoveCell(KeyboardEventArgs args, int row, int column)
+  {
+    var nextRow = row; var nextColumn = column;
+    switch (args.Key)
+    {
+      case "ArrowDown": nextRow = Math.Min(Tasks.Count - 1, row + 1); break;
+      case "ArrowUp": nextRow = Math.Max(0, row - 1); break;
+      case "ArrowRight": nextColumn = Math.Min(ColumnCount - 1, column + 1); break;
+      case "ArrowLeft": nextColumn = Math.Max(0, column - 1); break;
+      case "Home": nextColumn = 0; break;
+      case "End": nextColumn = ColumnCount - 1; break;
+      default: return Task.CompletedTask;
+    }
+    activeRow = Math.Max(0, nextRow); activeColumn = nextColumn;
+    return Task.CompletedTask;
+  }
+
+  private (double Offset, double Width) Geometry(GanttTask task) =>
+    ((task.Start.DayNumber - MinimumDate.DayNumber) * 100d / TotalDays, (task.End.DayNumber - task.Start.DayNumber + 1) * 100d / TotalDays);
+  private string BarStyle(GanttTask task)
+  {
+    var geometry = Geometry(task);
+    var color = string.IsNullOrWhiteSpace(task.Color) ? "var(--hl-gantt-accent)" : task.Color;
+    return $"--hl-gantt-bar-color:{color};--hl-gantt-bar-offset:{Percent(geometry.Offset)};--hl-gantt-bar-width:{Percent(geometry.Width)}";
+  }
+  private static string Percent(double value) => $"{value.ToString("0.###############", CultureInfo.InvariantCulture)}%";
+
+  private IReadOnlyList<ScaleMark> CreateScale()
+  {
+    if (Zoom == GanttZoom.Month)
+    {
+      var startMonth = MinimumDate.Year * 12 + MinimumDate.Month - 1;
+      var endMonth = MaximumDate.Year * 12 + MaximumDate.Month - 1;
+      var step = Math.Max(1, (int)Math.Ceiling((endMonth - startMonth + 1) / 128d));
+      var marks = new List<ScaleMark>();
+      for (var value = startMonth; value <= endMonth; value += step)
+      {
+        var date = new DateOnly(value / 12, value % 12 + 1, 1);
+        var day = date < MinimumDate ? MinimumDate : date;
+        marks.Add(new(day, (day.DayNumber - MinimumDate.DayNumber) * 100d / TotalDays));
+      }
+      return marks;
+    }
+    var unit = Zoom == GanttZoom.Week ? 7 : 1;
+    var rawCount = (int)Math.Ceiling(TotalDays / (double)unit);
+    var dayStep = unit * Math.Max(1, (int)Math.Ceiling(rawCount / 128d));
+    return Enumerable.Range(0, (TotalDays - 1) / dayStep + 1)
+      .Select(index => new ScaleMark(MinimumDate.AddDays(index * dayStep), index * dayStep * 100d / TotalDays)).ToArray();
+  }
+
+  private string ScaleLabel(DateOnly date) => Zoom switch
+  {
+    GanttZoom.Week => $"Week {ISOWeek.GetWeekOfYear(date.ToDateTime(TimeOnly.MinValue))}",
+    GanttZoom.Month => FormatDate(date, "MMM yyyy"),
+    _ => FormatDate(date, "MMM d"),
+  };
+  private string FormatMediumDate(DateOnly date)
+  {
+    if (Locale.StartsWith("ar", StringComparison.OrdinalIgnoreCase))
+      return ToArabicIndic($"{date.Day:00}\u200f/{date.Month:00}\u200f/{date.Year:0000}");
+    return FormatDate(date, Locale.StartsWith("en", StringComparison.OrdinalIgnoreCase) ? "MMM d, yyyy" : "d MMM yyyy");
+  }
+  private string FormatDate(DateOnly date, string format)
+  {
+    try
+    {
+      var culture = CultureInfo.GetCultureInfo(string.Equals(Locale, "en-XA", StringComparison.OrdinalIgnoreCase) ? "en-US" : Locale);
+      if (!Locale.StartsWith("ar", StringComparison.OrdinalIgnoreCase))
+        return date.ToDateTime(TimeOnly.MinValue).ToString(format, culture);
+      var gregorian = (CultureInfo)culture.Clone();
+      gregorian.DateTimeFormat.Calendar = new GregorianCalendar();
+      return ToArabicIndic(date.ToDateTime(TimeOnly.MinValue).ToString(format, gregorian));
+    }
+    catch (CultureNotFoundException) { return date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture); }
+  }
+
+  private static string ToArabicIndic(string value) => string.Concat(value.Select(character => character is >= '0' and <= '9' ? (char)('٠' + character - '0') : character));
+
+  private sealed record ScaleMark(DateOnly Day, double OffsetPercent);
+  private sealed record DependencyPath(GanttDependency Dependency, string Path);
+}

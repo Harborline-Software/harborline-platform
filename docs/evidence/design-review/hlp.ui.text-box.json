@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.text-box",
+  "verdict": "approved",
+  "reviewer": "cic",
+  "recordedAt": "2026-08-26T20:48:57.437Z",
+  "reference": {
+    "revision": "be4ab89e600e9ed57e271897188e47f939057b942a9b003cda7258240becb9bb",
+    "source": "gallery/scenarios/hlp.ui.text-box.json",
+    "pin": "cc9eb48ed68c5033ec128cd53c40b1d2786bee66",
+    "surface": {
+      "conformance/hlp.ui.text-box/fixtures.yaml": "9d43c09c425fa06ab941a22cade8cc3c45c7f053dc0e8b1af3830267086a018d",
+      "conformance/hlp.ui.text-box/quality-fixtures.yaml": "de9656790036991185ad8f1fcbc2d7d970f7261a8aa0328ac4a1a5db2dcab464",
+      "gallery/projections/blazor/Stories/TextBox.stories.razor": "05140c6f31d6923fad0acd142d8149fb3200785de99879da973d3396752bb9e0",
+      "gallery/projections/blazor/Stories/TextBoxScenario.razor": "a47195011bbb30849ad7f6378ce4e2e909742f7a5c996918baff6b8dd2c63524",
+      "gallery/projections/react/src/TextBox.stories.tsx": "6c6c5112c703f8e9e79f7ff04528462c0d2b1de518b3cb877b075313bff27973",
+      "gallery/scenarios/hlp.ui.text-box.json": "cfa78bd44469bfa869132b39a5164032c4c8632d5d65ef73dab87a9f28334fec",
+      "projections/blazor/ui/hlp.ui.text-box/ShipyardTextBox.razor": "f27cd226addd0a9d3d67807693fe1654c1e4826f61560c4b8a55ee299cb95c16",
+      "projections/blazor/ui/hlp.ui.text-box/wwwroot/text-box.css": "7b84ddba8092d1ea85e0cebf5f021cc231084fe6b59c6b1a22aa0ef97720c5cc",
+      "projections/react/ui/hlp.ui.text-box/src/TextBox.tsx": "804fecf4312ccf5f651a0762bbdf8b7f50486804e6e14281a6c9ccc3d8c094ef",
+      "projections/react/ui/hlp.ui.text-box/src/index.ts": "8a5b00ed8684218a214f41dafbe62a8dbe6afea59032606e0b64e8589871edca",
+      "projections/react/ui/hlp.ui.text-box/src/style.css": "7b84ddba8092d1ea85e0cebf5f021cc231084fe6b59c6b1a22aa0ef97720c5cc",
+      "specs/modules/ui/hlp.ui.text-box/scenarios.json": "cfa78bd44469bfa869132b39a5164032c4c8632d5d65ef73dab87a9f28334fec",
+      "specs/modules/ui/hlp.ui.text-box/style.css": "7b84ddba8092d1ea85e0cebf5f021cc231084fe6b59c6b1a22aa0ef97720c5cc"
+    }
+  }
+}

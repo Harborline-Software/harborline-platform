@@ -1,0 +1,102 @@
+{
+  "schemaVersion": 2,
+  "moduleId": "hlp.ui.button",
+  "themes": [
+    {
+      "id": "light",
+      "colorScheme": "light",
+      "scenarioId": "button.theme-light",
+      "tokens": {
+        "--hl-gallery-surface": "#ffffff",
+        "--hl-gallery-canvas": "#fafafa",
+        "--hl-gallery-text": "#111111",
+        "--hl-gallery-muted": "#444444",
+        "--hl-button-primary": "#0f62fe",
+        "--hl-button-primary-hover": "#0353e9",
+        "--hl-button-primary-active": "#0043ce",
+        "--hl-button-primary-foreground": "#ffffff",
+        "--hl-button-secondary": "#ffffff",
+        "--hl-button-secondary-hover": "#f3f3f3",
+        "--hl-button-secondary-active": "#d0d0d0",
+        "--hl-button-secondary-foreground": "#111111",
+        "--hl-button-border": "#777777",
+        "--hl-button-focus": "#0f62fe"
+      }
+    },
+    {
+      "id": "dark",
+      "colorScheme": "dark",
+      "scenarioId": "button.theme-dark",
+      "tokens": {
+        "--hl-gallery-surface": "#1a1a1a",
+        "--hl-gallery-canvas": "#121212",
+        "--hl-gallery-text": "#f5f5f5",
+        "--hl-gallery-muted": "#d0d0d0",
+        "--hl-button-primary": "#7ab8ff",
+        "--hl-button-primary-hover": "#94c5ff",
+        "--hl-button-primary-active": "#aed4ff",
+        "--hl-button-primary-foreground": "#111111",
+        "--hl-button-secondary": "#1a1a1a",
+        "--hl-button-secondary-hover": "#222222",
+        "--hl-button-secondary-active": "#3a3a3a",
+        "--hl-button-secondary-foreground": "#f5f5f5",
+        "--hl-button-border": "#9a9a9a",
+        "--hl-button-focus": "#8ab4ff"
+      }
+    }
+  ],
+  "locales": [
+    {
+      "tag": "en-US",
+      "role": "source",
+      "direction": "ltr",
+      "buttonLabel": "Saving changes",
+      "loadingStatus": "Loading"
+    },
+    {
+      "tag": "en-XA",
+      "role": "pseudo",
+      "direction": "ltr",
+      "buttonLabel": "⟦ Šåṽîñĝ çhåñĝéš ······ ⟧",
+      "loadingStatus": "⟦ Ļøåđîñĝ ···· ⟧",
+      "minimumExpansionRatio": 1.3,
+      "developmentOnly": true
+    },
+    {
+      "tag": "ar-SA",
+      "role": "verification",
+      "direction": "rtl",
+      "buttonLabel": "جارٍ حفظ التغييرات",
+      "loadingStatus": "جارٍ التحميل",
+      "mixedDirectionToken": "INV-2048"
+    }
+  ],
+  "accessibilityCases": [
+    {"id": "button.quality.accessible-name", "expected": {"iconOnlyRequiresName": true, "visibleTextNamesButton": true}},
+    {"id": "button.quality.loading-status", "expected": {"role": "status", "nameFromActiveCatalog": true, "messageFromActiveCatalog": true}},
+    {"id": "button.quality.keyboard", "expected": {"keys": ["Enter", "Space"], "activationCountPerKey": 1, "focusRemains": true}},
+    {"id": "button.quality.focus-visible", "expected": {"outlineStyleNot": "none", "minimumOutlineWidthCssPixels": 2}},
+    {"id": "button.quality.disabled-loading", "expected": {"disabledNative": true, "loadingFocusable": true, "loadingAriaBusy": "true", "loadingAriaDisabled": "true"}},
+    {"id": "button.quality.forced-colors", "expected": {"media": "active", "visibleBorder": true, "visibleFocusIndicator": true, "disabledOpacity": 1}},
+    {"id": "button.quality.reduced-motion", "expected": {"preference": "reduce", "maximumTransitionDurationMilliseconds": 1}},
+    {"id": "button.quality.reflow-200", "expected": {"viewportWidthCssPixels": 320, "rootFontPercent": 200, "horizontalOverflowCssPixels": 0}}
+  ],
+  "internationalizationCases": [
+    {"id": "button.quality.locale-language", "expected": {"buttonLangMatchesLocale": true, "buttonDirMatchesLocale": true}},
+    {"id": "button.quality.translated-owned-strings", "expected": {"ownedKeys": ["common.loading"], "fallbackLocale": "en-US", "allFixtureLocalesTranslated": true}},
+    {"id": "button.quality.rtl-mixed-direction", "expected": {"locale": "ar-SA", "direction": "rtl", "isolateCallerToken": true, "logicalContentOrder": true}},
+    {"id": "button.quality.pseudo-expansion", "expected": {"locale": "en-XA", "developmentOnly": true, "minimumExpansionRatio": 1.3, "bracketed": true}},
+    {"id": "button.quality.formatting-applicability", "expected": {"disposition": "not-applicable", "requiresRationale": true}}
+  ],
+  "themingCases": [
+    {"id": "button.quality.theme-light", "expected": {"fixture": "light", "separateScenario": true}},
+    {"id": "button.quality.theme-dark", "expected": {"fixture": "dark", "separateScenario": true}},
+    {"id": "button.quality.theme-interaction-states", "expected": {"states": ["default", "hover", "active", "focus-visible", "disabled", "loading", "icon", "border", "text", "background"], "bothThemes": true}},
+    {"id": "button.quality.theme-public-tokens", "expected": {"source": "public-css-custom-properties", "packedArtifacts": ["npm", "nuget"], "exactResolution": true}},
+    {"id": "button.quality.theme-runtime-switch", "expected": {"from": "light", "to": "dark", "withoutRemount": true}},
+    {"id": "button.quality.theme-contrast", "expected": {"wcagLevel": "AA", "minimumTextRatio": 4.5, "minimumNonTextRatio": 3}},
+    {"id": "button.quality.theme-reflow-200", "expected": {"themes": ["light", "dark"], "viewportWidthCssPixels": 320, "rootFontPercent": 200, "horizontalOverflowCssPixels": 0}},
+    {"id": "button.quality.theme-reduced-motion", "expected": {"themes": ["light", "dark"], "maximumTransitionDurationMilliseconds": 1}},
+    {"id": "button.quality.theme-visual-parity", "expected": {"projections": ["react", "blazor"], "themes": ["light", "dark"], "maximumChangedPixelRatio": 0.015}}
+  ]
+}

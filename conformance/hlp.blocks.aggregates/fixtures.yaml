@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.blocks.aggregates",
+  "interfaceRevision": 1,
+  "runner": "conformance/hlp.blocks.aggregates/runners/run-shared.mjs",
+  "corpora": ["conformance/hlp.blocks.aggregates/corpus/cases.json"],
+  "expected": {"total":43,"semanticsDerived":11,"authored":32,"passing":43}
+}

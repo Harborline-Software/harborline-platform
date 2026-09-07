@@ -1,0 +1,25 @@
+@attribute [Stories("Platform/Search Input")]
+<Stories TComponent="SearchInputScenario">
+    @foreach (var scenario in Scenarios)
+    {
+        <Story Name="@scenario.Name">
+            <Arguments><Arg For="_ => _.ScenarioId" Value="@scenario.Id" /></Arguments>
+            <Template><SearchInputScenario @attributes="context.Args" /></Template>
+        </Story>
+    }
+    <Story Name="Content resilience"><Arguments><Arg For="_ => _.ScenarioId" Value='"search-input.content"'/></Arguments><Template><SearchInputScenario @attributes="context.Args"/></Template></Story>
+</Stories>
+
+@code {
+    private static readonly (string Id, string Name)[] Scenarios =
+    [
+        ("search-input.defaults", "Defaults"),
+        ("search-input.debounce", "Debounce and busy state"),
+        ("search-input.sync-clear", "External sync and clear"),
+        ("search-input.locale-en", "English locale"),
+        ("search-input.locale-pseudo", "Pseudo locale"),
+        ("search-input.locale-ar", "Arabic locale"),
+        ("search-input.theme-light", "Light theme"),
+        ("search-input.theme-dark", "Dark theme"),
+    ];
+}

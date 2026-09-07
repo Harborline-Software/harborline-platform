@@ -1,0 +1,51 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Feedback
+@inherits HarborlineComponentBase
+@implements IDisposable
+@inject IToastService Toasts
+
+<section class="@CombineClasses("hl-toaster", $"hl-toaster--{PositionToken}")" style="@CombineStyles()" data-position="@PositionToken" data-hl-semantic-colors="@(UseSemanticColors ? "true" : null)" dir="@Direction" aria-label="@AccessibleLabel" @attributes="AdditionalAttributes">
+  @foreach (var entry in VisibleEntries)
+  {
+    <div class="hl-toaster__toast" data-toast-id="@entry.Id.Value" data-variant="@entry.Variant.ToString().ToLowerInvariant()" role="@(entry.Variant == ToastVariant.Error ? "alert" : "status")">
+      <span aria-hidden="true" class="hl-toaster__marker">
+        @switch (entry.Variant)
+        {
+          case ToastVariant.Success: <svg fill="none" focusable="false" viewBox="0 0 16 16"><path d="m4 8 2.5 2.5L12 5"></path></svg> break;
+          case ToastVariant.Error: <svg fill="none" focusable="false" viewBox="0 0 16 16"><path d="M8 4.25v4.5M8 11.5h.01"></path></svg> break;
+          case ToastVariant.Loading: <svg class="hl-toaster__loading-icon" fill="none" focusable="false" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5"></circle><path d="M8 3a5 5 0 0 1 5 5"></path></svg> break;
+          default: <svg fill="currentColor" focusable="false" viewBox="0 0 16 16"><circle cx="8" cy="8" r="2"></circle></svg> break;
+        }
+      </span>
+      <div class="hl-toaster__copy"><div>@entry.Message</div>@if(entry.Description is not null){<div class="hl-toaster__description">@entry.Description</div>}</div>
+      @if (entry.Action is not null) { <button type="button" class="hl-toaster__action" @onclick="() => ActivateAsync(entry.Action)">@entry.Action.Label</button> }
+      @if (ShowCloseButton || entry.Variant == ToastVariant.Error) { <button type="button" class="hl-toaster__close" aria-label="@DismissLabel" @onclick="() => Toasts.Dismiss(entry.Id)"><svg aria-hidden="true" fill="none" focusable="false" viewBox="0 0 16 16"><path d="M3 3l10 10M13 3 3 13"></path></svg></button> }
+    </div>
+  }
+</section>
+
+@code {
+  [Parameter] public ToastPosition Position { get; set; } = ToastPosition.BottomRight;
+  // int? so a host can say "no toast expires", matching React's duration?: number | null.
+  // Null means no timer: `duration > 0` below is false for null, and ToastEntry.DurationMilliseconds
+  // was already int?. Control ticket 101.
+  [Parameter] public int? DurationMilliseconds { get; set; } = 4000;
+  [Parameter] public int MaximumVisible { get; set; } = 3;
+  [Parameter] public bool ShowCloseButton { get; set; }
+  [Parameter] public bool UseSemanticColors { get; set; }
+  [Parameter] public bool KeepErrorsPersistent { get; set; } = true;
+  [Parameter] public ToastOptions? Defaults { get; set; }
+  [Parameter] public string DismissLabel { get; set; } = "Dismiss";
+  [Parameter] public string AccessibleLabel { get; set; } = "Notifications";
+  [Parameter] public string? Direction { get; set; }
+  private string PositionToken => Position switch { ToastPosition.TopLeft=>"top-left",ToastPosition.TopCenter=>"top-center",ToastPosition.TopRight=>"top-right",ToastPosition.BottomLeft=>"bottom-left",ToastPosition.BottomCenter=>"bottom-center",ToastPosition.BottomRight=>"bottom-right",_=>"bottom-right" };
+  private IReadOnlyList<ToastEntry> VisibleEntries => Toasts.Entries.TakeLast(MaximumVisible).ToArray();
+  protected override void OnInitialized() => Toasts.Changed += OnChanged;
+  protected override void OnParametersSet()
+  {
+    if (string.IsNullOrWhiteSpace(DismissLabel) || string.IsNullOrWhiteSpace(AccessibleLabel)) throw new InvalidOperationException("toast-message-required");
+    Toasts.ConfigureHost(new(DurationMilliseconds, MaximumVisible, ShowCloseButton, UseSemanticColors, KeepErrorsPersistent, Defaults));
+  }
+  private void OnChanged()=>_ = InvokeAsync(StateHasChanged);
+  private static Task ActivateAsync(ToastAction action)=>action.ActivateAsync();
+  protected override void Dispose(bool disposing){if(disposing)Toasts.Changed-=OnChanged;base.Dispose(disposing);}
+}

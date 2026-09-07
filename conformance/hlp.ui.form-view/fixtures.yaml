@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.form-view",
+  "fixtureRevision": 1,
+  "cases": [
+    {"id": "form-view.complete-export-surface", "input": {"sourceExportCount": 29}, "expected": {"aggregateExportCount": 29, "missing": [], "extraCanonicalOwners": 0}},
+    {"id": "form-view.canonical-owner", "input": {"families": ["localized-text", "layout", "content-action", "collection", "form-view", "candidate", "validation"]}, "expected": {"owner": "hlp.contracts.forms", "minimumRevision": 4}},
+    {"id": "form-view.wire-identity", "input": {"typescript": "@harborline-software/contracts", "dotnet": "Harborline.Contracts.Forms"}, "expected": {"sameFixtureRoundTrip": true, "duplicateDeclarations": 0}},
+    {"id": "form-view.minimal", "input": {"formId": "inspection", "version": "1.0.0", "sections": []}, "expected": {"titleAbsent": true, "descriptionAbsent": true, "sections": 0}},
+    {"id": "form-view.readable-value", "input": {"isSensitive": false, "isReadable": true, "value": "A-104"}, "expected": {"value": "A-104", "editable": true}},
+    {"id": "form-view.redaction", "input": {"isSensitive": true, "isReadable": false, "value": null}, "expected": {"cleartextPresent": false, "editable": false}},
+    {"id": "form-view.readonly-distinct", "input": {"isSensitive": false, "isReadable": true, "readOnly": true, "value": "approved"}, "expected": {"valueVisible": true, "editable": false, "redacted": false}},
+    {"id": "form-view.renderer-hints", "input": {"valueKind": "decimal-string", "required": true, "options": [{"value": "pass", "label": "Pass"}], "config": {"currencyCode": "USD"}}, "expected": {"additive": true, "canonicalWireAuthority": false, "lossless": true}},
+    {"id": "form-view.rules-normalization", "input": {"rules": {"visible": true, "required": true, "readOnly": true, "presentationSeverity": "warn", "presentationStyleToken": "attention"}}, "expected": {"readOnly": true, "presentation": {"severity": "warn", "styleToken": "attention"}, "rulesPreserved": true}},
+    {"id": "form-view.nested-items", "input": {"kinds": ["field", "group", "collection", "content", "action"], "depth": 4}, "expected": {"lossless": true, "arbitraryDepth": true, "closedKinds": true}},
+    {"id": "form-view.layout", "input": {"kind": "grid", "columns": 3, "gap": 4, "collapseBelow": "md", "density": "compact", "align": "stretch", "placement": {"amount": {"colSpan": 2, "width": "2/3", "align": "end"}}}, "expected": {"lossless": true, "logicalIntents": true}},
+    {"id": "form-view.collection-table", "input": {"cardinality": {"min": 1, "max": 10}, "table": {"columns": {"amount": {"width": "1/3", "align": "end"}}, "totals": ["amount"]}}, "expected": {"lossless": true}},
+    {"id": "form-view.content-action", "input": {"content": [{"kind": "heading", "text": {"defaultLocale": "en", "values": {"en": "Safety <b>check</b>"}}, "level": 3}], "action": {"kind": "open-url", "label": {"defaultLocale": "en", "values": {"en": "Open guide"}}, "url": "https://example.invalid/guide"}}, "expected": {"plainTextOnly": true, "hostDelegated": true}},
+    {"id": "form-view.candidate-roundtrip", "input": {"decimal": "12.3400", "nested": {"rows": [{"value": 1}, {"value": null}]}, "flags": [true, false]}, "expected": {"byteStableDecimal": true, "nestedLossless": true}},
+    {"id": "form-view.validation-success", "input": {"isValid": true, "errors": []}, "expected": {"valid": true}},
+    {"id": "form-view.validation-error", "input": {"isValid": false, "errors": [{"jsonPointer": "/sections/0/amount", "message": "Must be at least 1", "kind": "Schema", "code": "minimum", "params": {"min": "1"}}]}, "expected": {"rfc6901": true, "codeStable": true, "paramsPreserved": true}},
+    {"id": "form-view.locale-exact", "input": {"text": {"defaultLocale": "en", "values": {"en": "Amount", "fr-CA": "Montant"}}, "localeChain": ["fr-CA", "fr"]}, "expected": "Montant"},
+    {"id": "form-view.locale-primary", "input": {"text": {"defaultLocale": "en", "values": {"en": "Amount", "ar": "المبلغ"}}, "localeChain": ["ar-AE"]}, "expected": "المبلغ"},
+    {"id": "form-view.locale-default", "input": {"text": {"defaultLocale": "de", "values": {"de": "Betrag", "en": "Amount"}}, "localeChain": ["es-MX"]}, "expected": "Betrag"},
+    {"id": "form-view.locale-first", "input": {"text": {"defaultLocale": "it", "values": {"fr": "Montant", "en": "Amount"}}, "localeChain": ["es-MX"]}, "expected": "Montant"},
+    {"id": "form-view.locale-fallback", "input": {"text": null, "localeChain": ["es-MX"], "fallback": "Field"}, "expected": "Field"},
+    {"id": "form-view.locale-empty", "input": {"text": {"defaultLocale": "de", "values": {}}, "localeChain": ["es-MX"]}, "expected": ""}
+  ]
+}

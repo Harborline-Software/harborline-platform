@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.foundation.actor",
+  "interfaceRevision": 1,
+  "cases": [
+    {"id": "current-user-values", "operation": "actor.read", "input": {"userId": "alice", "roles": ["inspector", "reviewer"]}, "expected": {"userId": "alice", "roles": ["inspector", "reviewer"]}},
+    {"id": "empty-roles-allowed", "operation": "actor.read", "input": {"userId": "alice", "roles": []}, "expected": {"userId": "alice", "roles": []}},
+    {"id": "party-resolves-current", "operation": "party.resolve-current", "input": {"tenant": "acme", "userId": "alice", "mapping": "acme:alice=11111111-1111-1111-1111-111111111111"}, "expected": "11111111-1111-1111-1111-111111111111"},
+    {"id": "anonymous-rejected", "operation": "party.resolve-current", "input": {"tenant": "acme", "userId": ""}, "expectedError": "NoAuthenticatedPrincipal"},
+    {"id": "whitespace-user-rejected", "operation": "party.resolve-current", "input": {"tenant": "acme", "userId": "   "}, "expectedError": "NoAuthenticatedPrincipal"},
+    {"id": "unresolved-tenant-rejected", "operation": "party.resolve-current", "input": {"tenant": null, "userId": "alice"}, "expectedError": "TenantUnresolved"},
+    {"id": "default-tenant-rejected", "operation": "party.resolve-current", "input": {"tenant": "default-struct", "userId": "alice"}, "expectedError": "TenantSentinel"},
+    {"id": "system-tenant-rejected", "operation": "party.resolve-current", "input": {"tenant": "__system__", "userId": "alice"}, "expectedError": "TenantSentinel"},
+    {"id": "unmapped-party-rejected", "operation": "party.resolve-current", "input": {"tenant": "acme", "userId": "nobody"}, "expectedError": "PartyNotProvisioned"},
+    {"id": "cross-tenant-party-rejected", "operation": "party.resolve-current", "input": {"tenant": "beta", "userId": "alice", "mapping": "acme:alice=11111111-1111-1111-1111-111111111111"}, "expectedError": "PartyNotProvisioned"},
+    {"id": "same-context-forwarded", "operation": "party.resolve-current", "input": {"tenant": "acme", "userId": "alice"}, "expectedResolverInput": {"tenant": "acme", "userId": "alice"}},
+    {"id": "cancellation-forwarded", "operation": "party.resolve-current", "input": {"tenant": "acme", "userId": "alice", "cancellationRequested": true}, "expected": "resolver-observes-cancellation"},
+    {"id": "party-id-not-caller-controlled", "operation": "party.signature", "expectedParameters": ["CancellationToken"]}
+  ]
+}

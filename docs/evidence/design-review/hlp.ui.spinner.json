@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.spinner",
+  "verdict": "approved",
+  "reviewer": "cic",
+  "recordedAt": "2026-08-28T02:24:31.715Z",
+  "reference": {
+    "revision": "4b43e2aec29dda05932e0c895198c1481107c1f391ca426899afc3329f3730e9",
+    "source": "gallery/scenarios/hlp.ui.spinner.json",
+    "pin": "dd2e4f201950cfec5cda72dd42f50be3837d0d7a",
+    "surface": {
+      "conformance/hlp.ui.spinner/fixtures.yaml": "cbc77d7296340c22573c5a4f036d2df10b04bc3a2cd1e0747aa4ae1bedbd6347",
+      "conformance/hlp.ui.spinner/quality-fixtures.yaml": "26ecd517118e90901439ae01a3648976a9e8ffb31d78ac3dd3872685437632e0",
+      "gallery/projections/blazor/Stories/Spinner.stories.razor": "f12d3677905124899615a954a0f2098e9da1caf55bae395a98d1ca1888b11124",
+      "gallery/projections/blazor/Stories/SpinnerScenario.razor": "edd40c16694f1174b43bd64df3299bd22f4f19fc5970735d68f4bc6071aed26a",
+      "gallery/projections/react/src/Spinner.stories.tsx": "5a2566cd93aebb48f2afb6655f44288101257f8625e2a15b58d12fa6ee70d200",
+      "gallery/scenarios/hlp.ui.spinner.json": "65ec640f7108fde26980c1baf49f59556f29e970b00ffd3eed5560a01091e017",
+      "projections/blazor/ui/hlp.ui.spinner/ShipyardSpinner.razor": "96a01a7f2a12272d0673cf83805ed15ee8bc3130bbaea923cf2371dce7c14388",
+      "projections/blazor/ui/hlp.ui.spinner/SpinnerTypes.cs": "2832476106530ce3faba32695ddec3521bc0fb1fa4b8abc84360768f13494af0",
+      "projections/blazor/ui/hlp.ui.spinner/wwwroot/spinner.css": "68d1d023c3bef69440174c46040cc12ffb4bef8e0194254eb287fdf91d5a5855",
+      "projections/react/ui/hlp.ui.spinner/src/Spinner.tsx": "5011f0e17340800a5539e8bc5cca4685b97671c15548dbbcedba01f94ae763ec",
+      "projections/react/ui/hlp.ui.spinner/src/index.ts": "d5ca08dd08525b11a940ce498e2fb1ac4df7fed82cdcd57d20683265965cb4bd",
+      "projections/react/ui/hlp.ui.spinner/src/style.css": "68d1d023c3bef69440174c46040cc12ffb4bef8e0194254eb287fdf91d5a5855",
+      "specs/modules/ui/hlp.ui.spinner/scenarios.json": "65ec640f7108fde26980c1baf49f59556f29e970b00ffd3eed5560a01091e017",
+      "specs/modules/ui/hlp.ui.spinner/style.css": "68d1d023c3bef69440174c46040cc12ffb4bef8e0194254eb287fdf91d5a5855"
+    }
+  }
+}

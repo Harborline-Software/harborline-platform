@@ -1,0 +1,7 @@
+{
+  "name": "harborline-appshell-capability-host-consumer",
+  "private": true,
+  "type": "module",
+  "description": "Capability-host rows consumer. The capability-host + contracts dependencies are written into the DISPOSABLE fixture copy at run time by verifyAppShellCapability after SHA-256-checked tarball staging (ticket 089 identities); the committed manifest carries no local package protocol by repository rule.",
+  "scripts": { "exercise": "node exercise.mjs" }
+}

@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "projection": "react",
+  "moduleId": "hlp.ui.tooltip",
+  "scenarios": [
+    {
+      "scenarioId": "tooltip.lifecycle",
+      "sha256": "6ecdbfb01694fcec28e8404ff08b949db3a989b38bbce97fb3f40bdc80079fc9",
+      "bytes": 8797,
+      "artifact": "../baselines/sha256/6ecdbfb01694fcec28e8404ff08b949db3a989b38bbce97fb3f40bdc80079fc9.png"
+    },
+    {
+      "scenarioId": "tooltip.interaction",
+      "sha256": "d450dbb14a63eb721ae5ae416c54a4c96aa2ed994780d83354f924e91e5baa6e",
+      "bytes": 8734,
+      "artifact": "../baselines/sha256/d450dbb14a63eb721ae5ae416c54a4c96aa2ed994780d83354f924e91e5baa6e.png"
+    },
+    {
+      "scenarioId": "tooltip.locale-theme",
+      "sha256": "8e51bcea5c4366f81b3a1fe9acae0443490b4deb444b74a885e7cf984e5c58e8",
+      "bytes": 7962,
+      "artifact": "../baselines/sha256/8e51bcea5c4366f81b3a1fe9acae0443490b4deb444b74a885e7cf984e5c58e8.png"
+    }
+  ]
+}

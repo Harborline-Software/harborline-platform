@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.use-can-show-master-detail",
+  "interfaceRevision": 2,
+  "semantics": {"operation": "resolve Harborline App form-factor and input-capability signals into caller-facing layout affordances", "observableOutput": "A stable mode, orientation, height class, split-pane decision, touch-sizing decision, hover-affordance decision, and master-detail decision."},
+  "sourceSurface": {"repository": "shipyard", "commit": "a5036ff8b500e0d857d7e0a698408e7cf7f6cf31", "path": "packages/ui-react/src/hooks/useFormFactor.ts", "blob": "9c607f9bab88a526ee0ede9b60b6d271d040db77", "capturedExports": ["useCanShowMasterDetail", "useCanSplitBuilderPanes", "useFormFactor", "useShowHoverAffordance", "useTouchSizing"]},
+  "dependencies": ["hlp.ui.use-media-query"],
+  "vocabulary": {"modes":["phone","tablet","desktop"],"orientations":["portrait","landscape"],"heightClasses":["short","tall"]},
+  "invariants": [
+    "Phone mode wins when phone width matches or when landscape and short-height signals both match; desktop is next; tablet is the residual mode.",
+    "Orientation and height class remain independent observable sub-signals even when short landscape folds the mode to phone.",
+    "Master-detail is available exactly when resolved mode is not phone AND the authored master-detail rail query (min-width 768px and min-height 600px) matches. The decision is held one of three ways, each enforced: hlp.ui.detail-panel's React docked-versus-modal gate is decision-bound (it calls this policy); the dotnet and Blazor rail gates (detail-panel, app-layout, app-shell, use-is-mobile's CanShowRail) are constant-bound to FormFactorQueries.MasterDetailRail; the remaining TypeScript rail-query copies (use-is-mobile, app-layout) are equality-pinned to MASTER_DETAIL_RAIL_QUERY by per-module tests. Raw-query gates agree with this policy only because the rail's floors exceed the phone-width and short-height ceilings — a threshold invariant pinned by named tests in both tiers, so the same viewport cannot produce two answers without a test naming the split.",
+    "Touch sizing is required when resolved mode is phone or any coarse pointer is available.",
+    "Hover affordance is available when host hover or any fine pointer is available, independent of viewport mode.",
+    "Builder panes can split only when the authored min-width 1024px media query matches.",
+    "SSR and unavailable-host signals fail closed through the media-query dependency; the policy owns no browser subscription itself.",
+    "TypeScript hooks and .NET consumers project one pure signal resolver and the same authored query vocabulary."
+  ],
+  "errors": [],
+  "performance": {"operation": "O(1) Boolean policy resolution; host subscriptions remain owned by hlp.ui.use-media-query"},
+  "presentation": {"disposition": "not-applicable", "rationale": "The policy selects responsive behavior and renders no standalone interface."},
+  "cases": [
+    {"id":"form-factor.phone-width"},{"id":"form-factor.tablet-residual"},{"id":"form-factor.desktop-width"},{"id":"form-factor.short-landscape-fold"},{"id":"form-factor.master-detail"},{"id":"form-factor.touch-sizing"},{"id":"form-factor.hover-affordance"},{"id":"form-factor.split-builder"},{"id":"form-factor.ssr-fail-closed"},{"id":"form-factor.projection-equivalence"}
+  ]
+}

@@ -1,0 +1,86 @@
+<section class="hl-gallery-scene" data-gallery-probe data-gallery-scenario="@ScenarioId" data-theme="@Theme">
+    <header class="hl-gallery-heading"><h2>@Title</h2><p>@Description</p></header>
+    <div class="hl-gallery-stage hl-gallery-feedback-stage">
+        @if (ScenarioId == "error-card.content")
+        {
+            <HarborlineErrorCard Title="@("Ordnance Survey — Niño Ångström")" Message="@("1,284,905 records affected at Bay 4 <grid C-7> & 8")"
+                               OnRetry="HandleRetry" RetryLabel="@("Review affected inspection records and retry import")" />
+            <HarborlineErrorCard Title="@("Awaiting third-party structural certification review")" />
+        }
+        else if (ScenarioId == "error-card.variants")
+        {
+            <div class="hl-gallery-feedback-grid">
+                <HarborlineErrorCard Title="Page unavailable" Message="Return to the inspection list or try again." Variant="ErrorCardVariant.Page" />
+                <HarborlineErrorCard Title="Unable to load" Message="Check your connection." />
+                <HarborlineErrorCard Title="Failed" Message="Attachment unavailable." Variant="ErrorCardVariant.Compact" />
+            </div>
+        }
+        else if (ScenarioId == "error-card.message")
+        {
+            <HarborlineErrorCard Title="Unable to load" Message="Check your connection before trying again." />
+        }
+        else if (ScenarioId is "error-card.retry" or "error-card.locale-en" or "error-card.locale-pseudo" or "error-card.locale-ar")
+        {
+            <div class="hl-gallery-feedback-stack">
+                <HarborlineErrorCard Title="@LocalizedTitle" Message="@LocalizedMessage" OnRetry="HandleRetry" RetryLabel="@RetryLabel"
+                                   lang="@Locale" dir="@Direction" data-retry-count="@RetryCount" />
+                <output class="hl-gallery-activation" aria-live="polite">Retry activations: @RetryCount</output>
+            </div>
+        }
+        else if (ScenarioId == "error-card.host-attributes")
+        {
+            <HarborlineErrorCard Title="تعذر التحميل" Message="راجع تفاصيل الخطأ." dir="rtl" Class="consumer"
+                               data-case="shared" aria-describedby="error-details" />
+            <span id="error-details" class="hl-gallery-sr-only">Inspection loading error details</span>
+        }
+        else if (ScenarioId is "error-card.theme-light" or "error-card.theme-dark")
+        {
+            <HarborlineErrorCard Title="Page unavailable" Message="Check your connection and try again."
+                               Variant="ErrorCardVariant.Page" OnRetry="HandleRetry" />
+        }
+        else
+        {
+            <HarborlineErrorCard Title="Unable to load" />
+        }
+    </div>
+</section>
+
+@code {
+    [Parameter, EditorRequired] public string ScenarioId { get; set; } = "error-card.default";
+
+    private int RetryCount { get; set; }
+    private bool IsPseudo => ScenarioId == "error-card.locale-pseudo";
+    private bool IsArabic => ScenarioId == "error-card.locale-ar";
+    private string? Locale => IsArabic ? "ar-SA" : IsPseudo ? "en-XA" : ScenarioId == "error-card.locale-en" ? "en-US" : null;
+    private string? Direction => IsArabic ? "rtl" : Locale is not null ? "ltr" : null;
+    private string LocalizedTitle => IsArabic ? "تعذر تحميل عمليات الفحص" : IsPseudo ? "⟦ Ûñåɓļë ţø ļøåđ îñšþëçţîøñš ······ ⟧" : "Unable to load inspections";
+    private string LocalizedMessage => IsArabic ? "تحقق من اتصالك ثم حاول مرة أخرى." : IsPseudo ? "⟦ Çhëçķ ÿøûř çøññëçţîøñ åñđ ţřÿ åĝåîñ ········ ⟧" : "Check your connection and try again.";
+    private string? RetryLabel => IsArabic ? "إعادة المحاولة" : IsPseudo ? "⟦ Řëţřý ··· ⟧" : null;
+    private string Title => Copy[ScenarioId].Title;
+    private string Description => Copy[ScenarioId].Description;
+    private string? Theme => ScenarioId switch
+    {
+        "error-card.theme-light" => "light",
+        "error-card.theme-dark" => "dark",
+        _ => null,
+    };
+
+    private void HandleRetry() => RetryCount++;
+
+    private static IReadOnlyDictionary<string, (string Title, string Description)> Copy { get; } =
+        new Dictionary<string, (string, string)>
+        {
+            ["error-card.default"] = ("Default", "A visible alert with a caller-owned title and no implied action."),
+            ["error-card.variants"] = ("Variants", "Page, default, and compact presentation preserve their heading semantics."),
+            ["error-card.message"] = ("Message and tone", "Optional detail follows the title using the destructive and muted token roles."),
+            ["error-card.retry"] = ("Retry action", "A native button is present only when the caller supplies a retry handler."),
+            ["error-card.no-retry"] = ("Without retry", "The same failure remains complete when recovery is unavailable."),
+            ["error-card.host-attributes"] = ("Host attributes", "Consumer class, data, description, and direction reach the alert host."),
+            ["error-card.locale-en"] = ("English locale", "Caller text and the source-compatible retry fallback render in English."),
+            ["error-card.locale-pseudo"] = ("Pseudo locale", "Expanded caller text and retry copy expose clipping and reflow defects."),
+            ["error-card.locale-ar"] = ("Arabic locale", "Caller-localized content follows logical RTL alignment and spacing."),
+            ["error-card.theme-light"] = ("Light theme", "Surface, border, title, message, retry, hover, and focus roles on light."),
+            ["error-card.theme-dark"] = ("Dark theme", "The complete feedback state vocabulary on the dark surface."),
+            ["error-card.content"] = ("Content resilience", "Hostile content carries a long retry label, the grouped number 1,284,905, escaped angle brackets and an ampersand, a name with diacritics and an em dash, and omitted optional fields."),
+        };
+}

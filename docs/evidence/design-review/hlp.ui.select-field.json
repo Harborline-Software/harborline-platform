@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.select-field",
+  "verdict": "approved",
+  "reviewer": "cic",
+  "recordedAt": "2026-08-28T02:24:31.715Z",
+  "reference": {
+    "revision": "1d1c23450c7d797d7a66120da5282a6d6d71f2ac63d15e2c9b03712b2dff0a58",
+    "source": "gallery/scenarios/hlp.ui.select-field.json",
+    "pin": "28e389ae42b64246f1c6d92e0002b78bc92791b3",
+    "surface": {
+      "conformance/hlp.ui.select-field/fixtures.yaml": "866d567cf014d4fe57a8230cb730892b9f071917c1b1fe034f6ae7a5f30c858c",
+      "conformance/hlp.ui.select-field/quality-fixtures.yaml": "11eef06a1d3c37cc433897d5cc63013d8a7fce10182ded8c4a90c17f4a9f929e",
+      "gallery/projections/blazor/Stories/SelectField.stories.razor": "08e43b6c08e755b1144921eb9ada6bc891a34a1f4d6ffc79bbc4f4984c190120",
+      "gallery/projections/blazor/Stories/SelectFieldScenario.razor": "e54e0e18be3884f304053daafe0ee4f26caa1b4813fad6ee2eea9efa4fa00242",
+      "gallery/projections/react/src/SelectField.stories.tsx": "bc513ac9a12d267b59d95e5c3b08d7525b208149c65da37c6a4243e0151f1e34",
+      "gallery/scenarios/hlp.ui.select-field.json": "f07c2f0681711edf65965aafc95dc7245fe20d324850a2c77ac662891e478ffd",
+      "projections/blazor/ui/hlp.ui.select-field/SelectFieldTypes.cs": "cf07186d73935d5a0a84351fd2e792f2e8ada7cad212963db900aa5e03792c5c",
+      "projections/blazor/ui/hlp.ui.select-field/ShipyardSelectField.razor": "aa9dcd2424194a8e47bd1896e2cb70716ef45b0dacc8fc373284195ca8c08cf2",
+      "projections/blazor/ui/hlp.ui.select-field/wwwroot/select-field.css": "921d4606cd80c8c02c356625c19d6742d0cccecaf8f2082cab914a77731e5e29",
+      "projections/blazor/ui/hlp.ui.select-field/wwwroot/select-field.js": "84bc95b9c9ffe9b66856d424ee1715d75454f3c513c5e3d209ca20c5ef7169b8",
+      "projections/react/ui/hlp.ui.select-field/src/SelectField.tsx": "9591529fcd2f7010c77c9912072b12972fa26b7ab8a9b2b46c20a04641e9e468",
+      "projections/react/ui/hlp.ui.select-field/src/index.ts": "2e842951f8e3aa4e6b801e6e4ea58847119aee45a90e07bfb823f5d775bbb6d7",
+      "projections/react/ui/hlp.ui.select-field/src/style.css": "2ce57d981e9be10a0f6c4b45851072fad4757aafd45691eda0604a030de2192e",
+      "specs/modules/ui/hlp.ui.select-field/scenarios.json": "f07c2f0681711edf65965aafc95dc7245fe20d324850a2c77ac662891e478ffd",
+      "specs/modules/ui/hlp.ui.select-field/style.css": "2ce57d981e9be10a0f6c4b45851072fad4757aafd45691eda0604a030de2192e"
+    }
+  }
+}

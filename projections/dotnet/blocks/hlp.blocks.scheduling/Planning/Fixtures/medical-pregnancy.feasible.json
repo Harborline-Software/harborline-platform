@@ -1,0 +1,66 @@
+{
+  "schema": "harborline.scheduling.problem-draft/v0",
+  "id": "medical-pregnancy.feasible",
+  "version": "0.1.0",
+  "title": "Synthetic pregnancy protocol capacity envelope",
+  "timezone": "UTC",
+  "metadata": {
+    "synthetic": true,
+    "fixtureKind": "feasible",
+    "safety": "Architecture-only synthetic timing; not clinical guidance."
+  },
+  "anchors": [
+    { "id": "anchor-start", "label": "Synthetic protocol anchor", "kind": "date", "value": "2026-08-03" }
+  ],
+  "windows": [
+    { "id": "horizon", "label": "Full planning horizon", "start": "2026-08-03", "end": "2027-05-10" },
+    {
+      "id": "band-a",
+      "label": "Early synthetic band",
+      "startOffset": { "anchorId": "anchor-start", "offset": { "amount": 0, "unit": "day" } },
+      "endOffset": { "anchorId": "anchor-start", "offset": { "amount": 120, "unit": "day" } }
+    },
+    {
+      "id": "band-b",
+      "label": "Late synthetic band",
+      "startOffset": { "anchorId": "anchor-start", "offset": { "amount": 121, "unit": "day" } },
+      "endOffset": { "anchorId": "anchor-start", "offset": { "amount": 280, "unit": "day" } }
+    }
+  ],
+  "locations": [
+    { "id": "site-main", "label": "Synthetic care site", "tags": ["synthetic"] }
+  ],
+  "phases": [
+    { "id": "phase-baseline", "label": "Baseline protocol phase", "sequence": 1, "locationRefs": ["site-main"] },
+    { "id": "phase-followup", "label": "Follow-up protocol phase", "sequence": 2, "locationRefs": ["site-main"], "predecessorPhaseRefs": ["phase-baseline"] }
+  ],
+  "resources": [
+    { "id": "resource-clinician", "label": "Synthetic clinician pool", "kind": "pool", "capabilities": [{ "capabilityRef": "cap.protocol", "count": 1 }], "availabilityWindowRefs": ["horizon"], "capacity": { "quantity": 4, "unit": "visit", "cumulative": true, "windowRefs": ["horizon"] }, "locationRefs": ["site-main"], "policyRefs": ["policy-capacity"] },
+    { "id": "authority-clinical", "label": "Synthetic clinical approver", "kind": "party", "capabilities": [{ "capabilityRef": "cap.clinical-approval", "count": 1 }], "availabilityWindowRefs": ["horizon"], "policyRefs": ["policy-clinical-approval"] },
+    { "id": "authority-operations", "label": "Synthetic operations approver", "kind": "party", "capabilities": [{ "capabilityRef": "cap.capacity-approval", "count": 1 }], "availabilityWindowRefs": ["horizon"], "policyRefs": ["policy-capacity"] }
+  ],
+  "capacityPools": [
+    { "id": "pool-protocol-envelope", "label": "Protocol horizon capacity", "amount": 4, "unit": "visit", "cumulative": true, "windowRefs": ["horizon"], "resourceRefs": ["resource-clinician"] }
+  ],
+  "policies": [
+    { "id": "policy-clinical-approval", "label": "Clinical plan approval policy", "kind": "approval", "ref": "policy://synthetic/clinical-plan" },
+    { "id": "policy-capacity", "label": "Operational capacity policy", "kind": "capacity", "ref": "policy://synthetic/capacity-envelope" },
+    { "id": "policy-commit", "label": "Proposal-only commit policy", "kind": "commit", "ref": "policy://synthetic/proposal-only" }
+  ],
+  "constraints": [
+    { "id": "constraint-window", "label": "Window must hold", "severity": "hard", "kind": "window", "ruleRef": "rule://synthetic/window", "appliesToRefs": ["demand:recurring-check"] },
+    { "id": "constraint-precedence", "label": "Follow-up after baseline", "severity": "hard", "kind": "precedence", "ruleRef": "rule://synthetic/precedence", "appliesToRefs": ["demand:followup-review"] },
+    { "id": "constraint-balance", "label": "Prefer even spread", "severity": "soft", "kind": "spread", "calculationRef": "calc://synthetic/spread", "appliesToRefs": ["demand:recurring-check"] }
+  ],
+  "approvals": [
+    { "id": "approval-clinical-plan", "label": "Clinical plan approval", "requirementKind": "approval", "scope": "problem", "subjectRefs": ["problem"], "authorityRef": "resource:authority-clinical", "policyRef": "policy-clinical-approval", "requiredCapabilityRefs": ["cap.clinical-approval"], "satisfierRefs": ["resource:authority-clinical"] },
+    { "id": "approval-capacity-envelope", "label": "Operational capacity approval", "requirementKind": "capacity", "scope": "commit", "subjectRefs": ["capacityPool:pool-protocol-envelope"], "authorityRef": "resource:authority-operations", "policyRef": "policy-capacity", "requiredCapabilityRefs": ["cap.capacity-approval"], "satisfierRefs": ["resource:authority-operations"] }
+  ],
+  "demands": [
+    { "id": "recurring-check", "label": "Synthetic recurring protocol check", "duration": { "amount": 1, "unit": "day" }, "windowRefs": ["band-a", "band-b"], "phaseRef": "phase-baseline", "locationRefs": ["site-main"], "requiredCapabilities": [{ "capabilityRef": "cap.protocol", "count": 1 }], "capacityUsage": [{ "capacityPoolId": "pool-protocol-envelope", "amount": 1, "unit": "visit", "mode": "consume" }], "repetition": { "kind": "fixed-count", "count": 4, "every": { "amount": 28, "unit": "day" } }, "constraintRefs": ["constraint-window"], "softConstraintRefs": ["constraint-balance"], "approvalRequirementRefs": ["approval-clinical-plan", "approval-capacity-envelope"] },
+    { "id": "followup-review", "label": "Synthetic follow-up review", "duration": { "amount": 1, "unit": "day" }, "windowRefs": ["band-b"], "phaseRef": "phase-followup", "locationRefs": ["site-main"], "requiredCapabilities": [{ "capabilityRef": "cap.protocol", "count": 1 }], "predecessors": [{ "demandId": "recurring-check", "relation": "finish-to-start", "minGap": { "amount": 7, "unit": "day" }, "constraintRef": "constraint-precedence" }], "constraintRefs": ["constraint-window", "constraint-precedence"], "approvalRequirementRefs": ["approval-clinical-plan"] }
+  ],
+  "strategy": { "alias": "heuristic", "parameters": { "candidateLimit": 48 } },
+  "commitment": { "mode": "capacity-envelope", "horizonWindowRef": "horizon", "capacityPoolRefs": ["pool-protocol-envelope"], "policyRefs": ["policy-commit", "policy-capacity"] },
+  "resultMetadata": { "expectedOutcome": "feasible", "deterministicSeed": "synthetic-pregnancy-ok", "explanationRefs": ["demand:recurring-check", "capacityPool:pool-protocol-envelope", "approval:approval-capacity-envelope"] }
+}

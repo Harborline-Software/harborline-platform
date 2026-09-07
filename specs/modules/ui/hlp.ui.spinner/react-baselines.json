@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "projection": "react",
+  "moduleId": "hlp.ui.spinner",
+  "scenarios": [
+    {
+      "scenarioId": "spinner.types",
+      "sha256": "d7db77d29e1a1aa40e19f462ca46520c73ecab09e55270dd1da22bf728ba787a",
+      "bytes": 4241,
+      "artifact": "../baselines/sha256/d7db77d29e1a1aa40e19f462ca46520c73ecab09e55270dd1da22bf728ba787a.png"
+    },
+    {
+      "scenarioId": "spinner.sizes-colors",
+      "sha256": "ca64afbb6847542535bd60522aa5a9c3af6b155f2ea5d6be5e58f4513199ccc1",
+      "bytes": 5488,
+      "artifact": "../baselines/sha256/ca64afbb6847542535bd60522aa5a9c3af6b155f2ea5d6be5e58f4513199ccc1.png"
+    },
+    {
+      "scenarioId": "spinner.rtl-theme",
+      "sha256": "5d7a3240125651fa8c1e175121b5402b6e71b8f638d2bb019a03c7c5530a6989",
+      "bytes": 4267,
+      "artifact": "../baselines/sha256/5d7a3240125651fa8c1e175121b5402b6e71b8f638d2bb019a03c7c5530a6989.png"
+    }
+  ]
+}

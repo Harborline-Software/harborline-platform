@@ -1,0 +1,330 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.action-menu",
+  "sourceFixture": "conformance/hlp.ui.action-menu/fixtures.yaml",
+  "qualityFixture": "conformance/hlp.ui.action-menu/quality-fixtures.yaml",
+  "galleryInterface": {
+    "probeAttribute": "data-gallery-probe",
+    "scenarioAttribute": "data-gallery-scenario",
+    "projectionTitles": {
+      "react": "Platform/Action Menu",
+      "blazor": "Platform/Action Menu"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "action-menu.defaults",
+      "name": "Trigger and entries",
+      "surface": "defaults",
+      "sourceCaseIds": [
+        "action-menu.closed",
+        "action-menu.default-trigger",
+        "action-menu.custom-trigger",
+        "action-menu.entries"
+      ],
+      "sourceQualityCaseIds": [
+        "action-menu.quality.pattern"
+      ],
+      "content": {
+        "blurb": "Trigger and entries",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "text",
+            "text": "Actions"
+          },
+          {
+            "control": "raw",
+            "react": "<ActionMenu items={[{label:'Edit',onClick(){}},{label:'Disabled',disabled:true,onClick(){}},{separator:true},{label:'Delete',variant:'destructive',onClick(){}}]} />",
+            "blazor": "<HarborlineActionMenu Items=\"Items\" AccessibleLabel=\"More actions\" />\n@code { private IReadOnlyList<ActionMenuEntry> Items => [new ActionMenuItem(\"edit\", \"Edit\"), new ActionMenuItem(\"disabled\", \"Disabled\", Disabled: true), new ActionMenuSeparator(), new ActionMenuItem(\"delete\", \"Delete\", Destructive: true)]; }",
+            "rationale": "The closed descriptor vocabulary has no menu, menu-item, separator, disabled-item, destructive-item, or custom trigger control, so it cannot express the rendered ActionMenu without losing structure and behavior."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "action-menu.pointer",
+      "name": "Pointer and item states",
+      "surface": "pointer-states",
+      "interaction": "pointer",
+      "sourceCaseIds": [
+        "action-menu.pointer-toggle",
+        "action-menu.disabled",
+        "action-menu.activation",
+        "action-menu.destructive-icon"
+      ],
+      "sourceQualityCaseIds": [
+        "action-menu.quality.dismissal",
+        "action-menu.quality.forced-colors"
+      ],
+      "content": {
+        "blurb": "Pointer and item states",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "inherits": "action-menu.defaults"
+      }
+    },
+    {
+      "id": "action-menu.keyboard",
+      "name": "Keyboard, typeahead, and focus",
+      "surface": "keyboard-focus",
+      "interaction": "keyboard",
+      "sourceCaseIds": [
+        "action-menu.keyboard-open",
+        "action-menu.keyboard-navigation",
+        "action-menu.typeahead",
+        "action-menu.focus-return",
+        "action-menu.empty-disabled",
+        "action-menu.reopen-reset"
+      ],
+      "sourceQualityCaseIds": [
+        "action-menu.quality.keyboard",
+        "action-menu.quality.focus"
+      ],
+      "content": {
+        "blurb": "Keyboard, typeahead, and focus",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "inherits": "action-menu.defaults"
+      }
+    },
+    {
+      "id": "action-menu.empty",
+      "name": "Empty collection",
+      "surface": "empty",
+      "interaction": "keyboard",
+      "sourceCaseIds": [
+        "action-menu.empty-collection",
+        "action-menu.empty-disabled"
+      ],
+      "sourceQualityCaseIds": [
+        "action-menu.quality.pattern",
+        "action-menu.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "A menu handed an empty collection keeps its trigger and draws a declared empty message instead of a blank box.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "text",
+            "text": "Actions"
+          },
+          {
+            "control": "raw",
+            "react": "<ActionMenu items={[]} />",
+            "blazor": "<HarborlineActionMenu Items=\"EmptyItems\" AccessibleLabel=\"More actions\" />\n@code { private IReadOnlyList<ActionMenuEntry> EmptyItems => []; }",
+            "rationale": "The closed descriptor vocabulary has no menu or empty-menu control, so it cannot express an opened ActionMenu whose only content is its empty message."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "action-menu.dismissal",
+      "name": "Dismissal paths",
+      "surface": "dismissal",
+      "interaction": "keyboard-pointer",
+      "sourceCaseIds": [
+        "action-menu.dismissal",
+        "action-menu.focus-return"
+      ],
+      "sourceQualityCaseIds": [
+        "action-menu.quality.dismissal"
+      ],
+      "content": {
+        "blurb": "Dismissal paths",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "inherits": "action-menu.defaults"
+      }
+    },
+    {
+      "id": "action-menu.locale-en",
+      "name": "English locale",
+      "surface": "locale-en",
+      "sourceCaseIds": [
+        "action-menu.default-trigger",
+        "action-menu.entries"
+      ],
+      "sourceQualityCaseIds": [
+        "action-menu.quality.locales"
+      ],
+      "content": {
+        "blurb": "English locale",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "inherits": "action-menu.defaults"
+      }
+    },
+    {
+      "id": "action-menu.locale-pseudo",
+      "name": "Pseudo-expanded locale",
+      "surface": "locale-pseudo",
+      "sourceCaseIds": [
+        "action-menu.default-trigger",
+        "action-menu.entries"
+      ],
+      "sourceQualityCaseIds": [
+        "action-menu.quality.pseudo",
+        "action-menu.quality.reflow"
+      ],
+      "content": {
+        "blurb": "Pseudo-expanded locale",
+        "environment": {
+          "locale": "en-XA",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "inherits": "action-menu.defaults"
+      }
+    },
+    {
+      "id": "action-menu.locale-ar",
+      "name": "Arabic RTL alignment",
+      "surface": "locale-ar",
+      "sourceCaseIds": [
+        "action-menu.logical-alignment",
+        "action-menu.entries"
+      ],
+      "sourceQualityCaseIds": [
+        "action-menu.quality.rtl"
+      ],
+      "content": {
+        "blurb": "Arabic RTL alignment",
+        "environment": {
+          "locale": "ar-SA",
+          "direction": "rtl",
+          "theme": "light",
+          "catalog": {}
+        },
+        "inherits": "action-menu.defaults",
+        "body": [
+          {
+            "control": "text",
+            "text": "إجراءات"
+          },
+          {
+            "control": "raw",
+            "react": "<ActionMenu items={[{label:'تحرير',onClick(){}},{label:'Disabled',disabled:true,onClick(){}},{separator:true},{label:'حذف',variant:'destructive',onClick(){}}]} />",
+            "blazor": "<HarborlineActionMenu Items=\"Items\" AccessibleLabel=\"المزيد من الإجراءات\" />\n@code { private IReadOnlyList<ActionMenuEntry> Items => [new ActionMenuItem(\"edit\", \"تحرير\"), new ActionMenuItem(\"disabled\", \"Disabled\", Disabled: true), new ActionMenuSeparator(), new ActionMenuItem(\"delete\", \"حذف\", Destructive: true)]; }",
+            "rationale": "The closed descriptor vocabulary has no menu, menu-item, separator, disabled-item, destructive-item, or custom trigger control, so it cannot express the rendered RTL ActionMenu without losing structure and behavior."
+          }
+        ]
+      }
+    },
+    {
+      "id": "action-menu.theme-light",
+      "name": "Light theme",
+      "surface": "theme-light",
+      "sourceCaseIds": [
+        "action-menu.entries",
+        "action-menu.destructive-icon"
+      ],
+      "sourceQualityCaseIds": [
+        "action-menu.quality.themes",
+        "action-menu.quality.tokens",
+        "action-menu.quality.contrast",
+        "action-menu.quality.reduced-motion",
+        "action-menu.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "Light theme",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "inherits": "action-menu.defaults"
+      }
+    },
+    {
+      "id": "action-menu.theme-dark",
+      "name": "Dark theme",
+      "surface": "theme-dark",
+      "sourceCaseIds": [
+        "action-menu.entries",
+        "action-menu.destructive-icon"
+      ],
+      "sourceQualityCaseIds": [
+        "action-menu.quality.themes",
+        "action-menu.quality.tokens",
+        "action-menu.quality.contrast",
+        "action-menu.quality.reduced-motion",
+        "action-menu.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "Dark theme",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "dark",
+          "catalog": {}
+        },
+        "inherits": "action-menu.defaults"
+      }
+    },
+    {
+      "id": "action-menu.content",
+      "name": "Content resilience",
+      "surface": "long-content",
+      "sourceCaseIds": [
+        "action-menu.custom-trigger",
+        "action-menu.entries"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "Hostile content carries a long trigger label, a grouped large number, escaped angle brackets and an ampersand, and a name with diacritics and an em dash.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<ActionMenu trigger={<button type=\"button\">{'Awaiting third-party structural certification review'}</button>} items={[{label:'Awaiting third-party structural certification review',onClick(){}},{label:'1,284,905',onClick(){}},{label:'Bay 4 <grid C-7> & 8',onClick(){}},{label:'Ordnance Survey — Niño Ångström',onClick(){}}]} />",
+            "blazor": "<HarborlineActionMenu Items=\"ContentItems\" AccessibleLabel=\"Awaiting third-party structural certification review\"><Trigger>@(\"Awaiting third-party structural certification review\")</Trigger></HarborlineActionMenu>\n@code { private IReadOnlyList<ActionMenuEntry> ContentItems => [new ActionMenuItem(\"long\", \"Awaiting third-party structural certification review\"), new ActionMenuItem(\"number\", \"1,284,905\"), new ActionMenuItem(\"hostile\", \"Bay 4 <grid C-7> & 8\"), new ActionMenuItem(\"name\", \"Ordnance Survey — Niño Ångström\")]; }",
+            "rationale": "The closed descriptor vocabulary has no action-menu control and cannot express a custom trigger plus menu entries carrying hostile-but-valid text."
+          }
+        ],
+        "footer": []
+      }
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.alert",
+  "verdict": "approved",
+  "reviewer": "cic",
+  "recordedAt": "2026-08-26T19:57:34.072Z",
+  "reference": {
+    "revision": "5b5c99726bb4883198b3323356fb9e8cbe12d6eecb46d96bd945fb8647aa9ac5",
+    "source": "gallery/scenarios/hlp.ui.alert.json",
+    "pin": "cc9eb48ed68c5033ec128cd53c40b1d2786bee66",
+    "surface": {
+      "conformance/hlp.ui.alert/fixtures.yaml": "ce1ca706ddc084d3e62793272b69e8de1d7ae4085181a987538738b94a13e4e2",
+      "conformance/hlp.ui.alert/quality-fixtures.yaml": "cf9fe6a0b5027b95aba347472588c620fd19abdc2a86f155aa03f22fcf0533a0",
+      "gallery/projections/blazor/Stories/Alert.stories.razor": "90f8c37d4df3380e16a41a020149e41badbf613dd412ffb5d4aaadc36e00e7b9",
+      "gallery/projections/blazor/Stories/AlertScenario.razor": "71a40c4592461841ecbf24bd261ae0df358383364f42456aeb0e74c3f56be930",
+      "gallery/projections/react/src/Alert.stories.tsx": "3713a222def73cd6e9f9d197cbf44928050674002ec42dd7d97ab9b161cf3ab2",
+      "gallery/scenarios/hlp.ui.alert.json": "5d45ba20215e41f334a07f289490009d59687ee8219e6f9578e5e38f2a8be0b6",
+      "projections/blazor/ui/hlp.ui.alert/AlertTypes.cs": "95a9e43eab793dac44060a33c70d2f9e56f7a1c1175250ea0c9e5e1a714c4780",
+      "projections/blazor/ui/hlp.ui.alert/ShipyardAlert.razor": "e8131cd147e3f4709e290ab5c082220db50a60c54f2d6e650016e22bbbb47e8d",
+      "projections/blazor/ui/hlp.ui.alert/wwwroot/alert.css": "82e58d3165e31debc3c962d1c3a8bf8a257a613d191ea0383f659900f92f6803",
+      "projections/react/ui/hlp.ui.alert/src/Alert.tsx": "5c0035dea8b08b8a2d15ce3b3e5f9d344b7ac170f95110d6ca47557b5ae949cd",
+      "projections/react/ui/hlp.ui.alert/src/index.ts": "04c48f2e95da2081b4a90779bcbd1ab50a79df96c6ba2c12cd9584d76e82ef48",
+      "projections/react/ui/hlp.ui.alert/src/style.css": "82e58d3165e31debc3c962d1c3a8bf8a257a613d191ea0383f659900f92f6803",
+      "specs/modules/ui/hlp.ui.alert/scenarios.json": "5d45ba20215e41f334a07f289490009d59687ee8219e6f9578e5e38f2a8be0b6",
+      "specs/modules/ui/hlp.ui.alert/style.css": "82e58d3165e31debc3c962d1c3a8bf8a257a613d191ea0383f659900f92f6803"
+    }
+  }
+}

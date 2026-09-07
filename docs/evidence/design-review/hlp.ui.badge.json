@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.badge",
+  "verdict": "approved",
+  "reviewer": "cic",
+  "recordedAt": "2026-08-26T20:01:13.850Z",
+  "reference": {
+    "revision": "9de373115d3ac77a3682db4052ca8c4c0c95793962a71e9d8a52d2556a6fbc21",
+    "source": "gallery/scenarios/hlp.ui.badge.json",
+    "pin": "cc9eb48ed68c5033ec128cd53c40b1d2786bee66",
+    "surface": {
+      "conformance/hlp.ui.badge/fixtures.yaml": "8230cf3883b39148cff13b8d25c9c5f5d82a5dbc2bbf93765f8cf4cf6828d7d3",
+      "conformance/hlp.ui.badge/quality-fixtures.yaml": "54d4fce48d478aeeeda964daa7e514a3d535cc15a02c92650c08e92e33b6aabb",
+      "gallery/projections/blazor/Stories/Badge.stories.razor": "4040b8c33f12e3f9bf9f86958fb4e4957d017e960a1bcd1cc6e5b44c5ef1113f",
+      "gallery/projections/blazor/Stories/BadgeScenario.razor": "095609a8a45f5816370f86879515a5a9101eee1bc2e78b8f3d27304970ec7fa9",
+      "gallery/projections/react/src/Badge.stories.tsx": "b9c3c82fef395130d2af0567524eaf4e3f3089310bc856aa5cc802d76e4a3bce",
+      "gallery/scenarios/hlp.ui.badge.json": "f1d4dfd3e62185da7ad1d682b9e402454ba757ed4e73b59911b1f917959142ee",
+      "projections/blazor/ui/hlp.ui.badge/BadgeTypes.cs": "ad930163d087fbe0733a57930a56c495cbf7af425db02fbb1811a4cacfcef386",
+      "projections/blazor/ui/hlp.ui.badge/ShipyardBadge.razor": "a42157e35b154fb42a0132cf8e85e568c4652a79369a1a2cb04ddfd2fe0bfa77",
+      "projections/blazor/ui/hlp.ui.badge/wwwroot/badge.css": "d3424d591667cfbd92983871b9ec8555062a95f8b78986c11bd1a75752f3058c",
+      "projections/react/ui/hlp.ui.badge/src/Badge.tsx": "deb0948a9ecf5802bbe6cba429b2058d91f0935c88fdfab22b3eed162e14e1cd",
+      "projections/react/ui/hlp.ui.badge/src/index.ts": "7d6d53a293ce0459e6511277691ce6dfb7a58c0ae68da2a7ddd9192eaadb2ea1",
+      "projections/react/ui/hlp.ui.badge/src/style.css": "d3424d591667cfbd92983871b9ec8555062a95f8b78986c11bd1a75752f3058c",
+      "specs/modules/ui/hlp.ui.badge/scenarios.json": "f1d4dfd3e62185da7ad1d682b9e402454ba757ed4e73b59911b1f917959142ee",
+      "specs/modules/ui/hlp.ui.badge/style.css": "d3424d591667cfbd92983871b9ec8555062a95f8b78986c11bd1a75752f3058c"
+    }
+  }
+}

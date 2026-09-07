@@ -1,0 +1,58 @@
+<section class="hl-gallery-scene" data-gallery-probe data-gallery-scenario="@ScenarioId" data-theme="@Theme" dir="@Direction">
+  <header class="hl-gallery-heading"><h2>@Copy.Title</h2><p>@Copy.Description</p></header>
+  <div class="hl-gallery-stage hl-gallery-feedback-stack">
+    @if (ScenarioId == "segmented-control.content")
+    {
+      <HarborlineSegmentedControl AccessibleName="Content cases" Options="@ContentOptions" Value="@contentValue" ValueChanged="SetContentValue" Direction="ltr" />
+    }
+    else if (ScenarioId == "segmented-control.sizing" || Theme is not null)
+    {
+      <HarborlineSegmentedControl AccessibleName="@AccessibleName" Options="@Options" Value="@value" ValueChanged="SetValue" Size="SegmentedControlSize.Sm" Direction="@Direction" data-case="schedule-range-sm" />
+      <HarborlineSegmentedControl AccessibleName="@AccessibleName" Options="@Options" Value="@value" ValueChanged="SetValue" Size="SegmentedControlSize.Md" Direction="@Direction" data-case="schedule-range-md" />
+      <HarborlineSegmentedControl AccessibleName="@AccessibleName" Options="@Options" Value="@value" ValueChanged="SetValue" Size="SegmentedControlSize.Lg" Direction="@Direction" data-case="schedule-range-lg" />
+      <HarborlineSegmentedControl AccessibleName="@AccessibleName" Options="@Options" Value="@value" ValueChanged="SetValue" Size="SegmentedControlSize.Touch" Direction="@Direction" FullWidth data-case="schedule-range-touch" />
+    }
+    else
+    {
+      <HarborlineSegmentedControl AccessibleName="@AccessibleName" Options="@Options" Value="@value" ValueChanged="SetValue"
+                                Size="SegmentedControlSize.Md" Direction="@Direction" FullWidth="@(ScenarioId == "segmented-control.locale-pseudo")" data-case="schedule-range" />
+    }
+  </div>
+</section>
+
+@code {
+  [Parameter, EditorRequired] public string ScenarioId { get; set; } = "segmented-control.structure";
+  private string value = "week";
+  private string contentValue = "large-number";
+  private void SetValue(string next) => value = next;
+  private void SetContentValue(string next) => contentValue = next;
+
+  private (string Title, string Description) Copy => ScenarioId switch
+  {
+    "segmented-control.structure" => ("Radio structure and state", "One named radiogroup preserves rich option content and one controlled selection."),
+    "segmented-control.activation" => ("Activation and disabled options", "Pointer activation requests one value while disabled options remain visible and inert."),
+    "segmented-control.keyboard" => ("Keyboard selection", "Arrow, Home, and End keys wrap, skip disabled options, and move focus with selection."),
+    "segmented-control.sizing" => ("Sizes, touch, and full width", "Closed densities and responsive touch targets retain the same radio semantics."),
+    "segmented-control.locale-en" => ("English locale", "Caller-owned option content is preserved in the default direction."),
+    "segmented-control.locale-pseudo" => ("Pseudo locale", "Expanded option labels expose clipping and reflow defects."),
+    "segmented-control.locale-ar" => ("Arabic locale", "Horizontal arrow progression mirrors while DOM order remains stable."),
+    "segmented-control.theme-light" => ("Light theme", "Checked, disabled, hover, and focus states use public light-theme tokens."),
+    "segmented-control.theme-dark" => ("Dark theme", "The same mutually exclusive choices on the Harborline dark surface."),
+    "segmented-control.content" => ("Content resilience", "Four segmented options carry hostile-but-valid labels."),
+    _ => ("Segmented control", "Mutually exclusive options.")
+  };
+
+  private bool IsArabic => ScenarioId == "segmented-control.locale-ar";
+  private bool IsPseudo => ScenarioId == "segmented-control.locale-pseudo";
+  private string Direction => IsArabic ? "rtl" : "ltr";
+  private string AccessibleName => IsArabic ? "نطاق الجدول" : "Schedule range";
+  private string? Theme => ScenarioId switch { "segmented-control.theme-light" => "light", "segmented-control.theme-dark" => "dark", _ => null };
+  private IReadOnlyList<SegmentedOption> Options => IsArabic
+    ? [new("day", "اليوم", false, null, "segment-day"), new("week", "الأسبوع", false, "عرض الأسبوع", "segment-week"), new("month", "الشهر", DisableMonth)]
+    : IsPseudo
+      ? [new("day", "⟦ Đåÿ ··· ⟧", false, null, "segment-day"), new("week", "⟦ Wëëķļÿ ṽîëŵ ······ ⟧", false, "Week view", "segment-week"), new("month", "⟦ Møñţhļÿ øṽëřṽîëŵ ······ ⟧", DisableMonth)]
+      : [new("day", "Day", false, null, "segment-day"), new("week", "▦ Week", false, "Week view", "segment-week"), new("month", "Month", DisableMonth)];
+  private bool DisableMonth => ScenarioId is "segmented-control.activation" or "segmented-control.keyboard";
+  private IReadOnlyList<SegmentedOption> ContentOptions =>
+    [new("long-label", "Awaiting third-party structural certification review"), new("large-number", "1,284,905"), new("hostile-text", "Bay 4 <grid C-7> & 8"), new("unusual-name", "Ordnance Survey — Niño Ångström")];
+}

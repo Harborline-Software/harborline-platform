@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.blocks.scheduling",
+  "interfaceRevision": 2,
+  "status": "frozen",
+  "purpose": "Own schedule reservation coordination (caller-supplied stable reservation ids with global idempotency, exactly-one-wins under concurrency, fail-closed quorum-unavailable, lease-guarded writes) and the harvested planning seed: the prototype's finite-candidate compiler, validators, and constructive/exhaustive/greedy solvers with the 12-fixture authored corpus (ticket 084 dispositions).",
+  "dependencies": [],
+  "callerInterface": {
+    "name": "IScheduleReservationCoordinator / Planning (FixtureSchedulingValidator, FixtureConstructivePlanner)",
+    "operations": [
+      "ReserveAsync(SlotReservation) -> ReservationOutcome: happy-path acquires+releases the lease; a duplicate reservation id returns the prior outcome (idempotent, never rebinds to a new slot/resource); an inverted slot is rejected without a lease; an overlapping slot is rejected after the lease; quorum-unavailable blocks the write and returns a rejection",
+      "CancelAsync(reservationId) -> bool: removes under the lease; quorum-unavailable returns false and leaves the reservation; unknown returns false with no lease attempt",
+      "ListForResource(resourceId) -> reservations ordered by start",
+      "Planning: parse/semantic-validate/canonicalize a fixture problem; solve to a positive plan or an exact scheduling.unassigned.* reason with non-empty explanation refs"
+    ],
+    "context": "The lease dependency is carried as a LOCAL narrow compatibility port under the Harborline.Kernel.Lease namespace because no lease kernel module exists in the platform catalog yet; composition replaces it with the ratified platform lease contract when one lands (recorded deviation, not a design endorsement). The planning seed is the ticket-084 harvest: corpus + solver seed, never a matrix module; the authored corpus carries the six unsatisfied-reason classes."
+  },
+  "invariants": [
+    "Reservation ids are caller-supplied and globally idempotent: a duplicate id returns the prior outcome and never rebinds to a different slot or resource.",
+    "Under concurrent reservation of the same slot exactly one caller wins; disjoint resources all succeed.",
+    "Quorum-unavailable fails closed on both reserve and cancel: no write occurs and the outcome says so.",
+    "Solver outcomes are deterministic under contrasting ambient timezone configurations (cross-process TZ determinism — the planner reads no process-global time or zone).",
+    "Every unsatisfied planning outcome carries at least one exact scheduling.unassigned.* reason and non-empty explanation references.",
+    "The fixture manifest is static: exactly the 12 shipped fixture files, byte-exact against the pinned prototype blobs."
+  ],
+  "errors": ["scheduling.unassigned.resource-capacity", "scheduling.unassigned.approval-unsatisfied", "scheduling.unassigned.window-precedence", "scheduling.unassigned.capacity-limit", "scheduling.unassigned.capability-missing", "scheduling.unassigned.capacity-envelope"],
+  "publicSeams": ["lease provider port (local compatibility shape pending a platform lease kernel)", "injected clock", "durable file-journal store (r2: FileJournalSchedulingStore — versioned authenticated checksummed frames, atomic draft+audit co-commit, revision-conflict-writes-nothing at the FILE level, recovery truncation, exclusive lock, single-process adapter honestly declared; proven by a genuine process-kill restart probe)", "named at-rest seam (r2 deferral: the journal frames are authenticated/checksummed but carry no content-encryption key seam — the two pinned encryption-at-rest rows are deferred to a future host at-rest seam, and the four pinned SQL/EF migration rows are unmappable at this narrowed seam by design; recorded in the scheduling behavior-map addendum)"],
+  "conformance": {
+    "nativeTests": {"dotnet": 66},
+    "nativeTestNote": "14 pinned coordinator cases under their pinned names (the migration substrate-gap's '16' was an over-count; the verified inventory says 14) + 2 supplemental idempotency invariants (explicitly not pinned) + 36 adopted fixture-driven rows + 3 re-authored harvest invariants + 11 durable-store rows (journal invariants, draft+audit co-commit atomicity, conflict-writes-nothing at the file level, recovery truncation, corruption-fails-startup, lock exclusivity, and the genuine process-kill restart probes)"
+  },
+  "selectedDesign": {
+    "choice": "Port the reservation coordinator engine verbatim minus the Razor/localization UI surface, and land the harvested planning seed beside it with the authored corpus executable.",
+    "rejected": [
+      "Porting ScheduleViewBlock and its localization as module content (UI surface; the scheduler/gantt rows are carried green elsewhere).",
+      "Referencing a kernel lease package that does not exist, or taking a dependency on the aggregate Foundation for it.",
+      "Minting a shared scheduling authoring contract package (ADR 0149 D2.2 requires two approved implementations; the v0-draft marker must not persist)."
+    ],
+    "reason": "Pin-parity for the coordinator rows and an executable home for the ruled harvest adoptions, without UI or phantom dependencies."
+  },
+  "behaviorEvidence": {
+    "sourceCapture": "migration://preprocessing/scheduling/generated/scheduling-source.json",
+    "boundaryDecision": "migration://preprocessing/scheduling/scheduling-behavior-map.md"
+  },
+  "package": {"nuget": "Harborline.Blocks.Scheduling", "assembly": "Harborline.Blocks.Scheduling", "distribution": "internal-only"}
+}

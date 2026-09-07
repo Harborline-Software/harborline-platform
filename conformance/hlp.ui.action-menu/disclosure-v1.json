@@ -1,0 +1,96 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.action-menu",
+  "fixtureRevision": 2,
+  "authority": {
+    "hints": "disclosure-model.md §1 — shortcut hints are right-aligned, monospace, and on every item that has one.",
+    "keyShortcuts": "WAI-ARIA 1.2 §6.6.7 aria-keyshortcuts — the chord is declared on the item in UI Events KeyboardEvent.key names (\"Control+Shift+C\"), so assistive technology reads the shortcut even though the visible hint stays decorative (aria-hidden). The display hint and the ARIA chord are BOTH declared here; neither is parsed out of the other.",
+    "toggles": "disclosure-model.md §2 — toggles live in the menu with a check mark.",
+    "oneHomePerScope": "disclosure-model.md §5 — the overflow next to a row acts on the row, the one in the page header on the page; never two at one scope.",
+    "noFacetsInTheMenu": "disclosure-model.md — subsections never go in the overflow menu; a subsection is a place, it must be linkable and show a count."
+  },
+  "seam": {
+    "hint": "shortcutHint / ShortcutHint",
+    "keyShortcuts": "keyShortcuts / KeyShortcuts",
+    "checked": "checked / Checked",
+    "toggle": "onClick / OnSelect",
+    "scope": "scopeId / ScopeId",
+    "scopeHost": "ActionMenuScopeContext / CascadingValue Name=HarborlineActionMenuScope",
+    "rootScope": "window",
+    "facets": "facetIds / FacetIds",
+    "note": "A toggle reports through the SAME callback every other item reports through. The menu never owns the checked value: it renders the state it is handed and asks the host to change it once."
+  },
+  "items": [
+    { "id": "edit", "label": "Edit", "shortcutHint": "Ctrl+E", "keyShortcuts": "Control+E" },
+    { "id": "duplicate", "label": "Duplicate" },
+    { "id": "compact", "label": "Compact rows", "checked": false, "shortcutHint": "Ctrl+Shift+C", "keyShortcuts": "Control+Shift+C" },
+    { "id": "grid-lines", "label": "Grid lines", "checked": true },
+    { "id": "delete", "label": "Delete", "shortcutHint": "Del", "destructive": true, "keyShortcuts": "Delete" }
+  ],
+  "initial": {
+    "checked": { "compact": false, "grid-lines": true },
+    "invoked": []
+  },
+  "render": {
+    "hintClass": "hl-action-menu__item-hint",
+    "checkClass": "hl-action-menu__item-check",
+    "hints": { "edit": "Ctrl+E", "compact": "Ctrl+Shift+C", "delete": "Del" },
+    "keyShortcuts": { "edit": "Control+E", "compact": "Control+Shift+C", "delete": "Delete" },
+    "hintIsDecorative": true,
+    "accessibleNames": { "edit": "Edit", "duplicate": "Duplicate", "compact": "Compact rows", "grid-lines": "Grid lines", "delete": "Delete" },
+    "withoutHint": ["duplicate", "grid-lines"],
+    "checkboxItems": { "compact": "false", "grid-lines": "true" },
+    "commandItems": ["edit", "duplicate", "delete"],
+    "hintComputed": {
+      "textAlign": "end",
+      "fontFamilyContains": "monospace",
+      "styleAuthority": "specs/modules/ui/hlp.ui.action-menu/style.css",
+      "note": "Both shells inject the authority stylesheet and read the computed style of the hint element. The alignment and the monospace family come from the shared token rule, never from CSS at a call site."
+    }
+  },
+  "transitions": [
+    {
+      "id": "toggling an unchecked item checks it, through the one callback every item reports through",
+      "action": { "kind": "activate", "itemId": "compact" },
+      "expect": { "checked": { "compact": true, "grid-lines": true }, "invoked": ["compact"] }
+    },
+    {
+      "id": "toggling a checked item unchecks it, through the same callback",
+      "action": { "kind": "activate", "itemId": "grid-lines" },
+      "expect": { "checked": { "compact": true, "grid-lines": false }, "invoked": ["compact", "grid-lines"] }
+    },
+    {
+      "id": "the check mark follows the state the host hands back, not a mark the menu remembers",
+      "action": { "kind": "host", "checked": { "compact": false, "grid-lines": false } },
+      "expect": { "checked": { "compact": false, "grid-lines": false }, "invoked": ["compact", "grid-lines"] }
+    },
+    {
+      "id": "a plain item invokes and changes no checked state",
+      "action": { "kind": "activate", "itemId": "edit" },
+      "expect": { "checked": { "compact": false, "grid-lines": false }, "invoked": ["compact", "grid-lines", "edit"] }
+    }
+  ],
+  "oneHomePerScope": {
+    "scopeId": "row:PMP-0412",
+    "otherScopeId": "page:assets",
+    "error": "action-menu-scope-taken",
+    "note": "Two menus mounted for the same scope id in ONE shell instance is the refusal. A row menu and a page-header menu are different scopes and both mount. Unmounting the first releases the scope, so a remount is not a refusal."
+  },
+  "derivedScope": {
+    "hostScopeId": "panel:assets",
+    "rootScopeId": "window",
+    "error": "action-menu-scope-taken",
+    "note": "A menu that declares no scope does not opt out of the fence: the shell resolves the nearest scope host, and the chain terminates at the shell's own root surface. So two undeclared menus under one host are one scope and the second is refused, while a menu that declares its own scope overrides the host and keeps its own home. A scope reaches zero homes only by having no menu at all, and can never reach two."
+  },
+  "noFacetsInTheMenu": {
+    "facetSource": "conformance/hlp.ui.detail-panel/drilldown-v1.json",
+    "facetObjectId": "PMP-0412",
+    "itemId": "attachments",
+    "error": "action-menu-facet-not-an-item",
+    "note": "The facet ids are read from the detail panel's own fixture, so the fence is wired to the facets the panel actually declares rather than to a list copied here."
+  },
+  "validationCases": [
+    { "id": "unscoped-menu-derives-the-root-scope", "scopeId": null, "expected": "one menu mounts and claims the root scope; a second undeclared menu under the same host is refused with action-menu-scope-taken" },
+    { "id": "no-facet-ids-declared", "facetIds": null, "expected": "every item mounts; the fence needs the composer's declared facets" }
+  ]
+}

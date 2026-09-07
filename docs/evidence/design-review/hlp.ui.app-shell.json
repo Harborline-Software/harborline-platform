@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.app-shell",
+  "verdict": "approved",
+  "reviewer": "cic",
+  "recordedAt": "2026-08-28T02:24:31.715Z",
+  "reference": {
+    "revision": "fb4e94bbf29cc9875c51aa7a2a8839114a1e811735ce07b9b57056099c20ee5c",
+    "source": "gallery/scenarios/hlp.ui.app-shell.json",
+    "pin": "f69d2ae361666bfd07b15f3fac15f67aacc1ac00",
+    "surface": {
+      "conformance/hlp.ui.app-shell/fixtures.yaml": "85fa7075de6464e91189a43be55dd030444f17f9cd66817bb7c7107523c5b703",
+      "conformance/hlp.ui.app-shell/quality-fixtures.yaml": "86476c2e9240d8a274fa9281af8ebe4f16b7e8c140f403c06b55b3dc4387b399",
+      "gallery/projections/blazor/Stories/AppShell.stories.razor": "68ab8ff359c1eab3391516c0cbce51f0e0f8e93f9155dae92423b42129875fce",
+      "gallery/projections/blazor/Stories/AppShellScenario.razor": "2683392e1b76643756b17879be3987b998b6b061ddf99baa146e4048eb25b8a1",
+      "gallery/projections/react/src/AppShell.stories.tsx": "eef1c5950741acfd6a7c809ce69e33e6ac25857454f407a5e65b6a8cb9f8a5d9",
+      "gallery/scenarios/hlp.ui.app-shell.json": "ddf13ebeb85d15ba53b105621a6cdfd98fb9e8e9895abcaaa78e454a2518ff07",
+      "projections/blazor/ui/hlp.ui.app-shell/AppShellTypes.cs": "892d9d00eb69822b8ca233fc7fb91485dd0944b804fcecb23e5ef5627b769974",
+      "projections/blazor/ui/hlp.ui.app-shell/ShellStorage.cs": "450edaf821949b3a7eb43e780e031880349fab74b74f76207d2d35690324d461",
+      "projections/blazor/ui/hlp.ui.app-shell/ShipyardAppShell.razor": "32d2dbd057bc680aa52dbbb84be4973b1976e9f6728dde9a76ea535aa28e03fb",
+      "projections/blazor/ui/hlp.ui.app-shell/ShipyardScopeSwitcher.razor": "43bba1dd9c9d39399142b93deb377952b2163ae9a377f64308e30ac39b85401c",
+      "projections/blazor/ui/hlp.ui.app-shell/ShipyardShellRail.razor": "b5f509005a612066824f5e62703e9cb7b5b69a370dce619151e8e5fc7dd8a251",
+      "projections/blazor/ui/hlp.ui.app-shell/wwwroot/app-shell.css": "60a16cad7c8480223ae4162ee4288a0eb7dda8e6a39a5d0a37eb8a57ea2c2303",
+      "projections/react/ui/hlp.ui.app-shell/src/AppShell.tsx": "2e79da386dd0307df931fa6ec0a507faf8f5d27f313b561c2a0e72e666d0951c",
+      "projections/react/ui/hlp.ui.app-shell/src/ScopeSwitcher.tsx": "7f13f4c46388c6c382fafccbcee422b9f33d62777ae8137501438efb724181e5",
+      "projections/react/ui/hlp.ui.app-shell/src/ShellRail.tsx": "2798548dbcd123624c109a7030fab58757f61f213c31f0e1c501acb33fe0a335",
+      "projections/react/ui/hlp.ui.app-shell/src/index.ts": "081932d24140141a33fe2d201d2ab0894809be205a48b8733a277b8971fe0475",
+      "projections/react/ui/hlp.ui.app-shell/src/shell-state.ts": "ed67b1d9daf6a5aec04b0d2bb99d6e951ca33f688e935a2daf6e4ce24c137231",
+      "projections/react/ui/hlp.ui.app-shell/src/style.css": "c7e4d2f6d0fd1d2d0f07d321b62e2d69e26fcb4804397a30c2e2445d8c1b92b0",
+      "projections/react/ui/hlp.ui.app-shell/src/types.ts": "6b042e325e046442d2fa4cde56ec979c5174b3f2eb2abd1d44c451b8a50443fa",
+      "specs/modules/ui/hlp.ui.app-shell/scenarios.json": "ddf13ebeb85d15ba53b105621a6cdfd98fb9e8e9895abcaaa78e454a2518ff07",
+      "specs/modules/ui/hlp.ui.app-shell/style.css": "c7e4d2f6d0fd1d2d0f07d321b62e2d69e26fcb4804397a30c2e2445d8c1b92b0"
+    }
+  }
+}

@@ -1,0 +1,69 @@
+{
+  "seedWorkspaces": [
+    {
+      "id": "operations",
+      "labelKey": "workspaces.operations",
+      "icon": "warehouse",
+      "destinationQueryRef": "queries.assets",
+      "countQueryRef": "queries.assets",
+      "createActions": [{
+        "id": "create-asset",
+        "verbKey": "actions.asset.create",
+        "icon": "plus",
+        "binding": "assets.create",
+        "shortcut": "mod+n",
+        "permittedRoles": ["tax.roles/maintainer"]
+      }],
+      "groups": [{
+        "id": "by-storey",
+        "labelKey": "workspaceGroups.operations.by-storey",
+        "destinationQueryRef": "queries.assets.by-storey",
+        "countQueryRef": "queries.assets.by-storey",
+        "itemIds": ["assets-by-storey"]
+      }],
+      "documentSpine": [{
+        "id": "assets",
+        "labelKey": "documents.assets",
+        "binding": "documents.assets"
+      }]
+    },
+    {
+      "id": "definitions",
+      "labelKey": "workspaces.definitions",
+      "documentSpine": [{
+        "id": "definition-documents",
+        "labelKey": "documents.definitions",
+        "binding": "documents.definitions"
+      }]
+    }
+  ],
+  "modeSwitch": {
+    "modes": [
+      { "id": "operate", "labelKey": "modes.operate", "workspaceIds": ["operations"] },
+      { "id": "configure", "labelKey": "modes.configure", "workspaceIds": ["definitions"] }
+    ]
+  },
+  "panelSet": [
+    {
+      "id": "documents",
+      "binding": "panels.documents.toggle",
+      "shortcut": "mod+shift+d",
+      "defaultWidth": 420,
+      "minimumHeight": 220,
+      "defaultOpen": true
+    },
+    {
+      "id": "notes",
+      "binding": "panels.notes.toggle",
+      "shortcut": "mod+shift+n",
+      "defaultWidth": 360,
+      "minimumHeight": 180,
+      "defaultOpen": false,
+      "labelKey": "panels.notes",
+      "headerForm": "Title",
+      "bodyTemplate": "Fields",
+      "footer": { "kind": "Claim", "labelKey": "panels.notes.footer" },
+      "traits": ["Scoped"]
+    }
+  ]
+}

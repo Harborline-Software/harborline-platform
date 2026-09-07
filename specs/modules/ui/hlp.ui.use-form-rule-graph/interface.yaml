@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.use-form-rule-graph",
+  "interfaceRevision": 1,
+  "semantics": {
+    "operation": "drive a reactive FormView projection from an injected rule graph: hold candidate values, re-evaluate the graph on every change, and project visibility, required, read-only, computed-value, and presentation outcomes onto the base view",
+    "observableOutput": "Equivalent projected view, effective values with Resolved computed cells merged over caller values, and a fail-closed save gate in React and the Blazor-consumable .NET projection."
+  },
+  "sourceSurface": {
+    "repository": "shipyard",
+    "commit": "a5036ff8b500e0d857d7e0a698408e7cf7f6cf31",
+    "path": "packages/ui-react/src/components/forms/SchemaForm/useFormRuleGraph.tsx",
+    "blob": "fd4fa82636238c70256bdf47c3de0654e2762913",
+    "capturedExports": ["VisibilityState", "ComputedValue", "RuleOutcomeLike", "RuleEvaluation", "RuleInstanceLike", "RuleGraphLike", "projectRuleOutcomes", "UseFormRuleGraphResult", "useFormRuleGraph", "ReactiveSchemaFormProps", "ReactiveSchemaForm"],
+    "surfaceDecision": "The source file's structural evaluation mirrors (VisibilityState, ComputedValue, RuleOutcomeLike, RuleEvaluation, RuleInstanceLike) existed only because the source package could not depend on the rule engine; the destination already publishes those shapes through hlp.foundation.rule-runtime and hlp.ui.schema-form, so the deletion test removes the duplicates and the frozen destination surface is useFormRuleGraph, projectRuleOutcomes, ReactiveSchemaForm, UseFormRuleGraphResult, ReactiveSchemaFormProps, and the re-exported RuleGraphLike."
+  },
+  "dependencies": ["hlp.foundation.rule-runtime", "hlp.ui.form-view", "hlp.ui.schema-form"],
+  "invariants": [
+    "A null rule graph is exact pass-through: the base view and the caller's values return unchanged and the save gate stays open.",
+    "Each value change performs one full stateless re-evaluation of the injected graph; replacing the graph re-seeds cleanly and no evaluation state from the previous graph survives.",
+    "Rule outcomes project as exactly five effects: visibility omission, required, read-only, injected computed value, and presentation.",
+    "Visibility omission walks flat section fields, whole sections, and every nested group and collection item; surviving fields keep their base order.",
+    "Only Resolved field-scope computed values inject, merged over the caller's values; Pending and Error values never inject.",
+    "Required and read-only outcomes set flags without clearing flags the base view already carries.",
+    "A presentation outcome attaches to its target field; the last outcome per target wins and outcomes carrying no badge, severity, or style token are ignored.",
+    "The save gate is fail-closed: while a graph is injected, a pending, errored, or throwing evaluation blocks save; without a graph the gate stays open.",
+    "The rule engine is injected through the structural RuleGraphLike interface; the module never imports or embeds an engine implementation.",
+    "The reactive wrapper composes the frozen schema-form renderer in controlled mode and forks no rendering of its own."
+  ],
+  "errors": [
+    {"code": "form-rule-graph.evaluation-failed", "when": "An injected rule graph throws during evaluation; the base view passes through unprojected and the save gate blocks."}
+  ],
+  "performance": {"operation": "one graph evaluation plus O(sections + fields + nested items) projection per value change"},
+  "presentation": {"disposition": "not-applicable", "rationale": "The hook projects rule outcomes onto a view model and renders no standalone interface; its wrapper delegates all rendering to the frozen schema-form module."},
+  "cases": [
+    {"id": "form-rule-graph.complete-surface"},
+    {"id": "form-rule-graph.null-graph-pass-through"},
+    {"id": "form-rule-graph.field-visibility-omission"},
+    {"id": "form-rule-graph.section-visibility-omission"},
+    {"id": "form-rule-graph.nested-item-projection"},
+    {"id": "form-rule-graph.required-read-only-flags"},
+    {"id": "form-rule-graph.computed-value-injection"},
+    {"id": "form-rule-graph.unresolved-value-not-injected"},
+    {"id": "form-rule-graph.presentation-attachment"},
+    {"id": "form-rule-graph.reactive-reevaluation"},
+    {"id": "form-rule-graph.graph-replacement"},
+    {"id": "form-rule-graph.save-gate-fail-closed"},
+    {"id": "form-rule-graph.reactive-wrapper"},
+    {"id": "form-rule-graph.projection-equivalence"}
+  ]
+}

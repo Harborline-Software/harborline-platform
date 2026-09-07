@@ -1,0 +1,28 @@
+<section class="hl-gallery-scene" data-gallery-probe data-gallery-scenario="@ScenarioId" data-theme="@Theme" dir="@Direction">
+  <header class="hl-gallery-heading"><h2>@Title</h2><p>Accessible icon-only commands preserve native button behavior and hit geometry.</p></header>
+  <div class="hl-gallery-stage"><div class="hl-gallery-button-row">
+    @if (ScenarioId == "icon-button.content")
+    {
+      <HarborlineIconButton AccessibleName="Awaiting third-party structural certification review"><Icon><span aria-hidden="true">+</span></Icon></HarborlineIconButton>
+      <HarborlineIconButton AccessibleName="1,284,905"><Icon><span aria-hidden="true">+</span></Icon></HarborlineIconButton>
+      <HarborlineIconButton AccessibleName="Bay 4 <grid C-7> & 8"><Icon><span aria-hidden="true">+</span></Icon></HarborlineIconButton>
+      <HarborlineIconButton AccessibleName="Ordnance Survey — Niño Ångström"><Icon><span aria-hidden="true">+</span></Icon></HarborlineIconButton>
+    }
+    else if (ScenarioId == "icon-button.states")
+    {
+      <HarborlineIconButton AccessibleName="Default action"><Icon><span aria-hidden="true">+</span></Icon></HarborlineIconButton>
+      <HarborlineIconButton AccessibleName="Ghost action" Appearance="IconButtonAppearance.Ghost" Size="IconButtonSize.Small"><Icon><span aria-hidden="true">+</span></Icon></HarborlineIconButton>
+      <HarborlineIconButton AccessibleName="Outline action" Appearance="IconButtonAppearance.Outline" Size="IconButtonSize.Large"><Icon><span aria-hidden="true">+</span></Icon></HarborlineIconButton>
+      <HarborlineIconButton AccessibleName="Destructive action" Appearance="IconButtonAppearance.Destructive" Size="IconButtonSize.Touch"><Icon><span aria-hidden="true">+</span></Icon></HarborlineIconButton>
+      <HarborlineIconButton AccessibleName="Loading action" Loading><Icon><span aria-hidden="true">+</span></Icon></HarborlineIconButton>
+      <HarborlineIconButton AccessibleName="Disabled action" Disabled><Icon><span aria-hidden="true">+</span></Icon></HarborlineIconButton>
+    }
+    else { <HarborlineIconButton AccessibleName="@(ScenarioId == "icon-button.rtl-theme" ? "إضافة عنصر" : "Add item")"><Icon><span aria-hidden="true">+</span></Icon></HarborlineIconButton> }
+  </div></div>
+</section>
+@code {
+  [Parameter, EditorRequired] public string ScenarioId { get; set; } = "icon-button.defaults";
+  private string Title => ScenarioId == "icon-button.content" ? "Content resilience" : ScenarioId == "icon-button.states" ? "States and sizes" : ScenarioId == "icon-button.rtl-theme" ? "RTL and theme" : "Defaults";
+  private string? Theme => ScenarioId == "icon-button.rtl-theme" ? "dark" : null;
+  private string? Direction => ScenarioId == "icon-button.rtl-theme" ? "rtl" : null;
+}

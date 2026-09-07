@@ -1,0 +1,280 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.conversation-list",
+  "sourceFixture": "conformance/hlp.ui.conversation-list/fixtures.yaml",
+  "qualityFixture": "conformance/hlp.ui.conversation-list/quality-fixtures.yaml",
+  "galleryInterface": {
+    "probeAttribute": "data-gallery-probe",
+    "scenarioAttribute": "data-gallery-scenario",
+    "projectionTitles": {
+      "react": "Platform/Conversation List",
+      "blazor": "Platform/Conversation List"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "conversation-list.empty",
+      "name": "Empty state",
+      "surface": "empty",
+      "sourceCaseIds": [
+        "conversation-list.empty",
+        "conversation-list.optional-actions"
+      ],
+      "sourceQualityCaseIds": [
+        "conversation-list.quality.pattern",
+        "conversation-list.quality.reflow"
+      ],
+      "content": {
+        "blurb": "Empty state",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<ConversationList conversations={empty?[]:rows} activeId=\"c1\" onSelect={()=>{}} onNew={()=>{}} onRename={()=>{}} onDelete={()=>{}} labels={rtl?{heading:'المحادثات',newConversation:'محادثة جديدة',empty:'لا توجد محادثات'}:undefined}/>",
+            "blazor": "<HarborlineConversationList Conversations=\"@(Empty?Array.Empty<ConversationSummary>():Rows)\" ActiveId=\"c1\" OnSelect=\"@(_=>{})\" OnNew=\"@(()=>{})\" OnRename=\"@(_=>{})\" OnDelete=\"@(_=>{})\" Labels=\"@Labels\"/>",
+            "rationale": "The closed descriptor vocabulary has no conversation-list, empty-state, list-row, active-row, timestamp, preview, or row-action control, so it cannot express the rendered empty ConversationList and its actions without losing structure and behavior."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "conversation-list.rows",
+      "name": "Rows and active state",
+      "surface": "rows-active",
+      "interaction": "keyboard",
+      "sourceCaseIds": [
+        "conversation-list.rows",
+        "conversation-list.active",
+        "conversation-list.select",
+        "conversation-list.new",
+        "conversation-list.keyboard-order"
+      ],
+      "sourceQualityCaseIds": [
+        "conversation-list.quality.pattern",
+        "conversation-list.quality.keyboard",
+        "conversation-list.quality.focus",
+        "conversation-list.quality.forced-colors",
+        "conversation-list.quality.formatting-boundary"
+      ],
+      "content": {
+        "blurb": "Rows and active state",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<ConversationList conversations={empty?[]:rows} activeId=\"c1\" onSelect={()=>{}} onNew={()=>{}} onRename={()=>{}} onDelete={()=>{}} labels={rtl?{heading:'المحادثات',newConversation:'محادثة جديدة',empty:'لا توجد محادثات'}:undefined}/>",
+            "blazor": "<HarborlineConversationList Conversations=\"@(Empty?Array.Empty<ConversationSummary>():Rows)\" ActiveId=\"c1\" OnSelect=\"@(_=>{})\" OnNew=\"@(()=>{})\" OnRename=\"@(_=>{})\" OnDelete=\"@(_=>{})\" Labels=\"@Labels\"/>",
+            "rationale": "The closed descriptor vocabulary has no conversation-list, list-row, active-row, timestamp, preview, or row-action control, so it cannot express the rendered rows, selection state, and actions without losing structure and behavior."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "conversation-list.rename",
+      "name": "Rename workflow",
+      "surface": "rename",
+      "interaction": "keyboard",
+      "sourceCaseIds": [
+        "conversation-list.rename-commit",
+        "conversation-list.rename-cancel",
+        "conversation-list.rename-noop"
+      ],
+      "sourceQualityCaseIds": [
+        "conversation-list.quality.keyboard",
+        "conversation-list.quality.focus",
+        "conversation-list.quality.dismissal"
+      ],
+      "content": {
+        "blurb": "Rename workflow",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "inherits": "conversation-list.rows"
+      }
+    },
+    {
+      "id": "conversation-list.delete",
+      "name": "Confirmed delete workflow",
+      "surface": "delete-confirm",
+      "interaction": "keyboard",
+      "sourceCaseIds": [
+        "conversation-list.delete-confirm",
+        "conversation-list.delete-cancel"
+      ],
+      "sourceQualityCaseIds": [
+        "conversation-list.quality.keyboard",
+        "conversation-list.quality.focus",
+        "conversation-list.quality.dismissal",
+        "conversation-list.quality.forced-colors"
+      ],
+      "content": {
+        "blurb": "Confirmed delete workflow",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "inherits": "conversation-list.rows"
+      }
+    },
+    {
+      "id": "conversation-list.locale-ar",
+      "name": "Arabic and expanded labels",
+      "surface": "locale-ar",
+      "interaction": "keyboard",
+      "sourceCaseIds": [
+        "conversation-list.localization-rtl",
+        "conversation-list.rename-commit",
+        "conversation-list.delete-confirm"
+      ],
+      "sourceQualityCaseIds": [
+        "conversation-list.quality.locales",
+        "conversation-list.quality.rtl",
+        "conversation-list.quality.pseudo"
+      ],
+      "content": {
+        "blurb": "Arabic and expanded labels",
+        "environment": {
+          "locale": "ar-SA",
+          "direction": "rtl",
+          "theme": "light",
+          "catalog": {}
+        },
+        "inherits": "conversation-list.rows",
+        "body": [
+          {
+            "control": "raw",
+            "react": "<ConversationList conversations={empty?[]:rows} activeId=\"c1\" onSelect={()=>{}} onNew={()=>{}} onRename={()=>{}} onDelete={()=>{}} labels={rtl?{heading:'المحادثات',newConversation:'محادثة جديدة',empty:'لا توجد محادثات'}:undefined}/>",
+            "blazor": "<HarborlineConversationList Conversations=\"@(Empty?Array.Empty<ConversationSummary>():Rows)\" ActiveId=\"c1\" OnSelect=\"@(_=>{})\" OnNew=\"@(()=>{})\" OnRename=\"@(_=>{})\" OnDelete=\"@(_=>{})\" Labels=\"@Labels\"/>",
+            "rationale": "The closed descriptor vocabulary has no conversation-list, list-row, active-row, timestamp, preview, or row-action control, so it cannot express the rendered RTL list, Arabic labels, rows, and actions without losing structure and behavior."
+          }
+        ]
+      }
+    },
+    {
+      "id": "conversation-list.invalid",
+      "name": "Input validation",
+      "surface": "invalid-input",
+      "sourceCaseIds": [
+        "conversation-list.invalid-input"
+      ],
+      "sourceQualityCaseIds": [
+        "conversation-list.quality.pattern"
+      ],
+      "content": {
+        "blurb": "Input validation",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "inherits": "conversation-list.rows"
+      }
+    },
+    {
+      "id": "conversation-list.theme-light",
+      "name": "Light theme",
+      "surface": "theme-light",
+      "sourceCaseIds": [
+        "conversation-list.rows",
+        "conversation-list.active",
+        "conversation-list.delete-confirm"
+      ],
+      "sourceQualityCaseIds": [
+        "conversation-list.quality.themes",
+        "conversation-list.quality.tokens",
+        "conversation-list.quality.contrast",
+        "conversation-list.quality.reduced-motion",
+        "conversation-list.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "Light theme",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "inherits": "conversation-list.rows"
+      }
+    },
+    {
+      "id": "conversation-list.theme-dark",
+      "name": "Dark theme",
+      "surface": "theme-dark",
+      "sourceCaseIds": [
+        "conversation-list.rows",
+        "conversation-list.active",
+        "conversation-list.delete-confirm"
+      ],
+      "sourceQualityCaseIds": [
+        "conversation-list.quality.themes",
+        "conversation-list.quality.tokens",
+        "conversation-list.quality.contrast",
+        "conversation-list.quality.reduced-motion",
+        "conversation-list.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "Dark theme",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "dark",
+          "catalog": {}
+        },
+        "inherits": "conversation-list.rows"
+      }
+    },
+    {
+      "id": "conversation-list.content",
+      "name": "Content resilience",
+      "surface": "long-content",
+      "sourceCaseIds": [
+        "conversation-list.rows",
+        "conversation-list.optional-actions"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "Conversation rows carry a long title, grouped large number, escaped hostile preview, unusual name with diacritics, and one missing optional preview.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<ConversationList conversations={[{id:'c1',title:'Awaiting third-party structural certification review',timestamp:'1,284,905 records',preview:'Bay 4 <grid C-7> & 8'},{id:'c2',title:'Ordnance Survey — Niño Ångström',timestamp:'Yesterday'}]} activeId=\"c1\" onSelect={()=>{}} onNew={()=>{}} onRename={()=>{}} onDelete={()=>{}}/>",
+            "blazor": "<HarborlineConversationList Conversations=\"ContentRows\" ActiveId=\"c1\" OnSelect=\"@(_=>{})\" OnNew=\"@(()=>{})\" OnRename=\"@(_=>{})\" OnDelete=\"@(_=>{})\"/>\n@code { private static readonly IReadOnlyList<ConversationSummary> ContentRows=[new(\"c1\",\"Awaiting third-party structural certification review\",\"1,284,905 records\",\"Bay 4 <grid C-7> & 8\"),new(\"c2\",\"Ordnance Survey — Niño Ångström\",\"Yesterday\")]; }",
+            "rationale": "The closed descriptor vocabulary cannot express conversation rows with optional previews and hostile-but-valid text without losing list structure and actions."
+          }
+        ],
+        "footer": []
+      }
+    }
+  ]
+}

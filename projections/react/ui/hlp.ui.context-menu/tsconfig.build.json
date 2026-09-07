@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "outDir": "../hlp.ui.button/dist/context-menu",
+    "rootDir": "src",
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "react": ["../hlp.ui.button/node_modules/@types/react/index.d.ts"],
+      "react/jsx-runtime": ["../hlp.ui.button/node_modules/@types/react/jsx-runtime.d.ts"]
+    },
+    "types": []
+  },
+  "include": ["src/ContextMenu.tsx"],
+  "exclude": ["src/__tests__"]
+}

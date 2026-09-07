@@ -1,0 +1,37 @@
+<section class="hl-gallery-scene" data-gallery-probe data-gallery-scenario="@ScenarioId" data-theme="@Theme" dir="@Direction">
+    <header class="hl-gallery-heading"><h2>@Title</h2><p>Native table semantics remain available inside the overflow surface.</p></header>
+    <div class="hl-gallery-stage" style="@StageStyle">@if (ScenarioId == "table.content")
+    {
+      <HarborlineTable Density="TableDensity.Small">
+        <HarborlineTableCaption>@("Awaiting third-party structural certification review")</HarborlineTableCaption>
+        <HarborlineTableHead><HarborlineTableRow><HarborlineTableHeaderCell>Owner</HarborlineTableHeaderCell><HarborlineTableHeaderCell>Location</HarborlineTableHeaderCell><HarborlineTableHeaderCell>Records</HarborlineTableHeaderCell><HarborlineTableHeaderCell>Status</HarborlineTableHeaderCell></HarborlineTableRow></HarborlineTableHead>
+        <HarborlineTableBody>@foreach (var row in ContentRows) { <HarborlineTableRow @key="row[0]">@foreach (var value in row) { <HarborlineTableCell @key="value">@value</HarborlineTableCell> }</HarborlineTableRow> }</HarborlineTableBody>
+      </HarborlineTable>
+    }
+    else
+    {
+      <HarborlineTable Density="@Density">
+        <HarborlineTableCaption>@Caption</HarborlineTableCaption>
+        <HarborlineTableHead><HarborlineTableRow><HarborlineTableHeaderCell>Structure</HarborlineTableHeaderCell><HarborlineTableHeaderCell>Status</HarborlineTableHeaderCell><HarborlineTableHeaderCell>Updated</HarborlineTableHeaderCell></HarborlineTableRow></HarborlineTableHead>
+        <HarborlineTableBody>@foreach (var row in Rows) { <HarborlineTableRow @key="row[0]">@foreach (var value in row) { <HarborlineTableCell @key="value">@value</HarborlineTableCell> }</HarborlineTableRow> }</HarborlineTableBody>
+      </HarborlineTable>
+    }</div>
+</section>
+@code {
+    [Parameter, EditorRequired] public string ScenarioId { get; set; } = "table.semantic";
+    private static readonly string[][] Rows = [["North Pier", "Active", "Today"], ["Pump House", "Review", "Yesterday"], ["Main Span", "Active", "Friday"]];
+    private static readonly string[][] ContentRows = [
+      ["Ordnance Survey — Niño Ångström", "Bay 4 <grid C-7> & 8", "1,284,905", "Awaiting review"],
+      ["Miyazaki — Élodie Brontë", "Pier 12", "984,321", "Ready"],
+      ["Søren Łukasz", "Dock 6", "72,440", "Pending"],
+      ["Zoë François", "Warehouse 9", "6,007", "Archived"]
+    ];
+    private bool Themed => ScenarioId == "table.theme";
+    private bool Reflow => ScenarioId == "table.reflow";
+    private string Title => ScenarioId == "table.content" ? "Content resilience" : ScenarioId == "table.density" ? "Density" : Reflow ? "Narrow viewport" : Themed ? "Theme parity" : "Semantic table";
+    private string Caption => Reflow ? "⟦ Šţřûçţûřë îñšþëçţîøñ šûmmåřÿ ······ ⟧" : "Structure inspection summary";
+    private string? Theme => Themed ? "dark" : null;
+    private string? Direction => Themed ? "rtl" : null;
+    private string? StageStyle => Reflow ? "max-width:360px" : null;
+    private TableDensity Density => ScenarioId == "table.density" ? TableDensity.Small : TableDensity.Medium;
+}

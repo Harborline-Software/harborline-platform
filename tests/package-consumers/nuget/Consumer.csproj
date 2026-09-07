@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net11.0</TargetFramework>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Harborline.UIAdapters.Blazor" Version="$(HarborlinePackedVersion)" />
+    <PackageReference Include="Harborline.Contracts" Version="$(HarborlinePackedVersion)" />
+    <PackageReference Include="Harborline.Foundation.MultiTenancy" Version="$(HarborlinePackedVersion)" />
+    <PackageReference Include="Harborline.Foundation.Authorization" Version="$(HarborlinePackedVersion)" />
+    <PackageReference Include="Harborline.Foundation.Session" Version="$(HarborlinePackedVersion)" />
+    <PackageReference Include="Harborline.Kernel.SchemaValidation" Version="$(HarborlinePackedVersion)" />
+    <PackageReference Include="Harborline.Kernel.WorkItems" Version="$(HarborlinePackedVersion)" />
+    <PackageReference Include="Harborline.Blocks.InspectionReview" Version="$(HarborlinePackedVersion)" />
+    <PackageReference Include="Harborline.Blocks.Aggregates" Version="$(HarborlinePackedVersion)" />
+    <PackageReference Include="Harborline.Blocks.RelativeChains" Version="$(HarborlinePackedVersion)" />
+    <PackageReference Include="Harborline.Blocks.Workflow" Version="$(HarborlinePackedVersion)" />
+    <PackageReference Include="Harborline.Blocks.Workflow.Interpreter" Version="$(HarborlinePackedVersion)" />
+    <PackageReference Include="Harborline.Blocks.EntityViews" Version="$(HarborlinePackedVersion)" />
+    <PackageReference Include="Harborline.Foundation.Scheduling" Version="$(HarborlinePackedVersion)" />
+    <PackageReference Include="Harborline.Blocks.Scheduling" Version="$(HarborlinePackedVersion)" />
+    <PackageReference Include="Harborline.Blocks.Calendar" Version="$(HarborlinePackedVersion)" />
+    <PackageReference Include="Harborline.Blocks.Reports" Version="$(HarborlinePackedVersion)" />
+    <PackageReference Include="Harborline.Blocks.ActivityTimeline" Version="$(HarborlinePackedVersion)" />
+    <PackageReference Include="Harborline.Blocks.BuilderDefinitions" Version="$(HarborlinePackedVersion)" />
+    <PackageReference Include="Harborline.Foundation.RuleEngine" Version="$(HarborlinePackedVersion)" />
+    <PackageReference Include="Harborline.Foundation.RuleAuthoring" Version="$(HarborlinePackedVersion)" />
+    <PackageReference Include="Harborline.Foundation.Forms" Version="$(HarborlinePackedVersion)" />
+    <PackageReference Include="Harborline.Foundation.Forms.Engine" Version="$(HarborlinePackedVersion)" />
+  </ItemGroup>
+</Project>

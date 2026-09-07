@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.contracts.identities",
+  "interfaceRevision": 2,
+  "status": "frozen",
+  "purpose": "Own the typed tenant and entity identities used at every tenant-scoped Platform seam without importing the broad Foundation aggregate.",
+  "types": {
+    "TenantId": {
+      "wireType": "string",
+      "construction": "non-empty caller tenant ids only",
+      "reservedPrefix": "__",
+      "defaultDisposition": "system-sentinel-fail-closed",
+      "systemSentinel": "__system__"
+    },
+    "EntityId": {
+      "wireType": "string",
+      "canonicalForm": "{scheme}:{authority}/{localPart}",
+      "segments": ["scheme", "authority", "localPart"],
+      "emptySegmentDisposition": "reject"
+    }
+  },
+  "operations": [
+    {"id": "tenant.construct", "input": "string", "result": "TenantId or argument error"},
+    {"id": "tenant.serialize", "input": "TenantId", "result": "string"},
+    {"id": "entity.parse", "input": "string", "result": "EntityId or format error"},
+    {"id": "entity.try-parse", "input": "nullable string", "result": "boolean plus EntityId"},
+    {"id": "entity.serialize", "input": "EntityId", "result": "canonical string"}
+  ],
+  "invariants": [
+    "TenantId and EntityId are not interchangeable despite both having string wire forms.",
+    "A default TenantId and every reserved-prefix TenantId are system sentinels and must be rejected by tenant-scoped operations.",
+    "Public TenantId construction rejects null, empty, whitespace-only, and reserved-prefix values.",
+    "EntityId parsing requires non-empty scheme, authority, and localPart segments and round-trips canonically.",
+    "JSON null and malformed identity values fail closed rather than creating default identities."
+  ],
+  "projectionPolicy": {
+    "dotnet": "canonical typed implementation",
+    "typescript": "opaque branded/wire value",
+    "react": "wire consumer only",
+    "blazor": "typed consumer only"
+  },
+  "fixture": "conformance/hlp.contracts.identities/fixtures.yaml"
+}

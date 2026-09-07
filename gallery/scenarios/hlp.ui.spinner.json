@@ -1,0 +1,158 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.spinner",
+  "sourceFixture": "conformance/hlp.ui.spinner/fixtures.yaml",
+  "qualityFixture": "conformance/hlp.ui.spinner/quality-fixtures.yaml",
+  "galleryInterface": {
+    "probeAttribute": "data-gallery-probe",
+    "scenarioAttribute": "data-gallery-scenario",
+    "projectionTitles": {
+      "react": "Platform/Spinner",
+      "blazor": "Platform/Spinner"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "spinner.types",
+      "name": "Types",
+      "surface": "defaults",
+      "sourceCaseIds": [
+        "spinner.default-label",
+        "spinner.ring",
+        "spinner.converging"
+      ],
+      "sourceQualityCaseIds": [
+        "spinner.quality.status",
+        "spinner.quality.reduced-motion"
+      ],
+      "content": {
+        "blurb": "Progress",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<><Spinner label={\"Loading\"}/><Spinner type=\"converging\" label=\"Synchronizing\"/></>",
+            "blazor": "<HarborlineSpinner Label=\"Loading\"/><HarborlineSpinner Type=\"SpinnerType.Converging\" Label=\"Synchronizing\"/>",
+            "rationale": "The closed control vocabulary has no spinner control and cannot express the default and converging spinner types or their accessible labels."
+          }
+        ],
+        "footer": []
+      },
+      "states": [
+        "default"
+      ]
+    },
+    {
+      "id": "spinner.sizes-colors",
+      "name": "Sizes and colors",
+      "surface": "states",
+      "sourceCaseIds": [
+        "spinner.custom-label",
+        "spinner.sizes",
+        "spinner.theme-colors"
+      ],
+      "sourceQualityCaseIds": [
+        "spinner.quality.reflow",
+        "spinner.quality.light-dark"
+      ],
+      "content": {
+        "blurb": "Progress",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<><Spinner size=\"xs\"/><Spinner size=\"sm\" themeColor=\"info\"/><Spinner size=\"md\" themeColor=\"success\"/><Spinner size=\"lg\" themeColor=\"warning\"/></>",
+            "blazor": "<HarborlineSpinner Size=\"SpinnerSize.Xs\"/><HarborlineSpinner Size=\"SpinnerSize.Sm\" ThemeColor=\"SpinnerThemeColor.Info\"/><HarborlineSpinner Size=\"SpinnerSize.Md\" ThemeColor=\"SpinnerThemeColor.Success\"/><HarborlineSpinner Size=\"SpinnerSize.Lg\" ThemeColor=\"SpinnerThemeColor.Warning\"/>",
+            "rationale": "The closed control vocabulary has no spinner control and cannot express four spinner instances with distinct sizes and theme colors."
+          }
+        ],
+        "footer": []
+      },
+      "states": [
+        "success",
+        "warning"
+      ]
+    },
+    {
+      "id": "spinner.rtl-theme",
+      "name": "RTL and theme",
+      "surface": "rtl-theme",
+      "sourceCaseIds": [
+        "spinner.host-attributes",
+        "spinner.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "spinner.quality.localized-label",
+        "spinner.quality.rtl",
+        "spinner.quality.pseudo",
+        "spinner.quality.tokens",
+        "spinner.quality.forced-colors",
+        "spinner.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "Progress",
+        "environment": {
+          "locale": "en-US",
+          "direction": "rtl",
+          "theme": "dark",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<><Spinner label={\"جار التحميل\"}/><Spinner type=\"converging\" label=\"Synchronizing\"/></>",
+            "blazor": "<HarborlineSpinner Label=\"جار التحميل\"/><HarborlineSpinner Type=\"SpinnerType.Converging\" Label=\"Synchronizing\"/>",
+            "rationale": "The closed control vocabulary has no spinner control and cannot express the default and converging spinner types or their accessible labels in the dark RTL scene."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "spinner.content",
+      "name": "Content resilience",
+      "surface": "long-content",
+      "sourceCaseIds": [
+        "spinner.custom-label",
+        "spinner.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "A single overlong accessible label carries the grouped number 1,284,905, escaped angle brackets and ampersand in Bay 4 <grid C-7> & 8, and the diacritic-rich name Ordnance Survey — Niño Ångström.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<Spinner label={'Awaiting third-party structural certification review — 1,284,905 — Bay 4 <grid C-7> & 8 — Ordnance Survey — Niño Ångström'} />",
+            "blazor": "<HarborlineSpinner Label=\"@(\"Awaiting third-party structural certification review — 1,284,905 — Bay 4 <grid C-7> & 8 — Ordnance Survey — Niño Ångström\")\" />",
+            "rationale": "The closed control vocabulary has no spinner control and cannot express a spinner whose accessible label carries hostile-but-valid text."
+          }
+        ],
+        "footer": []
+      }
+    }
+  ]
+}

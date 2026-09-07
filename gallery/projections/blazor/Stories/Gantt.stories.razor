@@ -1,0 +1,17 @@
+@attribute [Stories("Platform/Gantt")]
+<Stories TComponent="GanttScenario" Layout="@typeof(NoMarginLayout)">
+  @foreach (var scenario in Scenarios)
+  {
+    <Story Name="@scenario.Name"><Arguments><Arg For="_ => _.ScenarioId" Value="@scenario.Id" /></Arguments><Template><GanttScenario @attributes="context.Args" /></Template></Story>
+  }
+</Stories>
+@code {
+  private static readonly (string Id, string Name)[] Scenarios =
+  [
+    ("gantt.overview", "Read-only schedule"), ("gantt.empty-columns", "Empty and column states"),
+    ("gantt.zoom-navigation", "Controlled zoom and keyboard navigation"), ("gantt.replacement-validation", "Replacement and validation boundaries"),
+    ("gantt.large-data", "Large schedule"), ("gantt.locale-fr", "French calendar dates"),
+    ("gantt.locale-pseudo", "Pseudo-localized reflow"), ("gantt.locale-ar", "Arabic right-to-left schedule"),
+    ("gantt.theme-light", "Light theme"), ("gantt.theme-dark", "Dark theme")
+  ];
+}

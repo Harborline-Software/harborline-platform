@@ -1,0 +1,7 @@
+@attribute [Stories("Platform/Sheet")]
+<Stories TComponent="SheetScenario">
+    <Story Name="Lifecycle and sides"><Arguments><Arg For="_ => _.ScenarioId" Value='"sheet.lifecycle"' /></Arguments><Template><SheetScenario @attributes="context.Args" /></Template></Story>
+    <Story Name="Dismissal and focus"><Arguments><Arg For="_ => _.ScenarioId" Value='"sheet.dismissal"' /></Arguments><Template><SheetScenario @attributes="context.Args" /></Template></Story>
+    <Story Name="Locale and theme"><Arguments><Arg For="_ => _.ScenarioId" Value='"sheet.locale-theme"' /></Arguments><Template><SheetScenario @attributes="context.Args" /></Template></Story>
+    <Story Name="Content resilience"><Arguments><Arg For="_ => _.ScenarioId" Value='"sheet.content"' /></Arguments><Template><SheetScenario @attributes="context.Args" /></Template></Story>
+</Stories>

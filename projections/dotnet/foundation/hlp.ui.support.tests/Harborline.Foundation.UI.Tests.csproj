@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>Harborline.Foundation.UI.Tests</RootNamespace>
+    <PackageId>Harborline.Foundation.UI.Tests</PackageId>
+    <IsPackable>false</IsPackable>
+    <AssemblyName>Harborline.Foundation.UI.Tests</AssemblyName>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../hlp.ui.button/Harborline.Foundation.csproj" />
+    <ProjectReference Include="../../contracts/hlp.contracts.identities/Harborline.Contracts.csproj" />
+  </ItemGroup>
+</Project>

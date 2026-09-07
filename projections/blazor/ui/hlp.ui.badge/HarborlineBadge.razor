@@ -1,0 +1,37 @@
+@namespace Harborline.UIAdapters.Blazor.Components.DataDisplay
+@inherits Harborline.UIAdapters.Blazor.Base.HarborlineComponentBase
+@using Harborline.UIAdapters.Blazor.Localization
+<span dir="@Direction" class="@CombineClasses("hl-badge", $"hl-badge--{Slug(Size)}", $"hl-badge--{Slug(EffectiveFillMode)}", $"hl-badge--rounded-{Slug(EffectiveRounded)}", $"hl-badge--{Color}", OverlayClass, CutoutBorder ? "hl-badge--cutout" : null)" data-hl-fill="@Slug(EffectiveFillMode)" data-hl-position="@(Position is null ? null : Slug(Position.Value))" @attributes="AdditionalAttributes">@if(LeadingIcon is not null){<span class="hl-badge__icon" aria-hidden="true">@LeadingIcon</span>}@if(AnnounceChanges){<span aria-live="polite" aria-atomic="true">@ChildContent</span>}else{@ChildContent}@if(TrailingIcon is not null){<span class="hl-badge__icon" aria-hidden="true">@TrailingIcon</span>}</span>
+@code {
+    [CascadingParameter] private HarborlineLocaleContext? LocaleContext { get; set; }
+    [Parameter] public BadgeVariant Variant { get; set; } = BadgeVariant.Default;
+    [Parameter] public BadgeSize Size { get; set; } = BadgeSize.Md;
+    [Parameter] public BadgeAppearance? Appearance { get; set; }
+    [Parameter] public BadgeShape? Shape { get; set; }
+    [Parameter] public BadgeFillMode? FillMode { get; set; }
+    [Parameter] public BadgeRounded? Rounded { get; set; }
+    [Parameter] public BadgeThemeColor? ThemeColor { get; set; }
+    [Parameter] public BadgeAlign? Align { get; set; }
+    [Parameter] public BadgePosition? Position { get; set; }
+    [Parameter] public bool CutoutBorder { get; set; }
+    [Parameter] public bool AnnounceChanges { get; set; }
+    [Parameter] public RenderFragment? LeadingIcon { get; set; }
+    [Parameter] public RenderFragment? TrailingIcon { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    private string Direction => LocaleContext?.Direction ?? "ltr";
+    private BadgeFillMode EffectiveFillMode => FillMode ?? Appearance switch
+    {
+        BadgeAppearance.Solid => BadgeFillMode.Solid,
+        BadgeAppearance.Outline => BadgeFillMode.Outline,
+        _ => BadgeFillMode.Flat
+    };
+    private BadgeRounded EffectiveRounded => Rounded ?? Shape switch
+    {
+        BadgeShape.Pill => BadgeRounded.Full,
+        BadgeShape.Square => BadgeRounded.None,
+        _ => BadgeRounded.Sm
+    };
+    private string Color => ThemeColor is null ? Slug(Variant) : Slug(ThemeColor.Value);
+    private string? OverlayClass => Align is null || Position is null ? null : $"hl-badge--{Slug(Align.Vertical)}-{Slug(Align.Horizontal)}-{Slug(Position.Value)}";
+    private static string Slug<T>(T value) where T : struct, Enum => value.ToString().ToLowerInvariant();
+}

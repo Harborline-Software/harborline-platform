@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "_comment": [
+    "Provenance for the two cross-repo npm tarballs the app-shell fixture stages",
+    "(verify-package-fixtures.mjs, HARBORLINE_CAPABILITY_HOST_TARBALL / HARBORLINE_CONTRACTS_TARBALL).",
+    "Metadata only: this repository never stores the bytes (.gitignore excludes *.tgz, and",
+    "repository.yaml prohibitedSourceClasses forbids build-output). resolve-appshell-feed.mjs",
+    "rebuilds them from these refs on a cache miss and verifies sha256 before use.",
+    "npm pack is byte-reproducible for these packages: portable tar (mtimes normalized to",
+    "1985-10-26), zeroed gzip MTIME, and per-package lockfiles pinning tsc to 6.0.2."
+  ],
+  "sourceRepository": {
+    "name": "harborline-api",
+    "remote": "https://github.com/Harborline-Software/harborline-api-archive.git",
+    "localPathEnv": "HARBORLINE_API_REPO"
+  },
+  "cache": {
+    "pathEnv": "HARBORLINE_FEED_CACHE",
+    "defaultPath": "~/.harborline/feed-cache"
+  },
+  "artifacts": [
+    {
+      "id": "contracts",
+      "env": "HARBORLINE_CONTRACTS_TARBALL",
+      "packageName": "@harborline-software/api-contracts",
+      "tarball": "harborline-software-api-contracts-0.1.0-alpha.1.tgz",
+      "packagePath": "packages/contracts",
+      "ref": "cb0843174fdbf312846f0382f406f9158fe3e09d",
+      "sha256": "56a98f51af61714440fbfe731d6d50cb7eb63ce71b61aecea15a5ec4c95dfa5b",
+      "buildOrder": 0,
+      "requiresSiblingBuild": []
+    },
+    {
+      "id": "capability-host",
+      "env": "HARBORLINE_CAPABILITY_HOST_TARBALL",
+      "packageName": "@harborline-software/capability-host",
+      "tarball": "harborline-software-capability-host-0.0.0.tgz",
+      "packagePath": "apps/capability-host",
+      "ref": "cb0843174fdbf312846f0382f406f9158fe3e09d",
+      "sha256": "deeb2d7afd7aa2599cb1f93db619cfa1894a186a28b68e747a2b57c1b6b3c0ca",
+      "buildOrder": 1,
+      "requiresSiblingBuild": [
+        "contracts"
+      ]
+    }
+  ]
+}

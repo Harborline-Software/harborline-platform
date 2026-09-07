@@ -1,0 +1,24 @@
+@namespace Harborline.UIAdapters.Blazor.Components.AI
+@inherits Harborline.UIAdapters.Blazor.Base.HarborlineComponentBase
+@using Harborline.UIAdapters.Blazor.Localization
+
+<section class="@CombineClasses("hl-conversation-list")" data-testid="conversation-list" dir="@(LocaleContext?.Direction)" @attributes="AdditionalAttributes">
+ <header class="hl-conversation-list__header"><h2 class="hl-conversation-list__heading">@Resolved.Heading</h2>@if(OnNew.HasDelegate){<button type="button" class="hl-conversation-list__new" @onclick="OnNew">@Resolved.NewConversation</button>}</header>
+ @if(Conversations.Count==0){<p class="hl-conversation-list__empty">@Resolved.Empty</p>}
+ else{<ul aria-label="@Resolved.Heading" class="hl-conversation-list__list">@foreach(var item in Conversations){<HarborlineConversationRow @key="item.Id" Item="item" Active="@(item.Id==ActiveId)" Labels="Resolved" OnSelect="OnSelect" OnRename="OnRename" OnDelete="OnDelete" />}</ul>}
+</section>
+
+@code {
+ [CascadingParameter] private HarborlineLocaleContext? LocaleContext {get;set;}
+ [Parameter] public IReadOnlyList<ConversationSummary> Conversations {get;set;}=[];
+ [Parameter] public string? ActiveId {get;set;}
+ [Parameter,EditorRequired] public EventCallback<string> OnSelect {get;set;}
+ [Parameter] public EventCallback OnNew {get;set;}
+ [Parameter] public EventCallback<(string Id,string Title)> OnRename {get;set;}
+ [Parameter] public EventCallback<string> OnDelete {get;set;}
+ [Parameter] public ConversationListLabels? Labels {get;set;}
+ private ResolvedConversationLabels Resolved=>new(
+   Resolve("ai.conversations.heading",Labels?.Heading,"Conversations"),Resolve("ai.conversations.new",Labels?.NewConversation,"New conversation"),Resolve("ai.conversations.empty",Labels?.Empty,"No conversations yet."),Resolve("ai.conversations.rename",Labels?.Rename,"Rename"),Resolve("ai.conversations.delete",Labels?.Delete,"Delete"),Resolve("ai.conversations.delete",Labels?.ConfirmDelete,"Delete"),Resolve("ai.conversations.cancel",Labels?.Cancel,"Cancel"));
+ protected override void OnParametersSet(){if(string.IsNullOrWhiteSpace(Resolved.Heading))throw new InvalidOperationException("accessible-heading-required");var duplicate=Conversations.GroupBy(x=>x.Id,StringComparer.Ordinal).FirstOrDefault(x=>x.Count()>1);if(duplicate is not null)throw new InvalidOperationException($"duplicate-conversation-id: {duplicate.Key}");}
+ private string Resolve(string key,string? instance,string fallback)=>LocaleContext?.ResolveString(key,instanceOverride:instance)??instance??fallback;
+}

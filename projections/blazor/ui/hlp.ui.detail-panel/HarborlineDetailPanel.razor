@@ -1,0 +1,309 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Layout
+@inherits HarborlineComponentBase
+@implements IAsyncDisposable
+@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.JSInterop
+@using Harborline.UIAdapters.Blazor.Browser
+@inject IMediaQueryObserver MediaQueries
+@inject IJSRuntime JavaScript
+
+@if (CurrentOpen)
+{
+  @if (railCapable)
+  {
+    <aside aria-label="@Label" class="@CombineClasses("hl-detail-panel")" data-detail-panel
+           style="@CombineStyles($"--hl-detail-panel-size:{ClampedWidth}px")" @attributes="AdditionalAttributes">
+      @CloseControl
+      <div class="hl-detail-panel__body">@Drilldown</div>
+    </aside>
+  }
+  else
+  {
+    <div @ref="Overlay" class="hl-detail-panel__overlay" @onpointerdown="RequestCloseAsync">
+      <div @ref="Dialog" aria-label="@Label" aria-modal="true" class="@CombineClasses("hl-detail-panel")" data-detail-panel
+           role="dialog" style="@CombineStyles($"--hl-detail-panel-size:{ClampedWidth}px")" tabindex="-1"
+           @onpointerdown:stopPropagation="true" @attributes="AdditionalAttributes">
+        @CloseControl
+        <div @ref="Body" class="hl-detail-panel__body">@Drilldown</div>
+      </div>
+    </div>
+  }
+}
+
+@code {
+  // One decider (ticket 154): the docked-versus-modal gate IS the capability policy's rail query.
+  private const string RailQuery = Harborline.Foundation.Responsive.FormFactorQueries.MasterDetailRail;
+
+  [Parameter, EditorRequired] public string Label { get; set; } = string.Empty;
+  [Parameter] public RenderFragment? ChildContent { get; set; }
+  [Parameter] public bool? Open { get; set; }
+  [Parameter] public EventCallback<bool> OpenChanged { get; set; }
+  [Parameter] public bool DefaultOpen { get; set; }
+  [Parameter] public int Width { get; set; } = 360;
+  [Parameter] public bool Dismissible { get; set; } = true;
+  [Parameter] public string CloseLabel { get; set; } = "Close";
+  [Parameter] public bool? RailCapable { get; set; }
+  [Parameter] public DetailPanelSubject? Subject { get; set; }
+  /// <summary>Level 2. drilldown-model.md:22 — exactly one stack level; the host owns the stack.</summary>
+  [Parameter] public DetailPanelSubject? Pushed { get; set; }
+  [Parameter] public string? ActiveFacetId { get; set; }
+  [Parameter] public EventCallback<string> ActiveFacetIdChanged { get; set; }
+  [Parameter] public EventCallback<DetailPanelRelation> OnFollowRelation { get; set; }
+  [Parameter] public EventCallback OnBack { get; set; }
+  [Parameter] public EventCallback<string> OnOpenAsPage { get; set; }
+  [Parameter] public string BackLabelPrefix { get; set; } = "Back to ";
+  [Parameter] public string OpenAsPageLabel { get; set; } = "Open as page";
+  [Parameter] public string FacetsLabel { get; set; } = "Facets";
+
+  private static readonly string[] TabKeys = ["ArrowRight", "ArrowLeft", "Home", "End"];
+  // The handled set the tab bar declares to its JavaScript default route; the fixture's
+  // handledKeys is the authority both projections are asserted against.
+  private static readonly string HandledKeys = string.Join(' ', TabKeys);
+  private readonly string tabBaseId = $"hl-dp-{Guid.NewGuid():N}";
+  private readonly Dictionary<string, ElementReference> tabElements = [];
+  // The remembered facet is keyed by the subject's declared id, never by the record reference: a
+  // re-materialised equal subject keeps its facet, a different id starts at the first one.
+  private (string? Key, string? FacetId) rootFacet;
+  private (string? Key, string? FacetId) pushedFacet;
+
+  private DetailPanelSubject? Current => Pushed ?? Subject;
+  private IReadOnlyList<DetailPanelFacet> Facets => Current?.Facets ?? [];
+
+  private string? ActiveFacet
+  {
+    get
+    {
+      if (Current is null) return null;
+      if (ActiveFacetId is not null) return ActiveFacetId;
+      var remembered = (Pushed is not null ? pushedFacet : rootFacet).FacetId;
+      return Facets.Any(facet => facet.Id == remembered) ? remembered : Facets[0].Id;
+    }
+  }
+
+  private static void ValidateSubject(DetailPanelSubject subject)
+  {
+    if (subject.Facets.Count == 0) throw new InvalidOperationException("detail-panel-facets-required");
+    if (subject.Facets.Select(facet => facet.Id).Distinct().Count() != subject.Facets.Count)
+      throw new InvalidOperationException("detail-panel-duplicate-facet-id");
+  }
+
+  private void RememberKeys()
+  {
+    if (rootFacet.Key != Subject?.Id) rootFacet = (Subject?.Id, null);
+    if (pushedFacet.Key != Pushed?.Id) pushedFacet = (Pushed?.Id, null);
+  }
+
+  private async Task SelectFacetAsync(string facetId)
+  {
+    if (facetId == ActiveFacet) return;
+    if (ActiveFacetId is null)
+    {
+      if (Pushed is not null) pushedFacet = (Pushed.Id, facetId); else rootFacet = (Subject?.Id, facetId);
+    }
+    await ActiveFacetIdChanged.InvokeAsync(facetId);
+    await InvokeAsync(StateHasChanged);
+  }
+
+  private async Task HandleTabKeyAsync(KeyboardEventArgs args)
+  {
+    // Only the keys this tab bar handles are consumed; Escape, Tab and every printable key reach
+    // the surrounding shell untouched, and nothing stops propagation.
+    if (!TabKeys.Contains(args.Key)) return;
+    var index = Facets.ToList().FindIndex(facet => facet.Id == ActiveFacet);
+    var next = args.Key switch
+    {
+      "Home" => 0,
+      "End" => Facets.Count - 1,
+      "ArrowRight" => (index + 1 + Facets.Count) % Facets.Count,
+      _ => (index - 1 + Facets.Count) % Facets.Count,
+    };
+    var target = Facets[next].Id;
+    await SelectFacetAsync(target);
+    // Roving tabindex: keyboard selection takes DOM focus with it, through the shipped
+    // ElementReference focus route.
+    if (tabElements.TryGetValue(target, out var element)) await element.FocusAsync();
+  }
+
+  private RenderFragment Drilldown => Current is null ? builder => builder.AddContent(0, ChildContent) : DrilldownContent;
+
+  private RenderFragment DrilldownContent => @<text>
+    <header class="hl-detail-panel__header">
+      @if (Pushed is not null)
+      {
+        <button type="button" class="hl-detail-panel__back" data-detail-panel-back @onclick="() => OnBack.InvokeAsync()">@($"{BackLabelPrefix}{Subject!.Title}")</button>
+      }
+      <h2 class="hl-detail-panel__title">@Current!.Title</h2>
+    </header>
+    <div @ref="TabList" role="tablist" aria-label="@FacetsLabel" class="hl-detail-panel__tabs" data-handled-keys="@HandledKeys">
+      @foreach (var facet in Facets)
+      {
+        var id = facet.Id;
+        <button @key="id" @ref="tabElements[id]" type="button" role="tab" id="@($"{tabBaseId}-{id}")"
+                aria-selected="@((id == ActiveFacet).ToString().ToLowerInvariant())" aria-controls="@($"{tabBaseId}-panel")"
+                tabindex="@(id == ActiveFacet ? 0 : -1)" class="hl-detail-panel__tab" data-facet-id="@id"
+                @onclick="() => SelectFacetAsync(id)" @onkeydown="HandleTabKeyAsync">
+          <span data-facet-label>@facet.Label</span><span class="hl-detail-panel__tab-count" data-facet-count>@facet.Count</span>
+        </button>
+      }
+    </div>
+    <div role="tabpanel" id="@($"{tabBaseId}-panel")" aria-labelledby="@($"{tabBaseId}-{ActiveFacet}")" class="hl-detail-panel__facet">@ChildContent</div>
+    <footer class="hl-detail-panel__actions">
+      @if (Pushed is not null)
+      {
+        @* drilldown-model.md:23 with chrome-spec section 9: at level 2 the relation controls are
+           ABSENT, not disabled, and the one way onward is stated at the point of work. *@
+        <button type="button" class="hl-detail-panel__promote" data-detail-panel-promote @onclick="() => OnOpenAsPage.InvokeAsync(Current!.Route)">@OpenAsPageLabel</button>
+      }
+      else
+      {
+        @foreach (var relation in Current!.Relations ?? [])
+        {
+          var captured = relation;
+          <button @key="captured.Id" type="button" class="hl-detail-panel__relation" data-relation-id="@captured.Id" @onclick="() => OnFollowRelation.InvokeAsync(captured)">@captured.Label</button>
+        }
+      }
+    </footer>
+  </text>;
+
+  private bool localOpen;
+  private bool initialized;
+  private bool mediaRailCapable;
+  private bool railCapable => RailCapable ?? mediaRailCapable;
+  private ElementReference Overlay;
+  private ElementReference Dialog;
+  private ElementReference Body;
+  private ElementReference TabList;
+  private IMediaQuerySubscription? mediaSubscription;
+  private IJSObjectReference? module;
+  private IJSObjectReference? connection;
+  private IJSObjectReference? tabsModule;
+  private IJSObjectReference? tabsConnection;
+  // The identity of the element each connection holds; the render predicate is not a proxy for it.
+  private string? tabsElementId;
+  private string? dialogElementId;
+  private DotNetObjectReference<HarborlineDetailPanel>? callback;
+  private bool CurrentOpen => Open ?? localOpen;
+  private bool ModalOpen => CurrentOpen && !railCapable;
+  private int ClampedWidth => Math.Clamp(Width, 220, 720);
+
+  private RenderFragment? CloseControl => !Dismissible ? null : builder =>
+  {
+    builder.OpenElement(0, "div");
+    builder.AddAttribute(1, "class", "hl-detail-panel__bar");
+    builder.OpenElement(2, "button");
+    builder.AddAttribute(3, "type", "button");
+    builder.AddAttribute(4, "aria-label", CloseLabel);
+    builder.AddAttribute(5, "class", "hl-detail-panel__close");
+    builder.AddAttribute(6, "onclick", EventCallback.Factory.Create(this, RequestCloseAsync));
+    builder.AddMarkupContent(7, "<svg aria-hidden=\"true\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-width=\"1.75\" viewBox=\"0 0 20 20\"><path d=\"m5 5 10 10M15 5 5 15\"></path></svg>");
+    builder.CloseElement();
+    builder.CloseElement();
+  };
+
+  protected override void OnParametersSet()
+  {
+    if (!initialized)
+    {
+      localOpen = DefaultOpen;
+      initialized = true;
+    }
+    if (CurrentOpen && Subject is null && ChildContent is null) throw new InvalidOperationException("detail-panel-content-required");
+    if (CurrentOpen)
+    {
+      if (Pushed is not null && Subject is null) throw new InvalidOperationException("detail-panel-push-requires-object");
+      if (Subject is not null) ValidateSubject(Subject);
+      if (Pushed is not null) ValidateSubject(Pushed);
+      RememberKeys();
+      if (Current is not null && !Facets.Any(facet => facet.Id == ActiveFacet))
+        throw new InvalidOperationException("detail-panel-facet-unknown");
+    }
+  }
+
+  protected override async Task OnAfterRenderAsync(bool firstRender)
+  {
+    if (firstRender)
+    {
+      mediaSubscription = await MediaQueries.ObserveAsync(RailQuery, OnMediaChangedAsync);
+      mediaRailCapable = mediaSubscription.Matches;
+      await InvokeAsync(StateHasChanged);
+    }
+
+    // A connection is keyed to the ELEMENT it was handed, never to the boolean that decides
+    // whether that element is rendered: the rail/modal branches are separate subtrees, so a
+    // viewport flip replaces the tab bar while `CurrentOpen` never moves. When the captured
+    // ElementReference changes, the old connection is disposed and the new element connected.
+    var tabsRendered = CurrentOpen && Current is not null;
+    if (!tabsRendered)
+    {
+      await DisposeTabsAsync();
+    }
+    else if (tabsConnection is null || TabList.Id != tabsElementId)
+    {
+      await DisposeTabsAsync();
+      tabsModule ??= await JavaScript.InvokeAsync<IJSObjectReference>("import", "./_content/Harborline.UIAdapters.Blazor/detail-panel-tabs.js");
+      tabsConnection = await tabsModule.InvokeAsync<IJSObjectReference>("connect", TabList);
+      tabsElementId = TabList.Id;
+    }
+
+    if (!ModalOpen)
+    {
+      await DisposeConnectionAsync();
+    }
+    else if (connection is null || Overlay.Id != dialogElementId)
+    {
+      await DisposeConnectionAsync();
+      module ??= await JavaScript.InvokeAsync<IJSObjectReference>("import", "./_content/Harborline.UIAdapters.Blazor/dialog.js");
+      callback ??= DotNetObjectReference.Create(this);
+      connection = await module.InvokeAsync<IJSObjectReference>("connect", Overlay, Dialog, Body, callback, true);
+      dialogElementId = Overlay.Id;
+    }
+  }
+
+  private async ValueTask OnMediaChangedAsync(MediaQueryChange change)
+  {
+    if (mediaRailCapable == change.Matches) return;
+    mediaRailCapable = change.Matches;
+    await InvokeAsync(StateHasChanged);
+  }
+
+  private async Task RequestCloseAsync()
+  {
+    if (Open is null) localOpen = false;
+    await OpenChanged.InvokeAsync(false);
+    await InvokeAsync(StateHasChanged);
+  }
+
+  [JSInvokable]
+  public Task DismissFromJavaScriptAsync() => RequestCloseAsync();
+
+  [JSInvokable]
+  public Task OnBodyMeasuredAsync(ScrollAffordanceMeasurement _) => Task.CompletedTask;
+
+  private async ValueTask DisposeTabsAsync()
+  {
+    if (tabsConnection is null) return;
+    try { await tabsConnection.InvokeVoidAsync("dispose"); } catch (JSDisconnectedException) { }
+    await tabsConnection.DisposeAsync();
+    tabsConnection = null;
+    tabsElementId = null;
+  }
+
+  private async ValueTask DisposeConnectionAsync()
+  {
+    if (connection is null) return;
+    try { await connection.InvokeVoidAsync("dispose"); } catch (JSDisconnectedException) { }
+    await connection.DisposeAsync();
+    connection = null;
+    dialogElementId = null;
+  }
+
+  public async ValueTask DisposeAsync()
+  {
+    await DisposeConnectionAsync();
+    await DisposeTabsAsync();
+    if (tabsModule is not null) try { await tabsModule.DisposeAsync(); } catch (JSDisconnectedException) { }
+    if (mediaSubscription is not null) await mediaSubscription.DisposeAsync();
+    if (module is not null) try { await module.DisposeAsync(); } catch (JSDisconnectedException) { }
+    callback?.Dispose();
+  }
+}

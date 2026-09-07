@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.touch-target",
+  "fixtureRevision": 1,
+  "cases": [
+    {"id": "touch-target.complete-surface", "input": {}, "expected": {"exports": ["touchTarget", "touchTargetPseudoOverlay", "touchTargetPseudo"], "count": 3}},
+    {"id": "touch-target.box-floor", "input": {"mode": "grow-box"}, "expected": {"minimumInlinePixels": 44, "minimumBlockPixels": 44, "reactTokens": ["min-h-11", "min-w-11"]}},
+    {"id": "touch-target.overlay-floor", "input": {"mode": "overlay"}, "expected": {"inlinePixels": 44, "blockPixels": 44, "reactTokens": ["before:h-11", "before:w-11"]}},
+    {"id": "touch-target.overlay-centered", "input": {"mode": "overlay"}, "expected": {"inlineStart": "50%", "blockStart": "50%", "translateInline": "-50%", "translateBlock": "-50%"}},
+    {"id": "touch-target.overlay-unpositioned", "input": {"mode": "overlay"}, "expected": {"establishesPositioning": false, "relativeTokenPresent": false}},
+    {"id": "touch-target.positioned-overlay", "input": {"mode": "positioned-overlay"}, "expected": {"establishesPositioning": true, "includesOverlay": true}},
+    {"id": "touch-target.glyph-independent", "input": {"glyphPixels": 14, "hitAreaPixels": 44}, "expected": {"glyphPixels": 14, "hitAreaPixels": 44, "glyphResized": false}},
+    {"id": "touch-target.projection-equivalence", "input": {"modes": ["grow-box", "overlay", "positioned-overlay"]}, "expected": {"typescriptEqualsDotnetIntent": true}}
+  ]
+}

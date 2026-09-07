@@ -1,0 +1,212 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Navigation
+@inherits HarborlineComponentBase
+@implements IAsyncDisposable
+@using Microsoft.JSInterop
+@using Harborline.Foundation.Builder
+@inject IJSRuntime JavaScript
+
+<aside @ref="Root" class="@CombineClasses("hl-layers-rail", Compact ? "hl-layers-rail--compact" : null)" style="@CombineStyles()" aria-label="@Labels.RailRegion" @attributes="AdditionalAttributes">
+  @if (!Compact && ActiveLens is not null)
+  {
+    <div role="status" aria-live="polite" class="hl-layers-rail__status" style="border-color:@ToneBorder(ActiveLens.Tone)">
+      <span>@Labels.ViewingLens(ActiveLens.Label)</span>
+      <button type="button" class="hl-layers-rail__status-close" aria-label="@Labels.ExitLens" @onclick="ClearLensAsync"><svg aria-hidden="true" viewBox="0 0 16 16"><path d="M3 3l10 10M13 3 3 13"></path></svg></button>
+    </div>
+  }
+  <div role="group" aria-label="@Labels.LensesHeading" class="hl-layers-rail__lenses" @onkeydown="HandleLensKeyAsync">
+    @if (!Compact) { <h2>@Labels.LensesHeading</h2> }
+    @for (var index = 0; index < Lenses.Count; index++)
+    {
+      var lens = Lenses[index];
+      var active = State.ActiveId == lens.Id;
+      var enabled = State.EnabledIds.Contains(lens.Id);
+      var passiveCount = !active && enabled ? Canvas.Nodes.Count(node => lens.Project(node.Id).Active) : 0;
+      <div class="hl-layers-rail__lens" style="--hl-lens-tone:@ToneSwatch(lens.Tone)">
+        <button type="button" class="hl-layers-rail__lens-activate" aria-pressed="@(active ? "true" : "false")" aria-label="@Labels.ActivateLens(lens.Label)"
+                title="@Labels.LensShortcutHint(index + 1)" @onclick="() => ActivateLensAsync(lens.Id)">
+          <span aria-hidden="true" class="hl-layers-rail__swatch"></span><span class="hl-layers-rail__optional-copy">@lens.Label</span>
+          @if (passiveCount > 0) { <span class="hl-layers-rail__count">@Labels.PassiveCount(passiveCount)</span> }
+        </button>
+        <button type="button" class="hl-layers-rail__lens-toggle" aria-pressed="@(enabled ? "true" : "false")" aria-label="@Labels.ToggleLens(lens.Label)" @onclick="() => ToggleLensAsync(lens.Id)"><svg aria-hidden="true" viewBox="0 0 16 16"><path d="M1.5 8s2.25-4 6.5-4 6.5 4 6.5 4-2.25 4-6.5 4S1.5 8 1.5 8Z"></path><circle cx="8" cy="8" r="2"></circle></svg></button>
+      </div>
+    }
+  </div>
+  <div class="hl-layers-rail__outline-header">
+    @if (!Compact) { <h2>@Labels.OutlineHeading</h2> }
+    @if (OnInsert.HasDelegate) { <button type="button" class="hl-layers-rail__insert" aria-label="@Labels.Insert" @onclick="InsertAsync"><svg aria-hidden="true" viewBox="0 0 16 16"><path d="M8 3v10M3 8h10"></path></svg></button> }
+  </div>
+  <div role="tree" aria-label="@Labels.OutlineHeading" class="hl-layers-rail__tree">
+    @if (VisibleNodes.Count == 0)
+    {
+      <p>@(ActiveLens?.Empty ?? Labels.Empty)</p>
+    }
+    else
+    {
+      @foreach (var node in VisibleNodes)
+      {
+        var expandable = HasChildren(node);
+        var expanded = expandable && Expanded.Contains(node.Id);
+        var projection = ProjectNode(node);
+        var provenance = ResolveProvenance(node.Id);
+        var unresolved = provenance is not null && (!provenance.Resolved || provenance.Source == ProvenanceSource.Unknown);
+        <div role="treeitem" aria-level="@(node.Depth + 1)" aria-expanded="@(expandable ? expanded.ToString().ToLowerInvariant() : null)"
+             aria-selected="@(Canvas.SelectedId == node.Id ? "true" : "false")" data-node-id="@node.Id"
+             data-hl-ghosted="@(projection.Ghosted ? "true" : null)" data-ghosted="@(projection.Ghosted ? "true" : null)"
+             class="hl-layers-rail__node" style="--hl-depth:@node.Depth" @onclick="() => SelectNodeAsync(node.Id)">
+          @if (expandable)
+          {
+            <button type="button" class="hl-layers-rail__disclosure" aria-label="@(expanded ? Labels.CollapseNode : Labels.ExpandNode)" @onclick="() => ToggleExpandedAsync(node)"><svg aria-hidden="true" viewBox="0 0 16 16"><path d="@(expanded ? "M3 6l5 5 5-5" : "M6 3l5 5-5 5")"></path></svg></button>
+          }
+          else
+          {
+            <span aria-hidden="true" class="hl-layers-rail__spacer"></span>
+          }
+          <button type="button" class="hl-layers-rail__node-control" tabindex="@(focusedId == node.Id ? 0 : -1)" @onfocus="() => focusedId = node.Id"
+                  @onkeydown="args => HandleTreeKeyAsync(node, args)" @onclick:stopPropagation="true" @onclick="() => SelectNodeAsync(node.Id)">
+            <span class="hl-layers-rail__node-label">@node.Label</span>
+            @if (!string.IsNullOrWhiteSpace(projection.Badge)) { <span class="hl-layers-rail__node-badge">@projection.Badge</span> }
+            @if (ShowProvenance && provenance is not null)
+            {
+              <span class="hl-layers-rail__source">@(unresolved ? Labels.UnresolvedSource : Labels.Source(provenance.Source.ToString().ToLowerInvariant()))@(provenance.Locked ? $" · {Labels.Locked}" : string.Empty)</span>
+            }
+          </button>
+        </div>
+      }
+    }
+  </div>
+</aside>
+
+@code {
+  [Parameter, EditorRequired] public IReadOnlyList<AspectLens> Lenses { get; set; } = [];
+  [Parameter, EditorRequired] public LayersState State { get; set; } = LayersState.Initialize([]);
+  [Parameter] public EventCallback<LayersState> StateChanged { get; set; }
+  [Parameter, EditorRequired] public CanvasModel Canvas { get; set; } = new([], null, _ => { });
+  [Parameter] public ProvenanceResolver? Provenance { get; set; }
+  [Parameter] public RailLabels Labels { get; set; } = DefaultRailLabels.Value;
+  [Parameter] public bool ShowProvenance { get; set; } = true;
+  [Parameter] public bool Compact { get; set; }
+  [Parameter] public EventCallback OnInsert { get; set; }
+
+  private readonly HashSet<string> Expanded = new(StringComparer.Ordinal);
+  private string? focusedId;
+  private string? focusRequest;
+  private IJSObjectReference? module;
+  private ElementReference Root;
+  private AspectLens? ActiveLens => Lenses.FirstOrDefault(lens => lens.Id == State.ActiveId);
+  private IReadOnlyList<CanvasNode> VisibleNodes => Canvas.Nodes.Where(IsVisible).ToArray();
+
+  protected override void OnParametersSet()
+  {
+    if (new[] { Labels.RailRegion, Labels.LensesHeading, Labels.OutlineHeading }.Any(string.IsNullOrWhiteSpace)) throw new InvalidOperationException("accessible-rail-label-required");
+    if (Lenses.GroupBy(lens => lens.Id, StringComparer.Ordinal).Any(group => group.Count() > 1) || Canvas.Nodes.GroupBy(node => node.Id, StringComparer.Ordinal).Any(group => group.Count() > 1)) throw new InvalidOperationException("duplicate-layer-identity");
+    var ids = Canvas.Nodes.Select(node => node.Id).ToHashSet(StringComparer.Ordinal);
+    if (Canvas.Nodes.Any(node => node.Depth < 0 || (node.ParentId is not null && !ids.Contains(node.ParentId))) || (Canvas.SelectedId is not null && !ids.Contains(Canvas.SelectedId))) throw new InvalidOperationException("invalid-outline-tree");
+    foreach (var node in Canvas.Nodes.Where(node => node.HasChildren == true)) Expanded.Add(node.Id);
+    if (focusedId is null || !VisibleNodes.Any(node => node.Id == focusedId)) focusedId = VisibleNodes.FirstOrDefault()?.Id;
+  }
+
+  private async Task ActivateLensAsync(string id) => await StateChanged.InvokeAsync(State.Activate(id));
+  private async Task ToggleLensAsync(string id) => await StateChanged.InvokeAsync(State.Toggle(id));
+  private async Task ClearLensAsync() => await StateChanged.InvokeAsync(State.Clear());
+  private async Task InsertAsync() => await OnInsert.InvokeAsync();
+  private bool HasChildren(CanvasNode node) => node.HasChildren ?? Canvas.Nodes.Any(candidate => candidate.ParentId == node.Id);
+  private bool IsVisible(CanvasNode node)
+  {
+    var parent = node.ParentId;
+    while (parent is not null)
+    {
+      if (!Expanded.Contains(parent)) return false;
+      parent = Canvas.Nodes.FirstOrDefault(candidate => candidate.Id == parent)?.ParentId;
+    }
+    return true;
+  }
+
+  private (bool Ghosted, string? Badge, int PassiveCount) ProjectNode(CanvasNode node)
+  {
+    var activeState = ActiveLens?.Project(node.Id);
+    var ghosted = ActiveLens is { Kind: AspectLensKind.Filter } && activeState?.Active != true;
+    var passive = Lenses.Count(lens => lens.Id != State.ActiveId && State.EnabledIds.Contains(lens.Id) && lens.Project(node.Id).Active);
+    return (ghosted, activeState?.Badge, passive);
+  }
+
+  private ProvenanceInfo? ResolveProvenance(string id)
+  {
+    if (Provenance is null) return null;
+    try { return Provenance.Resolve(id); }
+    catch { return new ProvenanceInfo(ProvenanceSource.Unknown, [ProvenanceSource.Unknown], false, true, false); }
+  }
+
+  private async Task HandleLensKeyAsync(KeyboardEventArgs args)
+  {
+    if (args.Key == "Escape") { await ClearLensAsync(); return; }
+    if (args.Key.Length == 1 && char.IsDigit(args.Key[0]) && args.Key[0] != '0')
+    {
+      var index = args.Key[0] - '1';
+      if (index < Lenses.Count) await ActivateLensAsync(Lenses[index].Id);
+    }
+  }
+
+  private async Task HandleTreeKeyAsync(CanvasNode node, KeyboardEventArgs args)
+  {
+    var visible = VisibleNodes;
+    var index = visible.ToList().FindIndex(candidate => candidate.Id == node.Id);
+    string? target = null;
+    if (args.Key == "ArrowDown" && index >= 0) target = visible[Math.Min(visible.Count - 1, index + 1)].Id;
+    else if (args.Key == "ArrowUp" && index >= 0) target = visible[Math.Max(0, index - 1)].Id;
+    else if (args.Key == "Home") target = visible[0].Id;
+    else if (args.Key == "End") target = visible[^1].Id;
+    else if (args.Key == "ArrowRight" && HasChildren(node))
+    {
+      if (!Expanded.Contains(node.Id)) Expanded.Add(node.Id);
+      else target = VisibleNodes.FirstOrDefault(candidate => candidate.ParentId == node.Id)?.Id;
+    }
+    else if (args.Key == "ArrowLeft")
+    {
+      if (Expanded.Remove(node.Id)) target = node.Id;
+      else target = node.ParentId;
+    }
+    else if (args.Key is "Enter" or " ") { await SelectNodeAsync(node.Id); return; }
+    else return;
+    if (target is not null) { focusedId = target; focusRequest = target; }
+  }
+
+  private Task SelectNodeAsync(string id)
+  {
+    focusedId = id;
+    Canvas.Select(id);
+    return Task.CompletedTask;
+  }
+
+  private Task ToggleExpandedAsync(CanvasNode node)
+  {
+    if (!Expanded.Remove(node.Id)) Expanded.Add(node.Id);
+    else if (focusedId is not null && focusedId != node.Id && IsDescendant(focusedId, node.Id)) { focusedId = node.Id; focusRequest = node.Id; }
+    return Task.CompletedTask;
+  }
+
+  private bool IsDescendant(string id, string ancestor)
+  {
+    var current = Canvas.Nodes.FirstOrDefault(node => node.Id == id)?.ParentId;
+    while (current is not null) { if (current == ancestor) return true; current = Canvas.Nodes.FirstOrDefault(node => node.Id == current)?.ParentId; }
+    return false;
+  }
+
+  private static string ToneSwatch(LensTone tone) => tone switch
+  {
+    LensTone.Danger or LensTone.SensitivityHigh => "var(--color-danger)",
+    LensTone.Warning or LensTone.SensitivityMedium => "var(--color-warning)",
+    LensTone.Success => "var(--color-success)",
+    LensTone.Info => "var(--color-secondary)",
+    LensTone.Muted or LensTone.SensitivityNone => "var(--color-muted-foreground)",
+    _ => "var(--color-accent)"
+  };
+  private static string ToneBorder(LensTone tone) => tone is LensTone.Muted or LensTone.SensitivityNone ? "var(--color-border)" : ToneSwatch(tone);
+
+  protected override async Task OnAfterRenderAsync(bool firstRender)
+  {
+    if (firstRender) module = await JavaScript.InvokeAsync<IJSObjectReference>("import", "./_content/Harborline.UIAdapters.Blazor/layers-rail.js");
+    if (focusRequest is not null) { var id = focusRequest; focusRequest = null; await module!.InvokeVoidAsync("focusNode", Root, id); }
+  }
+
+  public async ValueTask DisposeAsync() { if (module is not null) try { await module.DisposeAsync(); } catch (JSDisconnectedException) { } }
+}

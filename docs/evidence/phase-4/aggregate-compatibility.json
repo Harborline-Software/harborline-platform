@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-08-07T21:38:32Z",
+  "issue": "HLF-020",
+  "status": "PASS",
+  "command": "npm run gate:hlf020",
+  "source": {
+    "repository": "shipyard",
+    "ref": "refoundation/baseline-2",
+    "commit": "a5036ff8b500e0d857d7e0a698408e7cf7f6cf31"
+  },
+  "surfaces": {
+    "npm": {"legacy": 1125, "current": 21, "unchanged": 11, "removed": 1106, "added": 2, "changed": 8, "classifiedDifferences": 1116, "deferred": 1112},
+    "foundation": {"legacy": 3004, "current": 31, "unchanged": 31, "removed": 2973, "added": 0, "changed": 0, "classifiedDifferences": 2973, "deferred": 2973},
+    "blazor": {"legacy": 6258, "current": 29, "unchanged": 22, "removed": 6236, "added": 7, "changed": 0, "classifiedDifferences": 6243, "deferred": 6236}
+  },
+  "classification": {
+    "fullReport": "compatibility/aggregate/report.json",
+    "policy": "compatibility/aggregate/classification-policy.json",
+    "unclassifiedDifferences": 0,
+    "approvedRemovals": 0,
+    "aggregateReplacementReady": false
+  },
+  "button": {
+    "reactLegacyPropertiesAccepted": true,
+    "reactAddition": "optional intent alias",
+    "foundationPublicItemsUnchanged": 31,
+    "blazorChangedPublicItems": 0,
+    "legacyProviderFixtures": 900,
+    "providers": ["Bootstrap", "FluentUI", "Material"],
+    "boundedStyleBridge": "internal CanonicalButtonStyleBridge plus public Class/Style compatibility input",
+    "broadProviderRestored": false
+  },
+  "rollback": {
+    "status": "PASS",
+    "proofTemporalScope": "at-HLF-020-capture-time",
+    "exactOriginalNpmCurrentlyAvailable": true,
+    "exactOriginalNugetCurrentlyAvailable": false,
+    "operationalProof": null,
+    "npmConsumer": "PASS",
+    "nugetConsumer": "PASS",
+    "nugetFeedArtifacts": 22,
+    "sourceOrProjectDependencies": 0
+  },
+  "invariants": {
+    "npmIdentityChanged": false,
+    "nugetIdentityChanged": false,
+    "assemblyIdentityChanged": false,
+    "productIdentityChanged": false,
+    "sourceAuthorityChanged": false,
+    "packageIdentityAuthorityChanged": false,
+    "distributionAuthorityRepository": null,
+    "stableReleaseCreated": false,
+    "externalRemoteCreated": false
+  },
+  "nextAction": "Keep aggregate package identities private until a separate authority and distribution decision is approved."
+}

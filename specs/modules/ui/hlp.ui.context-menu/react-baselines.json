@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "projection": "react",
+  "moduleId": "hlp.ui.context-menu",
+  "scenarios": [
+    {
+      "scenarioId": "context-menu.closed",
+      "sha256": "85d4b1ed7e629228c8df7e2412d633048d0086b911c0cb87536ee4c0b5853591",
+      "bytes": 7022,
+      "artifact": "../baselines/sha256/85d4b1ed7e629228c8df7e2412d633048d0086b911c0cb87536ee4c0b5853591.png"
+    },
+    {
+      "scenarioId": "context-menu.pointer",
+      "sha256": "b1c533e0bec8048920b5af122d3624aa80b287a66aedf608aaf8b036e19aa2f0",
+      "bytes": 8171,
+      "artifact": "../baselines/sha256/b1c533e0bec8048920b5af122d3624aa80b287a66aedf608aaf8b036e19aa2f0.png"
+    },
+    {
+      "scenarioId": "context-menu.keyboard",
+      "sha256": "ca740ced3fd93e6a070b83369185a3761ab499f2caf70f6f989b8ef08fe627c2",
+      "bytes": 8821,
+      "artifact": "../baselines/sha256/ca740ced3fd93e6a070b83369185a3761ab499f2caf70f6f989b8ef08fe627c2.png"
+    },
+    {
+      "scenarioId": "context-menu.groups",
+      "sha256": "bec15851b14e22c9e7df098f9ec02caf7308bc88dd93c1298b24d02f188ca2f2",
+      "bytes": 8442,
+      "artifact": "../baselines/sha256/bec15851b14e22c9e7df098f9ec02caf7308bc88dd93c1298b24d02f188ca2f2.png"
+    },
+    {
+      "scenarioId": "context-menu.locale-en",
+      "sha256": "6fe1fce4eca912c9f7a4e72cec95348fb4b3abf8268df8a003aaef8c64beaf32",
+      "bytes": 7546,
+      "artifact": "../baselines/sha256/6fe1fce4eca912c9f7a4e72cec95348fb4b3abf8268df8a003aaef8c64beaf32.png"
+    },
+    {
+      "scenarioId": "context-menu.locale-pseudo",
+      "sha256": "cfff5f1669fb6da3361d85016e932324cd045296a02795df366f95d4e365e902",
+      "bytes": 8410,
+      "artifact": "../baselines/sha256/cfff5f1669fb6da3361d85016e932324cd045296a02795df366f95d4e365e902.png"
+    },
+    {
+      "scenarioId": "context-menu.locale-ar",
+      "sha256": "1f41af8ba9704ce3615fa8b0df2fa19bdf89b910e6ce826482a4eeb936d54682",
+      "bytes": 7686,
+      "artifact": "../baselines/sha256/1f41af8ba9704ce3615fa8b0df2fa19bdf89b910e6ce826482a4eeb936d54682.png"
+    },
+    {
+      "scenarioId": "context-menu.theme-light",
+      "sha256": "3501ce45a7977a89191be74d62fa9078f9da3a103f51aebddfdd2ba2999f0b61",
+      "bytes": 7505,
+      "artifact": "../baselines/sha256/3501ce45a7977a89191be74d62fa9078f9da3a103f51aebddfdd2ba2999f0b61.png"
+    },
+    {
+      "scenarioId": "context-menu.theme-dark",
+      "sha256": "c0ebbd8fd6cb6cf642099858df413ab8c9be7fbcd8a9e92cadb8de19bdf7c302",
+      "bytes": 7564,
+      "artifact": "../baselines/sha256/c0ebbd8fd6cb6cf642099858df413ab8c9be7fbcd8a9e92cadb8de19bdf7c302.png"
+    }
+  ]
+}

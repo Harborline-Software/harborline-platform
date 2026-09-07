@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <PackageId>Harborline.Blocks.InspectionReview.Tests</PackageId>
+    <AssemblyName>Harborline.Blocks.InspectionReview.Tests</AssemblyName>
+    <RootNamespace>Harborline.Blocks.InspectionReview.Tests</RootNamespace>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../hlp.blocks.inspection-review/Harborline.Blocks.InspectionReview.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="../../../../conformance/hlp.blocks.inspection-review/fixtures.yaml" Link="fixtures.yaml" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

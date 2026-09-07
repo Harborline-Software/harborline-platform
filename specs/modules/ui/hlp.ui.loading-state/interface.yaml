@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.loading-state",
+  "interfaceRevision": 1,
+  "semantics": {
+    "operation": "announce and display a caller-localized loading state at page or inline density",
+    "observableOutput": "A polite status region containing the supplied label."
+  },
+  "sourceSurface": {
+    "repository": "shipyard",
+    "commit": "a5036ff8b500e0d857d7e0a698408e7cf7f6cf31",
+    "react": {"path": "packages/ui-react/src/components/LoadingState.tsx", "blob": "56f416b98bd74ed807475d781aea90acc92c0c29"},
+    "blazorCandidate": {"path": "packages/ui-adapters-blazor/Components/Feedback/HarborlineLoadingState.razor", "blob": "e7006809fa9f317fb5a72c851c94d26321441046", "disposition": "semantic-donor-missing-style-and-proof"}
+  },
+  "invariants": [
+    "The root has status semantics and polite live-region behavior.",
+    "The supplied non-empty label remains visible and is the status accessible name.",
+    "Page is the default variant and centers the status in a twelve-rem-high loading region.",
+    "Inline variant uses paragraph semantics without imposing page-height layout.",
+    "Host class, language, direction, and data/ARIA attributes survive projection.",
+    "Muted text, forced colors, reduced motion, RTL, 200-percent reflow, light theme, and dark theme preserve status semantics.",
+    "Both projections emit the same class list on the status root and its label span, so one authority stylesheet styles both lanes."
+  ],
+  "errors": [{"code": "label-required", "when": "The effective loading label is empty."}],
+  "performance": {"operation": "O(1) in-process rendering with no I/O"},
+  "compatibility": {"reactPublicIdentity": "@harborline-software/ui-react#LoadingState", "blazorPublicIdentity": "Harborline.UIAdapters.Blazor / HarborlineLoadingState"},
+  "cases": [
+    {"id": "loading-state.default"},
+    {"id": "loading-state.inline"},
+    {"id": "loading-state.announcement"},
+    {"id": "loading-state.label"},
+    {"id": "loading-state.label-update"},
+    {"id": "loading-state.semantic-tone"},
+    {"id": "loading-state.locale-direction"},
+    {"id": "loading-state.host-attributes"},
+    {"id": "loading-state.variant-classes"},
+    {"id": "loading-state.projection-equivalence"}
+  ]
+}

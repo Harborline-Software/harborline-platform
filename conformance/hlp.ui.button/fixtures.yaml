@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.button",
+  "cases": [
+    {"id": "button.defaults", "input": {"label": "Save"}, "expected": {"element": "button", "type": "button", "intent": "secondary", "size": "medium", "fill": "solid", "radius": "medium"}},
+    {"id": "button.activation", "input": {"enabled": true, "loading": false}, "expected": {"activationCount": 1}},
+    {"id": "button.disabled", "input": {"enabled": false}, "expected": {"nativeDisabled": true, "activationCount": 0}},
+    {"id": "button.loading", "input": {"label": "Saving", "loading": true}, "expected": {"focusable": true, "ariaBusy": "true", "ariaDisabled": "true", "activationCount": 0, "labelVisible": true}},
+    {"id": "button.form", "input": {"types": ["button", "submit", "reset"], "form": "profile"}, "expected": {"defaultType": "button", "typesPreserved": true, "formPreserved": true}},
+    {"id": "button.content-order", "input": {"leading": "L", "label": "Save", "trailing": "T", "directions": ["ltr", "rtl"]}, "expected": {"domOrder": ["leading", "label", "trailing"], "logicalDirection": true}},
+    {"id": "button.accessible-name", "input": {"iconOnly": true, "accessibleName": null}, "expected": {"error": "accessible-name-required"}},
+    {"id": "button.host-attributes", "input": {"attributes": {"aria-controls": "panel", "data-case": "shared", "class": "consumer", "form": "profile"}}, "expected": {"attributesPreserved": true}},
+    {"id": "button.appearance", "input": {"intents": ["primary", "secondary", "danger", "warning", "info", "success", "light", "dark", "subtle", "transparent"]}, "expected": {"closedVocabulary": true, "allMappingsNonEmpty": true}}
+  ]
+}

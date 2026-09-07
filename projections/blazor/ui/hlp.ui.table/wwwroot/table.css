@@ -1,0 +1,82 @@
+.hl-table__overflow {
+  --hl-table-foreground: var(--hl-foreground, #172033);
+  --hl-table-muted-foreground: var(--hl-muted-foreground, #475569);
+  --hl-table-border: var(--hl-border, #cbd5e1);
+  --hl-table-row-border: color-mix(in srgb, var(--hl-table-border) 65%, transparent);
+}
+
+.hl-table__overflow {
+  box-sizing: border-box;
+  max-inline-size: 100%;
+  min-inline-size: 0;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+}
+
+.hl-table {
+  border-collapse: collapse;
+  caption-side: bottom;
+  color: var(--hl-table-foreground);
+  font: inherit;
+  font-size: 0.875rem;
+  inline-size: 100%;
+  text-align: start;
+}
+
+.hl-table__head {
+  border-block-end: 1px solid var(--hl-table-border);
+  color: var(--hl-table-muted-foreground);
+  text-align: start;
+}
+
+.hl-table__body .hl-table__row + .hl-table__row {
+  border-block-start: 1px solid var(--hl-table-row-border);
+}
+
+.hl-table__row { transition: background-color 150ms ease-out; }
+
+.hl-table__header-cell,
+.hl-table__cell {
+  box-sizing: border-box;
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+  text-align: start;
+  vertical-align: middle;
+}
+
+.hl-table__header-cell { font-weight: 600; }
+.hl-table__header-cell[data-hl-density='sm'],
+.hl-table__cell[data-hl-density='sm'] { padding-block: 0.375rem; padding-inline: 0.75rem; }
+.hl-table__header-cell[data-hl-density='md'],
+.hl-table__cell[data-hl-density='md'] { padding-block: 0.5rem; padding-inline: 1rem; }
+
+.hl-table__caption {
+  color: var(--hl-table-muted-foreground);
+  font-size: 0.75rem;
+  margin-block-start: 0.5rem;
+  text-align: start;
+}
+
+[data-theme='dark'] .hl-table__overflow,
+.hl-table__overflow[data-theme='dark'] {
+  --hl-table-foreground: var(--hl-foreground, #f8fafc);
+  --hl-table-muted-foreground: var(--hl-muted-foreground, #cbd5e1);
+  --hl-table-border: var(--hl-border, #64748b);
+}
+
+@media (forced-colors: active) {
+  .hl-table,
+  .hl-table__head,
+  .hl-table__row,
+  .hl-table__header-cell,
+  .hl-table__cell,
+  .hl-table__caption {
+    border-color: CanvasText;
+    color: CanvasText;
+    forced-color-adjust: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hl-table__row { transition: none; }
+}

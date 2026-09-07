@@ -1,0 +1,326 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Forms
+@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.JSInterop
+@using Harborline.UIAdapters.Blazor.Base
+@inherits HarborlineComponentBase
+@implements IAsyncDisposable
+@inject IJSRuntime JavaScript
+
+@if (store is not null)
+{
+    <CascadingValue Value="@store" IsFixed="true">
+        <form @ref="formElement" aria-label="@ResolvedTitle" class="@CombineClasses("hl-schema-form")" dir="@Direction"
+              novalidate style="@CombineStyles()" @onsubmit="HandleSubmitAsync" @onsubmit:preventDefault
+              @attributes="AdditionalAttributes">
+            @if (ResolvedDescription is { Length: > 0 } description)
+            {
+                <p class="hl-schema-form__description">@description</p>
+            }
+
+            @if (blockedAttempt || validation is { IsValid: false })
+            {
+                <div @ref="summary" class="hl-schema-form__summary"
+                     data-error-code="@(blockedAttempt ? SchemaFormErrorCodes.SubmitBlocked : null)"
+                     role="alert" tabindex="-1">
+                    <h2>@Copy.ErrorSummaryTitle</h2>
+                    @if (blockedAttempt)
+                    {
+                        <p>@Copy.SubmitBlocked</p>
+                    }
+                    else
+                    {
+                        <ul>
+                            @foreach (var message in SummaryMessages)
+                            {
+                                <li>@message</li>
+                            }
+                        </ul>
+                    }
+                </div>
+            }
+
+            @if (VisibleSections.Count == 0)
+            {
+                <p @ref="empty" class="hl-schema-form__empty" tabindex="-1">@Copy.Empty</p>
+            }
+            else
+            {
+                @foreach (var section in VisibleSections)
+                {
+                    <HarborlineSchemaSection @key="section.Id" Action="@HandleAction" ByField="@byField"
+                                           Disabled="@(Disabled || submitting)"
+                                           FieldFocused="@SetFocusedField" LocaleChain="@LocaleChain" Registry="@registry" Section="@section"
+                                           RegisterElement="@RegisterSection" SetValue="@SetValueAsync" Strings="@Copy" />
+                }
+                <button @ref="submitElement" class="hl-schema-form__submit" disabled="@(Disabled || submitting || saveBlocked)" type="submit">
+                    @(submitting ? Copy.Submitting : Copy.Submit)
+                </button>
+            }
+        </form>
+    </CascadingValue>
+}
+
+@code {
+    private static readonly IReadOnlyDictionary<string, object?> EmptyValues =
+        new Dictionary<string, object?>(StringComparer.Ordinal);
+    private static readonly IReadOnlyDictionary<string, object?> EmptyTables =
+        new Dictionary<string, object?>(StringComparer.Ordinal);
+    private static readonly HashSet<string> RtlLanguages =
+        new(["ar", "fa", "he", "ps", "ur"], StringComparer.OrdinalIgnoreCase);
+
+    [Parameter, EditorRequired] public SchemaFormView View { get; set; } = default!;
+    [Parameter] public ISchemaFormRuleGraph? RuleGraph { get; set; }
+    [Parameter] public IReadOnlyDictionary<string, object?>? InitialValues { get; set; }
+    [Parameter] public IReadOnlyDictionary<string, object?>? Values { get; set; }
+    [Parameter] public EventCallback<IReadOnlyDictionary<string, object?>> ValuesChanged { get; set; }
+    [Parameter] public EventCallback<IReadOnlyDictionary<string, object?>> OnValuesChange { get; set; }
+    [Parameter, EditorRequired] public Func<IReadOnlyDictionary<string, object?>, ValueTask<SchemaFormValidationResult?>> OnSubmit { get; set; } = default!;
+    [Parameter] public SchemaFormStrings? Strings { get; set; }
+    [Parameter] public IReadOnlyList<string> LocaleChain { get; set; } = [];
+    [Parameter] public IReadOnlyDictionary<string, SchemaFormControlRenderer>? Controls { get; set; }
+    [Parameter] public EventCallback<SchemaFormAction> OnBlockAction { get; set; }
+    [Parameter] public bool Disabled { get; set; }
+
+    private SchemaFormValueStore? store;
+    private SchemaFormValueStore? candidateStore;
+    private SchemaFormControlRegistry registry = SchemaFormControls.CreateRegistry();
+    private SchemaFormStrings effectiveStrings = new();
+    private IReadOnlyDictionary<string, SchemaFormControlRenderer>? previousControls;
+    private SchemaFormStrings? previousStrings;
+    private IReadOnlyDictionary<string, object?>? previousControlledValues;
+    private ISchemaFormRuleGraph? previousRuleGraph;
+    private SchemaFormView? previousView;
+    private SchemaFormProjection projection = new([], EmptyValues);
+    private SchemaFormValidationResult? validation;
+    private readonly Dictionary<string, string> byField = new(StringComparer.Ordinal);
+    private readonly List<string> formLevel = [];
+    private bool initialized;
+    private bool submitting;
+    private bool blockedAttempt;
+    private bool saveBlocked;
+    private bool focusSummary;
+    private bool focusEmpty;
+    private bool focusSubmit;
+    private string? focusedField;
+    private ElementReference summary;
+    private ElementReference empty;
+    private ElementReference formElement;
+    private ElementReference submitElement;
+    private readonly Dictionary<string, ElementReference> sectionElements = new(StringComparer.Ordinal);
+    private IJSObjectReference? module;
+
+    private SchemaFormStrings Copy => effectiveStrings;
+    private string ResolvedTitle => SchemaFormTextResolver.Resolve(View.Title, LocaleChain);
+    private string ResolvedDescription => SchemaFormTextResolver.Resolve(View.Description, LocaleChain);
+    private string? Direction
+    {
+        get
+        {
+            if (LocaleChain.Count == 0) return null;
+            var tag = LocaleChain[0];
+            var primary = tag.Split('-', 2)[0];
+            return RtlLanguages.Contains(primary) ? "rtl" : null;
+        }
+    }
+    private IReadOnlyList<SchemaFormSection> VisibleSections => projection.Sections
+        .Where(section => section.Fields.Count > 0 || section.Items is { Count: > 0 })
+        .ToArray();
+    private IReadOnlyList<string> SummaryMessages => formLevel.Count > 0
+        ? formLevel
+        : byField.Values.ToArray();
+
+    protected override void OnParametersSet()
+    {
+        ArgumentNullException.ThrowIfNull(View);
+        ArgumentNullException.ThrowIfNull(OnSubmit);
+        if (!ReferenceEquals(previousControls, Controls))
+        {
+            registry = SchemaFormControls.CreateRegistry(Controls);
+            previousControls = Controls;
+        }
+        if (!ReferenceEquals(previousStrings, Strings))
+        {
+            effectiveStrings = Strings ?? new();
+            previousStrings = Strings;
+        }
+
+        if (!initialized)
+        {
+            var initialCandidate = Values ?? InitialValues ?? EmptyValues;
+            candidateStore = new(initialCandidate);
+            store = new(initialCandidate);
+            initialized = true;
+            EvaluateRules(candidateStore.Values);
+        }
+        else if (Values is not null && !ReferenceEquals(previousControlledValues, Values))
+        {
+            candidateStore!.Replace(Values);
+            EvaluateRulesAndRecoverFocus(candidateStore.Values);
+        }
+        else if (!ReferenceEquals(previousRuleGraph, RuleGraph) || !ReferenceEquals(previousView, View))
+        {
+            EvaluateRulesAndRecoverFocus(candidateStore!.Values);
+        }
+
+        previousControlledValues = Values;
+        previousRuleGraph = RuleGraph;
+        previousView = View;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (focusSummary)
+        {
+            focusSummary = false;
+            await summary.FocusAsync();
+        }
+        else if (focusEmpty)
+        {
+            focusEmpty = false;
+            await empty.FocusAsync();
+        }
+        else if (focusSubmit)
+        {
+            focusSubmit = false;
+            await submitElement.FocusAsync();
+        }
+    }
+
+    private async Task SetValueAsync(IReadOnlyList<object> path, object? value)
+    {
+        var controlled = Values is not null;
+        var nextCandidate = controlled ? candidateStore!.With(path, value) : candidateStore!.Set(path, value);
+        var callbackCandidate = store!.With(path, value);
+        await ValuesChanged.InvokeAsync(callbackCandidate);
+        await OnValuesChange.InvokeAsync(callbackCandidate);
+        if (!controlled)
+        {
+            EvaluateRulesAndRecoverFocus(nextCandidate);
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void EvaluateRulesAndRecoverFocus(IReadOnlyDictionary<string, object?> candidate)
+    {
+        var hadVisibleSections = VisibleSections.Count > 0;
+        EvaluateRules(candidate);
+        var focusedFieldWasHidden = focusedField is not null && !ContainsField(VisibleSections, focusedField);
+        focusEmpty = hadVisibleSections && VisibleSections.Count == 0 && focusedFieldWasHidden;
+        focusSubmit = VisibleSections.Count > 0 && focusedFieldWasHidden;
+        if (focusedFieldWasHidden) focusedField = null;
+    }
+
+    private void EvaluateRules(IReadOnlyDictionary<string, object?> candidate)
+    {
+        SchemaFormRuleEvaluation? evaluation = null;
+        Exception? evaluationError = null;
+        if (RuleGraph is not null)
+        {
+            try
+            {
+                evaluation = RuleGraph.EvaluateInstance(new(candidate, EmptyTables));
+            }
+            catch (Exception error)
+            {
+                evaluationError = error;
+            }
+        }
+
+        projection = SchemaFormRuleProjector.Project(View, evaluation);
+        var effective = new Dictionary<string, object?>(candidate, StringComparer.Ordinal);
+        foreach (var pair in projection.ComputedValues) effective[pair.Key] = pair.Value;
+        store!.Replace(effective);
+        saveBlocked = RuleGraph is not null && (evaluationError is not null
+            || evaluation is null
+            || evaluation.HasPending
+            || evaluation.IsSaveBlocked
+            || evaluation.Values.Values.Any(value => value.State is SchemaFormRuleValueState.Pending or SchemaFormRuleValueState.Error));
+        if (!saveBlocked) blockedAttempt = false;
+    }
+
+    private async Task HandleSubmitAsync()
+    {
+        if (Disabled || submitting) return;
+        if (saveBlocked)
+        {
+            blockedAttempt = true;
+            focusSummary = true;
+            return;
+        }
+
+        blockedAttempt = false;
+        submitting = true;
+        try
+        {
+            validation = await OnSubmit(store!.Values);
+            PartitionErrors(validation);
+            focusSummary = validation is { IsValid: false };
+        }
+        finally
+        {
+            submitting = false;
+        }
+    }
+
+    private async Task HandleAction(SchemaFormAction action)
+    {
+        if (action.Kind == SchemaFormActionKind.ScrollToSection)
+        {
+            if (action.SectionId is not null
+                && VisibleSections.Any(candidate => candidate.Id == action.SectionId)
+                && sectionElements.TryGetValue(action.SectionId, out var section))
+            {
+                module ??= await JavaScript.InvokeAsync<IJSObjectReference>(
+                    "import", "./_content/Harborline.UIAdapters.Blazor/schema-form.js");
+                await module.InvokeVoidAsync("scrollAndFocus", section);
+            }
+            return;
+        }
+        await OnBlockAction.InvokeAsync(action);
+    }
+
+    private void RegisterSection(string id, ElementReference element) => sectionElements[id] = element;
+    private void SetFocusedField(string name) => focusedField = name;
+
+    private static bool ContainsField(IReadOnlyList<SchemaFormSection> sections, string name) =>
+        sections.Any(section => section.Fields.Any(field => field.Name == name)
+            || section.Items is not null && ContainsField(section.Items, name));
+
+    private static bool ContainsField(IReadOnlyList<SchemaFormItem> items, string name) =>
+        items.Any(item => item switch
+        {
+            SchemaFormFieldItem field => field.Field.Name == name,
+            SchemaFormGroupItem group => ContainsField(group.Items, name),
+            SchemaFormCollectionItem collection => ContainsField(collection.Items, name),
+            _ => false,
+        });
+
+    private void PartitionErrors(SchemaFormValidationResult? result)
+    {
+        byField.Clear();
+        formLevel.Clear();
+        if (result is null || result.IsValid) return;
+        foreach (var error in result.Errors)
+        {
+            var pointer = error.JsonPointer;
+            if (pointer.Length > 1 && pointer[0] == '/' && pointer.IndexOf('/', 1) < 0)
+            {
+                var field = pointer[1..].Replace("~1", "/", StringComparison.Ordinal).Replace("~0", "~", StringComparison.Ordinal);
+                if (!byField.TryAdd(field, error.Message)) formLevel.Add(error.Message);
+            }
+            else
+            {
+                formLevel.Add(error.Message);
+            }
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (module is not null)
+        {
+            try { await module.DisposeAsync(); }
+            catch (JSDisconnectedException) { }
+        }
+    }
+}

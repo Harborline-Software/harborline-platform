@@ -1,0 +1,546 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.select-field",
+  "sourceFixture": "conformance/hlp.ui.select-field/fixtures.yaml",
+  "qualityFixture": "conformance/hlp.ui.select-field/quality-fixtures.yaml",
+  "galleryInterface": {
+    "probeAttribute": "data-gallery-probe",
+    "scenarioAttribute": "data-gallery-scenario",
+    "projectionTitles": {
+      "react": "Platform/Select Field",
+      "blazor": "Platform/Select Field"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "select-field.states",
+      "name": "Value, placeholder, and validation",
+      "surface": "states",
+      "sourceCaseIds": [
+        "select-field.placeholder",
+        "select-field.explicit-placeholder",
+        "select-field.selected",
+        "select-field.identity",
+        "select-field.disabled",
+        "select-field.invalid-required",
+        "select-field.form-field",
+        "select-field.sizes"
+      ],
+      "sourceQualityCaseIds": [
+        "select-field.quality.relationships",
+        "select-field.quality.forced-colors",
+        "select-field.quality.reflow"
+      ],
+      "content": {
+        "blurb": "Controlled value, identity, placeholder, density, and validation metadata remain explicit.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "fixtures": [
+            {
+              "name": "status-sm-default",
+              "value": "",
+              "options": [
+                {
+                  "value": "active",
+                  "label": "Active"
+                },
+                {
+                  "value": "pending",
+                  "label": "Pending review"
+                },
+                {
+                  "value": "archived",
+                  "label": "Archived"
+                }
+              ],
+              "size": "sm",
+              "aria-label": "Structure status",
+              "data-case": "structure-status"
+            },
+            {
+              "name": "status-md-invalid",
+              "value": "active",
+              "options": [
+                {
+                  "value": "active",
+                  "label": "Active"
+                },
+                {
+                  "value": "pending",
+                  "label": "Pending review"
+                },
+                {
+                  "value": "archived",
+                  "label": "Archived"
+                }
+              ],
+              "error": true,
+              "required": true,
+              "size": "md",
+              "aria-label": "Structure status",
+              "data-case": "structure-status"
+            },
+            {
+              "name": "status-lg-disabled",
+              "value": "active",
+              "options": [
+                {
+                  "value": "active",
+                  "label": "Active"
+                },
+                {
+                  "value": "pending",
+                  "label": "Pending review"
+                },
+                {
+                  "value": "archived",
+                  "label": "Archived"
+                }
+              ],
+              "disabled": true,
+              "size": "lg",
+              "aria-label": "Structure status",
+              "data-case": "structure-status"
+            }
+          ]
+        },
+        "state": {
+          "value": {
+            "kind": "string",
+            "initial": ""
+          }
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<SelectFixture scenarioId={scenarioId} size=\"sm\" />\n<SelectFixture scenarioId={scenarioId} size=\"md\" error />\n<SelectFixture scenarioId={scenarioId} size=\"lg\" disabled />",
+            "blazor": "<HarborlineSelectField Name=\"status-small\" Value=\"@value\" ValueChanged=\"SetValue\" Options=\"@Options\" Placeholder=\"@Placeholder\" Size=\"@PrimarySize\" AccessibleName=\"@AccessibleName\" data-case=\"structure-status\" />\n<HarborlineSelectField Name=\"status-invalid\" Value=\"active\" ValueChanged=\"SetValue\" Options=\"@Options\" Size=\"SelectFieldSize.Md\" AccessibleName=\"@AccessibleName\" Error Required />\n<HarborlineSelectField Name=\"status-disabled\" Value=\"active\" ValueChanged=\"SetValue\" Options=\"@Options\" Size=\"SelectFieldSize.Lg\" AccessibleName=\"@AccessibleName\" Disabled />",
+            "rationale": "The closed descriptor vocabulary has no select, listbox, or option control, so it cannot express the three SelectField instances and their popup selection behavior."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "select-field.selection",
+      "name": "Open and select",
+      "surface": "selection",
+      "interaction": "pointer",
+      "sourceCaseIds": [
+        "select-field.open",
+        "select-field.select",
+        "select-field.controlled-open"
+      ],
+      "sourceQualityCaseIds": [
+        "select-field.quality.pattern"
+      ],
+      "content": {
+        "blurb": "The trigger opens one listbox and selection requests one value before closing.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "name": "status-md-default",
+          "value": "active",
+          "options": [
+            {
+              "value": "active",
+              "label": "Active"
+            },
+            {
+              "value": "pending",
+              "label": "Pending review"
+            },
+            {
+              "value": "archived",
+              "label": "Archived"
+            }
+          ],
+          "size": "md",
+          "aria-label": "Structure status",
+          "data-case": "structure-status"
+        },
+        "state": {
+          "value": {
+            "kind": "string",
+            "initial": "active"
+          }
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<SelectField name={`status-${size}-${disabled ? 'disabled' : error ? 'invalid' : 'default'}`} value={value} onValueChange={setValue} options={options} placeholder={undefined} disabled={false} error={false} required={false} size=\"md\" aria-label=\"Structure status\" data-case=\"structure-status\" />",
+            "blazor": "<HarborlineSelectField Name=\"status-small\" Value=\"@value\" ValueChanged=\"SetValue\" Options=\"@Options\" Placeholder=\"@Placeholder\" Size=\"@PrimarySize\" AccessibleName=\"@AccessibleName\" data-case=\"structure-status\" />",
+            "rationale": "The closed descriptor vocabulary has no select, listbox, or option control and therefore cannot represent the SelectField trigger, popup options, selection, and dismissal lifecycle."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "select-field.keyboard-dismissal",
+      "name": "Keyboard, typeahead, and dismissal",
+      "surface": "keyboard-dismissal",
+      "interaction": "keyboard",
+      "sourceCaseIds": [
+        "select-field.keyboard",
+        "select-field.dismissal"
+      ],
+      "sourceQualityCaseIds": [
+        "select-field.quality.keyboard",
+        "select-field.quality.focus-return",
+        "select-field.quality.dismissal",
+        "select-field.quality.typeahead"
+      ],
+      "content": {
+        "blurb": "Keyboard navigation, typeahead, Escape, Tab, and outside pointer follow one deterministic lifecycle.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "inherits": "select-field.selection"
+      }
+    },
+    {
+      "id": "select-field.locale-en",
+      "name": "English locale",
+      "surface": "locale-en",
+      "sourceCaseIds": [
+        "select-field.placeholder"
+      ],
+      "sourceQualityCaseIds": [
+        "select-field.quality.locales"
+      ],
+      "content": {
+        "blurb": "The locale catalog supplies only absent chrome while caller option labels remain unchanged.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "inherits": "select-field.selection"
+      }
+    },
+    {
+      "id": "select-field.locale-pseudo",
+      "name": "Pseudo locale",
+      "surface": "locale-pseudo",
+      "sourceCaseIds": [
+        "select-field.explicit-placeholder"
+      ],
+      "sourceQualityCaseIds": [
+        "select-field.quality.pseudo"
+      ],
+      "content": {
+        "blurb": "Expanded trigger and option copy remain viewport-clamped.",
+        "environment": {
+          "locale": "en-XA",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "name": "status-md-default",
+          "value": "active",
+          "options": [
+            {
+              "value": "active",
+              "label": "⟦ Active ······ ⟧"
+            },
+            {
+              "value": "pending",
+              "label": "⟦ Pending review ······ ⟧"
+            },
+            {
+              "value": "archived",
+              "label": "⟦ Archived ······ ⟧"
+            }
+          ],
+          "placeholder": "⟦ Çhøøšë å šţřûçţûřë šţåţûš ······ ⟧",
+          "size": "md",
+          "aria-label": "Structure status",
+          "data-case": "structure-status"
+        },
+        "state": {
+          "value": {
+            "kind": "string",
+            "initial": "active"
+          }
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<SelectField name={`status-${size}-${disabled ? 'disabled' : error ? 'invalid' : 'default'}`} value={value} onValueChange={setValue} options={options} placeholder=\"⟦ Çhøøšë å šţřûçţûřë šţåţûš ······ ⟧\" disabled={false} error={false} required={false} size=\"md\" aria-label=\"Structure status\" data-case=\"structure-status\" />",
+            "blazor": "<HarborlineSelectField Name=\"status-small\" Value=\"@value\" ValueChanged=\"SetValue\" Options=\"@Options\" Placeholder=\"@Placeholder\" Size=\"@PrimarySize\" AccessibleName=\"@AccessibleName\" data-case=\"structure-status\" />",
+            "rationale": "The closed descriptor vocabulary has no select, listbox, or option control and cannot express the pseudo-localized trigger and popup options."
+          }
+        ],
+        "footer": [],
+        "inherits": "select-field.selection"
+      }
+    },
+    {
+      "id": "select-field.locale-ar",
+      "name": "Arabic locale",
+      "surface": "locale-ar",
+      "sourceCaseIds": [
+        "select-field.rtl"
+      ],
+      "sourceQualityCaseIds": [
+        "select-field.quality.rtl"
+      ],
+      "content": {
+        "blurb": "Trigger icon, checkmark, and popup alignment follow logical direction.",
+        "environment": {
+          "locale": "ar-SA",
+          "direction": "rtl",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "name": "status-md-default",
+          "value": "active",
+          "options": [
+            {
+              "value": "active",
+              "label": "نشط"
+            },
+            {
+              "value": "pending",
+              "label": "في انتظار المراجعة"
+            },
+            {
+              "value": "archived",
+              "label": "مؤرشف"
+            }
+          ],
+          "placeholder": "اختر الحالة",
+          "size": "md",
+          "aria-label": "حالة الهيكل",
+          "data-case": "structure-status"
+        },
+        "state": {
+          "value": {
+            "kind": "string",
+            "initial": "active"
+          }
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<SelectField name={`status-${size}-${disabled ? 'disabled' : error ? 'invalid' : 'default'}`} value={value} onValueChange={setValue} options={options} placeholder=\"اختر الحالة\" disabled={false} error={false} required={false} size=\"md\" aria-label=\"حالة الهيكل\" data-case=\"structure-status\" />",
+            "blazor": "<HarborlineSelectField Name=\"status-small\" Value=\"@value\" ValueChanged=\"SetValue\" Options=\"@Options\" Placeholder=\"@Placeholder\" Size=\"@PrimarySize\" AccessibleName=\"@AccessibleName\" data-case=\"structure-status\" />",
+            "rationale": "The closed descriptor vocabulary has no select, listbox, or option control and cannot express the RTL trigger, checkmark, popup alignment, and Arabic options."
+          }
+        ],
+        "footer": [],
+        "inherits": "select-field.selection"
+      }
+    },
+    {
+      "id": "select-field.theme-light",
+      "name": "Light theme",
+      "surface": "theme-light",
+      "sourceCaseIds": [
+        "select-field.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "select-field.quality.themes",
+        "select-field.quality.tokens",
+        "select-field.quality.contrast",
+        "select-field.quality.reduced-motion",
+        "select-field.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "Default, open, selected, invalid, disabled, and focus states use public tokens.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "fixtures": [
+            {
+              "name": "status-sm-default",
+              "value": "active",
+              "options": [
+                {
+                  "value": "active",
+                  "label": "Active"
+                },
+                {
+                  "value": "pending",
+                  "label": "Pending review"
+                },
+                {
+                  "value": "archived",
+                  "label": "Archived"
+                }
+              ],
+              "size": "sm",
+              "aria-label": "Structure status",
+              "data-case": "structure-status"
+            },
+            {
+              "name": "status-md-invalid",
+              "value": "active",
+              "options": [
+                {
+                  "value": "active",
+                  "label": "Active"
+                },
+                {
+                  "value": "pending",
+                  "label": "Pending review"
+                },
+                {
+                  "value": "archived",
+                  "label": "Archived"
+                }
+              ],
+              "error": true,
+              "required": true,
+              "size": "md",
+              "aria-label": "Structure status",
+              "data-case": "structure-status"
+            },
+            {
+              "name": "status-lg-disabled",
+              "value": "active",
+              "options": [
+                {
+                  "value": "active",
+                  "label": "Active"
+                },
+                {
+                  "value": "pending",
+                  "label": "Pending review"
+                },
+                {
+                  "value": "archived",
+                  "label": "Archived"
+                }
+              ],
+              "disabled": true,
+              "size": "lg",
+              "aria-label": "Structure status",
+              "data-case": "structure-status"
+            }
+          ]
+        },
+        "state": {
+          "value": {
+            "kind": "string",
+            "initial": "active"
+          }
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<SelectFixture scenarioId={scenarioId} size=\"sm\" />\n<SelectFixture scenarioId={scenarioId} size=\"md\" error />\n<SelectFixture scenarioId={scenarioId} size=\"lg\" disabled />",
+            "blazor": "<HarborlineSelectField Name=\"status-small\" Value=\"@value\" ValueChanged=\"SetValue\" Options=\"@Options\" Placeholder=\"@Placeholder\" Size=\"@PrimarySize\" AccessibleName=\"@AccessibleName\" data-case=\"structure-status\" />\n<HarborlineSelectField Name=\"status-invalid\" Value=\"active\" ValueChanged=\"SetValue\" Options=\"@Options\" Size=\"SelectFieldSize.Md\" AccessibleName=\"@AccessibleName\" Error Required />\n<HarborlineSelectField Name=\"status-disabled\" Value=\"active\" ValueChanged=\"SetValue\" Options=\"@Options\" Size=\"SelectFieldSize.Lg\" AccessibleName=\"@AccessibleName\" Disabled />",
+            "rationale": "The closed descriptor vocabulary has no select, listbox, or option control, so it cannot express the three themed SelectField instances and their interactive states."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "select-field.theme-dark",
+      "name": "Dark theme",
+      "surface": "theme-dark",
+      "sourceCaseIds": [
+        "select-field.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "select-field.quality.themes",
+        "select-field.quality.tokens",
+        "select-field.quality.contrast",
+        "select-field.quality.reduced-motion",
+        "select-field.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "The same controlled selection surface on the Harborline dark theme.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "dark",
+          "catalog": {}
+        },
+        "inherits": "select-field.theme-light"
+      }
+    },
+    {
+      "id": "select-field.content",
+      "name": "Content resilience",
+      "surface": "long-content",
+      "sourceCaseIds": [
+        "select-field.selected",
+        "select-field.open"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "One open option collection carries an overlong label, a grouped large number, escaped angle brackets and an ampersand, and a diacritic-rich name with an em dash.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<SelectField name=\"content-resilience\" value=\"long\" onValueChange={() => {}} open options={[{value:'long',label:'Awaiting third-party structural certification review'},{value:'number',label:'1,284,905'},{value:'escaped',label:'Bay 4 <grid C-7> & 8'},{value:'name',label:'Ordnance Survey — Niño Ångström'}]} aria-label=\"Content resilience options\" />",
+            "blazor": "<HarborlineSelectField Name=\"content-resilience\" Value=\"long\" Options=\"@ContentOptions\" Open=\"true\" AccessibleName=\"Content resilience options\" />\n@code { private static readonly IReadOnlyList<SelectOption> ContentOptions = [new(\"long\", \"Awaiting third-party structural certification review\"), new(\"number\", \"1,284,905\"), new(\"escaped\", \"Bay 4 <grid C-7> & 8\"), new(\"name\", \"Ordnance Survey — Niño Ångström\")]; }",
+            "rationale": "The closed control vocabulary has no select, listbox, or option control and cannot express an open collection of hostile-but-valid option labels in both projection lanes."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "select-field.error-state",
+      "name": "Error state",
+      "surface": "invalid-input",
+      "sourceCaseIds": [
+        "select-field.invalid-required",
+        "select-field.form-field"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "The select field renders its declared invalid state with an accessible name.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<SelectField aria-label=\"Inspection status\" error name=\"inspection-status\" onValueChange={() => {}} options={[{value:'active',label:'Active'},{value:'pending',label:'Pending review'},{value:'archived',label:'Archived'}]} value=\"pending\" />",
+            "blazor": "<HarborlineSelectField AccessibleName=\"Inspection status\" Error=\"true\" Name=\"inspection-status\" Options=\"@ErrorOptions\" Value=\"pending\" />\n@code { private static readonly IReadOnlyList<SelectOption> ErrorOptions = [new(\"active\", \"Active\"), new(\"pending\", \"Pending review\"), new(\"archived\", \"Archived\")]; }",
+            "rationale": "The closed control vocabulary has no select-field control and cannot express the component error prop and its invalid combobox semantics in both projection lanes."
+          }
+        ],
+        "footer": []
+      }
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 2,
+  "status": "PASS",
+  "moduleIds": ["hlp.ui.button", "hlp.ui.context-menu", "hlp.ui.error-card", "hlp.ui.loading-state"],
+  "counts": {
+    "scenarios": 45,
+    "accessibilityScans": 90,
+    "visualParityComparisons": 51,
+    "qualityCases": 79,
+    "localeFixtures": 12,
+    "localeProjectionChecks": 24,
+    "reflowChecks": 16,
+    "keyboardFocusChecks": 6,
+    "forcedColorsChecks": 6,
+    "reducedMotionChecks": 12,
+    "themeFixtureProjectionChecks": 16,
+    "runtimeThemeSwitchChecks": 6,
+    "themeStateParityComparisons": 14,
+    "contrastRatioAssertions": 44,
+    "contextMenuTierBProjectionChecks": 2,
+    "browserTests": 90,
+    "publishableGalleryArtifacts": 0,
+    "sourceOrProjectDependencies": 0
+  },
+  "invariants": {
+    "publicPackageInterfacesOnly": true,
+    "packedContractsPeerInstalled": true,
+    "packageIdentityAuthorityChanged": false,
+    "distributionAuthorityRepository": null
+  }
+}

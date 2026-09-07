@@ -1,0 +1,207 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <HarborlinePublicDistributionAuthorized>false</HarborlinePublicDistributionAuthorized>
+    <PackageId>Harborline.UIAdapters.Blazor</PackageId>
+    <AssemblyName>Harborline.UIAdapters.Blazor</AssemblyName>
+    <RootNamespace>Harborline.UIAdapters.Blazor</RootNamespace>
+    <Description>Harborline Blazor UI projections for Harborline App essential modules.</Description>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageReleaseNotes>Internal-only projection; public distribution is not authorized.</PackageReleaseNotes>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.Web" />
+    <ProjectReference Include="../../../dotnet/contracts/hlp.contracts.identities/Harborline.Contracts.csproj" />
+    <ProjectReference Include="../../../dotnet/foundation/hlp.ui.button/Harborline.Foundation.csproj" />
+    <RazorComponent Include="../hlp.ui.form-field/**/*.razor" Link="Components/Forms/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.form-field/**/*.cs" Link="Components/Forms/%(Filename)%(Extension)" />
+    <Content Include="../hlp.ui.form-field/wwwroot/**" Link="wwwroot/%(RecursiveDir)%(Filename)%(Extension)" />
+    <RazorComponent Include="../hlp.ui.schema-form/**/*.razor" Link="Components/Forms/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.schema-form/**/*.cs" Link="Components/Forms/%(Filename)%(Extension)" />
+    <Content Include="../hlp.ui.schema-form/wwwroot/**" Link="wwwroot/%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.use-form-rule-graph/**/*.cs" Link="Components/Forms/RuleGraph/%(Filename)%(Extension)" />
+    <RazorComponent Include="../hlp.ui.confirm-dialog/**/*.razor" Link="Components/Feedback/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.confirm-dialog/**/*.cs" Link="Components/Feedback/%(Filename)%(Extension)" />
+    <Content Include="../hlp.ui.confirm-dialog/wwwroot/**" Link="wwwroot/%(RecursiveDir)%(Filename)%(Extension)" />
+    <RazorComponent Include="../hlp.ui.date-field/**/*.razor" Link="Components/Forms/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.date-field/**/*.cs" Link="Components/Forms/%(Filename)%(Extension)" />
+    <Content Include="../hlp.ui.date-field/wwwroot/**" Link="wwwroot/%(RecursiveDir)%(Filename)%(Extension)" />
+    <RazorComponent Include="../hlp.ui.date-time-field/**/*.razor" Link="Components/Forms/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.date-time-field/**/*.cs" Link="Components/Forms/%(Filename)%(Extension)" />
+    <Content Include="../hlp.ui.date-time-field/wwwroot/**" Link="wwwroot/%(RecursiveDir)%(Filename)%(Extension)" />
+    <RazorComponent Include="../hlp.ui.number-field/**/*.razor" Link="Components/Forms/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.number-field/**/*.cs" Link="Components/Forms/%(Filename)%(Extension)" />
+    <Content Include="../hlp.ui.number-field/wwwroot/**" Link="wwwroot/%(RecursiveDir)%(Filename)%(Extension)" />
+    <RazorComponent Include="../hlp.ui.radio-group/**/*.razor" Link="Components/Forms/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.radio-group/**/*.cs" Link="Components/Forms/%(Filename)%(Extension)" />
+    <Content Include="../hlp.ui.radio-group/wwwroot/**" Link="wwwroot/%(RecursiveDir)%(Filename)%(Extension)" />
+    <RazorComponent Include="../hlp.ui.popover/**/*.razor" Link="Components/Feedback/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.popover/**/*.cs" Link="Components/Feedback/%(Filename)%(Extension)" />
+    <Content Include="../hlp.ui.popover/wwwroot/**" Link="wwwroot/%(RecursiveDir)%(Filename)%(Extension)" />
+    <RazorComponent Include="../hlp.ui.text-area/**/*.razor" Link="Components/Forms/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.text-area/**/*.cs" Link="Components/Forms/%(Filename)%(Extension)" />
+    <Content Include="../hlp.ui.text-area/wwwroot/**" Link="wwwroot/%(RecursiveDir)%(Filename)%(Extension)" />
+    <RazorComponent Include="../hlp.ui.sheet/**/*.razor" Link="Components/Layout/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.sheet/**/*.cs" Link="Components/Layout/%(Filename)%(Extension)" />
+    <Content Include="../hlp.ui.sheet/wwwroot/**" Link="wwwroot/%(RecursiveDir)%(Filename)%(Extension)" />
+    <RazorComponent Include="../hlp.ui.tooltip/**/*.razor" Link="Components/Feedback/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.tooltip/**/*.cs" Link="Components/Feedback/%(Filename)%(Extension)" />
+    <Content Include="../hlp.ui.tooltip/wwwroot/**" Link="wwwroot/%(RecursiveDir)%(Filename)%(Extension)" />
+    <RazorComponent Include="../hlp.ui.spotlight/**/*.razor" Link="Components/Navigation/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.spotlight/**/*.cs" Link="Components/Navigation/%(Filename)%(Extension)" />
+    <Content Include="../hlp.ui.spotlight/wwwroot/**" Link="wwwroot/%(RecursiveDir)%(Filename)%(Extension)" />
+    <RazorComponent Include="../hlp.ui.table/**/*.razor" Link="Components/DataDisplay/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.table/**/*.cs" Link="Components/DataDisplay/%(Filename)%(Extension)" />
+    <Content Include="../hlp.ui.table/wwwroot/**" Link="wwwroot/%(RecursiveDir)%(Filename)%(Extension)" />
+    <RazorComponent Include="../hlp.ui.window/**/*.razor" Link="Components/Layout/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.window/**/*.cs" Link="Components/Layout/%(Filename)%(Extension)" />
+    <Content Include="../hlp.ui.window/wwwroot/**" Link="wwwroot/%(RecursiveDir)%(Filename)%(Extension)" />
+    <RazorComponent Include="../hlp.ui.alert/**/*.razor" Link="Components/Feedback/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.alert/**/*.cs" Link="Components/Feedback/%(Filename)%(Extension)" />
+    <Content Include="../hlp.ui.alert/wwwroot/**" Link="wwwroot/%(RecursiveDir)%(Filename)%(Extension)" />
+    <RazorComponent Include="../hlp.ui.badge/**/*.razor" Link="Components/DataDisplay/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.badge/**/*.cs" Link="Components/DataDisplay/%(Filename)%(Extension)" />
+    <Content Include="../hlp.ui.badge/wwwroot/**" Link="wwwroot/%(RecursiveDir)%(Filename)%(Extension)" />
+    <RazorComponent Include="../hlp.ui.data-export-button/**/*.razor" Link="Components/Buttons/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.data-export-button/**/*.cs" Link="Components/Buttons/%(Filename)%(Extension)" />
+    <Content Include="../hlp.ui.data-export-button/wwwroot/**" Link="wwwroot/%(RecursiveDir)%(Filename)%(Extension)" />
+    <RazorComponent Include="../hlp.ui.spinner/**/*.razor" Link="Components/Feedback/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.spinner/**/*.cs" Link="Components/Feedback/%(Filename)%(Extension)" />
+    <Content Include="../hlp.ui.spinner/wwwroot/**" Link="wwwroot/%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.use-scroll-affordance/**/*.cs" Link="Browser/ScrollAffordance/%(Filename)%(Extension)" />
+    <Content Include="../hlp.ui.use-scroll-affordance/wwwroot/**" Link="wwwroot/%(Filename)%(Extension)" />
+    <RazorComponent Include="../hlp.ui.action-menu/**/*.razor" Link="Components/Buttons/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.action-menu/**/*.cs" Link="Components/Buttons/%(Filename)%(Extension)" />
+    <Content Include="../hlp.ui.action-menu/wwwroot/**" Link="wwwroot/%(Filename)%(Extension)" />
+    <RazorComponent Include="../hlp.ui.activity-log/**/*.razor" Link="Components/Navigation/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.activity-log/**/*.cs" Link="Components/Navigation/%(Filename)%(Extension)" />
+    <Content Include="../hlp.ui.activity-log/wwwroot/**" Link="wwwroot/%(Filename)%(Extension)" />
+    <RazorComponent Include="../hlp.ui.chip/**/*.razor" Link="Components/Feedback/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.chip/**/*.cs" Link="Components/Feedback/%(Filename)%(Extension)" />
+    <Content Include="../hlp.ui.chip/wwwroot/**" Link="wwwroot/%(Filename)%(Extension)" />
+    <RazorComponent Include="../hlp.ui.conversation-list/**/*.razor" Link="Components/AI/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.conversation-list/**/*.cs" Link="Components/AI/%(Filename)%(Extension)" />
+    <Content Include="../hlp.ui.conversation-list/wwwroot/**" Link="wwwroot/%(Filename)%(Extension)" />
+  </ItemGroup>
+  <ItemGroup>
+    <RazorComponent Include="../hlp.ui.context-menu/**/*.razor" Link="Components/Navigation/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.context-menu/**/*.cs" Link="Components/Navigation/%(Filename)%(Extension)" />
+    <Content Include="../hlp.ui.context-menu/wwwroot/**" Link="wwwroot/%(RecursiveDir)%(Filename)%(Extension)" />
+    <RazorComponent Include="../hlp.ui.error-card/**/*.razor" Link="Components/Feedback/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.error-card/**/*.cs" Link="Components/Feedback/%(Filename)%(Extension)" />
+    <Content Include="../hlp.ui.error-card/wwwroot/**" Link="wwwroot/%(RecursiveDir)%(Filename)%(Extension)" />
+    <RazorComponent Include="../hlp.ui.loading-state/**/*.razor" Link="Components/Feedback/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.loading-state/**/*.cs" Link="Components/Feedback/%(Filename)%(Extension)" />
+    <Content Include="../hlp.ui.loading-state/wwwroot/**" Link="wwwroot/%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.touch-target/**/*.cs" Link="Accessibility/%(Filename)%(Extension)" />
+    <Content Include="../hlp.ui.touch-target/wwwroot/**" Link="wwwroot/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.use-media-query/**/*.cs" Link="Browser/MediaQuery/%(Filename)%(Extension)" />
+    <Content Include="../hlp.ui.use-media-query/wwwroot/**" Link="wwwroot/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.use-outside-click/**/*.cs" Link="Browser/OutsidePointer/%(Filename)%(Extension)" />
+    <Content Include="../hlp.ui.use-outside-click/wwwroot/**" Link="wwwroot/%(Filename)%(Extension)" />
+    <RazorComponent Include="../hlp.ui.empty-state/**/*.razor" Link="Components/Feedback/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.empty-state/**/*.cs" Link="Components/Feedback/%(Filename)%(Extension)" />
+    <Content Include="../hlp.ui.empty-state/wwwroot/**" Link="wwwroot/%(Filename)%(Extension)" />
+    <RazorComponent Include="../hlp.ui.accordion/**/*.razor" Link="Components/Layout/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.accordion/**/*.cs" Link="Components/Layout/%(Filename)%(Extension)" />
+    <Content Include="../hlp.ui.accordion/wwwroot/**" Link="wwwroot/%(Filename)%(Extension)" />
+    <RazorComponent Include="../hlp.ui.card/**/*.razor" Link="Components/Layout/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.card/**/*.cs" Link="Components/Layout/%(Filename)%(Extension)" />
+    <Content Include="../hlp.ui.card/wwwroot/**" Link="wwwroot/%(Filename)%(Extension)" />
+    <RazorComponent Include="../hlp.ui.icon-button/**/*.razor" Link="Components/Buttons/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.icon-button/**/*.cs" Link="Components/Buttons/%(Filename)%(Extension)" />
+    <Content Include="../hlp.ui.icon-button/wwwroot/**" Link="wwwroot/%(Filename)%(Extension)" />
+    <RazorComponent Include="../hlp.ui.separator/**/*.razor" Link="Components/Layout/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.separator/**/*.cs" Link="Components/Layout/%(Filename)%(Extension)" />
+    <Content Include="../hlp.ui.separator/wwwroot/**" Link="wwwroot/%(Filename)%(Extension)" />
+    <RazorComponent Include="../hlp.ui.breadcrumb/**/*.razor" Link="Components/Navigation/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.breadcrumb/**/*.cs" Link="Components/Navigation/%(Filename)%(Extension)" />
+    <Content Include="../hlp.ui.breadcrumb/wwwroot/**" Link="wwwroot/%(Filename)%(Extension)" />
+    <RazorComponent Include="../hlp.ui.check-box/**/*.razor" Link="Components/Forms/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.check-box/**/*.cs" Link="Components/Forms/%(Filename)%(Extension)" />
+    <Content Include="../hlp.ui.check-box/wwwroot/**" Link="wwwroot/%(Filename)%(Extension)" />
+    <RazorComponent Include="../hlp.ui.collapsible/**/*.razor" Link="Components/Layout/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.collapsible/**/*.cs" Link="Components/Layout/%(Filename)%(Extension)" />
+    <Content Include="../hlp.ui.collapsible/wwwroot/**" Link="wwwroot/%(Filename)%(Extension)" />
+    <RazorComponent Include="../hlp.ui.guarded-control/**/*.razor" Link="Components/Buttons/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.guarded-control/**/*.cs" Link="Components/Buttons/%(Filename)%(Extension)" />
+    <Content Include="../hlp.ui.guarded-control/wwwroot/**" Link="wwwroot/%(Filename)%(Extension)" />
+    <RazorComponent Include="../hlp.ui.input/**/*.razor" Link="Components/Forms/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.input/**/*.cs" Link="Components/Forms/%(Filename)%(Extension)" />
+    <Content Include="../hlp.ui.input/wwwroot/**" Link="wwwroot/%(Filename)%(Extension)" />
+    <RazorComponent Include="../hlp.ui.layers-rail/**/*.razor" Link="Components/Navigation/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.layers-rail/**/*.cs" Link="Components/Navigation/%(Filename)%(Extension)" />
+    <Content Include="../hlp.ui.layers-rail/wwwroot/**" Link="wwwroot/%(Filename)%(Extension)" />
+    <RazorComponent Include="../hlp.ui.notification-center/**/*.razor" Link="Components/Navigation/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.notification-center/**/*.cs" Link="Components/Navigation/%(Filename)%(Extension)" />
+    <Content Include="../hlp.ui.notification-center/wwwroot/**" Link="wwwroot/%(Filename)%(Extension)" />
+    <RazorComponent Include="../hlp.ui.page/**/*.razor" Link="Components/Layout/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.page/**/*.cs" Link="Components/Layout/%(Filename)%(Extension)" />
+    <Content Include="../hlp.ui.page/wwwroot/**" Link="wwwroot/%(Filename)%(Extension)" />
+    <RazorComponent Include="../hlp.ui.search-input/**/*.razor" Link="Components/Forms/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.search-input/**/*.cs" Link="Components/Forms/%(Filename)%(Extension)" />
+    <Content Include="../hlp.ui.search-input/wwwroot/**" Link="wwwroot/%(Filename)%(Extension)" />
+    <RazorComponent Include="../hlp.ui.segmented-control/**/*.razor" Link="Components/Buttons/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.segmented-control/**/*.cs" Link="Components/Buttons/%(Filename)%(Extension)" />
+    <Content Include="../hlp.ui.segmented-control/wwwroot/**" Link="wwwroot/%(Filename)%(Extension)" />
+    <RazorComponent Include="../hlp.ui.select-field/**/*.razor" Link="Components/Forms/Inputs/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.select-field/**/*.cs" Link="Components/Forms/Inputs/%(Filename)%(Extension)" />
+    <Content Include="../hlp.ui.select-field/wwwroot/**" Link="wwwroot/%(Filename)%(Extension)" />
+    <RazorComponent Include="../hlp.ui.switch/**/*.razor" Link="Components/Forms/Inputs/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.switch/**/*.cs" Link="Components/Forms/Inputs/%(Filename)%(Extension)" />
+    <Content Include="../hlp.ui.switch/wwwroot/**" Link="wwwroot/%(Filename)%(Extension)" />
+    <RazorComponent Include="../hlp.ui.toaster/**/*.razor" Link="Components/Feedback/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.toaster/**/*.cs" Link="Components/Feedback/%(Filename)%(Extension)" />
+    <Content Include="../hlp.ui.toaster/wwwroot/**" Link="wwwroot/%(Filename)%(Extension)" />
+    <RazorComponent Include="../hlp.ui.user-menu/**/*.razor" Link="Shell/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.user-menu/**/*.cs" Link="Shell/%(Filename)%(Extension)" />
+    <Content Include="../hlp.ui.user-menu/wwwroot/**" Link="wwwroot/%(Filename)%(Extension)" />
+    <RazorComponent Include="../hlp.ui.app-layout/**/*.razor" Link="Components/Layout/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.app-layout/**/*.cs" Link="Components/Layout/%(Filename)%(Extension)" />
+    <Content Include="../hlp.ui.app-layout/wwwroot/**" Link="wwwroot/%(Filename)%(Extension)" />
+    <RazorComponent Include="../hlp.ui.app-shell/**/*.razor" Link="Components/Layout/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.app-shell/**/*.cs" Link="Components/Layout/%(Filename)%(Extension)" />
+    <Content Include="../hlp.ui.app-shell/wwwroot/**" Link="wwwroot/%(Filename)%(Extension)" />
+    <RazorComponent Include="../hlp.ui.detail-panel/**/*.razor" Link="Components/Layout/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.detail-panel/**/*.cs" Link="Components/Layout/%(Filename)%(Extension)" />
+    <Content Include="../hlp.ui.detail-panel/wwwroot/**" Link="wwwroot/%(Filename)%(Extension)" />
+    <RazorComponent Include="../hlp.ui.chart/**/*.razor" Link="Components/DataDisplay/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.chart/**/*.cs" Link="Components/DataDisplay/%(Filename)%(Extension)" />
+    <Content Include="../hlp.ui.chart/wwwroot/**" Link="wwwroot/%(Filename)%(Extension)" />
+    <RazorComponent Include="../hlp.ui.numeric-text-box/**/*.razor" Link="Components/Forms/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.numeric-text-box/**/*.cs" Link="Components/Forms/%(Filename)%(Extension)" />
+    <Content Include="../hlp.ui.numeric-text-box/wwwroot/**" Link="wwwroot/%(Filename)%(Extension)" />
+    <RazorComponent Include="../hlp.ui.chat/**/*.razor" Link="Components/AI/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.chat/**/*.cs" Link="Components/AI/%(Filename)%(Extension)" />
+    <Content Include="../hlp.ui.chat/wwwroot/**" Link="wwwroot/%(Filename)%(Extension)" />
+    <RazorComponent Include="../hlp.ui.gantt/**/*.razor" Link="Components/Scheduling/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.gantt/**/*.cs" Link="Components/Scheduling/%(Filename)%(Extension)" />
+    <Content Include="../hlp.ui.gantt/wwwroot/**" Link="wwwroot/%(Filename)%(Extension)" />
+    <RazorComponent Include="../hlp.ui.data-grid/**/*.razor" Link="Components/DataDisplay/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.data-grid/**/*.cs" Link="Components/DataDisplay/%(Filename)%(Extension)" />
+    <Content Include="../hlp.ui.data-grid/wwwroot/**" Link="wwwroot/%(Filename)%(Extension)" />
+    <RazorComponent Include="../hlp.ui.scroll-affordance/**/*.razor" Link="Components/Layout/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.scroll-affordance/**/*.cs" Link="Components/Layout/%(Filename)%(Extension)" />
+    <Content Include="../hlp.ui.scroll-affordance/wwwroot/**" Link="wwwroot/%(Filename)%(Extension)" />
+    <RazorComponent Include="../hlp.ui.dialog/**/*.razor" Link="Components/Feedback/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.dialog/**/*.cs" Link="Components/Feedback/%(Filename)%(Extension)" />
+    <Content Include="../hlp.ui.dialog/wwwroot/**" Link="wwwroot/%(Filename)%(Extension)" />
+    <RazorComponent Include="../hlp.ui.side-nav/**/*.razor" Link="Components/Navigation/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.side-nav/**/*.cs" Link="Components/Navigation/%(Filename)%(Extension)" />
+    <Content Include="../hlp.ui.side-nav/wwwroot/**" Link="wwwroot/%(Filename)%(Extension)" />
+    <RazorComponent Include="../hlp.ui.switch-field/**/*.razor" Link="Components/Forms/Inputs/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.switch-field/**/*.cs" Link="Components/Forms/Inputs/%(Filename)%(Extension)" />
+    <Content Include="../hlp.ui.switch-field/wwwroot/**" Link="wwwroot/%(Filename)%(Extension)" />
+    <RazorComponent Include="../hlp.ui.text-box/**/*.razor" Link="Components/Forms/Inputs/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.text-box/**/*.cs" Link="Components/Forms/Inputs/%(Filename)%(Extension)" />
+    <Content Include="../hlp.ui.text-box/wwwroot/**" Link="wwwroot/%(Filename)%(Extension)" />
+    <RazorComponent Include="../hlp.ui.scheduler/**/*.razor" Link="Components/Scheduling/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.scheduler/**/*.cs" Link="Components/Scheduling/%(Filename)%(Extension)" />
+    <Content Include="../hlp.ui.scheduler/wwwroot/**" Link="wwwroot/%(Filename)%(Extension)" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="/" />
+    <None Include="../../../../LICENSE" Link="LICENSE" Pack="true" PackagePath="/" />
+  </ItemGroup>
+</Project>

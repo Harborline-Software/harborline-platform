@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.text-area",
+  "verdict": "approved",
+  "reviewer": "cic",
+  "recordedAt": "2026-08-26T20:48:55.344Z",
+  "reference": {
+    "revision": "9fd94451095a4f746692b77e6e6eba39fc23818fc88766caf50b6f7a0c6380b8",
+    "source": "gallery/scenarios/hlp.ui.text-area.json",
+    "pin": "cc9eb48ed68c5033ec128cd53c40b1d2786bee66",
+    "surface": {
+      "conformance/hlp.ui.text-area/fixtures.yaml": "9c62deba1a0e7a542f8d225249264a9e731efb1ba87823fc81786eeac9c61cbc",
+      "conformance/hlp.ui.text-area/quality-fixtures.yaml": "5f92a0e823c56657201091ce9d7b472dbb76d157636e3af1c0e1aa4402e08954",
+      "gallery/projections/blazor/Stories/TextArea.stories.razor": "cafe356d6ecadfe971ae8ff9b476aa3907bca18bb370537c6fd4c1609bb23592",
+      "gallery/projections/blazor/Stories/TextAreaScenario.razor": "698985baf67b21ab0d8a4d6cde307d22546a54ccca541d42fa3da7502002636d",
+      "gallery/projections/react/src/TextArea.stories.tsx": "84ef99edaea302dca5d2714148a3d3943726d624a517031b4630e2d226448a10",
+      "gallery/scenarios/hlp.ui.text-area.json": "cd4577d94583e0a94b8a7feffd138f1811854f36a5263035daf3c8a341797a8c",
+      "projections/blazor/ui/hlp.ui.text-area/ShipyardTextArea.razor": "55569e054a3b4e666d128e283554f4f0614ea9e7d4e9cec3a9940a3751f2abea",
+      "projections/blazor/ui/hlp.ui.text-area/TextAreaTypes.cs": "7a2a88867fd06a9d0f928b9687e07d3eb3d2efb9eb5066a033e09536af7ab4a2",
+      "projections/blazor/ui/hlp.ui.text-area/wwwroot/text-area.css": "9d8f0af0e37c313a723ff1d6c18706afd339cf4696d3adb24b7575cd6c899036",
+      "projections/react/ui/hlp.ui.text-area/src/TextArea.tsx": "e2365d0e1ed0c8a1558343e87083fb1d5b9b405b4234dac94560b559528619b0",
+      "projections/react/ui/hlp.ui.text-area/src/index.ts": "10f65fd7f483c772fc77a6ab67dbb5a2089a09218b054f1dea264ebf8556ff83",
+      "projections/react/ui/hlp.ui.text-area/src/style.css": "b7dbbc993746da9168d5ae7ca03c1bb5528e33931eb490204a0ae2b6e38dc0d3",
+      "specs/modules/ui/hlp.ui.text-area/scenarios.json": "cd4577d94583e0a94b8a7feffd138f1811854f36a5263035daf3c8a341797a8c",
+      "specs/modules/ui/hlp.ui.text-area/style.css": "b7dbbc993746da9168d5ae7ca03c1bb5528e33931eb490204a0ae2b6e38dc0d3"
+    }
+  }
+}

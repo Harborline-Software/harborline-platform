@@ -1,0 +1,77 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Feedback
+@inherits HarborlineComponentBase
+@implements IAsyncDisposable
+@using Microsoft.JSInterop
+@inject IJSRuntime JavaScript
+
+@if (Context?.Open == true)
+{
+    <div @ref="content" id="@Context.ContentId" role="@Role" tabindex="-1"
+         aria-label="@AccessibleLabel" data-side="@SideName" data-align="@AlignName"
+         class="@CombineClasses("hl-popover__content")" style="@CombineStyles()"
+         @attributes="AdditionalAttributes">@ChildContent</div>
+}
+
+@code {
+    [CascadingParameter] public PopoverContext? Context { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public string Role { get; set; } = "dialog";
+    [Parameter] public string? AccessibleLabel { get; set; }
+    [Parameter] public PopoverSide Side { get; set; } = PopoverSide.Bottom;
+    [Parameter] public PopoverAlign Align { get; set; } = PopoverAlign.Center;
+    [Parameter] public double SideOffset { get; set; } = 6;
+    private ElementReference content;
+    private IJSObjectReference? module;
+    private IJSObjectReference? connection;
+    private DotNetObjectReference<HarborlinePopoverContent>? callback;
+    // The arguments the live connection was actually handed. popover.js captures every one of them
+    // once -- place() dereferences the same options object forever, and the module exports no
+    // update() -- so a Side/Align/SideOffset change, or an anchor appearing, while the popover is
+    // open never reaches JS: the DOM says data-side="top" while the connection still positions
+    // "bottom". Same class the sheet fixes for modality, so the same answer: reconnect.
+    private (string Trigger, string Reference, string Side, string Align, double Offset) connectedArgs;
+    private string SideName => Side.ToString().ToLowerInvariant();
+    private string AlignName => Align.ToString().ToLowerInvariant();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // Closing destroys the content element, so the connection must go with it. Disposing only
+        // on component disposal left the old connection holding a detached node forever, and a
+        // reopen -- a NEW element -- was then never connected at all, because `connection is not
+        // null` was reading a connection to an element that no longer existed.
+        if (Context?.Open != true)
+        {
+            await DisposeConnectionAsync();
+            return;
+        }
+        var reference = Context.HasAnchor ? Context.AnchorElement : Context.TriggerElement;
+        var args = (Context.TriggerElement.Id, reference.Id, SideName, AlignName, SideOffset);
+        if (connection is not null && args == connectedArgs) return;
+        await DisposeConnectionAsync();
+        module ??= await JavaScript.InvokeAsync<IJSObjectReference>("import", "./_content/Harborline.UIAdapters.Blazor/popover.js");
+        if (module is null) return;
+        callback ??= DotNetObjectReference.Create(this);
+        connection = await module.InvokeAsync<IJSObjectReference>("connect", Context.TriggerElement,
+            reference, content,
+            new { side = SideName, align = AlignName, sideOffset = SideOffset }, callback);
+        connectedArgs = args;
+    }
+
+    [JSInvokable]
+    public Task DismissFromJavaScriptAsync() => Context?.SetOpenAsync(false) ?? Task.CompletedTask;
+
+    private async ValueTask DisposeConnectionAsync()
+    {
+        if (connection is null) return;
+        try { await connection.InvokeVoidAsync("dispose"); } catch (JSDisconnectedException) { }
+        await connection.DisposeAsync();
+        connection = null;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await DisposeConnectionAsync();
+        if (module is not null) try { await module.DisposeAsync(); } catch (JSDisconnectedException) { }
+        callback?.Dispose();
+    }
+}

@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.toaster",
+  "verdict": "approved",
+  "reviewer": "cic",
+  "recordedAt": "2026-08-26T20:49:00.149Z",
+  "reference": {
+    "revision": "1dbb1a1fe7760a9179438160828dd8ad1846b11ecb79b103a0bdf7cfd7d79203",
+    "source": "gallery/scenarios/hlp.ui.toaster.json",
+    "pin": "cc9eb48ed68c5033ec128cd53c40b1d2786bee66",
+    "surface": {
+      "conformance/hlp.ui.toaster/fixtures.yaml": "e405f4b40c09fdea9f0900b6b9e8568b6b584da934b0224ee56eb8aec00a08cf",
+      "conformance/hlp.ui.toaster/quality-fixtures.yaml": "cd0fe55ba33a9485a9af75ddf49893a0fc0ba92de0436561dd86415e975e3fd6",
+      "gallery/projections/blazor/Stories/Toaster.stories.razor": "fe5adba8c76b888311beec3226561ef38ede288b70376a60b14d61997d9daf51",
+      "gallery/projections/blazor/Stories/ToasterScenario.razor": "3fc1ecb849a951b5f1bb10a2c3af5357aba193e2e3be8b3c4cbbe07e974047c1",
+      "gallery/projections/react/src/Toaster.stories.tsx": "039118acd856d762c6e168540cf5eb2347cbec43aa899b7adc4f3e77b606d48d",
+      "gallery/scenarios/hlp.ui.toaster.json": "aac917079a4999f1f1de289d7deb15ce2c52d0824541d4395c1491af6fa25b04",
+      "projections/blazor/ui/hlp.ui.toaster/ShipyardToaster.razor": "5a49951e89bd86dc2ca25b8179ed97d35aad8046da62c9ed30e034e77e1af554",
+      "projections/blazor/ui/hlp.ui.toaster/ToastTypes.cs": "310ff9e205dc7e44af20e33a27a064425224769b55e0adeb8520fee7f20e8b0b",
+      "projections/blazor/ui/hlp.ui.toaster/wwwroot/toaster.css": "988185ad7cea822c57ff5519b84dd245bf2ed186d25c0008dacec9adb06814e0",
+      "projections/react/ui/hlp.ui.toaster/src/Toaster.tsx": "ec6ec64eac6812239f02d37016fb81b67a9384c416b1976379ad934b6a3ff481",
+      "projections/react/ui/hlp.ui.toaster/src/index.ts": "00d51740814ce128805aac10e45faa8f8dc53243e7d1e8a08eb245a37864b90a",
+      "projections/react/ui/hlp.ui.toaster/src/style.css": "1e815bce975fae85215e02c638bf9b9715203b46e25e0b3aac2467d0951535e8",
+      "specs/modules/ui/hlp.ui.toaster/scenarios.json": "aac917079a4999f1f1de289d7deb15ce2c52d0824541d4395c1491af6fa25b04",
+      "specs/modules/ui/hlp.ui.toaster/style.css": "1e815bce975fae85215e02c638bf9b9715203b46e25e0b3aac2467d0951535e8"
+    }
+  }
+}

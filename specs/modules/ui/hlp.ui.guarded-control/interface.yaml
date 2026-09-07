@@ -1,0 +1,92 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.guarded-control",
+  "interfaceRevision": 1,
+  "semantics": {
+    "operation": "guard one caller-owned significant action behind a fixed five-second cover that requires two distinct activations",
+    "observableOutput": "Covered, armed, and committing presentation; a localized countdown; deterministic recovery and focus; and at most one commit request for each armed attempt."
+  },
+  "sourceSurface": {
+    "repository": "shipyard",
+    "commit": "a5036ff8b500e0d857d7e0a698408e7cf7f6cf31",
+    "path": "packages/ui-react/src/components/guards/GuardedControl.tsx",
+    "blob": "fe04a0c62b0ffa7dc3fdc887fde4aff284f0f035",
+    "capturedExports": ["GuardedControl"],
+    "callerProvenInputs": ["action", "classificationId", "label", "disabled", "onCommit"]
+  },
+  "dependencies": ["hlp.ui.cn", "hlp.ui.default-strings", "hlp.ui.locale-provider", "hlp.ui.use-media-query"],
+  "interface": {
+    "requiredInputs": ["actionId", "classificationId", "label", "commit"],
+    "optionalInputs": ["disabled", "describedBy", "hostAttributes", "observe"],
+    "states": ["covered", "armed", "committing"],
+    "commitOutcomes": ["completed", "rejected"],
+    "recoveryReasons": ["escape", "timeout", "navigation", "document-hidden", "window-blur", "became-disabled"]
+  },
+  "invariants": [
+    "The initial state is covered, the arm window is fixed at five seconds, and callers cannot initialize, force, or retain armed or committing state.",
+    "One pointer or keyboard activation from covered arms and never commits; one distinct activation from armed acquires the commit latch before invoking the caller operation.",
+    "One attempt invokes commit at most once; repeated pointer, keyboard, render, host-recovery, and asynchronous events are inert after the latch is acquired.",
+    "Timeout and activation races are first-transition-wins: timeout-first recovers without commit and commit-first cancels all armed recovery resources.",
+    "Escape, timeout, navigation, hidden document, sustained window blur, and becoming disabled recover an armed attempt exactly once.",
+    "Completed and rejected commits both return to covered exactly once; an unexpected thrown or rejected operation is cleaned up before the projection routes the original failure through its native exception mechanism.",
+    "Focus moves to the armed action after arming and returns to the covered action after every recovery and commit settlement when mounted; hidden or blurred hosts defer restoration until safe, and disposal suppresses restoration.",
+    "Disposal cancels timers and host subscriptions, emits no stale recovery event, and never repeats or pretends to cancel an already-started caller operation.",
+    "Disabled is presentation and availability only, never authorization; caller-owned denial or remediation text is associated through describedBy.",
+    "The caller commit operation owns and performs authoritative commit-time authorization and prerequisite revalidation; actionId and classificationId are opaque compatibility and audit metadata, not policy evidence.",
+    "The module owns no permission evaluation, guard-policy resolution, confirmation dialog, reauthentication, typed challenge, approvers, cooling-off, notification, undo, persistence, network transport, or domain-error presentation.",
+    "Raw composition, custom arm windows, caller-controlled state, and heavy guard primitives are outside revision 1 and cannot weaken or bypass the fixed cover.",
+    "Covered names, armed instructions, countdown values and units, committing status, recovery, and rejection announcements are localized as whole messages with interpolated caller text bidi-isolated.",
+    "The countdown updates only when the displayed second changes and is not repeatedly announced through the live region.",
+    "Reduced motion, RTL, light and dark themes, independent forced colors, and 200 percent reflow preserve interaction ordering and action availability.",
+    "Projection-owned host attributes survive on their owning element without overriding required role, name, state, focus, or disabled semantics."
+  ],
+  "ordering": {
+    "arm": ["validate-enabled-and-covered", "mint-attempt-and-deadline", "transition-covered-to-armed", "render-and-focus-armed-action", "subscribe-recovery-hosts"],
+    "commit": ["validate-live-attempt", "acquire-latch", "transition-armed-to-committing", "invoke-authoritative-caller-operation-once", "cancel-attempt-resources", "transition-to-covered", "restore-focus", "report-settlement"],
+    "recovery": ["atomically-invalidate-attempt", "cancel-attempt-resources", "transition-armed-to-covered", "restore-focus-when-safe", "announce-whole-message", "report-one-recovery"]
+  },
+  "errors": [
+    {"code": "accessible-name-required", "when": "The label is empty or whitespace; the control fails closed and remains inert."},
+    {"code": "action-metadata-required", "when": "The action or classification identifier is empty or whitespace; the control fails closed and remains inert."},
+    {"code": "host-unavailable", "when": "The interactive host adapter cannot provide timing, event, or focus behavior; the control remains covered and inert."},
+    {"code": "commit-rejected", "when": "The caller operation rejects; cleanup and focus restoration occur before native exception routing, and raw error text is never rendered."}
+  ],
+  "performance": {
+    "operation": "O(1) state, transition, focus, timer, and host-listener work with no module-owned network or persistent I/O",
+    "armWindowMilliseconds": 5000,
+    "windowBlurGraceMilliseconds": 800,
+    "maximumVisibleCountdownValues": 6,
+    "maximumConcurrentCommitRequestsPerInstance": 1
+  },
+  "compatibility": {
+    "reactPublicIdentity": "@harborline-software/ui-react#GuardedControl",
+    "blazorPublicIdentity": "Harborline.UIAdapters.Blazor / HarborlineGuardedControl",
+    "legacyBlazorDonorPolicy": "The pinned Allowed/Fallback content wrapper is an unrelated declaration and is replaced by a new arm/commit gap implementation.",
+    "excludedReactSurface": ["composition", "state", "onStateChange", "coveredHint", "armedHint", "recoveredAnnounce"],
+    "compatibilityInputs": ["action", "classificationId", "label", "disabled", "onCommit", "className"]
+  },
+  "cases": [
+    {"id": "guarded-control.initial-covered"},
+    {"id": "guarded-control.first-activation-arms"},
+    {"id": "guarded-control.pointer-two-step"},
+    {"id": "guarded-control.keyboard-two-step"},
+    {"id": "guarded-control.commit-once"},
+    {"id": "guarded-control.committing-inert"},
+    {"id": "guarded-control.commit-completed"},
+    {"id": "guarded-control.commit-rejected"},
+    {"id": "guarded-control.timeout-recovery"},
+    {"id": "guarded-control.escape-recovery"},
+    {"id": "guarded-control.host-recovery"},
+    {"id": "guarded-control.recovery-race"},
+    {"id": "guarded-control.disabled"},
+    {"id": "guarded-control.became-disabled"},
+    {"id": "guarded-control.focus"},
+    {"id": "guarded-control.disposal"},
+    {"id": "guarded-control.authorization-boundary"},
+    {"id": "guarded-control.localization"},
+    {"id": "guarded-control.rtl-motion"},
+    {"id": "guarded-control.host-attributes"},
+    {"id": "guarded-control.invalid-input"},
+    {"id": "guarded-control.projection-equivalence"}
+  ]
+}

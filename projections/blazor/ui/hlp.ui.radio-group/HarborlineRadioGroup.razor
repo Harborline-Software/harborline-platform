@@ -1,0 +1,42 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Forms
+@inherits HarborlineComponentBase
+
+<div role="radiogroup" class="@CombineClasses("hl-radio-group", $"hl-radio-group--{OrientationName}", Error ? "hl-radio-group--error" : null)" style="@CombineStyles()"
+     aria-label="@AccessibleLabel" aria-labelledby="@(LabelledBy ?? FieldContext?.LabelId)"
+     aria-describedby="@(DescribedBy ?? FieldContext?.DescribedBy)"
+     aria-invalid="@(Error ? "true" : null)" aria-required="@(EffectiveRequired ? "true" : null)"
+     aria-orientation="@OrientationName" @attributes="AdditionalAttributes">
+    @for (var index = 0; index < Options.Count; index++)
+    {
+        var option = Options[index];
+        var descriptionId = string.IsNullOrEmpty(option.Description) ? null : $"{Name}-option-{index}-description";
+        <div class="hl-radio-group__option" @key="option.Value">
+            <label class="@(EffectiveDisabled || option.Disabled ? "hl-radio-group__label hl-radio-group__label--disabled" : "hl-radio-group__label")">
+                <input type="radio" class="hl-radio-group__control" name="@Name" value="@option.Value" checked="@(Value == option.Value)"
+                       disabled="@(EffectiveDisabled || option.Disabled)" required="@EffectiveRequired"
+                       aria-describedby="@descriptionId" @onchange="() => SelectAsync(option)" />
+                <span class="hl-radio-group__label-text">@option.Label</span>
+            </label>
+            @if (descriptionId is not null) { <span id="@descriptionId" class="hl-radio-group__description">@option.Description</span> }
+        </div>
+    }
+</div>
+
+@code {
+    [CascadingParameter] public FormFieldContextValue? FieldContext { get; set; }
+    [Parameter, EditorRequired] public string Name { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public string Value { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public IReadOnlyList<HarborlineRadioOption> Options { get; set; } = [];
+    [Parameter] public EventCallback<string> ValueChanged { get; set; }
+    [Parameter] public RadioGroupOrientation Orientation { get; set; } = RadioGroupOrientation.Vertical;
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public bool Required { get; set; }
+    [Parameter] public bool Error { get; set; }
+    [Parameter] public string? AccessibleLabel { get; set; }
+    [Parameter] public string? LabelledBy { get; set; }
+    [Parameter] public string? DescribedBy { get; set; }
+    private bool EffectiveDisabled => Disabled || FieldContext?.Disabled == true;
+    private bool EffectiveRequired => Required || FieldContext?.Required == true;
+    private string OrientationName => Orientation == RadioGroupOrientation.Horizontal ? "horizontal" : "vertical";
+    private Task SelectAsync(HarborlineRadioOption option) => EffectiveDisabled || option.Disabled ? Task.CompletedTask : ValueChanged.InvokeAsync(option.Value);
+}

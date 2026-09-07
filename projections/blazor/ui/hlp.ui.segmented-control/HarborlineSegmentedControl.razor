@@ -1,0 +1,73 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Buttons
+@inherits HarborlineComponentBase
+@implements IAsyncDisposable
+@using Microsoft.JSInterop
+@inject IJSRuntime JavaScript
+
+<div @ref="Root" role="radiogroup" aria-label="@AccessibleName" aria-disabled="@(Disabled ? "true" : null)"
+     class="@CombineClasses("hl-segmented-control", FullWidth ? "hl-segmented-control--full-width" : null)" style="@CombineStyles()"
+     data-hl-full-width="@(FullWidth ? "true" : null)" data-hl-size="@SizeToken" data-hl-touch="@(Size == SegmentedControlSize.Touch ? "true" : null)" dir="@Direction" @attributes="AdditionalAttributes">
+  @foreach (var option in Options)
+  {
+    var optionDisabled = Disabled || option.Disabled;
+    <button type="button" role="radio" aria-checked="@(option.Value == Value ? "true" : "false")"
+            aria-label="@option.AccessibleLabel" disabled="@optionDisabled" tabindex="@TabIndex(option)"
+            data-hl-option="@option.Value" data-hl-selected="@(option.Value == Value ? "true" : null)" data-automation-id="@option.AutomationId"
+            class="hl-segmented-control__option" @onclick="() => ActivateAsync(option)"
+            @onkeydown="args => HandleKeyAsync(args, option)">@option.LabelContent</button>
+  }
+</div>
+
+@code {
+  [Parameter, EditorRequired] public string AccessibleName { get; set; } = string.Empty;
+  [Parameter, EditorRequired] public IReadOnlyList<SegmentedOption> Options { get; set; } = [];
+  [Parameter, EditorRequired] public string Value { get; set; } = string.Empty;
+  [Parameter] public EventCallback<string> ValueChanged { get; set; }
+  [Parameter] public SegmentedControlSize Size { get; set; } = SegmentedControlSize.Md;
+  [Parameter] public bool FullWidth { get; set; }
+  [Parameter] public bool Disabled { get; set; }
+  [Parameter] public string? Direction { get; set; }
+
+  private ElementReference Root;
+  private IJSObjectReference? module;
+  private string SizeToken => Size.ToString().ToLowerInvariant();
+  private IReadOnlyList<SegmentedOption> Enabled => Options.Where(option => !Disabled && !option.Disabled).ToArray();
+  private string TabValue => Enabled.Any(option => option.Value == Value) ? Value : Enabled.FirstOrDefault()?.Value ?? string.Empty;
+  private int TabIndex(SegmentedOption option) => !Disabled && !option.Disabled && option.Value == TabValue ? 0 : -1;
+
+  protected override void OnParametersSet()
+  {
+    if (string.IsNullOrWhiteSpace(AccessibleName)) throw new InvalidOperationException("accessible-segmented-control-label-required");
+    if (Options.GroupBy(option => option.Value, StringComparer.Ordinal).Any(group => group.Count() > 1)) throw new InvalidOperationException("duplicate-segmented-option-value");
+  }
+
+  private Task ActivateAsync(SegmentedOption option) => Disabled || option.Disabled ? Task.CompletedTask : ValueChanged.InvokeAsync(option.Value);
+
+  private async Task HandleKeyAsync(KeyboardEventArgs args, SegmentedOption current)
+  {
+    var enabled = Enabled;
+    if (enabled.Count == 0) return;
+    var index = Math.Max(0, Array.IndexOf(enabled.ToArray(), current));
+    var rtl = string.Equals(Direction, "rtl", StringComparison.OrdinalIgnoreCase);
+    var next = args.Key switch
+    {
+      "Home" => 0,
+      "End" => enabled.Count - 1,
+      "ArrowRight" => (index + (rtl ? -1 : 1) + enabled.Count) % enabled.Count,
+      "ArrowLeft" => (index + (rtl ? 1 : -1) + enabled.Count) % enabled.Count,
+      "ArrowDown" => (index + 1) % enabled.Count,
+      "ArrowUp" => (index - 1 + enabled.Count) % enabled.Count,
+      _ => -1
+    };
+    if (next < 0) return;
+    await ValueChanged.InvokeAsync(enabled[next].Value);
+    module ??= await JavaScript.InvokeAsync<IJSObjectReference>("import", "./_content/Harborline.UIAdapters.Blazor/segmented-control.js");
+    await module.InvokeVoidAsync("focusOption", Root, enabled[next].Value);
+  }
+
+  public async ValueTask DisposeAsync()
+  {
+    if (module is null) return;
+    try { await module.DisposeAsync(); } catch (JSDisconnectedException) { }
+  }
+}

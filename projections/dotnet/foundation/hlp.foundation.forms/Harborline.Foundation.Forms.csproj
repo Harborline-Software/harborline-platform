@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <HarborlinePublicDistributionAuthorized>false</HarborlinePublicDistributionAuthorized>
+    <PackageId>Harborline.Foundation.Forms</PackageId>
+    <AssemblyName>Harborline.Foundation.Forms</AssemblyName>
+    <RootNamespace>Harborline.Foundation.Forms</RootNamespace>
+    <Description>Tenant-scoped immutable Dynamic Forms definitions, versions, reusable units, and authenticated save/resume draft state.</Description>
+    <PackageTags>harborline;forms;dynamic-forms;definitions;drafts;reuse</PackageTags>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageReleaseNotes>Internal-only projection; public distribution is not authorized.</PackageReleaseNotes>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../contracts/hlp.contracts.identities/Harborline.Contracts.csproj" />
+    <ProjectReference Include="../hlp.foundation.actor/Harborline.Foundation.Authorization.csproj" />
+    <ProjectReference Include="../hlp.foundation.tenancy/Harborline.Foundation.MultiTenancy.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="/" />
+    <None Include="../../../../LICENSE" Link="LICENSE" Pack="true" PackagePath="/" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Harborline.Foundation.Forms.Tests" />
+  </ItemGroup>
+</Project>

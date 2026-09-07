@@ -1,0 +1,192 @@
+@namespace Harborline.UIAdapters.Blazor.Components.AI
+@inherits HarborlineComponentBase
+@implements IAsyncDisposable
+@using System.Globalization
+@using Microsoft.JSInterop
+@using Harborline.UIAdapters.Blazor.Localization
+@inject IJSRuntime JavaScript
+
+<div @ref="Root" class="@CombineClasses("hl-chat")" data-message-count="@Messages.Count" dir="@EffectiveDirection"
+     style="@CombineStyles()" @attributes="AdditionalAttributes">
+  <div @ref="Log" role="log" aria-label="@ResolvedConversationLabel" aria-live="polite" aria-relevant="additions text" class="hl-chat__log" @onscroll="HandleLogScrollAsync">
+    @if (Messages.Count == 0 && Empty is not null)
+    {
+      <div class="hl-chat__empty">@Empty</div>
+    }
+    @for (var index = 0; index < Messages.Count; index++)
+    {
+      var messageIndex = index;
+      var message = Messages[messageIndex];
+      var status = message.Status ?? ChatMessageStatus.Complete;
+      <article tabindex="0" aria-label="@ArticleLabel(message)" aria-live="@(status == ChatMessageStatus.Streaming ? "off" : null)"
+               class="hl-chat__message" data-message-id="@message.Id" data-hl-message-id="@message.Id"
+               data-owner="@OwnerToken(message.Role)" data-status="@StatusToken(status)" data-hl-role="@RoleToken(message.Role)" data-hl-index="@messageIndex"
+               @onkeydown="@(args => HandleMessageKeyAsync(args, messageIndex))" @onkeydown:preventDefault>
+        @if (ShowAvatar && message.Role != ChatMessageRole.System)
+        {
+          @if (!string.IsNullOrWhiteSpace(message.Author.AvatarUrl))
+          {
+            <img class="hl-chat__avatar" src="@message.Author.AvatarUrl" alt="@message.Author.Name" />
+          }
+          else
+          {
+            <span aria-hidden="true" class="hl-chat__avatar hl-chat__avatar--fallback">@Initials(message.Author.Name)</span>
+          }
+        }
+        <div class="hl-chat__message-body">
+          <span class="hl-chat__author">@message.Author.Name</span>
+          <div class="hl-chat__bubble">@(MessageContentTemplate is null ? (RenderFragment)(builder => builder.AddContent(0, message.Text)) : MessageContentTemplate(message))</div>
+          @if (message.Timestamp is DateTimeOffset timestamp)
+          {
+            <time class="hl-chat__timestamp" datetime="@timestamp.ToUniversalTime().ToString("O")">@FormatTimestamp(timestamp)</time>
+          }
+        </div>
+      </article>
+    }
+    @if (ShowTypingIndicator)
+    {
+      <div role="status" class="hl-chat__typing">
+        <span class="hl-chat__sr-only">@ResolvedTypingLabel</span>
+        <span aria-hidden="true" class="hl-chat__typing-dots"><i></i><i></i><i></i></span>
+      </div>
+    }
+  </div>
+  @if (ShouldShowSuggestions)
+  {
+    <div role="group" aria-label="@ResolvedSuggestionsLabel" class="hl-chat__suggestions">
+      @foreach (var suggestion in Suggestions!)
+      {
+        <button type="button" class="hl-chat__suggestion" disabled="@(ComposerDisabled || !OnSubmit.HasDelegate)" @onclick="@(() => SubmitAsync(suggestion.Prompt))">@suggestion.Title</button>
+      }
+    </div>
+  }
+  @if (OnSubmit.HasDelegate)
+  {
+    <form class="hl-chat__composer" @onsubmit="@(() => SubmitAsync(CurrentInput))" @onsubmit:preventDefault>
+      <label class="hl-chat__sr-only" for="@ComposerInputId">@ResolvedInputLabel</label>
+      <input id="@ComposerInputId" type="text" class="hl-chat__input" value="@CurrentInput" disabled="@ComposerDisabled"
+             placeholder="@ResolvedPlaceholder" @oninput="HandleInputAsync" />
+      <button type="submit" class="hl-chat__send" disabled="@(ComposerDisabled || string.IsNullOrWhiteSpace(CurrentInput))">@ResolvedSendLabel</button>
+    </form>
+  }
+</div>
+
+@code {
+  [CascadingParameter] private HarborlineLocaleContext? LocaleContext { get; set; }
+  [Parameter, EditorRequired] public IReadOnlyList<ChatMessage> Messages { get; set; } = [];
+  [Parameter, EditorRequired] public ChatParticipant User { get; set; } = new("User");
+  [Parameter] public EventCallback<string> OnSubmit { get; set; }
+  [Parameter] public string? InputValue { get; set; }
+  [Parameter] public EventCallback<string> InputValueChanged { get; set; }
+  [Parameter] public bool ComposerDisabled { get; set; }
+  [Parameter] public string? Placeholder { get; set; }
+  [Parameter] public IReadOnlyList<ChatSuggestion>? Suggestions { get; set; }
+  [Parameter] public bool ShowTypingIndicator { get; set; }
+  [Parameter] public bool ShowAvatar { get; set; } = true;
+  [Parameter] public string? Direction { get; set; }
+  [Parameter] public RenderFragment<ChatMessage>? MessageContentTemplate { get; set; }
+  [Parameter] public RenderFragment? Empty { get; set; }
+  [Parameter] public string? ConversationLabel { get; set; }
+
+  private readonly string generatedComposerId = $"hl-chat-{Guid.NewGuid():N}";
+  private bool controlledInput;
+  private string localInput = string.Empty;
+  private ElementReference Root;
+  private ElementReference Log;
+  private IJSObjectReference? module;
+  private bool followEnd = true;
+  private string pendingScrollSignature = string.Empty;
+  private string appliedScrollSignature = string.Empty;
+  private string CurrentInput => controlledInput ? InputValue ?? string.Empty : localInput;
+  private string EffectiveDirection => Direction ?? LocaleContext?.Direction ?? "ltr";
+  private string ComposerInputId => $"{(AdditionalAttributes?.TryGetValue("id", out var id) == true ? id : generatedComposerId)}-input";
+  private bool ShouldShowSuggestions => Suggestions is { Count: > 0 } && !Messages.Any(message => message.Role == ChatMessageRole.User);
+  private string ResolvedConversationLabel => Resolve("ai.chat.conversation", ConversationLabel ?? "Conversation");
+  private string ResolvedTypingLabel => Resolve("ai.chat.aiTyping", "AI is typing…");
+  private string ResolvedSuggestionsLabel => Resolve("ai.chat.suggestedActions", "Suggested actions");
+  private string ResolvedPlaceholder => Resolve("ai.chat.placeholder", Placeholder ?? "Type a message…");
+  private string ResolvedInputLabel => Resolve("ai.chat.inputLabel", "Message input");
+  private string ResolvedSendLabel => Resolve("ai.send", "Send");
+
+  public override async Task SetParametersAsync(ParameterView parameters)
+  {
+    controlledInput = parameters.TryGetValue<string?>(nameof(InputValue), out _);
+    await base.SetParametersAsync(parameters);
+  }
+
+  protected override void OnParametersSet()
+  {
+    ArgumentNullException.ThrowIfNull(Messages); ArgumentNullException.ThrowIfNull(User);
+    if (string.IsNullOrWhiteSpace(User.Name) || Messages.Any(message => string.IsNullOrWhiteSpace(message.Author.Name))) throw new InvalidOperationException("accessible-user-name-required");
+    if (Messages.Any(message => string.IsNullOrWhiteSpace(message.Id)) || Messages.GroupBy(message => message.Id, StringComparer.Ordinal).Any(group => group.Count() > 1)) throw new InvalidOperationException("duplicate-message-id");
+    if (Messages.Any(message => message.Timestamp is DateTimeOffset timestamp && (timestamp == DateTimeOffset.MinValue || timestamp == DateTimeOffset.MaxValue))) throw new InvalidOperationException("invalid-message-timestamp");
+    if (controlledInput && !InputValueChanged.HasDelegate) throw new InvalidOperationException("controlled-composer-handler-required");
+    var last = Messages.LastOrDefault();
+    pendingScrollSignature = $"{Messages.Count}\u001f{last?.Id}\u001f{last?.Text}\u001f{last?.Status}\u001f{ShowTypingIndicator}";
+  }
+
+  protected override async Task OnAfterRenderAsync(bool firstRender)
+  {
+    if (!followEnd || string.Equals(appliedScrollSignature, pendingScrollSignature, StringComparison.Ordinal)) return;
+    await (await ModuleAsync()).InvokeVoidAsync("scrollLogToEnd", Log);
+    appliedScrollSignature = pendingScrollSignature;
+  }
+
+  private string Resolve(string key, string fallback)
+  {
+    if (LocaleContext is null) return fallback;
+    var resolved = LocaleContext.Translate(key);
+    return string.Equals(resolved, key, StringComparison.Ordinal) ? fallback : resolved;
+  }
+  private async Task HandleInputAsync(ChangeEventArgs args)
+  {
+    var next = args.Value?.ToString() ?? string.Empty;
+    if (!controlledInput) localInput = next;
+    await InputValueChanged.InvokeAsync(next);
+  }
+
+  private async Task SubmitAsync(string candidate)
+  {
+    var submitted = candidate.Trim();
+    if (ComposerDisabled || !OnSubmit.HasDelegate || submitted.Length == 0) return;
+    await OnSubmit.InvokeAsync(submitted);
+    if (!controlledInput) localInput = string.Empty;
+    await InputValueChanged.InvokeAsync(string.Empty);
+  }
+
+  private async Task HandleMessageKeyAsync(KeyboardEventArgs args, int index)
+  {
+    var next = args.Key switch { "ArrowUp" when index > 0 => index - 1, "ArrowDown" when index + 1 < Messages.Count => index + 1, _ => index };
+    if (next == index) return;
+    await (await ModuleAsync()).InvokeVoidAsync("focusMessage", Root, next);
+  }
+
+  private async Task HandleLogScrollAsync() => followEnd = await (await ModuleAsync()).InvokeAsync<bool>("isNearEnd", Log, 48);
+  private async ValueTask<IJSObjectReference> ModuleAsync() => module ??= await JavaScript.InvokeAsync<IJSObjectReference>("import", "./_content/Harborline.UIAdapters.Blazor/chat.js");
+
+  private string ArticleLabel(ChatMessage message)
+  {
+    var role = message.Role switch { ChatMessageRole.User => Resolve("ai.chat.roleUser", "user"), ChatMessageRole.Assistant => Resolve("ai.chat.roleAssistant", "assistant"), _ => message.Author.Name };
+    return message.Timestamp is DateTimeOffset timestamp ? $"{role} message, {FormatTimestamp(timestamp)}" : $"{role} message";
+  }
+
+  private string FormatTimestamp(DateTimeOffset timestamp)
+  {
+    var local = timestamp.ToLocalTime();
+    var locale = LocaleContext?.Locale ?? "en-US";
+    try
+    {
+      var culture = CultureInfo.GetCultureInfo(string.Equals(locale, "en-XA", StringComparison.OrdinalIgnoreCase) ? "en-US" : locale);
+      var pattern = culture.Name.StartsWith("en", StringComparison.OrdinalIgnoreCase) ? "MMM d, yyyy, h:mm tt" : "d MMM yyyy, h:mm tt";
+      return local.ToString(pattern, culture);
+    }
+    catch (CultureNotFoundException) { return local.ToString("MMM d, yyyy, h:mm tt", CultureInfo.GetCultureInfo("en-US")); }
+  }
+
+  private static string OwnerToken(ChatMessageRole role) => role switch { ChatMessageRole.User => "outgoing", ChatMessageRole.Assistant => "incoming", _ => "system" };
+  private static string RoleToken(ChatMessageRole role) => role.ToString().ToLowerInvariant();
+  private static string StatusToken(ChatMessageStatus status) => status.ToString().ToLowerInvariant();
+  private static string Initials(string name) => string.Concat(name.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(part => char.ToUpperInvariant(part[0])));
+
+  public async ValueTask DisposeAsync() { if (module is not null) try { await module.DisposeAsync(); } catch (JSDisconnectedException) { } }
+}

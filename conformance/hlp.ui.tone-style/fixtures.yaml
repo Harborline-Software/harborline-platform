@@ -1,0 +1,8 @@
+{"schemaVersion":1,"moduleId":"hlp.ui.tone-style","fixtureRevision":1,"cases":[
+  {"id":"tone-style.complete-surface","input":{},"expected":{"exports":["ToneStyle","toneStyle"],"count":2}},
+  {"id":"tone-style.semantic-mappings","input":{"tones":["accent","warning","danger","success","muted"]},"expected":{"allFieldsSemanticVariables":true}},
+  {"id":"tone-style.info-fallback","input":{"tone":"info"},"expected":{"swatch":"var(--color-secondary)","border":"var(--color-secondary)","softBg":"var(--color-muted)","text":"var(--color-secondary-foreground)"}},
+  {"id":"tone-style.sensitivity-ramp","input":{"tones":["sensitivity-none","sensitivity-low","sensitivity-medium","sensitivity-high"]},"expected":{"bands":["muted","accent","warning","danger"]}},
+  {"id":"tone-style.no-raw-palette","input":{"allTones":true},"expected":{"literalColors":0,"tailwindPaletteVariables":0}},
+  {"id":"tone-style.projection-equivalence","input":{"allTones":true},"expected":{"typescriptEqualsDotnet":true}}
+]}

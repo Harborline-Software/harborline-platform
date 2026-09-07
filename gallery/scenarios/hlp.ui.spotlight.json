@@ -1,0 +1,337 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.spotlight",
+  "sourceFixture": "conformance/hlp.ui.spotlight/fixtures.yaml",
+  "qualityFixture": "conformance/hlp.ui.spotlight/quality-fixtures.yaml",
+  "galleryInterface": {
+    "probeAttribute": "data-gallery-probe",
+    "scenarioAttribute": "data-gallery-scenario",
+    "projectionTitles": {
+      "react": "Platform/Spotlight",
+      "blazor": "Platform/Spotlight"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "spotlight.results",
+      "name": "Ranked results",
+      "surface": "defaults",
+      "sourceCaseIds": [
+        "spotlight.closed",
+        "spotlight.combobox",
+        "spotlight.sections",
+        "spotlight.query",
+        "spotlight.pinned",
+        "spotlight.footer"
+      ],
+      "sourceQualityCaseIds": [
+        "spotlight.quality.combobox",
+        "spotlight.quality.groups",
+        "spotlight.quality.status",
+        "spotlight.quality.reflow"
+      ],
+      "content": {
+        "blurb": "Grouped results, keyboard selection, announcements, and dismissal.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "open": true,
+          "query": "",
+          "sections": [
+            {
+              "id": "structures",
+              "label": "Structures",
+              "items": [
+                {
+                  "id": "north-pier",
+                  "label": "North Pier",
+                  "description": "Inspected today",
+                  "badge": "Active",
+                  "shortcut": "↵",
+                  "keepOpen": false
+                },
+                {
+                  "id": "pump-house",
+                  "label": "Pump House",
+                  "description": "Review required"
+                }
+              ]
+            }
+          ],
+          "pinnedAction": {
+            "id": "new",
+            "label": "Create structure",
+            "keepOpen": true
+          },
+          "ariaLabel": "Search structures",
+          "placeholder": "Type to search",
+          "empty": "No results",
+          "resultsCountLabel": "2 results",
+          "footer": "Use arrow keys to navigate"
+        },
+        "state": {
+          "open": {
+            "kind": "flag",
+            "initial": true
+          },
+          "query": {
+            "kind": "string",
+            "initial": ""
+          }
+        },
+        "body": [
+          {
+            "control": "strong",
+            "text": "Ranked results"
+          },
+          {
+            "control": "text",
+            "text": "Grouped results, keyboard selection, announcements, and dismissal."
+          },
+          {
+            "control": "button",
+            "text": "Open search"
+          },
+          {
+            "control": "raw",
+            "react": "const sections = [{ id: 'structures', label: 'Structures', items: [{ id: 'north-pier', label: 'North Pier', description: 'Inspected today', badge: 'Active', shortcut: '↵', onSelect: () => {}, keepOpen: false }, { id: 'pump-house', label: 'Pump House', description: 'Review required', onSelect: () => {} }] }];\n<Spotlight open={open} onOpenChange={setOpen} query={query} onQueryChange={setQuery} sections={sections} pinnedAction={{ id: 'new', label: 'Create structure', onSelect: () => {}, keepOpen: true }} ariaLabel=\"Search structures\" placeholder=\"Type to search\" empty=\"No results\" resultsCountLabel={count => `${count} results`} footer={<span>Use arrow keys to navigate</span>} />",
+            "blazor": "<HarborlineSpotlight @bind-Open=\"open\" @bind-Query=\"query\" Sections=\"@Sections\" PinnedAction=\"@PinnedAction\" AriaLabel=\"Search structures\" Placeholder=\"Type to search\" Empty=\"No results\" ResultsCountLabel=\"@CountLabel\"><Footer>Use arrow keys to navigate</Footer></HarborlineSpotlight>\n@code { private string CountLabel(int count) => $\"{count} results\"; private SpotlightItem PinnedAction => new(\"new\", \"Create structure\", () => Task.CompletedTask, KeepOpen: true); private IReadOnlyList<SpotlightSection> Sections => [new(\"structures\", \"Structures\", [new(\"north-pier\", \"North Pier\", () => Task.CompletedTask, \"Inspected today\", Shortcut: \"↵\", Badge: \"Active\", KeepOpen: false), new(\"pump-house\", \"Pump House\", () => Task.CompletedTask, \"Review required\")])]; }",
+            "rationale": "The closed descriptor vocabulary has no combobox, grouped result section, selectable result item, badge, keyboard shortcut, pinned action, results announcement, or keep-open selection control, so it cannot express the rendered Spotlight structure and behavior."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "spotlight.interaction",
+      "name": "Keyboard and selection",
+      "surface": "states",
+      "sourceCaseIds": [
+        "spotlight.keyboard",
+        "spotlight.select-close",
+        "spotlight.keep-open",
+        "spotlight.empty",
+        "spotlight.loading",
+        "spotlight.results-announcement",
+        "spotlight.dismiss-focus",
+        "spotlight.invalid-identities"
+      ],
+      "sourceQualityCaseIds": [
+        "spotlight.quality.keyboard",
+        "spotlight.quality.focus",
+        "spotlight.quality.forced-colors",
+        "spotlight.quality.reduced-motion"
+      ],
+      "content": {
+        "blurb": "Grouped results, keyboard selection, announcements, and dismissal.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "inherits": "spotlight.results",
+        "props": {
+          "open": true,
+          "query": "",
+          "sections": [
+            {
+              "id": "structures",
+              "label": "Structures",
+              "items": [
+                {
+                  "id": "north-pier",
+                  "label": "North Pier",
+                  "description": "Inspected today",
+                  "badge": "Active",
+                  "shortcut": "↵",
+                  "keepOpen": true
+                },
+                {
+                  "id": "pump-house",
+                  "label": "Pump House",
+                  "description": "Review required"
+                }
+              ]
+            }
+          ],
+          "pinnedAction": {
+            "id": "new",
+            "label": "Create structure",
+            "keepOpen": true
+          },
+          "ariaLabel": "Search structures",
+          "placeholder": "Type to search",
+          "empty": "No results",
+          "resultsCountLabel": "2 results",
+          "footer": "Use arrow keys to navigate"
+        },
+        "body": [
+          {
+            "control": "strong",
+            "text": "Keyboard and selection"
+          },
+          {
+            "control": "text",
+            "text": "Grouped results, keyboard selection, announcements, and dismissal."
+          },
+          {
+            "control": "button",
+            "text": "Open search"
+          },
+          {
+            "control": "raw",
+            "react": "const sections = [{ id: 'structures', label: 'Structures', items: [{ id: 'north-pier', label: 'North Pier', description: 'Inspected today', badge: 'Active', shortcut: '↵', onSelect: () => {}, keepOpen: true }, { id: 'pump-house', label: 'Pump House', description: 'Review required', onSelect: () => {} }] }];\n<Spotlight open={open} onOpenChange={setOpen} query={query} onQueryChange={setQuery} sections={sections} pinnedAction={{ id: 'new', label: 'Create structure', onSelect: () => {}, keepOpen: true }} ariaLabel=\"Search structures\" placeholder=\"Type to search\" empty=\"No results\" resultsCountLabel={count => `${count} results`} footer={<span>Use arrow keys to navigate</span>} />",
+            "blazor": "<HarborlineSpotlight @bind-Open=\"open\" @bind-Query=\"query\" Sections=\"@Sections\" PinnedAction=\"@PinnedAction\" AriaLabel=\"Search structures\" Placeholder=\"Type to search\" Empty=\"No results\" ResultsCountLabel=\"@CountLabel\"><Footer>Use arrow keys to navigate</Footer></HarborlineSpotlight>\n@code { private string CountLabel(int count) => $\"{count} results\"; private SpotlightItem PinnedAction => new(\"new\", \"Create structure\", () => Task.CompletedTask, KeepOpen: true); private IReadOnlyList<SpotlightSection> Sections => [new(\"structures\", \"Structures\", [new(\"north-pier\", \"North Pier\", () => Task.CompletedTask, \"Inspected today\", Shortcut: \"↵\", Badge: \"Active\", KeepOpen: true), new(\"pump-house\", \"Pump House\", () => Task.CompletedTask, \"Review required\")])]; }",
+            "rationale": "The closed descriptor vocabulary has no combobox, grouped result section, selectable result item, badge, keyboard shortcut, pinned action, results announcement, or keep-open selection control, so it cannot express the rendered Spotlight structure and interaction-specific behavior."
+          }
+        ]
+      }
+    },
+    {
+      "id": "spotlight.locale-theme",
+      "name": "Locale and theme",
+      "surface": "rtl-theme",
+      "sourceCaseIds": [
+        "spotlight.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "spotlight.quality.caller-copy",
+        "spotlight.quality.rtl",
+        "spotlight.quality.pseudo",
+        "spotlight.quality.light-dark",
+        "spotlight.quality.tokens",
+        "spotlight.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "Grouped results, keyboard selection, announcements, and dismissal.",
+        "environment": {
+          "locale": "ar-SA",
+          "direction": "rtl",
+          "theme": "dark",
+          "catalog": {}
+        },
+        "inherits": "spotlight.results",
+        "props": {
+          "open": true,
+          "query": "",
+          "sections": [
+            {
+              "id": "structures",
+              "label": "الهياكل",
+              "items": [
+                {
+                  "id": "north-pier",
+                  "label": "الرصيف الشمالي",
+                  "description": "آخر فحص اليوم",
+                  "badge": "نشط",
+                  "shortcut": "↵",
+                  "keepOpen": false
+                },
+                {
+                  "id": "pump-house",
+                  "label": "بيت المضخة",
+                  "description": "مراجعة مطلوبة"
+                }
+              ]
+            }
+          ],
+          "pinnedAction": {
+            "id": "new",
+            "label": "هيكل جديد",
+            "keepOpen": true
+          },
+          "ariaLabel": "البحث في الهياكل",
+          "placeholder": "اكتب للبحث",
+          "empty": "لا نتائج",
+          "resultsCountLabel": "2 نتيجة",
+          "footer": "استخدم الأسهم للتنقل"
+        },
+        "body": [
+          {
+            "control": "strong",
+            "text": "البحث السريع"
+          },
+          {
+            "control": "text",
+            "text": "Grouped results, keyboard selection, announcements, and dismissal."
+          },
+          {
+            "control": "button",
+            "text": "بحث"
+          },
+          {
+            "control": "raw",
+            "react": "const sections = [{ id: 'structures', label: 'الهياكل', items: [{ id: 'north-pier', label: 'الرصيف الشمالي', description: 'آخر فحص اليوم', badge: 'نشط', shortcut: '↵', onSelect: () => {}, keepOpen: false }, { id: 'pump-house', label: 'بيت المضخة', description: 'مراجعة مطلوبة', onSelect: () => {} }] }];\n<Spotlight open={open} onOpenChange={setOpen} query={query} onQueryChange={setQuery} sections={sections} pinnedAction={{ id: 'new', label: 'هيكل جديد', onSelect: () => {}, keepOpen: true }} ariaLabel=\"البحث في الهياكل\" placeholder=\"اكتب للبحث\" empty=\"لا نتائج\" resultsCountLabel={count => `${count} نتيجة`} footer={<span>استخدم الأسهم للتنقل</span>} />",
+            "blazor": "<HarborlineSpotlight @bind-Open=\"open\" @bind-Query=\"query\" Sections=\"@Sections\" PinnedAction=\"@PinnedAction\" AriaLabel=\"البحث في الهياكل\" Placeholder=\"اكتب للبحث\" Empty=\"لا نتائج\" ResultsCountLabel=\"@CountLabel\"><Footer>استخدم الأسهم للتنقل</Footer></HarborlineSpotlight>\n@code { private string CountLabel(int count) => $\"{count} نتيجة\"; private SpotlightItem PinnedAction => new(\"new\", \"هيكل جديد\", () => Task.CompletedTask, KeepOpen: true); private IReadOnlyList<SpotlightSection> Sections => [new(\"structures\", \"الهياكل\", [new(\"north-pier\", \"الرصيف الشمالي\", () => Task.CompletedTask, \"آخر فحص اليوم\", Shortcut: \"↵\", Badge: \"نشط\", KeepOpen: false), new(\"pump-house\", \"بيت المضخة\", () => Task.CompletedTask, \"مراجعة مطلوبة\")])]; }",
+            "rationale": "The closed descriptor vocabulary has no combobox, grouped result section, selectable result item, badge, keyboard shortcut, pinned action, results announcement, or keep-open selection control, so it cannot express the rendered localized RTL Spotlight structure and behavior."
+          }
+        ]
+      }
+    },
+    {
+      "id": "spotlight.content",
+      "name": "Content resilience",
+      "surface": "long-content",
+      "sourceCaseIds": [
+        "spotlight.combobox",
+        "spotlight.sections"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "Hostile search results carry a long label, a grouped large number, escaped angle brackets and an ampersand, and a name with diacritics and an em dash.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "const sections = [{id:'content',label:'Content resilience',items:[{id:'long',label:'Awaiting third-party structural certification review',onSelect(){}},{id:'number',label:'1,284,905',onSelect(){}},{id:'hostile',label:'Bay 4 <grid C-7> & 8',onSelect(){}},{id:'name',label:'Ordnance Survey — Niño Ångström',onSelect(){}}]}];\n<Spotlight open={open} onOpenChange={setOpen} query={query} onQueryChange={setQuery} sections={sections} ariaLabel=\"Search resilient content\" placeholder=\"Type to search\" empty=\"No results\" resultsCountLabel={count=>`${count} results`} />",
+            "blazor": "<HarborlineSpotlight @bind-Open=\"open\" @bind-Query=\"query\" Sections=\"@ContentSections\" AriaLabel=\"Search resilient content\" Placeholder=\"Type to search\" Empty=\"No results\" ResultsCountLabel=\"@CountLabel\" />\n@code { private IReadOnlyList<SpotlightSection> ContentSections => [new(\"content\", \"Content resilience\", [new(\"long\", \"Awaiting third-party structural certification review\", () => Task.CompletedTask), new(\"number\", \"1,284,905\", () => Task.CompletedTask), new(\"hostile\", \"Bay 4 <grid C-7> & 8\", () => Task.CompletedTask), new(\"name\", \"Ordnance Survey — Niño Ångström\", () => Task.CompletedTask)])]; }",
+            "rationale": "The closed descriptor vocabulary has no combobox, grouped result section, or selectable result control and cannot express hostile-but-valid result text."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "spotlight.empty-state",
+      "name": "Empty state",
+      "surface": "empty",
+      "sourceCaseIds": [
+        "spotlight.empty",
+        "spotlight.combobox"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "The open spotlight renders caller-provided empty content while preserving an accessible search control.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<Spotlight open={open} onOpenChange={setOpen} query={query} onQueryChange={setQuery} sections={[]} ariaLabel=\"Search structures\" placeholder=\"Type to search\" empty=\"No structures found.\" resultsCountLabel={count => `${count} results`} />",
+            "blazor": "<HarborlineSpotlight @bind-Open=\"open\" @bind-Query=\"query\" Sections=\"@EmptySections\" AriaLabel=\"Search structures\" Placeholder=\"Type to search\" Empty=\"No structures found.\" ResultsCountLabel=\"@CountLabel\" />\n@code { private static readonly IReadOnlyList<SpotlightSection> EmptySections = []; }",
+            "rationale": "The closed descriptor vocabulary has no spotlight combobox and cannot express its empty prop or empty listbox state in both projection lanes."
+          }
+        ],
+        "footer": []
+      }
+    }
+  ]
+}

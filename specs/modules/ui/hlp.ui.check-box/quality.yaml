@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.check-box",
+  "profileRevision": 1,
+  "riskTier": "B",
+  "fixture": "conformance/hlp.ui.check-box/quality-fixtures.yaml",
+  "dimensions": {
+    "accessibility": {"disposition": "required", "caseIds": ["check-box.quality.native-control", "check-box.quality.label", "check-box.quality.keyboard", "check-box.quality.touch-target", "check-box.quality.focus", "check-box.quality.reflow"]},
+    "internationalization": {"disposition": "required", "caseIds": ["check-box.quality.caller-label", "check-box.quality.rtl", "check-box.quality.pseudo"], "localeSensitiveFormatting": {"disposition": "not-applicable", "rationale": "Callers supply localized labels; CheckBox formats no locale-sensitive values."}},
+    "theming": {"disposition": "required", "caseIds": ["check-box.quality.light-dark", "check-box.quality.tokens", "check-box.quality.forced-colors", "check-box.quality.reduced-motion", "check-box.quality.visual-parity"]},
+    "keyboard": {"disposition": "required", "caseIds": ["check-box.quality.keyboard"]},
+    "focus": {"disposition": "required", "caseIds": ["check-box.quality.focus"]},
+    "dismissal": {"disposition": "not-applicable", "rationale": "CheckBox is an inline form control and owns no dismissible surface."},
+    "rtl": {"disposition": "required", "caseIds": ["check-box.quality.rtl"]},
+    "reduced-motion": {"disposition": "required", "caseIds": ["check-box.quality.reduced-motion"]}
+  },
+  "componentStages": [
+    {"id": "contract", "dimensions": ["accessibility", "internationalization", "theming", "keyboard", "focus", "dismissal", "rtl", "reduced-motion"], "gate": "profile and neutral fixture validation"},
+    {"id": "projection-native", "dimensions": ["accessibility", "internationalization", "theming", "keyboard", "focus", "rtl", "reduced-motion"], "gate": "public React and Blazor native tests"},
+    {"id": "package-consumer", "dimensions": ["accessibility", "internationalization", "theming", "keyboard", "focus", "rtl", "reduced-motion"], "gate": "packed npm and NuGet consumers"},
+    {"id": "gallery", "dimensions": ["accessibility", "internationalization", "theming", "keyboard", "focus", "rtl", "reduced-motion"], "gate": "Axe, keyboard, themes, locales, motion, reflow, and visual parity"},
+    {"id": "clean-clone", "dimensions": ["accessibility", "internationalization", "theming", "keyboard", "focus", "dismissal", "rtl", "reduced-motion"], "gate": "complete repository gate from the recorded commit"}
+  ]
+}

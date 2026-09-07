@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.date-field",
+  "interfaceRevision": 1,
+  "semantics": {"operation": "render a controlled native date input without parsing or formatting its value", "observableOutput": "Equivalent raw string value, bounds, disabled and invalid states, accessible naming, and FormField description linkage in React and Blazor."},
+  "sourceSurface": {"repository": "shipyard", "commit": "a5036ff8b500e0d857d7e0a698408e7cf7f6cf31", "path": "packages/ui-react/src/components/forms/DateField.tsx", "blob": "b919750d80401f0ff7271a7f282ac52739165a13", "capturedExports": ["DateField", "DateFieldProps"]},
+  "dependencies": ["hlp.ui.cn", "hlp.ui.form-field"],
+  "invariants": [
+    "The rendered control is a native input whose type is date and whose id and name equal name.",
+    "Value and change payloads are raw strings; clearing emits an empty string and no Date, DateTime, locale, or timezone conversion occurs.",
+    "Optional min and max values pass through unchanged and omitted bounds remain absent.",
+    "Local or ambient disabled state uses native disabled semantics and emits no change.",
+    "Local or ambient required state uses native required and aria-required semantics.",
+    "Error exposes aria-invalid=true without inventing validation text.",
+    "aria-label and aria-labelledby pass through and ambient FormField label and described-by metadata are preserved.",
+    "Browser-native picker, keyboard, focus, validation, and locale presentation remain browser-owned."
+  ],
+  "errors": [],
+  "presentation": {"disposition": "required", "gallery": "gallery/scenarios/hlp.ui.date-field.json"},
+  "cases": [{"id":"date-field.native"},{"id":"date-field.raw-roundtrip"},{"id":"date-field.clear"},{"id":"date-field.bounds"},{"id":"date-field.disabled"},{"id":"date-field.invalid"},{"id":"date-field.description"},{"id":"date-field.naming"},{"id":"date-field.projection-equivalence"}]
+}

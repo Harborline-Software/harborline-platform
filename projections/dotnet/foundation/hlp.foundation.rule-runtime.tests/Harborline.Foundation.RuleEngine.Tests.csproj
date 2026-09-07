@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <PackageId>Harborline.Foundation.RuleEngine.Tests</PackageId>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <AssemblyName>Harborline.Foundation.RuleEngine.Tests</AssemblyName>
+    <RootNamespace>Harborline.Foundation.RuleEngine.Tests</RootNamespace>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../hlp.foundation.rule-runtime/Harborline.Foundation.RuleEngine.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="../../../../conformance/hlp.foundation.rule-runtime/corpus/*.json" Link="corpus/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

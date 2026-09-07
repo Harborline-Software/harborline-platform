@@ -1,0 +1,216 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.chip",
+  "sourceFixture": "conformance/hlp.ui.chip/fixtures.yaml",
+  "qualityFixture": "conformance/hlp.ui.chip/quality-fixtures.yaml",
+  "galleryInterface": {
+    "probeAttribute": "data-gallery-probe",
+    "scenarioAttribute": "data-gallery-scenario",
+    "projectionTitles": {
+      "react": "Platform/Chip",
+      "blazor": "Platform/Chip"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "chip.defaults",
+      "name": "Content and defaults",
+      "surface": "defaults",
+      "sourceCaseIds": [
+        "chip.content",
+        "chip.defaults",
+        "chip.noninteractive",
+        "chip.icon-avatar"
+      ],
+      "sourceQualityCaseIds": [
+        "chip.quality.pattern",
+        "chip.quality.targets",
+        "chip.quality.reflow"
+      ],
+      "content": {
+        "blurb": "Content and defaults",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<header className=\"hl-gallery-heading\"><h2>Chips</h2></header><div className=\"hl-gallery-stage hl-gallery-button-row\"><Chip text=\"Priority\" removable onRemove={()=>{}}/><Chip text=\"Selected\" defaultSelected themeColor=\"primary\"/><Chip text=\"Warning\" fillMode=\"outline\" themeColor=\"warning\"/><Chip text=\"Disabled\" disabled/></div>",
+            "blazor": "<header class=\"hl-gallery-heading\"><h2>Chips</h2></header><div class=\"hl-gallery-stage hl-gallery-button-row\"><HarborlineChip Text=\"Priority\" Removable OnRemove=\"@(()=>{})\"/><HarborlineChip Text=\"Selected\" DefaultSelected ThemeColor=\"ChipThemeColor.Primary\"/><HarborlineChip Text=\"Warning\" FillMode=\"ChipFillMode.Outline\" ThemeColor=\"ChipThemeColor.Warning\"/><HarborlineChip Text=\"Disabled\" Disabled/></div>",
+            "rationale": "The closed descriptor vocabulary has no heading or chip control and therefore cannot express the four rendered chip components, their selection/removal behavior, or their visual variants without approximation."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "chip.interactions",
+      "name": "Selection and removal",
+      "surface": "selection-removal",
+      "interaction": "keyboard",
+      "sourceCaseIds": [
+        "chip.uncontrolled-selection",
+        "chip.controlled-selection",
+        "chip.disabled",
+        "chip.remove",
+        "chip.remove-no-toggle"
+      ],
+      "sourceQualityCaseIds": [
+        "chip.quality.keyboard",
+        "chip.quality.focus",
+        "chip.quality.forced-colors"
+      ],
+      "content": {
+        "blurb": "Selection and removal",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "inherits": "chip.defaults"
+      }
+    },
+    {
+      "id": "chip.locale-ar",
+      "name": "Arabic and expanded labels",
+      "surface": "locale-ar",
+      "interaction": "keyboard",
+      "sourceCaseIds": [
+        "chip.rtl",
+        "chip.remove"
+      ],
+      "sourceQualityCaseIds": [
+        "chip.quality.locales",
+        "chip.quality.rtl",
+        "chip.quality.pseudo"
+      ],
+      "content": {
+        "blurb": "Arabic and expanded labels",
+        "environment": {
+          "locale": "ar-SA",
+          "direction": "rtl",
+          "theme": "light",
+          "catalog": {}
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<header className=\"hl-gallery-heading\"><h2>وسوم</h2></header><div className=\"hl-gallery-stage hl-gallery-button-row\"><Chip text=\"أولوية\" removable onRemove={()=>{}}/><Chip text=\"Selected\" defaultSelected themeColor=\"primary\"/><Chip text=\"Warning\" fillMode=\"outline\" themeColor=\"warning\"/><Chip text=\"Disabled\" disabled/></div>",
+            "blazor": "<header class=\"hl-gallery-heading\"><h2>وسوم</h2></header><div class=\"hl-gallery-stage hl-gallery-button-row\"><HarborlineChip Text=\"أولوية\" Removable OnRemove=\"@(()=>{})\"/><HarborlineChip Text=\"Selected\" DefaultSelected ThemeColor=\"ChipThemeColor.Primary\"/><HarborlineChip Text=\"Warning\" FillMode=\"ChipFillMode.Outline\" ThemeColor=\"ChipThemeColor.Warning\"/><HarborlineChip Text=\"Disabled\" Disabled/></div>",
+            "rationale": "The closed descriptor vocabulary has no heading or chip control and therefore cannot express the localized removable chip plus the three rendered chip variants without approximation."
+          }
+        ],
+        "inherits": "chip.defaults"
+      }
+    },
+    {
+      "id": "chip.invalid",
+      "name": "Accessible content validation",
+      "surface": "invalid-input",
+      "sourceCaseIds": [
+        "chip.invalid-input"
+      ],
+      "sourceQualityCaseIds": [
+        "chip.quality.pattern"
+      ],
+      "content": {
+        "blurb": "Accessible content validation",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "inherits": "chip.defaults"
+      }
+    },
+    {
+      "id": "chip.theme-light",
+      "name": "Light theme",
+      "surface": "theme-light",
+      "sourceCaseIds": [
+        "chip.style-axes",
+        "chip.defaults"
+      ],
+      "sourceQualityCaseIds": [
+        "chip.quality.themes",
+        "chip.quality.tokens",
+        "chip.quality.contrast",
+        "chip.quality.reduced-motion",
+        "chip.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "Light theme",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "inherits": "chip.defaults"
+      }
+    },
+    {
+      "id": "chip.theme-dark",
+      "name": "Dark theme",
+      "surface": "theme-dark",
+      "sourceCaseIds": [
+        "chip.style-axes",
+        "chip.disabled"
+      ],
+      "sourceQualityCaseIds": [
+        "chip.quality.themes",
+        "chip.quality.tokens",
+        "chip.quality.contrast",
+        "chip.quality.reduced-motion",
+        "chip.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "Dark theme",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "dark",
+          "catalog": {}
+        },
+        "inherits": "chip.defaults"
+      }
+    },
+    {
+      "id": "chip.content",
+      "name": "Content resilience",
+      "surface": "long-content",
+      "sourceCaseIds": [
+        "chip.content",
+        "chip.defaults"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "These chips carry an overlong label, a grouped large number, escaped angle brackets and an ampersand, and a name with diacritics and an em dash.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<><Chip text=\"Awaiting third-party structural certification review\"/><Chip text=\"1,284,905\"/><Chip text={'Bay 4 <grid C-7> & 8'}/><Chip text=\"Ordnance Survey — Niño Ångström\"/></>",
+            "blazor": "<HarborlineChip Text=\"Awaiting third-party structural certification review\"/><HarborlineChip Text=\"1,284,905\"/><HarborlineChip Text=\"@(\"Bay 4 <grid C-7> & 8\")\"/><HarborlineChip Text=\"Ordnance Survey — Niño Ångström\"/>",
+            "rationale": "The closed control vocabulary has no chip control and cannot express four chip instances carrying hostile-but-valid text."
+          }
+        ],
+        "footer": []
+      }
+    }
+  ]
+}

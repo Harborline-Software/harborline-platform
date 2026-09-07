@@ -1,0 +1,263 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.confirm-dialog",
+  "sourceFixture": "conformance/hlp.ui.confirm-dialog/fixtures.yaml",
+  "qualityFixture": "conformance/hlp.ui.confirm-dialog/quality-fixtures.yaml",
+  "galleryInterface": {
+    "probeAttribute": "data-gallery-probe",
+    "scenarioAttribute": "data-gallery-scenario",
+    "projectionTitles": {
+      "react": "UI/ConfirmDialog",
+      "blazor": "UI/ConfirmDialog"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "confirm-dialog.action-pair",
+      "name": "Action pair and confirm ordering",
+      "surface": "action-pair",
+      "sourceCaseIds": [
+        "confirm-dialog.controlled-open",
+        "confirm-dialog.confirm-invokes-once-then-closes",
+        "confirm-dialog.cancel-closes-without-confirm",
+        "confirm-dialog.composes-dialog"
+      ],
+      "sourceQualityCaseIds": [
+        "confirm-dialog.quality.action-pair-name"
+      ],
+      "content": {
+        "blurb": "Cancel precedes confirm; confirming invokes the caller once and then requests closure.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "open": true,
+          "title": "Discard unsaved changes?",
+          "description": "This action cannot be undone once confirmed.",
+          "variant": "default",
+          "closeOnOverlayClick": true,
+          "closeOnEscape": true
+        },
+        "state": {
+          "open": {
+            "kind": "flag",
+            "initial": true
+          },
+          "confirms": {
+            "kind": "counter",
+            "initial": 0
+          },
+          "requests": {
+            "kind": "counter",
+            "initial": 0
+          }
+        },
+        "body": [
+          {
+            "control": "button",
+            "text": "Open confirmation"
+          },
+          {
+            "control": "output",
+            "live": "polite",
+            "text": "Confirms: {confirms} · Open-change requests: {requests}"
+          }
+        ],
+        "footer": [
+          {
+            "control": "button",
+            "text": "Cancel",
+            "action": "close"
+          },
+          {
+            "control": "button",
+            "text": "Confirm",
+            "action": "confirm"
+          }
+        ]
+      }
+    },
+    {
+      "id": "confirm-dialog.labels",
+      "name": "Localized and overridden labels",
+      "surface": "labels",
+      "sourceCaseIds": [
+        "confirm-dialog.localized-labels",
+        "confirm-dialog.label-override",
+        "confirm-dialog.key-echo-fallback"
+      ],
+      "sourceQualityCaseIds": [
+        "confirm-dialog.quality.catalog"
+      ],
+      "content": {
+        "blurb": "Both actions resolve from the catalog, and explicit labels win over it.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {
+            "common.confirm": "common.confirm",
+            "common.cancel": "common.cancel"
+          }
+        },
+        "inherits": "confirm-dialog.action-pair"
+      }
+    },
+    {
+      "id": "confirm-dialog.destructive",
+      "name": "Destructive emphasis",
+      "surface": "destructive",
+      "sourceCaseIds": [
+        "confirm-dialog.destructive-emphasis"
+      ],
+      "sourceQualityCaseIds": [
+        "confirm-dialog.quality.forced-colors",
+        "confirm-dialog.quality.tokens"
+      ],
+      "content": {
+        "blurb": "The destructive variant changes emphasis only — order and semantics are unchanged.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "open": true,
+          "title": "Delete this structure permanently?",
+          "description": "This action cannot be undone once confirmed.",
+          "confirmLabel": "Permanently delete this structure and every captured pose attached to it",
+          "variant": "destructive",
+          "closeOnOverlayClick": true,
+          "closeOnEscape": true
+        },
+        "footer": [
+          {
+            "control": "button",
+            "text": "Cancel",
+            "action": "close"
+          },
+          {
+            "control": "button",
+            "text": "Permanently delete this structure and every captured pose attached to it",
+            "action": "confirm"
+          }
+        ],
+        "inherits": "confirm-dialog.action-pair"
+      }
+    },
+    {
+      "id": "confirm-dialog.reflow-rtl",
+      "name": "Long content reflow and RTL mirroring",
+      "surface": "reflow-rtl",
+      "sourceCaseIds": [
+        "confirm-dialog.long-content-reflow",
+        "confirm-dialog.locale-rtl",
+        "confirm-dialog.replacement"
+      ],
+      "sourceQualityCaseIds": [
+        "confirm-dialog.quality.reflow",
+        "confirm-dialog.quality.rtl"
+      ],
+      "content": {
+        "blurb": "Expanded confirmation copy wraps, and the action pair mirrors under Arabic.",
+        "environment": {
+          "locale": "ar-SA",
+          "direction": "rtl",
+          "theme": "light",
+          "catalog": {
+            "common.confirm": "تأكيد",
+            "common.cancel": "إلغاء"
+          }
+        },
+        "props": {
+          "open": true,
+          "title": "حذف الهيكل نهائيًا؟",
+          "description": "لا يمكن التراجع عن هذا الإجراء بعد التأكيد.",
+          "variant": "default",
+          "closeOnOverlayClick": true,
+          "closeOnEscape": true
+        },
+        "footer": [
+          {
+            "control": "button",
+            "text": "إلغاء",
+            "action": "close"
+          },
+          {
+            "control": "button",
+            "text": "تأكيد",
+            "action": "confirm"
+          }
+        ],
+        "inherits": "confirm-dialog.action-pair"
+      }
+    },
+    {
+      "id": "confirm-dialog.dismissal",
+      "name": "Dismissal policy passthrough",
+      "surface": "dismissal",
+      "sourceCaseIds": [
+        "confirm-dialog.dismissal-passthrough",
+        "confirm-dialog.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "confirm-dialog.quality.keyboard",
+        "confirm-dialog.quality.reduced-motion",
+        "confirm-dialog.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "Overlay and Escape dismissal are suppressed by policy passed to the composed shell.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "open": true,
+          "title": "Discard unsaved changes?",
+          "description": "This action cannot be undone once confirmed.",
+          "variant": "default",
+          "closeOnOverlayClick": false,
+          "closeOnEscape": false
+        },
+        "inherits": "confirm-dialog.action-pair"
+      }
+    },
+    {
+      "id": "confirm-dialog.content",
+      "name": "Content resilience",
+      "surface": "long-content",
+      "sourceCaseIds": [
+        "confirm-dialog.label-override",
+        "confirm-dialog.long-content-reflow"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "Real content carries a long title, a grouped large number, escaped angle brackets and an ampersand, and a name with diacritics and an em dash.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<ConfirmDialog open onOpenChange={() => {}} onConfirm={() => {}} title={'Awaiting third-party structural certification review'} description={'Bay 4 <grid C-7> & 8'} cancelLabel={'1,284,905'} confirmLabel={'Ordnance Survey — Niño Ångström'} />",
+            "blazor": "<HarborlineConfirmDialog Open=\"true\" Title=\"@(\"Awaiting third-party structural certification review\")\" Description=\"@(\"Bay 4 <grid C-7> & 8\")\" CancelLabel=\"@(\"1,284,905\")\" ConfirmLabel=\"@(\"Ordnance Survey — Niño Ångström\")\" />",
+            "rationale": "The closed control vocabulary cannot express confirmation-dialog title, description, and caller-overridden action labels carrying hostile-but-valid text."
+          }
+        ],
+        "footer": []
+      }
+    }
+  ],
+  "interface": "specs/modules/ui/hlp.ui.confirm-dialog/interface.yaml"
+}

@@ -1,0 +1,11 @@
+{
+  "//": "276: the executables the phase-4 gate spawns, and the version the gate assumes. Checked exactly (both ways) against run-phase-4-gate.mjs, run-native.mjs, run-gallery-gate.mjs and prepare-galleries.mjs by tooling/tests/gate-hosts.test.mjs. Chain preflight (mac-land.sh, the Windows templates) reads this file instead of a hard-coded list; gh is chain-only (PR/push), not gate-spawned, so it is not in the 'gate' set.",
+  "tools": [
+    { "name": "node",   "spawnedBy": ["gate"], "version": { "major": 24 } },
+    { "name": "npm",    "spawnedBy": ["gate"], "version": { "major": 11 } },
+    { "name": "pnpm",   "spawnedBy": ["gate"], "version": { "major": 11 } },
+    { "name": "dotnet", "spawnedBy": ["gate"], "version": { "sdkBand": "11.0.100-preview" } },
+    { "name": "git",    "spawnedBy": ["gate", "chain"], "version": { "minMajor": 2 } },
+    { "name": "gh",     "spawnedBy": ["chain"], "version": { "minMajor": 2 } }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.blocks.workflow-interpreter",
+  "interfaceRevision": 1,
+  "cases": [
+    {"id": "autonomous-start-parks", "trigger": "Event", "step": "Draft", "expected": "Park", "expectedStep": "PendingApproval", "basisKind": "cp-approval-basis"},
+    {"id": "approve-confirms-cp-through-broker", "decision": "approve", "expected": "Advance", "expectedStep": "Posted", "confirmsRecorded": 1},
+    {"id": "non-human-confirmer-refused", "decision": "approve", "confirmerIsHuman": false, "expected": "workflow.approval.separation_of_duties_violation"},
+    {"id": "engine-self-confirm-refused", "decision": "approve", "confirmerParty": "engine", "expected": "workflow.approval.separation_of_duties_violation"},
+    {"id": "reject-records-override-no-effect", "decision": "reject", "expected": "Advance", "expectedStep": "Rejected", "overridesRecorded": 1, "effect": null},
+    {"id": "send-back-loops-back", "decision": "send-back", "expected": "Park", "expectedStep": "Draft", "isLoopBack": true},
+    {"id": "ap-effect-autonomous", "trigger": "Event", "expected": "Advance", "effect": "built-without-human"},
+    {"id": "inadmissible-pinned-definition-throws-at-load", "expected": "WorkflowAdmissionException"}
+  ]
+}

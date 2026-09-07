@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.guarded-control",
+  "fixtureRevision": 1,
+  "cases": [
+    {"id": "guarded-control.initial-covered", "input": {"label": "Sign and save", "disabled": false}, "expected": {"state": "covered", "commitCount": 0, "armedActionPresent": false}},
+    {"id": "guarded-control.first-activation-arms", "input": {"activation": "pointer"}, "expected": {"state": "armed", "commitCount": 0, "deadlineMilliseconds": 5000}},
+    {"id": "guarded-control.pointer-two-step", "input": {"activations": ["pointer", "pointer"]}, "expected": {"states": ["covered", "armed", "committing", "covered"], "commitCount": 1}},
+    {"id": "guarded-control.keyboard-two-step", "input": {"keys": ["Enter", "Space"]}, "expected": {"firstActivationCommits": false, "secondActivationCommits": true, "commitCount": 1}},
+    {"id": "guarded-control.commit-once", "input": {"armed": true, "simultaneousActivations": 4}, "expected": {"commitCount": 1, "latchAcquiredBeforeCallback": true}},
+    {"id": "guarded-control.committing-inert", "input": {"commitPending": true, "events": ["pointer", "Enter", "timeout", "window-blur"]}, "expected": {"state": "committing", "additionalCommitCount": 0, "recoveryCount": 0}},
+    {"id": "guarded-control.commit-completed", "input": {"commitOutcome": "completed"}, "expected": {"state": "covered", "settlementCount": 1, "focus": "covered-action"}},
+    {"id": "guarded-control.commit-rejected", "input": {"commitOutcome": "rejected"}, "expected": {"stateBeforeExceptionRouting": "covered", "settlementCount": 1, "focus": "covered-action", "rawErrorRendered": false}},
+    {"id": "guarded-control.timeout-recovery", "input": {"elapsedMilliseconds": 5000}, "expected": {"state": "covered", "commitCount": 0, "recoveryReason": "timeout", "recoveryCount": 1}},
+    {"id": "guarded-control.escape-recovery", "input": {"armed": true, "key": "Escape"}, "expected": {"state": "covered", "commitCount": 0, "recoveryReason": "escape", "focus": "covered-action"}},
+    {"id": "guarded-control.host-recovery", "input": {"events": ["navigation", "document-hidden", "window-blur-after-grace"]}, "expected": {"eachRecovers": true, "commitCount": 0, "focusDeferredWhenUnsafe": true}},
+    {"id": "guarded-control.recovery-race", "input": {"simultaneousEvents": ["timeout", "document-hidden", "window-blur"]}, "expected": {"state": "covered", "recoveryCount": 1, "commitCount": 0}},
+    {"id": "guarded-control.disabled", "input": {"disabled": true, "describedBy": ["guard-denial"]}, "expected": {"state": "covered", "nativeDisabled": true, "commitCount": 0, "descriptionAssociated": true}},
+    {"id": "guarded-control.became-disabled", "input": {"initialState": "armed", "disabled": true}, "expected": {"state": "covered", "recoveryReason": "became-disabled", "recoveryCount": 1}},
+    {"id": "guarded-control.focus", "input": {"outcomes": ["armed", "timeout", "escape", "completed", "rejected"]}, "expected": {"focusMovesToArmed": true, "focusReturnsAfterEverySettlement": true}},
+    {"id": "guarded-control.disposal", "input": {"armed": true, "dispose": true, "laterEvents": ["timeout", "navigation"]}, "expected": {"timersDisposed": true, "subscriptionsDisposed": true, "staleEventCount": 0, "focusAttempted": false}},
+    {"id": "guarded-control.authorization-boundary", "input": {"actionId": "workshop.unlock", "classificationId": "new-record-type"}, "expected": {"metadataAuthorizes": false, "disabledAuthorizes": false, "callerCommitRevalidates": true}},
+    {"id": "guarded-control.localization", "input": {"locale": "ar-SA", "label": "تصدير", "remainingSeconds": 2}, "expected": {"wholeMessages": true, "localizedNumberAndUnit": true, "labelBidiIsolated": true, "rawSuffix": false}},
+    {"id": "guarded-control.rtl-motion", "input": {"direction": "rtl", "reducedMotion": true}, "expected": {"logicalLayout": true, "stateOrderUnchanged": true, "nonessentialMotionSuppressed": true}},
+    {"id": "guarded-control.host-attributes", "input": {"attributes": {"data-testid": "export-guard", "aria-describedby": "guard-denial"}}, "expected": {"preserved": true, "requiredSemanticsOverrideConflicts": true}},
+    {"id": "guarded-control.invalid-input", "input": {"variants": ["blank-label", "blank-action", "blank-classification"]}, "expected": {"inert": true, "state": "covered", "commitCount": 0}},
+    {"id": "guarded-control.projection-equivalence", "input": {"projections": ["react", "blazor"]}, "expected": {"sameCases": true, "sameStateOrdering": true, "sameCallbacks": true, "sameFocusOutcomes": true}}
+  ]
+}

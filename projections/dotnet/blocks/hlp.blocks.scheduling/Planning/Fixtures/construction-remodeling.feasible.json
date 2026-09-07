@@ -1,0 +1,53 @@
+{
+  "schema": "harborline.scheduling.problem-draft/v0",
+  "id": "construction-remodeling.feasible",
+  "version": "0.1.0",
+  "title": "Synthetic occupied-home remodeling critical path",
+  "timezone": "UTC",
+  "metadata": { "synthetic": true, "fixtureKind": "feasible", "safety": "Architecture-only synthetic project data." },
+  "anchors": [
+    { "id": "anchor-start", "label": "Synthetic project start", "kind": "date", "value": "2026-08-17" }
+  ],
+  "windows": [
+    { "id": "horizon", "label": "Project horizon", "start": "2026-08-17", "end": "2026-10-30" },
+    { "id": "occupied-site-window", "label": "Occupied-site work window", "startOffset": { "anchorId": "anchor-start", "offset": { "amount": 0, "unit": "day" } }, "endOffset": { "anchorId": "anchor-start", "offset": { "amount": 60, "unit": "day" } } }
+  ],
+  "locations": [
+    { "id": "home", "label": "Synthetic occupied home", "tags": ["occupied"] },
+    { "id": "kitchen", "label": "Synthetic kitchen zone", "parentId": "home", "tags": ["phase-zone"] }
+  ],
+  "phases": [
+    { "id": "phase-permit", "label": "Permit and prep", "sequence": 1, "locationRefs": ["home"] },
+    { "id": "phase-build", "label": "Build and inspection", "sequence": 2, "locationRefs": ["kitchen"], "predecessorPhaseRefs": ["phase-permit"] }
+  ],
+  "resources": [
+    { "id": "resource-carpentry", "label": "Synthetic carpentry crew", "kind": "pool", "capabilities": [{ "capabilityRef": "cap.carpentry", "count": 1 }], "availabilityWindowRefs": ["horizon"], "capacity": { "quantity": 8, "unit": "crew-day", "cumulative": true, "windowRefs": ["horizon"] }, "locationRefs": ["kitchen"] },
+    { "id": "resource-inspector", "label": "Synthetic inspection authority", "kind": "party", "capabilities": [{ "capabilityRef": "cap.inspection", "count": 1 }], "availabilityWindowRefs": ["horizon"], "locationRefs": ["home"] },
+    { "id": "authority-permit", "label": "Synthetic permit authority", "kind": "party", "capabilities": [{ "capabilityRef": "cap.permit-approval", "count": 1 }], "availabilityWindowRefs": ["horizon"] }
+  ],
+  "capacityPools": [
+    { "id": "pool-crew-days", "label": "Crew-day capacity", "amount": 8, "unit": "crew-day", "cumulative": true, "windowRefs": ["horizon"], "resourceRefs": ["resource-carpentry"] }
+  ],
+  "policies": [
+    { "id": "policy-permit", "label": "Permit approval policy", "kind": "approval", "ref": "policy://synthetic/permit" },
+    { "id": "policy-inspection", "label": "Inspection policy", "kind": "approval", "ref": "policy://synthetic/inspection" },
+    { "id": "policy-commit", "label": "Proposal-only commit policy", "kind": "commit", "ref": "policy://synthetic/proposal-only" }
+  ],
+  "constraints": [
+    { "id": "constraint-work-window", "label": "Occupied-site window", "severity": "hard", "kind": "window", "ruleRef": "rule://synthetic/work-window", "appliesToRefs": ["demand:material-lead", "demand:rough-work", "demand:inspection"] },
+    { "id": "constraint-critical-path", "label": "Critical-path order", "severity": "hard", "kind": "precedence", "ruleRef": "rule://synthetic/critical-path", "appliesToRefs": ["demand:rough-work", "demand:inspection"] },
+    { "id": "constraint-tenant-comfort", "label": "Prefer compact disruption", "severity": "soft", "kind": "preference", "calculationRef": "calc://synthetic/disruption", "appliesToRefs": ["demand:rough-work"] }
+  ],
+  "approvals": [
+    { "id": "approval-permit", "label": "Permit approval", "requirementKind": "permit", "scope": "phase", "subjectRefs": ["phase:phase-permit"], "authorityRef": "resource:authority-permit", "policyRef": "policy-permit", "requiredCapabilityRefs": ["cap.permit-approval"], "satisfierRefs": ["resource:authority-permit"] },
+    { "id": "approval-inspection", "label": "Inspection approval", "requirementKind": "inspection", "scope": "demand", "subjectRefs": ["demand:inspection"], "authorityRef": "resource:resource-inspector", "policyRef": "policy-inspection", "requiredCapabilityRefs": ["cap.inspection"], "satisfierRefs": ["resource:resource-inspector"] }
+  ],
+  "demands": [
+    { "id": "material-lead", "label": "Synthetic material lead time", "duration": { "amount": 5, "unit": "day" }, "windowRefs": ["occupied-site-window"], "phaseRef": "phase-permit", "locationRefs": ["home"], "requiredCapabilities": [{ "capabilityRef": "cap.carpentry", "count": 1 }], "capacityUsage": [{ "capacityPoolId": "pool-crew-days", "amount": 1, "unit": "crew-day", "mode": "consume" }], "repetition": { "kind": "fixed-count", "count": 1, "every": { "amount": 1, "unit": "week" } }, "constraintRefs": ["constraint-work-window"], "approvalRequirementRefs": ["approval-permit"] },
+    { "id": "rough-work", "label": "Synthetic rough work", "duration": { "amount": 4, "unit": "day" }, "windowRefs": ["occupied-site-window"], "phaseRef": "phase-build", "locationRefs": ["kitchen"], "requiredCapabilities": [{ "capabilityRef": "cap.carpentry", "count": 1 }], "capacityUsage": [{ "capacityPoolId": "pool-crew-days", "amount": 4, "unit": "crew-day", "mode": "consume" }], "predecessors": [{ "demandId": "material-lead", "relation": "finish-to-start", "minGap": { "amount": 2, "unit": "day" }, "constraintRef": "constraint-critical-path" }], "constraintRefs": ["constraint-work-window", "constraint-critical-path"], "softConstraintRefs": ["constraint-tenant-comfort"], "approvalRequirementRefs": ["approval-permit"] },
+    { "id": "inspection", "label": "Synthetic inspection gate", "duration": { "amount": 1, "unit": "day" }, "windowRefs": ["occupied-site-window"], "phaseRef": "phase-build", "locationRefs": ["kitchen"], "requiredCapabilities": [{ "capabilityRef": "cap.inspection", "count": 1 }], "predecessors": [{ "demandId": "rough-work", "relation": "finish-to-start", "minGap": { "amount": 1, "unit": "day" }, "constraintRef": "constraint-critical-path" }], "constraintRefs": ["constraint-work-window", "constraint-critical-path"], "approvalRequirementRefs": ["approval-inspection"] }
+  ],
+  "strategy": { "alias": "heuristic", "parameters": { "candidateLimit": 40 } },
+  "commitment": { "mode": "proposal-only", "horizonWindowRef": "horizon", "capacityPoolRefs": ["pool-crew-days"], "policyRefs": ["policy-commit"] },
+  "resultMetadata": { "expectedOutcome": "feasible", "deterministicSeed": "synthetic-remodel-ok", "explanationRefs": ["demand:material-lead", "demand:rough-work", "demand:inspection", "approval:approval-inspection"] }
+}

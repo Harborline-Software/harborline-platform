@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "projection": "react",
+  "moduleId": "hlp.ui.chat",
+  "scenarios": [
+    {
+      "scenarioId": "chat.empty-suggestions",
+      "sha256": "683ce644d77c0d79543b5a3eb19c4b3195e2dc0cb75bd59cee8c829fafd4ba0d",
+      "bytes": 14905,
+      "artifact": "../baselines/sha256/683ce644d77c0d79543b5a3eb19c4b3195e2dc0cb75bd59cee8c829fafd4ba0d.png"
+    },
+    {
+      "scenarioId": "chat.app-conversation",
+      "sha256": "2bcb8699c1cc83a1988c2449953fe03616d4dc971431ee7e2a07fb793f5e221f",
+      "bytes": 22557,
+      "artifact": "../baselines/sha256/2bcb8699c1cc83a1988c2449953fe03616d4dc971431ee7e2a07fb793f5e221f.png"
+    },
+    {
+      "scenarioId": "chat.controlled-composer",
+      "sha256": "f4380f548983cc63e07d92af20766a1b2d7f6edacc50c536b7c6de2f1359aca6",
+      "bytes": 15810,
+      "artifact": "../baselines/sha256/f4380f548983cc63e07d92af20766a1b2d7f6edacc50c536b7c6de2f1359aca6.png"
+    },
+    {
+      "scenarioId": "chat.streaming-keyboard",
+      "sha256": "3c38fa42159c8d14934911714b5498562663740388d68f2c9d1b62ea6ae2e26a",
+      "bytes": 20952,
+      "artifact": "../baselines/sha256/3c38fa42159c8d14934911714b5498562663740388d68f2c9d1b62ea6ae2e26a.png"
+    },
+    {
+      "scenarioId": "chat.replacement-validation",
+      "sha256": "2f3fc7507325e102ae1738448c180f190a39aaefe3821b7afc9065f2f5ca2075",
+      "bytes": 21830,
+      "artifact": "../baselines/sha256/2f3fc7507325e102ae1738448c180f190a39aaefe3821b7afc9065f2f5ca2075.png"
+    },
+    {
+      "scenarioId": "chat.large-data",
+      "sha256": "54df82b28a7c04460b1deca1dea1fcedd226a62a76e61b374d5a871d78a84d99",
+      "bytes": 28727,
+      "artifact": "../baselines/sha256/54df82b28a7c04460b1deca1dea1fcedd226a62a76e61b374d5a871d78a84d99.png"
+    },
+    {
+      "scenarioId": "chat.locale-pseudo",
+      "sha256": "c484034ea7a6161c92471ec8f8eb060a1ee41cb8c6e4a04308d3699e406b64fe",
+      "bytes": 22627,
+      "artifact": "../baselines/sha256/c484034ea7a6161c92471ec8f8eb060a1ee41cb8c6e4a04308d3699e406b64fe.png"
+    },
+    {
+      "scenarioId": "chat.locale-ar",
+      "sha256": "1aae53aae03909544482e158ea12b1bd4950046c697d05b0772fbfb8c62b7e83",
+      "bytes": 17447,
+      "artifact": "../baselines/sha256/1aae53aae03909544482e158ea12b1bd4950046c697d05b0772fbfb8c62b7e83.png"
+    },
+    {
+      "scenarioId": "chat.theme-light",
+      "sha256": "4b865a75b6cfcd0167c2aa5675cebeb63609e5cb4fc186ce8877b21a4896ddb3",
+      "bytes": 21665,
+      "artifact": "../baselines/sha256/4b865a75b6cfcd0167c2aa5675cebeb63609e5cb4fc186ce8877b21a4896ddb3.png"
+    },
+    {
+      "scenarioId": "chat.theme-dark",
+      "sha256": "7879b54ad401d41728ae4a58ca1f6f8ff9d3f8c043ffc4752e9c38b6f8e334cf",
+      "bytes": 23043,
+      "artifact": "../baselines/sha256/7879b54ad401d41728ae4a58ca1f6f8ff9d3f8c043ffc4752e9c38b6f8e334cf.png"
+    }
+  ]
+}

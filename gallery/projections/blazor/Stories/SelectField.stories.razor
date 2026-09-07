@@ -1,0 +1,23 @@
+@attribute [Stories("Platform/Select Field")]
+<Stories TComponent="SelectFieldScenario">
+  @foreach (var scenario in Scenarios)
+  {
+    <Story Name="@scenario.Name"><Arguments><Arg For="_ => _.ScenarioId" Value="@scenario.Id" /></Arguments><Template><SelectFieldScenario @attributes="context.Args" /></Template></Story>
+  }
+  <Story Name="Content resilience"><Arguments><Arg For="_ => _.ScenarioId" Value='"select-field.content"'/></Arguments><Template><SelectFieldScenario @attributes="context.Args"/></Template></Story>
+  <Story Name="Error state"><Arguments><Arg For="_ => _.ScenarioId" Value='"select-field.error-state"'/></Arguments><Template><SelectFieldScenario @attributes="context.Args"/></Template></Story>
+</Stories>
+
+@code {
+  private static readonly (string Id, string Name)[] Scenarios =
+  [
+    ("select-field.states", "Value, placeholder, and validation"),
+    ("select-field.selection", "Open and select"),
+    ("select-field.keyboard-dismissal", "Keyboard, typeahead, and dismissal"),
+    ("select-field.locale-en", "English locale"),
+    ("select-field.locale-pseudo", "Pseudo locale"),
+    ("select-field.locale-ar", "Arabic locale"),
+    ("select-field.theme-light", "Light theme"),
+    ("select-field.theme-dark", "Dark theme"),
+  ];
+}

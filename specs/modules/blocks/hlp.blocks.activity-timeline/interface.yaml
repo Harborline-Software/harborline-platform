@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.blocks.activity-timeline",
+  "interfaceRevision": 1,
+  "status": "frozen",
+  "purpose": "Own a newest-first attributed activity timeline over a neutral tenant- and session-scoped read port without exposing raw actor identifiers.",
+  "dependencies": [{"moduleId": "hlp.contracts.identities", "minimumRevision": 1}],
+  "callerInterface": {
+    "name": "IActivityEntrySource / IActivityAttribution",
+    "operations": [
+      "Read(tenantId, sessionId) -> ordered ActivityEntry list; foreign scope returns empty",
+      "Count(tenantId, sessionId) -> count derived from the same scoped entry set",
+      "IActivityAttribution.Resolve(actorId) -> ActivityDisplayIdentity; raw input is sealed before an entry is returned"
+    ],
+    "context": "ActivityEntry and ActivitySessionId are module-owned neutral values; TenantId comes from hlp.contracts.identities. ActivityEntry has proposedBy/confirmedBy display identities and no raw actor-id member."
+  },
+  "invariants": [
+    "Reads and counts are both tenant- and session-scoped and foreign scopes fail closed with empty/zero.",
+    "Returned entries are newest-first.",
+    "Notification dismissal and read state never mutate activity history.",
+    "Capability failure derives capability-error and success derives capability-result.",
+    "No public member of ActivityEntry or ActivityDisplayIdentity can reveal a raw actor identifier."
+  ],
+  "errors": [],
+  "publicSeams": ["IActivityEntrySource neutral read/count port", "IActivityAttribution sealing port", "injected attribution resolver", "injected TimeProvider (the pinned addResult ambient-clock read is not ported; calendar precedent)"],
+  "conformance": {
+    "nativeTests": {"dotnet": 11},
+    "nativeTestNote": "11 real tests: 7 ports under pinned Lane-B names and fixture values + 4 AUTHORED tests (obligation 3: tenant and session fail-closed scoping; obligation 5: structural raw-id absence and attribution sealing behavior). Zero skips."
+  },
+  "behaviorEvidence": {
+    "sourceCapture": "migration://preprocessing/aggregates/generated/aggregates-reading-a.json",
+    "boundaryDecision": "migration://preprocessing/aggregates/draft-hlf053/WAVE-STATE.md"
+  },
+  "package": {"nuget": "Harborline.Blocks.ActivityTimeline", "assembly": "Harborline.Blocks.ActivityTimeline", "distribution": "internal-only"}
+}

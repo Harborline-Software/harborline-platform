@@ -1,0 +1,73 @@
+.hl-number-field {
+  --hl-number-field-surface: var(--hl-background, #ffffff);
+  --hl-number-field-foreground: var(--hl-foreground, #172033);
+  --hl-number-field-border: var(--hl-border, #64748b);
+  --hl-number-field-focus: var(--hl-focus, #8a3ffc);
+  --hl-number-field-error: var(--hl-danger);
+  --hl-number-field-disabled-surface: var(--hl-muted, #f1f5f9);
+  --hl-number-field-disabled-foreground: var(--hl-muted-foreground, #475569);
+}
+
+.hl-number-field {
+  appearance: auto;
+  background: var(--hl-number-field-surface);
+  border: 1px solid var(--hl-number-field-border);
+  border-radius: 0.375rem;
+  box-sizing: border-box;
+  color: var(--hl-number-field-foreground);
+  font: inherit;
+  inline-size: 100%;
+  line-height: 1.4;
+  max-inline-size: 100%;
+  min-block-size: 2.5rem;
+  min-inline-size: 0;
+  padding-block: 0.5rem;
+  padding-inline: 0.75rem;
+  text-align: start;
+  transition: background-color 150ms ease-out, border-color 150ms ease-out, box-shadow 150ms ease-out;
+}
+
+.hl-number-field:focus-visible {
+  border-color: var(--hl-number-field-focus);
+  outline: 2px solid var(--hl-number-field-focus);
+  outline-offset: 2px;
+}
+
+.hl-number-field--error {
+  border-color: var(--hl-number-field-error);
+}
+
+.hl-number-field--disabled {
+  background: var(--hl-number-field-disabled-surface);
+  color: var(--hl-number-field-disabled-foreground);
+  cursor: not-allowed;
+}
+
+[data-theme='dark'] .hl-number-field,
+.hl-number-field[data-theme='dark'] {
+  --hl-number-field-surface: var(--hl-background, #182235);
+  --hl-number-field-foreground: var(--hl-foreground, #f8fafc);
+  --hl-number-field-border: var(--hl-border, #94a3b8);
+  --hl-number-field-focus: var(--hl-focus, #93c5fd);
+  --hl-number-field-error: var(--hl-destructive, #fca5a5);
+  --hl-number-field-disabled-surface: var(--hl-muted, #263247);
+  --hl-number-field-disabled-foreground: var(--hl-muted-foreground, #cbd5e1);
+}
+
+@media (forced-colors: active) {
+  .hl-number-field {
+    background: Field;
+    border-color: FieldText;
+    color: FieldText;
+    forced-color-adjust: auto;
+  }
+
+  .hl-number-field:focus-visible {
+    border-color: Highlight;
+    outline-color: Highlight;
+  }
+
+  .hl-number-field--error {
+    border-color: Mark;
+  }
+}

@@ -1,0 +1,14 @@
+<div style="display:grid;gap:6px">
+  <strong>@Label</strong>
+  @ChildContent
+  @if (!string.IsNullOrWhiteSpace(Note))
+  {
+    <small>@Note</small>
+  }
+</div>
+
+@code {
+  [Parameter, EditorRequired] public string Label { get; set; } = string.Empty;
+  [Parameter] public string? Note { get; set; }
+  [Parameter] public RenderFragment? ChildContent { get; set; }
+}

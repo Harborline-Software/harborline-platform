@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "outDir": "dist",
+    "rootDir": "src",
+    "types": [],
+    "baseUrl": ".",
+    "paths": {
+      "@harborline-platform/hlp.ui.default-strings": ["../hlp.ui.default-strings/dist/index.d.ts"],
+      "@harborline-platform/hlp.ui.locale-provider": ["../hlp.ui.locale-provider/dist/index.d.ts"]
+    }
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx", "src/test-setup.ts"]
+}

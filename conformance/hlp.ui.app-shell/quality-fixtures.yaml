@@ -1,0 +1,195 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.app-shell",
+  "profileRevision": 1,
+  "locales": {
+    "en-US": {
+      "direction": "ltr"
+    },
+    "en-XA": {
+      "direction": "ltr"
+    },
+    "ar-SA": {
+      "direction": "rtl"
+    }
+  },
+  "themes": [
+    {
+      "id": "light",
+      "scenarioId": "app-shell.theme-light"
+    },
+    {
+      "id": "dark",
+      "scenarioId": "app-shell.theme-dark"
+    }
+  ],
+  "accessibilityCases": [
+    {
+      "id": "app-shell.quality.landmarks",
+      "expected": {
+        "mainCount": 1,
+        "navigationCount": 1,
+        "navigationNamed": true,
+        "complementaryNamedWhenOpen": true
+      }
+    },
+    {
+      "id": "app-shell.quality.switcher-menu",
+      "expected": {
+        "menuRole": true,
+        "menuitemradio": true,
+        "ariaChecked": true,
+        "escapeRestoresTrigger": true
+      }
+    },
+    {
+      "id": "app-shell.quality.pin-toggle",
+      "expected": {
+        "siblingNotNested": true,
+        "minimumCssPixels": 44,
+        "coarsePointerAlwaysVisible": true
+      }
+    },
+    {
+      "id": "app-shell.quality.thread-rows",
+      "expected": {
+        "kebabAccessibleName": true,
+        "renameInputLabeled": true,
+        "destructiveAfterDivider": true
+      }
+    },
+    {
+      "id": "app-shell.quality.keyboard",
+      "expected": {
+        "switcherArrowTraversal": true,
+        "shortcutAria": true,
+        "editableGuard": true
+      }
+    },
+    {
+      "id": "app-shell.quality.focus",
+      "expected": {
+        "pinKeepsFocus": true,
+        "menuDismissRestoresTrigger": true,
+        "endPanelDoesNotStealFocus": true
+      }
+    },
+    {
+      "id": "app-shell.quality.dismissal",
+      "expected": {
+        "switcherEscape": true,
+        "switcherOutsidePointer": true,
+        "overflowMenuEscape": true
+      }
+    },
+    {
+      "id": "app-shell.quality.targets",
+      "expected": {
+        "pinTogglesKebabsActionsMinimumCssPixels": 44
+      }
+    },
+    {
+      "id": "app-shell.quality.forced-colors",
+      "expected": {
+        "railSwitcherEndPanelBoundariesVisible": true
+      }
+    },
+    {
+      "id": "app-shell.quality.reflow",
+      "expected": {
+        "noPageHorizontalOverflowAt320": true
+      }
+    },
+    {
+      "id": "app-shell.quality.shell-scrollbars",
+      "expected": {
+        "allShellScrollRegionsMarked": true,
+        "transparentTrack": true,
+        "thumbToken": "--color-border",
+        "hoverToken": "--color-muted-foreground",
+        "thumbInsetCssPixels": 3,
+        "grabTargetCssPixels": 24,
+        "minimumContrast": "3:1"
+      }
+    }
+  ],
+  "internationalizationCases": [
+    {
+      "id": "app-shell.quality.locales",
+      "expected": {
+        "chromeStringsOverridable": true
+      }
+    },
+    {
+      "id": "app-shell.quality.rtl",
+      "expected": {
+        "railLogicalStart": true,
+        "endPanelLogicalEnd": true,
+        "threadIndentMirrored": true
+      }
+    },
+    {
+      "id": "app-shell.quality.pseudo",
+      "expected": {
+        "truncationNotClipping": true
+      }
+    },
+    {
+      "id": "app-shell.quality.safe-area",
+      "expected": {
+        "carriedFromAppLayout": true
+      }
+    }
+  ],
+  "themingCases": [
+    {
+      "id": "app-shell.quality.themes",
+      "expected": {
+        "publicTokensOnly": true
+      }
+    },
+    {
+      "id": "app-shell.quality.tokens",
+      "expected": {
+        "noHardCodedColors": true
+      }
+    },
+    {
+      "id": "app-shell.quality.contrast",
+      "expected": {
+        "aaOnChrome": true
+      }
+    },
+    {
+      "id": "app-shell.quality.reduced-motion",
+      "expected": {
+        "transitionsInstantUnderReduce": true
+      }
+    },
+    {
+      "id": "app-shell.quality.visual-parity",
+      "expected": {
+        "reactBlazorBaselineMatch": true
+      }
+    }
+  ],
+  "performanceCases": [
+    {
+      "id": "app-shell.performance.large-navigation",
+      "expected": {
+        "navigationItems": 256,
+        "navigationSubtrees": 1,
+        "duplicateItems": 0,
+        "structureBounded": true
+      }
+    },
+    {
+      "id": "app-shell.performance.repeated-update",
+      "expected": {
+        "updates": 96,
+        "latestBodyOnly": true,
+        "staleNodes": 0
+      }
+    }
+  ]
+}

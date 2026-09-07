@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.conversation-list",
+  "verdict": "approved",
+  "reviewer": "cic",
+  "recordedAt": "2026-08-26T20:15:19.163Z",
+  "reference": {
+    "revision": "3c210dc7fb05f5755bf8558626bc6b2e9e5826d4150a937aba7c3fb75fc61e91",
+    "source": "gallery/scenarios/hlp.ui.conversation-list.json",
+    "pin": "cc9eb48ed68c5033ec128cd53c40b1d2786bee66",
+    "surface": {
+      "conformance/hlp.ui.conversation-list/fixtures.yaml": "ba96b4ebe364e9210a49184fd80322e0fb457cb12b504a0346ca6cc680180980",
+      "conformance/hlp.ui.conversation-list/quality-fixtures.yaml": "ae7265d01098670c3d8ce82b64444adc38e4646ef1e1f0c0808e2dc509855368",
+      "gallery/projections/blazor/Stories/ConversationList.stories.razor": "558a6bf6ee036e83e24514010d690983af5e29ac70c13d584eb3a2b2cb7ffc0b",
+      "gallery/projections/blazor/Stories/ConversationListScenario.razor": "ff94c2eea43007affad8d8ab2bb2a8cf442419fdfed7bb00c0e6eccfae1f7f58",
+      "gallery/projections/react/src/ConversationList.stories.tsx": "44383671690d1efc60f0c178149a589134b545422c9432ec3bc64882c1891093",
+      "gallery/scenarios/hlp.ui.conversation-list.json": "b1daf4344e197d26f029c73c55f7619b25f8190ad5fa3a826aa259ae517aa866",
+      "projections/blazor/ui/hlp.ui.conversation-list/ConversationListTypes.cs": "4c0bcb9167b65142673d0a8c36a6249b62fa664f7fda19641a062465a92bd068",
+      "projections/blazor/ui/hlp.ui.conversation-list/ResolvedConversationLabels.cs": "8c52019ef6bc409278ae21880fbb6a57ebf44d68b7c8ba43486cde5030cfdc17",
+      "projections/blazor/ui/hlp.ui.conversation-list/ShipyardConversationList.razor": "2bd901da61a6ede6954f0d9a461dde31d00471615c08052dc490258d2ebd6678",
+      "projections/blazor/ui/hlp.ui.conversation-list/ShipyardConversationRow.razor": "0c82121aa4d89ab7d6a0ff534386659fe0c27513f90cd901e014aab2fc7ea4b3",
+      "projections/blazor/ui/hlp.ui.conversation-list/wwwroot/conversation-list.css": "53188ce91bf322ae00f3776e39121fa05a08321e87af18b422b58ee2429c7c10",
+      "projections/blazor/ui/hlp.ui.conversation-list/wwwroot/conversation-list.js": "2a35cb598954979211eb26d73da77656b2a25b295a45dc0da727e32a4b1ce8e7",
+      "projections/react/ui/hlp.ui.conversation-list/src/ConversationList.tsx": "cb89597cb7c662ef0d30c73dfb28ffc23b6afb5afcad6d72b882a4f6cf878b33",
+      "projections/react/ui/hlp.ui.conversation-list/src/index.ts": "3a23118ecfaf6f837e78f83f1af6f4bf190c20a7b7816a09532a83131db03015",
+      "projections/react/ui/hlp.ui.conversation-list/src/style.css": "57aea3f2692b0fecd77f76cd4b5acbd55032caabb06aeae395edf8c3678085b5",
+      "specs/modules/ui/hlp.ui.conversation-list/scenarios.json": "b1daf4344e197d26f029c73c55f7619b25f8190ad5fa3a826aa259ae517aa866",
+      "specs/modules/ui/hlp.ui.conversation-list/style.css": "57aea3f2692b0fecd77f76cd4b5acbd55032caabb06aeae395edf8c3678085b5"
+    }
+  }
+}

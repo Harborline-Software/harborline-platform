@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "projection": "react",
+  "moduleId": "hlp.ui.spotlight",
+  "scenarios": [
+    {
+      "scenarioId": "spotlight.results",
+      "sha256": "ef7c00e0ba72192cfe5429bb491dfdee42cdb1290afcd54c7b85f2c2d76c38bd",
+      "bytes": 15288,
+      "artifact": "../baselines/sha256/ef7c00e0ba72192cfe5429bb491dfdee42cdb1290afcd54c7b85f2c2d76c38bd.png"
+    },
+    {
+      "scenarioId": "spotlight.interaction",
+      "sha256": "a535f4cf73d54a7962432ca56820f2a6988c9c6d4ba5597d79118b9e628ee07d",
+      "bytes": 16152,
+      "artifact": "../baselines/sha256/a535f4cf73d54a7962432ca56820f2a6988c9c6d4ba5597d79118b9e628ee07d.png"
+    },
+    {
+      "scenarioId": "spotlight.locale-theme",
+      "sha256": "c697659313433e982c5a489f5e46751d8bfd3e7efc25f8e2e069e3bd094ef2aa",
+      "bytes": 12087,
+      "artifact": "../baselines/sha256/c697659313433e982c5a489f5e46751d8bfd3e7efc25f8e2e069e3bd094ef2aa.png"
+    }
+  ]
+}

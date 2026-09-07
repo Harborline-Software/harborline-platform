@@ -1,0 +1,411 @@
+{
+  "schemaVersion": 1,
+  "staticFixture": "slice-1-grid.json",
+  "branch": {
+    "id": "rig",
+    "asset": "Rig 4"
+  },
+  "count": 612,
+  "countReplacement": 613,
+  "eventJson": "{\"rowId\":\"rig\"}",
+  "activation": [
+    "click",
+    "Enter",
+    " ",
+    "ArrowRight"
+  ],
+  "loadingLabel": "Loading children…",
+  "failedLabel": "Children failed to load. Collapse and expand to retry.",
+  "aggregateLabel": "loaded children only",
+  "transitions": [
+    {
+      "state": "unloaded",
+      "children": []
+    },
+    {
+      "state": "loading",
+      "children": []
+    },
+    {
+      "state": "loaded",
+      "children": [
+        "a1",
+        "a2",
+        "a3"
+      ]
+    },
+    {
+      "state": "failed",
+      "children": []
+    }
+  ],
+  "expectedLoadedIds": [
+    "a1",
+    "a2",
+    "a3"
+  ],
+  "focusEntryPoints": [
+    "resize",
+    "replacement"
+  ],
+  "validationCases": [
+    {
+      "count": -1,
+      "state": "unloaded",
+      "expected": "invalid-lazy-children"
+    },
+    {
+      "count": 1,
+      "state": "unknown",
+      "expected": "invalid-lazy-children"
+    }
+  ],
+  "otherBranch": {
+    "id": "deck",
+    "asset": "Deck 2"
+  },
+  "interleaving": [
+    {
+      "host": {
+        "rows": [
+          "rig",
+          "deck"
+        ],
+        "lazyChildren": {
+          "rig": {
+            "count": 612,
+            "state": "unloaded",
+            "children": []
+          },
+          "deck": {
+            "count": 6,
+            "state": "unloaded",
+            "children": []
+          }
+        }
+      },
+      "visibleIds": [],
+      "events": []
+    },
+    {
+      "key": "ArrowRight",
+      "rowId": "rig",
+      "visibleIds": [],
+      "events": [
+        "rig"
+      ]
+    },
+    {
+      "key": "ArrowRight",
+      "rowId": "deck",
+      "visibleIds": [],
+      "events": [
+        "rig",
+        "deck"
+      ]
+    },
+    {
+      "host": {
+        "rows": [
+          "rig",
+          "deck"
+        ],
+        "lazyChildren": {
+          "rig": {
+            "count": 613,
+            "state": "unloaded",
+            "children": []
+          },
+          "deck": {
+            "count": 6,
+            "state": "unloaded",
+            "children": []
+          }
+        }
+      },
+      "visibleIds": [],
+      "events": [
+        "rig",
+        "deck"
+      ]
+    },
+    {
+      "key": "ArrowRight",
+      "rowId": "rig",
+      "visibleIds": [],
+      "events": [
+        "rig",
+        "deck"
+      ]
+    },
+    {
+      "key": "ArrowLeft",
+      "rowId": "rig",
+      "visibleIds": [],
+      "events": [
+        "rig",
+        "deck"
+      ]
+    },
+    {
+      "host": {
+        "rows": [
+          "rig",
+          "deck"
+        ],
+        "lazyChildren": {
+          "rig": {
+            "count": 612,
+            "state": "loaded",
+            "children": [
+              "a1"
+            ]
+          },
+          "deck": {
+            "count": 6,
+            "state": "loaded",
+            "children": [
+              "a2",
+              "a3"
+            ]
+          }
+        }
+      },
+      "visibleIds": [
+        "a2",
+        "a3"
+      ],
+      "events": [
+        "rig",
+        "deck"
+      ]
+    },
+    {
+      "key": "ArrowRight",
+      "rowId": "rig",
+      "visibleIds": [
+        "a1",
+        "a2",
+        "a3"
+      ],
+      "events": [
+        "rig",
+        "deck"
+      ]
+    },
+    {
+      "host": {
+        "rows": [
+          "deck",
+          "rig"
+        ],
+        "lazyChildren": {
+          "rig": {
+            "count": 612,
+            "state": "failed",
+            "children": [
+              "a1"
+            ]
+          },
+          "deck": {
+            "count": 6,
+            "state": "loaded",
+            "children": [
+              "a2",
+              "a3"
+            ]
+          }
+        }
+      },
+      "visibleIds": [
+        "a2",
+        "a3",
+        "a1"
+      ],
+      "events": [
+        "rig",
+        "deck"
+      ],
+      "alert": true
+    },
+    {
+      "host": {
+        "rows": [
+          "deck"
+        ],
+        "lazyChildren": {
+          "deck": {
+            "count": 6,
+            "state": "loaded",
+            "children": [
+              "a2",
+              "a3"
+            ]
+          }
+        }
+      },
+      "visibleIds": [
+        "a2",
+        "a3"
+      ],
+      "events": [
+        "rig",
+        "deck"
+      ]
+    },
+    {
+      "host": {
+        "rows": [
+          "deck",
+          "rig"
+        ],
+        "lazyChildren": {
+          "rig": {
+            "count": 612,
+            "state": "loaded",
+            "children": [
+              "a1"
+            ]
+          },
+          "deck": {
+            "count": 6,
+            "state": "loaded",
+            "children": [
+              "a2",
+              "a3"
+            ]
+          }
+        }
+      },
+      "visibleIds": [
+        "a2",
+        "a3"
+      ],
+      "events": [
+        "rig",
+        "deck"
+      ]
+    },
+    {
+      "host": {
+        "rows": [],
+        "lazyChildren": {}
+      },
+      "visibleIds": [],
+      "events": [
+        "rig",
+        "deck"
+      ]
+    },
+    {
+      "host": {
+        "rows": [
+          "rig"
+        ],
+        "lazyChildren": {
+          "rig": {
+            "count": 612,
+            "state": "loaded",
+            "children": [
+              "deck",
+              "a1"
+            ]
+          },
+          "deck": {
+            "count": 6,
+            "state": "loaded",
+            "children": [
+              "a2",
+              "a3"
+            ]
+          }
+        }
+      },
+      "visibleIds": [],
+      "events": [
+        "rig",
+        "deck"
+      ]
+    },
+    {
+      "key": "ArrowRight",
+      "rowId": "rig",
+      "visibleIds": [
+        "a1"
+      ],
+      "events": [
+        "rig",
+        "deck"
+      ]
+    },
+    {
+      "key": "ArrowRight",
+      "rowId": "deck",
+      "visibleIds": [
+        "a2",
+        "a3",
+        "a1"
+      ],
+      "events": [
+        "rig",
+        "deck"
+      ]
+    }
+  ],
+  "ordinaryRowIds": [
+    "__proto__",
+    "constructor",
+    "toString"
+  ],
+  "window": {
+    "childCount": 80,
+    "idPrefix": "loaded-",
+    "lastId": "loaded-79",
+    "rowCount": 81,
+    "maxRendered": 32
+  },
+  "sourceOrderCases": [
+    {
+      "id": "first-loaded-source-row-across-nested-buckets",
+      "rows": [
+        {
+          "id": "a1",
+          "asset": "Rig 4",
+          "reading": 10,
+          "due": "2026-09-05T00:00:00.000Z",
+          "status": "x"
+        },
+        {
+          "id": "a2",
+          "asset": "Rig 4",
+          "reading": 20,
+          "due": "2026-09-05T00:00:00.000Z",
+          "status": "y"
+        },
+        {
+          "id": "a3",
+          "asset": "Rig 4",
+          "reading": 20,
+          "due": "2026-09-04T20:00:00.000-04:00",
+          "status": "x"
+        }
+      ],
+      "grouping": [
+        "asset",
+        "status"
+      ],
+      "lazyChildren": {
+        "a1": {
+          "count": 612,
+          "state": "unloaded",
+          "children": []
+        }
+      },
+      "expectedAncestorDue": [
+        "2026-09-05T00:00:00.000Z",
+        "2026-09-04T20:00:00.000-04:00",
+        "2026-09-05T00:00:00.000Z"
+      ]
+    }
+  ]
+}

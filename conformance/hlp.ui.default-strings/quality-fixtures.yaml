@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.default-strings",
+  "accessibilityCases": [
+    {"id": "default-strings.quality.accessible-families", "expected": {"families": ["common", "buttons", "feedback", "forms", "scheduler", "chrome"], "exactValuesCoveredByDigest": true}},
+    {"id": "default-strings.quality.nonempty-defaults", "expected": {"allDefaultsNonempty": true}},
+    {"id": "default-strings.quality.placeholder-visibility", "expected": {"missingVariablesRemainVisible": true}}
+  ],
+  "internationalizationCases": [
+    {"id": "default-strings.quality.closed-keys", "expected": {"count": 713, "digest": "73c7cec0b07f0058d0a48784e76fe8aa86f8e421f85716ff2ea9cc53975c3f7c"}},
+    {"id": "default-strings.quality.partial-catalog", "expected": {"partialOverridesAllowed": true, "emptyOverridePreserved": true}},
+    {"id": "default-strings.quality.placeholder-parity", "expected": {"defaultAndOverrideNamesEqual": true}},
+    {"id": "default-strings.quality.runtime-neutral", "expected": {"applicationI18nDependency": false, "providerBehaviorOwnedElsewhere": true}},
+    {"id": "default-strings.quality.formatting-applicability", "expected": {"disposition": "not-applicable", "requiresRationale": true}}
+  ],
+  "themingCases": []
+}

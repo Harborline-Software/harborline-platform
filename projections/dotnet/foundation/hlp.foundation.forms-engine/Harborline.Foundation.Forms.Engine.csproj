@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <HarborlinePublicDistributionAuthorized>false</HarborlinePublicDistributionAuthorized>
+    <PackageId>Harborline.Foundation.Forms.Engine</PackageId>
+    <AssemblyName>Harborline.Foundation.Forms.Engine</AssemblyName>
+    <RootNamespace>Harborline.Foundation.Forms.Engine</RootNamespace>
+    <Description>Complete tenant-scoped Dynamic Forms render, validate, protect, submit, audit, outbox, and recovery orchestration.</Description>
+    <PackageTags>harborline;forms;dynamic-forms;engine;outbox;idempotency</PackageTags>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageReleaseNotes>Internal-only projection; public distribution is not authorized.</PackageReleaseNotes>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../contracts/hlp.contracts.identities/Harborline.Contracts.csproj" />
+    <ProjectReference Include="../hlp.foundation.actor/Harborline.Foundation.Authorization.csproj" />
+    <ProjectReference Include="../hlp.foundation.forms/Harborline.Foundation.Forms.csproj" />
+    <ProjectReference Include="../hlp.foundation.rule-runtime/Harborline.Foundation.RuleEngine.csproj" />
+    <ProjectReference Include="../hlp.foundation.tenancy/Harborline.Foundation.MultiTenancy.csproj" />
+    <ProjectReference Include="../../kernel/hlp.kernel.schema-validation/Harborline.Kernel.SchemaValidation.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="/" />
+    <None Include="../../../../LICENSE" Link="LICENSE" Pack="true" PackagePath="/" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Harborline.Foundation.Forms.Engine.Tests" />
+  </ItemGroup>
+</Project>

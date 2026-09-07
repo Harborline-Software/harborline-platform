@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "projection": "react",
+  "moduleId": "hlp.ui.card",
+  "scenarios": [
+    {
+      "scenarioId": "card.defaults",
+      "sha256": "34b8e245c3adeadd6f7efd38311d938199028b6090dd6f3afc847407ec66b738",
+      "bytes": 9416,
+      "artifact": "../baselines/sha256/34b8e245c3adeadd6f7efd38311d938199028b6090dd6f3afc847407ec66b738.png"
+    },
+    {
+      "scenarioId": "card.horizontal",
+      "sha256": "57eb2d7e903600374258d936794d3614a134441c3fd4b7022373992d1d572777",
+      "bytes": 10490,
+      "artifact": "../baselines/sha256/57eb2d7e903600374258d936794d3614a134441c3fd4b7022373992d1d572777.png"
+    },
+    {
+      "scenarioId": "card.themes",
+      "sha256": "30e748e6c5644d18b902c49f9a49cad8822c257727d869e831e5c1031dd76388",
+      "bytes": 24976,
+      "artifact": "../baselines/sha256/30e748e6c5644d18b902c49f9a49cad8822c257727d869e831e5c1031dd76388.png"
+    }
+  ]
+}

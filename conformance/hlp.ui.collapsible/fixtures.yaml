@@ -1,0 +1,12 @@
+{"schemaVersion":1,"moduleId":"hlp.ui.collapsible","fixtureRevision":1,"cases":[
+  {"id":"collapsible.initial-closed","input":{"title":"Settings"},"expected":{"open":false,"contentAvailable":false}},
+  {"id":"collapsible.default-open","input":{"title":"Settings","defaultOpen":true},"expected":{"open":true,"contentAvailable":true}},
+  {"id":"collapsible.controlled-change","input":{"title":"Settings","open":false,"activate":true},"expected":{"rendered":false,"emitted":true,"callbacks":1}},
+  {"id":"collapsible.disabled-noop","input":{"title":"Settings","disabled":true,"activate":true},"expected":{"callbacks":0,"open":false}},
+  {"id":"collapsible.relationships","input":{"title":"Settings","open":true},"expected":{"buttonType":"button","accessibleName":"Settings","ariaExpanded":"true","controlsRegion":true}},
+  {"id":"collapsible.header-action-isolation","input":{"title":"Settings","activateHeaderAction":true},"expected":{"actionCallbacks":1,"openCallbacks":0,"open":false}},
+  {"id":"collapsible.subtitle","input":{"title":"Settings","subtitle":"Optional configuration"},"expected":{"visible":true,"insideTrigger":true}},
+  {"id":"collapsible.host-attributes","input":{"class":"consumer","id":"settings","lang":"ar","dir":"rtl","data-test":"x"},"expected":{"preserved":true}},
+  {"id":"collapsible.title-required","input":{"title":""},"expected":{"error":"title-required"}},
+  {"id":"collapsible.projection-equivalence","input":{"projections":["react","blazor"]},"expected":{"stateAndAccessibilityEqual":true}}
+]}

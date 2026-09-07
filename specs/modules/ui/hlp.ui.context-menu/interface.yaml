@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.context-menu",
+  "interfaceRevision": 1,
+  "semantics": {
+    "operation": "open a contextual action menu for a trigger, navigate enabled actions, and dismiss or select exactly once",
+    "observableOutput": "A top-layer menu at a bounded viewport position, grouped menuitems, deterministic focus state, and at most one selected item event."
+  },
+  "invariants": [
+    "The menu is closed initially and native context-menu presentation is suppressed when the projection opens it.",
+    "Pointer opening uses client coordinates; keyboard opening uses the trigger edge and supports Shift+F10 and the ContextMenu key.",
+    "Opening focuses the first enabled item, or the menu when no enabled item exists.",
+    "Arrow navigation wraps and skips disabled items; Home and End select the first and last enabled items.",
+    "Enter and Space select the active enabled item exactly once and close the menu.",
+    "A disabled item never emits selection and does not close the menu.",
+    "Escape and an outside pointer press close the menu without selection.",
+    "Focus returns to the keyboard opener after selection or dismissal.",
+    "Opening again resets active state rather than retaining a prior selection.",
+    "Groups are separated semantically without creating selectable separator rows.",
+    "The menu has a host-overridable accessible name, language, and text direction with an English fallback label.",
+    "The fixed menu position is clamped to an eight-pixel viewport inset after its rendered size is known.",
+    "Danger, icon, disabled, active, RTL, forced-colors, theme, and reduced-motion states remain observable without changing selection semantics."
+  ],
+  "errors": [
+    {"code": "duplicate-item-id", "when": "Two items in the same menu use the same stable identifier."},
+    {"code": "accessible-name-required", "when": "The effective menu accessible label is empty."}
+  ],
+  "configuration": {
+    "openingInputs": ["pointer", "Shift+F10", "ContextMenu"],
+    "navigationKeys": ["ArrowDown", "ArrowUp", "Home", "End"],
+    "activationKeys": ["Enter", "Space"],
+    "dismissalInputs": ["Escape", "outside-pointer"],
+    "viewportInsetCssPixels": 8,
+    "fallbackAccessibleLabel": "Context menu",
+    "hostResponsibilities": ["provide localized item labels", "override the accessible label when the active locale is not English", "supply locale and direction"]
+  },
+  "performance": {
+    "operation": "O(n) flattening and rendering for n menu items with no network or persistent I/O",
+    "maximumFixtureItems": 200,
+    "packageBudgets": {
+      "npmAggregatePackedBytesMaximum": 850000,
+      "nugetAggregatePackedBytesMaximum": 1750000
+    }
+  },
+  "compatibility": {
+    "reactPublicIdentity": "@harborline-software/ui-react#ContextMenu",
+    "blazorPublicIdentity": "Harborline.UIAdapters.Blazor / HarborlineContextMenu",
+    "legacyBlazorDonorPolicy": "Preserve the public type name while replacing reflection-based arbitrary data binding with the frozen typed groups/items contract."
+  },
+  "cases": [
+    {"id": "context-menu.closed"},
+    {"id": "context-menu.pointer-open"},
+    {"id": "context-menu.groups"},
+    {"id": "context-menu.pointer-selection"},
+    {"id": "context-menu.disabled-selection"},
+    {"id": "context-menu.dismissal"},
+    {"id": "context-menu.keyboard-open"},
+    {"id": "context-menu.focus-entry"},
+    {"id": "context-menu.keyboard-navigation"},
+    {"id": "context-menu.keyboard-activation"},
+    {"id": "context-menu.focus-return"},
+    {"id": "context-menu.accessible-context"},
+    {"id": "context-menu.viewport-position"},
+    {"id": "context-menu.danger-icon"},
+    {"id": "context-menu.reopen-reset"}
+  ]
+}

@@ -1,0 +1,29 @@
+<section class="hl-gallery-scene" data-gallery-probe data-gallery-scenario="@ScenarioId" data-theme="@Theme" dir="@Direction">
+  <header class="hl-gallery-heading"><h2>@Heading</h2><p>Titled disclosure state and independent header actions use one bounded Harborline contract.</p></header>
+  <div class="hl-gallery-stage">
+    @if (ScenarioId == "collapsible.content")
+    {
+      <HarborlineCollapsible Title="Awaiting third-party structural certification review" Subtitle="@HostileContent" DefaultOpen>
+        <HeaderActions><button type="button" class="hl-gallery-button">@("1,284,905")</button></HeaderActions>
+        <ChildContent><p>@("Ordnance Survey — Niño Ångström")</p></ChildContent>
+      </HarborlineCollapsible>
+    }
+    else
+    {
+      <HarborlineCollapsible Title="@Title" Subtitle="@Subtitle" DefaultOpen="@(ScenarioId != "collapsible.states")" Disabled="@(ScenarioId == "collapsible.states")">
+      <HeaderActions><button type="button" class="hl-gallery-button">@ActionLabel</button></HeaderActions>
+      <ChildContent><p>Caller-owned panel content remains available when the disclosure is open.</p></ChildContent>
+      </HarborlineCollapsible>
+    }
+  </div>
+</section>
+@code {
+  [Parameter, EditorRequired] public string ScenarioId { get; set; } = "collapsible.defaults";
+  private const string HostileContent = "Bay 4 <grid C-7> & 8";
+  private string Heading => ScenarioId == "collapsible.content" ? "Content resilience" : ScenarioId == "collapsible.states" ? "States and interactions" : ScenarioId == "collapsible.rtl-theme" ? "RTL and theme" : "Defaults and relationships";
+  private string Title => ScenarioId == "collapsible.rtl-theme" ? "إعدادات التطبيق" : "Application settings";
+  private string Subtitle => ScenarioId == "collapsible.rtl-theme" ? "تكوين اختياري" : "Optional configuration";
+  private string ActionLabel => ScenarioId == "collapsible.rtl-theme" ? "تحرير" : "Edit";
+  private string? Theme => ScenarioId == "collapsible.rtl-theme" ? "dark" : null;
+  private string? Direction => ScenarioId == "collapsible.rtl-theme" ? "rtl" : null;
+}

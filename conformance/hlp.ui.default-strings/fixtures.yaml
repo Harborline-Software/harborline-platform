@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.default-strings",
+  "fixtureRevision": 1,
+  "cases": [
+    {"id": "default-strings.keyset", "input": {"sourceCommit": "a5036ff8b500e0d857d7e0a698408e7cf7f6cf31"}, "expected": {"count": 713, "unique": true, "first": "common.close", "last": "chrome.guard.pending.unavailable"}},
+    {"id": "default-strings.digest", "input": {"canonicalization": "JSON.stringify(Object.entries(defaultStrings))"}, "expected": {"sha256": "73c7cec0b07f0058d0a48784e76fe8aa86f8e421f85716ff2ea9cc53975c3f7c"}},
+    {"id": "default-strings.namespaces", "input": {"separator": "."}, "expected": {"allDotted": true, "families": ["ai", "badges", "buttons", "charts", "chrome", "common", "dataGrid", "diagram", "feedback", "filterBuilder", "forms", "gantt", "listBox", "masterDetail", "orgChart", "pagination", "pivotGrid", "scheduler", "scrollAffordance", "selectionBasket", "spreadsheet", "structural", "taskBoard", "transfer", "treeList"]}},
+    {"id": "default-strings.english-fallback", "input": {"key": "common.loading", "catalog": {}}, "expected": "Loading"},
+    {"id": "default-strings.partial-override", "input": {"key": "common.loading", "catalog": {"common.loading": "Chargement"}}, "expected": "Chargement"},
+    {"id": "default-strings.empty-override", "input": {"key": "feedback.retry", "catalog": {"feedback.retry": ""}}, "expected": ""},
+    {"id": "default-strings.placeholder-shape", "input": {"default": "Step {current} of {total}", "override": "Étape {current} sur {total}"}, "expected": {"sameNames": true, "names": ["current", "total"]}},
+    {"id": "default-strings.critical-families", "input": {"families": ["common", "feedback", "forms", "scheduler", "dataGrid", "gantt", "chrome"]}, "expected": {"allPresent": true, "exactValuesCoveredByDigest": true}},
+    {"id": "default-strings.interpolate-string", "input": {"template": "Remove {label}", "vars": {"label": "Invoice"}}, "expected": "Remove Invoice"},
+    {"id": "default-strings.interpolate-number", "input": {"template": "Page {page}", "vars": {"page": 12}}, "expected": "Page 12"},
+    {"id": "default-strings.missing-variable", "input": {"template": "Step {current} of {total}", "vars": {"current": 2}}, "expected": "Step 2 of {total}"},
+    {"id": "default-strings.no-variables", "input": {"template": "Loading"}, "expected": "Loading"},
+    {"id": "default-strings.app-en-us-closure", "input": {"catalogRole": "Harborline App en-US projection"}, "expected": {"unknownKeys": 0, "placeholderMismatches": 0}},
+    {"id": "default-strings.runtime-neutral", "input": {"forbiddenDependencies": ["react-i18next", "FormatJS", "Telerik", "IStringLocalizer"]}, "expected": {"dependenciesPresent": false}}
+  ]
+}

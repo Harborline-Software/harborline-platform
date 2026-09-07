@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 3,
+  "status": "HLF_052_WAVE_01_01_GREEN",
+  "wave": "wave-01-01",
+  "modules": [
+    "hlp.ui.aspect-lens",
+    "hlp.ui.cn",
+    "hlp.ui.default-strings",
+    "hlp.ui.error-card",
+    "hlp.ui.form-view",
+    "hlp.ui.loading-state"
+  ],
+  "retainedPilotModules": ["hlp.ui.button", "hlp.ui.context-menu"],
+  "waveProof": {
+    "build": "PASS",
+    "repositoryValidation": "PASS",
+    "sharedConformanceResults": "208/208",
+    "nativeTests": "979/979",
+    "cleanPackageConsumerGroups": "4/4",
+    "aggregateContributionTypeNames": 50,
+    "privateGalleryApplications": "2/2",
+    "galleryScenarios": "45/45",
+    "qualityCases": "79/79",
+    "accessibilityScans": "90/90",
+    "visualParityComparisons": "51/51"
+  },
+  "completionAccounting": {
+    "carrierEssentialRows": {"green": 8, "required": 74},
+    "productGates": {"complete": 0, "required": 8},
+    "policy": "Dynamic Forms, Workflows, Calculations, Views, Reports, Scheduling, Aggregates, and App Shell remain independent mandatory completion gates. A green substrate or UI row completes none of them."
+  },
+  "packageIdentityAuthority": "shipyard-retained-aggregate-contract",
+  "distributionAuthorityRepository": null,
+  "controlPlane": "external",
+  "nextProductGate": "Freeze and execute the five remaining rows in wave-01-02 while retaining the already-green hlp.ui.context-menu row; product completion remains 0/8."
+}

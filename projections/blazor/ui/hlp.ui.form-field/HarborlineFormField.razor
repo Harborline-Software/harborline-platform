@@ -1,0 +1,42 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Forms
+@inherits HarborlineComponentBase
+
+<div class="@CombineClasses("hl-form-field", Disabled ? "hl-form-field--disabled" : null, ShowError ? "hl-form-field--error" : null)" data-hl-disabled="@(Disabled ? "true" : null)" data-hl-error="@(ShowError ? "true" : null)" data-hl-required="@(Required ? "true" : null)" style="@CombineStyles()" @attributes="AdditionalAttributes">
+    <label id="@LabelId" for="@Name" class="hl-form-field__label" title="@Label">
+        <span class="hl-form-field__label-text">@Label</span>
+        @if (Required) { <span class="hl-form-field__required" aria-hidden="true">*</span> }
+    </label>
+    <CascadingValue Value="Context" IsFixed="false">
+        <div class="hl-form-field__control">@ChildContent</div>
+    </CascadingValue>
+    @if (!string.IsNullOrEmpty(Hint))
+    {
+        <div id="@HintId" class="hl-form-field__hint">@Hint</div>
+    }
+    @if (ShowError)
+    {
+        <div id="@ErrorId" class="hl-form-field__error" role="alert">@Error</div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Label { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public string Name { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public bool Required { get; set; }
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public string? Hint { get; set; }
+    [Parameter] public string? Error { get; set; }
+
+    private string LabelId => $"{Name}-label";
+    private string HintId => $"{Name}-hint";
+    private string ErrorId => $"{Name}-error";
+    private bool ShowError => !Disabled && !string.IsNullOrEmpty(Error);
+    private string? DescribedBy => string.Join(" ", new[]
+    {
+        !string.IsNullOrEmpty(Hint) ? HintId : null,
+        ShowError ? ErrorId : null,
+    }.Where(value => value is not null));
+    private FormFieldContextValue Context => new(Name, LabelId,
+        string.IsNullOrWhiteSpace(DescribedBy) ? null : DescribedBy, Required, Disabled);
+}

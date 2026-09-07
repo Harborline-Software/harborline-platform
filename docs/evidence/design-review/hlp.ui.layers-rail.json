@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.layers-rail",
+  "verdict": "approved",
+  "reviewer": "cic",
+  "recordedAt": "2026-08-27T05:31:03.893Z",
+  "notes": "needs polish it looks like there is no styling applied and has none or a different design language",
+  "reference": {
+    "revision": "8735d0e85ce4f5906e12a13382541f30ad84d38f239eaaec826d5d48a38a0380",
+    "source": "gallery/scenarios/hlp.ui.layers-rail.json",
+    "pin": "e4c44eca8918b135e2dcd36060a8e8582d336f89",
+    "surface": {
+      "conformance/hlp.ui.layers-rail/fixtures.yaml": "c7d0a7a3146ed51ecd1ded58264a5c916d1be9578b30080cb31a1eb34f4b8785",
+      "conformance/hlp.ui.layers-rail/quality-fixtures.yaml": "9ab32da2baa19c8dad3120d4221aa32992c610e40c9662390074e4b94dcb21c5",
+      "gallery/projections/blazor/Stories/LayersRail.stories.razor": "8e2af94b10becc8bedb9d684a38f24c2fa5fa561a020d05e70cf9f2d510ed85b",
+      "gallery/projections/blazor/Stories/LayersRailScenario.razor": "2422ebe024224c06d5772ff2c3cb8c29c208a7a32a5f509801505815f436b889",
+      "gallery/projections/react/src/LayersRail.stories.tsx": "96e6c2b0a8de425c26df07489aa657acd361c45fb248e705c2a08ce3ad72e0f8",
+      "gallery/scenarios/hlp.ui.layers-rail.json": "7286d6d06b2ed7362a113975fcb42bb340158ee02370000f8d47b14d673c6bb4",
+      "projections/blazor/ui/hlp.ui.layers-rail/ShipyardLayersRail.razor": "46b8569c231d395642c916ab00f1f622883ab753c1d7275f538d7f8dd29bfea3",
+      "projections/blazor/ui/hlp.ui.layers-rail/wwwroot/layers-rail.css": "73a9fdb87ca9ab647f20447c8dcf665026a8e926f6439a5f13c7cc114d121be2",
+      "projections/blazor/ui/hlp.ui.layers-rail/wwwroot/layers-rail.js": "9b01d3fffd1484e14a4d7c592de1b429e354ce9e6703c4617a0fc7cfc51efcea",
+      "projections/react/ui/hlp.ui.layers-rail/src/LayersRail.tsx": "86f051c5abc8b4f97fcb993aa011a6703d5702ffd5894a0746a6a2b6c014dded",
+      "projections/react/ui/hlp.ui.layers-rail/src/index.ts": "355bacc00546df790c561aa770176246492b1ae6aee4fc3e0d84ffbe234b9b25",
+      "projections/react/ui/hlp.ui.layers-rail/src/style.css": "73a9fdb87ca9ab647f20447c8dcf665026a8e926f6439a5f13c7cc114d121be2",
+      "specs/modules/ui/hlp.ui.layers-rail/scenarios.json": "7286d6d06b2ed7362a113975fcb42bb340158ee02370000f8d47b14d673c6bb4",
+      "specs/modules/ui/hlp.ui.layers-rail/style.css": "73a9fdb87ca9ab647f20447c8dcf665026a8e926f6439a5f13c7cc114d121be2"
+    }
+  }
+}

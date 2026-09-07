@@ -1,0 +1,78 @@
+<section class="hl-gallery-scene" data-gallery-probe data-gallery-scenario="@ScenarioId" data-theme="@Theme" dir="@Direction">
+  <header class="hl-gallery-heading">
+    <h2>@Title</h2>
+    <p>@Description</p>
+  </header>
+  <div class="hl-gallery-stage hl-gallery-feedback-grid">
+    <HarborlineLocaleProvider Locale="@Locale" Catalog="@Catalog">
+      @if (ScenarioId == "guarded-control.content")
+      {
+        @foreach (var contentLabel in ContentLabels)
+        {
+          <GuardFixture Label="@contentLabel" />
+        }
+      }
+      else
+      {
+        <GuardFixture Label="@Label" />
+        @if (ScenarioId == "guarded-control.covered" || Theme is not null)
+        {
+          <GuardFixture Label="@Label" Disabled />
+        }
+      }
+    </HarborlineLocaleProvider>
+  </div>
+</section>
+
+@code {
+  [Parameter, EditorRequired] public string ScenarioId { get; set; } = "guarded-control.covered";
+
+  private string Title => Copy.Title;
+  private string Description => Copy.Description;
+  private (string Title, string Description) Copy => ScenarioId switch
+  {
+    "guarded-control.covered" => ("Covered and unavailable", "A visible action begins covered; caller-owned availability remains an interaction signal, not authorization."),
+    "guarded-control.two-step" => ("Arm and commit", "One activation arms and a distinct second activation invokes the caller operation at most once."),
+    "guarded-control.keyboard-recovery" => ("Keyboard, focus, and recovery", "Enter or Space arms, Escape recovers, and focus follows the visible action."),
+    "guarded-control.locale-en" => ("English locale", "Whole guard messages include a localized action label, countdown value, and duration unit."),
+    "guarded-control.locale-pseudo" => ("Pseudo locale", "Expanded whole messages expose clipping and fixed-width assumptions."),
+    "guarded-control.locale-ar" => ("Arabic locale", "RTL layout and bidi-isolated action text preserve the two-step order."),
+    "guarded-control.theme-light" => ("Light theme", "Covered, armed, committing, disabled, focus, and recovery states use public semantic tokens."),
+    "guarded-control.theme-dark" => ("Dark theme", "The same guarded-action vocabulary on the Harborline dark surface."),
+    "guarded-control.content" => ("Content resilience", "Guarded actions preserve hostile-but-valid labels as text."),
+    _ => ("Guarded control", "A two-step guarded action.")
+  };
+
+  private string Locale => ScenarioId switch
+  {
+    "guarded-control.locale-ar" => "ar-SA",
+    "guarded-control.locale-pseudo" => "en-XA",
+    _ => "en-US"
+  };
+
+  private string Direction => Locale == "ar-SA" ? "rtl" : "ltr";
+  private string? Theme => ScenarioId switch
+  {
+    "guarded-control.theme-light" => "light",
+    "guarded-control.theme-dark" => "dark",
+    _ => null
+  };
+
+  private string Label => Locale switch
+  {
+    "ar-SA" => "توقيع وحفظ الحزمة",
+    "en-XA" => "⟦ Šîĝñ åñđ šåṽë ţhë þåçķåĝë ······ ⟧",
+    _ => "Sign and save package"
+  };
+
+  private static readonly string[] ContentLabels = ["Awaiting third-party structural certification review", "1,284,905", "Bay 4 <grid C-7> & 8", "Ordnance Survey — Niño Ångström"];
+
+  private IReadOnlyDictionary<string, string> Catalog { get; } = new Dictionary<string, string>
+  {
+    ["chrome.guard.covered.hint"] = "Guarded — activate to unlock",
+    ["chrome.guard.armed.hint"] = "Armed — activate to {action}. {seconds} seconds remain.",
+    ["chrome.guard.committing.status"] = "Committing {action}",
+    ["chrome.guard.recovered.announce"] = "Guard restored.",
+    ["chrome.guard.rejected.announce"] = "The action was not completed. Guard restored."
+  };
+}

@@ -1,0 +1,28 @@
+<Project>
+  <!-- Ticket 143: packages are stamped with a version derived from their own content, so a
+       rebuild can never be served from a stale extraction of the same id+version. The generator is
+       tooling/package-version.mjs; it writes this file during the pack step. A tree that has never
+       packed falls back to the base version, which no feed carries; restore then fails by name
+       (NU1102) instead of compiling against yesterday. -->
+  <Import Project="$(MSBuildThisFileDirectory)artifacts/packages/nuget/packed-version.props" Condition="Exists('$(MSBuildThisFileDirectory)artifacts/packages/nuget/packed-version.props')" />
+  <PropertyGroup>
+    <HarborlinePackedVersion Condition="'$(HarborlinePackedVersion)' == ''">0.0.0-alpha.0</HarborlinePackedVersion>
+  </PropertyGroup>
+  <PropertyGroup>
+    <TargetFramework>net11.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <DefaultItemExcludes>$(DefaultItemExcludes);**/bin/**;**/obj/**</DefaultItemExcludes>
+    <Authors>Harborline Software Contributors</Authors>
+    <Company>Harborline Software</Company>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/Harborline-Software/harborline-platform</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/Harborline-Software/harborline-platform.git</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <Version>$(HarborlinePackedVersion)</Version>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+</Project>

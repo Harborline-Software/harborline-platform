@@ -1,0 +1,15 @@
+#!/bin/sh
+# Vendored from the migration control plane's tooling/hooks/pre-commit (2026-08-20).
+#
+# The original dispatched on `git config --local harborline.writerRepository` because ONE hook
+# directory in the migration control plane served two repositories. This copy lives inside the repository
+# it gates, so there is nothing to dispatch on: the branch is collapsed to a single call.
+#
+# Why this moved at all: harborline-platform's core.hooksPath pointed into the migration control plane,
+# which has no remote and is being deleted. Git SKIPS a missing hooksPath WITHOUT ERROR, so that
+# deletion would have disabled this gate silently rather than loudly.
+set -eu
+hook_root=$(git rev-parse --show-toplevel)
+hook_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+node "$hook_dir/../tooling/gates/scan-prop-vocabulary.mjs" "$hook_root"
+node "$hook_dir/../tooling/verify-phase4-receipt.mjs" "$hook_root"

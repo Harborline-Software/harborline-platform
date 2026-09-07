@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.cn",
+  "accessibilityCases": [
+    {"id": "cn.quality.accessibility-tokens", "input": ["sr-only", "not-sr-only"], "expected": "not-sr-only"},
+    {"id": "cn.quality.forced-colors", "input": ["forced-colors:border", "forced-colors:outline"], "expected": "forced-colors:border forced-colors:outline"},
+    {"id": "cn.quality.focus-visible", "input": ["focus-visible:outline-1", "focus-visible:outline-2"], "expected": "focus-visible:outline-2"}
+  ],
+  "internationalizationCases": [
+    {"id": "cn.quality.rtl-modifiers", "input": ["rtl:ms-2", "rtl:ms-4", "ltr:ms-1"], "expected": "rtl:ms-4 ltr:ms-1"},
+    {"id": "cn.quality.logical-utilities", "input": ["ms-2", "me-4", "ps-1", "pe-3"], "expected": "ms-2 me-4 ps-1 pe-3"},
+    {"id": "cn.quality.unicode-token", "input": ["theme-أساسي", "theme-أساسي"], "expected": "theme-أساسي theme-أساسي"},
+    {"id": "cn.quality.formatting-applicability", "expected": {"disposition": "not-applicable", "requiresRationale": true}}
+  ],
+  "themingCases": []
+}

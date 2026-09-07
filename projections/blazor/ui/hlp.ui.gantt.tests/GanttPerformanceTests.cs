@@ -1,0 +1,3 @@
+using Bunit;using Harborline.UIAdapters.Blazor.Components.Scheduling;using Xunit;
+namespace Harborline.UIAdapters.Blazor.Tests;
+public sealed class GanttPerformanceTests:BunitContext{[Fact]public void TwoHundredFiftySixTasksAndNinetySixReplacementsStayExact(){var cut=Render<HarborlineGantt>(p=>p.Add(x=>x.Tasks,Tasks(0)));for(var cycle=0;cycle<96;cycle++){cut.Render(p=>p.Add(x=>x.Tasks,Tasks(cycle)));Assert.Equal(256,cut.FindAll("tbody tr").Count);Assert.Equal($"{cycle}-255",cut.FindAll("tbody tr")[255].GetAttribute("data-hl-task-id"));}}private static GanttTask[] Tasks(int cycle)=>Enumerable.Range(0,256).Select(i=>new GanttTask($"{cycle}-{i}",$"Task {i}",new DateOnly(2026,1,1).AddDays(i),new DateOnly(2026,1,2).AddDays(i),i%101)).ToArray();}

@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.blocks.reports",
+  "interfaceRevision": 1,
+  "status": "frozen",
+  "purpose": "Own deterministic snapshot-marked report execution and seven report cartridges (trial balance, balance sheet, P&L, P&L by property, AR aging, AP aging, rent roll) over a Harborline-owned neutral read port.",
+  "dependencies": [{"moduleId": "hlp.contracts.identities", "minimumRevision": 1}],
+  "callerInterface": {
+    "name": "IReportRunner / IReportQuerySource",
+    "operations": [
+      "RunAsync(kind, tenantId, principalId, parameters) -> ReportRunResult: validate, capture the snapshot marker before dispatch, execute, and carry duration/provisionality/warnings in the envelope",
+      "IReportQuerySource: read charts, accounts, posted journal rows, fiscal periods, tenant+chart-scoped AR/AP open items, parties, and leases as immutable neutral rows; no storage type crosses the seam"
+    ],
+    "context": "Cartridges and their neutral feed model remain inside hlp.blocks.reports. Storage adapters are intentionally outside this wave; the port keeps re-binding to a future financial substrate possible without promising it (migration reports WAVE-STATE ruling 1). Open-item queries are (TenantId, ChartOfAccountsId, DateOnly)-scoped and ReportOpenItem carries both identities — restoring the pinned AP tenant-isolation semantics the first draft dropped."
+  },
+  "invariants": [
+    "No earlier source financial-cluster type or reference crosses or exists behind the module boundary.",
+    "A snapshot marker is captured before cartridge invocation and returned in the run envelope.",
+    "Unknown kinds fail closed; validation and cancellation exceptions pass through; other cartridge failures are wrapped.",
+    "Identical neutral inputs at an identical marker produce identical results.",
+    "Open-item reads are tenant-isolated: another tenant's bills/invoices never enter a cartridge's rows (proven by the pinned AP isolation case).",
+    "All seven cartridges are registered by Harborline package composition."
+  ],
+  "errors": ["unknown-report-kind", "report-parameter-validation", "report-cartridge-execution"],
+  "publicSeams": ["IReportQuerySource neutral read port (tenant+chart-scoped open items)", "ISnapshotMarkerSource", "injected TimeProvider"],
+  "conformance": {
+    "nativeTests": {"dotnet": 193},
+    "nativeTestNote": "Per-class parity with the pin is exact: 138 cartridge-compute + 14 runner + 8 concrete determinism (the pinned abstract determinism harness executes only through its four derivations; the migration ledger's '195' counted the abstract base as a concrete 2-case class — recorded accounting correction) + 12 registry/context/kind direct-port rows + 21 recomposed Add* cartridge composition rows."
+  },
+  "selectedDesign": {
+    "choice": "Single package containing engine, seven cartridges, and the neutral model/port; PrincipalId ported verbatim into hlp.contracts.identities (first consumer).",
+    "rejected": ["The earlier source financial package references", "tax reporting (blocks-reports-tax has no pinned caller; deferred-capability register entry)", "host/client Wave B files", "split cartridge assembly (no financial type reaches the public surface, so compile-time isolation via split is unnecessary)"],
+    "reason": "The neutral model prevents financial-cluster leakage, so the ratified inside-package shape remains valid."
+  },
+  "behaviorEvidence": {
+    "sourceCapture": "migration://preprocessing/reports/generated/reports-source.json",
+    "boundaryDecision": "migration://preprocessing/reports/draft-hlf053/WAVE-STATE.md"
+  },
+  "package": {"nuget": "Harborline.Blocks.Reports", "assembly": "Harborline.Blocks.Reports", "distribution": "internal-only"}
+}

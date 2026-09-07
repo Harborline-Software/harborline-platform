@@ -1,0 +1,569 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.detail-panel",
+  "fixtureRevision": 1,
+  "authority": {
+    "facetsAreTabs": "drilldown-model.md:18 — Facets are tabs, not depth. Details, Attachments, History, Related are the same object seen differently, side by side with counts.",
+    "countsFromTheQuery": "drilldown-model.md:44 — Counts come from the same query as the tab, or the tab lies.",
+    "declaredPerObject": "drilldown-model.md:41 — Facet availability is declared per object type; a facet that isn't declared isn't shown, not shown empty.",
+    "onePush": "drilldown-model.md:22 — Crossing to a different object pushes exactly once; a back row naming what you came from; that is the only stack level.",
+    "depthThreePromotes": "drilldown-model.md:23 — From a pushed panel the only way further is Open as page, a real route with its own inspector.",
+    "oneComponent": "drilldown-model.md:36 — Same header shape, same tab bar, same footer action row, whatever object it holds.",
+    "addressing": "drilldown-model.md:27 — Selection is in the URL by identity, never by label or row index.",
+    "subsectionsNotVerbs": "disclosure-model.md:14 — Subsections never go in the overflow menu; a subsection is a place, it must be linkable and show a count.",
+    "absenceOverDisabled": "chrome-spec.md §9 — A capability that is not available is absent, not greyed; the surface states how to go onward at the point of work."
+  },
+  "objects": {
+    "PMP-0412": {
+      "id": "PMP-0412",
+      "title": "Ballast pump PMP-0412",
+      "route": "/assets/PMP-0412",
+      "facets": [
+        {
+          "id": "details",
+          "label": "Details",
+          "count": 12
+        },
+        {
+          "id": "attachments",
+          "label": "Attachments",
+          "count": 3
+        },
+        {
+          "id": "history",
+          "label": "History",
+          "count": 0
+        }
+      ],
+      "relations": [
+        {
+          "id": "wo-8841",
+          "label": "Related work order WO-8841",
+          "targetId": "WO-8841"
+        },
+        {
+          "id": "rig-4",
+          "label": "Parent storey Rig 4",
+          "targetId": "RIG-4"
+        }
+      ]
+    },
+    "PMP-0412-remade": {
+      "id": "PMP-0412",
+      "title": "Ballast pump PMP-0412",
+      "route": "/assets/PMP-0412",
+      "facets": [
+        {
+          "id": "details",
+          "label": "Details",
+          "count": 12
+        },
+        {
+          "id": "attachments",
+          "label": "Attachments",
+          "count": 4
+        },
+        {
+          "id": "history",
+          "label": "History",
+          "count": 0
+        }
+      ],
+      "relations": [
+        {
+          "id": "wo-8841",
+          "label": "Related work order WO-8841",
+          "targetId": "WO-8841"
+        },
+        {
+          "id": "rig-4",
+          "label": "Parent storey Rig 4",
+          "targetId": "RIG-4"
+        }
+      ]
+    },
+    "WO-8841": {
+      "id": "WO-8841",
+      "title": "Work order WO-8841",
+      "route": "/runs/WO-8841",
+      "facets": [
+        {
+          "id": "details",
+          "label": "Details",
+          "count": 7
+        },
+        {
+          "id": "attachments",
+          "label": "Attachments",
+          "count": 1
+        }
+      ],
+      "relations": [
+        {
+          "id": "pmp-0412",
+          "label": "Asset PMP-0412",
+          "targetId": "PMP-0412"
+        }
+      ]
+    },
+    "RIG-4": {
+      "id": "RIG-4",
+      "title": "Rig 4",
+      "route": "/storeys/RIG-4",
+      "facets": [
+        {
+          "id": "details",
+          "label": "Details",
+          "count": 612
+        }
+      ],
+      "relations": []
+    }
+  },
+  "labels": {
+    "backPrefix": "Back to ",
+    "openAsPage": "Open as page",
+    "tabListName": "Facets"
+  },
+  "initial": {
+    "objectId": "PMP-0412",
+    "pushedObjectId": null,
+    "activeFacetId": null
+  },
+  "transitions": [
+    {
+      "name": "level 1 shows every declared facet as a count-bearing tab, the first selected",
+      "action": {
+        "kind": "none"
+      },
+      "expect": {
+        "title": "Ballast pump PMP-0412",
+        "tabs": [
+          {
+            "id": "details",
+            "label": "Details",
+            "count": 12,
+            "selected": true
+          },
+          {
+            "id": "attachments",
+            "label": "Attachments",
+            "count": 3,
+            "selected": false
+          },
+          {
+            "id": "history",
+            "label": "History",
+            "count": 0,
+            "selected": false
+          }
+        ],
+        "activeFacetId": "details",
+        "backRow": null,
+        "relations": [
+          "wo-8841",
+          "rig-4"
+        ],
+        "promote": false,
+        "events": []
+      }
+    },
+    {
+      "name": "a facet is selected by pointer and announced by identity, not label",
+      "action": {
+        "kind": "activateFacet",
+        "facetId": "attachments"
+      },
+      "expect": {
+        "title": "Ballast pump PMP-0412",
+        "activeFacetId": "attachments",
+        "tabs": [
+          {
+            "id": "details",
+            "label": "Details",
+            "count": 12,
+            "selected": false
+          },
+          {
+            "id": "attachments",
+            "label": "Attachments",
+            "count": 3,
+            "selected": true
+          },
+          {
+            "id": "history",
+            "label": "History",
+            "count": 0,
+            "selected": false
+          }
+        ],
+        "backRow": null,
+        "relations": [
+          "wo-8841",
+          "rig-4"
+        ],
+        "promote": false,
+        "events": [
+          {
+            "kind": "facetChange",
+            "facetId": "attachments"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ArrowRight advances one tab",
+      "action": {
+        "kind": "key",
+        "key": "ArrowRight"
+      },
+      "expect": {
+        "activeFacetId": "history",
+        "focusedTabId": "history",
+        "events": [
+          {
+            "kind": "facetChange",
+            "facetId": "history"
+          }
+        ],
+        "backRow": null,
+        "relations": [
+          "wo-8841",
+          "rig-4"
+        ],
+        "promote": false
+      }
+    },
+    {
+      "name": "ArrowRight from the last tab wraps to the first",
+      "action": {
+        "kind": "key",
+        "key": "ArrowRight"
+      },
+      "expect": {
+        "activeFacetId": "details",
+        "focusedTabId": "details",
+        "events": [
+          {
+            "kind": "facetChange",
+            "facetId": "details"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ArrowLeft from the first tab wraps to the last",
+      "action": {
+        "kind": "key",
+        "key": "ArrowLeft"
+      },
+      "expect": {
+        "activeFacetId": "history",
+        "focusedTabId": "history",
+        "events": [
+          {
+            "kind": "facetChange",
+            "facetId": "history"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Home selects the first declared facet",
+      "action": {
+        "kind": "key",
+        "key": "Home"
+      },
+      "expect": {
+        "activeFacetId": "details",
+        "focusedTabId": "details",
+        "events": [
+          {
+            "kind": "facetChange",
+            "facetId": "details"
+          }
+        ]
+      }
+    },
+    {
+      "name": "End selects the last declared facet",
+      "action": {
+        "kind": "key",
+        "key": "End"
+      },
+      "expect": {
+        "activeFacetId": "history",
+        "focusedTabId": "history",
+        "events": [
+          {
+            "kind": "facetChange",
+            "facetId": "history"
+          }
+        ]
+      }
+    },
+    {
+      "name": "following a relation asks the host to push; the panel never navigates itself",
+      "action": {
+        "kind": "activateRelation",
+        "relationId": "wo-8841"
+      },
+      "expect": {
+        "title": "Ballast pump PMP-0412",
+        "activeFacetId": "history",
+        "backRow": null,
+        "relations": [
+          "wo-8841",
+          "rig-4"
+        ],
+        "promote": false,
+        "events": [
+          {
+            "kind": "followRelation",
+            "relationId": "wo-8841",
+            "targetId": "WO-8841"
+          }
+        ]
+      }
+    },
+    {
+      "name": "the host pushes: the body is replaced, the back row names where you came from, and the tab bar is the pushed object's facets",
+      "action": {
+        "kind": "host",
+        "objectId": "PMP-0412",
+        "pushedObjectId": "WO-8841"
+      },
+      "expect": {
+        "title": "Work order WO-8841",
+        "activeFacetId": "details",
+        "tabs": [
+          {
+            "id": "details",
+            "label": "Details",
+            "count": 7,
+            "selected": true
+          },
+          {
+            "id": "attachments",
+            "label": "Attachments",
+            "count": 1,
+            "selected": false
+          }
+        ],
+        "backRow": "Back to Ballast pump PMP-0412",
+        "relations": [],
+        "promote": true,
+        "promoteRoute": "/runs/WO-8841",
+        "events": []
+      }
+    },
+    {
+      "name": "a second push is refused: the pushed object declares a relation and no relation control is mounted",
+      "action": {
+        "kind": "activateRelationRefused",
+        "relationId": "pmp-0412"
+      },
+      "expect": {
+        "title": "Work order WO-8841",
+        "backRow": "Back to Ballast pump PMP-0412",
+        "relations": [],
+        "promote": true,
+        "promoteRoute": "/runs/WO-8841",
+        "events": []
+      }
+    },
+    {
+      "name": "the only way onward from a pushed panel is Open as page, declared with the route and handled by the host",
+      "action": {
+        "kind": "activatePromote"
+      },
+      "expect": {
+        "title": "Work order WO-8841",
+        "backRow": "Back to Ballast pump PMP-0412",
+        "relations": [],
+        "promote": true,
+        "events": [
+          {
+            "kind": "openAsPage",
+            "route": "/runs/WO-8841"
+          }
+        ]
+      }
+    },
+    {
+      "name": "back returns to level 1 with the root object's facets and its relations",
+      "action": {
+        "kind": "activateBack"
+      },
+      "expect": {
+        "events": [
+          {
+            "kind": "back"
+          }
+        ]
+      }
+    },
+    {
+      "name": "the host honours back; level 1 restores the remembered facet because the object identity is unchanged",
+      "action": {
+        "kind": "host",
+        "objectId": "PMP-0412",
+        "pushedObjectId": null
+      },
+      "expect": {
+        "title": "Ballast pump PMP-0412",
+        "activeFacetId": "history",
+        "backRow": null,
+        "relations": [
+          "wo-8841",
+          "rig-4"
+        ],
+        "promote": false,
+        "events": []
+      }
+    },
+    {
+      "name": "a re-materialised equal object keeps the remembered facet: sameness is decided by the declared id, not by object reference",
+      "action": {
+        "kind": "host",
+        "objectId": "PMP-0412-remade",
+        "pushedObjectId": null
+      },
+      "expect": {
+        "title": "Ballast pump PMP-0412",
+        "activeFacetId": "history",
+        "tabs": [
+          {
+            "id": "details",
+            "label": "Details",
+            "count": 12,
+            "selected": false
+          },
+          {
+            "id": "attachments",
+            "label": "Attachments",
+            "count": 4,
+            "selected": false
+          },
+          {
+            "id": "history",
+            "label": "History",
+            "count": 0,
+            "selected": true
+          }
+        ],
+        "events": []
+      }
+    },
+    {
+      "name": "a different object id resets to its first declared facet even when the facet ids overlap",
+      "action": {
+        "kind": "host",
+        "objectId": "RIG-4",
+        "pushedObjectId": null
+      },
+      "expect": {
+        "title": "Rig 4",
+        "activeFacetId": "details",
+        "tabs": [
+          {
+            "id": "details",
+            "label": "Details",
+            "count": 612,
+            "selected": true
+          }
+        ],
+        "backRow": null,
+        "relations": [],
+        "promote": false,
+        "events": []
+      }
+    }
+  ],
+  "passThroughKeys": [
+    "Escape",
+    "Tab",
+    "a"
+  ],
+  "handledKeys": [
+    "ArrowRight",
+    "ArrowLeft",
+    "Home",
+    "End"
+  ],
+  "focusRoute": {
+    "comment": "focusedTabId is the tab carrying tabindex 0 in both shells. React additionally asserts document.activeElement; Blazor additionally asserts one focus interoperability invocation per handled key, which is the shipped route a bUnit render can observe.",
+    "invocationsPerHandledKey": 1
+  },
+  "controlledAddressing": {
+    "objectId": "PMP-0412",
+    "activeFacetId": "attachments",
+    "comment": "drilldown-model.md:27 — the host owns ?facet=; the panel renders the declared facet and does not fall back to the first."
+  },
+  "affordance": {
+    "minimumTargetCssPixels": 44,
+    "comment": "Every tab, the back row and Open as page are pointer targets; the authority stylesheet declares the minimum block size. The gallery bounding-box route is named in the report as not run in this lane."
+  },
+  "validationCases": [
+    {
+      "name": "an object declared with no facets",
+      "object": {
+        "id": "X",
+        "title": "X",
+        "route": "/x",
+        "facets": [],
+        "relations": []
+      },
+      "expected": "detail-panel-facets-required"
+    },
+    {
+      "name": "two facets sharing one id",
+      "object": {
+        "id": "X",
+        "title": "X",
+        "route": "/x",
+        "facets": [
+          {
+            "id": "details",
+            "label": "Details",
+            "count": 1
+          },
+          {
+            "id": "details",
+            "label": "Details again",
+            "count": 2
+          }
+        ],
+        "relations": []
+      },
+      "expected": "detail-panel-duplicate-facet-id"
+    },
+    {
+      "name": "a controlled facet id the object does not declare",
+      "object": {
+        "id": "X",
+        "title": "X",
+        "route": "/x",
+        "facets": [
+          {
+            "id": "details",
+            "label": "Details",
+            "count": 1
+          }
+        ],
+        "relations": []
+      },
+      "activeFacetId": "attachments",
+      "expected": "detail-panel-facet-unknown"
+    },
+    {
+      "name": "a pushed object with no object beneath it",
+      "pushedOnly": true,
+      "expected": "detail-panel-push-requires-object"
+    }
+  ],
+  "eventLog": {
+    "scope": "per transition",
+    "comment": "Each transition declares exactly the events its own action emits; the replay drains the log after every step so an event emitted one step late cannot hide in a running tally."
+  }
+}

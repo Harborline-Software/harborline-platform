@@ -1,0 +1,230 @@
+{
+  "description": "F-20 client/server submit-validation PARITY corpus. Loaded by BOTH tiers — apps/carrier/src/forms/validation/__tests__/parity.corpus.test.ts (the client mirror: projection + page guards + validateScope + pruneHiddenValues) and packages/foundation-forms-engine/tests/ValidationParityTests.cs (FormEngine.ValidateAsync / SaveAsync over SubmitValidationGate). Each case pins: the sorted stable ERROR CODES both tiers emit for the same definition + candidate, and the top-level keys both tiers PRUNE (hidden-value minimization). The invariant cases (hidden page / rule-hidden field / rule-hidden SECTION / read-only required never blocks) are the arch-level proof that client and server agree. Per-tier code overrides: when a corner's codes legitimately DIVERGE across tiers (documented divergence, both still fail closed), a case declares `errorCodesClient` + `errorCodesServer` instead of the shared `errorCodes` — the F1 empty-string-for-required corner is the one such case (client: `required` via its empty-value predicate; server: the synthesized `minLength: 1` keyword).",
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+      "legalName": { "type": "string", "minLength": 3 },
+      "contactName": { "type": "string", "minLength": 1 },
+      "jurisdiction": { "type": "string" },
+      "requesterEmail": { "type": "string" },
+      "tin": { "type": "string", "pattern": "^[0-9]{2}-[0-9]{7}$" },
+      "account": { "type": "string" },
+      "accountConfirm": { "type": "string" },
+      "approverEmail": { "type": "string" }
+    },
+    "required": ["legalName", "contactName", "tin"],
+    "additionalProperties": false
+  },
+  "sections": [
+    {
+      "id": "sec-company",
+      "fields": ["legalName", "contactName", "jurisdiction", "requesterEmail"],
+      "items": [
+        {
+          "kind": "group",
+          "key": "companyExtra",
+          "items": [{ "kind": "field", "key": "requesterEmail" }]
+        }
+      ]
+    },
+    { "id": "sec-tax", "fields": ["tin"] },
+    { "id": "sec-bank", "fields": ["account", "accountConfirm", "approverEmail"] }
+  ],
+  "pages": [
+    { "id": "p1", "sections": ["sec-company"] },
+    {
+      "id": "p2",
+      "sections": ["sec-tax"],
+      "visibleWhen": "{\"==\":[{\"var\":\"jurisdiction\"},\"us\"]}"
+    },
+    { "id": "p3", "sections": ["sec-bank"], "checks": ["approver-not-requester"] }
+  ],
+  "ruleCatalog": {
+    "account-match": {
+      "id": "account-match",
+      "tier": "JsonLogic",
+      "scope": "Field",
+      "scopeTarget": "accountConfirm",
+      "expression": "{\"==\":[{\"var\":\"accountConfirm\"},{\"var\":\"account\"}]}",
+      "action": "Validate"
+    },
+    "approver-not-requester": {
+      "id": "approver-not-requester",
+      "tier": "JsonLogic",
+      "scope": "Schema",
+      "scopeTarget": "",
+      "expression": "{\"!=\":[{\"var\":\"approverEmail\"},{\"var\":\"requesterEmail\"}]}",
+      "action": "Validate"
+    },
+    "hide-legal-name-for-ae": {
+      "id": "hide-legal-name-for-ae",
+      "tier": "JsonLogic",
+      "scope": "Field",
+      "scopeTarget": "legalName",
+      "expression": "{\"!\":{\"==\":[{\"var\":\"jurisdiction\"},\"ae\"]}}",
+      "action": "Visibility"
+    },
+    "require-requester-for-us": {
+      "id": "require-requester-for-us",
+      "tier": "JsonLogic",
+      "scope": "Field",
+      "scopeTarget": "requesterEmail",
+      "expression": "{\"==\":[{\"var\":\"jurisdiction\"},\"us\"]}",
+      "action": "Required"
+    },
+    "readonly-tin": {
+      "id": "readonly-tin",
+      "tier": "JsonLogic",
+      "scope": "Field",
+      "scopeTarget": "tin",
+      "expression": "{\"==\":[1,1]}",
+      "action": "ReadOnly"
+    },
+    "hide-company-for-gb": {
+      "id": "hide-company-for-gb",
+      "tier": "JsonLogic",
+      "scope": "Section",
+      "scopeTarget": "sec-company",
+      "expression": "{\"!\":{\"==\":[{\"var\":\"jurisdiction\"},\"gb\"]}}",
+      "action": "Visibility"
+    }
+  },
+  "cases": [
+    {
+      "name": "invariant: required on a HIDDEN (guard-false) page never blocks; its value prunes",
+      "rules": ["account-match", "approver-not-requester"],
+      "candidate": {
+        "legalName": "Blue Harbor Works",
+        "contactName": "Avery Ops",
+        "jurisdiction": "gb",
+        "tin": "12-3456789",
+        "approverEmail": "boss@example.test",
+        "requesterEmail": "req@example.test"
+      },
+      "expected": { "errorCodes": [], "prunedKeys": ["tin"] }
+    },
+    {
+      "name": "invariant: a rule-HIDDEN required field never blocks; its value prunes",
+      "rules": ["hide-legal-name-for-ae", "approver-not-requester"],
+      "candidate": {
+        "legalName": "Should Be Pruned LLC",
+        "contactName": "Avery Ops",
+        "jurisdiction": "ae",
+        "approverEmail": "boss@example.test",
+        "requesterEmail": "req@example.test"
+      },
+      "expected": { "errorCodes": [], "prunedKeys": ["legalName"] }
+    },
+    {
+      "name": "invariant (F2a): a rule-READ-ONLY required field never blocks (server ReadOnlyFields filter)",
+      "rules": ["readonly-tin", "approver-not-requester"],
+      "candidate": {
+        "legalName": "Blue Harbor Works",
+        "contactName": "Avery Ops",
+        "jurisdiction": "us",
+        "approverEmail": "boss@example.test",
+        "requesterEmail": "req@example.test"
+      },
+      "expected": { "errorCodes": [], "prunedKeys": [] }
+    },
+    {
+      "name": "invariant (F2b): a rule-HIDDEN SECTION exempts its required fields; field values AND the container key prune",
+      "rules": ["hide-company-for-gb"],
+      "candidate": {
+        "legalName": "Hidden Section Works",
+        "contactName": "Should Prune",
+        "jurisdiction": "gb",
+        "requesterEmail": "req@example.test",
+        "companyExtra": { "note": "legacy" }
+      },
+      "expected": {
+        "errorCodes": [],
+        "prunedKeys": ["companyExtra", "contactName", "jurisdiction", "legalName", "requesterEmail"]
+      }
+    },
+    {
+      "name": "Tier-1 constraints fail with the shared keyword codes (minLength + pattern)",
+      "rules": [],
+      "candidate": {
+        "legalName": "ab",
+        "contactName": "Avery Ops",
+        "jurisdiction": "us",
+        "tin": "not-a-tin"
+      },
+      "expected": { "errorCodes": ["minLength", "pattern"], "prunedKeys": [] }
+    },
+    {
+      "name": "F1: '' for a statically-required string fails CLOSED on both tiers (codes diverge by design: client `required`, server synthesized `minLength: 1`)",
+      "rules": [],
+      "candidate": {
+        "legalName": "Blue Harbor Works",
+        "contactName": "",
+        "jurisdiction": "us",
+        "tin": "12-3456789"
+      },
+      "expected": {
+        "errorCodesClient": ["required"],
+        "errorCodesServer": ["minLength"],
+        "prunedKeys": []
+      }
+    },
+    {
+      "name": "expression validity (field rule) + page check both block with the rule id as code",
+      "rules": ["account-match", "approver-not-requester"],
+      "candidate": {
+        "legalName": "Blue Harbor Works",
+        "contactName": "Avery Ops",
+        "jurisdiction": "gb",
+        "account": "AA111",
+        "accountConfirm": "AA222",
+        "approverEmail": "same@example.test",
+        "requesterEmail": "same@example.test"
+      },
+      "expected": {
+        "errorCodes": ["account-match", "approver-not-requester"],
+        "prunedKeys": []
+      }
+    },
+    {
+      "name": "rule-driven required (Required action) blocks with the shared `required` code",
+      "rules": ["require-requester-for-us", "approver-not-requester"],
+      "candidate": {
+        "legalName": "Blue Harbor Works",
+        "contactName": "Avery Ops",
+        "jurisdiction": "us",
+        "tin": "12-3456789",
+        "approverEmail": "boss@example.test"
+      },
+      "expected": { "errorCodes": ["required"], "prunedKeys": [] }
+    },
+    {
+      "name": "clean pass: everything visible and valid",
+      "rules": ["account-match", "approver-not-requester"],
+      "candidate": {
+        "legalName": "Blue Harbor Works",
+        "contactName": "Avery Ops",
+        "jurisdiction": "us",
+        "tin": "12-3456789",
+        "account": "AA111",
+        "accountConfirm": "AA111",
+        "approverEmail": "boss@example.test",
+        "requesterEmail": "req@example.test"
+      },
+      "expected": { "errorCodes": [], "prunedKeys": [] }
+    },
+    {
+      "name": "F6: a read-only required field's empty string never blocks on required OR shape (pattern)",
+      "rules": ["readonly-tin", "approver-not-requester"],
+      "candidate": {
+        "legalName": "Blue Harbor Works",
+        "contactName": "Avery Ops",
+        "jurisdiction": "us",
+        "tin": "",
+        "approverEmail": "boss@example.test",
+        "requesterEmail": "req@example.test"
+      },
+      "expected": { "errorCodes": [], "prunedKeys": [] }
+    }
+  ]
+}

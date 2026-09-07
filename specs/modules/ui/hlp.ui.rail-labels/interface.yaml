@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.rail-labels",
+  "interfaceRevision": 1,
+  "semantics": {
+    "operation": "provide the complete host-localized text contract for builder lens and outline rail chrome",
+    "observableOutput": "Sixteen caller-supplied labels or deterministic formatter results with English development defaults."
+  },
+  "sourceSurface": {"repository": "shipyard", "commit": "a5036ff8b500e0d857d7e0a698408e7cf7f6cf31", "path": "packages/builder-kit/src/labels.ts", "blob": "99f5609cac40166de59e703d7f4040775c3dd5a4", "capturedExports": ["RailLabels", "defaultRailLabels"]},
+  "invariants": [
+    "All sixteen RailLabels members remain required so a host can localize every human-facing rail string.",
+    "The contract owns text and formatter inputs only; it does not own an i18n runtime, locale selection, markup, navigation, lens state, or rendering.",
+    "Formatter arguments are passed through without normalization, escaping, truncation, plural selection, or number formatting.",
+    "Returned strings are plain text and renderers must not interpret them as HTML.",
+    "English defaults preserve the exact pinned source text, punctuation, symbols, capitalization, and interpolation.",
+    "TypeScript and .NET projections expose the same member set and deterministic default results."
+  ],
+  "errors": [],
+  "performance": {"operation": "O(n) only for constructing a returned string of length n, with no I/O"},
+  "presentation": {"disposition": "not-applicable", "rationale": "Rail Labels is a host-localization support contract; the Layers Rail renderer owns visual and interaction behavior."},
+  "cases": [
+    {"id": "rail-labels.complete-surface"}, {"id": "rail-labels.static-defaults"},
+    {"id": "rail-labels.toggle"}, {"id": "rail-labels.activate"}, {"id": "rail-labels.passive-count"},
+    {"id": "rail-labels.source"}, {"id": "rail-labels.viewing"}, {"id": "rail-labels.shortcut"},
+    {"id": "rail-labels.host-override"}, {"id": "rail-labels.unicode"}, {"id": "rail-labels.plain-text"},
+    {"id": "rail-labels.projection-equivalence"}
+  ]
+}

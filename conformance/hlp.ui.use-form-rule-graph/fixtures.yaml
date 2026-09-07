@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.use-form-rule-graph",
+  "fixtureRevision": 1,
+  "cases": [
+    {"id": "form-rule-graph.complete-surface", "input": {}, "expected": {"exports": ["useFormRuleGraph", "projectRuleOutcomes", "ReactiveSchemaForm", "UseFormRuleGraphResult", "ReactiveSchemaFormProps", "RuleGraphLike"], "count": 6, "valueExports": 3}},
+    {"id": "form-rule-graph.null-graph-pass-through", "input": {"fields": ["a", "b"], "values": {"a": "1"}}, "expected": {"fieldOrder": ["a", "b"], "computed": {}, "valuesUnchanged": true, "saveBlocked": false}},
+    {"id": "form-rule-graph.field-visibility-omission", "input": {"fields": ["a", "b"], "hiddenField": "b"}, "expected": {"visibleFields": ["a"], "omittedFields": ["b"]}},
+    {"id": "form-rule-graph.section-visibility-omission", "input": {"sections": ["s1", "s2"], "hiddenSection": "s2"}, "expected": {"visibleSections": ["s1"]}},
+    {"id": "form-rule-graph.nested-item-projection", "input": {"group": "sub", "collections": ["collA"], "nestedFields": ["a1", "b1"], "hiddenNestedField": "b1"}, "expected": {"groupRetained": true, "collectionRetained": true, "visibleNestedFields": ["a1"]}},
+    {"id": "form-rule-graph.required-read-only-flags", "input": {"targetField": "a", "required": true, "readOnly": true, "baseReadOnlyField": "total"}, "expected": {"required": true, "readOnly": true, "baseFlagsPreserved": true}},
+    {"id": "form-rule-graph.computed-value-injection", "input": {"targetField": "total", "state": "Resolved", "value": "60", "userValue": "1"}, "expected": {"effectiveValue": "60", "userValueOverridden": true}},
+    {"id": "form-rule-graph.unresolved-value-not-injected", "input": {"targetField": "total", "states": ["Pending", "Error"], "userValue": "1"}, "expected": {"injected": false, "effectiveValue": "1", "saveBlocked": true}},
+    {"id": "form-rule-graph.presentation-attachment", "input": {"targetField": "a", "severity": "error", "badge": "Bad", "untouchedField": "b"}, "expected": {"attachedSeverity": "error", "untouchedFieldHasNoPresentation": true, "emptyPresentationIgnored": true}},
+    {"id": "form-rule-graph.reactive-reevaluation", "input": {"gatedField": "b", "revealField": "a", "revealValue": "show", "computedField": "total"}, "expected": {"gatedFieldHiddenBefore": true, "gatedFieldVisibleAfter": true, "computedTracksInput": true}},
+    {"id": "form-rule-graph.graph-replacement", "input": {"firstGraphHides": "b", "secondGraphHides": "a"}, "expected": {"reseeded": true, "staleOutcomeRetained": false}},
+    {"id": "form-rule-graph.save-gate-fail-closed", "input": {"modes": ["pending", "error", "throw"]}, "expected": {"saveBlockedInEveryMode": true, "nullGraphBlocked": false, "throwPassesBaseViewThrough": true}},
+    {"id": "form-rule-graph.reactive-wrapper", "input": {"gatedField": "b", "revealValue": "show", "computedField": "total"}, "expected": {"rendersThroughSchemaForm": true, "hiddenFieldAbsent": true, "computedValueShown": true, "controlled": true}},
+    {"id": "form-rule-graph.projection-equivalence", "input": {"sequence": [{"a": ""}, {"a": "show"}, {"a": "off"}]}, "expected": {"typescriptEqualsDotnet": true}}
+  ]
+}

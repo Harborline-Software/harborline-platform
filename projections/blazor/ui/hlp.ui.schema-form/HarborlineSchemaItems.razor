@@ -1,0 +1,74 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Forms
+@using Microsoft.AspNetCore.Components.Web
+
+<div class="hl-schema-form__items">
+    @foreach (var item in Items)
+    {
+        @switch (item)
+        {
+            case SchemaFormFieldItem fieldItem:
+                var fieldPath = Path.Append<object>(fieldItem.Field.Name).ToArray();
+                <HarborlineSchemaField @key="fieldItem.Key" Disabled="@Disabled" Error="@FieldError(fieldItem.Field.Name)"
+                                     Field="@fieldItem.Field" Focused="@FieldFocused" LocaleChain="@LocaleChain" Path="@fieldPath"
+                                     Registry="@Registry" SetValue="@SetValue" Strings="@Strings" />
+                break;
+            case SchemaFormContentItem contentItem:
+                <div @key="contentItem.Key" class="hl-schema-form__content">
+                    @foreach (var node in contentItem.Content)
+                    {
+                        if (node.Kind == SchemaFormContentKind.Heading)
+                        {
+                            <h3>@Resolve(node.Text)</h3>
+                        }
+                        else
+                        {
+                            <p>@Resolve(node.Text)</p>
+                        }
+                    }
+                </div>
+                break;
+            case SchemaFormActionItem actionItem:
+                <button @key="actionItem.Key" class="hl-schema-form__secondary-action" disabled="@Disabled"
+                        type="button" @onclick="() => Action.InvokeAsync(actionItem.Action)">
+                    @Resolve(actionItem.Action.Label)
+                </button>
+                break;
+            case SchemaFormGroupItem group:
+                var groupPath = Path.Append<object>(group.Key).ToArray();
+                <fieldset @key="group.Key" class="hl-schema-form__group" data-testid="@($"group-{group.Key}")">
+                    @if (group.Title is not null)
+                    {
+                        <legend>@Resolve(group.Title)</legend>
+                    }
+                    <HarborlineSchemaItems Action="@Action" ByField="@ByField" Disabled="@Disabled" FieldFocused="@FieldFocused"
+                                         Items="@group.Items" LocaleChain="@LocaleChain"
+                                         Path="@groupPath" Registry="@Registry" SetValue="@SetValue" Strings="@Strings" />
+                </fieldset>
+                break;
+            case SchemaFormCollectionItem collection:
+                <HarborlineSchemaCollection @key="collection.Key" Action="@Action" ByField="@ByField"
+                                          Disabled="@Disabled" Item="@collection"
+                                          FieldFocused="@FieldFocused"
+                                          LocaleChain="@LocaleChain" ParentPath="@Path" Registry="@Registry"
+                                          SetValue="@SetValue" Strings="@Strings" />
+                break;
+        }
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<SchemaFormItem> Items { get; set; } = [];
+    [Parameter, EditorRequired] public IReadOnlyList<object> Path { get; set; } = [];
+    [Parameter, EditorRequired] public IReadOnlyList<string> LocaleChain { get; set; } = [];
+    [Parameter, EditorRequired] public SchemaFormStrings Strings { get; set; } = new();
+    [Parameter, EditorRequired] public SchemaFormControlRegistry Registry { get; set; } = default!;
+    [Parameter, EditorRequired] public Func<IReadOnlyList<object>, object?, Task> SetValue { get; set; } = default!;
+    [Parameter, EditorRequired] public EventCallback<SchemaFormAction> Action { get; set; }
+    [Parameter, EditorRequired] public IReadOnlyDictionary<string, string> ByField { get; set; } =
+        new Dictionary<string, string>(StringComparer.Ordinal);
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public Action<string>? FieldFocused { get; set; }
+
+    private string Resolve(SchemaFormText text) => SchemaFormTextResolver.Resolve(text, LocaleChain);
+    private string? FieldError(string name) => ByField.TryGetValue(name, out var error) ? error : null;
+}

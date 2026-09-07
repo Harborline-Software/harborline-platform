@@ -1,0 +1,65 @@
+@using Harborline.UIAdapters.Blazor.Components.Forms.Inputs
+
+<section class="hl-gallery-scene" data-gallery-probe data-gallery-scenario="@ScenarioId" data-theme="@Theme" dir="@Direction">
+  <header class="hl-gallery-heading"><h2>@Copy.Title</h2><p>@Copy.Description</p></header>
+  <div class="hl-gallery-stage hl-gallery-feedback-grid">
+    <HarborlineLocaleProvider Locale="@Locale">
+      @if (ScenarioId == "switch.error-state")
+      {
+        <HarborlineSwitch Checked="false" Label="Inspection alerts" AccessibleName="Inspection alerts" Description="Resolve the validation error" OffText="Off" Error="true" Required="true" />
+      }
+      else if (ScenarioId == "switch.content")
+      {
+        <HarborlineSwitch Checked="true" Label="@("Awaiting third-party structural certification review")" AccessibleName="@("Awaiting third-party structural certification review")" Description="@("Bay 4 <grid C-7> & 8")" OnText="@("1,284,905")" />
+        <HarborlineSwitch Checked="false" Label="@("Ordnance Survey — Niño Ångström")" AccessibleName="@("Ordnance Survey — Niño Ångström")" />
+      }
+      else
+      {
+        <HarborlineSwitch Id="inspection-alerts-sm" Name="inspectionAlertsSm" Checked="@small" CheckedChanged="@(next => small = next)"
+                        Label="@Label" AccessibleName="@AccessibleName" Description="@Description" OnText="@OnText" OffText="@OffText" Size="SwitchSize.Sm" />
+        @if (ScenarioId is "switch.sizing" or "switch.activation-validation" or "switch.states" || Theme is not null)
+        {
+          <HarborlineSwitch Id="inspection-alerts-md" Name="inspectionAlertsMd" Checked="@medium" CheckedChanged="@(next => medium = next)"
+                          Label="@Label" AccessibleName="@AccessibleName" Description="@Description" OnText="@OnText" OffText="@OffText"
+                          Size="SwitchSize.Md" Error="@(ScenarioId == "switch.activation-validation")" Required="@(ScenarioId == "switch.activation-validation")" />
+          <HarborlineSwitch Id="inspection-alerts-lg" Name="inspectionAlertsLg" Checked="@large" CheckedChanged="@(next => large = next)"
+                          Label="@Label" AccessibleName="@AccessibleName" Description="@Description" OnText="@OnText" OffText="@OffText"
+                          Size="SwitchSize.Lg" Disabled="@(ScenarioId is "switch.activation-validation" or "switch.states")" />
+        }
+      }
+    </HarborlineLocaleProvider>
+  </div>
+</section>
+
+@code {
+  [Parameter, EditorRequired] public string ScenarioId { get; set; } = "switch.states";
+  private bool small;
+  private bool medium = true;
+  private bool large = true;
+
+  private (string Title, string Description) Copy => ScenarioId switch
+  {
+    "switch.states" => ("Controlled state and stable naming", "Visible labels and descriptions name one switch while state copy changes independently."),
+    "switch.activation-validation" => ("Activation, validation, and form value", "Pointer, Space, and Enter toggle once; disabled and invalid states remain explicit."),
+    "switch.sizing" => ("Sizes and touch target", "Canonical sizes retain semantics while coarse pointers receive a 44-pixel target."),
+    "switch.locale-en" => ("English locale", "Catalog-backed state copy and caller labels remain separate."),
+    "switch.locale-pseudo" => ("Pseudo locale", "Expanded labels and descriptions reflow without clipping."),
+    "switch.locale-ar" => ("Arabic locale", "The thumb moves toward logical inline-end while content order remains stable."),
+    "switch.theme-light" => ("Light theme", "Off, on, invalid, disabled, and focus states use public light-theme tokens."),
+    "switch.theme-dark" => ("Dark theme", "The same binary control on the Harborline dark surface."),
+    "switch.content" => ("Content resilience", "Two switches carry hostile-but-valid labels, descriptions, and state copy."),
+    "switch.error-state" => ("Error state", "The required switch exposes its invalid state while retaining a stable accessible name."),
+    _ => ("Switch", "Binary state control.")
+  };
+
+  private bool IsArabic => ScenarioId == "switch.locale-ar";
+  private bool IsPseudo => ScenarioId == "switch.locale-pseudo";
+  private string Locale => IsArabic ? "ar-SA" : IsPseudo ? "en-XA" : "en-US";
+  private string Direction => IsArabic ? "rtl" : "ltr";
+  private string? Theme => ScenarioId switch { "switch.theme-light" => "light", "switch.theme-dark" => "dark", _ => null };
+  private string Label => IsArabic ? "تنبيهات الفحص" : IsPseudo ? "⟦ Îñšþëçţîøñ åļëřţš åñđ řëmîñđëřš ······ ⟧" : "Inspection alerts";
+  private string AccessibleName => IsArabic ? "تنبيهات الفحص" : "Inspection alerts";
+  private string Description => IsArabic ? "إعلام جميع مالكي الهيكل" : IsPseudo ? "⟦ Ñøţîƒÿ ëṽëřÿ šţřûçţûřë øŵñëř ······ ⟧" : "Notify every structure owner";
+  private string OnText => IsArabic ? "مفعل" : "Enabled";
+  private string OffText => IsArabic ? "متوقف" : "Disabled";
+}

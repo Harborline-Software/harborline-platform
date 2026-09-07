@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.empty-state",
+  "fixtureRevision": 1,
+  "cases": [
+    {"id": "empty-state.informational", "input": {"variant": "informational", "title": "No results found."}, "expected": {"variant": "informational", "icon": "info", "titleVisible": true}},
+    {"id": "empty-state.positive", "input": {"variant": "positive", "title": "No outstanding receivables."}, "expected": {"variant": "positive", "icon": "circle-check", "titleVisible": true}},
+    {"id": "empty-state.actionable", "input": {"variant": "actionable", "title": "No payments yet."}, "expected": {"variant": "actionable", "icon": "circle-plus", "titleVisible": true}},
+    {"id": "empty-state.description", "input": {"description": "Adjust the chart selection and try again."}, "expected": {"descriptionVisible": true}},
+    {"id": "empty-state.no-description", "input": {"description": null}, "expected": {"descriptionElements": 0}},
+    {"id": "empty-state.action", "input": {"label": "Record the first payment", "activations": 1}, "expected": {"buttonVisible": true, "callbacks": 1}},
+    {"id": "empty-state.no-action", "input": {}, "expected": {"buttonVisible": false, "callbacks": 0}},
+    {"id": "empty-state.action-any-variant", "input": {"variants": ["informational", "positive", "actionable"], "label": "Act"}, "expected": {"callbacksPerVariant": 1}},
+    {"id": "empty-state.decorative-icon", "input": {"variants": ["informational", "positive", "actionable"]}, "expected": {"ariaHidden": true, "accessibleIconNames": 0}},
+    {"id": "empty-state.native-button", "input": {"label": "Add first item"}, "expected": {"element": "button", "type": "button", "keyboardActivates": true}},
+    {"id": "empty-state.host-attributes", "input": {"class": "consumer-empty", "lang": "ar", "dir": "rtl", "data-case": "empty"}, "expected": {"preserved": true, "ownedVariantPreserved": true}},
+    {"id": "empty-state.invalid-title", "input": {"title": "   "}, "expected": {"error": "title-required"}},
+    {"id": "empty-state.incomplete-action", "input": {"label": "Act", "callbackPresent": false}, "expected": {"error": "action-incomplete"}},
+    {"id": "empty-state.projection-equivalence", "input": {"variants": ["informational", "positive", "actionable"], "description": true, "action": true}, "expected": {"typescriptEqualsBlazor": true}}
+  ]
+}

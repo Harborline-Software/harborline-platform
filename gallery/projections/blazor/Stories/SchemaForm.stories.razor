@@ -1,0 +1,23 @@
+@attribute [Stories("Platform/Schema Form")]
+
+<Stories TComponent="SchemaFormScenario">
+  <Story Name="Ordered controls and collections">
+    <Arguments><Arg For="_ => _.ScenarioId" Value='"schema-form.controls-structure"' /></Arguments>
+    <Template><SchemaFormScenario @attributes="context.Args" /></Template>
+  </Story>
+  <Story Name="Rule outcomes and save gate">
+    <Arguments><Arg For="_ => _.ScenarioId" Value='"schema-form.rules-gate"' /></Arguments>
+    <Template><SchemaFormScenario @attributes="context.Args" /></Template>
+  </Story>
+  <Story Name="Inline and summary validation">
+    <Arguments><Arg For="_ => _.ScenarioId" Value='"schema-form.validation"' /></Arguments>
+    <Template><SchemaFormScenario @attributes="context.Args" /></Template>
+  </Story>
+  <Story Name="Caller locales and dark theme">
+    <Arguments><Arg For="_ => _.ScenarioId" Value='"schema-form.locale-theme"' /></Arguments>
+    <Template><SchemaFormScenario @attributes="context.Args" /></Template>
+  </Story>
+  <Story Name="Content resilience"><Arguments><Arg For="_ => _.ScenarioId" Value='"schema-form.content"'/></Arguments><Template><SchemaFormScenario @attributes="context.Args"/></Template></Story>
+  <Story Name="Empty state"><Arguments><Arg For="_ => _.ScenarioId" Value='"schema-form.empty-state"'/></Arguments><Template><SchemaFormScenario @attributes="context.Args"/></Template></Story>
+  <Story Name="Error state"><Arguments><Arg For="_ => _.ScenarioId" Value='"schema-form.error-state"'/></Arguments><Template><SchemaFormScenario @attributes="context.Args"/></Template></Story>
+</Stories>

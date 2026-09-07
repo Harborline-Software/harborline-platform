@@ -1,0 +1,162 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.badge",
+  "sourceFixture": "conformance/hlp.ui.badge/fixtures.yaml",
+  "qualityFixture": "conformance/hlp.ui.badge/quality-fixtures.yaml",
+  "galleryInterface": {
+    "probeAttribute": "data-gallery-probe",
+    "scenarioAttribute": "data-gallery-scenario",
+    "projectionTitles": {
+      "react": "Platform/Badge",
+      "blazor": "Platform/Badge"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "badge.variants",
+      "name": "Variants and fills",
+      "surface": "defaults",
+      "sourceCaseIds": [
+        "badge.defaults",
+        "badge.variants",
+        "badge.fill-modes"
+      ],
+      "sourceQualityCaseIds": [
+        "badge.quality.name",
+        "badge.quality.light-dark"
+      ],
+      "content": {
+        "blurb": "Badges",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<><Badge>Draft</Badge><Badge variant=\"info\">Info</Badge><Badge variant=\"success\">Ready</Badge><Badge variant=\"danger\">Blocked</Badge></>",
+            "blazor": "<HarborlineBadge>Draft</HarborlineBadge><HarborlineBadge Variant=\"BadgeVariant.Info\">Info</HarborlineBadge><HarborlineBadge Variant=\"BadgeVariant.Success\">Ready</HarborlineBadge><HarborlineBadge Variant=\"BadgeVariant.Danger\">Blocked</HarborlineBadge>",
+            "rationale": "The closed control vocabulary has no badge control and cannot express the default badge plus its per-item variant semantics."
+          }
+        ],
+        "footer": []
+      },
+      "states": [
+        "default",
+        "success",
+        "error"
+      ]
+    },
+    {
+      "id": "badge.overlays",
+      "name": "Overlay states",
+      "surface": "states",
+      "sourceCaseIds": [
+        "badge.theme-colors",
+        "badge.sizes-rounded",
+        "badge.overlay-ltr-rtl",
+        "badge.live-region",
+        "badge.icons"
+      ],
+      "sourceQualityCaseIds": [
+        "badge.quality.live-region",
+        "badge.quality.reflow"
+      ],
+      "content": {
+        "blurb": "Badges",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<><Badge themeColor=\"success\" fillMode=\"solid\">3</Badge><Badge themeColor=\"warning\" fillMode=\"outline\" rounded=\"full\">Pending</Badge><Badge announceChanges>4 updates</Badge></>",
+            "blazor": "<HarborlineBadge ThemeColor=\"BadgeThemeColor.Success\" FillMode=\"BadgeFillMode.Solid\">3</HarborlineBadge><HarborlineBadge ThemeColor=\"BadgeThemeColor.Warning\" FillMode=\"BadgeFillMode.Outline\" Rounded=\"BadgeRounded.Full\">Pending</HarborlineBadge><HarborlineBadge AnnounceChanges>4 updates</HarborlineBadge>",
+            "rationale": "The closed control vocabulary has no badge control and cannot express theme color, fill mode, full rounding, or live-announcement behavior."
+          }
+        ],
+        "footer": []
+      },
+      "states": [
+        "success",
+        "warning"
+      ]
+    },
+    {
+      "id": "badge.rtl-theme",
+      "name": "RTL and theme",
+      "surface": "rtl-theme",
+      "sourceCaseIds": [
+        "badge.host-attributes",
+        "badge.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "badge.quality.rtl",
+        "badge.quality.pseudo",
+        "badge.quality.tokens",
+        "badge.quality.forced-colors",
+        "badge.quality.reduced-motion",
+        "badge.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "Badges",
+        "environment": {
+          "locale": "en-US",
+          "direction": "rtl",
+          "theme": "dark",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<><Badge>مسودة</Badge><Badge variant=\"info\">Info</Badge><Badge variant=\"success\">Ready</Badge><Badge variant=\"danger\">Blocked</Badge></>",
+            "blazor": "<HarborlineBadge>مسودة</HarborlineBadge><HarborlineBadge Variant=\"BadgeVariant.Info\">Info</HarborlineBadge><HarborlineBadge Variant=\"BadgeVariant.Success\">Ready</HarborlineBadge><HarborlineBadge Variant=\"BadgeVariant.Danger\">Blocked</HarborlineBadge>",
+            "rationale": "The closed control vocabulary has no badge control and cannot express the default badge plus its per-item variant semantics."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "badge.content",
+      "name": "Content resilience",
+      "surface": "long-content",
+      "sourceCaseIds": [
+        "badge.defaults",
+        "badge.variants"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "Real content: a label longer than the badge, a grouped large number, text carrying angle brackets and an ampersand that must be escaped rather than parsed, and a name with diacritics and an em dash. Reflow is asserted on badge.overlays; this scenario is about surviving the content, not fitting a phone.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<><Badge>{'Awaiting third-party structural certification review'}</Badge><Badge variant=\"info\">{'1,284,905'}</Badge><Badge variant=\"danger\">{'Bay 4 <grid C-7> & 8'}</Badge><Badge variant=\"success\">{'Ordnance Survey — Niño Ångström'}</Badge></>",
+            "blazor": "<HarborlineBadge>@(\"Awaiting third-party structural certification review\")</HarborlineBadge><HarborlineBadge Variant=\"BadgeVariant.Info\">@(\"1,284,905\")</HarborlineBadge><HarborlineBadge Variant=\"BadgeVariant.Danger\">@(\"Bay 4 <grid C-7> & 8\")</HarborlineBadge><HarborlineBadge Variant=\"BadgeVariant.Success\">@(\"Ordnance Survey — Niño Ångström\")</HarborlineBadge>",
+            "rationale": "The closed control vocabulary has no badge control and cannot express per-variant badges carrying hostile-but-valid text."
+          }
+        ],
+        "footer": []
+      }
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+@attribute [Stories("Platform/User Menu")]
+<Stories TComponent="UserMenuScenario">
+  @foreach (var scenario in Scenarios)
+  {
+    <Story Name="@scenario.Name"><Arguments><Arg For="_ => _.ScenarioId" Value="@scenario.Id" /></Arguments><Template><UserMenuScenario @attributes="context.Args" /></Template></Story>
+  }
+  <Story Name="Content resilience"><Arguments><Arg For="_ => _.ScenarioId" Value='"user-menu.content"'/></Arguments><Template><UserMenuScenario @attributes="context.Args"/></Template></Story>
+</Stories>
+
+@code {
+  private static readonly (string Id, string Name)[] Scenarios =
+  [
+    ("user-menu.identity", "Identity, avatar, and initials"),
+    ("user-menu.simple-menu", "Simple menu and selection"),
+    ("user-menu.custom-dialog", "Custom controls dialog"),
+    ("user-menu.placement-dismissal", "Placement, touch, and dismissal"),
+    ("user-menu.disclosure", "Disclosure, open and closed"),
+    ("user-menu.locale-en", "English locale"),
+    ("user-menu.locale-pseudo", "Pseudo locale"),
+    ("user-menu.locale-ar", "Arabic locale"),
+    ("user-menu.theme-light", "Light theme"),
+    ("user-menu.theme-dark", "Dark theme"),
+  ];
+}

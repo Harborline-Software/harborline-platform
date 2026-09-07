@@ -1,0 +1,19 @@
+@attribute [Stories("Platform/Chart")]
+<Stories TComponent="ChartScenario">
+  @foreach (var scenario in Scenarios)
+  {
+    <Story Name="@scenario.Name"><Arguments><Arg For="_ => _.ScenarioId" Value="@scenario.Id" /></Arguments><Template><ChartScenario @attributes="context.Args" /></Template></Story>
+  }
+</Stories>
+
+@code {
+  private static readonly (string Id, string Name)[] Scenarios =
+  [
+    ("chart.line-series", "Line series and missing values"), ("chart.donut-missing", "Donut and missing slices"),
+    ("chart.empty", "Empty series and slices"),
+    ("chart.validation", "Validation and provider boundary"), ("chart.replacement", "Replacement and visibility intent"),
+    ("chart.accessible-data", "Accessible data path"), ("chart.large-data", "Bounded large data"),
+    ("chart.locale-en", "English locale and number formatting"), ("chart.locale-pseudo", "Pseudo-expanded labels"),
+    ("chart.locale-ar", "Arabic RTL chart"), ("chart.theme-light", "Light theme"), ("chart.theme-dark", "Dark theme and reduced motion")
+  ];
+}

@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 1,
+  "projection": "react",
+  "moduleId": "hlp.ui.chart",
+  "scenarios": [
+    {
+      "scenarioId": "chart.line-series",
+      "sha256": "ccc94464b71d9e1e8f373f4b5c8da7d92977d36801d1a741dd45531c5fceef3e",
+      "bytes": 23219,
+      "artifact": "../baselines/sha256/ccc94464b71d9e1e8f373f4b5c8da7d92977d36801d1a741dd45531c5fceef3e.png"
+    },
+    {
+      "scenarioId": "chart.donut-missing",
+      "sha256": "5927fc0a7bbcbb5ae42c062d03ea72d6d4b8f656d434f279332b65668b855764",
+      "bytes": 21997,
+      "artifact": "../baselines/sha256/5927fc0a7bbcbb5ae42c062d03ea72d6d4b8f656d434f279332b65668b855764.png"
+    },
+    {
+      "scenarioId": "chart.validation",
+      "sha256": "6190ccdbb39956794c78a31a0507da804b9307fd671220bb39177c04b7eb9a27",
+      "bytes": 31443,
+      "artifact": "../baselines/sha256/6190ccdbb39956794c78a31a0507da804b9307fd671220bb39177c04b7eb9a27.png"
+    },
+    {
+      "scenarioId": "chart.replacement",
+      "sha256": "f913bc19d1100125a127b9dc46f47f84b5d78185cc607d507e9b65879f91bb80",
+      "bytes": 13365,
+      "artifact": "../baselines/sha256/f913bc19d1100125a127b9dc46f47f84b5d78185cc607d507e9b65879f91bb80.png"
+    },
+    {
+      "scenarioId": "chart.accessible-data",
+      "sha256": "63f8079b3de3ba51c491ac66b095f96222f5392aa98f4b56997b2449b4778e5f",
+      "bytes": 26974,
+      "artifact": "../baselines/sha256/63f8079b3de3ba51c491ac66b095f96222f5392aa98f4b56997b2449b4778e5f.png"
+    },
+    {
+      "scenarioId": "chart.large-data",
+      "sha256": "37dea83ae90230c376287f539d17135c6d35a9163ed3aee4f64b37d40b5fbdc5",
+      "bytes": 36735,
+      "artifact": "../baselines/sha256/37dea83ae90230c376287f539d17135c6d35a9163ed3aee4f64b37d40b5fbdc5.png"
+    },
+    {
+      "scenarioId": "chart.locale-en",
+      "sha256": "03e081295757a61b7cbaa421bb800e10930674f95d784129c519c46ce77401e8",
+      "bytes": 20561,
+      "artifact": "../baselines/sha256/03e081295757a61b7cbaa421bb800e10930674f95d784129c519c46ce77401e8.png"
+    },
+    {
+      "scenarioId": "chart.locale-pseudo",
+      "sha256": "4fb63bf31b94d09fc36b5352955b76c76ed3e0a459e529040b816ddab664b5f0",
+      "bytes": 22462,
+      "artifact": "../baselines/sha256/4fb63bf31b94d09fc36b5352955b76c76ed3e0a459e529040b816ddab664b5f0.png"
+    },
+    {
+      "scenarioId": "chart.locale-ar",
+      "sha256": "f1c2eb19af220aa3fcfb1ef1706fcad7a9a47d098b8fe0261c88c9c3368c554a",
+      "bytes": 19507,
+      "artifact": "../baselines/sha256/f1c2eb19af220aa3fcfb1ef1706fcad7a9a47d098b8fe0261c88c9c3368c554a.png"
+    },
+    {
+      "scenarioId": "chart.theme-light",
+      "sha256": "f2426968e0dbe24e25a71b3e7ffa8c840553bdb263e6126257e97d9b48d89c01",
+      "bytes": 21946,
+      "artifact": "../baselines/sha256/f2426968e0dbe24e25a71b3e7ffa8c840553bdb263e6126257e97d9b48d89c01.png"
+    },
+    {
+      "scenarioId": "chart.theme-dark",
+      "sha256": "b461edd3200d088ce76a2c1063fc6077caf2e04a33cbb9c8ae1890bdcfae397e",
+      "bytes": 23620,
+      "artifact": "../baselines/sha256/b461edd3200d088ce76a2c1063fc6077caf2e04a33cbb9c8ae1890bdcfae397e.png"
+    }
+  ]
+}

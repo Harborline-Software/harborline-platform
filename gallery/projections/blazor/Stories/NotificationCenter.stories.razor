@@ -1,0 +1,26 @@
+@attribute [Stories("Platform/Notification Center")]
+<Stories TComponent="NotificationCenterScenario">
+    @foreach (var scenario in Scenarios)
+    {
+        <Story Name="@scenario.Name">
+            <Arguments><Arg For="_ => _.ScenarioId" Value="@scenario.Id" /></Arguments>
+            <Template><NotificationCenterScenario @attributes="context.Args" /></Template>
+        </Story>
+    }
+    <Story Name="Content resilience"><Arguments><Arg For="_ => _.ScenarioId" Value='"notification-center.content"'/></Arguments><Template><NotificationCenterScenario @attributes="context.Args"/></Template></Story>
+</Stories>
+
+@code {
+    private static readonly (string Id, string Name)[] Scenarios =
+    [
+        ("notification-center.empty-badges", "Empty and badge modes"),
+        ("notification-center.groups", "Groups and filtering"),
+        ("notification-center.actions", "Item actions"),
+        ("notification-center.keyboard-dismissal", "Keyboard, focus, and dismissal"),
+        ("notification-center.locale-en", "English locale"),
+        ("notification-center.locale-pseudo", "Pseudo locale"),
+        ("notification-center.locale-ar", "Arabic locale"),
+        ("notification-center.theme-light", "Light theme"),
+        ("notification-center.theme-dark", "Dark theme"),
+    ];
+}

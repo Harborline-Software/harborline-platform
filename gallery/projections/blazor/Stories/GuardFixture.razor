@@ -1,0 +1,26 @@
+<div class="hl-gallery-feedback-stack">
+  <HarborlineGuardedControl Action="packages.export"
+                          ClassificationId="significant-change"
+                          Label="@Label"
+                          Disabled="@Disabled"
+                          DescribedBy="@(Disabled ? "guard-denial" : null)"
+                          OnCommit="CommitAsync" />
+  @if (Disabled)
+  {
+    <p id="guard-denial">Complete the affirmation before signing.</p>
+  }
+  <output class="hl-gallery-activation" aria-live="polite">Commit requests: @commits</output>
+</div>
+
+@code {
+  [Parameter, EditorRequired] public string Label { get; set; } = string.Empty;
+  [Parameter] public bool Disabled { get; set; }
+
+  private int commits;
+
+  private Task CommitAsync()
+  {
+    commits++;
+    return Task.CompletedTask;
+  }
+}

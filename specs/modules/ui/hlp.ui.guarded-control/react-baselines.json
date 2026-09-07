@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "projection": "react",
+  "moduleId": "hlp.ui.guarded-control",
+  "scenarios": [
+    {
+      "scenarioId": "guarded-control.covered",
+      "sha256": "49399ea366131542f24c90d685ef91538f716321da004ea6ccd1a0e91bcbfc12",
+      "bytes": 16495,
+      "artifact": "../baselines/sha256/49399ea366131542f24c90d685ef91538f716321da004ea6ccd1a0e91bcbfc12.png"
+    },
+    {
+      "scenarioId": "guarded-control.two-step",
+      "sha256": "2acd82372a00a0faddd8da16348a1bcc6137dfbb4c8033ee8645543ab2fe8367",
+      "bytes": 11981,
+      "artifact": "../baselines/sha256/2acd82372a00a0faddd8da16348a1bcc6137dfbb4c8033ee8645543ab2fe8367.png"
+    },
+    {
+      "scenarioId": "guarded-control.keyboard-recovery",
+      "sha256": "b3ba39ee775b6338a1d93d2c3e556cfa31e413174460caa4a697ca1b1e093d3d",
+      "bytes": 12365,
+      "artifact": "../baselines/sha256/b3ba39ee775b6338a1d93d2c3e556cfa31e413174460caa4a697ca1b1e093d3d.png"
+    },
+    {
+      "scenarioId": "guarded-control.locale-en",
+      "sha256": "2b69c8de4ff1d9b6056ff0d7ba937a0c8380c8da5bd124e4dd9eb6f635088733",
+      "bytes": 10300,
+      "artifact": "../baselines/sha256/2b69c8de4ff1d9b6056ff0d7ba937a0c8380c8da5bd124e4dd9eb6f635088733.png"
+    },
+    {
+      "scenarioId": "guarded-control.locale-pseudo",
+      "sha256": "933412783d0b0998e933209ea359802e9ca99daa01a47ce09365ea2b485cdc9b",
+      "bytes": 11016,
+      "artifact": "../baselines/sha256/933412783d0b0998e933209ea359802e9ca99daa01a47ce09365ea2b485cdc9b.png"
+    },
+    {
+      "scenarioId": "guarded-control.locale-ar",
+      "sha256": "36a573ffaff9031631b9928cd75e3ef2110f604c6e6c187f243619ed2130efb9",
+      "bytes": 9418,
+      "artifact": "../baselines/sha256/36a573ffaff9031631b9928cd75e3ef2110f604c6e6c187f243619ed2130efb9.png"
+    },
+    {
+      "scenarioId": "guarded-control.theme-light",
+      "sha256": "3ca0e87a5642b535db7fcb0f0d3bd25dae0b1d3b40249589267fae2a38b26f78",
+      "bytes": 15347,
+      "artifact": "../baselines/sha256/3ca0e87a5642b535db7fcb0f0d3bd25dae0b1d3b40249589267fae2a38b26f78.png"
+    },
+    {
+      "scenarioId": "guarded-control.theme-dark",
+      "sha256": "c296e75aa954d88518418f60da5ad1403b123040eee3d9343efd4256fdbfb816",
+      "bytes": 14519,
+      "artifact": "../baselines/sha256/c296e75aa954d88518418f60da5ad1403b123040eee3d9343efd4256fdbfb816.png"
+    }
+  ]
+}

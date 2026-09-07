@@ -1,0 +1,1 @@
+{"schemaVersion":1,"moduleId":"hlp.ui.layers-state","accessibilityCases":[],"internationalizationCases":[{"id":"layers.quality.locale-independent","expected":{"localeInputAbsent":true,"idOrderOrdinal":true}}],"themingCases":[{"id":"layers.quality.theme-independent","expected":{"themeInputAbsent":true,"snapshotsEqualAcrossThemes":true}}]}

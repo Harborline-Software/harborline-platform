@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.cn",
+  "interfaceRevision": 1,
+  "semantics": {
+    "operation": "normalize conditional CSS class inputs and resolve Tailwind utility conflicts with last-applicable-token precedence",
+    "observableOutput": "One deterministic, whitespace-normalized class string."
+  },
+  "invariants": [
+    "String, numeric, array, and object-map inputs flatten in encounter order.",
+    "False, null, undefined, empty-string, and false-valued object entries contribute no token.",
+    "Non-conflicting tokens preserve encounter order.",
+    "Conflicting Tailwind utilities retain the last applicable utility using tailwind-merge semantics.",
+    "Arbitrary non-Tailwind class tokens are preserved and never localized or theme-resolved.",
+    "Equivalent normalized input produces byte-identical output in TypeScript and .NET support projections.",
+    "The helper performs no DOM access, I/O, reflection, or global mutation."
+  ],
+  "errors": [],
+  "performance": {"operation": "O(t) for t flattened class tokens with no I/O", "maximumFixtureTokens": 1000},
+  "presentation": {"disposition": "not-applicable", "rationale": "The helper returns class text and renders no user interface of its own."},
+  "cases": [
+    {"id": "cn.strings"},
+    {"id": "cn.conditionals"},
+    {"id": "cn.nested-arrays"},
+    {"id": "cn.object-map"},
+    {"id": "cn.tailwind-conflict"},
+    {"id": "cn.modifier-conflict"},
+    {"id": "cn.responsive-conflict"},
+    {"id": "cn.arbitrary-value-conflict"},
+    {"id": "cn.important-modifier"},
+    {"id": "cn.negative-utility"},
+    {"id": "cn.duplicate"},
+    {"id": "cn.arbitrary-token"},
+    {"id": "cn.empty"},
+    {"id": "cn.projection-equivalence"}
+  ]
+}

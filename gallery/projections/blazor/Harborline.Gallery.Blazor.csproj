@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
+  <PropertyGroup>
+    <TargetFramework>net11.0</TargetFramework>
+    <AssemblyName>Harborline.Gallery.Blazor</AssemblyName>
+    <RootNamespace>Harborline.Gallery.Blazor</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <OverrideHtmlAssetPlaceholders>true</OverrideHtmlAssetPlaceholders>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <MD2RazorDefaultBaseClass>global::BlazingStory.Internals.Pages.MarkdownPageBase</MD2RazorDefaultBaseClass>
+    <!-- Ticket 143: restore into the repository's own packages folder, the one prepare-galleries
+         fills and deletes, rather than ~/.nuget/packages. This is the documented RestorePackagesPath
+         override, and it is here so a developer typing a bare `dotnet build` gets the isolated cache
+         the gate uses without knowing to pass a packages folder. It also means nobody ever has to delete a
+         cache entry by hand, so the build server that holds a handle under ~/.nuget/packages and
+         silently defeats such a delete, stops mattering. -->
+    <RestorePackagesPath>$(MSBuildThisFileDirectory)../../../.packages/gallery</RestorePackagesPath>
+  </PropertyGroup>
+  <!-- Ticket 143 acceptance: a stale package is a named error, not a type error in a story nobody
+       edited. The version in the feed is derived from the adapter sources, so this compares the two
+       and stops the build with the reason when they have drifted. Set
+       HarborlineSkipFeedFreshnessCheck=true to build against the feed as it stands. -->
+  <Target Name="AssertPackedFeedMatchesSources" BeforeTargets="BeforeBuild" Condition="'$(HarborlineSkipFeedFreshnessCheck)' != 'true'">
+    <Exec Command="node &quot;$(MSBuildThisFileDirectory)../../../tooling/prepare-galleries.mjs&quot; --assert-feed" StandardOutputImportance="low" />
+  </Target>
+  <ItemGroup>
+    <!-- The App Shell story's panel table is the conformance fixture itself, embedded so the story reads
+         one authority instead of restating it (the React story imports the same file). -->
+    <EmbeddedResource Include="..\..\..\conformance\hlp.ui.app-shell\chrome-v1.json" LogicalName="app-shell-chrome-v1.json" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="BlazingStory" />
+    <PackageReference Include="Harborline.UIAdapters.Blazor" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" PrivateAssets="all" />
+    <PackageReference Include="MD2RazorGenerator" PrivateAssets="all" />
+  </ItemGroup>
+</Project>

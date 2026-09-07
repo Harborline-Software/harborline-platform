@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net11.0</TargetFramework><Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings><LangVersion>latest</LangVersion>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile><TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <IsPackable>true</IsPackable><HarborlinePublicDistributionAuthorized>false</HarborlinePublicDistributionAuthorized>
+    <PackageId>Harborline.Blocks.RelativeChains</PackageId><AssemblyName>Harborline.Blocks.RelativeChains</AssemblyName><RootNamespace>Harborline.Blocks.RelativeChains</RootNamespace>
+    <Description>Deterministic relative-chain expansion with immutable versioned occurrences.</Description><PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageReleaseNotes>Internal-only projection; public distribution is not authorized.</PackageReleaseNotes>
+  </PropertyGroup>
+  <ItemGroup><ProjectReference Include="../../foundation/hlp.foundation.scheduling/Harborline.Foundation.Scheduling.csproj" /></ItemGroup>
+  <ItemGroup><None Include="README.md" Pack="true" PackagePath="/" /><None Include="../../../../LICENSE" Link="LICENSE" Pack="true" PackagePath="/" /></ItemGroup>
+</Project>

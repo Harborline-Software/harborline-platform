@@ -1,0 +1,7 @@
+@attribute [Stories("Platform/Separator")]
+<Stories TComponent="SeparatorScenario">
+  <Story Name="Decorative"><Arguments><Arg For="_ => _.ScenarioId" Value='"separator.decorative"' /></Arguments><Template><SeparatorScenario @attributes="context.Args" /></Template></Story>
+  <Story Name="Semantic orientations"><Arguments><Arg For="_ => _.ScenarioId" Value='"separator.semantic"' /></Arguments><Template><SeparatorScenario @attributes="context.Args" /></Template></Story>
+  <Story Name="Labeled RTL and theme"><Arguments><Arg For="_ => _.ScenarioId" Value='"separator.labeled-theme"' /></Arguments><Template><SeparatorScenario @attributes="context.Args" /></Template></Story>
+  <Story Name="Content resilience"><Arguments><Arg For="_ => _.ScenarioId" Value='"separator.content"'/></Arguments><Template><SeparatorScenario @attributes="context.Args"/></Template></Story>
+</Stories>

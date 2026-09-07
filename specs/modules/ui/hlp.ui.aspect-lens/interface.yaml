@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.aspect-lens",
+  "interfaceRevision": 1,
+  "semantics": {
+    "operation": "project host-owned canvas structure, aspect overlays, and configuration provenance into framework-neutral builder read models",
+    "observableOutput": "A stable ordered outline, deterministic lens states and edges, synchronized selection, and fail-closed provenance information."
+  },
+  "sourceSurface": {
+    "repository": "shipyard",
+    "commit": "a5036ff8b500e0d857d7e0a698408e7cf7f6cf31",
+    "path": "packages/builder-kit/src/types.ts",
+    "blob": "8ad50fe56c33687aece4193d8edf2209fdc008fd",
+    "exports": ["CanvasNode", "CanvasModel", "LensTone", "AspectState", "AspectEdge", "AspectLens", "ProvenanceSource", "ProvenanceInfo", "ProvenanceResolver"]
+  },
+  "ownership": {
+    "canonicalOwner": "hlp.ui.aspect-lens",
+    "consumers": ["Dynamic Forms builder", "Workflows builder"],
+    "hostDataPolicy": "The module projects host data and never stores form or workflow state."
+  },
+  "invariants": [
+    "Canvas nodes have stable identifiers, host-defined kinds, localized labels, non-negative depth, and at most one outline parent.",
+    "Graph consumers provide a deterministic spanning-tree outline; non-tree relationships are lens edges rather than additional parents.",
+    "Selecting an outline node delegates exactly once to the host selection callback.",
+    "A lens is data, not a host-specific component branch, and is either colorize or filter.",
+    "Filter lenses ghost non-participating nodes without deleting structural context.",
+    "Color is never the sole signal: participating states may pair a semantic tone with badge or title text.",
+    "Provenance uses the closed base, pack, tenant, instance, unknown vocabulary and preserves the complete source chain.",
+    "Unresolved provenance fails closed as source unknown, resolved false, and locked true.",
+    "The contract performs no network, persistence, authorization, locale resolution, or theme-token resolution."
+  ],
+  "errors": [],
+  "vocabulary": {
+    "lensTones": ["accent", "warning", "danger", "success", "info", "muted", "sensitivity-none", "sensitivity-low", "sensitivity-medium", "sensitivity-high"],
+    "lensKinds": ["colorize", "filter"],
+    "provenanceSources": ["base", "pack", "tenant", "instance", "unknown"]
+  },
+  "performance": {"operation": "O(n + e) projection for n outline nodes and e lens edges with no I/O", "maximumFixtureNodes": 1000, "maximumFixtureEdges": 4000},
+  "presentation": {"disposition": "not-applicable", "rationale": "This module owns projection-neutral data and callbacks; framework components render it later."},
+  "cases": [
+    {"id": "aspect-lens.canvas-tree"},
+    {"id": "aspect-lens.graph-projection"},
+    {"id": "aspect-lens.selection"},
+    {"id": "aspect-lens.colorize"},
+    {"id": "aspect-lens.filter"},
+    {"id": "aspect-lens.edges"},
+    {"id": "aspect-lens.optional-descriptors"},
+    {"id": "aspect-lens.closed-vocabulary"},
+    {"id": "aspect-lens.provenance"},
+    {"id": "aspect-lens.fail-closed-provenance"},
+    {"id": "aspect-lens.projection-equivalence"}
+  ]
+}

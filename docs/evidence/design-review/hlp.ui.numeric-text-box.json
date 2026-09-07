@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.numeric-text-box",
+  "verdict": "approved",
+  "reviewer": "cic",
+  "recordedAt": "2026-08-26T20:38:42.768Z",
+  "reference": {
+    "revision": "d511d24558d1000ef932f4b0918b23aaf07c5c83ada2383ab49218c92af30c15",
+    "source": "gallery/scenarios/hlp.ui.numeric-text-box.json",
+    "pin": "cc9eb48ed68c5033ec128cd53c40b1d2786bee66",
+    "surface": {
+      "conformance/hlp.ui.numeric-text-box/fixtures.yaml": "a9caa74c9021dfff46ae350e1d07c5f209c88f652b00ab8d3465e7cece39c40c",
+      "conformance/hlp.ui.numeric-text-box/quality-fixtures.yaml": "bf4d9802508e078aca48e7ebc7dc74e6d58fd9e3ec85a6a812e7af08304db73d",
+      "gallery/projections/blazor/Stories/NumericTextBox.stories.razor": "6e9c9e80882a8b21943b48d725d25bb7cf7183dbf92df637b3cd61faa17c3427",
+      "gallery/projections/blazor/Stories/NumericTextBoxScenario.razor": "496848be49e031f2847c2cfd5f4f801a49520bf5535d0ccf3fef08a5862f0659",
+      "gallery/projections/react/src/NumericTextBox.stories.tsx": "6ca4da76c01fc114cfb3fc0ec2b63ea6be00ef6415c023ee1767359815a5d14c",
+      "gallery/scenarios/hlp.ui.numeric-text-box.json": "b1c123498777850155f2e55517372393389d360a86dc3ec620d35bd90d13f572",
+      "projections/blazor/ui/hlp.ui.numeric-text-box/NumericTextBoxTypes.cs": "2f376179247edf055cee979d34d5e8d67a4176f7590f3d477bbfe83fa24abe49",
+      "projections/blazor/ui/hlp.ui.numeric-text-box/ShipyardNumericTextBox.razor": "50218223a6bb359d72be425121872557ecd04de94fa055625baa0d4fdb23c098",
+      "projections/blazor/ui/hlp.ui.numeric-text-box/wwwroot/numeric-text-box.css": "ff672d71578f7d956536582386b16b4dfded31428ef81ee703caa9f1ffcedb7a",
+      "projections/react/ui/hlp.ui.numeric-text-box/src/NumericTextBox.tsx": "da1af4e2027b62be10e042d62323f48cdcf3033ae45e4dcd3c85cd4ec4855a42",
+      "projections/react/ui/hlp.ui.numeric-text-box/src/NumericTextBox.types.ts": "0c5f4c9af94fc85bb65bc7a585fabce8e62d7736bec9584228c398c55ccd9448",
+      "projections/react/ui/hlp.ui.numeric-text-box/src/index.ts": "88a14af95700332d447e7a2e3c04add197c71d91c9fd75c1fb3fdb2ef2d8c756",
+      "projections/react/ui/hlp.ui.numeric-text-box/src/style.css": "057dd68fe324bc3fb1f857c0eb208e107f103a4de21c56bd669f68f95a3419a3",
+      "specs/modules/ui/hlp.ui.numeric-text-box/scenarios.json": "b1c123498777850155f2e55517372393389d360a86dc3ec620d35bd90d13f572",
+      "specs/modules/ui/hlp.ui.numeric-text-box/style.css": "057dd68fe324bc3fb1f857c0eb208e107f103a4de21c56bd669f68f95a3419a3"
+    }
+  }
+}

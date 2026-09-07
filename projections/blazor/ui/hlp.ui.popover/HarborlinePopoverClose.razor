@@ -1,0 +1,11 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Feedback
+@inherits HarborlineComponentBase
+
+<button type="@Type" class="@CombineClasses("hl-popover-close")" style="@CombineStyles()" @onclick="CloseAsync" @attributes="AdditionalAttributes">@ChildContent</button>
+
+@code {
+    [CascadingParameter] public PopoverContext? Context { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public string Type { get; set; } = "button";
+    private Task CloseAsync() => Context?.SetOpenAsync(false) ?? Task.CompletedTask;
+}

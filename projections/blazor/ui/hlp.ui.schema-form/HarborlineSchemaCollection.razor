@@ -1,0 +1,105 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Forms
+@implements IDisposable
+@using Microsoft.AspNetCore.Components.Web
+
+<fieldset class="hl-schema-form__collection" data-testid="@($"collection-{Item.Key}")">
+    @if (Item.Title is not null)
+    {
+        <legend>@Resolve(Item.Title)</legend>
+    }
+    <div class="hl-schema-form__collection-rows">
+        @for (var index = 0; index < Rows.Count; index++)
+        {
+            var rowIndex = index;
+            var rowPath = CollectionPath.Append<object>(rowIndex).ToArray();
+            var itemText = Strings.ItemLabel.Replace("{n}", (rowIndex + 1).ToString(System.Globalization.CultureInfo.InvariantCulture), StringComparison.Ordinal);
+            <fieldset @key="rowKeys[rowIndex]" class="hl-schema-form__collection-row"
+                      data-testid="@($"collection-{Item.Key}-instance")">
+                <legend>@itemText</legend>
+                <button aria-label="@($"{Strings.RemoveItem} {itemText}")" class="hl-schema-form__remove"
+                        disabled="@(Disabled || !CanRemove)" type="button" @onclick="() => RemoveAsync(rowIndex)">
+                    @Strings.RemoveItem
+                </button>
+                <HarborlineSchemaItems Action="@Action" ByField="@ByField" Disabled="@Disabled" FieldFocused="@FieldFocused"
+                                     Items="@Item.Items" LocaleChain="@LocaleChain"
+                                     Path="@rowPath" Registry="@Registry" SetValue="@SetValue" Strings="@Strings" />
+            </fieldset>
+        }
+    </div>
+    <button class="hl-schema-form__add" data-testid="@($"collection-{Item.Key}-add")"
+            disabled="@(Disabled || !CanAdd)" type="button" @onclick="@(() => AddAsync())">
+        @Strings.AddItem
+    </button>
+</fieldset>
+
+@code {
+    [CascadingParameter] private SchemaFormValueStore Store { get; set; } = default!;
+    [Parameter, EditorRequired] public SchemaFormCollectionItem Item { get; set; } = default!;
+    [Parameter, EditorRequired] public IReadOnlyList<object> ParentPath { get; set; } = [];
+    [Parameter, EditorRequired] public IReadOnlyList<string> LocaleChain { get; set; } = [];
+    [Parameter, EditorRequired] public SchemaFormStrings Strings { get; set; } = new();
+    [Parameter, EditorRequired] public SchemaFormControlRegistry Registry { get; set; } = default!;
+    [Parameter, EditorRequired] public Func<IReadOnlyList<object>, object?, Task> SetValue { get; set; } = default!;
+    [Parameter, EditorRequired] public EventCallback<SchemaFormAction> Action { get; set; }
+    [Parameter, EditorRequired] public IReadOnlyDictionary<string, string> ByField { get; set; } =
+        new Dictionary<string, string>(StringComparer.Ordinal);
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public Action<string>? FieldFocused { get; set; }
+
+    private readonly List<long> rowKeys = [];
+    private long sequence;
+    private IDisposable? subscription;
+    private IReadOnlyList<object>? subscribedPath;
+    private IReadOnlyList<object> CollectionPath => ParentPath.Append<object>(Item.Key).ToArray();
+    private IReadOnlyList<object?> Rows => Store.Get(CollectionPath) is System.Collections.IList values
+        ? values.Cast<object?>().ToArray()
+        : [];
+    private int Minimum => Item.Cardinality?.Min ?? 0;
+    private int? Maximum => Item.Cardinality?.Max;
+    private bool CanAdd => Maximum is null || Rows.Count < Maximum.Value;
+    private bool CanRemove => Rows.Count > Minimum;
+
+    protected override void OnParametersSet()
+    {
+        if (!PathsEqual(CollectionPath, subscribedPath))
+        {
+            subscription?.Dispose();
+            subscription = Store.Subscribe(CollectionPath, StoreChanged);
+            subscribedPath = CollectionPath.ToArray();
+        }
+        SynchronizeKeys();
+    }
+
+    protected override void OnAfterRender(bool firstRender) => SynchronizeKeys();
+
+    private void SynchronizeKeys()
+    {
+        while (rowKeys.Count < Rows.Count) rowKeys.Add(++sequence);
+        if (rowKeys.Count > Rows.Count) rowKeys.RemoveRange(Rows.Count, rowKeys.Count - Rows.Count);
+    }
+
+    private async Task AddAsync()
+    {
+        var rows = Rows;
+        if (Disabled || !CanAdd) return;
+        rowKeys.Add(++sequence);
+        await SetValue(CollectionPath, rows.Append<object?>(new Dictionary<string, object?>(StringComparer.Ordinal)).ToList());
+    }
+
+    private async Task RemoveAsync(int index)
+    {
+        var rows = Rows;
+        if (Disabled || !CanRemove || index < 0 || index >= rows.Count) return;
+        rowKeys.RemoveAt(index);
+        await SetValue(CollectionPath, rows.Where((_, candidate) => candidate != index).ToList());
+    }
+
+    private string Resolve(SchemaFormText text) => SchemaFormTextResolver.Resolve(text, LocaleChain);
+
+    private void StoreChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private static bool PathsEqual(IReadOnlyList<object> left, IReadOnlyList<object>? right) =>
+        right is not null && left.Count == right.Count && left.Zip(right).All(pair => Equals(pair.First, pair.Second));
+
+    public void Dispose() => subscription?.Dispose();
+}

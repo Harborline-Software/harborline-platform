@@ -1,0 +1,24 @@
+@attribute [Stories("Platform/App Layout")]
+<Stories TComponent="AppLayoutScenario" Layout="@typeof(NoMarginLayout)">
+  @foreach (var scenario in Scenarios)
+  {
+    <Story Name="@scenario.Name"><Arguments><Arg For="_ => _.ScenarioId" Value="@scenario.Id" /></Arguments><Template><AppLayoutScenario @attributes="context.Args" /></Template></Story>
+  }
+  <Story Name="Content resilience"><Arguments><Arg For="_ => _.ScenarioId" Value='"app-layout.content"'/></Arguments><Template><AppLayoutScenario @attributes="context.Args"/></Template></Story>
+</Stories>
+
+@code {
+  private static readonly (string Id, string Name)[] Scenarios =
+  [
+    ("app-layout.structure-modes", "Structure and navigation modes"),
+    ("app-layout.rail-breakpoints", "Rail and breakpoint boundary"),
+    ("app-layout.drawer-state", "Drawer and controlled state"),
+    ("app-layout.dismissal-scroll", "Dismissal, header, and scroll ownership"),
+    ("app-layout.performance", "Bounded shell under load"),
+    ("app-layout.locale-en", "English locale"),
+    ("app-layout.locale-pseudo", "Pseudo locale"),
+    ("app-layout.locale-ar", "Arabic locale"),
+    ("app-layout.theme-light", "Light theme"),
+    ("app-layout.theme-dark", "Dark theme"),
+  ];
+}

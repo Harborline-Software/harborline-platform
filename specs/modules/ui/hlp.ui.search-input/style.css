@@ -1,0 +1,18 @@
+.hl-search-input{--hl-search-bg:var(--hl-color-surface,#fff);--hl-search-border:var(--hl-color-border,#64748b);--hl-search-muted:var(--hl-color-text-muted,#586174);--hl-search-focus:var(--hl-color-focus,#8a3ffc);position:relative;display:flex;align-items:center;inline-size:100%;max-inline-size:100%;color:var(--hl-color-text,#172033)}
+.hl-search-input__control{box-sizing:border-box;inline-size:100%;min-inline-size:0;min-block-size:2.5rem;border:1px solid var(--hl-search-border);border-radius:.5rem;background:var(--hl-search-bg);color:inherit;font:inherit;padding-block:.5rem;padding-inline:2.25rem 2.75rem;transition:border-color 150ms ease-out,box-shadow 150ms ease-out}
+.hl-search-input__control::placeholder{color:var(--hl-search-muted);opacity:1}
+/* type=search paints a native clear affordance in Chromium and Safari, and this module already
+   draws its own -- so the field showed two X's side by side. The drawn one carries the label,
+   the focus ring and the RTL placement, so the browser's is the one that goes. */
+.hl-search-input__control::-webkit-search-cancel-button,.hl-search-input__control::-webkit-search-decoration{-webkit-appearance:none;appearance:none}
+.hl-search-input__control::-ms-clear{display:none;inline-size:0;block-size:0}
+.hl-search-input__search{position:absolute;inset-inline-start:.75rem;inline-size:1rem;block-size:1rem;fill:none;stroke:currentColor;pointer-events:none}
+.hl-search-input__clear{position:absolute;inset-inline-end:.25rem;display:inline-flex;align-items:center;justify-content:center;inline-size:2rem;min-block-size:2rem;padding:0;border:0;border-radius:.375rem;background:transparent;color:var(--hl-search-muted);cursor:pointer;transition:background-color 150ms ease-out,color 150ms ease-out}
+.hl-search-input__clear svg{inline-size:1rem;block-size:1rem;fill:none;stroke:currentColor;stroke-linecap:round;stroke-width:1.75}
+.hl-search-input__clear:hover{background:var(--hl-color-surface-hover,#eef2f6);color:inherit}
+.hl-search-input__control:focus-visible,.hl-search-input__clear:focus-visible{outline:2px solid var(--hl-search-focus);outline-offset:2px}
+.hl-search-input[aria-busy='true'] .hl-search-input__search{opacity:.55}
+[data-theme='dark'] .hl-search-input{--hl-search-bg:var(--hl-color-surface,#161b26);--hl-search-muted:var(--hl-color-text-muted,#b8c0cc);color:var(--hl-color-text,#f5f7fa)}
+@media (any-pointer:coarse){.hl-search-input__clear{inset-inline-end:0;inline-size:44px;min-block-size:44px}}
+@media (forced-colors:active){.hl-search-input__control{border-color:CanvasText}.hl-search-input__clear{border:1px solid ButtonText}}
+@media (prefers-reduced-motion:reduce){.hl-search-input *{transition-duration:.001ms!important}}

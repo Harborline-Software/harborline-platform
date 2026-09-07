@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType><TargetFramework>net11.0</TargetFramework>
+    <Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Harborline.Foundation.Session" Version="$(HarborlinePackedVersion)" />
+    <PackageReference Include="Harborline.Foundation.Authorization" Version="$(HarborlinePackedVersion)" />
+    <PackageReference Include="Harborline.Foundation.MultiTenancy" Version="$(HarborlinePackedVersion)" />
+  </ItemGroup>
+  <ItemGroup><None Include="appshell-vertical-cases.json" CopyToOutputDirectory="PreserveNewest" /></ItemGroup>
+</Project>

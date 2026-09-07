@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.foundation.tenancy",
+  "interfaceRevision": 1,
+  "status": "frozen",
+  "purpose": "Resolve one active tenant per operation and apply a fail-closed tenant predicate without importing catalog, lifecycle, host, or persistence-provider behavior.",
+  "dependencies": [
+    {"moduleId": "hlp.contracts.identities", "interfaceRevision": 1}
+  ],
+  "types": {
+    "TenantStatus": ["Active", "Suspended", "Decommissioning", "Archived"],
+    "TenantMetadata": {
+      "required": ["id", "name"],
+      "optional": ["displayName", "locale", "createdAt"],
+      "defaults": {"status": "Active", "properties": {}}
+    },
+    "ITenantContext": {
+      "members": ["TenantMetadata? Tenant", "bool IsResolved"],
+      "isResolved": "Tenant is not null"
+    },
+    "ITenantScoped": {"members": ["TenantId TenantId"]},
+    "IMustHaveTenant": {"extends": "ITenantScoped"}
+  },
+  "operations": [
+    {"id": "query.where-tenant-context", "input": "IQueryable<IMustHaveTenant> plus ITenantContext", "result": "same query shape filtered by resolved Tenant.Id"},
+    {"id": "query.where-tenant-id", "input": "IQueryable<IMustHaveTenant> plus TenantId", "result": "same query shape filtered by TenantId"}
+  ],
+  "invariants": [
+    "ITenantContext carries tenant identity only; actor identity and authorization remain separate modules.",
+    "An unresolved context fails before query enumeration and never becomes an unscoped query.",
+    "Default and system-sentinel TenantId values are rejected before a tenant predicate is created.",
+    "WhereTenant is composable IQueryable behavior and does not enumerate or materialize the source.",
+    "Unknown tenant values return an empty result rather than widening scope.",
+    "Cross-tenant administration is not represented by this interface and requires a separately attested host/persistence path."
+  ],
+  "notScope": [
+    "tenant catalog and lifecycle mutation",
+    "host-name or claim resolution",
+    "authorization and current actor",
+    "EF Core global-filter registration",
+    "cross-tenant administration",
+    "the obsolete IMayHaveTenant marker"
+  ],
+  "projectionPolicy": {
+    "dotnet": "canonical implementation",
+    "react": "not-applicable",
+    "blazor": "consumer through authenticated host scope"
+  },
+  "fixture": "conformance/hlp.foundation.tenancy/fixtures.yaml"
+}

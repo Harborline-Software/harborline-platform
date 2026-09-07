@@ -1,0 +1,10 @@
+{"schemaVersion":1,"moduleId":"hlp.ui.use-is-mobile","fixtureRevision":1,"cases":[
+  {"id":"breakpoint.complete-surface","input":{},"expected":{"exports":["BP_DOCK","BP_PHONE","useCanShowRail","useIsMobile"],"count":4}},
+  {"id":"breakpoint.phone-query","input":{},"expected":{"query":"(max-width: 767px)"}},
+  {"id":"breakpoint.mobile-match","input":{"matches":true},"expected":{"mobile":true}},
+  {"id":"breakpoint.rail-query","input":{},"expected":{"query":"(min-width: 768px) and (min-height: 600px)"}},
+  {"id":"breakpoint.rail-short-landscape","input":{"width":844,"height":390,"orientation":"landscape"},"expected":{"canShowRail":false}},
+  {"id":"breakpoint.dock-held-exception","input":{},"expected":{"query":"(min-width: 1280px)","aspectAware":false}},
+  {"id":"breakpoint.ssr-fail-closed","input":{"browserAvailable":false},"expected":{"mobile":false,"canShowRail":false}},
+  {"id":"breakpoint.projection-equivalence","input":{"allQueries":true},"expected":{"typescriptEqualsDotnet":true}}
+]}

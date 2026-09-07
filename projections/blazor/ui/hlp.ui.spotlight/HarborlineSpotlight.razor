@@ -1,0 +1,160 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Navigation
+@inherits HarborlineComponentBase
+@implements IAsyncDisposable
+@using Microsoft.JSInterop
+@inject IJSRuntime JavaScript
+
+@if (Open)
+{
+    <div @ref="portal" class="hl-spotlight__portal" data-hl-module="hlp.ui.spotlight">
+    <div class="hl-spotlight__scrim" data-testid="spotlight-scrim" aria-hidden="true" @onmousedown="DismissAsync"></div>
+    <div @ref="dialog" role="dialog" tabindex="-1" aria-modal="true" aria-label="@AriaLabel"
+             class="@CombineClasses("hl-spotlight")" style="@CombineStyles()" @onclick:stopPropagation="true"
+             @attributes="AdditionalAttributes">
+        <div class="hl-spotlight__query-row">
+            <svg aria-hidden="true" class="hl-spotlight__search-icon" fill="none" focusable="false" viewBox="0 0 24 24"><path d="m21 21-4.35-4.35m1.35-5.65a7 7 0 1 1-14 0 7 7 0 0 1 14 0Z"></path></svg>
+            <input @ref="input" type="search" role="combobox" value="@Query" aria-label="@(Placeholder ?? AriaLabel)"
+                   aria-autocomplete="list" aria-expanded="true" aria-controls="@ListboxId" aria-activedescendant="@ActiveDomId"
+                   autocomplete="off" placeholder="@Placeholder" class="hl-spotlight__query"
+                   @oninput="HandleQueryAsync" @onkeydown="HandleKeyAsync" />
+            <kbd class="hl-spotlight__escape">@EscLabel</kbd>
+        </div>
+        <div class="hl-spotlight__sr-only" role="status" aria-live="polite">@(ResultsCountLabel?.Invoke(FlatItems.Count) ?? "")</div>
+        <div id="@ListboxId" role="listbox" aria-label="@AriaLabel" class="hl-spotlight__results">
+            @if (PinnedAction is not null)
+            {
+                @RenderOption(PinnedAction, 0, "pinned")
+            }
+            @{ var offset = PinnedAction is null ? 0 : 1; }
+            @foreach (var section in Sections)
+            {
+                if (section.Items.Count > 0)
+                {
+                    <div role="group" aria-label="@section.Label" @key="section.Id">
+                        <div aria-hidden="true" class="hl-spotlight__group-label">@section.Label</div>
+                        @for (var itemIndex = 0; itemIndex < section.Items.Count; itemIndex++)
+                        {
+                            var optionIndex = offset + itemIndex;
+                            @RenderOption(section.Items[itemIndex], optionIndex, section.Id)
+                        }
+                    </div>
+                    offset += section.Items.Count;
+                }
+                else if (section.Loading)
+                {
+                    <div class="hl-spotlight__loading" @key="section.Id">@(section.LoadingLabel ?? "…")</div>
+                }
+            }
+            @if (FlatItems.Count == 0 && !Sections.Any(section => section.Loading))
+            {
+                <div class="hl-spotlight__empty">@Empty</div>
+            }
+        </div>
+        @if (Footer is not null) { <div class="hl-spotlight__footer">@Footer</div> }
+    </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool Open { get; set; }
+    [Parameter] public EventCallback<bool> OpenChanged { get; set; }
+    [Parameter] public string Query { get; set; } = string.Empty;
+    [Parameter] public EventCallback<string> QueryChanged { get; set; }
+    [Parameter] public IReadOnlyList<SpotlightSection> Sections { get; set; } = [];
+    [Parameter] public SpotlightItem? PinnedAction { get; set; }
+    [Parameter, EditorRequired] public string AriaLabel { get; set; } = string.Empty;
+    [Parameter] public string? Placeholder { get; set; }
+    [Parameter] public string EscLabel { get; set; } = "Esc";
+    [Parameter] public string? Empty { get; set; }
+    [Parameter] public Func<int, string>? ResultsCountLabel { get; set; }
+    [Parameter] public RenderFragment? Footer { get; set; }
+
+    private readonly string instanceId = $"hl-spotlight-{Guid.NewGuid():N}";
+    private int activeIndex;
+    private bool previousOpen;
+    private int previousCount = -1;
+    private ElementReference dialog;
+    private ElementReference input;
+    private ElementReference portal;
+    private IJSObjectReference? module;
+    private IJSObjectReference? connection;
+    private string ListboxId => $"{instanceId}-listbox";
+    private IReadOnlyList<SpotlightItem> FlatItems => (PinnedAction is null ? [] : new[] { PinnedAction })
+        .Concat(Sections.SelectMany(section => section.Items)).ToArray();
+    private string? ActiveDomId => FlatItems.Count == 0 ? null : OptionDomId(FlatItems[Math.Clamp(activeIndex, 0, FlatItems.Count - 1)].Id);
+
+    protected override void OnParametersSet()
+    {
+        if (string.IsNullOrWhiteSpace(AriaLabel)) throw new InvalidOperationException("aria-label-required");
+        var renderedSections = Sections.Where(section => section.Items.Count > 0 || section.Loading).ToArray();
+        if (renderedSections.Any(section => string.IsNullOrWhiteSpace(section.Label))) throw new InvalidOperationException("section-label-required");
+        var ids = FlatItems.Select(item => item.Id).ToArray();
+        if (ids.Any(string.IsNullOrWhiteSpace) || ids.Distinct(StringComparer.Ordinal).Count() != ids.Length)
+            throw new InvalidOperationException("duplicate-item-id");
+        if ((Open && !previousOpen) || FlatItems.Count != previousCount) activeIndex = 0;
+        previousOpen = Open;
+        previousCount = FlatItems.Count;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (Open && connection is null)
+        {
+            module ??= await JavaScript.InvokeAsync<IJSObjectReference>("import", "./_content/Harborline.UIAdapters.Blazor/spotlight.js");
+            connection = await module.InvokeAsync<IJSObjectReference>("connect", portal, dialog, input);
+        }
+        else if (!Open && connection is not null) await DisposeConnectionAsync();
+    }
+
+    private RenderFragment RenderOption(SpotlightItem item, int index, string group) => builder =>
+    {
+        builder.OpenElement(0, "div");
+        builder.SetKey(item.Id);
+        builder.AddAttribute(1, "id", OptionDomId(item.Id));
+        builder.AddAttribute(2, "role", "option");
+        builder.AddAttribute(3, "aria-selected", activeIndex == index ? "true" : "false");
+        builder.AddAttribute(4, "data-active", activeIndex == index ? "true" : "false");
+        builder.AddAttribute(5, "data-item-id", item.Id);
+        builder.AddAttribute(6, "data-group", group);
+        builder.AddAttribute(7, "class", activeIndex == index ? "hl-spotlight__option hl-spotlight__option--active" : "hl-spotlight__option");
+        builder.AddAttribute(8, "onmouseenter", EventCallback.Factory.Create(this, () => { activeIndex = index; StateHasChanged(); }));
+        builder.AddAttribute(9, "onclick", EventCallback.Factory.Create(this, () => SelectAsync(item)));
+        if (item.Icon is not null) { builder.OpenElement(10, "span"); builder.AddAttribute(11, "aria-hidden", "true"); builder.AddAttribute(12, "class", "hl-spotlight__icon"); builder.AddContent(13, item.Icon); builder.CloseElement(); }
+        builder.OpenElement(14, "span"); builder.AddAttribute(15, "class", "hl-spotlight__label"); builder.AddContent(16, item.Label); builder.CloseElement();
+        if (!string.IsNullOrEmpty(item.Description)) { builder.OpenElement(17, "span"); builder.AddAttribute(18, "class", "hl-spotlight__description"); builder.AddContent(19, item.Description); builder.CloseElement(); }
+        if (!string.IsNullOrEmpty(item.Badge)) { builder.OpenElement(20, "span"); builder.AddAttribute(21, "class", "hl-spotlight__badge"); builder.AddContent(22, item.Badge); builder.CloseElement(); }
+        if (!string.IsNullOrEmpty(item.Shortcut)) { builder.OpenElement(23, "kbd"); builder.AddAttribute(24, "class", "hl-spotlight__shortcut"); builder.AddContent(25, item.Shortcut); builder.CloseElement(); }
+        builder.CloseElement();
+    };
+
+    private string OptionDomId(string id) => $"{instanceId}-option-{id}";
+    private Task HandleQueryAsync(ChangeEventArgs args) => QueryChanged.InvokeAsync(args.Value?.ToString() ?? string.Empty);
+    private async Task HandleKeyAsync(KeyboardEventArgs args)
+    {
+        if (args.Key == "Escape") { await DismissAsync(); return; }
+        if (FlatItems.Count == 0) return;
+        if (args.Key == "ArrowDown") activeIndex = Math.Min(activeIndex + 1, FlatItems.Count - 1);
+        else if (args.Key == "ArrowUp") activeIndex = Math.Max(activeIndex - 1, 0);
+        else if (args.Key == "Enter") { await SelectAsync(FlatItems[activeIndex]); return; }
+        else return;
+        StateHasChanged();
+    }
+    private async Task SelectAsync(SpotlightItem item)
+    {
+        if (!item.KeepOpen) await OpenChanged.InvokeAsync(false);
+        await item.OnSelect();
+    }
+    private Task DismissAsync() => OpenChanged.InvokeAsync(false);
+    private async ValueTask DisposeConnectionAsync()
+    {
+        if (connection is null) return;
+        await connection.InvokeVoidAsync("dispose");
+        await connection.DisposeAsync();
+        connection = null;
+    }
+    public async ValueTask DisposeAsync()
+    {
+        await DisposeConnectionAsync();
+        if (module is not null) await module.DisposeAsync();
+    }
+}

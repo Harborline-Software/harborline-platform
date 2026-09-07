@@ -1,0 +1,76 @@
+<section class="hl-gallery-scene" data-gallery-probe data-gallery-scenario="@ScenarioId" data-theme="@Theme" dir="@Direction">
+  <header class="hl-gallery-heading"><h2>@Copy.Title</h2><p>@Copy.Description</p></header>
+  <div class="hl-gallery-stage" style="overflow:auto">
+    <HarborlineLocaleProvider Locale="@Locale" Direction="@Direction">
+      <div style="@SchedulerFixtureStyle">
+        <HarborlineScheduler AccessibleName="Agenda" Data="@Events" DefaultDate="@SelectedDate" DefaultView="@InitialView"
+                         Now="@FrozenNow" Narrow="@(ScenarioId == "scheduler.narrow-reflow")" ReadOnly="@ReadOnly"
+                         WorkDayStart="8" WorkDayEnd="18"
+                         EventAdded="@(item => last = $"Added {item.Title}")"
+                         EventUpdated="@(item => last = $"Updated {item.Title}")"
+                         EventDeleted="@(item => last = $"Deleted {item.Title}")" />
+      </div>
+      @if (last is not null)
+      {
+        <output>@last</output>
+      }
+    </HarborlineLocaleProvider>
+  </div>
+</section>
+
+@code {
+  [Parameter, EditorRequired] public string ScenarioId { get; set; } = "scheduler.views-state";
+  private string? last;
+
+  private static readonly DateTimeOffset SelectedDate = new(2026, 8, 11, 12, 0, 0, TimeSpan.Zero);
+  private static readonly DateTimeOffset FrozenNow = new(2026, 8, 11, 10, 15, 0, TimeSpan.Zero);
+
+  private static readonly IReadOnlyDictionary<string, (string Title, string Description)> CopyByScenario =
+    new Dictionary<string, (string, string)>
+    {
+      ["scheduler.views-state"] = ("Views and controlled state", "Four views, caller-selected subsets, controlled view, and controlled date retain one request per action."),
+      ["scheduler.navigation-layout"] = ("Navigation and calendar layout", "Day and week navigation preserve all-day bands, overlaps, work-hour shading, and stable event identity."),
+      ["scheduler.month-agenda"] = ("Month drilldown and agenda", "Month overflow drills into a day while agenda orders future events and names its empty state."),
+      ["scheduler.narrow-reflow"] = ("Narrow responsive schedule", "Uncontrolled narrow mode defaults to agenda while an explicit week remains horizontally keyboard-scrollable."),
+      ["scheduler.now-readonly"] = ("Current time and read-only policy", "A frozen current-time line anchors deterministically and read-only mode removes every mutation path."),
+      ["scheduler.editing-recurrence"] = ("Editing and recurrence workflow", "Provider-neutral CRUD requests and bounded occurrence-or-series decisions preserve recurrence identity."),
+      ["scheduler.large-data"] = ("Bounded large schedule", "Two hundred fifty-six visible events and dense overlap retain unique chips, bounded chrome, and deterministic replacement."),
+      ["scheduler.locale-pseudo"] = ("Pseudo-localized schedule", "Expanded toolbar, view, empty, recurrence, and overflow copy remains usable in every view."),
+      ["scheduler.locale-ar"] = ("Arabic date, time, and direction", "Locale formatting, chevrons, grid placement, and overlays follow right-to-left direction."),
+      ["scheduler.theme-light"] = ("Light theme", "Calendar surface, work hours, events, now line, overlay, and focus use Harborline light tokens."),
+      ["scheduler.theme-dark"] = ("Dark theme", "The same deep scheduling seam on the Harborline dark surface."),
+    };
+
+  private static readonly IReadOnlyList<SchedulerEvent> BaseEvents =
+  [
+    new("all-day", "Structure safety review", At(0, 0), At(1, 0), AllDay: true, Color: "#2563eb"),
+    new("capture", "Photo-with-pose capture", At(0, 9), At(0, 10, 30), Color: "#0f766e", Description: "Capture grid C-14 and record camera pose."),
+    new("blueprint", "Blueprint placement", At(0, 9, 30), At(0, 11), Color: "#7c3aed", Description: "Place the captured pose within the primary structure."),
+    new("handoff", "Inspection handoff", At(0, 13), At(0, 14), Color: "#b45309"),
+    new("field", "Field verification", At(1, 8, 30), At(1, 10), Color: "#be123c"),
+  ];
+
+  private static DateTimeOffset At(int dayOffset, int hour, int minute = 0) =>
+    new DateTimeOffset(2026, 8, 11 + dayOffset, hour, minute, 0, TimeSpan.Zero);
+
+  private (string Title, string Description) Copy => CopyByScenario[ScenarioId];
+  private bool IsArabic => ScenarioId == "scheduler.locale-ar";
+  private bool IsPseudo => ScenarioId == "scheduler.locale-pseudo";
+  private string Locale => IsArabic ? "ar-SA" : IsPseudo ? "en-XA" : "en-US";
+  private string Direction => IsArabic ? "rtl" : "ltr";
+  private bool ReadOnly => ScenarioId is "scheduler.now-readonly" or "scheduler.locale-ar" or "scheduler.locale-pseudo" or "scheduler.theme-light" or "scheduler.theme-dark";
+  private SchedulerViewType InitialView => ScenarioId switch
+  {
+    "scheduler.month-agenda" or "scheduler.locale-pseudo" => SchedulerViewType.Month,
+    "scheduler.locale-ar" => SchedulerViewType.Agenda,
+    "scheduler.theme-light" or "scheduler.theme-dark" or "scheduler.now-readonly" => SchedulerViewType.Day,
+    _ => SchedulerViewType.Week,
+  };
+  private IReadOnlyList<SchedulerEvent> Events => ScenarioId == "scheduler.large-data"
+    ? Enumerable.Range(0, 256).Select(index => new SchedulerEvent($"event-{index}", $"Event {index + 1}", SelectedDate.AddMinutes(index * 5), SelectedDate.AddMinutes(index * 5 + 30))).ToArray()
+    : BaseEvents;
+  private string SchedulerFixtureStyle => ScenarioId is "scheduler.theme-light" or "scheduler.theme-dark"
+    ? "block-size:560px;inline-size:100%"
+    : "inline-size:100%";
+  private string? Theme => ScenarioId switch { "scheduler.theme-light" => "light", "scheduler.theme-dark" => "dark", _ => null };
+}

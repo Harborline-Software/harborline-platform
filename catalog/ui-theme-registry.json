@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "authority": {
+    "repository": "shipyard",
+    "commit": "a5036ff8b500e0d857d7e0a698408e7cf7f6cf31",
+    "path": "packages/ui-react/src/style.css",
+    "blob": "bca2eec4f4e90e5fd9e1ab3d94dc24317ca20860"
+  },
+  "publicTokens": {
+    "--hl-background": {"source": "--color-background", "light": "#fafafa", "dark": "#121212"},
+    "--hl-foreground": {"source": "--color-foreground", "light": "#111111", "dark": "#f5f5f5"},
+    "--hl-card": {"source": "--color-card", "light": "#ffffff", "dark": "#1a1a1a"},
+    "--hl-surface": {"source": "--color-card", "light": "#ffffff", "dark": "#1a1a1a"},
+    "--hl-muted": {"source": "--color-muted", "light": "#f3f3f3", "dark": "#222222"},
+    "--hl-muted-foreground": {"source": "--color-muted-foreground", "light": "#444444", "dark": "#d0d0d0"},
+    "--hl-border": {"source": "--color-border", "light": "#d0d0d0", "dark": "#3a3a3a"},
+    "--hl-control-border": {"source": "--color-text-faint", "light": "#777777", "dark": "#9a9a9a"},
+    "--hl-primary": {"source": "--color-primary", "light": "#0f62fe", "dark": "#7ab8ff"},
+    "--hl-primary-foreground": {"source": "--color-primary-foreground", "light": "#ffffff", "dark": "#111111"},
+    "--hl-primary-hover": {"source": "--color-accent-hover", "light": "#0353e9", "dark": "#94c5ff"},
+    "--hl-primary-active": {"source": "--color-accent-active", "light": "#0043ce", "dark": "#aed4ff"},
+    "--hl-success": {"source": "--color-success", "light": "#0a7c3a", "dark": "#5dd98a"},
+    "--hl-accent": {"source": "--color-accent", "light": "#e8f0ff", "dark": "#1d2d44"},
+    "--hl-danger": {"source": "--color-danger", "light": "#b42318", "dark": "#ff8a80"},
+    "--hl-focus": {"source": "--color-focus-ring", "light": "#0f62fe", "dark": "#8ab4ff"}
+  },
+  "galleryAliases": {
+    "--hl-gallery-surface": "--hl-card",
+    "--hl-gallery-canvas": "--hl-background",
+    "--hl-gallery-text": "--hl-foreground",
+    "--hl-gallery-muted": "--hl-muted-foreground",
+    "--hl-button-primary": "--hl-primary",
+    "--hl-button-primary-hover": "--hl-primary-hover",
+    "--hl-button-primary-active": "--hl-primary-active",
+    "--hl-button-primary-foreground": "--hl-primary-foreground",
+    "--hl-button-secondary": "--hl-card",
+    "--hl-button-secondary-hover": "--hl-muted",
+    "--hl-button-secondary-active": "--hl-border",
+    "--hl-button-secondary-foreground": "--hl-foreground",
+    "--hl-button-border": "--hl-control-border",
+    "--hl-button-focus": "--hl-focus"
+  },
+  "visualParity": {
+    "pixelmatchThreshold": 0.15,
+    "maximumChangedPixelRatio": 0.015,
+    "includeAntialiasing": false,
+    "tileSize": 16,
+    "maximumChangedTilePixelRatio": 0.34,
+    "baseline": "pinned-carrier-semantic-token-snapshot",
+    "projections": ["react", "blazor"]
+  }
+}

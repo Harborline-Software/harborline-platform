@@ -1,0 +1,14 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Layout
+@inherits HarborlineComponentBase
+@if (Level == 1) { <h1 class="@CombineClasses("hl-card__title")" style="@CombineStyles()" @attributes="AdditionalAttributes">@ChildContent</h1> }
+else if (Level == 2) { <h2 class="@CombineClasses("hl-card__title")" style="@CombineStyles()" @attributes="AdditionalAttributes">@ChildContent</h2> }
+else if (Level == 3) { <h3 class="@CombineClasses("hl-card__title")" style="@CombineStyles()" @attributes="AdditionalAttributes">@ChildContent</h3> }
+else if (Level == 4) { <h4 class="@CombineClasses("hl-card__title")" style="@CombineStyles()" @attributes="AdditionalAttributes">@ChildContent</h4> }
+else if (Level == 5) { <h5 class="@CombineClasses("hl-card__title")" style="@CombineStyles()" @attributes="AdditionalAttributes">@ChildContent</h5> }
+else if (Level == 6) { <h6 class="@CombineClasses("hl-card__title")" style="@CombineStyles()" @attributes="AdditionalAttributes">@ChildContent</h6> }
+
+@code {
+    [Parameter] public int Level { get; set; } = 3;
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    protected override void OnParametersSet() { if (Level is < 1 or > 6) throw new InvalidOperationException("heading-level-invalid"); }
+}

@@ -1,0 +1,24 @@
+<section class="hl-gallery-scene" data-gallery-probe data-gallery-scenario="@ScenarioId" data-theme="@Theme" dir="@Direction">
+  <header class="hl-gallery-heading"><h2>@Title</h2><p>@Blurb</p></header>
+  <div class="hl-gallery-stage">@if(ScenarioId=="accordion.empty"){<HarborlineAccordion Items="@(Array.Empty<HarborlineAccordionItem>())" Empty="@EmptyText" />}else if(ScenarioId=="accordion.content"){<HarborlineAccordion Items="ContentItems" Mode="AccordionMode.Multiple" DefaultExpandedValues="ContentExpandedValues" />}else{<HarborlineAccordion Items="Items" Mode="@(ScenarioId == "accordion.states" ? AccordionMode.Multiple : AccordionMode.Single)" DefaultExpandedValues="@(ScenarioId == "accordion.states" ? new[] { "overview", "details" } : new[] { "overview" })" Collapsible="@(ScenarioId != "accordion.states")" />}</div>
+</section>
+@code {
+  [Parameter, EditorRequired] public string ScenarioId { get; set; } = "accordion.defaults";
+  private const string EmptyText = "No sections yet. Add one to see it here.";
+  private string Blurb => ScenarioId == "accordion.empty" ? "Handed no items, the group renders the caller-owned empty content instead of an empty bordered box." : "Disclosure state, relationships, and logical layout use one neutral contract.";
+  private string Title => ScenarioId == "accordion.empty" ? "Empty collection" : ScenarioId == "accordion.content" ? "Content resilience" : ScenarioId == "accordion.states" ? "States and keyboard" : ScenarioId == "accordion.rtl-theme" ? "RTL and theme" : "Defaults";
+  private string? Theme => ScenarioId == "accordion.rtl-theme" ? "dark" : null;
+  private string? Direction => ScenarioId == "accordion.rtl-theme" ? "rtl" : null;
+  private static IReadOnlyList<HarborlineAccordionItem> Items { get; } = [
+    new("overview", b => b.AddContent(0, "Overview"), b => b.AddContent(0, "Structure summary and current inspection status.")),
+    new("details", b => b.AddContent(0, "Details"), b => b.AddContent(0, "Harborline-owned detail content remains composable.")),
+    new("disabled", b => b.AddContent(0, "Unavailable"), b => b.AddContent(0, "This content cannot be opened."), true),
+  ];
+  private static IReadOnlyList<HarborlineAccordionItem> ContentItems { get; } = [
+    new("review", b => b.AddContent(0, "Awaiting third-party structural certification review"), b => b.AddContent(0, "Review queue")),
+    new("count", b => b.AddContent(0, "1,284,905"), b => b.AddContent(0, "Record count")),
+    new("grid", b => b.AddContent(0, "Bay 4 <grid C-7> & 8"), b => b.AddContent(0, "Survey location")),
+    new("name", b => b.AddContent(0, "Ordnance Survey — Niño Ångström"), b => b.AddContent(0, "Survey provider")),
+  ];
+  private static IReadOnlyList<string> ContentExpandedValues { get; } = ["review", "count", "grid", "name"];
+}

@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "outDir": "dist",
+    "rootDir": "src",
+    "types": [],
+    "paths": {
+      "react": ["../hlp.ui.button/node_modules/@types/react/index.d.ts"],
+      "react/jsx-runtime": ["../hlp.ui.button/node_modules/@types/react/jsx-runtime.d.ts"],
+      "@harborline-platform/hlp.ui.use-media-query": ["../hlp.ui.use-media-query/dist/index.d.ts"]
+    }
+  },
+  "include": ["src/formFactorPolicy.ts", "src/useFormFactor.ts", "src/index.ts"],
+  "exclude": ["src/__tests__", "dist", "node_modules"]
+}

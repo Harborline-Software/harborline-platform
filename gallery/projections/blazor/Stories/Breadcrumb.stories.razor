@@ -1,0 +1,7 @@
+@attribute [Stories("Platform/Breadcrumb")]
+<Stories TComponent="BreadcrumbScenario">
+  <Story Name="Defaults and relationships"><Arguments><Arg For="_ => _.ScenarioId" Value='"breadcrumb.defaults"' /></Arguments><Template><BreadcrumbScenario @attributes="context.Args" /></Template></Story>
+  <Story Name="Current items and links"><Arguments><Arg For="_ => _.ScenarioId" Value='"breadcrumb.navigation"' /></Arguments><Template><BreadcrumbScenario @attributes="context.Args" /></Template></Story>
+  <Story Name="RTL and theme"><Arguments><Arg For="_ => _.ScenarioId" Value='"breadcrumb.rtl-theme"' /></Arguments><Template><BreadcrumbScenario @attributes="context.Args" /></Template></Story>
+  <Story Name="Content resilience"><Arguments><Arg For="_ => _.ScenarioId" Value='"breadcrumb.content"'/></Arguments><Template><BreadcrumbScenario @attributes="context.Args"/></Template></Story>
+</Stories>

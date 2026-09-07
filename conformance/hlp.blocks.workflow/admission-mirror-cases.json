@@ -1,0 +1,2155 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.blocks.workflow",
+  "source": {
+    "repository": "shipyard",
+    "commit": "a5036ff8b500e0d857d7e0a698408e7cf7f6cf31",
+    "cases": "apps/carrier/src/workflows/builder/__tests__/admission.test.ts (13 cases)",
+    "seed": "apps/carrier/src/workflows/builder/model.ts seedWorkflow()"
+  },
+  "registry": {
+    "resolve": "AP",
+    "project": "AP",
+    "invoke": "AP",
+    "health": "AP",
+    "demo-cp-op": "CP",
+    "notify.email": "AP",
+    "ledger.post-journal-entry": "CP",
+    "ledger.void-payment": "CP"
+  },
+  "canonicalSeed": {
+    "key": "invoice-approval.v1",
+    "version": "1.0.0",
+    "status": "Draft",
+    "tenant": "tenant:dev-acme",
+    "owner": {
+      "scheme": "user",
+      "value": "tenant-admin"
+    },
+    "title": {
+      "defaultLocale": "en",
+      "values": {
+        "en": "Invoice approval",
+        "ar-AE": "اعتماد الفاتورة",
+        "es": "Aprobación de factura"
+      }
+    },
+    "description": {
+      "defaultLocale": "en",
+      "values": {
+        "en": "Route an issued invoice over the threshold through approval before it posts."
+      }
+    },
+    "subjectFormRef": {
+      "formId": "invoice.v1",
+      "version": "1.0.0"
+    },
+    "mutability": "Locked",
+    "initialState": "Draft",
+    "states": [
+      {
+        "id": "Draft",
+        "label": {
+          "defaultLocale": "en",
+          "values": {
+            "en": "Draft",
+            "es": "Borrador"
+          }
+        },
+        "kind": "Normal"
+      },
+      {
+        "id": "PendingApproval",
+        "label": {
+          "defaultLocale": "en",
+          "values": {
+            "en": "Pending approval",
+            "es": "Pendiente de aprobación"
+          }
+        },
+        "kind": "Normal",
+        "viewHint": "flow"
+      },
+      {
+        "id": "Posted",
+        "label": {
+          "defaultLocale": "en",
+          "values": {
+            "en": "Posted",
+            "es": "Contabilizada"
+          }
+        },
+        "kind": "Terminal"
+      },
+      {
+        "id": "Rejected",
+        "label": {
+          "defaultLocale": "en",
+          "values": {
+            "en": "Rejected",
+            "es": "Rechazada"
+          }
+        },
+        "kind": "Terminal"
+      }
+    ],
+    "transitions": [
+      {
+        "id": "t-issue",
+        "from": "Draft",
+        "on": "issued",
+        "to": "PendingApproval",
+        "guard": "t-issue-guard"
+      },
+      {
+        "id": "t-approve",
+        "from": "PendingApproval",
+        "on": "approve",
+        "to": "Posted"
+      },
+      {
+        "id": "t-reject",
+        "from": "PendingApproval",
+        "on": "reject",
+        "to": "Rejected"
+      }
+    ],
+    "triggers": [
+      {
+        "id": "issued",
+        "kind": "Event",
+        "eventType": "Issued"
+      },
+      {
+        "id": "approve",
+        "kind": "HumanAction",
+        "task": "invoice-approval"
+      },
+      {
+        "id": "reject",
+        "kind": "HumanAction",
+        "task": "invoice-approval"
+      }
+    ],
+    "actions": [
+      {
+        "id": "a-post-je",
+        "on": {
+          "transition": "t-approve"
+        },
+        "kind": "CreateRecord",
+        "capabilityRef": "ledger.post-journal-entry",
+        "classification": "CP"
+      }
+    ],
+    "guards": [
+      {
+        "id": "t-issue-guard",
+        "tier": "JsonLogic",
+        "scope": "Schema",
+        "scopeTarget": "",
+        "expression": "{\">\":[{\"var\":\"field.amount\"},5000]}",
+        "action": "Validate"
+      }
+    ],
+    "createdAt": "2026-08-16T00:00:00.000Z",
+    "updatedAt": "2026-08-16T00:00:00.000Z"
+  },
+  "executionBinding": {
+    "note": "The canonical seed augmented only with decision:<verb> guard sentinels so the declarative interpreter can select the human transitions; states, transitions, triggers, the CP action, and all outcomes are the seed’s own.",
+    "definition": {
+      "key": "invoice-approval.v1",
+      "version": "1.0.0",
+      "status": "Draft",
+      "tenant": "tenant:dev-acme",
+      "owner": {
+        "scheme": "user",
+        "value": "tenant-admin"
+      },
+      "title": {
+        "defaultLocale": "en",
+        "values": {
+          "en": "Invoice approval",
+          "ar-AE": "اعتماد الفاتورة",
+          "es": "Aprobación de factura"
+        }
+      },
+      "description": {
+        "defaultLocale": "en",
+        "values": {
+          "en": "Route an issued invoice over the threshold through approval before it posts."
+        }
+      },
+      "subjectFormRef": {
+        "formId": "invoice.v1",
+        "version": "1.0.0"
+      },
+      "mutability": "Locked",
+      "initialState": "Draft",
+      "states": [
+        {
+          "id": "Draft",
+          "label": {
+            "defaultLocale": "en",
+            "values": {
+              "en": "Draft",
+              "es": "Borrador"
+            }
+          },
+          "kind": "Normal"
+        },
+        {
+          "id": "PendingApproval",
+          "label": {
+            "defaultLocale": "en",
+            "values": {
+              "en": "Pending approval",
+              "es": "Pendiente de aprobación"
+            }
+          },
+          "kind": "Normal",
+          "viewHint": "flow"
+        },
+        {
+          "id": "Posted",
+          "label": {
+            "defaultLocale": "en",
+            "values": {
+              "en": "Posted",
+              "es": "Contabilizada"
+            }
+          },
+          "kind": "Terminal"
+        },
+        {
+          "id": "Rejected",
+          "label": {
+            "defaultLocale": "en",
+            "values": {
+              "en": "Rejected",
+              "es": "Rechazada"
+            }
+          },
+          "kind": "Terminal"
+        }
+      ],
+      "transitions": [
+        {
+          "id": "t-issue",
+          "from": "Draft",
+          "on": "issued",
+          "to": "PendingApproval",
+          "guard": "t-issue-guard"
+        },
+        {
+          "id": "t-approve",
+          "from": "PendingApproval",
+          "on": "approve",
+          "to": "Posted",
+          "guard": "decision:approve"
+        },
+        {
+          "id": "t-reject",
+          "from": "PendingApproval",
+          "on": "reject",
+          "to": "Rejected",
+          "guard": "decision:reject"
+        }
+      ],
+      "triggers": [
+        {
+          "id": "issued",
+          "kind": "Event",
+          "eventType": "Issued"
+        },
+        {
+          "id": "approve",
+          "kind": "HumanAction",
+          "task": "invoice-approval"
+        },
+        {
+          "id": "reject",
+          "kind": "HumanAction",
+          "task": "invoice-approval"
+        }
+      ],
+      "actions": [
+        {
+          "id": "a-post-je",
+          "on": {
+            "transition": "t-approve"
+          },
+          "kind": "CreateRecord",
+          "capabilityRef": "ledger.post-journal-entry",
+          "classification": "CP"
+        }
+      ],
+      "guards": [
+        {
+          "id": "t-issue-guard",
+          "tier": "JsonLogic",
+          "scope": "Schema",
+          "scopeTarget": "",
+          "expression": "{\">\":[{\"var\":\"field.amount\"},5000]}",
+          "action": "Validate"
+        },
+        {
+          "id": "decision:approve",
+          "tier": "JsonLogic",
+          "scope": "Schema",
+          "scopeTarget": "",
+          "expression": "{\"==\":[1,1]}",
+          "action": "Validate"
+        },
+        {
+          "id": "decision:reject",
+          "tier": "JsonLogic",
+          "scope": "Schema",
+          "scopeTarget": "",
+          "expression": "{\"==\":[1,1]}",
+          "action": "Validate"
+        }
+      ],
+      "createdAt": "2026-08-16T00:00:00.000Z",
+      "updatedAt": "2026-08-16T00:00:00.000Z"
+    }
+  },
+  "cases": [
+    {
+      "id": "admits-canonical-seed",
+      "definition": {
+        "key": "invoice-approval.v1",
+        "version": "1.0.0",
+        "status": "Draft",
+        "tenant": "tenant:dev-acme",
+        "owner": {
+          "scheme": "user",
+          "value": "tenant-admin"
+        },
+        "title": {
+          "defaultLocale": "en",
+          "values": {
+            "en": "Invoice approval",
+            "ar-AE": "اعتماد الفاتورة",
+            "es": "Aprobación de factura"
+          }
+        },
+        "description": {
+          "defaultLocale": "en",
+          "values": {
+            "en": "Route an issued invoice over the threshold through approval before it posts."
+          }
+        },
+        "subjectFormRef": {
+          "formId": "invoice.v1",
+          "version": "1.0.0"
+        },
+        "mutability": "Locked",
+        "initialState": "Draft",
+        "states": [
+          {
+            "id": "Draft",
+            "label": {
+              "defaultLocale": "en",
+              "values": {
+                "en": "Draft",
+                "es": "Borrador"
+              }
+            },
+            "kind": "Normal"
+          },
+          {
+            "id": "PendingApproval",
+            "label": {
+              "defaultLocale": "en",
+              "values": {
+                "en": "Pending approval",
+                "es": "Pendiente de aprobación"
+              }
+            },
+            "kind": "Normal",
+            "viewHint": "flow"
+          },
+          {
+            "id": "Posted",
+            "label": {
+              "defaultLocale": "en",
+              "values": {
+                "en": "Posted",
+                "es": "Contabilizada"
+              }
+            },
+            "kind": "Terminal"
+          },
+          {
+            "id": "Rejected",
+            "label": {
+              "defaultLocale": "en",
+              "values": {
+                "en": "Rejected",
+                "es": "Rechazada"
+              }
+            },
+            "kind": "Terminal"
+          }
+        ],
+        "transitions": [
+          {
+            "id": "t-issue",
+            "from": "Draft",
+            "on": "issued",
+            "to": "PendingApproval",
+            "guard": "t-issue-guard"
+          },
+          {
+            "id": "t-approve",
+            "from": "PendingApproval",
+            "on": "approve",
+            "to": "Posted"
+          },
+          {
+            "id": "t-reject",
+            "from": "PendingApproval",
+            "on": "reject",
+            "to": "Rejected"
+          }
+        ],
+        "triggers": [
+          {
+            "id": "issued",
+            "kind": "Event",
+            "eventType": "Issued"
+          },
+          {
+            "id": "approve",
+            "kind": "HumanAction",
+            "task": "invoice-approval"
+          },
+          {
+            "id": "reject",
+            "kind": "HumanAction",
+            "task": "invoice-approval"
+          }
+        ],
+        "actions": [
+          {
+            "id": "a-post-je",
+            "on": {
+              "transition": "t-approve"
+            },
+            "kind": "CreateRecord",
+            "capabilityRef": "ledger.post-journal-entry",
+            "classification": "CP"
+          }
+        ],
+        "guards": [
+          {
+            "id": "t-issue-guard",
+            "tier": "JsonLogic",
+            "scope": "Schema",
+            "scopeTarget": "",
+            "expression": "{\">\":[{\"var\":\"field.amount\"},5000]}",
+            "action": "Validate"
+          }
+        ],
+        "createdAt": "2026-08-16T00:00:00.000Z",
+        "updatedAt": "2026-08-16T00:00:00.000Z"
+      },
+      "expected": {
+        "isValid": true
+      }
+    },
+    {
+      "id": "refuses-cp-on-autonomous-issued-transition",
+      "definition": {
+        "key": "invoice-approval.v1",
+        "version": "1.0.0",
+        "status": "Draft",
+        "tenant": "tenant:dev-acme",
+        "owner": {
+          "scheme": "user",
+          "value": "tenant-admin"
+        },
+        "title": {
+          "defaultLocale": "en",
+          "values": {
+            "en": "Invoice approval",
+            "ar-AE": "اعتماد الفاتورة",
+            "es": "Aprobación de factura"
+          }
+        },
+        "description": {
+          "defaultLocale": "en",
+          "values": {
+            "en": "Route an issued invoice over the threshold through approval before it posts."
+          }
+        },
+        "subjectFormRef": {
+          "formId": "invoice.v1",
+          "version": "1.0.0"
+        },
+        "mutability": "Locked",
+        "initialState": "Draft",
+        "states": [
+          {
+            "id": "Draft",
+            "label": {
+              "defaultLocale": "en",
+              "values": {
+                "en": "Draft",
+                "es": "Borrador"
+              }
+            },
+            "kind": "Normal"
+          },
+          {
+            "id": "PendingApproval",
+            "label": {
+              "defaultLocale": "en",
+              "values": {
+                "en": "Pending approval",
+                "es": "Pendiente de aprobación"
+              }
+            },
+            "kind": "Normal",
+            "viewHint": "flow"
+          },
+          {
+            "id": "Posted",
+            "label": {
+              "defaultLocale": "en",
+              "values": {
+                "en": "Posted",
+                "es": "Contabilizada"
+              }
+            },
+            "kind": "Terminal"
+          },
+          {
+            "id": "Rejected",
+            "label": {
+              "defaultLocale": "en",
+              "values": {
+                "en": "Rejected",
+                "es": "Rechazada"
+              }
+            },
+            "kind": "Terminal"
+          }
+        ],
+        "transitions": [
+          {
+            "id": "t-issue",
+            "from": "Draft",
+            "on": "issued",
+            "to": "PendingApproval",
+            "guard": "t-issue-guard"
+          },
+          {
+            "id": "t-approve",
+            "from": "PendingApproval",
+            "on": "approve",
+            "to": "Posted"
+          },
+          {
+            "id": "t-reject",
+            "from": "PendingApproval",
+            "on": "reject",
+            "to": "Rejected"
+          }
+        ],
+        "triggers": [
+          {
+            "id": "issued",
+            "kind": "Event",
+            "eventType": "Issued"
+          },
+          {
+            "id": "approve",
+            "kind": "HumanAction",
+            "task": "invoice-approval"
+          },
+          {
+            "id": "reject",
+            "kind": "HumanAction",
+            "task": "invoice-approval"
+          }
+        ],
+        "actions": [
+          {
+            "id": "a-post-je",
+            "on": {
+              "transition": "t-issue"
+            },
+            "kind": "CreateRecord",
+            "capabilityRef": "ledger.post-journal-entry",
+            "classification": "CP"
+          }
+        ],
+        "guards": [
+          {
+            "id": "t-issue-guard",
+            "tier": "JsonLogic",
+            "scope": "Schema",
+            "scopeTarget": "",
+            "expression": "{\">\":[{\"var\":\"field.amount\"},5000]}",
+            "action": "Validate"
+          }
+        ],
+        "createdAt": "2026-08-16T00:00:00.000Z",
+        "updatedAt": "2026-08-16T00:00:00.000Z"
+      },
+      "expected": {
+        "isValid": false,
+        "code": "workflow.admission.cp_reachable_without_human_task"
+      }
+    },
+    {
+      "id": "refuses-cp-on-autonomously-reachable-state",
+      "definition": {
+        "key": "invoice-approval.v1",
+        "version": "1.0.0",
+        "status": "Draft",
+        "tenant": "tenant:dev-acme",
+        "owner": {
+          "scheme": "user",
+          "value": "tenant-admin"
+        },
+        "title": {
+          "defaultLocale": "en",
+          "values": {
+            "en": "Invoice approval",
+            "ar-AE": "اعتماد الفاتورة",
+            "es": "Aprobación de factura"
+          }
+        },
+        "description": {
+          "defaultLocale": "en",
+          "values": {
+            "en": "Route an issued invoice over the threshold through approval before it posts."
+          }
+        },
+        "subjectFormRef": {
+          "formId": "invoice.v1",
+          "version": "1.0.0"
+        },
+        "mutability": "Locked",
+        "initialState": "Draft",
+        "states": [
+          {
+            "id": "Draft",
+            "label": {
+              "defaultLocale": "en",
+              "values": {
+                "en": "Draft",
+                "es": "Borrador"
+              }
+            },
+            "kind": "Normal"
+          },
+          {
+            "id": "PendingApproval",
+            "label": {
+              "defaultLocale": "en",
+              "values": {
+                "en": "Pending approval",
+                "es": "Pendiente de aprobación"
+              }
+            },
+            "kind": "Normal",
+            "viewHint": "flow"
+          },
+          {
+            "id": "Posted",
+            "label": {
+              "defaultLocale": "en",
+              "values": {
+                "en": "Posted",
+                "es": "Contabilizada"
+              }
+            },
+            "kind": "Terminal"
+          },
+          {
+            "id": "Rejected",
+            "label": {
+              "defaultLocale": "en",
+              "values": {
+                "en": "Rejected",
+                "es": "Rechazada"
+              }
+            },
+            "kind": "Terminal"
+          }
+        ],
+        "transitions": [
+          {
+            "id": "t-issue",
+            "from": "Draft",
+            "on": "issued",
+            "to": "PendingApproval",
+            "guard": "t-issue-guard"
+          },
+          {
+            "id": "t-approve",
+            "from": "PendingApproval",
+            "on": "approve",
+            "to": "Posted"
+          },
+          {
+            "id": "t-reject",
+            "from": "PendingApproval",
+            "on": "reject",
+            "to": "Rejected"
+          }
+        ],
+        "triggers": [
+          {
+            "id": "issued",
+            "kind": "Event",
+            "eventType": "Issued"
+          },
+          {
+            "id": "approve",
+            "kind": "HumanAction",
+            "task": "invoice-approval"
+          },
+          {
+            "id": "reject",
+            "kind": "HumanAction",
+            "task": "invoice-approval"
+          }
+        ],
+        "actions": [
+          {
+            "id": "a-post-je",
+            "on": {
+              "state": "PendingApproval"
+            },
+            "kind": "CreateRecord",
+            "capabilityRef": "ledger.post-journal-entry",
+            "classification": "CP"
+          }
+        ],
+        "guards": [
+          {
+            "id": "t-issue-guard",
+            "tier": "JsonLogic",
+            "scope": "Schema",
+            "scopeTarget": "",
+            "expression": "{\">\":[{\"var\":\"field.amount\"},5000]}",
+            "action": "Validate"
+          }
+        ],
+        "createdAt": "2026-08-16T00:00:00.000Z",
+        "updatedAt": "2026-08-16T00:00:00.000Z"
+      },
+      "expected": {
+        "isValid": false,
+        "code": "workflow.admission.cp_reachable_without_human_task"
+      }
+    },
+    {
+      "id": "admits-cp-on-human-only-reachable-terminal-state",
+      "definition": {
+        "key": "invoice-approval.v1",
+        "version": "1.0.0",
+        "status": "Draft",
+        "tenant": "tenant:dev-acme",
+        "owner": {
+          "scheme": "user",
+          "value": "tenant-admin"
+        },
+        "title": {
+          "defaultLocale": "en",
+          "values": {
+            "en": "Invoice approval",
+            "ar-AE": "اعتماد الفاتورة",
+            "es": "Aprobación de factura"
+          }
+        },
+        "description": {
+          "defaultLocale": "en",
+          "values": {
+            "en": "Route an issued invoice over the threshold through approval before it posts."
+          }
+        },
+        "subjectFormRef": {
+          "formId": "invoice.v1",
+          "version": "1.0.0"
+        },
+        "mutability": "Locked",
+        "initialState": "Draft",
+        "states": [
+          {
+            "id": "Draft",
+            "label": {
+              "defaultLocale": "en",
+              "values": {
+                "en": "Draft",
+                "es": "Borrador"
+              }
+            },
+            "kind": "Normal"
+          },
+          {
+            "id": "PendingApproval",
+            "label": {
+              "defaultLocale": "en",
+              "values": {
+                "en": "Pending approval",
+                "es": "Pendiente de aprobación"
+              }
+            },
+            "kind": "Normal",
+            "viewHint": "flow"
+          },
+          {
+            "id": "Posted",
+            "label": {
+              "defaultLocale": "en",
+              "values": {
+                "en": "Posted",
+                "es": "Contabilizada"
+              }
+            },
+            "kind": "Terminal"
+          },
+          {
+            "id": "Rejected",
+            "label": {
+              "defaultLocale": "en",
+              "values": {
+                "en": "Rejected",
+                "es": "Rechazada"
+              }
+            },
+            "kind": "Terminal"
+          }
+        ],
+        "transitions": [
+          {
+            "id": "t-issue",
+            "from": "Draft",
+            "on": "issued",
+            "to": "PendingApproval",
+            "guard": "t-issue-guard"
+          },
+          {
+            "id": "t-approve",
+            "from": "PendingApproval",
+            "on": "approve",
+            "to": "Posted"
+          },
+          {
+            "id": "t-reject",
+            "from": "PendingApproval",
+            "on": "reject",
+            "to": "Rejected"
+          }
+        ],
+        "triggers": [
+          {
+            "id": "issued",
+            "kind": "Event",
+            "eventType": "Issued"
+          },
+          {
+            "id": "approve",
+            "kind": "HumanAction",
+            "task": "invoice-approval"
+          },
+          {
+            "id": "reject",
+            "kind": "HumanAction",
+            "task": "invoice-approval"
+          }
+        ],
+        "actions": [
+          {
+            "id": "a-post-je",
+            "on": {
+              "state": "Posted"
+            },
+            "kind": "CreateRecord",
+            "capabilityRef": "ledger.post-journal-entry",
+            "classification": "CP"
+          }
+        ],
+        "guards": [
+          {
+            "id": "t-issue-guard",
+            "tier": "JsonLogic",
+            "scope": "Schema",
+            "scopeTarget": "",
+            "expression": "{\">\":[{\"var\":\"field.amount\"},5000]}",
+            "action": "Validate"
+          }
+        ],
+        "createdAt": "2026-08-16T00:00:00.000Z",
+        "updatedAt": "2026-08-16T00:00:00.000Z"
+      },
+      "expected": {
+        "isValid": true
+      }
+    },
+    {
+      "id": "refuses-unclassified-action-fail-closed",
+      "definition": {
+        "key": "invoice-approval.v1",
+        "version": "1.0.0",
+        "status": "Draft",
+        "tenant": "tenant:dev-acme",
+        "owner": {
+          "scheme": "user",
+          "value": "tenant-admin"
+        },
+        "title": {
+          "defaultLocale": "en",
+          "values": {
+            "en": "Invoice approval",
+            "ar-AE": "اعتماد الفاتورة",
+            "es": "Aprobación de factura"
+          }
+        },
+        "description": {
+          "defaultLocale": "en",
+          "values": {
+            "en": "Route an issued invoice over the threshold through approval before it posts."
+          }
+        },
+        "subjectFormRef": {
+          "formId": "invoice.v1",
+          "version": "1.0.0"
+        },
+        "mutability": "Locked",
+        "initialState": "Draft",
+        "states": [
+          {
+            "id": "Draft",
+            "label": {
+              "defaultLocale": "en",
+              "values": {
+                "en": "Draft",
+                "es": "Borrador"
+              }
+            },
+            "kind": "Normal"
+          },
+          {
+            "id": "PendingApproval",
+            "label": {
+              "defaultLocale": "en",
+              "values": {
+                "en": "Pending approval",
+                "es": "Pendiente de aprobación"
+              }
+            },
+            "kind": "Normal",
+            "viewHint": "flow"
+          },
+          {
+            "id": "Posted",
+            "label": {
+              "defaultLocale": "en",
+              "values": {
+                "en": "Posted",
+                "es": "Contabilizada"
+              }
+            },
+            "kind": "Terminal"
+          },
+          {
+            "id": "Rejected",
+            "label": {
+              "defaultLocale": "en",
+              "values": {
+                "en": "Rejected",
+                "es": "Rechazada"
+              }
+            },
+            "kind": "Terminal"
+          }
+        ],
+        "transitions": [
+          {
+            "id": "t-issue",
+            "from": "Draft",
+            "on": "issued",
+            "to": "PendingApproval",
+            "guard": "t-issue-guard"
+          },
+          {
+            "id": "t-approve",
+            "from": "PendingApproval",
+            "on": "approve",
+            "to": "Posted"
+          },
+          {
+            "id": "t-reject",
+            "from": "PendingApproval",
+            "on": "reject",
+            "to": "Rejected"
+          }
+        ],
+        "triggers": [
+          {
+            "id": "issued",
+            "kind": "Event",
+            "eventType": "Issued"
+          },
+          {
+            "id": "approve",
+            "kind": "HumanAction",
+            "task": "invoice-approval"
+          },
+          {
+            "id": "reject",
+            "kind": "HumanAction",
+            "task": "invoice-approval"
+          }
+        ],
+        "actions": [
+          {
+            "id": "a-post-je",
+            "on": {
+              "transition": "t-approve"
+            },
+            "kind": "CreateRecord",
+            "capabilityRef": "ledger.post-journal-entry"
+          }
+        ],
+        "guards": [
+          {
+            "id": "t-issue-guard",
+            "tier": "JsonLogic",
+            "scope": "Schema",
+            "scopeTarget": "",
+            "expression": "{\">\":[{\"var\":\"field.amount\"},5000]}",
+            "action": "Validate"
+          }
+        ],
+        "createdAt": "2026-08-16T00:00:00.000Z",
+        "updatedAt": "2026-08-16T00:00:00.000Z"
+      },
+      "expected": {
+        "isValid": false,
+        "code": "workflow.admission.action_unclassified"
+      }
+    },
+    {
+      "id": "refuses-unreachable-state",
+      "definition": {
+        "key": "invoice-approval.v1",
+        "version": "1.0.0",
+        "status": "Draft",
+        "tenant": "tenant:dev-acme",
+        "owner": {
+          "scheme": "user",
+          "value": "tenant-admin"
+        },
+        "title": {
+          "defaultLocale": "en",
+          "values": {
+            "en": "Invoice approval",
+            "ar-AE": "اعتماد الفاتورة",
+            "es": "Aprobación de factura"
+          }
+        },
+        "description": {
+          "defaultLocale": "en",
+          "values": {
+            "en": "Route an issued invoice over the threshold through approval before it posts."
+          }
+        },
+        "subjectFormRef": {
+          "formId": "invoice.v1",
+          "version": "1.0.0"
+        },
+        "mutability": "Locked",
+        "initialState": "Draft",
+        "states": [
+          {
+            "id": "Draft",
+            "label": {
+              "defaultLocale": "en",
+              "values": {
+                "en": "Draft",
+                "es": "Borrador"
+              }
+            },
+            "kind": "Normal"
+          },
+          {
+            "id": "PendingApproval",
+            "label": {
+              "defaultLocale": "en",
+              "values": {
+                "en": "Pending approval",
+                "es": "Pendiente de aprobación"
+              }
+            },
+            "kind": "Normal",
+            "viewHint": "flow"
+          },
+          {
+            "id": "Posted",
+            "label": {
+              "defaultLocale": "en",
+              "values": {
+                "en": "Posted",
+                "es": "Contabilizada"
+              }
+            },
+            "kind": "Terminal"
+          },
+          {
+            "id": "Rejected",
+            "label": {
+              "defaultLocale": "en",
+              "values": {
+                "en": "Rejected",
+                "es": "Rechazada"
+              }
+            },
+            "kind": "Terminal"
+          },
+          {
+            "id": "Orphan",
+            "label": {
+              "defaultLocale": "en",
+              "values": {
+                "en": "Orphan"
+              }
+            },
+            "kind": "Terminal"
+          }
+        ],
+        "transitions": [
+          {
+            "id": "t-issue",
+            "from": "Draft",
+            "on": "issued",
+            "to": "PendingApproval",
+            "guard": "t-issue-guard"
+          },
+          {
+            "id": "t-approve",
+            "from": "PendingApproval",
+            "on": "approve",
+            "to": "Posted"
+          },
+          {
+            "id": "t-reject",
+            "from": "PendingApproval",
+            "on": "reject",
+            "to": "Rejected"
+          }
+        ],
+        "triggers": [
+          {
+            "id": "issued",
+            "kind": "Event",
+            "eventType": "Issued"
+          },
+          {
+            "id": "approve",
+            "kind": "HumanAction",
+            "task": "invoice-approval"
+          },
+          {
+            "id": "reject",
+            "kind": "HumanAction",
+            "task": "invoice-approval"
+          }
+        ],
+        "actions": [
+          {
+            "id": "a-post-je",
+            "on": {
+              "transition": "t-approve"
+            },
+            "kind": "CreateRecord",
+            "capabilityRef": "ledger.post-journal-entry",
+            "classification": "CP"
+          }
+        ],
+        "guards": [
+          {
+            "id": "t-issue-guard",
+            "tier": "JsonLogic",
+            "scope": "Schema",
+            "scopeTarget": "",
+            "expression": "{\">\":[{\"var\":\"field.amount\"},5000]}",
+            "action": "Validate"
+          }
+        ],
+        "createdAt": "2026-08-16T00:00:00.000Z",
+        "updatedAt": "2026-08-16T00:00:00.000Z"
+      },
+      "expected": {
+        "isValid": false,
+        "code": "workflow.admission.unreachable_state"
+      }
+    },
+    {
+      "id": "refuses-out-of-range-classification-fail-closed",
+      "definition": {
+        "key": "invoice-approval.v1",
+        "version": "1.0.0",
+        "status": "Draft",
+        "tenant": "tenant:dev-acme",
+        "owner": {
+          "scheme": "user",
+          "value": "tenant-admin"
+        },
+        "title": {
+          "defaultLocale": "en",
+          "values": {
+            "en": "Invoice approval",
+            "ar-AE": "اعتماد الفاتورة",
+            "es": "Aprobación de factura"
+          }
+        },
+        "description": {
+          "defaultLocale": "en",
+          "values": {
+            "en": "Route an issued invoice over the threshold through approval before it posts."
+          }
+        },
+        "subjectFormRef": {
+          "formId": "invoice.v1",
+          "version": "1.0.0"
+        },
+        "mutability": "Locked",
+        "initialState": "Draft",
+        "states": [
+          {
+            "id": "Draft",
+            "label": {
+              "defaultLocale": "en",
+              "values": {
+                "en": "Draft",
+                "es": "Borrador"
+              }
+            },
+            "kind": "Normal"
+          },
+          {
+            "id": "PendingApproval",
+            "label": {
+              "defaultLocale": "en",
+              "values": {
+                "en": "Pending approval",
+                "es": "Pendiente de aprobación"
+              }
+            },
+            "kind": "Normal",
+            "viewHint": "flow"
+          },
+          {
+            "id": "Posted",
+            "label": {
+              "defaultLocale": "en",
+              "values": {
+                "en": "Posted",
+                "es": "Contabilizada"
+              }
+            },
+            "kind": "Terminal"
+          },
+          {
+            "id": "Rejected",
+            "label": {
+              "defaultLocale": "en",
+              "values": {
+                "en": "Rejected",
+                "es": "Rechazada"
+              }
+            },
+            "kind": "Terminal"
+          }
+        ],
+        "transitions": [
+          {
+            "id": "t-issue",
+            "from": "Draft",
+            "on": "issued",
+            "to": "PendingApproval",
+            "guard": "t-issue-guard"
+          },
+          {
+            "id": "t-approve",
+            "from": "PendingApproval",
+            "on": "approve",
+            "to": "Posted"
+          },
+          {
+            "id": "t-reject",
+            "from": "PendingApproval",
+            "on": "reject",
+            "to": "Rejected"
+          }
+        ],
+        "triggers": [
+          {
+            "id": "issued",
+            "kind": "Event",
+            "eventType": "Issued"
+          },
+          {
+            "id": "approve",
+            "kind": "HumanAction",
+            "task": "invoice-approval"
+          },
+          {
+            "id": "reject",
+            "kind": "HumanAction",
+            "task": "invoice-approval"
+          }
+        ],
+        "actions": [
+          {
+            "id": "a-post-je",
+            "on": {
+              "transition": "t-approve"
+            },
+            "kind": "CreateRecord",
+            "capabilityRef": "ledger.post-journal-entry",
+            "classification": "XP"
+          }
+        ],
+        "guards": [
+          {
+            "id": "t-issue-guard",
+            "tier": "JsonLogic",
+            "scope": "Schema",
+            "scopeTarget": "",
+            "expression": "{\">\":[{\"var\":\"field.amount\"},5000]}",
+            "action": "Validate"
+          }
+        ],
+        "createdAt": "2026-08-16T00:00:00.000Z",
+        "updatedAt": "2026-08-16T00:00:00.000Z"
+      },
+      "expected": {
+        "isValid": false,
+        "code": "workflow.admission.action_unclassified"
+      }
+    },
+    {
+      "id": "refuses-cp-on-autonomous-schedule-edge-downstream-of-human-approval",
+      "definition": {
+        "key": "invoice-approval.v1",
+        "version": "1.0.0",
+        "status": "Draft",
+        "tenant": "tenant:dev-acme",
+        "owner": {
+          "scheme": "user",
+          "value": "tenant-admin"
+        },
+        "title": {
+          "defaultLocale": "en",
+          "values": {
+            "en": "Invoice approval",
+            "ar-AE": "اعتماد الفاتورة",
+            "es": "Aprobación de factura"
+          }
+        },
+        "description": {
+          "defaultLocale": "en",
+          "values": {
+            "en": "Route an issued invoice over the threshold through approval before it posts."
+          }
+        },
+        "subjectFormRef": {
+          "formId": "invoice.v1",
+          "version": "1.0.0"
+        },
+        "mutability": "Locked",
+        "initialState": "Draft",
+        "states": [
+          {
+            "id": "Draft",
+            "label": {
+              "defaultLocale": "en",
+              "values": {
+                "en": "Draft"
+              }
+            },
+            "kind": "Normal"
+          },
+          {
+            "id": "Approved",
+            "label": {
+              "defaultLocale": "en",
+              "values": {
+                "en": "Approved"
+              }
+            },
+            "kind": "Normal"
+          },
+          {
+            "id": "Done",
+            "label": {
+              "defaultLocale": "en",
+              "values": {
+                "en": "Done"
+              }
+            },
+            "kind": "Terminal"
+          }
+        ],
+        "transitions": [
+          {
+            "id": "t-approve",
+            "from": "Draft",
+            "on": "approve",
+            "to": "Approved"
+          },
+          {
+            "id": "t-tick",
+            "from": "Approved",
+            "on": "tick",
+            "to": "Done"
+          }
+        ],
+        "triggers": [
+          {
+            "id": "approve",
+            "kind": "HumanAction",
+            "task": "approve"
+          },
+          {
+            "id": "tick",
+            "kind": "Schedule",
+            "rrule": "FREQ=DAILY"
+          }
+        ],
+        "actions": [
+          {
+            "id": "a-post-je",
+            "on": {
+              "transition": "t-tick"
+            },
+            "kind": "CreateRecord",
+            "capabilityRef": "ledger.post-journal-entry",
+            "classification": "CP"
+          }
+        ],
+        "guards": [],
+        "createdAt": "2026-08-16T00:00:00.000Z",
+        "updatedAt": "2026-08-16T00:00:00.000Z"
+      },
+      "expected": {
+        "isValid": false,
+        "code": "workflow.admission.cp_reachable_without_human_task"
+      }
+    },
+    {
+      "id": "refuses-cp-on-enter-refired-by-autonomous-back-edge",
+      "definition": {
+        "key": "invoice-approval.v1",
+        "version": "1.0.0",
+        "status": "Draft",
+        "tenant": "tenant:dev-acme",
+        "owner": {
+          "scheme": "user",
+          "value": "tenant-admin"
+        },
+        "title": {
+          "defaultLocale": "en",
+          "values": {
+            "en": "Invoice approval",
+            "ar-AE": "اعتماد الفاتورة",
+            "es": "Aprobación de factura"
+          }
+        },
+        "description": {
+          "defaultLocale": "en",
+          "values": {
+            "en": "Route an issued invoice over the threshold through approval before it posts."
+          }
+        },
+        "subjectFormRef": {
+          "formId": "invoice.v1",
+          "version": "1.0.0"
+        },
+        "mutability": "Locked",
+        "initialState": "Draft",
+        "states": [
+          {
+            "id": "Draft",
+            "label": {
+              "defaultLocale": "en",
+              "values": {
+                "en": "Draft"
+              }
+            },
+            "kind": "Normal"
+          },
+          {
+            "id": "A",
+            "label": {
+              "defaultLocale": "en",
+              "values": {
+                "en": "A"
+              }
+            },
+            "kind": "Normal"
+          },
+          {
+            "id": "B",
+            "label": {
+              "defaultLocale": "en",
+              "values": {
+                "en": "B"
+              }
+            },
+            "kind": "Normal"
+          }
+        ],
+        "transitions": [
+          {
+            "id": "t-approve",
+            "from": "Draft",
+            "on": "approve",
+            "to": "A"
+          },
+          {
+            "id": "t-tick",
+            "from": "A",
+            "on": "tick",
+            "to": "B"
+          },
+          {
+            "id": "t-ev",
+            "from": "B",
+            "on": "ev",
+            "to": "A"
+          }
+        ],
+        "triggers": [
+          {
+            "id": "approve",
+            "kind": "HumanAction",
+            "task": "approve"
+          },
+          {
+            "id": "tick",
+            "kind": "Schedule",
+            "rrule": "FREQ=DAILY"
+          },
+          {
+            "id": "ev",
+            "kind": "Event",
+            "eventType": "Loop"
+          }
+        ],
+        "actions": [
+          {
+            "id": "a-post-je",
+            "on": {
+              "state": "A"
+            },
+            "kind": "CreateRecord",
+            "capabilityRef": "ledger.post-journal-entry",
+            "classification": "CP"
+          }
+        ],
+        "guards": [],
+        "createdAt": "2026-08-16T00:00:00.000Z",
+        "updatedAt": "2026-08-16T00:00:00.000Z"
+      },
+      "expected": {
+        "isValid": false,
+        "code": "workflow.admission.cp_reachable_without_human_task"
+      }
+    },
+    {
+      "id": "refuses-cp-capability-declared-ap-registry-derived",
+      "definition": {
+        "key": "invoice-approval.v1",
+        "version": "1.0.0",
+        "status": "Draft",
+        "tenant": "tenant:dev-acme",
+        "owner": {
+          "scheme": "user",
+          "value": "tenant-admin"
+        },
+        "title": {
+          "defaultLocale": "en",
+          "values": {
+            "en": "Invoice approval",
+            "ar-AE": "اعتماد الفاتورة",
+            "es": "Aprobación de factura"
+          }
+        },
+        "description": {
+          "defaultLocale": "en",
+          "values": {
+            "en": "Route an issued invoice over the threshold through approval before it posts."
+          }
+        },
+        "subjectFormRef": {
+          "formId": "invoice.v1",
+          "version": "1.0.0"
+        },
+        "mutability": "Locked",
+        "initialState": "Draft",
+        "states": [
+          {
+            "id": "Draft",
+            "label": {
+              "defaultLocale": "en",
+              "values": {
+                "en": "Draft",
+                "es": "Borrador"
+              }
+            },
+            "kind": "Normal"
+          },
+          {
+            "id": "PendingApproval",
+            "label": {
+              "defaultLocale": "en",
+              "values": {
+                "en": "Pending approval",
+                "es": "Pendiente de aprobación"
+              }
+            },
+            "kind": "Normal",
+            "viewHint": "flow"
+          },
+          {
+            "id": "Posted",
+            "label": {
+              "defaultLocale": "en",
+              "values": {
+                "en": "Posted",
+                "es": "Contabilizada"
+              }
+            },
+            "kind": "Terminal"
+          },
+          {
+            "id": "Rejected",
+            "label": {
+              "defaultLocale": "en",
+              "values": {
+                "en": "Rejected",
+                "es": "Rechazada"
+              }
+            },
+            "kind": "Terminal"
+          }
+        ],
+        "transitions": [
+          {
+            "id": "t-issue",
+            "from": "Draft",
+            "on": "issued",
+            "to": "PendingApproval",
+            "guard": "t-issue-guard"
+          },
+          {
+            "id": "t-approve",
+            "from": "PendingApproval",
+            "on": "approve",
+            "to": "Posted"
+          },
+          {
+            "id": "t-reject",
+            "from": "PendingApproval",
+            "on": "reject",
+            "to": "Rejected"
+          }
+        ],
+        "triggers": [
+          {
+            "id": "issued",
+            "kind": "Event",
+            "eventType": "Issued"
+          },
+          {
+            "id": "approve",
+            "kind": "HumanAction",
+            "task": "invoice-approval"
+          },
+          {
+            "id": "reject",
+            "kind": "HumanAction",
+            "task": "invoice-approval"
+          }
+        ],
+        "actions": [
+          {
+            "id": "a-post-je",
+            "on": {
+              "transition": "t-approve"
+            },
+            "kind": "CreateRecord",
+            "capabilityRef": "ledger.post-journal-entry",
+            "classification": "AP"
+          }
+        ],
+        "guards": [
+          {
+            "id": "t-issue-guard",
+            "tier": "JsonLogic",
+            "scope": "Schema",
+            "scopeTarget": "",
+            "expression": "{\">\":[{\"var\":\"field.amount\"},5000]}",
+            "action": "Validate"
+          }
+        ],
+        "createdAt": "2026-08-16T00:00:00.000Z",
+        "updatedAt": "2026-08-16T00:00:00.000Z"
+      },
+      "expected": {
+        "isValid": false,
+        "code": "workflow.admission.classification_mismatch"
+      }
+    },
+    {
+      "id": "refuses-unknown-capability-declared-ap-fails-closed-to-cp",
+      "definition": {
+        "key": "invoice-approval.v1",
+        "version": "1.0.0",
+        "status": "Draft",
+        "tenant": "tenant:dev-acme",
+        "owner": {
+          "scheme": "user",
+          "value": "tenant-admin"
+        },
+        "title": {
+          "defaultLocale": "en",
+          "values": {
+            "en": "Invoice approval",
+            "ar-AE": "اعتماد الفاتورة",
+            "es": "Aprobación de factura"
+          }
+        },
+        "description": {
+          "defaultLocale": "en",
+          "values": {
+            "en": "Route an issued invoice over the threshold through approval before it posts."
+          }
+        },
+        "subjectFormRef": {
+          "formId": "invoice.v1",
+          "version": "1.0.0"
+        },
+        "mutability": "Locked",
+        "initialState": "Draft",
+        "states": [
+          {
+            "id": "Draft",
+            "label": {
+              "defaultLocale": "en",
+              "values": {
+                "en": "Draft",
+                "es": "Borrador"
+              }
+            },
+            "kind": "Normal"
+          },
+          {
+            "id": "PendingApproval",
+            "label": {
+              "defaultLocale": "en",
+              "values": {
+                "en": "Pending approval",
+                "es": "Pendiente de aprobación"
+              }
+            },
+            "kind": "Normal",
+            "viewHint": "flow"
+          },
+          {
+            "id": "Posted",
+            "label": {
+              "defaultLocale": "en",
+              "values": {
+                "en": "Posted",
+                "es": "Contabilizada"
+              }
+            },
+            "kind": "Terminal"
+          },
+          {
+            "id": "Rejected",
+            "label": {
+              "defaultLocale": "en",
+              "values": {
+                "en": "Rejected",
+                "es": "Rechazada"
+              }
+            },
+            "kind": "Terminal"
+          }
+        ],
+        "transitions": [
+          {
+            "id": "t-issue",
+            "from": "Draft",
+            "on": "issued",
+            "to": "PendingApproval",
+            "guard": "t-issue-guard"
+          },
+          {
+            "id": "t-approve",
+            "from": "PendingApproval",
+            "on": "approve",
+            "to": "Posted"
+          },
+          {
+            "id": "t-reject",
+            "from": "PendingApproval",
+            "on": "reject",
+            "to": "Rejected"
+          }
+        ],
+        "triggers": [
+          {
+            "id": "issued",
+            "kind": "Event",
+            "eventType": "Issued"
+          },
+          {
+            "id": "approve",
+            "kind": "HumanAction",
+            "task": "invoice-approval"
+          },
+          {
+            "id": "reject",
+            "kind": "HumanAction",
+            "task": "invoice-approval"
+          }
+        ],
+        "actions": [
+          {
+            "id": "a-post-je",
+            "on": {
+              "transition": "t-approve"
+            },
+            "kind": "CreateRecord",
+            "capabilityRef": "totally.unregistered-capability",
+            "classification": "AP"
+          }
+        ],
+        "guards": [
+          {
+            "id": "t-issue-guard",
+            "tier": "JsonLogic",
+            "scope": "Schema",
+            "scopeTarget": "",
+            "expression": "{\">\":[{\"var\":\"field.amount\"},5000]}",
+            "action": "Validate"
+          }
+        ],
+        "createdAt": "2026-08-16T00:00:00.000Z",
+        "updatedAt": "2026-08-16T00:00:00.000Z"
+      },
+      "expected": {
+        "isValid": false,
+        "code": "workflow.admission.classification_mismatch"
+      }
+    },
+    {
+      "id": "admits-unknown-capability-declared-cp-on-human-approve-transition",
+      "definition": {
+        "key": "invoice-approval.v1",
+        "version": "1.0.0",
+        "status": "Draft",
+        "tenant": "tenant:dev-acme",
+        "owner": {
+          "scheme": "user",
+          "value": "tenant-admin"
+        },
+        "title": {
+          "defaultLocale": "en",
+          "values": {
+            "en": "Invoice approval",
+            "ar-AE": "اعتماد الفاتورة",
+            "es": "Aprobación de factura"
+          }
+        },
+        "description": {
+          "defaultLocale": "en",
+          "values": {
+            "en": "Route an issued invoice over the threshold through approval before it posts."
+          }
+        },
+        "subjectFormRef": {
+          "formId": "invoice.v1",
+          "version": "1.0.0"
+        },
+        "mutability": "Locked",
+        "initialState": "Draft",
+        "states": [
+          {
+            "id": "Draft",
+            "label": {
+              "defaultLocale": "en",
+              "values": {
+                "en": "Draft",
+                "es": "Borrador"
+              }
+            },
+            "kind": "Normal"
+          },
+          {
+            "id": "PendingApproval",
+            "label": {
+              "defaultLocale": "en",
+              "values": {
+                "en": "Pending approval",
+                "es": "Pendiente de aprobación"
+              }
+            },
+            "kind": "Normal",
+            "viewHint": "flow"
+          },
+          {
+            "id": "Posted",
+            "label": {
+              "defaultLocale": "en",
+              "values": {
+                "en": "Posted",
+                "es": "Contabilizada"
+              }
+            },
+            "kind": "Terminal"
+          },
+          {
+            "id": "Rejected",
+            "label": {
+              "defaultLocale": "en",
+              "values": {
+                "en": "Rejected",
+                "es": "Rechazada"
+              }
+            },
+            "kind": "Terminal"
+          }
+        ],
+        "transitions": [
+          {
+            "id": "t-issue",
+            "from": "Draft",
+            "on": "issued",
+            "to": "PendingApproval",
+            "guard": "t-issue-guard"
+          },
+          {
+            "id": "t-approve",
+            "from": "PendingApproval",
+            "on": "approve",
+            "to": "Posted"
+          },
+          {
+            "id": "t-reject",
+            "from": "PendingApproval",
+            "on": "reject",
+            "to": "Rejected"
+          }
+        ],
+        "triggers": [
+          {
+            "id": "issued",
+            "kind": "Event",
+            "eventType": "Issued"
+          },
+          {
+            "id": "approve",
+            "kind": "HumanAction",
+            "task": "invoice-approval"
+          },
+          {
+            "id": "reject",
+            "kind": "HumanAction",
+            "task": "invoice-approval"
+          }
+        ],
+        "actions": [
+          {
+            "id": "a-post-je",
+            "on": {
+              "transition": "t-approve"
+            },
+            "kind": "CreateRecord",
+            "capabilityRef": "totally.unregistered-capability",
+            "classification": "CP"
+          }
+        ],
+        "guards": [
+          {
+            "id": "t-issue-guard",
+            "tier": "JsonLogic",
+            "scope": "Schema",
+            "scopeTarget": "",
+            "expression": "{\">\":[{\"var\":\"field.amount\"},5000]}",
+            "action": "Validate"
+          }
+        ],
+        "createdAt": "2026-08-16T00:00:00.000Z",
+        "updatedAt": "2026-08-16T00:00:00.000Z"
+      },
+      "expected": {
+        "isValid": true
+      }
+    },
+    {
+      "id": "flags-terminal-state-with-outgoing-transition",
+      "definition": {
+        "key": "invoice-approval.v1",
+        "version": "1.0.0",
+        "status": "Draft",
+        "tenant": "tenant:dev-acme",
+        "owner": {
+          "scheme": "user",
+          "value": "tenant-admin"
+        },
+        "title": {
+          "defaultLocale": "en",
+          "values": {
+            "en": "Invoice approval",
+            "ar-AE": "اعتماد الفاتورة",
+            "es": "Aprobación de factura"
+          }
+        },
+        "description": {
+          "defaultLocale": "en",
+          "values": {
+            "en": "Route an issued invoice over the threshold through approval before it posts."
+          }
+        },
+        "subjectFormRef": {
+          "formId": "invoice.v1",
+          "version": "1.0.0"
+        },
+        "mutability": "Locked",
+        "initialState": "Draft",
+        "states": [
+          {
+            "id": "Draft",
+            "label": {
+              "defaultLocale": "en",
+              "values": {
+                "en": "Draft",
+                "es": "Borrador"
+              }
+            },
+            "kind": "Normal"
+          },
+          {
+            "id": "PendingApproval",
+            "label": {
+              "defaultLocale": "en",
+              "values": {
+                "en": "Pending approval",
+                "es": "Pendiente de aprobación"
+              }
+            },
+            "kind": "Normal",
+            "viewHint": "flow"
+          },
+          {
+            "id": "Posted",
+            "label": {
+              "defaultLocale": "en",
+              "values": {
+                "en": "Posted",
+                "es": "Contabilizada"
+              }
+            },
+            "kind": "Terminal"
+          },
+          {
+            "id": "Rejected",
+            "label": {
+              "defaultLocale": "en",
+              "values": {
+                "en": "Rejected",
+                "es": "Rechazada"
+              }
+            },
+            "kind": "Terminal"
+          }
+        ],
+        "transitions": [
+          {
+            "id": "t-issue",
+            "from": "Draft",
+            "on": "issued",
+            "to": "PendingApproval",
+            "guard": "t-issue-guard"
+          },
+          {
+            "id": "t-approve",
+            "from": "PendingApproval",
+            "on": "approve",
+            "to": "Posted"
+          },
+          {
+            "id": "t-reject",
+            "from": "PendingApproval",
+            "on": "reject",
+            "to": "Rejected"
+          },
+          {
+            "id": "t-bad",
+            "from": "Posted",
+            "on": "issued",
+            "to": "Draft"
+          }
+        ],
+        "triggers": [
+          {
+            "id": "issued",
+            "kind": "Event",
+            "eventType": "Issued"
+          },
+          {
+            "id": "approve",
+            "kind": "HumanAction",
+            "task": "invoice-approval"
+          },
+          {
+            "id": "reject",
+            "kind": "HumanAction",
+            "task": "invoice-approval"
+          }
+        ],
+        "actions": [
+          {
+            "id": "a-post-je",
+            "on": {
+              "transition": "t-approve"
+            },
+            "kind": "CreateRecord",
+            "capabilityRef": "ledger.post-journal-entry",
+            "classification": "CP"
+          }
+        ],
+        "guards": [
+          {
+            "id": "t-issue-guard",
+            "tier": "JsonLogic",
+            "scope": "Schema",
+            "scopeTarget": "",
+            "expression": "{\">\":[{\"var\":\"field.amount\"},5000]}",
+            "action": "Validate"
+          }
+        ],
+        "createdAt": "2026-08-16T00:00:00.000Z",
+        "updatedAt": "2026-08-16T00:00:00.000Z"
+      },
+      "expected": {
+        "isValid": false,
+        "code": "workflow.admission.terminal_has_outgoing"
+      }
+    }
+  ]
+}

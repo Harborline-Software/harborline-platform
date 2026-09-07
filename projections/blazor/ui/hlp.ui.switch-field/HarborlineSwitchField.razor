@@ -1,0 +1,26 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Forms.Inputs
+@inherits HarborlineComponentBase
+
+<HarborlineSwitch Id="@ResolvedId" Name="@Name" Checked="@Checked" CheckedChanged="@CheckedChanged"
+                Disabled="@Disabled" Label="@Label" AccessibleName="@AccessibleName" Description="@Description"
+                OnText="@OnText" OffText="@OffText" Size="@Size" Error="@Error" Required="@Required"
+                Direction="@Direction" Class="@Class" Style="@Style" @attributes="AdditionalAttributes" />
+
+@code {
+  [Parameter, EditorRequired] public string Name { get; set; } = string.Empty;
+  [Parameter, EditorRequired] public bool Checked { get; set; }
+  [Parameter, EditorRequired] public EventCallback<bool> CheckedChanged { get; set; }
+  [Parameter] public string? Id { get; set; }
+  [Parameter] public bool? Disabled { get; set; }
+  [Parameter] public string? Label { get; set; }
+  [Parameter] public string? AccessibleName { get; set; }
+  [Parameter] public string? Description { get; set; }
+  [Parameter] public string? OnText { get; set; }
+  [Parameter] public string? OffText { get; set; }
+  [Parameter] public SwitchSize Size { get; set; } = SwitchSize.Md;
+  [Parameter] public bool Error { get; set; }
+  [Parameter] public bool? Required { get; set; }
+  [Parameter] public string? Direction { get; set; }
+  private string ResolvedId => Id ?? Name;
+  protected override void OnParametersSet() { if (string.IsNullOrWhiteSpace(Name)) throw new InvalidOperationException("missing-name"); }
+}

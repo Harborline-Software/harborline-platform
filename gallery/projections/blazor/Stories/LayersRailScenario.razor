@@ -1,0 +1,42 @@
+<section class="hl-gallery-scene" data-gallery-probe data-gallery-scenario="@ScenarioId" data-theme="@Theme" dir="@Direction">
+  <header class="hl-gallery-heading">
+    <h2>@Copy.Title</h2>
+    <p>@Copy.Description</p>
+  </header>
+  <div class="hl-gallery-stage" style="min-height: 420px; display: flex; gap: 16px">
+    @if (ScenarioId == "layers-rail.content")
+    {
+      <RailFixture ScenarioId="layers-rail.content" />
+    }
+    else
+    {
+      <RailFixture ScenarioId="@ScenarioId" />
+      @if (ScenarioId == "layers-rail.locale-pseudo")
+      {
+        <RailFixture ScenarioId="@ScenarioId" Compact />
+      }
+    }
+  </div>
+</section>
+
+@code {
+  [Parameter, EditorRequired] public string ScenarioId { get; set; } = "layers-rail.structure";
+
+  private (string Title, string Description) Copy => ScenarioId switch
+  {
+    "layers-rail.structure" => ("Rail structure", "A named complementary rail orders the lens group above one outline tree."),
+    "layers-rail.lenses" => ("Lens states and shortcuts", "Active and passive lenses preserve visible state while Escape returns to neutral."),
+    "layers-rail.outline" => ("Outline keyboard and focus", "Roving tree focus, collapse fallback, and selection follow the APG keyboard model."),
+    "layers-rail.provenance" => ("Provenance, insert, and empty", "Source, lock, insert, and empty teaching signals remain explicit and host-owned."),
+    "layers-rail.locale-en" => ("English locale", "All rail chrome is supplied through the frozen labels interface."),
+    "layers-rail.locale-pseudo" => ("Pseudo locale", "Expanded rail labels and compact mode expose clipping and reflow defects."),
+    "layers-rail.locale-ar" => ("Arabic locale", "Logical indentation and alignment follow RTL while tree keys retain their meaning."),
+    "layers-rail.theme-light" => ("Light theme", "Lens, selection, provenance, focus, and outline states use public light-theme tokens."),
+    "layers-rail.theme-dark" => ("Dark theme", "The same structural rail on the Harborline dark surface."),
+    "layers-rail.content" => ("Content resilience", "Rail nodes and lens projections carry a long label, grouped large number, escaped hostile text, and an unusual name with diacritics."),
+    _ => ("Layers rail", "Builder layers and outline.")
+  };
+
+  private string Direction => ScenarioId == "layers-rail.locale-ar" ? "rtl" : "ltr";
+  private string? Theme => ScenarioId switch { "layers-rail.theme-light" => "light", "layers-rail.theme-dark" => "dark", _ => null };
+}

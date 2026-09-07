@@ -1,0 +1,255 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.app-shell",
+  "interfaceRevision": 4,
+  "semantics": {
+    "operation": "compose the fixed Harborline kernel frame from a content-column bar, an open-or-gone resizable rail, required workspace content, and an optional shrinking dock; packs fill declared slots without rearranging kernel zones",
+    "observableOutput": "Equivalent four-surface and nine-zone order, presence rather than disabled state, workload and notification count semantics, identity-derived addresses, controlled state requests, complete shell shortcuts, Material breakpoint collapse, content-floor geometry, themed scroll regions, and focus order in React and Blazor."
+  },
+  "sourceSurface": {
+    "repository": "shipyard",
+    "commit": "3410883405996dc8e4871418a441f52970d9994e",
+    "path": "apps/carrier/src/app.tsx",
+    "blob": "behavior-reference-composition",
+    "capturedExports": [
+      "AppShell"
+    ]
+  },
+  "dependencies": [
+    "hlp.contracts.authorization",
+    "hlp.ui.app-layout",
+    "hlp.ui.icon-button",
+    "hlp.ui.tooltip"
+  ],
+  "invariants": [
+    "The kernel owns bar, rail, content, and dock in that order. Packs fill slots but cannot supply, omit, or rearrange the kernel's zone order.",
+    "The 34 CSS pixel bar spans the content column only and contains tenant mark, window menu, rail toggle, find button, centered workspace breadcrumb, and panel cluster in fixed order. Find is a button that opens the command surface, never an inline search field.",
+    "Brand, windowMenu, headerLeading, and headerCenter are shell-host integration slots for kernel-owned identity, window verbs, and breadcrumb content; they are not members of PackNavigationDeclaration and cannot be authored by a pack.",
+    "The tenant mark remains in the bar whether the rail is open or gone; the open rail head carries only the tenant wordmark, so exactly one tenant mark is visible.",
+    "The rail starts at 216 CSS pixels, is pointer and keyboard resizable, and has only open and gone states. The 216 pixel start and 420 pixel content floor are spec-owned taste rather than values derived from published guidance.",
+    "Rail zones are head, mode, primary-action, workspaces, pinned, groups, recent, suggested, and footer in fixed order. Empty optional zones are absent; Pinned is required and names its empty state; head and footer stay outside the rail scroller.",
+    "Every rail row uses optional icon, label, optional workload count, and optional hover verbs. System footer rows cannot carry counts; notification state is a numeric unread count on the bell and never a dot.",
+    "The current workspace declares create actions: zero means no primary-action zone, one means one button, two or three mean a split button with a declared default, and more than three means no zone. Disabled and role-denied declarations are filtered before rendering and no disabled affordance is emitted.",
+    "Workspace, navigation, recent, suggested, and system addresses derive from kind plus stable identity and never from display labels.",
+    "The content column has a structural 420 CSS pixel floor. A dock is flex-shrinkable to zero before content can shrink below that floor; when declared pane minima do not fit, newest-opened panels become sheets first without changing ordered open ids.",
+    "Material breakpoints are resolved by one pure viewport-width seam per projection: compact below 600, medium 600 through 839, expanded 840 through 1199, large 1200 through 1599, and extra-large at 1600 and above.",
+    "At compact every open declared panel uses bottom-sheet chrome; at medium it uses side-sheet chrome; crossing into expanded swaps the container to docked without replacing the panel body or changing slot and open-id order. Sheet chrome owns only a close target of at least 44 CSS pixels.",
+    "When their panels are declared, Bell and Pilot remain in the bar at every width; either is absent when its panel is absent from the declared set. Other declared panel toggles collapse in declaration order into the panels menu below large and render in that same order in the bar at large and extra-large widths; the menu holds only collapsed actions.",
+    "Command-K opens find, Command-N invokes the current workspace default create, Command-backslash toggles the rail, Command-Shift-I opens Inspector, Command-I remains unbound, and Command-1 through Command-9 select workspaces in rail order. Editable targets and already-handled events suppress shell shortcuts.",
+    "Focusable DOM order follows the visual sequence bar, rail zones top to bottom, content, then dock.",
+    "Every shell-owned scroll region is explicitly marked and uses a transparent track, a --color-border thumb with a 3 CSS pixel inset, --color-muted-foreground on hover, a 24 CSS pixel grab target, and theme tokens whose surface contrast is at least 3:1.",
+    "shellId is required, matches [a-z0-9-]+, keys persistence, and renders as data-shell-id on the shell root; absence raises app-shell-id-required.",
+    "Required body content renders once inside app-layout's single main landmark; absence raises app-shell-body-required.",
+    "Workspace ids are unique; group, item, and thread ids share one namespace unique across the active workspace; violation raises duplicate-nav-identity.",
+    "Nav items never nest and threads never carry threads; violation raises unsupported-nav-shape.",
+    "The rail resolves each requiredRoles entry through the supplied RoleVocabulary and HeldRoleSet, fails closed if any entry is unknown, and filters denied items before pin resolution; a hidden pinned id remains in persisted storage but does not render.",
+    "The rail renders one navigation landmark; a visible pinned item renders exactly once in the fixed Pinned zone and its source group omits it while pinned.",
+    "Nav pin identity is workspaceId plus itemId; the nav pin cap defaults to 8; a pin request at cap is not emitted; controlled pinnedItemIds exceeding the cap render as given.",
+    "Rail pin toggles are interactive siblings of the activation target, never nested inside it, at least 44 CSS pixels, keyboard reachable, always visible on coarse pointers, and activating one neither navigates nor moves focus off the toggle.",
+    "Thread rows render one level under their owning item (or item-less under a group), with optional mark, single active highlight, optional kebab action menu (destructive entries after a divider), and host-controlled inline rename whose Enter and Escape emit rename and cancel requests without the shell committing the value.",
+    "Thread activation emits onThreadActivate exactly once and performs no routing; item activation reuses side-nav's activation semantics with aria-current=page on the single matching row.",
+    "Scope switchers follow one contract: trigger button with single-line truncated label, menu with menuitemradio semantics, active option sorted first regardless of pin state, pinned options next in pin order, filter input rendered only above 7 options, optional directory entry as menu footer, Escape and outside dismissal restoring trigger focus, and selection emitting exactly one change request.",
+    "A pin on a scope option is a sort preference, never membership; switcher pin caps default to 4; the rail workspace switcher hides entirely at one or zero workspaces and the header switcher renders a static label at exactly one option and nothing at zero. Within a switcher menu the pin affordance is pointer-only and hidden from assistive technology, because a menu item admits no nested interactive or AT-visible content; the rail's sibling pin toggles are the keyboard and assistive-technology path to the same preference.",
+    "Collapse, nav pins, and each switcher's active and pinned axes are controlled-or-uncontrolled; uncontrolled state restores through an injectable asynchronous storage seam in at most one update per axis after defaults paint, with versioned records and silent fallback on corrupt, old, or failing reads; precedence is controlled value, then restored value, then declared default.",
+    "Pack-declared panel toggles render in declaration order inside shell-owned controls; declared Bell and Pilot toggles stay in the bar, while every other declared toggle collapses into the shell-owned Panels menu below large and returns to the bar at large and extra-large.",
+    "Opening a closed pack-declared panel emits the ordered open-panel-id change before its binding invoke; Bell and Pilot then emit their specialized host command. Reopening an already-open panel is a no-op that emits none of those callbacks.",
+    "The dock is default closed and unpersisted. One aside renders at inline-end inside the content row, owns its header and resize separator, shrinks before the 420 pixel content floor, and expands only from an explicit host or user request; opening, closing, or arriving content never enters expanded spread implicitly.",
+    "Spread-unavailable is an explicit public field rather than a width inference. When true, the shell renders the spread affordance disabled and exposes the supplied reason; when false, the affordance remains enabled at every breakpoint.",
+    "headerFixed, contentScroll, and the mobile drawer axis pass through to app-layout unchanged; drawer, rail geometry, breakpoint, focus, and scroll-ownership invariants are carried from hlp.ui.app-layout, not re-proven here.",
+    "The shell owns only deterministic role visibility from the supplied resolved vocabulary and held-role set; it owns no route table, navigation selection, grant or atom derivation, standings, tenant scope, HTTP data, cascade ordering, lifecycle folding, session semantics, or copilot behavior.",
+    "Dock dividers resize their splitter-tree ratio or stack fractions with pointer capture and keyboard arrows (8 pixels; Shift 32), Home/End minima, Enter commit and Escape cancel. Separator values reflect measured, minimum-clamped sizes. Reset panels, or 0 on a divider, restores derived even splits without changing open order or container kinds. The arrangement a user drags, or a host restores, is remembered against the open panel set, the spread and the placement class only - the class the measured shell box falls in: a re-measurement inside one class keeps it, crossing a class falls back to the derived layout, returning to that class restores it, and a rail toggle never drops it. Restored state is applied only against a MEASURED class: until the shell box has been measured once the restored arrangement is held pending - it is rendered, so the first paint is what the user left rather than a derived guess, but it carries no class and nothing is emitted; the first measurement stamps it with the class that measurement falls in, never the pre-measurement viewport class. Only that authored arrangement is emitted for persistence; a derived layout is emitted as no tree, and nothing at all is emitted before the first measurement. Forced deeper stacks remain the next slice."
+  ],
+  "errors": [
+    {
+      "code": "app-shell-id-required",
+      "when": "shellId is absent or fails [a-z0-9-]+."
+    },
+    {
+      "code": "app-shell-body-required",
+      "when": "Required body content is absent."
+    },
+    {
+      "code": "duplicate-nav-identity",
+      "when": "A workspace id repeats, or a group, item, or thread id repeats within the active workspace."
+    },
+    {
+      "code": "unsupported-nav-shape",
+      "when": "Nav items nest or a thread carries threads."
+    }
+  ],
+  "performance": {
+    "operation": "O(workspaces + items + pins + threads) chrome resolution per render plus opaque O(n) slot content",
+    "maximumFixtureNavigationItems": 256,
+    "maximumFixtureUpdates": 96
+  },
+  "presentation": {
+    "disposition": "visual"
+  },
+  "cases": [
+    {
+      "id": "app-shell.structure"
+    },
+    {
+      "id": "app-shell.id-required"
+    },
+    {
+      "id": "app-shell.body-required"
+    },
+    {
+      "id": "app-shell.duplicate-identity"
+    },
+    {
+      "id": "app-shell.unsupported-shape"
+    },
+    {
+      "id": "app-shell.single-workspace-hides-switcher"
+    },
+    {
+      "id": "app-shell.workspace-switch"
+    },
+    {
+      "id": "app-shell.workspace-unknown-controlled"
+    },
+    {
+      "id": "app-shell.header-switcher-single-option-static"
+    },
+    {
+      "id": "app-shell.header-switcher-active-first"
+    },
+    {
+      "id": "app-shell.switcher-filter-threshold"
+    },
+    {
+      "id": "app-shell.switcher-directory-item"
+    },
+    {
+      "id": "app-shell.switcher-trigger-truncation"
+    },
+    {
+      "id": "app-shell.pin-lifecycle"
+    },
+    {
+      "id": "app-shell.pin-moved-not-copied"
+    },
+    {
+      "id": "app-shell.pin-cap"
+    },
+    {
+      "id": "app-shell.pin-orphan-retention"
+    },
+    {
+      "id": "app-shell.role-allowed"
+    },
+    {
+      "id": "app-shell.role-denied"
+    },
+    {
+      "id": "app-shell.role-unknown-fail-closed"
+    },
+    {
+      "id": "app-shell.shared-workflow-role"
+    },
+    {
+      "id": "app-shell.hidden-pin-retention"
+    },
+    {
+      "id": "app-shell.pin-toggle-isolation"
+    },
+    {
+      "id": "app-shell.thread-rows-under-item"
+    },
+    {
+      "id": "app-shell.thread-group-level"
+    },
+    {
+      "id": "app-shell.thread-actions-menu"
+    },
+    {
+      "id": "app-shell.thread-inline-rename"
+    },
+    {
+      "id": "app-shell.thread-in-drawer"
+    },
+    {
+      "id": "app-shell.collapse-controlled"
+    },
+    {
+      "id": "app-shell.collapse-uncontrolled-restore"
+    },
+    {
+      "id": "app-shell.persistence-fallback"
+    },
+    {
+      "id": "app-shell.actions-overflow"
+    },
+    {
+      "id": "app-shell.declared-toggle-breakpoint"
+    },
+    {
+      "id": "app-shell.shortcut-commands"
+    },
+    {
+      "id": "app-shell.shortcut-disabled"
+    },
+    {
+      "id": "app-shell.shortcut-editable-guard"
+    },
+    {
+      "id": "app-shell.end-panel-open-overlay"
+    },
+    {
+      "id": "app-shell.end-panel-expanded"
+    },
+    {
+      "id": "app-shell.end-panel-narrow-forced-expanded"
+    },
+    {
+      "id": "app-shell.end-panel-no-content-inert"
+    },
+    {
+      "id": "app-shell.rtl-safe-area"
+    },
+    {
+      "id": "app-shell.host-attributes"
+    },
+    {
+      "id": "app-shell.projection-equivalence"
+    },
+    {
+      "id": "app-shell.chrome-kernel-order"
+    },
+    {
+      "id": "app-shell.chrome-law-mutations"
+    },
+    {
+      "id": "app-shell.zone-presence"
+    },
+    {
+      "id": "app-shell.primary-action-cardinality"
+    },
+    {
+      "id": "app-shell.semantic-counts-addresses"
+    },
+    {
+      "id": "app-shell.layout-contract"
+    },
+    {
+      "id": "app-shell.material-collapse"
+    },
+    {
+      "id": "app-shell.panel-set-live-absent"
+    },
+    {
+      "id": "app-shell.panel-set-live-present"
+    },
+    {
+      "id": "app-shell.complete-shortcuts"
+    },
+    {
+      "id": "app-shell.visual-tab-order"
+    },
+    {
+      "id": "app-shell.themed-scroll-regions"
+    }
+  ]
+}

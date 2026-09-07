@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "projection": "react",
+  "moduleId": "hlp.ui.scroll-affordance",
+  "scenarios": [
+    {
+      "scenarioId": "scroll-affordance.axes-overflow",
+      "sha256": "956f1cec410b3d6c214dd1b2865a8225f23ec4ceb301c823ea10b6f6d4a5341c",
+      "bytes": 13739,
+      "artifact": "../baselines/sha256/956f1cec410b3d6c214dd1b2865a8225f23ec4ceb301c823ea10b6f6d4a5341c.png"
+    },
+    {
+      "scenarioId": "scroll-affordance.keyboard-status",
+      "sha256": "84b483103250f7e33ce7ecf16e522affc57113d95250afaf2196c7c7141f6a8c",
+      "bytes": 10737,
+      "artifact": "../baselines/sha256/84b483103250f7e33ce7ecf16e522affc57113d95250afaf2196c7c7141f6a8c.png"
+    },
+    {
+      "scenarioId": "scroll-affordance.snap-fade",
+      "sha256": "fa154f7e9fd873c38a0929d62e39da9bf18376d76855887f308d2a59e49703a8",
+      "bytes": 10461,
+      "artifact": "../baselines/sha256/fa154f7e9fd873c38a0929d62e39da9bf18376d76855887f308d2a59e49703a8.png"
+    },
+    {
+      "scenarioId": "scroll-affordance.replacement-host",
+      "sha256": "39a1751eef9d0b390320f91b3754b21f1048837a7670a5979c65d98bf52387d4",
+      "bytes": 12498,
+      "artifact": "../baselines/sha256/39a1751eef9d0b390320f91b3754b21f1048837a7670a5979c65d98bf52387d4.png"
+    },
+    {
+      "scenarioId": "scroll-affordance.locale-pseudo",
+      "sha256": "77633e3ce29adf9c30e03105ee7344f81c909a10321861a9fd0acb4a53b3c140",
+      "bytes": 11020,
+      "artifact": "../baselines/sha256/77633e3ce29adf9c30e03105ee7344f81c909a10321861a9fd0acb4a53b3c140.png"
+    },
+    {
+      "scenarioId": "scroll-affordance.locale-ar",
+      "sha256": "2ddb320b23c325fb25ba1519bd678931521591fc70f9442133aca3825159985c",
+      "bytes": 10735,
+      "artifact": "../baselines/sha256/2ddb320b23c325fb25ba1519bd678931521591fc70f9442133aca3825159985c.png"
+    },
+    {
+      "scenarioId": "scroll-affordance.theme-light",
+      "sha256": "1515ccb4b2e86e09006d7a8386429d2906595d388e2e838b078007e0a667bc03",
+      "bytes": 8861,
+      "artifact": "../baselines/sha256/1515ccb4b2e86e09006d7a8386429d2906595d388e2e838b078007e0a667bc03.png"
+    },
+    {
+      "scenarioId": "scroll-affordance.theme-dark",
+      "sha256": "9563c4071ed10f57758e1248ab16f6e9bec3e20cdd9f166385e173f788637119",
+      "bytes": 8588,
+      "artifact": "../baselines/sha256/9563c4071ed10f57758e1248ab16f6e9bec3e20cdd9f166385e173f788637119.png"
+    }
+  ]
+}

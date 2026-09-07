@@ -1,0 +1,676 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.chart",
+  "sourceFixture": "conformance/hlp.ui.chart/fixtures.yaml",
+  "qualityFixture": "conformance/hlp.ui.chart/quality-fixtures.yaml",
+  "galleryInterface": {
+    "probeAttribute": "data-gallery-probe",
+    "scenarioAttribute": "data-gallery-scenario",
+    "projectionTitles": {
+      "react": "Platform/Chart",
+      "blazor": "Platform/Chart"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "chart.line-series",
+      "name": "Line series and missing values",
+      "surface": "line-series",
+      "sourceCaseIds": [
+        "chart.line-single",
+        "chart.line-multiple",
+        "chart.line-null-gap",
+        "chart.visibility-defaults"
+      ],
+      "sourceQualityCaseIds": [
+        "chart.quality.name-summary",
+        "chart.quality.contrast"
+      ],
+      "content": {
+        "blurb": "Ordered categories and series retain missing values without substituting zero.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "definition": {
+            "kind": "line",
+            "accessibleName": "Monthly occupancy trend",
+            "title": "Monthly occupancy",
+            "categories": [
+              "January",
+              "February",
+              "March",
+              "April",
+              "May",
+              "June"
+            ],
+            "series": [
+              {
+                "name": "North Pier",
+                "values": [
+                  91,
+                  92,
+                  null,
+                  94,
+                  95,
+                  96
+                ]
+              },
+              {
+                "name": "South Pier",
+                "values": [
+                  84,
+                  86,
+                  88,
+                  87,
+                  90,
+                  92
+                ]
+              }
+            ],
+            "motion": "host"
+          }
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<Chart definition={{ ...occupancy, motion: 'host' }} />",
+            "blazor": "<HarborlineChart Definition=\"@Definition\" AccessibleName=\"@AccessibleName\" Title=\"@ChartTitle\" DataSummaryLabel=\"@DataSummaryLabel\" ShowLegend=\"@ShowLegend\" ShowTooltip=\"@ShowTooltip\" Motion=\"@Motion\" />",
+            "rationale": "The closed control vocabulary has no chart control and cannot express the rendered chart graphics, legend, tooltip, or generated accessible data table."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "chart.donut-missing",
+      "name": "Donut and missing slices",
+      "surface": "donut-missing",
+      "sourceCaseIds": [
+        "chart.donut",
+        "chart.donut-null",
+        "chart.accessible-data"
+      ],
+      "sourceQualityCaseIds": [
+        "chart.quality.reflow"
+      ],
+      "content": {
+        "blurb": "Missing slices stay in the accessible data while the visual omits them.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "definition": {
+            "kind": "donut",
+            "accessibleName": "Inspection findings by status",
+            "title": "Findings by status",
+            "slices": [
+              {
+                "label": "Verified",
+                "value": 34
+              },
+              {
+                "label": "Needs review",
+                "value": 11
+              },
+              {
+                "label": "Awaiting measurement",
+                "value": null
+              },
+              {
+                "label": "Blocked",
+                "value": 4
+              }
+            ]
+          },
+          "dataSummaryLabel": "Ordered findings data"
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<Chart definition={donut} dataSummaryLabel=\"Ordered findings data\" />",
+            "blazor": "<HarborlineChart Definition=\"@Definition\" AccessibleName=\"@AccessibleName\" Title=\"@ChartTitle\" DataSummaryLabel=\"@DataSummaryLabel\" ShowLegend=\"@ShowLegend\" ShowTooltip=\"@ShowTooltip\" Motion=\"@Motion\" />",
+            "rationale": "The closed control vocabulary has no donut-chart control and cannot express omitted null slices alongside the generated accessible data table."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "chart.empty",
+      "name": "Empty series and slices",
+      "surface": "empty",
+      "sourceCaseIds": [
+        "chart.empty-series"
+      ],
+      "sourceQualityCaseIds": [
+        "chart.quality.contrast",
+        "chart.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "A definition with nothing to plot says so instead of drawing axes over no data.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "definition": {
+            "kind": "line",
+            "accessibleName": "Monthly occupancy trend",
+            "title": "Monthly occupancy",
+            "categories": [],
+            "series": []
+          },
+          "empty": "No occupancy has been recorded for this period yet."
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<Chart definition={emptyOccupancy} empty=\"No occupancy has been recorded for this period yet.\" />",
+            "blazor": "<HarborlineChart Definition=\"@Definition\" AccessibleName=\"@AccessibleName\" Title=\"@ChartTitle\" Empty=\"@EmptyText\" ShowLegend=\"@ShowLegend\" ShowTooltip=\"@ShowTooltip\" Motion=\"@Motion\" />",
+            "rationale": "The closed control vocabulary has no chart control and cannot express the empty state a chart owes when its series carry no plottable value."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "chart.validation",
+      "name": "Validation and provider boundary",
+      "surface": "validation",
+      "sourceCaseIds": [
+        "chart.line-count-mismatch",
+        "chart.labels-and-values",
+        "chart.provider-isolation"
+      ],
+      "sourceQualityCaseIds": [
+        "chart.quality.tokens"
+      ],
+      "content": {
+        "blurb": "Stable errors protect the neutral definition from renderer-specific options.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'minmax(0, 1.4fr) minmax(15rem, 1fr)' }}><Chart definition={occupancy} /><aside aria-label=\"Chart validation boundary\"><h3>Neutral validation</h3><dl>{errors.map(([code, meaning]) => <div key={code}><dt><code>{code}</code></dt><dd>{meaning}</dd></div>)}</dl><p>Renderer options and provider identities remain private to each projection.</p></aside></div>",
+            "blazor": "<div style=\"display:grid;gap:16px;grid-template-columns:minmax(0, 1.4fr) minmax(15rem, 1fr)\"><HarborlineChart Definition=\"@Occupancy\" AccessibleName=\"Monthly occupancy trend\" Title=\"Monthly occupancy\" /><aside aria-label=\"Chart validation boundary\"><h3>Neutral validation</h3><dl>@foreach (var error in ValidationErrors) { <div><dt><code>@error.Code</code></dt><dd>@error.Meaning</dd></div> }</dl><p>Renderer options and provider identities remain private to each projection.</p></aside></div>",
+            "rationale": "The chart plus aside, heading, description list, code terms, and responsive grid require controls and layout primitives outside the closed vocabulary. The lane error collections supply category-value-count-mismatch — Each line series has one value per category.; duplicate-series-name — Line series names are unique.; label-required — Series and slice labels are nonblank.; non-finite-value — Values are finite numbers or null."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "chart.replacement",
+      "name": "Replacement and visibility intent",
+      "surface": "replacement",
+      "interaction": "pointer",
+      "sourceCaseIds": [
+        "chart.replace-not-merge",
+        "chart.visibility-defaults"
+      ],
+      "sourceQualityCaseIds": [
+        "chart.quality.runtime-switch"
+      ],
+      "content": {
+        "blurb": "Complete updates remove stale data while legend and tooltip intent remain explicit.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "button",
+            "text": "Original definition"
+          },
+          {
+            "control": "button",
+            "text": "Replace definition"
+          },
+          {
+            "control": "raw",
+            "react": "<Chart definition={updated ? replacement : occupancy} />",
+            "blazor": "<HarborlineChart Definition=\"@(replacementShown ? Replacement : Occupancy)\" AccessibleName=\"@(replacementShown ? \"Quarterly inspection completion\" : \"Monthly occupancy trend\")\" Title=\"@(replacementShown ? \"Inspection completion\" : \"Monthly occupancy\")\" ShowLegend=\"@(!replacementShown)\" ShowTooltip=\"@(!replacementShown)\" />",
+            "rationale": "The buttons are expressible, but their stateful selection between complete chart definitions and the resulting chart rendering cannot be represented by the closed controls without silently approximating the lane behavior. The original chart shows Monthly occupancy trend, Monthly occupancy, January through June, North Pier, and South Pier; the replacement shows Quarterly inspection completion, Inspection completion, Q3, and Completed."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "chart.accessible-data",
+      "name": "Accessible data path",
+      "surface": "accessible-data",
+      "interaction": "keyboard",
+      "sourceCaseIds": [
+        "chart.accessible-name",
+        "chart.accessible-data",
+        "chart.visibility-defaults"
+      ],
+      "sourceQualityCaseIds": [
+        "chart.quality.name-summary",
+        "chart.quality.reflow"
+      ],
+      "content": {
+        "blurb": "The named figure includes a keyboard-reachable ordered data table.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "definition": {
+            "kind": "line",
+            "accessibleName": "Monthly occupancy trend",
+            "title": "Monthly occupancy",
+            "legend": "hidden",
+            "tooltip": "disabled",
+            "categories": [
+              "January",
+              "February",
+              "March",
+              "April",
+              "May",
+              "June"
+            ],
+            "series": [
+              {
+                "name": "North Pier",
+                "values": [
+                  91,
+                  92,
+                  null,
+                  94,
+                  95,
+                  96
+                ]
+              },
+              {
+                "name": "South Pier",
+                "values": [
+                  84,
+                  86,
+                  88,
+                  87,
+                  90,
+                  92
+                ]
+              }
+            ]
+          },
+          "dataSummaryLabel": "Ordered monthly occupancy data"
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<Chart definition={{ ...occupancy, legend: 'hidden', tooltip: 'disabled' }} dataSummaryLabel=\"Ordered monthly occupancy data\" />",
+            "blazor": "<HarborlineChart Definition=\"@Definition\" AccessibleName=\"@AccessibleName\" Title=\"@ChartTitle\" DataSummaryLabel=\"@DataSummaryLabel\" ShowLegend=\"@ShowLegend\" ShowTooltip=\"@ShowTooltip\" Motion=\"@Motion\" />",
+            "rationale": "The closed vocabulary cannot express the chart figure or its generated keyboard-reachable ordered data table."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "chart.large-data",
+      "name": "Bounded large data",
+      "surface": "large-data",
+      "sourceCaseIds": [
+        "chart.line-multiple",
+        "chart.accessible-data",
+        "chart.provider-isolation"
+      ],
+      "sourceQualityCaseIds": [
+        "chart.quality.contrast"
+      ],
+      "content": {
+        "blurb": "A dense definition preserves all semantic data while point decoration remains bounded.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<Chart definition={definition} /> where title is 'Structural sensor history · 256 samples', accessibleName is 'Hourly structural sensor history', categories are Array.from({ length: 256 }, (_, index) => `Sample ${index + 1}`), and series are Displacement, Vibration, Temperature, and Humidity with the formulas in Chart.stories.tsx lines 105-108.",
+            "blazor": "<HarborlineChart Definition=\"@Definition\" AccessibleName=\"@AccessibleName\" Title=\"@ChartTitle\" DataSummaryLabel=\"@DataSummaryLabel\" ShowLegend=\"@ShowLegend\" ShowTooltip=\"@ShowTooltip\" Motion=\"@Motion\" /> where LargeDefinition uses Enumerable.Range(1, 256) and the four formulas in ChartScenario.razor lines 145-152.",
+            "rationale": "The closed vocabulary has no chart control and cannot express the lane-generated 256-category, four-series definition or its graphics and semantic table without expanding and approximating executable formulas."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "chart.locale-en",
+      "name": "English locale and number formatting",
+      "surface": "locale-en",
+      "sourceCaseIds": [
+        "chart.localized-context",
+        "chart.accessible-name"
+      ],
+      "sourceQualityCaseIds": [
+        "chart.quality.locale",
+        "chart.quality.number-format"
+      ],
+      "content": {
+        "blurb": "Labels stay caller-owned and values use the active locale scope.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "definition": {
+            "kind": "line",
+            "accessibleName": "Inspection completion trend",
+            "title": "Inspection completion",
+            "categories": [
+              "January",
+              "February",
+              "March"
+            ],
+            "series": [
+              {
+                "name": "Completed",
+                "values": [
+                  81.5,
+                  88.25,
+                  94.75
+                ]
+              }
+            ]
+          }
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<Chart definition={localizedDefinition('chart.locale-en')} />",
+            "blazor": "<HarborlineChart Definition=\"@Definition\" AccessibleName=\"@AccessibleName\" Title=\"@ChartTitle\" DataSummaryLabel=\"@DataSummaryLabel\" ShowLegend=\"@ShowLegend\" ShowTooltip=\"@ShowTooltip\" Motion=\"@Motion\" />",
+            "rationale": "The closed vocabulary cannot express the localized chart graphics, legend, number formatting, or generated semantic data table."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "chart.locale-pseudo",
+      "name": "Pseudo-expanded labels",
+      "surface": "locale-pseudo",
+      "sourceCaseIds": [
+        "chart.localized-context",
+        "chart.accessible-name"
+      ],
+      "sourceQualityCaseIds": [
+        "chart.quality.locale",
+        "chart.quality.pseudo"
+      ],
+      "content": {
+        "blurb": "Expanded copy probes title, legend, summary, and table reflow.",
+        "environment": {
+          "locale": "en-XA",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {
+            "charts.chart": "⟦ Çĥåřţ ··· ⟧",
+            "charts.value": "⟦ Ṽåļûë ··· ⟧",
+            "charts.series": "⟦ Šëřîëš ··· ⟧",
+            "charts.item": "⟦ Îţëm ·· ⟧"
+          }
+        },
+        "props": {
+          "definition": {
+            "kind": "line",
+            "accessibleName": "⟦ Monthly structure inspection trend ········ ⟧",
+            "title": "⟦ Monthly structure inspection completion by operational region ············ ⟧",
+            "categories": [
+              "⟦ January ··· ⟧",
+              "⟦ February ···· ⟧",
+              "⟦ March ··· ⟧"
+            ],
+            "series": [
+              {
+                "name": "⟦ Completed inspections ······ ⟧",
+                "values": [
+                  81.5,
+                  88.25,
+                  94.75
+                ]
+              }
+            ]
+          }
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<Chart definition={localizedDefinition('chart.locale-pseudo')} />",
+            "blazor": "<HarborlineChart Definition=\"@Definition\" AccessibleName=\"@AccessibleName\" Title=\"@ChartTitle\" DataSummaryLabel=\"@DataSummaryLabel\" ShowLegend=\"@ShowLegend\" ShowTooltip=\"@ShowTooltip\" Motion=\"@Motion\" />",
+            "rationale": "The closed vocabulary cannot express the pseudo-localized chart graphics, expanded legend, localized summary headings, or generated semantic table reflow."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "chart.locale-ar",
+      "name": "Arabic RTL chart",
+      "surface": "locale-ar",
+      "sourceCaseIds": [
+        "chart.localized-context",
+        "chart.accessible-data"
+      ],
+      "sourceQualityCaseIds": [
+        "chart.quality.rtl",
+        "chart.quality.number-format"
+      ],
+      "content": {
+        "blurb": "Direction changes logically without reversing caller data order.",
+        "environment": {
+          "locale": "ar-SA",
+          "direction": "rtl",
+          "theme": "light",
+          "catalog": {
+            "charts.chart": "مخطط",
+            "charts.value": "القيمة",
+            "charts.series": "السلسلة",
+            "charts.item": "العنصر"
+          }
+        },
+        "props": {
+          "definition": {
+            "kind": "line",
+            "accessibleName": "اتجاه اكتمال الفحص",
+            "title": "اكتمال الفحص الشهري",
+            "categories": [
+              "يناير",
+              "فبراير",
+              "مارس"
+            ],
+            "series": [
+              {
+                "name": "مكتمل",
+                "values": [
+                  81.5,
+                  88.25,
+                  94.75
+                ]
+              }
+            ]
+          }
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<Chart definition={localizedDefinition('chart.locale-ar')} />",
+            "blazor": "<HarborlineChart Definition=\"@Definition\" AccessibleName=\"@AccessibleName\" Title=\"@ChartTitle\" DataSummaryLabel=\"@DataSummaryLabel\" ShowLegend=\"@ShowLegend\" ShowTooltip=\"@ShowTooltip\" Motion=\"@Motion\" />",
+            "rationale": "The closed vocabulary cannot express RTL chart graphics, localized legend and number formatting, or the generated semantic data table."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "chart.theme-light",
+      "name": "Light theme",
+      "surface": "theme-light",
+      "sourceCaseIds": [
+        "chart.theme-motion",
+        "chart.provider-isolation"
+      ],
+      "sourceQualityCaseIds": [
+        "chart.quality.light-dark",
+        "chart.quality.tokens",
+        "chart.quality.runtime-switch",
+        "chart.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "Semantic chart tokens preserve visible series and non-color distinctions.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "definition": {
+            "kind": "line",
+            "accessibleName": "Monthly occupancy trend",
+            "title": "Monthly occupancy",
+            "categories": [
+              "January",
+              "February",
+              "March",
+              "April",
+              "May",
+              "June"
+            ],
+            "series": [
+              {
+                "name": "North Pier",
+                "values": [
+                  91,
+                  92,
+                  null,
+                  94,
+                  95,
+                  96
+                ]
+              },
+              {
+                "name": "South Pier",
+                "values": [
+                  84,
+                  86,
+                  88,
+                  87,
+                  90,
+                  92
+                ]
+              }
+            ],
+            "motion": "host"
+          }
+        },
+        "state": {},
+        "inherits": "chart.line-series"
+      }
+    },
+    {
+      "id": "chart.theme-dark",
+      "name": "Dark theme and reduced motion",
+      "surface": "theme-dark",
+      "sourceCaseIds": [
+        "chart.theme-motion",
+        "chart.provider-isolation"
+      ],
+      "sourceQualityCaseIds": [
+        "chart.quality.light-dark",
+        "chart.quality.tokens",
+        "chart.quality.runtime-switch",
+        "chart.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "The same definition remains readable with dark tokens and motion disabled.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "dark",
+          "catalog": {}
+        },
+        "props": {
+          "definition": {
+            "kind": "line",
+            "accessibleName": "Monthly occupancy trend",
+            "title": "Monthly occupancy",
+            "categories": [
+              "January",
+              "February",
+              "March",
+              "April",
+              "May",
+              "June"
+            ],
+            "series": [
+              {
+                "name": "North Pier",
+                "values": [
+                  91,
+                  92,
+                  null,
+                  94,
+                  95,
+                  96
+                ]
+              },
+              {
+                "name": "South Pier",
+                "values": [
+                  84,
+                  86,
+                  88,
+                  87,
+                  90,
+                  92
+                ]
+              }
+            ],
+            "motion": "disabled"
+          }
+        },
+        "state": {},
+        "inherits": "chart.line-series"
+      }
+    }
+  ]
+}

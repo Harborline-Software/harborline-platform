@@ -1,0 +1,138 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Navigation
+@inherits Harborline.UIAdapters.Blazor.Base.HarborlineComponentBase
+@implements IAsyncDisposable
+@using Harborline.UIAdapters.Blazor.Browser
+@inject IMediaQueryObserver MediaQueries
+
+<section aria-labelledby="@HeadingId" class="@CombineClasses("hl-activity-log")"
+         data-hl-layout="@LayoutName" data-layout="@LayoutName" @attributes="AdditionalAttributes">
+    <h2 id="@HeadingId" class="hl-activity-log__heading">@Label</h2>
+    @if (Entries.Count == 0)
+    {
+        <p class="hl-activity-log__empty">@Empty</p>
+    }
+    else if (EffectiveLayout == ActivityLogLayout.Table)
+    {
+        <div class="hl-activity-log__table-scroll">
+            <table class="hl-activity-log__table">
+                <thead>
+                    <tr>
+                        <th scope="col" class="hl-activity-log__header hl-activity-log__header--actor">@ActorHeader</th>
+                        <th scope="col" class="hl-activity-log__header hl-activity-log__header--action">@ActionHeader</th>
+                        <th scope="col" class="hl-activity-log__header hl-activity-log__header--time">@WhenHeader</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var entry in Visible)
+                    {
+                        var tone = Tone(entry);
+                        <tr class="hl-activity-log__table-row" data-hl-tone="@tone" @key="entry.Id">
+                            <td class="hl-activity-log__cell hl-activity-log__cell--actor">
+                                <span class="hl-activity-log__actor-wrap">
+                                    <span class="hl-activity-log__marker" data-hl-tone="@tone" data-tone="@tone" aria-hidden="true"></span>
+                                    <span class="hl-activity-log__actor">@entry.Actor</span>
+                                </span>
+                            </td>
+                            <td class="hl-activity-log__cell hl-activity-log__cell--action">
+                                <span class="hl-activity-log__action">@entry.Action</span>
+                                @if (!string.IsNullOrWhiteSpace(entry.Detail))
+                                {
+                                    <span class="hl-activity-log__detail">@entry.Detail</span>
+                                }
+                            </td>
+                            <td class="hl-activity-log__cell hl-activity-log__cell--time">
+                                <time datetime="@entry.MachineTimestamp" class="hl-activity-log__time">@entry.Timestamp</time>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    else
+    {
+        <ol class="hl-activity-log__list">
+            @foreach (var entry in Visible)
+            {
+                var tone = Tone(entry);
+                <li class="hl-activity-log__list-item" data-hl-tone="@tone" @key="entry.Id">
+                    <span class="hl-activity-log__marker" data-hl-tone="@tone" data-tone="@tone" aria-hidden="true"></span>
+                    <div class="hl-activity-log__entry-content">
+                        <p class="hl-activity-log__summary"><span class="hl-activity-log__actor">@entry.Actor</span> <span class="hl-activity-log__action">@entry.Action</span></p>
+                        @if (!string.IsNullOrWhiteSpace(entry.Detail))
+                        {
+                            <p class="hl-activity-log__detail">@entry.Detail</p>
+                        }
+                        <time datetime="@entry.MachineTimestamp" class="hl-activity-log__time">@entry.Timestamp</time>
+                    </div>
+                </li>
+            }
+        </ol>
+    }
+    @if (HasMore && OnShowMore.HasDelegate)
+    {
+        <div class="hl-activity-log__more">
+            <button type="button" class="hl-activity-log__more-button" @onclick="OnShowMore">@ShowMoreText</button>
+        </div>
+    }
+</section>
+
+@code {
+    [Parameter] public IReadOnlyList<ActivityEntry> Entries { get; set; } = [];
+    [Parameter] public ActivityLogLayout? Layout { get; set; }
+    [Parameter] public string Label { get; set; } = "Activity log";
+    [Parameter] public int MaxVisible { get; set; }
+    [Parameter] public EventCallback OnShowMore { get; set; }
+    [Parameter] public string Empty { get; set; } = "No activity yet";
+    [Parameter] public string ActorHeader { get; set; } = "Actor";
+    [Parameter] public string ActionHeader { get; set; } = "Action";
+    [Parameter] public string WhenHeader { get; set; } = "Timestamp";
+    [Parameter] public string ShowMoreFormat { get; set; } = "Show more";
+
+    private readonly string instanceId = $"hl-activity-log-{Guid.NewGuid():N}";
+    private bool isMobile;
+    private IMediaQuerySubscription? subscription;
+    private string HeadingId => $"{instanceId}-heading";
+    private ActivityLogLayout EffectiveLayout => Layout ?? (isMobile ? ActivityLogLayout.List : ActivityLogLayout.Table);
+    private string LayoutName => EffectiveLayout.ToString().ToLowerInvariant();
+    private IReadOnlyList<ActivityEntry> Visible => MaxVisible > 0 ? Entries.Take(MaxVisible).ToArray() : Entries;
+    private bool HasMore => MaxVisible > 0 && Entries.Count > MaxVisible;
+    private string ShowMoreText => ShowMoreFormat.Contains("{0}", StringComparison.Ordinal)
+        ? string.Format(ShowMoreFormat, Entries.Count - Visible.Count)
+        : ShowMoreFormat;
+
+    protected override void OnParametersSet()
+    {
+        if (string.IsNullOrWhiteSpace(Label)) throw new InvalidOperationException("accessible-name-required");
+        var duplicate = Entries.GroupBy(x => x.Id, StringComparer.Ordinal).FirstOrDefault(x => x.Count() > 1);
+        if (duplicate is not null) throw new InvalidOperationException($"duplicate-entry-id: {duplicate.Key}");
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || Layout is not null) return;
+        subscription = await MediaQueries.ObserveAsync("(max-width: 767px)", change =>
+        {
+            isMobile = change.Matches;
+            return new ValueTask(InvokeAsync(StateHasChanged));
+        });
+        isMobile = subscription.Matches;
+        StateHasChanged();
+    }
+
+    private static string Tone(ActivityEntry entry)
+    {
+        if (entry.Tone != ActivityTone.Neutral) return entry.Tone.ToString().ToLowerInvariant();
+        var value = entry.Category?.ToLowerInvariant() ?? "";
+        return value.Contains("confirm") || value.Contains("success") || value.Contains("approv") ? "positive"
+            : value.Contains("deny") || value.Contains("error") || value.Contains("fail") || value.Contains("reject") ? "danger"
+            : value.Contains("warning") || value.Contains("pending") || value.Contains("caution") ? "warning"
+            : value.Contains("system") || value.Contains("info") ? "info"
+            : "neutral";
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (subscription is not null) await subscription.DisposeAsync();
+    }
+}

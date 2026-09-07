@@ -1,0 +1,13 @@
+{
+  "$comment": "The ONE declaration of which scenarios the CI gallery run skips. gallery/tests/tests/gallery.spec.ts applies these at runtime and tooling/gallery-observations.mjs subtracts them from the declared check expectations, so the expectation cannot describe a run that did not happen. The justification for each set is in the spec, above the read.",
+  "pixel": [
+    "error-card.theme-light",
+    "error-card.theme-dark",
+    "loading-state.theme-light",
+    "toaster.action-promise"
+  ],
+  "wallClock": [
+    "data-grid.large-data",
+    "gantt.large-data"
+  ]
+}

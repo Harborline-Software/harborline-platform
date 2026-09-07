@@ -1,0 +1,165 @@
+.hl-collapsible {
+  --hl-collapsible-surface: var(--hl-background, #ffffff);
+  --hl-collapsible-foreground: var(--hl-foreground, #172033);
+  --hl-collapsible-muted: var(--hl-muted-foreground, #475569);
+  --hl-collapsible-border: var(--hl-border, #cbd5e1);
+  --hl-collapsible-hover: var(--hl-muted, #f1f5f9);
+  --hl-collapsible-focus: var(--hl-focus, #8a3ffc);
+  --hl-collapsible-disabled: var(--hl-disabled-foreground, #64748b);
+}
+
+.hl-collapsible {
+  background: var(--hl-collapsible-surface);
+  border: 1px solid var(--hl-collapsible-border);
+  border-radius: 0.5rem;
+  box-sizing: border-box;
+  color: var(--hl-collapsible-foreground);
+  inline-size: 100%;
+  max-inline-size: 100%;
+  min-inline-size: 0;
+  overflow: hidden;
+  text-align: start;
+}
+
+.hl-collapsible__header {
+  align-items: stretch;
+  display: flex;
+  flex-wrap: wrap;
+  min-inline-size: 0;
+}
+
+.hl-collapsible__trigger {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  box-sizing: border-box;
+  color: var(--hl-collapsible-foreground);
+  cursor: pointer;
+  display: flex;
+  flex: 1 1 16rem;
+  font: inherit;
+  gap: 0.75rem;
+  inline-size: auto;
+  justify-content: space-between;
+  min-block-size: 2.75rem;
+  min-inline-size: 0;
+  padding-block: 0.75rem;
+  padding-inline: 1rem;
+  text-align: start;
+  transition: background-color 150ms ease-out;
+}
+
+.hl-collapsible__trigger:hover:not(:disabled) { background: var(--hl-collapsible-hover); }
+
+.hl-collapsible__trigger:focus-visible {
+  outline: 2px solid var(--hl-collapsible-focus);
+  outline-offset: -2px;
+}
+
+.hl-collapsible__trigger:disabled {
+  background: var(--hl-disabled, #f1f5f9);
+  color: var(--hl-collapsible-disabled);
+  cursor: not-allowed;
+}
+
+.hl-collapsible__labels {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-inline-size: 0;
+}
+
+.hl-collapsible__title,
+.hl-collapsible__subtitle {
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+  text-wrap: pretty;
+}
+
+.hl-collapsible__title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.hl-collapsible__subtitle {
+  color: var(--hl-collapsible-muted);
+  font-size: 0.75rem;
+  line-height: 1.5;
+  margin-block-start: 0.125rem;
+}
+
+.hl-collapsible__chevron {
+  block-size: 1rem;
+  color: var(--hl-collapsible-muted);
+  flex: 0 0 auto;
+  inline-size: 1rem;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.75;
+  transition: transform 200ms cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.hl-collapsible[data-hl-open='true'] .hl-collapsible__chevron { transform: rotate(180deg); }
+
+.hl-collapsible__actions {
+  align-items: center;
+  align-self: stretch;
+  display: flex;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-inline-start: auto;
+  max-inline-size: 100%;
+  min-inline-size: 0;
+  padding-block: 0.5rem;
+  padding-inline-end: 1rem;
+  padding-inline-start: 0.5rem;
+}
+
+.hl-collapsible__content {
+  border-block-start: 1px solid var(--hl-collapsible-border);
+  box-sizing: border-box;
+  color: var(--hl-collapsible-foreground);
+  font: inherit;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  max-inline-size: 100%;
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+  padding-block: 0.75rem;
+  padding-inline: 1rem;
+}
+
+[data-theme='dark'] .hl-collapsible,
+.hl-collapsible[data-theme='dark'] {
+  --hl-collapsible-surface: var(--hl-background, #182235);
+  --hl-collapsible-foreground: var(--hl-foreground, #f8fafc);
+  --hl-collapsible-muted: var(--hl-muted-foreground, #cbd5e1);
+  --hl-collapsible-border: var(--hl-border, #475569);
+  --hl-collapsible-hover: var(--hl-muted, #26344b);
+  --hl-collapsible-focus: var(--hl-focus, #c6b8ff);
+  --hl-collapsible-disabled: var(--hl-disabled-foreground, #94a3b8);
+}
+
+@media (forced-colors: active) {
+  .hl-collapsible,
+  .hl-collapsible__trigger,
+  .hl-collapsible__subtitle,
+  .hl-collapsible__chevron,
+  .hl-collapsible__content {
+    background: Canvas;
+    color: CanvasText;
+    forced-color-adjust: auto;
+  }
+
+  .hl-collapsible,
+  .hl-collapsible__content { border-color: CanvasText; }
+  .hl-collapsible__trigger:focus-visible { outline-color: Highlight; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hl-collapsible__trigger,
+  .hl-collapsible__chevron { transition-duration: 0.01ms; }
+}

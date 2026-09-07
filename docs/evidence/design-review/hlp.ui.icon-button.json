@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.icon-button",
+  "verdict": "approved",
+  "reviewer": "cic",
+  "recordedAt": "2026-08-27T05:37:23.569Z",
+  "notes": "padding or margins are off on the blazor side. the react side has no padding or margin",
+  "reference": {
+    "revision": "e99e4dc9b7ac7ef3e06312c5d46e4ff1f0abdad1be4db7d65d8aaef618ecd8be",
+    "source": "gallery/scenarios/hlp.ui.icon-button.json",
+    "pin": "e4c44eca8918b135e2dcd36060a8e8582d336f89",
+    "surface": {
+      "conformance/hlp.ui.icon-button/fixtures.yaml": "c6ae59de210638fff4e32a24c3454fd936b6a53b61124c644d03eac68789900b",
+      "conformance/hlp.ui.icon-button/quality-fixtures.yaml": "8cc2d9b4e175bdf91e10648c4bbd85d58739d3fea3b56b2bcf2a63d5a4517629",
+      "gallery/projections/blazor/Stories/IconButton.stories.razor": "2c1cb1ed981f5c86a25c37016a953e0a2b63352a0dbe87473b54262f8c895b9a",
+      "gallery/projections/blazor/Stories/IconButtonScenario.razor": "e86508ed66b4b3a6804cae6122a3a98f6720731892ae625b520279c96f1a1dc5",
+      "gallery/projections/react/src/IconButton.stories.tsx": "91f9956deb5c070754076cd38abe690638625185c2a7adadf5a832d04692e867",
+      "gallery/scenarios/hlp.ui.icon-button.json": "5f2afb42ec822cf205c443301d0a66c3a5be97ab911fdd10d8eef5dc9d0535be",
+      "projections/blazor/ui/hlp.ui.icon-button/IconButtonTypes.cs": "30c234e6f21feaeb7c9bd3d032f5101381ec6cefbdd64d84827f013d7735a441",
+      "projections/blazor/ui/hlp.ui.icon-button/ShipyardIconButton.razor": "269d277d3e5c29780ce09ad3d07e437b3a487f19459cdea51cd7295826022752",
+      "projections/blazor/ui/hlp.ui.icon-button/wwwroot/icon-button.css": "b0c99f628eca0f7d0520582dcb1726ad38703775c02878dc71d5d124169694b3",
+      "projections/react/ui/hlp.ui.icon-button/src/IconButton.tsx": "8c9433855e2bf2a8624a4c40667546251fb563e8b6ac28681a7aa9873ee9d2cf",
+      "projections/react/ui/hlp.ui.icon-button/src/index.ts": "fcd1328f3712b044ade16025791af0bbfcfd6bb3683746abbc706127d1df426d",
+      "projections/react/ui/hlp.ui.icon-button/src/style.css": "a3ee8772db2e7b37f23ecb4d643e422d772fe62c4554b1cad4c1cc16c7461c96",
+      "specs/modules/ui/hlp.ui.icon-button/scenarios.json": "5f2afb42ec822cf205c443301d0a66c3a5be97ab911fdd10d8eef5dc9d0535be",
+      "specs/modules/ui/hlp.ui.icon-button/style.css": "a3ee8772db2e7b37f23ecb4d643e422d772fe62c4554b1cad4c1cc16c7461c96"
+    }
+  }
+}

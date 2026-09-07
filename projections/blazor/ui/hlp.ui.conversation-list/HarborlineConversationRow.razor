@@ -1,0 +1,83 @@
+@namespace Harborline.UIAdapters.Blazor.Components.AI
+@implements IAsyncDisposable
+@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.JSInterop
+@inject IJSRuntime JavaScript
+
+@if (mode == Mode.Rename)
+{
+    <li class="hl-conversation-list__item hl-conversation-list__item--editing">
+        <form class="hl-conversation-list__rename-form" @onsubmit="CommitAsync" @onsubmit:preventDefault="true">
+            <input @ref="input" class="hl-conversation-list__rename-input" value="@draft"
+                   @oninput="e => draft = e.Value?.ToString() ?? string.Empty" @onblur="BlurAsync"
+                   @onkeydown="RenameKeyAsync" aria-label="@Labels.Rename" />
+        </form>
+    </li>
+}
+else if (mode == Mode.Delete)
+{
+    <li class="hl-conversation-list__item hl-conversation-list__item--confirm" @onkeydown="DeleteKeyAsync">
+        <p class="hl-conversation-list__confirm-title">@Item.Title</p>
+        <div class="hl-conversation-list__confirm-actions">
+            <button @ref="confirm" type="button" class="hl-conversation-list__confirm danger" @onclick="ConfirmDeleteAsync">
+                <span aria-hidden="true" class="hl-conversation-list__danger-mark"><svg fill="none" focusable="false" viewBox="0 0 16 16"><path d="M8 2.5 14 13H2L8 2.5Z"></path><path d="M8 6v3.25M8 11.25h.01"></path></svg></span>@Labels.ConfirmDelete
+            </button>
+            <button type="button" class="hl-conversation-list__cancel" @onclick="CancelDeleteAsync">@Labels.Cancel</button>
+        </div>
+    </li>
+}
+else
+{
+    <li class="@(Active ? "hl-conversation-list__item hl-conversation-list__item--active" : "hl-conversation-list__item")"
+        data-active="@(Active ? "true" : null)">
+        <button type="button" class="hl-conversation-list__select" aria-current="@(Active ? "true" : null)" @onclick="() => OnSelect.InvokeAsync(Item.Id)">
+            <span class="hl-conversation-list__title">@Item.Title</span>
+            @if (!string.IsNullOrWhiteSpace(Item.Preview)) { <span class="hl-conversation-list__preview">@Item.Preview</span> }
+            <span class="hl-conversation-list__timestamp">@Item.Timestamp</span>
+        </button>
+        @if (OnRename.HasDelegate || OnDelete.HasDelegate)
+        {
+            <div class="hl-conversation-list__row-actions">
+                @if (OnRename.HasDelegate)
+                {
+                    <button @ref="renameTrigger" type="button" class="hl-conversation-list__row-action"
+                            aria-label="@($"{Labels.Rename}: {Item.Title}")" @onclick="BeginRenameAsync"><svg aria-hidden="true" fill="none" focusable="false" viewBox="0 0 16 16"><path d="m3 11.75-.5 2 2-.5L12.75 5 11 3.25 3 11.75Z"></path><path d="m9.75 4.5 1.75 1.75"></path></svg></button>
+                }
+                @if (OnDelete.HasDelegate)
+                {
+                    <button @ref="deleteTrigger" type="button" class="hl-conversation-list__row-action hl-conversation-list__row-action--delete"
+                            aria-label="@($"{Labels.Delete}: {Item.Title}")" @onclick="BeginDeleteAsync"><svg aria-hidden="true" fill="none" focusable="false" viewBox="0 0 16 16"><path d="M4 4l8 8M12 4l-8 8"></path></svg></button>
+                }
+            </div>
+        }
+        <span class="hl-sr-only">Actions for @Item.Title</span>
+    </li>
+}
+
+@code {
+    [Parameter, EditorRequired] public ConversationSummary Item { get; set; } = default!;
+    [Parameter] public bool Active { get; set; }
+    [Parameter, EditorRequired] public ResolvedConversationLabels Labels { get; set; } = default!;
+    [Parameter] public EventCallback<string> OnSelect { get; set; }
+    [Parameter] public EventCallback<(string Id, string Title)> OnRename { get; set; }
+    [Parameter] public EventCallback<string> OnDelete { get; set; }
+
+    private enum Mode { View, Rename, Delete }
+    private Mode mode;
+    private string draft = "";
+    private bool focusInput, focusConfirm, focusRename, focusDelete, suppressBlur;
+    private ElementReference input, confirm, renameTrigger, deleteTrigger;
+    private IJSObjectReference? module;
+
+    private Task BeginRenameAsync() { draft = Item.Title; mode = Mode.Rename; focusInput = true; return InvokeAsync(StateHasChanged); }
+    private Task BeginDeleteAsync() { mode = Mode.Delete; focusConfirm = true; return InvokeAsync(StateHasChanged); }
+    private async Task CommitAsync() { var value = draft.Trim(); if (value.Length > 0 && value != Item.Title) await OnRename.InvokeAsync((Item.Id, value)); mode = Mode.View; focusRename = true; }
+    private async Task BlurAsync() { if (suppressBlur) { suppressBlur = false; return; } await CommitAsync(); }
+    private async Task RenameKeyAsync(KeyboardEventArgs e) { if (e.Key == "Escape") { suppressBlur = true; draft = Item.Title; mode = Mode.View; focusRename = true; await InvokeAsync(StateHasChanged); } }
+    private async Task ConfirmDeleteAsync() { await OnDelete.InvokeAsync(Item.Id); mode = Mode.View; }
+    private async Task CancelDeleteAsync() { mode = Mode.View; focusDelete = true; await InvokeAsync(StateHasChanged); }
+    private async Task DeleteKeyAsync(KeyboardEventArgs e) { if (e.Key == "Escape") await CancelDeleteAsync(); }
+    protected override async Task OnAfterRenderAsync(bool first) { if (focusInput) { focusInput = false; await (await ModuleAsync()).InvokeVoidAsync("select", input); } if (focusConfirm) { focusConfirm = false; await (await ModuleAsync()).InvokeVoidAsync("focus", confirm); } if (focusRename) { focusRename = false; await (await ModuleAsync()).InvokeVoidAsync("focus", renameTrigger); } if (focusDelete) { focusDelete = false; await (await ModuleAsync()).InvokeVoidAsync("focus", deleteTrigger); } }
+    private async ValueTask<IJSObjectReference> ModuleAsync() => module ??= await JavaScript.InvokeAsync<IJSObjectReference>("import", "./_content/Harborline.UIAdapters.Blazor/conversation-list.js");
+    public async ValueTask DisposeAsync() { if (module is not null) try { await module.DisposeAsync(); } catch (JSDisconnectedException) { } }
+}

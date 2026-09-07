@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.check-box",
+  "verdict": "approved",
+  "reviewer": "cic",
+  "recordedAt": "2026-08-27T05:36:00.395Z",
+  "notes": "the check mark is not aligned correctly",
+  "reference": {
+    "revision": "96bd78da8f36b324dfee4435926dc792a6d189ec2f776d5afbef66b2b37d35d3",
+    "source": "gallery/scenarios/hlp.ui.check-box.json",
+    "pin": "e4c44eca8918b135e2dcd36060a8e8582d336f89",
+    "surface": {
+      "conformance/hlp.ui.check-box/fixtures.yaml": "49b004306975c717ce007974e30c30ab115a2b33ac7f6c811087603b3dffc63c",
+      "conformance/hlp.ui.check-box/quality-fixtures.yaml": "c123b7efd1fa8f8bbab3ba2336128e82d7f00cbdb6993b301901d066156f055a",
+      "gallery/projections/blazor/Stories/CheckBox.stories.razor": "b24e51dc9d535d2bb3934dfb8ac0637db84cb4510758941a8907823a3a5eda47",
+      "gallery/projections/blazor/Stories/CheckBoxScenario.razor": "6e4256e40354a1253c687c12029835d1bcabc585ed6498dedb31f1125ee7debf",
+      "gallery/projections/react/src/CheckBox.stories.tsx": "80bc1a6121957ae53d0bc2fdb06a082c00be872a658577d1e2efa0f668b089bf",
+      "gallery/scenarios/hlp.ui.check-box.json": "80f4c7f709a9e055fa2cd7c2391f95009ae7af40a3831fe6bfdffbcde98cffb3",
+      "projections/blazor/ui/hlp.ui.check-box/CheckBoxTypes.cs": "4d4bb4406a4fc4aca59512041242974d471cfc8a74e94308d9f2c8cada3690eb",
+      "projections/blazor/ui/hlp.ui.check-box/ShipyardCheckBox.razor": "711309cf48b46cbda2056df86d3a3a913f908c8b753b12867ba32fbc36c096a6",
+      "projections/blazor/ui/hlp.ui.check-box/wwwroot/check-box.css": "84b899c4ad132a48c5150b9dc10be5a8a4e06ad345bae4f863f340c4be7b1da6",
+      "projections/blazor/ui/hlp.ui.check-box/wwwroot/check-box.js": "c0971a2c25b4711722be212a93ebf799b37cc6d3e86cf880c00b631b97e8a533",
+      "projections/react/ui/hlp.ui.check-box/src/CheckBox.tsx": "b59d439f8cca7c50a2825b449b786925bd3c8ff71dc66a80cdbc965966fbec30",
+      "projections/react/ui/hlp.ui.check-box/src/index.ts": "6c7fb8554a10383d54f0dbb641a9c607b37952dc1f251bbab2d61103545bf005",
+      "projections/react/ui/hlp.ui.check-box/src/style.css": "31bcd19cc4fae71bb24b851957aa96ceae12d5eae9efef501a2c37a932c6aaf4",
+      "specs/modules/ui/hlp.ui.check-box/scenarios.json": "80f4c7f709a9e055fa2cd7c2391f95009ae7af40a3831fe6bfdffbcde98cffb3",
+      "specs/modules/ui/hlp.ui.check-box/style.css": "31bcd19cc4fae71bb24b851957aa96ceae12d5eae9efef501a2c37a932c6aaf4"
+    }
+  }
+}

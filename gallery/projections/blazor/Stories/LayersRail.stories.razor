@@ -1,0 +1,26 @@
+@attribute [Stories("Platform/Layers Rail")]
+<Stories TComponent="LayersRailScenario">
+    @foreach (var scenario in Scenarios)
+    {
+        <Story Name="@scenario.Name">
+            <Arguments><Arg For="_ => _.ScenarioId" Value="@scenario.Id" /></Arguments>
+            <Template><LayersRailScenario @attributes="context.Args" /></Template>
+        </Story>
+    }
+    <Story Name="Content resilience"><Arguments><Arg For="_ => _.ScenarioId" Value='"layers-rail.content"'/></Arguments><Template><LayersRailScenario @attributes="context.Args"/></Template></Story>
+</Stories>
+
+@code {
+    private static readonly (string Id, string Name)[] Scenarios =
+    [
+        ("layers-rail.structure", "Rail structure"),
+        ("layers-rail.lenses", "Lens states and shortcuts"),
+        ("layers-rail.outline", "Outline keyboard and focus"),
+        ("layers-rail.provenance", "Provenance, insert, and empty"),
+        ("layers-rail.locale-en", "English locale"),
+        ("layers-rail.locale-pseudo", "Pseudo locale"),
+        ("layers-rail.locale-ar", "Arabic locale"),
+        ("layers-rail.theme-light", "Light theme"),
+        ("layers-rail.theme-dark", "Dark theme"),
+    ];
+}

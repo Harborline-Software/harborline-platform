@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 1,
+  "projection": "react",
+  "moduleId": "hlp.ui.activity-log",
+  "scenarios": [
+    {
+      "scenarioId": "activity-log.empty",
+      "sha256": "b0a354f0bb7749e4407246fee16024e225518adfacb808ec135b861e72e1d7bb",
+      "bytes": 3386,
+      "artifact": "../baselines/sha256/b0a354f0bb7749e4407246fee16024e225518adfacb808ec135b861e72e1d7bb.png"
+    },
+    {
+      "scenarioId": "activity-log.list",
+      "sha256": "9d54f626d84ca6d42e6989d011534dba363b1df877741ba90964771004f1ca22",
+      "bytes": 9288,
+      "artifact": "../baselines/sha256/9d54f626d84ca6d42e6989d011534dba363b1df877741ba90964771004f1ca22.png"
+    },
+    {
+      "scenarioId": "activity-log.table",
+      "sha256": "615a511838c01907a5f2bd493ae81c2e5bd06a49285c87979c01c4cda30c2b66",
+      "bytes": 9655,
+      "artifact": "../baselines/sha256/615a511838c01907a5f2bd493ae81c2e5bd06a49285c87979c01c4cda30c2b66.png"
+    },
+    {
+      "scenarioId": "activity-log.responsive",
+      "sha256": "615a511838c01907a5f2bd493ae81c2e5bd06a49285c87979c01c4cda30c2b66",
+      "bytes": 9655,
+      "artifact": "../baselines/sha256/615a511838c01907a5f2bd493ae81c2e5bd06a49285c87979c01c4cda30c2b66.png"
+    },
+    {
+      "scenarioId": "activity-log.disclosure",
+      "sha256": "e529a46fb787c434cbc61d8257419817ffe0f94ad90428455a1644a15cc03bad",
+      "bytes": 9562,
+      "artifact": "../baselines/sha256/e529a46fb787c434cbc61d8257419817ffe0f94ad90428455a1644a15cc03bad.png"
+    },
+    {
+      "scenarioId": "activity-log.invalid",
+      "sha256": "b0a354f0bb7749e4407246fee16024e225518adfacb808ec135b861e72e1d7bb",
+      "bytes": 3386,
+      "artifact": "../baselines/sha256/b0a354f0bb7749e4407246fee16024e225518adfacb808ec135b861e72e1d7bb.png"
+    },
+    {
+      "scenarioId": "activity-log.locale-en",
+      "sha256": "615a511838c01907a5f2bd493ae81c2e5bd06a49285c87979c01c4cda30c2b66",
+      "bytes": 9655,
+      "artifact": "../baselines/sha256/615a511838c01907a5f2bd493ae81c2e5bd06a49285c87979c01c4cda30c2b66.png"
+    },
+    {
+      "scenarioId": "activity-log.locale-pseudo",
+      "sha256": "615a511838c01907a5f2bd493ae81c2e5bd06a49285c87979c01c4cda30c2b66",
+      "bytes": 9655,
+      "artifact": "../baselines/sha256/615a511838c01907a5f2bd493ae81c2e5bd06a49285c87979c01c4cda30c2b66.png"
+    },
+    {
+      "scenarioId": "activity-log.locale-ar",
+      "sha256": "3e6adb73a4afc52f7d21e316693979f652b3778132abf0dbe415d1e7ac731f2c",
+      "bytes": 8974,
+      "artifact": "../baselines/sha256/3e6adb73a4afc52f7d21e316693979f652b3778132abf0dbe415d1e7ac731f2c.png"
+    },
+    {
+      "scenarioId": "activity-log.theme-light",
+      "sha256": "615a511838c01907a5f2bd493ae81c2e5bd06a49285c87979c01c4cda30c2b66",
+      "bytes": 9655,
+      "artifact": "../baselines/sha256/615a511838c01907a5f2bd493ae81c2e5bd06a49285c87979c01c4cda30c2b66.png"
+    },
+    {
+      "scenarioId": "activity-log.theme-dark",
+      "sha256": "c9afb4bf8541c98205baa4e16046407da02cd7593d9e1b5468bbab92b6dd0ee9",
+      "bytes": 9890,
+      "artifact": "../baselines/sha256/c9afb4bf8541c98205baa4e16046407da02cd7593d9e1b5468bbab92b6dd0ee9.png"
+    }
+  ]
+}

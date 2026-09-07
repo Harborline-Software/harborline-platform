@@ -1,0 +1,54 @@
+<section class="hl-gallery-scene" data-gallery-probe data-gallery-scenario="@ScenarioId" data-theme="@Theme" dir="@Direction">
+  <header class="hl-gallery-heading">
+    <h2>@Copy.Title</h2>
+    <p>@Copy.Description</p>
+  </header>
+  <div class="hl-gallery-stage">
+    <HarborlineLocaleProvider Locale="@Locale" Catalog="@Catalog">
+      @if(ScenarioId=="search-input.content")
+      {
+        <div class="hl-gallery-feedback-grid">
+          <HarborlineSearchInput AccessibleLabel="Long content" Value="Awaiting third-party structural certification review" />
+          <HarborlineSearchInput AccessibleLabel="Large number" Value="1,284,905" />
+          <HarborlineSearchInput AccessibleLabel="Escaped content" Value="@("Bay 4 <grid C-7> & 8")" />
+          <HarborlineSearchInput AccessibleLabel="Unusual name" Value="Ordnance Survey — Niño Ångström" />
+        </div>
+      }
+      else
+      {
+        <SearchFixture InitialValue="@InitialValue" DebounceMs="@Delay" />
+      }
+    </HarborlineLocaleProvider>
+  </div>
+</section>
+
+@code {
+  [Parameter, EditorRequired] public string ScenarioId { get; set; } = "search-input.defaults";
+
+  private (string Title, string Description) Copy => ScenarioId switch
+  {
+    "search-input.defaults" => ("Defaults", "A controlled searchbox starts empty with localized zero-configuration chrome."),
+    "search-input.debounce" => ("Debounce and busy state", "Draft edits are immediate while only the latest value publishes after the delay."),
+    "search-input.sync-clear" => ("External sync and clear", "External values cancel pending publication and clear publishes an empty value immediately."),
+    "search-input.locale-en" => ("English locale", "Placeholder and clear labels resolve from the locale catalog."),
+    "search-input.locale-pseudo" => ("Pseudo locale", "Expanded search chrome exposes clipping and fixed-width assumptions."),
+    "search-input.locale-ar" => ("Arabic locale", "Logical icon and clear edges follow RTL without changing the value."),
+    "search-input.theme-light" => ("Light theme", "Default, busy, hover, focus, and clear states use public light-theme tokens."),
+    "search-input.theme-dark" => ("Dark theme", "The same search behavior on the Harborline dark surface."),
+    "search-input.content" => ("Content resilience", "Real content spans an overlong label, a grouped large number, escaped markup characters, and a diacritic-rich name."),
+    _ => ("Search input", "Controlled search behavior.")
+  };
+
+  private bool IsArabic => ScenarioId == "search-input.locale-ar";
+  private bool IsPseudo => ScenarioId == "search-input.locale-pseudo";
+  private string Locale => IsArabic ? "ar-SA" : IsPseudo ? "en-XA" : "en-US";
+  private string Direction => IsArabic ? "rtl" : "ltr";
+  private string? Theme => ScenarioId switch { "search-input.theme-light" => "light", "search-input.theme-dark" => "dark", _ => null };
+  private string InitialValue => ScenarioId == "search-input.sync-clear" ? "oak" : IsArabic ? "بلوط" : Theme is not null ? "structure" : string.Empty;
+  private int Delay => ScenarioId == "search-input.debounce" ? 500 : 200;
+  private IReadOnlyDictionary<string, string> Catalog => IsPseudo
+    ? new Dictionary<string, string> { ["structural.search.placeholder"] = "⟦ Šëåřçh šţřûçţûřë îñšþëçţîøñš ······ ⟧", ["structural.search.clear"] = "⟦ Çļëåř šëåřçh ···· ⟧" }
+    : IsArabic
+      ? new Dictionary<string, string> { ["structural.search.placeholder"] = "ابحث في فحوصات الهيكل", ["structural.search.clear"] = "مسح البحث" }
+      : new Dictionary<string, string> { ["structural.search.placeholder"] = "Search inspections…", ["structural.search.clear"] = "Clear search" };
+}

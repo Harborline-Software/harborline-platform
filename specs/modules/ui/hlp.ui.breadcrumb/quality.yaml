@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.breadcrumb",
+  "profileRevision": 1,
+  "riskTier": "B",
+  "fixture": "conformance/hlp.ui.breadcrumb/quality-fixtures.yaml",
+  "gates": {
+    "assertEmptyAndErrorStates": {
+      "disposition": "not-applicable",
+      "rationale": "Ticket 124: a breadcrumb states where the current page sits in a hierarchy, so an empty collection names no location and has no honest sentence to show. The decision is a refusal to render -- an empty trail emits no navigation landmark, no list and no text in either lane, asserted by conformance case breadcrumb.empty in both projections. There is no empty rendering to design, and a scenario that draws nothing is prose (ticket 102), so no gallery scenario declares one.",
+      "decidedBy": "CIC",
+      "rule": "trail-with-no-crumbs-renders-nothing"
+    }
+  },
+  "dimensions": {
+    "accessibility": {"disposition": "required", "caseIds": ["breadcrumb.quality.landmark", "breadcrumb.quality.current", "breadcrumb.quality.reflow", "breadcrumb.quality.focus"]},
+    "internationalization": {"disposition": "required", "caseIds": ["breadcrumb.quality.caller-labels", "breadcrumb.quality.rtl", "breadcrumb.quality.pseudo"], "localeSensitiveFormatting": {"disposition": "not-applicable", "rationale": "Callers supply localized item labels; Breadcrumb formats no locale-sensitive values."}},
+    "theming": {"disposition": "required", "caseIds": ["breadcrumb.quality.light-dark", "breadcrumb.quality.tokens", "breadcrumb.quality.forced-colors", "breadcrumb.quality.visual-parity"]},
+    "keyboard": {"disposition": "required", "caseIds": ["breadcrumb.quality.focus"]},
+    "focus": {"disposition": "required", "caseIds": ["breadcrumb.quality.focus"]},
+    "dismissal": {"disposition": "not-applicable", "rationale": "Breadcrumb is persistent navigation and owns no dismissible surface."},
+    "rtl": {"disposition": "required", "caseIds": ["breadcrumb.quality.rtl"]},
+    "reduced-motion": {"disposition": "not-applicable", "rationale": "Breadcrumb defines no animation or transition."}
+  },
+  "componentStages": [
+    {"id": "contract", "dimensions": ["accessibility", "internationalization", "theming", "keyboard", "focus", "dismissal", "rtl", "reduced-motion"], "gate": "profile and neutral fixture validation"},
+    {"id": "projection-native", "dimensions": ["accessibility", "internationalization", "theming", "keyboard", "focus", "rtl"], "gate": "public React and Blazor native tests"},
+    {"id": "package-consumer", "dimensions": ["accessibility", "internationalization", "theming", "keyboard", "focus", "rtl"], "gate": "packed npm and NuGet consumers"},
+    {"id": "gallery", "dimensions": ["accessibility", "internationalization", "theming", "keyboard", "focus", "rtl"], "gate": "Axe, keyboard, themes, locales, reflow, and visual parity"},
+    {"id": "clean-clone", "dimensions": ["accessibility", "internationalization", "theming", "keyboard", "focus", "dismissal", "rtl", "reduced-motion"], "gate": "complete repository gate from the recorded commit"}
+  ]
+}

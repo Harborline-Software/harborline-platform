@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "issue": "HLF-052",
+  "waveId": "wave-01-01",
+  "status": "PASS",
+  "modules": [
+    "hlp.ui.aspect-lens",
+    "hlp.ui.cn",
+    "hlp.ui.default-strings",
+    "hlp.ui.error-card",
+    "hlp.ui.form-view",
+    "hlp.ui.loading-state"
+  ],
+  "contracts": {
+    "frozen": 6,
+    "interfaceRevisions": 6,
+    "fixtureRevisions": 6,
+    "qualityProfiles": 6,
+    "sourceCommit": "a5036ff8b500e0d857d7e0a698408e7cf7f6cf31"
+  },
+  "proof": {
+    "repositoryBuild": "PASS",
+    "repositoryValidation": "PASS",
+    "nativeTests": 979,
+    "sharedResults": {"passed": 208, "expected": 208},
+    "packageConsumerGroups": {"passed": 4, "expected": 4},
+    "galleryScenarios": 45,
+    "accessibilityScans": 90,
+    "visualParityComparisons": 51,
+    "qualityCases": 79,
+    "provenanceRecords": 6,
+    "configuredRemotes": 0,
+    "distributionAuthorityChanged": false
+  },
+  "performance": {
+    "sharedGateStrategy": "one shared build followed by eight parallel read-only module runners",
+    "measuredUiSharedSeconds": 118,
+    "caseCoverageRelaxed": false
+  },
+  "completionAccounting": {
+    "carrierEssentialRowsGreen": 8,
+    "carrierEssentialRowsRequired": 74,
+    "productGatesComplete": 0,
+    "productGatesRequired": 8,
+    "essentialProductGates": ["Dynamic Forms", "Workflows", "Calculations", "Views", "Reports", "Scheduling", "Aggregates", "App Shell"]
+  },
+  "nextGate": "Freeze and execute the five non-green rows remaining in wave-01-02; retain the already-green Context Menu row."
+}

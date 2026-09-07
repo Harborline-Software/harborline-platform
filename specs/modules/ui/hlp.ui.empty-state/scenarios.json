@@ -1,0 +1,342 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.empty-state",
+  "sourceFixture": "conformance/hlp.ui.empty-state/fixtures.yaml",
+  "qualityFixture": "conformance/hlp.ui.empty-state/quality-fixtures.yaml",
+  "galleryInterface": {
+    "probeAttribute": "data-gallery-probe",
+    "scenarioAttribute": "data-gallery-scenario",
+    "projectionTitles": {
+      "react": "Platform/Empty State",
+      "blazor": "Platform/Empty State"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "empty-state.informational",
+      "name": "Informational",
+      "surface": "informational",
+      "sourceCaseIds": [
+        "empty-state.informational",
+        "empty-state.no-description",
+        "empty-state.no-action",
+        "empty-state.decorative-icon"
+      ],
+      "sourceQualityCaseIds": [
+        "empty-state.quality.decorative-icon",
+        "empty-state.quality.host-announcement"
+      ],
+      "content": {
+        "blurb": "A caller-owned explanation with a decorative information icon and no implied action.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "variant": "informational",
+          "title": "No results found"
+        },
+        "state": {},
+        "body": [],
+        "footer": []
+      }
+    },
+    {
+      "id": "empty-state.positive",
+      "name": "Positive",
+      "surface": "positive",
+      "sourceCaseIds": [
+        "empty-state.positive",
+        "empty-state.description",
+        "empty-state.decorative-icon"
+      ],
+      "sourceQualityCaseIds": [
+        "empty-state.quality.decorative-icon"
+      ],
+      "content": {
+        "blurb": "A complete state confirms that no outstanding work remains.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "variant": "positive",
+          "title": "No outstanding receivables",
+          "description": "Every posted invoice has been paid."
+        },
+        "state": {},
+        "body": [],
+        "footer": []
+      }
+    },
+    {
+      "id": "empty-state.actionable",
+      "name": "Actionable",
+      "surface": "actionable",
+      "sourceCaseIds": [
+        "empty-state.actionable",
+        "empty-state.description",
+        "empty-state.action",
+        "empty-state.native-button"
+      ],
+      "sourceQualityCaseIds": [
+        "empty-state.quality.native-action",
+        "empty-state.quality.focus",
+        "empty-state.quality.reduced-motion"
+      ],
+      "content": {
+        "blurb": "A native, keyboard-operable action helps the user create the first record.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "variant": "actionable",
+          "title": "No payments yet",
+          "description": "Record a payment to begin tracking this account.",
+          "actionLabel": "Record the first payment",
+          "data-activation-count": "{activations}"
+        },
+        "state": {
+          "activations": {
+            "kind": "counter",
+            "initial": 0
+          }
+        },
+        "body": [],
+        "footer": [
+          {
+            "control": "output",
+            "live": "polite",
+            "text": "Action activations: {activations}"
+          }
+        ]
+      }
+    },
+    {
+      "id": "empty-state.host-accessibility",
+      "name": "Host accessibility",
+      "surface": "host-accessibility",
+      "sourceCaseIds": [
+        "empty-state.host-attributes",
+        "empty-state.action-any-variant",
+        "empty-state.decorative-icon"
+      ],
+      "sourceQualityCaseIds": [
+        "empty-state.quality.decorative-icon",
+        "empty-state.quality.native-action",
+        "empty-state.quality.host-announcement",
+        "empty-state.quality.focus"
+      ],
+      "content": {
+        "blurb": "The host supplies region semantics and an accessible label without turning the module into a live region.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "variant": "informational",
+          "title": "No saved filters",
+          "description": "Saved filters will appear here.",
+          "role": "region",
+          "aria-label": "Saved filters empty state"
+        },
+        "state": {},
+        "body": [],
+        "footer": []
+      }
+    },
+    {
+      "id": "empty-state.locale-pseudo",
+      "name": "Pseudo locale",
+      "surface": "locale-pseudo",
+      "sourceCaseIds": [
+        "empty-state.description",
+        "empty-state.action",
+        "empty-state.host-attributes"
+      ],
+      "sourceQualityCaseIds": [
+        "empty-state.quality.caller-text",
+        "empty-state.quality.locale-direction",
+        "empty-state.quality.pseudo-expansion",
+        "empty-state.quality.formatting-applicability",
+        "empty-state.quality.reflow-200"
+      ],
+      "content": {
+        "blurb": "Expanded caller text exposes clipping and fixed-width assumptions at narrow widths.",
+        "environment": {
+          "locale": "en-XA",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "variant": "actionable",
+          "title": "⟦ Ñø šåṽëđ îñšþëçţîøñ ṽîëŵš ······ ⟧",
+          "description": "⟦ Šåṽë å ṽîëŵ ţø řëţûřñ ţø ţhîš šţřûçţûřë ļåÿøûţ ········ ⟧",
+          "actionLabel": "⟦ Šåṽë ţhîš ṽîëŵ ···· ⟧",
+          "lang": "en-XA",
+          "dir": "ltr"
+        },
+        "state": {},
+        "body": [],
+        "footer": []
+      }
+    },
+    {
+      "id": "empty-state.locale-ar",
+      "name": "Arabic locale",
+      "surface": "locale-ar",
+      "sourceCaseIds": [
+        "empty-state.host-attributes",
+        "empty-state.description",
+        "empty-state.action"
+      ],
+      "sourceQualityCaseIds": [
+        "empty-state.quality.caller-text",
+        "empty-state.quality.locale-direction",
+        "empty-state.quality.rtl"
+      ],
+      "content": {
+        "blurb": "Caller-localized content preserves right-to-left direction and logical alignment.",
+        "environment": {
+          "locale": "ar-SA",
+          "direction": "rtl",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "variant": "actionable",
+          "title": "لا توجد طرق عرض محفوظة",
+          "description": "احفظ طريقة عرض للعودة إلى تخطيط هذا المبنى.",
+          "actionLabel": "حفظ طريقة العرض",
+          "lang": "ar-SA",
+          "dir": "rtl"
+        },
+        "state": {},
+        "body": [],
+        "footer": []
+      }
+    },
+    {
+      "id": "empty-state.theme-light",
+      "name": "Light theme",
+      "surface": "theme-light",
+      "sourceCaseIds": [
+        "empty-state.informational",
+        "empty-state.positive",
+        "empty-state.actionable",
+        "empty-state.action-any-variant",
+        "empty-state.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "empty-state.quality.theme-light",
+        "empty-state.quality.theme-tokens",
+        "empty-state.quality.runtime-switch",
+        "empty-state.quality.contrast",
+        "empty-state.quality.forced-colors",
+        "empty-state.quality.reduced-motion",
+        "empty-state.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "Informational, positive, and actionable roles on the neutral light fixture.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<div className=\"hl-gallery-feedback-grid\"><EmptyState variant=\"informational\" title=\"No search results\" description=\"Adjust the filters and try again.\" /><EmptyState variant=\"positive\" title=\"All inspections are complete\" description=\"There is no outstanding work for this structure.\" /><EmptyState variant=\"actionable\" title=\"No saved views\" description=\"Save a view to return to this layout.\" action={{ label: 'Save this view', onClick: () => {} }} /></div>",
+            "blazor": "<div class=\"hl-gallery-feedback-grid\"><HarborlineEmptyState Variant=\"EmptyStateVariant.Informational\" Title=\"No search results\" Description=\"Adjust the filters and try again.\" /><HarborlineEmptyState Variant=\"EmptyStateVariant.Positive\" Title=\"All inspections are complete\" Description=\"There is no outstanding work for this structure.\" /><HarborlineEmptyState Variant=\"EmptyStateVariant.Actionable\" Title=\"No saved views\" Description=\"Save a view to return to this layout.\" ActionLabel=\"Save this view\" OnAction=\"HandleAction\" /></div>",
+            "rationale": "The fixture renders three sibling empty-state component instances in a grid; the closed vocabulary has no component-instance or grid descriptor, and one props object cannot represent three independently configured instances."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "empty-state.theme-dark",
+      "name": "Dark theme",
+      "surface": "theme-dark",
+      "sourceCaseIds": [
+        "empty-state.informational",
+        "empty-state.positive",
+        "empty-state.actionable",
+        "empty-state.action-any-variant",
+        "empty-state.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "empty-state.quality.theme-dark",
+        "empty-state.quality.theme-tokens",
+        "empty-state.quality.runtime-switch",
+        "empty-state.quality.contrast",
+        "empty-state.quality.forced-colors",
+        "empty-state.quality.reduced-motion",
+        "empty-state.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "The same semantic vocabulary on the Harborline dark surface.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "dark",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<div className=\"hl-gallery-feedback-grid\"><EmptyState variant=\"informational\" title=\"No search results\" description=\"Adjust the filters and try again.\" /><EmptyState variant=\"positive\" title=\"All inspections are complete\" description=\"There is no outstanding work for this structure.\" /><EmptyState variant=\"actionable\" title=\"No saved views\" description=\"Save a view to return to this layout.\" action={{ label: 'Save this view', onClick: () => {} }} /></div>",
+            "blazor": "<div class=\"hl-gallery-feedback-grid\"><HarborlineEmptyState Variant=\"EmptyStateVariant.Informational\" Title=\"No search results\" Description=\"Adjust the filters and try again.\" /><HarborlineEmptyState Variant=\"EmptyStateVariant.Positive\" Title=\"All inspections are complete\" Description=\"There is no outstanding work for this structure.\" /><HarborlineEmptyState Variant=\"EmptyStateVariant.Actionable\" Title=\"No saved views\" Description=\"Save a view to return to this layout.\" ActionLabel=\"Save this view\" OnAction=\"HandleAction\" /></div>",
+            "rationale": "The fixture renders three sibling empty-state component instances in a grid; the closed vocabulary has no component-instance or grid descriptor, and one props object cannot represent three independently configured instances."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "empty-state.content",
+      "name": "Content resilience",
+      "surface": "long-content",
+      "sourceCaseIds": [
+        "empty-state.actionable",
+        "empty-state.no-description"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "Hostile content carries a long action label, the grouped number 1,284,905, escaped angle brackets and an ampersand, a name with diacritics and an em dash, and omitted optional fields.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<><EmptyState variant=\"actionable\" title={'Ordnance Survey — Niño Ångström'} description={'1,284,905 records at Bay 4 <grid C-7> & 8'} action={{label:'Review affected inspection records and continue',onClick:()=>{}}} /><EmptyState variant=\"informational\" title={'Awaiting third-party structural certification review'} /></>",
+            "blazor": "<HarborlineEmptyState Variant=\"EmptyStateVariant.Actionable\" Title=\"@(\"Ordnance Survey — Niño Ångström\")\" Description=\"@(\"1,284,905 records at Bay 4 <grid C-7> & 8\")\" ActionLabel=\"@(\"Review affected inspection records and continue\")\" OnAction=\"HandleAction\" /><HarborlineEmptyState Variant=\"EmptyStateVariant.Informational\" Title=\"@(\"Awaiting third-party structural certification review\")\" />",
+            "rationale": "The closed control vocabulary cannot express paired EmptyState instances with independently omitted optional fields and hostile-but-valid caller text."
+          }
+        ],
+        "footer": []
+      }
+    }
+  ]
+}

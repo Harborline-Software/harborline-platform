@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.aspect-lens",
+  "accessibilityCases": [
+    {"id": "aspect-lens.quality.paired-signal", "expected": {"toneNeverSoleSignal": true, "badgeOrTitleSupported": true}},
+    {"id": "aspect-lens.quality.structure-context", "expected": {"filteredNodesRemainPresent": true, "singleParentOutline": true}},
+    {"id": "aspect-lens.quality.fail-closed", "expected": {"unknownProvenanceLocked": true, "unresolvedNeverEditable": true}}
+  ],
+  "internationalizationCases": [
+    {"id": "aspect-lens.quality.localized-input", "expected": {"labelsHostResolved": true, "moduleDoesNotTranslate": true}},
+    {"id": "aspect-lens.quality.unicode", "expected": {"nodeLabel": "فحص السلامة", "badge": "حساس", "bytePreserved": true}},
+    {"id": "aspect-lens.quality.direction-neutral", "expected": {"physicalPositioningAbsent": true, "logicalOrderPreserved": true}},
+    {"id": "aspect-lens.quality.formatting-applicability", "expected": {"disposition": "not-applicable", "requiresRationale": true}}
+  ],
+  "themingCases": []
+}

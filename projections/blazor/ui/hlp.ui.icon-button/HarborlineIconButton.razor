@@ -1,0 +1,26 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Buttons
+@inherits HarborlineComponentBase
+
+<button class="@CombineClasses("hl-icon-button", $"hl-icon-button--{AppearanceName}", $"hl-icon-button--{SizeName}")"
+        style="@CombineStyles()" @attributes="AdditionalAttributes" type="@ButtonType.ToString().ToLowerInvariant()"
+        disabled="@(Disabled || Loading)" aria-busy="@(Loading ? "true" : null)" aria-label="@AccessibleName"
+        form="@Form" data-hl-loading="@(Loading ? "true" : null)" data-hl-size="@SizeName" data-hl-variant="@AppearanceName" @onclick="HandleClickAsync">@if (Loading)
+    {<svg aria-hidden="true" class="hl-icon-button__loading-indicator" data-hl-loading-indicator="true" focusable="false" viewBox="0 0 24 24"><circle class="hl-icon-button__loading-track" cx="12" cy="12" r="9" /><path class="hl-icon-button__loading-segment" d="M12 3a9 9 0 0 1 9 9" /></svg>}
+    else
+    {@Icon}</button>
+
+@code {
+    [Parameter, EditorRequired] public string AccessibleName { get; set; } = string.Empty;
+    [Parameter] public RenderFragment? Icon { get; set; }
+    [Parameter] public IconButtonAppearance Appearance { get; set; }
+    [Parameter] public IconButtonSize Size { get; set; } = IconButtonSize.Medium;
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public bool Loading { get; set; }
+    [Parameter] public ButtonType ButtonType { get; set; } = ButtonType.Button;
+    [Parameter] public string? Form { get; set; }
+    [Parameter] public EventCallback<MouseEventArgs> OnClick { get; set; }
+    private string AppearanceName => Appearance.ToString().ToLowerInvariant();
+    private string SizeName => Size switch { IconButtonSize.Small => "sm", IconButtonSize.Medium => "md", IconButtonSize.Large => "lg", _ => "touch" };
+    protected override void OnParametersSet() { if (string.IsNullOrWhiteSpace(AccessibleName)) throw new InvalidOperationException("accessible-name-required"); }
+    private Task HandleClickAsync(MouseEventArgs args) => Disabled || Loading ? Task.CompletedTask : OnClick.InvokeAsync(args);
+}

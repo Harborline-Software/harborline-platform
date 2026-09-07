@@ -1,0 +1,52 @@
+{
+  "schema": "harborline.scheduling.problem-draft/v0",
+  "id": "medical-oncology.feasible",
+  "version": "0.1.0",
+  "title": "Synthetic oncology protocol chain",
+  "timezone": "UTC",
+  "metadata": { "synthetic": true, "fixtureKind": "feasible", "safety": "Architecture-only synthetic timing; not clinical guidance." },
+  "anchors": [
+    { "id": "anchor-start", "label": "Synthetic cycle anchor", "kind": "date", "value": "2026-09-01" }
+  ],
+  "windows": [
+    { "id": "horizon", "label": "Synthetic protocol horizon", "start": "2026-09-01", "end": "2026-12-31" },
+    { "id": "cycle-window", "label": "Cycle window", "startOffset": { "anchorId": "anchor-start", "offset": { "amount": 0, "unit": "day" } }, "endOffset": { "anchorId": "anchor-start", "offset": { "amount": 84, "unit": "day" } } }
+  ],
+  "locations": [
+    { "id": "suite-a", "label": "Synthetic treatment suite", "tags": ["synthetic"] }
+  ],
+  "phases": [
+    { "id": "phase-lab", "label": "Readiness phase", "sequence": 1, "locationRefs": ["suite-a"] },
+    { "id": "phase-session", "label": "Session phase", "sequence": 2, "locationRefs": ["suite-a"], "predecessorPhaseRefs": ["phase-lab"] }
+  ],
+  "resources": [
+    { "id": "resource-lab", "label": "Synthetic lab resource", "kind": "pool", "capabilities": [{ "capabilityRef": "cap.lab", "count": 1 }], "availabilityWindowRefs": ["horizon"], "capacity": { "quantity": 3, "unit": "cycle", "cumulative": true, "windowRefs": ["horizon"] }, "locationRefs": ["suite-a"] },
+    { "id": "resource-clearance", "label": "Synthetic clearance resource", "kind": "party", "capabilities": [{ "capabilityRef": "cap.clearance", "count": 1 }], "availabilityWindowRefs": ["horizon"], "locationRefs": ["suite-a"] },
+    { "id": "resource-admin", "label": "Synthetic administration resource", "kind": "pool", "capabilities": [{ "capabilityRef": "cap.administration", "count": 1 }], "availabilityWindowRefs": ["horizon"], "locationRefs": ["suite-a"] },
+    { "id": "authority-clinical", "label": "Synthetic clinical authority", "kind": "party", "capabilities": [{ "capabilityRef": "cap.clinical-approval", "count": 1 }], "availabilityWindowRefs": ["horizon"] }
+  ],
+  "capacityPools": [
+    { "id": "pool-cycle", "label": "Cycle capacity", "amount": 6, "unit": "step", "cumulative": true, "windowRefs": ["horizon"], "resourceRefs": ["resource-lab", "resource-clearance", "resource-admin"] }
+  ],
+  "policies": [
+    { "id": "policy-approval", "label": "Plan approval policy", "kind": "approval", "ref": "policy://synthetic/protocol-approval" },
+    { "id": "policy-capacity", "label": "Cycle capacity policy", "kind": "capacity", "ref": "policy://synthetic/cycle-capacity" },
+    { "id": "policy-commit", "label": "Proposal-only commit policy", "kind": "commit", "ref": "policy://synthetic/proposal-only" }
+  ],
+  "constraints": [
+    { "id": "constraint-cycle-window", "label": "Cycle window", "severity": "hard", "kind": "window", "ruleRef": "rule://synthetic/cycle-window", "appliesToRefs": ["demand:lab-step", "demand:clearance-step", "demand:admin-step"] },
+    { "id": "constraint-cycle-order", "label": "Protocol order", "severity": "hard", "kind": "precedence", "ruleRef": "rule://synthetic/protocol-order", "appliesToRefs": ["demand:clearance-step", "demand:admin-step"] },
+    { "id": "constraint-continuity", "label": "Prefer continuity", "severity": "soft", "kind": "continuity", "calculationRef": "calc://synthetic/continuity", "appliesToRefs": ["demand:admin-step"] }
+  ],
+  "approvals": [
+    { "id": "approval-plan", "label": "Synthetic plan approval", "requirementKind": "approval", "scope": "problem", "subjectRefs": ["problem"], "authorityRef": "resource:authority-clinical", "policyRef": "policy-approval", "requiredCapabilityRefs": ["cap.clinical-approval"], "satisfierRefs": ["resource:authority-clinical"] }
+  ],
+  "demands": [
+    { "id": "lab-step", "label": "Synthetic lab readiness step", "duration": { "amount": 1, "unit": "day" }, "windowRefs": ["cycle-window"], "phaseRef": "phase-lab", "locationRefs": ["suite-a"], "requiredCapabilities": [{ "capabilityRef": "cap.lab", "count": 1 }], "capacityUsage": [{ "capacityPoolId": "pool-cycle", "amount": 1, "unit": "step", "mode": "consume" }], "repetition": { "kind": "fixed-count", "count": 2, "every": { "amount": 21, "unit": "day" } }, "constraintRefs": ["constraint-cycle-window"], "approvalRequirementRefs": ["approval-plan"] },
+    { "id": "clearance-step", "label": "Synthetic clearance step", "duration": { "amount": 1, "unit": "day" }, "windowRefs": ["cycle-window"], "phaseRef": "phase-lab", "locationRefs": ["suite-a"], "requiredCapabilities": [{ "capabilityRef": "cap.clearance", "count": 1 }], "capacityUsage": [{ "capacityPoolId": "pool-cycle", "amount": 1, "unit": "step", "mode": "consume" }], "predecessors": [{ "demandId": "lab-step", "relation": "finish-to-start", "minGap": { "amount": 1, "unit": "day" }, "constraintRef": "constraint-cycle-order" }], "constraintRefs": ["constraint-cycle-window", "constraint-cycle-order"], "approvalRequirementRefs": ["approval-plan"] },
+    { "id": "admin-step", "label": "Synthetic administration step", "duration": { "amount": 1, "unit": "day" }, "windowRefs": ["cycle-window"], "phaseRef": "phase-session", "locationRefs": ["suite-a"], "requiredCapabilities": [{ "capabilityRef": "cap.administration", "count": 1 }], "capacityUsage": [{ "capacityPoolId": "pool-cycle", "amount": 1, "unit": "step", "mode": "occupy" }], "predecessors": [{ "demandId": "clearance-step", "relation": "finish-to-start", "minGap": { "amount": 1, "unit": "day" }, "constraintRef": "constraint-cycle-order" }], "constraintRefs": ["constraint-cycle-window", "constraint-cycle-order"], "softConstraintRefs": ["constraint-continuity"], "approvalRequirementRefs": ["approval-plan"] }
+  ],
+  "strategy": { "alias": "heuristic", "parameters": { "candidateLimit": 64 } },
+  "commitment": { "mode": "proposal-only", "horizonWindowRef": "horizon", "capacityPoolRefs": ["pool-cycle"], "policyRefs": ["policy-commit"] },
+  "resultMetadata": { "expectedOutcome": "feasible", "deterministicSeed": "synthetic-oncology-ok", "explanationRefs": ["demand:lab-step", "demand:clearance-step", "demand:admin-step", "constraint:constraint-cycle-order"] }
+}

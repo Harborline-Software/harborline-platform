@@ -1,0 +1,7 @@
+@attribute [Stories("Platform/Collapsible")]
+<Stories TComponent="CollapsibleScenario">
+  <Story Name="Defaults and relationships"><Arguments><Arg For="_ => _.ScenarioId" Value='"collapsible.defaults"' /></Arguments><Template><CollapsibleScenario @attributes="context.Args" /></Template></Story>
+  <Story Name="States and interactions"><Arguments><Arg For="_ => _.ScenarioId" Value='"collapsible.states"' /></Arguments><Template><CollapsibleScenario @attributes="context.Args" /></Template></Story>
+  <Story Name="RTL and theme"><Arguments><Arg For="_ => _.ScenarioId" Value='"collapsible.rtl-theme"' /></Arguments><Template><CollapsibleScenario @attributes="context.Args" /></Template></Story>
+  <Story Name="Content resilience"><Arguments><Arg For="_ => _.ScenarioId" Value='"collapsible.content"'/></Arguments><Template><CollapsibleScenario @attributes="context.Args"/></Template></Story>
+</Stories>

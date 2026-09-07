@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.blocks.relative-chains",
+  "interfaceRevision": 2,
+  "status": "draft",
+  "purpose": "Deterministically materialize append-only, date/revision-versioned relative-chain occurrences and explicit supersession records, then project successful current occurrences through the existing source-agnostic due-occurrence port.",
+  "dependencies": ["hlp.foundation.scheduling"],
+  "callerInterface": {
+    "name": "IRelativeChainExpansionService / RelativeChainDueOccurrenceSource",
+    "operations": [
+      "Expand(request) -> current occurrences, appended occurrences, supersessions, typed failures, expected prior ledger version, explanation refs",
+      "DeriveDue(completionHistory, windowStart, windowEnd, asOf) -> successful current incomplete occurrences projected through IDueOccurrenceSource"
+    ]
+  },
+  "canonicalReferences": {
+    "occurrenceFormat": "rc1/{chain}/{node}/{yyyy-MM-dd}/r{revision}",
+    "escaping": "Encode each chain/node UTF-8 byte independently. Leave only RFC 3986 unreserved ALPHA / DIGIT / '-' / '.' / '_' / '~' literal; encode every other byte as '%' followed by two uppercase hexadecimal digits. Consumers treat the result as opaque.",
+    "limits": {"referenceUtf8Bytes":{"minimum":1,"maximum":256},"nodeCount":{"minimum":1,"maximum":1024},"revision":{"minimum":1,"maximum":2147483647},"offsetOrToleranceDays":{"minimum":0,"maximum":36500},"ledgerVersion":{"minimum":0,"maximum":9223372036854775807}}
+  },
+  "invariants": [
+    "Definitions and snapshots are immutable inputs; the service performs no persistence and reads no ambient clock or timezone.",
+    "Occurrences are append-only and identified by chain instance, node, due date, and positive monotonically increasing occurrence revision.",
+    "A same-date derivation with a changed basis or effective semantics appends a new revision and an explicit supersession.",
+    "Current means the unique highest valid unsuperseded revision for a chain instance/node; ambiguous current state fails closed.",
+    "Topological ordering and every tie-break use ordinal NodeId ordering.",
+    "Single-provider/single-resource is the r2 fence; negative/sub-day offsets and arithmetic overflow fail closed.",
+    "ExpectedPriorLedgerVersion is echoed so consumer-owned compare-and-append persistence can reject races.",
+    "The due adapter rejects rich results containing failures and suppresses completion only by exact subject, full versioned schedule ref, and due date."
+  ],
+  "failureCodes": ["UnknownPredecessor","DependencyCycle","DuplicateNodeId","UnsupportedResourceCardinality","UnsupportedNegativeOffset","UnsupportedDefinition","MissingAnchor","DeletedAnchor","DateArithmeticOverflow","AmbiguousCurrentOccurrence","CorruptLedger"],
+  "supersessionReasons": ["AnchorRevised","AnchorMoved","AnchorDeleted","PredecessorRevised","DefinitionRevised","BindingRevised"],
+  "distribution": "internal-only",
+  "package": {"nuget":"Harborline.Blocks.RelativeChains","assembly":"Harborline.Blocks.RelativeChains"},
+  "conformance": {"nativeTests":{"dotnet":24},"nativeTestNote":"One authored xUnit declaration for each ticket-086 case 01-24; wave-1 owns generator substrate and direct seam proofs."}
+}

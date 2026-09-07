@@ -1,0 +1,173 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Forms
+@using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.Components.Web
+@implements IDisposable
+
+@if (IsHidden)
+{
+    @ResolvedControl
+}
+else if (Field.IsSensitive || !Field.IsReadable)
+{
+    <HarborlineFormField Disabled="true" Hint="@ResolvedHint" Label="@ResolvedLabel" Name="@Field.Name">
+        <output aria-disabled="true" class="hl-schema-form__readonly" id="@Field.Name">@Strings.Redacted</output>
+    </HarborlineFormField>
+}
+else
+{
+    <HarborlineFormField Disabled="false" Error="@Error" Hint="@ResolvedHint"
+                       Label="@ResolvedLabel" Name="@Field.Name" Required="@Field.Required"
+                       data-presentation-severity="@Field.Presentation?.Severity"
+                       data-presentation-style-token="@Field.Presentation?.StyleToken"
+                       data-read-only="@(Field.ReadOnly ? "true" : null)"
+                       @onfocusin="@HandleFocus">
+        @ResolvedControl
+        @if (Field.Presentation is { } presentation && Resolve(presentation.Badge) is { Length: > 0 } badge)
+        {
+            <span class="hl-schema-form__presentation" data-severity="@(presentation.Severity ?? "info")"
+                  data-style-token="@presentation.StyleToken">@badge</span>
+        }
+    </HarborlineFormField>
+}
+
+@code {
+    [CascadingParameter] private SchemaFormValueStore Store { get; set; } = default!;
+    [Parameter, EditorRequired] public SchemaFormField Field { get; set; } = default!;
+    [Parameter, EditorRequired] public IReadOnlyList<object> Path { get; set; } = [];
+    [Parameter, EditorRequired] public IReadOnlyList<string> LocaleChain { get; set; } = [];
+    [Parameter, EditorRequired] public SchemaFormStrings Strings { get; set; } = new();
+    [Parameter, EditorRequired] public SchemaFormControlRegistry Registry { get; set; } = default!;
+    [Parameter, EditorRequired] public Func<IReadOnlyList<object>, object?, Task> SetValue { get; set; } = default!;
+    [Parameter] public string? Error { get; set; }
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public Action<string>? Focused { get; set; }
+
+    private IDisposable? subscription;
+    private IReadOnlyList<object>? subscribedPath;
+    private bool firstRender = true;
+    private bool forceRender;
+    private bool parametersChanged = true;
+    private SchemaFormField? previousField;
+    private IReadOnlyList<object>? previousPath;
+    private IReadOnlyList<string>? previousLocaleChain;
+    private SchemaFormStrings? previousStrings;
+    private SchemaFormControlRegistry? previousRegistry;
+    private string? previousError;
+    private bool previousDisabled;
+
+    private object? Value => Store.Get(Path);
+    private string StringValue => Value switch
+    {
+        null => string.Empty,
+        bool flag => flag ? "true" : "false",
+        IFormattable formatted => formatted.ToString(null, System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty,
+        _ => Value.ToString() ?? string.Empty,
+    };
+    private string ResolvedLabel => Resolve(Field.Label);
+    private string? ResolvedHint => Resolve(Field.HelpText) is { Length: > 0 } value ? value : null;
+    private string ControlHint => (Field.ControlHint ?? "text").ToLowerInvariant();
+    private bool IsHidden => ControlHint == "hidden";
+    private bool EffectiveDisabled => Disabled || Field.ReadOnly;
+    private string? DescribedBy => string.Join(" ", new[]
+    {
+        ResolvedHint is not null ? $"{Field.Name}-hint" : null,
+        !string.IsNullOrEmpty(Error) && !EffectiveDisabled ? $"{Field.Name}-error" : null,
+    }.Where(value => value is not null));
+
+    private RenderFragment ResolvedControl => builder =>
+    {
+        var value = Value;
+        var hint = ControlHint;
+        if (!Registry.TryGet(hint, out var renderer))
+        {
+            if (IsStructured(value) || Field.ValueKind is { } valueKind && !valueKind.Equals("string", StringComparison.OrdinalIgnoreCase))
+            {
+                builder.AddContent(0, Unavailable(hint));
+                return;
+            }
+            renderer = Registry.Text;
+        }
+        else if (SchemaFormControls.BuiltInHints.Contains(hint, StringComparer.OrdinalIgnoreCase)
+            && !SchemaFormControls.AcceptsValue(hint, value))
+        {
+            builder.AddContent(0, Unavailable(hint));
+            return;
+        }
+
+        var callback = EventCallback.Factory.Create<object?>(this, HandleValueChangedAsync);
+        builder.AddContent(1, renderer(new(
+            Field, LocaleChain, value, StringValue, !string.IsNullOrEmpty(Error), Field.Required,
+            EffectiveDisabled, Strings, callback, $"{Field.Name}-label", DescribedBy)));
+    };
+
+    private RenderFragment Unavailable(string hint) => builder =>
+    {
+        builder.OpenElement(0, "output");
+        builder.AddAttribute(1, "aria-disabled", "true");
+        builder.AddAttribute(2, "class", "hl-schema-form__unavailable");
+        builder.AddAttribute(3, "data-error-code", SchemaFormErrorCodes.UnavailableValue);
+        builder.AddAttribute(4, "id", Field.Name);
+        builder.AddContent(5, Strings.ControlUnavailable.Replace("{control}", hint, StringComparison.Ordinal));
+        builder.CloseElement();
+    };
+
+    protected override void OnParametersSet()
+    {
+        parametersChanged = firstRender
+            || !ReferenceEquals(Field, previousField)
+            || !PathsEqual(Path, previousPath)
+            || !ReferenceEquals(LocaleChain, previousLocaleChain)
+            || !ReferenceEquals(Strings, previousStrings)
+            || !ReferenceEquals(Registry, previousRegistry)
+            || Error != previousError
+            || Disabled != previousDisabled;
+        previousField = Field;
+        previousPath = Path.ToArray();
+        previousLocaleChain = LocaleChain;
+        previousStrings = Strings;
+        previousRegistry = Registry;
+        previousError = Error;
+        previousDisabled = Disabled;
+
+        if (!PathsEqual(Path, subscribedPath))
+        {
+            subscription?.Dispose();
+            subscription = Store.Subscribe(Path, StoreChanged);
+            subscribedPath = Path.ToArray();
+        }
+    }
+
+    protected override bool ShouldRender() => firstRender || forceRender || parametersChanged;
+
+    protected override void OnAfterRender(bool first)
+    {
+        firstRender = false;
+        forceRender = false;
+        parametersChanged = false;
+    }
+
+    private void StoreChanged()
+    {
+        forceRender = true;
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private Task HandleValueChangedAsync(object? value) => EffectiveDisabled
+        ? Task.CompletedTask
+        : SetValue(Path, value);
+
+    private void HandleFocus(FocusEventArgs _) => Focused?.Invoke(Field.Name);
+
+    private string Resolve(SchemaFormText? text) => SchemaFormTextResolver.Resolve(text, LocaleChain);
+
+    private static bool IsStructured(object? value) => value is not null
+        && value is not string
+        && value is not bool
+        && value is not byte and not sbyte and not short and not ushort and not int and not uint
+        && value is not long and not ulong and not float and not double and not decimal;
+
+    private static bool PathsEqual(IReadOnlyList<object> left, IReadOnlyList<object>? right) =>
+        right is not null && left.Count == right.Count && left.Zip(right).All(pair => Equals(pair.First, pair.Second));
+
+    public void Dispose() => subscription?.Dispose();
+}

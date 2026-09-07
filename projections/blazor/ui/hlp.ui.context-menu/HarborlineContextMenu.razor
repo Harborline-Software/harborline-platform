@@ -1,0 +1,154 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Navigation
+@inherits Harborline.UIAdapters.Blazor.Base.HarborlineComponentBase
+@implements IAsyncDisposable
+@using Microsoft.JSInterop
+@inject IJSRuntime JavaScript
+
+<div @ref="TriggerElement" @attributes="AdditionalAttributes" class="@CombineClasses("hl-context-menu-trigger")" style="@CombineStyles()"
+     @oncontextmenu="OpenPointerAsync" @oncontextmenu:preventDefault="true" @onkeydown="HandleKeyAsync">
+    @ChildContent
+</div>
+@if (IsOpen)
+{
+    <button type="button" class="hl-context-menu-overlay" aria-label="Dismiss @AccessibleLabel" @onclick="DismissAsync"></button>
+    <div @ref="MenuElement" role="menu" tabindex="-1" aria-label="@AccessibleLabel" lang="@Locale" dir="@Direction"
+         class="hl-context-menu" data-active-id="@ActiveItem?.Id"
+         style="position:fixed;left:@(X)px;top:@(Y)px;z-index:9999" @onkeydown="HandleKeyAsync">
+        @for (var groupIndex = 0; groupIndex < Groups.Count; groupIndex++)
+        {
+            if (groupIndex > 0) { <div role="separator" class="hl-context-menu__separator"></div> }
+            foreach (var item in Groups[groupIndex].Items)
+            {
+                var current = item;
+                <button type="button" role="menuitem" disabled="@current.Disabled" tabindex="@(current == ActiveItem ? 0 : -1)"
+                        data-danger="@(current.Danger ? "true" : null)" data-active="@(current == ActiveItem ? "true" : null)"
+                        class="hl-context-menu__item" @onclick="() => SelectAsync(current)">
+                    @if (current.Icon is not null) { <span aria-hidden="true" class="hl-context-menu__icon">@current.Icon</span> }
+                    <span>@current.Label</span>
+                </button>
+            }
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public IReadOnlyList<ContextMenuGroup> Groups { get; set; } = [];
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public string AccessibleLabel { get; set; } = "Context menu";
+    [Parameter] public string? Locale { get; set; }
+    [Parameter] public string? Direction { get; set; }
+    [Parameter] public EventCallback<ContextMenuSelection> OnSelect { get; set; }
+    [Parameter] public EventCallback OnShow { get; set; }
+    [Parameter] public EventCallback OnHide { get; set; }
+    [Parameter] public double ViewportWidth { get; set; } = double.PositiveInfinity;
+    [Parameter] public double ViewportHeight { get; set; } = double.PositiveInfinity;
+    [Parameter] public double MenuWidth { get; set; }
+    [Parameter] public double MenuHeight { get; set; }
+
+    public bool IsOpen { get; private set; }
+    public double X { get; private set; }
+    public double Y { get; private set; }
+    public ContextMenuItem? ActiveItem => ActiveIndex >= 0 && ActiveIndex < FlatItems.Count ? FlatItems[ActiveIndex] : null;
+    private int ActiveIndex { get; set; } = -1;
+    private ElementReference TriggerElement { get; set; }
+    private ElementReference MenuElement { get; set; }
+    private IJSObjectReference? DomModule { get; set; }
+    private bool KeyboardOpened { get; set; }
+    private bool FocusActiveAfterRender { get; set; }
+    private bool RestoreTriggerAfterRender { get; set; }
+    private IReadOnlyList<ContextMenuItem> FlatItems => Groups.SelectMany(group => group.Items).ToArray();
+    private int[] EnabledIndices => FlatItems.Select((item, index) => (item, index)).Where(row => !row.item.Disabled).Select(row => row.index).ToArray();
+
+    protected override void OnParametersSet()
+    {
+        if (string.IsNullOrWhiteSpace(AccessibleLabel)) throw new InvalidOperationException("accessible-name-required");
+        var duplicate = FlatItems.GroupBy(item => item.Id, StringComparer.Ordinal).FirstOrDefault(group => group.Count() > 1);
+        if (duplicate is not null) throw new InvalidOperationException($"duplicate-item-id: {duplicate.Key}");
+    }
+
+    public Task ShowAsync(double x, double y) => ShowAsync(x, y, keyboardOpened: false);
+
+    private async Task ShowAsync(double x, double y, bool keyboardOpened)
+    {
+        (X, Y) = ClampPosition(x, y, MenuWidth, MenuHeight, ViewportWidth, ViewportHeight);
+        IsOpen = true;
+        KeyboardOpened = keyboardOpened;
+        FocusActiveAfterRender = keyboardOpened;
+        ActiveIndex = EnabledIndices.FirstOrDefault(-1);
+        await InvokeAsync(StateHasChanged);
+        await OnShow.InvokeAsync();
+    }
+
+    public async Task HideAsync()
+    {
+        if (!IsOpen) return;
+        IsOpen = false;
+        ActiveIndex = -1;
+        RestoreTriggerAfterRender = KeyboardOpened;
+        KeyboardOpened = false;
+        await InvokeAsync(StateHasChanged);
+        await OnHide.InvokeAsync();
+    }
+
+    public static (double X, double Y) ClampPosition(double x, double y, double menuWidth, double menuHeight, double viewportWidth, double viewportHeight)
+        => (Math.Max(8, Math.Min(x, viewportWidth - menuWidth - 8)), Math.Max(8, Math.Min(y, viewportHeight - menuHeight - 8)));
+
+    private Task OpenPointerAsync(MouseEventArgs args) => ShowAsync(args.ClientX, args.ClientY, keyboardOpened: false);
+    private Task DismissAsync() => HideAsync();
+
+    private async Task SelectAsync(ContextMenuItem item)
+    {
+        if (item.Disabled) return;
+        await OnSelect.InvokeAsync(new ContextMenuSelection(item.Id));
+        await HideAsync();
+    }
+
+    private async Task HandleKeyAsync(KeyboardEventArgs args)
+    {
+        if (!IsOpen && ((args.ShiftKey && args.Key == "F10") || args.Key == "ContextMenu"))
+        {
+            var anchor = await (await ModuleAsync()).InvokeAsync<ContextMenuAnchor?>("triggerAnchor", TriggerElement)
+                ?? new ContextMenuAnchor(8, 8);
+            await ShowAsync(anchor.Left, anchor.Bottom, keyboardOpened: true);
+            return;
+        }
+        if (!IsOpen) return;
+        if (args.Key == "Escape") { await HideAsync(); return; }
+        var enabled = EnabledIndices;
+        if (enabled.Length == 0) return;
+        var slot = Array.IndexOf(enabled, ActiveIndex);
+        if (args.Key == "ArrowDown") ActiveIndex = enabled[(slot + 1 + enabled.Length) % enabled.Length];
+        else if (args.Key == "ArrowUp") ActiveIndex = enabled[(slot - 1 + enabled.Length) % enabled.Length];
+        else if (args.Key == "Home") ActiveIndex = enabled[0];
+        else if (args.Key == "End") ActiveIndex = enabled[^1];
+        else if ((args.Key == "Enter" || args.Key == " ") && ActiveItem is not null) await SelectAsync(ActiveItem);
+        else return;
+        FocusActiveAfterRender = IsOpen;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (FocusActiveAfterRender)
+        {
+            FocusActiveAfterRender = false;
+            await (await ModuleAsync()).InvokeVoidAsync("focusActive", MenuElement);
+        }
+        if (RestoreTriggerAfterRender)
+        {
+            RestoreTriggerAfterRender = false;
+            await (await ModuleAsync()).InvokeVoidAsync("focusTrigger", TriggerElement);
+        }
+    }
+
+    private async ValueTask<IJSObjectReference> ModuleAsync() =>
+        DomModule ??= await JavaScript.InvokeAsync<IJSObjectReference>(
+            "import",
+            "./_content/Harborline.UIAdapters.Blazor/context-menu.js");
+
+    public async ValueTask DisposeAsync()
+    {
+        if (DomModule is not null) await DomModule.DisposeAsync();
+    }
+
+    private sealed record ContextMenuAnchor(double Left, double Bottom);
+}

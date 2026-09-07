@@ -1,0 +1,103 @@
+{
+  "schemaVersion": 1,
+  "projection": "react",
+  "moduleId": "hlp.ui.button",
+  "scenarios": [
+    {
+      "scenarioId": "button.defaults",
+      "sha256": "eba96a2d4c4740a3324aa700f894be86bca60986126533719ffdb026ef5a970a",
+      "bytes": 6521,
+      "artifact": "../baselines/sha256/eba96a2d4c4740a3324aa700f894be86bca60986126533719ffdb026ef5a970a.png"
+    },
+    {
+      "scenarioId": "button.variants",
+      "sha256": "14deb9aa8f88657a954e157fe29e75aa14b7aee1fdc5594b4c18afa6be9ed63e",
+      "bytes": 12430,
+      "artifact": "../baselines/sha256/14deb9aa8f88657a954e157fe29e75aa14b7aee1fdc5594b4c18afa6be9ed63e.png"
+    },
+    {
+      "scenarioId": "button.sizes",
+      "sha256": "cd6cc663ab669487a50164c56b996cfa10c071f444d9372eb58a8507591f25d1",
+      "bytes": 8142,
+      "artifact": "../baselines/sha256/cd6cc663ab669487a50164c56b996cfa10c071f444d9372eb58a8507591f25d1.png"
+    },
+    {
+      "scenarioId": "button.fills",
+      "sha256": "5c0e3cfc5dd138aa8f232fa509644dd79688710b4ff51e6f78f68decec119325",
+      "bytes": 7920,
+      "artifact": "../baselines/sha256/5c0e3cfc5dd138aa8f232fa509644dd79688710b4ff51e6f78f68decec119325.png"
+    },
+    {
+      "scenarioId": "button.radii",
+      "sha256": "89a6d5fbec850fa0375a122a1cb885f679bb6d35a9edc546867012e1db5d3f7e",
+      "bytes": 8366,
+      "artifact": "../baselines/sha256/89a6d5fbec850fa0375a122a1cb885f679bb6d35a9edc546867012e1db5d3f7e.png"
+    },
+    {
+      "scenarioId": "button.loading",
+      "sha256": "d27479b62fbd338238981e8e03b5df210201dc4b58dac1a1e551b90dde150346",
+      "bytes": 6797,
+      "artifact": "../baselines/sha256/d27479b62fbd338238981e8e03b5df210201dc4b58dac1a1e551b90dde150346.png"
+    },
+    {
+      "scenarioId": "button.disabled",
+      "sha256": "72dee379472d1754a405a4ff90241194b059640505ccd12d9d25fb1ec802617e",
+      "bytes": 7445,
+      "artifact": "../baselines/sha256/72dee379472d1754a405a4ff90241194b059640505ccd12d9d25fb1ec802617e.png"
+    },
+    {
+      "scenarioId": "button.icons",
+      "sha256": "647f620652cbcfd178fdbb7997102c0664aaf08b92ae9b540795f4f970dff78b",
+      "bytes": 6495,
+      "artifact": "../baselines/sha256/647f620652cbcfd178fdbb7997102c0664aaf08b92ae9b540795f4f970dff78b.png"
+    },
+    {
+      "scenarioId": "button.accessibility",
+      "sha256": "e1532b954bacbb9169d80a77159bee8a6c8dcd4e4964dc55345df27b3269e3be",
+      "bytes": 6905,
+      "artifact": "../baselines/sha256/e1532b954bacbb9169d80a77159bee8a6c8dcd4e4964dc55345df27b3269e3be.png"
+    },
+    {
+      "scenarioId": "button.host-attributes",
+      "sha256": "8bffa8c42907dbf4289a825cae9e41d37062805bcec6aef93c2f3e2d1bf2001c",
+      "bytes": 6975,
+      "artifact": "../baselines/sha256/8bffa8c42907dbf4289a825cae9e41d37062805bcec6aef93c2f3e2d1bf2001c.png"
+    },
+    {
+      "scenarioId": "button.rtl",
+      "sha256": "77542797b69fd1cd9b0abafe3630d7e1339e0eac165755a5e73a1386e6c105bf",
+      "bytes": 6622,
+      "artifact": "../baselines/sha256/77542797b69fd1cd9b0abafe3630d7e1339e0eac165755a5e73a1386e6c105bf.png"
+    },
+    {
+      "scenarioId": "button.theme-light",
+      "sha256": "1428b22aead4789e4eed922c2fe5353dee94da188614d24c32aa43f989f8120b",
+      "bytes": 10844,
+      "artifact": "../baselines/sha256/1428b22aead4789e4eed922c2fe5353dee94da188614d24c32aa43f989f8120b.png"
+    },
+    {
+      "scenarioId": "button.theme-dark",
+      "sha256": "153bbd5e441bc30c1d393747ddd6bd244ea58259ead6fc467925e2af297d1b58",
+      "bytes": 11166,
+      "artifact": "../baselines/sha256/153bbd5e441bc30c1d393747ddd6bd244ea58259ead6fc467925e2af297d1b58.png"
+    },
+    {
+      "scenarioId": "button.locale-en",
+      "sha256": "7a260dd5f98b17c4f8474b90828041f9dec75c4b03b0bd0c30b3fae708990176",
+      "bytes": 7445,
+      "artifact": "../baselines/sha256/7a260dd5f98b17c4f8474b90828041f9dec75c4b03b0bd0c30b3fae708990176.png"
+    },
+    {
+      "scenarioId": "button.locale-pseudo",
+      "sha256": "fdd1d7d522ce7df9bcd54f6b083fda321088ce4a936e593ce37225fec734d33d",
+      "bytes": 8741,
+      "artifact": "../baselines/sha256/fdd1d7d522ce7df9bcd54f6b083fda321088ce4a936e593ce37225fec734d33d.png"
+    },
+    {
+      "scenarioId": "button.locale-ar",
+      "sha256": "aa05475015d983381d49737d8f680748ae641f9c43103d3e7ec20ab170991bb2",
+      "bytes": 8224,
+      "artifact": "../baselines/sha256/aa05475015d983381d49737d8f680748ae641f9c43103d3e7ec20ab170991bb2.png"
+    }
+  ]
+}

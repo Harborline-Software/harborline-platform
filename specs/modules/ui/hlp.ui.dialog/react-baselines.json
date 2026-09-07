@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "projection": "react",
+  "moduleId": "hlp.ui.dialog",
+  "scenarios": [
+    {
+      "scenarioId": "dialog.lifecycle-content",
+      "sha256": "ae39f0f484ffd5db08903689948a9443fe7b998379d1d083c39f0c22e8d3713f",
+      "bytes": 27811,
+      "artifact": "../baselines/sha256/ae39f0f484ffd5db08903689948a9443fe7b998379d1d083c39f0c22e8d3713f.png"
+    },
+    {
+      "scenarioId": "dialog.dismissal-focus",
+      "sha256": "8326720730a4559e08da0152686a4a93b7f8f66372e5dc4a8098662dab94f079",
+      "bytes": 28079,
+      "artifact": "../baselines/sha256/8326720730a4559e08da0152686a4a93b7f8f66372e5dc4a8098662dab94f079.png"
+    },
+    {
+      "scenarioId": "dialog.independent-dismissal",
+      "sha256": "de4f53b0d8b7abdcbbf5cb5f2d56239c5caa5ef1e3a4dc6b1755f50d2103f2c1",
+      "bytes": 27047,
+      "artifact": "../baselines/sha256/de4f53b0d8b7abdcbbf5cb5f2d56239c5caa5ef1e3a4dc6b1755f50d2103f2c1.png"
+    },
+    {
+      "scenarioId": "dialog.scroll-reflow",
+      "sha256": "8047024c27de2c92ff5b0568e128c7f8da4bbbfede33b9432ac1cd67a05afcd6",
+      "bytes": 37258,
+      "artifact": "../baselines/sha256/8047024c27de2c92ff5b0568e128c7f8da4bbbfede33b9432ac1cd67a05afcd6.png"
+    },
+    {
+      "scenarioId": "dialog.replacement",
+      "sha256": "bee0890b79b46202e8d70ae66c17f27c1418077f29f7d613acd1938bc7e56c93",
+      "bytes": 29602,
+      "artifact": "../baselines/sha256/bee0890b79b46202e8d70ae66c17f27c1418077f29f7d613acd1938bc7e56c93.png"
+    },
+    {
+      "scenarioId": "dialog.locale-pseudo",
+      "sha256": "9d32de0adec32741c4e8647c619b79e5d000e6940b7543848518f430a896163c",
+      "bytes": 31000,
+      "artifact": "../baselines/sha256/9d32de0adec32741c4e8647c619b79e5d000e6940b7543848518f430a896163c.png"
+    },
+    {
+      "scenarioId": "dialog.locale-ar",
+      "sha256": "ca88ec3cee25d8372c9929b38e641f8dadbb40b946af95cfd91cd872cd3ff769",
+      "bytes": 19798,
+      "artifact": "../baselines/sha256/ca88ec3cee25d8372c9929b38e641f8dadbb40b946af95cfd91cd872cd3ff769.png"
+    },
+    {
+      "scenarioId": "dialog.theme-light",
+      "sha256": "75fd8f3667f5b8448276eb5ad22ccacbf860e94d87703a5563808c08d2b6309f",
+      "bytes": 26157,
+      "artifact": "../baselines/sha256/75fd8f3667f5b8448276eb5ad22ccacbf860e94d87703a5563808c08d2b6309f.png"
+    },
+    {
+      "scenarioId": "dialog.theme-dark",
+      "sha256": "92b79b9a97e304939991a8d2d628d46926db906c8411683e1025424bd01d124c",
+      "bytes": 21783,
+      "artifact": "../baselines/sha256/92b79b9a97e304939991a8d2d628d46926db906c8411683e1025424bd01d124c.png"
+    }
+  ]
+}

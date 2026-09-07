@@ -1,0 +1,219 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.form-field",
+  "sourceFixture": "conformance/hlp.ui.form-field/fixtures.yaml",
+  "qualityFixture": "conformance/hlp.ui.form-field/quality-fixtures.yaml",
+  "galleryInterface": {
+    "probeAttribute": "data-gallery-probe",
+    "scenarioAttribute": "data-gallery-scenario",
+    "projectionTitles": {
+      "react": "Platform/Form Field",
+      "blazor": "Platform/Form Field"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "form-field.defaults",
+      "name": "Label and hint",
+      "surface": "defaults",
+      "sourceCaseIds": [
+        "form-field.label",
+        "form-field.required",
+        "form-field.hint"
+      ],
+      "sourceQualityCaseIds": [
+        "form-field.quality.label",
+        "form-field.quality.description"
+      ],
+      "content": {
+        "blurb": "Labels, hints, alerts, and inherited state stay connected.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "name": "amount",
+          "label": "Total amount",
+          "required": true,
+          "hint": "Enter the pre-tax amount\nIn local currency"
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "input",
+            "type": "number",
+            "name": "amount",
+            "value": "125.50"
+          },
+          {
+            "control": "span",
+            "text": "Enter the pre-tax amount\nIn local currency"
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "form-field.states",
+      "name": "Error and disabled",
+      "surface": "states",
+      "sourceCaseIds": [
+        "form-field.error",
+        "form-field.hint-error-order",
+        "form-field.disabled",
+        "form-field.context"
+      ],
+      "sourceQualityCaseIds": [
+        "form-field.quality.alert",
+        "form-field.quality.reflow",
+        "form-field.quality.forced-colors"
+      ],
+      "content": {
+        "blurb": "Labels, hints, alerts, and inherited state stay connected.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "name": "amount",
+          "label": "Total amount",
+          "required": true,
+          "hint": "Enter the pre-tax amount\nIn local currency",
+          "error": "Amount is required",
+          "disabled": true
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "input",
+            "type": "number",
+            "name": "amount",
+            "value": "125.50",
+            "disabled": true
+          },
+          {
+            "control": "span",
+            "text": "Enter the pre-tax amount\nIn local currency"
+          },
+          {
+            "control": "strong",
+            "text": "Amount is required"
+          }
+        ],
+        "footer": [],
+        "inherits": "form-field.defaults"
+      }
+    },
+    {
+      "id": "form-field.rtl-theme",
+      "name": "RTL and theme",
+      "surface": "rtl-theme",
+      "sourceCaseIds": [
+        "form-field.multiline-hint",
+        "form-field.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "form-field.quality.caller-copy",
+        "form-field.quality.rtl",
+        "form-field.quality.pseudo",
+        "form-field.quality.light-dark",
+        "form-field.quality.tokens",
+        "form-field.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "Labels, hints, alerts, and inherited state stay connected.",
+        "environment": {
+          "locale": "ar-SA",
+          "direction": "rtl",
+          "theme": "dark",
+          "catalog": {}
+        },
+        "props": {
+          "name": "amount",
+          "label": "المبلغ الإجمالي",
+          "required": true,
+          "hint": "أدخل المبلغ قبل الضريبة\nبالعملة المحلية"
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "input",
+            "type": "number",
+            "name": "amount",
+            "value": "125.50"
+          },
+          {
+            "control": "span",
+            "text": "أدخل المبلغ قبل الضريبة\nبالعملة المحلية"
+          }
+        ],
+        "footer": [],
+        "inherits": "form-field.defaults"
+      }
+    },
+    {
+      "id": "form-field.content",
+      "name": "Content resilience",
+      "surface": "long-content",
+      "sourceCaseIds": [
+        "form-field.label",
+        "form-field.error"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "Carries a long certification label, the grouped value 1,284,905, escaped Bay 4 <grid C-7> & 8 copy, and the name Ordnance Survey — Niño Ångström.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<><FormField name=\"certification-amount\" label={'Awaiting third-party structural certification review'} hint={'1,284,905'}><NumberField name=\"certification-amount\" value={1284905} onChange={()=>{}} /></FormField><FormField name=\"survey-amount\" label={'Ordnance Survey — Niño Ångström'} error={'Bay 4 <grid C-7> & 8'}><NumberField name=\"survey-amount\" value={8} onChange={()=>{}} /></FormField></>",
+            "blazor": "<HarborlineFormField Name=\"certification-amount\" Label=\"@(\"Awaiting third-party structural certification review\")\" Hint=\"@(\"1,284,905\")\"><HarborlineNumberField Name=\"certification-amount\" Value=\"1284905\" /></HarborlineFormField><HarborlineFormField Name=\"survey-amount\" Label=\"@(\"Ordnance Survey — Niño Ångström\")\" Error=\"@(\"Bay 4 <grid C-7> & 8\")\"><HarborlineNumberField Name=\"survey-amount\" Value=\"8\" /></HarborlineFormField>",
+            "rationale": "The closed control vocabulary cannot express multiple FormField instances whose real label, hint, and error props carry hostile-but-valid content."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "form-field.error-state",
+      "name": "Error state",
+      "surface": "invalid-input",
+      "sourceCaseIds": [
+        "form-field.error",
+        "form-field.label"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "An enabled field renders its validation message and connects it to the named control.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<FormField name=\"amount\" label=\"Total amount\" error=\"Amount is required\"><NumberField name=\"amount\" value={125.5} onChange={()=>{}} /></FormField>",
+            "blazor": "<HarborlineFormField Name=\"amount\" Label=\"Total amount\" Error=\"Amount is required\"><HarborlineNumberField Name=\"amount\" Value=\"125.5\" /></HarborlineFormField>",
+            "rationale": "The real FormField error prop renders the alert and supplies the description relationship to its child control in both lanes."
+          }
+        ],
+        "footer": []
+      }
+    }
+  ]
+}

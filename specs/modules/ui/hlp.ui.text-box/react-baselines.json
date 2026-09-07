@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "projection": "react",
+  "moduleId": "hlp.ui.text-box",
+  "scenarios": [
+    {
+      "scenarioId": "text-box.ownership-form",
+      "sha256": "35e3a768ff1f663aae90ee196a61ba84b8410492835227fe4df298838f6d1a23",
+      "bytes": 19535,
+      "artifact": "../baselines/sha256/35e3a768ff1f663aae90ee196a61ba84b8410492835227fe4df298838f6d1a23.png"
+    },
+    {
+      "scenarioId": "text-box.clear-reveal",
+      "sha256": "57cf5c0e894f7e17736a88388d1892e6dae09a3c19080b3403b33afa91460254",
+      "bytes": 12132,
+      "artifact": "../baselines/sha256/57cf5c0e894f7e17736a88388d1892e6dae09a3c19080b3403b33afa91460254.png"
+    },
+    {
+      "scenarioId": "text-box.attributes-keyboard",
+      "sha256": "4f0afd01548cd93206080e8c967f865d75205bcbef96635c3995d1a50d4e81c2",
+      "bytes": 12736,
+      "artifact": "../baselines/sha256/4f0afd01548cd93206080e8c967f865d75205bcbef96635c3995d1a50d4e81c2.png"
+    },
+    {
+      "scenarioId": "text-box.appearance-reflow",
+      "sha256": "a756c5355159e072f9dade02990e2d36ba723afbbe03dce29aaa8da67604b7a7",
+      "bytes": 11665,
+      "artifact": "../baselines/sha256/a756c5355159e072f9dade02990e2d36ba723afbbe03dce29aaa8da67604b7a7.png"
+    },
+    {
+      "scenarioId": "text-box.replacement",
+      "sha256": "09f5c70f37819f050e70bb04a913d348c34e1eb56e4b74c6bacfcad11b0ce823",
+      "bytes": 12060,
+      "artifact": "../baselines/sha256/09f5c70f37819f050e70bb04a913d348c34e1eb56e4b74c6bacfcad11b0ce823.png"
+    },
+    {
+      "scenarioId": "text-box.locale-pseudo",
+      "sha256": "bfef9a135755916c1a4cee368734b9c0934c3f55e76f2d7cce03d4bb3b44461a",
+      "bytes": 13381,
+      "artifact": "../baselines/sha256/bfef9a135755916c1a4cee368734b9c0934c3f55e76f2d7cce03d4bb3b44461a.png"
+    },
+    {
+      "scenarioId": "text-box.locale-ar",
+      "sha256": "24860e85a5f0c09a5f460f16a12b167d8d63d514a8854930a6c1c9ddaebfd5c0",
+      "bytes": 10828,
+      "artifact": "../baselines/sha256/24860e85a5f0c09a5f460f16a12b167d8d63d514a8854930a6c1c9ddaebfd5c0.png"
+    },
+    {
+      "scenarioId": "text-box.theme-light",
+      "sha256": "49cd44285ec94c14ca55268d3a876639a95741ce5fbab63a62a9a6a202739870",
+      "bytes": 10048,
+      "artifact": "../baselines/sha256/49cd44285ec94c14ca55268d3a876639a95741ce5fbab63a62a9a6a202739870.png"
+    },
+    {
+      "scenarioId": "text-box.theme-dark",
+      "sha256": "43a94ee946e8b20db9b83ed91951901ffda709d87814b2a94a268d3626496ee6",
+      "bytes": 9867,
+      "artifact": "../baselines/sha256/43a94ee946e8b20db9b83ed91951901ffda709d87814b2a94a268d3626496ee6.png"
+    }
+  ]
+}

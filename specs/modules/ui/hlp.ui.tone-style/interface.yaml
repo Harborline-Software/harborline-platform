@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.tone-style",
+  "interfaceRevision": 1,
+  "semantics": {"operation": "resolve a closed builder lens tone into semantic theme-token references", "observableOutput": "The same swatch, border, soft-background, and text token references for an identical lens tone in TypeScript and .NET."},
+  "sourceSurface": {"repository": "shipyard", "commit": "a5036ff8b500e0d857d7e0a698408e7cf7f6cf31", "path": "packages/builder-kit/src/tokens.ts", "blob": "88b08a764d7c59838a7cbd985173d619e1bdf637", "capturedExports": ["ToneStyle", "toneStyle"]},
+  "dependencies": ["hlp.ui.aspect-lens"],
+  "invariants": [
+    "Every LensTone value resolves to four authored semantic CSS custom-property references: swatch, border, soft background, and text.",
+    "The resolver never emits raw Tailwind palette variables, literal colors, user text, or host-specific class names.",
+    "Info maps to the authored secondary and muted tokens because no dedicated info token exists.",
+    "Sensitivity tones reuse the muted, accent, warning, and danger semantic bands in ascending order and introduce no decorative palette.",
+    "Muted and sensitivity-none are projection-equivalent; accent and sensitivity-low are projection-equivalent.",
+    "The operation is total over the closed LensTone vocabulary, deterministic, side-effect free, and performs no DOM access or I/O."
+  ],
+  "errors": [],
+  "performance": {"operation": "O(1) table lookup with no allocation requirement or I/O"},
+  "presentation": {"disposition": "not-applicable", "rationale": "The resolver returns semantic token references and renders no standalone interface."},
+  "cases": [
+    {"id":"tone-style.complete-surface"},{"id":"tone-style.semantic-mappings"},{"id":"tone-style.info-fallback"},{"id":"tone-style.sensitivity-ramp"},{"id":"tone-style.no-raw-palette"},{"id":"tone-style.projection-equivalence"}
+  ]
+}

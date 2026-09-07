@@ -1,0 +1,1 @@
+{"schemaVersion":1,"moduleId":"hlp.ui.use-is-mobile","accessibilityCases":[{"id":"breakpoint.quality.short-landscape","expected":{"railSuppressed":true}},{"id":"breakpoint.quality.ssr","expected":{"failClosed":true}}],"internationalizationCases":[],"themingCases":[]}

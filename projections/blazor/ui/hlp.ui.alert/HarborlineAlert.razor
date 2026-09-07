@@ -1,0 +1,20 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Feedback
+@inherits Harborline.UIAdapters.Blazor.Base.HarborlineComponentBase
+@using Harborline.UIAdapters.Blazor.Localization
+<div role="@Role" class="@CombineClasses("hl-alert", $"hl-alert--{Variant.ToString().ToLowerInvariant()}")" data-hl-variant="@Variant.ToString().ToLowerInvariant()" @attributes="AdditionalAttributes">
+    <span class="hl-alert__marker" aria-hidden="true"><svg class="hl-alert__icon" viewBox="0 0 20 20" fill="none">@if (Variant == AlertVariant.Success){<path d="M5.75 10.25 8.5 13l5.75-6"/><circle cx="10" cy="10" r="7.25"/>}else if(Variant == AlertVariant.Warning){<path d="M10 6.75v4.5M10 14.25h.01"/><path d="M8.73 3.8 2.5 14.6a1.5 1.5 0 0 0 1.3 2.25h12.4a1.5 1.5 0 0 0 1.3-2.25L11.27 3.8a1.47 1.47 0 0 0-2.54 0Z"/>}else if(Variant == AlertVariant.Error){<path d="m7.5 7.5 5 5m0-5-5 5"/><circle cx="10" cy="10" r="7.25"/>}else{<path d="M10 9v4.5M10 6.5h.01"/><circle cx="10" cy="10" r="7.25"/>}</svg></span>
+    <div class="hl-alert__content">@if (!string.IsNullOrWhiteSpace(Title)){<p class="hl-alert__title">@Title</p>}<div class="hl-alert__body">@ChildContent</div>@if(Action is not null){<div class="hl-alert__action">@Action</div>}</div>
+    @if (Closable){<button type="button" class="hl-alert__dismiss" aria-label="@ResolvedDismissLabel" @onclick="OnClose"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m6 6 8 8m0-8-8 8"/></svg></button>}
+</div>
+@code {
+    [CascadingParameter] private HarborlineLocaleContext? LocaleContext { get; set; }
+    [Parameter] public AlertVariant Variant { get; set; } = AlertVariant.Info;
+    [Parameter] public string? Title { get; set; }
+    [Parameter] public bool Closable { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public RenderFragment? Action { get; set; }
+    [Parameter, EditorRequired] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public string? DismissLabel { get; set; }
+    private string Role => Variant is AlertVariant.Warning or AlertVariant.Error ? "alert" : "status";
+    private string ResolvedDismissLabel => LocaleContext?.ResolveString("common.dismiss", instanceOverride: DismissLabel) ?? DismissLabel ?? "Dismiss";
+}

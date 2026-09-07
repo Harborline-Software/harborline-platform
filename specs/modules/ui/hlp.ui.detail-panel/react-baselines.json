@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "projection": "react",
+  "moduleId": "hlp.ui.detail-panel",
+  "scenarios": [
+    {
+      "scenarioId": "detail-panel.docked",
+      "sha256": "82a3bbbafb5160bbea6071c2900a8a9758131cfa221db17c4b6bcb4396bf3d3e",
+      "bytes": 19870,
+      "artifact": "../baselines/sha256/82a3bbbafb5160bbea6071c2900a8a9758131cfa221db17c4b6bcb4396bf3d3e.png"
+    },
+    {
+      "scenarioId": "detail-panel.sheet",
+      "sha256": "f71c18501d8228be50f1a72f98641073116adbcbddeec5c5888ec6824a91d1fd",
+      "bytes": 18698,
+      "artifact": "../baselines/sha256/f71c18501d8228be50f1a72f98641073116adbcbddeec5c5888ec6824a91d1fd.png"
+    },
+    {
+      "scenarioId": "detail-panel.locale-en",
+      "sha256": "74f4f070293e392a612c9d945c7ec8f3bdf3ba6cbd4efedd3097688b0d1cb03d",
+      "bytes": 19256,
+      "artifact": "../baselines/sha256/74f4f070293e392a612c9d945c7ec8f3bdf3ba6cbd4efedd3097688b0d1cb03d.png"
+    },
+    {
+      "scenarioId": "detail-panel.locale-pseudo",
+      "sha256": "c28825764e15b40a40bd58060f79ad7e065c65c15c96ae648a268b9a3dff73e4",
+      "bytes": 19376,
+      "artifact": "../baselines/sha256/c28825764e15b40a40bd58060f79ad7e065c65c15c96ae648a268b9a3dff73e4.png"
+    },
+    {
+      "scenarioId": "detail-panel.locale-ar",
+      "sha256": "6366b66e3cf1b1220d9ae550ab68f3209961e7fcba5c907904886158641fa94d",
+      "bytes": 18523,
+      "artifact": "../baselines/sha256/6366b66e3cf1b1220d9ae550ab68f3209961e7fcba5c907904886158641fa94d.png"
+    },
+    {
+      "scenarioId": "detail-panel.theme-light",
+      "sha256": "ebbc30e232db222af9a8a12bb37f5894a177e2353a20d5d70603a1a46b6ef9ba",
+      "bytes": 18712,
+      "artifact": "../baselines/sha256/ebbc30e232db222af9a8a12bb37f5894a177e2353a20d5d70603a1a46b6ef9ba.png"
+    },
+    {
+      "scenarioId": "detail-panel.theme-dark",
+      "sha256": "481c8018d5c1f383334dceaafb03a85b3e6f3690a14889d808e647d27e226a66",
+      "bytes": 19565,
+      "artifact": "../baselines/sha256/481c8018d5c1f383334dceaafb03a85b3e6f3690a14889d808e647d27e226a66.png"
+    }
+  ]
+}

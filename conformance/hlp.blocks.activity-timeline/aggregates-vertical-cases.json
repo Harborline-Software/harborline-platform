@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.blocks.activity-timeline",
+  "portedCases": [
+    { "id": "A-B01", "pinnedName": "starts empty" },
+    { "id": "A-B02", "pinnedName": "addResult adds a notification and an activity entry" },
+    { "id": "A-B03", "pinnedName": "addResult with succeeded=false uses capability-error category" },
+    { "id": "A-B04", "pinnedName": "dismissNotification removes the item by id" },
+    { "id": "A-B05", "pinnedName": "markAllRead marks every notification as read" },
+    { "id": "A-B06", "pinnedName": "notifications prepend newest-first" },
+    { "id": "A-B07", "pinnedName": "dismissNotification does not touch activityLog" }
+  ],
+  "authoredCases": [
+    { "id": "AUTH-03-TENANT", "name": "Authored_Foreign_tenant_read_fails_closed", "authored": true, "obligationRef": "obligation-3:tenant-session-scoping" },
+    { "id": "AUTH-03-SESSION", "name": "Authored_Foreign_session_read_fails_closed", "authored": true, "obligationRef": "obligation-3:tenant-session-scoping" },
+    { "id": "AUTH-05-SURFACE", "name": "Authored_Returned_entry_has_no_raw_actor_id_member", "authored": true, "obligationRef": "obligation-5:no-raw-actor-id-caller-visible" },
+    { "id": "AUTH-05-SEALING", "name": "Authored_Attribution_seals_raw_ids_as_display_identity", "authored": true, "obligationRef": "obligation-5:no-raw-actor-id-caller-visible" }
+  ],
+  "carriedUiCases": [
+    { "id": "A-I01", "pinnedName": "renders as a section with accessible label", "carried": true, "conformanceId": "activity-log.label" },
+    { "id": "A-I02", "pinnedName": "renders a custom label", "carried": true, "conformanceId": "activity-log.label" },
+    { "id": "A-I03", "pinnedName": "renders all actor names", "carried": true, "conformanceId": "activity-log.list" },
+    { "id": "A-I04", "pinnedName": "renders all action descriptions", "carried": true, "conformanceId": "activity-log.list" },
+    { "id": "A-I05", "pinnedName": "renders timestamps as <time> elements", "carried": true, "conformanceId": "activity-log.timestamp" },
+    { "id": "A-I06", "pinnedName": "renders a list (<ul>), not a table", "carried": true, "conformanceId": "activity-log.list" },
+    { "id": "A-I07", "pinnedName": "renders detail text when provided", "carried": true, "conformanceId": "activity-log.detail-tone" },
+    { "id": "A-I08", "pinnedName": "shows \"No activity yet\" when entries is empty", "carried": true, "conformanceId": "activity-log.empty" },
+    { "id": "A-I09", "pinnedName": "shows only maxVisible entries", "carried": true, "conformanceId": "activity-log.limit" },
+    { "id": "A-I10", "pinnedName": "shows \"Show more\" button when entries exceed maxVisible", "carried": true, "conformanceId": "activity-log.limit" },
+    { "id": "A-I11", "pinnedName": "calls onShowMore when \"Show more\" is clicked", "carried": true, "conformanceId": "activity-log.show-more" },
+    { "id": "A-I12", "pinnedName": "does not show \"Show more\" when maxVisible=0 (no limit)", "carried": true, "conformanceId": "activity-log.no-show-more" },
+    { "id": "A-I13", "pinnedName": "renders a table with Actor / Action / When columns", "carried": true, "conformanceId": "activity-log.table" },
+    { "id": "A-I14", "pinnedName": "renders a row per entry", "carried": true, "conformanceId": "activity-log.table" },
+    { "id": "A-I15", "pinnedName": "shows \"No activity yet\" for empty entries in table layout", "carried": true, "conformanceId": "activity-log.empty" },
+    { "id": "A-I16", "pinnedName": "shows paginated \"Show more\" in table layout", "carried": true, "conformanceId": "activity-log.limit" },
+    { "id": "A-I17", "pinnedName": "renders the wide table on md+ when no layout is pinned", "carried": true, "conformanceId": "activity-log.responsive" },
+    { "id": "A-I18", "pinnedName": "renders the stacked list below md when no layout is pinned", "carried": true, "conformanceId": "activity-log.responsive" },
+    { "id": "A-I19", "pinnedName": "honors an EXPLICIT layout=\"table\" even on a narrow viewport", "carried": true, "conformanceId": "activity-log.explicit-layout" },
+    { "id": "A-I20", "pinnedName": "honors an EXPLICIT layout=\"list\" even on a wide viewport", "carried": true, "conformanceId": "activity-log.explicit-layout" }
+  ],
+  "fixtureEntries": {
+    "tenantId": "tenant-1",
+    "sessionId": "session-1",
+    "entriesInAppendOrder": [
+      { "id": "act:result:job-1", "proposedByActorId": "raw-system-001", "displayName": "System", "category": "capability-result", "timestamp": "12:00", "action": "TTS complete", "detail": "Voice: Samantha" },
+      { "id": "act:result:j2", "proposedByActorId": "raw-system-001", "displayName": "System", "category": "capability-error", "timestamp": "12:00", "action": "Failed", "detail": null }
+    ]
+  },
+  "crossLanePairs": [
+    { "pair": "ordered-ids", "expected": ["act:result:j2", "act:result:job-1"] },
+    { "pair": "attribution-display-names", "expected": ["System", "System"] },
+    { "pair": "categories", "expected": ["capability-error", "capability-result"] },
+    { "pair": "count", "expected": 2 }
+  ]
+}

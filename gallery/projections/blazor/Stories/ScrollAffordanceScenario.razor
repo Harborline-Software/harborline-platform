@@ -1,0 +1,79 @@
+<section class="hl-gallery-scene" data-gallery-probe data-gallery-scenario="@ScenarioId" data-theme="@Theme" dir="@Direction">
+  <header class="hl-gallery-heading"><h2>@Copy.Title</h2><p>@Copy.Description</p></header>
+  <div class="hl-gallery-stage" style="max-width:720px">
+    <HarborlineLocaleProvider Catalog="@Catalog" Direction="@Direction" Locale="@Locale">
+      @if (IsAxisDemo)
+      {
+        <div class="hl-gallery-feedback-stack">
+          <HarborlineScrollAffordance AriaLabel="Fitting summary">@Tiles(2, 1)</HarborlineScrollAffordance>
+          <HarborlineScrollAffordance AriaLabel="Vertical findings" Orientation="ScrollAffordanceOrientation.Vertical" style="max-height:220px">@Tiles(7, 1, true)</HarborlineScrollAffordance>
+        </div>
+      }
+      else
+      {
+        <div class="hl-gallery-feedback-stack">
+          <HarborlineScrollAffordance @ref="Region" AriaLabel="@Label" Class="gallery-scroll-affordance" data-owner="app" FadeSize="@FadeSize" ItemCount="@Count" Snap="@IsSnap">@Tiles(Count, revision)</HarborlineScrollAffordance>
+          @if (IsReplacement)
+          {
+            <button type="button" @onclick="ReplaceChildren">Replace children</button>
+            <output aria-live="polite">Revision @revision; host ref @(Region is null ? "pending" : "connected").</output>
+          }
+        </div>
+      }
+    </HarborlineLocaleProvider>
+  </div>
+</section>
+
+@code {
+  [Parameter, EditorRequired] public string ScenarioId { get; set; } = "scroll-affordance.axes-overflow";
+  private int revision = 1;
+  private HarborlineScrollAffordance? Region;
+  private bool IsArabic => ScenarioId == "scroll-affordance.locale-ar";
+  private bool IsPseudo => ScenarioId == "scroll-affordance.locale-pseudo";
+  private bool IsAxisDemo => ScenarioId == "scroll-affordance.axes-overflow";
+  private bool IsReplacement => ScenarioId == "scroll-affordance.replacement-host";
+  private bool IsSnap => ScenarioId == "scroll-affordance.snap-fade";
+  private int Count => IsReplacement ? revision == 1 ? 7 : 4 : 8;
+  private double FadeSize => IsSnap ? 32 : 24;
+  private string Locale => IsArabic ? "ar-SA" : IsPseudo ? "en-XA" : "en-US";
+  private string Direction => IsArabic ? "rtl" : "ltr";
+  private string Label => IsArabic ? "نتائج فحص الهيكل" : IsPseudo ? "⟦ Šţřûçţûřë îñšþëçţîøñ řëšûļţš ······ ⟧" : "Structure inspection results";
+  private string? Theme => ScenarioId switch { "scroll-affordance.theme-light" => "light", "scroll-affordance.theme-dark" => "dark", _ => null };
+  private IReadOnlyDictionary<string, string>? Catalog => IsPseudo ? PseudoCatalog : null;
+  private (string Title, string Description) Copy => CopyByScenario[ScenarioId];
+  private void ReplaceChildren() => revision = revision == 1 ? 96 : 1;
+  private RenderFragment Tiles(int count, int tileRevision, bool vertical = false) => builder =>
+  {
+    var sequence = 0;
+    builder.OpenElement(sequence++, "div");
+    builder.AddAttribute(sequence++, "style", $"display:flex;flex-direction:{(vertical ? "column" : "row")};gap:12px;min-width:{(vertical ? 0 : count * 176)}px");
+    for (var index = 0; index < count; index++)
+    {
+      builder.OpenElement(sequence++, "article");
+      builder.AddAttribute(sequence++, "style", "border:1px solid var(--hl-border,CanvasText);border-radius:8px;flex:0 0 164px;padding:12px;scroll-snap-align:start");
+      builder.OpenElement(sequence++, "strong"); builder.AddContent(sequence++, $"Structure {tileRevision}-{index + 1}"); builder.CloseElement();
+      builder.OpenElement(sequence++, "p"); builder.AddAttribute(sequence++, "style", "margin-block-end:0"); builder.AddContent(sequence++, $"Grid {(char)('A' + index % 6)}-{index + 1}"); builder.CloseElement();
+      builder.CloseElement();
+    }
+    builder.CloseElement();
+  };
+  private static readonly IReadOnlyDictionary<string, string> PseudoCatalog = new Dictionary<string, string>
+  {
+    ["scrollAffordance.showingOne"] = "⟦ Šçřøļļåƀļë, šhøŵîñĝ {index} øƒ {total} ······ ⟧",
+    ["scrollAffordance.showingRange"] = "⟦ Šçřøļļåƀļë, šhøŵîñĝ {start} ţø {end} øƒ {total} ······ ⟧",
+    ["scrollAffordance.endReached"] = "⟦ Šçřøļļåƀļë řëĝîøñ, ëñđ řëåçhëđ ······ ⟧",
+    ["scrollAffordance.moreAvailable"] = "⟦ Møřë çøñţëñţ åṽåîļåƀļë; ûšë åřřøŵ ķëÿš ········ ⟧",
+    ["scrollAffordance.percentScrolled"] = "⟦ Šçřøļļåƀļë řëĝîøñ, {percent}% šçřøļļëđ ······ ⟧",
+  };
+  private static readonly IReadOnlyDictionary<string, (string Title, string Description)> CopyByScenario = new Dictionary<string, (string, string)>
+  {
+    ["scroll-affordance.axes-overflow"] = ("Axes and overflow state", "Only overflowing regions enter the tab order; horizontal and vertical axes remain independent."),
+    ["scroll-affordance.keyboard-status"] = ("Keyboard and live position", "Arrow, Home, and End move the active axis while a polite status describes the visible range."),
+    ["scroll-affordance.snap-fade"] = ("Snap and logical fades", "Mandatory snapping and edge masks expose hidden content without theme-specific colors."),
+    ["scroll-affordance.replacement-host"] = ("Host attributes and replacement", "The latest child set, caller attribute, class, and scroll-host reference remain intact."),
+    ["scroll-affordance.locale-pseudo"] = ("Pseudo-localized announcements", "Expanded position messages and labels remain available without changing content order."),
+    ["scroll-affordance.locale-ar"] = ("Arabic logical scrolling", "Logical start, end, fades, and keyboard movement mirror under right-to-left direction."),
+    ["scroll-affordance.theme-light"] = ("Light theme", "Overflow, focus, snap, and fade states use the Harborline light tokens."),
+    ["scroll-affordance.theme-dark"] = ("Dark theme", "The same labelled scroll region on the Harborline dark surface."),
+  };
+}

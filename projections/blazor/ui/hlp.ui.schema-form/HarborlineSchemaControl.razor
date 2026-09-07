@@ -1,0 +1,213 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Forms
+@using System.Globalization
+@using Microsoft.AspNetCore.Components.Web
+@using Harborline.UIAdapters.Blazor.Components.Forms.Inputs
+
+@if (Hint is "checkbox" or "boolean")
+{
+    <HarborlineCheckBox Checked="@(Args.Value is true ? CheckBoxState.Checked : CheckBoxState.Unchecked)"
+                      CheckedChanged="@ChangeTypedBooleanAsync" DescribedBy="@Args.DescribedBy"
+                      Disabled="@Args.Disabled" Error="@Args.HasError" Id="@Args.Field.Name"
+                      Name="@Args.Field.Name" Required="@Args.Required"
+                      aria-labelledby="@Args.LabelId" />
+}
+else if (Hint == "boolean-toggle")
+{
+    <HarborlineSwitch AccessibleName="@null" Checked="@(Args.Value is true)" CheckedChanged="@ChangeTypedBooleanAsync"
+                    Disabled="@Args.Disabled" Error="@Args.HasError" Id="@Args.Field.Name"
+                    Name="@Args.Field.Name" Required="@Args.Required" />
+}
+else if (Hint == "textarea")
+{
+    <HarborlineTextArea DescribedBy="@Args.DescribedBy" Disabled="@Args.Disabled" Error="@Args.HasError"
+                      Id="@Args.Field.Name" LabelledBy="@Args.LabelId" Name="@Args.Field.Name"
+                      Required="@Args.Required" Value="@Args.StringValue" ValueChanged="@ChangeTypedStringAsync" />
+}
+else if (Hint == "select" && Args.Field.Options.Count > 0)
+{
+    <HarborlineSelectField Disabled="@Args.Disabled" Error="@Args.HasError" Name="@Args.Field.Name"
+                         Options="@SelectOptions" Required="@Args.Required" Value="@Args.StringValue"
+                         ValueChanged="@ChangeTypedStringAsync" />
+}
+else if (Hint == "multiselect")
+{
+    <select aria-describedby="@Args.DescribedBy" aria-invalid="@(Args.HasError ? "true" : null)"
+            aria-labelledby="@Args.LabelId" aria-required="@(Args.Required ? "true" : null)"
+            class="hl-schema-form__multi-select" disabled="@Args.Disabled" id="@Args.Field.Name"
+            multiple name="@Args.Field.Name" required="@Args.Required" @onchange="ChangeMultiSelectAsync">
+        @foreach (var option in Args.Field.Options)
+        {
+            <option disabled="@option.Disabled" selected="@IsSelected(option.Value)" value="@option.Value">@Resolve(option.Label, option.Value)</option>
+        }
+    </select>
+}
+else if (Hint == "readonly")
+{
+    <output aria-describedby="@Args.DescribedBy" aria-labelledby="@Args.LabelId"
+            class="hl-schema-form__readonly" id="@Args.Field.Name">@Args.StringValue</output>
+}
+else if (Hint == "hidden")
+{
+    <input name="@Args.Field.Name" readonly type="hidden" value="@(IsStructured(Args.Value) ? string.Empty : Args.StringValue)" />
+}
+else if (Hint is "currency" or "percentage")
+{
+    <HarborlineNumericTextBox AccessibleLabel="@ResolvedLabel" Currency="@CurrencyCode" Decimals="@Decimals"
+                            Disabled="@Args.Disabled" Error="@Args.HasError"
+                            Format="@(Hint == "currency" ? $"c{Decimals}" : null)"
+                            Id="@Args.Field.Name" Locale="@Locale" Max="@Maximum" Min="@Minimum"
+                            Name="@Args.Field.Name" Required="@Args.Required" Spinners="false"
+                            Value="@NumericValue" ValueChanged="@ChangeNullableNumberAsync"
+                            aria-describedby="@Args.DescribedBy" aria-labelledby="@Args.LabelId" />
+}
+else if (Hint is "number" or "integer")
+{
+    <HarborlineNumberField Disabled="@Args.Disabled" Error="@Args.HasError" Name="@Args.Field.Name"
+                         Required="@Args.Required" Step="@(Hint == "integer" ? 1 : null)"
+                         Value="@Args.StringValue" ValueChanged="@ChangeNumberStringAsync" />
+}
+else if (Hint == "date")
+{
+    <HarborlineDateField DescribedBy="@Args.DescribedBy" Disabled="@Args.Disabled" Error="@Args.HasError"
+                       LabelledBy="@Args.LabelId" Name="@Args.Field.Name" Required="@Args.Required"
+                       Value="@Args.StringValue" ValueChanged="@ChangeTypedStringAsync" />
+}
+else if (Hint == "datetime")
+{
+    <HarborlineDateTimeField DescribedBy="@Args.DescribedBy" Disabled="@Args.Disabled" Error="@Args.HasError"
+                           LabelledBy="@Args.LabelId" Name="@Args.Field.Name" Required="@Args.Required"
+                           Value="@Args.StringValue" ValueChanged="@ChangeTypedStringAsync" />
+}
+else if (Hint is "text" or "phone" or "email" or "url")
+{
+    <HarborlineTextBox Autocomplete="@Autocomplete" Disabled="@Args.Disabled" Error="@Args.HasError"
+                     Id="@Args.Field.Name" InputMode="@InputMode" Name="@Args.Field.Name"
+                     Required="@Args.Required" Type="@InputType" Value="@Args.StringValue"
+                     ValueChanged="@ChangeTypedStringAsync" />
+}
+else
+{
+    <input aria-describedby="@Args.DescribedBy" aria-invalid="@(Args.HasError ? "true" : null)"
+           aria-labelledby="@Args.LabelId" aria-required="@(Args.Required ? "true" : null)"
+           autocomplete="@Autocomplete" disabled="@Args.Disabled" id="@Args.Field.Name"
+           inputmode="@InputMode" name="@Args.Field.Name" required="@Args.Required"
+           step="@Step" type="@InputType" value="@Args.StringValue" @oninput="ChangeInputAsync" />
+}
+
+@code {
+    [Parameter, EditorRequired] public string Hint { get; set; } = "text";
+    [Parameter, EditorRequired] public SchemaFormControlArgs Args { get; set; } = default!;
+
+    private string InputType => Hint switch
+    {
+        "number" or "integer" or "currency" or "percentage" => "number",
+        "date" => "date",
+        "datetime" => "datetime-local",
+        "time" => "time",
+        "phone" => "tel",
+        "email" => "email",
+        "url" => "url",
+        _ => "text",
+    };
+    private string? InputMode => Hint switch
+    {
+        "phone" => "tel",
+        "email" => "email",
+        "url" => "url",
+        "currency" or "percentage" => "decimal",
+        _ => null,
+    };
+    private string? Autocomplete => Hint is "email" or "url" ? Hint : null;
+    private string? Step => Hint switch
+    {
+        "integer" => "1",
+        "number" or "currency" or "percentage" => "any",
+        _ => null,
+    };
+
+    private IReadOnlyList<SelectOption> SelectOptions => Args.Field.Options
+        .Select(option => new SelectOption(option.Value, Resolve(option.Label, option.Value), option.Disabled))
+        .ToArray();
+    private string? Locale => Args.LocaleChain.FirstOrDefault();
+    private int Decimals => ConfigInt("decimals") ?? 2;
+    private string CurrencyCode => ConfigString("currencyCode") ?? "USD";
+    private double? Minimum => ConfigDouble("min") ?? (Hint == "percentage" ? 0 : null);
+    private double? Maximum => ConfigDouble("max") ?? (Hint == "percentage" ? 100 : null);
+    private double? NumericValue => FiniteDouble(Args.Value);
+    private string ResolvedLabel => SchemaFormTextResolver.Resolve(Args.Field.Label, Args.LocaleChain);
+
+    private Task ChangeTypedStringAsync(string value) => Args.ValueChanged.InvokeAsync(value);
+    private Task ChangeTypedBooleanAsync(bool value) => Args.ValueChanged.InvokeAsync(value);
+    private Task ChangeNullableNumberAsync(double? value) => Args.ValueChanged.InvokeAsync(value);
+    private Task ChangeNumberStringAsync(string text) => ParseNumberAsync(text);
+
+    private Task ChangeInputAsync(ChangeEventArgs args)
+    {
+        var text = args.Value?.ToString() ?? string.Empty;
+        return Args.ValueChanged.InvokeAsync(text);
+    }
+
+    private Task ParseNumberAsync(string text)
+    {
+        if (text.Length == 0) return Args.ValueChanged.InvokeAsync(null);
+        if (Hint == "integer" && long.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var integer))
+            return Args.ValueChanged.InvokeAsync(integer);
+        return double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var number)
+            ? Args.ValueChanged.InvokeAsync(number)
+            : Task.CompletedTask;
+    }
+
+    private Task ChangeMultiSelectAsync(ChangeEventArgs args)
+    {
+        var values = args.Value switch
+        {
+            string[] array => array,
+            IEnumerable<string> enumerable => enumerable.ToArray(),
+            string value => [value],
+            _ => [],
+        };
+        return Args.ValueChanged.InvokeAsync(values);
+    }
+
+    private bool IsSelected(string value) => Args.Value is System.Collections.IEnumerable selected
+        && Args.Value is not string
+        && selected.Cast<object?>().Any(candidate => string.Equals(candidate?.ToString(), value, StringComparison.Ordinal));
+
+    private string Resolve(SchemaFormText text, string fallback) =>
+        SchemaFormTextResolver.Resolve(text, Args.LocaleChain, fallback);
+
+    private string? ConfigString(string key) => Args.Field.Config.TryGetValue(key, out var value) ? value as string : null;
+    private int? ConfigInt(string key) => Args.Field.Config.TryGetValue(key, out var value)
+        ? value switch
+        {
+            int number => number,
+            long number when number is >= int.MinValue and <= int.MaxValue => (int)number,
+            double number when double.IsFinite(number) && number is >= int.MinValue and <= int.MaxValue => (int)number,
+            _ => null,
+        }
+        : null;
+    private double? ConfigDouble(string key) =>
+        Args.Field.Config.TryGetValue(key, out var value) ? FiniteDouble(value) : null;
+    private static double? FiniteDouble(object? value)
+    {
+        if (value is null) return null;
+        if (value is string text)
+            return double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed)
+                && double.IsFinite(parsed) ? parsed : null;
+        try
+        {
+            var number = Convert.ToDouble(value, CultureInfo.InvariantCulture);
+            return double.IsFinite(number) ? number : null;
+        }
+        catch (Exception error) when (error is FormatException or InvalidCastException or OverflowException)
+        {
+            return null;
+        }
+    }
+
+    private static bool IsStructured(object? value) => value is not null
+        && value is not string
+        && value is not bool
+        && value is not byte and not sbyte and not short and not ushort and not int and not uint
+        && value is not long and not ulong and not float and not double and not decimal;
+}

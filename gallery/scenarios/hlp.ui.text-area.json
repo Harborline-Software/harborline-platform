@@ -1,0 +1,236 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.text-area",
+  "sourceFixture": "conformance/hlp.ui.text-area/fixtures.yaml",
+  "qualityFixture": "conformance/hlp.ui.text-area/quality-fixtures.yaml",
+  "galleryInterface": {
+    "probeAttribute": "data-gallery-probe",
+    "scenarioAttribute": "data-gallery-scenario",
+    "projectionTitles": {
+      "react": "Platform/Text Area",
+      "blazor": "Platform/Text Area"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "text-area.editing",
+      "name": "Editing and metadata",
+      "surface": "defaults",
+      "sourceCaseIds": [
+        "text-area.defaults",
+        "text-area.raw-change",
+        "text-area.controlled",
+        "text-area.uncontrolled",
+        "text-area.form-context"
+      ],
+      "sourceQualityCaseIds": [
+        "text-area.quality.native",
+        "text-area.quality.relationships",
+        "text-area.quality.focus",
+        "text-area.quality.reflow"
+      ],
+      "content": {
+        "blurb": "Controlled editing, field metadata, resizing, validation, and counting.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "id": "notes-text-area.editing",
+          "value": "{value}",
+          "rows": 4,
+          "resize": "vertical",
+          "showCounter": true,
+          "maxLength": 160,
+          "error": false,
+          "fillMode": "solid",
+          "aria-describedby": "help-text-area.editing"
+        },
+        "state": {
+          "value": {
+            "kind": "string",
+            "initial": "Observed surface corrosion near the north joint."
+          }
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<section className=\"hl-gallery-scene\" data-gallery-probe data-gallery-scenario={scenarioId} data-theme={localized ? 'dark' : undefined} dir={localized ? 'rtl' : undefined}>\n  <header className=\"hl-gallery-heading\"><h2>{localized ? 'ملاحظات الفحص' : scenarioId === 'text-area.variants' ? 'Variants and counter' : 'Editing and metadata'}</h2><p>Controlled editing, field metadata, resizing, validation, and counting.</p></header>\n  <div className=\"hl-gallery-stage\"><label htmlFor={`notes-${scenarioId}`}>{localized ? 'ملاحظات' : 'Inspection notes'}</label><TextArea id={`notes-${scenarioId}`} value={value} onChange={setValue} rows={4} resize={scenarioId === 'text-area.variants' ? 'both' : 'vertical'} showCounter maxLength={160} error={scenarioId === 'text-area.variants'} fillMode={scenarioId === 'text-area.variants' ? 'outline' : 'solid'} aria-describedby={`help-${scenarioId}`} /><p id={`help-${scenarioId}`}>{localized ? 'صف حالة الهيكل.' : 'Describe the condition of the structure.'}</p></div>\n</section>",
+            "blazor": "<section class=\"hl-gallery-scene\" data-gallery-probe data-gallery-scenario=\"@ScenarioId\" data-theme=\"@Theme\" dir=\"@Direction\">\n    <header class=\"hl-gallery-heading\"><h2>@Title</h2><p>Controlled editing, field metadata, resizing, validation, and counting.</p></header>\n    <div class=\"hl-gallery-stage\">\n        <label for=\"@FieldId\">@(Localized ? \"ملاحظات\" : \"Inspection notes\")</label>\n        <HarborlineTextArea Id=\"@FieldId\" @bind-Value=\"value\" Rows=\"4\" Resize=\"@Resize\" ShowCounter=\"true\" MaxLength=\"160\" Error=\"@Variants\" FillMode=\"@FillMode\" DescribedBy=\"@HelpId\" />\n        <p id=\"@HelpId\">@(Localized ? \"صف حالة الهيكل.\" : \"Describe the condition of the structure.\")</p>\n    </div>\n</section>",
+            "rationale": "The rendered scene uses section, header, h2, div, and p elements, and its central control is a textarea component; none of those elements or a textarea control exists in the closed descriptor vocabulary, so the label relationship, help relationship, counter, and component boundary cannot be represented without the lane markup."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "text-area.variants",
+      "name": "Variants and counter",
+      "surface": "states",
+      "sourceCaseIds": [
+        "text-area.resize",
+        "text-area.auto-resize",
+        "text-area.variants",
+        "text-area.error-alias",
+        "text-area.counter",
+        "text-area.maximum",
+        "text-area.host-attributes"
+      ],
+      "sourceQualityCaseIds": [
+        "text-area.quality.counter",
+        "text-area.quality.forced-colors",
+        "text-area.quality.reduced-motion"
+      ],
+      "content": {
+        "inherits": "text-area.editing",
+        "blurb": "Controlled editing, field metadata, resizing, validation, and counting.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "id": "notes-text-area.variants",
+          "value": "{value}",
+          "rows": 4,
+          "resize": "both",
+          "showCounter": true,
+          "maxLength": 160,
+          "error": true,
+          "fillMode": "outline",
+          "aria-describedby": "help-text-area.variants"
+        },
+        "state": {
+          "value": {
+            "kind": "string",
+            "initial": "Observed surface corrosion near the north joint."
+          }
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<section className=\"hl-gallery-scene\" data-gallery-probe data-gallery-scenario={scenarioId} data-theme={localized ? 'dark' : undefined} dir={localized ? 'rtl' : undefined}>\n  <header className=\"hl-gallery-heading\"><h2>{localized ? 'ملاحظات الفحص' : scenarioId === 'text-area.variants' ? 'Variants and counter' : 'Editing and metadata'}</h2><p>Controlled editing, field metadata, resizing, validation, and counting.</p></header>\n  <div className=\"hl-gallery-stage\"><label htmlFor={`notes-${scenarioId}`}>{localized ? 'ملاحظات' : 'Inspection notes'}</label><TextArea id={`notes-${scenarioId}`} value={value} onChange={setValue} rows={4} resize={scenarioId === 'text-area.variants' ? 'both' : 'vertical'} showCounter maxLength={160} error={scenarioId === 'text-area.variants'} fillMode={scenarioId === 'text-area.variants' ? 'outline' : 'solid'} aria-describedby={`help-${scenarioId}`} /><p id={`help-${scenarioId}`}>{localized ? 'صف حالة الهيكل.' : 'Describe the condition of the structure.'}</p></div>\n</section>",
+            "blazor": "<section class=\"hl-gallery-scene\" data-gallery-probe data-gallery-scenario=\"@ScenarioId\" data-theme=\"@Theme\" dir=\"@Direction\">\n    <header class=\"hl-gallery-heading\"><h2>@Title</h2><p>Controlled editing, field metadata, resizing, validation, and counting.</p></header>\n    <div class=\"hl-gallery-stage\">\n        <label for=\"@FieldId\">@(Localized ? \"ملاحظات\" : \"Inspection notes\")</label>\n        <HarborlineTextArea Id=\"@FieldId\" @bind-Value=\"value\" Rows=\"4\" Resize=\"@Resize\" ShowCounter=\"true\" MaxLength=\"160\" Error=\"@Variants\" FillMode=\"@FillMode\" DescribedBy=\"@HelpId\" />\n        <p id=\"@HelpId\">@(Localized ? \"صف حالة الهيكل.\" : \"Describe the condition of the structure.\")</p>\n    </div>\n</section>",
+            "rationale": "The rendered scene uses section, header, h2, div, and p elements, and its central control is a textarea component; none of those elements or a textarea control exists in the closed descriptor vocabulary, so the label relationship, help relationship, counter, error presentation, resize behavior, and component boundary cannot be represented without the lane markup."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "text-area.locale-theme",
+      "name": "Locale and theme",
+      "surface": "rtl-theme",
+      "sourceCaseIds": [
+        "text-area.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "text-area.quality.raw-copy",
+        "text-area.quality.rtl",
+        "text-area.quality.pseudo",
+        "text-area.quality.light-dark",
+        "text-area.quality.tokens",
+        "text-area.quality.visual-parity"
+      ],
+      "content": {
+        "inherits": "text-area.editing",
+        "blurb": "Controlled editing, field metadata, resizing, validation, and counting.",
+        "environment": {
+          "locale": "ar-SA",
+          "direction": "rtl",
+          "theme": "dark",
+          "catalog": {}
+        },
+        "props": {
+          "id": "notes-text-area.locale-theme",
+          "value": "{value}",
+          "rows": 4,
+          "resize": "vertical",
+          "showCounter": true,
+          "maxLength": 160,
+          "error": false,
+          "fillMode": "solid",
+          "aria-describedby": "help-text-area.locale-theme"
+        },
+        "state": {
+          "value": {
+            "kind": "string",
+            "initial": "ملاحظات فحص الهيكل"
+          }
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<section className=\"hl-gallery-scene\" data-gallery-probe data-gallery-scenario={scenarioId} data-theme={localized ? 'dark' : undefined} dir={localized ? 'rtl' : undefined}>\n  <header className=\"hl-gallery-heading\"><h2>{localized ? 'ملاحظات الفحص' : scenarioId === 'text-area.variants' ? 'Variants and counter' : 'Editing and metadata'}</h2><p>Controlled editing, field metadata, resizing, validation, and counting.</p></header>\n  <div className=\"hl-gallery-stage\"><label htmlFor={`notes-${scenarioId}`}>{localized ? 'ملاحظات' : 'Inspection notes'}</label><TextArea id={`notes-${scenarioId}`} value={value} onChange={setValue} rows={4} resize={scenarioId === 'text-area.variants' ? 'both' : 'vertical'} showCounter maxLength={160} error={scenarioId === 'text-area.variants'} fillMode={scenarioId === 'text-area.variants' ? 'outline' : 'solid'} aria-describedby={`help-${scenarioId}`} /><p id={`help-${scenarioId}`}>{localized ? 'صف حالة الهيكل.' : 'Describe the condition of the structure.'}</p></div>\n</section>",
+            "blazor": "<section class=\"hl-gallery-scene\" data-gallery-probe data-gallery-scenario=\"@ScenarioId\" data-theme=\"@Theme\" dir=\"@Direction\">\n    <header class=\"hl-gallery-heading\"><h2>@Title</h2><p>Controlled editing, field metadata, resizing, validation, and counting.</p></header>\n    <div class=\"hl-gallery-stage\">\n        <label for=\"@FieldId\">@(Localized ? \"ملاحظات\" : \"Inspection notes\")</label>\n        <HarborlineTextArea Id=\"@FieldId\" @bind-Value=\"value\" Rows=\"4\" Resize=\"@Resize\" ShowCounter=\"true\" MaxLength=\"160\" Error=\"@Variants\" FillMode=\"@FillMode\" DescribedBy=\"@HelpId\" />\n        <p id=\"@HelpId\">@(Localized ? \"صف حالة الهيكل.\" : \"Describe the condition of the structure.\")</p>\n    </div>\n</section>",
+            "rationale": "The rendered RTL dark-theme scene uses section, header, h2, div, and p elements, and its central control is a textarea component; none of those elements or a textarea control exists in the closed descriptor vocabulary, so the localized label and help relationships, counter, and component boundary cannot be represented without the lane markup."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "text-area.content",
+      "name": "Content resilience",
+      "surface": "long-content",
+      "sourceCaseIds": [
+        "text-area.defaults",
+        "text-area.counter"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "Four text areas carry an overlong label, a grouped large number, escaped angle brackets and an ampersand, and a diacritic-rich name with an em dash.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<><TextArea aria-label=\"Long content\" defaultValue=\"Awaiting third-party structural certification review\" rows={2} /><TextArea aria-label=\"Large number\" defaultValue=\"1,284,905\" rows={2} /><TextArea aria-label=\"Escaped content\" defaultValue={'Bay 4 <grid C-7> & 8'} rows={2} /><TextArea aria-label=\"Unusual name\" defaultValue=\"Ordnance Survey — Niño Ångström\" rows={2} /></>",
+            "blazor": "<HarborlineTextArea aria-label=\"Long content\" DefaultValue=\"Awaiting third-party structural certification review\" Rows=\"2\" /><HarborlineTextArea aria-label=\"Large number\" DefaultValue=\"1,284,905\" Rows=\"2\" /><HarborlineTextArea aria-label=\"Escaped content\" DefaultValue=\"@(\"Bay 4 <grid C-7> & 8\")\" Rows=\"2\" /><HarborlineTextArea aria-label=\"Unusual name\" DefaultValue=\"Ordnance Survey — Niño Ångström\" Rows=\"2\" />",
+            "rationale": "The closed control vocabulary has no text-area control and cannot preserve four multiline values carrying hostile-but-valid content across both projection lanes."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "text-area.error-state",
+      "name": "Error state",
+      "surface": "invalid-input",
+      "sourceCaseIds": [
+        "text-area.error-alias",
+        "text-area.form-context"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "The text area renders its declared invalid state with an accessible name.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<TextArea aria-label=\"Inspection notes\" defaultValue=\"Invalid inspection notes\" error rows={4} />",
+            "blazor": "<HarborlineTextArea aria-label=\"Inspection notes\" DefaultValue=\"Invalid inspection notes\" Error=\"true\" Rows=\"4\" />",
+            "rationale": "The closed control vocabulary has no text-area control and cannot express the component error prop and its invalid visual and accessibility semantics in both projection lanes."
+          }
+        ],
+        "footer": []
+      }
+    }
+  ]
+}

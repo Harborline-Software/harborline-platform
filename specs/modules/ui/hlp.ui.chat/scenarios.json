@@ -1,0 +1,659 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.chat",
+  "sourceFixture": "conformance/hlp.ui.chat/fixtures.yaml",
+  "qualityFixture": "conformance/hlp.ui.chat/quality-fixtures.yaml",
+  "galleryInterface": {
+    "probeAttribute": "data-gallery-probe",
+    "scenarioAttribute": "data-gallery-scenario",
+    "projectionTitles": {
+      "react": "Platform/Chat",
+      "blazor": "Platform/Chat"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "chat.empty-suggestions",
+      "name": "Empty state and suggestions",
+      "surface": "empty-suggestions",
+      "interaction": "pointer",
+      "sourceCaseIds": [
+        "chat.empty",
+        "chat.suggestions-initial",
+        "chat.suggestion-submit",
+        "chat.empty-slot"
+      ],
+      "sourceQualityCaseIds": [
+        "chat.quality.log-articles",
+        "chat.quality.touch-reflow",
+        "chat.quality.catalog"
+      ],
+      "content": {
+        "blurb": "The conversation log retains its accessible shell while starter prompts remain reachable.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "chats": [
+            {
+              "messages": [],
+              "user": {
+                "name": "Casey Morgan"
+              },
+              "noDataText": "No inspection conversation yet."
+            },
+            {
+              "messages": [],
+              "user": {
+                "name": "Casey Morgan"
+              },
+              "submittable": true,
+              "suggestions": [
+                {
+                  "title": "Explain the conflict",
+                  "prompt": "Explain the clearance conflict"
+                },
+                {
+                  "title": "Suggest next step",
+                  "prompt": "Suggest the next inspection step"
+                }
+              ],
+              "noDataText": "Choose a prompt or describe the placement question."
+            }
+          ]
+        },
+        "state": {},
+        "body": [],
+        "footer": []
+      }
+    },
+    {
+      "id": "chat.app-conversation",
+      "name": "Harborline conversation",
+      "surface": "app-conversation",
+      "interaction": "keyboard",
+      "sourceCaseIds": [
+        "chat.ordered-messages",
+        "chat.outgoing-incoming",
+        "chat.avatar-hidden",
+        "chat.message-content-slot",
+        "chat.host-attributes"
+      ],
+      "sourceQualityCaseIds": [
+        "chat.quality.log-articles",
+        "chat.quality.touch-reflow",
+        "chat.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "Ordered roles, bounded custom content, hidden avatars, and host-owned fill height match the Harborline Copilot surface.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "messages": [
+            {
+              "id": "capture-request",
+              "author": {
+                "name": "Casey Morgan"
+              },
+              "role": "user",
+              "text": "Place the west-wall capture on the Level 2 blueprint.",
+              "status": "complete",
+              "timestamp": "2026-01-02T15:02:00Z"
+            },
+            {
+              "id": "capture-result",
+              "author": {
+                "name": "Harborline Copilot"
+              },
+              "role": "assistant",
+              "text": "The pose aligns with grid C-7. I found one clearance conflict near the service chase.",
+              "status": "complete",
+              "timestamp": "2026-01-02T15:04:05Z"
+            },
+            {
+              "id": "review-state",
+              "author": {
+                "name": "Inspection workflow"
+              },
+              "role": "system",
+              "text": "Placement evidence is ready for review.",
+              "status": "complete"
+            }
+          ],
+          "user": {
+            "name": "Casey Morgan"
+          },
+          "showAvatar": false,
+          "hostAttributes": {
+            "data-owner": "app"
+          }
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<div><strong>{message.status === 'error' ? 'Needs attention' : 'Spatial evidence'}</strong><p style={{ margin: '0.25rem 0 0' }}>{message.text}</p></div>",
+            "blazor": "builder.OpenElement(0, \"div\"); builder.OpenElement(1, \"strong\"); builder.AddContent(2, message.Status == ChatMessageStatus.Error ? \"Needs attention\" : \"Spatial evidence\"); builder.CloseElement(); builder.OpenElement(3, \"p\"); builder.AddContent(5, message.Text); builder.CloseElement(); builder.CloseElement();",
+            "rationale": "The message-content slot requires a div and paragraph plus per-message conditional and message-text bindings; div and paragraph are outside the closed descriptor vocabulary and the bindings are not scenario state."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "chat.controlled-composer",
+      "name": "Controlled composer",
+      "surface": "controlled-composer",
+      "interaction": "keyboard",
+      "sourceCaseIds": [
+        "chat.controlled-input",
+        "chat.submit-click",
+        "chat.submit-enter",
+        "chat.submit-trim-empty",
+        "chat.submit-disabled",
+        "chat.suggestion-submit",
+        "chat.suggestions-after-user-message"
+      ],
+      "sourceQualityCaseIds": [
+        "chat.quality.log-articles",
+        "chat.quality.touch-reflow",
+        "chat.quality.catalog"
+      ],
+      "content": {
+        "blurb": "The host owns draft state, receives one trimmed prompt, and removes suggestions after the first user message.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "messages": "{messages}",
+          "user": {
+            "name": "Casey Morgan"
+          },
+          "inputValue": "{inputValue}",
+          "suggestions": [
+            {
+              "title": "Explain the conflict",
+              "prompt": "Explain the clearance conflict"
+            },
+            {
+              "title": "Suggest next step",
+              "prompt": "Suggest the next inspection step"
+            }
+          ],
+          "noDataText": "Suggestions are available before the first user message."
+        },
+        "state": {
+          "messages": {
+            "kind": "array",
+            "initial": []
+          },
+          "inputValue": {
+            "kind": "string",
+            "initial": "Review grid C-7"
+          },
+          "lastSubmission": {
+            "kind": "string",
+            "initial": "No prompt submitted yet."
+          }
+        },
+        "body": [],
+        "footer": [
+          {
+            "control": "output",
+            "live": "polite",
+            "text": "{lastSubmission}"
+          }
+        ]
+      }
+    },
+    {
+      "id": "chat.streaming-keyboard",
+      "name": "Streaming and keyboard navigation",
+      "surface": "streaming-keyboard",
+      "interaction": "keyboard",
+      "sourceCaseIds": [
+        "chat.typing",
+        "chat.streaming-announcement",
+        "chat.keyboard-navigation",
+        "chat.submit-disabled"
+      ],
+      "sourceQualityCaseIds": [
+        "chat.quality.log-articles",
+        "chat.quality.live-regions",
+        "chat.quality.forced-colors"
+      ],
+      "content": {
+        "blurb": "Partial assistant text is quiet, typing remains announced, and adjacent articles support arrow-key focus.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "messages": [
+            {
+              "id": "capture-request",
+              "author": {
+                "name": "Casey Morgan"
+              },
+              "role": "user",
+              "text": "Place the west-wall capture on the Level 2 blueprint.",
+              "status": "complete",
+              "timestamp": "2026-01-02T15:02:00Z"
+            },
+            {
+              "id": "streaming-result",
+              "author": {
+                "name": "Harborline Copilot"
+              },
+              "role": "assistant",
+              "text": "Comparing capture geometry with Level 2…",
+              "status": "streaming",
+              "timestamp": "2026-01-02T15:04:05Z"
+            }
+          ],
+          "user": {
+            "name": "Casey Morgan"
+          },
+          "inputValue": "Waiting for the current response",
+          "submittable": true,
+          "composerDisabled": true,
+          "showTypingIndicator": true,
+          "showAvatar": false
+        },
+        "state": {},
+        "body": [],
+        "footer": []
+      }
+    },
+    {
+      "id": "chat.replacement-validation",
+      "name": "Replacement and validation",
+      "surface": "replacement-validation",
+      "sourceCaseIds": [
+        "chat.replacement",
+        "chat.invalid-input",
+        "chat.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "chat.quality.log-articles"
+      ],
+      "content": {
+        "blurb": "Complete replacement removes stale messages while stable contract errors remain projection-neutral.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "user": {
+            "name": "Casey Morgan"
+          },
+          "messageRevisions": {
+            "1": [
+              {
+                "id": "capture-request",
+                "author": {
+                  "name": "Casey Morgan"
+                },
+                "role": "user",
+                "text": "Place the west-wall capture on the Level 2 blueprint.",
+                "status": "complete",
+                "timestamp": "2026-01-02T15:02:00Z"
+              },
+              {
+                "id": "capture-result",
+                "author": {
+                  "name": "Harborline Copilot"
+                },
+                "role": "assistant",
+                "text": "The pose aligns with grid C-7. I found one clearance conflict near the service chase.",
+                "status": "complete",
+                "timestamp": "2026-01-02T15:04:05Z"
+              }
+            ],
+            "2": [
+              {
+                "id": "replacement-only",
+                "author": {
+                  "name": "Harborline Copilot"
+                },
+                "role": "assistant",
+                "text": "Revision 2 is authoritative; no stale revision 1 rows remain.",
+                "status": "complete"
+              }
+            ]
+          }
+        },
+        "state": {
+          "revision": {
+            "kind": "counter",
+            "initial": 1
+          }
+        },
+        "body": [
+          {
+            "control": "button",
+            "text": "Show revision 2",
+            "action": "toggleRevision"
+          },
+          {
+            "control": "raw",
+            "react": "<aside aria-label=\"Stable validation codes\"><strong>Stable validation codes</strong><p style={{ marginBlockEnd: 0 }}>duplicate-message-id · controlled-composer-handler-required · accessible-user-name-required · invalid-message-timestamp</p></aside>",
+            "blazor": "<aside aria-label=\"Stable validation codes\"><strong>Stable validation codes</strong><p style=\"margin-block-end:0\">duplicate-message-id · controlled-composer-handler-required · accessible-user-name-required · invalid-message-timestamp</p></aside>",
+            "rationale": "The validation block requires aside and paragraph elements, which are outside the closed descriptor vocabulary."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "chat.large-data",
+      "name": "Bounded conversation under load",
+      "surface": "large-data",
+      "sourceCaseIds": [
+        "chat.ordered-messages",
+        "chat.replacement",
+        "chat.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "chat.quality.log-articles",
+        "chat.quality.touch-reflow"
+      ],
+      "content": {
+        "blurb": "Two hundred fifty-six ordered messages exercise the Tier-C structural boundary inside one scroll owner.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "user": {
+            "name": "Casey Morgan"
+          },
+          "showAvatar": false,
+          "messageCount": 256,
+          "hostAttributes": {
+            "data-gallery-message-count": "256"
+          }
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "Array.from({ length: 256 }, (_, index) => ({ id: `load-message-${index + 1}`, author: index % 2 === 0 ? currentUser : assistant, role: index % 2 === 0 ? 'user' : 'assistant', text: `Inspection message ${index + 1}: structure grid ${String.fromCharCode(65 + (index % 8))}-${(index % 12) + 1}.`, status: 'complete' }))",
+            "blazor": "Enumerable.Range(0, 256).Select(index => new ChatMessage($\"load-message-{index + 1}\", index % 2 == 0 ? CurrentUser : Assistant, index % 2 == 0 ? ChatMessageRole.User : ChatMessageRole.Assistant, $\"Inspection message {index + 1}: structure grid {(char)('A' + index % 8)}-{index % 12 + 1}.\", ChatMessageStatus.Complete)).ToArray()",
+            "rationale": "The generated messages require modulo arithmetic, character generation, alternating participant objects, and alternating message roles; repeat descriptors can interpolate only n and cannot express those computations."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "chat.locale-pseudo",
+      "name": "Pseudo locale",
+      "surface": "locale-pseudo",
+      "sourceCaseIds": [
+        "chat.message-content-slot",
+        "chat.host-attributes"
+      ],
+      "sourceQualityCaseIds": [
+        "chat.quality.catalog",
+        "chat.quality.pseudo"
+      ],
+      "content": {
+        "blurb": "Expanded participant names, messages, and composer copy remain readable without clipping.",
+        "environment": {
+          "locale": "en-XA",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {
+            "ai.chat.conversation": "⟦ Šþåţîåļ îñšþëçţîøñ çøñṽëřšåţîøñ ······ ⟧",
+            "ai.chat.inputLabel": "⟦ Mëššåĝë ···· ⟧",
+            "ai.chat.placeholder": "⟦ Åšķ åƀøûţ ţĥë çåþţûřëđ þøšë ········ ⟧",
+            "ai.send": "⟦ Šëñđ ···· ⟧"
+          }
+        },
+        "props": {
+          "messages": [
+            {
+              "id": "pseudo-user",
+              "author": {
+                "name": "⟦ Çåšëÿ Møřĝåñ ···· ⟧"
+              },
+              "role": "user",
+              "text": "⟦ Þļåçë ţĥë çåþţûřë ŵîţĥîñ ţĥë šëļëçţëđ ƀļûëþřîñţ šţřûçţûřë. ········ ⟧"
+            },
+            {
+              "id": "pseudo-assistant",
+              "author": {
+                "name": "⟦ Håřƀøřļîñë Çøþîļøţ ······ ⟧"
+              },
+              "role": "assistant",
+              "text": "⟦ Þļåçëmëñţ îš řëåđÿ ƒøř řëṽîëŵ; øñë çļëåřåñçë çøñƒļîçţ řëmåîñš. ·········· ⟧"
+            }
+          ],
+          "user": {
+            "name": "⟦ Çåšëÿ Møřĝåñ ···· ⟧"
+          },
+          "submittable": true
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<div><strong>{message.status === 'error' ? 'Needs attention' : 'Spatial evidence'}</strong><p style={{ margin: '0.25rem 0 0' }}>{message.text}</p></div>",
+            "blazor": "builder.OpenElement(0, \"div\"); builder.OpenElement(1, \"strong\"); builder.AddContent(2, message.Status == ChatMessageStatus.Error ? \"Needs attention\" : \"Spatial evidence\"); builder.CloseElement(); builder.OpenElement(3, \"p\"); builder.AddContent(5, message.Text); builder.CloseElement(); builder.CloseElement();",
+            "rationale": "The message-content slot requires a div and paragraph plus per-message conditional and message-text bindings; div and paragraph are outside the closed descriptor vocabulary and the bindings are not scenario state."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "chat.locale-ar",
+      "name": "Arabic RTL and localized time",
+      "surface": "locale-ar",
+      "interaction": "keyboard",
+      "sourceCaseIds": [
+        "chat.locale-rtl-time",
+        "chat.keyboard-navigation"
+      ],
+      "sourceQualityCaseIds": [
+        "chat.quality.locale-time",
+        "chat.quality.catalog"
+      ],
+      "content": {
+        "blurb": "Logical ownership alignment and localized instants remain intact in a right-to-left conversation.",
+        "environment": {
+          "locale": "ar-SA",
+          "direction": "rtl",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "messages": [
+            {
+              "id": "arabic-user",
+              "author": {
+                "name": "ليلى"
+              },
+              "role": "user",
+              "text": "ضع الصورة عند الشبكة ج-٧.",
+              "timestamp": "2026-01-02T15:02:00Z"
+            },
+            {
+              "id": "arabic-assistant",
+              "author": {
+                "name": "مساعد هاربورلاين"
+              },
+              "role": "assistant",
+              "text": "تمت محاذاة الوضعية مع المخطط.",
+              "timestamp": "2026-01-02T15:04:05Z"
+            }
+          ],
+          "user": {
+            "name": "ليلى"
+          },
+          "direction": "rtl",
+          "submittable": true
+        },
+        "state": {},
+        "body": [],
+        "footer": []
+      }
+    },
+    {
+      "id": "chat.theme-light",
+      "name": "Light theme",
+      "surface": "theme-light",
+      "sourceCaseIds": [
+        "chat.outgoing-incoming",
+        "chat.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "chat.quality.light-dark",
+        "chat.quality.tokens",
+        "chat.quality.forced-colors",
+        "chat.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "Conversation, controls, focus, and status surfaces use the public light tokens.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "messages": [
+            {
+              "id": "capture-request",
+              "author": {
+                "name": "Casey Morgan"
+              },
+              "role": "user",
+              "text": "Place the west-wall capture on the Level 2 blueprint.",
+              "status": "complete",
+              "timestamp": "2026-01-02T15:02:00Z"
+            },
+            {
+              "id": "capture-result",
+              "author": {
+                "name": "Harborline Copilot"
+              },
+              "role": "assistant",
+              "text": "The pose aligns with grid C-7. I found one clearance conflict near the service chase.",
+              "status": "complete",
+              "timestamp": "2026-01-02T15:04:05Z"
+            },
+            {
+              "id": "review-state",
+              "author": {
+                "name": "Inspection workflow"
+              },
+              "role": "system",
+              "text": "Placement evidence is ready for review.",
+              "status": "complete"
+            }
+          ],
+          "user": {
+            "name": "Casey Morgan"
+          },
+          "submittable": true,
+          "hostAttributes": {
+            "data-theme": "light"
+          }
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<div><strong>{message.status === 'error' ? 'Needs attention' : 'Spatial evidence'}</strong><p style={{ margin: '0.25rem 0 0' }}>{message.text}</p></div>",
+            "blazor": "builder.OpenElement(0, \"div\"); builder.OpenElement(1, \"strong\"); builder.AddContent(2, message.Status == ChatMessageStatus.Error ? \"Needs attention\" : \"Spatial evidence\"); builder.CloseElement(); builder.OpenElement(3, \"p\"); builder.AddContent(5, message.Text); builder.CloseElement(); builder.CloseElement();",
+            "rationale": "The message-content slot requires a div and paragraph plus per-message conditional and message-text bindings; div and paragraph are outside the closed descriptor vocabulary and the bindings are not scenario state."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "chat.theme-dark",
+      "name": "Dark theme",
+      "surface": "theme-dark",
+      "sourceCaseIds": [
+        "chat.outgoing-incoming",
+        "chat.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "chat.quality.light-dark",
+        "chat.quality.tokens",
+        "chat.quality.forced-colors",
+        "chat.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "The same semantic conversation uses the public dark tokens without changing behavior.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "dark",
+          "catalog": {}
+        },
+        "props": {
+          "messages": [
+            {
+              "id": "capture-request",
+              "author": {
+                "name": "Casey Morgan"
+              },
+              "role": "user",
+              "text": "Place the west-wall capture on the Level 2 blueprint.",
+              "status": "complete",
+              "timestamp": "2026-01-02T15:02:00Z"
+            },
+            {
+              "id": "capture-result",
+              "author": {
+                "name": "Harborline Copilot"
+              },
+              "role": "assistant",
+              "text": "The pose aligns with grid C-7. I found one clearance conflict near the service chase.",
+              "status": "complete",
+              "timestamp": "2026-01-02T15:04:05Z"
+            },
+            {
+              "id": "review-state",
+              "author": {
+                "name": "Inspection workflow"
+              },
+              "role": "system",
+              "text": "Placement evidence is ready for review.",
+              "status": "complete"
+            }
+          ],
+          "user": {
+            "name": "Casey Morgan"
+          },
+          "submittable": true,
+          "hostAttributes": {
+            "data-theme": "dark"
+          }
+        },
+        "inherits": "chat.theme-light"
+      }
+    }
+  ]
+}

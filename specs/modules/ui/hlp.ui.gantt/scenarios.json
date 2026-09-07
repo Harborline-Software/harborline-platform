@@ -1,0 +1,605 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.gantt",
+  "sourceFixture": "conformance/hlp.ui.gantt/fixtures.yaml",
+  "qualityFixture": "conformance/hlp.ui.gantt/quality-fixtures.yaml",
+  "galleryInterface": {
+    "probeAttribute": "data-gallery-probe",
+    "scenarioAttribute": "data-gallery-scenario",
+    "projectionTitles": {
+      "react": "Platform/Gantt",
+      "blazor": "Platform/Gantt"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "gantt.overview",
+      "name": "Read-only schedule",
+      "surface": "overview",
+      "sourceCaseIds": [
+        "gantt.defaults",
+        "gantt.task-order",
+        "gantt.progress-color",
+        "gantt.dependencies",
+        "gantt.read-only",
+        "gantt.host-attributes"
+      ],
+      "sourceQualityCaseIds": [
+        "gantt.quality.named-grid",
+        "gantt.quality.non-color-progress"
+      ],
+      "content": {
+        "blurb": "Ordered work, progress, and finish-to-start dependencies remain available without editing controls.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "accessibleName": "Structure work schedule",
+          "className": "engineering-schedule",
+          "data-owner": "engineering-services",
+          "rowHeight": 36,
+          "showZoomPicker": false,
+          "zoom": "month",
+          "tasks": [
+            {
+              "id": "survey",
+              "title": "Survey structure",
+              "start": "2026-08-11",
+              "end": "2026-08-12",
+              "progress": 100,
+              "color": "var(--hl-color-success)"
+            },
+            {
+              "id": "capture",
+              "title": "Capture photo with pose",
+              "start": "2026-08-13",
+              "end": "2026-08-15",
+              "progress": 45,
+              "color": "var(--hl-color-info)"
+            },
+            {
+              "id": "place",
+              "title": "Place capture in blueprint",
+              "start": "2026-08-16",
+              "end": "2026-08-19",
+              "progress": 10,
+              "color": "var(--hl-color-warning)"
+            }
+          ],
+          "dependencies": [
+            {
+              "fromId": "survey",
+              "toId": "capture"
+            },
+            {
+              "fromId": "capture",
+              "toId": "place"
+            }
+          ]
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<Gantt accessibleName={isArabic ? 'الجدول الزمني للعمل' : isPseudo ? pseudoCatalog['gantt.title'] : 'Structure work schedule'} className=\"engineering-schedule\" columns={columns} data-owner=\"engineering-services\" dependencies={dependencies} empty={isEmpty ? 'No scheduled structure work.' : undefined} onZoomChange={isZoom ? setRequestedZoom : undefined} rowHeight={isPseudo ? 44 : 36} showZoomPicker={isZoom || isPseudo} tasks={tasks} zoom={isZoom ? 'day' : scenarioId === 'gantt.locale-fr' ? 'week' : 'month'} />",
+            "blazor": "<HarborlineGantt AccessibleLabel=\"@AccessibleLabel\" Class=\"engineering-schedule\" Columns=\"@Columns\" data-owner=\"engineering-services\" Dependencies=\"@Dependencies\" Empty=\"@Empty\" RowHeight=\"@RowHeight\" ShowZoomPicker=\"@ShowZoomPicker\" Tasks=\"@Tasks\" Zoom=\"@Zoom\" ZoomChanged=\"HandleZoomChanged\" />",
+            "rationale": "The closed vocabulary has no Gantt control and cannot express the named task grid, timeline bars, progress semantics, dependency connectors, or read-only keyboard behavior."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "gantt.empty-columns",
+      "name": "Empty and column states",
+      "surface": "empty-columns",
+      "sourceCaseIds": [
+        "gantt.empty",
+        "gantt.columns-default",
+        "gantt.columns-custom"
+      ],
+      "sourceQualityCaseIds": [
+        "gantt.quality.catalog"
+      ],
+      "content": {
+        "blurb": "Localized empty content and caller-selected columns replace the defaults without stale headers.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "accessibleName": "Structure work schedule",
+          "className": "engineering-schedule",
+          "data-owner": "engineering-services",
+          "columns": [
+            {
+              "field": "title",
+              "title": "Work package",
+              "width": 240
+            }
+          ],
+          "empty": "No scheduled structure work.",
+          "rowHeight": 36,
+          "showZoomPicker": false,
+          "tasks": [],
+          "dependencies": [],
+          "zoom": "month"
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<Gantt accessibleName={isArabic ? 'الجدول الزمني للعمل' : isPseudo ? pseudoCatalog['gantt.title'] : 'Structure work schedule'} className=\"engineering-schedule\" columns={columns} data-owner=\"engineering-services\" dependencies={dependencies} empty={isEmpty ? 'No scheduled structure work.' : undefined} onZoomChange={isZoom ? setRequestedZoom : undefined} rowHeight={isPseudo ? 44 : 36} showZoomPicker={isZoom || isPseudo} tasks={tasks} zoom={isZoom ? 'day' : scenarioId === 'gantt.locale-fr' ? 'week' : 'month'} />",
+            "blazor": "<HarborlineGantt AccessibleLabel=\"@AccessibleLabel\" Class=\"engineering-schedule\" Columns=\"@Columns\" data-owner=\"engineering-services\" Dependencies=\"@Dependencies\" Empty=\"@Empty\" RowHeight=\"@RowHeight\" ShowZoomPicker=\"@ShowZoomPicker\" Tasks=\"@Tasks\" Zoom=\"@Zoom\" ZoomChanged=\"HandleZoomChanged\" />",
+            "rationale": "The closed vocabulary cannot express a Gantt's caller-selected column definition, semantic empty grid, replacement of default headers, or timeline layout."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "gantt.zoom-navigation",
+      "name": "Controlled zoom and keyboard navigation",
+      "surface": "zoom-navigation",
+      "interaction": "keyboard",
+      "sourceCaseIds": [
+        "gantt.zoom-scales",
+        "gantt.zoom-controlled"
+      ],
+      "sourceQualityCaseIds": [
+        "gantt.quality.named-grid"
+      ],
+      "content": {
+        "blurb": "The picker requests a scale while the supplied scale and keyboard-reachable task grid remain authoritative.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "accessibleName": "Structure work schedule",
+          "className": "engineering-schedule",
+          "data-owner": "engineering-services",
+          "rowHeight": 36,
+          "showZoomPicker": true,
+          "zoom": "day",
+          "tasks": [
+            {
+              "id": "survey",
+              "title": "Survey structure",
+              "start": "2026-08-11",
+              "end": "2026-08-12",
+              "progress": 100,
+              "color": "var(--hl-color-success)"
+            },
+            {
+              "id": "capture",
+              "title": "Capture photo with pose",
+              "start": "2026-08-13",
+              "end": "2026-08-15",
+              "progress": 45,
+              "color": "var(--hl-color-info)"
+            },
+            {
+              "id": "place",
+              "title": "Place capture in blueprint",
+              "start": "2026-08-16",
+              "end": "2026-08-19",
+              "progress": 10,
+              "color": "var(--hl-color-warning)"
+            }
+          ],
+          "dependencies": [
+            {
+              "fromId": "survey",
+              "toId": "capture"
+            },
+            {
+              "fromId": "capture",
+              "toId": "place"
+            }
+          ]
+        },
+        "state": {
+          "requestedZoom": {
+            "kind": "string",
+            "initial": ""
+          }
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<><Gantt ... onZoomChange={setRequestedZoom} showZoomPicker tasks={tasks} zoom=\"day\" /><output aria-live=\"polite\">{requestedZoom ? `Requested ${requestedZoom}; supplied zoom remains day.` : 'Choose a scale to request a controlled zoom change.'}</output></>",
+            "blazor": "<><HarborlineGantt ... ShowZoomPicker=\"@ShowZoomPicker\" Tasks=\"@Tasks\" Zoom=\"@Zoom\" ZoomChanged=\"HandleZoomChanged\" /><output aria-live=\"polite\">@(requestedZoom is GanttZoom requested ? $\"Requested {requested.ToString().ToLowerInvariant()}; supplied zoom remains day.\" : \"Choose a scale to request a controlled zoom change.\")</output></>",
+            "rationale": "The closed vocabulary cannot express the Gantt zoom picker, its controlled callback without changing the supplied day scale, the resulting conditional live output, or the grid's roving keyboard navigation."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "gantt.replacement-validation",
+      "name": "Replacement and validation boundaries",
+      "surface": "replacement-validation",
+      "sourceCaseIds": [
+        "gantt.replacement",
+        "gantt.invalid-input"
+      ],
+      "sourceQualityCaseIds": [
+        "gantt.quality.non-color-progress"
+      ],
+      "content": {
+        "blurb": "Only the latest valid task graph is visible; malformed inputs are rejected by stable contract codes.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "accessibleName": "Structure work schedule",
+          "className": "engineering-schedule",
+          "data-owner": "engineering-services",
+          "rowHeight": 36,
+          "showZoomPicker": false,
+          "zoom": "month",
+          "tasks": [
+            {
+              "id": "revision-96",
+              "title": "Latest replacement only",
+              "start": "2026-08-19",
+              "end": "2026-08-20",
+              "progress": 96
+            }
+          ],
+          "dependencies": []
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<><Gantt ... dependencies={[]} tasks={[{ id: 'revision-96', title: 'Latest replacement only', start: '2026-08-19', end: '2026-08-20', progress: 96 }]} zoom=\"month\" /><p role=\"status\">Revision 96 is current. Earlier rows and connectors have been removed.</p></>",
+            "blazor": "<><HarborlineGantt ... Dependencies=\"@Dependencies\" Tasks=\"@Tasks\" Zoom=\"@Zoom\" /><p role=\"status\">Revision 96 is current. Earlier rows and connectors have been removed.</p></>",
+            "rationale": "The closed vocabulary cannot express atomic Gantt task-graph replacement, removal of stale timeline rows and dependency connectors, contract validation behavior, or the status paragraph's semantic relationship to that grid."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "gantt.large-data",
+      "name": "Large schedule",
+      "surface": "large-data",
+      "sourceCaseIds": [
+        "gantt.task-order",
+        "gantt.dependencies",
+        "gantt.replacement",
+        "gantt.provider-isolation",
+        "gantt.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "gantt.quality.reflow"
+      ],
+      "content": {
+        "blurb": "The deterministic Tier-C fixture exposes 256 ordered tasks and 320 valid dependencies.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "accessibleName": "Structure work schedule",
+          "className": "engineering-schedule",
+          "data-owner": "engineering-services",
+          "rowHeight": 36,
+          "showZoomPicker": false,
+          "zoom": "month",
+          "taskCount": 256,
+          "dependencyCount": 320
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<><Gantt ... dependencies={largeDependencySet()} tasks={largeTaskSet()} zoom=\"month\" /><p role=\"status\">256 tasks · 320 dependencies</p></>",
+            "blazor": "<><HarborlineGantt ... Dependencies=\"@LargeDependencies\" Tasks=\"@LargeTasks\" Zoom=\"@Zoom\" /><p role=\"status\">256 tasks · 320 dependencies</p></>",
+            "rationale": "The closed vocabulary cannot express the generated 256-row Gantt timeline, 320 generated dependency connectors, bounded reflow behavior, or their status summary without expanding executable fixture formulas."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "gantt.locale-fr",
+      "name": "French calendar dates",
+      "surface": "locale-fr",
+      "sourceCaseIds": [
+        "gantt.localized-dates"
+      ],
+      "sourceQualityCaseIds": [
+        "gantt.quality.locale-dates",
+        "gantt.quality.catalog"
+      ],
+      "content": {
+        "blurb": "Calendar dates are formatted in French without timezone drift.",
+        "environment": {
+          "locale": "fr-FR",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {
+            "gantt.title": "Calendrier des travaux",
+            "gantt.name": "Chronologie",
+            "gantt.start": "Début",
+            "gantt.end": "Fin",
+            "gantt.progress": "Avancement",
+            "gantt.zoom": "Échelle",
+            "gantt.day": "Jour",
+            "gantt.week": "Semaine",
+            "gantt.month": "Mois",
+            "dataGrid.noResults": "Aucun travail planifié."
+          }
+        },
+        "props": {
+          "accessibleName": "Structure work schedule",
+          "className": "engineering-schedule",
+          "data-owner": "engineering-services",
+          "rowHeight": 36,
+          "showZoomPicker": false,
+          "zoom": "week",
+          "tasks": [
+            {
+              "id": "survey",
+              "title": "Survey structure",
+              "start": "2026-08-11",
+              "end": "2026-08-12",
+              "progress": 100,
+              "color": "var(--hl-color-success)"
+            },
+            {
+              "id": "capture",
+              "title": "Capture photo with pose",
+              "start": "2026-08-13",
+              "end": "2026-08-15",
+              "progress": 45,
+              "color": "var(--hl-color-info)"
+            },
+            {
+              "id": "place",
+              "title": "Place capture in blueprint",
+              "start": "2026-08-16",
+              "end": "2026-08-19",
+              "progress": 10,
+              "color": "var(--hl-color-warning)"
+            }
+          ],
+          "dependencies": [
+            {
+              "fromId": "survey",
+              "toId": "capture"
+            },
+            {
+              "fromId": "capture",
+              "toId": "place"
+            }
+          ]
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<HarborlineLocaleProvider catalog={frenchCatalog} direction=\"ltr\" locale=\"fr-FR\"><Gantt ... tasks={baseTasks} dependencies={baseDependencies} zoom=\"week\" /></HarborlineLocaleProvider>",
+            "blazor": "<HarborlineLocaleProvider Locale=\"fr-FR\" Direction=\"ltr\" Catalog=\"@FrenchCatalog\"><HarborlineGantt ... Tasks=\"@BaseTasks\" Dependencies=\"@BaseDependencies\" Zoom=\"@Zoom\" /></HarborlineLocaleProvider>",
+            "rationale": "The closed vocabulary cannot express a Gantt timeline or its locale-sensitive French calendar-date formatting across the named grid and time scale."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "gantt.locale-pseudo",
+      "name": "Pseudo-localized reflow",
+      "surface": "locale-pseudo",
+      "sourceCaseIds": [
+        "gantt.columns-custom",
+        "gantt.host-attributes"
+      ],
+      "sourceQualityCaseIds": [
+        "gantt.quality.pseudo",
+        "gantt.quality.reflow"
+      ],
+      "content": {
+        "blurb": "Expanded headers and labels remain reachable in a narrow, magnified surface.",
+        "environment": {
+          "locale": "en-XA",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {
+            "gantt.title": "⟦ Šçĥëđûļë ţîmëļîñë ······ ⟧",
+            "gantt.name": "⟦ Ţîmëļîñë ···· ⟧",
+            "gantt.start": "⟦ Šţåřţ đåţë ···· ⟧",
+            "gantt.end": "⟦ Ëñđ đåţë ···· ⟧",
+            "gantt.progress": "⟦ Þřøĝřëšš ···· ⟧",
+            "gantt.zoom": "⟦ Ţîmë šçåļë ···· ⟧",
+            "gantt.day": "⟦ Đåÿ ·· ⟧",
+            "gantt.week": "⟦ Ŵëëķ ··· ⟧",
+            "gantt.month": "⟦ Møñţĥ ··· ⟧",
+            "dataGrid.noResults": "⟦ Ñø šçĥëđûļëđ ŵøřķ ········ ⟧"
+          }
+        },
+        "props": {
+          "accessibleName": "⟦ Šçĥëđûļë ţîmëļîñë ······ ⟧",
+          "className": "engineering-schedule",
+          "data-owner": "engineering-services",
+          "columns": [
+            {
+              "field": "title",
+              "title": "⟦ Šţřûçţûřë ŵøřķ þåçķåĝë ········ ⟧",
+              "width": 260
+            },
+            {
+              "field": "start"
+            },
+            {
+              "field": "end"
+            },
+            {
+              "field": "progress"
+            }
+          ],
+          "rowHeight": 44,
+          "showZoomPicker": true,
+          "zoom": "month",
+          "maxInlineSize": 640,
+          "zoomFactor": 2
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<div style={{ maxInlineSize: 640, zoom: 2 }}><Gantt accessibleName={pseudoCatalog['gantt.title']} columns={columns} rowHeight={44} showZoomPicker tasks={baseTasks} dependencies={baseDependencies} zoom=\"month\" /></div>",
+            "blazor": "<div style=\"max-inline-size:640px;zoom:2\"><HarborlineGantt AccessibleLabel=\"@PseudoCatalog[\"gantt.title\"]\" Columns=\"@Columns\" RowHeight=\"44\" ShowZoomPicker Tasks=\"@BaseTasks\" Dependencies=\"@BaseDependencies\" Zoom=\"@Zoom\" /></div>",
+            "rationale": "The closed vocabulary cannot express the Gantt grid, expanded custom column header, zoom picker, timeline, or the narrow 200-percent magnified reflow surface."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "gantt.locale-ar",
+      "name": "Arabic right-to-left schedule",
+      "surface": "locale-ar",
+      "sourceCaseIds": [
+        "gantt.rtl",
+        "gantt.localized-dates"
+      ],
+      "sourceQualityCaseIds": [
+        "gantt.quality.locale-dates"
+      ],
+      "content": {
+        "blurb": "Logical layout follows right-to-left direction while source task order remains unchanged.",
+        "environment": {
+          "locale": "ar-SA",
+          "direction": "rtl",
+          "theme": "light",
+          "catalog": {
+            "gantt.title": "الجدول الزمني للعمل",
+            "gantt.name": "الخط الزمني",
+            "gantt.start": "البداية",
+            "gantt.end": "النهاية",
+            "gantt.progress": "التقدم",
+            "gantt.zoom": "المقياس الزمني",
+            "gantt.day": "يوم",
+            "gantt.week": "أسبوع",
+            "gantt.month": "شهر",
+            "dataGrid.noResults": "لا يوجد عمل مجدول."
+          }
+        },
+        "props": {
+          "accessibleName": "الجدول الزمني للعمل",
+          "className": "engineering-schedule",
+          "data-owner": "engineering-services",
+          "rowHeight": 36,
+          "showZoomPicker": false,
+          "zoom": "month",
+          "tasks": [
+            {
+              "id": "survey",
+              "title": "مسح الهيكل",
+              "start": "2026-08-11",
+              "end": "2026-08-12",
+              "progress": 100
+            },
+            {
+              "id": "capture",
+              "title": "التقاط صورة مع الوضعية",
+              "start": "2026-08-13",
+              "end": "2026-08-15",
+              "progress": 45
+            },
+            {
+              "id": "place",
+              "title": "وضع الالتقاط في المخطط",
+              "start": "2026-08-16",
+              "end": "2026-08-19",
+              "progress": 10
+            }
+          ],
+          "dependencies": [
+            {
+              "fromId": "survey",
+              "toId": "capture"
+            },
+            {
+              "fromId": "capture",
+              "toId": "place"
+            }
+          ]
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<HarborlineLocaleProvider catalog={arabicCatalog} direction=\"rtl\" locale=\"ar-SA\"><Gantt accessibleName=\"الجدول الزمني للعمل\" dependencies={baseDependencies} tasks={arabicTasks} zoom=\"month\" /></HarborlineLocaleProvider>",
+            "blazor": "<HarborlineLocaleProvider Locale=\"ar-SA\" Direction=\"rtl\" Catalog=\"@ArabicCatalog\"><HarborlineGantt AccessibleLabel=\"الجدول الزمني للعمل\" Dependencies=\"@BaseDependencies\" Tasks=\"@ArabicTasks\" Zoom=\"@Zoom\" /></HarborlineLocaleProvider>",
+            "rationale": "The closed vocabulary cannot express the RTL Gantt's logical grid and timeline layout, localized calendar labels, dependency connectors, or preservation of caller task order."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "gantt.theme-light",
+      "name": "Light theme",
+      "surface": "theme-light",
+      "sourceCaseIds": [
+        "gantt.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "gantt.quality.light-dark",
+        "gantt.quality.tokens",
+        "gantt.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "Semantic timeline, progress, focus, and dependency tokens on the Harborline light surface.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "inherits": "gantt.overview"
+      }
+    },
+    {
+      "id": "gantt.theme-dark",
+      "name": "Dark theme",
+      "surface": "theme-dark",
+      "sourceCaseIds": [
+        "gantt.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "gantt.quality.light-dark",
+        "gantt.quality.tokens",
+        "gantt.quality.forced-colors",
+        "gantt.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "The same provider-neutral schedule on the Harborline dark surface.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "dark",
+          "catalog": {}
+        },
+        "inherits": "gantt.overview"
+      }
+    }
+  ]
+}

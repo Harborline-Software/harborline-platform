@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "projection": "react",
+  "moduleId": "hlp.ui.chip",
+  "scenarios": [
+    {
+      "scenarioId": "chip.defaults",
+      "sha256": "e743dc68c3a49e43c56b1e95813f06016dd94d9512896e40ccc96c357232b32c",
+      "bytes": 9488,
+      "artifact": "../baselines/sha256/e743dc68c3a49e43c56b1e95813f06016dd94d9512896e40ccc96c357232b32c.png"
+    },
+    {
+      "scenarioId": "chip.interactions",
+      "sha256": "abb7a33e7c6544af12080f493bc2dae8ae5f5aecb2d93ab69702bf2a147e53c4",
+      "bytes": 10558,
+      "artifact": "../baselines/sha256/abb7a33e7c6544af12080f493bc2dae8ae5f5aecb2d93ab69702bf2a147e53c4.png"
+    },
+    {
+      "scenarioId": "chip.locale-ar",
+      "sha256": "44120b092ee4f6221d77f87e01aff2269d6879970d6ea814aa0da37418ed8ce8",
+      "bytes": 9995,
+      "artifact": "../baselines/sha256/44120b092ee4f6221d77f87e01aff2269d6879970d6ea814aa0da37418ed8ce8.png"
+    },
+    {
+      "scenarioId": "chip.invalid",
+      "sha256": "e743dc68c3a49e43c56b1e95813f06016dd94d9512896e40ccc96c357232b32c",
+      "bytes": 9488,
+      "artifact": "../baselines/sha256/e743dc68c3a49e43c56b1e95813f06016dd94d9512896e40ccc96c357232b32c.png"
+    },
+    {
+      "scenarioId": "chip.theme-light",
+      "sha256": "e743dc68c3a49e43c56b1e95813f06016dd94d9512896e40ccc96c357232b32c",
+      "bytes": 9488,
+      "artifact": "../baselines/sha256/e743dc68c3a49e43c56b1e95813f06016dd94d9512896e40ccc96c357232b32c.png"
+    },
+    {
+      "scenarioId": "chip.theme-dark",
+      "sha256": "4bfcb971218df58f285d78bb46ea91fb3c2245121dcb56e9488211ab7231e734",
+      "bytes": 10020,
+      "artifact": "../baselines/sha256/4bfcb971218df58f285d78bb46ea91fb3c2245121dcb56e9488211ab7231e734.png"
+    }
+  ]
+}

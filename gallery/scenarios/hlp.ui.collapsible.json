@@ -1,0 +1,170 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.collapsible",
+  "sourceFixture": "conformance/hlp.ui.collapsible/fixtures.yaml",
+  "qualityFixture": "conformance/hlp.ui.collapsible/quality-fixtures.yaml",
+  "galleryInterface": {
+    "probeAttribute": "data-gallery-probe",
+    "scenarioAttribute": "data-gallery-scenario",
+    "projectionTitles": {
+      "react": "Platform/Collapsible",
+      "blazor": "Platform/Collapsible"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "collapsible.defaults",
+      "name": "Defaults and relationships",
+      "surface": "defaults",
+      "sourceCaseIds": [
+        "collapsible.initial-closed",
+        "collapsible.default-open",
+        "collapsible.relationships",
+        "collapsible.subtitle",
+        "collapsible.title-required"
+      ],
+      "sourceQualityCaseIds": [
+        "collapsible.quality.relationships"
+      ],
+      "content": {
+        "blurb": "Titled disclosure state and independent header actions use one bounded Harborline contract.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "defaultOpen": true,
+          "disabled": false,
+          "title": "Application settings",
+          "subtitle": "Optional configuration"
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "text",
+            "text": "Caller-owned panel content remains available when the disclosure is open."
+          }
+        ],
+        "footer": [
+          {
+            "control": "button",
+            "text": "Edit"
+          }
+        ]
+      }
+    },
+    {
+      "id": "collapsible.states",
+      "name": "States and interactions",
+      "surface": "states-interactions",
+      "sourceCaseIds": [
+        "collapsible.controlled-change",
+        "collapsible.disabled-noop",
+        "collapsible.header-action-isolation"
+      ],
+      "sourceQualityCaseIds": [
+        "collapsible.quality.keyboard",
+        "collapsible.quality.focus",
+        "collapsible.quality.closed-focus",
+        "collapsible.quality.reduced-motion",
+        "collapsible.quality.forced-colors"
+      ],
+      "content": {
+        "blurb": "Titled disclosure state and independent header actions use one bounded Harborline contract.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "defaultOpen": false,
+          "disabled": true,
+          "title": "Application settings",
+          "subtitle": "Optional configuration"
+        },
+        "state": {},
+        "inherits": "collapsible.defaults"
+      }
+    },
+    {
+      "id": "collapsible.rtl-theme",
+      "name": "RTL and theme",
+      "surface": "rtl-theme",
+      "sourceCaseIds": [
+        "collapsible.host-attributes",
+        "collapsible.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "collapsible.quality.reflow",
+        "collapsible.quality.caller-content",
+        "collapsible.quality.rtl",
+        "collapsible.quality.pseudo",
+        "collapsible.quality.light-dark",
+        "collapsible.quality.tokens",
+        "collapsible.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "Titled disclosure state and independent header actions use one bounded Harborline contract.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "rtl",
+          "theme": "dark",
+          "catalog": {}
+        },
+        "props": {
+          "defaultOpen": true,
+          "disabled": false,
+          "title": "إعدادات التطبيق",
+          "subtitle": "تكوين اختياري"
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "text",
+            "text": "Caller-owned panel content remains available when the disclosure is open."
+          }
+        ],
+        "footer": [
+          {
+            "control": "button",
+            "text": "تحرير"
+          }
+        ],
+        "inherits": "collapsible.defaults"
+      }
+    },
+    {
+      "id": "collapsible.content",
+      "name": "Content resilience",
+      "surface": "long-content",
+      "sourceCaseIds": [
+        "collapsible.default-open",
+        "collapsible.subtitle"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "The disclosure carries a long title, grouped large number, escaped hostile subtitle, and an unusual name with diacritics.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<Collapsible defaultOpen title=\"Awaiting third-party structural certification review\" subtitle={'Bay 4 <grid C-7> & 8'} headerActions={<button className=\"hl-gallery-button\" type=\"button\">{'1,284,905'}</button>}><p>{'Ordnance Survey — Niño Ångström'}</p></Collapsible>",
+            "blazor": "<HarborlineCollapsible Title=\"Awaiting third-party structural certification review\" Subtitle=\"@HostileContent\" DefaultOpen><HeaderActions><button type=\"button\" class=\"hl-gallery-button\">@(\"1,284,905\")</button></HeaderActions><ChildContent><p>@(\"Ordnance Survey — Niño Ångström\")</p></ChildContent></HarborlineCollapsible>\n@code { private const string HostileContent = \"Bay 4 <grid C-7> & 8\"; }",
+            "rationale": "The closed descriptor vocabulary cannot express every text-bearing slot of the disclosure while preserving hostile-but-valid content."
+          }
+        ],
+        "footer": []
+      }
+    }
+  ]
+}

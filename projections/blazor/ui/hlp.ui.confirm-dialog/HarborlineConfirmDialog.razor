@@ -1,0 +1,54 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Feedback
+@using Harborline.Foundation.Localization
+@using Harborline.UIAdapters.Blazor.Localization
+@inherits HarborlineComponentBase
+
+<HarborlineDialog Open="@Open" OpenChanged="RequestCloseAsync" Title="@Title" Description="@Description"
+                CloseOnOverlayClick="@CloseOnOverlayClick" CloseOnEscape="@CloseOnEscape">
+  <ChildContent><span></span></ChildContent>
+  @* The buttons go straight into the dialog footer, as the React lane does. An extra wrapper
+     element is DOM the contract does not describe -- the spec stylesheet has no rule for one --
+     and it changes the footer's box, which visual parity measures. *@
+  <Footer>
+    <button type="button" class="hl-confirm-dialog__cancel" @onclick="RequestCloseAsync">@ResolvedCancelLabel</button>
+    <button type="button" class="@ConfirmClass" @onclick="ConfirmAsync">@ResolvedConfirmLabel</button>
+  </Footer>
+</HarborlineDialog>
+
+@code {
+  [CascadingParameter] private HarborlineLocaleContext? LocaleContext { get; set; }
+
+  [Parameter] public bool Open { get; set; }
+  [Parameter, EditorRequired] public EventCallback<bool> OpenChanged { get; set; }
+  [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
+  [Parameter, EditorRequired] public string Description { get; set; } = string.Empty;
+  [Parameter] public string? ConfirmLabel { get; set; }
+  [Parameter] public string? CancelLabel { get; set; }
+  [Parameter, EditorRequired] public EventCallback OnConfirm { get; set; }
+  [Parameter] public ConfirmDialogVariant Variant { get; set; }
+  [Parameter] public bool CloseOnOverlayClick { get; set; } = true;
+  [Parameter] public bool CloseOnEscape { get; set; } = true;
+
+  private string ResolvedConfirmLabel => ResolveLabel(ConfirmLabel, "common.confirm");
+  private string ResolvedCancelLabel => ResolveLabel(CancelLabel, "common.cancel");
+  private string ConfirmClass => Variant == ConfirmDialogVariant.Destructive
+    ? "hl-confirm-dialog__confirm hl-confirm-dialog__confirm--destructive"
+    : "hl-confirm-dialog__confirm";
+
+  private string ResolveLabel(string? instanceOverride, string key)
+  {
+    var fallback = HarborlineDefaultStrings.Get(key);
+    var resolved = LocaleContext?.ResolveString(key, instanceOverride: instanceOverride)
+      ?? instanceOverride
+      ?? fallback;
+    return string.Equals(resolved, key, StringComparison.Ordinal) ? fallback : resolved;
+  }
+
+  private Task RequestCloseAsync() => OpenChanged.InvokeAsync(false);
+
+  private async Task ConfirmAsync()
+  {
+    await OnConfirm.InvokeAsync();
+    await OpenChanged.InvokeAsync(false);
+  }
+}

@@ -1,0 +1,324 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.search-input",
+  "sourceFixture": "conformance/hlp.ui.search-input/fixtures.yaml",
+  "qualityFixture": "conformance/hlp.ui.search-input/quality-fixtures.yaml",
+  "galleryInterface": {
+    "probeAttribute": "data-gallery-probe",
+    "scenarioAttribute": "data-gallery-scenario",
+    "projectionTitles": {
+      "react": "Platform/Search Input",
+      "blazor": "Platform/Search Input"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "search-input.defaults",
+      "name": "Defaults",
+      "surface": "defaults",
+      "sourceCaseIds": [
+        "search-input.defaults",
+        "search-input.empty",
+        "search-input.invalid-delay"
+      ],
+      "sourceQualityCaseIds": [
+        "search-input.quality.pattern"
+      ],
+      "content": {
+        "blurb": "A controlled searchbox starts empty with localized zero-configuration chrome.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {
+            "structural.search.placeholder": "Search inspections…",
+            "structural.search.clear": "Clear search"
+          }
+        },
+        "props": {
+          "value": "{value}",
+          "debounceMs": 200
+        },
+        "state": {
+          "value": {
+            "kind": "string",
+            "initial": ""
+          },
+          "publications": {
+            "kind": "array",
+            "initial": []
+          }
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<SearchInput value={value} onChange={publish} placeholder={placeholder} debounceMs={debounceMs} />\n<output className=\"hl-gallery-activation\" aria-live=\"polite\">Published: {publications.length ? publications.join(' → ') || '(empty)' : 'none'}</output>",
+            "blazor": "<HarborlineSearchInput Value=\"@value\" ValueChanged=\"Publish\" DebounceMs=\"@DebounceMs\" />\n<output class=\"hl-gallery-activation\" aria-live=\"polite\">Published: @PublishedText</output>\nprivate string PublishedText => publications.Count == 0 ? \"none\" : string.Join(\" → \", publications) is { Length: > 0 } text ? text : \"(empty)\";",
+            "rationale": "SearchInput is a compound searchbox with generated localized clear and busy chrome plus debounced publication, while its sibling output conditionally renders none, joins every published value with an arrow, and substitutes (empty) when that join is empty; an input descriptor and the closed vocabulary cannot express that complete structure and behavior."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "search-input.debounce",
+      "name": "Debounce and busy state",
+      "surface": "debounce",
+      "interaction": "keyboard",
+      "sourceCaseIds": [
+        "search-input.typing",
+        "search-input.coalesce",
+        "search-input.busy",
+        "search-input.unmount"
+      ],
+      "sourceQualityCaseIds": [
+        "search-input.quality.busy"
+      ],
+      "content": {
+        "blurb": "Draft edits are immediate while only the latest value publishes after the delay.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {
+            "structural.search.placeholder": "Search inspections…",
+            "structural.search.clear": "Clear search"
+          }
+        },
+        "props": {
+          "value": "{value}",
+          "debounceMs": 500
+        },
+        "inherits": "search-input.defaults"
+      }
+    },
+    {
+      "id": "search-input.sync-clear",
+      "name": "External sync and clear",
+      "surface": "sync-clear",
+      "interaction": "keyboard-pointer",
+      "sourceCaseIds": [
+        "search-input.external-sync",
+        "search-input.clear"
+      ],
+      "sourceQualityCaseIds": [
+        "search-input.quality.keyboard",
+        "search-input.quality.focus",
+        "search-input.quality.targets",
+        "search-input.quality.forced-colors"
+      ],
+      "content": {
+        "blurb": "External values cancel pending publication and clear publishes an empty value immediately.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {
+            "structural.search.placeholder": "Search inspections…",
+            "structural.search.clear": "Clear search"
+          }
+        },
+        "state": {
+          "value": {
+            "kind": "string",
+            "initial": "oak"
+          },
+          "publications": {
+            "kind": "array",
+            "initial": []
+          }
+        },
+        "inherits": "search-input.defaults"
+      }
+    },
+    {
+      "id": "search-input.locale-en",
+      "name": "English locale",
+      "surface": "locale-en",
+      "sourceCaseIds": [
+        "search-input.localization"
+      ],
+      "sourceQualityCaseIds": [
+        "search-input.quality.locales"
+      ],
+      "content": {
+        "blurb": "Placeholder and clear labels resolve from the locale catalog.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {
+            "structural.search.placeholder": "Search inspections…",
+            "structural.search.clear": "Clear search"
+          }
+        },
+        "inherits": "search-input.defaults"
+      }
+    },
+    {
+      "id": "search-input.locale-pseudo",
+      "name": "Pseudo locale",
+      "surface": "locale-pseudo",
+      "sourceCaseIds": [
+        "search-input.localization"
+      ],
+      "sourceQualityCaseIds": [
+        "search-input.quality.pseudo",
+        "search-input.quality.reflow"
+      ],
+      "content": {
+        "blurb": "Expanded search chrome exposes clipping and fixed-width assumptions.",
+        "environment": {
+          "locale": "en-XA",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {
+            "structural.search.placeholder": "⟦ Šëåřçh šţřûçţûřë îñšþëçţîøñš ······ ⟧",
+            "structural.search.clear": "⟦ Çļëåř šëåřçh ···· ⟧"
+          }
+        },
+        "inherits": "search-input.defaults"
+      }
+    },
+    {
+      "id": "search-input.locale-ar",
+      "name": "Arabic locale",
+      "surface": "locale-ar",
+      "sourceCaseIds": [
+        "search-input.rtl"
+      ],
+      "sourceQualityCaseIds": [
+        "search-input.quality.rtl"
+      ],
+      "content": {
+        "blurb": "Logical icon and clear edges follow RTL without changing the value.",
+        "environment": {
+          "locale": "ar-SA",
+          "direction": "rtl",
+          "theme": "light",
+          "catalog": {
+            "structural.search.placeholder": "ابحث في فحوصات الهيكل",
+            "structural.search.clear": "مسح البحث"
+          }
+        },
+        "state": {
+          "value": {
+            "kind": "string",
+            "initial": "بلوط"
+          },
+          "publications": {
+            "kind": "array",
+            "initial": []
+          }
+        },
+        "inherits": "search-input.defaults"
+      }
+    },
+    {
+      "id": "search-input.theme-light",
+      "name": "Light theme",
+      "surface": "theme-light",
+      "sourceCaseIds": [
+        "search-input.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "search-input.quality.themes",
+        "search-input.quality.tokens",
+        "search-input.quality.contrast",
+        "search-input.quality.reduced-motion",
+        "search-input.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "Default, busy, hover, focus, and clear states use public light-theme tokens.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {
+            "structural.search.placeholder": "Search inspections…",
+            "structural.search.clear": "Clear search"
+          }
+        },
+        "state": {
+          "value": {
+            "kind": "string",
+            "initial": "structure"
+          },
+          "publications": {
+            "kind": "array",
+            "initial": []
+          }
+        },
+        "inherits": "search-input.defaults"
+      }
+    },
+    {
+      "id": "search-input.theme-dark",
+      "name": "Dark theme",
+      "surface": "theme-dark",
+      "sourceCaseIds": [
+        "search-input.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "search-input.quality.themes",
+        "search-input.quality.tokens",
+        "search-input.quality.contrast",
+        "search-input.quality.reduced-motion",
+        "search-input.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "The same search behavior on the Harborline dark surface.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "dark",
+          "catalog": {
+            "structural.search.placeholder": "Search inspections…",
+            "structural.search.clear": "Clear search"
+          }
+        },
+        "state": {
+          "value": {
+            "kind": "string",
+            "initial": "structure"
+          },
+          "publications": {
+            "kind": "array",
+            "initial": []
+          }
+        },
+        "inherits": "search-input.defaults"
+      }
+    },
+    {
+      "id": "search-input.content",
+      "name": "Content resilience",
+      "surface": "long-content",
+      "sourceCaseIds": [
+        "search-input.defaults",
+        "search-input.clear"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "Four search boxes carry an overlong label, a grouped large number, escaped angle brackets and an ampersand, and a diacritic-rich name with an em dash.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<><SearchInput accessibleLabel=\"Long content\" value=\"Awaiting third-party structural certification review\" onChange={() => {}} /><SearchInput accessibleLabel=\"Large number\" value=\"1,284,905\" onChange={() => {}} /><SearchInput accessibleLabel=\"Escaped content\" value={'Bay 4 <grid C-7> & 8'} onChange={() => {}} /><SearchInput accessibleLabel=\"Unusual name\" value=\"Ordnance Survey — Niño Ångström\" onChange={() => {}} /></>",
+            "blazor": "<HarborlineSearchInput AccessibleLabel=\"Long content\" Value=\"Awaiting third-party structural certification review\" /><HarborlineSearchInput AccessibleLabel=\"Large number\" Value=\"1,284,905\" /><HarborlineSearchInput AccessibleLabel=\"Escaped content\" Value=\"@(\"Bay 4 <grid C-7> & 8\")\" /><HarborlineSearchInput AccessibleLabel=\"Unusual name\" Value=\"Ordnance Survey — Niño Ångström\" />",
+            "rationale": "The closed control vocabulary has no search-input control and cannot express four controlled search values with generated clear actions across both projection lanes."
+          }
+        ],
+        "footer": []
+      }
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Feedback
+@inherits Harborline.UIAdapters.Blazor.Base.HarborlineComponentBase
+
+@if (Variant == LoadingStateVariant.Inline)
+{
+    <p class="@CombineClasses("hl-loading-state", "hl-loading-state--inline")" role="status" aria-live="polite" aria-label="@Label" data-hl-variant="inline" data-hl-tone="muted-foreground" style="@CombineStyles()" @attributes="AdditionalAttributes"><span class="hl-loading-state__label">@Label</span></p>
+}
+else
+{
+    <div class="@CombineClasses("hl-loading-state", "hl-loading-state--page")" role="status" aria-live="polite" aria-label="@Label" data-hl-variant="page" data-hl-tone="muted-foreground" style="@CombineStyles()" @attributes="AdditionalAttributes"><span class="hl-loading-state__label">@Label</span></div>
+}
+
+@code {
+    [Parameter, EditorRequired] public string Label { get; set; } = string.Empty;
+    [Parameter] public LoadingStateVariant Variant { get; set; } = LoadingStateVariant.Page;
+
+    protected override void OnParametersSet()
+    {
+        if (string.IsNullOrWhiteSpace(Label)) throw new InvalidOperationException("label-required");
+    }
+}

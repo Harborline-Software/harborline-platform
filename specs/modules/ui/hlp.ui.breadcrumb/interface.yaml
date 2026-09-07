@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.breadcrumb",
+  "interfaceRevision": 1,
+  "semantics": {"operation": "render an ordered navigation trail from caller-owned labels, destinations, and current-page state", "observableOutput": "Equivalent link/span selection, current-page semantics, separator placement, wrapping, and host attributes in React and Blazor."},
+  "sourceSurface": {"repository": "shipyard", "commit": "a5036ff8b500e0d857d7e0a698408e7cf7f6cf31", "path": "packages/ui-react/src/components/navigation/Breadcrumb.tsx", "blob": "94e602dd6234ee286167470dc786d089d37772a4", "capturedExports": ["Breadcrumb", "BreadcrumbItem"]},
+  "dependencies": ["hlp.ui.cn"],
+  "invariants": [
+    "Items retain caller order and caller-owned localized labels; callers should provide stable item identity.",
+    "When current is omitted, only the final item is inferred current; an explicit current value wins.",
+    "An item with a destination renders a link only when it is not current; all other items render non-link text.",
+    "The current item exposes aria-current=page and non-current items do not.",
+    "Separators appear only between items, are hidden from assistive technology, and default to a direction-neutral chevron.",
+    "An empty collection renders nothing at all: no navigation landmark, no list, no sentence. A trail with no crumbs names no location, so the component declines to render rather than emitting an empty landmark.",
+    "The navigation landmark has the localized accessible label supplied by the host adapter, with a stable Breadcrumb fallback.",
+    "The ordered list wraps without truncating labels at 200 percent zoom and uses logical spacing in RTL.",
+    "Consumer class, id, lang, dir, data, and aria attributes are preserved on the root navigation landmark.",
+    "Every non-link item carries hl-breadcrumb__text and the current item additionally carries hl-breadcrumb__text--current, the only current-item selector the shared stylesheet defines."
+  ],
+  "errors": [],
+  "presentation": {"disposition":"required","gallery":"gallery/scenarios/hlp.ui.breadcrumb.json"},
+  "cases": [
+    {"id":"breadcrumb.empty"},{"id":"breadcrumb.infer-last-current"},{"id":"breadcrumb.explicit-current"},{"id":"breadcrumb.link-selection"},{"id":"breadcrumb.separator-order"},{"id":"breadcrumb.relationships"},{"id":"breadcrumb.host-attributes"},{"id":"breadcrumb.current-class"},{"id":"breadcrumb.projection-equivalence"}
+  ]
+}

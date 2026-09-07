@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.blocks.aggregates",
+  "profileRevision": 1,
+  "riskTier": "A",
+  "dimensions": {
+    "determinism": {"disposition":"required","caseIds":["authored.ordinal-order","authored.source-order-independent","authored.snapshot-token"]},
+    "numericExactness": {"disposition":"required","caseIds":["evidence.table.aggregate-sum-money-exact","evidence.money.F7-aggregate-sum-decimal-exact","evidence.money.F7-aggregate-min-decimal","evidence.money.aggregate-sum-exact-decimal"]},
+    "bounds": {"disposition":"required","caseIds":["authored.input-limit","authored.group-limit","authored.cell-limit"]},
+    "security": {"disposition":"required","rationale":"Trusted tenant/actor field authorization precedes opening or enumerating a source snapshot."},
+    "concurrency": {"disposition":"required","rationale":"Evaluation consumes exactly one opaque-tokened snapshot; immutable-definition concurrency is exposed through the store seam."},
+    "accessibility": {"disposition":"not-applicable","rationale":"No presentation surface."},
+    "internationalization": {"disposition":"not-applicable","rationale":"Revision 1 deliberately fixes ordinal case-sensitive key semantics."},
+    "theming": {"disposition":"not-applicable","rationale":"No presentation surface."}
+  },
+  "componentStages": [
+    {"id":"contract","dimensions":["determinism","numericExactness","bounds","security","concurrency"],"gate":"spec, catalog, and 43-case ledger validation"},
+    {"id":"projection-native","dimensions":["determinism","numericExactness","bounds","security","concurrency"],"gate":"43 xUnit cases including 11 of 11 evidence rows"},
+    {"id":"package-consumer","dimensions":["determinism","numericExactness","security"],"gate":"packed standalone NuGet consumer"},
+    {"id":"clean-clone","dimensions":["determinism","numericExactness","bounds","security","concurrency"],"gate":"complete repository gate"}
+  ]
+}

@@ -1,0 +1,1 @@
+{"schemaVersion":1,"moduleId":"hlp.ui.use-can-show-master-detail","accessibilityCases":[{"id":"form-factor.quality.capabilities-over-device","expected":{"deviceSniffing":false}},{"id":"form-factor.quality.touch-floor","expected":{"coarsePointerForcesTouchSizing":true}}],"internationalizationCases":[],"themingCases":[]}

@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "projection": "react",
+  "moduleId": "hlp.ui.check-box",
+  "scenarios": [
+    {
+      "scenarioId": "check-box.defaults",
+      "sha256": "a47f2616554ad74c2525ae2596d82d86595907cc28a6bb955d33be9c58eeb888",
+      "bytes": 7491,
+      "artifact": "../baselines/sha256/a47f2616554ad74c2525ae2596d82d86595907cc28a6bb955d33be9c58eeb888.png"
+    },
+    {
+      "scenarioId": "check-box.states",
+      "sha256": "8dfdbdf486593f7215c395e87d746023387c50176b6d494b26a07bb09911cd82",
+      "bytes": 9715,
+      "artifact": "../baselines/sha256/8dfdbdf486593f7215c395e87d746023387c50176b6d494b26a07bb09911cd82.png"
+    },
+    {
+      "scenarioId": "check-box.rtl-theme",
+      "sha256": "756a5382a150ccba73c923b82694b33e8e95535d2d623d70db0ffe698f1f6df3",
+      "bytes": 7174,
+      "artifact": "../baselines/sha256/756a5382a150ccba73c923b82694b33e8e95535d2d623d70db0ffe698f1f6df3.png"
+    }
+  ]
+}

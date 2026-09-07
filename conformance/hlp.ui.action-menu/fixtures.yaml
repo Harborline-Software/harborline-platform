@@ -1,0 +1,21 @@
+{"schemaVersion":1,"moduleId":"hlp.ui.action-menu","fixtureRevision":1,"cases":[
+  {"id":"action-menu.closed","input":{"entries":3},"expected":{"menuPresent":false,"expanded":false}},
+  {"id":"action-menu.default-trigger","input":{},"expected":{"role":"button","hasPopup":"menu","accessibleName":"More actions"}},
+  {"id":"action-menu.custom-trigger","input":{"originalHandlers":true},"expected":{"ariaInjected":true,"originalClickCount":1,"originalKeyCount":1}},
+  {"id":"action-menu.pointer-toggle","input":{"clicks":2},"expected":{"states":["open","closed"]}},
+  {"id":"action-menu.entries","input":{"entries":["edit","separator","delete"]},"expected":{"menuItems":2,"separators":1,"separatorFocusable":false}},
+  {"id":"action-menu.disabled","input":{"entry":"disabled"},"expected":{"nativeDisabled":true,"invocationCount":0,"open":true}},
+  {"id":"action-menu.keyboard-open","input":{"keys":["ArrowDown","ArrowUp","Home","End"]},"expected":{"open":true,"focusesEnabledEntry":true}},
+  {"id":"action-menu.keyboard-navigation","input":{"entries":["edit","disabled","delete"],"keys":["End","ArrowDown","ArrowUp","Home"]},"expected":{"wraps":true,"skipsDisabled":true,"finalActive":"edit"}},
+  {"id":"action-menu.typeahead","input":{"entries":["Edit","Export","Delete"],"keys":["d","e","e"]},"expected":{"activeSequence":["Delete","Edit","Export"],"enabledOnly":true}},
+  {"id":"action-menu.activation","input":{"keys":["Enter","Space"]},"expected":{"invocationCountPerOpen":1,"open":false}},
+  {"id":"action-menu.dismissal","input":{"methods":["Escape","Tab","outside-pointer"]},"expected":{"invocationCount":0,"open":false,"tabTrapped":false,"outsideTargetRetainsFocus":true}},
+  {"id":"action-menu.focus-return","input":{"openedBy":"keyboard","dismissals":["selection","Escape"]},"expected":{"triggerFocused":true}},
+  {"id":"action-menu.empty-disabled","input":{"sets":[[],["disabled"]]},"expected":{"focusRemainsOnTrigger":true,"dismissible":true,"invocationCount":0}},
+  {"id":"action-menu.empty-collection","input":{"sets":[[],["separator"],["disabled"]],"empty":"Nothing to do here"},"expected":{"menuState":["empty","empty","populated"],"emptyMessages":[1,1,0],"menuItems":[0,0,1],"triggerPresent":true,"defaultText":"No actions available","overrideText":"Nothing to do here"}},
+  {"id":"action-menu.blankEmptyText","input":{"empty":"   "},"expected":{"defaultText":"No actions available"}},
+  {"id":"action-menu.logical-alignment","input":{"alignments":["left","right"],"directions":["ltr","rtl"]},"expected":{"usesLogicalEdges":true}},
+  {"id":"action-menu.destructive-icon","input":{"variant":"destructive","icon":"trash"},"expected":{"dangerState":true,"iconDecorative":true,"semanticsUnchanged":true}},
+  {"id":"action-menu.reopen-reset","input":{"priorActive":"delete"},"expected":{"active":"edit","invocationCount":0}},
+  {"id":"action-menu.disclosure","input":{"fixture":"disclosure-v1.json"},"expected":{"transitionReplay":true,"hintRightAlignedMonospaceToken":true,"togglesCarryACheckMark":true,"oneCallbackForEveryEntry":true,"secondHomeAtOneScopeRefused":true,"facetAsAnEntryRefused":true}}
+]}

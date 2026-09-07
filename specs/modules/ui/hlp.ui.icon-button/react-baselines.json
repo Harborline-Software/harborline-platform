@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "projection": "react",
+  "moduleId": "hlp.ui.icon-button",
+  "scenarios": [
+    {
+      "scenarioId": "icon-button.defaults",
+      "sha256": "a02fb6c4eb5bf30d0e1aa21e2697af1b9f884ee4b87cfdf3eec60694245b6563",
+      "bytes": 6069,
+      "artifact": "../baselines/sha256/a02fb6c4eb5bf30d0e1aa21e2697af1b9f884ee4b87cfdf3eec60694245b6563.png"
+    },
+    {
+      "scenarioId": "icon-button.states",
+      "sha256": "dbda6594b6db8a56ca3444458e7c2db1e595d1f4a38c24e954268a7a5e5d1849",
+      "bytes": 8064,
+      "artifact": "../baselines/sha256/dbda6594b6db8a56ca3444458e7c2db1e595d1f4a38c24e954268a7a5e5d1849.png"
+    },
+    {
+      "scenarioId": "icon-button.rtl-theme",
+      "sha256": "25274f071aee38b8a61673444c1c8f3ef1a6c1bef8c570f77ebf14e8a72aac5a",
+      "bytes": 6536,
+      "artifact": "../baselines/sha256/25274f071aee38b8a61673444c1c8f3ef1a6c1bef8c570f77ebf14e8a72aac5a.png"
+    }
+  ]
+}

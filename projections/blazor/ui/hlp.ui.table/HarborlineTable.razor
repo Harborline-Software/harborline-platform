@@ -1,0 +1,15 @@
+@namespace Harborline.UIAdapters.Blazor.Components.DataDisplay
+@inherits HarborlineComponentBase
+
+<div class="hl-table__overflow hl-table-scroll" data-hl-presentational="true">
+    <CascadingValue Value="Context" IsFixed="false">
+        <table class="@CombineClasses("hl-table", $"hl-table--density-{DensityName}")" data-hl-density="@DensityName" style="@CombineStyles()" @attributes="AdditionalAttributes">@ChildContent</table>
+    </CascadingValue>
+</div>
+
+@code {
+    [Parameter] public TableDensity Density { get; set; } = TableDensity.Medium;
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    private string DensityName => Density == TableDensity.Small ? "sm" : "md";
+    private TableContext Context => new(Density);
+}

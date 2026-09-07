@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "projection": "react",
+  "moduleId": "hlp.ui.schema-form",
+  "scenarios": [
+    {
+      "scenarioId": "schema-form.controls-structure",
+      "sha256": "bfc4222af1732b84e0088df0bd785327e0e186d3d5126594081654a4debf8acc",
+      "bytes": 28789,
+      "artifact": "../baselines/sha256/bfc4222af1732b84e0088df0bd785327e0e186d3d5126594081654a4debf8acc.png"
+    },
+    {
+      "scenarioId": "schema-form.rules-gate",
+      "sha256": "6cba06fe841eec7c2c9b0474d0fb05ab4e96171df2863f9132b327a56e90cb3b",
+      "bytes": 24610,
+      "artifact": "../baselines/sha256/6cba06fe841eec7c2c9b0474d0fb05ab4e96171df2863f9132b327a56e90cb3b.png"
+    },
+    {
+      "scenarioId": "schema-form.validation",
+      "sha256": "dfe6f39d53fea6b60dcfda7ffe52bec40cd4a675f61d7d71e297bef279ddffe1",
+      "bytes": 16742,
+      "artifact": "../baselines/sha256/dfe6f39d53fea6b60dcfda7ffe52bec40cd4a675f61d7d71e297bef279ddffe1.png"
+    },
+    {
+      "scenarioId": "schema-form.locale-theme",
+      "sha256": "fdf8df895d2d8d7cfe832d342bb2eb4bdfafb69316ed83a1b90962ae4dda06ab",
+      "bytes": 32070,
+      "artifact": "../baselines/sha256/fdf8df895d2d8d7cfe832d342bb2eb4bdfafb69316ed83a1b90962ae4dda06ab.png"
+    }
+  ]
+}

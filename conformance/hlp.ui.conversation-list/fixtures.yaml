@@ -1,0 +1,17 @@
+{"schemaVersion":1,"moduleId":"hlp.ui.conversation-list","fixtureRevision":1,"cases":[
+  {"id":"conversation-list.empty","input":{"conversations":[]},"expected":{"empty":"No conversations yet.","listPresent":false}},
+  {"id":"conversation-list.rows","input":{"conversations":["c1","c2"]},"expected":{"role":"list","listItems":2,"nestedInteractiveViolation":false}},
+  {"id":"conversation-list.active","input":{"activeId":"c2"},"expected":{"c1AriaCurrent":null,"c2AriaCurrent":"true"}},
+  {"id":"conversation-list.select","input":{"activate":"c1"},"expected":{"selectedIds":["c1"],"count":1}},
+  {"id":"conversation-list.optional-actions","input":{"onNew":false,"onRename":false,"onDelete":false},"expected":{"newPresent":false,"renamePresent":false,"deletePresent":false}},
+  {"id":"conversation-list.new","input":{"activateNew":true},"expected":{"newCount":1}},
+  {"id":"conversation-list.rename-commit","input":{"id":"c1","draft":"  Renamed title  ","commit":"submit"},"expected":{"rename":{"id":"c1","title":"Renamed title"},"count":1}},
+  {"id":"conversation-list.rename-cancel","input":{"id":"c1","draft":"Discard","key":"Escape"},"expected":{"renameCount":0,"mode":"view","title":"Original","focusRestored":true}},
+  {"id":"conversation-list.rename-noop","input":{"drafts":["   ","Original"]},"expected":{"renameCount":0,"mode":"view"}},
+  {"id":"conversation-list.delete-confirm","input":{"id":"c2","steps":["open-delete","confirm"]},"expected":{"confirmFocused":true,"deleteBeforeConfirm":0,"deletedIds":["c2"],"count":1}},
+  {"id":"conversation-list.delete-cancel","input":{"id":"c2","steps":["open-delete","Escape"]},"expected":{"deleteCount":0,"mode":"view","focusRestored":true}},
+  {"id":"conversation-list.keyboard-order","input":{"actions":["select","rename","delete"]},"expected":{"allFocusable":true,"orderPreserved":true}},
+  {"id":"conversation-list.localization-rtl","input":{"locale":"ar-SA","direction":"rtl","customLabels":true},"expected":{"dir":"rtl","allLabelsLocalized":true,"logicalLayout":true}},
+  {"id":"conversation-list.invalid-input","input":{"ids":["c1","c1"],"heading":" "},"expected":{"errors":["duplicate-conversation-id","accessible-heading-required"]}},
+  {"id":"conversation-list.row-classes","input":{"conversations":["c1","c2"],"activeId":"c2","onRename":true,"onDelete":true},"expected":{"itemClasses":["hl-conversation-list__item"],"activeItemClasses":["hl-conversation-list__item","hl-conversation-list__item--active"],"rowActionsClasses":["hl-conversation-list__row-actions"]}}
+]}

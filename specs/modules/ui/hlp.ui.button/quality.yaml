@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.button",
+  "profileRevision": 2,
+  "fixture": "conformance/hlp.ui.button/quality-fixtures.yaml",
+  "standards": {
+    "accessibility": "WCAG 2.2 AA and the WAI-ARIA Button Pattern",
+    "internationalization": "BCP 47 locale tags, Unicode bidirectional layout, and host-owned translation catalogs",
+    "theming": "WCAG 2.2 AA contrast and reflow, CSS custom properties, color-scheme, and prefers-reduced-motion"
+  },
+  "dimensions": {
+    "accessibility": {
+      "disposition": "required",
+      "caseIds": [
+        "button.quality.accessible-name",
+        "button.quality.loading-status",
+        "button.quality.keyboard",
+        "button.quality.focus-visible",
+        "button.quality.disabled-loading",
+        "button.quality.forced-colors",
+        "button.quality.reduced-motion",
+        "button.quality.reflow-200"
+      ]
+    },
+    "internationalization": {
+      "disposition": "required",
+      "caseIds": [
+        "button.quality.locale-language",
+        "button.quality.translated-owned-strings",
+        "button.quality.rtl-mixed-direction",
+        "button.quality.pseudo-expansion",
+        "button.quality.formatting-applicability"
+      ],
+      "ownedStringKeys": ["common.loading"],
+      "localeFixtures": ["en-US", "en-XA", "ar-SA"],
+      "localeSensitiveFormatting": {
+        "disposition": "not-applicable",
+        "rationale": "Button owns no dates, times, numbers, currencies, quantities, or human-readable lists; caller content remains caller-formatted."
+      }
+    },
+    "theming": {
+      "disposition": "required",
+      "caseIds": [
+        "button.quality.theme-light",
+        "button.quality.theme-dark",
+        "button.quality.theme-interaction-states",
+        "button.quality.theme-public-tokens",
+        "button.quality.theme-runtime-switch",
+        "button.quality.theme-contrast",
+        "button.quality.theme-reflow-200",
+        "button.quality.theme-reduced-motion",
+        "button.quality.theme-visual-parity"
+      ]
+    }
+  },
+  "componentStages": [
+    {"id": "contract", "dimensions": ["accessibility", "internationalization", "theming"], "gate": "profile and neutral fixture validation"},
+    {"id": "projection-native", "dimensions": ["accessibility", "internationalization", "theming"], "gate": "public React and Blazor native tests"},
+    {"id": "package-consumer", "dimensions": ["accessibility", "internationalization", "theming"], "gate": "packed npm and NuGet consumers"},
+    {"id": "gallery", "dimensions": ["accessibility", "internationalization", "theming"], "gate": "Axe, browser behavior, theme, locale, and visual-parity tests"},
+    {"id": "clean-clone", "dimensions": ["accessibility", "internationalization", "theming"], "gate": "complete repository gate from the recorded commit"}
+  ]
+}

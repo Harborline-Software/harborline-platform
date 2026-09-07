@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.radio-group",
+  "verdict": "approved",
+  "reviewer": "cic",
+  "recordedAt": "2026-08-26T20:40:07.499Z",
+  "reference": {
+    "revision": "45d875db1ac0c89f0a24295b2fa17bf6ee522a69ad5adfe1e024228a27024076",
+    "source": "gallery/scenarios/hlp.ui.radio-group.json",
+    "pin": "cc9eb48ed68c5033ec128cd53c40b1d2786bee66",
+    "surface": {
+      "conformance/hlp.ui.radio-group/fixtures.yaml": "5a4d0af2572dfad401ca6946f1b016180c599b1df837a328db50ffbe5fe2eee0",
+      "conformance/hlp.ui.radio-group/quality-fixtures.yaml": "51d80acad909289cba36d5d641dce5fcc8d6fcc4ce916dc87e0dc650a814300f",
+      "gallery/projections/blazor/Stories/RadioGroup.stories.razor": "5fb00ae4837439b9da90c5de0c50254783c34f1ac0ff01c448e89561a41f66cd",
+      "gallery/projections/blazor/Stories/RadioGroupScenario.razor": "69e2073fdf74ee67626d7738a2a8a38bb19f13e7f7c85b318c2f6fa3b533de08",
+      "gallery/projections/react/src/RadioGroup.stories.tsx": "c20d0ecc81cde8a4915799e89fe8317deff84758091ba1b73b1ce5f214d5a032",
+      "gallery/scenarios/hlp.ui.radio-group.json": "610b58680d1295f95cbc3975d97860a9e37410ba6b2bdcb833b21234ce9f9d75",
+      "projections/blazor/ui/hlp.ui.radio-group/RadioGroupTypes.cs": "fc1cc80e353cd6cf68a5fe61aefea9727a609b3cbec3cd5088adf99e7d06605e",
+      "projections/blazor/ui/hlp.ui.radio-group/ShipyardRadioGroup.razor": "339b035e40a4c2204dd6dbf7ddbe730e21798d0c29a1cb87a2ef6f85e16c7e4d",
+      "projections/blazor/ui/hlp.ui.radio-group/wwwroot/radio-group.css": "efc5321790b3ad417d4303e31abbe2808b49bf61950cf8298a4ee11ead66fdb6",
+      "projections/react/ui/hlp.ui.radio-group/src/RadioGroup.tsx": "e4cd0a819d61c2098327bad71535195a2b490b0aef37044df546af19b3e7cad8",
+      "projections/react/ui/hlp.ui.radio-group/src/index.ts": "ae0e62d0c3a32859c0a0de027f45584d88a1aa11cb36958ab4cd4b62a8d9ac02",
+      "projections/react/ui/hlp.ui.radio-group/src/style.css": "dfdb496304b3d45f06f7f2b1ad2bc299e8f0e2194e1f07127c7a597368e070c4",
+      "specs/modules/ui/hlp.ui.radio-group/scenarios.json": "610b58680d1295f95cbc3975d97860a9e37410ba6b2bdcb833b21234ce9f9d75",
+      "specs/modules/ui/hlp.ui.radio-group/style.css": "dfdb496304b3d45f06f7f2b1ad2bc299e8f0e2194e1f07127c7a597368e070c4"
+    }
+  }
+}

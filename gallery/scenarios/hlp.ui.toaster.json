@@ -1,0 +1,550 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.toaster",
+  "sourceFixture": "conformance/hlp.ui.toaster/fixtures.yaml",
+  "qualityFixture": "conformance/hlp.ui.toaster/quality-fixtures.yaml",
+  "galleryInterface": {
+    "probeAttribute": "data-gallery-probe",
+    "scenarioAttribute": "data-gallery-scenario",
+    "projectionTitles": {
+      "react": "Platform/Toaster",
+      "blazor": "Platform/Toaster"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "toaster.variants-roles",
+      "name": "Variants and live-region roles",
+      "surface": "variants-roles",
+      "sourceCaseIds": [
+        "toaster.empty",
+        "toaster.variants",
+        "toaster.roles"
+      ],
+      "sourceQualityCaseIds": [
+        "toaster.quality.pattern",
+        "toaster.quality.forced-colors"
+      ],
+      "content": {
+        "blurb": "Error uses alert while every other variant uses status without redundant live-region metadata.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "position": "bottom-right",
+          "duration": null,
+          "maximumVisible": 6,
+          "showCloseButton": false,
+          "keepErrorsPersistent": true,
+          "dismissLabel": "Dismiss notification"
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "button",
+            "text": "Show toasts"
+          },
+          {
+            "control": "button",
+            "text": "Dismiss all"
+          },
+          {
+            "control": "raw",
+            "react": "service.show('Capture ready'); service.success('Pose saved'); service.error('Placement failed'); service.warning('Blueprint scale is unverified'); service.information('Three collaborators are viewing'); service.loading('Calculating orientation'); <Toaster service={service} position={position} duration={null} maximumVisible={6} showCloseButton={false} keepErrorsPersistent dismissLabel=\"Dismiss notification\" direction=\"ltr\" />",
+            "blazor": "Toasts.Show(\"Capture ready\"); Toasts.Success(\"Pose saved\"); Toasts.Error(\"Placement failed\"); Toasts.Warning(\"Blueprint scale is unverified\"); Toasts.Information(\"Three collaborators are viewing\"); Toasts.Loading(\"Calculating orientation\"); <HarborlineToaster Position=\"BottomRight\" DurationMilliseconds=\"@((int?)null)\" MaximumVisible=\"6\" ShowCloseButton=\"false\" KeepErrorsPersistent DismissLabel=\"Dismiss notification\" AccessibleLabel=\"Notifications\" Direction=\"ltr\" />",
+            "rationale": "The closed controls have no toast-host or toast-item descriptor and cannot express variants, alert/status roles, persistence, or loading semantics."
+          }
+        ],
+        "footer": []
+      },
+      "states": [
+        "default",
+        "success",
+        "warning",
+        "error",
+        "loading"
+      ]
+    },
+    {
+      "id": "toaster.queue-lifecycle",
+      "name": "Queue, timing, and dismissal",
+      "surface": "queue-lifecycle",
+      "interaction": "pointer",
+      "sourceCaseIds": [
+        "toaster.queue-limit",
+        "toaster.dismiss-one",
+        "toaster.dismiss-all",
+        "toaster.duration-precedence",
+        "toaster.error-persistence",
+        "toaster.loading-persistence",
+        "toaster.close-policy",
+        "toaster.invalid-input"
+      ],
+      "sourceQualityCaseIds": [
+        "toaster.quality.timing",
+        "toaster.quality.focus",
+        "toaster.quality.dismissal",
+        "toaster.quality.reflow"
+      ],
+      "content": {
+        "blurb": "Newest entries remain visible while persistence, close policy, and bounded dismissal remain deterministic.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "position": "bottom-right",
+          "duration": null,
+          "maximumVisible": 2,
+          "showCloseButton": true,
+          "keepErrorsPersistent": true,
+          "dismissLabel": "Dismiss notification"
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "button",
+            "text": "Show toasts"
+          },
+          {
+            "control": "button",
+            "text": "Dismiss all"
+          },
+          {
+            "control": "raw",
+            "react": "service.show('Capture queued'); service.success('Pose saved'); service.error('Placement failed', { description: 'Select a different blueprint region' }); service.loading('Recalculating orientation'); <Toaster service={service} position={position} duration={null} maximumVisible={2} showCloseButton keepErrorsPersistent dismissLabel=\"Dismiss notification\" direction=\"ltr\" />",
+            "blazor": "Toasts.Show(\"Capture queued\"); Toasts.Success(\"Pose saved\"); Toasts.Error(\"Placement failed\", new ToastOptions(Description: \"Select a different blueprint region\")); Toasts.Loading(\"Recalculating orientation\"); <HarborlineToaster Position=\"BottomRight\" DurationMilliseconds=\"@((int?)null)\" MaximumVisible=\"2\" ShowCloseButton KeepErrorsPersistent DismissLabel=\"Dismiss notification\" AccessibleLabel=\"Notifications\" Direction=\"ltr\" />",
+            "rationale": "The closed controls cannot express a bounded toast queue, per-toast close controls, persistence, timed dismissal, or variant semantics."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "toaster.action-promise",
+      "name": "Action and tracked operation",
+      "surface": "action-promise",
+      "interaction": "pointer",
+      "sourceCaseIds": [
+        "toaster.description-action",
+        "toaster.promise-success",
+        "toaster.promise-error"
+      ],
+      "sourceQualityCaseIds": [
+        "toaster.quality.keyboard",
+        "toaster.quality.formatting-boundary"
+      ],
+      "content": {
+        "blurb": "Actions invoke once without closing and one identity transitions from loading to its result.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "position": "bottom-right",
+          "duration": null,
+          "maximumVisible": 6,
+          "showCloseButton": false,
+          "keepErrorsPersistent": true,
+          "dismissLabel": "Dismiss notification"
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "button",
+            "text": "Show toasts"
+          },
+          {
+            "control": "button",
+            "text": "Dismiss all"
+          },
+          {
+            "control": "raw",
+            "react": "service.show('Blueprint placement needs review', { description: 'Bay 4, grid C-7', action: { label: 'Retry', onActivate: () => {} } }); void service.trackAsync(Promise.resolve('indexed'), { loading: 'Indexing blueprint', success: 'Blueprint indexed', error: 'Indexing failed' }); <Toaster service={service} position={position} duration={null} maximumVisible={6} showCloseButton={false} keepErrorsPersistent dismissLabel=\"Dismiss notification\" direction=\"ltr\" />",
+            "blazor": "Toasts.Show(\"Blueprint placement needs review\", new ToastOptions(Description: \"Bay 4, grid C-7\", Action: new ToastAction(\"Retry\", () => Task.CompletedTask))); _ = Toasts.TrackAsync(Task.FromResult(\"indexed\"), \"Indexing blueprint\", _ => \"Blueprint indexed\", _ => \"Indexing failed\"); <HarborlineToaster Position=\"BottomRight\" DurationMilliseconds=\"@((int?)null)\" MaximumVisible=\"6\" ShowCloseButton=\"false\" KeepErrorsPersistent DismissLabel=\"Dismiss notification\" AccessibleLabel=\"Notifications\" Direction=\"ltr\" />",
+            "rationale": "The closed controls cannot express a toast action embedded in a notification or one toast identity transitioning through a tracked asynchronous operation."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "toaster.positions",
+      "name": "Physical positions",
+      "surface": "positions",
+      "sourceCaseIds": [
+        "toaster.positions"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "Six source-compatible physical positions remain distinct while motion follows logical direction.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "position": "bottom-right",
+          "duration": null,
+          "maximumVisible": 6,
+          "showCloseButton": false,
+          "keepErrorsPersistent": true,
+          "dismissLabel": "Dismiss notification"
+        },
+        "state": {
+          "position": {
+            "kind": "string",
+            "initial": "bottom-right"
+          }
+        },
+        "body": [
+          {
+            "control": "button",
+            "text": "Show toasts"
+          },
+          {
+            "control": "button",
+            "text": "Dismiss all"
+          },
+          {
+            "control": "button",
+            "text": "top-left"
+          },
+          {
+            "control": "button",
+            "text": "top-center"
+          },
+          {
+            "control": "button",
+            "text": "top-right"
+          },
+          {
+            "control": "button",
+            "text": "bottom-left"
+          },
+          {
+            "control": "button",
+            "text": "bottom-center"
+          },
+          {
+            "control": "button",
+            "text": "bottom-right"
+          },
+          {
+            "control": "raw",
+            "react": "service.show('Capture ready'); service.success('Pose saved'); service.error('Placement failed'); service.warning('Blueprint scale is unverified'); service.information('Three collaborators are viewing'); service.loading('Calculating orientation'); <Toaster service={service} position={position} duration={null} maximumVisible={6} showCloseButton={false} keepErrorsPersistent dismissLabel=\"Dismiss notification\" direction=\"ltr\" />",
+            "blazor": "Toasts.Show(\"Capture ready\"); Toasts.Success(\"Pose saved\"); Toasts.Error(\"Placement failed\"); Toasts.Warning(\"Blueprint scale is unverified\"); Toasts.Information(\"Three collaborators are viewing\"); Toasts.Loading(\"Calculating orientation\"); <HarborlineToaster Position=\"@position\" DurationMilliseconds=\"@((int?)null)\" MaximumVisible=\"6\" ShowCloseButton=\"false\" KeepErrorsPersistent DismissLabel=\"Dismiss notification\" AccessibleLabel=\"Notifications\" Direction=\"ltr\" />",
+            "rationale": "Buttons express the position choices, but the closed controls cannot express the positioned toast host, toast variants, roles, persistence, or motion."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "toaster.locale-en",
+      "name": "English locale",
+      "surface": "locale-en",
+      "sourceCaseIds": [
+        "toaster.localization"
+      ],
+      "sourceQualityCaseIds": [
+        "toaster.quality.locales"
+      ],
+      "content": {
+        "blurb": "Caller messages and a localized dismiss label remain separate.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "position": "bottom-right",
+          "duration": null,
+          "maximumVisible": 6,
+          "showCloseButton": false,
+          "keepErrorsPersistent": true,
+          "dismissLabel": "Dismiss notification"
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "button",
+            "text": "Show toasts"
+          },
+          {
+            "control": "button",
+            "text": "Dismiss all"
+          },
+          {
+            "control": "raw",
+            "react": "service.show('Capture ready'); service.success('Pose saved'); service.error('Placement failed'); service.warning('Blueprint scale is unverified'); service.information('Three collaborators are viewing'); service.loading('Calculating orientation'); <Toaster service={service} position=\"bottom-right\" duration={null} maximumVisible={6} showCloseButton={false} keepErrorsPersistent dismissLabel=\"Dismiss notification\" direction=\"ltr\" />",
+            "blazor": "Toasts.Show(\"Capture ready\"); Toasts.Success(\"Pose saved\"); Toasts.Error(\"Placement failed\"); Toasts.Warning(\"Blueprint scale is unverified\"); Toasts.Information(\"Three collaborators are viewing\"); Toasts.Loading(\"Calculating orientation\"); <HarborlineToaster Position=\"BottomRight\" DurationMilliseconds=\"@((int?)null)\" MaximumVisible=\"6\" ShowCloseButton=\"false\" KeepErrorsPersistent DismissLabel=\"Dismiss notification\" AccessibleLabel=\"Notifications\" Direction=\"ltr\" />",
+            "rationale": "The closed controls cannot express the localized toaster host and its variant notification items or accessible dismiss affordance."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "toaster.locale-pseudo",
+      "name": "Pseudo locale",
+      "surface": "locale-pseudo",
+      "sourceCaseIds": [
+        "toaster.localization"
+      ],
+      "sourceQualityCaseIds": [
+        "toaster.quality.pseudo"
+      ],
+      "content": {
+        "blurb": "Expanded messages, descriptions, and actions remain viewport-clamped.",
+        "environment": {
+          "locale": "en-XA",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "position": "bottom-right",
+          "duration": null,
+          "maximumVisible": 6,
+          "showCloseButton": false,
+          "keepErrorsPersistent": true,
+          "dismissLabel": "⟦ Đîšmîšš ñøţîƒîçåţîøñ ···· ⟧"
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "button",
+            "text": "⟦ Šhøŵ ţøåšţš ··· ⟧"
+          },
+          {
+            "control": "button",
+            "text": "Dismiss all"
+          },
+          {
+            "control": "raw",
+            "react": "service.show('⟦ Capture ready ······ ⟧'); service.success('⟦ Pose saved ······ ⟧'); service.error('⟦ Placement failed ······ ⟧'); service.warning('⟦ Blueprint scale is unverified ······ ⟧'); service.information('⟦ Three collaborators are viewing ······ ⟧'); service.loading('⟦ Calculating orientation ······ ⟧'); <Toaster service={service} position=\"bottom-right\" duration={null} maximumVisible={6} showCloseButton={false} keepErrorsPersistent dismissLabel=\"⟦ Đîšmîšš ñøţîƒîçåţîøñ ···· ⟧\" direction=\"ltr\" />",
+            "blazor": "Toasts.Show(\"⟦ Capture ready ······ ⟧\"); Toasts.Success(\"⟦ Pose saved ······ ⟧\"); Toasts.Error(\"⟦ Placement failed ······ ⟧\"); Toasts.Warning(\"⟦ Blueprint scale is unverified ······ ⟧\"); Toasts.Information(\"⟦ Three collaborators are viewing ······ ⟧\"); Toasts.Loading(\"⟦ Calculating orientation ······ ⟧\"); <HarborlineToaster Position=\"BottomRight\" DurationMilliseconds=\"@((int?)null)\" MaximumVisible=\"6\" ShowCloseButton=\"false\" KeepErrorsPersistent DismissLabel=\"⟦ Đîšmîšš ñøţîƒîçåţîøñ ···· ⟧\" AccessibleLabel=\"⟦ Ñøţîƒîçåţîøñš ···· ⟧\" Direction=\"ltr\" />",
+            "rationale": "The closed controls cannot express pseudo-localized toast items, their viewport-clamped host, variants, roles, or accessible dismiss affordance."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "toaster.locale-ar",
+      "name": "Arabic locale",
+      "surface": "locale-ar",
+      "sourceCaseIds": [
+        "toaster.rtl"
+      ],
+      "sourceQualityCaseIds": [
+        "toaster.quality.rtl-motion"
+      ],
+      "content": {
+        "blurb": "Physical placement is retained while entry and exit motion mirror.",
+        "environment": {
+          "locale": "ar-SA",
+          "direction": "rtl",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "position": "bottom-right",
+          "duration": null,
+          "maximumVisible": 6,
+          "showCloseButton": false,
+          "keepErrorsPersistent": true,
+          "dismissLabel": "إغلاق الإشعار"
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "button",
+            "text": "إظهار الإشعارات"
+          },
+          {
+            "control": "button",
+            "text": "إغلاق الكل"
+          },
+          {
+            "control": "raw",
+            "react": "service.show('تم Capture ready'); service.success('تم Pose saved'); service.error('تم Placement failed'); service.warning('تم Blueprint scale is unverified'); service.information('تم Three collaborators are viewing'); service.loading('تم Calculating orientation'); <Toaster service={service} position=\"bottom-right\" duration={null} maximumVisible={6} showCloseButton={false} keepErrorsPersistent dismissLabel=\"إغلاق الإشعار\" direction=\"rtl\" />",
+            "blazor": "Toasts.Show(\"تم Capture ready\"); Toasts.Success(\"تم Pose saved\"); Toasts.Error(\"تم Placement failed\"); Toasts.Warning(\"تم Blueprint scale is unverified\"); Toasts.Information(\"تم Three collaborators are viewing\"); Toasts.Loading(\"تم Calculating orientation\"); <HarborlineToaster Position=\"BottomRight\" DurationMilliseconds=\"@((int?)null)\" MaximumVisible=\"6\" ShowCloseButton=\"false\" KeepErrorsPersistent DismissLabel=\"إغلاق الإشعار\" AccessibleLabel=\"الإشعارات\" Direction=\"rtl\" />",
+            "rationale": "The closed controls cannot express the RTL toaster host, mirrored toast motion, variants, roles, or accessible dismiss affordance."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "toaster.theme-light",
+      "name": "Light theme",
+      "surface": "theme-light",
+      "sourceCaseIds": [
+        "toaster.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "toaster.quality.themes",
+        "toaster.quality.tokens",
+        "toaster.quality.contrast",
+        "toaster.quality.reduced-motion",
+        "toaster.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "Every toast variant uses public light-theme tokens.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "position": "bottom-right",
+          "duration": null,
+          "maximumVisible": 6,
+          "showCloseButton": false,
+          "keepErrorsPersistent": true,
+          "dismissLabel": "Dismiss notification"
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "button",
+            "text": "Show toasts"
+          },
+          {
+            "control": "button",
+            "text": "Dismiss all"
+          },
+          {
+            "control": "raw",
+            "react": "service.show('Capture ready'); service.success('Pose saved'); service.error('Placement failed'); service.warning('Blueprint scale is unverified'); service.information('Three collaborators are viewing'); service.loading('Calculating orientation'); <section data-theme=\"light\"><Toaster service={service} position=\"bottom-right\" duration={null} maximumVisible={6} showCloseButton={false} keepErrorsPersistent dismissLabel=\"Dismiss notification\" direction=\"ltr\" /></section>",
+            "blazor": "Toasts.Show(\"Capture ready\"); Toasts.Success(\"Pose saved\"); Toasts.Error(\"Placement failed\"); Toasts.Warning(\"Blueprint scale is unverified\"); Toasts.Information(\"Three collaborators are viewing\"); Toasts.Loading(\"Calculating orientation\"); <section data-theme=\"light\"><HarborlineToaster Position=\"BottomRight\" DurationMilliseconds=\"@((int?)null)\" MaximumVisible=\"6\" ShowCloseButton=\"false\" KeepErrorsPersistent DismissLabel=\"Dismiss notification\" AccessibleLabel=\"Notifications\" Direction=\"ltr\" /></section>",
+            "rationale": "The closed controls cannot express a themed toaster host, toast variants, roles, persistence, or token-driven notification surfaces."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "toaster.theme-dark",
+      "name": "Dark theme",
+      "surface": "theme-dark",
+      "sourceCaseIds": [
+        "toaster.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "toaster.quality.themes",
+        "toaster.quality.tokens",
+        "toaster.quality.contrast",
+        "toaster.quality.reduced-motion",
+        "toaster.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "The same host-scoped queue on the Harborline dark surface.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "dark",
+          "catalog": {}
+        },
+        "props": {
+          "position": "bottom-right",
+          "duration": null,
+          "maximumVisible": 6,
+          "showCloseButton": false,
+          "keepErrorsPersistent": true,
+          "dismissLabel": "Dismiss notification"
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "button",
+            "text": "Show toasts"
+          },
+          {
+            "control": "button",
+            "text": "Dismiss all"
+          },
+          {
+            "control": "raw",
+            "react": "service.show('Capture ready'); service.success('Pose saved'); service.error('Placement failed'); service.warning('Blueprint scale is unverified'); service.information('Three collaborators are viewing'); service.loading('Calculating orientation'); <section data-theme=\"dark\"><Toaster service={service} position=\"bottom-right\" duration={null} maximumVisible={6} showCloseButton={false} keepErrorsPersistent dismissLabel=\"Dismiss notification\" direction=\"ltr\" /></section>",
+            "blazor": "Toasts.Show(\"Capture ready\"); Toasts.Success(\"Pose saved\"); Toasts.Error(\"Placement failed\"); Toasts.Warning(\"Blueprint scale is unverified\"); Toasts.Information(\"Three collaborators are viewing\"); Toasts.Loading(\"Calculating orientation\"); <section data-theme=\"dark\"><HarborlineToaster Position=\"BottomRight\" DurationMilliseconds=\"@((int?)null)\" MaximumVisible=\"6\" ShowCloseButton=\"false\" KeepErrorsPersistent DismissLabel=\"Dismiss notification\" AccessibleLabel=\"Notifications\" Direction=\"ltr\" /></section>",
+            "rationale": "The closed controls cannot express a dark-themed toaster host, toast variants, roles, persistence, or token-driven notification surfaces."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "toaster.content",
+      "name": "Content resilience",
+      "surface": "long-content",
+      "sourceCaseIds": [
+        "toaster.variants",
+        "toaster.description-action"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "A dense notification queue carries an overlong message, the grouped number 1,284,905, escaped angle brackets and an ampersand, a name with diacritics and an em dash, and missing optional descriptions and actions.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "service.show('Awaiting third-party structural certification review'); service.success('1,284,905'); service.error('Bay 4 <grid C-7> & 8'); service.information('Ordnance Survey — Niño Ångström'); <Toaster service={service} duration={null} maximumVisible={6} direction=\"ltr\" />",
+            "blazor": "Toasts.Show(\"Awaiting third-party structural certification review\"); Toasts.Success(\"1,284,905\"); Toasts.Error(\"Bay 4 <grid C-7> & 8\"); Toasts.Information(\"Ordnance Survey — Niño Ångström\"); <HarborlineToaster DurationMilliseconds=\"@((int?)null)\" MaximumVisible=\"6\" Direction=\"ltr\" />",
+            "rationale": "The toast service and host require raw projection code to seed and render the same hostile-but-valid collection in both lanes."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "toaster.error-state",
+      "name": "Error state",
+      "surface": "invalid-input",
+      "sourceCaseIds": [
+        "toaster.variants",
+        "toaster.roles"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "A failed save is announced through the toaster's error variant.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "service.error('Unable to save changes'); <Toaster service={service} duration={null} maximumVisible={6} direction=\"ltr\" />",
+            "blazor": "Toasts.Error(\"Unable to save changes\"); <HarborlineToaster DurationMilliseconds=\"@((int?)null)\" MaximumVisible=\"6\" Direction=\"ltr\" />",
+            "rationale": "The toast service must seed a real error entry before the host can render the equivalent alert in each projection."
+          }
+        ],
+        "footer": []
+      }
+    }
+  ]
+}

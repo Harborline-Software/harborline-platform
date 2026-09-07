@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.use-is-mobile",
+  "interfaceRevision": 1,
+  "semantics": {"operation": "publish Harborline App responsive breakpoint queries and observe the mobile and persistent-rail affordances", "observableOutput": "Exact phone-width, dock-width, and rail-capability queries plus fail-closed mobile and rail match values."},
+  "sourceSurface": {"repository": "shipyard", "commit": "a5036ff8b500e0d857d7e0a698408e7cf7f6cf31", "path": "packages/ui-react/src/hooks/useBreakpoint.ts", "blob": "caeaf1f9937d2f0ba212783cf56816ea78259531", "capturedExports": ["BP_DOCK", "BP_PHONE", "useCanShowRail", "useIsMobile"]},
+  "dependencies": ["hlp.ui.use-media-query"],
+  "invariants": [
+    "BP_PHONE is exactly (max-width: 767px) and useIsMobile observes that query.",
+    "The persistent rail requires both min-width 768px and min-height 600px; a wide short landscape phone cannot show it.",
+    "BP_DOCK intentionally remains the held width-only (min-width: 1280px) compatibility exception and is not replaced by the aspect-aware side-panel affordance.",
+    "SSR and unavailable-host initialization returns false for both observed affordances through hlp.ui.use-media-query.",
+    "The module owns authored query identity and delegation only; it owns no CSS breakpoint branch, browser listener, device sniffing, or layout markup.",
+    "TypeScript and .NET expose byte-equivalent query text."
+  ],
+  "errors": [],
+  "performance": {"operation": "O(1) constant access and one dependency-owned listener per active hook"},
+  "presentation": {"disposition": "not-applicable", "rationale": "Breakpoint hooks select layout branches and render no standalone interface."},
+  "cases": [
+    {"id":"breakpoint.complete-surface"},{"id":"breakpoint.phone-query"},{"id":"breakpoint.mobile-match"},{"id":"breakpoint.rail-query"},{"id":"breakpoint.rail-short-landscape"},{"id":"breakpoint.dock-held-exception"},{"id":"breakpoint.ssr-fail-closed"},{"id":"breakpoint.projection-equivalence"}
+  ]
+}

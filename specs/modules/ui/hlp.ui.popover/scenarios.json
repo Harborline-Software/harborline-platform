@@ -1,0 +1,159 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.popover",
+  "sourceFixture": "conformance/hlp.ui.popover/fixtures.yaml",
+  "qualityFixture": "conformance/hlp.ui.popover/quality-fixtures.yaml",
+  "galleryInterface": {
+    "probeAttribute": "data-gallery-probe",
+    "scenarioAttribute": "data-gallery-scenario",
+    "projectionTitles": {
+      "react": "Platform/Popover",
+      "blazor": "Platform/Popover"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "popover.defaults",
+      "name": "Trigger placement",
+      "surface": "defaults",
+      "sourceCaseIds": [
+        "popover.closed",
+        "popover.uncontrolled",
+        "popover.trigger-aria",
+        "popover.anchor"
+      ],
+      "sourceQualityCaseIds": [
+        "popover.quality.roles",
+        "popover.quality.relationships",
+        "popover.quality.keyboard"
+      ],
+      "content": {
+        "blurb": "Placement, dismissal, and focus lifecycle remain equivalent.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "defaultOpen": true,
+          "accessibleLabel": "Invoice details",
+          "side": "bottom",
+          "align": "start"
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<Popover defaultOpen><PopoverTrigger>Open details</PopoverTrigger><PopoverContent aria-label=\"Invoice details\" side=\"bottom\" align=\"start\"><strong>Invoice details</strong><p>Due in thirty days</p><PopoverClose>Close</PopoverClose></PopoverContent></Popover>",
+            "blazor": "<HarborlinePopover DefaultOpen=\"true\"><HarborlinePopoverTrigger>Open details</HarborlinePopoverTrigger><HarborlinePopoverContent AccessibleLabel=\"Invoice details\" Side=\"PopoverSide.Bottom\" Align=\"PopoverAlign.Start\"><strong>Invoice details</strong><p>Due in thirty days</p><HarborlinePopoverClose>Close</HarborlinePopoverClose></HarborlinePopoverContent></HarborlinePopover>",
+            "rationale": "The closed descriptor vocabulary has no popover, popover-trigger, popover-content, or popover-close control, so it cannot express the trigger-to-dialog relationship, placement, dismissal behavior, and content boundary without losing rendered structure and behavior."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "popover.dismissal",
+      "name": "Dismissal and focus",
+      "surface": "states",
+      "sourceCaseIds": [
+        "popover.controlled",
+        "popover.escape",
+        "popover.outside",
+        "popover.close-control",
+        "popover.focus"
+      ],
+      "sourceQualityCaseIds": [
+        "popover.quality.focus",
+        "popover.quality.reflow",
+        "popover.quality.dismissal",
+        "popover.quality.forced-colors",
+        "popover.quality.reduced-motion"
+      ],
+      "content": {
+        "blurb": "Placement, dismissal, and focus lifecycle remain equivalent.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "inherits": "popover.defaults"
+      }
+    },
+    {
+      "id": "popover.rtl-theme",
+      "name": "RTL and theme",
+      "surface": "rtl-theme",
+      "sourceCaseIds": [
+        "popover.content-options",
+        "popover.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "popover.quality.caller-copy",
+        "popover.quality.rtl",
+        "popover.quality.pseudo",
+        "popover.quality.light-dark",
+        "popover.quality.tokens",
+        "popover.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "Placement, dismissal, and focus lifecycle remain equivalent.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "rtl",
+          "theme": "dark",
+          "catalog": {}
+        },
+        "props": {
+          "defaultOpen": true,
+          "accessibleLabel": "Invoice details",
+          "side": "bottom",
+          "align": "start"
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<Popover defaultOpen><PopoverTrigger>Open details</PopoverTrigger><PopoverContent aria-label=\"Invoice details\" side=\"bottom\" align=\"start\"><strong>تفاصيل الفاتورة</strong><p>مستحق خلال ثلاثين يوماً</p><PopoverClose>Close</PopoverClose></PopoverContent></Popover>",
+            "blazor": "<HarborlinePopover DefaultOpen=\"true\"><HarborlinePopoverTrigger>Open details</HarborlinePopoverTrigger><HarborlinePopoverContent AccessibleLabel=\"Invoice details\" Side=\"PopoverSide.Bottom\" Align=\"PopoverAlign.Start\"><strong>تفاصيل الفاتورة</strong><p>مستحق خلال ثلاثين يوماً</p><HarborlinePopoverClose>Close</HarborlinePopoverClose></HarborlinePopoverContent></HarborlinePopover>",
+            "rationale": "The closed descriptor vocabulary has no popover, popover-trigger, popover-content, or popover-close control, so it cannot express the RTL trigger-to-dialog relationship, logical placement, dismissal behavior, and content boundary without losing rendered structure and behavior."
+          }
+        ],
+        "footer": [],
+        "inherits": "popover.defaults"
+      }
+    },
+    {
+      "id": "popover.content",
+      "name": "Content resilience",
+      "surface": "long-content",
+      "sourceCaseIds": [
+        "popover.trigger-aria",
+        "popover.content-options"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "Real content carries a long trigger label, a grouped large number, escaped angle brackets and an ampersand, and a name with diacritics and an em dash.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<Popover defaultOpen><PopoverTrigger>{'Awaiting third-party structural certification review'}</PopoverTrigger><PopoverContent aria-label=\"Ordnance Survey — Niño Ångström\" side=\"bottom\" align=\"start\"><strong>{'Ordnance Survey — Niño Ångström'}</strong><p>{'Bay 4 <grid C-7> & 8'}</p><p>{'1,284,905'}</p><PopoverClose>Close</PopoverClose></PopoverContent></Popover>",
+            "blazor": "<HarborlinePopover DefaultOpen=\"true\"><HarborlinePopoverTrigger>@(\"Awaiting third-party structural certification review\")</HarborlinePopoverTrigger><HarborlinePopoverContent AccessibleLabel=\"Ordnance Survey — Niño Ångström\" Side=\"PopoverSide.Bottom\" Align=\"PopoverAlign.Start\"><strong>@(\"Ordnance Survey — Niño Ångström\")</strong><p>@(\"Bay 4 <grid C-7> & 8\")</p><p>1,284,905</p><HarborlinePopoverClose>Close</HarborlinePopoverClose></HarborlinePopoverContent></HarborlinePopover>",
+            "rationale": "The closed control vocabulary cannot express the compound popover trigger, labeled content, and close action carrying hostile-but-valid text."
+          }
+        ],
+        "footer": []
+      }
+    }
+  ]
+}

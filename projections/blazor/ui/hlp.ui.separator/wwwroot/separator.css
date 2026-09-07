@@ -1,0 +1,92 @@
+.hl-separator {
+  --hl-separator-rule: var(--hl-border, #9ca3af);
+  --hl-separator-label: var(--hl-muted-foreground, #4b5563);
+}
+
+.hl-separator {
+  box-sizing: border-box;
+  color: var(--hl-separator-label);
+  flex: 0 0 auto;
+  max-block-size: 100%;
+  max-inline-size: 100%;
+}
+
+.hl-separator--horizontal:not(.hl-separator--labeled) {
+  background: var(--hl-separator-rule);
+  block-size: 1px;
+  inline-size: 100%;
+}
+
+.hl-separator--vertical:not(.hl-separator--labeled) {
+  align-self: stretch;
+  background: var(--hl-separator-rule);
+  block-size: auto;
+  inline-size: 1px;
+  min-block-size: 1rem;
+}
+
+.hl-separator--labeled {
+  align-items: center;
+  display: flex;
+  gap: 0.75rem;
+  min-inline-size: 0;
+}
+
+.hl-separator--labeled.hl-separator--horizontal {
+  flex-direction: row;
+  inline-size: 100%;
+}
+
+.hl-separator--labeled.hl-separator--vertical {
+  align-self: stretch;
+  flex-direction: column;
+  min-block-size: 3rem;
+}
+
+.hl-separator__rule {
+  background: var(--hl-separator-rule);
+  flex: 1 1 0;
+  min-block-size: 1px;
+  min-inline-size: 1px;
+}
+
+.hl-separator--horizontal .hl-separator__rule {
+  block-size: 1px;
+  inline-size: auto;
+}
+
+.hl-separator--vertical .hl-separator__rule {
+  block-size: auto;
+  inline-size: 1px;
+}
+
+.hl-separator__label {
+  color: var(--hl-separator-label);
+  flex: 0 1 auto;
+  font: inherit;
+  font-size: 0.75rem;
+  line-height: 1rem;
+  max-inline-size: 100%;
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+  text-align: start;
+  text-wrap: pretty;
+}
+
+[data-theme='dark'] .hl-separator,
+.hl-separator[data-theme='dark'] {
+  --hl-separator-rule: var(--hl-border, #6b7280);
+  --hl-separator-label: var(--hl-muted-foreground, #d1d5db);
+}
+
+@media (forced-colors: active) {
+  .hl-separator,
+  .hl-separator__label {
+    color: CanvasText;
+    forced-color-adjust: auto;
+  }
+
+  .hl-separator--horizontal:not(.hl-separator--labeled),
+  .hl-separator--vertical:not(.hl-separator--labeled),
+  .hl-separator__rule { background: CanvasText; }
+}

@@ -1,0 +1,117 @@
+<section class="hl-gallery-scene" data-gallery-probe data-gallery-scenario="@ScenarioId" data-theme="@Theme" dir="@Direction">
+  <header class="hl-gallery-heading"><h2>@Copy.Title</h2><p>@Copy.Description</p></header>
+  <div class="hl-gallery-stage hl-gallery-feedback-stack">
+    <HarborlineLocaleProvider Locale="@Locale">
+      @if (IsReplacement)
+      {
+        <button type="button" @onclick="@(() => replacementRevision++)">Replace rows and columns</button>
+      }
+      @if (IsLarge)
+      {
+        <HarborlineDataGrid TRow="LargeRow" AccessibleLabel="Large asset inventory" Columns="@LargeColumns" GetRowId="@(row => row.Id)" Rows="@LargeRows" Zebra />
+      }
+      else if (IsGrouped)
+      {
+        <HarborlineDataGrid TRow="ReportRow" AccessibleLabel="Grouped analytical report" Columns="@ReportColumns" GetRowId="@(row => row.Id)" Grouping="@PropertyGrouping" Rows="@GroupedReportRows" Zebra />
+      }
+      else if (IsEmpty)
+      {
+        <HarborlineDataGrid TRow="AssetRow" AccessibleLabel="Empty asset inventory" Columns="@CompactColumns" Empty="No assets found."
+                          GetRowId="@(row => row.Id)" Rows="@EmptyAssetRows" />
+      }
+      else
+      {
+        <HarborlineDataGrid TRow="AssetRow" AccessibleLabel="@AccessibleLabel" Columns="@AssetColumnsForScenario" Empty="@Empty"
+                          GetRowId="@(row => row.Id)" Grouping="@AssetGrouping" Rows="@AssetRows" Zebra />
+      }
+    </HarborlineLocaleProvider>
+  </div>
+</section>
+
+@code {
+  [Parameter, EditorRequired] public string ScenarioId { get; set; } = "data-grid.app-grid-dump";
+  private int replacementRevision;
+
+  private sealed record AssetRow(string Id, string Structure, string Area, string Inspection, string Status, string Owner, string Updated);
+  private sealed record ReportRow(string Id, string Property, string Category, string Status, int Amount);
+  private sealed record LargeRow(string Id, IReadOnlyList<string> Values);
+
+  private static readonly IReadOnlyDictionary<string, (string Title, string Description)> CopyByScenario = new Dictionary<string, (string, string)>
+  {
+    ["data-grid.app-grid-dump"] = ("Harborline grid dump", "Sixty ordered assets retain stable identity, caller-owned status content, and leaf-only zebra presentation."),
+    ["data-grid.app-grouped-report"] = ("Harborline grouped report", "Three first-seen property groups retain every visible column and name mixed child values."),
+    ["data-grid.replacement-state"] = ("Complete replacement", "Rows, columns, groups, focus, and expansion follow the latest caller state without stale content."),
+    ["data-grid.keyboard-focus"] = ("Keyboard and focus", "One tab stop supports arrows, Home, End, corner navigation, and group disclosure."),
+    ["data-grid.large-data"] = ("Bounded large data", "Ten thousand rows and twenty columns preserve total-row semantics through a bounded rendered window."),
+    ["data-grid.locale-pseudo"] = ("Pseudo locale", "Expanded caller labels remain readable and reachable without changing source order."),
+    ["data-grid.locale-ar"] = ("Arabic RTL", "Direction and scrolling use logical edges while row, column, and grouping order remain caller-owned."),
+    ["data-grid.theme-light"] = ("Light theme", "Semantic surface, border, grouping, status, and focus tokens on the Harborline light theme."),
+    ["data-grid.theme-dark"] = ("Dark theme", "The same provider-neutral grid semantics on the Harborline dark theme."),
+    ["data-grid.empty-state"] = ("Empty state", "No assets are available for this inventory."),
+  };
+
+  private static readonly IReadOnlyList<DataGridColumn<AssetRow>> AssetColumns =
+  [
+    new("structure", "Structure", row => row.Structure, RemovalPriority: 60), new("area", "Area", row => row.Area, RemovalPriority: 50),
+    new("inspection", "Inspection", row => row.Inspection, RemovalPriority: 40), new("status", "Status", row => row.Status, CellTemplate: StatusCell, RemovalPriority: 30),
+    new("owner", "Owner", row => row.Owner, RemovalPriority: 20), new("updated", "Updated", row => row.Updated, RemovalPriority: 10),
+  ];
+
+  private static readonly IReadOnlyList<DataGridColumn<AssetRow>> CompactColumns = AssetColumns.Take(3).ToArray();
+  private static readonly IReadOnlyList<AssetRow> EmptyAssetRows = [];
+  private static readonly IReadOnlyList<DataGridColumn<ReportRow>> ReportColumns =
+  [
+    new("property", "Property", row => row.Property, RemovalPriority: 40), new("category", "Category", row => row.Category, RemovalPriority: 30),
+    new("status", "Status", row => row.Status, RemovalPriority: 20), new("amount", "Replacement cost", row => row.Amount, RemovalPriority: 10, ValueKind: DataGridValueKind.Number),
+  ];
+  private static readonly IReadOnlyList<string> PropertyGrouping = ["property"];
+
+  private static readonly IReadOnlyList<ReportRow> GroupedReportRows =
+  [
+    new("report-1", "Harbor Tower", "Envelope", "Active", 120000), new("report-2", "Harbor Tower", "Mechanical", "Review", 76000),
+    new("report-3", "North Pier", "Structure", "Active", 185000), new("report-4", "North Pier", "Electrical", "Paused", 43000),
+    new("report-5", "North Pier", "Safety", "Active", 18000), new("report-6", "Pump House", "Mechanical", "Review", 92000),
+    new("report-7", "Pump House", "Envelope", "Active", 51000), new("report-8", "Pump House", "Safety", "Active", 24000),
+  ];
+
+  private static readonly IReadOnlyList<DataGridColumn<LargeRow>> LargeColumns = Enumerable.Range(1, 20)
+    .Select(index => new DataGridColumn<LargeRow>($"column-{index}", $"Column {index}", row => row.Values[index - 1], RemovalPriority: 21 - index)).ToArray();
+  private static readonly IReadOnlyList<LargeRow> LargeRows = Enumerable.Range(1, 10_000)
+    .Select(row => new LargeRow($"large-{row}", Enumerable.Range(1, 20).Select(column => $"R{row} C{column}").ToArray())).ToArray();
+
+  private static RenderFragment<AssetRow> StatusCell => row => builder =>
+  {
+    var tone = row.Status == "Active" ? "success" : row.Status == "Review" ? "warning" : "neutral";
+    builder.OpenElement(0, "span"); builder.AddAttribute(1, "data-tone", tone); builder.AddContent(2, row.Status); builder.CloseElement();
+  };
+
+  private (string Title, string Description) Copy => CopyByScenario[ScenarioId];
+  private bool IsReplacement => ScenarioId == "data-grid.replacement-state";
+  private bool IsGrouped => ScenarioId == "data-grid.app-grouped-report";
+  private bool IsKeyboard => ScenarioId == "data-grid.keyboard-focus";
+  private bool IsLarge => ScenarioId == "data-grid.large-data";
+  private bool IsPseudo => ScenarioId == "data-grid.locale-pseudo";
+  private bool IsArabic => ScenarioId == "data-grid.locale-ar";
+  private bool IsEmpty => ScenarioId == "data-grid.empty-state";
+  private string Locale => IsArabic ? "ar-SA" : IsPseudo ? "en-XA" : "en-US";
+  private string Direction => IsArabic ? "rtl" : "ltr";
+  private string? Theme => ScenarioId switch { "data-grid.theme-light" => "light", "data-grid.theme-dark" => "dark", _ => null };
+  private string AccessibleLabel => IsArabic ? "مخزون الأصول" : IsPseudo ? "⟦ Åššëţ îñṽëñţøřÿ ······ ⟧" : "Asset inventory";
+  private string? Empty => IsArabic ? "لا توجد نتائج." : null;
+  private IReadOnlyList<string> AssetGrouping => IsKeyboard ? ["structure"] : [];
+
+  private IReadOnlyList<DataGridColumn<AssetRow>> AssetColumnsForScenario => IsReplacement
+    ? replacementRevision % 2 == 0 ? CompactColumns : [CompactColumns[2], CompactColumns[0]]
+    : IsArabic
+      ? [AssetColumns[0] with { Header = "الهيكل" }, AssetColumns[1] with { Header = "المنطقة" }, AssetColumns[3] with { Header = "الحالة" }]
+      : IsPseudo
+        ? [AssetColumns[0] with { Header = "⟦ Šţřûçţûřë ···· ⟧" }, AssetColumns[1] with { Header = "⟦ Îñšþëçţîøñ åřëå ······ ⟧" }, AssetColumns[3] with { Header = "⟦ Çûřřëñţ šţåţûš ······ ⟧" }]
+        : CompactColumns;
+
+  private IReadOnlyList<AssetRow> AssetRows => CreateAssets(IsKeyboard ? 3 : ScenarioId == "data-grid.app-grid-dump" ? 60 : 12, replacementRevision);
+
+  private static IReadOnlyList<AssetRow> CreateAssets(int count, int revision) => Enumerable.Range(0, count).Select(index => new AssetRow(
+    $"asset-{revision}-{index + 1}", new[] { "North Pier", "Pump House", "Main Span", "Service Gallery" }[index % 4],
+    $"Bay {(char)('A' + index % 6)}", $"INS-{index + 1:0000}", new[] { "Active", "Review", "Paused" }[index % 3],
+    new[] { "A. Rivera", "M. Chen", "S. Patel" }[index % 3], $"2026-08-{index % 28 + 1:00}")).ToArray();
+}

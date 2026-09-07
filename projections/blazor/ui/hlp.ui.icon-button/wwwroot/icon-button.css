@@ -1,0 +1,130 @@
+.hl-icon-button {
+  --hl-icon-button-surface: var(--hl-background, #ffffff);
+  --hl-icon-button-foreground: var(--hl-foreground, #111827);
+  --hl-icon-button-muted: var(--hl-muted-foreground, #4b5563);
+  --hl-icon-button-border: var(--hl-border, #9ca3af);
+  --hl-icon-button-hover: var(--hl-accent, #e5e7eb);
+  --hl-icon-button-active: var(--hl-border, #d1d5db);
+  --hl-icon-button-hover-foreground: var(--hl-accent-foreground, #111827);
+  --hl-icon-button-destructive: var(--hl-danger);
+  --hl-icon-button-destructive-hover: var(--hl-destructive-soft, #fef3f2);
+  --hl-icon-button-focus: var(--hl-focus, #0f62fe);
+}
+
+.hl-icon-button {
+  align-items: center;
+  appearance: none;
+  background: transparent;
+  border: 0;
+  border-radius: 0.5rem;
+  box-sizing: border-box;
+  color: var(--hl-icon-button-foreground);
+  cursor: pointer;
+  display: inline-flex;
+  flex: 0 0 auto;
+  font: inherit;
+  inline-size: 2rem;
+  justify-content: center;
+  line-height: 1;
+  margin: 0;
+  min-block-size: 2.75rem;
+  min-inline-size: 2.75rem;
+  padding: 0;
+  position: relative;
+  transition: background-color 150ms ease-out, border-color 150ms ease-out, color 150ms ease-out;
+}
+
+.hl-icon-button--default {
+  background: var(--hl-icon-button-surface);
+  border: 1px solid var(--hl-icon-button-border);
+}
+
+.hl-icon-button--ghost { color: var(--hl-icon-button-muted); }
+
+.hl-icon-button--outline {
+  border: 1px solid var(--hl-icon-button-border);
+}
+
+.hl-icon-button--destructive { color: var(--hl-icon-button-destructive); }
+
+.hl-icon-button--default:hover:not(:disabled),
+.hl-icon-button--ghost:hover:not(:disabled),
+.hl-icon-button--outline:hover:not(:disabled) {
+  background: var(--hl-icon-button-hover);
+  color: var(--hl-icon-button-hover-foreground);
+}
+
+.hl-icon-button--destructive:hover:not(:disabled) {
+  background: var(--hl-icon-button-destructive-hover);
+}
+
+.hl-icon-button--default:active:not(:disabled),
+.hl-icon-button--ghost:active:not(:disabled),
+.hl-icon-button--outline:active:not(:disabled) { background: var(--hl-icon-button-active); }
+.hl-icon-button--destructive:active:not(:disabled) { background: color-mix(in srgb, var(--hl-icon-button-destructive-hover) 82%, CanvasText); }
+
+.hl-icon-button--sm { block-size: 2rem; inline-size: 2rem; min-block-size:2rem; min-inline-size:2rem; }
+.hl-icon-button--md { block-size: 2.5rem; inline-size: 2.5rem; min-block-size:2.5rem; min-inline-size:2.5rem; }
+.hl-icon-button--lg { block-size: 2.5rem; inline-size: 2.5rem; }
+.hl-icon-button--touch { block-size: 2.75rem; inline-size: 2.75rem; }
+
+.hl-icon-button:focus-visible {
+  outline: 2px solid var(--hl-icon-button-focus);
+  outline-offset: 2px;
+}
+
+.hl-icon-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.hl-icon-button__loading-indicator {
+  block-size: 1rem;
+  fill: none;
+  inline-size: 1rem;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-width: 3;
+}
+
+.hl-icon-button--sm .hl-icon-button__loading-indicator { block-size: 0.875rem; inline-size: 0.875rem; }
+.hl-icon-button--lg .hl-icon-button__loading-indicator { block-size: 1.25rem; inline-size: 1.25rem; }
+
+.hl-icon-button__loading-track { opacity: 0.25; }
+.hl-icon-button__loading-segment {
+  animation: hl-icon-button-spin 700ms linear infinite;
+  transform-origin: center;
+}
+
+@keyframes hl-icon-button-spin { to { transform: rotate(360deg); } }
+
+[data-theme='dark'] .hl-icon-button,
+.hl-icon-button[data-theme='dark'] {
+  --hl-icon-button-surface: var(--hl-background, #111827);
+  --hl-icon-button-foreground: var(--hl-foreground, #f9fafb);
+  --hl-icon-button-muted: var(--hl-muted-foreground, #d1d5db);
+  --hl-icon-button-border: var(--hl-border, #6b7280);
+  --hl-icon-button-hover: var(--hl-accent, #374151);
+  --hl-icon-button-active: var(--hl-border, #4b5563);
+  --hl-icon-button-hover-foreground: var(--hl-accent-foreground, #f9fafb);
+  --hl-icon-button-destructive: var(--hl-destructive, #ffb4ab);
+  --hl-icon-button-destructive-hover: var(--hl-destructive-soft, #3b1219);
+  --hl-icon-button-focus: var(--hl-focus, #8ab4ff);
+}
+
+@media (forced-colors: active) {
+  .hl-icon-button {
+    background: ButtonFace;
+    border: 1px solid ButtonText;
+    color: ButtonText;
+    forced-color-adjust: auto;
+  }
+
+  .hl-icon-button:disabled { color: GrayText; }
+  .hl-icon-button:focus-visible { outline-color: Highlight; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hl-icon-button { transition-duration: 0.01ms; }
+  .hl-icon-button__loading-segment { animation: none; }
+}

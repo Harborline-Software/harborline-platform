@@ -1,0 +1,4 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Layout
+@inherits HarborlineComponentBase
+<p id="@Context?.DescriptionId" class="@CombineClasses("hl-sheet__description")" style="@CombineStyles()" @attributes="AdditionalAttributes">@ChildContent</p>
+@code { [CascadingParameter] public SheetContext? Context { get; set; } [Parameter] public RenderFragment? ChildContent { get; set; } }

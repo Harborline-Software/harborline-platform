@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.data-export-button",
+  "verdict": "approved",
+  "reviewer": "cic",
+  "recordedAt": "2026-08-27T05:36:23.097Z",
+  "notes": "the react dropdown shows the file extensions like \"CSV (.csv)\" while Blazor shows \"CVS\"",
+  "reference": {
+    "revision": "073628c0f6b494d58c5517e08098d31b4ba1064a05d353b555e0813e7e2c9108",
+    "source": "gallery/scenarios/hlp.ui.data-export-button.json",
+    "pin": "cc9eb48ed68c5033ec128cd53c40b1d2786bee66",
+    "surface": {
+      "conformance/hlp.ui.data-export-button/fixtures.yaml": "d373875bf0f2b845cc8bac26a6b08f69e10242b6eec3351f4e30431e588711d7",
+      "conformance/hlp.ui.data-export-button/quality-fixtures.yaml": "46452e361abfb25db01fd7fe5c0663200e02df7690340908e4645be2886a424b",
+      "gallery/projections/blazor/Stories/DataExportButton.stories.razor": "5acffeb226ccc81decf7e927c4a83ff07d8bc8c5e322faceaa12dd57c4db2634",
+      "gallery/projections/blazor/Stories/DataExportButtonScenario.razor": "d0f183bceaad5fd3f47c89d4b2d9a3248f2bb83c1028305120bf3edbd5fdd257",
+      "gallery/projections/react/src/DataExportButton.stories.tsx": "0636a1c3c6f3d712ddc294ae1756f1d7d09db9820acd19dcd100be71c37852eb",
+      "gallery/scenarios/hlp.ui.data-export-button.json": "e3f7413c1f3bb204ee6bc7e74005c35b7a6cfc84e0aba939d3e030f4dbb3b8ba",
+      "projections/blazor/ui/hlp.ui.data-export-button/DataExportTypes.cs": "1000e83b2545dca9e34af0134bc823bb70f4b2aabe2879bbb0702f7ea0a77b28",
+      "projections/blazor/ui/hlp.ui.data-export-button/ShipyardDataExportButton.razor": "03b2fb0081e553ffb09a30d8e6c47e06f004ed04a2c38bd7ad466b767bc9a66c",
+      "projections/blazor/ui/hlp.ui.data-export-button/wwwroot/data-export-button.css": "3dee5ff6f17d2375b4f0cc76fb0378a2057fffd092fdfab4d36357ff02eceef6",
+      "projections/blazor/ui/hlp.ui.data-export-button/wwwroot/data-export-button.js": "270c7be94bd2cbfc604e230d66fcce9ab075ad1f15afb65887ba298aa1cdcf62",
+      "projections/react/ui/hlp.ui.data-export-button/src/DataExportButton.tsx": "a3a1b6b273537ee55e42bcf5f62739a4f8ac6a5a672bf0645196441516ef05ac",
+      "projections/react/ui/hlp.ui.data-export-button/src/index.ts": "4828ce0f3efecd66c599562bc4b0b4e381b2a619089f7f6f701722f58fcbbda2",
+      "projections/react/ui/hlp.ui.data-export-button/src/style.css": "3dee5ff6f17d2375b4f0cc76fb0378a2057fffd092fdfab4d36357ff02eceef6",
+      "specs/modules/ui/hlp.ui.data-export-button/scenarios.json": "e3f7413c1f3bb204ee6bc7e74005c35b7a6cfc84e0aba939d3e030f4dbb3b8ba",
+      "specs/modules/ui/hlp.ui.data-export-button/style.css": "3dee5ff6f17d2375b4f0cc76fb0378a2057fffd092fdfab4d36357ff02eceef6"
+    }
+  }
+}

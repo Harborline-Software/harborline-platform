@@ -1,0 +1,76 @@
+<section class="hl-gallery-scene" data-gallery-probe data-gallery-scenario="@ScenarioId" data-theme="@Theme">
+    <header class="hl-gallery-heading"><h2>@Title</h2><p>@Description</p></header>
+    <div class="hl-gallery-stage hl-gallery-feedback-stage">
+        @if (ScenarioId == "loading-state.content")
+        {
+            <HarborlineLoadingState Label="@("Loading 1,284,905 records for Ordnance Survey — Niño Ångström at Bay 4 <grid C-7> & 8")" />
+        }
+        else if (ScenarioId == "loading-state.inline")
+        {
+            <HarborlineLoadingState Label="Loading results" Variant="LoadingStateVariant.Inline" />
+        }
+        else if (ScenarioId == "loading-state.label-update")
+        {
+            <div class="hl-gallery-feedback-stack">
+                <HarborlineLoadingState Label="@UpdateLabel" Variant="LoadingStateVariant.Inline" data-update-region />
+                <button class="hl-gallery-test-control" type="button" @onclick="AdvanceLoading" data-update-control>Advance caller state</button>
+            </div>
+        }
+        else if (ScenarioId == "loading-state.host-attributes")
+        {
+            <HarborlineLoadingState Label="Loading inspections" Variant="LoadingStateVariant.Inline" Class="consumer"
+                                  data-case="shared" aria-atomic="true" />
+        }
+        else if (ScenarioId is "loading-state.locale-en" or "loading-state.locale-pseudo" or "loading-state.locale-ar")
+        {
+            <HarborlineLoadingState Label="@LocalizedLabel" lang="@Locale" dir="@Direction" />
+        }
+        else if (ScenarioId is "loading-state.theme-light" or "loading-state.theme-dark")
+        {
+            <div class="hl-gallery-feedback-grid">
+                <HarborlineLoadingState Label="Loading inspections" />
+                <HarborlineLoadingState Label="Loading attachments" Variant="LoadingStateVariant.Inline" />
+            </div>
+        }
+        else
+        {
+            <HarborlineLoadingState Label="Loading inspections" />
+        }
+    </div>
+</section>
+
+@code {
+    [Parameter, EditorRequired] public string ScenarioId { get; set; } = "loading-state.default";
+
+    private string UpdateLabel { get; set; } = "Loading inspections";
+    private bool IsPseudo => ScenarioId == "loading-state.locale-pseudo";
+    private bool IsArabic => ScenarioId == "loading-state.locale-ar";
+    private string Locale => IsArabic ? "ar-SA" : IsPseudo ? "en-XA" : "en-US";
+    private string Direction => IsArabic ? "rtl" : "ltr";
+    private string LocalizedLabel => IsArabic ? "جارٍ تحميل عمليات الفحص" : IsPseudo ? "⟦ Ļøåđîñĝ îñšþëçţîøñš ······ ⟧" : "Loading inspections";
+    private string Title => Copy[ScenarioId].Title;
+    private string Description => Copy[ScenarioId].Description;
+    private string? Theme => ScenarioId switch
+    {
+        "loading-state.theme-light" => "light",
+        "loading-state.theme-dark" => "dark",
+        _ => null,
+    };
+
+    private void AdvanceLoading() => UpdateLabel = "Loading attachments";
+
+    private static IReadOnlyDictionary<string, (string Title, string Description)> Copy { get; } =
+        new Dictionary<string, (string, string)>
+        {
+            ["loading-state.default"] = ("Page", "A centered polite status with caller-owned visible text."),
+            ["loading-state.inline"] = ("Inline", "The compact status participates in surrounding content flow."),
+            ["loading-state.label-update"] = ("Label update", "The caller updates one persistent polite status region as work advances."),
+            ["loading-state.host-attributes"] = ("Host attributes", "Consumer class, data, and atomic announcement attributes reach the status host."),
+            ["loading-state.locale-en"] = ("English locale", "Caller-localized visible text and direction propagate to the status."),
+            ["loading-state.locale-pseudo"] = ("Pseudo locale", "Expanded status text exposes clipping and fixed-width assumptions."),
+            ["loading-state.locale-ar"] = ("Arabic locale", "RTL status text keeps its order and logical alignment."),
+            ["loading-state.theme-light"] = ("Light theme", "Page, inline, text, and surface roles on the neutral light fixture."),
+            ["loading-state.theme-dark"] = ("Dark theme", "The same non-interactive status vocabulary on the Harborline dark surface."),
+            ["loading-state.content"] = ("Content resilience", "The visible status label carries long copy, the grouped number 1,284,905, escaped angle brackets and an ampersand, and a name with diacritics and an em dash."),
+        };
+}

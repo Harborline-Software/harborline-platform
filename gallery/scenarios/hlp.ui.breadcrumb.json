@@ -1,0 +1,169 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.breadcrumb",
+  "sourceFixture": "conformance/hlp.ui.breadcrumb/fixtures.yaml",
+  "qualityFixture": "conformance/hlp.ui.breadcrumb/quality-fixtures.yaml",
+  "galleryInterface": {
+    "probeAttribute": "data-gallery-probe",
+    "scenarioAttribute": "data-gallery-scenario",
+    "projectionTitles": {
+      "react": "Platform/Breadcrumb",
+      "blazor": "Platform/Breadcrumb"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "breadcrumb.defaults",
+      "name": "Defaults and relationships",
+      "surface": "defaults",
+      "sourceCaseIds": [
+        "breadcrumb.empty",
+        "breadcrumb.infer-last-current",
+        "breadcrumb.relationships"
+      ],
+      "sourceQualityCaseIds": [
+        "breadcrumb.quality.landmark",
+        "breadcrumb.quality.current"
+      ],
+      "content": {
+        "blurb": "Current-page semantics, logical separators, and wrapping share one neutral contract.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "accessibleLabel": "Location",
+          "items": [
+            {
+              "id": "home",
+              "label": "Home",
+              "href": "/"
+            },
+            {
+              "id": "forms",
+              "label": "Forms",
+              "href": "/forms"
+            },
+            {
+              "id": "current",
+              "label": "Inspection details"
+            }
+          ]
+        },
+        "state": {},
+        "body": [],
+        "footer": []
+      }
+    },
+    {
+      "id": "breadcrumb.navigation",
+      "name": "Current items and links",
+      "surface": "current-links",
+      "sourceCaseIds": [
+        "breadcrumb.explicit-current",
+        "breadcrumb.link-selection",
+        "breadcrumb.separator-order"
+      ],
+      "sourceQualityCaseIds": [
+        "breadcrumb.quality.reflow",
+        "breadcrumb.quality.focus",
+        "breadcrumb.quality.forced-colors"
+      ],
+      "content": {
+        "blurb": "Current-page semantics, logical separators, and wrapping share one neutral contract.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [],
+        "footer": [],
+        "inherits": "breadcrumb.defaults"
+      }
+    },
+    {
+      "id": "breadcrumb.rtl-theme",
+      "name": "RTL and theme",
+      "surface": "rtl-theme",
+      "sourceCaseIds": [
+        "breadcrumb.host-attributes",
+        "breadcrumb.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "breadcrumb.quality.caller-labels",
+        "breadcrumb.quality.rtl",
+        "breadcrumb.quality.pseudo",
+        "breadcrumb.quality.light-dark",
+        "breadcrumb.quality.tokens",
+        "breadcrumb.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "Current-page semantics, logical separators, and wrapping share one neutral contract.",
+        "environment": {
+          "locale": "ar-SA",
+          "direction": "rtl",
+          "theme": "dark",
+          "catalog": {}
+        },
+        "props": {
+          "accessibleLabel": "Location",
+          "items": [
+            {
+              "id": "home",
+              "label": "الرئيسية",
+              "href": "/"
+            },
+            {
+              "id": "forms",
+              "label": "النماذج",
+              "href": "/forms"
+            },
+            {
+              "id": "current",
+              "label": "التفاصيل"
+            }
+          ]
+        },
+        "state": {},
+        "body": [],
+        "footer": [],
+        "inherits": "breadcrumb.defaults"
+      }
+    },
+    {
+      "id": "breadcrumb.content",
+      "name": "Content resilience",
+      "surface": "long-content",
+      "sourceCaseIds": [
+        "breadcrumb.infer-last-current",
+        "breadcrumb.relationships"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "This breadcrumb trail carries an overlong label, a grouped large number, escaped angle brackets and an ampersand, and a name with diacritics and an em dash.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<Breadcrumb accessibleLabel=\"Location\" items={[{id:'review',label:'Awaiting third-party structural certification review',href:'/review'},{id:'count',label:'1,284,905',href:'/records'},{id:'grid',label:'Bay 4 <grid C-7> & 8',href:'/grid'},{id:'current',label:'Ordnance Survey — Niño Ångström'}]}/>",
+            "blazor": "<HarborlineBreadcrumb AccessibleLabel=\"Location\" Items=\"@(new HarborlineBreadcrumbItem[] { new(\"review\", \"Awaiting third-party structural certification review\", \"/review\"), new(\"count\", \"1,284,905\", \"/records\"), new(\"grid\", \"Bay 4 <grid C-7> & 8\", \"/grid\"), new(\"current\", \"Ordnance Survey — Niño Ångström\") })\"/>",
+            "rationale": "The closed control vocabulary cannot express a breadcrumb collection whose item labels contain hostile-but-valid text."
+          }
+        ],
+        "footer": []
+      }
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <PackageId>Harborline.Blocks.Scheduling.RestartProbe</PackageId>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <AssemblyName>Harborline.Blocks.Scheduling.RestartProbe</AssemblyName>
+    <RootNamespace>Harborline.Blocks.Scheduling.RestartProbe</RootNamespace>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../hlp.blocks.scheduling/Harborline.Blocks.Scheduling.csproj" />
+  </ItemGroup>
+</Project>

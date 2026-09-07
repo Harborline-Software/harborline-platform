@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.context-menu",
+  "profileRevision": 1,
+  "locales": {
+    "en-US": {"direction": "ltr", "label": "Context menu"},
+    "en-XA": {"direction": "ltr", "label": "[Çôñţëxţ mëñüü]"},
+    "ar-SA": {"direction": "rtl", "label": "قائمة السياق"}
+  },
+  "themes": [
+    {"id": "light", "scenarioId": "context-menu.theme-light"},
+    {"id": "dark", "scenarioId": "context-menu.theme-dark"}
+  ],
+  "accessibilityCases": [
+    {"id": "context-menu.quality.menu-pattern", "expected": {"roles": ["menu", "menuitem", "separator"], "nameRequired": true}},
+    {"id": "context-menu.quality.disabled", "expected": {"disabledNative": true, "notFocusable": true, "notSelectable": true}},
+    {"id": "context-menu.quality.keyboard", "expected": {"openKeys": ["Shift+F10", "ContextMenu"], "navigation": ["ArrowDown", "ArrowUp", "Home", "End"], "activation": ["Enter", "Space"], "skipDisabled": true, "wrap": true}},
+    {"id": "context-menu.quality.focus", "expected": {"entry": "first-enabled", "returnToKeyboardOpener": true, "visibleIndicator": true}},
+    {"id": "context-menu.quality.dismissal", "expected": {"escape": true, "outsidePointer": true, "selection": true}},
+    {"id": "context-menu.quality.forced-colors", "expected": {"visibleBorder": true, "visibleFocus": true, "dangerNotColorOnly": true}},
+    {"id": "context-menu.quality.reflow-200", "expected": {"viewportWidthCssPixels": 320, "rootFontPercent": 200, "horizontalOverflowCssPixels": 0}}
+  ],
+  "internationalizationCases": [
+    {"id": "context-menu.quality.host-label", "expected": {"hostOverride": true, "englishFallback": "Context menu"}},
+    {"id": "context-menu.quality.locale-direction", "expected": {"locales": ["en-US", "en-XA", "ar-SA"], "langAndDirPropagate": true}},
+    {"id": "context-menu.quality.rtl-position", "expected": {"logicalTextAlignment": true, "iconsPreserveMeaning": true, "viewportClamp": true}},
+    {"id": "context-menu.quality.pseudo-expansion", "expected": {"minimumExpansionRatio": 1.3, "noClipping": true}},
+    {"id": "context-menu.quality.formatting-applicability", "expected": {"disposition": "not-applicable", "requiresRationale": true}}
+  ],
+  "themingCases": [
+    {"id": "context-menu.quality.theme-light", "expected": {"fixture": "light", "separateScenario": true}},
+    {"id": "context-menu.quality.theme-dark", "expected": {"fixture": "dark", "separateScenario": true}},
+    {"id": "context-menu.quality.theme-states", "expected": {"states": ["default", "hover", "focus", "active", "disabled", "danger", "separator"], "bothThemes": true}},
+    {"id": "context-menu.quality.theme-tokens", "expected": {"source": "public-css-custom-properties", "packedArtifacts": ["npm", "nuget"]}},
+    {"id": "context-menu.quality.theme-runtime-switch", "expected": {"from": "light", "to": "dark", "withoutRemount": true}},
+    {"id": "context-menu.quality.theme-contrast", "expected": {"wcagLevel": "AA", "minimumTextRatio": 4.5, "minimumNonTextRatio": 3}},
+    {"id": "context-menu.quality.reduced-motion", "expected": {"preference": "reduce", "maximumTransitionDurationMilliseconds": 1}},
+    {"id": "context-menu.quality.visual-parity", "expected": {"projections": ["react", "blazor"], "themes": ["light", "dark"], "maximumChangedPixelRatio": 0.015}}
+  ]
+}

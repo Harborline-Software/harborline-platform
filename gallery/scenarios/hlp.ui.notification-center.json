@@ -1,0 +1,593 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.notification-center",
+  "sourceFixture": "conformance/hlp.ui.notification-center/fixtures.yaml",
+  "qualityFixture": "conformance/hlp.ui.notification-center/quality-fixtures.yaml",
+  "galleryInterface": {
+    "probeAttribute": "data-gallery-probe",
+    "scenarioAttribute": "data-gallery-scenario",
+    "projectionTitles": {
+      "react": "Platform/Notification Center",
+      "blazor": "Platform/Notification Center"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "notification-center.empty-badges",
+      "name": "Empty and badge modes",
+      "surface": "empty-badges",
+      "sourceCaseIds": [
+        "notification-center.empty",
+        "notification-center.badge-unread",
+        "notification-center.badge-decisions",
+        "notification-center.overflow-format"
+      ],
+      "sourceQualityCaseIds": [
+        "notification-center.quality.color",
+        "notification-center.quality.formatting-boundary"
+      ],
+      "content": {
+        "blurb": "Unread and decision counts produce bounded badges and complete bell names.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "groups": [
+            {
+              "kind": "proposal",
+              "label": "Approvals"
+            },
+            {
+              "kind": "result",
+              "label": "Results"
+            },
+            {
+              "kind": "system",
+              "label": "System"
+            }
+          ],
+          "maxVisible": 2,
+          "instances": [
+            {
+              "items": [],
+              "badgeMode": "unread"
+            },
+            {
+              "items": [
+                {
+                  "id": "proposal-1",
+                  "title": "Approve blueprint placement",
+                  "body": "Bay 4 matches the captured pose.",
+                  "preview": "Place photo marker at grid C-7",
+                  "actor": "Avery",
+                  "timestamp": "2 min ago",
+                  "kind": "proposal",
+                  "read": false
+                },
+                {
+                  "id": "result-1",
+                  "title": "Pose calculation complete",
+                  "body": "Orientation confidence is 97%.",
+                  "timestamp": "10 min ago",
+                  "kind": "result",
+                  "read": false
+                },
+                {
+                  "id": "system-1",
+                  "title": "Blueprint indexed",
+                  "timestamp": "Yesterday",
+                  "kind": "system",
+                  "read": true
+                }
+              ],
+              "badgeMode": "unread"
+            },
+            {
+              "items": [
+                {
+                  "id": "proposal-1",
+                  "title": "Approve blueprint placement",
+                  "body": "Bay 4 matches the captured pose.",
+                  "preview": "Place photo marker at grid C-7",
+                  "actor": "Avery",
+                  "timestamp": "2 min ago",
+                  "kind": "proposal",
+                  "read": false
+                },
+                {
+                  "id": "result-1",
+                  "title": "Pose calculation complete",
+                  "body": "Orientation confidence is 97%.",
+                  "timestamp": "10 min ago",
+                  "kind": "result",
+                  "read": false
+                },
+                {
+                  "id": "system-1",
+                  "title": "Blueprint indexed",
+                  "timestamp": "Yesterday",
+                  "kind": "system",
+                  "read": true
+                }
+              ],
+              "badgeMode": "decisions"
+            }
+          ]
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<NotificationFixture scenarioId={scenarioId} items={[]} />\n<NotificationFixture scenarioId={scenarioId} items={items} badgeMode=\"unread\" />\n<NotificationFixture scenarioId={scenarioId} items={items} badgeMode=\"decisions\" />",
+            "blazor": "<NotificationFixture ScenarioId=\"@ScenarioId\" Items=\"@EmptyItems\" />\n<NotificationFixture ScenarioId=\"@ScenarioId\" Items=\"@Items\" BadgeMode=\"NotificationBadgeMode.Unread\" />\n<NotificationFixture ScenarioId=\"@ScenarioId\" Items=\"@Items\" BadgeMode=\"NotificationBadgeMode.Decisions\" />",
+            "rationale": "Three NotificationCenter component instances, including their computed badge labels and popover structure, cannot be expressed by the permitted generic descriptor controls."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "notification-center.groups",
+      "name": "Groups and filtering",
+      "surface": "groups",
+      "interaction": "pointer",
+      "sourceCaseIds": [
+        "notification-center.groups",
+        "notification-center.filter",
+        "notification-center.limit-view-all"
+      ],
+      "sourceQualityCaseIds": [
+        "notification-center.quality.pattern",
+        "notification-center.quality.reflow"
+      ],
+      "content": {
+        "blurb": "Group order follows the caller and filtering never reorders items.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "items": [
+            {
+              "id": "proposal-1",
+              "title": "Approve blueprint placement",
+              "body": "Bay 4 matches the captured pose.",
+              "preview": "Place photo marker at grid C-7",
+              "actor": "Avery",
+              "timestamp": "2 min ago",
+              "kind": "proposal",
+              "read": false
+            },
+            {
+              "id": "result-1",
+              "title": "Pose calculation complete",
+              "body": "Orientation confidence is 97%.",
+              "timestamp": "10 min ago",
+              "kind": "result",
+              "read": false
+            },
+            {
+              "id": "system-1",
+              "title": "Blueprint indexed",
+              "timestamp": "Yesterday",
+              "kind": "system",
+              "read": true
+            }
+          ],
+          "groups": [
+            {
+              "kind": "proposal",
+              "label": "Approvals"
+            },
+            {
+              "kind": "result",
+              "label": "Results"
+            },
+            {
+              "kind": "system",
+              "label": "System"
+            }
+          ],
+          "badgeMode": "unread",
+          "maxVisible": 2
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<NotificationCenter items={items} groups={groups} labels={labels} direction=\"ltr\" badgeMode=\"unread\" maxVisible={2} formatCount={(count) => `#${count}`} getBellLabel={...} onConfirm={...} onDeny={...} onAction={...} onMarkAllRead={...} onDismiss={...} onViewAll={...} />",
+            "blazor": "<HarborlineNotificationCenter Items=\"@Items\" Groups=\"@Groups\" Labels=\"@Labels\" Direction=\"@Direction\" BadgeMode=\"@BadgeMode\" MaxVisible=\"2\" FormatCount=\"FormatCount\" GetBellLabel=\"BellLabel\" OnConfirm=\"IgnoreItem\" OnDeny=\"IgnoreItem\" OnAction=\"IgnoreItem\" OnMarkAllRead=\"Ignore\" OnDismiss=\"IgnoreItem\" OnViewAll=\"Ignore\" />",
+            "rationale": "The grouped tabbed notification popover and its callback-bearing item actions are a bespoke component structure not representable by the permitted generic descriptor controls."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "notification-center.actions",
+      "name": "Item actions",
+      "surface": "actions",
+      "interaction": "pointer",
+      "sourceCaseIds": [
+        "notification-center.proposal",
+        "notification-center.informational",
+        "notification-center.mark-read",
+        "notification-center.dismiss-item",
+        "notification-center.invalid-input"
+      ],
+      "sourceQualityCaseIds": [
+        "notification-center.quality.targets",
+        "notification-center.quality.forced-colors"
+      ],
+      "content": {
+        "blurb": "Proposal decisions, informational activation, mark-read, dismiss, and view-all dispatch bounded callbacks.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "items": [
+            {
+              "id": "proposal-1",
+              "title": "Approve blueprint placement",
+              "body": "Bay 4 matches the captured pose.",
+              "preview": "Place photo marker at grid C-7",
+              "actor": "Avery",
+              "timestamp": "2 min ago",
+              "kind": "proposal",
+              "read": false
+            },
+            {
+              "id": "result-1",
+              "title": "Pose calculation complete",
+              "body": "Orientation confidence is 97%.",
+              "timestamp": "10 min ago",
+              "kind": "result",
+              "read": false
+            },
+            {
+              "id": "system-1",
+              "title": "Blueprint indexed",
+              "timestamp": "Yesterday",
+              "kind": "system",
+              "read": true
+            }
+          ],
+          "groups": [
+            {
+              "kind": "proposal",
+              "label": "Approvals"
+            },
+            {
+              "kind": "result",
+              "label": "Results"
+            },
+            {
+              "kind": "system",
+              "label": "System"
+            }
+          ],
+          "badgeMode": "decisions",
+          "maxVisible": 2
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<NotificationFixture scenarioId={scenarioId} items={items} badgeMode=\"decisions\" />",
+            "blazor": "<NotificationFixture ScenarioId=\"@ScenarioId\" Items=\"@Items\" BadgeMode=\"@BadgeMode\" />",
+            "rationale": "The proposal and informational action surfaces and callback dispatch are bespoke NotificationCenter behavior not representable by the permitted generic descriptor controls."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "notification-center.keyboard-dismissal",
+      "name": "Keyboard, focus, and dismissal",
+      "surface": "keyboard-dismissal",
+      "interaction": "keyboard",
+      "sourceCaseIds": [
+        "notification-center.open-close",
+        "notification-center.dismissal-focus"
+      ],
+      "sourceQualityCaseIds": [
+        "notification-center.quality.keyboard",
+        "notification-center.quality.focus",
+        "notification-center.quality.dismissal"
+      ],
+      "content": {
+        "blurb": "The bell opens a dialog, focus enters, and every dismissal path has a deterministic focus outcome.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "inherits": "notification-center.groups"
+      }
+    },
+    {
+      "id": "notification-center.locale-en",
+      "name": "English locale",
+      "surface": "locale-en",
+      "sourceCaseIds": [
+        "notification-center.localization"
+      ],
+      "sourceQualityCaseIds": [
+        "notification-center.quality.locales"
+      ],
+      "content": {
+        "blurb": "Caller and catalog chrome remain localized without formatting timestamps.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "inherits": "notification-center.groups"
+      }
+    },
+    {
+      "id": "notification-center.locale-pseudo",
+      "name": "Pseudo locale",
+      "surface": "locale-pseudo",
+      "sourceCaseIds": [
+        "notification-center.localization"
+      ],
+      "sourceQualityCaseIds": [
+        "notification-center.quality.pseudo"
+      ],
+      "content": {
+        "blurb": "Expanded titles, tabs, and actions expose clipping and reflow defects.",
+        "environment": {
+          "locale": "en-XA",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "labels": {
+            "title": "⟦ Ñøţîƒîçåţîøñš ···· ⟧",
+            "all": "⟦ Åļļ ·· ⟧",
+            "confirm": "⟦ Çøñƒîřm ··· ⟧",
+            "deny": "⟦ Đëñÿ ·· ⟧",
+            "markAllRead": "⟦ Måřķ åļļ řëåđ ···· ⟧",
+            "viewAll": "⟦ Ṽîëŵ åļļ ··· ⟧",
+            "empty": "⟦ Ñø ñøţîƒîçåţîøñš ······ ⟧",
+            "groupLabel": "⟦ Ñøţîƒîçåţîøñ ĝřøûþš ······ ⟧",
+            "unread": "⟦ Ûñřëåđ ··· ⟧"
+          },
+          "groups": [
+            {
+              "kind": "proposal",
+              "label": "⟦ Åþþřøṽåļš ··· ⟧"
+            },
+            {
+              "kind": "result",
+              "label": "⟦ Řëšûļţš ··· ⟧"
+            },
+            {
+              "kind": "system",
+              "label": "⟦ Šÿšţëm ··· ⟧"
+            }
+          ],
+          "items": [
+            {
+              "id": "proposal-1",
+              "title": "⟦ Approve blueprint placement ······ ⟧",
+              "body": "⟦ Bay 4 matches the captured pose. ······ ⟧",
+              "preview": "Place photo marker at grid C-7",
+              "actor": "Avery",
+              "timestamp": "2 min ago",
+              "kind": "proposal",
+              "read": false
+            },
+            {
+              "id": "result-1",
+              "title": "⟦ Pose calculation complete ······ ⟧",
+              "body": "⟦ Orientation confidence is 97%. ······ ⟧",
+              "timestamp": "10 min ago",
+              "kind": "result",
+              "read": false
+            },
+            {
+              "id": "system-1",
+              "title": "⟦ Blueprint indexed ······ ⟧",
+              "timestamp": "Yesterday",
+              "kind": "system",
+              "read": true
+            }
+          ],
+          "badgeMode": "unread",
+          "maxVisible": 2
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<NotificationCenter items={items} groups={groups} labels={labels} direction=\"ltr\" badgeMode=\"unread\" maxVisible={2} formatCount={(count) => `#${count}`} getBellLabel={({ pending, unread, mode }) => `⟦ Ñøţîƒîçåţîøñš, ${mode === 'decisions' ? pending : unread} ···· ⟧`} ... />",
+            "blazor": "<HarborlineNotificationCenter Items=\"@Items\" Groups=\"@Groups\" Labels=\"@Labels\" Direction=\"@Direction\" BadgeMode=\"@BadgeMode\" MaxVisible=\"2\" FormatCount=\"FormatCount\" GetBellLabel=\"BellLabel\" ... />",
+            "rationale": "Pseudo-localized dynamic accessible names, dismiss labels, and the bespoke popover structure cannot be expressed by the permitted generic descriptor controls."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "notification-center.locale-ar",
+      "name": "Arabic locale",
+      "surface": "locale-ar",
+      "sourceCaseIds": [
+        "notification-center.localization",
+        "notification-center.rtl-touch"
+      ],
+      "sourceQualityCaseIds": [
+        "notification-center.quality.rtl"
+      ],
+      "content": {
+        "blurb": "Logical edges follow RTL while tab and action order remain stable.",
+        "environment": {
+          "locale": "ar-SA",
+          "direction": "rtl",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "labels": {
+            "title": "الإشعارات",
+            "all": "الكل",
+            "confirm": "تأكيد",
+            "deny": "رفض",
+            "markAllRead": "وضع علامة مقروء",
+            "viewAll": "عرض الكل",
+            "empty": "لا توجد إشعارات",
+            "groupLabel": "مجموعات الإشعارات",
+            "unread": "غير مقروء"
+          },
+          "groups": [
+            {
+              "kind": "proposal",
+              "label": "الموافقات"
+            },
+            {
+              "kind": "result",
+              "label": "النتائج"
+            },
+            {
+              "kind": "system",
+              "label": "النظام"
+            }
+          ],
+          "items": [
+            {
+              "id": "proposal-1",
+              "title": "الموافقة على موضع المخطط",
+              "body": "يتطابق الموضع مع الصورة.",
+              "preview": "Place photo marker at grid C-7",
+              "actor": "أمل",
+              "timestamp": "منذ دقيقتين",
+              "kind": "proposal",
+              "read": false
+            },
+            {
+              "id": "result-1",
+              "title": "اكتمل حساب الوضعية",
+              "body": "دقة الاتجاه ٩٧٪.",
+              "timestamp": "منذ عشر دقائق",
+              "kind": "result",
+              "read": false
+            },
+            {
+              "id": "system-1",
+              "title": "تمت فهرسة المخطط",
+              "timestamp": "أمس",
+              "kind": "system",
+              "read": true
+            }
+          ],
+          "direction": "rtl",
+          "badgeMode": "unread",
+          "maxVisible": 2
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<NotificationCenter items={items} groups={groups} labels={labels} direction=\"rtl\" badgeMode=\"unread\" maxVisible={2} formatCount={(count) => new Intl.NumberFormat('ar-SA').format(count)} getBellLabel={({ pending, unread, mode }) => `الإشعارات، ${mode === 'decisions' ? pending : unread}`} ... />",
+            "blazor": "<HarborlineNotificationCenter Items=\"@Items\" Groups=\"@Groups\" Labels=\"@Labels\" Direction=\"@Direction\" BadgeMode=\"@BadgeMode\" MaxVisible=\"2\" FormatCount=\"FormatCount\" GetBellLabel=\"BellLabel\" ... />",
+            "rationale": "RTL popover layout plus locale-formatted dynamic counts and accessible names cannot be expressed by the permitted generic descriptor controls."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "notification-center.theme-light",
+      "name": "Light theme",
+      "surface": "theme-light",
+      "sourceCaseIds": [
+        "notification-center.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "notification-center.quality.themes",
+        "notification-center.quality.tokens",
+        "notification-center.quality.contrast",
+        "notification-center.quality.reduced-motion",
+        "notification-center.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "Unread, hover, focus, danger, dialog, and badge states use public light-theme tokens.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "inherits": "notification-center.groups"
+      }
+    },
+    {
+      "id": "notification-center.theme-dark",
+      "name": "Dark theme",
+      "surface": "theme-dark",
+      "sourceCaseIds": [
+        "notification-center.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "notification-center.quality.themes",
+        "notification-center.quality.tokens",
+        "notification-center.quality.contrast",
+        "notification-center.quality.reduced-motion",
+        "notification-center.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "The same inbox shell on the Harborline dark surface.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "dark",
+          "catalog": {}
+        },
+        "inherits": "notification-center.groups"
+      }
+    },
+    {
+      "id": "notification-center.content",
+      "name": "Content resilience",
+      "surface": "long-content",
+      "sourceCaseIds": [
+        "notification-center.groups",
+        "notification-center.limit-view-all"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "Hostile notification content carries a title longer than the popover row, a grouped large number, escaped angle brackets and an ampersand, and an actor name with diacritics and an em dash.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<NotificationFixture scenarioId={scenarioId} items={[{ id: 'content-1', title: 'Awaiting third-party structural certification review', body: '1,284,905', preview: 'Bay 4 <grid C-7> & 8', actor: 'Ordnance Survey — Niño Ångström', timestamp: 'Now', kind: 'result', read: false }]} />",
+            "blazor": "<NotificationFixture ScenarioId=\"@ScenarioId\" Items=\"@ContentItems\" BadgeMode=\"NotificationBadgeMode.Unread\" />",
+            "rationale": "The typed notification collection renders title, body, code preview, actor, and timestamp elements that the closed control vocabulary cannot express."
+          }
+        ],
+        "footer": []
+      }
+    }
+  ]
+}

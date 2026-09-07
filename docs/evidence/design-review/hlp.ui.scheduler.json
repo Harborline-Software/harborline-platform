@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.scheduler",
+  "verdict": "approved",
+  "reviewer": "cic",
+  "recordedAt": "2026-08-28T02:25:11.790Z",
+  "reference": {
+    "revision": "568c779dbbd3b5455c214edecd95f1814c642980c2e5f5cda78abc37bbd1c1b8",
+    "source": "gallery/scenarios/hlp.ui.scheduler.json",
+    "pin": "f0869ebbf5f11c5506bc1d8859b2242d96d11e20",
+    "surface": {
+      "conformance/hlp.ui.scheduler/fixtures.yaml": "2712ca9efa8f1bd194ee466ed0ddb7d08dfd6778a696f4349d15a347dbddc805",
+      "conformance/hlp.ui.scheduler/quality-fixtures.yaml": "46145a4145f4c6fb2ad83a57a0581be4fd30f5be6ffdb8e525379df931be5e97",
+      "gallery/projections/blazor/Stories/Scheduler.stories.razor": "5ebf81eabbfcc47033c4b5ab8d2be994a93707e43ae9f202e0a13e29fd1f39ed",
+      "gallery/projections/blazor/Stories/SchedulerScenario.razor": "f3e3e52fc44bd778882af707d13b09e4b1715c37da56ff1f10e450a388ee73f2",
+      "gallery/projections/react/src/Scheduler.stories.tsx": "129cdd80db2cb656785d312c788712205e3c71c1a1cfdd997cff41fa2dbf446f",
+      "gallery/scenarios/hlp.ui.scheduler.json": "57c7d5f6671a386c69057374af1a01874a47a017ee5e9623c5fc1b962c79f0e7",
+      "projections/blazor/ui/hlp.ui.scheduler/SchedulerRecurrence.cs": "fcdb541a92fe4db104fa6a482fdd7952f36b52726ceca131f8b7d3525a0e10ba",
+      "projections/blazor/ui/hlp.ui.scheduler/SchedulerTypes.cs": "ad0d13f6fc45e561b11f07b3ecd7412578c04e1ea307bc3fdc42377fbe3e28ca",
+      "projections/blazor/ui/hlp.ui.scheduler/ShipyardScheduler.razor": "b7d1bbdd9e3561781d23ca1304e6f5f2d47baea3e24437bdfe196c001cca2d3f",
+      "projections/blazor/ui/hlp.ui.scheduler/wwwroot/scheduler.css": "069c5acd82060e9198ed274cf3a7208cc2e43e6241f7da1f45b1e0c3217db96c",
+      "projections/react/ui/hlp.ui.scheduler/src/Scheduler.tsx": "3f8e6e4e4f20ae8b050d2280d5347e55f0f4d6f9870e89ecd90cab558ef7c6bb",
+      "projections/react/ui/hlp.ui.scheduler/src/Scheduler.types.ts": "738002a5f8882a775092658395ecff1077af1cb249fa62790a69f48d3efc4385",
+      "projections/react/ui/hlp.ui.scheduler/src/SchedulerRecurrence.ts": "dbf807b71a69efd3d2d67657ea524449897de87b3eec7b55abff18db76036969",
+      "projections/react/ui/hlp.ui.scheduler/src/index.ts": "923e45de9f3da42eff48b8d3fb696d9e5639363bf901f2fa3f5f50f5ee44f42c",
+      "projections/react/ui/hlp.ui.scheduler/src/scheduler-model.ts": "f8bd8da1dd1d4019e6c7411ade5fdf6d8d6b35bfb2a423a3f2115af4ec732a26",
+      "projections/react/ui/hlp.ui.scheduler/src/style.css": "cbc2a1090f4956d3f812cc708469cf08a05abf3e3f141bd19ab59953e33e66f6",
+      "specs/modules/ui/hlp.ui.scheduler/scenarios.json": "57c7d5f6671a386c69057374af1a01874a47a017ee5e9623c5fc1b962c79f0e7",
+      "specs/modules/ui/hlp.ui.scheduler/style.css": "cbc2a1090f4956d3f812cc708469cf08a05abf3e3f141bd19ab59953e33e66f6"
+    }
+  }
+}

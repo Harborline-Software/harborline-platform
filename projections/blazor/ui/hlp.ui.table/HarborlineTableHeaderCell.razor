@@ -1,0 +1,9 @@
+@namespace Harborline.UIAdapters.Blazor.Components.DataDisplay
+@inherits HarborlineComponentBase
+<th scope="@Scope" class="@CombineClasses("hl-table__header-cell", $"hl-table__cell--density-{DensityName}")" data-hl-density="@DensityName" style="@CombineStyles()" @attributes="AdditionalAttributes">@ChildContent</th>
+@code {
+    [CascadingParameter] public TableContext? Context { get; set; }
+    [Parameter] public string Scope { get; set; } = "col";
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    private string DensityName => Context?.Density == TableDensity.Small ? "sm" : "md";
+}

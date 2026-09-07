@@ -1,0 +1,27 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Layout
+@inherits HarborlineComponentBase
+
+@if (HasLabel)
+{
+    <div class="@CombineClasses("hl-separator", "hl-separator--labeled", $"hl-separator--{OrientationName}")"
+         style="@CombineStyles()" @attributes="AdditionalAttributes" role="@Role" aria-orientation="@AriaOrientation" data-hl-orientation="@OrientationName">
+        <span aria-hidden="true" class="hl-separator__rule" data-hl-rule="true"></span>
+        <span aria-hidden="true" class="hl-separator__label">@Label</span>
+        <span aria-hidden="true" class="hl-separator__rule" data-hl-rule="true"></span>
+    </div>
+}
+else
+{
+    <div class="@CombineClasses("hl-separator", $"hl-separator--{OrientationName}")" style="@CombineStyles()"
+         @attributes="AdditionalAttributes" role="@Role" aria-orientation="@AriaOrientation" data-hl-orientation="@OrientationName" data-hl-rule="true"></div>
+}
+
+@code {
+    [Parameter] public SeparatorOrientation Orientation { get; set; }
+    [Parameter] public bool Decorative { get; set; } = true;
+    [Parameter] public string? Label { get; set; }
+    private bool HasLabel => !string.IsNullOrWhiteSpace(Label);
+    private string OrientationName => Orientation.ToString().ToLowerInvariant();
+    private string? Role => Decorative ? null : "separator";
+    private string? AriaOrientation => Decorative ? null : OrientationName;
+}

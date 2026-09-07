@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.dialog",
+  "verdict": "approved",
+  "reviewer": "cic",
+  "recordedAt": "2026-08-27T05:30:45.966Z",
+  "notes": "the buttons should be styled like the other buttons in the platform. dialog light theme is dark in both React and Blazor",
+  "reference": {
+    "revision": "1ba8de68ad9746603d2c664062d10529cf2845399c3dee10f7575d076444709a",
+    "source": "gallery/scenarios/hlp.ui.dialog.json",
+    "pin": "e4c44eca8918b135e2dcd36060a8e8582d336f89",
+    "surface": {
+      "conformance/hlp.ui.dialog/fixtures.yaml": "06b47a2a607fb58b5aa9c46009a9c195dc1b46e32d76fe6595921247febbfa2b",
+      "conformance/hlp.ui.dialog/quality-fixtures.yaml": "d9ff39335ee5a97acd3c8bdb63c56be36bbfc20597bd80cf47780271e35ff260",
+      "gallery/projections/blazor/Stories/Dialog.stories.razor": "b8962b8d8a9fba311f756e3848a5e6634900b532bd3c69b8e3faf783ce67af73",
+      "gallery/projections/blazor/Stories/DialogScenario.razor": "cc628ec5591462b96da5e711ad971dc73e1209fb62d920c7d95149f8126c6299",
+      "gallery/projections/react/src/Dialog.stories.tsx": "78b9d098a183ea3c0990f0913c01c8564d3754a0594165766e39e67d3ea8bee1",
+      "gallery/scenarios/hlp.ui.dialog.json": "388507450d88a57eb18683ecaba4c84b397f4cac8f8e9b4815331878eba92714",
+      "projections/blazor/ui/hlp.ui.dialog/ShipyardDialog.razor": "c79f42be43e21ca4278aea40dff5d9eb03420a93d86cc8e911075198ddde9c41",
+      "projections/blazor/ui/hlp.ui.dialog/wwwroot/dialog.css": "87bfc4dd85a7e2b012136e3d99f86ea82ff389c49219e828638a357c65170980",
+      "projections/blazor/ui/hlp.ui.dialog/wwwroot/dialog.js": "dd26631a969503d71e08b61cc69cc99ed7491abff9e1026682cbc13ec5f43766",
+      "projections/react/ui/hlp.ui.dialog/src/Dialog.tsx": "06c1629ea0f1d8db9f45c18546c0b08b37920f6f830372cba7d997d4b4ee3450",
+      "projections/react/ui/hlp.ui.dialog/src/index.ts": "39beb5b5bb7a765005d34b5f6a9fa3ba4ec40ac3002bb85cb6cab25500a1f911",
+      "projections/react/ui/hlp.ui.dialog/src/style.css": "87bfc4dd85a7e2b012136e3d99f86ea82ff389c49219e828638a357c65170980",
+      "specs/modules/ui/hlp.ui.dialog/scenarios.json": "388507450d88a57eb18683ecaba4c84b397f4cac8f8e9b4815331878eba92714",
+      "specs/modules/ui/hlp.ui.dialog/style.css": "87bfc4dd85a7e2b012136e3d99f86ea82ff389c49219e828638a357c65170980"
+    }
+  }
+}

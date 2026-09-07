@@ -1,0 +1,11 @@
+{"schemaVersion":1,"moduleId":"hlp.ui.breadcrumb","fixtureRevision":1,"cases":[
+  {"id":"breadcrumb.empty","input":{"items":[]},"expected":{"rendered":false,"landmark":0,"items":0,"separators":0}},
+  {"id":"breadcrumb.infer-last-current","input":{"items":[{"id":"home","label":"Home","href":"/"},{"id":"item","label":"Item"}]},"expected":{"current":"item","links":["home"]}},
+  {"id":"breadcrumb.explicit-current","input":{"items":[{"id":"one","label":"One","current":true},{"id":"two","label":"Two"}]},"expected":{"current":["one","two"]}},
+  {"id":"breadcrumb.link-selection","input":{"items":[{"id":"a","label":"A","href":"/a","current":false},{"id":"b","label":"B","href":"/b","current":true},{"id":"c","label":"C","current":false}]},"expected":{"links":["a"],"text":["b","c"]}},
+  {"id":"breadcrumb.separator-order","input":{"items":["a","b","c"],"separator":"/"},"expected":{"separators":2,"before":["b","c"],"ariaHidden":true}},
+  {"id":"breadcrumb.relationships","input":{"accessibleLabel":"Trail","current":"b"},"expected":{"landmark":"navigation","label":"Trail","ariaCurrent":"page","orderedList":true}},
+  {"id":"breadcrumb.host-attributes","input":{"items":[{"id":"a","label":"A"}],"class":"consumer","id":"trail","lang":"ar","dir":"rtl","data-test":"x"},"expected":{"preserved":true}},
+  {"id":"breadcrumb.current-class","input":{"items":[{"id":"home","label":"Home","href":"/"},{"id":"item","label":"Item","current":true},{"id":"plain","label":"Plain","current":false}]},"expected":{"currentClasses":["hl-breadcrumb__text","hl-breadcrumb__text--current"],"textClasses":["hl-breadcrumb__text"]}},
+  {"id":"breadcrumb.projection-equivalence","input":{"projections":["react","blazor"]},"expected":{"structureAndAccessibilityEqual":true}}
+]}

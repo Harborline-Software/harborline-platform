@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.contracts.forms",
+  "interfaceRevision": 5,
+  "status": "frozen",
+  "purpose": "Provide the complete projection-neutral dynamic-forms authoring, rendering, validation, submission, draft, rule-outcome, layout, and governance wire vocabulary required by Harborline App.",
+  "dependencies": ["hlp.contracts.authorization"],
+  "sourceSurface": {
+    "repository": "shipyard",
+    "commit": "a5036ff8b500e0d857d7e0a698408e7cf7f6cf31",
+    "path": "packages/contracts/src/forms.ts",
+    "blob": "441e85ea5d431bf056eab7af7ab5e3b8800ead8c",
+    "sha256": "99bd66637f4f41c05581b488b6697aa3e3f083617887fee831d1ca33b7c45627",
+    "normalizedIrSha256": "2c5cb447b44398dde42e5140e3d91c4a0489d3857356c7899838eb24608016c6"
+  },
+  "additiveGap": {
+    "reason": "The pinned wire omits dependent-choice Options outcomes, Harborline App fieldsMeta needed for a lossless save/load authoring cycle, and the complete server-side FormView field-rule projection present in the pinned Forms Engine.",
+    "evidence": ["packages/foundation-forms/Models/RuleEnums.cs", "packages/foundation-rule-engine/Model/RuleOutcome.cs", "packages/rule-engine/src/model.ts", "packages/foundation-rule-engine/Conformance/corpus/output-types.json", "packages/foundation-forms-engine/FormView.cs", "packages/foundation-forms-engine/tests/RuleProjectionTests.cs", "apps/carrier/src/forms/builder/model.ts", "apps/carrier/src/forms/builder/definitionsClient.ts", "apps/local-node-host/Health/FormDefinitionRoutes.cs"],
+    "additions": ["RuleActionKind.Options", "OutputType.Options", "OptionsOutcome", "RuleOutcome.options", "FormFieldValidationCode", "FormFieldValidation", "FormFieldAuthoringMetadata", "FormDefinition.fieldsMeta", "FormViewFieldRules", "FormViewField.rules"],
+    "compatibility": "additive; every revision-1 value remains unchanged"
+  },
+  "surfaceCounts": {"declarations": 84, "interfaces": 55, "typeAliases": 28, "constants": 1, "closedLiteralMembers": 104},
+  "fixtureCases": 27,
+  "exports": ["InternationalizedText", "FormDefinitionStatus", "PiiSensitivity", "RuleTier", "RuleScope", "RuleActionKind", "PresentationHint", "ControlHint", "SectionLayoutKind", "FlexDirection", "FlexWrap", "LayoutGap", "LayoutBreakpoint", "LayoutDensity", "LayoutAlign", "FieldWidth", "SectionLayout", "FieldPlacement", "SectionAccess", "FormItemKind", "ContentNode", "FormActionKind", "FormActionConfig", "ReusableUnitVersionSelector", "ReusableUnitRef", "Cardinality", "CollectionColumn", "CollectionTableConfig", "FormItem", "FormSection", "FieldConfig", "FieldOverlay", "RuleDefinition", "OutputType", "ValueState", "Severity", "RuleError", "ComputedValue", "Validity", "VisibilityState", "PresentationOutcome", "OptionsOutcome", "RuleOutcome", "OnSuccessConfig", "WizardSettings", "FormPage", "AsyncValidationCheck", "HarborlineOverlay", "FormDefinitionLineage", "IdentityRef", "FormFieldValidationCode", "FormFieldValidation", "FormFieldAuthoringMetadata", "FormDefinition", "FormViewFieldRules", "FormViewField", "FormViewItem", "FormViewSection", "FormView", "ValidationErrorKind", "ValidationError", "ValidationResult", "FormSubmitResponse", "HARBORLINE_JSONLOGIC_V1", "SubmissionBindingHeader", "SnapshotCaptureMode", "SignedDtbsHash", "SubmissionSnapshot", "SubmissionMintAuditPayload", "DraftSaveRequest", "DraftSavedResponse", "DraftView", "Immutability", "ProvenanceKind", "MeasureRole", "Tag", "ClassificationAspect", "AccessAspect", "RetentionRequirement", "ResidencyRequirement", "Provenance", "LifecycleAspect", "DiscoveryAspect", "AspectOverlay"],
+  "selectedDesign": {
+    "choice": "one complete hash-bound Forms wire module with additive revision-4 Options, lossless Harborline App authoring vocabulary, and complete server-side field-rule projection, generated into TypeScript and C# projections",
+    "rejected": "Freeze only the 28 symbols imported directly from the contracts npm package for the first inspection slice.",
+    "reason": "The direct import closure omits runtime FormView, submit, validation, snapshot, and draft DTOs reached through Carrier-local mirrors and HTTP clients. A partial contract would preserve two competing wire authorities and force immediate revision churn."
+  },
+  "invariants": [
+    "The immutable revision-1 capture remains provenance; revisions 2 through 4 add the pinned Options, Harborline App fieldsMeta, and Forms Engine rule projection, while revision 5 clean-breaks all role-bearing section, field, and aspect gates to qualified RoleReference values resolved through hlp.contracts.authorization.",
+    "FormViewField.rules is absent for rule-free fields and, when present, carries visibility, required, read-only, resolved computed value, and presentation without changing authorization readability.",
+    "The C# projection preserves camelCase JSON property names, optional versus required members, nullability, recursive unions, open ControlHint values, and all closed literal sets.",
+    "Unknown JSON object properties are ignored on read for additive forward compatibility; unknown closed discriminator and enum values fail closed.",
+    "A discriminated variant rejects members reserved by another known variant while continuing to ignore genuinely additive unknown object properties.",
+    "Sensitive or unreadable FormView fields never carry cleartext values.",
+    "Form definitions reference content-addressed schemas rather than embedding executable behavior.",
+    "Content and action blocks remain declarative data; content is plain text and open-url actions admit only host-validated absolute HTTP(S) targets.",
+    "Submission binding records schema, definition, engine, locale chain, and timestamp without duplicating submitted field values.",
+    "The engine identifier is exactly harborline-jsonlogic/v1 for revision 1."
+  ],
+  "notScope": ["form persistence implementation", "rule evaluation", "calculation execution", "authorization policy derivation", "React or Blazor rendering", "HTTP routing", "mutable application-local builder state"],
+  "projectionPolicy": {"typescript": "exact extracted npm projection", "dotnet": "generated canonical wire projection in Harborline.Contracts", "blazor": "consumer through forms UI adapters"},
+  "fixture": "conformance/hlp.contracts.forms/fixtures.yaml"
+}

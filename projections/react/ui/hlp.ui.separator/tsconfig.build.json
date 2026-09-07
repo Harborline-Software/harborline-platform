@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "outDir": "dist",
+    "rootDir": "src",
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "react": ["../hlp.ui.button/node_modules/@types/react/index.d.ts"],
+      "react/jsx-runtime": ["../hlp.ui.button/node_modules/@types/react/jsx-runtime.d.ts"]
+    },
+    "types": []
+  },
+  "include": ["src/Separator.tsx", "src/index.ts"],
+  "exclude": ["src/__tests__"]
+}

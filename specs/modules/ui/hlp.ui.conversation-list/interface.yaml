@@ -1,0 +1,25 @@
+{
+  "schemaVersion":1,
+  "moduleId":"hlp.ui.conversation-list",
+  "interfaceRevision":1,
+  "semantics":{"operation":"render conversation history, select a row, and choreograph optional new, rename, and confirmed-delete actions","observableOutput":"A named semantic list, active-row state, inline rename or delete-confirm mode, and exactly-once caller events."},
+  "sourceSurface":{"repository":"shipyard","commit":"a5036ff8b500e0d857d7e0a698408e7cf7f6cf31","path":"packages/ui-react/src/components/ai/ConversationList.tsx","blob":"1bfb43b568ce59ace932d991057aca85f10b5989","capturedExports":["ConversationList","ConversationListProps","ConversationSummary","ConversationListLabels"]},
+  "dependencies":["hlp.ui.cn","hlp.ui.default-strings","hlp.ui.locale-provider"],
+  "invariants":[
+    "Rows use plain list/listitem semantics because each row may contain multiple independently focusable controls.",
+    "The active row marks only its select button with aria-current true.",
+    "Select and new actions invoke exactly once; controls are absent when their callbacks are absent.",
+    "Rename selects the existing title, trims submitted text, ignores blank or unchanged values, commits on submit or blur, and cancels on Escape.",
+    "Delete requires an inline confirmation step; confirm receives focus, Cancel or Escape restores delete-trigger focus, and no destructive callback fires before confirm.",
+    "Only one row mode is active per row and opening a mode does not invoke select; leaving rename restores focus to its trigger or row select.",
+    "Row action controls remain in keyboard order even when visually deferred until hover or focus-within.",
+    "Heading, empty, new, rename, delete, confirm, cancel, and title-qualified action labels are localizable and direction-aware.",
+    "Caller order, ids, timestamp display text, and previews are preserved without persistence or date formatting."
+  ],
+  "errors":[{"code":"duplicate-conversation-id","when":"Two summaries use the same id."},{"code":"accessible-heading-required","when":"The effective heading is empty."}],
+  "performance":{"operation":"O(n) rendering for n conversation summaries","maximumFixtureItems":500},
+  "presentation":{"disposition":"visual"},
+  "cases":[
+    {"id":"conversation-list.empty"},{"id":"conversation-list.rows"},{"id":"conversation-list.active"},{"id":"conversation-list.select"},{"id":"conversation-list.optional-actions"},{"id":"conversation-list.new"},{"id":"conversation-list.rename-commit"},{"id":"conversation-list.rename-cancel"},{"id":"conversation-list.rename-noop"},{"id":"conversation-list.delete-confirm"},{"id":"conversation-list.delete-cancel"},{"id":"conversation-list.keyboard-order"},{"id":"conversation-list.localization-rtl"},{"id":"conversation-list.invalid-input"},{"id":"conversation-list.row-classes"}
+  ]
+}

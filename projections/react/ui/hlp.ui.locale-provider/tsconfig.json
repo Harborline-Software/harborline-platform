@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "baseUrl": ".",
+    "paths": {
+      "react": ["../hlp.ui.button/node_modules/@types/react/index.d.ts"],
+      "react/jsx-runtime": ["../hlp.ui.button/node_modules/@types/react/jsx-runtime.d.ts"],
+      "@testing-library/react": ["../hlp.ui.button/node_modules/@testing-library/react/types/index.d.ts"],
+      "@harborline-platform/hlp.ui.default-strings": ["../hlp.ui.default-strings/src/index.ts"],
+      "vitest": ["../hlp.ui.button/node_modules/vitest/dist/index.d.ts"]
+    },
+    "typeRoots": ["../hlp.ui.button/node_modules/@types"],
+    "types": ["node"]
+  },
+  "include": ["src", "vitest.config.ts"],
+  "exclude": ["dist", "node_modules"]
+}

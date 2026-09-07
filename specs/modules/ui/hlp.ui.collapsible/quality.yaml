@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.collapsible",
+  "profileRevision": 1,
+  "riskTier": "B",
+  "fixture": "conformance/hlp.ui.collapsible/quality-fixtures.yaml",
+  "dimensions": {
+    "accessibility": {"disposition": "required", "caseIds": ["collapsible.quality.relationships", "collapsible.quality.keyboard", "collapsible.quality.focus", "collapsible.quality.closed-focus", "collapsible.quality.reflow"]},
+    "internationalization": {"disposition": "required", "caseIds": ["collapsible.quality.caller-content", "collapsible.quality.rtl", "collapsible.quality.pseudo"], "localeSensitiveFormatting": {"disposition": "not-applicable", "rationale": "Callers supply localized title, subtitle, actions, and content; Collapsible formats no locale-sensitive values."}},
+    "theming": {"disposition": "required", "caseIds": ["collapsible.quality.light-dark", "collapsible.quality.tokens", "collapsible.quality.forced-colors", "collapsible.quality.reduced-motion", "collapsible.quality.visual-parity"]},
+    "keyboard": {"disposition": "required", "caseIds": ["collapsible.quality.keyboard"]},
+    "focus": {"disposition": "required", "caseIds": ["collapsible.quality.focus", "collapsible.quality.closed-focus"]},
+    "dismissal": {"disposition": "not-applicable", "rationale": "Collapsible is a persistent disclosure region; its explicit toggle is not overlay dismissal."},
+    "rtl": {"disposition": "required", "caseIds": ["collapsible.quality.rtl"]},
+    "reduced-motion": {"disposition": "required", "caseIds": ["collapsible.quality.reduced-motion"]}
+  },
+  "componentStages": [
+    {"id": "contract", "dimensions": ["accessibility", "internationalization", "theming", "keyboard", "focus", "dismissal", "rtl", "reduced-motion"], "gate": "profile and neutral fixture validation"},
+    {"id": "projection-native", "dimensions": ["accessibility", "internationalization", "theming", "keyboard", "focus", "rtl", "reduced-motion"], "gate": "public React and Blazor native tests"},
+    {"id": "package-consumer", "dimensions": ["accessibility", "internationalization", "theming", "keyboard", "focus", "rtl", "reduced-motion"], "gate": "packed npm and NuGet consumers"},
+    {"id": "gallery", "dimensions": ["accessibility", "internationalization", "theming", "keyboard", "focus", "rtl", "reduced-motion"], "gate": "Axe, keyboard, themes, locales, motion, reflow, and visual parity"},
+    {"id": "clean-clone", "dimensions": ["accessibility", "internationalization", "theming", "keyboard", "focus", "dismissal", "rtl", "reduced-motion"], "gate": "complete repository gate from the recorded commit"}
+  ]
+}

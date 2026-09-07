@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.guarded-control",
+  "profileRevision": 1,
+  "riskTier": "B",
+  "fixture": "conformance/hlp.ui.guarded-control/quality-fixtures.yaml",
+  "dimensions": {
+    "accessibility": {"disposition": "required", "caseIds": ["guarded-control.quality.pattern", "guarded-control.quality.keyboard", "guarded-control.quality.focus", "guarded-control.quality.dismissal", "guarded-control.quality.denial", "guarded-control.quality.color", "guarded-control.quality.forced-colors", "guarded-control.quality.reflow"]},
+    "internationalization": {"disposition": "required", "caseIds": ["guarded-control.quality.locales", "guarded-control.quality.rtl", "guarded-control.quality.pseudo", "guarded-control.quality.duration", "guarded-control.quality.bidi"], "localeSensitiveFormatting": {"disposition": "required", "rationale": "Countdown number and unit are module-owned localized output."}},
+    "theming": {"disposition": "required", "caseIds": ["guarded-control.quality.themes", "guarded-control.quality.tokens", "guarded-control.quality.contrast", "guarded-control.quality.reduced-motion", "guarded-control.quality.visual-parity"]},
+    "keyboard": {"disposition": "required", "caseIds": ["guarded-control.quality.keyboard"]},
+    "focus": {"disposition": "required", "caseIds": ["guarded-control.quality.focus"]},
+    "dismissal": {"disposition": "required", "caseIds": ["guarded-control.quality.dismissal"]},
+    "rtl": {"disposition": "required", "caseIds": ["guarded-control.quality.rtl"]},
+    "reduced-motion": {"disposition": "required", "caseIds": ["guarded-control.quality.reduced-motion"]}
+  },
+  "componentStages": [
+    {"id": "contract", "dimensions": ["accessibility", "internationalization", "theming", "keyboard", "focus", "dismissal", "rtl", "reduced-motion"], "gate": "profile and neutral fixture validation"},
+    {"id": "projection-native", "dimensions": ["accessibility", "internationalization", "theming", "keyboard", "focus", "dismissal", "rtl", "reduced-motion"], "gate": "public React and Blazor native tests"},
+    {"id": "package-consumer", "dimensions": ["accessibility", "internationalization", "theming", "keyboard", "focus", "dismissal", "rtl", "reduced-motion"], "gate": "packed npm and NuGet consumers"},
+    {"id": "gallery", "dimensions": ["accessibility", "internationalization", "theming", "keyboard", "focus", "dismissal", "rtl", "reduced-motion"], "gate": "Axe, activation and recovery workflows, themes, locales, motion, and visual parity"},
+    {"id": "clean-clone", "dimensions": ["accessibility", "internationalization", "theming", "keyboard", "focus", "dismissal", "rtl", "reduced-motion"], "gate": "complete repository gate from recorded commit"}
+  ]
+}

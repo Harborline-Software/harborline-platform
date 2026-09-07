@@ -1,0 +1,279 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.window",
+  "sourceFixture": "conformance/hlp.ui.window/fixtures.yaml",
+  "qualityFixture": "conformance/hlp.ui.window/quality-fixtures.yaml",
+  "galleryInterface": {
+    "probeAttribute": "data-gallery-probe",
+    "scenarioAttribute": "data-gallery-scenario",
+    "projectionTitles": {
+      "react": "Platform/Window",
+      "blazor": "Platform/Window"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "window.states",
+      "name": "Window states",
+      "surface": "defaults",
+      "sourceCaseIds": [
+        "window.defaults",
+        "window.actions",
+        "window.controlled-state",
+        "window.uncontrolled-state",
+        "window.minimized",
+        "window.maximized",
+        "window.initial-aliases"
+      ],
+      "sourceQualityCaseIds": [
+        "window.quality.dialog",
+        "window.quality.controls"
+      ],
+      "content": {
+        "blurb": "State, geometry, actions, focus, and localized controls.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "title": "Structure inspection",
+          "width": 440,
+          "height": 280,
+          "top": 120,
+          "left": 120,
+          "modal": false,
+          "state": "{windowState}"
+        },
+        "state": {
+          "windowState": {
+            "kind": "string",
+            "initial": "default"
+          },
+          "visible": {
+            "kind": "flag",
+            "initial": true
+          }
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "{!visible ? <button type=\"button\" onClick={() => setVisible(true)}>Restore window</button> : null}\n{visible ? <Window title=\"Structure inspection\" width={440} height={280} top={120} left={120} modal={false} state={state} onStateChange={setState} onClose={() => setVisible(false)}><WindowActionsBar><button type=\"button\">Save</button></WindowActionsBar><p>Capture a photo and place it within the blueprint.</p><button type=\"button\">Start capture</button></Window> : null}",
+            "blazor": "@if (!visible) { <button type=\"button\" @onclick=\"() => visible = true\">Restore window</button> }\n@if (visible) { <HarborlineWindow Title=\"Structure inspection\" Width=\"440\" Height=\"280\" Top=\"120\" Left=\"120\" Modal=\"false\" State=\"@state\" StateChanged=\"value => state = value\" Closed=\"() => visible = false\"><ActionsBar><HarborlineWindowActionsBar><button type=\"button\">Save</button></HarborlineWindowActionsBar></ActionsBar><ChildContent><p>Capture a photo and place it within the blueprint.</p><button type=\"button\">Start capture</button></ChildContent></HarborlineWindow> }",
+            "rationale": "The window and its restore control are conditionally rendered from a visibility flag, and the child copy requires paragraph semantics; the closed vocabulary has neither conditional descriptors nor a paragraph control."
+          }
+        ],
+        "footer": []
+      },
+      "states": [
+        "default"
+      ]
+    },
+    {
+      "id": "window.geometry",
+      "name": "Movement and resize",
+      "surface": "states",
+      "sourceCaseIds": [
+        "window.move",
+        "window.bounds",
+        "window.resize",
+        "window.keyboard",
+        "window.double-activation",
+        "window.actions-bar",
+        "window.custom-actions"
+      ],
+      "sourceQualityCaseIds": [
+        "window.quality.keyboard",
+        "window.quality.reflow"
+      ],
+      "content": {
+        "blurb": "State, geometry, actions, focus, and localized controls.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "title": "Structure inspection",
+          "width": 440,
+          "height": 280,
+          "top": 120,
+          "left": 120,
+          "modal": false,
+          "state": "{windowState}"
+        },
+        "state": {
+          "windowState": {
+            "kind": "string",
+            "initial": "default"
+          },
+          "visible": {
+            "kind": "flag",
+            "initial": true
+          }
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "{!visible ? <button type=\"button\" onClick={() => setVisible(true)}>Restore window</button> : null}\n{visible ? <Window title=\"Structure inspection\" width={440} height={280} top={120} left={120} modal={false} state={state} onStateChange={setState} onClose={() => setVisible(false)}><WindowActionsBar><button type=\"button\">Save</button></WindowActionsBar><p>Capture a photo and place it within the blueprint.</p><button type=\"button\">Start capture</button></Window> : null}",
+            "blazor": "@if (!visible) { <button type=\"button\" @onclick=\"() => visible = true\">Restore window</button> }\n@if (visible) { <HarborlineWindow Title=\"Structure inspection\" Width=\"440\" Height=\"280\" Top=\"120\" Left=\"120\" Modal=\"false\" State=\"@state\" StateChanged=\"value => state = value\" Closed=\"() => visible = false\"><ActionsBar><HarborlineWindowActionsBar><button type=\"button\">Save</button></HarborlineWindowActionsBar></ActionsBar><ChildContent><p>Capture a photo and place it within the blueprint.</p><button type=\"button\">Start capture</button></ChildContent></HarborlineWindow> }",
+            "rationale": "The window and its restore control are conditionally rendered from a visibility flag, and the child copy requires paragraph semantics; the closed vocabulary has neither conditional descriptors nor a paragraph control."
+          }
+        ],
+        "footer": [],
+        "inherits": "window.states"
+      }
+    },
+    {
+      "id": "window.modal",
+      "name": "Modal focus and dismissal",
+      "surface": "modal",
+      "sourceCaseIds": [
+        "window.modal",
+        "window.accessible-name",
+        "window.escape",
+        "window.focus"
+      ],
+      "sourceQualityCaseIds": [
+        "window.quality.focus",
+        "window.quality.forced-colors",
+        "window.quality.reduced-motion"
+      ],
+      "content": {
+        "blurb": "State, geometry, actions, focus, and localized controls.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "title": "Structure inspection",
+          "width": 440,
+          "height": 280,
+          "top": 120,
+          "left": 120,
+          "modal": true,
+          "state": "{windowState}"
+        },
+        "state": {
+          "windowState": {
+            "kind": "string",
+            "initial": "default"
+          },
+          "visible": {
+            "kind": "flag",
+            "initial": true
+          }
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "{!visible ? <button type=\"button\" onClick={() => setVisible(true)}>Restore window</button> : null}\n{visible ? <Window title=\"Structure inspection\" width={440} height={280} top={120} left={120} modal state={state} onStateChange={setState} onClose={() => setVisible(false)}><WindowActionsBar><button type=\"button\">Save</button></WindowActionsBar><p>Capture a photo and place it within the blueprint.</p><button type=\"button\">Start capture</button></Window> : null}",
+            "blazor": "@if (!visible) { <button type=\"button\" @onclick=\"() => visible = true\">Restore window</button> }\n@if (visible) { <HarborlineWindow Title=\"Structure inspection\" Width=\"440\" Height=\"280\" Top=\"120\" Left=\"120\" Modal=\"true\" State=\"@state\" StateChanged=\"value => state = value\" Closed=\"() => visible = false\"><ActionsBar><HarborlineWindowActionsBar><button type=\"button\">Save</button></HarborlineWindowActionsBar></ActionsBar><ChildContent><p>Capture a photo and place it within the blueprint.</p><button type=\"button\">Start capture</button></ChildContent></HarborlineWindow> }",
+            "rationale": "The modal window and its restore control are conditionally rendered from a visibility flag, and the child copy requires paragraph semantics; the closed vocabulary has neither conditional descriptors nor a paragraph control."
+          }
+        ],
+        "footer": [],
+        "inherits": "window.states"
+      }
+    },
+    {
+      "id": "window.locale-theme",
+      "name": "Locale and theme",
+      "surface": "rtl-theme",
+      "sourceCaseIds": [
+        "window.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "window.quality.caller-copy",
+        "window.quality.rtl",
+        "window.quality.pseudo",
+        "window.quality.light-dark",
+        "window.quality.tokens",
+        "window.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "State, geometry, actions, focus, and localized controls.",
+        "environment": {
+          "locale": "ar-SA",
+          "direction": "rtl",
+          "theme": "dark",
+          "catalog": {}
+        },
+        "props": {
+          "title": "فحص الهيكل",
+          "width": 440,
+          "height": 280,
+          "top": 120,
+          "left": 120,
+          "modal": false,
+          "state": "{windowState}",
+          "labels": {
+            "close": "إغلاق",
+            "minimize": "تصغير",
+            "maximize": "تكبير",
+            "restore": "استعادة",
+            "move": "نقل النافذة",
+            "moveDescription": "استخدم مفاتيح الأسهم",
+            "resizeHeight": "تغيير الارتفاع",
+            "resizeWidth": "تغيير العرض",
+            "window": "نافذة"
+          }
+        },
+        "state": {
+          "windowState": {
+            "kind": "string",
+            "initial": "default"
+          },
+          "visible": {
+            "kind": "flag",
+            "initial": true
+          }
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "{!visible ? <button type=\"button\" onClick={() => setVisible(true)}>Restore window</button> : null}\n{visible ? <Window title=\"فحص الهيكل\" width={440} height={280} top={120} left={120} modal={false} state={state} onStateChange={setState} onClose={() => setVisible(false)} labels={{ close: 'إغلاق', minimize: 'تصغير', maximize: 'تكبير', restore: 'استعادة', move: 'نقل النافذة', moveDescription: 'استخدم مفاتيح الأسهم', resizeHeight: 'تغيير الارتفاع', resizeWidth: 'تغيير العرض', window: 'نافذة' }}><WindowActionsBar><button type=\"button\">حفظ</button></WindowActionsBar><p>التقط صورة وحدد موضعها في المخطط.</p><button type=\"button\">بدء الالتقاط</button></Window> : null}",
+            "blazor": "@if (!visible) { <button type=\"button\" @onclick=\"() => visible = true\">Restore window</button> }\n@if (visible) { <HarborlineWindow Title=\"فحص الهيكل\" Width=\"440\" Height=\"280\" Top=\"120\" Left=\"120\" Modal=\"false\" State=\"@state\" StateChanged=\"value => state = value\" Closed=\"() => visible = false\" AccessibleLabel=\"نافذة\" CloseLabel=\"إغلاق\" MinimizeLabel=\"تصغير\" MaximizeLabel=\"تكبير\" RestoreLabel=\"استعادة\" ResizeWidthLabel=\"تغيير العرض\" ResizeHeightLabel=\"تغيير الارتفاع\" ResizeBothLabel=\"تغيير الحجم\"><ActionsBar><HarborlineWindowActionsBar><button type=\"button\">حفظ</button></HarborlineWindowActionsBar></ActionsBar><ChildContent><p>التقط صورة وحدد موضعها في المخطط.</p><button type=\"button\">بدء الالتقاط</button></ChildContent></HarborlineWindow> }",
+            "rationale": "The localized window and its restore control are conditionally rendered from a visibility flag, and the localized child copy requires paragraph semantics; the closed vocabulary has neither conditional descriptors nor a paragraph control."
+          }
+        ],
+        "footer": [],
+        "inherits": "window.states"
+      }
+    },
+    {
+      "id": "window.content",
+      "name": "Content resilience",
+      "surface": "long-content",
+      "sourceCaseIds": [
+        "window.defaults",
+        "window.actions"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "Hostile window content carries a title longer than its title bar, a grouped large number, escaped angle brackets and an ampersand, and a name with diacritics and an em dash.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<Window title={'Awaiting third-party structural certification review'} width={440} height={280} top={120} left={120}><WindowActionsBar><button type=\"button\">{'1,284,905'}</button></WindowActionsBar><p>{'Bay 4 <grid C-7> & 8'}</p><button type=\"button\">{'Ordnance Survey — Niño Ångström'}</button></Window>",
+            "blazor": "<HarborlineWindow Title=\"Awaiting third-party structural certification review\" Width=\"440\" Height=\"280\" Top=\"120\" Left=\"120\"><ActionsBar><HarborlineWindowActionsBar><button type=\"button\">@(\"1,284,905\")</button></HarborlineWindowActionsBar></ActionsBar><ChildContent><p>@(\"Bay 4 <grid C-7> & 8\")</p><button type=\"button\">@(\"Ordnance Survey — Niño Ångström\")</button></ChildContent></HarborlineWindow>",
+            "rationale": "The window title, custom action bar, paragraph, and action content require component and semantic structures outside the closed control vocabulary."
+          }
+        ],
+        "footer": []
+      }
+    }
+  ]
+}

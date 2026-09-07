@@ -1,0 +1,1 @@
+{"schemaVersion":1,"moduleId":"hlp.ui.use-media-query","accessibilityCases":[{"id":"media-query.quality.reduced-motion","expected":{"queryOpaque":true,"initialAndChangesPreserved":true}},{"id":"media-query.quality.capability-query","expected":{"pointerAndHoverQueriesPreserved":true,"policyInvented":false}}],"internationalizationCases":[],"themingCases":[]}

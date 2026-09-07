@@ -1,0 +1,29 @@
+{
+  "schemaVersion":1,
+  "moduleId":"hlp.ui.action-menu",
+  "interfaceRevision":1,
+  "semantics":{"operation":"open a trigger-owned action menu, navigate enabled entries, invoke one action, and dismiss deterministically","observableOutput":"Menu-button ARIA state, ordered items and separators, active enabled item, and at most one action invocation."},
+  "sourceSurface":{"repository":"shipyard","commit":"a5036ff8b500e0d857d7e0a698408e7cf7f6cf31","path":"packages/ui-react/src/components/buttons/ActionMenu.tsx","blob":"41095c89f29cf88784160562bdd791ca6e6e5ecd","capturedExports":["ActionMenu","ActionMenuProps","ActionMenuEntry","ActionMenuItem"]},
+  "dependencies":["hlp.ui.cn","hlp.ui.default-strings","hlp.ui.locale-provider","hlp.ui.use-outside-click"],
+  "invariants":[
+    "The trigger exposes aria-haspopup menu, aria-expanded, and an id-linked aria-controls value.",
+    "The menu starts closed; pointer click toggles it and ArrowDown, ArrowUp, Home, or End can open it with deterministic focus.",
+    "Arrow navigation wraps and skips separators and disabled entries; Home, End, and printable-character typeahead select enabled entries.",
+    "Enter and Space invoke the active enabled entry exactly once and close the menu.",
+    "Escape and selection close and restore trigger focus, Tab closes without trapping focus, and outside pointer closes without stealing focus from its target.",
+    "Disabled entries remain native-disabled and never invoke or close the menu.",
+    "Separators are semantic and never participate in focus order.",
+    "Left and right alignment map to logical start and end under RTL.",
+    "The default trigger has a localized accessible name; custom triggers retain their original click and key handlers.",
+    "An empty or all-disabled menu keeps focus on the trigger and remains safely dismissible.",
+    "A menu with nothing to draw renders a declared empty message in place of entries and keeps its trigger; an all-disabled menu still draws its items.",
+    "Destructive styling and optional decorative icons do not alter action semantics.",
+    "Every composed menu carries a scope: an omitted scope id resolves to the nearest scope host and then to the shell root surface, so a scope can expose neither two homes nor a menu without one."
+  ],
+  "errors":[{"code":"accessible-name-required","when":"The effective trigger accessible name is empty."},{"code":"action-menu-scope-taken","when":"A second menu is mounted for a scope id that already has a home in this shell instance, whether that scope was declared or derived from the nearest scope host."},{"code":"action-menu-facet-not-an-item","when":"An entry carries an id the composer declared as a facet; a subsection is a place, never a menu entry."}],
+  "performance":{"operation":"O(n) rendering and enabled-entry navigation for n entries","maximumFixtureItems":200},
+  "presentation":{"disposition":"visual"},
+  "cases":[
+    {"id":"action-menu.closed"},{"id":"action-menu.default-trigger"},{"id":"action-menu.custom-trigger"},{"id":"action-menu.pointer-toggle"},{"id":"action-menu.entries"},{"id":"action-menu.disabled"},{"id":"action-menu.keyboard-open"},{"id":"action-menu.keyboard-navigation"},{"id":"action-menu.typeahead"},{"id":"action-menu.activation"},{"id":"action-menu.dismissal"},{"id":"action-menu.focus-return"},{"id":"action-menu.empty-disabled"},{"id":"action-menu.empty-collection"},{"id":"action-menu.blankEmptyText"},{"id":"action-menu.logical-alignment"},{"id":"action-menu.destructive-icon"},{"id":"action-menu.reopen-reset"},{"id":"action-menu.disclosure"}
+  ]
+}

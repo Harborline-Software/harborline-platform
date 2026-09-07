@@ -1,0 +1,400 @@
+{
+  "$comment": "chrome-spec.md §6 lines 174, 188-190 (the two header forms, earned by OpensOne), 195-198 (one scroll region), 218 (⋮ earned by OpensOne or Consequential), 236-240 (the minimum is the content-sized slots above the body), 318-330 (pop out — the container owns the chrome).",
+  "panels": [
+    {
+      "id": "notifications",
+      "labelKey": "panels.notifications",
+      "binding": "panels.notifications.toggle",
+      "shortcut": "mod+shift+b",
+      "defaultWidth": 360,
+      "minimumHeight": 180,
+      "defaultOpen": false,
+      "traits": [
+        "Collection",
+        "Live"
+      ]
+    },
+    {
+      "id": "pilot",
+      "labelKey": "panels.pilot",
+      "binding": "panels.pilot.toggle",
+      "shortcut": "mod+shift+p",
+      "defaultWidth": 400,
+      "minimumHeight": 300,
+      "defaultOpen": false,
+      "traits": [
+        "Scoped",
+        "Live",
+        "Consequential"
+      ],
+      "popOut": true
+    },
+    {
+      "id": "documents",
+      "labelKey": "panels.documents",
+      "binding": "panels.documents.toggle",
+      "shortcut": "mod+shift+d",
+      "defaultWidth": 420,
+      "minimumHeight": 220,
+      "defaultOpen": false,
+      "traits": [
+        "Scoped",
+        "Collection",
+        "OpensOne"
+      ],
+      "footer": {
+        "kind": "Claim",
+        "labelKey": "panels.documents.footer"
+      },
+      "popOut": true
+    },
+    {
+      "id": "inspector",
+      "labelKey": "panels.inspector",
+      "binding": "panels.inspector.toggle",
+      "shortcut": "mod+shift+i",
+      "defaultWidth": 360,
+      "minimumHeight": 180,
+      "defaultOpen": false,
+      "traits": [
+        "Scoped"
+      ]
+    },
+    {
+      "id": "tiny",
+      "labelKey": "panels.tiny",
+      "binding": "panels.tiny.toggle",
+      "shortcut": "mod+shift+t",
+      "defaultWidth": 360,
+      "minimumHeight": 40,
+      "defaultOpen": false,
+      "traits": [
+        "Collection"
+      ],
+      "footer": {
+        "kind": "Claim",
+        "labelKey": "panels.tiny.footer"
+      }
+    }
+  ],
+  "$galleryPanelsComment": "The App Shell GALLERY story's panel table, the one authority both stories read (React AppShell.stories.tsx imports it; the Blazor AppShellScenario.razor deserialises it from an embedded copy). It is a different, larger set than `panels` above: `panels` is the chrome conformance set (it carries `tiny`, whose declared minimum is below its slot minimum), while the stories need `reports` and `runs` to earn the second header form and the overflow affordance in the gallery's dock rows. Rows are exactly PackPanelDeclaration/PackPanelDeclaration shape, so neither story maps them.",
+  "galleryPanels": [
+    {
+      "id": "notifications",
+      "labelKey": "Notifications",
+      "binding": "panels.notifications.toggle",
+      "shortcut": "mod+shift+b",
+      "defaultWidth": 360,
+      "minimumHeight": 180,
+      "defaultOpen": false,
+      "traits": [
+        "Collection",
+        "Live"
+      ]
+    },
+    {
+      "id": "pilot",
+      "labelKey": "Pilot",
+      "binding": "panels.pilot.toggle",
+      "shortcut": "mod+shift+p",
+      "defaultWidth": 400,
+      "minimumHeight": 300,
+      "defaultOpen": false,
+      "traits": [
+        "Scoped",
+        "Live",
+        "Consequential"
+      ],
+      "popOut": true
+    },
+    {
+      "id": "documents",
+      "labelKey": "Documents",
+      "binding": "panels.documents.toggle",
+      "shortcut": "mod+shift+d",
+      "defaultWidth": 420,
+      "minimumHeight": 220,
+      "defaultOpen": false,
+      "traits": [
+        "Scoped",
+        "Collection",
+        "OpensOne"
+      ],
+      "popOut": true,
+      "footer": {
+        "kind": "Claim",
+        "labelKey": "A derivation record, not a repository"
+      }
+    },
+    {
+      "id": "reports",
+      "labelKey": "Reports",
+      "binding": "panels.reports.toggle",
+      "shortcut": "mod+shift+r",
+      "defaultWidth": 400,
+      "minimumHeight": 220,
+      "defaultOpen": false,
+      "traits": [
+        "Scoped",
+        "Collection",
+        "OpensOne"
+      ],
+      "popOut": true
+    },
+    {
+      "id": "runs",
+      "labelKey": "Runs",
+      "binding": "panels.runs.toggle",
+      "shortcut": "mod+shift+u",
+      "defaultWidth": 400,
+      "minimumHeight": 180,
+      "defaultOpen": false,
+      "traits": [
+        "Collection",
+        "Live"
+      ]
+    },
+    {
+      "id": "inspector",
+      "labelKey": "Inspector",
+      "binding": "panels.inspector.toggle",
+      "shortcut": "mod+shift+i",
+      "defaultWidth": 360,
+      "minimumHeight": 180,
+      "defaultOpen": false,
+      "traits": [
+        "Scoped"
+      ]
+    }
+  ],
+  "slotHeights": {
+    "header": 33,
+    "toolbar": 32,
+    "footer": 28
+  },
+  "slotOrder": [
+    "header",
+    "toolbar",
+    "body",
+    "footer"
+  ],
+  "headerForms": [
+    {
+      "panelId": "notifications",
+      "expectedForm": "title",
+      "earnsOverflow": false,
+      "declaresPopOut": false,
+      "expectedAffordances": [
+        "expand",
+        "close"
+      ]
+    },
+    {
+      "panelId": "pilot",
+      "expectedForm": "title",
+      "earnsOverflow": true,
+      "declaresPopOut": true,
+      "expectedAffordances": [
+        "overflow",
+        "pop-out",
+        "expand",
+        "close"
+      ]
+    },
+    {
+      "panelId": "documents",
+      "expectedForm": "toggle-chip",
+      "earnsOverflow": true,
+      "declaresPopOut": true,
+      "expectedAffordances": [
+        "overflow",
+        "pop-out",
+        "expand",
+        "close"
+      ]
+    },
+    {
+      "panelId": "inspector",
+      "expectedForm": "title",
+      "earnsOverflow": false,
+      "declaresPopOut": false,
+      "expectedAffordances": [
+        "expand",
+        "close"
+      ]
+    },
+    {
+      "panelId": "tiny",
+      "expectedForm": "title",
+      "earnsOverflow": false,
+      "declaresPopOut": false,
+      "expectedAffordances": [
+        "expand",
+        "close"
+      ]
+    }
+  ],
+  "openItem": {
+    "panelId": "documents",
+    "itemId": "rig-7-drawing",
+    "itemLabel": "Rig 7 general arrangement",
+    "expectedChipVisible": true,
+    "expectedTreeHiddenAfterToggle": true,
+    "expectedTreeShownAfterItemClosed": true
+  },
+  "sheetHeader": {
+    "panelId": "documents",
+    "viewportWidth": 600,
+    "expectedAffordances": [
+      "close"
+    ]
+  },
+  "singleScroll": {
+    "bodyScrollRegionsPerPanel": 1,
+    "nestedScrollRegionsInsideBody": 0,
+    "scrollingSlots": [
+      "body"
+    ],
+    "pinnedSlots": [
+      "header",
+      "toolbar",
+      "footer"
+    ]
+  },
+  "minimums": [
+    {
+      "panelId": "notifications",
+      "declaredMinimum": 180,
+      "slotMinimum": 65,
+      "expectedMinimum": 180
+    },
+    {
+      "panelId": "pilot",
+      "declaredMinimum": 300,
+      "slotMinimum": 65,
+      "expectedMinimum": 300
+    },
+    {
+      "panelId": "documents",
+      "declaredMinimum": 220,
+      "slotMinimum": 93,
+      "expectedMinimum": 220
+    },
+    {
+      "panelId": "inspector",
+      "declaredMinimum": 180,
+      "slotMinimum": 65,
+      "expectedMinimum": 180
+    },
+    {
+      "panelId": "tiny",
+      "declaredMinimum": 40,
+      "slotMinimum": 93,
+      "expectedMinimum": 93
+    }
+  ],
+  "overfullPane": {
+    "openPanelIds": [
+      "pilot",
+      "documents"
+    ],
+    "expectedPanelMinimums": [
+      300,
+      220
+    ],
+    "expectedPaneMinimumSum": 520,
+    "expectedPaneScrolls": true,
+    "expectedBodyMinimum": 0
+  },
+  "popOut": {
+    "panelId": "documents",
+    "openPanelIds": [
+      "documents",
+      "pilot"
+    ],
+    "shortcut": "Shift+Enter",
+    "expectedPayload": {
+      "panelId": "documents",
+      "openPanelIds": [
+        "documents",
+        "pilot"
+      ],
+      "widths": {
+        "documents": 428
+      }
+    },
+    "expectedRequestCountAfterButton": 1,
+    "expectedRequestCountAfterShortcut": 2,
+    "expectedStillDockedAfterRequest": true,
+    "expectedOpenPanelIdsAfterRequest": [
+      "documents",
+      "pilot"
+    ],
+    "expectedOpenPanelIdsAfterHostConfirms": [
+      "pilot"
+    ],
+    "undeclaredPanelId": "inspector",
+    "widthArrowLeftPresses": 1,
+    "$comment": "The payload is the SAME serialised state the persistence seam emits, so the remembered width the user just set travels with the request; one ArrowLeft on the dock separator widens 420 to 428."
+  },
+  "chordScope": {
+    "$comment": "chrome-spec.md §6:180-186 — the affordance group is the SHELL's, and it lives in the header; the body is the design. The pop-out chord is therefore the header's route, not the panel root's, in both shells, and the browser default for it is suppressed in both (React event.preventDefault, Blazor dock-divider.js observePanelChord).",
+    "panelId": "documents",
+    "rows": [
+      {
+        "from": "header",
+        "key": "Enter",
+        "shiftKey": true,
+        "expectedRequests": 1,
+        "expectedDefaultPrevented": true
+      },
+      {
+        "from": "body",
+        "key": "Enter",
+        "shiftKey": true,
+        "expectedRequests": 0,
+        "expectedDefaultPrevented": false
+      }
+    ]
+  },
+  "passThroughKeys": [
+    "Enter",
+    "Escape",
+    "ArrowDown"
+  ],
+  "fractionalDragRounding": {
+    "$comment": "Both shells round a fractional drag half-up (floor(x + 0.5)) on the rail and the end-panel paths; deltaX is the pointer movement, positive meaning the affordance grows.",
+    "rows": [
+      {
+        "start": 216,
+        "deltaX": 12.5,
+        "expected": 229
+      },
+      {
+        "start": 216,
+        "deltaX": 12.4,
+        "expected": 228
+      },
+      {
+        "start": 216,
+        "deltaX": -12.5,
+        "expected": 204
+      },
+      {
+        "start": 216,
+        "deltaX": -12.6,
+        "expected": 203
+      },
+      {
+        "start": 216,
+        "deltaX": 0.5,
+        "expected": 217
+      },
+      {
+        "start": 216,
+        "deltaX": -0.5,
+        "expected": 216
+      }
+    ]
+  }
+}

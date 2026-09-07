@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.use-outside-click",
+  "fixtureRevision": 1,
+  "cases": [
+    {"id": "outside-click.default-event", "input": {}, "expected": {"eventType": "mousedown", "listeners": 1}},
+    {"id": "outside-click.inside", "input": {"target": "boundary"}, "expected": {"callbacks": 0}},
+    {"id": "outside-click.descendant", "input": {"target": "boundary-child"}, "expected": {"callbacks": 0}},
+    {"id": "outside-click.multi-boundary", "input": {"boundaries": ["menu", "trigger"], "targets": ["menu-child", "trigger"]}, "expected": {"callbacks": 0}},
+    {"id": "outside-click.outside", "input": {"target": "document-body"}, "expected": {"callbacks": 1, "originatingEventPreserved": true}},
+    {"id": "outside-click.disabled", "input": {"enabled": false, "target": "document-body"}, "expected": {"listeners": 0, "callbacks": 0}},
+    {"id": "outside-click.enable", "input": {"enabledSequence": [false, true]}, "expected": {"activeListeners": 1, "callbacksAfterEnable": 1}},
+    {"id": "outside-click.pointerdown", "input": {"eventType": "pointerdown", "events": ["mousedown", "pointerdown"]}, "expected": {"callbacks": 1, "callbackEvent": "pointerdown"}},
+    {"id": "outside-click.latest-callback", "input": {"callbackVersions": [1, 2]}, "expected": {"subscriptions": 1, "invokedVersion": 2}},
+    {"id": "outside-click.dispose", "input": {"eventsAfterDispose": 1}, "expected": {"removals": 1, "callbacksAfterDispose": 0}},
+    {"id": "outside-click.projection-equivalence", "input": {"boundaries": 2, "sequence": ["inside", "outside", "inside"]}, "expected": {"callbackSequence": [false, true, false], "typescriptEqualsDotnet": true}}
+  ]
+}

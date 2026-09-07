@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.contracts.identities",
+  "interfaceRevision": 1,
+  "cases": [
+    {"id": "tenant-valid", "operation": "tenant.construct", "input": "tenant-acme", "expected": {"value": "tenant-acme", "isSystemSentinel": false}},
+    {"id": "tenant-empty-rejected", "operation": "tenant.construct", "input": "", "expectedError": "invalid-tenant-id"},
+    {"id": "tenant-whitespace-rejected", "operation": "tenant.construct", "input": "   ", "expectedError": "invalid-tenant-id"},
+    {"id": "tenant-reserved-prefix-rejected", "operation": "tenant.construct", "input": "__external__", "expectedError": "reserved-tenant-id"},
+    {"id": "tenant-default-fails-closed", "operation": "tenant.default", "expected": {"isSystemSentinel": true}},
+    {"id": "tenant-system-sentinel", "operation": "tenant.system", "expected": {"value": "__system__", "isSystemSentinel": true}},
+    {"id": "entity-valid", "operation": "entity.parse", "input": "property:acme-rentals/42", "expected": {"scheme": "property", "authority": "acme-rentals", "localPart": "42", "canonical": "property:acme-rentals/42"}},
+    {"id": "entity-missing-scheme", "operation": "entity.parse", "input": ":acme/42", "expectedError": "invalid-entity-id"},
+    {"id": "entity-missing-authority", "operation": "entity.parse", "input": "property:/42", "expectedError": "invalid-entity-id"},
+    {"id": "entity-missing-local-part", "operation": "entity.parse", "input": "property:acme/", "expectedError": "invalid-entity-id"},
+    {"id": "entity-null-try-parse", "operation": "entity.try-parse", "input": null, "expected": {"success": false}},
+    {"id": "identity-types-not-interchangeable", "operation": "identity.type-safety", "expected": {"compileTimeDistinct": true}}
+  ]
+}

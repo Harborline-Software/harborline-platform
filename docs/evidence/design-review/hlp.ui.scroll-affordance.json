@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.scroll-affordance",
+  "verdict": "approved",
+  "reviewer": "cic",
+  "recordedAt": "2026-08-27T05:57:48.843Z",
+  "notes": "the Blazor side need parity with the react side",
+  "reference": {
+    "revision": "7fd5af29d9f29308aa09d137a711dd6fead169f6abf0160fbe4a75eb47b97772",
+    "source": "gallery/scenarios/hlp.ui.scroll-affordance.json",
+    "pin": "e4c44eca8918b135e2dcd36060a8e8582d336f89",
+    "surface": {
+      "conformance/hlp.ui.scroll-affordance/fixtures.yaml": "6245adc90dbd4294130c2fc73fd2f28c2ac00adb99530a350233006e4a1df41b",
+      "conformance/hlp.ui.scroll-affordance/quality-fixtures.yaml": "1abb4129fb608719556059b76811b06ac47eb3f641cfc2c7086a7aebc4d2fcde",
+      "gallery/projections/blazor/Stories/ScrollAffordance.stories.razor": "9b42672cc0794c7377af2e7966280ea49a9602463a8dec2e0eb5d894b251eb24",
+      "gallery/projections/blazor/Stories/ScrollAffordanceScenario.razor": "0cc952612fd0d838da5f12445785f88878d7e4409503e019b03575fa30f09e4c",
+      "gallery/projections/react/src/ScrollAffordance.stories.tsx": "02ea6b440fceaf049758b5343d812b37f1b1230be30384dc9f2844f1c2160d45",
+      "gallery/scenarios/hlp.ui.scroll-affordance.json": "ea3fac2d71735cfcb6d4237df5bec5d872c6c8a704c1a26b8c29e6694d185db7",
+      "projections/blazor/ui/hlp.ui.scroll-affordance/ShipyardScrollAffordance.razor": "5e1c4733fb85e73af3e10aa8a80445f9f6fdd58630b361abee4fed69f7a0f05f",
+      "projections/blazor/ui/hlp.ui.scroll-affordance/wwwroot/scroll-affordance-component.css": "250ae9d568b7d0a654ff131b1f73e129243fab695ee87fd882ec9e42c43bc205",
+      "projections/blazor/ui/hlp.ui.scroll-affordance/wwwroot/scroll-affordance-component.js": "4a4bfa3524b905bb116800d8ee1dd1f7e9bf7a7bd9d3176f55060efda9bdcb5e",
+      "projections/react/ui/hlp.ui.scroll-affordance/src/ScrollAffordance.tsx": "36e069e350a00a6052c552adb2fc6e446ce847caac1164a58fec8c8de3c54279",
+      "projections/react/ui/hlp.ui.scroll-affordance/src/index.ts": "e6ec1a2817f334b5cf46cd19ca449ac72d2ac34806a00e443917540ef90e0269",
+      "projections/react/ui/hlp.ui.scroll-affordance/src/style.css": "c6197e8acf1407ba62aee85d2d8b36e347355c8d86ca10478872ede5d085c6e1",
+      "specs/modules/ui/hlp.ui.scroll-affordance/scenarios.json": "ea3fac2d71735cfcb6d4237df5bec5d872c6c8a704c1a26b8c29e6694d185db7",
+      "specs/modules/ui/hlp.ui.scroll-affordance/style.css": "c6197e8acf1407ba62aee85d2d8b36e347355c8d86ca10478872ede5d085c6e1"
+    }
+  }
+}

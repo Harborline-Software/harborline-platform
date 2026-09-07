@@ -1,0 +1,20 @@
+@namespace Harborline.UIAdapters.Blazor.Localization
+@using Harborline.Foundation.Localization
+
+<CascadingValue Value="Context" IsFixed="false">
+    @ChildContent
+</CascadingValue>
+
+@code {
+    [CascadingParameter] private HarborlineLocaleContext? Parent { get; set; }
+    [Parameter] public string Locale { get; set; } = "en";
+    [Parameter] public string? Direction { get; set; }
+    [Parameter] public IReadOnlyDictionary<string, string>? Catalog { get; set; }
+    [Parameter] public HarborlineNumberFormatter? NumberFormatter { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private HarborlineLocaleContext Context => new(new HarborlineLocaleScope(
+        Locale, Direction, Catalog, NumberFormatter, Parent?.Scope));
+
+    public static string DirectionForLocale(string locale) => HarborlineLocaleScope.DirectionForLocale(locale);
+}

@@ -1,0 +1,25 @@
+<div class="hl-gallery-feedback-stack">
+  <HarborlineSearchInput Value="@value" ValueChanged="Publish" DebounceMs="@DebounceMs" />
+  <output class="hl-gallery-activation" aria-live="polite">Published: @PublishedText</output>
+</div>
+
+@code {
+  [Parameter] public string InitialValue { get; set; } = string.Empty;
+  [Parameter] public int DebounceMs { get; set; } = 200;
+
+  private string value = string.Empty;
+  private readonly List<string> publications = [];
+  private bool initialized;
+  private string PublishedText => publications.Count == 0 ? "none" : string.Join(" → ", publications) is { Length: > 0 } text ? text : "(empty)";
+
+  protected override void OnParametersSet()
+  {
+    if (!initialized) { value = InitialValue; initialized = true; }
+  }
+
+  private void Publish(string next)
+  {
+    value = next;
+    publications.Add(next);
+  }
+}

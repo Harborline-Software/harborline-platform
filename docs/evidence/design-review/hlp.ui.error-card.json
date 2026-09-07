@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.error-card",
+  "verdict": "approved",
+  "reviewer": "cic",
+  "recordedAt": "2026-08-28T02:24:31.715Z",
+  "reference": {
+    "revision": "120597ec030cee028695350cd10f4d605579a846711c4346d2e4c4c063c23102",
+    "source": "gallery/scenarios/hlp.ui.error-card.json",
+    "pin": "28e389ae42b64246f1c6d92e0002b78bc92791b3",
+    "surface": {
+      "conformance/hlp.ui.error-card/fixtures.yaml": "cbb39050a078f5718b74f7a21440205e51c1d42bfd8a1d9b2bd48f92a110c3e5",
+      "conformance/hlp.ui.error-card/quality-fixtures.yaml": "bad1d690621171c0c0628bc92dc625da78eaeca9bd7b28d9b0eaebbade9f2925",
+      "gallery/projections/blazor/Stories/ErrorCard.stories.razor": "6a2d7e53c1089b3ce39f139e2fd3353990f3f9ff291970fee792848a51106e56",
+      "gallery/projections/blazor/Stories/ErrorCardScenario.razor": "912f37980604b95341dcc1c87d44de900ad9ee3df5da5cf47723630ce72fc505",
+      "gallery/projections/react/src/ErrorCard.stories.tsx": "b816381dc57d14360d9fe9d793246c2d5748cdc5d7d9718b13ef40288f85cf64",
+      "gallery/scenarios/hlp.ui.error-card.json": "7caa4d155091cc44efd949bc1ab9d30936ce75c20d21d56d292f9fb766a3dc72",
+      "projections/blazor/ui/hlp.ui.error-card/ErrorCardVariant.cs": "1110292d13a1f899a3112e98c71e7d4e81f91ac71bbde515fcb518a182615f4a",
+      "projections/blazor/ui/hlp.ui.error-card/ShipyardErrorCard.razor": "670d425b23d6ea151e7bb3a7a6d1f686daeaf0053c519f4328a7147a0fe1ab4e",
+      "projections/blazor/ui/hlp.ui.error-card/wwwroot/feedback.css": "38fe0d17a33fd82be445e8d202d956c3e3fcea6ace74e37806304ad53bb9a037",
+      "projections/react/ui/hlp.ui.error-card/src/ErrorCard.tsx": "57e20f12eb9c30c66ca043787a87b1a0f55e435226dd8aec1940f5a4ff561ea8",
+      "projections/react/ui/hlp.ui.error-card/src/index.ts": "07154ecf1f8d8e22701d624cc7998d73b95d5c9086df315043293d78927eacc1",
+      "projections/react/ui/hlp.ui.error-card/src/style.css": "9bcecb24ce113112b5301eff2aab95524bbc48a6b4ddc4c2aa7df6a266d0911b",
+      "specs/modules/ui/hlp.ui.error-card/scenarios.json": "7caa4d155091cc44efd949bc1ab9d30936ce75c20d21d56d292f9fb766a3dc72",
+      "specs/modules/ui/hlp.ui.error-card/style.css": "9bcecb24ce113112b5301eff2aab95524bbc48a6b4ddc4c2aa7df6a266d0911b"
+    }
+  }
+}

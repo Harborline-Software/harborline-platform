@@ -1,0 +1,718 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.activity-log",
+  "sourceFixture": "conformance/hlp.ui.activity-log/fixtures.yaml",
+  "qualityFixture": "conformance/hlp.ui.activity-log/quality-fixtures.yaml",
+  "galleryInterface": {
+    "probeAttribute": "data-gallery-probe",
+    "scenarioAttribute": "data-gallery-scenario",
+    "projectionTitles": {
+      "react": "Platform/Activity Log",
+      "blazor": "Platform/Activity Log"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "activity-log.empty",
+      "name": "Empty history",
+      "surface": "empty",
+      "sourceCaseIds": [
+        "activity-log.empty",
+        "activity-log.label"
+      ],
+      "sourceQualityCaseIds": [
+        "activity-log.quality.structure"
+      ],
+      "content": {
+        "blurb": "Empty history",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "entries": [],
+          "layout": "table",
+          "label": "Activity log",
+          "maxVisible": 0
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<ActivityLog entries={empty?[]:entries} layout={scenarioId==='activity-log.responsive'?undefined:list?'list':'table'} label={rtl?'سجل النشاط':'Activity log'} maxVisible={scenarioId==='activity-log.disclosure'?2:0} onShowMore={scenarioId==='activity-log.disclosure'?()=>{}:undefined}/>",
+            "blazor": "<HarborlineActivityLog Entries=\"@(Empty?Array.Empty<ActivityEntry>():Entries)\" Layout=\"@Layout\" Label=\"@(Direction==\"rtl\"?\"سجل النشاط\":\"Activity log\")\" MaxVisible=\"@(ScenarioId==\"activity-log.disclosure\"?2:0)\" OnShowMore=\"@(ScenarioId==\"activity-log.disclosure\"?EventCallback.Factory.Create(this,()=>{}):default)\" />",
+            "rationale": "The rendered ActivityLog section contains an h2 and empty-state paragraph; h2 and p are not permitted descriptor controls, so the component invocation must remain raw. The resolved visible copy is Activity log and No activity yet."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "activity-log.list",
+      "name": "List layout and tones",
+      "surface": "list-tones",
+      "sourceCaseIds": [
+        "activity-log.list",
+        "activity-log.detail-tone",
+        "activity-log.timestamp"
+      ],
+      "sourceQualityCaseIds": [
+        "activity-log.quality.structure",
+        "activity-log.quality.timestamps"
+      ],
+      "content": {
+        "blurb": "List layout and tones",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "entries": [
+            {
+              "id": "a",
+              "actor": "Alex",
+              "action": "approved the inspection",
+              "timestamp": "1 min ago",
+              "machineTimestamp": "2026-08-10T12:00:00Z",
+              "tone": "positive",
+              "detail": "Blueprint placement verified."
+            },
+            {
+              "id": "b",
+              "actor": "System",
+              "action": "queued report generation",
+              "timestamp": "now",
+              "tone": "info"
+            },
+            {
+              "id": "c",
+              "actor": "Sam",
+              "action": "flagged a measurement",
+              "timestamp": "5 min ago",
+              "tone": "warning"
+            }
+          ],
+          "layout": "list",
+          "label": "Activity log",
+          "maxVisible": 0
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<ActivityLog entries={empty?[]:entries} layout={scenarioId==='activity-log.responsive'?undefined:list?'list':'table'} label={rtl?'سجل النشاط':'Activity log'} maxVisible={scenarioId==='activity-log.disclosure'?2:0} onShowMore={scenarioId==='activity-log.disclosure'?()=>{}:undefined}/>",
+            "blazor": "<HarborlineActivityLog Entries=\"@(Empty?Array.Empty<ActivityEntry>():Entries)\" Layout=\"@Layout\" Label=\"@(Direction==\"rtl\"?\"سجل النشاط\":\"Activity log\")\" MaxVisible=\"@(ScenarioId==\"activity-log.disclosure\"?2:0)\" OnShowMore=\"@(ScenarioId==\"activity-log.disclosure\"?EventCallback.Factory.Create(this,()=>{}):default)\" />",
+            "rationale": "The rendered structure is an ordered list with list items, paragraphs, time elements, tone data attributes, and nested divs; those elements and semantics are outside the permitted descriptor controls."
+          }
+        ],
+        "footer": []
+      },
+      "states": [
+        "warning"
+      ]
+    },
+    {
+      "id": "activity-log.table",
+      "name": "Table layout",
+      "surface": "table",
+      "sourceCaseIds": [
+        "activity-log.table",
+        "activity-log.explicit-layout",
+        "activity-log.timestamp"
+      ],
+      "sourceQualityCaseIds": [
+        "activity-log.quality.structure",
+        "activity-log.quality.reflow"
+      ],
+      "content": {
+        "blurb": "Table layout",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "entries": [
+            {
+              "id": "a",
+              "actor": "Alex",
+              "action": "approved the inspection",
+              "timestamp": "1 min ago",
+              "machineTimestamp": "2026-08-10T12:00:00Z",
+              "tone": "positive",
+              "detail": "Blueprint placement verified."
+            },
+            {
+              "id": "b",
+              "actor": "System",
+              "action": "queued report generation",
+              "timestamp": "now",
+              "tone": "info"
+            },
+            {
+              "id": "c",
+              "actor": "Sam",
+              "action": "flagged a measurement",
+              "timestamp": "5 min ago",
+              "tone": "warning"
+            }
+          ],
+          "layout": "table",
+          "label": "Activity log",
+          "actorLabel": "Actor",
+          "actionLabel": "Action",
+          "timestampLabel": "Timestamp",
+          "maxVisible": 0
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<ActivityLog entries={empty?[]:entries} layout={scenarioId==='activity-log.responsive'?undefined:list?'list':'table'} label={rtl?'سجل النشاط':'Activity log'} maxVisible={scenarioId==='activity-log.disclosure'?2:0} onShowMore={scenarioId==='activity-log.disclosure'?()=>{}:undefined}/>",
+            "blazor": "<HarborlineActivityLog Entries=\"@(Empty?Array.Empty<ActivityEntry>():Entries)\" Layout=\"@Layout\" Label=\"@(Direction==\"rtl\"?\"سجل النشاط\":\"Activity log\")\" MaxVisible=\"@(ScenarioId==\"activity-log.disclosure\"?2:0)\" OnShowMore=\"@(ScenarioId==\"activity-log.disclosure\"?EventCallback.Factory.Create(this,()=>{}):default)\" />",
+            "rationale": "The rendered structure requires table, thead, tbody, tr, th, td, time, h2, and div semantics, none of which are permitted descriptor controls."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "activity-log.responsive",
+      "name": "Responsive layout",
+      "surface": "responsive",
+      "sourceCaseIds": [
+        "activity-log.responsive",
+        "activity-log.explicit-layout"
+      ],
+      "sourceQualityCaseIds": [
+        "activity-log.quality.reflow"
+      ],
+      "content": {
+        "blurb": "Responsive layout",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "entries": [
+            {
+              "id": "a",
+              "actor": "Alex",
+              "action": "approved the inspection",
+              "timestamp": "1 min ago",
+              "machineTimestamp": "2026-08-10T12:00:00Z",
+              "tone": "positive",
+              "detail": "Blueprint placement verified."
+            },
+            {
+              "id": "b",
+              "actor": "System",
+              "action": "queued report generation",
+              "timestamp": "now",
+              "tone": "info"
+            },
+            {
+              "id": "c",
+              "actor": "Sam",
+              "action": "flagged a measurement",
+              "timestamp": "5 min ago",
+              "tone": "warning"
+            }
+          ],
+          "layout": null,
+          "label": "Activity log",
+          "maxVisible": 0
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<ActivityLog entries={empty?[]:entries} layout={scenarioId==='activity-log.responsive'?undefined:list?'list':'table'} label={rtl?'سجل النشاط':'Activity log'} maxVisible={scenarioId==='activity-log.disclosure'?2:0} onShowMore={scenarioId==='activity-log.disclosure'?()=>{}:undefined}/>",
+            "blazor": "<HarborlineActivityLog Entries=\"@(Empty?Array.Empty<ActivityEntry>():Entries)\" Layout=\"@Layout\" Label=\"@(Direction==\"rtl\"?\"سجل النشاط\":\"Activity log\")\" MaxVisible=\"@(ScenarioId==\"activity-log.disclosure\"?2:0)\" OnShowMore=\"@(ScenarioId==\"activity-log.disclosure\"?EventCallback.Factory.Create(this,()=>{}):default)\" />",
+            "rationale": "The component chooses an ordered-list or table subtree from a media query when layout is omitted; both subtrees require structural controls outside the closed vocabulary, and the responsive choice cannot be approximated as one fixed descriptor tree."
+          }
+        ],
+        "footer": [],
+        "inherits": "activity-log.table"
+      }
+    },
+    {
+      "id": "activity-log.disclosure",
+      "name": "Bounded disclosure",
+      "surface": "disclosure",
+      "interaction": "keyboard-pointer",
+      "sourceCaseIds": [
+        "activity-log.limit",
+        "activity-log.show-more",
+        "activity-log.no-show-more"
+      ],
+      "sourceQualityCaseIds": [
+        "activity-log.quality.focus"
+      ],
+      "content": {
+        "blurb": "Bounded disclosure",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "entries": [
+            {
+              "id": "a",
+              "actor": "Alex",
+              "action": "approved the inspection",
+              "timestamp": "1 min ago",
+              "machineTimestamp": "2026-08-10T12:00:00Z",
+              "tone": "positive",
+              "detail": "Blueprint placement verified."
+            },
+            {
+              "id": "b",
+              "actor": "System",
+              "action": "queued report generation",
+              "timestamp": "now",
+              "tone": "info"
+            },
+            {
+              "id": "c",
+              "actor": "Sam",
+              "action": "flagged a measurement",
+              "timestamp": "5 min ago",
+              "tone": "warning"
+            }
+          ],
+          "layout": "table",
+          "label": "Activity log",
+          "actorLabel": "Actor",
+          "actionLabel": "Action",
+          "timestampLabel": "Timestamp",
+          "maxVisible": 2,
+          "onShowMore": true,
+          "showMoreLabel": "Show more"
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<ActivityLog entries={empty?[]:entries} layout={scenarioId==='activity-log.responsive'?undefined:list?'list':'table'} label={rtl?'سجل النشاط':'Activity log'} maxVisible={scenarioId==='activity-log.disclosure'?2:0} onShowMore={scenarioId==='activity-log.disclosure'?()=>{}:undefined}/>",
+            "blazor": "<HarborlineActivityLog Entries=\"@(Empty?Array.Empty<ActivityEntry>():Entries)\" Layout=\"@Layout\" Label=\"@(Direction==\"rtl\"?\"سجل النشاط\":\"Activity log\")\" MaxVisible=\"@(ScenarioId==\"activity-log.disclosure\"?2:0)\" OnShowMore=\"@(ScenarioId==\"activity-log.disclosure\"?EventCallback.Factory.Create(this,()=>{}):default)\" />",
+            "rationale": "The first two entries render in a semantic table and the Show more button follows that table; the table subtree cannot be represented by the permitted controls without losing its structure."
+          }
+        ],
+        "footer": [],
+        "inherits": "activity-log.table"
+      }
+    },
+    {
+      "id": "activity-log.invalid",
+      "name": "Input validation",
+      "surface": "invalid-input",
+      "sourceCaseIds": [
+        "activity-log.invalid-input"
+      ],
+      "sourceQualityCaseIds": [
+        "activity-log.quality.structure"
+      ],
+      "content": {
+        "blurb": "Input validation",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "entries": [],
+          "layout": "table",
+          "label": "Activity log",
+          "maxVisible": 0
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<ActivityLog entries={empty?[]:entries} layout={scenarioId==='activity-log.responsive'?undefined:list?'list':'table'} label={rtl?'سجل النشاط':'Activity log'} maxVisible={scenarioId==='activity-log.disclosure'?2:0} onShowMore={scenarioId==='activity-log.disclosure'?()=>{}:undefined}/>",
+            "blazor": "<HarborlineActivityLog Entries=\"@(Empty?Array.Empty<ActivityEntry>():Entries)\" Layout=\"@Layout\" Label=\"@(Direction==\"rtl\"?\"سجل النشاط\":\"Activity log\")\" MaxVisible=\"@(ScenarioId==\"activity-log.disclosure\"?2:0)\" OnShowMore=\"@(ScenarioId==\"activity-log.disclosure\"?EventCallback.Factory.Create(this,()=>{}):default)\" />",
+            "rationale": "Both galleries resolve this scenario to the same valid empty ActivityLog as activity-log.empty; its h2 and empty-state paragraph cannot be represented because h2 and p are not permitted controls."
+          }
+        ],
+        "footer": [],
+        "inherits": "activity-log.empty"
+      }
+    },
+    {
+      "id": "activity-log.locale-en",
+      "name": "English locale",
+      "surface": "locale-en",
+      "sourceCaseIds": [
+        "activity-log.label",
+        "activity-log.table"
+      ],
+      "sourceQualityCaseIds": [
+        "activity-log.quality.locales",
+        "activity-log.quality.formatting-boundary"
+      ],
+      "content": {
+        "blurb": "English locale",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "entries": [
+            {
+              "id": "a",
+              "actor": "Alex",
+              "action": "approved the inspection",
+              "timestamp": "1 min ago",
+              "machineTimestamp": "2026-08-10T12:00:00Z",
+              "tone": "positive",
+              "detail": "Blueprint placement verified."
+            },
+            {
+              "id": "b",
+              "actor": "System",
+              "action": "queued report generation",
+              "timestamp": "now",
+              "tone": "info"
+            },
+            {
+              "id": "c",
+              "actor": "Sam",
+              "action": "flagged a measurement",
+              "timestamp": "5 min ago",
+              "tone": "warning"
+            }
+          ],
+          "layout": "table",
+          "label": "Activity log",
+          "actorLabel": "Actor",
+          "actionLabel": "Action",
+          "timestampLabel": "Timestamp",
+          "maxVisible": 0
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<ActivityLog entries={empty?[]:entries} layout={scenarioId==='activity-log.responsive'?undefined:list?'list':'table'} label={rtl?'سجل النشاط':'Activity log'} maxVisible={scenarioId==='activity-log.disclosure'?2:0} onShowMore={scenarioId==='activity-log.disclosure'?()=>{}:undefined}/>",
+            "blazor": "<HarborlineActivityLog Entries=\"@(Empty?Array.Empty<ActivityEntry>():Entries)\" Layout=\"@Layout\" Label=\"@(Direction==\"rtl\"?\"سجل النشاط\":\"Activity log\")\" MaxVisible=\"@(ScenarioId==\"activity-log.disclosure\"?2:0)\" OnShowMore=\"@(ScenarioId==\"activity-log.disclosure\"?EventCallback.Factory.Create(this,()=>{}):default)\" />",
+            "rationale": "The inherited scenario renders the ActivityLog semantic list or table subtree; its heading, collection, row or item, and time elements are outside the permitted descriptor controls."
+          }
+        ],
+        "footer": [],
+        "inherits": "activity-log.table"
+      }
+    },
+    {
+      "id": "activity-log.locale-pseudo",
+      "name": "Pseudo-expanded locale",
+      "surface": "locale-pseudo",
+      "sourceCaseIds": [
+        "activity-log.label",
+        "activity-log.list"
+      ],
+      "sourceQualityCaseIds": [
+        "activity-log.quality.pseudo"
+      ],
+      "content": {
+        "blurb": "Pseudo-expanded locale",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "entries": [
+            {
+              "id": "a",
+              "actor": "Alex",
+              "action": "approved the inspection",
+              "timestamp": "1 min ago",
+              "machineTimestamp": "2026-08-10T12:00:00Z",
+              "tone": "positive",
+              "detail": "Blueprint placement verified."
+            },
+            {
+              "id": "b",
+              "actor": "System",
+              "action": "queued report generation",
+              "timestamp": "now",
+              "tone": "info"
+            },
+            {
+              "id": "c",
+              "actor": "Sam",
+              "action": "flagged a measurement",
+              "timestamp": "5 min ago",
+              "tone": "warning"
+            }
+          ],
+          "layout": "table",
+          "label": "Activity log",
+          "actorLabel": "Actor",
+          "actionLabel": "Action",
+          "timestampLabel": "Timestamp",
+          "maxVisible": 0
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<ActivityLog entries={empty?[]:entries} layout={scenarioId==='activity-log.responsive'?undefined:list?'list':'table'} label={rtl?'سجل النشاط':'Activity log'} maxVisible={scenarioId==='activity-log.disclosure'?2:0} onShowMore={scenarioId==='activity-log.disclosure'?()=>{}:undefined}/>",
+            "blazor": "<HarborlineActivityLog Entries=\"@(Empty?Array.Empty<ActivityEntry>():Entries)\" Layout=\"@Layout\" Label=\"@(Direction==\"rtl\"?\"سجل النشاط\":\"Activity log\")\" MaxVisible=\"@(ScenarioId==\"activity-log.disclosure\"?2:0)\" OnShowMore=\"@(ScenarioId==\"activity-log.disclosure\"?EventCallback.Factory.Create(this,()=>{}):default)\" />",
+            "rationale": "The inherited scenario renders the ActivityLog semantic list or table subtree; its heading, collection, row or item, and time elements are outside the permitted descriptor controls."
+          }
+        ],
+        "footer": [],
+        "inherits": "activity-log.table"
+      }
+    },
+    {
+      "id": "activity-log.locale-ar",
+      "name": "Arabic RTL",
+      "surface": "locale-ar",
+      "sourceCaseIds": [
+        "activity-log.list",
+        "activity-log.table",
+        "activity-log.timestamp"
+      ],
+      "sourceQualityCaseIds": [
+        "activity-log.quality.rtl",
+        "activity-log.quality.formatting-boundary"
+      ],
+      "content": {
+        "blurb": "Arabic RTL",
+        "environment": {
+          "locale": "ar-SA",
+          "direction": "rtl",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "entries": [
+            {
+              "id": "a",
+              "actor": "Alex",
+              "action": "approved the inspection",
+              "timestamp": "1 min ago",
+              "machineTimestamp": "2026-08-10T12:00:00Z",
+              "tone": "positive",
+              "detail": "Blueprint placement verified."
+            },
+            {
+              "id": "b",
+              "actor": "System",
+              "action": "queued report generation",
+              "timestamp": "now",
+              "tone": "info"
+            },
+            {
+              "id": "c",
+              "actor": "Sam",
+              "action": "flagged a measurement",
+              "timestamp": "5 min ago",
+              "tone": "warning"
+            }
+          ],
+          "layout": "list",
+          "label": "سجل النشاط",
+          "maxVisible": 0
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<ActivityLog entries={empty?[]:entries} layout={scenarioId==='activity-log.responsive'?undefined:list?'list':'table'} label={rtl?'سجل النشاط':'Activity log'} maxVisible={scenarioId==='activity-log.disclosure'?2:0} onShowMore={scenarioId==='activity-log.disclosure'?()=>{}:undefined}/>",
+            "blazor": "<HarborlineActivityLog Entries=\"@(Empty?Array.Empty<ActivityEntry>():Entries)\" Layout=\"@Layout\" Label=\"@(Direction==\"rtl\"?\"سجل النشاط\":\"Activity log\")\" MaxVisible=\"@(ScenarioId==\"activity-log.disclosure\"?2:0)\" OnShowMore=\"@(ScenarioId==\"activity-log.disclosure\"?EventCallback.Factory.Create(this,()=>{}):default)\" />",
+            "rationale": "The inherited scenario renders the ActivityLog semantic list or table subtree; its heading, collection, row or item, and time elements are outside the permitted descriptor controls."
+          }
+        ],
+        "footer": [],
+        "inherits": "activity-log.list"
+      }
+    },
+    {
+      "id": "activity-log.theme-light",
+      "name": "Light theme",
+      "surface": "theme-light",
+      "sourceCaseIds": [
+        "activity-log.detail-tone",
+        "activity-log.table"
+      ],
+      "sourceQualityCaseIds": [
+        "activity-log.quality.themes",
+        "activity-log.quality.tokens",
+        "activity-log.quality.contrast",
+        "activity-log.quality.forced-colors",
+        "activity-log.quality.reduced-motion",
+        "activity-log.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "Light theme",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "entries": [
+            {
+              "id": "a",
+              "actor": "Alex",
+              "action": "approved the inspection",
+              "timestamp": "1 min ago",
+              "machineTimestamp": "2026-08-10T12:00:00Z",
+              "tone": "positive",
+              "detail": "Blueprint placement verified."
+            },
+            {
+              "id": "b",
+              "actor": "System",
+              "action": "queued report generation",
+              "timestamp": "now",
+              "tone": "info"
+            },
+            {
+              "id": "c",
+              "actor": "Sam",
+              "action": "flagged a measurement",
+              "timestamp": "5 min ago",
+              "tone": "warning"
+            }
+          ],
+          "layout": "table",
+          "label": "Activity log",
+          "actorLabel": "Actor",
+          "actionLabel": "Action",
+          "timestampLabel": "Timestamp",
+          "maxVisible": 0
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<ActivityLog entries={empty?[]:entries} layout={scenarioId==='activity-log.responsive'?undefined:list?'list':'table'} label={rtl?'سجل النشاط':'Activity log'} maxVisible={scenarioId==='activity-log.disclosure'?2:0} onShowMore={scenarioId==='activity-log.disclosure'?()=>{}:undefined}/>",
+            "blazor": "<HarborlineActivityLog Entries=\"@(Empty?Array.Empty<ActivityEntry>():Entries)\" Layout=\"@Layout\" Label=\"@(Direction==\"rtl\"?\"سجل النشاط\":\"Activity log\")\" MaxVisible=\"@(ScenarioId==\"activity-log.disclosure\"?2:0)\" OnShowMore=\"@(ScenarioId==\"activity-log.disclosure\"?EventCallback.Factory.Create(this,()=>{}):default)\" />",
+            "rationale": "The inherited scenario renders the ActivityLog semantic list or table subtree; its heading, collection, row or item, and time elements are outside the permitted descriptor controls."
+          }
+        ],
+        "footer": [],
+        "inherits": "activity-log.table"
+      }
+    },
+    {
+      "id": "activity-log.theme-dark",
+      "name": "Dark theme",
+      "surface": "theme-dark",
+      "sourceCaseIds": [
+        "activity-log.detail-tone",
+        "activity-log.table"
+      ],
+      "sourceQualityCaseIds": [
+        "activity-log.quality.themes",
+        "activity-log.quality.tokens",
+        "activity-log.quality.contrast",
+        "activity-log.quality.forced-colors",
+        "activity-log.quality.reduced-motion",
+        "activity-log.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "Dark theme",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "dark",
+          "catalog": {}
+        },
+        "props": {
+          "entries": [
+            {
+              "id": "a",
+              "actor": "Alex",
+              "action": "approved the inspection",
+              "timestamp": "1 min ago",
+              "machineTimestamp": "2026-08-10T12:00:00Z",
+              "tone": "positive",
+              "detail": "Blueprint placement verified."
+            },
+            {
+              "id": "b",
+              "actor": "System",
+              "action": "queued report generation",
+              "timestamp": "now",
+              "tone": "info"
+            },
+            {
+              "id": "c",
+              "actor": "Sam",
+              "action": "flagged a measurement",
+              "timestamp": "5 min ago",
+              "tone": "warning"
+            }
+          ],
+          "layout": "table",
+          "label": "Activity log",
+          "actorLabel": "Actor",
+          "actionLabel": "Action",
+          "timestampLabel": "Timestamp",
+          "maxVisible": 0
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<ActivityLog entries={empty?[]:entries} layout={scenarioId==='activity-log.responsive'?undefined:list?'list':'table'} label={rtl?'سجل النشاط':'Activity log'} maxVisible={scenarioId==='activity-log.disclosure'?2:0} onShowMore={scenarioId==='activity-log.disclosure'?()=>{}:undefined}/>",
+            "blazor": "<HarborlineActivityLog Entries=\"@(Empty?Array.Empty<ActivityEntry>():Entries)\" Layout=\"@Layout\" Label=\"@(Direction==\"rtl\"?\"سجل النشاط\":\"Activity log\")\" MaxVisible=\"@(ScenarioId==\"activity-log.disclosure\"?2:0)\" OnShowMore=\"@(ScenarioId==\"activity-log.disclosure\"?EventCallback.Factory.Create(this,()=>{}):default)\" />",
+            "rationale": "The inherited scenario renders the ActivityLog semantic list or table subtree; its heading, collection, row or item, and time elements are outside the permitted descriptor controls."
+          }
+        ],
+        "footer": [],
+        "inherits": "activity-log.table"
+      }
+    },
+    {
+      "id": "activity-log.content",
+      "name": "Content resilience",
+      "surface": "long-content",
+      "sourceCaseIds": [
+        "activity-log.table",
+        "activity-log.label"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "A dense activity table carries an overlong label, the grouped number 1,284,905, escaped angle brackets and an ampersand, a name with diacritics and an em dash, and a missing optional detail.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<ActivityLog entries={contentEntries} layout=\"table\" label={'Third-party structural certification review activity history'} />",
+            "blazor": "<HarborlineActivityLog Entries=\"ContentEntries\" Layout=\"ActivityLogLayout.Table\" Label=\"@(\"Third-party structural certification review activity history\")\" />",
+            "rationale": "The semantic activity table is outside the closed control vocabulary and must render the hostile-but-valid collection directly."
+          }
+        ],
+        "footer": []
+      }
+    }
+  ]
+}

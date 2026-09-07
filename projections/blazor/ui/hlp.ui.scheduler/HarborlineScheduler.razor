@@ -1,0 +1,476 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Scheduling
+@inherits HarborlineComponentBase
+@implements IAsyncDisposable
+@using System.Globalization
+@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.AspNetCore.Components.Rendering
+@using Harborline.UIAdapters.Blazor.Browser
+@using Harborline.UIAdapters.Blazor.Components.Feedback
+@using Harborline.UIAdapters.Blazor.Components.Layout
+@using Harborline.UIAdapters.Blazor.Localization
+@using Microsoft.JSInterop
+@inject IMediaQueryObserver MediaQueries
+@inject IJSRuntime JavaScript
+
+<div @ref="root" class="@CombineClasses("hl-scheduler")" style="@CombineStyles()" dir="@Direction" data-hl-view="@ViewToken" data-hl-readonly="@(ReadOnly ? "true" : null)" @attributes="AdditionalAttributes">
+  <div class="hl-scheduler__toolbar" data-scheduler-toolbar>
+    <div class="hl-scheduler__nav" data-toolbar-nav>
+      <button type="button" aria-label="@T("scheduler.previous", "Previous")" @onclick="@(() => NavigateAsync(-1))">@(Direction == "rtl" ? "›" : "‹")</button>
+      <button type="button" aria-label="@T("scheduler.today", "Today")" @onclick="GoTodayAsync">@T("scheduler.today", "Today")</button>
+      <button type="button" aria-label="@T("scheduler.next", "Next")" @onclick="@(() => NavigateAsync(1))">@(Direction == "rtl" ? "‹" : "›")</button>
+    </div>
+    @if (nowOffscreen)
+    {
+      <button type="button" class="hl-scheduler__now-action" @onclick="ScrollToNowAsync">@T("scheduler.now", "Now")</button>
+    }
+    <strong class="hl-scheduler__range">@HeaderLabel</strong>
+    <div class="hl-scheduler__views" data-toolbar-views>
+      @foreach (var option in EffectiveViews)
+      {
+        <button type="button" aria-pressed="@(ActiveView == option.Type ? "true" : "false")" data-active="@(ActiveView == option.Type ? "true" : null)"
+                @onclick="@(() => ChangeViewAsync(option.Type))">@(option.Title ?? ViewLabel(option.Type))</button>
+      }
+    </div>
+  </div>
+
+  <HarborlineScrollAffordance AriaLabel="@T("scheduler.weekGridScrollable", "Calendar grid, scrollable")" ItemCount="@(ActiveView == SchedulerViewType.Week ? 7 : null)"
+                              InitialAnchor="@InitialScrollAnchor"
+                              Orientation="@(ActiveView is SchedulerViewType.Day or SchedulerViewType.Agenda ? ScrollAffordanceOrientation.Vertical : ScrollAffordanceOrientation.Horizontal)"
+                              Class="hl-scheduler__scroll">
+    @switch (ActiveView)
+    {
+      case SchedulerViewType.Day:
+      case SchedulerViewType.Week:
+        @DayWeekView()
+        break;
+      case SchedulerViewType.Month:
+        @MonthView()
+        break;
+      default:
+        @AgendaView()
+        break;
+    }
+  </HarborlineScrollAffordance>
+
+  @if (editing is not null)
+  {
+    <HarborlineDialog Open="true" OpenChanged="CloseEditorAsync" Title="@(editingIsOccurrence ? T("scheduler.editOccurrence", "Edit this occurrence") : editingIsNew ? T("scheduler.newEvent", "New event") : T("scheduler.editEvent", "Edit event"))">
+      <ChildContent>
+        <label class="hl-scheduler__editor-field"><span>@T("scheduler.eventTitle", "Event title")</span><input value="@editorTitle" @oninput="@(args => editorTitle = args.Value?.ToString() ?? string.Empty)" /></label>
+        <label class="hl-scheduler__editor-field"><span>@T("scheduler.start", "Start")</span><input type="datetime-local" value="@InputDate(editing.Start)" @onchange="@(args => editorStart = ParseInputDate(args.Value?.ToString(), editing.Start))" /></label>
+        <label class="hl-scheduler__editor-field"><span>@T("scheduler.end", "End")</span><input type="datetime-local" value="@InputDate(editing.End)" @onchange="@(args => editorEnd = ParseInputDate(args.Value?.ToString(), editing.End))" /></label>
+      </ChildContent>
+      <Footer><button type="button" @onclick="SaveEditorAsync">@T("scheduler.save", "Save")</button></Footer>
+    </HarborlineDialog>
+  }
+
+  @if (recurrenceChoice is not null)
+  {
+    <HarborlineDialog Open="true" OpenChanged="CloseRecurrenceAsync"
+                    Title="@(recurrenceMode == "delete" ? T("scheduler.deleteRecurringEvent", "Delete recurring event") : T("scheduler.editRecurringEvent", "Edit recurring event"))"
+                    Description="@(recurrenceMode == "delete" ? T("scheduler.deleteRecurrenceQuestion", "Do you want to delete only this event, or all events in the series?") : T("scheduler.editRecurrenceQuestion", "Do you want to change only this event, or all events in the series?"))">
+      <div class="hl-scheduler__dialog-actions hl-scheduler__dialog-actions--stacked">
+        <button type="button" @onclick="ChooseOccurrenceAsync">@(recurrenceMode == "delete" ? T("scheduler.deleteThisEvent", "Delete this event") : T("scheduler.editThisEvent", "Edit this event"))</button>
+        <button type="button" @onclick="ChooseSeriesAsync">@(recurrenceMode == "delete" ? T("scheduler.deleteSeries", "Delete all events in the series") : T("scheduler.editSeries", "Edit all events in the series"))</button>
+      </div>
+    </HarborlineDialog>
+  }
+</div>
+
+@code {
+  [CascadingParameter] private HarborlineLocaleContext? LocaleContext { get; set; }
+  [Parameter, EditorRequired] public IReadOnlyList<SchedulerEvent> Data { get; set; } = [];
+  [Parameter] public SchedulerViewType? View { get; set; }
+  [Parameter] public SchedulerViewType DefaultView { get; set; } = SchedulerViewType.Week;
+  [Parameter] public EventCallback<SchedulerViewType> ViewChanged { get; set; }
+  [Parameter] public IReadOnlyList<SchedulerView>? Views { get; set; }
+  [Parameter] public EventCallback<SchedulerEvent> EventAdded { get; set; }
+  [Parameter] public EventCallback<SchedulerEvent> EventUpdated { get; set; }
+  [Parameter] public EventCallback<SchedulerEvent> EventDeleted { get; set; }
+  [Parameter] public DateTimeOffset? SelectedDate { get; set; }
+  [Parameter] public DateTimeOffset? DefaultDate { get; set; }
+  [Parameter] public EventCallback<DateTimeOffset> DateChanged { get; set; }
+  [Parameter] public DateTimeOffset? Now { get; set; }
+  [Parameter] public SchedulerWorkingHours? WorkingHours { get; set; }
+  [Parameter] public int WorkDayStart { get; set; } = 8;
+  [Parameter] public int WorkDayEnd { get; set; } = 18;
+  [Parameter] public IReadOnlyList<SchedulerWorkDay> WorkDays { get; set; } = [SchedulerWorkDay.Monday, SchedulerWorkDay.Tuesday, SchedulerWorkDay.Wednesday, SchedulerWorkDay.Thursday, SchedulerWorkDay.Friday];
+  [Parameter] public bool ReadOnly { get; set; }
+  [Parameter] public bool? Narrow { get; set; }
+
+  private SchedulerViewType localView;
+  private DateTimeOffset localDate;
+  private DateTimeOffset liveNow;
+  private bool initialized, userPickedView, observedNarrow;
+  private IMediaQuerySubscription? mediaSubscription;
+  private ElementReference root;
+  private IJSObjectReference? nowModule;
+  private DotNetObjectReference<HarborlineScheduler>? nowCallback;
+  private bool nowOffscreen;
+  private string? nowMeasureKey, nowAnchorKey;
+  private CancellationTokenSource? clockCancellation;
+  private Task? clockTask;
+  private SchedulerEvent? editing, recurrenceChoice;
+  private bool editingIsNew, editingIsOccurrence;
+  private string recurrenceMode = "edit", editorTitle = string.Empty;
+  private DateTimeOffset editorStart, editorEnd;
+
+  private bool IsNarrow => Narrow ?? observedNarrow;
+  private SchedulerViewType ActiveView => View ?? (!userPickedView && IsNarrow ? SchedulerViewType.Agenda : localView);
+  private DateTimeOffset CurrentDate => SelectedDate ?? localDate;
+  private DateTimeOffset EffectiveNow => Now ?? liveNow;
+  private SchedulerWorkingHours EffectiveWorkingHours => WorkingHours ?? new(WorkDayStart, WorkDayEnd);
+  private IReadOnlyList<SchedulerView> EffectiveViews => Views ?? [new(SchedulerViewType.Day), new(SchedulerViewType.Week), new(SchedulerViewType.Month), new(SchedulerViewType.Agenda)];
+  private string Direction => LocaleContext?.Direction ?? "ltr";
+  private string Locale => LocaleContext?.Locale ?? "en-US";
+  private string ViewToken => ActiveView.ToString().ToLowerInvariant();
+  private IReadOnlyList<SchedulerEvent> VisibleEvents => SchedulerRecurrence.BuildRenderedEvents(Data, Range.Start, Range.End);
+  private (DateTimeOffset Start, DateTimeOffset End) Range => ViewRange(ActiveView, CurrentDate);
+  private string HeaderLabel => ActiveView switch
+  {
+    SchedulerViewType.Day => FormatDate(CurrentDate, "dddd, MMMM d, yyyy"),
+    SchedulerViewType.Week => $"{FormatDate(WeekStart(CurrentDate), "MMM d")} – {FormatDate(WeekStart(CurrentDate).AddDays(6), "MMM d, yyyy")}",
+    _ => FormatDate(CurrentDate, "MMMM yyyy"),
+  };
+
+  protected override void OnParametersSet()
+  {
+    ArgumentNullException.ThrowIfNull(Data); ArgumentNullException.ThrowIfNull(WorkDays);
+    if (!initialized) { localView = DefaultView; localDate = DefaultDate ?? DateTimeOffset.Now; liveNow = Now ?? DateTimeOffset.Now; initialized = true; }
+    Validate();
+    if (Now is DateTimeOffset fixedNow) liveNow = fixedNow;
+  }
+
+  // 299: one key per React effect, spelled from its dependency list. The measure effect
+  // (Scheduler.tsx:471) depends on the view and the rendered event count; the anchor layout effect
+  // (:482) depends on the date, the view and the work-day start and deliberately NOT on the event
+  // count, so a data update re-measures without moving the scroll host.
+  private string NowMeasureKey => $"{ActiveView}|{VisibleEvents.Count}";
+  private string NowAnchorKey => $"{ActiveView}|{CurrentDate.UtcDateTime:O}|{EffectiveWorkingHours.Start}";
+
+  protected override async Task OnAfterRenderAsync(bool firstRender)
+  {
+    if (!firstRender)
+    {
+      if (nowModule is null || (NowAnchorKey == nowAnchorKey && NowMeasureKey == nowMeasureKey)) return;
+      var anchoring = NowAnchorKey != nowAnchorKey;
+      var measuring = NowMeasureKey != nowMeasureKey;
+      nowAnchorKey = NowAnchorKey;
+      nowMeasureKey = NowMeasureKey;
+      try
+      {
+        // The React lane's date/view layout effect re-anchors the scroll host onto the now line
+        // (work-day start when there is none) and clears the flag, so a date change never leaves a
+        // Now action behind; the measurement below then reports the anchored position. It runs
+        // before the measure effect there, and does not run on an event-count change.
+        if (anchoring) await AnchorNowAsync();
+        if (measuring) await nowModule.InvokeVoidAsync("measure", root);
+      }
+      catch (Microsoft.JSInterop.JSException) { }
+      catch (Microsoft.JSInterop.JSDisconnectedException) { }
+      return;
+    }
+    try
+    {
+      mediaSubscription = await MediaQueries.ObserveAsync("(max-width: 767px)", change => { observedNarrow = change.Matches; return new ValueTask(InvokeAsync(StateHasChanged)); });
+      observedNarrow = mediaSubscription.Matches;
+    }
+    catch (InvalidOperationException) { }
+    catch (Microsoft.JSInterop.JSException) { }
+    if (Now is null)
+    {
+      clockCancellation = new();
+      clockTask = TickClockAsync(clockCancellation.Token);
+    }
+    try
+    {
+      nowModule = await JavaScript.InvokeAsync<IJSObjectReference>("import", "./_content/Harborline.UIAdapters.Blazor/scheduler-now.js");
+      nowCallback = DotNetObjectReference.Create(this);
+      // React's anchor is a layout effect, so it runs on mount too, before the passive measure
+      // effect; anchoring here means connect's own measure() reports the anchored position and the
+      // lane opens with no Now action, exactly as the React lane does.
+      await AnchorNowAsync();
+      if (nowModule is not null) await nowModule.InvokeVoidAsync("connect", root, nowCallback);
+      nowAnchorKey = NowAnchorKey;
+      nowMeasureKey = NowMeasureKey;
+    }
+    catch (Microsoft.JSInterop.JSException) { }
+  }
+
+  private async Task AnchorNowAsync()
+  {
+    if (nowModule is null || ActiveView is not (SchedulerViewType.Day or SchedulerViewType.Week)) return;
+    await nowModule.InvokeVoidAsync("anchor", root, EffectiveWorkingHours.Start);
+    if (nowOffscreen) { nowOffscreen = false; StateHasChanged(); }
+  }
+
+  /// <summary>The off-screen Now action: the module reports whether the now indicator left the
+  /// scroll viewport, exactly as the React lane's scroll measurement does.</summary>
+  [JSInvokable]
+  public Task OnNowVisibilityAsync(bool offscreen)
+  {
+    if (offscreen == nowOffscreen) return Task.CompletedTask;
+    nowOffscreen = offscreen;
+    return InvokeAsync(StateHasChanged);
+  }
+
+  private async Task ScrollToNowAsync()
+  {
+    try { if (nowModule is not null) await nowModule.InvokeVoidAsync("scrollToNow", root); }
+    catch (Microsoft.JSInterop.JSDisconnectedException) { }
+    nowOffscreen = false;
+  }
+
+  private void Validate()
+  {
+    if (Data.Any(item => item.Id is null || string.IsNullOrWhiteSpace(item.Title))) throw new InvalidOperationException("invalid-event");
+    if (Data.Any(item => item.End < item.Start)) throw new InvalidOperationException("invalid-event-range");
+    if (Data.GroupBy(item => $"{item.Id}:{item.Start.UtcDateTime:O}", StringComparer.Ordinal).Any(group => group.Count() > 1)) throw new InvalidOperationException("duplicate-event-key");
+    var hours = EffectiveWorkingHours;
+    if (hours.Start is < 0 or > 23 || hours.End is < 1 or > 24 || hours.Start >= hours.End) throw new InvalidOperationException("invalid-work-hours");
+    if (WorkDays.Any(day => (int)day is < 0 or > 6)) throw new InvalidOperationException("invalid-work-day");
+    if (EffectiveViews.Count == 0 || EffectiveViews.GroupBy(option => option.Type).Any(group => group.Count() > 1)) throw new InvalidOperationException("invalid-view");
+    var requested = View ?? DefaultView;
+    if (!EffectiveViews.Any(option => option.Type == requested)) throw new InvalidOperationException("invalid-view");
+  }
+
+  private async Task TickClockAsync(CancellationToken token)
+  {
+    using var timer = new PeriodicTimer(TimeSpan.FromMinutes(1));
+    try { while (await timer.WaitForNextTickAsync(token)) { liveNow = DateTimeOffset.Now; await InvokeAsync(StateHasChanged); } }
+    catch (OperationCanceledException) when (token.IsCancellationRequested) { }
+  }
+
+  private async Task ChangeViewAsync(SchedulerViewType next)
+  {
+    userPickedView = true;
+    if (View is null) localView = next;
+    await ViewChanged.InvokeAsync(next);
+  }
+  private async Task ChangeDateAsync(DateTimeOffset next)
+  {
+    if (SelectedDate is null) localDate = next;
+    await DateChanged.InvokeAsync(next);
+  }
+  // Today requests the lane's own now, as the React lane does (requestDate(new Date(now))); the
+  // wall clock diverged from a controlled Now.
+  private Task GoTodayAsync() => ChangeDateAsync(EffectiveNow);
+  private double? InitialScrollAnchor => ActiveView is SchedulerViewType.Day or SchedulerViewType.Week
+    ? (SameDay(CurrentDate, EffectiveNow) ? EffectiveNow.Hour + EffectiveNow.Minute / 60d : EffectiveWorkingHours.Start) * 48
+    : null;
+  private Task NavigateAsync(int delta)
+  {
+    var next = ActiveView switch { SchedulerViewType.Day => CurrentDate.AddDays(delta), SchedulerViewType.Week => CurrentDate.AddDays(delta * 7), SchedulerViewType.Month => CurrentDate.AddMonths(delta), _ => CurrentDate.AddDays(delta * 7) };
+    return ChangeDateAsync(next);
+  }
+
+  private RenderFragment DayWeekView() => builder =>
+  {
+    var days = ActiveView == SchedulerViewType.Week ? Enumerable.Range(0, 7).Select(index => WeekStart(CurrentDate).AddDays(index)).ToArray() : [CurrentDate];
+    var sequence = 0;
+    builder.OpenElement(sequence++, "div");
+    builder.AddAttribute(sequence++, "class", "hl-scheduler__time-view");
+    builder.AddAttribute(sequence++, "style", $"--hl-scheduler-day-count:{days.Length}");
+    builder.OpenElement(sequence++, "div"); builder.AddAttribute(sequence++, "class", "hl-scheduler__time-gutter-heading"); builder.AddAttribute(sequence++, "aria-hidden", "true"); builder.CloseElement();
+    foreach (var day in days) { builder.OpenElement(sequence++, "div"); builder.AddAttribute(sequence++, "class", "hl-scheduler__day-heading"); builder.AddContent(sequence++, FormatDate(day, "ddd, MMM d")); builder.CloseElement(); }
+    builder.OpenElement(sequence++, "div"); builder.AddAttribute(sequence++, "class", "hl-scheduler__all-day-label"); builder.AddContent(sequence++, T("scheduler.allDay", "All day")); builder.CloseElement();
+    builder.OpenElement(sequence++, "div"); builder.AddAttribute(sequence++, "class", "hl-scheduler__all-day-band");
+    foreach (var item in VisibleEvents.Where(item => item.AllDay && days.Any(day => SameDay(item.Start, day)))) RenderEventChip(builder, ref sequence, item, null);
+    builder.CloseElement();
+    builder.OpenElement(sequence++, "div"); builder.AddAttribute(sequence++, "class", "hl-scheduler__hour-labels"); builder.AddAttribute(sequence++, "aria-hidden", "true");
+    for (var hour = 0; hour < 24; hour++) { builder.OpenElement(sequence++, "span"); builder.AddAttribute(sequence++, "style", $"inset-block-start:{hour * 48}px"); builder.AddContent(sequence++, FormatHour(CurrentDate.Date.AddHours(hour))); builder.CloseElement(); }
+    builder.CloseElement();
+    foreach (var day in days)
+    {
+      var localDay = day;
+      builder.OpenElement(sequence++, "div"); builder.AddAttribute(sequence++, "class", "hl-scheduler__day-column"); builder.AddAttribute(sequence++, "data-work-day", IsWorkDay(day) ? "true" : "false");
+      for (var hour = 0; hour < 24; hour++)
+      {
+        var localHour = hour;
+        builder.OpenElement(sequence++, "span"); builder.AddAttribute(sequence++, "class", $"hl-scheduler__hour{(hour < EffectiveWorkingHours.Start || hour >= EffectiveWorkingHours.End ? " hl-scheduler__hour--off" : "")}"); builder.AddAttribute(sequence++, "data-hour-row", hour);
+        if (!ReadOnly) builder.AddAttribute(sequence++, "ondblclick", EventCallback.Factory.Create<MouseEventArgs>(this, () => CreateAtAsync(localDay, localHour)));
+        builder.CloseElement();
+      }
+      if (SameDay(day, EffectiveNow))
+      {
+        builder.OpenElement(sequence++, "span"); builder.AddAttribute(sequence++, "class", "hl-scheduler__now-line"); builder.AddAttribute(sequence++, "data-now-indicator", ""); builder.AddAttribute(sequence++, "style", $"inset-block-start:{(EffectiveNow.Hour + EffectiveNow.Minute / 60d) * 48}px"); builder.OpenElement(sequence++, "span"); builder.AddAttribute(sequence++, "class", "hl-scheduler__sr-only"); builder.AddContent(sequence++, T("scheduler.nowSrText", $"Current time, {FormatTime(EffectiveNow)}", new Dictionary<string, object?> { ["time"] = FormatTime(EffectiveNow) })); builder.CloseElement(); builder.CloseElement();
+      }
+      var timed = VisibleEvents.Where(item => !item.AllDay && SameDay(item.Start, day)).OrderBy(item => item.Start).ToArray();
+      var overlaps = Overlaps(timed);
+      foreach (var item in timed) RenderEventChip(builder, ref sequence, item, overlaps[item]);
+      builder.CloseElement();
+    }
+    builder.CloseElement();
+  };
+
+  private void RenderEventChip(RenderTreeBuilder builder, ref int sequence, SchedulerEvent item, (int Index, int Count)? layout)
+  {
+    builder.OpenElement(sequence++, "div"); builder.AddAttribute(sequence++, "class", "hl-scheduler__event"); builder.AddAttribute(sequence++, "data-event-chip", ""); builder.AddAttribute(sequence++, "data-recurrence", item.OriginalStart.HasValue ? "exception" : item.RecurrenceId is not null ? "series" : null); builder.AddAttribute(sequence++, "style", EventStyle(item, layout));
+    builder.OpenElement(sequence++, ReadOnly ? "div" : "button"); builder.AddAttribute(sequence++, "class", "hl-scheduler__event-main"); builder.AddAttribute(sequence++, "aria-label", EventLabel(item));
+    if (ReadOnly) builder.AddAttribute(sequence++, "role", "img"); else { builder.AddAttribute(sequence++, "type", "button"); builder.AddAttribute(sequence++, "onclick", EventCallback.Factory.Create(this, () => BeginEdit(item))); }
+    builder.OpenElement(sequence++, "span"); builder.AddAttribute(sequence++, "class", "hl-scheduler__event-title"); builder.AddContent(sequence++, item.Title); builder.CloseElement();
+    if (!item.AllDay) { builder.OpenElement(sequence++, "span"); builder.AddAttribute(sequence++, "class", "hl-scheduler__event-time"); builder.AddContent(sequence++, $"{FormatTime(item.Start)}–{FormatTime(item.End)}"); builder.CloseElement(); }
+    builder.CloseElement();
+    builder.CloseElement();
+  }
+
+  private RenderFragment MonthView() => builder =>
+  {
+    var first = new DateTimeOffset(CurrentDate.Year, CurrentDate.Month, 1, 0, 0, 0, CurrentDate.Offset);
+    var start = WeekStart(first);
+    var sequence = 0;
+    builder.OpenElement(sequence++, "div"); builder.AddAttribute(sequence++, "class", "hl-scheduler__month");
+    foreach (var day in Enumerable.Range(0, 42).Select(index => start.AddDays(index)))
+    {
+      var localDay = day; var items = VisibleEvents.Where(item => SameDay(item.Start, day)).OrderBy(item => item.Start).ToArray();
+      builder.OpenElement(sequence++, "section"); builder.AddAttribute(sequence++, "class", "hl-scheduler__month-day"); builder.AddAttribute(sequence++, "data-outside-month", day.Month == CurrentDate.Month ? "false" : "true");
+      builder.OpenElement(sequence++, "time"); builder.AddAttribute(sequence++, "datetime", day.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)); builder.AddContent(sequence++, day.Day); builder.CloseElement();
+      foreach (var item in items.Take(3)) RenderEventChip(builder, ref sequence, item, null);
+      if (items.Length > 3) { builder.OpenElement(sequence++, "button"); builder.AddAttribute(sequence++, "type", "button"); builder.AddAttribute(sequence++, "class", "hl-scheduler__more"); builder.AddAttribute(sequence++, "onclick", EventCallback.Factory.Create(this, () => DrillDownAsync(localDay))); builder.AddContent(sequence++, T("scheduler.more", $"+{items.Length - 3} more", new Dictionary<string, object?> { ["count"] = items.Length - 3 })); builder.CloseElement(); }
+      builder.CloseElement();
+    }
+    builder.CloseElement();
+  };
+
+  private RenderFragment AgendaView() => builder =>
+  {
+    var items = VisibleEvents.Where(item => item.End >= CurrentDate.Date).OrderBy(item => item.Start).ToArray();
+    var sequence = 0;
+    if (items.Length == 0) { builder.OpenElement(sequence++, "p"); builder.AddAttribute(sequence++, "class", "hl-scheduler__empty"); builder.AddAttribute(sequence++, "role", "status"); builder.AddContent(sequence++, T("scheduler.noUpcomingEvents", "No upcoming events")); builder.CloseElement(); return; }
+    builder.OpenElement(sequence++, "ol"); builder.AddAttribute(sequence++, "class", "hl-scheduler__agenda");
+    foreach (var item in items)
+    {
+      var localItem = item;
+      builder.OpenElement(sequence++, "li"); builder.AddAttribute(sequence++, "data-event-key", item.Id);
+      builder.OpenElement(sequence++, "time"); builder.AddAttribute(sequence++, "datetime", item.Start.ToString("O", CultureInfo.InvariantCulture)); builder.AddContent(sequence++, item.AllDay ? T("scheduler.allDay", "All day") : $"{FormatDate(item.Start, "MMM d")} · {FormatTime(item.Start)} – {FormatTime(item.End)}"); builder.CloseElement();
+      builder.OpenElement(sequence++, "div"); builder.OpenElement(sequence++, "strong"); builder.AddContent(sequence++, item.Title); builder.CloseElement(); if (!string.IsNullOrWhiteSpace(item.Description)) { builder.OpenElement(sequence++, "p"); builder.AddContent(sequence++, item.Description); builder.CloseElement(); } builder.CloseElement();
+      if (!ReadOnly)
+      {
+        builder.OpenElement(sequence++, "div"); builder.AddAttribute(sequence++, "class", "hl-scheduler__agenda-actions");
+        builder.OpenElement(sequence++, "button"); builder.AddAttribute(sequence++, "type", "button"); builder.AddAttribute(sequence++, "onclick", EventCallback.Factory.Create(this, () => BeginEdit(localItem))); builder.AddContent(sequence++, T("scheduler.editEvent", "Edit event")); builder.CloseElement();
+        if (EventDeleted.HasDelegate) { builder.OpenElement(sequence++, "button"); builder.AddAttribute(sequence++, "type", "button"); builder.AddAttribute(sequence++, "onclick", EventCallback.Factory.Create(this, () => BeginDelete(localItem))); builder.AddContent(sequence++, T("scheduler.deleteEvent", "Delete event")); builder.CloseElement(); }
+        builder.CloseElement();
+      }
+      builder.CloseElement();
+    }
+    builder.CloseElement();
+  };
+
+  private async Task DrillDownAsync(DateTimeOffset day) { await ChangeDateAsync(day); await ChangeViewAsync(SchedulerViewType.Day); }
+  private async Task CreateAtAsync(DateTimeOffset day, int hour)
+  {
+    if (ReadOnly) return;
+    var start = new DateTimeOffset(day.Year, day.Month, day.Day, hour, 0, 0, day.Offset);
+    editing = new SchedulerEvent($"new-{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}", string.Empty, start, start.AddHours(1));
+    editingIsNew = true; editingIsOccurrence = false; PrepareEditor(editing);
+    await InvokeAsync(StateHasChanged);
+  }
+  private void BeginEdit(SchedulerEvent item)
+  {
+    if (ReadOnly) return;
+    if (item.RecurrenceId is not null || !string.IsNullOrWhiteSpace(item.RecurrenceRule)) { recurrenceChoice = item; recurrenceMode = "edit"; return; }
+    editing = item; editingIsNew = false; editingIsOccurrence = false; PrepareEditor(item);
+  }
+  private void BeginDelete(SchedulerEvent item)
+  {
+    if (ReadOnly) return;
+    if (item.RecurrenceId is not null || !string.IsNullOrWhiteSpace(item.RecurrenceRule)) { recurrenceChoice = item; recurrenceMode = "delete"; }
+    else _ = EventDeleted.InvokeAsync(item);
+  }
+  private void PrepareEditor(SchedulerEvent item) { editorTitle = item.Title; editorStart = item.Start; editorEnd = item.End; }
+  private Task CloseEditorAsync(bool open) { if (!open) { editing = null; editingIsNew = editingIsOccurrence = false; } return Task.CompletedTask; }
+  private Task CloseRecurrenceAsync(bool open) { if (!open) recurrenceChoice = null; return Task.CompletedTask; }
+  private async Task SaveEditorAsync()
+  {
+    if (editing is null || ReadOnly || editorEnd < editorStart) return;
+    var updated = editing with { Title = editorTitle, Start = editorStart, End = editorEnd };
+    if (editingIsOccurrence) updated = updated with { RecurrenceId = editing.RecurrenceId ?? editing.Id, OriginalStart = editing.Start, RecurrenceRule = null, RecurrenceExceptions = null };
+    if (editingIsNew) await EventAdded.InvokeAsync(updated); else await EventUpdated.InvokeAsync(updated);
+    editing = null; editingIsNew = editingIsOccurrence = false;
+  }
+  private async Task ChooseOccurrenceAsync()
+  {
+    if (recurrenceChoice is null || ReadOnly) return;
+    var occurrence = recurrenceChoice; recurrenceChoice = null;
+    if (recurrenceMode == "edit") { editing = occurrence; editingIsNew = false; editingIsOccurrence = true; PrepareEditor(occurrence); }
+    else
+    {
+      var master = FindMaster(occurrence);
+      if (master is null) await EventDeleted.InvokeAsync(occurrence);
+      else await EventUpdated.InvokeAsync(master with { RecurrenceExceptions = (master.RecurrenceExceptions ?? []).Append(occurrence.Start).Distinct().ToArray() });
+    }
+  }
+  private async Task ChooseSeriesAsync()
+  {
+    if (recurrenceChoice is null || ReadOnly) return;
+    var master = FindMaster(recurrenceChoice) ?? recurrenceChoice; recurrenceChoice = null;
+    if (recurrenceMode == "edit") { editing = master; editingIsNew = editingIsOccurrence = false; PrepareEditor(master); }
+    else await EventDeleted.InvokeAsync(master);
+  }
+  private SchedulerEvent? FindMaster(SchedulerEvent item) => item.RecurrenceId is null ? Data.FirstOrDefault(candidate => Equals(candidate.Id, item.Id)) : Data.FirstOrDefault(candidate => Equals(candidate.Id, item.RecurrenceId));
+
+  private Dictionary<SchedulerEvent, (int Index, int Count)> Overlaps(IReadOnlyList<SchedulerEvent> items)
+  {
+    var result = new Dictionary<SchedulerEvent, (int, int)>();
+    for (var index = 0; index < items.Count;)
+    {
+      var cluster = new List<SchedulerEvent> { items[index] }; var end = items[index].End; var next = index + 1;
+      while (next < items.Count && items[next].Start < end) { cluster.Add(items[next]); if (items[next].End > end) end = items[next].End; next++; }
+      for (var offset = 0; offset < cluster.Count; offset++) result[cluster[offset]] = (offset, cluster.Count);
+      index = next;
+    }
+    return result;
+  }
+  private string EventStyle(SchedulerEvent item, (int Index, int Count)? layout)
+  {
+    var color = string.IsNullOrWhiteSpace(item.Color) ? "var(--hl-scheduler-accent)" : item.Color;
+    if (layout is null) return $"--hl-scheduler-event-color:{color}";
+    var top = (item.Start.Hour + item.Start.Minute / 60d) * 48;
+    var height = Math.Max(.5, (item.End - item.Start).TotalHours) * 48;
+    var width = 100d / layout.Value.Count;
+    var offset = layout.Value.Index * width;
+    return $"--hl-scheduler-event-color:{color};inset-block-start:{top.ToString("0.###", CultureInfo.InvariantCulture)}px;block-size:{height.ToString("0.###", CultureInfo.InvariantCulture)}px;inset-inline-start:{Percent(offset)};inline-size:{Percent(width)}";
+  }
+  private string EventLabel(SchedulerEvent item)
+  {
+    var recurrence = item.OriginalStart.HasValue ? $", {T("scheduler.recurringEventModified", "Recurring event (modified)")}" : item.RecurrenceId is not null ? $", {T("scheduler.recurringEvent", "Recurring event")}" : string.Empty;
+    return $"{item.Title}: {FormatTime(item.Start)} to {FormatTime(item.End)}{recurrence}";
+  }
+  private bool IsWorkDay(DateTimeOffset day) => WorkDays.Contains((SchedulerWorkDay)(int)day.DayOfWeek);
+  private string ViewLabel(SchedulerViewType view) => view switch { SchedulerViewType.Day => T("scheduler.day", "Day"), SchedulerViewType.Week => T("scheduler.week", "Week"), SchedulerViewType.Month => T("scheduler.month", "Month"), _ => T("scheduler.agenda", "Agenda") };
+  private string T(string key, string fallback, IReadOnlyDictionary<string, object?>? values = null) => LocaleContext?.ResolveString(key, values, fallback) ?? (values?.Aggregate(fallback, (text, pair) => text.Replace($"{{{pair.Key}}}", pair.Value?.ToString(), StringComparison.Ordinal)) ?? fallback);
+  private string FormatDate(DateTimeOffset value, string pattern) => Format(value, pattern);
+  private string FormatTime(DateTimeOffset value) => Format(value, "t");
+  private string FormatHour(DateTimeOffset value) => FormatTime(value).Replace(":00", string.Empty, StringComparison.Ordinal);
+  private string Format(DateTimeOffset value, string pattern)
+  {
+    try { return value.ToString(pattern, CultureInfo.GetCultureInfo(Locale == "en-XA" ? "en-US" : Locale)); }
+    catch (CultureNotFoundException) { return value.ToString(pattern, CultureInfo.InvariantCulture); }
+  }
+  private static DateTimeOffset WeekStart(DateTimeOffset value) => new(value.Date.AddDays(-(int)value.DayOfWeek), value.Offset);
+  private static bool SameDay(DateTimeOffset left, DateTimeOffset right) => left.Year == right.Year && left.Month == right.Month && left.Day == right.Day;
+  private static (DateTimeOffset Start, DateTimeOffset End) ViewRange(SchedulerViewType view, DateTimeOffset date) => view switch
+  {
+    SchedulerViewType.Day => (new DateTimeOffset(date.Date, date.Offset), new DateTimeOffset(date.Date, date.Offset).AddDays(1)),
+    SchedulerViewType.Week => (WeekStart(date), WeekStart(date).AddDays(7)),
+    SchedulerViewType.Month => (new DateTimeOffset(date.Year, date.Month, 1, 0, 0, 0, date.Offset).AddMonths(-1), new DateTimeOffset(date.Year, date.Month, 1, 0, 0, 0, date.Offset).AddMonths(2)),
+    _ => (new DateTimeOffset(date.Date, date.Offset), new DateTimeOffset(date.Date, date.Offset).AddMonths(6)),
+  };
+  private static string Percent(double value) => $"{value.ToString("0.###############", CultureInfo.InvariantCulture)}%";
+  private static string InputDate(DateTimeOffset value) => value.ToString("yyyy-MM-dd'T'HH:mm", CultureInfo.InvariantCulture);
+  private static DateTimeOffset ParseInputDate(string? value, DateTimeOffset fallback) => DateTimeOffset.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out var parsed) ? parsed : fallback;
+
+  public async ValueTask DisposeAsync()
+  {
+    clockCancellation?.Cancel();
+    if (clockTask is not null) try { await clockTask; } catch (OperationCanceledException) { }
+    clockCancellation?.Dispose();
+    if (mediaSubscription is not null) await mediaSubscription.DisposeAsync();
+    if (nowModule is not null)
+    {
+      try { await nowModule.InvokeVoidAsync("disconnect", root); await nowModule.DisposeAsync(); }
+      catch (Microsoft.JSInterop.JSDisconnectedException) { }
+    }
+    nowCallback?.Dispose();
+  }
+}

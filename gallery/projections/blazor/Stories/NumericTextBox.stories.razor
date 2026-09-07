@@ -1,0 +1,19 @@
+@attribute [Stories("Platform/Numeric Text Box")]
+<Stories TComponent="NumericTextBoxScenario">
+  @foreach (var scenario in Scenarios)
+  {
+    <Story Name="@scenario.Name"><Arguments><Arg For="_ => _.ScenarioId" Value="@scenario.Id" /></Arguments><Template><NumericTextBoxScenario @attributes="context.Args" /></Template></Story>
+  }
+  <Story Name="Content resilience"><Arguments><Arg For="_ => _.ScenarioId" Value='"numeric-text-box.content"'/></Arguments><Template><NumericTextBoxScenario @attributes="context.Args"/></Template></Story>
+  <Story Name="Error state"><Arguments><Arg For="_ => _.ScenarioId" Value='"numeric-text-box.error-state"'/></Arguments><Template><NumericTextBoxScenario @attributes="context.Args"/></Template></Story>
+</Stories>
+@code {
+  private static readonly (string Id, string Name)[] Scenarios =
+  [
+    ("numeric-text-box.defaults", "Defaults and value ownership"), ("numeric-text-box.editing-commit", "Editing and commit order"),
+    ("numeric-text-box.stepping-bounds", "Stepping and bounds"), ("numeric-text-box.formats", "Plain, currency, and percentage"),
+    ("numeric-text-box.controlled-replacement", "Controlled replacement"), ("numeric-text-box.disabled-readonly", "Disabled and readonly"),
+    ("numeric-text-box.appearance-reflow", "Appearance and narrow reflow"), ("numeric-text-box.locale-pseudo", "Pseudo locale"),
+    ("numeric-text-box.locale-ar", "Arabic direction with format override"), ("numeric-text-box.theme-light", "Light theme"), ("numeric-text-box.theme-dark", "Dark theme")
+  ];
+}

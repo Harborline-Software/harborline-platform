@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.kernel.schema-validation",
+  "interfaceRevision": 1,
+  "cases": [
+    {"id":"canonical-content-address","operation":"schema.register-equivalent","expected":"same-id"},
+    {"id":"register-get","operation":"schema.register-get","expected":"same-schema"},
+    {"id":"tag-filter-exact","operation":"schema.list","input":{"tag":"forms"},"expected":"exact-members"},
+    {"id":"valid-document","operation":"schema.validate","expected":{"isValid":true,"errors":[]}},
+    {"id":"required-field-error","operation":"schema.validate","expected":{"pointer":"/name","code":"required","params":{"field":"name"}}},
+    {"id":"minimum-field-error","operation":"schema.validate","expected":{"pointer":"/age","code":"minimum","params":{"min":"0"}}},
+    {"id":"invalid-json","operation":"schema.validate","expected":{"isValid":false,"code":"invalid-json"}},
+    {"id":"unknown-schema","operation":"schema.validate","expectedError":"schema-not-found"},
+    {"id":"malformed-schema","operation":"schema.register","expectedError":"invalid-schema"},
+    {"id":"foreign-dialect","operation":"schema.register","expectedError":"invalid-schema"},
+    {"id":"schema-byte-bound","operation":"schema.register","expectedError":"invalid-schema"},
+    {"id":"schema-depth-bound","operation":"schema.register","expectedError":"invalid-schema"},
+    {"id":"pattern-timeout","operation":"schema.validate","expected":{"isValid":false,"code":"pattern-timeout"}},
+    {"id":"cancellation","operation":"schema.register","expected":"operation-cancelled"}
+  ]
+}

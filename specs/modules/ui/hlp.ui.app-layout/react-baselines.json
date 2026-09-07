@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "projection": "react",
+  "moduleId": "hlp.ui.app-layout",
+  "scenarios": [
+    {
+      "scenarioId": "app-layout.structure-modes",
+      "sha256": "bfb647c850eaebd4a3d38289ac6f23e403eccd8a3a468e86f5e23c9039912943",
+      "bytes": 25159,
+      "artifact": "../baselines/sha256/bfb647c850eaebd4a3d38289ac6f23e403eccd8a3a468e86f5e23c9039912943.png"
+    },
+    {
+      "scenarioId": "app-layout.rail-breakpoints",
+      "sha256": "0162222e0a5153dce6dc86cdb1fa6e8b46acce8ad3c4ef022ae52761ca345b50",
+      "bytes": 28865,
+      "artifact": "../baselines/sha256/0162222e0a5153dce6dc86cdb1fa6e8b46acce8ad3c4ef022ae52761ca345b50.png"
+    },
+    {
+      "scenarioId": "app-layout.drawer-state",
+      "sha256": "8eb151b3e37cbd3271749086de6f08dd6473c7a6d7f237d42d71bce3935824fe",
+      "bytes": 22476,
+      "artifact": "../baselines/sha256/8eb151b3e37cbd3271749086de6f08dd6473c7a6d7f237d42d71bce3935824fe.png"
+    },
+    {
+      "scenarioId": "app-layout.dismissal-scroll",
+      "sha256": "38f2bcef17ca3f600214224335de3074886a8262c27b25a40683545848e5072f",
+      "bytes": 32141,
+      "artifact": "../baselines/sha256/38f2bcef17ca3f600214224335de3074886a8262c27b25a40683545848e5072f.png"
+    },
+    {
+      "scenarioId": "app-layout.performance",
+      "sha256": "1416c004fcb6d6857250593285c980ff4a1737a1107b460f638fc2c21487eed2",
+      "bytes": 50410,
+      "artifact": "../baselines/sha256/1416c004fcb6d6857250593285c980ff4a1737a1107b460f638fc2c21487eed2.png"
+    },
+    {
+      "scenarioId": "app-layout.locale-en",
+      "sha256": "b1ad86200f968ec8bc32abee46366f24e23e2da3a8bfcc04f2c3d7b448164c3f",
+      "bytes": 29823,
+      "artifact": "../baselines/sha256/b1ad86200f968ec8bc32abee46366f24e23e2da3a8bfcc04f2c3d7b448164c3f.png"
+    },
+    {
+      "scenarioId": "app-layout.locale-pseudo",
+      "sha256": "d4ce7a268b0391f6b3f3442ca8489a633419c1a0d2e605ce5467e3d30e99c71f",
+      "bytes": 32836,
+      "artifact": "../baselines/sha256/d4ce7a268b0391f6b3f3442ca8489a633419c1a0d2e605ce5467e3d30e99c71f.png"
+    },
+    {
+      "scenarioId": "app-layout.locale-ar",
+      "sha256": "c3ef99c1227da37bbd5a4bcb3d271be0e893d7bd8f8397e2ff5fb4c34e2587c1",
+      "bytes": 26875,
+      "artifact": "../baselines/sha256/c3ef99c1227da37bbd5a4bcb3d271be0e893d7bd8f8397e2ff5fb4c34e2587c1.png"
+    },
+    {
+      "scenarioId": "app-layout.theme-light",
+      "sha256": "29bb434baddd5ed18b65780e2db5751fccf784e79227a997a21bffa68d8a1f5b",
+      "bytes": 29700,
+      "artifact": "../baselines/sha256/29bb434baddd5ed18b65780e2db5751fccf784e79227a997a21bffa68d8a1f5b.png"
+    },
+    {
+      "scenarioId": "app-layout.theme-dark",
+      "sha256": "f6aca60465b974755c60d479e11705e19582532ea6c58af25beb48148a885558",
+      "bytes": 30600,
+      "artifact": "../baselines/sha256/f6aca60465b974755c60d479e11705e19582532ea6c58af25beb48148a885558.png"
+    }
+  ]
+}

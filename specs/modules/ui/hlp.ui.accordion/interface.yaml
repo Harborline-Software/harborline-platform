@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.accordion",
+  "interfaceRevision": 1,
+  "semantics": {"operation": "present an ordered single- or multiple-disclosure group", "observableOutput": "Equivalent expanded state, disabled behavior, region relationships, and enabled-header keyboard order in React and Blazor."},
+  "sourceSurface": {"repository": "shipyard", "commit": "a5036ff8b500e0d857d7e0a698408e7cf7f6cf31", "path": "packages/ui-react/src/components/layout/Accordion.tsx", "blob": "9f91ac08b0adf58b2bb729b3403ebde58c79d001", "capturedExports": ["Accordion", "AccordionItem"]},
+  "dependencies":["hlp.ui.cn"],"invariants": [
+    "Items are ordered and retain caller-owned heading and panel content; callers provide stable unique values.",
+    "Single mode exposes at most one expanded item; multiple mode permits independent expanded items.",
+    "A disabled item cannot be opened, closed, or focused by group keyboard navigation.",
+    "Uncontrolled initialization ignores unknown and disabled default values.",
+    "A noncollapsible single group opens the first enabled item when no valid default exists and refuses to close its expanded item.",
+    "Controlled state is never mutated locally and every effective toggle emits one ordered next-value snapshot.",
+    "ArrowDown, ArrowUp, Home, and End move focus through enabled headers in logical item order with wraparound.",
+    "Every header is a native button with expanded and controls relationships to one labelled region.",
+    "Heading and panel rendering are projection-owned slots; the contract does not serialize framework nodes.",
+    "An empty item collection renders one empty sentence and no headers: the caller's empty text when supplied, otherwise the projection default, never a bordered box with nothing in it."
+  ],
+  "errors": [],
+  "presentation": {"disposition": "required", "gallery": "gallery/scenarios/hlp.ui.accordion.json"},
+  "cases": [
+    {"id":"accordion.single.initial"},{"id":"accordion.single.noncollapsible"},{"id":"accordion.multiple.independent"},{"id":"accordion.controlled-change"},{"id":"accordion.disabled-noop"},{"id":"accordion.invalid-defaults"},{"id":"accordion.keyboard-next-previous"},{"id":"accordion.keyboard-boundaries"},{"id":"accordion.relationships"},{"id":"accordion.host-attributes"},{"id":"accordion.projection-equivalence"},{"id":"accordion.empty"},{"id":"accordion.blankEmptyText"}
+  ]
+}

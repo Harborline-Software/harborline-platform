@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.use-media-query",
+  "fixtureRevision": 1,
+  "cases": [
+    {"id": "media-query.complete-surface", "input": {}, "expected": {"exports": ["useMediaQuery", "MediaQueryProps", "MediaQuery"], "count": 3}},
+    {"id": "media-query.ssr-false", "input": {"browserAvailable": false, "query": "(min-width: 768px)"}, "expected": {"matches": false, "browserCalls": 0, "listeners": 0}},
+    {"id": "media-query.initial-match", "input": {"browserAvailable": true, "query": "(min-width: 768px)", "hostMatches": true}, "expected": {"matches": true, "listeners": 1}},
+    {"id": "media-query.initial-miss", "input": {"browserAvailable": true, "query": "(prefers-reduced-motion: reduce)", "hostMatches": false}, "expected": {"matches": false, "listeners": 1}},
+    {"id": "media-query.change", "input": {"initial": false, "events": [true, false, true]}, "expected": {"states": [false, true, false, true], "listeners": 1}},
+    {"id": "media-query.query-replacement", "input": {"queries": ["(min-width: 768px)", "(min-width: 1024px)"]}, "expected": {"oldRemovals": 1, "newListeners": 1, "activeListeners": 1}},
+    {"id": "media-query.dispose", "input": {"eventsAfterDispose": [true]}, "expected": {"removals": 1, "updatesAfterDispose": 0}},
+    {"id": "media-query.render-prop", "input": {"matches": true}, "expected": {"childValue": true, "wrapperElements": 0}},
+    {"id": "media-query.projection-equivalence", "input": {"sequence": [false, true, false]}, "expected": {"typescriptEqualsDotnet": true}}
+  ]
+}

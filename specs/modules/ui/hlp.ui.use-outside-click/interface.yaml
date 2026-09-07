@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.use-outside-click",
+  "interfaceRevision": 1,
+  "semantics": {"operation": "observe one document pointer event and invoke the latest callback only when its target is outside every supplied live boundary", "observableOutput": "Zero or one callback invocation per observed event while enabled."},
+  "sourceSurface": {"repository": "shipyard", "commit": "a5036ff8b500e0d857d7e0a698408e7cf7f6cf31", "path": "packages/ui-react/src/hooks/useOutsideClick.ts", "blob": "e7e706b88b2d33f9e06c4944ddb43f8aec3f4d58", "capturedExports": ["useOutsideClick"]},
+  "invariants": [
+    "The default observed event is mousedown; pointerdown is the only alternate event vocabulary.",
+    "Disabled observers attach no listener and invoke no callback.",
+    "A target contained by any supplied live boundary is inside; null boundaries do not make unrelated targets inside.",
+    "An outside event invokes the latest callback exactly once with the originating event.",
+    "Replacing only the callback does not re-subscribe the document listener.",
+    "Enabling, disabling, event-type replacement, boundary-membership replacement, unmount, and disposal leave at most one active listener and remove stale listeners.",
+    ".NET exposes an async-disposable boundary-observer abstraction for Blazor; DOM and JavaScript interop stay adapter-owned."
+  ],
+  "errors": [{"code": "unsupported-event-type", "when": "A caller requests an event outside the closed mousedown/pointerdown vocabulary."}],
+  "performance": {"operation": "O(r) containment checks for r boundaries and one active document listener"},
+  "presentation": {"disposition": "not-applicable", "rationale": "The behavior support module renders no standalone interface."},
+  "cases": [
+    {"id": "outside-click.default-event"}, {"id": "outside-click.inside"}, {"id": "outside-click.descendant"},
+    {"id": "outside-click.multi-boundary"}, {"id": "outside-click.outside"}, {"id": "outside-click.disabled"},
+    {"id": "outside-click.enable"}, {"id": "outside-click.pointerdown"}, {"id": "outside-click.latest-callback"},
+    {"id": "outside-click.dispose"}, {"id": "outside-click.projection-equivalence"}
+  ]
+}

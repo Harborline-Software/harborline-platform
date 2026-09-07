@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.popover",
+  "verdict": "approved",
+  "reviewer": "cic",
+  "recordedAt": "2026-08-27T05:31:59.608Z",
+  "reference": {
+    "revision": "af32aa291f963a9356601172d81a9941df24ca906194185d51973c4cffb4f546",
+    "source": "gallery/scenarios/hlp.ui.popover.json",
+    "pin": "e4c44eca8918b135e2dcd36060a8e8582d336f89",
+    "surface": {
+      "conformance/hlp.ui.popover/fixtures.yaml": "24e4e65501a819e80f3b57fc6cd7e3125aa682d5764033a10b312a8d9fbad824",
+      "conformance/hlp.ui.popover/quality-fixtures.yaml": "662a5b0f40f6cee57fea98508bc4330e40cf3f3970abd781a6d969edb6798384",
+      "gallery/projections/blazor/Stories/Popover.stories.razor": "5b6f227ecd99dd7e216decc17d3cba799def84a8452d81cafc5fada77b51f4ad",
+      "gallery/projections/blazor/Stories/PopoverScenario.razor": "5f4622f2ce729f14cf4bbe9be14be46a005d069bd9a61be1c38d68a286aa49cc",
+      "gallery/projections/react/src/Popover.stories.tsx": "39b40c2887c24ffe29e861e670c2aa958d2e95ffced0699eef4a990c29ebb5bd",
+      "gallery/scenarios/hlp.ui.popover.json": "8e2e82c8257cb5a1d8c0713aecb72193a9c54752499efe5e142b1fc1f7b4d88f",
+      "projections/blazor/ui/hlp.ui.popover/PopoverTypes.cs": "222edf2fef9783217b6ebf147c711665ff61e2d81c63c4ff5c9f767274c5863d",
+      "projections/blazor/ui/hlp.ui.popover/ShipyardPopover.razor": "047c8b2dbe3e7e9255384d40907e4f819f9734310c97529ebe57434752e19669",
+      "projections/blazor/ui/hlp.ui.popover/ShipyardPopoverAnchor.razor": "a20ea8b45ff7592d02b183677dbabaad47560c58a0ee06ac82815a9e4b0afabf",
+      "projections/blazor/ui/hlp.ui.popover/ShipyardPopoverClose.razor": "0ba987e8456bbc1b306edf1df835fa8132d2d3ccd1f62d66a4e4a0cfa9acac66",
+      "projections/blazor/ui/hlp.ui.popover/ShipyardPopoverContent.razor": "7546075cc7853c6297b058e1caf2507268d1b63d48fc9577ee292d9d9d00594b",
+      "projections/blazor/ui/hlp.ui.popover/ShipyardPopoverTrigger.razor": "ee1e2579e83a306004740e77dbb98cd366b5595b54f4aef14200c9c5e12ba613",
+      "projections/blazor/ui/hlp.ui.popover/wwwroot/popover.css": "bdc5ddc68a886c8397be7a9953ada4ee2f4b4d41b652e4687ce5d623e8f0719f",
+      "projections/blazor/ui/hlp.ui.popover/wwwroot/popover.js": "df3e6543c458e6f3920aba456d08274a71f60ac0cf64a419f2c928a3cead292d",
+      "projections/react/ui/hlp.ui.popover/src/Popover.tsx": "e6b6f0df49b66c30239fa3990bea41ec668e075e256e3b36d70f5a4d96b0a606",
+      "projections/react/ui/hlp.ui.popover/src/index.ts": "b3a0e3c4202cd5ae4e9e277e4ab1e8015fa04799c7cc44225ca3f9d54df9bc8f",
+      "projections/react/ui/hlp.ui.popover/src/style.css": "c99a6db59857f05be8c3d2a1412d7fbf5107c53782c647c48fefb874c5b4f62a",
+      "specs/modules/ui/hlp.ui.popover/scenarios.json": "8e2e82c8257cb5a1d8c0713aecb72193a9c54752499efe5e142b1fc1f7b4d88f",
+      "specs/modules/ui/hlp.ui.popover/style.css": "c99a6db59857f05be8c3d2a1412d7fbf5107c53782c647c48fefb874c5b4f62a"
+    }
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "schemaVersion":1,
+  "moduleId":"hlp.ui.chip",
+  "interfaceRevision":1,
+  "semantics":{"operation":"render a selectable or removable compact value and emit controlled or uncontrolled changes exactly once","observableOutput":"Accessible chip content, selection state, style axes, and bounded selection/removal events."},
+  "sourceSurface":{"repository":"shipyard","commit":"a5036ff8b500e0d857d7e0a698408e7cf7f6cf31","path":"packages/ui-react/src/components/feedback/Chip.tsx","blob":"f46fee649c328cf4c6f0f7be2ed29fdb462510b9","capturedExports":["Chip","ChipProps","ChipFillMode","ChipThemeColor","ChipSize"]},
+  "dependencies":["hlp.ui.cn","hlp.ui.default-strings","hlp.ui.locale-provider"],
+  "invariants":[
+    "Selected is controlled when supplied and otherwise initializes from defaultSelected.",
+    "Activating an enabled selectable chip requests the inverse selected state exactly once.",
+    "Disabled chips emit neither selection nor removal events.",
+    "A removable chip exposes a separately focusable, localized remove button without nested interactive content.",
+    "Enter, Space, Backspace, or Delete removal invokes exactly once without toggling selection and stops pointer propagation.",
+    "Noninteractive chips render as text; standalone selectable chips render as buttons with aria-pressed.",
+    "Text, decorative icon, and decorative avatar remain distinguishable without adding an independent accessible name.",
+    "Fill mode, theme color, size, and rounding are independent style axes with deterministic defaults.",
+    "RTL changes logical spacing only and does not reverse selection or removal semantics."
+  ],
+  "errors":[{"code":"accessible-content-required","when":"The chip has no text or accessible label."}],
+  "performance":{"operation":"O(1) rendering and state transition"},
+  "presentation":{"disposition":"visual"},
+  "cases":[
+    {"id":"chip.content"},{"id":"chip.defaults"},{"id":"chip.uncontrolled-selection"},{"id":"chip.controlled-selection"},{"id":"chip.disabled"},{"id":"chip.remove"},{"id":"chip.remove-no-toggle"},{"id":"chip.noninteractive"},{"id":"chip.icon-avatar"},{"id":"chip.style-axes"},{"id":"chip.rtl"},{"id":"chip.invalid-input"}
+  ]
+}

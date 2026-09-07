@@ -1,0 +1,113 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Feedback
+@inherits HarborlineComponentBase
+@implements IAsyncDisposable
+@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.JSInterop
+@using Harborline.UIAdapters.Blazor.Browser
+@using Harborline.UIAdapters.Blazor.Localization
+@inject IJSRuntime JavaScript
+
+@if (Open)
+{
+  <div @ref="portal" class="hl-dialog__portal" data-theme="@ThemeName">
+    <div class="hl-dialog__overlay" aria-hidden="true" @onpointerdown="OverlayDismissAsync"></div>
+    <section @ref="dialog" role="dialog" tabindex="-1" aria-modal="true" aria-labelledby="@titleId"
+             aria-describedby="@(!string.IsNullOrWhiteSpace(Description) ? descriptionId : null)" dir="@Direction"
+             class="@CombineClasses("hl-dialog__surface")" style="@CombineStyles()" @onpointerdown:stopPropagation="true">
+      <header class="hl-dialog__header">
+        <div class="hl-dialog__heading"><h2 id="@titleId" class="hl-dialog__title">@Title</h2>
+          @if (!string.IsNullOrWhiteSpace(Description)) { <p id="@descriptionId" class="hl-dialog__description">@Description</p> }
+        </div>
+        @if (CloseIcon)
+        {
+          <button type="button" class="hl-dialog__close" aria-label="@ResolvedCloseLabel" @onclick="RequestCloseAsync">
+            <svg aria-hidden="true" focusable="false" viewBox="0 0 16 16"><path d="M3 3l10 10M13 3L3 13"></path></svg>
+          </button>
+        }
+      </header>
+      <div @ref="body" class="hl-dialog__body" tabindex="0" style="@BodyMaskStyle" @onkeydown="BodyKeyDownAsync">@ChildContent</div>
+      @if (Footer is not null) { <footer class="hl-dialog__footer">@Footer</footer> }
+      <div aria-live="polite" aria-atomic="true" class="hl-dialog__status">@BodyStatus</div>
+    </section>
+  </div>
+}
+
+@code {
+  [CascadingParameter] private HarborlineLocaleContext? LocaleContext { get; set; }
+  [Parameter] public bool Open { get; set; }
+  [Parameter] public EventCallback<bool> OpenChanged { get; set; }
+  [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
+  [Parameter] public string? Description { get; set; }
+  [Parameter, EditorRequired] public RenderFragment? ChildContent { get; set; }
+  [Parameter] public RenderFragment? Footer { get; set; }
+  [Parameter] public bool CloseOnOverlayClick { get; set; } = true;
+  [Parameter] public bool CloseOnEscape { get; set; } = true;
+  [Parameter] public bool CloseIcon { get; set; } = true;
+  [Parameter] public string? CloseLabel { get; set; }
+  [Parameter] public string? Theme { get; set; }
+
+  private readonly string instanceId = $"hl-dialog-{Guid.NewGuid():N}";
+  private string titleId => $"{instanceId}-title";
+  private string descriptionId => $"{instanceId}-description";
+  private ElementReference portal, dialog, body;
+  private IJSObjectReference? module, connection;
+  private DotNetObjectReference<HarborlineDialog>? callback;
+  private ScrollAffordanceMeasurement bodyMeasurement = new(0, 0, 0);
+  private ScrollAffordanceState bodyState = new(false, true, true, null, null, new Dictionary<string, int>());
+  private string Direction => LocaleContext?.Direction ?? "ltr";
+  private string? ThemeName => Theme?.ToLowerInvariant();
+  private string ResolvedCloseLabel => LocaleContext?.ResolveString("common.close", instanceOverride: CloseLabel) ?? CloseLabel ?? "Close";
+  private string? BodyMaskStyle => bodyState.MaskImage is null ? null : $"mask-image:{bodyState.MaskImage};-webkit-mask-image:{bodyState.MaskImage}";
+  private string BodyStatus => bodyState.AnnouncementKey is null ? string.Empty : ResolveStatus(bodyState.AnnouncementKey, bodyState.AnnouncementArguments);
+
+  protected override void OnParametersSet()
+  {
+    if (ThemeName is not null && ThemeName != "light" && ThemeName != "dark") throw new InvalidOperationException("unsupported-dialog-theme");
+    if (Open && string.IsNullOrWhiteSpace(Title)) throw new InvalidOperationException("dialog-title-required");
+    if (Open && ChildContent is null) throw new InvalidOperationException("dialog-body-required");
+  }
+
+  protected override async Task OnAfterRenderAsync(bool firstRender)
+  {
+    if (Open && connection is null)
+    {
+      module ??= await JavaScript.InvokeAsync<IJSObjectReference>("import", "./_content/Harborline.UIAdapters.Blazor/dialog.js");
+      callback ??= DotNetObjectReference.Create(this);
+      connection = await module.InvokeAsync<IJSObjectReference>("connect", portal, dialog, body, callback, CloseOnEscape);
+    }
+    else if (!Open && connection is not null) await DisposeConnectionAsync();
+  }
+
+  private Task RequestCloseAsync() => OpenChanged.InvokeAsync(false);
+  private Task OverlayDismissAsync() => CloseOnOverlayClick ? RequestCloseAsync() : Task.CompletedTask;
+  [JSInvokable] public Task DismissFromJavaScriptAsync() => CloseOnEscape ? RequestCloseAsync() : Task.CompletedTask;
+  [JSInvokable] public Task OnBodyMeasuredAsync(ScrollAffordanceMeasurement next)
+  {
+    bodyMeasurement = next;
+    bodyState = ScrollAffordancePolicy.Resolve(next, new(ScrollAffordanceOrientation.Vertical));
+    return InvokeAsync(StateHasChanged);
+  }
+  private async Task BodyKeyDownAsync(KeyboardEventArgs args)
+  {
+    var result = ScrollAffordancePolicy.ResolveKey(args.Key, bodyMeasurement, ScrollAffordanceOrientation.Vertical);
+    if (result.Handled && connection is not null) await connection.InvokeVoidAsync("scrollBodyTo", result.RawTarget);
+  }
+  private string ResolveStatus(string key, IReadOnlyDictionary<string, int> values)
+  {
+    var variables = values.ToDictionary(pair => pair.Key, pair => (object?)pair.Value);
+    var fallback = key switch { "scrollAffordance.endReached" => "Scrollable region, end reached", "scrollAffordance.moreAvailable" => "Scrollable region, more content available, use arrow keys to scroll", _ => "Scrollable region, {percent}% scrolled, use arrow keys to scroll" };
+    return LocaleContext?.ResolveString(key, variables, fallback) ?? variables.Aggregate(fallback, (text, pair) => text.Replace($"{{{pair.Key}}}", pair.Value?.ToString(), StringComparison.Ordinal));
+  }
+  private async ValueTask DisposeConnectionAsync()
+  {
+    if (connection is null) return;
+    try { await connection.InvokeVoidAsync("dispose"); } catch (JSDisconnectedException) { }
+    await connection.DisposeAsync(); connection = null;
+  }
+  public async ValueTask DisposeAsync()
+  {
+    await DisposeConnectionAsync();
+    if (module is not null) { try { await module.DisposeAsync(); } catch (JSDisconnectedException) { } }
+    callback?.Dispose();
+  }
+}

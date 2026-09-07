@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.use-scroll-affordance",
+  "interfaceRevision": 1,
+  "semantics": {
+    "operation": "derive logical-edge overflow affordances, accessible position announcements, and bounded keyboard scroll targets",
+    "observableOutput": "Overflow, start/end state, logical fade mask, localized announcement arguments, and clamped keyboard target."
+  },
+  "sourceSurface": {
+    "repository": "shipyard",
+    "commit": "a5036ff8b500e0d857d7e0a698408e7cf7f6cf31",
+    "path": "packages/ui-react/src/hooks/useScrollAffordance.ts",
+    "blob": "3ed759cb5101332426a6fbd845ef274ff5fdf1b7",
+    "capturedExports": ["ScrollAffordanceOrientation", "UseScrollAffordanceOptions", "ScrollAffordanceState", "useScrollAffordance", "handleScrollAffordanceKeyDown"]
+  },
+  "dependencies": ["hlp.ui.default-strings", "hlp.ui.locale-provider"],
+  "invariants": [
+    "Overflow requires scroll size to exceed client size by more than one CSS pixel.",
+    "Start and end comparisons tolerate one CSS pixel of rounding drift.",
+    "Horizontal RTL negative scroll offsets normalize to logical start-to-end coordinates.",
+    "Fade masks appear only at logical edges hiding content and use the configured positive fade size.",
+    "Announcements are empty without overflow and otherwise describe an item range, start, end, or rounded percentage through caller-localized templates.",
+    "Arrow keys move eighty percent of the viewport with a forty-pixel minimum; Home and End clamp to exact extremes.",
+    "Vertical orientation maps the same semantics to top and bottom without an RTL branch.",
+    "DOM observation, debouncing, ResizeObserver ownership, and CSS application remain projection responsibilities."
+  ],
+  "errors": [],
+  "performance": {"operation": "O(1) geometry evaluation per scroll or resize event"},
+  "presentation": {"disposition": "not-applicable", "rationale": "The hook derives state and renders no standalone interface."},
+  "cases": [
+    {"id":"scroll-affordance.complete-surface"},
+    {"id":"scroll-affordance.no-overflow"},
+    {"id":"scroll-affordance.horizontal-start"},
+    {"id":"scroll-affordance.horizontal-middle"},
+    {"id":"scroll-affordance.horizontal-end"},
+    {"id":"scroll-affordance.rtl-logical-edges"},
+    {"id":"scroll-affordance.vertical"},
+    {"id":"scroll-affordance.item-range"},
+    {"id":"scroll-affordance.generic-announcements"},
+    {"id":"scroll-affordance.keyboard-forward-back"},
+    {"id":"scroll-affordance.keyboard-extremes"},
+    {"id":"scroll-affordance.keyboard-rtl"},
+    {"id":"scroll-affordance.ignored-key"},
+    {"id":"scroll-affordance.debounce-remeasure-dispose"},
+    {"id":"scroll-affordance.projection-equivalence"}
+  ]
+}

@@ -1,0 +1,306 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.context-menu",
+  "sourceFixture": "conformance/hlp.ui.context-menu/fixtures.yaml",
+  "qualityFixture": "conformance/hlp.ui.context-menu/quality-fixtures.yaml",
+  "galleryInterface": {
+    "probeAttribute": "data-gallery-probe",
+    "scenarioAttribute": "data-gallery-scenario",
+    "projectionTitles": {
+      "react": "Platform/Context Menu",
+      "blazor": "Platform/Context Menu"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "context-menu.closed",
+      "name": "Closed",
+      "surface": "closed",
+      "sourceCaseIds": [
+        "context-menu.closed"
+      ],
+      "content": {
+        "blurb": "The trigger remains available without rendering a latent menu.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<ContextMenu groups={groups} accessibleLabel={label} locale={locale} direction={direction} className=\"hl-gallery-menu-trigger\">\n  <div data-context-trigger tabIndex={0} className=\"hl-gallery-record\">\n    <strong>{pseudo ? '⟦ Îñšþëçţîøñ 42 ···· ⟧' : arabic ? 'الفحص 42' : 'Inspection 42'}</strong>\n    <span>{pseudo ? '⟦ Řîĝhţ-çļîçķ øř Þřëšš Šhîƒţ+F10 ······ ⟧' : arabic ? 'انقر بزر الماوس الأيمن أو اضغط Shift+F10' : 'Right-click or press Shift+F10'}</span>\n  </div>\n</ContextMenu>",
+            "blazor": "<HarborlineContextMenu Groups=\"Groups\" AccessibleLabel=\"@AccessibleLabel\" Locale=\"@Locale\" Direction=\"@Direction\" Class=\"hl-gallery-menu-trigger\">\n    <div data-context-trigger tabindex=\"0\" class=\"hl-gallery-record\">\n        <strong>@RecordTitle</strong>\n        <span>@Instruction</span>\n    </div>\n</HarborlineContextMenu>",
+            "rationale": "The closed descriptor vocabulary has no context-menu, menu-item, separator, disabled-item, danger-item, icon, or focusable custom-trigger control, so it cannot express the grouped menu and its trigger relationship without losing rendered structure and behavior."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "context-menu.pointer",
+      "name": "Pointer open",
+      "surface": "pointer",
+      "interaction": "pointer",
+      "sourceCaseIds": [
+        "context-menu.pointer-open",
+        "context-menu.pointer-selection",
+        "context-menu.dismissal",
+        "context-menu.viewport-position",
+        "context-menu.reopen-reset"
+      ],
+      "sourceQualityCaseIds": [
+        "context-menu.quality.dismissal"
+      ],
+      "content": {
+        "blurb": "Pointer placement is clamped to the viewport and dismisses without selection.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "inherits": "context-menu.closed"
+      }
+    },
+    {
+      "id": "context-menu.keyboard",
+      "name": "Keyboard and focus",
+      "surface": "keyboard-focus",
+      "interaction": "keyboard",
+      "sourceCaseIds": [
+        "context-menu.keyboard-open",
+        "context-menu.focus-entry",
+        "context-menu.keyboard-navigation",
+        "context-menu.keyboard-activation",
+        "context-menu.focus-return"
+      ],
+      "sourceQualityCaseIds": [
+        "context-menu.quality.keyboard",
+        "context-menu.quality.focus"
+      ],
+      "content": {
+        "blurb": "Shift+F10 enters the first enabled item and navigation skips disabled actions.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "inherits": "context-menu.closed"
+      }
+    },
+    {
+      "id": "context-menu.groups",
+      "name": "Groups and states",
+      "surface": "groups-states",
+      "interaction": "pointer",
+      "sourceCaseIds": [
+        "context-menu.groups",
+        "context-menu.disabled-selection",
+        "context-menu.danger-icon"
+      ],
+      "sourceQualityCaseIds": [
+        "context-menu.quality.menu-pattern",
+        "context-menu.quality.disabled",
+        "context-menu.quality.forced-colors"
+      ],
+      "content": {
+        "blurb": "Separators, disabled actions, icons, and destructive intent retain native semantics.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "inherits": "context-menu.closed"
+      }
+    },
+    {
+      "id": "context-menu.locale-en",
+      "name": "English locale",
+      "surface": "locale-en",
+      "interaction": "pointer",
+      "sourceCaseIds": [
+        "context-menu.accessible-context"
+      ],
+      "sourceQualityCaseIds": [
+        "context-menu.quality.host-label",
+        "context-menu.quality.locale-direction"
+      ],
+      "content": {
+        "blurb": "The host supplies the accessible name and language direction.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "inherits": "context-menu.closed"
+      }
+    },
+    {
+      "id": "context-menu.locale-pseudo",
+      "name": "Pseudo locale",
+      "surface": "locale-pseudo",
+      "interaction": "pointer",
+      "sourceCaseIds": [
+        "context-menu.accessible-context"
+      ],
+      "sourceQualityCaseIds": [
+        "context-menu.quality.locale-direction",
+        "context-menu.quality.pseudo-expansion",
+        "context-menu.quality.formatting-applicability"
+      ],
+      "content": {
+        "blurb": "Expanded labels expose clipping and fixed-width assumptions.",
+        "environment": {
+          "locale": "en-XA",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<ContextMenu groups={groups} accessibleLabel={label} locale={locale} direction={direction} className=\"hl-gallery-menu-trigger\">\n  <div data-context-trigger tabIndex={0} className=\"hl-gallery-record\">\n    <strong>{pseudo ? '⟦ Îñšþëçţîøñ 42 ···· ⟧' : arabic ? 'الفحص 42' : 'Inspection 42'}</strong>\n    <span>{pseudo ? '⟦ Řîĝhţ-çļîçķ øř Þřëšš Šhîƒţ+F10 ······ ⟧' : arabic ? 'انقر بزر الماوس الأيمن أو اضغط Shift+F10' : 'Right-click or press Shift+F10'}</span>\n  </div>\n</ContextMenu>",
+            "blazor": "<HarborlineContextMenu Groups=\"Groups\" AccessibleLabel=\"@AccessibleLabel\" Locale=\"@Locale\" Direction=\"@Direction\" Class=\"hl-gallery-menu-trigger\">\n    <div data-context-trigger tabindex=\"0\" class=\"hl-gallery-record\">\n        <strong>@RecordTitle</strong>\n        <span>@Instruction</span>\n    </div>\n</HarborlineContextMenu>",
+            "rationale": "The closed descriptor vocabulary has no context-menu, menu-item, separator, disabled-item, danger-item, icon, or focusable custom-trigger control, so it cannot express the pseudo-localized grouped menu and its trigger relationship without losing rendered structure and behavior."
+          }
+        ],
+        "footer": [],
+        "inherits": "context-menu.closed"
+      }
+    },
+    {
+      "id": "context-menu.locale-ar",
+      "name": "Arabic locale",
+      "surface": "locale-ar",
+      "interaction": "pointer",
+      "sourceCaseIds": [
+        "context-menu.accessible-context",
+        "context-menu.viewport-position"
+      ],
+      "sourceQualityCaseIds": [
+        "context-menu.quality.locale-direction",
+        "context-menu.quality.rtl-position"
+      ],
+      "content": {
+        "blurb": "RTL labels and logical alignment preserve action meaning.",
+        "environment": {
+          "locale": "ar-SA",
+          "direction": "rtl",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<ContextMenu groups={groups} accessibleLabel={label} locale={locale} direction={direction} className=\"hl-gallery-menu-trigger\">\n  <div data-context-trigger tabIndex={0} className=\"hl-gallery-record\">\n    <strong>{pseudo ? '⟦ Îñšþëçţîøñ 42 ···· ⟧' : arabic ? 'الفحص 42' : 'Inspection 42'}</strong>\n    <span>{pseudo ? '⟦ Řîĝhţ-çļîçķ øř Þřëšš Šhîƒţ+F10 ······ ⟧' : arabic ? 'انقر بزر الماوس الأيمن أو اضغط Shift+F10' : 'Right-click or press Shift+F10'}</span>\n  </div>\n</ContextMenu>",
+            "blazor": "<HarborlineContextMenu Groups=\"Groups\" AccessibleLabel=\"@AccessibleLabel\" Locale=\"@Locale\" Direction=\"@Direction\" Class=\"hl-gallery-menu-trigger\">\n    <div data-context-trigger tabindex=\"0\" class=\"hl-gallery-record\">\n        <strong>@RecordTitle</strong>\n        <span>@Instruction</span>\n    </div>\n</HarborlineContextMenu>",
+            "rationale": "The closed descriptor vocabulary has no context-menu, menu-item, separator, disabled-item, danger-item, icon, or focusable custom-trigger control, so it cannot express the Arabic RTL grouped menu and its trigger relationship without losing rendered structure and behavior."
+          }
+        ],
+        "footer": [],
+        "inherits": "context-menu.closed"
+      }
+    },
+    {
+      "id": "context-menu.theme-light",
+      "name": "Light theme",
+      "surface": "theme-light",
+      "interaction": "pointer",
+      "sourceCaseIds": [
+        "context-menu.groups",
+        "context-menu.danger-icon"
+      ],
+      "sourceQualityCaseIds": [
+        "context-menu.quality.theme-light",
+        "context-menu.quality.theme-states",
+        "context-menu.quality.theme-tokens",
+        "context-menu.quality.theme-runtime-switch",
+        "context-menu.quality.theme-contrast",
+        "context-menu.quality.reduced-motion",
+        "context-menu.quality.visual-parity",
+        "context-menu.quality.reflow-200"
+      ],
+      "content": {
+        "blurb": "Default, active, disabled, danger, separator, focus, and motion states.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "inherits": "context-menu.closed"
+      }
+    },
+    {
+      "id": "context-menu.theme-dark",
+      "name": "Dark theme",
+      "surface": "theme-dark",
+      "interaction": "pointer",
+      "sourceCaseIds": [
+        "context-menu.groups",
+        "context-menu.danger-icon"
+      ],
+      "sourceQualityCaseIds": [
+        "context-menu.quality.theme-dark",
+        "context-menu.quality.theme-states",
+        "context-menu.quality.theme-tokens",
+        "context-menu.quality.theme-runtime-switch",
+        "context-menu.quality.theme-contrast",
+        "context-menu.quality.reduced-motion",
+        "context-menu.quality.visual-parity",
+        "context-menu.quality.reflow-200"
+      ],
+      "content": {
+        "blurb": "The same state vocabulary on the Harborline dark surface.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "dark",
+          "catalog": {}
+        },
+        "inherits": "context-menu.closed"
+      }
+    },
+    {
+      "id": "context-menu.content",
+      "name": "Content resilience",
+      "surface": "long-content",
+      "sourceCaseIds": [
+        "context-menu.groups",
+        "context-menu.accessible-context"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "Hostile context-menu content carries a long label, a grouped large number, escaped angle brackets and an ampersand, and a name with diacritics and an em dash.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "const groups = [{items:[{id:'long',label:'Awaiting third-party structural certification review',onSelect(){}},{id:'number',label:'1,284,905',onSelect(){}},{id:'hostile',label:'Bay 4 <grid C-7> & 8',onSelect(){}},{id:'name',label:'Ordnance Survey — Niño Ångström',onSelect(){}}]}];\n<ContextMenu groups={groups} accessibleLabel=\"Content resilience actions\" locale=\"en-US\" direction=\"ltr\" className=\"hl-gallery-menu-trigger\"><div data-context-trigger tabIndex={0} className=\"hl-gallery-record\"><strong>{'Awaiting third-party structural certification review'}</strong><span>{'1,284,905'}</span><span>{'Bay 4 <grid C-7> & 8'}</span><span>{'Ordnance Survey — Niño Ångström'}</span></div></ContextMenu>",
+            "blazor": "<HarborlineContextMenu Groups=\"ContentGroups\" AccessibleLabel=\"Content resilience actions\" Locale=\"en-US\" Direction=\"ltr\" Class=\"hl-gallery-menu-trigger\"><div data-context-trigger tabindex=\"0\" class=\"hl-gallery-record\"><strong>@(\"Awaiting third-party structural certification review\")</strong><span>@(\"1,284,905\")</span><span>@(\"Bay 4 <grid C-7> & 8\")</span><span>@(\"Ordnance Survey — Niño Ångström\")</span></div></HarborlineContextMenu>\n@code { private IReadOnlyList<ContextMenuGroup> ContentGroups => [new ContextMenuGroup([new ContextMenuItem(\"long\", \"Awaiting third-party structural certification review\"), new ContextMenuItem(\"number\", \"1,284,905\"), new ContextMenuItem(\"hostile\", \"Bay 4 <grid C-7> & 8\"), new ContextMenuItem(\"name\", \"Ordnance Survey — Niño Ångström\")])]; }",
+            "rationale": "The closed descriptor vocabulary has no context-menu control and cannot express a grouped menu plus a focusable trigger carrying hostile-but-valid text."
+          }
+        ],
+        "footer": []
+      }
+    }
+  ]
+}

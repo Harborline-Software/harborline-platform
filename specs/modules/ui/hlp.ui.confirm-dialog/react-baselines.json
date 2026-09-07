@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "projection": "react",
+  "moduleId": "hlp.ui.confirm-dialog",
+  "scenarios": [
+    {
+      "scenarioId": "confirm-dialog.action-pair",
+      "sha256": "1462a923f9a9c2ea91d912c88fd3211ff506c270f71026fd103cdb60a9bff93b",
+      "bytes": 26056,
+      "artifact": "../baselines/sha256/1462a923f9a9c2ea91d912c88fd3211ff506c270f71026fd103cdb60a9bff93b.png"
+    },
+    {
+      "scenarioId": "confirm-dialog.labels",
+      "sha256": "8164c7991da959883fb1dec94050e9f0a2a2cd0085fb5807f6bbc42e5b2a53fc",
+      "bytes": 25387,
+      "artifact": "../baselines/sha256/8164c7991da959883fb1dec94050e9f0a2a2cd0085fb5807f6bbc42e5b2a53fc.png"
+    },
+    {
+      "scenarioId": "confirm-dialog.destructive",
+      "sha256": "4fb7b3b3d446865f293f7cc6ccd3286720340b8b272621a59e41338aea96bb28",
+      "bytes": 30177,
+      "artifact": "../baselines/sha256/4fb7b3b3d446865f293f7cc6ccd3286720340b8b272621a59e41338aea96bb28.png"
+    },
+    {
+      "scenarioId": "confirm-dialog.reflow-rtl",
+      "sha256": "f6aca874190078ecfc517dac1ce9e664d52f2065004ce813d30a71cffec93330",
+      "bytes": 18929,
+      "artifact": "../baselines/sha256/f6aca874190078ecfc517dac1ce9e664d52f2065004ce813d30a71cffec93330.png"
+    },
+    {
+      "scenarioId": "confirm-dialog.dismissal",
+      "sha256": "35aba285c8e6c77e592cfd355d0f6d826d349bff0df50f6973f99586bc68483d",
+      "bytes": 26531,
+      "artifact": "../baselines/sha256/35aba285c8e6c77e592cfd355d0f6d826d349bff0df50f6973f99586bc68483d.png"
+    }
+  ]
+}

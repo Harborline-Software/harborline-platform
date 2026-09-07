@@ -1,0 +1,15 @@
+{"schemaVersion":1,"moduleId":"hlp.ui.activity-log","fixtureRevision":1,"cases":[
+  {"id":"activity-log.empty","input":{"entries":[]},"expected":{"regionPresent":true,"visibleEntries":0,"showMore":false}},
+  {"id":"activity-log.list","input":{"layout":"list","entries":2},"expected":{"orderedList":true,"listItems":2,"table":false}},
+  {"id":"activity-log.table","input":{"layout":"table","entries":2},"expected":{"table":true,"columnHeaders":["Actor","Action","Timestamp"],"rows":2}},
+  {"id":"activity-log.responsive","input":{"layout":null,"mobileStates":[true,false]},"expected":{"layouts":["list","table"]}},
+  {"id":"activity-log.explicit-layout","input":{"layout":"table","mobile":true},"expected":{"layout":"table"}},
+  {"id":"activity-log.label","input":{"label":"Case activity"},"expected":{"accessibleName":"Case activity","visibleHeading":"Case activity"}},
+  {"id":"activity-log.detail-tone","input":{"tone":"positive","detail":"Approved after review"},"expected":{"semanticTone":"positive","detailVisible":true,"meaningAvailableAsText":true}},
+  {"id":"activity-log.timestamp","input":{"timestamp":"1 min ago","machineTimestamp":"2026-08-10T12:00:00Z"},"expected":{"displayText":"1 min ago","dateTime":"2026-08-10T12:00:00Z","formattedByModule":false}},
+  {"id":"activity-log.limit","input":{"entries":5,"maxVisible":2,"hasCallback":true},"expected":{"visibleEntries":2,"showMore":true}},
+  {"id":"activity-log.show-more","input":{"entries":5,"maxVisible":2,"activations":1},"expected":{"callbackCount":1,"entriesMutated":false}},
+  {"id":"activity-log.no-show-more","input":{"entries":2,"maxVisible":0},"expected":{"visibleEntries":2,"showMore":false}},
+  {"id":"activity-log.invalid-input","input":{"duplicateIds":["a","a"],"label":" "},"expected":{"errors":["duplicate-entry-id","accessible-name-required"]}},
+  {"id":"activity-log.table-classes","input":{"layout":"table","entries":2},"expected":{"tableScrollClasses":["hl-activity-log__table-scroll"],"actionHeaderClasses":["hl-activity-log__header","hl-activity-log__header--action"],"markerClasses":["hl-activity-log__marker"]}}
+]}

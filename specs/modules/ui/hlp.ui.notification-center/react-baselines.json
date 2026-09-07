@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "projection": "react",
+  "moduleId": "hlp.ui.notification-center",
+  "scenarios": [
+    {
+      "scenarioId": "notification-center.empty-badges",
+      "sha256": "8cf8126c4a96a09cfc639301f63666f884778cc61a5096076c1aca612a5f69d4",
+      "bytes": 8911,
+      "artifact": "../baselines/sha256/8cf8126c4a96a09cfc639301f63666f884778cc61a5096076c1aca612a5f69d4.png"
+    },
+    {
+      "scenarioId": "notification-center.groups",
+      "sha256": "eae991ea9471cc8cf78f7559b99476bfe9be7eaddaeb32de23723b00e3f9fe69",
+      "bytes": 14163,
+      "artifact": "../baselines/sha256/eae991ea9471cc8cf78f7559b99476bfe9be7eaddaeb32de23723b00e3f9fe69.png"
+    },
+    {
+      "scenarioId": "notification-center.actions",
+      "sha256": "59982237e47aa820eb1b8136034aff124c11bb61d078ac46718e7ac58f7f128c",
+      "bytes": 13996,
+      "artifact": "../baselines/sha256/59982237e47aa820eb1b8136034aff124c11bb61d078ac46718e7ac58f7f128c.png"
+    },
+    {
+      "scenarioId": "notification-center.keyboard-dismissal",
+      "sha256": "cd8ca72807a978c6fff7a8b6bcc3e79d3b678f4f24b3642ca54b9998c2457b96",
+      "bytes": 15176,
+      "artifact": "../baselines/sha256/cd8ca72807a978c6fff7a8b6bcc3e79d3b678f4f24b3642ca54b9998c2457b96.png"
+    },
+    {
+      "scenarioId": "notification-center.locale-en",
+      "sha256": "82b12c06953c91d46efbd892323feef4eef41c424281acea9f61aaf04a88e408",
+      "bytes": 6935,
+      "artifact": "../baselines/sha256/82b12c06953c91d46efbd892323feef4eef41c424281acea9f61aaf04a88e408.png"
+    },
+    {
+      "scenarioId": "notification-center.locale-pseudo",
+      "sha256": "ddb14a8c39a56a730de35424b44acb77a51155d324c4706861c8ed50bdd40460",
+      "bytes": 6463,
+      "artifact": "../baselines/sha256/ddb14a8c39a56a730de35424b44acb77a51155d324c4706861c8ed50bdd40460.png"
+    },
+    {
+      "scenarioId": "notification-center.locale-ar",
+      "sha256": "783f35116046f624ac00a4fc7f0dea2e22170d4b18c20fb1850e45d8945f9837",
+      "bytes": 6416,
+      "artifact": "../baselines/sha256/783f35116046f624ac00a4fc7f0dea2e22170d4b18c20fb1850e45d8945f9837.png"
+    },
+    {
+      "scenarioId": "notification-center.theme-light",
+      "sha256": "16afc7fe1cbb0f513da8da2c1c79c2554f7fb089ee86e04b2b83056a647468a8",
+      "bytes": 6746,
+      "artifact": "../baselines/sha256/16afc7fe1cbb0f513da8da2c1c79c2554f7fb089ee86e04b2b83056a647468a8.png"
+    },
+    {
+      "scenarioId": "notification-center.theme-dark",
+      "sha256": "6ceecdab41552fbf4b4a875c4eff7a530c087775291df84cacb822692318fec7",
+      "bytes": 5858,
+      "artifact": "../baselines/sha256/6ceecdab41552fbf4b4a875c4eff7a530c087775291df84cacb822692318fec7.png"
+    }
+  ]
+}

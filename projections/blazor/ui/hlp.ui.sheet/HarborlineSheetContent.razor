@@ -1,0 +1,84 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Layout
+@inherits HarborlineComponentBase
+@implements IAsyncDisposable
+@using Microsoft.JSInterop
+@inject IJSRuntime JavaScript
+
+@if (Context?.Open == true)
+{
+    <div @ref="portal" class="hl-sheet__portal" data-hl-modal="@(Context.Modal ? "true" : "false")">
+    @if (Context.Modal)
+    {
+        <div class="hl-sheet__overlay" data-hl-sheet-overlay data-testid="sheet-overlay" aria-hidden="true" @onpointerdown="DismissAsync"></div>
+    }
+    <div @ref="content" id="@Context.ContentId" role="dialog" tabindex="-1"
+         aria-modal="@(Context.Modal ? "true" : "false")" aria-labelledby="@Context.TitleId"
+         aria-describedby="@(HasDescription ? Context.DescriptionId : null)" data-side="@SideName"
+         class="@CombineClasses("hl-sheet__content", $"hl-sheet__content--{SideName}")"
+        style="@CombineStyles()" @onclick:stopPropagation="true" @attributes="AdditionalAttributes">
+        @ChildContent
+        <button type="button" class="hl-sheet__built-in-close" aria-label="@CloseLabel" @onclick="DismissAsync">
+            <svg aria-hidden="true" focusable="false" viewBox="0 0 16 16"><path d="M3 3l10 10M13 3L3 13"></path></svg>
+        </button>
+    </div>
+    </div>
+}
+
+@code {
+    [CascadingParameter] public SheetContext? Context { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public SheetSide Side { get; set; } = SheetSide.Right;
+    [Parameter, EditorRequired] public string CloseLabel { get; set; } = string.Empty;
+    [Parameter] public bool HasDescription { get; set; }
+    private ElementReference content;
+    private ElementReference portal;
+    private IJSObjectReference? module;
+    private IJSObjectReference? connection;
+    private DotNetObjectReference<HarborlineSheetContent>? callback;
+    // The non-element arguments the live connection was actually handed. `Open` is not a proxy for
+    // them: a modal flip while the sheet is open does not move `Open` at all, and sheet.js decides
+    // overlay dismissal and focus trapping from `modal` and restores focus to `trigger`, both
+    // captured once (the module exports no update()). So a change has to be a reconnect.
+    private (string Trigger, bool Modal) connectedArgs;
+    private string SideName => Side.ToString().ToLowerInvariant();
+
+    protected override void OnParametersSet()
+    {
+        if (Context?.Open == true && string.IsNullOrWhiteSpace(CloseLabel))
+            throw new InvalidOperationException("close-label-required");
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (Context?.Open != true)
+        {
+            await DisposeConnectionAsync();
+        }
+        else if (connection is null || (Context.TriggerElement.Id, Context.Modal) != connectedArgs)
+        {
+            await DisposeConnectionAsync();
+            module ??= await JavaScript.InvokeAsync<IJSObjectReference>("import", "./_content/Harborline.UIAdapters.Blazor/sheet.js");
+            callback ??= DotNetObjectReference.Create(this);
+            connection = await module.InvokeAsync<IJSObjectReference>("connect", portal, content, Context.TriggerElement, Context.Modal, callback);
+            connectedArgs = (Context.TriggerElement.Id, Context.Modal);
+        }
+    }
+
+    private Task DismissAsync() => Context?.SetOpenAsync(false) ?? Task.CompletedTask;
+    [JSInvokable] public Task DismissFromJavaScriptAsync() => DismissAsync();
+
+    private async ValueTask DisposeConnectionAsync()
+    {
+        if (connection is null) return;
+        try { await connection.InvokeVoidAsync("dispose"); } catch (JSDisconnectedException) { }
+        await connection.DisposeAsync();
+        connection = null;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await DisposeConnectionAsync();
+        if (module is not null) await module.DisposeAsync();
+        callback?.Dispose();
+    }
+}

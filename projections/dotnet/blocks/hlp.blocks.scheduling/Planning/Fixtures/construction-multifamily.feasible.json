@@ -1,0 +1,52 @@
+{
+  "schema": "harborline.scheduling.problem-draft/v0",
+  "id": "construction-multifamily.feasible",
+  "version": "0.1.0",
+  "title": "Synthetic multifamily rolling phase schedule",
+  "timezone": "UTC",
+  "metadata": { "synthetic": true, "fixtureKind": "feasible", "safety": "Architecture-only synthetic project data." },
+  "anchors": [
+    { "id": "anchor-start", "label": "Synthetic phase start", "kind": "date", "value": "2026-11-02" }
+  ],
+  "windows": [
+    { "id": "horizon", "label": "Rolling turnover horizon", "start": "2026-11-02", "end": "2027-04-30" },
+    { "id": "stack-window", "label": "Building stack window", "startOffset": { "anchorId": "anchor-start", "offset": { "amount": 0, "unit": "day" } }, "endOffset": { "anchorId": "anchor-start", "offset": { "amount": 120, "unit": "day" } } }
+  ],
+  "locations": [
+    { "id": "building-a", "label": "Synthetic building A", "tags": ["building"] },
+    { "id": "floor-1", "label": "Synthetic floor 1", "parentId": "building-a", "tags": ["floor"] },
+    { "id": "floor-2", "label": "Synthetic floor 2", "parentId": "building-a", "tags": ["floor"] }
+  ],
+  "phases": [
+    { "id": "phase-stack-1", "label": "Stack 1", "sequence": 1, "locationRefs": ["floor-1"] },
+    { "id": "phase-stack-2", "label": "Stack 2", "sequence": 2, "locationRefs": ["floor-2"], "predecessorPhaseRefs": ["phase-stack-1"] }
+  ],
+  "resources": [
+    { "id": "resource-framing", "label": "Synthetic framing crew", "kind": "pool", "capabilities": [{ "capabilityRef": "cap.framing", "count": 1 }], "availabilityWindowRefs": ["horizon"], "capacity": { "quantity": 8, "unit": "crew-day", "cumulative": true, "windowRefs": ["horizon"] }, "locationRefs": ["floor-1", "floor-2"] },
+    { "id": "resource-crane", "label": "Synthetic shared equipment", "kind": "asset", "capabilities": [{ "capabilityRef": "cap.shared-equipment", "count": 1 }], "availabilityWindowRefs": ["horizon"], "locationRefs": ["building-a"] },
+    { "id": "authority-turnover", "label": "Synthetic turnover authority", "kind": "party", "capabilities": [{ "capabilityRef": "cap.turnover-approval", "count": 1 }], "availabilityWindowRefs": ["horizon"] }
+  ],
+  "capacityPools": [
+    { "id": "pool-crew-flow", "label": "Crew flow capacity", "amount": 8, "unit": "crew-day", "cumulative": true, "windowRefs": ["horizon"], "resourceRefs": ["resource-framing"] },
+    { "id": "pool-shared-equipment", "label": "Shared equipment capacity", "amount": 4, "unit": "equipment-day", "cumulative": true, "windowRefs": ["horizon"], "resourceRefs": ["resource-crane"] }
+  ],
+  "policies": [
+    { "id": "policy-turnover", "label": "Turnover approval policy", "kind": "approval", "ref": "policy://synthetic/turnover" },
+    { "id": "policy-commit", "label": "Proposal-only commit policy", "kind": "commit", "ref": "policy://synthetic/proposal-only" }
+  ],
+  "constraints": [
+    { "id": "constraint-stack-window", "label": "Stack window", "severity": "hard", "kind": "window", "ruleRef": "rule://synthetic/stack-window", "appliesToRefs": ["demand:unit-stack"] },
+    { "id": "constraint-flow", "label": "Rolling crew flow", "severity": "hard", "kind": "precedence", "ruleRef": "rule://synthetic/flow", "appliesToRefs": ["demand:turnover"] },
+    { "id": "constraint-leveling", "label": "Prefer level crew use", "severity": "soft", "kind": "leveling", "calculationRef": "calc://synthetic/leveling", "appliesToRefs": ["demand:unit-stack"] }
+  ],
+  "approvals": [
+    { "id": "approval-turnover", "label": "Turnover approval", "requirementKind": "turnover", "scope": "phase", "subjectRefs": ["phase:phase-stack-2"], "authorityRef": "resource:authority-turnover", "policyRef": "policy-turnover", "requiredCapabilityRefs": ["cap.turnover-approval"], "satisfierRefs": ["resource:authority-turnover"] }
+  ],
+  "demands": [
+    { "id": "unit-stack", "label": "Synthetic repeated unit stack", "duration": { "amount": 3, "unit": "day" }, "windowRefs": ["stack-window"], "phaseRef": "phase-stack-1", "locationRefs": ["floor-1", "floor-2"], "requiredCapabilities": [{ "capabilityRef": "cap.framing", "count": 1 }, { "capabilityRef": "cap.shared-equipment", "count": 1 }], "capacityUsage": [{ "capacityPoolId": "pool-crew-flow", "amount": 2, "unit": "crew-day", "mode": "consume" }, { "capacityPoolId": "pool-shared-equipment", "amount": 2, "unit": "equipment-day", "mode": "occupy" }], "repetition": { "kind": "per-location", "locationRefs": ["floor-1", "floor-2"], "every": { "amount": 7, "unit": "day" } }, "constraintRefs": ["constraint-stack-window"], "softConstraintRefs": ["constraint-leveling"], "approvalRequirementRefs": ["approval-turnover"] },
+    { "id": "turnover", "label": "Synthetic rolling turnover", "duration": { "amount": 2, "unit": "day" }, "windowRefs": ["stack-window"], "phaseRef": "phase-stack-2", "locationRefs": ["floor-2"], "requiredCapabilities": [{ "capabilityRef": "cap.framing", "count": 1 }], "predecessors": [{ "demandId": "unit-stack", "relation": "finish-to-start", "minGap": { "amount": 2, "unit": "day" }, "constraintRef": "constraint-flow" }], "constraintRefs": ["constraint-stack-window", "constraint-flow"], "approvalRequirementRefs": ["approval-turnover"] }
+  ],
+  "strategy": { "alias": "heuristic", "parameters": { "candidateLimit": 72 } },
+  "commitment": { "mode": "proposal-only", "horizonWindowRef": "horizon", "capacityPoolRefs": ["pool-crew-flow", "pool-shared-equipment"], "policyRefs": ["policy-commit"] },
+  "resultMetadata": { "expectedOutcome": "feasible", "deterministicSeed": "synthetic-multifamily-ok", "explanationRefs": ["demand:unit-stack", "capacityPool:pool-shared-equipment", "constraint:constraint-flow"] }
+}

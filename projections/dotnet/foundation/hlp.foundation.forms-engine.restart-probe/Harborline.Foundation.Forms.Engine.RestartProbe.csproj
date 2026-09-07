@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <PackageId>Harborline.Foundation.Forms.Engine.RestartProbe</PackageId>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <AssemblyName>Harborline.Foundation.Forms.Engine.RestartProbe</AssemblyName>
+    <RootNamespace>Harborline.Foundation.Forms.Engine.RestartProbe</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../hlp.foundation.forms-engine/Harborline.Foundation.Forms.Engine.csproj" />
+  </ItemGroup>
+</Project>

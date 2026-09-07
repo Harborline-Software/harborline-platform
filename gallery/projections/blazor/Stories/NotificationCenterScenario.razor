@@ -1,0 +1,75 @@
+<section class="hl-gallery-scene" data-gallery-probe data-gallery-scenario="@ScenarioId" data-theme="@Theme" dir="@Direction">
+  <header class="hl-gallery-heading">
+    <h2>@Copy.Title</h2>
+    <p>@Copy.Description</p>
+  </header>
+  <div class="hl-gallery-stage hl-gallery-feedback-grid">
+    <HarborlineLocaleProvider Locale="@Locale">
+      @if (ScenarioId == "notification-center.empty-badges")
+      {
+        <NotificationFixture ScenarioId="@ScenarioId" Items="@EmptyItems" />
+        <NotificationFixture ScenarioId="@ScenarioId" Items="@Items" BadgeMode="NotificationBadgeMode.Unread" />
+        <NotificationFixture ScenarioId="@ScenarioId" Items="@Items" BadgeMode="NotificationBadgeMode.Decisions" />
+      }
+      else if (ScenarioId == "notification-center.content")
+      {
+        <NotificationFixture ScenarioId="@ScenarioId" Items="@ContentItems" BadgeMode="NotificationBadgeMode.Unread" />
+      }
+      else
+      {
+        <NotificationFixture ScenarioId="@ScenarioId" Items="@Items" BadgeMode="@BadgeMode" />
+      }
+    </HarborlineLocaleProvider>
+  </div>
+</section>
+
+@code {
+  [Parameter, EditorRequired] public string ScenarioId { get; set; } = "notification-center.empty-badges";
+
+  private (string Title, string Description) Copy => ScenarioId switch
+  {
+    "notification-center.empty-badges" => ("Empty and badge modes", "Unread and decision counts produce bounded badges and complete bell names."),
+    "notification-center.groups" => ("Groups and filtering", "Group order follows the caller and filtering never reorders items."),
+    "notification-center.actions" => ("Item actions", "Proposal decisions, informational activation, mark-read, dismiss, and view-all dispatch bounded callbacks."),
+    "notification-center.keyboard-dismissal" => ("Keyboard, focus, and dismissal", "The bell opens a dialog, focus enters, and every dismissal path has a deterministic focus outcome."),
+    "notification-center.locale-en" => ("English locale", "Caller and catalog chrome remain localized without formatting timestamps."),
+    "notification-center.locale-pseudo" => ("Pseudo locale", "Expanded titles, tabs, and actions expose clipping and reflow defects."),
+    "notification-center.locale-ar" => ("Arabic locale", "Logical edges follow RTL while tab and action order remain stable."),
+    "notification-center.theme-light" => ("Light theme", "Unread, hover, focus, danger, dialog, and badge states use public light-theme tokens."),
+    "notification-center.theme-dark" => ("Dark theme", "The same inbox shell on the Harborline dark surface."),
+    "notification-center.content" => ("Content resilience", "Hostile notification content carries a title longer than the popover row, a grouped large number, escaped angle brackets and an ampersand, and an actor name with diacritics and an em dash."),
+    _ => ("Notification center", "Notification inbox behavior.")
+  };
+
+  private bool IsArabic => ScenarioId == "notification-center.locale-ar";
+  private bool IsPseudo => ScenarioId == "notification-center.locale-pseudo";
+  private string Locale => IsArabic ? "ar-SA" : IsPseudo ? "en-XA" : "en-US";
+  private string Direction => IsArabic ? "rtl" : "ltr";
+  private string? Theme => ScenarioId switch { "notification-center.theme-light" => "light", "notification-center.theme-dark" => "dark", _ => null };
+  private NotificationBadgeMode BadgeMode => ScenarioId == "notification-center.actions" ? NotificationBadgeMode.Decisions : NotificationBadgeMode.Unread;
+  private static IReadOnlyList<NotificationCenterItem> EmptyItems { get; } = [];
+  private IReadOnlyList<NotificationCenterItem> Items => ScenarioId == "notification-center.content" ? ContentItems : IsArabic ? ArabicItems : IsPseudo ? PseudoItems : EnglishItems;
+
+  private static IReadOnlyList<NotificationCenterItem> EnglishItems { get; } =
+  [
+    new("proposal-1", "Approve blueprint placement", "2 min ago", "proposal", false, "Bay 4 matches the captured pose.", "Place photo marker at grid C-7", "Avery"),
+    new("result-1", "Pose calculation complete", "10 min ago", "result", false, "Orientation confidence is 97%."),
+    new("system-1", "Blueprint indexed", "Yesterday", "system", true)
+  ];
+  private static IReadOnlyList<NotificationCenterItem> ContentItems { get; } =
+  [
+    new("content-1", "Awaiting third-party structural certification review", "Now", "result", false, "1,284,905", "Bay 4 <grid C-7> & 8", "Ordnance Survey — Niño Ångström")
+  ];
+  private static IReadOnlyList<NotificationCenterItem> ArabicItems { get; } =
+  [
+    new("proposal-1", "الموافقة على موضع المخطط", "منذ دقيقتين", "proposal", false, "يتطابق الموضع مع الصورة.", "Place photo marker at grid C-7", "أمل"),
+    new("result-1", "اكتمل حساب الوضعية", "منذ عشر دقائق", "result", false, "دقة الاتجاه ٩٧٪."),
+    new("system-1", "تمت فهرسة المخطط", "أمس", "system", true)
+  ];
+  private static IReadOnlyList<NotificationCenterItem> PseudoItems { get; } =
+  [
+    new("proposal-1", "⟦ Approve blueprint placement ······ ⟧", "2 min ago", "proposal", false, "⟦ Bay 4 matches the captured pose. ······ ⟧", "Place photo marker at grid C-7", "Avery"),
+    new("result-1", "⟦ Pose calculation complete ······ ⟧", "10 min ago", "result", false, "⟦ Orientation confidence is 97%. ······ ⟧"),
+    new("system-1", "⟦ Blueprint indexed ······ ⟧", "Yesterday", "system", true)
+  ];
+}

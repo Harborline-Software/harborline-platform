@@ -1,0 +1,34 @@
+{
+  "name": "harborline-platform-repository",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "typescript": "5.9.3"
+  },
+  "scripts": {
+    "validate": "node tooling/validate-repository.mjs",
+    "build": "node tooling/run-native.mjs --build",
+    "test:tooling": "node tooling/run-tooling-selftests.mjs",
+    "test:native": "node tooling/run-native.mjs",
+    "test:shared": "node tooling/run-shared.mjs && node conformance/hlp.copilot/run-ledger.mjs && node conformance/hlp.contracts.authorization/runners/run-shared.mjs && node conformance/hlp.contracts.forms/runners/run-shared.mjs && node conformance/hlp.contracts.workflow/runners/run-shared.mjs && node conformance/hlp.foundation.rule-runtime/runners/run-shared.mjs && node conformance/hlp.blocks.aggregates/runners/run-shared.mjs",
+    "generate:authorization": "node tooling/generate-authorization-bindings.mjs",
+    "test:performance:ui": "node tooling/run-ui-performance.mjs",
+    "flake-hunt:react": "node tooling/run-react-flake-hunt.mjs",
+    "test:packages": "node tooling/verify-package-fixtures.mjs",
+    "ui-specs:check": "node tooling/sync-ui-spec-authority.mjs --check",
+    "ui-specs:generate": "node tooling/sync-ui-spec-authority.mjs --write",
+    "gallery:prepare": "node tooling/prepare-galleries.mjs",
+    "gallery:react": "node tooling/run-galleries.mjs react",
+    "gallery:blazor": "node tooling/run-galleries.mjs blazor",
+    "gallery": "node tooling/run-galleries.mjs both",
+    "test:gallery": "node tooling/run-gallery-gate.mjs",
+    "capture:gallery": "node tooling/run-gallery-gate.mjs --capture",
+    "gates:ui": "node tooling/gates/run-ui-gate-model.mjs",
+    "gates:pair": "node tooling/gates/run-vertical-pair.mjs",
+    "gates:affected": "node tooling/gates/select-affected.mjs",
+    "gates:canaries": "bash tooling/gates/verify-canaries.sh",
+    "gate:phase4": "node tooling/run-phase-4-gate.mjs",
+    "receipt:phase4": "node tooling/run-phase4-receipt.mjs"
+  }
+}

@@ -1,0 +1,79 @@
+<section class="hl-gallery-scene" data-gallery-probe data-gallery-scenario="@ScenarioId" data-theme="@Theme">
+    <header class="hl-gallery-heading"><h2>@Title</h2><p>@Description</p></header>
+    <div class="hl-gallery-stage hl-gallery-menu-stage">
+        <HarborlineContextMenu Groups="Groups" AccessibleLabel="@AccessibleLabel" Locale="@Locale" Direction="@Direction"
+                             Class="hl-gallery-menu-trigger">
+            <div data-context-trigger tabindex="0" class="hl-gallery-record">
+                @if (ScenarioId == "context-menu.content")
+                {
+                    <strong>@("Awaiting third-party structural certification review")</strong><span>@("1,284,905")</span><span>@("Bay 4 <grid C-7> & 8")</span><span>@("Ordnance Survey — Niño Ångström")</span>
+                }
+                else
+                {
+                    <strong>@RecordTitle</strong><span>@Instruction</span>
+                }
+            </div>
+        </HarborlineContextMenu>
+    </div>
+</section>
+
+@code {
+    [Parameter, EditorRequired] public string ScenarioId { get; set; } = "context-menu.closed";
+
+    private bool IsPseudo => ScenarioId == "context-menu.locale-pseudo";
+    private bool IsArabic => ScenarioId == "context-menu.locale-ar";
+    private bool IsContent => ScenarioId == "context-menu.content";
+    private string Locale => IsArabic ? "ar-SA" : IsPseudo ? "en-XA" : "en-US";
+    private string Direction => IsArabic ? "rtl" : "ltr";
+    private string AccessibleLabel => IsArabic ? "قائمة السياق" : IsPseudo ? "[Çôñţëxţ mëñüü]" : "Inspection actions";
+    private string RecordTitle => IsPseudo ? "⟦ Îñšþëçţîøñ 42 ···· ⟧" : IsArabic ? "الفحص 42" : "Inspection 42";
+    private string Instruction => IsPseudo ? "⟦ Řîĝhţ-çļîçķ øř Þřëšš Šhîƒţ+F10 ······ ⟧" : IsArabic ? "انقر بزر الماوس الأيمن أو اضغط Shift+F10" : "Right-click or press Shift+F10";
+    private string Title => Copy[ScenarioId].Title;
+    private string Description => Copy[ScenarioId].Description;
+    private string? Theme => ScenarioId switch
+    {
+        "context-menu.theme-light" => "light",
+        "context-menu.theme-dark" => "dark",
+        _ => null,
+    };
+
+    private IReadOnlyList<ContextMenuGroup> Groups => IsContent
+    ? [new ContextMenuGroup([
+        new ContextMenuItem("long", "Awaiting third-party structural certification review"),
+        new ContextMenuItem("number", "1,284,905"),
+        new ContextMenuItem("hostile", "Bay 4 <grid C-7> & 8"),
+        new ContextMenuItem("name", "Ordnance Survey — Niño Ångström")])]
+    : [
+        new ContextMenuGroup([
+            new ContextMenuItem("copy", IsPseudo ? "⟦ Çøþÿ îñšþëçţîøñ ···· ⟧" : IsArabic ? "نسخ الفحص" : "Copy inspection", Icon: Icon("⧉")),
+            new ContextMenuItem("paste-disabled", IsPseudo ? "⟦ Þåšţë ···· ⟧" : IsArabic ? "لصق" : "Paste", Disabled: true),
+        ]),
+        new ContextMenuGroup([
+            new ContextMenuItem("delete", IsPseudo ? "⟦ Đëlëţë îñšþëçţîøñ ···· ⟧" : IsArabic ? "حذف الفحص" : "Delete inspection", Danger: true, Icon: Icon("×")),
+        ]),
+    ];
+
+    private static RenderFragment Icon(string value) => builder =>
+    {
+        builder.OpenElement(0, "span");
+        builder.AddAttribute(1, "class", "hl-gallery-icon");
+        builder.AddAttribute(2, "aria-hidden", "true");
+        builder.AddContent(3, value);
+        builder.CloseElement();
+    };
+
+    private static IReadOnlyDictionary<string, (string Title, string Description)> Copy { get; } =
+        new Dictionary<string, (string, string)>
+        {
+            ["context-menu.closed"] = ("Closed", "The trigger remains available without rendering a latent menu."),
+            ["context-menu.pointer"] = ("Pointer open", "Pointer placement is clamped to the viewport and dismisses without selection."),
+            ["context-menu.keyboard"] = ("Keyboard and focus", "Shift+F10 enters the first enabled item and navigation skips disabled actions."),
+            ["context-menu.groups"] = ("Groups and states", "Separators, disabled actions, icons, and destructive intent retain native semantics."),
+            ["context-menu.locale-en"] = ("English locale", "The host supplies the accessible name and language direction."),
+            ["context-menu.locale-pseudo"] = ("Pseudo locale", "Expanded labels expose clipping and fixed-width assumptions."),
+            ["context-menu.locale-ar"] = ("Arabic locale", "RTL labels and logical alignment preserve action meaning."),
+            ["context-menu.theme-light"] = ("Light theme", "Default, active, disabled, danger, separator, focus, and motion states."),
+            ["context-menu.theme-dark"] = ("Dark theme", "The same state vocabulary on the Harborline dark surface."),
+            ["context-menu.content"] = ("Content resilience", "Hostile-but-valid labels remain text across the trigger and grouped menu."),
+        };
+}

@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.copilot.contracts",
+  "quality": {
+    "deterministic": true,
+    "browserSafe": true,
+    "sideEffects": "forbidden",
+    "failClosed": true,
+    "sourcePin": "3410883405996dc8e4871418a441f52970d9994e"
+  },
+  "proofs": [
+    {"id": "ledger-reconciles", "expectation": "exactly 42 source test files, 357 declarations, and 384 expanded rows"},
+    {"id": "proposal-rejects-whole", "expectation": "malformed, unknown, unsupported, or over-limit envelopes produce a stable rejection"},
+    {"id": "never-omitted", "expectation": "NEVER commands cannot appear in model manifests and are rejected if injected"},
+    {"id": "descriptor-import-fence", "expectation": "provider-reachable modules have no path to app adapters or executors"},
+    {"id": "stale-context-fence", "expectation": "effects require an immediate app-side expected/live context-key match"},
+    {"id": "live-tests-gated", "expectation": "the two live battery rows are metadata-only in normal deterministic runs"}
+  ]
+}

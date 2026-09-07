@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.kernel.work-items",
+  "interfaceRevision": 1,
+  "status": "frozen",
+  "purpose": "Own tenant-scoped durable work-item lifecycle, idempotent transitions, optimistic concurrency, append-only history, audit, and transactional outbox behavior without importing workflow interpretation or UI state.",
+  "dependencies": [
+    {"moduleId": "hlp.contracts.identities", "minimumRevision": 1},
+    {"moduleId": "hlp.foundation.actor", "minimumRevision": 1},
+    {"moduleId": "hlp.foundation.tenancy", "minimumRevision": 1}
+  ],
+  "callerInterface": {
+    "name": "IWorkItemKernel",
+    "operations": [
+      "CreateAsync(request, cancellationToken) -> WorkItemMutationResult",
+      "GetAsync(workItemId, cancellationToken) -> WorkItemSnapshot?",
+      "ListOpenAsync(cancellationToken) -> IReadOnlyList<WorkItemSnapshot>",
+      "TransitionAsync(expectedVersion, outcomeId, result, idempotencyKey, cancellationToken) -> WorkItemMutationResult"
+    ],
+    "context": "Every operation resolves one active tenant and server-derived Party from the current host scope. Tenant and audit actor are never accepted from request bodies."
+  },
+  "invariants": [
+    "Unknown, inactive-tenant, absent, and foreign-tenant work items are indistinguishable at the caller boundary.",
+    "A create or transition atomically commits snapshot, append-only event, fingerprint-bound idempotency receipt, actor audit, and optional outbox envelopes.",
+    "The same idempotency key and canonical request fingerprint returns the original receipt; different content conflicts.",
+    "Creation admits a closed set of typed outcomes by source step; transition callers choose only an outcome ID and cannot supply arbitrary next step, status, iteration, audit, or outbox state.",
+    "Transitions require the current expected version; stale writers receive a typed version conflict without mutation.",
+    "A loop-back transition increments the durable iteration exactly once; ordinary forward transitions preserve it.",
+    "The deterministic versioned step key is derived from a structured tenant, work item, iteration, and current-step payload with no delimiter ambiguity, clock, or random input.",
+    "Outbox delivery is outside this kernel; committed envelopes are immutable and consumers must deliver idempotently.",
+    "The bundled file journal flushes each checksummed complete frame before publishing in-memory indexes, truncates only an incomplete final frame, and fails startup on complete-frame corruption or unknown versions.",
+    "The bundled file journal is a single-process adapter and does not claim distributed transactions or multi-node leases."
+  ],
+  "errors": [
+    "work-item.not-found",
+    "work-item.denied",
+    "work-item.idempotency-conflict",
+    "work-item.version-conflict",
+    "work-item.invalid-transition",
+    "work-item.persistence-unavailable"
+  ],
+  "selectedDesign": {
+    "choice": "A deep tenant-scoped state-machine boundary with atomic event, receipt, audit, and outbox persistence; parked human work is a projection of durable process state.",
+    "rejected": [
+      "Copy earlier source's host-specific object unit-of-work effect delegate.",
+      "Import the general declarative workflow interpreter.",
+      "Create a disconnected human-task queue that can drift from process state.",
+      "Expose Harborline App, React, Blazor, Telerik, or any external consumer product's types."
+    ]
+  },
+  "behaviorEvidence": {
+    "sourceCapture": "migration://preprocessing/work-items/generated/work-items-source.json",
+    "boundaryDecision": "migration://preprocessing/work-items/work-items-boundary.md"
+  },
+  "package": {"nuget": "Harborline.Kernel.WorkItems", "assembly": "Harborline.Kernel.WorkItems", "distribution": "internal-only"}
+}

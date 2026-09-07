@@ -1,0 +1,13 @@
+<section class="hl-gallery-scene" data-gallery-probe data-gallery-scenario="@ScenarioId" data-theme="@Theme" dir="@Direction">
+    <header class="hl-gallery-heading"><h2>@Title</h2><p>@Description</p></header>
+    <div class="hl-gallery-stage">@if(ScenarioId=="tooltip.content"){<HarborlineTooltip Content="@("1,284,905 records for Ordnance Survey — Niño Ångström at Bay 4 <grid C-7> & 8")" DelayDuration="0" DefaultOpen="true"><HarborlineTooltipTrigger>@("Review affected inspection records and continue import")</HarborlineTooltipTrigger></HarborlineTooltip>}else{<HarborlineTooltip Content="@(Localized ? "عرض تفاصيل الهيكل" : "View structure details")" Side="@Side" DelayDuration="0" DefaultOpen="true"><HarborlineTooltipTrigger>@(Localized ? "التفاصيل" : "Details")</HarborlineTooltipTrigger></HarborlineTooltip>}</div>
+</section>
+@code {
+    [Parameter, EditorRequired] public string ScenarioId { get; set; } = "tooltip.lifecycle";
+    private bool Localized => ScenarioId == "tooltip.locale-theme";
+    private string Title => Localized ? "تلميح الأداة" : ScenarioId == "tooltip.content" ? "Content resilience" : ScenarioId == "tooltip.interaction" ? "Focus and dismissal" : "Delayed lifecycle";
+    private string Description => ScenarioId == "tooltip.content" ? "The long trigger label and tooltip copy carry the grouped number 1,284,905, escaped angle brackets and an ampersand, and a name with diacritics and an em dash." : "Hover and focus ownership share one accessible description.";
+    private string? Theme => Localized ? "dark" : null;
+    private string? Direction => Localized ? "rtl" : null;
+    private TooltipSide Side => ScenarioId == "tooltip.lifecycle" ? TooltipSide.Top : TooltipSide.Right;
+}

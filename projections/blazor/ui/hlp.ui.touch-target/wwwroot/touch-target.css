@@ -1,0 +1,18 @@
+.hl-touch-target {
+  min-block-size: 44px;
+  min-inline-size: 44px;
+}
+
+.hl-touch-target-overlay--positioned {
+  position: relative;
+}
+
+.hl-touch-target-overlay::before {
+  content: "";
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-start: 50%;
+  block-size: 44px;
+  inline-size: 44px;
+  transform: translate(-50%, -50%);
+}

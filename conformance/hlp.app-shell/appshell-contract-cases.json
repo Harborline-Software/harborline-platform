@@ -1,0 +1,137 @@
+{
+  "_header": {
+    "schemaVersion": 1,
+    "authority": "WAVE-STATE.md Q10",
+    "scope": ["visibility", "permissionVocabulary", "lifecycleBuildModeFolding", "routeJoin"],
+    "scenarioCount": 6,
+    "countDerivation": "Six deliberately minimal boundary scenarios: unresolved, incomplete conjunction, setup prominence, operating fold, operating re-entry, and profile-excluded route. This is a selected contract corpus, not a claim to exhaust the ledger.",
+    "projectionKeyOrder": ["id", "visibility", "permissionVocabulary", "lifecycleBuildModeFolding", "routeJoin"],
+    "pinnedRevision": "a5036ff8b500e0d857d7e0a698408e7cf7f6cf31"
+  },
+  "scenarios": [
+    {
+      "id": "unresolved-fails-closed",
+      "tenant": "tenant-alpha",
+      "principal": { "id": "principal-unresolved", "heldRosterPermissions": null, "navigationPermissions": null },
+      "featureFlags": { "scheduling": false },
+      "buildProfile": "carrier-profile:desktop",
+      "lifecycle": { "phase": "operating", "buildEntered": false },
+      "navigationModel": { "workspaceIds": ["front-desk", "workshop"], "commandOnly": [{ "id": "form-builder", "owner": "workshop" }, { "id": "health", "owner": null }] },
+      "navTargets": [{ "id": "inbox", "requiredPermissions": ["inbox:read"] }],
+      "routeDefinitions": [{ "id": "inbox", "path": "inbox", "profiles": ["carrier-profile:desktop", "carrier-profile:web-client"] }],
+      "expected": {
+        "visibility": [{ "id": "inbox", "visible": false }],
+        "permissionVocabulary": [],
+        "lifecycleBuildModeFolding": { "workspaceIds": ["front-desk"], "commandOnlyIds": ["health"], "buildHeadingWorkspaceId": null },
+        "routeJoin": { "joinedRouteIds": ["inbox"], "unmatchedRouteIds": [] }
+      },
+      "evidence": [
+        { "ledgerCase": "canSeeFragment — the ONE fail-closed visibility function > is NOT visible while permissions are unresolved (null)", "source": "apps/carrier/src/navigation/visibility.ts:25" },
+        { "source": "apps/local-node-host/Health/WebSession/NavigationPermissionProjection.cs:Project(null) returns empty" }
+      ]
+    },
+    {
+      "id": "conjunction-missing-one",
+      "tenant": "tenant-alpha",
+      "principal": { "id": "principal-partial", "heldRosterPermissions": ["records:read"], "navigationPermissions": ["forms:read"] },
+      "featureFlags": { "scheduling": false },
+      "buildProfile": "carrier-profile:web-client",
+      "lifecycle": { "phase": "operating", "buildEntered": false },
+      "navigationModel": { "workspaceIds": ["front-desk", "workshop"], "commandOnly": [{ "id": "form-builder", "owner": "workshop" }, { "id": "health", "owner": null }] },
+      "navTargets": [{ "id": "compound", "requiredPermissions": ["forms:read", "forms:design"] }],
+      "routeDefinitions": [{ "id": "team", "path": "team", "profiles": ["carrier-profile:web-client"] }],
+      "expected": {
+        "visibility": [{ "id": "compound", "visible": false }],
+        "permissionVocabulary": ["forms:read"],
+        "lifecycleBuildModeFolding": { "workspaceIds": ["front-desk"], "commandOnlyIds": ["health"], "buildHeadingWorkspaceId": null },
+        "routeJoin": { "joinedRouteIds": ["team"], "unmatchedRouteIds": [] }
+      },
+      "evidence": [
+        { "ledgerCase": "canSeeFragment — the ONE fail-closed visibility function > requires ALL declared permissions (conjunction)", "source": "apps/carrier/src/navigation/visibility.ts:28" },
+        { "ledgerCase": "Carrier route-object registry join > constructs exactly one route object for every route admitted by the active profile", "source": "apps/carrier/src/routes/carrierRouteObjects.test.tsx:7" }
+      ]
+    },
+    {
+      "id": "setup-build-prominent",
+      "tenant": "tenant-beta",
+      "principal": { "id": "principal-builder", "heldRosterPermissions": ["packages:author"], "navigationPermissions": ["forms:design", "workflows:design"] },
+      "featureFlags": { "scheduling": false },
+      "buildProfile": "carrier-profile:desktop",
+      "lifecycle": { "phase": "setup", "buildEntered": false },
+      "navigationModel": { "workspaceIds": ["front-desk", "workshop"], "commandOnly": [{ "id": "form-builder", "owner": "workshop" }, { "id": "health", "owner": null }] },
+      "navTargets": [{ "id": "form-builder", "requiredPermissions": ["forms:design"] }],
+      "routeDefinitions": [{ "id": "form-builder", "path": "form-builder", "profiles": ["carrier-profile:desktop", "carrier-profile:web-client"] }],
+      "expected": {
+        "visibility": [{ "id": "form-builder", "visible": true }],
+        "permissionVocabulary": ["forms:design", "workflows:design"],
+        "lifecycleBuildModeFolding": { "workspaceIds": ["workshop", "front-desk"], "commandOnlyIds": ["form-builder", "health"], "buildHeadingWorkspaceId": "workshop" },
+        "routeJoin": { "joinedRouteIds": ["form-builder"], "unmatchedRouteIds": [] }
+      },
+      "evidence": [
+        { "ledgerCase": "foldWorkspacesForLifecycle — the AD.1 lifecycle-aware Build fold > setup phase: Workshop is surfaced FIRST, under a Build heading", "source": "apps/carrier/src/navigation/buildModeFold.test.ts:29" },
+        { "source": "apps/local-node-host/Health/WebSession/NavigationPermissionProjection.cs:forms:design/workflows:design derive from packages:author" }
+      ]
+    },
+    {
+      "id": "operating-build-folded",
+      "tenant": "tenant-beta",
+      "principal": { "id": "principal-builder", "heldRosterPermissions": ["packages:author"], "navigationPermissions": ["forms:design", "workflows:design"] },
+      "featureFlags": { "scheduling": false },
+      "buildProfile": "carrier-profile:desktop",
+      "lifecycle": { "phase": "operating", "buildEntered": false },
+      "navigationModel": { "workspaceIds": ["front-desk", "workshop"], "commandOnly": [{ "id": "form-builder", "owner": "workshop" }, { "id": "health", "owner": null }] },
+      "navTargets": [{ "id": "form-builder", "requiredPermissions": ["forms:design"] }],
+      "routeDefinitions": [{ "id": "form-builder", "path": "form-builder", "profiles": ["carrier-profile:desktop", "carrier-profile:web-client"] }],
+      "expected": {
+        "visibility": [{ "id": "form-builder", "visible": true }],
+        "permissionVocabulary": ["forms:design", "workflows:design"],
+        "lifecycleBuildModeFolding": { "workspaceIds": ["front-desk"], "commandOnlyIds": ["health"], "buildHeadingWorkspaceId": null },
+        "routeJoin": { "joinedRouteIds": ["form-builder"], "unmatchedRouteIds": [] }
+      },
+      "evidence": [
+        { "ledgerCase": "foldNavForLifecycle — workspaces AND commandOnly fold at the SAME seam > operating phase, not entered: both the workspace AND its command-only canvases fold out", "source": "apps/carrier/src/navigation/buildModeFold.test.ts:136" }
+      ]
+    },
+    {
+      "id": "operating-build-reentered",
+      "tenant": "tenant-beta",
+      "principal": { "id": "principal-builder", "heldRosterPermissions": ["packages:author"], "navigationPermissions": ["forms:design", "workflows:design"] },
+      "featureFlags": { "scheduling": false },
+      "buildProfile": "carrier-profile:desktop",
+      "lifecycle": { "phase": "operating", "buildEntered": true },
+      "navigationModel": { "workspaceIds": ["front-desk", "workshop"], "commandOnly": [{ "id": "form-builder", "owner": "workshop" }, { "id": "health", "owner": null }] },
+      "navTargets": [{ "id": "form-builder", "requiredPermissions": ["forms:design"] }],
+      "routeDefinitions": [{ "id": "form-builder", "path": "form-builder", "profiles": ["carrier-profile:desktop", "carrier-profile:web-client"] }],
+      "expected": {
+        "visibility": [{ "id": "form-builder", "visible": true }],
+        "permissionVocabulary": ["forms:design", "workflows:design"],
+        "lifecycleBuildModeFolding": { "workspaceIds": ["front-desk", "workshop"], "commandOnlyIds": ["form-builder", "health"], "buildHeadingWorkspaceId": null },
+        "routeJoin": { "joinedRouteIds": ["form-builder"], "unmatchedRouteIds": [] }
+      },
+      "evidence": [
+        { "ledgerCase": "foldWorkspacesForLifecycle — the AD.1 lifecycle-aware Build fold > operating phase, entered (guard fired this session): Workshop re-admits at the tail, no heading", "source": "apps/carrier/src/navigation/buildModeFold.test.ts:57" }
+      ]
+    },
+    {
+      "id": "desktop-excludes-web-team",
+      "tenant": "tenant-gamma",
+      "principal": { "id": "principal-admin", "heldRosterPermissions": ["members:manage"], "navigationPermissions": ["members:manage"] },
+      "featureFlags": { "scheduling": false },
+      "buildProfile": "carrier-profile:desktop",
+      "lifecycle": { "phase": "operating", "buildEntered": false },
+      "navigationModel": { "workspaceIds": ["front-desk", "workshop"], "commandOnly": [{ "id": "form-builder", "owner": "workshop" }, { "id": "health", "owner": null }] },
+      "navTargets": [{ "id": "team", "requiredPermissions": ["members:manage"] }],
+      "routeDefinitions": [{ "id": "team", "path": "team", "profiles": ["carrier-profile:web-client"] }],
+      "expected": {
+        "visibility": [{ "id": "team", "visible": true }],
+        "permissionVocabulary": ["members:manage"],
+        "lifecycleBuildModeFolding": { "workspaceIds": ["front-desk"], "commandOnlyIds": ["health"], "buildHeadingWorkspaceId": null },
+        "routeJoin": { "joinedRouteIds": [], "unmatchedRouteIds": ["team"] }
+      },
+      "evidence": [
+        { "ledgerCase": "Carrier route-object registry join > builds no router entry for the web-client-only team route under this build profile", "source": "apps/carrier/src/routes/carrierRouteObjects.test.tsx:15" },
+        { "source": "apps/local-node-host/Health/WebSession/NavigationPermissionProjection.cs:members:manage is identity-mapped" }
+      ]
+    }
+  ]
+}

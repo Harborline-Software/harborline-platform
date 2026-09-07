@@ -1,0 +1,187 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.check-box",
+  "sourceFixture": "conformance/hlp.ui.check-box/fixtures.yaml",
+  "qualityFixture": "conformance/hlp.ui.check-box/quality-fixtures.yaml",
+  "galleryInterface": {
+    "probeAttribute": "data-gallery-probe",
+    "scenarioAttribute": "data-gallery-scenario",
+    "projectionTitles": {
+      "react": "Platform/Check Box",
+      "blazor": "Platform/Check Box"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "check-box.defaults",
+      "name": "Defaults and labels",
+      "surface": "defaults",
+      "sourceCaseIds": [
+        "check-box.uncontrolled",
+        "check-box.label-placement",
+        "check-box.form-attributes"
+      ],
+      "sourceQualityCaseIds": [
+        "check-box.quality.native-control",
+        "check-box.quality.label",
+        "check-box.quality.keyboard",
+        "check-box.quality.touch-target"
+      ],
+      "content": {
+        "blurb": "Native state, labels, validation, and logical placement remain equivalent.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<><CheckBox defaultChecked label=\"Include record\" /><CheckBox label=\"Send notification\" labelPlacement=\"before\" /></>",
+            "blazor": "<HarborlineCheckBox Label=\"Include record\" DefaultChecked=\"true\" />\n<HarborlineCheckBox Label=\"Send notification\" LabelPlacement=\"CheckBoxLabelPlacement.Before\" />",
+            "rationale": "The closed label/input descriptors cannot preserve both component-rendered label placements: the first label uses the component default and the second is explicitly placed before its checkbox. Raw lane markup records that ordering contract without approximation."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "check-box.states",
+      "name": "States and sizes",
+      "surface": "states-sizes",
+      "sourceCaseIds": [
+        "check-box.controlled",
+        "check-box.mixed",
+        "check-box.disabled-noop",
+        "check-box.required-error",
+        "check-box.sizes"
+      ],
+      "sourceQualityCaseIds": [
+        "check-box.quality.focus",
+        "check-box.quality.reflow",
+        "check-box.quality.forced-colors",
+        "check-box.quality.reduced-motion"
+      ],
+      "content": {
+        "blurb": "Native state, labels, validation, and logical placement remain equivalent.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<><CheckBox checked={false} label=\"Unchecked\" size=\"sm\" /><CheckBox checked label=\"Checked\" size=\"md\" /><CheckBox checked=\"mixed\" label=\"Mixed\" size=\"lg\" /><CheckBox checked disabled label=\"Disabled\" /><CheckBox error label=\"Required with error\" required /></>",
+            "blazor": "<HarborlineCheckBox Label=\"Unchecked\" Checked=\"CheckBoxState.Unchecked\" Size=\"CheckBoxSize.Small\" />\n<HarborlineCheckBox Label=\"Checked\" Checked=\"CheckBoxState.Checked\" Size=\"CheckBoxSize.Medium\" />\n<HarborlineCheckBox Label=\"Mixed\" Checked=\"CheckBoxState.Mixed\" Size=\"CheckBoxSize.Large\" />\n<HarborlineCheckBox Label=\"Disabled\" Checked=\"CheckBoxState.Checked\" Disabled=\"true\" />\n<HarborlineCheckBox Label=\"Required with error\" Required=\"true\" Error=\"true\" />",
+            "rationale": "The closed input descriptor cannot faithfully express the CheckBox component's small, medium, and large presentation, its mixed-state API, and its component error presentation together. Raw markup preserves the exact five rendered variants in both lanes."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "check-box.rtl-theme",
+      "name": "RTL and theme",
+      "surface": "rtl-theme",
+      "sourceCaseIds": [
+        "check-box.host-attributes",
+        "check-box.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "check-box.quality.caller-label",
+        "check-box.quality.rtl",
+        "check-box.quality.pseudo",
+        "check-box.quality.light-dark",
+        "check-box.quality.tokens",
+        "check-box.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "Native state, labels, validation, and logical placement remain equivalent.",
+        "environment": {
+          "locale": "ar-SA",
+          "direction": "rtl",
+          "theme": "dark",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<><CheckBox defaultChecked label=\"تضمين السجل\" /><CheckBox label=\"إرسال إشعار\" labelPlacement=\"before\" /></>",
+            "blazor": "<HarborlineCheckBox Label=\"تضمين السجل\" DefaultChecked=\"true\" />\n<HarborlineCheckBox Label=\"إرسال إشعار\" LabelPlacement=\"CheckBoxLabelPlacement.Before\" />",
+            "rationale": "The closed label/input descriptors cannot preserve both component-rendered label placements under RTL: the first label uses the component default and the second is explicitly placed before its checkbox. Raw lane markup records that logical-order contract without approximation."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "check-box.content",
+      "name": "Content resilience",
+      "surface": "long-content",
+      "sourceCaseIds": [
+        "check-box.label-placement",
+        "check-box.host-attributes"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "Real content tests a long label, a grouped large number, escaped angle brackets and ampersand text, and a name with diacritics and an em dash.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<><CheckBox label={'Awaiting third-party structural certification review'} /><CheckBox label={'1,284,905'} /><CheckBox label={'Bay 4 <grid C-7> & 8'} /><CheckBox label={'Ordnance Survey — Niño Ångström'} /></>",
+            "blazor": "<HarborlineCheckBox Label=\"@(\"Awaiting third-party structural certification review\")\" />\n<HarborlineCheckBox Label=\"@(\"1,284,905\")\" />\n<HarborlineCheckBox Label=\"@(\"Bay 4 <grid C-7> & 8\")\" />\n<HarborlineCheckBox Label=\"@(\"Ordnance Survey — Niño Ångström\")\" />",
+            "rationale": "The closed input descriptor cannot express four component-rendered checkbox labels carrying hostile-but-valid text while preserving native checkbox semantics."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "check-box.error-state",
+      "name": "Error state",
+      "surface": "invalid-input",
+      "sourceCaseIds": [
+        "check-box.required-error",
+        "check-box.host-attributes"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "The required checkbox is visibly invalid while retaining its accessible label.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<CheckBox error required label=\"Accept inspection terms\" />",
+            "blazor": "<HarborlineCheckBox Error=\"true\" Required=\"true\" Label=\"Accept inspection terms\" />",
+            "rationale": "The closed input descriptor cannot express the CheckBox component's error presentation while preserving its component-rendered accessible label."
+          }
+        ],
+        "footer": []
+      }
+    }
+  ]
+}

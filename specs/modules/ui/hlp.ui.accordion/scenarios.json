@@ -1,0 +1,206 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.accordion",
+  "sourceFixture": "conformance/hlp.ui.accordion/fixtures.yaml",
+  "qualityFixture": "conformance/hlp.ui.accordion/quality-fixtures.yaml",
+  "galleryInterface": {
+    "probeAttribute": "data-gallery-probe",
+    "scenarioAttribute": "data-gallery-scenario",
+    "projectionTitles": {
+      "react": "Platform/Accordion",
+      "blazor": "Platform/Accordion"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "accordion.defaults",
+      "name": "Defaults",
+      "surface": "defaults",
+      "sourceCaseIds": [
+        "accordion.single.initial",
+        "accordion.relationships"
+      ],
+      "sourceQualityCaseIds": [
+        "accordion.quality.relationships"
+      ],
+      "content": {
+        "blurb": "Disclosure state, relationships, and logical layout use one neutral contract.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "items": [
+            {
+              "value": "overview",
+              "title": "Overview",
+              "children": "Structure summary and current inspection status."
+            },
+            {
+              "value": "details",
+              "title": "Details",
+              "children": "Harborline-owned detail content remains composable."
+            },
+            {
+              "value": "disabled",
+              "title": "Unavailable",
+              "children": "This content cannot be opened.",
+              "disabled": true
+            }
+          ],
+          "type": "single",
+          "defaultValue": [
+            "overview"
+          ],
+          "collapsible": true
+        },
+        "state": {},
+        "body": [],
+        "footer": []
+      }
+    },
+    {
+      "id": "accordion.states",
+      "name": "States and keyboard",
+      "surface": "states-keyboard",
+      "sourceCaseIds": [
+        "accordion.single.noncollapsible",
+        "accordion.multiple.independent",
+        "accordion.disabled-noop",
+        "accordion.keyboard-next-previous"
+      ],
+      "sourceQualityCaseIds": [
+        "accordion.quality.keyboard",
+        "accordion.quality.focus",
+        "accordion.quality.forced-colors",
+        "accordion.quality.reduced-motion"
+      ],
+      "content": {
+        "blurb": "Disclosure state, relationships, and logical layout use one neutral contract.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "items": [
+            {
+              "value": "overview",
+              "title": "Overview",
+              "children": "Structure summary and current inspection status."
+            },
+            {
+              "value": "details",
+              "title": "Details",
+              "children": "Harborline-owned detail content remains composable."
+            },
+            {
+              "value": "disabled",
+              "title": "Unavailable",
+              "children": "This content cannot be opened.",
+              "disabled": true
+            }
+          ],
+          "type": "multiple",
+          "defaultValue": [
+            "overview",
+            "details"
+          ],
+          "collapsible": false
+        },
+        "state": {},
+        "body": [],
+        "footer": [],
+        "inherits": "accordion.defaults"
+      }
+    },
+    {
+      "id": "accordion.empty",
+      "name": "Empty collection",
+      "surface": "empty",
+      "sourceCaseIds": [
+        "accordion.empty"
+      ],
+      "sourceQualityCaseIds": [
+        "accordion.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "Handed no items, the group renders the caller-owned empty content instead of an empty bordered box.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "items": [],
+          "empty": "No sections yet. Add one to see it here."
+        },
+        "state": {},
+        "body": [],
+        "footer": []
+      }
+    },
+    {
+      "id": "accordion.rtl-theme",
+      "name": "RTL and theme",
+      "surface": "rtl-theme",
+      "sourceCaseIds": [
+        "accordion.host-attributes",
+        "accordion.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "accordion.quality.reflow",
+        "accordion.quality.caller-content",
+        "accordion.quality.rtl",
+        "accordion.quality.pseudo",
+        "accordion.quality.light-dark",
+        "accordion.quality.tokens",
+        "accordion.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "Disclosure state, relationships, and logical layout use one neutral contract.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "rtl",
+          "theme": "dark",
+          "catalog": {}
+        },
+        "inherits": "accordion.defaults"
+      }
+    },
+    {
+      "id": "accordion.content",
+      "name": "Content resilience",
+      "surface": "long-content",
+      "sourceCaseIds": [
+        "accordion.single.initial",
+        "accordion.relationships"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "These accordion items carry an overlong title, a grouped large number, escaped angle brackets and an ampersand, and a name with diacritics and an em dash.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<Accordion items={[{value:'review',title:'Awaiting third-party structural certification review',children:'Review queue'},{value:'count',title:'1,284,905',children:'Record count'},{value:'grid',title:'Bay 4 <grid C-7> & 8',children:'Survey location'},{value:'name',title:'Ordnance Survey — Niño Ångström',children:'Survey provider'}]} type=\"multiple\" defaultValue={['review','count','grid','name']}/>",
+            "blazor": "<HarborlineAccordion Items=\"@(new[] { new HarborlineAccordionItem(\"review\", b => b.AddContent(0, \"Awaiting third-party structural certification review\"), b => b.AddContent(0, \"Review queue\")), new HarborlineAccordionItem(\"count\", b => b.AddContent(0, \"1,284,905\"), b => b.AddContent(0, \"Record count\")), new HarborlineAccordionItem(\"grid\", b => b.AddContent(0, \"Bay 4 <grid C-7> & 8\"), b => b.AddContent(0, \"Survey location\")), new HarborlineAccordionItem(\"name\", b => b.AddContent(0, \"Ordnance Survey — Niño Ångström\"), b => b.AddContent(0, \"Survey provider\")) })\" Mode=\"AccordionMode.Multiple\" DefaultExpandedValues=\"@(new[] { \"review\", \"count\", \"grid\", \"name\" })\"/>",
+            "rationale": "The closed control vocabulary cannot express an accordion collection whose titles contain hostile-but-valid text."
+          }
+        ],
+        "footer": []
+      }
+    }
+  ]
+}

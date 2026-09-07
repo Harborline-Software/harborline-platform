@@ -1,0 +1,161 @@
+<section class="hl-gallery-scene" data-gallery-probe data-gallery-scenario="@ScenarioId" data-theme="@Theme" dir="@Direction">
+  <header class="hl-gallery-heading"><h2>@Copy.Title</h2><p>@Copy.Description</p></header>
+  <div class="hl-gallery-stage" style="inline-size:min(100%, 900px);min-inline-size:0">
+    <HarborlineLocaleProvider Locale="@Locale" Catalog="@Catalog">
+      @if (ScenarioId == "chart.empty")
+      {
+        <HarborlineChart Definition="@EmptyOccupancy" AccessibleName="Monthly occupancy trend" Title="Monthly occupancy"
+                       Empty="No occupancy has been recorded for this period yet." />
+      }
+      else if (ScenarioId == "chart.validation")
+      {
+        <div style="display:grid;gap:16px;grid-template-columns:minmax(0, 1.4fr) minmax(15rem, 1fr)">
+          <HarborlineChart Definition="@Occupancy" AccessibleName="Monthly occupancy trend" Title="Monthly occupancy" />
+          <aside aria-label="Chart validation boundary" style="border:1px solid var(--hl-border, #64748b);border-radius:12px;padding:16px">
+            <h3 style="margin-block-start:0">Neutral validation</h3>
+            <dl>
+              @foreach (var error in ValidationErrors)
+              {
+                <div style="margin-block-end:12px"><dt><code>@error.Code</code></dt><dd style="margin-inline-start:0">@error.Meaning</dd></div>
+              }
+            </dl>
+            <p style="margin-block-end:0">Renderer options and provider identities remain private to each projection.</p>
+          </aside>
+        </div>
+      }
+      else if (ScenarioId == "chart.replacement")
+      {
+        <div style="display:grid;gap:12px">
+          <div style="display:flex;flex-wrap:wrap;gap:8px">
+            <button type="button" @onclick="@(() => replacementShown = false)">Original definition</button>
+            <button type="button" @onclick="@(() => replacementShown = true)">Replace definition</button>
+          </div>
+          <HarborlineChart Definition="@(replacementShown ? Replacement : Occupancy)"
+                         AccessibleName="@(replacementShown ? "Quarterly inspection completion" : "Monthly occupancy trend")"
+                         Title="@(replacementShown ? "Inspection completion" : "Monthly occupancy")"
+                         ShowLegend="@(!replacementShown)" ShowTooltip="@(!replacementShown)" />
+        </div>
+      }
+      else
+      {
+        <HarborlineChart Definition="@Definition" AccessibleName="@AccessibleName" Title="@ChartTitle"
+                       DataSummaryLabel="@DataSummaryLabel" ShowLegend="@ShowLegend" ShowTooltip="@ShowTooltip" Motion="@Motion" />
+      }
+    </HarborlineLocaleProvider>
+  </div>
+</section>
+
+@code {
+  [Parameter, EditorRequired] public string ScenarioId { get; set; } = "chart.line-series";
+
+  private bool replacementShown;
+
+  private static readonly IReadOnlyDictionary<string, (string Title, string Description)> CopyByScenario =
+    new Dictionary<string, (string, string)>(StringComparer.Ordinal)
+    {
+      ["chart.line-series"] = ("Line series and missing values", "Ordered categories and series retain missing values without substituting zero."),
+      ["chart.donut-missing"] = ("Donut and missing slices", "Missing slices stay in the accessible data while the visual omits them."),
+      ["chart.empty"] = ("Empty series and slices", "A definition with nothing to plot says so instead of drawing axes over no data."),
+      ["chart.validation"] = ("Validation and provider boundary", "Stable errors protect the neutral definition from renderer-specific options."),
+      ["chart.replacement"] = ("Replacement and visibility intent", "Complete updates remove stale data while legend and tooltip intent remain explicit."),
+      ["chart.accessible-data"] = ("Accessible data path", "The named figure includes a keyboard-reachable ordered data table."),
+      ["chart.large-data"] = ("Bounded large data", "A dense definition preserves all semantic data while point decoration remains bounded."),
+      ["chart.locale-en"] = ("English locale and number formatting", "Labels stay caller-owned and values use the active locale scope."),
+      ["chart.locale-pseudo"] = ("Pseudo-expanded labels", "Expanded copy probes title, legend, summary, and table reflow."),
+      ["chart.locale-ar"] = ("Arabic RTL chart", "Direction changes logically without reversing caller data order."),
+      ["chart.theme-light"] = ("Light theme", "Semantic chart tokens preserve visible series and non-color distinctions."),
+      ["chart.theme-dark"] = ("Dark theme and reduced motion", "The same definition remains readable with dark tokens and motion disabled."),
+    };
+
+  private static readonly LineChartDefinition Occupancy = new(
+    ["January", "February", "March", "April", "May", "June"],
+    [new("North Pier", [91, 92, null, 94, 95, 96]), new("South Pier", [84, 86, 88, 87, 90, 92])]);
+
+  private static readonly LineChartDefinition EmptyOccupancy = new([], []);
+
+  private static readonly LineChartDefinition Replacement = new(["Q3"], [new("Completed", [97])]);
+  private static readonly DonutChartDefinition Donut = new(
+    [new("Verified", 34), new("Needs review", 11), new("Awaiting measurement", null), new("Blocked", 4)]);
+
+  private static readonly IReadOnlyList<(string Code, string Meaning)> ValidationErrors =
+  [
+    ("category-value-count-mismatch", "Each line series has one value per category."),
+    ("duplicate-series-name", "Line series names are unique."),
+    ("label-required", "Series and slice labels are nonblank."),
+    ("non-finite-value", "Values are finite numbers or null."),
+  ];
+
+  private static readonly IReadOnlyDictionary<string, string> PseudoCatalog = new Dictionary<string, string>
+  {
+    ["charts.chart"] = "⟦ Çĥåřţ ··· ⟧", ["charts.value"] = "⟦ Ṽåļûë ··· ⟧",
+    ["charts.series"] = "⟦ Šëřîëš ··· ⟧", ["charts.item"] = "⟦ Îţëm ·· ⟧",
+  };
+
+  private static readonly IReadOnlyDictionary<string, string> ArabicCatalog = new Dictionary<string, string>
+  {
+    ["charts.chart"] = "مخطط", ["charts.value"] = "القيمة", ["charts.series"] = "السلسلة", ["charts.item"] = "العنصر",
+  };
+
+  private (string Title, string Description) Copy => CopyByScenario[ScenarioId];
+  private bool IsArabic => ScenarioId == "chart.locale-ar";
+  private bool IsPseudo => ScenarioId == "chart.locale-pseudo";
+  private string Locale => IsArabic ? "ar-SA" : IsPseudo ? "en-XA" : "en-US";
+  private string Direction => IsArabic ? "rtl" : "ltr";
+  private string? Theme => ScenarioId switch { "chart.theme-light" => "light", "chart.theme-dark" => "dark", _ => null };
+  private IReadOnlyDictionary<string, string>? Catalog => IsPseudo ? PseudoCatalog : IsArabic ? ArabicCatalog : null;
+  private ChartMotion Motion => ScenarioId == "chart.theme-dark" ? ChartMotion.Disabled : ChartMotion.Host;
+  private bool ShowLegend => ScenarioId != "chart.accessible-data";
+  private bool ShowTooltip => ScenarioId != "chart.accessible-data";
+  private string? DataSummaryLabel => ScenarioId switch
+  {
+    "chart.donut-missing" => "Ordered findings data",
+    "chart.accessible-data" => "Ordered monthly occupancy data",
+    _ => null,
+  };
+
+  private ChartDefinition Definition => ScenarioId switch
+  {
+    "chart.donut-missing" => Donut,
+    "chart.large-data" => LargeDefinition,
+    "chart.locale-en" or "chart.locale-pseudo" or "chart.locale-ar" => LocalizedDefinition,
+    _ => Occupancy,
+  };
+
+  private string AccessibleName => ScenarioId switch
+  {
+    "chart.donut-missing" => "Inspection findings by status",
+    "chart.large-data" => "Hourly structural sensor history",
+    "chart.locale-ar" => "اتجاه اكتمال الفحص",
+    "chart.locale-pseudo" => "⟦ Monthly structure inspection trend ········ ⟧",
+    "chart.locale-en" => "Inspection completion trend",
+    _ => "Monthly occupancy trend",
+  };
+
+  private string ChartTitle => ScenarioId switch
+  {
+    "chart.donut-missing" => "Findings by status",
+    "chart.large-data" => "Structural sensor history · 256 samples",
+    "chart.locale-ar" => "اكتمال الفحص الشهري",
+    "chart.locale-pseudo" => "⟦ Monthly structure inspection completion by operational region ············ ⟧",
+    "chart.locale-en" => "Inspection completion",
+    _ => "Monthly occupancy",
+  };
+
+  private LineChartDefinition LocalizedDefinition => ScenarioId switch
+  {
+    "chart.locale-ar" => new(["يناير", "فبراير", "مارس"], [new("مكتمل", [81.5, 88.25, 94.75])]),
+    "chart.locale-pseudo" => new(
+      ["⟦ January ··· ⟧", "⟦ February ···· ⟧", "⟦ March ··· ⟧"],
+      [new("⟦ Completed inspections ······ ⟧", [81.5, 88.25, 94.75])]),
+    _ => new(["January", "February", "March"], [new("Completed", [81.5, 88.25, 94.75])]),
+  };
+
+  private static LineChartDefinition LargeDefinition => new(
+    Enumerable.Range(1, 256).Select(index => $"Sample {index}").ToArray(),
+    [
+      new("Displacement", Enumerable.Range(0, 256).Select(index => (double?)(18 + Math.Sin(index / 9d) * 4)).ToArray()),
+      new("Vibration", Enumerable.Range(0, 256).Select(index => index % 41 == 0 ? null : (double?)(8 + Math.Cos(index / 7d) * 2)).ToArray()),
+      new("Temperature", Enumerable.Range(0, 256).Select(index => (double?)(68 + Math.Sin(index / 19d) * 3)).ToArray()),
+      new("Humidity", Enumerable.Range(0, 256).Select(index => (double?)(45 + Math.Cos(index / 23d) * 5)).ToArray()),
+    ]);
+}

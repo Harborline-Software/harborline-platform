@@ -1,0 +1,82 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Forms
+@inherits HarborlineComponentBase
+
+@if (Prefix is null && Suffix is null)
+{
+  <input id="@Id" name="@Name" type="@Type" value="@Value" placeholder="@Placeholder" dir="@Direction"
+         autocomplete="@Autocomplete" autofocus="@Autofocus" required="@Required" disabled="@Disabled"
+         readonly="@ReadOnly" inputmode="@InputMode" spellcheck="@Spellcheck" aria-describedby="@DescribedBy"
+         aria-label="@AccessibleLabel" class="@InputClasses" style="@CombineStyles()"
+         data-hl-size="@SizeName" data-hl-fill="@FillName" data-hl-rounded="@RoundedName" data-hl-invalid="@(Invalid ? "true" : null)"
+         @oninput="HandleInputAsync" @attributes="AdditionalAttributes" />
+}
+else
+{
+  <span class="hl-input" data-hl-size="@SizeName" data-hl-fill="@FillName" data-hl-rounded="@RoundedName" data-hl-invalid="@(Invalid ? "true" : null)">
+    @if (Prefix is not null) { <span class="hl-input__prefix">@Prefix</span> }
+    <input id="@Id" name="@Name" type="@Type" value="@Value" placeholder="@Placeholder" dir="@Direction"
+           autocomplete="@Autocomplete" autofocus="@Autofocus" required="@Required" disabled="@Disabled"
+           readonly="@ReadOnly" inputmode="@InputMode" spellcheck="@Spellcheck" aria-describedby="@DescribedBy"
+           aria-label="@AccessibleLabel" class="@InputClasses hl-input__control--adorned" style="@CombineStyles()"
+           data-hl-size="@SizeName" data-hl-fill="@FillName" data-hl-rounded="@RoundedName" data-hl-invalid="@(Invalid ? "true" : null)"
+           @oninput="HandleInputAsync" @attributes="AdditionalAttributes" />
+    @if (Suffix is not null) { <span class="hl-input__suffix">@Suffix</span> }
+  </span>
+}
+
+@code {
+  [Parameter] public string? Id { get; set; }
+  [Parameter] public string? Name { get; set; }
+  [Parameter] public string Type { get; set; } = "text";
+  [Parameter] public string Value { get; set; } = string.Empty;
+  [Parameter] public EventCallback<string> ValueChanged { get; set; }
+  [Parameter] public string? Placeholder { get; set; }
+  [Parameter] public string? Direction { get; set; }
+  [Parameter] public string? Autocomplete { get; set; }
+  [Parameter] public bool Autofocus { get; set; }
+  [Parameter] public bool Required { get; set; }
+  [Parameter] public bool Disabled { get; set; }
+  [Parameter] public bool ReadOnly { get; set; }
+  [Parameter] public string? InputMode { get; set; }
+  [Parameter] public bool? Spellcheck { get; set; }
+  [Parameter] public string? DescribedBy { get; set; }
+  [Parameter] public string? AccessibleLabel { get; set; }
+  [Parameter] public InputSize Size { get; set; } = InputSize.Md;
+  [Parameter] public InputFillMode FillMode { get; set; } = InputFillMode.Solid;
+  [Parameter] public InputRounded Rounded { get; set; } = InputRounded.Medium;
+  [Parameter] public bool Invalid { get; set; }
+  [Parameter] public RenderFragment? Prefix { get; set; }
+  [Parameter] public RenderFragment? Suffix { get; set; }
+
+  private string SizeName => Size switch
+  {
+    InputSize.Sm or InputSize.Small => "sm",
+    InputSize.Lg or InputSize.Large => "lg",
+    InputSize.Md or InputSize.Medium => "md",
+    _ => throw new InvalidOperationException("unsupported-input-appearance")
+  };
+
+  private string FillName => FillMode switch
+  {
+    InputFillMode.Solid => "solid",
+    InputFillMode.Outline => "outline",
+    InputFillMode.Flat => "flat",
+    _ => throw new InvalidOperationException("unsupported-input-appearance")
+  };
+
+  private string RoundedName => Rounded switch
+  {
+    InputRounded.Small => "small",
+    InputRounded.Medium => "medium",
+    InputRounded.Large => "large",
+    InputRounded.Full => "full",
+    _ => throw new InvalidOperationException("unsupported-input-appearance")
+  };
+  private string InputClasses => CombineClasses("hl-input__control", $"hl-input--size-{SizeName}", $"hl-input--fill-{FillName}", $"hl-input--rounded-{RoundedName}", Invalid ? "hl-input--invalid" : null);
+
+  private async Task HandleInputAsync(ChangeEventArgs args)
+  {
+    if (Disabled || ReadOnly) return;
+    await ValueChanged.InvokeAsync(args.Value?.ToString() ?? string.Empty);
+  }
+}

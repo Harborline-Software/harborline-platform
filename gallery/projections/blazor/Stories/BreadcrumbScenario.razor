@@ -1,0 +1,14 @@
+<section class="hl-gallery-scene" data-gallery-probe data-gallery-scenario="@ScenarioId" data-theme="@Theme" dir="@Direction">
+  <header class="hl-gallery-heading"><h2>@Title</h2><p>Current-page semantics, logical separators, and wrapping share one neutral contract.</p></header>
+  <div class="hl-gallery-stage">@if(ScenarioId=="breadcrumb.content"){<HarborlineBreadcrumb Items="ContentItems" AccessibleLabel="Location" />}else{<HarborlineBreadcrumb Items="Items" AccessibleLabel="Location" />}</div>
+</section>
+@code {
+  [Parameter, EditorRequired] public string ScenarioId { get; set; } = "breadcrumb.defaults";
+  private string Title => ScenarioId == "breadcrumb.content" ? "Content resilience" : ScenarioId == "breadcrumb.navigation" ? "Current items and links" : ScenarioId == "breadcrumb.rtl-theme" ? "RTL and theme" : "Defaults and relationships";
+  private string? Theme => ScenarioId == "breadcrumb.rtl-theme" ? "dark" : null;
+  private string? Direction => ScenarioId == "breadcrumb.rtl-theme" ? "rtl" : null;
+  private static IReadOnlyList<HarborlineBreadcrumbItem> ContentItems { get; } = [new("review", "Awaiting third-party structural certification review", "/review"), new("count", "1,284,905", "/records"), new("grid", "Bay 4 <grid C-7> & 8", "/grid"), new("current", "Ordnance Survey — Niño Ångström")];
+  private IReadOnlyList<HarborlineBreadcrumbItem> Items => ScenarioId == "breadcrumb.rtl-theme"
+    ? [new("home", "الرئيسية", "/"), new("forms", "النماذج", "/forms"), new("current", "التفاصيل")]
+    : [new("home", "Home", "/"), new("forms", "Forms", "/forms"), new("current", "Inspection details")];
+}

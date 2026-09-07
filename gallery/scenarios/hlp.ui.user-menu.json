@@ -1,0 +1,477 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.user-menu",
+  "sourceFixture": "conformance/hlp.ui.user-menu/fixtures.yaml",
+  "qualityFixture": "conformance/hlp.ui.user-menu/quality-fixtures.yaml",
+  "galleryInterface": {
+    "probeAttribute": "data-gallery-probe",
+    "scenarioAttribute": "data-gallery-scenario",
+    "projectionTitles": {
+      "react": "Platform/User Menu",
+      "blazor": "Platform/User Menu"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "user-menu.identity",
+      "name": "Identity, avatar, and initials",
+      "surface": "identity",
+      "sourceCaseIds": [
+        "user-menu.identity",
+        "user-menu.initials",
+        "user-menu.avatar",
+        "user-menu.closed"
+      ],
+      "sourceQualityCaseIds": [
+        "user-menu.quality.initials"
+      ],
+      "content": {
+        "blurb": "Structured identity remains authoritative and avatar failure preserves a stable trigger name.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "identity": {
+            "name": "Ada Lovelace",
+            "email": "ada@example.test",
+            "role": "Analyst"
+          },
+          "items": [
+            {
+              "id": "profile",
+              "kind": "action",
+              "label": "Profile"
+            },
+            {
+              "id": "pin",
+              "kind": "action",
+              "label": "Pin navigation",
+              "closeOnSelect": false
+            },
+            {
+              "id": "separator-1",
+              "kind": "separator"
+            },
+            {
+              "id": "billing",
+              "kind": "link",
+              "label": "Billing",
+              "destination": "/billing",
+              "disabled": true
+            }
+          ],
+          "placement": "bottom",
+          "alignment": "inline-end",
+          "direction": "ltr",
+          "canShowRail": true,
+          "labels": {
+            "trigger": "Account for Ada Lovelace",
+            "panel": "Account",
+            "signOut": "Sign out"
+          }
+        },
+        "state": {},
+        "body": [],
+        "footer": []
+      }
+    },
+    {
+      "id": "user-menu.simple-menu",
+      "name": "Simple menu and selection",
+      "surface": "simple-menu",
+      "interaction": "keyboard",
+      "sourceCaseIds": [
+        "user-menu.toggle",
+        "user-menu.simple-pattern",
+        "user-menu.ordered-entries",
+        "user-menu.selection",
+        "user-menu.keep-open",
+        "user-menu.disabled",
+        "user-menu.sign-out",
+        "user-menu.keyboard-menu"
+      ],
+      "sourceQualityCaseIds": [
+        "user-menu.quality.pattern",
+        "user-menu.quality.keyboard",
+        "user-menu.quality.forced-colors"
+      ],
+      "content": {
+        "blurb": "Ordered actions and links use a complete menu keyboard model with explicit disabled and close policy.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [],
+        "footer": [],
+        "inherits": "user-menu.identity"
+      }
+    },
+    {
+      "id": "user-menu.custom-dialog",
+      "name": "Custom controls dialog",
+      "surface": "custom-dialog",
+      "interaction": "keyboard",
+      "sourceCaseIds": [
+        "user-menu.custom-pattern",
+        "user-menu.custom-keep-open",
+        "user-menu.keyboard-dialog"
+      ],
+      "sourceQualityCaseIds": [
+        "user-menu.quality.custom-controls"
+      ],
+      "content": {
+        "blurb": "Embedded native controls change the popup pattern to dialog and retain their own keyboard behavior.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "items": [
+            {
+              "id": "density",
+              "kind": "custom",
+              "label": "Display density",
+              "closeOnSelect": false
+            }
+          ]
+        },
+        "state": {
+          "compact": {
+            "kind": "flag",
+            "initial": false
+          }
+        },
+        "body": [
+          {
+            "control": "label",
+            "text": "Compact rows",
+            "child": {
+              "control": "input",
+              "type": "checkbox",
+              "checked": "{compact}"
+            }
+          }
+        ],
+        "footer": [],
+        "inherits": "user-menu.identity"
+      }
+    },
+    {
+      "id": "user-menu.placement-dismissal",
+      "name": "Placement, touch, and dismissal",
+      "surface": "placement-dismissal",
+      "interaction": "pointer",
+      "sourceCaseIds": [
+        "user-menu.dismissal-focus",
+        "user-menu.placement",
+        "user-menu.rtl-touch",
+        "user-menu.invalid-input"
+      ],
+      "sourceQualityCaseIds": [
+        "user-menu.quality.focus",
+        "user-menu.quality.dismissal",
+        "user-menu.quality.targets",
+        "user-menu.quality.reflow"
+      ],
+      "content": {
+        "blurb": "Logical alignment, viewport clamping, touch sizing, and focus restoration remain deterministic.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "canShowRail": false
+        },
+        "state": {
+          "scenarioId": {
+            "kind": "string",
+            "initial": "user-menu.placement-dismissal"
+          }
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<MenuFixture scenarioId={scenarioId} />\n{scenarioId === 'user-menu.placement-dismissal' && <MenuFixture scenarioId={scenarioId} placement=\"top\" />}",
+            "blazor": "<HarborlineUserMenu Identity=\"@Identity\" Items=\"@Items\" OnSignOut=\"HandleSignOut\" Placement=\"UserMenuPlacement.Bottom\" Alignment=\"@Alignment\" Labels=\"@Labels\" Direction=\"@Direction\" CanShowRail=\"@CanShowRail\" />\n<HarborlineUserMenu Identity=\"@Identity\" Items=\"@Items\" OnSignOut=\"HandleSignOut\" Placement=\"UserMenuPlacement.Top\" Alignment=\"@Alignment\" Labels=\"@Labels\" Direction=\"@Direction\" CanShowRail=\"@CanShowRail\" />",
+            "rationale": "The scenario renders two complete user-menu module instances with different placements; the closed body/footer control vocabulary can describe child controls but cannot declare or duplicate a module instance."
+          }
+        ],
+        "footer": [],
+        "inherits": "user-menu.identity"
+      }
+    },
+    {
+      "id": "user-menu.disclosure",
+      "name": "Disclosure, open and closed",
+      "surface": "disclosure",
+      "states": [
+        "collapsed",
+        "expanded"
+      ],
+      "sourceCaseIds": [
+        "user-menu.toggle"
+      ],
+      "content": {
+        "blurb": "Both disclosure states drawn together: the trigger closed, and the panel opened through DefaultOpen rather than a click.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [],
+        "footer": [],
+        "inherits": "user-menu.identity"
+      }
+    },
+    {
+      "id": "user-menu.locale-en",
+      "name": "English locale",
+      "surface": "locale-en",
+      "sourceCaseIds": [
+        "user-menu.localization"
+      ],
+      "sourceQualityCaseIds": [
+        "user-menu.quality.locales"
+      ],
+      "content": {
+        "blurb": "Catalog-backed trigger, panel, and sign-out labels include caller identity.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [],
+        "footer": [],
+        "inherits": "user-menu.identity"
+      }
+    },
+    {
+      "id": "user-menu.locale-pseudo",
+      "name": "Pseudo locale",
+      "surface": "locale-pseudo",
+      "sourceCaseIds": [
+        "user-menu.localization"
+      ],
+      "sourceQualityCaseIds": [
+        "user-menu.quality.pseudo"
+      ],
+      "content": {
+        "blurb": "Expanded identity and action copy reflow without clipping.",
+        "environment": {
+          "locale": "en-XA",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "identity": {
+            "name": "⟦ Åđå ßÿřøñ Ļøṽëļåçë ······ ⟧",
+            "email": "ada@example.test",
+            "role": "Analyst"
+          },
+          "items": [
+            {
+              "id": "profile",
+              "kind": "action",
+              "label": "⟦ Þřøƒîļë ··· ⟧"
+            },
+            {
+              "id": "pin",
+              "kind": "action",
+              "label": "Pin navigation",
+              "closeOnSelect": false
+            },
+            {
+              "id": "separator-1",
+              "kind": "separator"
+            },
+            {
+              "id": "billing",
+              "kind": "link",
+              "label": "Billing",
+              "destination": "/billing",
+              "disabled": true
+            }
+          ],
+          "labels": {
+            "trigger": "Account for ⟦ Åđå ßÿřøñ Ļøṽëļåçë ······ ⟧",
+            "panel": "Account",
+            "signOut": "⟦ Šîĝñ øûţ ··· ⟧"
+          }
+        },
+        "state": {},
+        "body": [],
+        "footer": [],
+        "inherits": "user-menu.identity"
+      }
+    },
+    {
+      "id": "user-menu.locale-ar",
+      "name": "Arabic locale",
+      "surface": "locale-ar",
+      "sourceCaseIds": [
+        "user-menu.rtl-touch"
+      ],
+      "sourceQualityCaseIds": [
+        "user-menu.quality.rtl"
+      ],
+      "content": {
+        "blurb": "Logical placement follows RTL while item order remains stable.",
+        "environment": {
+          "locale": "ar-SA",
+          "direction": "rtl",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "identity": {
+            "name": "آدا لوفليس",
+            "email": "ada@example.test",
+            "role": "محللة"
+          },
+          "items": [
+            {
+              "id": "profile",
+              "kind": "action",
+              "label": "الملف الشخصي"
+            },
+            {
+              "id": "pin",
+              "kind": "action",
+              "label": "تثبيت الشريط",
+              "closeOnSelect": false
+            },
+            {
+              "id": "separator-1",
+              "kind": "separator"
+            },
+            {
+              "id": "billing",
+              "kind": "link",
+              "label": "الفوترة",
+              "destination": "/billing",
+              "disabled": true
+            }
+          ],
+          "alignment": "inline-start",
+          "direction": "rtl",
+          "canShowRail": false,
+          "labels": {
+            "trigger": "حساب آدا لوفليس",
+            "panel": "الحساب",
+            "signOut": "تسجيل الخروج"
+          }
+        },
+        "state": {},
+        "body": [],
+        "footer": [],
+        "inherits": "user-menu.identity"
+      }
+    },
+    {
+      "id": "user-menu.theme-light",
+      "name": "Light theme",
+      "surface": "theme-light",
+      "sourceCaseIds": [
+        "user-menu.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "user-menu.quality.themes",
+        "user-menu.quality.tokens",
+        "user-menu.quality.contrast",
+        "user-menu.quality.reduced-motion",
+        "user-menu.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "Closed, open, hover, focus, disabled, and danger states use public tokens.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [],
+        "footer": [],
+        "inherits": "user-menu.identity"
+      }
+    },
+    {
+      "id": "user-menu.theme-dark",
+      "name": "Dark theme",
+      "surface": "theme-dark",
+      "sourceCaseIds": [
+        "user-menu.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "user-menu.quality.themes",
+        "user-menu.quality.tokens",
+        "user-menu.quality.contrast",
+        "user-menu.quality.reduced-motion",
+        "user-menu.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "The same account surface on the Harborline dark theme.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "dark",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [],
+        "footer": [],
+        "inherits": "user-menu.identity"
+      }
+    },
+    {
+      "id": "user-menu.content",
+      "name": "Content resilience",
+      "surface": "long-content",
+      "sourceCaseIds": [
+        "user-menu.identity",
+        "user-menu.ordered-entries"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "Hostile account content carries a long action label, a grouped large number, escaped angle brackets and an ampersand, and a name with diacritics and an em dash.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<UserMenu identity={{name:'Ordnance Survey — Niño Ångström',email:'1,284,905',role:'Bay 4 <grid C-7> & 8'}} items={[{id:'long',kind:'action',label:'Awaiting third-party structural certification review',onActivate(){}},{id:'number',kind:'action',label:'1,284,905',onActivate(){}},{id:'hostile',kind:'action',label:'Bay 4 <grid C-7> & 8',onActivate(){}},{id:'name',kind:'action',label:'Ordnance Survey — Niño Ångström',onActivate(){}}]} labels={{trigger:name=>`Account for ${name}`,panel:'Content resilience account',signOut:'Sign out'}} />",
+            "blazor": "<HarborlineUserMenu Identity=\"@ContentIdentity\" Items=\"@ContentItems\" Labels=\"@ContentLabels\" />\n@code { private UserIdentity ContentIdentity => new(\"Ordnance Survey — Niño Ångström\", \"1,284,905\", \"Bay 4 <grid C-7> & 8\"); private UserMenuLabels ContentLabels => new(name => $\"Account for {name}\", \"Content resilience account\", \"Sign out\"); private IReadOnlyList<UserMenuEntry> ContentItems => [new(\"long\", UserMenuEntryKind.Action, \"Awaiting third-party structural certification review\", ActivateAsync: () => Task.CompletedTask), new(\"number\", UserMenuEntryKind.Action, \"1,284,905\", ActivateAsync: () => Task.CompletedTask), new(\"hostile\", UserMenuEntryKind.Action, \"Bay 4 <grid C-7> & 8\", ActivateAsync: () => Task.CompletedTask), new(\"name\", UserMenuEntryKind.Action, \"Ordnance Survey — Niño Ångström\", ActivateAsync: () => Task.CompletedTask)]; }",
+            "rationale": "The closed descriptor vocabulary has no user-menu control and cannot express structured identity plus an account-action collection carrying hostile-but-valid text."
+          }
+        ],
+        "footer": []
+      }
+    }
+  ]
+}

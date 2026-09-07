@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "projection": "react",
+  "moduleId": "hlp.ui.data-export-button",
+  "scenarios": [
+    {
+      "scenarioId": "data-export.defaults",
+      "sha256": "fb2d6512cf041d78591b8c647de2cf96792f2fa3c570304bf977bfdf9e86d9a1",
+      "bytes": 5118,
+      "artifact": "../baselines/sha256/fb2d6512cf041d78591b8c647de2cf96792f2fa3c570304bf977bfdf9e86d9a1.png"
+    },
+    {
+      "scenarioId": "data-export.states",
+      "sha256": "7308c902a0fa19fe529ebe5adce7cd29314359d8953884322048d37995bc3c19",
+      "bytes": 7188,
+      "artifact": "../baselines/sha256/7308c902a0fa19fe529ebe5adce7cd29314359d8953884322048d37995bc3c19.png"
+    },
+    {
+      "scenarioId": "data-export.rtl-theme",
+      "sha256": "ffd071a95e09ceb5861deb1467325bb12d08f81b51f7932c0ca8e3999cea35a7",
+      "bytes": 4649,
+      "artifact": "../baselines/sha256/ffd071a95e09ceb5861deb1467325bb12d08f81b51f7932c0ca8e3999cea35a7.png"
+    }
+  ]
+}

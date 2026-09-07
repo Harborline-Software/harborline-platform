@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "projection": "react",
+  "moduleId": "hlp.ui.input",
+  "scenarios": [
+    {
+      "scenarioId": "input.defaults",
+      "sha256": "fad314eb231b0c93b79966190e737917f3e92c809fece7919636cf1d902ab5bc",
+      "bytes": 8531,
+      "artifact": "../baselines/sha256/fad314eb231b0c93b79966190e737917f3e92c809fece7919636cf1d902ab5bc.png"
+    },
+    {
+      "scenarioId": "input.appearance",
+      "sha256": "39290cd18c2198f6b4c1bfea5d3880282f01dc3d4f09462c2c54985ca85c1964",
+      "bytes": 11621,
+      "artifact": "../baselines/sha256/39290cd18c2198f6b4c1bfea5d3880282f01dc3d4f09462c2c54985ca85c1964.png"
+    },
+    {
+      "scenarioId": "input.states",
+      "sha256": "a18a081eb08a31fb77447af55923921afcee35fd5dbd55cb56d39e8ab264613b",
+      "bytes": 12214,
+      "artifact": "../baselines/sha256/a18a081eb08a31fb77447af55923921afcee35fd5dbd55cb56d39e8ab264613b.png"
+    },
+    {
+      "scenarioId": "input.adornments",
+      "sha256": "109458675e98ef9a7cde169abd48ea95d772b12c22877790f50a1e4358e6047e",
+      "bytes": 7923,
+      "artifact": "../baselines/sha256/109458675e98ef9a7cde169abd48ea95d772b12c22877790f50a1e4358e6047e.png"
+    },
+    {
+      "scenarioId": "input.locale-en",
+      "sha256": "41973f96fb9d8836ce98310e077c135b5de5ec1bafb766e3a20ca942fbd871ca",
+      "bytes": 6631,
+      "artifact": "../baselines/sha256/41973f96fb9d8836ce98310e077c135b5de5ec1bafb766e3a20ca942fbd871ca.png"
+    },
+    {
+      "scenarioId": "input.locale-pseudo",
+      "sha256": "c84a4bf42a64323458416e24919da53b2c5e087b0584ce522e77d409a0659d9d",
+      "bytes": 7280,
+      "artifact": "../baselines/sha256/c84a4bf42a64323458416e24919da53b2c5e087b0584ce522e77d409a0659d9d.png"
+    },
+    {
+      "scenarioId": "input.locale-ar",
+      "sha256": "3fb7bf73f0708ba2f881b0d9ec310ec9840b6bbdacfbd6e173eab98eafa6914c",
+      "bytes": 6544,
+      "artifact": "../baselines/sha256/3fb7bf73f0708ba2f881b0d9ec310ec9840b6bbdacfbd6e173eab98eafa6914c.png"
+    },
+    {
+      "scenarioId": "input.theme-light",
+      "sha256": "13f92df254e1eff8051c2a0207bb4adbbe48651294f34278f0d61cffa0ceecc1",
+      "bytes": 9914,
+      "artifact": "../baselines/sha256/13f92df254e1eff8051c2a0207bb4adbbe48651294f34278f0d61cffa0ceecc1.png"
+    },
+    {
+      "scenarioId": "input.theme-dark",
+      "sha256": "8bd1f2bdc8baa7a5e431f60325e8bbebdecdbe3199545472d13a2e4aaf0ee0c2",
+      "bytes": 10136,
+      "artifact": "../baselines/sha256/8bd1f2bdc8baa7a5e431f60325e8bbebdecdbe3199545472d13a2e4aaf0ee0c2.png"
+    }
+  ]
+}

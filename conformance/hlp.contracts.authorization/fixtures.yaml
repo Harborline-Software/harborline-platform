@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.contracts.authorization",
+  "definitions": [
+    {"roleDefinitionId":"3b69e3cb-ec5e-4ad7-8c90-16ebc1896101","role":{"vocabulary":"sys.platform-roles","name":"administrator"},"displayName":"Administrator","owner":{"kind":"Platform","ownerId":"harborline-platform"},"isSealed":true},
+    {"roleDefinitionId":"3b69e3cb-ec5e-4ad7-8c90-16ebc1896102","role":{"vocabulary":"sys.platform-roles","name":"auditor"},"displayName":"Auditor","owner":{"kind":"Platform","ownerId":"harborline-platform"},"isSealed":true},
+    {"roleDefinitionId":"00000000-0000-0000-0000-000000000003","role":{"vocabulary":"tax.roles","name":"InvoiceApprover"},"displayName":"Invoice approver","owner":{"kind":"Package","ownerId":"finance"},"isSealed":false}
+  ],
+  "cases": [
+    {"id":"resolve-qualified-role","operation":"resolve","role":{"vocabulary":"tax.roles","name":"InvoiceApprover"},"expected":"Invoice approver"},
+    {"id":"require-qualified-role","operation":"require","role":{"vocabulary":"sys.platform-roles","name":"auditor"},"expected":"Auditor"},
+    {"id":"unknown-resolves-undefined","operation":"resolve","role":{"vocabulary":"tax.roles","name":"Missing"},"expected":null},
+    {"id":"unknown-require-refused","operation":"require","role":{"vocabulary":"tax.roles","name":"Missing"},"expectedError":"unknown-role-reference"},
+    {"id":"empty-gate-allows","operation":"allows","gate":{"requiredRoles":[]},"held":{"roles":[]},"expected":true},
+    {"id":"any-of-allows","operation":"allows","gate":{"requiredRoles":[{"vocabulary":"sys.platform-roles","name":"auditor"},{"vocabulary":"tax.roles","name":"InvoiceApprover"}]},"held":{"roles":[{"vocabulary":"tax.roles","name":"InvoiceApprover"}]},"expected":true},
+    {"id":"any-of-denies","operation":"allows","gate":{"requiredRoles":[{"vocabulary":"sys.platform-roles","name":"auditor"}]},"held":{"roles":[{"vocabulary":"sys.platform-roles","name":"administrator"}]},"expected":false},
+    {"id":"unknown-gate-fails-closed","operation":"allows","gate":{"requiredRoles":[{"vocabulary":"sys.platform-roles","name":"auditor"},{"vocabulary":"tax.roles","name":"Missing"}]},"held":{"roles":[{"vocabulary":"sys.platform-roles","name":"auditor"}]},"expected":false},
+    {"id":"unknown-vocabulary-gate-fails-closed","operation":"allows","gate":{"requiredRoles":[{"vocabulary":"sys.roles","name":"auditor"}]},"held":{"roles":[{"vocabulary":"sys.platform-roles","name":"auditor"}]},"expected":false},
+    {"id":"duplicate-refused","operation":"invalid","mutation":"duplicate","expectedError":"duplicate-role-reference"},
+    {"id":"unknown-vocabulary-refused","operation":"invalid","mutation":"unknown-vocabulary","expectedError":"unknown-role-vocabulary"},
+    {"id":"platform-taxonomy-inversion-refused","operation":"invalid","mutation":"platform-taxonomy","expectedError":"invalid-role-ownership"},
+    {"id":"domain-platform-inversion-refused","operation":"invalid","mutation":"domain-platform","expectedError":"invalid-role-ownership"},
+    {"id":"unsealed-platform-refused","operation":"invalid","mutation":"unsealed-platform","expectedError":"invalid-role-ownership"},
+    {"id":"sealed-domain-refused","operation":"invalid","mutation":"sealed-domain","expectedError":"invalid-role-ownership"},
+    {"id":"invented-platform-role-refused","operation":"invalid","mutation":"invented-platform-role","expectedError":"invalid-platform-role"}
+  ]
+}

@@ -1,0 +1,472 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.input",
+  "sourceFixture": "conformance/hlp.ui.input/fixtures.yaml",
+  "qualityFixture": "conformance/hlp.ui.input/quality-fixtures.yaml",
+  "galleryInterface": {
+    "probeAttribute": "data-gallery-probe",
+    "scenarioAttribute": "data-gallery-scenario",
+    "projectionTitles": {
+      "react": "Platform/Input",
+      "blazor": "Platform/Input"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "input.defaults",
+      "name": "Defaults and host attributes",
+      "surface": "defaults",
+      "sourceCaseIds": [
+        "input.defaults",
+        "input.host-attributes",
+        "input.value-change"
+      ],
+      "sourceQualityCaseIds": [
+        "input.quality.native"
+      ],
+      "content": {
+        "blurb": "Native value, type, name, labels, descriptions, and host attributes remain caller-owned.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "id": "structure-name",
+          "name": "structureName",
+          "type": "text",
+          "aria-label": "Structure name",
+          "placeholder": "Enter structure name",
+          "value": "",
+          "dir": "ltr",
+          "data-case": "structure-intake"
+        },
+        "state": {
+          "value": {
+            "kind": "string",
+            "initial": ""
+          }
+        },
+        "body": [
+          {
+            "control": "input",
+            "id": "structure-name",
+            "name": "structureName",
+            "type": "text",
+            "aria-label": "Structure name",
+            "placeholder": "Enter structure name",
+            "value": "{value}",
+            "dir": "ltr",
+            "data-case": "structure-intake"
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "input.appearance",
+      "name": "Size, fill, and rounding",
+      "surface": "appearance",
+      "sourceCaseIds": [
+        "input.sizes",
+        "input.fill-modes",
+        "input.rounding",
+        "input.invalid-appearance"
+      ],
+      "sourceQualityCaseIds": [
+        "input.quality.tokens"
+      ],
+      "content": {
+        "blurb": "Independent closed appearance axes normalize Harborline compatibility aliases.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "input",
+            "aria-label": "Small solid input",
+            "placeholder": "Small solid",
+            "size": "sm",
+            "fillMode": "solid",
+            "rounded": "small"
+          },
+          {
+            "control": "input",
+            "aria-label": "Medium outline input",
+            "placeholder": "Medium outline",
+            "size": "md",
+            "fillMode": "outline",
+            "rounded": "medium"
+          },
+          {
+            "control": "input",
+            "aria-label": "Large flat input",
+            "placeholder": "Large flat",
+            "size": "lg",
+            "fillMode": "flat",
+            "rounded": "large"
+          },
+          {
+            "control": "input",
+            "aria-label": "Full rounded input",
+            "placeholder": "Full rounded",
+            "size": "medium",
+            "fillMode": "outline",
+            "rounded": "full"
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "input.states",
+      "name": "Disabled, readonly, and invalid",
+      "surface": "states",
+      "sourceCaseIds": [
+        "input.disabled-readonly",
+        "input.invalid",
+        "input.touch-floor",
+        "input.invalid-appearance"
+      ],
+      "sourceQualityCaseIds": [
+        "input.quality.keyboard",
+        "input.quality.focus",
+        "input.quality.targets",
+        "input.quality.forced-colors"
+      ],
+      "content": {
+        "blurb": "Native interaction states and visual invalid intent preserve host accessibility semantics.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "input",
+            "aria-label": "Disabled input",
+            "value": "Disabled",
+            "disabled": true,
+            "readOnly": true
+          },
+          {
+            "control": "input",
+            "aria-label": "Readonly input",
+            "value": "Read only",
+            "readOnly": true
+          },
+          {
+            "control": "input",
+            "aria-label": "Invalid input",
+            "value": "Needs review",
+            "invalid": true,
+            "aria-invalid": "true",
+            "aria-describedby": "input-error"
+          },
+          {
+            "control": "text",
+            "id": "input-error",
+            "text": "Enter a recognized structure identifier."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "input.adornments",
+      "name": "Prefix and suffix",
+      "surface": "adornments",
+      "sourceCaseIds": [
+        "input.prefix",
+        "input.suffix",
+        "input.both-adornments"
+      ],
+      "sourceQualityCaseIds": [
+        "input.quality.reflow"
+      ],
+      "content": {
+        "blurb": "Decorative content surrounds one native input and uses logical padding.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {
+          "cost": {
+            "kind": "string",
+            "initial": "125"
+          },
+          "weight": {
+            "kind": "string",
+            "initial": "40"
+          }
+        },
+        "body": [
+          {
+            "control": "input",
+            "aria-label": "Cost",
+            "value": "{cost}",
+            "prefix": "$",
+            "suffix": "USD",
+            "inputMode": "decimal"
+          },
+          {
+            "control": "input",
+            "aria-label": "Weight",
+            "value": "{weight}",
+            "suffix": "kg",
+            "inputMode": "decimal"
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "input.locale-en",
+      "name": "English locale",
+      "surface": "locale-en",
+      "sourceCaseIds": [
+        "input.host-attributes"
+      ],
+      "sourceQualityCaseIds": [
+        "input.quality.locales"
+      ],
+      "content": {
+        "blurb": "Caller text and native input behavior remain unchanged.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "inherits": "input.defaults"
+      }
+    },
+    {
+      "id": "input.locale-pseudo",
+      "name": "Pseudo locale",
+      "surface": "locale-pseudo",
+      "sourceCaseIds": [
+        "input.host-attributes",
+        "input.both-adornments"
+      ],
+      "sourceQualityCaseIds": [
+        "input.quality.pseudo"
+      ],
+      "content": {
+        "blurb": "Expanded placeholders and adornments reflow without clipping.",
+        "environment": {
+          "locale": "en-XA",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "id": "structure-name",
+          "name": "structureName",
+          "type": "text",
+          "aria-label": "Structure name",
+          "placeholder": "⟦ Ëñţëř ţhë šţřûçţûřë ñåmë ······ ⟧",
+          "value": "",
+          "dir": "ltr",
+          "data-case": "structure-intake"
+        },
+        "state": {
+          "value": {
+            "kind": "string",
+            "initial": ""
+          }
+        },
+        "body": [
+          {
+            "control": "input",
+            "id": "structure-name",
+            "name": "structureName",
+            "type": "text",
+            "aria-label": "Structure name",
+            "placeholder": "⟦ Ëñţëř ţhë šţřûçţûřë ñåmë ······ ⟧",
+            "value": "{value}",
+            "dir": "ltr",
+            "data-case": "structure-intake"
+          }
+        ],
+        "footer": [],
+        "inherits": "input.defaults"
+      }
+    },
+    {
+      "id": "input.locale-ar",
+      "name": "Arabic locale",
+      "surface": "locale-ar",
+      "sourceCaseIds": [
+        "input.rtl"
+      ],
+      "sourceQualityCaseIds": [
+        "input.quality.rtl"
+      ],
+      "content": {
+        "blurb": "Logical adornment edges follow RTL without changing the value.",
+        "environment": {
+          "locale": "ar-SA",
+          "direction": "rtl",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "id": "structure-name",
+          "name": "structureName",
+          "type": "text",
+          "aria-label": "اسم الهيكل",
+          "placeholder": "أدخل اسم الهيكل",
+          "value": "المبنى أ",
+          "prefix": "₪",
+          "suffix": "ILS",
+          "dir": "rtl",
+          "data-case": "structure-intake"
+        },
+        "state": {
+          "value": {
+            "kind": "string",
+            "initial": "المبنى أ"
+          }
+        },
+        "body": [
+          {
+            "control": "input",
+            "id": "structure-name",
+            "name": "structureName",
+            "type": "text",
+            "aria-label": "اسم الهيكل",
+            "placeholder": "أدخل اسم الهيكل",
+            "value": "{value}",
+            "prefix": "₪",
+            "suffix": "ILS",
+            "dir": "rtl",
+            "data-case": "structure-intake"
+          }
+        ],
+        "footer": [],
+        "inherits": "input.defaults"
+      }
+    },
+    {
+      "id": "input.theme-light",
+      "name": "Light theme",
+      "surface": "theme-light",
+      "sourceCaseIds": [
+        "input.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "input.quality.themes",
+        "input.quality.contrast",
+        "input.quality.reduced-motion",
+        "input.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "Every appearance axis uses public light-theme tokens.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "inherits": "input.appearance"
+      }
+    },
+    {
+      "id": "input.theme-dark",
+      "name": "Dark theme",
+      "surface": "theme-dark",
+      "sourceCaseIds": [
+        "input.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "input.quality.themes",
+        "input.quality.contrast",
+        "input.quality.reduced-motion",
+        "input.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "The same input vocabulary on the Harborline dark surface.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "dark",
+          "catalog": {}
+        },
+        "inherits": "input.appearance"
+      }
+    },
+    {
+      "id": "input.content",
+      "name": "Content resilience",
+      "surface": "long-content",
+      "sourceCaseIds": [
+        "input.defaults",
+        "input.host-attributes"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "Four native inputs carry an overlong label, a grouped large number, escaped angle brackets and an ampersand, and a diacritic-rich name with an em dash.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<><Input aria-label=\"Long content\" value=\"Awaiting third-party structural certification review\" readOnly /><Input aria-label=\"Large number\" value=\"1,284,905\" readOnly /><Input aria-label=\"Escaped content\" value={'Bay 4 <grid C-7> & 8'} readOnly /><Input aria-label=\"Unusual name\" value=\"Ordnance Survey — Niño Ångström\" readOnly /></>",
+            "blazor": "<HarborlineInput AccessibleLabel=\"Long content\" Value=\"Awaiting third-party structural certification review\" ReadOnly /><HarborlineInput AccessibleLabel=\"Large number\" Value=\"1,284,905\" ReadOnly /><HarborlineInput AccessibleLabel=\"Escaped content\" Value=\"@(\"Bay 4 <grid C-7> & 8\")\" ReadOnly /><HarborlineInput AccessibleLabel=\"Unusual name\" Value=\"Ordnance Survey — Niño Ångström\" ReadOnly />",
+            "rationale": "The closed control vocabulary cannot express four native input components that preserve hostile-but-valid values identically across both projection lanes."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "input.error-state",
+      "name": "Error state",
+      "surface": "invalid-input",
+      "sourceCaseIds": [
+        "input.invalid",
+        "input.invalid-appearance"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "The input renders its declared invalid state with an accessible name.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<Input aria-label=\"Structure identifier\" aria-invalid=\"true\" defaultValue=\"Unrecognized structure\" invalid />",
+            "blazor": "<HarborlineInput AccessibleLabel=\"Structure identifier\" aria-invalid=\"true\" Invalid=\"true\" Value=\"Unrecognized structure\" />",
+            "rationale": "The closed control vocabulary cannot express the Input invalid prop and its visual and accessibility semantics in both projection lanes."
+          }
+        ],
+        "footer": []
+      }
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.contracts.authorization",
+  "interfaceRevision": 1,
+  "status": "frozen",
+  "purpose": "Provide one powerless, API-shaped role vocabulary and deterministic role-gate resolver shared by workflow, Forms, and navigation projections.",
+  "dependencies": [],
+  "surfaceCounts": {"declarations": 9, "interfaces": 6, "typeAliases": 1, "classes": 1, "functions": 1, "closedLiteralMembers": 7},
+  "fixtureCases": 16,
+  "exports": ["RoleVocabularyName", "RoleReference", "RoleOwner", "RoleDefinition", "RoleGate", "HeldRoleSet", "RecordStandingReference", "RoleVocabulary", "roleGateAllows"],
+  "invariants": [
+    "Role references preserve the API wire's separate vocabulary and name members and accept only sys.platform-roles or tax.roles.",
+    "Platform-owned roles live only in sys.platform-roles and are sealed; sys.platform-roles contains only Platform-owned sealed entries; taxonomy entries are unsealed and Package- or Tenant-owned.",
+    "Duplicate qualified names are rejected and the vocabulary never mints definitions.",
+    "Role gates resolve every required role before matching held roles, so one unknown required role fails the complete any-of gate closed.",
+    "An empty requiredRoles list is ungated; a non-empty list uses explicit any-of semantics.",
+    "Held roles and record standings have distinct, non-interchangeable shapes.",
+    "The fixed PlatformRoleVocabulary contains only Administrator and Auditor and contains no duty or job-title roles.",
+    "The module owns no permissions, atoms, grants, capability definitions, standings computation, tenant derivation, persistence, HTTP client, or authorization administration behavior."
+  ],
+  "notScope": ["HTTP", "role minting", "permission atoms", "grants", "capability definitions", "standing computation", "tenant scope derivation", "persistence"],
+  "projectionPolicy": {"typescript": "implementation contributed to @harborline-software/contracts", "dotnet": "implementation contributed to Harborline.Contracts"},
+  "fixture": "conformance/hlp.contracts.authorization/fixtures.yaml"
+}

@@ -1,0 +1,45 @@
+<section class="hl-gallery-scene" data-gallery-probe data-gallery-scenario="@ScenarioId" data-theme="@Theme" dir="@Direction">
+    <header class="hl-gallery-heading"><h2>@Title</h2><p>Grouped results, keyboard selection, announcements, and dismissal.</p></header>
+    <button type="button" @onclick="() => open = true">@(Localized ? "بحث" : "Open search")</button>
+    @if(ScenarioId=="spotlight.empty-state")
+    {
+      <HarborlineSpotlight @bind-Open="open" @bind-Query="query" Sections="@EmptySections" AriaLabel="Search structures"
+                         Placeholder="Type to search" Empty="No structures found." ResultsCountLabel="@CountLabel" />
+    }
+    else if(ScenarioId=="spotlight.content")
+    {
+      <HarborlineSpotlight @bind-Open="open" @bind-Query="query" Sections="@ContentSections" AriaLabel="Search resilient content"
+                         Placeholder="Type to search" Empty="No results" ResultsCountLabel="@CountLabel" />
+    }
+    else
+    {
+    <HarborlineSpotlight @bind-Open="open" @bind-Query="query" Sections="@Sections" PinnedAction="@PinnedAction"
+                       AriaLabel="@(Localized ? "البحث في الهياكل" : "Search structures")"
+                       Placeholder="@(Localized ? "اكتب للبحث" : "Type to search")"
+                       Empty="@(Localized ? "لا نتائج" : "No results")" ResultsCountLabel="@CountLabel">
+        <Footer>@(Localized ? "استخدم الأسهم للتنقل" : "Use arrow keys to navigate")</Footer>
+    </HarborlineSpotlight>
+    }
+</section>
+@code {
+    [Parameter, EditorRequired] public string ScenarioId { get; set; } = "spotlight.results";
+    private bool open = true;
+    private string query = string.Empty;
+    private bool Localized => ScenarioId == "spotlight.locale-theme";
+    private string Title => Localized ? "البحث السريع" : ScenarioId == "spotlight.empty-state" ? "Empty state" : ScenarioId == "spotlight.content" ? "Content resilience" : ScenarioId == "spotlight.interaction" ? "Keyboard and selection" : "Ranked results";
+    private string? Theme => Localized ? "dark" : null;
+    private string? Direction => Localized ? "rtl" : null;
+    private string CountLabel(int count) => Localized ? $"{count} نتيجة" : $"{count} results";
+    private SpotlightItem PinnedAction => new("new", Localized ? "هيكل جديد" : "Create structure", () => Task.CompletedTask, KeepOpen: true);
+    private IReadOnlyList<SpotlightSection> Sections => [new("structures", Localized ? "الهياكل" : "Structures", [
+        new("north-pier", Localized ? "الرصيف الشمالي" : "North Pier", () => Task.CompletedTask, Localized ? "آخر فحص اليوم" : "Inspected today", Shortcut: "↵", Badge: Localized ? "نشط" : "Active", KeepOpen: ScenarioId == "spotlight.interaction"),
+        new("pump-house", Localized ? "بيت المضخة" : "Pump House", () => Task.CompletedTask, Localized ? "مراجعة مطلوبة" : "Review required")
+    ])];
+    private IReadOnlyList<SpotlightSection> ContentSections => [new("content", "Content resilience", [
+        new("long", "Awaiting third-party structural certification review", () => Task.CompletedTask),
+        new("number", "1,284,905", () => Task.CompletedTask),
+        new("hostile", "Bay 4 <grid C-7> & 8", () => Task.CompletedTask),
+        new("name", "Ordnance Survey — Niño Ångström", () => Task.CompletedTask)
+    ])];
+    private static readonly IReadOnlyList<SpotlightSection> EmptySections = [];
+}

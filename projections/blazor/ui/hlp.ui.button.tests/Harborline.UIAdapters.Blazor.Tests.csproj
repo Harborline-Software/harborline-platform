@@ -1,0 +1,98 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+  <PropertyGroup>
+    <RootNamespace>Harborline.UIAdapters.Blazor.Tests</RootNamespace>
+    <PackageId>Harborline.UIAdapters.Blazor.Tests</PackageId>
+    <IsPackable>false</IsPackable>
+    <AssemblyName>Harborline.UIAdapters.Blazor.Tests</AssemblyName>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="AngleSharp" />
+    <PackageReference Include="bunit" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../hlp.ui.button/Harborline.UIAdapters.Blazor.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="../hlp.ui.context-menu.tests/**/*.cs" Link="ContextMenu/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.error-card.tests/**/*.cs" Link="Feedback/ErrorCard/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.loading-state.tests/**/*.cs" Link="Feedback/LoadingState/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.touch-target.tests/**/*.cs" Link="Accessibility/TouchTarget/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.use-media-query.tests/**/*.cs" Link="Browser/MediaQuery/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.use-outside-click.tests/**/*.cs" Link="Browser/OutsidePointer/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.empty-state.tests/**/*.cs" Link="Feedback/EmptyState/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.accordion.tests/**/*.cs" Link="Layout/Accordion/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.card.tests/**/*.cs" Link="Layout/Card/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.icon-button.tests/**/*.cs" Link="Buttons/IconButton/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.separator.tests/**/*.cs" Link="Layout/Separator/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.breadcrumb.tests/**/*.cs" Link="Navigation/Breadcrumb/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.check-box.tests/**/*.cs" Link="Forms/CheckBox/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.collapsible.tests/**/*.cs" Link="Layout/Collapsible/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.locale-provider.tests/**/*.cs" Link="Localization/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.form-field.tests/**/*.cs" Link="Forms/FormField/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.schema-form.tests/**/*.cs" Link="Forms/SchemaForm/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.use-form-rule-graph.tests/**/*.cs" Link="Forms/RuleGraph/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.confirm-dialog.tests/**/*.cs" Link="Feedback/ConfirmDialog/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.date-field.tests/**/*.cs" Link="Forms/DateField/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.date-time-field.tests/**/*.cs" Link="Forms/DateTimeField/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.number-field.tests/**/*.cs" Link="Forms/NumberField/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.radio-group.tests/**/*.cs" Link="Forms/RadioGroup/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.popover.tests/**/*.cs" Link="Feedback/Popover/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.sheet.tests/**/*.cs" Link="Layout/Sheet/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.spotlight.tests/**/*.cs" Link="Navigation/Spotlight/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.text-area.tests/**/*.cs" Link="Forms/TextArea/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.tooltip.tests/**/*.cs" Link="Feedback/Tooltip/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.table.tests/**/*.cs" Link="DataDisplay/Table/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.window.tests/**/*.cs" Link="Layout/Window/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.alert.tests/**/*.cs" Link="Feedback/Alert/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.badge.tests/**/*.cs" Link="DataDisplay/Badge/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.data-export-button.tests/**/*.cs" Link="Buttons/DataExport/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.spinner.tests/**/*.cs" Link="Feedback/Spinner/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.use-scroll-affordance.tests/**/*.cs" Link="Browser/ScrollAffordance/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.action-menu.tests/**/*.cs" Link="Buttons/ActionMenu/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.activity-log.tests/**/*.cs" Link="Navigation/ActivityLog/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.chip.tests/**/*.cs" Link="Feedback/Chip/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.conversation-list.tests/**/*.cs" Link="AI/ConversationList/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.guarded-control.tests/**/*.cs" Link="Buttons/GuardedControl/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.input.tests/**/*.cs" Link="Forms/Input/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.layers-rail.tests/**/*.cs" Link="Navigation/LayersRail/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.notification-center.tests/**/*.cs" Link="Navigation/NotificationCenter/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.page.tests/**/*.cs" Link="Layout/Page/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.search-input.tests/**/*.cs" Link="Forms/SearchInput/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.segmented-control.tests/**/*.cs" Link="Buttons/SegmentedControl/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.select-field.tests/**/*.cs" Link="Forms/SelectField/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.switch.tests/**/*.cs" Link="Forms/Switch/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.toaster.tests/**/*.cs" Link="Feedback/Toaster/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.user-menu.tests/**/*.cs" Link="Shell/UserMenu/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.app-layout.tests/**/*.cs" Link="Layout/AppLayout/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.app-shell.tests/**/*.cs" Link="Layout/AppShell/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.detail-panel.tests/**/*.cs" Link="Layout/DetailPanel/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.chart.tests/**/*.cs" Link="DataDisplay/Chart/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.numeric-text-box.tests/**/*.cs" Link="Forms/NumericTextBox/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.chat.tests/**/*.cs" Link="AI/Chat/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.gantt.tests/**/*.cs" Link="Scheduling/Gantt/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.data-grid.tests/**/*.cs" Link="DataDisplay/DataGrid/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.scroll-affordance.tests/**/*.cs" Link="Layout/ScrollAffordance/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.dialog.tests/**/*.cs" Link="Feedback/Dialog/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.side-nav.tests/**/*.cs" Link="Navigation/SideNav/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.switch-field.tests/**/*.cs" Link="Forms/SwitchField/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.text-box.tests/**/*.cs" Link="Forms/TextBox/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.scheduler.tests/**/*.cs" Link="Scheduling/Scheduler/%(Filename)%(Extension)" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- The SDK's default Content glob already carries this json; on Linux both item specs
+         normalize to the same forward-slash path and NETSDK1022 refuses the duplicate (Windows
+         happened to differ on separators, masking it). Remove the default item first so the
+         customized Link/copy item below is the only one. -->
+    <Content Remove="fixtures/legacy-button-provider-fixtures.json" />
+    <Content Include="fixtures/legacy-button-provider-fixtures.json"
+             Link="compatibility/legacy-button-provider-fixtures.json"
+             CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

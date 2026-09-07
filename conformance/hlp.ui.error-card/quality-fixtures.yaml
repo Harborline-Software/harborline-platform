@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.error-card",
+  "profileRevision": 1,
+  "locales": {"en-US": {"direction": "ltr", "retry": "Retry"}, "en-XA": {"direction": "ltr", "retry": "⟦ Řëţřý ··· ⟧"}, "ar-SA": {"direction": "rtl", "retry": "إعادة المحاولة"}},
+  "themes": [{"id": "light", "scenarioId": "error-card.theme-light"}, {"id": "dark", "scenarioId": "error-card.theme-dark"}],
+  "accessibilityCases": [
+    {"id": "error-card.quality.alert", "expected": {"role": "alert", "visibleTitleRequired": true}},
+    {"id": "error-card.quality.heading", "expected": {"pageHeadingLevel": 2, "otherVariantsAreNotHeadings": true}},
+    {"id": "error-card.quality.retry-keyboard", "expected": {"keys": ["Enter", "Space"], "activationCountPerKey": 1}},
+    {"id": "error-card.quality.focus", "expected": {"retryFocusVisible": true, "minimumOutlineWidthCssPixels": 2}},
+    {"id": "error-card.quality.forced-colors", "expected": {"visibleBorder": true, "visibleFocus": true, "errorNotColorOnly": true}},
+    {"id": "error-card.quality.reflow-200", "expected": {"viewportWidthCssPixels": 320, "rootFontPercent": 200, "horizontalOverflowCssPixels": 0}}
+  ],
+  "internationalizationCases": [
+    {"id": "error-card.quality.caller-text", "expected": {"titleCallerLocalized": true, "messageCallerLocalized": true, "retryCallerOverride": true, "englishRetryFallback": "Retry"}},
+    {"id": "error-card.quality.locale-direction", "expected": {"locales": ["en-US", "en-XA", "ar-SA"], "langAndDirPropagate": true}},
+    {"id": "error-card.quality.rtl", "expected": {"logicalTextAlignment": true, "logicalSpacing": true}},
+    {"id": "error-card.quality.pseudo-expansion", "expected": {"minimumExpansionRatio": 1.3, "noClipping": true}},
+    {"id": "error-card.quality.formatting-applicability", "expected": {"disposition": "not-applicable", "requiresRationale": true}}
+  ],
+  "themingCases": [
+    {"id": "error-card.quality.theme-light", "expected": {"fixture": "light", "separateScenario": true}},
+    {"id": "error-card.quality.theme-dark", "expected": {"fixture": "dark", "separateScenario": true}},
+    {"id": "error-card.quality.theme-states", "expected": {"states": ["surface", "border", "title", "message", "retry", "hover", "focus"], "bothThemes": true}},
+    {"id": "error-card.quality.theme-tokens", "expected": {"source": "public-css-custom-properties", "packedArtifacts": ["npm", "nuget"]}},
+    {"id": "error-card.quality.runtime-switch", "expected": {"from": "light", "to": "dark", "withoutRemount": true}},
+    {"id": "error-card.quality.contrast", "expected": {"wcagLevel": "AA", "minimumTextRatio": 4.5, "minimumNonTextRatio": 3}},
+    {"id": "error-card.quality.reduced-motion", "expected": {"preference": "reduce", "maximumTransitionDurationMilliseconds": 1}},
+    {"id": "error-card.quality.visual-parity", "expected": {"projections": ["react", "blazor"], "themes": ["light", "dark"], "maximumChangedPixelRatio": 0.015}}
+  ]
+}

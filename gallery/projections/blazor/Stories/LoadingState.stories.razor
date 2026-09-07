@@ -1,0 +1,14 @@
+@attribute [Stories("Platform/Loading State")]
+
+<Stories TComponent="LoadingStateScenario">
+    <Story Name="Page"><Arguments><Arg For="_ => _.ScenarioId" Value='"loading-state.default"' /></Arguments><Template><LoadingStateScenario @attributes="context.Args" /></Template></Story>
+    <Story Name="Inline"><Arguments><Arg For="_ => _.ScenarioId" Value='"loading-state.inline"' /></Arguments><Template><LoadingStateScenario @attributes="context.Args" /></Template></Story>
+    <Story Name="Label update"><Arguments><Arg For="_ => _.ScenarioId" Value='"loading-state.label-update"' /></Arguments><Template><LoadingStateScenario @attributes="context.Args" /></Template></Story>
+    <Story Name="Host attributes"><Arguments><Arg For="_ => _.ScenarioId" Value='"loading-state.host-attributes"' /></Arguments><Template><LoadingStateScenario @attributes="context.Args" /></Template></Story>
+    <Story Name="English locale"><Arguments><Arg For="_ => _.ScenarioId" Value='"loading-state.locale-en"' /></Arguments><Template><LoadingStateScenario @attributes="context.Args" /></Template></Story>
+    <Story Name="Pseudo locale"><Arguments><Arg For="_ => _.ScenarioId" Value='"loading-state.locale-pseudo"' /></Arguments><Template><LoadingStateScenario @attributes="context.Args" /></Template></Story>
+    <Story Name="Arabic locale"><Arguments><Arg For="_ => _.ScenarioId" Value='"loading-state.locale-ar"' /></Arguments><Template><LoadingStateScenario @attributes="context.Args" /></Template></Story>
+    <Story Name="Light theme"><Arguments><Arg For="_ => _.ScenarioId" Value='"loading-state.theme-light"' /></Arguments><Template><LoadingStateScenario @attributes="context.Args" /></Template></Story>
+    <Story Name="Dark theme"><Arguments><Arg For="_ => _.ScenarioId" Value='"loading-state.theme-dark"' /></Arguments><Template><LoadingStateScenario @attributes="context.Args" /></Template></Story>
+    <Story Name="Content resilience"><Arguments><Arg For="_ => _.ScenarioId" Value='"loading-state.content"' /></Arguments><Template><LoadingStateScenario @attributes="context.Args" /></Template></Story>
+</Stories>

@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "projection": "react",
+  "moduleId": "hlp.ui.app-shell",
+  "scenarios": [
+    {
+      "scenarioId": "app-shell.structure",
+      "sha256": "ff6911778589a15eed329d099648c0cd78fe11b6b60a25e2cb2767c9c53670cb",
+      "bytes": 43183,
+      "artifact": "../baselines/sha256/ff6911778589a15eed329d099648c0cd78fe11b6b60a25e2cb2767c9c53670cb.png"
+    },
+    {
+      "scenarioId": "app-shell.switchers",
+      "sha256": "d57eceffaf3fc0f181788846a3ce79d544ad4205a68e7a4c59083e7edd66bf23",
+      "bytes": 52846,
+      "artifact": "../baselines/sha256/d57eceffaf3fc0f181788846a3ce79d544ad4205a68e7a4c59083e7edd66bf23.png"
+    },
+    {
+      "scenarioId": "app-shell.pins-threads",
+      "sha256": "0eb2932031e137187ff3f943e4d911126584768c70723dcb7f6c1845d3997476",
+      "bytes": 47181,
+      "artifact": "../baselines/sha256/0eb2932031e137187ff3f943e4d911126584768c70723dcb7f6c1845d3997476.png"
+    },
+    {
+      "scenarioId": "app-shell.actions-endpanel",
+      "sha256": "2992435b01bb78e5dfe5c6347bfdacd2ca377110c7720908da120cbc65cdad2d",
+      "bytes": 46329,
+      "artifact": "../baselines/sha256/2992435b01bb78e5dfe5c6347bfdacd2ca377110c7720908da120cbc65cdad2d.png"
+    },
+    {
+      "scenarioId": "app-shell.performance",
+      "sha256": "eea8c492f6c76556378304214f0467faa210b5d1ab7f9e9a270c8a162edd1b04",
+      "bytes": 47411,
+      "artifact": "../baselines/sha256/eea8c492f6c76556378304214f0467faa210b5d1ab7f9e9a270c8a162edd1b04.png"
+    },
+    {
+      "scenarioId": "app-shell.locale-en",
+      "sha256": "067c660aefaf292b17bf3113d10cf1e68954d896b1c7e4545f786d957c712042",
+      "bytes": 42132,
+      "artifact": "../baselines/sha256/067c660aefaf292b17bf3113d10cf1e68954d896b1c7e4545f786d957c712042.png"
+    },
+    {
+      "scenarioId": "app-shell.locale-pseudo",
+      "sha256": "a5dcfb51baa77efee4aa6f4e67184b84c2cae745f324b6473035811f165efac2",
+      "bytes": 45493,
+      "artifact": "../baselines/sha256/a5dcfb51baa77efee4aa6f4e67184b84c2cae745f324b6473035811f165efac2.png"
+    },
+    {
+      "scenarioId": "app-shell.locale-ar",
+      "sha256": "91a94cabbd420551422a1ac19b789eee1606615c0ce3890b9926380d6c19c5f1",
+      "bytes": 40305,
+      "artifact": "../baselines/sha256/91a94cabbd420551422a1ac19b789eee1606615c0ce3890b9926380d6c19c5f1.png"
+    },
+    {
+      "scenarioId": "app-shell.theme-light",
+      "sha256": "ed9519f491847d26cb3548c8a57be4ffe6ebdf6e6974102eeb891c8560c395dc",
+      "bytes": 41585,
+      "artifact": "../baselines/sha256/ed9519f491847d26cb3548c8a57be4ffe6ebdf6e6974102eeb891c8560c395dc.png"
+    },
+    {
+      "scenarioId": "app-shell.theme-dark",
+      "sha256": "fb9a952d6be9d7461c83c0c40203ca468fb1c493c1923089db907a68eb8fb998",
+      "bytes": 42385,
+      "artifact": "../baselines/sha256/fb9a952d6be9d7461c83c0c40203ca468fb1c493c1923089db907a68eb8fb998.png"
+    }
+  ]
+}

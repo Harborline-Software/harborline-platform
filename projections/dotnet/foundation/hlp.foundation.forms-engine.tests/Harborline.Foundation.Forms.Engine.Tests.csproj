@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <PackageId>Harborline.Foundation.Forms.Engine.Tests</PackageId>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <AssemblyName>Harborline.Foundation.Forms.Engine.Tests</AssemblyName>
+    <RootNamespace>Harborline.Foundation.Forms.Engine.Tests</RootNamespace>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../hlp.foundation.forms-engine/Harborline.Foundation.Forms.Engine.csproj" />
+    <ProjectReference Include="../hlp.foundation.forms-engine.restart-probe/Harborline.Foundation.Forms.Engine.RestartProbe.csproj" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="ValidationParityCorpus/cases.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,16 @@
+@attribute [Stories("Platform/Error Card")]
+
+<Stories TComponent="ErrorCardScenario">
+    <Story Name="Default"><Arguments><Arg For="_ => _.ScenarioId" Value='"error-card.default"' /></Arguments><Template><ErrorCardScenario @attributes="context.Args" /></Template></Story>
+    <Story Name="Variants"><Arguments><Arg For="_ => _.ScenarioId" Value='"error-card.variants"' /></Arguments><Template><ErrorCardScenario @attributes="context.Args" /></Template></Story>
+    <Story Name="Message and tone"><Arguments><Arg For="_ => _.ScenarioId" Value='"error-card.message"' /></Arguments><Template><ErrorCardScenario @attributes="context.Args" /></Template></Story>
+    <Story Name="Retry action"><Arguments><Arg For="_ => _.ScenarioId" Value='"error-card.retry"' /></Arguments><Template><ErrorCardScenario @attributes="context.Args" /></Template></Story>
+    <Story Name="Without retry"><Arguments><Arg For="_ => _.ScenarioId" Value='"error-card.no-retry"' /></Arguments><Template><ErrorCardScenario @attributes="context.Args" /></Template></Story>
+    <Story Name="Host attributes"><Arguments><Arg For="_ => _.ScenarioId" Value='"error-card.host-attributes"' /></Arguments><Template><ErrorCardScenario @attributes="context.Args" /></Template></Story>
+    <Story Name="English locale"><Arguments><Arg For="_ => _.ScenarioId" Value='"error-card.locale-en"' /></Arguments><Template><ErrorCardScenario @attributes="context.Args" /></Template></Story>
+    <Story Name="Pseudo locale"><Arguments><Arg For="_ => _.ScenarioId" Value='"error-card.locale-pseudo"' /></Arguments><Template><ErrorCardScenario @attributes="context.Args" /></Template></Story>
+    <Story Name="Arabic locale"><Arguments><Arg For="_ => _.ScenarioId" Value='"error-card.locale-ar"' /></Arguments><Template><ErrorCardScenario @attributes="context.Args" /></Template></Story>
+    <Story Name="Light theme"><Arguments><Arg For="_ => _.ScenarioId" Value='"error-card.theme-light"' /></Arguments><Template><ErrorCardScenario @attributes="context.Args" /></Template></Story>
+    <Story Name="Dark theme"><Arguments><Arg For="_ => _.ScenarioId" Value='"error-card.theme-dark"' /></Arguments><Template><ErrorCardScenario @attributes="context.Args" /></Template></Story>
+    <Story Name="Content resilience"><Arguments><Arg For="_ => _.ScenarioId" Value='"error-card.content"' /></Arguments><Template><ErrorCardScenario @attributes="context.Args" /></Template></Story>
+</Stories>

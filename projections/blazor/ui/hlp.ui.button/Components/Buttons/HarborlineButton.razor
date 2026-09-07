@@ -1,0 +1,82 @@
+@inherits HarborlineComponentBase
+@using Harborline.UIAdapters.Blazor.Localization
+
+<button @attributes="AdditionalAttributes"
+        class="@CombineClasses(ButtonStyles.ButtonClass(Variant, Size, FillMode, Rounded, IsInert), IsIconOnly ? "hl-button--icon-only" : null)"
+        style="@CombineStyles()"
+        type="@ButtonType.ToString().ToLowerInvariant()"
+        disabled="@IsDisabled"
+        aria-busy="@(Loading ? "true" : null)"
+        aria-disabled="@(IsInert ? "true" : null)"
+        lang="@EffectiveLocale"
+        dir="@EffectiveDirection"
+        form="@Form"
+        @onclick="HandleClickAsync">
+    @if (Loading)
+    {
+        <span class="@CombineClasses("hl-button__loading-indicator", ButtonStyles.LoadingIndicatorClass())"
+              aria-hidden="true"></span>
+    }
+    else if (LeadingIcon != null || Icon != null)
+    {
+        <span class="hl-button__icon">@(LeadingIcon ?? Icon)</span>
+    }
+    @ChildContent
+    @if (TrailingIcon != null)
+    {
+        <span class="hl-button__icon hl-button__icon--trailing">@TrailingIcon</span>
+    }
+</button>
+@if (Loading)
+{
+    <span role="status"
+          aria-label="@LoadingStatus"
+          class="hl-button__status">@LoadingStatus</span>
+}
+
+@code {
+    [CascadingParameter] private HarborlineLocaleContext? LocaleContext { get; set; }
+    [Parameter] public ButtonVariant Variant { get; set; } = ButtonVariant.Secondary;
+    [Parameter] public ButtonSize Size { get; set; } = ButtonSize.Medium;
+    [Parameter] public FillMode FillMode { get; set; } = FillMode.Solid;
+    [Parameter] public RoundedMode Rounded { get; set; } = RoundedMode.Medium;
+    [Parameter] public bool Enabled { get; set; } = true;
+    [Parameter] public bool Loading { get; set; }
+    [Parameter] public ButtonType ButtonType { get; set; } = ButtonType.Button;
+    [Parameter] public string? Form { get; set; }
+    [Parameter] public EventCallback<MouseEventArgs> OnClick { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public RenderFragment? LeadingIcon { get; set; }
+    [Parameter] public RenderFragment? TrailingIcon { get; set; }
+    [Parameter] public RenderFragment? Icon { get; set; }
+
+    private static IButtonStyleBridge ButtonStyles { get; } = new CanonicalButtonStyleBridge();
+    private bool IsDisabled => !Enabled;
+    private bool IsInert => IsDisabled || Loading;
+    private bool IsIconOnly => (LeadingIcon != null || Icon != null) && ChildContent == null;
+    private string? EffectiveLocale => LocaleContext?.Locale ?? AdditionalAttribute("lang");
+    private string? EffectiveDirection => LocaleContext?.Direction ?? AdditionalAttribute("dir");
+    private string LoadingStatus => LocaleContext?.Translate(HarborlineLocaleContext.LoadingKey) ?? "Loading";
+
+    protected override void OnParametersSet()
+    {
+        if (IsIconOnly && !HasAccessibleName())
+            throw new InvalidOperationException(
+                "accessible-name-required: icon-only HarborlineButton requires aria-label or aria-labelledby.");
+    }
+
+    private bool HasAccessibleName() => AdditionalAttributes?.Any(attribute =>
+        (string.Equals(attribute.Key, "aria-label", StringComparison.OrdinalIgnoreCase)
+         || string.Equals(attribute.Key, "aria-labelledby", StringComparison.OrdinalIgnoreCase))
+        && !string.IsNullOrWhiteSpace(attribute.Value?.ToString())) == true;
+
+    private string? AdditionalAttribute(string name) => AdditionalAttributes?
+        .FirstOrDefault(attribute => string.Equals(attribute.Key, name, StringComparison.OrdinalIgnoreCase))
+        .Value?.ToString();
+
+    private async Task HandleClickAsync(MouseEventArgs args)
+    {
+        if (!IsInert)
+            await OnClick.InvokeAsync(args);
+    }
+}

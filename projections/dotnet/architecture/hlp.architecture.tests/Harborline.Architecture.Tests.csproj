@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <PackageId>Harborline.Architecture.Tests</PackageId>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <AssemblyName>Harborline.Architecture.Tests</AssemblyName>
+    <RootNamespace>Harborline.Architecture.Tests</RootNamespace>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- The tier fence reflects over every production assembly, so each one must be built and staged beside
+         the test binary. Keep this list aligned with the non-test csproj files under the three tier roots. -->
+    <ProjectReference Include="../../kernel/hlp.kernel.schema-validation/Harborline.Kernel.SchemaValidation.csproj" />
+    <ProjectReference Include="../../kernel/hlp.kernel.work-items/Harborline.Kernel.WorkItems.csproj" />
+    <ProjectReference Include="../../foundation/hlp.foundation.actor/Harborline.Foundation.Authorization.csproj" />
+    <ProjectReference Include="../../foundation/hlp.foundation.forms/Harborline.Foundation.Forms.csproj" />
+    <ProjectReference Include="../../foundation/hlp.foundation.forms-engine/Harborline.Foundation.Forms.Engine.csproj" />
+    <ProjectReference Include="../../foundation/hlp.foundation.rule-authoring/Harborline.Foundation.RuleAuthoring.csproj" />
+    <ProjectReference Include="../../foundation/hlp.foundation.rule-runtime/Harborline.Foundation.RuleEngine.csproj" />
+    <ProjectReference Include="../../foundation/hlp.foundation.scheduling/Harborline.Foundation.Scheduling.csproj" />
+    <ProjectReference Include="../../foundation/hlp.foundation.session/Harborline.Foundation.Session.csproj" />
+    <ProjectReference Include="../../foundation/hlp.foundation.tenancy/Harborline.Foundation.MultiTenancy.csproj" />
+    <ProjectReference Include="../../foundation/hlp.ui.button/Harborline.Foundation.csproj" />
+    <ProjectReference Include="../../blocks/hlp.blocks.activity-timeline/Harborline.Blocks.ActivityTimeline.csproj" />
+    <ProjectReference Include="../../blocks/hlp.blocks.aggregates/Harborline.Blocks.Aggregates.csproj" />
+    <ProjectReference Include="../../blocks/hlp.blocks.builder-definitions/Harborline.Blocks.BuilderDefinitions.csproj" />
+    <ProjectReference Include="../../blocks/hlp.blocks.calendar/Harborline.Blocks.Calendar.csproj" />
+    <ProjectReference Include="../../blocks/hlp.blocks.entity-views/Harborline.Blocks.EntityViews.csproj" />
+    <ProjectReference Include="../../blocks/hlp.blocks.inspection-review/Harborline.Blocks.InspectionReview.csproj" />
+    <ProjectReference Include="../../blocks/hlp.blocks.relative-chains/Harborline.Blocks.RelativeChains.csproj" />
+    <ProjectReference Include="../../blocks/hlp.blocks.reports/Harborline.Blocks.Reports.csproj" />
+    <ProjectReference Include="../../blocks/hlp.blocks.scheduling/Harborline.Blocks.Scheduling.csproj" />
+    <ProjectReference Include="../../blocks/hlp.blocks.workflow/Harborline.Blocks.Workflow.csproj" />
+    <ProjectReference Include="../../blocks/hlp.blocks.workflow-interpreter/Harborline.Blocks.Workflow.Interpreter.csproj" />
+  </ItemGroup>
+</Project>

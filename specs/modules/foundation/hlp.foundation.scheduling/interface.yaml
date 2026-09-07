@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.foundation.scheduling",
+  "interfaceRevision": 1,
+  "status": "frozen",
+  "purpose": "Own the bounded RRULE expansion engine (FREQ/INTERVAL/BYDAY/BYMONTHDAY/BYMONTH, COUNT/UNTIL, lead-day skip, fail-closed malformed rules, hard 1000-occurrence cap) and the derived due-queue query (active-schedule expansion, completion diffing, overdue-first ordering, inclusive window, fail-closed inverted window), plus the source-agnostic due-occurrence seam the ADR-0149-amendment relative-chain generator lands behind later.",
+  "dependencies": [],
+  "callerInterface": {
+    "name": "IRruleExpansionService / IDueQueueQueryService / IDueOccurrenceSource",
+    "operations": [
+      "ExpandOccurrences(rrule, start, end?, lookaheadDays, leadDays, today, timezone) -> ascending DateOnly occurrences, never exceeding 1000; FormatException on a missing FREQ; ArgumentException on blank input",
+      "Query(schedules, completionHistory, windowStart, windowEnd, asOf) -> incomplete due occurrences, most-overdue first then upcoming by due date; throws on an inverted window",
+      "IDueOccurrenceSource.DeriveDue(completionHistory, windowStart, windowEnd, asOf) — the source-agnostic seam; RruleDueOccurrenceSource is the first source; CompositeDueOccurrenceSource merges sources and re-applies the pinned queue ordering"
+    ],
+    "context": "Cross-tier consistency is binding: the expander mirrors the ui-react SchedulerRecurrence expandRecurrence subset exactly so the same RRULE expands identically on both tiers. Callers inject today/asOf — the engine never reads ambient time. The seam exists by user ruling 2026-08-16 (migration ticket 086): the event-anchored relative-chain generator is post-gate substrate that plugs in behind IDueOccurrenceSource with no breaking change."
+  },
+  "invariants": [
+    "The supported RRULE subset is closed (unsupported components are ignored in v1, documented for the Ical.Net follow-on); a missing FREQ or blank rule fails closed, never expands empty.",
+    "No expansion call ever yields more than 1000 occurrences.",
+    "UNTIL wins over COUNT when both are present; BYMONTHDAY is capped at 28 to avoid month-end ambiguity.",
+    "The due queue diffs completion history by (subject, schedule, dueDate) identity and orders most-overdue first, then upcoming by due date; an inverted window is a fail-closed rejection.",
+    "The due-occurrence seam is source-agnostic: the pinned query stays byte-faithful beneath it, and composing additional sources preserves the pinned ordering across the merged set.",
+    "The engine reads no ambient clock or timezone; today/asOf are injected at every call site."
+  ],
+  "errors": ["FormatException (missing FREQ)", "ArgumentException (blank rule; inverted window)"],
+  "publicSeams": ["due-occurrence source seam (ticket 086)", "injected wall-clock today/asOf"],
+  "conformance": {
+    "nativeTests": {"dotnet": 28},
+    "nativeTestNote": "19 pinned RRULE cases + 6 pinned due-queue cases under their pinned names, plus 3 seam tests proving the source-agnostic port (not pinned rows)"
+  },
+  "selectedDesign": {
+    "choice": "Verbatim port of the pinned foundation-scheduling engine with one additive seam above the pinned query.",
+    "rejected": [
+      "Generalizing the pinned DueQueueSchedule model to carry non-RRULE schedule kinds (breaks pinned-suite fidelity).",
+      "Building the relative-chain generator inside this wave (nothing at the pin implements it; the gate flips on pin-parity)."
+    ],
+    "reason": "Pin-parity for the 25 pinned rows plus the user-ruled open seam, at zero breaking-change cost."
+  },
+  "behaviorEvidence": {
+    "sourceCapture": "migration://preprocessing/scheduling/generated/scheduling-source.json",
+    "boundaryDecision": "migration://preprocessing/scheduling/scheduling-behavior-map.md"
+  },
+  "package": {"nuget": "Harborline.Foundation.Scheduling", "assembly": "Harborline.Foundation.Scheduling", "distribution": "internal-only"}
+}

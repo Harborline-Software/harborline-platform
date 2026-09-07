@@ -1,0 +1,8 @@
+@attribute [Stories("Platform/Check Box")]
+<Stories TComponent="CheckBoxScenario">
+  <Story Name="Defaults and labels"><Arguments><Arg For="_ => _.ScenarioId" Value='"check-box.defaults"' /></Arguments><Template><CheckBoxScenario @attributes="context.Args" /></Template></Story>
+  <Story Name="States and sizes"><Arguments><Arg For="_ => _.ScenarioId" Value='"check-box.states"' /></Arguments><Template><CheckBoxScenario @attributes="context.Args" /></Template></Story>
+  <Story Name="RTL and theme"><Arguments><Arg For="_ => _.ScenarioId" Value='"check-box.rtl-theme"' /></Arguments><Template><CheckBoxScenario @attributes="context.Args" /></Template></Story>
+  <Story Name="Content resilience"><Arguments><Arg For="_ => _.ScenarioId" Value='"check-box.content"' /></Arguments><Template><CheckBoxScenario @attributes="context.Args" /></Template></Story>
+  <Story Name="Error state"><Arguments><Arg For="_ => _.ScenarioId" Value='"check-box.error-state"' /></Arguments><Template><CheckBoxScenario @attributes="context.Args" /></Template></Story>
+</Stories>

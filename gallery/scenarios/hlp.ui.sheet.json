@@ -1,0 +1,192 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.sheet",
+  "sourceFixture": "conformance/hlp.ui.sheet/fixtures.yaml",
+  "qualityFixture": "conformance/hlp.ui.sheet/quality-fixtures.yaml",
+  "galleryInterface": {
+    "probeAttribute": "data-gallery-probe",
+    "scenarioAttribute": "data-gallery-scenario",
+    "projectionTitles": {
+      "react": "Platform/Sheet",
+      "blazor": "Platform/Sheet"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "sheet.lifecycle",
+      "name": "Lifecycle and sides",
+      "surface": "defaults",
+      "sourceCaseIds": [
+        "sheet.closed",
+        "sheet.uncontrolled",
+        "sheet.controlled",
+        "sheet.sides",
+        "sheet.host-content"
+      ],
+      "sourceQualityCaseIds": [
+        "sheet.quality.dialog",
+        "sheet.quality.keyboard",
+        "sheet.quality.reflow"
+      ],
+      "content": {
+        "blurb": "Modal state, focus restoration, placement, and caller-owned copy.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "defaultOpen": true,
+          "trigger": "Open filters",
+          "closeLabel": "Close filters",
+          "side": "right",
+          "title": "Search filters",
+          "description": "Narrow the structure results."
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "text",
+            "text": "Inspection state and location."
+          }
+        ],
+        "footer": [
+          {
+            "control": "button",
+            "text": "Apply filters",
+            "action": "close"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sheet.dismissal",
+      "name": "Dismissal and focus",
+      "surface": "states",
+      "sourceCaseIds": [
+        "sheet.dialog-semantics",
+        "sheet.escape",
+        "sheet.outside",
+        "sheet.close-control",
+        "sheet.focus"
+      ],
+      "sourceQualityCaseIds": [
+        "sheet.quality.focus",
+        "sheet.quality.dismissal",
+        "sheet.quality.forced-colors",
+        "sheet.quality.reduced-motion"
+      ],
+      "content": {
+        "blurb": "Modal state, focus restoration, placement, and caller-owned copy.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "defaultOpen": true,
+          "trigger": "Open filters",
+          "closeLabel": "Close filters",
+          "side": "left",
+          "title": "Search filters",
+          "description": "Narrow the structure results."
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "text",
+            "text": "Inspection state and location."
+          }
+        ],
+        "footer": [
+          {
+            "control": "button",
+            "text": "Apply filters",
+            "action": "close"
+          }
+        ],
+        "inherits": "sheet.lifecycle"
+      }
+    },
+    {
+      "id": "sheet.locale-theme",
+      "name": "Locale and theme",
+      "surface": "rtl-theme",
+      "sourceCaseIds": [
+        "sheet.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "sheet.quality.caller-copy",
+        "sheet.quality.rtl",
+        "sheet.quality.pseudo",
+        "sheet.quality.light-dark",
+        "sheet.quality.tokens",
+        "sheet.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "Modal state, focus restoration, placement, and caller-owned copy.",
+        "environment": {
+          "locale": "ar-SA",
+          "direction": "rtl",
+          "theme": "dark",
+          "catalog": {}
+        },
+        "props": {
+          "defaultOpen": true,
+          "trigger": "فتح",
+          "closeLabel": "إغلاق",
+          "side": "left",
+          "title": "مرشحات البحث",
+          "description": "ضيّق نتائج الهياكل."
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "text",
+            "text": "حالة الفحص والموقع."
+          }
+        ],
+        "footer": [
+          {
+            "control": "button",
+            "text": "تم",
+            "action": "close"
+          }
+        ],
+        "inherits": "sheet.lifecycle"
+      }
+    },
+    {
+      "id": "sheet.content",
+      "name": "Content resilience",
+      "surface": "long-content",
+      "sourceCaseIds": [
+        "sheet.dialog-semantics",
+        "sheet.host-content"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "Real content carries a long trigger label, a grouped large number, escaped angle brackets and an ampersand, and a name with diacritics and an em dash.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<Sheet defaultOpen><SheetTrigger>{'Awaiting third-party structural certification review'}</SheetTrigger><SheetContent closeLabel=\"Close content sheet\" side=\"right\"><SheetHeader><SheetTitle>{'Ordnance Survey — Niño Ångström'}</SheetTitle><SheetDescription>{'Bay 4 <grid C-7> & 8'}</SheetDescription></SheetHeader><p>{'1,284,905'}</p><SheetFooter><SheetClose>Close</SheetClose></SheetFooter></SheetContent></Sheet>",
+            "blazor": "<HarborlineSheet DefaultOpen=\"true\"><HarborlineSheetTrigger>@(\"Awaiting third-party structural certification review\")</HarborlineSheetTrigger><HarborlineSheetContent CloseLabel=\"Close content sheet\" Side=\"SheetSide.Right\" HasDescription=\"true\"><HarborlineSheetHeader><HarborlineSheetTitle>@(\"Ordnance Survey — Niño Ångström\")</HarborlineSheetTitle><HarborlineSheetDescription>@(\"Bay 4 <grid C-7> & 8\")</HarborlineSheetDescription></HarborlineSheetHeader><p>1,284,905</p><HarborlineSheetFooter><HarborlineSheetClose>Close</HarborlineSheetClose></HarborlineSheetFooter></HarborlineSheetContent></HarborlineSheet>",
+            "rationale": "The closed control vocabulary cannot express the compound sheet trigger, title, description, body, and close action carrying hostile-but-valid text."
+          }
+        ],
+        "footer": []
+      }
+    }
+  ]
+}

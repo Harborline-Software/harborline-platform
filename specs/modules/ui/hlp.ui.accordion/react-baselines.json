@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "projection": "react",
+  "moduleId": "hlp.ui.accordion",
+  "scenarios": [
+    {
+      "scenarioId": "accordion.defaults",
+      "sha256": "b48db73beec5ed3a3e53e9b518486df874b767b215185145824f58e2231369e0",
+      "bytes": 10400,
+      "artifact": "../baselines/sha256/b48db73beec5ed3a3e53e9b518486df874b767b215185145824f58e2231369e0.png"
+    },
+    {
+      "scenarioId": "accordion.states",
+      "sha256": "0e65fa864f381a4b32ce98644265e7f5f3b88e93fa7236423622a40fa4aa9dd4",
+      "bytes": 13357,
+      "artifact": "../baselines/sha256/0e65fa864f381a4b32ce98644265e7f5f3b88e93fa7236423622a40fa4aa9dd4.png"
+    },
+    {
+      "scenarioId": "accordion.rtl-theme",
+      "sha256": "2d1f7e7cb1e42b6d209091cbbc6b866121b0b7c5789891c11aabbf7e033549c4",
+      "bytes": 10753,
+      "artifact": "../baselines/sha256/2d1f7e7cb1e42b6d209091cbbc6b866121b0b7c5789891c11aabbf7e033549c4.png"
+    }
+  ]
+}

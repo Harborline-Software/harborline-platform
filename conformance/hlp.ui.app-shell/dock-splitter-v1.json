@@ -1,0 +1,149 @@
+{
+  "declaredPanels": [
+    { "id": "notifications", "binding": "panels.notifications.toggle", "shortcut": "mod+shift+b", "defaultWidth": 360, "minimumHeight": 180, "defaultOpen": false },
+    { "id": "pilot", "binding": "panels.pilot.toggle", "shortcut": "mod+shift+p", "defaultWidth": 400, "minimumHeight": 300, "defaultOpen": false },
+    { "id": "documents", "binding": "panels.documents.toggle", "shortcut": "mod+shift+d", "defaultWidth": 420, "minimumHeight": 220, "defaultOpen": false },
+    { "id": "reports", "binding": "panels.reports.toggle", "shortcut": "mod+shift+e", "defaultWidth": 420, "minimumHeight": 220, "defaultOpen": false },
+    { "id": "runs", "binding": "panels.runs.toggle", "shortcut": "mod+shift+r", "defaultWidth": 360, "minimumHeight": 180, "defaultOpen": false },
+    { "id": "inspector", "binding": "panels.inspector.toggle", "shortcut": "mod+shift+i", "defaultWidth": 360, "minimumHeight": 180, "defaultOpen": false }
+  ],
+  "openingOrder": ["notifications", "pilot", "documents", "reports", "runs", "inspector"],
+  "transitions": [
+    {
+      "action": "open",
+      "panelId": "notifications",
+      "expectedOpenPanelIds": ["notifications"],
+      "expectedTree": { "kind": "pane", "panels": ["notifications"], "fractions": [1] },
+      "expectedHostEvents": ["openPanelIdsChanged:notifications", "bindingInvoked:panels.notifications.toggle", "notificationsCommand"]
+    },
+    {
+      "action": "open",
+      "panelId": "pilot",
+      "expectedOpenPanelIds": ["notifications", "pilot"],
+      "expectedTree": { "kind": "pane", "panels": ["notifications", "pilot"], "fractions": [0.5, 0.5] },
+      "expectedHostEvents": ["openPanelIdsChanged:notifications,pilot", "bindingInvoked:panels.pilot.toggle", "pilotCommand"]
+    },
+    {
+      "action": "open",
+      "panelId": "pilot",
+      "expectedOpenPanelIds": ["notifications", "pilot"],
+      "expectedTree": { "kind": "pane", "panels": ["notifications", "pilot"], "fractions": [0.5, 0.5] },
+      "expectedHostEvents": []
+    },
+    {
+      "action": "close",
+      "panelId": "notifications",
+      "expectedOpenPanelIds": ["pilot"],
+      "expectedTree": { "kind": "pane", "panels": ["pilot"], "fractions": [1] },
+      "expectedHostEvents": ["openPanelIdsChanged:pilot"]
+    },
+    {
+      "action": "open",
+      "panelId": "notifications",
+      "expectedOpenPanelIds": ["pilot", "notifications"],
+      "expectedTree": { "kind": "pane", "panels": ["pilot", "notifications"], "fractions": [0.5, 0.5] },
+      "expectedHostEvents": ["openPanelIdsChanged:pilot,notifications", "bindingInvoked:panels.notifications.toggle", "notificationsCommand"]
+    },
+    {
+      "action": "open",
+      "panelId": "documents",
+      "expectedOpenPanelIds": ["pilot", "notifications", "documents"],
+      "expectedTree": {
+        "kind": "split",
+        "orientation": "horizontal",
+        "ratio": 0.5,
+        "first": { "kind": "pane", "panels": ["pilot", "notifications"], "fractions": [0.5, 0.5] },
+        "second": { "kind": "pane", "panels": ["documents"], "fractions": [1] }
+      },
+      "expectedHostEvents": ["openPanelIdsChanged:pilot,notifications,documents", "bindingInvoked:panels.documents.toggle"]
+    },
+    {
+      "action": "close",
+      "panelId": "pilot",
+      "expectedOpenPanelIds": ["notifications", "documents"],
+      "expectedTree": { "kind": "pane", "panels": ["notifications", "documents"], "fractions": [0.5, 0.5] },
+      "expectedHostEvents": ["openPanelIdsChanged:notifications,documents"]
+    },
+    {
+      "action": "close",
+      "panelId": "notifications",
+      "expectedOpenPanelIds": ["documents"],
+      "expectedTree": { "kind": "pane", "panels": ["documents"], "fractions": [1] },
+      "expectedHostEvents": ["openPanelIdsChanged:documents"]
+    },
+    {
+      "action": "close",
+      "panelId": "documents",
+      "expectedOpenPanelIds": [],
+      "expectedTree": null,
+      "expectedHostEvents": ["openPanelIdsChanged:"]
+    }
+  ],
+  "affordanceEquivalence": {
+    "initialOpenPanelIds": ["notifications", "pilot"],
+    "cases": [
+      {
+        "panelId": "documents",
+        "open": {
+          "expectedOpenPanelIds": ["notifications", "pilot", "documents"],
+          "expectedTree": { "kind": "split", "orientation": "horizontal", "ratio": 0.5, "first": { "kind": "pane", "panels": ["notifications", "pilot"], "fractions": [0.5, 0.5] }, "second": { "kind": "pane", "panels": ["documents"], "fractions": [1] } },
+          "expectedHostEvents": ["openPanelIdsChanged:notifications,pilot,documents", "bindingInvoked:panels.documents.toggle"]
+        },
+        "duplicateOpen": {
+          "expectedOpenPanelIds": ["notifications", "pilot", "documents"],
+          "expectedTree": { "kind": "split", "orientation": "horizontal", "ratio": 0.5, "first": { "kind": "pane", "panels": ["notifications", "pilot"], "fractions": [0.5, 0.5] }, "second": { "kind": "pane", "panels": ["documents"], "fractions": [1] } },
+          "expectedHostEvents": []
+        }
+      },
+      {
+        "panelId": "reports",
+        "open": {
+          "expectedOpenPanelIds": ["notifications", "pilot", "reports"],
+          "expectedTree": { "kind": "split", "orientation": "horizontal", "ratio": 0.5, "first": { "kind": "pane", "panels": ["notifications", "pilot"], "fractions": [0.5, 0.5] }, "second": { "kind": "pane", "panels": ["reports"], "fractions": [1] } },
+          "expectedHostEvents": ["openPanelIdsChanged:notifications,pilot,reports", "bindingInvoked:panels.reports.toggle"]
+        },
+        "duplicateOpen": {
+          "expectedOpenPanelIds": ["notifications", "pilot", "reports"],
+          "expectedTree": { "kind": "split", "orientation": "horizontal", "ratio": 0.5, "first": { "kind": "pane", "panels": ["notifications", "pilot"], "fractions": [0.5, 0.5] }, "second": { "kind": "pane", "panels": ["reports"], "fractions": [1] } },
+          "expectedHostEvents": []
+        }
+      },
+      {
+        "panelId": "runs",
+        "open": {
+          "expectedOpenPanelIds": ["notifications", "pilot", "runs"],
+          "expectedTree": { "kind": "split", "orientation": "horizontal", "ratio": 0.5, "first": { "kind": "pane", "panels": ["notifications", "pilot"], "fractions": [0.5, 0.5] }, "second": { "kind": "pane", "panels": ["runs"], "fractions": [1] } },
+          "expectedHostEvents": ["openPanelIdsChanged:notifications,pilot,runs", "bindingInvoked:panels.runs.toggle"]
+        },
+        "duplicateOpen": {
+          "expectedOpenPanelIds": ["notifications", "pilot", "runs"],
+          "expectedTree": { "kind": "split", "orientation": "horizontal", "ratio": 0.5, "first": { "kind": "pane", "panels": ["notifications", "pilot"], "fractions": [0.5, 0.5] }, "second": { "kind": "pane", "panels": ["runs"], "fractions": [1] } },
+          "expectedHostEvents": []
+        }
+      },
+      {
+        "panelId": "inspector",
+        "open": {
+          "expectedOpenPanelIds": ["notifications", "pilot", "inspector"],
+          "expectedTree": { "kind": "split", "orientation": "horizontal", "ratio": 0.5, "first": { "kind": "pane", "panels": ["notifications", "pilot"], "fractions": [0.5, 0.5] }, "second": { "kind": "pane", "panels": ["inspector"], "fractions": [1] } },
+          "expectedHostEvents": ["openPanelIdsChanged:notifications,pilot,inspector", "bindingInvoked:panels.inspector.toggle"]
+        },
+        "duplicateOpen": {
+          "expectedOpenPanelIds": ["notifications", "pilot", "inspector"],
+          "expectedTree": { "kind": "split", "orientation": "horizontal", "ratio": 0.5, "first": { "kind": "pane", "panels": ["notifications", "pilot"], "fractions": [0.5, 0.5] }, "second": { "kind": "pane", "panels": ["inspector"], "fractions": [1] } },
+          "expectedHostEvents": []
+        }
+      }
+    ]
+  },
+  "expected": {
+    "defaultPanes": [["notifications", "pilot"], ["documents", "reports"], ["runs", "inspector"]],
+    "maximumDerivedStackDepth": 2,
+    "evenSplit": [0.5, 0.5],
+    "pilotMinimumHeight": 300,
+    "minimumPaneWidth": 300,
+    "spreadInitially": false,
+    "spreadPaneCount": 6,
+    "bodyScrollRegionsPerPanel": 1
+  }
+}

@@ -1,0 +1,136 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Forms.Inputs
+@inherits HarborlineComponentBase
+@implements IAsyncDisposable
+@using Microsoft.JSInterop
+@using Harborline.UIAdapters.Blazor.Components.Forms
+@using Harborline.UIAdapters.Blazor.Localization
+@inject IJSRuntime JavaScript
+
+<span @ref="Root" class="hl-select-field" data-hl-size="@SizeToken" dir="@ResolvedDirection">
+  <button @ref="Trigger" type="button" id="@Name" name="@Name" role="combobox" aria-haspopup="listbox"
+          aria-expanded="@IsOpen.ToString().ToLowerInvariant()" aria-controls="@ListboxId" aria-label="@AccessibleName"
+          aria-labelledby="@(AccessibleName is null ? FieldContext?.LabelId : null)" aria-describedby="@FieldContext?.DescribedBy"
+          aria-invalid="@(Error ? "true" : null)" aria-required="@(ResolvedRequired ? "true" : null)"
+          disabled="@ResolvedDisabled" tabindex="@TabIndex" class="@CombineClasses("hl-select-field__trigger", Error ? "hl-select-field__trigger--invalid" : null)"
+          style="@CombineStyles()" @onclick="ToggleAsync" @onkeydown="HandleTriggerKeyAsync" @onfocus="Focused" @onblur="Blurred"
+          @attributes="AdditionalAttributes">
+    <span class="@(Selected is null ? "hl-select-field__value hl-select-field__placeholder" : "hl-select-field__value")">@(Selected?.Label ?? ResolvedPlaceholder)</span>
+    <span aria-hidden="true" class="hl-select-field__indicator"><svg aria-hidden="true" focusable="false" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m4 6 4 4 4-4" /></svg></span>
+  </button>
+  @if (IsOpen)
+  {
+    <div id="@ListboxId" role="listbox" aria-label="@AccessibleName" class="hl-select-field__listbox" tabindex="-1" @onkeydown="HandleListKeyAsync">
+      @foreach (var pair in Options.Select((option, index) => (option, index)))
+      {
+        <div role="option" id="@($"{ListboxId}-option-{pair.index}")" aria-selected="@(pair.option.Value == Value ? "true" : "false")" aria-disabled="@(pair.option.Disabled ? "true" : null)"
+             tabindex="@(pair.index == activeIndex ? 0 : -1)" class="hl-select-field__option" data-hl-option="@pair.option.Value"
+             data-hl-active="@(pair.index == activeIndex ? "true" : null)" @onclick="() => SelectAsync(pair.option)">
+          <span aria-hidden="true" class="hl-select-field__check">@(pair.option.Value == Value ? "✓" : string.Empty)</span><span>@pair.option.Label</span>
+        </div>
+      }
+    </div>
+  }
+</span>
+
+@code {
+  [CascadingParameter] private FormFieldContextValue? FieldContext { get; set; }
+  [CascadingParameter] private HarborlineLocaleContext? LocaleContext { get; set; }
+  [Parameter, EditorRequired] public string Name { get; set; } = string.Empty;
+  [Parameter, EditorRequired] public string Value { get; set; } = string.Empty;
+  [Parameter] public EventCallback<string> ValueChanged { get; set; }
+  [Parameter, EditorRequired] public IReadOnlyList<SelectOption> Options { get; set; } = [];
+  [Parameter] public string? Placeholder { get; set; }
+  [Parameter] public bool? Disabled { get; set; }
+  [Parameter] public bool Error { get; set; }
+  [Parameter] public bool? Required { get; set; }
+  [Parameter] public SelectFieldSize Size { get; set; } = SelectFieldSize.Md;
+  [Parameter] public string? AccessibleName { get; set; }
+  [Parameter] public int? TabIndex { get; set; }
+  [Parameter] public bool? Open { get; set; }
+  [Parameter] public EventCallback<bool> OpenChanged { get; set; }
+  [Parameter] public EventCallback<FocusEventArgs> Focused { get; set; }
+  [Parameter] public EventCallback<FocusEventArgs> Blurred { get; set; }
+  [Parameter] public string? Direction { get; set; }
+
+  private bool localOpen;
+  private int activeIndex;
+  private string typeahead = string.Empty;
+  private ElementReference Root, Trigger;
+  private DotNetObjectReference<HarborlineSelectField>? reference;
+  private IJSObjectReference? module;
+  private long outsideId;
+  private string ListboxId { get; } = $"hl-select-{Guid.NewGuid():N}";
+  private bool IsOpen => Open ?? localOpen;
+  private bool ResolvedDisabled => Disabled ?? FieldContext?.Disabled ?? false;
+  private bool ResolvedRequired => Required ?? FieldContext?.Required ?? false;
+  private string ResolvedDirection => Direction ?? LocaleContext?.Direction ?? "ltr";
+  private string ResolvedPlaceholder => LocaleContext?.ResolveString("forms.selectPlaceholder", instanceOverride: Placeholder) ?? Placeholder ?? "Select…";
+  private SelectOption? Selected => Options.FirstOrDefault(option => option.Value == Value);
+  private string SizeToken => Size.ToString().ToLowerInvariant();
+
+  protected override void OnParametersSet()
+  {
+    if (string.IsNullOrWhiteSpace(Name)) throw new InvalidOperationException("select-field-name-required");
+    if (Options.GroupBy(option => option.Value, StringComparer.Ordinal).Any(group => group.Count() > 1)) throw new InvalidOperationException("duplicate-select-option-value");
+    activeIndex = Math.Clamp(activeIndex, 0, Math.Max(0, Options.Count - 1));
+  }
+
+  private async Task SetOpenAsync(bool next, bool restoreFocus = false)
+  {
+    if (ResolvedDisabled) return;
+    if (Open is null) localOpen = next;
+    await OpenChanged.InvokeAsync(next);
+    if (next) activeIndex = Math.Max(0, Options.ToList().FindIndex(option => option.Value == Value && !option.Disabled));
+    await InvokeAsync(StateHasChanged);
+    if (next) await EnsureOutsideAsync();
+    else if (restoreFocus && module is not null) await module.InvokeVoidAsync("focus", Trigger);
+  }
+
+  private Task ToggleAsync() => SetOpenAsync(!IsOpen);
+  private async Task SelectAsync(SelectOption option)
+  {
+    if (ResolvedDisabled || option.Disabled) return;
+    await ValueChanged.InvokeAsync(option.Value);
+    await SetOpenAsync(false, true);
+  }
+
+  private async Task HandleTriggerKeyAsync(KeyboardEventArgs args)
+  {
+    if (args.Key is "Enter" or " " or "ArrowDown" or "ArrowUp") await SetOpenAsync(true);
+    else if (args.Key == "Escape" && IsOpen) await SetOpenAsync(false, true);
+  }
+
+  private async Task HandleListKeyAsync(KeyboardEventArgs args)
+  {
+    if (args.Key == "Escape") { await SetOpenAsync(false, true); return; }
+    if (args.Key == "Tab") { await SetOpenAsync(false); return; }
+    var enabled = Options.Select((option,index)=>(option,index)).Where(pair=>!pair.option.Disabled).ToArray();
+    if (enabled.Length == 0) return;
+    var current = Array.FindIndex(enabled, pair => pair.index == activeIndex);
+    current = Math.Max(0, current);
+    var next = args.Key switch { "ArrowDown" => (current + 1) % enabled.Length, "ArrowUp" => (current - 1 + enabled.Length) % enabled.Length, "Home" => 0, "End" => enabled.Length - 1, _ => -1 };
+    if (next >= 0) { activeIndex = enabled[next].index; await FocusOptionAsync(); return; }
+    if (args.Key is "Enter" or " ") { await SelectAsync(enabled[current].option); return; }
+    if (args.Key.Length == 1 && !char.IsControl(args.Key[0]))
+    {
+      typeahead = (typeahead + args.Key).ToLowerInvariant();
+      var match = enabled.FirstOrDefault(pair => pair.option.Label.StartsWith(typeahead, StringComparison.CurrentCultureIgnoreCase));
+      if (match.option is not null) { activeIndex = match.index; await FocusOptionAsync(); }
+    }
+  }
+
+  private async Task EnsureModuleAsync()
+  {
+    module ??= await JavaScript.InvokeAsync<IJSObjectReference>("import", "./_content/Harborline.UIAdapters.Blazor/select-field.js");
+    reference ??= DotNetObjectReference.Create(this);
+  }
+  private async Task EnsureOutsideAsync(){await EnsureModuleAsync();if(outsideId==0)outsideId=await module!.InvokeAsync<long>("observeOutside",Root,reference);await module!.InvokeVoidAsync("focusOption",Root,activeIndex);}
+  private async Task FocusOptionAsync(){await EnsureModuleAsync();await module!.InvokeVoidAsync("focusOption",Root,activeIndex);}
+  [JSInvokable] public Task OnOutsidePointer() => SetOpenAsync(false);
+
+  public async ValueTask DisposeAsync()
+  {
+    if (module is not null){try{if(outsideId!=0)await module.InvokeVoidAsync("disposeOutside",outsideId);await module.DisposeAsync();}catch(JSDisconnectedException){}}
+    reference?.Dispose();
+  }
+}

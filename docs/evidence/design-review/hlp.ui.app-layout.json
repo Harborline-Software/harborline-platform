@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.app-layout",
+  "verdict": "approved",
+  "reviewer": "cic",
+  "recordedAt": "2026-08-26T19:57:42.875Z",
+  "reference": {
+    "revision": "2b240b30a5b57b43969b4d4e7bc88afed166b1b4c39253661a17beb631ba0b4c",
+    "source": "gallery/scenarios/hlp.ui.app-layout.json",
+    "pin": "cc9eb48ed68c5033ec128cd53c40b1d2786bee66",
+    "surface": {
+      "conformance/hlp.ui.app-layout/fixtures.yaml": "8dc9a9bae176e0f0614d689ad9f732c61ec8b552773fc7a07e53ac21ff409d99",
+      "conformance/hlp.ui.app-layout/quality-fixtures.yaml": "3f8a8ad30a0cb031f98663c6ca362cb8f7de29442bd0b7bc952d5bd1e63607d7",
+      "gallery/projections/blazor/Stories/AppLayout.stories.razor": "ed9dce3e6381f8977c9c07fcdd9aa3dc80f3ba363e7649ebf5bf20aa619f5e53",
+      "gallery/projections/blazor/Stories/AppLayoutScenario.razor": "cef1dbf5c9264adbe3210120b8dd584688ee9b50ede5c41db087f813108ff36c",
+      "gallery/projections/react/src/AppLayout.stories.tsx": "4274c2e59f6b5093167b87a253e46c3eae9df4d72363e763837a02830a9d5936",
+      "gallery/scenarios/hlp.ui.app-layout.json": "49df33a483d8e87f97475e46c27561a191c86e8d17c85279603b4870a7c0ff5d",
+      "projections/blazor/ui/hlp.ui.app-layout/AppLayoutTypes.cs": "9b8b8a806e374b92389c173152aec67c30e7a136be0b65b35774ac0b782bc47a",
+      "projections/blazor/ui/hlp.ui.app-layout/ShipyardAppLayout.razor": "9c887e5cbd83ac16cca94b3a07e32d9b0ac0a8b2221fbce4b797cf4e90a29ac3",
+      "projections/blazor/ui/hlp.ui.app-layout/wwwroot/app-layout.css": "37560fed06498cc98498397b56dcedde207201d1e6d8e3c012388b1aed1b5e36",
+      "projections/blazor/ui/hlp.ui.app-layout/wwwroot/app-layout.js": "b968cb757246119e7fc1debeef92acef7616e1e0170faec6a45daecd0a43e6be",
+      "projections/react/ui/hlp.ui.app-layout/src/AppLayout.tsx": "c9e70e4fdc352756ca164c201aa9ada003d3848b93e3aa35142388318b47fcf8",
+      "projections/react/ui/hlp.ui.app-layout/src/index.ts": "5aad77613f443adbd52e55a91f71818893b34566232b0560f99911f3d72bdaf5",
+      "projections/react/ui/hlp.ui.app-layout/src/style.css": "eaf0bf6fe36023487d2f8a455178112e8ffa67a77035e6ed32c9983e9da56e3f",
+      "specs/modules/ui/hlp.ui.app-layout/scenarios.json": "49df33a483d8e87f97475e46c27561a191c86e8d17c85279603b4870a7c0ff5d",
+      "specs/modules/ui/hlp.ui.app-layout/style.css": "eaf0bf6fe36023487d2f8a455178112e8ffa67a77035e6ed32c9983e9da56e3f"
+    }
+  }
+}

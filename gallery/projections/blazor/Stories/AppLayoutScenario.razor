@@ -1,0 +1,94 @@
+<section class="hl-gallery-scene" data-gallery-probe data-gallery-scenario="@ScenarioId" data-theme="@Theme" dir="@Direction">
+  <header class="hl-gallery-heading"><h2>@Copy.Title</h2><p>@Copy.Description</p></header>
+  <div class="hl-gallery-stage hl-gallery-feedback-stack">
+    <HarborlineLocaleProvider Locale="@Locale">
+      <div style="height: 520px; min-width: 0; border: 1px solid var(--hl-color-border, #888)">
+        <HarborlineAppLayout SideNavMode="@Mode" SideNavOpen="@sideNavOpen" SideNavOpenChanged="@(next => sideNavOpen = next)"
+                           SideNav="@(Mode == SideNavMode.Hidden ? null : Navigation)"
+                           MobileNavOpen="@mobileNavOpen" MobileNavOpenChanged="@(next => mobileNavOpen = next)"
+                           MobileNavLabel="@MobileNavLabel" HeaderFixed="@(ScenarioId == "app-layout.dismissal-scroll")"
+                           ContentScroll="@ContentScroll" data-case="engineering-shell">
+          <Header>
+            @if (ScenarioId == "app-layout.content") { <div style="padding: 12px"><strong>@("Awaiting third-party structural certification review")</strong></div> }
+            else { <div style="padding: 12px"><strong>@HeaderLabel</strong></div> }
+          </Header>
+          <ChildContent>
+            @if (ScenarioId == "app-layout.content") { <article style="padding: 16px; min-width: 0"><h1>@("Ordnance Survey — Niño Ångström")</h1><p>@("1,284,905")</p><p>@("Bay 4 <grid C-7> & 8")</p></article> }
+            else { @Body }
+          </ChildContent>
+        </HarborlineAppLayout>
+      </div>
+    </HarborlineLocaleProvider>
+  </div>
+</section>
+
+@code {
+  [Parameter, EditorRequired] public string ScenarioId { get; set; } = "app-layout.structure-modes";
+  private bool sideNavOpen = true;
+  private bool mobileNavOpen;
+  private string? configuredScenario;
+
+  protected override void OnParametersSet()
+  {
+    if (configuredScenario == ScenarioId) return;
+    configuredScenario = ScenarioId;
+    sideNavOpen = ScenarioId != "app-layout.rail-breakpoints";
+    mobileNavOpen = ScenarioId == "app-layout.drawer-state";
+  }
+
+  private RenderFragment Navigation => builder =>
+  {
+    builder.OpenElement(0, "div");
+    builder.AddAttribute(2, "style", "padding: 12px");
+    builder.OpenElement(3, "strong"); builder.AddContent(4, IsArabic ? "كوميت إكس" : "Engineering Services"); builder.CloseElement();
+    builder.OpenElement(5, "ul");
+    for (var index = 0; index < NavigationCount; index++)
+    {
+      builder.OpenElement(6, "li"); builder.SetKey(index);
+      builder.OpenElement(7, "a"); builder.AddAttribute(8, "href", $"#section-{index}");
+      builder.AddContent(9, IsArabic ? $"قسم {index + 1}" : IsPseudo ? $"⟦ Structure workspace {index + 1} ···· ⟧" : $"Workspace {index + 1}");
+      builder.CloseElement(); builder.CloseElement();
+    }
+    builder.CloseElement(); builder.CloseElement();
+  };
+
+  private RenderFragment Body => builder =>
+  {
+    builder.OpenElement(0, "article");
+    builder.AddAttribute(1, "style", $"padding: 16px; min-width: {(ScenarioId == "app-layout.dismissal-scroll" ? "720px" : "0")}");
+    builder.OpenElement(2, "h1"); builder.AddContent(3, IsArabic ? "التقاط صورة مع الوضعية" : "Photo-with-pose capture"); builder.CloseElement();
+    builder.OpenElement(4, "p"); builder.AddContent(5, IsPseudo ? "⟦ Place the captured pose within the selected blueprint structure. ········ ⟧" : "Place the captured pose within the selected blueprint structure."); builder.CloseElement();
+    for (var index = 0; index < 8; index++)
+    {
+      builder.OpenElement(6, "p"); builder.SetKey(index); builder.AddContent(7, $"Capture row {index + 1}: grid C-{index + 1}"); builder.CloseElement();
+    }
+    builder.CloseElement();
+  };
+
+  private (string Title, string Description) Copy => ScenarioId switch
+  {
+    "app-layout.structure-modes" => ("Structure and navigation modes", "One shell owns one main landmark and at most one opaque header and navigation subtree."),
+    "app-layout.rail-breakpoints" => ("Rail and breakpoint boundary", "Rail capability requires both the frozen width and height boundary while collapsed content remains mounted."),
+    "app-layout.drawer-state" => ("Drawer and controlled state", "Phone and short-landscape viewports use one modal drawer with controlled or uncontrolled state."),
+    "app-layout.dismissal-scroll" => ("Dismissal, header, and scroll ownership", "Focus, fixed chrome, one vertical scroll owner, and wide content remain reachable."),
+    "app-layout.performance" => ("Bounded shell under load", "Large navigation, repeated updates, and viewport churn retain one current subtree without stale callbacks."),
+    "app-layout.locale-en" => ("English locale", "Caller header, navigation, and body content remain opaque."),
+    "app-layout.locale-pseudo" => ("Pseudo locale", "Expanded header and navigation labels remain viewport-clamped."),
+    "app-layout.locale-ar" => ("Arabic locale", "Rail, drawer, trigger, and safe areas use logical edges."),
+    "app-layout.theme-light" => ("Light theme", "Shell, header, rail, drawer, main, and scrim use public light tokens."),
+    "app-layout.theme-dark" => ("Dark theme", "The same responsive application chrome on the Harborline dark surface."),
+    "app-layout.content" => ("Content resilience", "Hostile application content carries a long header label, a grouped large number, escaped angle brackets and an ampersand, and a name with diacritics and an em dash."),
+    _ => ("App layout", "Responsive application shell.")
+  };
+
+  private bool IsArabic => ScenarioId == "app-layout.locale-ar";
+  private bool IsPseudo => ScenarioId == "app-layout.locale-pseudo";
+  private string Locale => IsArabic ? "ar-SA" : IsPseudo ? "en-XA" : "en-US";
+  private string Direction => IsArabic ? "rtl" : "ltr";
+  private string? Theme => ScenarioId switch { "app-layout.theme-light" => "light", "app-layout.theme-dark" => "dark", _ => null };
+  private SideNavMode Mode => ScenarioId switch { "app-layout.drawer-state" => SideNavMode.Overlay, "app-layout.structure-modes" => SideNavMode.Hidden, _ => SideNavMode.Auto };
+  private AppContentScroll ContentScroll => ScenarioId == "app-layout.structure-modes" ? AppContentScroll.Page : AppContentScroll.Main;
+  private int NavigationCount => ScenarioId == "app-layout.performance" ? 256 : 5;
+  private string MobileNavLabel => IsArabic ? "التنقل" : IsPseudo ? "⟦ Ñåṽîĝåţîøñ ···· ⟧" : "Navigation";
+  private string HeaderLabel => IsArabic ? "مساحة فحص الهيكل" : IsPseudo ? "⟦ Šţřûçţûřë îñšþëçţîøñ ŵøřķšþåçë ······ ⟧" : "Structure inspection workspace";
+}

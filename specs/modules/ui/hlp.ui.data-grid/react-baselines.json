@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "projection": "react",
+  "moduleId": "hlp.ui.data-grid",
+  "scenarios": [
+    {
+      "scenarioId": "data-grid.app-grid-dump",
+      "sha256": "0e0823a003488af1e49d3f46fb2a8c7492ca5b8ce5967dc6bc3120c4e80297d4",
+      "bytes": 28290,
+      "artifact": "../baselines/sha256/0e0823a003488af1e49d3f46fb2a8c7492ca5b8ce5967dc6bc3120c4e80297d4.png"
+    },
+    {
+      "scenarioId": "data-grid.app-grouped-report",
+      "sha256": "e1b5c69f64c6418851b9148b9d562932be0deea721a90743d6de69a4ce4428bd",
+      "bytes": 31698,
+      "artifact": "../baselines/sha256/e1b5c69f64c6418851b9148b9d562932be0deea721a90743d6de69a4ce4428bd.png"
+    },
+    {
+      "scenarioId": "data-grid.replacement-state",
+      "sha256": "7f98f6d1730d4f4528f560a05dc8c86061f08cb488e4bc14bcce9bb85292f83a",
+      "bytes": 26375,
+      "artifact": "../baselines/sha256/7f98f6d1730d4f4528f560a05dc8c86061f08cb488e4bc14bcce9bb85292f83a.png"
+    },
+    {
+      "scenarioId": "data-grid.keyboard-focus",
+      "sha256": "ff2289d7c3e06a8458146c0f6772b2c5bf9e724819dd0653e1aa0cdd4d8d09a5",
+      "bytes": 20763,
+      "artifact": "../baselines/sha256/ff2289d7c3e06a8458146c0f6772b2c5bf9e724819dd0653e1aa0cdd4d8d09a5.png"
+    },
+    {
+      "scenarioId": "data-grid.large-data",
+      "sha256": "0fdf1cddc01cab40b49930f495a10d2a7863f05e38ceaeeebe24496f696a3206",
+      "bytes": 20600,
+      "artifact": "../baselines/sha256/0fdf1cddc01cab40b49930f495a10d2a7863f05e38ceaeeebe24496f696a3206.png"
+    },
+    {
+      "scenarioId": "data-grid.locale-pseudo",
+      "sha256": "2262af4453d34bf3e6f608f2cc98b48266500e4e17d9e467de7017bad555d170",
+      "bytes": 27894,
+      "artifact": "../baselines/sha256/2262af4453d34bf3e6f608f2cc98b48266500e4e17d9e467de7017bad555d170.png"
+    },
+    {
+      "scenarioId": "data-grid.locale-ar",
+      "sha256": "df6f03e1a63cd3a26a44e4e649a839a12cef3e02587029c983b1ce1603ea66a9",
+      "bytes": 25678,
+      "artifact": "../baselines/sha256/df6f03e1a63cd3a26a44e4e649a839a12cef3e02587029c983b1ce1603ea66a9.png"
+    },
+    {
+      "scenarioId": "data-grid.theme-light",
+      "sha256": "5d708d99734babc7b7db724940c3d674287f4420813d23212a16254ebd0bb9e0",
+      "bytes": 27330,
+      "artifact": "../baselines/sha256/5d708d99734babc7b7db724940c3d674287f4420813d23212a16254ebd0bb9e0.png"
+    },
+    {
+      "scenarioId": "data-grid.theme-dark",
+      "sha256": "5e68f9d05f382ce86b8a86564c981b96066077cadb74641959ef7ea11e5f8006",
+      "bytes": 27056,
+      "artifact": "../baselines/sha256/5e68f9d05f382ce86b8a86564c981b96066077cadb74641959ef7ea11e5f8006.png"
+    }
+  ]
+}

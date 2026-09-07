@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "projection": "react",
+  "moduleId": "hlp.ui.toaster",
+  "scenarios": [
+    {
+      "scenarioId": "toaster.variants-roles",
+      "sha256": "440dd2b8f4f0d2ab9232807a9ba9e753dca4d03672d73b1d2bda67c4b1f70012",
+      "bytes": 25947,
+      "artifact": "../baselines/sha256/440dd2b8f4f0d2ab9232807a9ba9e753dca4d03672d73b1d2bda67c4b1f70012.png"
+    },
+    {
+      "scenarioId": "toaster.queue-lifecycle",
+      "sha256": "9b813c67a52252f0b5d84ba5c2efcb4507b70119d7fcd44793b21be80c9b9817",
+      "bytes": 19224,
+      "artifact": "../baselines/sha256/9b813c67a52252f0b5d84ba5c2efcb4507b70119d7fcd44793b21be80c9b9817.png"
+    },
+    {
+      "scenarioId": "toaster.action-promise",
+      "sha256": "ca1d01d9f9b5fa4b53e2ea4dd38d6a7a282ed4aa7a96e773ddd56329ff935035",
+      "bytes": 19450,
+      "artifact": "../baselines/sha256/ca1d01d9f9b5fa4b53e2ea4dd38d6a7a282ed4aa7a96e773ddd56329ff935035.png"
+    },
+    {
+      "scenarioId": "toaster.positions",
+      "sha256": "d1dda64d0eebbb647cbc548e9414edf9ba3dd340c702e8b9f6c1dfadd5af661c",
+      "bytes": 26096,
+      "artifact": "../baselines/sha256/d1dda64d0eebbb647cbc548e9414edf9ba3dd340c702e8b9f6c1dfadd5af661c.png"
+    },
+    {
+      "scenarioId": "toaster.locale-en",
+      "sha256": "85d1957d59201e39da23623c563bfb1b1f8ef50d593729d43f54e589b340d24d",
+      "bytes": 22995,
+      "artifact": "../baselines/sha256/85d1957d59201e39da23623c563bfb1b1f8ef50d593729d43f54e589b340d24d.png"
+    },
+    {
+      "scenarioId": "toaster.locale-pseudo",
+      "sha256": "d60a2b45ed7ac5323b046f9f0c861e3b7a1715de35f5a3d73859b8685d26f0cb",
+      "bytes": 25039,
+      "artifact": "../baselines/sha256/d60a2b45ed7ac5323b046f9f0c861e3b7a1715de35f5a3d73859b8685d26f0cb.png"
+    },
+    {
+      "scenarioId": "toaster.locale-ar",
+      "sha256": "ef2d2ec83d29f907a1e440ffe0aa8e8af16f9349e6adcd2f3e66ffedcef41d85",
+      "bytes": 23832,
+      "artifact": "../baselines/sha256/ef2d2ec83d29f907a1e440ffe0aa8e8af16f9349e6adcd2f3e66ffedcef41d85.png"
+    },
+    {
+      "scenarioId": "toaster.theme-light",
+      "sha256": "529e56f8e87757266102680add9181a96b7dac7d5bb3e53da104fa6088b86381",
+      "bytes": 22576,
+      "artifact": "../baselines/sha256/529e56f8e87757266102680add9181a96b7dac7d5bb3e53da104fa6088b86381.png"
+    },
+    {
+      "scenarioId": "toaster.theme-dark",
+      "sha256": "329558cdc4fcc3e2b49a8c79e19ada367f031da9fc4cf030a6be0a21279cc6ce",
+      "bytes": 19598,
+      "artifact": "../baselines/sha256/329558cdc4fcc3e2b49a8c79e19ada367f031da9fc4cf030a6be0a21279cc6ce.png"
+    }
+  ]
+}

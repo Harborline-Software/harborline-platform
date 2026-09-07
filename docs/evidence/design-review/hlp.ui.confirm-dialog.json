@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.confirm-dialog",
+  "verdict": "approved",
+  "reviewer": "cic",
+  "recordedAt": "2026-08-26T20:11:54.463Z",
+  "reference": {
+    "revision": "3cd44b344cbfe866d9c0a2cec320a42097d5849d904befbb454893a070ad990a",
+    "source": "gallery/scenarios/hlp.ui.confirm-dialog.json",
+    "pin": "cc9eb48ed68c5033ec128cd53c40b1d2786bee66",
+    "surface": {
+      "conformance/hlp.ui.confirm-dialog/fixtures.yaml": "9afe56c424ba08935b8ea19c9dbe1665aaa5ecf661b6567ff5923246018be493",
+      "conformance/hlp.ui.confirm-dialog/quality-fixtures.yaml": "d28a29f7fddf1e20533f03a0217c3910e04efbf6fe39d86cf4723c6351f1f8a0",
+      "gallery/projections/blazor/Stories/ConfirmDialog.stories.razor": "870c1866fd1b90d228dcd53656718393fe741c13d6a02ef5806eef128a74a80b",
+      "gallery/projections/blazor/Stories/ConfirmDialogScenario.razor": "6201101bee38b1f81ee2837edc53167576530ad5da7dabe198b02d151fe705fe",
+      "gallery/projections/react/src/ConfirmDialog.stories.tsx": "a2d1df32e8c9f90d0471d6349212330d73d405a95ee10693f77a96a5e63585a1",
+      "gallery/scenarios/hlp.ui.confirm-dialog.json": "bfde74854fa493be425b02f05875c8dbef599e16a6ca5e169baae52690e5715f",
+      "projections/blazor/ui/hlp.ui.confirm-dialog/ConfirmDialogVariant.cs": "48a3023bafe5da444a4cf5d09a7cd635c7d996729076fdc6c7d09db54e85dab9",
+      "projections/blazor/ui/hlp.ui.confirm-dialog/ShipyardConfirmDialog.razor": "346611461b183a8717a3fa97b63ed829ac5dedd8e35ca7e9d9b15338647d7933",
+      "projections/blazor/ui/hlp.ui.confirm-dialog/wwwroot/confirm-dialog.css": "403a5f9189958c2029105ed26f2e93678c94652cc5f2680ee176ac9534b08a63",
+      "projections/react/ui/hlp.ui.confirm-dialog/src/ConfirmDialog.tsx": "3aa279dfd5b2c0a63e1b3f27296c1e80da8beafcd0a4c85ff89abc2afc6aa5c3",
+      "projections/react/ui/hlp.ui.confirm-dialog/src/index.ts": "a54cc698f9c49ef914b67fccacb0994122950da113963c15eb40f61e911b6641",
+      "projections/react/ui/hlp.ui.confirm-dialog/src/style.css": "403a5f9189958c2029105ed26f2e93678c94652cc5f2680ee176ac9534b08a63",
+      "specs/modules/ui/hlp.ui.confirm-dialog/scenarios.json": "bfde74854fa493be425b02f05875c8dbef599e16a6ca5e169baae52690e5715f",
+      "specs/modules/ui/hlp.ui.confirm-dialog/style.css": "403a5f9189958c2029105ed26f2e93678c94652cc5f2680ee176ac9534b08a63"
+    }
+  }
+}

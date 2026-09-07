@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.aspect-lens",
+  "fixtureRevision": 1,
+  "cases": [
+    {"id": "aspect-lens.canvas-tree", "input": {"nodes": [{"id": "root", "depth": 0, "parentId": null}, {"id": "child", "depth": 1, "parentId": "root"}]}, "expected": {"valid": true, "orderPreserved": true}},
+    {"id": "aspect-lens.graph-projection", "input": {"nodes": [{"id": "start", "parentId": null}, {"id": "review", "parentId": "start"}], "crossLinks": [{"from": "alternate", "to": "review"}]}, "expected": {"singleParentOutline": true, "crossLinksRemainEdges": true}},
+    {"id": "aspect-lens.selection", "input": {"selectedId": null, "select": "child"}, "expected": {"selectedId": "child", "callbackCount": 1}},
+    {"id": "aspect-lens.colorize", "input": {"kind": "colorize", "state": {"active": true, "badge": "PII", "tone": "sensitivity-high"}}, "expected": {"visible": true, "pairedTextSignal": true}},
+    {"id": "aspect-lens.filter", "input": {"kind": "filter", "state": {"active": false}}, "expected": {"nodePresent": true, "ghosted": true, "hidden": false}},
+    {"id": "aspect-lens.edges", "input": {"edges": [{"from": "amount", "to": "approval", "label": "gates visibility"}]}, "expected": {"directed": true, "labelPreserved": true}},
+    {"id": "aspect-lens.optional-descriptors", "input": {"state": {"active": true, "badge": "Required", "title": "Required by policy"}, "lens": {"editor": {"hint": "Edit requirement"}, "empty": "Select a field to add a rule"}}, "expected": {"optionalFieldsPreserved": true}},
+    {"id": "aspect-lens.closed-vocabulary", "input": {"tones": ["accent", "warning", "danger", "success", "info", "muted", "sensitivity-none", "sensitivity-low", "sensitivity-medium", "sensitivity-high"], "kinds": ["colorize", "filter"], "sources": ["base", "pack", "tenant", "instance", "unknown"]}, "expected": {"toneCount": 10, "kindCount": 2, "sourceCount": 5, "closed": true}},
+    {"id": "aspect-lens.provenance", "input": {"source": "tenant", "chain": ["base", "pack", "tenant"], "overridden": true, "locked": false, "resolved": true}, "expected": {"valid": true, "chainPreserved": true}},
+    {"id": "aspect-lens.fail-closed-provenance", "input": {"source": "unknown", "chain": ["unknown"], "overridden": false, "locked": true, "resolved": false}, "expected": {"valid": true, "editable": false}},
+    {"id": "aspect-lens.projection-equivalence", "input": {"projections": ["typescript", "dotnet"], "optionalFields": ["detail", "hasChildren", "badge", "tone", "title", "edges", "editor", "empty"]}, "expected": {"fieldOptionalityEquivalent": true, "closedVocabularyEquivalent": true}}
+  ]
+}

@@ -1,0 +1,202 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Forms.Inputs
+@inherits HarborlineComponentBase
+@using Microsoft.AspNetCore.Components.Web
+@using Harborline.UIAdapters.Blazor.Components.Forms
+@using Harborline.UIAdapters.Blazor.Localization
+
+@* hlp.ui.text-box composes hlp.ui.input: the input module owns appearance, host
+   attributes, prefix/suffix composition, touch sizing, and focus treatment, while
+   this module owns raw-string ownership, the clear and reveal actions, FormField
+   merging, and action labels. *@
+<HarborlineInput Id="@ResolvedId" Name="@Name" Type="@RenderedType" Value="@EffectiveValue"
+               ValueChanged="HandleInputAsync" Placeholder="@Placeholder" Direction="@ResolvedDirection"
+               Autocomplete="@Autocomplete" InputMode="@InputMode" Required="@ResolvedRequired"
+               Disabled="@ResolvedDisabled" DescribedBy="@ResolvedDescribedBy" AccessibleLabel="@AccessibleName"
+               Size="@Size" FillMode="@FillMode" Rounded="@Rounded" Invalid="@ResolvedInvalid"
+               Prefix="@Prefix" Suffix="@ComposedSuffix" Class="@Class" Style="@Style"
+               AdditionalAttributes="@InputAttributes" />
+
+@code {
+  [CascadingParameter] private FormFieldContextValue? FieldContext { get; set; }
+  [CascadingParameter] private HarborlineLocaleContext? LocaleContext { get; set; }
+  [Parameter] public string? Value { get; set; }
+  [Parameter] public string? DefaultValue { get; set; }
+  [Parameter] public EventCallback<string> ValueChanged { get; set; }
+  [Parameter] public string Type { get; set; } = "text";
+  [Parameter] public bool ClearButton { get; set; }
+  [Parameter] public bool ShowReveal { get; set; }
+  [Parameter] public bool? Required { get; set; }
+  [Parameter] public bool? Disabled { get; set; }
+  [Parameter] public bool Error { get; set; }
+  [Parameter] public bool Invalid { get; set; }
+  [Parameter] public string? Id { get; set; }
+  [Parameter] public string? Name { get; set; }
+  [Parameter] public string? Placeholder { get; set; }
+  [Parameter] public string? Autocomplete { get; set; }
+  [Parameter] public string? InputMode { get; set; }
+  [Parameter] public string? AccessibleName { get; set; }
+  [Parameter] public string? DescribedBy { get; set; }
+  [Parameter] public string? Direction { get; set; }
+  [Parameter] public string? ClearLabel { get; set; }
+  [Parameter] public string? ShowPasswordLabel { get; set; }
+  [Parameter] public string? HidePasswordLabel { get; set; }
+  [Parameter] public InputSize Size { get; set; } = InputSize.Md;
+  [Parameter] public InputFillMode FillMode { get; set; } = InputFillMode.Solid;
+  [Parameter] public InputRounded Rounded { get; set; } = InputRounded.Medium;
+  [Parameter] public RenderFragment? Prefix { get; set; }
+  [Parameter] public RenderFragment? Suffix { get; set; }
+  [Parameter] public EventCallback<KeyboardEventArgs> KeyDown { get; set; }
+
+  private string internalValue = string.Empty;
+  private bool initialized;
+  private bool revealed;
+  private bool Controlled => Value is not null;
+  private string EffectiveValue => Controlled ? Value ?? string.Empty : internalValue;
+  private bool ResolvedRequired => Required ?? FieldContext?.Required ?? false;
+  private bool ResolvedDisabled => Disabled ?? FieldContext?.Disabled ?? false;
+  private bool ResolvedInvalid => Error || Invalid;
+  private string ResolvedId => Id ?? FieldContext?.Id ?? $"hl-text-box-{instanceId}";
+  private string? LabelledBy => AccessibleName is null ? FieldContext?.LabelId : null;
+  private string? ResolvedDescribedBy => DescribedBy ?? FieldContext?.DescribedBy;
+  private string ResolvedDirection => Direction ?? LocaleContext?.Direction ?? "ltr";
+  private bool IsPassword => string.Equals(Type, "password", StringComparison.OrdinalIgnoreCase);
+  private bool PasswordVisible => IsPassword && revealed && !ResolvedDisabled;
+  private string RenderedType => PasswordVisible ? "text" : Type;
+  private bool ShowClear => ClearButton && !ResolvedDisabled && EffectiveValue.Length > 0;
+  private bool RevealVisible => ShowReveal && IsPassword && !ResolvedDisabled;
+  private string ResolvedClearLabel => LocalizedText("common.clear", ClearLabel, "Clear");
+  private string ResolvedRevealLabel => PasswordVisible
+    ? LocalizedText("forms.textBox.hidePassword", HidePasswordLabel, "Hide password")
+    : LocalizedText("forms.textBox.showPassword", ShowPasswordLabel, "Show password");
+
+  // Instance override, then catalog, then fallback, using the same catalog keys as the React
+  // projection. A catalog miss echoes the key back, so an echoed key counts as unresolved.
+  private string LocalizedText(string key, string? instanceOverride, string fallback)
+  {
+    if (!string.IsNullOrWhiteSpace(instanceOverride)) return LocaleContext?.ResolveString(key, instanceOverride: instanceOverride) ?? instanceOverride;
+    var resolved = LocaleContext?.ResolveString(key);
+    return string.IsNullOrEmpty(resolved) || resolved == key ? fallback : resolved;
+  }
+  private readonly string instanceId = Guid.NewGuid().ToString("N");
+
+  private Dictionary<string, object> InputAttributes
+  {
+    get
+    {
+      var attributes = AdditionalAttributes is null
+        ? new Dictionary<string, object>(StringComparer.Ordinal)
+        : new Dictionary<string, object>(AdditionalAttributes, StringComparer.Ordinal);
+      if (LabelledBy is not null) attributes["aria-labelledby"] = LabelledBy;
+      if (ResolvedInvalid) attributes["aria-invalid"] = "true";
+      if (ResolvedRequired) attributes["aria-required"] = "true";
+      if (PasswordVisible) attributes["data-hl-revealed"] = "true";
+      attributes["onkeydown"] = EventCallback.Factory.Create<KeyboardEventArgs>(this, HandleKeyDownAsync);
+      return attributes;
+    }
+  }
+
+  private RenderFragment? Actions => ShowClear || RevealVisible ? builder =>
+  {
+    builder.OpenElement(0, "span");
+    builder.AddAttribute(1, "class", "hl-text-box__actions");
+    builder.AddAttribute(2, "dir", ResolvedDirection);
+    if (ShowClear)
+    {
+      builder.OpenElement(3, "button");
+      builder.AddAttribute(4, "type", "button");
+      builder.AddAttribute(5, "class", "hl-text-box__action");
+      builder.AddAttribute(6, "data-hl-action", "clear");
+      builder.AddAttribute(7, "aria-label", ResolvedClearLabel);
+      builder.AddAttribute(8, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, ClearAsync));
+      builder.AddEventPreventDefaultAttribute(9, "onmousedown", true);
+      builder.OpenElement(10, "svg");
+      builder.AddAttribute(11, "aria-hidden", "true");
+      builder.AddAttribute(12, "viewBox", "0 0 20 20");
+      builder.OpenElement(13, "path");
+      builder.AddAttribute(14, "d", "m5 5 10 10M15 5 5 15");
+      builder.CloseElement();
+      builder.CloseElement();
+      builder.CloseElement();
+    }
+    if (RevealVisible)
+    {
+      builder.OpenElement(13, "button");
+      builder.AddAttribute(14, "type", "button");
+      builder.AddAttribute(15, "class", "hl-text-box__action");
+      builder.AddAttribute(16, "data-hl-action", "reveal");
+      builder.AddAttribute(17, "aria-label", ResolvedRevealLabel);
+      builder.AddAttribute(18, "aria-pressed", PasswordVisible ? "true" : "false");
+      builder.AddAttribute(19, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, ToggleReveal));
+      builder.AddEventPreventDefaultAttribute(20, "onmousedown", true);
+      builder.OpenElement(21, "svg");
+      builder.AddAttribute(22, "aria-hidden", "true");
+      builder.AddAttribute(23, "viewBox", "0 0 20 20");
+      builder.OpenElement(24, "path");
+      builder.AddAttribute(25, "d", "M2.5 10s2.75-5 7.5-5 7.5 5 7.5 5-2.75 5-7.5 5-7.5-5-7.5-5Z");
+      builder.CloseElement();
+      builder.OpenElement(26, "circle");
+      builder.AddAttribute(27, "cx", "10");
+      builder.AddAttribute(28, "cy", "10");
+      builder.AddAttribute(29, "r", "2.25");
+      builder.CloseElement();
+      if (!PasswordVisible)
+      {
+        builder.OpenElement(30, "path");
+        builder.AddAttribute(31, "d", "m3 3 14 14");
+        builder.CloseElement();
+      }
+      builder.CloseElement();
+      builder.CloseElement();
+    }
+    builder.CloseElement();
+  }
+  : null;
+
+  private RenderFragment? ComposedSuffix
+  {
+    get
+    {
+      var actions = Actions;
+      if (Suffix is null && actions is null) return null;
+      return builder =>
+      {
+        builder.OpenElement(0, "span");
+        builder.AddAttribute(1, "class", "hl-text-box__suffix");
+        builder.AddAttribute(2, "dir", ResolvedDirection);
+        if (Suffix is not null)
+        {
+          builder.OpenElement(3, "span");
+          builder.AddAttribute(4, "class", "hl-text-box__caller-suffix");
+          builder.AddContent(5, Suffix);
+          builder.CloseElement();
+        }
+        if (actions is not null) builder.AddContent(6, actions);
+        builder.CloseElement();
+      };
+    }
+  }
+
+  protected override void OnParametersSet()
+  {
+    if (!initialized) { internalValue = DefaultValue ?? string.Empty; initialized = true; }
+    if (ResolvedDisabled) revealed = false;
+  }
+
+  private async Task HandleInputAsync(string next)
+  {
+    if (ResolvedDisabled) return;
+    if (!Controlled) internalValue = next;
+    await ValueChanged.InvokeAsync(next);
+  }
+
+  private Task HandleKeyDownAsync(KeyboardEventArgs args) => KeyDown.InvokeAsync(args);
+
+  private async Task ClearAsync()
+  {
+    if (!ShowClear) return;
+    if (!Controlled) internalValue = string.Empty;
+    await ValueChanged.InvokeAsync(string.Empty);
+  }
+
+  private void ToggleReveal() { if (RevealVisible) revealed = !revealed; }
+}

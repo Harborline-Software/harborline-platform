@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "outDir": "dist",
+    "rootDir": "src",
+    "baseUrl": ".",
+    "paths": {
+      "react": ["../hlp.ui.button/node_modules/@types/react/index.d.ts"],
+      "react/jsx-runtime": ["../hlp.ui.button/node_modules/@types/react/jsx-runtime.d.ts"],
+      "react-dom": ["../hlp.ui.button/node_modules/@types/react-dom/index.d.ts"],
+      "@harborline-platform/hlp.ui.cn": ["../hlp.ui.cn/dist/index.d.ts"],
+      "clsx": ["../hlp.ui.button/node_modules/clsx/clsx.d.ts"],
+      "tailwind-merge": ["../hlp.ui.button/node_modules/tailwind-merge/dist/types.d.ts"]
+    },
+    "types": []
+  },
+  "include": ["src/Spotlight.tsx", "src/index.ts"]
+}

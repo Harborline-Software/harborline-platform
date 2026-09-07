@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.action-menu",
+  "verdict": "approved",
+  "reviewer": "cic",
+  "recordedAt": "2026-08-27T05:29:00.273Z",
+  "notes": "the Blazor Content resilience looks different, the rest of the parameters looks great",
+  "reference": {
+    "revision": "b9638ebf3e8e9d75e50163b89d1a6c693f2528e957e8bfd0b66097719a3b04aa",
+    "source": "gallery/scenarios/hlp.ui.action-menu.json",
+    "pin": "e4c44eca8918b135e2dcd36060a8e8582d336f89",
+    "surface": {
+      "conformance/hlp.ui.action-menu/fixtures.yaml": "5f21e1d7ec16c66952b7da855d85281068887e18e92c8c394c1578175f5d65d8",
+      "conformance/hlp.ui.action-menu/quality-fixtures.yaml": "635b41f7864ada47fda374818453aa4cf7bd6ca95f2359a8c1b5584d8f8bc3ab",
+      "gallery/projections/blazor/Stories/ActionMenu.stories.razor": "6b03e600f6ab17c20a7647a7399d66f6c9ceb8f69ba2fc82873a99843d2412f8",
+      "gallery/projections/blazor/Stories/ActionMenuScenario.razor": "aeec7fdf2400204fa2610b27467d097cabd89ece80689689b6b202674dfc7dae",
+      "gallery/projections/react/src/ActionMenu.stories.tsx": "dcdb207627a54d2babf2e48e352c571f31a80c59a33a3637722e04a3afa39df8",
+      "gallery/scenarios/hlp.ui.action-menu.json": "6fc8796204a3a180a3f44d2afdcf6958d1a231910f507c2f16fa477f3addb32e",
+      "projections/blazor/ui/hlp.ui.action-menu/ActionMenuTypes.cs": "237e6a298a1d30226e0f87d937e5cf418d21231a7f238e798023f5f20d540596",
+      "projections/blazor/ui/hlp.ui.action-menu/ShipyardActionMenu.razor": "c89a34a04c3c67588645b0f41c587283f229a8d23bcd7a2f957565eb070a498d",
+      "projections/blazor/ui/hlp.ui.action-menu/wwwroot/action-menu.css": "7b57d422d9fa959f70102a575e33493450eade6e9499c221a7876c5911189706",
+      "projections/blazor/ui/hlp.ui.action-menu/wwwroot/action-menu.js": "b9459b4887d91cfcdf72dcf4ba4b8ff8304ec4c8c7fb156bb2e87fe6db77cf05",
+      "projections/react/ui/hlp.ui.action-menu/src/ActionMenu.tsx": "717f131eba4742b2044ea0f4ad5d860f87a4aa7cea9b364b4af55bac00acea85",
+      "projections/react/ui/hlp.ui.action-menu/src/index.ts": "d6451bf506ea6f22b43e7799636c3f2effdee0965f3d2ce828f17c4ed3ddc290",
+      "projections/react/ui/hlp.ui.action-menu/src/style.css": "7b57d422d9fa959f70102a575e33493450eade6e9499c221a7876c5911189706",
+      "specs/modules/ui/hlp.ui.action-menu/scenarios.json": "6fc8796204a3a180a3f44d2afdcf6958d1a231910f507c2f16fa477f3addb32e",
+      "specs/modules/ui/hlp.ui.action-menu/style.css": "7b57d422d9fa959f70102a575e33493450eade6e9499c221a7876c5911189706"
+    }
+  }
+}

@@ -1,0 +1,35 @@
+<section class="hl-gallery-scene" data-gallery-probe data-gallery-scenario="@ScenarioId" data-theme="@Theme" dir="@Direction">
+  <header class="hl-gallery-heading"><h2>@Title</h2><p>Native state, labels, validation, and logical placement remain equivalent.</p></header>
+  <div class="hl-gallery-stage hl-gallery-feedback-grid">
+    @if (ScenarioId == "check-box.error-state")
+    {
+      <HarborlineCheckBox Error="true" Required="true" Label="Accept inspection terms" />
+    }
+    else if (ScenarioId == "check-box.content")
+    {
+      <HarborlineCheckBox Label="@("Awaiting third-party structural certification review")" />
+      <HarborlineCheckBox Label="@("1,284,905")" />
+      <HarborlineCheckBox Label="@("Bay 4 <grid C-7> & 8")" />
+      <HarborlineCheckBox Label="@("Ordnance Survey — Niño Ångström")" />
+    }
+    else if (ScenarioId == "check-box.states")
+    {
+      <HarborlineCheckBox Label="Unchecked" Checked="CheckBoxState.Unchecked" Size="CheckBoxSize.Small" />
+      <HarborlineCheckBox Label="Checked" Checked="CheckBoxState.Checked" Size="CheckBoxSize.Medium" />
+      <HarborlineCheckBox Label="Mixed" Checked="CheckBoxState.Mixed" Size="CheckBoxSize.Large" />
+      <HarborlineCheckBox Label="Disabled" Checked="CheckBoxState.Checked" Disabled="true" />
+      <HarborlineCheckBox Label="Required with error" Required="true" Error="true" />
+    }
+    else
+    {
+      <HarborlineCheckBox Label="@(ScenarioId == "check-box.rtl-theme" ? "تضمين السجل" : "Include record")" DefaultChecked="true" />
+      <HarborlineCheckBox Label="@(ScenarioId == "check-box.rtl-theme" ? "إرسال إشعار" : "Send notification")" LabelPlacement="CheckBoxLabelPlacement.Before" />
+    }
+  </div>
+</section>
+@code {
+  [Parameter, EditorRequired] public string ScenarioId { get; set; } = "check-box.defaults";
+  private string Title => ScenarioId == "check-box.error-state" ? "Error state" : ScenarioId == "check-box.states" ? "States and sizes" : ScenarioId == "check-box.rtl-theme" ? "RTL and theme" : ScenarioId == "check-box.content" ? "Content resilience" : "Defaults and labels";
+  private string? Theme => ScenarioId == "check-box.rtl-theme" ? "dark" : null;
+  private string? Direction => ScenarioId == "check-box.rtl-theme" ? "rtl" : null;
+}

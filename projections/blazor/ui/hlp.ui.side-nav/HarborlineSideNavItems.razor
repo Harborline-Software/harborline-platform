@@ -1,0 +1,60 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Navigation
+
+<ul class="@(Depth > 0 ? "hl-side-nav__list hl-side-nav__list--nested" : "hl-side-nav__list")">
+  @foreach (var item in Items)
+  {
+    var hasChildren = item.Children is { Count: > 0 };
+    var expanded = hasChildren && State.Expanded.Contains(item.Id) && !State.Collapsed;
+    var current = !hasChildren && item.Id == State.ActiveItemId;
+    <li class="hl-side-nav__item" data-item-id="@item.Id" data-hl-active="@(current ? "true" : null)" data-hl-disabled="@(item.Disabled ? "true" : null)">
+      <div class="hl-side-nav__row">
+        @if (hasChildren)
+        {
+          <button type="button" class="@ControlClass(false)" aria-expanded="@(expanded ? "true" : "false")" aria-label="@(State.Collapsed ? item.Label : null)"
+                  disabled="@item.Disabled" title="@(State.Collapsed ? item.Label : null)" @onclick="@(() => Toggle(item))">
+            @ItemContent(item, hasChildren, expanded)
+          </button>
+        }
+        else if (!string.IsNullOrWhiteSpace(item.Href))
+        {
+          <a href="@item.Href" class="@ControlClass(current)" aria-current="@(current ? "page" : null)" aria-disabled="@(item.Disabled ? "true" : null)"
+             tabindex="@(item.Disabled ? -1 : (int?)null)" aria-label="@(State.Collapsed ? item.Label : null)" title="@(State.Collapsed ? item.Label : null)"
+             @onclick="@(() => ActivateAsync(item))" @onclick:preventDefault="@item.Disabled">@ItemContent(item, false, false)</a>
+        }
+        else
+        {
+          <button type="button" class="@ControlClass(current)" aria-current="@(current ? "page" : null)" aria-label="@(State.Collapsed ? item.Label : null)"
+                  disabled="@item.Disabled" title="@(State.Collapsed ? item.Label : null)" @onclick="@(() => ActivateAsync(item))">@ItemContent(item, false, false)</button>
+        }
+        @if (item.TrailingContent is not null) { <span class="hl-side-nav__accessory">@item.TrailingContent</span> }
+        @if (State.Collapsed) { <span class="hl-side-nav__tooltip" role="tooltip">@item.Label</span> }
+      </div>
+      @if (expanded) { <HarborlineSideNavItems Items="@(item.Children!)" State="@State" Depth="@(Depth + 1)" /> }
+    </li>
+  }
+</ul>
+
+@code {
+  [Parameter, EditorRequired] public IReadOnlyList<SideNavNavigationItem> Items { get; set; } = [];
+  [Parameter, EditorRequired] public SideNavState State { get; set; } = default!;
+  [Parameter] public int Depth { get; set; }
+
+  // 282 s10: the active leaf's control carries the authority's hl-side-nav__control--active, the
+  // spelling the React lane emits; the aria-current attribute stays the accessibility contract.
+  private static string ControlClass(bool active) => active ? "hl-side-nav__control hl-side-nav__control--active" : "hl-side-nav__control";
+
+  private RenderFragment ItemContent(SideNavNavigationItem item, bool hasChildren, bool expanded) => builder =>
+  {
+    var sequence = 0;
+    if (item.Icon is not null) { builder.OpenElement(sequence++, "span"); builder.AddAttribute(sequence++, "class", "hl-side-nav__icon"); builder.AddAttribute(sequence++, "aria-hidden", "true"); builder.AddContent(sequence++, item.Icon); builder.CloseElement(); }
+    if (!State.Collapsed) { builder.OpenElement(sequence++, "span"); builder.AddAttribute(sequence++, "class", "hl-side-nav__label"); builder.AddContent(sequence++, item.Label); builder.CloseElement(); }
+    if (hasChildren && !State.Collapsed) { builder.OpenElement(sequence++, "span"); builder.AddAttribute(sequence++, "class", "hl-side-nav__disclosure"); builder.AddAttribute(sequence++, "aria-hidden", "true"); builder.AddContent(sequence++, expanded ? "⌄" : "›"); builder.CloseElement(); }
+  };
+
+  private void Toggle(SideNavNavigationItem item)
+  {
+    if (item.Disabled || State.Collapsed) return;
+    if (!State.Expanded.Add(item.Id)) State.Expanded.Remove(item.Id);
+  }
+  private Task ActivateAsync(SideNavNavigationItem item) => item.Disabled ? Task.CompletedTask : State.ItemActivated.InvokeAsync(item);
+}

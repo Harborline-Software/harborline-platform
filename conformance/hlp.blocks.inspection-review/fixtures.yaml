@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.blocks.inspection-review",
+  "interfaceRevision": 2,
+  "conditionCases": [
+    {"id": "score-1-review", "score": 1, "expected": "ReviewRequired"},
+    {"id": "score-2-review", "score": 2, "expected": "ReviewRequired"},
+    {"id": "score-3-accepted", "score": 3, "expected": "Accepted"},
+    {"id": "score-4-accepted", "score": 4, "expected": "Accepted"},
+    {"id": "score-5-accepted", "score": 5, "expected": "Accepted"}
+  ],
+  "process": {
+    "definitionKey": "inspection-review.v1",
+    "definitionVersion": "1.0.0",
+    "initialState": "review",
+    "terminalStates": ["approved", "rework"],
+    "decisions": ["approve", "rework"]
+  }
+}

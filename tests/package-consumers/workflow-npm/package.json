@@ -1,0 +1,7 @@
+{
+  "name": "workflow-npm-consumer",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Workflows capability vertical, renderer lane: the packed @harborline-software/contracts admission mirror over the 13-case application-derived corpus."
+}

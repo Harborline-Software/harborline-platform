@@ -1,0 +1,27 @@
+@attribute [Stories("Platform/Input")]
+<Stories TComponent="InputScenario">
+    @foreach (var scenario in Scenarios)
+    {
+        <Story Name="@scenario.Name">
+            <Arguments><Arg For="_ => _.ScenarioId" Value="@scenario.Id" /></Arguments>
+            <Template><InputScenario @attributes="context.Args" /></Template>
+        </Story>
+    }
+    <Story Name="Content resilience"><Arguments><Arg For="_ => _.ScenarioId" Value='"input.content"'/></Arguments><Template><InputScenario @attributes="context.Args"/></Template></Story>
+    <Story Name="Error state"><Arguments><Arg For="_ => _.ScenarioId" Value='"input.error-state"'/></Arguments><Template><InputScenario @attributes="context.Args"/></Template></Story>
+</Stories>
+
+@code {
+    private static readonly (string Id, string Name)[] Scenarios =
+    [
+        ("input.defaults", "Defaults and host attributes"),
+        ("input.appearance", "Size, fill, and rounding"),
+        ("input.states", "Disabled, readonly, and invalid"),
+        ("input.adornments", "Prefix and suffix"),
+        ("input.locale-en", "English locale"),
+        ("input.locale-pseudo", "Pseudo locale"),
+        ("input.locale-ar", "Arabic locale"),
+        ("input.theme-light", "Light theme"),
+        ("input.theme-dark", "Dark theme"),
+    ];
+}

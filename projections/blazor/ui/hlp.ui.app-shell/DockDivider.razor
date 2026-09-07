@@ -1,0 +1,60 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Layout
+@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.JSInterop
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+<div @ref="element" class="hl-app-shell__dock-divider" role="separator" tabindex="0" aria-label="Resize panels" aria-description="Arrow keys resize; Shift uses larger steps. Enter commits, Escape cancels, 0 resets panels." aria-orientation="@(Vertical?"vertical":"horizontal")" aria-valuemin="@Number(Minimum)" aria-valuemax="@Number(Maximum)" aria-valuenow="@Number(Value)" @onkeydown="KeyDown" @onblur="()=>Finish(false)" @onpointerdown="Start" @onpointermove="Move" @onpointerup="CommitPointer" @onpointercancel="CancelPointer" @onlostpointercapture="CancelPointer"></div>
+@code {
+    [Parameter] public bool Vertical {get;set;}
+    [Parameter] public double Fraction {get;set;}
+    [Parameter] public double Minimum {get;set;}
+    [Parameter] public double SecondMinimum {get;set;}
+    [Parameter] public EventCallback<double> Changed {get;set;}
+    [Parameter] public EventCallback Reset {get;set;}
+    private ElementReference element;
+    private IJSObjectReference? module;
+    private DotNetObjectReference<DockDivider>? reference;
+    private double extent, direction=1;
+    private double? startFraction, startPosition;
+    private long? pointer;
+    private double Total=>Math.Max(extent,Minimum+SecondMinimum);
+    private double Maximum=>Total-SecondMinimum;
+    private double Value=>Math.Clamp(Fraction*Total,Minimum,Maximum);
+    private static string Number(double value)=>value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+    protected override async Task OnAfterRenderAsync(bool first)
+    {
+        if(!first)return;
+        module=await JS.InvokeAsync<IJSObjectReference>("import","./_content/Harborline.UIAdapters.Blazor/dock-divider.js");
+        reference=DotNetObjectReference.Create(this);
+        extent=await module.InvokeAsync<double>("measure",element,Vertical);
+        await module.InvokeVoidAsync("observe",element,Vertical,reference);
+        await InvokeAsync(StateHasChanged);
+    }
+    [JSInvokable] public Task Measure(double size)=>InvokeAsync(()=>{extent=size;StateHasChanged();});
+    private Task Update(double next)=>Changed.InvokeAsync(Math.Clamp(next,Minimum,Maximum)/Total);
+    private async Task Finish(bool cancel){var start=startFraction;startFraction=null;startPosition=null;pointer=null;if(cancel&&start.HasValue)await Changed.InvokeAsync(start.Value);}
+    private async Task Start(PointerEventArgs e){if(e.Button!=0||pointer.HasValue)return;startFraction=Fraction;startPosition=Vertical?e.ClientX:e.ClientY;pointer=e.PointerId;if(module is not null)direction=await module.InvokeAsync<double>("direction",element);}
+    private Task Move(PointerEventArgs e)=>pointer==e.PointerId&&startPosition.HasValue?Update(startFraction!.Value*Total+(Vertical?direction:1)*((Vertical?e.ClientX:e.ClientY)-startPosition.Value)):Task.CompletedTask;
+    private Task CancelPointer(PointerEventArgs e)=>pointer==e.PointerId?Finish(true):Task.CompletedTask;
+    private Task CommitPointer(PointerEventArgs e)=>pointer==e.PointerId?Finish(false):Task.CompletedTask;
+    // No @onkeydown:stopPropagation. The directive is a render-time flag and cannot vary per key, so
+    // an unconditional stop swallowed every shell shortcut (Mod+K, Mod+\, Mod+N, Mod+Shift+I, Mod+1..9)
+    // while a divider had focus. The handled set below is the divider's own authority and holds no
+    // Mod+ combination, so nothing the shell owns needs swallowing here; the pass-through set is
+    // pinned by conformance/hlp.ui.app-shell/dividers-v1.json and asserted in both shells. Browser
+    // defaults for the handled keys are still suppressed, in dock-divider.js, where React uses
+    // preventDefault for the same purpose.
+    private async Task KeyDown(KeyboardEventArgs e)
+    {
+        // Dividers handle BARE keys only. A Mod chord on a focused divider is the shell's (Mod+Enter, Mod+0,
+        // Mod+K...), so it must not be consumed here — the React mirror is DockDivider.tsx keyDown.
+        if(e.CtrlKey||e.MetaKey||e.AltKey)return;
+        if(e.Key=="0"){await Finish(false);await Reset.InvokeAsync();return;}
+        if(e.Key is "Enter" or "Escape"){await Finish(e.Key=="Escape");return;}
+        var increase=Vertical?"ArrowRight":"ArrowDown";var decrease=Vertical?"ArrowLeft":"ArrowUp";
+        if(e.Key!=increase&&e.Key!=decrease&&e.Key is not ("Home" or "End"))return;
+        startFraction??=Fraction;
+        await Update(e.Key=="Home"?Minimum:e.Key=="End"?Maximum:Value+(e.Key==increase?1:-1)*(e.ShiftKey?32:8));
+    }
+    public async ValueTask DisposeAsync(){if(module is not null){await module.InvokeVoidAsync("unobserve",element);await module.DisposeAsync();}reference?.Dispose();}
+}

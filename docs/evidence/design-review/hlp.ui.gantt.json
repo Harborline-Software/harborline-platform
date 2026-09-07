@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.gantt",
+  "verdict": "approved",
+  "reviewer": "cic",
+  "recordedAt": "2026-08-28T02:24:31.715Z",
+  "reference": {
+    "revision": "3201c01a6332b68e8cc7a6f0c6e8dcd0c9373856f56ebdc0aeb2fb9289a72ba0",
+    "source": "gallery/scenarios/hlp.ui.gantt.json",
+    "pin": "28e389ae42b64246f1c6d92e0002b78bc92791b3",
+    "surface": {
+      "conformance/hlp.ui.gantt/fixtures.yaml": "4868310b69d652ec2a8b43de71c6ca0e9d4cc8d44d71a34d48847dce7a77a83a",
+      "conformance/hlp.ui.gantt/quality-fixtures.yaml": "a483380e5b8030c6b528ab38783361f8e1fb189da6b23d02437c2891d1ce7bc0",
+      "gallery/projections/blazor/Stories/Gantt.stories.razor": "e64eb2878f4be1f7959fe369836e10e0792f7e232f956668a18ea5611d898a2b",
+      "gallery/projections/blazor/Stories/GanttScenario.razor": "f8201c33b7c1f1a23ecc3b41fe77e33316a4016053def52e53d0368ac99cc84f",
+      "gallery/projections/react/src/Gantt.stories.tsx": "ae81d9221d400f1c2233f1aafffcd7ea9c31c79fc2ebda7f306eab72ebeab658",
+      "gallery/scenarios/hlp.ui.gantt.json": "2a9edc64b60e0c12028b2cae2b5dca8bcd3b8b06278677c57b2e25252bfd7bf4",
+      "projections/blazor/ui/hlp.ui.gantt/GanttTypes.cs": "542f997f53a0f45ccc09a92e7753038de2ecef19847dc566990a62e2de4c7ce5",
+      "projections/blazor/ui/hlp.ui.gantt/ShipyardGantt.razor": "84b4c4ecbc0adba17bc538a76d362780205d2ec07e000a1a351b8658b0690fa3",
+      "projections/blazor/ui/hlp.ui.gantt/wwwroot/gantt.css": "0045e37f18629e0023c1d25af418a393f3b4d1b81448693e4cc08c0f5eb0782d",
+      "projections/react/ui/hlp.ui.gantt/src/Gantt.tsx": "78b11499f3367f393b576585fcf6f92f66aa7565d0a8c159ae0f398d4c2cbe8b",
+      "projections/react/ui/hlp.ui.gantt/src/Gantt.types.ts": "3f697866e736cfcb85ac95013150a6c0d036df4d85bef0581f75271787a5dbbe",
+      "projections/react/ui/hlp.ui.gantt/src/gantt-model.ts": "b2d856720240d0bc7a9b748b1f50bf73fde4bbb228ea9f3e26f0d948b728130a",
+      "projections/react/ui/hlp.ui.gantt/src/index.ts": "dc8bcefdc5144766158f81fd6df2656a3dbf7eff58cde775bd3696232afaf145",
+      "projections/react/ui/hlp.ui.gantt/src/style.css": "0045e37f18629e0023c1d25af418a393f3b4d1b81448693e4cc08c0f5eb0782d",
+      "specs/modules/ui/hlp.ui.gantt/scenarios.json": "2a9edc64b60e0c12028b2cae2b5dca8bcd3b8b06278677c57b2e25252bfd7bf4",
+      "specs/modules/ui/hlp.ui.gantt/style.css": "0045e37f18629e0023c1d25af418a393f3b4d1b81448693e4cc08c0f5eb0782d"
+    }
+  }
+}

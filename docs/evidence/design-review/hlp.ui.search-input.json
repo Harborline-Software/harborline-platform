@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.search-input",
+  "verdict": "approved",
+  "reviewer": "cic",
+  "recordedAt": "2026-08-27T05:59:39.404Z",
+  "notes": "needs polish, sometimes there are double X",
+  "reference": {
+    "revision": "aa9c1f3b6f602bb3ee314b6980edc65f53e405fa7476be4c29c4f3c6acbeb5b6",
+    "source": "gallery/scenarios/hlp.ui.search-input.json",
+    "pin": "e4c44eca8918b135e2dcd36060a8e8582d336f89",
+    "surface": {
+      "conformance/hlp.ui.search-input/fixtures.yaml": "e02d1764e939dd46878c6e23c114815be8d41d262741d6af1f24c387fa616044",
+      "conformance/hlp.ui.search-input/quality-fixtures.yaml": "813b8b7264153f1498711ad26bb555b267b24d061e09141a821cffbf39767ad0",
+      "gallery/projections/blazor/Stories/SearchInput.stories.razor": "93a1e305d84028f939a68a9b6baf5de5a50f53c2f04e8fdaeea1783a4725d976",
+      "gallery/projections/blazor/Stories/SearchInputScenario.razor": "5eb279961876bc0804190e1297e1923945922775adaeb6468a2e17e25101cf10",
+      "gallery/projections/react/src/SearchInput.stories.tsx": "c4da8b19f2578e8aeb0b5f57a6d9815fd91ad9daee0b70c98d8a3433169a9774",
+      "gallery/scenarios/hlp.ui.search-input.json": "d39f2b01979f24283cc51d50255b9f53000b1f85551b8b4df9d5a4f09bb72522",
+      "projections/blazor/ui/hlp.ui.search-input/ShipyardSearchInput.razor": "d38d8fab6b01034521e759c456086dbe080f2d393ade1ad6603d369e70fc8888",
+      "projections/blazor/ui/hlp.ui.search-input/wwwroot/search-input.css": "96b2f5be777aba5481fbbcc7d6b402c0f44c5b64ce10e2aba2e6fc84ef15534c",
+      "projections/react/ui/hlp.ui.search-input/src/SearchInput.tsx": "0b6260f064dad641c8bedf46d890bb6ef4f4353e310feaaff987cc6af44847f5",
+      "projections/react/ui/hlp.ui.search-input/src/index.ts": "e7532a98f6ea420778ca980930e026272beadfab5f23834624f9750caeb487f5",
+      "projections/react/ui/hlp.ui.search-input/src/style.css": "ab0400dc1a93538d85bb2a222b46b97ebc11f231208709ea3f3ce9c7b96f4834",
+      "specs/modules/ui/hlp.ui.search-input/scenarios.json": "d39f2b01979f24283cc51d50255b9f53000b1f85551b8b4df9d5a4f09bb72522",
+      "specs/modules/ui/hlp.ui.search-input/style.css": "ab0400dc1a93538d85bb2a222b46b97ebc11f231208709ea3f3ce9c7b96f4834"
+    }
+  }
+}

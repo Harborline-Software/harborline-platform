@@ -1,0 +1,25 @@
+@attribute [Stories("Platform/Page")]
+<Stories TComponent="PageScenario">
+    @foreach (var scenario in Scenarios)
+    {
+        <Story Name="@scenario.Name">
+            <Arguments><Arg For="_ => _.ScenarioId" Value="@scenario.Id" /></Arguments>
+            <Template><PageScenario @attributes="context.Args" /></Template>
+        </Story>
+    }
+    <Story Name="Content resilience"><Arguments><Arg For="_ => _.ScenarioId" Value='"page.content"'/></Arguments><Template><PageScenario @attributes="context.Args"/></Template></Story>
+</Stories>
+
+@code {
+    private static readonly (string Id, string Name)[] Scenarios =
+    [
+        ("page.structure", "Header and body structure"),
+        ("page.options", "Padding, sticky, and heading levels"),
+        ("page.keyboard-responsive", "Keyboard scroll and responsive actions"),
+        ("page.locale-en", "English locale"),
+        ("page.locale-pseudo", "Pseudo locale"),
+        ("page.locale-ar", "Arabic locale"),
+        ("page.theme-light", "Light theme"),
+        ("page.theme-dark", "Dark theme"),
+    ];
+}

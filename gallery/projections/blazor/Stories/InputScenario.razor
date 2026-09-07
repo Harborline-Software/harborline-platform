@@ -1,0 +1,93 @@
+<section class="hl-gallery-scene" data-gallery-probe data-gallery-scenario="@ScenarioId" data-theme="@Theme" dir="@Direction">
+  <header class="hl-gallery-heading">
+    <h2>@Copy.Title</h2>
+    <p>@Copy.Description</p>
+  </header>
+  <div class="hl-gallery-stage">
+    @if(ScenarioId=="input.content")
+    {
+      <div class="hl-gallery-feedback-grid">
+        <HarborlineInput AccessibleLabel="Long content" Value="Awaiting third-party structural certification review" ReadOnly />
+        <HarborlineInput AccessibleLabel="Large number" Value="1,284,905" ReadOnly />
+        <HarborlineInput AccessibleLabel="Escaped content" Value="@("Bay 4 <grid C-7> & 8")" ReadOnly />
+        <HarborlineInput AccessibleLabel="Unusual name" Value="Ordnance Survey — Niño Ångström" ReadOnly />
+      </div>
+    }
+    else if (ScenarioId == "input.error-state")
+    {
+      <HarborlineInput AccessibleLabel="Structure identifier" aria-invalid="true" Invalid="true" Value="Unrecognized structure" />
+    }
+    else if (ScenarioId == "input.appearance" || Theme is not null)
+    {
+      <div class="hl-gallery-feedback-grid">
+        <GalleryControlledInput AccessibleLabel="Small solid input" Placeholder="Small solid" Size="InputSize.Sm" FillMode="InputFillMode.Solid" Rounded="InputRounded.Small" />
+        <GalleryControlledInput AccessibleLabel="Medium outline input" Placeholder="Medium outline" Size="InputSize.Md" FillMode="InputFillMode.Outline" Rounded="InputRounded.Medium" />
+        <GalleryControlledInput AccessibleLabel="Large flat input" Placeholder="Large flat" Size="InputSize.Lg" FillMode="InputFillMode.Flat" Rounded="InputRounded.Large" />
+        <GalleryControlledInput AccessibleLabel="Full rounded input" Placeholder="Full rounded" Size="InputSize.Medium" FillMode="InputFillMode.Outline" Rounded="InputRounded.Full" />
+      </div>
+    }
+    else if (ScenarioId == "input.states")
+    {
+      <div class="hl-gallery-feedback-grid">
+        <HarborlineInput AccessibleLabel="Disabled input" Value="Disabled" Disabled ReadOnly />
+        <HarborlineInput AccessibleLabel="Readonly input" Value="Read only" ReadOnly />
+        <HarborlineInput AccessibleLabel="Invalid input" Value="Needs review" Invalid DescribedBy="input-error" aria-invalid="true" />
+        <p id="input-error">Enter a recognized structure identifier.</p>
+      </div>
+    }
+    else if (ScenarioId == "input.adornments")
+    {
+      <div class="hl-gallery-feedback-grid">
+        <GalleryControlledInput AccessibleLabel="Cost" InitialValue="125" InputMode="decimal"><Prefix>$</Prefix><Suffix>USD</Suffix></GalleryControlledInput>
+        <GalleryControlledInput AccessibleLabel="Weight" InitialValue="40" InputMode="decimal"><Suffix>kg</Suffix></GalleryControlledInput>
+      </div>
+    }
+    else
+    {
+      @if (IsArabic)
+      {
+        <GalleryControlledInput Id="structure-name" Name="structureName" Type="text" AccessibleLabel="@AccessibleLabel"
+                                Placeholder="@Placeholder" InitialValue="@InitialValue" Direction="@Direction" data-case="structure-intake">
+          <Prefix>₪</Prefix><Suffix>ILS</Suffix>
+        </GalleryControlledInput>
+      }
+      else
+      {
+        <GalleryControlledInput Id="structure-name" Name="structureName" Type="text" AccessibleLabel="@AccessibleLabel"
+                                Placeholder="@Placeholder" InitialValue="@InitialValue" Direction="@Direction" data-case="structure-intake" />
+      }
+    }
+  </div>
+</section>
+
+@code {
+  [Parameter, EditorRequired] public string ScenarioId { get; set; } = "input.defaults";
+
+  private (string Title, string Description) Copy => ScenarioId switch
+  {
+    "input.defaults" => ("Defaults and host attributes", "Native value, type, name, labels, descriptions, and host attributes remain caller-owned."),
+    "input.appearance" => ("Size, fill, and rounding", "Independent closed appearance axes normalize Harborline compatibility aliases."),
+    "input.states" => ("Disabled, readonly, and invalid", "Native interaction states and visual invalid intent preserve host accessibility semantics."),
+    "input.adornments" => ("Prefix and suffix", "Decorative content surrounds one native input and uses logical padding."),
+    "input.locale-en" => ("English locale", "Caller text and native input behavior remain unchanged."),
+    "input.locale-pseudo" => ("Pseudo locale", "Expanded placeholders and adornments reflow without clipping."),
+    "input.locale-ar" => ("Arabic locale", "Logical adornment edges follow RTL without changing the value."),
+    "input.theme-light" => ("Light theme", "Every appearance axis uses public light-theme tokens."),
+    "input.theme-dark" => ("Dark theme", "The same input vocabulary on the Harborline dark surface."),
+    "input.content" => ("Content resilience", "Real content spans an overlong label, a grouped large number, escaped markup characters, and a diacritic-rich name."),
+    "input.error-state" => ("Error state", "The input renders its declared invalid state with an accessible name."),
+    _ => ("Input", "Native input behavior.")
+  };
+
+  private bool IsArabic => ScenarioId == "input.locale-ar";
+  private string Direction => IsArabic ? "rtl" : "ltr";
+  private string? Theme => ScenarioId switch { "input.theme-light" => "light", "input.theme-dark" => "dark", _ => null };
+  private string AccessibleLabel => IsArabic ? "اسم الهيكل" : "Structure name";
+  private string Placeholder => ScenarioId switch
+  {
+    "input.locale-pseudo" => "⟦ Ëñţëř ţhë šţřûçţûřë ñåmë ······ ⟧",
+    "input.locale-ar" => "أدخل اسم الهيكل",
+    _ => "Enter structure name"
+  };
+  private string InitialValue => IsArabic ? "المبنى أ" : string.Empty;
+}

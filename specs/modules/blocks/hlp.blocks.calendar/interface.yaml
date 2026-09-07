@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.blocks.calendar",
+  "interfaceRevision": 1,
+  "status": "frozen",
+  "purpose": "Own the calendar domain engine: event/occurrence/instant expansion with DST wall-clock retention, availability expansion, free/busy and viewer free/busy, booking outcomes, participation invariants, shared-calendar layers with visibility policy, padding envelopes, occupancy, and the calendar context query.",
+  "dependencies": [{"moduleId": "hlp.contracts.identities", "minimumRevision": 1}, {"moduleId": "hlp.foundation.scheduling", "minimumRevision": 1}],
+  "callerInterface": {
+    "name": "ICalendarEventExpansionService / IAvailabilityExpansionService / IFreeBusyService / IBookingService / ICalendarContextQuery / calendar models",
+    "operations": [
+      "Expand events to occurrences and occurrence instants with DST wall-clock retention (an event keeps its civil wall-clock time across transitions; explicit IANA zone ids resolved by TimezoneResolver, never TimeZoneInfo.Local)",
+      "Expand availability windows and derive free/busy and viewer-scoped free/busy over shared-calendar layers under the visibility policy",
+      "Book against availability with padding envelopes and occupancy limits, yielding typed booking outcomes",
+      "Answer the calendar context query over subscriptions, owned and shared calendars, and participations"
+    ],
+    "context": "The module reads NO ambient time: callers supply civil dates, instants, and zone ids; entity timestamps are caller-supplied with deterministic defaults when omitted (the pinned package's six executable ambient-clock reads were deliberately not ported — the full 163-case pinned suite proves the behavior identical without them). Recurrence expansion composes the packed hlp.foundation.scheduling RRULE engine — the draft-era local compatibility copy was replaced by the real module reference at merge review to prevent cross-assembly type ambiguity."
+  },
+  "invariants": [
+    "DST wall-clock retention: an occurrence's civil time is preserved across zone transitions; instants are derived from explicit zone ids only.",
+    "The engine reads no ambient clock or zone (no DateTime.Now/UtcNow/Today, DateTimeOffset.Now/UtcNow, TimeZoneInfo.Local, or TimeProvider.System anywhere in the module).",
+    "Free/busy never leaks event detail beyond the visibility policy; viewer free/busy folds shared-calendar layers under that policy.",
+    "Booking respects padding envelopes and occupancy limits with typed outcomes — never a silent double-book.",
+    "Participation invariants hold as pinned (the two participation theories expand to their six pinned rows).",
+    "All 163 pinned executable cases are preserved under their pinned names."
+  ],
+  "errors": ["typed booking/availability outcomes as pinned (no new error vocabulary introduced by the port)"],
+  "publicSeams": ["RRULE expansion via hlp.foundation.scheduling", "explicit zone-id resolution", "caller-supplied timestamps"],
+  "conformance": {
+    "nativeTests": {"dotnet": 163},
+    "nativeTestNote": "the full pinned blocks-calendar suite, 159 declarations expanding to 163 (two 3-row theories), byte-identical case names"
+  },
+  "selectedDesign": {
+    "choice": "Verbatim port of the pinned calendar engine with ambient-clock reads removed in favor of caller-supplied time, and recurrence delegated to the packed foundation scheduling module.",
+    "rejected": [
+      "Porting the six ambient-clock reads (non-deterministic tests and a hidden wall-clock dependency).",
+      "Keeping the draft's local Shipyard.Foundation.Scheduling compatibility copy (cross-assembly type ambiguity for any consumer referencing both packages).",
+      "Introducing a TimeProvider seam the module does not need (it consumes time only as caller-supplied values)."
+    ],
+    "reason": "The pinned suites prove the deterministic port behavior-identical; the real foundation reference removes duplication the pin only had because the packages lived in one repo."
+  },
+  "behaviorEvidence": {
+    "sourceCapture": "migration://preprocessing/scheduling/generated/scheduling-source.json",
+    "boundaryDecision": "migration://preprocessing/scheduling/scheduling-behavior-map.md"
+  },
+  "package": {"nuget": "Harborline.Blocks.Calendar", "assembly": "Harborline.Blocks.Calendar", "distribution": "internal-only"}
+}

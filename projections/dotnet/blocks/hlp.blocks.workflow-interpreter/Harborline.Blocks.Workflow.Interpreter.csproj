@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <HarborlinePublicDistributionAuthorized>false</HarborlinePublicDistributionAuthorized>
+    <PackageId>Harborline.Blocks.Workflow.Interpreter</PackageId>
+    <AssemblyName>Harborline.Blocks.Workflow.Interpreter</AssemblyName>
+    <RootNamespace>Harborline.Blocks.Workflow.Interpreter</RootNamespace>
+    <Description>The general declarative workflow interpreter for Harborline Platform. Executes an authored + admitted + persisted WorkflowDefinition through the engine core: it loads the pinned definition via the re-validating IWorkflowDefinitionExecutionStore (never the lenient authoring face) and reaches every side-effect ONLY through the public IWorkflowEffectBroker (AP autonomously; CP through the SoD-gated confirm path). A SEPARATE assembly from the engine core by design: it composes only the public broker/catalog seams and cannot name the internal effect-factory surface (compiler-enforced containment).</Description>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageReleaseNotes>Internal-only projection; public distribution is not authorized.</PackageReleaseNotes>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Harborline.Blocks.Workflow.Interpreter.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- The engine core (public seams ONLY: IWorkflowEffectBroker, IWorkflowEffectCatalog,
+         IWorkflowDefinitionExecutionStore, the declarative model + wire mapper). NO InternalsVisibleTo
+         grant from the engine core → the interpreter CANNOT name the internal effect-factory surface
+         (containment is a compile-time fact, not a source-scan). -->
+    <ProjectReference Include="../hlp.blocks.workflow/Harborline.Blocks.Workflow.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="/" />
+    <None Include="../../../../LICENSE" Link="LICENSE" Pack="true" PackagePath="/" />
+  </ItemGroup>
+</Project>

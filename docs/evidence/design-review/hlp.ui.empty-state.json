@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.empty-state",
+  "verdict": "approved",
+  "reviewer": "cic",
+  "recordedAt": "2026-08-26T20:29:19.577Z",
+  "reference": {
+    "revision": "76009288605c5900c80be86ed7373e67d5023ce64ef8bb8a621d16af42b85a78",
+    "source": "gallery/scenarios/hlp.ui.empty-state.json",
+    "pin": "cc9eb48ed68c5033ec128cd53c40b1d2786bee66",
+    "surface": {
+      "conformance/hlp.ui.empty-state/fixtures.yaml": "fb433bc5bc042b6397a1a14be5f7aeacded3f40577338a4d97aa879335defbc1",
+      "conformance/hlp.ui.empty-state/quality-fixtures.yaml": "8d0aa8ec74e76c92839d4c2c66d5663087246fc43072cf99619f4a34cd7b39dc",
+      "gallery/projections/blazor/Stories/EmptyState.stories.razor": "937cd00b08197185eb3965dbafdc4d354454ee82954e15f2f23c8947946d53b0",
+      "gallery/projections/blazor/Stories/EmptyStateScenario.razor": "9b3927377a412e59bed6f6fb504e03c941c0a0157cc3d95c8122ca7f31f3d68f",
+      "gallery/projections/react/src/EmptyState.stories.tsx": "a874fad738b5e16c8d4ab35414d82d82bf0bae8d11d55db1642efd5429cdf689",
+      "gallery/scenarios/hlp.ui.empty-state.json": "ffb9f7b94b6a133042036823d67139cab319e5bbde5b9685813ba3fc6cb7847d",
+      "projections/blazor/ui/hlp.ui.empty-state/EmptyStateVariant.cs": "63b5eae813482c3ad092734bf2348a673e1f8e8627d64572776b7baba335feb9",
+      "projections/blazor/ui/hlp.ui.empty-state/ShipyardEmptyState.razor": "276a6b900746be9d1220955e3962baa0f880ed5f4545142ecf24ea254daadcf1",
+      "projections/blazor/ui/hlp.ui.empty-state/wwwroot/empty-state.css": "a02bca17834e9a3998ff54ce01d296095fe741e1459dd8c12fba9cb464d2703e",
+      "projections/react/ui/hlp.ui.empty-state/src/EmptyState.tsx": "331979f6e9b21e1296dc36d97d8dbed9d57bd36c8b9c8648b6425a8b50f57290",
+      "projections/react/ui/hlp.ui.empty-state/src/index.ts": "53b16bfaaaf4f4266769de5a18211b05a442bdd4e0337469da1761c9cdae460a",
+      "projections/react/ui/hlp.ui.empty-state/src/style.css": "5d31017867df5a4fce93da665c2c581b20d82de34e9f3342496b1aedbc53abbc",
+      "specs/modules/ui/hlp.ui.empty-state/scenarios.json": "ffb9f7b94b6a133042036823d67139cab319e5bbde5b9685813ba3fc6cb7847d",
+      "specs/modules/ui/hlp.ui.empty-state/style.css": "5d31017867df5a4fce93da665c2c581b20d82de34e9f3342496b1aedbc53abbc"
+    }
+  }
+}

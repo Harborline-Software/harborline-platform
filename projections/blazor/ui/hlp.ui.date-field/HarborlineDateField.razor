@@ -1,0 +1,28 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Forms
+@inherits HarborlineComponentBase
+
+<input type="date" id="@Name" name="@Name" value="@Value" min="@Min" max="@Max"
+       disabled="@EffectiveDisabled" required="@EffectiveRequired"
+       aria-required="@(EffectiveRequired ? "true" : null)" aria-invalid="@(Error ? "true" : null)"
+       aria-label="@AccessibleLabel" aria-labelledby="@(LabelledBy ?? FieldContext?.LabelId)"
+       aria-describedby="@(DescribedBy ?? FieldContext?.DescribedBy)"
+       class="@CombineClasses("hl-date-field", Error ? "hl-date-field--invalid" : null, EffectiveDisabled ? "hl-date-field--disabled" : null)"
+       style="@CombineStyles()" @oninput="OnInputAsync" @attributes="AdditionalAttributes" />
+
+@code {
+    [CascadingParameter] public FormFieldContextValue? FieldContext { get; set; }
+    [Parameter, EditorRequired] public string Name { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public string Value { get; set; } = string.Empty;
+    [Parameter] public EventCallback<string> ValueChanged { get; set; }
+    [Parameter] public string? Min { get; set; }
+    [Parameter] public string? Max { get; set; }
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public bool Required { get; set; }
+    [Parameter] public bool Error { get; set; }
+    [Parameter] public string? AccessibleLabel { get; set; }
+    [Parameter] public string? LabelledBy { get; set; }
+    [Parameter] public string? DescribedBy { get; set; }
+    private bool EffectiveDisabled => Disabled || FieldContext?.Disabled == true;
+    private bool EffectiveRequired => Required || FieldContext?.Required == true;
+    private Task OnInputAsync(ChangeEventArgs args) => EffectiveDisabled ? Task.CompletedTask : ValueChanged.InvokeAsync(args.Value?.ToString() ?? string.Empty);
+}

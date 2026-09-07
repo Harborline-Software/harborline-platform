@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.foundation.forms",
+  "interfaceRevision": 3,
+  "status": "frozen",
+  "purpose": "Own complete caller-backed Dynamic Forms definition, immutable version, bounded reuse, authenticated draft, and pre-auth capture state without exposing persistence choreography or executable engine behavior.",
+  "dependencies": [
+    {"moduleId": "hlp.contracts.forms", "minimumRevision": 3},
+    {"moduleId": "hlp.contracts.identities", "minimumRevision": 1},
+    {"moduleId": "hlp.foundation.tenancy", "minimumRevision": 1},
+    {"moduleId": "hlp.foundation.actor", "minimumRevision": 1}
+  ],
+  "capabilities": {
+    "definitions": ["atomically create first revision", "register immutable revision", "atomically register and publish one admitted Draft revision", "load exact revision", "load highest published revision", "list full history by tenant", "list one current published revision per id", "publish", "deprecate", "withdraw", "restore system pack projection", "validate lineage, overlay, and authoring metadata", "preserve exact field type, validations, and options"],
+    "reuse": ["register immutable unit revision", "lifecycle transitions", "latest-published or pinned resolution", "CP-locked form-component expansion", "bounded tree validation", "workflow-subgraph fail-closed fence"],
+    "drafts": ["save", "form-bound resume", "list mine", "form-bound abandon", "preserve creation time on resave", "atomic tenant-party-actor scope", "defensive body copy"],
+    "preAuth": ["short-TTL capture", "promote after identification", "retain on failed identification", "discard", "sweep expired"]
+  },
+  "invariants": [
+    "Every definition and reusable unit is isolated by exact TenantId and immutable by (tenant,id,version).",
+    "Lifecycle transitions are explicit and fail closed; ordinary withdrawn revisions cannot be republished.",
+    "Lineage cannot cross tenants or reference an absent revision.",
+    "Concurrent create operations for one tenant and definition id admit exactly one first revision.",
+    "Register-and-publish makes the admitted immutable revision visible as Published atomically or leaves no revision visible; request cancellation before the commit persists nothing, an identical ambiguous retry returns the committed revision, and different content at the same identity conflicts.",
+    "Current-definition listing emits at most one highest Published revision per id; historical Published revisions never duplicate list rows.",
+    "Harborline App authoring metadata is copied into each immutable revision so exact types, constraints, and option values survive save, load, history, and restore.",
+    "Reuse-by-reference is bounded and CP-locked; a stored definition never receives an expanded copy.",
+    "Draft tenant, PartyId, and actor are derived atomically from one authenticated actor scope and are never body supplied.",
+    "Resume and abandon require both form id and case id; a mismatched route form cannot observe or delete the draft.",
+    "Unresolved actors, tenants, parties, reusable units, and invalid trees fail before mutation.",
+    "Pre-auth captures are ephemeral, defensively copied, and must promote or purge."
+  ],
+  "resourceLimits": {"treeDepth": 32, "treeNodes": 4096, "contentNodesPerBlock": 256},
+  "nativeEvidence": {"tests": 130, "sourceSuites": 8, "implementedGapCases": 9},
+  "selectedDesign": {
+    "choice": "preserve the complete caller-backed state behavior as one deep module, deepen the store interface with atomic create/current listing/register-and-publish operations, and resolve draft identity through one actor-scope seam",
+    "rejected": [
+      "Expose only FormDefinition DTOs and a thin key-value store.",
+      "Copy the aggregate entity-store, submission projection, subject-governance, and host DI closure into the state package.",
+      "Combine executable render/validate/submit orchestration with state before its engine ports are frozen."
+    ]
+  },
+  "excludedToFormsEngine": ["authorized rendering", "schema lookup and payload validation", "rule evaluation and calculated projection", "PII protection and redaction", "submission idempotency and receipts", "audit", "projection outbox and recovery", "subject resolution"],
+  "distribution": "internal-only"
+}

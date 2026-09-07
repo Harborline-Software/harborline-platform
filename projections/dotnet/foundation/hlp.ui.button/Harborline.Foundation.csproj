@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <HarborlinePublicDistributionAuthorized>false</HarborlinePublicDistributionAuthorized>
+    <PackageId>Harborline.Foundation</PackageId>
+    <AssemblyName>Harborline.Foundation</AssemblyName>
+    <RootNamespace>Harborline.Foundation</RootNamespace>
+    <Description>Harborline aggregate Foundation compatibility vocabulary and framework-neutral UI support contracts.</Description>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageReleaseNotes>Internal-only projection; public distribution is not authorized.</PackageReleaseNotes>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../contracts/hlp.contracts.identities/Harborline.Contracts.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="../hlp.ui.aspect-lens/**/*.cs" Link="Builder/%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.cn/**/*.cs" Link="UI/%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.default-strings/**/*.cs" Link="Localization/%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.form-view/**/*.cs" Link="Forms/UI/%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.rail-labels/**/*.cs" Link="Builder/Labels/%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.layers-state/**/*.cs" Link="Builder/Layers/%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.locale-provider/**/*.cs" Link="Localization/Locale/%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.tone-style/**/*.cs" Link="Builder/Theming/%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.use-can-show-master-detail/**/*.cs" Link="Responsive/FormFactor/%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.use-is-mobile/**/*.cs" Link="Responsive/Breakpoints/%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.use-nav-collapsed/**/*.cs" Link="Responsive/NavCollapse/%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.side-nav-group/**/*.cs" Link="Navigation/%(RecursiveDir)%(Filename)%(Extension)" />
+    <EmbeddedResource Include="../hlp.ui.default-strings/default-strings.json" Link="Localization/default-strings.json" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="/" />
+    <None Include="../../../../LICENSE" Link="LICENSE" Pack="true" PackagePath="/" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,134 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.confirm-dialog",
+  "profileRevision": 1,
+  "riskTier": "B",
+  "fixture": "conformance/hlp.ui.confirm-dialog/quality-fixtures.yaml",
+  "dimensions": {
+    "accessibility": {
+      "disposition": "required",
+      "caseIds": [
+        "confirm-dialog.quality.action-pair-name",
+        "confirm-dialog.quality.reflow",
+        "confirm-dialog.quality.keyboard"
+      ]
+    },
+    "internationalization": {
+      "disposition": "required",
+      "caseIds": [
+        "confirm-dialog.quality.catalog",
+        "confirm-dialog.quality.rtl"
+      ],
+      "localeSensitiveFormatting": {
+        "disposition": "not-applicable",
+        "rationale": "The action pair localizes two labels and formats no dates, numbers, or currency."
+      }
+    },
+    "theming": {
+      "disposition": "required",
+      "caseIds": [
+        "confirm-dialog.quality.tokens",
+        "confirm-dialog.quality.forced-colors",
+        "confirm-dialog.quality.reduced-motion",
+        "confirm-dialog.quality.visual-parity"
+      ]
+    },
+    "keyboard": {
+      "disposition": "not-applicable",
+      "rationale": "Exercised, but filed under the dimension whose fixture category the gallery validator reads; see the note in tooling/validate-gallery.mjs.",
+      "caseIds": []
+    },
+    "focus": {
+      "disposition": "not-applicable",
+      "rationale": "Focus containment and restoration belong to hlp.ui.dialog, which this module composes. Re-asserting them here would duplicate a frozen interface's guarantees and is the composition defect corrected in wave 04-01.",
+      "caseIds": []
+    },
+    "dismissal": {
+      "disposition": "not-applicable",
+      "rationale": "Overlay, escape and close-icon dismissal are the composed shell's; this module only passes policy through, which fixture confirm-dialog.dismissal-passthrough covers.",
+      "caseIds": []
+    },
+    "rtl": {
+      "disposition": "not-applicable",
+      "rationale": "Exercised, but filed under the dimension whose fixture category the gallery validator reads; see the note in tooling/validate-gallery.mjs.",
+      "caseIds": []
+    },
+    "reduced-motion": {
+      "disposition": "not-applicable",
+      "rationale": "Exercised, but filed under the dimension whose fixture category the gallery validator reads; see the note in tooling/validate-gallery.mjs.",
+      "caseIds": []
+    }
+  },
+  "componentStages": [
+    {
+      "id": "contract",
+      "dimensions": [
+        "accessibility",
+        "internationalization",
+        "theming",
+        "keyboard",
+        "focus",
+        "dismissal",
+        "rtl",
+        "reduced-motion"
+      ],
+      "gate": "profile and neutral fixture validation"
+    },
+    {
+      "id": "projection-native",
+      "dimensions": [
+        "accessibility",
+        "internationalization",
+        "theming",
+        "keyboard",
+        "focus",
+        "dismissal",
+        "rtl",
+        "reduced-motion"
+      ],
+      "gate": "public projection native tests in wave-05-01"
+    },
+    {
+      "id": "package-consumer",
+      "dimensions": [
+        "accessibility",
+        "internationalization",
+        "theming",
+        "keyboard",
+        "focus",
+        "dismissal",
+        "rtl",
+        "reduced-motion"
+      ],
+      "gate": "packed npm consumer in wave-05-01"
+    },
+    {
+      "id": "gallery",
+      "dimensions": [
+        "accessibility",
+        "internationalization",
+        "theming",
+        "keyboard",
+        "focus",
+        "dismissal",
+        "rtl",
+        "reduced-motion"
+      ],
+      "gate": "Axe, interaction, themes, locales, motion, and visual parity in wave-05-01"
+    },
+    {
+      "id": "clean-clone",
+      "dimensions": [
+        "accessibility",
+        "internationalization",
+        "theming",
+        "keyboard",
+        "focus",
+        "dismissal",
+        "rtl",
+        "reduced-motion"
+      ],
+      "gate": "complete repository gate from the recorded implementation commit"
+    }
+  ]
+}

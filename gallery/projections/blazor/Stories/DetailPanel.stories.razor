@@ -1,0 +1,21 @@
+@attribute [Stories("Platform/Detail Panel")]
+<Stories TComponent="DetailPanelScenario" Layout="@typeof(NoMarginLayout)">
+  @foreach (var scenario in Scenarios)
+  {
+    <Story Name="@scenario.Name"><Arguments><Arg For="_ => _.ScenarioId" Value="@scenario.Id" /></Arguments><Template><DetailPanelScenario @attributes="context.Args" /></Template></Story>
+  }
+</Stories>
+
+@code {
+  private static readonly (string Id, string Name)[] Scenarios =
+  [
+    ("detail-panel.docked", "Docked detail panel"),
+    ("detail-panel.sheet", "Sheet detail panel"),
+    ("detail-panel.locale-en", "English locale"),
+    ("detail-panel.locale-pseudo", "Pseudo locale"),
+    ("detail-panel.locale-ar", "Arabic locale"),
+    ("detail-panel.theme-light", "Light theme"),
+    ("detail-panel.theme-dark", "Dark theme"),
+    ("detail-panel.content", "Content resilience"),
+  ];
+}

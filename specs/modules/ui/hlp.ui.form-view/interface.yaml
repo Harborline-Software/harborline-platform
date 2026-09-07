@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.form-view",
+  "interfaceRevision": 1,
+  "status": "candidate",
+  "semantics": {
+    "operation": "expose the complete application-facing FormView, candidate, validation, and localized-text support surface while referencing the canonical Dynamic Forms wire contract",
+    "observableOutput": "TypeScript exports and .NET support types that preserve the pinned UI surface, canonical wire identity, deterministic localization behavior, and an explicit wire-to-render normalization seam."
+  },
+  "sourceSurface": {
+    "repository": "shipyard",
+    "commit": "a5036ff8b500e0d857d7e0a698408e7cf7f6cf31",
+    "path": "packages/ui-react/src/components/forms/SchemaForm/types.ts",
+    "blob": "a931ac52b5ee4041fbea679cacd73403fadc2609",
+    "exportCount": 29,
+    "capturedExports": [
+      "InternationalizedText", "ControlHint", "Severity", "PresentationOutcome", "FormViewField",
+      "SectionLayoutKind", "FlexDirection", "FlexWrap", "LayoutGap", "LayoutBreakpoint",
+      "LayoutDensity", "LayoutAlign", "FieldWidth", "SectionLayout", "FieldPlacement", "ContentNode",
+      "FormActionKind", "FormActionConfig", "Cardinality", "CollectionColumn", "CollectionTableConfig",
+      "FormViewItem", "FormViewSection", "FormView", "ValidationErrorKind", "ValidationError",
+      "ValidationResult", "FormValues", "resolveText"
+    ]
+  },
+  "ownership": {
+    "canonicalWireOwner": "hlp.contracts.forms",
+    "canonicalWireMinimumRevision": 4,
+    "uiBindingOwner": "hlp.ui.form-view",
+    "duplicateCanonicalDeclarationsAllowed": false,
+    "rendererHintPolicy": "UI-only required, options, valueKind, config, and normalized readOnly/presentation hints extend the canonical field at the binding seam and are not alternate wire authority."
+  },
+  "dependencies": [{"moduleId": "hlp.contracts.forms", "minimumRevision": 4}],
+  "invariants": [
+    "All 29 pinned exports remain reachable from the aggregate UI package; the generated seven-symbol inventory is not a complete contract.",
+    "InternationalizedText, layout, content, action, collection, FormView, candidate, and validation wire vocabulary is imported or re-exported from hlp.contracts.forms revision 4.",
+    "No React, Blazor, Telerik, Harborline App, or any external consumer product projection owns a second canonical FormView wire declaration.",
+    "The UI binding explicitly normalizes canonical FormViewField.rules into renderer readOnly and presentation hints while preserving the original rules projection.",
+    "UI-only valueKind, required, options, and config hints are additive render metadata and never serialized as canonical engine authority unless a later contracts revision adopts them.",
+    "Nested groups, collections, content blocks, action blocks, section layout, field placement, cardinality, table columns, totals, validation codes, parameters, and arbitrary candidate JSON remain lossless.",
+    "Unreadable or sensitive field values remain absent or null and cannot be restored by normalization.",
+    "Open-url action blocks delegate to a host; the support contract never navigates, while scroll-to-section remains a renderer behavior.",
+    "Localized authored content remains plain text and is never interpreted as HTML.",
+    "Validation errors preserve RFC 6901 pointers, stable kind, fallback message, optional locale-independent code, and structured string parameters.",
+    "Localized text resolves each requested full tag then its primary subtag, then the declared default locale, then first available value, then explicit fallback, then empty string.",
+    "Locale lookup is exact to the source behavior and returned text remains byte-identical.",
+    "The binding performs no form admission, rule evaluation, calculation, authorization, persistence, candidate pruning, validation workflow, or rendering."
+  ],
+  "errors": [
+    {"code": "canonical-contract-required", "when": "A projection redeclares rather than references the hlp.contracts.forms canonical wire vocabulary."},
+    {"code": "source-surface-incomplete", "when": "Any of the 29 pinned exports is absent from the aggregate UI package."},
+    {"code": "unsafe-wire-normalization", "when": "A UI hint overrides redaction, restores withheld data, or discards canonical field-rule evidence."}
+  ],
+  "performance": {"operation": "O(f + l) normalization for f fields and locale-chain length l with no I/O", "maximumLocaleChainLength": 16, "maximumFixtureFields": 1000},
+  "presentation": {"disposition": "not-applicable", "rationale": "This module binds and normalizes the complete Dynamic Forms view support contract; SchemaForm and later renderers own visual and interaction behavior."},
+  "cases": [
+    {"id": "form-view.complete-export-surface"},
+    {"id": "form-view.canonical-owner"},
+    {"id": "form-view.wire-identity"},
+    {"id": "form-view.minimal"},
+    {"id": "form-view.readable-value"},
+    {"id": "form-view.redaction"},
+    {"id": "form-view.readonly-distinct"},
+    {"id": "form-view.renderer-hints"},
+    {"id": "form-view.rules-normalization"},
+    {"id": "form-view.nested-items"},
+    {"id": "form-view.layout"},
+    {"id": "form-view.collection-table"},
+    {"id": "form-view.content-action"},
+    {"id": "form-view.candidate-roundtrip"},
+    {"id": "form-view.validation-success"},
+    {"id": "form-view.validation-error"},
+    {"id": "form-view.locale-exact"},
+    {"id": "form-view.locale-primary"},
+    {"id": "form-view.locale-default"},
+    {"id": "form-view.locale-first"},
+    {"id": "form-view.locale-fallback"},
+    {"id": "form-view.locale-empty"}
+  ]
+}

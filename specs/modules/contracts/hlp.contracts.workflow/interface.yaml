@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.contracts.workflow",
+  "interfaceRevision": 2,
+  "status": "frozen",
+  "purpose": "Provide Harborline App's complete projection-neutral workflow authoring wire and fail-closed admission fence without introducing a general workflow interpreter.",
+  "dependencies": ["hlp.contracts.authorization", "hlp.contracts.forms"],
+  "sourceSurface": {
+    "repository": "shipyard",
+    "commit": "a5036ff8b500e0d857d7e0a698408e7cf7f6cf31",
+    "contract": {"path": "packages/contracts/src/workflow.ts", "blob": "97196c49e9b3a0b3f5976f42eccb5389b772e579", "sha256": "fabeaaa6ef66e3f65f76ca2dc0a07821ab67c87b3d35988314cf305da1199bab"},
+    "carrierAdmission": {"path": "apps/carrier/src/workflows/builder/admission.ts", "blob": "f2ceae3b82cbcbceccec067f332d3b595d85f093"},
+    "dotnetAdmission": {"path": "packages/blocks-workflow/src/durable/WorkflowAdmissionValidator.cs", "blob": "ce8010fcc08da5320bd2197813dcc1f8fb176028"},
+    "authorityRegistry": {"path": "packages/carrier-sdk/src/command-authority.json", "blob": "74d32d5a7060aa39aa277f8bab606788404f2d8f"}
+  },
+  "surfaceCounts": {"declarations": 16, "interfaces": 7, "typeAliases": 9, "constants": 0, "closedLiteralMembers": 23},
+  "fixtureCases": 19,
+  "exports": ["WorkflowDefinitionStatus", "WorkflowMutability", "WorkflowStateKind", "WorkflowViewHint", "WorkflowTriggerKind", "WorkflowActionKind", "ActionClassification", "GuardRef", "WorkflowState", "WorkflowTransition", "WorkflowTriggerBinding", "WorkflowEffectParams", "WorkflowActionBinding", "WorkflowDefinitionLineage", "FormDefinitionRef", "WorkflowDefinition"],
+  "selectedDesign": {
+    "choice": "one exact workflow authoring wire plus a deterministic admission function parameterized by an immutable capability-authority resolver",
+    "rejected": ["copy the incomplete legacy .NET mirror", "import Carrier SDK into Platform", "ship a general data-driven workflow interpreter"],
+    "reason": "Harborline App directly consumes the complete TypeScript shape and admission result. The legacy .NET mirror omits authoring members, while the admission fence needs one host-supplied authority registry so unknown capabilities remain CP without coupling contracts to Harborline App."
+  },
+  "invariants": [
+    "The 16-declaration TypeScript authoring surface retains the pinned shape plus revision-2 qualified requiredRoles gates on transitions and actions, resolved through hlp.contracts.authorization.",
+    "Unknown closed enum values, missing required members, and action bindings naming both or neither state/transition fail closed; additive object members are ignored.",
+    "Admission detects duplicate ids, dangling state/trigger/guard/action references, unreachable states, terminal outgoing edges, and reachable non-terminal dead ends.",
+    "Action classification is derived from the injected immutable registry; an unknown capability derives to CP and an authored mismatch is refused.",
+    "A CP action fires only on a HumanAction transition or on entry to a non-initial state whose every incoming transition is HumanAction.",
+    "When a RoleVocabulary is supplied, admission fails closed if any transition or action requiredRoles reference is unresolved.",
+    "The TypeScript and .NET projections execute the same neutral fixtures and stable admission codes."
+  ],
+  "notScope": ["workflow instance execution", "general workflow interpreter", "durable work-item persistence", "workflow definition persistence", "Harborline App SDK", "React or Blazor rendering", "HTTP routes"],
+  "projectionPolicy": {"typescript": "exact package contribution plus strict wire reader and admission function", "dotnet": "complete generated binding plus equivalent admission function in Harborline.Contracts", "blazor": "consumer through workflow UI adapters"},
+  "fixture": "conformance/hlp.contracts.workflow/fixtures.yaml"
+}

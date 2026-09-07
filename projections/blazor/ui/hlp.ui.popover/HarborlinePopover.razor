@@ -1,0 +1,34 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Feedback
+@inherits HarborlineComponentBase
+
+<span class="@CombineClasses("hl-popover-root")" style="@CombineStyles()" @attributes="AdditionalAttributes">
+    <CascadingValue Value="Context" IsFixed="true">@ChildContent</CascadingValue>
+</span>
+
+@code {
+    [Parameter] public bool? Open { get; set; }
+    [Parameter] public bool DefaultOpen { get; set; }
+    [Parameter] public EventCallback<bool> OpenChanged { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private bool localOpen;
+    private bool initialized;
+    private readonly string instanceId = $"hl-popover-{Guid.NewGuid():N}";
+    private PopoverContext? context;
+    private bool IsOpen => Open ?? localOpen;
+    private PopoverContext Context => context ??= new(() => IsOpen, SetOpenAsync, $"{instanceId}-trigger", $"{instanceId}-content");
+
+    protected override void OnParametersSet()
+    {
+        if (initialized) return;
+        localOpen = DefaultOpen;
+        initialized = true;
+    }
+
+    private async Task SetOpenAsync(bool next)
+    {
+        if (Open is null) localOpen = next;
+        await OpenChanged.InvokeAsync(next);
+        StateHasChanged();
+    }
+}

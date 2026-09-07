@@ -1,0 +1,271 @@
+.hl-dialog__portal {
+  --hl-dialog-surface: var(--hl-surface, Canvas);
+  --hl-dialog-text: var(--hl-foreground, CanvasText);
+  --hl-dialog-muted: var(--hl-muted-foreground, GrayText);
+  --hl-dialog-border: var(--hl-border, color-mix(in srgb, CanvasText 24%, Canvas));
+  --hl-dialog-focus: var(--hl-focus, #8a3ffc);
+  --hl-dialog-overlay: var(--hl-overlay, rgb(0 0 0 / 48%));
+  --hl-dialog-shadow: var(--hl-shadow-raised, 0 1.5rem 4rem rgb(15 23 42 / 28%));
+  --hl-dialog-button-primary: var(--hl-primary, #0f62fe);
+  --hl-dialog-button-primary-hover: var(--hl-primary-hover, #0353e9);
+  --hl-dialog-button-primary-active: var(--hl-primary-active, #002d9c);
+  --hl-dialog-button-primary-foreground: var(--hl-primary-foreground, #ffffff);
+  --hl-dialog-button-secondary-hover: var(--hl-muted, #f1f5f9);
+  --hl-dialog-button-secondary-active: var(--hl-border, #e2e8f0);
+}
+
+.hl-dialog__portal[data-theme='light'] {
+  --hl-dialog-surface: var(--hl-surface, #ffffff);
+  --hl-dialog-text: var(--hl-foreground, #172033);
+  --hl-dialog-muted: var(--hl-muted-foreground, #475569);
+  --hl-dialog-border: var(--hl-border, #d0d5dd);
+  color-scheme: light;
+}
+
+.hl-dialog__portal[data-theme='dark'] {
+  --hl-dialog-surface: var(--hl-surface, #182235);
+  --hl-dialog-text: var(--hl-foreground, #f8fafc);
+  --hl-dialog-muted: var(--hl-muted-foreground, #cbd5e1);
+  --hl-dialog-border: var(--hl-border, #64748b);
+  --hl-dialog-button-primary: var(--hl-primary, #78a9ff);
+  --hl-dialog-button-primary-hover: var(--hl-primary-hover, #a6c8ff);
+  --hl-dialog-button-primary-active: var(--hl-primary-active, #4589ff);
+  --hl-dialog-button-primary-foreground: var(--hl-primary-foreground, #081a36);
+  --hl-dialog-button-secondary-hover: var(--hl-muted, #263247);
+  --hl-dialog-button-secondary-active: var(--hl-border, #475569);
+  color-scheme: dark;
+}
+
+.hl-dialog__portal {
+  inset: 0;
+  pointer-events: none;
+  position: fixed;
+  z-index: var(--hl-layer-modal, 50);
+}
+
+.hl-dialog__overlay {
+  animation: hl-dialog-fade-in 160ms ease-out;
+  background: var(--hl-dialog-overlay);
+  inset: 0;
+  pointer-events: auto;
+  position: absolute;
+}
+
+.hl-dialog__surface {
+  animation: hl-dialog-enter 200ms ease-out;
+  background: var(--hl-dialog-surface);
+  border: 1px solid var(--hl-dialog-border);
+  border-radius: var(--hl-radius-lg, 0.5rem);
+  box-shadow: var(--hl-dialog-shadow);
+  box-sizing: border-box;
+  color: var(--hl-dialog-text);
+  display: flex;
+  flex-direction: column;
+  inset-block-start: 50%;
+  inset-inline-start: 50%;
+  max-block-size: min(85dvh, calc(100dvh - 2rem));
+  max-inline-size: 32rem;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  pointer-events: auto;
+  position: fixed;
+  text-align: start;
+  transform: translate(-50%, -50%);
+  inline-size: calc(100dvw - 2rem);
+}
+
+.hl-dialog__header,
+.hl-dialog__footer {
+  flex: 0 0 auto;
+  padding-block: 1rem;
+  padding-inline: 1.5rem;
+}
+
+.hl-dialog__header {
+  align-items: flex-start;
+  border-block-end: 1px solid var(--hl-dialog-border);
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
+.hl-dialog__heading {
+  min-inline-size: 0;
+}
+
+.hl-dialog__title {
+  color: var(--hl-dialog-text);
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.hl-dialog__description {
+  color: var(--hl-dialog-muted);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  margin-block: 0.25rem 0;
+  margin-inline: 0;
+}
+
+.hl-dialog__close {
+  align-items: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--hl-radius-sm, 0.25rem);
+  color: var(--hl-dialog-muted);
+  cursor: pointer;
+  display: inline-flex;
+  flex: 0 0 auto;
+  justify-content: center;
+  min-block-size: 2.75rem;
+  min-inline-size: 2.75rem;
+  padding: 0.625rem;
+}
+
+.hl-dialog__close:hover {
+  background: var(--hl-subtle, color-mix(in srgb, CanvasText 8%, Canvas));
+  color: var(--hl-dialog-text);
+}
+
+.hl-dialog__close:active { background: var(--hl-dialog-button-secondary-active); }
+
+.hl-dialog__close svg {
+  block-size: 1rem;
+  fill: none;
+  inline-size: 1rem;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-width: 1.75;
+}
+
+.hl-dialog__body {
+  flex: 1 1 auto;
+  min-block-size: 0;
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+  padding-block: 1rem;
+  padding-inline: 1.5rem;
+}
+
+.hl-dialog__footer {
+  align-items: center;
+  border-block-start: 1px solid var(--hl-dialog-border);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: flex-end;
+}
+
+.hl-dialog__body button:not(.hl-dialog__close):not([data-hl-intent]):not([class*='hl-button']),
+.hl-dialog__footer button:not([data-hl-intent]):not([class*='hl-button']) {
+  align-items: center;
+  background: var(--hl-dialog-surface);
+  border: 1px solid var(--hl-dialog-border);
+  border-radius: var(--hl-radius-md, 0.375rem);
+  box-sizing: border-box;
+  color: var(--hl-dialog-text);
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  justify-content: center;
+  line-height: 1;
+  max-inline-size: 100%;
+  min-block-size: 2.5rem;
+  padding: 0 1rem;
+  text-align: center;
+  transition: background-color 150ms ease-out, border-color 150ms ease-out, box-shadow 150ms ease-out;
+  white-space: normal;
+}
+
+.hl-dialog__body button:not(.hl-dialog__close):not([data-hl-intent]):not([class*='hl-button']):not(:disabled):hover,
+.hl-dialog__footer button:not([data-hl-intent]):not([class*='hl-button']):not(:disabled):hover { background: var(--hl-dialog-button-secondary-hover); }
+.hl-dialog__body button:not(.hl-dialog__close):not([data-hl-intent]):not([class*='hl-button']):not(:disabled):active,
+.hl-dialog__footer button:not([data-hl-intent]):not([class*='hl-button']):not(:disabled):active { background: var(--hl-dialog-button-secondary-active); }
+
+.hl-dialog__footer button:not([data-hl-intent]):not([class*='hl-button']):last-child {
+  background: var(--hl-dialog-button-primary);
+  border-color: transparent;
+  box-shadow: 0 0.0625rem 0.125rem rgb(16 24 40 / 18%);
+  color: var(--hl-dialog-button-primary-foreground);
+}
+
+.hl-dialog__footer button:not([data-hl-intent]):not([class*='hl-button']):last-child:not(:disabled):hover { background: var(--hl-dialog-button-primary-hover); }
+.hl-dialog__footer button:not([data-hl-intent]):not([class*='hl-button']):last-child:not(:disabled):active { background: var(--hl-dialog-button-primary-active); }
+
+.hl-dialog__body button:disabled,
+.hl-dialog__footer button:disabled { cursor: not-allowed; opacity: 0.5; }
+
+.hl-dialog__surface:focus-visible,
+.hl-dialog__surface :focus-visible {
+  outline: 2px solid var(--hl-dialog-focus);
+  outline-offset: 2px;
+}
+
+.hl-dialog__status {
+  block-size: 1px;
+  clip-path: inset(50%);
+  inline-size: 1px;
+  margin: -1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+}
+
+[data-theme='dark'] .hl-dialog__surface,
+.hl-dialog__surface[data-theme='dark'] {
+  --hl-dialog-border: var(--hl-border, color-mix(in srgb, CanvasText 34%, Canvas));
+  --hl-dialog-surface: var(--hl-surface, Canvas);
+  --hl-dialog-text: var(--hl-foreground, CanvasText);
+}
+
+@keyframes hl-dialog-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes hl-dialog-enter {
+  from { opacity: 0; transform: translate(-50%, calc(-50% + 0.5rem)) scale(0.98); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+@media (max-width: 24rem) {
+  .hl-dialog__header,
+  .hl-dialog__body,
+  .hl-dialog__footer {
+    padding-inline: 1rem;
+  }
+}
+
+@media (forced-colors: active) {
+  .hl-dialog__surface {
+    border-color: CanvasText;
+    box-shadow: none;
+    forced-color-adjust: auto;
+  }
+
+  .hl-dialog__overlay {
+    background: Canvas;
+    opacity: 0.75;
+  }
+
+  .hl-dialog__surface:focus-visible,
+  .hl-dialog__surface :focus-visible {
+    outline-color: Highlight;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hl-dialog__overlay,
+  .hl-dialog__surface {
+    animation: none;
+    transition: none;
+  }
+
+  .hl-dialog__body {
+    scroll-behavior: auto;
+  }
+}

@@ -1,0 +1,12 @@
+{"schemaVersion":1,"moduleId":"hlp.ui.use-can-show-master-detail","fixtureRevision":2,"cases":[
+  {"id":"form-factor.phone-width","input":{"phoneWidth":true},"expected":{"mode":"phone","orientation":"portrait","heightClass":"tall"}},
+  {"id":"form-factor.tablet-residual","input":{},"expected":{"mode":"tablet","orientation":"portrait","heightClass":"tall"}},
+  {"id":"form-factor.desktop-width","input":{"desktopWidth":true},"expected":{"mode":"desktop","orientation":"portrait","heightClass":"tall"}},
+  {"id":"form-factor.short-landscape-fold","input":{"desktopWidth":true,"landscape":true,"shortHeight":true},"expected":{"mode":"phone","orientation":"landscape","heightClass":"short"}},
+  {"id":"form-factor.master-detail","input":{"cases":[{"phoneWidth":true,"masterDetailRail":true},{"masterDetailRail":true},{"desktopWidth":true,"masterDetailRail":true},{},{"desktopWidth":true}]},"expected":{"values":[false,true,true,false,false]}},
+  {"id":"form-factor.touch-sizing","input":{"cases":[{"phoneWidth":true},{"desktopWidth":true,"anyCoarse":true},{"desktopWidth":true,"anyFine":true}]},"expected":{"values":[true,true,false]}},
+  {"id":"form-factor.hover-affordance","input":{"cases":[{"hover":true},{"anyFine":true},{"anyCoarse":true}]},"expected":{"values":[true,true,false]}},
+  {"id":"form-factor.split-builder","input":{"query":"(min-width: 1024px)","matches":true},"expected":{"value":true}},
+  {"id":"form-factor.ssr-fail-closed","input":{"browserAvailable":false},"expected":{"allSignals":false,"mode":"tablet","masterDetail":false,"touchSizing":false,"hoverAffordance":false,"splitBuilder":false}},
+  {"id":"form-factor.projection-equivalence","input":{"allSignalCombinations":true},"expected":{"typescriptEqualsDotnet":true}}
+]}

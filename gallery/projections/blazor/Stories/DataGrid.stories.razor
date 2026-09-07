@@ -1,0 +1,17 @@
+@attribute [Stories("Platform/Data Grid")]
+<Stories TComponent="DataGridScenario">
+  @foreach (var scenario in Scenarios)
+  {
+    <Story Name="@scenario.Name"><Arguments><Arg For="_ => _.ScenarioId" Value="@scenario.Id" /></Arguments><Template><DataGridScenario @attributes="context.Args" /></Template></Story>
+  }
+  <Story Name="Empty state"><Arguments><Arg For="_ => _.ScenarioId" Value='"data-grid.empty-state"' /></Arguments><Template><DataGridScenario @attributes="context.Args" /></Template></Story>
+</Stories>
+@code {
+  private static readonly (string Id, string Name)[] Scenarios =
+  [
+    ("data-grid.app-grid-dump", "Harborline grid dump"), ("data-grid.app-grouped-report", "Harborline grouped report"),
+    ("data-grid.replacement-state", "Complete replacement"), ("data-grid.keyboard-focus", "Keyboard and focus"),
+    ("data-grid.large-data", "Bounded large data"), ("data-grid.locale-pseudo", "Pseudo locale"),
+    ("data-grid.locale-ar", "Arabic RTL"), ("data-grid.theme-light", "Light theme"), ("data-grid.theme-dark", "Dark theme")
+  ];
+}

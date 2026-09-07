@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "projection": "react",
+  "moduleId": "hlp.ui.search-input",
+  "scenarios": [
+    {
+      "scenarioId": "search-input.defaults",
+      "sha256": "a1e7442ce59595c03ba8e4abac5ae7c358b8fcbfb7a9c643fe1a4a4984d46d78",
+      "bytes": 8267,
+      "artifact": "../baselines/sha256/a1e7442ce59595c03ba8e4abac5ae7c358b8fcbfb7a9c643fe1a4a4984d46d78.png"
+    },
+    {
+      "scenarioId": "search-input.debounce",
+      "sha256": "2e322dc3053f31ec59fd93f4887258b7f2e0995efbacd35f1f2fcdc3347b0423",
+      "bytes": 9881,
+      "artifact": "../baselines/sha256/2e322dc3053f31ec59fd93f4887258b7f2e0995efbacd35f1f2fcdc3347b0423.png"
+    },
+    {
+      "scenarioId": "search-input.sync-clear",
+      "sha256": "dcb21087f7dd7e17f8642473848e579e690a93198ae52a92c0a65aa2edaebd8d",
+      "bytes": 9599,
+      "artifact": "../baselines/sha256/dcb21087f7dd7e17f8642473848e579e690a93198ae52a92c0a65aa2edaebd8d.png"
+    },
+    {
+      "scenarioId": "search-input.locale-en",
+      "sha256": "9cdb9d286716e4d7dbd2cc21353c43d182a25bd3e5d8819997e4b086bce78c7e",
+      "bytes": 7647,
+      "artifact": "../baselines/sha256/9cdb9d286716e4d7dbd2cc21353c43d182a25bd3e5d8819997e4b086bce78c7e.png"
+    },
+    {
+      "scenarioId": "search-input.locale-pseudo",
+      "sha256": "7de1dd7deebb499d0523508708b262109ba6ccf265c33e730b75fd2ec56facc4",
+      "bytes": 9374,
+      "artifact": "../baselines/sha256/7de1dd7deebb499d0523508708b262109ba6ccf265c33e730b75fd2ec56facc4.png"
+    },
+    {
+      "scenarioId": "search-input.locale-ar",
+      "sha256": "7268320d9ba8cca5f89c3431721ef9c055f265e5945e735679d2d6f10f0cd494",
+      "bytes": 7446,
+      "artifact": "../baselines/sha256/7268320d9ba8cca5f89c3431721ef9c055f265e5945e735679d2d6f10f0cd494.png"
+    },
+    {
+      "scenarioId": "search-input.theme-light",
+      "sha256": "d7353240d92b613577dacc8e0100521567665778a10907274a8107303269e7b1",
+      "bytes": 7723,
+      "artifact": "../baselines/sha256/d7353240d92b613577dacc8e0100521567665778a10907274a8107303269e7b1.png"
+    },
+    {
+      "scenarioId": "search-input.theme-dark",
+      "sha256": "c0aa7f9e88dbb0b0cd3d024dd2dbd2a351d0ff6366d8493b0a76cd007a4378cf",
+      "bytes": 7263,
+      "artifact": "../baselines/sha256/c0aa7f9e88dbb0b0cd3d024dd2dbd2a351d0ff6366d8493b0a76cd007a4378cf.png"
+    }
+  ]
+}

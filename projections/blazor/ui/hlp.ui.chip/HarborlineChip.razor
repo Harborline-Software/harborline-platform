@@ -1,0 +1,62 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Feedback
+@inherits Harborline.UIAdapters.Blazor.Base.HarborlineComponentBase
+@using Microsoft.AspNetCore.Components.Web
+@using Harborline.UIAdapters.Blazor.Localization
+
+@if (Removable)
+{
+ <span class="@CombineClasses("hl-chip")" data-fill="@Lower(FillMode)" data-theme="@Lower(ThemeColor)" data-size="@CanonicalSize" data-rounded="@Lower(Rounded)" data-selected="@SelectedState.ToString().ToLowerInvariant()" data-hl-fill-mode="@Lower(FillMode)" data-hl-theme-color="@Lower(ThemeColor)" data-hl-size="@CanonicalSize" data-hl-rounded="@Lower(Rounded)" data-hl-selected="@(SelectedState ? "true" : null)" dir="@(LocaleContext?.Direction)" @attributes="AdditionalAttributes">
+  @BodyElement
+  <button type="button" class="hl-chip__remove" disabled="@Disabled" aria-label="@RemoveAccessibleLabel" @onclick="RemoveAsync" @onclick:stopPropagation="true" @onkeydown="RemoveKeyAsync">
+   <svg aria-hidden="true" class="hl-chip__remove-icon" fill="none" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-linecap="round" stroke-width="2" /></svg>
+  </button>
+ </span>
+}
+else if (Selectable)
+{
+ <button type="button" class="@CombineClasses("hl-chip__body", "hl-chip")" data-fill="@Lower(FillMode)" data-theme="@Lower(ThemeColor)" data-size="@CanonicalSize" data-rounded="@Lower(Rounded)" data-selected="@SelectedState.ToString().ToLowerInvariant()" data-hl-fill-mode="@Lower(FillMode)" data-hl-theme-color="@Lower(ThemeColor)" data-hl-size="@CanonicalSize" data-hl-rounded="@Lower(Rounded)" data-hl-selected="@(SelectedState ? "true" : null)" dir="@(LocaleContext?.Direction)" disabled="@Disabled" aria-pressed="@SelectedState.ToString().ToLowerInvariant()" aria-label="@AriaLabel" @onclick="ToggleAsync" @attributes="AdditionalAttributes">@Content</button>
+}
+else
+{
+ <span class="@CombineClasses("hl-chip__body", "hl-chip")" data-fill="@Lower(FillMode)" data-theme="@Lower(ThemeColor)" data-size="@CanonicalSize" data-rounded="@Lower(Rounded)" data-selected="@SelectedState.ToString().ToLowerInvariant()" data-hl-fill-mode="@Lower(FillMode)" data-hl-theme-color="@Lower(ThemeColor)" data-hl-size="@CanonicalSize" data-hl-rounded="@Lower(Rounded)" data-hl-selected="@(SelectedState ? "true" : null)" dir="@(LocaleContext?.Direction)" aria-label="@AriaLabel" @attributes="AdditionalAttributes">@Content</span>
+}
+
+@code {
+ [CascadingParameter] private HarborlineLocaleContext? LocaleContext {get;set;}
+ [Parameter] public string? Text {get;set;}
+ [Parameter] public string? AriaLabel {get;set;}
+ [Parameter] public RenderFragment? Icon {get;set;}
+ [Parameter] public string? Avatar {get;set;}
+ [Parameter] public bool Selectable {get;set;}=true;
+ [Parameter] public bool Removable {get;set;}
+ [Parameter] public bool? Selected {get;set;}
+ [Parameter] public bool DefaultSelected {get;set;}
+ [Parameter] public EventCallback<bool> SelectedChanged {get;set;}
+ [Parameter] public EventCallback OnRemove {get;set;}
+ [Parameter] public bool Disabled {get;set;}
+ [Parameter] public ChipFillMode FillMode {get;set;}=ChipFillMode.Solid;
+ [Parameter] public ChipThemeColor ThemeColor {get;set;}=ChipThemeColor.Base;
+ [Parameter] public string Size {get;set;}="md";
+ [Parameter] public ChipRounded Rounded {get;set;}=ChipRounded.Full;
+ [Parameter] public string? RemoveLabel {get;set;}
+ private bool internalSelected;
+ private bool initialized;
+ private bool SelectedState=>Selected??internalSelected;
+ private string CanonicalSize=>Size.ToLowerInvariant() switch{"small" or "sm"=>"sm","large" or "lg"=>"lg",_=>"md"};
+ private IReadOnlyDictionary<string, object?> StyleAttributes => new Dictionary<string, object?>
+ {
+  ["data-fill"] = Lower(FillMode), ["data-theme"] = Lower(ThemeColor), ["data-size"] = CanonicalSize,
+  ["data-rounded"] = Lower(Rounded), ["data-selected"] = SelectedState.ToString().ToLowerInvariant(),
+  ["data-hl-fill-mode"] = Lower(FillMode), ["data-hl-theme-color"] = Lower(ThemeColor),
+  ["data-hl-size"] = CanonicalSize, ["data-hl-rounded"] = Lower(Rounded),
+  ["data-hl-selected"] = SelectedState ? "true" : null
+ };
+ private string RemoveAccessibleLabel=>LocaleContext?.ResolveString("feedback.removeItem",new Dictionary<string,object?>{{"label",Text??AriaLabel??""}},RemoveLabel)??RemoveLabel??$"Remove {Text??AriaLabel}";
+ private RenderFragment Content=>b=>{var i=0;if(Avatar is not null)b.AddMarkupContent(i++,$"<img src=\"{System.Net.WebUtility.HtmlEncode(Avatar)}\" alt=\"\" class=\"hl-chip__avatar\" />");if(Icon is not null){b.OpenElement(i++,"span");b.AddAttribute(i++,"aria-hidden","true");b.AddAttribute(i++,"class","hl-chip__icon");b.AddContent(i++,Icon);b.CloseElement();}if(Text is not null){b.OpenElement(i++,"span");b.AddAttribute(i++,"class","hl-chip__text");b.AddContent(i++,Text);b.CloseElement();}};
+ private RenderFragment BodyElement=>b=>{var i=0;if(Selectable){b.OpenElement(i++,"button");b.AddAttribute(i++,"type","button");b.AddAttribute(i++,"class","hl-chip__body");b.AddAttribute(i++,"disabled",Disabled);b.AddAttribute(i++,"aria-pressed",SelectedState.ToString().ToLowerInvariant());b.AddAttribute(i++,"aria-label",AriaLabel);b.AddAttribute(i++,"onclick",EventCallback.Factory.Create(this,ToggleAsync));foreach(var attribute in StyleAttributes)b.AddAttribute(i++,attribute.Key,attribute.Value);b.AddContent(i++,Content);b.CloseElement();}else{b.OpenElement(i++,"span");b.AddAttribute(i++,"class","hl-chip__body");b.AddAttribute(i++,"aria-label",AriaLabel);foreach(var attribute in StyleAttributes)b.AddAttribute(i++,attribute.Key,attribute.Value);b.AddContent(i++,Content);b.CloseElement();}};
+ protected override void OnParametersSet(){if(!initialized){internalSelected=DefaultSelected;initialized=true;}if(string.IsNullOrWhiteSpace(Text)&&string.IsNullOrWhiteSpace(AriaLabel))throw new InvalidOperationException("accessible-content-required");}
+ private async Task ToggleAsync(){if(Disabled)return;var next=!SelectedState;if(Selected is null)internalSelected=next;await SelectedChanged.InvokeAsync(next);}
+ private async Task RemoveAsync(){if(!Disabled)await OnRemove.InvokeAsync();}
+ private Task RemoveKeyAsync(KeyboardEventArgs e)=>e.Key is "Backspace" or "Delete"?RemoveAsync():Task.CompletedTask;
+ private static string Lower<T>(T value) where T:struct,Enum=>value.ToString().ToLowerInvariant();
+}

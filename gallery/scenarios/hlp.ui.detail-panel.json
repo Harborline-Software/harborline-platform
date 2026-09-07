@@ -1,0 +1,324 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.detail-panel",
+  "sourceFixture": "conformance/hlp.ui.detail-panel/fixtures.yaml",
+  "qualityFixture": "conformance/hlp.ui.detail-panel/quality-fixtures.yaml",
+  "galleryInterface": {
+    "probeAttribute": "data-gallery-probe",
+    "scenarioAttribute": "data-gallery-scenario",
+    "projectionTitles": {
+      "react": "Platform/Detail Panel",
+      "blazor": "Platform/Detail Panel"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "detail-panel.docked",
+      "name": "Docked detail panel",
+      "surface": "docked",
+      "sourceCaseIds": [
+        "detail-panel.open-docked",
+        "detail-panel.label-required-name",
+        "detail-panel.width-clamp",
+        "detail-panel.dismiss-control",
+        "detail-panel.not-dismissible",
+        "detail-panel.controlled-open",
+        "detail-panel.own-scroll",
+        "detail-panel.host-attributes",
+        "detail-panel.content-required"
+      ],
+      "sourceQualityCaseIds": [
+        "detail-panel.quality.close-target",
+        "detail-panel.quality.focus",
+        "detail-panel.quality.forced-colors",
+        "detail-panel.quality.keyboard",
+        "detail-panel.quality.landmark-name",
+        "detail-panel.quality.reflow"
+      ],
+      "content": {
+        "blurb": "Elevator 2 details remain available in one labeled inline-end panel.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "label": "Elevator 2",
+          "open": true,
+          "width": 360,
+          "dismissible": true,
+          "railCapable": true,
+          "data-case": "elevator-2"
+        },
+        "state": {
+          "open": {
+            "kind": "flag",
+            "initial": true
+          }
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<article><h2>Elevator 2</h2><section><h3>FILL A FORM</h3><button>Inspection</button><button>Maintenance</button><button>Incident</button></section><section><h3>PROPERTIES</h3><dl><dt>Manufacturer</dt><dd>Otis</dd><dt>Installed</dt><dd>2008-04-11</dd><dt>Capacity</dt><dd>1,600 kg</dd></dl></section><section><h3>CONDITION HISTORY</h3><p>No condition history recorded.</p></section><section><h3>SUBMITTED FORMS</h3><p>No submitted forms.</p></section></article>",
+            "blazor": "<article><h2>Elevator 2</h2><section><h3>FILL A FORM</h3><button>Inspection</button><button>Maintenance</button><button>Incident</button></section><section><h3>PROPERTIES</h3><dl><dt>Manufacturer</dt><dd>Otis</dd><dt>Installed</dt><dd>2008-04-11</dd><dt>Capacity</dt><dd>1,600 kg</dd></dl></section><section><h3>CONDITION HISTORY</h3><p>No condition history recorded.</p></section><section><h3>SUBMITTED FORMS</h3><p>No submitted forms.</p></section></article>",
+            "rationale": "The opaque Assets fixture uses semantic article, section, heading, button, and description-list content outside the closed vocabulary."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "detail-panel.sheet",
+      "name": "Sheet detail panel",
+      "surface": "sheet",
+      "interaction": "keyboard",
+      "sourceCaseIds": [
+        "detail-panel.sheet-below-rail",
+        "detail-panel.sheet-dismissal-focus",
+        "detail-panel.viewport-transition-keeps-open"
+      ],
+      "sourceQualityCaseIds": [
+        "detail-panel.quality.sheet-pattern",
+        "detail-panel.quality.keyboard",
+        "detail-panel.quality.focus",
+        "detail-panel.quality.dismissal"
+      ],
+      "content": {
+        "inherits": "detail-panel.docked",
+        "blurb": "Below the rail boundary, the same Elevator 2 content uses a modal end-side sheet.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "label": "Elevator 2",
+          "open": true,
+          "width": 360,
+          "dismissible": true,
+          "railCapable": false,
+          "data-case": "elevator-2"
+        },
+        "state": {
+          "open": {
+            "kind": "flag",
+            "initial": true
+          }
+        },
+        "body": [],
+        "footer": []
+      }
+    },
+    {
+      "id": "detail-panel.locale-en",
+      "name": "English locale",
+      "surface": "locale-en",
+      "sourceCaseIds": [
+        "detail-panel.open-docked"
+      ],
+      "sourceQualityCaseIds": [
+        "detail-panel.quality.locales"
+      ],
+      "content": {
+        "inherits": "detail-panel.docked",
+        "blurb": "English labels and opaque detail content remain intact.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "label": "Elevator 2",
+          "open": true,
+          "railCapable": true
+        },
+        "state": {
+          "open": {
+            "kind": "flag",
+            "initial": true
+          }
+        },
+        "body": [],
+        "footer": []
+      }
+    },
+    {
+      "id": "detail-panel.locale-pseudo",
+      "name": "Pseudo locale",
+      "surface": "locale-pseudo",
+      "sourceCaseIds": [
+        "detail-panel.label-required-name"
+      ],
+      "sourceQualityCaseIds": [
+        "detail-panel.quality.pseudo"
+      ],
+      "content": {
+        "inherits": "detail-panel.locale-en",
+        "blurb": "Expanded labels remain unclipped.",
+        "environment": {
+          "locale": "en-XA",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "label": "⟦ Ëļëṽåţøř 2 ···· ⟧",
+          "open": true,
+          "railCapable": true
+        },
+        "state": {
+          "open": {
+            "kind": "flag",
+            "initial": true
+          }
+        },
+        "body": [],
+        "footer": []
+      }
+    },
+    {
+      "id": "detail-panel.locale-ar",
+      "name": "Arabic locale",
+      "surface": "locale-ar",
+      "sourceCaseIds": [
+        "detail-panel.rtl"
+      ],
+      "sourceQualityCaseIds": [
+        "detail-panel.quality.rtl",
+        "detail-panel.quality.safe-area"
+      ],
+      "content": {
+        "inherits": "detail-panel.locale-en",
+        "blurb": "The panel, close control, and padding mirror to logical inline-end.",
+        "environment": {
+          "locale": "ar-SA",
+          "direction": "rtl",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "label": "المصعد ٢",
+          "open": true,
+          "railCapable": true
+        },
+        "state": {
+          "open": {
+            "kind": "flag",
+            "initial": true
+          }
+        },
+        "body": [],
+        "footer": []
+      }
+    },
+    {
+      "id": "detail-panel.theme-light",
+      "name": "Light theme",
+      "surface": "theme-light",
+      "sourceCaseIds": [
+        "detail-panel.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "detail-panel.quality.themes",
+        "detail-panel.quality.tokens",
+        "detail-panel.quality.contrast",
+        "detail-panel.quality.reduced-motion",
+        "detail-panel.quality.visual-parity"
+      ],
+      "content": {
+        "inherits": "detail-panel.locale-en",
+        "blurb": "Panel chrome uses public light tokens.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "label": "Elevator 2",
+          "open": true,
+          "railCapable": true
+        },
+        "state": {
+          "open": {
+            "kind": "flag",
+            "initial": true
+          }
+        },
+        "body": [],
+        "footer": []
+      }
+    },
+    {
+      "id": "detail-panel.theme-dark",
+      "name": "Dark theme",
+      "surface": "theme-dark",
+      "sourceCaseIds": [
+        "detail-panel.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "detail-panel.quality.themes",
+        "detail-panel.quality.tokens",
+        "detail-panel.quality.contrast",
+        "detail-panel.quality.reduced-motion",
+        "detail-panel.quality.visual-parity"
+      ],
+      "content": {
+        "inherits": "detail-panel.theme-light",
+        "blurb": "The same Elevator 2 panel on the Harborline dark surface.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "dark",
+          "catalog": {}
+        },
+        "props": {
+          "label": "Elevator 2",
+          "open": true,
+          "railCapable": true
+        },
+        "state": {
+          "open": {
+            "kind": "flag",
+            "initial": true
+          }
+        },
+        "body": [],
+        "footer": []
+      }
+    },
+    {
+      "id": "detail-panel.content",
+      "name": "Content resilience",
+      "surface": "long-content",
+      "sourceCaseIds": [
+        "detail-panel.label-required-name",
+        "detail-panel.content-required"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "Real content carries a long panel label, a grouped large number, escaped angle brackets and an ampersand, and a name with diacritics and an em dash.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<DetailPanel label=\"Awaiting third-party structural certification review\" open railCapable><article><h2>{'Awaiting third-party structural certification review'}</h2><p>{'1,284,905'}</p><p>{'Bay 4 <grid C-7> & 8'}</p><p>{'Ordnance Survey — Niño Ångström'}</p></article></DetailPanel>",
+            "blazor": "<HarborlineDetailPanel Label=\"Awaiting third-party structural certification review\" Open=\"true\" RailCapable=\"true\"><article><h2>@(\"Awaiting third-party structural certification review\")</h2><p>1,284,905</p><p>@(\"Bay 4 <grid C-7> & 8\")</p><p>@(\"Ordnance Survey — Niño Ångström\")</p></article></HarborlineDetailPanel>",
+            "rationale": "The closed control vocabulary cannot express a labeled detail panel with required caller-owned content carrying hostile-but-valid text."
+          }
+        ],
+        "footer": []
+      }
+    }
+  ]
+}

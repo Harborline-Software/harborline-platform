@@ -1,0 +1,8 @@
+@attribute [Stories("Platform/Window")]
+<Stories TComponent="WindowScenario" Layout="@typeof(NoMarginLayout)">
+    <Story Name="Window states"><Arguments><Arg For="_ => _.ScenarioId" Value='"window.states"' /></Arguments><Template><WindowScenario @attributes="context.Args" /></Template></Story>
+    <Story Name="Movement and resize"><Arguments><Arg For="_ => _.ScenarioId" Value='"window.geometry"' /></Arguments><Template><WindowScenario @attributes="context.Args" /></Template></Story>
+    <Story Name="Modal focus and dismissal"><Arguments><Arg For="_ => _.ScenarioId" Value='"window.modal"' /></Arguments><Template><WindowScenario @attributes="context.Args" /></Template></Story>
+    <Story Name="Locale and theme"><Arguments><Arg For="_ => _.ScenarioId" Value='"window.locale-theme"' /></Arguments><Template><WindowScenario @attributes="context.Args" /></Template></Story>
+    <Story Name="Content resilience"><Arguments><Arg For="_ => _.ScenarioId" Value='"window.content"'/></Arguments><Template><WindowScenario @attributes="context.Args"/></Template></Story>
+</Stories>

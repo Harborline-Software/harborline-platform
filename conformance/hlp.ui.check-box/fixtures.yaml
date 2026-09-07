@@ -1,0 +1,13 @@
+{"schemaVersion":1,"moduleId":"hlp.ui.check-box","fixtureRevision":1,"cases":[
+  {"id":"check-box.uncontrolled","input":{"defaultChecked":false,"activations":2},"expected":{"states":[false,true,false],"emitted":[true,false]}},
+  {"id":"check-box.controlled","input":{"checked":false,"activate":true},"expected":{"rendered":false,"emitted":true,"callbacks":1}},
+  {"id":"check-box.mixed","input":{"checked":"mixed","activate":true},"expected":{"indeterminate":true,"ariaChecked":"mixed","emitted":true}},
+  {"id":"check-box.disabled-noop","input":{"disabled":true,"activate":true},"expected":{"callbacks":0,"stateChanged":false}},
+  {"id":"check-box.label-placement","input":{"label":"Include","placements":["before","after"]},"expected":{"associated":true,"activationEquivalent":true}},
+  {"id":"check-box.required-error","input":{"required":true,"error":true},"expected":{"required":true,"ariaRequired":"true","ariaInvalid":"true"}},
+  {"id":"check-box.form-attributes","input":{"id":"include","name":"include","value":"yes","describedBy":"help"},"expected":{"preservedOnInput":true}},
+  {"id":"check-box.sizes","input":{"sizes":["sm","md","lg"]},"expected":{"semanticStateEqual":true,"visualSizesDistinct":true}},
+  {"id":"check-box.host-attributes","input":{"class":"consumer","data-test":"x","aria-label":"Include row"},"expected":{"preserved":true}},
+  {"id":"check-box.class-parity","input":{"label":"Include","size":"lg","error":true,"alsoWithoutLabel":true},"expected":{"rootClasses":["hl-check-box","hl-check-box--lg","hl-check-box--error"],"controlClasses":["hl-check-box__control"]}},
+  {"id":"check-box.projection-equivalence","input":{"projections":["react","blazor"]},"expected":{"stateAndAccessibilityEqual":true}}
+]}

@@ -1,0 +1,50 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Layout
+@inherits HarborlineComponentBase
+
+<div class="@CombineClasses("hl-collapsible", Disabled ? "hl-collapsible--disabled" : null)" style="@CombineStyles()" data-hl-open="@(CurrentOpen ? "true" : "false")" data-hl-state="@(CurrentOpen ? "open" : "closed")" @attributes="AdditionalAttributes">
+    <div class="hl-collapsible__header">
+        <button class="hl-collapsible__trigger" type="button" disabled="@Disabled" aria-expanded="@CurrentOpen.ToString().ToLowerInvariant()" aria-controls="@_contentId" aria-labelledby="@_titleId" aria-describedby="@(!string.IsNullOrWhiteSpace(Subtitle) ? _subtitleId : null)" @onclick="ToggleAsync">
+            <span class="hl-collapsible__labels hl-collapsible__titles">
+                <span class="hl-collapsible__title" id="@_titleId">@Title</span>
+                @if (!string.IsNullOrWhiteSpace(Subtitle)) { <span class="hl-collapsible__subtitle" id="@_subtitleId">@Subtitle</span> }
+            </span>
+            <svg aria-hidden="true" class="hl-collapsible__chevron" fill="none" focusable="false" viewBox="0 0 16 16"><path d="m4 6 4 4 4-4" /></svg>
+        </button>
+        @if (HeaderActions is not null) { <div class="hl-collapsible__actions">@HeaderActions</div> }
+    </div>
+    <div id="@_contentId" class="hl-collapsible__content hl-collapsible__region" role="region" aria-labelledby="@_titleId" hidden="@(!CurrentOpen)" data-hl-state="@(CurrentOpen ? "open" : "closed")">@ChildContent</div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
+    [Parameter] public string? Subtitle { get; set; }
+    [Parameter] public RenderFragment? HeaderActions { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public bool? Open { get; set; }
+    [Parameter] public bool DefaultOpen { get; set; }
+    [Parameter] public EventCallback<bool> OpenChanged { get; set; }
+    [Parameter] public bool Disabled { get; set; }
+
+    private readonly string _contentId = $"hl-collapsible-{Guid.NewGuid():N}";
+    private readonly string _titleId = $"hl-collapsible-{Guid.NewGuid():N}-title";
+    private readonly string _subtitleId = $"hl-collapsible-{Guid.NewGuid():N}-subtitle";
+    private bool _localOpen;
+    private bool _initialized;
+    private bool CurrentOpen => Open ?? _localOpen;
+
+    protected override void OnParametersSet()
+    {
+        if (string.IsNullOrWhiteSpace(Title)) throw new InvalidOperationException("title-required");
+        if (_initialized) return;
+        _localOpen = DefaultOpen;
+        _initialized = true;
+    }
+
+    private async Task ToggleAsync()
+    {
+        if (Disabled) return;
+        var next = !CurrentOpen;
+        if (Open is null) _localOpen = next;
+        await OpenChanged.InvokeAsync(next);
+    }
+}

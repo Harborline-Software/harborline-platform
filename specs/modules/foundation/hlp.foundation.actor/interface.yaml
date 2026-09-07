@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.foundation.actor",
+  "interfaceRevision": 1,
+  "status": "frozen",
+  "purpose": "Expose the authenticated user and resolve that same tenant-bound principal to a server-derived PartyId without importing authorization policy, session storage, or a People persistence implementation.",
+  "dependencies": [
+    {"moduleId": "hlp.contracts.identities", "interfaceRevision": 1},
+    {"moduleId": "hlp.foundation.tenancy", "interfaceRevision": 1}
+  ],
+  "types": {
+    "ICurrentUser": {"members": ["string UserId", "IReadOnlyList<string> Roles"]},
+    "IAuthenticatedActorContext": {
+      "extends": ["ICurrentUser", "Harborline.Foundation.MultiTenancy.ITenantContext"],
+      "members": []
+    },
+    "IPrincipalPartyResolver": {
+      "members": ["ValueTask<Guid?> ResolveAsync(string userId, TenantId tenantId, CancellationToken cancellationToken)"]
+    },
+    "IPartyContext": {
+      "members": ["ValueTask<Guid> GetCurrentPartyIdAsync(CancellationToken cancellationToken)"]
+    },
+    "PrincipalPartyResolutionFailure": ["NoAuthenticatedPrincipal", "TenantUnresolved", "TenantSentinel", "PartyNotProvisioned"],
+    "PrincipalPartyResolutionException": {"members": ["PrincipalPartyResolutionFailure Failure"]}
+  },
+  "operations": [
+    {
+      "id": "party.resolve-current",
+      "input": "IAuthenticatedActorContext plus IPrincipalPartyResolver",
+      "result": "server-derived Guid PartyId for the exact (Tenant.Id, UserId) pair"
+    }
+  ],
+  "selectedDesign": {
+    "choice": "narrow authenticated-actor composite",
+    "rejected": "Inject ICurrentUser and ITenantContext independently into PartyContext.",
+    "reason": "One composite instance makes same-authentication-scope user and tenant derivation structural without reintroducing authorization-policy members from the legacy sum interface."
+  },
+  "invariants": [
+    "UserId and Roles are host-derived current-principal values; Roles may be empty but UserId must be non-blank before party resolution.",
+    "The tenant and user used for party resolution come from one IAuthenticatedActorContext instance.",
+    "PartyId is server-derived; no public operation accepts an acting, worker, approver, or other caller-supplied PartyId.",
+    "An unresolved, default, or system-sentinel tenant fails before the resolver is called.",
+    "An unmapped or cross-tenant principal fails closed as PartyNotProvisioned.",
+    "Cancellation is forwarded to the resolver.",
+    "Roles do not authorize operations in this module; policy evaluation remains a separate boundary."
+  ],
+  "notScope": [
+    "authorization policy or permission evaluation",
+    "OIDC or Okta token validation",
+    "session establishment and persistence",
+    "People or Party persistence",
+    "in-memory production mappings and dependency-injection registration",
+    "principal-kind resolution",
+    "the legacy authorization ITenantContext sum interface"
+  ],
+  "projectionPolicy": {
+    "dotnet": "canonical implementation",
+    "react": "session consumer",
+    "blazor": "consumer through authenticated host scope"
+  },
+  "fixture": "conformance/hlp.foundation.actor/fixtures.yaml"
+}

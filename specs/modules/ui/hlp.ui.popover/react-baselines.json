@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "projection": "react",
+  "moduleId": "hlp.ui.popover",
+  "scenarios": [
+    {
+      "scenarioId": "popover.defaults",
+      "sha256": "d82b5943f6d727eee38be978567956434b358d41c25c422f2182a59a9a9a0682",
+      "bytes": 10808,
+      "artifact": "../baselines/sha256/d82b5943f6d727eee38be978567956434b358d41c25c422f2182a59a9a9a0682.png"
+    },
+    {
+      "scenarioId": "popover.dismissal",
+      "sha256": "2097953c92cd6bbafef18e262cd254d6de307cb30d4d48fd74b63e4a818baee4",
+      "bytes": 11111,
+      "artifact": "../baselines/sha256/2097953c92cd6bbafef18e262cd254d6de307cb30d4d48fd74b63e4a818baee4.png"
+    },
+    {
+      "scenarioId": "popover.rtl-theme",
+      "sha256": "043ccd59a70a2d495796593d1da0f792cc621749a6559be8f5260d90e7ee8eb3",
+      "bytes": 10166,
+      "artifact": "../baselines/sha256/043ccd59a70a2d495796593d1da0f792cc621749a6559be8f5260d90e7ee8eb3.png"
+    }
+  ]
+}

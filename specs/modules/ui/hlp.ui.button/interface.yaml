@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.button",
+  "interfaceRevision": 2,
+  "semantics": {
+    "operation": "render and activate a user action",
+    "observableOutput": "A native button semantic, normalized state attributes, ordered content regions, and at most one activation event."
+  },
+  "invariants": [
+    "The default root is a native button with type=button.",
+    "The default appearance is secondary, medium, solid, and medium radius.",
+    "Activation emits exactly one event only while enabled and not loading.",
+    "Loading remains focusable, emits no activation, preserves the label and trailing content, and exposes aria-busy and aria-disabled.",
+    "Icon-only use requires an accessible name.",
+    "Host and form attributes survive projection.",
+    "Every valid appearance combination maps to a non-empty style result.",
+    "Loading exposes a localized status message without changing the button's accessible name.",
+    "A host-supplied locale and text direction propagate to the rendered button in every projection.",
+    "Keyboard, focus-visible, forced-colors, reduced-motion, reflow, and bidirectional behavior satisfy the mandatory component quality profile."
+  ],
+  "errors": [
+    {"code": "accessible-name-required", "when": "The button has no text content and no explicit accessible name."},
+    {"code": "invalid-appearance", "when": "A value falls outside the closed interface vocabulary."}
+  ],
+  "configuration": {
+    "canonicalIntentVocabulary": ["primary", "secondary", "danger", "warning", "info", "success", "light", "dark", "subtle", "transparent"],
+    "canonicalSizes": ["small", "medium", "large"],
+    "localization": {
+      "componentOwnedKeys": ["common.loading"],
+      "fallbackLocale": "en-US",
+      "hostResponsibilities": ["supply translated catalog entries", "select locale", "select or derive text direction"],
+      "projectionInterfaces": [
+        "React HarborlineLocaleProvider and HarborlineStringCatalog",
+        "Blazor HarborlineLocaleProvider and Catalog parameter"
+      ]
+    }
+  },
+  "performance": {
+    "operation": "O(1) in-process rendering with no I/O",
+    "packageBudgets": {
+      "npm": {"packedBytesMaximum": 750000, "unpackedBytesMaximum": 3000000},
+      "nuget": {"packedBytesMaximum": 1500000, "unpackedBytesMaximum": 5000000}
+    }
+  },
+  "compatibility": {
+    "reactPublicIdentity": "@harborline-software/ui-react#Button",
+    "blazorPublicIdentity": "Harborline.UIAdapters.Blazor / HarborlineButton",
+    "blazorAssemblyIdentity": "Harborline.UIAdapters.Blazor",
+    "foundationVocabularyIdentity": "Harborline.Foundation / Harborline.Foundation.Enums",
+    "policy": "Preserve package and assembly identities until a separate consumer-audited decision."
+  },
+  "cases": [
+    {"id": "button.defaults"}, {"id": "button.activation"}, {"id": "button.disabled"},
+    {"id": "button.loading"}, {"id": "button.form"}, {"id": "button.content-order"},
+    {"id": "button.accessible-name"}, {"id": "button.host-attributes"}, {"id": "button.appearance"}
+  ]
+}

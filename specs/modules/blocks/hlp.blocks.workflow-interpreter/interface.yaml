@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.blocks.workflow-interpreter",
+  "interfaceRevision": 1,
+  "status": "frozen",
+  "purpose": "Execute any authored, admitted, persisted workflow definition through the engine core as the dispatcher's fallback, reaching every side-effect only through the public effect broker, in a separate assembly so broker-only effect reach is a compile-time fact.",
+  "dependencies": [
+    {"moduleId": "hlp.blocks.workflow", "minimumRevision": 1}
+  ],
+  "callerInterface": {
+    "name": "IDeclarativeWorkflowInterpreter",
+    "operations": [
+      "DecideAsync(instanceRecord, workflowTrigger, cancellationToken) -> WorkflowStepOutcome"
+    ],
+    "context": "The dispatcher consults the interpreter only when no typed per-definition handler matches. The confirmer is resolved server-side through IWorkflowConfirmationContext; the confirm payload supplies only the decision verb."
+  },
+  "invariants": [
+    "The interpreter loads a definition only through the re-validating execution store; a now-inadmissible pinned definition throws at load and never executes.",
+    "No interpreter type binds the lenient authoring store face or the concrete store in a constructor parameter or field.",
+    "Autonomous traversal walks exactly one autonomous outgoing edge per hop, bounded by the state count; ambiguity and dead ends fail closed.",
+    "A state whose outgoing edges are all HumanAction is a park point; arriving autonomously parks with the CP basis payload.",
+    "A human decision selects exactly one outgoing HumanAction transition via the decision:<verb> guard sentinel; an unmatched verb fails closed.",
+    "send-back is a bounded loop-back park; the dispatcher bumps the iteration and enforces the cap.",
+    "A CP effect request is re-derived from the pinned definition and durable instance state, never from the confirm payload, and builds only through the broker's SoD-gated confirm path.",
+    "A reject onto a terminal state records exactly one override and builds nothing.",
+    "The interpreter composes only the public broker and catalog seams; it cannot name the internal effect-factory surface."
+  ],
+  "errors": [
+    "workflow.admission.classification_mismatch",
+    "workflow.approval.separation_of_duties_violation"
+  ],
+  "selectedDesign": {
+    "choice": "A single stateless interpreter class over the execution store, broker, catalog, and server-side confirmation context, packaged apart from the engine core.",
+    "rejected": [
+      "Host the interpreter inside the engine-core assembly where internal factory types are nameable.",
+      "Trust confirm payload identity fields for the SoD check.",
+      "Evaluate guard expressions in v1 instead of the decision-verb sentinel."
+    ]
+  },
+  "behaviorEvidence": {
+    "sourceCapture": "migration://preprocessing/workflows/generated/workflow-engine-source.json",
+    "boundaryDecision": "migration://preprocessing/workflows/workflows-behavior-map.md"
+  },
+  "package": {"nuget": "Harborline.Blocks.Workflow.Interpreter", "assembly": "Harborline.Blocks.Workflow.Interpreter", "distribution": "internal-only"}
+}

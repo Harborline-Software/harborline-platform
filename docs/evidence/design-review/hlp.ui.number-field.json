@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.number-field",
+  "verdict": "approved",
+  "reviewer": "cic",
+  "recordedAt": "2026-08-27T05:31:45.865Z",
+  "reference": {
+    "revision": "dde0f3ae995ba3f9b3e050333f2a53236d1a705e224f16d4a889633540ec787d",
+    "source": "gallery/scenarios/hlp.ui.number-field.json",
+    "pin": "cc9eb48ed68c5033ec128cd53c40b1d2786bee66",
+    "surface": {
+      "conformance/hlp.ui.number-field/fixtures.yaml": "748c4d4414a1f44a0fcaf645608400dc054bdc55284fec840e4e234c53e9eb12",
+      "conformance/hlp.ui.number-field/quality-fixtures.yaml": "be7deaa6edabc27a8a2e35fa08de46b335336d7d60313a06fd3b25651c4f7efe",
+      "gallery/projections/blazor/Stories/NumberField.stories.razor": "e4327de510bfece020e3513454693796da56028bf4f45488f54ca9546ae69f59",
+      "gallery/projections/blazor/Stories/NumberFieldScenario.razor": "e012efba8d9fbcf32fa27012ea28fdeea3694db897d6025811922aa56971fc2f",
+      "gallery/projections/react/src/NumberField.stories.tsx": "be891f15db61569b111c69abfce1ffc03147fd2b43141b02876dab5afcebfdc1",
+      "gallery/scenarios/hlp.ui.number-field.json": "476194029e24e745e8ea7761c7979b8c078401cd3584158e6e59d639b7cb95f4",
+      "projections/blazor/ui/hlp.ui.number-field/ShipyardNumberField.razor": "479a0bbc86e581af188c261f5f98c822daebc98f63a98f019303ad8bcbeb3d01",
+      "projections/blazor/ui/hlp.ui.number-field/wwwroot/number-field.css": "053822085224f37c26701847765b686d5051122c9dd271a172b136dd65a6d8af",
+      "projections/react/ui/hlp.ui.number-field/src/NumberField.tsx": "a4f306057f38a5f7d4bc841bfc9d52fc6bd6197fc6a18cef0b56902bbde504ec",
+      "projections/react/ui/hlp.ui.number-field/src/index.ts": "51ba6ed748faf9623bfdb23f576f9d96b8edbf4b0e491c922d2355b2358f876e",
+      "projections/react/ui/hlp.ui.number-field/src/style.css": "6330ec9e45777d72b3b4ebaee9a18dbb9dabb66dd407d571947737ace9b5c232",
+      "specs/modules/ui/hlp.ui.number-field/scenarios.json": "476194029e24e745e8ea7761c7979b8c078401cd3584158e6e59d639b7cb95f4",
+      "specs/modules/ui/hlp.ui.number-field/style.css": "6330ec9e45777d72b3b4ebaee9a18dbb9dabb66dd407d571947737ace9b5c232"
+    }
+  }
+}

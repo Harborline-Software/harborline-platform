@@ -1,0 +1,240 @@
+.hl-data-grid {
+  --hl-data-grid-background: var(--hl-color-surface, #fff);
+  --hl-data-grid-foreground: var(--hl-color-text, #172033);
+  --hl-data-grid-border: var(--hl-color-border, #cbd3df);
+  --hl-data-grid-header: var(--hl-color-surface-subtle, #eef2f7);
+  --hl-data-grid-group: var(--hl-color-accent-subtle, #e8f0ff);
+  --hl-data-grid-selected: var(--hl-color-accent-subtle, #dbeafe);
+  --hl-data-grid-selected-text: var(--hl-data-grid-foreground);
+  --hl-data-grid-alternate: color-mix(in srgb, var(--hl-data-grid-foreground) 4%, transparent);
+  --hl-data-grid-focus: var(--hl-color-focus, var(--hl-focus, #8a3ffc));
+  background: var(--hl-data-grid-background);
+  border: 1px solid var(--hl-data-grid-border);
+  border-radius: var(--hl-radius-md, 0.5rem);
+  color: var(--hl-data-grid-foreground);
+  contain: layout paint;
+  inline-size: 100%;
+  min-inline-size: 0;
+  overflow: hidden;
+}
+
+.hl-data-grid__scroller {
+  overflow-x: auto;
+}
+
+.hl-data-grid__header,
+.hl-data-grid__viewport {
+  min-inline-size: max-content;
+}
+
+/* The viewport scrolls vertically and reserves a stable scrollbar gutter; the header does not scroll
+   and reserved nothing, so the two boxes differed in width by exactly the scrollbar. Both sit inside
+   the horizontal scroller, so the header ran out before the body did and the last columns stopped
+   lining up -- visible at the right edge, invisible to a per-column measurement taken at one scroll
+   offset, which is why an earlier pass measured columns 0, 7 and 19 as identical and found nothing.
+   Reserving the same gutter on the header makes the two boxes the same width. */
+.hl-data-grid__header {
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
+}
+
+/* The header reserves the gutter but never scrolls, so its scrollbar must not paint. */
+.hl-data-grid__header::-webkit-scrollbar { inline-size: 0; block-size: 0; }
+
+.hl-data-grid__viewport {
+  block-size: min(28rem, 70vh);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.hl-data-grid__canvas {
+  min-inline-size: max-content;
+  position: relative;
+}
+
+.hl-data-grid__row {
+  display: grid;
+  grid-template-columns: var(--hl-data-grid-columns);
+  inline-size: 100%;
+  min-inline-size: max-content;
+}
+
+.hl-data-grid__row:not(.hl-data-grid__row--header) {
+  block-size: 44px;
+  inset-inline: 0;
+  position: absolute;
+}
+
+.hl-data-grid__row--header {
+  background: var(--hl-data-grid-header);
+  border-block-end: 1px solid var(--hl-data-grid-border);
+  font-weight: 650;
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 2;
+}
+
+.hl-data-grid__header-cell,
+.hl-data-grid__cell {
+  align-items: center;
+  border-inline-end: 1px solid var(--hl-data-grid-border);
+  display: flex;
+  min-block-size: 44px;
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+  padding-block: 0.5rem;
+  padding-inline: 0.75rem;
+  text-align: start;
+}
+
+.hl-data-grid__header-cell:last-child,
+.hl-data-grid__cell:last-child {
+  border-inline-end: 0;
+}
+
+.hl-data-grid__row--leaf {
+  border-block-end: 1px solid var(--hl-data-grid-border);
+}
+
+.hl-data-grid[data-zebra='true'] .hl-data-grid__row--leaf[data-zebra-stripe='alternate'] {
+  background: var(--hl-data-grid-alternate);
+}
+
+.hl-data-grid__row--leaf[aria-selected='true'],
+.hl-data-grid[data-zebra='true'] .hl-data-grid__row--leaf[aria-selected='true'][data-zebra-stripe='alternate'] {
+  /* Themed tokens (light and dark blocks above); the system colour pair lives only inside forced-colors (below). */
+  background: var(--hl-data-grid-selected);
+  color: var(--hl-data-grid-selected-text);
+}
+
+.hl-data-grid__row--group {
+  background: var(--hl-data-grid-group);
+  border-block-end: 1px solid var(--hl-data-grid-border);
+  font-weight: 600;
+}
+
+.hl-data-grid__group-cell {
+  min-block-size: 44px;
+}
+
+.hl-data-grid__group-cell[data-group-depth] {
+  cursor: pointer;
+  gap: 0.5rem;
+  padding-inline-start: calc(0.75rem + var(--hl-group-depth, 0) * 1rem);
+  touch-action: manipulation;
+}
+
+.hl-data-grid__group-cell[data-group-depth='1'] { --hl-group-depth: 1; }
+.hl-data-grid__group-cell[data-group-depth='2'] { --hl-group-depth: 2; }
+.hl-data-grid__group-cell[data-group-depth='3'] { --hl-group-depth: 3; }
+
+.hl-data-grid__disclosure {
+  align-items: center;
+  block-size: 1rem;
+  display: inline-flex;
+  flex: 0 0 auto;
+  inline-size: 1rem;
+  justify-content: center;
+  transition: transform 150ms ease-out;
+}
+
+.hl-data-grid__disclosure[data-collapsed='true'] { transform: rotate(-90deg); }
+.hl-data-grid__disclosure svg { block-size: 1rem; inline-size: 1rem; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.75; }
+
+.hl-data-grid__group-count {
+  color: var(--hl-color-text-muted, #596579);
+  font-weight: 400;
+}
+
+.hl-data-grid__aggregate-note {
+  font-size: 0.875rem;
+  padding-block: 0.5rem;
+  padding-inline: 0.75rem;
+}
+
+.hl-data-grid__row[data-children-state] [aria-expanded] {
+  display: grid;
+  grid-template-columns: 1rem minmax(0, 1fr);
+  gap: 0 0.5rem;
+  padding-block: 0.25rem;
+}
+
+.hl-data-grid__row[data-children-state] .hl-data-grid__disclosure { grid-row: 1 / span 2; }
+.hl-data-grid__row[data-children-state] .hl-data-grid__group-cell-content,
+.hl-data-grid__row[data-children-state] [role='status'],
+.hl-data-grid__row[data-children-state] [role='alert'] {
+  grid-column: 2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hl-data-grid__row[data-children-state] [role='status'],
+.hl-data-grid__row[data-children-state] [role='alert'] { font-size: 0.875rem; line-height: 1; }
+
+.hl-data-grid__cell:focus-visible,
+.hl-data-grid__group-cell:focus-visible {
+  outline: 3px solid var(--hl-data-grid-focus);
+  outline-offset: -3px;
+  position: relative;
+  z-index: 1;
+}
+
+.hl-data-grid__row--empty {
+  position: static;
+}
+
+.hl-data-grid__empty {
+  grid-column: 1 / -1;
+}
+
+.hl-data-grid__visually-hidden {
+  block-size: 1px;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  inline-size: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+}
+
+[data-theme='dark'] .hl-data-grid {
+  --hl-data-grid-background: var(--hl-color-surface, #151b26);
+  --hl-data-grid-foreground: var(--hl-color-text, #f1f4f8);
+  --hl-data-grid-border: var(--hl-color-border, #445064);
+  --hl-data-grid-header: var(--hl-color-surface-subtle, #212a38);
+  --hl-data-grid-group: var(--hl-color-accent-subtle, #243653);
+  --hl-data-grid-selected: var(--hl-color-accent-subtle, #243653);
+  --hl-data-grid-selected-text: var(--hl-data-grid-foreground);
+  --hl-data-grid-focus: var(--hl-color-focus, var(--hl-focus, #c6b8ff));
+}
+
+@media (forced-colors: active) {
+  .hl-data-grid__row--leaf[aria-selected='true'],
+  .hl-data-grid[data-zebra='true'] .hl-data-grid__row--leaf[aria-selected='true'][data-zebra-stripe='alternate'] {
+    background: Highlight;
+    color: HighlightText;
+    forced-color-adjust: none;
+  }
+
+  .hl-data-grid,
+  .hl-data-grid__row,
+  .hl-data-grid__cell,
+  .hl-data-grid__header-cell {
+    border-color: CanvasText;
+  }
+
+  .hl-data-grid__cell:focus-visible,
+  .hl-data-grid__group-cell:focus-visible {
+    outline-color: Highlight;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hl-data-grid,
+  .hl-data-grid * {
+    scroll-behavior: auto;
+    transition: none;
+  }
+}

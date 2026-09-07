@@ -1,0 +1,7 @@
+{
+  "name": "calculations-npm-consumer",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Calculations capability vertical, renderer lane: the packed @harborline-software/rule-authoring bridge over the packed @harborline-software/rule-engine, driven through the 12-case authoring-verdict corpus (author -> lint -> publish fence -> compile -> evaluate -> trace)."
+}

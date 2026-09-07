@@ -1,0 +1,8 @@
+@attribute [Stories("Platform/Accordion")]
+<Stories TComponent="AccordionScenario">
+  <Story Name="Defaults"><Arguments><Arg For="_ => _.ScenarioId" Value='"accordion.defaults"' /></Arguments><Template><AccordionScenario @attributes="context.Args" /></Template></Story>
+  <Story Name="States and keyboard"><Arguments><Arg For="_ => _.ScenarioId" Value='"accordion.states"' /></Arguments><Template><AccordionScenario @attributes="context.Args" /></Template></Story>
+  <Story Name="Empty collection"><Arguments><Arg For="_ => _.ScenarioId" Value='"accordion.empty"' /></Arguments><Template><AccordionScenario @attributes="context.Args" /></Template></Story>
+  <Story Name="RTL and theme"><Arguments><Arg For="_ => _.ScenarioId" Value='"accordion.rtl-theme"' /></Arguments><Template><AccordionScenario @attributes="context.Args" /></Template></Story>
+  <Story Name="Content resilience"><Arguments><Arg For="_ => _.ScenarioId" Value='"accordion.content"'/></Arguments><Template><AccordionScenario @attributes="context.Args"/></Template></Story>
+</Stories>

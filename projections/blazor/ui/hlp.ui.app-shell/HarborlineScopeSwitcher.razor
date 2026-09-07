@@ -1,0 +1,34 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Layout
+@using Microsoft.AspNetCore.Components.Web
+
+@if (Options.Count == 1 && Presentation == "header")
+{ var only=Options[0]; <div class="hl-app-shell__switcher-static" data-switcher="@SwitcherId">@Monogram(only)<span class="hl-app-shell__switcher-label">@only.Label</span></div> }
+else if (Options.Count > 1)
+{
+<div class="hl-app-shell__switcher" data-switcher="@SwitcherId">
+  <button type="button" class="hl-app-shell__switcher-trigger" title="@Current.Label" aria-haspopup="menu" aria-expanded="@open.ToString().ToLowerInvariant()" @onclick="Toggle">@Monogram(Current)<span class="hl-app-shell__switcher-label">@Current.Label</span><span aria-hidden="true">⌄</span><span class="hl-visually-hidden">@ScopeLabel</span></button>
+  @if(open){<div class="hl-app-shell__switcher-menu" data-shell-scroll-region @onkeydown="HandleMenuKey">
+    @if(Options.Count>7){<input class="hl-app-shell__switcher-filter" aria-label="Filter" value="@query" @oninput="e=>query=e.Value?.ToString()??string.Empty" />}
+    @* the filter input sits beside the menu, not inside it: role="menu" only allows menu-item children *@
+    <div role="menu" aria-label="@ScopeLabel">
+    @foreach(var option in Visible){var pinned=Pins.Contains(option.Id);<div role="menuitemradio" aria-checked="@(option.Id==Current.Id?"true":"false")" tabindex="0" class="hl-app-shell__switcher-option" @onclick="()=>SelectAsync(option.Id)" @onkeydown="e=>HandleOptionKey(e,option.Id)">@Monogram(option)<span class="hl-app-shell__switcher-label">@option.Label</span>@* Pointer-only, presentational pin affordance: a menu-item row allows no nested interactive or
+   AT-visible content, so this is a span, not a button. Keyboard and AT users pin from the rail. *@
+@if(option.Pinnable){<span aria-hidden="true" class="hl-app-shell__pin-toggle" title="@($"{(pinned?"Unpin":"Pin")} {option.Label}")" @onclick="()=>TogglePinAsync(option.Id)" @onclick:stopPropagation><svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="@(pinned?"M12 17v5M15 9.34V6h1a2 2 0 0 0 0-4H7.89M2 2l20 20M9 9v1.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h11":"M12 17v5M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1z")" /></svg></span>}</div>}
+    @if(DirectoryLabel is not null){<div role="menuitem" tabindex="0" class="hl-app-shell__switcher-option" @onclick="InvokeDirectoryAsync">@DirectoryLabel</div>}
+    </div>
+  </div>}
+</div>
+}
+
+@code{
+ [Parameter,EditorRequired]public string SwitcherId{get;set;}="";[Parameter,EditorRequired]public string ShellId{get;set;}="";[Parameter]public IShellStorage? Storage{get;set;}[Parameter,EditorRequired]public IReadOnlyList<ShellScopeOption> Options{get;set;}=[];[Parameter]public string? ActiveId{get;set;}[Parameter]public EventCallback<string> ActiveIdChanged{get;set;}[Parameter]public IReadOnlyList<string>? PinnedIds{get;set;}[Parameter]public EventCallback<IReadOnlyList<string>> PinnedIdsChanged{get;set;}[Parameter]public int PinCap{get;set;}=4;[Parameter]public string ScopeLabel{get;set;}="Scopes";[Parameter]public string? DirectoryLabel{get;set;}[Parameter]public EventCallback DirectoryInvoked{get;set;}[Parameter]public string Presentation{get;set;}="rail";
+ private bool open,initialized;private string query="",localActive="";private List<string> localPins=[];private string CurrentId=>ActiveId??localActive;private IReadOnlyList<string> Pins=>PinnedIds??localPins;private ShellScopeOption Current=>Options.FirstOrDefault(o=>o.Id==CurrentId)??Options[0];private IEnumerable<ShellScopeOption> Visible=>OrderOptions(Options,Current.Id,Pins).Where(o=>string.IsNullOrEmpty(query)||o.Label.Contains(query,StringComparison.OrdinalIgnoreCase));
+ protected override void OnParametersSet(){if(!initialized){localActive=Options.FirstOrDefault()?.Id??"";initialized=true;}}
+ protected override async Task OnAfterRenderAsync(bool first){if(!first)return;var changed=false;if(ActiveId is null){var value=await ShellPersistence.ReadStringAsync(Storage,ShellPersistence.Key(ShellId,"switcher",SwitcherId,"active"));if(value is not null){localActive=value;changed=true;}}if(PinnedIds is null){var value=await ShellPersistence.ReadArrayAsync(Storage,ShellPersistence.Key(ShellId,"switcher",SwitcherId,"pins"));if(value is not null){localPins=[..value];changed=true;}}if(changed)StateHasChanged();}
+ public static IReadOnlyList<ShellScopeOption> OrderOptions(IReadOnlyList<ShellScopeOption> options,string? activeId,IReadOnlyList<string> pins){var result=options.Where(o=>o.Id==activeId).ToList();foreach(var id in pins){var option=options.FirstOrDefault(o=>o.Id==id);if(option is not null&&option.Id!=activeId)result.Add(option);}result.AddRange(options.Where(o=>o.Id!=activeId&&!pins.Contains(o.Id)));return result;}
+ private RenderFragment Monogram(ShellScopeOption o)=>b=>{b.OpenElement(0,"span");b.AddAttribute(1,"class","hl-app-shell__monogram");b.AddAttribute(2,"aria-hidden","true");if(o.Icon is not null){b.AddContent(3,o.Icon);b.CloseElement();return;}b.AddContent(3,(o.Monogram??string.Concat(o.Label.Split(' ',StringSplitOptions.RemoveEmptyEntries).Select(w=>w[0])).PadRight(1)[..Math.Min(2,Math.Max(1,string.Concat(o.Label.Split(' ',StringSplitOptions.RemoveEmptyEntries).Select(w=>w[0])).Length))]).ToUpperInvariant());b.CloseElement();};
+ private void Toggle(){open=!open;if(!open)query="";}private void Close(){open=false;query="";}
+ private async Task SelectAsync(string id){if(id!=Current.Id){if(ActiveId is null)localActive=id;ShellPersistence.Write(Storage,ShellPersistence.Key(ShellId,"switcher",SwitcherId,"active"),id);await ActiveIdChanged.InvokeAsync(id);}Close();}
+ private async Task TogglePinAsync(string id){var next=Pins.ToList();if(next.Remove(id)){}else{if(next.Count>=PinCap&&PinnedIds is null)return;next.Add(id);if(next.Count>PinCap&&PinnedIds is null)return;}if(PinnedIds is null)localPins=next;ShellPersistence.Write(Storage,ShellPersistence.Key(ShellId,"switcher",SwitcherId,"pins"),next);await PinnedIdsChanged.InvokeAsync(next);}
+ private Task HandleMenuKey(KeyboardEventArgs e){if(e.Key=="Escape")Close();return Task.CompletedTask;}private Task HandleOptionKey(KeyboardEventArgs e,string id)=>(e.Key is "Enter" or " ")?SelectAsync(id):Task.CompletedTask;private async Task InvokeDirectoryAsync(){Close();await DirectoryInvoked.InvokeAsync();}
+}

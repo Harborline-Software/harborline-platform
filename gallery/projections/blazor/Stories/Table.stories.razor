@@ -1,0 +1,8 @@
+@attribute [Stories("Platform/Table")]
+<Stories TComponent="TableScenario">
+    <Story Name="Semantic table"><Arguments><Arg For="_ => _.ScenarioId" Value='"table.semantic"' /></Arguments><Template><TableScenario @attributes="context.Args" /></Template></Story>
+    <Story Name="Density"><Arguments><Arg For="_ => _.ScenarioId" Value='"table.density"' /></Arguments><Template><TableScenario @attributes="context.Args" /></Template></Story>
+    <Story Name="Narrow viewport"><Arguments><Arg For="_ => _.ScenarioId" Value='"table.reflow"' /></Arguments><Template><TableScenario @attributes="context.Args" /></Template></Story>
+    <Story Name="Theme parity"><Arguments><Arg For="_ => _.ScenarioId" Value='"table.theme"' /></Arguments><Template><TableScenario @attributes="context.Args" /></Template></Story>
+    <Story Name="Content resilience"><Arguments><Arg For="_ => _.ScenarioId" Value='"table.content"'/></Arguments><Template><TableScenario @attributes="context.Args"/></Template></Story>
+</Stories>

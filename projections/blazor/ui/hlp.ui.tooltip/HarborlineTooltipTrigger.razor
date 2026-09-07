@@ -1,0 +1,21 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Feedback
+@inherits HarborlineComponentBase
+
+<button type="@Type" aria-describedby="@(Context?.Open == true ? Context.ContentId : null)"
+        class="@CombineClasses()" style="@CombineStyles()"
+        @onmouseenter="EnterAsync" @onmouseleave="LeaveAsync"
+        @onfocus="FocusAsync" @onblur="BlurAsync"
+        @onkeydown="HandleKeyAsync" @attributes="AdditionalAttributes">@ChildContent</button>
+
+@code {
+    [CascadingParameter] public TooltipContext? Context { get; set; }
+    [Parameter] public string Type { get; set; } = "button";
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    private Task EnterAsync() => Context?.SetHoverAsync(true) ?? Task.CompletedTask;
+    private Task LeaveAsync() => Context?.SetHoverAsync(false) ?? Task.CompletedTask;
+    private Task FocusAsync() => Context?.SetFocusAsync(true) ?? Task.CompletedTask;
+    private Task BlurAsync() => Context?.SetFocusAsync(false) ?? Task.CompletedTask;
+    private Task HandleKeyAsync(KeyboardEventArgs args) => args.Key == "Escape"
+        ? Context?.DismissAsync() ?? Task.CompletedTask
+        : Task.CompletedTask;
+}

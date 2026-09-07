@@ -1,0 +1,536 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.switch",
+  "sourceFixture": "conformance/hlp.ui.switch/fixtures.yaml",
+  "qualityFixture": "conformance/hlp.ui.switch/quality-fixtures.yaml",
+  "galleryInterface": {
+    "probeAttribute": "data-gallery-probe",
+    "scenarioAttribute": "data-gallery-scenario",
+    "projectionTitles": {
+      "react": "Platform/Switch",
+      "blazor": "Platform/Switch"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "switch.states",
+      "name": "Controlled state and stable naming",
+      "surface": "states",
+      "sourceCaseIds": [
+        "switch.uncontrolled",
+        "switch.controlled",
+        "switch.stable-name",
+        "switch.visible-label",
+        "switch.state-copy",
+        "switch.description",
+        "switch.form-field"
+      ],
+      "sourceQualityCaseIds": [
+        "switch.quality.pattern",
+        "switch.quality.stable-name",
+        "switch.quality.focus"
+      ],
+      "content": {
+        "blurb": "Visible labels and descriptions name one switch while state copy changes independently.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "id": "inspection-alerts-sm",
+          "name": "inspectionAlertsSm",
+          "checked": false,
+          "label": "Inspection alerts",
+          "accessibleName": "Inspection alerts",
+          "description": "Notify every structure owner",
+          "onText": "Enabled",
+          "offText": "Disabled",
+          "size": "sm",
+          "disabled": false,
+          "error": false,
+          "required": false
+        },
+        "state": {
+          "small": {
+            "kind": "flag",
+            "initial": false
+          },
+          "medium": {
+            "kind": "flag",
+            "initial": true
+          },
+          "large": {
+            "kind": "flag",
+            "initial": true
+          }
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<SwitchFixture scenarioId={scenarioId} size=\"sm\" />; <SwitchFixture scenarioId={scenarioId} size=\"md\" />; <SwitchFixture scenarioId={scenarioId} size=\"lg\" disabled />",
+            "blazor": "<HarborlineSwitch Id=\"inspection-alerts-sm\" Name=\"inspectionAlertsSm\" Checked=\"@small\" Label=\"@Label\" AccessibleName=\"@AccessibleName\" Description=\"@Description\" OnText=\"@OnText\" OffText=\"@OffText\" Size=\"SwitchSize.Sm\" />; <HarborlineSwitch Id=\"inspection-alerts-md\" Name=\"inspectionAlertsMd\" Checked=\"@medium\" Size=\"SwitchSize.Md\" />; <HarborlineSwitch Id=\"inspection-alerts-lg\" Name=\"inspectionAlertsLg\" Checked=\"@large\" Size=\"SwitchSize.Lg\" Disabled=\"true\" />",
+            "rationale": "The closed descriptor vocabulary has no switch control and cannot express the three interactive binary controls, their sizes, checked bindings, disabled state, descriptions, or on/off state copy."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "switch.activation-validation",
+      "name": "Activation, validation, and form value",
+      "surface": "activation-validation",
+      "interaction": "keyboard",
+      "sourceCaseIds": [
+        "switch.pointer",
+        "switch.keyboard",
+        "switch.disabled",
+        "switch.validation",
+        "switch.form-value"
+      ],
+      "sourceQualityCaseIds": [
+        "switch.quality.keyboard",
+        "switch.quality.validation",
+        "switch.quality.forced-colors"
+      ],
+      "content": {
+        "blurb": "Pointer, Space, and Enter toggle once; disabled and invalid states remain explicit.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "id": "inspection-alerts-sm",
+          "name": "inspectionAlertsSm",
+          "checked": false,
+          "label": "Inspection alerts",
+          "accessibleName": "Inspection alerts",
+          "description": "Notify every structure owner",
+          "onText": "Enabled",
+          "offText": "Disabled",
+          "size": "sm",
+          "disabled": false,
+          "error": false,
+          "required": false
+        },
+        "state": {
+          "small": {
+            "kind": "flag",
+            "initial": false
+          },
+          "medium": {
+            "kind": "flag",
+            "initial": true
+          },
+          "large": {
+            "kind": "flag",
+            "initial": true
+          }
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<SwitchFixture scenarioId={scenarioId} size=\"sm\" />; <SwitchFixture scenarioId={scenarioId} size=\"md\" error />; <SwitchFixture scenarioId={scenarioId} size=\"lg\" disabled />",
+            "blazor": "<HarborlineSwitch Id=\"inspection-alerts-sm\" Name=\"inspectionAlertsSm\" Checked=\"@small\" Size=\"SwitchSize.Sm\" />; <HarborlineSwitch Id=\"inspection-alerts-md\" Name=\"inspectionAlertsMd\" Checked=\"@medium\" Size=\"SwitchSize.Md\" Error=\"true\" Required=\"true\" />; <HarborlineSwitch Id=\"inspection-alerts-lg\" Name=\"inspectionAlertsLg\" Checked=\"@large\" Size=\"SwitchSize.Lg\" Disabled=\"true\" />",
+            "rationale": "The closed descriptor vocabulary has no switch control and cannot express three interactive binary controls, including the medium invalid/required state and the large disabled state."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "switch.sizing",
+      "name": "Sizes and touch target",
+      "surface": "sizing",
+      "sourceCaseIds": [
+        "switch.sizes",
+        "switch.touch-target"
+      ],
+      "sourceQualityCaseIds": [
+        "switch.quality.targets",
+        "switch.quality.reflow"
+      ],
+      "content": {
+        "blurb": "Canonical sizes retain semantics while coarse pointers receive a 44-pixel target.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "id": "inspection-alerts-sm",
+          "name": "inspectionAlertsSm",
+          "checked": false,
+          "label": "Inspection alerts",
+          "accessibleName": "Inspection alerts",
+          "description": "Notify every structure owner",
+          "onText": "Enabled",
+          "offText": "Disabled",
+          "size": "sm",
+          "disabled": false,
+          "error": false,
+          "required": false
+        },
+        "state": {
+          "small": {
+            "kind": "flag",
+            "initial": false
+          },
+          "medium": {
+            "kind": "flag",
+            "initial": true
+          },
+          "large": {
+            "kind": "flag",
+            "initial": true
+          }
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<SwitchFixture scenarioId={scenarioId} size=\"sm\" />; <SwitchFixture scenarioId={scenarioId} size=\"md\" />; <SwitchFixture scenarioId={scenarioId} size=\"lg\" />",
+            "blazor": "<HarborlineSwitch Id=\"inspection-alerts-sm\" Name=\"inspectionAlertsSm\" Checked=\"@small\" Size=\"SwitchSize.Sm\" />; <HarborlineSwitch Id=\"inspection-alerts-md\" Name=\"inspectionAlertsMd\" Checked=\"@medium\" Size=\"SwitchSize.Md\" />; <HarborlineSwitch Id=\"inspection-alerts-lg\" Name=\"inspectionAlertsLg\" Checked=\"@large\" Size=\"SwitchSize.Lg\" />",
+            "rationale": "The closed descriptor vocabulary has no switch control and cannot preserve the three rendered interactive controls or their sm, md, and lg size variants."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "switch.locale-en",
+      "name": "English locale",
+      "surface": "locale-en",
+      "sourceCaseIds": [
+        "switch.state-copy"
+      ],
+      "sourceQualityCaseIds": [
+        "switch.quality.locales"
+      ],
+      "content": {
+        "blurb": "Catalog-backed state copy and caller labels remain separate.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "id": "inspection-alerts-sm",
+          "name": "inspectionAlertsSm",
+          "checked": false,
+          "label": "Inspection alerts",
+          "accessibleName": "Inspection alerts",
+          "description": "Notify every structure owner",
+          "onText": "Enabled",
+          "offText": "Disabled",
+          "size": "sm",
+          "disabled": false,
+          "error": false,
+          "required": false
+        },
+        "state": {
+          "small": {
+            "kind": "flag",
+            "initial": false
+          }
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<SwitchFixture scenarioId={scenarioId} size=\"sm\" />",
+            "blazor": "<HarborlineSwitch Id=\"inspection-alerts-sm\" Name=\"inspectionAlertsSm\" Checked=\"@small\" CheckedChanged=\"@(next => small = next)\" Label=\"@Label\" AccessibleName=\"@AccessibleName\" Description=\"@Description\" OnText=\"@OnText\" OffText=\"@OffText\" Size=\"SwitchSize.Sm\" />",
+            "rationale": "The closed descriptor vocabulary has no switch control and cannot express the interactive checked binding, visible label and description, accessible name, or state copy."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "switch.locale-pseudo",
+      "name": "Pseudo locale",
+      "surface": "locale-pseudo",
+      "sourceCaseIds": [
+        "switch.description"
+      ],
+      "sourceQualityCaseIds": [
+        "switch.quality.pseudo"
+      ],
+      "content": {
+        "blurb": "Expanded labels and descriptions reflow without clipping.",
+        "environment": {
+          "locale": "en-XA",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "id": "inspection-alerts-sm",
+          "name": "inspectionAlertsSm",
+          "checked": false,
+          "label": "⟦ Îñšþëçţîøñ åļëřţš åñđ řëmîñđëřš ······ ⟧",
+          "accessibleName": "Inspection alerts",
+          "description": "⟦ Ñøţîƒÿ ëṽëřÿ šţřûçţûřë øŵñëř ······ ⟧",
+          "onText": "Enabled",
+          "offText": "Disabled",
+          "size": "sm",
+          "disabled": false,
+          "error": false,
+          "required": false
+        },
+        "state": {
+          "small": {
+            "kind": "flag",
+            "initial": false
+          }
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<SwitchFixture scenarioId={scenarioId} size=\"sm\" />",
+            "blazor": "<HarborlineSwitch Id=\"inspection-alerts-sm\" Name=\"inspectionAlertsSm\" Checked=\"@small\" CheckedChanged=\"@(next => small = next)\" Label=\"@Label\" AccessibleName=\"@AccessibleName\" Description=\"@Description\" OnText=\"@OnText\" OffText=\"@OffText\" Size=\"SwitchSize.Sm\" />",
+            "rationale": "The closed descriptor vocabulary has no switch control and cannot express the localized interactive control, its checked binding, or its distinct visible and accessible strings."
+          }
+        ],
+        "footer": [],
+        "inherits": "switch.locale-en"
+      }
+    },
+    {
+      "id": "switch.locale-ar",
+      "name": "Arabic locale",
+      "surface": "locale-ar",
+      "sourceCaseIds": [
+        "switch.rtl"
+      ],
+      "sourceQualityCaseIds": [
+        "switch.quality.rtl"
+      ],
+      "content": {
+        "blurb": "The thumb moves toward logical inline-end while content order remains stable.",
+        "environment": {
+          "locale": "ar-SA",
+          "direction": "rtl",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "id": "inspection-alerts-sm",
+          "name": "inspectionAlertsSm",
+          "checked": false,
+          "label": "تنبيهات الفحص",
+          "accessibleName": "تنبيهات الفحص",
+          "description": "إعلام جميع مالكي الهيكل",
+          "onText": "مفعل",
+          "offText": "متوقف",
+          "size": "sm",
+          "disabled": false,
+          "error": false,
+          "required": false
+        },
+        "state": {
+          "small": {
+            "kind": "flag",
+            "initial": false
+          }
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<SwitchFixture scenarioId={scenarioId} size=\"sm\" />",
+            "blazor": "<HarborlineSwitch Id=\"inspection-alerts-sm\" Name=\"inspectionAlertsSm\" Checked=\"@small\" CheckedChanged=\"@(next => small = next)\" Label=\"@Label\" AccessibleName=\"@AccessibleName\" Description=\"@Description\" OnText=\"@OnText\" OffText=\"@OffText\" Size=\"SwitchSize.Sm\" />",
+            "rationale": "The closed descriptor vocabulary has no switch control and cannot express the Arabic interactive control, checked binding, localized state copy, or RTL thumb behavior."
+          }
+        ],
+        "footer": [],
+        "inherits": "switch.locale-en"
+      }
+    },
+    {
+      "id": "switch.theme-light",
+      "name": "Light theme",
+      "surface": "theme-light",
+      "sourceCaseIds": [
+        "switch.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "switch.quality.themes",
+        "switch.quality.tokens",
+        "switch.quality.contrast",
+        "switch.quality.reduced-motion",
+        "switch.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "Off, on, invalid, disabled, and focus states use public light-theme tokens.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "id": "inspection-alerts-sm",
+          "name": "inspectionAlertsSm",
+          "checked": false,
+          "label": "Inspection alerts",
+          "accessibleName": "Inspection alerts",
+          "description": "Notify every structure owner",
+          "onText": "Enabled",
+          "offText": "Disabled",
+          "size": "sm",
+          "disabled": false,
+          "error": false,
+          "required": false
+        },
+        "state": {
+          "small": {
+            "kind": "flag",
+            "initial": false
+          },
+          "medium": {
+            "kind": "flag",
+            "initial": true
+          },
+          "large": {
+            "kind": "flag",
+            "initial": true
+          }
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<SwitchFixture scenarioId={scenarioId} size=\"sm\" />; <SwitchFixture scenarioId={scenarioId} size=\"md\" />; <SwitchFixture scenarioId={scenarioId} size=\"lg\" />",
+            "blazor": "<HarborlineSwitch Id=\"inspection-alerts-sm\" Name=\"inspectionAlertsSm\" Checked=\"@small\" Size=\"SwitchSize.Sm\" />; <HarborlineSwitch Id=\"inspection-alerts-md\" Name=\"inspectionAlertsMd\" Checked=\"@medium\" Size=\"SwitchSize.Md\" />; <HarborlineSwitch Id=\"inspection-alerts-lg\" Name=\"inspectionAlertsLg\" Checked=\"@large\" Size=\"SwitchSize.Lg\" />",
+            "rationale": "The closed descriptor vocabulary has no switch control and cannot express the three interactive controls whose off/on/focus rendering is being evaluated under the light theme."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "switch.theme-dark",
+      "name": "Dark theme",
+      "surface": "theme-dark",
+      "sourceCaseIds": [
+        "switch.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "switch.quality.themes",
+        "switch.quality.tokens",
+        "switch.quality.contrast",
+        "switch.quality.reduced-motion",
+        "switch.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "The same binary control on the Harborline dark surface.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "dark",
+          "catalog": {}
+        },
+        "props": {
+          "id": "inspection-alerts-sm",
+          "name": "inspectionAlertsSm",
+          "checked": false,
+          "label": "Inspection alerts",
+          "accessibleName": "Inspection alerts",
+          "description": "Notify every structure owner",
+          "onText": "Enabled",
+          "offText": "Disabled",
+          "size": "sm",
+          "disabled": false,
+          "error": false,
+          "required": false
+        },
+        "state": {
+          "small": {
+            "kind": "flag",
+            "initial": false
+          },
+          "medium": {
+            "kind": "flag",
+            "initial": true
+          },
+          "large": {
+            "kind": "flag",
+            "initial": true
+          }
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<SwitchFixture scenarioId={scenarioId} size=\"sm\" />; <SwitchFixture scenarioId={scenarioId} size=\"md\" />; <SwitchFixture scenarioId={scenarioId} size=\"lg\" />",
+            "blazor": "<HarborlineSwitch Id=\"inspection-alerts-sm\" Name=\"inspectionAlertsSm\" Checked=\"@small\" Size=\"SwitchSize.Sm\" />; <HarborlineSwitch Id=\"inspection-alerts-md\" Name=\"inspectionAlertsMd\" Checked=\"@medium\" Size=\"SwitchSize.Md\" />; <HarborlineSwitch Id=\"inspection-alerts-lg\" Name=\"inspectionAlertsLg\" Checked=\"@large\" Size=\"SwitchSize.Lg\" />",
+            "rationale": "The closed descriptor vocabulary has no switch control and cannot express the three interactive controls whose binary rendering is being evaluated under the dark theme."
+          }
+        ],
+        "footer": [],
+        "inherits": "switch.theme-light"
+      }
+    },
+    {
+      "id": "switch.content",
+      "name": "Content resilience",
+      "surface": "long-content",
+      "sourceCaseIds": [
+        "switch.description",
+        "switch.state-copy"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "Two switches expose a long label, a grouped large number, escaped angle brackets and ampersand text, and a name with diacritics and an em dash.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<><Switch checked label={'Awaiting third-party structural certification review'} accessibleName={'Awaiting third-party structural certification review'} description={'Bay 4 <grid C-7> & 8'} onText={'1,284,905'} /><Switch checked={false} label={'Ordnance Survey — Niño Ångström'} accessibleName={'Ordnance Survey — Niño Ångström'} /></>",
+            "blazor": "<HarborlineSwitch Checked=\"true\" Label=\"@(\"Awaiting third-party structural certification review\")\" AccessibleName=\"@(\"Awaiting third-party structural certification review\")\" Description=\"@(\"Bay 4 <grid C-7> & 8\")\" OnText=\"@(\"1,284,905\")\" /><HarborlineSwitch Checked=\"false\" Label=\"@(\"Ordnance Survey — Niño Ångström\")\" AccessibleName=\"@(\"Ordnance Survey — Niño Ångström\")\" />",
+            "rationale": "The closed descriptor vocabulary has no switch control and cannot express visible hostile-but-valid label, description, and state-copy content across two binary controls."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "switch.error-state",
+      "name": "Error state",
+      "surface": "invalid-input",
+      "sourceCaseIds": [
+        "switch.validation",
+        "switch.stable-name"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "The required switch exposes its invalid state while retaining a stable accessible name.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<Switch checked={false} label=\"Inspection alerts\" accessibleName=\"Inspection alerts\" description=\"Resolve the validation error\" offText=\"Off\" error required />",
+            "blazor": "<HarborlineSwitch Checked=\"false\" Label=\"Inspection alerts\" AccessibleName=\"Inspection alerts\" Description=\"Resolve the validation error\" OffText=\"Off\" Error=\"true\" Required=\"true\" />",
+            "rationale": "The closed descriptor vocabulary has no switch control and cannot express its invalid, required state together with a stable accessible name and visible recovery description."
+          }
+        ],
+        "footer": []
+      }
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "projection": "react",
+  "moduleId": "hlp.ui.collapsible",
+  "scenarios": [
+    {
+      "scenarioId": "collapsible.defaults",
+      "sha256": "f2663cab4d2c1f0ef2daaac5eebd622f14693ae73f0f2ec44e582ce8c1d4fe49",
+      "bytes": 12278,
+      "artifact": "../baselines/sha256/f2663cab4d2c1f0ef2daaac5eebd622f14693ae73f0f2ec44e582ce8c1d4fe49.png"
+    },
+    {
+      "scenarioId": "collapsible.states",
+      "sha256": "a93918075495e130cb481c1b6dc6d2174e712fbb8be7464de0069dd671b0290c",
+      "bytes": 11015,
+      "artifact": "../baselines/sha256/a93918075495e130cb481c1b6dc6d2174e712fbb8be7464de0069dd671b0290c.png"
+    },
+    {
+      "scenarioId": "collapsible.rtl-theme",
+      "sha256": "878663733c709411206b440e65f89599d3a28b973c12947aacc27aceffe40e03",
+      "bytes": 10806,
+      "artifact": "../baselines/sha256/878663733c709411206b440e65f89599d3a28b973c12947aacc27aceffe40e03.png"
+    }
+  ]
+}

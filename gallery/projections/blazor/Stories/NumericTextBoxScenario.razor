@@ -1,0 +1,126 @@
+<section class="hl-gallery-scene" data-gallery-probe data-gallery-scenario="@ScenarioId" data-theme="@Theme" dir="@Direction">
+  <header class="hl-gallery-heading"><h2>@Copy.Title</h2><p>@Copy.Description</p></header>
+  <div class="hl-gallery-stage">
+    <HarborlineLocaleProvider Locale="@ContextLocale">
+      @if (ScenarioId == "numeric-text-box.content")
+      {
+        <div class="hl-gallery-feedback-grid">
+          <LabeledNumericValue Label="Awaiting third-party structural certification review"><HarborlineNumericTextBox AccessibleLabel="Awaiting third-party structural certification review" Decimals="0" Value="1284905" /></LabeledNumericValue>
+          <LabeledNumericValue Label="Ordnance Survey — Niño Ångström" Note="@("Bay 4 <grid C-7> & 8")"><HarborlineNumericTextBox AccessibleLabel="Ordnance Survey — Niño Ångström" Decimals="0" Value="8" /></LabeledNumericValue>
+        </div>
+      }
+      else if (ScenarioId == "numeric-text-box.error-state")
+      {
+        <LabeledNumericValue Label="Total amount"><HarborlineNumericTextBox AccessibleLabel="Total amount" Error Value="125.5" /></LabeledNumericValue>
+      }
+      else if (ScenarioId == "numeric-text-box.formats")
+      {
+        <div class="hl-gallery-feedback-grid">
+          <LabeledNumericValue Label="Plain"><HarborlineNumericTextBox AccessibleLabel="Plain amount" Locale="en-US" Value="1234.5" /></LabeledNumericValue>
+          <LabeledNumericValue Label="Currency, zero decimals"><HarborlineNumericTextBox AccessibleLabel="Replacement cost" Currency="USD" Format="c0" Locale="en-US" Value="1234.5" /></LabeledNumericValue>
+          <LabeledNumericValue Label="Percentage"><HarborlineNumericTextBox AccessibleLabel="Completion" Format="p2" Locale="en-US" Value="0.125" /></LabeledNumericValue>
+        </div>
+      }
+      else if (ScenarioId == "numeric-text-box.disabled-readonly")
+      {
+        <div class="hl-gallery-feedback-grid">
+          <LabeledNumericValue Label="Disabled"><HarborlineNumericTextBox AccessibleLabel="Disabled amount" Disabled Value="42" /></LabeledNumericValue>
+          <LabeledNumericValue Label="Readonly"><HarborlineNumericTextBox AccessibleLabel="Readonly amount" ReadOnly Value="42" /></LabeledNumericValue>
+        </div>
+      }
+      else if (ScenarioId == "numeric-text-box.appearance-reflow")
+      {
+        <div class="hl-gallery-feedback-stack" style="max-width:320px">
+          <LabeledNumericValue Label="Small · flat"><HarborlineNumericTextBox AccessibleLabel="Small amount" FillMode="NumericTextBoxFillMode.Flat" Rounded="NumericTextBoxRounded.Small" Size="NumericTextBoxSize.Small" Value="12.5" /></LabeledNumericValue>
+          <LabeledNumericValue Label="Medium · solid"><HarborlineNumericTextBox AccessibleLabel="Medium amount" FillMode="NumericTextBoxFillMode.Solid" Rounded="NumericTextBoxRounded.Medium" Size="NumericTextBoxSize.Medium" Value="12.5" /></LabeledNumericValue>
+          <LabeledNumericValue Label="Large · outline"><HarborlineNumericTextBox AccessibleLabel="Large amount" FillMode="NumericTextBoxFillMode.Outline" Rounded="NumericTextBoxRounded.Full" Size="NumericTextBoxSize.Large" Value="12.5" /></LabeledNumericValue>
+        </div>
+      }
+      else if (ScenarioId == "numeric-text-box.locale-pseudo")
+      {
+        <LabeledNumericValue Label="⟦ Řëþļåçëmëñţ çøšţ ······ ⟧">
+          <HarborlineNumericTextBox AccessibleLabel="⟦ Řëþļåçëmëñţ çøšţ ······ ⟧" DecrementLabel="⟦ Đëçřëåšë ṽåļûë ···· ⟧"
+                                  IncrementLabel="⟦ Îñçřëåšë ṽåļûë ···· ⟧" Placeholder="⟦ Ëñţëř åñ åmøûñţ ········ ⟧" Value="@(null)" />
+        </LabeledNumericValue>
+      }
+      else if (ScenarioId == "numeric-text-box.locale-ar")
+      {
+        <LabeledNumericValue Label="تكلفة الاستبدال" Note="French formatting locale inside Arabic layout direction">
+          <HarborlineNumericTextBox AccessibleLabel="تكلفة الاستبدال" Currency="EUR" Format="c2" Locale="fr-FR" Value="1234.5" />
+        </LabeledNumericValue>
+      }
+      else if (ScenarioId == "numeric-text-box.defaults")
+      {
+        <div class="hl-gallery-feedback-grid">
+          <LabeledNumericValue Label="Controlled value"><HarborlineNumericTextBox AccessibleLabel="Controlled amount" Id="controlled-amount" Name="controlledAmount" Required Value="42" /></LabeledNumericValue>
+          <LabeledNumericValue Label="Controlled null"><HarborlineNumericTextBox AccessibleLabel="Nullable amount" Placeholder="Amount" Value="@(null)" /></LabeledNumericValue>
+          <LabeledNumericValue Label="Uncontrolled default"><HarborlineNumericTextBox AccessibleLabel="Initial amount" DefaultValue="99" /></LabeledNumericValue>
+        </div>
+      }
+      else
+      {
+        <div class="hl-gallery-feedback-stack">
+          <LabeledNumericValue Label="@EditorLabel" Note="@EditorNote">
+            <HarborlineNumericTextBox AccessibleLabel="Replacement cost" Currency="USD" Format="@(IsStepping ? null : "c2")"
+                                    Min="@(IsStepping ? 2 : 0)" Max="@(IsStepping ? 10 : null)" Step="@(IsStepping ? 2 : 1)"
+                                    Value="@value" ValueChanged="RequestValue" />
+          </LabeledNumericValue>
+          <output aria-live="polite">Requests: @(requests.Count == 0 ? "none" : string.Join(", ", requests.Select(item => item?.ToString("G", System.Globalization.CultureInfo.InvariantCulture) ?? "null")))</output>
+          @if (IsReplacement)
+          {
+            <button type="button" @onclick="ReplaceCallerValue">Replace caller value</button>
+          }
+        </div>
+      }
+    </HarborlineLocaleProvider>
+  </div>
+</section>
+
+@code {
+  [Parameter, EditorRequired] public string ScenarioId { get; set; } = "numeric-text-box.defaults";
+  private double? value = 1234.5;
+  private readonly List<double?> requests = [];
+
+  private static readonly IReadOnlyDictionary<string, (string Title, string Description)> CopyByScenario = new Dictionary<string, (string, string)>
+  {
+    ["numeric-text-box.defaults"] = ("Defaults and value ownership", "Nullable controlled and uncontrolled values retain text-box semantics and stable form identity."),
+    ["numeric-text-box.editing-commit"] = ("Editing and commit order", "Focus reveals the raw value; Enter or blur strictly parses and commits once."),
+    ["numeric-text-box.stepping-bounds"] = ("Stepping and bounds", "Buttons and Arrow Up or Arrow Down apply the step and clamp at active bounds."),
+    ["numeric-text-box.formats"] = ("Plain, currency, and percentage", "Display formatting follows locale and preserves explicit zero fraction digits."),
+    ["numeric-text-box.controlled-replacement"] = ("Controlled replacement", "Caller state remains authoritative across requests and complete value replacement."),
+    ["numeric-text-box.disabled-readonly"] = ("Disabled and readonly", "Disabled controls remain perceivable; readonly values remove spinner actions and never emit."),
+    ["numeric-text-box.appearance-reflow"] = ("Appearance and narrow reflow", "Sizes, fills, rounding, focus, and 44px actions remain usable in a narrow surface."),
+    ["numeric-text-box.locale-pseudo"] = ("Pseudo locale", "Expanded placeholder and spinner labels remain visible without clipping."),
+    ["numeric-text-box.locale-ar"] = ("Arabic direction with format override", "Direction follows Arabic context while French remains the explicit number-format locale."),
+    ["numeric-text-box.theme-light"] = ("Light theme", "Semantic control, border, state, and focus tokens on the Harborline light surface."),
+    ["numeric-text-box.theme-dark"] = ("Dark theme", "The same numeric editor states on the Harborline dark surface."),
+    ["numeric-text-box.content"] = ("Content resilience", "Carries a long certification label, a grouped large number, escaped hostile copy, and a name with diacritics and an em dash."),
+    ["numeric-text-box.error-state"] = ("Error state", "An invalid amount exposes the component visual and semantic error state."),
+  };
+
+  protected override void OnParametersSet()
+  {
+    if (ScenarioId == "numeric-text-box.stepping-bounds" && requests.Count == 0) value = 8;
+  }
+
+  private (string Title, string Description) Copy => CopyByScenario[ScenarioId];
+  private bool IsStepping => ScenarioId == "numeric-text-box.stepping-bounds";
+  private bool IsReplacement => ScenarioId == "numeric-text-box.controlled-replacement";
+  private bool IsArabic => ScenarioId == "numeric-text-box.locale-ar";
+  private bool IsPseudo => ScenarioId == "numeric-text-box.locale-pseudo";
+  private string ContextLocale => IsArabic ? "ar-SA" : IsPseudo ? "en-XA" : "en-US";
+  private string Direction => IsArabic ? "rtl" : "ltr";
+  private string? Theme => ScenarioId switch { "numeric-text-box.theme-light" => "light", "numeric-text-box.theme-dark" => "dark", _ => null };
+  private string EditorLabel => IsStepping ? "Useful life" : IsReplacement ? "Caller-owned replacement cost" : "Replacement cost";
+  private string EditorNote => IsReplacement ? "Requests are logged without changing the controlled value." : "Focus to edit; press Enter or move focus to commit.";
+
+  private Task RequestValue(double? next)
+  {
+    requests.Add(next);
+    if (requests.Count > 4) requests.RemoveAt(0);
+    if (!IsReplacement) value = next;
+    return Task.CompletedTask;
+  }
+
+  private void ReplaceCallerValue() => value = value == 25 ? 1234.5 : 25;
+}

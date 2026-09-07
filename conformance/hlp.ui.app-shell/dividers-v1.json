@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "ledgerRows": ["L1614", "L1617", "L1619"],
+  "partialRows": [],
+  "panels": [
+    {"id":"pilot","binding":"pilot.open","shortcut":"mod+p","desiredHeight":400,"minimumHeight":300,"defaultOpen":false},
+    {"id":"documents","binding":"documents.open","shortcut":"mod+d","desiredHeight":400,"minimumHeight":180,"defaultOpen":false},
+    {"id":"runs","binding":"runs.open","shortcut":"mod+r","desiredHeight":400,"minimumHeight":200,"defaultOpen":false}
+  ],
+  "cases": [
+    {"id":"width","panels":["pilot","documents"],"secondMin":300,"spread":true,"orientation":"vertical","extent":900,"min":300,"max":600,"initial":450,"steps":[
+      {"action":"drag","delta":-1000,"expected":300}, {"action":"drag","delta":1000,"expected":600},
+      {"action":"reset","expected":450}, {"action":"key","key":"ArrowRight","expected":458},
+      {"action":"key","key":"ArrowLeft","shift":true,"expected":426}, {"action":"key","key":"Escape","expected":450},
+      {"action":"key","key":"Home","expected":300}, {"action":"key","key":"Enter","expected":300},
+      {"action":"key","key":"End","expected":600}, {"action":"key","key":"Escape","expected":300},
+      {"action":"key","key":"ArrowDown","expected":300}, {"action":"key","key":"0","expected":450},
+      {"action":"cancelDrag","delta":100,"expected":450}, {"action":"reset","expected":450}
+    ]},
+    {"id":"height","panels":["pilot","documents"],"secondMin":180,"spread":false,"orientation":"horizontal","extent":800,"min":300,"max":620,"initial":400,"steps":[
+      {"action":"drag","delta":-1000,"expected":300}, {"action":"drag","delta":1000,"expected":620},
+      {"action":"reset","expected":400}, {"action":"key","key":"ArrowDown","expected":408},
+      {"action":"key","key":"ArrowUp","shift":true,"expected":376}, {"action":"key","key":"Escape","expected":400},
+      {"action":"key","key":"Home","expected":300}, {"action":"key","key":"Enter","expected":300},
+      {"action":"key","key":"End","expected":620}, {"action":"key","key":"Escape","expected":300},
+      {"action":"key","key":"ArrowRight","expected":300}, {"action":"key","key":"0","expected":400},
+      {"action":"cancelDrag","delta":100,"expected":400}, {"action":"reset","expected":400}
+    ]},
+    {"id":"overfull","panels":["pilot","documents"],"secondMin":180,"spread":false,"orientation":"horizontal","extent":400,"min":300,"max":300,"initial":300,"steps":[
+      {"action":"drag","delta":-1000,"expected":300}, {"action":"key","key":"End","expected":300}, {"action":"reset","expected":300}
+    ]},
+    {"id":"depth2","panels":["pilot","documents","runs"],"secondMin":180,"spread":false,"orientation":"horizontal","extent":1000,"min":300,"max":820,"initial":500,"steps":[
+      {"action":"drag","delta":-1000,"expected":300}, {"action":"drag","delta":1000,"expected":820},
+      {"action":"reset","expected":500}, {"action":"key","key":"ArrowDown","expected":508},
+      {"action":"key","key":"Home","expected":300}, {"action":"key","key":"Enter","expected":300},
+      {"action":"key","key":"End","expected":820}, {"action":"key","key":"Escape","expected":300},
+      {"action":"key","key":"0","expected":500}
+    ]}
+  ],
+  "handledKeys": {
+    "vertical": ["ArrowLeft", "ArrowRight", "Home", "End", "Enter", "Escape", "0"],
+    "horizontal": ["ArrowUp", "ArrowDown", "Home", "End", "Enter", "Escape", "0"]
+  },
+  "note": "modChordIgnored replays case `width`: a Mod chord on a focused divider must neither resize nor commit nor cancel the edit. Without it Blazor fired the shortcut AND cancelled the edit while React only swallowed the chord.",
+  "modChordIgnored": {"case":"width","setup":{"key":"ArrowRight","expected":458},"chords":[{"key":"Escape","ctrl":true},{"key":"Enter","ctrl":true},{"key":"Home","ctrl":true},{"key":"0","ctrl":true}],"expectedAfterChords":458,"release":{"key":"Escape","expected":450}},
+  "shellPassThroughKeys": [
+    {"key":"k","ctrl":true,"token":"Mod+K"},
+    {"key":"\\","ctrl":true,"token":"Mod+\\"},
+    {"key":"n","ctrl":true,"token":"Mod+N"},
+    {"key":"I","ctrl":true,"shift":true,"token":"Mod+Shift+I"},
+    {"key":"1","ctrl":true,"token":"Mod+1"},
+    {"key":"Enter","ctrl":true,"token":"Mod+Enter"},
+    {"key":"0","ctrl":true,"token":"Mod+0"}
+  ]
+}

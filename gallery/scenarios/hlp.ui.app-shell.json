@@ -1,0 +1,722 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.app-shell",
+  "sourceFixture": "conformance/hlp.ui.app-shell/fixtures.yaml",
+  "qualityFixture": "conformance/hlp.ui.app-shell/quality-fixtures.yaml",
+  "galleryInterface": {
+    "probeAttribute": "data-gallery-probe",
+    "scenarioAttribute": "data-gallery-scenario",
+    "projectionTitles": {
+      "react": "Platform/App Shell",
+      "blazor": "Platform/App Shell"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "app-shell.structure",
+      "name": "Operations shell structure",
+      "surface": "structure",
+      "sourceCaseIds": [
+        "app-shell.structure",
+        "app-shell.id-required",
+        "app-shell.body-required",
+        "app-shell.host-attributes"
+      ],
+      "sourceQualityCaseIds": [
+        "app-shell.quality.forced-colors",
+        "app-shell.quality.landmarks"
+      ],
+      "content": {
+        "blurb": "The Operations workspace composes brand, grouped navigation, header actions, and one body landmark.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "shellId": "operations",
+          "brandText": "Harborline",
+          "activeWorkspaceId": "operations",
+          "activeItemId": "overview",
+          "workspaces": [
+            {
+              "id": "operations",
+              "label": "Operations",
+              "groups": [
+                {
+                  "id": "portfolio",
+                  "label": "Portfolio",
+                  "items": [
+                    {
+                      "id": "overview",
+                      "label": "Overview"
+                    },
+                    {
+                      "id": "assets",
+                      "label": "Assets"
+                    },
+                    {
+                      "id": "inspections",
+                      "label": "Inspections",
+                      "badge": 218
+                    },
+                    {
+                      "id": "run-report",
+                      "label": "Run report"
+                    }
+                  ]
+                },
+                {
+                  "id": "work",
+                  "label": "Work",
+                  "items": [
+                    {
+                      "id": "work-orders",
+                      "label": "Work orders",
+                      "badge": 42
+                    },
+                    {
+                      "id": "deficiencies",
+                      "label": "Deficiencies",
+                      "badge": 38
+                    },
+                    {
+                      "id": "trip-plan",
+                      "label": "Trip plan",
+                      "badge": 3
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "headerFixed": true,
+          "contentScroll": "main",
+          "data-case": "operations-shell"
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "body={<main><h1>Operations overview</h1><p>Review portfolio health and active work.</p></main>}",
+            "blazor": "<ChildContent><div><h1>Operations overview</h1><p>Review portfolio health and active work.</p></div></ChildContent>",
+            "rationale": "Semantic workspace content is opaque to the shell."
+          }
+        ],
+        "footer": []
+      },
+      "states": [
+        "expanded"
+      ]
+    },
+    {
+      "id": "app-shell.rail-collapsed",
+      "name": "Rail collapsed",
+      "surface": "rail-collapsed",
+      "states": [
+        "collapsed"
+      ],
+      "sourceCaseIds": [
+        "app-shell.collapse-controlled",
+        "app-shell.collapse-uncontrolled-restore"
+      ],
+      "content": {
+        "blurb": "The rail collapsed through DefaultCollapsed rather than a click: the shell keeps its header and body and the rail is gone, not narrowed.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [],
+        "footer": [],
+        "inherits": "app-shell.structure"
+      }
+    },
+    {
+      "id": "app-shell.switchers",
+      "name": "Workspace and tenant switchers",
+      "surface": "switchers",
+      "interaction": "pointer",
+      "sourceCaseIds": [
+        "app-shell.single-workspace-hides-switcher",
+        "app-shell.workspace-switch",
+        "app-shell.workspace-unknown-controlled",
+        "app-shell.header-switcher-single-option-static",
+        "app-shell.header-switcher-active-first",
+        "app-shell.switcher-filter-threshold",
+        "app-shell.switcher-directory-item",
+        "app-shell.switcher-trigger-truncation"
+      ],
+      "sourceQualityCaseIds": [
+        "app-shell.quality.switcher-menu",
+        "app-shell.quality.keyboard",
+        "app-shell.quality.focus",
+        "app-shell.quality.dismissal"
+      ],
+      "content": {
+        "inherits": "app-shell.structure",
+        "blurb": "Workspace and tenant scopes keep the active option first while preserving pinned and directory affordances.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "shellId": "operations",
+          "activeWorkspaceId": "operations",
+          "workspaceLabel": "Operations",
+          "headerSwitcherId": "tenant",
+          "headerScopeLabel": "Tenant",
+          "headerActiveId": "meridian",
+          "headerOptions": [
+            {
+              "id": "meridian",
+              "label": "Meridian Hotel Group"
+            },
+            {
+              "id": "metro-transit",
+              "label": "Metro Transit Authority"
+            }
+          ],
+          "headerPinnedIds": [
+            "metro-transit"
+          ],
+          "directoryLabel": "All tenants",
+          "fixture": "Operations / Portfolio / Work"
+        },
+        "state": {
+          "activeWorkspaceId": {
+            "kind": "value",
+            "initial": "operations"
+          },
+          "headerActiveId": {
+            "kind": "value",
+            "initial": "meridian"
+          }
+        },
+        "body": [],
+        "footer": []
+      }
+    },
+    {
+      "id": "app-shell.pins-threads",
+      "name": "Pinned navigation and Pilot threads",
+      "surface": "pins-threads",
+      "interaction": "pointer",
+      "sourceCaseIds": [
+        "app-shell.pin-lifecycle",
+        "app-shell.pin-moved-not-copied",
+        "app-shell.pin-cap",
+        "app-shell.pin-orphan-retention",
+        "app-shell.role-allowed",
+        "app-shell.role-denied",
+        "app-shell.role-unknown-fail-closed",
+        "app-shell.shared-workflow-role",
+        "app-shell.hidden-pin-retention",
+        "app-shell.pin-toggle-isolation",
+        "app-shell.thread-rows-under-item",
+        "app-shell.thread-group-level",
+        "app-shell.thread-actions-menu",
+        "app-shell.thread-inline-rename",
+        "app-shell.thread-in-drawer"
+      ],
+      "sourceQualityCaseIds": [
+        "app-shell.quality.pin-toggle",
+        "app-shell.quality.thread-rows",
+        "app-shell.quality.targets"
+      ],
+      "content": {
+        "inherits": "app-shell.structure",
+        "blurb": "Pinned Operations routes move to one ordered zone while Pilot session threads remain attached to their owning route.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "shellId": "operations",
+          "activeWorkspaceId": "operations",
+          "activeItemId": "inspections",
+          "pinnedItemIds": [
+            "inspections",
+            "work-orders"
+          ],
+          "groups": [
+            "Portfolio",
+            "Work"
+          ],
+          "items": [
+            "Overview",
+            "Assets",
+            "Inspections 218",
+            "Run report",
+            "Work orders 42",
+            "Deficiencies 38",
+            "Trip plan 3"
+          ],
+          "threads": [
+            {
+              "id": "inspection-audit",
+              "ownerItemId": "inspections",
+              "label": "Inspection audit",
+              "active": true
+            },
+            {
+              "id": "trip-audit",
+              "ownerItemId": "trip-plan",
+              "label": "Trip audit",
+              "editing": true
+            }
+          ]
+        },
+        "state": {
+          "pinnedItemIds": {
+            "kind": "list",
+            "initial": [
+              "inspections",
+              "work-orders"
+            ]
+          }
+        },
+        "body": [],
+        "footer": []
+      }
+    },
+    {
+      "id": "app-shell.actions-endpanel",
+      "name": "Ordered multi-panel dock",
+      "surface": "actions-endpanel",
+      "interaction": "keyboard",
+      "sourceCaseIds": [
+        "app-shell.actions-overflow",
+        "app-shell.declared-toggle-breakpoint",
+        "app-shell.panel-set-live-absent",
+        "app-shell.panel-set-live-present",
+        "app-shell.chrome-law-mutations",
+        "app-shell.shortcut-commands",
+        "app-shell.shortcut-disabled",
+        "app-shell.shortcut-editable-guard",
+        "app-shell.end-panel-open-overlay",
+        "app-shell.end-panel-expanded",
+        "app-shell.end-panel-narrow-forced-expanded",
+        "app-shell.end-panel-no-content-inert"
+      ],
+      "sourceQualityCaseIds": [
+        "app-shell.quality.keyboard",
+        "app-shell.quality.focus",
+        "app-shell.quality.reflow"
+      ],
+      "content": {
+        "inherits": "app-shell.structure",
+        "blurb": "Opening every declared tool preserves order without eviction; sheets dock without replacing their body, and the content floor moves newest panels back to sheets first.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "shellId": "operations",
+          "workspace": "Operations",
+          "groups": [
+            "Portfolio",
+            "Work"
+          ],
+          "actions": [
+            {
+              "id": "notifications",
+              "label": "Notifications",
+              "overflow": true
+            },
+            {
+              "id": "pilot",
+              "label": "Open Pilot",
+              "overflow": true
+            },
+            {
+              "id": "profile",
+              "label": "Profile",
+              "overflow": false
+            }
+          ],
+          "shortcuts": {
+            "toggleNavigation": "Mod+B",
+            "openSearch": "Mod+K"
+          },
+          "openPanelIds": [
+            "notifications",
+            "pilot",
+            "documents",
+            "reports",
+            "runs",
+            "inspector"
+          ],
+          "spread": false,
+          "spreadUnavailable": false,
+          "minimumPaneWidth": 300,
+          "panelChrome": {
+            "headerHeight": 33,
+            "forms": {
+              "title": [
+                "notifications",
+                "pilot",
+                "runs",
+                "inspector"
+              ],
+              "toggle-chip": [
+                "documents",
+                "reports"
+              ]
+            },
+            "earnsOverflow": [
+              "pilot",
+              "documents",
+              "reports"
+            ],
+            "declaresPopOut": [
+              "pilot",
+              "documents",
+              "reports"
+            ],
+            "affordanceOrder": [
+              "overflow",
+              "pop-out",
+              "expand",
+              "close"
+            ],
+            "sheetAffordances": [
+              "close"
+            ],
+            "slotOrder": [
+              "header",
+              "toolbar",
+              "body",
+              "footer"
+            ]
+          }
+        },
+        "state": {
+          "spread": {
+            "kind": "flag",
+            "initial": false
+          }
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "panelContent={panel => <section>{panel.id}</section>}",
+            "blazor": "PanelContent renders the same panel declaration body",
+            "rationale": "Each declared panel receives one opaque body slot while the shell owns ordered splitter placement."
+          },
+          {
+            "control": "raw",
+            "react": "panelToolbar={panel => <span>{panel.id} toolbar</span>} onPanelPopOut={request => host.popOut(request)}",
+            "blazor": "PanelToolbar renders the same row and PanelPoppedOut carries the same request",
+            "rationale": "chrome-spec 6: the header is the shell's in both earned forms, the toolbar and footer belong to the body, and pop out is a declared action the host confirms - the shell never opens a window."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "app-shell.performance",
+      "name": "Bounded Operations shell under load",
+      "surface": "performance",
+      "sourceCaseIds": [
+        "app-shell.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "app-shell.quality.landmarks"
+      ],
+      "content": {
+        "inherits": "app-shell.structure",
+        "blurb": "A 256-item Operations navigation fixture retains equivalent shell observations across projections.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "shellId": "operations-load",
+          "workspace": "Operations",
+          "groups": [
+            "Portfolio",
+            "Work"
+          ],
+          "navigationItemCount": 256,
+          "updateCount": 96,
+          "seedItems": [
+            "Overview",
+            "Assets",
+            "Inspections 218",
+            "Run report",
+            "Work orders 42",
+            "Deficiencies 38",
+            "Trip plan 3"
+          ]
+        },
+        "state": {},
+        "body": [],
+        "footer": []
+      }
+    },
+    {
+      "id": "app-shell.locale-en",
+      "name": "English locale",
+      "surface": "locale-en",
+      "sourceCaseIds": [
+        "app-shell.structure"
+      ],
+      "sourceQualityCaseIds": [
+        "app-shell.quality.locales"
+      ],
+      "content": {
+        "inherits": "app-shell.structure",
+        "blurb": "English shell chrome frames the Operations workspace and its Portfolio and Work groups.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "shellId": "operations-en",
+          "workspace": "Operations",
+          "groups": [
+            "Portfolio",
+            "Work"
+          ],
+          "items": [
+            "Overview",
+            "Assets",
+            "Inspections 218",
+            "Run report",
+            "Work orders 42",
+            "Deficiencies 38",
+            "Trip plan 3"
+          ],
+          "pinnedLabel": "Pinned",
+          "navigationLabel": "Navigation",
+          "endPanelLabel": "Pilot"
+        },
+        "state": {},
+        "body": [],
+        "footer": []
+      }
+    },
+    {
+      "id": "app-shell.locale-pseudo",
+      "name": "Pseudo locale",
+      "surface": "locale-pseudo",
+      "sourceCaseIds": [
+        "app-shell.switcher-trigger-truncation"
+      ],
+      "sourceQualityCaseIds": [
+        "app-shell.quality.pseudo"
+      ],
+      "content": {
+        "inherits": "app-shell.locale-en",
+        "blurb": "Expanded pseudo-localized labels verify truncation without clipping shell chrome.",
+        "environment": {
+          "locale": "en-XA",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "shellId": "operations-pseudo",
+          "workspace": "⟦ Øþëřåţîøñš ···· ⟧",
+          "groups": [
+            "⟦ Þøřţƒøļîø ···· ⟧",
+            "⟦ Ŵøřķ ···· ⟧"
+          ],
+          "items": [
+            "⟦ Øṽëřṽîëŵ ···· ⟧",
+            "⟦ Åššëţš ···· ⟧",
+            "⟦ Îñšþëçţîøñš 218 ···· ⟧",
+            "⟦ Řûñ řëþøřţ ···· ⟧",
+            "⟦ Ŵøřķ øřðëřš 42 ···· ⟧",
+            "⟦ Ðëƒîçîëñçîëš 38 ···· ⟧",
+            "⟦ Ţřîþ þļåñ 3 ···· ⟧"
+          ]
+        },
+        "state": {},
+        "body": [],
+        "footer": []
+      }
+    },
+    {
+      "id": "app-shell.locale-ar",
+      "name": "Arabic locale",
+      "surface": "locale-ar",
+      "sourceCaseIds": [
+        "app-shell.rtl-safe-area"
+      ],
+      "sourceQualityCaseIds": [
+        "app-shell.quality.rtl",
+        "app-shell.quality.safe-area"
+      ],
+      "content": {
+        "inherits": "app-shell.locale-en",
+        "blurb": "Arabic direction places the Operations rail, thread indent, and Pilot panel on logical edges.",
+        "environment": {
+          "locale": "ar-SA",
+          "direction": "rtl",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "shellId": "operations-ar",
+          "workspace": "العمليات",
+          "groups": [
+            "المحفظة",
+            "العمل"
+          ],
+          "items": [
+            "نظرة عامة",
+            "الأصول",
+            "عمليات التفتيش 218",
+            "تشغيل التقرير",
+            "أوامر العمل 42",
+            "أوجه القصور 38",
+            "خطة الرحلة 3"
+          ],
+          "navigationLabel": "التنقل",
+          "endPanelLabel": "الطيار"
+        },
+        "state": {},
+        "body": [],
+        "footer": []
+      }
+    },
+    {
+      "id": "app-shell.theme-light",
+      "name": "Light theme",
+      "surface": "theme-light",
+      "sourceCaseIds": [
+        "app-shell.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "app-shell.quality.contrast",
+        "app-shell.quality.reduced-motion",
+        "app-shell.quality.themes",
+        "app-shell.quality.tokens",
+        "app-shell.quality.shell-scrollbars",
+        "app-shell.quality.visual-parity"
+      ],
+      "content": {
+        "inherits": "app-shell.locale-en",
+        "blurb": "Light public tokens render the complete Operations shell with accessible chrome contrast.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "shellId": "operations-light",
+          "workspace": "Operations",
+          "groups": [
+            "Portfolio",
+            "Work"
+          ],
+          "items": [
+            "Overview",
+            "Assets",
+            "Inspections 218",
+            "Run report",
+            "Work orders 42",
+            "Deficiencies 38",
+            "Trip plan 3"
+          ]
+        },
+        "state": {},
+        "body": [],
+        "footer": []
+      }
+    },
+    {
+      "id": "app-shell.theme-dark",
+      "name": "Dark theme",
+      "surface": "theme-dark",
+      "sourceCaseIds": [
+        "app-shell.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "app-shell.quality.contrast",
+        "app-shell.quality.reduced-motion",
+        "app-shell.quality.themes",
+        "app-shell.quality.tokens",
+        "app-shell.quality.shell-scrollbars",
+        "app-shell.quality.visual-parity"
+      ],
+      "content": {
+        "inherits": "app-shell.theme-light",
+        "blurb": "Dark public tokens preserve the same Operations shell hierarchy and interaction affordances.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "dark",
+          "catalog": {}
+        },
+        "props": {
+          "shellId": "operations-dark",
+          "workspace": "Operations",
+          "groups": [
+            "Portfolio",
+            "Work"
+          ],
+          "items": [
+            "Overview",
+            "Assets",
+            "Inspections 218",
+            "Run report",
+            "Work orders 42",
+            "Deficiencies 38",
+            "Trip plan 3"
+          ]
+        },
+        "state": {},
+        "body": [],
+        "footer": []
+      }
+    },
+    {
+      "id": "app-shell.content",
+      "name": "Content resilience",
+      "surface": "long-content",
+      "sourceCaseIds": [
+        "app-shell.structure",
+        "app-shell.switcher-trigger-truncation"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "Hostile shell navigation carries a label longer than the rail, a grouped large badge, escaped angle brackets and an ampersand, and a name with diacritics and an em dash.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<AppShell shellId=\"operations-content\" navigation={navigation} navigationState={navigationState} activeWorkspaceId=\"operations\" activeItemId=\"overview\" body={<article><h1>{'Content resilience'}</h1></article>} railCapable />",
+            "blazor": "<HarborlineAppShell ShellId=\"operations-content\" Navigation=\"@Navigation\" NavigationState=\"@NavigationState\" ActiveWorkspaceId=\"operations\" ActiveItemId=\"overview\" RailCapable=\"true\"><ChildContent><article><h1>@(\"Content resilience\")</h1></article></ChildContent></HarborlineAppShell>",
+            "rationale": "The typed workspace, group, and item collection renders navigation labels and badges that the closed control vocabulary cannot express."
+          }
+        ],
+        "footer": []
+      }
+    }
+  ]
+}

@@ -1,0 +1,300 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.popover",
+  "fixtureRevision": 1,
+  "contract": "flip-then-clamp: when the requested side has less room than the surface needs and the opposite side has more room, the resolved side is the opposite one; the resolved left/top is then clamped into the viewport with an 8 CSS pixel margin. Clamping never happens instead of a flip, only after it.",
+  "margin": 8,
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "content": {
+    "width": 200,
+    "height": 120
+  },
+  "sideOffset": 6,
+  "anchors": {
+    "near-bottom-right": {
+      "left": 320,
+      "top": 780,
+      "width": 44,
+      "height": 18,
+      "right": 364,
+      "bottom": 798
+    },
+    "near-top-left": {
+      "left": 8,
+      "top": 12,
+      "width": 44,
+      "height": 18,
+      "right": 52,
+      "bottom": 30
+    }
+  },
+  "cases": [
+    {
+      "anchor": "near-bottom-right",
+      "side": "top",
+      "align": "start",
+      "direction": "ltr",
+      "expected": {
+        "side": "top",
+        "left": 182,
+        "top": 654
+      }
+    },
+    {
+      "anchor": "near-bottom-right",
+      "side": "top",
+      "align": "center",
+      "direction": "ltr",
+      "expected": {
+        "side": "top",
+        "left": 182,
+        "top": 654
+      }
+    },
+    {
+      "anchor": "near-bottom-right",
+      "side": "top",
+      "align": "end",
+      "direction": "ltr",
+      "expected": {
+        "side": "top",
+        "left": 164,
+        "top": 654
+      }
+    },
+    {
+      "anchor": "near-bottom-right",
+      "side": "right",
+      "align": "start",
+      "direction": "ltr",
+      "expected": {
+        "side": "left",
+        "left": 114,
+        "top": 716
+      }
+    },
+    {
+      "anchor": "near-bottom-right",
+      "side": "right",
+      "align": "center",
+      "direction": "ltr",
+      "expected": {
+        "side": "left",
+        "left": 114,
+        "top": 716
+      }
+    },
+    {
+      "anchor": "near-bottom-right",
+      "side": "right",
+      "align": "end",
+      "direction": "ltr",
+      "expected": {
+        "side": "left",
+        "left": 114,
+        "top": 678
+      }
+    },
+    {
+      "anchor": "near-bottom-right",
+      "side": "bottom",
+      "align": "start",
+      "direction": "ltr",
+      "expected": {
+        "side": "top",
+        "left": 182,
+        "top": 654
+      }
+    },
+    {
+      "anchor": "near-bottom-right",
+      "side": "bottom",
+      "align": "center",
+      "direction": "ltr",
+      "expected": {
+        "side": "top",
+        "left": 182,
+        "top": 654
+      }
+    },
+    {
+      "anchor": "near-bottom-right",
+      "side": "bottom",
+      "align": "end",
+      "direction": "ltr",
+      "expected": {
+        "side": "top",
+        "left": 164,
+        "top": 654
+      }
+    },
+    {
+      "anchor": "near-bottom-right",
+      "side": "left",
+      "align": "start",
+      "direction": "ltr",
+      "expected": {
+        "side": "left",
+        "left": 114,
+        "top": 716
+      }
+    },
+    {
+      "anchor": "near-bottom-right",
+      "side": "left",
+      "align": "center",
+      "direction": "ltr",
+      "expected": {
+        "side": "left",
+        "left": 114,
+        "top": 716
+      }
+    },
+    {
+      "anchor": "near-bottom-right",
+      "side": "left",
+      "align": "end",
+      "direction": "ltr",
+      "expected": {
+        "side": "left",
+        "left": 114,
+        "top": 678
+      }
+    },
+    {
+      "anchor": "near-top-left",
+      "side": "top",
+      "align": "start",
+      "direction": "ltr",
+      "expected": {
+        "side": "bottom",
+        "left": 8,
+        "top": 36
+      }
+    },
+    {
+      "anchor": "near-top-left",
+      "side": "top",
+      "align": "center",
+      "direction": "ltr",
+      "expected": {
+        "side": "bottom",
+        "left": 8,
+        "top": 36
+      }
+    },
+    {
+      "anchor": "near-top-left",
+      "side": "top",
+      "align": "end",
+      "direction": "ltr",
+      "expected": {
+        "side": "bottom",
+        "left": 8,
+        "top": 36
+      }
+    },
+    {
+      "anchor": "near-top-left",
+      "side": "right",
+      "align": "start",
+      "direction": "ltr",
+      "expected": {
+        "side": "right",
+        "left": 58,
+        "top": 12
+      }
+    },
+    {
+      "anchor": "near-top-left",
+      "side": "right",
+      "align": "center",
+      "direction": "ltr",
+      "expected": {
+        "side": "right",
+        "left": 58,
+        "top": 8
+      }
+    },
+    {
+      "anchor": "near-top-left",
+      "side": "right",
+      "align": "end",
+      "direction": "ltr",
+      "expected": {
+        "side": "right",
+        "left": 58,
+        "top": 8
+      }
+    },
+    {
+      "anchor": "near-top-left",
+      "side": "bottom",
+      "align": "start",
+      "direction": "ltr",
+      "expected": {
+        "side": "bottom",
+        "left": 8,
+        "top": 36
+      }
+    },
+    {
+      "anchor": "near-top-left",
+      "side": "bottom",
+      "align": "center",
+      "direction": "ltr",
+      "expected": {
+        "side": "bottom",
+        "left": 8,
+        "top": 36
+      }
+    },
+    {
+      "anchor": "near-top-left",
+      "side": "bottom",
+      "align": "end",
+      "direction": "ltr",
+      "expected": {
+        "side": "bottom",
+        "left": 8,
+        "top": 36
+      }
+    },
+    {
+      "anchor": "near-top-left",
+      "side": "left",
+      "align": "start",
+      "direction": "ltr",
+      "expected": {
+        "side": "right",
+        "left": 58,
+        "top": 12
+      }
+    },
+    {
+      "anchor": "near-top-left",
+      "side": "left",
+      "align": "center",
+      "direction": "ltr",
+      "expected": {
+        "side": "right",
+        "left": 58,
+        "top": 8
+      }
+    },
+    {
+      "anchor": "near-top-left",
+      "side": "left",
+      "align": "end",
+      "direction": "ltr",
+      "expected": {
+        "side": "right",
+        "left": 58,
+        "top": 8
+      }
+    }
+  ]
+}

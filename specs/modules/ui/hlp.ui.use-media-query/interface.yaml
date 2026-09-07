@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.use-media-query",
+  "interfaceRevision": 1,
+  "semantics": {"operation": "observe one host media query and expose its current match through hook and render-prop surfaces", "observableOutput": "A boolean initialized fail-closed during SSR and kept current while a browser subscription is active."},
+  "sourceSurface": {"repository": "shipyard", "commit": "a5036ff8b500e0d857d7e0a698408e7cf7f6cf31", "path": "packages/ui-react/src/hooks/useMediaQuery.tsx", "blob": "6936d679b9afc8d2837e3d14d73bd7d1d3ae29b7", "capturedExports": ["useMediaQuery", "MediaQueryProps", "MediaQuery"]},
+  "invariants": [
+    "Server-side initialization returns false and performs no browser access.",
+    "Browser initialization reads the current match and subscription activation re-reads it to close the render/effect race.",
+    "Exactly one change listener is active per mounted query; query replacement removes the old listener before observing the new query.",
+    "Change events publish their boolean matches value and no unrelated event data.",
+    "Unmount or disposal removes the listener and no later event updates state.",
+    "The MediaQuery render-prop surface delegates the same boolean without adding markup.",
+    ".NET exposes an async-disposable media-query observer abstraction for Blazor consumers; JavaScript interop remains adapter-owned."
+  ],
+  "errors": [{"code": "media-query-unavailable", "when": "A browser adapter cannot acquire matchMedia after interactive activation."}],
+  "performance": {"operation": "O(1) state and one host listener per active query"},
+  "presentation": {"disposition": "not-applicable", "rationale": "The observer selects responsive behavior and renders no standalone interface."},
+  "cases": [
+    {"id": "media-query.complete-surface"}, {"id": "media-query.ssr-false"}, {"id": "media-query.initial-match"},
+    {"id": "media-query.initial-miss"}, {"id": "media-query.change"}, {"id": "media-query.query-replacement"},
+    {"id": "media-query.dispose"}, {"id": "media-query.render-prop"}, {"id": "media-query.projection-equivalence"}
+  ]
+}

@@ -1,0 +1,394 @@
+<section class="hl-gallery-scene" data-gallery-probe data-gallery-scenario="@ScenarioId" data-theme="@Theme">
+  <header class="hl-gallery-heading"><h2>@Copy.Title</h2><p>@Copy.Description</p></header>
+  <div class="hl-gallery-stage hl-gallery-feedback-grid">
+    @if (ScenarioId == "schema-form.controls-structure")
+    {
+      <HarborlineSchemaForm Controls="CustomControls" InitialValues="ControlsValues" OnSubmit="ValidSubmit"
+                          Strings="EnglishStrings" View="ControlsView" />
+    }
+    else if (ScenarioId == "schema-form.rules-gate")
+    {
+      <HarborlineSchemaForm InitialValues="RulesValues" OnSubmit="ValidSubmit" RuleGraph="RuleGraph"
+                          Strings="EnglishStrings" View="RulesView" />
+    }
+    else if (ScenarioId == "schema-form.validation")
+    {
+      <HarborlineSchemaForm InitialValues="ValidationValues" OnSubmit="ValidationSubmit"
+                          Strings="EnglishStrings" View="ValidationView" />
+    }
+    else if (ScenarioId == "schema-form.error-state")
+    {
+      <HarborlineSchemaForm InitialValues="ValidationValues" OnSubmit="ValidationSubmit"
+                          Strings="EnglishStrings" View="ValidationView" />
+    }
+    else if (ScenarioId == "schema-form.empty-state")
+    {
+      <HarborlineSchemaForm InitialValues="EmptyValues" OnSubmit="ValidSubmit"
+                          Strings="EnglishStrings" View="EmptyView" />
+    }
+    else if (ScenarioId == "schema-form.content")
+    {
+      <HarborlineSchemaForm InitialValues="ContentValues" OnSubmit="ValidSubmit"
+                          Strings="EnglishStrings" View="ContentView" />
+    }
+    else
+    {
+      <HarborlineSchemaForm InitialValues="PseudoValues" LocaleChain="PseudoLocale" OnSubmit="ValidSubmit"
+                          Strings="PseudoStrings" View="PseudoView" />
+      <HarborlineSchemaForm InitialValues="ArabicValues" LocaleChain="ArabicLocale" OnSubmit="ValidSubmit"
+                          Strings="ArabicStrings" View="ArabicView" />
+    }
+  </div>
+</section>
+
+@code {
+  [Parameter, EditorRequired] public string ScenarioId { get; set; } = "schema-form.controls-structure";
+
+  private static SchemaFormText Text(string value, string locale = "en") => SchemaFormText.From(value, locale);
+  private static SchemaFormField Field(string name, string label, string hint = "text", SchemaFormText? help = null) => new()
+  {
+    Name = name,
+    Label = Text(label),
+    IsSensitive = false,
+    IsReadable = true,
+    ControlHint = hint,
+    HelpText = help,
+  };
+
+  private static readonly SchemaFormStrings EnglishStrings = new()
+  {
+    Submit = "Save request",
+    Submitting = "Saving request…",
+    ErrorSummaryTitle = "Review these request errors",
+    Redacted = "Restricted value",
+    Empty = "No request fields are available.",
+    AddItem = "Add charge",
+    RemoveItem = "Remove charge",
+    ItemLabel = "Charge {n}",
+    ControlUnavailable = "Control unavailable: {control}",
+    SubmitBlocked = "Saving is unavailable while request rules are pending.",
+  };
+
+  private static readonly SchemaFormStrings PseudoStrings = new()
+  {
+    Submit = "⟦ Šåṽë řëqûëšţ ···· ⟧",
+    Submitting = "⟦ Šåṽïñĝ řëqûëšţ… ···· ⟧",
+    ErrorSummaryTitle = "⟦ Řëṽïëŵ ţħëšë řëqûëšţ ëřřøřš ········ ⟧",
+    Redacted = "⟦ Řëšţřïçţëð ṽåļûë ···· ⟧",
+    Empty = "⟦ Ñø řëqûëšţ ƒïëļðš åřë åṽåïļåɓļë ········ ⟧",
+    AddItem = "⟦ Åðð ïţëm ·· ⟧",
+    RemoveItem = "⟦ Řëmøṽë ïţëm ··· ⟧",
+    ItemLabel = "⟦ Îţëm {n} ·· ⟧",
+    ControlUnavailable = "⟦ Çøñţřøļ ûñåṽåïļåɓļë: {control} ······ ⟧",
+    SubmitBlocked = "⟦ Šåṽïñĝ ïš ûñåṽåïļåɓļë ŵħïļë řûļëš åřë þëñðïñĝ ·········· ⟧",
+  };
+
+  private static readonly SchemaFormStrings ArabicStrings = new()
+  {
+    Submit = "حفظ الطلب",
+    Submitting = "جارٍ حفظ الطلب…",
+    ErrorSummaryTitle = "راجع أخطاء الطلب",
+    Redacted = "قيمة محظورة",
+    Empty = "لا توجد حقول متاحة.",
+    AddItem = "إضافة بند",
+    RemoveItem = "إزالة البند",
+    ItemLabel = "البند {n}",
+    ControlUnavailable = "عنصر التحكم غير متاح: {control}",
+    SubmitBlocked = "يتعذر الحفظ أثناء انتظار القواعد.",
+  };
+
+  private static readonly SchemaFormView ControlsView = new()
+  {
+    FormId = "arrival-request",
+    Version = "1.0.0",
+    Title = Text("Arrival request"),
+    Description = Text("Fields and sections remain in the exact order supplied by the caller."),
+    Sections =
+    [
+      new()
+      {
+        Id = "routing",
+        Title = Text("Routing"),
+        Fields =
+        [
+          Field("berthCode", "Berth code", "bespoke", Text("Resolved by the caller registry.")),
+          Field("arrivalWindow", "Arrival window", "future-string", Text("An unknown string hint falls back to text.")),
+          Field("cargoShape", "Cargo shape", "future-object", Text("Structured values fail closed.")) with { ValueKind = "object" },
+        ],
+      },
+      new()
+      {
+        Id = "charges",
+        Title = Text("Charges"),
+        Fields = [],
+        Items =
+        [
+          new SchemaFormGroupItem("agent",
+          [
+            new SchemaFormFieldItem("name", Field("name", "Agent name")),
+          ], Text("Agent")),
+          new SchemaFormCollectionItem("charges",
+          [
+            new SchemaFormFieldItem("description", Field("description", "Description")),
+          ], Text("Port charges"), new(1, 2)),
+        ],
+      },
+    ],
+  };
+
+  private static readonly SchemaFormView RulesView = new()
+  {
+    FormId = "rule-projection",
+    Version = "1.0.0",
+    Title = Text("Rule projection"),
+    Description = Text("The hidden value remains in the complete candidate while the save gate fails closed."),
+    Sections =
+    [
+      new()
+      {
+        Id = "decision",
+        Title = Text("Decision"),
+        Fields =
+        [
+          Field("contact", "Operations contact", help: Text("Required by an active rule.")),
+          Field("reference", "Request reference"),
+          Field("total", "Computed total", "currency") with
+          {
+            Config = new Dictionary<string, object?> { ["currencyCode"] = "USD", ["decimals"] = 2 },
+          },
+          Field("status", "Review status"),
+          Field("internalNote", "Internal note"),
+        ],
+      },
+    ],
+  };
+
+  private static readonly SchemaFormView ValidationView = new()
+  {
+    FormId = "validation-request",
+    Version = "1.0.0",
+    Title = Text("Validation request"),
+    Description = Text("Save to place a one-segment pointer inline and deeper pointers in the focused summary."),
+    Sections =
+    [
+      new()
+      {
+        Id = "requester",
+        Title = Text("Requester"),
+        Fields =
+        [
+          Field("name", "Requester name", help: Text("Use the name shown on the manifest.")),
+          Field("email", "Contact email", "email"),
+        ],
+      },
+    ],
+  };
+
+  private static readonly SchemaFormView EmptyView = new()
+  {
+    FormId = "empty-request",
+    Version = "1.0.0",
+    Title = Text("Empty inspection request"),
+    Description = Text("No inspection fields are currently available."),
+    Sections = [],
+  };
+
+  private static readonly SchemaFormView ContentView = new()
+  {
+    FormId = "content-resilience",
+    Version = "1.0.0",
+    Title = Text("Content resilience"),
+    Description = Text("Caller-supplied labels and values remain text."),
+    Sections =
+    [
+      new()
+      {
+        Id = "hostile-content",
+        Title = Text("Hostile-but-valid content"),
+        Fields =
+        [
+          Field("longLabel", "Awaiting third-party structural certification review"),
+          Field("largeNumber", "Grouped large number"),
+          Field("escapedText", "Escaped location text"),
+          Field("surveyor", "Survey contact"),
+        ],
+      },
+    ],
+  };
+
+  private static readonly SchemaFormView PseudoView = new()
+  {
+    FormId = "pseudo-request",
+    Version = "1.0.0",
+    Title = Text("⟦ Ëẋþåñðëð řëqûëšţ ······ ⟧", "en-XA"),
+    Description = Text("⟦ Çåļļëř-šûþþļïëð çøþÿ ëẋþåñðš ŵïţħøûţ ţřûñçåţïøñ ············ ⟧", "en-XA"),
+    Sections =
+    [
+      new()
+      {
+        Id = "figures",
+        Title = Text("⟦ Šçħëðûļë åñð ƒïĝûřëš ······ ⟧", "en-XA"),
+        Fields =
+        [
+          Field("replacementCost", "replacementCost", "currency") with
+          {
+            Label = Text("⟦ Řëþļåçëmëñţ çøšţ ······ ⟧", "en-XA"),
+            HelpText = Text("⟦ Ëñţëř ţħë ƒûļļ ëšţïmåţëð çøšţ ········ ⟧", "en-XA"),
+            Config = new Dictionary<string, object?> { ["currencyCode"] = "USD", ["decimals"] = 2 },
+          },
+          Field("completion", "completion", "percentage") with
+          {
+            Label = Text("⟦ Çømþļëţïøñ þëřçëñţåĝë ······ ⟧", "en-XA"),
+            Config = new Dictionary<string, object?> { ["decimals"] = 1 },
+          },
+          Field("inspectionDate", "inspectionDate", "date") with
+          {
+            Label = Text("⟦ Îñšþëçţïøñ ðåţë ······ ⟧", "en-XA"),
+          },
+        ],
+      },
+    ],
+  };
+
+  private static readonly SchemaFormView ArabicView = new()
+  {
+    FormId = "arabic-request",
+    Version = "1.0.0",
+    Title = Text("طلب الميناء", "ar"),
+    Description = Text("كل النصوص المرئية مقدمة من المتصل.", "ar"),
+    Sections =
+    [
+      new()
+      {
+        Id = "amounts",
+        Title = Text("المبالغ والتاريخ", "ar"),
+        Fields =
+        [
+          Field("amount", "amount", "currency") with
+          {
+            Label = Text("المبلغ الإجمالي", "ar"),
+            HelpText = Text("بالعملة المحلية", "ar"),
+            Config = new Dictionary<string, object?> { ["currencyCode"] = "AED", ["decimals"] = 2 },
+          },
+          Field("date", "date", "date") with { Label = Text("تاريخ الوصول", "ar") },
+        ],
+      },
+    ],
+  };
+
+  private static readonly IReadOnlyDictionary<string, object?> ControlsValues = new Dictionary<string, object?>
+  {
+    ["berthCode"] = "D-14",
+    ["arrivalWindow"] = "04:00–06:00",
+    ["cargoShape"] = new Dictionary<string, object?> { ["kind"] = "bulk" },
+    ["agent"] = new Dictionary<string, object?> { ["name"] = "North Harbor Agency", ["sibling"] = "preserved" },
+    ["charges"] = new List<Dictionary<string, object?>>
+    {
+      new() { ["description"] = "Pilotage" },
+    },
+  };
+
+  private static readonly IReadOnlyDictionary<string, object?> RulesValues = new Dictionary<string, object?>
+  {
+    ["contact"] = "",
+    ["reference"] = "REQ-2048",
+    ["total"] = 0d,
+    ["status"] = "Awaiting review",
+    ["internalNote"] = "Retained in the submitted candidate",
+  };
+
+  private static readonly IReadOnlyDictionary<string, object?> ValidationValues = new Dictionary<string, object?>
+  {
+    ["name"] = "",
+    ["email"] = "ops@example.test",
+  };
+
+  private static readonly IReadOnlyDictionary<string, object?> EmptyValues = new Dictionary<string, object?>();
+
+  private static readonly IReadOnlyDictionary<string, object?> ContentValues = new Dictionary<string, object?>
+  {
+    ["longLabel"] = "Certified",
+    ["largeNumber"] = "1,284,905",
+    ["escapedText"] = "Bay 4 <grid C-7> & 8",
+    ["surveyor"] = "Ordnance Survey — Niño Ångström",
+  };
+
+  private static readonly IReadOnlyDictionary<string, object?> PseudoValues = new Dictionary<string, object?>
+  {
+    ["replacementCost"] = 1234567.89d,
+    ["completion"] = 62.5d,
+    ["inspectionDate"] = "2026-08-13",
+  };
+
+  private static readonly IReadOnlyDictionary<string, object?> ArabicValues = new Dictionary<string, object?>
+  {
+    ["amount"] = 1234567.89d,
+    ["date"] = "2026-08-13",
+  };
+
+  private static readonly IReadOnlyList<string> PseudoLocale = ["en-XA"];
+  private static readonly IReadOnlyList<string> ArabicLocale = ["ar"];
+  private static readonly ISchemaFormRuleGraph RuleGraph = new GalleryRuleGraph();
+  private static readonly IReadOnlyDictionary<string, SchemaFormControlRenderer> CustomControls =
+    new Dictionary<string, SchemaFormControlRenderer> { ["bespoke"] = BespokeControl };
+
+  private static RenderFragment BespokeControl(SchemaFormControlArgs args) => builder =>
+  {
+    builder.OpenElement(0, "output");
+    builder.AddAttribute(1, "aria-describedby", args.Field.HelpText is null ? null : $"{args.Field.Name}-hint");
+    builder.AddAttribute(2, "aria-labelledby", $"{args.Field.Name}-label");
+    builder.AddAttribute(3, "class", "hl-schema-form__readonly");
+    builder.AddAttribute(4, "id", args.Field.Name);
+    builder.AddContent(5, $"{args.StringValue} · custom registry");
+    builder.CloseElement();
+  };
+
+  private static ValueTask<SchemaFormValidationResult?> ValidSubmit(IReadOnlyDictionary<string, object?> _) =>
+    ValueTask.FromResult<SchemaFormValidationResult?>(SchemaFormValidationResult.Valid);
+
+  private static ValueTask<SchemaFormValidationResult?> ValidationSubmit(IReadOnlyDictionary<string, object?> _) =>
+    ValueTask.FromResult<SchemaFormValidationResult?>(new(false,
+    [
+      new("/name", "Enter the caller-provided requester name."),
+      new("/shipping/address", "Complete the shipping address."),
+      new("", "The request cannot be saved yet."),
+    ]));
+
+  private static readonly IReadOnlyDictionary<string, (string Title, string Description)> CopyByScenario =
+    new Dictionary<string, (string, string)>
+    {
+      ["schema-form.controls-structure"] = ("Ordered controls and collections", "Registry resolution, fallback, nested updates, and bounded rows share one caller-defined order."),
+      ["schema-form.rules-gate"] = ("Rule outcomes and save gate", "Visibility, required, read-only, computed, and presentation outcomes project before save."),
+      ["schema-form.validation"] = ("Inline and summary validation", "Save to inspect inline association, summary partitioning, and summary focus."),
+      ["schema-form.locale-theme"] = ("Caller locales and dark theme", "Pseudo-expanded and Arabic copy exercise locale formatting, logical direction, and shared theme tokens."),
+      ["schema-form.content"] = ("Content resilience", "Hostile form content carries a label longer than its control, a grouped large number, escaped angle brackets and an ampersand, and a name with diacritics and an em dash."),
+      ["schema-form.empty-state"] = ("Empty state", "No inspection fields are currently available."),
+      ["schema-form.error-state"] = ("Error state", "Save the request to review its validation errors."),
+    };
+
+  private (string Title, string Description) Copy => CopyByScenario[ScenarioId];
+  private string? Theme => ScenarioId == "schema-form.locale-theme" ? "dark" : null;
+
+  private sealed class GalleryRuleGraph : ISchemaFormRuleGraph
+  {
+    public SchemaFormRuleEvaluation EvaluateInstance(SchemaFormRuleInstance _) => new()
+    {
+      Visibility = new Dictionary<string, SchemaFormVisibility>
+      {
+        ["field:contact"] = new(true, true, false),
+        ["field:reference"] = new(true, false, true),
+        ["field:internalNote"] = new(false, false, false),
+      },
+      Values = new Dictionary<string, SchemaFormRuleValue>
+      {
+        ["field:total"] = new(SchemaFormRuleValueState.Resolved, 1250.5d),
+      },
+      Presentations = new Dictionary<string, SchemaFormPresentation>
+      {
+        ["field:status"] = new(Text("Needs review"), "warn", "attention"),
+      },
+      HasPending = true,
+      IsSaveBlocked = true,
+    };
+  }
+}

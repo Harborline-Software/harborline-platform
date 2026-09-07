@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.foundation.rule-runtime",
+  "interfaceRevision": 1,
+  "status": "frozen",
+  "purpose": "Evaluate the closed harborline-jsonlogic/v1 language deterministically for Dynamic Forms, Calculations, and workflow guards through reactive TypeScript and authoritative .NET integrity tiers.",
+  "dependencies": [{"moduleId": "hlp.contracts.forms", "minimumRevision": 3}],
+  "engineIdentity": "harborline-jsonlogic/v1",
+  "tiers": {
+    "typescriptReactive": {
+      "package": "@harborline-software/rule-engine",
+      "role": "client-side compile, whole-instance evaluation, and transitive reactive reevaluation",
+      "wallClockAuthority": "advisory liveness fault"
+    },
+    "dotnetIntegrity": {
+      "package": "Harborline.Foundation.RuleEngine",
+      "assembly": "Harborline.Foundation.RuleEngine",
+      "role": "authoritative publish-time validation, save-time evaluation, and workflow guard/value evaluation",
+      "wallClockAuthority": "authoritative infrastructure timeout; never a rule verdict"
+    }
+  },
+  "operatorSet": ["var", "missing", "missing_some", "==", "!=", "===", "!==", "!", "!!", "and", "or", "if", ">", ">=", "<", "<=", "+", "-", "*", "/", "%", "min", "max", "in", "cat", "agg", "money.add", "money.sub", "money.mul", "date.add", "date.diff", "date.today", "coding.is"],
+  "limits": {
+    "maxGraphNodes": 5000,
+    "maxTableRowsPerAggregate": 2000,
+    "maxDependencyDepth": 64,
+    "maxReferencesPerRule": 64,
+    "maxAstNodes": 256,
+    "maxLiteralLength": 4096,
+    "stepBudget": 250000,
+    "wallClockMilliseconds": 250
+  },
+  "invariants": [
+    "Both tiers consume the compatible rule vocabulary retained in Forms contract revision 3 and emit canonical RuleOutcome values with all five output types, including Options.",
+    "The nine-file, 74-case corpus is one language-neutral authority; canonical per-rule outcomes from both tiers must be structurally identical.",
+    "Unknown operators, PowerFx evaluation, malformed grammar, cycles, resource-bound violations, and non-array Options results fail closed with stable localizable codes.",
+    "The v1 operator set is closed and contains no regex or user-pattern operator; pattern validation remains in the schema-validation module.",
+    "Money uses exact decimal semantics and date.today is supplied by an injected deterministic clock.",
+    "Runtime step exhaustion fails closed; wall-clock or cancellation timeout is an infrastructure fault and never a divergent rule outcome.",
+    "Named rule resolution excludes drafts unless explicitly requested and preserves version pins, monotonic watermarks, epoch-fenced caches, and deterministic traces.",
+    "Reactive reevaluation recomputes only the transitive dependency front after a field or child-row change without changing full-evaluation outcomes."
+  ],
+  "publicSeams": ["context adapter", "deterministic clock", "trace authority filter", "named-rule registry store"],
+  "conformance": {
+    "corpus": "conformance/hlp.foundation.rule-runtime/corpus",
+    "files": 9,
+    "cases": 74,
+    "runner": "conformance/hlp.foundation.rule-runtime/runners/run-shared.mjs",
+    "nativeTests": {"typescript": 201, "dotnet": 137}
+  },
+  "selectedDesign": {
+    "choice": "preserve both pinned runtime tiers behind one interface and one corpus, using Forms revision 3 as the wire authority",
+    "rejected": [
+      "Extract only the .NET integrity tier and make browser calculations round-trip through the server.",
+      "Copy a separate public Forms model into Rule Runtime and leave Options absent from the Forms wire contract."
+    ],
+    "reason": "Harborline App requires reactive browser behavior while save/workflow integrity requires authoritative .NET evaluation; either single-tier shortcut removes proven pillar behavior."
+  },
+  "excluded": [
+    "DependencyInjection convenience extension; host composition owns registration without changing runtime behavior.",
+    "Nested broad-Forms aggregate test; it is retained for the hlp.foundation.forms integration gate and does not change Rule Runtime semantics.",
+    "Power Fx provider implementation, regex/pattern operators, persistence topology, UI rendering, host transport, and product workflow policy."
+  ]
+}

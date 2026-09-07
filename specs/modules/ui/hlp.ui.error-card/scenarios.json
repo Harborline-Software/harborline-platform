@@ -1,0 +1,469 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.error-card",
+  "sourceFixture": "conformance/hlp.ui.error-card/fixtures.yaml",
+  "qualityFixture": "conformance/hlp.ui.error-card/quality-fixtures.yaml",
+  "galleryInterface": {
+    "probeAttribute": "data-gallery-probe",
+    "scenarioAttribute": "data-gallery-scenario",
+    "projectionTitles": {
+      "react": "Platform/Error Card",
+      "blazor": "Platform/Error Card"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "error-card.default",
+      "name": "Default",
+      "surface": "default",
+      "sourceCaseIds": [
+        "error-card.default",
+        "error-card.no-retry"
+      ],
+      "sourceQualityCaseIds": [
+        "error-card.quality.alert",
+        "error-card.quality.heading"
+      ],
+      "content": {
+        "blurb": "A visible alert with a caller-owned title and no implied action.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "title": "Unable to load"
+        },
+        "state": {},
+        "body": [],
+        "footer": []
+      },
+      "states": [
+        "default"
+      ]
+    },
+    {
+      "id": "error-card.variants",
+      "name": "Variants",
+      "surface": "variants",
+      "sourceCaseIds": [
+        "error-card.page",
+        "error-card.default",
+        "error-card.compact",
+        "error-card.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "error-card.quality.heading",
+        "error-card.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "Page, default, and compact presentation preserve their heading semantics.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<div className=\"hl-gallery-feedback-grid\"><ErrorCard title=\"Page unavailable\" message=\"Return to the inspection list or try again.\" variant=\"page\" /><ErrorCard title=\"Unable to load\" message=\"Check your connection.\" /><ErrorCard title=\"Failed\" message=\"Attachment unavailable.\" variant=\"compact\" /></div>",
+            "blazor": "<div class=\"hl-gallery-feedback-grid\"><HarborlineErrorCard Title=\"Page unavailable\" Message=\"Return to the inspection list or try again.\" Variant=\"ErrorCardVariant.Page\" /><HarborlineErrorCard Title=\"Unable to load\" Message=\"Check your connection.\" /><HarborlineErrorCard Title=\"Failed\" Message=\"Attachment unavailable.\" Variant=\"ErrorCardVariant.Compact\" /></div>",
+            "rationale": "This scenario renders three heterogeneous ErrorCard instances. The closed vocabulary has no ErrorCard descriptor control, and one module-level props object cannot express three independently configured instances."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "error-card.message",
+      "name": "Message and tone",
+      "surface": "message",
+      "sourceCaseIds": [
+        "error-card.message",
+        "error-card.semantic-tone"
+      ],
+      "sourceQualityCaseIds": [
+        "error-card.quality.alert",
+        "error-card.quality.contrast"
+      ],
+      "content": {
+        "blurb": "Optional detail follows the title using the destructive and muted token roles.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "title": "Unable to load",
+          "message": "Check your connection before trying again."
+        },
+        "state": {},
+        "body": [],
+        "footer": []
+      }
+    },
+    {
+      "id": "error-card.retry",
+      "name": "Retry action",
+      "surface": "retry",
+      "sourceCaseIds": [
+        "error-card.retry"
+      ],
+      "sourceQualityCaseIds": [
+        "error-card.quality.retry-keyboard",
+        "error-card.quality.focus",
+        "error-card.quality.reduced-motion"
+      ],
+      "content": {
+        "blurb": "A native button is present only when the caller supplies a retry handler.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "title": "Unable to load inspections",
+          "message": "Check your connection and try again.",
+          "retryLabel": "Retry",
+          "onRetry": true
+        },
+        "state": {
+          "retryCount": {
+            "kind": "counter",
+            "initial": 0
+          }
+        },
+        "body": [
+          {
+            "control": "output",
+            "live": "polite",
+            "text": "Retry activations: {retryCount}"
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "error-card.no-retry",
+      "name": "Without retry",
+      "surface": "no-retry",
+      "sourceCaseIds": [
+        "error-card.no-retry"
+      ],
+      "sourceQualityCaseIds": [
+        "error-card.quality.alert"
+      ],
+      "content": {
+        "blurb": "The same failure remains complete when recovery is unavailable.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "title": "Unable to load"
+        },
+        "state": {},
+        "body": [],
+        "footer": [],
+        "inherits": "error-card.default"
+      }
+    },
+    {
+      "id": "error-card.host-attributes",
+      "name": "Host attributes",
+      "surface": "host-attribute",
+      "sourceCaseIds": [
+        "error-card.host-attributes"
+      ],
+      "sourceQualityCaseIds": [
+        "error-card.quality.rtl"
+      ],
+      "content": {
+        "blurb": "Consumer class, data, description, and direction reach the alert host.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "rtl",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "title": "تعذر التحميل",
+          "message": "راجع تفاصيل الخطأ.",
+          "dir": "rtl",
+          "className": "consumer",
+          "data-case": "shared",
+          "aria-describedby": "error-details"
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "span",
+            "id": "error-details",
+            "className": "hl-gallery-sr-only",
+            "text": "Inspection loading error details"
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "error-card.locale-en",
+      "name": "English locale",
+      "surface": "locale-en",
+      "sourceCaseIds": [
+        "error-card.retry",
+        "error-card.localized-retry"
+      ],
+      "sourceQualityCaseIds": [
+        "error-card.quality.caller-text",
+        "error-card.quality.locale-direction"
+      ],
+      "content": {
+        "blurb": "Caller text and the source-compatible retry fallback render in English.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "title": "Unable to load inspections",
+          "message": "Check your connection and try again.",
+          "retryLabel": "Retry",
+          "onRetry": true,
+          "lang": "en-US",
+          "dir": "ltr"
+        },
+        "state": {
+          "retryCount": {
+            "kind": "counter",
+            "initial": 0
+          }
+        },
+        "body": [
+          {
+            "control": "output",
+            "live": "polite",
+            "text": "Retry activations: {retryCount}"
+          }
+        ],
+        "footer": [],
+        "inherits": "error-card.retry"
+      }
+    },
+    {
+      "id": "error-card.locale-pseudo",
+      "name": "Pseudo locale",
+      "surface": "locale-pseudo",
+      "sourceCaseIds": [
+        "error-card.localized-retry",
+        "error-card.message"
+      ],
+      "sourceQualityCaseIds": [
+        "error-card.quality.caller-text",
+        "error-card.quality.locale-direction",
+        "error-card.quality.pseudo-expansion",
+        "error-card.quality.formatting-applicability",
+        "error-card.quality.reflow-200"
+      ],
+      "content": {
+        "blurb": "Expanded caller text and retry copy expose clipping and reflow defects.",
+        "environment": {
+          "locale": "en-XA",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "title": "⟦ Ûñåɓļë ţø ļøåđ îñšþëçţîøñš ······ ⟧",
+          "message": "⟦ Çhëçķ ÿøûř çøññëçţîøñ åñđ ţřÿ åĝåîñ ········ ⟧",
+          "retryLabel": "⟦ Řëţřý ··· ⟧",
+          "onRetry": true,
+          "lang": "en-XA",
+          "dir": "ltr"
+        },
+        "state": {
+          "retryCount": {
+            "kind": "counter",
+            "initial": 0
+          }
+        },
+        "body": [
+          {
+            "control": "output",
+            "live": "polite",
+            "text": "Retry activations: {retryCount}"
+          }
+        ],
+        "footer": [],
+        "inherits": "error-card.retry"
+      }
+    },
+    {
+      "id": "error-card.locale-ar",
+      "name": "Arabic locale",
+      "surface": "locale-ar",
+      "sourceCaseIds": [
+        "error-card.localized-retry",
+        "error-card.host-attributes"
+      ],
+      "sourceQualityCaseIds": [
+        "error-card.quality.caller-text",
+        "error-card.quality.locale-direction",
+        "error-card.quality.rtl"
+      ],
+      "content": {
+        "blurb": "Caller-localized content follows logical RTL alignment and spacing.",
+        "environment": {
+          "locale": "ar-SA",
+          "direction": "rtl",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "title": "تعذر تحميل عمليات الفحص",
+          "message": "تحقق من اتصالك ثم حاول مرة أخرى.",
+          "retryLabel": "إعادة المحاولة",
+          "onRetry": true,
+          "lang": "ar-SA",
+          "dir": "rtl"
+        },
+        "state": {
+          "retryCount": {
+            "kind": "counter",
+            "initial": 0
+          }
+        },
+        "body": [
+          {
+            "control": "output",
+            "live": "polite",
+            "text": "Retry activations: {retryCount}"
+          }
+        ],
+        "footer": [],
+        "inherits": "error-card.retry"
+      }
+    },
+    {
+      "id": "error-card.theme-light",
+      "name": "Light theme",
+      "surface": "theme-light",
+      "sourceCaseIds": [
+        "error-card.page",
+        "error-card.retry",
+        "error-card.semantic-tone"
+      ],
+      "sourceQualityCaseIds": [
+        "error-card.quality.theme-light",
+        "error-card.quality.theme-states",
+        "error-card.quality.theme-tokens",
+        "error-card.quality.runtime-switch",
+        "error-card.quality.contrast",
+        "error-card.quality.reduced-motion",
+        "error-card.quality.visual-parity",
+        "error-card.quality.forced-colors",
+        "error-card.quality.reflow-200"
+      ],
+      "content": {
+        "blurb": "Surface, border, title, message, retry, hover, and focus roles on light.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "title": "Page unavailable",
+          "message": "Check your connection and try again.",
+          "variant": "page",
+          "retryLabel": "Retry",
+          "onRetry": true
+        },
+        "state": {},
+        "body": [],
+        "footer": []
+      }
+    },
+    {
+      "id": "error-card.theme-dark",
+      "name": "Dark theme",
+      "surface": "theme-dark",
+      "sourceCaseIds": [
+        "error-card.page",
+        "error-card.retry",
+        "error-card.semantic-tone",
+        "error-card.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "error-card.quality.theme-dark",
+        "error-card.quality.theme-states",
+        "error-card.quality.theme-tokens",
+        "error-card.quality.runtime-switch",
+        "error-card.quality.contrast",
+        "error-card.quality.reduced-motion",
+        "error-card.quality.visual-parity",
+        "error-card.quality.forced-colors",
+        "error-card.quality.reflow-200"
+      ],
+      "content": {
+        "blurb": "The complete feedback state vocabulary on the dark surface.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "dark",
+          "catalog": {}
+        },
+        "props": {
+          "title": "Page unavailable",
+          "message": "Check your connection and try again.",
+          "variant": "page",
+          "retryLabel": "Retry",
+          "onRetry": true
+        },
+        "state": {},
+        "body": [],
+        "footer": [],
+        "inherits": "error-card.theme-light"
+      }
+    },
+    {
+      "id": "error-card.content",
+      "name": "Content resilience",
+      "surface": "long-content",
+      "sourceCaseIds": [
+        "error-card.default",
+        "error-card.message"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "Hostile content carries a long retry label, the grouped number 1,284,905, escaped angle brackets and an ampersand, a name with diacritics and an em dash, and omitted optional fields.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<><ErrorCard title={'Ordnance Survey — Niño Ångström'} message={'1,284,905 records affected at Bay 4 <grid C-7> & 8'} onRetry={()=>{}} retryLabel={'Review affected inspection records and retry import'} /><ErrorCard title={'Awaiting third-party structural certification review'} /></>",
+            "blazor": "<HarborlineErrorCard Title=\"@(\"Ordnance Survey — Niño Ångström\")\" Message=\"@(\"1,284,905 records affected at Bay 4 <grid C-7> & 8\")\" OnRetry=\"HandleRetry\" RetryLabel=\"@(\"Review affected inspection records and retry import\")\" /><HarborlineErrorCard Title=\"@(\"Awaiting third-party structural certification review\")\" />",
+            "rationale": "The closed control vocabulary cannot express paired ErrorCard instances with independently omitted optional fields and hostile-but-valid caller text."
+          }
+        ],
+        "footer": []
+      }
+    }
+  ]
+}

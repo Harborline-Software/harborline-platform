@@ -1,0 +1,12 @@
+.hl-segmented-control{display:inline-flex;box-sizing:border-box;max-inline-size:100%;gap:2px;padding:3px;border:1px solid var(--hl-control-border,#64748b);border-radius:.625rem;background:var(--hl-surface,#fff);color:var(--hl-foreground,#172033)}
+.hl-segmented-control__option{position:relative;box-sizing:border-box;min-inline-size:0;border:1px solid transparent;border-radius:.375rem;background:transparent;color:inherit;font:inherit;line-height:1.25;white-space:normal;overflow-wrap:anywhere;cursor:pointer}
+.hl-segmented-control__option[aria-checked='true']{border-color:var(--hl-primary,#0f62fe);background:var(--hl-accent,#e8f0ff);box-shadow:0 1px 2px rgb(16 24 40 / .12);font-weight:600}
+.hl-segmented-control__option:focus-visible{z-index:1;outline:2px solid var(--hl-focus,#8a3ffc);outline-offset:2px}
+.hl-segmented-control__option:disabled{border-color:var(--hl-border,#d0d0d0);background:var(--hl-muted,#f3f3f3);color:var(--hl-muted-foreground,#444);cursor:not-allowed}
+.hl-segmented-control[data-hl-size='sm'] .hl-segmented-control__option{min-block-size:2rem;padding:.375rem .5rem;font-size:.875rem}
+.hl-segmented-control[data-hl-size='md'] .hl-segmented-control__option{min-block-size:2.5rem;padding:.5rem .75rem;font-size:.875rem}
+.hl-segmented-control[data-hl-size='lg'] .hl-segmented-control__option{min-block-size:3rem;padding:.625rem 1rem;font-size:1rem}
+.hl-segmented-control[data-hl-size='touch']{gap:8px}.hl-segmented-control[data-hl-size='touch'] .hl-segmented-control__option,.hl-segmented-control[data-hl-touch='true'] .hl-segmented-control__option{min-block-size:44px;min-inline-size:44px}
+.hl-segmented-control--full-width{display:flex;inline-size:100%}.hl-segmented-control--full-width .hl-segmented-control__option{flex:1 1 0}
+@media (forced-colors:active){.hl-segmented-control{border-color:CanvasText}.hl-segmented-control__option[aria-checked='true']{border-style:double}.hl-segmented-control__option:focus-visible{outline-color:Highlight}}
+@media (prefers-reduced-motion:reduce){.hl-segmented-control,.hl-segmented-control__option{transition-duration:.001ms!important}}

@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.notification-center",
+  "verdict": "approved",
+  "reviewer": "cic",
+  "recordedAt": "2026-08-27T05:31:26.517Z",
+  "notes": "the popup needs polish as it doesn't look like the same design language",
+  "reference": {
+    "revision": "5ca5a02dd7ad7f9fa78a84224b9d68d530e5b20980c8095349d202131fb5c203",
+    "source": "gallery/scenarios/hlp.ui.notification-center.json",
+    "pin": "e4c44eca8918b135e2dcd36060a8e8582d336f89",
+    "surface": {
+      "conformance/hlp.ui.notification-center/fixtures.yaml": "181e992d4ac7c3a232cebc1f02563e7d1f119d1ca9572f67843c8d809816a256",
+      "conformance/hlp.ui.notification-center/quality-fixtures.yaml": "b9855a7308282ea186564dcb116776f6071dcc3081874f612a3f7c2786f0628c",
+      "gallery/projections/blazor/Stories/NotificationCenter.stories.razor": "e855c47b7d052b2ae27e194aa7fad4be8a241440844ad1e1479523ea4d0a41e9",
+      "gallery/projections/blazor/Stories/NotificationCenterScenario.razor": "3d5bb8d1a8a84fa5a2486a9f61b49f6c9d835108008b6933eee23efab66e337c",
+      "gallery/projections/react/src/NotificationCenter.stories.tsx": "aebd1bde6a565848b6c636dadad33412061dd3a4d45d0af28ed8eda17048b93c",
+      "gallery/scenarios/hlp.ui.notification-center.json": "6cf4b8d7af6897b9986113644af794d1b421807aad2a249319120594975898f7",
+      "projections/blazor/ui/hlp.ui.notification-center/NotificationCenterTypes.cs": "3ff6b368666eab9efedde69b0fd6f6c85ddf6a81305c81024a4fac8cac56e123",
+      "projections/blazor/ui/hlp.ui.notification-center/ShipyardNotificationCenter.razor": "4a2e1739908c9d824cd69fed912c3f6f9479b4e936c13382bb1a1338e12a69e0",
+      "projections/blazor/ui/hlp.ui.notification-center/wwwroot/notification-center.css": "f7216bfe7576ffc6bb03231c20380e129762dbb381f30f17ce68e53382b0bfcf",
+      "projections/blazor/ui/hlp.ui.notification-center/wwwroot/notification-center.js": "3b46db9262ec49ee46ec682d15566e86ab305168db6a3261660c80747a18fb83",
+      "projections/react/ui/hlp.ui.notification-center/src/NotificationCenter.tsx": "0e3023f05be10190507c601e147749da2bd6f8c81ea39a7fccf08e24eda48265",
+      "projections/react/ui/hlp.ui.notification-center/src/index.ts": "08bd856f6f95348905e358a8f4b90982cbc5247577042a0c91aa4ddbfe73d049",
+      "projections/react/ui/hlp.ui.notification-center/src/style.css": "307d9b13c91ea312e05484a1aceb5e2f4cc9a5f5f547d179f3dc2db23cd02af6",
+      "specs/modules/ui/hlp.ui.notification-center/scenarios.json": "6cf4b8d7af6897b9986113644af794d1b421807aad2a249319120594975898f7",
+      "specs/modules/ui/hlp.ui.notification-center/style.css": "307d9b13c91ea312e05484a1aceb5e2f4cc9a5f5f547d179f3dc2db23cd02af6"
+    }
+  }
+}

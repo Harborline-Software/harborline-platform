@@ -1,0 +1,95 @@
+<section class="hl-gallery-scene" data-gallery-probe data-gallery-scenario="@ScenarioId" data-theme="@Theme">
+    <header class="hl-gallery-heading"><h2>@Title</h2><p>@Description</p></header>
+    <div class="hl-gallery-stage hl-gallery-feedback-stage">
+        @if (ScenarioId == "empty-state.content")
+        {
+            <HarborlineEmptyState Variant="EmptyStateVariant.Actionable" Title="@("Ordnance Survey — Niño Ångström")"
+                                Description="@("1,284,905 records at Bay 4 <grid C-7> & 8")"
+                                ActionLabel="@("Review affected inspection records and continue")" OnAction="HandleAction" />
+            <HarborlineEmptyState Variant="EmptyStateVariant.Informational"
+                                Title="@("Awaiting third-party structural certification review")" />
+        }
+        else if (ScenarioId == "empty-state.positive")
+        {
+            <HarborlineEmptyState Variant="EmptyStateVariant.Positive" Title="No outstanding receivables"
+                                Description="Every posted invoice has been paid." />
+        }
+        else if (ScenarioId == "empty-state.actionable")
+        {
+            <div class="hl-gallery-feedback-stack">
+                <HarborlineEmptyState Variant="EmptyStateVariant.Actionable" Title="No payments yet"
+                                    Description="Record a payment to begin tracking this account."
+                                    ActionLabel="Record the first payment" OnAction="HandleAction"
+                                    data-activation-count="@ActivationCount" />
+                <output class="hl-gallery-activation" aria-live="polite">Action activations: @ActivationCount</output>
+            </div>
+        }
+        else if (ScenarioId == "empty-state.host-accessibility")
+        {
+            <HarborlineEmptyState Variant="EmptyStateVariant.Informational" Title="No saved filters"
+                                Description="Saved filters will appear here." role="region"
+                                aria-label="Saved filters empty state" />
+        }
+        else if (ScenarioId == "empty-state.locale-pseudo")
+        {
+            <HarborlineEmptyState Variant="EmptyStateVariant.Actionable"
+                                Title="⟦ Ñø šåṽëđ îñšþëçţîøñ ṽîëŵš ······ ⟧"
+                                Description="⟦ Šåṽë å ṽîëŵ ţø řëţûřñ ţø ţhîš šţřûçţûřë ļåÿøûţ ········ ⟧"
+                                ActionLabel="⟦ Šåṽë ţhîš ṽîëŵ ···· ⟧" OnAction="HandleAction"
+                                lang="en-XA" dir="ltr" />
+        }
+        else if (ScenarioId == "empty-state.locale-ar")
+        {
+            <HarborlineEmptyState Variant="EmptyStateVariant.Actionable" Title="لا توجد طرق عرض محفوظة"
+                                Description="احفظ طريقة عرض للعودة إلى تخطيط هذا المبنى."
+                                ActionLabel="حفظ طريقة العرض" OnAction="HandleAction"
+                                lang="ar-SA" dir="rtl" />
+        }
+        else if (ScenarioId is "empty-state.theme-light" or "empty-state.theme-dark")
+        {
+            <div class="hl-gallery-feedback-grid">
+                <HarborlineEmptyState Variant="EmptyStateVariant.Informational" Title="No search results"
+                                    Description="Adjust the filters and try again." />
+                <HarborlineEmptyState Variant="EmptyStateVariant.Positive" Title="All inspections are complete"
+                                    Description="There is no outstanding work for this structure." />
+                <HarborlineEmptyState Variant="EmptyStateVariant.Actionable" Title="No saved views"
+                                    Description="Save a view to return to this layout."
+                                    ActionLabel="Save this view" OnAction="HandleAction" />
+            </div>
+        }
+        else
+        {
+            <HarborlineEmptyState Variant="EmptyStateVariant.Informational" Title="No results found" />
+        }
+    </div>
+</section>
+
+@code {
+    [Parameter, EditorRequired] public string ScenarioId { get; set; } = "empty-state.informational";
+
+    private int ActivationCount { get; set; }
+    private string Title => Copy[ScenarioId].Title;
+    private string Description => Copy[ScenarioId].Description;
+    private string? Theme => ScenarioId switch
+    {
+        "empty-state.theme-light" => "light",
+        "empty-state.theme-dark" => "dark",
+        _ => null,
+    };
+
+    private void HandleAction() => ActivationCount++;
+
+    private static IReadOnlyDictionary<string, (string Title, string Description)> Copy { get; } =
+        new Dictionary<string, (string, string)>
+        {
+            ["empty-state.informational"] = ("Informational", "A caller-owned explanation with a decorative information icon and no implied action."),
+            ["empty-state.positive"] = ("Positive", "A complete state confirms that no outstanding work remains."),
+            ["empty-state.actionable"] = ("Actionable", "A native, keyboard-operable action helps the user create the first record."),
+            ["empty-state.host-accessibility"] = ("Host accessibility", "The host supplies region semantics and an accessible label without turning the module into a live region."),
+            ["empty-state.locale-pseudo"] = ("Pseudo locale", "Expanded caller text exposes clipping and fixed-width assumptions at narrow widths."),
+            ["empty-state.locale-ar"] = ("Arabic locale", "Caller-localized content preserves right-to-left direction and logical alignment."),
+            ["empty-state.theme-light"] = ("Light theme", "Informational, positive, and actionable roles on the neutral light fixture."),
+            ["empty-state.theme-dark"] = ("Dark theme", "The same semantic vocabulary on the Harborline dark surface."),
+            ["empty-state.content"] = ("Content resilience", "Hostile content carries a long action label, the grouped number 1,284,905, escaped angle brackets and an ampersand, a name with diacritics and an em dash, and omitted optional fields."),
+        };
+}

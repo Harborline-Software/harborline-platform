@@ -1,0 +1,144 @@
+<section class="hl-gallery-scene" data-gallery-probe data-gallery-scenario="@ScenarioId" data-theme="@Theme" dir="@Direction">
+  <header class="hl-gallery-heading"><h2>@Copy.Title</h2><p>@Copy.Description</p></header>
+  <div aria-label="Schedule gallery viewport" class="hl-gallery-stage" style="overflow:auto" tabindex="0">
+    <HarborlineLocaleProvider Locale="@Locale" Direction="@Direction" Catalog="@Catalog">
+      <div style="inline-size:100%;min-inline-size:0;max-inline-size:@FixtureMaxInlineSize;zoom:@FixtureZoom">
+        <HarborlineGantt AccessibleLabel="@AccessibleLabel" Class="engineering-schedule" Columns="@Columns" data-owner="engineering-services"
+                       Dependencies="@Dependencies" Empty="@Empty" RowHeight="@RowHeight" ShowZoomPicker="@ShowZoomPicker"
+                       Tasks="@Tasks" Zoom="@Zoom" ZoomChanged="HandleZoomChanged" />
+        @if (IsZoom)
+        {
+          <output aria-live="polite" style="display:block;margin-block-start:12px">@(requestedZoom is GanttZoom requested ? $"Requested {requested.ToString().ToLowerInvariant()}; supplied zoom remains day." : "Choose a scale to request a controlled zoom change.")</output>
+        }
+        @if (IsReplacement)
+        {
+          <p role="status">Revision 96 is current. Earlier rows and connectors have been removed.</p>
+        }
+        @if (IsLarge)
+        {
+          <p role="status">256 tasks · 320 dependencies</p>
+        }
+      </div>
+    </HarborlineLocaleProvider>
+  </div>
+</section>
+
+@code {
+  [Parameter, EditorRequired] public string ScenarioId { get; set; } = "gantt.overview";
+  private GanttZoom? requestedZoom;
+
+  private static readonly IReadOnlyDictionary<string, (string Title, string Description)> CopyByScenario = new Dictionary<string, (string, string)>
+  {
+    ["gantt.overview"] = ("Read-only schedule", "Ordered work, progress, and finish-to-start dependencies remain available without editing controls."),
+    ["gantt.empty-columns"] = ("Empty and column states", "Localized empty content and caller-selected columns replace the defaults without stale headers."),
+    ["gantt.zoom-navigation"] = ("Controlled zoom and keyboard navigation", "The picker requests a scale while the supplied scale and keyboard-reachable task grid remain authoritative."),
+    ["gantt.replacement-validation"] = ("Replacement and validation boundaries", "Only the latest valid task graph is visible; malformed inputs are rejected by stable contract codes."),
+    ["gantt.large-data"] = ("Large schedule", "The deterministic Tier-C fixture exposes 256 ordered tasks and 320 valid dependencies."),
+    ["gantt.locale-fr"] = ("French calendar dates", "Calendar dates are formatted in French without timezone drift."),
+    ["gantt.locale-pseudo"] = ("Pseudo-localized reflow", "Expanded headers and labels remain reachable in a narrow, magnified surface."),
+    ["gantt.locale-ar"] = ("Arabic right-to-left schedule", "Logical layout follows right-to-left direction while source task order remains unchanged."),
+    ["gantt.theme-light"] = ("Light theme", "Semantic timeline, progress, focus, and dependency tokens on the Harborline light surface."),
+    ["gantt.theme-dark"] = ("Dark theme", "The same provider-neutral schedule on the Harborline dark surface."),
+  };
+
+  private static readonly IReadOnlyList<GanttTask> BaseTasks =
+  [
+    new("survey", "Survey structure", new(2026, 8, 11), new(2026, 8, 12), 100, "var(--hl-color-success)"),
+    new("capture", "Capture photo with pose", new(2026, 8, 13), new(2026, 8, 15), 45, "var(--hl-color-info)"),
+    new("place", "Place capture in blueprint", new(2026, 8, 16), new(2026, 8, 19), 10, "var(--hl-color-warning)"),
+  ];
+  private static readonly IReadOnlyList<GanttDependency> BaseDependencies = [new("survey", "capture"), new("capture", "place")];
+
+  private static readonly IReadOnlyDictionary<string, string> PseudoCatalog = new Dictionary<string, string>
+  {
+    ["gantt.title"] = "⟦ Šçĥëđûļë ţîmëļîñë ······ ⟧", ["gantt.name"] = "⟦ Ţîmëļîñë ···· ⟧",
+    ["gantt.start"] = "⟦ Šţåřţ đåţë ···· ⟧", ["gantt.end"] = "⟦ Ëñđ đåţë ···· ⟧", ["gantt.progress"] = "⟦ Þřøĝřëšš ···· ⟧",
+    ["gantt.zoom"] = "⟦ Ţîmë šçåļë ···· ⟧", ["gantt.day"] = "⟦ Đåÿ ·· ⟧", ["gantt.week"] = "⟦ Ŵëëķ ··· ⟧",
+    ["gantt.month"] = "⟦ Møñţĥ ··· ⟧", ["dataGrid.noResults"] = "⟦ Ñø šçĥëđûļëđ ŵøřķ ········ ⟧",
+  };
+  private static readonly IReadOnlyDictionary<string, string> FrenchCatalog = new Dictionary<string, string>
+  {
+    ["gantt.title"] = "Calendrier des travaux", ["gantt.name"] = "Chronologie", ["gantt.start"] = "Début", ["gantt.end"] = "Fin",
+    ["gantt.progress"] = "Avancement", ["gantt.zoom"] = "Échelle", ["gantt.day"] = "Jour", ["gantt.week"] = "Semaine",
+    ["gantt.month"] = "Mois", ["dataGrid.noResults"] = "Aucun travail planifié.",
+  };
+  private static readonly IReadOnlyDictionary<string, string> ArabicCatalog = new Dictionary<string, string>
+  {
+    ["gantt.title"] = "الجدول الزمني للعمل", ["gantt.name"] = "الخط الزمني", ["gantt.start"] = "البداية", ["gantt.end"] = "النهاية",
+    ["gantt.progress"] = "التقدم", ["gantt.zoom"] = "المقياس الزمني", ["gantt.day"] = "يوم", ["gantt.week"] = "أسبوع",
+    ["gantt.month"] = "شهر", ["dataGrid.noResults"] = "لا يوجد عمل مجدول.",
+  };
+
+  // Eight parallel workstreams of thirty-two tasks each, matching the React lane slot for slot. Every
+  // task occupies one three-day slot and hands off to the next position, so each dependency is
+  // genuinely finish-to-start. The fixture this replaced started all 256 tasks on the same day and
+  // wrapped task 255 back to task 0, drawing 320 connectors between coincident bar edges with one
+  // running the full height of the chart. Counts stay at 256 and 320 because the scenario asserts both.
+  private const int LargeStreams = 8;
+  private const int LargeStreamLength = 32;
+  private const int LargeDependencyCount = 320;
+  private const int LargeSlotDays = 3;
+  private static readonly DateOnly LargeOrigin = new(2026, 8, 11);
+
+  private static readonly IReadOnlyList<GanttTask> LargeTasks = Enumerable.Range(0, LargeStreams * LargeStreamLength)
+    .Select(index => new GanttTask($"large-task-{index}", $"Structure task {index + 1}",
+      LargeOrigin.AddDays(index % LargeStreamLength * LargeSlotDays),
+      LargeOrigin.AddDays(index % LargeStreamLength * LargeSlotDays + LargeSlotDays - 1), index % 101)).ToArray();
+  private static readonly IReadOnlyList<GanttDependency> LargeDependencies = BuildLargeDependencies();
+
+  private static IReadOnlyList<GanttDependency> BuildLargeDependencies()
+  {
+    static string Identifier(int stream, int position) => $"large-task-{stream * LargeStreamLength + position}";
+    var edges = new List<GanttDependency>(LargeDependencyCount);
+    for (var stream = 0; stream < LargeStreams; stream++)
+    {
+      for (var position = 0; position + 1 < LargeStreamLength; position++)
+      {
+        edges.Add(new GanttDependency(Identifier(stream, position), Identifier(stream, position + 1)));
+      }
+    }
+    // Skip-ahead edges make up the balance: a task can gate more than its immediate successor. Landing
+    // two positions later keeps every edge pointing at a strictly later slot, so the set stays acyclic
+    // and duplicate-free -- and no connector spans more than two rows, which is what keeps the chart
+    // free of the long diagonals that crossed it before.
+    for (var position = 0; edges.Count < LargeDependencyCount; position++)
+    {
+      for (var stream = 0; stream < LargeStreams && edges.Count < LargeDependencyCount; stream++)
+      {
+        edges.Add(new GanttDependency(Identifier(stream, position), Identifier(stream, position + 2)));
+      }
+    }
+    return edges;
+  }
+  private static readonly IReadOnlyList<GanttTask> ArabicTasks =
+  [
+    new("survey", "مسح الهيكل", new(2026, 8, 11), new(2026, 8, 12), 100),
+    new("capture", "التقاط صورة مع الوضعية", new(2026, 8, 13), new(2026, 8, 15), 45),
+    new("place", "وضع الالتقاط في المخطط", new(2026, 8, 16), new(2026, 8, 19), 10),
+  ];
+
+  private (string Title, string Description) Copy => CopyByScenario[ScenarioId];
+  private bool IsEmpty => ScenarioId == "gantt.empty-columns";
+  private bool IsReplacement => ScenarioId == "gantt.replacement-validation";
+  private bool IsZoom => ScenarioId == "gantt.zoom-navigation";
+  private bool IsLarge => ScenarioId == "gantt.large-data";
+  private bool IsPseudo => ScenarioId == "gantt.locale-pseudo";
+  private bool IsArabic => ScenarioId == "gantt.locale-ar";
+  private string Locale => IsArabic ? "ar-SA" : ScenarioId == "gantt.locale-fr" ? "fr-FR" : IsPseudo ? "en-XA" : "en-US";
+  private string Direction => IsArabic ? "rtl" : "ltr";
+  private IReadOnlyDictionary<string, string>? Catalog => IsArabic ? ArabicCatalog : ScenarioId == "gantt.locale-fr" ? FrenchCatalog : IsPseudo ? PseudoCatalog : null;
+  private string? Theme => ScenarioId switch { "gantt.theme-light" => "light", "gantt.theme-dark" => "dark", _ => null };
+  private string FixtureMaxInlineSize => IsPseudo ? "640px" : "100%";
+  private string FixtureZoom => IsPseudo ? "2" : "1";
+  private string AccessibleLabel => IsArabic ? "الجدول الزمني للعمل" : IsPseudo ? PseudoCatalog["gantt.title"] : "Structure work schedule";
+  private string? Empty => IsEmpty ? "No scheduled structure work." : null;
+  private int RowHeight => IsPseudo ? 44 : 36;
+  private bool ShowZoomPicker => IsZoom || IsPseudo;
+  private GanttZoom Zoom => IsZoom ? GanttZoom.Day : ScenarioId == "gantt.locale-fr" ? GanttZoom.Week : GanttZoom.Month;
+  private IReadOnlyList<GanttColumn>? Columns => IsEmpty ? [new(GanttColumnField.Title, "Work package", 240)] : IsPseudo
+    ? [new(GanttColumnField.Title, "⟦ Šţřûçţûřë ŵøřķ þåçķåĝë ········ ⟧", 260), new(GanttColumnField.Start), new(GanttColumnField.End), new(GanttColumnField.Progress)] : null;
+  private IReadOnlyList<GanttTask> Tasks => IsLarge ? LargeTasks : IsEmpty ? [] : IsReplacement
+    ? [new("revision-96", "Latest replacement only", new(2026, 8, 19), new(2026, 8, 20), 96)] : IsArabic ? ArabicTasks : BaseTasks;
+  private IReadOnlyList<GanttDependency> Dependencies => IsLarge ? LargeDependencies : IsEmpty || IsReplacement ? [] : BaseDependencies;
+  private Task HandleZoomChanged(GanttZoom next) { requestedZoom = next; return Task.CompletedTask; }
+}

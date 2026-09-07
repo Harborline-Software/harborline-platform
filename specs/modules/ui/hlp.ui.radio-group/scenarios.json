@@ -1,0 +1,190 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.radio-group",
+  "sourceFixture": "conformance/hlp.ui.radio-group/fixtures.yaml",
+  "qualityFixture": "conformance/hlp.ui.radio-group/quality-fixtures.yaml",
+  "galleryInterface": {
+    "probeAttribute": "data-gallery-probe",
+    "scenarioAttribute": "data-gallery-scenario",
+    "projectionTitles": {
+      "react": "Platform/Radio Group",
+      "blazor": "Platform/Radio Group"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "radio-group.defaults",
+      "name": "Selection and descriptions",
+      "surface": "defaults",
+      "sourceCaseIds": [
+        "radio-group.native",
+        "radio-group.controlled",
+        "radio-group.select",
+        "radio-group.description"
+      ],
+      "sourceQualityCaseIds": [
+        "radio-group.quality.native",
+        "radio-group.quality.name",
+        "radio-group.quality.description",
+        "radio-group.quality.keyboard"
+      ],
+      "content": {
+        "blurb": "Native grouped selection retains labels, descriptions, and inherited state.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<FormField name=\"billing\" label=\"Billing cycle\" required><RadioGroup name=\"billing\" value=\"quarterly\" options={[{value:'monthly',label:'Monthly'},{value:'quarterly',label:'Quarterly',description:'Four invoices each year'},{value:'annual',label:'Annual',disabled:true}]} orientation=\"vertical\" onChange={()=>{}}/></FormField>",
+            "blazor": "<HarborlineFormField Name=\"billing\" Label=\"Billing cycle\" Required=\"true\"><HarborlineRadioGroup Name=\"billing\" Value=\"quarterly\" Options=\"@[new(\"monthly\", \"Monthly\"), new(\"quarterly\", \"Quarterly\", \"Four invoices each year\"), new(\"annual\", \"Annual\", Disabled: true)]\" Orientation=\"RadioGroupOrientation.Vertical\" /></HarborlineFormField>",
+            "rationale": "The closed controls cannot express a radio-group component's shared name, selected option, per-option description and disabled state, orientation, and enclosing required FormField without losing component semantics. Raw markup preserves the resolved lane structures."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "radio-group.states",
+      "name": "States and orientation",
+      "surface": "states",
+      "sourceCaseIds": [
+        "radio-group.option-disabled",
+        "radio-group.group-disabled",
+        "radio-group.orientation",
+        "radio-group.invalid",
+        "radio-group.required"
+      ],
+      "sourceQualityCaseIds": [
+        "radio-group.quality.focus",
+        "radio-group.quality.reflow",
+        "radio-group.quality.forced-colors",
+        "radio-group.quality.reduced-motion"
+      ],
+      "content": {
+        "blurb": "Native grouped selection retains labels, descriptions, and inherited state.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<FormField name=\"billing\" label=\"Billing cycle\" required error=\"Choose a cycle\"><RadioGroup name=\"billing\" value=\"quarterly\" options={[{value:'monthly',label:'Monthly'},{value:'quarterly',label:'Quarterly',description:'Four invoices each year'},{value:'annual',label:'Annual',disabled:true}]} orientation=\"horizontal\" error onChange={()=>{}}/></FormField>",
+            "blazor": "<HarborlineFormField Name=\"billing\" Label=\"Billing cycle\" Required=\"true\" Error=\"Choose a cycle\"><HarborlineRadioGroup Name=\"billing\" Value=\"quarterly\" Options=\"@[new(\"monthly\", \"Monthly\"), new(\"quarterly\", \"Quarterly\", \"Four invoices each year\"), new(\"annual\", \"Annual\", Disabled: true)]\" Orientation=\"RadioGroupOrientation.Horizontal\" Error=\"true\" /></HarborlineFormField>",
+            "rationale": "The closed controls cannot express a radio-group component's horizontal orientation, shared selected value, option description and disabled state, and coordinated FormField/RadioGroup error presentation without approximation. Raw markup preserves the resolved lane structures."
+          }
+        ],
+        "footer": [],
+        "inherits": "radio-group.defaults"
+      }
+    },
+    {
+      "id": "radio-group.rtl-theme",
+      "name": "RTL and theme",
+      "surface": "rtl-theme",
+      "sourceCaseIds": [
+        "radio-group.form-field",
+        "radio-group.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "radio-group.quality.caller-copy",
+        "radio-group.quality.rtl",
+        "radio-group.quality.pseudo",
+        "radio-group.quality.light-dark",
+        "radio-group.quality.tokens",
+        "radio-group.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "Native grouped selection retains labels, descriptions, and inherited state.",
+        "environment": {
+          "locale": "ar-SA",
+          "direction": "rtl",
+          "theme": "dark",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<FormField name=\"billing\" label=\"دورة الفوترة\" required><RadioGroup name=\"billing\" value=\"quarterly\" options={[{value:'monthly',label:'شهري'},{value:'quarterly',label:'ربع سنوي',description:'Four invoices each year'},{value:'annual',label:'سنوي',disabled:true}]} orientation=\"vertical\" onChange={()=>{}}/></FormField>",
+            "blazor": "<HarborlineFormField Name=\"billing\" Label=\"دورة الفوترة\" Required=\"true\"><HarborlineRadioGroup Name=\"billing\" Value=\"quarterly\" Options=\"@[new(\"monthly\", \"شهري\"), new(\"quarterly\", \"ربع سنوي\", \"أربع فواتير كل عام\"), new(\"annual\", \"سنوي\", Disabled: true)]\" Orientation=\"RadioGroupOrientation.Vertical\" /></HarborlineFormField>",
+            "rationale": "The closed controls cannot express the radio-group component's RTL option set, shared selected value, per-option description and disabled state, orientation, and enclosing required FormField without losing component semantics. Raw markup also records the lanes' differing quarterly descriptions explicitly."
+          }
+        ],
+        "footer": [],
+        "inherits": "radio-group.defaults"
+      }
+    },
+    {
+      "id": "radio-group.content",
+      "name": "Content resilience",
+      "surface": "long-content",
+      "sourceCaseIds": [
+        "radio-group.native",
+        "radio-group.description"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "Four radio options carry a long label, a grouped large number, escaped angle brackets and ampersand text, and a name with diacritics and an em dash.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<FormField name=\"content-choice\" label=\"Content cases\"><RadioGroup name=\"content-choice\" value=\"large-number\" options={[{value:'long-label',label:'Awaiting third-party structural certification review'},{value:'large-number',label:'1,284,905'},{value:'hostile-text',label:'Bay 4 <grid C-7> & 8'},{value:'unusual-name',label:'Ordnance Survey — Niño Ångström'}]} onChange={()=>{}} /></FormField>",
+            "blazor": "<HarborlineFormField Name=\"content-choice\" Label=\"Content cases\"><HarborlineRadioGroup Name=\"content-choice\" Value=\"large-number\" Options=\"@[new(\"long-label\", \"Awaiting third-party structural certification review\"), new(\"large-number\", \"1,284,905\"), new(\"hostile-text\", \"Bay 4 <grid C-7> & 8\"), new(\"unusual-name\", \"Ordnance Survey — Niño Ångström\")]\" /></HarborlineFormField>",
+            "rationale": "The closed controls cannot express a radio-group component whose option collection carries hostile-but-valid labels while preserving one shared native selection group."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "radio-group.error-state",
+      "name": "Error state",
+      "surface": "invalid-input",
+      "sourceCaseIds": [
+        "radio-group.invalid",
+        "radio-group.form-field"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "The required radio group exposes its invalid state and visible recovery message.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<FormField name=\"inspection-priority\" label=\"Inspection priority\" required error=\"Choose an inspection priority\"><RadioGroup name=\"inspection-priority\" value=\"\" options={[{value:'routine',label:'Routine'},{value:'urgent',label:'Urgent'}]} error onChange={()=>{}} /></FormField>",
+            "blazor": "<HarborlineFormField Name=\"inspection-priority\" Label=\"Inspection priority\" Required=\"true\" Error=\"Choose an inspection priority\"><HarborlineRadioGroup Name=\"inspection-priority\" Value=\"\" Options=\"@[new(\"routine\", \"Routine\"), new(\"urgent\", \"Urgent\")]\" Error=\"true\" /></HarborlineFormField>",
+            "rationale": "The closed controls cannot express the RadioGroup component's invalid group state together with its FormField-provided accessible label and recovery message."
+          }
+        ],
+        "footer": []
+      }
+    }
+  ]
+}

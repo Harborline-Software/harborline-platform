@@ -1,0 +1,13 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Feedback
+@inherits Harborline.UIAdapters.Blazor.Base.HarborlineComponentBase
+@using Harborline.UIAdapters.Blazor.Localization
+<svg role="status" aria-label="@ResolvedLabel" viewBox="0 0 24 24" fill="none" class="@CombineClasses("hl-spinner", $"hl-spinner--{Slug(Size)}", $"hl-spinner--{Slug(Type)}", ThemeColor is null ? null : $"hl-spinner--{Slug(ThemeColor.Value)}")" data-hl-size="@Slug(Size)" data-hl-type="@Slug(Type)" @attributes="AdditionalAttributes"><circle class="hl-spinner__track" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3"></circle><path class="hl-spinner__arc" d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" stroke-width="3" stroke-linecap="round"></path>@if(Type == SpinnerType.Converging){<path class="hl-spinner__arc hl-spinner__arc--reverse" d="M12 22A10 10 0 0 1 2 12" stroke="currentColor" stroke-width="3" stroke-linecap="round"></path>}</svg>
+@code {
+    [CascadingParameter] private HarborlineLocaleContext? LocaleContext { get; set; }
+    [Parameter] public SpinnerSize Size { get; set; } = SpinnerSize.Md;
+    [Parameter] public string? Label { get; set; }
+    [Parameter] public SpinnerThemeColor? ThemeColor { get; set; }
+    [Parameter] public SpinnerType Type { get; set; } = SpinnerType.Ring;
+    private string ResolvedLabel => Label ?? $"{LocaleContext?.Translate("common.loading") ?? "Loading"}…";
+    private static string Slug<T>(T value) where T : struct, Enum => value.ToString().ToLowerInvariant();
+}

@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.context-menu",
+  "fixtureRevision": 1,
+  "cases": [
+    {"id": "context-menu.closed", "input": {"groups": 2}, "expected": {"menuPresent": false, "triggerPresent": true}},
+    {"id": "context-menu.pointer-open", "input": {"x": 40, "y": 60}, "expected": {"nativeSuppressed": true, "open": true, "position": {"x": 40, "y": 60}}},
+    {"id": "context-menu.groups", "input": {"groupSizes": [2, 1]}, "expected": {"menuItems": 3, "separators": 1, "separatorSelectable": false}},
+    {"id": "context-menu.pointer-selection", "input": {"itemId": "copy"}, "expected": {"selectionCount": 1, "selectedId": "copy", "open": false}},
+    {"id": "context-menu.disabled-selection", "input": {"itemId": "paste-disabled"}, "expected": {"selectionCount": 0, "open": true, "nativeDisabled": true}},
+    {"id": "context-menu.dismissal", "input": {"methods": ["Escape", "outside-pointer"]}, "expected": {"selectionCount": 0, "open": false}},
+    {"id": "context-menu.keyboard-open", "input": {"keys": ["Shift+F10", "ContextMenu"]}, "expected": {"open": true, "nativeSuppressed": true}},
+    {"id": "context-menu.focus-entry", "input": {"items": ["disabled", "copy", "delete"]}, "expected": {"activeId": "copy", "disabledSkipped": true}},
+    {"id": "context-menu.keyboard-navigation", "input": {"sequence": ["End", "ArrowDown", "ArrowUp", "Home"], "items": ["copy", "disabled", "delete"]}, "expected": {"visitedEnabledOnly": true, "wraps": true, "finalActiveId": "copy"}},
+    {"id": "context-menu.keyboard-activation", "input": {"keys": ["Enter", "Space"]}, "expected": {"selectionCountPerOpen": 1, "open": false}},
+    {"id": "context-menu.focus-return", "input": {"dismissals": ["selection", "Escape", "outside-pointer"]}, "expected": {"focusReturnedToKeyboardOpener": true}},
+    {"id": "context-menu.accessible-context", "input": {"label": "Actions", "locale": "ar-SA", "direction": "rtl"}, "expected": {"role": "menu", "accessibleName": "Actions", "lang": "ar-SA", "dir": "rtl"}},
+    {"id": "context-menu.viewport-position", "input": {"pointer": {"x": 995, "y": 795}, "viewport": {"width": 1000, "height": 800}, "menu": {"width": 180, "height": 240}}, "expected": {"position": {"x": 812, "y": 552}, "inset": 8}},
+    {"id": "context-menu.danger-icon", "input": {"itemId": "delete", "danger": true, "icon": "trash"}, "expected": {"dangerState": true, "iconBeforeLabel": true, "selectionSemanticsUnchanged": true}},
+    {"id": "context-menu.reopen-reset", "input": {"priorActiveId": "delete"}, "expected": {"activeId": "copy", "selectionCount": 0}}
+  ]
+}

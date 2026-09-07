@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.context-menu",
+  "profileRevision": 1,
+  "riskTier": "B",
+  "fixture": "conformance/hlp.ui.context-menu/quality-fixtures.yaml",
+  "dimensions": {
+    "accessibility": {"disposition": "required", "caseIds": ["context-menu.quality.menu-pattern", "context-menu.quality.disabled", "context-menu.quality.keyboard", "context-menu.quality.focus", "context-menu.quality.dismissal", "context-menu.quality.forced-colors", "context-menu.quality.reflow-200"]},
+    "internationalization": {"disposition": "required", "caseIds": ["context-menu.quality.host-label", "context-menu.quality.locale-direction", "context-menu.quality.rtl-position", "context-menu.quality.pseudo-expansion", "context-menu.quality.formatting-applicability"], "localeSensitiveFormatting": {"disposition": "not-applicable", "rationale": "Context Menu owns no dates, numbers, currencies, quantities, or lists; callers provide already localized item labels."}},
+    "theming": {"disposition": "required", "caseIds": ["context-menu.quality.theme-light", "context-menu.quality.theme-dark", "context-menu.quality.theme-states", "context-menu.quality.theme-tokens", "context-menu.quality.theme-runtime-switch", "context-menu.quality.theme-contrast", "context-menu.quality.reduced-motion", "context-menu.quality.visual-parity"]},
+    "keyboard": {"disposition": "required", "caseIds": ["context-menu.quality.keyboard"]},
+    "focus": {"disposition": "required", "caseIds": ["context-menu.quality.focus"]},
+    "dismissal": {"disposition": "required", "caseIds": ["context-menu.quality.dismissal"]},
+    "rtl": {"disposition": "required", "caseIds": ["context-menu.quality.locale-direction", "context-menu.quality.rtl-position"]},
+    "reduced-motion": {"disposition": "required", "caseIds": ["context-menu.quality.reduced-motion"]}
+  },
+  "componentStages": [
+    {"id": "contract", "dimensions": ["accessibility", "internationalization", "theming", "keyboard", "focus", "dismissal", "rtl", "reduced-motion"], "gate": "profile and neutral fixture validation"},
+    {"id": "projection-native", "dimensions": ["accessibility", "internationalization", "theming", "keyboard", "focus", "dismissal", "rtl", "reduced-motion"], "gate": "public React and Blazor native tests"},
+    {"id": "package-consumer", "dimensions": ["accessibility", "internationalization", "theming", "keyboard", "focus", "dismissal", "rtl", "reduced-motion"], "gate": "packed npm and NuGet consumers"},
+    {"id": "gallery", "dimensions": ["accessibility", "internationalization", "theming", "keyboard", "focus", "dismissal", "rtl", "reduced-motion"], "gate": "Axe, browser behavior, themes, locales, motion, and visual parity"},
+    {"id": "clean-clone", "dimensions": ["accessibility", "internationalization", "theming", "keyboard", "focus", "dismissal", "rtl", "reduced-motion"], "gate": "complete repository gate from the recorded commit"}
+  ]
+}

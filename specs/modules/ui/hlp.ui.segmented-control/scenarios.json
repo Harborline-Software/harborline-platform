@@ -1,0 +1,507 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.segmented-control",
+  "sourceFixture": "conformance/hlp.ui.segmented-control/fixtures.yaml",
+  "qualityFixture": "conformance/hlp.ui.segmented-control/quality-fixtures.yaml",
+  "galleryInterface": {
+    "probeAttribute": "data-gallery-probe",
+    "scenarioAttribute": "data-gallery-scenario",
+    "projectionTitles": {
+      "react": "Platform/Segmented Control",
+      "blazor": "Platform/Segmented Control"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "segmented-control.structure",
+      "name": "Radio structure and state",
+      "surface": "structure",
+      "sourceCaseIds": [
+        "segmented-control.roles",
+        "segmented-control.controlled",
+        "segmented-control.rich-label"
+      ],
+      "sourceQualityCaseIds": [
+        "segmented-control.quality.pattern",
+        "segmented-control.quality.name"
+      ],
+      "content": {
+        "blurb": "One named radiogroup preserves rich option content and one controlled selection.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "accessibleName": "Schedule range",
+          "options": [
+            {
+              "value": "day",
+              "label": "Day",
+              "automationId": "segment-day"
+            },
+            {
+              "value": "week",
+              "label": "▦ Week",
+              "accessibleLabel": "Week view",
+              "automationId": "segment-week"
+            },
+            {
+              "value": "month",
+              "label": "Month"
+            }
+          ],
+          "size": "md",
+          "fullWidth": false
+        },
+        "state": {
+          "value": {
+            "kind": "string",
+            "initial": "week"
+          }
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<SegmentedControl accessibleName=\"Schedule range\" options={[{ value: 'day', label: 'Day', automationId: 'segment-day' }, { value: 'week', label: <><span aria-hidden=\"true\">▦</span> Week</>, accessibleLabel: 'Week view', automationId: 'segment-week' }, { value: 'month', label: 'Month' }]} value={value} onValueChange={setValue} size=\"md\" fullWidth={false} data-case=\"schedule-range\" />",
+            "blazor": "<HarborlineSegmentedControl AccessibleName=\"Schedule range\" Options=\"[new('day', 'Day', false, null, 'segment-day'), new('week', '▦ Week', false, 'Week view', 'segment-week'), new('month', 'Month', false)]\" Value=\"@value\" ValueChanged=\"SetValue\" Size=\"SegmentedControlSize.Md\" Direction=\"ltr\" FullWidth=\"false\" data-case=\"schedule-range\" />",
+            "rationale": "The closed descriptor vocabulary has no radiogroup or radio-option control and cannot preserve mutually exclusive selection, disabled-option behavior, accessible labels, or the rich option label."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "segmented-control.activation",
+      "name": "Activation and disabled options",
+      "surface": "activation",
+      "interaction": "pointer",
+      "sourceCaseIds": [
+        "segmented-control.activate",
+        "segmented-control.reactivate",
+        "segmented-control.disabled",
+        "segmented-control.option-disabled",
+        "segmented-control.tab-fallback"
+      ],
+      "sourceQualityCaseIds": [
+        "segmented-control.quality.focus"
+      ],
+      "content": {
+        "blurb": "Pointer activation requests one value while disabled options remain visible and inert.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "accessibleName": "Schedule range",
+          "options": [
+            {
+              "value": "day",
+              "label": "Day",
+              "automationId": "segment-day"
+            },
+            {
+              "value": "week",
+              "label": "▦ Week",
+              "accessibleLabel": "Week view",
+              "automationId": "segment-week"
+            },
+            {
+              "value": "month",
+              "label": "Month",
+              "disabled": true
+            }
+          ],
+          "size": "md",
+          "fullWidth": false
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<SegmentFixture scenarioId=\"segmented-control.activation\" /> // month option receives disabled: true",
+            "blazor": "<HarborlineSegmentedControl AccessibleName=\"@AccessibleName\" Options=\"@Options\" Value=\"@value\" ValueChanged=\"SetValue\" Size=\"SegmentedControlSize.Md\" Direction=\"@Direction\" data-case=\"schedule-range\" /> // DisableMonth is true",
+            "rationale": "The closed descriptor vocabulary has no radiogroup or radio-option control and cannot express pointer selection or an inert disabled radio option."
+          }
+        ],
+        "inherits": "segmented-control.structure"
+      }
+    },
+    {
+      "id": "segmented-control.keyboard",
+      "name": "Keyboard selection",
+      "surface": "keyboard",
+      "interaction": "keyboard",
+      "sourceCaseIds": [
+        "segmented-control.keyboard-ltr"
+      ],
+      "sourceQualityCaseIds": [
+        "segmented-control.quality.keyboard"
+      ],
+      "content": {
+        "blurb": "Arrow, Home, and End keys wrap, skip disabled options, and move focus with selection.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "accessibleName": "Schedule range",
+          "options": [
+            {
+              "value": "day",
+              "label": "Day",
+              "automationId": "segment-day"
+            },
+            {
+              "value": "week",
+              "label": "▦ Week",
+              "accessibleLabel": "Week view",
+              "automationId": "segment-week"
+            },
+            {
+              "value": "month",
+              "label": "Month",
+              "disabled": true
+            }
+          ],
+          "size": "md",
+          "fullWidth": false
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<SegmentFixture scenarioId=\"segmented-control.keyboard\" /> // month option receives disabled: true",
+            "blazor": "<HarborlineSegmentedControl AccessibleName=\"@AccessibleName\" Options=\"@Options\" Value=\"@value\" ValueChanged=\"SetValue\" Size=\"SegmentedControlSize.Md\" Direction=\"@Direction\" data-case=\"schedule-range\" /> // DisableMonth is true",
+            "rationale": "The closed descriptor vocabulary has no radiogroup or radio-option control and cannot express roving focus, wrapped arrow-key selection, or disabled-option skipping."
+          }
+        ],
+        "inherits": "segmented-control.structure"
+      }
+    },
+    {
+      "id": "segmented-control.sizing",
+      "name": "Sizes, touch, and full width",
+      "surface": "sizing",
+      "sourceCaseIds": [
+        "segmented-control.sizes",
+        "segmented-control.coarse-pointer",
+        "segmented-control.full-width"
+      ],
+      "sourceQualityCaseIds": [
+        "segmented-control.quality.targets",
+        "segmented-control.quality.reflow"
+      ],
+      "content": {
+        "blurb": "Closed densities and responsive touch targets retain the same radio semantics.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "accessibleName": "Schedule range",
+          "options": [
+            {
+              "value": "day",
+              "label": "Day",
+              "automationId": "segment-day"
+            },
+            {
+              "value": "week",
+              "label": "▦ Week",
+              "accessibleLabel": "Week view",
+              "automationId": "segment-week"
+            },
+            {
+              "value": "month",
+              "label": "Month"
+            }
+          ],
+          "instances": [
+            {
+              "size": "sm",
+              "fullWidth": false
+            },
+            {
+              "size": "md",
+              "fullWidth": false
+            },
+            {
+              "size": "lg",
+              "fullWidth": false
+            },
+            {
+              "size": "touch",
+              "fullWidth": true
+            }
+          ]
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<SegmentFixture scenarioId={scenarioId} size=\"sm\" />\n<SegmentFixture scenarioId={scenarioId} size=\"md\" />\n<SegmentFixture scenarioId={scenarioId} size=\"lg\" />\n<SegmentFixture scenarioId={scenarioId} size=\"touch\" fullWidth />",
+            "blazor": "<HarborlineSegmentedControl AccessibleName=\"@AccessibleName\" Options=\"@Options\" Value=\"@value\" ValueChanged=\"SetValue\" Size=\"SegmentedControlSize.Sm\" Direction=\"@Direction\" data-case=\"schedule-range-sm\" />\n<HarborlineSegmentedControl AccessibleName=\"@AccessibleName\" Options=\"@Options\" Value=\"@value\" ValueChanged=\"SetValue\" Size=\"SegmentedControlSize.Md\" Direction=\"@Direction\" data-case=\"schedule-range-md\" />\n<HarborlineSegmentedControl AccessibleName=\"@AccessibleName\" Options=\"@Options\" Value=\"@value\" ValueChanged=\"SetValue\" Size=\"SegmentedControlSize.Lg\" Direction=\"@Direction\" data-case=\"schedule-range-lg\" />\n<HarborlineSegmentedControl AccessibleName=\"@AccessibleName\" Options=\"@Options\" Value=\"@value\" ValueChanged=\"SetValue\" Size=\"SegmentedControlSize.Touch\" Direction=\"@Direction\" FullWidth data-case=\"schedule-range-touch\" />",
+            "rationale": "The closed descriptor vocabulary has no segmented radiogroup control and cannot express four component instances with distinct density and full-width settings."
+          }
+        ],
+        "inherits": "segmented-control.structure"
+      }
+    },
+    {
+      "id": "segmented-control.locale-en",
+      "name": "English locale",
+      "surface": "locale-en",
+      "sourceCaseIds": [
+        "segmented-control.rich-label"
+      ],
+      "sourceQualityCaseIds": [
+        "segmented-control.quality.caller-copy"
+      ],
+      "content": {
+        "blurb": "Caller-owned option content is preserved in the default direction.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "inherits": "segmented-control.structure"
+      }
+    },
+    {
+      "id": "segmented-control.locale-pseudo",
+      "name": "Pseudo locale",
+      "surface": "locale-pseudo",
+      "sourceCaseIds": [
+        "segmented-control.full-width"
+      ],
+      "sourceQualityCaseIds": [
+        "segmented-control.quality.pseudo"
+      ],
+      "content": {
+        "blurb": "Expanded option labels expose clipping and reflow defects.",
+        "environment": {
+          "locale": "en-XA",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "accessibleName": "Schedule range",
+          "options": [
+            {
+              "value": "day",
+              "label": "⟦ Đåÿ ··· ⟧",
+              "automationId": "segment-day"
+            },
+            {
+              "value": "week",
+              "label": "⟦ Wëëķļÿ ṽîëŵ ······ ⟧",
+              "accessibleLabel": "Week view",
+              "automationId": "segment-week"
+            },
+            {
+              "value": "month",
+              "label": "⟦ Møñţhļÿ øṽëřṽîëŵ ······ ⟧"
+            }
+          ],
+          "size": "md",
+          "fullWidth": true
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<SegmentFixture scenarioId=\"segmented-control.locale-pseudo\" fullWidth />",
+            "blazor": "<HarborlineSegmentedControl AccessibleName=\"Schedule range\" Options=\"[new('day', '⟦ Đåÿ ··· ⟧', false, null, 'segment-day'), new('week', '⟦ Wëëķļÿ ṽîëŵ ······ ⟧', false, 'Week view', 'segment-week'), new('month', '⟦ Møñţhļÿ øṽëřṽîëŵ ······ ⟧', false)]\" Value=\"@value\" ValueChanged=\"SetValue\" Size=\"SegmentedControlSize.Md\" Direction=\"ltr\" FullWidth data-case=\"schedule-range\" />",
+            "rationale": "The closed descriptor vocabulary has no segmented radiogroup control and cannot express full-width radio options or their accessible labels."
+          }
+        ],
+        "inherits": "segmented-control.structure"
+      }
+    },
+    {
+      "id": "segmented-control.locale-ar",
+      "name": "Arabic locale",
+      "surface": "locale-ar",
+      "sourceCaseIds": [
+        "segmented-control.keyboard-rtl"
+      ],
+      "sourceQualityCaseIds": [
+        "segmented-control.quality.rtl"
+      ],
+      "content": {
+        "blurb": "Horizontal arrow progression mirrors while DOM order remains stable.",
+        "environment": {
+          "locale": "ar-SA",
+          "direction": "rtl",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "accessibleName": "نطاق الجدول",
+          "options": [
+            {
+              "value": "day",
+              "label": "اليوم",
+              "automationId": "segment-day"
+            },
+            {
+              "value": "week",
+              "label": "الأسبوع",
+              "accessibleLabel": "عرض الأسبوع",
+              "automationId": "segment-week"
+            },
+            {
+              "value": "month",
+              "label": "الشهر"
+            }
+          ],
+          "size": "md",
+          "fullWidth": false
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<SegmentFixture scenarioId=\"segmented-control.locale-ar\" />",
+            "blazor": "<HarborlineSegmentedControl AccessibleName=\"نطاق الجدول\" Options=\"[new('day', 'اليوم', false, null, 'segment-day'), new('week', 'الأسبوع', false, 'عرض الأسبوع', 'segment-week'), new('month', 'الشهر', false)]\" Value=\"@value\" ValueChanged=\"SetValue\" Size=\"SegmentedControlSize.Md\" Direction=\"rtl\" data-case=\"schedule-range\" />",
+            "rationale": "The closed descriptor vocabulary has no segmented radiogroup control and cannot express RTL arrow progression while preserving radio-option DOM order."
+          }
+        ],
+        "inherits": "segmented-control.structure"
+      }
+    },
+    {
+      "id": "segmented-control.theme-light",
+      "name": "Light theme",
+      "surface": "theme-light",
+      "sourceCaseIds": [
+        "segmented-control.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "segmented-control.quality.themes",
+        "segmented-control.quality.tokens",
+        "segmented-control.quality.contrast",
+        "segmented-control.quality.forced-colors",
+        "segmented-control.quality.reduced-motion",
+        "segmented-control.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "Checked, disabled, hover, and focus states use public light-theme tokens.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "accessibleName": "Schedule range",
+          "options": [
+            {
+              "value": "day",
+              "label": "Day",
+              "automationId": "segment-day"
+            },
+            {
+              "value": "week",
+              "label": "▦ Week",
+              "accessibleLabel": "Week view",
+              "automationId": "segment-week"
+            },
+            {
+              "value": "month",
+              "label": "Month"
+            }
+          ],
+          "instances": [
+            {
+              "size": "sm",
+              "fullWidth": false
+            },
+            {
+              "size": "md",
+              "fullWidth": false
+            },
+            {
+              "size": "lg",
+              "fullWidth": false
+            },
+            {
+              "size": "touch",
+              "fullWidth": true
+            }
+          ]
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<SegmentFixture scenarioId={scenarioId} size=\"sm\" />\n<SegmentFixture scenarioId={scenarioId} size=\"md\" />\n<SegmentFixture scenarioId={scenarioId} size=\"lg\" />\n<SegmentFixture scenarioId={scenarioId} size=\"touch\" fullWidth />",
+            "blazor": "<HarborlineSegmentedControl AccessibleName=\"@AccessibleName\" Options=\"@Options\" Value=\"@value\" ValueChanged=\"SetValue\" Size=\"SegmentedControlSize.Sm\" Direction=\"@Direction\" data-case=\"schedule-range-sm\" />\n<HarborlineSegmentedControl AccessibleName=\"@AccessibleName\" Options=\"@Options\" Value=\"@value\" ValueChanged=\"SetValue\" Size=\"SegmentedControlSize.Md\" Direction=\"@Direction\" data-case=\"schedule-range-md\" />\n<HarborlineSegmentedControl AccessibleName=\"@AccessibleName\" Options=\"@Options\" Value=\"@value\" ValueChanged=\"SetValue\" Size=\"SegmentedControlSize.Lg\" Direction=\"@Direction\" data-case=\"schedule-range-lg\" />\n<HarborlineSegmentedControl AccessibleName=\"@AccessibleName\" Options=\"@Options\" Value=\"@value\" ValueChanged=\"SetValue\" Size=\"SegmentedControlSize.Touch\" Direction=\"@Direction\" FullWidth data-case=\"schedule-range-touch\" />",
+            "rationale": "The closed descriptor vocabulary has no segmented radiogroup control and cannot express the four themed component instances and their interactive visual states."
+          }
+        ],
+        "inherits": "segmented-control.structure"
+      }
+    },
+    {
+      "id": "segmented-control.theme-dark",
+      "name": "Dark theme",
+      "surface": "theme-dark",
+      "sourceCaseIds": [
+        "segmented-control.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "segmented-control.quality.themes",
+        "segmented-control.quality.tokens",
+        "segmented-control.quality.contrast",
+        "segmented-control.quality.forced-colors",
+        "segmented-control.quality.reduced-motion",
+        "segmented-control.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "The same mutually exclusive choices on the Harborline dark surface.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "dark",
+          "catalog": {}
+        },
+        "inherits": "segmented-control.theme-light"
+      }
+    },
+    {
+      "id": "segmented-control.content",
+      "name": "Content resilience",
+      "surface": "long-content",
+      "sourceCaseIds": [
+        "segmented-control.roles",
+        "segmented-control.rich-label"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "Four segmented options carry a long label, a grouped large number, escaped angle brackets and ampersand text, and a name with diacritics and an em dash.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<SegmentedControl accessibleName=\"Content cases\" options={[{value:'long-label',label:'Awaiting third-party structural certification review'},{value:'large-number',label:'1,284,905'},{value:'hostile-text',label:'Bay 4 <grid C-7> & 8'},{value:'unusual-name',label:'Ordnance Survey — Niño Ångström'}]} value=\"large-number\" onValueChange={()=>{}} />",
+            "blazor": "<HarborlineSegmentedControl AccessibleName=\"Content cases\" Options=\"@[new(\"long-label\", \"Awaiting third-party structural certification review\"), new(\"large-number\", \"1,284,905\"), new(\"hostile-text\", \"Bay 4 <grid C-7> & 8\"), new(\"unusual-name\", \"Ordnance Survey — Niño Ångström\")]\" Value=\"large-number\" ValueChanged=\"SetContentValue\" Direction=\"ltr\" />",
+            "rationale": "The closed descriptor vocabulary has no segmented radiogroup control and cannot express four hostile-but-valid option labels with one controlled selection."
+          }
+        ],
+        "footer": []
+      }
+    }
+  ]
+}

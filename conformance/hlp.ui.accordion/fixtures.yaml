@@ -1,0 +1,15 @@
+{"schemaVersion":1,"moduleId":"hlp.ui.accordion","fixtureRevision":1,"cases":[
+  {"id":"accordion.single.initial","input":{"mode":"single","defaultExpanded":["a"],"items":["a","b"]},"expected":{"expanded":["a"]}},
+  {"id":"accordion.single.noncollapsible","input":{"mode":"single","collapsible":false,"items":[{"id":"a","disabled":true},{"id":"b"}],"toggle":"b"},"expected":{"initialExpanded":["b"],"expanded":["b"],"changes":0}},
+  {"id":"accordion.multiple.independent","input":{"mode":"multiple","commands":["toggle:a","toggle:b","toggle:a"]},"expected":{"expanded":["b"]}},
+  {"id":"accordion.controlled-change","input":{"controlled":["a"],"toggle":"b","mode":"single"},"expected":{"rendered":["a"],"emitted":["b"],"callbacks":1}},
+  {"id":"accordion.disabled-noop","input":{"disabled":["b"],"toggle":"b"},"expected":{"expanded":[],"callbacks":0}},
+  {"id":"accordion.invalid-defaults","input":{"defaultExpanded":["missing","disabled"],"disabled":["disabled"]},"expected":{"expanded":[]}},
+  {"id":"accordion.keyboard-next-previous","input":{"enabledOrder":["a","c"],"focus":"a","keys":["ArrowDown","ArrowUp"]},"expected":{"focusSequence":["c","a"]}},
+  {"id":"accordion.keyboard-boundaries","input":{"enabledOrder":["a","c"],"keys":["End","ArrowDown","Home","ArrowUp"]},"expected":{"focusSequence":["c","a","a","c"]}},
+  {"id":"accordion.relationships","input":{"item":"a","expanded":true},"expected":{"buttonType":"button","ariaExpanded":"true","controlsRegion":true,"regionLabelledByHeader":true}},
+  {"id":"accordion.host-attributes","input":{"class":"consumer","lang":"ar","dir":"rtl"},"expected":{"preserved":true}},
+  {"id":"accordion.projection-equivalence","input":{"projections":["react","blazor"]},"expected":{"stateAndAccessibilityEqual":true}},
+  {"id":"accordion.empty","input":{"items":[],"empty":"No sections yet. Add one to see it here."},"expected":{"emptyText":"No sections yet. Add one to see it here.","defaultEmptyText":"No sections to show.","headers":0}},
+  {"id":"accordion.blankEmptyText","input":{"items":[],"empty":"   "},"expected":{"defaultEmptyText":"No sections to show.","headers":0}}
+]}

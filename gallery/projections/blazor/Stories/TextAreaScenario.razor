@@ -1,0 +1,41 @@
+<section class="hl-gallery-scene" data-gallery-probe data-gallery-scenario="@ScenarioId" data-theme="@Theme" dir="@Direction">
+    <header class="hl-gallery-heading"><h2>@Title</h2><p>@Description</p></header>
+    <div class="hl-gallery-stage">
+        @if (ErrorState)
+        {
+            <HarborlineTextArea aria-label="Inspection notes" DefaultValue="Invalid inspection notes" Error="true" Rows="4" />
+        }
+        else if(ScenarioId=="text-area.content")
+        {
+            <div class="hl-gallery-feedback-grid">
+                <HarborlineTextArea aria-label="Long content" DefaultValue="Awaiting third-party structural certification review" Rows="2" />
+                <HarborlineTextArea aria-label="Large number" DefaultValue="1,284,905" Rows="2" />
+                <HarborlineTextArea aria-label="Escaped content" DefaultValue="@("Bay 4 <grid C-7> & 8")" Rows="2" />
+                <HarborlineTextArea aria-label="Unusual name" DefaultValue="Ordnance Survey — Niño Ångström" Rows="2" />
+            </div>
+        }
+        else
+        {
+            <label for="@FieldId">@(Localized ? "ملاحظات" : "Inspection notes")</label>
+            <HarborlineTextArea Id="@FieldId" @bind-Value="value" Rows="4" Resize="@Resize" ShowCounter="true" MaxLength="160" Error="@Variants" FillMode="@FillMode" DescribedBy="@HelpId" />
+            <p id="@HelpId">@(Localized ? "صف حالة الهيكل." : "Describe the condition of the structure.")</p>
+        }
+    </div>
+</section>
+@code {
+    [Parameter, EditorRequired] public string ScenarioId { get; set; } = "text-area.editing";
+    private string value = "Observed surface corrosion near the north joint.";
+    private bool Localized => ScenarioId == "text-area.locale-theme";
+    private bool Variants => ScenarioId == "text-area.variants";
+    private string FieldId => $"notes-{ScenarioId}";
+    private string HelpId => $"help-{ScenarioId}";
+    private bool Content => ScenarioId == "text-area.content";
+    private bool ErrorState => ScenarioId == "text-area.error-state";
+    private string Title => ErrorState ? "Error state" : Content ? "Content resilience" : Localized ? "ملاحظات الفحص" : Variants ? "Variants and counter" : "Editing and metadata";
+    private string Description => ErrorState ? "The text area renders its declared invalid state with an accessible name." : Content ? "Real content spans an overlong label, a grouped large number, escaped markup characters, and a diacritic-rich name." : "Controlled editing, field metadata, resizing, validation, and counting.";
+    private string? Theme => Localized ? "dark" : null;
+    private string? Direction => Localized ? "rtl" : null;
+    private TextAreaResize Resize => Variants ? TextAreaResize.Both : TextAreaResize.Vertical;
+    private TextAreaFillMode FillMode => Variants ? TextAreaFillMode.Outline : TextAreaFillMode.Solid;
+    protected override void OnParametersSet() { if (Localized && value.StartsWith("Observed", StringComparison.Ordinal)) value = "ملاحظات فحص الهيكل"; }
+}

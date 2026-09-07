@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.date-field",
+  "verdict": "approved",
+  "reviewer": "cic",
+  "recordedAt": "2026-08-27T05:36:36.423Z",
+  "notes": "on react storybook i am unable to change the value of the date, but on blazor i can change the date to a different date such as 8/1/2026",
+  "reference": {
+    "revision": "37b2070406f99c4e76d15cef0c786a06972f42d99ad8e9c4ee56ae3bee1a3f09",
+    "source": "gallery/scenarios/hlp.ui.date-field.json",
+    "pin": "cc9eb48ed68c5033ec128cd53c40b1d2786bee66",
+    "surface": {
+      "conformance/hlp.ui.date-field/fixtures.yaml": "bef0a8f91b02bbb45e24121ea3d5807beb5d881cf8ded26820db771e6ee9b222",
+      "conformance/hlp.ui.date-field/quality-fixtures.yaml": "0386ef1afbf74592562723b56fb229ad8259637d23767741948dc306341b0a92",
+      "gallery/projections/blazor/Stories/DateField.stories.razor": "b272561307665c698e5d7e3a2c92556715ba57ece32ad27eeaa1350a61b37b8f",
+      "gallery/projections/blazor/Stories/DateFieldScenario.razor": "861e8dbebff3004ecc98997e9a10d554c4f990e156cf314e63fc7194758b9ffa",
+      "gallery/projections/react/src/DateField.stories.tsx": "128d16aebdfe3672f5e9dd6797045c88ce3e208ae1462e2d8cdf2b427e01ad74",
+      "gallery/scenarios/hlp.ui.date-field.json": "769dbbcf80ea8e4609c3e5a0d889968ec6bcbf8232601cd315c712a538c20788",
+      "projections/blazor/ui/hlp.ui.date-field/ShipyardDateField.razor": "6edf5dc1532c1128a0e4ad46adac635f342201f84880a68489aa292de3c13dc7",
+      "projections/blazor/ui/hlp.ui.date-field/wwwroot/date-field.css": "2ac0b455d51f2195dfde5c1d641fafc3a39afaa1e32a605014e343f218959fc0",
+      "projections/react/ui/hlp.ui.date-field/src/DateField.tsx": "cfb965f0df18b5c44674b46cf68d8054b4205dbc17f4ec834652093a13c24473",
+      "projections/react/ui/hlp.ui.date-field/src/index.ts": "b00debdd67c38ff97e8b50ddd596c03e75319d42bf91055044dbf683ca26ced9",
+      "projections/react/ui/hlp.ui.date-field/src/style.css": "2ac0b455d51f2195dfde5c1d641fafc3a39afaa1e32a605014e343f218959fc0",
+      "specs/modules/ui/hlp.ui.date-field/scenarios.json": "769dbbcf80ea8e4609c3e5a0d889968ec6bcbf8232601cd315c712a538c20788",
+      "specs/modules/ui/hlp.ui.date-field/style.css": "2ac0b455d51f2195dfde5c1d641fafc3a39afaa1e32a605014e343f218959fc0"
+    }
+  }
+}

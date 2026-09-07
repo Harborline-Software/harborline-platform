@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.use-nav-collapsed",
+  "interfaceRevision": 1,
+  "semantics": {
+    "operation": "resolve controlled or uncontrolled navigation-rail collapse state across responsive transitions and explicit user choices",
+    "observableOutput": "The effective collapsed and overlay states plus deterministic change requests and preserved user preference."
+  },
+  "sourceSurface": {
+    "repository": "shipyard",
+    "commit": "a5036ff8b500e0d857d7e0a698408e7cf7f6cf31",
+    "path": "packages/ui-react/src/hooks/useNavCollapsed.ts",
+    "blob": "0138fb219d3e76873d5af2bd1e62231789409ebc",
+    "capturedExports": ["UseNavCollapsedOptions", "UseNavCollapsedResult", "useNavCollapsed"]
+  },
+  "dependencies": ["hlp.ui.use-is-mobile", "hlp.ui.use-media-query"],
+  "invariants": [
+    "Uncontrolled state starts from defaultCollapsed and explicit set or toggle updates the stored preference.",
+    "Controlled state is never mutated internally; set, toggle, and responsive crossing emit a requested value.",
+    "Before an explicit user choice, a narrow viewport forces effective collapse without overwriting the base preference.",
+    "After an explicit user choice, that choice wins over responsive auto-collapse for the controller lifetime.",
+    "A controlled transition from wide to narrow requests collapse exactly once when the value is expanded and no user override exists.",
+    "autoCollapseBelow zero disables responsive collapse and overlayBelow zero disables overlay presentation.",
+    "Overlay state is independent of collapse state and is derived from its own breakpoint.",
+    "Persistence, keyboard shortcuts, storage keys, and navigation rendering remain host responsibilities."
+  ],
+  "errors": [],
+  "performance": {"operation": "O(1) state transition with two dependency-owned media-query observations"},
+  "presentation": {"disposition": "not-applicable", "rationale": "The controller renders no standalone interface."},
+  "cases": [
+    {"id": "nav-collapse.complete-surface"},
+    {"id": "nav-collapse.default-expanded"},
+    {"id": "nav-collapse.default-collapsed"},
+    {"id": "nav-collapse.narrow-auto"},
+    {"id": "nav-collapse.narrow-to-wide-restores-base"},
+    {"id": "nav-collapse.explicit-override"},
+    {"id": "nav-collapse.controlled-toggle"},
+    {"id": "nav-collapse.controlled-initial-narrow"},
+    {"id": "nav-collapse.controlled-narrow-crossing"},
+    {"id": "nav-collapse.custom-thresholds"},
+    {"id": "nav-collapse.disable-responsive"},
+    {"id": "nav-collapse.overlay-independent"},
+    {"id": "nav-collapse.ssr-fail-closed"},
+    {"id": "nav-collapse.projection-equivalence"}
+  ]
+}

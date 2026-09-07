@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.foundation.session",
+  "interfaceRevision": 1,
+  "cases": [
+    {"id": "record-touch-immutable", "operation": "record.touch", "expected": "new-record-only-lastSeen-changed"},
+    {"id": "absolute-expired", "operation": "record.is-expired", "input": {"now": "expiry+1tick"}, "expected": true},
+    {"id": "idle-expired", "operation": "record.is-expired", "input": {"now": "lastSeen+idle+1tick"}, "expected": true},
+    {"id": "expiry-boundaries-active", "operation": "record.is-expired", "input": {"now": "exact-expiry-and-idle-boundary"}, "expected": false},
+    {"id": "store-create-load", "operation": "store.create-get", "expected": "same-record"},
+    {"id": "duplicate-session-rejected", "operation": "store.create", "expectedError": "duplicate-session-id"},
+    {"id": "store-touch", "operation": "store.touch", "expected": "lastSeen-advanced"},
+    {"id": "store-revoke-idempotent", "operation": "store.remove-twice", "expected": [true, false]},
+    {"id": "store-cancellation", "operation": "store.get", "input": {"cancellationRequested": true}, "expected": "operation-cancelled"},
+    {"id": "session-resolves-actor", "operation": "session.resolve", "input": {"sessionTenant": "acme", "resolvedTenant": "acme", "userId": "alice", "roles": ["inspector"]}, "expected": {"tenant": "acme", "userId": "alice", "roles": ["inspector"], "touched": true}},
+    {"id": "unknown-session-rejected", "operation": "session.resolve", "expected": null},
+    {"id": "cross-tenant-session-rejected", "operation": "session.resolve", "input": {"sessionTenant": "acme", "resolvedTenant": "beta"}, "expected": null},
+    {"id": "expired-session-revoked", "operation": "session.resolve", "input": {"expired": true}, "expected": {"actor": null, "recordRemoved": true}},
+    {"id": "unresolved-tenant-rejected", "operation": "session.resolve", "input": {"resolvedTenant": null}, "expected": null},
+    {"id": "inactive-tenant-rejected", "operation": "session.resolve", "input": {"tenantStatus": "Suspended"}, "expected": null},
+    {"id": "sentinel-tenant-rejected", "operation": "session.resolve", "input": {"resolvedTenant": "__system__"}, "expected": null},
+    {"id": "empty-session-rejected", "operation": "session.resolve", "input": {"sessionId": ""}, "expected": null},
+    {"id": "external-identity-reason", "operation": "record.reason-values", "expectedContains": "ExternalIdentity"}
+  ]
+}

@@ -1,0 +1,7 @@
+@attribute [Stories("Platform/Card")]
+<Stories TComponent="CardScenario">
+  <Story Name="Defaults"><Arguments><Arg For="_ => _.ScenarioId" Value='"card.defaults"' /></Arguments><Template><CardScenario @attributes="context.Args" /></Template></Story>
+  <Story Name="Horizontal separators"><Arguments><Arg For="_ => _.ScenarioId" Value='"card.horizontal"' /></Arguments><Template><CardScenario @attributes="context.Args" /></Template></Story>
+  <Story Name="Appearances and theme"><Arguments><Arg For="_ => _.ScenarioId" Value='"card.themes"' /></Arguments><Template><CardScenario @attributes="context.Args" /></Template></Story>
+  <Story Name="Content resilience"><Arguments><Arg For="_ => _.ScenarioId" Value='"card.content"'/></Arguments><Template><CardScenario @attributes="context.Args"/></Template></Story>
+</Stories>

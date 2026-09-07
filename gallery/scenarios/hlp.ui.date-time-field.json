@@ -1,0 +1,243 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.date-time-field",
+  "sourceFixture": "conformance/hlp.ui.date-time-field/fixtures.yaml",
+  "qualityFixture": "conformance/hlp.ui.date-time-field/quality-fixtures.yaml",
+  "galleryInterface": {
+    "probeAttribute": "data-gallery-probe",
+    "scenarioAttribute": "data-gallery-scenario",
+    "projectionTitles": {
+      "react": "Platform/Date Time Field",
+      "blazor": "Platform/Date Time Field"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "date-time-field.defaults",
+      "name": "Local time and constraints",
+      "surface": "defaults",
+      "sourceCaseIds": [
+        "date-time-field.native",
+        "date-time-field.raw-roundtrip",
+        "date-time-field.constraints"
+      ],
+      "sourceQualityCaseIds": [
+        "date-time-field.quality.native",
+        "date-time-field.quality.name",
+        "date-time-field.quality.focus"
+      ],
+      "content": {
+        "blurb": "Local wall-clock strings remain free of timezone conversion.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "label",
+            "text": "Start time",
+            "hint": "Local time",
+            "child": {
+              "control": "input",
+              "type": "datetime-local",
+              "name": "starts",
+              "value": "2026-08-09T14:30",
+              "step": 900
+            }
+          },
+          {
+            "control": "label",
+            "text": "End time",
+            "required": true,
+            "child": {
+              "control": "input",
+              "type": "datetime-local",
+              "name": "ends",
+              "value": "2026-08-09T15:30",
+              "required": true
+            }
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "date-time-field.states",
+      "name": "States and descriptions",
+      "surface": "states",
+      "sourceCaseIds": [
+        "date-time-field.clear",
+        "date-time-field.disabled",
+        "date-time-field.invalid",
+        "date-time-field.description"
+      ],
+      "sourceQualityCaseIds": [
+        "date-time-field.quality.description",
+        "date-time-field.quality.reflow",
+        "date-time-field.quality.forced-colors"
+      ],
+      "content": {
+        "blurb": "Local wall-clock strings remain free of timezone conversion.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "label",
+            "text": "Start time",
+            "hint": "Local time",
+            "error": "Start time is required",
+            "disabled": true,
+            "child": {
+              "control": "input",
+              "type": "datetime-local",
+              "name": "starts",
+              "value": "2026-08-09T14:30",
+              "step": 900,
+              "disabled": true
+            }
+          },
+          {
+            "control": "label",
+            "text": "End time",
+            "required": true,
+            "child": {
+              "control": "input",
+              "type": "datetime-local",
+              "name": "ends",
+              "value": "2026-08-09T15:30",
+              "required": true
+            }
+          }
+        ],
+        "footer": [],
+        "inherits": "date-time-field.defaults"
+      }
+    },
+    {
+      "id": "date-time-field.rtl-theme",
+      "name": "RTL and theme",
+      "surface": "rtl-theme",
+      "sourceCaseIds": [
+        "date-time-field.naming",
+        "date-time-field.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "date-time-field.quality.raw-value",
+        "date-time-field.quality.rtl",
+        "date-time-field.quality.pseudo",
+        "date-time-field.quality.light-dark",
+        "date-time-field.quality.tokens",
+        "date-time-field.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "Local wall-clock strings remain free of timezone conversion.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "rtl",
+          "theme": "dark",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "label",
+            "text": "وقت البدء",
+            "hint": "Local time",
+            "child": {
+              "control": "input",
+              "type": "datetime-local",
+              "name": "starts",
+              "value": "2026-08-09T14:30",
+              "step": 900
+            }
+          },
+          {
+            "control": "label",
+            "text": "وقت الانتهاء",
+            "required": true,
+            "child": {
+              "control": "input",
+              "type": "datetime-local",
+              "name": "ends",
+              "value": "2026-08-09T15:30",
+              "required": true
+            }
+          }
+        ],
+        "footer": [],
+        "inherits": "date-time-field.defaults"
+      }
+    },
+    {
+      "id": "date-time-field.content",
+      "name": "Content resilience",
+      "surface": "long-content",
+      "sourceCaseIds": [
+        "date-time-field.native",
+        "date-time-field.description"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "Carries a long certification label, the grouped value 1,284,905, escaped Bay 4 <grid C-7> & 8 copy, and the name Ordnance Survey — Niño Ångström.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<><FormField name=\"certification-time\" label={'Awaiting third-party structural certification review'} hint={'1,284,905'}><DateTimeField name=\"certification-time\" value=\"2026-08-09T14:30\" onChange={()=>{}} /></FormField><FormField name=\"survey-time\" label={'Ordnance Survey — Niño Ångström'} error={'Bay 4 <grid C-7> & 8'}><DateTimeField name=\"survey-time\" value=\"2026-08-09T15:30\" onChange={()=>{}} /></FormField></>",
+            "blazor": "<HarborlineFormField Name=\"certification-time\" Label=\"@(\"Awaiting third-party structural certification review\")\" Hint=\"@(\"1,284,905\")\"><HarborlineDateTimeField Name=\"certification-time\" Value=\"2026-08-09T14:30\" /></HarborlineFormField><HarborlineFormField Name=\"survey-time\" Label=\"@(\"Ordnance Survey — Niño Ångström\")\" Error=\"@(\"Bay 4 <grid C-7> & 8\")\"><HarborlineDateTimeField Name=\"survey-time\" Value=\"2026-08-09T15:30\" /></HarborlineFormField>",
+            "rationale": "The closed control vocabulary cannot express FormField-wrapped DateTimeField controls with hostile-but-valid labels, hints, and errors."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "date-time-field.error-state",
+      "name": "Error state",
+      "surface": "invalid-input",
+      "sourceCaseIds": [
+        "date-time-field.invalid",
+        "date-time-field.description"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "The required date-time field exposes its invalid state and visible recovery message.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<FormField name=\"inspection-time\" label=\"Inspection time\" error=\"Enter a valid inspection time\" required><DateTimeField name=\"inspection-time\" value=\"\" error required onChange={()=>{}} /></FormField>",
+            "blazor": "<HarborlineFormField Name=\"inspection-time\" Label=\"Inspection time\" Error=\"Enter a valid inspection time\" Required=\"true\"><HarborlineDateTimeField Name=\"inspection-time\" Value=\"\" Error=\"true\" Required=\"true\" /></HarborlineFormField>",
+            "rationale": "The closed descriptors cannot express the DateTimeField component's invalid state together with its FormField-provided accessible label and recovery message."
+          }
+        ],
+        "footer": []
+      }
+    }
+  ]
+}

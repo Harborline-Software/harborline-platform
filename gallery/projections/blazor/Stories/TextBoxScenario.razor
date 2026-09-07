@@ -1,0 +1,72 @@
+<section class="hl-gallery-scene" data-gallery-probe data-gallery-scenario="@ScenarioId" data-theme="@Theme" dir="@Direction">
+  <header class="hl-gallery-heading"><h2>@Copy.Title</h2><p>@Copy.Description</p></header>
+  <div class="hl-gallery-stage">
+    <HarborlineLocaleProvider Locale="@Locale" Direction="@Direction">
+      @if(ScenarioId=="text-box.content")
+      {
+        <div class="hl-gallery-feedback-grid">
+          <HarborlineTextBox AccessibleName="Long content" DefaultValue="Awaiting third-party structural certification review" />
+          <HarborlineTextBox AccessibleName="Large number" DefaultValue="1,284,905" />
+          <HarborlineTextBox AccessibleName="Escaped content" DefaultValue="@("Bay 4 <grid C-7> & 8")" />
+          <HarborlineTextBox AccessibleName="Unusual name" DefaultValue="Ordnance Survey — Niño Ångström" />
+        </div>
+      }
+      else if (ScenarioId == "text-box.error-state")
+      {
+        <HarborlineTextBox AccessibleName="Vessel name" DefaultValue="Invalid berth assignment" Error="true" Name="vessel-name" />
+      }
+      else if (IsTheme)
+      {
+        <div class="hl-gallery-feedback-stack" style="max-inline-size:520px">
+          <label>Structure display name
+            <HarborlineTextBox Value="@value" ValueChanged="@(next => value = next)" Name="structureDisplayName"
+                             AccessibleName="Structure display name" Placeholder="Enter structure name" ClearButton="true"
+                             Prefix="@HomePrefix" Suffix="@VerifiedSuffix" />
+          </label>
+          <output aria-live="polite">Keys: none; value: @value</output>
+        </div>
+      }
+      else
+      {
+        <div style="max-inline-size:560px">
+          <HarborlineTextBox Value="@value" ValueChanged="@(next => value = next)" Name="structure-name" AccessibleName="@Label"
+                           Placeholder="@Placeholder" ClearButton="true" Error="@(ScenarioId == "text-box.ownership-form")"
+                           Required="@(ScenarioId == "text-box.ownership-form")" />
+          <HarborlineTextBox DefaultValue="secret" Type="password" ShowReveal="true" AccessibleName="Password" Prefix="@HashPrefix" Suffix="@IdSuffix" />
+        </div>
+      }
+    </HarborlineLocaleProvider>
+  </div>
+</section>
+
+@code {
+  [Parameter, EditorRequired] public string ScenarioId { get; set; } = "text-box.ownership-form";
+  private string value = "Blueprint C-14";
+  private bool IsArabic => ScenarioId == "text-box.locale-ar";
+  private bool IsPseudo => ScenarioId == "text-box.locale-pseudo";
+  private bool IsTheme => ScenarioId is "text-box.theme-light" or "text-box.theme-dark";
+  private string Locale => IsArabic ? "ar-SA" : IsPseudo ? "en-XA" : "en-US";
+  private string Direction => IsArabic ? "rtl" : "ltr";
+  private string Label => IsArabic ? "اسم الهيكل" : "Structure name";
+  private string Placeholder => IsPseudo ? "⟦ Ëñţëř å đëšçřîþţîṽë šţřûçţûřë ñåmë ········ ⟧" : IsArabic ? "أدخل اسم الهيكل" : "Enter structure name";
+  private RenderFragment HomePrefix => builder => { builder.OpenElement(0, "span"); builder.AddAttribute(1, "aria-hidden", "true"); builder.AddContent(2, "⌂"); builder.CloseElement(); };
+  private RenderFragment VerifiedSuffix => builder => { builder.OpenElement(0, "span"); builder.AddContent(1, "Verified"); builder.CloseElement(); };
+  private RenderFragment HashPrefix => builder => builder.AddContent(0, "#");
+  private RenderFragment IdSuffix => builder => builder.AddContent(0, "ID");
+  private static readonly IReadOnlyDictionary<string, (string Title, string Description)> CopyByScenario = new Dictionary<string, (string, string)>
+  {
+    ["text-box.ownership-form"] = ("Value ownership and form state", "Controlled and uncontrolled raw strings preserve Form Field identity, description, required, invalid, and disabled state."),
+    ["text-box.clear-reveal"] = ("Clear, reveal, and composed actions", "Keyboard-reachable clear and password actions compose after caller suffix content and retain the editing context."),
+    ["text-box.attributes-keyboard"] = ("Input attributes and keyboard handler", "Identity, autocomplete, ARIA, tab order, and caller keyboard handling target the native input exactly once."),
+    ["text-box.appearance-reflow"] = ("Appearance and narrow reflow", "Sizes, fills, rounding, prefix, suffix, and actions remain usable at a narrow 200-percent surface."),
+    ["text-box.replacement"] = ("Complete controlled replacement", "Caller replacement remains authoritative while reveal state never mutates the raw value."),
+    ["text-box.locale-pseudo"] = ("Pseudo-localized actions", "Expanded placeholder, clear, reveal, and description copy reflow without clipping."),
+    ["text-box.locale-ar"] = ("Arabic right-to-left editor", "Prefix, input, suffix, and actions follow logical order while explicit direction remains available."),
+    ["text-box.theme-light"] = ("Light theme", "Control, validation, action, filled, and focus states use Harborline light tokens."),
+    ["text-box.theme-dark"] = ("Dark theme", "The same raw-string editor states on the Harborline dark surface."),
+    ["text-box.content"] = ("Content resilience", "Real content spans an overlong label, a grouped large number, escaped markup characters, and a diacritic-rich name."),
+    ["text-box.error-state"] = ("Error state", "The text box renders its declared invalid state with an accessible name."),
+  };
+  private (string Title, string Description) Copy => CopyByScenario[ScenarioId];
+  private string? Theme => ScenarioId switch { "text-box.theme-light" => "light", "text-box.theme-dark" => "dark", _ => null };
+}

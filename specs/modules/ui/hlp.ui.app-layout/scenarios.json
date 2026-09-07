@@ -1,0 +1,530 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.app-layout",
+  "sourceFixture": "conformance/hlp.ui.app-layout/fixtures.yaml",
+  "qualityFixture": "conformance/hlp.ui.app-layout/quality-fixtures.yaml",
+  "galleryInterface": {
+    "probeAttribute": "data-gallery-probe",
+    "scenarioAttribute": "data-gallery-scenario",
+    "projectionTitles": {
+      "react": "Platform/App Layout",
+      "blazor": "Platform/App Layout"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "app-layout.structure-modes",
+      "name": "Structure and navigation modes",
+      "surface": "structure-modes",
+      "sourceCaseIds": [
+        "app-layout.body",
+        "app-layout.header",
+        "app-layout.defaults",
+        "app-layout.hidden",
+        "app-layout.no-navigation",
+        "app-layout.host-attributes",
+        "app-layout.invalid-input"
+      ],
+      "sourceQualityCaseIds": [
+        "app-layout.quality.landmarks"
+      ],
+      "content": {
+        "blurb": "One shell owns one main landmark and at most one opaque header and navigation subtree.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "sideNavMode": "hidden",
+          "sideNavOpen": true,
+          "mobileNavOpen": false,
+          "mobileNavLabel": "Navigation",
+          "headerFixed": false,
+          "contentScroll": "page",
+          "data-case": "engineering-shell"
+        },
+        "state": {
+          "mobileNavOpen": {
+            "kind": "flag",
+            "initial": false
+          }
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "header={<div style={{ padding: 12 }}><strong>Structure inspection workspace</strong></div>}\nsideNav={undefined}\nbody={<article style={{ padding: 16, minWidth: 0 }}><h1>Photo-with-pose capture</h1><p>Place the captured pose within the selected blueprint structure.</p>{Array.from({ length: 8 }, (_, index) => <p key={index}>Capture row {index + 1}: grid C-{index + 1}</p>)}</article>}",
+            "blazor": "<Header><div style=\"padding: 12px\"><strong>Structure inspection workspace</strong></div></Header>\nSideNav=\"null\"\n<ChildContent><article style=\"padding: 16px; min-width: 0\"><h1>Photo-with-pose capture</h1><p>Place the captured pose within the selected blueprint structure.</p>@for (var index = 0; index < 8; index++) { <p>Capture row @(index + 1): grid C-@(index + 1)</p> }</article></ChildContent>",
+            "rationale": "The header and body require div, article, h1, and p semantics, and the closed vocabulary has no descriptors for those elements."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "app-layout.rail-breakpoints",
+      "name": "Rail and breakpoint boundary",
+      "surface": "rail-breakpoints",
+      "sourceCaseIds": [
+        "app-layout.rail-expanded",
+        "app-layout.rail-collapsed",
+        "app-layout.rail-boundary",
+        "app-layout.auto-single-instance"
+      ],
+      "sourceQualityCaseIds": [
+        "app-layout.quality.targets",
+        "app-layout.quality.forced-colors"
+      ],
+      "content": {
+        "blurb": "Rail capability requires both the frozen width and height boundary while collapsed content remains mounted.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "sideNavMode": "auto",
+          "sideNavOpen": false,
+          "mobileNavOpen": false,
+          "mobileNavLabel": "Navigation",
+          "headerFixed": false,
+          "contentScroll": "main",
+          "data-case": "engineering-shell"
+        },
+        "state": {
+          "mobileNavOpen": {
+            "kind": "flag",
+            "initial": false
+          }
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "header={<div style={{ padding: 12 }}><strong>Structure inspection workspace</strong></div>}\nsideNav={<div style={{ padding: 12 }}><strong>Engineering Services</strong><ul>{Array.from({ length: 5 }, (_, index) => <li key={index}><a href={`#section-${index}`}>Workspace {index + 1}</a></li>)}</ul></div>}\nbody={<article style={{ padding: 16, minWidth: 0 }}><h1>Photo-with-pose capture</h1><p>Place the captured pose within the selected blueprint structure.</p>{Array.from({ length: 8 }, (_, index) => <p key={index}>Capture row {index + 1}: grid C-{index + 1}</p>)}</article>}",
+            "blazor": "<Header><div style=\"padding: 12px\"><strong>Structure inspection workspace</strong></div></Header>\n<div style=\"padding: 12px\"><strong>Engineering Services</strong><ul>@for (var index = 0; index < 5; index++) { <li><a href=\"#section-@index\">Workspace @(index + 1)</a></li> }</ul></div>\n<ChildContent><article style=\"padding: 16px; min-width: 0\"><h1>Photo-with-pose capture</h1><p>Place the captured pose within the selected blueprint structure.</p>@for (var index = 0; index < 8; index++) { <p>Capture row @(index + 1): grid C-@(index + 1)</p> }</article></ChildContent>",
+            "rationale": "Navigation requires ul, li, and a elements; the header and body require div, article, h1, and p elements. None are available in the closed vocabulary."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "app-layout.drawer-state",
+      "name": "Drawer and controlled state",
+      "surface": "drawer-state",
+      "interaction": "pointer",
+      "sourceCaseIds": [
+        "app-layout.portrait-drawer",
+        "app-layout.landscape-drawer",
+        "app-layout.uncontrolled-mobile",
+        "app-layout.controlled-mobile",
+        "app-layout.viewport-transition",
+        "app-layout.overlay",
+        "app-layout.mobile-trigger"
+      ],
+      "sourceQualityCaseIds": [
+        "app-layout.quality.drawer-pattern"
+      ],
+      "content": {
+        "inherits": "app-layout.locale-en",
+        "blurb": "Phone and short-landscape viewports use one modal drawer with controlled or uncontrolled state.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "sideNavMode": "overlay",
+          "sideNavOpen": true,
+          "mobileNavOpen": "{mobileNavOpen}",
+          "mobileNavLabel": "Navigation",
+          "headerFixed": false,
+          "contentScroll": "main",
+          "data-case": "engineering-shell"
+        },
+        "state": {
+          "mobileNavOpen": {
+            "kind": "flag",
+            "initial": true
+          }
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "header={<div style={{ padding: 12 }}><strong>Structure inspection workspace</strong></div>}\nsideNav={<Navigation count={5} pseudo={false} arabic={false} />}\nbody={<article><h1>Photo-with-pose capture</h1><p>Place the captured pose within the selected blueprint structure.</p>{/* eight Capture row paragraphs */}</article>}",
+            "blazor": "<Header><div style=\"padding: 12px\"><strong>Structure inspection workspace</strong></div></Header>\nSideNav=\"@Navigation\"\n<ChildContent>@Body</ChildContent>",
+            "rationale": "The rendered linked-list navigation and semantic article structure require elements outside the closed vocabulary; both lane excerpts identify the corresponding opaque fragments."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "app-layout.dismissal-scroll",
+      "name": "Dismissal, header, and scroll ownership",
+      "surface": "dismissal-scroll",
+      "interaction": "keyboard",
+      "sourceCaseIds": [
+        "app-layout.drawer-dismissal-focus",
+        "app-layout.fixed-header",
+        "app-layout.scroll-main",
+        "app-layout.scroll-page",
+        "app-layout.wide-content"
+      ],
+      "sourceQualityCaseIds": [
+        "app-layout.quality.keyboard",
+        "app-layout.quality.focus",
+        "app-layout.quality.dismissal",
+        "app-layout.quality.reflow"
+      ],
+      "content": {
+        "inherits": "app-layout.locale-en",
+        "blurb": "Focus, fixed chrome, one vertical scroll owner, and wide content remain reachable.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "sideNavMode": "auto",
+          "sideNavOpen": true,
+          "mobileNavOpen": "{mobileNavOpen}",
+          "mobileNavLabel": "Navigation",
+          "headerFixed": true,
+          "contentScroll": "main",
+          "data-case": "engineering-shell"
+        },
+        "state": {
+          "mobileNavOpen": {
+            "kind": "flag",
+            "initial": false
+          }
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "header={<div style={{ padding: 12 }}><strong>Structure inspection workspace</strong></div>}\nsideNav={<Navigation count={5} pseudo={false} arabic={false} />}\nbody={<article style={{ padding: 16, minWidth: 720 }}><h1>Photo-with-pose capture</h1><p>Place the captured pose within the selected blueprint structure.</p>{/* eight Capture row paragraphs */}</article>}",
+            "blazor": "<Header><div style=\"padding: 12px\"><strong>Structure inspection workspace</strong></div></Header>\nSideNav=\"@Navigation\"\n<ChildContent><article style=\"padding: 16px; min-width: 720px\"><h1>Photo-with-pose capture</h1><p>Place the captured pose within the selected blueprint structure.</p>@for (var index = 0; index < 8; index++) { <p>Capture row @(index + 1): grid C-@(index + 1)</p> }</article></ChildContent>",
+            "rationale": "The linked-list navigation and semantic article structure, including the wide article, require elements outside the closed vocabulary."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "app-layout.performance",
+      "name": "Bounded shell under load",
+      "surface": "performance",
+      "sourceCaseIds": [
+        "app-layout.auto-single-instance",
+        "app-layout.viewport-transition"
+      ],
+      "sourceQualityCaseIds": [
+        "app-layout.quality.landmarks"
+      ],
+      "content": {
+        "inherits": "app-layout.locale-en",
+        "blurb": "Large navigation, repeated updates, and viewport churn retain one current subtree without stale callbacks.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "sideNavMode": "auto",
+          "sideNavOpen": true,
+          "mobileNavOpen": "{mobileNavOpen}",
+          "mobileNavLabel": "Navigation",
+          "headerFixed": false,
+          "contentScroll": "main",
+          "data-case": "engineering-shell"
+        },
+        "state": {
+          "mobileNavOpen": {
+            "kind": "flag",
+            "initial": false
+          }
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "header={<div style={{ padding: 12 }}><strong>Structure inspection workspace</strong></div>}\nsideNav={<Navigation count={256} pseudo={false} arabic={false} />}\nbody={<article><h1>Photo-with-pose capture</h1><p>Place the captured pose within the selected blueprint structure.</p>{/* eight Capture row paragraphs */}</article>}",
+            "blazor": "<Header><div style=\"padding: 12px\"><strong>Structure inspection workspace</strong></div></Header>\nNavigationCount => 256; SideNav=\"@Navigation\"\n<ChildContent>@Body</ChildContent>",
+            "rationale": "The 256-item linked-list navigation and semantic article structure require elements outside the closed vocabulary."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "app-layout.locale-en",
+      "name": "English locale",
+      "surface": "locale-en",
+      "sourceCaseIds": [
+        "app-layout.header",
+        "app-layout.body"
+      ],
+      "sourceQualityCaseIds": [
+        "app-layout.quality.locales"
+      ],
+      "content": {
+        "blurb": "Caller header, navigation, and body content remain opaque.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "sideNavMode": "auto",
+          "sideNavOpen": true,
+          "mobileNavOpen": "{mobileNavOpen}",
+          "mobileNavLabel": "Navigation",
+          "headerFixed": false,
+          "contentScroll": "main",
+          "data-case": "engineering-shell"
+        },
+        "state": {
+          "mobileNavOpen": {
+            "kind": "flag",
+            "initial": false
+          }
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "header={<div style={{ padding: 12 }}><strong>Structure inspection workspace</strong></div>}\nsideNav={<div style={{ padding: 12 }}><strong>Engineering Services</strong><ul>{Array.from({ length: 5 }, (_, index) => <li key={index}><a href={`#section-${index}`}>Workspace {index + 1}</a></li>)}</ul></div>}\nbody={<article style={{ padding: 16, minWidth: 0 }}><h1>Photo-with-pose capture</h1><p>Place the captured pose within the selected blueprint structure.</p>{Array.from({ length: 8 }, (_, index) => <p key={index}>Capture row {index + 1}: grid C-{index + 1}</p>)}</article>}",
+            "blazor": "<Header><div style=\"padding: 12px\"><strong>Structure inspection workspace</strong></div></Header>\n<div style=\"padding: 12px\"><strong>Engineering Services</strong><ul>@for (var index = 0; index < 5; index++) { <li><a href=\"#section-@index\">Workspace @(index + 1)</a></li> }</ul></div>\n<ChildContent><article style=\"padding: 16px; min-width: 0\"><h1>Photo-with-pose capture</h1><p>Place the captured pose within the selected blueprint structure.</p>@for (var index = 0; index < 8; index++) { <p>Capture row @(index + 1): grid C-@(index + 1)</p> }</article></ChildContent>",
+            "rationale": "Navigation requires ul, li, and a elements; the header and body require div, article, h1, and p elements. None are available in the closed vocabulary."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "app-layout.locale-pseudo",
+      "name": "Pseudo locale",
+      "surface": "locale-pseudo",
+      "sourceCaseIds": [
+        "app-layout.header",
+        "app-layout.mobile-trigger"
+      ],
+      "sourceQualityCaseIds": [
+        "app-layout.quality.pseudo"
+      ],
+      "content": {
+        "inherits": "app-layout.locale-en",
+        "blurb": "Expanded header and navigation labels remain viewport-clamped.",
+        "environment": {
+          "locale": "en-XA",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "sideNavMode": "auto",
+          "sideNavOpen": true,
+          "mobileNavOpen": "{mobileNavOpen}",
+          "mobileNavLabel": "⟦ Ñåṽîĝåţîøñ ···· ⟧",
+          "headerFixed": false,
+          "contentScroll": "main",
+          "data-case": "engineering-shell"
+        },
+        "state": {
+          "mobileNavOpen": {
+            "kind": "flag",
+            "initial": false
+          }
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "header={<div><strong>⟦ Šţřûçţûřë îñšþëçţîøñ ŵøřķšþåçë ······ ⟧</strong></div>}\nsideNav={<div><strong>Engineering Services</strong><ul>{Array.from({ length: 5 }, (_, index) => <li><a href={`#section-${index}`}>⟦ Structure workspace {index + 1} ···· ⟧</a></li>)}</ul></div>}\nbody={<article><h1>Photo-with-pose capture</h1><p>⟦ Place the captured pose within the selected blueprint structure. ········ ⟧</p>{/* eight Capture row paragraphs */}</article>}",
+            "blazor": "<Header><div><strong>⟦ Šţřûçţûřë îñšþëçţîøñ ŵøřķšþåçë ······ ⟧</strong></div></Header>\n<div><strong>Engineering Services</strong><ul>@for (var index = 0; index < 5; index++) { <li><a href=\"#section-@index\">⟦ Structure workspace @(index + 1) ···· ⟧</a></li> }</ul></div>\n<ChildContent><article><h1>Photo-with-pose capture</h1><p>⟦ Place the captured pose within the selected blueprint structure. ········ ⟧</p>@for (var index = 0; index < 8; index++) { <p>Capture row @(index + 1): grid C-@(index + 1)</p> }</article></ChildContent>",
+            "rationale": "The pseudo-localized linked-list navigation and semantic article structure require elements outside the closed vocabulary."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "app-layout.locale-ar",
+      "name": "Arabic locale",
+      "surface": "locale-ar",
+      "sourceCaseIds": [
+        "app-layout.rtl-safe-area"
+      ],
+      "sourceQualityCaseIds": [
+        "app-layout.quality.rtl",
+        "app-layout.quality.safe-area"
+      ],
+      "content": {
+        "inherits": "app-layout.locale-en",
+        "blurb": "Rail, drawer, trigger, and safe areas use logical edges.",
+        "environment": {
+          "locale": "ar-SA",
+          "direction": "rtl",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "sideNavMode": "auto",
+          "sideNavOpen": true,
+          "mobileNavOpen": "{mobileNavOpen}",
+          "mobileNavLabel": "التنقل",
+          "headerFixed": false,
+          "contentScroll": "main",
+          "data-case": "engineering-shell"
+        },
+        "state": {
+          "mobileNavOpen": {
+            "kind": "flag",
+            "initial": false
+          }
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "header={<div><strong>مساحة فحص الهيكل</strong></div>}\nsideNav={<div><strong>كوميت إكس</strong><ul>{Array.from({ length: 5 }, (_, index) => <li><a href={`#section-${index}`}>قسم {index + 1}</a></li>)}</ul></div>}\nbody={<article><h1>التقاط صورة مع الوضعية</h1><p>Place the captured pose within the selected blueprint structure.</p>{/* eight Capture row paragraphs */}</article>}",
+            "blazor": "<Header><div><strong>مساحة فحص الهيكل</strong></div></Header>\n<div><strong>كوميت إكس</strong><ul>@for (var index = 0; index < 5; index++) { <li><a href=\"#section-@index\">قسم @(index + 1)</a></li> }</ul></div>\n<ChildContent><article><h1>التقاط صورة مع الوضعية</h1><p>Place the captured pose within the selected blueprint structure.</p>@for (var index = 0; index < 8; index++) { <p>Capture row @(index + 1): grid C-@(index + 1)</p> }</article></ChildContent>",
+            "rationale": "The Arabic linked-list navigation and semantic article structure require elements outside the closed vocabulary."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "app-layout.theme-light",
+      "name": "Light theme",
+      "surface": "theme-light",
+      "sourceCaseIds": [
+        "app-layout.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "app-layout.quality.themes",
+        "app-layout.quality.tokens",
+        "app-layout.quality.contrast",
+        "app-layout.quality.reduced-motion",
+        "app-layout.quality.visual-parity"
+      ],
+      "content": {
+        "inherits": "app-layout.locale-en",
+        "blurb": "Shell, header, rail, drawer, main, and scrim use public light tokens.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "sideNavMode": "auto",
+          "sideNavOpen": true,
+          "mobileNavOpen": "{mobileNavOpen}",
+          "mobileNavLabel": "Navigation",
+          "headerFixed": false,
+          "contentScroll": "main",
+          "data-case": "engineering-shell"
+        },
+        "state": {
+          "mobileNavOpen": {
+            "kind": "flag",
+            "initial": false
+          }
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "header={<div><strong>Structure inspection workspace</strong></div>}\nsideNav={<Navigation count={5} pseudo={false} arabic={false} />}\nbody={<article><h1>Photo-with-pose capture</h1><p>Place the captured pose within the selected blueprint structure.</p>{/* eight Capture row paragraphs */}</article>}",
+            "blazor": "<Header><div><strong>Structure inspection workspace</strong></div></Header>\nSideNav=\"@Navigation\"\n<ChildContent>@Body</ChildContent>",
+            "rationale": "The rendered linked-list navigation and semantic article structure require elements outside the closed vocabulary."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "app-layout.theme-dark",
+      "name": "Dark theme",
+      "surface": "theme-dark",
+      "sourceCaseIds": [
+        "app-layout.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "app-layout.quality.themes",
+        "app-layout.quality.tokens",
+        "app-layout.quality.contrast",
+        "app-layout.quality.reduced-motion",
+        "app-layout.quality.visual-parity"
+      ],
+      "content": {
+        "inherits": "app-layout.theme-light",
+        "blurb": "The same responsive application chrome on the Harborline dark surface.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "dark",
+          "catalog": {}
+        },
+        "props": {
+          "sideNavMode": "auto",
+          "sideNavOpen": true,
+          "mobileNavOpen": "{mobileNavOpen}",
+          "mobileNavLabel": "Navigation",
+          "headerFixed": false,
+          "contentScroll": "main",
+          "data-case": "engineering-shell"
+        },
+        "state": {
+          "mobileNavOpen": {
+            "kind": "flag",
+            "initial": false
+          }
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "header={<div><strong>Structure inspection workspace</strong></div>}\nsideNav={<Navigation count={5} pseudo={false} arabic={false} />}\nbody={<article><h1>Photo-with-pose capture</h1><p>Place the captured pose within the selected blueprint structure.</p>{/* eight Capture row paragraphs */}</article>}",
+            "blazor": "<Header><div><strong>Structure inspection workspace</strong></div></Header>\nSideNav=\"@Navigation\"\n<ChildContent>@Body</ChildContent>",
+            "rationale": "The rendered linked-list navigation and semantic article structure require elements outside the closed vocabulary."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "app-layout.content",
+      "name": "Content resilience",
+      "surface": "long-content",
+      "sourceCaseIds": [
+        "app-layout.header",
+        "app-layout.body"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "Hostile application content carries a long header label, a grouped large number, escaped angle brackets and an ampersand, and a name with diacritics and an em dash.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "header={<div><strong>{'Awaiting third-party structural certification review'}</strong></div>}\nsideNav={<Navigation count={5} pseudo={false} arabic={false} />}\nbody={<article><h1>{'Ordnance Survey — Niño Ångström'}</h1><p>{'1,284,905'}</p><p>{'Bay 4 <grid C-7> & 8'}</p></article>}",
+            "blazor": "<Header><div><strong>@(\"Awaiting third-party structural certification review\")</strong></div></Header>\nSideNav=\"@Navigation\"\n<ChildContent><article><h1>@(\"Ordnance Survey — Niño Ångström\")</h1><p>@(\"1,284,905\")</p><p>@(\"Bay 4 <grid C-7> & 8\")</p></article></ChildContent>",
+            "rationale": "The caller-supplied header, navigation, and semantic body fragments require elements outside the closed control vocabulary while preserving hostile-but-valid text as text."
+          }
+        ],
+        "footer": []
+      }
+    }
+  ]
+}

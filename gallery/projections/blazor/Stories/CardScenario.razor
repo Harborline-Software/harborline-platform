@@ -1,0 +1,21 @@
+<section class="hl-gallery-scene" data-gallery-probe data-gallery-scenario="@ScenarioId" data-theme="@Theme">
+  <header class="hl-gallery-heading"><h2>@Title</h2><p>Caller-owned regions retain semantic headings and logical separators.</p></header>
+  <div class="hl-gallery-stage">
+    @if (ScenarioId == "card.content")
+    {
+      <HarborlineCard><HarborlineCardHeader><HarborlineCardTitle Level="3">@("Awaiting third-party structural certification review")</HarborlineCardTitle></HarborlineCardHeader><HarborlineCardContent>@("1,284,905 · Bay 4 <grid C-7> & 8 · Ordnance Survey — Niño Ångström")</HarborlineCardContent></HarborlineCard>
+    }
+    else if (ScenarioId == "card.themes")
+    {
+      <div class="hl-gallery-feedback-grid">
+        <CardSurface Appearance="CardAppearance.Flat" /><CardSurface Appearance="CardAppearance.Raised" /><CardSurface Appearance="CardAppearance.Outlined" /><CardSurface Appearance="CardAppearance.Elevated" />
+      </div>
+    }
+    else { <CardSurface Horizontal="@(ScenarioId == "card.horizontal")" /> }
+  </div>
+</section>
+@code {
+  [Parameter, EditorRequired] public string ScenarioId { get; set; } = "card.defaults";
+  private string Title => ScenarioId == "card.content" ? "Content resilience" : ScenarioId == "card.themes" ? "Appearances and theme" : ScenarioId == "card.horizontal" ? "Horizontal separators" : "Defaults";
+  private string? Theme => ScenarioId == "card.themes" ? "dark" : null;
+}

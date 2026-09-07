@@ -1,0 +1,42 @@
+{
+  "name": "@harborline-software/rule-engine",
+  "version": "0.1.0-alpha.0",
+  "description": "SPINE-1 Tier-2 rule engine — the reactive client tier (ADR 0140 D2 / ADR 0055 follow-up). The TS port of Harborline.Foundation.RuleEngine: a dependency-graph evaluator over the closed harborline-jsonlogic/v1 operator set with fail-closed resource bounds, authoring-time cycle detection, reactive re-evaluation, and async Pending. Emits RuleOutcome values byte-identical to the .NET integrity tier (proven by the shared conformance corpus).",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint src --report-unused-disable-directives --max-warnings 0",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@typescript/native": "npm:typescript@^7.0.2",
+    "eslint": "^10.7.0",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
+    "typescript-eslint": "^8.63.0",
+    "vitest": "^4.1.10"
+  },
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Harborline-Software/harborline-platform.git",
+    "directory": "projections/typescript/foundation/hlp.foundation.rule-runtime"
+  },
+  "private": true
+}

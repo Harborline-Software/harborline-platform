@@ -1,0 +1,110 @@
+.hl-side-nav {
+  --hl-side-nav-surface: var(--hl-background, #ffffff);
+  --hl-side-nav-foreground: var(--hl-foreground, #172033);
+  --hl-side-nav-muted: var(--hl-muted-foreground, #586174);
+  --hl-side-nav-hover: var(--hl-muted, #eef2f6);
+  --hl-side-nav-active: var(--hl-accent-muted, #dbeafe);
+  --hl-side-nav-active-foreground: var(--hl-accent-foreground, #153e75);
+  --hl-side-nav-border: var(--hl-border, #8a94a6);
+  --hl-side-nav-focus: var(--hl-focus, #8a3ffc);
+  --hl-side-nav-badge: var(--hl-secondary, #e2e8f0);
+}
+
+.hl-side-nav {
+  background: var(--hl-side-nav-surface);
+  color: var(--hl-side-nav-foreground);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  inline-size: 100%;
+  min-inline-size: 0;
+}
+
+.hl-side-nav__group,
+.hl-side-nav__list,
+.hl-side-nav__item { margin: 0; min-inline-size: 0; padding: 0; }
+.hl-side-nav__list { display: flex; flex-direction: column; gap: 0.125rem; list-style: none; }
+.hl-side-nav__group-label { color: var(--hl-side-nav-muted); font-size: 0.75rem; font-weight: 600; margin: 0; overflow-wrap: anywhere; padding: 0.25rem 0.75rem; }
+.hl-side-nav__row { align-items: center; display: flex; gap: 0.25rem; min-inline-size: 0; position: relative; }
+.hl-side-nav__tooltip-trigger { display: flex; flex: 1 1 auto; min-inline-size: 0; }
+/* The collapsed rail exposes each item's label as a tooltip beside its icon. The React lane
+   composes hlp.ui.tooltip, whose trigger carries hl-side-nav__tooltip-trigger above and whose
+   bubble is that module's own hl-tooltip__content; the Blazor lane renders the bubble itself as
+   hl-side-nav__tooltip. Both spellings are defined here so neither lane styles a class this
+   authority does not own. */
+.hl-side-nav__tooltip { background: var(--hl-side-nav-foreground); border-radius: 0.25rem; color: var(--hl-side-nav-surface); display: none; inset-inline-start: calc(100% + 0.5rem); padding: 0.375rem 0.5rem; position: absolute; white-space: nowrap; z-index: var(--hl-layer-tooltip, 60); }
+.hl-side-nav[data-hl-collapsed='true'] .hl-side-nav__row:focus-within .hl-side-nav__tooltip,
+.hl-side-nav[data-hl-collapsed='true'] .hl-side-nav__row:hover .hl-side-nav__tooltip { display: block; }
+
+.hl-side-nav__control {
+  align-items: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--hl-radius-md, 0.5rem);
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  flex: 1 1 auto;
+  font: inherit;
+  gap: 0.625rem;
+  inline-size: 100%;
+  justify-content: flex-start;
+  min-block-size: 2.5rem;
+  min-inline-size: 2.25rem;
+  overflow: hidden;
+  padding: 0.375rem 0.625rem;
+  text-align: start;
+  text-decoration: none;
+  position: relative;
+  transition: background-color 150ms ease-out, color 150ms ease-out;
+}
+
+.hl-side-nav__control:hover { background: var(--hl-side-nav-hover); }
+.hl-side-nav__control--active { background: var(--hl-side-nav-active); color: var(--hl-side-nav-active-foreground); font-weight: 600; }
+.hl-side-nav__control--active::before { background: currentColor; border-radius: 999px; content: ''; inline-size: 0.1875rem; inset-block: 0.5rem; inset-inline-start: 0.1875rem; position: absolute; }
+.hl-side-nav__control:focus-visible,
+.hl-side-nav__accessory :is(button, a):focus-visible { outline: 2px solid var(--hl-side-nav-focus); outline-offset: 2px; }
+.hl-side-nav__control:disabled,
+.hl-side-nav__control[aria-disabled='true'] { color: var(--hl-side-nav-muted); cursor: not-allowed; }
+.hl-side-nav__icon { align-items: center; display: inline-flex; flex: 0 0 auto; justify-content: center; }
+.hl-side-nav__label { min-inline-size: 0; overflow-wrap: anywhere; }
+.hl-side-nav__disclosure { flex: 0 0 auto; margin-inline-start: auto; transform: rotate(90deg); }
+.hl-side-nav__list--nested { border-inline-start: 1px solid var(--hl-side-nav-border); margin-inline-start: 1.125rem; padding-inline-start: 0.625rem; }
+.hl-side-nav__accessory { align-items: center; display: inline-flex; flex: 0 0 auto; order: 2; }
+.hl-side-nav__accessory:not(:has(:is(button, a, input, select, textarea))) { background: var(--hl-side-nav-badge); border-radius: 999px; font-size: 0.75rem; padding: 0.125rem 0.5rem; }
+.hl-side-nav__accessory :is(button, a) { align-items: center; display: inline-flex; justify-content: center; min-block-size: 2.25rem; min-inline-size: 2.25rem; }
+.hl-side-nav[data-hl-collapsed='true'] { inline-size: max-content; }
+.hl-side-nav[data-hl-collapsed='true'] .hl-side-nav__control { flex: 0 0 auto; justify-content: center; padding-inline: 0.5rem; }
+.hl-side-nav[dir='rtl'] .hl-side-nav__disclosure { transform: rotate(90deg) scaleX(-1); }
+
+.hl-side-nav[data-hl-touch='true'] .hl-side-nav__control,
+.hl-side-nav[data-hl-touch='true'] .hl-side-nav__accessory :is(button, a) { min-block-size: 44px; min-inline-size: 44px; }
+
+[data-theme='dark'] .hl-side-nav,
+.hl-side-nav[data-theme='dark'] {
+  --hl-side-nav-surface: var(--hl-background, #161b26);
+  --hl-side-nav-foreground: var(--hl-foreground, #f5f7fa);
+  --hl-side-nav-muted: var(--hl-muted-foreground, #b8c0cc);
+  --hl-side-nav-hover: var(--hl-muted, #263244);
+  --hl-side-nav-active: var(--hl-accent-muted, #173a68);
+  --hl-side-nav-active-foreground: var(--hl-accent-foreground, #dbeafe);
+  --hl-side-nav-border: var(--hl-border, #64748b);
+  --hl-side-nav-focus: var(--hl-focus, #93c5fd);
+  --hl-side-nav-badge: var(--hl-secondary, #334155);
+}
+
+@media (any-pointer: coarse) {
+  .hl-side-nav__control,
+  .hl-side-nav__accessory :is(button, a) { min-block-size: 44px; min-inline-size: 44px; }
+}
+
+@media (forced-colors: active) {
+  .hl-side-nav__control--active { border-color: Highlight; }
+  .hl-side-nav__control:focus-visible,
+  .hl-side-nav__accessory :is(button, a):focus-visible { outline-color: Highlight; }
+  .hl-side-nav__list--nested { border-color: CanvasText; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hl-side-nav__control { transition-duration: 0.01ms; }
+}

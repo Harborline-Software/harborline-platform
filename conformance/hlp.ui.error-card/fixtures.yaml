@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.error-card",
+  "fixtureRevision": 1,
+  "cases": [
+    {"id": "error-card.default", "input": {"title": "Unable to load"}, "expected": {"role": "alert", "variant": "default", "titleElement": "p"}},
+    {"id": "error-card.page", "input": {"title": "Page unavailable", "variant": "page"}, "expected": {"role": "alert", "titleElement": "h2"}},
+    {"id": "error-card.compact", "input": {"title": "Failed", "variant": "compact"}, "expected": {"role": "alert", "density": "compact", "titleElement": "p"}},
+    {"id": "error-card.message", "input": {"title": "Unable to load", "messages": ["Check your connection.", null, ""]}, "expected": {"nonEmptyVisible": true, "nullOmitted": true, "emptyOmitted": true, "domOrder": ["title", "message"]}},
+    {"id": "error-card.retry", "input": {"retry": true}, "expected": {"retryVisible": true, "activationCount": 1}},
+    {"id": "error-card.no-retry", "input": {"retry": false}, "expected": {"retryVisible": false, "activationCount": 0}},
+    {"id": "error-card.localized-retry", "input": {"locale": "fr-CA", "retryLabel": "Réessayer"}, "expected": {"retryLabel": "Réessayer", "lang": "fr-CA"}},
+    {"id": "error-card.semantic-tone", "input": {"regions": ["container", "title", "message", "retry"]}, "expected": {"container": "destructive-soft", "title": "destructive", "message": "muted", "retry": "destructive"}},
+    {"id": "error-card.host-attributes", "input": {"direction": "rtl", "attributes": {"class": "consumer", "data-case": "shared", "aria-describedby": "details"}}, "expected": {"attributesPreserved": true, "dir": "rtl"}},
+    {"id": "error-card.class-vocabulary", "input": {"variant": "default", "message": "Check your connection.", "retry": true}, "expected": {"containerClasses": ["hl-error-card", "hl-error-card--default"], "titleClasses": ["hl-error-card__title"], "messageClasses": ["hl-error-card__message"], "retryClasses": ["hl-error-card__retry"]}},
+    {"id": "error-card.projection-equivalence", "input": {"projections": ["react", "blazor"], "variants": ["page", "default", "compact"]}, "expected": {"semanticDomEquivalent": true, "activationEquivalent": true, "visualStatesEquivalent": true}}
+  ]
+}

@@ -1,0 +1,200 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Layout
+@inherits HarborlineComponentBase
+@implements IAsyncDisposable
+@using Microsoft.JSInterop
+@inject IJSRuntime JavaScript
+
+<div @ref="portal">
+@if (Modal && EffectiveState != HarborlineWindowState.Minimized)
+{
+    <div class="hl-window__overlay" data-hl-window-overlay></div>
+}
+<section @ref="window" role="dialog" tabindex="-1" aria-modal="@(Modal ? "true" : null)"
+         aria-labelledby="@(Title is not null ? TitleId : null)"
+         aria-label="@(Title is null ? AccessibleLabel : null)"
+         data-hl-module="hlp.ui.window" data-window-state="@StateName" data-state="@StateName"
+         class="@CombineClasses("hl-window", EffectiveState == HarborlineWindowState.Default ? null : $"hl-window--{StateName}")"
+         style="@CombineStyles(WindowStyle)" @onkeydown="HandleWindowKeyAsync" @attributes="AdditionalAttributes">
+    <header @ref="titleBar" class="@CombineClasses("hl-window__title-bar", Draggable && EffectiveState == HarborlineWindowState.Default ? "hl-window__title-bar--draggable" : null)"
+            tabindex="@(Draggable && EffectiveState == HarborlineWindowState.Default ? "0" : null)"
+            @onkeydown="HandleTitleKeyAsync" @ondblclick="ToggleMaximizeFromTitleAsync">
+        <div id="@TitleId" class="hl-window__title">@Title</div>
+        <div class="hl-window__actions" @onpointerdown:stopPropagation="true">
+            @ActionsBar
+            @if (Minimizable)
+            {
+                <button type="button" class="hl-window__control" aria-label="@(EffectiveState == HarborlineWindowState.Minimized ? RestoreLabel : MinimizeLabel)"
+                        @onclick="ToggleMinimizeAsync"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="M5 14.5h10" /></svg></button>
+            }
+            @if (Maximizable)
+            {
+                <button type="button" class="hl-window__control" aria-label="@(EffectiveState == HarborlineWindowState.Maximized ? RestoreLabel : MaximizeLabel)"
+                        @onclick="ToggleMaximizeAsync"><svg aria-hidden="true" viewBox="0 0 20 20">@if (EffectiveState == HarborlineWindowState.Maximized) { <rect x="4" y="6" width="10" height="9" rx="1" /><path d="M7 6V4h9v9h-2" /> } else { <rect x="4" y="4" width="12" height="12" rx="1" /> }</svg></button>
+            }
+            @if (Closable) { <button type="button" class="hl-window__control hl-window__control--close" aria-label="@CloseLabel" @onclick="CloseAsync"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="m5 5 10 10M15 5 5 15" /></svg></button> }
+        </div>
+    </header>
+    @if (EffectiveState != HarborlineWindowState.Minimized)
+    {
+        <div class="hl-window__body">@ChildContent</div>
+        @if (Resizable && EffectiveState == HarborlineWindowState.Default)
+        {
+            <div class="hl-window__resize hl-window__resize--width" role="separator" tabindex="0" aria-orientation="vertical"
+                 aria-label="@ResizeWidthLabel" aria-valuemin="@MinWidth" aria-valuemax="10000" aria-valuenow="@size.Width"
+                 data-resize-edge="e" @onkeydown="HandleEastResizeKeyAsync"></div>
+            <div class="hl-window__resize hl-window__resize--height" role="separator" tabindex="0" aria-orientation="horizontal"
+                 aria-label="@ResizeHeightLabel" aria-valuemin="@MinHeight" aria-valuemax="10000" aria-valuenow="@size.Height"
+                 data-resize-edge="s" @onkeydown="HandleSouthResizeKeyAsync"></div>
+            <div class="hl-window__resize hl-window__resize--corner" role="separator" tabindex="0"
+                 aria-label="@ResizeBothLabel" aria-valuemin="@MinWidth" aria-valuenow="@size.Width"
+                 data-resize-edge="se" @onkeydown="HandleCornerResizeKeyAsync"></div>
+        }
+    }
+</section>
+</div>
+
+@code {
+    [Parameter] public RenderFragment? Title { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public RenderFragment? ActionsBar { get; set; }
+    [Parameter] public double Width { get; set; } = 400;
+    [Parameter] public double Height { get; set; } = 300;
+    [Parameter] public double? Top { get; set; }
+    [Parameter] public double? Left { get; set; }
+    [Parameter] public double? InitialTop { get; set; }
+    [Parameter] public double? InitialLeft { get; set; }
+    [Parameter] public double MinWidth { get; set; } = 200;
+    [Parameter] public double MinHeight { get; set; } = 100;
+    [Parameter] public bool Draggable { get; set; } = true;
+    [Parameter] public bool Resizable { get; set; } = true;
+    [Parameter] public bool Closable { get; set; } = true;
+    [Parameter] public bool Minimizable { get; set; } = true;
+    [Parameter] public bool Maximizable { get; set; } = true;
+    [Parameter] public bool Modal { get; set; }
+    [Parameter] public bool AutoFocus { get; set; } = true;
+    [Parameter] public bool DoubleClickStateChange { get; set; } = true;
+    [Parameter] public HarborlineWindowState? State { get; set; }
+    [Parameter] public HarborlineWindowState DefaultState { get; set; }
+    [Parameter] public EventCallback<HarborlineWindowState> StateChanged { get; set; }
+    [Parameter] public EventCallback Closed { get; set; }
+    [Parameter] public EventCallback<WindowPosition> Moved { get; set; }
+    [Parameter] public EventCallback<WindowSize> Resized { get; set; }
+    [Parameter] public WindowBounds? DragBounds { get; set; }
+    [Parameter, EditorRequired] public string? AccessibleLabel { get; set; }
+    [Parameter, EditorRequired] public string CloseLabel { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public string MinimizeLabel { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public string MaximizeLabel { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public string RestoreLabel { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public string ResizeWidthLabel { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public string ResizeHeightLabel { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public string ResizeBothLabel { get; set; } = string.Empty;
+
+    private readonly string instanceId = $"hl-window-{Guid.NewGuid():N}";
+    private HarborlineWindowState localState;
+    private WindowPosition position = new(80, 80);
+    private WindowSize size = new(400, 300);
+    private bool initialized;
+    private ElementReference window;
+    private ElementReference titleBar;
+    private ElementReference portal;
+    private IJSObjectReference? module;
+    private IJSObjectReference? connection;
+    private DotNetObjectReference<HarborlineWindow>? callback;
+    private HarborlineWindowState EffectiveState => State ?? localState;
+    private string TitleId => $"{instanceId}-title";
+    private string StateName => EffectiveState.ToString().ToLowerInvariant();
+    private string WindowStyle => EffectiveState == HarborlineWindowState.Maximized
+        ? "position:fixed;z-index:1000;inset:0;width:100vw;height:100vh"
+        : $"position:fixed;z-index:1000;top:{position.Top}px;left:{position.Left}px;width:{size.Width}px;height:{(EffectiveState == HarborlineWindowState.Minimized ? "auto" : $"{size.Height}px")}";
+
+    protected override void OnParametersSet()
+    {
+        if (!initialized)
+        {
+            localState = DefaultState;
+            position = new(InitialTop ?? Top ?? 80, InitialLeft ?? Left ?? 80);
+            size = new(Math.Max(MinWidth, Width), Math.Max(MinHeight, Height));
+            initialized = true;
+        }
+        if (Width <= 0 || Height <= 0 || double.IsNaN(Width) || double.IsNaN(Height) || double.IsInfinity(Width) || double.IsInfinity(Height))
+            throw new InvalidOperationException("invalid-size");
+        if (Title is null && string.IsNullOrWhiteSpace(AccessibleLabel))
+            throw new InvalidOperationException("accessible-name-required");
+        if ((Closable && string.IsNullOrWhiteSpace(CloseLabel)) || (Minimizable && (string.IsNullOrWhiteSpace(MinimizeLabel) || string.IsNullOrWhiteSpace(RestoreLabel))) ||
+            (Maximizable && (string.IsNullOrWhiteSpace(MaximizeLabel) || string.IsNullOrWhiteSpace(RestoreLabel))) ||
+            (Resizable && (string.IsNullOrWhiteSpace(ResizeWidthLabel) || string.IsNullOrWhiteSpace(ResizeHeightLabel) || string.IsNullOrWhiteSpace(ResizeBothLabel))))
+            throw new InvalidOperationException("localized-control-labels-required");
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        var options = new { draggable = Draggable && EffectiveState == HarborlineWindowState.Default, resizable = Resizable && EffectiveState == HarborlineWindowState.Default, modal = Modal, autoFocus = AutoFocus, top = position.Top, left = position.Left, width = size.Width, height = size.Height, minWidth = MinWidth, minHeight = MinHeight };
+        if (connection is null)
+        {
+            module ??= await JavaScript.InvokeAsync<IJSObjectReference>("import", "./_content/Harborline.UIAdapters.Blazor/window.js");
+            callback ??= DotNetObjectReference.Create(this);
+            connection = await module.InvokeAsync<IJSObjectReference>("connect", portal, window, titleBar, options, callback);
+        }
+        else await connection.InvokeVoidAsync("update", options);
+    }
+
+    private async Task ChangeStateAsync(HarborlineWindowState next)
+    {
+        if (State is null) localState = next;
+        await StateChanged.InvokeAsync(next);
+    }
+    private Task ToggleMinimizeAsync() => ChangeStateAsync(EffectiveState == HarborlineWindowState.Minimized ? HarborlineWindowState.Default : HarborlineWindowState.Minimized);
+    private Task ToggleMaximizeAsync() => ChangeStateAsync(EffectiveState == HarborlineWindowState.Maximized ? HarborlineWindowState.Default : HarborlineWindowState.Maximized);
+    private Task ToggleMaximizeFromTitleAsync() => DoubleClickStateChange && EffectiveState != HarborlineWindowState.Minimized ? ToggleMaximizeAsync() : Task.CompletedTask;
+    private Task CloseAsync() => Closable ? Closed.InvokeAsync() : Task.CompletedTask;
+    private async Task HandleWindowKeyAsync(KeyboardEventArgs args)
+    {
+        if (args.Key != "Escape" || !Closable) return;
+        if (EffectiveState == HarborlineWindowState.Maximized) await ChangeStateAsync(HarborlineWindowState.Default); else await CloseAsync();
+    }
+    private async Task HandleTitleKeyAsync(KeyboardEventArgs args)
+    {
+        if (!Draggable || EffectiveState != HarborlineWindowState.Default || args.Key is not ("ArrowLeft" or "ArrowRight" or "ArrowUp" or "ArrowDown")) return;
+        var step = args.ShiftKey ? 50 : 10;
+        var top = position.Top + (args.Key == "ArrowDown" ? step : args.Key == "ArrowUp" ? -step : 0);
+        var left = position.Left + (args.Key == "ArrowRight" ? step : args.Key == "ArrowLeft" ? -step : 0);
+        await ApplyPositionAsync(top, left);
+    }
+    private Task HandleResizeKeyAsync(KeyboardEventArgs args, string edge)
+    {
+        if (!Resizable || EffectiveState != HarborlineWindowState.Default || args.Key is not ("ArrowLeft" or "ArrowRight" or "ArrowUp" or "ArrowDown")) return Task.CompletedTask;
+        var step = args.ShiftKey ? 50 : 10;
+        var width = size.Width + (edge.Contains('e') ? args.Key == "ArrowRight" ? step : args.Key == "ArrowLeft" ? -step : 0 : 0);
+        var height = size.Height + (edge.Contains('s') ? args.Key == "ArrowDown" ? step : args.Key == "ArrowUp" ? -step : 0 : 0);
+        return ApplySizeAsync(width, height);
+    }
+    private Task HandleEastResizeKeyAsync(KeyboardEventArgs args) => HandleResizeKeyAsync(args, "e");
+    private Task HandleSouthResizeKeyAsync(KeyboardEventArgs args) => HandleResizeKeyAsync(args, "s");
+    private Task HandleCornerResizeKeyAsync(KeyboardEventArgs args) => HandleResizeKeyAsync(args, "se");
+    [JSInvokable] public Task MoveFromJavaScriptAsync(double top, double left) => ApplyPositionAsync(top, left);
+    [JSInvokable] public Task ResizeFromJavaScriptAsync(double width, double height) => ApplySizeAsync(width, height);
+    [JSInvokable] public Task EscapeFromJavaScriptAsync() => HandleWindowKeyAsync(new KeyboardEventArgs { Key = "Escape" });
+    private async Task ApplyPositionAsync(double top, double left)
+    {
+        if (DragBounds is not null)
+        {
+            top = Math.Max(DragBounds.Top ?? double.NegativeInfinity, Math.Min(top, DragBounds.Bottom is null ? double.PositiveInfinity : DragBounds.Bottom.Value - 40));
+            left = Math.Max(DragBounds.Left ?? double.NegativeInfinity, Math.Min(left, DragBounds.Right is null ? double.PositiveInfinity : DragBounds.Right.Value - size.Width));
+        }
+        position = new(top, left);
+        await Moved.InvokeAsync(position);
+    }
+    private async Task ApplySizeAsync(double width, double height)
+    {
+        var next = new WindowSize(Math.Max(MinWidth, width), Math.Max(MinHeight, height));
+        if (next == size) return;
+        size = next;
+        await Resized.InvokeAsync(size);
+    }
+    public async ValueTask DisposeAsync()
+    {
+        if (connection is not null) { await connection.InvokeVoidAsync("dispose"); await connection.DisposeAsync(); }
+        if (module is not null) await module.DisposeAsync();
+        callback?.Dispose();
+    }
+}

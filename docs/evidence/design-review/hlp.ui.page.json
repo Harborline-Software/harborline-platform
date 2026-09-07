@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.page",
+  "verdict": "approved",
+  "reviewer": "cic",
+  "recordedAt": "2026-08-27T05:31:55.093Z",
+  "notes": "needs polish as it doesn't look like the same design language",
+  "reference": {
+    "revision": "8baa178d736b802a1871d518a269ac8725f142dd95d91fa43052d230f4eba99e",
+    "source": "gallery/scenarios/hlp.ui.page.json",
+    "pin": "e4c44eca8918b135e2dcd36060a8e8582d336f89",
+    "surface": {
+      "conformance/hlp.ui.page/fixtures.yaml": "76b2440b29567411a8eee128cb83564cc49e63c3b0f16193391137cda5d8a0b3",
+      "conformance/hlp.ui.page/quality-fixtures.yaml": "b54780ef3dcf43ac6ae12012e500356a05f1428c70ba47b82ceaeeca09457cb7",
+      "gallery/projections/blazor/Stories/Page.stories.razor": "52e1e2dd46a7e8799b55966e461d6aa5a5e119185fffa401b6bfa91a39585cc9",
+      "gallery/projections/blazor/Stories/PageScenario.razor": "011682783fba0322c8d543dd88a1574e2505f2352e3cc9924e1a6d6f3ff54ef1",
+      "gallery/projections/react/src/Page.stories.tsx": "fa1d93c22af1a24e4832ea4fbe2fba7f93d56763fbe875a6c97476f67d74e645",
+      "gallery/scenarios/hlp.ui.page.json": "e8680a07da0611eb2e4dc980de38a4130b86b5735bf67cbe70c36349c6cf253d",
+      "projections/blazor/ui/hlp.ui.page/PageTypes.cs": "17bee1d2852d2842bc5a85b1e8807cf182779593fa713daaf40f4764b8c4edad",
+      "projections/blazor/ui/hlp.ui.page/ShipyardPage.razor": "6209cfec247ca4c9e4503dd62ff3ba79ab68e6e8b55cc6efc027adcbb003dbb0",
+      "projections/blazor/ui/hlp.ui.page/wwwroot/page.css": "b33d2471b959d3b75c7a613cd160238bc8522258a9cfd192db68a6690a65b29d",
+      "projections/react/ui/hlp.ui.page/src/Page.tsx": "cf820b19f9305971342a21e5a31a8fa64a0eceb69353809f686808464e1d0363",
+      "projections/react/ui/hlp.ui.page/src/index.ts": "16e29013f69d8f5491647f46baa33efa57c5b0306a905a1f3b01221784fe7221",
+      "projections/react/ui/hlp.ui.page/src/style.css": "b33d2471b959d3b75c7a613cd160238bc8522258a9cfd192db68a6690a65b29d",
+      "specs/modules/ui/hlp.ui.page/scenarios.json": "e8680a07da0611eb2e4dc980de38a4130b86b5735bf67cbe70c36349c6cf253d",
+      "specs/modules/ui/hlp.ui.page/style.css": "b33d2471b959d3b75c7a613cd160238bc8522258a9cfd192db68a6690a65b29d"
+    }
+  }
+}

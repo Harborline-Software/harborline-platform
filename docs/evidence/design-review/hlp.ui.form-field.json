@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.form-field",
+  "verdict": "approved",
+  "reviewer": "cic",
+  "recordedAt": "2026-08-26T20:29:23.952Z",
+  "reference": {
+    "revision": "fbe95adf460459f70c1f68491b14f513648925d40cbd386c090e7cb4f6f01b91",
+    "source": "gallery/scenarios/hlp.ui.form-field.json",
+    "pin": "cc9eb48ed68c5033ec128cd53c40b1d2786bee66",
+    "surface": {
+      "conformance/hlp.ui.form-field/fixtures.yaml": "920759bf122e591b2f71d4d63538de9937787675951505af26ef457bc3f4c02b",
+      "conformance/hlp.ui.form-field/quality-fixtures.yaml": "8664da39359691178ce81e87657c1a2fd1539f6968e9ee3a5184ec82b2d4df3f",
+      "gallery/projections/blazor/Stories/FormField.stories.razor": "5413f0c7f7ec599e3bb5cca75cbf28a20bc34ec3984d4054f9f7c4d53a69fbdd",
+      "gallery/projections/blazor/Stories/FormFieldScenario.razor": "ad830264f21ee828d264196268ce7f2303d9b3f0861b782e6b50ec99e6db2557",
+      "gallery/projections/react/src/FormField.stories.tsx": "4cc5e2bd7d78e0d4daccf8303b06fe4c7829fbd7b5fe665f6495424d669a74b9",
+      "gallery/scenarios/hlp.ui.form-field.json": "01871110c8a1553c8c52189ced0e0cb2f7941a5717680e26d2bddbaaf21ddd1d",
+      "projections/blazor/ui/hlp.ui.form-field/FormFieldContextValue.cs": "4db84fd55ca00e2d7605dadb82ad913e54a35eb33e506a3813d365359fc9b4b9",
+      "projections/blazor/ui/hlp.ui.form-field/ShipyardFormField.razor": "53110d709f25c6f99b32f2fe769e62e0fb5feccb819ddbff79814bc5f13b7566",
+      "projections/blazor/ui/hlp.ui.form-field/wwwroot/form-field.css": "88a466c3a485f95b4d00ef2b1fdb4c526f1f838326b2b08edb9992d8fcf05e68",
+      "projections/react/ui/hlp.ui.form-field/src/FormField.tsx": "43d9535508d5db1721134e33eeb9931f29d5739bf67315b05beb5b7acb20f3ce",
+      "projections/react/ui/hlp.ui.form-field/src/FormFieldContext.tsx": "7b009e35a69b179a569447fd569d500e5f11328b2281d6adc738bea7266478fb",
+      "projections/react/ui/hlp.ui.form-field/src/index.ts": "3a1d9e2294fca4b5797587bd96f77ed56c3d54a25a399c909d73513b395d269f",
+      "projections/react/ui/hlp.ui.form-field/src/style.css": "8d458f679a47018135cb6d41a88c5e90123405d5782dfe4588edb9494233147a",
+      "specs/modules/ui/hlp.ui.form-field/scenarios.json": "01871110c8a1553c8c52189ced0e0cb2f7941a5717680e26d2bddbaaf21ddd1d",
+      "specs/modules/ui/hlp.ui.form-field/style.css": "8d458f679a47018135cb6d41a88c5e90123405d5782dfe4588edb9494233147a"
+    }
+  }
+}

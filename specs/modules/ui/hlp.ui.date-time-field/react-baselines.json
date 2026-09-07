@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "projection": "react",
+  "moduleId": "hlp.ui.date-time-field",
+  "scenarios": [
+    {
+      "scenarioId": "date-time-field.defaults",
+      "sha256": "ad6899e02d05c7995be72bdfe36130835974230c0884d0d10be94543aba870a8",
+      "bytes": 11053,
+      "artifact": "../baselines/sha256/ad6899e02d05c7995be72bdfe36130835974230c0884d0d10be94543aba870a8.png"
+    },
+    {
+      "scenarioId": "date-time-field.states",
+      "sha256": "05dbc34264230874bfa766436e2d60df9bad06e492ec2e05f4768fe06b2d1163",
+      "bytes": 11331,
+      "artifact": "../baselines/sha256/05dbc34264230874bfa766436e2d60df9bad06e492ec2e05f4768fe06b2d1163.png"
+    },
+    {
+      "scenarioId": "date-time-field.rtl-theme",
+      "sha256": "d967288eb2dc8285bf7698cd78af94ab4e9abb6670c49b9b7818a0a55885bcfd",
+      "bytes": 10669,
+      "artifact": "../baselines/sha256/d967288eb2dc8285bf7698cd78af94ab4e9abb6670c49b9b7818a0a55885bcfd.png"
+    }
+  ]
+}

@@ -1,0 +1,314 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.page",
+  "sourceFixture": "conformance/hlp.ui.page/fixtures.yaml",
+  "qualityFixture": "conformance/hlp.ui.page/quality-fixtures.yaml",
+  "galleryInterface": {
+    "probeAttribute": "data-gallery-probe",
+    "scenarioAttribute": "data-gallery-scenario",
+    "projectionTitles": {
+      "react": "Platform/Page",
+      "blazor": "Platform/Page"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "page.structure",
+      "name": "Header and body structure",
+      "surface": "structure",
+      "sourceCaseIds": [
+        "page.title",
+        "page.supporting-content",
+        "page.body",
+        "page.no-main"
+      ],
+      "sourceQualityCaseIds": [
+        "page.quality.landmarks",
+        "page.quality.headings"
+      ],
+      "content": {
+        "blurb": "One header landmark sits above a keyboard-scrollable section; the application shell retains the main landmark.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "id": "structure-health-page",
+          "className": "hl-gallery-record",
+          "bodyClassName": "hl-gallery-feedback-stack",
+          "title": "Structure health",
+          "subtitle": "Review recent inspection activity",
+          "titleAs": "h1",
+          "sticky": true,
+          "bodyPadding": "md"
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "actions={<button type=\"button\">Refresh report</button>}\n<p>Harborline route content remains independent from the application shell landmark.</p>\n{Array.from({ length: 8 }, (_, index) => <p key={index}>Inspection row {index + 1}: placement and pose captured.</p>)}",
+            "blazor": "<Actions><button type=\"button\">Refresh report</button></Actions>\n<ChildContent>\n  <p>Harborline route content remains independent from the application shell landmark.</p>\n  @for (var index = 1; index <= 8; index++) { <p>Inspection row @index: placement and pose captured.</p> }\n</ChildContent>",
+            "rationale": "The header action is an Actions slot rather than body or footer content, and the route content requires p elements; neither slot placement nor p is expressible by the closed descriptor vocabulary."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "page.options",
+      "name": "Padding, sticky, and heading levels",
+      "surface": "options",
+      "sourceCaseIds": [
+        "page.padding",
+        "page.sticky",
+        "page.heading-level",
+        "page.invalid-input"
+      ],
+      "sourceQualityCaseIds": [
+        "page.quality.tokens"
+      ],
+      "content": {
+        "inherits": "page.structure",
+        "blurb": "Closed heading, padding, and sticky options change chrome without changing body ownership.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "id": "structure-health-page",
+          "className": "hl-gallery-record",
+          "bodyClassName": "hl-gallery-feedback-stack",
+          "title": "Structure health",
+          "subtitle": "Review recent inspection activity",
+          "titleAs": "h2",
+          "sticky": false,
+          "bodyPadding": "lg"
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "actions={<button type=\"button\">Refresh report</button>}\n<p>Harborline route content remains independent from the application shell landmark.</p>\n{Array.from({ length: 8 }, (_, index) => <p key={index}>Inspection row {index + 1}: placement and pose captured.</p>)}",
+            "blazor": "<Actions><button type=\"button\">Refresh report</button></Actions>\n<ChildContent>\n  <p>Harborline route content remains independent from the application shell landmark.</p>\n  @for (var index = 1; index <= 8; index++) { <p>Inspection row @index: placement and pose captured.</p> }\n</ChildContent>",
+            "rationale": "The header action is an Actions slot rather than body or footer content, and the route content requires p elements; neither slot placement nor p is expressible by the closed descriptor vocabulary."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "page.keyboard-responsive",
+      "name": "Keyboard scroll and responsive actions",
+      "surface": "keyboard-responsive",
+      "interaction": "keyboard",
+      "sourceCaseIds": [
+        "page.keyboard-scroll",
+        "page.responsive-actions",
+        "page.host-attributes"
+      ],
+      "sourceQualityCaseIds": [
+        "page.quality.keyboard",
+        "page.quality.focus",
+        "page.quality.forced-colors",
+        "page.quality.reflow"
+      ],
+      "content": {
+        "inherits": "page.structure",
+        "blurb": "The body accepts focus and actions wrap below the title at phone width.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        }
+      }
+    },
+    {
+      "id": "page.locale-en",
+      "name": "English locale",
+      "surface": "locale-en",
+      "sourceCaseIds": [
+        "page.supporting-content"
+      ],
+      "sourceQualityCaseIds": [
+        "page.quality.locales"
+      ],
+      "content": {
+        "inherits": "page.structure",
+        "blurb": "Caller-owned title, subtitle, actions, and body content are preserved.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        }
+      }
+    },
+    {
+      "id": "page.locale-pseudo",
+      "name": "Pseudo locale",
+      "surface": "locale-pseudo",
+      "sourceCaseIds": [
+        "page.supporting-content",
+        "page.responsive-actions"
+      ],
+      "sourceQualityCaseIds": [
+        "page.quality.pseudo"
+      ],
+      "content": {
+        "inherits": "page.structure",
+        "blurb": "Expanded title and action copy wrap without clipping.",
+        "environment": {
+          "locale": "en-XA",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "id": "structure-health-page",
+          "className": "hl-gallery-record",
+          "bodyClassName": "hl-gallery-feedback-stack",
+          "title": "⟦ Šţřûçţûřë hëåļţh åñđ îñšþëçţîøñ šûmmåřÿ ········ ⟧",
+          "subtitle": "⟦ Řëṽîëŵ řëçëñţ îñšþëçţîøñ åçţîṽîţÿ ······ ⟧",
+          "titleAs": "h1",
+          "sticky": true,
+          "bodyPadding": "md"
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "actions={<button type=\"button\">⟦ Řëƒřëšh ţhë šţřûçţûřë řëþøřţ ······ ⟧</button>}\n<p>Harborline route content remains independent from the application shell landmark.</p>\n{Array.from({ length: 8 }, (_, index) => <p key={index}>Inspection row {index + 1}: placement and pose captured.</p>)}",
+            "blazor": "<Actions><button type=\"button\">⟦ Řëƒřëšh ţhë šţřûçţûřë řëþøřţ ······ ⟧</button></Actions>\n<ChildContent>\n  <p>Harborline route content remains independent from the application shell landmark.</p>\n  @for (var index = 1; index <= 8; index++) { <p>Inspection row @index: placement and pose captured.</p> }\n</ChildContent>",
+            "rationale": "The pseudo-localized header action is an Actions slot rather than body or footer content, and the route content requires p elements; neither slot placement nor p is expressible by the closed descriptor vocabulary."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "page.locale-ar",
+      "name": "Arabic locale",
+      "surface": "locale-ar",
+      "sourceCaseIds": [
+        "page.supporting-content",
+        "page.responsive-actions"
+      ],
+      "sourceQualityCaseIds": [
+        "page.quality.rtl"
+      ],
+      "content": {
+        "inherits": "page.structure",
+        "blurb": "Logical action placement follows RTL while preserving content order.",
+        "environment": {
+          "locale": "ar-SA",
+          "direction": "rtl",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "id": "structure-health-page",
+          "className": "hl-gallery-record",
+          "bodyClassName": "hl-gallery-feedback-stack",
+          "title": "صحة الهيكل",
+          "subtitle": "مراجعة عمليات الفحص الأخيرة",
+          "titleAs": "h1",
+          "sticky": true,
+          "bodyPadding": "md"
+        },
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "actions={<button type=\"button\">تحديث التقرير</button>}\n<p>Harborline route content remains independent from the application shell landmark.</p>\n{Array.from({ length: 8 }, (_, index) => <p key={index}>Inspection row {index + 1}: placement and pose captured.</p>)}",
+            "blazor": "<Actions><button type=\"button\">تحديث التقرير</button></Actions>\n<ChildContent>\n  <p>Harborline route content remains independent from the application shell landmark.</p>\n  @for (var index = 1; index <= 8; index++) { <p>Inspection row @index: placement and pose captured.</p> }\n</ChildContent>",
+            "rationale": "The Arabic header action is an Actions slot rather than body or footer content, and the route content requires p elements; neither slot placement nor p is expressible by the closed descriptor vocabulary."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "page.theme-light",
+      "name": "Light theme",
+      "surface": "theme-light",
+      "sourceCaseIds": [
+        "page.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "page.quality.themes",
+        "page.quality.contrast",
+        "page.quality.reduced-motion",
+        "page.quality.visual-parity"
+      ],
+      "content": {
+        "inherits": "page.structure",
+        "blurb": "Header, body, boundary, and focus states use public light-theme tokens.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        }
+      }
+    },
+    {
+      "id": "page.theme-dark",
+      "name": "Dark theme",
+      "surface": "theme-dark",
+      "sourceCaseIds": [
+        "page.projection-equivalence"
+      ],
+      "sourceQualityCaseIds": [
+        "page.quality.themes",
+        "page.quality.contrast",
+        "page.quality.reduced-motion",
+        "page.quality.visual-parity"
+      ],
+      "content": {
+        "inherits": "page.structure",
+        "blurb": "The same route shell on the Harborline dark surface.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "dark",
+          "catalog": {}
+        }
+      }
+    },
+    {
+      "id": "page.content",
+      "name": "Content resilience",
+      "surface": "long-content",
+      "sourceCaseIds": [
+        "page.supporting-content",
+        "page.body"
+      ],
+      "sourceQualityCaseIds": [],
+      "content": {
+        "blurb": "Hostile page content carries a long action label, the grouped number 1,284,905, escaped angle brackets and an ampersand, and a name with diacritics and an em dash.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<div style={{height:360,minWidth:0}}><Page title={'Awaiting third-party structural certification review'} subtitle={'Ordnance Survey — Niño Ångström'} actions={<button type=\"button\">{'Review affected inspection records and continue'}</button>}><p>{'1,284,905 records at Bay 4 <grid C-7> & 8'}</p></Page></div>",
+            "blazor": "<div style=\"height: 360px; min-width: 0\"><HarborlinePage Title=\"@(\"Awaiting third-party structural certification review\")\"><Subtitle>@(\"Ordnance Survey — Niño Ångström\")</Subtitle><Actions><button type=\"button\">@(\"Review affected inspection records and continue\")</button></Actions><ChildContent><p>@(\"1,284,905 records at Bay 4 <grid C-7> & 8\")</p></ChildContent></HarborlinePage></div>",
+            "rationale": "The closed control vocabulary cannot express Page subtitle and action slots plus hostile-but-valid child markup."
+          }
+        ],
+        "footer": []
+      }
+    }
+  ]
+}

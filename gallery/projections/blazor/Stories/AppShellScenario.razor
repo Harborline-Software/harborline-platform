@@ -1,0 +1,151 @@
+@using System.Text.Json
+<section class="hl-gallery-scene" data-gallery-probe data-gallery-scenario="@ScenarioId" data-gallery-full-bleed="@(ScenarioId == "app-shell.actions-endpanel" ? "" : null)" data-theme="@Theme" dir="@Direction">
+  <header class="hl-gallery-heading"><h2>@Copy.Title</h2><p>@Copy.Description</p></header>
+  <div class="hl-gallery-stage hl-gallery-feedback-stack">
+    <HarborlineLocaleProvider Locale="@Locale">
+      <div style="height: 560px; min-width: 0; border: 1px solid var(--hl-color-border, #888)">
+        <HarborlineAppShell ShellId="@ShellId" Navigation="@Navigation" NavigationState="@NavigationState" ActiveWorkspaceId="operations" ActiveItemId="@ActiveItemId"
+                          DefaultCollapsed="@(ScenarioId == "app-shell.rail-collapsed")"
+                          PinnedItemIds="@PinnedItems" HeaderOptions="@TenantOptions" HeaderActiveId="meridian"
+                          HeaderSwitcherId="tenant" HeaderPinnedIds="@PinnedTenants" HeaderScopeLabel="Tenant" HeaderDirectoryLabel="All tenants"
+                          BrandText="Meridian Hotel Group" FooterIdentity="@Identity" SystemItems="@SystemItems" NotificationCount="3"
+                          EndPanelOpen="@EndPanelOpen" EndPanelLabel="Pilot" DefaultOpenPanelIds="@OpenPanels" PanelContent="@PanelBody" Spread="false" HeaderFixed RailCapable="true" data-case="operations-shell">
+          <Brand>
+            <span aria-hidden="true">MH</span>
+          </Brand>
+          <HeaderCenter>
+            <span>Operations · Overview</span>
+          </HeaderCenter>
+          <ChildContent>
+            @if (ScenarioId == "app-shell.content")
+            {
+              <article style="padding: 16px 24px"><h1 style="margin: 0; font-size: 22px">Content resilience</h1></article>
+            }
+            else
+            {
+              <article style="padding: 16px 24px">
+                <h1 style="margin: 0; font-size: 22px">@BodyTitle</h1>
+                <p style="margin-block: 4px 16px; color: var(--hl-muted-foreground, #666); font-size: 13.5px">Operations · Live queue health across this workspace</p>
+                <div style="display: flex; gap: 12px; flex-wrap: wrap">
+                  @KpiCard("Open inspections", "218", "32 unassigned", "inherit")
+                  @KpiCard("SLA breaches", "5", "all fire safety", "var(--hl-danger, #b42318)")
+                  @KpiCard("Work orders open", "42", "9 awaiting parts", "inherit")
+                  @KpiCard("Crew utilization", "81%", "+4 pts week over week", "var(--hl-success, #0a7c3a)")
+                </div>
+              </article>
+            }
+          </ChildContent>
+          <EndPanel><section style="padding: 16px; font-size: 13px; color: var(--hl-muted-foreground, #666)"><p style="margin-block-start: 0">Pilot sees what you see — Operations · Overview. Anything it proposes lands in your inbox as a confirm-or-deny decision.</p></section></EndPanel>
+        </HarborlineAppShell>
+      </div>
+    </HarborlineLocaleProvider>
+  </div>
+</section>
+
+@code {
+  [Parameter, EditorRequired] public string ScenarioId { get; set; } = "app-shell.structure";
+  private bool IsArabic => ScenarioId == "app-shell.locale-ar";
+  private bool IsPseudo => ScenarioId == "app-shell.locale-pseudo";
+  private bool IsLoad => ScenarioId == "app-shell.performance";
+  private bool IsContent => ScenarioId == "app-shell.content";
+  private string Locale => IsArabic ? "ar-SA" : IsPseudo ? "en-XA" : "en-US";
+  private string Direction => IsArabic ? "rtl" : "ltr";
+  private string Theme => ScenarioId == "app-shell.theme-dark" ? "dark" : "light";
+  private string ShellId => $"operations-{ScenarioId.Split('.').Last()}";
+  private string ActiveItemId => ScenarioId == "app-shell.pins-threads" ? "inspections" : "overview";
+  private bool EndPanelOpen => false;
+  private IReadOnlyList<string> OpenPanels => ScenarioId == "app-shell.actions-endpanel" ? Navigation.PanelSet!.Select(panel=>panel.Id).ToArray() : [];
+  private string BodyTitle => IsArabic ? "نظرة عامة على العمليات" : IsPseudo ? "⟦ Øþëřåţîøñš øṽëřṽîëŵ ······ ⟧" : "Operations overview — Meridian";
+  private static readonly string[] PinnedItems = ["inspections"];
+  private static readonly string[] PinnedTenants = ["metro"];
+  private static readonly ShellFooterIdentity Identity = new("Chris Wood", "Inspector");
+  private static readonly ShellSystemItem[] SystemItems = [new("pilot", "Pilot"), new("settings", "Settings"), new("help", "Help")];
+
+  private sealed record GalleryGroup(string Id,string Label,IReadOnlyList<ShellNavItem> Items);
+  private sealed record GalleryWorkspace(string Id,string Label,IReadOnlyList<GalleryGroup> Groups);
+  private IReadOnlyList<GalleryWorkspace> Workspaces
+  {
+    get
+    {
+      var labels = IsContent
+        ? new[] { "Awaiting third-party structural certification review", "Bay 4 <grid C-7> & 8", "Ordnance Survey — Niño Ångström", "Run report", "Work orders", "Deficiencies", "Trip plan" }
+        : IsArabic
+        ? new[] { "نظرة عامة", "الأصول", "عمليات التفتيش", "تشغيل التقرير", "أوامر العمل", "أوجه القصور", "خطة الرحلة" }
+        : IsPseudo
+          ? new[] { "⟦ Øṽëřṽîëŵ ···· ⟧", "⟦ Åššëţš ···· ⟧", "⟦ Îñšþëçţîøñš ···· ⟧", "⟦ Řûñ řëþøřţ ···· ⟧", "⟦ Ŵøřķ øřðëřš ···· ⟧", "⟦ Ðëƒîçîëñçîëš ···· ⟧", "⟦ Ţřîþ þļåñ ···· ⟧" }
+          : new[] { "Overview", "Assets", "Inspections", "Run report", "Work orders", "Deficiencies", "Trip plan" };
+      var portfolio = new List<ShellNavItem>
+      {
+        new("overview", labels[0]), new("assets", labels[1]),
+        new("inspections", labels[2], Count: IsContent ? "1,284,905" : "218", Threads: [new("richmond-retry-audit", "Richmond retry audit", Active: true, Actions: [new("rename", "Rename"), new("archive", "Archive"), new("delete", "Delete", Destructive: true)])]),
+        new("run-report", labels[3]),
+      };
+      if (IsLoad) for (var index = 0; index < 249; index++) portfolio.Add(new($"route-{index}", $"Operations route {index + 8}"));
+      return
+      [
+        new GalleryWorkspace("operations", IsArabic ? "العمليات" : IsPseudo ? "⟦ Øþëřåţîøñš ···· ⟧" : "Operations",
+        [
+          new GalleryGroup("portfolio", IsArabic ? "المحفظة" : IsPseudo ? "⟦ Þøřţƒøļîø ···· ⟧" : "Portfolio", portfolio),
+          new GalleryGroup("work", IsArabic ? "العمل" : IsPseudo ? "⟦ Ŵøřķ ···· ⟧" : "Work", [new("work-orders", labels[4], Count: "42"), new("deficiencies", labels[5], Count: "38"), new("trip-plan", labels[6], Count: "3")]),
+        ]),
+        new GalleryWorkspace("front-desk", "Front desk", [new GalleryGroup("front-desk-work", "Front desk", [new("arrivals", "Arrivals"), new("departures", "Departures")])]),
+      ];
+    }
+  }
+
+  // One authority for both App Shell stories: conformance/hlp.ui.app-shell/chrome-v1.json galleryPanels,
+  // embedded into this assembly by the csproj and read once. PackPanelDeclaration already carries the
+  // JsonPropertyName names the fixture rows use, so the story deserialises them rather than restating a
+  // table that can drift (the React story imports the same rows). chrome-spec 6: form 2 and the pop-out
+  // affordance are EARNED from these traits, never styled in.
+  private static readonly PackPanelDeclaration[] FixturePanels = ReadFixturePanels();
+  private static PackPanelDeclaration[] ReadFixturePanels()
+  {
+    using var stream = typeof(AppShellScenario).Assembly.GetManifestResourceStream("app-shell-chrome-v1.json")
+      ?? throw new InvalidOperationException("app-shell-chrome-v1.json is not embedded in the gallery assembly");
+    using var document = JsonDocument.Parse(stream);
+    if (!document.RootElement.TryGetProperty("galleryPanels", out var rows)) throw new InvalidOperationException("chrome-v1.json is missing \"galleryPanels\"");
+    return rows.Deserialize<PackPanelDeclaration[]>() ?? throw new InvalidOperationException("chrome-v1.json galleryPanels did not deserialise");
+  }
+  private PackNavigationDeclaration Navigation => new(Workspaces.Select(workspace=>new PackNavigationWorkspace(workspace.Id,workspace.Label,Groups:workspace.Groups.Select(group=>new PackNavigationGroup(group.Id,group.Label,group.Items.Select(item=>item.Id).ToArray())).ToArray())).ToArray(),PanelSet: FixturePanels);
+  private ShellNavigationState NavigationState=>new(Items:Workspaces.SelectMany(workspace=>workspace.Groups).SelectMany(group=>group.Items).ToDictionary(item=>item.Id));
+  private static RenderFragment PanelBody(PackPanelDeclaration panel)=>builder=>{builder.OpenElement(0,"div");builder.AddAttribute(1,"style","padding: 12px");builder.OpenElement(2,"strong");builder.AddContent(3,panel.LabelKey);builder.CloseElement();builder.OpenElement(4,"p");builder.AddAttribute(5,"style","margin-block-end: 0");builder.AddContent(6,"One flexible body; this entire region owns scrolling.");builder.CloseElement();builder.CloseElement();};
+
+  private static readonly ShellScopeOption[] TenantOptions =
+  [
+    new("meridian", "Meridian Hotel Group", Icon: Mono("MH", "#0f62fe")), new("metro", "Metro Transit Authority", Icon: Mono("MT", "#7c3aed")), new("northstar", "Northstar Health"),
+    new("richmond", "Richmond Properties"), new("summit", "Summit Logistics"), new("harbor", "Harbor Retail"),
+    new("cedar", "Cedar Schools"), new("atlas", "Atlas Manufacturing"), new("union", "Union Credit"),
+    new("civic", "Civic Services"), new("lakeside", "Lakeside Hospitality"),
+  ];
+
+  private static RenderFragment Mono(string text, string color) => builder =>
+  {
+    builder.OpenElement(0, "span"); builder.AddAttribute(1, "style", $"width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px; background: {color}; color: #fff; font-size: 11px; font-weight: 600"); builder.AddContent(2, text); builder.CloseElement();
+  };
+
+  private static RenderFragment KpiCard(string label, string value, string note, string tone) => builder =>
+  {
+    builder.OpenElement(0, "div"); builder.AddAttribute(1, "style", "flex: 1 1 130px; min-width: 130px; border: 1px solid var(--hl-border, #e2e2e2); border-radius: 10px; padding: 12px 14px; background: var(--hl-card, #fff)");
+    builder.OpenElement(2, "div"); builder.AddAttribute(3, "style", "font-size: 12px; color: var(--hl-muted-foreground, #666)"); builder.AddContent(4, label); builder.CloseElement();
+    builder.OpenElement(5, "div"); builder.AddAttribute(6, "style", $"font-size: 24px; font-weight: 650; color: {tone}"); builder.AddContent(7, value); builder.CloseElement();
+    builder.OpenElement(8, "div"); builder.AddAttribute(9, "style", "font-size: 11.5px; color: var(--hl-muted-foreground, #888)"); builder.AddContent(10, note); builder.CloseElement(); builder.CloseElement();
+  };
+
+  private (string Title, string Description) Copy => ScenarioId switch
+  {
+    "app-shell.structure" => ("Operations shell structure", "The Operations workspace composes brand, grouped navigation, header actions, and one body landmark."),
+    "app-shell.rail-collapsed" => ("Rail collapsed", "The rail collapsed through DefaultCollapsed rather than a click: the shell keeps its header and body and the rail is gone, not narrowed."),
+    "app-shell.switchers" => ("Workspace and tenant switchers", "Workspace and tenant scopes keep the active option first while preserving pinned and directory affordances."),
+    "app-shell.pins-threads" => ("Pinned navigation and Pilot threads", "Pinned Operations routes move to one ordered zone while Pilot session threads remain attached to their owning route."),
+    "app-shell.actions-endpanel" => ("Ordered multi-panel dock", "Every declared tool stays open in order; pairs share a pane and the third starts the next splitter branch."),
+    "app-shell.performance" => ("Bounded Operations shell under load", "A 256-item Operations navigation fixture retains equivalent shell observations across projections."),
+    "app-shell.locale-en" => ("English locale", "English shell chrome frames the Operations workspace and its Portfolio and Work groups."),
+    "app-shell.locale-pseudo" => ("Pseudo locale", "Expanded pseudo-localized labels verify truncation without clipping shell chrome."),
+    "app-shell.locale-ar" => ("Arabic locale", "Arabic direction places the Operations rail, thread indent, and Pilot panel on logical edges."),
+    "app-shell.theme-light" => ("Light theme", "Light public tokens render the complete Operations shell with accessible chrome contrast."),
+    "app-shell.theme-dark" => ("Dark theme", "Dark public tokens preserve the same Operations shell hierarchy and interaction affordances."),
+    "app-shell.content" => ("Content resilience", "Hostile shell navigation carries a label longer than the rail, a grouped large badge, escaped angle brackets and an ampersand, and a name with diacritics and an em dash."),
+    _ => ("App shell", "Operations application shell."),
+  };
+}

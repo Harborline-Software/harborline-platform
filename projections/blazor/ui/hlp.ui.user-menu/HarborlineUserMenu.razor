@@ -1,0 +1,143 @@
+@namespace Harborline.UIAdapters.Blazor.Shell
+@inherits HarborlineComponentBase
+@implements IAsyncDisposable
+@using Microsoft.JSInterop
+@inject IJSRuntime JavaScript
+
+<div @ref="Root" class="@CombineClasses("hl-user-menu")" style="@CombineStyles()" data-placement="@PlacementToken" data-alignment="@AlignmentToken" dir="@Direction" @attributes="AdditionalAttributes">
+  <button @ref="Trigger" type="button" class="hl-user-menu__trigger" data-hl-touch="@(!CanShowRail ? "true" : null)"
+          aria-label="@Labels.Trigger(Identity.Name)" aria-haspopup="@(HasCustom ? "dialog" : "menu")"
+          aria-expanded="@CurrentOpen.ToString().ToLowerInvariant()" aria-controls="@(CurrentOpen ? PanelId : null)" @onclick="ToggleAsync">
+    <span aria-hidden="true" class="hl-user-menu__avatar">
+      @if (!avatarFailed && !string.IsNullOrWhiteSpace(Identity.AvatarUri)) { <img src="@Identity.AvatarUri" alt="" @onerror="() => avatarFailed = true" /> }
+      else { @Initials }
+    </span>
+    <span class="hl-user-menu__trigger-name">@Identity.Name</span>
+  </button>
+  @if (CurrentOpen)
+  {
+    <div @ref="Panel" id="@PanelId" role="@(HasCustom ? "dialog" : "menu")" aria-label="@Labels.Panel"
+         class="hl-user-menu__surface" data-placement="@PlacementToken" data-alignment="@AlignmentToken" @onkeydown="HandleKeyAsync">
+      <header class="hl-user-menu__identity"><strong>@Identity.Name</strong>@if(Identity.Email is not null){<span>@Identity.Email</span>}@if(Identity.Role is not null){<span>@Identity.Role</span>}</header>
+      <div class="hl-user-menu__items">
+        @foreach (var pair in Items.Select((item,index)=>(item,index)))
+        {
+          var item = pair.item;
+          @if (item.Kind == UserMenuEntryKind.Separator) { <hr role="@(HasCustom ? null : "separator")" /> }
+          else if (item.Kind == UserMenuEntryKind.Custom) { <div class="hl-user-menu__custom" data-hl-item="@item.Id" @onclick="() => CustomActivatedAsync(item)">@item.Content</div> }
+          else if (item.Kind == UserMenuEntryKind.Link)
+          {
+            <a role="@(HasCustom ? null : "menuitem")" href="@(item.Disabled ? null : item.Destination)" aria-disabled="@(item.Disabled ? "true" : null)" tabindex="@(MenuTabIndex(pair.index,item))"
+               data-hl-item="@item.Id" class="hl-user-menu__item" @onclick="() => LinkActivatedAsync(item)" @onclick:preventDefault="@item.Disabled">
+              @if(item.Icon is not null){<span aria-hidden="true">@item.Icon</span>}<span><span>@item.Label</span>@if(item.Subtitle is not null){<small>@item.Subtitle</small>}</span>
+            </a>
+          }
+          else
+          {
+            <button type="button" role="@(HasCustom ? null : "menuitem")" disabled="@item.Disabled" tabindex="@(MenuTabIndex(pair.index,item))" data-hl-item="@item.Id" class="hl-user-menu__item" @onclick="() => ActivateAsync(item)">
+              @if(item.Icon is not null){<span aria-hidden="true">@item.Icon</span>}<span><span>@item.Label</span>@if(item.Subtitle is not null){<small>@item.Subtitle</small>}</span>
+            </button>
+          }
+        }
+        @if (OnSignOut.HasDelegate) { <button type="button" role="@(HasCustom ? null : "menuitem")" tabindex="@(HasCustom ? 0 : activeIndex == Items.Count ? 0 : -1)" class="hl-user-menu__item hl-user-menu__sign-out" @onclick="SignOutAsync">@Labels.SignOut</button> }
+      </div>
+    </div>
+  }
+</div>
+
+@code {
+  [Parameter, EditorRequired] public UserIdentity Identity { get; set; } = new(string.Empty);
+  [Parameter] public IReadOnlyList<UserMenuEntry> Items { get; set; } = [];
+  [Parameter] public EventCallback OnSignOut { get; set; }
+  [Parameter] public UserMenuPlacement Placement { get; set; } = UserMenuPlacement.Bottom;
+  [Parameter] public UserMenuAlignment Alignment { get; set; } = UserMenuAlignment.InlineEnd;
+  [Parameter] public UserMenuLabels Labels { get; set; } = UserMenuLabels.English;
+  [Parameter] public bool CanShowRail { get; set; } = true;
+  [Parameter] public string? Direction { get; set; }
+
+  // The disclosure API, matching hlp.ui.collapsible: Open controls it, DefaultOpen seeds the
+  // uncontrolled case, OpenChanged reports every transition. A Blazor host could previously do none
+  // of the three -- the state was a private field with no [Parameter] -- so the two lanes published
+  // different public APIs for the same component and assertStateCompleteness read FAIL on the
+  // divergence: react=["collapsed","expanded"] against blazor=[]. Ticket 133.
+  [Parameter] public bool? Open { get; set; }
+  [Parameter] public bool DefaultOpen { get; set; }
+  [Parameter] public EventCallback<bool> OpenChanged { get; set; }
+
+  private bool _localOpen, avatarFailed;
+  private bool CurrentOpen => Open ?? _localOpen;
+  // What the JS side is currently wired for. Observing outside pointers and moving focus are side
+  // effects of the panel BEING open, not of a click -- a controlled host flipping Open has to get
+  // them too. Driving them from the render rather than the click handler is what makes the two
+  // routes behave identically.
+  private bool attached, restoreFocusOnClose;
+  private int activeIndex;
+  private ElementReference Root, Trigger, Panel;
+  private DotNetObjectReference<HarborlineUserMenu>? reference;
+  private IJSObjectReference? module;
+  private long outsideId;
+  private string PanelId { get; } = $"hl-user-menu-{Guid.NewGuid():N}";
+  private bool HasCustom => Items.Any(item => item.Kind == UserMenuEntryKind.Custom);
+  private string PlacementToken => Placement.ToString().ToLowerInvariant();
+  private string AlignmentToken => Alignment switch {UserMenuAlignment.InlineStart=>"inline-start",UserMenuAlignment.Center=>"center",_=>"inline-end"};
+  private string Initials
+  {
+    get { var segments=Identity.Name.Split(' ',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries);if(segments.Length==0)return string.Empty;if(segments.Length==1)return string.Concat(segments[0].EnumerateRunes().Take(2).Select(r=>r.ToString())).ToUpperInvariant();return (string.Concat(segments[0].EnumerateRunes().Take(1).Select(r=>r.ToString()))+string.Concat(segments[^1].EnumerateRunes().Take(1).Select(r=>r.ToString()))).ToUpperInvariant(); }
+  }
+  private IReadOnlyList<(UserMenuEntry item,int index)> EnabledMenuItems => Items.Select((item,index)=>(item,index)).Where(pair=>pair.item.Kind is UserMenuEntryKind.Action or UserMenuEntryKind.Link && !pair.item.Disabled).ToArray();
+
+  protected override void OnParametersSet()
+  {
+    if (string.IsNullOrWhiteSpace(Identity.Name)) throw new InvalidOperationException("user-menu-name-required");
+    if (Items.Where(item=>item.Kind!=UserMenuEntryKind.Separator).GroupBy(item=>item.Id,StringComparer.Ordinal).Any(group=>group.Count()>1)) throw new InvalidOperationException("duplicate-user-menu-item-id");
+    if (Items.Any(item=>item.Kind==UserMenuEntryKind.Action && (string.IsNullOrWhiteSpace(item.Label)||item.ActivateAsync is null) || item.Kind==UserMenuEntryKind.Link && (string.IsNullOrWhiteSpace(item.Label)||string.IsNullOrWhiteSpace(item.Destination)) || item.Kind==UserMenuEntryKind.Custom && item.Content is null)) throw new InvalidOperationException("invalid-user-menu-entry");
+  }
+
+  private int MenuTabIndex(int index, UserMenuEntry item)=>HasCustom ? 0 : !item.Disabled && index==activeIndex ? 0 : -1;
+  protected override void OnInitialized()=>_localOpen=DefaultOpen;
+
+  // Every transition goes through here, so a click, a key, a selection and a controlled host all
+  // take the same path. Uncontrolled state moves only when Open is null; OpenChanged fires either
+  // way, which is what the React lane does.
+  private async Task RequestAsync(bool next,bool restoreFocus)
+  {
+    if(CurrentOpen==next)return;
+    if(next)activeIndex=EnabledMenuItems.FirstOrDefault().index;else restoreFocusOnClose=restoreFocus;
+    if(Open is null)_localOpen=next;
+    await OpenChanged.InvokeAsync(next);
+    await InvokeAsync(StateHasChanged);
+  }
+
+  private Task ToggleAsync()=>RequestAsync(!CurrentOpen,CurrentOpen);
+
+  protected override async Task OnAfterRenderAsync(bool firstRender)
+  {
+    if(CurrentOpen==attached)return;
+    attached=CurrentOpen;
+    if(CurrentOpen)
+    {
+      await EnsureModuleAsync();
+      outsideId=await module!.InvokeAsync<long>("observeOutside",Root,reference);
+      await module!.InvokeVoidAsync("focusFirst",Panel,HasCustom);
+    }
+    else
+    {
+      if(module is not null&&outsideId!=0){await module.InvokeVoidAsync("disposeOutside",outsideId);outsideId=0;}
+      if(restoreFocusOnClose&&module is not null)await module.InvokeVoidAsync("focus",Trigger);
+      restoreFocusOnClose=false;
+    }
+  }
+  private async Task ActivateAsync(UserMenuEntry item){if(item.Disabled||item.ActivateAsync is null)return;await item.ActivateAsync();if(item.CloseOnSelect)await RequestAsync(false,true);}
+  private Task LinkActivatedAsync(UserMenuEntry item)=>item.Disabled?Task.CompletedTask:item.CloseOnSelect?RequestAsync(false,false):Task.CompletedTask;
+  private Task CustomActivatedAsync(UserMenuEntry item)=>item.CloseOnSelect?RequestAsync(false,false):Task.CompletedTask;
+  private async Task SignOutAsync(){await OnSignOut.InvokeAsync();await RequestAsync(false,true);}
+  private async Task HandleKeyAsync(KeyboardEventArgs args)
+  {
+    if(args.Key=="Escape"){await RequestAsync(false,true);return;}if(HasCustom)return;
+    var enabled=EnabledMenuItems;if(enabled.Count==0)return;var current=Math.Max(0,enabled.ToList().FindIndex(pair=>pair.index==activeIndex));var next=args.Key switch{"ArrowDown"=>(current+1)%enabled.Count,"ArrowUp"=>(current-1+enabled.Count)%enabled.Count,"Home"=>0,"End"=>enabled.Count-1,_=>-1};
+    if(next<0&&args.Key.Length==1){next=enabled.ToList().FindIndex(pair=>pair.item.Label?.StartsWith(args.Key,StringComparison.CurrentCultureIgnoreCase)==true);}if(next>=0){activeIndex=enabled[next].index;await module!.InvokeVoidAsync("focusItem",Panel,activeIndex);}
+  }
+  private async Task EnsureModuleAsync(){module??=await JavaScript.InvokeAsync<IJSObjectReference>("import","./_content/Harborline.UIAdapters.Blazor/user-menu.js");reference??=DotNetObjectReference.Create(this);}
+  [JSInvokable] public Task OnOutsidePointer()=>RequestAsync(false,false);
+  public async ValueTask DisposeAsync(){if(module is not null){try{if(outsideId!=0)await module.InvokeVoidAsync("disposeOutside",outsideId);await module.DisposeAsync();}catch(JSDisconnectedException){}}reference?.Dispose();}
+}

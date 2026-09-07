@@ -1,0 +1,74 @@
+.hl-date-time-field {
+  --hl-date-time-field-surface: var(--hl-background, Canvas);
+  --hl-date-time-field-text: var(--hl-foreground, CanvasText);
+  --hl-date-time-field-border: var(--hl-input, GrayText);
+  --hl-date-time-field-focus: var(--hl-focus, Highlight);
+  --hl-date-time-field-error: var(--hl-destructive, LinkText);
+  --hl-date-time-field-disabled-surface: var(--hl-muted, Canvas);
+  --hl-date-time-field-disabled-text: var(--hl-muted-foreground, GrayText);
+}
+
+.hl-date-time-field {
+  accent-color: var(--hl-date-time-field-focus);
+  background: var(--hl-date-time-field-surface);
+  border: 1px solid var(--hl-date-time-field-border);
+  border-radius: 0.375rem;
+  box-sizing: border-box;
+  color: var(--hl-date-time-field-text);
+  font: inherit;
+  font-size: 0.875rem;
+  inline-size: 100%;
+  line-height: 1.25rem;
+  max-inline-size: 100%;
+  min-block-size: 2.5rem;
+  min-inline-size: 0;
+  padding-block: 0.5rem;
+  padding-inline: 0.75rem;
+  text-align: start;
+}
+
+.hl-date-time-field:focus-visible {
+  border-color: var(--hl-date-time-field-focus);
+  outline: 2px solid var(--hl-date-time-field-focus);
+  outline-offset: 2px;
+}
+
+.hl-date-time-field--invalid {
+  border-color: var(--hl-date-time-field-error);
+}
+
+.hl-date-time-field--invalid:focus-visible {
+  border-color: var(--hl-date-time-field-error);
+  outline-color: var(--hl-date-time-field-error);
+}
+
+.hl-date-time-field--disabled {
+  background: var(--hl-date-time-field-disabled-surface);
+  color: var(--hl-date-time-field-disabled-text);
+  cursor: not-allowed;
+}
+
+[data-theme='dark'] .hl-date-time-field,
+.hl-date-time-field[data-theme='dark'] {
+  color-scheme: dark;
+  --hl-date-time-field-surface: var(--hl-background, Canvas);
+  --hl-date-time-field-text: var(--hl-foreground, CanvasText);
+  --hl-date-time-field-border: var(--hl-input, GrayText);
+  --hl-date-time-field-focus: var(--hl-focus, Highlight);
+  --hl-date-time-field-error: var(--hl-destructive, LinkText);
+  --hl-date-time-field-disabled-surface: var(--hl-muted, Canvas);
+  --hl-date-time-field-disabled-text: var(--hl-muted-foreground, GrayText);
+}
+
+@media (forced-colors: active) {
+  .hl-date-time-field {
+    background: Field;
+    border-color: FieldText;
+    color: FieldText;
+    forced-color-adjust: auto;
+  }
+
+  .hl-date-time-field--invalid { border-color: MarkText; }
+  .hl-date-time-field:focus-visible { outline-color: Highlight; }
+  .hl-date-time-field:disabled { color: GrayText; }
+}

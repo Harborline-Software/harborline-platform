@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.date-time-field",
+  "interfaceRevision": 1,
+  "semantics": {"operation": "render a controlled native local date-time input without parsing or timezone conversion", "observableOutput": "Equivalent raw local wall-clock string, bounds, step, states, accessible naming, and FormField description linkage in React and Blazor."},
+  "sourceSurface": {"repository": "shipyard", "commit": "a5036ff8b500e0d857d7e0a698408e7cf7f6cf31", "path": "packages/ui-react/src/components/forms/DateTimeField.tsx", "blob": "ad5c668d497d56866c9b00c8ad0aa6d9bb19c5ce", "capturedExports": ["DateTimeField", "DateTimeFieldProps"]},
+  "dependencies": ["hlp.ui.cn", "hlp.ui.form-field"],
+  "invariants": [
+    "The rendered control is a native input whose type is datetime-local and whose id and name equal name.",
+    "Value and change payloads are raw local wall-clock strings; clearing emits an empty string.",
+    "No Date, DateTime, timezone, offset, DST, or locale conversion occurs.",
+    "Optional min, max, and numeric step pass through and omitted constraints remain absent.",
+    "Local or ambient disabled state uses native disabled semantics and local or ambient required state uses native required semantics.",
+    "Error exposes aria-invalid=true and accessible naming plus ambient FormField metadata are preserved.",
+    "Browser-native picker, keyboard, focus, validation, and locale presentation remain browser-owned."
+  ],
+  "errors": [],
+  "presentation": {"disposition": "required", "gallery": "gallery/scenarios/hlp.ui.date-time-field.json"},
+  "cases": [{"id":"date-time-field.native"},{"id":"date-time-field.raw-roundtrip"},{"id":"date-time-field.clear"},{"id":"date-time-field.constraints"},{"id":"date-time-field.disabled"},{"id":"date-time-field.invalid"},{"id":"date-time-field.description"},{"id":"date-time-field.naming"},{"id":"date-time-field.projection-equivalence"}]
+}
