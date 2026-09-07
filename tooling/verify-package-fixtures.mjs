@@ -276,6 +276,7 @@ function assertNpmContributionTypeSurface(installed) {
 // runFixtureStep. Before this, a wedged restore among the ~20 serial ones was indistinguishable
 // silence, and the outer budget could only ever say "the whole fixture step".
 function run(executable, args, options = {}) {
+  if (executable === dotnet.executable) args = [...args, '-nodeReuse:false', '-maxcpucount:6']
   return runFixtureStep(executable, args, { cwd: options.cwd ?? root, env: options.env })
 }
 
@@ -834,6 +835,11 @@ function verifyNuget() {
 
   const inspections = packageMetadata.map(entry => {
     const names = entry.zip.entries.map(item => item.name)
+    const targetFrameworks = [...new Set([...entry.nuspec.matchAll(/targetFramework="([^"]+)"/g)].map(match => match[1]))]
+    const assemblyFrameworks = [...new Set(names.filter(name => /^lib\/[^/]+\/[^/]+\.dll$/i.test(name)).map(name => name.split('/')[1]))]
+    if (JSON.stringify(targetFrameworks) !== '["net10.0"]' || JSON.stringify(assemblyFrameworks) !== '["net10.0"]') {
+      throw new Error(`NuGet target framework mismatch for ${entry.id}: ${JSON.stringify({ targetFrameworks, assemblyFrameworks })}`)
+    }
     const packedBytes = readFileSync(entry.path).length
     const unpackedBytes = entry.zip.entries.reduce((total, item) => total + item.uncompressedSize, 0)
     const forbidden = names.filter(name => name.endsWith('.map') || /(^|\/)(?:src|tests|bin|obj|\.cache)(\/|$)/.test(name))
@@ -879,6 +885,7 @@ function verifyNuget() {
       version: entry.version,
       artifactSha256: sha256(entry.path),
       assemblies,
+      targetFrameworks,
       packedBytes,
       unpackedBytes,
       entryCount: names.length,
@@ -902,6 +909,9 @@ function verifyNuget() {
     ['jsonpointer.net', '7.0.1'],
     ['json.more.net', '3.0.1'],
     ['humanizer.core', '3.0.10'],
+    ['microsoft.extensions.dependencyinjection.abstractions', '10.0.10'],
+    ['microsoft.extensions.dependencyinjection', '10.0.10'],
+    ['microsoft.extensions.logging.abstractions', '10.0.10'],
     ['microsoft.extensions.dependencyinjection.abstractions', '11.0.0-preview.7.26381.103'],
     ['microsoft.extensions.dependencyinjection', '11.0.0-preview.7.26381.103'],
   ]) {
@@ -1069,7 +1079,7 @@ function verifyNuget() {
     artifacts: inspections,
     budget: budgets.nuget,
     localFeedArtifactCount: packageMetadata.length,
-    thirdPartyLocalFeedArtifactCount: 6,
+    thirdPartyLocalFeedArtifactCount: readdirSync(nugetArtifacts).filter(name => name.endsWith('.nupkg')).length - packageMetadata.length,
     missingArtifactDependencies: 0,
     sourceOrProjectDependencies: 0,
     assemblyAmbiguities: 0,

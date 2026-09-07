@@ -256,7 +256,7 @@ internal static class FormCandidateEvaluator
 
     private static bool TargetsPrunedField(string pointer, IReadOnlySet<string> hidden, IReadOnlySet<string> readOnly)
     {
-        if (!pointer.StartsWith('/', StringComparison.Ordinal)) return false;
+        if (!pointer.StartsWith("/", StringComparison.Ordinal)) return false;
         var segment = pointer[1..].Split('/', 2)[0].Replace("~1", "/", StringComparison.Ordinal).Replace("~0", "~", StringComparison.Ordinal);
         return hidden.Contains(segment) || readOnly.Contains(segment);
     }

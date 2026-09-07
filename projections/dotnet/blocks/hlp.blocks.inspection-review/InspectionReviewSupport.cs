@@ -63,7 +63,7 @@ internal static class InspectionReviewJson
     internal static bool TryResolve(JsonElement root, string pointer, out JsonElement value)
     {
         value = root;
-        if (string.IsNullOrWhiteSpace(pointer) || !pointer.StartsWith('/', StringComparison.Ordinal)) return false;
+        if (string.IsNullOrWhiteSpace(pointer) || !pointer.StartsWith("/", StringComparison.Ordinal)) return false;
         foreach (var encoded in pointer[1..].Split('/'))
         {
             var token = encoded.Replace("~1", "/", StringComparison.Ordinal).Replace("~0", "~", StringComparison.Ordinal);

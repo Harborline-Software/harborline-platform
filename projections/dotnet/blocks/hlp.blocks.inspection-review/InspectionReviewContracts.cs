@@ -56,13 +56,13 @@ public sealed record InspectionReviewBinding
         ArgumentException.ThrowIfNullOrWhiteSpace(FormId.Value);
         if (FormVersion.Major < 0 || FormVersion.Minor < 0 || FormVersion.Patch < 0)
             throw new ArgumentOutOfRangeException(nameof(FormVersion));
-        if (string.IsNullOrWhiteSpace(ConditionPointer) || !ConditionPointer.StartsWith('/', StringComparison.Ordinal))
+        if (string.IsNullOrWhiteSpace(ConditionPointer) || !ConditionPointer.StartsWith("/", StringComparison.Ordinal))
             throw new ArgumentException("ConditionPointer must be an RFC-6901 pointer.", nameof(ConditionPointer));
         if (MinimumScore > MaximumScore) throw new ArgumentOutOfRangeException(nameof(MinimumScore));
         if (ReviewRequiredAtOrBelow < MinimumScore || ReviewRequiredAtOrBelow >= MaximumScore)
             throw new ArgumentOutOfRangeException(nameof(ReviewRequiredAtOrBelow));
         if (SubjectSource == InspectionSubjectSource.AcceptedValue
-            && (string.IsNullOrWhiteSpace(SubjectPointer) || !SubjectPointer.StartsWith('/', StringComparison.Ordinal)))
+            && (string.IsNullOrWhiteSpace(SubjectPointer) || !SubjectPointer.StartsWith("/", StringComparison.Ordinal)))
             throw new ArgumentException("SubjectPointer must be an RFC-6901 pointer for accepted-value subjects.", nameof(SubjectPointer));
         if (SubjectSource == InspectionSubjectSource.CaseReference && SubjectPointer is not null)
             throw new ArgumentException("Case-reference bindings cannot also declare SubjectPointer.", nameof(SubjectPointer));
