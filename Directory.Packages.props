@@ -3,11 +3,11 @@
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
   </PropertyGroup>
   <ItemGroup>
-    <PackageVersion Include="AngleSharp" Version="1.7.2" />
+    <PackageVersion Include="AngleSharp" Version="1.8.0" />
     <PackageVersion Include="BlazingStory" Version="1.0.0-preview.91" />
     <PackageVersion Include="bunit" Version="2.9.0" />
     <PackageVersion Include="Harborline.UIAdapters.Blazor" Version="$(HarborlinePackedVersion)" />
-    <PackageVersion Include="JsonSchema.Net" Version="9.2.2" />
+    <PackageVersion Include="JsonSchema.Net" Version="9.4.0" />
     <PackageVersion Include="MD2RazorGenerator" Version="1.2.4" />
     <PackageVersion Include="Microsoft.AspNetCore.Components.Web" Version="11.0.0-preview.3.26207.106" />
     <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly" Version="11.0.0-preview.3.26207.106" />
