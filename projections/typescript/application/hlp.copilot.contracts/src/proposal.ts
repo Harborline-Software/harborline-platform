@@ -1,5 +1,5 @@
 import type { CommandSpec, ProposalDisposition, ProposalEnvelope } from './types.js'
-import { mintReceipt, type MintInput } from './receipt.js'
+import { freezeArgs, mintReceipt, type MintInput } from './receipt.js'
 export const PILOT_PROPOSAL_SCHEMA = 'pilot.proposal/3' as const
 export type ProposalRejectCode = 'not-object' | 'missing-schema' | 'unsupported-schema' | 'missing-surface' | 'unknown-surface' | 'unknown-command' | 'invalid-args'
 export type ParseOk = { ok: true; proposal: ProposalEnvelope; spec: CommandSpec }
@@ -23,8 +23,13 @@ export function parseProposal(raw: unknown, surface: string, specs: readonly Com
   if (!spec) return { ok: false, code: 'unknown-command' }
   const args = spec.argsSchema(raw.args ?? {})
   if (!args.ok) return { ok: false, code: 'invalid-args' }
-  const result: ParseOk = Object.freeze({ ok: true, proposal: Object.freeze({ schema: PILOT_PROPOSAL_SCHEMA, surface, command: spec.id, args: args.args }), spec })
-  parsed.set(result, Object.freeze({ surface, command: spec.id, args: args.args, tier: spec.classification.tier }))
+  // The freeze is the module's own untrusted-input boundary: a provider payload that cannot be frozen
+  // (accessors, functions, foreign prototypes, or nesting deep enough to exhaust the stack) is invalid
+  // args, never an exception escaping parse (110 slice 2 review 1).
+  let frozenArgs: unknown
+  try { frozenArgs = freezeArgs(args.args) } catch { return { ok: false, code: 'invalid-args' } }
+  const result: ParseOk = Object.freeze({ ok: true, proposal: Object.freeze({ schema: PILOT_PROPOSAL_SCHEMA, surface, command: spec.id, args: frozenArgs }), spec })
+  parsed.set(result, Object.freeze({ surface, command: spec.id, args: frozenArgs, tier: spec.classification.tier }))
   return result
 }
 
@@ -37,7 +42,7 @@ export function classifyProposal(result: ParseOk, contextKey: string | null): Pr
   const input = typeof result === 'object' && result !== null ? parsed.get(result) : undefined
   if (input === undefined) throw new Error('unparsed-proposal')
   if (input.tier === 'never') return { kind: 'reject', reason: 'never-exposed' }
-  if (contextKey === null || contextKey === '') return { kind: 'clarify', reason: 'no-target' }
+  if (typeof contextKey !== 'string' || contextKey === '') return { kind: 'clarify', reason: 'no-target' }
   const receipt = mintReceipt(input, contextKey)
   const kind: 'card' | 'auto-apply' = input.tier === 'cp' ? 'card' : 'auto-apply'
   return { kind, expectedContextKey: contextKey, receipt }
@@ -62,4 +67,3 @@ export function parseJsonObject(text: string): unknown | null {
   const a = body.indexOf('{'), b = body.lastIndexOf('}'); if (a < 0 || b <= a) return null
   try { return JSON.parse(body.slice(a, b + 1)) as unknown } catch { return null }
 }
-

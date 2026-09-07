@@ -1,4 +1,4 @@
-import type { DispatchReceipt } from './receipt.js'
+import type { DispatchReceipt, GestureProof } from './receipt.js'
 
 export type PilotRole = 'system' | 'user' | 'assistant'
 export interface PilotMessage { readonly id: string; readonly role: PilotRole; readonly content: string }
@@ -38,7 +38,6 @@ export type ProposalDisposition =
 /** App-owned seam. Implementations are effectful; Platform never supplies one in Wave 1. */
 export interface PilotEffectAdapter {
   currentContextKey(surface: string): string | null
-  /** Must call `assertDispatched(receipt)` as its first statement; a receipt exists only for AP/CP. */
-  execute(receipt: DispatchReceipt): Promise<{ ok: true; undoToken?: string } | { ok: false; code: string }>
+  /** First validate with `assertDispatched(receipt, currentContextKey(receipt.surface), gesture)`. */
+  execute(receipt: DispatchReceipt, gesture?: GestureProof): Promise<{ ok: true; undoToken?: string } | { ok: false; code: string }>
 }
-
