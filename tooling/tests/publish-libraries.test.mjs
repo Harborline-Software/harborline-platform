@@ -15,7 +15,7 @@ export function producerIds() {
   }).sort()
 }
 
-test('publication uses exactly the gate producer ids and requires a successful main push gate', () => {
+test('publication uses exactly the gate producer ids and follows a push to main, the receipt-proven landing, never a pull request', () => {
   const workflow = readFileSync(resolve(root, '.github/workflows/validate.yml'), 'utf8')
   const job = workflow.split('  publish-libraries:\n')[1]
   assert.ok(job, 'publish-libraries job is required')
@@ -24,7 +24,9 @@ test('publication uses exactly the gate producer ids and requires a successful m
   assert.equal(produced.length, 24)
   assert.equal(new Set(produced).size, 24, 'one producer per package id')
   assert.deepEqual(ids, produced, 'workflow package list must equal the producer inventory')
-  assert.match(job, /needs: phase-4-gate\n/)
+  // Publication follows the landing the repository's own gate proved by receipt (2026-09-07); it must not
+  // wait on the ubuntu rerun of that gate, and it must never run for a pull request.
+  assert.doesNotMatch(job, /needs: phase-4-gate/)
   assert.match(job, /if: github.event_name == 'push' && github.ref == 'refs\/heads\/main'\n/)
   assert.doesNotMatch(workflow, /ACTIONS_ENABLED/)
   assert.match(job, /packages: write/)
