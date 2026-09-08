@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { existsSync, mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { resolve } from 'node:path'
 import test from 'node:test'
@@ -59,9 +59,9 @@ test('a gallery gate step past its budget fails by step id, budget and command',
 })
 
 // gallery/tests installs its own dependencies inside the gallery-gate step (19), after tooling-selftests (11); on a clean
-// clone or the receipt's detached tree Playwright is not resolvable yet, so this probe test skips with the reason (330 s3).
-const galleryPlaywrightInstalled = existsSync(resolve('gallery/tests/node_modules/@playwright/test'))
-test('a gallery gate run refuses an unavailable browser with Playwright\'s reason', { skip: galleryPlaywrightInstalled ? false : 'gallery/tests dependencies are not installed before this step' }, () => {
+// clone or the receipt's detached tree the package is not resolvable yet. The probe reports that as unavailable too, so
+// this test runs on every tree and accepts either reason; a skip would fail the self-test runner (330 s3).
+test("a gallery gate run refuses an unavailable browser with Playwright's reason", () => {
   const unavailableBrowsers = mkdtempSync(resolve(tmpdir(), 'hlp-unavailable-browser-'))
   try {
     assert.throws(
@@ -74,7 +74,7 @@ test('a gallery gate run refuses an unavailable browser with Playwright\'s reaso
       ),
       error => {
         assert.match(error.message, /Playwright Chromium unavailable/)
-        assert.match(error.message, /Executable doesn't exist/)
+        assert.match(error.message, /Executable doesn't exist|Cannot find package '@playwright\/test'/)
         assert.doesNotMatch(error.message, /"browserTests": 0[\s\S]*"status": "PASS"/)
         return true
       },
