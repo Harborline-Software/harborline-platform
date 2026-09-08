@@ -8,7 +8,7 @@
 // was written and either could have been changed to anything at all without a check noticing. A
 // status that cannot be wrong is not a status; it is a comment.
 //
-// This step records unfinished work, but EXPIRED design verdicts fail on every counted module.
+// This step records unfinished work; the shared EXPIRED rule applies ticket 334's dated backlog.
 // validate-repository.mjs refuses a status claim the receipt does not support. Other unfinished
 // gates remain a worklist rather than making every non-terminal module fail this step.
 //
@@ -18,7 +18,7 @@ import {mkdirSync, readFileSync, writeFileSync} from 'node:fs'
 import {resolve} from 'node:path'
 
 import {createGateModel} from './gate-rows.mjs'
-import {designReviewSummary} from './design-review-status.mjs'
+import {designReviewMessage, designReviewSummary, loadExpiredBacklog} from './design-review-status.mjs'
 
 const argv = process.argv.slice(2)
 const positional = argv.filter(argument => !argument.startsWith('--'))
@@ -52,7 +52,7 @@ function build() {
     }
   })
 
-  const designReview = designReviewSummary(modules)
+  const designReview = designReviewSummary(modules, {backlog: loadExpiredBacklog(platformRoot)})
   return {
     schemaVersion: 1,
     status: designReview.status,
@@ -127,7 +127,7 @@ if (argv.includes('--json')) {
 } else {
   const terminal = receipt.modules.filter(module => module.terminal).length
   process.stdout.write(`${receipt.modules.length} modules, ${terminal} terminal\n`)
-  process.stdout.write(`${receipt.status}: ${receipt.designReview.rule} EXPIRED: ${receipt.designReview.expired.join(', ') || 'none'}\n`)
+  process.stdout.write(`${receipt.status}: ${designReviewMessage(receipt.designReview)}\n`)
   process.stdout.write(`${Object.entries(receipt.tally).sort().map(([status, count]) => `${status}=${count}`).join('  ')}\n`)
 
   // Which gate is holding the most modules back is the worklist, and it is derived here rather than

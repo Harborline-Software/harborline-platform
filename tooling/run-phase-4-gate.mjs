@@ -168,8 +168,8 @@ try {
   run('tooling-selftests', process.execPath, ['tooling/run-tooling-selftests.mjs'], root, true)
   run('prop-vocabulary', process.execPath, ['tooling/gates/scan-prop-vocabulary.mjs', '--json'], root, true)
   // A static sweep over source, so it belongs with the cheap checks rather than behind the
-  // thirty-eight-minute half. EXPIRED design verdicts fail for every counted UI module,
-  // including non-terminal modules. Other unfinished gates remain a recorded worklist.
+  // thirty-eight-minute half. The shared EXPIRED rule includes non-terminal UI modules and
+  // ticket 334's dated backlog. Other unfinished gates remain a recorded worklist.
   run('ui-gate-model', process.execPath, ['tooling/gates/run-ui-gate-model.mjs', '--json'], root, true)
   run('build', process.execPath, ['tooling/run-native.mjs', '--build'], root, true)
   runReusable('native-tests', process.execPath, ['tooling/run-native.mjs'], root, true)

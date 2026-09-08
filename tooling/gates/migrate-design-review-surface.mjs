@@ -30,7 +30,7 @@ const git = (cwd, ...args) => execFileSync('git', args, {cwd, maxBuffer: 1 << 28
 
 export function legacyRecords(root = recordsRoot) {
   if (!existsSync(root)) return []
-  return readdirSync(root).filter(name => name.endsWith('.json')).sort()
+  return readdirSync(root).filter(name => name.endsWith('.json') && name !== 'expired-backlog.json').sort()
     .map(name => JSON.parse(readFileSync(resolve(root, name), 'utf8')))
     .filter(record => !record.reference?.surface)
 }
@@ -94,7 +94,7 @@ export function migrateRenames({platformRoot, historyRoot = platformRoot, ref = 
   }
   try {
     const target = snapshot(platformRoot, pin)
-    for (const name of readdirSync(root).filter(name => name.endsWith('.json')).sort()) {
+    for (const name of readdirSync(root).filter(name => name.endsWith('.json') && name !== 'expired-backlog.json').sort()) {
       const record = JSON.parse(readFileSync(resolve(root, name), 'utf8'))
       const refuse = reason => results.push({moduleId: record.moduleId, status: 'refused', reason})
       if (record.verdict !== 'approved') {

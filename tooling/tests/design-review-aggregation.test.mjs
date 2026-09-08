@@ -11,7 +11,8 @@ test('a planted EXPIRED review on a counted non-terminal module fails the phase-
   assert.match(note, /EXPIRED/)
   const modules = [{moduleId: 'hlp.ui.accordion', catalogStatus: 'extracted-candidate', terminal: false,
     gates: [{id: 'assertDesignReview', status, note}]}]
-  const evaluate = report => evaluateStepStdout({stepId: 'ui-gate-model', json: true, status: 0, stdout: JSON.stringify(report)})
+  const evaluate = report => evaluateStepStdout({stepId: 'ui-gate-model', json: true, status: 0,
+    stdout: JSON.stringify(report), designReviewOptions: {backlog: null}})
   const result = evaluate({modules})
   assert.equal(result.status, 1, 'an exit-zero static sweep must not hide a counted EXPIRED verdict')
   assert.equal(result.report.status, 'FAIL')

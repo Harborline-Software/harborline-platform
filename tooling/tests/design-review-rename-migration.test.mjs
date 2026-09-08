@@ -4,13 +4,14 @@ import {execFileSync} from 'node:child_process'
 import {mkdirSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync} from 'node:fs'
 import {tmpdir} from 'node:os'
 import {dirname, resolve} from 'node:path'
-import {migrateRenames} from '../gates/migrate-design-review-surface.mjs'
+import {legacyRecords, migrateRenames} from '../gates/migrate-design-review-surface.mjs'
 import {designSurfaceInputs} from '../gates/design-surface-inputs.mjs'
 import {recordVerdict, recordsRoot} from '../gates/design-review.mjs'
 
 test('migrated corpus references match the current identity through the diagnostic', () => {
   const root = resolve(import.meta.dirname, '../..')
-  const migrated = readdirSync(recordsRoot).map(name => JSON.parse(readFileSync(resolve(recordsRoot, name), 'utf8')))
+  const migrated = readdirSync(recordsRoot).filter(name => name !== 'expired-backlog.json')
+    .map(name => JSON.parse(readFileSync(resolve(recordsRoot, name), 'utf8')))
     .filter(record => record.reference.migration)
   assert.ok(migrated.length > 0, 'migration must carry at least one real approval')
   for (const record of migrated) {
@@ -52,6 +53,10 @@ test('rename migration proves both pins, refuses changed content and is idempote
   const recordPath = resolve(root, `${moduleId}.json`)
   const resetRecord = () => writeFileSync(recordPath, JSON.stringify(record))
   resetRecord()
+  const backlogPath = resolve(root, 'expired-backlog.json')
+  const backlogBytes = JSON.stringify({ticket: 334, deadline: '2026-09-30', commit: judgedAgainst, modules: [moduleId]})
+  writeFileSync(backlogPath, backlogBytes)
+  assert.deepEqual(legacyRecords(root), [], 'the backlog is not a legacy review record')
   renameSync(resolve(platformRoot, component), resolve(platformRoot, renamed))
   put(renamed, '@namespace Harborline.UI\n<button>Original</button>\n')
   put('gallery/projections/blazor/Stories/Canary.stories.razor', '<HarborlineCanary />\n')
@@ -59,7 +64,10 @@ test('rename migration proves both pins, refuses changed content and is idempote
   git('commit', '--quiet', '--no-verify', '-m', 'family rename')
   const pin = git('rev-parse', 'HEAD')
   const run = () => migrateRenames({platformRoot, root, from: 'Aster', to: 'Harborline'})
-  assert.equal(run().migrated, 1)
+  const first = run()
+  assert.equal(first.migrated, 1)
+  assert.equal(first.refused, 0, 'the backlog is not a refused review record')
+  assert.equal(readFileSync(backlogPath, 'utf8'), backlogBytes)
   const diagnostic = designSurfaceInputs(platformRoot, moduleId)
   assert.deepEqual(diagnostic.recordedReference.surface, diagnostic.surface)
   assert.equal(diagnostic.verdict[0], 'PASS')

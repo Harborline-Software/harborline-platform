@@ -74,7 +74,7 @@ function assertFreshHistoryFacts() {
   }
 }
 
-const records = () => readdirSync(recordsRoot).filter(name => name.endsWith('.json')).sort()
+const records = () => readdirSync(recordsRoot).filter(name => name.endsWith('.json') && name !== 'expired-backlog.json').sort()
   .map(name => JSON.parse(readFileSync(resolve(recordsRoot, name), 'utf8')))
 
 // A rename transport preserves the original judgement in full; historical tests judge THAT
