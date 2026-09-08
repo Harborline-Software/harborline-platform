@@ -15,11 +15,17 @@ import {fileURLToPath} from 'node:url'
 
 import {collectionProps, deriveModeSet, deriveStateSet, derivedEmptyAndErrorSupport, stateBearingProps, stateCompletenessVerdict} from './derive-state-set.mjs'
 import {loadRecord, referenceRevision, referenceSurface, reviewVerdict, rollUp} from './design-review.mjs'
+import {designReviewDecision, loadExpiredBacklog} from './design-review-status.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
 
-export function createGateModel(platformRoot) {
+export function createGateModel(platformRoot, designReviewOptions = {}) {
   const read = path => JSON.parse(readFileSync(resolve(platformRoot, path), 'utf8'))
+  const reviewPolicyOptions = {
+    backlog: loadExpiredBacklog(platformRoot),
+    now: new Date(),
+    ...designReviewOptions,
+  }
   const gate = existsSync(resolve(platformRoot, 'docs/evidence/phase-4/gate.json'))
     ? read('docs/evidence/phase-4/gate.json')
     : null
@@ -324,7 +330,10 @@ export function createGateModel(platformRoot) {
       // apply to this module cannot be voided by a determinism failure either.
       const declared = declaredDisposition(ctx.qualityProfile, g.id)
       if (declared) return {id: g.id, parent: g.parent, status: declared[0], note: declared[1]}
-      const [status, note] = g.verdict(ctx)
+      let [status, note] = g.verdict(ctx)
+      if (g.id === 'assertDesignReview') {
+        ({status, note} = designReviewDecision(ctx.moduleId, {status, note}, reviewPolicyOptions))
+      }
       return VOIDED_BY_DETERMINISM.includes(g.id) && voided
         ? {id: g.id, parent: g.parent, status: 'VOID', note: 'voided by an assertDeterminism failure in this lane'}
         : {id: g.id, parent: g.parent, status, note}
@@ -426,5 +435,5 @@ export function createGateModel(platformRoot) {
   // platformRoot is returned so the canary can derive a REAL surface for a real module rather than
   // inventing file names; a canary that only ever sees invented names cannot notice the derivation
   // dropping a whole class of file (ticket 138 slice 3).
-  return {platformRoot, GATES, TIER1_GATE_IDS, PARTIAL_CEILINGS, VOIDED_BY_DETERMINISM, verdictOf, gateRows, contextFor, gate, declaredDisposition}
+  return {platformRoot, GATES, TIER1_GATE_IDS, PARTIAL_CEILINGS, VOIDED_BY_DETERMINISM, verdictOf, gateRows, contextFor, gate, declaredDisposition, designReviewOptions: reviewPolicyOptions}
 }
