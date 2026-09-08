@@ -99,16 +99,6 @@ export const ALLOW_LIST = [
     reason: 'sourcePaths: the pre-Harborline capture path, hashed by its own blob; ticket 269 decides the sourcePaths field',
   },
   {
-    path: 'docs/evidence/gate-model/ui-gate-model.json',
-    symbol: `${Retired}LocaleProvider`,
-    reason: 'regenerated gate evidence (2026-09-07): the button module design-review note, now expired, names the surface files as they were at the verdict commit; the note is the gate output and is not rewritten',
-  },
-  {
-    path: 'docs/evidence/gate-model/ui-gate-model.json',
-    symbol: `${Retired}LocaleContext`,
-    reason: 'regenerated gate evidence (2026-09-07): the button module design-review note, now expired, names the surface files as they were at the verdict commit; the note is the gate output and is not rewritten',
-  },
-  {
     path: 'docs/evidence/design-review/hlp.ui.button.json',
     symbol: `${Retired}LocaleContext`,
     reason: 'captured design-review evidence (ticket 138 slice 6): the verdict binds the surface AS IT WAS at the commit it was given against, and the file was named that then; rewriting it would be rewriting what the reviewer approved',

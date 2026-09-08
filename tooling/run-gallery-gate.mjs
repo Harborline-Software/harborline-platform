@@ -120,7 +120,7 @@ function runShardedGallery(id, cwd, extraEnv, shardCount) {
             .join('\n').trimEnd().split('\n').slice(-120).join('\n'),
     }
     results.push(entry)
-    if (!entry.passed) throw new Error(`${id} failed`)
+    if (!entry.passed) throw new Error(`${id} failed:\n${entry.failureOutput}`)
   })
 }
 
@@ -142,7 +142,7 @@ export function run(id, executable, args, cwd = root, extraEnv = {}) {
     failureOutput: result.status === 0 ? undefined : `${result.stdout}\n${result.stderr}`.trimEnd().split('\n').slice(-120).join('\n'),
   }
   results.push(entry)
-  if (!entry.passed) throw new Error(`${id} failed`)
+  if (!entry.passed) throw new Error(`${id} failed:\n${entry.failureOutput}`)
 }
 
 function start(id, executable, args, cwd) {
@@ -220,6 +220,15 @@ function stopServers() {
   }
 }
 
+// A failed Playwright process can still leave a complete JSON report. Those observations are
+// evidence too: suppressing them turned a long browser run into browserTests=0 and hid whether the
+// browser launched, how many specs ran, and which outcome failed.
+export function observeCompletedGalleryRun({ results, reportPath, scenarioIds }) {
+  if (!results.some(result => result.id === 'gallery-accessibility-and-parity')) return undefined
+  const raw = JSON.parse(readFileSync(reportPath, 'utf8'))
+  return observeGalleryRun(raw, scenarioIds)
+}
+
 
 // Ticket 275: the gate body runs only as the entry point. Everything above is definitions, so a
 // self-test can import run() and drive it past a tiny budget; before the guard, importing this
@@ -241,6 +250,10 @@ if (import.meta.main) {
     ])
     run('gallery-tests-typecheck', 'npm', ['run', 'typecheck'], prepared.galleryTests)
     run('playwright-browser', 'npm', ['exec', '--', 'playwright', 'install', 'chromium'], prepared.galleryTests)
+    // Installation success only says the package manager completed. Prove the executable can launch
+    // under this host's headless/sandbox conditions before a 529-spec run turns that cause into 529
+    // indistinguishable failures.
+    run('playwright-browser-launch', process.execPath, ['verify-browser.mjs'], prepared.galleryTests)
   
     start('react-storybook', 'npm', [
       'run', 'dev', '--', '--host', '127.0.0.1',
@@ -291,7 +304,8 @@ if (import.meta.main) {
   // eight is exactly the kind of hand-maintained literal control ticket 100 exists to remove.
   const requiredGalleryStepIds = [
     'gallery-structure', 'react-gallery-typecheck', 'react-storybook-build', 'blazor-gallery-clean',
-    'blazor-gallery-build', 'gallery-tests-typecheck', 'playwright-browser', 'gallery-accessibility-and-parity',
+    'blazor-gallery-build', 'gallery-tests-typecheck', 'playwright-browser', 'playwright-browser-launch',
+    'gallery-accessibility-and-parity',
   ]
   const gatePassed = !failure
     && results.length === requiredGalleryStepIds.length
@@ -332,10 +346,14 @@ if (import.meta.main) {
   let observation
   let checkReconciliation
   let flakeRegistryReport
-  if (gatePassed && flakeRegistryProblems.length === 0) {
+  if (flakeRegistryProblems.length === 0) {
     try {
-      const raw = JSON.parse(readFileSync(resolve(prepared.galleryTests, 'test-results/results.json'), 'utf8'))
-      observation = observeGalleryRun(raw, galleryModules.flatMap(module => module.scenarios.map(scenario => scenario.id)))
+      observation = observeCompletedGalleryRun({
+        results,
+        reportPath: resolve(prepared?.galleryTests ?? '', 'test-results/results.json'),
+        scenarioIds: galleryModules.flatMap(module => module.scenarios.map(scenario => scenario.id)),
+      })
+      if (!observation) throw new Error('Playwright did not reach the browser test step')
       // A spec that passed only on retry and is not registered is red the way a failure is, focused
       // run or not: a retry nobody owns is how an intermittent regression becomes a green gate.
       const unregistered = unregisteredFlakes(observation.flakyTests, flakeRegistryRows)
@@ -344,15 +362,15 @@ if (import.meta.main) {
         unregistered,
       }
       if (unregistered.length > 0) {
-        failure = 'unregistered flaky specs (each passed only on its retry; register it in '
+        failure ??= 'unregistered flaky specs (each passed only on its retry; register it in '
           + `tooling/flake-registry.json with an owner and an expiry, or fix it):\n${unregistered.join('\n')}`
       } else if (!focusedPattern) {
         checkReconciliation = reconcileChecks(observation.checks, expected)
-        if (observation.reconciliation !== 'exact') failure = observation.reconciliation
-        else if (checkReconciliation !== 'exact') failure = checkReconciliation
+        if (observation.reconciliation !== 'exact') failure ??= observation.reconciliation
+        else if (checkReconciliation !== 'exact') failure ??= checkReconciliation
       }
     } catch (error) {
-      failure = `gallery run observation failed: ${error instanceof Error ? error.message : String(error)}`
+      if (!failure) failure = `gallery run observation failed: ${error instanceof Error ? error.message : String(error)}`
     }
   }
   let galleryCapture
