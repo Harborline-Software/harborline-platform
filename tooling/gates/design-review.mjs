@@ -19,6 +19,7 @@ import {dirname, resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
 
 import {carriesRender, renderDigest} from './render-digest.mjs'
+import {EXPIRED_RULE} from './design-review-status.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
 export const recordsRoot = resolve(here, '../../docs/evidence/design-review')
@@ -236,7 +237,7 @@ export function reviewVerdict({record, revision, surface}) {
       gone.length > 0 && `no longer has ${gone.join(', ')}`,
       arrived.length > 0 && `has gained ${arrived.join(', ')}`,
     ].filter(Boolean)
-    return ['FAIL', `verdict EXPIRED: "${record.verdict}" was recorded against a surface that has since ${parts.join('; ')}`]
+    return ['FAIL', `verdict EXPIRED: "${record.verdict}" was recorded against a surface that has since ${parts.join('; ')}; ${EXPIRED_RULE}`]
   }
   return record.verdict !== 'approved'
     ? ['FAIL', `recorded verdict is "${record.verdict}"`]

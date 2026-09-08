@@ -1,5 +1,71 @@
 {
   "schemaVersion": 1,
+  "status": "PASS",
+  "designReview": {
+    "status": "PASS",
+    "expired": [
+      "hlp.ui.accordion",
+      "hlp.ui.action-menu",
+      "hlp.ui.activity-log",
+      "hlp.ui.alert",
+      "hlp.ui.app-layout",
+      "hlp.ui.app-shell",
+      "hlp.ui.badge",
+      "hlp.ui.breadcrumb",
+      "hlp.ui.button",
+      "hlp.ui.chart",
+      "hlp.ui.chat",
+      "hlp.ui.check-box",
+      "hlp.ui.chip",
+      "hlp.ui.confirm-dialog",
+      "hlp.ui.context-menu",
+      "hlp.ui.conversation-list",
+      "hlp.ui.data-export-button",
+      "hlp.ui.data-grid",
+      "hlp.ui.date-field",
+      "hlp.ui.date-time-field",
+      "hlp.ui.detail-panel",
+      "hlp.ui.dialog",
+      "hlp.ui.empty-state",
+      "hlp.ui.error-card",
+      "hlp.ui.form-field",
+      "hlp.ui.gantt",
+      "hlp.ui.guarded-control",
+      "hlp.ui.icon-button",
+      "hlp.ui.input",
+      "hlp.ui.layers-rail",
+      "hlp.ui.loading-state",
+      "hlp.ui.notification-center",
+      "hlp.ui.number-field",
+      "hlp.ui.numeric-text-box",
+      "hlp.ui.popover",
+      "hlp.ui.radio-group",
+      "hlp.ui.scheduler",
+      "hlp.ui.scroll-affordance",
+      "hlp.ui.search-input",
+      "hlp.ui.segmented-control",
+      "hlp.ui.select-field",
+      "hlp.ui.sheet",
+      "hlp.ui.side-nav",
+      "hlp.ui.spinner",
+      "hlp.ui.spotlight",
+      "hlp.ui.switch",
+      "hlp.ui.text-area",
+      "hlp.ui.text-box",
+      "hlp.ui.toaster",
+      "hlp.ui.user-menu",
+      "hlp.ui.window"
+    ],
+    "failingExpired": [],
+    "staleBacklog": [],
+    "rule": "An EXPIRED verdict on a module counted by the catalogue fails the gate on every host.",
+    "backlog": {
+      "count": 51,
+      "deadline": "2026-09-30",
+      "ticket": 334,
+      "active": true
+    }
+  },
   "ticket": "098",
   "subject": {
     "moduleCount": 76,
@@ -90,7 +156,7 @@
         {
           "id": "assertDesignReview",
           "status": "FAIL",
-          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in conformance/hlp.ui.accordion/fixtures.yaml, gallery/projections/blazor/Stories/Accordion.stories.razor, gallery/projections/blazor/Stories/AccordionScenario.razor, gallery/projections/react/src/Accordion.stories.tsx, gallery/scenarios/hlp.ui.accordion.json, projections/blazor/ui/hlp.ui.accordion/AccordionTypes.cs, projections/blazor/ui/hlp.ui.accordion/wwwroot/accordion.css, projections/react/ui/hlp.ui.accordion/src/Accordion.tsx, projections/react/ui/hlp.ui.accordion/src/style.css, specs/modules/ui/hlp.ui.accordion/scenarios.json, specs/modules/ui/hlp.ui.accordion/style.css; no longer has projections/blazor/ui/hlp.ui.accordion/ShipyardAccordion.razor; has gained projections/blazor/ui/hlp.ui.accordion/HarborlineAccordion.razor"
+          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in conformance/hlp.ui.accordion/fixtures.yaml, gallery/projections/blazor/Stories/Accordion.stories.razor, gallery/projections/blazor/Stories/AccordionScenario.razor, gallery/projections/react/src/Accordion.stories.tsx, gallery/scenarios/hlp.ui.accordion.json, projections/blazor/ui/hlp.ui.accordion/AccordionTypes.cs, projections/blazor/ui/hlp.ui.accordion/wwwroot/accordion.css, projections/react/ui/hlp.ui.accordion/src/Accordion.tsx, projections/react/ui/hlp.ui.accordion/src/style.css, specs/modules/ui/hlp.ui.accordion/scenarios.json, specs/modules/ui/hlp.ui.accordion/style.css; no longer has projections/blazor/ui/hlp.ui.accordion/ShipyardAccordion.razor; has gained projections/blazor/ui/hlp.ui.accordion/HarborlineAccordion.razor; An EXPIRED verdict on a module counted by the catalogue fails the gate on every host."
         },
         {
           "id": "assertDesignQuality",
@@ -168,7 +234,7 @@
         {
           "id": "assertDesignReview",
           "status": "FAIL",
-          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in conformance/hlp.ui.action-menu/fixtures.yaml, gallery/projections/blazor/Stories/ActionMenu.stories.razor, gallery/projections/blazor/Stories/ActionMenuScenario.razor, gallery/projections/react/src/ActionMenu.stories.tsx, gallery/scenarios/hlp.ui.action-menu.json, projections/blazor/ui/hlp.ui.action-menu/ActionMenuTypes.cs, projections/blazor/ui/hlp.ui.action-menu/wwwroot/action-menu.css, projections/react/ui/hlp.ui.action-menu/src/ActionMenu.tsx, projections/react/ui/hlp.ui.action-menu/src/index.ts, projections/react/ui/hlp.ui.action-menu/src/style.css, specs/modules/ui/hlp.ui.action-menu/scenarios.json, specs/modules/ui/hlp.ui.action-menu/style.css; no longer has projections/blazor/ui/hlp.ui.action-menu/ShipyardActionMenu.razor; has gained conformance/hlp.ui.action-menu/disclosure-v1.json, projections/blazor/ui/hlp.ui.action-menu/HarborlineActionMenu.razor"
+          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in conformance/hlp.ui.action-menu/fixtures.yaml, gallery/projections/blazor/Stories/ActionMenu.stories.razor, gallery/projections/blazor/Stories/ActionMenuScenario.razor, gallery/projections/react/src/ActionMenu.stories.tsx, gallery/scenarios/hlp.ui.action-menu.json, projections/blazor/ui/hlp.ui.action-menu/ActionMenuTypes.cs, projections/blazor/ui/hlp.ui.action-menu/wwwroot/action-menu.css, projections/react/ui/hlp.ui.action-menu/src/ActionMenu.tsx, projections/react/ui/hlp.ui.action-menu/src/index.ts, projections/react/ui/hlp.ui.action-menu/src/style.css, specs/modules/ui/hlp.ui.action-menu/scenarios.json, specs/modules/ui/hlp.ui.action-menu/style.css; no longer has projections/blazor/ui/hlp.ui.action-menu/ShipyardActionMenu.razor; has gained conformance/hlp.ui.action-menu/disclosure-v1.json, projections/blazor/ui/hlp.ui.action-menu/HarborlineActionMenu.razor; An EXPIRED verdict on a module counted by the catalogue fails the gate on every host."
         },
         {
           "id": "assertDesignQuality",
@@ -246,7 +312,7 @@
         {
           "id": "assertDesignReview",
           "status": "FAIL",
-          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in conformance/hlp.ui.activity-log/fixtures.yaml, gallery/projections/blazor/Stories/ActivityLogScenario.razor, gallery/scenarios/hlp.ui.activity-log.json, projections/blazor/ui/hlp.ui.activity-log/ActivityLogTypes.cs, projections/blazor/ui/hlp.ui.activity-log/wwwroot/activity-log.css, projections/react/ui/hlp.ui.activity-log/src/ActivityLog.tsx, projections/react/ui/hlp.ui.activity-log/src/style.css, specs/modules/ui/hlp.ui.activity-log/scenarios.json, specs/modules/ui/hlp.ui.activity-log/style.css; no longer has projections/blazor/ui/hlp.ui.activity-log/ShipyardActivityLog.razor; has gained projections/blazor/ui/hlp.ui.activity-log/HarborlineActivityLog.razor"
+          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in conformance/hlp.ui.activity-log/fixtures.yaml, gallery/projections/blazor/Stories/ActivityLogScenario.razor, gallery/scenarios/hlp.ui.activity-log.json, projections/blazor/ui/hlp.ui.activity-log/ActivityLogTypes.cs, projections/blazor/ui/hlp.ui.activity-log/wwwroot/activity-log.css, projections/react/ui/hlp.ui.activity-log/src/ActivityLog.tsx, projections/react/ui/hlp.ui.activity-log/src/style.css, specs/modules/ui/hlp.ui.activity-log/scenarios.json, specs/modules/ui/hlp.ui.activity-log/style.css; no longer has projections/blazor/ui/hlp.ui.activity-log/ShipyardActivityLog.razor; has gained projections/blazor/ui/hlp.ui.activity-log/HarborlineActivityLog.razor; An EXPIRED verdict on a module counted by the catalogue fails the gate on every host."
         },
         {
           "id": "assertDesignQuality",
@@ -324,7 +390,7 @@
         {
           "id": "assertDesignReview",
           "status": "FAIL",
-          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in gallery/projections/blazor/Stories/AlertScenario.razor, gallery/scenarios/hlp.ui.alert.json, projections/blazor/ui/hlp.ui.alert/AlertTypes.cs, projections/react/ui/hlp.ui.alert/src/Alert.tsx, specs/modules/ui/hlp.ui.alert/scenarios.json; no longer has projections/blazor/ui/hlp.ui.alert/ShipyardAlert.razor; has gained projections/blazor/ui/hlp.ui.alert/HarborlineAlert.razor"
+          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in gallery/projections/blazor/Stories/AlertScenario.razor, gallery/scenarios/hlp.ui.alert.json, projections/blazor/ui/hlp.ui.alert/AlertTypes.cs, projections/react/ui/hlp.ui.alert/src/Alert.tsx, specs/modules/ui/hlp.ui.alert/scenarios.json; no longer has projections/blazor/ui/hlp.ui.alert/ShipyardAlert.razor; has gained projections/blazor/ui/hlp.ui.alert/HarborlineAlert.razor; An EXPIRED verdict on a module counted by the catalogue fails the gate on every host."
         },
         {
           "id": "assertDesignQuality",
@@ -402,7 +468,7 @@
         {
           "id": "assertDesignReview",
           "status": "FAIL",
-          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in gallery/projections/blazor/Stories/AppLayoutScenario.razor, gallery/projections/react/src/AppLayout.stories.tsx, projections/blazor/ui/hlp.ui.app-layout/AppLayoutTypes.cs, projections/blazor/ui/hlp.ui.app-layout/wwwroot/app-layout.css, projections/react/ui/hlp.ui.app-layout/src/AppLayout.tsx, projections/react/ui/hlp.ui.app-layout/src/style.css, specs/modules/ui/hlp.ui.app-layout/style.css; no longer has projections/blazor/ui/hlp.ui.app-layout/ShipyardAppLayout.razor; has gained projections/blazor/ui/hlp.ui.app-layout/HarborlineAppLayout.razor"
+          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in gallery/projections/blazor/Stories/AppLayoutScenario.razor, gallery/projections/react/src/AppLayout.stories.tsx, projections/blazor/ui/hlp.ui.app-layout/AppLayoutTypes.cs, projections/blazor/ui/hlp.ui.app-layout/wwwroot/app-layout.css, projections/react/ui/hlp.ui.app-layout/src/AppLayout.tsx, projections/react/ui/hlp.ui.app-layout/src/style.css, specs/modules/ui/hlp.ui.app-layout/style.css; no longer has projections/blazor/ui/hlp.ui.app-layout/ShipyardAppLayout.razor; has gained projections/blazor/ui/hlp.ui.app-layout/HarborlineAppLayout.razor; An EXPIRED verdict on a module counted by the catalogue fails the gate on every host."
         },
         {
           "id": "assertDesignQuality",
@@ -480,7 +546,7 @@
         {
           "id": "assertDesignReview",
           "status": "FAIL",
-          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in conformance/hlp.ui.app-shell/fixtures.yaml, conformance/hlp.ui.app-shell/quality-fixtures.yaml, gallery/projections/blazor/Stories/AppShell.stories.razor, gallery/projections/blazor/Stories/AppShellScenario.razor, gallery/projections/react/src/AppShell.stories.tsx, gallery/scenarios/hlp.ui.app-shell.json, projections/blazor/ui/hlp.ui.app-shell/AppShellTypes.cs, projections/blazor/ui/hlp.ui.app-shell/ShellStorage.cs, projections/blazor/ui/hlp.ui.app-shell/wwwroot/app-shell.css, projections/react/ui/hlp.ui.app-shell/src/AppShell.tsx, projections/react/ui/hlp.ui.app-shell/src/ScopeSwitcher.tsx, projections/react/ui/hlp.ui.app-shell/src/ShellRail.tsx, projections/react/ui/hlp.ui.app-shell/src/index.ts, projections/react/ui/hlp.ui.app-shell/src/shell-state.ts, projections/react/ui/hlp.ui.app-shell/src/style.css, projections/react/ui/hlp.ui.app-shell/src/types.ts, specs/modules/ui/hlp.ui.app-shell/scenarios.json, specs/modules/ui/hlp.ui.app-shell/style.css; no longer has projections/blazor/ui/hlp.ui.app-shell/ShipyardAppShell.razor, projections/blazor/ui/hlp.ui.app-shell/ShipyardScopeSwitcher.razor, projections/blazor/ui/hlp.ui.app-shell/ShipyardShellRail.razor; has gained conformance/hlp.ui.app-shell/adaptation-v1.json, conformance/hlp.ui.app-shell/api-58-pack-navigation.json, conformance/hlp.ui.app-shell/chrome-law-mutations.json, conformance/hlp.ui.app-shell/chrome-v1.json, conformance/hlp.ui.app-shell/dividers-v1.json, conformance/hlp.ui.app-shell/dock-splitter-v1.json, conformance/hlp.ui.app-shell/persistence-v1.json, projections/blazor/ui/hlp.ui.app-shell/DockDivider.razor, projections/blazor/ui/hlp.ui.app-shell/DockLayout.cs, projections/blazor/ui/hlp.ui.app-shell/DockState.cs, projections/blazor/ui/hlp.ui.app-shell/HarborlineAppShell.razor, projections/blazor/ui/hlp.ui.app-shell/HarborlineScopeSwitcher.razor, projections/blazor/ui/hlp.ui.app-shell/HarborlineShellRail.razor, projections/blazor/ui/hlp.ui.app-shell/PackNavigationMapper.cs, projections/blazor/ui/hlp.ui.app-shell/wwwroot/dock-divider.js, projections/react/ui/hlp.ui.app-shell/src/DockDivider.tsx, projections/react/ui/hlp.ui.app-shell/src/dock-model.ts, projections/react/ui/hlp.ui.app-shell/src/pack-navigation-mapper.ts"
+          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in conformance/hlp.ui.app-shell/fixtures.yaml, conformance/hlp.ui.app-shell/quality-fixtures.yaml, gallery/projections/blazor/Stories/AppShell.stories.razor, gallery/projections/blazor/Stories/AppShellScenario.razor, gallery/projections/react/src/AppShell.stories.tsx, gallery/scenarios/hlp.ui.app-shell.json, projections/blazor/ui/hlp.ui.app-shell/AppShellTypes.cs, projections/blazor/ui/hlp.ui.app-shell/ShellStorage.cs, projections/blazor/ui/hlp.ui.app-shell/wwwroot/app-shell.css, projections/react/ui/hlp.ui.app-shell/src/AppShell.tsx, projections/react/ui/hlp.ui.app-shell/src/ScopeSwitcher.tsx, projections/react/ui/hlp.ui.app-shell/src/ShellRail.tsx, projections/react/ui/hlp.ui.app-shell/src/index.ts, projections/react/ui/hlp.ui.app-shell/src/shell-state.ts, projections/react/ui/hlp.ui.app-shell/src/style.css, projections/react/ui/hlp.ui.app-shell/src/types.ts, specs/modules/ui/hlp.ui.app-shell/scenarios.json, specs/modules/ui/hlp.ui.app-shell/style.css; no longer has projections/blazor/ui/hlp.ui.app-shell/ShipyardAppShell.razor, projections/blazor/ui/hlp.ui.app-shell/ShipyardScopeSwitcher.razor, projections/blazor/ui/hlp.ui.app-shell/ShipyardShellRail.razor; has gained conformance/hlp.ui.app-shell/adaptation-v1.json, conformance/hlp.ui.app-shell/api-58-pack-navigation.json, conformance/hlp.ui.app-shell/chrome-law-mutations.json, conformance/hlp.ui.app-shell/chrome-v1.json, conformance/hlp.ui.app-shell/dividers-v1.json, conformance/hlp.ui.app-shell/dock-splitter-v1.json, conformance/hlp.ui.app-shell/persistence-v1.json, projections/blazor/ui/hlp.ui.app-shell/DockDivider.razor, projections/blazor/ui/hlp.ui.app-shell/DockLayout.cs, projections/blazor/ui/hlp.ui.app-shell/DockState.cs, projections/blazor/ui/hlp.ui.app-shell/HarborlineAppShell.razor, projections/blazor/ui/hlp.ui.app-shell/HarborlineScopeSwitcher.razor, projections/blazor/ui/hlp.ui.app-shell/HarborlineShellRail.razor, projections/blazor/ui/hlp.ui.app-shell/PackNavigationMapper.cs, projections/blazor/ui/hlp.ui.app-shell/wwwroot/dock-divider.js, projections/react/ui/hlp.ui.app-shell/src/DockDivider.tsx, projections/react/ui/hlp.ui.app-shell/src/dock-model.ts, projections/react/ui/hlp.ui.app-shell/src/pack-navigation-mapper.ts; An EXPIRED verdict on a module counted by the catalogue fails the gate on every host."
         },
         {
           "id": "assertDesignQuality",
@@ -636,7 +702,7 @@
         {
           "id": "assertDesignReview",
           "status": "FAIL",
-          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in gallery/projections/blazor/Stories/BadgeScenario.razor, gallery/scenarios/hlp.ui.badge.json, projections/blazor/ui/hlp.ui.badge/BadgeTypes.cs, projections/react/ui/hlp.ui.badge/src/Badge.tsx, specs/modules/ui/hlp.ui.badge/scenarios.json; no longer has projections/blazor/ui/hlp.ui.badge/ShipyardBadge.razor; has gained projections/blazor/ui/hlp.ui.badge/HarborlineBadge.razor"
+          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in gallery/projections/blazor/Stories/BadgeScenario.razor, gallery/scenarios/hlp.ui.badge.json, projections/blazor/ui/hlp.ui.badge/BadgeTypes.cs, projections/react/ui/hlp.ui.badge/src/Badge.tsx, specs/modules/ui/hlp.ui.badge/scenarios.json; no longer has projections/blazor/ui/hlp.ui.badge/ShipyardBadge.razor; has gained projections/blazor/ui/hlp.ui.badge/HarborlineBadge.razor; An EXPIRED verdict on a module counted by the catalogue fails the gate on every host."
         },
         {
           "id": "assertDesignQuality",
@@ -714,7 +780,7 @@
         {
           "id": "assertDesignReview",
           "status": "FAIL",
-          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in conformance/hlp.ui.breadcrumb/fixtures.yaml, gallery/projections/blazor/Stories/BreadcrumbScenario.razor, gallery/scenarios/hlp.ui.breadcrumb.json, projections/blazor/ui/hlp.ui.breadcrumb/BreadcrumbTypes.cs, projections/blazor/ui/hlp.ui.breadcrumb/wwwroot/breadcrumb.css, projections/react/ui/hlp.ui.breadcrumb/src/Breadcrumb.tsx, specs/modules/ui/hlp.ui.breadcrumb/scenarios.json; no longer has projections/blazor/ui/hlp.ui.breadcrumb/ShipyardBreadcrumb.razor; has gained projections/blazor/ui/hlp.ui.breadcrumb/HarborlineBreadcrumb.razor"
+          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in conformance/hlp.ui.breadcrumb/fixtures.yaml, gallery/projections/blazor/Stories/BreadcrumbScenario.razor, gallery/scenarios/hlp.ui.breadcrumb.json, projections/blazor/ui/hlp.ui.breadcrumb/BreadcrumbTypes.cs, projections/blazor/ui/hlp.ui.breadcrumb/wwwroot/breadcrumb.css, projections/react/ui/hlp.ui.breadcrumb/src/Breadcrumb.tsx, specs/modules/ui/hlp.ui.breadcrumb/scenarios.json; no longer has projections/blazor/ui/hlp.ui.breadcrumb/ShipyardBreadcrumb.razor; has gained projections/blazor/ui/hlp.ui.breadcrumb/HarborlineBreadcrumb.razor; An EXPIRED verdict on a module counted by the catalogue fails the gate on every host."
         },
         {
           "id": "assertDesignQuality",
@@ -792,7 +858,7 @@
         {
           "id": "assertDesignReview",
           "status": "FAIL",
-          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in gallery/projections/blazor/Stories/ButtonScenario.razor, gallery/projections/react/src/Button.stories.tsx, gallery/scenarios/hlp.ui.button.json, projections/blazor/ui/hlp.ui.button/Components/Buttons/ButtonStyleBridge.cs, projections/blazor/ui/hlp.ui.button/HarborlineUiServiceCollectionExtensions.cs, projections/blazor/ui/hlp.ui.button/_Imports.razor, projections/react/ui/hlp.ui.button/scripts/aggregate-entry.ts, projections/react/ui/hlp.ui.button/src/Button.tsx, projections/react/ui/hlp.ui.button/src/ButtonGroup.tsx, projections/react/ui/hlp.ui.button/src/index.ts, projections/react/ui/hlp.ui.button/src/locale.tsx, specs/modules/ui/hlp.ui.button/scenarios.json; no longer has projections/blazor/ui/hlp.ui.button/Base/ShipyardComponentBase.cs, projections/blazor/ui/hlp.ui.button/Components/Buttons/ShipyardButton.razor, projections/blazor/ui/hlp.ui.button/Components/Buttons/ShipyardButton.razor.css, projections/blazor/ui/hlp.ui.button/Localization/ShipyardLocaleContext.cs, projections/blazor/ui/hlp.ui.button/Localization/ShipyardLocaleProvider.razor; has gained projections/blazor/ui/hlp.ui.button/Base/HarborlineComponentBase.cs, projections/blazor/ui/hlp.ui.button/Components/Buttons/HarborlineButton.razor, projections/blazor/ui/hlp.ui.button/Components/Buttons/HarborlineButton.razor.css, projections/blazor/ui/hlp.ui.button/Localization/HarborlineLocaleContext.cs, projections/blazor/ui/hlp.ui.button/Localization/HarborlineLocaleProvider.razor, projections/react/ui/hlp.ui.button/src/render-baseline.ts"
+          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in gallery/projections/blazor/Stories/ButtonScenario.razor, gallery/projections/react/src/Button.stories.tsx, gallery/scenarios/hlp.ui.button.json, projections/blazor/ui/hlp.ui.button/Components/Buttons/ButtonStyleBridge.cs, projections/blazor/ui/hlp.ui.button/HarborlineUiServiceCollectionExtensions.cs, projections/blazor/ui/hlp.ui.button/_Imports.razor, projections/react/ui/hlp.ui.button/scripts/aggregate-entry.ts, projections/react/ui/hlp.ui.button/src/Button.tsx, projections/react/ui/hlp.ui.button/src/ButtonGroup.tsx, projections/react/ui/hlp.ui.button/src/index.ts, projections/react/ui/hlp.ui.button/src/locale.tsx, specs/modules/ui/hlp.ui.button/scenarios.json; no longer has projections/blazor/ui/hlp.ui.button/Base/ShipyardComponentBase.cs, projections/blazor/ui/hlp.ui.button/Components/Buttons/ShipyardButton.razor, projections/blazor/ui/hlp.ui.button/Components/Buttons/ShipyardButton.razor.css, projections/blazor/ui/hlp.ui.button/Localization/ShipyardLocaleContext.cs, projections/blazor/ui/hlp.ui.button/Localization/ShipyardLocaleProvider.razor; has gained projections/blazor/ui/hlp.ui.button/Base/HarborlineComponentBase.cs, projections/blazor/ui/hlp.ui.button/Components/Buttons/HarborlineButton.razor, projections/blazor/ui/hlp.ui.button/Components/Buttons/HarborlineButton.razor.css, projections/blazor/ui/hlp.ui.button/Localization/HarborlineLocaleContext.cs, projections/blazor/ui/hlp.ui.button/Localization/HarborlineLocaleProvider.razor, projections/react/ui/hlp.ui.button/src/render-baseline.ts; An EXPIRED verdict on a module counted by the catalogue fails the gate on every host."
         },
         {
           "id": "assertDesignQuality",
@@ -869,13 +935,13 @@
         },
         {
           "id": "assertDesignReview",
-          "status": "FAIL",
-          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in gallery/projections/blazor/Stories/CardScenario.razor, gallery/scenarios/hlp.ui.card.json, projections/blazor/ui/hlp.ui.card/CardTypes.cs, specs/modules/ui/hlp.ui.card/scenarios.json; no longer has projections/blazor/ui/hlp.ui.card/ShipyardCard.razor, projections/blazor/ui/hlp.ui.card/ShipyardCardContent.razor, projections/blazor/ui/hlp.ui.card/ShipyardCardHeader.razor, projections/blazor/ui/hlp.ui.card/ShipyardCardTitle.razor; has gained projections/blazor/ui/hlp.ui.card/HarborlineCard.razor, projections/blazor/ui/hlp.ui.card/HarborlineCardContent.razor, projections/blazor/ui/hlp.ui.card/HarborlineCardHeader.razor, projections/blazor/ui/hlp.ui.card/HarborlineCardTitle.razor"
+          "status": "PASS",
+          "note": "approved by cic on 2026-08-27T05:35:20.607Z against 17 surface files"
         },
         {
           "id": "assertDesignQuality",
-          "status": "FAIL",
-          "note": "FAIL inherited from assertDesignReview"
+          "status": "UNBUILT",
+          "note": "UNBUILT inherited from assertStateCompleteness, assertEmptyAndErrorStates"
         }
       ]
     },
@@ -948,7 +1014,7 @@
         {
           "id": "assertDesignReview",
           "status": "FAIL",
-          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in conformance/hlp.ui.chart/fixtures.yaml, gallery/projections/blazor/Stories/Chart.stories.razor, gallery/projections/blazor/Stories/ChartScenario.razor, gallery/projections/react/src/Chart.stories.tsx, gallery/scenarios/hlp.ui.chart.json, projections/blazor/ui/hlp.ui.chart/ChartTypes.cs, projections/blazor/ui/hlp.ui.chart/wwwroot/chart.css, projections/react/ui/hlp.ui.chart/src/Chart.tsx, projections/react/ui/hlp.ui.chart/src/Chart.types.ts, projections/react/ui/hlp.ui.chart/src/chart-model.ts, projections/react/ui/hlp.ui.chart/src/style.css, specs/modules/ui/hlp.ui.chart/scenarios.json, specs/modules/ui/hlp.ui.chart/style.css; no longer has projections/blazor/ui/hlp.ui.chart/ShipyardChart.razor; has gained projections/blazor/ui/hlp.ui.chart/HarborlineChart.razor"
+          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in conformance/hlp.ui.chart/fixtures.yaml, gallery/projections/blazor/Stories/Chart.stories.razor, gallery/projections/blazor/Stories/ChartScenario.razor, gallery/projections/react/src/Chart.stories.tsx, gallery/scenarios/hlp.ui.chart.json, projections/blazor/ui/hlp.ui.chart/ChartTypes.cs, projections/blazor/ui/hlp.ui.chart/wwwroot/chart.css, projections/react/ui/hlp.ui.chart/src/Chart.tsx, projections/react/ui/hlp.ui.chart/src/Chart.types.ts, projections/react/ui/hlp.ui.chart/src/chart-model.ts, projections/react/ui/hlp.ui.chart/src/style.css, specs/modules/ui/hlp.ui.chart/scenarios.json, specs/modules/ui/hlp.ui.chart/style.css; no longer has projections/blazor/ui/hlp.ui.chart/ShipyardChart.razor; has gained projections/blazor/ui/hlp.ui.chart/HarborlineChart.razor; An EXPIRED verdict on a module counted by the catalogue fails the gate on every host."
         },
         {
           "id": "assertDesignQuality",
@@ -1026,7 +1092,7 @@
         {
           "id": "assertDesignReview",
           "status": "FAIL",
-          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in conformance/hlp.ui.chat/fixtures.yaml, gallery/projections/blazor/Stories/Chat.stories.razor, gallery/projections/blazor/Stories/ChatScenario.razor, gallery/projections/react/src/Chat.stories.tsx, gallery/scenarios/hlp.ui.chat.json, projections/blazor/ui/hlp.ui.chat/ChatTypes.cs, projections/blazor/ui/hlp.ui.chat/wwwroot/chat.css, projections/react/ui/hlp.ui.chat/src/Chat.tsx, projections/react/ui/hlp.ui.chat/src/Chat.types.ts, projections/react/ui/hlp.ui.chat/src/style.css, specs/modules/ui/hlp.ui.chat/scenarios.json; no longer has projections/blazor/ui/hlp.ui.chat/ShipyardChat.razor; has gained projections/blazor/ui/hlp.ui.chat/HarborlineChat.razor"
+          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in conformance/hlp.ui.chat/fixtures.yaml, gallery/projections/blazor/Stories/Chat.stories.razor, gallery/projections/blazor/Stories/ChatScenario.razor, gallery/projections/react/src/Chat.stories.tsx, gallery/scenarios/hlp.ui.chat.json, projections/blazor/ui/hlp.ui.chat/ChatTypes.cs, projections/blazor/ui/hlp.ui.chat/wwwroot/chat.css, projections/react/ui/hlp.ui.chat/src/Chat.tsx, projections/react/ui/hlp.ui.chat/src/Chat.types.ts, projections/react/ui/hlp.ui.chat/src/style.css, specs/modules/ui/hlp.ui.chat/scenarios.json; no longer has projections/blazor/ui/hlp.ui.chat/ShipyardChat.razor; has gained projections/blazor/ui/hlp.ui.chat/HarborlineChat.razor; An EXPIRED verdict on a module counted by the catalogue fails the gate on every host."
         },
         {
           "id": "assertDesignQuality",
@@ -1104,7 +1170,7 @@
         {
           "id": "assertDesignReview",
           "status": "FAIL",
-          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in conformance/hlp.ui.check-box/fixtures.yaml, gallery/projections/blazor/Stories/CheckBoxScenario.razor, gallery/scenarios/hlp.ui.check-box.json, projections/blazor/ui/hlp.ui.check-box/CheckBoxTypes.cs, projections/blazor/ui/hlp.ui.check-box/wwwroot/check-box.css, specs/modules/ui/hlp.ui.check-box/scenarios.json; no longer has projections/blazor/ui/hlp.ui.check-box/ShipyardCheckBox.razor; has gained projections/blazor/ui/hlp.ui.check-box/HarborlineCheckBox.razor"
+          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in conformance/hlp.ui.check-box/fixtures.yaml, gallery/projections/blazor/Stories/CheckBoxScenario.razor, gallery/scenarios/hlp.ui.check-box.json, projections/blazor/ui/hlp.ui.check-box/CheckBoxTypes.cs, projections/blazor/ui/hlp.ui.check-box/wwwroot/check-box.css, specs/modules/ui/hlp.ui.check-box/scenarios.json; no longer has projections/blazor/ui/hlp.ui.check-box/ShipyardCheckBox.razor; has gained projections/blazor/ui/hlp.ui.check-box/HarborlineCheckBox.razor; An EXPIRED verdict on a module counted by the catalogue fails the gate on every host."
         },
         {
           "id": "assertDesignQuality",
@@ -1182,7 +1248,7 @@
         {
           "id": "assertDesignReview",
           "status": "FAIL",
-          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in gallery/projections/blazor/Stories/ChipScenario.razor, gallery/scenarios/hlp.ui.chip.json, projections/blazor/ui/hlp.ui.chip/ChipTypes.cs, projections/blazor/ui/hlp.ui.chip/wwwroot/chip.css, projections/react/ui/hlp.ui.chip/src/Chip.tsx, specs/modules/ui/hlp.ui.chip/scenarios.json; no longer has projections/blazor/ui/hlp.ui.chip/ShipyardChip.razor; has gained projections/blazor/ui/hlp.ui.chip/HarborlineChip.razor"
+          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in gallery/projections/blazor/Stories/ChipScenario.razor, gallery/scenarios/hlp.ui.chip.json, projections/blazor/ui/hlp.ui.chip/ChipTypes.cs, projections/blazor/ui/hlp.ui.chip/wwwroot/chip.css, projections/react/ui/hlp.ui.chip/src/Chip.tsx, specs/modules/ui/hlp.ui.chip/scenarios.json; no longer has projections/blazor/ui/hlp.ui.chip/ShipyardChip.razor; has gained projections/blazor/ui/hlp.ui.chip/HarborlineChip.razor; An EXPIRED verdict on a module counted by the catalogue fails the gate on every host."
         },
         {
           "id": "assertDesignQuality",
@@ -1337,13 +1403,13 @@
         },
         {
           "id": "assertDesignReview",
-          "status": "FAIL",
-          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in gallery/projections/blazor/Stories/CollapsibleScenario.razor, gallery/scenarios/hlp.ui.collapsible.json, specs/modules/ui/hlp.ui.collapsible/scenarios.json; no longer has projections/blazor/ui/hlp.ui.collapsible/ShipyardCollapsible.razor; has gained projections/blazor/ui/hlp.ui.collapsible/HarborlineCollapsible.razor"
+          "status": "PASS",
+          "note": "approved by cic on 2026-08-26T20:11:48.924Z against 13 surface files"
         },
         {
           "id": "assertDesignQuality",
-          "status": "FAIL",
-          "note": "FAIL inherited from assertDesignReview"
+          "status": "UNBUILT",
+          "note": "UNBUILT inherited from assertEmptyAndErrorStates"
         }
       ]
     },
@@ -1416,7 +1482,7 @@
         {
           "id": "assertDesignReview",
           "status": "FAIL",
-          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in conformance/hlp.ui.confirm-dialog/fixtures.yaml, gallery/projections/blazor/Stories/ConfirmDialogScenario.razor, gallery/projections/react/src/ConfirmDialog.stories.tsx, gallery/scenarios/hlp.ui.confirm-dialog.json, projections/blazor/ui/hlp.ui.confirm-dialog/ConfirmDialogVariant.cs, projections/react/ui/hlp.ui.confirm-dialog/src/ConfirmDialog.tsx, specs/modules/ui/hlp.ui.confirm-dialog/scenarios.json; no longer has projections/blazor/ui/hlp.ui.confirm-dialog/ShipyardConfirmDialog.razor; has gained projections/blazor/ui/hlp.ui.confirm-dialog/HarborlineConfirmDialog.razor"
+          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in conformance/hlp.ui.confirm-dialog/fixtures.yaml, gallery/projections/blazor/Stories/ConfirmDialogScenario.razor, gallery/projections/react/src/ConfirmDialog.stories.tsx, gallery/scenarios/hlp.ui.confirm-dialog.json, projections/blazor/ui/hlp.ui.confirm-dialog/ConfirmDialogVariant.cs, projections/react/ui/hlp.ui.confirm-dialog/src/ConfirmDialog.tsx, specs/modules/ui/hlp.ui.confirm-dialog/scenarios.json; no longer has projections/blazor/ui/hlp.ui.confirm-dialog/ShipyardConfirmDialog.razor; has gained projections/blazor/ui/hlp.ui.confirm-dialog/HarborlineConfirmDialog.razor; An EXPIRED verdict on a module counted by the catalogue fails the gate on every host."
         },
         {
           "id": "assertDesignQuality",
@@ -1494,7 +1560,7 @@
         {
           "id": "assertDesignReview",
           "status": "FAIL",
-          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in gallery/projections/blazor/Stories/ContextMenu.stories.razor, gallery/projections/blazor/Stories/ContextMenuScenario.razor, gallery/projections/react/src/ContextMenu.stories.tsx, gallery/scenarios/hlp.ui.context-menu.json, projections/blazor/ui/hlp.ui.context-menu/ContextMenuModel.cs, specs/modules/ui/hlp.ui.context-menu/scenarios.json; no longer has projections/blazor/ui/hlp.ui.context-menu/ShipyardContextMenu.razor; has gained projections/blazor/ui/hlp.ui.context-menu/HarborlineContextMenu.razor"
+          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in gallery/projections/blazor/Stories/ContextMenu.stories.razor, gallery/projections/blazor/Stories/ContextMenuScenario.razor, gallery/projections/react/src/ContextMenu.stories.tsx, gallery/scenarios/hlp.ui.context-menu.json, projections/blazor/ui/hlp.ui.context-menu/ContextMenuModel.cs, specs/modules/ui/hlp.ui.context-menu/scenarios.json; no longer has projections/blazor/ui/hlp.ui.context-menu/ShipyardContextMenu.razor; has gained projections/blazor/ui/hlp.ui.context-menu/HarborlineContextMenu.razor; An EXPIRED verdict on a module counted by the catalogue fails the gate on every host."
         },
         {
           "id": "assertDesignQuality",
@@ -1572,7 +1638,7 @@
         {
           "id": "assertDesignReview",
           "status": "FAIL",
-          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in conformance/hlp.ui.conversation-list/fixtures.yaml, gallery/projections/blazor/Stories/ConversationListScenario.razor, gallery/scenarios/hlp.ui.conversation-list.json, projections/blazor/ui/hlp.ui.conversation-list/ConversationListTypes.cs, projections/blazor/ui/hlp.ui.conversation-list/ResolvedConversationLabels.cs, projections/blazor/ui/hlp.ui.conversation-list/wwwroot/conversation-list.css, projections/react/ui/hlp.ui.conversation-list/src/ConversationList.tsx, specs/modules/ui/hlp.ui.conversation-list/scenarios.json; no longer has projections/blazor/ui/hlp.ui.conversation-list/ShipyardConversationList.razor, projections/blazor/ui/hlp.ui.conversation-list/ShipyardConversationRow.razor; has gained projections/blazor/ui/hlp.ui.conversation-list/HarborlineConversationList.razor, projections/blazor/ui/hlp.ui.conversation-list/HarborlineConversationRow.razor"
+          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in conformance/hlp.ui.conversation-list/fixtures.yaml, gallery/projections/blazor/Stories/ConversationListScenario.razor, gallery/scenarios/hlp.ui.conversation-list.json, projections/blazor/ui/hlp.ui.conversation-list/ConversationListTypes.cs, projections/blazor/ui/hlp.ui.conversation-list/ResolvedConversationLabels.cs, projections/blazor/ui/hlp.ui.conversation-list/wwwroot/conversation-list.css, projections/react/ui/hlp.ui.conversation-list/src/ConversationList.tsx, specs/modules/ui/hlp.ui.conversation-list/scenarios.json; no longer has projections/blazor/ui/hlp.ui.conversation-list/ShipyardConversationList.razor, projections/blazor/ui/hlp.ui.conversation-list/ShipyardConversationRow.razor; has gained projections/blazor/ui/hlp.ui.conversation-list/HarborlineConversationList.razor, projections/blazor/ui/hlp.ui.conversation-list/HarborlineConversationRow.razor; An EXPIRED verdict on a module counted by the catalogue fails the gate on every host."
         },
         {
           "id": "assertDesignQuality",
@@ -1650,7 +1716,7 @@
         {
           "id": "assertDesignReview",
           "status": "FAIL",
-          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in gallery/projections/blazor/Stories/DataExportButtonScenario.razor, gallery/scenarios/hlp.ui.data-export-button.json, projections/blazor/ui/hlp.ui.data-export-button/DataExportTypes.cs, projections/react/ui/hlp.ui.data-export-button/src/DataExportButton.tsx, specs/modules/ui/hlp.ui.data-export-button/scenarios.json; no longer has projections/blazor/ui/hlp.ui.data-export-button/ShipyardDataExportButton.razor; has gained projections/blazor/ui/hlp.ui.data-export-button/HarborlineDataExportButton.razor"
+          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in gallery/projections/blazor/Stories/DataExportButtonScenario.razor, gallery/scenarios/hlp.ui.data-export-button.json, projections/blazor/ui/hlp.ui.data-export-button/DataExportTypes.cs, projections/react/ui/hlp.ui.data-export-button/src/DataExportButton.tsx, specs/modules/ui/hlp.ui.data-export-button/scenarios.json; no longer has projections/blazor/ui/hlp.ui.data-export-button/ShipyardDataExportButton.razor; has gained projections/blazor/ui/hlp.ui.data-export-button/HarborlineDataExportButton.razor; An EXPIRED verdict on a module counted by the catalogue fails the gate on every host."
         },
         {
           "id": "assertDesignQuality",
@@ -1728,7 +1794,7 @@
         {
           "id": "assertDesignReview",
           "status": "FAIL",
-          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in conformance/hlp.ui.data-grid/fixtures.yaml, gallery/projections/blazor/Stories/DataGrid.stories.razor, gallery/projections/blazor/Stories/DataGridScenario.razor, gallery/projections/react/src/DataGrid.stories.tsx, gallery/scenarios/hlp.ui.data-grid.json, projections/blazor/ui/hlp.ui.data-grid/DataGridTypes.cs, projections/blazor/ui/hlp.ui.data-grid/wwwroot/data-grid-component.js, projections/blazor/ui/hlp.ui.data-grid/wwwroot/data-grid.css, projections/react/ui/hlp.ui.data-grid/src/DataGrid.tsx, projections/react/ui/hlp.ui.data-grid/src/DataGrid.types.ts, projections/react/ui/hlp.ui.data-grid/src/data-grid-model.ts, projections/react/ui/hlp.ui.data-grid/src/index.ts, projections/react/ui/hlp.ui.data-grid/src/style.css, specs/modules/ui/hlp.ui.data-grid/scenarios.json, specs/modules/ui/hlp.ui.data-grid/style.css; no longer has projections/blazor/ui/hlp.ui.data-grid/ShipyardDataGrid.razor; has gained conformance/hlp.ui.data-grid/lazy-children-v1.json, conformance/hlp.ui.data-grid/selection-v1.json, conformance/hlp.ui.data-grid/slice-1-grid.json, projections/blazor/ui/hlp.ui.data-grid/HarborlineDataGrid.razor"
+          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in conformance/hlp.ui.data-grid/fixtures.yaml, gallery/projections/blazor/Stories/DataGrid.stories.razor, gallery/projections/blazor/Stories/DataGridScenario.razor, gallery/projections/react/src/DataGrid.stories.tsx, gallery/scenarios/hlp.ui.data-grid.json, projections/blazor/ui/hlp.ui.data-grid/DataGridTypes.cs, projections/blazor/ui/hlp.ui.data-grid/wwwroot/data-grid-component.js, projections/blazor/ui/hlp.ui.data-grid/wwwroot/data-grid.css, projections/react/ui/hlp.ui.data-grid/src/DataGrid.tsx, projections/react/ui/hlp.ui.data-grid/src/DataGrid.types.ts, projections/react/ui/hlp.ui.data-grid/src/data-grid-model.ts, projections/react/ui/hlp.ui.data-grid/src/index.ts, projections/react/ui/hlp.ui.data-grid/src/style.css, specs/modules/ui/hlp.ui.data-grid/scenarios.json, specs/modules/ui/hlp.ui.data-grid/style.css; no longer has projections/blazor/ui/hlp.ui.data-grid/ShipyardDataGrid.razor; has gained conformance/hlp.ui.data-grid/lazy-children-v1.json, conformance/hlp.ui.data-grid/selection-v1.json, conformance/hlp.ui.data-grid/slice-1-grid.json, projections/blazor/ui/hlp.ui.data-grid/HarborlineDataGrid.razor; An EXPIRED verdict on a module counted by the catalogue fails the gate on every host."
         },
         {
           "id": "assertDesignQuality",
@@ -1806,7 +1872,7 @@
         {
           "id": "assertDesignReview",
           "status": "FAIL",
-          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in gallery/projections/blazor/Stories/DateFieldScenario.razor, gallery/projections/react/src/DateField.stories.tsx, gallery/scenarios/hlp.ui.date-field.json, specs/modules/ui/hlp.ui.date-field/scenarios.json; no longer has projections/blazor/ui/hlp.ui.date-field/ShipyardDateField.razor; has gained projections/blazor/ui/hlp.ui.date-field/HarborlineDateField.razor"
+          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in gallery/projections/blazor/Stories/DateFieldScenario.razor, gallery/projections/react/src/DateField.stories.tsx, gallery/scenarios/hlp.ui.date-field.json, specs/modules/ui/hlp.ui.date-field/scenarios.json; no longer has projections/blazor/ui/hlp.ui.date-field/ShipyardDateField.razor; has gained projections/blazor/ui/hlp.ui.date-field/HarborlineDateField.razor; An EXPIRED verdict on a module counted by the catalogue fails the gate on every host."
         },
         {
           "id": "assertDesignQuality",
@@ -1884,7 +1950,7 @@
         {
           "id": "assertDesignReview",
           "status": "FAIL",
-          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in gallery/projections/blazor/Stories/DateTimeFieldScenario.razor, gallery/projections/react/src/DateTimeField.stories.tsx, gallery/scenarios/hlp.ui.date-time-field.json, specs/modules/ui/hlp.ui.date-time-field/scenarios.json; no longer has projections/blazor/ui/hlp.ui.date-time-field/ShipyardDateTimeField.razor; has gained projections/blazor/ui/hlp.ui.date-time-field/HarborlineDateTimeField.razor"
+          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in gallery/projections/blazor/Stories/DateTimeFieldScenario.razor, gallery/projections/react/src/DateTimeField.stories.tsx, gallery/scenarios/hlp.ui.date-time-field.json, specs/modules/ui/hlp.ui.date-time-field/scenarios.json; no longer has projections/blazor/ui/hlp.ui.date-time-field/ShipyardDateTimeField.razor; has gained projections/blazor/ui/hlp.ui.date-time-field/HarborlineDateTimeField.razor; An EXPIRED verdict on a module counted by the catalogue fails the gate on every host."
         },
         {
           "id": "assertDesignQuality",
@@ -2040,7 +2106,7 @@
         {
           "id": "assertDesignReview",
           "status": "FAIL",
-          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in conformance/hlp.ui.detail-panel/fixtures.yaml, gallery/projections/blazor/Stories/DetailPanelScenario.razor, gallery/projections/react/src/DetailPanel.stories.tsx, gallery/scenarios/hlp.ui.detail-panel.json, projections/blazor/ui/hlp.ui.detail-panel/wwwroot/detail-panel.css, projections/react/ui/hlp.ui.detail-panel/src/DetailPanel.tsx, projections/react/ui/hlp.ui.detail-panel/src/index.ts, projections/react/ui/hlp.ui.detail-panel/src/style.css, specs/modules/ui/hlp.ui.detail-panel/scenarios.json, specs/modules/ui/hlp.ui.detail-panel/style.css; no longer has projections/blazor/ui/hlp.ui.detail-panel/ShipyardDetailPanel.razor; has gained conformance/hlp.ui.detail-panel/drilldown-v1.json, projections/blazor/ui/hlp.ui.detail-panel/DetailPanelTypes.cs, projections/blazor/ui/hlp.ui.detail-panel/HarborlineDetailPanel.razor, projections/blazor/ui/hlp.ui.detail-panel/wwwroot/detail-panel-tabs.js"
+          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in conformance/hlp.ui.detail-panel/fixtures.yaml, gallery/projections/blazor/Stories/DetailPanelScenario.razor, gallery/projections/react/src/DetailPanel.stories.tsx, gallery/scenarios/hlp.ui.detail-panel.json, projections/blazor/ui/hlp.ui.detail-panel/wwwroot/detail-panel.css, projections/react/ui/hlp.ui.detail-panel/src/DetailPanel.tsx, projections/react/ui/hlp.ui.detail-panel/src/index.ts, projections/react/ui/hlp.ui.detail-panel/src/style.css, specs/modules/ui/hlp.ui.detail-panel/scenarios.json, specs/modules/ui/hlp.ui.detail-panel/style.css; no longer has projections/blazor/ui/hlp.ui.detail-panel/ShipyardDetailPanel.razor; has gained conformance/hlp.ui.detail-panel/drilldown-v1.json, projections/blazor/ui/hlp.ui.detail-panel/DetailPanelTypes.cs, projections/blazor/ui/hlp.ui.detail-panel/HarborlineDetailPanel.razor, projections/blazor/ui/hlp.ui.detail-panel/wwwroot/detail-panel-tabs.js; An EXPIRED verdict on a module counted by the catalogue fails the gate on every host."
         },
         {
           "id": "assertDesignQuality",
@@ -2118,7 +2184,7 @@
         {
           "id": "assertDesignReview",
           "status": "FAIL",
-          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in gallery/projections/blazor/Stories/DialogScenario.razor, gallery/projections/react/src/Dialog.stories.tsx, gallery/scenarios/hlp.ui.dialog.json, projections/blazor/ui/hlp.ui.dialog/wwwroot/dialog.css, projections/react/ui/hlp.ui.dialog/src/Dialog.tsx, projections/react/ui/hlp.ui.dialog/src/style.css, specs/modules/ui/hlp.ui.dialog/scenarios.json, specs/modules/ui/hlp.ui.dialog/style.css; no longer has projections/blazor/ui/hlp.ui.dialog/ShipyardDialog.razor; has gained projections/blazor/ui/hlp.ui.dialog/HarborlineDialog.razor"
+          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in gallery/projections/blazor/Stories/DialogScenario.razor, gallery/projections/react/src/Dialog.stories.tsx, gallery/scenarios/hlp.ui.dialog.json, projections/blazor/ui/hlp.ui.dialog/wwwroot/dialog.css, projections/react/ui/hlp.ui.dialog/src/Dialog.tsx, projections/react/ui/hlp.ui.dialog/src/style.css, specs/modules/ui/hlp.ui.dialog/scenarios.json, specs/modules/ui/hlp.ui.dialog/style.css; no longer has projections/blazor/ui/hlp.ui.dialog/ShipyardDialog.razor; has gained projections/blazor/ui/hlp.ui.dialog/HarborlineDialog.razor; An EXPIRED verdict on a module counted by the catalogue fails the gate on every host."
         },
         {
           "id": "assertDesignQuality",
@@ -2196,7 +2262,7 @@
         {
           "id": "assertDesignReview",
           "status": "FAIL",
-          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in gallery/projections/blazor/Stories/EmptyStateScenario.razor, gallery/scenarios/hlp.ui.empty-state.json, projections/blazor/ui/hlp.ui.empty-state/EmptyStateVariant.cs, projections/blazor/ui/hlp.ui.empty-state/wwwroot/empty-state.css, specs/modules/ui/hlp.ui.empty-state/scenarios.json; no longer has projections/blazor/ui/hlp.ui.empty-state/ShipyardEmptyState.razor; has gained projections/blazor/ui/hlp.ui.empty-state/HarborlineEmptyState.razor"
+          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in gallery/projections/blazor/Stories/EmptyStateScenario.razor, gallery/scenarios/hlp.ui.empty-state.json, projections/blazor/ui/hlp.ui.empty-state/EmptyStateVariant.cs, projections/blazor/ui/hlp.ui.empty-state/wwwroot/empty-state.css, specs/modules/ui/hlp.ui.empty-state/scenarios.json; no longer has projections/blazor/ui/hlp.ui.empty-state/ShipyardEmptyState.razor; has gained projections/blazor/ui/hlp.ui.empty-state/HarborlineEmptyState.razor; An EXPIRED verdict on a module counted by the catalogue fails the gate on every host."
         },
         {
           "id": "assertDesignQuality",
@@ -2274,7 +2340,7 @@
         {
           "id": "assertDesignReview",
           "status": "FAIL",
-          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in conformance/hlp.ui.error-card/fixtures.yaml, gallery/projections/blazor/Stories/ErrorCardScenario.razor, gallery/scenarios/hlp.ui.error-card.json, projections/blazor/ui/hlp.ui.error-card/ErrorCardVariant.cs, projections/blazor/ui/hlp.ui.error-card/wwwroot/feedback.css, specs/modules/ui/hlp.ui.error-card/scenarios.json; no longer has projections/blazor/ui/hlp.ui.error-card/ShipyardErrorCard.razor; has gained projections/blazor/ui/hlp.ui.error-card/HarborlineErrorCard.razor"
+          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in conformance/hlp.ui.error-card/fixtures.yaml, gallery/projections/blazor/Stories/ErrorCardScenario.razor, gallery/scenarios/hlp.ui.error-card.json, projections/blazor/ui/hlp.ui.error-card/ErrorCardVariant.cs, projections/blazor/ui/hlp.ui.error-card/wwwroot/feedback.css, specs/modules/ui/hlp.ui.error-card/scenarios.json; no longer has projections/blazor/ui/hlp.ui.error-card/ShipyardErrorCard.razor; has gained projections/blazor/ui/hlp.ui.error-card/HarborlineErrorCard.razor; An EXPIRED verdict on a module counted by the catalogue fails the gate on every host."
         },
         {
           "id": "assertDesignQuality",
@@ -2352,7 +2418,7 @@
         {
           "id": "assertDesignReview",
           "status": "FAIL",
-          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in gallery/projections/blazor/Stories/FormFieldScenario.razor, gallery/projections/react/src/FormField.stories.tsx, gallery/scenarios/hlp.ui.form-field.json, projections/blazor/ui/hlp.ui.form-field/FormFieldContextValue.cs, projections/blazor/ui/hlp.ui.form-field/wwwroot/form-field.css, specs/modules/ui/hlp.ui.form-field/scenarios.json; no longer has projections/blazor/ui/hlp.ui.form-field/ShipyardFormField.razor; has gained projections/blazor/ui/hlp.ui.form-field/HarborlineFormField.razor"
+          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in gallery/projections/blazor/Stories/FormFieldScenario.razor, gallery/projections/react/src/FormField.stories.tsx, gallery/scenarios/hlp.ui.form-field.json, projections/blazor/ui/hlp.ui.form-field/FormFieldContextValue.cs, projections/blazor/ui/hlp.ui.form-field/wwwroot/form-field.css, specs/modules/ui/hlp.ui.form-field/scenarios.json; no longer has projections/blazor/ui/hlp.ui.form-field/ShipyardFormField.razor; has gained projections/blazor/ui/hlp.ui.form-field/HarborlineFormField.razor; An EXPIRED verdict on a module counted by the catalogue fails the gate on every host."
         },
         {
           "id": "assertDesignQuality",
@@ -2508,7 +2574,7 @@
         {
           "id": "assertDesignReview",
           "status": "FAIL",
-          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in conformance/hlp.ui.gantt/fixtures.yaml, gallery/projections/blazor/Stories/GanttScenario.razor, gallery/projections/react/src/Gantt.stories.tsx, gallery/scenarios/hlp.ui.gantt.json, projections/blazor/ui/hlp.ui.gantt/GanttTypes.cs, projections/react/ui/hlp.ui.gantt/src/Gantt.tsx, projections/react/ui/hlp.ui.gantt/src/Gantt.types.ts, specs/modules/ui/hlp.ui.gantt/scenarios.json; no longer has projections/blazor/ui/hlp.ui.gantt/ShipyardGantt.razor; has gained projections/blazor/ui/hlp.ui.gantt/HarborlineGantt.razor"
+          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in conformance/hlp.ui.gantt/fixtures.yaml, gallery/projections/blazor/Stories/GanttScenario.razor, gallery/projections/react/src/Gantt.stories.tsx, gallery/scenarios/hlp.ui.gantt.json, projections/blazor/ui/hlp.ui.gantt/GanttTypes.cs, projections/react/ui/hlp.ui.gantt/src/Gantt.tsx, projections/react/ui/hlp.ui.gantt/src/Gantt.types.ts, specs/modules/ui/hlp.ui.gantt/scenarios.json; no longer has projections/blazor/ui/hlp.ui.gantt/ShipyardGantt.razor; has gained projections/blazor/ui/hlp.ui.gantt/HarborlineGantt.razor; An EXPIRED verdict on a module counted by the catalogue fails the gate on every host."
         },
         {
           "id": "assertDesignQuality",
@@ -2586,7 +2652,7 @@
         {
           "id": "assertDesignReview",
           "status": "FAIL",
-          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in gallery/projections/blazor/Stories/GuardedControlScenario.razor, gallery/projections/react/src/GuardedControl.stories.tsx, gallery/scenarios/hlp.ui.guarded-control.json, projections/blazor/ui/hlp.ui.guarded-control/GuardedControlTypes.cs, projections/react/ui/hlp.ui.guarded-control/src/GuardedControl.tsx, specs/modules/ui/hlp.ui.guarded-control/scenarios.json; no longer has projections/blazor/ui/hlp.ui.guarded-control/ShipyardGuardedControl.razor; has gained projections/blazor/ui/hlp.ui.guarded-control/HarborlineGuardedControl.razor"
+          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in gallery/projections/blazor/Stories/GuardedControlScenario.razor, gallery/projections/react/src/GuardedControl.stories.tsx, gallery/scenarios/hlp.ui.guarded-control.json, projections/blazor/ui/hlp.ui.guarded-control/GuardedControlTypes.cs, projections/react/ui/hlp.ui.guarded-control/src/GuardedControl.tsx, specs/modules/ui/hlp.ui.guarded-control/scenarios.json; no longer has projections/blazor/ui/hlp.ui.guarded-control/ShipyardGuardedControl.razor; has gained projections/blazor/ui/hlp.ui.guarded-control/HarborlineGuardedControl.razor; An EXPIRED verdict on a module counted by the catalogue fails the gate on every host."
         },
         {
           "id": "assertDesignQuality",
@@ -2664,7 +2730,7 @@
         {
           "id": "assertDesignReview",
           "status": "FAIL",
-          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in gallery/projections/blazor/Stories/IconButtonScenario.razor, gallery/scenarios/hlp.ui.icon-button.json, projections/blazor/ui/hlp.ui.icon-button/IconButtonTypes.cs, projections/blazor/ui/hlp.ui.icon-button/wwwroot/icon-button.css, specs/modules/ui/hlp.ui.icon-button/scenarios.json; no longer has projections/blazor/ui/hlp.ui.icon-button/ShipyardIconButton.razor; has gained projections/blazor/ui/hlp.ui.icon-button/HarborlineIconButton.razor"
+          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in gallery/projections/blazor/Stories/IconButtonScenario.razor, gallery/scenarios/hlp.ui.icon-button.json, projections/blazor/ui/hlp.ui.icon-button/IconButtonTypes.cs, projections/blazor/ui/hlp.ui.icon-button/wwwroot/icon-button.css, specs/modules/ui/hlp.ui.icon-button/scenarios.json; no longer has projections/blazor/ui/hlp.ui.icon-button/ShipyardIconButton.razor; has gained projections/blazor/ui/hlp.ui.icon-button/HarborlineIconButton.razor; An EXPIRED verdict on a module counted by the catalogue fails the gate on every host."
         },
         {
           "id": "assertDesignQuality",
@@ -2742,7 +2808,7 @@
         {
           "id": "assertDesignReview",
           "status": "FAIL",
-          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in gallery/projections/blazor/Stories/InputScenario.razor, gallery/scenarios/hlp.ui.input.json, projections/blazor/ui/hlp.ui.input/InputTypes.cs, projections/blazor/ui/hlp.ui.input/wwwroot/input.css, specs/modules/ui/hlp.ui.input/scenarios.json; no longer has projections/blazor/ui/hlp.ui.input/ShipyardInput.razor; has gained projections/blazor/ui/hlp.ui.input/HarborlineInput.razor"
+          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in gallery/projections/blazor/Stories/InputScenario.razor, gallery/scenarios/hlp.ui.input.json, projections/blazor/ui/hlp.ui.input/InputTypes.cs, projections/blazor/ui/hlp.ui.input/wwwroot/input.css, specs/modules/ui/hlp.ui.input/scenarios.json; no longer has projections/blazor/ui/hlp.ui.input/ShipyardInput.razor; has gained projections/blazor/ui/hlp.ui.input/HarborlineInput.razor; An EXPIRED verdict on a module counted by the catalogue fails the gate on every host."
         },
         {
           "id": "assertDesignQuality",
@@ -2820,7 +2886,7 @@
         {
           "id": "assertDesignReview",
           "status": "FAIL",
-          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in conformance/hlp.ui.layers-rail/fixtures.yaml, gallery/projections/react/src/LayersRail.stories.tsx, gallery/scenarios/hlp.ui.layers-rail.json, projections/react/ui/hlp.ui.layers-rail/src/LayersRail.tsx, specs/modules/ui/hlp.ui.layers-rail/scenarios.json; no longer has projections/blazor/ui/hlp.ui.layers-rail/ShipyardLayersRail.razor; has gained projections/blazor/ui/hlp.ui.layers-rail/HarborlineLayersRail.razor"
+          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in conformance/hlp.ui.layers-rail/fixtures.yaml, gallery/projections/react/src/LayersRail.stories.tsx, gallery/scenarios/hlp.ui.layers-rail.json, projections/react/ui/hlp.ui.layers-rail/src/LayersRail.tsx, specs/modules/ui/hlp.ui.layers-rail/scenarios.json; no longer has projections/blazor/ui/hlp.ui.layers-rail/ShipyardLayersRail.razor; has gained projections/blazor/ui/hlp.ui.layers-rail/HarborlineLayersRail.razor; An EXPIRED verdict on a module counted by the catalogue fails the gate on every host."
         },
         {
           "id": "assertDesignQuality",
@@ -2976,7 +3042,7 @@
         {
           "id": "assertDesignReview",
           "status": "FAIL",
-          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in conformance/hlp.ui.loading-state/fixtures.yaml, gallery/projections/blazor/Stories/LoadingStateScenario.razor, gallery/scenarios/hlp.ui.loading-state.json, projections/blazor/ui/hlp.ui.loading-state/LoadingStateVariant.cs, specs/modules/ui/hlp.ui.loading-state/scenarios.json; no longer has projections/blazor/ui/hlp.ui.loading-state/ShipyardLoadingState.razor; has gained projections/blazor/ui/hlp.ui.loading-state/HarborlineLoadingState.razor, projections/blazor/ui/hlp.ui.loading-state/wwwroot/loading-state.css"
+          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in conformance/hlp.ui.loading-state/fixtures.yaml, gallery/projections/blazor/Stories/LoadingStateScenario.razor, gallery/scenarios/hlp.ui.loading-state.json, projections/blazor/ui/hlp.ui.loading-state/LoadingStateVariant.cs, specs/modules/ui/hlp.ui.loading-state/scenarios.json; no longer has projections/blazor/ui/hlp.ui.loading-state/ShipyardLoadingState.razor; has gained projections/blazor/ui/hlp.ui.loading-state/HarborlineLoadingState.razor, projections/blazor/ui/hlp.ui.loading-state/wwwroot/loading-state.css; An EXPIRED verdict on a module counted by the catalogue fails the gate on every host."
         },
         {
           "id": "assertDesignQuality",
@@ -3132,7 +3198,7 @@
         {
           "id": "assertDesignReview",
           "status": "FAIL",
-          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in conformance/hlp.ui.notification-center/fixtures.yaml, gallery/projections/blazor/Stories/NotificationCenterScenario.razor, gallery/projections/react/src/NotificationCenter.stories.tsx, gallery/scenarios/hlp.ui.notification-center.json, projections/blazor/ui/hlp.ui.notification-center/NotificationCenterTypes.cs, projections/blazor/ui/hlp.ui.notification-center/wwwroot/notification-center.css, specs/modules/ui/hlp.ui.notification-center/scenarios.json; no longer has projections/blazor/ui/hlp.ui.notification-center/ShipyardNotificationCenter.razor; has gained projections/blazor/ui/hlp.ui.notification-center/HarborlineNotificationCenter.razor"
+          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in conformance/hlp.ui.notification-center/fixtures.yaml, gallery/projections/blazor/Stories/NotificationCenterScenario.razor, gallery/projections/react/src/NotificationCenter.stories.tsx, gallery/scenarios/hlp.ui.notification-center.json, projections/blazor/ui/hlp.ui.notification-center/NotificationCenterTypes.cs, projections/blazor/ui/hlp.ui.notification-center/wwwroot/notification-center.css, specs/modules/ui/hlp.ui.notification-center/scenarios.json; no longer has projections/blazor/ui/hlp.ui.notification-center/ShipyardNotificationCenter.razor; has gained projections/blazor/ui/hlp.ui.notification-center/HarborlineNotificationCenter.razor; An EXPIRED verdict on a module counted by the catalogue fails the gate on every host."
         },
         {
           "id": "assertDesignQuality",
@@ -3210,7 +3276,7 @@
         {
           "id": "assertDesignReview",
           "status": "FAIL",
-          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in gallery/projections/blazor/Stories/NumberFieldScenario.razor, gallery/projections/react/src/NumberField.stories.tsx, gallery/scenarios/hlp.ui.number-field.json, projections/blazor/ui/hlp.ui.number-field/wwwroot/number-field.css, specs/modules/ui/hlp.ui.number-field/scenarios.json; no longer has projections/blazor/ui/hlp.ui.number-field/ShipyardNumberField.razor; has gained projections/blazor/ui/hlp.ui.number-field/HarborlineNumberField.razor"
+          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in gallery/projections/blazor/Stories/NumberFieldScenario.razor, gallery/projections/react/src/NumberField.stories.tsx, gallery/scenarios/hlp.ui.number-field.json, projections/blazor/ui/hlp.ui.number-field/wwwroot/number-field.css, specs/modules/ui/hlp.ui.number-field/scenarios.json; no longer has projections/blazor/ui/hlp.ui.number-field/ShipyardNumberField.razor; has gained projections/blazor/ui/hlp.ui.number-field/HarborlineNumberField.razor; An EXPIRED verdict on a module counted by the catalogue fails the gate on every host."
         },
         {
           "id": "assertDesignQuality",
@@ -3288,7 +3354,7 @@
         {
           "id": "assertDesignReview",
           "status": "FAIL",
-          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in conformance/hlp.ui.numeric-text-box/fixtures.yaml, gallery/projections/blazor/Stories/NumericTextBoxScenario.razor, gallery/projections/react/src/NumericTextBox.stories.tsx, gallery/scenarios/hlp.ui.numeric-text-box.json, projections/blazor/ui/hlp.ui.numeric-text-box/NumericTextBoxTypes.cs, projections/blazor/ui/hlp.ui.numeric-text-box/wwwroot/numeric-text-box.css, projections/react/ui/hlp.ui.numeric-text-box/src/NumericTextBox.tsx, projections/react/ui/hlp.ui.numeric-text-box/src/NumericTextBox.types.ts, specs/modules/ui/hlp.ui.numeric-text-box/scenarios.json; no longer has projections/blazor/ui/hlp.ui.numeric-text-box/ShipyardNumericTextBox.razor; has gained projections/blazor/ui/hlp.ui.numeric-text-box/HarborlineNumericTextBox.razor"
+          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in conformance/hlp.ui.numeric-text-box/fixtures.yaml, gallery/projections/blazor/Stories/NumericTextBoxScenario.razor, gallery/projections/react/src/NumericTextBox.stories.tsx, gallery/scenarios/hlp.ui.numeric-text-box.json, projections/blazor/ui/hlp.ui.numeric-text-box/NumericTextBoxTypes.cs, projections/blazor/ui/hlp.ui.numeric-text-box/wwwroot/numeric-text-box.css, projections/react/ui/hlp.ui.numeric-text-box/src/NumericTextBox.tsx, projections/react/ui/hlp.ui.numeric-text-box/src/NumericTextBox.types.ts, specs/modules/ui/hlp.ui.numeric-text-box/scenarios.json; no longer has projections/blazor/ui/hlp.ui.numeric-text-box/ShipyardNumericTextBox.razor; has gained projections/blazor/ui/hlp.ui.numeric-text-box/HarborlineNumericTextBox.razor; An EXPIRED verdict on a module counted by the catalogue fails the gate on every host."
         },
         {
           "id": "assertDesignQuality",
@@ -3365,13 +3431,13 @@
         },
         {
           "id": "assertDesignReview",
-          "status": "FAIL",
-          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in gallery/projections/blazor/Stories/PageScenario.razor, gallery/scenarios/hlp.ui.page.json, projections/blazor/ui/hlp.ui.page/PageTypes.cs, specs/modules/ui/hlp.ui.page/scenarios.json; no longer has projections/blazor/ui/hlp.ui.page/ShipyardPage.razor; has gained projections/blazor/ui/hlp.ui.page/HarborlinePage.razor"
+          "status": "PASS",
+          "note": "approved by cic on 2026-08-27T05:31:55.093Z against 14 surface files"
         },
         {
           "id": "assertDesignQuality",
-          "status": "FAIL",
-          "note": "FAIL inherited from assertDesignReview"
+          "status": "UNBUILT",
+          "note": "UNBUILT inherited from assertStateCompleteness, assertEmptyAndErrorStates"
         }
       ]
     },
@@ -3399,7 +3465,7 @@
         {
           "id": "assertFunctionalParity",
           "status": "PASS",
-          "note": "12 conformance case(s) across both lanes"
+          "note": "13 conformance case(s) across both lanes"
         },
         {
           "id": "assertInternationalization",
@@ -3444,7 +3510,7 @@
         {
           "id": "assertDesignReview",
           "status": "FAIL",
-          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in conformance/hlp.ui.popover/fixtures.yaml, gallery/projections/blazor/Stories/PopoverScenario.razor, gallery/scenarios/hlp.ui.popover.json, projections/blazor/ui/hlp.ui.popover/PopoverTypes.cs, projections/blazor/ui/hlp.ui.popover/wwwroot/popover.css, projections/react/ui/hlp.ui.popover/src/Popover.tsx, projections/react/ui/hlp.ui.popover/src/style.css, specs/modules/ui/hlp.ui.popover/scenarios.json, specs/modules/ui/hlp.ui.popover/style.css; no longer has projections/blazor/ui/hlp.ui.popover/ShipyardPopover.razor, projections/blazor/ui/hlp.ui.popover/ShipyardPopoverAnchor.razor, projections/blazor/ui/hlp.ui.popover/ShipyardPopoverClose.razor, projections/blazor/ui/hlp.ui.popover/ShipyardPopoverContent.razor, projections/blazor/ui/hlp.ui.popover/ShipyardPopoverTrigger.razor; has gained projections/blazor/ui/hlp.ui.popover/HarborlinePopover.razor, projections/blazor/ui/hlp.ui.popover/HarborlinePopoverAnchor.razor, projections/blazor/ui/hlp.ui.popover/HarborlinePopoverClose.razor, projections/blazor/ui/hlp.ui.popover/HarborlinePopoverContent.razor, projections/blazor/ui/hlp.ui.popover/HarborlinePopoverTrigger.razor"
+          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in conformance/hlp.ui.popover/fixtures.yaml, gallery/projections/blazor/Stories/PopoverScenario.razor, gallery/scenarios/hlp.ui.popover.json, projections/blazor/ui/hlp.ui.popover/PopoverTypes.cs, projections/blazor/ui/hlp.ui.popover/wwwroot/popover.css, projections/blazor/ui/hlp.ui.popover/wwwroot/popover.js, projections/react/ui/hlp.ui.popover/src/Popover.tsx, projections/react/ui/hlp.ui.popover/src/style.css, specs/modules/ui/hlp.ui.popover/scenarios.json, specs/modules/ui/hlp.ui.popover/style.css; no longer has projections/blazor/ui/hlp.ui.popover/ShipyardPopover.razor, projections/blazor/ui/hlp.ui.popover/ShipyardPopoverAnchor.razor, projections/blazor/ui/hlp.ui.popover/ShipyardPopoverClose.razor, projections/blazor/ui/hlp.ui.popover/ShipyardPopoverContent.razor, projections/blazor/ui/hlp.ui.popover/ShipyardPopoverTrigger.razor; has gained conformance/hlp.ui.popover/placement-v1.json, projections/blazor/ui/hlp.ui.popover/HarborlinePopover.razor, projections/blazor/ui/hlp.ui.popover/HarborlinePopoverAnchor.razor, projections/blazor/ui/hlp.ui.popover/HarborlinePopoverClose.razor, projections/blazor/ui/hlp.ui.popover/HarborlinePopoverContent.razor, projections/blazor/ui/hlp.ui.popover/HarborlinePopoverTrigger.razor; An EXPIRED verdict on a module counted by the catalogue fails the gate on every host."
         },
         {
           "id": "assertDesignQuality",
@@ -3522,7 +3588,7 @@
         {
           "id": "assertDesignReview",
           "status": "FAIL",
-          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in conformance/hlp.ui.radio-group/fixtures.yaml, gallery/projections/blazor/Stories/RadioGroupScenario.razor, gallery/projections/react/src/RadioGroup.stories.tsx, gallery/scenarios/hlp.ui.radio-group.json, projections/blazor/ui/hlp.ui.radio-group/RadioGroupTypes.cs, projections/blazor/ui/hlp.ui.radio-group/wwwroot/radio-group.css, projections/react/ui/hlp.ui.radio-group/src/RadioGroup.tsx, specs/modules/ui/hlp.ui.radio-group/scenarios.json; no longer has projections/blazor/ui/hlp.ui.radio-group/ShipyardRadioGroup.razor; has gained projections/blazor/ui/hlp.ui.radio-group/HarborlineRadioGroup.razor"
+          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in conformance/hlp.ui.radio-group/fixtures.yaml, gallery/projections/blazor/Stories/RadioGroupScenario.razor, gallery/projections/react/src/RadioGroup.stories.tsx, gallery/scenarios/hlp.ui.radio-group.json, projections/blazor/ui/hlp.ui.radio-group/RadioGroupTypes.cs, projections/blazor/ui/hlp.ui.radio-group/wwwroot/radio-group.css, projections/react/ui/hlp.ui.radio-group/src/RadioGroup.tsx, specs/modules/ui/hlp.ui.radio-group/scenarios.json; no longer has projections/blazor/ui/hlp.ui.radio-group/ShipyardRadioGroup.razor; has gained projections/blazor/ui/hlp.ui.radio-group/HarborlineRadioGroup.razor; An EXPIRED verdict on a module counted by the catalogue fails the gate on every host."
         },
         {
           "id": "assertDesignQuality",
@@ -3678,7 +3744,7 @@
         {
           "id": "assertDesignReview",
           "status": "FAIL",
-          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in conformance/hlp.ui.scheduler/fixtures.yaml, gallery/projections/blazor/Stories/SchedulerScenario.razor, gallery/projections/react/src/Scheduler.stories.tsx, gallery/scenarios/hlp.ui.scheduler.json, projections/blazor/ui/hlp.ui.scheduler/SchedulerRecurrence.cs, projections/blazor/ui/hlp.ui.scheduler/SchedulerTypes.cs, projections/blazor/ui/hlp.ui.scheduler/wwwroot/scheduler.css, projections/react/ui/hlp.ui.scheduler/src/Scheduler.tsx, projections/react/ui/hlp.ui.scheduler/src/style.css, specs/modules/ui/hlp.ui.scheduler/scenarios.json, specs/modules/ui/hlp.ui.scheduler/style.css; no longer has projections/blazor/ui/hlp.ui.scheduler/ShipyardScheduler.razor; has gained projections/blazor/ui/hlp.ui.scheduler/HarborlineScheduler.razor"
+          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in conformance/hlp.ui.scheduler/fixtures.yaml, gallery/projections/blazor/Stories/SchedulerScenario.razor, gallery/projections/react/src/Scheduler.stories.tsx, gallery/scenarios/hlp.ui.scheduler.json, projections/blazor/ui/hlp.ui.scheduler/SchedulerRecurrence.cs, projections/blazor/ui/hlp.ui.scheduler/SchedulerTypes.cs, projections/blazor/ui/hlp.ui.scheduler/wwwroot/scheduler.css, projections/react/ui/hlp.ui.scheduler/src/Scheduler.tsx, projections/react/ui/hlp.ui.scheduler/src/style.css, specs/modules/ui/hlp.ui.scheduler/scenarios.json, specs/modules/ui/hlp.ui.scheduler/style.css; no longer has projections/blazor/ui/hlp.ui.scheduler/ShipyardScheduler.razor; has gained projections/blazor/ui/hlp.ui.scheduler/HarborlineScheduler.razor, projections/blazor/ui/hlp.ui.scheduler/wwwroot/scheduler-now.js; An EXPIRED verdict on a module counted by the catalogue fails the gate on every host."
         },
         {
           "id": "assertDesignQuality",
@@ -3755,13 +3821,13 @@
         },
         {
           "id": "assertDesignReview",
-          "status": "FAIL",
-          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in gallery/projections/blazor/Stories/SchemaFormScenario.razor, gallery/scenarios/hlp.ui.schema-form.json, projections/blazor/ui/hlp.ui.schema-form/SchemaFormControls.cs, projections/blazor/ui/hlp.ui.schema-form/SchemaFormRuleProjector.cs, projections/blazor/ui/hlp.ui.schema-form/SchemaFormTypes.cs, projections/blazor/ui/hlp.ui.schema-form/SchemaFormValueStore.cs, specs/modules/ui/hlp.ui.schema-form/scenarios.json; no longer has projections/blazor/ui/hlp.ui.schema-form/ShipyardSchemaCollection.razor, projections/blazor/ui/hlp.ui.schema-form/ShipyardSchemaControl.razor, projections/blazor/ui/hlp.ui.schema-form/ShipyardSchemaField.razor, projections/blazor/ui/hlp.ui.schema-form/ShipyardSchemaForm.razor, projections/blazor/ui/hlp.ui.schema-form/ShipyardSchemaItems.razor, projections/blazor/ui/hlp.ui.schema-form/ShipyardSchemaSection.razor; has gained projections/blazor/ui/hlp.ui.schema-form/HarborlineSchemaCollection.razor, projections/blazor/ui/hlp.ui.schema-form/HarborlineSchemaControl.razor, projections/blazor/ui/hlp.ui.schema-form/HarborlineSchemaField.razor, projections/blazor/ui/hlp.ui.schema-form/HarborlineSchemaForm.razor, projections/blazor/ui/hlp.ui.schema-form/HarborlineSchemaItems.razor, projections/blazor/ui/hlp.ui.schema-form/HarborlineSchemaSection.razor"
+          "status": "PASS",
+          "note": "approved by cic on 2026-08-27T05:32:16.445Z against 26 surface files"
         },
         {
           "id": "assertDesignQuality",
           "status": "FAIL",
-          "note": "FAIL inherited from assertStateCompleteness, assertDesignReview"
+          "note": "FAIL inherited from assertStateCompleteness"
         }
       ]
     },
@@ -3834,7 +3900,7 @@
         {
           "id": "assertDesignReview",
           "status": "FAIL",
-          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in conformance/hlp.ui.scroll-affordance/fixtures.yaml, gallery/projections/blazor/Stories/ScrollAffordanceScenario.razor, gallery/projections/react/src/ScrollAffordance.stories.tsx, gallery/scenarios/hlp.ui.scroll-affordance.json, projections/blazor/ui/hlp.ui.scroll-affordance/wwwroot/scroll-affordance-component.css, specs/modules/ui/hlp.ui.scroll-affordance/scenarios.json; no longer has projections/blazor/ui/hlp.ui.scroll-affordance/ShipyardScrollAffordance.razor; has gained projections/blazor/ui/hlp.ui.scroll-affordance/HarborlineScrollAffordance.razor"
+          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in conformance/hlp.ui.scroll-affordance/fixtures.yaml, gallery/projections/blazor/Stories/ScrollAffordanceScenario.razor, gallery/projections/react/src/ScrollAffordance.stories.tsx, gallery/scenarios/hlp.ui.scroll-affordance.json, projections/blazor/ui/hlp.ui.scroll-affordance/wwwroot/scroll-affordance-component.css, specs/modules/ui/hlp.ui.scroll-affordance/scenarios.json; no longer has projections/blazor/ui/hlp.ui.scroll-affordance/ShipyardScrollAffordance.razor; has gained projections/blazor/ui/hlp.ui.scroll-affordance/HarborlineScrollAffordance.razor; An EXPIRED verdict on a module counted by the catalogue fails the gate on every host."
         },
         {
           "id": "assertDesignQuality",
@@ -3912,7 +3978,7 @@
         {
           "id": "assertDesignReview",
           "status": "FAIL",
-          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in gallery/projections/blazor/Stories/SearchInputScenario.razor, gallery/projections/react/src/SearchInput.stories.tsx, gallery/scenarios/hlp.ui.search-input.json, projections/blazor/ui/hlp.ui.search-input/wwwroot/search-input.css, projections/react/ui/hlp.ui.search-input/src/SearchInput.tsx, specs/modules/ui/hlp.ui.search-input/scenarios.json; no longer has projections/blazor/ui/hlp.ui.search-input/ShipyardSearchInput.razor; has gained projections/blazor/ui/hlp.ui.search-input/HarborlineSearchInput.razor"
+          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in gallery/projections/blazor/Stories/SearchInputScenario.razor, gallery/projections/react/src/SearchInput.stories.tsx, gallery/scenarios/hlp.ui.search-input.json, projections/blazor/ui/hlp.ui.search-input/wwwroot/search-input.css, projections/react/ui/hlp.ui.search-input/src/SearchInput.tsx, specs/modules/ui/hlp.ui.search-input/scenarios.json; no longer has projections/blazor/ui/hlp.ui.search-input/ShipyardSearchInput.razor; has gained projections/blazor/ui/hlp.ui.search-input/HarborlineSearchInput.razor; An EXPIRED verdict on a module counted by the catalogue fails the gate on every host."
         },
         {
           "id": "assertDesignQuality",
@@ -3990,7 +4056,7 @@
         {
           "id": "assertDesignReview",
           "status": "FAIL",
-          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in gallery/projections/blazor/Stories/SegmentedControlScenario.razor, gallery/projections/react/src/SegmentedControl.stories.tsx, gallery/scenarios/hlp.ui.segmented-control.json, projections/blazor/ui/hlp.ui.segmented-control/SegmentedControlTypes.cs, projections/blazor/ui/hlp.ui.segmented-control/wwwroot/segmented-control.css, projections/react/ui/hlp.ui.segmented-control/src/SegmentedControl.tsx, specs/modules/ui/hlp.ui.segmented-control/scenarios.json; no longer has projections/blazor/ui/hlp.ui.segmented-control/ShipyardSegmentedControl.razor; has gained projections/blazor/ui/hlp.ui.segmented-control/HarborlineSegmentedControl.razor"
+          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in gallery/projections/blazor/Stories/SegmentedControlScenario.razor, gallery/projections/react/src/SegmentedControl.stories.tsx, gallery/scenarios/hlp.ui.segmented-control.json, projections/blazor/ui/hlp.ui.segmented-control/SegmentedControlTypes.cs, projections/blazor/ui/hlp.ui.segmented-control/wwwroot/segmented-control.css, projections/react/ui/hlp.ui.segmented-control/src/SegmentedControl.tsx, specs/modules/ui/hlp.ui.segmented-control/scenarios.json; no longer has projections/blazor/ui/hlp.ui.segmented-control/ShipyardSegmentedControl.razor; has gained projections/blazor/ui/hlp.ui.segmented-control/HarborlineSegmentedControl.razor; An EXPIRED verdict on a module counted by the catalogue fails the gate on every host."
         },
         {
           "id": "assertDesignQuality",
@@ -4068,7 +4134,7 @@
         {
           "id": "assertDesignReview",
           "status": "FAIL",
-          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in gallery/projections/blazor/Stories/SelectFieldScenario.razor, gallery/projections/react/src/SelectField.stories.tsx, gallery/scenarios/hlp.ui.select-field.json, projections/blazor/ui/hlp.ui.select-field/SelectFieldTypes.cs, projections/blazor/ui/hlp.ui.select-field/wwwroot/select-field.css, projections/react/ui/hlp.ui.select-field/src/SelectField.tsx, specs/modules/ui/hlp.ui.select-field/scenarios.json; no longer has projections/blazor/ui/hlp.ui.select-field/ShipyardSelectField.razor; has gained projections/blazor/ui/hlp.ui.select-field/HarborlineSelectField.razor"
+          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in gallery/projections/blazor/Stories/SelectFieldScenario.razor, gallery/projections/react/src/SelectField.stories.tsx, gallery/scenarios/hlp.ui.select-field.json, projections/blazor/ui/hlp.ui.select-field/SelectFieldTypes.cs, projections/blazor/ui/hlp.ui.select-field/wwwroot/select-field.css, projections/react/ui/hlp.ui.select-field/src/SelectField.tsx, specs/modules/ui/hlp.ui.select-field/scenarios.json; no longer has projections/blazor/ui/hlp.ui.select-field/ShipyardSelectField.razor; has gained projections/blazor/ui/hlp.ui.select-field/HarborlineSelectField.razor; An EXPIRED verdict on a module counted by the catalogue fails the gate on every host."
         },
         {
           "id": "assertDesignQuality",
@@ -4145,13 +4211,13 @@
         },
         {
           "id": "assertDesignReview",
-          "status": "FAIL",
-          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in gallery/projections/blazor/Stories/SeparatorScenario.razor, gallery/scenarios/hlp.ui.separator.json, projections/blazor/ui/hlp.ui.separator/SeparatorTypes.cs, specs/modules/ui/hlp.ui.separator/scenarios.json; no longer has projections/blazor/ui/hlp.ui.separator/ShipyardSeparator.razor; has gained projections/blazor/ui/hlp.ui.separator/HarborlineSeparator.razor"
+          "status": "PASS",
+          "note": "approved by cic on 2026-08-26T20:46:12.262Z against 14 surface files"
         },
         {
           "id": "assertDesignQuality",
-          "status": "FAIL",
-          "note": "FAIL inherited from assertDesignReview"
+          "status": "UNBUILT",
+          "note": "UNBUILT inherited from assertStateCompleteness, assertEmptyAndErrorStates"
         }
       ]
     },
@@ -4224,7 +4290,7 @@
         {
           "id": "assertDesignReview",
           "status": "FAIL",
-          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in conformance/hlp.ui.sheet/fixtures.yaml, gallery/projections/blazor/Stories/SheetScenario.razor, gallery/scenarios/hlp.ui.sheet.json, projections/blazor/ui/hlp.ui.sheet/SheetTypes.cs, projections/blazor/ui/hlp.ui.sheet/wwwroot/sheet.css, specs/modules/ui/hlp.ui.sheet/scenarios.json; no longer has projections/blazor/ui/hlp.ui.sheet/ShipyardSheet.razor, projections/blazor/ui/hlp.ui.sheet/ShipyardSheetClose.razor, projections/blazor/ui/hlp.ui.sheet/ShipyardSheetContent.razor, projections/blazor/ui/hlp.ui.sheet/ShipyardSheetDescription.razor, projections/blazor/ui/hlp.ui.sheet/ShipyardSheetFooter.razor, projections/blazor/ui/hlp.ui.sheet/ShipyardSheetHeader.razor, projections/blazor/ui/hlp.ui.sheet/ShipyardSheetTitle.razor, projections/blazor/ui/hlp.ui.sheet/ShipyardSheetTrigger.razor; has gained projections/blazor/ui/hlp.ui.sheet/HarborlineSheet.razor, projections/blazor/ui/hlp.ui.sheet/HarborlineSheetClose.razor, projections/blazor/ui/hlp.ui.sheet/HarborlineSheetContent.razor, projections/blazor/ui/hlp.ui.sheet/HarborlineSheetDescription.razor, projections/blazor/ui/hlp.ui.sheet/HarborlineSheetFooter.razor, projections/blazor/ui/hlp.ui.sheet/HarborlineSheetHeader.razor, projections/blazor/ui/hlp.ui.sheet/HarborlineSheetTitle.razor, projections/blazor/ui/hlp.ui.sheet/HarborlineSheetTrigger.razor"
+          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in conformance/hlp.ui.sheet/fixtures.yaml, gallery/projections/blazor/Stories/SheetScenario.razor, gallery/scenarios/hlp.ui.sheet.json, projections/blazor/ui/hlp.ui.sheet/SheetTypes.cs, projections/blazor/ui/hlp.ui.sheet/wwwroot/sheet.css, specs/modules/ui/hlp.ui.sheet/scenarios.json; no longer has projections/blazor/ui/hlp.ui.sheet/ShipyardSheet.razor, projections/blazor/ui/hlp.ui.sheet/ShipyardSheetClose.razor, projections/blazor/ui/hlp.ui.sheet/ShipyardSheetContent.razor, projections/blazor/ui/hlp.ui.sheet/ShipyardSheetDescription.razor, projections/blazor/ui/hlp.ui.sheet/ShipyardSheetFooter.razor, projections/blazor/ui/hlp.ui.sheet/ShipyardSheetHeader.razor, projections/blazor/ui/hlp.ui.sheet/ShipyardSheetTitle.razor, projections/blazor/ui/hlp.ui.sheet/ShipyardSheetTrigger.razor; has gained projections/blazor/ui/hlp.ui.sheet/HarborlineSheet.razor, projections/blazor/ui/hlp.ui.sheet/HarborlineSheetClose.razor, projections/blazor/ui/hlp.ui.sheet/HarborlineSheetContent.razor, projections/blazor/ui/hlp.ui.sheet/HarborlineSheetDescription.razor, projections/blazor/ui/hlp.ui.sheet/HarborlineSheetFooter.razor, projections/blazor/ui/hlp.ui.sheet/HarborlineSheetHeader.razor, projections/blazor/ui/hlp.ui.sheet/HarborlineSheetTitle.razor, projections/blazor/ui/hlp.ui.sheet/HarborlineSheetTrigger.razor; An EXPIRED verdict on a module counted by the catalogue fails the gate on every host."
         },
         {
           "id": "assertDesignQuality",
@@ -4302,7 +4368,7 @@
         {
           "id": "assertDesignReview",
           "status": "FAIL",
-          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in conformance/hlp.ui.side-nav/fixtures.yaml, gallery/projections/blazor/Stories/SideNavScenario.razor, gallery/projections/react/src/SideNav.stories.tsx, gallery/scenarios/hlp.ui.side-nav.json, projections/blazor/ui/hlp.ui.side-nav/SideNavTypes.cs, projections/blazor/ui/hlp.ui.side-nav/wwwroot/side-nav.css, projections/react/ui/hlp.ui.side-nav/src/SideNav.tsx, projections/react/ui/hlp.ui.side-nav/src/style.css, specs/modules/ui/hlp.ui.side-nav/scenarios.json, specs/modules/ui/hlp.ui.side-nav/style.css; no longer has projections/blazor/ui/hlp.ui.side-nav/ShipyardSideNav.razor, projections/blazor/ui/hlp.ui.side-nav/ShipyardSideNavItems.razor; has gained projections/blazor/ui/hlp.ui.side-nav/HarborlineSideNav.razor, projections/blazor/ui/hlp.ui.side-nav/HarborlineSideNavItems.razor"
+          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in conformance/hlp.ui.side-nav/fixtures.yaml, gallery/projections/blazor/Stories/SideNavScenario.razor, gallery/projections/react/src/SideNav.stories.tsx, gallery/scenarios/hlp.ui.side-nav.json, projections/blazor/ui/hlp.ui.side-nav/SideNavTypes.cs, projections/blazor/ui/hlp.ui.side-nav/wwwroot/side-nav.css, projections/react/ui/hlp.ui.side-nav/src/SideNav.tsx, projections/react/ui/hlp.ui.side-nav/src/style.css, specs/modules/ui/hlp.ui.side-nav/scenarios.json, specs/modules/ui/hlp.ui.side-nav/style.css; no longer has projections/blazor/ui/hlp.ui.side-nav/ShipyardSideNav.razor, projections/blazor/ui/hlp.ui.side-nav/ShipyardSideNavItems.razor; has gained projections/blazor/ui/hlp.ui.side-nav/HarborlineSideNav.razor, projections/blazor/ui/hlp.ui.side-nav/HarborlineSideNavItems.razor; An EXPIRED verdict on a module counted by the catalogue fails the gate on every host."
         },
         {
           "id": "assertDesignQuality",
@@ -4458,7 +4524,7 @@
         {
           "id": "assertDesignReview",
           "status": "FAIL",
-          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in gallery/projections/blazor/Stories/SpinnerScenario.razor, gallery/scenarios/hlp.ui.spinner.json, projections/blazor/ui/hlp.ui.spinner/SpinnerTypes.cs, projections/react/ui/hlp.ui.spinner/src/Spinner.tsx, specs/modules/ui/hlp.ui.spinner/scenarios.json; no longer has projections/blazor/ui/hlp.ui.spinner/ShipyardSpinner.razor; has gained projections/blazor/ui/hlp.ui.spinner/HarborlineSpinner.razor"
+          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in gallery/projections/blazor/Stories/SpinnerScenario.razor, gallery/scenarios/hlp.ui.spinner.json, projections/blazor/ui/hlp.ui.spinner/SpinnerTypes.cs, projections/react/ui/hlp.ui.spinner/src/Spinner.tsx, specs/modules/ui/hlp.ui.spinner/scenarios.json; no longer has projections/blazor/ui/hlp.ui.spinner/ShipyardSpinner.razor; has gained projections/blazor/ui/hlp.ui.spinner/HarborlineSpinner.razor; An EXPIRED verdict on a module counted by the catalogue fails the gate on every host."
         },
         {
           "id": "assertDesignQuality",
@@ -4536,7 +4602,7 @@
         {
           "id": "assertDesignReview",
           "status": "FAIL",
-          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in conformance/hlp.ui.spotlight/fixtures.yaml, gallery/projections/blazor/Stories/SpotlightScenario.razor, gallery/projections/react/src/Spotlight.stories.tsx, gallery/scenarios/hlp.ui.spotlight.json, projections/blazor/ui/hlp.ui.spotlight/SpotlightTypes.cs, projections/blazor/ui/hlp.ui.spotlight/wwwroot/spotlight.css, projections/react/ui/hlp.ui.spotlight/src/Spotlight.tsx, specs/modules/ui/hlp.ui.spotlight/scenarios.json; no longer has projections/blazor/ui/hlp.ui.spotlight/ShipyardSpotlight.razor; has gained projections/blazor/ui/hlp.ui.spotlight/HarborlineSpotlight.razor"
+          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in conformance/hlp.ui.spotlight/fixtures.yaml, gallery/projections/blazor/Stories/SpotlightScenario.razor, gallery/projections/react/src/Spotlight.stories.tsx, gallery/scenarios/hlp.ui.spotlight.json, projections/blazor/ui/hlp.ui.spotlight/SpotlightTypes.cs, projections/blazor/ui/hlp.ui.spotlight/wwwroot/spotlight.css, projections/react/ui/hlp.ui.spotlight/src/Spotlight.tsx, specs/modules/ui/hlp.ui.spotlight/scenarios.json; no longer has projections/blazor/ui/hlp.ui.spotlight/ShipyardSpotlight.razor; has gained projections/blazor/ui/hlp.ui.spotlight/HarborlineSpotlight.razor; An EXPIRED verdict on a module counted by the catalogue fails the gate on every host."
         },
         {
           "id": "assertDesignQuality",
@@ -4614,7 +4680,7 @@
         {
           "id": "assertDesignReview",
           "status": "FAIL",
-          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in gallery/projections/blazor/Stories/SwitchScenario.razor, gallery/projections/react/src/Switch.stories.tsx, gallery/scenarios/hlp.ui.switch.json, projections/blazor/ui/hlp.ui.switch/SwitchTypes.cs, projections/react/ui/hlp.ui.switch/src/Switch.tsx, specs/modules/ui/hlp.ui.switch/scenarios.json; no longer has projections/blazor/ui/hlp.ui.switch/ShipyardSwitch.razor; has gained projections/blazor/ui/hlp.ui.switch/HarborlineSwitch.razor"
+          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in gallery/projections/blazor/Stories/SwitchScenario.razor, gallery/projections/react/src/Switch.stories.tsx, gallery/scenarios/hlp.ui.switch.json, projections/blazor/ui/hlp.ui.switch/SwitchTypes.cs, projections/react/ui/hlp.ui.switch/src/Switch.tsx, specs/modules/ui/hlp.ui.switch/scenarios.json; no longer has projections/blazor/ui/hlp.ui.switch/ShipyardSwitch.razor; has gained projections/blazor/ui/hlp.ui.switch/HarborlineSwitch.razor; An EXPIRED verdict on a module counted by the catalogue fails the gate on every host."
         },
         {
           "id": "assertDesignQuality",
@@ -4691,13 +4757,13 @@
         },
         {
           "id": "assertDesignReview",
-          "status": "FAIL",
-          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in gallery/projections/blazor/Stories/SwitchFieldScenario.razor, gallery/projections/react/src/SwitchField.stories.tsx, gallery/scenarios/hlp.ui.switch-field.json, specs/modules/ui/hlp.ui.switch-field/scenarios.json; no longer has projections/blazor/ui/hlp.ui.switch-field/ShipyardSwitchField.razor; has gained projections/blazor/ui/hlp.ui.switch-field/HarborlineSwitchField.razor"
+          "status": "PASS",
+          "note": "approved by cic on 2026-08-26T20:48:48.808Z against 11 surface files"
         },
         {
           "id": "assertDesignQuality",
-          "status": "FAIL",
-          "note": "FAIL inherited from assertDesignReview"
+          "status": "UNBUILT",
+          "note": "UNBUILT inherited from assertFocusQuality, assertEmptyAndErrorStates"
         }
       ]
     },
@@ -4769,13 +4835,13 @@
         },
         {
           "id": "assertDesignReview",
-          "status": "FAIL",
-          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in gallery/projections/blazor/Stories/TableScenario.razor, gallery/scenarios/hlp.ui.table.json, projections/blazor/ui/hlp.ui.table/TableTypes.cs, specs/modules/ui/hlp.ui.table/scenarios.json; no longer has projections/blazor/ui/hlp.ui.table/ShipyardTable.razor, projections/blazor/ui/hlp.ui.table/ShipyardTableBody.razor, projections/blazor/ui/hlp.ui.table/ShipyardTableCaption.razor, projections/blazor/ui/hlp.ui.table/ShipyardTableCell.razor, projections/blazor/ui/hlp.ui.table/ShipyardTableHead.razor, projections/blazor/ui/hlp.ui.table/ShipyardTableHeaderCell.razor, projections/blazor/ui/hlp.ui.table/ShipyardTableRow.razor; has gained projections/blazor/ui/hlp.ui.table/HarborlineTable.razor, projections/blazor/ui/hlp.ui.table/HarborlineTableBody.razor, projections/blazor/ui/hlp.ui.table/HarborlineTableCaption.razor, projections/blazor/ui/hlp.ui.table/HarborlineTableCell.razor, projections/blazor/ui/hlp.ui.table/HarborlineTableHead.razor, projections/blazor/ui/hlp.ui.table/HarborlineTableHeaderCell.razor, projections/blazor/ui/hlp.ui.table/HarborlineTableRow.razor"
+          "status": "PASS",
+          "note": "approved by cic on 2026-08-26T20:48:52.685Z against 20 surface files"
         },
         {
           "id": "assertDesignQuality",
-          "status": "FAIL",
-          "note": "FAIL inherited from assertDesignReview"
+          "status": "UNBUILT",
+          "note": "UNBUILT inherited from assertStateCompleteness, assertEmptyAndErrorStates"
         }
       ]
     },
@@ -4848,7 +4914,7 @@
         {
           "id": "assertDesignReview",
           "status": "FAIL",
-          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in gallery/projections/blazor/Stories/TextAreaScenario.razor, gallery/scenarios/hlp.ui.text-area.json, projections/blazor/ui/hlp.ui.text-area/TextAreaTypes.cs, projections/blazor/ui/hlp.ui.text-area/wwwroot/text-area.css, specs/modules/ui/hlp.ui.text-area/scenarios.json; no longer has projections/blazor/ui/hlp.ui.text-area/ShipyardTextArea.razor; has gained projections/blazor/ui/hlp.ui.text-area/HarborlineTextArea.razor"
+          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in gallery/projections/blazor/Stories/TextAreaScenario.razor, gallery/scenarios/hlp.ui.text-area.json, projections/blazor/ui/hlp.ui.text-area/TextAreaTypes.cs, projections/blazor/ui/hlp.ui.text-area/wwwroot/text-area.css, specs/modules/ui/hlp.ui.text-area/scenarios.json; no longer has projections/blazor/ui/hlp.ui.text-area/ShipyardTextArea.razor; has gained projections/blazor/ui/hlp.ui.text-area/HarborlineTextArea.razor; An EXPIRED verdict on a module counted by the catalogue fails the gate on every host."
         },
         {
           "id": "assertDesignQuality",
@@ -4926,7 +4992,7 @@
         {
           "id": "assertDesignReview",
           "status": "FAIL",
-          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in gallery/projections/blazor/Stories/TextBoxScenario.razor, gallery/projections/react/src/TextBox.stories.tsx, gallery/scenarios/hlp.ui.text-box.json, projections/react/ui/hlp.ui.text-box/src/TextBox.tsx, specs/modules/ui/hlp.ui.text-box/scenarios.json; no longer has projections/blazor/ui/hlp.ui.text-box/ShipyardTextBox.razor; has gained projections/blazor/ui/hlp.ui.text-box/HarborlineTextBox.razor"
+          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in gallery/projections/blazor/Stories/TextBoxScenario.razor, gallery/projections/react/src/TextBox.stories.tsx, gallery/scenarios/hlp.ui.text-box.json, projections/react/ui/hlp.ui.text-box/src/TextBox.tsx, specs/modules/ui/hlp.ui.text-box/scenarios.json; no longer has projections/blazor/ui/hlp.ui.text-box/ShipyardTextBox.razor; has gained projections/blazor/ui/hlp.ui.text-box/HarborlineTextBox.razor; An EXPIRED verdict on a module counted by the catalogue fails the gate on every host."
         },
         {
           "id": "assertDesignQuality",
@@ -5004,7 +5070,7 @@
         {
           "id": "assertDesignReview",
           "status": "FAIL",
-          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in gallery/projections/blazor/Stories/ToasterScenario.razor, gallery/projections/react/src/Toaster.stories.tsx, gallery/scenarios/hlp.ui.toaster.json, projections/blazor/ui/hlp.ui.toaster/ToastTypes.cs, projections/blazor/ui/hlp.ui.toaster/wwwroot/toaster.css, specs/modules/ui/hlp.ui.toaster/scenarios.json; no longer has projections/blazor/ui/hlp.ui.toaster/ShipyardToaster.razor; has gained projections/blazor/ui/hlp.ui.toaster/HarborlineToaster.razor"
+          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in gallery/projections/blazor/Stories/ToasterScenario.razor, gallery/projections/react/src/Toaster.stories.tsx, gallery/scenarios/hlp.ui.toaster.json, projections/blazor/ui/hlp.ui.toaster/ToastTypes.cs, projections/blazor/ui/hlp.ui.toaster/wwwroot/toaster.css, specs/modules/ui/hlp.ui.toaster/scenarios.json; no longer has projections/blazor/ui/hlp.ui.toaster/ShipyardToaster.razor; has gained projections/blazor/ui/hlp.ui.toaster/HarborlineToaster.razor; An EXPIRED verdict on a module counted by the catalogue fails the gate on every host."
         },
         {
           "id": "assertDesignQuality",
@@ -5159,13 +5225,13 @@
         },
         {
           "id": "assertDesignReview",
-          "status": "FAIL",
-          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in gallery/projections/blazor/Stories/TooltipScenario.razor, gallery/scenarios/hlp.ui.tooltip.json, projections/blazor/ui/hlp.ui.tooltip/TooltipTypes.cs, specs/modules/ui/hlp.ui.tooltip/scenarios.json; no longer has projections/blazor/ui/hlp.ui.tooltip/ShipyardTooltip.razor, projections/blazor/ui/hlp.ui.tooltip/ShipyardTooltipTrigger.razor; has gained projections/blazor/ui/hlp.ui.tooltip/HarborlineTooltip.razor, projections/blazor/ui/hlp.ui.tooltip/HarborlineTooltipTrigger.razor"
+          "status": "PASS",
+          "note": "approved by cic on 2026-08-27T05:33:30.373Z against 15 surface files"
         },
         {
           "id": "assertDesignQuality",
-          "status": "FAIL",
-          "note": "FAIL inherited from assertDesignReview"
+          "status": "UNBUILT",
+          "note": "UNBUILT inherited from assertEmptyAndErrorStates"
         }
       ]
     },
@@ -5862,7 +5928,7 @@
         {
           "id": "assertDesignReview",
           "status": "FAIL",
-          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in gallery/projections/blazor/Stories/UserMenuScenario.razor, gallery/projections/react/src/UserMenu.stories.tsx, gallery/scenarios/hlp.ui.user-menu.json, projections/blazor/ui/hlp.ui.user-menu/UserMenuTypes.cs, specs/modules/ui/hlp.ui.user-menu/scenarios.json; no longer has projections/blazor/ui/hlp.ui.user-menu/ShipyardUserMenu.razor; has gained projections/blazor/ui/hlp.ui.user-menu/HarborlineUserMenu.razor"
+          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in gallery/projections/blazor/Stories/UserMenuScenario.razor, gallery/projections/react/src/UserMenu.stories.tsx, gallery/scenarios/hlp.ui.user-menu.json, projections/blazor/ui/hlp.ui.user-menu/UserMenuTypes.cs, specs/modules/ui/hlp.ui.user-menu/scenarios.json; no longer has projections/blazor/ui/hlp.ui.user-menu/ShipyardUserMenu.razor; has gained projections/blazor/ui/hlp.ui.user-menu/HarborlineUserMenu.razor; An EXPIRED verdict on a module counted by the catalogue fails the gate on every host."
         },
         {
           "id": "assertDesignQuality",
@@ -5940,7 +6006,7 @@
         {
           "id": "assertDesignReview",
           "status": "FAIL",
-          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in conformance/hlp.ui.window/fixtures.yaml, gallery/projections/blazor/Stories/WindowScenario.razor, gallery/scenarios/hlp.ui.window.json, projections/blazor/ui/hlp.ui.window/WindowTypes.cs, projections/blazor/ui/hlp.ui.window/wwwroot/window.css, specs/modules/ui/hlp.ui.window/scenarios.json; no longer has projections/blazor/ui/hlp.ui.window/ShipyardWindow.razor, projections/blazor/ui/hlp.ui.window/ShipyardWindowActionsBar.razor; has gained projections/blazor/ui/hlp.ui.window/HarborlineWindow.razor, projections/blazor/ui/hlp.ui.window/HarborlineWindowActionsBar.razor"
+          "note": "verdict EXPIRED: \"approved\" was recorded against a surface that has since changed in conformance/hlp.ui.window/fixtures.yaml, gallery/projections/blazor/Stories/WindowScenario.razor, gallery/scenarios/hlp.ui.window.json, projections/blazor/ui/hlp.ui.window/WindowTypes.cs, projections/blazor/ui/hlp.ui.window/wwwroot/window.css, specs/modules/ui/hlp.ui.window/scenarios.json; no longer has projections/blazor/ui/hlp.ui.window/ShipyardWindow.razor, projections/blazor/ui/hlp.ui.window/ShipyardWindowActionsBar.razor; has gained projections/blazor/ui/hlp.ui.window/HarborlineWindow.razor, projections/blazor/ui/hlp.ui.window/HarborlineWindowActionsBar.razor; An EXPIRED verdict on a module counted by the catalogue fails the gate on every host."
         },
         {
           "id": "assertDesignQuality",
@@ -5951,10 +6017,10 @@
     }
   ],
   "tally": {
-    "PASS": 584,
+    "PASS": 592,
     "PARTIAL": 76,
-    "UNBUILT": 123,
-    "FAIL": 120,
+    "UNBUILT": 130,
+    "FAIL": 105,
     "VOID": 2,
     "NOT-APPLICABLE": 159
   }

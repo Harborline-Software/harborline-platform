@@ -6,27 +6,57 @@
   "recordedAt": "2026-08-27T05:35:20.607Z",
   "notes": "card should have header, body and footer",
   "reference": {
-    "revision": "4f38cbb68942b8a80b87f14331369d29f03f9fc8e8f806ee7b5bae8addb93551",
+    "revision": "890f263b4bdc26af3e24c83de6ab6c46e1e45e3d7bb949ef9ff15ba8a274a9a5",
     "source": "gallery/scenarios/hlp.ui.card.json",
-    "pin": "cc9eb48ed68c5033ec128cd53c40b1d2786bee66",
+    "pin": "5813a5fe8b277a829cc65678f9dbe75bf1feef64",
     "surface": {
       "conformance/hlp.ui.card/fixtures.yaml": "78b454028afa59ad8d8e805a7b3171fcaf7fd1dc58a611894530b8910705eb08",
       "conformance/hlp.ui.card/quality-fixtures.yaml": "c31b9d428bb2b8f9ecc1a9894b375bf51e0afb59e8374216b52020ca007309b8",
       "gallery/projections/blazor/Stories/Card.stories.razor": "6493813f6823c223cd9178e5d211c853dfa96ef51d6d879f3914a4f3e260d117",
-      "gallery/projections/blazor/Stories/CardScenario.razor": "0072672acfd1d7870b2e86646b27104bd7bd7addd81694b67dbd7faf70cedab0",
+      "gallery/projections/blazor/Stories/CardScenario.razor": "978a73ac51c5004f50d47653a11a32c2af97f3bd7b64cf6e69d3e2ef0d3e6ef4",
       "gallery/projections/react/src/Card.stories.tsx": "88759c9a3e0dd7674a7cb5877c1957e5c18ef8cbdc327431230db6a85dc81062",
-      "gallery/scenarios/hlp.ui.card.json": "a5b2d211a4932efab09fb20d166f3d918071102ed2ee2c5d1081ff565f8308a9",
-      "projections/blazor/ui/hlp.ui.card/CardTypes.cs": "f68a5149aaada2c0cd2690843c5b99ebfe680e955542db02fb67b51b5d0460e6",
-      "projections/blazor/ui/hlp.ui.card/ShipyardCard.razor": "7b18b70c6fd2aad1befa2dd708195825cca423906edb33b04338bf5e1ca1c26b",
-      "projections/blazor/ui/hlp.ui.card/ShipyardCardContent.razor": "05e49bed298b2443116f532d8f60f2c152941ca9efbcca6ef11e790e84ae5861",
-      "projections/blazor/ui/hlp.ui.card/ShipyardCardHeader.razor": "d3e685f5d604fb13b70c22c498762c6a53c7d5276cb25d575d7ed285a50bdadf",
-      "projections/blazor/ui/hlp.ui.card/ShipyardCardTitle.razor": "fbe81fad6d316fce0ac0ee4d1a99344aeea283f2fc82c0b49662b859070ac2fd",
+      "gallery/scenarios/hlp.ui.card.json": "a8807f46a1f2523606fa3df8d3d94d1b43d5446a74eeec923b951a4f18156755",
+      "projections/blazor/ui/hlp.ui.card/CardTypes.cs": "64875c6a3c102e8fd87eeb306ed03d2175d6ad7e2d0253c86ecadc68ea82b8f6",
+      "projections/blazor/ui/hlp.ui.card/HarborlineCard.razor": "156f09b01fe710270b3bc6be1a6778479ffb129a8904a5d039d194342da6ab63",
+      "projections/blazor/ui/hlp.ui.card/HarborlineCardContent.razor": "1a0994c2d55b6b67e557e6384db43d111ba693ae80e318bb14cca9444a9b02cc",
+      "projections/blazor/ui/hlp.ui.card/HarborlineCardHeader.razor": "0b600c34ccce690fbc8b6530fe03206530ba6b51830e88673a70f2275ec18409",
+      "projections/blazor/ui/hlp.ui.card/HarborlineCardTitle.razor": "9baf9b9202949e3e369b871908ffc36c8e8cca0028b6f1a41b706ed0c99f38eb",
       "projections/blazor/ui/hlp.ui.card/wwwroot/card.css": "04f1f6f0fe523ed215faa059b39a23e1ff9c46af7db3eaf7a1de659764263265",
       "projections/react/ui/hlp.ui.card/src/Card.tsx": "303af33ab68540c173ca3da9798cee8a10c4edf0a102a46a4b241046248d041b",
       "projections/react/ui/hlp.ui.card/src/index.ts": "623864716d0c1aa169a4a4fb2a27ca4d930a4d392d122a9202dc5477083f51bb",
       "projections/react/ui/hlp.ui.card/src/style.css": "04f1f6f0fe523ed215faa059b39a23e1ff9c46af7db3eaf7a1de659764263265",
-      "specs/modules/ui/hlp.ui.card/scenarios.json": "a5b2d211a4932efab09fb20d166f3d918071102ed2ee2c5d1081ff565f8308a9",
+      "specs/modules/ui/hlp.ui.card/scenarios.json": "a8807f46a1f2523606fa3df8d3d94d1b43d5446a74eeec923b951a4f18156755",
       "specs/modules/ui/hlp.ui.card/style.css": "04f1f6f0fe523ed215faa059b39a23e1ff9c46af7db3eaf7a1de659764263265"
+    },
+    "migration": {
+      "kind": "family-rename",
+      "from": "Shipyard",
+      "to": "Harborline",
+      "judgedAgainst": "cc9eb48ed68c5033ec128cd53c40b1d2786bee66",
+      "reviewedReference": {
+        "revision": "4f38cbb68942b8a80b87f14331369d29f03f9fc8e8f806ee7b5bae8addb93551",
+        "source": "gallery/scenarios/hlp.ui.card.json",
+        "pin": "cc9eb48ed68c5033ec128cd53c40b1d2786bee66",
+        "surface": {
+          "conformance/hlp.ui.card/fixtures.yaml": "78b454028afa59ad8d8e805a7b3171fcaf7fd1dc58a611894530b8910705eb08",
+          "conformance/hlp.ui.card/quality-fixtures.yaml": "c31b9d428bb2b8f9ecc1a9894b375bf51e0afb59e8374216b52020ca007309b8",
+          "gallery/projections/blazor/Stories/Card.stories.razor": "6493813f6823c223cd9178e5d211c853dfa96ef51d6d879f3914a4f3e260d117",
+          "gallery/projections/blazor/Stories/CardScenario.razor": "0072672acfd1d7870b2e86646b27104bd7bd7addd81694b67dbd7faf70cedab0",
+          "gallery/projections/react/src/Card.stories.tsx": "88759c9a3e0dd7674a7cb5877c1957e5c18ef8cbdc327431230db6a85dc81062",
+          "gallery/scenarios/hlp.ui.card.json": "a5b2d211a4932efab09fb20d166f3d918071102ed2ee2c5d1081ff565f8308a9",
+          "projections/blazor/ui/hlp.ui.card/CardTypes.cs": "f68a5149aaada2c0cd2690843c5b99ebfe680e955542db02fb67b51b5d0460e6",
+          "projections/blazor/ui/hlp.ui.card/ShipyardCard.razor": "7b18b70c6fd2aad1befa2dd708195825cca423906edb33b04338bf5e1ca1c26b",
+          "projections/blazor/ui/hlp.ui.card/ShipyardCardContent.razor": "05e49bed298b2443116f532d8f60f2c152941ca9efbcca6ef11e790e84ae5861",
+          "projections/blazor/ui/hlp.ui.card/ShipyardCardHeader.razor": "d3e685f5d604fb13b70c22c498762c6a53c7d5276cb25d575d7ed285a50bdadf",
+          "projections/blazor/ui/hlp.ui.card/ShipyardCardTitle.razor": "fbe81fad6d316fce0ac0ee4d1a99344aeea283f2fc82c0b49662b859070ac2fd",
+          "projections/blazor/ui/hlp.ui.card/wwwroot/card.css": "04f1f6f0fe523ed215faa059b39a23e1ff9c46af7db3eaf7a1de659764263265",
+          "projections/react/ui/hlp.ui.card/src/Card.tsx": "303af33ab68540c173ca3da9798cee8a10c4edf0a102a46a4b241046248d041b",
+          "projections/react/ui/hlp.ui.card/src/index.ts": "623864716d0c1aa169a4a4fb2a27ca4d930a4d392d122a9202dc5477083f51bb",
+          "projections/react/ui/hlp.ui.card/src/style.css": "04f1f6f0fe523ed215faa059b39a23e1ff9c46af7db3eaf7a1de659764263265",
+          "specs/modules/ui/hlp.ui.card/scenarios.json": "a5b2d211a4932efab09fb20d166f3d918071102ed2ee2c5d1081ff565f8308a9",
+          "specs/modules/ui/hlp.ui.card/style.css": "04f1f6f0fe523ed215faa059b39a23e1ff9c46af7db3eaf7a1de659764263265"
+        }
+      }
     }
   }
 }

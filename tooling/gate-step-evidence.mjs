@@ -1,6 +1,7 @@
 import {createHash} from 'node:crypto'
 import {execFileSync} from 'node:child_process'
 import {readFileSync} from 'node:fs'
+import {designReviewMessage, designReviewSummary} from './gates/design-review-status.mjs'
 
 // Every path a reusable step reads. Under-declaring is unsound -- the step would reuse a result its
 // inputs no longer justify -- so the script half of each list is checked by
@@ -122,13 +123,20 @@ export function decideStepReuse({stepId, inputHash, previousPass}) {
 // never ran -- the failure mode a main-module guard regression produces under a symlinked or
 // junctioned checkout -- and the gate used to record that as a pass with an absent report. A scan
 // that scanned nothing is not a pass.
-export function evaluateStepStdout({json, status, stdout}) {
+export function evaluateStepStdout({stepId, json, status, stdout, designReviewOptions}) {
   if (!json) return {status}
   if (!stdout.trim()) {
     return {status: status === 0 ? 1 : status, failure: 'step produced no stdout; a JSON step that prints nothing did not run'}
   }
   try {
-    return {status, report: JSON.parse(stdout)}
+    const report = JSON.parse(stdout)
+    if (stepId === 'ui-gate-model') {
+      report.designReview = designReviewSummary(report.modules, designReviewOptions)
+      report.status = report.designReview.status
+      if (report.status === 'FAIL') return {status: 1, report,
+        failure: designReviewMessage(report.designReview)}
+    }
+    return {status, report}
   } catch {
     return {status: 1, failure: 'step stdout is not a JSON document'}
   }

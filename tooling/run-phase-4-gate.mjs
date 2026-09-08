@@ -60,7 +60,7 @@ function run(id, executable, args, cwd = root, json = false, stepEnvironment = {
     maxBuffer: 128 * 1024 * 1024,
     env: { ...process.env, ...runnerEnvironment, ...stepEnvironment },
   })
-  const outcome = evaluateStepStdout({json, status: result.status, stdout: result.stdout})
+  const outcome = evaluateStepStdout({stepId: id, json, status: result.status, stdout: result.stdout})
   const report = outcome.report
   result.status = outcome.status
   if (outcome.failure) result.stderr = [result.stderr, `${id}: ${outcome.failure}`].join('\n')
@@ -168,8 +168,8 @@ try {
   run('tooling-selftests', process.execPath, ['tooling/run-tooling-selftests.mjs'], root, true)
   run('prop-vocabulary', process.execPath, ['tooling/gates/scan-prop-vocabulary.mjs', '--json'], root, true)
   // A static sweep over source, so it belongs with the cheap checks rather than behind the
-  // thirty-eight-minute half. It records state and does not fail on a non-terminal module;
-  // validate-repository.mjs is what refuses a catalog status the receipt does not support.
+  // thirty-eight-minute half. The shared EXPIRED rule includes non-terminal UI modules and
+  // ticket 334's dated backlog. Other unfinished gates remain a recorded worklist.
   run('ui-gate-model', process.execPath, ['tooling/gates/run-ui-gate-model.mjs', '--json'], root, true)
   run('build', process.execPath, ['tooling/run-native.mjs', '--build'], root, true)
   runReusable('native-tests', process.execPath, ['tooling/run-native.mjs'], root, true)
@@ -213,6 +213,7 @@ const report = {
   moduleIds,
   requiredStepIds,
   status: passed ? 'PASS' : 'FAIL',
+  designReview: byId['ui-gate-model']?.designReview,
   dotnetSdk: dotnet.version,
   counts: {
     sharedResults,
