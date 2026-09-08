@@ -12,7 +12,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {execFileSync} from 'node:child_process'
-import {mkdtempSync, readFileSync, readdirSync, rmSync} from 'node:fs'
+import {mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync} from 'node:fs'
 import {tmpdir} from 'node:os'
 import {resolve} from 'node:path'
 
@@ -66,7 +66,7 @@ const HISTORY_REF = (() => {
 function assertFreshHistoryFacts() {
   const root = git('rev-list', '--max-parents=0', 'HEAD').trim()
   const rootDate = Date.parse(git('log', '-1', '--format=%cI', root).trim())
-  for (const record of records()) {
+  for (const record of records().map(reviewedRecord)) {
     assert.ok(rootDate > Date.parse(record.recordedAt),
       `${record.moduleId}: the history root ${root.slice(0, 12)} does not postdate the verdict, so its pin should be derivable here and is not`)
     assert.throws(() => git('cat-file', '-e', `${record.reference.pin}^{commit}`),
@@ -76,6 +76,17 @@ function assertFreshHistoryFacts() {
 
 const records = () => readdirSync(recordsRoot).filter(name => name.endsWith('.json')).sort()
   .map(name => JSON.parse(readFileSync(resolve(recordsRoot, name), 'utf8')))
+
+// A rename transport preserves the original judgement in full; historical tests judge THAT
+// reference, while the rename suite proves the destination pin and current surface independently.
+function reviewedRecord(record) {
+  let reference = record.reference
+  while (reference.migration) {
+    assert.equal(reference.migration.judgedAgainst, reference.migration.reviewedReference.pin)
+    reference = reference.migration.reviewedReference
+  }
+  return {...record, reference}
+}
 
 test('every design-review record binds a surface, so none can reach the gate on the legacy digest', () => {
   const all = records()
@@ -91,7 +102,7 @@ test('every design-review record binds a surface, so none can reach the gate on 
 // must come back the same. A pin edited to a friendlier commit fails here.
 test('every pin is the commit the verdict was actually given against', () => {
   if (!carriesArchiveHistory) return assertFreshHistoryFacts()
-  for (const record of records()) {
+  for (const record of records().map(reviewedRecord)) {
     const {commit} = resolvePin(platformRoot, record, HISTORY_REF)
     assert.equal(commit, record.reference.pin, `${record.moduleId} names a pin its own revision and date do not resolve to`)
   }
@@ -109,14 +120,16 @@ test('the migration is judged at the polish pin: the changed modules expire and 
   }
   const scratchRoot = mkdtempSync(resolve(tmpdir(), 'design-review-polish-'))
   const scratch = resolve(scratchRoot, 'tree')
-  git('worktree', 'add', '--detach', '--quiet', scratch, POLISH)
+  // Archive preserves the committed bytes independently of checkout line-ending configuration.
+  mkdirSync(scratch)
   t.after(() => {
-    git('worktree', 'remove', '--force', scratch)
     rmSync(scratchRoot, {recursive: true, force: true})
   })
+  const archive = execFileSync('git', ['archive', POLISH], {cwd: platformRoot, maxBuffer: 1 << 28})
+  execFileSync('tar', ['-xf', '-'], {cwd: scratch, input: archive})
   const expired = new Map()
   const standing = []
-  for (const record of records()) {
+  for (const record of records().map(reviewedRecord)) {
     // A verdict recorded after the polish cannot be judged at it -- its pin is not an ancestor, so
     // the tree here predates the files it bound. Skipped by NAME, not by a silent catch.
     let judgeable = true

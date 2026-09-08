@@ -6,25 +6,53 @@
   "recordedAt": "2026-08-27T05:33:30.373Z",
   "notes": "needs polish as it doesn't look like the same design language",
   "reference": {
-    "revision": "53f2dd04253595825fae213777d9c12290958086bac4f5106539fb5c2e7817f1",
+    "revision": "7af2c1fad01afcfa2a1c62a685f4b73ea81f1f93faf9bf8e651b82b83e67d501",
     "source": "gallery/scenarios/hlp.ui.tooltip.json",
-    "pin": "e4c44eca8918b135e2dcd36060a8e8582d336f89",
+    "pin": "5813a5fe8b277a829cc65678f9dbe75bf1feef64",
     "surface": {
       "conformance/hlp.ui.tooltip/fixtures.yaml": "82ea3cc140d01500e05a2b87df620b095b624971634ab2410079ea79bda2caea",
       "conformance/hlp.ui.tooltip/quality-fixtures.yaml": "eabb6ebfa0c9d9786fcdd278ba3b4c5ded3af0b61afb1e195e09ead0b060fa19",
       "gallery/projections/blazor/Stories/Tooltip.stories.razor": "71f57df92ed6f5437a733287f1ae629cf6a2dc9f63949d3cc3a4adffce87c556",
-      "gallery/projections/blazor/Stories/TooltipScenario.razor": "552f92ad96804c7cc76d776d8091ee479031702ea8a120c3ae7a0bd3a7c8aff9",
+      "gallery/projections/blazor/Stories/TooltipScenario.razor": "149b2a6cc868ad9cf1d4a2d7d8229803b6f57390de18245dae3b08c1a398ec2b",
       "gallery/projections/react/src/Tooltip.stories.tsx": "b1bb6fd1c13090858502f64026ffa8a466464a8a78e8d13b30112bd27014d97a",
-      "gallery/scenarios/hlp.ui.tooltip.json": "91d90a9a029fa0178dba5aa8713cbc392df38df52d69dc601d23db59819c85a3",
-      "projections/blazor/ui/hlp.ui.tooltip/ShipyardTooltip.razor": "16533c1e7e8f7dec60a35a8dd2f0dcd56a96dec97f6aa1d64e2c5ac04e195e19",
-      "projections/blazor/ui/hlp.ui.tooltip/ShipyardTooltipTrigger.razor": "7c6194df536bff10b25be32c7bdc15c29fff4c5f6c867ca0534f45589887de2c",
-      "projections/blazor/ui/hlp.ui.tooltip/TooltipTypes.cs": "aeadd50578a7fcf2dd679ddfd9feb2c03e48716e40a8dffe50040f8cea6002ee",
+      "gallery/scenarios/hlp.ui.tooltip.json": "9fac717e09a1cdcb419eea3e47e282df37594898c00317b031561c6fb2536ad0",
+      "projections/blazor/ui/hlp.ui.tooltip/HarborlineTooltip.razor": "55ffb51c2fcc816aedde4f657b9302ee4a07d302907dec305ec1a35d92b057cc",
+      "projections/blazor/ui/hlp.ui.tooltip/HarborlineTooltipTrigger.razor": "f2c5bc1bf7bf7c64ed5627be4ebb617340badccd9fdc5367067ee8cee911044c",
+      "projections/blazor/ui/hlp.ui.tooltip/TooltipTypes.cs": "21c3228c8f27a3215fe079f3c059eab3f4a461a6f5c8b50d0587efc6cc1fed19",
       "projections/blazor/ui/hlp.ui.tooltip/wwwroot/tooltip.css": "d12007ca16dc03688f3906d7c56ae8e20417a3db4e3594037602a2492096d8aa",
       "projections/react/ui/hlp.ui.tooltip/src/Tooltip.tsx": "02c3ef53e4164703f0ad0f48536807d39485b3f7aa69466908529b847201f486",
       "projections/react/ui/hlp.ui.tooltip/src/index.ts": "545736684b9cca41fe3138eeb59a863350790cdbbd2a58011c0a03b3b69508c0",
       "projections/react/ui/hlp.ui.tooltip/src/style.css": "d12007ca16dc03688f3906d7c56ae8e20417a3db4e3594037602a2492096d8aa",
-      "specs/modules/ui/hlp.ui.tooltip/scenarios.json": "91d90a9a029fa0178dba5aa8713cbc392df38df52d69dc601d23db59819c85a3",
+      "specs/modules/ui/hlp.ui.tooltip/scenarios.json": "9fac717e09a1cdcb419eea3e47e282df37594898c00317b031561c6fb2536ad0",
       "specs/modules/ui/hlp.ui.tooltip/style.css": "d12007ca16dc03688f3906d7c56ae8e20417a3db4e3594037602a2492096d8aa"
+    },
+    "migration": {
+      "kind": "family-rename",
+      "from": "Shipyard",
+      "to": "Harborline",
+      "judgedAgainst": "e4c44eca8918b135e2dcd36060a8e8582d336f89",
+      "reviewedReference": {
+        "revision": "53f2dd04253595825fae213777d9c12290958086bac4f5106539fb5c2e7817f1",
+        "source": "gallery/scenarios/hlp.ui.tooltip.json",
+        "pin": "e4c44eca8918b135e2dcd36060a8e8582d336f89",
+        "surface": {
+          "conformance/hlp.ui.tooltip/fixtures.yaml": "82ea3cc140d01500e05a2b87df620b095b624971634ab2410079ea79bda2caea",
+          "conformance/hlp.ui.tooltip/quality-fixtures.yaml": "eabb6ebfa0c9d9786fcdd278ba3b4c5ded3af0b61afb1e195e09ead0b060fa19",
+          "gallery/projections/blazor/Stories/Tooltip.stories.razor": "71f57df92ed6f5437a733287f1ae629cf6a2dc9f63949d3cc3a4adffce87c556",
+          "gallery/projections/blazor/Stories/TooltipScenario.razor": "552f92ad96804c7cc76d776d8091ee479031702ea8a120c3ae7a0bd3a7c8aff9",
+          "gallery/projections/react/src/Tooltip.stories.tsx": "b1bb6fd1c13090858502f64026ffa8a466464a8a78e8d13b30112bd27014d97a",
+          "gallery/scenarios/hlp.ui.tooltip.json": "91d90a9a029fa0178dba5aa8713cbc392df38df52d69dc601d23db59819c85a3",
+          "projections/blazor/ui/hlp.ui.tooltip/ShipyardTooltip.razor": "16533c1e7e8f7dec60a35a8dd2f0dcd56a96dec97f6aa1d64e2c5ac04e195e19",
+          "projections/blazor/ui/hlp.ui.tooltip/ShipyardTooltipTrigger.razor": "7c6194df536bff10b25be32c7bdc15c29fff4c5f6c867ca0534f45589887de2c",
+          "projections/blazor/ui/hlp.ui.tooltip/TooltipTypes.cs": "aeadd50578a7fcf2dd679ddfd9feb2c03e48716e40a8dffe50040f8cea6002ee",
+          "projections/blazor/ui/hlp.ui.tooltip/wwwroot/tooltip.css": "d12007ca16dc03688f3906d7c56ae8e20417a3db4e3594037602a2492096d8aa",
+          "projections/react/ui/hlp.ui.tooltip/src/Tooltip.tsx": "02c3ef53e4164703f0ad0f48536807d39485b3f7aa69466908529b847201f486",
+          "projections/react/ui/hlp.ui.tooltip/src/index.ts": "545736684b9cca41fe3138eeb59a863350790cdbbd2a58011c0a03b3b69508c0",
+          "projections/react/ui/hlp.ui.tooltip/src/style.css": "d12007ca16dc03688f3906d7c56ae8e20417a3db4e3594037602a2492096d8aa",
+          "specs/modules/ui/hlp.ui.tooltip/scenarios.json": "91d90a9a029fa0178dba5aa8713cbc392df38df52d69dc601d23db59819c85a3",
+          "specs/modules/ui/hlp.ui.tooltip/style.css": "d12007ca16dc03688f3906d7c56ae8e20417a3db4e3594037602a2492096d8aa"
+        }
+      }
     }
   }
 }

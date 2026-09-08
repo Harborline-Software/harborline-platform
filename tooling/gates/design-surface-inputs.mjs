@@ -82,7 +82,7 @@ export function designSurfaceInputs(platformRoot, moduleId) {
   // Fail loudly if observing the computation changed either result.
   assert.equal(revision, referenceRevision(platformRoot, moduleId))
   assert.deepEqual(surface, referenceSurface(platformRoot, moduleId))
-  const record = loadRecord(moduleId)
+  const record = loadRecord(moduleId, path.resolve(platformRoot, 'docs/evidence/design-review'))
   const reads = events.filter(event => event.phase === 'referenceSurface' && event.operation === 'readFileSync')
   return {
     schemaVersion: 1, moduleId, platformRoot, node: process.version, platform: process.platform,
@@ -101,7 +101,7 @@ export function designSurfaceInputs(platformRoot, moduleId) {
   }
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (import.meta.main) {
   const moduleId = process.argv[2]
   if (!moduleId || process.argv.length !== 3 || !/^hlp\.[a-z0-9.-]+$/.test(moduleId)) {
     process.stderr.write('Usage: node tooling/gates/design-surface-inputs.mjs <moduleId>\n')

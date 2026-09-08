@@ -5,21 +5,45 @@
   "reviewer": "cic",
   "recordedAt": "2026-08-26T20:48:48.808Z",
   "reference": {
-    "revision": "c153194dfaab42410cfd5e55475ef82c0adb1e240e73787ceeaea6ea7b61ef70",
+    "revision": "24d5e3bcb4011b501d9ce34a78f05f5ab740eb413280a78add97c133d436bf04",
     "source": "gallery/scenarios/hlp.ui.switch-field.json",
-    "pin": "cc9eb48ed68c5033ec128cd53c40b1d2786bee66",
+    "pin": "5813a5fe8b277a829cc65678f9dbe75bf1feef64",
     "surface": {
       "conformance/hlp.ui.switch-field/fixtures.yaml": "8c98b1af0b9bb0cffd3837a29e52e097ad4c811c554dfe23e9aea0614f708bc6",
       "conformance/hlp.ui.switch-field/quality-fixtures.yaml": "804dc0f0e3c038380c8dffd5f2cdc84d31ca9181c6938fc1ba11589ac230acdc",
       "gallery/projections/blazor/Stories/SwitchField.stories.razor": "53411c32ca947d5c4ec32b440671691a982c3beb259c36ad0ad0e969f58bf1f8",
-      "gallery/projections/blazor/Stories/SwitchFieldScenario.razor": "eff7f7c87a2f47e9055b5231c8b2535484c70b255050f4246aeb3a42ff6d6d9e",
-      "gallery/projections/react/src/SwitchField.stories.tsx": "cb2364f75ef74f84be8c7673da0f8cd93cca2e96ba1467033e2b84b0bf8b933e",
-      "gallery/scenarios/hlp.ui.switch-field.json": "c153194dfaab42410cfd5e55475ef82c0adb1e240e73787ceeaea6ea7b61ef70",
-      "projections/blazor/ui/hlp.ui.switch-field/ShipyardSwitchField.razor": "47640f77c49b958389cad682bf8efbd3ef7926df9919a0ad09282193bf5e8dd4",
+      "gallery/projections/blazor/Stories/SwitchFieldScenario.razor": "2d59a26cbb2ba2f36a109270ad56ae7c8b5235425e5022e3f2868682ee9f72a2",
+      "gallery/projections/react/src/SwitchField.stories.tsx": "edac5ffa76def56e416508668b856f49d66dc5fa988e0ece5661bd0f5bcf1b82",
+      "gallery/scenarios/hlp.ui.switch-field.json": "24d5e3bcb4011b501d9ce34a78f05f5ab740eb413280a78add97c133d436bf04",
+      "projections/blazor/ui/hlp.ui.switch-field/HarborlineSwitchField.razor": "aba4957af21a87ca76051554d1df5b9b273a3fbb4e99ccccc0debcd3cdaa8fb8",
       "projections/react/ui/hlp.ui.switch-field/src/SwitchField.tsx": "d737ce2a43159258095050f1612f15f4c02596c467cc07de838492486147f7c1",
       "projections/react/ui/hlp.ui.switch-field/src/index.ts": "ec049cd5eb4619fa098fb2730d5428ef8ed2dc3f2a2a04cbf93ebe431761e1e5",
-      "specs/modules/ui/hlp.ui.switch-field/scenarios.json": "c153194dfaab42410cfd5e55475ef82c0adb1e240e73787ceeaea6ea7b61ef70",
+      "specs/modules/ui/hlp.ui.switch-field/scenarios.json": "24d5e3bcb4011b501d9ce34a78f05f5ab740eb413280a78add97c133d436bf04",
       "specs/modules/ui/hlp.ui.switch-field/style.css": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "migration": {
+      "kind": "family-rename",
+      "from": "Shipyard",
+      "to": "Harborline",
+      "judgedAgainst": "cc9eb48ed68c5033ec128cd53c40b1d2786bee66",
+      "reviewedReference": {
+        "revision": "c153194dfaab42410cfd5e55475ef82c0adb1e240e73787ceeaea6ea7b61ef70",
+        "source": "gallery/scenarios/hlp.ui.switch-field.json",
+        "pin": "cc9eb48ed68c5033ec128cd53c40b1d2786bee66",
+        "surface": {
+          "conformance/hlp.ui.switch-field/fixtures.yaml": "8c98b1af0b9bb0cffd3837a29e52e097ad4c811c554dfe23e9aea0614f708bc6",
+          "conformance/hlp.ui.switch-field/quality-fixtures.yaml": "804dc0f0e3c038380c8dffd5f2cdc84d31ca9181c6938fc1ba11589ac230acdc",
+          "gallery/projections/blazor/Stories/SwitchField.stories.razor": "53411c32ca947d5c4ec32b440671691a982c3beb259c36ad0ad0e969f58bf1f8",
+          "gallery/projections/blazor/Stories/SwitchFieldScenario.razor": "eff7f7c87a2f47e9055b5231c8b2535484c70b255050f4246aeb3a42ff6d6d9e",
+          "gallery/projections/react/src/SwitchField.stories.tsx": "cb2364f75ef74f84be8c7673da0f8cd93cca2e96ba1467033e2b84b0bf8b933e",
+          "gallery/scenarios/hlp.ui.switch-field.json": "c153194dfaab42410cfd5e55475ef82c0adb1e240e73787ceeaea6ea7b61ef70",
+          "projections/blazor/ui/hlp.ui.switch-field/ShipyardSwitchField.razor": "47640f77c49b958389cad682bf8efbd3ef7926df9919a0ad09282193bf5e8dd4",
+          "projections/react/ui/hlp.ui.switch-field/src/SwitchField.tsx": "d737ce2a43159258095050f1612f15f4c02596c467cc07de838492486147f7c1",
+          "projections/react/ui/hlp.ui.switch-field/src/index.ts": "ec049cd5eb4619fa098fb2730d5428ef8ed2dc3f2a2a04cbf93ebe431761e1e5",
+          "specs/modules/ui/hlp.ui.switch-field/scenarios.json": "c153194dfaab42410cfd5e55475ef82c0adb1e240e73787ceeaea6ea7b61ef70",
+          "specs/modules/ui/hlp.ui.switch-field/style.css": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      }
     }
   }
 }
