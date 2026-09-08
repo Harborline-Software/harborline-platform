@@ -18,7 +18,7 @@ import {mkdirSync, readFileSync, writeFileSync} from 'node:fs'
 import {resolve} from 'node:path'
 
 import {createGateModel} from './gate-rows.mjs'
-import {designReviewMessage, designReviewSummary, loadExpiredBacklog} from './design-review-status.mjs'
+import {designReviewMessage, designReviewSummary} from './design-review-status.mjs'
 
 const argv = process.argv.slice(2)
 const positional = argv.filter(argument => !argument.startsWith('--'))
@@ -35,7 +35,7 @@ export function terminalFor(rows) {
 }
 
 function build() {
-  const {TIER1_GATE_IDS, gateRows, contextFor} = createGateModel(platformRoot)
+  const {TIER1_GATE_IDS, gateRows, contextFor, designReviewOptions} = createGateModel(platformRoot)
   const catalog = JSON.parse(readFileSync(resolve(platformRoot, 'catalog/modules.yaml'), 'utf8')).modules
   const moduleIds = Object.keys(catalog).filter(id => id.startsWith('hlp.ui.')).sort()
 
@@ -52,7 +52,7 @@ function build() {
     }
   })
 
-  const designReview = designReviewSummary(modules, {backlog: loadExpiredBacklog(platformRoot)})
+  const designReview = designReviewSummary(modules, designReviewOptions)
   return {
     schemaVersion: 1,
     status: designReview.status,
