@@ -166,6 +166,7 @@ try {
   run('ui-spec-authority', process.execPath, ['tooling/sync-ui-spec-authority.mjs', '--check'], root, true)
   run('catalog-preflight', process.execPath, ['tooling/validate-repository.mjs', '--allow-stale-gate'], root, true)
   run('tooling-selftests', process.execPath, ['tooling/run-tooling-selftests.mjs'], root, true)
+  run('sibling-package-origins', process.execPath, ['tooling/gates/scan-sibling-package-origins.mjs', '--json'], root, true)
   run('prop-vocabulary', process.execPath, ['tooling/gates/scan-prop-vocabulary.mjs', '--json'], root, true)
   // A static sweep over source, so it belongs with the cheap checks rather than behind the
   // thirty-eight-minute half. The shared EXPIRED rule includes non-terminal UI modules and

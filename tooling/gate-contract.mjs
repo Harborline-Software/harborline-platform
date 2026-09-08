@@ -16,7 +16,7 @@ import {writeFileSync} from 'node:fs'
 // preserve — only a third place to forget.
 export const requiredStepIds = [
   'root-clean-install', 'npm-clean-install', 'forms-contracts-clean-install', 'rule-runtime-clean-install', 'rule-authoring-clean-install', 'copilot-contracts-clean-install', 'dotnet-restore', 'generation-smoke', 'ui-spec-authority', 'catalog-preflight',
-  'tooling-selftests', 'prop-vocabulary', 'ui-gate-model', 'build', 'native-tests', 'perf-budgets', 'ui-shared-conformance', 'package-consumers',
+  'tooling-selftests', 'sibling-package-origins', 'prop-vocabulary', 'ui-gate-model', 'build', 'native-tests', 'perf-budgets', 'ui-shared-conformance', 'package-consumers',
   'gallery-gate', 'catalog-final',
 ]
 

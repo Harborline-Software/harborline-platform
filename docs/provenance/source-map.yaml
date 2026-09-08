@@ -115,7 +115,7 @@
         "projections/dotnet/foundation/hlp.foundation.rule-authoring/RuleSeeds.cs": "c5f87832d133d50ad0bff51f4a2ed97df521dd4cf95cf22efad7354151bdbb37",
         "projections/dotnet/foundation/hlp.foundation.rule-authoring/Harborline.Foundation.RuleAuthoring.csproj": "f48c423c9632e099ebebba7aaf1d862d947e06fb73d2d01b7e8e998b044db967",
         "projections/dotnet/foundation/hlp.foundation.rule-authoring/SkinLowering.cs": "56a84bbc2667c970bba88bc91b62b0c06b0a9b302474d6c2ae06fd641b9954c2",
-        "projections/typescript/foundation/hlp.foundation.rule-authoring/package.json": "8be7ec9751f32607f28a2627fe4136a795d5dbb9d773bcbba71a147d9ba591b6",
+        "projections/typescript/foundation/hlp.foundation.rule-authoring/package.json": "7e06395a193b39267900b628aa047df39fbae4dfb68ba518a90b66643054bd6d",
         "projections/typescript/foundation/hlp.foundation.rule-authoring/src/admission.ts": "6b8a79e4b1dca8fed80b158f2f7e033133e79a8f1352829e9f715c0d23dda593",
         "projections/typescript/foundation/hlp.foundation.rule-authoring/src/catalog.ts": "242a0ee2e0369c3eaa0777d23f976d10ecfa1e4c3af278af621e8c6724d90e72",
         "projections/typescript/foundation/hlp.foundation.rule-authoring/src/compile.ts": "1dfc50ae191464cb5e813daedc160ab9b97980cfabf2fd5357c81a8403b33823",
