@@ -1,4 +1,7 @@
 import assert from 'node:assert/strict'
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { resolve } from 'node:path'
 import test from 'node:test'
 
 import { runFixtureStep, spawnWithBudget } from '../resolve-command.mjs'
@@ -53,6 +56,29 @@ test('a gallery gate step past its budget fails by step id, budget and command',
       () => galleryRun('react-gallery-typecheck', process.execPath, OUTLIVES_BUDGET_ARGS),
       /react-gallery-typecheck exceeded its 300ms budget and was killed: .*setTimeout/)
   })
+})
+
+test('a gallery gate run refuses an unavailable browser with Playwright\'s reason', () => {
+  const unavailableBrowsers = mkdtempSync(resolve(tmpdir(), 'hlp-unavailable-browser-'))
+  try {
+    assert.throws(
+      () => galleryRun(
+        'playwright-browser-launch',
+        process.execPath,
+        ['gallery/tests/verify-browser.mjs'],
+        undefined,
+        { PLAYWRIGHT_BROWSERS_PATH: unavailableBrowsers },
+      ),
+      error => {
+        assert.match(error.message, /Playwright Chromium unavailable/)
+        assert.match(error.message, /Executable doesn't exist/)
+        assert.doesNotMatch(error.message, /"browserTests": 0[\s\S]*"status": "PASS"/)
+        return true
+      },
+    )
+  } finally {
+    rmSync(unavailableBrowsers, { recursive: true, force: true })
+  }
 })
 
 test('a gallery prepare step past its budget fails by name, budget and command', () => {

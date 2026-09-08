@@ -11,10 +11,14 @@
 // PLAYWRIGHT_JSON_OUTPUT_NAME, and the merged report observed ZERO tests.
 
 import assert from 'node:assert/strict'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { resolve } from 'node:path'
 import test from 'node:test'
 
 import { mergeShardReports } from '../gallery-shard-merge.mjs'
 import { observeGalleryRun } from '../gallery-observations.mjs'
+import { observeCompletedGalleryRun } from '../run-gallery-gate.mjs'
 
 const SUFFIX = ' is accessible and visually conformant'
 const shard = (scenarioIds, stats = {}) => ({
@@ -62,4 +66,22 @@ test('every shard missing is refused loudly, not reported as an empty pass', () 
   // turned the first broken sharded run red instead of letting it report a suite of no tests.
   assert.throws(() => observeGalleryRun(mergeShardReports([null, null]), ['a.one']),
     /report contains no tests/)
+})
+
+test('a failed browser subprocess still contributes its written observations', () => {
+  const scratch = mkdtempSync(resolve(tmpdir(), 'hlp-failed-gallery-report-'))
+  const reportPath = resolve(scratch, 'results.json')
+  try {
+    writeFileSync(reportPath, JSON.stringify(shard(['a.one'], {expected: 0, unexpected: 1})))
+    const observed = observeCompletedGalleryRun({
+      results: [{id: 'gallery-accessibility-and-parity', passed: false}],
+      reportPath,
+      scenarioIds: ['a.one'],
+    })
+    assert.equal(observed.browserTests, 1)
+    assert.equal(observed.scenarioBrowserTests, 1)
+    assert.equal(observed.outcomes.unexpected, 1)
+  } finally {
+    rmSync(scratch, { recursive: true, force: true })
+  }
 })
