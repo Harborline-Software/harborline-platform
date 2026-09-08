@@ -25,9 +25,6 @@
     "lint": "eslint src --report-unused-disable-directives --max-warnings 0",
     "clean": "rm -rf dist"
   },
-  "peerDependencies": {
-    "@harborline-software/rule-engine": "0.1.0-alpha.0"
-  },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@typescript/native": "npm:typescript@^7.0.2",
@@ -41,5 +38,13 @@
     "type": "git",
     "url": "git+https://github.com/Harborline-Software/harborline-platform.git",
     "directory": "projections/typescript/foundation/hlp.foundation.rule-authoring"
+  },
+  "peerDependencies": {
+    "@harborline-software/rule-engine": "0.1.0-alpha.0"
+  },
+  "peerDependenciesMeta": {
+    "@harborline-software/rule-engine": {
+      "optional": true
+    }
   }
 }

@@ -1,16 +1,12 @@
 lockfileVersion: '9.0'
 
 settings:
-  autoInstallPeers: true
+  autoInstallPeers: false
   excludeLinksFromLockfile: false
 
 importers:
 
   .:
-    dependencies:
-      '@harborline-software/rule-engine':
-        specifier: 0.1.0-alpha.0
-        version: 0.1.0-alpha.0
     devDependencies:
       '@eslint/js':
         specifier: ^10.0.1
@@ -29,7 +25,7 @@ importers:
         version: 8.67.0(@typescript/typescript6@6.0.2)(eslint@10.8.1)
       vitest:
         specifier: ^4.1.10
-        version: 4.1.10(vite@8.2.1)
+        version: 4.1.10
 
 packages:
 
@@ -71,9 +67,6 @@ packages:
   '@eslint/plugin-kit@0.7.2':
     resolution: {integrity: sha512-+CNAzxglkrpNf/kKywqQfk74QjtceuOE7Qm+AF8miRvPF/wmmK5+OJOgVh3AVTT3RP2mH3+FOaxlE5v72owk0A==}
     engines: {node: ^20.19.0 || ^22.13.0 || >=24}
-
-  '@harborline-software/rule-engine@0.1.0-alpha.0':
-    resolution: {integrity: sha512-Ah9PyPsvAmsXxScN5JXVU+VAcijf23Sl2ChArX2pkSEZlgKjWSIiZDrPpGzED2wClzHFIRquVV3Yj3bAP5DUxA==}
 
   '@humanfs/core@0.19.2':
     resolution: {integrity: sha512-UhXNm+CFMWcbChXywFwkmhqjs3PRCmcSa/hfBgLIb7oQ5HNb1wS0icWsGtSAUNgefHeI+eBrA8I1fxmbHsGdvA==}
@@ -890,7 +883,6 @@ packages:
       '@vitest/ui': 4.1.10
       happy-dom: '*'
       jsdom: '*'
-      vite: ^6.0.0 || ^7.0.0 || ^8.0.0
     peerDependenciesMeta:
       '@edge-runtime/vm':
         optional: true
@@ -968,8 +960,6 @@ snapshots:
     dependencies:
       '@eslint/core': 1.2.1
       levn: 0.4.1
-
-  '@harborline-software/rule-engine@0.1.0-alpha.0': {}
 
   '@humanfs/core@0.19.2':
     dependencies:
@@ -1632,7 +1622,7 @@ snapshots:
     optionalDependencies:
       fsevents: 2.3.3
 
-  vitest@4.1.10(vite@8.2.1):
+  vitest@4.1.10:
     dependencies:
       '@vitest/expect': 4.1.10
       '@vitest/mocker': 4.1.10(vite@8.2.1)
@@ -1655,7 +1645,18 @@ snapshots:
       vite: 8.2.1
       why-is-node-running: 2.3.0
     transitivePeerDependencies:
+      - '@vitejs/devtools'
+      - esbuild
+      - jiti
+      - less
       - msw
+      - sass
+      - sass-embedded
+      - stylus
+      - sugarss
+      - terser
+      - tsx
+      - yaml
 
   which@2.0.2:
     dependencies:

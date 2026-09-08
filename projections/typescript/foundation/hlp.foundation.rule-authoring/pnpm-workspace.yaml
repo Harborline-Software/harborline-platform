@@ -1,0 +1,3 @@
+# pnpm 11 reads its settings here, not from .npmrc. The rule engine is an optional peer
+# (the consumer fixture installs the packed tarball); do not auto-install it from a registry.
+autoInstallPeers: false
