@@ -95,8 +95,12 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: phase4-gate-report-${{ github.run_id }}
-          path: harborline-phase4-gate-report.json
-          if-no-files-found: warn
+          # The receipt runner writes the report into the git directory (tooling/run-phase4-receipt.mjs
+          # gateReportPath), which upload-artifact skips as hidden unless told otherwise. The first run
+          # after s4 uploaded nothing for exactly that reason.
+          path: .git/harborline-phase4-gate-report.json
+          include-hidden-files: true
+          if-no-files-found: error
           retention-days: 14
       - name: Upload gallery failure evidence
         if: failure()
