@@ -59,7 +59,12 @@ jobs:
         run: git clone --quiet "https://github.com/Harborline-Software/harborline-api.git" "$RUNNER_TEMP/harborline-api"
         env:
           HARBORLINE_API_READ_TOKEN: ${{ secrets.HARBORLINE_API_READ_TOKEN }}
-      - run: npm run gate:phase4
+      # run-phase-4-gate.mjs writes its report to stdout only (the receipt runner is what writes it
+      # to disk, and CI does not run the receipt runner). Capture it here so the upload step below
+      # has a file; pipefail keeps the gate's exit code (ticket 330 s4c).
+      - run: |
+          set -o pipefail
+          node tooling/run-phase-4-gate.mjs | tee harborline-phase4-gate-report.json
         env:
           HARBORLINE_API_REPO: ${{ runner.temp }}/harborline-api
           # Control ticket 083. The gallery's ONLY leniency, and it exists only here: on a 2-core
@@ -95,11 +100,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: phase4-gate-report-${{ github.run_id }}
-          # The receipt runner writes the report into the git directory (tooling/run-phase4-receipt.mjs
-          # gateReportPath), which upload-artifact skips as hidden unless told otherwise. The first run
-          # after s4 uploaded nothing for exactly that reason.
-          path: .git/harborline-phase4-gate-report.json
-          include-hidden-files: true
+          path: harborline-phase4-gate-report.json
           if-no-files-found: error
           retention-days: 14
       - name: Upload gallery failure evidence
