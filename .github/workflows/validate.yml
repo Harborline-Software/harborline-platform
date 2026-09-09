@@ -87,23 +87,18 @@ jobs:
           # trade here to weigh. Do not raise this back toward the config default without repeating
           # that measurement; the default is tuned for an 8-core host.
           PW_WORKERS: "2"
+      - name: Keep the phase-4 gate report whatever the outcome
+        # The report is the only complete record of every step's counts and failure text. The job log
+        # truncates it inside the embedded step output (330 s3's acceptance could not be read from the
+        # log on two runs), so it is uploaded on every run, green or red (ticket 330 s4).
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: phase4-gate-report-${{ github.run_id }}
+          path: harborline-phase4-gate-report.json
+          if-no-files-found: warn
+          retention-days: 14
       - name: Upload gallery failure evidence
-        # A failed pixel comparison is unfalsifiable without its images. assertLocatorVisualParity
-        # attaches the react, blazor, and diff PNGs through testInfo.attach, but the `line` reporter
-        # prints only the changed-pixel ratio and never writes those bodies out — so run 32647717020
-        # reported toaster.theme-light/dark at 0.0308 against a 0.015 budget and left NOTHING to
-        # look at. The only move that remained was to exempt a failure no one had seen, which is the
-        # manufactured pass the whole named-exemption design exists to prevent (control ticket 083).
-        #
-        # The path is playwright-report/, NOT test-results/. That distinction was measured, not
-        # guessed: under `line` alone test-results/ holds error-context.md and no attachment at all.
-        # playwright.config.ts adds the html reporter under this same CI flag, and that is what puts
-        # the PNGs on disk.
-        #
-        # Failure-only and gitignored, so a green run uploads nothing and no capture is ever
-        # committed. `warn` rather than `ignore` on an empty match: when the gate fails BEFORE the
-        # gallery there is legitimately nothing here, but a silent miss would look identical to the
-        # collection path breaking.
         if: failure()
         uses: actions/upload-artifact@v7
         with:
