@@ -485,8 +485,8 @@
       "gates": [
         {
           "id": "assertDeterminism",
-          "status": "FAIL",
-          "note": "1 unclassified numeric prop(s)"
+          "status": "PASS",
+          "note": "cheap half only: no timing or async construct declared"
         },
         {
           "id": "assertAccessible",
@@ -495,13 +495,13 @@
         },
         {
           "id": "assertVisualParity",
-          "status": "VOID",
-          "note": "voided by an assertDeterminism failure in this lane"
+          "status": "PASS",
+          "note": "2 visual-parity scenario(s), lane vs lane, pixelmatch"
         },
         {
           "id": "assertFunctionalParity",
-          "status": "VOID",
-          "note": "voided by an assertDeterminism failure in this lane"
+          "status": "PASS",
+          "note": "55 conformance case(s) across both lanes"
         },
         {
           "id": "assertInternationalization",
@@ -6017,11 +6017,9 @@
     }
   ],
   "tally": {
-    "PASS": 644,
+    "PASS": 647,
     "PARTIAL": 89,
     "UNBUILT": 169,
-    "FAIL": 1,
-    "VOID": 2,
     "NOT-APPLICABLE": 159
   }
 }
