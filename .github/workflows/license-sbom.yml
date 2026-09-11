@@ -6,6 +6,11 @@ on:
   push:
     branches: [main]
   pull_request:
+  # A merge queue waits for every required check ON THE MERGE-GROUP REF. `sbom` is required on
+  # main, so without this trigger the workflow never starts there, the check never reports, and
+  # every queue entry sits until check_response_timeout_minutes expires and is ejected. The queue
+  # looks broken and it is always this (harborline-api, ci-plan/merge-queue.md).
+  merge_group:
 permissions:
   contents: read
   pull-requests: read
