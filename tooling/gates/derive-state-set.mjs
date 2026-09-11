@@ -44,11 +44,21 @@ const SYNONYMS = {
 // completeness gate that manufactures findings is worse than one that admits its scope. This
 // derives ONLY what the type surface states -- enum and union members. Pseudo-states are CSS
 // concerns and belong to assertFocusQuality, which is separately UNBUILT and honestly so.
+// Reads every non-test .ts/.tsx in the module's src, the way blazorSurface reads every .cs/.razor in
+// the module directory. Reading only src/<Name>.tsx was the asymmetry that made hlp.ui.schema-form
+// FAIL on ticket 381: its rule value state union lives in SchemaForm.types.ts, the Blazor lane
+// declares the same three members in SchemaFormTypes.cs, and one reader saw a lane the other did not
+// -- reported as a lane DISAGREEMENT, which is the false-failure mode this file warns about twice
+// above.
 function reactSurface(platformRoot, moduleId) {
-  const name = moduleId.slice('hlp.ui.'.length).split('-').map(p => p[0].toUpperCase() + p.slice(1)).join('')
-  const path = resolve(platformRoot, `projections/react/ui/${moduleId}/src/${name}.tsx`)
+  const path = resolve(platformRoot, `projections/react/ui/${moduleId}/src`)
   if (!existsSync(path)) return null
-  const source = readFileSync(path, 'utf8')
+  let source = ''
+  for (const entry of readdirSync(path, {withFileTypes: true})) {
+    if (entry.isFile() && /\.tsx?$/.test(entry.name) && !/\.test\.|test-setup/.test(entry.name)) {
+      source += readFileSync(resolve(path, entry.name), 'utf8')
+    }
+  }
   const members = new Set()
   // The leading-pipe multi-line form counts. hlp.ui.chip declares ChipThemeColor as `=\n  | 'base'\n
   // | 'primary' ...`, and requiring the first literal to follow `=` directly derived an EMPTY React
@@ -58,7 +68,15 @@ function reactSurface(platformRoot, moduleId) {
   for (const match of source.matchAll(/export type \w+\s*=\s*\|?\s*((?:'[^']*'\s*\|\s*)*'[^']*')/g)) {
     for (const literal of match[1].matchAll(/'([^']*)'/g)) members.add(literal[1])
   }
-  return {members: [...members], path}
+  // No union at all is NOT an empty state set: it means this reader found nothing to read, which is
+  // what blazorSurface says with its sawEnum check. hlp.ui.schema-form holds its rule value state
+  // vocabulary in @harborline-software/rule-engine and @harborline-platform/hlp.ui.form-view -- the
+  // Blazor lane must mirror those contracts locally (SchemaFormRuleValueState, SchemaFormVisibility)
+  // because C# has no structural import of a union -- so the React lane declared nothing of its own
+  // and the module FAILed with react=[] blazor=["error","loading"]. Both lanes draw and test both
+  // states (schema-form.submit-blocked in each), so that was a reader gap reported as a lane
+  // disagreement: exactly the false failure this file warns about twice above (ticket 381).
+  return members.size > 0 ? {members: [...members], path} : null
 }
 
 // Reads every .cs and .razor in the module directory rather than a hardcoded file list. The first
@@ -298,7 +316,13 @@ export function stateBearingProps(platformRoot, moduleId) {
 // `value` is the controlled-component idiom rather than a discrete state -- 18 of the 76 modules
 // declare one, and requiring a "value state" scenario from all of them would be noise.
 const MODE = [
-  {words: new Set(['open', 'expanded', 'collapsed', 'visible']), states: ['expanded', 'collapsed']},
+  // `visible` is NOT here. It is the word the rule-evaluation OUTCOME records use --
+  // hlp.ui.schema-form's SchemaFormVisibility(bool Visible = true, ...) is a rule outcome the form
+  // never takes as a parameter -- so reading it as a disclosure mode derived a collapsed/expanded
+  // mode for a form that has neither, against a React lane that keeps the same outcome type in the
+  // shared hlp.ui.form-view contract rather than in the module. That read as a lane disagreement
+  // (ticket 381). Disclosure in this codebase is spelled open / expanded / collapsed, which stay.
+  {words: new Set(['open', 'expanded', 'collapsed']), states: ['expanded', 'collapsed']},
   {words: new Set(['selected', 'checked', 'pressed']), states: ['selected', 'unselected']},
 ]
 const modeRuleFor = name => MODE.find(rule => words(name).some(word => rule.words.has(word)))

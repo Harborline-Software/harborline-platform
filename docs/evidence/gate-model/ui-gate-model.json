@@ -755,7 +755,7 @@
         {
           "id": "assertStateCompleteness",
           "status": "UNBUILT",
-          "note": "interface carries state neither axis can name -- current; widening the vocabulary or rescoping the gate is a model change, not a fixture change"
+          "note": "no component interface found in either lane"
         },
         {
           "id": "assertFocusQuality",
@@ -988,8 +988,8 @@
         },
         {
           "id": "assertStateCompleteness",
-          "status": "UNBUILT",
-          "note": "interface carries state neither axis can name -- value; widening the vocabulary or rescoping the gate is a model change, not a fixture change"
+          "status": "PARTIAL",
+          "note": "derived [\"disabled\"] from the interface; no scenario names [\"disabled\"]"
         },
         {
           "id": "assertFocusQuality",
@@ -1018,8 +1018,8 @@
         },
         {
           "id": "assertDesignQuality",
-          "status": "UNBUILT",
-          "note": "UNBUILT inherited from assertStateCompleteness"
+          "status": "PARTIAL",
+          "note": "PARTIAL inherited from assertStateCompleteness"
         }
       ]
     },
@@ -1066,8 +1066,8 @@
         },
         {
           "id": "assertStateCompleteness",
-          "status": "UNBUILT",
-          "note": "interface expresses no status or mode state and declares no state-bearing property; nothing derived to check"
+          "status": "PARTIAL",
+          "note": "derived [\"error\"] from the interface; no scenario names [\"error\"]"
         },
         {
           "id": "assertFocusQuality",
@@ -1096,8 +1096,8 @@
         },
         {
           "id": "assertDesignQuality",
-          "status": "UNBUILT",
-          "note": "UNBUILT inherited from assertStateCompleteness"
+          "status": "PARTIAL",
+          "note": "PARTIAL inherited from assertStateCompleteness, assertResponsiveQuality"
         }
       ]
     },
@@ -1535,7 +1535,7 @@
         {
           "id": "assertStateCompleteness",
           "status": "UNBUILT",
-          "note": "interface expresses no status or mode state and declares no state-bearing property; nothing derived to check"
+          "note": "no component interface found in either lane"
         },
         {
           "id": "assertFocusQuality",
@@ -1847,7 +1847,7 @@
         {
           "id": "assertStateCompleteness",
           "status": "UNBUILT",
-          "note": "interface carries state neither axis can name -- value; widening the vocabulary or rescoping the gate is a model change, not a fixture change"
+          "note": "no component interface found in either lane"
         },
         {
           "id": "assertFocusQuality",
@@ -1925,7 +1925,7 @@
         {
           "id": "assertStateCompleteness",
           "status": "UNBUILT",
-          "note": "interface carries state neither axis can name -- value; widening the vocabulary or rescoping the gate is a model change, not a fixture change"
+          "note": "no component interface found in either lane"
         },
         {
           "id": "assertFocusQuality",
@@ -2393,7 +2393,7 @@
         {
           "id": "assertStateCompleteness",
           "status": "UNBUILT",
-          "note": "interface expresses no status or mode state and declares no state-bearing property; nothing derived to check"
+          "note": "no component interface found in either lane"
         },
         {
           "id": "assertFocusQuality",
@@ -2861,7 +2861,7 @@
         {
           "id": "assertStateCompleteness",
           "status": "UNBUILT",
-          "note": "interface expresses no status or mode state and declares no state-bearing property; nothing derived to check"
+          "note": "no component interface found in either lane"
         },
         {
           "id": "assertFocusQuality",
@@ -3251,7 +3251,7 @@
         {
           "id": "assertStateCompleteness",
           "status": "UNBUILT",
-          "note": "interface carries state neither axis can name -- value; widening the vocabulary or rescoping the gate is a model change, not a fixture change"
+          "note": "no component interface found in either lane"
         },
         {
           "id": "assertFocusQuality",
@@ -3796,8 +3796,8 @@
         },
         {
           "id": "assertStateCompleteness",
-          "status": "FAIL",
-          "note": "lanes derive different state sets: react=[] blazor=[\"error\",\"loading\"]"
+          "status": "PARTIAL",
+          "note": "derived [\"error\",\"loading\"] from the interface; no scenario names [\"loading\"]"
         },
         {
           "id": "assertFocusQuality",
@@ -3826,8 +3826,8 @@
         },
         {
           "id": "assertDesignQuality",
-          "status": "FAIL",
-          "note": "FAIL inherited from assertStateCompleteness"
+          "status": "PARTIAL",
+          "note": "PARTIAL inherited from assertStateCompleteness"
         }
       ]
     },
@@ -3875,7 +3875,7 @@
         {
           "id": "assertStateCompleteness",
           "status": "UNBUILT",
-          "note": "interface expresses no status or mode state and declares no state-bearing property; nothing derived to check"
+          "note": "no component interface found in either lane"
         },
         {
           "id": "assertFocusQuality",
@@ -3953,7 +3953,7 @@
         {
           "id": "assertStateCompleteness",
           "status": "UNBUILT",
-          "note": "interface carries state neither axis can name -- value; widening the vocabulary or rescoping the gate is a model change, not a fixture change"
+          "note": "no component interface found in either lane"
         },
         {
           "id": "assertFocusQuality",
@@ -4967,7 +4967,7 @@
         {
           "id": "assertStateCompleteness",
           "status": "UNBUILT",
-          "note": "interface carries state neither axis can name -- defaultValue, value; widening the vocabulary or rescoping the gate is a model change, not a fixture change"
+          "note": "no component interface found in either lane"
         },
         {
           "id": "assertFocusQuality",
@@ -6018,9 +6018,9 @@
   ],
   "tally": {
     "PASS": 644,
-    "PARTIAL": 83,
-    "UNBUILT": 173,
-    "FAIL": 3,
+    "PARTIAL": 89,
+    "UNBUILT": 169,
+    "FAIL": 1,
     "VOID": 2,
     "NOT-APPLICABLE": 159
   }

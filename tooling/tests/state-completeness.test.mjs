@@ -217,3 +217,35 @@ test('a multi-line union with leading pipes is read, in both lanes', () => {
   assert.deepEqual(chip.react, ['default', 'error', 'success', 'warning'])
   assert.equal(chip.laneAgreement, true, 'chip lanes declare the same states and must not read as divergent')
 })
+
+// Ticket 381. hlp.ui.schema-form FAILed with `react=[] blazor=["error","loading"]`, and the
+// disagreement was in the READER, not the lanes. Both lanes draw and test both states -- each has a
+// schema-form.submit-blocked case: a pending or errored rule value keeps the submit control in its
+// loading state and renders the blocked message. The Blazor lane must mirror the rule-engine and
+// form-view contracts locally (SchemaFormRuleValueState, SchemaFormVisibility) because C# has no
+// structural import of a union; the React lane imports them, so it declares no union of its own --
+// and an unreadable React surface was being reported as an EMPTY one, which is the false failure
+// this file warns about twice.
+test('schema-form derives its states from the lane that declares them, not a lane disagreement', () => {
+  const derivation = deriveStateSet(platformRoot, 'hlp.ui.schema-form')
+  assert.deepEqual(derivation.blazor, ['error', 'loading'])
+  assert.equal(derivation.react, null, 'the React lane declares no union of its own; null says unread, [] would claim stateless')
+  assert.equal(derivation.laneAgreement, null)
+  assert.deepEqual(derivation.derived, ['error', 'loading'])
+  assert.notEqual(stateCompletenessVerdict(derivation, [], null, [], deriveModeSet(platformRoot, 'hlp.ui.schema-form'))[0], 'FAIL')
+})
+
+// The mode axis half of the same FAIL: SchemaFormVisibility(bool Visible = true, ...) is a rule
+// OUTCOME the form never takes as a parameter, and reading `visible` as disclosure derived a
+// collapsed/expanded mode for a form that has neither.
+test('a rule visibility outcome is not a disclosure mode', () => {
+  const mode = deriveModeSet(platformRoot, 'hlp.ui.schema-form')
+  assert.deepEqual(mode.derived, [])
+  assert.notEqual(mode.laneAgreement, false)
+})
+
+// A lane that declares no literal union at all is unread, not stateless -- the rule blazorSurface
+// already follows with its sawEnum check. The canary: a module that DOES declare one still derives.
+test('the React surface reader reports nothing found as unread, and still reads what is there', () => {
+  assert.deepEqual(deriveStateSet(platformRoot, 'hlp.ui.badge').react?.includes('error'), true)
+})
