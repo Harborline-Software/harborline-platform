@@ -1,0 +1,104 @@
+# verify: the phase-4 gate on a self-hosted macOS runner, as a pull-request check and as the
+# merge-queue check. This is the gate ADR-0004 calls binding — the one the Mac landings run and the
+# one the receipt is bound to — and it is the gate the ubuntu `validate` job has never been green on
+# (see the publish-libraries comment in validate.yml). Shape copied from harborline-api's verify.yml
+# (control: docs/velocity/landing.md).
+#
+# Fork safety: harborline-platform is public and this job runs on our own machines. It runs only for
+# pull requests whose head lives in this repository, and for merge-queue groups (which are built from
+# already-reviewed heads). A fork PR gets the hosted checks only.
+name: verify
+
+on:
+  pull_request:
+  merge_group:
+
+concurrency:
+  group: verify-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    if: >-
+      vars.ACTIONS_ENABLED == 'true' &&
+      (github.event_name == 'merge_group' ||
+       github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: [self-hosted, macOS]
+    # The ubuntu gate took 49 minutes at PW_WORKERS=2. These hosts are 8-core and run the gallery at
+    # the config default, but the whole gate is the long pole in this repository; 90 keeps a slow run
+    # from being cut off mid-gallery, and the merge queue's check timeout must exceed it.
+    timeout-minutes: 90
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DEVELOPER_DIR: /Library/Developer/CommandLineTools
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          clean: true
+
+      # No setup-node / setup-dotnet / pnpm-action here, deliberately: the runner's PATH carries the
+      # host toolchain that every green Mac gate in this repository was measured with, and
+      # global.json pins the SDK that resolve-dotnet.mjs resolves. Printing the versions makes a
+      # host-versus-host disagreement attributable instead of a mystery.
+      - name: Host toolchain
+        run: |
+          for tool in node npm pnpm dotnet git jq; do
+            printf '%-8s %s\n' "$tool" "$(command -v "$tool" || echo MISSING)"
+          done
+          node -v; npm -v; pnpm -v; dotnet --version
+
+      # Placed first: it is a git-grep and costs a second, and there is no reason to spend an hour
+      # of gallery before reporting a name that should not be in the tree. The gate's requiredStepIds
+      # do not include it, so it stays an explicit step (validate.yml does the same).
+      - name: Consumer-neutral boundary
+        run: bash eng/verify-boundaries.sh
+
+      # The app-shell package fixtures stage two cross-repo tarballs that
+      # tooling/resolve-appshell-feed.mjs rebuilds from harborline-api refs (this repo deliberately
+      # never stores the bytes). harborline-api is public now, so this needs no token. It is cloned
+      # OUTSIDE the workspace on purpose: a nested checkout inside the tree would be walked by
+      # eng/verify-boundaries.sh's git-grep and by the gate's own tree hash.
+      - name: Mirror harborline-api for the feed resolver
+        run: |
+          rm -rf "$RUNNER_TEMP/harborline-api"
+          git clone --quiet https://github.com/Harborline-Software/harborline-api.git "$RUNNER_TEMP/harborline-api"
+
+      # The gate drives the gallery but does not install its dependencies. The browser download is a
+      # no-op on a host that already has the pinned revision cached; `--with-deps` is omitted because
+      # it is an apt-get path that does not exist on macOS.
+      - name: Install gallery browser dependencies
+        working-directory: gallery/tests
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npx playwright install chromium
+
+      # run-phase-4-gate.mjs writes its report to stdout only (the receipt runner is what writes it
+      # to disk, and CI does not run the receipt runner). Capture it so the upload step has a file;
+      # pipefail keeps the gate's exit code (ticket 330 s4c).
+      #
+      # HARBORLINE_CI_GALLERY is deliberately NOT set. That variable is the ubuntu gate's only
+      # leniency and it exists because a 2-core shared runner could not hold the gallery's budgets.
+      # This is the binding gate on an 8-core host we own: it runs strict, exactly as the Mac
+      # landings ran it.
+      - name: Phase-4 gate
+        run: |
+          set -o pipefail
+          node tooling/run-phase-4-gate.mjs | tee harborline-phase4-gate-report.json
+        env:
+          HARBORLINE_API_REPO: ${{ runner.temp }}/harborline-api
+
+      - name: Evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: verify-evidence-${{ github.run_id }}
+          if-no-files-found: ignore
+          retention-days: 14
+          path: |
+            harborline-phase4-gate-report.json
+            docs/evidence/phase-4/gate.json
+            gallery/tests/playwright-report/
