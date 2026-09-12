@@ -26,7 +26,9 @@ jobs:
       vars.ACTIONS_ENABLED == 'true' &&
       (github.event_name == 'merge_group' ||
        github.event.pull_request.head.repo.full_name == github.repository)
-    runs-on: [self-hosted, macOS]
+    # Ticket 404: the SchemaForm wall-clock budget is met on the ARM runner and not on mac16 (X64); until mac16
+    # is re-baselined the platform verify runs on macpro only so a PR does not pass or fail by runner assignment.
+    runs-on: [self-hosted, macOS, macpro]
     # The ubuntu gate took 49 minutes at PW_WORKERS=2. These hosts are 8-core and run the gallery at
     # the config default, but the whole gate is the long pole in this repository; 90 keeps a slow run
     # from being cut off mid-gallery, and the merge queue's check timeout must exceed it.
