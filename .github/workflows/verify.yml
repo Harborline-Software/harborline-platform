@@ -26,9 +26,13 @@ jobs:
       vars.ACTIONS_ENABLED == 'true' &&
       (github.event_name == 'merge_group' ||
        github.event.pull_request.head.repo.full_name == github.repository)
-    # Ticket 404: the SchemaForm wall-clock budget is met on the ARM runner and not on mac16 (X64); until mac16
-    # is re-baselined the platform verify runs on macpro only so a PR does not pass or fail by runner assignment.
-    runs-on: [self-hosted, macOS, macpro]
+    # Ticket 404: this job was pinned to macpro because the SchemaForm wall-clock budget passed there and
+    # failed on mac16. That premise is measured false. The budget was asserted inside the parallel module
+    # fan-out, where six module runners and their dotnet children compete, so it reported the scheduler and
+    # not the host: mac16 sampled quiet measures a 115.8 ms p95 on the row that failed, against 537.8 ms on
+    # the same machine under load. The pin was also the platform queue's serialisation point -- macpro was
+    # the only eligible runner for every platform PR, observed with mac16 idle and a verify queued.
+    runs-on: [self-hosted, macOS]
     # The ubuntu gate took 49 minutes at PW_WORKERS=2. These hosts are 8-core and run the gallery at
     # the config default, but the whole gate is the long pole in this repository; 90 keeps a slow run
     # from being cut off mid-gallery, and the merge queue's check timeout must exceed it.
