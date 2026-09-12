@@ -1,4 +1,7 @@
-const OUTPUT_CAP = 16 * 1024
+import {mkdirSync, writeFileSync} from 'node:fs'
+import {dirname} from 'node:path'
+
+export const OUTPUT_CAP = 16 * 1024
 const TRUNCATION_SUFFIX = `\n[truncated after ${OUTPUT_CAP} characters]`
 
 function boundedOutput(value) {
@@ -41,6 +44,20 @@ function failureOutput(stdout, stderr, message) {
   return [stdout, stderr, message].filter(Boolean).join('\n').split('\n').slice(-80).join('\n')
 }
 
+function completeOutput(stdout, stderr) {
+  return [stdout, stderr].filter(value => value !== undefined && value !== null && String(value) !== '').join('\n')
+}
+
+// The receipt remains bounded, but its failure pointer must lead to the unmodified child output.
+// A launch can fail before either stream exists; that is a valid failure report, not a copy error.
+export function writeFailureEvidence(evidence, stdout, stderr) {
+  const output = completeOutput(stdout, stderr)
+  if (!evidence || output === '') return undefined
+  mkdirSync(dirname(evidence.filePath), {recursive: true})
+  writeFileSync(evidence.filePath, output)
+  return evidence.reportPath
+}
+
 // Kept separate from the gate orchestration so a real spawnSync launch exception can be injected
 // by a self-test. The gate still owns sequencing and stops on the first failed required step.
 export function runPhase4Step({
@@ -51,6 +68,7 @@ export function runPhase4Step({
   cwd,
   json,
   env,
+  failureEvidence,
   execute,
 }) {
   const started = performance.now()
@@ -65,6 +83,9 @@ export function runPhase4Step({
     const report = outcome.report
     result.status = outcome.status
     if (outcome.failure) result.stderr = [result.stderr, `${id}: ${outcome.failure}`].filter(Boolean).join('\n')
+    const failureEvidencePath = result.status === 0
+      ? undefined
+      : writeFailureEvidence(failureEvidence, result.stdout, result.stderr)
     const entry = {
       id,
       command,
@@ -73,6 +94,7 @@ export function runPhase4Step({
       passed: result.status === 0,
       report: boundedReport(report),
       failureOutput: result.status === 0 ? undefined : failureOutput(boundedOutput(result.stdout), boundedOutput(result.stderr)),
+      ...(failureEvidencePath ? {failureEvidencePath} : {}),
     }
     results.push(entry)
     recorded = true
@@ -84,6 +106,7 @@ export function runPhase4Step({
     const stderr = boundedOutput(result?.stderr)
     const details = errorDetails(error, result)
     const status = result && Object.hasOwn(result, 'status') ? result.status : error?.status
+    const failureEvidencePath = writeFailureEvidence(failureEvidence, result?.stdout, result?.stderr)
     results.push({
       id,
       command,
@@ -94,6 +117,7 @@ export function runPhase4Step({
       stdout,
       stderr,
       failureOutput: failureOutput(stdout, stderr, details.message),
+      ...(failureEvidencePath ? {failureEvidencePath} : {}),
     })
     throw error
   }

@@ -103,4 +103,5 @@ jobs:
           path: |
             harborline-phase4-gate-report.json
             docs/evidence/phase-4/gate.json
+            .claude/gate-evidence/
             gallery/tests/playwright-report/
