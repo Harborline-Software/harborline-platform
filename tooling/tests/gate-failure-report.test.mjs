@@ -30,6 +30,7 @@ function fixtureReport() {
         durationMs: 4200,
         passed: false,
         failureOutput: Array.from({length: 30}, (_, index) => `install-error-line-${index}`).join('\n'),
+        failureEvidencePath: '.claude/gate-evidence/rule-runtime-clean-install.log',
       },
       {
         id: 'native-tests',
@@ -79,6 +80,7 @@ test('formatGateFailure message carries the report path, both failure shapes, an
   assert.match(message, /\/tmp\/harborline-phase4-gate-report\.json/)
   assert.match(message, /rule-runtime-clean-install/)
   assert.match(message, /install-error-line-0/)
+  assert.match(message, /full output: \.claude\/gate-evidence\/rule-runtime-clean-install\.log/)
   assert.match(message, /blazor-native/)
   assert.match(message, /ENOENT/)
   assert.match(message, /missing-dotnet test/)
@@ -178,4 +180,25 @@ test('an object report still renders its nested failed result exactly as before'
     formatGateFailure('/tmp/report.json', report),
     'phase-4 gate report: /tmp/report.json\nreact-native: exitCode=1 durationMs=15 command: npm test\nnested failure output',
   )
+})
+
+test('a nested failed child inherits its enclosing step full-output pointer', () => {
+  const report = {
+    results: [{
+      id: 'native-tests',
+      passed: false,
+      failureEvidencePath: '.claude/gate-evidence/native-tests.log',
+      report: {results: [{
+        id: 'blazor-native',
+        exitCode: 1,
+        durationMs: 15,
+        passed: false,
+        failureOutput: 'nested output',
+      }]},
+    }],
+  }
+
+  const message = formatGateFailure('/tmp/report.json', report)
+  assert.match(message, /blazor-native/)
+  assert.match(message, /full output: \.claude\/gate-evidence\/native-tests\.log/)
 })

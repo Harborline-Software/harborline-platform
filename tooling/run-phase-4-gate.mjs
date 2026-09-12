@@ -30,6 +30,7 @@ const baseHead = process.env.HARBORLINE_BASE_HEAD
 const testedTree = process.env.HARBORLINE_TESTED_TREE
   ?? execFileSync('git', ['write-tree'], {cwd: root, encoding: 'utf8'}).trim()
 const gateEvidencePath = resolve(root, 'docs/evidence/phase-4/gate.json')
+const failureEvidenceDirectory = resolve(root, '.claude/gate-evidence')
 const previousPass = loadPreviousPassEvidence(gateEvidencePath)
 const moduleCatalog = JSON.parse(readFileSync(resolve(root, 'catalog/modules.yaml'), 'utf8'))
 const generationSmokeModuleIds = Object.entries(moduleCatalog.modules)
@@ -62,6 +63,10 @@ function run(id, executable, args, cwd = root, json = false, stepEnvironment = {
     cwd,
     json,
     env: { ...process.env, ...runnerEnvironment, ...stepEnvironment },
+    failureEvidence: {
+      filePath: resolve(failureEvidenceDirectory, `${id}.log`),
+      reportPath: `.claude/gate-evidence/${id}.log`,
+    },
     execute: () => {
       const resolved = resolveCommand(executable, args)
       const result = spawnSync(resolved.executable, resolved.args, {
