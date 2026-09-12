@@ -91,6 +91,8 @@ const NUMERIC_PROPS = new Map(Object.entries({
   fadeSize: 'benign',
   endPanelWidth: 'benign',
   maxInlineSize: 'benign',
+  // fixed content floor for each dock pane; it governs geometry, not wall-clock work
+  minimumPaneWidth: 'benign',
   zoomFactor: 'benign',
   stageMaxWidth: 'benign',
 }))
