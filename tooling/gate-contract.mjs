@@ -4,7 +4,8 @@ import {writeFileSync} from 'node:fs'
 //
 // requiredStepIds was written out verbatim in three files: run-phase-4-gate.mjs (which produces the
 // result), validate-repository.mjs (which asserts the recorded gate is complete), and
-// verify-phase4-receipt.mjs (which the pre-commit hook runs). The cost is recorded in the tree —
+// verify-phase4-receipt.mjs (which recorded receipts are verified against; the pre-commit hook
+// stopped running it with control ticket 393 item 5). The cost is recorded in the tree —
 // .github/workflows/validate.yml declines to add a CI check to the local gate because doing so
 // "means changing requiredStepIds in THREE files, which invalidates every existing receipt".
 //
