@@ -15,9 +15,31 @@ import { ceilingMs, measureMedian, reportRow } from '../../../hlp.ui.button/src/
 // two-core-burner windows on this host stayed below them (p95 1.1, 74.9, 53.4 ms), so they
 // remain gate-proof rather than made up from one fast box. The serial perf step selects the
 // tight number only after it samples a quiet machine.
-const KEYSTROKE_CEILING_MS = ceilingMs(16, 2)
-const LARGE_FORM_CEILING_MS = ceilingMs(400, 140)
-const DEEP_COLLECTION_CEILING_MS = ceilingMs(400, 100)
+// DERIVATION (ticket 404 s4, re-derived 2026-09-12 after the first attempt was
+// measured on the WRONG HOST). Ticket 265's rule is: tight = 2x the p95 of the
+// SLOWEST host that can be sampled quiet; loose = a gate-proof number clearing
+// every sample seen while a gate holds that box. The first derivation took both
+// from a quiet 16-core Windows box -- the FASTEST host -- and CI red at 537.8 ms
+// against a 140 ms ceiling.
+//
+// All three regimes below are mac16, one machine, ten runs each:
+//   quiet (busyFraction 0.008-0.024)  p95  1.5 / 115.8 / 77.9 ms
+//   under a concurrent gate (<=0.29)  p95  2.3 / 149.8 / 92.9 ms
+//   worst seen in CI (busyFraction 0.133)  1.4 / 537.8 / 337.2 ms
+//
+// So tight is 2x the quiet p95, and loose clears the worst CI observation with
+// room -- not the 149.8 ms of a well-behaved local window, because the CI box at
+// the same reported busyFraction was 3.6x slower than that. What separates them
+// is work the busyFraction sample does not see.
+//
+// The 0.133 case is why loose matters here: run-perf-budgets certifies any box
+// at busyFraction <= 0.25 as quiet and applies the TIGHT ceilings to it. Nine of
+// ten loaded runs measured "quiet" at up to 0.2258. That budget is too
+// permissive, and it is a defect in the gate, not in these numbers -- see the
+// 404 Log.
+const KEYSTROKE_CEILING_MS = ceilingMs(16, 3)
+const LARGE_FORM_CEILING_MS = ceilingMs(1100, 232)
+const DEEP_COLLECTION_CEILING_MS = ceilingMs(700, 156)
 
 describe('SchemaForm deterministic Tier-C evidence', () => {
   it('[PerfBudget] keeps one keystroke from scaling with form size', () => {
