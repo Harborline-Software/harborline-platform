@@ -36,7 +36,12 @@ function firstLines(text) {
 export function collectFailedSteps(results) {
   const failed = []
   for (const step of results ?? []) {
-    const nested = step.report?.results
+    const report = step.report
+    if (typeof report === 'string') {
+      if (step.passed === false) failed.push({...step, reportWasTruncated: true})
+      continue
+    }
+    const nested = typeof report === 'object' && report !== null ? report.results : undefined
     if (Array.isArray(nested)) {
       const childFailures = collectFailedSteps(nested)
       if (childFailures.length > 0) {
@@ -53,14 +58,17 @@ export function collectFailedSteps(results) {
 
 function formatStep(step) {
   const command = (step.command ?? []).join(' ')
+  const truncation = step.reportWasTruncated
+    ? '\nstep report was truncated; nested results are unavailable'
+    : ''
   if (isSpawnFailure(step)) {
     const raw = step.failureOutput ?? step.stderr
     const output = isPlaceholderOutput(raw) ? '' : firstLines(raw)
     const body = output ? `\n${output}` : ''
-    return `${step.id}: exitCode=${step.exitCode} command: ${command}${body}`
+    return `${step.id}: exitCode=${step.exitCode} command: ${command}${body}${truncation}`
   }
   const output = firstLines(step.failureOutput ?? step.stderr)
-  return `${step.id}: exitCode=${step.exitCode} durationMs=${step.durationMs} command: ${command}\n${output}`
+  return `${step.id}: exitCode=${step.exitCode} durationMs=${step.durationMs} command: ${command}\n${output}${truncation}`
 }
 
 // Builds the message the receipt throws with: the report path first, then one block per failed
