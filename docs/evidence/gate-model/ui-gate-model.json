@@ -68,7 +68,7 @@
   },
   "ticket": "098",
   "subject": {
-    "moduleCount": 76,
+    "moduleCount": 77,
     "gateIds": [
       "assertDeterminism",
       "assertAccessible",
@@ -485,8 +485,8 @@
       "gates": [
         {
           "id": "assertDeterminism",
-          "status": "PASS",
-          "note": "cheap half only: no timing or async construct declared"
+          "status": "FAIL",
+          "note": "1 unclassified numeric prop(s)"
         },
         {
           "id": "assertAccessible",
@@ -495,13 +495,13 @@
         },
         {
           "id": "assertVisualParity",
-          "status": "PASS",
-          "note": "2 visual-parity scenario(s), lane vs lane, pixelmatch"
+          "status": "VOID",
+          "note": "voided by an assertDeterminism failure in this lane"
         },
         {
           "id": "assertFunctionalParity",
-          "status": "PASS",
-          "note": "55 conformance case(s) across both lanes"
+          "status": "VOID",
+          "note": "voided by an assertDeterminism failure in this lane"
         },
         {
           "id": "assertInternationalization",
@@ -5938,6 +5938,84 @@
       ]
     },
     {
+      "moduleId": "hlp.ui.view-runtime",
+      "presentation": "visual",
+      "catalogStatus": "gap-implemented",
+      "terminal": false,
+      "gates": [
+        {
+          "id": "assertDeterminism",
+          "status": "PASS",
+          "note": "cheap half only: no timing or async construct declared"
+        },
+        {
+          "id": "assertAccessible",
+          "status": "PASS",
+          "note": "axe-core over 4 scenarios x 2 lanes in gallery-gate"
+        },
+        {
+          "id": "assertVisualParity",
+          "status": "PASS",
+          "note": "4 visual-parity scenario(s), lane vs lane, pixelmatch"
+        },
+        {
+          "id": "assertFunctionalParity",
+          "status": "PASS",
+          "note": "4 conformance case(s) across both lanes"
+        },
+        {
+          "id": "assertInternationalization",
+          "status": "PARTIAL",
+          "note": "no locale fixtures; only the shared canvas is exercised"
+        },
+        {
+          "id": "assertPerformanceProfile",
+          "status": "UNBUILT",
+          "note": "no client-performance measurement exists for this module; run-ui-performance.mjs records test-process wall clock and declares wallClockBudgetUsed: false"
+        },
+        {
+          "id": "assertTokenAdherence",
+          "status": "PASS",
+          "note": "every value resolves to an approved token"
+        },
+        {
+          "id": "assertStateCompleteness",
+          "status": "UNBUILT",
+          "note": "no component interface found in either lane"
+        },
+        {
+          "id": "assertFocusQuality",
+          "status": "PASS",
+          "note": "focus ring is tokened, at least 2px, and offset from the control edge"
+        },
+        {
+          "id": "assertResponsiveQuality",
+          "status": "PASS",
+          "note": "reflow measured at 320px and 200% text in both lanes, with no horizontal overflow"
+        },
+        {
+          "id": "assertEmptyAndErrorStates",
+          "status": "PASS",
+          "note": "empty scenario(s) drawn in both lanes for every such state the interface expresses"
+        },
+        {
+          "id": "assertContentResilience",
+          "status": "PASS",
+          "note": "a long-content, dense or large-number scenario is drawn in both lanes and reconciled against the catalog"
+        },
+        {
+          "id": "assertDesignReview",
+          "status": "UNBUILT",
+          "note": "no design-review verdict recorded for this module"
+        },
+        {
+          "id": "assertDesignQuality",
+          "status": "UNBUILT",
+          "note": "UNBUILT inherited from assertStateCompleteness, assertDesignReview"
+        }
+      ]
+    },
+    {
       "moduleId": "hlp.ui.window",
       "presentation": "visual",
       "catalogStatus": "extracted-candidate",
@@ -6017,9 +6095,11 @@
     }
   ],
   "tally": {
-    "PASS": 647,
-    "PARTIAL": 89,
-    "UNBUILT": 169,
+    "PASS": 653,
+    "PARTIAL": 90,
+    "UNBUILT": 173,
+    "FAIL": 1,
+    "VOID": 2,
     "NOT-APPLICABLE": 159
   }
 }
