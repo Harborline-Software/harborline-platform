@@ -5,6 +5,16 @@ This repository begins with a fresh public history as of September 2026. The ear
 
 > **Status: pre-release.** Harborline is under active development and is not ready for production use. APIs, schemas, storage formats and package names change without notice, and there are no supported installs yet. Source is licensed under [Apache-2.0](LICENSE); see [NOTICE](NOTICE) and the [trademark policy](TRADEMARKS.md).
 
+Harborline Platform supplies reusable behavioral contracts and implementations that support
+Harborline's domain models, execution and human interfaces. Its modules let consumers compose
+capabilities while maintaining shared meaning and independently verifiable behavior across language
+and framework projections. The domain model is intended to remain understandable and maintainable
+as organizations adapt their work.
+
+This repository is the reusable code foundation. The signed platform package is a separate concept:
+it supplies definitions for the authoring experience. Module availability below describes current
+implementation rather than the full solution's readiness.
+
 Harborline Platform owns reusable module interfaces and their TypeScript, .NET, React, Blazor, and
 other justified projections. Modules are designed around projection-neutral contracts and verified
 through native tests, shared conformance fixtures, package consumers, and private galleries.
