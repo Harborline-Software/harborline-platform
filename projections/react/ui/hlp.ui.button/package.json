@@ -57,7 +57,7 @@
     "test:collapsible": "vitest run --config ../hlp.ui.collapsible/vitest.config.ts --root ../hlp.ui.collapsible",
     "test:form-field": "vitest run --config ../hlp.ui.form-field/vitest.config.ts --root ../hlp.ui.form-field",
     "test:confirm-dialog": "vitest run --config ../hlp.ui.confirm-dialog/vitest.config.ts --root ../hlp.ui.confirm-dialog",
-    "test:schema-form": "vitest run --config ../hlp.ui.schema-form/vitest.config.ts --root ../hlp.ui.schema-form",
+    "test:schema-form": "vitest run --config ../hlp.ui.schema-form/vitest.config.ts --root ../hlp.ui.schema-form -t \"^(?!.*\\[PerfBudget\\])\"",
     "test:date-field": "vitest run --config ../hlp.ui.date-field/vitest.config.ts --root ../hlp.ui.date-field",
     "test:date-time-field": "vitest run --config ../hlp.ui.date-time-field/vitest.config.ts --root ../hlp.ui.date-time-field",
     "test:number-field": "vitest run --config ../hlp.ui.number-field/vitest.config.ts --root ../hlp.ui.number-field",

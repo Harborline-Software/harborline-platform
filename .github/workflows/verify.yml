@@ -32,6 +32,9 @@ jobs:
     # not the host: mac16 sampled quiet measures a 115.8 ms p95 on the row that failed, against 537.8 ms on
     # the same machine under load. The pin was also the platform queue's serialisation point -- macpro was
     # the only eligible runner for every platform PR, observed with mac16 idle and a verify queued.
+    # 404 slice 4 completes it: the budget now rides the serial perf slot, so it is asserted with
+    # nothing else competing and any macOS runner gives the same verdict. The pin is gone (#35) and
+    # the reason it existed cannot come back.
     runs-on: [self-hosted, macOS]
     # The ubuntu gate took 49 minutes at PW_WORKERS=2. These hosts are 8-core and run the gallery at
     # the config default, but the whole gate is the long pole in this repository; 90 keeps a slow run

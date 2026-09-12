@@ -48,9 +48,10 @@ export default {
     // runs it. Relaxing the committed 400ms budget instead would hide a real regression.
     // Three collections out of one root, because this module is the only one carrying both
     // wall-clock budgets and a deterministic structural file:
-    //   default (native-tests)  conformance + native + wall-clock budgets, run sequentially
-    //   shared conformance      budgets excluded -- six runners compete, so a wall-clock
-    //                           assertion there measures the scheduler, not the renderer
+    //   default (native-tests)  conformance + native evidence; [PerfBudget] rows go to perf-budgets
+    //   shared conformance      wall-clock file excluded -- six runners compete, so a wall-clock
+    //                           assertion there measures the scheduler, not the renderer; the
+    //                           rule-reevaluation invariant is in its own file and still runs
     //   performance stage       the deterministic file only, named explicitly by the harness
     exclude: [
       '**/node_modules/**',
