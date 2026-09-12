@@ -12,6 +12,7 @@ import { resolveCommand, runnerEnvironment } from './resolve-command.mjs'
 import { resolvePinnedDotnet } from './resolve-dotnet.mjs'
 import {recordPhase4Gate, requiredStepIds} from './gate-contract.mjs'
 import {acquirePhase4GateLock} from './phase4-gate-lock.mjs'
+import {boundedReport, gateErrorDetails, interruptionDetails, reportWasTruncated, runPhase4Step} from './phase4-step-runner.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 if (process.argv.includes('--only')) throw new Error('phase-4 gate refuses --only; package evidence must cover every fixture')
@@ -23,6 +24,7 @@ const ruleAuthoringRoot = resolve(root, 'projections/typescript/foundation/hlp.f
 const copilotContractsRoot = resolve(root, 'projections/typescript/application/hlp.copilot.contracts')
 const dotnet = resolvePinnedDotnet(root)
 const results = []
+const reports = new Map()
 const baseHead = process.env.HARBORLINE_BASE_HEAD
   ?? execFileSync('git', ['rev-parse', 'HEAD'], {cwd: root, encoding: 'utf8'}).trim()
 const testedTree = process.env.HARBORLINE_TESTED_TREE
@@ -52,29 +54,27 @@ const expectedSharedResults = moduleIds.reduce((total, moduleId) => {
 // stepEnvironment is deliberately NOT recorded in the step entry: it carries absolute machine
 // paths, and the entry is hashed into reportSha256, which the pre-commit receipt check compares.
 function run(id, executable, args, cwd = root, json = false, stepEnvironment = {}) {
-  const started = performance.now()
-  const resolved = resolveCommand(executable, args)
-  const result = spawnSync(resolved.executable, resolved.args, {
-    cwd,
-    encoding: 'utf8',
-    maxBuffer: 128 * 1024 * 1024,
-    env: { ...process.env, ...runnerEnvironment, ...stepEnvironment },
-  })
-  const outcome = evaluateStepStdout({stepId: id, json, status: result.status, stdout: result.stdout})
-  const report = outcome.report
-  result.status = outcome.status
-  if (outcome.failure) result.stderr = [result.stderr, `${id}: ${outcome.failure}`].join('\n')
-  const entry = {
+  const report = runPhase4Step({
+    results,
     id,
-    command: [executable, ...args],
-    exitCode: result.status,
-    durationMs: Math.round(performance.now() - started),
-    passed: result.status === 0,
-    report,
-    failureOutput: result.status === 0 ? undefined : `${result.stdout}\n${result.stderr}`.trimEnd().split('\n').slice(-80).join('\n'),
-  }
-  results.push(entry)
-  if (!entry.passed) throw new Error(`${id} failed`)
+    executable,
+    args,
+    cwd,
+    json,
+    env: { ...process.env, ...runnerEnvironment, ...stepEnvironment },
+    execute: () => {
+      const resolved = resolveCommand(executable, args)
+      const result = spawnSync(resolved.executable, resolved.args, {
+        cwd,
+        encoding: 'utf8',
+        maxBuffer: 128 * 1024 * 1024,
+        env: { ...process.env, ...runnerEnvironment, ...stepEnvironment },
+      })
+      if (result.error) return {result}
+      return {result, outcome: evaluateStepStdout({stepId: id, json, status: result.status, stdout: result.stdout})}
+    },
+  })
+  reports.set(id, report)
   return report
 }
 
@@ -84,9 +84,11 @@ function runReusable(id, executable, args, cwd = root, json = false, stepEnviron
   try {
     inputHash = hashStepInputs({repositoryRoot: root, testedTree, stepId: id})
     const decision = decideStepReuse({stepId: id, inputHash, previousPass})
-    if (decision.mode === 'reuse') {
+    if (decision.mode === 'reuse' && !reportWasTruncated(decision.previous.report)) {
+      const report = decision.previous.report
       const entry = {
         ...decision.previous,
+        report: boundedReport(report),
         durationMs: 0,
         inputHash,
         reuseRefusal: undefined,
@@ -97,9 +99,12 @@ function runReusable(id, executable, args, cwd = root, json = false, stepEnviron
         },
       }
       results.push(entry)
-      return entry.report
+      reports.set(id, report)
+      return report
     }
-    reuseRefusal = decision.reason
+    reuseRefusal = decision.mode === 'reuse'
+      ? 'previous step report was truncated'
+      : decision.reason
   } catch (error) {
     reuseRefusal = `input hashing failed: ${error instanceof Error ? error.message : String(error)}`
   }
@@ -149,6 +154,7 @@ function resolveFeedForPackageConsumers() {
 const galleryShards = Number(process.env.GALLERY_SHARDS)
   || Math.max(1, Math.min(4, Math.floor(cpus().length / 4)))
 
+let caughtGateError
 try {
   // The root has its own devDependency (typescript, the parser tooling/gates/render-digest.mjs
   // uses) and nothing installed it: the five sub-project installs below all target
@@ -184,13 +190,14 @@ try {
   runReusable('gallery-gate', process.execPath, ['tooling/run-gallery-gate.mjs', '--packages-ready'], root, true,
     { GALLERY_SHARDS: String(galleryShards) })
   run('catalog-final', process.execPath, ['tooling/validate-repository.mjs', '--allow-stale-gate'], root, true)
-} catch {
-  // The failed result is emitted below with its bounded command output.
+} catch (error) {
+  caughtGateError = error
 }
 
-const byId = Object.fromEntries(results.map(result => [result.id, result.report]))
+const byId = Object.fromEntries(reports)
 const sharedResults = byId['ui-shared-conformance']?.counts?.passedResults ?? 0
 const galleryCounts = byId['gallery-gate']?.counts ?? {}
+const interruption = interruptionDetails(results, requiredStepIds)
 const passed = results.length === requiredStepIds.length
   && requiredStepIds.every((id, index) => results[index]?.id === id && results[index].passed)
   && byId['ui-shared-conformance']?.counts?.expectedModules === moduleIds.length
@@ -214,6 +221,8 @@ const report = {
   moduleIds,
   requiredStepIds,
   status: passed ? 'PASS' : 'FAIL',
+  ...(caughtGateError ? {gateError: gateErrorDetails(caughtGateError)} : {}),
+  ...interruption,
   designReview: byId['ui-gate-model']?.designReview,
   dotnetSdk: dotnet.version,
   counts: {
