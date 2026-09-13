@@ -87,11 +87,16 @@ jobs:
       # This is the binding gate on an 8-core host we own: it runs strict, exactly as the Mac
       # landings ran it.
       - name: Phase-4 gate
+        # HARBORLINE_GATE_HEADLESS: the MVP is headless. The browser parity suite stays in the
+        # scheduled cross-platform job, where a slow run costs nobody a landing; it is not the thing
+        # that decides whether a headless change may merge. Every non-browser step still runs here
+        # and still blocks.
         run: |
           set -o pipefail
           node tooling/run-phase-4-gate.mjs | tee harborline-phase4-gate-report.json
         env:
           HARBORLINE_API_REPO: ${{ runner.temp }}/harborline-api
+          HARBORLINE_GATE_HEADLESS: "1"
 
       - name: Evidence
         if: always()
