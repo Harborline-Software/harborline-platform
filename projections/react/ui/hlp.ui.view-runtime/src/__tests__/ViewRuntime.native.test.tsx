@@ -6,7 +6,7 @@ import { ViewRuntime } from '../ViewRuntime'
 import type { ViewRenderPlan, ViewRuntimeRow } from '../ViewRuntime.types'
 
 const fixture = JSON.parse(readFileSync(resolve(process.cwd(), '../../../../conformance/hlp.ui.view-runtime/fixtures.yaml'), 'utf8')) as {
-  cases: readonly { input: { plan: ViewRenderPlan; rows?: readonly ViewRuntimeRow[]; empty?: string }; expected: { nodes?: number; columns?: readonly string[]; rowCount?: number; content?: string } }[]
+  cases: readonly { input: { plan: ViewRenderPlan; rows?: readonly ViewRuntimeRow[]; empty?: string; activateActions?: readonly string[] }; expected: { nodes?: number; columns?: readonly string[]; rowCount?: number; content?: string; actions?: readonly string[]; activated?: readonly string[] } }[]
 }
 
 const plan: ViewRenderPlan = { definitionHash: 'sha256:view-assets', definitionId: 'view-assets', definitionVersion: '1', packKey: 'harborline.platform', packVersion: '1.0.0', definitionKind: 'ViewDefinition', bindings: { viewKind: 'views.entity-list/grid', parameters: { fields: [{ id: 'asset', label: 'Asset' }, { id: 'status', label: 'Status' }, { id: 'owner', label: 'Owner' }] } } }
@@ -17,15 +17,26 @@ const catalogue = new Map([[`${seededFormsList.definitionId}@${seededFormsList.d
 describe('ViewRuntime React projection', () => {
   it('renders every shared fixture from its compiled plan input', () => {
     for (const scenario of fixture.cases) {
+      const activated: string[] = []
       const { container, unmount } = render(<ViewRuntime
         plan={scenario.input.plan as ViewRenderPlan}
         rows={(scenario.input.rows ?? []) as readonly ViewRuntimeRow[]}
         empty={'empty' in scenario.input ? scenario.input.empty : undefined}
+        onAction={id => activated.push(id)}
       />)
       if ('nodes' in scenario.expected) expect(container.childNodes).toHaveLength(scenario.expected.nodes)
       if ('columns' in scenario.expected) expect(screen.getAllByRole('columnheader').map(node => node.textContent)).toEqual(scenario.expected.columns)
       if ('rowCount' in scenario.expected) expect(container.querySelectorAll('[data-row-id]')).toHaveLength(scenario.expected.rowCount)
       if ('content' in scenario.expected) expect(container).toHaveTextContent(scenario.expected.content)
+      const buttons = screen.queryAllByRole('button')
+      expect(buttons.map(button => button.textContent)).toEqual(scenario.expected.actions ?? [])
+      for (const id of scenario.input.activateActions ?? []) {
+        const action = scenario.input.plan.bindings.actions!.find(candidate => candidate.id === id)!
+        const button = screen.getByRole('button', { name: action.label })
+        expect(button).toHaveAttribute('type', 'button')
+        fireEvent.click(button)
+      }
+      expect(activated).toEqual(scenario.expected.activated ?? [])
       unmount()
     }
   })
@@ -76,5 +87,11 @@ describe('ViewRuntime React projection', () => {
     const content = 'A caller-owned value that is deliberately long enough to exercise the runtime handoff.'
     render(<ViewRuntime plan={plan} rows={[{ id: 'a1', asset: content, status: 'Open', owner: 'Riley' }]} />)
     expect(screen.getByRole('gridcell', { name: content })).toHaveTextContent(content)
+  })
+  it('does not submit an enclosing form when an action has no handler', () => {
+    const submitted = vi.fn(event => event.preventDefault())
+    render(<form onSubmit={submitted}><ViewRuntime plan={{ ...plan, bindings: { ...plan.bindings, actions: [{ id: 'action', label: 'Act' }] } }} rows={[]} /></form>)
+    fireEvent.click(screen.getByRole('button', { name: 'Act' }))
+    expect(submitted).not.toHaveBeenCalled()
   })
 })

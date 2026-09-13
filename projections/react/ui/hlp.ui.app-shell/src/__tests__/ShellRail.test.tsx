@@ -40,6 +40,22 @@ describe('ShellRail', () => {
     expect(pin).toHaveBeenCalledExactlyOnceWith('inspections', true)
     expect(navigate).not.toHaveBeenCalled()
   })
+  it('keeps an item address while host activation cancels native navigation', () => {
+    const navigate = vi.fn()
+    let defaultPrevented: boolean | undefined
+    render(<div onClick={event => { defaultPrevented = event.defaultPrevented; event.preventDefault() }}><ShellRail workspace={ws} onNavigate={navigate} {...noop} /></div>)
+    const link = screen.getByRole('link', { name: 'Overview' })
+    expect(link).toHaveAttribute('href', '/workspaces/overview')
+    fireEvent.click(link)
+    expect(defaultPrevented).toBe(true)
+    expect(navigate).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ id: 'overview' }))
+  })
+  it('leaves native item navigation available without a host activation handler', () => {
+    let defaultPrevented: boolean | undefined
+    render(<div onClick={event => { defaultPrevented = event.defaultPrevented; event.preventDefault() }}><ShellRail workspace={ws} {...noop} /></div>)
+    fireEvent.click(screen.getByRole('link', { name: 'Overview' }))
+    expect(defaultPrevented).toBe(false)
+  })
   it('renders declared item threads and emits activate without routing', () => {
     const activate = vi.fn()
     render(<ShellRail workspace={ws} {...noop} onThreadActivate={activate} />)

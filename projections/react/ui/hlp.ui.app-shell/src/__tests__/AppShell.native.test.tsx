@@ -39,6 +39,51 @@ describe('AppShell React projection', () => {
     fireEvent.click(screen.getByRole('link', { name: 'Front desk' }))
     expect(changed).toHaveBeenCalledExactlyOnceWith('front-desk')
   })
+  it('keeps a workspace address while shell activation cancels native navigation', () => {
+    const changed = vi.fn()
+    render(<AppShell {...base} onWorkspaceChange={changed} />)
+    const link = screen.getByRole('link', { name: 'Front desk' })
+    expect(link).toHaveAttribute('href', '/workspaces/front-desk')
+    const click = new MouseEvent('click', { bubbles: true, cancelable: true })
+    link.dispatchEvent(click)
+    expect(click.defaultPrevented).toBe(true)
+    expect(changed).toHaveBeenCalledExactlyOnceWith('front-desk')
+  })
+  it('intercepts recent and suggested links only when the host supplies navigation', () => {
+    const navigate = vi.fn()
+    const workspace: TestWorkspace = { ...workspaces[0], recent: [{ id: 'recent', label: 'Recent', kind: 'runs' }], suggested: { id: 'suggested', label: 'Suggested', kind: 'assets' } }
+    render(<AppShell {...base} {...navigationFixture([workspace])} onNavigate={navigate} />)
+    for (const [name, href] of [['Recent', '/runs/recent'], ['Suggested', '/assets/suggested']] as const) {
+      const link = screen.getByRole('link', { name })
+      expect(link).toHaveAttribute('href', href)
+      const click = new MouseEvent('click', { bubbles: true, cancelable: true })
+      link.dispatchEvent(click)
+      expect(click.defaultPrevented).toBe(true)
+    }
+    expect(navigate).toHaveBeenCalledTimes(2)
+  })
+  it('leaves native recent navigation available without a host handler', () => {
+    let defaultPrevented: boolean | undefined
+    const workspace: TestWorkspace = { ...workspaces[0], recent: [{ id: 'recent', label: 'Recent', kind: 'runs' }] }
+    render(<div onClick={event => { defaultPrevented = event.defaultPrevented; event.preventDefault() }}><AppShell {...base} {...navigationFixture([workspace])} /></div>)
+    fireEvent.click(screen.getByRole('link', { name: 'Recent' }))
+    expect(defaultPrevented).toBe(false)
+  })
+  it('intercepts system links only when the host supplies an activation handler', () => {
+    const invoked = vi.fn()
+    let handledDefault: boolean | undefined
+    let fallbackDefault: boolean | undefined
+    render(<div onClick={event => {
+      if ((event.target as HTMLElement).textContent === 'Handled') handledDefault = event.defaultPrevented
+      else fallbackDefault = event.defaultPrevented
+      event.preventDefault()
+    }}><AppShell {...base} systemItems={[{ id: 'handled', label: 'Handled', invoke: invoked }, { id: 'fallback', label: 'Fallback' }]} /></div>)
+    fireEvent.click(screen.getByRole('link', { name: 'Handled' }))
+    fireEvent.click(screen.getByRole('link', { name: 'Fallback' }))
+    expect(handledDefault).toBe(true)
+    expect(fallbackDefault).toBe(false)
+    expect(invoked).toHaveBeenCalledTimes(1)
+  })
   it('emits one correction for an unknown controlled workspace and renders no group rows', async () => {
     const changed = vi.fn()
     render(<AppShell {...base} activeWorkspaceId="ghost" onWorkspaceChange={changed} />)

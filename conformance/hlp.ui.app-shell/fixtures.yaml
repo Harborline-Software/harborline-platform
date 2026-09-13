@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.ui.app-shell",
-  "fixtureRevision": 2,
+  "fixtureRevision": 3,
   "cases": [
     {
       "id": "app-shell.structure",
@@ -83,6 +83,25 @@
         "activeChangeRequests": 1,
         "renderedGroupsFromSecond": true,
         "menuClosed": true
+      }
+    },
+    {
+      "id": "app-shell.activation-navigation-policy",
+      "input": {
+        "targets": [
+          "workspace",
+          "navigation",
+          "recent",
+          "suggested",
+          "system"
+        ],
+        "hostHandlers": true
+      },
+      "expected": {
+        "identityHrefsRetained": true,
+        "activationRequests": 1,
+        "nativeNavigation": false,
+        "withoutHostHandlerFollowsHref": true
       }
     },
     {

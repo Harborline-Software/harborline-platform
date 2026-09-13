@@ -1,6 +1,7 @@
 export interface ViewDefinitionField { readonly id: string; readonly label?: string }
 export interface ViewRenderPlanParameters { readonly fields?: readonly ViewDefinitionField[] }
-export interface ViewRenderPlanBindings { readonly viewKind?: string; readonly parameters?: ViewRenderPlanParameters }
+export interface ViewRuntimeAction { readonly id: string; readonly label: string }
+export interface ViewRenderPlanBindings { readonly viewKind?: string; readonly parameters?: ViewRenderPlanParameters; readonly actions?: readonly ViewRuntimeAction[] }
 export interface ViewRenderPlan {
   readonly definitionHash: string
   readonly definitionId: string
@@ -17,4 +18,5 @@ export interface ViewRuntimeProps {
   readonly accessibleName?: string
   readonly empty?: string
   readonly onRowActivate?: (rowId: string) => void
+  readonly onAction?: (actionId: string) => void
 }
