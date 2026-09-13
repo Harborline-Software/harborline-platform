@@ -10,7 +10,7 @@ import {decideStepReuse, evaluateStepStdout, hashStepInputs, loadPreviousPassEvi
 import { resolveAppshellFeed } from './resolve-appshell-feed.mjs'
 import { resolveCommand, runnerEnvironment } from './resolve-command.mjs'
 import { resolvePinnedDotnet } from './resolve-dotnet.mjs'
-import {recordPhase4Gate, requiredStepIds} from './gate-contract.mjs'
+import {headless, recordPhase4Gate, requiredStepIds} from './gate-contract.mjs'
 import {acquirePhase4GateLock} from './phase4-gate-lock.mjs'
 import {boundedReport, gateErrorDetails, interruptionDetails, reportWasTruncated, runPhase4Step} from './phase4-step-runner.mjs'
 
@@ -192,8 +192,12 @@ try {
   run('perf-budgets', process.execPath, ['tooling/run-perf-budgets.mjs'], root, true)
   runReusable('ui-shared-conformance', process.execPath, ['tooling/run-shared.mjs'], root, true)
   run('package-consumers', process.execPath, ['tooling/verify-package-fixtures.mjs', '--phase-4-gate'], root, true, resolveFeedForPackageConsumers())
-  runReusable('gallery-gate', process.execPath, ['tooling/run-gallery-gate.mjs', '--packages-ready'], root, true,
-    { GALLERY_SHARDS: String(galleryShards) })
+  // Skipped under HARBORLINE_GATE_HEADLESS: the MVP is headless, so a browser parity suite does not
+  // decide whether a headless change may land. The scheduled cross-platform job still runs it.
+  if (!headless) {
+    runReusable('gallery-gate', process.execPath, ['tooling/run-gallery-gate.mjs', '--packages-ready'], root, true,
+      { GALLERY_SHARDS: String(galleryShards) })
+  }
   run('catalog-final', process.execPath, ['tooling/validate-repository.mjs', '--allow-stale-gate'], root, true)
 } catch (error) {
   caughtGateError = error
@@ -209,10 +213,13 @@ const passed = results.length === requiredStepIds.length
   && sharedResults === expectedSharedResults
   && byId['generation-smoke']?.modules === generationSmokeModuleIds.length
   && byId['generation-smoke']?.scenarios > 0
-  && byId['generation-smoke']?.scenarios === galleryCounts.scenarios
-  && byId['gallery-gate']?.scenarioReconciliation === 'exact'
-  && galleryCounts.scenarioBrowserTests === galleryCounts.scenarios
-  && byId['gallery-gate']?.checkReconciliation === 'exact'
+  // The scenario reconciliation compares generation-smoke's count against the gallery's. With the
+  // gallery not run there is nothing to reconcile against, and asserting it would fail the gate for
+  // the absence of a step the gate deliberately skipped.
+  && (headless || (byId['generation-smoke']?.scenarios === galleryCounts.scenarios
+    && byId['gallery-gate']?.scenarioReconciliation === 'exact'
+    && galleryCounts.scenarioBrowserTests === galleryCounts.scenarios
+    && byId['gallery-gate']?.checkReconciliation === 'exact'))
 const report = {
   schemaVersion: 3,
   phase: 4,
