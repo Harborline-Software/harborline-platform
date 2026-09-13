@@ -32,13 +32,21 @@ The platform treats projection-neutral module interfaces as the authority and fr
 
 ## Capabilities and Constraints
 
-- The repository owns reusable module interfaces and their justified projections. Its current UI surface contains 73 modules; the README records React projections for all 73 and Blazor projections for 62.
-- Module specs under `specs/modules/ui/`, conformance fixtures under `conformance/`, projection implementations, styles, and gallery scenarios collectively provide sufficient evidence to produce and verify a projection.
-- The domain language in `CONTEXT.md` is authoritative: module, interface, projection, seam, adapter, independent consumer, application projection lane, compatibility projection, and product evidence have precise meanings.
-- Retained aggregate package IDs and assembly names are compatibility identities only. Ticket 063 records the identity cutover from the earlier repository name.
-- Package distribution is not authorized by this repository. npm and NuGet outputs are private/local shadow artifacts used for consumer verification.
-- Migration planning, source discovery, prioritization, work packets, and cross-repository orchestration remain outside this product repository.
-- The repository must not use the prohibited source classes listed in `repository.yaml`, including external sibling source and build output.
+The [module specifications](specs/modules/) define Platform's parts and their behavioral contracts.
+The [module catalog](catalog/modules.yaml) identifies ownership and dependencies, and the
+[projection catalog](catalog/projections.yaml) identifies implementations and declared status.
+These records are the place to inspect current scope; the [README](README.md#specifications-and-inventory)
+shows how to calculate inventory without maintaining counts in prose.
+
+UI specifications include rendered components and supporting behavior. React, Blazor, TypeScript
+and .NET implementations need not have matching directory layouts. Conformance is assessed against
+the applicable contract, not inferred from a directory name or registration count.
+
+[CONTEXT.md](CONTEXT.md) owns the platform vocabulary. Repository metadata and applicable release
+workflows record source, compatibility and distribution constraints. A package produced for a test
+is not by itself evidence of an authorized release. Migration planning and cross-repository work
+coordination remain outside this product repository; maintainable contracts and their executable
+checks remain beside the source.
 
 ## Brand Commitments
 
@@ -46,18 +54,17 @@ The platform treats projection-neutral module interfaces as the authority and fr
 - Preserve the established `Harborline`, `hlp.*`, and `--hl-*` terminology where it is already part of module, package, or token contracts.
 - Retained compatibility names are compatibility commitments, not current Harborline brand direction and not evidence of distribution authority.
 
-## Evidence on Hand
+## Where to assess the product
 
-- `README.md`: repository scope, UI-module counts, projection coverage, verification commands, and distribution boundary.
-- `CONTEXT.md`: authoritative platform domain language.
-- `repository.yaml`: repository authority, phase, compatibility, licensing, distribution, and prohibited-source constraints.
-- `catalog/modules.yaml` and `catalog/projections.yaml`: module ownership, depth, projection, compatibility, and artifact records.
-- `catalog/ui-theme-registry.json`: public semantic theme-token mappings and cross-projection visual-parity thresholds.
-- `specs/modules/`: projection-neutral interfaces and quality profiles.
-- `conformance/`: shared behavioral and quality fixtures.
-- `gallery/scenarios/`: neutral UI scenarios used across React and Blazor galleries.
-- `compatibility/aggregate/`: current compatibility evidence and rollback records.
-- No testimonials, public customer claims, pricing, benchmarks, or authorization for public package distribution are established; future work must not invent them.
+- [Specifications](specs/modules/) describe intended behavior and quality requirements.
+- [Catalogs](catalog/) record module ownership, implementation locations and declared statuses.
+- [Conformance](conformance/) and [gallery scenarios](gallery/scenarios/) define shared checks.
+- [Verification commands](package.json) identify the checks available in the current checkout.
+- [Repository metadata](repository.yaml) records authority and compatibility decisions.
+
+Assess results against the revision and environment they tested. A fixture's existence is not a
+passing result; recorded parity is not proof of usability or complete application integration.
+Public claims about adoption, performance and readiness require evidence for the specific claim.
 
 ## Product Principles
 
@@ -69,4 +76,7 @@ The platform treats projection-neutral module interfaces as the authority and fr
 
 ## Accessibility & Inclusion
 
-UI projections must preserve equivalent accessible behavior across frameworks. Existing gallery evidence covers automated Axe scans, accessible naming, keyboard and focus-visible behavior, forced colors, reduced motion, 200% reflow, right-to-left content, Arabic localization, pseudolocale expansion, mixed-direction content, theme contrast, and runtime theme switching.
+UI projections must preserve equivalent accessible behavior across frameworks. Each module's quality
+profile and conformance fixtures define the applicable requirements, including interaction,
+localization, visual adaptation and assistive-technology behavior. Evaluate those requirements
+through the relevant checks and user testing; do not infer accessibility from projection parity.
