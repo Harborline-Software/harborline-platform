@@ -11,9 +11,25 @@ public sealed class ViewRuntimeTests : BunitContext
     // The grid imports its JS module and connects on first render; the runtime test is about the mapping, so
     // bUnit answers every JS call loosely rather than scripting the grid module.
     public ViewRuntimeTests() { JSInterop.Mode = JSRuntimeMode.Loose; }
-    private static readonly ViewDefinition Grid = new("view-assets", "views.entity-list/grid", "1", new ViewDefinitionBody([new("asset", "Asset"), new("status", "Status"), new("owner", "Owner")]));
+    private static readonly ViewDefinition Grid = new("view-assets", "views.entity-list/grid", "1", new ViewDefinitionBody([new("asset", "Asset"), new("status", "Status"), new("owner", "Owner")]), "harborline.platform");
+
+    [Fact]
+    public void Grid_exposes_the_same_pack_provenance_as_the_react_lane()
+    {
+        var cut = Render<HarborlineViewRuntime>(parameters => parameters
+            .Add(component => component.Definition, Grid)
+            .Add(component => component.Rows, Rows));
+
+        var runtime = cut.Find(".hl-view-runtime");
+        Assert.Equal(
+            "{\"definitionId\":\"view-assets\",\"definitionVersion\":\"1\",\"packKey\":\"harborline.platform\"}",
+            runtime.GetAttribute("data-definition-source"));
+        Assert.Null(runtime.GetAttribute("data-definition-id"));
+        Assert.Null(runtime.GetAttribute("data-definition-version"));
+    }
     private static readonly IReadOnlyList<ViewRuntimeRow> Rows = [new("a1", new Dictionary<string, object?> { ["asset"] = "Pier", ["status"] = "Open", ["owner"] = "Riley" }), new("a2", new Dictionary<string, object?> { ["asset"] = "Pump", ["status"] = "Review", ["owner"] = "Morgan" })];
-    [Fact] public void GridDefinitionMapsFieldsRowsAndAccessor(){var cut=Render<HarborlineViewRuntime>(p=>p.Add(x=>x.Definition,Grid).Add(x=>x.Rows,Rows));Assert.Equal(["Asset","Status","Owner"],cut.FindAll("[role=columnheader]").Select(node=>node.TextContent));Assert.Equal(2,cut.FindAll("[data-row-id]").Count);var root=cut.Find(".hl-view-runtime");Assert.Equal("view-assets",root.GetAttribute("data-definition-id"));Assert.Equal("1",root.GetAttribute("data-definition-version"));}
+    [Fact] public void GridDefinitionMapsFieldsAndRows(){var cut=Render<HarborlineViewRuntime>(p=>p.Add(x=>x.Definition,Grid).Add(x=>x.Rows,Rows));Assert.Equal(["Asset","Status","Owner"],cut.FindAll("[role=columnheader]").Select(node=>node.TextContent));Assert.Equal(2,cut.FindAll("[data-row-id]").Count);}
+    [Fact] public void UnpackedDefinitionOmitsSourceAccessor(){var cut=Render<HarborlineViewRuntime>(p=>p.Add(x=>x.Definition,Grid with { PackKey=null }).Add(x=>x.Rows,Rows));var root=cut.Find(".hl-view-runtime");Assert.Null(root.GetAttribute("data-definition-source"));Assert.Null(root.GetAttribute("title"));}
     [Fact] public void UnknownKindIsInertAndSilent(){var logs=new CapturingLoggerProvider();Services.AddLogging(builder=>builder.AddProvider(logs));var cut=Render<HarborlineViewRuntime>(p=>p.Add(x=>x.Definition,Grid with { Kind="views.unknown" }).Add(x=>x.Rows,Rows));Assert.True(string.IsNullOrWhiteSpace(cut.Markup));Assert.Empty(logs.Entries);Assert.Empty(JSInterop.Invocations);}
     [Fact] public void EmptyRowsKeepDeclaredColumns(){var cut=Render<HarborlineViewRuntime>(p=>p.Add(x=>x.Definition,Grid).Add(x=>x.Empty,"No matching assets.").Add(x=>x.Rows,[]));Assert.Equal(3,cut.FindAll("[role=columnheader]").Count);Assert.Contains("No matching assets.",cut.Markup);}
     [Fact] public void NormalizesMissingNullAndNonStringValues(){var cut=Render<HarborlineViewRuntime>(p=>p.Add(x=>x.Definition,Grid).Add(x=>x.Rows,[new ViewRuntimeRow("a1",new Dictionary<string,object?>{{"asset",null},{"status",42}})]));Assert.Equal([string.Empty,"42",string.Empty],cut.FindAll("[role=gridcell]").Select(node=>node.TextContent));}

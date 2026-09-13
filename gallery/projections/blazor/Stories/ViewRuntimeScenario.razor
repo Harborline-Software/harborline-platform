@@ -6,7 +6,7 @@
 </section>
 @code {
   [Parameter, EditorRequired] public string ScenarioId { get; set; } = "view-runtime.grid";
-  private static readonly ViewDefinition GridDefinition = new("view-assets", "views.entity-list/grid", "1", new ViewDefinitionBody([new("asset", "Asset"), new("status", "Status"), new("owner", "Owner")]));
+  private static readonly ViewDefinition GridDefinition = new("view-assets", "views.entity-list/grid", "1", new ViewDefinitionBody([new("asset", "Asset"), new("status", "Status"), new("owner", "Owner")]), "harborline.platform");
   private static readonly IReadOnlyList<ViewRuntimeRow> GridRows = [new("a1", new Dictionary<string, object?> { ["asset"] = "Pier", ["status"] = "Open", ["owner"] = "Riley" }), new("a2", new Dictionary<string, object?> { ["asset"] = "Pump", ["status"] = "Review", ["owner"] = "Morgan" })];
   private static readonly IReadOnlyList<ViewRuntimeRow> LongContentRows = [new("a1", new Dictionary<string, object?> { ["asset"] = "A caller-owned value that is deliberately long enough to exercise the runtime handoff.", ["status"] = "Open", ["owner"] = "Riley" })];
   private ViewDefinition Definition => ScenarioId == "view-runtime.unknown-kind" ? GridDefinition with { Kind = "views.unknown" } : GridDefinition;

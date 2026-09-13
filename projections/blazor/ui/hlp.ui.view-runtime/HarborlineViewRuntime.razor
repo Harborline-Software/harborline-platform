@@ -1,7 +1,9 @@
 @namespace Harborline.UIAdapters.Blazor.Components.DataDisplay
 @if (Definition.Kind == GridKind)
 {
-  <div class="hl-view-runtime" data-definition-id="@Definition.Id" data-definition-version="@Definition.Version">
+  <div class="hl-view-runtime"
+       data-definition-source="@DefinitionSource"
+       title="@DefinitionSourceTitle">
     <HarborlineDataGrid TRow="ViewRuntimeRow" AccessibleLabel="@AccessibleLabel" Columns="@Columns" Empty="@Empty" GetRowId="@(row => row.Id)" Rows="@Rows" />
   </div>
 }
@@ -11,5 +13,9 @@
   [Parameter, EditorRequired] public IReadOnlyList<ViewRuntimeRow> Rows { get; set; } = [];
   [Parameter] public string AccessibleLabel { get; set; } = "View results";
   [Parameter] public string? Empty { get; set; }
+  private string? DefinitionSource => string.IsNullOrWhiteSpace(Definition.PackKey)
+    ? null
+    : System.Text.Json.JsonSerializer.Serialize(new { definitionId = Definition.Id, definitionVersion = Definition.Version, packKey = Definition.PackKey });
+  private string? DefinitionSourceTitle => DefinitionSource is null ? null : $"Definition source: {DefinitionSource}";
   private IReadOnlyList<DataGridColumn<ViewRuntimeRow>> Columns => Definition.Body.Fields.Select((spec, index) => new DataGridColumn<ViewRuntimeRow>(spec.Id, spec.Label ?? spec.Id, row => row.Values.TryGetValue(spec.Id, out var value) ? value?.ToString() ?? string.Empty : string.Empty, Definition.Body.Fields.Count - index)).ToArray();
 }
