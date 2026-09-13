@@ -32,7 +32,7 @@ public sealed class ViewRuntimeTests : BunitContext
     [Fact] public void UnknownKindIsInertAndSilent(){var logs=new CapturingLoggerProvider();Services.AddLogging(builder=>builder.AddProvider(logs));var cut=Render<HarborlineViewRuntime>(p=>p.Add(x=>x.Plan,Grid with { Bindings=Grid.Bindings with { ViewKind="views.unknown" } }).Add(x=>x.Rows,Rows));Assert.True(string.IsNullOrWhiteSpace(cut.Markup));Assert.Empty(logs.Entries);Assert.Empty(JSInterop.Invocations);}
     [Fact] public void EmptyRowsKeepDeclaredColumns(){var cut=Render<HarborlineViewRuntime>(p=>p.Add(x=>x.Plan,Grid).Add(x=>x.Empty,"No matching assets.").Add(x=>x.Rows,[]));Assert.Equal(3,cut.FindAll("[role=columnheader]").Count);Assert.Contains("No matching assets.",cut.Markup);}
     [Fact] public void NormalizesMissingNullAndNonStringValues(){var cut=Render<HarborlineViewRuntime>(p=>p.Add(x=>x.Plan,Grid).Add(x=>x.Rows,[new ViewRuntimeRow("a1",new Dictionary<string,object?>{{"asset",null},{"status",42}})]));Assert.Equal([string.Empty,"42",string.Empty],cut.FindAll("[role=gridcell]").Select(node=>node.TextContent));}
-    [Fact] public void ForwardsTheSharedRowActivationAction(){DataGridRowActivation? activation=null;var cut=Render<HarborlineViewRuntime>(p=>p.Add(x=>x.Plan,Grid).Add(x=>x.Rows,Rows).Add(x=>x.OnRowActivate,value=>activation=value));cut.Find("[data-row-id=a1]").DoubleClick();Assert.Equal("a1",activation?.RowId);}
+    [Fact] public void ForwardsTheSharedRowActivationAction(){string? rowId=null;var cut=Render<HarborlineViewRuntime>(p=>p.Add(x=>x.Plan,Grid).Add(x=>x.Rows,Rows).Add(x=>x.OnRowActivate,value=>rowId=value));cut.Find("[data-row-id=a1]").DoubleClick();Assert.Equal("a1",rowId);}
     [Fact] public void PreservesLongCallerContent()
     {
         const string content = "A caller-owned value that is deliberately long enough to exercise the runtime handoff.";
@@ -40,7 +40,60 @@ public sealed class ViewRuntimeTests : BunitContext
         var cut = Render<HarborlineViewRuntime>(p => p.Add(x => x.Plan, Grid).Add(x => x.Rows, rows));
         Assert.Contains(content, cut.Markup);
     }
-    [Fact, Trait("ModuleConformance", "hlp.ui.view-runtime")] public void SharedFixtureConforms(){var raw=Environment.GetEnvironmentVariable("HARBORLINE_CONFORMANCE_FIXTURE");if(string.IsNullOrWhiteSpace(raw))return;using var fixture=System.Text.Json.JsonDocument.Parse(raw);Assert.StartsWith("view-runtime.",fixture.RootElement.GetProperty("id").GetString());}
+    [Fact, Trait("ModuleConformance", "hlp.ui.view-runtime")]
+    public void SharedFixtureConforms()
+    {
+        var raw = Environment.GetEnvironmentVariable("HARBORLINE_CONFORMANCE_FIXTURE");
+        if (string.IsNullOrWhiteSpace(raw)) return;
+        using var fixture = System.Text.Json.JsonDocument.Parse(raw);
+        var root = fixture.RootElement;
+        var input = root.GetProperty("input");
+        var plan = ReadPlan(input.GetProperty("plan"));
+        var rows = input.TryGetProperty("rows", out var rowElements)
+            ? rowElements.EnumerateArray().Select(ReadRow).ToArray()
+            : [];
+        var cut = Render<HarborlineViewRuntime>(p => p.Add(x => x.Plan, plan).Add(x => x.Rows, rows)
+            .Add(x => x.Empty, input.TryGetProperty("empty", out var empty) ? empty.GetString() : null));
+        var expected = root.GetProperty("expected");
+        if (expected.TryGetProperty("nodes", out var nodes))
+        {
+            Assert.Equal(nodes.GetInt32(), cut.Nodes.Length);
+            Assert.Empty(JSInterop.Invocations);
+            return;
+        }
+        if (expected.TryGetProperty("columns", out var columns))
+            Assert.Equal(columns.EnumerateArray().Select(value => value.GetString()), cut.FindAll("[role=columnheader]").Select(node => node.TextContent));
+        if (expected.TryGetProperty("rowCount", out var rowCount))
+            Assert.Equal(rowCount.GetInt32(), cut.FindAll("[data-row-id]").Count);
+        if (expected.TryGetProperty("content", out var content))
+            Assert.Contains(content.GetString()!, cut.Markup);
+    }
+
+    private static ViewRenderPlan ReadPlan(System.Text.Json.JsonElement plan)
+    {
+        var bindings = plan.GetProperty("bindings");
+        var fields = bindings.TryGetProperty("parameters", out var parameters)
+            && parameters.TryGetProperty("fields", out var fieldElements)
+            ? fieldElements.EnumerateArray().Select(field => new ViewDefinitionField(field.GetProperty("id").GetString()!, field.GetProperty("label").GetString())).ToArray()
+            : null;
+        return new(
+            plan.GetProperty("definitionHash").GetString()!, plan.GetProperty("definitionId").GetString()!,
+            plan.GetProperty("definitionVersion").GetString()!, plan.GetProperty("packKey").GetString()!,
+            plan.GetProperty("packVersion").GetString()!, plan.GetProperty("definitionKind").GetString()!,
+            new(bindings.GetProperty("viewKind").GetString(), fields is null ? null : new(fields)));
+    }
+
+    private static ViewRuntimeRow ReadRow(System.Text.Json.JsonElement row) => new(
+        row.GetProperty("id").GetString()!,
+        row.EnumerateObject().Where(property => property.Name != "id").ToDictionary(
+            property => property.Name,
+            property => property.Value.ValueKind switch
+            {
+                System.Text.Json.JsonValueKind.String => (object?)property.Value.GetString(),
+                System.Text.Json.JsonValueKind.Number => property.Value.GetInt32(),
+                System.Text.Json.JsonValueKind.Null => null,
+                _ => property.Value.GetRawText(),
+            }));
 
     private sealed class CapturingLoggerProvider : ILoggerProvider
     {

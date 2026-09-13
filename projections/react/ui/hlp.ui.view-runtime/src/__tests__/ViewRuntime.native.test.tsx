@@ -1,7 +1,13 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { ViewRuntime } from '../ViewRuntime'
 import type { ViewRenderPlan, ViewRuntimeRow } from '../ViewRuntime.types'
+
+const fixture = JSON.parse(readFileSync(resolve(process.cwd(), '../../../../conformance/hlp.ui.view-runtime/fixtures.yaml'), 'utf8')) as {
+  cases: readonly { input: { plan: ViewRenderPlan; rows?: readonly ViewRuntimeRow[]; empty?: string }; expected: { nodes?: number; columns?: readonly string[]; rowCount?: number; content?: string } }[]
+}
 
 const plan: ViewRenderPlan = { definitionHash: 'sha256:view-assets', definitionId: 'view-assets', definitionVersion: '1', packKey: 'harborline.platform', packVersion: '1.0.0', definitionKind: 'ViewDefinition', bindings: { viewKind: 'views.entity-list/grid', parameters: { fields: [{ id: 'asset', label: 'Asset' }, { id: 'status', label: 'Status' }, { id: 'owner', label: 'Owner' }] } } }
 const rows: readonly ViewRuntimeRow[] = [{ id: 'a1', asset: 'Pier', status: 'Open', owner: 'Riley' }, { id: 'a2', asset: 'Pump', status: 'Review', owner: 'Morgan' }]
@@ -9,6 +15,20 @@ const seededFormsList: ViewRenderPlan = { ...plan, definitionId: 'view-forms' }
 const catalogue = new Map([[`${seededFormsList.definitionId}@${seededFormsList.definitionVersion}`, { definitionId: seededFormsList.definitionId, definitionVersion: seededFormsList.definitionVersion, packKey: seededFormsList.packKey }]])
 
 describe('ViewRuntime React projection', () => {
+  it('renders every shared fixture from its compiled plan input', () => {
+    for (const scenario of fixture.cases) {
+      const { container, unmount } = render(<ViewRuntime
+        plan={scenario.input.plan as ViewRenderPlan}
+        rows={(scenario.input.rows ?? []) as readonly ViewRuntimeRow[]}
+        empty={'empty' in scenario.input ? scenario.input.empty : undefined}
+      />)
+      if ('nodes' in scenario.expected) expect(container.childNodes).toHaveLength(scenario.expected.nodes)
+      if ('columns' in scenario.expected) expect(screen.getAllByRole('columnheader').map(node => node.textContent)).toEqual(scenario.expected.columns)
+      if ('rowCount' in scenario.expected) expect(container.querySelectorAll('[data-row-id]')).toHaveLength(scenario.expected.rowCount)
+      if ('content' in scenario.expected) expect(container).toHaveTextContent(scenario.expected.content)
+      unmount()
+    }
+  })
   it('maps the seeded Forms list through one source-map accessor that round-trips to its catalogue definition', () => {
     render(<ViewRuntime plan={seededFormsList} rows={rows} />)
     expect(screen.getAllByRole('columnheader').map(node => node.textContent)).toEqual(['Asset', 'Status', 'Owner'])
