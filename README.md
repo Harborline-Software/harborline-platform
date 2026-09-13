@@ -6,6 +6,8 @@ Harborline Platform defines reusable capabilities through module specifications 
 
 The [product purpose](PRODUCT.md) explains the users and design principles. The [domain language](CONTEXT.md) defines module, interface, projection and related terms.
 
+For the shared product model and repository roles, read the [Harborline solution overview](https://github.com/Harborline-Software/harborline-app/blob/docs/solution-purpose/docs/solution-overview.md).
+
 ## Specifications and inventory
 
 Start with [module specifications](specs/modules/) for intended behavior and quality requirements. The [module catalog](catalog/modules.yaml) records ownership, dependencies and interfaces; the [projection catalog](catalog/projections.yaml) records implementation locations and declared status. [Conformance fixtures](conformance/) provide shared checks.
@@ -33,3 +35,5 @@ The [gate implementation](tooling/run-phase-4-gate.mjs) defines the checks and p
 For focused checks, run `npm run` to list the commands available in this checkout. [package.json](package.json) maps each command to its maintained implementation. Choose the native, shared, package-consumer, UI or gallery checks relevant to the change; a passing subset does not establish that the complete gate passed.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for change and compatibility requirements.
+
+For usage questions and bug reports, see [SUPPORT.md](SUPPORT.md). Report sensitive vulnerabilities through [SECURITY.md](SECURITY.md).
