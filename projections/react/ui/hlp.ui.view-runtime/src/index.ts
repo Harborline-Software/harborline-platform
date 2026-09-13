@@ -1,2 +1,2 @@
 export { ViewRuntime } from './ViewRuntime'
-export type { ViewDefinition, ViewDefinitionBody, ViewDefinitionField, ViewRuntimeProps, ViewRuntimeRow } from './ViewRuntime.types'
+export type { ViewDefinitionField, ViewRenderPlan, ViewRenderPlanBindings, ViewRenderPlanParameters, ViewRuntimeProps, ViewRuntimeRow } from './ViewRuntime.types'

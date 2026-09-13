@@ -1,9 +1,9 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { ViewRuntime, type ViewDefinition, type ViewRuntimeRow } from '@harborline-software/ui-react'
+import { ViewRuntime, type ViewRenderPlan, type ViewRuntimeRow } from '@harborline-software/ui-react'
 
 type ScenarioId = 'view-runtime.grid' | 'view-runtime.unknown-kind' | 'view-runtime.empty-rows' | 'view-runtime.long-content'
-const gridDefinition: ViewDefinition = { id: 'view-assets', kind: 'views.entity-list/grid', version: '1', packKey: 'harborline.platform', body: { fields: [{ id: 'asset', label: 'Asset' }, { id: 'status', label: 'Status' }, { id: 'owner', label: 'Owner' }] } }
-const unknownDefinition: ViewDefinition = { ...gridDefinition, kind: 'views.unknown' }
+const gridPlan: ViewRenderPlan = { definitionHash: 'sha256:view-assets', definitionId: 'view-assets', definitionVersion: '1', packKey: 'harborline.platform', packVersion: '1.0.0', definitionKind: 'ViewDefinition', bindings: { viewKind: 'views.entity-list/grid', parameters: { fields: [{ id: 'asset', label: 'Asset' }, { id: 'status', label: 'Status' }, { id: 'owner', label: 'Owner' }] } } }
+const unknownPlan: ViewRenderPlan = { ...gridPlan, bindings: { ...gridPlan.bindings, viewKind: 'views.unknown' } }
 const gridRows: readonly ViewRuntimeRow[] = [{ id: 'a1', asset: 'Pier', status: 'Open', owner: 'Riley' }, { id: 'a2', asset: 'Pump', status: 'Review', owner: 'Morgan' }]
 const longContentRows: readonly ViewRuntimeRow[] = [{ id: 'a1', asset: 'A caller-owned value that is deliberately long enough to exercise the runtime handoff.', status: 'Open', owner: 'Riley' }]
 const copy: Record<ScenarioId, readonly [string, string]> = {
@@ -14,9 +14,9 @@ const copy: Record<ScenarioId, readonly [string, string]> = {
 }
 function ViewRuntimeScenario({ scenarioId }: { scenarioId: ScenarioId }) {
   const [title, description] = copy[scenarioId]
-  const definition = scenarioId === 'view-runtime.unknown-kind' ? unknownDefinition : gridDefinition
+  const plan = scenarioId === 'view-runtime.unknown-kind' ? unknownPlan : gridPlan
   const rows = scenarioId === 'view-runtime.empty-rows' ? [] : scenarioId === 'view-runtime.long-content' ? longContentRows : gridRows
-  return <section className="hl-gallery-scene" data-gallery-probe data-gallery-scenario={scenarioId}><header className="hl-gallery-heading"><h2>{title}</h2><p>{description}</p></header><div className="hl-gallery-stage"><ViewRuntime definition={definition} empty={scenarioId === 'view-runtime.empty-rows' ? 'No results.' : undefined} rows={rows} /></div></section>
+  return <section className="hl-gallery-scene" data-gallery-probe data-gallery-scenario={scenarioId}><header className="hl-gallery-heading"><h2>{title}</h2><p>{description}</p></header><div className="hl-gallery-stage"><ViewRuntime plan={plan} empty={scenarioId === 'view-runtime.empty-rows' ? 'No results.' : undefined} rows={rows} /></div></section>
 }
 const meta = { title: 'Platform/View Runtime', component: ViewRuntimeScenario, tags: ['autodocs'], parameters: { layout: 'padded', controls: { disable: true } } } satisfies Meta<typeof ViewRuntimeScenario>
 export default meta
