@@ -10,9 +10,15 @@ function columns(fields: readonly ViewDefinitionField[]): readonly DataGridColum
   }, header: field.label ?? field.id, removalPriority: fields.length - index }))
 }
 
+function definitionSource(definition: ViewRuntimeProps['definition']): string | undefined {
+  if (!definition.packKey?.trim()) return undefined
+  return JSON.stringify({ definitionId: definition.id, definitionVersion: definition.version, packKey: definition.packKey })
+}
+
 export function ViewRuntime({ definition, rows, accessibleName = 'View results', empty }: ViewRuntimeProps) {
   if (definition.kind !== GRID_KIND) return null
-  return <div className="hl-view-runtime" data-definition-id={definition.id} data-definition-version={definition.version}>
+  const source = definitionSource(definition)
+  return <div className="hl-view-runtime" data-definition-source={source} title={source === undefined ? undefined : `Definition source: ${source}`}>
     <DataGrid accessibleName={accessibleName} columns={columns(definition.body.fields)} empty={empty} getRowId={row => row.id} rows={rows} />
   </div>
 }
