@@ -51,7 +51,7 @@ export async function acquirePhase4GateLock({repositoryRoot, command = [process.
         renameSync(candidateDirectory, lockDirectory)
         break
       } catch (error) {
-        rmSync(candidateDirectory, {recursive: true, force: true})
+        removeOwnDirectory(candidateDirectory)
         if (['EEXIST', 'ENOTEMPTY', 'EPERM'].includes(error?.code)) {
           // Another fully populated candidate won the atomic rename.
         } else {
@@ -60,7 +60,7 @@ export async function acquirePhase4GateLock({repositoryRoot, command = [process.
       }
     } catch (error) {
       if (error?.code === 'EEXIST') {
-        rmSync(candidateDirectory, {recursive: true, force: true})
+        removeOwnDirectory(candidateDirectory)
       } else {
         throw error
       }
@@ -101,7 +101,7 @@ export async function acquirePhase4GateLock({repositoryRoot, command = [process.
     process.removeListener('exit', exitHandler)
     process.removeListener('SIGINT', sigintHandler)
     process.removeListener('SIGTERM', sigtermHandler)
-    if (readOwner(ownerPath)?.token === token) rmSync(lockDirectory, {recursive: true, force: true})
+    if (readOwner(ownerPath)?.token === token) releaseLockDirectory(lockDirectory)
   }
   function grantChildReentry(childPid) {
     if (!Number.isInteger(childPid) || childPid <= 0) throw new Error('phase-4 gate lock: invalid child pid')
@@ -112,6 +112,38 @@ export async function acquirePhase4GateLock({repositoryRoot, command = [process.
     return grant
   }
   return Object.freeze({lockDirectory, grantChildReentry, release})
+}
+
+// A candidate directory is private to this process -- its name carries our pid and token -- so
+// retrying its removal is safe and only ever absorbs transient filesystem contention.
+function removeOwnDirectory(directory) {
+  rmSync(directory, {recursive: true, force: true, maxRetries: 10, retryDelay: 25})
+}
+
+// Removing the LOCK directory is a different problem, and it must not retry.
+//
+// A claimant takes the lock with renameSync(candidate, lockDirectory), and POSIX lets a populated
+// directory be renamed onto an EMPTY one. So this interleaving is reachable and legitimate:
+//
+//   1. we confirm we still own the lock and begin a recursive removal
+//   2. the removal unlinks owner.json -- the lock directory is now empty
+//   3. a waiter's rename succeeds onto that empty directory: IT NOW OWNS THE LOCK
+//   4. our rmdir finds the waiter's owner.json and throws ENOTEMPTY
+//
+// ENOTEMPTY here is therefore not contention to ride out. It is the signal that the lock path is no
+// longer ours. Retrying would delete the new owner's lock directory and put two processes inside the
+// gate at once -- silent loss of mutual exclusion, far worse than the flaky teardown that exposed
+// this. ENOENT says the same thing: someone else finished the job. Both mean stop.
+//
+// Seen on the platform phase-4 gate 2026-09-13: "a paused live winner publishes its owner atomically
+// and is never taken over", 286/287 with ENOTEMPTY at release().
+export function releaseLockDirectory(lockDirectory) {
+  try {
+    rmSync(lockDirectory, {recursive: true, force: true})
+  } catch (error) {
+    if (error?.code === 'ENOTEMPTY' || error?.code === 'ENOENT') return
+    throw error
+  }
 }
 
 function readOwner(ownerPath) {
@@ -185,10 +217,10 @@ function claimAndRemoveStaleLock(lockDirectory, ownerPath, observedOwner, observ
     && sameDirectory(readDirectoryIdentity(lockDirectory), observedDirectory)
     && !isOwnerAlive(confirmedOwner)
   if (sameDeadOwner) {
-    rmSync(lockDirectory, {recursive: true, force: true})
+    releaseLockDirectory(lockDirectory)
     return true
   }
-  rmSync(claimDirectory, {recursive: true, force: true})
+  removeOwnDirectory(claimDirectory)
   return false
 }
 
