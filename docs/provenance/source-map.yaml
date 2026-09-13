@@ -91,7 +91,7 @@
         "projections/dotnet/foundation/hlp.foundation.rule-runtime/Model/RuleOutcome.cs": "f3a01ae9ca416d9d564a9482939fd66a680097318c48f5975a073b94d8ff6efa",
         "projections/dotnet/foundation/hlp.foundation.rule-runtime/RuleEngineLimits.cs": "f2df1e4d55bd151dbd111878cdef82f9163ab0371c36c675fb64fb7b61be2c0c",
         "projections/dotnet/foundation/hlp.foundation.rule-runtime/Harborline.Foundation.RuleEngine.csproj": "f6dd38c2716cd4b525efa0cfeac63e31d4abc21d16c2819dfa915c1ac625eb7e",
-        "projections/typescript/foundation/hlp.foundation.rule-runtime/package.json": "37bc0eeb534f43754b1f20545e90017e950722dde6366b9ef8bbb820d01498d0",
+        "projections/typescript/foundation/hlp.foundation.rule-runtime/package.json": "d0663a9aa410cf970e7417c88559f9d2f91493ded188d67cb35dad51cda24de2",
         "projections/typescript/foundation/hlp.foundation.rule-runtime/src/compiler.ts": "4f2bfa21fc8c165f52687e51eadc0ee0dea8d38bdbabbdff1f15d005bba8de11",
         "projections/typescript/foundation/hlp.foundation.rule-runtime/src/graph.ts": "4109b298016e2a077cf9e3bcdaa33bcb1c8ecd46123c32663ded4f5e4461b288",
         "projections/typescript/foundation/hlp.foundation.rule-runtime/src/jsonlogic.ts": "fd3f04863fb24e0665443b454d550e279f96fad7f6e941c947e2eb450cf457e5",
