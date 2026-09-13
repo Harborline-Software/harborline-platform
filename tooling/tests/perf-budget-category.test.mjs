@@ -103,11 +103,11 @@ test('the parallel fan-outs exclude the budgeted rows and the serial step runs e
 
 test('every budgeted row is marked and every marked test is a budgeted row', () => {
   const declared = new Set([...stabilityText.matchAll(/rows: \[([^\]]+)\]/g)].flatMap(match => rowIds(match[1])))
-  assert.equal(declared.size, 7, `perf-budget-stability.mjs declares seven budgeted rows, saw ${declared.size}`)
+  assert.equal(declared.size, 10, `perf-budget-stability.mjs declares ten budgeted rows, saw ${declared.size}`)
   const marked = new Set()
 
   const reactFiles = budgetedReactFiles()
-  assert.ok(reactFiles.length >= 4, 'the React budget helper must be discoverable')
+  assert.ok(reactFiles.length >= 5, 'the React budget helper must be discoverable')
   for (const {file, text} of reactFiles) {
     for (const block of itBlocks(text)) {
       const measures = /\breportRow\(/.test(block)

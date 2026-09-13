@@ -54,6 +54,7 @@ const targets = [
   {id: 'react-app-shell', lane: 'react', module: 'hlp.ui.app-shell', test: 'AppShell.performance.test.tsx', rows: ['react-app-shell']},
   {id: 'react-app-layout', lane: 'react', module: 'hlp.ui.app-layout', test: 'AppLayout.performance.test.tsx', rows: ['react-app-layout']},
   {id: 'react-scheduler', lane: 'react', module: 'hlp.ui.scheduler', test: 'Scheduler.performance.test.tsx', rows: ['react-scheduler']},
+  {id: 'react-schema-form', lane: 'react', module: 'hlp.ui.schema-form', test: 'SchemaForm.performance.test.tsx', rows: ['react-schema-form-keystroke-latency', 'react-schema-form-large-form', 'react-schema-form-deep-collection']},
   {id: 'blazor-data-grid', lane: 'blazor', filter: PERF_BUDGET_CATEGORY, rows: ['blazor-data-grid-no-lazy', 'blazor-data-grid-fifty-lazy']},
 ]
 
