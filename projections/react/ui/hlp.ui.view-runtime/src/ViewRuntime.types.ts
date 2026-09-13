@@ -16,4 +16,5 @@ export interface ViewRuntimeProps {
   readonly rows: readonly ViewRuntimeRow[]
   readonly accessibleName?: string
   readonly empty?: string
+  readonly onRowActivate?: (rowId: string) => void
 }
