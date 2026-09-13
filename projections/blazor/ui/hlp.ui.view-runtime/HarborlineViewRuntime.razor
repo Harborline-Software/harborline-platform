@@ -1,15 +1,20 @@
 @namespace Harborline.UIAdapters.Blazor.Components.DataDisplay
-@if (Definition.Kind == GridKind)
+@if (Plan.DefinitionKind == "ViewDefinition" && Plan.Bindings.ViewKind == GridKind && Plan.Bindings.Parameters?.Fields is not null)
 {
-  <div class="hl-view-runtime" data-definition-id="@Definition.Id" data-definition-version="@Definition.Version">
-    <HarborlineDataGrid TRow="ViewRuntimeRow" AccessibleLabel="@AccessibleLabel" Columns="@Columns" Empty="@Empty" GetRowId="@(row => row.Id)" Rows="@Rows" />
+  <div class="hl-view-runtime"
+       data-definition-source="@DefinitionSource"
+       title="@DefinitionSourceTitle">
+    <HarborlineDataGrid TRow="ViewRuntimeRow" AccessibleLabel="@AccessibleLabel" Columns="@Columns" Empty="@Empty" GetRowId="@(row => row.Id)" Rows="@Rows" OnRowActivate="@OnRowActivate" />
   </div>
 }
 @code {
   private const string GridKind = "views.entity-list/grid";
-  [Parameter, EditorRequired] public ViewDefinition Definition { get; set; } = default!;
+  [Parameter, EditorRequired] public ViewRenderPlan Plan { get; set; } = default!;
   [Parameter, EditorRequired] public IReadOnlyList<ViewRuntimeRow> Rows { get; set; } = [];
   [Parameter] public string AccessibleLabel { get; set; } = "View results";
   [Parameter] public string? Empty { get; set; }
-  private IReadOnlyList<DataGridColumn<ViewRuntimeRow>> Columns => Definition.Body.Fields.Select((spec, index) => new DataGridColumn<ViewRuntimeRow>(spec.Id, spec.Label ?? spec.Id, row => row.Values.TryGetValue(spec.Id, out var value) ? value?.ToString() ?? string.Empty : string.Empty, Definition.Body.Fields.Count - index)).ToArray();
+  [Parameter] public EventCallback<DataGridRowActivation> OnRowActivate { get; set; }
+  private string DefinitionSource => System.Text.Json.JsonSerializer.Serialize(new { definitionId = Plan.DefinitionId, definitionVersion = Plan.DefinitionVersion, packKey = Plan.PackKey });
+  private string DefinitionSourceTitle => $"Definition source: {DefinitionSource}";
+  private IReadOnlyList<DataGridColumn<ViewRuntimeRow>> Columns { get { var fields = Plan.Bindings.Parameters!.Fields!; return fields.Select((spec, index) => new DataGridColumn<ViewRuntimeRow>(spec.Id, spec.Label ?? spec.Id, row => row.Values.TryGetValue(spec.Id, out var value) ? value?.ToString() ?? string.Empty : string.Empty, fields.Count - index)).ToArray(); } }
 }
