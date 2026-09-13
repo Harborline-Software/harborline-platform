@@ -91,13 +91,12 @@ jobs:
         # scheduled cross-platform job, where a slow run costs nobody a landing; it is not the thing
         # that decides whether a headless change may merge. Every non-browser step still runs here
         # and still blocks.
-        env:
-          HARBORLINE_GATE_HEADLESS: "1"
         run: |
           set -o pipefail
           node tooling/run-phase-4-gate.mjs | tee harborline-phase4-gate-report.json
         env:
           HARBORLINE_API_REPO: ${{ runner.temp }}/harborline-api
+          HARBORLINE_GATE_HEADLESS: "1"
 
       - name: Evidence
         if: always()
