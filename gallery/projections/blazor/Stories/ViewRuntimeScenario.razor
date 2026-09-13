@@ -2,14 +2,14 @@
 @using Harborline.UIAdapters.Blazor.Components.DataDisplay
 <section class="hl-gallery-scene" data-gallery-probe data-gallery-scenario="@ScenarioId">
   <header class="hl-gallery-heading"><h2>@Copy.Title</h2><p>@Copy.Description</p></header>
-  <div class="hl-gallery-stage"><HarborlineViewRuntime Definition="@Definition" Empty="@Empty" Rows="@Rows" /></div>
+  <div class="hl-gallery-stage"><HarborlineViewRuntime Plan="@Plan" Empty="@Empty" Rows="@Rows" /></div>
 </section>
 @code {
   [Parameter, EditorRequired] public string ScenarioId { get; set; } = "view-runtime.grid";
-  private static readonly ViewDefinition GridDefinition = new("view-assets", "views.entity-list/grid", "1", new ViewDefinitionBody([new("asset", "Asset"), new("status", "Status"), new("owner", "Owner")]), "harborline.platform");
+  private static readonly ViewRenderPlan GridPlan = new("sha256:view-assets", "view-assets", "1", "harborline.platform", "1.0.0", "ViewDefinition", new("views.entity-list/grid", new([new("asset", "Asset"), new("status", "Status"), new("owner", "Owner")]))) ;
   private static readonly IReadOnlyList<ViewRuntimeRow> GridRows = [new("a1", new Dictionary<string, object?> { ["asset"] = "Pier", ["status"] = "Open", ["owner"] = "Riley" }), new("a2", new Dictionary<string, object?> { ["asset"] = "Pump", ["status"] = "Review", ["owner"] = "Morgan" })];
   private static readonly IReadOnlyList<ViewRuntimeRow> LongContentRows = [new("a1", new Dictionary<string, object?> { ["asset"] = "A caller-owned value that is deliberately long enough to exercise the runtime handoff.", ["status"] = "Open", ["owner"] = "Riley" })];
-  private ViewDefinition Definition => ScenarioId == "view-runtime.unknown-kind" ? GridDefinition with { Kind = "views.unknown" } : GridDefinition;
+  private ViewRenderPlan Plan => ScenarioId == "view-runtime.unknown-kind" ? GridPlan with { Bindings = GridPlan.Bindings with { ViewKind = "views.unknown" } } : GridPlan;
   private string? Empty => ScenarioId == "view-runtime.empty-rows" ? "No results." : null;
   private IReadOnlyList<ViewRuntimeRow> Rows => ScenarioId == "view-runtime.empty-rows" ? [] : ScenarioId == "view-runtime.long-content" ? LongContentRows : GridRows;
   private (string Title, string Description) Copy => ScenarioId switch { "view-runtime.grid" => ("Grid definition", "A three-field entity-list definition renders two caller-supplied rows through the shared data grid."), "view-runtime.unknown-kind" => ("Unknown kind", "An unsupported definition kind is inert and silent."), "view-runtime.long-content" => ("Long content", "A long caller-owned field value remains available to the delegated grid without runtime truncation or replacement."), _ => ("Empty rows", "A known grid definition keeps its declared columns while the caller supplies no rows.") };
