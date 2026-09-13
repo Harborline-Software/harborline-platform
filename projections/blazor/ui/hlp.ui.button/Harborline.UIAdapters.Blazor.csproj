@@ -181,6 +181,9 @@
     <RazorComponent Include="../hlp.ui.data-grid/**/*.razor" Link="Components/DataDisplay/%(Filename)%(Extension)" />
     <Compile Include="../hlp.ui.data-grid/**/*.cs" Link="Components/DataDisplay/%(Filename)%(Extension)" />
     <Content Include="../hlp.ui.data-grid/wwwroot/**" Link="wwwroot/%(Filename)%(Extension)" />
+    <RazorComponent Include="../hlp.ui.view-runtime/**/*.razor" Link="Components/DataDisplay/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.view-runtime/**/*.cs" Link="Components/DataDisplay/%(Filename)%(Extension)" />
+    <Content Include="../hlp.ui.view-runtime/wwwroot/**" Link="wwwroot/%(Filename)%(Extension)" />
     <RazorComponent Include="../hlp.ui.scroll-affordance/**/*.razor" Link="Components/Layout/%(Filename)%(Extension)" />
     <Compile Include="../hlp.ui.scroll-affordance/**/*.cs" Link="Components/Layout/%(Filename)%(Extension)" />
     <Content Include="../hlp.ui.scroll-affordance/wwwroot/**" Link="wwwroot/%(Filename)%(Extension)" />
