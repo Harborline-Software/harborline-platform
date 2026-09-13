@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite'
 import { ViewRuntime, type ViewDefinition, type ViewRuntimeRow } from '@harborline-software/ui-react'
 
 type ScenarioId = 'view-runtime.grid' | 'view-runtime.unknown-kind' | 'view-runtime.empty-rows' | 'view-runtime.long-content'
-const gridDefinition: ViewDefinition = { id: 'view-assets', kind: 'views.entity-list/grid', version: '1', body: { fields: [{ id: 'asset', label: 'Asset' }, { id: 'status', label: 'Status' }, { id: 'owner', label: 'Owner' }] } }
+const gridDefinition: ViewDefinition = { id: 'view-assets', kind: 'views.entity-list/grid', version: '1', packKey: 'harborline.platform', body: { fields: [{ id: 'asset', label: 'Asset' }, { id: 'status', label: 'Status' }, { id: 'owner', label: 'Owner' }] } }
 const unknownDefinition: ViewDefinition = { ...gridDefinition, kind: 'views.unknown' }
 const gridRows: readonly ViewRuntimeRow[] = [{ id: 'a1', asset: 'Pier', status: 'Open', owner: 'Riley' }, { id: 'a2', asset: 'Pump', status: 'Review', owner: 'Morgan' }]
 const longContentRows: readonly ViewRuntimeRow[] = [{ id: 'a1', asset: 'A caller-owned value that is deliberately long enough to exercise the runtime handoff.', status: 'Open', owner: 'Riley' }]
