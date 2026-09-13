@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.ui.app-shell",
-  "interfaceRevision": 4,
+  "interfaceRevision": 5,
   "semantics": {
     "operation": "compose the fixed Harborline kernel frame from a content-column bar, an open-or-gone resizable rail, required workspace content, and an optional shrinking dock; packs fill declared slots without rearranging kernel zones",
     "observableOutput": "Equivalent four-surface and nine-zone order, presence rather than disabled state, workload and notification count semantics, identity-derived addresses, controlled state requests, complete shell shortcuts, Material breakpoint collapse, content-floor geometry, themed scroll regions, and focus order in React and Blazor."
@@ -48,6 +48,7 @@
     "Rail pin toggles are interactive siblings of the activation target, never nested inside it, at least 44 CSS pixels, keyboard reachable, always visible on coarse pointers, and activating one neither navigates nor moves focus off the toggle.",
     "Thread rows render one level under their owning item (or item-less under a group), with optional mark, single active highlight, optional kebab action menu (destructive entries after a divider), and host-controlled inline rename whose Enter and Escape emit rename and cancel requests without the shell committing the value.",
     "Thread activation emits onThreadActivate exactly once and performs no routing; item activation reuses side-nav's activation semantics with aria-current=page on the single matching row.",
+    "Workspace, navigation, recent, suggested, and system activation targets retain their identity-derived href. Workspace selection is handled by the shell and cancels native navigation. An item or system target with a supplied host activation handler emits exactly one request and cancels native navigation; without a handler it follows its href as the host's native navigation fallback.",
     "Scope switchers follow one contract: trigger button with single-line truncated label, menu with menuitemradio semantics, active option sorted first regardless of pin state, pinned options next in pin order, filter input rendered only above 7 options, optional directory entry as menu footer, Escape and outside dismissal restoring trigger focus, and selection emitting exactly one change request.",
     "A pin on a scope option is a sort preference, never membership; switcher pin caps default to 4; the rail workspace switcher hides entirely at one or zero workspaces and the header switcher renders a static label at exactly one option and nothing at zero. Within a switcher menu the pin affordance is pointer-only and hidden from assistive technology, because a menu item admits no nested interactive or AT-visible content; the rail's sibling pin toggles are the keyboard and assistive-technology path to the same preference.",
     "Collapse, nav pins, and each switcher's active and pinned axes are controlled-or-uncontrolled; uncontrolled state restores through an injectable asynchronous storage seam in at most one update per axis after defaults paint, with versioned records and silent fallback on corrupt, old, or failing reads; precedence is controlled value, then restored value, then declared default.",
@@ -106,6 +107,9 @@
     },
     {
       "id": "app-shell.workspace-switch"
+    },
+    {
+      "id": "app-shell.activation-navigation-policy"
     },
     {
       "id": "app-shell.workspace-unknown-controlled"

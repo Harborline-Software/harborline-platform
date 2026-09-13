@@ -52,13 +52,16 @@ public sealed class ViewRuntimeTests : BunitContext
         var rows = input.TryGetProperty("rows", out var rowElements)
             ? rowElements.EnumerateArray().Select(ReadRow).ToArray()
             : [];
+        var activated = new List<string>();
         var cut = Render<HarborlineViewRuntime>(p => p.Add(x => x.Plan, plan).Add(x => x.Rows, rows)
+            .Add(x => x.OnAction, id => activated.Add(id))
             .Add(x => x.Empty, input.TryGetProperty("empty", out var empty) ? empty.GetString() : null));
         var expected = root.GetProperty("expected");
         if (expected.TryGetProperty("nodes", out var nodes))
         {
             Assert.Equal(nodes.GetInt32(), cut.Nodes.Length);
             Assert.Empty(JSInterop.Invocations);
+            Assert.Empty(activated);
             return;
         }
         if (expected.TryGetProperty("columns", out var columns))
@@ -67,6 +70,21 @@ public sealed class ViewRuntimeTests : BunitContext
             Assert.Equal(rowCount.GetInt32(), cut.FindAll("[data-row-id]").Count);
         if (expected.TryGetProperty("content", out var content))
             Assert.Contains(content.GetString()!, cut.Markup);
+        var buttons = cut.FindAll("button");
+        Assert.Equal(expected.TryGetProperty("actions", out var labels)
+            ? labels.EnumerateArray().Select(label => label.GetString()) : [], buttons.Select(button => button.TextContent));
+        if (input.TryGetProperty("activateActions", out var actions))
+        {
+            foreach (var id in actions.EnumerateArray())
+            {
+                var action = plan.Bindings.Actions!.Single(candidate => candidate.Id == id.GetString());
+                var button = cut.FindAll("button").Single(candidate => candidate.TextContent == action.Label);
+                Assert.Equal("button", button.GetAttribute("type"));
+                button.Click();
+            }
+        }
+        Assert.Equal(expected.TryGetProperty("activated", out var ids)
+            ? ids.EnumerateArray().Select(id => id.GetString()) : [], activated);
     }
 
     private static ViewRenderPlan ReadPlan(System.Text.Json.JsonElement plan)
@@ -76,11 +94,39 @@ public sealed class ViewRuntimeTests : BunitContext
             && parameters.TryGetProperty("fields", out var fieldElements)
             ? fieldElements.EnumerateArray().Select(field => new ViewDefinitionField(field.GetProperty("id").GetString()!, field.GetProperty("label").GetString())).ToArray()
             : null;
+        var actions = bindings.TryGetProperty("actions", out var actionElements)
+            ? actionElements.EnumerateArray().Select(action => new ViewRuntimeAction(action.GetProperty("id").GetString()!, action.GetProperty("label").GetString()!)).ToArray()
+            : null;
         return new(
             plan.GetProperty("definitionHash").GetString()!, plan.GetProperty("definitionId").GetString()!,
             plan.GetProperty("definitionVersion").GetString()!, plan.GetProperty("packKey").GetString()!,
             plan.GetProperty("packVersion").GetString()!, plan.GetProperty("definitionKind").GetString()!,
-            new(bindings.GetProperty("viewKind").GetString(), fields is null ? null : new(fields)));
+            new(bindings.GetProperty("viewKind").GetString(), fields is null ? null : new(fields), actions));
+    }
+
+    [Fact]
+    public void DeclaredActionsForwardTheirIdsInActivationOrder()
+    {
+        var actions = new[] { new ViewRuntimeAction("first", "First"), new ViewRuntimeAction("second", "Second") };
+        var activated = new List<string>();
+        var cut = Render<HarborlineViewRuntime>(p => p.Add(x => x.Plan, Grid with { Bindings = Grid.Bindings with { Actions = actions } })
+            .Add(x => x.Rows, []).Add(x => x.OnAction, id => activated.Add(id)));
+        var buttons = cut.FindAll("button");
+        Assert.Equal(["First", "Second"], buttons.Select(button => button.TextContent));
+        Assert.All(buttons, button => Assert.Equal("button", button.GetAttribute("type")));
+        cut.FindAll("button")[1].Click();
+        cut.FindAll("button")[0].Click();
+        Assert.Equal(["second", "first"], activated);
+    }
+
+    [Fact]
+    public void DeclaredActionWithNoHandlerIsAnInertNonSubmitButton()
+    {
+        var cut = Render<HarborlineViewRuntime>(p => p.Add(x => x.Plan, Grid with
+            { Bindings = Grid.Bindings with { Actions = [new("action", "Act")] } }).Add(x => x.Rows, []));
+        var button = cut.Find("button");
+        Assert.Equal("button", button.GetAttribute("type"));
+        button.Click();
     }
 
     private static ViewRuntimeRow ReadRow(System.Text.Json.JsonElement row) => new(
