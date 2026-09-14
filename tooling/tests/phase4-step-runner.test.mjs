@@ -1,7 +1,99 @@
 import assert from 'node:assert/strict'
+import {existsSync, mkdtempSync, readFileSync, rmSync} from 'node:fs'
+import {tmpdir} from 'node:os'
+import {resolve} from 'node:path'
 import test from 'node:test'
 
-import {interruptionDetails, runPhase4Step} from '../phase4-step-runner.mjs'
+import {interruptionDetails, OUTPUT_CAP, runPhase4Step, writeFailureEvidence} from '../phase4-step-runner.mjs'
+
+function failureEvidence(root, id) {
+  return {
+    filePath: resolve(root, '.claude/gate-evidence', `${id}.log`),
+    reportPath: `.claude/gate-evidence/${id}.log`,
+  }
+}
+
+test('an oversized failed step preserves complete output outside the bounded receipt', () => {
+  const root = mkdtempSync(resolve(tmpdir(), 'phase4-full-output-'))
+  try {
+    const results = []
+    const output = `first\n${'x'.repeat(OUTPUT_CAP)}\nlast`
+    assert.throws(() => runPhase4Step({
+      results,
+      id: 'oversized-output',
+      executable: process.execPath,
+      args: [],
+      cwd: root,
+      json: false,
+      env: {},
+      failureEvidence: failureEvidence(root, 'oversized-output'),
+      execute: () => ({
+        result: {status: 1, stdout: output, stderr: ''},
+        outcome: {status: 1, report: {status: 'FAIL'}},
+      }),
+    }), /oversized-output failed/)
+    assert.equal(readFileSync(resolve(root, results[0].failureEvidencePath), 'utf8'), output)
+    const bounded = results[0].failureOutput
+    assert.ok(bounded.length <= OUTPUT_CAP)
+    assert.match(bounded, /\[truncated after 16384 characters\]$/)
+  } finally {
+    rmSync(root, {recursive: true, force: true})
+  }
+})
+
+test('a failed step carries a pointer to failure output that exists', () => {
+  const root = mkdtempSync(resolve(tmpdir(), 'phase4-failure-pointer-'))
+  try {
+    const results = []
+    assert.throws(() => runPhase4Step({
+      results,
+      id: 'pointer-step',
+      executable: process.execPath,
+      args: [],
+      cwd: root,
+      json: false,
+      env: {},
+      failureEvidence: failureEvidence(root, 'pointer-step'),
+      execute: () => ({
+        result: {status: 1, stdout: 'complete failure output', stderr: ''},
+        outcome: {status: 1, report: {status: 'FAIL'}},
+      }),
+    }), /pointer-step failed/)
+    // The pointer rides the in-memory report the operator message and the stdout
+    // report are built from -- not docs/evidence/phase-4/gate.json, which stays a
+    // PASS-only record so a red run keeps the previous pass's step-reuse baseline.
+    assert.equal(results[0].failureEvidencePath, '.claude/gate-evidence/pointer-step.log')
+    assert.equal(existsSync(resolve(root, results[0].failureEvidencePath)), true)
+  } finally {
+    rmSync(root, {recursive: true, force: true})
+  }
+})
+
+test('a failed launch with no output to copy does not throw while retaining evidence', () => {
+  const root = mkdtempSync(resolve(tmpdir(), 'phase4-missing-output-'))
+  try {
+    const evidence = failureEvidence(root, 'missing-output')
+    assert.doesNotThrow(() => writeFailureEvidence(evidence, undefined, null))
+    assert.equal(existsSync(evidence.filePath), false)
+    const results = []
+    const launchError = new Error('launch failed before output')
+    assert.throws(() => runPhase4Step({
+      results,
+      id: 'missing-output',
+      executable: process.execPath,
+      args: [],
+      cwd: root,
+      json: false,
+      env: {},
+      failureEvidence: evidence,
+      execute: () => ({result: {status: null, stdout: undefined, stderr: null, error: launchError}}),
+    }), /launch failed before output/)
+    assert.equal(results[0].failureEvidencePath, undefined)
+    assert.equal(existsSync(evidence.filePath), false)
+  } finally {
+    rmSync(root, {recursive: true, force: true})
+  }
+})
 
 test('an ordinary non-zero child records exactly one failed result', () => {
   const results = []

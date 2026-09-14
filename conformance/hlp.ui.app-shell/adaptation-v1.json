@@ -335,5 +335,83 @@
       }
     }
   ],
-  "railNote": "The rendered rows here mount with the rail on screen (railCapable), so their placement counts the 216px rail: a class docks floor((classWidth - 216 - 420) / 300) panes. contentFloorCases are model rows with no rail and are unchanged. Placement stays constant inside a class; only the dock WIDTH follows the measured shell size."
+  "railNote": "The rendered rows here mount with the rail on screen (railCapable), so their placement counts the 216px rail: a class docks floor((classWidth - 216 - 420) / 300) panes. contentFloorCases are model rows with no rail and are unchanged. Placement stays constant inside a class; only the dock WIDTH follows the measured shell size.",
+  "m5ExactWidthAdaptiveShellAcceptance": {
+    "id": "m5-exact-width-adaptive-shell",
+    "declaredPanelIds": [
+      "notifications",
+      "pilot",
+      "documents",
+      "reports"
+    ],
+    "state": {
+      "activeWorkspaceId": "operations",
+      "activeItemId": "inspections",
+      "orderedOpenPanelIds": [
+        "notifications",
+        "pilot",
+        "documents",
+        "reports"
+      ],
+      "attemptedOpenPanelIds": [
+        "notifications",
+        "pilot",
+        "documents",
+        "reports",
+        "m5-undeclared-panel"
+      ]
+    },
+    "steps": [
+      {
+        "width": 480,
+        "expectedBreakpoint": "compact",
+        "expectedContainerKinds": {
+          "notifications": "bottom-sheet",
+          "pilot": "bottom-sheet",
+          "documents": "bottom-sheet",
+          "reports": "bottom-sheet"
+        }
+      },
+      {
+        "width": 720,
+        "expectedBreakpoint": "medium",
+        "expectedContainerKinds": {
+          "notifications": "side-sheet",
+          "pilot": "side-sheet",
+          "documents": "side-sheet",
+          "reports": "side-sheet"
+        }
+      },
+      {
+        "width": 1024,
+        "expectedBreakpoint": "expanded",
+        "expectedContainerKinds": {
+          "notifications": "side-sheet",
+          "pilot": "side-sheet",
+          "documents": "side-sheet",
+          "reports": "side-sheet"
+        }
+      },
+      {
+        "width": 720,
+        "expectedBreakpoint": "medium",
+        "expectedContainerKinds": {
+          "notifications": "side-sheet",
+          "pilot": "side-sheet",
+          "documents": "side-sheet",
+          "reports": "side-sheet"
+        }
+      },
+      {
+        "width": 480,
+        "expectedBreakpoint": "compact",
+        "expectedContainerKinds": {
+          "notifications": "bottom-sheet",
+          "pilot": "bottom-sheet",
+          "documents": "bottom-sheet",
+          "reports": "bottom-sheet"
+        }
+      }
+    ]
+  }
 }

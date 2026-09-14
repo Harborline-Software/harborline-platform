@@ -12,4 +12,9 @@ set -eu
 hook_root=$(git rev-parse --show-toplevel)
 hook_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 node "$hook_dir/../tooling/gates/scan-prop-vocabulary.mjs" "$hook_root"
-node "$hook_dir/../tooling/verify-phase4-receipt.mjs" "$hook_root"
+# The phase-4 receipt refusal was removed with the retired landing mechanism (control ticket 393
+# item 5). It refused any commit without a fresh local phase-4 receipt, on the premise that
+# nothing else judged the tree. Since platform #23 the `verify` and `sbom` checks on the
+# self-hosted macOS runner are required by ruleset "platform main landing", and the merge queue
+# builds and judges the tree it lands. `npm run receipt:phase4` still records a receipt as
+# per-run evidence; nothing refuses a commit for lacking one.

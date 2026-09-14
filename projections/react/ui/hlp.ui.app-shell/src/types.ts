@@ -9,10 +9,11 @@ export interface PackNavigationDeclaration {
 export interface PackNavigationModeSwitch { modes: readonly PackNavigationMode[] }
 export interface PackNavigationMode { id: string; labelKey: string; workspaceIds: readonly string[] }
 export interface PackNavigationWorkspace { id: string; labelKey: string; icon?: string; destinationQueryRef?: string; countQueryRef?: string; groups?: readonly PackNavigationGroup[]; createActions?: readonly PackNavigationAction[]; documentSpine?: readonly PackDocumentSpineNode[]; defaultForPersonas?: readonly string[] }
-export interface PackNavigationGroup { id: string; labelKey: string; destinationQueryRef?: string; countQueryRef?: string; itemIds: readonly string[]; addAction?: PackNavigationAction }
+export interface PackNavigationItem { id: string; labelKey: string; label: string }
+export interface PackNavigationGroup { id: string; labelKey: string; destinationQueryRef?: string; countQueryRef?: string; itemIds: readonly string[]; items?: readonly PackNavigationItem[]; addAction?: PackNavigationAction }
 export interface PackNavigationAction { id: string; verbKey: string; icon: string; binding: string; shortcut: string; permittedRoles: readonly string[] }
 export interface PackDocumentSpineNode { id: string; labelKey: string; binding: string; children?: readonly PackDocumentSpineNode[] }
-export interface PackPanelDeclaration { id: string; labelKey?: string; binding: string; shortcut: string; defaultWidth: number; minimumHeight: number; defaultOpen: boolean; footer?: PackPanelFooter; traits?: readonly string[]; popOut?: boolean }
+export interface PackPanelDeclaration { id: string; labelKey?: string; binding: string; shortcut: string; defaultWidth: number; minimumHeight: number; defaultOpen: boolean; headerForm?: string; bodyTemplate?: string; footer?: PackPanelFooter; traits?: readonly string[]; popOut?: boolean }
 export interface PackPanelFooter { kind: string; labelKey: string; binding?: string }
 
 export interface ShellScopeOption { id: string; label: string; icon?: React.ReactNode; monogram?: string; pinnable?: boolean }

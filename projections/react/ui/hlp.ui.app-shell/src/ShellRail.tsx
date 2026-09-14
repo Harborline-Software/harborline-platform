@@ -51,7 +51,7 @@ export function ShellRail({ workspace, activeItemId, pinnedItemIds, pinCap, grou
   const [expandedGroups, setExpandedGroups] = React.useState<ReadonlySet<string>>(new Set())
   const visibleGroups = groups.filter(group => group.items.length > 0 || group.addAction)
   const row = (item: ShellNavItem, isPinned: boolean) => <div key={item.id} className="hl-app-shell__rail-row" data-shell-row>
-    <a className="hl-app-shell__rail-link" href={shellAddress(item.kind ?? 'workspaces', item.id)} aria-current={item.id === activeItemId ? 'page' : undefined} onClick={() => onNavigate?.(item)}>
+    <a className="hl-app-shell__rail-link" href={shellAddress(item.kind ?? 'workspaces', item.id)} aria-current={item.id === activeItemId ? 'page' : undefined} onClick={event => { if (onNavigate) { event.preventDefault(); onNavigate(item) } }}>
       {item.icon}<span className="hl-app-shell__rail-label">{item.label}</span>{item.count !== undefined ? <span className="hl-app-shell__count" data-shell-count>{item.count}</span> : null}
     </a>
     {item.pinnable === false ? null : <button type="button" className="hl-app-shell__pin-toggle" aria-label={`${isPinned ? unpinLabel : pinLabel} ${item.label}`} onClick={event => { event.stopPropagation(); if (!isPinned && pinnedItemIds.length >= pinCap) return; onPinToggle(item.id, !isPinned) }}>

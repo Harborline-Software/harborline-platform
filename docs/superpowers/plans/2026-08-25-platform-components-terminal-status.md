@@ -448,8 +448,8 @@ twice. Closing them is the whole task; no code changes.
 
 **Files:**
 - Modify: `harborline-control/tickets/README.md` (the 090 and 102 rows)
-- Modify: `harborline-control/tickets/090-detail-heading-levels-disagree-between-lanes/ticket.md`
-- Modify: `harborline-control/tickets/102-the-scenario-catalog-describes-code-it-cannot-check/ticket.md`
+- Modify: `harborline-control/tickets-done/T-090-detail-heading-levels-disagree-between-lanes/ticket.md`
+- Modify: `harborline-control/tickets-done/T-102-the-scenario-catalog-describes-code-it-cannot-check/ticket.md`
 
 - [ ] **Step 1: Re-verify 090 in both lanes before closing it**
 
@@ -483,7 +483,7 @@ Expected: PASS. A pinning test nobody has watched fail is not a pin.
 
 - [ ] **Step 3: Record the outcome in ticket 090**
 
-Append to `tickets/090-detail-heading-levels-disagree-between-lanes/ticket.md`:
+Append to `tickets-done/T-090-detail-heading-levels-disagree-between-lanes/ticket.md`:
 
 ```markdown
 ## Outcome — closed (2026-08-25)
@@ -645,7 +645,7 @@ component's problem or a family, and requires the answer be produced by a check 
 
 **Files:**
 - Create: `tooling/gates/scan-nullable-parity.mjs`
-- Modify: `harborline-control/tickets/101-blazor-cannot-express-a-persistent-toast/ticket.md`
+- Modify: `harborline-control/tickets/T-101-blazor-cannot-express-a-persistent-toast/ticket.md`
 - Modify: `harborline-control/tickets/README.md` (the 101 row)
 
 **Interfaces:**
@@ -731,7 +731,7 @@ in this task, re-run to 0, and list them in the ticket.
 
 - [ ] **Step 6: Record the outcome and close 101**
 
-Append to `tickets/101-blazor-cannot-express-a-persistent-toast/ticket.md`:
+Append to `tickets/T-101-blazor-cannot-express-a-persistent-toast/ticket.md`:
 
 ```markdown
 ## Outcome — closed (2026-08-25)
@@ -883,7 +883,7 @@ they are byte-identical.
 
 - [ ] **Step 7: Record acceptance 5 as the limitation it is**
 
-Append to `tickets/106-fifty-two-modules-style-themselves-with-undefined-tokens/ticket.md`:
+Append to `tickets/T-106-fifty-two-modules-style-themselves-with-undefined-tokens/ticket.md`:
 
 ```markdown
 ## Acceptance 4 and 5 — closed (2026-08-25)
@@ -1641,7 +1641,7 @@ generated in the same run — not a stale one.
 
 - [ ] **Step 7: Close ticket 098's remaining acceptances**
 
-Append to `tickets/098-the-gate-model/ticket.md`:
+Append to `tickets/T-098-the-gate-model/ticket.md`:
 
 ```markdown
 ## Acceptances 1, 3, 5 and 7 — closed (2026-08-25)

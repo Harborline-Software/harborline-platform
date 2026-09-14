@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url'
 import { parseNodeTestCount } from './parse-node-test-count.mjs'
 import { resolveCommand, runnerEnvironment } from './resolve-command.mjs'
 import { resolvePinnedDotnet } from './resolve-dotnet.mjs'
+import {copyCoberturaReport, coverageEnabled} from './coverage.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const reactRoot = resolve(root, 'projections/react/ui/hlp.ui.button')
@@ -16,6 +17,7 @@ const ruleRuntimeTypeScriptRoot = resolve(root, 'projections/typescript/foundati
 const ruleAuthoringTypeScriptRoot = resolve(root, 'projections/typescript/foundation/hlp.foundation.rule-authoring')
 const dotnet = resolvePinnedDotnet(root)
 const buildOnly = process.argv.includes('--build')
+const collectCoverage = coverageEnabled()
 const blazorTestProject = 'projections/blazor/ui/hlp.ui.button.tests/Harborline.UIAdapters.Blazor.Tests.csproj'
 
 // Every .NET suite the gate runs: [countKey, stepId, project]. Order is load-bearing — it is the
@@ -115,6 +117,7 @@ async function run(id, executable, args, cwd = root) {
 }
 
 let results
+let coverage = []
 if (buildOnly) {
   // The aggregate React declaration build consumes the canonical Forms
   // declaration output, and the rule-authoring typecheck/build consumes the
@@ -152,11 +155,15 @@ if (buildOnly) {
         '--no-restore',
         '--no-build',
         '-v:minimal',
+        ...(collectCoverage ? ['--settings', 'tooling/coverage.runsettings', '--collect:XPlat Code Coverage', '--results-directory', `artifacts/quality/coverage/${id}/results`] : []),
         ...(filter ? ['--filter', filter] : []),
       ])),
     ])
     : []
   results = [reactResult, formsTypeScriptResult, ruleRuntimeTypeScriptResult, ruleAuthoringTypeScriptResult, copilotTypeScriptResult, dotnetBuild, ...dotnetTests]
+  if (collectCoverage) coverage = DOTNET_SUITES
+    .filter(([, id]) => results.find(result => result.id === id)?.passed)
+    .map(([, id]) => copyCoberturaReport({root, resultsDirectory: resolve(root, 'artifacts/quality/coverage', id, 'results'), suite: id}))
 }
 
 let formsTypeScriptTests = 0
@@ -199,6 +206,7 @@ process.stdout.write(`${JSON.stringify({
     total: reactTests + formsTypeScriptTests + copilotTypeScriptTests + ruleRuntimeTypeScriptTests
       + ruleAuthoringTypeScriptTests + Object.values(dotnetCounts).reduce((sum, n) => sum + n, 0),
   },
+  coverage: collectCoverage ? coverage : undefined,
   results,
 }, null, 2)}\n`)
 process.exitCode = passed ? 0 : 1

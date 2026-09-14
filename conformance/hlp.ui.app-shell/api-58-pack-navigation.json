@@ -19,7 +19,12 @@
         "labelKey": "workspaceGroups.operations.by-storey",
         "destinationQueryRef": "queries.assets.by-storey",
         "countQueryRef": "queries.assets.by-storey",
-        "itemIds": ["assets-by-storey"]
+        "itemIds": ["assets-by-storey"],
+        "items": [{
+          "id": "assets-by-storey",
+          "labelKey": "navigation.assetsByStorey",
+          "label": "Assets by storey"
+        }]
       }],
       "documentSpine": [{
         "id": "assets",
@@ -50,7 +55,12 @@
       "shortcut": "mod+shift+d",
       "defaultWidth": 420,
       "minimumHeight": 220,
-      "defaultOpen": true
+      "defaultOpen": true,
+      "labelKey": "panels.documents",
+      "headerForm": "SwitcherItem",
+      "bodyTemplate": "Library",
+      "footer": { "kind": "Claim", "labelKey": "panels.documents.footerClaim" },
+      "traits": ["Scoped", "Collection", "OpensOne"]
     },
     {
       "id": "notes",

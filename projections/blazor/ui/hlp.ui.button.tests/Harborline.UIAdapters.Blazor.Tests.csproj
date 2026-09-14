@@ -78,6 +78,7 @@
     <Compile Include="../hlp.ui.chat.tests/**/*.cs" Link="AI/Chat/%(Filename)%(Extension)" />
     <Compile Include="../hlp.ui.gantt.tests/**/*.cs" Link="Scheduling/Gantt/%(Filename)%(Extension)" />
     <Compile Include="../hlp.ui.data-grid.tests/**/*.cs" Link="DataDisplay/DataGrid/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.view-runtime.tests/**/*.cs" Link="DataDisplay/ViewRuntime/%(Filename)%(Extension)" />
     <Compile Include="../hlp.ui.scroll-affordance.tests/**/*.cs" Link="Layout/ScrollAffordance/%(Filename)%(Extension)" />
     <Compile Include="../hlp.ui.dialog.tests/**/*.cs" Link="Feedback/Dialog/%(Filename)%(Extension)" />
     <Compile Include="../hlp.ui.side-nav.tests/**/*.cs" Link="Navigation/SideNav/%(Filename)%(Extension)" />

@@ -169,6 +169,8 @@
     {"moduleId":"hlp.ui.chat","projection":"blazor","role":"adapter","status":"conformant","path":"projections/blazor/ui/hlp.ui.chat"},
     {"moduleId":"hlp.ui.data-grid","projection":"react","role":"adapter","status":"conformant","path":"projections/react/ui/hlp.ui.data-grid"},
     {"moduleId":"hlp.ui.data-grid","projection":"blazor","role":"adapter","status":"conformant","path":"projections/blazor/ui/hlp.ui.data-grid"},
+    {"moduleId":"hlp.ui.view-runtime","projection":"react","role":"adapter","status":"conformant","path":"projections/react/ui/hlp.ui.view-runtime"},
+    {"moduleId":"hlp.ui.view-runtime","projection":"blazor","role":"adapter","status":"conformant","path":"projections/blazor/ui/hlp.ui.view-runtime"},
     {"moduleId":"hlp.ui.gantt","projection":"react","role":"adapter","status":"conformant","path":"projections/react/ui/hlp.ui.gantt"},
     {"moduleId":"hlp.ui.gantt","projection":"blazor","role":"adapter","status":"conformant","path":"projections/blazor/ui/hlp.ui.gantt"},
     {"moduleId":"hlp.ui.numeric-text-box","projection":"react","role":"adapter","status":"conformant","path":"projections/react/ui/hlp.ui.numeric-text-box"},

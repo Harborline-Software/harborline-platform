@@ -1,0 +1,2 @@
+.hl-view-runtime { min-inline-size: 0; }
+.hl-view-runtime :focus-visible { outline: 2px solid var(--hl-focus); outline-offset: 2px; }
