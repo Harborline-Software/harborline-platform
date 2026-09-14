@@ -134,6 +134,39 @@ public sealed class AppShellTests : BunitContext
             }
         }
     }
+    [Fact] public async Task M5ExactWidthAdaptiveShellAcceptancePreservesDeclaredState()
+    {
+        using var fixture=JsonDocument.Parse(File.ReadAllText(Repo("conformance/hlp.ui.app-shell/adaptation-v1.json")));
+        using var dock=JsonDocument.Parse(File.ReadAllText(Repo("conformance/hlp.ui.app-shell/dock-splitter-v1.json")));
+        var acceptance=fixture.RootElement.GetProperty("m5ExactWidthAdaptiveShellAcceptance");
+        var state=acceptance.GetProperty("state");
+        var activeWorkspaceId=state.GetProperty("activeWorkspaceId").GetString()!;
+        var activeItemId=state.GetProperty("activeItemId").GetString()!;
+        var declaredPanelIds=acceptance.GetProperty("declaredPanelIds").EnumerateArray().Select(x=>x.GetString()!).ToArray();
+        var panels=dock.RootElement.GetProperty("declaredPanels").Deserialize<PackPanelDeclaration[]>(new JsonSerializerOptions{PropertyNameCaseInsensitive=true})!.Where(panel=>declaredPanelIds.Contains(panel.Id)).ToArray();
+        var orderedOpenPanelIds=state.GetProperty("orderedOpenPanelIds").EnumerateArray().Select(x=>x.GetString()!).ToArray();
+        var attemptedOpenPanelIds=state.GetProperty("attemptedOpenPanelIds").EnumerateArray().Select(x=>x.GetString()!).ToArray();
+        var normalizedOpenPanelIds=attemptedOpenPanelIds.Where(declaredPanelIds.Contains).ToArray();
+        var undeclaredPanelIds=attemptedOpenPanelIds.Where(id=>!declaredPanelIds.Contains(id)).ToArray();
+        Assert.Equal(orderedOpenPanelIds,normalizedOpenPanelIds);
+        var first=acceptance.GetProperty("steps")[0];SetViewport(first.GetProperty("width").GetInt32());
+        using var cut=Shell(p=>p.Add(x=>x.ActiveWorkspaceId,activeWorkspaceId).Add(x=>x.ActiveItemId,activeItemId).Add(x=>x.DefaultOpenPanelIds,attemptedOpenPanelIds).Add(x=>x.PanelContent,PanelBody),Nav(panels:panels));
+        foreach(var step in acceptance.GetProperty("steps").EnumerateArray())
+        {
+            var width=step.GetProperty("width").GetInt32();await SetViewportAsync(width);
+            Assert.Equal(step.GetProperty("expectedBreakpoint").GetString(),cut.Find("[data-shell-id]").GetAttribute("data-shell-breakpoint"));
+            Assert.Equal(orderedOpenPanelIds.Length.ToString(),cut.Find("[data-shell-id]").GetAttribute("data-open-panel-count"));
+            Assert.Equal(orderedOpenPanelIds,cut.FindAll("[data-shell-panel-id]").Select(panel=>panel.GetAttribute("data-shell-panel-id")));
+            Assert.Equal(ShellChromeContract.Address("workspaces",activeWorkspaceId),cut.Find("[data-shell-zone=workspaces] a[aria-current=page]").GetAttribute("href"));
+            Assert.Equal(ShellChromeContract.Address("workspaces",activeItemId),cut.Find("[data-shell-zone=groups] a[aria-current=page]").GetAttribute("href"));
+            foreach(var expected in step.GetProperty("expectedContainerKinds").EnumerateObject())
+            {
+                var panel=cut.Find($"[data-shell-panel-id='{expected.Name}']");Assert.Equal(expected.Value.GetString(),panel.GetAttribute("data-shell-container-kind"));
+                Assert.Single(panel.QuerySelectorAll("[data-shell-panel-body-scroll]"));
+            }
+            foreach(var id in undeclaredPanelIds)Assert.Empty(cut.FindAll($"[data-shell-panel-id='{id}']"));
+        }
+    }
     public sealed class StatefulPanelProbe : ComponentBase, IDisposable
     {
         [Parameter] public string PanelId { get; set; } = "";
