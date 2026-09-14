@@ -21,6 +21,8 @@ describe('AppShell api#58 cross-projection conformance', () => {
     expect(mapped.modes.map(mode => mode.id)).toEqual(['operate', 'configure'])
     expect(mapped.panels.map(panel => panel.id)).toEqual(['documents', 'notes'])
     expect(mapped.workspaces[0].documentSpine[0].binding).toBe('documents.assets')
+    expect(mapped.workspaces[0].groups[0].items[0].label).toBe('Assets by storey')
+    expect(mapped.panels[0]).toMatchObject({ headerForm: 'SwitcherItem', bodyTemplate: 'Library' })
   })
 
   it('applies the shared planted-violation fixture to an actual React shell', () => {

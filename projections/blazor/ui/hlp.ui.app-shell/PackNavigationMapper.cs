@@ -21,7 +21,11 @@ public static class PackNavigationMapper
             var declared = workspace.CreateActions ?? [];
             var allowed = declared.Where(Permitted).Select(Action).ToArray();
             var guidance = declared.Where(entry => !Permitted(entry)).Select(entry => state.CapabilityGuidanceByBinding?.GetValueOrDefault(entry.Binding)).FirstOrDefault(value => value is not null);
-            return new ShellWorkspaceViewModel(workspace.Id, label(workspace.LabelKey), (workspace.Groups ?? []).Select(group => new ShellGroupViewModel(group.Id, label(group.LabelKey), group.ItemIds.Select(id => state.Items?.GetValueOrDefault(id) ?? new ShellNavItem(id, id)).ToArray(), group.AddAction is not null && Permitted(group.AddAction) ? Action(group.AddAction) : null)).ToArray(), workspace.CountQueryRef is null ? null : state.Counts?.GetValueOrDefault(workspace.CountQueryRef), allowed, state.DefaultCreateActionByWorkspace?.GetValueOrDefault(workspace.Id), guidance, workspace.DocumentSpine ?? [], state.RecentByWorkspace?.GetValueOrDefault(workspace.Id) ?? [], state.SuggestedByWorkspace?.GetValueOrDefault(workspace.Id));
+            return new ShellWorkspaceViewModel(workspace.Id, label(workspace.LabelKey), (workspace.Groups ?? []).Select(group => new ShellGroupViewModel(group.Id, label(group.LabelKey), group.ItemIds.Select(id =>
+            {
+                var declaredItem = group.Items?.FirstOrDefault(item => item.Id == id);
+                return state.Items?.GetValueOrDefault(id) ?? new ShellNavItem(id, declaredItem?.Label ?? label(declaredItem?.LabelKey ?? id));
+            }).ToArray(), group.AddAction is not null && Permitted(group.AddAction) ? Action(group.AddAction) : null)).ToArray(), workspace.CountQueryRef is null ? null : state.Counts?.GetValueOrDefault(workspace.CountQueryRef), allowed, state.DefaultCreateActionByWorkspace?.GetValueOrDefault(workspace.Id), guidance, workspace.DocumentSpine ?? [], state.RecentByWorkspace?.GetValueOrDefault(workspace.Id) ?? [], state.SuggestedByWorkspace?.GetValueOrDefault(workspace.Id));
         }).ToArray();
         var modes = (declaration.ModeSwitch?.Modes ?? []).Select(mode => (mode.Id, label(mode.LabelKey), mode.WorkspaceIds)).ToArray();
         return new(workspaces, modes, declaration.PanelSet ?? []);
