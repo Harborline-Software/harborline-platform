@@ -33,7 +33,8 @@ export function mapPackNavigationDeclaration(declaration: PackNavigationDeclarat
       return { id: workspace.id, label: label(workspace.labelKey), icon: workspace.icon, count: workspace.countQueryRef ? state.counts?.[workspace.countQueryRef] : undefined,
         groups: (workspace.groups ?? []).map(group => ({ id: group.id, label: label(group.labelKey), items: group.itemIds.map(id => {
           const declaredItem = group.items?.find(item => item.id === id)
-          return state.items?.[id] ?? { id, label: declaredItem?.label ?? label(declaredItem?.labelKey ?? id) }
+          const declaredLabel = declaredItem?.label
+          return state.items?.[id] ?? { id, label: declaredLabel != null && declaredLabel !== declaredItem?.labelKey ? declaredLabel : label(declaredItem?.labelKey ?? id) }
         }), addAction: group.addAction && permitted(group.addAction, options.roleVocabulary, options.heldRoles) ? action(group.addAction) : undefined })),
         createActions: allowedActions.map(action), defaultCreateActionId: state.defaultCreateActionByWorkspace?.[workspace.id], createGuidance: deniedGuidance, documentSpine: workspace.documentSpine ?? [], recent: state.recentByWorkspace?.[workspace.id] ?? [], suggested: state.suggestedByWorkspace?.[workspace.id] }
     }),
