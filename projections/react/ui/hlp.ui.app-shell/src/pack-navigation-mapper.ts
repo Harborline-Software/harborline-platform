@@ -31,7 +31,11 @@ export function mapPackNavigationDeclaration(declaration: PackNavigationDeclarat
       const allowedActions = declaredActions.filter(entry => permitted(entry, options.roleVocabulary, options.heldRoles))
       const deniedGuidance = declaredActions.filter(entry => !permitted(entry, options.roleVocabulary, options.heldRoles)).map(entry => state.capabilityGuidanceByBinding?.[entry.binding]).find(Boolean)
       return { id: workspace.id, label: label(workspace.labelKey), icon: workspace.icon, count: workspace.countQueryRef ? state.counts?.[workspace.countQueryRef] : undefined,
-        groups: (workspace.groups ?? []).map(group => ({ id: group.id, label: label(group.labelKey), items: group.itemIds.map(id => state.items?.[id] ?? { id, label: id }), addAction: group.addAction && permitted(group.addAction, options.roleVocabulary, options.heldRoles) ? action(group.addAction) : undefined })),
+        groups: (workspace.groups ?? []).map(group => ({ id: group.id, label: label(group.labelKey), items: group.itemIds.map(id => {
+          const declaredItem = group.items?.find(item => item.id === id)
+          const declaredLabel = declaredItem?.label
+          return state.items?.[id] ?? { id, label: declaredLabel != null && declaredLabel !== declaredItem?.labelKey ? declaredLabel : label(declaredItem?.labelKey ?? id) }
+        }), addAction: group.addAction && permitted(group.addAction, options.roleVocabulary, options.heldRoles) ? action(group.addAction) : undefined })),
         createActions: allowedActions.map(action), defaultCreateActionId: state.defaultCreateActionByWorkspace?.[workspace.id], createGuidance: deniedGuidance, documentSpine: workspace.documentSpine ?? [], recent: state.recentByWorkspace?.[workspace.id] ?? [], suggested: state.suggestedByWorkspace?.[workspace.id] }
     }),
     modes: (declaration.modeSwitch?.modes ?? []).map(mode => ({ id: mode.id, label: label(mode.labelKey), workspaceIds: mode.workspaceIds })),

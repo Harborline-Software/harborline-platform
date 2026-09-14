@@ -1,0 +1,97 @@
+import { fireEvent, render, screen } from '@testing-library/react'
+import { describe, expect, it, vi } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { ViewRuntime } from '../ViewRuntime'
+import type { ViewRenderPlan, ViewRuntimeRow } from '../ViewRuntime.types'
+
+const fixture = JSON.parse(readFileSync(resolve(process.cwd(), '../../../../conformance/hlp.ui.view-runtime/fixtures.yaml'), 'utf8')) as {
+  cases: readonly { input: { plan: ViewRenderPlan; rows?: readonly ViewRuntimeRow[]; empty?: string; activateActions?: readonly string[] }; expected: { nodes?: number; columns?: readonly string[]; rowCount?: number; content?: string; actions?: readonly string[]; activated?: readonly string[] } }[]
+}
+
+const plan: ViewRenderPlan = { definitionHash: 'sha256:view-assets', definitionId: 'view-assets', definitionVersion: '1', packKey: 'harborline.platform', packVersion: '1.0.0', definitionKind: 'ViewDefinition', bindings: { viewKind: 'views.entity-list/grid', parameters: { fields: [{ id: 'asset', label: 'Asset' }, { id: 'status', label: 'Status' }, { id: 'owner', label: 'Owner' }] } } }
+const rows: readonly ViewRuntimeRow[] = [{ id: 'a1', asset: 'Pier', status: 'Open', owner: 'Riley' }, { id: 'a2', asset: 'Pump', status: 'Review', owner: 'Morgan' }]
+const seededFormsList: ViewRenderPlan = { ...plan, definitionId: 'view-forms' }
+const catalogue = new Map([[`${seededFormsList.definitionId}@${seededFormsList.definitionVersion}`, { definitionId: seededFormsList.definitionId, definitionVersion: seededFormsList.definitionVersion, packKey: seededFormsList.packKey }]])
+
+describe('ViewRuntime React projection', () => {
+  it('renders every shared fixture from its compiled plan input', () => {
+    for (const scenario of fixture.cases) {
+      const activated: string[] = []
+      const { container, unmount } = render(<ViewRuntime
+        plan={scenario.input.plan as ViewRenderPlan}
+        rows={(scenario.input.rows ?? []) as readonly ViewRuntimeRow[]}
+        empty={'empty' in scenario.input ? scenario.input.empty : undefined}
+        onAction={id => activated.push(id)}
+      />)
+      if ('nodes' in scenario.expected) expect(container.childNodes).toHaveLength(scenario.expected.nodes)
+      if ('columns' in scenario.expected) expect(screen.getAllByRole('columnheader').map(node => node.textContent)).toEqual(scenario.expected.columns)
+      if ('rowCount' in scenario.expected) expect(container.querySelectorAll('[data-row-id]')).toHaveLength(scenario.expected.rowCount)
+      if ('content' in scenario.expected) expect(container).toHaveTextContent(scenario.expected.content)
+      const buttons = screen.queryAllByRole('button')
+      expect(buttons.map(button => button.textContent)).toEqual(scenario.expected.actions ?? [])
+      for (const id of scenario.input.activateActions ?? []) {
+        const action = scenario.input.plan.bindings.actions!.find(candidate => candidate.id === id)!
+        const button = screen.getByRole('button', { name: action.label })
+        expect(button).toHaveAttribute('type', 'button')
+        fireEvent.click(button)
+      }
+      expect(activated).toEqual(scenario.expected.activated ?? [])
+      unmount()
+    }
+  })
+  it('maps the seeded Forms list through one source-map accessor that round-trips to its catalogue definition', () => {
+    render(<ViewRuntime plan={seededFormsList} rows={rows} />)
+    expect(screen.getAllByRole('columnheader').map(node => node.textContent)).toEqual(['Asset', 'Status', 'Owner'])
+    expect(screen.getAllByRole('row')).toHaveLength(3)
+    const runtime = document.querySelector('.hl-view-runtime')
+    const source = JSON.parse(runtime?.getAttribute('data-definition-source') ?? '')
+    expect(source).toEqual({ definitionId: 'view-forms', definitionVersion: '1', packKey: 'harborline.platform' })
+    expect(catalogue.get(`${source.definitionId}@${source.definitionVersion}`)).toEqual(source)
+    expect(runtime).not.toHaveAttribute('data-definition-id')
+    expect(runtime).not.toHaveAttribute('data-definition-version')
+    expect(runtime).toHaveAttribute('title', `Definition source: ${JSON.stringify(source)}`)
+  })
+  it('keeps plan provenance at the React projection boundary without mutating the supplied artifact', () => {
+    const artifact = Object.freeze({ ...plan, bindings: Object.freeze({ ...plan.bindings }) })
+    render(<ViewRuntime plan={artifact} rows={rows} />)
+    expect(artifact).toEqual(plan)
+  })
+  it('renders unknown kinds inertly and without console output', () => {
+    const consoleSpies = (['log', 'info', 'warn', 'error', 'debug'] as const)
+      .map(method => vi.spyOn(console, method).mockImplementation(() => undefined))
+    try {
+      const { container } = render(<ViewRuntime plan={{ ...plan, bindings: { ...plan.bindings, viewKind: 'views.unknown' } }} rows={rows} />)
+      expect(container).toBeEmptyDOMElement()
+      for (const consoleSpy of consoleSpies) expect(consoleSpy).not.toHaveBeenCalled()
+    } finally {
+      for (const consoleSpy of consoleSpies) consoleSpy.mockRestore()
+    }
+  })
+  it('preserves the known grid definition when the caller supplies an empty row set', () => {
+    render(<ViewRuntime plan={plan} empty="No matching assets." rows={[]} />)
+    expect(screen.getAllByRole('columnheader')).toHaveLength(3)
+    expect(screen.getByRole('gridcell')).toHaveTextContent('No matching assets.')
+  })
+  it('normalizes missing, null, and non-string row values before passing them to data-grid', () => {
+    render(<ViewRuntime plan={plan} rows={[{ id: 'a1', asset: null, status: 42 }]} />)
+    expect(screen.getAllByRole('gridcell').map(node => node.textContent)).toEqual(['', '42', ''])
+  })
+  it('forwards the shared row activation action', () => {
+    const activated = vi.fn()
+    render(<ViewRuntime plan={plan} rows={rows} onRowActivate={activated} />)
+    fireEvent.doubleClick(document.querySelector('[data-row-id="a1"]')!)
+    expect(activated).toHaveBeenCalledWith('a1')
+  })
+  it('preserves long caller content for the delegated grid', () => {
+    const content = 'A caller-owned value that is deliberately long enough to exercise the runtime handoff.'
+    render(<ViewRuntime plan={plan} rows={[{ id: 'a1', asset: content, status: 'Open', owner: 'Riley' }]} />)
+    expect(screen.getByRole('gridcell', { name: content })).toHaveTextContent(content)
+  })
+  it('does not submit an enclosing form when an action has no handler', () => {
+    const submitted = vi.fn(event => event.preventDefault())
+    render(<form onSubmit={submitted}><ViewRuntime plan={{ ...plan, bindings: { ...plan.bindings, actions: [{ id: 'action', label: 'Act' }] } }} rows={[]} /></form>)
+    fireEvent.click(screen.getByRole('button', { name: 'Act' }))
+    expect(submitted).not.toHaveBeenCalled()
+  })
+})

@@ -38,6 +38,9 @@ export const reusableStepInputs = {
   'native-tests': [
     ...BUILD_INPUTS,
     'tooling/run-native.mjs',
+    'tooling/coverage.mjs',
+    'tooling/coverage.runsettings',
+    'Directory.Build.targets',
     'tooling/parse-node-test-count.mjs',
     'tooling/resolve-command.mjs',
     'tooling/resolve-dotnet.mjs',
