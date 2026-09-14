@@ -2623,7 +2623,7 @@
         "projections/blazor/ui/hlp.ui.app-shell/DockDivider.razor": "29213416950d2863871ed3137f9b12d417aa29884443956735d7141ddee9c740",
         "projections/blazor/ui/hlp.ui.app-shell/DockLayout.cs": "47000bb6c031fa4ca0a14c0a3d3aea9f23f120b642459950fa6dd34a44a06514",
         "projections/blazor/ui/hlp.ui.app-shell/DockState.cs": "efffd2d5fa297af0b3ca58c95aff281138951129ee6bff66c836343cc01f7571",
-        "projections/blazor/ui/hlp.ui.app-shell/HarborlineAppShell.razor": "f8dd304af58f653795cf47eaf9c2711476f1daf70ff73094097408be0a057f81",
+        "projections/blazor/ui/hlp.ui.app-shell/HarborlineAppShell.razor": "707aeb8d90d990c62c8dfecd5cb9866bebd8bb28a4e3ef51270f6d8e6048f245",
         "projections/blazor/ui/hlp.ui.app-shell/HarborlineScopeSwitcher.razor": "80ba166c8afb3fef28235e97a09d43332a8c21291e583eb408b0b2da2384712c",
         "projections/blazor/ui/hlp.ui.app-shell/HarborlineShellRail.razor": "5556c18762c6f9997ba616182ea24b4ca76f7669c7a56fb517427eae6e148087",
         "projections/blazor/ui/hlp.ui.app-shell/ShellStorage.cs": "5326b221b17a25d5474b60750db76fd7953b15869cf5a800813cbc1a40f2390d",
@@ -2655,7 +2655,7 @@
         "specs/modules/ui/hlp.ui.app-shell/interface.yaml": "e164e1e9104a5308b9d6c092765247406b6b1f9cd49ef7b2f6d43589f541984a",
         "specs/modules/ui/hlp.ui.app-shell/quality.yaml": "f5f2beeffb11321ef15e1555d7e6e5ddac4da5abf0fa3e85978ab7bf2d637b0b",
         "specs/modules/ui/hlp.ui.app-shell/scenarios.json": "3e456636f25268718a805492541a892c55fe53e9b8228728f9e3960e05776256",
-        "specs/modules/ui/hlp.ui.app-shell/style.css": "8328ac7ec49688a1264c5dbcb745c14601d41073b9850816de2a559bec307ae7"
+        "specs/modules/ui/hlp.ui.app-shell/style.css": "a038fbdd50f502af14ca43f1ab8eb4cc74b5ee2a136a9a45c85882f20a214d6c"
       },
       "nextGate": "Retain this conformant composition contribution while the app-shell program advances to gallery baselines and package publication decisions."
     },
