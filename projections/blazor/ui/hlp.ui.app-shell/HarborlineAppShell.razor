@@ -33,6 +33,8 @@
  [Parameter]public EventCallback<ShellThreadEvent> ThreadActivated{get;set;}[Parameter]public EventCallback<ShellThreadActionEvent> ThreadActioned{get;set;}[Parameter]public EventCallback<ShellThreadRenameEvent> ThreadRenamed{get;set;}[Parameter]public EventCallback<ShellNavThread> ThreadRenameCancelled{get;set;}[Parameter]public bool? RailCapable{get;set;}[Parameter]public double? ShellInlineSize{get;set;}
 
  private bool initialized,localCollapsed,mediaRailCapable,mediaMedium,mediaExpanded,mediaLarge,mediaExtraLarge,actionsOpen,createOpen,draggingRail,draggingPanel,showAllWorkspaces,showAllRecent;private List<string> localPins=[],localOpenPanelIds=[];private string localWorkspace="";private int? localRailWidth,resizedPanelWidth;private double dragStartX;private int dragStartSize;private IMediaQuerySubscription? mediaSubscription;private readonly List<IMediaQuerySubscription> adaptationSubscriptions=[];private string? correctedWorkspace;private bool? localOpenOverride,localExpandedOverride;private readonly Dictionary<string,double> dockWidths=[];private DockNode? pendingRestoredRoot;private bool mediaReady;private bool draggingDock;private ElementReference shellElement;private ElementReference dockResizeElement;private ElementReference railResizeElement;private ElementReference panelResizeElement;private IJSObjectReference? shellModule;private DotNetObjectReference<HarborlineAppShell>? shellReference;private double? measuredInlineSize;private double dockDragWidth;private string? emittedDockState;private string? expandedPanelId;private readonly HashSet<string> treeHidden=[];
+ private bool disposed;
+ private IJSObjectReference? inlineConnection,chordConnection;
  private ShellNavigationViewModel View=>PackNavigationMapper.Map(Navigation,ResolveLabel,NavigationState,RoleVocabulary,HeldRoles);private IReadOnlyList<ShellWorkspaceViewModel> Workspaces=>View.Workspaces;private IReadOnlyList<(string Id,string Label,IReadOnlyList<string> WorkspaceIds)> Modes=>View.Modes;private bool NotificationsAvailable=>View.Panels.Any(panel=>panel.Id=="notifications");private bool PilotAvailable=>View.Panels.Any(panel=>panel.Id=="pilot");private IReadOnlyList<PackPanelDeclaration> DeclaredPanels=>View.Panels.Where(panel=>panel.Id is not "notifications" and not "pilot").ToArray();
  private int BreakpointWidth=>mediaExtraLarge?1600:mediaLarge?1200:mediaExpanded?840:mediaMedium?600:0;private ShellBreakpoint CurrentBreakpoint=>ShellChromeContract.Breakpoint(BreakpointWidth);private bool railCapable=>RailCapable??mediaRailCapable;private bool barLarge=>LargeBarCapable??mediaLarge;private IReadOnlyList<PackPanelDeclaration> InlineActions=>barLarge?DeclaredPanels:[];private IReadOnlyList<PackPanelDeclaration> OverflowActions=>barLarge?[]:DeclaredPanels;private bool IsCollapsed=>Collapsed??localCollapsed;private IReadOnlyList<string> Pins=>PinnedItemIds??localPins;private IReadOnlyList<string> CurrentOpenPanelIds=>OpenPanelIds??localOpenPanelIds;private IReadOnlyList<PackPanelDeclaration> OpenPanelDeclarations=>CurrentOpenPanelIds.Select(id=>View.Panels.FirstOrDefault(panel=>panel.Id==id)).Where(panel=>panel is not null).Cast<PackPanelDeclaration>().ToArray();private DockLayout DerivedDock=>DockLayout.Create(OpenPanelDeclarations,Spread,CurrentBreakpoint,ShellWidth,RailInlineSize,SpreadUnavailable,SpreadUnavailableReason);private bool ShowDock=>PanelContent is not null&&CurrentDock.RenderRoot is not null;private string WorkspaceId=>ActiveWorkspaceId??localWorkspace;private int RailSize=>Math.Max(ShellChromeContract.RailMinimum,RailWidth??localRailWidth??DefaultRailWidth);private bool PanelOpen=>EndPanelOpen??localOpenOverride??DefaultEndPanelOpen;private bool PanelExpanded=>EndPanelExpanded??localExpandedOverride??DefaultEndPanelExpanded;private bool ShowPanel=>PanelOpen&&EndPanel is not null;private bool Takeover=>ShowPanel&&(PanelExpanded||!railCapable);private bool Docked=>ShowPanel&&!Takeover;private int PanelSize=>Math.Max(0,resizedPanelWidth??EndPanelWidth);private string ResolvedMobileNavLabel=>LocaleContext?.ResolveString("navigation.mobile",instanceOverride:MobileNavLabel)??MobileNavLabel??"Navigation";
  private DockNode? authoredRoot;private string? authoredSignature;private DockLayout? derivedDock;private string? derivedSignature;private bool stamped;
@@ -93,7 +95,7 @@
  // ONE seam, keyed by VALUE: the serialised snapshot is compared, so a re-derived-but-equal tree emits nothing.
  // ...and only the AUTHORED tree is persisted: a derived reset is emitted as null, or the host would reload it
  // as an arrangement someone asked for.
- private async Task EmitDockState(){if(!DockStateChanged.HasDelegate||!Measured)return;var snapshot=DockState.Serialize(CurrentOpenPanelIds,AuthoredRoot,dockWidths);var json=System.Text.Json.JsonSerializer.Serialize(snapshot);if(json==emittedDockState)return;emittedDockState=json;await DockStateChanged.InvokeAsync(snapshot);}
+ private async Task EmitDockState(){if(disposed||!DockStateChanged.HasDelegate||!Measured)return;var snapshot=DockState.Serialize(CurrentOpenPanelIds,AuthoredRoot,dockWidths);var json=System.Text.Json.JsonSerializer.Serialize(snapshot);if(json==emittedDockState)return;emittedDockState=json;await DockStateChanged.InvokeAsync(snapshot);}
  private void ResizeDockNode(DockNode target,DockNode replacement){authoredRoot=DockLayout.ReplaceNode(CurrentDock.RenderRoot!,target,replacement);authoredSignature=DockSignature;}
  private void ResetDock(){authoredRoot=null;authoredSignature=null;pendingRestoredRoot=null;}
  private double Minimum(DockNode node,bool vertical)=>DockLayout.NodeMinimum(node,vertical,CurrentDock.Containers);
@@ -101,9 +103,52 @@
  private ShellWorkspaceViewModel? Workspace=>Workspaces.FirstOrDefault(w=>w.Id==WorkspaceId);
 
  protected override void OnParametersSet(){if(string.IsNullOrEmpty(ShellId)||!System.Text.RegularExpressions.Regex.IsMatch(ShellId,"^[a-z0-9-]+$"))throw new InvalidOperationException("app-shell-id-required");if(ChildContent is null)throw new InvalidOperationException("app-shell-body-required");ValidateNav(Workspaces);if(!initialized){var restored=DockState.Read(DefaultDockState,View.Panels);if(restored is not null){foreach(var entry in restored.Widths)dockWidths[entry.Key]=entry.Value;pendingRestoredRoot=restored.Root;}localCollapsed=DefaultCollapsed;localPins=DefaultPinnedItemIds?.ToList()??[];localOpenPanelIds=DefaultOpenPanelIds?.ToList()??restored?.OpenPanelIds.ToList()??View.Panels.Where(panel=>panel.DefaultOpen).Select(panel=>panel.Id).ToList();localWorkspace=DefaultActiveWorkspaceId??Workspaces.FirstOrDefault()?.Id??"";initialized=true;}if(ActiveWorkspaceId is not null&&Workspace is null&&Workspaces.Count>0&&correctedWorkspace!=ActiveWorkspaceId){correctedWorkspace=ActiveWorkspaceId;_ = InvokeAsync(()=>ActiveWorkspaceIdChanged.InvokeAsync(Workspaces[0].Id));}}
- protected override async Task OnAfterRenderAsync(bool first){if(!first){await EmitDockState();return;}mediaSubscription=await MediaQueries.ObserveAsync(RailQuery,OnMediaChangedAsync);mediaRailCapable=mediaSubscription.Matches;await ObserveBreakpoint(MediumQuery,value=>mediaMedium=value);await ObserveBreakpoint(ExpandedQuery,value=>mediaExpanded=value);await ObserveBreakpoint(LargeQuery,value=>mediaLarge=value);await ObserveBreakpoint(ExtraLargeQuery,value=>mediaExtraLarge=value);if(Collapsed is null){var value=await ShellPersistence.ReadAsync<bool>(Storage,ShellPersistence.Key(ShellId,"collapsed"));if(value.HasValue)localCollapsed=value.Value;}if(PinnedItemIds is null){var value=await ShellPersistence.ReadArrayAsync(Storage,ShellPersistence.Key(ShellId,"pins"));if(value is not null)localPins=[..value];}if(ActiveWorkspaceId is null){var value=await ShellPersistence.ReadStringAsync(Storage,ShellPersistence.Key(ShellId,"switcher","workspace","active"));if(value is not null)localWorkspace=value;}shellModule=await JS.InvokeAsync<IJSObjectReference>("import","./_content/Harborline.UIAdapters.Blazor/dock-divider.js");shellReference=DotNetObjectReference.Create(this);var measured=await shellModule.InvokeAsync<double>("measureInlineSize",shellElement);if(measured>0)measuredInlineSize=measured;await shellModule.InvokeVoidAsync("observeInlineSize",shellElement,shellReference);await shellModule.InvokeVoidAsync("observePanelChord",shellElement);mediaReady=true;await EmitDockState();await InvokeAsync(StateHasChanged);}
- [JSInvokable]public Task ShellMeasured(double size)=>InvokeAsync(()=>{if(size>0&&size!=measuredInlineSize){measuredInlineSize=size;StateHasChanged();}});
- private ValueTask OnMediaChangedAsync(MediaQueryChange change){mediaRailCapable=change.Matches;return new(InvokeAsync(StateHasChanged));}private async Task ObserveBreakpoint(string query,Action<bool> set){var subscription=await MediaQueries.ObserveAsync(query,change=>{set(change.Matches);return new(InvokeAsync(StateHasChanged));});set(subscription.Matches);adaptationSubscriptions.Add(subscription);}
+ protected override async Task OnAfterRenderAsync(bool first)
+ {
+  if(disposed)return;
+  if(!first){await EmitDockState();return;}
+  var railSubscription=await MediaQueries.ObserveAsync(RailQuery,OnMediaChangedAsync);
+  if(disposed){await railSubscription.DisposeAsync();return;}
+  mediaSubscription=railSubscription;
+  mediaRailCapable=railSubscription.Matches;
+  await ObserveBreakpoint(MediumQuery,value=>mediaMedium=value);
+  if(disposed)return;
+  await ObserveBreakpoint(ExpandedQuery,value=>mediaExpanded=value);
+  if(disposed)return;
+  await ObserveBreakpoint(LargeQuery,value=>mediaLarge=value);
+  if(disposed)return;
+  await ObserveBreakpoint(ExtraLargeQuery,value=>mediaExtraLarge=value);
+  if(disposed)return;
+  if(Collapsed is null){var value=await ShellPersistence.ReadAsync<bool>(Storage,ShellPersistence.Key(ShellId,"collapsed"));if(disposed)return;if(value.HasValue)localCollapsed=value.Value;}
+  if(PinnedItemIds is null){var value=await ShellPersistence.ReadArrayAsync(Storage,ShellPersistence.Key(ShellId,"pins"));if(disposed)return;if(value is not null)localPins=[..value];}
+  if(ActiveWorkspaceId is null){var value=await ShellPersistence.ReadStringAsync(Storage,ShellPersistence.Key(ShellId,"switcher","workspace","active"));if(disposed)return;if(value is not null)localWorkspace=value;}
+  var imported=await JS.InvokeAsync<IJSObjectReference>("import","./_content/Harborline.UIAdapters.Blazor/dock-divider.js");
+  if(disposed){await DisposeModule(imported);return;}
+  shellModule=imported;
+  shellReference=DotNetObjectReference.Create(this);
+  var measured=await shellModule.InvokeAsync<double>("measureInlineSize",shellElement);
+  if(disposed)return;
+  if(measured>0)measuredInlineSize=measured;
+  var inline=await shellModule.InvokeAsync<IJSObjectReference>("observeInlineSize",shellElement,shellReference);
+  if(disposed){await DisposeConnection(inline);return;}
+  inlineConnection=inline;
+  var chord=await shellModule.InvokeAsync<IJSObjectReference>("observePanelChord",shellElement);
+  if(disposed){await DisposeConnection(chord);return;}
+  chordConnection=chord;
+  mediaReady=true;
+  await EmitDockState();
+  if(disposed)return;
+  await InvokeAsync(()=>{if(!disposed)StateHasChanged();});
+ }
+ [JSInvokable]public Task ShellMeasured(double size)=>disposed?Task.CompletedTask:InvokeAsync(()=>{if(!disposed&&size>0&&size!=measuredInlineSize){measuredInlineSize=size;StateHasChanged();}});
+ private ValueTask OnMediaChangedAsync(MediaQueryChange change)=>disposed?ValueTask.CompletedTask:new(InvokeAsync(()=>{if(disposed)return;mediaRailCapable=change.Matches;StateHasChanged();}));
+ private async Task ObserveBreakpoint(string query,Action<bool> set)
+ {
+  var subscription=await MediaQueries.ObserveAsync(query,change=>disposed?ValueTask.CompletedTask:new(InvokeAsync(()=>{if(disposed)return;set(change.Matches);StateHasChanged();})));
+  if(disposed){await subscription.DisposeAsync();return;}
+  set(subscription.Matches);
+  adaptationSubscriptions.Add(subscription);
+ }
  private async Task SetCollapsedAsync(bool next){if(Collapsed is null)localCollapsed=next;ShellPersistence.Write(Storage,ShellPersistence.Key(ShellId,"collapsed"),next);await CollapsedChanged.InvokeAsync(next);}private Task SetCollapsedFromLayout(bool open)=>SetCollapsedAsync(!open);
  private async Task SetWorkspace(string id){if(ActiveWorkspaceId is null)localWorkspace=id;ShellPersistence.Write(Storage,ShellPersistence.Key(ShellId,"switcher","workspace","active"),id);await ActiveWorkspaceIdChanged.InvokeAsync(id);}private async Task TogglePin((string Id,bool Pinned) value){var next=value.Pinned?[..Pins,value.Id]:Pins.Where(p=>p!=value.Id).ToArray();if(PinnedItemIds is null)localPins=[..next];ShellPersistence.Write(Storage,ShellPersistence.Key(ShellId,"pins"),next);await PinToggled.InvokeAsync(value);await PinnedItemIdsChanged.InvokeAsync(next);}
 
@@ -175,5 +220,25 @@
  private string PanelLabel(PackPanelDeclaration panel)=>ResolveLabel?.Invoke(panel.LabelKey??$"panels.{panel.Id}")??panel.LabelKey??$"panels.{panel.Id}";private string ContainerKind(PackPanelDeclaration panel)=>CurrentDock.Containers.Single(container=>container.Panel.Id==panel.Id).Kind;private RenderFragment PanelBodyContent(PackPanelDeclaration panel)=>PanelContent?.Invoke(panel)??(_=>{});private Task OpenNotificationsPanel()=>OpenLivePanel("notifications",NotificationsCommand);private Task OpenPilotPanel()=>OpenLivePanel("pilot",PilotCommand);private async Task InvokePanel(PackPanelDeclaration panel){actionsOpen=false;await OpenDeclaredPanel(panel);}private async Task OpenLivePanel(string id,EventCallback callback){var panel=View.Panels.First(item=>item.Id==id);if(await OpenDeclaredPanel(panel))await callback.InvokeAsync();}private async Task<bool> OpenDeclaredPanel(PackPanelDeclaration panel){if(CurrentOpenPanelIds.Contains(panel.Id))return false;var next=CurrentOpenPanelIds.Append(panel.Id).ToArray();if(OpenPanelIds is null)localOpenPanelIds=[..next];await OpenPanelIdsChanged.InvokeAsync(next);await BindingInvoked.InvokeAsync(panel.Binding);return true;}private async Task CloseDeclaredPanel(string id){var next=CurrentOpenPanelIds.Where(panelId=>panelId!=id).ToArray();if(OpenPanelIds is null)localOpenPanelIds=[..next];await OpenPanelIdsChanged.InvokeAsync(next);}private async Task ToggleSpread()=>await SpreadChanged.InvokeAsync(!Spread);private static async Task InvokeSystem(ShellSystemItem item){if(item.Invoke is not null)await item.Invoke();}private async Task TogglePanelExpanded(){var next=!PanelExpanded;if(EndPanelExpanded is null)localExpandedOverride=next;await EndPanelExpandedChanged.InvokeAsync(next);}private async Task ClosePanel(){if(EndPanelOpen is null)localOpenOverride=false;await EndPanelOpenChanged.InvokeAsync(false);}
  private async Task StartRailDrag(PointerEventArgs e){draggingRail=true;dragStartX=e.ClientX;dragStartSize=RailSize;await CapturePointer(railResizeElement,e.PointerId);}private async Task MoveRailDrag(PointerEventArgs e){if(!draggingRail)return;localRailWidth=Math.Max(ShellChromeContract.RailMinimum,ShellChromeContract.RoundHalfUp(dragStartSize+(e.ClientX-dragStartX)));await RailWidthChanged.InvokeAsync(RailSize);}private async Task ResizeRailByKey(KeyboardEventArgs e){if(e.Key is not ("ArrowLeft" or "ArrowRight"))return;var direction=e.Key=="ArrowRight"?1:-1;localRailWidth=Math.Max(ShellChromeContract.RailMinimum,RailSize+direction*8);await RailWidthChanged.InvokeAsync(RailSize);}private void EndRailDrag(){draggingRail=false;}private async Task StartPanelDrag(PointerEventArgs e){draggingPanel=true;dragStartX=e.ClientX;dragStartSize=PanelSize;await CapturePointer(panelResizeElement,e.PointerId);}private void MovePanelDrag(PointerEventArgs e){if(draggingPanel)resizedPanelWidth=Math.Max(0,ShellChromeContract.RoundHalfUp(dragStartSize+(dragStartX-e.ClientX)));}private async Task EndPanelDrag(){draggingPanel=false;await EndPanelWidthChanged.InvokeAsync(PanelSize);}
  public static void ValidateNav(IReadOnlyList<ShellWorkspaceViewModel> workspaces){var workspaceIds=new HashSet<string>();foreach(var workspace in workspaces){if(!workspaceIds.Add(workspace.Id))throw new InvalidOperationException("duplicate-nav-identity");var ids=new HashSet<string>();void Claim(string id){if(!ids.Add(id))throw new InvalidOperationException("duplicate-nav-identity");}foreach(var action in workspace.CreateActions)Claim(action.Id);foreach(var group in workspace.Groups){Claim(group.Id);foreach(var item in group.Items){Claim(item.Id);foreach(var thread in item.Threads??[])Claim(thread.Id);}}foreach(var item in workspace.Recent)Claim(item.Id);if(workspace.Suggested is not null)Claim(workspace.Suggested.Id);var creates=workspace.CreateActions;if(creates.Count is >=2 and <=3&&!creates.Any(a=>a.Id==workspace.DefaultCreateActionId))throw new InvalidOperationException("primary-create-required");}}
- public async ValueTask DisposeAsync(){if(mediaSubscription is not null)await mediaSubscription.DisposeAsync();foreach(var subscription in adaptationSubscriptions)await subscription.DisposeAsync();if(shellModule is not null){await shellModule.InvokeVoidAsync("unobserveInlineSize",shellElement);await shellModule.InvokeVoidAsync("unobservePanelChord",shellElement);await shellModule.DisposeAsync();}shellReference?.Dispose();}
+ private static async ValueTask DisposeConnection(IJSObjectReference? resource)
+ {
+  if(resource is null)return;
+  try{try{await resource.InvokeVoidAsync("dispose");}finally{await resource.DisposeAsync();}}
+  catch(JSDisconnectedException){}
+ }
+ private static async ValueTask DisposeModule(IJSObjectReference resource){try{await resource.DisposeAsync();}catch(JSDisconnectedException){}}
+ public async ValueTask DisposeAsync()
+ {
+  if(disposed)return;
+  disposed=true;
+  try
+  {
+   if(mediaSubscription is not null)await mediaSubscription.DisposeAsync();
+   foreach(var subscription in adaptationSubscriptions)await subscription.DisposeAsync();
+   await DisposeConnection(inlineConnection);
+   await DisposeConnection(chordConnection);
+   if(shellModule is not null)await DisposeModule(shellModule);
+  }
+  finally{shellReference?.Dispose();}
+ }
 }

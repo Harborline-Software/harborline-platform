@@ -81,6 +81,23 @@ public sealed class AppShellTests : BunitContext
     [Fact] public void RailSeparatorSupportsArrowResizeAndValueSemantics(){var widths=new List<int>();var cut=Shell(p=>p.Add(x=>x.RailWidthChanged,v=>widths.Add(v)));var separator=cut.Find(".hl-app-shell__rail-resize");Assert.Equal("120",separator.GetAttribute("aria-valuemin"));Assert.Equal("216",separator.GetAttribute("aria-valuenow"));separator.KeyDown("ArrowRight");Assert.Equal([224],widths);cut.WaitForAssertion(()=>Assert.Equal("224",separator.GetAttribute("aria-valuenow")));}
     [Fact] public async Task DeclaredPanelToggleIsAbsentAt1199AndPresentAt1200(){var panel=new PackPanelDeclaration("documents","panels.documents.toggle","mod+shift+d",420,220,false,"Documents");media.Set(LargeQuery,false);var cut=Shell(nav:Nav(panels:[panel]));Assert.Empty(cut.FindAll("[data-shell-bar-slot=cluster] > [data-action-id=documents]"));Assert.Single(cut.FindAll(".hl-app-shell__actions-overflow"));await media.SetAsync(LargeQuery,true);cut.WaitForAssertion(()=>Assert.Single(cut.FindAll("[data-shell-bar-slot=cluster] > [data-action-id=documents]")));Assert.Empty(cut.FindAll(".hl-app-shell__actions-overflow"));}
     [Fact] public void Api58DeclarationFixtureDeserializesAndMaps(){var declaration=JsonSerializer.Deserialize<PackNavigationDeclaration>(File.ReadAllText(Repo("conformance/hlp.ui.app-shell/api-58-pack-navigation.json")),new JsonSerializerOptions{PropertyNameCaseInsensitive=true})!;var view=PackNavigationMapper.Map(declaration,key=>key,new(),Vocabulary,NoRoles);Assert.Equal(["operations","definitions"],view.Workspaces.Select(x=>x.Id));Assert.Equal(["operate","configure"],view.Modes.Select(x=>x.Id));Assert.Equal(["documents","notes"],view.Panels.Select(x=>x.Id));Assert.Equal("documents.assets",view.Workspaces[0].DocumentSpine[0].Binding);Assert.Equal("Assets by storey",view.Workspaces[0].Groups[0].Items[0].Label);Assert.Equal("SwitcherItem",view.Panels[0].HeaderForm);Assert.Equal("Library",view.Panels[0].BodyTemplate);var cut=Shell(nav:declaration);Assert.Empty(cut.FindAll("button[aria-label=Notifications]"));Assert.Empty(cut.FindAll("button[aria-label=Pilot]"));}
+    [Theory]
+    [InlineData("workshop.forms", "workshop.forms", null, "Forms")]
+    [InlineData("workshop.asset-types", "workshop.asset-types", null, "Record types")]
+    [InlineData("workshop.forms", "Formulaires", null, "Formulaires")]
+    [InlineData("workshop.forms", "workshop.forms", "My forms", "My forms")]
+    [InlineData("workshop.forms", "Formulaires", "My forms", "My forms")]
+    public void DeclarationLabelsResolveThroughTheHostWithoutReplacingServerOrStateLabels(string labelKey, string declaredLabel, string? stateLabel, string expected)
+    {
+        var declaration = new PackNavigationDeclaration([new("workshop", "Workshop", Groups: [new("tools", "Tools", ["item"], Items: [new("item", labelKey, declaredLabel)])])]);
+        var stateItem = stateLabel is null ? null : new ShellNavItem("item", stateLabel, Count: "7");
+        var state = new ShellNavigationState(Items: stateItem is null ? null : new Dictionary<string, ShellNavItem> { ["item"] = stateItem });
+        var view = PackNavigationMapper.Map(declaration, key => key switch { "workshop.forms" => "Forms", "workshop.asset-types" => "Record types", _ => key }, state, Vocabulary, NoRoles);
+        var item = view.Workspaces[0].Groups[0].Items[0];
+        Assert.Equal(expected, item.Label);
+        if (stateItem is not null) Assert.Same(stateItem, item);
+    }
+
     [Fact] public void BellAndPilotFollowTheDeclaredPanelSet(){var live=new[]{new PackPanelDeclaration("notifications","panels.notifications.toggle","mod+shift+b",360,180,false),new PackPanelDeclaration("pilot","panels.pilot.toggle","mod+shift+p",400,300,false)};var cut=Shell(nav:Nav(panels:live));Assert.Single(cut.FindAll("button[aria-label=Notifications]"));Assert.Single(cut.FindAll("button[aria-label=Pilot]"));}
     [Fact] public async Task SharedAdaptationFixtureReplaysSheetDockTransitionsWithoutReplacingBodies()
     {
