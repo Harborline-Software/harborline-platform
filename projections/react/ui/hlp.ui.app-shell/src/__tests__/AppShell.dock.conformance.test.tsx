@@ -6,7 +6,7 @@ import { RoleVocabulary } from '@harborline-software/contracts/authorization'
 import { AppShell } from '../AppShell'
 import { closeDockPanel, createDockLayout, dockPanes, openDockPanel, setDockSpread, type DockNode } from '../dock-model'
 import type { PackNavigationDeclaration, PackPanelDeclaration } from '../types'
-import { shellBreakpoint } from '../types'
+import { shellAddress, shellBreakpoint } from '../types'
 
 type ExpectedTree = { kind: 'pane'; panels: string[]; fractions: number[] } | { kind: 'split'; orientation: 'horizontal' | 'vertical'; ratio: number; first: ExpectedTree; second: ExpectedTree }
 type Transition = { action: 'open' | 'close'; panelId: string; expectedOpenPanelIds: string[]; expectedTree: ExpectedTree | null; expectedHostEvents: string[] }
@@ -20,6 +20,11 @@ type AdaptationFixture = {
   classPlacementCases: { widths: number[]; expectedBreakpoint: string; openPanelIds: string[]; expectedContainerKinds: Record<string, string> }[]
   contentFloorCases: { width: number; spread: boolean; openPanelIds: string[]; expectedContainerKinds: Record<string, string> }[]
   spreadAvailabilityCases: { width: number; spreadUnavailable: boolean; reason: string | null; expectedDisabled: boolean }[]
+  m5ExactWidthAdaptiveShellAcceptance: {
+    id: string; declaredPanelIds: string[]
+    state: { activeWorkspaceId: string; activeItemId: string; orderedOpenPanelIds: string[]; attemptedOpenPanelIds: string[] }
+    steps: AdaptationStep[]
+  }
 }
 const adaptation: AdaptationFixture = JSON.parse(readFileSync(resolve(import.meta.dirname, '../../../../../../conformance/hlp.ui.app-shell/adaptation-v1.json'), 'utf8')) as AdaptationFixture
 const navigation: PackNavigationDeclaration = { seedWorkspaces: [{ id: 'operations', labelKey: 'Operations' }], panelSet: fixture.declaredPanels }
@@ -93,6 +98,40 @@ describe('AppShell dock splitter shared conformance', () => {
       }
       view.unmount()
     }
+  })
+
+  it('replays the M5 exact-width adaptive shell acceptance without changing declared state', () => {
+    const acceptance = adaptation.m5ExactWidthAdaptiveShellAcceptance
+    const declaredPanels = acceptance.declaredPanelIds.map(id => fixture.declaredPanels.find(panel => panel.id === id)!)
+    const normalizedOpenPanelIds = acceptance.state.attemptedOpenPanelIds.filter(id => acceptance.declaredPanelIds.includes(id))
+    const undeclaredPanelIds = acceptance.state.attemptedOpenPanelIds.filter(id => !acceptance.declaredPanelIds.includes(id))
+    const navigation: PackNavigationDeclaration = {
+      seedWorkspaces: [{ id: acceptance.state.activeWorkspaceId, labelKey: 'Operations', groups: [{ id: 'm5', labelKey: 'M5', itemIds: [acceptance.state.activeItemId] }] }],
+      panelSet: declaredPanels,
+    }
+    const navigationState = { items: { [acceptance.state.activeItemId]: { id: acceptance.state.activeItemId, label: 'Inspections' } } }
+    expect(normalizedOpenPanelIds).toEqual(acceptance.state.orderedOpenPanelIds)
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: acceptance.steps[0].width })
+    const view = render(<AppShell shellId={acceptance.id} navigation={navigation} navigationState={navigationState} roleVocabulary={vocabulary} heldRoles={{ roles: [] }} body={<div>Body</div>}
+      activeWorkspaceId={acceptance.state.activeWorkspaceId} activeItemId={acceptance.state.activeItemId} defaultOpenPanelIds={acceptance.state.attemptedOpenPanelIds} panelContent={panel => <div>{panel.id}</div>} railCapable />)
+    for (const step of acceptance.steps) {
+      Object.defineProperty(window, 'innerWidth', { configurable: true, value: step.width })
+      fireEvent(window, new Event('resize'))
+      const shell = view.container.querySelector('[data-shell-id]')
+      const panels = [...view.container.querySelectorAll('[data-shell-panel-id]')]
+      expect(shell?.getAttribute('data-shell-breakpoint'), `${acceptance.id}:${step.width}`).toBe(step.expectedBreakpoint)
+      expect(shell?.getAttribute('data-open-panel-count'), `${acceptance.id}:${step.width}:normalized-count`).toBe(String(acceptance.state.orderedOpenPanelIds.length))
+      expect(panels.map(panel => panel.getAttribute('data-shell-panel-id')), `${acceptance.id}:${step.width}:normalized-order`).toEqual(acceptance.state.orderedOpenPanelIds)
+      expect(view.container.querySelector('[data-shell-zone="workspaces"] a[aria-current="page"]')?.getAttribute('href'), `${acceptance.id}:${step.width}:workspace`).toBe(shellAddress('workspaces', acceptance.state.activeWorkspaceId))
+      expect(view.container.querySelector('[data-shell-zone="groups"] a[aria-current="page"]')?.getAttribute('href'), `${acceptance.id}:${step.width}:item`).toBe(shellAddress('workspaces', acceptance.state.activeItemId))
+      for (const [id, kind] of Object.entries(step.expectedContainerKinds)) {
+        const panel = view.container.querySelector(`[data-shell-panel-id="${id}"]`)
+        expect(panel?.getAttribute('data-shell-container-kind'), `${acceptance.id}:${step.width}:${id}`).toBe(kind)
+        expect(panel?.querySelectorAll('[data-shell-panel-body-scroll]'), `${acceptance.id}:${step.width}:${id}:body-scroll`).toHaveLength(fixture.expected.bodyScrollRegionsPerPanel)
+      }
+      for (const id of undeclaredPanelIds) expect(view.container.querySelector(`[data-shell-panel-id="${id}"]`), `${acceptance.id}:${step.width}:${id}:undeclared`).toBeNull()
+    }
+    view.unmount()
   })
 
   it('keeps the content floor by moving the newest panels to sheets first', () => {
