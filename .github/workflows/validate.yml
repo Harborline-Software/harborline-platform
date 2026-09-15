@@ -23,12 +23,7 @@ jobs:
         # adding a step there means changing requiredStepIds in THREE files, which invalidates every
         # existing receipt — a deliberate, coordinated change rather than a rider on this one.
         run: bash eng/verify-boundaries.sh
-      - uses: pnpm/action-setup@v6
-        with:
-          # The gate's rule-runtime/rule-authoring clean-install steps shell out to pnpm
-          # (tooling/run-phase-4-gate.mjs); the runner ships none. 11.x matches the
-          # local toolchain the receipts are produced with.
-          version: 11
+      - uses: pnpm/action-setup@v6  # version comes from package.json packageManager (pnpm 11.1.3)
       - uses: actions/setup-node@v7
         with:
           node-version: 24
