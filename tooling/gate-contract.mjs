@@ -16,7 +16,7 @@ import {writeFileSync} from 'node:fs'
 // tree, at this commit, staged by the same hook it guards. There is no independence left to
 // preserve — only a third place to forget.
 const allStepIds = [
-  'root-clean-install', 'npm-clean-install', 'forms-contracts-clean-install', 'rule-runtime-clean-install', 'rule-authoring-clean-install', 'copilot-contracts-clean-install', 'dotnet-restore', 'generation-smoke', 'ui-spec-authority', 'catalog-preflight',
+  'root-clean-install', 'dependency-ledger', 'npm-clean-install', 'forms-contracts-clean-install', 'rule-runtime-clean-install', 'rule-authoring-clean-install', 'copilot-contracts-clean-install', 'dotnet-restore', 'generation-smoke', 'ui-spec-authority', 'catalog-preflight',
   'tooling-selftests', 'sibling-package-origins', 'prop-vocabulary', 'ui-gate-model', 'build', 'native-tests', 'perf-budgets', 'ui-shared-conformance', 'package-consumers',
   'gallery-gate', 'catalog-final',
 ]

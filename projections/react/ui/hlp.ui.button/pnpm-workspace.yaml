@@ -1,0 +1,6 @@
+packages:
+  - .
+# Hoisted layout as npm laid it out: the React peers resolve to one copy.
+nodeLinker: hoisted
+# The two @harborline-software peers are optional and come from the feed, never the registry.
+autoInstallPeers: false

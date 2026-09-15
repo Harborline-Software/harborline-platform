@@ -166,12 +166,13 @@ try {
   // subdirectories. A lane worktree has a root node_modules left over from earlier work, so the
   // tooling self-tests passed there and failed in the receipt's detached tested tree, where the
   // five files that reach render-digest.mjs could not resolve 'typescript' (ticket 138 s3).
-  run('root-clean-install', 'npm', ['ci', '--ignore-scripts', '--no-audit', '--no-fund'], root)
-  run('npm-clean-install', 'npm', ['ci', '--ignore-scripts', '--no-audit', '--no-fund'], reactRoot)
-  run('forms-contracts-clean-install', 'npm', ['ci', '--ignore-scripts', '--no-audit', '--no-fund'], formsContractsRoot)
+  run('root-clean-install', 'pnpm', ['install', '--frozen-lockfile', '--ignore-scripts'], root)
+  run('dependency-ledger', process.execPath, ['tooling/dependency-ledger.mjs'], root)
+  run('npm-clean-install', 'pnpm', ['install', '--frozen-lockfile', '--ignore-scripts'], reactRoot)
+  run('forms-contracts-clean-install', 'pnpm', ['install', '--frozen-lockfile', '--ignore-scripts'], formsContractsRoot)
   run('rule-runtime-clean-install', 'pnpm', ['install', '--frozen-lockfile', '--ignore-scripts'], ruleRuntimeRoot)
   run('rule-authoring-clean-install', 'pnpm', ['install', '--frozen-lockfile', '--ignore-scripts'], ruleAuthoringRoot)
-  run('copilot-contracts-clean-install', 'npm', ['ci', '--ignore-scripts', '--no-audit', '--no-fund'], copilotContractsRoot)
+  run('copilot-contracts-clean-install', 'pnpm', ['install', '--frozen-lockfile', '--ignore-scripts'], copilotContractsRoot)
   run('dotnet-restore', dotnet.executable, ['restore', 'Harborline.Platform.slnx', '--force', '--no-cache', '-v:minimal'])
   run('generation-smoke', process.execPath, ['tooling/generate-blazor-smoke.mjs', ...generationSmokeModuleIds.flatMap(moduleId => ['--module', moduleId])], root, true)
   run('ui-spec-authority', process.execPath, ['tooling/sync-ui-spec-authority.mjs', '--check'], root, true)

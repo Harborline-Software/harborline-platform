@@ -3,6 +3,16 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "packageManager": "pnpm@11.1.3",
+  "justifications": {
+    "@axe-core/playwright": "R-0087",
+    "@playwright/test": "R-0087",
+    "@types/node": "R-0086",
+    "@types/pngjs": "R-0086",
+    "pixelmatch": "R-0087",
+    "pngjs": "R-0087",
+    "typescript": "R-0086"
+  },
   "scripts": {
     "test": "playwright test",
     "typecheck": "tsc --noEmit",

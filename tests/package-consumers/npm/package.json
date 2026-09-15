@@ -2,6 +2,13 @@
   "name": "harborline-platform-npm-clean-consumer",
   "private": true,
   "type": "module",
+  "packageManager": "pnpm@11.1.3",
+  "justifications": {
+    "@types/react": "R-0086",
+    "react": "R-0080",
+    "react-dom": "R-0080",
+    "typescript": "R-0086"
+  },
   "dependencies": {
     "@types/react": "19.2.18",
     "react": "19.2.8",
