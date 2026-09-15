@@ -16,6 +16,8 @@ export interface AppLayoutProps extends Omit<React.HTMLAttributes<HTMLDivElement
   headerFixed?: boolean
   contentScroll?: ContentScroll
   mobileNavLabel?: string
+  /** ID of an external trigger; focus returns here when the drawer closes. */
+  mobileNavTriggerId?: string
   railCapable?: boolean
 }
 
@@ -44,7 +46,7 @@ export function AppLayout({
   body, header, sideNav, sideNavMode = 'auto', sideNavOpen = true,
   mobileNavOpen: controlledMobileOpen, defaultMobileNavOpen = false,
   onMobileNavOpenChange, headerFixed = false, contentScroll = 'main',
-  mobileNavLabel = 'Navigation', railCapable: railCapableOverride,
+  mobileNavLabel = 'Navigation', mobileNavTriggerId, railCapable: railCapableOverride,
   className, ...attributes
 }: AppLayoutProps) {
   if (body === null || body === undefined) throw new Error('app-layout-body-required')
@@ -56,7 +58,8 @@ export function AppLayout({
   const triggerRef = React.useRef<HTMLButtonElement>(null)
   const drawerRef = React.useRef<HTMLDivElement>(null)
   const wasRailCapable = React.useRef(railCapable)
-  const drawerId = React.useId()
+  const localDrawerId = React.useId()
+  const drawerId = mobileNavTriggerId ? `${mobileNavTriggerId}-drawer` : localDrawerId
   const navigationAvailable = sideNavMode !== 'hidden' && sideNav !== null && sideNav !== undefined
   const useRail = navigationAvailable && sideNavMode !== 'overlay' && railCapable && sideNavOpen
   const useDrawer = navigationAvailable && (sideNavMode === 'overlay' || !railCapable)
@@ -64,8 +67,8 @@ export function AppLayout({
   const requestMobileOpen = React.useCallback((next: boolean, restoreFocus = false) => {
     if (controlledMobileOpen === undefined) setLocalMobileOpen(next)
     onMobileNavOpenChange?.(next)
-    if (!next && restoreFocus) queueMicrotask(() => triggerRef.current?.focus())
-  }, [controlledMobileOpen, onMobileNavOpenChange])
+    if (!next && restoreFocus) queueMicrotask(() => (mobileNavTriggerId ? document.getElementById(mobileNavTriggerId) : triggerRef.current)?.focus())
+  }, [controlledMobileOpen, onMobileNavOpenChange, mobileNavTriggerId])
 
   React.useEffect(() => {
     const crossedIntoRail = !wasRailCapable.current && railCapable
@@ -107,7 +110,7 @@ export function AppLayout({
 
   return (
     <div {...attributes} className={`hl-app-layout${headerFixed ? ' hl-app-layout--fixed-header' : ''} hl-app-layout--scroll-${contentScroll}${className ? ` ${className}` : ''}`} data-side-nav-mode={sideNavMode} data-content-scroll={contentScroll}>
-      {useDrawer ? <button ref={triggerRef} type="button" className="hl-app-layout__nav-trigger" aria-label={mobileNavLabel} aria-expanded={mobileOpen} aria-controls={drawerId} onClick={() => requestMobileOpen(!mobileOpen, mobileOpen)}><svg aria-hidden="true" width="18" height="18" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="1.75" viewBox="0 0 20 20"><path d="M3 5.5h14M3 10h14M3 14.5h14" /></svg></button> : null}
+      {useDrawer && !mobileNavTriggerId ? <button ref={triggerRef} type="button" className="hl-app-layout__nav-trigger" aria-label={mobileNavLabel} aria-expanded={mobileOpen} aria-controls={drawerId} onClick={() => requestMobileOpen(!mobileOpen, mobileOpen)}><svg aria-hidden="true" width="18" height="18" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="1.75" viewBox="0 0 20 20"><path d="M3 5.5h14M3 10h14M3 14.5h14" /></svg></button> : null}
       <div className="hl-app-layout__frame">
         {header !== null && header !== undefined ? <header className="hl-app-layout__header">{header}</header> : null}
         {useRail ? <nav aria-label={mobileNavLabel} className="hl-app-layout__rail" data-open="true">{sideNav}</nav> : null}

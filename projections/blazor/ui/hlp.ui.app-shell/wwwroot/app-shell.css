@@ -40,3 +40,36 @@
 [data-theme=light] .hl-app-shell,.hl-app-shell[data-theme=light]{--color-background:#fafafa;--color-foreground:#111111;--color-card:#fff;--color-muted:#f3f3f3;--color-muted-foreground:#444;--color-border:#d0d0d0;--color-primary:#0f62fe;--color-primary-foreground:#fff;--color-accent:#e8f0ff;--color-danger:#b42318;--color-hover:#f0f0f0;--color-selected:#e8f0ff;--color-focus-ring:#0f62fe}
 .hl-app-shell__key-hint,.hl-app-shell__count,.hl-app-shell__notification-count{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
 html:has(.hl-app-shell),body:has(.hl-app-shell){margin:0;min-block-size:100%;background:#121212}body:has(.hl-app-shell)>#root{min-block-size:100dvb}.hl-app-shell{min-block-size:100dvb}.hl-app-shell .hl-app-layout__rail{background:var(--color-muted)}.hl-app-shell__dock{gap:8px;padding:8px;box-sizing:border-box;background:var(--color-muted)}.hl-app-shell__dock-panel{overflow:hidden;border:1px solid var(--color-border);border-radius:8px;background:var(--color-card)}
+.hl-app-shell {
+  --color-text-faint: #9a9a9a;
+  --hl-card: var(--color-card);
+  --hl-control-border: var(--color-text-faint);
+  --hl-button-secondary: var(--hl-card);
+  --hl-button-secondary-hover: var(--hl-muted);
+  --hl-button-secondary-active: var(--hl-border);
+  --hl-button-secondary-foreground: var(--hl-foreground);
+  --hl-button-border: var(--hl-control-border);
+  --hl-button-focus: var(--hl-focus);
+}
+[data-theme=light] .hl-app-shell, .hl-app-shell[data-theme=light] {
+  --color-text-faint: #777777;
+}
+.hl-app-shell__dock-actions { pointer-events: auto; }
+.hl-app-shell__dock-panel[data-shell-container-kind=bottom-sheet] > .hl-app-shell__dock-actions {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  border-block-start: 1px solid var(--hl-border);
+}
+.hl-app-shell__dock-panel[data-shell-container-kind=bottom-sheet] > .hl-app-shell__dock-actions > .hl-app-shell__spread,
+.hl-app-shell__dock-panel[data-shell-container-kind=bottom-sheet] > .hl-app-shell__dock-actions > [data-spread-unavailable-reason] {
+  position: static;
+}
+@media (pointer: coarse) {
+  .hl-app-shell [data-shell-bar-slot=rail-toggle] > .hl-app-shell__bar-control,
+  .hl-app-shell__spread { min-inline-size: 44px; min-block-size: 44px; }
+}
