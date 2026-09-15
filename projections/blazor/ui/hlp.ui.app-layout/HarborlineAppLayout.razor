@@ -99,7 +99,6 @@
   {
     if (railCapable == change.Matches) return;
     railCapable = change.Matches;
-    if (EffectiveRailCapable && IsDrawerOpen && SideNavMode != SideNavMode.Overlay) await SetDrawerOpenAsync(false);
     await InvokeAsync(StateHasChanged);
   }
 

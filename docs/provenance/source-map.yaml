@@ -2581,7 +2581,7 @@
         "conformance/hlp.ui.app-layout/quality-fixtures.yaml": "3f8a8ad30a0cb031f98663c6ca362cb8f7de29442bd0b7bc952d5bd1e63607d7",
         "conformance/hlp.ui.app-layout/runners/run-shared.mjs": "cb6de6a0dd47de2a74add481cadcd3103b4c7bbb17089b5a922887ba71adbfa0",
         "projections/blazor/ui/hlp.ui.app-layout/AppLayoutTypes.cs": "5c3ffa741fd128f1201237404ee6fe3f90fdf598e50c62a3a8c9250aa510d143",
-        "projections/blazor/ui/hlp.ui.app-layout/HarborlineAppLayout.razor": "64a1b4d09b85c86f265bd7b976fdc3010deba2a0be581de626f0325e077cbce4",
+        "projections/blazor/ui/hlp.ui.app-layout/HarborlineAppLayout.razor": "241137b440b7d746391850a8dc4c4d936ba1b688a5a6e16cf02f80444b3c0975",
         "projections/blazor/ui/hlp.ui.app-layout/wwwroot/app-layout.js": "6c122762e7bdb8a3a6a6b6002bb926d1a8391968be1fcac27f0018271a992c24",
         "projections/react/ui/hlp.ui.app-layout/src/AppLayout.tsx": "ea11d3b40c1e599b0b9ca1c14bd0ae38c0ac290e0fa751679410b8e08682394d",
         "projections/react/ui/hlp.ui.app-layout/src/__tests__/AppLayout.conformance.test.ts": "17e7f5acb4779bc85be39c96f08108aa3d8fc9f8b0ca9b169508b394578bc39d",
