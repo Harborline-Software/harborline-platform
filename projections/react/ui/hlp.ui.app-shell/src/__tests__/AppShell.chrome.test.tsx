@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { RoleVocabulary } from '@harborline-software/contracts/authorization'
 import { AppShell } from '../AppShell'
@@ -20,6 +20,29 @@ const fixture = navigationFixture(workspaces, livePanels)
 const base = { shellId: 'chrome', ...fixture, navigation: { ...fixture.navigation, modeSwitch: { modes: [{ id: 'operate', labelKey: 'Operations mode', workspaceIds: ['operations'] }] } }, roleVocabulary: RoleVocabulary.fromApi([]), heldRoles: { roles: [] }, body: <button>Content action</button>, railCapable: true, footerIdentity: { label: 'Chris', role: 'Inspector' }, systemItems: [{ id: 'pilot', label: 'Pilot' }, { id: 'settings', label: 'Settings' }, { id: 'help', label: 'Help' }], notificationCount: 3, onBindingInvoke: (binding: string) => { if (binding === 'assets.create') calls.create() }, onSearchCommand: calls.search, onInspectorCommand: calls.inspector, onWorkspaceChange: calls.workspace }
 
 describe('Harborline chrome contract', () => {
+  it.each([480, 720])('uses one shell navigation trigger for the drawer at %ipx', async width => {
+    const original = window.innerWidth
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: width })
+    try {
+      render(<AppShell {...base} railCapable={false} />)
+      const buttons = screen.getAllByRole('button', { name: 'Navigation', exact: true })
+      expect(buttons).toHaveLength(1)
+      expect(document.querySelector('.hl-app-layout__nav-trigger')).toBeNull()
+      const button = buttons[0]
+      expect(button.closest('[data-shell-bar-slot]')).toHaveAttribute('data-shell-bar-slot', 'rail-toggle')
+      expect(button).toHaveAttribute('aria-expanded', 'false')
+      fireEvent.click(button)
+      const drawer = screen.getByRole('dialog', { name: 'Navigation' })
+      expect(button).toHaveAttribute('aria-controls', drawer.id)
+      expect(button).toHaveAttribute('aria-expanded', 'true')
+      fireEvent.keyDown(drawer, { key: 'Escape' })
+      expect(screen.queryByRole('dialog', { name: 'Navigation' })).toBeNull()
+      await waitFor(() => expect(button).toHaveFocus())
+    } finally {
+      Object.defineProperty(window, 'innerWidth', { configurable: true, value: original })
+    }
+  })
+
   it('renders the actual kernel bar and nine rail zones in their immutable order', () => {
     render(<AppShell {...base} />)
     expect([...document.querySelectorAll('[data-shell-bar-slot]')].map(node => node.getAttribute('data-shell-bar-slot'))).toEqual(['mark', 'window-menu', 'rail-toggle', 'find', 'breadcrumb', 'cluster'])

@@ -1,12 +1,18 @@
 @namespace Harborline.UIAdapters.Blazor.Components.DataDisplay
+@using Harborline.UIAdapters.Blazor.Components.Buttons
 @if (Plan.DefinitionKind == "ViewDefinition" && Plan.Bindings.ViewKind == GridKind && Plan.Bindings.Parameters?.Fields is not null)
 {
   <div class="hl-view-runtime"
        data-definition-source="@DefinitionSource"
        title="@DefinitionSourceTitle">
-    @foreach (var action in Plan.Bindings.Actions ?? [])
+    @if (Plan.Bindings.Actions is { Count: > 0 } actions)
     {
-      <button @key="action.Id" type="button" @onclick="() => OnAction.InvokeAsync(action.Id)">@action.Label</button>
+      <div class="hl-view-runtime__actions" role="group" aria-label="@AccessibleLabel">
+        @foreach (var action in actions)
+        {
+          <HarborlineButton @key="action.Id" Variant="ButtonVariant.Secondary" Size="ButtonSize.Small" Enabled="@(!ActionsDisabled)" OnClick="() => OnAction.InvokeAsync(action.Id)">@action.Label</HarborlineButton>
+        }
+      </div>
     }
     <HarborlineDataGrid TRow="ViewRuntimeRow" AccessibleLabel="@AccessibleLabel" Columns="@Columns" Empty="@Empty" GetRowId="@(row => row.Id)" Rows="@Rows" OnRowActivate="@ForwardRowActivation" />
   </div>
@@ -17,6 +23,7 @@
   [Parameter, EditorRequired] public IReadOnlyList<ViewRuntimeRow> Rows { get; set; } = [];
   [Parameter] public string AccessibleLabel { get; set; } = "View results";
   [Parameter] public string? Empty { get; set; }
+  [Parameter] public bool ActionsDisabled { get; set; }
   [Parameter] public EventCallback<string> OnRowActivate { get; set; }
   [Parameter] public EventCallback<string> OnAction { get; set; }
   private Task ForwardRowActivation(DataGridRowActivation activation) => OnRowActivate.InvokeAsync(activation.RowId);

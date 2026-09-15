@@ -15,6 +15,44 @@ const seededFormsList: ViewRenderPlan = { ...plan, definitionId: 'view-forms' }
 const catalogue = new Map([[`${seededFormsList.definitionId}@${seededFormsList.definitionVersion}`, { definitionId: seededFormsList.definitionId, definitionVersion: seededFormsList.definitionVersion, packKey: seededFormsList.packKey }]])
 
 describe('ViewRuntime React projection', () => {
+  it('groups declared actions as small secondary Buttons in plan order', () => {
+    const activated: string[] = []
+    render(<ViewRuntime plan={{ ...plan, bindings: { ...plan.bindings, actions: [{ id: 'publish', label: 'Publish' }, { id: 'revise', label: 'Revise' }] } }} rows={[]} onAction={id => activated.push(id)} />)
+    const group = screen.getByRole('group', { name: 'View results' })
+    expect(group).toHaveClass('hl-view-runtime__actions')
+    const buttons = [...group.querySelectorAll('button')]
+    expect(buttons.map(button => button.textContent)).toEqual(['Publish', 'Revise'])
+    for (const button of buttons) {
+      expect(button).toHaveAttribute('type', 'button')
+      expect(button).toHaveAttribute('data-hl-intent', 'secondary')
+      expect(button).toHaveAttribute('data-hl-size', 'sm')
+      expect(button).toBeEnabled()
+    }
+    fireEvent.click(buttons[1])
+    fireEvent.click(buttons[0])
+    expect(activated).toEqual(['revise', 'publish'])
+  })
+
+  it('omits the action group when the plan declares no actions', () => {
+    render(<ViewRuntime plan={plan} rows={rows} />)
+    expect(screen.queryByRole('group')).toBeNull()
+  })
+
+  it('disables declared actions until the host enables them again', () => {
+    const activated: string[] = []
+    const actionPlan = { ...plan, bindings: { ...plan.bindings, actions: [{ id: 'publish', label: 'Publish' }] } }
+    const view = render(<ViewRuntime plan={actionPlan} rows={rows} actionsDisabled onAction={id => activated.push(id)} />)
+    const button = screen.getByRole('button', { name: 'Publish' })
+    expect(button).toBeDisabled()
+    expect(button).toHaveAttribute('aria-disabled', 'true')
+    fireEvent.click(button)
+    expect(activated).toEqual([])
+    view.rerender(<ViewRuntime plan={actionPlan} rows={rows} onAction={id => activated.push(id)} />)
+    expect(button).toBeEnabled()
+    fireEvent.click(button)
+    expect(activated).toEqual(['publish'])
+  })
+
   it('renders every shared fixture from its compiled plan input', () => {
     for (const scenario of fixture.cases) {
       const activated: string[] = []
