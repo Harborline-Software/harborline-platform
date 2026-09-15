@@ -76,13 +76,16 @@ jobs:
           rm -rf "$RUNNER_TEMP/harborline-api"
           git clone --quiet https://github.com/Harborline-Software/harborline-api.git "$RUNNER_TEMP/harborline-api"
 
+      - name: Mirror harborline-control for the dependency ledger
+        run: git clone --quiet https://github.com/Harborline-Software/harborline-control.git "$RUNNER_TEMP/harborline-control"
+
       # The gate drives the gallery but does not install its dependencies. The browser download is a
       # no-op on a host that already has the pinned revision cached; `--with-deps` is omitted because
       # it is an apt-get path that does not exist on macOS.
       - name: Install gallery browser dependencies
         working-directory: gallery/tests
         run: |
-          npm ci --ignore-scripts --no-audit --no-fund
+          pnpm install --frozen-lockfile --ignore-scripts
           npx playwright install chromium
 
       # run-phase-4-gate.mjs writes its report to stdout only (the receipt runner is what writes it
@@ -103,6 +106,7 @@ jobs:
           node tooling/run-phase-4-gate.mjs | tee harborline-phase4-gate-report.json
         env:
           HARBORLINE_API_REPO: ${{ runner.temp }}/harborline-api
+          HARBORLINE_CONTROL_REPO: ${{ runner.temp }}/harborline-control
           HARBORLINE_GATE_HEADLESS: "1"
 
       - name: Evidence

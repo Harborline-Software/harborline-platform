@@ -26,11 +26,17 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 24
-          cache: npm
+          cache: pnpm
           cache-dependency-path: |
-            projections/react/ui/hlp.ui.button/package-lock.json
-            gallery/projections/react/package-lock.json
-            gallery/tests/package-lock.json
+            package.json
+            pnpm-lock.yaml
+            projections/react/ui/hlp.ui.button/pnpm-lock.yaml
+            projections/typescript/application/hlp.copilot.contracts/pnpm-lock.yaml
+            projections/typescript/contracts/hlp.contracts.forms/pnpm-lock.yaml
+            projections/typescript/foundation/hlp.foundation.rule-authoring/pnpm-lock.yaml
+            projections/typescript/foundation/hlp.foundation.rule-runtime/pnpm-lock.yaml
+            gallery/projections/react/pnpm-lock.yaml
+            gallery/tests/pnpm-lock.yaml
       - uses: actions/setup-dotnet@v6
         with:
           # The repo's pinned SDK lives in global.json; reading it here means an SDK bump
@@ -47,7 +53,7 @@ jobs:
       - name: Install gallery browser dependencies
         working-directory: gallery/tests
         run: |
-          npm ci --ignore-scripts --no-audit --no-fund
+          pnpm install --frozen-lockfile --ignore-scripts
           npx playwright install --with-deps chromium
       - name: Mirror harborline-api for the feed resolver
         # The app-shell package fixtures stage two cross-repo tarballs that
@@ -59,6 +65,8 @@ jobs:
         run: git clone --quiet "https://github.com/Harborline-Software/harborline-api.git" "$RUNNER_TEMP/harborline-api"
         env:
           HARBORLINE_API_READ_TOKEN: ${{ secrets.HARBORLINE_API_READ_TOKEN }}
+      - name: Mirror harborline-control for the dependency ledger
+        run: git clone --quiet "https://github.com/Harborline-Software/harborline-control.git" "$RUNNER_TEMP/harborline-control"
       # run-phase-4-gate.mjs writes its report to stdout only (the receipt runner is what writes it
       # to disk, and CI does not run the receipt runner). Capture it here so the upload step below
       # has a file; pipefail keeps the gate's exit code (ticket 330 s4c).
@@ -67,6 +75,7 @@ jobs:
           node tooling/run-phase-4-gate.mjs | tee harborline-phase4-gate-report.json
         env:
           HARBORLINE_API_REPO: ${{ runner.temp }}/harborline-api
+          HARBORLINE_CONTROL_REPO: ${{ runner.temp }}/harborline-control
           # Control ticket 083. The gallery's ONLY leniency, and it exists only here: on a 2-core
           # shared runner four visual-parity comparisons diverge for reasons not yet understood
           # (see the CORRECTED note in gallery.spec.ts — they are lane-versus-lane, so the

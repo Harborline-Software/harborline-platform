@@ -2,6 +2,10 @@
   "name": "@harborline-software/copilot-contracts",
   "version": "0.1.0-preview.1",
   "type": "module",
+  "packageManager": "pnpm@11.1.3",
+  "justifications": {
+    "typescript": "R-0086"
+  },
   "sideEffects": false,
   "exports": {
     ".": {

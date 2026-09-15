@@ -2,7 +2,7 @@
   "name": "@harborline-software/rule-authoring",
   "version": "0.1.0-alpha.0",
   "private": true,
-  "description": "Calculation authoring bridge (ADR 0146 D2/D5) — the Harborline port of the Harborline App rules authoring lane: decision-table and formula drafts, draft-to-skin lowering onto @harborline-software/rule-engine, advisory lint, blank seeds, the publish admission fence, and the versioned named-rule catalog over a pluggable store port (the Harborline replacement for the pinned localStorage interim). Owns no evaluator semantics: every rejection and evaluation flows through the packed rule engine.",
+  "description": "Calculation authoring bridge (ADR 0146 D2/D5) \u2014 the Harborline port of the Harborline App rules authoring lane: decision-table and formula drafts, draft-to-skin lowering onto @harborline-software/rule-engine, advisory lint, blank seeds, the publish admission fence, and the versioned named-rule catalog over a pluggable store port (the Harborline replacement for the pinned localStorage interim). Owns no evaluator semantics: every rejection and evaluation flows through the packed rule engine.",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -26,12 +26,12 @@
     "clean": "rm -rf dist"
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
-    "@typescript/native": "npm:typescript@^7.0.2",
-    "eslint": "^10.7.0",
-    "typescript": "npm:@typescript/typescript6@^6.0.2",
-    "typescript-eslint": "^8.63.0",
-    "vitest": "^4.1.10"
+    "@eslint/js": "10.0.1",
+    "@typescript/native": "npm:typescript@7.0.2",
+    "eslint": "10.8.1",
+    "typescript": "npm:@typescript/typescript6@6.0.2",
+    "typescript-eslint": "8.67.0",
+    "vitest": "4.1.10"
   },
   "license": "Apache-2.0",
   "repository": {
@@ -46,5 +46,14 @@
     "@harborline-software/rule-engine": {
       "optional": true
     }
+  },
+  "packageManager": "pnpm@11.1.3",
+  "justifications": {
+    "@eslint/js": "R-0084",
+    "@typescript/native": "R-0086",
+    "eslint": "R-0084",
+    "typescript": "R-0086",
+    "typescript-eslint": "R-0084",
+    "vitest": "R-0083"
   }
 }
