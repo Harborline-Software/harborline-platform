@@ -1,5 +1,6 @@
 using Bunit;
 using Harborline.UIAdapters.Blazor.Components.DataDisplay;
+using Harborline.UIAdapters.Blazor.Components.Buttons;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Xunit;
@@ -113,6 +114,17 @@ public sealed class ViewRuntimeTests : BunitContext
             .Add(x => x.Rows, []).Add(x => x.OnAction, id => activated.Add(id)));
         var buttons = cut.FindAll("button");
         Assert.Equal(["First", "Second"], buttons.Select(button => button.TextContent));
+        var group = cut.Find(".hl-view-runtime__actions");
+        Assert.Equal("group", group.GetAttribute("role"));
+        Assert.Equal("View results", group.GetAttribute("aria-label"));
+        Assert.Equal(2, cut.FindComponents<HarborlineButton>().Count);
+        Assert.All(buttons, button =>
+        {
+            Assert.Contains("hl-button--secondary", button.ClassList);
+            Assert.Contains("hl-button--size-small", button.ClassList);
+            Assert.False(button.HasAttribute("disabled"));
+            Assert.Contains("hl-view-runtime__actions", button.ParentElement!.ClassList);
+        });
         Assert.All(buttons, button => Assert.Equal("button", button.GetAttribute("type")));
         cut.FindAll("button")[1].Click();
         cut.FindAll("button")[0].Click();
@@ -127,6 +139,25 @@ public sealed class ViewRuntimeTests : BunitContext
         var button = cut.Find("button");
         Assert.Equal("button", button.GetAttribute("type"));
         button.Click();
+    }
+
+    [Fact]
+    public void DisablesDeclaredActionsUntilTheHostEnablesThemAgain()
+    {
+        var activated = new List<string>();
+        var cut = Render<HarborlineViewRuntime>(p => p.Add(x => x.Plan, Grid with
+            { Bindings = Grid.Bindings with { Actions = [new("publish", "Publish")] } })
+            .Add(x => x.Rows, Rows).Add(x => x.OnAction, id => activated.Add(id))
+            .Add(x => x.ActionsDisabled, true));
+        var button = cut.Find("button");
+        Assert.True(button.HasAttribute("disabled"));
+        Assert.Equal("true", button.GetAttribute("aria-disabled"));
+        button.Click();
+        Assert.Empty(activated);
+        cut.Render(p => p.Add(x => x.ActionsDisabled, false));
+        Assert.False(cut.Find("button").HasAttribute("disabled"));
+        cut.Find("button").Click();
+        Assert.Equal(["publish"], activated);
     }
 
     private static ViewRuntimeRow ReadRow(System.Text.Json.JsonElement row) => new(
