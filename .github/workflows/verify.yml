@@ -77,7 +77,8 @@ jobs:
           git clone --quiet https://github.com/Harborline-Software/harborline-api.git "$RUNNER_TEMP/harborline-api"
 
       - name: Mirror harborline-control for the dependency ledger
-        run: git clone --quiet https://github.com/Harborline-Software/harborline-control.git "$RUNNER_TEMP/harborline-control"
+        # Private; the pins token is the same one the api hosted job clones with.
+        run: git clone --quiet "https://x-access-token:${{ secrets.HARBORLINE_PINS_TOKEN }}@github.com/Harborline-Software/harborline-control.git" "$RUNNER_TEMP/harborline-control"
 
       # The gate drives the gallery but does not install its dependencies. The browser download is a
       # no-op on a host that already has the pinned revision cached; `--with-deps` is omitted because

@@ -23,6 +23,12 @@ jobs:
         # adding a step there means changing requiredStepIds in THREE files, which invalidates every
         # existing receipt — a deliberate, coordinated change rather than a rider on this one.
         run: bash eng/verify-boundaries.sh
+      - uses: pnpm/action-setup@v6
+        with:
+          # The gate's rule-runtime/rule-authoring clean-install steps shell out to pnpm
+          # (tooling/run-phase-4-gate.mjs); the runner ships none. 11.x matches the
+          # local toolchain the receipts are produced with.
+          version: 11
       - uses: actions/setup-node@v7
         with:
           node-version: 24
@@ -44,12 +50,6 @@ jobs:
           # when preview.7 landed in global.json while this file still said preview.6 -
           # every check run failed in under a minute at resolve-dotnet).
           global-json-file: global.json
-      - uses: pnpm/action-setup@v6
-        with:
-          # The gate's rule-runtime/rule-authoring clean-install steps shell out to pnpm
-          # (tooling/run-phase-4-gate.mjs); the runner ships none. 11.x matches the
-          # local toolchain the receipts are produced with.
-          version: 11
       - name: Install gallery browser dependencies
         working-directory: gallery/tests
         run: |
