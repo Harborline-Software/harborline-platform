@@ -183,12 +183,12 @@ export function prepareGalleries({ packagesReady = false } = {}) {
   }
   assertFeedMatchesSources()
 
-  run('npm', ['ci', '--ignore-scripts', '--no-audit', '--no-fund'], reactGallery)
+  run('pnpm', ['install', '--frozen-lockfile', '--ignore-scripts'], reactGallery)
   run('npm', [
     'install', '--no-save', '--package-lock=false', '--ignore-scripts', '--no-audit', '--no-fund',
     contractsNpmArtifact, ruleEngineNpmArtifact, npmArtifact,
   ], reactGallery)
-  run('npm', ['ci', '--ignore-scripts', '--no-audit', '--no-fund'], galleryTests)
+  run('pnpm', ['install', '--frozen-lockfile', '--ignore-scripts'], galleryTests)
   // Windows returns EPERM here when anything still holds a handle under the NuGet package cache --
   // a dotnet build server or a virus scanner that has not let go yet. `force: true` does NOT cover
   // it: force suppresses "missing", not "locked". Four gate runs failed on this, each reporting
