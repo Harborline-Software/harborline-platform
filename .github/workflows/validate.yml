@@ -61,7 +61,8 @@ jobs:
         env:
           HARBORLINE_API_READ_TOKEN: ${{ secrets.HARBORLINE_API_READ_TOKEN }}
       - name: Mirror harborline-control for the dependency ledger
-        run: git clone --quiet "https://github.com/Harborline-Software/harborline-control.git" "$RUNNER_TEMP/harborline-control"
+        # Private; the pins token is the same one the api hosted job clones with.
+        run: git clone --quiet "https://x-access-token:${{ secrets.HARBORLINE_PINS_TOKEN }}@github.com/Harborline-Software/harborline-control.git" "$RUNNER_TEMP/harborline-control"
       # run-phase-4-gate.mjs writes its report to stdout only (the receipt runner is what writes it
       # to disk, and CI does not run the receipt runner). Capture it here so the upload step below
       # has a file; pipefail keeps the gate's exit code (ticket 330 s4c).
