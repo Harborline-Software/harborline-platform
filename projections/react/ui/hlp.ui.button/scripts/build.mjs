@@ -121,6 +121,8 @@ for (const [name, contributionRoot] of contributions) {
     '-p', 'tsconfig.build.json', '--declaration', '--emitDeclarationOnly',
     '--outDir', contributionDist, '--rootDir', resolve(contributionRoot, 'src'),
   ])
+  // ViewRuntime consumes Button's leaf declaration; build it once its locale dependencies exist.
+  if (name === 'locale-provider') compile(root, ['-p', 'tsconfig.build.json'])
 }
 
 const toneStyleDeclaration = resolve(root, '../hlp.ui.tone-style/dist/toneStyle.d.ts')
@@ -152,7 +154,6 @@ for (const [relativePath, source, replacement] of contributionDeclarationAliases
 
 // The retained package source delegates its legacy locale exports to the new
 // contribution declarations built above.
-compile(root, ['-p', 'tsconfig.build.json'])
 const localeDeclaration = resolve(dist, 'locale.d.ts')
 writeFileSync(localeDeclaration, readFileSync(localeDeclaration, 'utf8')
   .replaceAll('@harborline-platform/hlp.ui.locale-provider', './locale-provider/index')
@@ -174,6 +175,7 @@ appendFileSync(resolve(dist, 'index.d.ts'), "\nexport { projectRuleOutcomes, use
 
 const external = ['react', 'react-dom', 'react/jsx-runtime', '@radix-ui/react-slot', 'clsx', 'tailwind-merge']
 const alias = {
+  '@harborline-platform/hlp.ui.button': resolve(root, 'src/Button.tsx'),
   '@harborline-software/contracts/authorization': resolve(formsContractsRoot, 'dist/authorization.js'),
   '@harborline-platform/hlp.ui.aspect-lens': resolve(root, '../hlp.ui.aspect-lens/src/index.ts'),
   '@harborline-platform/hlp.ui.default-strings': resolve(root, '../hlp.ui.default-strings/src/index.ts'),

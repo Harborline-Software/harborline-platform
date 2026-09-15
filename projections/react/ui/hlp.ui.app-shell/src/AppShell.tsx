@@ -112,7 +112,13 @@ export function AppShell({ shellId, navigation, navigationState, resolveLabel, o
   const workspace = React.useMemo(() => workspaces.find(candidate => candidate.id === activeWs), [workspaces, activeWs])
   const corrected = React.useRef<string | null>(null)
   React.useEffect(() => { if (activeWorkspaceId !== undefined && !workspace && workspaces.length > 0 && corrected.current !== activeWorkspaceId) { corrected.current = activeWorkspaceId; onWorkspaceChange?.(workspaces[0].id) } }, [activeWorkspaceId, workspace, workspaces, onWorkspaceChange])
-  const toggleRail = React.useCallback(() => { const next = !isCollapsed; setCollapsed(next); onCollapsedChange?.(next) }, [isCollapsed, setCollapsed, onCollapsedChange])
+  const mobileNavTriggerId = React.useId()
+  const [drawerOpen, setDrawerOpen] = useShellAxis(mobileNavOpen, defaultMobileNavOpen ?? false, null, undefined, isBoolean)
+  const changeDrawerOpen = React.useCallback((next: boolean) => { setDrawerOpen(next); onMobileNavOpenChange?.(next) }, [setDrawerOpen, onMobileNavOpenChange])
+  const toggleRail = React.useCallback(() => {
+    if (!railCapable) { changeDrawerOpen(!drawerOpen); return }
+    const next = !isCollapsed; setCollapsed(next); onCollapsedChange?.(next)
+  }, [railCapable, drawerOpen, changeDrawerOpen, isCollapsed, setCollapsed, onCollapsedChange])
   const activateWorkspace = React.useCallback((index: number) => { const next = workspaces[index]; if (!next) return; setActiveWs(next.id); onWorkspaceChange?.(next.id) }, [workspaces, setActiveWs, onWorkspaceChange])
   const create = workspace?.createActions?.find(action => action.id === workspace.defaultCreateActionId) ?? workspace?.createActions?.[0]
   useShellShortcuts({ toggleRail: shortcuts?.toggleRail ?? shortcuts?.toggleNavigation, commandSurface: shortcuts?.commandSurface ?? shortcuts?.openSearch, create: shortcuts?.create, inspector: shortcuts?.inspector, onToggleRail: toggleRail, onCommandSurface: () => onSearchCommand?.(), onCreate: () => { if ((workspace?.createActions.length ?? 0) <= 3 && create) onBindingInvoke?.(create.binding) }, onInspector: () => onInspectorCommand?.(), onWorkspace: activateWorkspace })
@@ -142,7 +148,7 @@ export function AppShell({ shellId, navigation, navigationState, resolveLabel, o
   const header = <div className="hl-app-shell__header" data-shell-region="bar">
     <div className="hl-app-shell__bar-slot hl-app-shell__mark" data-shell-bar-slot="mark" data-tenant-mark role="img" aria-label={tenantMarkLabel}>{brand ?? <span aria-hidden="true">{brandText.slice(0, 1)}</span>}</div>
     <div className="hl-app-shell__bar-slot" data-shell-bar-slot="window-menu">{windowMenu ?? <button type="button" className="hl-app-shell__bar-control" aria-label={windowMenuLabel}><MenuIcon /></button>}{headerLeading}{headerSwitcher ? <ScopeSwitcher {...headerSwitcher} shellId={shellId} storage={storage} presentation="header" /> : null}</div>
-    <div className="hl-app-shell__bar-slot" data-shell-bar-slot="rail-toggle"><button type="button" className="hl-app-shell__bar-control" aria-label={mobileNavLabel} aria-keyshortcuts="Control+\\ Meta+\\" aria-expanded={!isCollapsed} onClick={toggleRail}><RailIcon /></button></div>
+    <div className="hl-app-shell__bar-slot" data-shell-bar-slot="rail-toggle"><button type="button" className="hl-app-shell__bar-control" aria-label={mobileNavLabel} aria-keyshortcuts="Control+\\ Meta+\\" id={mobileNavTriggerId} aria-controls={!railCapable ? `${mobileNavTriggerId}-drawer` : undefined} aria-haspopup={!railCapable ? "dialog" : undefined} aria-expanded={railCapable ? !isCollapsed : drawerOpen} onClick={toggleRail}><RailIcon /></button></div>
     <div className="hl-app-shell__bar-slot" data-shell-bar-slot="find"><button type="button" className="hl-app-shell__bar-control" aria-label={findLabel} aria-keyshortcuts="Control+K Meta+K" onClick={onSearchCommand}><SearchIcon /></button></div>
     <div className="hl-app-shell__bar-slot hl-app-shell__breadcrumb" data-shell-bar-slot="breadcrumb">{headerCenter ?? workspace?.label ?? workspacesLabel}</div>
     <div className="hl-app-shell__bar-slot hl-app-shell__cluster" data-shell-bar-slot="cluster">
@@ -204,7 +210,13 @@ export function AppShell({ shellId, navigation, navigationState, resolveLabel, o
   // through the same persistence seam (it drops the id from the open set).
   const [expandedPanelId, setExpandedPanelId] = React.useState<string | null>(null)
   const [treeHidden, setTreeHidden] = React.useState<ReadonlySet<string>>(() => new Set())
+  const dockActionsPanelId = dockLayout.containers.filter(container => container.kind === 'bottom-sheet').at(-1)?.panel.id
+  const dockActions = <div className="hl-app-shell__dock-actions">
+    <button type="button" className="hl-app-shell__spread" aria-label="Spread panels" disabled={dockLayout.spreadUnavailable} onClick={() => { const next = !dockSpread; setDockSpread(next); onSpreadChange?.(next) }}>Spread</button>
+    {dockLayout.spreadUnavailable && dockLayout.spreadUnavailableReason ? <span data-spread-unavailable-reason role="status">{dockLayout.spreadUnavailableReason}</span> : null}
+  </div>
   const chrome: PanelChrome = {
+    dockActions, dockActionsPanelId,
     content: panelContent!, toolbar: panelToolbar, openItem: panelOpenItem, resolveLabel, invokeBinding: onBindingInvoke,
     close: closeDeclaredPanel, containers: containerKinds,
     popOut: onPanelPopOut === undefined ? undefined : panelId => onPanelPopOut({ panelId, state: JSON.parse(dockStateJson) as DockStateSnapshot }),
@@ -214,8 +226,7 @@ export function AppShell({ shellId, navigation, navigationState, resolveLabel, o
   const dockAside = showDock ? <aside className="hl-app-shell__dock" data-shell-region="dock" data-shell-spread={dockLayout.spread} data-has-docked={dockLayout.containers.some(container => container.kind === 'docked')} style={dockWidth === null ? undefined : { ['--hl-app-shell-dock-size' as string]: `${dockWidth}px` }}>
     {renderDockNode(root!, chrome, resizeNode, resetDock)}
     {dockLayout.root ? <button type="button" className="hl-app-shell__reset" aria-label="Reset panels" onClick={resetDock}>Reset panels</button> : null}
-    <button type="button" className="hl-app-shell__spread" aria-label="Spread panels" disabled={dockLayout.spreadUnavailable} onClick={() => { const next = !dockSpread; setDockSpread(next); onSpreadChange?.(next) }}>Spread</button>
-    {dockLayout.spreadUnavailable && dockLayout.spreadUnavailableReason ? <span data-spread-unavailable-reason role="status">{dockLayout.spreadUnavailableReason}</span> : null}
+    {dockActionsPanelId === undefined ? dockActions : null}
     {openingPanel ? <div className="hl-app-shell__dock-resize" role="separator" tabIndex={0} aria-orientation="vertical" aria-label={dockResizeLabel} title={dockResizeLabel} aria-valuemin={DOCK_MINIMUM_PANE_WIDTH} aria-valuemax={10000} aria-valuenow={dockWidth!} data-opening-panel-id={openingPanel.id}
       onPointerDown={event => { dockDrag.current = { x: event.clientX, width: dockWidth! }; event.currentTarget.setPointerCapture?.(event.pointerId) }}
       onPointerMove={event => { const start = dockDrag.current; if (start) setDockWidth(start.width + (start.x - event.clientX) * (getComputedStyle(event.currentTarget).direction === 'rtl' ? -1 : 1)) }}
@@ -225,7 +236,7 @@ export function AppShell({ shellId, navigation, navigationState, resolveLabel, o
   const inner = showPanel || showDock ? <div className="hl-app-shell__content-row"><div className="hl-app-shell__page" data-shell-region="content" data-shell-scroll-region data-hidden={expandedFill || undefined}>{body}</div>{dockAside}{panelAside}</div> : <div className="hl-app-shell__page" data-shell-region="content" data-shell-scroll-region>{body}</div>
   const content = pageHeader !== null && pageHeader !== undefined ? <div className="hl-app-shell__content-col"><div className="hl-app-shell__page-header" data-shell-region="pageHeader">{pageHeader}</div>{inner}</div> : inner
   return <div {...attributes} ref={shellElement} className={`hl-app-shell${className ? ` ${className}` : ''}`} style={{ ...style, ['--hl-app-shell-rail-size' as string]: `${storedRailWidth}px` }} data-shell-id={shellId} data-shell-breakpoint={breakpoint} data-shell-content-floor={SHELL_LAYOUT.contentFloor} data-collapsed={isCollapsed || undefined} data-open-panel-count={declaredOpenPanels.length || undefined} data-spread={dockSpread} data-end-panel-open={showPanel || undefined} data-end-panel-expanded={expandedFill || undefined}>
-    <AppLayout body={content} header={header} sideNav={sideNav} sideNavOpen={!isCollapsed} headerFixed={headerFixed} contentScroll={contentScroll} mobileNavOpen={mobileNavOpen} defaultMobileNavOpen={defaultMobileNavOpen} onMobileNavOpenChange={onMobileNavOpenChange} mobileNavLabel={mobileNavLabel} railCapable={railCapableOverride} />
+    <AppLayout body={content} header={header} sideNav={sideNav} sideNavOpen={!isCollapsed} headerFixed={headerFixed} contentScroll={contentScroll} mobileNavOpen={drawerOpen} mobileNavTriggerId={mobileNavTriggerId} onMobileNavOpenChange={changeDrawerOpen} mobileNavLabel={mobileNavLabel} railCapable={railCapableOverride} />
   </div>
 }
 
@@ -256,6 +267,7 @@ function PanelsMenu({ panels, resolveLabel, onOpen, label }: { panels: readonly 
 export interface ShellPanelOpenItem { id: string; label: string; close: () => void }
 export interface ShellPanelPopOutRequest { panelId: string; state: DockStateSnapshot }
 interface PanelChrome {
+  dockActions: React.ReactNode; dockActionsPanelId?: string
   content: (panel: PackPanelDeclaration) => React.ReactNode; toolbar?: (panel: PackPanelDeclaration) => React.ReactNode
   openItem?: (panel: PackPanelDeclaration) => ShellPanelOpenItem | undefined; resolveLabel?: (key: string) => string
   invokeBinding?: (binding: string) => void; close: (id: string) => void; containers: ReadonlyMap<string, DockContainerKind>
@@ -308,6 +320,7 @@ function DockPanel({ panel, chrome, fraction }: { panel: PackPanelDeclaration; c
     <div className="hl-app-shell__panel-toolbar" data-shell-panel-toolbar>{chrome.toolbar?.(panel)}</div>
     <div className="hl-app-shell__end-panel-body" data-shell-panel-body-scroll role="region" aria-label={panel.id} tabIndex={0}>{chrome.content(panel)}</div>
     {panel.footer ? <div className="hl-app-shell__panel-footer" data-shell-panel-footer data-footer-kind={panel.footer.kind}>{panel.footer.binding ? <button type="button" className="hl-app-shell__panel-footer-action" onClick={() => chrome.invokeBinding?.(panel.footer!.binding!)}>{chrome.resolveLabel?.(panel.footer.labelKey) ?? panel.footer.labelKey}</button> : <span>{chrome.resolveLabel?.(panel.footer.labelKey) ?? panel.footer.labelKey}</span>}</div> : null}
+    {chrome.dockActionsPanelId === panel.id ? chrome.dockActions : null}
   </section>
 }
 

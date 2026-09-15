@@ -33,6 +33,48 @@ public sealed class AppShellTests : BunitContext
     private IRenderedComponent<HarborlineAppShell> Shell(Action<ComponentParameterCollectionBuilder<HarborlineAppShell>>? add=null,PackNavigationDeclaration? nav=null,ShellNavigationState? state=null)=>Render<HarborlineAppShell>(p=>{p.Add(x=>x.ShellId,"ops").Add(x=>x.Navigation,nav??Nav()).Add(x=>x.NavigationState,state??State()).Add(x=>x.RoleVocabulary,Vocabulary).Add(x=>x.HeldRoles,NoRoles).Add(x=>x.ChildContent,Content("Body"));add?.Invoke(p);});
 
     [Fact] public void RendersLandmarksAndIdentity(){var cut=Shell();Assert.Single(cut.FindAll("main#main"));Assert.Single(cut.FindAll("nav"));Assert.Single(cut.FindAll("[data-shell-id=ops]"));Assert.Equal("true",cut.Find("[data-shell-bar-slot=rail-toggle] button").GetAttribute("aria-expanded"));}
+    [Theory]
+    [InlineData(480)]
+    [InlineData(720)]
+    public void OneShellNavigationTriggerOwnsTheCompactDrawer(int width)
+    {
+        SetViewport(width);
+        var changed = new List<bool>();
+        var cut = Shell(p => p.Add(x => x.MobileNavOpenChanged, value => changed.Add(value)));
+        Assert.Single(cut.FindAll("button[aria-label=Navigation]"));
+        Assert.Empty(cut.FindAll(".hl-app-layout__nav-trigger"));
+        var trigger = cut.Find("[data-shell-bar-slot=rail-toggle] button");
+        Assert.Equal("false", trigger.GetAttribute("aria-expanded"));
+        trigger.Click();
+        var drawer = cut.Find("[role=dialog][aria-label=Navigation]");
+        Assert.Equal(drawer.Id, trigger.GetAttribute("aria-controls"));
+        Assert.Equal("true", trigger.GetAttribute("aria-expanded"));
+        Assert.Contains(JSInterop.Invocations, invocation => invocation.Identifier == "focusAndTrap");
+        drawer.KeyDown("Escape");
+        Assert.Empty(cut.FindAll("[role=dialog][aria-label=Navigation]"));
+        Assert.Equal([true, false], changed);
+        Assert.Contains(JSInterop.Invocations, invocation => invocation.Identifier == "releaseAndFocus" && Equals(invocation.Arguments[0], trigger.Id));
+    }
+
+    [Fact]
+    public void CompactSpreadStaysWithTheActiveSheetAndPreservesHostAvailability()
+    {
+        SetViewport(480);
+        var panels = new[] { new PackPanelDeclaration("notifications", "notifications", "mod+shift+b", 360, 180, false, "Notifications"), new PackPanelDeclaration("pilot", "pilot", "mod+shift+p", 400, 300, false, "Pilot") };
+        var changes = new List<bool>();
+        var cut = Shell(p => p.Add(x => x.OpenPanelIds, new[] { "notifications", "pilot" })
+            .Add(x => x.PanelContent, PanelBody).Add(x => x.SpreadChanged, value => changes.Add(value)), nav: Nav(panels: panels));
+        var spread = cut.Find(".hl-app-shell__spread");
+        Assert.Equal("pilot", spread.Closest("[data-shell-panel-id]")?.GetAttribute("data-shell-panel-id"));
+        Assert.Null(spread.Closest(".hl-app-shell__end-panel-header"));
+        Assert.Contains("hl-app-shell__dock-actions", spread.ParentElement!.ClassList);
+        Assert.False(spread.HasAttribute("disabled"));
+        spread.Click();
+        Assert.Equal([true], changes);
+        cut.Render(p => p.Add(x => x.SpreadUnavailable, true).Add(x => x.SpreadUnavailableReason, "Host unavailable"));
+        Assert.True(cut.Find(".hl-app-shell__spread").HasAttribute("disabled"));
+        Assert.Contains("Host unavailable", cut.Find("[role=status]").TextContent, StringComparison.Ordinal);
+    }
     [Fact] public void TenantMarkAndPanelScrollRegionExposeEquivalentSemantics(){var cut=Shell(p=>p.Add(x=>x.EndPanel,Content("Panel details")).Add(x=>x.EndPanelLabel,"Pilot").Add(x=>x.EndPanelOpen,true));var mark=cut.Find("[data-tenant-mark]");Assert.Equal("img",mark.GetAttribute("role"));Assert.Equal("Tenant",mark.GetAttribute("aria-label"));var region=cut.Find(".hl-app-shell__end-panel-body");Assert.Equal("region",region.GetAttribute("role"));Assert.Equal("Pilot",region.GetAttribute("aria-label"));Assert.Equal("0",region.GetAttribute("tabindex"));Assert.NotNull(region.GetAttribute("data-shell-scroll-region"));}
     [Fact] public void RejectsMissingInputsAndDuplicateIdentity(){Assert.Equal("app-shell-id-required",Assert.Throws<InvalidOperationException>(()=>Render<HarborlineAppShell>(p=>p.Add(x=>x.Navigation,Nav()).Add(x=>x.ChildContent,Content("Body")))).Message);Assert.Equal("app-shell-body-required",Assert.Throws<InvalidOperationException>(()=>Render<HarborlineAppShell>(p=>p.Add(x=>x.ShellId,"ops").Add(x=>x.Navigation,Nav()))).Message);var duplicate=new PackNavigationDeclaration([new("ops","Ops",Groups:[new("g","G",["x","x"])])]);Assert.Equal("duplicate-nav-identity",Assert.Throws<InvalidOperationException>(()=>Shell(nav:duplicate)).Message);}
     [Fact] public void PinnedItemMovesNotCopiesAndPinIsIsolated(){var pins=new List<(string,bool)>();var navigated=0;var cut=Shell(p=>p.Add(x=>x.PinnedItemIds,new[]{"inspections"}).Add(x=>x.ActiveItemId,"inspections").Add(x=>x.PinToggled,v=>pins.Add(v)).Add(x=>x.Navigated,_=>navigated++));Assert.Contains("Inspections",cut.Find("[data-shell-zone=pinned]").TextContent);Assert.DoesNotContain("Inspections",cut.Find("[data-shell-zone=groups]").TextContent);cut.Find(".hl-app-shell__pin-toggle").Click();Assert.Single(pins);Assert.Equal(0,navigated);}
@@ -174,6 +216,7 @@ public sealed class AppShellTests : BunitContext
             Assert.Equal(step.GetProperty("expectedBreakpoint").GetString(),cut.Find("[data-shell-id]").GetAttribute("data-shell-breakpoint"));
             Assert.Equal(orderedOpenPanelIds.Length.ToString(),cut.Find("[data-shell-id]").GetAttribute("data-open-panel-count"));
             Assert.Equal(orderedOpenPanelIds,cut.FindAll("[data-shell-panel-id]").Select(panel=>panel.GetAttribute("data-shell-panel-id")));
+            if (cut.FindAll("nav").Count == 0) cut.Find("[data-shell-bar-slot=rail-toggle] button").Click();
             Assert.Equal(ShellChromeContract.Address("workspaces",activeWorkspaceId),cut.Find("[data-shell-zone=workspaces] a[aria-current=page]").GetAttribute("href"));
             Assert.Equal(ShellChromeContract.Address("workspaces",activeItemId),cut.Find("[data-shell-zone=groups] a[aria-current=page]").GetAttribute("href"));
             foreach(var expected in step.GetProperty("expectedContainerKinds").EnumerateObject())
