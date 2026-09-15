@@ -1,4 +1,6 @@
 export function connect(container, viewport, callback, initialScrollTop = 0) {
+  // A render can remove these elements before a queued server interop call reaches the browser.
+  if (!container?.isConnected || !viewport?.isConnected || !container.contains(viewport)) return null
   // L1701: a remount is handed the offset the host preserved. It is applied before the first
   // scroll report so the grid never publishes a 0 that would overwrite the preserved state.
   if (initialScrollTop > 0) viewport.scrollTop = initialScrollTop

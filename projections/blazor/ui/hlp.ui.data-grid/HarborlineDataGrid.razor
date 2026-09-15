@@ -241,11 +241,29 @@
 
   protected override async Task OnAfterRenderAsync(bool firstRender)
   {
+    if (disposed) return;
     if (firstRender)
     {
-      module = await JavaScript.InvokeAsync<IJSObjectReference>("import", "./_content/Harborline.UIAdapters.Blazor/data-grid-component.js");
-      callback = DotNetObjectReference.Create(this);
-      connection = await module.InvokeAsync<IJSObjectReference>("connect", grid, viewport, callback, List.ScrollTop);
+      var importedModule = await JavaScript.InvokeAsync<IJSObjectReference>("import", "./_content/Harborline.UIAdapters.Blazor/data-grid-component.js");
+      DotNetObjectReference<HarborlineDataGrid<TRow>>? pendingCallback = null;
+      IJSObjectReference? pendingConnection = null;
+      var connected = false;
+      try
+      {
+        if (disposed) return;
+        pendingCallback = DotNetObjectReference.Create(this);
+        pendingConnection = await importedModule.InvokeAsync<IJSObjectReference?>("connect", grid, viewport, pendingCallback, List.ScrollTop);
+        if (disposed || pendingConnection is null) return;
+        module = importedModule;
+        callback = pendingCallback;
+        connection = pendingConnection;
+        connected = true;
+      }
+      finally
+      {
+        // Initialization owns these resources until both awaits finish on a live component.
+        if (!connected) await DisposeInteropAsync(pendingConnection, importedModule, pendingCallback);
+      }
     }
     if (restoreFocus && connection is not null && focusedEntryKey is not null && focusedColumnId is not null)
     {
@@ -278,6 +296,7 @@
   [JSInvokable]
   public Task OnResizedAsync(double width, bool focusWithin = false)
   {
+    if (disposed) return Task.CompletedTask;
     var previousColumns = VisibleColumns;
     availableWidth = (int)Math.Floor(width);
     var visibleColumns = VisibleColumns;
@@ -524,10 +543,31 @@
 
   public async ValueTask DisposeAsync()
   {
+    if (disposed) return;
     disposed = true;
-    if (connection is not null) { try { await connection.InvokeVoidAsync("dispose"); } catch (JSDisconnectedException) { } await connection.DisposeAsync(); }
-    if (module is not null) { try { await module.DisposeAsync(); } catch (JSDisconnectedException) { } }
-    callback?.Dispose();
+    await DisposeInteropAsync(connection, module, callback);
+  }
+
+  private static async ValueTask DisposeInteropAsync(IJSObjectReference? connection, IJSObjectReference? module, DotNetObjectReference<HarborlineDataGrid<TRow>>? callback)
+  {
+    try
+    {
+      if (connection is not null)
+      {
+        try { await connection.InvokeVoidAsync("dispose"); }
+        catch (JSDisconnectedException) { }
+        finally
+        {
+          try { await connection.DisposeAsync(); } catch (JSDisconnectedException) { }
+        }
+      }
+    }
+    finally
+    {
+      try { if (module is not null) await module.DisposeAsync(); }
+      catch (JSDisconnectedException) { }
+      finally { callback?.Dispose(); }
+    }
   }
 
   private sealed record GridEntry(bool IsGroup, string Key, int Depth, TRow? Row, string? RowId, string Label, int LeafOrdinal, IReadOnlyList<TRow> Leaves, string? ParentKey)
