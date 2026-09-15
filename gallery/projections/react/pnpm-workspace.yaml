@@ -1,0 +1,5 @@
+packages:
+  - .
+# Hoisted layout: the gallery gate adds the packed platform artifacts with npm install --no-save
+# on top of this tree, which needs the flat layout npm expects.
+nodeLinker: hoisted
