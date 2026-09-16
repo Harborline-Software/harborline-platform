@@ -13,7 +13,7 @@ import { registeredFlakeRecords, unregisteredFlakes, validateFlakeRegistry } fro
 import { recordGalleryBaselines } from './gallery-baseline-store.mjs'
 import { prepareGalleries } from './prepare-galleries.mjs'
 import { mergeShardReports } from './gallery-shard-merge.mjs'
-import { resolveCommand, runnerEnvironment, spawnWithBudget, stepBudgetMs } from './resolve-command.mjs'
+import { killProcessTreeSync, resolveCommand, runnerEnvironment, spawnWithBudget, stepBudgetMs } from './resolve-command.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const galleryModules = readdirSync(resolve(root, 'gallery/scenarios'))
@@ -86,6 +86,7 @@ function runShardedGallery(id, cwd, extraEnv, shardCount) {
     return new Promise(resolveShard => {
       const child = spawn(resolved.executable, resolved.args, {
         cwd,
+        detached,
         env: {
           ...process.env, ...runnerEnvironment, ...extraEnv,
           PLAYWRIGHT_JSON_OUTPUT_NAME: reportPath,
@@ -93,9 +94,17 @@ function runShardedGallery(id, cwd, extraEnv, shardCount) {
         },
       })
       let output = ''
+      let timedOut = false
       child.stdout.on('data', chunk => { output += chunk })
       child.stderr.on('data', chunk => { output += chunk })
-      child.on('close', code => resolveShard({shard, code, output, reportPath}))
+      const budget = setTimeout(() => {
+        timedOut = true
+        if (child.pid) killProcessTreeSync(child.pid)
+      }, stepBudgetMs())
+      child.on('close', code => {
+        clearTimeout(budget)
+        resolveShard({shard, code, output, reportPath, timedOut})
+      })
     })
   })
 
@@ -116,7 +125,7 @@ function runShardedGallery(id, cwd, extraEnv, shardCount) {
       passed: failed.length === 0,
       shards: finished.map(shardResult => ({shard: shardResult.shard, exitCode: shardResult.code})),
       failureOutput: failed.length === 0 ? undefined
-        : failed.map(shardResult => `--- shard ${shardResult.shard}/${shardCount} ---\n${shardResult.output}`)
+        : failed.map(shardResult => `--- shard ${shardResult.shard}/${shardCount}${shardResult.timedOut ? ` (exceeded ${stepBudgetMs()}ms budget)` : ''} ---\n${shardResult.output}`)
             .join('\n').trimEnd().split('\n').slice(-120).join('\n'),
     }
     results.push(entry)
