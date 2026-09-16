@@ -2659,7 +2659,7 @@
         "specs/modules/ui/hlp.ui.app-shell/interface.yaml": "e164e1e9104a5308b9d6c092765247406b6b1f9cd49ef7b2f6d43589f541984a",
         "specs/modules/ui/hlp.ui.app-shell/quality.yaml": "f5f2beeffb11321ef15e1555d7e6e5ddac4da5abf0fa3e85978ab7bf2d637b0b",
         "specs/modules/ui/hlp.ui.app-shell/scenarios.json": "3e456636f25268718a805492541a892c55fe53e9b8228728f9e3960e05776256",
-        "specs/modules/ui/hlp.ui.app-shell/style.css": "c8b8b9be79fe5ffca9cf86f5ac12d492db246f510fb1268f25f444c0239ec68f"
+    "specs/modules/ui/hlp.ui.app-shell/style.css": "fc6a003a4e97a514e16bcd68f5b9eebda9aeb14c07abb680da654fbb5a3e5957"
       },
       "nextGate": "Retain this conformant composition contribution while the app-shell program advances to gallery baselines and package publication decisions."
     },

@@ -160,6 +160,35 @@ function unavailableControl(args: ControlArgs, hint: string): React.ReactElement
   )
 }
 
+function readOnlyValue(
+  field: FormViewField,
+  value: unknown,
+  chain: readonly string[],
+): { available: true; text: string } | { available: false } {
+  const hint = (field.controlHint ?? 'text').toLocaleLowerCase()
+  const optionLabel = (candidate: string): string => {
+    const option = (field.options ?? []).find(item => item.value === candidate)
+    if (!option) return candidate
+    return typeof option.label === 'string' ? option.label : resolveText(option.label, chain, candidate)
+  }
+
+  if (value === null || value === undefined) return { available: true, text: '' }
+  if (hint === 'multiselect') {
+    if (!Array.isArray(value) || !value.every(item => ['string', 'number', 'boolean'].includes(typeof item))) {
+      return { available: false }
+    }
+    const values = value.map(item => String(item))
+    if (!values.every(item => (field.options ?? []).some(option => option.value === item))) {
+      return { available: false }
+    }
+    return { available: true, text: values.map(optionLabel).join(', ') }
+  }
+  if (typeof value === 'object') return { available: false }
+  if (!['string', 'number', 'boolean'].includes(typeof value)) return { available: false }
+  const text = String(value)
+  return { available: true, text: hint === 'select' ? optionLabel(text) : text }
+}
+
 function renderControl(args: ControlArgs, registry: ControlRegistry): React.ReactElement {
   const hint = (args.field.controlHint ?? 'text').toLocaleLowerCase()
   const renderer = registry[hint]
@@ -189,6 +218,8 @@ function Presentation({ value, chain }: { value: PresentationOutcome; chain: rea
     </span>
   )
 }
+
+const ReadOnlyContext = React.createContext(false)
 
 interface SchemaFieldProps {
   field: FormViewField
@@ -223,20 +254,18 @@ const SchemaField = React.memo(function SchemaField({
   strings,
   onSet,
 }: SchemaFieldProps) {
+  const readOnly = React.useContext(ReadOnlyContext)
   const value = useValueAtPath(path)
   const label = resolveText(field.label, chain)
   const hint = resolveText(field.helpText, chain) || undefined
   const required = field.required ?? false
   const controlHint = (field.controlHint ?? 'text').toLocaleLowerCase()
   const registry = React.useContext(ControlRegistryContext)
-  const strValue = value === null || value === undefined ? '' : String(value)
+  const display = readOnly ? readOnlyValue(field, value, chain) : null
+  const strValue = value === null || value === undefined || typeof value === 'object' ? '' : String(value)
   const onChange = React.useCallback((next: unknown) => onSet(path, next), [onSet, path])
 
-  if (controlHint === 'hidden') {
-    return renderControl({
-      field, chain, value, strValue, hasError: false, required, disabled, strings, onChange,
-    }, registry)
-  }
+  if (controlHint === 'hidden' && (field.isSensitive || !field.isReadable)) return null
 
   if (field.isSensitive || !field.isReadable) {
     return (
@@ -248,6 +277,19 @@ const SchemaField = React.memo(function SchemaField({
     )
   }
 
+  if (controlHint === 'hidden') {
+    return renderControl({
+      field, chain, value, strValue, hasError: false, required, disabled, strings, onChange,
+    }, registry)
+  }
+
+  if (readOnly) return (
+    <FormField hint={hint} label={label} name={field.name}>
+      {!display?.available
+        ? unavailableControl({ field, chain, value, strValue, hasError: false, required, disabled: true, strings, onChange }, controlHint)
+        : <output className="hl-schema-form__readonly" id={field.name}>{display.text}</output>}
+    </FormField>
+  )
   const effectiveDisabled = disabled || Boolean(field.readOnly)
   const control = renderControl({
     field,
@@ -515,6 +557,7 @@ export function SchemaForm({
   localeChain = DEFAULT_LOCALE_CHAIN,
   className,
   disabled = false,
+  readOnly = false,
   controls,
   onBlockAction,
 }: SchemaFormProps) {
@@ -569,6 +612,7 @@ export function SchemaForm({
   }, [saveBlocked])
 
   const commit = React.useCallback((next: FormValues, changedPath: ValuePath) => {
+    if (readOnly) return
     const active = document.activeElement
     focusBeforeChange.current = active instanceof HTMLElement && formRef.current?.contains(active) ? active : null
     if (controlledValues === undefined) {
@@ -576,14 +620,14 @@ export function SchemaForm({
       valueStore.replaceAtPath(next, changedPath)
     }
     setValues(next)
-  }, [controlledValues, setValues, valueStore])
+  }, [controlledValues, readOnly, setValues, valueStore])
 
   const setValueAtPath = React.useCallback((path: readonly (string | number)[], value: unknown) => {
     commit(setIn(valuesRef.current, path, value) as FormValues, path)
   }, [commit])
 
   const handleSubmit = React.useCallback(async () => {
-    if (disabled || submitting) return
+    if (disabled || readOnly || submitting) return
     if (saveBlocked) {
       setBlockedAttempt(true)
       return
@@ -596,9 +640,10 @@ export function SchemaForm({
     } finally {
       setSubmitting(false)
     }
-  }, [disabled, onSubmit, saveBlocked, submitting])
+  }, [disabled, readOnly, onSubmit, saveBlocked, submitting])
 
   const handleAction = React.useCallback((action: FormActionConfig) => {
+    if (readOnly) return
     if (action.kind === 'scroll-to-section') {
       const section = action.sectionId ? sectionRefs.current[action.sectionId] : null
       if (section) {
@@ -609,7 +654,7 @@ export function SchemaForm({
       return
     }
     onBlockAction?.(action)
-  }, [onBlockAction])
+  }, [onBlockAction, readOnly])
 
   const setSectionRef = React.useCallback((id: string, element: HTMLFieldSetElement | null) => {
     sectionRefs.current[id] = element
@@ -621,6 +666,7 @@ export function SchemaForm({
   const validationMessages = summaryErrors(formLevel, byField)
 
   return (
+    <ReadOnlyContext.Provider value={readOnly}>
     <ControlRegistryContext.Provider value={registry}>
       <FormValueStoreContext.Provider value={valueStore}>
         <form
@@ -658,7 +704,7 @@ export function SchemaForm({
             <SchemaSection
               byField={byField}
               chain={localeChain}
-              disabled={disabled || submitting}
+              disabled={disabled || readOnly || submitting}
               key={section.id}
               onAction={handleAction}
               onSet={setValueAtPath}
@@ -669,7 +715,7 @@ export function SchemaForm({
           ))
         )}
 
-        {visibleSections.length > 0 ? (
+        {visibleSections.length > 0 && !readOnly ? (
           <button
             className="hl-schema-form__submit"
             disabled={disabled || submitting || saveBlocked}
@@ -682,6 +728,7 @@ export function SchemaForm({
         </form>
       </FormValueStoreContext.Provider>
     </ControlRegistryContext.Provider>
+    </ReadOnlyContext.Provider>
   )
 }
 

@@ -605,9 +605,54 @@ async function recordReactBaseline(page: Page, catalog: Catalog, scenario: Scena
 
 async function captureGalleryReviewPair(reactPage: Page, blazorPage: Page, catalog: Catalog, scenario: Scenario) {
   if (!galleryReviewCaptureRoot) return
+  if (scenario.id === 'schema-form.host-readonly') {
+    await Promise.all([reactPage, blazorPage].map(page => page.setViewportSize({
+      width: page.viewportSize()!.width,
+      height: 1200,
+    })))
+  }
   const reactLocator = reactPage.locator('[data-gallery-probe]')
   const blazorLocator = blazorPage.locator('[data-gallery-probe]')
   await Promise.all([reactLocator.waitFor(), blazorLocator.waitFor()])
+  if (scenario.id === 'schema-form.host-readonly') {
+    const expectedOutputs = [
+      'MV North Star',
+      'Annual hull, machinery, navigation, and lifesaving equipment inspection.',
+      '18425.5',
+      '24',
+      'Annual safety inspection',
+      'Navigation, Fire suppression, Lifesaving equipment',
+      'true',
+      'true',
+      'false',
+      '2026-09-16',
+      '2026-09-16T09:30:00-04:00',
+      '14:45',
+      '48750.5',
+      '92.5',
+      '+1 410 555 0142',
+      'port.agent@example.test',
+      'https://records.example.test/inspections/HLI-2048',
+      'Approved for certificate issuance',
+      'Restricted value',
+      'Restricted value',
+      'Control unavailable: future-object',
+    ]
+    for (const locator of [reactLocator, blazorLocator]) {
+      await expect(locator.locator('output')).toHaveText(expectedOutputs)
+      for (const [id, value] of [
+        ['vesselName', 'MV North Star'],
+        ['inspectionType', 'Annual safety inspection'],
+        ['systemsReviewed', 'Navigation, Fire suppression, Lifesaving equipment'],
+        ['documentsVerified', 'true'],
+        ['masterAttested', 'true'],
+        ['followUpRequired', 'false'],
+        ['certificateUrl', 'https://records.example.test/inspections/HLI-2048'],
+        ['applicationStatus', 'Approved for certificate issuance'],
+      ] as const) await expect(locator.locator(`#${id}`)).toHaveText(value)
+      await expect(locator.locator('input, select, textarea, button[type="submit"]')).toHaveCount(0)
+    }
+  }
   await Promise.all([
     reactPage.waitForFunction(() => {
       const probe = document.querySelector('[data-gallery-probe]')
@@ -635,6 +680,32 @@ async function captureGalleryReviewPair(reactPage: Page, blazorPage: Page, catal
 
   const reactPng = PNG.sync.read(reactBytes)
   const blazorPng = PNG.sync.read(blazorBytes)
+  if (scenario.id === 'schema-form.host-readonly') {
+    for (const [projection, png] of [['react', reactPng], ['blazor', blazorPng]] as const) {
+      expect(png.height, `${projection} all-kinds capture must include the full form`).toBeGreaterThan(704)
+      let bottomInk = 0
+      const firstBottomRow = Math.floor(png.height * 0.75)
+      for (let y = firstBottomRow; y < png.height - 4; y += 1) {
+        for (let x = 4; x < png.width - 4; x += 1) {
+          const offset = (y * png.width + x) * 4
+          if (png.data[offset]! < 210 || png.data[offset + 1]! < 210 || png.data[offset + 2]! < 210) bottomInk += 1
+        }
+      }
+      expect(bottomInk, `${projection} all-kinds capture bottom quarter is blank or clipped`).toBeGreaterThan(500)
+    }
+  }
+  if (scenario.id === 'schema-form.host-readonly') {
+    for (const [lane, png] of [['react', reactPng], ['blazor', blazorPng]] as const) {
+      let contentPixels = 0
+      // Exclude the frame: an empty bordered probe must not count as rendered content.
+      for (let y = 20; y < png.height - 20; y++) for (let x = 20; x < png.width - 20; x++) {
+        const offset = (y * png.width + x) * 4
+        if (png.data[offset + 3] > 250 && png.data[offset] < 100
+          && png.data[offset + 1] < 100 && png.data[offset + 2] < 100) contentPixels++
+      }
+      expect(contentPixels, `${lane} read-only capture must contain visible text, not an empty frame`).toBeGreaterThan(100)
+    }
+  }
   let changedPixelRatio: number | null = null
   let diffFile: string | null = null
   if (reactPng.width === blazorPng.width && reactPng.height === blazorPng.height) {
@@ -1528,26 +1599,32 @@ for (const projection of ['react', 'blazor'] as const) {
     await separator.press('ArrowRight')
     expect(Number(await separator.getAttribute('aria-valuenow'))).toBeGreaterThan(before)
 
-    const scrollbar = await page.locator('.hl-app-shell__rail-scroll').evaluate(element => {
-      const style=getComputedStyle(element); const pseudo=getComputedStyle(element,'::-webkit-scrollbar')
-      const paintedSurfaces: string[]=[]
-      for(let candidate: Element|null=element; candidate; candidate=candidate.parentElement){
-        const background=getComputedStyle(candidate).backgroundColor
-        const channels=background.match(/[\d.]+/g)?.map(Number) ?? []
-        const alpha=channels[3] ?? (channels.length >= 3 ? 1 : 0)
-        if(alpha>0){paintedSurfaces.push(background);if(alpha>=1)break}
-      }
-      return {gutter:element.getBoundingClientRect().width-element.clientWidth,pseudoWidth:Number.parseFloat(pseudo.width),scrollbarColor:style.scrollbarColor,paintedSurfaces}
-    })
-    expect(Math.max(scrollbar.gutter,scrollbar.pseudoWidth)).toBeGreaterThanOrEqual(24)
-    const thumb = scrollbar.scrollbarColor.match(/rgba?\([^)]*\)/)?.[0]
-    expect(thumb).toBeTruthy()
-    expect(scrollbar.paintedSurfaces.length, 'scrollbar must resolve to a painted ancestor').toBeGreaterThan(0)
-    const paintedSurface=scrollbar.paintedSurfaces.reduceRight((background, foreground)=>compositeColor(foreground,background),'rgb(255, 255, 255)')
-    const paintedThumb=compositeColor(thumb!,paintedSurface)
-    const plantedLowContrastThumb=compositeColor('rgba(118, 118, 118, 0.3)',paintedSurface)
-    expect(contrastRatio(plantedLowContrastThumb, paintedSurface), 'alpha-composited planted thumb').toBeLessThan(3)
-    expect(contrastRatio(paintedThumb, paintedSurface)).toBeGreaterThanOrEqual(3)
+    for (const theme of ['light', 'dark']) {
+      await page.locator('[data-gallery-probe]').evaluate((element, value) => element.setAttribute('data-theme', value), theme)
+      const scrollbar = await page.locator('.hl-app-shell__rail-scroll').evaluate(element => {
+        const style=getComputedStyle(element); const pseudo=getComputedStyle(element,'::-webkit-scrollbar')
+        const paintedSurfaces: string[]=[]
+        for(let candidate: Element|null=element; candidate; candidate=candidate.parentElement){
+          const background=getComputedStyle(candidate).backgroundColor
+          const channels=background.match(/[\d.]+/g)?.map(Number) ?? []
+          const alpha=channels[3] ?? (channels.length >= 3 ? 1 : 0)
+          if(alpha>0){paintedSurfaces.push(background);if(alpha>=1)break}
+        }
+        return {gutter:element.getBoundingClientRect().width-element.clientWidth,pseudoWidth:Number.parseFloat(pseudo.width),scrollbarColor:style.scrollbarColor,paintedSurfaces}
+      })
+      expect(Math.max(scrollbar.gutter,scrollbar.pseudoWidth)).toBeGreaterThanOrEqual(24)
+      const thumb = scrollbar.scrollbarColor.match(/rgba?\([^)]*\)/)?.[0]
+      expect(thumb).toBeTruthy()
+      expect(scrollbar.paintedSurfaces.length, 'scrollbar must resolve to a painted ancestor').toBeGreaterThan(0)
+      const paintedSurface=scrollbar.paintedSurfaces.reduceRight((background, foreground)=>compositeColor(foreground,background),'rgb(255, 255, 255)')
+      const paintedThumb=compositeColor(thumb!,paintedSurface)
+      const plantedLowContrastThumb=compositeColor('rgba(118, 118, 118, 0.3)',paintedSurface)
+      expect(contrastRatio(plantedLowContrastThumb, paintedSurface), 'alpha-composited planted thumb').toBeLessThan(3)
+      test.info().annotations.push({type: 'app-shell-scrollbar', description: JSON.stringify({
+        projection, theme, thumb: paintedThumb, track: paintedSurface, contrast: contrastRatio(paintedThumb, paintedSurface),
+      })})
+      expect(contrastRatio(paintedThumb, paintedSurface), `${projection} ${theme} scrollbar thumb`).toBeGreaterThanOrEqual(3)
+    }
 
     await page.setViewportSize({width: 1200, height: 720})
     await expect(page.locator('[data-shell-bar-slot="cluster"] > [data-action-id="documents"]')).toHaveCount(1)

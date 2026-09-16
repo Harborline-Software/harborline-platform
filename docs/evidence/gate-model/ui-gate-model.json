@@ -3767,17 +3767,17 @@
         {
           "id": "assertAccessible",
           "status": "PASS",
-          "note": "axe-core over 7 scenarios x 2 lanes in gallery-gate"
+          "note": "axe-core over 8 scenarios x 2 lanes in gallery-gate"
         },
         {
           "id": "assertVisualParity",
           "status": "PASS",
-          "note": "1 visual-parity scenario(s), lane vs lane, pixelmatch"
+          "note": "2 visual-parity scenario(s), lane vs lane, pixelmatch"
         },
         {
           "id": "assertFunctionalParity",
           "status": "PASS",
-          "note": "17 conformance case(s) across both lanes"
+          "note": "19 conformance case(s) across both lanes"
         },
         {
           "id": "assertInternationalization",
@@ -3822,7 +3822,7 @@
         {
           "id": "assertDesignReview",
           "status": "PASS",
-          "note": "approved by cic on 2026-08-27T05:32:16.445Z against 26 surface files"
+          "note": "approved by Chris Wood on 2026-09-16T15:46:43.1410836Z against 26 surface files"
         },
         {
           "id": "assertDesignQuality",
@@ -5985,8 +5985,8 @@
         },
         {
           "id": "assertFocusQuality",
-          "status": "PASS",
-          "note": "focus ring is tokened, at least 2px, and offset from the control edge"
+          "status": "FAIL",
+          "note": "no :focus-visible rule"
         },
         {
           "id": "assertResponsiveQuality",
@@ -6010,8 +6010,8 @@
         },
         {
           "id": "assertDesignQuality",
-          "status": "UNBUILT",
-          "note": "UNBUILT inherited from assertStateCompleteness, assertDesignReview"
+          "status": "FAIL",
+          "note": "FAIL inherited from assertFocusQuality"
         }
       ]
     },
@@ -6095,9 +6095,10 @@
     }
   ],
   "tally": {
-    "PASS": 656,
+    "PASS": 655,
     "PARTIAL": 90,
-    "UNBUILT": 173,
-    "NOT-APPLICABLE": 159
+    "UNBUILT": 172,
+    "NOT-APPLICABLE": 159,
+    "FAIL": 2
   }
 }

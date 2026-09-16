@@ -10,6 +10,126 @@ import type { RuleGraphLike } from '../SchemaForm.types'
 import { evaluation, field, form, qualityCases, section, text } from './fixtures'
 
 describe('SchemaForm React projection', () => {
+  it('schema-form.host-readonly-unavailable', () => {
+    const stringify = vi.fn(() => 'must-not-render')
+    const structured = { nested: true, toString: stringify }
+    const view = form([section('details', [
+      field('unknown', 'Unknown', { controlHint: 'future-object', valueKind: 'object' }),
+      field('text', 'Text'),
+      field('secret', 'Secret', { isSensitive: true }),
+    ])])
+    const cut = render(<SchemaForm view={view} values={{ unknown: structured, text: structured, secret: structured }} readOnly onSubmit={vi.fn()} />)
+    expect(cut.container.querySelectorAll('[data-error-code="schema-form.unavailable-value"]')).toHaveLength(2)
+    expect(cut.container.querySelector('#secret')?.textContent).toBe('Hidden')
+    expect(stringify).not.toHaveBeenCalled()
+    expect(cut.container.querySelectorAll('input,select,textarea,button')).toHaveLength(0)
+  })
+  it('renders every visible built-in hint as static harbor inspection output', () => {
+    const visible = [
+      ['text', 'vesselName', 'MV North Star'],
+      ['textarea', 'inspectionScope', 'Annual hull and machinery inspection.'],
+      ['number', 'grossTonnage', 18425.5],
+      ['integer', 'crewCount', 24],
+      ['select', 'inspectionType', 'annual'],
+      ['multiselect', 'systemsReviewed', ['navigation', 'fire']],
+      ['checkbox', 'documentsVerified', true],
+      ['boolean', 'masterAttested', true],
+      ['boolean-toggle', 'followUpRequired', false],
+      ['date', 'inspectionDate', '2026-09-16'],
+      ['datetime', 'inspectionStarted', '2026-09-16T09:30:00-04:00'],
+      ['time', 'highTide', '14:45'],
+      ['currency', 'estimatedCost', 48750.5],
+      ['percentage', 'completion', 92.5],
+      ['phone', 'agentPhone', '+1 410 555 0142'],
+      ['email', 'agentEmail', 'port.agent@example.test'],
+      ['url', 'certificateUrl', 'https://records.example.test/inspections/HLI-2048'],
+      ['readonly', 'applicationStatus', 'Approved for certificate issuance'],
+    ] as const
+    const fields = visible.map(([hint, name]) => field(name, name, {
+      controlHint: hint,
+      ...(hint === 'select' ? { options: [{ value: 'annual', label: text('Annual safety inspection') }] } : {}),
+      ...(hint === 'multiselect' ? { options: [
+        { value: 'navigation', label: text('Navigation') },
+        { value: 'fire', label: text('Fire suppression') },
+      ] } : {}),
+    }))
+    fields.push(field('transportToken', 'Transport token', { controlHint: 'hidden' }))
+    const values = Object.fromEntries([...visible.map(([, name, value]) => [name, value]), ['transportToken', 'kept']])
+    const cut = render(<SchemaForm view={form([section('inspection', fields)])} values={values} readOnly onSubmit={vi.fn()} />)
+
+    const expected = {
+      vesselName: 'MV North Star', inspectionScope: 'Annual hull and machinery inspection.', grossTonnage: '18425.5', crewCount: '24',
+      inspectionType: 'Annual safety inspection', systemsReviewed: 'Navigation, Fire suppression', documentsVerified: 'true',
+      masterAttested: 'true', followUpRequired: 'false', inspectionDate: '2026-09-16', inspectionStarted: '2026-09-16T09:30:00-04:00',
+      highTide: '14:45', estimatedCost: '48750.5', completion: '92.5', agentPhone: '+1 410 555 0142',
+      agentEmail: 'port.agent@example.test', certificateUrl: 'https://records.example.test/inspections/HLI-2048',
+      applicationStatus: 'Approved for certificate issuance',
+    }
+    for (const [id, value] of Object.entries(expected)) expect(cut.container.querySelector(`#${id}`)).toHaveTextContent(value)
+    expect(cut.container.querySelector('input[type="hidden"][name="transportToken"]')).toHaveValue('kept')
+    expect(screen.queryByText('Transport token')).toBeNull()
+    expect(cut.container.querySelectorAll('input:not([type="hidden"]),select,textarea,button[type="submit"]')).toHaveLength(0)
+  })
+
+  it('admits only declared scalar multiselect values in host read-only mode', () => {
+    const stringify = vi.fn(() => 'must-not-render')
+    const options = [{ value: 'navigation', label: text('Navigation') }]
+    const view = form([section('inspection', [
+      field('undeclared', 'Undeclared', { controlHint: 'multiselect', options }),
+      field('structured', 'Structured', { controlHint: 'multiselect', options }),
+    ])])
+    const cut = render(<SchemaForm view={view} values={{ undeclared: ['fire'], structured: [{ toString: stringify }] }} readOnly onSubmit={vi.fn()} />)
+    expect(cut.container.querySelectorAll('[data-error-code="schema-form.unavailable-value"]')).toHaveLength(2)
+    expect(stringify).not.toHaveBeenCalled()
+  })
+  it('suppresses sensitive and unreadable hidden fields before hidden serialization', () => {
+    const stringify = vi.fn(() => 'must-not-render')
+    const view = form([section('details', [
+      field('sensitive', 'Sensitive', { controlHint: 'hidden', isSensitive: true }),
+      field('unreadable', 'Unreadable', { controlHint: 'hidden', isReadable: false }),
+      field('structured', 'Structured', { controlHint: 'hidden' }),
+    ])])
+    const structured = { toString: stringify }
+    const cut = render(<SchemaForm view={view} values={{ sensitive: structured, unreadable: 'secret', structured }} readOnly onSubmit={vi.fn()} />)
+    expect(cut.container).not.toHaveTextContent('Sensitive')
+    expect(cut.container).not.toHaveTextContent('Unreadable')
+    expect(cut.container).not.toHaveTextContent('Structured')
+    expect(cut.container.querySelectorAll('input[type="hidden"]')).toHaveLength(1)
+    expect(cut.container.querySelector('input[type="hidden"][name="structured"]')).toHaveValue('')
+    expect(stringify).not.toHaveBeenCalled()
+  })
+
+  it('uses the first matching label for duplicate multiselect option values', () => {
+    const options = [
+      { value: 'navigation', label: text('Navigation') },
+      { value: 'navigation', label: text('Duplicate') },
+    ]
+    const view = form([section('inspection', [field('systems', 'Systems', { controlHint: 'multiselect', options })])])
+    const cut = render(<SchemaForm view={view} values={{ systems: ['navigation'] }} readOnly onSubmit={vi.fn()} />)
+    expect(cut.container.querySelector('#systems')).toHaveTextContent('Navigation')
+  })
+  it('schema-form.host-readonly', () => {
+    const submit = vi.fn()
+    const changed = vi.fn()
+    const action = vi.fn()
+    const values = Object.freeze({ title: 'Published' })
+    const graph: RuleGraphLike = { evaluateInstance: () => evaluation({ values: [['field:title', { state: 'Resolved', value: 'Computed' }]] }) }
+    const view = form([section('details', [field('title', 'Title')]), section('actions', [], { items: [
+      { kind: 'action', key: 'open', action: { kind: 'open-url', label: text('Open'), url: 'https://example.test' } },
+    ] })])
+    const cut = render(<SchemaForm view={view} values={values} ruleGraph={graph} readOnly onSubmit={submit} onValuesChange={changed} onBlockAction={action} />)
+    expect(cut.container.querySelector('output')?.textContent).toBe('Computed')
+    expect(cut.container.querySelectorAll('input,select,textarea,button[type=submit]')).toHaveLength(0)
+    fireEvent.click(screen.getByRole('button', { name: 'Open' }))
+    expect(action).not.toHaveBeenCalled()
+    fireEvent.submit(cut.container.querySelector('form')!)
+    expect(submit).not.toHaveBeenCalled()
+    expect(changed).not.toHaveBeenCalled()
+    expect(values.title).toBe('Published')
+    cut.rerender(<SchemaForm view={view} values={{ title: 'Published' }} onSubmit={submit} />)
+    expect(screen.getByRole('textbox')).toHaveValue('Published')
+    expect(screen.getByRole('button', { name: 'Submit' })).toBeEnabled()
+  })
   it('consumes every frozen projection-native quality case', () => {
     expect(qualityCases.map(value => value.id)).toEqual([
       'schema-form.quality.field-labelling',
