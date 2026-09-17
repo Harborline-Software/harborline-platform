@@ -236,6 +236,29 @@ public sealed class InMemoryRruleExpansionServiceTests
             new[] { DayOfWeek.Monday, DayOfWeek.Wednesday, DayOfWeek.Friday }));
     }
 
+    [Fact]
+    public void Expand_WeeklyInterval2_ByDay_HonorsIntervalFromStart()
+    {
+        // The anchor is a Wednesday so the test also proves that INTERVAL is
+        // measured across RFC weeks, not seven-day buckets starting at DTSTART.
+        var anchor = new DateOnly(2026, 1, 7);
+        var occurrences = Sut.ExpandOccurrences(
+            rrule: "FREQ=WEEKLY;INTERVAL=2;BYDAY=MO",
+            start: anchor,
+            end: new DateOnly(2026, 2, 9),
+            lookaheadDays: 35,
+            leadDays: 0,
+            today: anchor,
+            timezone: "UTC");
+
+        Assert.Equal(
+            [
+                new DateOnly(2026, 1, 19),
+                new DateOnly(2026, 2, 2),
+            ],
+            occurrences);
+    }
+
     // ----------------------------------------------------------------
     // New: BYDAY ordinal (monthly) — "1MO" = first Monday
     // ----------------------------------------------------------------
@@ -283,6 +306,44 @@ public sealed class InMemoryRruleExpansionServiceTests
         Assert.Equal(new DateOnly(2026, 2, 27), occurrences[1]);
         Assert.Equal(new DateOnly(2026, 3, 27), occurrences[2]);
         Assert.All(occurrences, d => Assert.Equal(DayOfWeek.Friday, d.DayOfWeek));
+    }
+
+    [Fact]
+    public void Expand_MonthlyInterval3_ByMonthDay_HonorsIntervalFromStart()
+    {
+        var anchor = new DateOnly(2026, 1, 1);
+        var occurrences = Sut.ExpandOccurrences(
+            rrule: "FREQ=MONTHLY;INTERVAL=3;BYMONTHDAY=15",
+            start: anchor,
+            end: new DateOnly(2026, 12, 31),
+            lookaheadDays: 365,
+            leadDays: 0,
+            today: anchor,
+            timezone: "UTC");
+
+        Assert.Equal(
+            [
+                new DateOnly(2026, 1, 15),
+                new DateOnly(2026, 4, 15),
+                new DateOnly(2026, 7, 15),
+                new DateOnly(2026, 10, 15),
+            ],
+            occurrences);
+    }
+
+    [Fact]
+    public void Expand_UnsupportedComponent_IsRefused()
+    {
+        var exception = Assert.Throws<NotSupportedException>(() => Sut.ExpandOccurrences(
+            rrule: "FREQ=WEEKLY;BYWEEKNO=2",
+            start: Today,
+            end: Today.AddDays(30),
+            lookaheadDays: 30,
+            leadDays: 0,
+            today: Today,
+            timezone: "UTC"));
+
+        Assert.Contains("BYWEEKNO", exception.Message, StringComparison.Ordinal);
     }
 
     // ----------------------------------------------------------------

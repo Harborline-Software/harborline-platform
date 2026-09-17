@@ -52,7 +52,8 @@ public sealed class FiniteCandidateCompiler
             profile.InputVersion,
             profile.Activities,
             candidates,
-            profile.Precedence);
+            profile.Precedence,
+            profile.FactSetPins);
     }
 
     private static IReadOnlyList<IReadOnlyList<string>> SelectResources(
@@ -116,6 +117,16 @@ public sealed class FiniteCandidateCompiler
 
     private static void Validate(SchedulingProfile profile)
     {
+        var factSetNames = profile.FactSetPins.Select(value => value.FactSet).ToArray();
+        if (factSetNames.Distinct(StringComparer.Ordinal).Count() != factSetNames.Length ||
+            profile.FactSetPins.Any(value =>
+                !PlanningFactSets.Required.Contains(value.FactSet, StringComparer.Ordinal) ||
+                string.IsNullOrWhiteSpace(value.Version)))
+        {
+            throw new UnsupportedProfileException(
+                "Planning fact-set pins must have unique supported names and non-empty versions.");
+        }
+
         var activityIds = profile.Activities.Select(value => value.Id).ToHashSet(StringComparer.Ordinal);
         if (activityIds.Count != profile.Activities.Count || profile.Activities.Any(value => value.DurationSlots <= 0))
         {
