@@ -3,7 +3,10 @@ using System.Text;
 
 namespace Harborline.Foundation.DataExchange;
 
-public readonly record struct DryRunId(string Value);
+public readonly record struct DryRunId(string Value)
+{
+    public static DryRunId New() => new(Guid.NewGuid().ToString("N"));
+}
 public readonly record struct CommitRunId(string Value);
 public readonly record struct BatchIdentity(string Value);
 public readonly record struct EffectIdempotencyIdentity(string Value);
@@ -26,7 +29,21 @@ public sealed record BatchIdentityInputs(
     string ConnectorVersion,
     string SourceFingerprint,
     string InputBoundary,
-    string TargetContract);
+    string TargetContract,
+    string DependencyFingerprint,
+    string MappingProfile,
+    string TransformVersionsFingerprint,
+    string LookupVersionsFingerprint,
+    string MatchingInputsFingerprint,
+    string SelectedBoundary)
+{
+    public static BatchIdentityInputs From(string tenantId, ProposalFingerprint proposal) => new(
+        tenantId, proposal.DefinitionId, proposal.DefinitionVersion, proposal.MappingId,
+        proposal.MappingVersion, proposal.MappingDigest, proposal.ConnectorId, proposal.ConnectorVersion,
+        proposal.SourceFingerprint, proposal.InputBoundary, proposal.TargetContract,
+        proposal.DependencyFingerprint, proposal.MappingProfile, proposal.TransformVersionsFingerprint,
+        proposal.LookupVersionsFingerprint, proposal.MatchingInputsFingerprint, proposal.SelectedBoundary);
+}
 
 /// <summary>Derives opaque versioned identities above any delivery retry loop.</summary>
 public static class ExchangeIdentity
@@ -34,8 +51,8 @@ public static class ExchangeIdentity
     public static BatchIdentity DeriveBatch(BatchIdentityInputs inputs)
     {
         ArgumentNullException.ThrowIfNull(inputs);
-        return new($"hl-batch-v1:{Digest(Join(
-            "v1",
+        return new($"hl-batch-v2:{Digest(Join(
+            "v2",
             inputs.TenantId,
             inputs.DefinitionId,
             inputs.DefinitionVersion,
@@ -46,7 +63,13 @@ public static class ExchangeIdentity
             inputs.ConnectorVersion,
             inputs.SourceFingerprint,
             inputs.InputBoundary,
-            inputs.TargetContract))}");
+            inputs.TargetContract,
+            inputs.DependencyFingerprint,
+            inputs.MappingProfile,
+            inputs.TransformVersionsFingerprint,
+            inputs.LookupVersionsFingerprint,
+            inputs.MatchingInputsFingerprint,
+            inputs.SelectedBoundary))}");
     }
 
     public static EffectIdempotencyIdentity DeriveEffect(
@@ -65,7 +88,7 @@ public static class ExchangeIdentity
 
     private static string Join(params string[] values)
     {
-        if (values.Any(value => value.Contains('|', StringComparison.Ordinal)))
+        if (values.Any(value => string.IsNullOrWhiteSpace(value) || value.Contains('|', StringComparison.Ordinal)))
         {
             throw new ArgumentException("Identity inputs cannot contain the canonical separator.", nameof(values));
         }

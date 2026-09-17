@@ -5,18 +5,7 @@ namespace Harborline.Foundation.DataExchange.Tests;
 
 public sealed class ExchangeIdentityTests
 {
-    private static readonly BatchIdentityInputs Inputs = new(
-        "tenant-a",
-        "exchange.customers",
-        "1.2.0",
-        "mapping.customers",
-        "1.0.0",
-        "sha256:map",
-        "erpnext",
-        "4.1.0",
-        "sha256:source",
-        "rows:1-2",
-        "records.customer/v1");
+    private static readonly BatchIdentityInputs Inputs = BatchIdentityInputs.From("tenant-a", Fixtures.DryRunRequest().Proposal);
 
     [Fact]
     public void Batch_identity_is_a_stable_versioned_digest_of_semantic_inputs()
@@ -24,7 +13,7 @@ public sealed class ExchangeIdentityTests
         var identity = ExchangeIdentity.DeriveBatch(Inputs);
 
         Assert.Equal(
-            "hl-batch-v1:279cd91dfd2a40e77ecf8b3b8d7ef17fd5044f4201946f0f7816631f466d2d9b",
+            "hl-batch-v2:014ccee380886a0e944e30947fc5000f5aa8c94940f688ec8bed061fdfd01575",
             identity.Value);
         Assert.Equal(identity, ExchangeIdentity.DeriveBatch(Inputs));
     }

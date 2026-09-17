@@ -24,7 +24,12 @@ public sealed record DataExchangeAuthoringDraft(
     string ReplayPolicy,
     string ScheduleReference)
 {
-    public static DataExchangeAuthoringDraft Empty { get; } = new("", "", "", "", [], [], [], "idempotent", "");
+    public string FormatCapability { get; init; } = "csv";
+    public string ReferenceDataset { get; init; } = "";
+    public string PackDistribution { get; init; } = "";
+    public string FeedDistribution { get; init; } = "";
+
+    public static DataExchangeAuthoringDraft Empty { get; } = new("", "", "", "", [], [], [], "append", "");
 }
 
 public sealed record DataExchangeAuthoringCatalogue(
@@ -32,7 +37,10 @@ public sealed record DataExchangeAuthoringCatalogue(
     IReadOnlyList<DataExchangeOption> CanonicalTargets,
     IReadOnlyList<DataExchangeOption> Datatypes,
     IReadOnlyList<DataExchangeOption> Transforms,
-    IReadOnlyList<DataExchangeOption> Schedules);
+    IReadOnlyList<DataExchangeOption> Schedules)
+{
+    public IReadOnlyList<DataExchangeOption> Formats { get; init; } = [new("csv", "CSV")];
+}
 
 public sealed record DataExchangeRunCensus(int Applied, int Skipped, int Conflicted, int Rejected, int Failed, int Halted);
 public sealed record DataExchangeRunSummary(
@@ -41,4 +49,7 @@ public sealed record DataExchangeRunSummary(
     bool Stale,
     string CandidateCheckpoint,
     DataExchangeRunCensus Census,
-    IReadOnlyList<string> Refusals);
+    IReadOnlyList<string> Refusals,
+    string? BatchIdentity = null);
+
+public sealed record DataExchangeAuthoringRefusal(string Stage, string Code, string TargetHref);

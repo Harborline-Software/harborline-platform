@@ -11,7 +11,7 @@
     "Customer intake", "files.csv", "2.4.0", "secretref:customer-intake",
     [new("CustomerNumber", true), new("Email", true)],
     [new("CustomerNumber", "records.customer/v1", "/customerNumber", "string", true, "", "", "", "trimToNull")],
-    ["CustomerNumber"], "deduplicate", "schedule.daily");
+    ["CustomerNumber"], "append_dedup", "schedule.daily") { FormatCapability = "csv" };
   private static readonly DataExchangeRunSummary CurrentRun = new("dry-42", "Ready", false, "row:125", new(0, 0, 0, 0, 0, 0), []);
   private DataExchangeRunSummary Run => ScenarioId == "data-exchange.stale-review" ? CurrentRun with { Status = "Stale", Stale = true, Refusals = ["mapping.changed"] } : CurrentRun;
   private (string Title, string Description) Copy => ScenarioId == "data-exchange.stale-review"

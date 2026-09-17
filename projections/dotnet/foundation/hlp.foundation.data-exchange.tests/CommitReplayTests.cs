@@ -6,6 +6,21 @@ namespace Harborline.Foundation.DataExchange.Tests;
 public sealed class CommitReplayTests
 {
     [Fact]
+    public void Every_terminal_outcome_has_closed_replay_correction_acknowledgement_and_visibility_policy()
+    {
+        var policies = Enum.GetValues<ExchangeEffectStatus>()
+            .Select(ExchangeOutcomePolicies.For)
+            .ToArray();
+
+        Assert.Equal(6, policies.Length);
+        Assert.All(policies, policy => Assert.False(string.IsNullOrWhiteSpace(policy.OrdinaryReaderCode)));
+        Assert.True(ExchangeOutcomePolicies.For(ExchangeEffectStatus.Applied).AcknowledgementSafe);
+        Assert.True(ExchangeOutcomePolicies.For(ExchangeEffectStatus.Failed).Retryable);
+        Assert.True(ExchangeOutcomePolicies.For(ExchangeEffectStatus.Conflicted).CorrectionRequired);
+        Assert.False(ExchangeOutcomePolicies.For(ExchangeEffectStatus.Halted).AcknowledgementSafe);
+    }
+
+    [Fact]
     public async Task Partial_commit_advances_only_contiguous_safe_prefix_and_replay_targets_only_failure()
     {
         var runs = new InMemoryExchangeRunStore();
@@ -19,7 +34,7 @@ public sealed class CommitReplayTests
             ],
             CandidateCheckpoint = "cursor:d",
         };
-        var dryRun = await new DataExchangeRuntime(runs, TimeProvider.System).CreateDryRunAsync(request);
+        var dryRun = await new DataExchangeRuntime(runs, TimeProvider.System, new FakeLifecyclePolicy()).CreateDryRunAsync(request);
         var target = new ScriptedTarget(new Dictionary<string, Queue<ExchangeEffectStatus>>
         {
             ["A"] = new([ExchangeEffectStatus.Applied]),
@@ -27,30 +42,25 @@ public sealed class CommitReplayTests
             ["C"] = new([ExchangeEffectStatus.Applied]),
             ["D"] = new([ExchangeEffectStatus.Applied]),
         });
-        var outcomes = new InMemoryEffectOutcomeStore();
         var checkpoints = new InMemoryAcquisitionCheckpointStore();
         var committer = new DataExchangeCommitter(
             runs,
             new RecordingCommitAuthority(true),
             target,
             target,
-            outcomes,
             checkpoints,
             TimeProvider.System,
-            new CommitBounds(100, 4, 64 * 1024));
-        var policy = new AcknowledgementPolicy(
-            new HashSet<ExchangeEffectStatus> { ExchangeEffectStatus.Applied });
+            new CommitBounds(100, 4, 64 * 1024), new FakeProposalEvaluator(), new FakeSourcePolicies(), new FakeLifecyclePolicy(), new FakeTargetRegistry());
 
-        var first = await committer.CommitAsync(dryRun.Id, dryRun.Proposal, policy);
-        var replay = await committer.CommitAsync(dryRun.Id, dryRun.Proposal, policy);
+        var first = await committer.CommitAsync(dryRun.Id);
+        var replay = await committer.CommitAsync(dryRun.Id);
 
         Assert.Equal("cursor:a", first.DurableCheckpoint);
         Assert.Equal("cursor:d", replay.DurableCheckpoint);
         Assert.Equal(first.BatchIdentity, replay.BatchIdentity);
         Assert.NotEqual(first.Id, replay.Id);
-        Assert.Equal(
-            ["A", "B", "C", "D", "B"],
-            target.AppliedSourceIdentities);
+        Assert.Equal(["A", "B", "C", "D"], target.AppliedSourceIdentities.Take(4).Order(StringComparer.Ordinal));
+        Assert.Equal("B", target.AppliedSourceIdentities[4]);
         Assert.Equal(4, replay.Census.Applied);
         Assert.Equal(0, replay.Census.Failed);
         Assert.Equal(ExchangeRunTerminalStatus.Completed, replay.TerminalStatus);
@@ -66,8 +76,9 @@ public sealed class CommitReplayTests
 
 internal sealed class ScriptedTarget(
     IReadOnlyDictionary<string, Queue<ExchangeEffectStatus>> outcomes)
-    : ITargetAccessGate, ICanonicalRecordsCommandPort
+    : FakeTargetCommandPort, ITargetAccessGate, ICanonicalTargetCommandPort
 {
+    private readonly object _gate = new();
     public List<string> AppliedSourceIdentities { get; } = [];
 
     public ValueTask<bool> CanApplyAsync(
@@ -75,13 +86,17 @@ internal sealed class ScriptedTarget(
         CancellationToken cancellationToken = default)
         => ValueTask.FromResult(true);
 
-    public ValueTask<EffectTerminalOutcome> ApplyAsync(
+    public override ValueTask<EffectTerminalOutcome> ApplyAsync(
         CanonicalRecordsCommand command,
         CancellationToken cancellationToken = default)
     {
         var identity = command.Effect.SourceRecordIdentity;
-        AppliedSourceIdentities.Add(identity);
-        var status = outcomes[identity].Dequeue();
+        ExchangeEffectStatus status;
+        lock (_gate)
+        {
+            AppliedSourceIdentities.Add(identity);
+            status = outcomes[identity].Dequeue();
+        }
         return ValueTask.FromResult(new EffectTerminalOutcome(status, $"records.{status.ToString().ToLowerInvariant()}"));
     }
 }

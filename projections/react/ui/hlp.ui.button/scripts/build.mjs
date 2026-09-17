@@ -267,6 +267,7 @@ writeFileSync(resolve(dist, 'style.css'), [
   readFileSync(resolve(root, '../hlp.ui.chat/src/style.css'), 'utf8'),
   readFileSync(resolve(root, '../hlp.ui.data-grid/src/style.css'), 'utf8'),
   readFileSync(resolve(root, '../hlp.ui.view-runtime/src/style.css'), 'utf8'),
+  readFileSync(resolve(root, '../hlp.ui.data-exchange/src/style.css'), 'utf8'),
   readFileSync(resolve(root, '../hlp.ui.gantt/src/style.css'), 'utf8'),
   readFileSync(resolve(root, '../hlp.ui.numeric-text-box/src/style.css'), 'utf8'),
   readFileSync(resolve(root, '../hlp.ui.scroll-affordance/src/style.css'), 'utf8'),
