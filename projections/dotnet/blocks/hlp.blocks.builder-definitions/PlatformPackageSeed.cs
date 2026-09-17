@@ -92,7 +92,29 @@ public static class PlatformPackageSeed
             }, "platform-package-ck-3"),
             Item("platform-package-ck-5", PlatformSeedStage.Workspace, new { id = "platform.workspace.workshop", name = "Workshop" }, "platform-package-ck-4"),
             Item("platform-package-ck-6", PlatformSeedStage.Navigation, new { members = navigation }, "platform-package-ck-5"),
-            Item("platform-package-ck-7", PlatformSeedStage.Views, new { members = pillarViews, listDefaultShape = "table", showInListsOwner = "views" }, "platform-package-ck-6"),
+            Item("platform-package-ck-7", PlatformSeedStage.Views, new
+            {
+                members = pillarViews,
+                listDefaultShape = "table",
+                showInListsOwner = "views",
+                authoring = new
+                {
+                    workspace = "platform.workspace.workshop",
+                    navigationEntry = new
+                    {
+                        id = "platform.navigation.views.author",
+                        pillar = "views",
+                        label = "Create view",
+                        surface = "platform.editor.views",
+                    },
+                    editor = new
+                    {
+                        id = "platform.editor.views",
+                        definitionKind = "ViewDefinition",
+                        projections = new[] { "react", "blazor" },
+                    },
+                },
+            }, "platform-package-ck-6"),
             Item("platform-package-ck-8", PlatformSeedStage.Views, new
             {
                 members = new[]

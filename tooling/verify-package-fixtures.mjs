@@ -1284,7 +1284,7 @@ function verifyViewsCapability() {
   cpSync(resolve(root, 'tests/package-consumers/views-nuget'), engineConsumer, { recursive: true })
   copyFileSync(corpusSource, resolve(engineConsumer, 'views-vertical-cases.json'))
   const engineDirectReferences = assertDirectPackageReferences(engineConsumer, ['Harborline.Blocks.EntityViews'], 'Views engine')
-  const [engineSubstrate, engineBehavior] = proofLines(runNugetConsumer(engineConsumer, enginePackageCache), ['VIEWS_PACKAGE_PASS:', 'VIEWS_CAPABILITY_PASS:'], 'Views engine')
+  const [engineSubstrate, engineBehavior, authoredBoundBehavior] = proofLines(runNugetConsumer(engineConsumer, enginePackageCache), ['VIEWS_PACKAGE_PASS:', 'VIEWS_CAPABILITY_PASS:', 'VIEWS_AUTHORED_BOUND_PASS:'], 'Views engine')
   assertPackageClosure(
     engineConsumer,
     ['Harborline.Blocks.EntityViews', 'Harborline.Contracts'],
@@ -1292,18 +1292,28 @@ function verifyViewsCapability() {
     /Forms.*(?:Builder|Authoring)|(?:Builder|Authoring).*Forms/i,
   )
 
+  const blazorConsumer = resolve(fixtureRoot, 'views-blazor-nuget-consumer')
+  const blazorPackageCache = resolve(fixtureRoot, 'views-blazor-nuget-packages')
+  cpSync(resolve(root, 'tests/package-consumers/views-blazor-nuget'), blazorConsumer, { recursive: true })
+  const blazorDirectReferences = assertDirectPackageReferences(blazorConsumer, ['Harborline.UIAdapters.Blazor'], 'Views Blazor authoring')
+  const [blazorAuthoringBehavior] = proofLines(runNugetConsumer(blazorConsumer, blazorPackageCache), ['VIEWS_BLAZOR_AUTHORING_PASS:'], 'Views Blazor package-only authoring lane')
+  assertPackageClosure(blazorConsumer, ['Harborline.UIAdapters.Blazor', 'Harborline.Foundation', 'Harborline.Contracts'], 'Views Blazor authoring')
+
   return {
     id: 'views-capability-vertical',
     status: 'PASS',
     corpusCases,
     corpusSha256: sha256(corpusSource),
     rendererArtifacts: ['@harborline-software/ui-react'],
+    blazorDirectPackageReferences: blazorDirectReferences,
     engineDirectPackageReferences: engineDirectReferences,
     crossLaneVerdicts: clientVerdicts.length,
     sourceOrProjectDependencies: 0,
     rendererBehavior,
     engineBehavior,
     engineSubstrate,
+    authoredBoundBehavior,
+    blazorAuthoringBehavior,
   }
 }
 
