@@ -165,6 +165,27 @@ public sealed class MigrationHardeningTests
     }
 
     [Fact]
+    public async Task SaveAsync_SchemaRuleEvaluatesThePrunedCandidateThatIsPersisted()
+    {
+        var harness = await FormEngineOrchestrationTests.Harness.CreateAsync(
+            schemaJson: """{"type":"object","additionalProperties":true}""",
+            definitionFactory: PrunedRuleCandidateDefinition);
+        using var hidden = JsonDocument.Parse("""{"trigger":"hide","evidence":"approved"}""");
+
+        var refusal = await Assert.ThrowsAsync<FormEngineValidationException>(async () =>
+            await harness.Engine.SubmitAsync(new(harness.Definition.Id, hidden, "hidden-evidence")));
+
+        var ruleError = Assert.Single(refusal.Errors, row => row.Code.HasValue && row.Code.Value == "requires-evidence");
+        Assert.Equal("/evidence", ruleError.JsonPointer);
+        Assert.Equal((0, 0, 0, 0), await harness.Store.CountsAsync());
+
+        using var visible = JsonDocument.Parse("""{"trigger":"show","evidence":"approved"}""");
+        await harness.Engine.SubmitAsync(new(harness.Definition.Id, visible, "visible-evidence"));
+
+        Assert.Equal((1, 1, 0, 1), await harness.Store.CountsAsync());
+    }
+
+    [Fact]
     public async Task ValidateAndSave_RuleTimeout_FailsClosed_NotSchemaOnly()
     {
         var schemas = new ControlledSchemaRegistry((_, _, _) =>
@@ -253,6 +274,25 @@ public sealed class MigrationHardeningTests
                     new("validate-name", State.RuleTier.JsonLogic, State.RuleScope.Field, "name", "{\"==\":[{\"var\":\"name\"},\"Ada\"]}", State.RuleActionKind.Validate),
                 ],
             },
+        };
+    }
+
+    private static State.FormDefinition PrunedRuleCandidateDefinition(string schema, TenantId tenant)
+    {
+        var original = FormEngineOrchestrationTests.Harness.CreateDefinition(schema, tenant);
+        return original with
+        {
+            Overlay = new(
+                new Dictionary<string, State.FieldOverlay>(StringComparer.Ordinal)
+                {
+                    ["trigger"] = new(State.InternationalizedText.FromInvariant("Trigger")),
+                    ["evidence"] = new(State.InternationalizedText.FromInvariant("Evidence")),
+                },
+                [new("main", State.InternationalizedText.FromInvariant("Main"), ["trigger", "evidence"], new([], [Harborline.Contracts.Authorization.RoleReference.Domain("admin")]))],
+                [
+                    new("show-evidence", State.RuleTier.JsonLogic, State.RuleScope.Field, "evidence", "{\"==\":[{\"var\":\"trigger\"},\"show\"]}", State.RuleActionKind.Visibility),
+                    new("requires-evidence", State.RuleTier.JsonLogic, State.RuleScope.Schema, "", "{\"==\":[{\"var\":\"evidence\"},\"approved\"]}", State.RuleActionKind.Validate),
+                ]),
         };
     }
 

@@ -54,9 +54,22 @@ internal static class FormCandidateEvaluator
         var readOnly = new HashSet<string>(StringComparer.Ordinal);
 
         ApplyWriteAuthorization(scope, definition, objectNode, errors);
-        var rules = EvaluateRules(definition, objectNode, clock, cancellationToken);
-        var hiddenPages = ApplyRuleProjection(definition, objectNode, rules, hidden, readOnly, errors, cancellationToken);
-        foreach (var key in hidden) objectNode.Remove(key);
+
+        // Visibility and page guards decide which submitted members survive materialisation. Keep
+        // pruning monotonic, then evaluate every rule outcome against that one final candidate. A
+        // validation result from the raw submission must never authorize a different document.
+        RuleEvaluationResult? rules;
+        while (true)
+        {
+            rules = EvaluateRules(definition, objectNode, clock, cancellationToken);
+            ApplyRuleProjection(definition, objectNode, rules, hidden, readOnly, errors, includeOutcomes: false, cancellationToken);
+            var removed = false;
+            foreach (var key in hidden) removed |= objectNode.Remove(key);
+            if (!removed) break;
+        }
+
+        rules = EvaluateRules(definition, objectNode, clock, cancellationToken);
+        ApplyRuleProjection(definition, objectNode, rules, hidden, readOnly, errors, includeOutcomes: true, cancellationToken);
 
         var acceptedBytes = JsonSerializer.SerializeToUtf8Bytes(objectNode);
         SchemaValidationResult schemaResult;
@@ -114,6 +127,7 @@ internal static class FormCandidateEvaluator
         HashSet<string> hidden,
         HashSet<string> readOnly,
         List<Contract.ValidationError> errors,
+        bool includeOutcomes,
         CancellationToken cancellationToken)
     {
         var hiddenPages = new HashSet<string>(StringComparer.Ordinal);
@@ -131,8 +145,6 @@ internal static class FormCandidateEvaluator
                 var field = target["field:".Length..];
                 if (!state.Visible) hidden.Add(field);
                 if (state.ReadOnly) readOnly.Add(field);
-                if (state.Required && state.Visible && !state.ReadOnly && IsEmpty(candidate, field))
-                    errors.Add(Error($"/{EscapePointer(field)}", "The field is required.", Contract.ValidationErrorKind.Schema, "required", new Dictionary<string, string> { ["field"] = field }));
             }
             else if (target.StartsWith("section:", StringComparison.Ordinal) && !state.Visible)
                 hiddenSections.Add(target["section:".Length..]);
@@ -143,12 +155,23 @@ internal static class FormCandidateEvaluator
         EvaluatePageGuards(definition, candidate, hiddenPages, hiddenSections, cancellationToken);
         ExpandHiddenSections(definition, hiddenSections, hidden);
 
+        if (!includeOutcomes) return hiddenPages;
+
         foreach (var (target, computed) in result.Values)
         {
             if (!target.StartsWith("field:", StringComparison.Ordinal)) continue;
             var field = target["field:".Length..];
+            if (hidden.Contains(field)) continue;
             if (computed.State == ValueState.Resolved) candidate[field] = computed.Value?.DeepClone();
             else errors.Add(Error($"/{EscapePointer(field)}", "A calculated value could not be resolved.", Contract.ValidationErrorKind.Schema, computed.Error?.Code ?? "rule.unresolved", computed.Error?.Params));
+        }
+
+        foreach (var (target, state) in result.Visibility)
+        {
+            if (!target.StartsWith("field:", StringComparison.Ordinal)) continue;
+            var field = target["field:".Length..];
+            if (state.Required && state.Visible && !state.ReadOnly && IsEmpty(candidate, field))
+                errors.Add(Error($"/{EscapePointer(field)}", "The field is required.", Contract.ValidationErrorKind.Schema, "required", new Dictionary<string, string> { ["field"] = field }));
         }
 
         foreach (var outcome in result.Validations)
@@ -156,6 +179,7 @@ internal static class FormCandidateEvaluator
             if (outcome.Validity is not { Ok: false } validity) continue;
             var pointer = TargetPointer(outcome.Target.Key);
             if (pointer.Length > 1 && hidden.Contains(pointer[1..])) continue;
+            if (pointer.Length == 0) pointer = MissingReferencedFieldPointer(definition, outcome.RuleId, candidate);
             var boundPages = definition.Overlay.Pages?.Where(page => page.Checks?.Contains(outcome.RuleId, StringComparer.Ordinal) == true).ToArray() ?? [];
             var onlyHiddenPageCheck = boundPages.Length > 0 && boundPages.All(page => hiddenPages.Contains(page.Id));
             if (onlyHiddenPageCheck) continue;
@@ -164,6 +188,55 @@ internal static class FormCandidateEvaluator
         if (result.HasPending)
             errors.Add(Error("", "A calculated value is pending.", Contract.ValidationErrorKind.ResourceBound, "rule.pending"));
         return hiddenPages;
+    }
+
+    private static string MissingReferencedFieldPointer(State.FormDefinition definition, string ruleId, JsonObject candidate)
+    {
+        var rule = definition.Overlay.Rules.FirstOrDefault(row => string.Equals(row.Id, ruleId, StringComparison.Ordinal));
+        if (rule is null) return "";
+        JsonNode? expression;
+        try { expression = JsonNode.Parse(rule.Expression); }
+        catch (JsonException) { return ""; }
+        var field = ReferencedFields(expression).FirstOrDefault(name => !candidate.ContainsKey(name));
+        return field is null ? "" : "/" + EscapePointer(field);
+    }
+
+    private static IEnumerable<string> ReferencedFields(JsonNode? node)
+    {
+        switch (node)
+        {
+            case JsonObject obj when obj.TryGetPropertyValue("var", out var variable):
+            {
+                var path = variable switch
+                {
+                    JsonValue value when value.TryGetValue<string>(out var text) => text,
+                    JsonArray { Count: > 0 } array when array[0] is JsonValue value && value.TryGetValue<string>(out var text) => text,
+                    _ => null,
+                };
+                var field = path switch
+                {
+                    null or "" or "self" => null,
+                    _ when path.StartsWith("field.", StringComparison.Ordinal) => path["field.".Length..],
+                    _ when path.StartsWith("parent.", StringComparison.Ordinal) => path["parent.".Length..],
+                    _ when path.StartsWith("section.", StringComparison.Ordinal) && path["section.".Length..].IndexOf('.', StringComparison.Ordinal) is var dot and >= 0
+                        => path[("section.".Length + dot + 1)..],
+                    _ when path.StartsWith("row.", StringComparison.Ordinal) || path.StartsWith("table.", StringComparison.Ordinal) => null,
+                    _ => path,
+                };
+                if (field is not null) yield return field;
+                foreach (var child in obj.Select(row => row.Value))
+                    foreach (var nested in ReferencedFields(child)) yield return nested;
+                break;
+            }
+            case JsonObject obj:
+                foreach (var child in obj.Select(row => row.Value))
+                    foreach (var nested in ReferencedFields(child)) yield return nested;
+                break;
+            case JsonArray array:
+                foreach (var child in array)
+                    foreach (var nested in ReferencedFields(child)) yield return nested;
+                break;
+        }
     }
 
     private static void ExpandHiddenSections(
