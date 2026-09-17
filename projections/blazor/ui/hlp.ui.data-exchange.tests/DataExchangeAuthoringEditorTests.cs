@@ -23,6 +23,8 @@ public sealed class DataExchangeAuthoringEditorTests : BunitContext
             .Add(component => component.Value, DataExchangeAuthoringDraft.Empty)
             .Add(component => component.Catalogue, Catalogue)
             .Add(component => component.CanCommit, false)
+            .Add(component => component.CanPublish, true)
+            .Add(component => component.AuthoringRefusals, [new("definition", "mapping.target_forbidden", "/definitions/records.customer")])
             .Add(component => component.ValueChanged, value => changed = value)
             .Add(component => component.DiscoverSource, () => discovered++)
             .Add(component => component.CreateDryRun, () => dryRuns++));
@@ -32,6 +34,12 @@ public sealed class DataExchangeAuthoringEditorTests : BunitContext
         Assert.Contains("1.0.0", cut.Markup);
         Assert.NotNull(cut.Find("input[aria-label='Secret reference']"));
         Assert.Empty(cut.FindAll("input[aria-label='Password']"));
+        Assert.NotNull(cut.Find("select[aria-label='Format']"));
+        Assert.Equal(["append", "overwrite", "append_dedup"],
+            cut.Find("select[aria-label='Replay policy']").Children.Select(option => option.GetAttribute("value")));
+        Assert.NotNull(cut.Find("input[aria-label='Reference dataset']"));
+        Assert.True(cut.FindAll("button").Single(button => button.TextContent == "Publish definition").HasAttribute("disabled"));
+        Assert.Equal("/definitions/records.customer", cut.Find("a").GetAttribute("href"));
 
         cut.Find("input[aria-label='Definition name']").Change("Customer import");
         Assert.Equal("Customer import", changed?.Name);
