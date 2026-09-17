@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Nodes;
 
 using Harborline.Foundation.RuleEngine.Compilation;
@@ -161,11 +162,25 @@ public static class DecisionTableCompiler
             if (row.When.Count != skin.Inputs.Count)
                 throw Reject(SkinCodes.DecisionTableBadRow, id,
                     $"row {r} has {row.When.Count} cell(s) but the table declares {skin.Inputs.Count} input column(s)");
-            foreach (var cell in row.When)
+            for (int c = 0; c < row.When.Count; c++)
             {
+                var cell = row.When[c];
+                string input = skin.Inputs[c];
+                if (!Enum.IsDefined(cell.Kind))
+                    throw Reject(SkinCodes.DecisionTableBadCell, id,
+                        $"row {r} input '{input}' has unknown cell kind '{cell.Kind}'");
                 if (cell.Kind == CellKind.Compare && (cell.Op is null || !DecisionCell.CompareOps.Contains(cell.Op)))
                     throw Reject(SkinCodes.DecisionTableBadCell, id,
-                        $"row {r} has a compare cell with an unsupported operator '{cell.Op}' (allowed: {string.Join(", ", DecisionCell.CompareOps)})");
+                        $"row {r} input '{input}' has a compare cell with an unsupported operator '{cell.Op}' (allowed: {string.Join(", ", DecisionCell.CompareOps)})");
+                if (cell.Kind == CellKind.Range)
+                {
+                    if (!IsNumericBound(cell.RangeLoInclusive))
+                        throw Reject(SkinCodes.DecisionTableBadCell, id,
+                            $"row {r} input '{input}' has a malformed lower range bound");
+                    if (!IsNumericBound(cell.RangeHiExclusive))
+                        throw Reject(SkinCodes.DecisionTableBadCell, id,
+                            $"row {r} input '{input}' has a malformed upper range bound");
+                }
             }
         }
 
@@ -189,9 +204,12 @@ public static class DecisionTableCompiler
         }
         else if (skin.NoMatch.RequireCatchAll)
         {
-            // The LAST catch-all row (in evaluation order) is the terminal else; earlier rows still cascade.
+            // The FIRST catch-all in evaluation order is the terminal else. Rows after it can never
+            // win, while rows before it retain their declared hit-policy precedence. Extracting a
+            // later catch-all would move an earlier wildcard behind conditional rows and change the
+            // winning row.
             int catchAllIdx = -1;
-            for (int i = ordered.Count - 1; i >= 0; i--)
+            for (int i = 0; i < ordered.Count; i++)
             {
                 if (IsCatchAll(ordered[i])) { catchAllIdx = i; break; }
             }
@@ -199,7 +217,7 @@ public static class DecisionTableCompiler
                 throw Reject(SkinCodes.NoMatchUnresolved, id,
                     "hit policy requires a catch-all row (all-Any cells) but none is present — a silent null on no-match is forbidden (ADR 0146 D2, board F1)");
             terminalElse = ordered[catchAllIdx].Output?.DeepClone();
-            cascadeRows = ordered.Where((_, i) => i != catchAllIdx).ToList();
+            cascadeRows = ordered.Take(catchAllIdx).ToList();
         }
         else
         {
@@ -227,6 +245,9 @@ public static class DecisionTableCompiler
     }
 
     private static bool IsCatchAll(DecisionRow row) => row.When.All(c => c.Kind == CellKind.Any);
+
+    private static bool IsNumericBound(JsonNode? bound)
+        => bound is null || bound is JsonValue value && value.GetValueKind() == JsonValueKind.Number;
 
     /// <summary>The AND of every non-wildcard cell in the row. An all-wildcard row's condition is the
     /// boolean literal <c>true</c> (it always fires) — only reached when a declared default coexists.</summary>
@@ -266,7 +287,7 @@ public static class DecisionTableCompiler
                 return lo ?? hi; // an open-ended range with neither bound is a wildcard (null)
             }
             default:
-                return null;
+                throw new InvalidOperationException($"unvalidated decision-table cell kind '{cell.Kind}'");
         }
     }
 

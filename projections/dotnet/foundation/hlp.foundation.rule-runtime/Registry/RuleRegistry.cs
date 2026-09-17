@@ -119,6 +119,15 @@ public sealed record RulePin(string Tenant, string RuleKey, string Version);
 /// <param name="Definition">The rule definition compiled by the evaluator.</param>
 public sealed record PublishedRuleVersion(string RuleKey, string Version, bool IsDraft, RuleDefinition Definition);
 
+/// <summary>An equal rule version was presented with a different immutable body.</summary>
+public sealed class RuleVersionConflictException(string tenant, string ruleKey, string version)
+    : InvalidOperationException($"rule publish refused: '{tenant}/{ruleKey}@{version}' already has a different body")
+{
+    public string Tenant { get; } = tenant;
+    public string RuleKey { get; } = ruleKey;
+    public string Version { get; } = version;
+}
+
 /// <summary>
 /// The named-rule registry (ADR 0146 D5 / Wave 1): resolve a rule by <c>(tenant, rule-key)</c> under
 /// a version policy. Composes shipped patterns, no new primitive — the S-8 monotonic watermark
@@ -161,6 +170,7 @@ public sealed class RuleRegistry : IRuleRegistry
     {
         ArgumentNullException.ThrowIfNull(tenant);
         ArgumentNullException.ThrowIfNull(published);
+        RuleVersion.Validate(published.Version);
         lock (_gate)
         {
             var key = (tenant, published.RuleKey);
@@ -168,7 +178,12 @@ public sealed class RuleRegistry : IRuleRegistry
             {
                 _store[key] = versions = new Dictionary<string, PublishedRuleVersion>(StringComparer.Ordinal);
             }
-            versions[published.Version] = published; // idempotent upsert (CRDT record)
+            if (versions.TryGetValue(published.Version, out var existing))
+            {
+                if (existing == published) return;
+                throw new RuleVersionConflictException(tenant, published.RuleKey, published.Version);
+            }
+            versions.Add(published.Version, published);
         }
     }
 

@@ -249,6 +249,27 @@ public sealed class RuleEngineUnitTests
         Assert.Equal("v.pos", result.Validations[0].Validity!.Error!.Code);
     }
 
+    [Fact]
+    public void Broken_required_rule_produces_one_refusing_validity_outcome()
+    {
+        var rule = RuleDefinitionFactory.Create(
+            "req.broken",
+            RuleTier.JsonLogic,
+            RuleScope.Field,
+            "name",
+            "{\"/\":[1,0]}",
+            RuleActionKind.Required);
+
+        var result = Graph(new[] { rule }).EvaluateInstance(new RuleInstance());
+
+        var refusal = Assert.Single(result.Validations);
+        Assert.Equal("req.broken", refusal.RuleId);
+        Assert.Equal(RuleEngineCodes.DivByZero, refusal.Validity!.Error!.Code);
+        Assert.Equal("req.broken", refusal.Validity.Error.Params["rule"]);
+        Assert.True(result.IsSaveBlocked);
+        Assert.False(result.Visibility.ContainsKey(CellAddress.Field("name").Key));
+    }
+
     // ── visibility merge ──────────────────────────────────────────────────────
 
     [Fact]

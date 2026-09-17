@@ -197,20 +197,20 @@ public sealed class FormEngine : IFormEngine
 
     private async ValueTask<FormCandidateEvaluation> EvaluateAsync(FormExecutionScope scope, State.FormDefinition definition, JsonDocument candidate, CancellationToken cancellationToken)
     {
-        try { return await FormCandidateEvaluator.EvaluateAsync(scope, definition, candidate, _schemas, _options.MaximumCandidateBytes, cancellationToken).ConfigureAwait(false); }
+        try { return await FormCandidateEvaluator.EvaluateAsync(scope, definition, candidate, _schemas, _options.MaximumCandidateBytes, _clock, cancellationToken).ConfigureAwait(false); }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch (Exception ex) when (ex is RuleEngineTimeoutException or TimeoutException) { throw new FormEngineResourceBoundException(ex); }
         catch (RuleCompilationException ex) { throw new FormEngineValidationException([new Contract.ValidationError { JsonPointer = "", Message = "A form rule could not be compiled.", Kind = Contract.ValidationErrorKind.Schema, Code = ex.Code }]); }
         catch (Exception ex) { throw new FormEngineProviderUnavailableException(ex); }
     }
 
-    private static RuleEvaluationResult? EvaluateRenderRules(State.FormDefinition definition, JsonDocument candidate, CancellationToken cancellationToken)
+    private RuleEvaluationResult? EvaluateRenderRules(State.FormDefinition definition, JsonDocument candidate, CancellationToken cancellationToken)
     {
         if (definition.Overlay.Rules.Count == 0 || candidate.RootElement.ValueKind != JsonValueKind.Object) return null;
         try
         {
             var compiled = RuleCompiler.Compile(definition.Overlay.Rules.Select(FormContractMapper.ToContractRule).ToArray());
-            return compiled.RuleCount == 0 ? null : new FormRuleGraph(compiled).EvaluateInstance(RuleInstance.FromJson(JsonNode.Parse(candidate.RootElement.GetRawText())!.AsObject()), cancellationToken);
+            return compiled.RuleCount == 0 ? null : new FormRuleGraph(compiled, clock: _clock).EvaluateInstance(RuleInstance.FromJson(JsonNode.Parse(candidate.RootElement.GetRawText())!.AsObject()), cancellationToken);
         }
         catch (Exception ex) when (ex is RuleCompilationException or RuleEngineTimeoutException) { throw new FormEngineProviderUnavailableException(ex); }
     }

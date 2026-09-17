@@ -1,3 +1,7 @@
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
+
 using Harborline.Foundation.RuleEngine.Compilation;
 using Harborline.Foundation.RuleEngine.Skins;
 
@@ -40,8 +44,13 @@ public static class PublishAdmission
     /// only then mints + commits the next version. Publish is a control change — callers gate this
     /// behind a human CP confirm (§5.2).
     /// </summary>
-    public static async Task<PublishOutcome> PublishRuleAsync(RuleCatalog catalog, string ruleKey, RuleDraft draft)
+    public static async Task<PublishOutcome> PublishRuleAsync(
+        RuleCatalog catalog,
+        string ruleKey,
+        RuleDraft draft,
+        string requestId)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(requestId);
         // Surface-level F1 gate (design §2.3): a BLANK Otherwise default compiles (an empty string
         // is a legal else-value), so the skin compiler alone does not reject it — the fence must.
         // Block publish with the same stable code the compiler raises for the catch-all path.
@@ -53,19 +62,26 @@ public static class PublishAdmission
         RuleDefinition definition;
         try
         {
-            // The admission compile fence — the SINGLE source of F1 / undeclared-ref rejection.
+            // Skin admission is followed by the full compiler admission used by preview, including
+            // grammar and every static resource bound. Both run before any catalog access.
             definition = SkinLowering.CompileDraft(draft, ruleKey);
+            _ = RuleCompiler.Compile(new[] { definition });
         }
         catch (RuleCompilationException e)
         {
             return PublishOutcome.Failure(e.Code, e.Message);
         }
 
-        var rule = await catalog.LoadRuleAsync(ruleKey).ConfigureAwait(false);
-        if (rule is null) return PublishOutcome.Failure(NotFoundCode, $"rule '{ruleKey}' not found");
-        string version = RuleCatalog.NextVersion(rule);
-        await catalog.CommitPublishedVersionAsync(ruleKey, version, draft).ConfigureAwait(false);
-        return PublishOutcome.Success(version, definition);
+        string bodyHash = Convert.ToHexString(SHA256.HashData(
+            Encoding.UTF8.GetBytes(JsonSerializer.Serialize(definition)))).ToLowerInvariant();
+        var committed = await catalog.AllocatePublishedVersionAsync(
+            ruleKey,
+            requestId,
+            draft,
+            bodyHash).ConfigureAwait(false);
+        if (committed.Disposition == RulePublishCommitDisposition.NotFound)
+            return PublishOutcome.Failure(NotFoundCode, $"rule '{ruleKey}' not found");
+        return PublishOutcome.Success(committed.Version!, definition);
     }
 
     /// <summary>

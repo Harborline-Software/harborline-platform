@@ -55,7 +55,7 @@ public sealed class CatalogRegistryTests
     public async Task PublishesResolvedTableThroughAdmissionFenceAndMintsSequentialVersions()
     {
         await _catalog.CreateRuleAsync("route", "Route", RuleSkinType.Table, ResolvedTable());
-        var first = await PublishAdmission.PublishRuleAsync(_catalog, "route", ResolvedTable());
+        var first = await PublishAdmission.PublishRuleAsync(_catalog, "route", ResolvedTable(), "publish-1");
         Assert.True(first.Ok);
         Assert.Equal("1.0.0", first.Version);
         var summary = (await _catalog.ListRulesAsync()).Single(r => r.RuleKey == "route");
@@ -64,7 +64,7 @@ public sealed class CatalogRegistryTests
 
         // an edit → new draft → publish mints the next patch version
         await _catalog.SaveDraftAsync("route", ResolvedTable());
-        var second = await PublishAdmission.PublishRuleAsync(_catalog, "route", ResolvedTable());
+        var second = await PublishAdmission.PublishRuleAsync(_catalog, "route", ResolvedTable(), "publish-2");
         Assert.True(second.Ok);
         Assert.Equal("1.0.1", second.Version);
         summary = (await _catalog.ListRulesAsync()).Single(r => r.RuleKey == "route");
@@ -76,7 +76,7 @@ public sealed class CatalogRegistryTests
     {
         var unresolved = ResolvedTable() with { NoMatch = new NoMatchPosture.Default("") };
         await _catalog.CreateRuleAsync("bad", "Bad", RuleSkinType.Table, unresolved);
-        var outcome = await PublishAdmission.PublishRuleAsync(_catalog, "bad", unresolved);
+        var outcome = await PublishAdmission.PublishRuleAsync(_catalog, "bad", unresolved, "publish-bad");
         Assert.False(outcome.Ok);
         Assert.Equal(SkinCodes.NoMatchUnresolved, outcome.Code);
         // nothing was committed

@@ -68,6 +68,7 @@ public sealed class GridValidationTests
             candidate,
             schemas,
             FormEngineOptions.DefaultMaximumCandidateBytes,
+            TimeProvider.System,
             CancellationToken.None);
     }
 
