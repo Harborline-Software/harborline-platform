@@ -9,7 +9,7 @@ public sealed class DryRunEvidenceTests
     public async Task Dry_run_persists_immutable_policy_owned_evidence_outside_the_definition()
     {
         var store = new InMemoryExchangeRunStore();
-        var runtime = new DataExchangeRuntime(store, TimeProvider.System);
+        var runtime = new DataExchangeRuntime(store, TimeProvider.System, new FakeLifecyclePolicy());
         var request = Fixtures.DryRunRequest();
 
         var first = await runtime.CreateDryRunAsync(request);
@@ -57,7 +57,8 @@ internal static partial class Fixtures
             "erpnext",
             "4.1.0",
             "records.customer/v1",
-            "sha256:dependencies"),
+            "sha256:dependencies", TabularMappingProfile.Family, "sha256:transforms-v1",
+            "sha256:lookups-v1", "sha256:matches", "selection:all"),
         [
             new ProposedEffect(
                 1,
@@ -77,6 +78,5 @@ internal static partial class Fixtures
         "cursor:b",
         "snapshot://protected/source-1",
         "auth-context://review-7",
-        "standard-7y",
-        new DateTimeOffset(2033, 9, 17, 12, 0, 0, TimeSpan.Zero));
+        "standard-7y");
 }

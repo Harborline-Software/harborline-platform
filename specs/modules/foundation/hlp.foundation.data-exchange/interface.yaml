@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.foundation.data-exchange",
-  "interfaceRevision": 1,
+  "interfaceRevision": 2,
   "status": "frozen",
   "purpose": "Own the inbound-only Data Exchange definition, constrained CSVW mapping profile, immutable tenant run evidence, distinct replay identities, bounded canonical Records command orchestration, target Access gate, effect ledger, and conservative checkpoint promotion required by ADR 0098.",
   "dependencies": [],
@@ -11,23 +11,23 @@
       "TabularMappingAdmission.Validate -> accept hl:tabular-mapping/v1 with immutable schema identity and supported CSVW terms; refuse unknown profile/schema/major/hl extension or non-canonical target",
       "IDataExchangeDefinitionStore -> immutable draft/publish/restore history and published definition pack export; credentials, cursors and retention overrides refuse",
       "DataExchangeRuntime.CreateDryRunAsync -> persist a new immutable tenant review artifact with proposal fingerprints, normalized evidence, candidate checkpoint, protected snapshot reference and policy-owned lifecycle",
-      "DataExchangeCommitter.CommitAsync -> stale-input refusal, commit permission, per-effect target Access, stable batch/effect identity, fresh attempt identity, bounded canonical command dispatch, authoritative effect outcomes, eligible unresolved replay and contiguous acknowledgement-safe checkpoint promotion",
+      "DataExchangeCommitter.CommitAsync(DryRunId, CommitOptions?, CancellationToken) -> reevaluate via IProposalEvaluationPort; stale preimage creates a linked superseding dry run and refuses; resolve mandatory source outcome policy; bounded dispatch and exact census closure",
       "DataExchangePermissions -> closed author, dry-run, commit and read-run-results capability vocabulary; target Access remains independent"
     ],
-    "context": "Definitions are portable pack content. Run artifacts, effect outcomes and checkpoints are operational tenant state outside packs. Hosts provide durable adapters for run evidence, target authorization/command dispatch, effect outcomes and checkpoint state."
+    "context": "Definitions are portable pack content. Runs and checkpoints are operational tenant state. Hosts provide trusted proposal evaluation, source policies, lifecycle policy, target registry and durable storage. The canonical target command port owns its outcome ledger and target transactions."
   },
   "invariants": [
     "Data Exchange is inbound-only; no export or global undo surface exists.",
     "CSVW terms keep CSVW semantics; application execution behavior uses only the closed hl: extension vocabulary.",
     "Mappings terminate at versioned canonical Records contracts and refuse connector-private or persistence targets.",
-    "Dry-run and commit artifacts are separate immutable identities; reevaluation creates a new DryRunId and replay creates a new CommitRunId while preserving BatchIdentity.",
+    "Dry runs and commits are immutable. Semantic drift creates a SupersedesDryRunId-linked review; eligible replay preserves BatchIdentity.",
     "AttemptId never participates in batch or effect idempotency derivation.",
     "Proposal-affecting drift refuses before authority or target dispatch and never mutates the reviewed dry run.",
-    "Commit authority is necessary and never sufficient: each effect independently passes target Access and target command handling.",
-    "Replay preserves non-retryable resolved effects and dispatches only eligible Failed or Halted effects.",
+    "Commit authority is necessary and never sufficient: per-effect Access precedes ICanonicalTargetCommandPort, whose execute/correct-and-record calls receive tenant/actor/authorization context and independently authorize, validate, audit and transact target effect plus outcome atomically.",
+    "Source capability policy explicitly names acknowledgement-safe and retryable outcomes; missing/unknown metadata refuses. Only eligible unresolved Failed/Halted outcomes may retry.",
     "Durable checkpoint state advances only through the maximal contiguous source-defined acknowledgement-safe prefix.",
     "Ordinary evidence contains normalized metadata and protected payload references, never embedded raw source or full proposed payloads.",
-    "Retention class and RetainUntil are run lifecycle inputs; definitions cannot choose or weaken them.",
+    "DryRunRequest accepts only a string RetentionClass; caller RetainUntil is refused. IRunLifecyclePolicyPort derives retention for each run; stored or current legal hold prevents disposition.",
     "The terminal outcome vocabulary is Applied, Skipped, Conflicted, Rejected, Failed and Halted; CompletedWithRefusals is distinct from clean completion."
   ],
   "errors": [
@@ -46,7 +46,15 @@
     "commit.forbidden",
     "commit.window_exceeded",
     "commit.command_payload_exceeded",
-    "target.access_refused"
+    "target.access_refused",
+    "commit.outcome_policy_unknown",
+    "run.outcome_unknown",
+    "run.terminal_unknown",
+    "run.terminal_inconsistent",
+    "run.census_incomplete",
+    "commit.rollback_refused",
+    "target.contract_unregistered",
+    "run.ledger_mismatch"
   ],
   "publicSeams": [
     "definition lifecycle and pack-export port",
@@ -54,14 +62,25 @@
     "immutable run-evidence port",
     "exchange commit authority port",
     "target Access gate",
-    "canonical Records command port",
-    "effect-outcome ledger port",
     "acquisition-checkpoint port",
-    "injected clock"
+    "injected clock",
+    "IProposalEvaluationPort.EvaluateAsync -> current DryRunRequest from trusted semantic dependency/effect evaluation",
+    "ISourceOutcomePolicyPort.ResolveAsync -> named AcknowledgementPolicy with SafeOutcomes and RetryableOutcomes, or null for unknown policy",
+    "ExchangeRunClosure.Validate -> approved effect conservation, exact census and closed terminal status",
+    "IRunLifecyclePolicyPort.DeriveAsync(tenantId, retentionClass, requestedAt) -> RunRetention(RetainUntil, LegalHold)",
+    "DataExchangeRuntime.CanDisposeDryRunAsync / CanDisposeCommitRunAsync -> current policy eligibility; disposition adapters must recheck holds atomically",
+    "CommitOptions(AllOrNothingRollback, MultiCommandAtomicCommit) -> either true refuses before evaluation or dispatch",
+    "ICanonicalForwardCorrectionPort.CorrectAndRecordAsync(CanonicalForwardCorrectionCommand) -> domain-owned correction outcome; source policy CorrectConflicts selects this path",
+    "ICanonicalTargetRegistryPort.ResolveAsync(TargetContract) -> CanonicalRecordsContract(Contract, Version) or null; execution refuses unresolved, mismatched or unversioned contracts before effects",
+    "ICanonicalTargetCommandPort.ExecuteAndRecordAsync(CanonicalRecordsCommand) -> EffectTerminalOutcome; atomic target effect plus outcome; target-owned authorization, validation, idempotency, audit and transaction",
+    "ICanonicalTargetCommandPort.GetOutcomeAsync(EffectIdempotencyIdentity) -> durable EffectLedgerEntry; no caller-owned RecordAsync or separate outcome store",
+    "CanonicalRecordsCommand.Authorization -> TargetAuthorizationContext(TenantId, ActorId, ContextReference), also carried by CanonicalForwardCorrectionCommand.OriginalCommand"
   ],
   "conformance": {
-    "nativeTests": {"dotnet": 23},
-    "nativeTestNote": "Profile identity and refusal, stable identity derivation, immutable review evidence, stale promotion refusal, double-gated commit, partial checkpoint advancement, replay eligibility, and definition lifecycle/transport boundaries."
+    "nativeTests": {
+      "dotnet": 40
+    },
+    "nativeTestNote": "Includes semantic dependency identity and supersession, closed census/status/policy refusal, lifecycle-derived retention and legal holds, rollback refusal and domain correction, execution registry admission, authorization-context propagation, and replay after a lost target response."
   },
   "selectedDesign": {
     "choice": "One packable foundation assembly owns the projection-neutral definition and execution protocol while durable persistence, connector acquisition, target Access, canonical Records commands and UI projections remain behind narrow host adapters.",
@@ -73,5 +92,42 @@
     ],
     "reason": "The package centralizes the determinism, review, replay, least-privilege and checkpoint rules every inbound connector would otherwise reimplement and drift."
   },
-  "package": {"nuget": "Harborline.Foundation.DataExchange", "assembly": "Harborline.Foundation.DataExchange", "distribution": "internal-only"}
+  "package": {
+    "nuget": "Harborline.Foundation.DataExchange",
+    "assembly": "Harborline.Foundation.DataExchange",
+    "distribution": "internal-only"
+  },
+  "identityContract": {
+    "batchVersion": "hl-batch-v2",
+    "inputs": [
+      "TenantId",
+      "DefinitionId",
+      "DefinitionVersion",
+      "MappingId",
+      "MappingVersion",
+      "MappingDigest",
+      "ConnectorId",
+      "ConnectorVersion",
+      "SourceFingerprint",
+      "InputBoundary",
+      "TargetContract (includes version)",
+      "DependencyFingerprint",
+      "MappingProfile",
+      "TransformVersionsFingerprint",
+      "LookupVersionsFingerprint",
+      "MatchingInputsFingerprint",
+      "SelectedBoundary"
+    ],
+    "effectInputs": [
+      "BatchIdentity",
+      "TargetContract",
+      "SourceRecordIdentity",
+      "SourceRecordVersion",
+      "EffectDiscriminator"
+    ],
+    "excluded": [
+      "AttemptId"
+    ],
+    "supersession": "DryRunRequest/DryRunArtifact.SupersedesDryRunId; stale exception returns SupersedingDryRunId"
+  }
 }

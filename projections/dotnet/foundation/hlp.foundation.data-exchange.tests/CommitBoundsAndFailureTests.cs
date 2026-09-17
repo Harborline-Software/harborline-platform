@@ -28,12 +28,12 @@ public sealed class CommitBoundsAndFailureTests
                 },
             ],
         };
-        var dryRun = await new DataExchangeRuntime(runs, TimeProvider.System).CreateDryRunAsync(request);
+        var dryRun = await new DataExchangeRuntime(runs, TimeProvider.System, new FakeLifecyclePolicy()).CreateDryRunAsync(request);
         var target = new RecordingTarget();
         var committer = CreateCommitter(runs, target, target, new CommitBounds(10, 1, 256));
 
         var exception = await Assert.ThrowsAsync<DataExchangeCommitRefusedException>(
-            () => committer.CommitAsync(dryRun.Id, dryRun.Proposal).AsTask());
+            () => committer.CommitAsync(dryRun.Id).AsTask());
 
         Assert.Equal("commit.command_payload_exceeded", exception.Code);
         Assert.Empty(target.Applied);
@@ -43,12 +43,12 @@ public sealed class CommitBoundsAndFailureTests
     public async Task Target_failure_becomes_a_closed_failed_outcome_and_does_not_abort_later_effects()
     {
         var runs = new InMemoryExchangeRunStore();
-        var dryRun = await new DataExchangeRuntime(runs, TimeProvider.System)
+        var dryRun = await new DataExchangeRuntime(runs, TimeProvider.System, new FakeLifecyclePolicy())
             .CreateDryRunAsync(Fixtures.DryRunRequest());
         var target = new ThrowOnceTarget();
         var committer = CreateCommitter(runs, target, target, new CommitBounds(10, 1, 64 * 1024));
 
-        var commit = await committer.CommitAsync(dryRun.Id, dryRun.Proposal);
+        var commit = await committer.CommitAsync(dryRun.Id);
 
         Assert.Equal(2, commit.Census.Accounted);
         Assert.Equal(1, commit.Census.Failed);
@@ -62,12 +62,12 @@ public sealed class CommitBoundsAndFailureTests
     public async Task Commit_evidence_preserves_the_structured_batch_derivation_record()
     {
         var runs = new InMemoryExchangeRunStore();
-        var dryRun = await new DataExchangeRuntime(runs, TimeProvider.System)
+        var dryRun = await new DataExchangeRuntime(runs, TimeProvider.System, new FakeLifecyclePolicy())
             .CreateDryRunAsync(Fixtures.DryRunRequest());
         var target = new RecordingTarget();
         var committer = CreateCommitter(runs, target, target, new CommitBounds(10, 1, 64 * 1024));
 
-        var commit = await committer.CommitAsync(dryRun.Id, dryRun.Proposal);
+        var commit = await committer.CommitAsync(dryRun.Id);
 
         Assert.Equal(dryRun.TenantId, commit.BatchDerivation.TenantId);
         Assert.Equal(dryRun.Proposal.MappingDigest, commit.BatchDerivation.MappingDigest);
@@ -78,27 +78,26 @@ public sealed class CommitBoundsAndFailureTests
     private static DataExchangeCommitter CreateCommitter(
         IExchangeRunStore runs,
         ITargetAccessGate access,
-        ICanonicalRecordsCommandPort target,
+        ICanonicalTargetCommandPort target,
         CommitBounds bounds)
         => new(
             runs,
             new RecordingCommitAuthority(true),
             access,
             target,
-            new InMemoryEffectOutcomeStore(),
             new InMemoryAcquisitionCheckpointStore(),
             TimeProvider.System,
-            bounds);
+            bounds, new FakeProposalEvaluator(), new FakeSourcePolicies(), new FakeLifecyclePolicy(), new FakeTargetRegistry());
 }
 
-internal sealed class ThrowOnceTarget : ITargetAccessGate, ICanonicalRecordsCommandPort
+internal sealed class ThrowOnceTarget : FakeTargetCommandPort, ITargetAccessGate, ICanonicalTargetCommandPort
 {
     public int Calls { get; private set; }
 
     public ValueTask<bool> CanApplyAsync(ProposedEffect effect, CancellationToken cancellationToken = default)
         => ValueTask.FromResult(true);
 
-    public ValueTask<EffectTerminalOutcome> ApplyAsync(
+    public override ValueTask<EffectTerminalOutcome> ApplyAsync(
         CanonicalRecordsCommand command,
         CancellationToken cancellationToken = default)
     {

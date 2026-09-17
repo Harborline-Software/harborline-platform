@@ -19,7 +19,7 @@ public sealed class CommitReplayTests
             ],
             CandidateCheckpoint = "cursor:d",
         };
-        var dryRun = await new DataExchangeRuntime(runs, TimeProvider.System).CreateDryRunAsync(request);
+        var dryRun = await new DataExchangeRuntime(runs, TimeProvider.System, new FakeLifecyclePolicy()).CreateDryRunAsync(request);
         var target = new ScriptedTarget(new Dictionary<string, Queue<ExchangeEffectStatus>>
         {
             ["A"] = new([ExchangeEffectStatus.Applied]),
@@ -27,22 +27,18 @@ public sealed class CommitReplayTests
             ["C"] = new([ExchangeEffectStatus.Applied]),
             ["D"] = new([ExchangeEffectStatus.Applied]),
         });
-        var outcomes = new InMemoryEffectOutcomeStore();
         var checkpoints = new InMemoryAcquisitionCheckpointStore();
         var committer = new DataExchangeCommitter(
             runs,
             new RecordingCommitAuthority(true),
             target,
             target,
-            outcomes,
             checkpoints,
             TimeProvider.System,
-            new CommitBounds(100, 4, 64 * 1024));
-        var policy = new AcknowledgementPolicy(
-            new HashSet<ExchangeEffectStatus> { ExchangeEffectStatus.Applied });
+            new CommitBounds(100, 4, 64 * 1024), new FakeProposalEvaluator(), new FakeSourcePolicies(), new FakeLifecyclePolicy(), new FakeTargetRegistry());
 
-        var first = await committer.CommitAsync(dryRun.Id, dryRun.Proposal, policy);
-        var replay = await committer.CommitAsync(dryRun.Id, dryRun.Proposal, policy);
+        var first = await committer.CommitAsync(dryRun.Id);
+        var replay = await committer.CommitAsync(dryRun.Id);
 
         Assert.Equal("cursor:a", first.DurableCheckpoint);
         Assert.Equal("cursor:d", replay.DurableCheckpoint);
@@ -66,7 +62,7 @@ public sealed class CommitReplayTests
 
 internal sealed class ScriptedTarget(
     IReadOnlyDictionary<string, Queue<ExchangeEffectStatus>> outcomes)
-    : ITargetAccessGate, ICanonicalRecordsCommandPort
+    : FakeTargetCommandPort, ITargetAccessGate, ICanonicalTargetCommandPort
 {
     public List<string> AppliedSourceIdentities { get; } = [];
 
@@ -75,7 +71,7 @@ internal sealed class ScriptedTarget(
         CancellationToken cancellationToken = default)
         => ValueTask.FromResult(true);
 
-    public ValueTask<EffectTerminalOutcome> ApplyAsync(
+    public override ValueTask<EffectTerminalOutcome> ApplyAsync(
         CanonicalRecordsCommand command,
         CancellationToken cancellationToken = default)
     {

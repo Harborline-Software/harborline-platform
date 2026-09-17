@@ -9,7 +9,7 @@ public sealed class CommitAuthorizationTests
     public async Task Exchange_permission_is_necessary_but_each_effect_still_passes_target_access()
     {
         var runs = new InMemoryExchangeRunStore();
-        var dryRun = await new DataExchangeRuntime(runs, TimeProvider.System)
+        var dryRun = await new DataExchangeRuntime(runs, TimeProvider.System, new FakeLifecyclePolicy())
             .CreateDryRunAsync(Fixtures.DryRunRequest());
         var target = new RecordingTarget();
         var committer = new DataExchangeCommitter(
@@ -17,12 +17,11 @@ public sealed class CommitAuthorizationTests
             new RecordingCommitAuthority(true),
             new DenyOneTargetAccess("customer-43"),
             target,
-            new InMemoryEffectOutcomeStore(),
             new InMemoryAcquisitionCheckpointStore(),
             TimeProvider.System,
-            new CommitBounds(100, 4, 64 * 1024));
+            new CommitBounds(100, 4, 64 * 1024), new FakeProposalEvaluator(), new FakeSourcePolicies(), new FakeLifecyclePolicy(), new FakeTargetRegistry());
 
-        var commit = await committer.CommitAsync(dryRun.Id, dryRun.Proposal);
+        var commit = await committer.CommitAsync(dryRun.Id);
 
         Assert.Single(target.Applied);
         Assert.Equal(1, commit.Census.Applied);
@@ -40,7 +39,7 @@ public sealed class CommitAuthorizationTests
     public async Task Exchange_commit_permission_refuses_before_target_access()
     {
         var runs = new InMemoryExchangeRunStore();
-        var dryRun = await new DataExchangeRuntime(runs, TimeProvider.System)
+        var dryRun = await new DataExchangeRuntime(runs, TimeProvider.System, new FakeLifecyclePolicy())
             .CreateDryRunAsync(Fixtures.DryRunRequest());
         var access = new DenyOneTargetAccess("none");
         var target = new RecordingTarget();
@@ -49,13 +48,12 @@ public sealed class CommitAuthorizationTests
             new RecordingCommitAuthority(false),
             access,
             target,
-            new InMemoryEffectOutcomeStore(),
             new InMemoryAcquisitionCheckpointStore(),
             TimeProvider.System,
-            new CommitBounds(100, 4, 64 * 1024));
+            new CommitBounds(100, 4, 64 * 1024), new FakeProposalEvaluator(), new FakeSourcePolicies(), new FakeLifecyclePolicy(), new FakeTargetRegistry());
 
         var exception = await Assert.ThrowsAsync<DataExchangeCommitRefusedException>(
-            () => committer.CommitAsync(dryRun.Id, dryRun.Proposal).AsTask());
+            () => committer.CommitAsync(dryRun.Id).AsTask());
 
         Assert.Equal("commit.forbidden", exception.Code);
         Assert.Equal(0, access.Calls);

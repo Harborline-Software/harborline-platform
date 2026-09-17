@@ -9,25 +9,29 @@ public sealed class CommitStalenessTests
     public async Task Proposal_drift_refuses_before_authority_or_target_dispatch_and_preserves_review()
     {
         var runs = new InMemoryExchangeRunStore();
-        var dryRun = await new DataExchangeRuntime(runs, TimeProvider.System)
+        var dryRun = await new DataExchangeRuntime(runs, TimeProvider.System, new FakeLifecyclePolicy())
             .CreateDryRunAsync(Fixtures.DryRunRequest());
         var authority = new RecordingCommitAuthority(true);
         var target = new RecordingTarget();
+        var evaluator = new FakeProposalEvaluator { Current = Fixtures.DryRunRequest() with { Proposal = dryRun.Proposal with { DependencyFingerprint = "sha256:changed-match-data" } } };
         var committer = new DataExchangeCommitter(
             runs,
             authority,
             target,
             target,
-            new InMemoryEffectOutcomeStore(),
             new InMemoryAcquisitionCheckpointStore(),
             TimeProvider.System,
-            new CommitBounds(100, 4, 64 * 1024));
+            new CommitBounds(100, 4, 64 * 1024), evaluator, new FakeSourcePolicies(), new FakeLifecyclePolicy(), new FakeTargetRegistry());
 
-        var changed = dryRun.Proposal with { DependencyFingerprint = "sha256:changed-match-data" };
         var exception = await Assert.ThrowsAsync<DataExchangeCommitRefusedException>(
-            () => committer.CommitAsync(dryRun.Id, changed).AsTask());
+            () => committer.CommitAsync(dryRun.Id).AsTask());
 
         Assert.Equal("run.stale", exception.Code);
+        Assert.NotNull(exception.SupersedingDryRunId);
+        var superseding = await runs.GetDryRunAsync(exception.SupersedingDryRunId.Value);
+        Assert.NotNull(superseding);
+        Assert.Equal(dryRun.Id, superseding.SupersedesDryRunId);
+        Assert.Equal(evaluator.Current.Proposal, superseding.Proposal);
         Assert.Equal(0, authority.Calls);
         Assert.Empty(target.Applied);
         var preserved = await runs.GetDryRunAsync(dryRun.Id);
@@ -48,7 +52,7 @@ internal sealed class RecordingCommitAuthority(bool allowed) : IExchangeCommitAu
     }
 }
 
-internal sealed class RecordingTarget : ITargetAccessGate, ICanonicalRecordsCommandPort
+internal sealed class RecordingTarget : FakeTargetCommandPort, ITargetAccessGate, ICanonicalTargetCommandPort
 {
     public List<EffectIdempotencyIdentity> Applied { get; } = [];
 
@@ -57,7 +61,7 @@ internal sealed class RecordingTarget : ITargetAccessGate, ICanonicalRecordsComm
         CancellationToken cancellationToken = default)
         => ValueTask.FromResult(true);
 
-    public ValueTask<EffectTerminalOutcome> ApplyAsync(
+    public override ValueTask<EffectTerminalOutcome> ApplyAsync(
         CanonicalRecordsCommand command,
         CancellationToken cancellationToken = default)
     {

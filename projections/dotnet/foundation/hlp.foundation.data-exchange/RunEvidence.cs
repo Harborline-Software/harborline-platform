@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Text.Json.Serialization;
 
 namespace Harborline.Foundation.DataExchange;
 
@@ -13,7 +14,12 @@ public sealed record ProposalFingerprint(
     string ConnectorId,
     string ConnectorVersion,
     string TargetContract,
-    string DependencyFingerprint);
+    string DependencyFingerprint,
+    string MappingProfile,
+    string TransformVersionsFingerprint,
+    string LookupVersionsFingerprint,
+    string MatchingInputsFingerprint,
+    string SelectedBoundary);
 
 /// <summary>Normalized non-sensitive evidence for one intended canonical target effect.</summary>
 public sealed record ProposedEffect(
@@ -24,6 +30,7 @@ public sealed record ProposedEffect(
     string BoundaryAfter,
     IReadOnlyDictionary<string, string> Metadata);
 
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record DryRunRequest(
     string TenantId,
     string RequestedBy,
@@ -33,7 +40,7 @@ public sealed record DryRunRequest(
     string? SnapshotReference,
     string AuthorizationContextReference,
     string RetentionClass,
-    DateTimeOffset RetainUntil);
+    DryRunId? SupersedesDryRunId = null);
 
 /// <summary>An immutable tenant-scoped evaluation artifact; sensitive payloads remain referenced.</summary>
 public sealed record DryRunArtifact(
@@ -48,7 +55,8 @@ public sealed record DryRunArtifact(
     string AuthorizationContextReference,
     string RetentionClass,
     DateTimeOffset RetainUntil,
-    bool LegalHold = false);
+    bool LegalHold = false,
+    DryRunId? SupersedesDryRunId = null);
 
 public sealed class ExchangeRunConflictException(string message) : Exception(message);
 
@@ -103,6 +111,11 @@ public sealed class InMemoryExchangeRunStore : IExchangeRunStore
         cancellationToken.ThrowIfCancellationRequested();
         lock (_gate)
         {
+            if (!_dryRuns.TryGetValue(artifact.ApprovedDryRunId, out var review))
+            {
+                throw new DataExchangeCommitRefusedException("run.not_found", "The approved dry run does not exist.");
+            }
+            ExchangeRunClosure.Validate(review, artifact);
             if (!_commitRuns.TryAdd(artifact.Id, Snapshot(artifact)))
             {
                 throw new ExchangeRunConflictException($"Commit run '{artifact.Id.Value}' already exists.");
@@ -152,21 +165,48 @@ public sealed class InMemoryExchangeRunStore : IExchangeRunStore
 }
 
 /// <summary>Creates immutable review evidence without writing target records.</summary>
-public sealed class DataExchangeRuntime(IExchangeRunStore runs, TimeProvider clock)
+public sealed class DataExchangeRuntime(IExchangeRunStore runs, TimeProvider clock, IRunLifecyclePolicyPort lifecycle)
 {
     private readonly IExchangeRunStore _runs = runs ?? throw new ArgumentNullException(nameof(runs));
     private readonly TimeProvider _clock = clock ?? throw new ArgumentNullException(nameof(clock));
+
+    private readonly IRunLifecyclePolicyPort _lifecycle = lifecycle ?? throw new ArgumentNullException(nameof(lifecycle));
+
+    public async ValueTask<bool> CanDisposeDryRunAsync(DryRunId id, CancellationToken cancellationToken = default)
+    {
+        var run = await _runs.GetDryRunAsync(id, cancellationToken).ConfigureAwait(false)
+            ?? throw new DataExchangeCommitRefusedException("run.not_found", "The dry run does not exist.");
+        return await CanDisposeAsync(run.TenantId, run.RetentionClass, run.RequestedAt,
+            run.RetainUntil, run.LegalHold, cancellationToken).ConfigureAwait(false);
+    }
+
+    public async ValueTask<bool> CanDisposeCommitRunAsync(CommitRunId id, CancellationToken cancellationToken = default)
+    {
+        var run = await _runs.GetCommitRunAsync(id, cancellationToken).ConfigureAwait(false)
+            ?? throw new DataExchangeCommitRefusedException("run.not_found", "The commit run does not exist.");
+        return await CanDisposeAsync(run.BatchDerivation.TenantId, run.RetentionClass, run.RequestedAt,
+            run.RetainUntil, run.LegalHold, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async ValueTask<bool> CanDisposeAsync(string tenantId, string retentionClass,
+        DateTimeOffset requestedAt, DateTimeOffset retainUntil, bool legalHold, CancellationToken cancellationToken)
+    {
+        var current = await _lifecycle.DeriveAsync(tenantId, retentionClass, requestedAt, cancellationToken).ConfigureAwait(false);
+        return !legalHold && !current.LegalHold && _clock.GetUtcNow() >= retainUntil && _clock.GetUtcNow() >= current.RetainUntil;
+    }
 
     public async ValueTask<DryRunArtifact> CreateDryRunAsync(
         DryRunRequest request,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
+        var requestedAt = _clock.GetUtcNow();
+        var retention = await _lifecycle.DeriveAsync(request.TenantId, request.RetentionClass, requestedAt, cancellationToken).ConfigureAwait(false);
         var artifact = new DryRunArtifact(
             new DryRunId(Guid.NewGuid().ToString("N")),
             request.TenantId,
             request.RequestedBy,
-            _clock.GetUtcNow(),
+            requestedAt,
             request.Proposal with { },
             request.Effects.Select(effect => effect with
             {
@@ -176,7 +216,9 @@ public sealed class DataExchangeRuntime(IExchangeRunStore runs, TimeProvider clo
             request.SnapshotReference,
             request.AuthorizationContextReference,
             request.RetentionClass,
-            request.RetainUntil);
+            retention.RetainUntil,
+            retention.LegalHold,
+            SupersedesDryRunId: request.SupersedesDryRunId);
         await _runs.SaveDryRunAsync(artifact, cancellationToken).ConfigureAwait(false);
         return artifact;
     }
