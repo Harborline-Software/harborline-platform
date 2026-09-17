@@ -99,7 +99,7 @@
   ],
   "conformance": {
     "nativeTests": {
-      "dotnet": 61
+      "dotnet": 66
     },
     "nativeTestNote": "Includes semantic dependency identity and supersession, closed census/status/policy refusal, lifecycle-derived retention and legal holds, rollback refusal and domain correction, execution registry admission, authorization-context propagation, lost-response replay, read-only acquisition, CSVW mapping/coercion, protected payload handling, bounded concurrent dispatch, stale promotion refusal, and recoverable checkpoint finalization."
   },

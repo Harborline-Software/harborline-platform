@@ -17,6 +17,30 @@ public sealed class CommitProtocolIntegrityTests
     }
 
     [Fact]
+    public async Task Safe_and_retryable_outcomes_must_be_disjoint()
+    {
+        var policies = new FakeSourcePolicies
+        {
+            Policy = new AcknowledgementPolicy(
+                "overlap",
+                new HashSet<ExchangeEffectStatus> { ExchangeEffectStatus.Applied },
+                new HashSet<ExchangeEffectStatus> { ExchangeEffectStatus.Failed }) with
+            {
+                SafeOutcomes = new HashSet<ExchangeEffectStatus> { ExchangeEffectStatus.Failed },
+            },
+        };
+        var runs = new InMemoryExchangeRunStore();
+        var dryRun = await new DataExchangeRuntime(runs, TimeProvider.System, new FakeLifecyclePolicy())
+            .CreateDryRunAsync(Fixtures.DryRunRequest());
+        var target = new RecordingTarget();
+        var committer = new DataExchangeCommitter(runs, new RecordingCommitAuthority(true), target, target,
+            new InMemoryAcquisitionCheckpointStore(), TimeProvider.System, new CommitBounds(100, 1, 65536),
+            new FakeProposalEvaluator(), policies, new FakeLifecyclePolicy(), new FakeTargetRegistry());
+        var refusal = await Assert.ThrowsAsync<DataExchangeCommitRefusedException>(() => committer.CommitAsync(dryRun.Id).AsTask());
+        Assert.Equal("commit.outcome_policy_unknown", refusal.Code);
+    }
+
+    [Fact]
     public async Task Effect_claim_prevents_duplicate_delivery_and_stale_completion()
     {
         var store = new RecordingTarget();
@@ -143,6 +167,11 @@ internal sealed class CapturingRunStore : IExchangeRunStore
 
     public ValueTask<CommitRunArtifact?> GetCommitRunAsync(CommitRunId id, CancellationToken cancellationToken = default)
         => _inner.GetCommitRunAsync(id, cancellationToken);
+
+    public ValueTask<IReadOnlyList<CommitRunArtifact>> ListCommitRunsAsync(
+        DryRunId approvedDryRunId,
+        CancellationToken cancellationToken = default)
+        => _inner.ListCommitRunsAsync(approvedDryRunId, cancellationToken);
 
     public ValueTask SaveCheckpointFinalizationAsync(
         CommitCheckpointFinalization finalization,

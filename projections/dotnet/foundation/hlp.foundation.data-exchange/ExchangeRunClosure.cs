@@ -31,6 +31,12 @@ public static class ExchangeRunClosure
             || effects.Select(effect => effect.EffectIdentity).Distinct().Count() != expected.Count
             || !expected.SetEquals(effects.Select(effect => effect.EffectIdentity)))
             throw new DataExchangeCommitRefusedException("run.census_incomplete", "Each reviewed effect must be accounted exactly once.");
+        var approvedByIdentity = approved.NormalizedEffects.ToDictionary(
+            effect => ExchangeIdentity.DeriveEffect(batch, approved.Proposal.TargetContract,
+                effect.SourceRecordIdentity, effect.SourceRecordVersion, effect.EffectDiscriminator));
+        if (effects.Any(result => !approvedByIdentity.TryGetValue(result.EffectIdentity, out var reviewed)
+            || !EffectEquals(reviewed, result.Effect)))
+            throw new DataExchangeCommitRefusedException("run.stale", "Commit effects must exactly match the reviewed effects.");
     }
 
     public static void Validate(DryRunArtifact approved, CommitRunArtifact artifact)
@@ -53,4 +59,15 @@ public static class ExchangeRunClosure
         if (artifact.TerminalStatus != terminal)
             throw new DataExchangeCommitRefusedException("run.terminal_inconsistent", "The terminal state must agree with the census.");
     }
+
+    private static bool EffectEquals(ProposedEffect left, ProposedEffect right)
+        => left.SourceOrdinal == right.SourceOrdinal
+            && StringComparer.Ordinal.Equals(left.SourceRecordIdentity, right.SourceRecordIdentity)
+            && StringComparer.Ordinal.Equals(left.SourceRecordVersion, right.SourceRecordVersion)
+            && StringComparer.Ordinal.Equals(left.EffectDiscriminator, right.EffectDiscriminator)
+            && StringComparer.Ordinal.Equals(left.BoundaryAfter, right.BoundaryAfter)
+            && StringComparer.Ordinal.Equals(left.PayloadReference, right.PayloadReference)
+            && left.Metadata.Count == right.Metadata.Count
+            && left.Metadata.All(pair => right.Metadata.TryGetValue(pair.Key, out var value)
+                && StringComparer.Ordinal.Equals(pair.Value, value));
 }

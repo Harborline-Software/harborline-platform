@@ -7,6 +7,25 @@ namespace Harborline.Foundation.DataExchange.Tests;
 public sealed class DoubleGateConformanceTests
 {
     [Fact]
+    public async Task Prior_access_refusal_is_terminal_for_replay_of_the_same_review()
+    {
+        var runs = new InMemoryExchangeRunStore();
+        var dryRun = await new DataExchangeRuntime(runs, TimeProvider.System, new FakeLifecyclePolicy()).CreateDryRunAsync(Fixtures.DryRunRequest());
+        var access = new MutableAccessGate(false);
+        var target = new ContextRecordingTarget();
+        var committer = new DataExchangeCommitter(runs, new RecordingCommitAuthority(true), access, target,
+            new InMemoryAcquisitionCheckpointStore(), TimeProvider.System,
+            new CommitBounds(100, 2, 65536), new FakeProposalEvaluator(), new FakeSourcePolicies(), new FakeLifecyclePolicy(), new FakeTargetRegistry());
+        var first = await committer.CommitAsync(dryRun.Id);
+        access.Allowed = true;
+        var replay = await committer.CommitAsync(dryRun.Id);
+        Assert.Equal(2, first.Census.Rejected);
+        Assert.Equal(2, replay.Census.Rejected);
+        Assert.All(replay.Effects, effect => Assert.True(effect.ReplayedFromLedger));
+        Assert.Empty(target.Commands);
+    }
+
+    [Fact]
     public async Task Lost_response_replays_target_owned_outcome_without_reapplying_effect()
     {
         var runs = new InMemoryExchangeRunStore();
@@ -47,6 +66,13 @@ public sealed class DoubleGateConformanceTests
             Assert.Equal(ExchangeEffectStatus.Applied, stored.Outcome.Status);
         }
     }
+}
+
+internal sealed class MutableAccessGate(bool allowed) : ITargetAccessGate
+{
+    public bool Allowed { get; set; } = allowed;
+    public ValueTask<bool> CanApplyAsync(ProposedEffect effect, CancellationToken cancellationToken = default)
+        => ValueTask.FromResult(Allowed);
 }
 
 internal sealed class ContextRecordingTarget : FakeTargetCommandPort, ICanonicalTargetCommandPort

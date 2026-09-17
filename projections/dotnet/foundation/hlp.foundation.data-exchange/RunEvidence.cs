@@ -94,6 +94,7 @@ public interface IExchangeRunStore
         CommitCheckpointFinalization finalization,
         CancellationToken cancellationToken = default);
     ValueTask<CommitRunArtifact?> GetCommitRunAsync(CommitRunId id, CancellationToken cancellationToken = default);
+    ValueTask<IReadOnlyList<CommitRunArtifact>> ListCommitRunsAsync(DryRunId approvedDryRunId, CancellationToken cancellationToken = default);
     ValueTask SaveCheckpointFinalizationAsync(CommitCheckpointFinalization finalization, CancellationToken cancellationToken = default);
     ValueTask<CommitCheckpointFinalization?> GetCheckpointFinalizationAsync(CommitRunId id, CancellationToken cancellationToken = default);
 }
@@ -189,6 +190,20 @@ public sealed class InMemoryExchangeRunStore : IExchangeRunStore
             return ValueTask.FromResult(_commitRuns.TryGetValue(id, out var artifact)
                 ? Snapshot(artifact)
                 : null);
+        }
+    }
+
+    public ValueTask<IReadOnlyList<CommitRunArtifact>> ListCommitRunsAsync(
+        DryRunId approvedDryRunId,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        lock (_gate)
+        {
+            return ValueTask.FromResult<IReadOnlyList<CommitRunArtifact>>(_commitRuns.Values
+                .Where(run => run.ApprovedDryRunId == approvedDryRunId)
+                .Select(Snapshot)
+                .ToArray());
         }
     }
 
@@ -295,6 +310,16 @@ public sealed class DataExchangeRuntime(IExchangeRunStore runs, TimeProvider clo
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
+        if (request.SupersedesDryRunId is { } predecessorId)
+        {
+            var predecessor = await _runs.GetDryRunAsync(predecessorId, cancellationToken).ConfigureAwait(false)
+                ?? throw new DataExchangeCommitRefusedException("run.not_found", "The superseded dry run does not exist.");
+            if (!StringComparer.Ordinal.Equals(predecessor.TenantId, request.TenantId)
+                || request.PrescribedId == predecessorId)
+            {
+                throw new DataExchangeCommitRefusedException("run.stale", "Supersession must reference a different dry run in the same tenant.");
+            }
+        }
         var requestedAt = _clock.GetUtcNow();
         var retention = await _lifecycle.DeriveAsync(request.TenantId, request.RetentionClass, requestedAt, cancellationToken).ConfigureAwait(false);
         var evaluations = Evaluations(request);

@@ -43,6 +43,24 @@ public sealed class ReplayConformanceTests
     }
 
     [Fact]
+    public async Task Effect_identity_cannot_hide_changed_reviewed_effect_content()
+    {
+        var runs = new InMemoryExchangeRunStore();
+        var dryRun = await new DataExchangeRuntime(runs, TimeProvider.System, new FakeLifecyclePolicy())
+            .CreateDryRunAsync(Fixtures.DryRunRequest());
+        var commit = await Create(runs, new RecordingTarget()).CommitAsync(dryRun.Id);
+        var changed = commit with
+        {
+            Id = new CommitRunId("changed-effect"),
+            Effects = commit.Effects.Select((result, index) => index == 0
+                ? result with { Effect = result.Effect with { BoundaryAfter = "cursor:tampered" } }
+                : result).ToArray(),
+        };
+        var refusal = await Assert.ThrowsAsync<DataExchangeCommitRefusedException>(() => runs.SaveCommitRunAsync(changed).AsTask());
+        Assert.Equal("run.stale", refusal.Code);
+    }
+
+    [Fact]
     public async Task Unknown_terminal_effect_status_refuses_closure()
     {
         var runs = new InMemoryExchangeRunStore();

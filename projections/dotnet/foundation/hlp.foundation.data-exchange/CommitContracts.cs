@@ -351,7 +351,10 @@ public sealed class DataExchangeCommitter(
             ?? throw new DataExchangeCommitRefusedException("run.not_found", "The dry run does not exist.");
         var current = await _proposals.EvaluateAsync(dryRun, cancellationToken).ConfigureAwait(false);
         var batchDerivation = BatchIdentityInputs.From(dryRun.TenantId, dryRun.Proposal);
-        if (batchDerivation != BatchIdentityInputs.From(current.TenantId, current.Proposal))
+        var reevaluatedEffects = current.Evaluations?.Select(evaluation => evaluation.Effect).ToArray()
+            ?? current.Effects.ToArray();
+        if (batchDerivation != BatchIdentityInputs.From(current.TenantId, current.Proposal)
+            || !EffectsEqual(dryRun.NormalizedEffects, reevaluatedEffects))
         {
             var superseding = await new DataExchangeRuntime(_runs, _clock, _lifecycle).CreateDryRunAsync(
                 current with { SupersedesDryRunId = dryRun.Id }, cancellationToken).ConfigureAwait(false);
@@ -384,6 +387,7 @@ public sealed class DataExchangeCommitter(
         if (policy is null || string.IsNullOrWhiteSpace(policy.Id)
             || policy.SafeOutcomes is null || policy.RetryableOutcomes is null
             || policy.SafeOutcomes.Concat(policy.RetryableOutcomes).Any(status => !Enum.IsDefined(status))
+            || policy.SafeOutcomes.Overlaps(policy.RetryableOutcomes)
             || policy.RetryableOutcomes.Any(status => status is not (ExchangeEffectStatus.Failed or ExchangeEffectStatus.Halted)))
         {
             throw new DataExchangeCommitRefusedException("commit.outcome_policy_unknown", "A known source outcome policy is required.");
@@ -393,6 +397,11 @@ public sealed class DataExchangeCommitter(
         var commitRunId = new CommitRunId(Guid.NewGuid().ToString("N"));
         var batch = ExchangeIdentity.DeriveBatch(batchDerivation);
         var prepared = await PrepareWindowAsync(dryRun, current, commitRunId, batch, cancellationToken).ConfigureAwait(false);
+        var priorAccessRefusals = (await _runs.ListCommitRunsAsync(dryRun.Id, cancellationToken).ConfigureAwait(false))
+            .SelectMany(run => run.Effects)
+            .Where(result => result.Outcome is { Status: ExchangeEffectStatus.Rejected, Code: "target.access_refused" })
+            .GroupBy(result => result.EffectIdentity)
+            .ToDictionary(group => group.Key, group => group.Last().Outcome);
         var completed = new ConcurrentQueue<CommitEffectResult>();
         await Parallel.ForEachAsync(
             prepared,
@@ -402,7 +411,7 @@ public sealed class DataExchangeCommitter(
                 MaxDegreeOfParallelism = _bounds.MaxConcurrency,
             },
             async (effect, token) => completed.Enqueue(
-                await ApplyEffectAsync(batch, policy, effect, token).ConfigureAwait(false)))
+                await ApplyEffectAsync(batch, policy, priorAccessRefusals, effect, token).ConfigureAwait(false)))
             .ConfigureAwait(false);
         var results = completed.OrderBy(result => result.Effect.SourceOrdinal).ToArray();
 
@@ -521,18 +530,13 @@ public sealed class DataExchangeCommitter(
     private async ValueTask<CommitEffectResult> ApplyEffectAsync(
         BatchIdentity batch,
         AcknowledgementPolicy policy,
+        IReadOnlyDictionary<EffectIdempotencyIdentity, EffectTerminalOutcome> priorAccessRefusals,
         PreparedCommitEffect prepared,
         CancellationToken cancellationToken)
     {
         if (prepared.PrecomputedOutcome is not null)
         {
             return new(prepared.Effect, prepared.EffectIdentity, prepared.PrecomputedOutcome, false);
-        }
-
-        if (!await _access.CanApplyAsync(prepared.Effect, cancellationToken).ConfigureAwait(false))
-        {
-            return new(prepared.Effect, prepared.EffectIdentity,
-                new(ExchangeEffectStatus.Rejected, "target.access_refused"), false);
         }
 
         var recorded = await _commands.GetOutcomeAsync(prepared.EffectIdentity, cancellationToken).ConfigureAwait(false);
@@ -546,6 +550,15 @@ public sealed class DataExchangeCommitter(
             {
                 return new(prepared.Effect, prepared.EffectIdentity, recorded.Outcome, true);
             }
+        }
+
+        if (priorAccessRefusals.TryGetValue(prepared.EffectIdentity, out var priorRefusal))
+            return new(prepared.Effect, prepared.EffectIdentity, priorRefusal, true);
+
+        if (!await _access.CanApplyAsync(prepared.Effect, cancellationToken).ConfigureAwait(false))
+        {
+            return new(prepared.Effect, prepared.EffectIdentity,
+                new(ExchangeEffectStatus.Rejected, "target.access_refused"), false);
         }
 
         var now = _clock.GetUtcNow();
@@ -603,6 +616,21 @@ public sealed class DataExchangeCommitter(
             throw new DataExchangeCommitRefusedException("commit.command_payload_exceeded",
                 "A canonical Records command exceeds the bounded payload size.");
     }
+
+    private static bool EffectsEqual(IReadOnlyList<ProposedEffect> approved, IReadOnlyList<ProposedEffect> current)
+        => approved.Count == current.Count
+            && approved.OrderBy(effect => effect.SourceOrdinal).Zip(
+                current.OrderBy(effect => effect.SourceOrdinal),
+                (left, right) => left.SourceOrdinal == right.SourceOrdinal
+                    && StringComparer.Ordinal.Equals(left.SourceRecordIdentity, right.SourceRecordIdentity)
+                    && StringComparer.Ordinal.Equals(left.SourceRecordVersion, right.SourceRecordVersion)
+                    && StringComparer.Ordinal.Equals(left.EffectDiscriminator, right.EffectDiscriminator)
+                    && StringComparer.Ordinal.Equals(left.BoundaryAfter, right.BoundaryAfter)
+                    && StringComparer.Ordinal.Equals(left.PayloadReference, right.PayloadReference)
+                    && left.Metadata.Count == right.Metadata.Count
+                    && left.Metadata.All(pair => right.Metadata.TryGetValue(pair.Key, out var value)
+                        && StringComparer.Ordinal.Equals(pair.Value, value)))
+                .All(equal => equal);
 
     private sealed record PreparedCommitEffect(
         ProposedEffect Effect,

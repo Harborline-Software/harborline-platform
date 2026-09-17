@@ -31,6 +31,17 @@ public sealed class DryRunEvidenceTests
         await Assert.ThrowsAsync<ExchangeRunConflictException>(
             () => store.SaveDryRunAsync(first).AsTask());
     }
+
+    [Fact]
+    public async Task Supersession_cannot_cross_tenants()
+    {
+        var store = new InMemoryExchangeRunStore();
+        var runtime = new DataExchangeRuntime(store, TimeProvider.System, new FakeLifecyclePolicy());
+        var first = await runtime.CreateDryRunAsync(Fixtures.DryRunRequest());
+        var refusal = await Assert.ThrowsAsync<DataExchangeCommitRefusedException>(() => runtime.CreateDryRunAsync(
+            Fixtures.DryRunRequest() with { TenantId = "tenant-b", SupersedesDryRunId = first.Id }).AsTask());
+        Assert.Equal("run.stale", refusal.Code);
+    }
 }
 
 internal static partial class Fixtures
