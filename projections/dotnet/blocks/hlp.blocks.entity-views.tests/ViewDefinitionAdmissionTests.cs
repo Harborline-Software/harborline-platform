@@ -97,6 +97,31 @@ public sealed class ViewDefinitionAdmissionTests
                 && refusal.Pointer == "/definition/parameters/filter/function");
     }
 
+    [Fact(DisplayName = "nested unregistered filter functions retain their distinct JSON pointers")]
+    public async Task NestedUnregisteredFilterFunctionsRetainTheirDistinctJsonPointers()
+    {
+        var filter = ViewFilter.All(
+            ViewFilter.Not(ViewFilter.Call("pack.first", ViewFilter.FieldValue("title"))),
+            ViewFilter.Any("tags", ViewFilter.Call("pack.second", ViewFilter.FieldValue("$"))));
+        var draft = new ViewDefinitionDraft(
+            Definition(filter: filter),
+            new ViewBinding(
+                "layout.table",
+                new Dictionary<ViewShapeRole, string> { [ViewShapeRole.Title] = "title" }));
+
+        var error = await Assert.ThrowsAsync<ViewDefinitionAdmissionException>(async () =>
+            await Admission().ValidateAsync(draft));
+
+        Assert.Equal(
+            [
+                "/definition/parameters/filter/filters/0/filter/function",
+                "/definition/parameters/filter/filters/1/predicate/function",
+            ],
+            error.Refusals
+                .Where(refusal => refusal.Code == ViewDefinitionCodes.FilterFunctionUnknown)
+                .Select(refusal => refusal.Pointer));
+    }
+
     [Fact(DisplayName = "the offered kind set uses the admission compatibility predicate")]
     public async Task OfferedKindSetUsesAdmissionCompatibilityPredicate()
     {

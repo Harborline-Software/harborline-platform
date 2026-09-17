@@ -1,3 +1,5 @@
+using System.Collections.Immutable;
+
 namespace Harborline.Blocks.EntityViews;
 
 /// <summary>The lifecycle state of one immutable view-definition revision.</summary>
@@ -11,14 +13,21 @@ public enum ViewDefinitionStatus
 /// <summary>One append-only definition revision and its lifecycle metadata.</summary>
 public sealed record ViewDefinitionRevision(
     ViewDefinition Definition,
+    ViewBinding Binding,
     ViewDefinitionStatus Status,
     string? RestoredFromVersion = null);
+
+/// <summary>The definition and its authored binding transported together in a signed pack.</summary>
+public sealed record ViewDefinitionPackageEntry(
+    ViewDefinition Definition,
+    ViewBinding Binding);
 
 /// <summary>The authoring and execution store for immutable view-definition revisions.</summary>
 public interface IViewDefinitionStore : IViewDefinitionSource
 {
     ValueTask<ViewDefinitionRevision> CreateDraftAsync(
         ViewDefinition definition,
+        ViewBinding binding,
         CancellationToken cancellationToken = default);
 
     ValueTask<ViewDefinitionRevision> PublishAsync(
@@ -43,16 +52,16 @@ public interface IViewDefinitionStore : IViewDefinitionSource
 /// <summary>Builds the definition payload eligible for signed-pack carriage.</summary>
 public static class ViewDefinitionPackExporter
 {
-    public static IReadOnlyList<ViewDefinition> Export(
+    public static IReadOnlyList<ViewDefinitionPackageEntry> Export(
         IEnumerable<ViewDefinitionRevision> revisions)
     {
         ArgumentNullException.ThrowIfNull(revisions);
         return revisions
             .Where(revision => revision.Status == ViewDefinitionStatus.Published
                 && revision.Definition.Ownership is not ViewOwnershipTier.Personal)
-            .Select(revision => revision.Definition)
-            .OrderBy(definition => definition.Key, StringComparer.Ordinal)
-            .ThenBy(definition => definition.Version, StringComparer.Ordinal)
+            .Select(revision => new ViewDefinitionPackageEntry(revision.Definition, revision.Binding))
+            .OrderBy(entry => entry.Definition.Key, StringComparer.Ordinal)
+            .ThenBy(entry => entry.Definition.Version, StringComparer.Ordinal)
             .ToArray();
     }
 }
@@ -65,13 +74,18 @@ public sealed class InMemoryViewDefinitionStore : IViewDefinitionStore
 
     public ValueTask<ViewDefinitionRevision> CreateDraftAsync(
         ViewDefinition definition,
+        ViewBinding binding,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(definition);
+        ArgumentNullException.ThrowIfNull(binding);
         cancellationToken.ThrowIfCancellationRequested();
         _ = ViewSemanticVersion.Parse(definition.Version);
 
-        var revision = new ViewDefinitionRevision(definition, ViewDefinitionStatus.Draft);
+        var revision = new ViewDefinitionRevision(
+            Snapshot(definition),
+            Snapshot(binding),
+            ViewDefinitionStatus.Draft);
         lock (_gate)
         {
             Add(revision);
@@ -119,7 +133,8 @@ public sealed class InMemoryViewDefinitionStore : IViewDefinitionStore
                 Envelope = source.Definition.Envelope with { Version = draftVersion },
             };
             var restored = new ViewDefinitionRevision(
-                restoredDefinition,
+                Snapshot(restoredDefinition),
+                source.Binding,
                 ViewDefinitionStatus.Draft,
                 sourceVersion);
             Add(restored);
@@ -170,6 +185,72 @@ public sealed class InMemoryViewDefinitionStore : IViewDefinitionStore
             throw new ViewQueryException("view_definition.revision_conflict", "The view-definition revision already exists.");
         }
     }
+
+    private static ViewDefinition Snapshot(ViewDefinition definition) => definition with
+    {
+        Envelope = definition.Envelope with
+        {
+            Provenance = definition.Envelope.Provenance.Clone(),
+            Requires = definition.Envelope.Requires
+                .Select(requirement => requirement with { })
+                .ToImmutableArray(),
+        },
+        Parameters = definition.Parameters with
+        {
+            Columns = definition.Parameters.Columns
+                .Select(column => column with { })
+                .ToImmutableArray(),
+            Sort = definition.Parameters.Sort
+                .Select(sort => sort with { })
+                .ToImmutableArray(),
+            Filter = definition.Parameters.Filter is null
+                ? null
+                : Snapshot(definition.Parameters.Filter),
+            Measure = definition.Parameters.Measure is null
+                ? null
+                : definition.Parameters.Measure with
+                {
+                    Parameters = definition.Parameters.Measure.Parameters
+                        .ToImmutableDictionary(StringComparer.Ordinal),
+                },
+        },
+    };
+
+    private static ViewBinding Snapshot(ViewBinding binding) => binding with
+    {
+        ShapeRoles = binding.ShapeRoles.ToImmutableDictionary(),
+        RowBehavior = binding.RowBehavior is null ? null : binding.RowBehavior with { },
+        Widget = binding.Widget is null
+            ? null
+            : binding.Widget with
+            {
+                Parameters = binding.Widget.Parameters.ToImmutableDictionary(StringComparer.Ordinal),
+            },
+    };
+
+    private static ViewFilter Snapshot(ViewFilter filter) => filter switch
+    {
+        ViewComparisonFilter comparison => comparison with { Value = comparison.Value.Clone() },
+        ViewAllFilter all => new ViewAllFilter(all.Filters.Select(Snapshot).ToImmutableArray()),
+        ViewAnyOfFilter any => new ViewAnyOfFilter(any.Filters.Select(Snapshot).ToImmutableArray()),
+        ViewNotFilter not => new ViewNotFilter(Snapshot(not.Filter)),
+        ViewFunctionFilter function => new ViewFunctionFilter(
+            function.Function,
+            function.Arguments.Select(Snapshot).ToImmutableArray()),
+        ViewCollectionFilter collection => collection with { Predicate = Snapshot(collection.Predicate) },
+        _ => throw new ViewQueryException(
+            "view.filter.kind_unknown",
+            "The view filter kind is not registered."),
+    };
+
+    private static ViewFilterOperand Snapshot(ViewFilterOperand operand) => operand switch
+    {
+        ViewFieldOperand field => field with { },
+        ViewLiteralOperand literal => literal with { Value = literal.Value.Clone() },
+        _ => throw new ViewQueryException(
+            "view.filter.operand_unknown",
+            "The view filter operand is not registered."),
+    };
 
     private sealed record ViewSemanticVersion(
         int Major,

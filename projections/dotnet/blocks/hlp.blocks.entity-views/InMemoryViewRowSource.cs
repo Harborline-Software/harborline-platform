@@ -32,19 +32,20 @@ public sealed class InMemoryViewRowSource : IViewRowSource
         IEnumerable<ViewRow> query = _rows;
         foreach (var predicate in plan.Predicates)
         {
-            query = query.Where(row => Matches(row, predicate.Filter));
+            query = query.Where(row => Matches(row, predicate.Filter, plan.FieldKinds));
         }
 
         IOrderedEnumerable<ViewRow>? ordered = null;
         foreach (var sort in plan.Sort)
         {
-            Func<ViewRow, string> key = row => Value(row, sort.Field);
+            Func<ViewRow, object?> key = row => Read(row, sort.Field);
+            var comparer = new ViewValueComparer(FieldKind(plan.FieldKinds, sort.Field));
             ordered = (ordered, sort.Direction) switch
             {
-                (null, ViewSortDirection.Ascending) => query.OrderBy(key, StringComparer.Ordinal),
-                (null, ViewSortDirection.Descending) => query.OrderByDescending(key, StringComparer.Ordinal),
-                (_, ViewSortDirection.Ascending) => ordered.ThenBy(key, StringComparer.Ordinal),
-                (_, ViewSortDirection.Descending) => ordered.ThenByDescending(key, StringComparer.Ordinal),
+                (null, ViewSortDirection.Ascending) => query.OrderBy(key, comparer),
+                (null, ViewSortDirection.Descending) => query.OrderByDescending(key, comparer),
+                (_, ViewSortDirection.Ascending) => ordered.ThenBy(key, comparer),
+                (_, ViewSortDirection.Descending) => ordered.ThenByDescending(key, comparer),
                 _ => ordered,
             };
         }
@@ -61,28 +62,36 @@ public sealed class InMemoryViewRowSource : IViewRowSource
         return ValueTask.FromResult(new ViewRowPage(page, filtered.Length, groups, filtered));
     }
 
-    private bool Matches(ViewRow row, ViewFilter filter) => filter switch
+    private bool Matches(
+        ViewRow row,
+        ViewFilter filter,
+        IReadOnlyDictionary<string, ViewRecordFieldKind> fieldKinds) => filter switch
     {
         ViewComparisonFilter comparison => Compare(
             Read(row, comparison.Field),
             comparison.Operator,
-            FromJson(comparison.Value)),
-        ViewAllFilter all => all.Filters.All(item => Matches(row, item)),
-        ViewAnyOfFilter any => any.Filters.Any(item => Matches(row, item)),
-        ViewNotFilter not => !Matches(row, not.Filter),
+            FromJson(comparison.Value),
+            FieldKind(fieldKinds, comparison.Field)),
+        ViewAllFilter all => all.Filters.All(item => Matches(row, item, fieldKinds)),
+        ViewAnyOfFilter any => any.Filters.Any(item => Matches(row, item, fieldKinds)),
+        ViewNotFilter not => !Matches(row, not.Filter, fieldKinds),
         ViewFunctionFilter function => Call(row, function),
-        ViewCollectionFilter collection => Quantify(row, collection),
+        ViewCollectionFilter collection => Quantify(row, collection, fieldKinds),
         _ => throw new ViewQueryException("view.filter.kind_unknown", "The view filter kind is not registered."),
     };
 
-    private bool Quantify(ViewRow row, ViewCollectionFilter collection)
+    private bool Quantify(
+        ViewRow row,
+        ViewCollectionFilter collection,
+        IReadOnlyDictionary<string, ViewRecordFieldKind> fieldKinds)
     {
         if (Read(row, collection.Field) is not System.Collections.IEnumerable values
             || values is string)
         {
             return false;
         }
-        var matches = values.Cast<object?>().Select(value => Matches(Element(value), collection.Predicate));
+        var matches = values.Cast<object?>()
+            .Select(value => Matches(Element(value), collection.Predicate, fieldKinds));
         return collection.Quantifier == ViewCollectionQuantifier.Any
             ? matches.Any(value => value)
             : matches.All(value => value);
@@ -101,13 +110,17 @@ public sealed class InMemoryViewRowSource : IViewRowSource
         _ => throw new ViewQueryException("view.filter.operand_unknown", "The view filter operand is not registered."),
     };
 
-    private static bool Compare(object? left, ViewComparisonOperator comparison, object? right)
+    private static bool Compare(
+        object? left,
+        ViewComparisonOperator comparison,
+        object? right,
+        ViewRecordFieldKind? fieldKind)
     {
         if (comparison == ViewComparisonOperator.In && right is object?[] values)
         {
-            return values.Any(value => Compare(left, ViewComparisonOperator.Equal, value));
+            return values.Any(value => Compare(left, ViewComparisonOperator.Equal, value, fieldKind));
         }
-        var order = Order(left, right);
+        var order = Order(left, right, fieldKind);
         return comparison switch
         {
             ViewComparisonOperator.Equal => order == 0,
@@ -121,13 +134,25 @@ public sealed class InMemoryViewRowSource : IViewRowSource
         };
     }
 
-    private static int Order(object? left, object? right)
+    private static int Order(object? left, object? right, ViewRecordFieldKind? fieldKind)
     {
         if (left is null || right is null)
         {
             return left is null ? right is null ? 0 : -1 : 1;
         }
-        if (TryDecimal(left, out var leftNumber) && TryDecimal(right, out var rightNumber))
+        if (fieldKind == ViewRecordFieldKind.Text)
+        {
+            return string.CompareOrdinal(Text(left), Text(right));
+        }
+        if (fieldKind == ViewRecordFieldKind.DateTime
+            && TryDateTime(left, out var leftInstant)
+            && TryDateTime(right, out var rightInstant))
+        {
+            return leftInstant.CompareTo(rightInstant);
+        }
+        if (fieldKind is null or ViewRecordFieldKind.Ordered or ViewRecordFieldKind.Scalar
+            && TryDecimal(left, out var leftNumber)
+            && TryDecimal(right, out var rightNumber))
         {
             return leftNumber.CompareTo(rightNumber);
         }
@@ -135,9 +160,28 @@ public sealed class InMemoryViewRowSource : IViewRowSource
         {
             return leftBoolean.CompareTo(rightBoolean);
         }
-        return string.CompareOrdinal(
-            Convert.ToString(left, System.Globalization.CultureInfo.InvariantCulture),
-            Convert.ToString(right, System.Globalization.CultureInfo.InvariantCulture));
+        if (left.GetType() == right.GetType() && left is IComparable comparable)
+        {
+            return comparable.CompareTo(right);
+        }
+        return string.CompareOrdinal(Text(left), Text(right));
+    }
+
+    private static bool TryDateTime(object value, out DateTimeOffset instant) => value switch
+    {
+        DateTimeOffset dateTimeOffset => Return(dateTimeOffset, out instant),
+        DateTime dateTime => Return(new DateTimeOffset(dateTime), out instant),
+        _ => DateTimeOffset.TryParse(
+            Text(value),
+            System.Globalization.CultureInfo.InvariantCulture,
+            System.Globalization.DateTimeStyles.RoundtripKind,
+            out instant),
+    };
+
+    private static bool Return(DateTimeOffset value, out DateTimeOffset result)
+    {
+        result = value;
+        return true;
     }
 
     private static bool TryDecimal(object value, out decimal number) =>
@@ -146,6 +190,14 @@ public sealed class InMemoryViewRowSource : IViewRowSource
             System.Globalization.NumberStyles.Number,
             System.Globalization.CultureInfo.InvariantCulture,
             out number);
+
+    private static string Text(object value) =>
+        Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty;
+
+    private static ViewRecordFieldKind? FieldKind(
+        IReadOnlyDictionary<string, ViewRecordFieldKind> fieldKinds,
+        string field) =>
+        fieldKinds.TryGetValue(field, out var kind) ? kind : null;
 
     private static object? FromJson(System.Text.Json.JsonElement value) => value.ValueKind switch
     {
@@ -171,4 +223,9 @@ public sealed class InMemoryViewRowSource : IViewRowSource
         row.Values.TryGetValue(field, out var value)
             ? Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty
             : string.Empty;
+
+    private sealed class ViewValueComparer(ViewRecordFieldKind? fieldKind) : IComparer<object?>
+    {
+        public int Compare(object? left, object? right) => Order(left, right, fieldKind);
+    }
 }

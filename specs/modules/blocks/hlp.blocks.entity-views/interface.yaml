@@ -23,9 +23,9 @@
       "ConditionCapture.CaptureFromSubmission -> one act, two artifacts; an out-of-range grade records NOTHING and returns a surfaced skip; an in-range capture returns no skip fields",
       "SubmissionLinking.LinkFromCase(caseRef?, ...) -> links the submission to the case-resolved record via an injected resolver; a null/absent case ref leaves no link",
       "IViewDefinitionStore: save drafts at immutable coordinates, publish a version, resolve the highest published semantic-version head, restore a published revision into a new draft, and expose append-only revision history",
-      "ViewDefinitionAuthoring.Validate/SaveDraftAsync -> terminal definition.validate admission over record fields, registered kinds/functions/measures/widgets/actions/transitions, typed parameters, and forbidden row-visibility/aggregation/viewer-relative constructs",
-      "ViewDefinitionPackExporter.Export -> published system/public definitions only; personal definitions are never pack content",
-      "ViewQueryRuntime.QueryAsync -> resolve published head, authorize open, resolve kind and record shape, prepend the Access predicate, apply authored filtering/sort/group/page, evaluate named measures over current authorized rows, and return transient rows/actions/authority/evaluatedAt"
+      "ViewDefinitionAuthoring.CreateDraftAsync -> terminal definition.validate admission over record fields, registered kinds/functions/measures/widgets/actions/transitions, typed parameters, and forbidden row-visibility/aggregation/viewer-relative constructs before storing the definition and authored binding",
+      "ViewDefinitionPackExporter.Export -> published system/public definitions and their authored bindings only; personal definitions are never pack content",
+      "ViewQueryRuntime.ExecuteAsync -> resolve published head, authorize open, resolve kind and record shape, prepend the Access predicate, apply authored filtering/sort/group/page, evaluate named measures over current authorized rows, and return transient rows/actions/authority/evaluatedAt"
     ],
     "context": "Persistence lives behind the store ports a host supplies; the in-memory store is the test/dev double and the development preview adapter (pinned Harborline App seed tree, injected TimeProvider) throws in Production. The module references only the identity/forms contracts — never a Foundation aggregate, a Kernel, a host, or a UI framework."
   },

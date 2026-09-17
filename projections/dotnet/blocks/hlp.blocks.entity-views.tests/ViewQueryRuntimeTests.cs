@@ -136,6 +136,58 @@ public sealed class ViewQueryRuntimeTests
         Assert.Collection(result.Rows, row => Assert.Equal("three", row.Id));
     }
 
+    [Fact(DisplayName = "text identifiers remain ordinally distinct in the Access predicate")]
+    public async Task TextIdentifiersRemainOrdinallyDistinctInTheAccessPredicate()
+    {
+        var calls = new List<string>();
+        var runtime = new ViewQueryRuntime(
+            new RecordingDefinitions(calls, Definition()),
+            new RecordingOpenGate(calls, new ViewAuthority(CanOpen: true, Actions: [])),
+            new RecordingKinds(calls, IsRegistered: true),
+            new RecordingRecordTypes(calls),
+            new RecordingAccessFilter(calls),
+            new InMemoryViewRowSource([
+                Row("hidden", "A", "01", "open"),
+                Row("visible", "B", "1", "open"),
+            ]),
+            new RecordingMeasures(calls),
+            new FixedTimeProvider(DateTimeOffset.UnixEpoch));
+
+        var result = await runtime.ExecuteAsync(Request() with { Principal = "1" });
+
+        Assert.Equal(1, result.Total);
+        Assert.Collection(result.Rows, row => Assert.Equal("visible", row.Id));
+    }
+
+    [Fact(DisplayName = "typed numeric sort keys order rows before paging")]
+    public async Task TypedNumericSortKeysOrderRowsBeforePaging()
+    {
+        var calls = new List<string>();
+        var definition = Definition() with
+        {
+            Parameters = Definition().Parameters with
+            {
+                Sort = [new("priority", ViewSortDirection.Ascending)],
+            },
+        };
+        var runtime = new ViewQueryRuntime(
+            new RecordingDefinitions(calls, definition),
+            new RecordingOpenGate(calls, new ViewAuthority(CanOpen: true, Actions: [])),
+            new RecordingKinds(calls, IsRegistered: true),
+            new RecordingRecordTypes(calls),
+            new RecordingAccessFilter(calls),
+            new InMemoryViewRowSource([
+                RichRow("ten", "A", 10, []),
+                RichRow("two", "B", 2, []),
+            ]),
+            new RecordingMeasures(calls),
+            new FixedTimeProvider(DateTimeOffset.UnixEpoch));
+
+        var result = await runtime.ExecuteAsync(Request() with { Page = new(0, 1) });
+
+        Assert.Collection(result.Rows, row => Assert.Equal("two", row.Id));
+    }
+
     [Fact(DisplayName = "the measure catalogue evaluates only the rows currently true")]
     public async Task MeasureCatalogueEvaluatesOnlyRowsCurrentlyTrue()
     {
@@ -334,6 +386,8 @@ public sealed class ViewQueryRuntimeTests
                     ["title"] = ViewRecordFieldKind.Text,
                     ["state"] = ViewRecordFieldKind.Text,
                     ["assignee"] = ViewRecordFieldKind.Text,
+                    ["priority"] = ViewRecordFieldKind.Ordered,
+                    ["tags"] = ViewRecordFieldKind.Collection,
                 }));
         }
     }

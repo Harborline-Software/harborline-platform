@@ -151,13 +151,15 @@ public sealed class ViewDefinitionAdmission(
 
         if (draft.Definition.Parameters.Filter is { } filter)
         {
-            foreach (var function in Functions(filter))
+            foreach (var (function, pointer) in Functions(
+                filter,
+                "/definition/parameters/filter"))
             {
                 if (!_functions.IsRegistered(function.Function, function.Arguments.Count))
                 {
                     refusals.Add(new(
                         ViewDefinitionCodes.FilterFunctionUnknown,
-                        "/definition/parameters/filter/function"));
+                        $"{pointer}/function"));
                 }
             }
         }
@@ -229,24 +231,28 @@ public sealed class ViewDefinitionAdmission(
     private static string Escape(string token) => token.Replace("~", "~0", StringComparison.Ordinal)
         .Replace("/", "~1", StringComparison.Ordinal);
 
-    private static IEnumerable<ViewFunctionFilter> Functions(ViewFilter filter)
+    private static IEnumerable<(ViewFunctionFilter Function, string Pointer)> Functions(
+        ViewFilter filter,
+        string pointer)
     {
         switch (filter)
         {
             case ViewFunctionFilter function:
-                yield return function;
+                yield return (function, pointer);
                 break;
             case ViewAllFilter all:
-                foreach (var nested in all.Filters.SelectMany(Functions)) yield return nested;
+                for (var index = 0; index < all.Filters.Count; index++)
+                    foreach (var nested in Functions(all.Filters[index], $"{pointer}/filters/{index}")) yield return nested;
                 break;
             case ViewAnyOfFilter any:
-                foreach (var nested in any.Filters.SelectMany(Functions)) yield return nested;
+                for (var index = 0; index < any.Filters.Count; index++)
+                    foreach (var nested in Functions(any.Filters[index], $"{pointer}/filters/{index}")) yield return nested;
                 break;
             case ViewNotFilter not:
-                foreach (var nested in Functions(not.Filter)) yield return nested;
+                foreach (var nested in Functions(not.Filter, $"{pointer}/filter")) yield return nested;
                 break;
             case ViewCollectionFilter collection:
-                foreach (var nested in Functions(collection.Predicate)) yield return nested;
+                foreach (var nested in Functions(collection.Predicate, $"{pointer}/predicate")) yield return nested;
                 break;
         }
     }
@@ -311,6 +317,9 @@ public sealed class ViewDefinitionAuthoring(
         CancellationToken cancellationToken = default)
     {
         await _admission.ValidateAsync(draft, cancellationToken).ConfigureAwait(false);
-        return await _store.CreateDraftAsync(draft.Definition, cancellationToken).ConfigureAwait(false);
+        return await _store.CreateDraftAsync(
+            draft.Definition,
+            draft.Binding,
+            cancellationToken).ConfigureAwait(false);
     }
 }

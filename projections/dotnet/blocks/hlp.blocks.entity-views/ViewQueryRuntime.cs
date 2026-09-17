@@ -205,6 +205,7 @@ public sealed record ViewQueryPredicate(ViewPredicateSource Source, ViewFilter F
 public sealed record ViewQueryPlan(
     string Tenant,
     string RecordType,
+    IReadOnlyDictionary<string, ViewRecordFieldKind> FieldKinds,
     IReadOnlyList<ViewColumn> Columns,
     IReadOnlyList<ViewQueryPredicate> Predicates,
     IReadOnlyList<ViewSort> Sort,
@@ -452,6 +453,7 @@ public sealed class ViewQueryRuntime
         var plan = new ViewQueryPlan(
             request.Tenant,
             definition.RecordType,
+            recordType!.Fields,
             definition.Parameters.Columns,
             predicates,
             definition.Parameters.Sort,

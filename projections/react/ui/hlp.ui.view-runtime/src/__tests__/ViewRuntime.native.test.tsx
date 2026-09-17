@@ -42,6 +42,15 @@ describe('ViewRuntime React projection', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add sort' }))
     expect(changed).toHaveBeenLastCalledWith(expect.objectContaining({ sorts: [{ field: 'name', direction: 'ascending' }] }))
   })
+  it('retains the authored column width when a change is below the declared minimum', () => {
+    const changed = vi.fn()
+    const draft = { ...emptyViewAuthoringDraft(), columns: [{ field: 'name', width: 160, presentation: 'text' }] }
+    render(<ViewAuthoringEditor value={draft} catalogue={{ recordTypes: [], viewKinds: [], fields: [], measures: [], widgets: [], rowActions: [] }} onChange={changed} />)
+
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'Column 1 width' }), { target: { value: '0' } })
+
+    expect(changed).toHaveBeenLastCalledWith(expect.objectContaining({ columns: [{ field: 'name', width: 160, presentation: 'text' }] }))
+  })
   it('groups declared actions as small secondary Buttons in plan order', () => {
     const activated: string[] = []
     render(<ViewRuntime plan={{ ...plan, bindings: { ...plan.bindings, actions: [{ id: 'publish', label: 'Publish' }, { id: 'revise', label: 'Revise' }] } }} rows={[]} onAction={id => activated.push(id)} />)

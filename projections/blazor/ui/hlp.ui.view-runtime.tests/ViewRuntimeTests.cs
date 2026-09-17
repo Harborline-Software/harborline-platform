@@ -44,6 +44,24 @@ public sealed class ViewRuntimeTests : BunitContext
     }
 
     [Fact]
+    public void Authoring_editor_retains_the_column_width_when_a_change_is_below_the_minimum()
+    {
+        ViewAuthoringDraft? changed = null;
+        var value = ViewAuthoringDraft.Empty with
+        {
+            Columns = [new("name", 160, "text")],
+        };
+        var cut = Render<HarborlineViewAuthoringEditor>(parameters => parameters
+            .Add(component => component.Value, value)
+            .Add(component => component.Catalogue, new([], [], [], [], [], []))
+            .Add(component => component.ValueChanged, next => changed = next));
+
+        cut.Find("input[aria-label='Column 1 width']").Change("0");
+
+        Assert.Equal(160, Assert.Single(changed!.Columns).Width);
+    }
+
+    [Fact]
     public void Grid_exposes_the_same_pack_provenance_as_the_react_lane()
     {
         var cut = Render<HarborlineViewRuntime>(parameters => parameters

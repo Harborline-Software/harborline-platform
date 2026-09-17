@@ -22,7 +22,8 @@
   [Parameter, EditorRequired] public ViewAuthoringCatalogue Catalogue { get; set; } = new([], [], [], [], [], []);
   [Parameter] public EventCallback<ViewAuthoringDraft> ValueChanged { get; set; }
   private static string Text(ChangeEventArgs args) => args.Value?.ToString() ?? "";
-  private static int Number(ChangeEventArgs args, int fallback) => int.TryParse(Text(args), out var value) ? value : fallback;
+  private static int Number(ChangeEventArgs args, int fallback) =>
+    int.TryParse(Text(args), out var value) && value >= 1 ? value : fallback;
   private string Role(string role) => Value.ShapeRoles.TryGetValue(role, out var field) ? field : "";
   private Task Change(ViewAuthoringDraft draft) => ValueChanged.InvokeAsync(draft);
   private Task AddColumn() => Change(Value with { Columns = [.. Value.Columns, new(Catalogue.Fields.FirstOrDefault()?.Id ?? "", 160, "text")] });

@@ -67,7 +67,7 @@ async Task ProveAuthoredAndBoundQuery()
             new QueryInteractions()),
         store);
     await authoring.CreateDraftAsync(new(definition, binding));
-    await store.PublishAsync("team-a", "work.queue", "1.0.0");
+    var published = await store.PublishAsync("team-a", "work.queue", "1.0.0");
 
     var runtime = new ViewQueryRuntime(
         store,
@@ -87,16 +87,16 @@ async Task ProveAuthoredAndBoundQuery()
         "work.queue",
         "party:operator-1",
         new(0, 25),
-        binding));
+        published.Binding));
 
     Check(result.Total == 1 && result.Rows.Single().Id == "visible", "authored+Access query");
     Check(result.Measure == new ViewMeasureResult("work.count", 1), "catalogue measure over current rows");
     Check(result.Authority.CanOpen && result.Authority.Actions.Single().Action == "work.open", "authority travels with rows");
     var personal = definition with { Ownership = ViewOwnershipTier.Personal };
     Check(ViewDefinitionPackExporter.Export([
-        new(personal, ViewDefinitionStatus.Published),
-        new(definition, ViewDefinitionStatus.Published),
-    ]).Select(item => item.Key).SequenceEqual(["work.queue"]), "personal views never travel");
+        new(personal, binding, ViewDefinitionStatus.Published),
+        new(definition, binding, ViewDefinitionStatus.Published),
+    ]).Select(item => item.Definition.Key).SequenceEqual(["work.queue"]), "personal views never travel");
 }
 
 ViewRow QueryRow(string id, string title, string assignee, string state) => new(
