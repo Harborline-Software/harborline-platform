@@ -1,0 +1,2 @@
+export { DATA_EXCHANGE_MAPPING_PROFILE, DATA_EXCHANGE_MAPPING_SCHEMA, DATA_EXCHANGE_MAPPING_VERSION, DataExchangeAuthoringEditor, emptyDataExchangeDraft } from './DataExchangeAuthoringEditor'
+export type { DataExchangeAuthoringCatalogue, DataExchangeAuthoringDraft, DataExchangeAuthoringEditorProps, DataExchangeMappingRow, DataExchangeOption, DataExchangeRunCensus, DataExchangeRunSummary, DiscoveredSourceColumn } from './DataExchangeAuthoringEditor.types'

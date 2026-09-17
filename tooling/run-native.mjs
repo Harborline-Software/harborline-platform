@@ -46,6 +46,7 @@ const DOTNET_SUITES = [
   ['workflow', 'blocks-workflow-native', "projections/dotnet/blocks/hlp.blocks.workflow.tests/Harborline.Blocks.Workflow.Tests.csproj"],
   ['workflowInterpreter', 'blocks-workflow-interpreter-native', "projections/dotnet/blocks/hlp.blocks.workflow-interpreter.tests/Harborline.Blocks.Workflow.Interpreter.Tests.csproj"],
   ['entityViews', 'blocks-entity-views-native', "projections/dotnet/blocks/hlp.blocks.entity-views.tests/Harborline.Blocks.EntityViews.Tests.csproj"],
+  ['dataExchange', 'foundation-data-exchange-native', "projections/dotnet/foundation/hlp.foundation.data-exchange.tests/Harborline.Foundation.DataExchange.Tests.csproj"],
   ['foundationScheduling', 'foundation-scheduling-native', "projections/dotnet/foundation/hlp.foundation.scheduling.tests/Harborline.Foundation.Scheduling.Tests.csproj"],
   ['blocksScheduling', 'blocks-scheduling-native', "projections/dotnet/blocks/hlp.blocks.scheduling.tests/Harborline.Blocks.Scheduling.Tests.csproj"],
   ['blocksCalendar', 'blocks-calendar-native', "projections/dotnet/blocks/hlp.blocks.calendar.tests/Harborline.Blocks.Calendar.Tests.csproj"],

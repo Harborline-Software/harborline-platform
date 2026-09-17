@@ -44,6 +44,22 @@ public sealed class CanonicalPlatformPackageSeedTests
     }
 
     [Fact]
+    public void Data_exchange_authoring_is_mounted_in_Workshop_with_the_fixed_mapping_profile()
+    {
+        var authoring = Payload("platform-package-ck-7").GetProperty("dataExchangeAuthoring");
+
+        Assert.Equal("platform.workspace.workshop", authoring.GetProperty("workspace").GetString());
+        Assert.Equal("platform.navigation.data-exchanges.author", authoring.GetProperty("navigationEntry").GetProperty("id").GetString());
+        Assert.Equal("data-exchanges", authoring.GetProperty("navigationEntry").GetProperty("pillar").GetString());
+        Assert.Equal("platform.editor.data-exchange", authoring.GetProperty("editor").GetProperty("id").GetString());
+        Assert.Equal("DataExchangeDefinition", authoring.GetProperty("editor").GetProperty("definitionKind").GetString());
+        Assert.Equal("hl:tabular-mapping/v1", authoring.GetProperty("mappingProfile").GetProperty("id").GetString());
+        Assert.Equal("https://schemas.harborline.software/mapping/tabular/v1", authoring.GetProperty("mappingProfile").GetProperty("schemaUri").GetString());
+        Assert.Equal("1.0.0", authoring.GetProperty("mappingProfile").GetProperty("documentVersion").GetString());
+        Assert.Equal(["react", "blazor"], authoring.GetProperty("editor").GetProperty("projections").EnumerateArray().Select(value => value.GetString()));
+    }
+
+    [Fact]
     public void Every_seed_member_has_a_stable_unique_id()
     {
         var memberGroups = new[] { 2, 3, 4, 6, 7, 8 };

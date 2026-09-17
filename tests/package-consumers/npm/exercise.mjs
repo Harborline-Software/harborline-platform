@@ -24,6 +24,8 @@ import {
   DateTimeField,
   DataExportButton,
   DataGrid,
+  DataExchangeAuthoringEditor,
+  emptyDataExchangeDraft,
   ErrorCard,
   FormView,
   FormViewField,
@@ -278,6 +280,19 @@ assert.match(waveThreeFiveUi, /role="log"/)
 assert.match(waveThreeFiveUi, /aria-label="Structures"[^>]*role="grid"/)
 assert.match(waveThreeFiveUi, /data-task-id="capture"/)
 assert.match(waveThreeFiveUi, /aria-label="Placement progress"/)
+
+const dataExchangeUi = renderToStaticMarkup(React.createElement(DataExchangeAuthoringEditor, {
+  value: emptyDataExchangeDraft(),
+  catalogue: { sourceCapabilities: [], canonicalTargets: [], datatypes: [], transforms: [], schedules: [] },
+  canCommit: false,
+  onChange() {},
+  onDiscoverSource() {},
+  onDryRun() {},
+  onCommit() {},
+}))
+assert.match(dataExchangeUi, /hl:tabular-mapping\/v1/)
+assert.match(dataExchangeUi, /aria-label="Secret reference"/)
+assert.match(dataExchangeUi, /aria-label="Commit reviewed run" disabled=""/)
 
 const localized = renderToStaticMarkup(React.createElement(
   HarborlineLocaleProvider,

@@ -114,6 +114,29 @@ public static class PlatformPackageSeed
                         projections = new[] { "react", "blazor" },
                     },
                 },
+                dataExchangeAuthoring = new
+                {
+                    workspace = "platform.workspace.workshop",
+                    navigationEntry = new
+                    {
+                        id = "platform.navigation.data-exchanges.author",
+                        pillar = "data-exchanges",
+                        label = "Create data exchange",
+                        surface = "platform.editor.data-exchange",
+                    },
+                    editor = new
+                    {
+                        id = "platform.editor.data-exchange",
+                        definitionKind = "DataExchangeDefinition",
+                        projections = new[] { "react", "blazor" },
+                    },
+                    mappingProfile = new
+                    {
+                        id = "hl:tabular-mapping/v1",
+                        schemaUri = "https://schemas.harborline.software/mapping/tabular/v1",
+                        documentVersion = "1.0.0",
+                    },
+                },
             }, "platform-package-ck-6"),
             Item("platform-package-ck-8", PlatformSeedStage.Views, new
             {

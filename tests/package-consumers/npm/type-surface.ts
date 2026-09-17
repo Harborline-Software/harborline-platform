@@ -10,6 +10,8 @@ import {
   DateTimeField,
   DataExportButton,
   DataGrid,
+  DataExchangeAuthoringEditor,
+  emptyDataExchangeDraft,
   ErrorCard,
   FormView,
   FormViewField,
@@ -67,6 +69,7 @@ import {
   type DateTimeFieldProps,
   type DataExportButtonProps,
   type DataGridProps,
+  type DataExchangeAuthoringEditorProps,
   type ErrorCardProps,
   type FormFieldProps,
   type FormValues,
@@ -172,6 +175,7 @@ type GridRow = { id: string; structure: string; photos: number }
 const dataGridProps: DataGridProps<GridRow> = { accessibleName: 'Structures', rows: [], columns: [{ id: 'structure', field: 'structure', header: 'Structure', removalPriority: 1 }], getRowId: row => row.id }
 const ganttProps: GanttProps = { tasks: [{ id: 'capture', title: 'Capture', start: '2026-08-11', end: '2026-08-12' }], zoom: 'week' }
 const numericTextBoxProps: NumericTextBoxProps = { value: 42.5, onChange() {}, min: 0, max: 100, decimals: 2, 'aria-label': 'Progress' }
+const dataExchangeAuthoringProps: DataExchangeAuthoringEditorProps = { value: emptyDataExchangeDraft(), catalogue: { sourceCapabilities: [], canonicalTargets: [], datatypes: [], transforms: [], schedules: [] }, canCommit: false, onChange() {}, onDiscoverSource() {}, onDryRun() {}, onCommit() {} }
 
 const field = FormViewField.normalize({
   name: 'amount',
@@ -205,6 +209,8 @@ void [
   DateTimeField,
   DataExportButton,
   DataGrid,
+  DataExchangeAuthoringEditor,
+  dataExchangeAuthoringProps,
   dataGridProps,
   dataExportProps,
   dateProps,

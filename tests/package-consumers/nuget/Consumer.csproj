@@ -19,6 +19,7 @@
     <PackageReference Include="Harborline.Blocks.Workflow" Version="$(HarborlinePackedVersion)" />
     <PackageReference Include="Harborline.Blocks.Workflow.Interpreter" Version="$(HarborlinePackedVersion)" />
     <PackageReference Include="Harborline.Blocks.EntityViews" Version="$(HarborlinePackedVersion)" />
+    <PackageReference Include="Harborline.Foundation.DataExchange" Version="$(HarborlinePackedVersion)" />
     <PackageReference Include="Harborline.Foundation.Scheduling" Version="$(HarborlinePackedVersion)" />
     <PackageReference Include="Harborline.Blocks.Scheduling" Version="$(HarborlinePackedVersion)" />
     <PackageReference Include="Harborline.Blocks.Calendar" Version="$(HarborlinePackedVersion)" />
