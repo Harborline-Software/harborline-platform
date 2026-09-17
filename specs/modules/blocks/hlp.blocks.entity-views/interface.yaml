@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.blocks.entity-views",
-  "interfaceRevision": 2,
+  "interfaceRevision": 3,
   "status": "frozen",
-  "purpose": "Own the Views read model behind Harborline-owned ports: entity list/type-filter/detail-with-breadcrumb/containment-tree reads with the 404-only-null rule, condition history with provenance, the two previewed writes with typed rejections, breadcrumb resolution below any renderer with the no-raw-id rule, form-binding descriptors and navigation targets over the frozen Forms wire (Design B), and a development preview adapter that fails closed in Production.",
+  "purpose": "Own the Views read model, authored view-definition lifecycle, and authorized query runtime behind Harborline-owned ports: entity list/type-filter/detail-with-breadcrumb/containment-tree reads with the 404-only-null rule, immutable authored coordinates with draft/publish/restore history, typed filter/shape/interaction admission, Access-first query execution, condition history with provenance, the two previewed writes with typed rejections, breadcrumb resolution below any renderer with the no-raw-id rule, form-binding descriptors and navigation targets over the frozen Forms wire (Design B), and a development preview adapter that fails closed in Production.",
   "dependencies": [{"moduleId": "hlp.contracts.identities", "minimumRevision": 1}, {"moduleId": "hlp.contracts.forms", "minimumRevision": 4}],
   "callerInterface": {
-    "name": "IEntityReadStore / IConditionHistoryStore / IFormBindingSource / IViewNavigationTargets / BreadcrumbResolver",
+    "name": "IEntityReadStore / IConditionHistoryStore / IFormBindingSource / IViewNavigationTargets / BreadcrumbResolver / IViewDefinitionStore / ViewDefinitionAuthoring / ViewQueryRuntime",
     "operations": [
       "ListEntitiesAsync(type?) -> EntitySummary[] (display-name ordered)",
       "GetEntityAsync(id) -> EntityDetail? (null MEANS not-found ONLY)",
@@ -21,7 +21,11 @@
       "EntityViewsTenantScopes.ForTenant(tenantId) -> tenant-scoped IEntityReadStore/IConditionHistoryStore/ITypeCatalogStore (tenant is ambient — never on a port method)",
       "ITypeCatalogStore: GetEffectiveCatalogAsync (immutable pack seed + tenant overrides), GetTypeAsync (null = unknown-or-other-tenant only), CreateTypeAsync/UpdateTypeAsync (editing a SEEDED type creates an override, never mutates the seed), RevertTypeAsync (pack seed effective again), bindings + capital-planning round-trip",
       "ConditionCapture.CaptureFromSubmission -> one act, two artifacts; an out-of-range grade records NOTHING and returns a surfaced skip; an in-range capture returns no skip fields",
-      "SubmissionLinking.LinkFromCase(caseRef?, ...) -> links the submission to the case-resolved record via an injected resolver; a null/absent case ref leaves no link"
+      "SubmissionLinking.LinkFromCase(caseRef?, ...) -> links the submission to the case-resolved record via an injected resolver; a null/absent case ref leaves no link",
+      "IViewDefinitionStore: save drafts at immutable coordinates, publish a version, resolve the highest published semantic-version head, restore a published revision into a new draft, and expose append-only revision history",
+      "ViewDefinitionAuthoring.CreateDraftAsync -> terminal definition.validate admission over record fields, registered kinds/functions/measures/widgets/actions/transitions, typed parameters, and forbidden row-visibility/aggregation/viewer-relative constructs before storing the definition and authored binding",
+      "ViewDefinitionPackExporter.Export -> published system/public definitions and their authored bindings only; personal definitions are never pack content",
+      "ViewQueryRuntime.ExecuteAsync -> resolve published head, authorize open, resolve kind and record shape, prepend the Access predicate, apply authored filtering/sort/group/page, evaluate named measures over current authorized rows, and return transient rows/actions/authority/evaluatedAt"
     ],
     "context": "Persistence lives behind the store ports a host supplies; the in-memory store is the test/dev double and the development preview adapter (pinned Harborline App seed tree, injected TimeProvider) throws in Production. The module references only the identity/forms contracts — never a Foundation aggregate, a Kernel, a host, or a UI framework."
   },
@@ -36,7 +40,12 @@
     "Tenant is ambient: no port method carries a tenant id; cross-tenant reads are indistinguishable from absence (the opaque 404 at the seam) via per-tenant store scoping.",
     "The shared pack seed is immutable: editing a seeded type creates a tenant override and revert restores the seed; a tenant's created types are invisible to other tenants.",
     "Condition capture is one act, two artifacts: an out-of-range grade records nothing and returns a surfaced skip (never silent success); an in-range capture returns no skip fields.",
-    "A submission links to a record only through a resolved case reference; no case reference leaves no link."
+    "A submission links to a record only through a resolved case reference; no case reference leaves no link.",
+    "Authored view coordinates and stored definition-and-binding snapshots are immutable and revision history is append-only; restore creates a new draft rather than mutating a published revision, and published-head resolution uses semantic-version ordering.",
+    "Definition admission is terminal at definition.validate and returns stable codes with RFC 6901 pointers; offered kinds use the same record-shape compatibility predicate as admission.",
+    "The runtime authorizes view-open before Access or row reads, validates kind and shape before Access or row reads, and always applies the Access predicate before the authored predicate, paging, grouping, counting, or measure evaluation.",
+    "Measures receive only the current authorized and authored-filtered rows plus the injected kernel instant; query results are transient and carry no content owner, signatory, edition, or basis fields.",
+    "Personal definitions are never exported into a pack; only published system/public definitions with their authored bindings are eligible."
   ],
   "errors": [
     "views.entity.unknown_type",
@@ -53,16 +62,33 @@
     "views.type.life_years_non_negative",
     "views.type.inspection_form_discipline_required",
     "views.type.inspection_form_ref_required",
-    "views.type.seed_exists_use_put"
+    "views.type.seed_exists_use_put",
+    "view.open_forbidden",
+    "view_definition.kind_unknown",
+    "view_definition.shape_role_field_missing",
+    "view_definition.shape_role_field_incompatible",
+    "view_definition.aggregation_expression_forbidden",
+    "view_definition.row_visibility_rule_forbidden",
+    "view_definition.viewer_relative_scope_forbidden",
+    "view_definition.measure_unknown",
+    "view_definition.measure_parameter_missing",
+    "view_definition.measure_parameter_unknown",
+    "view_definition.filter_function_unknown",
+    "view_definition.widget_unknown",
+    "view_definition.widget_parameter_missing",
+    "view_definition.widget_parameter_unknown",
+    "view_definition.row_action_unknown",
+    "view_definition.workflow_transition_unknown",
+    "view_definition.field_unknown"
   ],
-  "publicSeams": ["entity read-store port", "condition-history store port", "form-binding source port", "navigation-targets port", "injected clock"],
+  "publicSeams": ["entity read-store port", "condition-history store port", "form-binding source port", "navigation-targets port", "view-definition store/source port", "definition authoring and admission", "kind and record-type registries", "expression-function and interaction registries", "view-open gate", "Access-filter port", "row-source port", "measure-catalog port", "injected clock"],
   "conformance": {
-    "nativeTests": {"dotnet": 40},
-    "nativeTestNote": "20 Wave A tests re-prove the 19 pinned TS ledger rows plus the fail-closed guard; 20 Wave B tests re-prove the 20 pinned route rows' engine-observable semantics under their pinned DisplayNames (HTTP-status halves proven in the package consumer's loopback host)",
-    "packageFixture": "views-capability-vertical (9 anchors + four-pair fallback/store indistinguishability + FAILED-condition guards + the 20 HTTP rows in the loopback host)"
+    "nativeTests": {"dotnet": 58},
+    "nativeTestNote": "40 migration tests retain the pinned entity-view behavior; 18 authored-and-bound tests prove immutable lifecycle, pack eligibility, terminal typed admission, offered-kind parity, open/shape denial ordering, Access-before-authored execution, current-row measures, and transient authority-bearing results.",
+    "packageFixture": "views-capability-vertical (existing entity-view anchors and loopback HTTP rows plus a package-only authored-and-bound query proving authoring, published-head and binding resolution, Access-before-page, measures, authority, and personal-pack exclusion)"
   },
   "selectedDesign": {
-    "choice": "One packable blocks assembly carrying the four ports, the read model with its two invariant rules held below the renderer, the in-memory store, and the fail-closed development preview adapter — persistence and HTTP transport stay host-side behind the ports for Wave B's narrowed seam.",
+    "choice": "One packable blocks assembly carries the legacy-compatible entity read ports plus authored definition lifecycle, typed admission, registries, and the Access-first query runtime. Persistence, Access policy, row retrieval, measure implementations, HTTP transport, and renderers remain host-side behind narrow ports.",
     "rejected": [
       "Port the pinned assetTreeClient with its browser-preview fallback inside a production client — the pinned fallback-in-production shape is a named FAILED condition.",
       "Design A for fill-form navigation, coupling Views to the Harborline App Forms builder model (dependency pollution).",

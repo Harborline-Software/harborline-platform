@@ -4,6 +4,8 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { ViewRuntime } from '../ViewRuntime'
 import type { ViewRenderPlan, ViewRuntimeRow } from '../ViewRuntime.types'
+import { ViewAuthoringEditor, emptyViewAuthoringDraft } from '../ViewAuthoringEditor'
+import type { ViewAuthoringCatalogue } from '../ViewAuthoringEditor.types'
 
 const fixture = JSON.parse(readFileSync(resolve(process.cwd(), '../../../../conformance/hlp.ui.view-runtime/fixtures.yaml'), 'utf8')) as {
   cases: readonly { input: { plan: ViewRenderPlan; rows?: readonly ViewRuntimeRow[]; empty?: string; activateActions?: readonly string[] }; expected: { nodes?: number; columns?: readonly string[]; rowCount?: number; content?: string; actions?: readonly string[]; activated?: readonly string[] } }[]
@@ -15,6 +17,40 @@ const seededFormsList: ViewRenderPlan = { ...plan, definitionId: 'view-forms' }
 const catalogue = new Map([[`${seededFormsList.definitionId}@${seededFormsList.definitionVersion}`, { definitionId: seededFormsList.definitionId, definitionVersion: seededFormsList.definitionVersion, packKey: seededFormsList.packKey }]])
 
 describe('ViewRuntime React projection', () => {
+  it('authors every Views grammar section from nothing and omits unavailable shapes', () => {
+    const catalogue: ViewAuthoringCatalogue = {
+      recordTypes: [{ id: 'asset', label: 'Asset' }],
+      viewKinds: [{ id: 'views.entity-list/grid', label: 'Table' }],
+      fields: [{ id: 'name', label: 'Name' }, { id: 'status', label: 'Status' }],
+      measures: [{ id: 'asset.count', label: 'Asset count' }],
+      widgets: [{ id: 'metric', label: 'Metric' }],
+      rowActions: [{ id: 'record.open', label: 'Open record' }],
+    }
+    const changed = vi.fn()
+    render(<ViewAuthoringEditor value={emptyViewAuthoringDraft()} catalogue={catalogue} onChange={changed} />)
+
+    for (const name of ['View name', 'Record type', 'Shape', 'Columns', 'Column treatment', 'Sort', 'Group by', 'Filter predicate', 'Shape roles', 'Measured by', 'Dashboard widget', 'Row behaviour', 'Density', 'Who it belongs to']) {
+      expect(screen.getByText(name)).toBeInTheDocument()
+    }
+    expect(screen.getByRole('option', { name: 'Table' })).toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: 'Board' })).toBeNull()
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'View name' }), { target: { value: 'Asset health' } })
+    expect(changed).toHaveBeenLastCalledWith(expect.objectContaining({ name: 'Asset health' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add column' }))
+    expect(changed).toHaveBeenLastCalledWith(expect.objectContaining({ columns: [{ field: 'name', width: 160, presentation: 'text' }] }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add sort' }))
+    expect(changed).toHaveBeenLastCalledWith(expect.objectContaining({ sorts: [{ field: 'name', direction: 'ascending' }] }))
+  })
+  it('retains the authored column width when a change is below the declared minimum', () => {
+    const changed = vi.fn()
+    const draft = { ...emptyViewAuthoringDraft(), columns: [{ field: 'name', width: 160, presentation: 'text' }] }
+    render(<ViewAuthoringEditor value={draft} catalogue={{ recordTypes: [], viewKinds: [], fields: [], measures: [], widgets: [], rowActions: [] }} onChange={changed} />)
+
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'Column 1 width' }), { target: { value: '0' } })
+
+    expect(changed).toHaveBeenLastCalledWith(expect.objectContaining({ columns: [{ field: 'name', width: 160, presentation: 'text' }] }))
+  })
   it('groups declared actions as small secondary Buttons in plan order', () => {
     const activated: string[] = []
     render(<ViewRuntime plan={{ ...plan, bindings: { ...plan.bindings, actions: [{ id: 'publish', label: 'Publish' }, { id: 'revise', label: 'Revise' }] } }} rows={[]} onAction={id => activated.push(id)} />)

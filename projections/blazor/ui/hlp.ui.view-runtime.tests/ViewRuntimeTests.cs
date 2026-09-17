@@ -15,6 +15,53 @@ public sealed class ViewRuntimeTests : BunitContext
     private static readonly ViewRenderPlan Grid = new("sha256:view-assets", "view-assets", "1", "harborline.platform", "1.0.0", "ViewDefinition", new("views.entity-list/grid", new([new("asset", "Asset"), new("status", "Status"), new("owner", "Owner")]))) ;
 
     [Fact]
+    public void Authoring_editor_covers_the_views_grammar_and_omits_unavailable_shapes()
+    {
+        ViewAuthoringDraft? changed = null;
+        var catalogue = new ViewAuthoringCatalogue(
+            [new("asset", "Asset")],
+            [new("views.entity-list/grid", "Table")],
+            [new("name", "Name"), new("status", "Status")],
+            [new("asset.count", "Asset count")],
+            [new("metric", "Metric")],
+            [new("record.open", "Open record")]);
+        var cut = Render<HarborlineViewAuthoringEditor>(parameters => parameters
+            .Add(component => component.Value, ViewAuthoringDraft.Empty)
+            .Add(component => component.Catalogue, catalogue)
+            .Add(component => component.ValueChanged, value => changed = value));
+
+        foreach (var label in new[] { "View name", "Record type", "Shape", "Columns", "Column treatment", "Sort", "Group by", "Filter predicate", "Shape roles", "Measured by", "Dashboard widget", "Row behaviour", "Density", "Who it belongs to" })
+            Assert.Contains(label, cut.Markup);
+        Assert.Contains("Table", cut.Markup);
+        Assert.DoesNotContain("Board", cut.Markup);
+
+        cut.Find("input[aria-label='View name']").Change("Asset health");
+        Assert.Equal("Asset health", changed?.Name);
+        cut.FindAll("button").Single(button => button.TextContent == "Add column").Click();
+        Assert.Equal(new ViewAuthoringColumn("name", 160, "text"), Assert.Single(changed!.Columns));
+        cut.FindAll("button").Single(button => button.TextContent == "Add sort").Click();
+        Assert.Equal(new ViewAuthoringSort("name", "ascending"), Assert.Single(changed!.Sorts));
+    }
+
+    [Fact]
+    public void Authoring_editor_retains_the_column_width_when_a_change_is_below_the_minimum()
+    {
+        ViewAuthoringDraft? changed = null;
+        var value = ViewAuthoringDraft.Empty with
+        {
+            Columns = [new("name", 160, "text")],
+        };
+        var cut = Render<HarborlineViewAuthoringEditor>(parameters => parameters
+            .Add(component => component.Value, value)
+            .Add(component => component.Catalogue, new([], [], [], [], [], []))
+            .Add(component => component.ValueChanged, next => changed = next));
+
+        cut.Find("input[aria-label='Column 1 width']").Change("0");
+
+        Assert.Equal(160, Assert.Single(changed!.Columns).Width);
+    }
+
+    [Fact]
     public void Grid_exposes_the_same_pack_provenance_as_the_react_lane()
     {
         var cut = Render<HarborlineViewRuntime>(parameters => parameters

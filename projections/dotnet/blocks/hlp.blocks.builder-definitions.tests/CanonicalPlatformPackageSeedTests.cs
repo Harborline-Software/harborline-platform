@@ -29,6 +29,21 @@ public sealed class CanonicalPlatformPackageSeedTests
     }
 
     [Fact]
+    public void Views_authoring_is_mounted_in_Workshop_as_platform_package_metadata()
+    {
+        var views = Payload("platform-package-ck-7");
+        var authoring = views.GetProperty("authoring");
+
+        Assert.Equal("platform.workspace.workshop", authoring.GetProperty("workspace").GetString());
+        Assert.Equal("platform.navigation.views.author", authoring.GetProperty("navigationEntry").GetProperty("id").GetString());
+        Assert.Equal("views", authoring.GetProperty("navigationEntry").GetProperty("pillar").GetString());
+        Assert.Equal("platform.editor.views", authoring.GetProperty("editor").GetProperty("id").GetString());
+        Assert.Equal("ViewDefinition", authoring.GetProperty("editor").GetProperty("definitionKind").GetString());
+        Assert.Equal(["react", "blazor"], authoring.GetProperty("editor").GetProperty("projections").EnumerateArray().Select(value => value.GetString()));
+        Assert.Equal(39, views.GetProperty("members").GetArrayLength());
+    }
+
+    [Fact]
     public void Every_seed_member_has_a_stable_unique_id()
     {
         var memberGroups = new[] { 2, 3, 4, 6, 7, 8 };

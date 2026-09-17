@@ -1,0 +1,64 @@
+@namespace Harborline.UIAdapters.Blazor.Components.DataDisplay
+<form class="hl-view-authoring" @onsubmit="PreventSubmit">
+  <label>View name<input aria-label="View name" value="@Value.Name" @onchange="e => Change(Value with { Name = Text(e) })" /></label>
+  <label>Record type<select aria-label="Record type" value="@Value.RecordType" @onchange="e => Change(Value with { RecordType = Text(e) })"><option value="">Choose a record type</option>@Options(Catalogue.RecordTypes)</select></label>
+  <label>Shape<select aria-label="Shape" value="@Value.ViewKind" @onchange="e => Change(Value with { ViewKind = Text(e) })"><option value="">Choose a shape</option>@Options(Catalogue.ViewKinds)</select></label>
+  <fieldset><legend>Columns</legend>@for (var index = 0; index < Value.Columns.Count; index++) { var column = Value.Columns[index]; var current = index; <div><select aria-label="@($"Column {current + 1}")" value="@column.Field" @onchange="e => ReplaceColumn(current, column with { Field = Text(e) })"><option value="">Choose a field</option>@Options(Catalogue.Fields)</select><button type="button" aria-label="@($"Move column {current + 1} up")" @onclick="() => MoveColumn(current, -1)">Up</button><button type="button" aria-label="@($"Move column {current + 1} down")" @onclick="() => MoveColumn(current, 1)">Down</button><button type="button" aria-label="@($"Remove column {current + 1}")" @onclick="() => RemoveColumn(current)">Remove</button></div> }<button type="button" @onclick="AddColumn">Add column</button></fieldset>
+  <fieldset><legend>Column treatment</legend>@for (var index = 0; index < Value.Columns.Count; index++) { var column = Value.Columns[index]; var current = index; <div><input aria-label="@($"Column {current + 1} width")" type="number" min="1" value="@column.Width" @onchange="e => ReplaceColumn(current, column with { Width = Number(e, column.Width) })" /><input aria-label="@($"Column {current + 1} presentation")" value="@column.Presentation" @onchange="e => ReplaceColumn(current, column with { Presentation = Text(e) })" /></div> }</fieldset>
+  <fieldset><legend>Sort</legend>@for (var index = 0; index < Value.Sorts.Count; index++) { var sort = Value.Sorts[index]; var current = index; <div><select aria-label="@($"Sort {current + 1} field")" value="@sort.Field" @onchange="e => ReplaceSort(current, sort with { Field = Text(e) })"><option value="">Choose a field</option>@Options(Catalogue.Fields)</select><select aria-label="@($"Sort {current + 1} direction")" value="@sort.Direction" @onchange="e => ReplaceSort(current, sort with { Direction = Text(e) })"><option value="ascending">Ascending</option><option value="descending">Descending</option></select><button type="button" aria-label="@($"Move sort {current + 1} up")" @onclick="() => MoveSort(current, -1)">Up</button><button type="button" aria-label="@($"Move sort {current + 1} down")" @onclick="() => MoveSort(current, 1)">Down</button><button type="button" aria-label="@($"Remove sort {current + 1}")" @onclick="() => RemoveSort(current)">Remove</button></div> }<button type="button" @onclick="AddSort">Add sort</button></fieldset>
+  <label>Group by<select aria-label="Group by" value="@Value.GroupBy" @onchange="e => Change(Value with { GroupBy = Text(e) })"><option value="">No grouping</option>@Options(Catalogue.Fields)</select></label>
+  <label>Filter predicate<textarea aria-label="Filter predicate" value="@Value.FilterPredicate" @onchange="e => Change(Value with { FilterPredicate = Text(e) })"></textarea></label>
+  <fieldset><legend>Shape roles</legend>@foreach (var role in Roles) { <select aria-label="@($"Shape role {role}")" value="@Role(role)" @onchange="e => ChangeRole(role, Text(e))"><option value="">@role</option>@Options(Catalogue.Fields)</select> }</fieldset>
+  <fieldset><legend>Measured by</legend><select aria-label="Measured by" value="@Value.Measure.Name" @onchange="e => Change(Value with { Measure = Value.Measure with { Name = Text(e) } })"><option value="">No measure</option>@Options(Catalogue.Measures)</select><input aria-label="Measure parameters" value="@Value.Measure.Parameters" @onchange="e => Change(Value with { Measure = Value.Measure with { Parameters = Text(e) } })" /></fieldset>
+  <fieldset><legend>Dashboard widget</legend><select aria-label="Dashboard widget" value="@Value.Widget.Name" @onchange="e => Change(Value with { Widget = Value.Widget with { Name = Text(e) } })"><option value="">No widget</option>@Options(Catalogue.Widgets)</select><input aria-label="Widget parameters" value="@Value.Widget.Parameters" @onchange="e => Change(Value with { Widget = Value.Widget with { Parameters = Text(e) } })" /></fieldset>
+  <fieldset><legend>Row behaviour</legend><select aria-label="Row open action" value="@Value.RowBehavior.OpenAction" @onchange="e => Change(Value with { RowBehavior = Value.RowBehavior with { OpenAction = Text(e) } })"><option value="">No open action</option>@Options(Catalogue.RowActions)</select><label><input aria-label="Inline edit" type="checkbox" checked="@Value.RowBehavior.InlineEdit" @onchange="ChangeInlineEdit" />Inline edit</label></fieldset>
+  <label>Density<select aria-label="Density" value="@Value.Density" @onchange="e => Change(Value with { Density = Text(e) })"><option value="compact">Compact</option><option value="standard">Standard</option><option value="spacious">Spacious</option></select></label>
+  <label>Who it belongs to<select aria-label="Who it belongs to" value="@Value.Ownership" @onchange="e => Change(Value with { Ownership = Text(e) })"><option value="system">System</option><option value="public">Public</option><option value="personal">Personal</option></select></label>
+</form>
+
+@code {
+  private static readonly string[] Roles = ["title", "placedBy", "groupedBy"];
+  [Parameter, EditorRequired] public ViewAuthoringDraft Value { get; set; } = ViewAuthoringDraft.Empty;
+  [Parameter, EditorRequired] public ViewAuthoringCatalogue Catalogue { get; set; } = new([], [], [], [], [], []);
+  [Parameter] public EventCallback<ViewAuthoringDraft> ValueChanged { get; set; }
+  private static string Text(ChangeEventArgs args) => args.Value?.ToString() ?? "";
+  private static int Number(ChangeEventArgs args, int fallback) =>
+    int.TryParse(Text(args), out var value) && value >= 1 ? value : fallback;
+  private string Role(string role) => Value.ShapeRoles.TryGetValue(role, out var field) ? field : "";
+  private Task Change(ViewAuthoringDraft draft) => ValueChanged.InvokeAsync(draft);
+  private Task AddColumn() => Change(Value with { Columns = [.. Value.Columns, new(Catalogue.Fields.FirstOrDefault()?.Id ?? "", 160, "text")] });
+  private Task AddSort() => Change(Value with { Sorts = [.. Value.Sorts, new(Catalogue.Fields.FirstOrDefault()?.Id ?? "", "ascending")] });
+  private Task ReplaceColumn(int index, ViewAuthoringColumn column) => Change(Value with { Columns = Value.Columns.Select((current, position) => position == index ? column : current).ToArray() });
+  private Task ReplaceSort(int index, ViewAuthoringSort sort) => Change(Value with { Sorts = Value.Sorts.Select((current, position) => position == index ? sort : current).ToArray() });
+  private Task RemoveColumn(int index) => Change(Value with { Columns = Value.Columns.Where((_, position) => position != index).ToArray() });
+  private Task RemoveSort(int index) => Change(Value with { Sorts = Value.Sorts.Where((_, position) => position != index).ToArray() });
+  private Task MoveColumn(int index, int by) => Change(Value with { Columns = Move(Value.Columns, index, by) });
+  private Task MoveSort(int index, int by) => Change(Value with { Sorts = Move(Value.Sorts, index, by) });
+  private static IReadOnlyList<T> Move<T>(IReadOnlyList<T> values, int index, int by)
+  {
+    var target = index + by;
+    if (target < 0 || target >= values.Count) return values;
+    var next = values.ToArray();
+    (next[index], next[target]) = (next[target], next[index]);
+    return next;
+  }
+  private Task ChangeInlineEdit(ChangeEventArgs args) => Change(Value with { RowBehavior = Value.RowBehavior with { InlineEdit = args.Value is true } });
+  private Task ChangeRole(string role, string field)
+  {
+    var roles = Value.ShapeRoles.ToDictionary(entry => entry.Key, entry => entry.Value);
+    roles[role] = field;
+    return Change(Value with { ShapeRoles = roles });
+  }
+  private static void PreventSubmit() { }
+  private static RenderFragment Options(IReadOnlyList<ViewAuthoringOption> options) => builder =>
+  {
+    var sequence = 0;
+    foreach (var option in options)
+    {
+      builder.OpenElement(sequence++, "option");
+      builder.AddAttribute(sequence++, "value", option.Id);
+      builder.AddContent(sequence++, option.Label);
+      builder.CloseElement();
+    }
+  };
+}
