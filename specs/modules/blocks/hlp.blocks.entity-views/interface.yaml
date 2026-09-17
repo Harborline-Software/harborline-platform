@@ -41,11 +41,11 @@
     "The shared pack seed is immutable: editing a seeded type creates a tenant override and revert restores the seed; a tenant's created types are invisible to other tenants.",
     "Condition capture is one act, two artifacts: an out-of-range grade records nothing and returns a surfaced skip (never silent success); an in-range capture returns no skip fields.",
     "A submission links to a record only through a resolved case reference; no case reference leaves no link.",
-    "Authored view coordinates are immutable and revision history is append-only; restore creates a new draft rather than mutating a published revision, and published-head resolution uses semantic-version ordering.",
+    "Authored view coordinates and stored definition-and-binding snapshots are immutable and revision history is append-only; restore creates a new draft rather than mutating a published revision, and published-head resolution uses semantic-version ordering.",
     "Definition admission is terminal at definition.validate and returns stable codes with RFC 6901 pointers; offered kinds use the same record-shape compatibility predicate as admission.",
     "The runtime authorizes view-open before Access or row reads, validates kind and shape before Access or row reads, and always applies the Access predicate before the authored predicate, paging, grouping, counting, or measure evaluation.",
     "Measures receive only the current authorized and authored-filtered rows plus the injected kernel instant; query results are transient and carry no content owner, signatory, edition, or basis fields.",
-    "Personal definitions are never exported into a pack; only published system/public definitions are eligible."
+    "Personal definitions are never exported into a pack; only published system/public definitions with their authored bindings are eligible."
   ],
   "errors": [
     "views.entity.unknown_type",
@@ -85,7 +85,7 @@
   "conformance": {
     "nativeTests": {"dotnet": 58},
     "nativeTestNote": "40 migration tests retain the pinned entity-view behavior; 18 authored-and-bound tests prove immutable lifecycle, pack eligibility, terminal typed admission, offered-kind parity, open/shape denial ordering, Access-before-authored execution, current-row measures, and transient authority-bearing results.",
-    "packageFixture": "views-capability-vertical (existing entity-view anchors and loopback HTTP rows plus a package-only authored-and-bound query proving authoring, published-head resolution, Access-before-page, measures, authority, and personal-pack exclusion)"
+    "packageFixture": "views-capability-vertical (existing entity-view anchors and loopback HTTP rows plus a package-only authored-and-bound query proving authoring, published-head and binding resolution, Access-before-page, measures, authority, and personal-pack exclusion)"
   },
   "selectedDesign": {
     "choice": "One packable blocks assembly carries the legacy-compatible entity read ports plus authored definition lifecycle, typed admission, registries, and the Access-first query runtime. Persistence, Access policy, row retrieval, measure implementations, HTTP transport, and renderers remain host-side behind narrow ports.",

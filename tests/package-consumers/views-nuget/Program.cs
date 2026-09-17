@@ -93,10 +93,12 @@ async Task ProveAuthoredAndBoundQuery()
     Check(result.Measure == new ViewMeasureResult("work.count", 1), "catalogue measure over current rows");
     Check(result.Authority.CanOpen && result.Authority.Actions.Single().Action == "work.open", "authority travels with rows");
     var personal = definition with { Ownership = ViewOwnershipTier.Personal };
-    Check(ViewDefinitionPackExporter.Export([
-        new(personal, binding, ViewDefinitionStatus.Published),
-        new(definition, binding, ViewDefinitionStatus.Published),
-    ]).Select(item => item.Definition.Key).SequenceEqual(["work.queue"]), "personal views never travel");
+    var export = ViewDefinitionPackExporter.Export([
+        new(personal, published.Binding, ViewDefinitionStatus.Published),
+        published,
+    ]);
+    Check(export.Select(item => item.Definition.Key).SequenceEqual(["work.queue"]), "personal views never travel");
+    Check(export.Single().Binding.ShapeRoles[ViewShapeRole.Title] == "title", "authored binding travels with the definition");
 }
 
 ViewRow QueryRow(string id, string title, string assignee, string state) => new(
