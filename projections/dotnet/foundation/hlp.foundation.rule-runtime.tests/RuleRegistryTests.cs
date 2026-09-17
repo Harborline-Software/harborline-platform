@@ -36,6 +36,33 @@ public sealed class RuleRegistryTests
         Assert.False(RuleVersion.IsDowngrade("1.2.0", "1.3.0"));
     }
 
+    [Fact]
+    public void RuleVersion_refuses_a_malformed_segment()
+    {
+        var error = Assert.Throws<FormatException>(() => RuleVersion.Compare("99.bad.0", "1.0.0"));
+        Assert.Contains("99.bad.0", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Publish_refuses_an_equal_version_with_a_different_body()
+    {
+        var registry = new RuleRegistry();
+        var first = Pub("1.0.0");
+        registry.Publish(Tenant, first);
+        registry.Publish(Tenant, first);
+
+        var conflict = Assert.Throws<RuleVersionConflictException>(() =>
+            registry.Publish(Tenant, new PublishedRuleVersion(
+                Key,
+                "1.0.0",
+                false,
+                Def($"{Key}@different"))));
+
+        Assert.Equal("1.0.0", conflict.Version);
+        Assert.Equal(first.Definition, registry.Resolve(
+            Tenant, Key, RuleVersionPolicy.Latest, RuleResolveScope.Production).Definition);
+    }
+
     // ── latest ────────────────────────────────────────────────────────────────
 
     [Fact]

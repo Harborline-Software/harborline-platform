@@ -30,6 +30,7 @@ internal static class FormCandidateEvaluator
         JsonDocument candidate,
         ISchemaRegistry schemas,
         int maximumCandidateBytes,
+        TimeProvider clock,
         CancellationToken cancellationToken)
     {
         var bytes = JsonSerializer.SerializeToUtf8Bytes(candidate.RootElement);
@@ -53,7 +54,7 @@ internal static class FormCandidateEvaluator
         var readOnly = new HashSet<string>(StringComparer.Ordinal);
 
         ApplyWriteAuthorization(scope, definition, objectNode, errors);
-        var rules = EvaluateRules(definition, objectNode, cancellationToken);
+        var rules = EvaluateRules(definition, objectNode, clock, cancellationToken);
         var hiddenPages = ApplyRuleProjection(definition, objectNode, rules, hidden, readOnly, errors, cancellationToken);
         foreach (var key in hidden) objectNode.Remove(key);
 
@@ -94,12 +95,16 @@ internal static class FormCandidateEvaluator
         }
     }
 
-    private static RuleEvaluationResult? EvaluateRules(State.FormDefinition definition, JsonObject candidate, CancellationToken cancellationToken)
+    private static RuleEvaluationResult? EvaluateRules(
+        State.FormDefinition definition,
+        JsonObject candidate,
+        TimeProvider clock,
+        CancellationToken cancellationToken)
     {
         if (definition.Overlay.Rules.Count == 0) return null;
         var compiled = RuleCompiler.Compile(definition.Overlay.Rules.Select(FormContractMapper.ToContractRule).ToArray());
         if (compiled.RuleCount == 0) return null;
-        return new FormRuleGraph(compiled).EvaluateInstance(RuleInstance.FromJson(candidate), cancellationToken);
+        return new FormRuleGraph(compiled, clock: clock).EvaluateInstance(RuleInstance.FromJson(candidate), cancellationToken);
     }
 
     private static HashSet<string> ApplyRuleProjection(
