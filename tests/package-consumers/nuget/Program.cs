@@ -447,6 +447,23 @@ if (BuilderDefinitions.DefinitionKeySuggester.Suggest("Tenant Intake", new HashS
     throw new InvalidOperationException("Packed Builder Definitions key suggestion changed.");
 if (typeof(BuilderDefinitions.IDefinitionKeyAuthority).IsInterface is false)
     throw new InvalidOperationException("Packed Builder Definitions key-authority seam is absent.");
+var platformManifest = new BuilderDefinitions.PlatformPackageManifest(
+    1,
+    "harborline.platform",
+    "consumer-smoke",
+    [new BuilderDefinitions.PlatformPackageItem(
+        "platform-package",
+        BuilderDefinitions.PlatformSeedStage.PackageRecord,
+        [],
+        BuilderDefinitions.PlatformPackageContent.PresentJson("{}"u8))]);
+if (BuilderDefinitions.PlatformPackageExporter.Export(platformManifest).Length == 0)
+    throw new InvalidOperationException("Packed Builder Definitions platform manifest export is absent.");
+if (!BuilderDefinitions.PlatformPackageReplayer.Validate(platformManifest).Succeeded)
+    throw new InvalidOperationException("Packed Builder Definitions platform manifest validation failed.");
+if (!BuilderDefinitions.PlatformPackageSeed.VerifyCheckedInExport())
+    throw new InvalidOperationException("Packed Builder Definitions canonical platform export differs from its producer.");
+if (BuilderDefinitions.PlatformPackageSeed.Manifest.Items.Count != 14)
+    throw new InvalidOperationException("Packed Builder Definitions canonical platform seed inventory is incomplete.");
 if (typeof(FormsState.IFormDefinitionStore).Assembly.GetName().Name != "Harborline.Foundation.Forms")
     throw new InvalidOperationException("Forms state assembly identity changed.");
 var formsStateStore = new FormsState.InMemoryFormDefinitionStore();

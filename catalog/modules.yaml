@@ -247,9 +247,9 @@
       }
     },
     "hlp.blocks.builder-definitions": {
-      "interface": {"path": "specs/modules/blocks/hlp.blocks.builder-definitions/interface.yaml", "revision": 1},
+      "interface": {"path": "specs/modules/blocks/hlp.blocks.builder-definitions/interface.yaml", "revision": 3},
       "moduleKind": "runtime",
-      "presentation": {"disposition": "not-applicable", "rationale": "Key suggestion and durable definition archive lifecycle have no presentation surface."},
+      "presentation": {"disposition": "not-applicable", "rationale": "Definition catalogue, package export, and replay are projection-neutral and have no presentation surface."},
       "owner": "platform-foundation",
       "dependencies": [],
       "status": "draft-native-green",
