@@ -16,7 +16,7 @@ public sealed class DoubleGateConformanceTests
             new InMemoryAcquisitionCheckpointStore(), TimeProvider.System,
             new CommitBounds(100, 1, 65536), new FakeProposalEvaluator(), new FakeSourcePolicies(), new FakeLifecyclePolicy(), new FakeTargetRegistry());
         var first = await committer.CommitAsync(dryRun.Id);
-        Assert.Equal(1, first.Census.Failed);
+        Assert.Equal(2, first.Census.Applied);
         Assert.Equal(ExchangeEffectStatus.Applied, (await target.GetOutcomeAsync(first.Effects[0].EffectIdentity))!.Outcome.Status);
         var replay = await committer.CommitAsync(dryRun.Id);
         Assert.Equal(2, replay.Census.Applied);

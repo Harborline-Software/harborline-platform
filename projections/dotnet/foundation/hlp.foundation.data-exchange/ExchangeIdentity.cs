@@ -3,7 +3,10 @@ using System.Text;
 
 namespace Harborline.Foundation.DataExchange;
 
-public readonly record struct DryRunId(string Value);
+public readonly record struct DryRunId(string Value)
+{
+    public static DryRunId New() => new(Guid.NewGuid().ToString("N"));
+}
 public readonly record struct CommitRunId(string Value);
 public readonly record struct BatchIdentity(string Value);
 public readonly record struct EffectIdempotencyIdentity(string Value);

@@ -1,4 +1,5 @@
 using Harborline.Foundation.DataExchange;
+using System.Text.Json;
 using Xunit;
 
 namespace Harborline.Foundation.DataExchange.Tests;
@@ -63,5 +64,36 @@ public sealed class MappingProfileAdmissionTests
 
         Assert.Contains(exception.Refusals, refusal => refusal.Code == "mapping.target_not_canonical");
         Assert.Contains(exception.Refusals, refusal => refusal.Code == "mapping.extension_unknown");
+    }
+
+    [Fact]
+    public void Portable_json_is_csvw_metadata_with_namespaced_harborline_extensions()
+    {
+        var mapping = new TabularMappingDocument(
+            TabularMappingProfile.Family,
+            TabularMappingProfile.SchemaUri,
+            "1.0.0",
+            new CanonicalTarget("records.customer/v1", "/customers"),
+            [new MappingColumn("CustomerNumber", "string", true, "/customerNumber", Null: ["NA"], Extensions: new Dictionary<string, string> { ["hl:transform"] = "trim" })],
+            new Dictionary<string, string> { ["hl:operation"] = "upsert" },
+            "https://imports.harborline.test/customers.csv");
+
+        var json = TabularMappingJson.Serialize(mapping);
+        using var document = JsonDocument.Parse(json);
+        var root = document.RootElement;
+        Assert.Equal("http://www.w3.org/ns/csvw", root.GetProperty("@context")[0].GetString());
+        Assert.Equal("https://imports.harborline.test/customers.csv", root.GetProperty("url").GetString());
+        Assert.Equal(TabularMappingProfile.Family, root.GetProperty("hl:profile").GetString());
+        var column = root.GetProperty("tableSchema").GetProperty("columns")[0];
+        Assert.Equal("CustomerNumber", column.GetProperty("name").GetString());
+        Assert.Equal("string", column.GetProperty("datatype").GetString());
+        Assert.Equal("/customerNumber", column.GetProperty("hl:target").GetString());
+        Assert.Equal("trim", column.GetProperty("hl:transform").GetString());
+
+        var roundTrip = TabularMappingJson.Deserialize(json);
+        Assert.Equal(mapping.Profile, roundTrip.Profile);
+        Assert.Equal(mapping.SchemaUri, roundTrip.SchemaUri);
+        Assert.Equal(mapping.SourceUrl, roundTrip.SourceUrl);
+        Assert.Equal(mapping.Columns[0].Null, roundTrip.Columns[0].Null);
     }
 }

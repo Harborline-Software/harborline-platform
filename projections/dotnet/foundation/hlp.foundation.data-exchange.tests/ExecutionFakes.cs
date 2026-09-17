@@ -11,13 +11,40 @@ internal sealed class FakeTargetRegistry : ICanonicalTargetRegistryPort
 
 internal abstract class FakeTargetCommandPort : ICanonicalTargetCommandPort
 {
+    private readonly object _gate = new();
     private readonly Dictionary<EffectIdempotencyIdentity, EffectLedgerEntry> _outcomes = [];
+    private readonly Dictionary<EffectIdempotencyIdentity, (AttemptId AttemptId, DateTimeOffset LeaseUntil)> _claims = [];
     public List<CanonicalForwardCorrectionCommand> Corrections { get; } = [];
 
     public bool LoseNextResponse { get; set; }
 
     public ValueTask<EffectLedgerEntry?> GetOutcomeAsync(EffectIdempotencyIdentity identity, CancellationToken cancellationToken = default)
-        => ValueTask.FromResult(_outcomes.GetValueOrDefault(identity));
+    {
+        lock (_gate)
+        {
+            return ValueTask.FromResult(_outcomes.GetValueOrDefault(identity));
+        }
+    }
+
+    public ValueTask<EffectClaim> ClaimAsync(
+        BatchIdentity batchIdentity,
+        EffectIdempotencyIdentity effectIdentity,
+        AttemptId attemptId,
+        DateTimeOffset claimedAt,
+        DateTimeOffset leaseUntil,
+        CancellationToken cancellationToken = default)
+    {
+        lock (_gate)
+        {
+            var existing = _outcomes.GetValueOrDefault(effectIdentity);
+            if (existing is not null && !ExchangeOutcomePolicies.For(existing.Outcome.Status).Retryable)
+                return ValueTask.FromResult(new EffectClaim(false, existing));
+            if (_claims.TryGetValue(effectIdentity, out var current) && current.LeaseUntil > claimedAt)
+                return ValueTask.FromResult(new EffectClaim(false, null));
+            _claims[effectIdentity] = (attemptId, leaseUntil);
+            return ValueTask.FromResult(new EffectClaim(true, null));
+        }
+    }
 
     public abstract ValueTask<EffectTerminalOutcome> ApplyAsync(CanonicalRecordsCommand command, CancellationToken cancellationToken = default);
 
@@ -37,12 +64,31 @@ internal abstract class FakeTargetCommandPort : ICanonicalTargetCommandPort
     {
         Corrections.Add(command);
         var outcome = new EffectTerminalOutcome(ExchangeEffectStatus.Applied, "records.corrected");
-        Record(command.OriginalCommand, outcome);
+        lock (_gate)
+        {
+            var existing = _outcomes.GetValueOrDefault(command.OriginalCommand.EffectIdentity);
+            if (existing?.Outcome.Status != ExchangeEffectStatus.Conflicted)
+                throw new ExchangeRunConflictException("Only a recorded conflict can be forward-corrected.");
+            _outcomes[command.OriginalCommand.EffectIdentity] = new(
+                command.OriginalCommand.BatchIdentity,
+                command.OriginalCommand.EffectIdentity,
+                command.OriginalCommand.AttemptId,
+                outcome,
+                DateTimeOffset.UtcNow);
+        }
         return ValueTask.FromResult(outcome);
     }
 
     private void Record(CanonicalRecordsCommand command, EffectTerminalOutcome outcome)
-        => _outcomes[command.EffectIdentity] = new(command.BatchIdentity, command.EffectIdentity, command.AttemptId, outcome, DateTimeOffset.UtcNow);
+    {
+        lock (_gate)
+        {
+            if (!_claims.TryGetValue(command.EffectIdentity, out var claim) || claim.AttemptId != command.AttemptId)
+                throw new ExchangeRunConflictException("The effect attempt no longer owns the active claim.");
+            _outcomes[command.EffectIdentity] = new(command.BatchIdentity, command.EffectIdentity, command.AttemptId, outcome, DateTimeOffset.UtcNow);
+            _claims.Remove(command.EffectIdentity);
+        }
+    }
 }
 
 internal sealed class FakeProposalEvaluator : IProposalEvaluationPort

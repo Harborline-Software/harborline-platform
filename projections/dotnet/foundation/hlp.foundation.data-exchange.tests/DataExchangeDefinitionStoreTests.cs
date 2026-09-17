@@ -1,4 +1,5 @@
 using Harborline.Foundation.DataExchange;
+using System.Text.Json;
 using Xunit;
 
 namespace Harborline.Foundation.DataExchange.Tests;
@@ -28,6 +29,9 @@ public sealed class DataExchangeDefinitionStoreTests
         var package = DataExchangeDefinitionPackExporter.Export(history);
         Assert.Single(package);
         Assert.Equal("exchange.customers", package[0].Definition.Key);
+        Assert.Equal(1, package[0].Definition.SchemaVersion);
+        Assert.Equal("exchange.customers", package[0].Definition.Envelope?.Identity);
+        Assert.Equal("csv", package[0].Definition.Source.FormatId);
     }
 
     [Fact]
@@ -50,9 +54,10 @@ public sealed class DataExchangeDefinitionStoreTests
         var exception = await Assert.ThrowsAsync<DataExchangeAdmissionException>(
             () => store.CreateDraftAsync(definition).AsTask());
 
-        Assert.Equal(
-            ["definition.credential_forbidden", "definition.cursor_forbidden", "definition.retention_forbidden"],
-            exception.Refusals.Select(refusal => refusal.Code).Order(StringComparer.Ordinal));
+        Assert.Contains(exception.Refusals, refusal => refusal.Code == "definition.credential_forbidden");
+        Assert.Contains(exception.Refusals, refusal => refusal.Code == "definition.cursor_forbidden");
+        Assert.Contains(exception.Refusals, refusal => refusal.Code == "definition.retention_forbidden");
+        Assert.Equal(3, exception.Refusals.Count(refusal => refusal.Code == "definition.source_parameter_undeclared"));
     }
 
     [Fact]
@@ -65,6 +70,64 @@ public sealed class DataExchangeDefinitionStoreTests
             () => store.CreateDraftAsync(definition).AsTask());
 
         Assert.Contains(exception.Refusals, refusal => refusal.Code == "definition.external_key_unknown");
+    }
+
+    [Fact]
+    public async Task Published_head_resolves_the_latest_published_semver_and_ignores_newer_drafts()
+    {
+        var store = new InMemoryDataExchangeDefinitionStore();
+        await store.CreateDraftAsync(Definition("1.0.0"));
+        await store.PublishAsync("tenant-a", "exchange.customers", "1.0.0");
+        await store.CreateDraftAsync(Definition("1.1.0"));
+        await store.PublishAsync("tenant-a", "exchange.customers", "1.1.0");
+        await store.CreateDraftAsync(Definition("2.0.0"));
+
+        var head = await store.GetPublishedHeadAsync("tenant-a", "exchange.customers");
+
+        Assert.NotNull(head);
+        Assert.Equal("1.1.0", head.Definition.Version);
+        Assert.Equal(DataExchangeDefinitionStatus.Published, head.Status);
+    }
+
+    [Theory]
+    [InlineData("apiKey")]
+    [InlineData("accessToken")]
+    [InlineData("clientSecret")]
+    [InlineData("pass.word")]
+    public async Task Credential_aliases_are_refused_even_when_a_capability_schema_declares_them(string parameter)
+    {
+        var store = new InMemoryDataExchangeDefinitionStore(new OneParameterSchema(parameter));
+        var definition = Definition("1.0.0") with
+        {
+            Source = Definition("1.0.0").Source with
+            {
+                Parameters = new Dictionary<string, string> { [parameter] = "must-not-export" },
+            },
+        };
+
+        var exception = await Assert.ThrowsAsync<DataExchangeAdmissionException>(
+            () => store.CreateDraftAsync(definition).AsTask());
+
+        Assert.Contains(exception.Refusals, refusal => refusal.Code == "definition.credential_forbidden");
+    }
+
+    [Theory]
+    [InlineData("plain-text-secret")]
+    [InlineData("secret://")]
+    [InlineData("secretref:bad reference")]
+    [InlineData("https://vault.example/secret")]
+    public async Task Secret_reference_must_use_the_opaque_reference_grammar(string secretReference)
+    {
+        var store = new InMemoryDataExchangeDefinitionStore();
+        var definition = Definition("1.0.0") with
+        {
+            Source = Definition("1.0.0").Source with { SecretReference = secretReference },
+        };
+
+        var exception = await Assert.ThrowsAsync<DataExchangeAdmissionException>(
+            () => store.CreateDraftAsync(definition).AsTask());
+
+        Assert.Contains(exception.Refusals, refusal => refusal.Code == "definition.secret_reference_invalid");
     }
 
     private static DataExchangeDefinition Definition(string version) => new(
@@ -80,5 +143,18 @@ public sealed class DataExchangeDefinitionStoreTests
         Fixtures.Mapping(),
         ReplayPolicy.AppendDeduplicate,
         ["CustomerNumber"],
-        "schedule.weekly");
+        "schedule.weekly",
+        Envelope: new(
+            "exchange.customers",
+            version,
+            "tenant-a",
+            DataExchangeCascadeLayer.Tenant,
+            JsonSerializer.SerializeToElement(new { kind = "tenant" }),
+            [new("records.customer", "1.0.0")]));
+}
+
+internal sealed class OneParameterSchema(string parameter) : ISourceParameterSchemaRegistry
+{
+    public SourceParameterSchema Resolve(string capabilityId, string connectorVersion)
+        => new(new HashSet<string>([parameter], StringComparer.Ordinal));
 }

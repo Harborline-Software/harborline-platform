@@ -21,3 +21,7 @@ audits and atomically commits its effect and outcome in its own transaction. It 
 and durable outcome lookup, including after a response is lost. Data Exchange has no separate outcome
 write. Domain-owned forward correction is policy-selected; rollback and multi-command atomic requests
 are explicitly refused. Production adapters are intentionally outside this foundation package.
+
+The interpreter resolves read-only acquisition capabilities, validates the
+discovered shape, applies the named CSVW profile and registered transforms, and stores canonical
+effect payloads behind protected references before creating immutable dry-run evidence.

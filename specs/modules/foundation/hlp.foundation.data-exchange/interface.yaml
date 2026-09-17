@@ -6,10 +6,11 @@
   "purpose": "Own the inbound-only Data Exchange definition, constrained CSVW mapping profile, immutable tenant run evidence, distinct replay identities, bounded canonical Records command orchestration, target Access gate, effect ledger, and conservative checkpoint promotion required by ADR 0098.",
   "dependencies": [],
   "callerInterface": {
-    "name": "IDataExchangeDefinitionStore / TabularMappingAdmission / DataExchangeRuntime / DataExchangeCommitter",
+    "name": "IDataExchangeDefinitionStore / TabularMappingAdmission / DataExchangeInterpreter / DataExchangeRuntime / DataExchangeCommitter",
     "operations": [
       "TabularMappingAdmission.Validate -> accept hl:tabular-mapping/v1 with immutable schema identity and supported CSVW terms; refuse unknown profile/schema/major/hl extension or non-canonical target",
       "IDataExchangeDefinitionStore -> immutable draft/publish/restore history and published definition pack export; credentials, cursors and retention overrides refuse",
+      "DataExchangeInterpreter.CreateDryRunAsync -> resolve a read-only source capability, discover and validate source shape, stream rows, apply CSVW null/default/type semantics and registered transforms, bind canonical payloads, persist payloads behind protected references, and continue with a closed rejection for an invalid row",
       "DataExchangeRuntime.CreateDryRunAsync -> persist a new immutable tenant review artifact with proposal fingerprints, normalized evidence, candidate checkpoint, protected snapshot reference and policy-owned lifecycle",
       "DataExchangeCommitter.CommitAsync(DryRunId, CommitOptions?, CancellationToken) -> reevaluate via IProposalEvaluationPort; stale preimage creates a linked superseding dry run and refuses; resolve mandatory source outcome policy; bounded dispatch and exact census closure",
       "DataExchangePermissions -> closed author, dry-run, commit and read-run-results capability vocabulary; target Access remains independent"
@@ -41,6 +42,20 @@
     "definition.retention_forbidden",
     "definition.external_key_required",
     "definition.external_key_unknown",
+    "definition.schema_version_unsupported",
+    "definition.envelope_mismatch",
+    "definition.format_required",
+    "definition.published_head_not_found",
+    "definition.source_capability_unregistered",
+    "definition.source_parameter_undeclared",
+    "definition.secret_reference_invalid",
+    "mapping.source_column_unknown",
+    "mapping.required_missing",
+    "mapping.datatype_invalid",
+    "mapping.datatype_unsupported",
+    "mapping.target_forbidden",
+    "source.unregistered",
+    "transform.unregistered",
     "run.not_found",
     "run.stale",
     "commit.forbidden",
@@ -54,12 +69,18 @@
     "run.census_incomplete",
     "commit.rollback_refused",
     "target.contract_unregistered",
-    "run.ledger_mismatch"
+    "run.ledger_mismatch",
+    "commit.payload_missing",
+    "commit.effect_in_progress",
+    "checkpoint.conflict"
   ],
   "publicSeams": [
     "definition lifecycle and pack-export port",
     "mapping-profile terminal admission",
-    "immutable run-evidence port",
+    "read-only acquisition and discovered-shape port",
+    "registered transform and canonical-target capability registry",
+    "protected canonical effect payload port",
+    "immutable run-evidence and atomic commit/finalization port",
     "exchange commit authority port",
     "target Access gate",
     "acquisition-checkpoint port",
@@ -78,9 +99,9 @@
   ],
   "conformance": {
     "nativeTests": {
-      "dotnet": 40
+      "dotnet": 61
     },
-    "nativeTestNote": "Includes semantic dependency identity and supersession, closed census/status/policy refusal, lifecycle-derived retention and legal holds, rollback refusal and domain correction, execution registry admission, authorization-context propagation, and replay after a lost target response."
+    "nativeTestNote": "Includes semantic dependency identity and supersession, closed census/status/policy refusal, lifecycle-derived retention and legal holds, rollback refusal and domain correction, execution registry admission, authorization-context propagation, lost-response replay, read-only acquisition, CSVW mapping/coercion, protected payload handling, bounded concurrent dispatch, stale promotion refusal, and recoverable checkpoint finalization."
   },
   "selectedDesign": {
     "choice": "One packable foundation assembly owns the projection-neutral definition and execution protocol while durable persistence, connector acquisition, target Access, canonical Records commands and UI projections remain behind narrow host adapters.",

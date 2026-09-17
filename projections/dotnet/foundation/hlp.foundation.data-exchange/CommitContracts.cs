@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Text.Json;
 
 namespace Harborline.Foundation.DataExchange;
@@ -13,6 +14,29 @@ public enum ExchangeEffectStatus
 }
 
 public sealed record EffectTerminalOutcome(ExchangeEffectStatus Status, string Code);
+
+public sealed record ExchangeOutcomePolicy(
+    ExchangeEffectStatus Status,
+    bool Retryable,
+    bool CorrectionRequired,
+    bool AcknowledgementSafe,
+    string OrdinaryReaderCode);
+
+public static class ExchangeOutcomePolicies
+{
+    private static readonly IReadOnlyDictionary<ExchangeEffectStatus, ExchangeOutcomePolicy> Policies =
+        new Dictionary<ExchangeEffectStatus, ExchangeOutcomePolicy>
+        {
+            [ExchangeEffectStatus.Applied] = new(ExchangeEffectStatus.Applied, false, false, true, "applied"),
+            [ExchangeEffectStatus.Skipped] = new(ExchangeEffectStatus.Skipped, false, false, true, "skipped"),
+            [ExchangeEffectStatus.Conflicted] = new(ExchangeEffectStatus.Conflicted, false, true, true, "conflicted"),
+            [ExchangeEffectStatus.Rejected] = new(ExchangeEffectStatus.Rejected, false, true, true, "rejected"),
+            [ExchangeEffectStatus.Failed] = new(ExchangeEffectStatus.Failed, true, false, false, "failed"),
+            [ExchangeEffectStatus.Halted] = new(ExchangeEffectStatus.Halted, true, false, false, "halted"),
+        };
+
+    public static ExchangeOutcomePolicy For(ExchangeEffectStatus status) => Policies[status];
+}
 
 public sealed record EffectLedgerEntry(
     BatchIdentity BatchIdentity,
@@ -59,11 +83,33 @@ public sealed record CommitRunArtifact(
     DateTimeOffset RetainUntil,
     bool LegalHold);
 
-public sealed record AcknowledgementPolicy(
-    string Id,
-    IReadOnlySet<ExchangeEffectStatus> SafeOutcomes,
-    IReadOnlySet<ExchangeEffectStatus> RetryableOutcomes,
-    bool CorrectConflicts = false);
+public sealed record AcknowledgementPolicy
+{
+    public AcknowledgementPolicy(
+        string id,
+        IReadOnlySet<ExchangeEffectStatus> safeOutcomes,
+        IReadOnlySet<ExchangeEffectStatus> retryableOutcomes,
+        bool correctConflicts = false)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(id);
+        ArgumentNullException.ThrowIfNull(safeOutcomes);
+        ArgumentNullException.ThrowIfNull(retryableOutcomes);
+        if (safeOutcomes.Any(status => ExchangeOutcomePolicies.For(status).Retryable))
+        {
+            throw new ArgumentException("Retryable Failed or Halted outcomes cannot advance a checkpoint.", nameof(safeOutcomes));
+        }
+
+        Id = id;
+        SafeOutcomes = safeOutcomes.ToHashSet();
+        RetryableOutcomes = retryableOutcomes.ToHashSet();
+        CorrectConflicts = correctConflicts;
+    }
+
+    public string Id { get; init; }
+    public IReadOnlySet<ExchangeEffectStatus> SafeOutcomes { get; init; }
+    public IReadOnlySet<ExchangeEffectStatus> RetryableOutcomes { get; init; }
+    public bool CorrectConflicts { get; init; }
+}
 
 public sealed record CommitOptions(bool AllOrNothingRollback = false, bool MultiCommandAtomicCommit = false);
 
@@ -107,7 +153,8 @@ public sealed record CanonicalRecordsCommand(
     AttemptId AttemptId,
     string TargetContract,
     ProposedEffect Effect,
-    TargetAuthorizationContext Authorization);
+    TargetAuthorizationContext Authorization,
+    CanonicalEffectPayload Payload);
 
 public sealed class DataExchangeCommitRefusedException(string code, string message, DryRunId? supersedingDryRunId = null) : Exception(message)
 {
@@ -146,6 +193,14 @@ public interface ICanonicalForwardCorrectionPort
 /// </summary>
 public interface ICanonicalTargetCommandPort : ICanonicalForwardCorrectionPort
 {
+    ValueTask<EffectClaim> ClaimAsync(
+        BatchIdentity batchIdentity,
+        EffectIdempotencyIdentity effectIdentity,
+        AttemptId attemptId,
+        DateTimeOffset claimedAt,
+        DateTimeOffset leaseUntil,
+        CancellationToken cancellationToken = default);
+
     ValueTask<EffectTerminalOutcome> ExecuteAndRecordAsync(
         CanonicalRecordsCommand command,
         CancellationToken cancellationToken = default);
@@ -154,6 +209,8 @@ public interface ICanonicalTargetCommandPort : ICanonicalForwardCorrectionPort
         EffectIdempotencyIdentity identity,
         CancellationToken cancellationToken = default);
 }
+
+public sealed record EffectClaim(bool Acquired, EffectLedgerEntry? ExistingOutcome);
 
 public interface IAcquisitionCheckpointStore
 {
@@ -165,14 +222,21 @@ public interface IAcquisitionCheckpointStore
     ValueTask PromoteAsync(
         string tenantId,
         string definitionId,
+        string? expectedCurrentCheckpoint,
         string checkpoint,
+        BatchIdentity batchIdentity,
+        int sourceOrdinal,
         CancellationToken cancellationToken = default);
 }
 
+public sealed class CheckpointConflictException(string message) : Exception(message)
+{
+    public string Code => "checkpoint.conflict";
+}
 public sealed class InMemoryAcquisitionCheckpointStore : IAcquisitionCheckpointStore
 {
     private readonly object _gate = new();
-    private readonly Dictionary<(string TenantId, string DefinitionId), string> _checkpoints = [];
+    private readonly Dictionary<(string TenantId, string DefinitionId), CheckpointState> _checkpoints = [];
 
     public ValueTask<string?> GetAsync(
         string tenantId,
@@ -182,23 +246,40 @@ public sealed class InMemoryAcquisitionCheckpointStore : IAcquisitionCheckpointS
         cancellationToken.ThrowIfCancellationRequested();
         lock (_gate)
         {
-            return ValueTask.FromResult(_checkpoints.GetValueOrDefault((tenantId, definitionId)));
+            return ValueTask.FromResult(_checkpoints.GetValueOrDefault((tenantId, definitionId))?.Value);
         }
     }
 
     public ValueTask PromoteAsync(
         string tenantId,
         string definitionId,
+        string? expectedCurrentCheckpoint,
         string checkpoint,
+        BatchIdentity batchIdentity,
+        int sourceOrdinal,
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
         lock (_gate)
         {
-            _checkpoints[(tenantId, definitionId)] = checkpoint;
+            var current = _checkpoints.GetValueOrDefault((tenantId, definitionId));
+            var isSameBatchAdvance = current is not null
+                && current.BatchIdentity == batchIdentity
+                && (sourceOrdinal > current.SourceOrdinal
+                    || sourceOrdinal == current.SourceOrdinal
+                        && StringComparer.Ordinal.Equals(checkpoint, current.Value));
+            if (!StringComparer.Ordinal.Equals(current?.Value, expectedCurrentCheckpoint)
+                && !isSameBatchAdvance)
+            {
+                throw new CheckpointConflictException(
+                    $"Checkpoint changed from expected '{expectedCurrentCheckpoint ?? "<none>"}' to '{current?.Value ?? "<none>"}'.");
+            }
+            _checkpoints[(tenantId, definitionId)] = new(checkpoint, batchIdentity, sourceOrdinal);
         }
         return ValueTask.CompletedTask;
     }
+
+    private sealed record CheckpointState(string Value, BatchIdentity BatchIdentity, int SourceOrdinal);
 }
 
 /// <summary>Promotes one reviewed proposal through bounded canonical Records commands.</summary>
@@ -208,6 +289,7 @@ public sealed class DataExchangeCommitter(
     ITargetAccessGate access,
     ICanonicalTargetCommandPort commands,
     IAcquisitionCheckpointStore checkpoints,
+    IProtectedEffectPayloadStore payloads,
     TimeProvider clock,
     CommitBounds bounds,
     IProposalEvaluationPort proposals,
@@ -220,6 +302,7 @@ public sealed class DataExchangeCommitter(
     private readonly ITargetAccessGate _access = access ?? throw new ArgumentNullException(nameof(access));
     private readonly ICanonicalTargetCommandPort _commands = commands ?? throw new ArgumentNullException(nameof(commands));
     private readonly IAcquisitionCheckpointStore _checkpoints = checkpoints ?? throw new ArgumentNullException(nameof(checkpoints));
+    private readonly IProtectedEffectPayloadStore _payloads = payloads ?? throw new ArgumentNullException(nameof(payloads));
     private readonly TimeProvider _clock = clock ?? throw new ArgumentNullException(nameof(clock));
     private readonly CommitBounds _bounds = bounds ?? throw new ArgumentNullException(nameof(bounds));
 
@@ -228,6 +311,34 @@ public sealed class DataExchangeCommitter(
 
     private readonly IRunLifecyclePolicyPort _lifecycle = lifecycle ?? throw new ArgumentNullException(nameof(lifecycle));
     private readonly ICanonicalTargetRegistryPort _targets = targets ?? throw new ArgumentNullException(nameof(targets));
+
+    public DataExchangeCommitter(
+        IExchangeRunStore runs,
+        IExchangeCommitAuthority authority,
+        ITargetAccessGate access,
+        ICanonicalTargetCommandPort commands,
+        IAcquisitionCheckpointStore checkpoints,
+        TimeProvider clock,
+        CommitBounds bounds,
+        IProposalEvaluationPort proposals,
+        ISourceOutcomePolicyPort sourcePolicies,
+        IRunLifecyclePolicyPort lifecycle,
+        ICanonicalTargetRegistryPort targets)
+        : this(
+            runs,
+            authority,
+            access,
+            commands,
+            checkpoints,
+            new InMemoryProtectedEffectPayloadStore(),
+            clock,
+            bounds,
+            proposals,
+            sourcePolicies,
+            lifecycle,
+            targets)
+    {
+    }
 
     public async ValueTask<CommitRunArtifact> CommitAsync(
         DryRunId dryRunId,
@@ -277,85 +388,27 @@ public sealed class DataExchangeCommitter(
         {
             throw new DataExchangeCommitRefusedException("commit.outcome_policy_unknown", "A known source outcome policy is required.");
         }
-        policy = policy with { SafeOutcomes = policy.SafeOutcomes.ToHashSet(), RetryableOutcomes = policy.RetryableOutcomes.ToHashSet() };
         var requestedAt = _clock.GetUtcNow();
         var retention = await _lifecycle.DeriveAsync(dryRun.TenantId, dryRun.RetentionClass, requestedAt, cancellationToken).ConfigureAwait(false);
         var commitRunId = new CommitRunId(Guid.NewGuid().ToString("N"));
         var batch = ExchangeIdentity.DeriveBatch(batchDerivation);
-        var results = new List<CommitEffectResult>(dryRun.NormalizedEffects.Count);
-        foreach (var effect in dryRun.NormalizedEffects.OrderBy(item => item.SourceOrdinal))
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var effectIdentity = ExchangeIdentity.DeriveEffect(
-                batch,
-                dryRun.Proposal.TargetContract,
-                effect.SourceRecordIdentity,
-                effect.SourceRecordVersion,
-                effect.EffectDiscriminator);
-            var recorded = await _commands.GetOutcomeAsync(effectIdentity, cancellationToken).ConfigureAwait(false);
-            if (recorded is not null)
+        var prepared = await PrepareWindowAsync(dryRun, current, commitRunId, batch, cancellationToken).ConfigureAwait(false);
+        var completed = new ConcurrentQueue<CommitEffectResult>();
+        await Parallel.ForEachAsync(
+            prepared,
+            new ParallelOptions
             {
-                ExchangeRunClosure.ValidateOutcome(recorded.Outcome);
-                if (recorded.BatchIdentity != batch || recorded.EffectIdentity != effectIdentity)
-                    throw new DataExchangeCommitRefusedException("run.ledger_mismatch", "The recorded outcome belongs to different semantic intent.");
-            }
-            if (recorded is not null && !policy.RetryableOutcomes.Contains(recorded.Outcome.Status)
-                && !(recorded.Outcome.Status == ExchangeEffectStatus.Conflicted && policy.CorrectConflicts))
-            {
-                results.Add(new(effect, effectIdentity, recorded.Outcome, true));
-                continue;
-            }
-
-            var attempt = AttemptId.New();
-            var command = new CanonicalRecordsCommand(
-                commitRunId,
-                batch,
-                effectIdentity,
-                attempt,
-                dryRun.Proposal.TargetContract,
-                effect,
-                new TargetAuthorizationContext(dryRun.TenantId, current.RequestedBy, current.AuthorizationContextReference));
-            ValidatePayload(command);
-
-            EffectTerminalOutcome outcome;
-            if (!await _access.CanApplyAsync(effect, cancellationToken).ConfigureAwait(false))
-            {
-                outcome = new(ExchangeEffectStatus.Rejected, "target.access_refused");
-            }
-            else
-            {
-                try
-                {
-                    outcome = recorded?.Outcome.Status == ExchangeEffectStatus.Conflicted
-                        ? recorded.Outcome
-                        : await _commands.ExecuteAndRecordAsync(command, cancellationToken).ConfigureAwait(false);
-                    ExchangeRunClosure.ValidateOutcome(outcome);
-                    if (outcome.Status == ExchangeEffectStatus.Conflicted && policy.CorrectConflicts)
-                    {
-                        var correction = new CanonicalForwardCorrectionCommand(command, outcome);
-                        ValidatePayload(correction);
-                        outcome = await _commands.CorrectAndRecordAsync(correction, cancellationToken).ConfigureAwait(false);
-                    }
-                }
-                catch (DataExchangeCommitRefusedException)
-                {
-                    throw;
-                }
-                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-                {
-                    throw;
-                }
-                catch (Exception)
-                {
-                    outcome = new(ExchangeEffectStatus.Failed, "records.command_failed");
-                }
-            }
-            ExchangeRunClosure.ValidateOutcome(outcome);
-            results.Add(new(effect, effectIdentity, outcome, false));
-        }
+                CancellationToken = cancellationToken,
+                MaxDegreeOfParallelism = _bounds.MaxConcurrency,
+            },
+            async (effect, token) => completed.Enqueue(
+                await ApplyEffectAsync(batch, policy, effect, token).ConfigureAwait(false)))
+            .ConfigureAwait(false);
+        var results = completed.OrderBy(result => result.Effect.SourceOrdinal).ToArray();
 
         ExchangeRunClosure.ValidateEffects(dryRun, batch, results);
         string? durableCheckpoint = null;
+        var durableCheckpointOrdinal = -1;
         foreach (var result in results.OrderBy(item => item.Effect.SourceOrdinal))
         {
             if (!policy.SafeOutcomes.Contains(result.Outcome.Status))
@@ -363,16 +416,8 @@ public sealed class DataExchangeCommitter(
                 break;
             }
             durableCheckpoint = result.Effect.BoundaryAfter;
+            durableCheckpointOrdinal = result.Effect.SourceOrdinal;
         }
-        if (durableCheckpoint is not null)
-        {
-            await _checkpoints.PromoteAsync(
-                dryRun.TenantId,
-                dryRun.Proposal.DefinitionId,
-                durableCheckpoint,
-                cancellationToken).ConfigureAwait(false);
-        }
-
         var census = ExchangeRunClosure.Census(results);
         var terminalStatus = census.Halted > 0
             ? ExchangeRunTerminalStatus.Halted
@@ -393,8 +438,163 @@ public sealed class DataExchangeCommitter(
             retention.RetainUntil,
             retention.LegalHold);
         ExchangeRunClosure.Validate(dryRun, commitRun);
-        await _runs.SaveCommitRunAsync(commitRun, cancellationToken).ConfigureAwait(false);
+        var finalization = new CommitCheckpointFinalization(
+            commitRun.Id,
+            dryRun.ExpectedCheckpoint,
+            durableCheckpoint,
+            durableCheckpoint is null ? CheckpointFinalizationStatus.Finalized : CheckpointFinalizationStatus.Pending,
+            _clock.GetUtcNow());
+        await _runs.SaveCommitRunWithCheckpointFinalizationAsync(
+            commitRun,
+            finalization,
+            CancellationToken.None).ConfigureAwait(false);
+        if (durableCheckpoint is not null)
+        {
+            await _checkpoints.PromoteAsync(
+                dryRun.TenantId,
+                dryRun.Proposal.DefinitionId,
+                dryRun.ExpectedCheckpoint,
+                durableCheckpoint,
+                batch,
+                durableCheckpointOrdinal,
+                CancellationToken.None).ConfigureAwait(false);
+            await _runs.SaveCheckpointFinalizationAsync(
+                finalization with
+                {
+                    Status = CheckpointFinalizationStatus.Finalized,
+                    RecordedAt = _clock.GetUtcNow(),
+                },
+                CancellationToken.None).ConfigureAwait(false);
+        }
         return commitRun;
+    }
+
+    private async ValueTask<IReadOnlyList<PreparedCommitEffect>> PrepareWindowAsync(
+        DryRunArtifact dryRun,
+        DryRunRequest current,
+        CommitRunId commitRunId,
+        BatchIdentity batch,
+        CancellationToken cancellationToken)
+    {
+        var prepared = new List<PreparedCommitEffect>(dryRun.Evaluations.Count);
+        foreach (var evaluation in dryRun.Evaluations.OrderBy(item => item.Effect.SourceOrdinal))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var effect = evaluation.Effect;
+            var effectIdentity = ExchangeIdentity.DeriveEffect(
+                batch,
+                dryRun.Proposal.TargetContract,
+                effect.SourceRecordIdentity,
+                effect.SourceRecordVersion,
+                effect.EffectDiscriminator);
+            var attempt = AttemptId.New();
+            var precomputedOutcome = evaluation.Outcome.Code == "mapping.proposed"
+                ? null
+                : evaluation.Outcome;
+            if (precomputedOutcome is not null)
+            {
+                prepared.Add(new(effect, effectIdentity, attempt, null, precomputedOutcome));
+                continue;
+            }
+
+            var payload = effect.PayloadReference is null
+                ? new CanonicalEffectPayload(dryRun.Proposal.TargetContract, new Dictionary<string, object?>())
+                : await _payloads.GetAsync(effect.PayloadReference, cancellationToken).ConfigureAwait(false)
+                    ?? throw new DataExchangeCommitRefusedException(
+                        "commit.payload_missing",
+                        "The protected canonical effect payload is unavailable.");
+            var command = new CanonicalRecordsCommand(
+                commitRunId,
+                batch,
+                effectIdentity,
+                attempt,
+                dryRun.Proposal.TargetContract,
+                effect,
+                new TargetAuthorizationContext(dryRun.TenantId, current.RequestedBy, current.AuthorizationContextReference),
+                payload);
+            ValidatePayload(command);
+            prepared.Add(new(effect, effectIdentity, attempt, command, null));
+        }
+        return prepared;
+    }
+
+    private async ValueTask<CommitEffectResult> ApplyEffectAsync(
+        BatchIdentity batch,
+        AcknowledgementPolicy policy,
+        PreparedCommitEffect prepared,
+        CancellationToken cancellationToken)
+    {
+        if (prepared.PrecomputedOutcome is not null)
+        {
+            return new(prepared.Effect, prepared.EffectIdentity, prepared.PrecomputedOutcome, false);
+        }
+
+        if (!await _access.CanApplyAsync(prepared.Effect, cancellationToken).ConfigureAwait(false))
+        {
+            return new(prepared.Effect, prepared.EffectIdentity,
+                new(ExchangeEffectStatus.Rejected, "target.access_refused"), false);
+        }
+
+        var recorded = await _commands.GetOutcomeAsync(prepared.EffectIdentity, cancellationToken).ConfigureAwait(false);
+        if (recorded is not null)
+        {
+            ExchangeRunClosure.ValidateOutcome(recorded.Outcome);
+            if (recorded.BatchIdentity != batch || recorded.EffectIdentity != prepared.EffectIdentity)
+                throw new DataExchangeCommitRefusedException("run.ledger_mismatch", "The recorded outcome belongs to different semantic intent.");
+            if (!policy.RetryableOutcomes.Contains(recorded.Outcome.Status)
+                && !(recorded.Outcome.Status == ExchangeEffectStatus.Conflicted && policy.CorrectConflicts))
+            {
+                return new(prepared.Effect, prepared.EffectIdentity, recorded.Outcome, true);
+            }
+        }
+
+        var now = _clock.GetUtcNow();
+        var claim = await _commands.ClaimAsync(
+            batch,
+            prepared.EffectIdentity,
+            prepared.AttemptId,
+            now,
+            now.AddMinutes(5),
+            cancellationToken).ConfigureAwait(false);
+        if (!claim.Acquired && claim.ExistingOutcome is not null)
+        {
+            return new(prepared.Effect, prepared.EffectIdentity, claim.ExistingOutcome.Outcome, true);
+        }
+        if (!claim.Acquired)
+        {
+            return new(prepared.Effect, prepared.EffectIdentity,
+                new(ExchangeEffectStatus.Halted, "commit.effect_in_progress"), false);
+        }
+
+        EffectTerminalOutcome outcome;
+        try
+        {
+            outcome = recorded?.Outcome.Status == ExchangeEffectStatus.Conflicted
+                ? recorded.Outcome
+                : await _commands.ExecuteAndRecordAsync(prepared.Command!, cancellationToken).ConfigureAwait(false);
+            ExchangeRunClosure.ValidateOutcome(outcome);
+            if (outcome.Status == ExchangeEffectStatus.Conflicted && policy.CorrectConflicts)
+            {
+                var correction = new CanonicalForwardCorrectionCommand(prepared.Command!, outcome);
+                ValidatePayload(correction);
+                outcome = await _commands.CorrectAndRecordAsync(correction, cancellationToken).ConfigureAwait(false);
+            }
+        }
+        catch (DataExchangeCommitRefusedException)
+        {
+            throw;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception)
+        {
+            var recovered = await _commands.GetOutcomeAsync(prepared.EffectIdentity, CancellationToken.None).ConfigureAwait(false);
+            outcome = recovered?.Outcome ?? new(ExchangeEffectStatus.Failed, "records.command_failed");
+        }
+        ExchangeRunClosure.ValidateOutcome(outcome);
+        return new(prepared.Effect, prepared.EffectIdentity, outcome, false);
     }
 
     private void ValidatePayload<T>(T command)
@@ -403,4 +603,11 @@ public sealed class DataExchangeCommitter(
             throw new DataExchangeCommitRefusedException("commit.command_payload_exceeded",
                 "A canonical Records command exceeds the bounded payload size.");
     }
+
+    private sealed record PreparedCommitEffect(
+        ProposedEffect Effect,
+        EffectIdempotencyIdentity EffectIdentity,
+        AttemptId AttemptId,
+        CanonicalRecordsCommand? Command,
+        EffectTerminalOutcome? PrecomputedOutcome);
 }

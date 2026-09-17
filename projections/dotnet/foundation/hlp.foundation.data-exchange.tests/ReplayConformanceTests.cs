@@ -19,6 +19,7 @@ public sealed class ReplayConformanceTests
         var committed = await committer.CommitAsync(first.Id);
         var changed = await runtime.CreateDryRunAsync(request with
         {
+            ExpectedCheckpoint = "cursor:b",
             Proposal = mapping
                 ? request.Proposal with { MappingVersion = "2.0.0" }
                 : request.Proposal with { DependencyFingerprint = "sha256:new-transform" },

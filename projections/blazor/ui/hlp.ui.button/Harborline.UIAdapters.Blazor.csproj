@@ -186,6 +186,7 @@
     <Content Include="../hlp.ui.view-runtime/wwwroot/**" Link="wwwroot/%(Filename)%(Extension)" />
     <RazorComponent Include="../hlp.ui.data-exchange/**/*.razor" Link="Components/DataExchange/%(Filename)%(Extension)" />
     <Compile Include="../hlp.ui.data-exchange/**/*.cs" Link="Components/DataExchange/%(Filename)%(Extension)" />
+    <Content Include="../hlp.ui.data-exchange/wwwroot/**" Link="wwwroot/%(Filename)%(Extension)" />
     <RazorComponent Include="../hlp.ui.scroll-affordance/**/*.razor" Link="Components/Layout/%(Filename)%(Extension)" />
     <Compile Include="../hlp.ui.scroll-affordance/**/*.cs" Link="Components/Layout/%(Filename)%(Extension)" />
     <Content Include="../hlp.ui.scroll-affordance/wwwroot/**" Link="wwwroot/%(Filename)%(Extension)" />

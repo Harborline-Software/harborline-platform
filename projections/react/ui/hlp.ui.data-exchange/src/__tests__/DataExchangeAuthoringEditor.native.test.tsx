@@ -5,6 +5,7 @@ import type { DataExchangeAuthoringCatalogue, DataExchangeRunSummary } from '../
 
 const catalogue: DataExchangeAuthoringCatalogue = {
   sourceCapabilities: [{ id: 'connector.csv/v1', label: 'CSV upload' }],
+  formats: [{ id: 'csv', label: 'CSV' }],
   canonicalTargets: [{ id: 'records.customer/v1', label: 'Customer' }],
   datatypes: [{ id: 'string', label: 'Text' }],
   transforms: [{ id: 'trimToNull', label: 'Trim to null' }],
@@ -16,6 +17,7 @@ describe('DataExchangeAuthoringEditor React projection', () => {
     const changed = vi.fn()
     const discover = vi.fn()
     const dryRun = vi.fn()
+    const publish = vi.fn()
     render(<DataExchangeAuthoringEditor
       value={emptyDataExchangeDraft()}
       catalogue={catalogue}
@@ -24,6 +26,9 @@ describe('DataExchangeAuthoringEditor React projection', () => {
       onDiscoverSource={discover}
       onDryRun={dryRun}
       onCommit={vi.fn()}
+      canPublish
+      authoringRefusals={[{ stage: 'definition', code: 'mapping.target_forbidden', targetHref: '/definitions/records.customer' }]}
+      onPublish={publish}
     />)
 
     expect(screen.getByText('hl:tabular-mapping/v1')).toBeInTheDocument()
@@ -31,6 +36,13 @@ describe('DataExchangeAuthoringEditor React projection', () => {
     expect(screen.getByText('1.0.0')).toBeInTheDocument()
     expect(screen.getByRole('textbox', { name: 'Secret reference' })).toBeInTheDocument()
     expect(screen.queryByLabelText('Password')).toBeNull()
+    expect(screen.getByRole('combobox', { name: 'Format' })).toBeInTheDocument()
+    expect(screen.getByRole('combobox', { name: 'Replay policy' })).toHaveDisplayValue('Append')
+    expect(screen.getByRole('option', { name: 'Overwrite' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Append and deduplicate' })).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'Reference dataset' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Publish definition' })).toBeDisabled()
+    expect(screen.getByRole('link', { name: 'mapping.target_forbidden' })).toHaveAttribute('href', '/definitions/records.customer')
 
     fireEvent.change(screen.getByRole('textbox', { name: 'Definition name' }), { target: { value: 'Customer import' } })
     expect(changed).toHaveBeenLastCalledWith(expect.objectContaining({ name: 'Customer import' }))
@@ -38,6 +50,7 @@ describe('DataExchangeAuthoringEditor React projection', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Create dry run' }))
     expect(discover).toHaveBeenCalledOnce()
     expect(dryRun).toHaveBeenCalledOnce()
+    expect(publish).not.toHaveBeenCalled()
     expect(screen.getByRole('button', { name: 'Commit reviewed run' })).toBeDisabled()
   })
 
