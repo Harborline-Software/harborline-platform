@@ -27,8 +27,7 @@ namespace Harborline.Foundation.Scheduling;
 /// </para>
 /// <para>
 /// Unsupported RRULE components (EXDATE, BYWEEKNO, BYYEARDAY, etc.)
-/// are silently ignored in v1. The Ical.Net-backed follow-on hand-off
-/// will replace this implementation with full RFC 5545 support.
+/// are refused so an authored restriction cannot be silently discarded.
 /// </para>
 /// </remarks>
 public interface IRruleExpansionService
@@ -76,6 +75,9 @@ public interface IRruleExpansionService
     /// </exception>
     /// <exception cref="ArgumentException">
     /// Thrown when <paramref name="rrule"/> is null or whitespace.
+    /// </exception>
+    /// <exception cref="NotSupportedException">
+    /// Thrown when <paramref name="rrule"/> contains a component outside the supported subset.
     /// </exception>
     IReadOnlyList<DateOnly> ExpandOccurrences(
         string rrule,

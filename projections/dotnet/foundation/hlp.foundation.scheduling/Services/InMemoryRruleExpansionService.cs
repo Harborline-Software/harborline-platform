@@ -50,7 +50,7 @@ public sealed class InMemoryRruleExpansionService : IRruleExpansionService
             && result.Count < OccurrenceCap
             && (parsed.Count is null || occurrenceCount < parsed.Count.Value))
         {
-            if (IsMatchingOccurrence(cursor, parsed))
+            if (IsMatchingOccurrence(cursor, start, parsed))
             {
                 occurrenceCount++;
                 if (cursor >= earliest)
@@ -67,7 +67,7 @@ public sealed class InMemoryRruleExpansionService : IRruleExpansionService
     // Occurrence matching
     // ----------------------------------------------------------------
 
-    private static bool IsMatchingOccurrence(DateOnly date, ParsedRrule parsed)
+    private static bool IsMatchingOccurrence(DateOnly date, DateOnly start, ParsedRrule parsed)
     {
         // BYMONTH filter
         if (parsed.ByMonth.Count > 0 && !parsed.ByMonth.Contains(date.Month))
@@ -76,8 +76,8 @@ public sealed class InMemoryRruleExpansionService : IRruleExpansionService
         return parsed.Freq switch
         {
             "DAILY"   => true,
-            "WEEKLY"  => IsMatchingWeekly(date, parsed),
-            "MONTHLY" => IsMatchingMonthly(date, parsed),
+            "WEEKLY"  => IsMatchingWeekly(date, start, parsed),
+            "MONTHLY" => IsMatchingMonthly(date, start, parsed),
             "YEARLY"  => IsMatchingYearly(date, parsed),
             _ => throw new NotSupportedException(
                 $"RRULE FREQ '{parsed.Freq}' is not supported. "
@@ -85,17 +85,29 @@ public sealed class InMemoryRruleExpansionService : IRruleExpansionService
         };
     }
 
-    private static bool IsMatchingWeekly(DateOnly date, ParsedRrule parsed)
+    private static bool IsMatchingWeekly(DateOnly date, DateOnly start, ParsedRrule parsed)
     {
         // With no BYDAY, every occurrence in the iteration is valid.
         if (parsed.ByDay.Count == 0) return true;
+        var elapsedWeeks = (StartOfWeek(date).DayNumber - StartOfWeek(start).DayNumber) / 7;
+        if (elapsedWeeks % parsed.Interval != 0) return false;
         // With BYDAY, the date's day-of-week must be in the set.
         var dow = ToDayOfWeekCode(date.DayOfWeek);
         return parsed.ByDay.Any(bd => bd.Weekday == dow && bd.Ordinal == 0);
     }
 
-    private static bool IsMatchingMonthly(DateOnly date, ParsedRrule parsed)
+    private static DateOnly StartOfWeek(DateOnly date)
     {
+        // RFC 5545 defaults WKST to Monday. WKST itself is outside this bounded subset.
+        var daysSinceMonday = ((int)date.DayOfWeek + 6) % 7;
+        return date.AddDays(-daysSinceMonday);
+    }
+
+    private static bool IsMatchingMonthly(DateOnly date, DateOnly start, ParsedRrule parsed)
+    {
+        var elapsedMonths = ((date.Year - start.Year) * 12) + date.Month - start.Month;
+        if (elapsedMonths % parsed.Interval != 0) return false;
+
         if (parsed.ByDay.Count > 0)
         {
             // Ordinal BYDAY e.g. 1MO (first Monday), -1FR (last Friday).
@@ -268,8 +280,9 @@ public sealed class InMemoryRruleExpansionService : IRruleExpansionService
                 case "BYMONTH":
                     byMonth.AddRange(ParseIntList(value, min: 1, max: 12));
                     break;
-                // Silently ignore unsupported components (EXDATE, BYWEEKNO,
-                // BYYEARDAY, WKST, etc.) per fleet bounded-subset policy.
+                default:
+                    throw new NotSupportedException(
+                        $"RRULE component '{key}' is not supported by the bounded subset.");
             }
         }
 

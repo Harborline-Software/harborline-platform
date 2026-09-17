@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.blocks.scheduling",
-  "interfaceRevision": 2,
+  "interfaceRevision": 3,
   "status": "frozen",
-  "purpose": "Own schedule reservation coordination (caller-supplied stable reservation ids with global idempotency, exactly-one-wins under concurrency, fail-closed quorum-unavailable, lease-guarded writes) and the harvested planning seed: the prototype's finite-candidate compiler, validators, and constructive/exhaustive/greedy solvers with the 12-fixture authored corpus (ticket 084 dispositions).",
+  "purpose": "Own schedule reservation coordination (caller-supplied stable reservation ids with global idempotency, exactly-one-wins under concurrency, fail-closed quorum-unavailable, lease-guarded writes) and the harvested planning seed: the prototype's finite-candidate compiler, validators, complete-pinned-fact admission, and constructive/exhaustive/greedy solvers with the 12-fixture authored corpus (ticket 084 dispositions).",
   "dependencies": [],
   "callerInterface": {
     "name": "IScheduleReservationCoordinator / Planning (FixtureSchedulingValidator, FixtureConstructivePlanner)",
@@ -11,7 +11,7 @@
       "ReserveAsync(SlotReservation) -> ReservationOutcome: happy-path acquires+releases the lease; a duplicate reservation id returns the prior outcome (idempotent, never rebinds to a new slot/resource); an inverted slot is rejected without a lease; an overlapping slot is rejected after the lease; quorum-unavailable blocks the write and returns a rejection",
       "CancelAsync(reservationId) -> bool: removes under the lease; quorum-unavailable returns false and leaves the reservation; unknown returns false with no lease attempt",
       "ListForResource(resourceId) -> reservations ordered by start",
-      "Planning: parse/semantic-validate/canonicalize a fixture problem; solve to a positive plan or an exact scheduling.unassigned.* reason with non-empty explanation refs"
+      "Planning: parse/semantic-validate/canonicalize a fixture problem; compile named, versioned fact-set pins with explicit completeness; solve to a positive plan, an exact scheduling.unassigned.* fixture reason with non-empty explanation refs, or Indeterminate with PINNED_FACTS_INCOMPLETE naming incomplete fact sets or WORK_BUDGET_EXHAUSTED when complete pins exhaust the work budget"
     ],
     "context": "The lease dependency is carried as a LOCAL narrow compatibility port under the Harborline.Kernel.Lease namespace because no lease kernel module exists in the platform catalog yet; composition replaces it with the ratified platform lease contract when one lands (recorded deviation, not a design endorsement). The planning seed is the ticket-084 harvest: corpus + solver seed, never a matrix module; the authored corpus carries the six unsatisfied-reason classes."
   },
@@ -20,14 +20,15 @@
     "Under concurrent reservation of the same slot exactly one caller wins; disjoint resources all succeed.",
     "Quorum-unavailable fails closed on both reserve and cancel: no write occurs and the outcome says so.",
     "Solver outcomes are deterministic under contrasting ambient timezone configurations (cross-process TZ determinism — the planner reads no process-global time or zone).",
-    "Every unsatisfied planning outcome carries at least one exact scheduling.unassigned.* reason and non-empty explanation references.",
+    "The exhaustive solver returns ProvenInfeasible only after search exhaustion over complete pins for activities, time windows, resources, resource requirements, and precedence; a missing or incomplete pin returns Indeterminate and names each incomplete fact set.",
+    "Every unsatisfied authored fixture outcome carries at least one exact scheduling.unassigned.* reason and non-empty explanation references.",
     "The fixture manifest is static: exactly the 12 shipped fixture files, byte-exact against the pinned prototype blobs."
   ],
-  "errors": ["scheduling.unassigned.resource-capacity", "scheduling.unassigned.approval-unsatisfied", "scheduling.unassigned.window-precedence", "scheduling.unassigned.capacity-limit", "scheduling.unassigned.capability-missing", "scheduling.unassigned.capacity-envelope"],
+  "errors": ["scheduling.unassigned.resource-capacity", "scheduling.unassigned.approval-unsatisfied", "scheduling.unassigned.window-precedence", "scheduling.unassigned.capacity-limit", "scheduling.unassigned.capability-missing", "scheduling.unassigned.capacity-envelope", "PINNED_FACTS_INCOMPLETE", "WORK_BUDGET_EXHAUSTED"],
   "publicSeams": ["lease provider port (local compatibility shape pending a platform lease kernel)", "injected clock", "durable file-journal store (r2: FileJournalSchedulingStore — versioned authenticated checksummed frames, atomic draft+audit co-commit, revision-conflict-writes-nothing at the FILE level, recovery truncation, exclusive lock, single-process adapter honestly declared; proven by a genuine process-kill restart probe)", "named at-rest seam (r2 deferral: the journal frames are authenticated/checksummed but carry no content-encryption key seam — the two pinned encryption-at-rest rows are deferred to a future host at-rest seam, and the four pinned SQL/EF migration rows are unmappable at this narrowed seam by design; recorded in the scheduling behavior-map addendum)"],
   "conformance": {
-    "nativeTests": {"dotnet": 66},
-    "nativeTestNote": "14 pinned coordinator cases under their pinned names (the migration substrate-gap's '16' was an over-count; the verified inventory says 14) + 2 supplemental idempotency invariants (explicitly not pinned) + 36 adopted fixture-driven rows + 3 re-authored harvest invariants + 11 durable-store rows (journal invariants, draft+audit co-commit atomicity, conflict-writes-nothing at the file level, recovery truncation, corruption-fails-startup, lock exclusivity, and the genuine process-kill restart probes)"
+    "nativeTests": {"dotnet": 71},
+    "nativeTestNote": "The existing reservation, fixture, harvest, and durable-store coverage plus 4 T-531 completeness outcomes: proven infeasible with complete pins, incomplete pins named, missing pins named, and budget exhaustion remains indeterminate"
   },
   "selectedDesign": {
     "choice": "Port the reservation coordinator engine verbatim minus the Razor/localization UI surface, and land the harvested planning seed beside it with the authored corpus executable.",
