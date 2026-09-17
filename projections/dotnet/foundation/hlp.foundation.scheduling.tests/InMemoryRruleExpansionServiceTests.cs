@@ -332,6 +332,29 @@ public sealed class InMemoryRruleExpansionServiceTests
     }
 
     [Fact]
+    public void Expand_MonthlyInterval3_ByDay_HonorsIntervalFromStart()
+    {
+        var anchor = new DateOnly(2026, 1, 1);
+        var occurrences = Sut.ExpandOccurrences(
+            rrule: "FREQ=MONTHLY;INTERVAL=3;BYDAY=1MO",
+            start: anchor,
+            end: new DateOnly(2026, 12, 31),
+            lookaheadDays: 365,
+            leadDays: 0,
+            today: anchor,
+            timezone: "UTC");
+
+        Assert.Equal(
+            [
+                new DateOnly(2026, 1, 5),
+                new DateOnly(2026, 4, 6),
+                new DateOnly(2026, 7, 6),
+                new DateOnly(2026, 10, 5),
+            ],
+            occurrences);
+    }
+
+    [Fact]
     public void Expand_UnsupportedComponent_IsRefused()
     {
         var exception = Assert.Throws<NotSupportedException>(() => Sut.ExpandOccurrences(

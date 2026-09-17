@@ -26,8 +26,8 @@
   "errors": ["FormatException (missing FREQ)", "ArgumentException (blank rule; inverted window)", "NotSupportedException (RRULE component outside the bounded subset)"],
   "publicSeams": ["due-occurrence source seam (ticket 086)", "injected wall-clock today/asOf"],
   "conformance": {
-    "nativeTests": {"dotnet": 31},
-    "nativeTestNote": "22 pinned RRULE cases, including selector-aware weekly/monthly intervals and unsupported-part refusal, plus 6 pinned due-queue cases and 3 seam tests proving the source-agnostic port"
+    "nativeTests": {"dotnet": 32},
+    "nativeTestNote": "23 RRULE cases, including selector-aware weekly/monthly intervals for BYDAY and BYMONTHDAY and unsupported-part refusal, plus 6 pinned due-queue cases and 3 seam tests proving the source-agnostic port"
   },
   "selectedDesign": {
     "choice": "Verbatim port of the pinned foundation-scheduling engine with one additive seam above the pinned query.",
