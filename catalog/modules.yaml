@@ -422,7 +422,7 @@
       }
     },
     "hlp.blocks.scheduling": {
-      "interface": {"path": "specs/modules/blocks/hlp.blocks.scheduling/interface.yaml", "revision": 2},
+      "interface": {"path": "specs/modules/blocks/hlp.blocks.scheduling/interface.yaml", "revision": 3},
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "Reservation coordination and the planning seed produce outcomes and plans; the pinned Razor view surface is deliberately excluded as UI."},
       "owner": "platform-blocks",
@@ -630,7 +630,7 @@
       }
     },
     "hlp.foundation.scheduling": {
-      "interface": {"path": "specs/modules/foundation/hlp.foundation.scheduling/interface.yaml", "revision": 1},
+      "interface": {"path": "specs/modules/foundation/hlp.foundation.scheduling/interface.yaml", "revision": 2},
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "RRULE expansion and due-queue derivation produce date sequences and queue items consumed by packs and daemons; the module renders nothing."},
       "owner": "platform-foundation",
