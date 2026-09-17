@@ -35,6 +35,7 @@ using Harborline.UIAdapters.Blazor.Components.Forms;
 using Harborline.UIAdapters.Blazor.Components.Forms.Inputs;
 using Harborline.UIAdapters.Blazor.Components.AI;
 using Harborline.UIAdapters.Blazor.Components.Scheduling;
+using Harborline.UIAdapters.Blazor.Components.DataExchange;
 using Harborline.UIAdapters.Blazor.Shell;
 using Harborline.UIAdapters.Blazor.Accessibility;
 using Harborline.UIAdapters.Blazor.Browser;
@@ -43,6 +44,7 @@ using FormsState = Harborline.Foundation.Forms;
 using FormsDrafts = Harborline.Foundation.Forms.Drafts;
 using FormsModel = Harborline.Foundation.Forms.Models;
 using BuilderDefinitions = Harborline.Blocks.BuilderDefinitions;
+using DataExchange = Harborline.Foundation.DataExchange;
 
 if (typeof(HarborlineButton).Assembly.GetName().Name != "Harborline.UIAdapters.Blazor")
     throw new InvalidOperationException("UI assembly identity changed.");
@@ -464,6 +466,12 @@ if (!BuilderDefinitions.PlatformPackageSeed.VerifyCheckedInExport())
     throw new InvalidOperationException("Packed Builder Definitions canonical platform export differs from its producer.");
 if (BuilderDefinitions.PlatformPackageSeed.Manifest.Items.Count != 14)
     throw new InvalidOperationException("Packed Builder Definitions canonical platform seed inventory is incomplete.");
+if (typeof(DataExchange.IDataExchangeDefinitionStore).Assembly.GetName().Name != "Harborline.Foundation.DataExchange"
+    || DataExchange.TabularMappingProfile.Family != "hl:tabular-mapping/v1"
+    || DataExchange.TabularMappingProfile.SchemaUri != "https://schemas.harborline.software/mapping/tabular/v1")
+    throw new InvalidOperationException("Packed Data Exchange profile or assembly identity changed.");
+if (typeof(HarborlineDataExchangeAuthoringEditor).Assembly != typeof(HarborlineButton).Assembly)
+    throw new InvalidOperationException("Data Exchange authoring is not packaged with the aggregate Blazor UI projection.");
 if (typeof(FormsState.IFormDefinitionStore).Assembly.GetName().Name != "Harborline.Foundation.Forms")
     throw new InvalidOperationException("Forms state assembly identity changed.");
 var formsStateStore = new FormsState.InMemoryFormDefinitionStore();

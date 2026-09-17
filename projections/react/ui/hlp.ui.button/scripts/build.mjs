@@ -97,6 +97,7 @@ const contributions = [
   ['chat', resolve(root, '../hlp.ui.chat'), true],
   ['data-grid', resolve(root, '../hlp.ui.data-grid'), true],
   ['view-runtime', resolve(root, '../hlp.ui.view-runtime'), true],
+  ['data-exchange', resolve(root, '../hlp.ui.data-exchange'), true],
   ['gantt', resolve(root, '../hlp.ui.gantt'), true],
   ['numeric-text-box', resolve(root, '../hlp.ui.numeric-text-box'), true],
   ['scroll-affordance', resolve(root, '../hlp.ui.scroll-affordance'), false],

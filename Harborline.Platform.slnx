@@ -20,6 +20,8 @@
   <Project Path="projections/dotnet/blocks/hlp.blocks.workflow-interpreter.tests/Harborline.Blocks.Workflow.Interpreter.Tests.csproj" />
   <Project Path="projections/dotnet/blocks/hlp.blocks.entity-views/Harborline.Blocks.EntityViews.csproj" />
   <Project Path="projections/dotnet/blocks/hlp.blocks.entity-views.tests/Harborline.Blocks.EntityViews.Tests.csproj" />
+  <Project Path="projections/dotnet/foundation/hlp.foundation.data-exchange/Harborline.Foundation.DataExchange.csproj" />
+  <Project Path="projections/dotnet/foundation/hlp.foundation.data-exchange.tests/Harborline.Foundation.DataExchange.Tests.csproj" />
   <Project Path="projections/dotnet/foundation/hlp.foundation.scheduling/Harborline.Foundation.Scheduling.csproj" />
   <Project Path="projections/dotnet/foundation/hlp.foundation.scheduling.tests/Harborline.Foundation.Scheduling.Tests.csproj" />
   <Project Path="projections/dotnet/blocks/hlp.blocks.scheduling/Harborline.Blocks.Scheduling.csproj" />

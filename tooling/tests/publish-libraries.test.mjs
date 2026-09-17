@@ -21,8 +21,8 @@ test('publication uses exactly the gate producer ids and follows a push to main,
   assert.ok(job, 'publish-libraries job is required')
   const ids = /PACKAGE_IDS: >-\n([\s\S]*?)    steps:/.exec(job)[1].trim().split(/\s+/).sort()
   const produced = producerIds()
-  assert.equal(produced.length, 24)
-  assert.equal(new Set(produced).size, 24, 'one producer per package id')
+  assert.equal(produced.length, 25)
+  assert.equal(new Set(produced).size, 25, 'one producer per package id')
   assert.deepEqual(ids, produced, 'workflow package list must equal the producer inventory')
   // Publication follows the landing the repository's own gate proved by receipt (2026-09-07); it must not
   // wait on the ubuntu rerun of that gate, and it must never run for a pull request.

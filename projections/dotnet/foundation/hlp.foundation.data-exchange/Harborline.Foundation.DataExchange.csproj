@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <HarborlinePublicDistributionAuthorized>false</HarborlinePublicDistributionAuthorized>
+    <PackageId>Harborline.Foundation.DataExchange</PackageId>
+    <AssemblyName>Harborline.Foundation.DataExchange</AssemblyName>
+    <RootNamespace>Harborline.Foundation.DataExchange</RootNamespace>
+    <Description>Authored mapping, immutable run evidence, and replay-safe inbound exchange orchestration for Harborline Platform.</Description>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageReleaseNotes>Internal-only projection; public distribution is not authorized.</PackageReleaseNotes>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="/" />
+    <None Include="../../../../LICENSE" Link="LICENSE" Pack="true" PackagePath="/" />
+  </ItemGroup>
+</Project>

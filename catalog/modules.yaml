@@ -595,6 +595,40 @@
         }
       }
     },
+    "hlp.foundation.data-exchange": {
+      "interface": {"path": "specs/modules/foundation/hlp.foundation.data-exchange/interface.yaml", "revision": 1},
+      "moduleKind": "runtime",
+      "presentation": {"disposition": "not-applicable", "rationale": "The foundation package owns projection-neutral definition and execution contracts; React and Blazor editors are separate projections over this interface."},
+      "owner": "platform-foundation",
+      "dependencies": [],
+      "status": "implemented",
+      "depth": {
+        "disposition": "deep-module",
+        "deletionTest": "PASS",
+        "redistributedComplexity": [
+          "profile admission, canonical identity derivation, staleness comparison, outcome census, replay eligibility and contiguous checkpoint promotion reimplemented by every connector",
+          "immutable evidence, double-gated command dispatch and no-undo boundaries allowed to drift across target domains"
+        ]
+      },
+      "projections": {
+        "dotnet": {
+          "role": "implementation",
+          "path": "projections/dotnet/foundation/hlp.foundation.data-exchange",
+          "status": "preview",
+          "artifact": {
+            "type": "nuget",
+            "id": "Harborline.Foundation.DataExchange",
+            "assembly": "Harborline.Foundation.DataExchange",
+            "manifest": "projections/dotnet/foundation/hlp.foundation.data-exchange/Harborline.Foundation.DataExchange.csproj",
+            "identityAuthority": "Harborline",
+            "producerRepository": "harborline-platform",
+            "distribution": "internal-only",
+            "candidateRole": "new-bounded-package",
+            "registryAvailable": false
+          }
+        }
+      }
+    },
     "hlp.foundation.scheduling": {
       "interface": {"path": "specs/modules/foundation/hlp.foundation.scheduling/interface.yaml", "revision": 1},
       "moduleKind": "runtime",
@@ -1532,6 +1566,9 @@
     "hlp.ui.chat": {
       "interface":{"path":"specs/modules/ui/hlp.ui.chat/interface.yaml","revision":1},"moduleKind":"interactive-component","presentation":{"disposition":"visual"},"qualityProfile":{"path":"specs/modules/ui/hlp.ui.chat/quality.yaml","revision":1},"owner":"platform-ui","dependencies":["hlp.ui.default-strings","hlp.ui.locale-provider"],"status":"gap-implemented","depth":{"disposition":"deep-module","deletionTest":"PASS","redistributedComplexity":["explicit message ownership, controlled submission, suggestions, typing, and complete replacement repeated by every assistant shell","log semantics, callback order, keyboard focus, localization, RTL, motion, and bounded history drifting across projections"]},"projections":{"react":{"role":"adapter","seam":"ui.chat.framework","path":"projections/react/ui/hlp.ui.chat","status":"conformant","packageContribution":"@harborline-software/ui-react","conformanceRunner":"conformance/hlp.ui.chat/runners/run-shared.mjs"},"blazor":{"role":"adapter","seam":"ui.chat.framework","path":"projections/blazor/ui/hlp.ui.chat","status":"conformant","packageContribution":"Harborline.UIAdapters.Blazor","conformanceRunner":"conformance/hlp.ui.chat/runners/run-shared.mjs"}}
     },
+    "hlp.ui.data-exchange": {
+      "interface":{"path":"specs/modules/ui/hlp.ui.data-exchange/interface.yaml","revision":1},"moduleKind":"interactive-component","presentation":{"disposition":"visual"},"qualityProfile":{"path":"specs/modules/ui/hlp.ui.data-exchange/quality.yaml","revision":1},"owner":"platform-ui","dependencies":[],"status":"gap-implemented","depth":{"disposition":"deep-module","deletionTest":"PASS","redistributedComplexity":["profile identity, source-shape narrowing, canonical mapping rows, replay and schedule policy repeated by every Data Exchange host","stale review and commit-authority gating drifting between React and Blazor consumers"]},"projections":{"react":{"role":"adapter","seam":"ui.data-exchange.framework","path":"projections/react/ui/hlp.ui.data-exchange","status":"conformant","packageContribution":"@harborline-software/ui-react","conformanceRunner":"conformance/hlp.ui.data-exchange/runners/run-shared.mjs"},"blazor":{"role":"adapter","seam":"ui.data-exchange.framework","path":"projections/blazor/ui/hlp.ui.data-exchange","status":"conformant","packageContribution":"Harborline.UIAdapters.Blazor","conformanceRunner":"conformance/hlp.ui.data-exchange/runners/run-shared.mjs"}}
+    },
     "hlp.ui.data-grid": {
       "interface":{"path":"specs/modules/ui/hlp.ui.data-grid/interface.yaml","revision":5},"moduleKind":"interactive-component","presentation":{"disposition":"visual"},"qualityProfile":{"path":"specs/modules/ui/hlp.ui.data-grid/quality.yaml","revision":1},"owner":"platform-ui","dependencies":["hlp.ui.default-strings","hlp.ui.locale-provider","hlp.ui.touch-target"],"status":"gap-implemented","depth":{"disposition":"deep-module","deletionTest":"PASS","redistributedComplexity":["stable row and column identity, ordered grouping, expansion, cell slots, and replacement repeated by every report surface","provider-neutral bounded windows, keyboard reachability, ARIA row metadata, RTL, and ten-thousand-row behavior absent from the source renderer"]},"projections":{"react":{"role":"adapter","seam":"ui.data-grid.framework","path":"projections/react/ui/hlp.ui.data-grid","status":"conformant","packageContribution":"@harborline-software/ui-react","conformanceRunner":"conformance/hlp.ui.data-grid/runners/run-shared.mjs"},"blazor":{"role":"adapter","seam":"ui.data-grid.framework","path":"projections/blazor/ui/hlp.ui.data-grid","status":"conformant","packageContribution":"Harborline.UIAdapters.Blazor","conformanceRunner":"conformance/hlp.ui.data-grid/runners/run-shared.mjs"}}
     },
@@ -1703,6 +1740,7 @@
     "ui.detail-panel.framework": {"interfaceOwner":"hlp.ui.detail-panel","status":"conformant","adapters":["react","blazor"]},
     "ui.chart.framework": {"interfaceOwner":"hlp.ui.chart","status":"conformant","adapters":["react","blazor"]},
     "ui.chat.framework": {"interfaceOwner":"hlp.ui.chat","status":"conformant","adapters":["react","blazor"]},
+    "ui.data-exchange.framework": {"interfaceOwner":"hlp.ui.data-exchange","status":"conformant","adapters":["react","blazor"]},
     "ui.data-grid.framework": {"interfaceOwner":"hlp.ui.data-grid","status":"conformant","adapters":["react","blazor"]},
     "ui.view-runtime.framework": {"interfaceOwner":"hlp.ui.view-runtime","status":"conformant","adapters":["react","blazor"]},
     "ui.gantt.framework": {"interfaceOwner":"hlp.ui.gantt","status":"conformant","adapters":["react","blazor"]},
