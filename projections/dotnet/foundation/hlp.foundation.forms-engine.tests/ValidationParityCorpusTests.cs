@@ -66,6 +66,7 @@ public sealed class ValidationParityCorpusTests
             candidate,
             schemas,
             FormEngineOptions.DefaultMaximumCandidateBytes,
+            TimeProvider.System,
             CancellationToken.None);
 
         var actualCodes = result.Errors.Select(row => row.Code.HasValue ? row.Code.Value! : "").Order(StringComparer.Ordinal).ToArray();

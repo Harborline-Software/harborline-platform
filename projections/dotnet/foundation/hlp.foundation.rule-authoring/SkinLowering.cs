@@ -51,14 +51,18 @@ public static class SkinLowering
         return JsonValue.Create(raw);
     }
 
-    /// <summary>Parse a numeric bound string to a number node, or null for a blank (open-ended) or
-    /// unparseable bound — the TS bridge's <c>bound()</c>.</summary>
-    private static JsonNode? Bound(string raw)
+    /// <summary>Parse a numeric bound string to a number node, or null for a blank (open-ended)
+    /// bound. A non-blank malformed bound is an admission refusal, never an open predicate.</summary>
+    private static JsonNode? Bound(string raw, string ruleId, string rowId, string columnId, string side)
     {
         string trimmed = raw.Trim();
         if (trimmed.Length == 0) return null;
         double n = JsNumberMirror.ToNumber(trimmed);
-        return double.IsFinite(n) ? NumNode(n) : null;
+        if (double.IsFinite(n)) return NumNode(n);
+        throw new RuleCompilationException(
+            SkinCodes.DecisionTableBadCell,
+            $"decision-table skin '{ruleId}': cell '{rowId}/{columnId}' has a malformed {side} range bound '{raw}'",
+            ruleId);
     }
 
     /// <summary>Integral doubles become long-backed JSON numbers so both tiers serialize the same
@@ -68,12 +72,22 @@ public static class SkinLowering
             ? JsonValue.Create((long)d)
             : JsonValue.Create(d);
 
-    private static DecisionCell CellToDecisionCell(TableCell? cell, ColumnValueType type) => cell switch
+    private static DecisionCell CellToDecisionCell(
+        TableCell? cell,
+        ColumnValueType type,
+        string ruleId,
+        string rowId,
+        string columnId) => cell switch
     {
         null or TableCell.Any => DecisionCell.Wildcard,
-        TableCell.Range r => DecisionCell.Range(Bound(r.Lo), Bound(r.Hi)),
+        TableCell.Range r => DecisionCell.Range(
+            Bound(r.Lo, ruleId, rowId, columnId, "lower"),
+            Bound(r.Hi, ruleId, rowId, columnId, "upper")),
         TableCell.Compare c => DecisionCell.Compare(c.Op, CoerceValue(c.Value, type)),
-        _ => DecisionCell.Wildcard,
+        _ => throw new RuleCompilationException(
+            SkinCodes.DecisionTableBadCell,
+            $"decision-table skin '{ruleId}': cell '{rowId}/{columnId}' has unknown kind '{cell.GetType().Name}'",
+            ruleId),
     };
 
     /// <summary>Lowers a decision-table draft onto the shipped <see cref="DecisionTableSkin"/>.</summary>
@@ -83,7 +97,11 @@ public static class SkinLowering
             .Select(row => new DecisionRow(
                 When: draft.Columns
                     .Select(col => CellToDecisionCell(
-                        row.Cells.TryGetValue(col.Id, out var cell) ? cell : null, col.ValueType))
+                        row.Cells.TryGetValue(col.Id, out var cell) ? cell : null,
+                        col.ValueType,
+                        ruleId,
+                        row.Id,
+                        col.Id))
                     .ToList(),
                 Output: CoerceValue(row.Output, ColumnValueType.Text),
                 Priority: row.Priority))

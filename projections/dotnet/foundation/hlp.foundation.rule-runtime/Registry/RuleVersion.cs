@@ -6,8 +6,8 @@ namespace Harborline.Foundation.RuleEngine.Registry;
 /// The per-rule-key monotonic-version comparator (ADR 0146 D5). Reuses the shipped S-8
 /// monotonic-watermark SEMANTICS of <c>foundation-packs</c>' <c>PackVersion</c> — parse
 /// <c>major.minor.patch</c> (extra numeric segments compared in order; a pre-release suffix after
-/// '-' orders BEFORE the same core per SemVer §11; an unparseable version is the lowest possible,
-/// fail-closed) — as the "which rule version wins offline" order. This is NOT a new versioning
+/// '-' orders BEFORE the same core per SemVer §11; an unparseable version is refused) — as the
+/// "which rule version wins offline" order. This is NOT a new versioning
 /// primitive (D5: compose shipped patterns, no new primitive); it is the pack watermark applied
 /// per rule key. It is mirrored here rather than referenced because the kernel rule engine cannot
 /// depend UP on the pack machinery (packs consume rules as <c>PackContentKind.RuleDefinition</c>,
@@ -18,6 +18,8 @@ namespace Harborline.Foundation.RuleEngine.Registry;
 /// </summary>
 public static class RuleVersion
 {
+    private sealed record ParsedVersion(int[] Core, string PreRelease, string BuildMetadata);
+
     /// <summary>
     /// Compares two rule versions. Returns &lt;0 if <paramref name="a"/> precedes
     /// <paramref name="b"/>, 0 if equal, &gt;0 if <paramref name="a"/> follows <paramref name="b"/>.
@@ -26,8 +28,12 @@ public static class RuleVersion
     /// </summary>
     public static int Compare(string a, string b)
     {
-        var (coreA, preA) = Split(a);
-        var (coreB, preB) = Split(b);
+        var parsedA = Parse(a);
+        var parsedB = Parse(b);
+        var coreA = parsedA.Core;
+        var coreB = parsedB.Core;
+        var preA = parsedA.PreRelease;
+        var preB = parsedB.PreRelease;
 
         var max = System.Math.Max(coreA.Length, coreB.Length);
         for (var i = 0; i < max; i++)
@@ -56,27 +62,50 @@ public static class RuleVersion
     public static bool IsDowngrade(string watermark, string candidate)
         => Compare(candidate, watermark) < 0;
 
-    private static (int[] Core, string PreRelease) Split(string version)
+    /// <summary>Refuses a malformed rule version.</summary>
+    public static void Validate(string version) => _ = Parse(version);
+
+    /// <summary>Returns the next patch version for a strict major.minor.patch head.</summary>
+    public static string NextPatch(string version)
     {
-        if (string.IsNullOrWhiteSpace(version))
+        var parsed = Parse(version);
+        if (parsed.Core.Length != 3 || parsed.PreRelease.Length > 0)
         {
-            return (new[] { 0 }, string.Empty);
+            throw new FormatException($"rule version '{version}' cannot be patch-incremented; expected major.minor.patch");
         }
+        int patch = checked(parsed.Core[2] + 1);
+        return FormattableString.Invariant($"{parsed.Core[0]}.{parsed.Core[1]}.{patch}");
+    }
 
-        var plus = version.IndexOf('+', StringComparison.Ordinal);
-        var trimmed = plus >= 0 ? version[..plus] : version;
+    private static ParsedVersion Parse(string version)
+    {
+        if (string.IsNullOrWhiteSpace(version) || !string.Equals(version, version.Trim(), StringComparison.Ordinal))
+            throw Malformed(version);
 
-        var dash = trimmed.IndexOf('-', StringComparison.Ordinal);
-        var core = dash >= 0 ? trimmed[..dash] : trimmed;
-        var pre = dash >= 0 ? trimmed[(dash + 1)..] : string.Empty;
+        int firstPlus = version.IndexOf('+', StringComparison.Ordinal);
+        if (firstPlus >= 0 && (firstPlus == version.Length - 1 || version.IndexOf('+', firstPlus + 1) >= 0))
+            throw Malformed(version);
+        string build = firstPlus >= 0 ? version[(firstPlus + 1)..] : string.Empty;
+        string withoutBuild = firstPlus >= 0 ? version[..firstPlus] : version;
+
+        int dash = withoutBuild.IndexOf('-', StringComparison.Ordinal);
+        if (dash >= 0 && dash == withoutBuild.Length - 1) throw Malformed(version);
+        string core = dash >= 0 ? withoutBuild[..dash] : withoutBuild;
+        string pre = dash >= 0 ? withoutBuild[(dash + 1)..] : string.Empty;
 
         var segments = core.Split('.');
+        if (segments.Length == 0 || segments.Any(segment => segment.Length == 0)) throw Malformed(version);
         var parsed = new int[segments.Length];
         for (var i = 0; i < segments.Length; i++)
         {
-            parsed[i] = int.TryParse(segments[i], NumberStyles.None, CultureInfo.InvariantCulture, out var n) ? n : 0;
+            if (!int.TryParse(segments[i], NumberStyles.None, CultureInfo.InvariantCulture, out var n))
+                throw Malformed(version);
+            parsed[i] = n;
         }
 
-        return (parsed, pre);
+        return new ParsedVersion(parsed, pre, build);
     }
+
+    private static FormatException Malformed(string? version)
+        => new($"malformed rule version '{version ?? "<null>"}'");
 }

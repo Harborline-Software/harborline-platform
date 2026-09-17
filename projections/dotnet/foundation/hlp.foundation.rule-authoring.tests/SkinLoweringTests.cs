@@ -85,6 +85,44 @@ public sealed class SkinLoweringTests
     }
 
     [Fact]
+    public void PriorityCatchAllKeepsTheSameWinningRowAndValueInPreviewAndRuntime()
+    {
+        var table = AmountTable() with
+        {
+            HitPolicy = HitPolicy.Priority,
+            Rows = new[]
+            {
+                new TableRow("conditional", Cells("c1", new TableCell.Compare(">=", "0")), "CONDITIONAL", 1),
+                new TableRow("wildcard", Cells("c1", new TableCell.Any()), "WILDCARD", 10),
+            },
+            NoMatch = new NoMatchPosture.CatchAll(),
+        };
+
+        var preview = SkinLowering.EvaluatePreview(table, "priority-catch-all", Sample(10));
+
+        Assert.Equal("wildcard", preview.FiredRowId);
+        Assert.Equal("\"WILDCARD\"", preview.Value?.ToJsonString());
+    }
+
+    [Fact]
+    public void RejectsMalformedRangeBoundWithCellNamed()
+    {
+        var table = AmountTable() with
+        {
+            Rows = new[]
+            {
+                new TableRow("malformed", Cells("c1", new TableCell.Range("not-a-number", "100")), "x", 0),
+            },
+        };
+
+        var ex = Assert.Throws<RuleCompilationException>(() =>
+            SkinLowering.CompileDraft(table, "malformed-bound"));
+
+        Assert.Equal(SkinCodes.DecisionTableBadCell, ex.Code);
+        Assert.Contains("malformed/c1", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void BlankOtherwiseDefaultIsCompileRejectionAndSurfaceLintError()
     {
         var unresolved = AmountTable() with { NoMatch = new NoMatchPosture.Default("") };

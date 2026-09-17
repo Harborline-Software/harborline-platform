@@ -398,7 +398,7 @@ var packedBlankTable = Harborline.Foundation.RuleAuthoring.RuleSeeds.BlankTableD
 await packedAuthoringCatalog.CreateRuleAsync(
     "consumer-route", "Consumer route", Harborline.Foundation.RuleAuthoring.RuleSkinType.Table, packedBlankTable);
 var packedRefusedPublish = await Harborline.Foundation.RuleAuthoring.PublishAdmission.PublishRuleAsync(
-    packedAuthoringCatalog, "consumer-route", packedBlankTable);
+    packedAuthoringCatalog, "consumer-route", packedBlankTable, "consumer-refused");
 if (packedRefusedPublish.Ok || packedRefusedPublish.Code != Harborline.Foundation.RuleEngine.Skins.SkinCodes.NoMatchUnresolved)
     throw new InvalidOperationException("Packed authoring fence admitted an unresolved no-match table.");
 var packedResolvedTable = packedBlankTable with
@@ -417,7 +417,7 @@ var packedResolvedTable = packedBlankTable with
     NoMatch = new Harborline.Foundation.RuleAuthoring.NoMatchPosture.Default("high"),
 };
 var packedAdmittedPublish = await Harborline.Foundation.RuleAuthoring.PublishAdmission.PublishRuleAsync(
-    packedAuthoringCatalog, "consumer-route", packedResolvedTable);
+    packedAuthoringCatalog, "consumer-route", packedResolvedTable, "consumer-admitted");
 if (!packedAdmittedPublish.Ok || packedAdmittedPublish.Version != "1.0.0")
     throw new InvalidOperationException("Packed authoring fence failed to mint 1.0.0 for a resolved table.");
 if (typeof(ITenantContext).Assembly.GetName().Name != "Harborline.Foundation.MultiTenancy")

@@ -92,7 +92,7 @@ static async Task<JsonObject> VerdictOf(JsonObject row, JsonArray cases)
             {
                 throw new InvalidOperationException($"lint and fence disagree on no-match for {id}");
             }
-            var outcome = await PublishAdmission.PublishRuleAsync(catalog, ruleKey, draft);
+            var outcome = await PublishAdmission.PublishRuleAsync(catalog, ruleKey, draft, $"admission-{id}");
             var stored = await catalog.LoadRuleAsync(ruleKey)
                 ?? throw new InvalidOperationException($"rule vanished for {id}");
             if (stored.Versions.Count != 0)
@@ -111,9 +111,9 @@ static async Task<JsonObject> VerdictOf(JsonObject row, JsonArray cases)
             string ruleKey = row["ruleKey"]!.GetValue<string>();
             var catalog = new RuleCatalog(new InMemoryRuleCatalogStore());
             await catalog.CreateRuleAsync(ruleKey, ruleKey, SkinTypeOf(draft), draft);
-            var first = await PublishAdmission.PublishRuleAsync(catalog, ruleKey, draft);
+            var first = await PublishAdmission.PublishRuleAsync(catalog, ruleKey, draft, $"first-{id}");
             await catalog.SaveDraftAsync(ruleKey, draft);
-            var second = await PublishAdmission.PublishRuleAsync(catalog, ruleKey, draft);
+            var second = await PublishAdmission.PublishRuleAsync(catalog, ruleKey, draft, $"second-{id}");
             if (!first.Ok || !second.Ok)
                 throw new InvalidOperationException($"monotonic mint publish failed for {id}");
             var stored = await catalog.LoadRuleAsync(ruleKey)

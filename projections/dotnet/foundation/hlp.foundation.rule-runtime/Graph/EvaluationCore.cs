@@ -128,6 +128,11 @@ internal static class OutcomeBuilder
                 // On the synchronous .NET integrity tier a pending dependency at save is fail-closed.
                 OutputType.Validity => new Built(RuleOutcome.OfValidity(ruleId, target,
                     Validity.Invalid(RuleError.Of(RuleEngineCodes.PendingAtSave))), true),
+                // Required is a restriction. If it cannot produce a verdict, emit a refusing
+                // validity outcome rather than silently relaxing the field to not-required.
+                OutputType.Visibility when rule.Source.Action == RuleActionKind.Required =>
+                    new Built(RuleOutcome.OfValidity(ruleId, target,
+                        Validity.Invalid(RuleError.Of(RuleEngineCodes.PendingAtSave, "rule", ruleId))), true),
                 OutputType.Visibility => new Built(RuleOutcome.OfVisibility(ruleId, target, FailClosedVisibility(rule.Source.Action)), true),
                 OutputType.Options => new Built(RuleOutcome.OfOptions(ruleId, target, OptionsOutcome.OfPending()), true),
                 _ => new Built(RuleOutcome.OfPresentation(ruleId, target, new PresentationOutcome()), true),
@@ -139,11 +144,22 @@ internal static class OutcomeBuilder
             {
                 OutputType.Value => new Built(RuleOutcome.OfValue(ruleId, target, ComputedValue.OfError(ex.Error)), false),
                 OutputType.Validity => new Built(RuleOutcome.OfValidity(ruleId, target, Validity.Invalid(ex.Error)), false),
+                OutputType.Visibility when rule.Source.Action == RuleActionKind.Required =>
+                    new Built(RuleOutcome.OfValidity(ruleId, target, Validity.Invalid(WithRule(ex.Error, ruleId))), false),
                 OutputType.Visibility => new Built(RuleOutcome.OfVisibility(ruleId, target, FailClosedVisibility(rule.Source.Action)), false),
                 OutputType.Options => new Built(RuleOutcome.OfOptions(ruleId, target, OptionsOutcome.OfError(ex.Error)), false),
                 _ => new Built(RuleOutcome.OfPresentation(ruleId, target, new PresentationOutcome(Severity.Error)), false),
             };
         }
+    }
+
+    private static RuleError WithRule(RuleError error, string ruleId)
+    {
+        if (error.Params.ContainsKey("rule")) return error;
+        var withRule = new Dictionary<string, string>(error.Params.Count + 1, StringComparer.Ordinal);
+        foreach (var (key, value) in error.Params) withRule[key] = value;
+        withRule["rule"] = ruleId;
+        return new RuleError(error.Code, withRule);
     }
 
     // A set-options rule's expression must evaluate to a JSON array; any other type fails closed
@@ -160,10 +176,10 @@ internal static class OutcomeBuilder
         _ => new VisibilityState(Visible: result), // Visibility
     };
 
-    // Fail-closed-safe state when a visibility-family rule errors: hide / not-required / readonly.
+    // Fail-closed-safe state when a visibility-family permit errors: hide / readonly. Required is a
+    // restriction and refuses through a failing validity outcome before this method is reached.
     private static VisibilityState FailClosedVisibility(RuleActionKind action) => action switch
     {
-        RuleActionKind.Required => new VisibilityState(Required: false),
         RuleActionKind.ReadOnly => new VisibilityState(ReadOnly: true),
         _ => new VisibilityState(Visible: false),
     };

@@ -16,7 +16,23 @@ namespace Harborline.Foundation.RuleAuthoring;
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// <summary>One published (immutable) version of a named rule.</summary>
-public sealed record StoredRuleVersion(string Version, RuleDraft Draft, string PublishedAt);
+public sealed record StoredRuleVersion(
+    string Version,
+    RuleDraft Draft,
+    string PublishedAt,
+    string RequestId = "",
+    string BodyHash = "");
+
+/// <summary>The result of the store's atomic version-allocation operation.</summary>
+public enum RulePublishCommitDisposition
+{
+    Committed = 0,
+    Replayed = 1,
+    NotFound = 2,
+}
+
+/// <summary>A version allocated atomically by the catalog store.</summary>
+public sealed record RulePublishCommitResult(RulePublishCommitDisposition Disposition, string? Version);
 
 /// <summary>The full persisted record for one named rule.</summary>
 public sealed record StoredRule
@@ -76,6 +92,18 @@ public interface IRuleCatalogStore
 
     Task WriteAsync(StoredRule rule);
 
+    /// <summary>
+    /// Atomically reads the current head, allocates its next patch version, and appends the immutable
+    /// body. The same request id and body replays the first result; the same request id with another
+    /// body refuses. Durable adapters implement this as one conditional transaction.
+    /// </summary>
+    Task<RulePublishCommitResult> AllocatePublishedVersionAsync(
+        string ruleKey,
+        string requestId,
+        RuleDraft draft,
+        string bodyHash,
+        string publishedAt);
+
     Task<IReadOnlyList<StoredRule>> ListAsync();
 }
 
@@ -85,18 +113,74 @@ public interface IRuleCatalogStore
 public sealed class InMemoryRuleCatalogStore : IRuleCatalogStore
 {
     private readonly Dictionary<string, StoredRule> _rules = new(StringComparer.Ordinal);
+    private readonly object _gate = new();
 
     public Task<StoredRule?> ReadAsync(string ruleKey)
-        => Task.FromResult(_rules.TryGetValue(ruleKey, out var rule) ? rule : null);
+    {
+        lock (_gate)
+        {
+            return Task.FromResult(_rules.TryGetValue(ruleKey, out var rule) ? rule : null);
+        }
+    }
 
     public Task WriteAsync(StoredRule rule)
     {
-        _rules[rule.RuleKey] = rule;
-        return Task.CompletedTask;
+        lock (_gate)
+        {
+            _rules[rule.RuleKey] = rule;
+            return Task.CompletedTask;
+        }
+    }
+
+    public Task<RulePublishCommitResult> AllocatePublishedVersionAsync(
+        string ruleKey,
+        string requestId,
+        RuleDraft draft,
+        string bodyHash,
+        string publishedAt)
+    {
+        lock (_gate)
+        {
+            if (!_rules.TryGetValue(ruleKey, out var rule))
+                return Task.FromResult(new RulePublishCommitResult(RulePublishCommitDisposition.NotFound, null));
+
+            var replay = rule.Versions.SingleOrDefault(version =>
+                string.Equals(version.RequestId, requestId, StringComparison.Ordinal));
+            if (replay is not null)
+            {
+                if (!string.Equals(replay.BodyHash, bodyHash, StringComparison.Ordinal))
+                    throw new InvalidOperationException(
+                        $"rule publish refused: request '{requestId}' was already used for a different body");
+                return Task.FromResult(new RulePublishCommitResult(
+                    RulePublishCommitDisposition.Replayed,
+                    replay.Version));
+            }
+
+            string version = RuleCatalog.NextVersion(rule);
+            var versions = new List<StoredRuleVersion>(rule.Versions)
+            {
+                new(version, draft, publishedAt, requestId, bodyHash),
+            };
+            _rules[ruleKey] = rule with
+            {
+                Draft = draft,
+                Versions = versions,
+                HasUnpublishedDraft = false,
+                UpdatedAt = publishedAt,
+            };
+            return Task.FromResult(new RulePublishCommitResult(
+                RulePublishCommitDisposition.Committed,
+                version));
+        }
     }
 
     public Task<IReadOnlyList<StoredRule>> ListAsync()
-        => Task.FromResult<IReadOnlyList<StoredRule>>(_rules.Values.ToList());
+    {
+        lock (_gate)
+        {
+            return Task.FromResult<IReadOnlyList<StoredRule>>(_rules.Values.ToList());
+        }
+    }
 }
 
 /// <summary>
@@ -169,6 +253,7 @@ public sealed class RuleCatalog
     /// — never directly by a UI). Advances the working state to "published, no pending draft".</summary>
     public async Task CommitPublishedVersionAsync(string ruleKey, string version, RuleDraft draft)
     {
+        RuleVersion.Validate(version);
         var rule = await _store.ReadAsync(ruleKey).ConfigureAwait(false)
             ?? throw new InvalidOperationException($"rule publish failed: '{ruleKey}' not found");
         // S-8 monotonic guard: refuse a downgrade (never mutate history in place).
@@ -185,6 +270,21 @@ public sealed class RuleCatalog
             HasUnpublishedDraft = false,
             UpdatedAt = NowIso(),
         }).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Atomically allocates and commits the next version. This is the only named-rule publish path;
+    /// version derivation is owned by the store transaction rather than a caller-side read.
+    /// </summary>
+    public Task<RulePublishCommitResult> AllocatePublishedVersionAsync(
+        string ruleKey,
+        string requestId,
+        RuleDraft draft,
+        string bodyHash)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(requestId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(bodyHash);
+        return _store.AllocatePublishedVersionAsync(ruleKey, requestId, draft, bodyHash, NowIso());
     }
 
     /// <summary>Duplicate a rule under a new key/name (forks the working draft).</summary>
@@ -222,16 +322,8 @@ public sealed class RuleCatalog
     {
         string? cur = HighestPublished(rule);
         if (cur is null) return "1.0.0";
-        var parts = cur.Split('.');
-        int maj = ParseOr0(parts.Length > 0 ? parts[0] : "");
-        int min = ParseOr0(parts.Length > 1 ? parts[1] : "");
-        int patch = ParseOr0(parts.Length > 2 ? parts[2] : "");
-        return FormattableString.Invariant($"{maj}.{min}.{patch + 1}");
+        return RuleVersion.NextPatch(cur);
     }
-
-    /// <summary>TS <c>Number(n) || 0</c> over a version segment — any unparseable segment is 0.</summary>
-    private static int ParseOr0(string segment)
-        => int.TryParse(segment, NumberStyles.None, CultureInfo.InvariantCulture, out int n) ? n : 0;
 
     private static NamedRuleSummary Summarize(StoredRule rule)
     {

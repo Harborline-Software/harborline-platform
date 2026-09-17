@@ -66,6 +66,38 @@ public sealed class SkinTests
     }
 
     [Fact]
+    public void DecisionTable_UnknownCellKind_RejectedWithInputNamed()
+    {
+        var rows = new[]
+        {
+            new DecisionRow(new[] { new DecisionCell((CellKind)99) }, JsonValue.Create("x")),
+        };
+
+        var ex = Assert.Throws<RuleCompilationException>(() =>
+            DecisionTableCompiler.Compile(MinimalTable(inputs: new[] { "amount" }, rows: rows)));
+
+        Assert.Equal(SkinCodes.DecisionTableBadCell, ex.Code);
+        Assert.Contains("amount", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void DecisionTable_NonNumericRangeBound_RejectedWithInputNamed()
+    {
+        var rows = new[]
+        {
+            new DecisionRow(
+                new[] { DecisionCell.Range(JsonValue.Create("not-a-number"), null) },
+                JsonValue.Create("x")),
+        };
+
+        var ex = Assert.Throws<RuleCompilationException>(() =>
+            DecisionTableCompiler.Compile(MinimalTable(inputs: new[] { "amount" }, rows: rows)));
+
+        Assert.Equal(SkinCodes.DecisionTableBadCell, ex.Code);
+        Assert.Contains("amount", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void DecisionTable_NoExplicitNoMatch_Rejected()
     {
         // Neither a declared default nor a catch-all → a silent null on no-match is forbidden (board F1).
