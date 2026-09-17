@@ -1,7 +1,9 @@
 name: validate
 # Public repository: validate every pull request and main landing.
 on:
-  pull_request:
+  # T-577: phase-4-gate is not a required context, so it runs where its result is used: the merge
+  # group (the landing's proof) and the push to main that publish-libraries follows. A PR push runs
+  # verify (required) and the cheap checks only.
   merge_group:
   push:
     branches: [main]
