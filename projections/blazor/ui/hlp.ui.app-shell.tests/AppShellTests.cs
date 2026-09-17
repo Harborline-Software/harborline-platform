@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Globalization;
+using System.Reflection;
 using AngleSharp.Dom;
 using Bunit;
 using Microsoft.AspNetCore.Components;
@@ -35,6 +36,45 @@ public sealed class AppShellTests : BunitContext
     [Fact] public void TenantMarkAndPanelScrollRegionExposeEquivalentSemantics(){var cut=Shell(p=>p.Add(x=>x.EndPanel,Content("Panel details")).Add(x=>x.EndPanelLabel,"Pilot").Add(x=>x.EndPanelOpen,true));var mark=cut.Find("[data-tenant-mark]");Assert.Equal("img",mark.GetAttribute("role"));Assert.Equal("Tenant",mark.GetAttribute("aria-label"));var region=cut.Find(".hl-app-shell__end-panel-body");Assert.Equal("region",region.GetAttribute("role"));Assert.Equal("Pilot",region.GetAttribute("aria-label"));Assert.Equal("0",region.GetAttribute("tabindex"));Assert.NotNull(region.GetAttribute("data-shell-scroll-region"));}
     [Fact] public void RejectsMissingInputsAndDuplicateIdentity(){Assert.Equal("app-shell-id-required",Assert.Throws<InvalidOperationException>(()=>Render<HarborlineAppShell>(p=>p.Add(x=>x.Navigation,Nav()).Add(x=>x.ChildContent,Content("Body")))).Message);Assert.Equal("app-shell-body-required",Assert.Throws<InvalidOperationException>(()=>Render<HarborlineAppShell>(p=>p.Add(x=>x.ShellId,"ops").Add(x=>x.Navigation,Nav()))).Message);var duplicate=new PackNavigationDeclaration([new("ops","Ops",Groups:[new("g","G",["x","x"])])]);Assert.Equal("duplicate-nav-identity",Assert.Throws<InvalidOperationException>(()=>Shell(nav:duplicate)).Message);}
     [Fact] public void PinnedItemMovesNotCopiesAndPinIsIsolated(){var pins=new List<(string,bool)>();var navigated=0;var cut=Shell(p=>p.Add(x=>x.PinnedItemIds,new[]{"inspections"}).Add(x=>x.ActiveItemId,"inspections").Add(x=>x.PinToggled,v=>pins.Add(v)).Add(x=>x.Navigated,_=>navigated++));Assert.Contains("Inspections",cut.Find("[data-shell-zone=pinned]").TextContent);Assert.DoesNotContain("Inspections",cut.Find("[data-shell-zone=groups]").TextContent);cut.Find(".hl-app-shell__pin-toggle").Click();Assert.Single(pins);Assert.Equal(0,navigated);}
+    [Fact] public void HostHandledActivationRetainsAddressesAndPreventsNativeNavigation()
+    {
+        var navigated=new List<ShellNavItem>();var workspaceChanges=new List<string>();var invoked=0;
+        var state=State() with{RecentByWorkspace=new Dictionary<string,IReadOnlyList<ShellNavItem>>{{"operations",[new("recent","Recent",Kind:"runs")]}},SuggestedByWorkspace=new Dictionary<string,ShellNavItem>{{"operations",new("suggested","Suggested",Kind:"assets")}}};
+        var cut=Shell(p=>p.Add(x=>x.Navigated,item=>navigated.Add(item)).Add(x=>x.ActiveWorkspaceIdChanged,id=>workspaceChanges.Add(id)).Add(x=>x.SystemItems,new[]{new ShellSystemItem("handled","Handled",()=>{invoked++;return Task.CompletedTask;})}),state:state);
+        Assert.Equal("/workspaces/front-desk",cut.FindAll("[data-shell-zone=workspaces] a").Single(link=>link.TextContent.Contains("Front desk",StringComparison.Ordinal)).GetAttribute("href"));
+        var layout=cut.FindComponent<HarborlineAppLayout>();
+        Assert.True(PreventsDefault(layout,"/workspaces/front-desk"));
+        Assert.True(PreventsDefault(layout,"/system/handled"));
+        Assert.True(PreventsDefault(layout,"/runs/recent"));
+        Assert.True(PreventsDefault(layout,"/assets/suggested"));
+        Assert.Equal("false",Link(layout,"/workspaces/front-desk").GetAttribute("data-enhance-nav"));
+        Assert.Equal("false",Link(layout,"/system/handled").GetAttribute("data-enhance-nav"));
+        Assert.Equal("false",Link(layout,"/runs/recent").GetAttribute("data-enhance-nav"));
+        Assert.Equal("false",Link(layout,"/assets/suggested").GetAttribute("data-enhance-nav"));
+        var rail=cut.FindComponent<HarborlineShellRail>();
+        Assert.True(PreventsDefault(rail,"/workspaces/overview"));
+        Assert.Equal("false",Link(rail,"/workspaces/overview").GetAttribute("data-enhance-nav"));
+        rail.FindAll("a").Single(link=>link.TextContent.Contains("Overview",StringComparison.Ordinal)).Click();
+        cut.FindAll("[data-shell-zone=recent] a").Single().Click();
+        cut.FindAll("[data-shell-zone=suggested] a").Single().Click();
+        cut.FindAll("[data-shell-zone=footer] a").Single().Click();
+        cut.FindAll("[data-shell-zone=workspaces] a").Single(link=>link.TextContent.Contains("Front desk",StringComparison.Ordinal)).Click();
+        Assert.Equal(["front-desk"],workspaceChanges);Assert.Equal(["overview","recent","suggested"],navigated.Select(item=>item.Id));Assert.Equal(1,invoked);
+    }
+    [Fact] public void ItemActivationWithoutAHostHandlerKeepsNativeNavigationFallback()
+    {
+        var state=State() with{RecentByWorkspace=new Dictionary<string,IReadOnlyList<ShellNavItem>>{{"operations",[new("recent","Recent",Kind:"runs")]}},SuggestedByWorkspace=new Dictionary<string,ShellNavItem>{{"operations",new("suggested","Suggested",Kind:"assets")}}};
+        var cut=Shell(p=>p.Add(x=>x.SystemItems,new[]{new ShellSystemItem("fallback","Fallback")}),state:state);var rail=cut.FindComponent<HarborlineShellRail>();var layout=cut.FindComponent<HarborlineAppLayout>();
+        Assert.Equal("/workspaces/overview",rail.FindAll("a").Single(link=>link.TextContent.Contains("Overview",StringComparison.Ordinal)).GetAttribute("href"));
+        Assert.False(PreventsDefault(rail,"/workspaces/overview"));
+        Assert.False(PreventsDefault(layout,"/runs/recent"));
+        Assert.False(PreventsDefault(layout,"/assets/suggested"));
+        Assert.False(PreventsDefault(layout,"/system/fallback"));
+        Assert.False(Link(rail,"/workspaces/overview").HasAttribute("data-enhance-nav"));
+        Assert.False(Link(layout,"/runs/recent").HasAttribute("data-enhance-nav"));
+        Assert.False(Link(layout,"/assets/suggested").HasAttribute("data-enhance-nav"));
+        Assert.False(Link(layout,"/system/fallback").HasAttribute("data-enhance-nav"));
+    }
     [Fact] public void ThreadInteractionRemainsShellRuntimeState(){var activated=new List<ShellThreadEvent>();var renamed=new List<ShellThreadRenameEvent>();var cut=Shell(p=>p.Add(x=>x.ThreadActivated,v=>activated.Add(v)).Add(x=>x.ThreadRenamed,v=>renamed.Add(v)));cut.Find(".hl-app-shell__thread-btn").Click();Assert.Equal("inspections",activated[0].OwnerId);cut.Find(".hl-app-shell__kebab").Click();Assert.Equal("Delete",cut.Find("[role=menuitem]").TextContent);var input=cut.Find(".hl-app-shell__thread-rename");input.Input("Trip audit");input.KeyDown("Enter");Assert.Equal("Trip audit",renamed[0].Value);}
     [Fact] public void PackBindingInvokesHostAndDeniedCreateBecomesGuidance(){var calls=new List<string>();var allowed=Shell(p=>p.Add(x=>x.BindingInvoked,v=>calls.Add(v)),Nav([Action("new","New asset","assets.create")]));allowed.Find(".hl-app-shell__create").Click();Assert.Equal(["assets.create"],calls);const string guidance="Request the Maintainer role to create assets.";var denied=Shell(nav:Nav([Action("new","Create asset","assets.create",["tax.roles/maintainer"])]),state:State(guidance));Assert.Empty(denied.FindAll(".hl-app-shell__create"));Assert.Contains(guidance,denied.Find("[data-capability-guidance]").TextContent);Assert.Empty(denied.FindAll("[disabled]"));}
     [Fact] public void KernelOwnsBarRailCountsAndAddresses(){var state=State() with{RecentByWorkspace=new Dictionary<string,IReadOnlyList<ShellNavItem>>{{"operations",[new("recent","Recent")]}},SuggestedByWorkspace=new Dictionary<string,ShellNavItem>{{"operations",new("suggested","Suggested")}}};var notification=new PackPanelDeclaration("notifications","panels.notifications.toggle","mod+shift+b",360,180,false);var cut=Shell(p=>p.Add(x=>x.NotificationCount,7).Add(x=>x.FooterIdentity,new ShellFooterIdentity("Chris","Inspector")),Nav([Action("new","New")],[notification],mode:true),state);Assert.Equal(new[]{"mark","window-menu","rail-toggle","find","breadcrumb","cluster"},cut.FindAll("[data-shell-bar-slot]").Select(x=>x.GetAttribute("data-shell-bar-slot")));Assert.Equal(ShellChromeContract.RailZoneOrder,cut.FindAll("[data-shell-zone]").Select(x=>x.GetAttribute("data-shell-zone")));Assert.Equal("7",cut.Find("[data-notification-count]").TextContent);Assert.Empty(cut.FindAll("[data-notification-dot]"));Assert.Equal("/workspaces/operations",cut.Find("[data-shell-zone=workspaces] a").GetAttribute("href"));}
@@ -291,6 +331,30 @@ public sealed class AppShellTests : BunitContext
         Assert.Equal(expected.GetProperty("orientation").GetString(),split.Orientation);Assert.Equal(expected.GetProperty("ratio").GetDouble(),split.Ratio);
         AssertDockTree(expected.GetProperty("first"),split.First);AssertDockTree(expected.GetProperty("second"),split.Second);
     }
+    private bool PreventsDefault<T>(IRenderedComponent<T> component,string href) where T:IComponent
+    {
+        var method=Renderer.GetType().GetMethod("GetCurrentRenderTreeFrames",BindingFlags.Instance|BindingFlags.NonPublic)!;
+        var range=method.Invoke(Renderer,[component.ComponentId])!;var type=range.GetType();
+        var frames=(Array)type.GetField("Array")!.GetValue(range)!;var count=(int)type.GetField("Count")!.GetValue(range)!;
+        for(var index=0;index<count;index++)
+        {
+            var frame=frames.GetValue(index)!;var frameType=frame.GetType();
+            if(!Equals(frameType.GetProperty("FrameType")!.GetValue(frame)?.ToString(),"Element"))continue;
+            var matchingHref=false;var preventsDefault=false;
+            for(var attributeIndex=index+1;attributeIndex<count;attributeIndex++)
+            {
+                var attribute=frames.GetValue(attributeIndex)!;var attributeType=attribute.GetType();
+                if(!Equals(attributeType.GetProperty("FrameType")!.GetValue(attribute)?.ToString(),"Attribute"))break;
+                var name=attributeType.GetProperty("AttributeName")!.GetValue(attribute);
+                var value=attributeType.GetProperty("AttributeValue")!.GetValue(attribute);
+                matchingHref|=Equals(name,"href")&&Equals(value,href);
+                preventsDefault|=Equals(name,"__internal_preventDefault_onclick")&&Equals(value,true);
+            }
+            if(matchingHref)return preventsDefault;
+        }
+        return false;
+    }
+    private static IElement Link<T>(IRenderedComponent<T> component,string href) where T:IComponent=>component.FindAll("a").Single(link=>link.GetAttribute("href")==href);
     private static void AssertRenderedDockTree(JsonElement expected,IElement? actual)
     {
         if(expected.ValueKind==JsonValueKind.Null){Assert.Null(actual);return;}

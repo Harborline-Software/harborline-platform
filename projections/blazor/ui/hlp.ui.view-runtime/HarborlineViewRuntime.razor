@@ -4,6 +4,10 @@
   <div class="hl-view-runtime"
        data-definition-source="@DefinitionSource"
        title="@DefinitionSourceTitle">
+    @foreach (var action in Plan.Bindings.Actions ?? [])
+    {
+      <button @key="action.Id" type="button" @onclick="() => OnAction.InvokeAsync(action.Id)">@action.Label</button>
+    }
     <HarborlineDataGrid TRow="ViewRuntimeRow" AccessibleLabel="@AccessibleLabel" Columns="@Columns" Empty="@Empty" GetRowId="@(row => row.Id)" Rows="@Rows" OnRowActivate="@ForwardRowActivation" />
   </div>
 }
@@ -14,6 +18,7 @@
   [Parameter] public string AccessibleLabel { get; set; } = "View results";
   [Parameter] public string? Empty { get; set; }
   [Parameter] public EventCallback<string> OnRowActivate { get; set; }
+  [Parameter] public EventCallback<string> OnAction { get; set; }
   private Task ForwardRowActivation(DataGridRowActivation activation) => OnRowActivate.InvokeAsync(activation.RowId);
   private string DefinitionSource => System.Text.Json.JsonSerializer.Serialize(new { definitionId = Plan.DefinitionId, definitionVersion = Plan.DefinitionVersion, packKey = Plan.PackKey });
   private string DefinitionSourceTitle => $"Definition source: {DefinitionSource}";
