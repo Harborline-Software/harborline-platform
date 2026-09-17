@@ -20,6 +20,7 @@ import {fileURLToPath} from 'node:url'
 
 import {carriesRender, renderDigest} from './render-digest.mjs'
 import {EXPIRED_RULE} from './design-review-status.mjs'
+import {validateIndexProvenance} from './design-review-provenance-format.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
 export const recordsRoot = resolve(here, '../../docs/evidence/design-review')
@@ -163,7 +164,7 @@ export function loadRecord(moduleId, root = recordsRoot) {
 // human's behalf would make the whole gate decorative -- the same failure as a canary that cannot
 // fail. The reviewer must be a real person, and the revision is computed here rather than supplied,
 // so a verdict cannot be recorded against a revision nobody looked at.
-export function recordVerdict({platformRoot, moduleId, reviewer, verdict, notes, recordedAt, root = recordsRoot}) {
+export function recordVerdict({platformRoot, moduleId, reviewer, verdict, notes, recordedAt, provenance, root = recordsRoot}) {
   if (!reviewer || /^(tooling|automation|claude|assistant|canary|ci)$/i.test(reviewer.trim())) {
     throw new Error('design-review verdict requires a named human reviewer')
   }
@@ -187,7 +188,7 @@ export function recordVerdict({platformRoot, moduleId, reviewer, verdict, notes,
     reviewer: reviewer.trim(),
     recordedAt: stamp,
     notes: notes ?? undefined,
-    reference: {revision, source: `gallery/scenarios/${moduleId}.json`, surface},
+    reference: {revision, source: `gallery/scenarios/${moduleId}.json`, surface, ...(provenance ? {provenance} : {})},
   }
   // Fail closed: a writer that can emit a record its own reader refuses is worse than one that
   // refuses up front, because the refusal surfaces as a gate FAIL long after the writing.
@@ -207,6 +208,13 @@ export function reviewVerdict({record, revision, surface}) {
   if (!record) return ['UNBUILT', 'no design-review verdict recorded for this module']
   if (record.schemaVersion !== 1) return ['FAIL', `unrecognised design-review schemaVersion ${record.schemaVersion}`]
   if (!record.reviewer || !record.recordedAt) return ['FAIL', 'design-review record names no reviewer or no date']
+  if (record.reference?.provenance !== undefined) {
+    try {
+      validateIndexProvenance(record.reference.provenance)
+    } catch (error) {
+      return ['FAIL', `invalid design-review provenance: ${error.message}`]
+    }
+  }
   // Expiry is checked BEFORE the verdict value, and the order is load-bearing. An expired
   // changes-requested is not still a changes-requested: the reviewer was describing a design that no
   // longer exists, and reporting their old words as the current verdict claims a judgement nobody

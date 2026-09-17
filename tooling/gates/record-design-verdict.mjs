@@ -12,7 +12,9 @@
 //   node record-design-verdict.mjs <platform-root> <moduleId> --reviewer "Name" \
 //        --verdict approved|rejected|changes-requested --date YYYY-MM-DD [--notes "..."]
 
-import {recordVerdict} from './design-review.mjs'
+// Stage the reviewed render inputs first. The record binds their blobs and a durable main-line
+// base; no temporary approval commit needs to survive a squash merge.
+import {recordIndexVerdict} from './design-review-provenance.mjs'
 
 const argv = process.argv.slice(2)
 const flag = name => {
@@ -22,7 +24,7 @@ const flag = name => {
 const [platformRoot, moduleId] = argv.filter(a => !a.startsWith('--') && argv[argv.indexOf(a) - 1]?.startsWith('--') !== true)
 
 try {
-  const record = recordVerdict({
+  const record = recordIndexVerdict({
     platformRoot,
     moduleId,
     reviewer: flag('reviewer'),

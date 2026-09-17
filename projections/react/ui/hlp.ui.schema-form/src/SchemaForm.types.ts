@@ -59,6 +59,8 @@ export interface SchemaFormProps {
   localeChain?: readonly string[]
   className?: string
   disabled?: boolean
+  /** Display values without submission or host mutation callbacks. */
+  readOnly?: boolean
   controls?: Record<string, ControlRenderer>
   onBlockAction?: (action: FormActionConfig) => void
 }

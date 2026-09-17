@@ -161,6 +161,7 @@
 .hl-schema-form__unavailable {
   background: color-mix(in srgb, var(--hl-schema-form-subtle) 78%, var(--hl-schema-form-surface));
   display: block;
+  overflow-wrap: anywhere;
   white-space: pre-wrap;
 }
 

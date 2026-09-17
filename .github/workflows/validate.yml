@@ -2,6 +2,7 @@ name: validate
 # Public repository: validate every pull request and main landing.
 on:
   pull_request:
+  merge_group:
   push:
     branches: [main]
 jobs:
@@ -9,6 +10,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - name: Consumer-neutral boundary
         # This repo had no such fence, and that is why it was the one that regressed. The consumer
         # codename was declared absent everywhere on 2026-08-17 (migration registry entry 094), and
@@ -97,6 +100,12 @@ jobs:
           # trade here to weigh. Do not raise this back toward the config default without repeating
           # that measurement; the default is tuned for an 8-core host.
           PW_WORKERS: "2"
+          # Keep the same two-browser budget while splitting the 529-spec suite across two
+          # Playwright processes. The unsharded hosted run reached the suite cleanly but was
+          # killed at the generic 900s per-step ceiling before it could emit a report. The gate
+          # merges both shard reports and reconciles the complete declared scenario set, so a
+          # missing or failed shard still fails closed.
+          GALLERY_SHARDS: "2"
       - name: Keep the phase-4 gate report whatever the outcome
         # The report is the only complete record of every step's counts and failure text. The job log
         # truncates it inside the embedded step output (330 s3's acceptance could not be read from the

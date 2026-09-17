@@ -251,6 +251,39 @@
         ],
         "footer": []
       }
+    },
+    {
+      "id": "schema-form.host-readonly",
+      "name": "Read-only harbor inspection",
+      "surface": "host-readonly",
+      "sourceCaseIds": [
+        "schema-form.host-readonly"
+      ],
+      "sourceQualityCaseIds": [
+        "schema-form.quality.field-labelling",
+        "schema-form.quality.reflow",
+        "schema-form.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "A completed harbor inspection exercises every visible built-in field kind without editing or submission.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<SchemaForm readOnly initialValues={READ_ONLY_INSPECTION_VALUES} onSubmit={validSubmit} strings={ENGLISH_STRINGS} view={READ_ONLY_INSPECTION_VIEW} />",
+            "blazor": "<HarborlineSchemaForm ReadOnly=\"true\" InitialValues=\"ReadOnlyValues\" OnSubmit=\"ValidSubmit\" Strings=\"EnglishStrings\" View=\"ReadOnlyInspectionView\" />",
+            "rationale": "The shared schema runtime displays all 18 visible built-in hints; boolean is the checkbox alias, hidden remains intentionally nonvisual, and unsupported structured values fail closed."
+          }
+        ],
+        "footer": []
+      }
     }
   ]
 }

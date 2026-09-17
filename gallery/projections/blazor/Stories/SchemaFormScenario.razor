@@ -1,7 +1,11 @@
 <section class="hl-gallery-scene" data-gallery-probe data-gallery-scenario="@ScenarioId" data-theme="@Theme">
   <header class="hl-gallery-heading"><h2>@Copy.Title</h2><p>@Copy.Description</p></header>
   <div class="hl-gallery-stage hl-gallery-feedback-grid">
-    @if (ScenarioId == "schema-form.controls-structure")
+    @if (ScenarioId == "schema-form.host-readonly")
+    {
+      <HarborlineSchemaForm ReadOnly="true" InitialValues="ReadOnlyValues" OnSubmit="ValidSubmit" Strings="EnglishStrings" View="ReadOnlyInspectionView" />
+    }
+    else if (ScenarioId == "schema-form.controls-structure")
     {
       <HarborlineSchemaForm Controls="CustomControls" InitialValues="ControlsValues" OnSubmit="ValidSubmit"
                           Strings="EnglishStrings" View="ControlsView" />
@@ -184,6 +188,79 @@
     ],
   };
 
+  private static readonly SchemaFormView ReadOnlyInspectionView = new()
+  {
+    FormId = "harbor-inspection-application",
+    Version = "1.0.0",
+    Title = Text("Harbor inspection application"),
+    Description = Text("Completed application and inspection values from every visible built-in field kind."),
+    Sections =
+    [
+      new()
+      {
+        Id = "application",
+        Title = Text("Application"),
+        Fields =
+        [
+          Field("vesselName", "Vessel name", "text"),
+          Field("inspectionScope", "Inspection scope", "textarea"),
+          Field("grossTonnage", "Gross tonnage", "number"),
+          Field("crewCount", "Crew count", "integer"),
+          Field("inspectionType", "Inspection type", "select") with
+          {
+            Options = [new("annual", Text("Annual safety inspection")), new("arrival", Text("Arrival inspection"))],
+          },
+          Field("systemsReviewed", "Systems reviewed", "multiselect") with
+          {
+            Options =
+            [
+              new("navigation", Text("Navigation")),
+              new("fire", Text("Fire suppression")),
+              new("lifesaving", Text("Lifesaving equipment")),
+            ],
+          },
+        ],
+      },
+      new()
+      {
+        Id = "declarations",
+        Title = Text("Declarations and schedule"),
+        Fields =
+        [
+          Field("documentsVerified", "Documents verified", "checkbox"),
+          Field("masterAttested", "Master attested", "boolean"),
+          Field("followUpRequired", "Follow-up required", "boolean-toggle"),
+          Field("inspectionDate", "Inspection date", "date"),
+          Field("inspectionStarted", "Inspection started", "datetime"),
+          Field("highTide", "High tide", "time"),
+        ],
+      },
+      new()
+      {
+        Id = "commercial-contact",
+        Title = Text("Commercial and contact details"),
+        Fields =
+        [
+          Field("estimatedCost", "Estimated inspection cost", "currency") with
+          {
+            Config = new Dictionary<string, object?> { ["currencyCode"] = "USD", ["decimals"] = 2 },
+          },
+          Field("completion", "Inspection completion", "percentage") with
+          {
+            Config = new Dictionary<string, object?> { ["decimals"] = 1 },
+          },
+          Field("agentPhone", "Agent phone", "phone"),
+          Field("agentEmail", "Agent email", "email"),
+          Field("certificateUrl", "Certificate URL", "url"),
+          Field("applicationStatus", "Application status", "readonly"),
+          Field("inspectorCredential", "Inspector credential", "text") with { IsSensitive = true },
+          Field("internalFinding", "Internal finding", "text") with { IsReadable = false },
+          Field("evidenceBundle", "Evidence bundle", "future-object") with { ValueKind = "object" },
+        ],
+      },
+    ],
+  };
+
   private static readonly SchemaFormView EmptyView = new()
   {
     FormId = "empty-request",
@@ -302,6 +379,30 @@
     ["name"] = "",
     ["email"] = "ops@example.test",
   };
+  private static readonly IReadOnlyDictionary<string, object?> ReadOnlyValues = new Dictionary<string, object?>
+  {
+    ["vesselName"] = "MV North Star",
+    ["inspectionScope"] = "Annual hull, machinery, navigation, and lifesaving equipment inspection.",
+    ["grossTonnage"] = 18425.5d,
+    ["crewCount"] = 24,
+    ["inspectionType"] = "annual",
+    ["systemsReviewed"] = new[] { "navigation", "fire", "lifesaving" },
+    ["documentsVerified"] = true,
+    ["masterAttested"] = true,
+    ["followUpRequired"] = false,
+    ["inspectionDate"] = "2026-09-16",
+    ["inspectionStarted"] = "2026-09-16T09:30:00-04:00",
+    ["highTide"] = "14:45",
+    ["estimatedCost"] = 48750.5d,
+    ["completion"] = 92.5d,
+    ["agentPhone"] = "+1 410 555 0142",
+    ["agentEmail"] = "port.agent@example.test",
+    ["certificateUrl"] = "https://records.example.test/inspections/HLI-2048",
+    ["applicationStatus"] = "Approved for certificate issuance",
+    ["inspectorCredential"] = "credential-should-not-render",
+    ["internalFinding"] = "internal-finding-should-not-render",
+    ["evidenceBundle"] = new Dictionary<string, object?> { ["photos"] = 12, ["report"] = "HLI-2048.pdf" },
+  };
 
   private static readonly IReadOnlyDictionary<string, object?> EmptyValues = new Dictionary<string, object?>();
 
@@ -358,6 +459,7 @@
     new Dictionary<string, (string, string)>
     {
       ["schema-form.controls-structure"] = ("Ordered controls and collections", "Registry resolution, fallback, nested updates, and bounded rows share one caller-defined order."),
+      ["schema-form.host-readonly"] = ("Read-only harbor inspection", "A completed application exercises every visible built-in field kind without exposing editing or submission."),
       ["schema-form.rules-gate"] = ("Rule outcomes and save gate", "Visibility, required, read-only, computed, and presentation outcomes project before save."),
       ["schema-form.validation"] = ("Inline and summary validation", "Save to inspect inline association, summary partitioning, and summary focus."),
       ["schema-form.locale-theme"] = ("Caller locales and dark theme", "Pseudo-expanded and Arabic copy exercise locale formatting, logical direction, and shared theme tokens."),
