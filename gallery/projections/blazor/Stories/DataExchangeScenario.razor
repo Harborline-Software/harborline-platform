@@ -1,0 +1,20 @@
+@namespace Harborline.Gallery.Blazor.Stories
+<section class="hl-gallery-scene" data-gallery-probe data-gallery-scenario="@ScenarioId">
+  <header class="hl-gallery-heading"><h2>@Copy.Title</h2><p>@Copy.Description</p></header>
+  <div class="hl-gallery-stage"><HarborlineDataExchangeAuthoringEditor Value="@Draft" Catalogue="@Catalogue" Run="@Run" CanCommit="true" /></div>
+</section>
+@code {
+  [Parameter, EditorRequired] public string ScenarioId { get; set; } = "data-exchange.authoring";
+  private static readonly DataExchangeAuthoringCatalogue Catalogue = new(
+    [new("files.csv", "CSV file")], [new("records.customer/v1", "Customer record v1")], [new("string", "String")], [new("trimToNull", "Trim to null")], [new("schedule.daily", "Daily")]);
+  private static readonly DataExchangeAuthoringDraft Draft = new(
+    "Customer intake", "files.csv", "2.4.0", "secretref:customer-intake",
+    [new("CustomerNumber", true), new("Email", true)],
+    [new("CustomerNumber", "records.customer/v1", "/customerNumber", "string", true, "", "", "", "trimToNull")],
+    ["CustomerNumber"], "deduplicate", "schedule.daily");
+  private static readonly DataExchangeRunSummary CurrentRun = new("dry-42", "Ready", false, "row:125", new(0, 0, 0, 0, 0, 0), []);
+  private DataExchangeRunSummary Run => ScenarioId == "data-exchange.stale-review" ? CurrentRun with { Status = "Stale", Stale = true, Refusals = ["mapping.changed"] } : CurrentRun;
+  private (string Title, string Description) Copy => ScenarioId == "data-exchange.stale-review"
+    ? ("Stale review", "A proposal-affecting mapping change leaves the persisted review visible while commit fails closed.")
+    : ("Current review", "A bounded inbound definition maps selected source columns to a canonical Records contract and exposes an approved current review.");
+}

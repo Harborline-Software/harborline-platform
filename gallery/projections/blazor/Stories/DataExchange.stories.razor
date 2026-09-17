@@ -1,0 +1,6 @@
+@namespace Harborline.Gallery.Blazor.Stories
+@attribute [Stories("Platform/Data Exchange")]
+<Stories TComponent="DataExchangeScenario">
+  <Story Name="Current review"><Arguments><Arg For="_ => _.ScenarioId" Value='"data-exchange.authoring"' /></Arguments><Template><DataExchangeScenario @attributes="context.Args" /></Template></Story>
+  <Story Name="Stale review"><Arguments><Arg For="_ => _.ScenarioId" Value='"data-exchange.stale-review"' /></Arguments><Template><DataExchangeScenario @attributes="context.Args" /></Template></Story>
+</Stories>
