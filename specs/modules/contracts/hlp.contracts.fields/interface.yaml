@@ -10,13 +10,17 @@
     "AdmittedFieldKind": ["KindId", "Version", "GovernanceDefaults", "ValueShape"],
     "ValueDomainDefinition": ["LiteralValues", "TaxonomyScheme", "RecordQuery"],
     "FieldConstraintDefinition": ["Required", "MinimumCount", "MaximumCount", "ReadRoleIds", "ValueDomain"],
-    "FieldRefusal": ["Code", "JsonPointer", "Message"]
+    "FieldRefusal": ["Code", "JsonPointer", "Message"],
+    "FieldAdmissionException": ["Refusals"],
+    "IFieldKindRuntime": ["Bind"],
+    "ICompiledFieldKind": ["Kind", "JsonSchema", "Validate", "ValidateJson"]
   },
   "invariants": [
     "One shared vocabulary is promoted from the T-615 declarations; members do not redeclare it.",
     "Contracts contain declarations, not the field-runtime enforcement implementation.",
     "The three domain source kinds are literals, a versioned Taxonomy scheme, and a record query with a predicate.",
-    "Substrate refusals carry member-neutral field.* codes and authored RFC 6901 locations."
+    "Substrate refusals carry member-neutral field.* codes and authored RFC 6901 locations.",
+    "A bound kind carries its runtime validator together with the standard schema projection; schema text alone does not represent runtime-only limits."
   ],
   "notScope": ["kind lookup", "domain evaluation", "limit enforcement", "editor selection", "Records grammar", "JSON Schema compilation"],
   "packageContribution": "Harborline.Contracts"

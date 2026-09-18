@@ -19,6 +19,17 @@
     "compilation": "fraction_digits contributes JSON Schema multipleOf equal to ten to the negative n. total_digits remains an executable validator constraint, not a silently discarded schema input.",
     "refusal": "Each exceeded facet has its own stable field.* refusal code and RFC 6901 pointer. Validation never rounds, clamps, defaults or rewrites the value."
   },
+  "kindLimitParameters": {
+    "min_length": "Non-negative minimum Unicode scalar count for a text kind.",
+    "max_length": "Non-negative maximum Unicode scalar count, not below min_length.",
+    "minimum": "Inclusive JSON-number minimum, compared exactly without binary floating-point conversion.",
+    "maximum": "Inclusive JSON-number maximum, not below minimum.",
+    "max_bytes": "Non-negative UTF-8 byte cap: decoded content for text and original JSON for other scalar kinds."
+  },
+  "operations": [
+    {"id": "kind.bind", "input": "FieldKindReference and authored pointer", "result": "ICompiledFieldKind or FieldAdmissionException"},
+    {"id": "kind.validate", "input": "bound kind, original JSON value and value pointer", "result": "member-neutral refusals without value mutation"}
+  ],
   "invariants": [
     "Exactly one domain source is authored: literals, an immutable Taxonomy scheme, or a record query with a predicate.",
     "Field-kind binding names an exact admitted version, never a latest-version or kind-name fallback.",

@@ -33,10 +33,15 @@ that the runtime enforces them.
 
 Implementation and verification are in progress. This README is not release evidence.
 
-The current executable slice is `ValueDomainAdmission.Validate`: it counts the three
-declared sources and refuses anything other than exactly one with
-`field.value_domain_source_count`. Its first public-interface test has passed. Dynamic
-resolution, kind lookup, limits, intersection and editor selection are not implemented yet.
+The source now includes typed and raw JSON domain admission, exact kind lookup, and
+`IFieldKindRuntime.Bind`, which pairs a compiled schema with its complete value validator.
+Limits include the two digit facets, inclusive numeric bounds, Unicode scalar length and
+UTF-8 byte size. Refusals preserve the authored or submitted RFC 6901 location.
+
+Only the initial source-count test has run successfully. The new admission, binding and
+limit code is unverified while test restore is blocked. Dynamic domain resolution,
+constraint intersection, editor selection and the Records consumer binding remain work
+to complete; exposing the shared contract is not proof that Records already uses it.
 
 Records remains in the kernel schema-validation projection. Shared declarations live in
 `Harborline.Contracts.Fields`, contributed to the existing `Harborline.Contracts` assembly.
