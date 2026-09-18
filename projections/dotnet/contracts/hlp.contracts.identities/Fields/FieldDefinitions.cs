@@ -1,4 +1,4 @@
-namespace Harborline.Foundation.FieldRuntime;
+namespace Harborline.Contracts.Fields;
 
 // Promoted from the T-615 Records declarations at a625fdd. The names and three-source
 // wire shape are retained so Records binds to this producer rather than converting a copy.

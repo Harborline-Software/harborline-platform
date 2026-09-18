@@ -4,7 +4,7 @@
   "interfaceRevision": 1,
   "status": "draft",
   "purpose": "Own shared field-kind admission, authority-aware three-source value-domain resolution, narrowing, kind limits and domain-driven editor selection under DES-0030 and T-621.",
-  "dependencies": [],
+  "dependencies": ["hlp.contracts.fields", "hlp.contracts.identities"],
   "types": {
     "FieldKindReference": ["KindId", "Version", "Parameters"],
     "AdmittedFieldKind": ["KindId", "Version", "GovernanceDefaults", "ValueShape"],

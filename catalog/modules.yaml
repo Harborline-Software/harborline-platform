@@ -15,6 +15,25 @@
         "dotnet": {"role": "implementation", "path": "projections/dotnet/contracts/hlp.contracts.identities/Authorization", "status": "preview", "packageContribution": "Harborline.Contracts"}
       }
     },
+    "hlp.contracts.fields": {
+      "interface": {"path": "specs/modules/contracts/hlp.contracts.fields/interface.yaml", "revision": 1},
+      "moduleKind": "runtime",
+      "presentation": {"disposition": "not-applicable", "rationale": "Shared field declarations carry no rendering or authoring surface."},
+      "owner": "platform-contracts",
+      "dependencies": [],
+      "status": "extracted-candidate",
+      "depth": {
+        "disposition": "deep-module",
+        "deletionTest": "PASS",
+        "redistributedComplexity": [
+          "kind, governance and scalar-shape declarations copied between the Records compiler and field consumers",
+          "three-source domain, narrowing constraint and refusal shapes independently invented by each member"
+        ]
+      },
+      "projections": {
+        "dotnet": {"role": "implementation", "path": "projections/dotnet/contracts/hlp.contracts.identities/Fields", "status": "preview", "packageContribution": "Harborline.Contracts"}
+      }
+    },
     "hlp.contracts.forms": {
       "interface": {"path": "specs/modules/contracts/hlp.contracts.forms/interface.yaml", "revision": 5},
       "moduleKind": "runtime",
@@ -634,7 +653,7 @@
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "The shared field substrate resolves domains, validates values and selects an editor contract; consuming UI projections render it."},
       "owner": "platform-foundation",
-      "dependencies": [],
+      "dependencies": ["hlp.contracts.fields", "hlp.contracts.identities"],
       "status": "extracted-candidate",
       "depth": {
         "disposition": "deep-module",

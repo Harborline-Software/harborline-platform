@@ -1,3 +1,5 @@
+using Harborline.Contracts.Fields;
+
 namespace Harborline.Foundation.FieldRuntime;
 
 /// <summary>Admits the shared three-source permitted-value declaration.</summary>

@@ -1,3 +1,4 @@
+using Harborline.Contracts.Fields;
 using Xunit;
 
 namespace Harborline.Foundation.FieldRuntime.Tests;
@@ -14,5 +15,16 @@ public sealed class ValueDomainAdmissionTests
         var refusal = Assert.Single(refusals);
         Assert.Equal("field.value_domain_source_count", refusal.Code);
         Assert.Equal("/fields/0/value_domain", refusal.JsonPointer);
+    }
+
+    [Fact]
+    public void An_inline_enum_cannot_supply_domain_membership()
+    {
+        var refusals = ValueDomainAdmission.ValidateJson(
+            """{"enum":["open","closed"]}""", "/fields/status~1code/value_domain");
+
+        Assert.Contains(refusals, refusal =>
+            refusal.Code == "field.inline_membership_forbidden"
+            && refusal.JsonPointer == "/fields/status~1code/value_domain/enum");
     }
 }

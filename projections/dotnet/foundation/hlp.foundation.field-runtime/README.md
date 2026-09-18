@@ -30,6 +30,8 @@ declared sources and refuses anything other than exactly one with
 `field.value_domain_source_count`. Its first public-interface test has passed. Dynamic
 resolution, kind lookup, limits, intersection and editor selection are not implemented yet.
 
-Records remains in the kernel schema-validation projection. Its eventual binding must
-cross a shared contract; the tier fence forbids a kernel-to-foundation assembly reference.
-The producer implementation must not weaken that fence to accommodate its consumer.
+Records remains in the kernel schema-validation projection. Shared declarations live in
+`Harborline.Contracts.Fields`, contributed to the existing `Harborline.Contracts` assembly.
+The interpreter stays here. Records' eventual binding crosses shared contracts; the tier
+fence still forbids a kernel-to-foundation assembly reference. This does not add a library
+or an exemption to that fence.
