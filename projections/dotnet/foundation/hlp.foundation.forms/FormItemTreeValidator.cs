@@ -369,9 +369,8 @@ internal static class FormItemTreeValidator
 /// F-23: validates a layout's intent tokens against the closed <see cref="LayoutIntents"/>
 /// vocabularies, fail-closed with stable <c>form.layout.*</c> codes. Shared by the section
 /// grain (<see cref="FormDefinitionValidation"/>) and the group-zone grain
-/// (<see cref="FormItemTreeValidator"/>) so the two cannot drift. Only the NEW (F-23)
-/// members are validated — the pre-existing Rev-6 members (kind/direction/wrap/columns/gap)
-/// keep their original tolerant posture so no previously-valid definition is rejected.
+/// (<see cref="FormItemTreeValidator"/>) so the two cannot drift. Numeric placement
+/// uses the shared platform schema at both grains (ADR 0099 decision 6).
 /// </summary>
 internal static class LayoutIntentValidator
 {
@@ -383,6 +382,8 @@ internal static class LayoutIntentValidator
     {
         if (layout is not null)
         {
+            ValidateNumber("column_count", layout.Columns, where, fail);
+            ValidateNumber("gap", layout.Gap, where, fail);
             if (layout.CollapseBelow is { } bp && !LayoutIntents.Breakpoints.Contains(bp))
             {
                 throw fail(
@@ -409,6 +410,8 @@ internal static class LayoutIntentValidator
         {
             foreach (var (key, p) in placement)
             {
+                ValidateNumber("span", p.ColSpan, $"{where} placement '{key}'", fail);
+                ValidateNumber("grow", p.Grow, $"{where} placement '{key}'", fail);
                 if (p.Width is { } width && !LayoutIntents.Widths.Contains(width))
                 {
                     throw fail(
@@ -424,5 +427,11 @@ internal static class LayoutIntentValidator
                 }
             }
         }
+    }
+
+    private static void ValidateNumber(string member, int value, string where, Func<string, string?, Exception> fail)
+    {
+        if (!LayoutPlacementSchema.Contains(member, value))
+            throw fail($"{where} has out-of-range {member} '{value}'.", FormDefinitionCodes.LayoutNumericOutOfRange);
     }
 }
