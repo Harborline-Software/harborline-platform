@@ -124,10 +124,11 @@ public static class LayoutDefinitionAdmission
                 refusals);
         }
 
-        foreach (var target in definition.DrillThroughTargets ?? [])
+        var drillTargets = definition.DrillThroughTargets ?? [];
+        for (var index = 0; index < drillTargets.Count; index++)
         {
-            if (string.IsNullOrWhiteSpace(target))
-                Add(refusals, LayoutDefinitionCodes.InteractionTargetUnknown, "/drill_through_targets");
+            if (string.IsNullOrWhiteSpace(drillTargets[index]))
+                Add(refusals, LayoutDefinitionCodes.InteractionTargetUnknown, $"/drill_through_targets/{index}");
         }
         ValidatePages(definition, blockIds, refusals);
         if (definition.SubmitGate is { } submitGate
@@ -252,9 +253,10 @@ public static class LayoutDefinitionAdmission
             && (string.IsNullOrWhiteSpace(relationship) || block.Container is null || intent != LayoutIntent.Observe))
             Add(refusals, LayoutDefinitionCodes.ScopedContainerInvalid, $"{pointer}/related_relationship");
 
-        foreach (var target in block.FilterTargets ?? [])
-            if (!blockIds.Contains(target))
-                Add(refusals, LayoutDefinitionCodes.InteractionTargetUnknown, $"{pointer}/filter_targets");
+        var filterTargets = block.FilterTargets ?? [];
+        for (var index = 0; index < filterTargets.Count; index++)
+            if (!blockIds.Contains(filterTargets[index]))
+                Add(refusals, LayoutDefinitionCodes.InteractionTargetUnknown, $"{pointer}/filter_targets/{index}");
 
         var regions = block.Container?.Regions is { } declared
             ? new HashSet<string>(declared, StringComparer.Ordinal)
@@ -359,53 +361,64 @@ public static class LayoutDefinitionAdmission
         ICollection<LayoutDefinitionRefusal> refusals)
     {
         var layouts = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var layout in definition.PageLayouts ?? [])
+        var pageLayouts = definition.PageLayouts ?? [];
+        for (var index = 0; index < pageLayouts.Count; index++)
         {
+            var layout = pageLayouts[index];
+            var pointer = $"/page_layouts/{index}";
             if (layout is null)
             {
-                Add(refusals, LayoutDefinitionCodes.PageDefinitionInvalid, "/page_layouts");
+                Add(refusals, LayoutDefinitionCodes.PageDefinitionInvalid, pointer);
                 continue;
             }
             if (string.IsNullOrWhiteSpace(layout.Id) || !layouts.Add(layout.Id)
                 || string.IsNullOrWhiteSpace(layout.Sheet)
                 || layout.Margins is null || layout.MarginBoxes is null)
-                Add(refusals, LayoutDefinitionCodes.PageDefinitionInvalid, "/page_layouts");
+                Add(refusals, LayoutDefinitionCodes.PageDefinitionInvalid, pointer);
             if (!Enum.IsDefined(layout.Orientation))
-                Add(refusals, LayoutDefinitionCodes.PlacementTokenUnknown, "/page_layouts/orientation");
+                Add(refusals, LayoutDefinitionCodes.PlacementTokenUnknown, $"{pointer}/orientation");
         }
         var masters = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var master in definition.PageMasters ?? [])
+        var pageMasters = definition.PageMasters ?? [];
+        for (var index = 0; index < pageMasters.Count; index++)
         {
+            var master = pageMasters[index];
+            var pointer = $"/page_masters/{index}";
             if (master is null)
             {
-                Add(refusals, LayoutDefinitionCodes.PageDefinitionInvalid, "/page_masters");
+                Add(refusals, LayoutDefinitionCodes.PageDefinitionInvalid, pointer);
                 continue;
             }
             if (string.IsNullOrWhiteSpace(master.Id) || !masters.Add(master.Id))
-                Add(refusals, LayoutDefinitionCodes.PageDefinitionInvalid, "/page_masters");
+                Add(refusals, LayoutDefinitionCodes.PageDefinitionInvalid, pointer);
             if (!layouts.Contains(master.PageLayoutId))
-                Add(refusals, LayoutDefinitionCodes.PageReferenceUnknown, "/page_masters/page_layout_id");
+                Add(refusals, LayoutDefinitionCodes.PageReferenceUnknown, $"{pointer}/page_layout_id");
             if (master.First is null || master.Left is null || master.Right is null)
-                Add(refusals, LayoutDefinitionCodes.PageDefinitionInvalid, "/page_masters");
+                Add(refusals, LayoutDefinitionCodes.PageDefinitionInvalid, pointer);
         }
         var runs = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var run in definition.PageRuns ?? [])
+        var pageRuns = definition.PageRuns ?? [];
+        for (var index = 0; index < pageRuns.Count; index++)
         {
+            var run = pageRuns[index];
+            var pointer = $"/page_runs/{index}";
             if (run is null)
             {
-                Add(refusals, LayoutDefinitionCodes.PageDefinitionInvalid, "/page_runs");
+                Add(refusals, LayoutDefinitionCodes.PageDefinitionInvalid, pointer);
                 continue;
             }
             if (string.IsNullOrWhiteSpace(run.Id) || !runs.Add(run.Id) || run.BlockIds is null || run.BlockIds.Count == 0)
-                Add(refusals, LayoutDefinitionCodes.PageDefinitionInvalid, "/page_runs");
+                Add(refusals, LayoutDefinitionCodes.PageDefinitionInvalid, pointer);
             if (!layouts.Contains(run.PageLayoutId))
-                Add(refusals, LayoutDefinitionCodes.PageReferenceUnknown, "/page_runs/page_layout_id");
+                Add(refusals, LayoutDefinitionCodes.PageReferenceUnknown, $"{pointer}/page_layout_id");
             if (!masters.Contains(run.PageMasterId))
-                Add(refusals, LayoutDefinitionCodes.PageReferenceUnknown, "/page_runs/page_master_id");
-            else if (definition.PageMasters.First(master => master?.Id == run.PageMasterId).PageLayoutId != run.PageLayoutId)
-                Add(refusals, LayoutDefinitionCodes.PageReferenceUnknown, "/page_runs/page_master_id");
-            foreach (var block in run.BlockIds ?? [])
-                if (!blockIds.Contains(block)) Add(refusals, LayoutDefinitionCodes.PageReferenceUnknown, "/page_runs/block_ids");
+                Add(refusals, LayoutDefinitionCodes.PageReferenceUnknown, $"{pointer}/page_master_id");
+            else if (pageMasters.First(master => master?.Id == run.PageMasterId).PageLayoutId != run.PageLayoutId)
+                Add(refusals, LayoutDefinitionCodes.PageReferenceUnknown, $"{pointer}/page_master_id");
+            var runBlocks = run.BlockIds ?? [];
+            for (var blockIndex = 0; blockIndex < runBlocks.Count; blockIndex++)
+                if (!blockIds.Contains(runBlocks[blockIndex]))
+                    Add(refusals, LayoutDefinitionCodes.PageReferenceUnknown, $"{pointer}/block_ids/{blockIndex}");
         }
         if (definition.Medium == LayoutMedium.Page
             && ((definition.PageLayouts?.Count ?? 0) == 0

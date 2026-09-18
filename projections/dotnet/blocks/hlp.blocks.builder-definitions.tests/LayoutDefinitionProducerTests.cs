@@ -182,11 +182,21 @@ public sealed class LayoutDefinitionProducerTests
     {
         var definition = PageDefinition();
         AssertRefusal(definition with { PageRuns = [definition.PageRuns[0] with { PageLayoutId = "missing" }] },
-            LayoutDefinitionCodes.PageReferenceUnknown, "/page_runs/page_layout_id");
+            LayoutDefinitionCodes.PageReferenceUnknown, "/page_runs/0/page_layout_id");
         AssertRefusal(definition with { PageRuns = [definition.PageRuns[0], definition.PageRuns[0]] },
-            LayoutDefinitionCodes.PageDefinitionInvalid, "/page_runs");
+            LayoutDefinitionCodes.PageDefinitionInvalid, "/page_runs/1");
         AssertRefusal(definition with { PageLayouts = [null!] },
-            LayoutDefinitionCodes.PageDefinitionInvalid, "/page_layouts");
+            LayoutDefinitionCodes.PageDefinitionInvalid, "/page_layouts/0");
+    }
+
+    [Fact]
+    public void InteractionRefusalsIdentifyTheirArrayElement()
+    {
+        AssertRefusal(ScreenDefinition(block => block.Id == "measure"
+            ? block with { FilterTargets = ["query", "missing"] } : block),
+            LayoutDefinitionCodes.InteractionTargetUnknown, "/blocks/0/children/2/filter_targets/1");
+        AssertRefusal(ScreenDefinition() with { DrillThroughTargets = ["surface.customer-detail", ""] },
+            LayoutDefinitionCodes.InteractionTargetUnknown, "/drill_through_targets/1");
     }
 
     [Fact(DisplayName = "layout-eng-25,27: validate, publish, React and Blazor admission use the same schema bounds")]
