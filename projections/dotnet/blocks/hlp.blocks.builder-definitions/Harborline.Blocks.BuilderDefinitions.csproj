@@ -5,7 +5,7 @@
     <PackageId>Harborline.Blocks.BuilderDefinitions</PackageId>
     <AssemblyName>Harborline.Blocks.BuilderDefinitions</AssemblyName>
     <RootNamespace>Harborline.Blocks.BuilderDefinitions</RootNamespace>
-    <Description>Shared definition catalogue substrate, including deterministic platform package export and empty-store replay.</Description>
+    <Description>Shared definition catalogue substrate, including deterministic platform package export, empty-store replay, and raise-only safety-floor reattachment.</Description>
     <PackageTags>harborline;forms;workflows;builder;definitions;archive;package;seed</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageReleaseNotes>Internal-only projection; public distribution is not authorized.</PackageReleaseNotes>

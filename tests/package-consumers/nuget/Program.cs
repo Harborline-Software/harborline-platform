@@ -476,6 +476,13 @@ if (effectiveGeneration.Digest == generationReference.Digest
     throw new InvalidOperationException("Packed complete generation identity/detail contract is absent.");
 if (BuilderDefinitions.ConfigurationGeneration.Resolve(generationInput with { Policies = [generationReference] }).Digest == effectiveGeneration.Digest)
     throw new InvalidOperationException("Packed generation identity ignored configuration policy.");
+var malformedFloor = BuilderDefinitions.PackageSafetyFloorReattachment.Apply(
+    System.Text.Json.Nodes.JsonNode.Parse("""{"safetyFloors":{"retention":3}}""")!,
+    System.Text.Json.Nodes.JsonNode.Parse("""{"safetyFloors":{"retention":"strict"}}""")!);
+if (malformedFloor.Succeeded
+    || malformedFloor.RefusalCode != "platform-package-safety-floor-malformed"
+    || malformedFloor.Member != "retention")
+    throw new InvalidOperationException("Packed Builder Definitions safety-floor reattachment did not refuse the malformed member.");
 if (typeof(DataExchange.IDataExchangeDefinitionStore).Assembly.GetName().Name != "Harborline.Foundation.DataExchange"
     || DataExchange.TabularMappingProfile.Family != "hl:tabular-mapping/v1"
     || DataExchange.TabularMappingProfile.SchemaUri != "https://schemas.harborline.software/mapping/tabular/v1")
@@ -630,6 +637,28 @@ var packedWorkItem = await packedWorkItemKernel.CreateAsync(new CreateWorkItemRe
 });
 if (!packedWorkItem.IsSuccess || typeof(IWorkItemKernel).Assembly.GetName().Name != "Harborline.Kernel.WorkItems")
     throw new InvalidOperationException("Packed work-item kernel failed tenant-scoped creation or changed assembly identity.");
+var packedCommandExecutions = 0;
+string[] packedCommands = ["first", "second"];
+var packedBatchAdmission = await CommandRequestBoundary.ExecuteAsync(
+    packedCommands,
+    command =>
+    {
+        packedCommandExecutions++;
+        return ValueTask.FromResult(command);
+    });
+if (packedBatchAdmission.Refusal is not { Code: "kernel.multi-command-batch", StatusCode: 400, CommandCount: 2 }
+    || packedCommandExecutions != 0)
+    throw new InvalidOperationException("Packed work-item kernel did not refuse a multi-command request before execution.");
+var packedWindow = new DefinitionContractWindow(
+    "consumer-definition.v1",
+    DateTimeOffset.Parse("2026-09-18T12:00:00Z", System.Globalization.CultureInfo.InvariantCulture),
+    DateTimeOffset.Parse("2026-09-18T14:00:00Z", System.Globalization.CultureInfo.InvariantCulture));
+var packedWindowAdmission = await DefinitionWriteBoundary.ExecuteAsync(
+    packedWindow,
+    packedWindow.ClosesAt,
+    () => ValueTask.FromResult("should-not-run"));
+if (packedWindowAdmission.Refusal is not { Code: "kernel.definition-contract-window", StatusCode: 422 })
+    throw new InvalidOperationException("Packed work-item kernel did not refuse a write outside its definition contract window.");
 
 Console.WriteLine("packed NuGet aggregate loaded Harborline App waves through wave-03-05, including Chart, Chat, Data Grid, Gantt, and Numeric Text Box");
 
