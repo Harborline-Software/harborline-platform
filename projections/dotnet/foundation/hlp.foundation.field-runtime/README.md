@@ -38,12 +38,31 @@ The source now includes typed and raw JSON domain admission, exact kind lookup, 
 Limits include the two digit facets, inclusive numeric bounds, Unicode scalar length and
 UTF-8 byte size. Refusals preserve the authored or submitted RFC 6901 location.
 
-On 2026-09-18 the field-runtime test project passed 73 tests, with zero failures or skips,
-using `dotnet test --no-restore` in a workspace-write lane after an audited restore.
-This verifies the current admission, kind-binding and limit suite, not the platform gate.
-Dynamic domain resolution, constraint intersection, editor selection and the Records
-consumer binding remain work to complete; exposing the shared contract is not proof that
-Records already uses it.
+On 2026-09-18 the bounded workspace-write resolver lane passed 137 tests, with zero failures
+or skips, using `dotnet test --no-restore` after an audited restore. The tested slice adds
+literal, exact-version taxonomy and record-query resolution; complete-membership intersection
+and narrowing; inherited read-authority filtering; detached inputs and outputs; and editor
+choice. This is focused producer evidence, not the platform gate or consumer binding evidence.
+
+Review then found that a Rules liveness timeout was being converted into a field admission
+refusal. The next lane reproduced three failures in 140 tests: that timeout and two unsupported
+operator cases over empty sources. The corrected timeout path then passed its focused test,
+preserving the original infrastructure exception and caller cancellation token. T-588's shared RuleCompiler fix
+(`df1e908`) was consumed locally as `3639798` after both empty-set cases were observed failing.
+That dependency has not yet landed upstream. The next producer run observed 139 passing
+tests and one expected-code mismatch: the populated unknown-operator case now refuses at
+compilation rather than evaluation. After that one assertion was updated, the entire producer
+project passed 140 tests, with zero failures or skips, without restore or test filters.
+Both empty-source cases passed unchanged. No private operator validator was added here.
+
+The same lane's audited restore of the kernel test graph stopped on `NU1900`: the sandbox
+could not reach NuGet's vulnerability service. Audit was not disabled. A host-side read-only
+check reached the service index with HTTP 200. The executable-kind binding test remains
+prepared but unrun; its implementation has not started. Kernel-to-Contracts and test-to-runtime
+project references are scaffolding, not completed consumer evidence.
+
+The executable-kind schema binding and real Forms/Views/mapped-row integration remain to be
+completed. Exposing the shared contract is not proof that those consumers or Records use it.
 
 The Records binding must retain validator identity as well as execution. A number kind
 with `total_digits: 3, fraction_digits: 1` and one with `total_digits: 4,

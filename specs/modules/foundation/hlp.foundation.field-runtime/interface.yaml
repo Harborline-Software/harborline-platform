@@ -4,7 +4,7 @@
   "interfaceRevision": 1,
   "status": "draft",
   "purpose": "Own shared field-kind admission, authority-aware three-source value-domain resolution, narrowing, kind limits and domain-driven editor selection under DES-0030 and T-621.",
-  "dependencies": ["hlp.contracts.fields", "hlp.contracts.identities"],
+  "dependencies": ["hlp.contracts.fields", "hlp.contracts.identities", "hlp.foundation.rule-runtime"],
   "types": {
     "FieldKindReference": ["KindId", "Version", "Parameters"],
     "AdmittedFieldKind": ["KindId", "Version", "GovernanceDefaults", "ValueShape"],
@@ -28,13 +28,19 @@
   },
   "operations": [
     {"id": "kind.bind", "input": "FieldKindReference and authored pointer", "result": "ICompiledFieldKind or FieldAdmissionException"},
-    {"id": "kind.validate", "input": "bound kind, original JSON value and value pointer", "result": "member-neutral refusals without value mutation"}
+    {"id": "kind.validate", "input": "bound kind, original JSON value and value pointer", "result": "member-neutral refusals without value mutation"},
+    {"id": "domain.resolve", "input": "one declared domain, tenant/principal and authored pointer", "result": "readable values, source attribution and cardinality-derived editor at a complete pinned revision"},
+    {"id": "constraints.intersect", "input": "declared constraint floors, tenant/principal and authored pointer", "result": "resolved constraint proof or member-neutral refusal"},
+    {"id": "constraints.narrow", "input": "declared floor, complete consumer declaration, tenant/principal and authored pointer", "result": "resolved non-widening proof or member-neutral refusal"}
   ],
   "invariants": [
     "Exactly one domain source is authored: literals, an immutable Taxonomy scheme, or a record query with a predicate.",
     "Field-kind binding names an exact admitted version, never a latest-version or kind-name fallback.",
     "Substrate refusal codes use field.* and do not depend on the consuming member.",
     "Domain resolution must filter by read authority before returning values or deriving cardinality.",
+    "Subset proofs use complete unfiltered membership from one pinned tenant snapshot, but public proof values remain authority-filtered.",
+    "Record-query predicates compile and evaluate through the existing Rules producer; evaluation failure is not empty membership.",
+    "An intersection retains its contributing sources rather than relabelling dynamic membership as an authored literal domain.",
     "A consumer may narrow required, access, multiplicity and domain constraints but may not widen them.",
     "Value enforcement refuses rather than clamping, defaulting or normalizing authored values.",
     "total_digits 3 with fraction_digits 0 refuses 123.4; total_digits 3 with fraction_digits 1 admits 12.3 and refuses 123.4.",

@@ -4,7 +4,7 @@
   "interfaceRevision": 1,
   "status": "draft",
   "purpose": "Carry the shared field-kind, domain and constraint vocabulary across the kernel Records and foundation field-runtime seam without an outward kernel dependency.",
-  "dependencies": [],
+  "dependencies": ["hlp.contracts.identities"],
   "types": {
     "FieldKindReference": ["KindId", "Version", "Parameters"],
     "AdmittedFieldKind": ["KindId", "Version", "GovernanceDefaults", "ValueShape"],
@@ -13,14 +13,22 @@
     "FieldRefusal": ["Code", "JsonPointer", "Message"],
     "FieldAdmissionException": ["Refusals"],
     "IFieldKindRuntime": ["Bind"],
-    "ICompiledFieldKind": ["Kind", "JsonSchema", "Validate", "ValidateJson"]
+    "ICompiledFieldKind": ["Kind", "JsonSchema", "Validate", "ValidateJson"],
+    "FieldDomainScope": ["Tenant", "Principal"],
+    "ValueDomainSourceKind": ["LiteralSet", "TaxonomyScheme", "RecordQuery"],
+    "FieldEditorKind": ["None", "SingleValue", "ChoiceList", "TaxonomyPicker", "RecordPicker"],
+    "ResolvedValueDomain": ["SourceKind", "Values", "Editor", "Predicate", "SnapshotRevision"],
+    "FieldDomainAttribution": ["SourceKind", "TaxonomyScheme", "RecordQuery"],
+    "ResolvedFieldConstraints": ["Required", "MinimumCount", "MaximumCount", "ReadRoleIds", "Values", "Sources", "SnapshotRevision"],
+    "IFieldDomainRuntime": ["ResolveAsync", "IntersectAsync", "NarrowAsync"]
   },
   "invariants": [
     "One shared vocabulary is promoted from the T-615 declarations; members do not redeclare it.",
     "Contracts contain declarations, not the field-runtime enforcement implementation.",
     "The three domain source kinds are literals, a versioned Taxonomy scheme, and a record query with a predicate.",
     "Substrate refusals carry member-neutral field.* codes and authored RFC 6901 locations.",
-    "A bound kind carries its runtime validator together with the standard schema projection; schema text alone does not represent runtime-only limits."
+    "A bound kind carries its runtime validator together with the standard schema projection; schema text alone does not represent runtime-only limits.",
+    "A domain resolution exposes only caller-readable values; its cardinality-derived editor cannot reveal unreadable membership."
   ],
   "notScope": ["kind lookup", "domain evaluation", "limit enforcement", "editor selection", "Records grammar", "JSON Schema compilation"],
   "packageContribution": "Harborline.Contracts"

@@ -20,7 +20,7 @@
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "Shared field declarations carry no rendering or authoring surface."},
       "owner": "platform-contracts",
-      "dependencies": [],
+      "dependencies": ["hlp.contracts.identities"],
       "status": "extracted-candidate",
       "depth": {
         "disposition": "deep-module",
@@ -653,7 +653,7 @@
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "The shared field substrate resolves domains, validates values and selects an editor contract; consuming UI projections render it."},
       "owner": "platform-foundation",
-      "dependencies": ["hlp.contracts.fields", "hlp.contracts.identities"],
+      "dependencies": ["hlp.contracts.fields", "hlp.contracts.identities", "hlp.foundation.rule-runtime"],
       "status": "extracted-candidate",
       "depth": {
         "disposition": "deep-module",
