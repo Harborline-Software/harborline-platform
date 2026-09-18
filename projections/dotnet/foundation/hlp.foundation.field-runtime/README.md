@@ -24,3 +24,12 @@ narrowing, numeric and byte-size limits, and domain-driven editor selection. Exp
 evaluation, record authorization and commit orchestration remain at their existing owners.
 
 Implementation and verification are in progress. This README is not release evidence.
+
+The current executable slice is `ValueDomainAdmission.Validate`: it counts the three
+declared sources and refuses anything other than exactly one with
+`field.value_domain_source_count`. Its first public-interface test has passed. Dynamic
+resolution, kind lookup, limits, intersection and editor selection are not implemented yet.
+
+Records remains in the kernel schema-validation projection. Its eventual binding must
+cross a shared contract; the tier fence forbids a kernel-to-foundation assembly reference.
+The producer implementation must not weaken that fence to accommodate its consumer.
