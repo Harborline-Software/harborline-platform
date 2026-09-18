@@ -30,6 +30,7 @@ public static class FormEngineServiceCollectionExtensions
         typeof(IFormSensitiveReadAudit),
         typeof(IFormSubmissionTransactionStore),
         typeof(IFormProjectionSink),
+        typeof(TimeProvider),
     ];
 
     /// <summary>
@@ -80,6 +81,8 @@ public static class FormEngineServiceCollectionExtensions
                 .ToArray();
             if (missing.Length > 0)
                 throw new InvalidOperationException($"Forms Engine production composition is missing mandatory providers: {string.Join(", ", missing)}.");
+            if (services.Count(row => row.ServiceType == typeof(TimeProvider)) != 1)
+                throw new InvalidOperationException("Forms Engine production composition requires exactly one host-supplied TimeProvider.");
             var singletonRequestPorts = usesCurrentRequestContext ? new[]
             {
                 typeof(IFormExecutionContextProvider),
@@ -94,7 +97,6 @@ public static class FormEngineServiceCollectionExtensions
                 throw new InvalidOperationException("Forms Engine production composition requires an attested governance-enforcing field-security registration.");
         }
         services.TryAddSingleton(options);
-        services.TryAddSingleton(TimeProvider.System);
         services.TryAddScoped<IFormEngine, FormEngine>();
         return services;
     }
@@ -115,7 +117,7 @@ public static class FormEngineServiceCollectionExtensions
             provider.GetRequiredService<IFormDecryptCapabilityProvider>(),
             provider.GetRequiredService<IFormFieldGovernanceResolver>(),
             provider.GetRequiredService<FormFieldSecurityOptions>(),
-            provider.GetService<TimeProvider>() ?? TimeProvider.System));
+            provider.GetRequiredService<TimeProvider>()));
         services.TryAddSingleton<ProductionFieldSecurityAttestation>();
         return services;
     }

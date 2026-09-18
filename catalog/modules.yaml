@@ -108,6 +108,40 @@
         }
       }
     },
+    "hlp.kernel.core": {
+      "interface": {"path": "specs/modules/kernel/hlp.kernel.core/interface.yaml", "revision": 1},
+      "moduleKind": "runtime",
+      "presentation": {"disposition": "not-applicable", "rationale": "The kernel clock, atomic command transaction, and compiled bootstrap floor are host runtime contracts with no visual presentation surface."},
+      "owner": "platform-kernel",
+      "dependencies": [],
+      "status": "implemented-package-consumer-green",
+      "depth": {
+        "disposition": "deep-module",
+        "deletionTest": "PASS",
+        "redistributedComplexity": [
+          "authoritative clock selection, backdate admission, and expiry rules repeated in every kernel-facing member",
+          "record, audit, operation identity, and commit atomicity exposed as caller choreography while bootstrap resolution depends on an unavailable catalogue"
+        ]
+      },
+      "projections": {
+        "dotnet": {
+          "role": "implementation",
+          "path": "projections/dotnet/kernel/hlp.kernel.core",
+          "status": "preview",
+          "artifact": {
+            "type": "nuget",
+            "id": "Harborline.Kernel.Core",
+            "assembly": "Harborline.Kernel.Core",
+            "manifest": "projections/dotnet/kernel/hlp.kernel.core/Harborline.Kernel.Core.csproj",
+            "identityAuthority": "Harborline",
+            "producerRepository": "harborline-platform",
+            "distribution": "internal-only",
+            "candidateRole": "new-bounded-package",
+            "registryAvailable": false
+          }
+        }
+      }
+    },
     "hlp.kernel.schema-validation": {
       "interface": {"path": "specs/modules/kernel/hlp.kernel.schema-validation/interface.yaml", "revision": 1},
       "moduleKind": "runtime",
@@ -143,11 +177,11 @@
       }
     },
     "hlp.kernel.work-items": {
-      "interface": {"path": "specs/modules/kernel/hlp.kernel.work-items/interface.yaml", "revision": 2},
+      "interface": {"path": "specs/modules/kernel/hlp.kernel.work-items/interface.yaml", "revision": 3},
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "Durable work-item lifecycle, audit, and outbox behavior produce projections consumed by separate application interfaces."},
       "owner": "platform-kernel",
-      "dependencies": ["hlp.contracts.identities", "hlp.foundation.actor", "hlp.foundation.tenancy"],
+      "dependencies": ["hlp.contracts.identities", "hlp.foundation.actor", "hlp.foundation.tenancy", "hlp.kernel.core"],
       "status": "implemented-package-consumer-green",
       "depth": {
         "disposition": "deep-module",
@@ -167,7 +201,7 @@
             "id": "Harborline.Kernel.WorkItems",
             "assembly": "Harborline.Kernel.WorkItems",
             "manifest": "projections/dotnet/kernel/hlp.kernel.work-items/Harborline.Kernel.WorkItems.csproj",
-            "dependencies": ["Harborline.Contracts", "Harborline.Foundation.Authorization", "Harborline.Foundation.MultiTenancy"],
+            "dependencies": ["Harborline.Contracts", "Harborline.Foundation.Authorization", "Harborline.Foundation.MultiTenancy", "Harborline.Kernel.Core"],
             "identityAuthority": "Harborline",
             "producerRepository": "harborline-platform",
             "distribution": "internal-only",
@@ -799,11 +833,11 @@
       }
     },
     "hlp.foundation.forms-engine": {
-      "interface": {"path": "specs/modules/foundation/hlp.foundation.forms-engine/interface.yaml", "revision": 8},
+      "interface": {"path": "specs/modules/foundation/hlp.foundation.forms-engine/interface.yaml", "revision": 9},
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "The Forms Engine produces render and submission data consumed by separate React and Blazor renderers; it owns no visual implementation."},
       "owner": "platform-foundation",
-      "dependencies": ["hlp.contracts.forms", "hlp.contracts.identities", "hlp.foundation.actor", "hlp.foundation.forms", "hlp.foundation.rule-runtime", "hlp.foundation.tenancy", "hlp.kernel.schema-validation"],
+      "dependencies": ["hlp.contracts.forms", "hlp.contracts.identities", "hlp.foundation.actor", "hlp.foundation.forms", "hlp.foundation.rule-runtime", "hlp.foundation.tenancy", "hlp.kernel.core", "hlp.kernel.schema-validation"],
       "status": "implemented-package-consumer-green",
       "depth": {
         "disposition": "deep-module",
@@ -823,7 +857,7 @@
             "id": "Harborline.Foundation.Forms.Engine",
             "assembly": "Harborline.Foundation.Forms.Engine",
             "manifest": "projections/dotnet/foundation/hlp.foundation.forms-engine/Harborline.Foundation.Forms.Engine.csproj",
-            "dependencies": ["Harborline.Contracts", "Harborline.Foundation.Authorization", "Harborline.Foundation.Forms", "Harborline.Foundation.RuleEngine", "Harborline.Foundation.MultiTenancy", "Harborline.Kernel.SchemaValidation"],
+            "dependencies": ["Harborline.Contracts", "Harborline.Foundation.Authorization", "Harborline.Foundation.Forms", "Harborline.Foundation.RuleEngine", "Harborline.Foundation.MultiTenancy", "Harborline.Kernel.Core", "Harborline.Kernel.SchemaValidation"],
             "identityAuthority": "Harborline",
             "producerRepository": "harborline-platform",
             "distribution": "internal-only",

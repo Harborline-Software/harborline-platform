@@ -56,7 +56,8 @@ public sealed class InspectionReviewVerticalTests
             new NoOpReadAudit(),
             new InMemoryFormSubmissionStore(),
             sink,
-            clock: new FixedTimeProvider());
+            null,
+            new FixedTimeProvider());
 
         using var firstCandidate = JsonDocument.Parse("""{"conditionRating":2,"status":"pass"}""");
         using var sameCandidate = JsonDocument.Parse("""{"status":"pass","conditionRating":2}""");

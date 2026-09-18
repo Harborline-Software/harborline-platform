@@ -10,6 +10,7 @@ using Harborline.Foundation.MultiTenancy;
 using Harborline.Foundation.Authorization;
 using Harborline.Foundation.Session;
 using Harborline.Kernel.SchemaValidation;
+using Harborline.Kernel.Core;
 using Harborline.Kernel.WorkItems;
 using Harborline.Blocks.InspectionReview;
 using Harborline.Contracts.Forms;
@@ -650,6 +651,18 @@ var packedWindowAdmission = await DefinitionWriteBoundary.ExecuteAsync(
 if (packedWindowAdmission.Refusal is not { Code: "kernel.definition-contract-window", StatusCode: 422 })
     throw new InvalidOperationException("Packed work-item kernel did not refuse a write outside its definition contract window.");
 
+if (typeof(KernelClock).Assembly.GetName().Name != "Harborline.Kernel.Core")
+    throw new InvalidOperationException("Kernel Core assembly identity changed.");
+var packedFloorReader = new EmptyCatalogueReader();
+var packedFloor = new CompiledBootstrapCatalogue(packedFloorReader);
+foreach (var shape in CompiledBootstrapCatalogue.Shapes)
+{
+    if (await packedFloor.ResolveAsync(shape.Identity) != shape)
+        throw new InvalidOperationException($"Packed Kernel Core did not resolve compiled shape {shape.Identity}.");
+}
+if (packedFloorReader.Reads != 0 || CompiledBootstrapCatalogue.Shapes.Count != 3)
+    throw new InvalidOperationException("Packed Kernel Core read the seed store before resolving its exact compiled floor.");
+
 Console.WriteLine("packed NuGet aggregate loaded Harborline App waves through wave-03-05, including Chart, Chat, Data Grid, Gantt, and Numeric Text Box");
 
 enum ConsumerFlowState { Draft, Done }
@@ -664,6 +677,19 @@ sealed record ConsumerActorContext(
     TenantMetadata? Tenant,
     string UserId,
     IReadOnlyList<string> Roles) : IAuthenticatedActorContext;
+
+sealed class EmptyCatalogueReader : IKernelCatalogueReader
+{
+    public int Reads { get; private set; }
+
+    public ValueTask<CompiledBootstrapShape?> ReadAsync(
+        CompiledShapeIdentity identity,
+        CancellationToken cancellationToken = default)
+    {
+        Reads++;
+        return ValueTask.FromResult<CompiledBootstrapShape?>(null);
+    }
+}
 
 sealed class ConsumerPartyResolver(
     TenantId expectedTenant,

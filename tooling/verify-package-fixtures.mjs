@@ -775,6 +775,7 @@ function verifyNuget() {
   const tenancy = 'projections/dotnet/foundation/hlp.foundation.tenancy/Harborline.Foundation.MultiTenancy.csproj'
   const actor = 'projections/dotnet/foundation/hlp.foundation.actor/Harborline.Foundation.Authorization.csproj'
   const session = 'projections/dotnet/foundation/hlp.foundation.session/Harborline.Foundation.Session.csproj'
+  const kernelCore = 'projections/dotnet/kernel/hlp.kernel.core/Harborline.Kernel.Core.csproj'
   const schemaValidation = 'projections/dotnet/kernel/hlp.kernel.schema-validation/Harborline.Kernel.SchemaValidation.csproj'
   const workItems = 'projections/dotnet/kernel/hlp.kernel.work-items/Harborline.Kernel.WorkItems.csproj'
   const inspectionReview = 'projections/dotnet/blocks/hlp.blocks.inspection-review/Harborline.Blocks.InspectionReview.csproj'
@@ -800,6 +801,7 @@ function verifyNuget() {
   run(dotnet.executable, ['pack', tenancy, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
   run(dotnet.executable, ['pack', actor, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
   run(dotnet.executable, ['pack', session, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
+  run(dotnet.executable, ['pack', kernelCore, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
   run(dotnet.executable, ['pack', schemaValidation, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
   run(dotnet.executable, ['pack', workItems, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
   run(dotnet.executable, ['pack', inspectionReview, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
@@ -829,7 +831,7 @@ function verifyNuget() {
     const nuspec = zip.text(nuspecName)
     return { name, path, zip, nuspec, id: metadata(nuspec, 'id'), version: metadata(nuspec, 'version') }
   })
-  const expectedIds = ['Harborline.Blocks.ActivityTimeline', 'Harborline.Blocks.Aggregates', 'Harborline.Blocks.BuilderDefinitions', 'Harborline.Blocks.Calendar', 'Harborline.Blocks.EntityViews', 'Harborline.Blocks.InspectionReview', 'Harborline.Blocks.RelativeChains', 'Harborline.Blocks.Reports', 'Harborline.Blocks.Scheduling', 'Harborline.Blocks.Workflow', 'Harborline.Blocks.Workflow.Interpreter', 'Harborline.Foundation', 'Harborline.Foundation.DataExchange', 'Harborline.Foundation.Forms.Engine', 'Harborline.Foundation.MultiTenancy', 'Harborline.Foundation.RuleAuthoring', 'Harborline.Foundation.RuleEngine', 'Harborline.Foundation.Scheduling', 'Harborline.Kernel.SchemaValidation', 'Harborline.Kernel.WorkItems', 'Harborline.UIAdapters.Blazor', 'Harborline.Contracts', 'Harborline.Foundation.Authorization', 'Harborline.Foundation.Forms', 'Harborline.Foundation.Session']
+  const expectedIds = ['Harborline.Blocks.ActivityTimeline', 'Harborline.Blocks.Aggregates', 'Harborline.Blocks.BuilderDefinitions', 'Harborline.Blocks.Calendar', 'Harborline.Blocks.EntityViews', 'Harborline.Blocks.InspectionReview', 'Harborline.Blocks.RelativeChains', 'Harborline.Blocks.Reports', 'Harborline.Blocks.Scheduling', 'Harborline.Blocks.Workflow', 'Harborline.Blocks.Workflow.Interpreter', 'Harborline.Foundation', 'Harborline.Foundation.DataExchange', 'Harborline.Foundation.Forms.Engine', 'Harborline.Foundation.MultiTenancy', 'Harborline.Foundation.RuleAuthoring', 'Harborline.Foundation.RuleEngine', 'Harborline.Foundation.Scheduling', 'Harborline.Kernel.Core', 'Harborline.Kernel.SchemaValidation', 'Harborline.Kernel.WorkItems', 'Harborline.UIAdapters.Blazor', 'Harborline.Contracts', 'Harborline.Foundation.Authorization', 'Harborline.Foundation.Forms', 'Harborline.Foundation.Session']
   const actualIds = packageMetadata.map(entry => entry.id).sort()
   if (JSON.stringify(actualIds) !== JSON.stringify(expectedIds.sort())) {
     throw new Error(`NuGet artifact ownership mismatch: ${JSON.stringify(actualIds)}`)
@@ -992,6 +994,7 @@ function verifyNuget() {
     'Harborline.Foundation.Forms.Engine',
     'Harborline.Foundation.MultiTenancy',
     'Harborline.Foundation.RuleEngine',
+    'Harborline.Kernel.Core',
     'Harborline.Kernel.SchemaValidation',
     'Harborline.Contracts',
     'Harborline.Foundation.Authorization',
@@ -1035,6 +1038,7 @@ function verifyNuget() {
     'Harborline.Foundation.Forms.Engine',
     'Harborline.Foundation.MultiTenancy',
     'Harborline.Foundation.RuleEngine',
+    'Harborline.Kernel.Core',
     'Harborline.Kernel.SchemaValidation',
     'Harborline.Kernel.WorkItems',
     'Harborline.Contracts',
@@ -1091,7 +1095,7 @@ function verifyNuget() {
     id: 'platform-dotnet-package-group',
     status: 'PASS',
     artifactIdentity: `Harborline.UIAdapters.Blazor@${packedVersion}`,
-    assemblyIdentities: ['Harborline.Blocks.InspectionReview', 'Harborline.Blocks.Aggregates', 'Harborline.Blocks.RelativeChains', 'Harborline.Blocks.BuilderDefinitions', 'Harborline.Blocks.Workflow', 'Harborline.Blocks.Workflow.Interpreter', 'Harborline.Contracts', 'Harborline.Foundation.MultiTenancy', 'Harborline.Foundation.Authorization', 'Harborline.Foundation.Forms', 'Harborline.Foundation.Forms.Engine', 'Harborline.Foundation.Session', 'Harborline.Foundation.RuleEngine', 'Harborline.Kernel.SchemaValidation', 'Harborline.Kernel.WorkItems', 'Harborline.UIAdapters.Blazor', 'Harborline.Foundation'],
+    assemblyIdentities: ['Harborline.Blocks.InspectionReview', 'Harborline.Blocks.Aggregates', 'Harborline.Blocks.RelativeChains', 'Harborline.Blocks.BuilderDefinitions', 'Harborline.Blocks.Workflow', 'Harborline.Blocks.Workflow.Interpreter', 'Harborline.Contracts', 'Harborline.Foundation.MultiTenancy', 'Harborline.Foundation.Authorization', 'Harborline.Foundation.Forms', 'Harborline.Foundation.Forms.Engine', 'Harborline.Foundation.Session', 'Harborline.Foundation.RuleEngine', 'Harborline.Kernel.Core', 'Harborline.Kernel.SchemaValidation', 'Harborline.Kernel.WorkItems', 'Harborline.UIAdapters.Blazor', 'Harborline.Foundation'],
     artifacts: inspections,
     budget: budgets.nuget,
     localFeedArtifactCount: packageMetadata.length,
@@ -1143,6 +1147,7 @@ function verifyDynamicFormsCapability() {
     'Harborline.Foundation.Forms.Engine',
     'Harborline.Foundation.MultiTenancy',
     'Harborline.Foundation.RuleEngine',
+    'Harborline.Kernel.Core',
     'Harborline.Kernel.SchemaValidation',
     'Harborline.Contracts',
     'Harborline.Foundation.Authorization',

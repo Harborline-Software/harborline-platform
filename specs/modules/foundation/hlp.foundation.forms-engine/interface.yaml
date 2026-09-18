@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.foundation.forms-engine",
-  "interfaceRevision": 8,
+  "interfaceRevision": 9,
   "status": "frozen",
   "purpose": "Own the complete tenant-scoped Dynamic Forms authoring admission, render, validate, calculate, protect, submit, audit, projection-outbox, and recovery behavior behind narrow caller interfaces and production-safe ports.",
   "dependencies": [
@@ -11,6 +11,7 @@
     {"moduleId": "hlp.foundation.forms", "minimumRevision": 3},
     {"moduleId": "hlp.foundation.rule-runtime", "minimumRevision": 1},
     {"moduleId": "hlp.foundation.tenancy", "minimumRevision": 1},
+    {"moduleId": "hlp.kernel.core", "minimumRevision": 1},
     {"moduleId": "hlp.kernel.schema-validation", "minimumRevision": 1}
   ],
   "callerInterface": {

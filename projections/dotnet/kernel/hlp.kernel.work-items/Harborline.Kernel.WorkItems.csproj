@@ -10,6 +10,7 @@
     <PackageReleaseNotes>Internal-only projection; public distribution is not authorized.</PackageReleaseNotes>
   </PropertyGroup>
   <ItemGroup>
+    <ProjectReference Include="../hlp.kernel.core/Harborline.Kernel.Core.csproj" />
     <ProjectReference Include="../../contracts/hlp.contracts.identities/Harborline.Contracts.csproj" />
     <ProjectReference Include="../../foundation/hlp.foundation.actor/Harborline.Foundation.Authorization.csproj" />
     <ProjectReference Include="../../foundation/hlp.foundation.tenancy/Harborline.Foundation.MultiTenancy.csproj" />

@@ -1,0 +1,13 @@
+schemaVersion: 1
+moduleId: hlp.kernel.core
+cases:
+  - id: compiled-floor-before-catalogue
+    contract: Definition Package, Record Type, and Field resolve from stable compiled identities before the first catalogue read.
+  - id: compiled-floor-replacement-refusal
+    contract: A package cannot replace any compiled floor identity and refuses with kernel.compiled-shape-replacement.
+  - id: one-command-atomic-set
+    contract: One command stages its record and audit under one operation identity, then commits all or rolls back all.
+  - id: multi-command-refusal
+    contract: Two commands refuse before mutation with kernel.multi-command-batch and observed count 2.
+  - id: authoritative-clock
+    contract: Captured timestamps cannot alter stamping or expiry; an explicit different instant requires kernel.backdate-capability-required.
