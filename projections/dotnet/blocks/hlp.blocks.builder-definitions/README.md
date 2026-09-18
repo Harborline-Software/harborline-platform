@@ -8,8 +8,6 @@ Local-shadow .NET package for the shared definition catalogue substrate. It prov
 
 The 13 Workshop navigation item IDs and the `catalogue:read`, `records:read`, and `audit:read` bindings preserve the migration authority in `harborline-api/_shared/packs/platform/platform-pack.export.json`. DES-0007's broader grouping remains future authoring grammar; this fixture does not silently mint replacement identities.
 
-`IDefinitionKeyAuthority` remains intentionally unimplemented until allocation authority is ruled. This package owns no API transport, signing, installation, Pilot bridge, or UI.
-
 ## Shared versioned-definition store (T-620)
 
 `IVersionedDefinitionStore` is the registry-neutral persistence contract. Its in-memory reference
@@ -51,3 +49,13 @@ The Layout producer adds the platform-owned surface contract: versioned envelope
 `_shared/layout/placement.schema.json` is also embedded by Forms, so its section and item admission use the same four numeric ranges. Hosts supply one immutable `LayoutBlockKindRegistry` to producer and persisted admission. `LayoutComposition.Detach` copies a pinned surface to an independent draft candidate; Form, Template, and Report identities remain separate and no synchronisation link is created. The shared catalogue owns resolving that pin and storing the candidate.
 
 `LayoutPackIdentity` assigns content kind **17** and primitive bucket **12** additively, after the existing transport values 0–16 and 0–11 respectively. Archive `DefinitionKind` values are a different namespace; Forms remains 0 and Workflows remains 1. This producer carries the new wire identity in its export entry. It does not modify API transport, installation, the platform seed, or its pack exporter.
+
+## Configuration generations (T-459)
+
+`ConfigurationGeneration.Resolve` identifies a complete host-resolved tenant configuration. Pass active package keys, the full transitive package closure (manifest references, all content references and direct dependency keys), one package ownership selection per distinct content key, the platform contract reference, and all applicable policy references. Empty policy is an explicit host resolution, never an inferred default. Public keys and revisions are case-sensitive; digests are lowercase SHA-256. Duplicate identities, unresolved dependencies, unreachable packages and incomplete or invalid ownership refuse admission.
+
+The digest hashes compact UTF-8 JSON with a versioned domain, fixed property order, ordinal-sorted collections, and no trailing newline. The read document exposes the digest, algorithm and canonical reference snapshot. Inputs are copied before hashing. The host remains responsible for authenticating the caller, authorizing tenant reads, verifying the referenced released content and obtaining one complete effective snapshot. This producer cannot discover omitted active roots or policies from host input, and a digest is not proof of authority or release status. Secret content never belongs in this reference-only DTO.
+
+`ConfigurationGenerationDetail.Definition` ships in ck-7 as `configurationGenerationDetail`; `Bind(generation)` returns the matching public field values. Both runtime lanes consume this definition with host read-only mode enabled. The pinned neutral fixture and both renderer tests distinguish the complete generation digest from constituent package versions. This slice does not install packages, switch effective pointers, implement API routes, or mount app pages.
+
+`IDefinitionKeyAuthority` remains intentionally unimplemented until allocation authority is ruled. This package owns no API transport, signing, installation, Pilot bridge, or UI renderer.

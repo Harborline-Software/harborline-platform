@@ -1,0 +1,106 @@
+{
+  "input": {
+    "tenantKey": "tenant-a",
+    "activePackageKeys": [
+      "a",
+      "b"
+    ],
+    "packages": [
+      {
+        "reference": {
+          "key": "a",
+          "revision": "1.0.0",
+          "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "content": [
+          {
+            "key": "form",
+            "revision": "1.0.0",
+            "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          {
+            "key": "rule",
+            "revision": "1.0.0",
+            "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ],
+        "dependencies": [
+          "c"
+        ]
+      },
+      {
+        "reference": {
+          "key": "b",
+          "revision": "1.0.0",
+          "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        "content": [
+          {
+            "key": "form",
+            "revision": "1.0.0",
+            "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ],
+        "dependencies": [
+          "c"
+        ]
+      },
+      {
+        "reference": {
+          "key": "c",
+          "revision": "1.0.0",
+          "digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        },
+        "content": [
+          {
+            "key": "shared",
+            "revision": "1.0.0",
+            "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ],
+        "dependencies": []
+      }
+    ],
+    "ownership": [
+      {
+        "definitionKey": "form",
+        "packageKey": "a"
+      },
+      {
+        "definitionKey": "rule",
+        "packageKey": "a"
+      },
+      {
+        "definitionKey": "shared",
+        "packageKey": "c"
+      }
+    ],
+    "platformContract": {
+      "key": "platform",
+      "revision": "1.0.0",
+      "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "policies": [
+      {
+        "key": "retention",
+        "revision": "1.0.0",
+        "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      {
+        "key": "review",
+        "revision": "1.0.0",
+        "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    ]
+  },
+  "digest": "1868b85655c23f121d630ebe09151e18283a01ac7c99ed9bfcdf563e8d36b15f",
+  "values": {
+    "tenantKey": "tenant-a",
+    "generationDigest": "1868b85655c23f121d630ebe09151e18283a01ac7c99ed9bfcdf563e8d36b15f",
+    "activePackageKeys": "[\"a\",\"b\"]",
+    "packages": "[{\"reference\":{\"key\":\"a\",\"revision\":\"1.0.0\",\"digest\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"},\"content\":[{\"key\":\"form\",\"revision\":\"1.0.0\",\"digest\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"},{\"key\":\"rule\",\"revision\":\"1.0.0\",\"digest\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}],\"dependencies\":[\"c\"]},{\"reference\":{\"key\":\"b\",\"revision\":\"1.0.0\",\"digest\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"},\"content\":[{\"key\":\"form\",\"revision\":\"1.0.0\",\"digest\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"}],\"dependencies\":[\"c\"]},{\"reference\":{\"key\":\"c\",\"revision\":\"1.0.0\",\"digest\":\"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\"},\"content\":[{\"key\":\"shared\",\"revision\":\"1.0.0\",\"digest\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}],\"dependencies\":[]}]",
+    "ownership": "[{\"definitionKey\":\"form\",\"packageKey\":\"a\"},{\"definitionKey\":\"rule\",\"packageKey\":\"a\"},{\"definitionKey\":\"shared\",\"packageKey\":\"c\"}]",
+    "platformContract": "{\"key\":\"platform\",\"revision\":\"1.0.0\",\"digest\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}",
+    "policies": "[{\"key\":\"retention\",\"revision\":\"1.0.0\",\"digest\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"},{\"key\":\"review\",\"revision\":\"1.0.0\",\"digest\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}]"
+  }
+}

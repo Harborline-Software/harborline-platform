@@ -466,6 +466,16 @@ if (!BuilderDefinitions.PlatformPackageSeed.VerifyCheckedInExport())
     throw new InvalidOperationException("Packed Builder Definitions canonical platform export differs from its producer.");
 if (BuilderDefinitions.PlatformPackageSeed.Manifest.Items.Count != 14)
     throw new InvalidOperationException("Packed Builder Definitions canonical platform seed inventory is incomplete.");
+var generationReference = new BuilderDefinitions.ConfigurationReference("platform", "1.0.0", new string('a', 64));
+var generationInput = new BuilderDefinitions.ResolvedConfiguration("tenant-a", ["platform"],
+    [new(generationReference, [generationReference], [])], [new("platform", "platform")], generationReference, []);
+var effectiveGeneration = BuilderDefinitions.ConfigurationGeneration.Resolve(generationInput);
+if (effectiveGeneration.Digest == generationReference.Digest
+    || BuilderDefinitions.ConfigurationGenerationDetail.Bind(effectiveGeneration)["generationDigest"] != effectiveGeneration.Digest
+    || BuilderDefinitions.ConfigurationGenerationDetail.Definition.GetProperty("formId").GetString() != "platform.detail.configuration-generation")
+    throw new InvalidOperationException("Packed complete generation identity/detail contract is absent.");
+if (BuilderDefinitions.ConfigurationGeneration.Resolve(generationInput with { Policies = [generationReference] }).Digest == effectiveGeneration.Digest)
+    throw new InvalidOperationException("Packed generation identity ignored configuration policy.");
 if (typeof(DataExchange.IDataExchangeDefinitionStore).Assembly.GetName().Name != "Harborline.Foundation.DataExchange"
     || DataExchange.TabularMappingProfile.Family != "hl:tabular-mapping/v1"
     || DataExchange.TabularMappingProfile.SchemaUri != "https://schemas.harborline.software/mapping/tabular/v1")
