@@ -36,6 +36,7 @@ public sealed class FormEngineCompositionTests
         Assert.Contains(nameof(TimeProvider), error.Message, StringComparison.Ordinal);
 
         var supplied = GovernanceEnforcementTests.ProductionPortShell();
+        var hostClock = Assert.Single(supplied, row => row.ServiceType == typeof(TimeProvider)).ImplementationInstance;
         supplied.AddSingleton<Security.IFormTenantProtectionKeyProvider, FormFieldSecurityHarness.FixedTenantKeyProvider>();
         supplied.AddSingleton<Security.IFormDecryptCapabilityProvider>(
             new FormFieldSecurityHarness.StubDecryptCapabilityProvider(true));
@@ -44,6 +45,25 @@ public sealed class FormEngineCompositionTests
         supplied.AddHarborlineFormsEngine(FormEngineHostEnvironment.Production);
 
         Assert.Single(supplied, row => row.ServiceType == typeof(TimeProvider));
+        using var provider = supplied.BuildServiceProvider();
+        Assert.Same(hostClock, provider.GetRequiredService<TimeProvider>());
+    }
+
+    [Fact]
+    public void ProductionCompositionRefusesMultipleHostClocks()
+    {
+        var services = GovernanceEnforcementTests.ProductionPortShell();
+        services.AddSingleton<Security.IFormTenantProtectionKeyProvider, FormFieldSecurityHarness.FixedTenantKeyProvider>();
+        services.AddSingleton<Security.IFormDecryptCapabilityProvider>(
+            new FormFieldSecurityHarness.StubDecryptCapabilityProvider(true));
+        services.AddHarborlineFormsEngineTenantBoundFieldSecurity(
+            new Security.FormFieldSecurityOptions { HostJurisdiction = "US" });
+        services.AddSingleton<TimeProvider>(new FormFieldSecurityHarness.FixedClock(FormEngineOrchestrationTests.Now));
+
+        var error = Assert.Throws<InvalidOperationException>(() =>
+            services.AddHarborlineFormsEngine(FormEngineHostEnvironment.Production));
+
+        Assert.Contains("exactly one host-supplied TimeProvider", error.Message, StringComparison.Ordinal);
     }
 
     [Fact]

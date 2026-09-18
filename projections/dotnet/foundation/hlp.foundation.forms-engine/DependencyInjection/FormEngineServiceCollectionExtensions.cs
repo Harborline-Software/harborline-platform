@@ -81,6 +81,8 @@ public static class FormEngineServiceCollectionExtensions
                 .ToArray();
             if (missing.Length > 0)
                 throw new InvalidOperationException($"Forms Engine production composition is missing mandatory providers: {string.Join(", ", missing)}.");
+            if (services.Count(row => row.ServiceType == typeof(TimeProvider)) != 1)
+                throw new InvalidOperationException("Forms Engine production composition requires exactly one host-supplied TimeProvider.");
             var singletonRequestPorts = usesCurrentRequestContext ? new[]
             {
                 typeof(IFormExecutionContextProvider),

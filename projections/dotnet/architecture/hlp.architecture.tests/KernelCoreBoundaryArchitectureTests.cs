@@ -7,7 +7,7 @@ namespace Harborline.Architecture.Tests;
 public sealed class KernelCoreBoundaryArchitectureTests
 {
     private static readonly Regex ForbiddenClock = new(
-        @"(?:\b(?:DateTime(?:Offset)?\s*\.\s*(?:Now|UtcNow)|TimeProvider\s*\.\s*System|Environment\s*\.\s*TickCount(?:64)?)|TimeProvider\s*\?)",
+        @"(?:\b(?:DateTime(?:Offset)?\s*\.\s*(?:Now|UtcNow)|TimeProvider\s*\.\s*System|Environment\s*\.\s*TickCount(?:64)?)|:\s*TimeProvider\b|TimeProvider\s*\?)",
         RegexOptions.Compiled);
 
     private static readonly Regex StoreCommit = new(
@@ -63,8 +63,7 @@ public sealed class KernelCoreBoundaryArchitectureTests
         {
             File.WriteAllText(Path.Combine(planted, "Offender.cs"),
                 "sealed class BadClock : TimeProvider { long N() => Environment.TickCount64; " +
-                "DateTimeOffset U() => TimeProvider.System.GetUtcNow(); DateTime L() => DateTime.Now; " +
-                "BadClock(TimeProvider? clock) {} }");
+                "DateTimeOffset U() => TimeProvider.System.GetUtcNow(); DateTime L() => DateTime.Now; }");
 
             var finding = Assert.Single(ScanClock(root));
             Assert.Equal("projections/dotnet/kernel/planted/Offender.cs", finding.Path);
