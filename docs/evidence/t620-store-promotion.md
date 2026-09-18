@@ -80,6 +80,23 @@ frozen by exact source digest, not allowed to evolve. Each member migration remo
 its freeze entry. This transitional ratchet is not evidence that those migrations are done or that
 the final three-family-only exception set has been reached.
 
+## PR62 reconciliation and gate blocker
+
+PR62 landed as `e3ec8871ce36b11a6796ff73b3e72e30cf72ff43`. Reconciliation keeps its
+Layout producer, embedded placement schema, Forms admission changes, and guarded detach
+behavior unchanged. The two conflicts retain all shared registry values with `Layout = 3`
+and both README contracts. A serial workspace-write lane then returned exit 0 for both:
+
+```text
+Passed!  - Failed:     0, Passed:    94, Skipped:     0, Total:    94, Duration: 143 ms - Harborline.Blocks.BuilderDefinitions.Tests.dll (net11.0)
+Passed!  - Failed:     0, Passed:     2, Skipped:     0, Total:     2, Duration: 55 ms - Harborline.Architecture.Tests.dll (net11.0)
+```
+
+The earlier full host gate failed only when it reached the two Data Exchange gallery parity
+cases. The narrow producer correction and fresh native/browser evidence are recorded in
+`t620-data-exchange-parity.md`; both focused browser cases now pass without retries and
+with zero measured pixel difference. That does not replace the full gate after reconciliation.
+
 Still owed: a green full platform gate, T-620's separate PR and merge, and the subsequent T-588 Rules
 consumer migration with deletion of the old `RuleCatalog` implementation and its interim prose.
 T-620 must not be closed as fully accepted before its required first-consumer evidence exists.

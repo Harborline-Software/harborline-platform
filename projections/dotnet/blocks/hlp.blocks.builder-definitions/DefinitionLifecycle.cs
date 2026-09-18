@@ -9,7 +9,7 @@ public enum DefinitionKind
     Workflows = 1,
     /// <summary>View definitions.</summary>
     Views = 2,
-    /// <summary>Layout definitions. Preserves the Layout producer's assigned value.</summary>
+    /// <summary>Layout surface definitions.</summary>
     Layout = 3,
     /// <summary>Data-exchange definitions.</summary>
     DataExchange = 4,
