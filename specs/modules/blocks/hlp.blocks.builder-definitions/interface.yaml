@@ -3,7 +3,7 @@
   "moduleId": "hlp.blocks.builder-definitions",
   "interfaceRevision": 4,
   "status": "draft",
-  "purpose": "Own the shared definition catalogue substrate: registry-neutral versioned definitions, key suggestion, archive lifecycle, and projection-neutral platform package export and empty-store replay.",
+  "purpose": "Own the shared definition catalogue substrate: registry-neutral versioned definitions, key suggestion, archive lifecycle, projection-neutral platform package export and empty-store replay, and package safety-floor reattachment.",
   "dependencies": [],
   "sourceSurface": {
     "repository": "shipyard",
@@ -14,7 +14,7 @@
     "keys": ["deterministic ASCII kebab suggestion", ".v1 suffix", "exact-case collision suffixing"],
     "lifecycle": ["tenant and definition-kind scoped archive", "idempotent archive", "idempotent unarchive", "restart-durable visibility"],
     "versionedDefinitions": ["opaque JSON body and digest", "stable definition id and immutable published version id", "expected stream revision", "exact operation/fence/payload replay", "append-only history", "restore-as-new-draft", "production-only resolution", "in-memory reference implementation"],
-    "platformPackage": ["ordered manifest", "deterministic UTF-8 JSON export", "provider-neutral closure and SHA-256 digest metadata", "ADR-0097 canonical seed fixture", "present or explicitly unresolved content", "validated atomic replay into an empty target"]
+    "platformPackage": ["ordered manifest", "deterministic UTF-8 JSON export", "provider-neutral closure and SHA-256 digest metadata", "ADR-0097 canonical seed fixture", "present or explicitly unresolved content", "validated atomic replay into an empty target", "raise-only safety-floor reattachment with named malformed-member refusal"]
   },
   "keyAuthoritySeam": {
     "name": "IDefinitionKeyAuthority",
@@ -43,6 +43,7 @@
     "The fixture contains no first-authority source or preloaded Access-pack provenance kind while those DES-0007 rulings remain open.",
     "The 13 navigation ids and catalogue:read, records:read, and audit:read role offers preserve the current harborline-api platform export migration authority.",
     "Unresolved DES-0007 policy is represented as absent content and refused; this module does not invent a default.",
+    "Package reattachment restores missing seeded safety floors, clamps lower integers, and refuses a present non-integer member by name.",
     "Pilot manager registration, handlers, navigation, and React snapshots are excluded app-host concerns."
   ],
   "errors": [
@@ -72,7 +73,8 @@
     {"code":"platform-seed-stage-order-invalid", "when":"A later manifest item belongs to an earlier bootstrap stage."},
     {"code":"platform-seed-dependency-missing", "when":"An item dependency is absent from the manifest."},
     {"code":"platform-seed-dependency-not-replayed", "when":"An item dependency is not earlier in replay order."},
-    {"code":"platform-seed-content-unresolved", "when":"An item names a policy reference whose content is not yet ruled."}
+    {"code":"platform-seed-content-unresolved", "when":"An item names a policy reference whose content is not yet ruled."},
+    {"code":"platform-package-safety-floor-malformed", "when":"A seeded or reattached safety-floor member is present without an integer value; the result names the member."}
   ],
   "presentation": {"disposition":"not-applicable", "rationale":"The module stores catalogue state and exports provider-neutral package data; managers render it."},
   "distribution": "internal-only"

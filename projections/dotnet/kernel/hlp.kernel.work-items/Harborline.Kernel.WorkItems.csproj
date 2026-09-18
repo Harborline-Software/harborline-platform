@@ -5,7 +5,7 @@
     <PackageId>Harborline.Kernel.WorkItems</PackageId>
     <AssemblyName>Harborline.Kernel.WorkItems</AssemblyName>
     <RootNamespace>Harborline.Kernel.WorkItems</RootNamespace>
-    <Description>Tenant-scoped durable work-item state, idempotent transitions, audit, and transactional outbox kernel for Harborline Platform.</Description>
+    <Description>One-command request and definition-window admission plus tenant-scoped durable work-item state, idempotent transitions, audit, and transactional outbox kernel for Harborline Platform.</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageReleaseNotes>Internal-only projection; public distribution is not authorized.</PackageReleaseNotes>
   </PropertyGroup>
