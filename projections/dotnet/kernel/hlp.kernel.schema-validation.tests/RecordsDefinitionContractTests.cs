@@ -63,9 +63,19 @@ public sealed class RecordsDefinitionContractTests
 
         Assert.Equal(1, draft.Revision);
         Assert.Equal(2, published.Revision);
-        Assert.Equal(published, replay);
+        Assert.Equal(published.Revision, replay.Revision);
+        Assert.Equal(published.Status, replay.Status);
+        Assert.Equal(published.SchemaId, replay.SchemaId);
+        Assert.Equal(published.RestoredFromVersion, replay.RestoredFromVersion);
+        Assert.Equal(RecordsDefinitionJson.SerializeCanonical(published.Definition),
+            RecordsDefinitionJson.SerializeCanonical(replay.Definition));
         Assert.Equal(3, restored.Revision);
-        Assert.Equal(restored, restoreReplay);
+        Assert.Equal(restored.Revision, restoreReplay.Revision);
+        Assert.Equal(restored.Status, restoreReplay.Status);
+        Assert.Equal(restored.SchemaId, restoreReplay.SchemaId);
+        Assert.Equal(restored.RestoredFromVersion, restoreReplay.RestoredFromVersion);
+        Assert.Equal(RecordsDefinitionJson.SerializeCanonical(restored.Definition),
+            RecordsDefinitionJson.SerializeCanonical(restoreReplay.Definition));
         Assert.Equal(RecordsDefinitionStatus.Draft, restored.Status);
         Assert.Equal("1.0.0", restored.RestoredFromVersion);
         Assert.Equal("1.1.0", restored.Definition.Envelope.Version);

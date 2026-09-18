@@ -80,9 +80,10 @@ public interface IRecordsDefinitionStore
 }
 
 /// <summary>An in-process reference store with expected-revision and replay fencing.</summary>
-public sealed class InMemoryRecordsDefinitionStore : IRecordsDefinitionStore
+public sealed class InMemoryRecordsDefinitionStore : IRecordsDefinitionStore, IDisposable
 {
     private readonly object _gate = new();
+    private readonly SemaphoreSlim _mutationGate = new(1, 1);
     private readonly RecordsDefinitionCompiler _compiler;
     private readonly List<RecordsDefinitionRevision> _history = [];
     private readonly Dictionary<(string TenantId, string DefinitionId, string Version), RecordsDefinitionRevision> _versions = [];
@@ -93,8 +94,15 @@ public sealed class InMemoryRecordsDefinitionStore : IRecordsDefinitionStore
         _compiler = new RecordsDefinitionCompiler(schemaRegistry);
     }
 
+    /// <summary>Releases the mutation serializer used by the in-process store.</summary>
+    public void Dispose()
+    {
+        _mutationGate.Dispose();
+        GC.SuppressFinalize(this);
+    }
+
     /// <inheritdoc />
-    public ValueTask<RecordsDefinitionRevision> CreateDraftAsync(
+    public async ValueTask<RecordsDefinitionRevision> CreateDraftAsync(
         RecordTypeDefinition definition,
         long expectedRevision,
         CancellationToken cancellationToken = default)
@@ -110,35 +118,44 @@ public sealed class InMemoryRecordsDefinitionStore : IRecordsDefinitionStore
 
         var snapshot = Snapshot(definition);
         var coordinate = Coordinate(snapshot);
-        lock (_gate)
+        await _mutationGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
         {
-            var currentRevision = CurrentRevision(snapshot.Envelope.TenantId, snapshot.Envelope.DefinitionId);
-            if (_versions.TryGetValue(coordinate, out var existing))
+            lock (_gate)
             {
-                if (existing.Status == RecordsDefinitionStatus.Published)
+                var currentRevision = CurrentRevision(snapshot.Envelope.TenantId, snapshot.Envelope.DefinitionId);
+                if (_versions.TryGetValue(coordinate, out var existing))
                 {
-                    throw Conflict(
-                        "records.definition.version_immutable",
-                        "A published Records definition version is immutable.",
-                        currentRevision);
-                }
-                if (SameContent(existing.Definition, snapshot))
-                {
-                    return ValueTask.FromResult(existing);
+                    if (existing.Status == RecordsDefinitionStatus.Published)
+                    {
+                        throw Conflict(
+                            "records.definition.version_immutable",
+                            "A published Records definition version is immutable.",
+                            currentRevision);
+                    }
+                    if (SameContent(existing.Definition, snapshot))
+                    {
+                        RequireReplayExpected(expectedRevision, existing, currentRevision);
+                        return Snapshot(existing);
+                    }
+
+                    var editAdmission = new RecordsIntentValidator().Validate(snapshot, existing.Definition);
+                    if (!editAdmission.IsAdmitted)
+                    {
+                        throw new RecordsDefinitionAdmissionException(editAdmission.Refusals);
+                    }
                 }
 
-                var editAdmission = new RecordsIntentValidator().Validate(snapshot, existing.Definition);
-                if (!editAdmission.IsAdmitted)
-                {
-                    throw new RecordsDefinitionAdmissionException(editAdmission.Refusals);
-                }
+                RequireExpected(expectedRevision, currentRevision);
+                return Append(
+                    snapshot,
+                    currentRevision + 1,
+                    RecordsDefinitionStatus.Draft);
             }
-
-            RequireExpected(expectedRevision, currentRevision);
-            return ValueTask.FromResult(Append(
-                snapshot,
-                currentRevision + 1,
-                RecordsDefinitionStatus.Draft));
+        }
+        finally
+        {
+            _mutationGate.Release();
         }
     }
 
@@ -152,48 +169,58 @@ public sealed class InMemoryRecordsDefinitionStore : IRecordsDefinitionStore
     {
         cancellationToken.ThrowIfCancellationRequested();
         _ = RecordsSemanticVersion.Parse(version);
-        RecordTypeDefinition draft;
-        lock (_gate)
+        await _mutationGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
         {
-            var coordinate = (tenantId, definitionId, version);
-            var currentRevision = CurrentRevision(tenantId, definitionId);
-            if (!_versions.TryGetValue(coordinate, out var current))
+            RecordTypeDefinition draft;
+            lock (_gate)
             {
-                throw Conflict(
-                    "records.definition.version_not_found",
-                    "The Records definition version does not exist.",
-                    currentRevision);
+                var coordinate = (tenantId, definitionId, version);
+                var currentRevision = CurrentRevision(tenantId, definitionId);
+                if (!_versions.TryGetValue(coordinate, out var current))
+                {
+                    throw Conflict(
+                        "records.definition.version_not_found",
+                        "The Records definition version does not exist.",
+                        currentRevision);
+                }
+                if (current.Status == RecordsDefinitionStatus.Published)
+                {
+                    RequireReplayExpected(expectedRevision, current, currentRevision);
+                    return Snapshot(current);
+                }
+                RequireExpected(expectedRevision, currentRevision);
+                draft = current.Definition;
             }
-            if (current.Status == RecordsDefinitionStatus.Published)
+
+            var schema = await _compiler.CompileAndRegisterAsync(draft, cancellationToken).ConfigureAwait(false);
+
+            lock (_gate)
             {
-                return current;
+                var currentRevision = CurrentRevision(tenantId, definitionId);
+                var coordinate = (tenantId, definitionId, version);
+                if (_versions.TryGetValue(coordinate, out var replay)
+                    && replay.Status == RecordsDefinitionStatus.Published)
+                {
+                    RequireReplayExpected(expectedRevision, replay, currentRevision);
+                    return Snapshot(replay);
+                }
+                RequireExpected(expectedRevision, currentRevision);
+                return Append(
+                    draft,
+                    currentRevision + 1,
+                    RecordsDefinitionStatus.Published,
+                    schema.Id);
             }
-            RequireExpected(expectedRevision, currentRevision);
-            draft = current.Definition;
         }
-
-        var schema = await _compiler.CompileAndRegisterAsync(draft, cancellationToken).ConfigureAwait(false);
-
-        lock (_gate)
+        finally
         {
-            var currentRevision = CurrentRevision(tenantId, definitionId);
-            var coordinate = (tenantId, definitionId, version);
-            if (_versions.TryGetValue(coordinate, out var replay)
-                && replay.Status == RecordsDefinitionStatus.Published)
-            {
-                return replay;
-            }
-            RequireExpected(expectedRevision, currentRevision);
-            return Append(
-                draft,
-                currentRevision + 1,
-                RecordsDefinitionStatus.Published,
-                schema.Id);
+            _mutationGate.Release();
         }
     }
 
     /// <inheritdoc />
-    public ValueTask<RecordsDefinitionRevision> RestoreAsDraftAsync(
+    public async ValueTask<RecordsDefinitionRevision> RestoreAsDraftAsync(
         string tenantId,
         string definitionId,
         string sourceVersion,
@@ -204,41 +231,50 @@ public sealed class InMemoryRecordsDefinitionStore : IRecordsDefinitionStore
         cancellationToken.ThrowIfCancellationRequested();
         _ = RecordsSemanticVersion.Parse(sourceVersion);
         _ = RecordsSemanticVersion.Parse(draftVersion);
-        lock (_gate)
+        await _mutationGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
         {
-            var currentRevision = CurrentRevision(tenantId, definitionId);
-            var destination = (tenantId, definitionId, draftVersion);
-            if (_versions.TryGetValue(destination, out var existing))
+            lock (_gate)
             {
-                if (existing.Status == RecordsDefinitionStatus.Draft
-                    && string.Equals(existing.RestoredFromVersion, sourceVersion, StringComparison.Ordinal))
+                var currentRevision = CurrentRevision(tenantId, definitionId);
+                var destination = (tenantId, definitionId, draftVersion);
+                if (_versions.TryGetValue(destination, out var existing))
                 {
-                    return ValueTask.FromResult(existing);
+                    if (existing.Status == RecordsDefinitionStatus.Draft
+                        && string.Equals(existing.RestoredFromVersion, sourceVersion, StringComparison.Ordinal))
+                    {
+                        RequireReplayExpected(expectedRevision, existing, currentRevision);
+                        return Snapshot(existing);
+                    }
+                    throw Conflict(
+                        "records.definition.revision_conflict",
+                        "The restore destination version already exists.",
+                        currentRevision);
                 }
-                throw Conflict(
-                    "records.definition.revision_conflict",
-                    "The restore destination version already exists.",
-                    currentRevision);
-            }
-            if (!_versions.TryGetValue((tenantId, definitionId, sourceVersion), out var source)
-                || source.Status != RecordsDefinitionStatus.Published)
-            {
-                throw Conflict(
-                    "records.definition.published_source_not_found",
-                    "The published Records definition source does not exist.",
-                    currentRevision);
-            }
+                if (!_versions.TryGetValue((tenantId, definitionId, sourceVersion), out var source)
+                    || source.Status != RecordsDefinitionStatus.Published)
+                {
+                    throw Conflict(
+                        "records.definition.published_source_not_found",
+                        "The published Records definition source does not exist.",
+                        currentRevision);
+                }
 
-            RequireExpected(expectedRevision, currentRevision);
-            var restored = Snapshot(source.Definition with
-            {
-                Envelope = source.Definition.Envelope with { Version = draftVersion },
-            });
-            return ValueTask.FromResult(Append(
-                restored,
-                currentRevision + 1,
-                RecordsDefinitionStatus.Draft,
-                restoredFromVersion: sourceVersion));
+                RequireExpected(expectedRevision, currentRevision);
+                var restored = Snapshot(source.Definition with
+                {
+                    Envelope = source.Definition.Envelope with { Version = draftVersion },
+                });
+                return Append(
+                    restored,
+                    currentRevision + 1,
+                    RecordsDefinitionStatus.Draft,
+                    restoredFromVersion: sourceVersion);
+            }
+        }
+        finally
+        {
+            _mutationGate.Release();
         }
     }
 
@@ -257,7 +293,7 @@ public sealed class InMemoryRecordsDefinitionStore : IRecordsDefinitionStore
                     && string.Equals(revision.Definition.Envelope.DefinitionId, definitionId, StringComparison.Ordinal))
                 .OrderByDescending(revision => RecordsSemanticVersion.Parse(revision.Definition.Envelope.Version))
                 .FirstOrDefault();
-            return ValueTask.FromResult(head);
+            return ValueTask.FromResult(head is null ? null : Snapshot(head));
         }
     }
 
@@ -274,6 +310,7 @@ public sealed class InMemoryRecordsDefinitionStore : IRecordsDefinitionStore
                 .Where(revision => string.Equals(revision.Definition.Envelope.TenantId, tenantId, StringComparison.Ordinal)
                     && string.Equals(revision.Definition.Envelope.DefinitionId, definitionId, StringComparison.Ordinal))
                 .OrderBy(revision => revision.Revision)
+                .Select(Snapshot)
                 .ToArray();
             return ValueTask.FromResult(history);
         }
@@ -294,7 +331,7 @@ public sealed class InMemoryRecordsDefinitionStore : IRecordsDefinitionStore
             restoredFromVersion);
         _history.Add(item);
         _versions[Coordinate(definition)] = item;
-        return item;
+        return Snapshot(item);
     }
 
     private long CurrentRevision(string tenantId, string definitionId)
@@ -308,6 +345,20 @@ public sealed class InMemoryRecordsDefinitionStore : IRecordsDefinitionStore
     private static void RequireExpected(long expected, long current)
     {
         if (expected != current)
+        {
+            throw Conflict(
+                "records.definition.expected_revision_conflict",
+                $"Expected Records definition revision {expected}, but found {current}.",
+                current);
+        }
+    }
+
+    private static void RequireReplayExpected(
+        long expected,
+        RecordsDefinitionRevision replay,
+        long current)
+    {
+        if (expected != replay.Revision - 1)
         {
             throw Conflict(
                 "records.definition.expected_revision_conflict",
@@ -338,10 +389,13 @@ public sealed class InMemoryRecordsDefinitionStore : IRecordsDefinitionStore
     private static RecordTypeDefinition Snapshot(RecordTypeDefinition definition)
         => RecordsDefinitionJson.Deserialize(RecordsDefinitionJson.SerializeCanonical(definition));
 
+    private static RecordsDefinitionRevision Snapshot(RecordsDefinitionRevision revision)
+        => revision with { Definition = Snapshot(revision.Definition) };
+
     private sealed record RecordsSemanticVersion(
-        int Major,
-        int Minor,
-        int Patch,
+        string Major,
+        string Minor,
+        string Patch,
         IReadOnlyList<string> PreRelease) : IComparable<RecordsSemanticVersion>
     {
         public static RecordsSemanticVersion Parse(string value)
@@ -350,32 +404,37 @@ public sealed class InMemoryRecordsDefinitionStore : IRecordsDefinitionStore
             {
                 throw Invalid();
             }
-            var withoutBuild = value.Split('+', 2, StringSplitOptions.None)[0];
+            var buildSplit = value.Split('+', StringSplitOptions.None);
+            if (buildSplit.Length > 2
+                || (buildSplit.Length == 2 && !ValidIdentifiers(buildSplit[1], numericLeadingZerosAllowed: true)))
+            {
+                throw Invalid();
+            }
+            var withoutBuild = buildSplit[0];
             var split = withoutBuild.Split('-', 2, StringSplitOptions.None);
             var core = split[0].Split('.', StringSplitOptions.None);
             if (core.Length != 3
-                || !TryNumber(core[0], out var major)
-                || !TryNumber(core[1], out var minor)
-                || !TryNumber(core[2], out var patch))
+                || !ValidCoreNumber(core[0])
+                || !ValidCoreNumber(core[1])
+                || !ValidCoreNumber(core[2]))
             {
                 throw Invalid();
             }
             var preRelease = split.Length == 1 ? [] : split[1].Split('.');
-            if (preRelease.Any(identifier => identifier.Length == 0
-                    || identifier.Any(character => !char.IsAsciiLetterOrDigit(character) && character != '-')
-                    || (identifier.Length > 1 && identifier[0] == '0' && identifier.All(char.IsDigit))))
+            if (split.Length == 2
+                && !ValidIdentifiers(split[1], numericLeadingZerosAllowed: false))
             {
                 throw Invalid();
             }
-            return new RecordsSemanticVersion(major, minor, patch, preRelease);
+            return new RecordsSemanticVersion(core[0], core[1], core[2], preRelease);
         }
 
         public int CompareTo(RecordsSemanticVersion? other)
         {
             if (other is null) return 1;
-            var result = Major.CompareTo(other.Major);
-            if (result == 0) result = Minor.CompareTo(other.Minor);
-            if (result == 0) result = Patch.CompareTo(other.Patch);
+            var result = CompareNumericIdentifiers(Major, other.Major);
+            if (result == 0) result = CompareNumericIdentifiers(Minor, other.Minor);
+            if (result == 0) result = CompareNumericIdentifiers(Patch, other.Patch);
             if (result != 0) return result;
             if (PreRelease.Count == 0 || other.PreRelease.Count == 0)
             {
@@ -385,31 +444,40 @@ public sealed class InMemoryRecordsDefinitionStore : IRecordsDefinitionStore
             }
             for (var index = 0; index < Math.Min(PreRelease.Count, other.PreRelease.Count); index++)
             {
-                var leftNumeric = int.TryParse(PreRelease[index], out var left);
-                var rightNumeric = int.TryParse(other.PreRelease[index], out var right);
+                var leftIdentifier = PreRelease[index];
+                var rightIdentifier = other.PreRelease[index];
+                var leftNumeric = leftIdentifier.All(char.IsAsciiDigit);
+                var rightNumeric = rightIdentifier.All(char.IsAsciiDigit);
                 var part = (leftNumeric, rightNumeric) switch
                 {
-                    (true, true) => left.CompareTo(right),
+                    (true, true) => CompareNumericIdentifiers(leftIdentifier, rightIdentifier),
                     (true, false) => -1,
                     (false, true) => 1,
-                    _ => string.CompareOrdinal(PreRelease[index], other.PreRelease[index]),
+                    _ => string.CompareOrdinal(leftIdentifier, rightIdentifier),
                 };
                 if (part != 0) return part;
             }
             return PreRelease.Count.CompareTo(other.PreRelease.Count);
         }
 
-        private static bool TryNumber(string text, out int number)
+        private static int CompareNumericIdentifiers(string left, string right)
         {
-            number = 0;
-            return text.Length > 0
-                && (text.Length == 1 || text[0] != '0')
-                && int.TryParse(
-                    text,
-                    System.Globalization.NumberStyles.None,
-                    System.Globalization.CultureInfo.InvariantCulture,
-                    out number);
+            var length = left.Length.CompareTo(right.Length);
+            return length != 0 ? length : string.CompareOrdinal(left, right);
         }
+
+        private static bool ValidCoreNumber(string text)
+            => text.Length > 0
+                && (text.Length == 1 || text[0] != '0')
+                && text.All(char.IsAsciiDigit);
+
+        private static bool ValidIdentifiers(string value, bool numericLeadingZerosAllowed)
+            => value.Split('.').All(identifier => identifier.Length > 0
+                && identifier.All(character => char.IsAsciiLetterOrDigit(character) || character == '-')
+                && (numericLeadingZerosAllowed
+                    || identifier.Length == 1
+                    || identifier[0] != '0'
+                    || !identifier.All(char.IsAsciiDigit)));
 
         private static RecordsDefinitionConflictException Invalid()
             => new(

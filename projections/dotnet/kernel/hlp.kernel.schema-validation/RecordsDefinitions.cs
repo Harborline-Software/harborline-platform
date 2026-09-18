@@ -423,6 +423,13 @@ public sealed record RecordTypeDefinition
 public static class RecordsDefinitionJson
 {
     private static readonly JsonSerializerOptions Options = CreateOptions();
+    private static readonly JsonSerializerOptions AdmissionOptions = new(Options)
+    {
+        DefaultIgnoreCondition = JsonIgnoreCondition.Never,
+    };
+
+    internal static JsonElement AdmissionShape(RecordTypeDefinition definition)
+        => JsonSerializer.SerializeToElement(definition, AdmissionOptions);
 
     /// <summary>Serializes a definition with deterministic object-property ordering.</summary>
     public static string SerializeCanonical(RecordTypeDefinition definition)
@@ -511,8 +518,12 @@ public sealed class RecordsDefinitionCompiler
         var required = new JsonArray();
         foreach (var field in definition.Fields)
         {
-            properties[field.Key] = Compile(field);
-            if (field.IsIdentity || field.Constraints?.Required == true)
+            if (!RecordsConstraintIntersection.TryResolve(
+                    RecordsConstraintIntersection.ForField(definition, field), out var effective))
+                throw new RecordsDefinitionAdmissionException(
+                    [new("records.field.constraint_intersection_empty", "/fields", "Field constraints have no admitted intersection.")]);
+            properties[field.Key] = Compile(field with { Constraints = effective, ValueDomain = effective.ValueDomain });
+            if (field.IsIdentity || effective.Required || effective.MinimumCount > 0)
             {
                 required.Add(field.Key);
             }
@@ -553,6 +564,20 @@ public sealed class RecordsDefinitionCompiler
 
         AddIntegerParameter(schema, field.Kind.Parameters, "min_length", "minLength");
         AddIntegerParameter(schema, field.Kind.Parameters, "max_length", "maxLength");
+        if (field.IsTranslatable)
+            schema = new JsonObject { ["type"] = "object", ["additionalProperties"] = schema };
+        if (field.Reference?.Cardinality == ReferenceCardinality.Many
+            || field.Constraints?.MaximumCount > 1
+            || field.Constraints is { MaximumCount: null })
+        {
+            var collection = new JsonObject { ["type"] = "array", ["items"] = schema };
+            if (field.Constraints is { } bounds)
+            {
+                collection["minItems"] = Math.Max(bounds.MinimumCount, bounds.Required ? 1 : 0);
+                if (bounds.MaximumCount is { } maximum) collection["maxItems"] = maximum;
+            }
+            return collection;
+        }
         return schema;
     }
 
@@ -620,6 +645,8 @@ public static class RecordsReferenceAdmission
     {
         ArgumentNullException.ThrowIfNull(reference);
         ArgumentNullException.ThrowIfNull(target);
+        if (string.IsNullOrWhiteSpace(reference.TargetRecordTypeId)
+            == string.IsNullOrWhiteSpace(reference.TargetClassId)) return false;
         return (string.IsNullOrWhiteSpace(reference.TargetRecordTypeId)
                 || string.Equals(reference.TargetRecordTypeId, target.RecordTypeId, StringComparison.Ordinal))
             && (string.IsNullOrWhiteSpace(reference.TargetClassId)
@@ -672,8 +699,14 @@ public sealed class RecordsIntentValidator
     public RecordsIntentValidationResult ValidateJson(string json)
     {
         ArgumentNullException.ThrowIfNull(json);
-        using var document = JsonDocument.Parse(json);
         var refusals = new List<RecordsRefusal>();
+        JsonDocument document;
+        try { document = JsonDocument.Parse(json); }
+        catch (JsonException)
+        {
+            return new([new("records.definition.json_invalid", "", "The definition is not valid JSON.")]);
+        }
+        using var documentLifetime = document;
         if (document.RootElement.ValueKind != JsonValueKind.Object)
         {
             refusals.Add(new RecordsRefusal(
@@ -726,6 +759,15 @@ public sealed class RecordsIntentValidator
                 index++;
             }
         }
+        RecordsDefinitionShape.Validate(root, refusals);
+        if (refusals.Count == 0)
+        {
+            try { refusals.AddRange(Validate(RecordsDefinitionJson.Deserialize(json)).Refusals); }
+            catch (JsonException)
+            {
+                refusals.Add(new("records.definition.shape_invalid", "", "The definition does not match the Records grammar."));
+            }
+        }
         return new RecordsIntentValidationResult(refusals);
 
         void AddForbiddenFieldMember(JsonElement field, int index, string member, string code)
@@ -750,6 +792,8 @@ public sealed class RecordsIntentValidator
     {
         ArgumentNullException.ThrowIfNull(definition);
         var refusals = new List<RecordsRefusal>();
+        RecordsDefinitionShape.Validate(RecordsDefinitionJson.AdmissionShape(definition), refusals);
+        if (refusals.Count > 0) return new RecordsIntentValidationResult(refusals);
         if (string.IsNullOrWhiteSpace(definition.RecordTypeId))
         {
             refusals.Add(new RecordsRefusal(
@@ -793,6 +837,15 @@ public sealed class RecordsIntentValidator
         for (var index = 0; index < definition.Fields.Count; index++)
         {
             var field = definition.Fields[index];
+            if (field.Constraints is { } constraints
+                && (constraints.MinimumCount < 0 || constraints.MaximumCount < 0
+                    || constraints.MaximumCount < Math.Max(constraints.MinimumCount, constraints.Required ? 1 : 0)))
+            {
+                refusals.Add(new RecordsRefusal(
+                    "records.field.multiplicity_invalid",
+                    $"/fields/{index}/constraints",
+                    "Multiplicity must have non-negative bounds and admit its required minimum."));
+            }
             if (duplicateFieldKeys.Contains(field.Key))
             {
                 refusals.Add(new RecordsRefusal(
@@ -961,9 +1014,11 @@ public sealed class RecordsIntentValidator
 
         foreach (var (fieldKey, constraints) in resolvedByField)
         {
-            if (constraints.SelectMany((left, index) => constraints.Skip(index + 1)
-                    .Select(right => Intersects(left, right)))
-                .All(intersects => intersects))
+            var field = fields[fieldKey].field;
+            if (field.Constraints is not null) constraints.Add(field.Constraints);
+            if (field.ValueDomain is not null)
+                constraints.Add(new(false, 0, null, [], field.ValueDomain));
+            if (RecordsConstraintIntersection.TryResolve(constraints, out _))
             {
                 continue;
             }
@@ -1010,25 +1065,6 @@ public sealed class RecordsIntentValidator
     private static string EscapePointer(string value)
         => value.Replace("~", "~0", StringComparison.Ordinal).Replace("/", "~1", StringComparison.Ordinal);
 
-    private static bool Intersects(FieldConstraintDefinition left, FieldConstraintDefinition right)
-    {
-        var minimum = Math.Max(left.MinimumCount, right.MinimumCount);
-        var maximum = Minimum(left.MaximumCount, right.MaximumCount);
-        if (maximum is not null && minimum > maximum.Value)
-        {
-            return false;
-        }
-
-        if (left.ReadRoleIds.Count > 0
-            && right.ReadRoleIds.Count > 0
-            && !left.ReadRoleIds.Intersect(right.ReadRoleIds, StringComparer.Ordinal).Any())
-        {
-            return false;
-        }
-
-        return DomainsIntersect(left.ValueDomain, right.ValueDomain);
-    }
-
     private static bool IsNarrowerOrEqual(
         FieldConstraintDefinition candidate,
         FieldConstraintDefinition floor)
@@ -1046,7 +1082,9 @@ public sealed class RecordsIntentValidator
         {
             return false;
         }
-        if (candidate.ReadRoleIds.Except(floor.ReadRoleIds, StringComparer.Ordinal).Any())
+        if (floor.ReadRoleIds.Count > 0
+            && (candidate.ReadRoleIds.Count == 0
+                || candidate.ReadRoleIds.Except(floor.ReadRoleIds, StringComparer.Ordinal).Any()))
         {
             return false;
         }
