@@ -5,6 +5,7 @@
  */
 
 export * from './model.js'
+export * from './definition.js'
 export * from './seeds.js'
 export * from './compile.js'
 export * from './lint.js'

@@ -44,19 +44,64 @@ Tests 192 passed (192); child exit 0
 
 Full local outputs are in ignored `artifacts/t588-local/compiler-red.log`,
 `compiler-ts-red.log`, `runtime-admission-green.log` and
-`runtime-ts-admission-green.log`. Typechecking remains unverified: the verifier invoked
-a nonexistent package-local `node_modules/typescript/bin/tsc` and exited 1 before
-executing the compiler. The installed command wrapper instead targets
-`node_modules/@typescript/native/bin/tsc`; the next bounded lane must run that command.
+`runtime-ts-admission-green.log`. The initial typecheck invoked a nonexistent
+package-local `node_modules/typescript/bin/tsc` and exited 1 without checking source.
+The corrected command, `node node_modules/@typescript/native/bin/tsc -p tsconfig.json
+--noEmit`, subsequently passed with child exit 0 and no diagnostics. Its complete
+output is `artifacts/t588-local/ts-intent-06-runtime-typecheck.log`.
+
+## TypeScript definition intent
+
+The typed source projection preserves the native envelope and skin discriminants.
+Its strict JSON reader rejects duplicate members, including escaped-equivalent names,
+and unknown or malformed members by code and RFC 6901 pointer. Author, Publish and
+Persisted validation retain their phase. Validated source remains separate from the
+derived AST; skin lowering and the full engine compiler run before acceptance.
+The projection owns no persistence, version parser or evaluator. Limits come from
+the existing engine contract. Invalid persisted source is not clamped.
+
+Behavioral tests live in
+`projections/typescript/foundation/hlp.foundation.rule-authoring/src/__tests__/definition-intent.test.ts`.
+They include native closed actions/scopes, malformed cells and typed values, cycles,
+256/257 AST nodes, 4096/4097 literal characters, source detachment and advisory lint.
+
+Actual workspace-write Astra/high results, with each child serial and stdin closed:
+
+```text
+Initial compiling-stub baseline: 69 failed, 1 passed, 70 total; child exit 1
+Initial implementation: 1 failed, 69 passed, 70 total; child exit 1
+Expanded operator baseline: 3 failed, 75 passed, 78 total; child exit 1
+Final focused tests: 78 passed, 78 total; child exit 0
+Complete authoring tests: 8 files passed, 113 tests passed; child exit 0
+Runtime standard typecheck: child exit 0
+Authoring/runtime source-resolution typecheck: child exit 0
+Authoring standard package typecheck: child exit 1 (missing runtime dist declarations)
+```
+
+Logs are `artifacts/t588-local/ts-intent-01-red.log` through
+`ts-intent-10-source-typecheck.log`; `ts-intent-handoff.md` maps each command to its
+output. The source-resolution check uses an isolated configuration under artifacts.
+It does not substitute for the still-unverified generated-declaration consumption path.
+
+The focused literal regression exposed an overload ambiguity: the skin compiler returns
+a text literal as a string, while the full compiler accepts a string as encoded JSON.
+The intent adapter now encodes the lowered expression with the existing canonical
+writer before full compilation. It does not reinterpret or change the authored literal.
 
 ## Remaining T-588 work
 
 The shared-store consumer and removal of the old Rules catalogue are not complete.
-Two catalogue mutation regressions still fail. The shared-owner listing API and its
-tests are not implemented/verified. The Rules envelope/version composition, both
-projection contracts, independent consumers, exact inventory mapping and full platform
-gate remain owed. No T-588 PR has been opened, and neither T-588 nor T-620 is closed by
-this evidence. T-589 has not started.
+The last native authoring run still had two old-catalogue mutation failures. The
+shared-owner listing and adapter currently have preparatory stubs, not verified
+behavior. Native builder tests are blocked before compilation by audited restore
+NU1900; auditing has not been disabled. The three new version-label tests produced
+29 passes and 3 failures before removal of the competing Rules version parser; that
+change still needs native verification.
+
+The shared-store consumer, cross-projection fixture agreement, independent consumers,
+exact inventory mapping and full platform gate remain owed. No T-588 PR has been opened.
+Control separately closed T-620 against platform PR63 in control PR722; that closure
+does not prove the first-consumer work assigned here. T-589 has not started.
 
 The content-kind/pillar correction, Options inventory, refusal-code count and policy
 metadata record corrections remain unresolved. These tests do not grant authoring

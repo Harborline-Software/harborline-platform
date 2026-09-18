@@ -20,7 +20,7 @@ export type RuleSkinType = 'condition' | 'table' | 'formula'
 
 /** The output a table/formula produces — the author-facing name for the engine `RuleActionKind`
  * (design §2.1 outcome column / §3.1 output-type selector). `Compute` is the default. */
-export type RuleOutputType = 'Compute' | 'Options' | 'Validate' | 'Visibility'
+export type RuleOutputType = RuleActionKind
 
 /** Maps the author-facing output type to the engine action kind the skin declares. */
 export function outputActionKind(t: RuleOutputType): RuleActionKind {
