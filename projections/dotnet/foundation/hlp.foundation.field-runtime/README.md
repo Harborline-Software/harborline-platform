@@ -28,8 +28,8 @@ Numeric limits use the two explicit kind-parameter names `total_digits` and
 toward `total_digits`; trailing zeroes after the point do. `fraction_digits` counts digits
 after the point, and cannot exceed a declared `total_digits`. Both refuse overflow without
 rounding. Schema compilation must carry `fraction_digits` as `multipleOf` and retain an
-executable `total_digits` validator. These are implementation requirements, not yet proof
-that the runtime enforces them.
+executable `total_digits` validator. The producer suite covers these rules; the Records
+consumer path still needs integration evidence.
 
 Implementation and verification are in progress. This README is not release evidence.
 
@@ -38,10 +38,23 @@ The source now includes typed and raw JSON domain admission, exact kind lookup, 
 Limits include the two digit facets, inclusive numeric bounds, Unicode scalar length and
 UTF-8 byte size. Refusals preserve the authored or submitted RFC 6901 location.
 
-Only the initial source-count test has run successfully. The new admission, binding and
-limit code is unverified while test restore is blocked. Dynamic domain resolution,
-constraint intersection, editor selection and the Records consumer binding remain work
-to complete; exposing the shared contract is not proof that Records already uses it.
+On 2026-09-18 the field-runtime test project passed 73 tests, with zero failures or skips,
+using `dotnet test --no-restore` in a workspace-write lane after an audited restore.
+This verifies the current admission, kind-binding and limit suite, not the platform gate.
+Dynamic domain resolution, constraint intersection, editor selection and the Records
+consumer binding remain work to complete; exposing the shared contract is not proof that
+Records already uses it.
+
+The Records binding must retain validator identity as well as execution. A number kind
+with `total_digits: 3, fraction_digits: 1` and one with `total_digits: 4,
+fraction_digits: 1` have the same standard schema projection, but disagree on `123.4`.
+The current schema registry hashes only canonical JSON Schema content and stores one
+entry per hash. That schema ID alone cannot identify the complete compiled field binding.
+The integration regression must register both declarations, validate through the consumer,
+and prove the first refuses `123.4` while the second admits it, in either registration order.
+It must also preserve the submitted spelling so `12.30` still exceeds `fraction_digits: 1`.
+The current Records compiler registers schema text only; that path does not yet carry
+these validators. A passing direct call to `ICompiledFieldKind.Validate` does not close it.
 
 Records remains in the kernel schema-validation projection. Shared declarations live in
 `Harborline.Contracts.Fields`, contributed to the existing `Harborline.Contracts` assembly.
