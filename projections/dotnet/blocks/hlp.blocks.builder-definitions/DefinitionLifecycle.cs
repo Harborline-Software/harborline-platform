@@ -4,9 +4,11 @@ namespace Harborline.Blocks.BuilderDefinitions;
 public enum DefinitionKind
 {
     /// <summary>Form definitions.</summary>
-    Forms,
+    Forms = 0,
     /// <summary>Workflow definitions.</summary>
-    Workflows,
+    Workflows = 1,
+    /// <summary>Layout surface definitions.</summary>
+    Layout = 3,
 }
 
 /// <summary>Identifies one definition inside a tenant- and kind-scoped archive namespace.</summary>

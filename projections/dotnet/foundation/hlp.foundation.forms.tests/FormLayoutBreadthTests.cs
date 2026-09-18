@@ -282,6 +282,44 @@ public sealed class FormLayoutBreadthTests
 
     // ── helpers / fixtures ─────────────────────────────────────────────────────
 
+    [Theory]
+    [InlineData("span")]
+    [InlineData("grow")]
+    [InlineData("column_count")]
+    [InlineData("gap")]
+    public async Task Both_layout_grains_enforce_schema_endpoints_and_reject_each_invalid_side(string member)
+    {
+        var range = LayoutPlacementSchema.Range(member);
+        foreach (var groupGrain in new[] { false, true })
+        foreach (var value in new[] { range.Minimum - 1, range.Minimum, range.Maximum, range.Maximum + 1 })
+        {
+            var layout = Grid() with
+            {
+                Columns = member == "column_count" ? value : 2,
+                Gap = member == "gap" ? value : 4,
+            };
+            var placement = new Dictionary<string, FieldPlacement>
+            {
+                ["name"] = new(ColSpan: member == "span" ? value : 1, Grow: member == "grow" ? value : 0),
+            };
+            var definition = groupGrain
+                ? Items(new FormItem(FormItemKind.Group, "zone", Items: new[] { FormItem.OfField("name") }, Layout: layout, Placement: placement))
+                : SectionLayoutForm(layout, placement);
+            using var store = new InMemoryFormDefinitionStore(new FixedClock(Now));
+            if (value < range.Minimum || value > range.Maximum)
+            {
+                var error = await Assert.ThrowsAsync<FormDefinitionValidationException>(async () => await store.RegisterAsync(definition));
+                Assert.Equal(FormDefinitionCodes.LayoutNumericOutOfRange, error.Code);
+            }
+            else
+            {
+                await store.RegisterAsync(definition);
+                var published = await store.PublishAsync(Tenant, definition.Id, definition.Version);
+                Assert.Equal(FormDefinitionStatus.Published, published.Status);
+            }
+        }
+    }
+
     private static InternationalizedText Text(string en)
         => new("en", new Dictionary<string, string> { ["en"] = en });
 

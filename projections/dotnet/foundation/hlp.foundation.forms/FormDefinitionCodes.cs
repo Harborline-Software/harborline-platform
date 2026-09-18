@@ -201,6 +201,9 @@ public static class FormDefinitionCodes
     /// <see cref="Models.LayoutIntents.Widths"/>.</summary>
     public const string LayoutUnknownWidth = "form.layout.unknown_width";
 
+    /// <summary>A numeric placement member is outside the shared Layout schema range.</summary>
+    public const string LayoutNumericOutOfRange = "form.layout.numeric_out_of_range";
+
     /// <summary>A zone layout / placement is declared on a non-<c>Group</c> item (a
     /// collection's tabular presentation is the separate grid work; fields/blocks carry
     /// placement on their PARENT, not themselves).</summary>
