@@ -81,6 +81,9 @@ public static class RuleEngineCodes
     /// <summary>A rule declared a tier the v1 evaluator does not implement (e.g. PowerFx).</summary>
     public const string CompileUnsupportedTier = "rule.compile.unsupported_tier";
 
+    /// <summary>A rule declares an action outside the closed action vocabulary.</summary>
+    public const string CompileUnknownAction = "rule.compile.unknown_action";
+
     /// <summary>A scope-grammar reference was malformed or invalid for the rule's scope.</summary>
     public const string CompileBadGrammar = "rule.compile.bad_grammar";
 }
