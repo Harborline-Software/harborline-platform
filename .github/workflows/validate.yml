@@ -162,6 +162,7 @@ jobs:
         Harborline.Foundation.RuleEngine
         Harborline.Foundation.Scheduling
         Harborline.Foundation.Session
+        Harborline.Kernel.Core
         Harborline.Kernel.SchemaValidation
         Harborline.Kernel.WorkItems
         Harborline.UIAdapters.Blazor
