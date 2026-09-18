@@ -15,7 +15,7 @@ public sealed class WorkItemKernelTests
     {
         using var fixtures = JsonDocument.Parse(await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "fixtures.yaml")));
         Assert.Equal("hlp.kernel.work-items", fixtures.RootElement.GetProperty("moduleId").GetString());
-        Assert.Equal(6, fixtures.RootElement.GetProperty("cases").GetArrayLength());
+        Assert.Equal(8, fixtures.RootElement.GetProperty("cases").GetArrayLength());
         var path = TempPath();
         IWorkItemStore store = durable ? new FileJournalWorkItemStore(path) : new InMemoryWorkItemStore();
         try
