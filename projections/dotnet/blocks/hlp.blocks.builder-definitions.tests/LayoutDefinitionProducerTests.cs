@@ -27,6 +27,25 @@ public sealed class LayoutDefinitionProducerTests
         Assert.Equal(before, LayoutDefinitionJson.SerializeCanonical(definition));
     }
 
+    [Theory]
+    [InlineData("", "1.0.0")]
+    [InlineData(" ", "1.0.0")]
+    [InlineData("surface.customer", "")]
+    [InlineData("surface.customer", "1.0.0+")]
+    [InlineData("surface.customer", "1.0.0-alpha.01")]
+    public void CompositionDetachRefusesMalformedSurfacePinsEvenWhenTheyMatchTheSource(string identity, string version)
+    {
+        var definition = ScreenDefinition();
+        var source = definition with { Envelope = definition.Envelope with { Identity = identity, Version = version } };
+        var reference = new LayoutCompositionReference(LayoutCompositionKind.Form, "composition.customer", "2.0.0", identity, version);
+        var draft = definition.Envelope with { Identity = "surface.detached", Version = "1.0.0" };
+
+        var error = Assert.Throws<ArgumentException>(() => LayoutComposition.Detach(reference, source, draft));
+
+        Assert.Equal("reference", error.ParamName);
+        Assert.StartsWith("layout.composition.detach_invalid", error.Message, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void ScopedContainersAndSubmitGatesRefuseMalformedAuthoring()
     {

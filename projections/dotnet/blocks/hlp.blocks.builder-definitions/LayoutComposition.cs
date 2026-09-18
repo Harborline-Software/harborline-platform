@@ -44,6 +44,8 @@ public static class LayoutComposition
         ArgumentNullException.ThrowIfNull(draftEnvelope);
         if (!Enum.IsDefined(reference.Kind) || string.IsNullOrWhiteSpace(reference.DefinitionId)
             || !LayoutVersionSyntax.IsValid(reference.Version)
+            || string.IsNullOrWhiteSpace(reference.SurfaceDefinitionId)
+            || !LayoutVersionSyntax.IsValid(reference.SurfaceVersion)
             || reference.SurfaceDefinitionId != source.Envelope.Identity
             || reference.SurfaceVersion != source.Envelope.Version
             || draftEnvelope.Identity == source.Envelope.Identity
