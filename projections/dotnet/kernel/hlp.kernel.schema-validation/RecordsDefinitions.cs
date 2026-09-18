@@ -192,13 +192,19 @@ public sealed record AdmittedFieldKind(
 /// <summary>Materializes admitted field-kind defaults without reapplying them over author edits.</summary>
 public sealed class RecordsFieldKindDefaultMaterializer
 {
-    private readonly Dictionary<(string KindId, string Version), AdmittedFieldKind> _kinds;
+    private readonly FieldKindRegistry _kinds;
 
     /// <summary>Creates a materializer over the admitted immutable kind revisions.</summary>
     public RecordsFieldKindDefaultMaterializer(IEnumerable<AdmittedFieldKind> kinds)
+        : this(new FieldKindRegistry(kinds))
+    {
+    }
+
+    /// <summary>Uses the same admitted kinds as definition compilation.</summary>
+    public RecordsFieldKindDefaultMaterializer(FieldKindRegistry kinds)
     {
         ArgumentNullException.ThrowIfNull(kinds);
-        _kinds = kinds.ToDictionary(kind => (kind.KindId, kind.Version));
+        _kinds = kinds;
     }
 
     /// <summary>
@@ -208,15 +214,8 @@ public sealed class RecordsFieldKindDefaultMaterializer
     public RecordTypeDefinition Materialize(RecordTypeDefinition definition)
     {
         ArgumentNullException.ThrowIfNull(definition);
-        var refusals = definition.Fields
-            .Select((field, index) => (field, index))
-            .Where(item => !_kinds.ContainsKey((item.field.Kind.KindId, item.field.Kind.Version)))
-            .Select(item => new RecordsRefusal(
-                "records.field.kind_unresolved",
-                $"/fields/{item.index}/kind",
-                "The field kind and version are not admitted."))
-            .ToArray();
-        if (refusals.Length > 0)
+        var refusals = _kinds.Validate(definition);
+        if (refusals.Count > 0)
         {
             throw new RecordsDefinitionAdmissionException(refusals);
         }
@@ -229,9 +228,9 @@ public sealed class RecordsFieldKindDefaultMaterializer
 
     private RecordFieldDefinition Materialize(RecordFieldDefinition field)
     {
+        var kind = _kinds.Resolve(field.Kind);
         if (field.KindDefaultProvenance is not null
             || field.Governance is not null
-            || !_kinds.TryGetValue((field.Kind.KindId, field.Kind.Version), out var kind)
             || kind.GovernanceDefaults is null)
         {
             return field;
@@ -480,12 +479,14 @@ public sealed class RecordsDefinitionCompiler
 {
     private const string Draft202012 = "https://json-schema.org/draft/2020-12/schema";
     private readonly ISchemaRegistry _registry;
+    private readonly FieldKindRegistry _fieldKinds;
 
     /// <summary>Creates a compiler backed by the platform schema registry.</summary>
-    public RecordsDefinitionCompiler(ISchemaRegistry registry)
+    public RecordsDefinitionCompiler(ISchemaRegistry registry, FieldKindRegistry? fieldKinds = null)
     {
         ArgumentNullException.ThrowIfNull(registry);
         _registry = registry;
+        _fieldKinds = fieldKinds ?? new FieldKindRegistry([]);
     }
 
     /// <summary>Validates, compiles and idempotently registers one typed Records definition.</summary>
@@ -500,6 +501,9 @@ public sealed class RecordsDefinitionCompiler
         {
             throw new RecordsDefinitionAdmissionException(admission.Refusals);
         }
+        var kindRefusals = _fieldKinds.Validate(definition);
+        if (kindRefusals.Count > 0)
+            throw new RecordsDefinitionAdmissionException(kindRefusals);
 
         return await _registry.RegisterAsync(
             Compile(definition),

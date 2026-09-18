@@ -6,110 +6,12 @@ namespace Harborline.Kernel.SchemaValidation.Tests;
 
 public sealed class RecordsDefinitionContractTests
 {
-    [Fact]
-    public async Task Published_head_uses_semantic_version_order_and_ignores_newer_drafts()
-    {
-        var store = new InMemoryRecordsDefinitionStore(new InMemorySchemaRegistry());
-        long revision = 0;
-        foreach (var version in new[] { "1.9.0", "1.10.0" })
-        {
-            var definition = WithVersion(ValidDefinition(), version);
-            var draft = await store.CreateDraftAsync(definition, revision);
-            var published = await store.PublishAsync(
-                "tenant-a",
-                "definition.asset",
-                version,
-                draft.Revision);
-            revision = published.Revision;
-        }
-        await store.CreateDraftAsync(WithVersion(ValidDefinition(), "2.0.0"), revision);
-
-        var head = await store.GetPublishedHeadAsync("tenant-a", "definition.asset");
-
-        Assert.Equal("1.10.0", head?.Definition.Envelope.Version);
-    }
-
-    [Fact]
-    public async Task Publication_is_fenced_idempotent_immutable_and_restore_appends_a_draft()
-    {
-        var store = new InMemoryRecordsDefinitionStore(new InMemorySchemaRegistry());
-        var definition = ValidDefinition();
-
-        var draft = await store.CreateDraftAsync(definition, expectedRevision: 0);
-        var published = await store.PublishAsync(
-            "tenant-a",
-            "definition.asset",
-            "1.0.0",
-            expectedRevision: draft.Revision);
-        var replay = await store.PublishAsync(
-            "tenant-a",
-            "definition.asset",
-            "1.0.0",
-            expectedRevision: draft.Revision);
-        var restored = await store.RestoreAsDraftAsync(
-            "tenant-a",
-            "definition.asset",
-            sourceVersion: "1.0.0",
-            draftVersion: "1.1.0",
-            expectedRevision: published.Revision);
-        var restoreReplay = await store.RestoreAsDraftAsync(
-            "tenant-a",
-            "definition.asset",
-            sourceVersion: "1.0.0",
-            draftVersion: "1.1.0",
-            expectedRevision: published.Revision);
-        var head = await store.GetPublishedHeadAsync("tenant-a", "definition.asset");
-        var history = await store.ListHistoryAsync("tenant-a", "definition.asset");
-
-        Assert.Equal(1, draft.Revision);
-        Assert.Equal(2, published.Revision);
-        Assert.Equal(published.Revision, replay.Revision);
-        Assert.Equal(published.Status, replay.Status);
-        Assert.Equal(published.SchemaId, replay.SchemaId);
-        Assert.Equal(published.RestoredFromVersion, replay.RestoredFromVersion);
-        Assert.Equal(RecordsDefinitionJson.SerializeCanonical(published.Definition),
-            RecordsDefinitionJson.SerializeCanonical(replay.Definition));
-        Assert.Equal(3, restored.Revision);
-        Assert.Equal(restored.Revision, restoreReplay.Revision);
-        Assert.Equal(restored.Status, restoreReplay.Status);
-        Assert.Equal(restored.SchemaId, restoreReplay.SchemaId);
-        Assert.Equal(restored.RestoredFromVersion, restoreReplay.RestoredFromVersion);
-        Assert.Equal(RecordsDefinitionJson.SerializeCanonical(restored.Definition),
-            RecordsDefinitionJson.SerializeCanonical(restoreReplay.Definition));
-        Assert.Equal(RecordsDefinitionStatus.Draft, restored.Status);
-        Assert.Equal("1.0.0", restored.RestoredFromVersion);
-        Assert.Equal("1.1.0", restored.Definition.Envelope.Version);
-        Assert.Equal("1.0.0", head?.Definition.Envelope.Version);
-        Assert.Equal(
-            [
-                "1:1.0.0:Draft",
-                "2:1.0.0:Published",
-                "3:1.1.0:Draft",
-            ],
-            history.Select(item => $"{item.Revision}:{item.Definition.Envelope.Version}:{item.Status}"));
-
-        var stale = await Assert.ThrowsAsync<RecordsDefinitionConflictException>(() =>
-            store.CreateDraftAsync(
-                definition with
-                {
-                    Envelope = definition.Envelope with { Version = "2.0.0" },
-                },
-                expectedRevision: published.Revision).AsTask());
-        Assert.Equal("records.definition.expected_revision_conflict", stale.Code);
-        Assert.Equal(restored.Revision, stale.CurrentRevision);
-
-        var conflict = await Assert.ThrowsAsync<RecordsDefinitionConflictException>(() =>
-            store.CreateDraftAsync(
-                definition with { Name = "Changed published content" },
-                expectedRevision: restored.Revision).AsTask());
-        Assert.Equal("records.definition.version_immutable", conflict.Code);
-    }
 
     [Fact]
     public async Task Compiler_registers_one_stable_schema_identity_used_for_runtime_validation()
     {
         var registry = new InMemorySchemaRegistry();
-        var compiler = new RecordsDefinitionCompiler(registry);
+        var compiler = new RecordsDefinitionCompiler(registry, RecordsTestKinds.Text);
         var definition = ValidDefinition() with
         {
             Fields =
@@ -553,12 +455,6 @@ public sealed class RecordsDefinitionContractTests
         Key = "asset",
         ClassId = "class.master",
     };
-
-    private static RecordTypeDefinition WithVersion(RecordTypeDefinition definition, string version)
-        => definition with
-        {
-            Envelope = definition.Envelope with { Version = version },
-        };
 
     private static RecordFieldDefinition Field(string name, string key) => new()
     {

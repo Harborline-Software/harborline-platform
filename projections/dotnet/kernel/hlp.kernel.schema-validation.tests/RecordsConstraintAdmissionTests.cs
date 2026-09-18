@@ -65,7 +65,7 @@ public sealed class RecordsConstraintAdmissionTests
     {
         var definition = Definition() with { Fields = [Field() with { IsTranslatable = true }] };
         var registry = new InMemorySchemaRegistry();
-        var schema = await new RecordsDefinitionCompiler(registry).CompileAndRegisterAsync(definition);
+        var schema = await new RecordsDefinitionCompiler(registry, RecordsTestKinds.Text).CompileAndRegisterAsync(definition);
         Assert.Equal(valid, (await registry.ValidateAsync(schema.Id, Encoding.UTF8.GetBytes(json))).IsValid);
     }
 
@@ -85,7 +85,7 @@ public sealed class RecordsConstraintAdmissionTests
             }],
         };
         var registry = new InMemorySchemaRegistry();
-        var schema = await new RecordsDefinitionCompiler(registry).CompileAndRegisterAsync(definition);
+        var schema = await new RecordsDefinitionCompiler(registry, RecordsTestKinds.Text).CompileAndRegisterAsync(definition);
 
         Assert.Equal(valid, (await registry.ValidateAsync(schema.Id, Encoding.UTF8.GetBytes(json))).IsValid);
     }
@@ -114,7 +114,7 @@ public sealed class RecordsConstraintAdmissionTests
             TraitBindings = [Binding("first"), Binding("second")],
         };
         var registry = new InMemorySchemaRegistry();
-        var schema = await new RecordsDefinitionCompiler(registry).CompileAndRegisterAsync(definition);
+        var schema = await new RecordsDefinitionCompiler(registry, RecordsTestKinds.Text).CompileAndRegisterAsync(definition);
 
         var allowed = await registry.ValidateAsync(schema.Id, Encoding.UTF8.GetBytes("""{"state":"b"}"""));
         var missing = await registry.ValidateAsync(schema.Id, Encoding.UTF8.GetBytes("{}"));
