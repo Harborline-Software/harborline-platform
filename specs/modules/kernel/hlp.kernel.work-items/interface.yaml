@@ -1,10 +1,11 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.kernel.work-items",
-  "interfaceRevision": 2,
+  "interfaceRevision": 3,
   "status": "frozen",
   "purpose": "Own the common one-command request admission fence plus tenant-scoped durable work-item lifecycle, idempotent transitions, optimistic concurrency, append-only history, audit, and transactional outbox behavior without importing workflow interpretation or UI state.",
   "dependencies": [
+    {"moduleId": "hlp.kernel.core", "minimumRevision": 1},
     {"moduleId": "hlp.contracts.identities", "minimumRevision": 1},
     {"moduleId": "hlp.foundation.actor", "minimumRevision": 1},
     {"moduleId": "hlp.foundation.tenancy", "minimumRevision": 1}

@@ -312,6 +312,7 @@ public sealed class GovernanceEnforcementTests
     internal static ServiceCollection ProductionPortShell()
     {
         var services = new ServiceCollection();
+        services.AddSingleton(TimeProvider.System);
         services.AddScoped<IFormExecutionContextProvider>(_ => throw new NotSupportedException());
         services.AddScoped<IAuthenticatedActorContext>(_ => throw new NotSupportedException());
         services.AddScoped<IPrincipalPartyResolver>(_ => throw new NotSupportedException());

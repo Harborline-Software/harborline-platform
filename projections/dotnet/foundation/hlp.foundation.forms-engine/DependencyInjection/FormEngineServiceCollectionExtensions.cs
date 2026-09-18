@@ -30,6 +30,7 @@ public static class FormEngineServiceCollectionExtensions
         typeof(IFormSensitiveReadAudit),
         typeof(IFormSubmissionTransactionStore),
         typeof(IFormProjectionSink),
+        typeof(TimeProvider),
     ];
 
     /// <summary>
@@ -94,7 +95,6 @@ public static class FormEngineServiceCollectionExtensions
                 throw new InvalidOperationException("Forms Engine production composition requires an attested governance-enforcing field-security registration.");
         }
         services.TryAddSingleton(options);
-        services.TryAddSingleton(TimeProvider.System);
         services.TryAddScoped<IFormEngine, FormEngine>();
         return services;
     }
@@ -115,7 +115,7 @@ public static class FormEngineServiceCollectionExtensions
             provider.GetRequiredService<IFormDecryptCapabilityProvider>(),
             provider.GetRequiredService<IFormFieldGovernanceResolver>(),
             provider.GetRequiredService<FormFieldSecurityOptions>(),
-            provider.GetService<TimeProvider>() ?? TimeProvider.System));
+            provider.GetRequiredService<TimeProvider>()));
         services.TryAddSingleton<ProductionFieldSecurityAttestation>();
         return services;
     }

@@ -27,6 +27,26 @@ public sealed class FormEngineCompositionTests
     }
 
     [Fact]
+    public void ProductionCompositionRequiresExactlyTheHostSuppliedClock()
+    {
+        var missing = GovernanceEnforcementTests.ProductionPortShell();
+        missing.RemoveAll<TimeProvider>();
+        var error = Assert.Throws<InvalidOperationException>(() =>
+            missing.AddHarborlineFormsEngine(FormEngineHostEnvironment.Production));
+        Assert.Contains(nameof(TimeProvider), error.Message, StringComparison.Ordinal);
+
+        var supplied = GovernanceEnforcementTests.ProductionPortShell();
+        supplied.AddSingleton<Security.IFormTenantProtectionKeyProvider, FormFieldSecurityHarness.FixedTenantKeyProvider>();
+        supplied.AddSingleton<Security.IFormDecryptCapabilityProvider>(
+            new FormFieldSecurityHarness.StubDecryptCapabilityProvider(true));
+        supplied.AddHarborlineFormsEngineTenantBoundFieldSecurity(
+            new Security.FormFieldSecurityOptions { HostJurisdiction = "US" });
+        supplied.AddHarborlineFormsEngine(FormEngineHostEnvironment.Production);
+
+        Assert.Single(supplied, row => row.ServiceType == typeof(TimeProvider));
+    }
+
+    [Fact]
     public void ProductionComposition_MissingActorOrCapabilityProvider_FailsStartup()
     {
         var services = new ServiceCollection();

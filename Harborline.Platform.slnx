@@ -1,6 +1,8 @@
 <Solution>
   <Project Path="projections/dotnet/contracts/hlp.contracts.identities/Harborline.Contracts.csproj" />
   <Project Path="projections/dotnet/contracts/hlp.contracts.identities.tests/Harborline.Contracts.Tests.csproj" />
+  <Project Path="projections/dotnet/kernel/hlp.kernel.core/Harborline.Kernel.Core.csproj" />
+  <Project Path="projections/dotnet/kernel/hlp.kernel.core.tests/Harborline.Kernel.Core.Tests.csproj" />
   <Project Path="projections/dotnet/kernel/hlp.kernel.schema-validation/Harborline.Kernel.SchemaValidation.csproj" />
   <Project Path="projections/dotnet/kernel/hlp.kernel.schema-validation.tests/Harborline.Kernel.SchemaValidation.Tests.csproj" />
   <Project Path="projections/dotnet/kernel/hlp.kernel.work-items/Harborline.Kernel.WorkItems.csproj" />

@@ -105,7 +105,7 @@ public sealed class WorkItemKernelTests
     {
         var store = new InMemoryWorkItemStore();
         var context = new TestContext("tenant-a", "actor-a", TenantStatus.Suspended);
-        var kernel = new WorkItemKernel(context, new TestPartyContext(), store);
+        var kernel = new WorkItemKernel(context, new TestPartyContext(), store, new FixedTimeProvider());
 
         Assert.Equal(WorkItemMutationDisposition.Denied, (await kernel.CreateAsync(Create("item-1"))).Disposition);
         Assert.Null(await kernel.GetAsync("item-1"));
