@@ -109,7 +109,7 @@
       }
     },
     "hlp.kernel.schema-validation": {
-      "interface": {"path": "specs/modules/kernel/hlp.kernel.schema-validation/interface.yaml", "revision": 1},
+      "interface": {"path": "specs/modules/kernel/hlp.kernel.schema-validation/interface.yaml", "revision": 2},
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "JSON Schema registration and payload validation are runtime behavior with no visual presentation surface."},
       "owner": "platform-kernel",

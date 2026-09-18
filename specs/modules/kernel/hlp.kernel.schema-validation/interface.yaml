@@ -1,15 +1,25 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.kernel.schema-validation",
-  "interfaceRevision": 1,
+  "interfaceRevision": 2,
   "status": "frozen",
-  "purpose": "Register content-addressed JSON Schema draft 2020-12 documents and validate Dynamic Forms payloads with bounded, stable, field-addressable failures without importing schema migration, federation, blob, epoch, or compaction concerns.",
+  "purpose": "Admit typed Records declarations, compile their static field constraints to JSON Schema draft 2020-12, and register and validate content-addressed schemas with bounded, stable, field-addressable failures.",
   "dependencies": [],
   "types": {
     "SchemaId": "non-empty content-derived string",
     "Schema": ["Id", "JsonSchemaText", "ParentSchemas", "Tags", "ContentAddress"],
     "SchemaValidationError": ["JsonPointer", "Message", "Code", "Params"],
-    "ISchemaRegistry": ["GetAsync", "RegisterAsync", "ValidateAsync", "ListAsync"]
+    "ISchemaRegistry": ["GetAsync", "RegisterAsync", "ValidateAsync", "ListAsync"],
+    "RecordTypeDefinition": "Records grammar with a definition envelope, record_type_id, scoped fields, class, versioned traits, explicit slot bindings, policies and references",
+    "RecordsDefinitionJson": ["SerializeCanonical", "Deserialize"],
+    "RecordsIntentValidator": ["Validate", "ValidateJson"],
+    "RecordsRefusal": ["Code", "JsonPointer", "Message"],
+    "RecordsDefinitionCompiler": ["CompileSchema", "CompileAndRegisterAsync"],
+    "FieldKindRegistry": "Explicit immutable kind/version registrations; no implicit or latest-version fallback",
+    "AdmittedFieldKind": ["KindId", "Version", "GovernanceDefaults", "ValueShape"],
+    "FieldScalarValueShape": ["Text", "Boolean", "Integer", "Number"],
+    "RecordsFieldKindDefaultMaterializer": ["Materialize"],
+    "RecordsReferenceAdmission": ["TargetMatches", "Validate"]
   },
   "selectedDesign": {
     "choice": "caller-backed validation registry",
@@ -25,9 +35,13 @@
     "Invalid payload JSON returns an invalid result with stable code invalid-json.",
     "Required-property failures are split onto the missing field's RFC 6901 pointer.",
     "Validation codes and structured params are stable and locale-independent; Message remains an English fallback.",
-    "The reference adapter is single-process and makes no persistence claim."
+    "The reference adapter is single-process and makes no persistence claim.",
+    "Records CompileSchema performs admission and produces schema text without registry mutation; CompileAndRegisterAsync registers that same text.",
+    "Compilation resolves an exact admitted field-kind revision; the registered scalar shape, not the kind name, determines the JSON value type.",
+    "Records definitions round-trip through canonical JSON without replacing their typed grammar with authored JSON Schema.",
+    "No definition lifecycle store is implemented in this kernel module."
   ],
-  "notScope": ["schema migration", "lenses or upcasters", "epoch coordination", "compaction", "blob storage", "federation transport", "Forms authorization or persistence"],
+  "notScope": ["schema migration", "lenses or upcasters", "epoch coordination", "compaction", "blob storage", "federation transport", "Forms authorization or persistence", "versioned definition storage and publication in builder-definitions", "Rules expression evaluation", "Taxonomy and record-query execution"],
   "projectionPolicy": {"dotnet": "canonical implementation and in-memory reference adapter", "react": "consumer through Forms API", "blazor": "consumer through Forms Engine"},
   "fixture": "conformance/hlp.kernel.schema-validation/fixtures.yaml"
 }
