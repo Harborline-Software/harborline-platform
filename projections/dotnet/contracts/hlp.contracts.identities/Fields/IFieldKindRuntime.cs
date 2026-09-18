@@ -9,13 +9,17 @@ public interface IFieldKindRuntime
     ICompiledFieldKind Bind(FieldKindReference reference, string jsonPointer);
 }
 
-/// <summary>A compiled field kind: standard schema and its retained runtime validator.</summary>
+/// <summary>A compiled field kind: schema with executable binding metadata and its runtime validator.</summary>
 public interface ICompiledFieldKind
 {
     /// <summary>The exact admitted kind revision supplying the scalar shape and defaults.</summary>
     AdmittedFieldKind Kind { get; }
 
-    /// <summary>The standard JSON Schema projection; consumers must also execute this binding's validator.</summary>
+    /// <summary>
+    /// Standard JSON Schema keywords plus x-harborline-field-kind metadata retaining the exact
+    /// kind_id, version and parameters. Schema consumers must bind and execute that keyword
+    /// through IFieldKindRuntime; standard keywords alone do not enforce every kind limit.
+    /// </summary>
     JsonElement JsonSchema { get; }
 
     /// <summary>Validates scalar shape and every admitted limit without changing the value.</summary>

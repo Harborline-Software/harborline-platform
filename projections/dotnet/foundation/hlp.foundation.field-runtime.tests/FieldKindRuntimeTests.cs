@@ -15,6 +15,11 @@ public sealed class FieldKindRuntimeTests
 
         Assert.Equal("number", compiled.JsonSchema.GetProperty("type").GetString());
         Assert.Equal("1e-1", compiled.JsonSchema.GetProperty("multipleOf").GetRawText());
+        var binding = compiled.JsonSchema.GetProperty("x-harborline-field-kind");
+        Assert.Equal("amount", binding.GetProperty("kind_id").GetString());
+        Assert.Equal("1.0.0", binding.GetProperty("version").GetString());
+        Assert.Equal("3", binding.GetProperty("parameters").GetProperty("total_digits").GetString());
+        Assert.Equal("1", binding.GetProperty("parameters").GetProperty("fraction_digits").GetString());
         Assert.Empty(compiled.ValidateJson("12.3", "/price"));
         var refusal = Assert.Single(compiled.ValidateJson("123.4", "/price"));
         Assert.Equal("field.total_digits_exceeded", refusal.Code);
@@ -71,6 +76,8 @@ public sealed class FieldKindRuntimeTests
         else Assert.Equal(expectedCode, Assert.Single(refusals).Code);
         Assert.Equal(number, document.RootElement.GetRawText());
         Assert.Equal("1.2300", compiled.JsonSchema.GetProperty("maximum").GetRawText());
+        Assert.Equal("1.2300", compiled.JsonSchema.GetProperty("x-harborline-field-kind")
+            .GetProperty("parameters").GetProperty("maximum").GetString());
     }
 
     [Theory]

@@ -57,23 +57,29 @@ Both empty-source cases passed unchanged. No private operator validator was adde
 
 The same lane's audited restore of the kernel test graph stopped on `NU1900`: the sandbox
 could not reach NuGet's vulnerability service. Audit was not disabled. A host-side read-only
-check reached the service index with HTTP 200. The executable-kind binding test remains
-prepared but unrun; its implementation has not started. Kernel-to-Contracts and test-to-runtime
-project references are scaffolding, not completed consumer evidence.
+check reached the service index with HTTP 200. A subsequent one-time host restore, explicitly
+approved in chat, restored all five kernel-test graph projects with `NuGetAudit=true` and
+exit code 0. No audit bypass was used. The bounded schema-binding lane then passed the full
+kernel project (44 tests) and field-runtime project (140 tests), with zero failures or skips
+and `--no-restore`. Its red evidence was six missing-metadata projection cases and twelve
+schema-integration failures. The initial missing-runtime test already passed because the
+existing strict dialect refused the unknown keyword; that baseline was not a red test.
 
-The executable-kind schema binding and real Forms/Views/mapped-row integration remain to be
-completed. Exposing the shared contract is not proof that those consumers or Records use it.
+Real Forms/Views/mapped-row integration remains to be completed. Exposing the shared contract
+and executing it through the schema registry is not proof that those consumers or Records use it.
 
-The Records binding must retain validator identity as well as execution. A number kind
+The schema binding retains validator identity as well as execution. A number kind
 with `total_digits: 3, fraction_digits: 1` and one with `total_digits: 4,
 fraction_digits: 1` have the same standard schema projection, but disagree on `123.4`.
-The current schema registry hashes only canonical JSON Schema content and stores one
-entry per hash. That schema ID alone cannot identify the complete compiled field binding.
-The integration regression must register both declarations, validate through the consumer,
-and prove the first refuses `123.4` while the second admits it, in either registration order.
-It must also preserve the submitted spelling so `12.30` still exceeds `fraction_digits: 1`.
-The current Records compiler registers schema text only; that path does not yet carry
-these validators. A passing direct call to `ICompiledFieldKind.Validate` does not close it.
+The generated `x-harborline-field-kind` keyword now carries the exact kind identity, revision
+and all parameters into canonical schema content. Registry injection uses `IFieldKindRuntime`
+and binds the validator at registration. A keyword without the runtime, with malformed or
+duplicate metadata, or with an unresolved kind refuses registration. The integration tests
+register both declarations in both orders: the first refuses `123.4`, the second admits it,
+and `12.30` still exceeds `fraction_digits: 1`. Arrays, local references and escaped property
+names retain field refusals at their instance pointers. Successful `anyOf` branches do not
+leak irrelevant field errors, including when an unrelated property fails. The Records compiler
+still needs to consume this projection; a registry test does not close that caller's work.
 
 Records remains in the kernel schema-validation projection. Shared declarations live in
 `Harborline.Contracts.Fields`, contributed to the existing `Harborline.Contracts` assembly.

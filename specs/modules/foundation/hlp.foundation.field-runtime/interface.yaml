@@ -36,6 +36,7 @@
   "invariants": [
     "Exactly one domain source is authored: literals, an immutable Taxonomy scheme, or a record query with a predicate.",
     "Field-kind binding names an exact admitted version, never a latest-version or kind-name fallback.",
+    "The generated schema retains exact kind identity, revision and every parameter in x-harborline-field-kind metadata so runtime-only limits participate in canonical identity and execution.",
     "Substrate refusal codes use field.* and do not depend on the consuming member.",
     "Domain resolution must filter by read authority before returning values or deriving cardinality.",
     "Subset proofs use complete unfiltered membership from one pinned tenant snapshot, but public proof values remain authority-filtered.",

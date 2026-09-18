@@ -29,14 +29,15 @@ public sealed class FieldKindRuntime : IFieldKindRuntime
             || (limits.HasTextLimits && kind.ValueShape != FieldScalarValueShape.Text))
             throw new FieldAdmissionException([new("field.kind_parameter_type_mismatch", jsonPointer + "/parameters",
                 "The declared limits do not apply to this kind's scalar shape.")]);
-        return new CompiledKind(kind, limits);
+        return new CompiledKind(kind, limits, parameters);
     }
 
     private sealed class CompiledKind : ICompiledFieldKind
     {
         private readonly FieldKindLimits _limits;
 
-        internal CompiledKind(AdmittedFieldKind kind, FieldKindLimits limits)
+        internal CompiledKind(AdmittedFieldKind kind, FieldKindLimits limits,
+            IReadOnlyDictionary<string, string> parameters)
         {
             Kind = kind;
             _limits = limits;
@@ -48,6 +49,12 @@ public sealed class FieldKindRuntime : IFieldKindRuntime
                 FieldScalarValueShape.Integer => "integer",
                 FieldScalarValueShape.Number => "number",
                 _ => throw new ArgumentOutOfRangeException(nameof(kind)),
+            };
+            schema["x-harborline-field-kind"] = new JsonObject
+            {
+                ["kind_id"] = kind.KindId,
+                ["version"] = kind.Version,
+                ["parameters"] = JsonSerializer.SerializeToNode(parameters),
             };
             using var document = JsonDocument.Parse(schema.ToJsonString());
             JsonSchema = document.RootElement.Clone();
