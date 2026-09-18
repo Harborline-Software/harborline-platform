@@ -10,6 +10,42 @@ The 13 Workshop navigation item IDs and the `catalogue:read`, `records:read`, an
 
 `IDefinitionKeyAuthority` remains intentionally unimplemented until allocation authority is ruled. This package owns no API transport, signing, installation, Pilot bridge, or UI.
 
+## Shared versioned-definition store (T-620)
+
+`IVersionedDefinitionStore` is the registry-neutral persistence contract. Its in-memory reference
+implementation promotes the Layout session's locked revision map, defensive snapshots, semantic
+version comparison and restore-as-draft lifecycle. Source: `LayoutDefinitionStore.cs` in platform
+commit `e2f4bb6cbe6062d9aab0b590a1708608b8f8bcc2` (`handoff/t620-layout-store-source`). The shared
+implementation removes Layout types and admission calls; Layout-specific exports stay with Layout.
+
+A `DefinitionKey` contains tenant, registry and definition id. Every `DefinitionDocument` also
+contains an opaque version id, a semantic-version label and an immutable JSON body string.
+`DefinitionBinding` stores both the definition key and version id. Production resolution returns
+published bodies only. The head selects the highest published semantic version; it never follows
+a draft. `DefinitionKind` values are catalogue namespaces, not transport content kinds or primitive
+numbers. Values 0 and 1 preserve existing Forms/Workflows archive namespaces; Layout retains 3.
+
+Host composition supplies a pure admission function for each supported registry. Missing registry
+admission fails closed. Member adapters validate their own typed source, numeric constraints and
+metadata consistency; they return stable codes and RFC 6901 pointers. The store validates version
+syntax and JSON syntax, retains the supplied body bytes and digest, and never normalizes a body.
+Metadata lives outside the body so a generic restore can copy source without understanding it.
+
+Every mutation requires the expected tenant/registry/definition stream revision and a request id.
+Exact replay returns the original result; changed operation, fence or payload refuses. Validation
+runs outside the store lock, followed by a second revision check before committing. Concurrent
+edits cannot overwrite each other. Published versions never change, equal-precedence versions
+cannot replace an existing published identity, and restore appends a new draft. History records
+each accepted lifecycle event rather than rewriting the earlier draft or publication event.
+
+`InMemoryVersionedDefinitionStore` is a reference implementation, not a durable host adapter.
+Durable adapters must atomically commit the revision, history, published head and replay result.
+Rules binds first in T-588; Layout, Records, Views and Data exchange retire their member stores
+through their own slices. Forms, Workflows and Aggregates retain their existing stores under T-620's
+explicit scope boundary. No member migration or released host consumption is claimed here.
+
+## Layout producer (T-580)
+
 The Layout producer adds the platform-owned surface contract: versioned envelopes, one ordered recursive block tree for screen and page media, typed bindings, intent, portable placement, page geometry and masters, authored interactions, and immutable form references. `LayoutDefinitionAdmission` is the common structural authoring and publish validator. Its numeric limits come only from `LayoutDefinitionSchema`; the React and Blazor persisted-value entry points use the same validator and refuse invalid storage without clamping. Admitted definitions export through the existing provider-neutral package content boundary. The shared versioned store, publication concurrency, immutable history, restore and production resolution belong to T-620; this producer neither persists nor publishes. Runtime layout, binding resolution, authorization, and editors remain outside this slice.
 
 `_shared/layout/placement.schema.json` is also embedded by Forms, so its section and item admission use the same four numeric ranges. Hosts supply one immutable `LayoutBlockKindRegistry` to producer and persisted admission. `LayoutComposition.Detach` copies a pinned surface to an independent draft candidate; Form, Template, and Report identities remain separate and no synchronisation link is created. The shared catalogue owns resolving that pin and storing the candidate.
