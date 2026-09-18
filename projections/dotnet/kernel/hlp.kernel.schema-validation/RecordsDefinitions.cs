@@ -180,14 +180,29 @@ public sealed record FieldGovernanceDefinition(
 /// <param name="KindVersion">The field-kind version.</param>
 public sealed record FieldKindDefaultProvenance(string KindId, string KindVersion);
 
+/// <summary>The JSON scalar shape produced by an admitted field-kind revision.</summary>
+public enum FieldScalarValueShape
+{
+    /// <summary>A JSON string.</summary>
+    Text,
+    /// <summary>A JSON boolean.</summary>
+    Boolean,
+    /// <summary>A JSON integer.</summary>
+    Integer,
+    /// <summary>A JSON number, including non-integral values.</summary>
+    Number,
+}
+
 /// <summary>An admitted field kind and the editable defaults it supplies at field creation.</summary>
 /// <param name="KindId">The registered field-kind identity.</param>
 /// <param name="Version">The admitted immutable field-kind version.</param>
 /// <param name="GovernanceDefaults">The governance values copied into a newly created field.</param>
+/// <param name="ValueShape">The JSON scalar shape produced by this exact kind revision.</param>
 public sealed record AdmittedFieldKind(
     string KindId,
     string Version,
-    FieldGovernanceDefinition? GovernanceDefaults);
+    FieldGovernanceDefinition? GovernanceDefaults,
+    FieldScalarValueShape ValueShape = FieldScalarValueShape.Text);
 
 /// <summary>Materializes admitted field-kind defaults without reapplying them over author edits.</summary>
 public sealed class RecordsFieldKindDefaultMaterializer
@@ -494,6 +509,24 @@ public sealed class RecordsDefinitionCompiler
         RecordTypeDefinition definition,
         CancellationToken cancellationToken = default)
     {
+        var schemaText = CompileSchema(definition, cancellationToken);
+
+        return await _registry.RegisterAsync(
+            schemaText,
+            tags:
+            [
+                "records-definition",
+                $"records-definition:{definition.Envelope.DefinitionId}",
+                $"records-definition-version:{definition.Envelope.Version}",
+            ],
+            cancellationToken: cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>Validates and compiles one typed Records definition without registering it.</summary>
+    public string CompileSchema(
+        RecordTypeDefinition definition,
+        CancellationToken cancellationToken = default)
+    {
         ArgumentNullException.ThrowIfNull(definition);
         cancellationToken.ThrowIfCancellationRequested();
         var admission = new RecordsIntentValidator().Validate(definition);
@@ -505,18 +538,10 @@ public sealed class RecordsDefinitionCompiler
         if (kindRefusals.Count > 0)
             throw new RecordsDefinitionAdmissionException(kindRefusals);
 
-        return await _registry.RegisterAsync(
-            Compile(definition),
-            tags:
-            [
-                "records-definition",
-                $"records-definition:{definition.Envelope.DefinitionId}",
-                $"records-definition-version:{definition.Envelope.Version}",
-            ],
-            cancellationToken: cancellationToken).ConfigureAwait(false);
+        return Compile(definition);
     }
 
-    private static string Compile(RecordTypeDefinition definition)
+    private string Compile(RecordTypeDefinition definition)
     {
         var properties = new JsonObject();
         var required = new JsonArray();
@@ -526,7 +551,10 @@ public sealed class RecordsDefinitionCompiler
                     RecordsConstraintIntersection.ForField(definition, field), out var effective))
                 throw new RecordsDefinitionAdmissionException(
                     [new("records.field.constraint_intersection_empty", "/fields", "Field constraints have no admitted intersection.")]);
-            properties[field.Key] = Compile(field with { Constraints = effective, ValueDomain = effective.ValueDomain });
+            var kind = _fieldKinds.Resolve(field.Kind);
+            properties[field.Key] = Compile(
+                field with { Constraints = effective, ValueDomain = effective.ValueDomain },
+                kind.ValueShape);
             if (field.IsIdentity || effective.Required || effective.MinimumCount > 0)
             {
                 required.Add(field.Key);
@@ -549,13 +577,14 @@ public sealed class RecordsDefinitionCompiler
         return schema.ToJsonString();
     }
 
-    private static JsonObject Compile(RecordFieldDefinition field)
+    private static JsonObject Compile(RecordFieldDefinition field, FieldScalarValueShape valueShape)
     {
+        var jsonType = JsonType(valueShape);
         var schema = new JsonObject
         {
-            ["type"] = JsonType(field),
+            ["type"] = jsonType,
         };
-        if (!string.IsNullOrWhiteSpace(field.Pattern) && JsonType(field) == "string")
+        if (!string.IsNullOrWhiteSpace(field.Pattern) && jsonType == "string")
         {
             schema["pattern"] = field.Pattern;
         }
@@ -585,18 +614,15 @@ public sealed class RecordsDefinitionCompiler
         return schema;
     }
 
-    private static string JsonType(RecordFieldDefinition field)
+    private static string JsonType(FieldScalarValueShape valueShape)
     {
-        if (field.Reference is not null)
+        return valueShape switch
         {
-            return "string";
-        }
-        return field.Kind.KindId switch
-        {
-            "boolean" => "boolean",
-            "integer" or "whole_number" => "integer",
-            "currency" or "decimal" or "number" => "number",
-            _ => "string",
+            FieldScalarValueShape.Text => "string",
+            FieldScalarValueShape.Boolean => "boolean",
+            FieldScalarValueShape.Integer => "integer",
+            FieldScalarValueShape.Number => "number",
+            _ => throw new ArgumentOutOfRangeException(nameof(valueShape), valueShape, "Unsupported field scalar value shape."),
         };
     }
 
@@ -858,13 +884,8 @@ public sealed class RecordsIntentValidator
                     "Field identity must be unique within its record type."));
             }
 
-            if (field.ValueDomain is { } valueDomain && CountSources(valueDomain) != 1)
-            {
-                refusals.Add(new RecordsRefusal(
-                    "records.field.value_domain_source_count",
-                    $"/fields/{index}/value_domain",
-                    "A value domain must name exactly one permitted-value source."));
-            }
+            ValidateValueDomain(field.ValueDomain, $"/fields/{index}/value_domain", refusals);
+            ValidateValueDomain(field.Constraints?.ValueDomain, $"/fields/{index}/constraints/value_domain", refusals);
 
             if (field.Reference is { } reference && CountTargets(reference) != 1)
             {
@@ -923,6 +944,9 @@ public sealed class RecordsIntentValidator
         for (var traitIndex = 0; traitIndex < definition.Traits.Count; traitIndex++)
         {
             var trait = definition.Traits[traitIndex];
+            for (var slotIndex = 0; slotIndex < trait.Slots.Count; slotIndex++)
+                ValidateValueDomain(trait.Slots[slotIndex].Constraints.ValueDomain,
+                    $"/traits/{traitIndex}/slots/{slotIndex}/constraints/value_domain", refusals);
             AddDuplicateIdentities(
                 trait.Slots.Select((slot, slotIndex) => (slot.SlotKey, slotIndex)),
                 "records.trait.slot_identity_duplicate",
@@ -1032,6 +1056,17 @@ public sealed class RecordsIntentValidator
                 $"/fields/{fields[fieldKey].index}/constraints",
                 "The slots bound to this field have no admitted constraint intersection."));
         }
+    }
+
+    private static void ValidateValueDomain(
+        ValueDomainDefinition? domain,
+        string pointer,
+        List<RecordsRefusal> refusals)
+    {
+        if (domain is not null && CountSources(domain) != 1)
+            refusals.Add(new RecordsRefusal(
+                "records.field.value_domain_source_count", pointer,
+                "A value domain must name exactly one permitted-value source."));
     }
 
     private static int CountSources(ValueDomainDefinition valueDomain)
