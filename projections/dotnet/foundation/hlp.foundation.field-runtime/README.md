@@ -23,6 +23,14 @@ T-621 adds authority-aware Taxonomy and record-query domain resolution, resolved
 narrowing, numeric and byte-size limits, and domain-driven editor selection. Expression
 evaluation, record authorization and commit orchestration remain at their existing owners.
 
+Numeric limits use the two explicit kind-parameter names `total_digits` and
+`fraction_digits`, as ruled in T-621 on 2026-09-18. Leading zeroes and the sign do not count
+toward `total_digits`; trailing zeroes after the point do. `fraction_digits` counts digits
+after the point, and cannot exceed a declared `total_digits`. Both refuse overflow without
+rounding. Schema compilation must carry `fraction_digits` as `multipleOf` and retain an
+executable `total_digits` validator. These are implementation requirements, not yet proof
+that the runtime enforces them.
+
 Implementation and verification are in progress. This README is not release evidence.
 
 The current executable slice is `ValueDomainAdmission.Validate`: it counts the three

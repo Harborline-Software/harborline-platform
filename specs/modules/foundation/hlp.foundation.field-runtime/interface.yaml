@@ -12,6 +12,13 @@
     "FieldConstraintDefinition": ["Required", "MinimumCount", "MaximumCount", "ReadRoleIds", "ValueDomain"],
     "FieldRefusal": ["Code", "JsonPointer", "Message"]
   },
+  "numericKindParameters": {
+    "total_digits": "Positive integer cap on significant digits before and after the point. Leading zeroes and the sign do not count; trailing zeroes after the point do.",
+    "fraction_digits": "Non-negative integer cap on digits after the point. When both facets are declared, fraction_digits must not exceed total_digits.",
+    "declaration": "The two facets are distinct; an ambiguous precision parameter is not supported.",
+    "compilation": "fraction_digits contributes JSON Schema multipleOf equal to ten to the negative n. total_digits remains an executable validator constraint, not a silently discarded schema input.",
+    "refusal": "Each exceeded facet has its own stable field.* refusal code and RFC 6901 pointer. Validation never rounds, clamps, defaults or rewrites the value."
+  },
   "invariants": [
     "Exactly one domain source is authored: literals, an immutable Taxonomy scheme, or a record query with a predicate.",
     "Field-kind binding names an exact admitted version, never a latest-version or kind-name fallback.",
@@ -19,6 +26,8 @@
     "Domain resolution must filter by read authority before returning values or deriving cardinality.",
     "A consumer may narrow required, access, multiplicity and domain constraints but may not widen them.",
     "Value enforcement refuses rather than clamping, defaulting or normalizing authored values.",
+    "total_digits 3 with fraction_digits 0 refuses 123.4; total_digits 3 with fraction_digits 1 admits 12.3 and refuses 123.4.",
+    "A fraction_digits declaration above total_digits is refused before value submission.",
     "Editor choice derives from the admitted domain, never an authored ControlHint."
   ],
   "notScope": ["Records grammar", "JSON Schema registration", "definition lifecycle storage", "Rules expression evaluation", "record commit orchestration", "authoring destination"],
