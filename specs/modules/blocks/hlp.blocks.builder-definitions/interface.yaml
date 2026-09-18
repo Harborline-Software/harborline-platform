@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.blocks.builder-definitions",
-  "interfaceRevision": 3,
+  "interfaceRevision": 4,
   "status": "draft",
-  "purpose": "Own the shared definition catalogue substrate: key suggestion, archive lifecycle, and projection-neutral platform package export and empty-store replay.",
+  "purpose": "Own the shared definition catalogue substrate: registry-neutral versioned definitions, key suggestion, archive lifecycle, and projection-neutral platform package export and empty-store replay.",
   "dependencies": [],
   "sourceSurface": {
     "repository": "shipyard",
@@ -13,6 +13,7 @@
   "capabilities": {
     "keys": ["deterministic ASCII kebab suggestion", ".v1 suffix", "exact-case collision suffixing"],
     "lifecycle": ["tenant and definition-kind scoped archive", "idempotent archive", "idempotent unarchive", "restart-durable visibility"],
+    "versionedDefinitions": ["opaque JSON body and digest", "stable definition id and immutable published version id", "expected stream revision", "exact operation/fence/payload replay", "append-only history", "restore-as-new-draft", "production-only resolution", "in-memory reference implementation"],
     "platformPackage": ["ordered manifest", "deterministic UTF-8 JSON export", "provider-neutral closure and SHA-256 digest metadata", "ADR-0097 canonical seed fixture", "present or explicitly unresolved content", "validated atomic replay into an empty target"]
   },
   "keyAuthoritySeam": {
@@ -21,6 +22,13 @@
     "ruling": "No implementation in revision 1; either UI-suggested plus server-validated or server-allocated policy may bind later."
   },
   "invariants": [
+    "The versioned store exposes no member-specific type; host-supplied pure validators admit each supported registry.",
+    "Every consumer pin names both the stable definition key and immutable version id.",
+    "Published versions never change and production resolution never returns a draft.",
+    "Every accepted lifecycle change appends to history; restore never edits a published body.",
+    "Version syntax, registry admission and member constraints refuse by stable code and RFC 6901 pointer; bodies are never repaired, normalized or clamped.",
+    "Mutations fence the per-tenant/registry/definition stream by expected revision; exact request replay returns the original result and mismatched replay refuses.",
+    "Durable adapters must conditionally commit history, head and replay together; the reference in-memory store claims no restart durability.",
     "DefinitionKeySuggester is advisory and never claims allocation authority.",
     "Archive state is isolated by exact tenant, DefinitionKind, and definition key.",
     "Archive and unarchive are idempotent and never delete authored definitions.",
@@ -38,6 +46,20 @@
     "Pilot manager registration, handlers, navigation, and React snapshots are excluded app-host concerns."
   ],
   "errors": [
+    {"code":"definition.registry_unknown", "when":"The registry is unknown or has no host-supplied admission."},
+    {"code":"definition.version_invalid", "when":"The semantic-version label is malformed."},
+    {"code":"definition.version_id_required", "when":"An immutable version identity is absent."},
+    {"code":"definition.tenant_required", "when":"The tenant namespace is absent."},
+    {"code":"definition.id_required", "when":"The stable definition identity is absent."},
+    {"code":"definition.request_id_required", "when":"A mutation lacks a replay identity."},
+    {"code":"definition.revision_conflict", "when":"The expected stream revision is invalid or stale."},
+    {"code":"definition.replay_conflict", "when":"A request identity is reused with another operation, fence or payload."},
+    {"code":"definition.version_conflict", "when":"An immutable identity or equal-precedence published version conflicts."},
+    {"code":"definition.version_immutable", "when":"An edit targets a published version identity."},
+    {"code":"definition.published_version_required", "when":"Restore targets a draft rather than a publication."},
+    {"code":"definition.body_invalid", "when":"The opaque body is not valid JSON."},
+    {"code":"definition.admission_invalid", "when":"A configured validator fails to return a refusal list."},
+    {"code":"definition.not_found", "when":"A mutation targets an absent version."},
     {"code":"definition-key-required", "when":"A lifecycle operation receives an empty key."},
     {"code":"definition-tenant-required", "when":"A lifecycle operation receives an empty tenant."},
     {"code":"definition-lifecycle-corrupt", "when":"Persisted lifecycle state cannot be decoded."},

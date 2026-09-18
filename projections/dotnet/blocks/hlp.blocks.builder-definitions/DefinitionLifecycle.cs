@@ -4,9 +4,25 @@ namespace Harborline.Blocks.BuilderDefinitions;
 public enum DefinitionKind
 {
     /// <summary>Form definitions.</summary>
-    Forms,
+    Forms = 0,
     /// <summary>Workflow definitions.</summary>
-    Workflows,
+    Workflows = 1,
+    /// <summary>View definitions.</summary>
+    Views = 2,
+    /// <summary>Layout definitions. Preserves the Layout producer's assigned value.</summary>
+    Layout = 3,
+    /// <summary>Data-exchange definitions.</summary>
+    DataExchange = 4,
+    /// <summary>Report definitions.</summary>
+    Reports = 5,
+    /// <summary>Schedule definitions.</summary>
+    Schedules = 6,
+    /// <summary>Rule definitions.</summary>
+    Rules = 7,
+    /// <summary>Record-type definitions.</summary>
+    Records = 8,
+    /// <summary>Pilot definitions.</summary>
+    Pilot = 9,
 }
 
 /// <summary>Identifies one definition inside a tenant- and kind-scoped archive namespace.</summary>
