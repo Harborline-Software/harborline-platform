@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.foundation.field-runtime",
+  "interfaceRevision": 1,
+  "status": "draft",
+  "purpose": "Own shared field-kind admission, authority-aware three-source value-domain resolution, narrowing, kind limits and domain-driven editor selection under DES-0030 and T-621.",
+  "dependencies": [],
+  "types": {
+    "FieldKindReference": ["KindId", "Version", "Parameters"],
+    "AdmittedFieldKind": ["KindId", "Version", "GovernanceDefaults", "ValueShape"],
+    "ValueDomainDefinition": ["LiteralValues", "TaxonomyScheme", "RecordQuery"],
+    "FieldConstraintDefinition": ["Required", "MinimumCount", "MaximumCount", "ReadRoleIds", "ValueDomain"],
+    "FieldRefusal": ["Code", "JsonPointer", "Message"]
+  },
+  "invariants": [
+    "Exactly one domain source is authored: literals, an immutable Taxonomy scheme, or a record query with a predicate.",
+    "Field-kind binding names an exact admitted version, never a latest-version or kind-name fallback.",
+    "Substrate refusal codes use field.* and do not depend on the consuming member.",
+    "Domain resolution must filter by read authority before returning values or deriving cardinality.",
+    "A consumer may narrow required, access, multiplicity and domain constraints but may not widen them.",
+    "Value enforcement refuses rather than clamping, defaulting or normalizing authored values.",
+    "Editor choice derives from the admitted domain, never an authored ControlHint."
+  ],
+  "notScope": ["Records grammar", "JSON Schema registration", "definition lifecycle storage", "Rules expression evaluation", "record commit orchestration", "authoring destination"],
+  "selectedDesign": {
+    "choice": "Promote the T-615 substrate types and behavior into one shared producer.",
+    "rejected": "Leave shared field behavior in Records or create one vocabulary per consumer.",
+    "reason": "Eleven members need the same domain and limit semantics; ownership must not follow the first member implementation."
+  },
+  "package": {"nuget": "Harborline.Foundation.FieldRuntime", "assembly": "Harborline.Foundation.FieldRuntime", "distribution": "internal-only"}
+}

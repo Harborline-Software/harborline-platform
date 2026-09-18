@@ -629,6 +629,40 @@
         }
       }
     },
+    "hlp.foundation.field-runtime": {
+      "interface": {"path": "specs/modules/foundation/hlp.foundation.field-runtime/interface.yaml", "revision": 1},
+      "moduleKind": "runtime",
+      "presentation": {"disposition": "not-applicable", "rationale": "The shared field substrate resolves domains, validates values and selects an editor contract; consuming UI projections render it."},
+      "owner": "platform-foundation",
+      "dependencies": [],
+      "status": "extracted-candidate",
+      "depth": {
+        "disposition": "deep-module",
+        "deletionTest": "PASS",
+        "redistributedComplexity": [
+          "exact field-kind binding and limit enforcement duplicated across Records, Forms, Views and mapped rows",
+          "authority-aware domain membership, narrowing and domain-driven editor selection repeated by every field consumer"
+        ]
+      },
+      "projections": {
+        "dotnet": {
+          "role": "implementation",
+          "path": "projections/dotnet/foundation/hlp.foundation.field-runtime",
+          "status": "preview",
+          "artifact": {
+            "type": "nuget",
+            "id": "Harborline.Foundation.FieldRuntime",
+            "assembly": "Harborline.Foundation.FieldRuntime",
+            "manifest": "projections/dotnet/foundation/hlp.foundation.field-runtime/Harborline.Foundation.FieldRuntime.csproj",
+            "identityAuthority": "Harborline",
+            "producerRepository": "harborline-platform",
+            "distribution": "internal-only",
+            "candidateRole": "new-bounded-package",
+            "registryAvailable": false
+          }
+        }
+      }
+    },
     "hlp.foundation.scheduling": {
       "interface": {"path": "specs/modules/foundation/hlp.foundation.scheduling/interface.yaml", "revision": 2},
       "moduleKind": "runtime",

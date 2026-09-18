@@ -19,6 +19,7 @@
     {"moduleId": "hlp.blocks.entity-views", "projection": "dotnet", "role": "implementation", "status": "preview", "path": "projections/dotnet/blocks/hlp.blocks.entity-views", "artifact": "Harborline.Blocks.EntityViews"},
     {"moduleId": "hlp.foundation.data-exchange", "projection": "dotnet", "role": "implementation", "status": "preview", "path": "projections/dotnet/foundation/hlp.foundation.data-exchange", "artifact": "Harborline.Foundation.DataExchange"},
     {"moduleId": "hlp.foundation.scheduling", "projection": "dotnet", "role": "implementation", "status": "preview", "path": "projections/dotnet/foundation/hlp.foundation.scheduling", "artifact": "Harborline.Foundation.Scheduling"},
+    {"moduleId": "hlp.foundation.field-runtime", "projection": "dotnet", "role": "implementation", "status": "preview", "path": "projections/dotnet/foundation/hlp.foundation.field-runtime", "artifact": "Harborline.Foundation.FieldRuntime"},
     {"moduleId": "hlp.blocks.scheduling", "projection": "dotnet", "role": "implementation", "status": "preview", "path": "projections/dotnet/blocks/hlp.blocks.scheduling", "artifact": "Harborline.Blocks.Scheduling"},
     {"moduleId": "hlp.blocks.calendar", "projection": "dotnet", "role": "implementation", "status": "preview", "path": "projections/dotnet/blocks/hlp.blocks.calendar", "artifact": "Harborline.Blocks.Calendar"},
     {"moduleId": "hlp.blocks.reports", "projection": "dotnet", "role": "implementation", "status": "preview", "path": "projections/dotnet/blocks/hlp.blocks.reports", "artifact": "Harborline.Blocks.Reports"},
