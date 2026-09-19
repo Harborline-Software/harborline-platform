@@ -1,7 +1,6 @@
 using System.Text.Json;
 using Harborline.Contracts.Fields;
 using Harborline.Foundation.Assets.Common;
-using Harborline.Foundation.Crypto;
 
 namespace Harborline.Foundation.FieldRuntime.Tests;
 
@@ -9,7 +8,7 @@ namespace Harborline.Foundation.FieldRuntime.Tests;
 internal sealed class DomainFixture : IFieldDomainSource, IFieldDomainSnapshot, IFieldDomainReadAuthority
 {
     internal static readonly TenantId Tenant = new("tenant-a");
-    internal static readonly FieldDomainScope Scope = new(Tenant, PrincipalId.FromBytes(new byte[32]));
+    internal static readonly FieldDomainScope Scope = new(Tenant, "actor-a");
     internal Dictionary<TaxonomySchemeReference, IReadOnlyList<FieldDomainMember>> Schemes { get; } = [];
     internal Dictionary<string, IReadOnlyList<FieldDomainMember>> Records { get; } = [];
     internal HashSet<string> Hidden { get; } = new(StringComparer.Ordinal);

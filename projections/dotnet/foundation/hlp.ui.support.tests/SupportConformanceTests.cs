@@ -192,6 +192,11 @@ public sealed class FormViewConformanceTests
         if (fixture is null) return;
         var id = fixture.RootElement.GetProperty("id").GetString();
         Assert.Contains(id, Fixture.CaseIds("hlp.ui.form-view"));
+        if (id!.StartsWith("form-view.domain-", StringComparison.Ordinal))
+        {
+            FormViewDomainTests.AssertFixture(fixture.RootElement);
+            return;
+        }
         var text = new InternationalizedText { DefaultLocale = "en", Values = new Dictionary<string, string> { ["en"] = "Amount", ["fr-CA"] = "Montant", ["ar"] = "المبلغ" } };
         if (id == "form-view.locale-exact") Assert.Equal("Montant", FormViewText.Resolve(text, ["fr-CA"]));
         if (id == "form-view.locale-primary") Assert.Equal("المبلغ", FormViewText.Resolve(text, ["ar-AE"]));

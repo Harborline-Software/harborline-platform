@@ -65,8 +65,52 @@ and `--no-restore`. Its red evidence was six missing-metadata projection cases a
 schema-integration failures. The initial missing-runtime test already passed because the
 existing strict dialect refused the unknown keyword; that baseline was not a red test.
 
-Real Forms/Views/mapped-row integration remains to be completed. Exposing the shared contract
-and executing it through the schema registry is not proof that those consumers or Records use it.
+The next bounded lane connected real Forms rendering and validation, Views column domains,
+and an independent test host around DataExchange's existing protected-payload port. One test
+now crosses all three real callers; the host refuses unreadable and outside-domain mapped
+values before storing a proposed payload. This does not ship a new DataExchange adapter.
+The lane passed 145 field-runtime tests, 44 kernel tests, 68 Views tests, 20 focused Forms
+consumer tests, and five wire-sync checks. The full Forms.Engine project had 167 passes and
+six failures: its restart tests could not discover the repository from the external build
+output directory. Those tests were not changed or excluded. A normal-layout rerun, renderer
+integration, further consumer review, package-only evidence, and the platform gate remain.
+Records still needs its own binding; these consumer tests do not close that work.
+
+The next correction lane observed two React renderer failures before implementing radio
+selection and bounded local typeahead over the supplied authorized membership. Its complete
+schema-form, form-view and radio-group suites then passed 38, 24 and 18 tests respectively.
+No TypeScript build, Blazor parity or platform-gate result is claimed. The .NET test attempt
+stopped before execution on a missing targeting pack, and both subsequent audited restores
+failed with `NU1900`. Required/domain submission checks, cardinality choices and publication
+admission therefore still have unrun regressions; that lane made no .NET production changes.
+The package-only schema and domain probes are prepared but have not run against packed artifacts.
+
+The editor-completion lane then observed four additional React behavior failures: None,
+SingleValue, ChoiceList and TaxonomyPicker were falling through to text. After mapping those
+runtime verdicts, the complete schema-form, form-view, radio-group and select-field suites
+passed 42, 24, 18 and 9 tests respectively. The aggregate React build and declared TypeScript
+typecheck also passed. None renders no editor; the choice controls do not select defaults;
+both picker kinds search only the supplied membership with a bounded display. These are
+React results, not Blazor parity or platform-gate evidence. A normal-output audited restore
+using the permitted package and HTTP caches still failed with NU1900, so that lane made no
+.NET production changes and did not execute the prepared .NET regressions.
+
+Schema-form now declares seven neutral domain-renderer cases at interface revision 3;
+all seven executed in the React lane, whose four whole suites again passed 93 tests.
+The corresponding Blazor fixture entry point now reads those inputs and asserts real
+rendering and candidate callbacks, but its new assertions remain unrun. FormView revision 2
+binds canonical Forms revision 6 and declares five membership/redaction cases. Three genuine
+React failures exposed retained redacted membership and host options; the corrected binding
+passed all five cases, the whole FormView suite (29 tests), and SchemaForm (42 tests), plus
+build and typecheck. The .NET UI support counterpart is prepared but unrun. Neither these
+renderer results nor metadata consistency checks establish full producer or cross-lane parity.
+
+After Chris approved up to three host-side audited restore attempts when the platform lane
+was free, the first pass restored all six affected test graphs with `NuGetAudit=true` and
+exit code 0: field-runtime, kernel schema-validation, Forms.Engine, Views, the Blazor UI
+aggregate, and .NET UI support. The pass used normal project-local outputs and ran no host
+builds or tests. The new .NET regressions still require sandboxed execution; restore success
+is not implementation or test evidence.
 
 The schema binding retains validator identity as well as execution. A number kind
 with `total_digits: 3, fraction_digits: 1` and one with `total_digits: 4,

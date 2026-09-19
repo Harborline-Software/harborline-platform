@@ -1,7 +1,6 @@
 using System.Text.Json;
 using Harborline.Contracts.Fields;
 using Harborline.Foundation.Assets.Common;
-using Harborline.Foundation.Crypto;
 using Xunit;
 
 namespace Harborline.Foundation.FieldRuntime.Tests;
@@ -11,10 +10,10 @@ public sealed class ValueDomainRuntimeTests
     [Theory]
     [InlineData(false, 0, FieldEditorKind.None)]
     [InlineData(false, 1, FieldEditorKind.SingleValue)]
-    [InlineData(false, 2, FieldEditorKind.ChoiceList)]
+    [InlineData(false, 2, FieldEditorKind.RadioGroup)]
     [InlineData(true, 0, FieldEditorKind.None)]
     [InlineData(true, 1, FieldEditorKind.SingleValue)]
-    [InlineData(true, 2, FieldEditorKind.TaxonomyPicker)]
+    [InlineData(true, 2, FieldEditorKind.RadioGroup)]
     public async Task Source_and_readable_set_cardinality_choose_the_editor(bool taxonomy, int readable, FieldEditorKind editor)
     {
         var fixture = new DomainFixture();
@@ -113,7 +112,7 @@ public sealed class ValueDomainRuntimeTests
         // Removing the runtime's read-authority filter must expose "restricted"
         // and change the editor cardinality, failing both consumer observations.
         var tenant = new TenantId("tenant-a");
-        var scope = new FieldDomainScope(tenant, PrincipalId.FromBytes(new byte[32]));
+        var scope = new FieldDomainScope(tenant, "actor-a");
         IFieldDomainRuntime runtime = new ValueDomainRuntime(new TaxonomySource(tenant), new ReadAuthority());
 
         var resolved = await runtime.ResolveAsync(

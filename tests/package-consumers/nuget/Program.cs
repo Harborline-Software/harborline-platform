@@ -59,6 +59,9 @@ if (FieldRuntime.ValueDomainAdmission.Validate(
     "/fields/status/value_domain").Count != 0)
     throw new InvalidOperationException("Packed field runtime did not admit the literal-set source.");
 
+await FieldRuntimeSchemaProbe.VerifyAsync();
+await FieldRuntimeDomainProbe.VerifyAsync();
+
 if (typeof(HarborlineButton).Assembly.GetName().Name != "Harborline.UIAdapters.Blazor")
     throw new InvalidOperationException("UI assembly identity changed.");
 if (typeof(ButtonVariant).Assembly.GetName().Name != "Harborline.Foundation")

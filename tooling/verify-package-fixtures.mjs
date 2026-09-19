@@ -953,7 +953,12 @@ function verifyNuget() {
     }
   }
   cpSync(resolve(root, 'tests/package-consumers/nuget'), consumer, { recursive: true })
-  const output = runNugetConsumer(consumer, packageCache).output.trim().split('\n').at(-1)
+  const consumerOutputLines = runNugetConsumer(consumer, packageCache).output.trim().split('\n')
+  const output = consumerOutputLines.at(-1)
+  const fieldRuntimeSchemaBehavior = consumerOutputLines.find(line => line.startsWith('FIELD_RUNTIME_SCHEMA_PACKAGE_PASS:'))
+  if (!fieldRuntimeSchemaBehavior) throw new Error('Packed field-runtime schema consumer did not emit its completion proof')
+  const fieldRuntimeDomainBehavior = consumerOutputLines.find(line => line.startsWith('FIELD_RUNTIME_DOMAIN_PACKAGE_PASS:'))
+  if (!fieldRuntimeDomainBehavior) throw new Error('Packed field-runtime domain consumer did not emit its completion proof')
   const assets = readFileSync(resolve(consumer, 'obj/project.assets.json'), 'utf8')
   if (assets.includes(resolve(root, 'projections')) || /"type"\s*:\s*"project"/.test(assets)) {
     throw new Error('NuGet consumer resolved a source or project dependency')
@@ -1103,6 +1108,8 @@ function verifyNuget() {
     sourceOrProjectDependencies: 0,
     assemblyAmbiguities: 0,
     harborlineArtifactsFromSingleCohort: true,
+    fieldRuntimeSchemaBehavior,
+    fieldRuntimeDomainBehavior,
     formsEngineDirectPackageReferences: formsEngineDirectReferences,
     formsEngineTransitiveHarborlineArtifacts: formsEngineHarborlineNodes.length,
     formsEngineAuthoringHostBehavior: formsEngineConsumerOutput,

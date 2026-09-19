@@ -46,13 +46,15 @@ internal static class FormContractMapper
         JsonDocument? candidate,
         IReadOnlySet<string> sensitiveFields,
         IReadOnlySet<string> withheldFields,
-        RuleEvaluationResult? rules)
+        RuleEvaluationResult? rules,
+        IReadOnlyDictionary<string, FormBoundField>? bindings = null)
     {
         var readable = FormCandidateEvaluator.ReadableFields(scope, definition);
         var projected = new Dictionary<string, Contract.FormViewField>(StringComparer.Ordinal);
         foreach (var (name, field) in definition.Overlay.Fields)
         {
-            var isReadable = readable.Contains(name) && !withheldFields.Contains(name);
+            var binding = bindings?.GetValueOrDefault(name);
+            var isReadable = readable.Contains(name) && !withheldFields.Contains(name) && binding?.Readable != false;
             var ruleState = rules?.Visibility.GetValueOrDefault($"field:{name}");
             var presentation = RulePresentationFor(name, rules);
             var value = isReadable && candidate?.RootElement.TryGetProperty(name, out var element) == true
@@ -63,7 +65,8 @@ internal static class FormContractMapper
                 Name = name,
                 Label = ToText(field.Label),
                 HelpText = field.HelpText is null ? default : Contract.Optional<Contract.InternationalizedText?>.Some(ToText(field.HelpText)),
-                ControlHint = field.ControlHint is null ? default : Contract.Optional<string?>.Some(field.ControlHint),
+                ControlHint = isReadable && binding?.Constraints.Editor is { } editor ? Contract.Optional<string?>.Some(editor.ToString()) : default,
+                PermittedValues = isReadable && binding?.Constraints.Values is { } values ? Contract.Optional<IReadOnlyList<string>>.Some(values) : default,
                 IsSensitive = sensitiveFields.Contains(name) || field.PiiSensitivity == State.PiiSensitivity.Sensitive,
                 IsReadable = isReadable,
                 Value = value,

@@ -1,5 +1,5 @@
 using Harborline.Foundation.Assets.Common;
-using Harborline.Foundation.Crypto;
+using System.Text.Json;
 
 namespace Harborline.Contracts.Fields;
 
@@ -27,12 +27,14 @@ public enum FieldEditorKind
     TaxonomyPicker,
     /// <summary>A choice among predicate-matching records.</summary>
     RecordPicker,
+    /// <summary>A small set of permitted readable choices.</summary>
+    RadioGroup,
 }
 
 /// <summary>The explicit tenant and principal for a domain read.</summary>
 /// <param name="Tenant">The non-sentinel tenant isolation scope.</param>
 /// <param name="Principal">The caller whose read authority applies.</param>
-public sealed record FieldDomainScope(TenantId Tenant, PrincipalId Principal);
+public sealed record FieldDomainScope(TenantId Tenant, string Principal);
 
 /// <summary>A caller-visible resolution; unreadable members and their counts are not exposed.</summary>
 /// <param name="SourceKind">The source named by the declaration.</param>
@@ -64,6 +66,7 @@ public sealed record FieldDomainAttribution(
 /// <param name="Values">Readable permitted values; null means no domain was declared.</param>
 /// <param name="Sources">Original source and predicate attribution for each contributing domain.</param>
 /// <param name="SnapshotRevision">The complete pinned revision used for the proof.</param>
+/// <param name="Editor">The shared runtime's choice for the final readable intersection, absent without a domain.</param>
 public sealed record ResolvedFieldConstraints(
     bool Required,
     int MinimumCount,
@@ -71,11 +74,20 @@ public sealed record ResolvedFieldConstraints(
     IReadOnlyList<string> ReadRoleIds,
     IReadOnlyList<string>? Values,
     IReadOnlyList<FieldDomainAttribution> Sources,
-    string SnapshotRevision);
+    string SnapshotRevision,
+    FieldEditorKind? Editor = null);
 
 /// <summary>The shared permitted-value and editor-choice interpreter used by member consumers.</summary>
 public interface IFieldDomainRuntime
 {
+    /// <summary>Checks required, multiplicity, readable membership and each original scalar against its compiled kind.
+    /// Undefined or null denotes an absent value; arrays are repeated values, never scalar containers.</summary>
+    IReadOnlyList<FieldRefusal> Validate(
+        ResolvedFieldConstraints constraints,
+        ICompiledFieldKind kind,
+        JsonElement value,
+        string jsonPointer);
+
     /// <summary>Resolves one declaration without returning any unreadable value.</summary>
     ValueTask<ResolvedValueDomain> ResolveAsync(
         ValueDomainDefinition domain,

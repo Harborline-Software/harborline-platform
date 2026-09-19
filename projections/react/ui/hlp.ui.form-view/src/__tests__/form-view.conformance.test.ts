@@ -33,17 +33,17 @@ function canonicalField(overrides: Partial<CanonicalFormViewField> = {}): Canoni
   }
 }
 
-describe('Form View revision-1 shared fixtures', () => {
+describe('Form View revision-2 shared fixtures', () => {
   it('preserves the complete 29-name pinned export surface', () => {
     const value = fixture(sharedCases, 'form-view.complete-export-surface')
     expect(pinnedExportNames).toHaveLength((value.input as { sourceExportCount: number }).sourceExportCount)
     expect(new Set(pinnedExportNames).size).toBe(29)
   })
 
-  it('derives the binding from canonical revision-4 wire contracts', () => {
+  it('derives the binding from canonical revision-6 wire contracts', () => {
     const owner = fixture(sharedCases, 'form-view.canonical-owner').expected as { owner: string; minimumRevision: number }
     fixture(sharedCases, 'form-view.wire-identity')
-    expect(owner).toEqual({ owner: 'hlp.contracts.forms', minimumRevision: 4 })
+    expect(owner).toEqual({ owner: 'hlp.contracts.forms', minimumRevision: 6 })
     expectTypeOf<FormView>().toMatchTypeOf<CanonicalFormView>()
 
     const wire: CanonicalFormView = { formId: 'inspection', version: '1.0.0', sections: [] }

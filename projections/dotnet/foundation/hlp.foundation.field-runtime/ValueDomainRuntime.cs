@@ -3,6 +3,8 @@ using Harborline.Contracts.Forms;
 using Harborline.Foundation.RuleEngine;
 using Harborline.Foundation.RuleEngine.Compilation;
 using System.Text.Json.Nodes;
+using System.Text.Json;
+using System.Globalization;
 
 namespace Harborline.Foundation.FieldRuntime;
 
@@ -36,19 +38,23 @@ public sealed class ValueDomainRuntime : IFieldDomainRuntime
         var members = ResolveMembers(domain, snapshot, jsonPointer, cancellationToken);
         var values = await ReadableValuesAsync(domain, members, scope, cancellationToken);
         var kind = SourceKind(domain);
-        return new(kind, values,
-            values.Count == 0 ? FieldEditorKind.None : values.Count == 1
-                ? FieldEditorKind.SingleValue : kind == ValueDomainSourceKind.LiteralSet
-                    ? FieldEditorKind.ChoiceList : kind == ValueDomainSourceKind.RecordQuery
-                        ? FieldEditorKind.RecordPicker : FieldEditorKind.TaxonomyPicker,
+        return new(kind, values, ChooseEditor(kind, values.Count),
             domain.RecordQuery?.Predicate, snapshot.Revision);
     }
+
+    private static FieldEditorKind ChooseEditor(ValueDomainSourceKind kind, int readableCount)
+        => readableCount == 0 ? FieldEditorKind.None : readableCount == 1 ? FieldEditorKind.SingleValue
+            // Five is runtime presentation policy; the corpus pins three radios and large-query typeahead.
+            : readableCount <= 5 ? FieldEditorKind.RadioGroup
+            : kind == ValueDomainSourceKind.LiteralSet ? FieldEditorKind.ChoiceList
+            : kind == ValueDomainSourceKind.RecordQuery ? FieldEditorKind.RecordPicker : FieldEditorKind.TaxonomyPicker;
 
     private async ValueTask<IFieldDomainSnapshot> OpenSnapshotAsync(FieldDomainScope scope, string jsonPointer,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         if (scope.Tenant.IsSystemSentinel) throw Refuse("field.value_domain_tenant_required", jsonPointer);
+        if (string.IsNullOrWhiteSpace(scope.Principal)) throw Refuse("field.value_domain_principal_required", jsonPointer);
         var snapshot = await source.OpenSnapshotAsync(scope.Tenant, cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
         if (snapshot.Tenant != scope.Tenant) throw Refuse("field.value_domain_tenant_mismatch", jsonPointer);
@@ -124,11 +130,12 @@ public sealed class ValueDomainRuntime : IFieldDomainRuntime
         IReadOnlyList<FieldDomainMember> members, FieldDomainScope scope, CancellationToken cancellationToken)
     {
         var values = new List<string>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var member in members)
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (await authority.CanReadAsync(scope, domain, member, cancellationToken)
-                && !values.Contains(member.Value, StringComparer.Ordinal)) values.Add(member.Value);
+                && seen.Add(member.Value)) values.Add(member.Value);
             cancellationToken.ThrowIfCancellationRequested();
         }
         return values.AsReadOnly();
@@ -186,7 +193,8 @@ public sealed class ValueDomainRuntime : IFieldDomainRuntime
         if (maximum < Math.Max(minimum, required ? 1 : 0) || roles is { Count: 0 } || membership is { Count: 0 })
             throw Refuse("field.constraint_intersection_empty", jsonPointer);
         return new(required, minimum, maximum, Array.AsReadOnly(roles?.ToArray() ?? []),
-            readable is null ? null : Array.AsReadOnly(readable.ToArray()), sources.AsReadOnly(), snapshot.Revision);
+            readable is null ? null : Array.AsReadOnly(readable.ToArray()), sources.AsReadOnly(), snapshot.Revision,
+            readable is null ? null : ChooseEditor(sources[0].SourceKind, readable.Count));
     }
 
     /// <inheritdoc />
@@ -228,12 +236,51 @@ public sealed class ValueDomainRuntime : IFieldDomainRuntime
             var parentReadable = await ReadableValuesAsync(original, parentMembers!, scope, cancellationToken);
             readable = Array.AsReadOnly(readable.Intersect(parentReadable, StringComparer.Ordinal).ToArray());
         }
+        var sources = new[] { declared.ValueDomain, domain }.OfType<ValueDomainDefinition>()
+            .Select(value => new FieldDomainAttribution(SourceKind(value), value.TaxonomyScheme, value.RecordQuery))
+            .Distinct().ToArray();
         return new(narrowed.Required, narrowed.MinimumCount, narrowed.MaximumCount,
             Array.AsReadOnly(narrowed.ReadRoleIds.ToArray()), readable,
-            Array.AsReadOnly<FieldDomainAttribution>(domain is null ? [] : [new(SourceKind(domain), domain.TaxonomyScheme, domain.RecordQuery)]),
-            snapshot.Revision);
+            Array.AsReadOnly(sources),
+            snapshot.Revision, readable is null ? null : ChooseEditor(SourceKind(declared.ValueDomain ?? domain!), readable.Count));
     }
 
     private static FieldAdmissionException Refuse(string code, string pointer)
         => new([new(code, pointer, "The declared field domain could not be resolved safely.")]);
+
+    /// <inheritdoc />
+    public IReadOnlyList<FieldRefusal> Validate(ResolvedFieldConstraints constraints,
+        ICompiledFieldKind kind, JsonElement value, string jsonPointer)
+    {
+        ArgumentNullException.ThrowIfNull(constraints);
+        ArgumentNullException.ThrowIfNull(kind);
+        var repeated = value.ValueKind == JsonValueKind.Array;
+        var count = value.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null ? 0
+            : repeated ? value.GetArrayLength() : 1;
+        var refusals = new List<FieldRefusal>();
+        if (constraints.Required && count == 0)
+            refusals.Add(new("field.required", jsonPointer, "A value is required."));
+        if (count < constraints.MinimumCount)
+            refusals.Add(new("field.minimum_count", jsonPointer, "The value count is below the admitted minimum."));
+        if (constraints.MaximumCount is { } maximum && count > maximum)
+            refusals.Add(new("field.maximum_count", jsonPointer, "The value count exceeds the admitted maximum."));
+        if (count == 0) return refusals;
+        var membership = constraints.Values is { } values ? new HashSet<string>(values, StringComparer.Ordinal) : null;
+        if (repeated)
+        {
+            var index = 0;
+            foreach (var item in value.EnumerateArray())
+                ValidateScalar(item, jsonPointer + "/" + (index++).ToString(CultureInfo.InvariantCulture));
+        }
+        else ValidateScalar(value, jsonPointer);
+        return refusals;
+
+        void ValidateScalar(JsonElement item, string pointer)
+        {
+            refusals.AddRange(kind.Validate(item, pointer));
+            var member = item.ValueKind == JsonValueKind.String ? item.GetString() : item.GetRawText();
+            if (membership is not null && (member is null || !membership.Contains(member)))
+                refusals.Add(new("field.value_outside_domain", pointer, "The value is outside the permitted field domain."));
+        }
+    }
 }

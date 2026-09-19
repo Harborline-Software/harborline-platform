@@ -91,7 +91,7 @@ public sealed class RecordDomainRuntimeTests
         const string predicate = "{\"==\":[{\"var\":\"field.active\"},true]}";
         var resolved = await fixture.Runtime().ResolveAsync(new(RecordQuery: new("case", predicate)), DomainFixture.Scope, "/domain");
         Assert.Equal(new[] { " A ", "a" }, resolved.Values);
-        Assert.Equal(FieldEditorKind.RecordPicker, resolved.Editor);
+        Assert.Equal(FieldEditorKind.RadioGroup, resolved.Editor);
         Assert.Equal(ValueDomainSourceKind.RecordQuery, resolved.SourceKind);
         Assert.Equal(predicate, resolved.Predicate);
         Assert.Equal("snapshot-1", resolved.SnapshotRevision);

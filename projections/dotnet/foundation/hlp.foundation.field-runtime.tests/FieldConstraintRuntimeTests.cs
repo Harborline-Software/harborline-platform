@@ -57,7 +57,9 @@ public sealed class FieldConstraintRuntimeTests
         var runtime = fixture.Runtime();
         var result = await runtime.NarrowAsync(floor, child, DomainFixture.Scope, "/proof");
         Assert.Equal(new[] { "a" }, result.Values);
-        Assert.Equal(new RecordQueryValueSource("case", predicate), Assert.Single(result.Sources).RecordQuery);
+        Assert.Equal(new RecordQueryValueSource("case", predicate),
+            Assert.Single(result.Sources, source => source.SourceKind == ValueDomainSourceKind.RecordQuery).RecordQuery);
+        Assert.Contains(result.Sources, source => source.SourceKind == ValueDomainSourceKind.LiteralSet);
         fixture.Hidden.Add("a");
         var later = await runtime.NarrowAsync(floor, child, DomainFixture.Scope, "/proof");
         Assert.NotNull(later.Values);
@@ -163,7 +165,7 @@ public sealed class FieldConstraintRuntimeTests
             new(false, 0, null, [], new(TaxonomyScheme: second)), DomainFixture.Scope, "/narrow");
         Assert.Equal(new[] { "a" }, result.Values);
         Assert.Equal(1, fixture.Opens);
-        Assert.Equal(second, Assert.Single(result.Sources).TaxonomyScheme);
+        Assert.Equal(new[] { first, second }, result.Sources.Select(source => source.TaxonomyScheme));
     }
 
     [Theory]
