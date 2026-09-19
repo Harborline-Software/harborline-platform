@@ -211,6 +211,27 @@ S0/S1 left these `null`/empty; **S2 (below) populates them** — the participati
     booking gate now applies shared-calendar exceptions — see below — but the broader grant-backed
     booking-authorization composition stays deferred); the EF/durable store (the in-memory stores stand).
 - **S4 — reminders.** Reminder config → schedule-trigger → Notifications block (pure composition).
+- **T-626 — the availability substrate contract (DES-0033, ADR 0080).** `IAvailabilityRuntime.Read`
+  is the one composition every member reaches — a form offering slots, a view drawing a calendar, a
+  workflow governing a booking, a rule expressing eligibility, and Booking's own gate. `FreeBusyService`
+  implements it beside the free/busy query; `BookingService` reads through it and no longer carries its
+  own shared-exception resolver (an architecture fence refuses a second one). The contract:
+  - **The window is mandatory.** `AvailabilityRequest` carries nullable `FromUtc`/`ToUtc`; an omitted
+    endpoint or an inverted window is refused **before any store read** as an `AvailabilityRefusal`
+    (`AVAILABILITY_WINDOW_UNBOUNDED` with pointer `from`/`to`, `AVAILABILITY_WINDOW_INVERTED`), the
+    shape the API maps to HTTP 400. No default window is ever substituted.
+  - **Capacity is two kinds.** `ResourceCapacity.Exclusive(resource, buffer)` or
+    `ResourceCapacity.Pool(resource, size, buffer)` — admitted Resource data Booking authors and this
+    runtime consumes. A pool is full where the overlap depth of current allocations and holds
+    (`Bookable` + `Tentative` + `Blocking` events) reaches its size; `Remaining` is derived per read.
+  - **Buffers are part of the hold.** The candidate's footprint is widened by the resource's
+    setup/cleanup (`EventPadding`) before occupancy is tested; the supply test stays on the visible
+    window, so a buffer may spill past a supply edge exactly as event padding does.
+  - **The required set is a conjunction.** `AvailabilityAnswer.Available` is true only when every
+    resource covers the whole window plus its buffers; each `ResourceAvailabilityRead` says why not
+    (`OutsideSupply` / `CapacityExhausted`) and carries `Free`/`Busy` clipped to the window.
+  - **Derived at every read, never stored.** Two reads spanning an intervening allocation, hold,
+    release or expiry differ with no invalidation call between them.
 
 ## Dependencies
 

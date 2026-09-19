@@ -1338,7 +1338,8 @@ function verifySchedulingCapability() {
   cpSync(resolve(root, 'tests/package-consumers/scheduling-nuget'), consumer, { recursive: true })
   copyFileSync(corpusSource, resolve(consumer, 'scheduling-vertical-cases.json'))
   const direct = assertDirectPackageReferences(consumer, ['Harborline.Blocks.Calendar', 'Harborline.Blocks.Scheduling', 'Harborline.Foundation.Scheduling'], 'Scheduling')
-  const [packageProof, capabilityProof] = proofLines(runNugetConsumer(consumer, packageCache), ['SCHEDULING_PACKAGE_PASS:', 'SCHEDULING_CAPABILITY_PASS:'], 'Scheduling')
+  // T-626: the availability substrate proof — four member callers through the released IAvailabilityRuntime.
+  const [packageProof, availabilityProof, capabilityProof] = proofLines(runNugetConsumer(consumer, packageCache), ['SCHEDULING_PACKAGE_PASS:', 'AVAILABILITY_SUBSTRATE_PASS:', 'SCHEDULING_CAPABILITY_PASS:'], 'Scheduling')
   // Derived from the landed csprojs: Calendar -> Contracts + Foundation.Scheduling;
   // Blocks.Scheduling and Foundation.Scheduling add no Harborline package edges.
   const closure = assertPackageClosure(
@@ -1348,7 +1349,7 @@ function verifySchedulingCapability() {
     /(?:Forms|Reports|Workflows|EntityViews|Kernel|Blazor|React)/i,
   )
 
-  return { id: 'scheduling-capability-vertical', status: 'PASS', anchors: 174, hostRows: 88, crossLanePairs: 0, corpusSha256: sha256(corpusSource), directPackageReferences: direct, packageClosure: closure, sourceOrProjectDependencies: 0, packageProof, capabilityProof }
+  return { id: 'scheduling-capability-vertical', status: 'PASS', anchors: 174, hostRows: 88, crossLanePairs: 0, corpusSha256: sha256(corpusSource), directPackageReferences: direct, packageClosure: closure, sourceOrProjectDependencies: 0, packageProof, availabilityProof, capabilityProof }
 }
 
 

@@ -11,6 +11,7 @@
       "Expand events to occurrences and occurrence instants with DST wall-clock retention (an event keeps its civil wall-clock time across transitions; explicit IANA zone ids resolved by TimezoneResolver, never TimeZoneInfo.Local)",
       "Expand availability windows and derive free/busy and viewer-scoped free/busy over shared-calendar layers under the visibility policy",
       "Book against availability with padding envelopes and occupancy limits, yielding typed booking outcomes",
+      "Read availability through the substrate contract (IAvailabilityRuntime, T-626): a mandatory bounded window refused before any store read, exclusive or pool capacity derived from supply and current occupancy, and the required-resource set as a conjunction over the window plus each resource's buffers",
       "Answer the calendar context query over subscriptions, owned and shared calendars, and participations"
     ],
     "context": "The module reads NO ambient time: callers supply civil dates, instants, and zone ids; entity timestamps are caller-supplied with deterministic defaults when omitted (the pinned package's six executable ambient-clock reads were deliberately not ported — the full 163-case pinned suite proves the behavior identical without them). Recurrence expansion composes the packed hlp.foundation.scheduling RRULE engine — the draft-era local compatibility copy was replaced by the real module reference at merge review to prevent cross-assembly type ambiguity."
