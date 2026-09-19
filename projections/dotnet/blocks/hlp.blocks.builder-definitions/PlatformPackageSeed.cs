@@ -95,6 +95,7 @@ public static class PlatformPackageSeed
             Item("platform-package-ck-7", PlatformSeedStage.Views, new
             {
                 members = pillarViews,
+                configurationGenerationDetail = ConfigurationGenerationDetail.Definition,
                 listDefaultShape = "table",
                 showInListsOwner = "views",
                 authoring = new

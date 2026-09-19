@@ -17,6 +17,7 @@ const BUILD_INPUTS = [
   'Directory.Packages.props',
   'global.json',
   'package.json',
+  '_shared',
   'catalog',
   'conformance',
   'projections',

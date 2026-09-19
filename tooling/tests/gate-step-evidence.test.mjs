@@ -7,8 +7,8 @@ import test from 'node:test'
 
 import {decideStepReuse, hashStepInputs, loadPreviousPassEvidence} from '../gate-step-evidence.mjs'
 
-function commitTree(repositoryRoot, content) {
-  const target = resolve(repositoryRoot, 'specs/modules/ui/hlp.ui.button/interface.yaml')
+function commitTree(repositoryRoot, content, targetPath = 'specs/modules/ui/hlp.ui.button/interface.yaml') {
+  const target = resolve(repositoryRoot, targetPath)
   mkdirSync(resolve(target, '..'), {recursive: true})
   writeFileSync(target, content)
   execFileSync('git', ['add', '.'], {cwd: repositoryRoot})
@@ -50,6 +50,29 @@ test('a UI-touching tree change forces ui-shared-conformance to run', () => {
       decideStepReuse({stepId: 'ui-shared-conformance', inputHash: hashB, previousPass: passEvidence(hashA)}),
       {mode: 'run-step', reason: 'declared input hash changed'},
     )
+  } finally {
+    rmSync(repositoryRoot, {recursive: true, force: true})
+  }
+})
+
+test('changing a released detail definition invalidates native and shared rendering evidence', () => {
+  const repositoryRoot = mkdtempSync(resolve(tmpdir(), 'harborline-gate-pack-evidence-'))
+  try {
+    execFileSync('git', ['init', '--quiet'], {cwd: repositoryRoot})
+    execFileSync('git', ['config', 'user.email', 'gate-test@harborline.invalid'], {cwd: repositoryRoot})
+    execFileSync('git', ['config', 'user.name', 'Gate Test'], {cwd: repositoryRoot})
+    const target = '_shared/packs/platform/platform-pack.export.json'
+    const treeA = commitTree(repositoryRoot, '{"detail":"generation-v1"}\n', target)
+    const treeB = commitTree(repositoryRoot, '{"detail":"generation-v2"}\n', target)
+    for (const stepId of ['native-tests', 'ui-shared-conformance']) {
+      const hashA = hashStepInputs({repositoryRoot, testedTree: treeA, stepId})
+      const hashB = hashStepInputs({repositoryRoot, testedTree: treeB, stepId})
+      assert.notEqual(hashB, hashA, `${stepId} must observe the released definition change`)
+      const previousPass = passEvidence(hashA)
+      previousPass.gate.results[0].id = stepId
+      assert.deepEqual(decideStepReuse({stepId, inputHash: hashB, previousPass}),
+        {mode: 'run-step', reason: 'declared input hash changed'})
+    }
   } finally {
     rmSync(repositoryRoot, {recursive: true, force: true})
   }
