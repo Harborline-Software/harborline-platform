@@ -500,11 +500,11 @@
       }
     },
     "hlp.blocks.calendar": {
-      "interface": {"path": "specs/modules/blocks/hlp.blocks.calendar/interface.yaml", "revision": 1},
+      "interface": {"path": "specs/modules/blocks/hlp.blocks.calendar/interface.yaml", "revision": 2},
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "The calendar engine produces occurrences, free/busy results, booking outcomes, and context answers consumed by scheduler/gantt renderers; it renders nothing."},
       "owner": "platform-blocks",
-      "dependencies": ["hlp.contracts.identities", "hlp.foundation.scheduling"],
+      "dependencies": ["hlp.contracts.identities", "hlp.foundation.actor", "hlp.foundation.scheduling"],
       "status": "implemented",
       "depth": {
         "disposition": "deep-module",
@@ -524,7 +524,7 @@
             "id": "Harborline.Blocks.Calendar",
             "assembly": "Harborline.Blocks.Calendar",
             "manifest": "projections/dotnet/blocks/hlp.blocks.calendar/Harborline.Blocks.Calendar.csproj",
-            "dependencies": ["Harborline.Contracts", "Harborline.Foundation.Scheduling"],
+            "dependencies": ["Harborline.Contracts", "Harborline.Foundation.Authorization", "Harborline.Foundation.Scheduling"],
             "identityAuthority": "Harborline",
             "producerRepository": "harborline-platform",
             "distribution": "internal-only",

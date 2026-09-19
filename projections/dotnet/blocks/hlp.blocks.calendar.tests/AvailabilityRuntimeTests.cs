@@ -39,7 +39,7 @@ public sealed class AvailabilityRuntimeTests
         var composition = new FreeBusyService(
             availStore, new AvailabilityExpansionService(rrule), eventStore, new CalendarEventExpansionService(rrule),
             new SharedCalendarResolver(subStore, sharedStore), visibilityPolicy: null);
-        var booking = new BookingService(composition, availStore, eventStore, new DefaultPaddingPolicy(EventPadding.None));
+        var booking = new BookingService(composition, availStore, eventStore, new DefaultPaddingPolicy(EventPadding.None), new FixedRequester(Actor));
         return new Sut(availStore, sharedStore, subStore, eventStore, composition, composition, booking);
     }
 
@@ -129,7 +129,7 @@ public sealed class AvailabilityRuntimeTests
 
         var freeBusy = await sut.Composition.FreeBusy(Acme, Doctor, Utc(0), Utc(23));
         var runtime = await sut.Runtime.Read(Acme, Window(Utc(0), Utc(23), ResourceCapacity.Exclusive(Doctor)));
-        var booked = await sut.Booking.Book(Acme, Doctor, "On the holiday", Utc(10), Utc(11), Actor);
+        var booked = await sut.Booking.Book(Acme, Doctor, "On the holiday", Utc(10), Utc(11));
 
         Assert.Empty(freeBusy.FreeSlots);
         Assert.Equal(freeBusy.FreeSlots, runtime.Resources[0].Free);
@@ -246,7 +246,7 @@ public sealed class AvailabilityRuntimeTests
         var request = Window(Utc(9), Utc(17), ResourceCapacity.Exclusive(Doctor));
 
         var before = await sut.Runtime.Read(Acme, request);
-        var booked = await sut.Booking.Book(Acme, Doctor, "Checkup", Utc(10), Utc(11), Actor);
+        var booked = await sut.Booking.Book(Acme, Doctor, "Checkup", Utc(10), Utc(11));
         var after = await sut.Runtime.Read(Acme, request);
 
         Assert.True(booked.Success);

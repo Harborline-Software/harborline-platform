@@ -6,6 +6,7 @@ using Harborline.Blocks.Calendar.DependencyInjection;
 using Harborline.Blocks.Calendar.Models;
 using Harborline.Blocks.Calendar.Services;
 using Harborline.Foundation.Assets.Common;
+using Harborline.Foundation.Authorization;
 using Harborline.Foundation.Scheduling;
 
 var json = new JsonSerializerOptions(JsonSerializerDefaults.Web);
@@ -67,7 +68,8 @@ Console.WriteLine($"SCHEDULING_CAPABILITY_PASS:{JsonSerializer.Serialize(new { h
 
 void ProveFailedConditions()
 {
-    var allowed = new[] { "Harborline.Blocks.Calendar", "Harborline.Blocks.Scheduling", "Harborline.Foundation.Scheduling" };
+    // T-568: the booking requester is the host's IPartyContext, so the host names the actor package too.
+    var allowed = new[] { "Harborline.Blocks.Calendar", "Harborline.Blocks.Scheduling", "Harborline.Foundation.Scheduling", "Harborline.Foundation.Authorization" };
     var direct = Assembly.GetEntryAssembly()!.GetReferencedAssemblies().Select(x => x.Name!).Where(x => x.StartsWith("Harborline.")).ToArray();
     Check(direct.All(x => allowed.Contains(x) || x == "Harborline.Contracts"), "closure pollution");
     Check(new HostState().UnknownIsAbsent() is IStatusCodeHttpResult { StatusCode: 404 }, "absence must be 404 where the contract says missing");
@@ -80,9 +82,10 @@ void ProveFailedConditions()
 // identical admitted inputs. Nothing here differences an interval; every answer is the runtime's.
 async Task ProveAvailabilitySubstrate()
 {
-    var services = new ServiceCollection().AddBlocksCalendar().BuildServiceProvider();
-    var tenant = new TenantId("acme");
     var actor = Guid.NewGuid();
+    // T-568: the host supplies the authenticated requester; the package attributes every booking to it.
+    var services = new ServiceCollection().AddBlocksCalendar().AddSingleton<IPartyContext>(new PackedRequester(actor)).BuildServiceProvider();
+    var tenant = new TenantId("acme");
     var doctor = ParticipantRef.Party("party-dr-smith");
     var bay = ParticipantRef.Asset("asset-bay");
     var monday = new DateOnly(2026, 3, 2);
@@ -94,7 +97,11 @@ async Task ProveAvailabilitySubstrate()
     var holidays = SharedCalendar.Create(tenant, "Clinic Holidays").AddException(ExceptionSpan.Create(wednesday, wednesday, "Closed"));
     await services.GetRequiredService<ISharedCalendarStore>().SaveAsync(holidays);
     await services.GetRequiredService<ICalendarSubscriptionStore>().SubscribeAsync(CalendarSubscription.Create(tenant, doctor, holidays.Id));
-    Check((await services.GetRequiredService<IBookingService>().Book(tenant, doctor, "Checkup", Utc(3, 10), Utc(3, 11), actor)).Success, "booking through the package");
+    using (var scope = services.CreateScope())
+    {
+        var booked = await scope.ServiceProvider.GetRequiredService<IBookingService>().Book(tenant, doctor, "Checkup", Utc(3, 10), Utc(3, 11));
+        Check(booked.Success && booked.Event!.CreatedBy == actor, "booking through the package is attributed to the authenticated requester");
+    }
     var events = services.GetRequiredService<ICalendarEventStore>();
     for (var i = 0; i < 2; i++)
     {
@@ -134,6 +141,11 @@ async Task ProveAvailabilitySubstrate()
 }
 
 static void Check(bool condition, string message) { if (!condition) throw new InvalidOperationException("FAILED: " + message); }
+
+sealed class PackedRequester(Guid party) : IPartyContext
+{
+    public ValueTask<Guid> GetCurrentPartyIdAsync(CancellationToken cancellationToken = default) => new(party);
+}
 
 sealed class HostState
 {
