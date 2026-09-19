@@ -36,7 +36,8 @@ public sealed class AccessViewFilterTests
         public ValueTask<AuthorizationDecisionEvidence> DecideAsync(AccessRequest request, CancellationToken cancellationToken = default)
         {
             Instants.Add(request.At);
-            var scope = new AccessScopeEvaluator().Evaluate("{\"==\":[{\"var\":\"record.owner\"},{\"var\":\"principal\"}]}", request,
+            var scope = new AccessScopeEvaluator(_ => new Harborline.Foundation.RuleEngine.GuardEvaluator()).Evaluate(
+                "{\"==\":[{\"var\":\"record.owner\"},{\"var\":\"principal\"}]}", request,
                 new(request.Principal, request.Tenant, request.Record.Kind, request.Record.Id, request.At, ["record.owner", "principal"]));
             return ValueTask.FromResult(new AuthorizationDecisionEvidence(request, scope.Allowed, scope.Reason, "grant:owner", [], []));
         }

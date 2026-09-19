@@ -37,9 +37,12 @@ public sealed class AccessScopeEvaluator
 {
     private readonly Func<DateTimeOffset, IGuardEvaluator> _evaluator;
 
-    /// <summary>Uses the shared evaluator at the predicate instant; hosts may supply its instrumented adapter.</summary>
-    public AccessScopeEvaluator(Func<DateTimeOffset, IGuardEvaluator>? evaluator = null) =>
-        _evaluator = evaluator ?? (at => new GuardEvaluator(clock: new PredicateClock(at)));
+    /// <summary>
+    /// Uses the host's shared evaluator adapter at the predicate instant. The host owns the clock
+    /// binding so this authorization contract cannot introduce a second production clock seam.
+    /// </summary>
+    public AccessScopeEvaluator(Func<DateTimeOffset, IGuardEvaluator> evaluator) =>
+        _evaluator = evaluator ?? throw new ArgumentNullException(nameof(evaluator));
 
     /// <summary>Evaluates once under matching authority; undeclared reads never reach the evaluator.</summary>
     public AccessCheck Evaluate(string expression, AccessRequest request, AccessAuthorityContext? authority,
@@ -99,10 +102,5 @@ public sealed class AccessScopeEvaluator
             if (!ReferencesAdmitted(value, admitted)) return false;
         }
         return true;
-    }
-
-    private sealed class PredicateClock(DateTimeOffset at) : TimeProvider
-    {
-        public override DateTimeOffset GetUtcNow() => at;
     }
 }
