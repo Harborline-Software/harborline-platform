@@ -32,8 +32,7 @@ public sealed class BookingTests
         var availExpansion = new AvailabilityExpansionService(rrule);
         var eventStore = new InMemoryCalendarEventStore();
         var freeBusy = new FreeBusyService(availStore, availExpansion, eventStore, expansion);
-        var booking = new BookingService(
-            freeBusy, availStore, availExpansion, eventStore, new DefaultPaddingPolicy(EventPadding.None));
+        var booking = new BookingService(freeBusy, availStore, eventStore, new DefaultPaddingPolicy(EventPadding.None));
         return new Sut(availStore, eventStore, freeBusy, booking);
     }
 
@@ -255,10 +254,9 @@ public sealed class BookingTests
         var resolver = new SharedCalendarResolver(subStore, sharedStore);
         var eventStore = new InMemoryCalendarEventStore();
         var freeBusy = new FreeBusyService(availStore, availExpansion, eventStore, expansion, resolver, visibilityPolicy: null);
-        // The CALENDAR-LAYERS booking constructor — the booking gate resolves the SAME shared-calendar
-        // exceptions free/busy does, so the view (free/busy) and the gate (Book) agree.
-        var booking = new BookingService(
-            freeBusy, availStore, availExpansion, eventStore, new DefaultPaddingPolicy(EventPadding.None), resolver);
+        // T-626: the booking gate reads through the SAME composition free/busy is (FreeBusyService is the
+        // IAvailabilityRuntime), so the view (free/busy) and the gate (Book) cannot disagree.
+        var booking = new BookingService(freeBusy, availStore, eventStore, new DefaultPaddingPolicy(EventPadding.None));
         return new LayeredSut(availStore, sharedStore, subStore, freeBusy, booking);
     }
 
