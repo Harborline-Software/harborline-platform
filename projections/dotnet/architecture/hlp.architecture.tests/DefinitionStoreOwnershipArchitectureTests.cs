@@ -25,9 +25,6 @@ public sealed class DefinitionStoreOwnershipArchitectureTests
         ["Harborline.Blocks.EntityViews.InMemoryViewDefinitionStore"] = (
             "projections/dotnet/blocks/hlp.blocks.entity-views/ViewDefinitionStore.cs",
             "07127313417a6f2120c3833dd9923dcaf8f94ba6a0548b7515caca0f5851cbe9", "T-486"),
-        ["Harborline.Foundation.DataExchange.InMemoryDataExchangeDefinitionStore"] = (
-            "projections/dotnet/foundation/hlp.foundation.data-exchange/DataExchangeDefinition.cs",
-            "ca5abb6033488f2bbd8820a72b325fc789bd090043ba6836a2c84e94f2b93599", "T-600"),
         ["Harborline.Foundation.RuleAuthoring.InMemoryRuleCatalogStore"] = (
             "projections/dotnet/foundation/hlp.foundation.rule-authoring/RuleCatalog.cs",
             "baf33be5578d4e5e84b95303b7113f27a7d98326010b1ef86ce417bc658d7992", "T-588"),

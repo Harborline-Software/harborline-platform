@@ -14,5 +14,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../hlp.foundation.data-exchange/Harborline.Foundation.DataExchange.csproj" />
+    <ProjectReference Include="../../blocks/hlp.blocks.builder-definitions/Harborline.Blocks.BuilderDefinitions.csproj" />
   </ItemGroup>
 </Project>
