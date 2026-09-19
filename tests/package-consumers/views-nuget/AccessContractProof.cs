@@ -22,7 +22,7 @@ internal sealed class FixtureAuthorizationGate : IAuthorizationDecider
         cancellationToken.ThrowIfCancellationRequested();
         Requests.Add(request);
         var inForce = !Revoked && request.At >= ValidFrom && request.At < ValidUntil;
-        var scope = new AccessScopeEvaluator().Evaluate(
+        var scope = new AccessScopeEvaluator(_ => new Harborline.Foundation.RuleEngine.GuardEvaluator()).Evaluate(
             "{\"and\":[{\"==\":[{\"var\":\"record.owner\"},{\"var\":\"principal\"}]},{\"==\":[{\"var\":\"record.region\"}," + System.Text.Json.JsonSerializer.Serialize(Scope) + "]}]}",
             request, new(request.Principal, request.Tenant, request.Record.Kind, request.Record.Id, request.At,
                 ["record.owner", "record.region", "principal"]), cancellationToken);

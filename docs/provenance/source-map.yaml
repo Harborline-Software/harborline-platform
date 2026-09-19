@@ -484,7 +484,7 @@
         "projections/dotnet/blocks/hlp.blocks.entity-views.tests/ViewQueryRuntimeTests.cs": "4ab4b9dffc495a2e5a18c0732fa78ec462235c81fecde5843a0c174d3bb1cd99",
         "specs/modules/blocks/hlp.blocks.entity-views/interface.yaml": "77bafbe7445593c8f5048e6eb8629fb893d42b4ac623be8b2c775024922e33c9",
         "tests/package-consumers/views-nuget/Program.cs": "8cd6a494b6317a85a8e28d4f6a3aee51838e98cef41909ac95bbdb4056f148c8",
-        "tests/package-consumers/views-nuget/AccessContractProof.cs": "f4fb13d0081e525de5b834b64b849f5d8d2ace83e8f92d6cb4b1f5cca16be43f"
+        "tests/package-consumers/views-nuget/AccessContractProof.cs": "083e2238c397450f72dee5fd6edb620c327f728c0acca54326392dec21bdd308"
       },
       "nextGate": "Wave B: re-prove the 20 route rows at the narrowed Harborline persistence/API seam (loopback WebApplication) and build the views-capability-vertical package fixture (9 anchors + four-pair fallback/store indistinguishability); only that vertical flips the views gate."
     },
