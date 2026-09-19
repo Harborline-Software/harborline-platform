@@ -40,7 +40,7 @@ public sealed class PaddingTests
         var eventStore = new InMemoryCalendarEventStore();
         var freeBusy = new FreeBusyService(availStore, availExpansion, eventStore, expansion);
         var policy = new DefaultPaddingPolicy(defaultPadding ?? EventPadding.None);
-        var booking = new BookingService(freeBusy, availStore, eventStore, policy);
+        var booking = new BookingService(freeBusy, availStore, eventStore, policy, new FixedRequester(Actor));
         return new Sut(availStore, eventStore, freeBusy, booking);
     }
 
@@ -174,7 +174,7 @@ public sealed class PaddingTests
 
         // A 14:45 booking lands INSIDE the post-padding (14:30–15:00) → conflict, even though it is
         // past the VISIBLE end (14:30).
-        var outcome = await sut.Booking.Book(Acme, Doctor, "Into padding", Utc(day, 14, 45), Utc(day, 15, 0), Actor);
+        var outcome = await sut.Booking.Book(Acme, Doctor, "Into padding", Utc(day, 14, 45), Utc(day, 15, 0));
 
         Assert.False(outcome.Success);
         Assert.Equal(BookingOutcome.SlotConflict, outcome.RejectionReason);
@@ -195,7 +195,7 @@ public sealed class PaddingTests
         await sut.Events.SaveAsync(existing);
 
         // 15:00 is back-to-back with the 15:00 occupied end (half-open) — not a conflict.
-        var outcome = await sut.Booking.Book(Acme, Doctor, "After padding", Utc(day, 15, 0), Utc(day, 15, 30), Actor);
+        var outcome = await sut.Booking.Book(Acme, Doctor, "After padding", Utc(day, 15, 0), Utc(day, 15, 30));
 
         Assert.True(outcome.Success);
     }
@@ -216,7 +216,7 @@ public sealed class PaddingTests
         // A new 10:45–11:15 booking with 20-min PRE-padding → its occupied footprint starts at 10:25,
         // overlapping the earlier appt (ends 10:30). The candidate's OWN padding causes the conflict.
         var outcome = await sut.Booking.Book(
-            Acme, Doctor, "Pre-padded", Utc(day, 10, 45), Utc(day, 11, 15), Actor,
+            Acme, Doctor, "Pre-padded", Utc(day, 10, 45), Utc(day, 11, 15),
             padding: EventPadding.Of(TimeSpan.FromMinutes(20), TimeSpan.Zero));
 
         Assert.False(outcome.Success);
@@ -235,7 +235,7 @@ public sealed class PaddingTests
         // can be BOOKED (the visible slot fits), and the doctor's post-visit documentation may spill
         // past close without a conflict (nothing else is occupying 17:00–17:30).
         var outcome = await sut.Booking.Book(
-            Acme, Doctor, "Late with cleanup", Utc(day, 16, 30), Utc(day, 17, 0), Actor,
+            Acme, Doctor, "Late with cleanup", Utc(day, 16, 30), Utc(day, 17, 0),
             padding: EventPadding.Of(TimeSpan.Zero, TimeSpan.FromMinutes(30)));
 
         Assert.True(outcome.Success);
@@ -255,7 +255,7 @@ public sealed class PaddingTests
         var day = new DateOnly(2026, 3, 4);
         await SeedNineToFive(sut, Doctor, day);
 
-        var outcome = await sut.Booking.Book(Acme, Doctor, "Default-padded", Utc(day, 10, 0), Utc(day, 10, 30), Actor);
+        var outcome = await sut.Booking.Book(Acme, Doctor, "Default-padded", Utc(day, 10, 0), Utc(day, 10, 30));
 
         Assert.True(outcome.Success);
         // The booked event carries the policy default, with NO explicit override passed.
@@ -278,7 +278,7 @@ public sealed class PaddingTests
 
         var overridePadding = EventPadding.Of(TimeSpan.Zero, TimeSpan.FromMinutes(10));
         var outcome = await sut.Booking.Book(
-            Acme, Doctor, "Overridden", Utc(day, 10, 0), Utc(day, 10, 30), Actor, padding: overridePadding);
+            Acme, Doctor, "Overridden", Utc(day, 10, 0), Utc(day, 10, 30), padding: overridePadding);
 
         Assert.True(outcome.Success);
         Assert.Equal(overridePadding, outcome.Event!.Padding); // the override, not the default
@@ -293,7 +293,7 @@ public sealed class PaddingTests
         var day = new DateOnly(2026, 3, 4);
         await SeedNineToFive(sut, Doctor, day);
 
-        var outcome = await sut.Booking.Book(Acme, Doctor, "Unpadded", Utc(day, 10, 0), Utc(day, 11, 0), Actor);
+        var outcome = await sut.Booking.Book(Acme, Doctor, "Unpadded", Utc(day, 10, 0), Utc(day, 11, 0));
 
         Assert.True(outcome.Success);
         Assert.Equal(EventPadding.None, outcome.Event!.Padding);
@@ -465,7 +465,7 @@ public sealed class PaddingTests
         Assert.Equal(Utc(day, 13, 0), busy.EndUtc);
 
         // A booking adjacent to the unpadded appt (back-to-back, 13:00) still succeeds — no phantom padding.
-        var outcome = await sut.Booking.Book(Acme, Doctor, "Right after", Utc(day, 13, 0), Utc(day, 14, 0), Actor);
+        var outcome = await sut.Booking.Book(Acme, Doctor, "Right after", Utc(day, 13, 0), Utc(day, 14, 0));
         Assert.True(outcome.Success);
     }
 

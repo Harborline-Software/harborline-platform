@@ -130,7 +130,10 @@ S0/S1 left these `null`/empty; **S2 (below) populates them** — the participati
     `Bookable` event (the doctor as a `Resource`, the patient as an `Attendee`), enforcing
     **no-double-book** on the resource. The conflict check reads straight off free/busy
     (`NO_AVAILABILITY` when outside any availability window, `SLOT_CONFLICT` when the slot is occupied,
-    `SLOT_INVERTED` for a backwards slot). **No-double-book is enforced in-block** (the natural
+    `SLOT_INVERTED` for a backwards slot, `NO_REQUESTER` when no authenticated requester resolves). The
+    **requester is never a parameter**: `BookingService` reads it from the host's `IPartyContext` (the
+    kernel's authenticated context, `hlp.foundation.actor`) and records that Party as the event's
+    `CreatedBy`; no identity, no booking. **No-double-book is enforced in-block** (the natural
     single-node guard); the CP-class `blocks-scheduling.IScheduleReservationCoordinator` (kernel-lease
     Flease) is the **noted seam** for cross-node reservation serialization — a higher layer wires the
     booking through it using the same UTC slot, without dragging the kernel-lease CP machinery into

@@ -1,5 +1,6 @@
 using Harborline.Blocks.Calendar.Models;
 using Harborline.Foundation.Assets.Common;
+using Harborline.Foundation.Authorization;
 
 namespace Harborline.Blocks.Calendar.Services;
 
@@ -15,27 +16,36 @@ namespace Harborline.Blocks.Calendar.Services;
 /// stored event is expressed in local wall-clock and re-expands to the same UTC instant. It is not a
 /// second composition: the supply itself is derived by the runtime.
 /// </remarks>
+/// <remarks>
+/// The requester is the kernel's authenticated context (<see cref="IPartyContext"/>), never a
+/// caller-supplied id (T-568, L535): every booking is attributed to the Party it resolves, and a call
+/// with no resolvable identity is refused before any read.
+/// </remarks>
 public sealed class BookingService : IBookingService
 {
     private readonly IAvailabilityRuntime _runtime;
     private readonly IResourceAvailabilityStore _availabilityStore;
     private readonly ICalendarEventStore _eventStore;
     private readonly IPaddingPolicy _paddingPolicy;
+    private readonly IPartyContext _requester;
 
     public BookingService(
         IAvailabilityRuntime runtime,
         IResourceAvailabilityStore availabilityStore,
         ICalendarEventStore eventStore,
-        IPaddingPolicy paddingPolicy)
+        IPaddingPolicy paddingPolicy,
+        IPartyContext requester)
     {
         ArgumentNullException.ThrowIfNull(runtime);
         ArgumentNullException.ThrowIfNull(availabilityStore);
         ArgumentNullException.ThrowIfNull(eventStore);
         ArgumentNullException.ThrowIfNull(paddingPolicy);
+        ArgumentNullException.ThrowIfNull(requester);
         _runtime = runtime;
         _availabilityStore = availabilityStore;
         _eventStore = eventStore;
         _paddingPolicy = paddingPolicy;
+        _requester = requester;
     }
 
     /// <inheritdoc />
@@ -45,7 +55,6 @@ public sealed class BookingService : IBookingService
         string title,
         DateTimeOffset startUtc,
         DateTimeOffset endUtc,
-        Guid bookedBy,
         ParticipantRef? attendee = null,
         ContextRef? scheduledAgainst = null,
         EventPadding? padding = null,
@@ -56,6 +65,21 @@ public sealed class BookingService : IBookingService
             throw new ArgumentException("Title must be non-empty.", nameof(title));
         if (endUtc <= startUtc)
             return BookingOutcome.Rejected(BookingOutcome.SlotInverted);
+
+        // The requester is the authenticated principal's server-derived Party, never a caller-supplied
+        // id (L535: a booking is requested by somebody). No identity, no booking — resolved before any
+        // read so a refused caller learns nothing about the resource's availability.
+        Guid bookedBy;
+        try
+        {
+            bookedBy = await _requester.GetCurrentPartyIdAsync(ct).ConfigureAwait(false);
+        }
+        catch (PrincipalPartyResolutionException)
+        {
+            return BookingOutcome.Rejected(BookingOutcome.NoRequester);
+        }
+        if (bookedBy == Guid.Empty)
+            return BookingOutcome.Rejected(BookingOutcome.NoRequester);
 
         // Resolve the padding: a per-event override (passed in) wins over the configured policy default
         // (defaulted-at-booking). EventPadding.None ⇒ the candidate occupies exactly its visible slot.

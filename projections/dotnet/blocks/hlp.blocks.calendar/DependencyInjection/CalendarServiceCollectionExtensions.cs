@@ -69,7 +69,10 @@ public static class CalendarServiceCollectionExtensions
         services.TryAddSingleton<FreeBusyService>();
         services.TryAddSingleton<IFreeBusyService>(sp => sp.GetRequiredService<FreeBusyService>());
         services.TryAddSingleton<IAvailabilityRuntime>(sp => sp.GetRequiredService<FreeBusyService>());
-        services.TryAddSingleton<IBookingService, BookingService>();
+        // T-568 — BookingService is SCOPED, not singleton: it reads the requester from the host's
+        // request-bound IPartyContext (the kernel's authenticated context), which the host registers; a
+        // singleton would capture one request's principal for every booking.
+        services.TryAddScoped<IBookingService, BookingService>();
         return services;
     }
 }
