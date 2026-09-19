@@ -672,6 +672,9 @@ foreach (var shape in CompiledBootstrapCatalogue.Shapes)
 }
 if (packedFloorReader.Reads != 0 || CompiledBootstrapCatalogue.Shapes.Count != 3)
     throw new InvalidOperationException("Packed Kernel Core read the seed store before resolving its exact compiled floor.");
+if (!KernelProfile.Capabilities.Contains(KernelProfile.ConfigurationRecovery)
+    || typeof(ConfigurationRecovery).Assembly.GetName().Name != "Harborline.Kernel.Core")
+    throw new InvalidOperationException("Packed Kernel Core does not declare configuration-recovery on the kernel profile.");
 
 Console.WriteLine("packed NuGet aggregate loaded Harborline App waves through wave-03-05, including Chart, Chat, Data Grid, Gantt, and Numeric Text Box");
 

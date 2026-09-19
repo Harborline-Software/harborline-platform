@@ -1,18 +1,22 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.kernel.core",
-  "interfaceRevision": 1,
+  "interfaceRevision": 2,
   "status": "frozen",
-  "purpose": "Own the shared one-command atomic transaction boundary, authoritative injected clock, and three immutable compiled shapes available before catalogue seed installation.",
+  "purpose": "Own the shared one-command atomic transaction boundary, authoritative injected clock, three immutable compiled shapes available before catalogue seed installation, and configuration recovery under the kernel profile's own constrained capability.",
   "dependencies": [],
+  "capabilities": {
+    "configuration-recovery": ["declared on the kernel profile record with its implementation, never in a pack", "point-of-use admission per actor and tenant", "prepared generation abandoned, effective pointer confirmed, unpublished evidence intents published", "fail-closed refusal naming the effective-generation state", "reason and authority snapshot committed with the record in one set"]
+  },
   "callerInterface": {
-    "name": "KernelTransactionBoundary / KernelClock / CompiledBootstrapCatalogue",
+    "name": "KernelTransactionBoundary / KernelClock / CompiledBootstrapCatalogue / ConfigurationRecovery",
     "operations": [
       "ExecuteAsync(commands, transactionPort) -> KernelTransactionResult",
       "KernelClock.GetUtcNow / ResolveRecordedAtAsync -> authoritative or capability-admitted instant",
-      "ResolveAsync(shapeIdentity) -> compiled floor first, then host catalogue"
+      "ResolveAsync(shapeIdentity) -> compiled floor first, then host catalogue",
+      "ConfigurationRecovery.RecoverAsync(request, transactionPort) -> committed ConfigurationRecoveryRecord or a refusal naming the state"
     ],
-    "context": "Hosts supply persistence and exactly one TimeProvider; member engines cannot select wall time or publish staged writes themselves."
+    "context": "Hosts supply persistence, exactly one TimeProvider, the kernel profile reader and the recovery capability; member engines cannot select wall time or publish staged writes themselves."
   },
   "invariants": [
     "A request containing other than exactly one command refuses before a transaction begins with kernel.multi-command-batch and the observed bounded count.",
@@ -21,9 +25,14 @@
     "Definition Package, Record Type, and Field are the exact compiled bootstrap floor and resolve without a host catalogue read.",
     "A package cannot replace a compiled bootstrap identity.",
     "Captured client timestamps never change authoritative stamping or expiry; an explicit different recorded instant requires the named backdate capability.",
-    "Kernel-facing member constructors require a supplied clock and never fall back to system time."
+    "Kernel-facing member constructors require a supplied clock and never fall back to system time.",
+    "The kernel profile record declares the configuration-recovery capability in compiled code; recovery refuses by that name when the host admits no capability for the actor and tenant.",
+    "Recovery reads the kernel profile only. It holds no seam to IKernelCatalogueReader, a pack or a released definition, and the assembly references no other Harborline assembly, so the Configuration Management package being missing, deactivated or corrupt cannot change its outcome.",
+    "A missing pointer, missing effective content, or content whose SHA-256 differs from the pointer digest refuses every write with kernel.effective-generation-missing or kernel.effective-generation-corrupt and a state token naming which.",
+    "A prepared generation left by a crash is abandoned, never activated; an effective pointer bound to a committed evidence intent is confirmed and never moved; an unpublished evidence intent is published. A pointer bound to no intent refuses with kernel.effective-pointer-unbound.",
+    "A recovery without a reason or an authority snapshot refuses before the profile is read; every committed recovery carries both in its record and in the audit evidence staged through the one-command boundary."
   ],
-  "errors": ["kernel.multi-command-batch", "kernel.compiled-shape-replacement", "kernel.backdate-capability-required"],
+  "errors": ["kernel.multi-command-batch", "kernel.compiled-shape-replacement", "kernel.backdate-capability-required", "kernel.configuration-recovery-capability-required", "kernel.recovery-reason-required", "kernel.recovery-authority-snapshot-required", "kernel.recovery-tenant-mismatch", "kernel.effective-generation-missing", "kernel.effective-generation-corrupt", "kernel.effective-pointer-unbound"],
   "fixture": "conformance/hlp.kernel.core/fixtures.yaml",
   "package": {"nuget": "Harborline.Kernel.Core", "assembly": "Harborline.Kernel.Core", "distribution": "internal-only"}
 }
