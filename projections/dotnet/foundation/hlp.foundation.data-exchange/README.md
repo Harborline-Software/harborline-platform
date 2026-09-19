@@ -4,6 +4,11 @@ Owns the platform-neutral, inbound-only Data Exchange contracts: the constrained
 profile, canonical Records target admission, immutable run evidence, stable replay identities, and
 bounded per-command commit orchestration.
 
+The definition is content kind 11 and lives in the shared builder-definitions catalogue under
+`DefinitionKind.DataExchange`; this package supplies its canonical JSON, the phase-aware intent
+validator the catalogue binds as admission, and the pack entry the platform package exports. It owns
+no definition store.
+
 Hosts supply trusted proposal evaluation, source outcome policy, lifecycle policy, canonical target
 registry, Access, command, evidence and checkpoint adapters. Commit reevaluates semantic dependencies;
 a changed batch preimage persists a linked superseding dry run and refuses the old approval.

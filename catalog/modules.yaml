@@ -640,7 +640,7 @@
       }
     },
     "hlp.foundation.data-exchange": {
-      "interface": {"path": "specs/modules/foundation/hlp.foundation.data-exchange/interface.yaml", "revision": 2},
+      "interface": {"path": "specs/modules/foundation/hlp.foundation.data-exchange/interface.yaml", "revision": 3},
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "The foundation package owns projection-neutral definition and execution contracts; React and Blazor editors are separate projections over this interface."},
       "owner": "platform-foundation",
