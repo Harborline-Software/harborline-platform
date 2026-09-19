@@ -449,6 +449,103 @@ public sealed class InMemoryRruleExpansionServiceTests
     }
 
     // ----------------------------------------------------------------
+    // T-647 / DES-0057 eng-9: an out-of-bound or malformed value of an
+    // admitted part is refused naming the part, never dropped.
+    // ----------------------------------------------------------------
+
+    [Theory]
+    [InlineData("FREQ=MONTHLY;BYMONTHDAY=31", "BYMONTHDAY")]
+    [InlineData("FREQ=MONTHLY;BYMONTHDAY=0", "BYMONTHDAY")]
+    [InlineData("FREQ=DAILY;INTERVAL=0", "INTERVAL")]
+    [InlineData("FREQ=DAILY;COUNT=0", "COUNT")]
+    [InlineData("FREQ=DAILY;UNTIL=2026-01-01", "UNTIL")]
+    [InlineData("FREQ=WEEKLY;BYDAY=XX", "BYDAY")]
+    [InlineData("FREQ=MONTHLY;BYDAY=6MO", "BYDAY")]
+    [InlineData("FREQ=YEARLY;BYMONTH=13", "BYMONTH")]
+    public void Expand_OutOfBoundValue_IsRefusedNamingThePart(string rrule, string part)
+    {
+        var exception = Assert.Throws<FormatException>(() => Expand(rrule, Today, Today.AddDays(365)));
+        Assert.Contains(part, exception.Message, StringComparison.Ordinal);
+    }
+
+    // ----------------------------------------------------------------
+    // T-647 / DES-0057 eng-7: every admitted selector applies under every
+    // FREQ it is admitted with (RFC 5545 §3.3.10 limit/expand table).
+    // ----------------------------------------------------------------
+
+    [Fact]
+    public void Expand_Daily_ByDay_LimitsToNamedWeekdays()
+    {
+        // Anchor Thu 1 Jan 2026; Mondays 5, 12 and Wednesdays 7, 14.
+        Assert.Equal(
+            [new DateOnly(2026, 1, 5), new DateOnly(2026, 1, 7), new DateOnly(2026, 1, 12), new DateOnly(2026, 1, 14)],
+            Expand("FREQ=DAILY;BYDAY=MO,WE", Today, new DateOnly(2026, 1, 14)));
+    }
+
+    [Fact]
+    public void Expand_Daily_ByMonthDay_LimitsToFirstOfMonth()
+    {
+        Assert.Equal(
+            [new DateOnly(2026, 2, 1), new DateOnly(2026, 3, 1), new DateOnly(2026, 4, 1)],
+            Expand("FREQ=DAILY;BYMONTHDAY=1", new DateOnly(2026, 1, 15), new DateOnly(2026, 4, 30)));
+    }
+
+    [Fact]
+    public void Expand_Monthly_ByDayAndByMonthDay_Intersect()
+    {
+        // A Monday on days 1..7 is the first Monday: the same dates as BYDAY=1MO.
+        Assert.Equal(
+            [new DateOnly(2026, 1, 5), new DateOnly(2026, 2, 2), new DateOnly(2026, 3, 2), new DateOnly(2026, 4, 6)],
+            Expand("FREQ=MONTHLY;BYDAY=MO;BYMONTHDAY=1,2,3,4,5,6,7", Today, new DateOnly(2026, 4, 30)));
+    }
+
+    [Fact]
+    public void Expand_Weekly_ByMonthDay_IsRefused()
+    {
+        var exception = Assert.Throws<NotSupportedException>(
+            () => Expand("FREQ=WEEKLY;BYMONTHDAY=15", Today, Today.AddDays(60)));
+        Assert.Contains("BYMONTHDAY", exception.Message, StringComparison.Ordinal);
+    }
+
+    // ----------------------------------------------------------------
+    // T-647 / DES-0057 eng-8: YEARLY selectors expand the year rather than
+    // filtering the anniversary of the anchor.
+    // ----------------------------------------------------------------
+
+    [Fact]
+    public void Expand_Yearly_ByMonthAndByMonthDay_AnchoredInJanuary_YieldsEveryMarch15()
+    {
+        Assert.Equal(
+            [
+                new DateOnly(2026, 3, 15), new DateOnly(2027, 3, 15), new DateOnly(2028, 3, 15),
+                new DateOnly(2029, 3, 15), new DateOnly(2030, 3, 15),
+            ],
+            Expand("FREQ=YEARLY;BYMONTH=3;BYMONTHDAY=15", Today, new DateOnly(2030, 12, 31)));
+    }
+
+    [Fact]
+    public void Expand_Yearly_ByDayAndByMonth_YieldsEveryMondayInJanuary()
+    {
+        Assert.Equal(
+            [
+                new DateOnly(2026, 1, 5), new DateOnly(2026, 1, 12), new DateOnly(2026, 1, 19), new DateOnly(2026, 1, 26),
+                new DateOnly(2027, 1, 4), new DateOnly(2027, 1, 11), new DateOnly(2027, 1, 18), new DateOnly(2027, 1, 25),
+            ],
+            Expand("FREQ=YEARLY;BYDAY=MO;BYMONTH=1", Today, new DateOnly(2027, 12, 31)));
+    }
+
+    [Fact]
+    public void Expand_YearlyInterval2_ByMonthAndByMonthDay_HonorsIntervalFromStart()
+    {
+        Assert.Equal(
+            [new DateOnly(2026, 3, 15), new DateOnly(2028, 3, 15), new DateOnly(2030, 3, 15)],
+            Expand("FREQ=YEARLY;INTERVAL=2;BYMONTH=3;BYMONTHDAY=15", Today, new DateOnly(2030, 12, 31)));
+    }
+
+    private static IReadOnlyList<DateOnly> Expand(string rrule, DateOnly start, DateOnly end) =>
+        Sut.ExpandOccurrences(rrule, start, end, lookaheadDays: 3650, leadDays: 0, today: start, timezone: "UTC");
+
+    // ----------------------------------------------------------------
     // Occurrence cap guard
     // ----------------------------------------------------------------
 
