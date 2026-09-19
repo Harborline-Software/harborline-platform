@@ -674,7 +674,7 @@
       }
     },
     "hlp.foundation.scheduling": {
-      "interface": {"path": "specs/modules/foundation/hlp.foundation.scheduling/interface.yaml", "revision": 2},
+      "interface": {"path": "specs/modules/foundation/hlp.foundation.scheduling/interface.yaml", "revision": 3},
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "RRULE expansion and due-queue derivation produce date sequences and queue items consumed by packs and daemons; the module renders nothing."},
       "owner": "platform-foundation",
