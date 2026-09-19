@@ -263,7 +263,7 @@
       "moduleId": "hlp.foundation.actor",
       "phase4Evidence": "specs/modules/foundation/hlp.foundation.actor/interface.yaml",
       "sourceExtracted": true,
-      "sourceState": "Revision 1 implements the caller-backed identity and Party facade, deepened with a narrow same-scope actor/tenant composite and typed fail-closed reasons. Authorization policy, token validation, sessions, DI, and Party persistence remain excluded.",
+      "sourceState": "Revision 2 promotes reusable API evidence projection and stored trace read contracts; adds Access-owned set and predicate-time check providers over the existing host decider and admitted scope evaluation through the shared rule runtime. No gate, grant algebra, roster policy, audit store or HTTP adapter is duplicated.",
       "contentHashes": {
         "projections/dotnet/foundation/hlp.foundation.actor/ICurrentUser.cs": "39e71b295cbbc0f5c886a0d7458bcdbd54a4dcb5c1ed1418113ec2e7e3d5ab04",
         "projections/dotnet/foundation/hlp.foundation.actor/IAuthenticatedActorContext.cs": "4b235e343f714fac13eb077c2d043fcbb95e0baa5ba44e3cd6ec6bcca9b72d16",
@@ -273,10 +273,22 @@
         "projections/dotnet/foundation/hlp.foundation.actor/PrincipalPartyResolutionException.cs": "a0c18aec1cdaafc116695b64a0d2e92f7222e58793344180882f5fa6f9b5bdfd",
         "projections/dotnet/foundation/hlp.foundation.actor/PartyContext.cs": "606a4cab57ad15928ce8e4abeaa544ad489243c3ab83158fb463c937585be339",
         "projections/dotnet/foundation/hlp.foundation.actor.tests/ActorContractTests.cs": "f5f1146e2d55e00d157f9512589f2e661ebe009e93a86c39e3011fbaa2849644",
-        "conformance/hlp.foundation.actor/fixtures.yaml": "1e04c632c564a7fd73d03fde8ae41ed679b65b4317cc7dc3f48e93e5d160570b",
-        "specs/modules/foundation/hlp.foundation.actor/interface.yaml": "194a468e5da13666c101effca29634f62935cdc65439c9fca2934d97a7b6a1cc"
+        "conformance/hlp.foundation.actor/fixtures.yaml": "679bb8ae5e85124ba11ff6d6f9d9b0db1f7fa6f7437651c768b7400fe40e037e",
+        "specs/modules/foundation/hlp.foundation.actor/interface.yaml": "903beb400a9b8db0207659962a91f24ab909cd976203266c8743e5ee143411d3",
+        "projections/dotnet/foundation/hlp.foundation.actor/AccessScope.cs": "70a6c441b0fd6411505d5e1e769a4c815d0aabd25ce68beb5cc867c582654391",
+        "projections/dotnet/foundation/hlp.foundation.actor/AccessProvider.cs": "f2e4263b5efcbbb20c8b36b3f3480ef864c4089c34117eb4a0e97a66cc77b2ac",
+        "projections/dotnet/foundation/hlp.foundation.actor/AuthorizationDecisionEvidence.cs": "e7135a8ccd8a592f7f15ca4e0673489400198edf1bb0c601aa2f8cf079b3d75c",
+        "projections/dotnet/foundation/hlp.foundation.actor/AuthorizationTraceReader.cs": "b9293945b8d0977524dcbe5010434ed5212e3b6aadf46bb78aefe15710c2c361",
+        "projections/dotnet/foundation/hlp.foundation.actor/Harborline.Foundation.Authorization.csproj": "dda82b3b63bee35e74a38c493d3c4d2c69dc9bb89246f49df3cc2bd089943ca7",
+        "projections/dotnet/foundation/hlp.foundation.actor/README.md": "7fe1ee103f488031d1691a8e6c63f87f04fe461cfe5f5e835ffd79a2e0ffdca1",
+        "projections/dotnet/foundation/hlp.foundation.actor.tests/AccessScopeTests.cs": "3cfdb9d3a6e4c9530ce7c1b0cef2633e24a050bcd405487e4e87ee6bf1e84f71",
+        "projections/dotnet/foundation/hlp.foundation.actor.tests/AccessProviderTests.cs": "842f6afd9150683357e55b87212d9a37728fdb9fef104923db9049e7e4459b0b",
+        "projections/dotnet/foundation/hlp.foundation.actor.tests/AuthorizationTraceTests.cs": "c1f00bf6f281f86d3bab314d07f2000eba24ea07e6943b6aa16a76f8f433799f",
+        "projections/dotnet/foundation/hlp.foundation.actor.tests/AccessConsumerTests.cs": "7b65e1ce1d9506a05e40d4609df92c566c2f89d9bd76d86b3517979f9f086942",
+        "projections/dotnet/foundation/hlp.foundation.actor.tests/Harborline.Foundation.Authorization.Tests.csproj": "58eb58df029b7d16473fe3fc536f7544fedb21b53f447f04f85add360b5328bc",
+        "projections/dotnet/architecture/hlp.architecture.tests/AccessDeciderArchitectureTests.cs": "43ca7c22e1ca1cc5df4a09e02e114f941ecd47ef0095803730298e1109f6296e"
       },
-      "nextGate": "Freeze hlp.foundation.session against the completed identity, tenancy, and actor packages."
+      "nextGate": "Run ordinary audited native and clean package-consumer verification of shared Access and stored traces."
     },
     {
       "moduleId": "hlp.foundation.session",
@@ -464,7 +476,15 @@
         "projections/dotnet/blocks/hlp.blocks.entity-views/IFormBindingSource.cs": "7891131639494329776a583282ce2dc8f68638e7137dc159e217062416a0079a",
         "projections/dotnet/blocks/hlp.blocks.entity-views/IViewNavigationTargets.cs": "01e65d18cbd1d5d85fe82c90ed83d9b77503530acb5064a30fe5487e58e860a8",
         "projections/dotnet/blocks/hlp.blocks.entity-views/InMemoryEntityViewsStore.cs": "8b4063a5f37e371819fadbe6b4775e56874d5f36754ecb498199c8241febb606",
-        "projections/dotnet/blocks/hlp.blocks.entity-views/Harborline.Blocks.EntityViews.csproj": "4f632a38d221a1ad7be785f7ea8d206dac5a222836aa09e4367085bc43487af9"
+        "projections/dotnet/blocks/hlp.blocks.entity-views/Harborline.Blocks.EntityViews.csproj": "8bfdc4a3ad414fce90126f0c42cc5b30d84ced9a9c68f7b9b8f176f07bfb8409",
+        "projections/dotnet/blocks/hlp.blocks.entity-views/AccessViewFilter.cs": "cf1a7a0ed7e643c99a5fe79e699d196a6a2a3fa647c7fab1ed1c3fdbe336a92b",
+        "projections/dotnet/blocks/hlp.blocks.entity-views/InMemoryViewRowSource.cs": "5f3d57d28d5fbdf7e26c1b0ef6d01d6b162553ab30d22bc8f64eecb9aeb1ca81",
+        "projections/dotnet/blocks/hlp.blocks.entity-views/ViewQueryRuntime.cs": "0b2f3b9cdc3f24d2af450e64bb5a00efc8701c687727d650c01bd638a8b7f62c",
+        "projections/dotnet/blocks/hlp.blocks.entity-views.tests/AccessViewFilterTests.cs": "760b92293d10395e4031ea5a77b06293be6ba6ec05377aaa6c9a43e27df10597",
+        "projections/dotnet/blocks/hlp.blocks.entity-views.tests/ViewQueryRuntimeTests.cs": "4ab4b9dffc495a2e5a18c0732fa78ec462235c81fecde5843a0c174d3bb1cd99",
+        "specs/modules/blocks/hlp.blocks.entity-views/interface.yaml": "77bafbe7445593c8f5048e6eb8629fb893d42b4ac623be8b2c775024922e33c9",
+        "tests/package-consumers/views-nuget/Program.cs": "8cd6a494b6317a85a8e28d4f6a3aee51838e98cef41909ac95bbdb4056f148c8",
+        "tests/package-consumers/views-nuget/AccessContractProof.cs": "f4fb13d0081e525de5b834b64b849f5d8d2ace83e8f92d6cb4b1f5cca16be43f"
       },
       "nextGate": "Wave B: re-prove the 20 route rows at the narrowed Harborline persistence/API seam (loopback WebApplication) and build the views-capability-vertical package fixture (9 anchors + four-pair fallback/store indistinguishability); only that vertical flips the views gate."
     },

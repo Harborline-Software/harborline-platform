@@ -595,11 +595,11 @@
       }
     },
     "hlp.blocks.entity-views": {
-      "interface": {"path": "specs/modules/blocks/hlp.blocks.entity-views/interface.yaml", "revision": 3},
+      "interface": {"path": "specs/modules/blocks/hlp.blocks.entity-views/interface.yaml", "revision": 4},
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "The entity-views read model produces list/detail/tree/condition data and navigation targets consumed by separate grid/table renderers; it renders nothing."},
       "owner": "platform-blocks",
-      "dependencies": ["hlp.contracts.identities", "hlp.contracts.forms"],
+      "dependencies": ["hlp.contracts.identities", "hlp.contracts.forms", "hlp.foundation.actor"],
       "status": "implemented",
       "depth": {
         "disposition": "deep-module",
@@ -619,7 +619,7 @@
             "id": "Harborline.Blocks.EntityViews",
             "assembly": "Harborline.Blocks.EntityViews",
             "manifest": "projections/dotnet/blocks/hlp.blocks.entity-views/Harborline.Blocks.EntityViews.csproj",
-            "dependencies": ["Harborline.Contracts"],
+            "dependencies": ["Harborline.Contracts", "Harborline.Foundation.Authorization"],
             "identityAuthority": "Harborline",
             "producerRepository": "harborline-platform",
             "distribution": "internal-only",
@@ -903,12 +903,12 @@
       }
     },
     "hlp.foundation.actor": {
-      "interface": {"path": "specs/modules/foundation/hlp.foundation.actor/interface.yaml", "revision": 1},
+      "interface": {"path": "specs/modules/foundation/hlp.foundation.actor/interface.yaml", "revision": 2},
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "Authenticated actor and server-derived Party resolution are host/runtime behavior with no presentation surface."},
       "owner": "platform-foundation",
-      "dependencies": ["hlp.contracts.identities", "hlp.foundation.tenancy"],
-      "status": "implemented-package-consumer-green",
+      "dependencies": ["hlp.contracts.identities", "hlp.foundation.tenancy", "hlp.foundation.rule-runtime"],
+      "status": "implemented",
       "depth": {
         "disposition": "deep-module",
         "deletionTest": "PASS",
@@ -927,7 +927,7 @@
             "id": "Harborline.Foundation.Authorization",
             "assembly": "Harborline.Foundation.Authorization",
             "manifest": "projections/dotnet/foundation/hlp.foundation.actor/Harborline.Foundation.Authorization.csproj",
-            "dependencies": ["Harborline.Contracts", "Harborline.Foundation.MultiTenancy"],
+            "dependencies": ["Harborline.Contracts", "Harborline.Foundation.MultiTenancy", "Harborline.Foundation.RuleEngine"],
             "identityAuthority": "Harborline",
             "producerRepository": "harborline-platform",
             "distribution": "internal-only",

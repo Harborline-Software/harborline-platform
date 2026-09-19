@@ -1291,10 +1291,10 @@ function verifyViewsCapability() {
   cpSync(resolve(root, 'tests/package-consumers/views-nuget'), engineConsumer, { recursive: true })
   copyFileSync(corpusSource, resolve(engineConsumer, 'views-vertical-cases.json'))
   const engineDirectReferences = assertDirectPackageReferences(engineConsumer, ['Harborline.Blocks.EntityViews'], 'Views engine')
-  const [engineSubstrate, engineBehavior, authoredBoundBehavior] = proofLines(runNugetConsumer(engineConsumer, enginePackageCache), ['VIEWS_PACKAGE_PASS:', 'VIEWS_CAPABILITY_PASS:', 'VIEWS_AUTHORED_BOUND_PASS:'], 'Views engine')
+  const [engineSubstrate, engineBehavior, authoredBoundBehavior, accessBehavior] = proofLines(runNugetConsumer(engineConsumer, enginePackageCache), ['VIEWS_PACKAGE_PASS:', 'VIEWS_CAPABILITY_PASS:', 'VIEWS_AUTHORED_BOUND_PASS:', 'ACCESS_CONTRACT_PASS:'], 'Views engine')
   assertPackageClosure(
     engineConsumer,
-    ['Harborline.Blocks.EntityViews', 'Harborline.Contracts'],
+    ['Harborline.Blocks.EntityViews', 'Harborline.Contracts', 'Harborline.Foundation.Authorization', 'Harborline.Foundation.MultiTenancy', 'Harborline.Foundation.RuleEngine'],
     'Views engine',
     /Forms.*(?:Builder|Authoring)|(?:Builder|Authoring).*Forms/i,
   )
@@ -1320,6 +1320,7 @@ function verifyViewsCapability() {
     engineBehavior,
     engineSubstrate,
     authoredBoundBehavior,
+    accessBehavior,
     blazorAuthoringBehavior,
   }
 }
@@ -1491,7 +1492,7 @@ function verifyAppShellCapability() {
   const assets = JSON.parse(assetsText)
   const target = Object.values(assets.targets ?? {})[0] ?? {}
   const closure = Object.keys(target).filter(x => /^Harborline\./.test(x)).map(x => x.split('/')[0]).sort()
-  const expectedClosure = ['Harborline.Foundation.MultiTenancy', 'Harborline.Contracts', 'Harborline.Foundation.Authorization', 'Harborline.Foundation.Session'].sort()
+  const expectedClosure = ['Harborline.Foundation.MultiTenancy', 'Harborline.Contracts', 'Harborline.Foundation.Authorization', 'Harborline.Foundation.Session', 'Harborline.Foundation.RuleEngine'].sort()
   if (JSON.stringify(closure) !== JSON.stringify(expectedClosure)) throw new Error(`App-shell closure drift: ${JSON.stringify(closure)}`)
 
   // Capability-host rows: cross-repo tarballs staged by explicit environment paths with the
