@@ -484,7 +484,7 @@ if (malformedFloor.Succeeded
     || malformedFloor.RefusalCode != "platform-package-safety-floor-malformed"
     || malformedFloor.Member != "retention")
     throw new InvalidOperationException("Packed Builder Definitions safety-floor reattachment did not refuse the malformed member.");
-if (typeof(DataExchange.IDataExchangeDefinitionStore).Assembly.GetName().Name != "Harborline.Foundation.DataExchange"
+if (typeof(DataExchange.IDataExchangeDefinitionResolver).Assembly.GetName().Name != "Harborline.Foundation.DataExchange"
     || DataExchange.TabularMappingProfile.Family != "hl:tabular-mapping/v1"
     || DataExchange.TabularMappingProfile.SchemaUri != "https://schemas.harborline.software/mapping/tabular/v1")
     throw new InvalidOperationException("Packed Data Exchange profile or assembly identity changed.");
