@@ -57,6 +57,7 @@ const DOTNET_SUITES = [
   ['ruleAuthoringDotnet', 'foundation-rule-authoring-native', "projections/dotnet/foundation/hlp.foundation.rule-authoring.tests/Harborline.Foundation.RuleAuthoring.Tests.csproj"],
   ['formsDotnet', 'foundation-forms-native', "projections/dotnet/foundation/hlp.foundation.forms.tests/Harborline.Foundation.Forms.Tests.csproj"],
   ['builderDefinitions', 'blocks-builder-definitions-native', "projections/dotnet/blocks/hlp.blocks.builder-definitions.tests/Harborline.Blocks.BuilderDefinitions.Tests.csproj"],
+  ['layoutRuntime', 'blocks-layout-runtime-native', "projections/dotnet/blocks/hlp.blocks.layout-runtime.tests/Harborline.Blocks.LayoutRuntime.Tests.csproj"],
   ['formsEngineDotnet', 'foundation-forms-engine-native', "projections/dotnet/foundation/hlp.foundation.forms-engine.tests/Harborline.Foundation.Forms.Engine.Tests.csproj"],
   ['architecture', 'platform-architecture-native', "projections/dotnet/architecture/hlp.architecture.tests/Harborline.Architecture.Tests.csproj"],
 ]

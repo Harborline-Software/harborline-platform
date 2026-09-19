@@ -21,7 +21,8 @@ public sealed class LayoutBlockKindRegistry
     public static LayoutBlockKindRegistry Platform { get; } = new(new[]
     {
         "layout.stack", "layout.flow", "layout.areas", "layout.field", "layout.table",
-        "layout.metric", "layout.text", "layout.document", "layout.form",
+        "layout.list", "layout.board", "layout.calendar", "layout.map", "layout.dashboard-widget",
+        "layout.file-library", "layout.metric", "layout.text", "layout.document", "layout.form",
     });
 
     /// <summary>Returns whether the host registered the kind.</summary>
