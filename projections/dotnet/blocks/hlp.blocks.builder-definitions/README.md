@@ -60,4 +60,49 @@ The digest hashes compact UTF-8 JSON with a versioned domain, fixed property ord
 
 `ConfigurationGenerationDetail.Definition` ships in ck-7 as `configurationGenerationDetail`; `Bind(generation)` returns the matching public field values. Both runtime lanes consume this definition with host read-only mode enabled. The pinned neutral fixture and both renderer tests distinguish the complete generation digest from constituent package versions. This slice does not install packages, switch effective pointers, implement API routes, or mount app pages.
 
+## Prepared activation contracts (T-460)
+
+Resolve the baseline and candidate through `ConfigurationGeneration.Resolve`, then call
+`ConfigurationPreparation.Prepare` with the expected baseline digest and a trusted host projection
+validator. It receives those same immutable generations. It must build an isolated immutable
+projection and validate every applicable content kind, platform contract, policy, destination data
+shape and pinned instance. An empty finding list means explicitly checked and compatible. Missing
+validation, incomplete projection references and named projection or compatibility findings refuse;
+unknown compatibility must produce a finding. No prepared token is returned on refusal or interruption.
+The prepared token binds the baseline, candidate, projection reference and canonical ownership choices.
+Preparation neither authorizes activation nor changes the effective generation.
+
+`ConfigurationActivationRequest` adds the server-derived acting principal and evidence intent identity
+and reason to that token. `DecideCompareAndSwap` compares the complete current baseline again, refuses
+staleness without retrying, and asks the host's live Access callback to authorize that exact request.
+The returned decision binds the request and retained Access decision identity. No independent ownership
+list or workflow approval can substitute for those inputs. Host-provided projection validation and
+Access callbacks are trusted adapters, not client-supplied assertions.
+
+The API implements `IConfigurationActivationTarget.CompareAndSwapAsync`. Within its transaction it
+must verify projection availability and integrity, fence destination compatibility, read the complete
+current generation, resolve authority, and atomically commit ownership, the effective pointer, the
+Access decision reference and reconstructable evidence intent. The evidence intent identity is scoped
+to the tenant and binds the entire decision. The host must refuse reuse with different inputs and use
+the committed intent to recover an interrupted acknowledgement. Evidence publication follows through
+the committed outbox. Reads and writes pin one generation for their entire unit of work.
+
+A successful pure decision is permission to commit. Only the host's post-commit
+`ConfigurationActivationOutcome.ConfirmCommitted` attestation produces an effective result.
+`Refused` retains the current effective generation, including when a prepared projection disappears
+or destination compatibility changes at the switch. Exceptions propagate without manufacturing an
+outcome. A lost commit acknowledgement is indeterminate and requires recovery; it must never be
+reported as a refusal or blindly retried. The platform does not implement that durable transaction,
+recovery storage, outbox publisher, transport, installation or app pages.
+
+ck-7 exports `configurationActivationDetail` and `configurationActivationStatuses`, the single Form
+and released/preparing/refused/effective vocabulary. `ConfigurationActivationDetail` derives read-only
+bindings from preparation or the host-confirmed outcome. Even successful preparation displays
+Preparing; a refusal cannot be confirmed as committed or bound as Effective. Baseline observations
+are point-in-time snapshots: the host refreshes them for current reads. The host verifies release
+authenticity before using the Released binding. Both SchemaForm lanes render the same exported Form
+against `conformance/hlp.blocks.builder-definitions/activation.json`, and producer tests check every
+fixture value. Contract interruption tests cover preparation and switch decisions, not API crash
+recovery or durable atomicity.
+
 `IDefinitionKeyAuthority` remains intentionally unimplemented until allocation authority is ruled. This package owns no API transport, signing, installation, Pilot bridge, or UI renderer.

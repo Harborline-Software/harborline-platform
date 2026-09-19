@@ -96,6 +96,8 @@ public static class PlatformPackageSeed
             {
                 members = pillarViews,
                 configurationGenerationDetail = ConfigurationGenerationDetail.Definition,
+                configurationActivationDetail = ConfigurationActivationDetail.Definition,
+                configurationActivationStatuses = ConfigurationActivationDetail.Statuses,
                 listDefaultShape = "table",
                 showInListsOwner = "views",
                 authoring = new
