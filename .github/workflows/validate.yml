@@ -155,6 +155,7 @@ jobs:
         Harborline.Foundation
         Harborline.Foundation.Authorization
         Harborline.Foundation.DataExchange
+        Harborline.Foundation.FieldRuntime
         Harborline.Foundation.Forms
         Harborline.Foundation.Forms.Engine
         Harborline.Foundation.MultiTenancy
@@ -162,6 +163,7 @@ jobs:
         Harborline.Foundation.RuleEngine
         Harborline.Foundation.Scheduling
         Harborline.Foundation.Session
+        Harborline.Kernel.Core
         Harborline.Kernel.SchemaValidation
         Harborline.Kernel.WorkItems
         Harborline.UIAdapters.Blazor

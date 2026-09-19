@@ -95,8 +95,8 @@ public enum FlexWrap
 /// <param name="Kind">The arrangement kind. Absent ⇒ <see cref="SectionLayoutKind.Stack"/>.</param>
 /// <param name="Direction">Flex-only main-axis direction (default <see cref="FlexDirection.Row"/>).</param>
 /// <param name="Wrap">Flex-only wrap behaviour (default <see cref="FlexWrap.Wrap"/>).</param>
-/// <param name="Columns">Grid-only equal-width track count, 1–4 (default 2).</param>
-/// <param name="Gap">Spacing token step between items: 0,1,2,3,4,5,6,8 (default 4).</param>
+/// <param name="Columns">Grid-only equal-width track count, bounded by the shared Layout schema (default 2).</param>
+/// <param name="Gap">Spacing step between items, bounded by the shared Layout schema (default 4).</param>
 /// <param name="CollapseBelow">F-23 responsive intent: collapse a flex/grid arrangement to a
 /// single-column stack when the FORM is narrower than this container-relative breakpoint
 /// token — one of <see cref="LayoutIntents.Breakpoints"/> (<c>sm</c>/<c>md</c>/<c>lg</c>;
@@ -121,7 +121,7 @@ public sealed record SectionLayout(
 /// Per-field placement within a laid-out <see cref="FormSection"/> (ADR 0055
 /// Rev 6), keyed by field name on <see cref="FormSection.FieldPlacement"/>.
 /// </summary>
-/// <param name="ColSpan">Grid-only: how many column tracks the field spans (1–4).</param>
+/// <param name="ColSpan">Grid-only track span, bounded by the shared Layout schema.</param>
 /// <param name="Grow">Flex-only: the <c>flex-grow</c> factor (0 = don't grow).</param>
 /// <param name="Width">F-23 flex-only width-fraction intent — one of
 /// <see cref="LayoutIntents.Widths"/> (<c>auto</c>/<c>1/4</c>/<c>1/3</c>/<c>1/2</c>/<c>2/3</c>/

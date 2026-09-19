@@ -76,6 +76,42 @@ public sealed class DataExchangeAuthoringEditorTests : BunitContext
         Assert.Equal(0, commits);
     }
 
+    [Fact]
+    public void An_unselected_format_remains_unselected_until_the_author_chooses()
+    {
+        var cut = Render<HarborlineDataExchangeAuthoringEditor>(parameters => parameters
+            .Add(component => component.Value, DataExchangeAuthoringDraft.Empty with { FormatCapability = "" })
+            .Add(component => component.Catalogue, Catalogue));
+
+        var select = Assert.IsAssignableFrom<AngleSharp.Html.Dom.IHtmlSelectElement>(cut.Find("select[aria-label='Format']"));
+        Assert.Equal("", select.Value);
+        Assert.Equal("Choose a format", select.SelectedOptions.Single().TextContent);
+        Assert.Equal(["", "csv"], select.Options.Select(option => option.Value));
+    }
+
+    [Theory]
+    [InlineData("select[aria-label='Source capability']", true, "LABEL")]
+    [InlineData("select[aria-label='Mapping 1 source column']", false, "SELECT")]
+    [InlineData("input[aria-label='Mapping 1 null']", false, "INPUT")]
+    [InlineData("input[aria-label='External key columns']", true, "LABEL")]
+    [InlineData("input[aria-label='Reference dataset']", false, "INPUT")]
+    public void Inline_controls_do_not_gain_layout_changing_text_gaps(string selector, bool useParent, string nextTag)
+    {
+        var value = DataExchangeAuthoringDraft.Empty with
+        {
+            DiscoveredColumns = [new("CustomerNumber", true)],
+            Mappings = [new("CustomerNumber", "records.customer/v1", "/customerNumber", "string", true, "", "", "", "trimToNull")],
+        };
+        var cut = Render<HarborlineDataExchangeAuthoringEditor>(parameters => parameters
+            .Add(component => component.Value, value)
+            .Add(component => component.Catalogue, Catalogue));
+
+        var control = cut.Find(selector);
+        var inlineNode = useParent ? control.ParentElement! : control;
+        var next = Assert.IsAssignableFrom<AngleSharp.Dom.IElement>(inlineNode.NextSibling);
+        Assert.Equal(nextTag, next.TagName);
+    }
+
     [Fact, Trait("ModuleConformance", "hlp.ui.data-exchange")]
     public void Shared_fixture_conforms()
     {

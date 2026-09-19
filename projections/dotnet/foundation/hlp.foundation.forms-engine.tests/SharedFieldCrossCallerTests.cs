@@ -55,13 +55,17 @@ public sealed class SharedFieldCrossCallerTests
     private sealed class CheckedPayloadStore(IFieldDomainRuntime runtime, ValueDomainDefinition domain, FieldDomainScope scope) : IProtectedEffectPayloadStore
     {
         private readonly InMemoryProtectedEffectPayloadStore inner = new();
+        private readonly ICompiledFieldKind kind = new FieldKindRuntime(new FieldKindRegistry(
+            [new("mapped-text", "1", null)])).Bind(new("mapped-text", "1", new Dictionary<string, string>()), "/model/name");
         public List<string> StoredReferences { get; } = [];
         public async ValueTask<string> SaveAsync(DryRunId dryRunId, int sourceOrdinal, CanonicalEffectPayload payload, CancellationToken cancellationToken = default)
         {
-            var permitted = await runtime.ResolveAsync(domain, scope, "/model/name", cancellationToken);
             if (payload.TargetContract != "records.model/v1" || !payload.Values.TryGetValue("/model/name", out var value)
-                || value is not string text || !permitted.Values.Contains(text, StringComparer.Ordinal))
-                throw new FieldAdmissionException([new("field.value_outside_domain", "/model/name", "The mapped value is not permitted.")]);
+                || value is null)
+                throw new FieldAdmissionException([new("field.binding_unresolved", "/model/name", "The mapped field binding is not admitted.")]);
+            var constraints = await runtime.IntersectAsync([new(true, 0, 1, [], domain)], scope, "/model/name", cancellationToken);
+            var refusals = runtime.Validate(constraints, kind, JsonSerializer.SerializeToElement(value), "/model/name");
+            if (refusals.Count > 0) throw new FieldAdmissionException(refusals);
             var reference = await inner.SaveAsync(dryRunId, sourceOrdinal, payload, cancellationToken);
             StoredReferences.Add(reference);
             return reference;

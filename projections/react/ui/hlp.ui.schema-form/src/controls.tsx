@@ -56,7 +56,7 @@ function DomainPickerControl({ args }: { args: ControlArgs }) {
     setActive(-1)
   }
   return (
-    <div className="hl-schema-form__record-picker">
+    <div className="hl-schema-form__domain-picker">
       <Input
         aria-activedescendant={open && active >= 0 ? `${listId}-${active}` : undefined}
         aria-autocomplete="list"
@@ -94,6 +94,7 @@ function DomainPickerControl({ args }: { args: ControlArgs }) {
           {matches.map((value, index) => (
             <li
               aria-selected={args.strValue === value}
+              data-active={index === active || undefined}
               id={`${listId}-${index}`}
               key={value}
               onClick={() => choose(value)}
@@ -266,7 +267,7 @@ export const DEFAULT_CONTROLS: ControlRegistry = {
       error={args.hasError}
       name={args.field.name}
       onChange={args.onChange}
-      options={selectOptions(args)}
+      options={(args.field.permittedValues ?? []).map(value => ({ value, label: value }))}
       required={args.required}
       value={args.strValue}
     />

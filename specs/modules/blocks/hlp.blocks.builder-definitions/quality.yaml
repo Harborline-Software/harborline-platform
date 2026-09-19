@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.blocks.builder-definitions",
-  "profileRevision": 3,
+  "profileRevision": 4,
   "riskTier": "A",
   "dimensions": {
-    "durability": {"disposition":"required", "caseIds":["archive.starts-empty","archive.idempotent","archive.unarchive-idempotent","archive.namespaced","platform-package.deterministic-export","platform-package.canonical-byte-identity","platform-package.adr-0097-inventory","platform-package.explicit-absences","platform-package.empty-replay","platform-package.empty-manifest-refusal","platform-package.package-first-refusal","platform-package.package-count-refusal","platform-package.non-empty-refusal","platform-package.order-refusal","platform-package.unknown-stage-refusal","platform-package.duplicate-refusal","platform-package.dependency-refusal","platform-package.unresolved-refusal"]},
+    "durability": {"disposition":"required", "caseIds":["archive.starts-empty","archive.idempotent","archive.unarchive-idempotent","archive.namespaced","platform-package.deterministic-export","platform-package.canonical-byte-identity","platform-package.adr-0097-inventory","platform-package.explicit-absences","platform-package.empty-replay","platform-package.empty-manifest-refusal","platform-package.package-first-refusal","platform-package.package-count-refusal","platform-package.non-empty-refusal","platform-package.order-refusal","platform-package.unknown-stage-refusal","platform-package.duplicate-refusal","platform-package.dependency-refusal","platform-package.unresolved-refusal","platform-package.safety-floor-lower-clamp","platform-package.safety-floor-missing-restore","platform-package.safety-floor-object-restore","platform-package.safety-floor-malformed-refusal"]},
     "concurrency": {"disposition":"required", "rationale":"Lifecycle mutations serialize; platform seed replay binds through one atomic apply-to-empty target operation; key allocation is deliberately deferred behind IDefinitionKeyAuthority."},
     "security": {"disposition":"required", "rationale":"Tenant and kind are mandatory durable key components; authorization remains a composing server-host responsibility."},
     "accessibility": {"disposition":"not-applicable", "rationale":"No presentation surface."},
@@ -13,8 +13,8 @@
   },
   "componentStages": [
     {"id":"contract", "dimensions":["durability","concurrency","security"], "gate":"spec and catalog validation"},
-    {"id":"projection-native", "dimensions":["durability","concurrency","security"], "gate":"40 passing xUnit cases including the ADR-0097 fixture, migration-authority ids, absence probes, export and atomic replay refusals"},
-    {"id":"package-consumer", "dimensions":["durability","security"], "gate":"packed NuGet consumer loads and byte-verifies the embedded canonical platform export"},
+    {"id":"projection-native", "dimensions":["durability","concurrency","security"], "gate":"46 passing xUnit cases including the ADR-0097 fixture, migration-authority ids, absence probes, export, atomic replay refusals, and safety-floor reattachment"},
+    {"id":"package-consumer", "dimensions":["durability","security"], "gate":"packed NuGet consumer loads and byte-verifies the embedded canonical platform export and refuses a malformed reattached safety-floor member"},
     {"id":"clean-clone", "dimensions":["durability","concurrency","security"], "gate":"complete repository gate"}
   ]
 }

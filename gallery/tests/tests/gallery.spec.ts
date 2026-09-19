@@ -1178,6 +1178,14 @@ for (const catalog of catalogs) for (const scenario of catalog.scenarios) {
       openBlazorStory(blazorPage, storyId(blazor, catalog.galleryInterface.projectionTitles.blazor, scenario.name)),
     ])
     await Promise.all([prepareScenario(reactPage, scenario), prepareScenario(blazorPage, scenario)])
+    if (scenario.id === 'data-exchange.authoring' || scenario.id === 'data-exchange.stale-review') {
+      for (const page of [reactPage, blazorPage]) {
+        await expect(page.getByRole('textbox', { name: 'Reference dataset', exact: true })).toHaveValue('dataset.customers')
+        await expect(page.getByRole('textbox', { name: 'Pack distribution', exact: true })).toHaveValue('pack://customers')
+        await expect(page.getByRole('textbox', { name: 'Feed distribution', exact: true })).toHaveValue('feed://customers')
+        await expect(page.getByRole('combobox', { name: 'Format', exact: true }).locator('option')).toHaveText(['Choose a format', 'CSV'])
+      }
+    }
     await captureGalleryReviewPair(reactPage, blazorPage, catalog, scenario)
     await recordReactBaseline(reactPage, catalog, scenario)
     await assertAccessible(reactPage, scenario, 'react')

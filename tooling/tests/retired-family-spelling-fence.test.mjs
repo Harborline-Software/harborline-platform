@@ -108,16 +108,6 @@ export const ALLOW_LIST = [
     symbol: `${Retired}LocaleProvider`,
     reason: 'captured design-review evidence (ticket 138 slice 6) -- same bound surface',
   },
-  {
-    path: 'docs/evidence/phase-4/gate.json',
-    symbol: `${Retired}LocaleProvider`,
-    reason: 'regenerated gate evidence (2026-09-07): the button module design-review note, now expired, names the surface files as they were at the verdict commit; the note is the gate output and is not rewritten',
-  },
-  {
-    path: 'docs/evidence/phase-4/gate.json',
-    symbol: `${Retired}LocaleContext`,
-    reason: 'regenerated gate evidence (2026-09-07): the button module design-review note, now expired, names the surface files as they were at the verdict commit; the note is the gate output and is not rewritten',
-  },
 ]
 
 const BINARY_EXTENSIONS = new Set([

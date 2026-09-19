@@ -12,6 +12,7 @@
     <PackageReference Include="Harborline.Foundation.Authorization" Version="$(HarborlinePackedVersion)" />
     <PackageReference Include="Harborline.Foundation.Session" Version="$(HarborlinePackedVersion)" />
     <PackageReference Include="Harborline.Kernel.SchemaValidation" Version="$(HarborlinePackedVersion)" />
+    <PackageReference Include="Harborline.Kernel.Core" Version="$(HarborlinePackedVersion)" />
     <PackageReference Include="Harborline.Kernel.WorkItems" Version="$(HarborlinePackedVersion)" />
     <PackageReference Include="Harborline.Blocks.InspectionReview" Version="$(HarborlinePackedVersion)" />
     <PackageReference Include="Harborline.Blocks.Aggregates" Version="$(HarborlinePackedVersion)" />

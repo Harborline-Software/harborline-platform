@@ -183,15 +183,23 @@ public sealed class TenantBoundAesGcmFormFieldSecurity : IFormGovernanceEnforcin
     public TenantBoundAesGcmFormFieldSecurity(
         IFormTenantProtectionKeyProvider keys,
         IFormDecryptCapabilityProvider capabilities,
-        IFormFieldGovernanceResolver? governance = null,
-        FormFieldSecurityOptions? options = null,
-        TimeProvider? clock = null)
+        TimeProvider clock)
+        : this(keys, capabilities, null, null, clock)
+    {
+    }
+
+    public TenantBoundAesGcmFormFieldSecurity(
+        IFormTenantProtectionKeyProvider keys,
+        IFormDecryptCapabilityProvider capabilities,
+        IFormFieldGovernanceResolver? governance,
+        FormFieldSecurityOptions? options,
+        TimeProvider clock)
     {
         _keys = keys ?? throw new ArgumentNullException(nameof(keys));
         _capabilities = capabilities ?? throw new ArgumentNullException(nameof(capabilities));
         _governance = governance ?? new DefaultFormFieldGovernanceResolver();
         _options = options ?? new FormFieldSecurityOptions();
-        _clock = clock ?? TimeProvider.System;
+        _clock = clock ?? throw new ArgumentNullException(nameof(clock));
     }
 
     public async ValueTask<FormProtectionResult> ProtectAsync(

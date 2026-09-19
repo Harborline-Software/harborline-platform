@@ -47,6 +47,19 @@ expect(cases.map(value => value.id)).toEqual([
 
 afterEach(cleanup)
 
+it('a runtime radio editor cannot obtain missing membership from host options', () => {
+  const changed = vi.fn()
+  const view = FormView.normalize(form([section('main', [field('status', 'Status', {
+    controlHint: 'RadioGroup',
+  })])]), { status: { options: [{ value: 'outside', label: 'Outside' }] } })
+
+  render(<SchemaForm onChange={changed} onSubmit={() => undefined} view={view} />)
+
+  expect(screen.queryAllByRole('radio')).toHaveLength(0)
+  expect(screen.queryByText('Outside')).toBeNull()
+  expect(changed).not.toHaveBeenCalled()
+})
+
 // Replacing a runtime editor with text, widening options, defaulting a value, or
 // treating query text as a candidate must fail these shared renderer cases.
 it.each(cases)('$id', ({ input, expected }) => {

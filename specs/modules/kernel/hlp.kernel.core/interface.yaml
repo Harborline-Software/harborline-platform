@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.kernel.core",
+  "interfaceRevision": 1,
+  "status": "frozen",
+  "purpose": "Own the shared one-command atomic transaction boundary, authoritative injected clock, and three immutable compiled shapes available before catalogue seed installation.",
+  "dependencies": [],
+  "callerInterface": {
+    "name": "KernelTransactionBoundary / KernelClock / CompiledBootstrapCatalogue",
+    "operations": [
+      "ExecuteAsync(commands, transactionPort) -> KernelTransactionResult",
+      "KernelClock.GetUtcNow / ResolveRecordedAtAsync -> authoritative or capability-admitted instant",
+      "ResolveAsync(shapeIdentity) -> compiled floor first, then host catalogue"
+    ],
+    "context": "Hosts supply persistence and exactly one TimeProvider; member engines cannot select wall time or publish staged writes themselves."
+  },
+  "invariants": [
+    "A request containing other than exactly one command refuses before a transaction begins with kernel.multi-command-batch and the observed bounded count.",
+    "The boundary stages one record and its audit evidence under one operation identity, commits them together, and rolls back after any staging or commit fault.",
+    "Host persistence stays behind IKernelTransactionPort; the kernel package contains no database, filesystem, or transport adapter.",
+    "Definition Package, Record Type, and Field are the exact compiled bootstrap floor and resolve without a host catalogue read.",
+    "A package cannot replace a compiled bootstrap identity.",
+    "Captured client timestamps never change authoritative stamping or expiry; an explicit different recorded instant requires the named backdate capability.",
+    "Kernel-facing member constructors require a supplied clock and never fall back to system time."
+  ],
+  "errors": ["kernel.multi-command-batch", "kernel.compiled-shape-replacement", "kernel.backdate-capability-required"],
+  "fixture": "conformance/hlp.kernel.core/fixtures.yaml",
+  "package": {"nuget": "Harborline.Kernel.Core", "assembly": "Harborline.Kernel.Core", "distribution": "internal-only"}
+}

@@ -12,6 +12,7 @@
     <PackageReleaseNotes>Internal-only projection; public distribution is not authorized.</PackageReleaseNotes>
   </PropertyGroup>
   <ItemGroup>
+    <EmbeddedResource Include="../../../../_shared/layout/placement.schema.json" LogicalName="Harborline.Layout.PlacementSchema" />
     <ProjectReference Include="../../contracts/hlp.contracts.identities/Harborline.Contracts.csproj" />
     <ProjectReference Include="../hlp.foundation.actor/Harborline.Foundation.Authorization.csproj" />
     <ProjectReference Include="../hlp.foundation.tenancy/Harborline.Foundation.MultiTenancy.csproj" />
