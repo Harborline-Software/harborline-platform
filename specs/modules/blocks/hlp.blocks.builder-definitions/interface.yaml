@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.blocks.builder-definitions",
-  "interfaceRevision": 5,
+  "interfaceRevision": 6,
   "status": "draft",
   "purpose": "Own the shared definition catalogue substrate: registry-neutral versioned definitions, key suggestion, archive lifecycle, projection-neutral platform package export and empty-store replay, and package safety-floor reattachment.",
   "dependencies": [],
@@ -11,6 +11,7 @@
     "paths": ["apps/carrier/src/definitions/slug.ts:13-36", "apps/carrier/src/definitions/archiveStore.ts:17-58"]
   },
   "capabilities": {
+    "configurationActivation": ["baseline-bound isolated preparation", "explicit projection and compatibility findings", "immutable prepared candidate and canonical ownership", "point-of-use authority and evidence-bound compare-and-swap decision", "API-owned atomic target contract", "released preparing refused effective status vocabulary and shared Form bindings"],
     "configurationGeneration": ["complete tenant-scoped resolved closure identity", "order-independent SHA-256 of public versioned references", "validated definition ownership", "released read-only generation detail definition and bindings"],
     "keys": ["deterministic ASCII kebab suggestion", ".v1 suffix", "exact-case collision suffixing"],
     "lifecycle": ["tenant and definition-kind scoped archive", "idempotent archive", "idempotent unarchive", "restart-durable visibility"],
@@ -36,6 +37,13 @@
     "The host verifies referenced content and determines applicable policy before resolution. Generation identity neither authorizes reads nor establishes authenticity, release status, installation, compatibility, or effective-pointer authority.",
     "The public read document contains references only, never configuration values, credentials, signatures, or raw policy content. Hosts supply public identifiers and digests, authorize tenant reads, and bind the effective snapshot through ConfigurationGenerationDetail.Bind.",
     "The platform seed exports configurationGenerationDetail in ck-7. React SchemaForm and Blazor HarborlineSchemaForm render that same definition and the producer's bindings in host read-only mode; the generation digest is distinct from package revisions.",
+    "Preparation consumes ConfigurationGeneration.Resolve identities without re-deriving them. Its trusted host validator builds an isolated immutable projection against the expected complete baseline and checks every applicable compatibility dimension. Unknown compatibility refuses; missing validation never means success.",
+    "A prepared token binds baseline, candidate, immutable projection reference and ownership read from the candidate's canonical snapshot. Preparation never changes the effective generation or confers authority.",
+    "One activation request binds the prepared token, acting principal and evidence intent identity and reason. The switch decision rechecks the current complete baseline and resolves live Access authority for exactly that request. A stale baseline is a refusal, never an automatic retry.",
+    "The API implements IConfigurationActivationTarget: under its atomic transaction, verify the projection and destination compatibility, check the baseline, authorize, and commit ownership, effective pointer, Access decision reference and reconstructable evidence intent together. All reads and writes pin one generation per unit of work.",
+    "Evidence intent identity is tenant-scoped and binds the entire switch decision; conflicting reuse refuses. The API owns durable recovery and outbox publication. Lost commit acknowledgement is indeterminate, never a fabricated refusal or blind retry.",
+    "The pure switch decision is not a commit. Only host confirmation after durable commitment yields an effective outcome. Refusal retains the observed current generation. Preparation and decision exceptions propagate without a success token or outcome.",
+    "ck-7 exports configurationActivationDetail and configurationActivationStatuses. One released Form and vocabulary distinguish released, preparing, refused and effective in both SchemaForm lanes. Successful preparation remains preparing; a refused projection cannot bind as effective.",
     "DefinitionKeySuggester is advisory and never claims allocation authority.",
     "Archive state is isolated by exact tenant, DefinitionKind, and definition key.",
     "Archive and unarchive are idempotent and never delete authored definitions.",
@@ -54,6 +62,16 @@
     "Pilot manager registration, handlers, navigation, and React snapshots are excluded app-host concerns."
   ],
   "errors": [
+    {"code":"configuration-baseline-stale", "when":"The expected complete baseline differs from the current generation at preparation or at the atomic switch decision; no retry is requested."},
+    {"code":"configuration-tenant-mismatch", "when":"The candidate and effective baseline belong to different tenants."},
+    {"code":"configuration-validation-required", "when":"The host provides no explicit projection and compatibility validation result or finding list."},
+    {"code":"configuration-validation-invalid", "when":"A refusal finding lacks a stable code, public target or explanation."},
+    {"code":"configuration-projection-required", "when":"Successful preparation lacks a complete immutable projection reference."},
+    {"code":"configuration-principal-required", "when":"An activation request lacks the acting principal."},
+    {"code":"configuration-evidence-required", "when":"An activation request lacks an evidence intent identity or reason."},
+    {"code":"configuration-authority-refused", "when":"Live Access authority denies the exact switch request or provides no retained decision identity."},
+    {"code":"configuration-switch-refused", "when":"A caller tries to confirm a refused decision as committed; throws instead of producing an effective outcome."},
+    {"code":"configuration-refusal-required", "when":"A caller tries to convert a successful decision into a refusal without a named failure."},
     {"code":"definition.registry_unknown", "when":"The registry is unknown or has no host-supplied admission."},
     {"code":"definition.version_invalid", "when":"The semantic-version label is malformed."},
     {"code":"definition.version_id_required", "when":"An immutable version identity is absent."},

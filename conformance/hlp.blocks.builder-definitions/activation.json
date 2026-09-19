@@ -1,0 +1,48 @@
+{
+  "cases": [
+    {
+      "status": "released",
+      "values": {
+        "status": "Released",
+        "tenantKey": "tenant-a",
+        "candidateDigest": "92a205fff8d1bab983e58cb6477690665695d367001c86645aff48679c84729f",
+        "expectedBaselineDigest": "1868b85655c23f121d630ebe09151e18283a01ac7c99ed9bfcdf563e8d36b15f",
+        "effectiveDigest": "1868b85655c23f121d630ebe09151e18283a01ac7c99ed9bfcdf563e8d36b15f",
+        "refusals": ""
+      }
+    },
+    {
+      "status": "preparing",
+      "values": {
+        "status": "Preparing",
+        "tenantKey": "tenant-a",
+        "candidateDigest": "92a205fff8d1bab983e58cb6477690665695d367001c86645aff48679c84729f",
+        "expectedBaselineDigest": "1868b85655c23f121d630ebe09151e18283a01ac7c99ed9bfcdf563e8d36b15f",
+        "effectiveDigest": "1868b85655c23f121d630ebe09151e18283a01ac7c99ed9bfcdf563e8d36b15f",
+        "refusals": ""
+      }
+    },
+    {
+      "status": "refused",
+      "values": {
+        "status": "Refused",
+        "tenantKey": "tenant-a",
+        "candidateDigest": "92a205fff8d1bab983e58cb6477690665695d367001c86645aff48679c84729f",
+        "expectedBaselineDigest": "1868b85655c23f121d630ebe09151e18283a01ac7c99ed9bfcdf563e8d36b15f",
+        "effectiveDigest": "1868b85655c23f121d630ebe09151e18283a01ac7c99ed9bfcdf563e8d36b15f",
+        "refusals": "projection-failed (forms/invoice): Invoice form projection failed."
+      }
+    },
+    {
+      "status": "effective",
+      "values": {
+        "status": "Effective",
+        "tenantKey": "tenant-a",
+        "candidateDigest": "92a205fff8d1bab983e58cb6477690665695d367001c86645aff48679c84729f",
+        "expectedBaselineDigest": "1868b85655c23f121d630ebe09151e18283a01ac7c99ed9bfcdf563e8d36b15f",
+        "effectiveDigest": "92a205fff8d1bab983e58cb6477690665695d367001c86645aff48679c84729f",
+        "refusals": ""
+      }
+    }
+  ]
+}
