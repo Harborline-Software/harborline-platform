@@ -40,7 +40,7 @@ public sealed class PaddingTests
         var eventStore = new InMemoryCalendarEventStore();
         var freeBusy = new FreeBusyService(availStore, availExpansion, eventStore, expansion);
         var policy = new DefaultPaddingPolicy(defaultPadding ?? EventPadding.None);
-        var booking = new BookingService(freeBusy, availStore, availExpansion, eventStore, policy);
+        var booking = new BookingService(freeBusy, availStore, eventStore, policy);
         return new Sut(availStore, eventStore, freeBusy, booking);
     }
 

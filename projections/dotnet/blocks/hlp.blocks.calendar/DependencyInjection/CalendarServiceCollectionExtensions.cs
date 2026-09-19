@@ -63,12 +63,13 @@ public static class CalendarServiceCollectionExtensions
         services.TryAddSingleton<ISharedCalendarResolver, SharedCalendarResolver>();
         services.TryAddSingleton<IEventDetailVisibilityPolicy, OwnerOnlyEventDetailVisibilityPolicy>();
 
-        // BookingService + FreeBusyService are registered AFTER the resolver/visibility policy so their
-        // layered constructors — which depend on the shared-calendar resolver registered just above — are
-        // the ones the container activates (the booking gate then composes the SAME shared-exception layer
-        // free/busy does, matching the view↔gate).
+        // T-626 — FreeBusyService is the one composition site: it serves both the free/busy query and the
+        // availability substrate contract (IAvailabilityRuntime), and the booking gate reads through the
+        // latter. One instance behind both interfaces so the view and the gate cannot disagree.
+        services.TryAddSingleton<FreeBusyService>();
+        services.TryAddSingleton<IFreeBusyService>(sp => sp.GetRequiredService<FreeBusyService>());
+        services.TryAddSingleton<IAvailabilityRuntime>(sp => sp.GetRequiredService<FreeBusyService>());
         services.TryAddSingleton<IBookingService, BookingService>();
-        services.TryAddSingleton<IFreeBusyService, FreeBusyService>();
         return services;
     }
 }
