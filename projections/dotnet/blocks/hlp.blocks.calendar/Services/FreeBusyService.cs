@@ -28,8 +28,14 @@ namespace Harborline.Blocks.Calendar.Services;
 /// events' detail is viewer-scoped (<see cref="FreeBusyForViewer"/>). This keeps booking-correctness
 /// intact: a viewer who cannot see a private appointment's detail still cannot book over it.
 /// </para>
+/// <para>
+/// <b>The one composition site (T-626, ADR 0080).</b> This class is also the
+/// <see cref="IAvailabilityRuntime"/>: the supply-side layers (<see cref="ComposeAvailability"/>) and
+/// the occupancy (<see cref="GatherOccupancy"/>) are composed here and nowhere else. Booking's gate
+/// reads through <see cref="Read"/>; an architecture fence refuses a second resolver call.
+/// </para>
 /// </remarks>
-public sealed class FreeBusyService : IFreeBusyService
+public sealed class FreeBusyService : IFreeBusyService, IAvailabilityRuntime
 {
     private readonly IResourceAvailabilityStore _availabilityStore;
     private readonly IAvailabilityExpansionService _availabilityExpansion;
@@ -189,6 +195,48 @@ public sealed class FreeBusyService : IFreeBusyService
             WindowEndUtc:   windowEndUtc,
             FreeSlots:      free,
             BusyEvents:     projected);
+    }
+
+    /// <inheritdoc />
+    public async Task<AvailabilityAnswer> Read(TenantId tenantId, AvailabilityRequest request, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        // Step 1: the window is mandatory and bounded; refuse before any store is read (ck-9, eng-9).
+        if (request.FromUtc is not { } from) return AvailabilityAnswer.Refused(AvailabilityRefusal.WindowUnbounded, "from");
+        if (request.ToUtc is not { } to) return AvailabilityAnswer.Refused(AvailabilityRefusal.WindowUnbounded, "to");
+        if (to <= from) return AvailabilityAnswer.Refused(AvailabilityRefusal.WindowInverted, "to");
+
+        var reads = new List<ResourceAvailabilityRead>(request.Resources.Count);
+        foreach (var capacity in request.Resources)
+        {
+            // Steps 2-3: supply = base hours − own exceptions − shared exception days, clipped to the window.
+            var supply = await ComposeAvailability(tenantId, capacity.Resource, from, to, ct).ConfigureAwait(false);
+            var withinSupply = supply.Any(s => from >= s.StartUtc && to <= s.EndUtc);
+
+            // Step 4: current allocations and holds over the candidate's buffered footprint. The buffer is
+            // part of the hold and is tested against occupancy; like event padding it may spill past a
+            // supply edge (Book_PaddingPastClose_IsNotFalselyRejected), so supply is tested on the window.
+            var footprint = new TimeInterval(from - capacity.Buffer.Pre, to + capacity.Buffer.Post);
+            var occupancy = (await GatherOccupancy(tenantId, capacity.Resource, footprint.StartUtc, footprint.EndUtc, ct)
+                .ConfigureAwait(false)).Select(o => o.Interval).ToList();
+
+            // Step 5: the capacity kind. Exclusive is a limit of one; a pool is full where the overlap
+            // depth reaches its size. Remaining is derived per read from supply and occupancy (ck-3).
+            var limit = capacity.ConcurrentLimit;
+            var full = IntervalMath.WhereDepthAtLeast(occupancy, limit);
+            var free = IntervalMath.ClipAll(IntervalMath.Subtract(supply, full), from, to);
+            var busy = IntervalMath.ClipAll(IntervalMath.Subtract(supply, free), from, to);
+            var remaining = Math.Max(0, limit - IntervalMath.MaxDepth(occupancy, footprint));
+
+            reads.Add(new ResourceAvailabilityRead(
+                capacity.Resource, free, busy, remaining,
+                !withinSupply ? Unavailability.OutsideSupply
+                : remaining == 0 ? Unavailability.CapacityExhausted
+                : Unavailability.None));
+        }
+
+        // Step 6: the conjunction is AvailabilityAnswer.Available — every resource, or refused.
+        return new AvailabilityAnswer(null, reads);
     }
 
     /// <summary>

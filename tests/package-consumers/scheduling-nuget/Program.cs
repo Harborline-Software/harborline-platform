@@ -2,6 +2,10 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Reflection;
 using System.Text.Json;
+using Harborline.Blocks.Calendar.DependencyInjection;
+using Harborline.Blocks.Calendar.Models;
+using Harborline.Blocks.Calendar.Services;
+using Harborline.Foundation.Assets.Common;
 using Harborline.Foundation.Scheduling;
 
 var json = new JsonSerializerOptions(JsonSerializerDefaults.Web);
@@ -22,6 +26,7 @@ var weekly = recurrence.ExpandOccurrences("FREQ=WEEKLY;BYDAY=MO,WE,FR;COUNT=4", 
 Check(weekly.Count == 4 && weekly[1] == new DateOnly(2026, 3, 4), "BYDAY package anchor");
 Check(typeof(Harborline.Blocks.Calendar.Services.ICalendarStore).Assembly.GetName().Name == "Harborline.Blocks.Calendar", "calendar package interface");
 Check(typeof(Harborline.Blocks.Scheduling.IScheduleReservationCoordinator).Assembly.GetName().Name == "Harborline.Blocks.Scheduling", "scheduling package interface");
+await ProveAvailabilitySubstrate();
 Console.WriteLine($"SCHEDULING_PACKAGE_PASS:{JsonSerializer.Serialize(new { anchors = 174, representativeExecutions = 4 })}");
 
 var builder = WebApplication.CreateSlimBuilder();
@@ -68,6 +73,64 @@ void ProveFailedConditions()
     Check(new HostState().UnknownIsAbsent() is IStatusCodeHttpResult { StatusCode: 404 }, "absence must be 404 where the contract says missing");
     Check(!SampleDataActivation.IsActive("Production", "true"), "production sample-data guard");
     Check(!SampleDataActivation.IsActive("Development", "maybe"), "preview activation fails closed");
+}
+
+// T-626 / DES-0033 eng-8: form-slot, calendar-view, workflow and rule callers outside the calendar
+// project reach the ONE released composition (IAvailabilityRuntime) and obtain identical intervals for
+// identical admitted inputs. Nothing here differences an interval; every answer is the runtime's.
+async Task ProveAvailabilitySubstrate()
+{
+    var services = new ServiceCollection().AddBlocksCalendar().BuildServiceProvider();
+    var tenant = new TenantId("acme");
+    var actor = Guid.NewGuid();
+    var doctor = ParticipantRef.Party("party-dr-smith");
+    var bay = ParticipantRef.Asset("asset-bay");
+    var monday = new DateOnly(2026, 3, 2);
+    var wednesday = new DateOnly(2026, 3, 4);
+    var availability = services.GetRequiredService<IResourceAvailabilityStore>();
+    foreach (var resource in new[] { doctor, bay })
+        await availability.SaveAsync(ResourceAvailability.Create(tenant, resource, "UTC")
+            .AddWindow(AvailabilityWindow.Create(monday, new TimeOnly(9, 0), new TimeOnly(17, 0), "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR")));
+    var holidays = SharedCalendar.Create(tenant, "Clinic Holidays").AddException(ExceptionSpan.Create(wednesday, wednesday, "Closed"));
+    await services.GetRequiredService<ISharedCalendarStore>().SaveAsync(holidays);
+    await services.GetRequiredService<ICalendarSubscriptionStore>().SubscribeAsync(CalendarSubscription.Create(tenant, doctor, holidays.Id));
+    Check((await services.GetRequiredService<IBookingService>().Book(tenant, doctor, "Checkup", Utc(3, 10), Utc(3, 11), actor)).Success, "booking through the package");
+    var events = services.GetRequiredService<ICalendarEventStore>();
+    for (var i = 0; i < 2; i++)
+    {
+        var hold = CalendarEvent.Create(tenant, "Bay hold", new DateOnly(2026, 3, 3), new DateOnly(2026, 3, 3), actor,
+            timezone: "UTC", startTime: new TimeOnly(10, 0), endTime: new TimeOnly(11, 0), occupancy: Occupancy.Tentative);
+        hold.SetResource(bay, actor);
+        await events.SaveAsync(hold);
+    }
+
+    var runtime = services.GetRequiredService<IAvailabilityRuntime>();
+    var week = new AvailabilityRequest(Utc(2, 0), Utc(6, 23), [ResourceCapacity.Exclusive(doctor)]);
+    var candidate = new AvailabilityRequest(Utc(3, 11), Utc(3, 12), [ResourceCapacity.Exclusive(doctor)]);
+    var onHoliday = new AvailabilityRequest(Utc(4, 10), Utc(4, 11), [ResourceCapacity.Exclusive(doctor)]);
+
+    // The four member callers, each shaping the runtime's answer as that member would.
+    IReadOnlyList<TimeInterval> formSlots = (await runtime.Read(tenant, week)).Resources[0].Free;           // Forms offers slots
+    var calendarView = (await runtime.Read(tenant, week)).Resources[0];                                       // Views draws free and busy
+    bool WorkflowAdmits(AvailabilityAnswer a) => a.Available;                                                  // Workflows governs the state
+    bool RuleEligible(AvailabilityAnswer a) => a.Refusal is null && a.Resources.All(r => r.Available);        // Rules expresses eligibility
+
+    Check(formSlots.SequenceEqual(calendarView.Free), "form-slot and calendar-view callers obtain identical free intervals");
+    Check(formSlots.Count == 5 && formSlots.All(f => f.StartUtc.Day != wednesday.Day), "the subscribed shared holiday is removed for every caller");
+    Check(calendarView.Busy.SequenceEqual(new[] { new TimeInterval(Utc(3, 10), Utc(3, 11)) }), "the stored booking is the view's one busy interval");
+    Check(WorkflowAdmits(await runtime.Read(tenant, candidate)) && RuleEligible(await runtime.Read(tenant, candidate)), "workflow and rule callers admit the free candidate");
+    Check(!WorkflowAdmits(await runtime.Read(tenant, onHoliday)) && !RuleEligible(await runtime.Read(tenant, onHoliday)), "workflow and rule callers refuse the holiday candidate");
+
+    var pool = await runtime.Read(tenant, new AvailabilityRequest(Utc(3, 10), Utc(3, 11), [ResourceCapacity.Pool(bay, 2)]));
+    Check(!pool.Available && pool.Resources[0].Remaining == 0 && pool.Resources[0].Unavailability == Unavailability.CapacityExhausted, "a pool of two with two holds refuses the third");
+    var conjunction = await runtime.Read(tenant, new AvailabilityRequest(Utc(3, 11), Utc(3, 12), [ResourceCapacity.Pool(bay, 2), ResourceCapacity.Exclusive(doctor)]));
+    Check(conjunction.Available && conjunction.Resources.Count == 2, "a mixed required set is a conjunction");
+    var unbounded = await runtime.Read(tenant, new AvailabilityRequest(Utc(3, 9), null, [ResourceCapacity.Exclusive(doctor)]));
+    Check(unbounded.Refusal == new AvailabilityRefusal(AvailabilityRefusal.WindowUnbounded, "to"), "an unbounded window is refused with a stable code");
+
+    Console.WriteLine($"AVAILABILITY_SUBSTRATE_PASS:{JsonSerializer.Serialize(new { callers = 4, freeIntervals = formSlots.Count, refusal = unbounded.Refusal.Code })}");
+
+    static DateTimeOffset Utc(int day, int hour) => new(2026, 3, day, hour, 0, 0, TimeSpan.Zero);
 }
 
 static void Check(bool condition, string message) { if (!condition) throw new InvalidOperationException("FAILED: " + message); }
