@@ -70,7 +70,9 @@ public sealed class AvailabilityExpansionService : IAvailabilityExpansionService
                     end:           localWindowEnd,
                     lookaheadDays: 0,
                     leadDays:      0,
-                    today:         window.AnchorDate,
+                    // The producer caps emitted occurrences at 1 000: emit from the window start,
+                    // not the anchor, or a series older than the cap is empty here (T-653).
+                    today:         localWindowStart,
                     timezone:      availability.Timezone)
                 // A single (non-recurring) window applies only on its anchor date.
                 : (window.AnchorDate >= localWindowStart && window.AnchorDate <= localWindowEnd
