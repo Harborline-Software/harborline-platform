@@ -372,7 +372,7 @@ sealed class QueryMeasures : IViewMeasureCatalog
 {
     public ValueTask<ViewMeasureDescriptor?> ResolveAsync(string name, CancellationToken cancellationToken = default) =>
         ValueTask.FromResult<ViewMeasureDescriptor?>(name == "work.count" ? new(name, ["format"]) : null);
-    public ValueTask<ViewMeasureResult> EvaluateAsync(ViewMeasureBinding binding, IReadOnlyList<ViewRow> rows, DateTimeOffset evaluatedAt, CancellationToken cancellationToken = default) =>
+    public ValueTask<ViewMeasureResult> EvaluateAsync(ViewMeasureBinding binding, IReadOnlyList<ViewRow> rows, DateTimeOffset evaluatedAt, string tenant, string principal, CancellationToken cancellationToken = default) =>
         ValueTask.FromResult(new ViewMeasureResult(binding.Name, rows.Count));
 }
 
