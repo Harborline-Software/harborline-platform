@@ -189,7 +189,8 @@ earns, and three runs: clean, one business-rule defect and one authorization def
 its own claim and not the other.
 
 **This slice adds no execution.** Isolated execution through the production interpreters, the
-ephemeral tenant context, receipt persistence and transport are the api's under ADR 0096
-decisions 3-4; the app pages are the app's.
+ephemeral tenant context, receipt persistence and transport are the api's, per R-0091's authority
+table and ADR 0096 decision 3, under which producers are built in the platform and the api consumes
+the released feed; the app pages are the app's.
 
 `IDefinitionKeyAuthority` remains intentionally unimplemented until allocation authority is ruled. This package owns no API transport, signing, installation, Pilot bridge, or UI renderer.
