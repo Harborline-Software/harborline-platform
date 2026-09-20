@@ -38,6 +38,7 @@ public sealed class InMemoryRruleExpansionService : IRruleExpansionService
         var result = new List<DateOnly>();
         var cursor = start;
         int occurrenceCount = 0;
+        DateOnly? lastEvaluated = null;
 
         // UNTIL is a date upper bound; COUNT limits total candidate
         // occurrences from the anchor (not filtered occurrences).
@@ -46,15 +47,40 @@ public sealed class InMemoryRruleExpansionService : IRruleExpansionService
             ? untilBound.Value
             : horizon;
 
+        // The walk ends on one of two complete conditions: the cursor passes the horizon, or the
+        // rule's own COUNT is satisfied. Reaching the cap is neither, so it refuses below.
         while (cursor <= effectiveHorizon
-            && result.Count < OccurrenceCap
             && (parsed.Count is null || occurrenceCount < parsed.Count.Value))
         {
             if (IsMatchingOccurrence(cursor, start, parsed))
             {
                 occurrenceCount++;
+                lastEvaluated = cursor;
                 if (cursor >= earliest)
+                {
+                    // DES-0057 §10 ruling 3 (2026-09-20): occurrences may be returned only when
+                    // every occurrence relevant to the requested range has been evaluated. One
+                    // more occurrence than the cap admits means the range was not evaluated, so
+                    // the expansion refuses rather than returning a partial a caller cannot tell
+                    // from a complete one. A walk that fills the cap exactly and then runs out of
+                    // range is complete and returns normally.
+                    if (result.Count == OccurrenceCap)
+                        throw new RruleExpansionCapExceededException(
+                            recurrenceId: rrule,
+                            anchor: start,
+                            requestedRangeStart: earliest,
+                            requestedRangeEnd: effectiveHorizon,
+                            candidateLimit: OccurrenceCap,
+                            candidatesExamined: occurrenceCount,
+                            lastEvaluatedOccurrence: lastEvaluated,
+                            bound: parsed.Until is not null
+                                ? RecurrenceBound.Until
+                                : parsed.Count is not null
+                                    ? RecurrenceBound.Count
+                                    : RecurrenceBound.None);
+
                     result.Add(cursor);
+                }
             }
 
             cursor = Advance(cursor, parsed);
@@ -222,8 +248,8 @@ public sealed class InMemoryRruleExpansionService : IRruleExpansionService
         // BYDAY weekly: walk day-by-day within the week interval.
         // The iteration cursor advances one day at a time; the outer
         // loop calls Advance once per day until a matching day is found.
-        // This is the simplest correct approach — the outer loop caps at
-        // OccurrenceCap so a pathological BYDAY won't run away.
+        // This is the simplest correct approach — the outer loop stops at the
+        // horizon so a pathological BYDAY won't run away.
         return cursor.AddDays(1);
     }
 
@@ -234,7 +260,7 @@ public sealed class InMemoryRruleExpansionService : IRruleExpansionService
             // BY* monthly: advance one day at a time; the outer loop
             // matches via IsMatchingMonthly. Cap at 32 days per month to
             // avoid iterating indefinitely if a BY* selector is pathological.
-            // The outer loop's OccurrenceCap provides the hard outer bound.
+            // The outer loop's horizon provides the hard outer bound.
             return cursor.AddDays(1);
         }
         // Plain FREQ=MONTHLY: jump by interval months anchored to start day.
