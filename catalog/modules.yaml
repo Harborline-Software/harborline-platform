@@ -300,7 +300,7 @@
       }
     },
     "hlp.blocks.builder-definitions": {
-      "interface": {"path": "specs/modules/blocks/hlp.blocks.builder-definitions/interface.yaml", "revision": 9},
+      "interface": {"path": "specs/modules/blocks/hlp.blocks.builder-definitions/interface.yaml", "revision": 10},
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "Definition catalogue, package export, and replay are projection-neutral and have no presentation surface."},
       "owner": "platform-foundation",
