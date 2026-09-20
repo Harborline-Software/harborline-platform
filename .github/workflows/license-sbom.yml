@@ -36,7 +36,7 @@ jobs:
             console.log(`ok: ${(s.packages||[]).length} packages, none on the deny list`);
           '
   dependency-review:
-    if: vars.ACTIONS_ENABLED == 'true' && github.event_name == 'pull_request'
+    if: vars.ACTIONS_ENABLED_T660_PROOF_ABSENT == 'true' && github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7

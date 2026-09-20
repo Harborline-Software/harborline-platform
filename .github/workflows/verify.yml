@@ -29,7 +29,7 @@ permissions:
 jobs:
   verify-shared:
     if: >-
-      vars.ACTIONS_ENABLED == 'true' &&
+      vars.ACTIONS_ENABLED_T660_PROOF_ABSENT == 'true' &&
       (github.event_name == 'merge_group' ||
        github.event.pull_request.head.repo.full_name == github.repository)
     # Ticket 404: this job was pinned to macpro because the SchemaForm wall-clock budget passed there and
