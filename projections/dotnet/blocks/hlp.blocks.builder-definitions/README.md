@@ -105,4 +105,38 @@ against `conformance/hlp.blocks.builder-definitions/activation.json`, and produc
 fixture value. Contract interruption tests cover preparation and switch decisions, not API crash
 recovery or durable atomicity.
 
+## Proposed change, Saved version and Released package (T-461)
+
+`ConfigurationProposal` is the propose, save and release half of the governed loop, and it is pure:
+the host owns every store. `Start` records the exact effective generation as the proposed change's
+baseline. `Autosave` replaces only the named definition's body and preserves the rest of the working
+set; an unparseable body refuses rather than being repaired. `WorkingDigest` identifies the exact
+state now being edited, and it moves on every edit — that movement is what makes a **Saved version**
+and a recorded check distinguishable from the state now in front of the author.
+
+`Save` freezes the working edits into an immutable checkpoint with a required author, a required
+rationale and an admitted instant. Its frozen edit list cannot be written through, and a later
+autosave leaves it untouched. `ProposedChangeCheck` binds one working digest; the verification engine
+and receipt content are the verification slice's, and this producer owns only the binding and its
+invalidation through `IsCurrent`.
+
+`Release` exports exactly the named saved version as one provider-neutral document through the
+existing `PlatformPackageExporter`: closure, manifest and digest, validated as replayable before it
+is exported. Its own package record carries the baseline generation, the saved version digest and
+ordinal, the author, the rationale and the check receipt, so a reader of the bytes alone can tell
+what the package was proposed against. `ReleasedPackage.Digest` is the SHA-256 of those exact bytes,
+so the digest shown to the author cannot drift from the artifact it names. Release refuses
+`configuration-check-invalidated` when the proposed change moved after the check, and
+`configuration-baseline-stale`, naming both generations, when the effective generation moved under
+the author. **The platform signs nothing**: transport, signing and installation are the api's, per
+ADR 0097 decision 6.
+
+ck-7 exports `configurationProposalDetail` and `configurationProposalStatuses`, one released Form and
+the domain-facing **Proposed change**, **Saved version** and **Released package** vocabulary. Both
+SchemaForm lanes render that exported Form over one shared fixture,
+`conformance/hlp.blocks.builder-definitions/proposal.json`, which is the single Records-and-Forms
+example — adding a purchase-order number to the invoice Record type and showing it on the invoice
+Form — completed identically in React and Blazor rather than twice in two similar shapes. This slice
+adds no API route, no signing, no installation, no persistence and no app page.
+
 `IDefinitionKeyAuthority` remains intentionally unimplemented until allocation authority is ruled. This package owns no API transport, signing, installation, Pilot bridge, or UI renderer.
