@@ -15,12 +15,22 @@
 // the phase-4 evidence -- and see checkBase in gates/design-review-provenance.mjs, which is this
 // assertion for that record.
 //
-// The rule: the recorded run is a clean run at a commit main already holds.
+// The rule: the recorded run is a COMPLETE run at a commit main already holds.
 //
 //   subject.baseHead    an ancestor of main. Anything else dies with the lane branch.
 //   subject.testedTree  that commit's own tree, which is the only tree a main commit makes durable.
 //                       A dirty-index run names a tree that hangs off no commit, so it is lost the
 //                       same way baseHead is, and release-receipt refuses it on the same line.
+//   gallery-gate        present and passed, i.e. the run was not headless. gate-rows.mjs reads
+//                       `gate?.results?.find(r => r.id === 'gallery-gate')?.passed` to decide every
+//                       module's assertAccessible row, so headless evidence turns fifteen modules
+//                       UNBUILT and catalog-final then refuses their status claims.
+//
+// That last one is here because the gate CANNOT catch it. run-phase-4-gate.mjs writes gate.json
+// only after catalog-final has run, so catalog-final always judges the PREVIOUS recording -- a
+// headless run therefore passes locally and poisons the next run instead. Measured the hard way on
+// T-674: a headless re-record passed a full local gate and failed catalog-final in CI 40 minutes
+// later, with fifteen `assertAccessible=UNBUILT` errors and nothing pointing at the cause.
 import {execFileSync} from 'node:child_process'
 import {readFileSync} from 'node:fs'
 import {resolve} from 'node:path'
@@ -61,6 +71,14 @@ export function checkEvidenceProvenance(root, bytes) {
       field: 'subject.testedTree',
       reason: `${testedTree} is not the tree of ${baseHead}. The recorded run must be a clean run:`
         + ' a tree written from a dirty index hangs off no commit and is lost with the branch.',
+    }
+  }
+  if (!recorded.results?.some(result => result.id === 'gallery-gate' && result.passed)) {
+    return {
+      field: 'results[gallery-gate]',
+      reason: 'the recorded run is headless, so it carries no gallery evidence. gate-rows.mjs reads'
+        + ' this result to decide assertAccessible, and catalog-final then refuses every module'
+        + ' claiming implemented-gate-model-green. Record with the gallery: no HARBORLINE_GATE_HEADLESS.',
     }
   }
   return null

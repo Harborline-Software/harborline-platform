@@ -13,7 +13,9 @@ const cli = resolve(import.meta.dirname, '../gates/scan-evidence-provenance.mjs'
 const git = (root, ...args) => execFileSync('git', args, {
   cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
 }).trim()
-const evidence = subject => JSON.stringify({schemaVersion: 3, phase: 4, status: 'PASS', subject})
+const fullRun = [{id: 'gallery-gate', passed: true}]
+const evidence = (subject, results = fullRun) =>
+  JSON.stringify({schemaVersion: 3, phase: 4, status: 'PASS', subject, results})
 
 function put(root, path, text) {
   mkdirSync(dirname(resolve(root, path)), {recursive: true})
@@ -67,6 +69,16 @@ test('an absent object, an unparseable document and a clone without main all ref
   git(root, 'update-ref', '-d', 'refs/remotes/origin/main')
   git(root, 'branch', '-m', 'main', 'elsewhere')
   assert.match(checkEvidenceProvenance(root, evidence({baseHead: onMain, testedTree: onMainTree}))?.reason, /fetch main/)
+})
+
+// A headless run passes the whole local gate and only poisons the NEXT one, because
+// run-phase-4-gate.mjs writes gate.json after catalog-final has already judged the old copy.
+test('a headless recording is refused, because the gate itself cannot catch it', t => {
+  const {root, onMain, onMainTree} = fixture(t)
+  const subject = {baseHead: onMain, testedTree: onMainTree}
+  assert.equal(checkEvidenceProvenance(root, evidence(subject, []))?.field, 'results[gallery-gate]')
+  assert.equal(checkEvidenceProvenance(root, evidence(subject, [{id: 'gallery-gate', passed: false}]))?.field, 'results[gallery-gate]')
+  assert.equal(checkEvidenceProvenance(root, evidence(subject)), null)
 })
 
 test('the CLI exits nonzero naming the field, and passes when no evidence is recorded', t => {
