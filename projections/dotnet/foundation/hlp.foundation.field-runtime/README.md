@@ -57,11 +57,9 @@ existing protected-payload port; this does not ship or change a DataExchange ada
 
 ## Verification status
 
-After integrating main at `b061140`, all six whole test projects passed: FieldRuntime 165,
-SchemaValidation 44, Forms.Engine 198, EntityViews 68, Blazor 707 and UI support 35, with zero
-failures or skips. React SchemaForm, FormView, RadioGroup and SelectField passed 99 tests;
-the React build and typecheck passed. Twelve neutral UI cases also executed individually
-before the merge. The publication inventory and picker-keyboard tooling tests passed.
-
-These focused results are not the platform gate. Packed-library probes and the full platform
-gate remain required before landing.
+Verified on `main` at `406e725`. `node tooling/run-native.mjs` passes 4511 tests with
+zero failures and zero skips, including FieldRuntime 165, SchemaValidation 44,
+Forms.Engine 198, EntityViews 69, Blazor 712, UI support 35, React 1450 and the
+architecture fences 25. The headless platform gate
+(`HARBORLINE_GATE_HEADLESS=1 node tooling/run-phase-4-gate.mjs`) is the landing path
+and runs in full on the merge queue.
