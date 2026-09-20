@@ -23,44 +23,14 @@ export interface CompiledGraph {
   rules: CompiledRule[]
 }
 
-const operators = new Set([
-  'var', 'missing', 'missing_some',
-  '==', '!=', '===', '!==', '!', '!!', 'and', 'or', 'if',
-  '>', '>=', '<', '<=', '+', '-', '*', '/', '%', 'min', 'max', 'in', 'cat',
-  'agg', 'money.add', 'money.sub', 'money.mul', 'date.add', 'date.diff', 'date.today', 'coding.is',
-])
-
-const actions = new Set(['Compute', 'Validate', 'Presentation', 'Options', 'Visibility', 'Required', 'ReadOnly'])
-
-function validateOperators(node: Json, ruleId: string): void {
-  // Match the evaluator boundary: arrays and multi-property objects are literal data.
-  if (node === null || typeof node !== 'object' || Array.isArray(node)) return
-  const entries = Object.entries(node)
-  if (entries.length !== 1) return
-  const [operator, argument] = entries[0]
-  if (!operators.has(operator)) {
-    throw new CompileError(Codes.compileInvalidExpression,
-      `rule '${ruleId}': unsupported operator '${operator}'.`, ruleId)
-  }
-  if (Array.isArray(argument)) {
-    for (const item of argument) validateOperators(item, ruleId)
-  } else {
-    validateOperators(argument, ruleId)
-  }
-}
-
 export function compile(rules: RuleDefinition[], limits: RuleEngineLimits = DEFAULT_LIMITS): CompiledGraph {
   const compiled: CompiledRule[] = []
 
   for (const rule of rules) {
     if (rule.tier === 'JsonSchema') continue
-    if (rule.tier !== 'JsonLogic') {
+    if (rule.tier === 'PowerFx') {
       throw new CompileError(Codes.compileUnsupportedTier,
-        `rule '${rule.id}': tier '${rule.tier}' is unsupported by the v1 evaluator.`, rule.id)
-    }
-
-    if (!actions.has(rule.action)) {
-      throw new CompileError(Codes.compileUnknownAction, `rule '${rule.id}': unknown action '${rule.action}'.`, rule.id)
+        `rule '${rule.id}': Power Fx (Tier-3) is demoted in v1 — not evaluated (ADR 0140; SPINE-1).`, rule.id)
     }
 
     const scope = resolveScope(rule)
@@ -72,7 +42,6 @@ export function compile(rules: RuleDefinition[], limits: RuleEngineLimits = DEFA
         `rule '${rule.id}': AST node count ${nodes} exceeds the bound ${limits.maxAstNodes}`, rule.id)
     }
 
-    validateOperators(ast, rule.id)
     const references = extractRefs(ast, rule.id)
     if (references.length > limits.maxReferencesPerRule) {
       throw new CompileError(Codes.compileTooManyRefs,

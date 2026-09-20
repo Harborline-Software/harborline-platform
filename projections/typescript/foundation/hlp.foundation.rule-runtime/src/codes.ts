@@ -26,6 +26,5 @@ export const Codes = {
   compileLiteralTooLong: 'rule.compile.literal_too_long',
   compileInvalidExpression: 'rule.compile.invalid_expression',
   compileUnsupportedTier: 'rule.compile.unsupported_tier',
-  compileUnknownAction: 'rule.compile.unknown_action',
   compileBadGrammar: 'rule.compile.bad_grammar',
 } as const
