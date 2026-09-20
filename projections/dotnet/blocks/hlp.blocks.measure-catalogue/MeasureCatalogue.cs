@@ -1,4 +1,4 @@
-using System.Text.Json;
+using System.Globalization;
 using System.Text.Json.Nodes;
 using Harborline.Blocks.Aggregates;
 using Harborline.Foundation.Authorization;
@@ -115,5 +115,19 @@ public sealed class MeasureCatalogue : IMeasureCatalogue
         page is null ? rows : rows.Skip(page.Skip).Take(page.Take).ToArray();
 
     private static IReadOnlyDictionary<string, JsonNode?> Facts(MeasureRow row) =>
-        row.Fields.ToDictionary(pair => pair.Key, pair => JsonSerializer.SerializeToNode(pair.Value.Value), StringComparer.Ordinal);
+        row.Fields.ToDictionary(pair => pair.Key, pair => Fact(pair.Value), StringComparer.Ordinal);
+
+    // The record facts a scope predicate reads are the canonical wire form, the same spelling the
+    // result cells carry. A null or unavailable field is absent, never a zero or an empty string.
+    private static JsonNode? Fact(AggregateValue value) => value.State != AggregateCellState.Value ? null : value.Value switch
+    {
+        string text => JsonValue.Create(text),
+        bool item => JsonValue.Create(item),
+        long item => JsonValue.Create(item),
+        double item => JsonValue.Create(item),
+        CanonicalDecimal item => JsonValue.Create(item.ToString()),
+        DateOnly item => JsonValue.Create(item.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)),
+        DateTimeOffset item => JsonValue.Create(item.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture)),
+        _ => JsonValue.Create(value.Value?.ToString()),
+    };
 }
