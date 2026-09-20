@@ -500,7 +500,7 @@
       }
     },
     "hlp.blocks.calendar": {
-      "interface": {"path": "specs/modules/blocks/hlp.blocks.calendar/interface.yaml", "revision": 2},
+      "interface": {"path": "specs/modules/blocks/hlp.blocks.calendar/interface.yaml", "revision": 3},
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "The calendar engine produces occurrences, free/busy results, booking outcomes, and context answers consumed by scheduler/gantt renderers; it renders nothing."},
       "owner": "platform-blocks",
