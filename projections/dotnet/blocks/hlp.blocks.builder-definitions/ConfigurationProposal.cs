@@ -5,10 +5,21 @@ using System.Text.Json;
 namespace Harborline.Blocks.BuilderDefinitions;
 
 /// <summary>One edited definition inside a proposed change; the body is preserved verbatim.</summary>
+/// <remarks>
+/// <b>The producer states the content kind</b> (T-667). The edit carries the transport content kind its
+/// definition is, so the mapping from an edited definition to a content kind is stated once, here, by
+/// whoever authored the edit. A consumer converts it mechanically and never derives it from
+/// <paramref name="DefinitionKey"/>: a host-side definition-key to content-kind table would be a second
+/// place that has to know the set of kinds, and that set belongs to the transport, not here. This
+/// producer therefore validates that a kind was stated and deliberately does not enumerate the kinds;
+/// a name the transport does not define is that consumer's named refusal, not a value this block ranks.
+/// </remarks>
 /// <param name="DefinitionKey">The definition being edited, as it is named in the baseline closure.</param>
 /// <param name="PackageKey">The package that will own the edited definition.</param>
 /// <param name="BodyJson">The provider-neutral definition source; never repaired by this producer.</param>
-public sealed record ProposedDefinitionEdit(string DefinitionKey, string PackageKey, string BodyJson);
+/// <param name="ContentKind">The transport content-kind name this definition is, stated by the producer.</param>
+public sealed record ProposedDefinitionEdit(string DefinitionKey, string PackageKey, string BodyJson,
+    string ContentKind);
 
 /// <summary>
 /// The working state of one proposed change: the exact baseline generation it started from and the
@@ -90,7 +101,7 @@ public sealed class ConfigurationReleaseResult
 /// </summary>
 public static class ConfigurationProposal
 {
-    private const string EditsContract = "harborline.configuration-proposal-edits/v1";
+    private const string EditsContract = "harborline.configuration-proposal-edits/v2";
 
     /// <summary>Starts a proposed change from an exact effective generation, recording it as the baseline.</summary>
     public static ProposedChangeState Start(string proposalId, ConfigurationGeneration baseline)
@@ -111,6 +122,7 @@ public static class ConfigurationProposal
         Required(edit.DefinitionKey, nameof(edit.DefinitionKey));
         Required(edit.PackageKey, nameof(edit.PackageKey));
         Required(edit.BodyJson, nameof(edit.BodyJson));
+        Required(edit.ContentKind, nameof(edit.ContentKind));
         try { using var _ = JsonDocument.Parse(edit.BodyJson); }
         catch (JsonException) { throw new ArgumentException("configuration-proposal-body-invalid"); }
         var edits = (state.Edits ?? []).Where(existing => existing.DefinitionKey != edit.DefinitionKey)
@@ -215,6 +227,7 @@ public static class ConfigurationProposal
             {
                 definitionKey = edit.DefinitionKey,
                 packageKey = edit.PackageKey,
+                contentKind = edit.ContentKind,
                 body = JsonDocument.Parse(edit.BodyJson).RootElement,
             }))));
         var manifest = new PlatformPackageManifest(1, packageKey, revision, items.Prepend(record));
@@ -244,6 +257,7 @@ public static class ConfigurationProposal
                 writer.WriteStartObject();
                 writer.WriteString("definitionKey", edit.DefinitionKey);
                 writer.WriteString("packageKey", edit.PackageKey);
+                writer.WriteString("contentKind", edit.ContentKind);
                 writer.WriteString("body", edit.BodyJson);
                 writer.WriteEndObject();
             }

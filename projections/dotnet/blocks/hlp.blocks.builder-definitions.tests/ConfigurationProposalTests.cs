@@ -15,6 +15,10 @@ public sealed class ConfigurationProposalTests
     private const string RecordsEdit = """{"recordType":"invoice","fields":[{"name":"purchaseOrderNumber","kind":"identifier"}]}""";
     private const string FormsEdit = """{"formId":"invoice","sections":[{"id":"header","fields":["purchaseOrderNumber"]}]}""";
     private const string FormsEditWithSupplier = """{"formId":"invoice","sections":[{"id":"header","fields":["purchaseOrderNumber","supplier"]}]}""";
+    // T-667: the producer states the content kind. These are the transport's names, supplied by the
+    // author of the edit; this block neither enumerates them nor derives them from a definition key.
+    private const string RecordsKind = "AssetTypeDefinition";
+    private const string FormsKind = "FormDefinition";
     private static readonly DateTimeOffset SavedAt = DateTimeOffset.Parse("2026-09-20T09:00:00Z", CultureInfo.InvariantCulture);
 
     private static ConfigurationReference Ref(string key, string revision, char fill) => new(key, revision, new string(fill, 64));
@@ -30,8 +34,8 @@ public sealed class ConfigurationProposalTests
     private static ProposedChangeState Edited(ConfigurationGeneration baseline, string forms = FormsEdit)
     {
         var state = ConfigurationProposal.Start("proposal-1", baseline);
-        state = ConfigurationProposal.Autosave(state, new("records/invoice", "finance", RecordsEdit));
-        return ConfigurationProposal.Autosave(state, new("forms/invoice", "finance", forms));
+        state = ConfigurationProposal.Autosave(state, new("records/invoice", "finance", RecordsEdit, RecordsKind));
+        return ConfigurationProposal.Autosave(state, new("forms/invoice", "finance", forms, FormsKind));
     }
 
     private static SavedVersion Save(ProposedChangeState state, int ordinal = 1, string rationale = "Capture the purchase order number on invoices.")
@@ -91,15 +95,15 @@ public sealed class ConfigurationProposalTests
     {
         var baseline = Generation();
         var state = ConfigurationProposal.Start("proposal-1", baseline);
-        var first = ConfigurationProposal.Autosave(state, new("records/invoice", "finance", RecordsEdit));
+        var first = ConfigurationProposal.Autosave(state, new("records/invoice", "finance", RecordsEdit, RecordsKind));
         AssertFixture("autosaved-one-of-two", ConfigurationProposalDetail.Proposed(first, baseline));
 
-        var both = ConfigurationProposal.Autosave(first, new("forms/invoice", "finance", FormsEdit));
+        var both = ConfigurationProposal.Autosave(first, new("forms/invoice", "finance", FormsEdit, FormsKind));
         // Autosave preserves the earlier edit rather than replacing the working set.
         Assert.Equal(["forms/invoice", "records/invoice"], both.Edits.Select(edit => edit.DefinitionKey));
         Assert.Equal(RecordsEdit, both.Edits.Single(edit => edit.DefinitionKey == "records/invoice").BodyJson);
         // Re-autosaving the same definition replaces only that definition's body.
-        var replaced = ConfigurationProposal.Autosave(both, new("forms/invoice", "finance", FormsEditWithSupplier));
+        var replaced = ConfigurationProposal.Autosave(both, new("forms/invoice", "finance", FormsEditWithSupplier, FormsKind));
         Assert.Equal(2, replaced.Edits.Count);
         Assert.Equal(FormsEditWithSupplier, replaced.Edits.Single(edit => edit.DefinitionKey == "forms/invoice").BodyJson);
         AssertFixture("proposed", ConfigurationProposalDetail.Proposed(both, baseline));
@@ -111,8 +115,8 @@ public sealed class ConfigurationProposalTests
         Assert.Equal(1, version.Ordinal);
         // The checkpoint is immutable: its frozen edits cannot be written through, and a later edit
         // to the proposed change leaves the saved version's digest and bodies untouched.
-        Assert.Throws<NotSupportedException>(() => ((IList<ProposedDefinitionEdit>)version.Edits)[0] = new("x", "y", "{}"));
-        var after = ConfigurationProposal.Autosave(both, new("forms/invoice", "finance", FormsEditWithSupplier));
+        Assert.Throws<NotSupportedException>(() => ((IList<ProposedDefinitionEdit>)version.Edits)[0] = new("x", "y", "{}", FormsKind));
+        var after = ConfigurationProposal.Autosave(both, new("forms/invoice", "finance", FormsEditWithSupplier, FormsKind));
         Assert.Equal(FormsEdit, version.Edits.Single(edit => edit.DefinitionKey == "forms/invoice").BodyJson);
         Assert.NotEqual(version.Digest, ConfigurationProposal.WorkingDigest(after));
         // Authorship and rationale are required, never defaulted.
@@ -157,7 +161,7 @@ public sealed class ConfigurationProposalTests
 
         // One more edit after the check, and the same release refuses by name rather than signing
         // something the check never saw.
-        var edited = ConfigurationProposal.Autosave(state, new("forms/invoice", "finance", FormsEditWithSupplier));
+        var edited = ConfigurationProposal.Autosave(state, new("forms/invoice", "finance", FormsEditWithSupplier, FormsKind));
         Assert.False(ConfigurationProposal.IsCurrent(check, edited));
         var refused = ConfigurationProposal.Release(edited, version, check, baseline, "tenant-a.invoice-purchase-order", "1.1.0");
         Assert.Null(refused.Released);
@@ -220,7 +224,7 @@ public sealed class ConfigurationProposalTests
         Assert.True(released.Document.Span.SequenceEqual(again.Document.Span));
         Assert.Equal(released.Digest, again.Digest);
         // A different saved version exports a different artifact and therefore a different digest.
-        var other = ConfigurationProposal.Autosave(state, new("forms/invoice", "finance", FormsEditWithSupplier));
+        var other = ConfigurationProposal.Autosave(state, new("forms/invoice", "finance", FormsEditWithSupplier, FormsKind));
         var otherVersion = ConfigurationProposal.Save(other, 2, "dana.okafor", "Also show the supplier.", SavedAt);
         var otherReleased = ConfigurationProposal.Release(other, otherVersion,
             new("proposal-1", otherVersion.Digest, "receipt-2"), baseline, "tenant-a.invoice-purchase-order", "1.1.0").Released!;
@@ -266,13 +270,16 @@ public sealed class ConfigurationProposalTests
     }
 
     [Theory]
-    [InlineData("", "finance", "{}")]
-    [InlineData("records/invoice", "", "{}")]
-    [InlineData("records/invoice", "finance", "not json")]
-    public void An_incomplete_or_unparseable_edit_refuses_rather_than_being_repaired(string key, string package, string body)
+    [InlineData("", "finance", "{}", FormsKind)]
+    [InlineData("records/invoice", "", "{}", FormsKind)]
+    [InlineData("records/invoice", "finance", "not json", FormsKind)]
+    // T-667: an edit that states no content kind is as incomplete as one that states no package. The
+    // producer refuses it here rather than exporting a package whose items no consumer can classify.
+    [InlineData("records/invoice", "finance", "{}", "")]
+    public void An_incomplete_or_unparseable_edit_refuses_rather_than_being_repaired(string key, string package, string body, string kind)
     {
         var state = ConfigurationProposal.Start("proposal-1", Generation());
-        Assert.Throws<ArgumentException>(() => ConfigurationProposal.Autosave(state, new(key, package, body)));
+        Assert.Throws<ArgumentException>(() => ConfigurationProposal.Autosave(state, new(key, package, body, kind)));
     }
 
     [Fact]
@@ -285,6 +292,38 @@ public sealed class ConfigurationProposalTests
         Assert.Equal("configuration-check-required", refused.Refusal!.Code);
         Assert.Equal("No check recorded.",
             ConfigurationProposalDetail.Bind(state, baseline, Save(state), null, refused)["checkState"]);
+    }
+
+    // T-667: the released document carries the content kind the producer stated, item by item, so the
+    // consumer that turns this document into an installable artifact reads a kind rather than inferring
+    // one. The kind is also part of the working digest, so restating a definition under a different kind
+    // is an edit like any other and invalidates a check taken before it.
+    [Fact]
+    public void The_released_document_carries_the_content_kind_the_producer_stated()
+    {
+        var baseline = Generation();
+        var state = Edited(baseline);
+        var version = Save(state);
+        var check = new ProposedChangeCheck("proposal-1", version.Digest, "receipt-1");
+        var released = ConfigurationProposal.Release(state, version, check, baseline, "tenant-a.invoice-purchase-order", "1.1.0");
+        Assert.Null(released.Refusal);
+
+        using var document = JsonDocument.Parse(released.Released!.Document.ToArray());
+        var kinds = document.RootElement.GetProperty("items").EnumerateArray()
+            .Select(item => item.GetProperty("content"))
+            .Where(content => content.GetProperty("classification").GetString() == "present")
+            .Select(content => content.GetProperty("payload"))
+            .Where(payload => payload.TryGetProperty("definitionKey", out _))
+            .ToDictionary(payload => payload.GetProperty("definitionKey").GetString()!,
+                payload => payload.GetProperty("contentKind").GetString()!);
+        Assert.Equal(RecordsKind, kinds["records/invoice"]);
+        Assert.Equal(FormsKind, kinds["forms/invoice"]);
+
+        // Restating the same body under another kind is a different working state, so a check taken
+        // against the first cannot be carried over to the second.
+        var restated = ConfigurationProposal.Autosave(state, new("forms/invoice", "finance", FormsEdit, "ViewDefinition"));
+        Assert.NotEqual(ConfigurationProposal.WorkingDigest(state), ConfigurationProposal.WorkingDigest(restated));
+        Assert.False(ConfigurationProposal.IsCurrent(check, restated));
     }
 
     [Fact]
