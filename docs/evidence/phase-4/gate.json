@@ -4,8 +4,8 @@
   "scope": "HLF-052 App-essential UI modules registered in the Platform catalog",
   "subject": {
     "repository": "harborline-platform",
-    "baseHead": "f18c6e3bc9d67fffb954211f6a32bff26feb9805",
-    "testedTree": "968a11766a3b9c97c404cbd68519995163a10813",
+    "baseHead": "28a17f71f93b7129182419526687793b67e79702",
+    "testedTree": "c9054e9bebbb5ec11ae0e3b92896cad3e23a4759",
     "mode": "current-index"
   },
   "moduleIds": [
