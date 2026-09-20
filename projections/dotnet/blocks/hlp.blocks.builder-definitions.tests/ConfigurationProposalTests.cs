@@ -276,6 +276,18 @@ public sealed class ConfigurationProposalTests
     }
 
     [Fact]
+    public void An_unchecked_proposed_change_cannot_be_released()
+    {
+        var baseline = Generation();
+        var state = Edited(baseline);
+        var refused = ConfigurationProposal.Release(state, Save(state), null, baseline, "p", "1.0.0");
+        Assert.Null(refused.Released);
+        Assert.Equal("configuration-check-required", refused.Refusal!.Code);
+        Assert.Equal("No check recorded.",
+            ConfigurationProposalDetail.Bind(state, baseline, Save(state), null, refused)["checkState"]);
+    }
+
+    [Fact]
     public void A_proposed_change_for_another_tenant_or_another_proposal_cannot_be_released()
     {
         var baseline = Generation();

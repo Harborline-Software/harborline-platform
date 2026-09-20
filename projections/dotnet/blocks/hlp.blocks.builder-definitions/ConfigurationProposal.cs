@@ -160,17 +160,19 @@ public static class ConfigurationProposal
     /// underneath the author refuses rather than releasing against a generation nobody reviewed.
     /// </summary>
     public static ConfigurationReleaseResult Release(ProposedChangeState state, SavedVersion version,
-        ProposedChangeCheck check, ConfigurationGeneration effectiveNow, string packageKey, string revision)
+        ProposedChangeCheck? check, ConfigurationGeneration effectiveNow, string packageKey, string revision)
     {
         ArgumentNullException.ThrowIfNull(state);
         ArgumentNullException.ThrowIfNull(version);
-        ArgumentNullException.ThrowIfNull(check);
         ArgumentNullException.ThrowIfNull(effectiveNow);
         Required(packageKey, nameof(packageKey));
         Required(revision, nameof(revision));
         static ConfigurationReleaseResult Refuse(string code, string target, string message) =>
             new(null, new(code, target, message));
 
+        if (check is null)
+            return Refuse("configuration-check-required", "check",
+                "No check is recorded for this proposed change.");
         if (version.ProposalId != state.ProposalId)
             return Refuse("configuration-release-proposal-mismatch", "savedVersion",
                 "The saved version belongs to another proposed change.");
