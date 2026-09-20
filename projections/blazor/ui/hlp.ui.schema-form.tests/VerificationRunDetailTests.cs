@@ -30,6 +30,7 @@ public sealed class VerificationRunDetailTests : BunitContext
     [InlineData("passed")]
     [InlineData("business-rule-defect")]
     [InlineData("authorization-defect")]
+    [InlineData("vacuous")]
     public void The_records_and_rules_run_renders_through_the_released_definition(string step)
     {
         using var pack = JsonDocument.Parse(
@@ -81,10 +82,19 @@ public sealed class VerificationRunDetailTests : BunitContext
             Assert.Contains("approval-authority — Only an approver may create an invoice already marked approved.: Passed",
                 cut.Find("#cases").TextContent, StringComparison.Ordinal);
         }
-        else
+        else if (step == "authorization-defect")
         {
             Assert.Contains("approval-authority authorization.decision: expected \"refused\", actual \"allowed\"", failures, StringComparison.Ordinal);
             Assert.DoesNotContain("invoice-total", failures, StringComparison.Ordinal);
+        }
+        else
+        {
+            // Acceptance 4 on the surface: a claim that was never checked reads as "Nothing was
+            // checked", and the run as a whole does too. It is not shown as a pass anywhere.
+            Assert.Equal("Nothing was checked", cut.Find("#status").TextContent);
+            Assert.Equal("approval-authority: Nothing was checked", failures);
+            Assert.Contains("approval-authority — Only an approver may create an invoice already marked approved.: Nothing was checked",
+                cut.Find("#cases").TextContent, StringComparison.Ordinal);
         }
     }
 
