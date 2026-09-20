@@ -128,17 +128,21 @@ if (buildOnly) {
   // The aggregate React declaration build consumes the canonical Forms
   // declaration output, and the rule-authoring typecheck/build consumes the
   // rule-runtime declaration output. Establish both authorities first so clean
-  // builds never race a consumer against the compiler writing its dist.
+  // builds never race a consumer against the compiler writing its dist. The
+  // SelectField typecheck then consumes sibling declarations from that aggregate
+  // React build, so complete the producer before starting the consumer fan-out.
   const [formsTypeScriptBuild, ruleRuntimeTypeScriptBuild] = await Promise.all([
     run('forms-typescript-build', 'npm', ['run', 'build'], formsTypeScriptRoot),
     run('rule-runtime-typescript-build', 'pnpm', ['run', 'build'], ruleRuntimeTypeScriptRoot),
   ])
+  // SelectField's standalone typecheck reads sibling declarations emitted by this build.
+  const reactBuild = await run('react-build', 'npm', ['run', 'build'], reactRoot)
   results = [formsTypeScriptBuild, ruleRuntimeTypeScriptBuild, ...await Promise.all([
       run('react-typecheck', 'npm', ['run', 'typecheck'], reactRoot),
       run('select-field-typecheck', process.execPath, [
         resolve(reactRoot, 'node_modules/typescript/bin/tsc'), '-p', 'tsconfig.typecheck.json',
       ], selectFieldRoot),
-      run('react-build', 'npm', ['run', 'build'], reactRoot),
+      reactBuild,
       run('forms-typescript-typecheck', 'npm', ['run', 'typecheck'], formsTypeScriptRoot),
       run('rule-runtime-typescript-typecheck', 'pnpm', ['run', 'typecheck'], ruleRuntimeTypeScriptRoot),
       run('rule-authoring-typescript-typecheck', 'pnpm', ['run', 'typecheck'], ruleAuthoringTypeScriptRoot),
