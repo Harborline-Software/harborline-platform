@@ -391,3 +391,31 @@ no retired catalog/admission implementation files or symbols. Full identity/hash
 
 These results satisfy the focused architecture and native-consumer checks, not the full gate.
 The gate, PR, merge and control closure remain outstanding. T-589 has not started.
+
+## Independent-clone gate and provenance repair
+
+The linked-worktree retries failed before stage one at a unique candidate-directory
+`mkdir` beneath the shared Git directory. A direct controller-shell directory probe
+succeeded. This does not establish the inner process's permission policy. The earlier
+contention diagnosis was withdrawn; this instance is not evidence for T-663.
+No permission grant, gate bypass, warning exemption, or T-663 change was made.
+
+At the user's direction, a separate clone with its own `.git` was created beneath
+this worktree's ignored artifacts. The workspace-write CLI invoked the unchanged
+`npm run gate:phase4` at commit `4194350d614c066bf61229048b24353b6ad9ac25`.
+The gate acquired its lock and passed ten stages, including ordinary audited restore,
+generation smoke (61 modules, 474 scenarios), and UI authority (180 pairs).
+It stopped at catalog preflight with six stale Rules provenance hashes and four
+targets naming the retired catalog/admission files. Eleven later stages were unreached.
+
+Actual gate PID 38448 exited 1 naturally at 2026-09-20 04:42:47 UTC. Full output:
+`artifacts/t588-local/clone-gate/20260920T044224Z-clone-gate-9ffd67be.log`;
+the adjacent exit JSON records the exact command, commit, tree, cwd and exit.
+The original preflight failure log was preserved as
+`artifacts/t588-local/clone-gate/20260920T044224Z-catalog-preflight.log`.
+
+Commit `6cec16f` refreshes only Rules provenance, binds the replacement definition,
+intent and shared-store implementation, and removes the four retired targets.
+All 40 Rules hash targets verified. The same catalog preflight command then passed
+in the clone with 108 modules, 194 projections, 32 artifacts and zero errors.
+This is a repaired preflight, not full-gate acceptance. The full gate must run again.
