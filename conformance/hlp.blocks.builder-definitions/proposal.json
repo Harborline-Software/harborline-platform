@@ -1,0 +1,140 @@
+{
+  "example": "records-and-forms",
+  "baselineDigest": "711d9ed30ecc84ab8957db742ad49fec137481bd688a4577e4f43f53262d52a1",
+  "releasedPackageDigest": "3b6f6b13765a02fd9e53fe784d5e37fe16dd18b8099a5a1e1c91fd3b5722173e",
+  "cases": [
+    {
+      "step": "autosaved-one-of-two",
+      "status": "proposed",
+      "values": {
+        "status": "Proposed change",
+        "tenantKey": "tenant-a",
+        "proposalId": "proposal-1",
+        "baselineDigest": "711d9ed30ecc84ab8957db742ad49fec137481bd688a4577e4f43f53262d52a1",
+        "effectiveDigest": "711d9ed30ecc84ab8957db742ad49fec137481bd688a4577e4f43f53262d52a1",
+        "editedDefinitions": "records/invoice (finance)",
+        "workingDigest": "d4429bb8a48fbcd09665865296bfe8e47097b554b449740b7e702de8ac61ae90",
+        "savedVersion": "",
+        "savedBy": "",
+        "rationale": "",
+        "checkState": "No check recorded.",
+        "releasedPackage": "",
+        "refusals": ""
+      }
+    },
+    {
+      "step": "proposed",
+      "status": "proposed",
+      "values": {
+        "status": "Proposed change",
+        "tenantKey": "tenant-a",
+        "proposalId": "proposal-1",
+        "baselineDigest": "711d9ed30ecc84ab8957db742ad49fec137481bd688a4577e4f43f53262d52a1",
+        "effectiveDigest": "711d9ed30ecc84ab8957db742ad49fec137481bd688a4577e4f43f53262d52a1",
+        "editedDefinitions": "forms/invoice (finance)\nrecords/invoice (finance)",
+        "workingDigest": "da1c81474b0c16702f350efc613ed59aa24fbd8b3f7a663c655cd61471b5c67c",
+        "savedVersion": "",
+        "savedBy": "",
+        "rationale": "",
+        "checkState": "No check recorded.",
+        "releasedPackage": "",
+        "refusals": ""
+      }
+    },
+    {
+      "step": "saved",
+      "status": "saved",
+      "values": {
+        "status": "Saved version",
+        "tenantKey": "tenant-a",
+        "proposalId": "proposal-1",
+        "baselineDigest": "711d9ed30ecc84ab8957db742ad49fec137481bd688a4577e4f43f53262d52a1",
+        "effectiveDigest": "711d9ed30ecc84ab8957db742ad49fec137481bd688a4577e4f43f53262d52a1",
+        "editedDefinitions": "forms/invoice (finance)\nrecords/invoice (finance)",
+        "workingDigest": "da1c81474b0c16702f350efc613ed59aa24fbd8b3f7a663c655cd61471b5c67c",
+        "savedVersion": "1: da1c81474b0c16702f350efc613ed59aa24fbd8b3f7a663c655cd61471b5c67c",
+        "savedBy": "dana.okafor",
+        "rationale": "Capture the purchase order number on invoices.",
+        "checkState": "Current (receipt-1)",
+        "releasedPackage": "",
+        "refusals": ""
+      }
+    },
+    {
+      "step": "released",
+      "status": "released",
+      "values": {
+        "status": "Released package",
+        "tenantKey": "tenant-a",
+        "proposalId": "proposal-1",
+        "baselineDigest": "711d9ed30ecc84ab8957db742ad49fec137481bd688a4577e4f43f53262d52a1",
+        "effectiveDigest": "711d9ed30ecc84ab8957db742ad49fec137481bd688a4577e4f43f53262d52a1",
+        "editedDefinitions": "forms/invoice (finance)\nrecords/invoice (finance)",
+        "workingDigest": "da1c81474b0c16702f350efc613ed59aa24fbd8b3f7a663c655cd61471b5c67c",
+        "savedVersion": "1: da1c81474b0c16702f350efc613ed59aa24fbd8b3f7a663c655cd61471b5c67c",
+        "savedBy": "dana.okafor",
+        "rationale": "Capture the purchase order number on invoices.",
+        "checkState": "Current (receipt-1)",
+        "releasedPackage": "tenant-a.invoice-purchase-order 1.1.0: 3b6f6b13765a02fd9e53fe784d5e37fe16dd18b8099a5a1e1c91fd3b5722173e",
+        "refusals": ""
+      }
+    },
+    {
+      "step": "check-invalidated-by-a-later-edit",
+      "status": "saved",
+      "values": {
+        "status": "Saved version",
+        "tenantKey": "tenant-a",
+        "proposalId": "proposal-1",
+        "baselineDigest": "711d9ed30ecc84ab8957db742ad49fec137481bd688a4577e4f43f53262d52a1",
+        "effectiveDigest": "711d9ed30ecc84ab8957db742ad49fec137481bd688a4577e4f43f53262d52a1",
+        "editedDefinitions": "forms/invoice (finance)\nrecords/invoice (finance)",
+        "workingDigest": "2bd96b8c40ee414af59e1571b04f688ea8ae0f3e4a65a15ba3600eb4c75c58f9",
+        "savedVersion": "1: da1c81474b0c16702f350efc613ed59aa24fbd8b3f7a663c655cd61471b5c67c",
+        "savedBy": "dana.okafor",
+        "rationale": "Capture the purchase order number on invoices.",
+        "checkState": "Invalidated by a later edit (receipt-1)",
+        "releasedPackage": "",
+        "refusals": "configuration-check-invalidated (check): The proposed change has been edited since it was checked, so that check no longer applies."
+      }
+    },
+    {
+      "step": "released-a-superseded-saved-version",
+      "status": "saved",
+      "values": {
+        "status": "Saved version",
+        "tenantKey": "tenant-a",
+        "proposalId": "proposal-1",
+        "baselineDigest": "711d9ed30ecc84ab8957db742ad49fec137481bd688a4577e4f43f53262d52a1",
+        "effectiveDigest": "711d9ed30ecc84ab8957db742ad49fec137481bd688a4577e4f43f53262d52a1",
+        "editedDefinitions": "forms/invoice (finance)\nrecords/invoice (finance)",
+        "workingDigest": "2bd96b8c40ee414af59e1571b04f688ea8ae0f3e4a65a15ba3600eb4c75c58f9",
+        "savedVersion": "1: da1c81474b0c16702f350efc613ed59aa24fbd8b3f7a663c655cd61471b5c67c",
+        "savedBy": "dana.okafor",
+        "rationale": "Capture the purchase order number on invoices.",
+        "checkState": "Current (receipt-2)",
+        "releasedPackage": "",
+        "refusals": "configuration-check-invalidated (check): The recorded check does not describe this saved version."
+      }
+    },
+    {
+      "step": "released-against-a-stale-baseline",
+      "status": "saved",
+      "values": {
+        "status": "Saved version",
+        "tenantKey": "tenant-a",
+        "proposalId": "proposal-1",
+        "baselineDigest": "711d9ed30ecc84ab8957db742ad49fec137481bd688a4577e4f43f53262d52a1",
+        "effectiveDigest": "b26f03f96b133893d17aad0f3637b61a2ddb9695f431e2610fd51fd4c0707187",
+        "editedDefinitions": "forms/invoice (finance)\nrecords/invoice (finance)",
+        "workingDigest": "da1c81474b0c16702f350efc613ed59aa24fbd8b3f7a663c655cd61471b5c67c",
+        "savedVersion": "1: da1c81474b0c16702f350efc613ed59aa24fbd8b3f7a663c655cd61471b5c67c",
+        "savedBy": "dana.okafor",
+        "rationale": "Capture the purchase order number on invoices.",
+        "checkState": "Current (receipt-1)",
+        "releasedPackage": "",
+        "refusals": "configuration-baseline-stale (baselineDigest): The proposed change was started from 711d9ed30ecc84ab8957db742ad49fec137481bd688a4577e4f43f53262d52a1, which is no longer the effective generation b26f03f96b133893d17aad0f3637b61a2ddb9695f431e2610fd51fd4c0707187."
+      }
+    }
+  ]
+}

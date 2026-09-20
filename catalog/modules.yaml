@@ -300,7 +300,7 @@
       }
     },
     "hlp.blocks.builder-definitions": {
-      "interface": {"path": "specs/modules/blocks/hlp.blocks.builder-definitions/interface.yaml", "revision": 6},
+      "interface": {"path": "specs/modules/blocks/hlp.blocks.builder-definitions/interface.yaml", "revision": 9},
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "Definition catalogue, package export, and replay are projection-neutral and have no presentation surface."},
       "owner": "platform-foundation",
@@ -370,6 +370,41 @@
             "assembly": "Harborline.Blocks.Aggregates",
             "manifest": "projections/dotnet/blocks/hlp.blocks.aggregates/Harborline.Blocks.Aggregates.csproj",
             "dependencies": [],
+            "identityAuthority": "Harborline",
+            "producerRepository": "harborline-platform",
+            "distribution": "internal-only",
+            "candidateRole": "new-bounded-package",
+            "registryAvailable": false
+          }
+        }
+      }
+    },
+    "hlp.blocks.measure-catalogue": {
+      "interface": {"path": "specs/modules/blocks/hlp.blocks.measure-catalogue/interface.yaml", "revision": 1},
+      "moduleKind": "runtime",
+      "presentation": {"disposition": "not-applicable", "rationale": "The catalogue resolves references and returns neutral typed cells; every renderer of those cells is a separate consumer module."},
+      "owner": "platform-blocks",
+      "dependencies": ["hlp.blocks.aggregates", "hlp.foundation.actor"],
+      "status": "draft-native-green",
+      "depth": {
+        "disposition": "deep-module",
+        "deletionTest": "PASS",
+        "redistributedComplexity": [
+          "one address for declared and bound entries would otherwise fork into a per-consumer naming scheme and a kind-specific dispatch in every caller",
+          "binding the authorization-filtered input set before grouping, paging and folding would otherwise be re-decided, or forgotten, by each measure consumer"
+        ]
+      },
+      "projections": {
+        "dotnet": {
+          "role": "implementation",
+          "path": "projections/dotnet/blocks/hlp.blocks.measure-catalogue",
+          "status": "preview",
+          "artifact": {
+            "type": "nuget",
+            "id": "Harborline.Blocks.MeasureCatalogue",
+            "assembly": "Harborline.Blocks.MeasureCatalogue",
+            "manifest": "projections/dotnet/blocks/hlp.blocks.measure-catalogue/Harborline.Blocks.MeasureCatalogue.csproj",
+            "dependencies": ["Harborline.Blocks.Aggregates", "Harborline.Foundation.Authorization"],
             "identityAuthority": "Harborline",
             "producerRepository": "harborline-platform",
             "distribution": "internal-only",
@@ -589,11 +624,11 @@
       }
     },
     "hlp.blocks.reports": {
-      "interface": {"path": "specs/modules/blocks/hlp.blocks.reports/interface.yaml", "revision": 1},
+      "interface": {"path": "specs/modules/blocks/hlp.blocks.reports/interface.yaml", "revision": 2},
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "The report engine and cartridges return typed ReportRunResult envelopes; chart/grid/export rendering is owned by existing UI modules."},
       "owner": "platform-blocks",
-      "dependencies": ["hlp.contracts.identities"],
+      "dependencies": ["hlp.contracts.identities", "hlp.blocks.measure-catalogue"],
       "status": "implemented",
       "depth": {
         "disposition": "deep-module",
@@ -613,7 +648,7 @@
             "id": "Harborline.Blocks.Reports",
             "assembly": "Harborline.Blocks.Reports",
             "manifest": "projections/dotnet/blocks/hlp.blocks.reports/Harborline.Blocks.Reports.csproj",
-            "dependencies": ["Harborline.Contracts"],
+            "dependencies": ["Harborline.Contracts", "Harborline.Blocks.MeasureCatalogue"],
             "identityAuthority": "Harborline",
             "producerRepository": "harborline-platform",
             "distribution": "internal-only",
@@ -624,11 +659,11 @@
       }
     },
     "hlp.blocks.entity-views": {
-      "interface": {"path": "specs/modules/blocks/hlp.blocks.entity-views/interface.yaml", "revision": 4},
+      "interface": {"path": "specs/modules/blocks/hlp.blocks.entity-views/interface.yaml", "revision": 5},
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "The entity-views read model produces list/detail/tree/condition data and navigation targets consumed by separate grid/table renderers; it renders nothing."},
       "owner": "platform-blocks",
-      "dependencies": ["hlp.contracts.identities", "hlp.contracts.forms", "hlp.contracts.fields", "hlp.foundation.actor"],
+      "dependencies": ["hlp.contracts.identities", "hlp.contracts.forms", "hlp.contracts.fields", "hlp.foundation.actor", "hlp.blocks.measure-catalogue"],
       "status": "implemented",
       "depth": {
         "disposition": "deep-module",
@@ -648,7 +683,7 @@
             "id": "Harborline.Blocks.EntityViews",
             "assembly": "Harborline.Blocks.EntityViews",
             "manifest": "projections/dotnet/blocks/hlp.blocks.entity-views/Harborline.Blocks.EntityViews.csproj",
-            "dependencies": ["Harborline.Contracts", "Harborline.Foundation.Authorization"],
+            "dependencies": ["Harborline.Contracts", "Harborline.Foundation.Authorization", "Harborline.Blocks.MeasureCatalogue"],
             "identityAuthority": "Harborline",
             "producerRepository": "harborline-platform",
             "distribution": "internal-only",

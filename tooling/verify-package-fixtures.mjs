@@ -781,6 +781,7 @@ function verifyNuget() {
   const inspectionReview = 'projections/dotnet/blocks/hlp.blocks.inspection-review/Harborline.Blocks.InspectionReview.csproj'
   const builderDefinitions = 'projections/dotnet/blocks/hlp.blocks.builder-definitions/Harborline.Blocks.BuilderDefinitions.csproj'
   const aggregates = 'projections/dotnet/blocks/hlp.blocks.aggregates/Harborline.Blocks.Aggregates.csproj'
+  const measureCatalogue = 'projections/dotnet/blocks/hlp.blocks.measure-catalogue/Harborline.Blocks.MeasureCatalogue.csproj'
   const relativeChains = 'projections/dotnet/blocks/hlp.blocks.relative-chains/Harborline.Blocks.RelativeChains.csproj'
   const workflow = 'projections/dotnet/blocks/hlp.blocks.workflow/Harborline.Blocks.Workflow.csproj'
   const workflowInterpreter = 'projections/dotnet/blocks/hlp.blocks.workflow-interpreter/Harborline.Blocks.Workflow.Interpreter.csproj'
@@ -808,6 +809,7 @@ function verifyNuget() {
   run(dotnet.executable, ['pack', inspectionReview, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
   run(dotnet.executable, ['pack', builderDefinitions, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
   run(dotnet.executable, ['pack', aggregates, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
+  run(dotnet.executable, ['pack', measureCatalogue, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
   run(dotnet.executable, ['pack', relativeChains, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
   run(dotnet.executable, ['pack', workflow, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
   run(dotnet.executable, ['pack', workflowInterpreter, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
@@ -833,7 +835,7 @@ function verifyNuget() {
     const nuspec = zip.text(nuspecName)
     return { name, path, zip, nuspec, id: metadata(nuspec, 'id'), version: metadata(nuspec, 'version') }
   })
-  const expectedIds = ['Harborline.Blocks.ActivityTimeline', 'Harborline.Blocks.Aggregates', 'Harborline.Blocks.BuilderDefinitions', 'Harborline.Blocks.Calendar', 'Harborline.Blocks.EntityViews', 'Harborline.Blocks.InspectionReview', 'Harborline.Blocks.RelativeChains', 'Harborline.Blocks.Reports', 'Harborline.Blocks.Scheduling', 'Harborline.Blocks.Workflow', 'Harborline.Blocks.Workflow.Interpreter', 'Harborline.Foundation', 'Harborline.Foundation.DataExchange', 'Harborline.Foundation.Forms.Engine', 'Harborline.Foundation.MultiTenancy', 'Harborline.Foundation.RuleAuthoring', 'Harborline.Foundation.RuleEngine', 'Harborline.Foundation.Scheduling', 'Harborline.Kernel.Core', 'Harborline.Kernel.SchemaValidation', 'Harborline.Kernel.WorkItems', 'Harborline.UIAdapters.Blazor', 'Harborline.Contracts', 'Harborline.Foundation.Authorization', 'Harborline.Foundation.Forms', 'Harborline.Foundation.Session']
+  const expectedIds = ['Harborline.Blocks.ActivityTimeline', 'Harborline.Blocks.Aggregates', 'Harborline.Blocks.MeasureCatalogue', 'Harborline.Blocks.BuilderDefinitions', 'Harborline.Blocks.Calendar', 'Harborline.Blocks.EntityViews', 'Harborline.Blocks.InspectionReview', 'Harborline.Blocks.RelativeChains', 'Harborline.Blocks.Reports', 'Harborline.Blocks.Scheduling', 'Harborline.Blocks.Workflow', 'Harborline.Blocks.Workflow.Interpreter', 'Harborline.Foundation', 'Harborline.Foundation.DataExchange', 'Harborline.Foundation.Forms.Engine', 'Harborline.Foundation.MultiTenancy', 'Harborline.Foundation.RuleAuthoring', 'Harborline.Foundation.RuleEngine', 'Harborline.Foundation.Scheduling', 'Harborline.Kernel.Core', 'Harborline.Kernel.SchemaValidation', 'Harborline.Kernel.WorkItems', 'Harborline.UIAdapters.Blazor', 'Harborline.Contracts', 'Harborline.Foundation.Authorization', 'Harborline.Foundation.Forms', 'Harborline.Foundation.Session']
   const actualIds = packageMetadata.map(entry => entry.id).sort()
   expectedIds.push('Harborline.Foundation.FieldRuntime')
   if (JSON.stringify(actualIds) !== JSON.stringify(expectedIds.sort())) {
@@ -1304,7 +1306,9 @@ function verifyViewsCapability() {
   const [engineSubstrate, engineBehavior, authoredBoundBehavior, accessBehavior] = proofLines(runNugetConsumer(engineConsumer, enginePackageCache), ['VIEWS_PACKAGE_PASS:', 'VIEWS_CAPABILITY_PASS:', 'VIEWS_AUTHORED_BOUND_PASS:', 'ACCESS_CONTRACT_PASS:'], 'Views engine')
   assertPackageClosure(
     engineConsumer,
-    ['Harborline.Blocks.EntityViews', 'Harborline.Contracts', 'Harborline.Foundation.Authorization', 'Harborline.Foundation.MultiTenancy', 'Harborline.Foundation.RuleEngine'],
+    // T-624: Views reaches measures through the shared catalogue, which brings the catalogue and
+    // the aggregates evaluator it resolves declared entries against. Views still owns no math.
+    ['Harborline.Blocks.EntityViews', 'Harborline.Blocks.MeasureCatalogue', 'Harborline.Blocks.Aggregates', 'Harborline.Contracts', 'Harborline.Foundation.Authorization', 'Harborline.Foundation.MultiTenancy', 'Harborline.Foundation.RuleEngine'],
     'Views engine',
     /Forms.*(?:Builder|Authoring)|(?:Builder|Authoring).*Forms/i,
   )
@@ -1378,10 +1382,13 @@ function verifyReportsCapability() {
   copyFileSync(corpusSource, resolve(consumer, 'reports-vertical-cases.json'))
   const direct = assertDirectPackageReferences(consumer, ['Harborline.Blocks.Reports'], 'Reports')
   const [packageProof, capabilityProof] = proofLines(runNugetConsumer(consumer, packageCache), ['REPORTS_PACKAGE_PASS:', 'REPORTS_CAPABILITY_PASS:'], 'Reports')
-  // Derived from the landed csproj: Blocks.Reports -> Contracts only.
+  // Derived from the landed csproj: Blocks.Reports -> Contracts and, since T-624, the shared
+  // measure catalogue it registers its seven computations in, which brings the aggregates
+  // evaluator and the Access contracts the catalogue binds its filter through.
   const closure = assertPackageClosure(
     consumer,
-    ['Harborline.Blocks.Reports', 'Harborline.Contracts'],
+    ['Harborline.Blocks.Reports', 'Harborline.Blocks.MeasureCatalogue', 'Harborline.Blocks.Aggregates', 'Harborline.Contracts',
+      'Harborline.Foundation.Authorization', 'Harborline.Foundation.MultiTenancy', 'Harborline.Foundation.RuleEngine'],
     'Reports',
     /(?:Financial|Tax|Forms|Workflows|EntityViews|Kernel|Blazor|React)/i,
   )

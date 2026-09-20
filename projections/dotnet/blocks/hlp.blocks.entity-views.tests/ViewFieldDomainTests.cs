@@ -76,7 +76,7 @@ public sealed class ViewFieldDomainTests
         public ValueTask<ViewFilter> BuildAsync(string tenant, string principal, string recordType, DateTimeOffset at, CancellationToken cancellationToken = default)
             => ValueTask.FromResult(ViewFilter.Equal("name", "a"));
         ValueTask<ViewMeasureDescriptor?> IViewMeasureCatalog.ResolveAsync(string name, CancellationToken cancellationToken) => throw new NotSupportedException();
-        public ValueTask<ViewMeasureResult> EvaluateAsync(ViewMeasureBinding binding, IReadOnlyList<ViewRow> rows, DateTimeOffset evaluatedAt, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public ValueTask<ViewMeasureResult> EvaluateAsync(ViewMeasureBinding binding, IReadOnlyList<ViewRow> rows, DateTimeOffset evaluatedAt, string tenant, string principal, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public TenantId Tenant => new("tenant-a");
         public string Revision => "1";
         public bool IsComplete => true;

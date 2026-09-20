@@ -44,6 +44,7 @@ const DOTNET_SUITES = [
   ['workItems', 'kernel-work-items-native', "projections/dotnet/kernel/hlp.kernel.work-items.tests/Harborline.Kernel.WorkItems.Tests.csproj"],
   ['inspectionReview', 'blocks-inspection-review-native', "projections/dotnet/blocks/hlp.blocks.inspection-review.tests/Harborline.Blocks.InspectionReview.Tests.csproj"],
   ['aggregates', 'blocks-aggregates-native', "projections/dotnet/blocks/hlp.blocks.aggregates.tests/Harborline.Blocks.Aggregates.Tests.csproj"],
+  ['measureCatalogue', 'blocks-measure-catalogue-native', "projections/dotnet/blocks/hlp.blocks.measure-catalogue.tests/Harborline.Blocks.MeasureCatalogue.Tests.csproj"],
   ['relativeChains', 'blocks-relative-chains-native', "projections/dotnet/blocks/hlp.blocks.relative-chains.tests/Harborline.Blocks.RelativeChains.Tests.csproj"],
   ['workflow', 'blocks-workflow-native', "projections/dotnet/blocks/hlp.blocks.workflow.tests/Harborline.Blocks.Workflow.Tests.csproj"],
   ['workflowInterpreter', 'blocks-workflow-interpreter-native', "projections/dotnet/blocks/hlp.blocks.workflow-interpreter.tests/Harborline.Blocks.Workflow.Interpreter.Tests.csproj"],
