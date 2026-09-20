@@ -17,6 +17,7 @@
     {"moduleId":"hlp.blocks.builder-definitions","projection":"dotnet","role":"implementation","status":"preview","path":"projections/dotnet/blocks/hlp.blocks.builder-definitions","artifact":"Harborline.Blocks.BuilderDefinitions"},
     {"moduleId":"hlp.blocks.layout-runtime","projection":"dotnet","role":"implementation","status":"preview","path":"projections/dotnet/blocks/hlp.blocks.layout-runtime","artifact":"Harborline.Blocks.LayoutRuntime"},
     {"moduleId":"hlp.blocks.aggregates","projection":"dotnet","role":"implementation","status":"preview","path":"projections/dotnet/blocks/hlp.blocks.aggregates","artifact":"Harborline.Blocks.Aggregates"},
+    {"moduleId":"hlp.blocks.measure-catalogue","projection":"dotnet","role":"implementation","status":"preview","path":"projections/dotnet/blocks/hlp.blocks.measure-catalogue","artifact":"Harborline.Blocks.MeasureCatalogue"},
     {"moduleId":"hlp.blocks.relative-chains","projection":"dotnet","role":"implementation","status":"preview","path":"projections/dotnet/blocks/hlp.blocks.relative-chains","artifact":"Harborline.Blocks.RelativeChains"},
     {"moduleId":"hlp.blocks.workflow","projection":"dotnet","role":"implementation","status":"preview","path":"projections/dotnet/blocks/hlp.blocks.workflow","artifact":"Harborline.Blocks.Workflow"},
     {"moduleId":"hlp.blocks.workflow-interpreter","projection":"dotnet","role":"implementation","status":"preview","path":"projections/dotnet/blocks/hlp.blocks.workflow-interpreter","artifact":"Harborline.Blocks.Workflow.Interpreter"},

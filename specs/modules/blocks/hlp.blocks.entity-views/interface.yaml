@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.blocks.entity-views",
-  "interfaceRevision": 4,
+  "interfaceRevision": 5,
   "status": "frozen",
   "purpose": "Own the Views read model, authored view-definition lifecycle, and authorized query runtime behind Harborline-owned ports: entity list/type-filter/detail-with-breadcrumb/containment-tree reads with the 404-only-null rule, immutable authored coordinates with draft/publish/restore history, typed filter/shape/interaction admission, Access-first query execution, condition history with provenance, the two previewed writes with typed rejections, breadcrumb resolution below any renderer with the no-raw-id rule, form-binding descriptors and navigation targets over the frozen Forms wire (Design B), and a development preview adapter that fails closed in Production.",
-  "dependencies": [{"moduleId": "hlp.contracts.identities", "minimumRevision": 1}, {"moduleId": "hlp.contracts.forms", "minimumRevision": 4}, {"moduleId": "hlp.contracts.fields", "minimumRevision": 1}, {"moduleId": "hlp.foundation.actor", "minimumRevision": 2}],
+  "dependencies": [{"moduleId": "hlp.contracts.identities", "minimumRevision": 1}, {"moduleId": "hlp.contracts.forms", "minimumRevision": 4}, {"moduleId": "hlp.contracts.fields", "minimumRevision": 1}, {"moduleId": "hlp.foundation.actor", "minimumRevision": 2}, {"moduleId": "hlp.blocks.measure-catalogue", "minimumRevision": 1}],
   "callerInterface": {
     "name": "IEntityReadStore / IConditionHistoryStore / IFormBindingSource / IViewNavigationTargets / BreadcrumbResolver / IViewDefinitionStore / ViewDefinitionAuthoring / ViewQueryRuntime",
     "operations": [
@@ -83,7 +83,7 @@
     "view_definition.workflow_transition_unknown",
     "view_definition.field_unknown"
   ],
-  "publicSeams": ["entity read-store port", "condition-history store port", "form-binding source port", "navigation-targets port", "view-definition store/source port", "definition authoring and admission", "kind and record-type registries", "expression-function and interaction registries", "view-open gate", "Access-filter port", "row-source port", "measure-catalog port", "injected clock"],
+  "publicSeams": ["entity read-store port", "condition-history store port", "form-binding source port", "navigation-targets port", "view-definition store/source port", "definition authoring and admission", "kind and record-type registries", "expression-function and interaction registries", "view-open gate", "Access-filter port", "row-source port", "measure-catalog port, adapted to the shared measure catalogue and carrying the caller tenant and principal so the substrate can bind the Access filter", "injected clock"],
   "conformance": {
     "nativeTests": {"dotnet": 58},
     "nativeTestNote": "40 migration tests retain the pinned entity-view behavior; 18 authored-and-bound tests prove immutable lifecycle, pack eligibility, terminal typed admission, offered-kind parity, open/shape denial ordering, Access-before-authored execution, current-row measures, and transient authority-bearing results.",

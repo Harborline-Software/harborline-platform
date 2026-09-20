@@ -114,6 +114,6 @@ public sealed class SharedFieldCrossCallerTests
         public ValueTask<ViewFilter> BuildAsync(string tenant, string principal, string recordType, DateTimeOffset at, CancellationToken cancellationToken = default)
             => ValueTask.FromResult(ViewFilter.Equal("name", "allowed"));
         ValueTask<ViewMeasureDescriptor?> IViewMeasureCatalog.ResolveAsync(string name, CancellationToken cancellationToken) => throw new NotSupportedException();
-        public ValueTask<ViewMeasureResult> EvaluateAsync(ViewMeasureBinding binding, IReadOnlyList<ViewRow> rows, DateTimeOffset evaluatedAt, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public ValueTask<ViewMeasureResult> EvaluateAsync(ViewMeasureBinding binding, IReadOnlyList<ViewRow> rows, DateTimeOffset evaluatedAt, string tenant, string principal, CancellationToken cancellationToken = default) => throw new NotSupportedException();
     }
 }

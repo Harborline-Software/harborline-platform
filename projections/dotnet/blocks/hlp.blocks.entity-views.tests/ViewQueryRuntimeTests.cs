@@ -214,6 +214,9 @@ public sealed class ViewQueryRuntimeTests
         Assert.Equal(["one"], measures.RowIds);
         Assert.Equal(new ViewMeasureResult("work.open-count", 1), result.Measure);
         Assert.Equal("measure", calls[^1]);
+        // T-624: the substrate binds the Access filter at an explicit identity, so the seam carries
+        // the caller's tenant and principal alongside the rows and the instant.
+        Assert.Equal(("tenant-a", "party:operator-1"), measures.Identity);
     }
 
     [Fact(DisplayName = "the fixed filter grammar evaluates comparisons, functions, and collection quantifiers")]
@@ -422,6 +425,8 @@ public sealed class ViewQueryRuntimeTests
     {
         public IReadOnlyList<string> RowIds { get; private set; } = [];
 
+        public (string Tenant, string Principal) Identity { get; private set; }
+
         public ValueTask<ViewMeasureDescriptor?> ResolveAsync(
             string name,
             CancellationToken cancellationToken = default) =>
@@ -431,10 +436,13 @@ public sealed class ViewQueryRuntimeTests
             ViewMeasureBinding binding,
             IReadOnlyList<ViewRow> rows,
             DateTimeOffset evaluatedAt,
+            string tenant,
+            string principal,
             CancellationToken cancellationToken = default)
         {
             calls.Add("measure");
             RowIds = rows.Select(row => row.Id).ToArray();
+            Identity = (tenant, principal);
             return ValueTask.FromResult(new ViewMeasureResult(binding.Name, rows.Count));
         }
     }
