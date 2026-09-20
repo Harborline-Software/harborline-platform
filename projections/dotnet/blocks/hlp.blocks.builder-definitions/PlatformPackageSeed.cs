@@ -98,6 +98,8 @@ public static class PlatformPackageSeed
                 configurationGenerationDetail = ConfigurationGenerationDetail.Definition,
                 configurationActivationDetail = ConfigurationActivationDetail.Definition,
                 configurationActivationStatuses = ConfigurationActivationDetail.Statuses,
+                configurationProposalDetail = ConfigurationProposalDetail.Definition,
+                configurationProposalStatuses = ConfigurationProposalDetail.Statuses,
                 listDefaultShape = "table",
                 showInListsOwner = "views",
                 authoring = new
