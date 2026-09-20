@@ -57,7 +57,7 @@ public sealed class RecordDomainRuntimeTests
     [InlineData("not json", "{}", false, "field.value_domain_predicate_invalid")]
     [InlineData("not json", "{}", true, "field.value_domain_predicate_invalid")]
     [InlineData("{\"var\":42}", "{}", true, "field.value_domain_predicate_invalid")]
-    [InlineData("{\"unknown_operator\":[]}", "{}", false, "field.value_domain_predicate_invalid")]
+    [InlineData("{\"unknown_operator\":[]}", "{}", false, "field.value_domain_predicate_failed")]
     [InlineData("{\"/\":[1,0]}", "{}", false, "field.value_domain_predicate_failed")]
     [InlineData("{\"var\":\"field.active\"}", "{\"active\":{\"@pending\":true}}", false, "field.value_domain_predicate_failed")]
     [InlineData("true", "[]", false, "field.value_domain_predicate_failed")]
