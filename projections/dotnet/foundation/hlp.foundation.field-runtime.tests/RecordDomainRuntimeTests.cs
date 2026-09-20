@@ -12,7 +12,7 @@ public sealed class RecordDomainRuntimeTests
         using var cancellation = new CancellationTokenSource();
         var fixture = new DomainFixture();
         fixture.Records["case"] = [DomainFixture.Member("a")];
-        IFieldDomainRuntime runtime = new ValueDomainRuntime(fixture, fixture, clock: new CancellingClock(cancellation));
+        IFieldDomainRuntime runtime = new ValueDomainRuntime(fixture, fixture, new CancellingClock(cancellation));
         var error = await Assert.ThrowsAnyAsync<OperationCanceledException>(async () => await runtime.ResolveAsync(
             new(RecordQuery: new("case", "true")), DomainFixture.Scope, "/domain", cancellation.Token));
         Assert.Equal(cancellation.Token, error.CancellationToken);
@@ -26,7 +26,7 @@ public sealed class RecordDomainRuntimeTests
         var fixture = new DomainFixture();
         fixture.Records["case"] = empty ? [] : [DomainFixture.Member("a")];
         var limits = empty ? new RuleEngineLimits { MaxAstNodes = 0 } : new RuleEngineLimits { StepBudget = 0 };
-        IFieldDomainRuntime runtime = new ValueDomainRuntime(fixture, fixture, limits);
+        IFieldDomainRuntime runtime = new ValueDomainRuntime(fixture, fixture, TimeProvider.System, limits);
         var error = await Assert.ThrowsAsync<FieldAdmissionException>(async () => await runtime.ResolveAsync(
             new(RecordQuery: new("case", "true")), DomainFixture.Scope, "/domain"));
         Assert.Equal(code, Assert.Single(error.Refusals).Code);

@@ -14,7 +14,7 @@ public sealed class SharedFieldCrossCallerTests
     {
         var fields = new SharedFieldBindingTests.FieldHost();
         var form = await SharedFieldBindingTests.Create(fields);
-        var runtime = new ValueDomainRuntime(fields, fields);
+        var runtime = new ValueDomainRuntime(fields, fields, TimeProvider.System);
         var viewHost = new ViewHost(fields);
         var views = new ViewQueryRuntime(viewHost, viewHost, viewHost, viewHost, viewHost,
             new InMemoryViewRowSource([new("1", new Dictionary<string, object?> { ["name"] = "allowed" })]), viewHost, TimeProvider.System, runtime);

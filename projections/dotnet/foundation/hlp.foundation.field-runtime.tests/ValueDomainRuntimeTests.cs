@@ -98,7 +98,7 @@ public sealed class ValueDomainRuntimeTests
     [Fact]
     public async Task An_unresolved_exact_taxonomy_version_refuses_at_the_callers_pointer()
     {
-        IFieldDomainRuntime runtime = new ValueDomainRuntime(new TaxonomySource(DomainFixture.Tenant), new ReadAuthority());
+        IFieldDomainRuntime runtime = new ValueDomainRuntime(new TaxonomySource(DomainFixture.Tenant), new ReadAuthority(), TimeProvider.System);
         var error = await Assert.ThrowsAsync<FieldAdmissionException>(async () => await runtime.ResolveAsync(
             new(TaxonomyScheme: new("case-status", "2.0.0")), DomainFixture.Scope, "/fields/a~1b/domain"));
         var refusal = Assert.Single(error.Refusals);
@@ -113,7 +113,7 @@ public sealed class ValueDomainRuntimeTests
         // and change the editor cardinality, failing both consumer observations.
         var tenant = new TenantId("tenant-a");
         var scope = new FieldDomainScope(tenant, "actor-a");
-        IFieldDomainRuntime runtime = new ValueDomainRuntime(new TaxonomySource(tenant), new ReadAuthority());
+        IFieldDomainRuntime runtime = new ValueDomainRuntime(new TaxonomySource(tenant), new ReadAuthority(), TimeProvider.System);
 
         var resolved = await runtime.ResolveAsync(
             new(TaxonomyScheme: new("case-status", "1.0.0")), scope, "/fields/status/value_domain");

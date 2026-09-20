@@ -50,7 +50,7 @@ public sealed class ViewFieldDomainTests
         public bool Restricted { get; init; }
         public string? RequestedTenant { get; private set; }
         public ViewQueryRuntime Runtime() => new(this, this, this, this, this, new InMemoryViewRowSource([]), this,
-            TimeProvider.System, Mismatch == "runtime" ? null : new ValueDomainRuntime(this, this));
+            TimeProvider.System, Mismatch == "runtime" ? null : new ValueDomainRuntime(this, this, TimeProvider.System));
         public static ViewQueryRequest Request(string actor) => new("tenant-a", "view", actor, new(0, 10), new("table", new Dictionary<ViewShapeRole, string>()));
         public ValueTask<ViewDefinition?> ResolvePublishedHeadAsync(string tenant, string key, CancellationToken cancellationToken = default)
             => ValueTask.FromResult<ViewDefinition?>(new(new(key, "1", tenant, ViewCascadeLayer.Base, JsonSerializer.SerializeToElement(new { }), []),

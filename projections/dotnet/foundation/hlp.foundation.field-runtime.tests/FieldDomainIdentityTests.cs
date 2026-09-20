@@ -40,7 +40,7 @@ public sealed class FieldDomainIdentityTests
     public async Task Actual_actor_spelling_controls_membership_without_cross_principal_leakage()
     {
         var fixture = new DomainFixture();
-        var runtime = new ValueDomainRuntime(fixture, new ActorAuthority());
+        var runtime = new ValueDomainRuntime(fixture, new ActorAuthority(), TimeProvider.System);
         var domain = new ValueDomainDefinition(LiteralValues: ["first", "second"]);
         foreach (var actor in new[] { " Actor/A ", "actor/a", " Actor/A " })
         {

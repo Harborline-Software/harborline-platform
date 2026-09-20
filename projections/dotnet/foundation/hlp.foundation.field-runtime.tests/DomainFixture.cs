@@ -21,7 +21,7 @@ internal sealed class DomainFixture : IFieldDomainSource, IFieldDomainSnapshot, 
     TenantId IFieldDomainSnapshot.Tenant => SnapshotTenant;
     public string Revision { get; set; } = "snapshot-1";
     public bool IsComplete { get; set; } = true;
-    internal IFieldDomainRuntime Runtime() => new ValueDomainRuntime(this, this);
+    internal IFieldDomainRuntime Runtime() => new ValueDomainRuntime(this, this, TimeProvider.System);
     internal static FieldDomainMember Member(string value, string fields = "{}")
         => new(value, value, JsonSerializer.Deserialize<JsonElement>(fields));
     public ValueTask<IFieldDomainSnapshot> OpenSnapshotAsync(TenantId tenant, CancellationToken cancellationToken = default)

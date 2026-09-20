@@ -12,7 +12,7 @@ public sealed class RecordDomainInfrastructureTests
         var fixture = new DomainFixture();
         fixture.Records["case"] = [DomainFixture.Member("a")];
         var timeout = new RuleEngineTimeoutException();
-        IFieldDomainRuntime runtime = new ValueDomainRuntime(fixture, fixture, clock: new FaultingClock(timeout));
+        IFieldDomainRuntime runtime = new ValueDomainRuntime(fixture, fixture, new FaultingClock(timeout));
 
         var actual = await Assert.ThrowsAsync<RuleEngineTimeoutException>(async () => await runtime.ResolveAsync(
             new(RecordQuery: new("case", "true")), DomainFixture.Scope, "/domain"));
