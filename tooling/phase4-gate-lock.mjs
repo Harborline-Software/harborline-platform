@@ -21,7 +21,7 @@ export function resolvePhase4GateLockDirectory(repositoryRoot) {
 }
 
 export async function acquirePhase4GateLock({repositoryRoot, command = [process.execPath, ...process.argv.slice(1)].join(' '),
-  waitIntervalMs = 60_000, pollIntervalMs = 250, reentryGrant, afterAtomicClaim} = {}) {
+  waitIntervalMs = 60_000, pollIntervalMs = 250, candidateMkdirEpermBudgetMs = 15_000, reentryGrant, afterAtomicClaim} = {}) {
   const lockDirectory = resolvePhase4GateLockDirectory(repositoryRoot)
   const ownerPath = path.join(lockDirectory, OWNER_FILE_NAME)
   if (reentryGrant) {
@@ -42,27 +42,56 @@ export async function acquirePhase4GateLock({repositoryRoot, command = [process.
   if (processStartId === null) throw new Error(`phase-4 gate lock: cannot read start time for pid ${process.pid}`)
   const owner = Object.freeze({pid: process.pid, processStartId, startedAt: new Date().toISOString(), command, token})
   let nextWaitingLineAt = 0
+  let candidateMkdirEpermSince = null
+  let injectedCandidateMkdirEperm = Number(process.env.HARBORLINE_PHASE4_GATE_LOCK_TEST_MKDIR_EPERM ?? 0)
   while (true) {
     const candidateDirectory = `${lockDirectory}.candidate-${process.pid}-${token}`
+    let candidateCreated = false
+    // The two paths that can fail here are the candidate mkdir and the atomic claim, and Windows
+    // reports EPERM for contention on BOTH: a rename over a populated directory where POSIX says
+    // ENOTEMPTY, and a mkdir inside a .git another process is concurrently writing. The claim path
+    // knew that and the mkdir path did not, so it rethrew and killed the gate before any stage.
+    // Both now ride EPERM out, and both name their own path when they give up, because a
+    // deterministic EPERM on a freshly uuid'd candidate is a write denial and not a lost race --
+    // it must say so rather than retry forever or surface as a bare stack.
     try {
+      if (injectedCandidateMkdirEperm > 0) {
+        // Test-only fault seam, so the retry is provable rather than arguable.
+        injectedCandidateMkdirEperm -= 1
+        throw Object.assign(new Error(`EPERM: operation not permitted, mkdir '${candidateDirectory}'`), {code: 'EPERM'})
+      }
       mkdirSync(candidateDirectory, {mode: 0o700})
+      candidateCreated = true
+      candidateMkdirEpermSince = null
+    } catch (error) {
+      if (error?.code === 'EEXIST') {
+        // Our own leftover: the name carries this pid and token, so nobody else can have made it.
+        removeOwnDirectory(candidateDirectory)
+      } else if (error?.code === 'EPERM') {
+        if (candidateMkdirEpermSince === null) {
+          candidateMkdirEpermSince = Date.now()
+          process.stderr.write(`phase-4 gate lock: EPERM creating candidate directory ${candidateDirectory}; treating as contention and retrying\n`)
+        } else if (Date.now() - candidateMkdirEpermSince >= candidateMkdirEpermBudgetMs) {
+          throw new Error(`phase-4 gate lock: EPERM creating candidate directory ${candidateDirectory} for ${candidateMkdirEpermBudgetMs}ms. `
+            + `This is a write denial against ${path.dirname(lockDirectory)} for this process, not contention: the candidate name is unique per process and run.`,
+          {cause: error})
+        }
+      } else {
+        throw new Error(`phase-4 gate lock: ${error?.code ?? 'failure'} creating candidate directory ${candidateDirectory}`, {cause: error})
+      }
+    }
+
+    if (candidateCreated) {
       try {
         writeFileSync(path.join(candidateDirectory, OWNER_FILE_NAME), `${JSON.stringify(owner, null, 2)}\n`, {flag: 'wx'})
         renameSync(candidateDirectory, lockDirectory)
         break
       } catch (error) {
         removeOwnDirectory(candidateDirectory)
-        if (['EEXIST', 'ENOTEMPTY', 'EPERM'].includes(error?.code)) {
-          // Another fully populated candidate won the atomic rename.
-        } else {
-          throw error
+        if (!['EEXIST', 'ENOTEMPTY', 'EPERM'].includes(error?.code)) {
+          // Another fully populated candidate won the atomic rename; anything else is real.
+          throw new Error(`phase-4 gate lock: ${error?.code ?? 'failure'} claiming ${lockDirectory} from candidate ${candidateDirectory}`, {cause: error})
         }
-      }
-    } catch (error) {
-      if (error?.code === 'EEXIST') {
-        removeOwnDirectory(candidateDirectory)
-      } else {
-        throw error
       }
     }
 
