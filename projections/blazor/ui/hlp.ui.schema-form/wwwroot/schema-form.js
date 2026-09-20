@@ -4,3 +4,11 @@ export function scrollAndFocus(element) {
   element.tabIndex = -1
   element.focus({ preventScroll: true })
 }
+
+export function bindDomainPicker(element) {
+  const preventNavigationDefault = event => {
+    if (['Enter', 'ArrowDown', 'ArrowUp', 'Escape'].includes(event.key)) event.preventDefault()
+  }
+  element.addEventListener('keydown', preventNavigationDefault)
+  return { dispose() { element.removeEventListener('keydown', preventNavigationDefault) } }
+}

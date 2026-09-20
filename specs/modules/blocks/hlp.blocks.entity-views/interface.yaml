@@ -4,7 +4,7 @@
   "interfaceRevision": 4,
   "status": "frozen",
   "purpose": "Own the Views read model, authored view-definition lifecycle, and authorized query runtime behind Harborline-owned ports: entity list/type-filter/detail-with-breadcrumb/containment-tree reads with the 404-only-null rule, immutable authored coordinates with draft/publish/restore history, typed filter/shape/interaction admission, Access-first query execution, condition history with provenance, the two previewed writes with typed rejections, breadcrumb resolution below any renderer with the no-raw-id rule, form-binding descriptors and navigation targets over the frozen Forms wire (Design B), and a development preview adapter that fails closed in Production.",
-  "dependencies": [{"moduleId": "hlp.contracts.identities", "minimumRevision": 1}, {"moduleId": "hlp.contracts.forms", "minimumRevision": 4}, {"moduleId": "hlp.foundation.actor", "minimumRevision": 2}],
+  "dependencies": [{"moduleId": "hlp.contracts.identities", "minimumRevision": 1}, {"moduleId": "hlp.contracts.forms", "minimumRevision": 4}, {"moduleId": "hlp.contracts.fields", "minimumRevision": 1}, {"moduleId": "hlp.foundation.actor", "minimumRevision": 2}],
   "callerInterface": {
     "name": "IEntityReadStore / IConditionHistoryStore / IFormBindingSource / IViewNavigationTargets / BreadcrumbResolver / IViewDefinitionStore / ViewDefinitionAuthoring / ViewQueryRuntime",
     "operations": [
@@ -27,9 +27,11 @@
       "ViewDefinitionPackExporter.Export -> published system/public definitions and their authored bindings only; personal definitions are never pack content",
       "ViewQueryRuntime.ExecuteAsync -> resolve published head, authorize open, resolve kind and record shape, prepend the Access predicate, apply authored filtering/sort/group/page, evaluate named measures over current authorized rows, and return transient rows/actions/authority/evaluatedAt"
     ],
-    "context": "Persistence lives behind the store ports a host supplies; the in-memory store is the test/dev double and the development preview adapter (pinned Harborline App seed tree, injected TimeProvider) throws in Production. The module references only the identity/forms contracts — never a Foundation aggregate, a Kernel, a host, or a UI framework."
+    "context": "Persistence lives behind the store ports a host supplies; the in-memory store is the test/dev double and the development preview adapter (pinned Harborline App seed tree, injected TimeProvider) throws in Production. The module references only the identity/forms/fields contracts — never a Foundation aggregate, a Kernel, a host, or a UI framework."
   },
   "invariants": [
+    "A bound record-type descriptor carries tenant, SchemaRef and shared field bindings. Selected column domains resolve through IFieldDomainRuntime for the actual tenant and principal after view-open authorization; a missing runtime, mismatched descriptor or missing selected binding refuses rather than returning an unbound result.",
+    "ColumnDomains exposes shared readable membership and editor choice only for selected fields whose inherited read-role gate permits access. The host supplies the typed role vocabulary and held roles; domain read authority is not cached across principals.",
     "GetEntityAsync/GetTreeAsync return null for not-found ONLY; every other failure surfaces as a typed EntityViewsException with a stable views.* code — a non-404 failure is never projected as absence.",
     "Breadcrumb resolution is owned below the renderer: an unresolved ancestor yields a stable placeholder label and a raw entity id is never caller-visible in any breadcrumb result.",
     "A contains edge updates the target's ContainerId and Path exactly as the pinned client wires them; a newly created entity is containable immediately.",

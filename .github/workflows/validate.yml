@@ -159,6 +159,7 @@ jobs:
         Harborline.Foundation
         Harborline.Foundation.Authorization
         Harborline.Foundation.DataExchange
+        Harborline.Foundation.FieldRuntime
         Harborline.Foundation.Forms
         Harborline.Foundation.Forms.Engine
         Harborline.Foundation.MultiTenancy

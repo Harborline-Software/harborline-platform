@@ -800,7 +800,10 @@ export interface FormViewField {
   name: string
   label: InternationalizedText
   helpText?: InternationalizedText | null
+  /** Shared runtime editor after authority filtering. */
   controlHint?: string | null
+  /** Only values the authenticated caller may read. */
+  permittedValues?: string[]
   /** True when the field is PII-classified — its value is never populated. */
   isSensitive: boolean
   /** True when the active token's roles may read this field's section and it is not PII. */

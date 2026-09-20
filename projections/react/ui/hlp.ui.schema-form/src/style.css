@@ -127,6 +127,7 @@
 }
 
 .hl-schema-form__multi-select,
+.hl-schema-form__domain-picker input,
 .hl-schema-form__readonly,
 .hl-schema-form__unavailable {
   background: var(--hl-schema-form-surface);
@@ -144,6 +145,30 @@
 
 .hl-schema-form__multi-select {
   cursor: pointer;
+}
+
+.hl-schema-form__domain-picker [role='listbox'] {
+  border: 1px solid var(--hl-schema-form-border);
+  max-block-size: 16rem;
+  overflow-y: auto;
+}
+
+.hl-schema-form__domain-picker [role='option'] {
+  background: var(--hl-schema-form-surface);
+  border: 0;
+  color: inherit;
+  display: block;
+  font: inherit;
+  inline-size: 100%;
+  min-block-size: 2.75rem;
+  padding: 0.625rem 0.75rem;
+  text-align: start;
+}
+
+.hl-schema-form__domain-picker [role='option']:hover,
+.hl-schema-form__domain-picker [data-active='true'],
+.hl-schema-form__domain-picker [aria-selected='true'] {
+  background: var(--hl-schema-form-subtle);
 }
 
 .hl-schema-form__multi-select:hover:not(:disabled) {

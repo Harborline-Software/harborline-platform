@@ -14,5 +14,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../hlp.kernel.schema-validation/Harborline.Kernel.SchemaValidation.csproj" />
+    <ProjectReference Include="../../foundation/hlp.foundation.field-runtime/Harborline.Foundation.FieldRuntime.csproj" />
   </ItemGroup>
 </Project>

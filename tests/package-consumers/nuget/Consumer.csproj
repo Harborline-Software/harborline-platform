@@ -30,6 +30,7 @@
     <PackageReference Include="Harborline.Foundation.RuleEngine" Version="$(HarborlinePackedVersion)" />
     <PackageReference Include="Harborline.Foundation.RuleAuthoring" Version="$(HarborlinePackedVersion)" />
     <PackageReference Include="Harborline.Foundation.Forms" Version="$(HarborlinePackedVersion)" />
+    <PackageReference Include="Harborline.Foundation.FieldRuntime" Version="$(HarborlinePackedVersion)" />
     <PackageReference Include="Harborline.Foundation.Forms.Engine" Version="$(HarborlinePackedVersion)" />
   </ItemGroup>
 </Project>

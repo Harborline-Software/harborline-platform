@@ -96,6 +96,17 @@ else
     {
         var value = Value;
         var hint = ControlHint;
+        if (hint is "none" or "singlevalue" or "choicelist" or "radiogroup" or "recordpicker" or "taxonomypicker")
+        {
+            builder.OpenComponent<HarborlineSchemaDomainControl>(0);
+            builder.SetKey((hint, Field.PermittedValues is { Count: > 0 }));
+            builder.AddAttribute(1, nameof(HarborlineSchemaDomainControl.Args), new SchemaFormControlArgs(
+                Field, LocaleChain, value, StringValue, !string.IsNullOrEmpty(Error), Field.Required,
+                EffectiveDisabled, Strings, EventCallback.Factory.Create<object?>(this, HandleValueChangedAsync),
+                $"{Field.Name}-label", DescribedBy));
+            builder.CloseComponent();
+            return;
+        }
         if (!Registry.TryGet(hint, out var renderer))
         {
             if (IsStructured(value) || Field.ValueKind is { } valueKind && !valueKind.Equals("string", StringComparison.OrdinalIgnoreCase))
