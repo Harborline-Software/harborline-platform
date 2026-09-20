@@ -45,9 +45,15 @@ it.each(fixture.runs)('renders the records-and-rules run $step', ({ step, status
     expect(text('failures')).toContain('invoice-total[ten-at-one-hundred] record.number:/total: expected 1000, actual 110')
     expect(text('failures')).not.toContain('approval-authority')
     expect(text('cases')).toContain('approval-authority — Only an approver may create an invoice already marked approved.: Passed')
-  } else {
+  } else if (step === 'authorization-defect') {
     expect(text('failures')).toContain('approval-authority authorization.decision: expected "refused", actual "allowed"')
     expect(text('failures')).not.toContain('invoice-total')
+  } else {
+    // Acceptance 4 on the surface: a claim that was never checked reads as "Nothing was checked",
+    // and the run as a whole does too. It is not shown as a pass anywhere.
+    expect(text('status')).toBe('Nothing was checked')
+    expect(text('failures')).toBe('approval-authority: Nothing was checked')
+    expect(text('cases')).toContain('approval-authority — Only an approver may create an invoice already marked approved.: Nothing was checked')
   }
 })
 

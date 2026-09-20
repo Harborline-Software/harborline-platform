@@ -10,13 +10,17 @@ namespace Harborline.Blocks.BuilderDefinitions.Tests;
 /// </summary>
 public sealed class VerificationSuiteTests
 {
-    private static JsonElement Fixture()
+    private static string FixtureText()
     {
         var root = new DirectoryInfo(AppContext.BaseDirectory);
         while (root is not null && !Directory.Exists(Path.Combine(root.FullName, "conformance"))) root = root.Parent;
         Assert.NotNull(root);
-        using var document = JsonDocument.Parse(
-            File.ReadAllText(Path.Combine(root!.FullName, "conformance/hlp.blocks.builder-definitions/verification.json")));
+        return File.ReadAllText(Path.Combine(root!.FullName, "conformance/hlp.blocks.builder-definitions/verification.json"));
+    }
+
+    private static JsonElement Fixture()
+    {
+        using var document = JsonDocument.Parse(FixtureText());
         return document.RootElement.Clone();
     }
 
@@ -61,6 +65,10 @@ public sealed class VerificationSuiteTests
         Assert.Empty(refusals);
         Assert.Equal(suite.Digest, parsed!.Digest);
 
+        // The corpus a consumer reads out of the package is this checked-in document, byte for
+        // byte, so an api that parses it cannot be running a different suite from this one.
+        Assert.Equal(FixtureText(), VerificationSuite.Corpus());
+
         // Parse refuses by name rather than throwing, and it refuses a document written against
         // another catalogue rather than silently re-deriving its meaning under this one.
         static string Refusal(string json)
@@ -98,7 +106,7 @@ public sealed class VerificationSuiteTests
         Assert.Equal("t-463-invoice", clerk.IdentifierSeed);
         Assert.Equal("ordinal-by-key", clerk.Ordering);
         Assert.Equal("dana.okafor", clerk.Actor);
-        Assert.Equal([new VerificationGrant("invoice.author", "finance")], clerk.Grants);
+        Assert.Equal([new VerificationGrant("invoice.author", "/")], clerk.Grants);
         Assert.Equal(["notifications.email", "payments.remit"], clerk.Ports.Select(port => port.PortId).Order(StringComparer.Ordinal));
 
         foreach (var blank in new[]
@@ -186,16 +194,18 @@ public sealed class VerificationSuiteTests
             constructor => constructor.IsPublic);
         Assert.DoesNotContain(typeof(VerificationCaseOutcome).GetProperty(nameof(VerificationCaseOutcome.Status))!
             .GetAccessors(nonPublic: true), accessor => accessor.ReturnType == typeof(void));
-        // And a receipt carrying one vacuous outcome is not a passing run.
-        var vacuous = VerificationReceipt.Mint("receipt-vacuous", "tenant-a", VerificationExample.Candidate.Digest,
-            VerificationExample.Baseline.Digest, suite, VerificationExample.Engines, VerificationExample.Instant,
-            VerificationExample.Completed,
-            [
-                VerificationCaseOutcome.Observed("approval-authority", null, []),
-                .. VerificationExample.Clean.Outcomes.Where(outcome => outcome.CaseId == "invoice-total"),
-            ], out _);
+        // And a receipt carrying one vacuous outcome is not a passing run. This is the corpus's
+        // fourth run, so both app lanes prove it against the shared fixture rather than each
+        // synthesising a vacuous receipt of its own.
+        var vacuous = VerificationExample.Vacuous;
+        Assert.Equal(VerificationStatus.Vacuous,
+            vacuous.Outcomes.Single(outcome => outcome.CaseId == "approval-authority").Status);
+        Assert.All(vacuous.Outcomes.Where(outcome => outcome.CaseId == "invoice-total"),
+            outcome => Assert.Equal(VerificationStatus.Passed, outcome.Status));
         Assert.Equal(VerificationStatus.Vacuous, vacuous.Status);
         Assert.NotEqual(VerificationStatus.Passed, vacuous.Status);
+        Assert.Equal("Nothing was checked", VerificationDetail.Bind(vacuous, suite)["status"]);
+        Assert.Equal(Run("vacuous").GetProperty("receiptDigest").GetString(), vacuous.Digest);
     }
 
     private static VerificationAssertion Assertion(string predicateId, string? target, string? expected) =>
@@ -276,6 +286,7 @@ public sealed class VerificationSuiteTests
         AssertFixture("passed", VerificationDetail.Bind(VerificationExample.Clean, VerificationExample.Suite));
         AssertFixture("business-rule-defect", VerificationDetail.Bind(VerificationExample.BusinessRuleDefect, VerificationExample.Suite));
         AssertFixture("authorization-defect", VerificationDetail.Bind(VerificationExample.AuthorizationDefect, VerificationExample.Suite));
+        AssertFixture("vacuous", VerificationDetail.Bind(VerificationExample.Vacuous, VerificationExample.Suite));
 
         var payload = JsonSerializer.Deserialize<JsonElement>(PlatformPackageSeed.Export()).GetProperty("items")
             .EnumerateArray().Single(item => item.GetProperty("id").GetString() == "platform-package-ck-7")

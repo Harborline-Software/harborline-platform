@@ -62,8 +62,12 @@ internal static class VerificationExample
     internal static VerificationSuite Suite { get; } = VerificationSuite.Declare(
         "tenant-a.invoice-verification", "1.0.0",
         [
-            Fixture("clerk", "dana.okafor", new VerificationGrant("invoice.author", "finance")),
-            Fixture("approver", "moss.adeyemi", new VerificationGrant("invoice.author", "finance"), new VerificationGrant("invoice.approver", "finance")),
+            // The grants are at the install root. A record-scoped act canonicalises to
+            // `/records/<recordId>`, and a scope contains only `/`, itself, or its own `/` prefix —
+            // so a bare package name like `finance` reads as `/finance`, contains nothing in the
+            // records tree, and would leave the actor holding nothing for `records:write`.
+            Fixture("clerk", "dana.okafor", new VerificationGrant("invoice.author", "/")),
+            Fixture("approver", "moss.adeyemi", new VerificationGrant("invoice.author", "/"), new VerificationGrant("invoice.approver", "/")),
         ],
         [
             new("approval-authority", "Only an approver may create an invoice already marked approved.",
@@ -141,6 +145,20 @@ internal static class VerificationExample
     internal static VerificationReceipt AuthorizationDefect { get; } = Mint("receipt-3",
     [
         Authority(accepted: true, code: "", pointer: "", decision: "allowed"),
+        Total("two-at-one-hundred", 200, 200),
+        Total("ten-at-one-hundred", 1000, 1000),
+        Total("three-at-four-hundred", 1200, 1200),
+    ]);
+
+    /// <summary>
+    /// The vacuous run: the authorization invariant observed nothing at all — no simulator refused
+    /// it, no assertion disagreed, it simply was not checked — while every examples row passed.
+    /// Observing nothing is legal and derives <see cref="VerificationStatus.Vacuous"/>, so the whole
+    /// receipt mints as Vacuous rather than Passed, and every surface must show it that way.
+    /// </summary>
+    internal static VerificationReceipt Vacuous { get; } = Mint("receipt-4",
+    [
+        VerificationCaseOutcome.Observed("approval-authority", null, []),
         Total("two-at-one-hundred", 200, 200),
         Total("ten-at-one-hundred", 1000, 1000),
         Total("three-at-four-hundred", 1200, 1200),
