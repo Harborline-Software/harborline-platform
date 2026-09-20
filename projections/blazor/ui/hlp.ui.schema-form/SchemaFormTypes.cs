@@ -46,7 +46,6 @@ public sealed record SchemaFormField
     public bool Required { get; init; }
     public bool ReadOnly { get; init; }
     public IReadOnlyList<SchemaFormOption> Options { get; init; } = [];
-    public IReadOnlyList<string>? PermittedValues { get; init; }
     public IReadOnlyDictionary<string, object?> Config { get; init; } =
         new Dictionary<string, object?>(StringComparer.Ordinal);
     public SchemaFormPresentation? Presentation { get; init; }

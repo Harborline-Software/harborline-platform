@@ -108,9 +108,7 @@ function normalizeFormViewField(
   const normalized: FormViewField = {
     ...field,
     ...(hints.valueKind !== undefined ? { valueKind: hints.valueKind } : {}),
-    ...(field.permittedValues !== undefined
-      ? { options: field.permittedValues.map(value => ({ value })) }
-      : hints.options !== undefined ? { options: hints.options } : {}),
+    ...(hints.options !== undefined ? { options: hints.options } : {}),
     ...(hints.config !== undefined ? { config: hints.config } : {}),
   }
 
@@ -126,11 +124,7 @@ function normalizeFormViewField(
   if (presentation !== undefined) normalized.presentation = presentation
 
   // UI hints can never restore a value withheld by the canonical engine.
-  if (redacted) {
-    normalized.value = null
-    delete normalized.permittedValues
-    normalized.options = []
-  }
+  if (redacted) normalized.value = null
 
   return normalized
 }

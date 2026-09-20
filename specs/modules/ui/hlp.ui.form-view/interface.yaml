@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.ui.form-view",
-  "interfaceRevision": 2,
+  "interfaceRevision": 1,
   "status": "candidate",
   "semantics": {
     "operation": "expose the complete application-facing FormView, candidate, validation, and localized-text support surface while referencing the canonical Dynamic Forms wire contract",
@@ -24,22 +24,20 @@
   },
   "ownership": {
     "canonicalWireOwner": "hlp.contracts.forms",
-    "canonicalWireMinimumRevision": 6,
+    "canonicalWireMinimumRevision": 4,
     "uiBindingOwner": "hlp.ui.form-view",
     "duplicateCanonicalDeclarationsAllowed": false,
     "rendererHintPolicy": "UI-only required, options, valueKind, config, and normalized readOnly/presentation hints extend the canonical field at the binding seam and are not alternate wire authority."
   },
-  "dependencies": [{"moduleId": "hlp.contracts.forms", "minimumRevision": 6}],
+  "dependencies": [{"moduleId": "hlp.contracts.forms", "minimumRevision": 4}],
   "invariants": [
     "All 29 pinned exports remain reachable from the aggregate UI package; the generated seven-symbol inventory is not a complete contract.",
-    "InternationalizedText, layout, content, action, collection, FormView, candidate, validation and permitted-value wire vocabulary is imported or re-exported from hlp.contracts.forms revision 6.",
+    "InternationalizedText, layout, content, action, collection, FormView, candidate, and validation wire vocabulary is imported or re-exported from hlp.contracts.forms revision 4.",
     "No React, Blazor, Telerik, Harborline App, or any external consumer product projection owns a second canonical FormView wire declaration.",
     "The UI binding explicitly normalizes canonical FormViewField.rules into renderer readOnly and presentation hints while preserving the original rules projection.",
     "UI-only valueKind, required, options, and config hints are additive render metadata and never serialized as canonical engine authority unless a later contracts revision adopts them.",
     "Nested groups, collections, content blocks, action blocks, section layout, field placement, cardinality, table columns, totals, validation codes, parameters, and arbitrary candidate JSON remain lossless.",
     "Unreadable or sensitive field values remain absent or null and cannot be restored by normalization.",
-    "Canonical permittedValues, including an empty set, determines renderer options before any host option hint; normalization neither widens membership nor changes the supplied runtime editor verdict.",
-    "Unreadable or sensitive fields expose neither permittedValues nor renderer options, including host-provided options. Redaction does not mutate the canonical input object.",
     "Open-url action blocks delegate to a host; the support contract never navigates, while scroll-to-section remains a renderer behavior.",
     "Localized authored content remains plain text and is never interpreted as HTML.",
     "Validation errors preserve RFC 6901 pointers, stable kind, fallback message, optional locale-independent code, and structured string parameters.",
@@ -52,7 +50,7 @@
     {"code": "source-surface-incomplete", "when": "Any of the 29 pinned exports is absent from the aggregate UI package."},
     {"code": "unsafe-wire-normalization", "when": "A UI hint overrides redaction, restores withheld data, or discards canonical field-rule evidence."}
   ],
-  "performance": {"operation": "O(f + m + l) normalization for f fields, m supplied permitted values and locale-chain length l with no I/O", "maximumLocaleChainLength": 16, "maximumFixtureFields": 1000},
+  "performance": {"operation": "O(f + l) normalization for f fields and locale-chain length l with no I/O", "maximumLocaleChainLength": 16, "maximumFixtureFields": 1000},
   "presentation": {"disposition": "not-applicable", "rationale": "This module binds and normalizes the complete Dynamic Forms view support contract; SchemaForm and later renderers own visual and interaction behavior."},
   "cases": [
     {"id": "form-view.complete-export-surface"},
@@ -76,11 +74,6 @@
     {"id": "form-view.locale-default"},
     {"id": "form-view.locale-first"},
     {"id": "form-view.locale-fallback"},
-    {"id": "form-view.locale-empty"},
-    {"id": "form-view.domain-permitted"},
-    {"id": "form-view.domain-empty"},
-    {"id": "form-view.domain-unreadable"},
-    {"id": "form-view.domain-sensitive"},
-    {"id": "form-view.domain-redacted-host-options"}
+    {"id": "form-view.locale-empty"}
   ]
 }

@@ -41,19 +41,15 @@ public static class FormViewBinding
             ?? (field.Presentation.HasValue ? field.Presentation.Value : null);
         var presentation = rules is null ? basePresentation : FromRules(rules, basePresentation);
         var required = rules?.Required ?? hints.Required ?? false;
-        var safeCanonical = redacted
-            ? field with { Value = default, PermittedValues = default }
+        var safeCanonical = redacted && field.Value.HasValue
+            ? field with { Value = default }
             : field;
-        var options = redacted ? Array.Empty<FormViewOption>()
-            : field.PermittedValues.HasValue
-                ? (field.PermittedValues.Value ?? []).Select(value => new FormViewOption(value, value)).ToArray()
-                : hints.Options;
 
         return new(
             safeCanonical,
             hints.ValueKind,
             required,
-            options,
+            hints.Options,
             hints.Config,
             ReadOnly: redacted || readOnly,
             Presentation: presentation);

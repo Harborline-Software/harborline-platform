@@ -92,7 +92,6 @@ export const RadioGroup = React.forwardRef<HTMLDivElement, RadioGroupProps>(func
             <label className={classes('hl-radio-group__label', optionDisabled && 'hl-radio-group__label--disabled')} htmlFor={optionId}>
               <input
                 aria-describedby={descriptionId}
-                aria-label={option.label}
                 checked={value === option.value}
                 className="hl-radio-group__control"
                 disabled={optionDisabled}

@@ -7,7 +7,6 @@ import { useFormFieldContext } from '@harborline-platform/hlp.ui.form-field-cont
 import { Input } from '@harborline-platform/hlp.ui.input'
 import { NumberField } from '@harborline-platform/hlp.ui.number-field'
 import { NumericTextBox } from '@harborline-platform/hlp.ui.numeric-text-box'
-import { RadioGroup } from '@harborline-platform/hlp.ui.radio-group'
 import { SelectField, type SelectOption } from '@harborline-platform/hlp.ui.select-field'
 import { Switch } from '@harborline-platform/hlp.ui.switch'
 import { TextArea } from '@harborline-platform/hlp.ui.text-area'
@@ -21,91 +20,12 @@ function fieldConfig(args: ControlArgs): Record<string, unknown> {
 }
 
 function selectOptions(args: ControlArgs): SelectOption[] {
-  if (args.field.permittedValues !== undefined) {
-    return args.field.permittedValues.map(value => ({ value, label: value }))
-  }
   return (args.field.options ?? []).map(option => ({
     value: option.value,
     label: typeof option.label === 'string'
       ? option.label
       : resolveText(option.label, args.chain, option.value),
   }))
-}
-
-function DomainPickerControl({ args }: { args: ControlArgs }) {
-  const context = useFormFieldContext()
-  const listId = React.useId()
-  const [query, setQuery] = React.useState(args.strValue)
-  const [open, setOpen] = React.useState(false)
-  const [active, setActive] = React.useState(-1)
-  React.useEffect(() => { setQuery(args.strValue) }, [args.strValue])
-  // These are pinned, authorized domain members supplied by the field runtime.
-  // Search is local; the 25-result display bound is not a domain cardinality decision.
-  const matches = React.useMemo(() => {
-    const result: string[] = []
-    for (const value of args.field.permittedValues ?? []) {
-      if (value.toLocaleLowerCase().includes(query.toLocaleLowerCase())) result.push(value)
-      if (result.length === 25) break
-    }
-    return result
-  }, [args.field.permittedValues, query])
-  const choose = (value: string) => {
-    args.onChange(value)
-    setQuery(value)
-    setOpen(false)
-    setActive(-1)
-  }
-  return (
-    <div className="hl-schema-form__domain-picker">
-      <Input
-        aria-activedescendant={open && active >= 0 ? `${listId}-${active}` : undefined}
-        aria-autocomplete="list"
-        aria-controls={listId}
-        aria-describedby={context.describedBy}
-        aria-expanded={open}
-        aria-invalid={args.hasError || undefined}
-        aria-labelledby={context.labelId}
-        aria-required={args.required || undefined}
-        autoComplete="off"
-        disabled={args.disabled}
-        id={args.field.name}
-        onBlur={() => { setOpen(false); setQuery(args.strValue) }}
-        onChange={event => { setQuery(event.currentTarget.value); setOpen(true); setActive(-1) }}
-        onFocus={() => setOpen(true)}
-        onKeyDown={event => {
-          if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-            event.preventDefault()
-            setOpen(true)
-            setActive(index => event.key === 'ArrowDown'
-              ? Math.min(index + 1, matches.length - 1) : Math.max(index - 1, 0))
-          } else if (event.key === 'Enter' && open) {
-            event.preventDefault()
-            if (matches[active] !== undefined) choose(matches[active])
-          } else if (event.key === 'Escape') {
-            setOpen(false)
-            setQuery(args.strValue)
-          }
-        }}
-        role="combobox"
-        value={query}
-      />
-      {open && !args.disabled ? (
-        <ul aria-labelledby={context.labelId} id={listId} role="listbox">
-          {matches.map((value, index) => (
-            <li
-              aria-selected={args.strValue === value}
-              data-active={index === active || undefined}
-              id={`${listId}-${index}`}
-              key={value}
-              onClick={() => choose(value)}
-              onMouseDown={event => event.preventDefault()}
-              role="option"
-            >{value}</li>
-          ))}
-        </ul>
-      ) : null}
-    </div>
-  )
 }
 
 const textControl = ({ field, strValue, hasError, disabled, onChange }: ControlArgs) => (
@@ -244,36 +164,7 @@ export function controlAcceptsValue(hint: string, value: unknown): boolean {
   return typeof value === 'string' || typeof value === 'number'
 }
 
-// Select presentation is adapter policy; the runtime supplies the editor verdict.
-const permittedChoiceControl = (args: ControlArgs) => (
-  <SelectField
-    disabled={args.disabled}
-    error={args.hasError}
-    name={args.field.name}
-    onValueChange={args.onChange}
-    options={(args.field.permittedValues ?? []).map(value => ({ value, label: value }))}
-    required={args.required}
-    value={args.strValue}
-  />
-)
-
 export const DEFAULT_CONTROLS: ControlRegistry = {
-  none: () => <></>,
-  singlevalue: permittedChoiceControl,
-  choicelist: permittedChoiceControl,
-  radiogroup: args => (
-    <RadioGroup
-      disabled={args.disabled}
-      error={args.hasError}
-      name={args.field.name}
-      onChange={args.onChange}
-      options={(args.field.permittedValues ?? []).map(value => ({ value, label: value }))}
-      required={args.required}
-      value={args.strValue}
-    />
-  ),
-  recordpicker: args => <DomainPickerControl args={args} />,
-  taxonomypicker: args => <DomainPickerControl args={args} />,
   text: textControl,
   textarea: args => (
     <TextArea

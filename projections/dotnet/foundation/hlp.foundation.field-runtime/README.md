@@ -42,9 +42,7 @@ Fraction digits contributes JSON Schema `multipleOf = 10^-n`; total digits remai
 The runtime chooses the editor after authority filtering: zero values gives None, one gives
 SingleValue, two through five gives RadioGroup, and larger domains give ChoiceList,
 TaxonomyPicker or RecordPicker according to source. Five is implementation policy, not an
-owner ruling. Forms never consults an authored control hint for this choice. React and Blazor
-render the returned choice; pickers search the supplied pinned membership locally and display
-at most 25 matches. Query text is not a submitted value.
+owner ruling. Forms never consults an authored control hint for this choice.
 
 ## Consumer composition
 
@@ -55,11 +53,14 @@ matching active tenant; publication authorization remains host-owned. Views expo
 resolved column domains. An independent test host composes the shared runtime at DataExchange's
 existing protected-payload port; this does not ship or change a DataExchange adapter.
 
+The React and Blazor renderers are not changed here. The producer decides the editor and the
+Forms wire carries that decision; rendering it is the Forms/Views consumer contract
+(`field-runtime-cc-2`, `cc-3`), not this substrate.
+
 ## Verification status
 
-Verified on `main` at `406e725`. `node tooling/run-native.mjs` passes 4511 tests with
+Verified on `main` at `406e725`. `node tooling/run-native.mjs` passes 4518 tests with
 zero failures and zero skips, including FieldRuntime 165, SchemaValidation 44,
-Forms.Engine 198, EntityViews 69, Blazor 712, UI support 35, React 1450 and the
-architecture fences 25. The headless platform gate
+Forms.Engine 198, EntityViews 69, React 1437 and the architecture fences 25. The headless platform gate
 (`HARBORLINE_GATE_HEADLESS=1 node tooling/run-phase-4-gate.mjs`) is the landing path
 and runs in full on the merge queue.
