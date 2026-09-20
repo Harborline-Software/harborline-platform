@@ -42,7 +42,7 @@ function release(options = {}) {
     schemaVersion: 3,
     phase: 4,
     status: options.evidenceStatus ?? 'PASS',
-    designReview: options.designReview ?? {status: 'PASS', expired: [], failingExpired: []},
+    ...('designReview' in options ? {designReview: options.designReview} : {designReview: {status: 'PASS', expired: [], failingExpired: []}}),
     subject: {
       repository: 'harborline-platform',
       baseHead: options.recordedRun ?? recordedRun,
@@ -300,4 +300,16 @@ test('the gate step tolerates the amnestied set, and accepts a tree with none ex
   try {
     assert.equal(checkReleaseReceipt(clean.root, emitReleaseReceipt(clean.root), {requireAttestation: false}), null)
   } finally { clean.dispose() }
+})
+
+test('a recorded run carrying no design-review finding at all is refused, not read as none expired', () => {
+  // Absent is not empty. run-phase-4-gate.mjs writes the block from the ui-gate-model step, so a
+  // recording without that step has no block -- and a checker that returns a pass on an input it
+  // never read is the defect this file's own header is about.
+  const {root, dispose} = release({designReview: undefined})
+  try {
+    assert.deepEqual(checkReleaseReceipt(root, emitReleaseReceipt(root), {requireAttestation: false}),
+      {code: 'release-receipt-design-review-unrecorded', field: 'evidence.run.designReview'})
+    assert.equal(checkReleaseReceipt(root, emitReleaseReceipt(root), asGateStep), null)
+  } finally { dispose() }
 })

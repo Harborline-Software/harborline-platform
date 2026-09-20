@@ -18,8 +18,9 @@
 //                    digest-free bytes, which is how PlatformPackageExporter computes it.
 //   evidence.digest  sha256 of the blob at <commit>:docs/evidence/phase-4/gate.json.
 //   evidence.run     that document's own subject; its baseHead and testedTree must be real objects.
-//                    Its designReview.expired must be empty: T-631 binds the 51 owed design
-//                    reviews to public release rather than to a date, and this is that binding.
+//                    Its designReview.expired must be present and empty: T-631 binds the 51 owed
+//                    design reviews to public release rather than to a date, and this is that
+//                    binding. Absent is refused too -- it is not the same as none expired.
 //   transcript       the run emitting this receipt, and the phase-4 receipt when one is present.
 //
 // Nothing here trusts a value the receipt carries: every comparison re-derives from git or from the
@@ -164,8 +165,14 @@ export function checkReleaseReceipt(root, document, {requireAttestation = true, 
   // out of the list without refusing on that digest first. The amnesty is deliberately NOT
   // consulted here: being on the backlog is what lets a module merge, and the whole point of the
   // ruling is that it is not what lets one ship.
-  if (requireCurrentDesignReviews && (recorded.designReview?.expired ?? []).length > 0) {
-    return refuse('release-receipt-design-review-expired', 'evidence.run.designReview')
+  if (requireCurrentDesignReviews) {
+    // Absent is never empty, the same rule an unreadable phase-4 receipt gets below.
+    // run-phase-4-gate.mjs writes `byId['ui-gate-model']?.designReview`, so a recording whose
+    // sweep step is missing carries no block at all -- and reading that as "nothing expired"
+    // would license exactly the release this refuses.
+    const reviewed = recorded.designReview?.expired
+    if (!Array.isArray(reviewed)) return refuse('release-receipt-design-review-unrecorded', 'evidence.run.designReview')
+    if (reviewed.length > 0) return refuse('release-receipt-design-review-expired', 'evidence.run.designReview')
   }
   if (receipt.evidence.run.baseHead !== recorded.subject?.baseHead) return refuse('release-receipt-evidence-run-mismatch', 'evidence.run.baseHead')
   if (receipt.evidence.run.testedTree !== recorded.subject?.testedTree) return refuse('release-receipt-evidence-run-mismatch', 'evidence.run.testedTree')
