@@ -671,7 +671,7 @@
         "projections/dotnet/blocks/hlp.blocks.reports/Models/ReportKind.cs": "1a6ddfa3c30c7a5c020a7626bfe5eac2fde3a13d7561fe3760a0704454e63858",
         "projections/dotnet/blocks/hlp.blocks.reports/Models/ReportProvisionality.cs": "893df099673be2f34078c3d89ef3e4fde1620eeab3ab17f329f504562506ebcd",
         "projections/dotnet/blocks/hlp.blocks.reports/Models/ReportRunResult.cs": "127ecea581148f4a667ca772b02fe737c6b6c8c113bcfd9199c247b1b45aa5e0",
-        "projections/dotnet/blocks/hlp.blocks.reports/README.md": "0ce795c781e946aff26d9443165a3f92525f3e297407904bf2883becdcd21492",
+        "projections/dotnet/blocks/hlp.blocks.reports/README.md": "928fd800fc404df3f31a69f664aa241ab8d365dc10cf8f149161a60fd9a34191",
         "projections/dotnet/blocks/hlp.blocks.reports/Services/Exceptions/ReportCartridgeExecutionException.cs": "6f00fc9a110fb323c468b6c6cfabc0e8eace13f85b13020319a6e01c583473b6",
         "projections/dotnet/blocks/hlp.blocks.reports/Services/Exceptions/ReportParameterValidationException.cs": "98488e25bb9c68b834344814465b79c4ec5a605b2c5de138f86748577d44cbb6",
         "projections/dotnet/blocks/hlp.blocks.reports/Services/Exceptions/UnknownReportKindException.cs": "b3ab1c53badea9149b6118e1627a9e8a09799f84bd6eab01fd5fcbd8e7fa9b73",
