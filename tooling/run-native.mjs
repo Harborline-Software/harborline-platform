@@ -11,6 +11,7 @@ import {copyCoberturaReport, coverageEnabled} from './coverage.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const reactRoot = resolve(root, 'projections/react/ui/hlp.ui.button')
+const selectFieldRoot = resolve(root, 'projections/react/ui/hlp.ui.select-field')
 const formsTypeScriptRoot = resolve(root, 'projections/typescript/contracts/hlp.contracts.forms')
 const copilotContractsRoot = resolve(root, 'projections/typescript/application/hlp.copilot.contracts')
 const ruleRuntimeTypeScriptRoot = resolve(root, 'projections/typescript/foundation/hlp.foundation.rule-runtime')
@@ -133,6 +134,9 @@ if (buildOnly) {
   ])
   results = [formsTypeScriptBuild, ruleRuntimeTypeScriptBuild, ...await Promise.all([
       run('react-typecheck', 'npm', ['run', 'typecheck'], reactRoot),
+      run('select-field-typecheck', process.execPath, [
+        resolve(reactRoot, 'node_modules/typescript/bin/tsc'), '-p', 'tsconfig.typecheck.json',
+      ], selectFieldRoot),
       run('react-build', 'npm', ['run', 'build'], reactRoot),
       run('forms-typescript-typecheck', 'npm', ['run', 'typecheck'], formsTypeScriptRoot),
       run('rule-runtime-typescript-typecheck', 'pnpm', ['run', 'typecheck'], ruleRuntimeTypeScriptRoot),

@@ -585,7 +585,6 @@ export function SchemaForm({
   const [blockedAttempt, setBlockedAttempt] = React.useState(false)
   const formRef = React.useRef<HTMLFormElement>(null)
   const summaryRef = React.useRef<HTMLDivElement>(null)
-  const submitRef = React.useRef<HTMLButtonElement>(null)
   const emptyRef = React.useRef<HTMLParagraphElement>(null)
   const focusBeforeChange = React.useRef<HTMLElement | null>(null)
   const sectionRefs = React.useRef<Record<string, HTMLFieldSetElement | null>>({})
@@ -605,7 +604,11 @@ export function SchemaForm({
   React.useEffect(() => {
     const previous = focusBeforeChange.current
     focusBeforeChange.current = null
-    if (previous && !previous.isConnected) (submitRef.current ?? emptyRef.current)?.focus()
+    if (previous && !previous.isConnected) {
+      const submit = formRef.current?.querySelector<HTMLButtonElement>('button.hl-schema-form__submit[type="submit"]')
+      const fallback = submit ?? emptyRef.current
+      fallback?.focus()
+    }
   }, [view])
 
   React.useEffect(() => {
@@ -722,7 +725,6 @@ export function SchemaForm({
             variant="primary"
             loading={submitting}
             disabled={disabled || submitting || saveBlocked}
-            ref={submitRef}
             type="submit"
           >
             {submitting ? copy.submitting : copy.submit}

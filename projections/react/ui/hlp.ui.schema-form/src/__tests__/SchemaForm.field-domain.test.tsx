@@ -48,6 +48,57 @@ expect(cases.map(value => value.id)).toEqual([
 
 afterEach(cleanup)
 
+it.each([
+  ['SingleValue', 'combobox'],
+  ['ChoiceList', 'combobox'],
+  ['RadioGroup', 'radiogroup'],
+  ['RecordPicker', 'combobox'],
+  ['TaxonomyPicker', 'combobox'],
+] as const)('%s renders no editor for an empty canonical domain and survives membership transitions', (editor, role) => {
+  const domainView = (permittedValues: string[]) => FormView.normalize(form([section('main', [
+    field('status', 'Status', { controlHint: editor, permittedValues }),
+  ])]))
+  const cut = render(<SchemaForm onSubmit={() => undefined} view={domainView([])} />)
+
+  expect(screen.queryByRole(role, { name: 'Status' })).toBeNull()
+
+  cut.rerender(<SchemaForm onSubmit={() => undefined} view={domainView(['Alpha', 'Beta'])} />)
+  const editorControl = screen.getByRole(role, { name: 'Status' })
+  if (role === 'combobox') {
+    editor.endsWith('Picker') ? fireEvent.focus(editorControl) : fireEvent.click(editorControl)
+  }
+  expect(screen.getAllByRole(role === 'radiogroup' ? 'radio' : 'option')).toHaveLength(2)
+
+  cut.rerender(<SchemaForm onSubmit={() => undefined} view={domainView([])} />)
+  expect(screen.queryByRole(role, { name: 'Status' })).toBeNull()
+})
+
+it.each([
+  ['RecordPicker', 'combobox'],
+  ['multiselect', 'button'],
+] as const)('%s refreshes localized options when only the locale chain changes', (controlHint, triggerRole) => {
+  const view = FormView.normalize(form([section('main', [field('status', 'Status', {
+    controlHint,
+    options: [{
+      value: 'active',
+      label: { defaultLocale: 'en', values: { en: 'Active', fr: 'Actif' } },
+    }],
+  })])]))
+  const cut = render(<SchemaForm localeChain={['en']} onSubmit={() => undefined} view={view} />)
+  const open = () => {
+    const trigger = screen.getByRole(triggerRole, { name: 'Status' })
+    triggerRole === 'combobox' ? fireEvent.focus(trigger) : fireEvent.click(trigger)
+  }
+
+  open()
+  expect(screen.getByRole('option', { name: 'Active' })).toBeInTheDocument()
+
+  cut.rerender(<SchemaForm localeChain={['fr']} onSubmit={() => undefined} view={view} />)
+  if (!screen.queryByRole('listbox', { name: 'Status' })) open()
+  expect(screen.getByRole('option', { name: 'Actif' })).toBeInTheDocument()
+  expect(screen.queryByRole('option', { name: 'Active' })).toBeNull()
+})
+
 it('real search typing and Enter never implicitly submit a SchemaForm', async () => {
   const user = userEvent.setup()
   const submit = vi.fn()

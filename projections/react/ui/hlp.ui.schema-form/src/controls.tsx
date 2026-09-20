@@ -33,7 +33,8 @@ function selectOptions(args: ControlArgs): SelectOption[] {
 }
 
 function DomainPickerControl({ args }: { args: ControlArgs }) {
-  const options = React.useMemo(() => selectOptions(args), [args.field])
+  const options = React.useMemo(() => selectOptions(args), [args.chain, args.field])
+  if (args.field.permittedValues?.length === 0) return <></>
   return <SelectField searchable name={args.field.name} value={args.strValue}
     options={options} disabled={args.disabled} required={args.required} error={args.hasError}
     onValueChange={value => {
@@ -99,7 +100,7 @@ function NativeInputControl({ args, type }: { args: ControlArgs; type: React.HTM
 }
 
 function MultiSelectControl({ args }: { args: ControlArgs }) {
-  const options = React.useMemo(() => selectOptions(args), [args.field])
+  const options = React.useMemo(() => selectOptions(args), [args.chain, args.field])
   const selected = React.useMemo(() => Array.isArray(args.value) ? args.value.map(String) : [], [args.value])
   return <SelectField multiple name={args.field.name} value={selected} options={options}
     disabled={args.disabled} required={args.required} error={args.hasError} onValueChange={args.onChange} />
@@ -161,7 +162,7 @@ export function controlAcceptsValue(hint: string, value: unknown): boolean {
 
 // Select presentation is adapter policy; the runtime supplies the editor verdict.
 const permittedChoiceControl = (args: ControlArgs) => (
-  <SelectField
+  args.field.permittedValues?.length === 0 ? <></> : <SelectField
     disabled={args.disabled}
     error={args.hasError}
     name={args.field.name}
@@ -177,7 +178,7 @@ export const DEFAULT_CONTROLS: ControlRegistry = {
   singlevalue: permittedChoiceControl,
   choicelist: permittedChoiceControl,
   radiogroup: args => (
-    <RadioGroup
+    args.field.permittedValues?.length === 0 ? <></> : <RadioGroup
       disabled={args.disabled}
       error={args.hasError}
       name={args.field.name}
