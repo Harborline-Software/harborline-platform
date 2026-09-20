@@ -14,9 +14,9 @@ import {
 
 const sha256 = bytes => createHash('sha256').update(bytes).digest('hex')
 
-// The gate step's setting. Attestation defaults ON, so every check that is not about attestation
-// opts out explicitly here, exactly as the gate step does.
-const asGateStep = {requireAttestation: false}
+// The gate step's setting. Attestation and current design reviews both default ON, so every check
+// that is about neither opts out explicitly here, exactly as the gate step does.
+const asGateStep = {requireAttestation: false, requireCurrentDesignReviews: false}
 
 /** The canonical export idiom PlatformPackageExporter uses: digest over the digest-free bytes. */
 function artifact(revision = '1.0.0', payload = {id: 'harborline.platform'}) {
@@ -42,6 +42,7 @@ function release(options = {}) {
     schemaVersion: 3,
     phase: 4,
     status: options.evidenceStatus ?? 'PASS',
+    ...('designReview' in options ? {designReview: options.designReview} : {designReview: {status: 'PASS', expired: [], failingExpired: []}}),
     subject: {
       repository: 'harborline-platform',
       baseHead: options.recordedRun ?? recordedRun,
@@ -265,5 +266,50 @@ test('an unreadable artefact is refused naming the field rather than thrown', ()
     assert.deepEqual(checkReleaseReceipt(root, emitted, asGateStep),
       {code: 'release-receipt-commit-not-in-repository', field: 'commit'})
     assert.throws(() => emitReleaseReceipt(root), /not a readable document/)
+  } finally { dispose() }
+})
+
+// T-631, the owner's ruling of 2026-09-20. The 51 design reviews are owed before R1 is released
+// publicly, not by a date, and this receipt is where R1's done-when clause binds the obligation.
+test('a release whose tree carries an expired catalogued design review is refused naming the field', () => {
+  const {root, dispose} = release({designReview: {status: 'PASS', expired: ['hlp.ui.window'], failingExpired: []}})
+  try {
+    // status is PASS: the gate is green, because the module is amnestied for MERGING. That is
+    // exactly the tree this refusal exists for -- a red check can be waited out, this cannot.
+    assert.deepEqual(checkReleaseReceipt(root, emitReleaseReceipt(root), {requireAttestation: false}),
+      {code: 'release-receipt-design-review-expired', field: 'evidence.run.designReview'})
+  } finally { dispose() }
+})
+
+test('current design reviews are required by default, so a caller that forgets the flag fails closed', () => {
+  const {root, dispose} = release({designReview: {status: 'PASS', expired: ['hlp.ui.window'], failingExpired: []}})
+  try {
+    // Refused before attestation is even reached: a release is not licensed by a missing flag.
+    assert.deepEqual(checkReleaseReceipt(root, emitReleaseReceipt(root)),
+      {code: 'release-receipt-design-review-expired', field: 'evidence.run.designReview'})
+  } finally { dispose() }
+})
+
+test('the gate step tolerates the amnestied set, and accepts a tree with none expired', () => {
+  const {root, dispose} = release({designReview: {status: 'PASS', expired: ['hlp.ui.window'], failingExpired: []}})
+  try {
+    assert.equal(checkReleaseReceipt(root, emitReleaseReceipt(root), asGateStep), null)
+  } finally { dispose() }
+
+  const clean = release()
+  try {
+    assert.equal(checkReleaseReceipt(clean.root, emitReleaseReceipt(clean.root), {requireAttestation: false}), null)
+  } finally { clean.dispose() }
+})
+
+test('a recorded run carrying no design-review finding at all is refused, not read as none expired', () => {
+  // Absent is not empty. run-phase-4-gate.mjs writes the block from the ui-gate-model step, so a
+  // recording without that step has no block -- and a checker that returns a pass on an input it
+  // never read is the defect this file's own header is about.
+  const {root, dispose} = release({designReview: undefined})
+  try {
+    assert.deepEqual(checkReleaseReceipt(root, emitReleaseReceipt(root), {requireAttestation: false}),
+      {code: 'release-receipt-design-review-unrecorded', field: 'evidence.run.designReview'})
+    assert.equal(checkReleaseReceipt(root, emitReleaseReceipt(root), asGateStep), null)
   } finally { dispose() }
 })

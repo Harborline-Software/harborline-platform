@@ -14,6 +14,9 @@
     <EmbeddedResource Include="../../../../_shared/layout/placement.schema.json" LogicalName="Harborline.Layout.PlacementSchema" />
     <None Include="README.md" Pack="true" PackagePath="/" />
     <EmbeddedResource Include="../../../../_shared/packs/platform/platform-pack.export.json" LogicalName="Harborline.Blocks.BuilderDefinitions.platform-pack.export.json" />
+    <!-- T-463. The canonical verification corpus ships inside the package, so a consumer runs the
+         document this platform build produced rather than re-declaring the suite of its own. -->
+    <EmbeddedResource Include="../../../../conformance/hlp.blocks.builder-definitions/verification.json" LogicalName="Harborline.Blocks.BuilderDefinitions.verification.json" />
     <None Include="../../../../_shared/packs/platform/platform-pack.export.json" Pack="true" PackagePath="_shared/packs/platform/" />
     <None Include="../../../../LICENSE" Link="LICENSE" Pack="true" PackagePath="/" />
   </ItemGroup>

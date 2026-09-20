@@ -1,3 +1,4 @@
+using System.Globalization;
 using Harborline.Foundation.Scheduling;
 using Xunit;
 
@@ -546,15 +547,83 @@ public sealed class InMemoryRruleExpansionServiceTests
         Sut.ExpandOccurrences(rrule, start, end, lookaheadDays: 3650, leadDays: 0, today: start, timezone: "UTC");
 
     // ----------------------------------------------------------------
-    // Occurrence cap guard
+    // Occurrence cap: refuse, never truncate (DES-0057 s10 ruling 3, T-647 eng-10).
+    // Rewritten from Expand_OccurrenceCap_NeverExceeds1000, which asserted the truncation the
+    // ruling removed. Every case here drives the producer directly: both calendar consumers
+    // expand from their window start since T-653, so a cap hit is unreachable through them.
     // ----------------------------------------------------------------
 
     [Fact]
-    public void Expand_OccurrenceCap_NeverExceeds1000()
+    public void Expand_OccurrenceCap_NeverReturnsAnUnmarkedPartial()
     {
-        // Daily with a 10-year horizon would produce ~3650 but cap at 1000.
+        // Daily over a ~13-year horizon: the 1 001st occurrence exists inside the requested
+        // range, so the range cannot be evaluated and the expansion refuses.
+        var refusal = Assert.Throws<RruleExpansionCapExceededException>(() => Sut.ExpandOccurrences(
+            rrule: "FREQ=DAILY",
+            start: Today,
+            end: Today.AddDays(5000),
+            lookaheadDays: 5000,
+            leadDays: 0,
+            today: Today,
+            timezone: "UTC"));
+
+        // The refusal carries enough to diagnose both the rule and the configuration.
+        Assert.Equal("FREQ=DAILY", refusal.RecurrenceId);
+        Assert.Equal(Today, refusal.Anchor);
+        Assert.Equal(Today, refusal.RequestedRangeStart);
+        Assert.Equal(Today.AddDays(5000), refusal.RequestedRangeEnd);
+        Assert.Equal(1000, refusal.CandidateLimit);
+        Assert.Equal(1001, refusal.CandidatesExamined);
+        Assert.Equal(Today.AddDays(1000), refusal.LastEvaluatedOccurrence);
+        Assert.Equal(RecurrenceBound.None, refusal.Bound);
+        Assert.Contains("FREQ=DAILY", refusal.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Expand_OccurrenceCap_LeadDaysShiftTheRefusedRangeStart()
+    {
+        // leadDays moves the first date the caller asked about; the refusal reports that, not
+        // the anchor, so a reader can see which range could not be evaluated.
+        var refusal = Assert.Throws<RruleExpansionCapExceededException>(() => Sut.ExpandOccurrences(
+            rrule: "FREQ=DAILY",
+            start: Today,
+            end: Today.AddDays(5000),
+            lookaheadDays: 5000,
+            leadDays: 30,
+            today: Today,
+            timezone: "UTC"));
+
+        Assert.Equal(Today, refusal.Anchor);
+        Assert.Equal(Today.AddDays(30), refusal.RequestedRangeStart);
+    }
+
+    [Fact]
+    public void Expand_OccurrenceCap_FilledExactlyByTheRange_Succeeds()
+    {
+        // 1 000 occurrences and no range left to walk: everything relevant was evaluated, so
+        // this is a complete answer and not a refusal. The boundary that stops the refusal
+        // degenerating into "refuse whenever the result is full".
         var occurrences = Sut.ExpandOccurrences(
             rrule: "FREQ=DAILY",
+            start: Today,
+            end: Today.AddDays(999),
+            lookaheadDays: 999,
+            leadDays: 0,
+            today: Today,
+            timezone: "UTC");
+
+        Assert.Equal(1000, occurrences.Count);
+        Assert.Equal(Today.AddDays(999), occurrences[^1]);
+    }
+
+    [Fact]
+    public void Expand_CountBoundedRuleEndingBeforeTheCap_Succeeds()
+    {
+        // The positive control the ruling adds: a rule that ends through COUNT before the cap
+        // still succeeds normally over the same horizon that refuses unbounded. Without this the
+        // row could be satisfied by refusing everything.
+        var occurrences = Sut.ExpandOccurrences(
+            rrule: "FREQ=DAILY;COUNT=900",
             start: Today,
             end: Today.AddDays(5000),
             lookaheadDays: 5000,
@@ -562,6 +631,41 @@ public sealed class InMemoryRruleExpansionServiceTests
             today: Today,
             timezone: "UTC");
 
-        Assert.Equal(1000, occurrences.Count);
+        Assert.Equal(900, occurrences.Count);
+        Assert.Equal(Today, occurrences[0]);
+        Assert.Equal(Today.AddDays(899), occurrences[^1]);
+    }
+
+    [Fact]
+    public void Expand_UntilBoundedRuleEndingBeforeTheCap_Succeeds()
+    {
+        var occurrences = Sut.ExpandOccurrences(
+            rrule: "FREQ=DAILY;UNTIL=" + Today.AddDays(899).ToString("yyyyMMdd", CultureInfo.InvariantCulture),
+            start: Today,
+            end: Today.AddDays(5000),
+            lookaheadDays: 5000,
+            leadDays: 0,
+            today: Today,
+            timezone: "UTC");
+
+        Assert.Equal(900, occurrences.Count);
+        Assert.Equal(Today.AddDays(899), occurrences[^1]);
+    }
+
+    [Fact]
+    public void Expand_CountBoundedRuleExceedingTheCap_RefusesNamingTheCountBound()
+    {
+        // Bounded is not the same as evaluable: COUNT past the cap still cannot be answered.
+        var refusal = Assert.Throws<RruleExpansionCapExceededException>(() => Sut.ExpandOccurrences(
+            rrule: "FREQ=DAILY;COUNT=1200",
+            start: Today,
+            end: Today.AddDays(5000),
+            lookaheadDays: 5000,
+            leadDays: 0,
+            today: Today,
+            timezone: "UTC"));
+
+        Assert.Equal(RecurrenceBound.Count, refusal.Bound);
+        Assert.Equal(1001, refusal.CandidatesExamined);
     }
 }
