@@ -5,24 +5,21 @@ namespace Harborline.Foundation.FieldRuntime.Tests;
 
 public sealed class EmptyRecordDomainAdmissionTests
 {
-    // ponytail: the predicate's operator vocabulary is Rules' (DES-0030 field-runtime-eng-1,
-    // cc-4), and RuleCompiler on main admits an unrecognised operator. With no candidate row
-    // to evaluate, nothing forces it, so an empty source resolves to no values instead of a
-    // refusal. Static operator admission belongs in RuleCompiler, which T-588 owns; this test
-    // pins the boundary so the behaviour cannot change unnoticed.
+    // Rules owns static operator admission (DES-0030 field-runtime-eng-1 and cc-4).
+    // T-588 rejects unknown operators throughout the expression, including unreachable
+    // branches. An empty candidate source cannot bypass that compiler admission.
     [Theory]
     [InlineData("{\"unknown_operator\":[]}")]
     [InlineData("{\"if\":[true,true,{\"unknown_operator\":[]}]}")]
-    public async Task An_empty_source_resolves_to_no_values_and_defers_operator_admission_to_rules(string predicate)
+    public async Task An_empty_source_still_refuses_operators_rejected_by_rules(string predicate)
     {
         var fixture = new DomainFixture();
         fixture.Records["case"] = [];
 
-        var resolved = await fixture.Runtime().ResolveAsync(
-            new(RecordQuery: new("case", predicate)), DomainFixture.Scope, "/fields/status/domain");
-
-        Assert.Empty(resolved.Values);
-        Assert.Equal(FieldEditorKind.None, resolved.Editor);
-        Assert.Equal(ValueDomainSourceKind.RecordQuery, resolved.SourceKind);
+        var error = await Assert.ThrowsAsync<FieldAdmissionException>(async () => await fixture.Runtime().ResolveAsync(
+            new(RecordQuery: new("case", predicate)), DomainFixture.Scope, "/fields/status/domain"));
+        var refusal = Assert.Single(error.Refusals);
+        Assert.Equal("field.value_domain_predicate_invalid", refusal.Code);
+        Assert.Equal("/fields/status/domain", refusal.JsonPointer);
     }
 }

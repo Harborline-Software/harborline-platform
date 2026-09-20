@@ -419,3 +419,35 @@ intent and shared-store implementation, and removes the four retired targets.
 All 40 Rules hash targets verified. The same catalog preflight command then passed
 in the clone with 108 modules, 194 projections, 32 artifacts and zero errors.
 This is a repaired preflight, not full-gate acceptance. The full gate must run again.
+
+## Field-runtime consumer reconciliation
+
+After reconciling main through `033918a`, the full gate at `f26ec4a` reached native
+verification. Sixteen stages passed, including tooling self-tests (332/332), ordinary
+audited restore and build. Native verification failed: three npm-based runs could
+not resolve nested script tools, and the field-runtime suite had three stale
+expectations for unknown operators. Six subsequent gate stages did not run.
+This is not a passing gate or release receipt.
+
+The field-runtime tests explicitly identified static operator admission as T-588's
+responsibility. `ValueDomainRuntime` already invokes `RuleCompiler` before iterating
+candidates and maps compilation refusal to `field.value_domain_predicate_invalid`.
+With T-588's closed operator vocabulary, this applies to empty sources and to unknown
+operators in unreachable branches as well as populated sources. Only the three test
+expectations changed; field-runtime production code and its refusal vocabulary did not.
+The tests still assert the exact refusal code and caller-supplied JSON pointer.
+
+Fresh workspace-write verification on 2026-09-20 used the normal command:
+
+```text
+dotnet test projections/dotnet/foundation/hlp.foundation.field-runtime.tests/Harborline.Foundation.FieldRuntime.Tests.csproj --configuration Release
+Passed!  - Failed: 0, Passed: 165, Skipped: 0, Total: 165
+Actual exit code: 0
+```
+
+Full test output: `artifacts/t588-local/field-admission-reconciliation/dotnet-test-20260920-110735.log`.
+The adjacent `run-20260920-110735.txt` records the command, pre-commit HEAD, working
+changes and actual exit. The earlier full gate output is
+`artifacts/t588-local/clone-gate/20260920T145615Z-clone-gate-dc505ed0.log` with its exit
+JSON; the complete native report is preserved as `20260920T145615Z-native-tests.log`.
+Focused verification does not replace the outstanding full gate.
