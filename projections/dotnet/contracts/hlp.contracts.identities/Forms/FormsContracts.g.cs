@@ -1084,6 +1084,10 @@ public sealed record FormViewField
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public Optional<string?> ControlHint { get; init; }
 
+    [JsonPropertyName("permittedValues")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public Optional<IReadOnlyList<string>> PermittedValues { get; init; }
+
     [JsonPropertyName("isSensitive")]
     [JsonRequired]
     public required bool IsSensitive { get; init; }

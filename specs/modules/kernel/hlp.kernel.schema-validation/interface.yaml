@@ -1,15 +1,16 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.kernel.schema-validation",
-  "interfaceRevision": 1,
+  "interfaceRevision": 2,
   "status": "frozen",
   "purpose": "Register content-addressed JSON Schema draft 2020-12 documents and validate Dynamic Forms payloads with bounded, stable, field-addressable failures without importing schema migration, federation, blob, epoch, or compaction concerns.",
-  "dependencies": [],
+  "dependencies": ["hlp.contracts.fields", "hlp.contracts.identities"],
   "types": {
     "SchemaId": "non-empty content-derived string",
     "Schema": ["Id", "JsonSchemaText", "ParentSchemas", "Tags", "ContentAddress"],
     "SchemaValidationError": ["JsonPointer", "Message", "Code", "Params"],
-    "ISchemaRegistry": ["GetAsync", "RegisterAsync", "ValidateAsync", "ListAsync"]
+    "ISchemaRegistry": ["GetAsync", "RegisterAsync", "ValidateAsync", "ListAsync"],
+    "IFieldKindRuntime": "optional injected shared-contract binding authority; required for executable field-kind schema metadata"
   },
   "selectedDesign": {
     "choice": "caller-backed validation registry",
@@ -25,6 +26,10 @@
     "Invalid payload JSON returns an invalid result with stable code invalid-json.",
     "Required-property failures are split onto the missing field's RFC 6901 pointer.",
     "Validation codes and structured params are stable and locale-independent; Message remains an English fallback.",
+    "Executable field-kind metadata retains the exact kind revision and every parameter in canonical schema identity.",
+    "A schema declaring an executable field-kind binding refuses registration without its shared runtime or when the binding is malformed or unresolved.",
+    "Field-kind limits execute through the injected shared contract, never a kernel copy of the limits, and retain field.* refusals and RFC 6901 pointers.",
+    "Field-kind evaluation preserves original submitted numeric spelling, including significant trailing decimal zeroes.",
     "The reference adapter is single-process and makes no persistence claim."
   ],
   "notScope": ["schema migration", "lenses or upcasters", "epoch coordination", "compaction", "blob storage", "federation transport", "Forms authorization or persistence"],

@@ -21,8 +21,9 @@ test('publication uses exactly the gate producer ids and follows a push to main,
   assert.ok(job, 'publish-libraries job is required')
   const ids = /PACKAGE_IDS: >-\n([\s\S]*?)    steps:/.exec(job)[1].trim().split(/\s+/).sort()
   const produced = producerIds()
-  assert.equal(produced.length, 26)
-  assert.equal(new Set(produced).size, 26, 'one producer per package id')
+  assert.equal(produced.length, 27)
+  assert.equal(new Set(produced).size, 27, 'one producer per package id')
+  assert.ok(produced.includes('Harborline.Foundation.FieldRuntime'), 'the shared field runtime must be published')
   assert.deepEqual(ids, produced, 'workflow package list must equal the producer inventory')
   // Publication follows the landing the repository's own gate proved by receipt (2026-09-07); it must not
   // wait on the ubuntu rerun of that gate, and it must never run for a pull request.

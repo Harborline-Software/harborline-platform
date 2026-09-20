@@ -1,8 +1,9 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.contracts.forms",
-  "interfaceRevision": 5,
+  "interfaceRevision": 6,
   "cases": [
+    {"id": "view-field-resolved-domain", "operation": "wire.round-trip", "type": "FormViewField", "input": {"name": "status", "label": {"defaultLocale": "en", "values": {"en": "Status"}}, "isSensitive": false, "isReadable": true, "controlHint": "ChoiceList", "permittedValues": ["open", "closed"]}, "expected": "same"},
     {"id": "export-surface", "operation": "surface.exports", "expected": {"declarations": 84, "interfaces": 55, "typeAliases": 28, "constants": 1, "closedLiteralMembers": 104}},
     {"id": "closed-definition-status", "operation": "closed.values", "type": "FormDefinitionStatus", "expected": ["Draft", "Published", "Deprecated", "Withdrawn"]},
     {"id": "closed-rule-vocabulary", "operation": "closed.values", "expected": {"RuleTier": ["JsonSchema", "JsonLogic", "PowerFx"], "RuleScope": ["Field", "Section", "Schema", "Row", "Table"], "RuleActionKind": ["Visibility", "Required", "ReadOnly", "Validate", "Compute", "Presentation", "Options"], "OutputType": ["Value", "Validity", "Visibility", "Presentation", "Options"]}},

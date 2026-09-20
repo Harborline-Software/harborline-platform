@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Json.Schema;
+using Harborline.Contracts.Fields;
 
 namespace Harborline.Kernel.SchemaValidation;
 
@@ -8,7 +9,7 @@ internal static class TimedSchemaDialect
 {
     private static readonly Uri Draft202012Id = new("https://json-schema.org/draft/2020-12/schema");
 
-    internal static BuildOptions Build(TimeSpan timeout)
+    internal static BuildOptions Build(TimeSpan timeout, IFieldKindRuntime? fieldKindRuntime)
     {
         var standardKeywords = new[]
             {
@@ -25,6 +26,7 @@ internal static class TimedSchemaDialect
             .Select(group => group.First())
             .Where(handler => handler.Name != "pattern")
             .Append((IKeywordHandler)new TimedPatternKeyword(timeout))
+            .Append(new FieldKindBindingKeyword(fieldKindRuntime))
             .ToList();
 
         var dialect = new Dialect(standardKeywords) { Id = Draft202012Id };

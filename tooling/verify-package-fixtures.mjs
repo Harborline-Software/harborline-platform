@@ -787,6 +787,7 @@ function verifyNuget() {
   const entityViews = 'projections/dotnet/blocks/hlp.blocks.entity-views/Harborline.Blocks.EntityViews.csproj'
   const dataExchange = 'projections/dotnet/foundation/hlp.foundation.data-exchange/Harborline.Foundation.DataExchange.csproj'
   const foundationScheduling = 'projections/dotnet/foundation/hlp.foundation.scheduling/Harborline.Foundation.Scheduling.csproj'
+  const fieldRuntime = 'projections/dotnet/foundation/hlp.foundation.field-runtime/Harborline.Foundation.FieldRuntime.csproj'
   const blocksScheduling = 'projections/dotnet/blocks/hlp.blocks.scheduling/Harborline.Blocks.Scheduling.csproj'
   const blocksCalendar = 'projections/dotnet/blocks/hlp.blocks.calendar/Harborline.Blocks.Calendar.csproj'
   const blocksReports = 'projections/dotnet/blocks/hlp.blocks.reports/Harborline.Blocks.Reports.csproj'
@@ -813,6 +814,7 @@ function verifyNuget() {
   run(dotnet.executable, ['pack', entityViews, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
   run(dotnet.executable, ['pack', dataExchange, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
   run(dotnet.executable, ['pack', foundationScheduling, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
+  run(dotnet.executable, ['pack', fieldRuntime, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
   run(dotnet.executable, ['pack', blocksScheduling, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
   run(dotnet.executable, ['pack', blocksCalendar, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
   run(dotnet.executable, ['pack', blocksReports, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
@@ -833,6 +835,7 @@ function verifyNuget() {
   })
   const expectedIds = ['Harborline.Blocks.ActivityTimeline', 'Harborline.Blocks.Aggregates', 'Harborline.Blocks.BuilderDefinitions', 'Harborline.Blocks.Calendar', 'Harborline.Blocks.EntityViews', 'Harborline.Blocks.InspectionReview', 'Harborline.Blocks.RelativeChains', 'Harborline.Blocks.Reports', 'Harborline.Blocks.Scheduling', 'Harborline.Blocks.Workflow', 'Harborline.Blocks.Workflow.Interpreter', 'Harborline.Foundation', 'Harborline.Foundation.DataExchange', 'Harborline.Foundation.Forms.Engine', 'Harborline.Foundation.MultiTenancy', 'Harborline.Foundation.RuleAuthoring', 'Harborline.Foundation.RuleEngine', 'Harborline.Foundation.Scheduling', 'Harborline.Kernel.Core', 'Harborline.Kernel.SchemaValidation', 'Harborline.Kernel.WorkItems', 'Harborline.UIAdapters.Blazor', 'Harborline.Contracts', 'Harborline.Foundation.Authorization', 'Harborline.Foundation.Forms', 'Harborline.Foundation.Session']
   const actualIds = packageMetadata.map(entry => entry.id).sort()
+  expectedIds.push('Harborline.Foundation.FieldRuntime')
   if (JSON.stringify(actualIds) !== JSON.stringify(expectedIds.sort())) {
     throw new Error(`NuGet artifact ownership mismatch: ${JSON.stringify(actualIds)}`)
   }
@@ -952,7 +955,12 @@ function verifyNuget() {
     }
   }
   cpSync(resolve(root, 'tests/package-consumers/nuget'), consumer, { recursive: true })
-  const output = runNugetConsumer(consumer, packageCache).output.trim().split('\n').at(-1)
+  const consumerOutputLines = runNugetConsumer(consumer, packageCache).output.trim().split('\n')
+  const output = consumerOutputLines.at(-1)
+  const fieldRuntimeSchemaBehavior = consumerOutputLines.find(line => line.startsWith('FIELD_RUNTIME_SCHEMA_PACKAGE_PASS:'))
+  if (!fieldRuntimeSchemaBehavior) throw new Error('Packed field-runtime schema consumer did not emit its completion proof')
+  const fieldRuntimeDomainBehavior = consumerOutputLines.find(line => line.startsWith('FIELD_RUNTIME_DOMAIN_PACKAGE_PASS:'))
+  if (!fieldRuntimeDomainBehavior) throw new Error('Packed field-runtime domain consumer did not emit its completion proof')
   const assets = readFileSync(resolve(consumer, 'obj/project.assets.json'), 'utf8')
   if (assets.includes(resolve(root, 'projections')) || /"type"\s*:\s*"project"/.test(assets)) {
     throw new Error('NuGet consumer resolved a source or project dependency')
@@ -1104,6 +1112,8 @@ function verifyNuget() {
     sourceOrProjectDependencies: 0,
     assemblyAmbiguities: 0,
     harborlineArtifactsFromSingleCohort: true,
+    fieldRuntimeSchemaBehavior,
+    fieldRuntimeDomainBehavior,
     formsEngineDirectPackageReferences: formsEngineDirectReferences,
     formsEngineTransitiveHarborlineArtifacts: formsEngineHarborlineNodes.length,
     formsEngineAuthoringHostBehavior: formsEngineConsumerOutput,
