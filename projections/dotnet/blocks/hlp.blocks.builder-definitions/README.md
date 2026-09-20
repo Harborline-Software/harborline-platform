@@ -128,7 +128,8 @@ what the package was proposed against. `ReleasedPackage.Digest` is the SHA-256 o
 so the digest shown to the author cannot drift from the artifact it names. Release refuses
 `configuration-check-invalidated` when the proposed change moved after the check, and
 `configuration-baseline-stale`, naming both generations, when the effective generation moved under
-the author. **The platform signs nothing**: transport, signing and installation are the api's, per
+the author, and `configuration-check-required` when no check was recorded at all, so a host never
+has to author a release rule of its own. **The platform signs nothing**: transport, signing and installation are the api's, per
 ADR 0097 decision 6.
 
 ck-7 exports `configurationProposalDetail` and `configurationProposalStatuses`, one released Form and
