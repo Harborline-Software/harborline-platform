@@ -12,6 +12,14 @@ set -eu
 hook_root=$(git rev-parse --show-toplevel)
 hook_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 node "$hook_dir/../tooling/gates/scan-prop-vocabulary.mjs" "$hook_root"
+# T-674. docs/evidence/phase-4/gate.json must name a run every clone of main can produce. T-568
+# committed one naming its own lane branch's HEAD; the squash merge discarded that commit and the
+# gate's release-receipt step then refused the evidence weeks later, on whichever runner's reused
+# clone no longer held the object. This is the same refusal at the commit that writes it. Note that
+# git skips a hook directory core.hooksPath does not point at, WITHOUT ERROR (see above), so this
+# call is the cheap first answer and not the enforcing one: verify.yml runs the same scanner on
+# every pull request and merge group, where it cannot be skipped.
+node "$hook_dir/../tooling/gates/scan-evidence-provenance.mjs" "$hook_root"
 # The phase-4 receipt refusal was removed with the retired landing mechanism (control ticket 393
 # item 5). It refused any commit without a fresh local phase-4 receipt, on the premise that
 # nothing else judged the tree. Since platform #23 the `verify` and `sbom` checks on the
