@@ -46,6 +46,28 @@ public sealed class AvailabilityExpansionTests
     }
 
     [Fact]
+    public void RecurringWindow_AnchoredBeyondTheOccurrenceCap_StillExpandsInsideTheWindow()
+    {
+        // T-653: the producer caps a walk at 1 000 emitted occurrences. A daily window anchored
+        // 1 200 days before the requested week was silently empty when emitted from the anchor.
+        var weekStart = new DateOnly(2026, 3, 2); // Monday
+        var avail = ResourceAvailability.Create(Acme, Doctor, "UTC")
+            .AddWindow(AvailabilityWindow.Create(
+                anchorDate: weekStart.AddDays(-1200),
+                startTime:  new TimeOnly(9, 0),
+                endTime:    new TimeOnly(17, 0),
+                rrule:      "FREQ=DAILY"));
+
+        var intervals = NewSut().Expand(avail,
+            new DateTimeOffset(2026, 3, 2, 0, 0, 0, TimeSpan.Zero),
+            new DateTimeOffset(2026, 3, 8, 23, 59, 59, TimeSpan.Zero));
+
+        Assert.Equal(7, intervals.Count);
+        Assert.Equal(new DateTimeOffset(2026, 3, 2, 9, 0, 0, TimeSpan.Zero), intervals[0].StartUtc);
+        Assert.Equal(new DateTimeOffset(2026, 3, 8, 17, 0, 0, TimeSpan.Zero), intervals[^1].EndUtc);
+    }
+
+    [Fact]
     public void SingleDayWindow_AppliesOnlyOnItsAnchorDate()
     {
         var avail = ResourceAvailability.Create(Acme, Doctor, "UTC")
