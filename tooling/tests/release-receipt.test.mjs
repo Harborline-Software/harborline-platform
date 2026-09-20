@@ -14,6 +14,10 @@ import {
 
 const sha256 = bytes => createHash('sha256').update(bytes).digest('hex')
 
+// The gate step's setting. Attestation defaults ON, so every check that is not about attestation
+// opts out explicitly here, exactly as the gate step does.
+const asGateStep = {requireAttestation: false}
+
 /** The canonical export idiom PlatformPackageExporter uses: digest over the digest-free bytes. */
 function artifact(revision = '1.0.0', payload = {id: 'harborline.platform'}) {
   const unsigned = `${JSON.stringify({schemaVersion: 1, packageKey: 'harborline.platform', revision, items: [payload]})}\n`
@@ -71,7 +75,7 @@ test('a release emits a receipt carrying every eng-7 field and the checker accep
     assert.equal(receipt.evidence.path, EVIDENCE_PATH)
     assert.match(receipt.evidence.run.baseHead, /^[0-9a-f]{40}$/)
     assert.equal(receipt.transcript.baseHead, receipt.commit)
-    assert.equal(checkReleaseReceipt(root, emitReleaseReceipt(root)), null)
+    assert.equal(checkReleaseReceipt(root, emitReleaseReceipt(root), asGateStep), null)
   } finally { dispose() }
 })
 
@@ -81,7 +85,7 @@ test('a receipt naming a commit the repository does not hold is refused naming t
     const emitted = JSON.parse(emitReleaseReceipt(root).toString('utf8'))
     const forged = exportReceipt({...emitted, commit: '0'.repeat(40)})
 
-    assert.deepEqual(checkReleaseReceipt(root, forged),
+    assert.deepEqual(checkReleaseReceipt(root, forged, asGateStep),
       {code: 'release-receipt-commit-not-in-repository', field: 'commit'})
   } finally { dispose() }
 })
@@ -92,7 +96,7 @@ test('a receipt whose digest does not match the artefact is refused naming the f
     const emitted = JSON.parse(emitReleaseReceipt(root).toString('utf8'))
     const forged = exportReceipt({...emitted, artifact: {...emitted.artifact, digest: 'f'.repeat(64)}})
 
-    assert.deepEqual(checkReleaseReceipt(root, forged),
+    assert.deepEqual(checkReleaseReceipt(root, forged, asGateStep),
       {code: 'release-receipt-artifact-digest-mismatch', field: 'artifact.digest'})
   } finally { dispose() }
 })
@@ -103,7 +107,7 @@ test('a receipt naming a pack version the artefact does not carry is refused nam
     const emitted = JSON.parse(emitReleaseReceipt(root).toString('utf8'))
     const forged = exportReceipt({...emitted, pack: {...emitted.pack, version: '9.9.9'}})
 
-    assert.deepEqual(checkReleaseReceipt(root, forged),
+    assert.deepEqual(checkReleaseReceipt(root, forged, asGateStep),
       {code: 'release-receipt-pack-version-mismatch', field: 'pack.version'})
   } finally { dispose() }
 })
@@ -115,7 +119,7 @@ test('an artefact whose stamped digest is not true of its own bytes is refused n
   const tampered = artifact().replace('"revision":"1.0.0"', '"revision":"1.0.1"')
   const {root, dispose} = release({artifact: tampered})
   try {
-    assert.deepEqual(checkReleaseReceipt(root, emitReleaseReceipt(root)),
+    assert.deepEqual(checkReleaseReceipt(root, emitReleaseReceipt(root), asGateStep),
       {code: 'release-receipt-seed-digest-not-self-consistent', field: 'pack.seedDigest'})
   } finally { dispose() }
 })
@@ -123,7 +127,7 @@ test('an artefact whose stamped digest is not true of its own bytes is refused n
 test('a receipt whose recorded run is not in the repository is refused naming the field', () => {
   const {root, dispose} = release({recordedRun: '1'.repeat(40)})
   try {
-    assert.deepEqual(checkReleaseReceipt(root, emitReleaseReceipt(root)),
+    assert.deepEqual(checkReleaseReceipt(root, emitReleaseReceipt(root), asGateStep),
       {code: 'release-receipt-evidence-run-not-in-repository', field: 'evidence.run.baseHead'})
   } finally { dispose() }
 })
@@ -131,7 +135,7 @@ test('a receipt whose recorded run is not in the repository is refused naming th
 test('a receipt whose evidence is not a pass is refused naming the field', () => {
   const {root, dispose} = release({evidenceStatus: 'FAIL'})
   try {
-    assert.deepEqual(checkReleaseReceipt(root, emitReleaseReceipt(root)),
+    assert.deepEqual(checkReleaseReceipt(root, emitReleaseReceipt(root), asGateStep),
       {code: 'release-receipt-evidence-not-a-pass', field: 'evidence.run'})
   } finally { dispose() }
 })
@@ -141,7 +145,7 @@ test('an edited receipt is refused on its own digest', () => {
   try {
     const edited = Buffer.from(emitReleaseReceipt(root).toString('utf8').replace('"1.0.0"', '"1.0.1"'), 'utf8')
 
-    assert.deepEqual(checkReleaseReceipt(root, edited),
+    assert.deepEqual(checkReleaseReceipt(root, edited, asGateStep),
       {code: 'release-receipt-digest-mismatch', field: 'digest'})
   } finally { dispose() }
 })
@@ -154,7 +158,7 @@ test('a hand-written receipt is refused where a receipt is presented rather than
     // corroborating a run, because only the receipt runner writes one.
     const authored = exportReceipt(JSON.parse(emitReleaseReceipt(root).toString('utf8')))
 
-    assert.equal(checkReleaseReceipt(root, authored), null)
+    assert.equal(checkReleaseReceipt(root, authored, asGateStep), null)
     assert.deepEqual(checkReleaseReceipt(root, authored, {requireAttestation: true}),
       {code: 'release-receipt-transcript-unattested', field: 'transcript'})
   } finally { dispose() }
@@ -213,5 +217,53 @@ test('an attested receipt whose gate report was altered after the run is refused
 
     assert.deepEqual(checkReleaseReceipt(root, exportReceipt(emitted), {requireAttestation: true}),
       {code: 'release-receipt-transcript-report-altered', field: 'transcript'})
+  } finally { dispose() }
+})
+
+// The three below are regressions for defects found while writing this module's own explanation.
+// Each is a way the checker could return, or appear to return, a pass on something it never read.
+
+test('attestation is required by default, so a caller that forgets the flag fails closed', () => {
+  const {root, dispose} = release()
+  try {
+    // No options at all. A future consumer reading a stored receipt back as evidence gets the
+    // strict behaviour by omission rather than the weak one.
+    assert.deepEqual(checkReleaseReceipt(root, emitReleaseReceipt(root)),
+      {code: 'release-receipt-transcript-unattested', field: 'transcript'})
+  } finally { dispose() }
+})
+
+test('a phase-4 receipt that is present but unreadable is refused under both settings', () => {
+  const {root, git, dispose} = release()
+  try {
+    writeFileSync(resolve(root, git('rev-parse', '--git-dir'), 'harborline-phase4-receipt.json'), '{ this is not json')
+    const expected = {code: 'release-receipt-transcript-unreadable', field: 'transcript'}
+
+    // Collapsing "present but corrupt" into "absent" is what made this pass before: under the
+    // gate step's setting the attestation block was skipped entirely and the checker returned a
+    // pass on a file it had failed to read.
+    assert.deepEqual(checkReleaseReceipt(root, emitReleaseReceipt(root), asGateStep), expected)
+    assert.deepEqual(checkReleaseReceipt(root, emitReleaseReceipt(root), {requireAttestation: true}), expected)
+  } finally { dispose() }
+})
+
+test('an unreadable artefact is refused naming the field rather than thrown', () => {
+  const {root, dispose} = release({artifact: 'not a document at all\n'})
+  try {
+    const emitted = exportReceipt({
+      repository: 'harborline-platform',
+      commit: '0'.repeat(40),
+      tree: '0'.repeat(40),
+      artifact: {path: ARTIFACT_PATH, digest: '0'.repeat(64)},
+      pack: {version: '1.0.0', seedDigest: '0'.repeat(64)},
+      evidence: {path: EVIDENCE_PATH, digest: '0'.repeat(64), run: {baseHead: '0'.repeat(40), testedTree: '0'.repeat(40)}},
+      transcript: {baseHead: '0'.repeat(40), testedTree: '0'.repeat(40), mode: 'current-index'},
+    })
+
+    // The commit refuses first, which is the point: every refusal names a field, and none of them
+    // is an uncaught JSON parse escaping as a stack trace.
+    assert.deepEqual(checkReleaseReceipt(root, emitted, asGateStep),
+      {code: 'release-receipt-commit-not-in-repository', field: 'commit'})
+    assert.throws(() => emitReleaseReceipt(root), /not a readable document/)
   } finally { dispose() }
 })

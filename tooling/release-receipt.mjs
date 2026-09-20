@@ -55,8 +55,17 @@ function blobAt(root, commit, filePath) {
  * reads it, so the two receipts cannot be reading different rules over the same document.
  */
 function artifactIdentity(bytes) {
-  const document = JSON.parse(bytes.toString('utf8'))
+  const document = readJson(bytes)
+  if (!document) return null
   return {version: document.revision, seedDigest: document.digest?.value}
+}
+
+/** The parsed document, or null. Unreadable is a refusal with a named field, never a thrown stack. */
+function readJson(bytes) {
+  try {
+    const parsed = JSON.parse(bytes.toString('utf8'))
+    return parsed && typeof parsed === 'object' ? parsed : null
+  } catch { return null }
 }
 
 /**
@@ -79,7 +88,9 @@ export function emitReleaseReceipt(root, {baseHead, testedTree, mode} = {}) {
   const evidence = blobAt(root, commit, EVIDENCE_PATH)
   if (!evidence) throw new Error(`release receipt: the commit holds no ${EVIDENCE_PATH}`)
   const identity = artifactIdentity(artifact)
-  const recorded = JSON.parse(evidence.toString('utf8'))
+  if (!identity) throw new Error(`release receipt: ${ARTIFACT_PATH} at the commit is not a readable document`)
+  const recorded = readJson(evidence)
+  if (!recorded) throw new Error(`release receipt: ${EVIDENCE_PATH} at the commit is not a readable document`)
   return exportReceipt({
     repository: REPOSITORY,
     commit,
@@ -103,13 +114,13 @@ export function emitReleaseReceipt(root, {baseHead, testedTree, mode} = {}) {
  * A refusal naming the field that refused, or null when every field matched its referent.
  *
  * `requireAttestation` decides whether the phase-4 receipt must corroborate the run. It is the
- * ground on which a hand-written receipt is refused, and it is required where a receipt is
- * PRESENTED -- the release act, which has the phase-4 receipt in hand. The gate step does not
- * require it, because CI deliberately does not run the receipt runner (.github/workflows/verify.yml
- * says so) and because in the gate the receipt is emitted by the step itself, so there is no
- * presented document to distrust. Every other field is checked against git either way.
+ * ground on which a hand-written receipt is refused, and it DEFAULTS ON: a caller that reads a
+ * stored receipt back as evidence must not get the weak behaviour by forgetting a flag. The gate
+ * step is the only opt-out and says why at its call site. Every other field is checked against git
+ * either way, and a phase-4 receipt that is present but unreadable refuses under both settings --
+ * an input that cannot be evaluated is never the same as nothing to evaluate.
  */
-export function checkReleaseReceipt(root, document, {requireAttestation = false} = {}) {
+export function checkReleaseReceipt(root, document, {requireAttestation = true} = {}) {
   const parsed = parseReceipt(document)
   if (parsed.refusal) return parsed.refusal
   const receipt = parsed.receipt
@@ -123,6 +134,7 @@ export function checkReleaseReceipt(root, document, {requireAttestation = false}
   if (receipt.artifact.digest !== sha256(artifact)) return refuse('release-receipt-artifact-digest-mismatch', 'artifact.digest')
 
   const identity = artifactIdentity(artifact)
+  if (!identity) return refuse('release-receipt-artifact-unreadable', 'artifact.path')
   if (receipt.pack.version !== identity.version) return refuse('release-receipt-pack-version-mismatch', 'pack.version')
   if (receipt.pack.seedDigest !== identity.seedDigest) return refuse('release-receipt-seed-digest-mismatch', 'pack.seedDigest')
   // The artifact's stamped digest must also be true of its own bytes, so a document whose digest
@@ -132,7 +144,8 @@ export function checkReleaseReceipt(root, document, {requireAttestation = false}
   const evidence = blobAt(root, receipt.commit, receipt.evidence.path)
   if (!evidence) return refuse('release-receipt-evidence-absent', 'evidence.path')
   if (receipt.evidence.digest !== sha256(evidence)) return refuse('release-receipt-evidence-digest-mismatch', 'evidence.digest')
-  const recorded = JSON.parse(evidence.toString('utf8'))
+  const recorded = readJson(evidence)
+  if (!recorded) return refuse('release-receipt-evidence-unreadable', 'evidence.path')
   if (recorded.status !== 'PASS') return refuse('release-receipt-evidence-not-a-pass', 'evidence.run')
   if (receipt.evidence.run.baseHead !== recorded.subject?.baseHead) return refuse('release-receipt-evidence-run-mismatch', 'evidence.run.baseHead')
   if (receipt.evidence.run.testedTree !== recorded.subject?.testedTree) return refuse('release-receipt-evidence-run-mismatch', 'evidence.run.testedTree')
@@ -150,8 +163,12 @@ export function checkReleaseReceipt(root, document, {requireAttestation = false}
   // `current-index`, and only the receipt runner's detached staged-tree run stamps
   // `exact-staged-tree`, so this is where a directly-minted release is told apart from a released
   // one. It proves which run; it does not prove freshness, and a signature would be needed for that.
-  const phase4 = readPhase4Receipt(root)
-  if (!phase4 && requireAttestation) return refuse('release-receipt-transcript-unattested', 'transcript')
+  const attestation = readPhase4Receipt(root)
+  // Present but unparseable is its own answer, never silence. Collapsing it into "absent" is how a
+  // checker returns pass on an input it did not read.
+  if (attestation.present && !attestation.receipt) return refuse('release-receipt-transcript-unreadable', 'transcript')
+  if (!attestation.present && requireAttestation) return refuse('release-receipt-transcript-unattested', 'transcript')
+  const phase4 = attestation.receipt
   if (phase4) {
     if (receipt.transcript.baseHead !== phase4.baseHead) return refuse('release-receipt-transcript-not-the-recorded-run', 'transcript.baseHead')
     if (receipt.transcript.testedTree !== phase4.testedTree) return refuse('release-receipt-transcript-not-the-recorded-run', 'transcript.testedTree')
@@ -161,11 +178,13 @@ export function checkReleaseReceipt(root, document, {requireAttestation = false}
   return null
 }
 
+/** `{present, receipt}` — `present` without a `receipt` means the file is there and unreadable. */
 function readPhase4Receipt(root) {
   const gitDir = git(root, ['rev-parse', '--git-dir']).trim()
   const receiptPath = path.resolve(root, gitDir, 'harborline-phase4-receipt.json')
-  if (!existsSync(receiptPath)) return null
-  try { return JSON.parse(readFileSync(receiptPath, 'utf8')) } catch { return null }
+  if (!existsSync(receiptPath)) return {present: false, receipt: null}
+  try { return {present: true, receipt: JSON.parse(readFileSync(receiptPath, 'utf8'))} }
+  catch { return {present: true, receipt: null} }
 }
 
 const refuse = (code, field) => ({code, field})
@@ -210,12 +229,18 @@ export function exportReceipt(fields) {
   return Buffer.from(`${JSON.stringify(signed, null, 2)}\n`, 'utf8')
 }
 
-if (process.argv[1] && import.meta.url === new URL(`file://${process.argv[1].replaceAll('\\', '/')}`).href) {
+if (import.meta.main) {
   const root = path.resolve(import.meta.dirname, '..')
-  // The gate emits from the live repository and checks what the release just produced. There is no
-  // checked-in receipt to read, so there is no fixture this can be pointed at by mistake.
+  // The gate emits from the live repository and checks what the release just produced. It takes no
+  // receipt: there is no argument and no file read, so there is no channel by which a hand-written
+  // document could reach this at all, and no fixture it can be pointed at by mistake.
+  //
+  // This is the ONE deliberate opt-out from attestation, and the reason is that CI does not run the
+  // receipt runner (.github/workflows/verify.yml), so requiring the phase-4 receipt here would be
+  // red by construction. What this therefore does not check is that some OTHER receipt was produced
+  // by a release; that belongs where a receipt is presented, and there the default applies.
   const emitted = emitReleaseReceipt(root)
-  const refusal = checkReleaseReceipt(root, emitted)
+  const refusal = checkReleaseReceipt(root, emitted, {requireAttestation: false})
   if (refusal) {
     process.stdout.write(`${JSON.stringify({status: 'FAIL', ...refusal}, null, 2)}\n`)
     process.exitCode = 1
