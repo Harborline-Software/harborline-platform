@@ -92,32 +92,59 @@ public sealed class BookingService : IBookingService
         if (availability is null)
             return BookingOutcome.Rejected(BookingOutcome.NoAvailability);
 
-        // The gate: the VISIBLE slot inside the supply and the padded OCCUPIED footprint free of existing
-        // occupancy, both derived by the one composition. The shipped booking path books one exclusive
-        // resource; the padding is the buffer that is part of the hold.
-        var read = await _runtime
-            .Read(tenantId, new AvailabilityRequest(startUtc, endUtc, [ResourceCapacity.Exclusive(resourceRef, effectivePadding)]), ct)
-            .ConfigureAwait(false);
-        if (read.Refusal is not null)
-            return BookingOutcome.Rejected(BookingOutcome.SlotInverted);
-        switch (read.Resources[0].Unavailability)
+        // The capacity recheck and the commit are ONE step (booking-eng-24, ADR 0095 ruling 8). The
+        // epoch is read BEFORE the capacity read, and the write is conditional on it: if anything
+        // occupied this resource in between, the save refuses rather than committing against a read
+        // that is no longer true. The claim is fenced here, in the producer that owns the invariant —
+        // not by a lock in one host process, which cannot hold it for a second node.
+        for (var attempt = 1; ; attempt++)
         {
-            case Unavailability.OutsideSupply:
-                return BookingOutcome.Rejected(BookingOutcome.NoAvailability);
-            case Unavailability.CapacityExhausted:
+            var capacityEpoch = await _eventStore.GetCapacityEpochAsync(tenantId, resourceRef, ct).ConfigureAwait(false);
+
+            // The gate: the VISIBLE slot inside the supply and the padded OCCUPIED footprint free of existing
+            // occupancy, both derived by the one composition. The shipped booking path books one exclusive
+            // resource; the padding is the buffer that is part of the hold.
+            var read = await _runtime
+                .Read(tenantId, new AvailabilityRequest(startUtc, endUtc, [ResourceCapacity.Exclusive(resourceRef, effectivePadding)]), ct)
+                .ConfigureAwait(false);
+            if (read.Refusal is not null)
+                return BookingOutcome.Rejected(BookingOutcome.SlotInverted);
+            switch (read.Resources[0].Unavailability)
+            {
+                case Unavailability.OutsideSupply:
+                    return BookingOutcome.Rejected(BookingOutcome.NoAvailability);
+                case Unavailability.CapacityExhausted:
+                    return BookingOutcome.Rejected(BookingOutcome.SlotConflict);
+            }
+
+            // Admitted by a read that is only advisory until the conditional write accepts it. Build a
+            // single-occurrence Bookable event from the VISIBLE UTC slot, expressed in the resource's
+            // local wall-clock + tz (so the stored event reads naturally and re-expands to the same UTC
+            // instant), carrying the resolved padding envelope.
+            var ev = BuildBookableEvent(
+                tenantId, resourceRef, title, startUtc, endUtc, bookedBy, attendee, scheduledAgainst,
+                availability.Timezone, effectivePadding);
+
+            if (await _eventStore.SaveIfCapacityUnchangedAsync(ev, resourceRef, capacityEpoch, ct).ConfigureAwait(false))
+                return BookingOutcome.Booked(ev);
+
+            // The epoch moved: the capacity read is stale and nothing was written. Re-read and re-gate —
+            // the loser of a last-seat race sees the winner's write on the next pass and is refused
+            // SLOT_CONFLICT there. The retry exists only so that a claim losing the epoch to an
+            // unrelated booking on the same resource is not refused a slot that is genuinely free.
+            // ponytail: a fixed attempt cap, not a backoff — the epoch is per resource, so the
+            // contention that reaches it is a handful of writers. Narrow the epoch to the claimed
+            // footprint if a hot resource ever exhausts the cap.
+            if (attempt >= MaxCapacityAttempts)
                 return BookingOutcome.Rejected(BookingOutcome.SlotConflict);
         }
-
-        // Admitted. Build a single-occurrence Bookable event from the VISIBLE UTC slot, expressed in the
-        // resource's local wall-clock + tz (so the stored event reads naturally and re-expands to the
-        // same UTC instant), carrying the resolved padding envelope.
-        var ev = BuildBookableEvent(
-            tenantId, resourceRef, title, startUtc, endUtc, bookedBy, attendee, scheduledAgainst,
-            availability.Timezone, effectivePadding);
-
-        await _eventStore.SaveAsync(ev, ct).ConfigureAwait(false);
-        return BookingOutcome.Booked(ev);
     }
+
+    /// <summary>
+    /// How many times a claim re-reads capacity after losing the epoch before it refuses. Each pass is
+    /// a full recheck, so refusing at the cap is conservative: it never books over an occupied slot.
+    /// </summary>
+    private const int MaxCapacityAttempts = 3;
 
     /// <summary>
     /// Build the single-occurrence <see cref="Occupancy.Bookable"/> event from the UTC slot, expressed
