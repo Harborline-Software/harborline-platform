@@ -111,7 +111,7 @@ public sealed class SharedFieldCrossCallerTests
             var model = await fields.ResolveAsync(new(tenant), fields.SchemaRef, cancellationToken);
             return new(recordType, new Dictionary<string, ViewRecordFieldKind> { ["name"] = ViewRecordFieldKind.Text }, tenant, model!.SchemaRef, model.Fields);
         }
-        public ValueTask<ViewFilter> BuildAsync(string tenant, string principal, string recordType, CancellationToken cancellationToken = default)
+        public ValueTask<ViewFilter> BuildAsync(string tenant, string principal, string recordType, DateTimeOffset at, CancellationToken cancellationToken = default)
             => ValueTask.FromResult(ViewFilter.Equal("name", "allowed"));
         ValueTask<ViewMeasureDescriptor?> IViewMeasureCatalog.ResolveAsync(string name, CancellationToken cancellationToken) => throw new NotSupportedException();
         public ValueTask<ViewMeasureResult> EvaluateAsync(ViewMeasureBinding binding, IReadOnlyList<ViewRow> rows, DateTimeOffset evaluatedAt, CancellationToken cancellationToken = default) => throw new NotSupportedException();

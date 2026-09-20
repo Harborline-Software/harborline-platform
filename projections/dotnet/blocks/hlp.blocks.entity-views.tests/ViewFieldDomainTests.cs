@@ -73,7 +73,7 @@ public sealed class ViewFieldDomainTests
                 Mismatch == "tenant" ? "foreign" : tenant, Mismatch == "schema" ? null : "schema-1",
                 new Dictionary<string, FieldBindingDefinition> { [Mismatch == "field" ? "unselected" : "name"] = binding }));
         }
-        public ValueTask<ViewFilter> BuildAsync(string tenant, string principal, string recordType, CancellationToken cancellationToken = default)
+        public ValueTask<ViewFilter> BuildAsync(string tenant, string principal, string recordType, DateTimeOffset at, CancellationToken cancellationToken = default)
             => ValueTask.FromResult(ViewFilter.Equal("name", "a"));
         ValueTask<ViewMeasureDescriptor?> IViewMeasureCatalog.ResolveAsync(string name, CancellationToken cancellationToken) => throw new NotSupportedException();
         public ValueTask<ViewMeasureResult> EvaluateAsync(ViewMeasureBinding binding, IReadOnlyList<ViewRow> rows, DateTimeOffset evaluatedAt, CancellationToken cancellationToken = default) => throw new NotSupportedException();
