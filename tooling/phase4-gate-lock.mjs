@@ -9,6 +9,10 @@ const OWNER_FILE_NAME = 'owner.json'
 // Test-only pause seam: when HARBORLINE_PHASE4_GATE_LOCK_TEST_PAUSE names an empty regular file
 // or a FIFO, stale takeover pauses after inspection until the file is populated or the FIFO is written.
 // The seam is a no-op when the variable is unset or does not name either kind of filesystem entry.
+//
+// Test-only fault seam: HARBORLINE_PHASE4_GATE_LOCK_TEST_MKDIR_EPERM=<n> makes the first n candidate
+// mkdir calls of an acquisition raise EPERM, so the retry and the bound below are provable rather
+// than arguable. The seam is a no-op when the variable is unset or does not parse above zero.
 
 export function resolvePhase4GateLockDirectory(repositoryRoot) {
   // realpath: git answers a RELATIVE `.git` for a primary worktree and an already-resolved ABSOLUTE
@@ -56,7 +60,6 @@ export async function acquirePhase4GateLock({repositoryRoot, command = [process.
     // it must say so rather than retry forever or surface as a bare stack.
     try {
       if (injectedCandidateMkdirEperm > 0) {
-        // Test-only fault seam, so the retry is provable rather than arguable.
         injectedCandidateMkdirEperm -= 1
         throw Object.assign(new Error(`EPERM: operation not permitted, mkdir '${candidateDirectory}'`), {code: 'EPERM'})
       }
@@ -88,8 +91,9 @@ export async function acquirePhase4GateLock({repositoryRoot, command = [process.
         break
       } catch (error) {
         removeOwnDirectory(candidateDirectory)
+        // These three mean another fully populated candidate won the atomic rename. Anything else
+        // is real, and says so with the path it was claiming.
         if (!['EEXIST', 'ENOTEMPTY', 'EPERM'].includes(error?.code)) {
-          // Another fully populated candidate won the atomic rename; anything else is real.
           throw new Error(`phase-4 gate lock: ${error?.code ?? 'failure'} claiming ${lockDirectory} from candidate ${candidateDirectory}`, {cause: error})
         }
       }
