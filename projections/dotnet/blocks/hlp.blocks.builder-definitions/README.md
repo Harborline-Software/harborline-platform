@@ -124,4 +124,99 @@ against `conformance/hlp.blocks.builder-definitions/activation.json`, and produc
 fixture value. Contract interruption tests cover preparation and switch decisions, not API crash
 recovery or durable atomicity.
 
+## Proposed change, Saved version and Released package (T-461)
+
+`ConfigurationProposal` is the propose, save and release half of the governed loop, and it is pure:
+the host owns every store. `Start` records the exact effective generation as the proposed change's
+baseline. `Autosave` replaces only the named definition's body and preserves the rest of the working
+set; an unparseable body refuses rather than being repaired. `WorkingDigest` identifies the exact
+state now being edited, and it moves on every edit — that movement is what makes a **Saved version**
+and a recorded check distinguishable from the state now in front of the author.
+
+`Save` freezes the working edits into an immutable checkpoint with a required author, a required
+rationale and an admitted instant. Its frozen edit list cannot be written through, and a later
+autosave leaves it untouched. `ProposedChangeCheck` binds one working digest; the verification engine
+and receipt content are the verification slice's, and this producer owns only the binding and its
+invalidation through `IsCurrent`.
+
+`Release` exports exactly the named saved version as one provider-neutral document through the
+existing `PlatformPackageExporter`: closure, manifest and digest, validated as replayable before it
+is exported. Its own package record carries the baseline generation, the saved version digest and
+ordinal, the author, the rationale and the check receipt, so a reader of the bytes alone can tell
+what the package was proposed against. `ReleasedPackage.Digest` is the SHA-256 of those exact bytes,
+so the digest shown to the author cannot drift from the artifact it names. Release refuses
+`configuration-check-invalidated` when the proposed change moved after the check, and
+`configuration-baseline-stale`, naming both generations, when the effective generation moved under
+the author, and `configuration-check-required` when no check was recorded at all, so a host never
+has to author a release rule of its own. **The platform signs nothing**: transport, signing and installation are the api's, per
+ADR 0097 decision 6.
+
+ck-7 exports `configurationProposalDetail` and `configurationProposalStatuses`, one released Form and
+the domain-facing **Proposed change**, **Saved version** and **Released package** vocabulary. Both
+SchemaForm lanes render that exported Form over one shared fixture,
+`conformance/hlp.blocks.builder-definitions/proposal.json`, which is the single Records-and-Forms
+example — adding a purchase-order number to the invoice Record type and showing it on the invoice
+Form — completed identically in React and Blazor rather than twice in two similar shapes. This slice
+adds no API route, no signing, no installation, no persistence and no app page.
+
+## Declarative verification: suite, catalogue and receipt (T-463)
+
+`VerificationSuite` is the declarative half of domain verification, and it is pure: the platform
+executes nothing. A **fixture** is a controlled starting world — instant, time zone, locale,
+identifier seed, collection ordering, actor, the grants that actor actually holds, every registered
+port with the deterministic simulator standing in for it, and the seed facts. None of those are
+defaulted; a blank one refuses `verification-fixture-input-required`, because a result that depended
+on an undeclared input would be coincidental. An **invariant** is one fixture, one action and one
+set of assertions. A **parameterized claim** is the same assertions repeated once per examples row,
+with the row identity carried into the result so a failure names the row.
+
+`VerificationCatalog` is the closed action and predicate catalogue, and closing it is what keeps the
+format declarative. A case can only *name* an action and a predicate, so there is nowhere for a
+script, an expression language, a network address or an LLM prompt to go. Each predicate reads one
+observation channel and compares it with an expected value of one declared kind. The catalogue has
+its own versioned reference, and a receipt must carry it.
+
+**A check containing no meaningful assertion cannot pass**, and that is enforced twice, structurally.
+An assertion is *meaningful* when it can fail: it names a registered predicate, it carries an
+expected value that is well typed for that predicate's declared kind, and it reads a channel the
+case's own action produces. `Declare` refuses anything else by name — `verification-assertion-required`
+for a case that asserts nothing, `verification-predicate-unknown`, `verification-expected-invalid`,
+`verification-observation-unavailable`, `verification-input-unbound` for a case whose action
+parameter is unbound, and `verification-expected-invalid` for an examples row that states no
+expectation. `Parse` re-admits a document through `Declare`, so a suite arriving over the wire
+cannot carry a case that authoring would have refused; it also refuses a document written against
+another catalogue rather than re-deriving its meaning under this one, reads only string members so a
+malformed document reaches a named refusal rather than an exception, and treats an instant that does
+not parse as an undeclared instant. The second gate is in the result:
+`VerificationCaseOutcome.Status` is *derived* from the observations, and there is no constructor,
+factory or setter anywhere that produces `Passed` without a matched observation. Nothing observed is
+`Vacuous`; `Unsupported` and `Blocked` are results, not skips; and a receipt whose outcomes are not
+all `Passed` is not a passing run.
+
+`VerificationReceipt.Mint` produces one immutable receipt or refuses by name. It binds the tenant,
+the exact candidate generation, the baseline it was prepared over, the suite reference, one
+reference per fixture — derived by the suite itself, not supplied — and every engine identity
+including the catalogue. It must answer every declared case and every declared examples row exactly
+once, and an outcome that observed anything must have observed every assertion its case declares —
+so a run cannot be made green by dropping a case, nor by dropping the one assertion it would have
+failed. Observing nothing at all stays legal and stays `Vacuous`. Engine identities are deduplicated
+and fully ordered, so the digest depends on the engine set rather than on how the caller assembled
+the list, and a list repeating the catalogue is not a second engine. `ReceiptId` is what `ProposedChangeCheck`
+binds, which is the seam [[T-461]] left for this slice. `Digest` is the SHA-256 of the canonical
+receipt document, so the receipt is replayable rather than a colour.
+
+ck-7 exports `verificationRunDetail`, `verificationRunStatuses` and `verificationCatalogue`, one
+released Form and the **Passed**, **Failed**, **Nothing was checked**, **Not supported** and
+**Blocked** vocabulary. Both SchemaForm lanes render that exported Form over one shared fixture,
+`conformance/hlp.blocks.builder-definitions/verification.json` — the single Records-and-Rules
+example, an invoice whose total is a business rule and whose approved status is an authorization
+rule — with the canonical suite document both app lanes author and run, the refusal an empty case
+earns, and three runs: clean, one business-rule defect and one authorization defect, each failing
+its own claim and not the other.
+
+**This slice adds no execution.** Isolated execution through the production interpreters, the
+ephemeral tenant context, receipt persistence and transport are the api's, per R-0091's authority
+table and ADR 0096 decision 3, under which producers are built in the platform and the api consumes
+the released feed; the app pages are the app's.
+
 `IDefinitionKeyAuthority` remains intentionally unimplemented until allocation authority is ruled. This package owns no API transport, signing, installation, Pilot bridge, or UI renderer.

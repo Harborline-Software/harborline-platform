@@ -150,6 +150,7 @@ jobs:
         Harborline.Blocks.Calendar
         Harborline.Blocks.EntityViews
         Harborline.Blocks.InspectionReview
+        Harborline.Blocks.MeasureCatalogue
         Harborline.Blocks.RelativeChains
         Harborline.Blocks.Reports
         Harborline.Blocks.Scheduling

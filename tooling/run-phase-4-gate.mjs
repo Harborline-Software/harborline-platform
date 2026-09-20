@@ -199,6 +199,9 @@ try {
     runReusable('gallery-gate', process.execPath, ['tooling/run-gallery-gate.mjs', '--packages-ready'], root, true,
       { GALLERY_SHARDS: String(galleryShards) })
   }
+  // T-671. Emits the release receipt from the live repository and checks every field against
+  // its referent in git. There is no checked-in receipt for this to be pointed at by mistake.
+  run('release-receipt', process.execPath, ['tooling/release-receipt.mjs'], root, true)
   run('catalog-final', process.execPath, ['tooling/validate-repository.mjs', '--allow-stale-gate'], root, true)
 } catch (error) {
   caughtGateError = error

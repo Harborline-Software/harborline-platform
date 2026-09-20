@@ -377,7 +377,11 @@ public interface IViewRowSource
     ValueTask<ViewRowPage> QueryAsync(ViewQueryPlan plan, CancellationToken cancellationToken = default);
 }
 
-/// <summary>Resolves and evaluates named measures; Views owns no aggregation math.</summary>
+/// <summary>
+/// Resolves and evaluates named measures; Views owns no aggregation math. The tenant and principal
+/// are part of the seam because the measure substrate binds the Access set filter at an explicit
+/// identity and instant before it computes anything (T-624).
+/// </summary>
 public interface IViewMeasureCatalog
 {
     ValueTask<ViewMeasureDescriptor?> ResolveAsync(
@@ -388,6 +392,8 @@ public interface IViewMeasureCatalog
         ViewMeasureBinding binding,
         IReadOnlyList<ViewRow> rows,
         DateTimeOffset evaluatedAt,
+        string tenant,
+        string principal,
         CancellationToken cancellationToken = default);
 }
 
@@ -503,7 +509,7 @@ public sealed class ViewQueryRuntime
         var page = await _rows.QueryAsync(plan, cancellationToken).ConfigureAwait(false);
         var measure = definition.Parameters.Measure is { } binding
             ? await _measures
-                .EvaluateAsync(binding, page.CurrentRows, evaluatedAt, cancellationToken)
+                .EvaluateAsync(binding, page.CurrentRows, evaluatedAt, request.Tenant, request.Principal, cancellationToken)
                 .ConfigureAwait(false)
             : null;
         return new(page.Rows, page.Total, page.Groups, measure, authority, evaluatedAt) { ColumnDomains = domains };

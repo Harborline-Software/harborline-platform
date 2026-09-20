@@ -1,0 +1,239 @@
+{
+  "example": "records-and-rules",
+  "tenantKey": "tenant-a",
+  "baselineDigest": "3309edea3c19076754982559718f2ada9a5c005ae9d2e5c9d783a58de0e419e5",
+  "candidateDigest": "9bfef4f84d1f0fa3a1b3d035240d5b542e19f6939b67343e115cbfb01dd0516f",
+  "suiteDigest": "52090be1829760c6e59f75b87573d505daa9f738ff0143d60afeeb529abf4d51",
+  "catalogueDigest": "53787c4f69c20d380f3d78416e822d365cfe93fcc028b00c86150316dac613d3",
+  "suite": {
+    "contract": "harborline.verification-suite/v1",
+    "suiteId": "tenant-a.invoice-verification",
+    "version": "1.0.0",
+    "catalogue": "53787c4f69c20d380f3d78416e822d365cfe93fcc028b00c86150316dac613d3",
+    "fixtures": [
+      {
+        "fixtureId": "approver",
+        "instant": "2026-09-20T09:00:00.0000000\u002B00:00",
+        "timeZone": "Europe/London",
+        "locale": "en-GB",
+        "identifierSeed": "t-463-invoice",
+        "ordering": "ordinal-by-key",
+        "actor": "moss.adeyemi",
+        "grants": [
+          {
+            "roleKey": "invoice.approver",
+            "scope": "finance"
+          },
+          {
+            "roleKey": "invoice.author",
+            "scope": "finance"
+          }
+        ],
+        "ports": [
+          {
+            "portId": "notifications.email",
+            "simulator": "record-only"
+          },
+          {
+            "portId": "payments.remit",
+            "simulator": "denied"
+          }
+        ],
+        "facts": [
+          {
+            "recordType": "supplier",
+            "body": "{\u0022supplierKey\u0022:\u0022contoso\u0022,\u0022name\u0022:\u0022Contoso Ltd\u0022}"
+          }
+        ]
+      },
+      {
+        "fixtureId": "clerk",
+        "instant": "2026-09-20T09:00:00.0000000\u002B00:00",
+        "timeZone": "Europe/London",
+        "locale": "en-GB",
+        "identifierSeed": "t-463-invoice",
+        "ordering": "ordinal-by-key",
+        "actor": "dana.okafor",
+        "grants": [
+          {
+            "roleKey": "invoice.author",
+            "scope": "finance"
+          }
+        ],
+        "ports": [
+          {
+            "portId": "notifications.email",
+            "simulator": "record-only"
+          },
+          {
+            "portId": "payments.remit",
+            "simulator": "denied"
+          }
+        ],
+        "facts": [
+          {
+            "recordType": "supplier",
+            "body": "{\u0022supplierKey\u0022:\u0022contoso\u0022,\u0022name\u0022:\u0022Contoso Ltd\u0022}"
+          }
+        ]
+      }
+    ],
+    "cases": [
+      {
+        "caseId": "approval-authority",
+        "title": "Only an approver may create an invoice already marked approved.",
+        "fixtureId": "clerk",
+        "actionId": "records.create",
+        "inputs": {
+          "recordType": "\u0022invoice\u0022",
+          "values": "{\u0022supplier\u0022:\u0022contoso\u0022,\u0022quantity\u0022:4,\u0022unitPrice\u0022:500,\u0022status\u0022:\u0022approved\u0022}"
+        },
+        "assertions": [
+          {
+            "predicateId": "authorization.decision",
+            "target": null,
+            "expected": "\u0022refused\u0022"
+          },
+          {
+            "predicateId": "outcome.accepted",
+            "target": null,
+            "expected": "false"
+          },
+          {
+            "predicateId": "outcome.refusalCode",
+            "target": null,
+            "expected": "\u0022records-authority-insufficient\u0022"
+          },
+          {
+            "predicateId": "outcome.refusalPointer",
+            "target": null,
+            "expected": "\u0022/values/status\u0022"
+          }
+        ],
+        "rows": []
+      },
+      {
+        "caseId": "invoice-total",
+        "title": "An invoice total is its quantity times its unit price.",
+        "fixtureId": "approver",
+        "actionId": "records.create",
+        "inputs": {
+          "recordType": "\u0022invoice\u0022"
+        },
+        "assertions": [
+          {
+            "predicateId": "outcome.accepted",
+            "target": null,
+            "expected": null
+          },
+          {
+            "predicateId": "record.number",
+            "target": "/total",
+            "expected": null
+          }
+        ],
+        "rows": [
+          {
+            "rowId": "ten-at-one-hundred",
+            "values": {
+              "values": "{\u0022supplier\u0022:\u0022contoso\u0022,\u0022quantity\u0022:10,\u0022unitPrice\u0022:100}"
+            },
+            "expected": {
+              "outcome.accepted": "true",
+              "record.number:/total": "1000"
+            }
+          },
+          {
+            "rowId": "three-at-four-hundred",
+            "values": {
+              "values": "{\u0022supplier\u0022:\u0022contoso\u0022,\u0022quantity\u0022:3,\u0022unitPrice\u0022:400}"
+            },
+            "expected": {
+              "outcome.accepted": "true",
+              "record.number:/total": "1200"
+            }
+          },
+          {
+            "rowId": "two-at-one-hundred",
+            "values": {
+              "values": "{\u0022supplier\u0022:\u0022contoso\u0022,\u0022quantity\u0022:2,\u0022unitPrice\u0022:100}"
+            },
+            "expected": {
+              "outcome.accepted": "true",
+              "record.number:/total": "200"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "emptyCase": {
+    "caseId": "asserts-nothing",
+    "refusals": [
+      {
+        "code": "verification-assertion-required",
+        "target": "asserts-nothing",
+        "message": "The case asserts nothing, so running it could only report a colour. A check containing no meaningful assertion cannot pass."
+      }
+    ]
+  },
+  "runs": [
+    {
+      "step": "passed",
+      "status": "Passed",
+      "receiptDigest": "3fa80a9afdcb55cb55f6b018506c23fe7bef8aa59d4cbd499b28b07ad1600027",
+      "values": {
+        "status": "Passed",
+        "tenantKey": "tenant-a",
+        "receiptId": "receipt-1",
+        "candidateDigest": "9bfef4f84d1f0fa3a1b3d035240d5b542e19f6939b67343e115cbfb01dd0516f",
+        "baselineDigest": "3309edea3c19076754982559718f2ada9a5c005ae9d2e5c9d783a58de0e419e5",
+        "suite": "tenant-a.invoice-verification 1.0.0: 52090be1829760c6e59f75b87573d505daa9f738ff0143d60afeeb529abf4d51",
+        "fixtures": "approver: 17ac35f3682d32751182f32a8497cffda1c1eeedfc18ce0118ffec1cdd122874\nclerk: e4305a175bedcee1729f5a0714ce15cf128024decbb545479dacafc3372f765e",
+        "engines": "harborline.verification-catalogue/v1 1.0.0: 53787c4f69c20d380f3d78416e822d365cfe93fcc028b00c86150316dac613d3\nharborline.verification-runner 1.0.0: cd2577e48c2ea47875fb10a916bd96bf21217116a91c46109c0533dcb43b23d2\nhlp.contracts.authorization 1.0.0: 0bc092f35cbf27312c9286b1f3f8a5b537eaaedaa8448430eef99223b34a7d5c\nhlp.foundation.forms-engine 1.0.0: 7c76150c5498c891c3e0e7146d854100baf090d4c56feae56a20999580f8c551\nhlp.foundation.rule-runtime 1.0.0: 6f5294d6c3583e762c0f0acd413a44595419139c6304bfee2344cf3c66d07566",
+        "determinism": "approver: 2026-09-20T09:00:00.0000000\u002B00:00 Europe/London en-GB seed=t-463-invoice ordering=ordinal-by-key actor=moss.adeyemi grants=invoice.approver@finance,invoice.author@finance ports=notifications.email=record-only,payments.remit=denied\nclerk: 2026-09-20T09:00:00.0000000\u002B00:00 Europe/London en-GB seed=t-463-invoice ordering=ordinal-by-key actor=dana.okafor grants=invoice.author@finance ports=notifications.email=record-only,payments.remit=denied",
+        "cases": "approval-authority \u2014 Only an approver may create an invoice already marked approved.: Passed\ninvoice-total[ten-at-one-hundred] \u2014 An invoice total is its quantity times its unit price.: Passed\ninvoice-total[three-at-four-hundred] \u2014 An invoice total is its quantity times its unit price.: Passed\ninvoice-total[two-at-one-hundred] \u2014 An invoice total is its quantity times its unit price.: Passed",
+        "failures": "",
+        "receiptDigest": "3fa80a9afdcb55cb55f6b018506c23fe7bef8aa59d4cbd499b28b07ad1600027"
+      }
+    },
+    {
+      "step": "business-rule-defect",
+      "status": "Failed",
+      "receiptDigest": "e612fa681aa471d8ddeaab442a97b53fa25a12a1012f6fef256e314809cbfe4b",
+      "values": {
+        "status": "Failed",
+        "tenantKey": "tenant-a",
+        "receiptId": "receipt-2",
+        "candidateDigest": "9bfef4f84d1f0fa3a1b3d035240d5b542e19f6939b67343e115cbfb01dd0516f",
+        "baselineDigest": "3309edea3c19076754982559718f2ada9a5c005ae9d2e5c9d783a58de0e419e5",
+        "suite": "tenant-a.invoice-verification 1.0.0: 52090be1829760c6e59f75b87573d505daa9f738ff0143d60afeeb529abf4d51",
+        "fixtures": "approver: 17ac35f3682d32751182f32a8497cffda1c1eeedfc18ce0118ffec1cdd122874\nclerk: e4305a175bedcee1729f5a0714ce15cf128024decbb545479dacafc3372f765e",
+        "engines": "harborline.verification-catalogue/v1 1.0.0: 53787c4f69c20d380f3d78416e822d365cfe93fcc028b00c86150316dac613d3\nharborline.verification-runner 1.0.0: cd2577e48c2ea47875fb10a916bd96bf21217116a91c46109c0533dcb43b23d2\nhlp.contracts.authorization 1.0.0: 0bc092f35cbf27312c9286b1f3f8a5b537eaaedaa8448430eef99223b34a7d5c\nhlp.foundation.forms-engine 1.0.0: 7c76150c5498c891c3e0e7146d854100baf090d4c56feae56a20999580f8c551\nhlp.foundation.rule-runtime 1.0.0: 6f5294d6c3583e762c0f0acd413a44595419139c6304bfee2344cf3c66d07566",
+        "determinism": "approver: 2026-09-20T09:00:00.0000000\u002B00:00 Europe/London en-GB seed=t-463-invoice ordering=ordinal-by-key actor=moss.adeyemi grants=invoice.approver@finance,invoice.author@finance ports=notifications.email=record-only,payments.remit=denied\nclerk: 2026-09-20T09:00:00.0000000\u002B00:00 Europe/London en-GB seed=t-463-invoice ordering=ordinal-by-key actor=dana.okafor grants=invoice.author@finance ports=notifications.email=record-only,payments.remit=denied",
+        "cases": "approval-authority \u2014 Only an approver may create an invoice already marked approved.: Passed\ninvoice-total[ten-at-one-hundred] \u2014 An invoice total is its quantity times its unit price.: Failed\ninvoice-total[three-at-four-hundred] \u2014 An invoice total is its quantity times its unit price.: Failed\ninvoice-total[two-at-one-hundred] \u2014 An invoice total is its quantity times its unit price.: Failed",
+        "failures": "invoice-total[ten-at-one-hundred] record.number:/total: expected 1000, actual 110\ninvoice-total[three-at-four-hundred] record.number:/total: expected 1200, actual 403\ninvoice-total[two-at-one-hundred] record.number:/total: expected 200, actual 102",
+        "receiptDigest": "e612fa681aa471d8ddeaab442a97b53fa25a12a1012f6fef256e314809cbfe4b"
+      }
+    },
+    {
+      "step": "authorization-defect",
+      "status": "Failed",
+      "receiptDigest": "87b0a5417b6e5bbaf94296ec14b89f2415150c9419b59f19d01beafdcc38b4aa",
+      "values": {
+        "status": "Failed",
+        "tenantKey": "tenant-a",
+        "receiptId": "receipt-3",
+        "candidateDigest": "9bfef4f84d1f0fa3a1b3d035240d5b542e19f6939b67343e115cbfb01dd0516f",
+        "baselineDigest": "3309edea3c19076754982559718f2ada9a5c005ae9d2e5c9d783a58de0e419e5",
+        "suite": "tenant-a.invoice-verification 1.0.0: 52090be1829760c6e59f75b87573d505daa9f738ff0143d60afeeb529abf4d51",
+        "fixtures": "approver: 17ac35f3682d32751182f32a8497cffda1c1eeedfc18ce0118ffec1cdd122874\nclerk: e4305a175bedcee1729f5a0714ce15cf128024decbb545479dacafc3372f765e",
+        "engines": "harborline.verification-catalogue/v1 1.0.0: 53787c4f69c20d380f3d78416e822d365cfe93fcc028b00c86150316dac613d3\nharborline.verification-runner 1.0.0: cd2577e48c2ea47875fb10a916bd96bf21217116a91c46109c0533dcb43b23d2\nhlp.contracts.authorization 1.0.0: 0bc092f35cbf27312c9286b1f3f8a5b537eaaedaa8448430eef99223b34a7d5c\nhlp.foundation.forms-engine 1.0.0: 7c76150c5498c891c3e0e7146d854100baf090d4c56feae56a20999580f8c551\nhlp.foundation.rule-runtime 1.0.0: 6f5294d6c3583e762c0f0acd413a44595419139c6304bfee2344cf3c66d07566",
+        "determinism": "approver: 2026-09-20T09:00:00.0000000\u002B00:00 Europe/London en-GB seed=t-463-invoice ordering=ordinal-by-key actor=moss.adeyemi grants=invoice.approver@finance,invoice.author@finance ports=notifications.email=record-only,payments.remit=denied\nclerk: 2026-09-20T09:00:00.0000000\u002B00:00 Europe/London en-GB seed=t-463-invoice ordering=ordinal-by-key actor=dana.okafor grants=invoice.author@finance ports=notifications.email=record-only,payments.remit=denied",
+        "cases": "approval-authority \u2014 Only an approver may create an invoice already marked approved.: Failed\ninvoice-total[ten-at-one-hundred] \u2014 An invoice total is its quantity times its unit price.: Passed\ninvoice-total[three-at-four-hundred] \u2014 An invoice total is its quantity times its unit price.: Passed\ninvoice-total[two-at-one-hundred] \u2014 An invoice total is its quantity times its unit price.: Passed",
+        "failures": "approval-authority outcome.accepted: expected false, actual true\napproval-authority outcome.refusalCode: expected \u0022records-authority-insufficient\u0022, actual \u0022\u0022\napproval-authority outcome.refusalPointer: expected \u0022/values/status\u0022, actual \u0022\u0022\napproval-authority authorization.decision: expected \u0022refused\u0022, actual \u0022allowed\u0022",
+        "receiptDigest": "87b0a5417b6e5bbaf94296ec14b89f2415150c9419b59f19d01beafdcc38b4aa"
+      }
+    }
+  ]
+}
