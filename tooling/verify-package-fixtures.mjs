@@ -1306,7 +1306,9 @@ function verifyViewsCapability() {
   const [engineSubstrate, engineBehavior, authoredBoundBehavior, accessBehavior] = proofLines(runNugetConsumer(engineConsumer, enginePackageCache), ['VIEWS_PACKAGE_PASS:', 'VIEWS_CAPABILITY_PASS:', 'VIEWS_AUTHORED_BOUND_PASS:', 'ACCESS_CONTRACT_PASS:'], 'Views engine')
   assertPackageClosure(
     engineConsumer,
-    ['Harborline.Blocks.EntityViews', 'Harborline.Contracts', 'Harborline.Foundation.Authorization', 'Harborline.Foundation.MultiTenancy', 'Harborline.Foundation.RuleEngine'],
+    // T-624: Views reaches measures through the shared catalogue, which brings the catalogue and
+    // the aggregates evaluator it resolves declared entries against. Views still owns no math.
+    ['Harborline.Blocks.EntityViews', 'Harborline.Blocks.MeasureCatalogue', 'Harborline.Blocks.Aggregates', 'Harborline.Contracts', 'Harborline.Foundation.Authorization', 'Harborline.Foundation.MultiTenancy', 'Harborline.Foundation.RuleEngine'],
     'Views engine',
     /Forms.*(?:Builder|Authoring)|(?:Builder|Authoring).*Forms/i,
   )
@@ -1380,10 +1382,13 @@ function verifyReportsCapability() {
   copyFileSync(corpusSource, resolve(consumer, 'reports-vertical-cases.json'))
   const direct = assertDirectPackageReferences(consumer, ['Harborline.Blocks.Reports'], 'Reports')
   const [packageProof, capabilityProof] = proofLines(runNugetConsumer(consumer, packageCache), ['REPORTS_PACKAGE_PASS:', 'REPORTS_CAPABILITY_PASS:'], 'Reports')
-  // Derived from the landed csproj: Blocks.Reports -> Contracts only.
+  // Derived from the landed csproj: Blocks.Reports -> Contracts and, since T-624, the shared
+  // measure catalogue it registers its seven computations in, which brings the aggregates
+  // evaluator and the Access contracts the catalogue binds its filter through.
   const closure = assertPackageClosure(
     consumer,
-    ['Harborline.Blocks.Reports', 'Harborline.Contracts'],
+    ['Harborline.Blocks.Reports', 'Harborline.Blocks.MeasureCatalogue', 'Harborline.Blocks.Aggregates', 'Harborline.Contracts',
+      'Harborline.Foundation.Authorization', 'Harborline.Foundation.MultiTenancy', 'Harborline.Foundation.RuleEngine'],
     'Reports',
     /(?:Financial|Tax|Forms|Workflows|EntityViews|Kernel|Blazor|React)/i,
   )
