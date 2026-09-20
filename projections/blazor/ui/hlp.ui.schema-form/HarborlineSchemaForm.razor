@@ -1,4 +1,5 @@
 @namespace Harborline.UIAdapters.Blazor.Components.Forms
+@using Harborline.UIAdapters.Blazor.Components.Buttons
 @using Microsoft.AspNetCore.Components.Web
 @using Microsoft.JSInterop
 @using Harborline.UIAdapters.Blazor.Base
@@ -55,9 +56,9 @@
                 }
                 @if (!ReadOnly)
                 {
-                <button @ref="submitElement" class="hl-schema-form__submit" disabled="@(Disabled || submitting || saveBlocked)" type="submit">
+                <HarborlineButton Class="hl-schema-form__submit" Enabled="@(!Disabled && !submitting && !saveBlocked)" Loading="@submitting" Variant="ButtonVariant.Primary" ButtonType="ButtonType.Submit">
                     @(submitting ? Copy.Submitting : Copy.Submit)
-                </button>
+                </HarborlineButton>
                 }
             }
         </form>
@@ -111,7 +112,6 @@
     private ElementReference summary;
     private ElementReference empty;
     private ElementReference formElement;
-    private ElementReference submitElement;
     private readonly Dictionary<string, ElementReference> sectionElements = new(StringComparer.Ordinal);
     private IJSObjectReference? module;
 
@@ -188,7 +188,8 @@
         else if (focusSubmit)
         {
             focusSubmit = false;
-            await submitElement.FocusAsync();
+            module ??= await JavaScript.InvokeAsync<IJSObjectReference>("import", "./_content/Harborline.UIAdapters.Blazor/schema-form.js");
+            await module.InvokeVoidAsync("focusSubmit", formElement);
         }
     }
 

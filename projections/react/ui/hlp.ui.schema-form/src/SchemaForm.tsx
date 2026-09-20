@@ -1,5 +1,6 @@
 import * as React from 'react'
 
+import { Button } from '@harborline-platform/hlp.ui.button'
 import { cn } from '@harborline-platform/hlp.ui.cn'
 import { FormField } from '@harborline-platform/hlp.ui.form-field'
 import {
@@ -361,7 +362,7 @@ function SchemaItems({ items, path, chain, disabled, strings, onSet, onAction }:
         if (item.kind === 'content') return <ContentBlock chain={chain} content={item.content} key={item.key} />
         if (item.kind === 'action') {
           return (
-            <button
+            <Button
               className="hl-schema-form__secondary-action"
               disabled={disabled}
               key={item.key}
@@ -369,7 +370,7 @@ function SchemaItems({ items, path, chain, disabled, strings, onSet, onAction }:
               type="button"
             >
               {resolveText(item.action.label, chain)}
-            </button>
+            </Button>
           )
         }
         if (item.kind === 'group') {
@@ -446,7 +447,7 @@ function CollectionField({ item, path, chain, disabled, strings, onSet, onAction
               key={rowKeys.current[index]}
             >
               <legend>{itemText}</legend>
-              <button
+              <Button
                 aria-label={`${strings.removeItem} ${itemText}`}
                 className="hl-schema-form__remove"
                 disabled={disabled || !canRemove}
@@ -454,7 +455,7 @@ function CollectionField({ item, path, chain, disabled, strings, onSet, onAction
                 type="button"
               >
                 {strings.removeItem}
-              </button>
+              </Button>
               <SchemaItems
                 chain={chain}
                 disabled={disabled}
@@ -468,7 +469,7 @@ function CollectionField({ item, path, chain, disabled, strings, onSet, onAction
           )
         })}
       </div>
-      <button
+      <Button
         className="hl-schema-form__add"
         data-testid={`collection-${item.key}-add`}
         disabled={disabled || !canAdd}
@@ -476,7 +477,7 @@ function CollectionField({ item, path, chain, disabled, strings, onSet, onAction
         type="button"
       >
         {strings.addItem}
-      </button>
+      </Button>
     </fieldset>
   )
 }
@@ -716,14 +717,16 @@ export function SchemaForm({
         )}
 
         {visibleSections.length > 0 && !readOnly ? (
-          <button
+          <Button
             className="hl-schema-form__submit"
+            variant="primary"
+            loading={submitting}
             disabled={disabled || submitting || saveBlocked}
             ref={submitRef}
             type="submit"
           >
             {submitting ? copy.submitting : copy.submit}
-          </button>
+          </Button>
         ) : null}
         </form>
       </FormValueStoreContext.Provider>

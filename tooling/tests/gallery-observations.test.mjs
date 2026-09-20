@@ -136,6 +136,23 @@ test('a capture run expects no per-scenario reflow, because it runs none', () =>
   assert.equal(capture.accessibilityScans, expectedChecks(modules, {exemptions}).accessibilityScans)
 })
 
+test('SelectField open-popup scans are declared per running scenario in both projections', () => {
+  const selectionScenarios = ['select-field.selection', 'select-field.search', 'select-field.multiple', 'select-field.multiple-search']
+    .map(id => ({id, sourceQualityCaseIds: []}))
+  const catalogs = [...modules, {moduleId: 'hlp.ui.select-field', scenarios: selectionScenarios}]
+  // Seven baseline scenarios across two projections, plus three open-popup scans per projection.
+  assert.equal(expectedChecks(catalogs).accessibilityScans, 20)
+  assert.equal(expectedChecks(catalogs, {capture: true}).accessibilityScans, 20)
+  // Wall-clock skips the whole scenario (both scans); a pixel exemption skips neither scan.
+  const ciExemptions = {wallClock: ['select-field.search'], pixel: ['select-field.multiple']}
+  assert.equal(expectedChecks(catalogs, {ciGallery: true, exemptions: ciExemptions}).accessibilityScans, 16)
+  const isolated = [modules[0], {...catalogs[1], scenarios: [selectionScenarios[1]]}]
+  assert.equal(expectedChecks(isolated).accessibilityScans, 10)
+  const declared = expectedChecks(catalogs).accessibilityScans
+  assert.equal(reconcileChecks({accessibilityScans: 20}, {accessibilityScans: declared}), 'exact')
+  assert.match(reconcileChecks({accessibilityScans: 18}, {accessibilityScans: declared}), /declared 20, measured 18/)
+})
+
 // Per-scenario element-parity coverage (ticket 147 slice 2). A registered absence exempts a whole
 // subtree from comparison, so the run records how much it hid and the gate reports it; read from the
 // LAST attempt for the same reason check counts are.

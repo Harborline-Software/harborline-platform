@@ -1,5 +1,5 @@
 import { AxeBuilder } from '@axe-core/playwright'
-import { expect, test, type Page, type TestInfo } from '@playwright/test'
+import { expect, test, type Locator, type Page, type TestInfo } from '@playwright/test'
 import pixelmatch from 'pixelmatch'
 import { PNG } from 'pngjs'
 import { appendFileSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
@@ -390,6 +390,52 @@ async function prepareScenario(page: Page, scenario: Scenario) {
     return
   }
   if (scenario.id.startsWith('select-field.')) {
+    if (scenario.id === 'select-field.multiple' || scenario.id === 'select-field.multiple-search') {
+      const trigger = page.getByRole('button', { name: 'Structure status' })
+      await expect(page.getByRole('combobox')).toHaveCount(0)
+      await trigger.click()
+      const list = page.getByRole('listbox', { name: 'Structure status' })
+      await expect(list).toHaveAttribute('aria-multiselectable', 'true')
+      await assertAccessible(page, scenario, 'open multiple popup')
+      if (scenario.id === 'select-field.multiple-search') {
+        const search = page.getByRole('searchbox', { name: 'Structure status' })
+        await expect(list.getByRole('searchbox')).toHaveCount(0)
+        await expect(search).toBeFocused()
+        await search.fill('pending')
+        await search.press('Enter')
+        await expect(list.getByRole('option', { name: 'Pending review' })).toHaveAttribute('aria-selected', 'false')
+        await search.press('ArrowDown')
+      } else {
+        await expect(list).toBeFocused()
+        await list.press('ArrowDown')
+      }
+      await expect(list).toBeFocused()
+      await list.press('Space')
+      await expect(trigger).toContainText('Pending review')
+      await expect(list).toBeVisible()
+      await list.press('Space')
+      await expect(trigger).not.toContainText('Pending review')
+      await expect(list.getByRole('option', { name: 'Pending review' })).toHaveAttribute('aria-selected', 'false')
+      await list.press('Escape')
+      await expect(trigger).toBeFocused()
+      await expect(list).toBeHidden()
+      return
+    }
+    if (scenario.id === 'select-field.search') {
+      const search = page.getByRole('combobox', { name: 'Structure status' })
+      await search.fill('pending')
+      await expect(page.getByRole('option')).toHaveCount(1)
+      await assertAccessible(page, scenario, 'open editable popup')
+      await search.press('ArrowDown')
+      await search.press('Enter')
+      await expect(search).toHaveValue('Pending review')
+      await search.fill('unknown')
+      await expect(page.getByRole('option')).toHaveCount(0)
+      await search.press('Enter')
+      await search.press('Escape')
+      await expect(search).toHaveValue('Pending review')
+      return
+    }
     const trigger = page.getByRole('combobox').first()
     await trigger.click()
     await expect(page.getByRole('listbox').first()).toBeVisible()
@@ -538,8 +584,6 @@ const reflowKnownOverflow = new Map<string, number>([
   ['app-shell.actions-endpanel|blazor', 552],
   ['app-layout.dismissal-scroll|react', 454],
   ['app-layout.dismissal-scroll|blazor', 454],
-  ['select-field.states|react', 52],
-  ['select-field.states|blazor', 52],
   ['user-menu.placement-dismissal|react', 37],
   ['user-menu.placement-dismissal|blazor', 37],
 ])
@@ -578,6 +622,147 @@ async function assertReflow(page: Page, scenario: Scenario, projection: string) 
     return
   }
   expect(overflow, `${projection} ${scenario.id} horizontal overflow at 320px and 200% text`).toBe(0)
+}
+
+async function assertSchemaFormChoicePopup(page: Page, projection: Projection, testInfo: TestInfo) {
+  const trigger = page.getByRole('combobox', { name: 'Literal choices', exact: true })
+  const listbox = page.locator('.hl-schema-form .hl-select-field__listbox')
+  const labels = ['Draft', 'Review', 'Approved', 'Rejected', 'Paused', 'Closed']
+  const measurements = []
+  await page.evaluate(() => document.fonts.ready)
+  for (const width of [920, 320]) for (const textSize of ['100%', '200%']) {
+    await page.setViewportSize({ width, height: 720 })
+    await page.evaluate(size => { document.documentElement.style.fontSize = size }, textSize)
+    for (const selected of ['Closed', 'Review']) {
+      await trigger.click()
+      await listbox.getByRole('option', { name: selected, exact: true }).click()
+      await expect(trigger).toHaveText(new RegExp(selected))
+      await expect(listbox).toBeHidden()
+      const closedProbeOverflow = await page.locator('[data-gallery-probe]').evaluate(element =>
+        Math.max(0, element.scrollWidth - element.clientWidth))
+      await trigger.click()
+      await expect(listbox.getByRole('option')).toHaveText(labels.map(label => new RegExp(label)))
+      for (const label of labels) {
+        const option = listbox.getByRole('option', { name: label, exact: true })
+        await option.scrollIntoViewIfNeeded()
+        await expect(option).toBeInViewport()
+      }
+      const geometry = await listbox.evaluate(element => {
+        const popup = element.closest('.hl-select-field__popup')!.getBoundingClientRect()
+        const button = element.closest('.hl-select-field')!.querySelector('[role="combobox"]')!.getBoundingClientRect()
+        return {
+          popupWidth: popup.width,
+          triggerWidth: button.width,
+          fieldWidth: element.closest('.hl-form-field__control')!.getBoundingClientRect().width,
+          left: popup.left,
+          right: popup.right,
+          viewportWidth: document.documentElement.clientWidth,
+          // Match assertReflow's component boundary; Storybook's outer padded scene is not SchemaForm.
+          probeOverflow: (() => {
+            const probe = element.closest('[data-gallery-probe]')!
+            return Math.max(0, probe.scrollWidth - probe.clientWidth)
+          })(),
+          popupOverflow: Math.max(0, element.scrollWidth - element.clientWidth),
+          labels: [...element.querySelectorAll('[role="option"]')].map(option => {
+            const label = option.lastElementChild!
+            const box = label.getBoundingClientRect()
+            return { text: label.textContent, width: box.width, height: box.height, lineHeight: parseFloat(getComputedStyle(label).lineHeight) }
+          }),
+        }
+      })
+      measurements.push({ projection, width, textSize, selected, closedProbeOverflow, ...geometry })
+      const context = `${projection} Literal choices at ${width}px / ${textSize}, selected ${selected}`
+      // Soft geometry assertions retain evidence from both lanes and every size on failure.
+      expect.soft(geometry.popupWidth, `${context}: popup covers trigger`).toBeGreaterThanOrEqual(geometry.triggerWidth - 1)
+      expect.soft(geometry.popupWidth, `${context}: popup fits available field width`).toBeLessThanOrEqual(geometry.fieldWidth + 1)
+      expect.soft(geometry.left, `${context}: popup left edge`).toBeGreaterThanOrEqual(0)
+      expect.soft(geometry.right, `${context}: popup right edge`).toBeLessThanOrEqual(geometry.viewportWidth)
+      expect.soft(geometry.probeOverflow, `${context}: horizontal component overflow`).toBe(0)
+      expect.soft(closedProbeOverflow, `${context}: closed control horizontal component overflow`).toBe(0)
+      expect.soft(geometry.popupOverflow, `${context}: horizontal popup overflow`).toBe(0)
+      // At narrow widths wrapping is legitimate; desktop has ample room for all six short labels.
+      if (width === 920) for (const label of geometry.labels) {
+        expect.soft(label.height, `${context}: ${label.text} should fit on one line (label width ${label.width}px)`)
+          .toBeLessThanOrEqual(label.lineHeight + 1)
+      }
+      await trigger.press('Escape')
+      await expect(listbox).toBeHidden()
+    }
+  }
+  await testInfo.attach(`${projection}-schema-form-popup`, {
+    body: JSON.stringify(measurements, null, 2), contentType: 'application/json',
+  })
+}
+
+async function assertSinglePopupScroll(listbox: Locator, context: string) {
+  await expect(listbox).toBeVisible()
+  const scroll = await listbox.evaluate(element => {
+    const popup = element.closest('.hl-select-field__popup')!
+    return {
+      owners: [popup, ...popup.querySelectorAll('*')]
+        .filter(node => /auto|scroll/.test(getComputedStyle(node).overflowY) && node.scrollHeight > node.clientHeight + 1)
+        .map(node => node.getAttribute('role')),
+      outerOverflow: popup.scrollHeight - popup.clientHeight,
+    }
+  })
+  expect(scroll.owners, `${context}: one scrolling listbox`).toEqual(['listbox'])
+  expect(scroll.outerOverflow, `${context}: popup content fits its frame`).toBeLessThanOrEqual(1)
+  const last = listbox.getByRole('option').last()
+  await last.scrollIntoViewIfNeeded()
+  await expect(last).toBeInViewport()
+  const position = await last.evaluate(option => {
+    const list = option.closest('[role="listbox"]')!
+    return {
+      top: option.getBoundingClientRect().top - list.getBoundingClientRect().top,
+      bottom: option.getBoundingClientRect().bottom - list.getBoundingClientRect().bottom,
+      scrollTop: list.scrollTop,
+    }
+  })
+  expect(position.top, `${context}: final option top visible`).toBeGreaterThanOrEqual(-1)
+  expect(position.bottom, `${context}: final option bottom visible`).toBeLessThanOrEqual(1)
+  expect(position.scrollTop, `${context}: listbox actually scrolls`).toBeGreaterThan(0)
+  return last
+}
+
+async function assertSchemaFormPickerScroll(page: Page, projection: Projection) {
+  const viewport = page.viewportSize()!
+  const fontSize = await page.evaluate(() => document.documentElement.style.fontSize)
+  for (const [width, height] of [[920, 720], [320, 480]] as const) for (const textSize of ['100%', '200%']) {
+    await page.setViewportSize({ width, height })
+    await page.evaluate(size => { document.documentElement.style.fontSize = size }, textSize)
+    for (const [name, query] of [['Taxonomy', 'Category 0'], ['Record', '3999']] as const) {
+      const control = page.getByRole('combobox', { name, exact: true })
+      await control.fill(query)
+      const listbox = page.getByRole('listbox', { name, exact: true })
+      const context = `${projection} ${name} at ${width}x${height} / ${textSize}`
+      const last = await assertSinglePopupScroll(listbox, context)
+      const value = (await last.innerText()).trim()
+      await last.click()
+      await expect(control).toHaveValue(value.replace(/^✓\s*/, ''))
+      await expect(listbox).toBeHidden()
+    }
+  }
+  await page.setViewportSize(viewport)
+  await page.evaluate(size => { document.documentElement.style.fontSize = size }, fontSize)
+}
+
+async function assertSearchableMultipleScroll(page: Page, projection: Projection) {
+  for (const [height, textSize] of [[200, '100%'], [320, '200%']] as const) {
+    await page.setViewportSize({ width: 320, height })
+    await page.evaluate(size => { document.documentElement.style.fontSize = size }, textSize)
+    const trigger = page.getByRole('button', { name: 'Structure status', exact: true })
+    await trigger.click()
+    const search = page.getByRole('searchbox', { name: 'Structure status', exact: true })
+    await search.fill('')
+    const listbox = page.getByRole('listbox', { name: 'Structure status', exact: true })
+    await assertSinglePopupScroll(listbox, `${projection} searchable multiple at 320x${height} / ${textSize}`)
+    await expect(search).toBeInViewport()
+    await search.fill('pending')
+    await expect(listbox.getByRole('option')).toHaveCount(1)
+    await search.press('Escape')
+    await expect(trigger).toBeFocused()
+    await expect(listbox).toBeHidden()
+  }
 }
 
 async function assertAccessible(page: Page, scenario: Scenario, projection: string) {
@@ -1208,6 +1393,43 @@ for (const catalog of catalogs) for (const scenario of catalog.scenarios) {
     if (!galleryReviewCaptureRoot && scenario.sourceQualityCaseIds?.some(id => id.endsWith('.quality.reflow'))) {
       await assertReflow(reactPage, scenario, 'react')
       await assertReflow(blazorPage, scenario, 'blazor')
+    }
+    if (scenario.id === 'select-field.multiple-search') {
+      await assertSearchableMultipleScroll(reactPage, 'react')
+      await assertSearchableMultipleScroll(blazorPage, 'blazor')
+    }
+    if (scenario.id === 'schema-form.controls-structure') {
+      for (const page of [reactPage, blazorPage]) {
+        const services = page.getByRole('button', { name: 'Services', exact: true })
+        await services.click()
+        const choices = page.getByRole('listbox', { name: 'Services', exact: true })
+        await expect(choices).toHaveAttribute('aria-multiselectable', 'true')
+        await choices.press('End')
+        await choices.press('Space')
+        await expect(services).toContainText('Towage')
+        await expect(choices).toBeVisible()
+        await choices.press('Escape')
+        await expect(services).toBeFocused()
+      }
+    }
+    if (scenario.id === 'schema-form.domain-editors') {
+      await assertSchemaFormChoicePopup(reactPage, 'react', testInfo)
+      await assertSchemaFormChoicePopup(blazorPage, 'blazor', testInfo)
+      await assertSchemaFormPickerScroll(reactPage, 'react')
+      await assertSchemaFormPickerScroll(blazorPage, 'blazor')
+      for (const page of [reactPage, blazorPage]) {
+        const record = page.getByRole('combobox', { name: 'Record', exact: true })
+        await record.fill('outside')
+        await expect(page.getByRole('option')).toHaveCount(0)
+        await record.press('Enter')
+        await expect(page.getByText('Saved selected candidate.', { exact: true })).toHaveCount(0)
+        await record.fill('3999')
+        expect(await page.getByRole('option').count()).toBeLessThanOrEqual(25)
+        await record.press('ArrowDown')
+        await record.press('Enter')
+        await page.getByRole('button', { name: 'Save request', exact: true }).click()
+        await expect(page.getByText('Saved selected candidate.', { exact: true })).toBeVisible()
+      }
     }
     await Promise.all([reactContext.close(), blazorContext.close()])
   })

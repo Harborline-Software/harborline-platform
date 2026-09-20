@@ -7,6 +7,7 @@ import { useFormFieldContext } from '@harborline-platform/hlp.ui.form-field-cont
 import { Input } from '@harborline-platform/hlp.ui.input'
 import { NumberField } from '@harborline-platform/hlp.ui.number-field'
 import { NumericTextBox } from '@harborline-platform/hlp.ui.numeric-text-box'
+import { RadioGroup } from '@harborline-platform/hlp.ui.radio-group'
 import { SelectField, type SelectOption } from '@harborline-platform/hlp.ui.select-field'
 import { Switch } from '@harborline-platform/hlp.ui.switch'
 import { TextArea } from '@harborline-platform/hlp.ui.text-area'
@@ -20,12 +21,24 @@ function fieldConfig(args: ControlArgs): Record<string, unknown> {
 }
 
 function selectOptions(args: ControlArgs): SelectOption[] {
+  if (args.field.permittedValues !== undefined) {
+    return args.field.permittedValues.map(value => ({ value, label: value }))
+  }
   return (args.field.options ?? []).map(option => ({
     value: option.value,
     label: typeof option.label === 'string'
       ? option.label
       : resolveText(option.label, args.chain, option.value),
   }))
+}
+
+function DomainPickerControl({ args }: { args: ControlArgs }) {
+  const options = React.useMemo(() => selectOptions(args), [args.field])
+  return <SelectField searchable name={args.field.name} value={args.strValue}
+    options={options} disabled={args.disabled} required={args.required} error={args.hasError}
+    onValueChange={value => {
+      if (!args.disabled && args.field.permittedValues?.includes(value)) args.onChange(value)
+    }} />
 }
 
 const textControl = ({ field, strValue, hasError, disabled, onChange }: ControlArgs) => (
@@ -86,28 +99,10 @@ function NativeInputControl({ args, type }: { args: ControlArgs; type: React.HTM
 }
 
 function MultiSelectControl({ args }: { args: ControlArgs }) {
-  const context = useFormFieldContext()
-  const selected = Array.isArray(args.value) ? args.value.map(String) : []
-  return (
-    <select
-      aria-describedby={context.describedBy}
-      aria-invalid={args.hasError || undefined}
-      aria-labelledby={context.labelId}
-      aria-required={args.required || undefined}
-      className="hl-schema-form__multi-select"
-      disabled={args.disabled}
-      id={args.field.name}
-      multiple
-      name={args.field.name}
-      onChange={event => args.onChange([...event.currentTarget.selectedOptions].map(option => option.value))}
-      required={args.required}
-      value={selected}
-    >
-      {selectOptions(args).map(option => (
-        <option disabled={option.disabled} key={option.value} value={option.value}>{option.label}</option>
-      ))}
-    </select>
-  )
+  const options = React.useMemo(() => selectOptions(args), [args.field])
+  const selected = React.useMemo(() => Array.isArray(args.value) ? args.value.map(String) : [], [args.value])
+  return <SelectField multiple name={args.field.name} value={selected} options={options}
+    disabled={args.disabled} required={args.required} error={args.hasError} onValueChange={args.onChange} />
 }
 
 function NumericControl({ args, kind }: { args: ControlArgs; kind: 'currency' | 'percentage' }) {
@@ -164,7 +159,36 @@ export function controlAcceptsValue(hint: string, value: unknown): boolean {
   return typeof value === 'string' || typeof value === 'number'
 }
 
+// Select presentation is adapter policy; the runtime supplies the editor verdict.
+const permittedChoiceControl = (args: ControlArgs) => (
+  <SelectField
+    disabled={args.disabled}
+    error={args.hasError}
+    name={args.field.name}
+    onValueChange={args.onChange}
+    options={(args.field.permittedValues ?? []).map(value => ({ value, label: value }))}
+    required={args.required}
+    value={args.strValue}
+  />
+)
+
 export const DEFAULT_CONTROLS: ControlRegistry = {
+  none: () => <></>,
+  singlevalue: permittedChoiceControl,
+  choicelist: permittedChoiceControl,
+  radiogroup: args => (
+    <RadioGroup
+      disabled={args.disabled}
+      error={args.hasError}
+      name={args.field.name}
+      onChange={args.onChange}
+      options={(args.field.permittedValues ?? []).map(value => ({ value, label: value }))}
+      required={args.required}
+      value={args.strValue}
+    />
+  ),
+  recordpicker: args => <DomainPickerControl args={args} />,
+  taxonomypicker: args => <DomainPickerControl args={args} />,
   text: textControl,
   textarea: args => (
     <TextArea

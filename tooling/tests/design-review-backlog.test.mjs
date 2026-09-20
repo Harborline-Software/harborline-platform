@@ -110,7 +110,8 @@ test('the checked-in backlog equals the real sweep expired set today', () => {
   assert.equal(report.designReview.backlog.deadline, list.deadline)
   const backlogRows = report.modules.filter(module => list.modules.includes(module.moduleId))
     .map(module => module.gates.find(row => row.id === 'assertDesignReview'))
-  assert.equal(backlogRows.length, 51)
+  // Chris's 2026-09-20 SelectField review removes one expired entry.
+  assert.equal(backlogRows.length, 50)
   assert.ok(backlogRows.every(row => row.status === 'PASS'
     && row.note === 'EXPIRED (backlog 334 until 2026-09-30)'))
   assert.ok(report.modules.filter(module => list.modules.includes(module.moduleId))

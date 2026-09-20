@@ -3,6 +3,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite'
 import { SelectField, HarborlineLocaleProvider } from '@harborline-software/ui-react'
 
 type ScenarioId =
+  | 'select-field.search' | 'select-field.multiple' | 'select-field.multiple-search'
   | 'select-field.states' | 'select-field.selection' | 'select-field.keyboard-dismissal'
   | 'select-field.locale-en' | 'select-field.locale-pseudo' | 'select-field.locale-ar'
   | 'select-field.theme-light' | 'select-field.theme-dark'
@@ -10,6 +11,9 @@ type ScenarioId =
   | 'select-field.error-state'
 
 const copy: Record<ScenarioId, [string, string]> = {
+  'select-field.search': ['Searchable single selection', 'Type to filter labels; only explicit selection changes the value.'],
+  'select-field.multiple': ['Multiple selection', 'Choose multiple caller-owned options with a named listbox and optional separate search.'],
+  'select-field.multiple-search': ['Searchable multiple selection', 'Choose multiple caller-owned options with a named listbox and optional separate search.'],
   'select-field.states': ['Value, placeholder, and validation', 'Controlled value, identity, placeholder, density, and validation metadata remain explicit.'],
   'select-field.selection': ['Open and select', 'The trigger opens one listbox and selection requests one value before closing.'],
   'select-field.keyboard-dismissal': ['Keyboard, typeahead, and dismissal', 'Keyboard navigation, typeahead, Escape, Tab, and outside pointer follow one deterministic lifecycle.'],
@@ -35,10 +39,17 @@ const defaultOptions = [
   { value: 'archived', label: 'Archived' },
 ]
 
+const extendedOptions = [...defaultOptions, { value: 'blocked', label: 'Blocked', disabled: true }]
+
 function SelectFixture({ scenarioId, size = 'md', disabled = false, error = false }: { scenarioId: ScenarioId; size?: 'sm' | 'md' | 'lg'; disabled?: boolean; error?: boolean }) {
   const pseudo = scenarioId === 'select-field.locale-pseudo'
   const arabic = scenarioId === 'select-field.locale-ar'
   const [value, setValue] = useState(scenarioId === 'select-field.states' && !error && !disabled ? '' : 'active')
+  const [values, setValues] = useState<string[]>(['active'])
+  const multiple = scenarioId === 'select-field.multiple' || scenarioId === 'select-field.multiple-search'
+  const searchable = scenarioId === 'select-field.search' || scenarioId === 'select-field.multiple-search'
+  if (multiple) return <SelectField multiple searchable={searchable} name="extended-status" accessibleName="Structure status" value={values} onValueChange={setValues} options={extendedOptions} />
+  if (searchable) return <SelectField searchable name="extended-status" accessibleName="Structure status" value={value} onValueChange={setValue} options={extendedOptions} />
   const options = arabic
     ? [{ value: 'active', label: 'نشط' }, { value: 'pending', label: 'في انتظار المراجعة' }, { value: 'archived', label: 'مؤرشف' }]
     : pseudo
@@ -82,6 +93,9 @@ function SelectFieldScenario({ scenarioId }: { scenarioId: ScenarioId }) {
 const meta = { title: 'Platform/Select Field', component: SelectFieldScenario, tags: ['autodocs'], parameters: { layout: 'padded', controls: { disable: true } } } satisfies Meta<typeof SelectFieldScenario>
 export default meta
 type Story = StoryObj<typeof meta>
+export const SearchableSingleSelection: Story = { name: 'Searchable single selection', args: { scenarioId: 'select-field.search' } }
+export const MultipleSelection: Story = { name: 'Multiple selection', args: { scenarioId: 'select-field.multiple' } }
+export const SearchableMultipleSelection: Story = { name: 'Searchable multiple selection', args: { scenarioId: 'select-field.multiple-search' } }
 export const ValuePlaceholderAndValidation: Story = { name: 'Value, placeholder, and validation', args: { scenarioId: 'select-field.states' } }
 export const OpenAndSelect: Story = { name: 'Open and select', args: { scenarioId: 'select-field.selection' } }
 export const KeyboardTypeaheadAndDismissal: Story = { name: 'Keyboard, typeahead, and dismissal', args: { scenarioId: 'select-field.keyboard-dismissal' } }
