@@ -1,6 +1,5 @@
 {
   "ticket": 334,
-  "deadline": "2026-09-30",
   "commit": "72b32de7fa0bf6abf7569ad621fde00a9b8c03fc",
   "modules": [
     "hlp.ui.accordion",

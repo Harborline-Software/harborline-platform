@@ -23,7 +23,6 @@ export function createGateModel(platformRoot, designReviewOptions = {}) {
   const read = path => JSON.parse(readFileSync(resolve(platformRoot, path), 'utf8'))
   const reviewPolicyOptions = {
     backlog: loadExpiredBacklog(platformRoot),
-    now: new Date(),
     ...designReviewOptions,
   }
   const gate = existsSync(resolve(platformRoot, 'docs/evidence/phase-4/gate.json'))
