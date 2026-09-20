@@ -75,14 +75,23 @@ public sealed class InMemoryRruleExpansionService : IRruleExpansionService
 
         return parsed.Freq switch
         {
-            "DAILY"   => true,
+            "DAILY"   => IsMatchingDaily(date, start, parsed),
             "WEEKLY"  => IsMatchingWeekly(date, start, parsed),
             "MONTHLY" => IsMatchingMonthly(date, start, parsed),
-            "YEARLY"  => IsMatchingYearly(date, parsed),
+            "YEARLY"  => IsMatchingYearly(date, start, parsed),
             _ => throw new NotSupportedException(
                 $"RRULE FREQ '{parsed.Freq}' is not supported. "
                 + "Supported: DAILY / WEEKLY / MONTHLY / YEARLY."),
         };
+    }
+
+    private static bool IsMatchingDaily(DateOnly date, DateOnly start, ParsedRrule parsed)
+    {
+        // RFC 5545 §3.3.10: BYDAY and BYMONTHDAY limit DAILY. With a selector the cursor walks
+        // day by day, so INTERVAL is measured in elapsed days from the anchor here.
+        if ((date.DayNumber - start.DayNumber) % parsed.Interval != 0) return false;
+        if (parsed.ByDay.Count > 0 && !MatchesPlainWeekday(date, parsed)) return false;
+        return parsed.ByMonthDay.Count == 0 || parsed.ByMonthDay.Contains(date.Day);
     }
 
     private static bool IsMatchingWeekly(DateOnly date, DateOnly start, ParsedRrule parsed)
@@ -92,6 +101,11 @@ public sealed class InMemoryRruleExpansionService : IRruleExpansionService
         var elapsedWeeks = (StartOfWeek(date).DayNumber - StartOfWeek(start).DayNumber) / 7;
         if (elapsedWeeks % parsed.Interval != 0) return false;
         // With BYDAY, the date's day-of-week must be in the set.
+        return MatchesPlainWeekday(date, parsed);
+    }
+
+    private static bool MatchesPlainWeekday(DateOnly date, ParsedRrule parsed)
+    {
         var dow = ToDayOfWeekCode(date.DayOfWeek);
         return parsed.ByDay.Any(bd => bd.Weekday == dow && bd.Ordinal == 0);
     }
@@ -108,28 +122,22 @@ public sealed class InMemoryRruleExpansionService : IRruleExpansionService
         var elapsedMonths = ((date.Year - start.Year) * 12) + date.Month - start.Month;
         if (elapsedMonths % parsed.Interval != 0) return false;
 
-        if (parsed.ByDay.Count > 0)
-        {
-            // Ordinal BYDAY e.g. 1MO (first Monday), -1FR (last Friday).
-            return parsed.ByDay.Any(bd => MatchesByDay(date, bd));
-        }
-        if (parsed.ByMonthDay.Count > 0)
-        {
-            return parsed.ByMonthDay.Contains(date.Day);
-        }
-        // No BY* selector — every monthly step from anchor is valid.
-        return true;
+        // BYDAY (plain or ordinal, e.g. 1MO, -1FR) and BYMONTHDAY intersect (RFC 5545 §3.3.10).
+        // With no BY* selector every monthly step from the anchor is valid.
+        if (parsed.ByDay.Count > 0 && !parsed.ByDay.Any(bd => MatchesByDay(date, bd))) return false;
+        return parsed.ByMonthDay.Count == 0 || parsed.ByMonthDay.Contains(date.Day);
     }
 
-    private static bool IsMatchingYearly(DateOnly date, ParsedRrule parsed)
+    private static bool IsMatchingYearly(DateOnly date, DateOnly start, ParsedRrule parsed)
     {
-        if (parsed.ByMonth.Count > 0 && !parsed.ByMonth.Contains(date.Month))
-            return false;
-        if (parsed.ByMonthDay.Count > 0)
-            return parsed.ByMonthDay.Contains(date.Day);
-        if (parsed.ByDay.Count > 0)
-            return parsed.ByDay.Any(bd => MatchesByDay(date, bd));
-        return true;
+        // BYMONTH is applied by the caller. With a selector the cursor walks day by day and
+        // INTERVAL is measured in elapsed years from the anchor; without one it steps whole years.
+        if ((date.Year - start.Year) % parsed.Interval != 0) return false;
+        if (parsed.ByDay.Count > 0 && !parsed.ByDay.Any(bd => MatchesByDay(date, bd))) return false;
+        if (parsed.ByMonthDay.Count > 0) return parsed.ByMonthDay.Contains(date.Day);
+        // RFC 5545 §3.3.10: a part the rule does not carry is taken from DTSTART, so
+        // FREQ=YEARLY;BYMONTH=3 anchored on the 15th is every 15 March.
+        return parsed.ByDay.Count > 0 || date.Day == start.Day;
     }
 
     // ----------------------------------------------------------------
@@ -193,12 +201,14 @@ public sealed class InMemoryRruleExpansionService : IRruleExpansionService
 
     private static DateOnly Advance(DateOnly cursor, ParsedRrule parsed)
     {
+        // A selector means the matcher must see every day; the plain frequency jumps by INTERVAL.
+        var hasSelector = parsed.ByDay.Count > 0 || parsed.ByMonthDay.Count > 0;
         return parsed.Freq switch
         {
-            "DAILY"   => cursor.AddDays(parsed.Interval),
+            "DAILY"   => cursor.AddDays(hasSelector ? 1 : parsed.Interval),
             "WEEKLY"  => AdvanceWeekly(cursor, parsed),
             "MONTHLY" => AdvanceMonthly(cursor, parsed),
-            "YEARLY"  => cursor.AddYears(parsed.Interval),
+            "YEARLY"  => hasSelector || parsed.ByMonth.Count > 0 ? cursor.AddDays(1) : cursor.AddYears(parsed.Interval),
             _ => throw new NotSupportedException(
                 $"RRULE FREQ '{parsed.Freq}' is not supported."),
         };
@@ -258,15 +268,13 @@ public sealed class InMemoryRruleExpansionService : IRruleExpansionService
                 case "FREQ":
                     freq = value.ToUpperInvariant();
                     break;
+                // An admitted part whose value is out of bound or malformed is refused, not
+                // dropped: dropping it would expand a wider series than the author wrote.
                 case "INTERVAL":
-                    if (int.TryParse(value, NumberStyles.Integer,
-                            CultureInfo.InvariantCulture, out var n) && n > 0)
-                        interval = n;
+                    interval = ParseBounded(key, value, 1, int.MaxValue);
                     break;
                 case "COUNT":
-                    if (int.TryParse(value, NumberStyles.Integer,
-                            CultureInfo.InvariantCulture, out var c) && c > 0)
-                        count = c;
+                    count = ParseBounded(key, value, 1, int.MaxValue);
                     break;
                 case "UNTIL":
                     until = ParseUntilDate(value);
@@ -275,10 +283,10 @@ public sealed class InMemoryRruleExpansionService : IRruleExpansionService
                     byDay.AddRange(ParseByDay(value));
                     break;
                 case "BYMONTHDAY":
-                    byMonthDay.AddRange(ParseIntList(value, min: 1, max: 28));
+                    byMonthDay.AddRange(ParseIntList(key, value, min: 1, max: 28));
                     break;
                 case "BYMONTH":
-                    byMonth.AddRange(ParseIntList(value, min: 1, max: 12));
+                    byMonth.AddRange(ParseIntList(key, value, min: 1, max: 12));
                     break;
                 default:
                     throw new NotSupportedException(
@@ -290,62 +298,71 @@ public sealed class InMemoryRruleExpansionService : IRruleExpansionService
             throw new FormatException(
                 $"RRULE missing FREQ= component: '{rrule}'.");
 
+        // RFC 5545 §3.3.10 marks BYMONTHDAY not applicable under WEEKLY.
+        if (freq == "WEEKLY" && byMonthDay.Count > 0)
+            throw new NotSupportedException(
+                "RRULE component 'BYMONTHDAY' is not applicable with FREQ=WEEKLY.");
+
         // COUNT and UNTIL are mutually exclusive; UNTIL wins per RFC 5545 §3.8.5.3.
         if (until.HasValue) count = null;
 
         return new ParsedRrule(freq, interval, count, until, byDay, byMonthDay, byMonth);
     }
 
-    private static DateOnly? ParseUntilDate(string value)
+    private static int ParseBounded(string key, string value, int min, int max)
+    {
+        if (int.TryParse(value, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var n)
+            && n >= min && n <= max)
+            return n;
+        throw new FormatException(
+            $"RRULE component '{key}' value '{value}' is not "
+            + (max == int.MaxValue ? "a positive integer." : $"an integer in {min}..{max}."));
+    }
+
+    private static DateOnly ParseUntilDate(string value)
     {
         // RFC 5545 UNTIL: YYYYMMDD (date) or YYYYMMDDTHHMMSSZ (datetime).
-        var datePart = value.Length >= 8 ? value[..8] : value;
-        if (datePart.Length == 8
-            && int.TryParse(datePart[..4], out var y)
-            && int.TryParse(datePart[4..6], out var m)
-            && int.TryParse(datePart[6..8], out var d))
+        if (value.Length == 8 || (value.Length == 16 && value[8] == 'T' && value[15] == 'Z'))
         {
-            try { return new DateOnly(y, m, d); }
-            catch (ArgumentOutOfRangeException) { /* ignore malformed */ }
+            if (DateOnly.TryParseExact(value[..8], "yyyyMMdd", CultureInfo.InvariantCulture,
+                    DateTimeStyles.None, out var date))
+                return date;
         }
-        return null;
+        throw new FormatException(
+            $"RRULE component 'UNTIL' value '{value}' is not a YYYYMMDD or YYYYMMDDTHHMMSSZ date.");
     }
+
+    private static readonly string[] WeekdayCodes = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"];
 
     private static IEnumerable<ByDayEntry> ParseByDay(string value)
     {
         foreach (var part in value.Split(',',
             StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         {
-            // Patterns: "MO", "1MO", "-1FR", "2TU" etc.
-            var span = part.Trim().ToUpperInvariant();
-            if (span.Length < 2) continue;
+            // Patterns: "MO", "1MO", "-1FR", "2TU" etc. Last two chars are the weekday code.
+            var span = part.ToUpperInvariant();
+            var wdStr = span.Length >= 2 ? span[^2..] : span;
+            if (!WeekdayCodes.Contains(wdStr))
+                throw new FormatException(
+                    $"RRULE component 'BYDAY' entry '{part}' is not one of the seven weekday codes.");
 
-            // Last two chars are the weekday abbreviation.
-            var wdStr = span[^2..];
             var ordinalStr = span[..^2];
-
             int ordinal = 0;
-            if (ordinalStr.Length > 0)
-            {
-                if (!int.TryParse(ordinalStr, NumberStyles.Integer,
-                        CultureInfo.InvariantCulture, out ordinal))
-                    continue; // malformed ordinal — skip
-            }
+            if (ordinalStr.Length > 0
+                && (!int.TryParse(ordinalStr, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out ordinal)
+                    || ordinal == 0 || Math.Abs(ordinal) > 5))
+                throw new FormatException(
+                    $"RRULE component 'BYDAY' entry '{part}' ordinal is not in -5..-1 or 1..5.");
 
             yield return new ByDayEntry(wdStr, ordinal);
         }
     }
 
-    private static IEnumerable<int> ParseIntList(string value, int min, int max)
+    private static IEnumerable<int> ParseIntList(string key, string value, int min, int max)
     {
         foreach (var part in value.Split(',',
             StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-        {
-            if (int.TryParse(part.Trim(), NumberStyles.Integer,
-                    CultureInfo.InvariantCulture, out var n)
-                && n >= min && n <= max)
-                yield return n;
-        }
+            yield return ParseBounded(key, part, min, max);
     }
 
     private static string ToDayOfWeekCode(DayOfWeek dow) => dow switch

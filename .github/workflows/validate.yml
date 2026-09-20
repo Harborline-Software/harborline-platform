@@ -1,14 +1,17 @@
 name: validate
-# Public repository: validate every pull request and main landing.
+# Public repository: the ubuntu phase-4 gate in the merge group, and publication on the push to main.
 on:
   # T-577: phase-4-gate is not a required context, so it runs where its result is used: the merge
-  # group (the landing's proof) and the push to main that publish-libraries follows. A PR push runs
-  # verify (required) and the cheap checks only.
+  # group (the landing's proof). A PR push runs verify (required) and the cheap checks only.
+  # T-579 (owner ruling 2026-09-18): the push to main is publication only. The ruleset admits a push
+  # to main through the merge queue alone, so the tree was gated in the merge group already; nothing
+  # here reruns that gate, and the run is green whenever publish-libraries is.
   merge_group:
   push:
     branches: [main]
 jobs:
   phase-4-gate:
+    if: github.event_name == 'merge_group'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -129,10 +132,11 @@ jobs:
           retention-days: 14
 
   publish-libraries:
-    # A push to main is a landing the repository's own gate already proved (the phase-4 receipt bound
-    # to the tested tree), so publication follows the landing, not the ubuntu rerun of the gate, which
-    # has never been green here (ADR 0084: required checks grow only from green). The job still packs
-    # through the gate's producer and pushes with --skip-duplicate, so a same-tree push publishes nothing.
+    # A push to main is a landing the merge group already gated (verify on a Mac, required; the
+    # phase-4 receipt bound to the tested tree), so publication follows that receipt, not an ubuntu
+    # rerun of the gate, which has never been green here (ADR 0084: required checks grow only from
+    # green) and no longer runs on this path (T-579). The job still packs through the gate's producer
+    # and pushes with --skip-duplicate, so a same-tree push publishes nothing.
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
@@ -162,6 +166,7 @@ jobs:
         Harborline.Foundation.RuleEngine
         Harborline.Foundation.Scheduling
         Harborline.Foundation.Session
+        Harborline.Kernel.Core
         Harborline.Kernel.SchemaValidation
         Harborline.Kernel.WorkItems
         Harborline.UIAdapters.Blazor

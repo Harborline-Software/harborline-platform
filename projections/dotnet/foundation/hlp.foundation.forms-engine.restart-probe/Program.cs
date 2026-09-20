@@ -1,6 +1,7 @@
 using Harborline.Foundation.Assets.Common;
 using Harborline.Foundation.Forms.Engine;
 using Harborline.Foundation.Forms.Engine.Persistence;
+using Harborline.Kernel.Core;
 using Harborline.Foundation.Forms.Models;
 
 if (args is not [var mode, var journalPath] || mode is not ("write-crash" or "write-partial-crash")) return 2;
@@ -16,7 +17,15 @@ var commit = new FormSubmissionCommit(
     new("outbox-restart", instance, new TenantId("tenant-engine"), Guid.Parse("11111111-1111-1111-1111-111111111111"),
         "alice", new FormDefinitionId("inspection"), new SemanticVersion(1, 0, 0), "case-restart", "{\"accepted\":true}"u8.ToArray(), instant),
     new(instance, instant, FormProjectionStatus.Pending, []));
-var result = await store.CommitAsync(commit);
+var command = new KernelCommand<FormSubmissionCommit>(
+    new(instance.ToString(), commit.IdempotencyKey, commit.Submission.RequestFingerprint),
+    commit,
+    new(commit.Audit.AuditId, commit.Audit.ActorId, commit.Audit.RecordedAt, commit.Audit.Payload));
+var transaction = await KernelTransactionBoundary.ExecuteAsync(
+    [command],
+    new FormSubmissionKernelTransactionPort(store));
+var result = transaction.Value
+    ?? throw new InvalidOperationException(transaction.Refusal?.Code ?? "The kernel transaction did not return a result.");
 if (result.Disposition != FormSubmissionCommitDisposition.Created) return 3;
 
 Console.WriteLine("written");

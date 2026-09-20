@@ -11,6 +11,7 @@ using Harborline.Foundation.RuleEngine;
 using Harborline.Foundation.RuleEngine.Compilation;
 using Harborline.Foundation.RuleEngine.Graph;
 using Harborline.Kernel.SchemaValidation;
+using Harborline.Kernel.Core;
 
 namespace Harborline.Foundation.Forms.Engine;
 
@@ -36,8 +37,8 @@ public sealed class FormEngine : IFormEngine
         IFormSensitiveReadAudit readAudit,
         IFormSubmissionTransactionStore submissions,
         IFormProjectionSink projections,
-        FormEngineOptions? options = null,
-        TimeProvider? clock = null)
+        FormEngineOptions? options,
+        TimeProvider clock)
     {
         _contexts = contexts ?? throw new ArgumentNullException(nameof(contexts));
         _definitions = definitions ?? throw new ArgumentNullException(nameof(definitions));
@@ -49,7 +50,7 @@ public sealed class FormEngine : IFormEngine
         _projections = projections ?? throw new ArgumentNullException(nameof(projections));
         _options = options ?? new FormEngineOptions();
         _options.Validate();
-        _clock = clock ?? TimeProvider.System;
+        _clock = clock ?? throw new ArgumentNullException(nameof(clock));
     }
 
     public async ValueTask<Contract.FormView> RenderAsync(
@@ -132,7 +133,18 @@ public sealed class FormEngine : IFormEngine
             new(outboxId, instanceId, scope.Tenant, scope.PartyId, scope.ActorId, definition.Id, definition.Version,
                 request.CaseReference, protectedResult.ProtectedCandidate.ToArray(), instant),
             receipt);
-        var committed = await ProviderAsync(() => _submissions.CommitAsync(commit, cancellationToken), cancellationToken).ConfigureAwait(false);
+        var atomic = new KernelCommand<FormSubmissionCommit>(
+            new(instanceId.ToString(), request.IdempotencyKey, fingerprint),
+            commit,
+            new(commit.Audit.AuditId, commit.Audit.ActorId, commit.Audit.RecordedAt, commit.Audit.Payload));
+        var transaction = await ProviderAsync(
+            () => KernelTransactionBoundary.ExecuteAsync(
+                [atomic],
+                new FormSubmissionKernelTransactionPort(_submissions),
+                cancellationToken),
+            cancellationToken).ConfigureAwait(false);
+        var committed = transaction.Value
+            ?? throw new InvalidOperationException(transaction.Refusal?.Code ?? "The kernel transaction did not return a result.");
         if (committed.Disposition == FormSubmissionCommitDisposition.Conflict) throw new FormEngineIdempotencyConflictException();
         if (committed.Disposition == FormSubmissionCommitDisposition.Replayed) return committed.Receipt!;
 

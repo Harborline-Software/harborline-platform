@@ -50,6 +50,7 @@ var engine = new FormEngine(
     new NoOpReadAudit(),
     new InMemoryFormSubmissionStore(),
     sink,
+    options: null,
     clock: new FixedTimeProvider());
 
 using var candidate = JsonDocument.Parse("""{"conditionRating":2,"status":"pass"}""");

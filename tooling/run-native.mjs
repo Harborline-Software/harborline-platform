@@ -38,6 +38,7 @@ const DOTNET_SUITES = [
   ['actor', 'foundation-actor-native', "projections/dotnet/foundation/hlp.foundation.actor.tests/Harborline.Foundation.Authorization.Tests.csproj"],
   ['session', 'foundation-session-native', "projections/dotnet/foundation/hlp.foundation.session.tests/Harborline.Foundation.Session.Tests.csproj"],
   ['uiSupport', 'foundation-ui-support-native', "projections/dotnet/foundation/hlp.ui.support.tests/Harborline.Foundation.UI.Tests.csproj"],
+  ['kernelCore', 'kernel-core-native', "projections/dotnet/kernel/hlp.kernel.core.tests/Harborline.Kernel.Core.Tests.csproj"],
   ['schemaValidation', 'kernel-schema-validation-native', "projections/dotnet/kernel/hlp.kernel.schema-validation.tests/Harborline.Kernel.SchemaValidation.Tests.csproj"],
   ['workItems', 'kernel-work-items-native', "projections/dotnet/kernel/hlp.kernel.work-items.tests/Harborline.Kernel.WorkItems.Tests.csproj"],
   ['inspectionReview', 'blocks-inspection-review-native', "projections/dotnet/blocks/hlp.blocks.inspection-review.tests/Harborline.Blocks.InspectionReview.Tests.csproj"],
@@ -56,6 +57,7 @@ const DOTNET_SUITES = [
   ['ruleAuthoringDotnet', 'foundation-rule-authoring-native', "projections/dotnet/foundation/hlp.foundation.rule-authoring.tests/Harborline.Foundation.RuleAuthoring.Tests.csproj"],
   ['formsDotnet', 'foundation-forms-native', "projections/dotnet/foundation/hlp.foundation.forms.tests/Harborline.Foundation.Forms.Tests.csproj"],
   ['builderDefinitions', 'blocks-builder-definitions-native', "projections/dotnet/blocks/hlp.blocks.builder-definitions.tests/Harborline.Blocks.BuilderDefinitions.Tests.csproj"],
+  ['layoutRuntime', 'blocks-layout-runtime-native', "projections/dotnet/blocks/hlp.blocks.layout-runtime.tests/Harborline.Blocks.LayoutRuntime.Tests.csproj"],
   ['formsEngineDotnet', 'foundation-forms-engine-native', "projections/dotnet/foundation/hlp.foundation.forms-engine.tests/Harborline.Foundation.Forms.Engine.Tests.csproj"],
   ['architecture', 'platform-architecture-native', "projections/dotnet/architecture/hlp.architecture.tests/Harborline.Architecture.Tests.csproj"],
 ]

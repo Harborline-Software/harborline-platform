@@ -23,7 +23,7 @@ public sealed class CurrentFormExecutionContextProvider : IFormExecutionContextP
         IPrincipalPartyResolver parties,
         IFormCapabilityBearerProvider bearers,
         IFormCapabilityVerifier capabilities,
-        TimeProvider? clock = null)
+        TimeProvider clock)
     {
         ArgumentNullException.ThrowIfNull(actor);
         ArgumentNullException.ThrowIfNull(parties);
@@ -33,7 +33,7 @@ public sealed class CurrentFormExecutionContextProvider : IFormExecutionContextP
         _parties = parties;
         _bearers = bearers;
         _capabilities = capabilities;
-        _clock = clock ?? TimeProvider.System;
+        _clock = clock ?? throw new ArgumentNullException(nameof(clock));
     }
 
     /// <inheritdoc />

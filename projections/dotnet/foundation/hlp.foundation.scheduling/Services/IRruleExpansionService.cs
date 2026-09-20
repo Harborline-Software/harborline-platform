@@ -71,7 +71,8 @@ public interface IRruleExpansionService
     /// (or <c>today + lookaheadDays</c>). Never exceeds 1 000 items.
     /// </returns>
     /// <exception cref="FormatException">
-    /// Thrown when <paramref name="rrule"/> is missing a <c>FREQ=</c> component.
+    /// Thrown when <paramref name="rrule"/> is missing a <c>FREQ=</c> component, or when an
+    /// admitted part carries an out-of-bound or malformed value (named in the message).
     /// </exception>
     /// <exception cref="ArgumentException">
     /// Thrown when <paramref name="rrule"/> is null or whitespace.

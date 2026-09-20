@@ -2,7 +2,7 @@ import { DataGrid, type DataGridColumnDef } from '@harborline-platform/hlp.ui.da
 import { Button } from '@harborline-platform/hlp.ui.button'
 import type { ViewDefinitionField, ViewRuntimeProps, ViewRuntimeRow } from './ViewRuntime.types'
 
-const GRID_KIND = 'views.entity-list/grid'
+const GRID_KIND = 'layout.table'
 
 function columns(fields: readonly ViewDefinitionField[]): readonly DataGridColumnDef<ViewRuntimeRow>[] {
   return fields.map((field, index) => ({ id: field.id, field: row => {

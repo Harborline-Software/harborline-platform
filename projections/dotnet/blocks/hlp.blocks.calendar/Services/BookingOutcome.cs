@@ -21,6 +21,8 @@ namespace Harborline.Blocks.Calendar.Services;
 ///   <item><description><c>SLOT_CONFLICT</c> — the slot overlaps existing occupancy on the resource
 ///   (the no-double-book guard). The competing time is busy.</description></item>
 ///   <item><description><c>SLOT_INVERTED</c> — the requested end is at or before the start.</description></item>
+///   <item><description><c>NO_REQUESTER</c> — no authenticated requester could be resolved, so nobody
+///   can be recorded as having asked for the booking.</description></item>
 /// </list>
 /// </param>
 public sealed record BookingOutcome(
@@ -36,6 +38,9 @@ public sealed record BookingOutcome(
 
     /// <summary>Canonical rejection reason: the requested end is at or before the start.</summary>
     public const string SlotInverted = "SLOT_INVERTED";
+
+    /// <summary>Canonical rejection reason: no authenticated requester could be resolved.</summary>
+    public const string NoRequester = "NO_REQUESTER";
 
     internal static BookingOutcome Booked(CalendarEvent ev) => new(true, ev);
     internal static BookingOutcome Rejected(string reason) => new(false, null, reason);

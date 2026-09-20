@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.blocks.builder-definitions",
-  "interfaceRevision": 5,
+  "interfaceRevision": 7,
   "status": "draft",
-  "purpose": "Own the shared definition catalogue substrate: registry-neutral versioned definitions, key suggestion, archive lifecycle, and projection-neutral platform package export and empty-store replay.",
+  "purpose": "Own the shared definition catalogue substrate: registry-neutral versioned definitions, key suggestion, archive lifecycle, projection-neutral platform package export and empty-store replay, and package safety-floor reattachment.",
   "dependencies": [{"moduleId": "hlp.foundation.rule-authoring", "minimumRevision": 2}],
   "sourceSurface": {
     "repository": "shipyard",
@@ -11,11 +11,13 @@
     "paths": ["apps/carrier/src/definitions/slug.ts:13-36", "apps/carrier/src/definitions/archiveStore.ts:17-58"]
   },
   "capabilities": {
+    "configurationActivation": ["baseline-bound isolated preparation", "explicit projection and compatibility findings", "immutable prepared candidate and canonical ownership", "point-of-use authority and evidence-bound compare-and-swap decision", "API-owned atomic target contract", "released preparing refused effective status vocabulary and shared Form bindings"],
+    "configurationGeneration": ["complete tenant-scoped resolved closure identity", "order-independent SHA-256 of public versioned references", "validated definition ownership", "released read-only generation detail definition and bindings"],
     "keys": ["deterministic ASCII kebab suggestion", ".v1 suffix", "exact-case collision suffixing"],
     "lifecycle": ["tenant and definition-kind scoped archive", "idempotent archive", "idempotent unarchive", "restart-durable visibility"],
     "versionedDefinitions": ["opaque JSON body and digest", "stable definition id and immutable published version id", "expected stream revision", "exact operation/fence/payload replay", "append-only history", "restore-as-new-draft", "production-only resolution", "in-memory reference implementation"],
     "rulesCatalogue": ["typed source admission at author and publish", "create at revision zero", "detached load and tenant-scoped stable listing", "duplicate into independent history", "archive visibility without pin revocation", "caller-supplied version ids, labels, request ids and revision fences", "Latest/Pinned/Draft caller resolution"],
-    "platformPackage": ["ordered manifest", "deterministic UTF-8 JSON export", "provider-neutral closure and SHA-256 digest metadata", "ADR-0097 canonical seed fixture", "present or explicitly unresolved content", "validated atomic replay into an empty target"]
+    "platformPackage": ["ordered manifest", "deterministic UTF-8 JSON export", "provider-neutral closure and SHA-256 digest metadata", "ADR-0097 canonical seed fixture", "present or explicitly unresolved content", "validated atomic replay into an empty target", "raise-only safety-floor reattachment with named malformed-member refusal"]
   },
   "keyAuthoritySeam": {
     "name": "IDefinitionKeyAuthority",
@@ -32,6 +34,19 @@
     "Version syntax, registry admission and member constraints refuse by stable code and RFC 6901 pointer; bodies are never repaired, normalized or clamped.",
     "Mutations fence the per-tenant/registry/definition stream by expected revision; exact request replay returns the original result and mismatched replay refuses.",
     "Durable adapters must conditionally commit history, head and replay together; the reference in-memory store claims no restart durability.",
+    "Generation v1 hashes UTF-8 compact JSON with the domain harborline.configuration-generation/v1, tenant, active roots, resolved package/content references, dependency edges, ownership, platform contract, and applicable policy references.",
+    "All identity collections sort by exact key using ordinal comparison; duplicate keys refuse rather than silently coalescing conflicting references. Digests are exactly 64 lowercase hexadecimal SHA-256 characters. Properties have the order emitted by ConfigurationGeneration.Resolve; there is no trailing newline or Unicode normalization.",
+    "The host supplies a complete resolved snapshot. Every dependency resolves in the supplied closure, every supplied package is reachable from an active root, and every content key has exactly one ownership selection pointing to a supplying package.",
+    "The host verifies referenced content and determines applicable policy before resolution. Generation identity neither authorizes reads nor establishes authenticity, release status, installation, compatibility, or effective-pointer authority.",
+    "The public read document contains references only, never configuration values, credentials, signatures, or raw policy content. Hosts supply public identifiers and digests, authorize tenant reads, and bind the effective snapshot through ConfigurationGenerationDetail.Bind.",
+    "The platform seed exports configurationGenerationDetail in ck-7. React SchemaForm and Blazor HarborlineSchemaForm render that same definition and the producer's bindings in host read-only mode; the generation digest is distinct from package revisions.",
+    "Preparation consumes ConfigurationGeneration.Resolve identities without re-deriving them. Its trusted host validator builds an isolated immutable projection against the expected complete baseline and checks every applicable compatibility dimension. Unknown compatibility refuses; missing validation never means success.",
+    "A prepared token binds baseline, candidate, immutable projection reference and ownership read from the candidate's canonical snapshot. Preparation never changes the effective generation or confers authority.",
+    "One activation request binds the prepared token, acting principal and evidence intent identity and reason. The switch decision rechecks the current complete baseline and resolves live Access authority for exactly that request. A stale baseline is a refusal, never an automatic retry.",
+    "The API implements IConfigurationActivationTarget: under its atomic transaction, verify the projection and destination compatibility, check the baseline, authorize, and commit ownership, effective pointer, Access decision reference and reconstructable evidence intent together. All reads and writes pin one generation per unit of work.",
+    "Evidence intent identity is tenant-scoped and binds the entire switch decision; conflicting reuse refuses. The API owns outbox publication and commit acknowledgement. Recovery of a prepared generation, the effective pointer and the evidence outbox left by a crash belongs to the platform kernel, not to the API and not to a released definition. Lost commit acknowledgement is indeterminate, never a fabricated refusal or blind retry.",
+    "The pure switch decision is not a commit. Only host confirmation after durable commitment yields an effective outcome. Refusal retains the observed current generation. Preparation and decision exceptions propagate without a success token or outcome.",
+    "ck-7 exports configurationActivationDetail and configurationActivationStatuses. One released Form and vocabulary distinguish released, preparing, refused and effective in both SchemaForm lanes. Successful preparation remains preparing; a refused projection cannot bind as effective.",
     "DefinitionKeySuggester is advisory and never claims allocation authority.",
     "Archive state is isolated by exact tenant, DefinitionKind, and definition key.",
     "Archive and unarchive are idempotent and never delete authored definitions.",
@@ -46,9 +61,20 @@
     "The fixture contains no first-authority source or preloaded Access-pack provenance kind while those DES-0007 rulings remain open.",
     "The 13 navigation ids and catalogue:read, records:read, and audit:read role offers preserve the current harborline-api platform export migration authority.",
     "Unresolved DES-0007 policy is represented as absent content and refused; this module does not invent a default.",
+    "Package reattachment restores missing seeded safety floors, clamps lower integers, and refuses a present non-integer member by name.",
     "Pilot manager registration, handlers, navigation, and React snapshots are excluded app-host concerns."
   ],
   "errors": [
+    {"code":"configuration-baseline-stale", "when":"The expected complete baseline differs from the current generation at preparation or at the atomic switch decision; no retry is requested."},
+    {"code":"configuration-tenant-mismatch", "when":"The candidate and effective baseline belong to different tenants."},
+    {"code":"configuration-validation-required", "when":"The host provides no explicit projection and compatibility validation result or finding list."},
+    {"code":"configuration-validation-invalid", "when":"A refusal finding lacks a stable code, public target or explanation."},
+    {"code":"configuration-projection-required", "when":"Successful preparation lacks a complete immutable projection reference."},
+    {"code":"configuration-principal-required", "when":"An activation request lacks the acting principal."},
+    {"code":"configuration-evidence-required", "when":"An activation request lacks an evidence intent identity or reason."},
+    {"code":"configuration-authority-refused", "when":"Live Access authority denies the exact switch request or provides no retained decision identity."},
+    {"code":"configuration-switch-refused", "when":"A caller tries to confirm a refused decision as committed; throws instead of producing an effective outcome."},
+    {"code":"configuration-refusal-required", "when":"A caller tries to convert a successful decision into a refusal without a named failure."},
     {"code":"definition.registry_unknown", "when":"The registry is unknown or has no host-supplied admission."},
     {"code":"definition.version_invalid", "when":"The semantic-version label is malformed."},
     {"code":"definition.version_id_required", "when":"An immutable version identity is absent."},
@@ -63,6 +89,14 @@
     {"code":"definition.body_invalid", "when":"The opaque body is not valid JSON."},
     {"code":"definition.admission_invalid", "when":"A configured validator fails to return a refusal list."},
     {"code":"definition.not_found", "when":"A mutation targets an absent version."},
+    {"code":"configuration-reference-required", "when":"A generation reference key, revision, tenant, root, dependency or owner is blank."},
+    {"code":"configuration-reference-duplicate", "when":"An identity collection repeats a key, even with identical content."},
+    {"code":"configuration-digest-invalid", "when":"A referenced digest is not 64 lowercase SHA-256 hexadecimal characters."},
+    {"code":"configuration-active-packages-required", "when":"No active package root is supplied."},
+    {"code":"configuration-dependency-missing", "when":"An active root or transitive dependency is absent from the supplied closure."},
+    {"code":"configuration-package-outside-closure", "when":"A supplied package cannot be reached from an active root."},
+    {"code":"configuration-ownership-incomplete", "when":"The selected definition keys differ from the distinct content keys in the closure."},
+    {"code":"configuration-owner-content-missing", "when":"The chosen owner does not supply the selected content key."},
     {"code":"definition-key-required", "when":"A lifecycle operation receives an empty key."},
     {"code":"definition-tenant-required", "when":"A lifecycle operation receives an empty tenant."},
     {"code":"definition-lifecycle-corrupt", "when":"Persisted lifecycle state cannot be decoded."},
@@ -75,7 +109,8 @@
     {"code":"platform-seed-stage-order-invalid", "when":"A later manifest item belongs to an earlier bootstrap stage."},
     {"code":"platform-seed-dependency-missing", "when":"An item dependency is absent from the manifest."},
     {"code":"platform-seed-dependency-not-replayed", "when":"An item dependency is not earlier in replay order."},
-    {"code":"platform-seed-content-unresolved", "when":"An item names a policy reference whose content is not yet ruled."}
+    {"code":"platform-seed-content-unresolved", "when":"An item names a policy reference whose content is not yet ruled."},
+    {"code":"platform-package-safety-floor-malformed", "when":"A seeded or reattached safety-floor member is present without an integer value; the result names the member."}
   ],
   "presentation": {"disposition":"not-applicable", "rationale":"The module stores catalogue state and exports provider-neutral package data; managers render it."},
   "distribution": "internal-only"

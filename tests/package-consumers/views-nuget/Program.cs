@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Reflection;
 using System.Text.Json;
 using Harborline.Blocks.EntityViews;
+using Harborline.Foundation.Authorization;
 
 const string Building = "entity:preview/building-1";
 const string Bedroom = "entity:preview/bedroom-1";
@@ -28,6 +29,8 @@ ProveProductionGuard(clock);
 await ProveFailureAndBreadcrumbGuards(clock);
 Console.WriteLine($"VIEWS_CAPABILITY_PASS:{JsonSerializer.Serialize(new { pairs = 4, failedConditionGuards = 4 })}");
 await ProveAuthoredAndBoundQuery();
+await AccessContractProof.RunAsync();
+Console.WriteLine("ACCESS_CONTRACT_PASS:{\"filter\":true,\"check\":true,\"trace\":true}");
 Console.WriteLine($"VIEWS_AUTHORED_BOUND_PASS:{JsonSerializer.Serialize(new { authored = true, bound = true, accessBeforePage = true })}");
 
 async Task ProveAuthoredAndBoundQuery()
@@ -69,28 +72,33 @@ async Task ProveAuthoredAndBoundQuery()
     await authoring.CreateDraftAsync(new(definition, binding));
     var published = await store.PublishAsync("team-a", "work.queue", "1.0.0");
 
+    var access = new AccessProvider(new FixtureAuthorizationGate());
+    var accessClock = new FixedTimeProvider(FixtureAuthorizationGate.Epoch);
     var runtime = new ViewQueryRuntime(
         store,
-        new QueryOpenGate(),
+        new AccessViewOpenGate(access, accessClock, ["work.open"]),
         kinds,
         records,
-        new QueryAccessFilter(),
+        new AccessViewFilter(access, "records:read"),
         new InMemoryViewRowSource([
             QueryRow("visible", "A", "party:operator-1", "open"),
             QueryRow("hidden", "B", "party:other", "open"),
-            QueryRow("closed", "C", "party:operator-1", "closed"),
+            QueryRow("visible-2", "C", "party:operator-1", "open"),
+            QueryRow("hidden-2", "D", "party:other", "open"),
+            QueryRow("visible-3", "E", "party:operator-1", "open"),
         ]),
         measures,
-        TimeProvider.System);
+        accessClock);
     var result = await runtime.ExecuteAsync(new(
         "team-a",
         "work.queue",
         "party:operator-1",
-        new(0, 25),
+        new(1, 2),
         published.Binding));
 
-    Check(result.Total == 1 && result.Rows.Single().Id == "visible", "authored+Access query");
-    Check(result.Measure == new ViewMeasureResult("work.count", 1), "catalogue measure over current rows");
+    Check(result.Total == 3 && result.Rows.Select(row => row.Id).SequenceEqual(["visible-2", "visible-3"]), "authored+Access query before paging");
+    Check(result.Groups.Single().Count == 3, "only visible rows grouped");
+    Check(result.Measure == new ViewMeasureResult("work.count", 3), "catalogue measure over current rows");
     Check(result.Authority.CanOpen && result.Authority.Actions.Single().Action == "work.open", "authority travels with rows");
     var personal = definition with { Ownership = ViewOwnershipTier.Personal };
     var export = ViewDefinitionPackExporter.Export([
@@ -107,6 +115,8 @@ ViewRow QueryRow(string id, string title, string assignee, string state) => new(
     {
         ["title"] = title,
         ["assignee"] = assignee,
+        ["owner"] = assignee,
+        ["region"] = "north",
         ["state"] = state,
     });
 
@@ -371,16 +381,4 @@ sealed class QueryInteractions : IViewInteractionRegistry
     public ValueTask<ViewWidgetDescriptor?> ResolveWidgetAsync(string widget, CancellationToken cancellationToken = default) => ValueTask.FromResult<ViewWidgetDescriptor?>(null);
     public ValueTask<bool> HasRowActionAsync(string action, CancellationToken cancellationToken = default) => ValueTask.FromResult(action == "work.open");
     public ValueTask<bool> HasWorkflowTransitionAsync(string transition, CancellationToken cancellationToken = default) => ValueTask.FromResult(false);
-}
-
-sealed class QueryOpenGate : IViewOpenGate
-{
-    public ValueTask<ViewAuthority> AuthorizeAsync(ViewDefinition definition, string principal, CancellationToken cancellationToken = default) =>
-        ValueTask.FromResult(new ViewAuthority(true, [new("work.open", true)]));
-}
-
-sealed class QueryAccessFilter : IViewAccessFilter
-{
-    public ValueTask<ViewFilter> BuildAsync(string tenant, string principal, string recordType, CancellationToken cancellationToken = default) =>
-        ValueTask.FromResult(ViewFilter.Equal("assignee", principal));
 }

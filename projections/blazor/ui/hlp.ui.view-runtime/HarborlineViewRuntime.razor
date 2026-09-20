@@ -18,7 +18,7 @@
   </div>
 }
 @code {
-  private const string GridKind = "views.entity-list/grid";
+  private const string GridKind = "layout.table";
   [Parameter, EditorRequired] public ViewRenderPlan Plan { get; set; } = default!;
   [Parameter, EditorRequired] public IReadOnlyList<ViewRuntimeRow> Rows { get; set; } = [];
   [Parameter] public string AccessibleLabel { get; set; } = "View results";

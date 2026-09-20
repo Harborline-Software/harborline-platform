@@ -22,7 +22,7 @@ public sealed class InMemoryViewRowSource : IViewRowSource
         _functions = functions ?? throw new ArgumentNullException(nameof(functions));
     }
 
-    public ValueTask<ViewRowPage> QueryAsync(
+    public async ValueTask<ViewRowPage> QueryAsync(
         ViewQueryPlan plan,
         CancellationToken cancellationToken = default)
     {
@@ -32,7 +32,9 @@ public sealed class InMemoryViewRowSource : IViewRowSource
         IEnumerable<ViewRow> query = _rows;
         foreach (var predicate in plan.Predicates)
         {
-            query = query.Where(row => Matches(row, predicate.Filter, plan.FieldKinds));
+            query = predicate.Filter is ViewAccessPredicate access
+                ? await access.FilterAsync(query, cancellationToken).ConfigureAwait(false)
+                : query.Where(row => Matches(row, predicate.Filter, plan.FieldKinds));
         }
 
         IOrderedEnumerable<ViewRow>? ordered = null;
@@ -59,7 +61,7 @@ public sealed class InMemoryViewRowSource : IViewRowSource
                 .ToArray()
             : [];
         var page = filtered.Skip(plan.Page.Offset).Take(plan.Page.Limit).ToArray();
-        return ValueTask.FromResult(new ViewRowPage(page, filtered.Length, groups, filtered));
+        return new ViewRowPage(page, filtered.Length, groups, filtered);
     }
 
     private bool Matches(

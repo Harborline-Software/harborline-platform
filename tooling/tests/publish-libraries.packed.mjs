@@ -51,16 +51,16 @@ function metadata(nuspec, name) {
 }
 
 
-test('all 24 packed nuspecs and manifest hashes agree with the version derived by the consumer pin', () => {
+test('all 26 packed nuspecs and manifest hashes agree with the version derived by the consumer pin', () => {
   // eng/platform-pin.json directs the consumer to import this function from its pinned tree.
   const version = computePackageVersion(root)
   assert.equal(readPackageVersionProps(root), version)
   const feed = resolve(root, 'artifacts/packages/nuget')
   const manifest = JSON.parse(readFileSync(resolve(feed, 'manifest.json'), 'utf8'))
   const files = readdirSync(feed).filter(name => name.endsWith('.nupkg')).sort()
-  assert.equal(files.length, 24)
-  assert.equal(manifest.length, 24)
-  assert.equal(new Set(manifest.map(row => row.id)).size, 24)
+  assert.equal(files.length, 26)
+  assert.equal(manifest.length, 26)
+  assert.equal(new Set(manifest.map(row => row.id)).size, 26)
   assert.deepEqual(files, manifest.map(row => `${row.id}.${row.version}.nupkg`).sort())
   for (const file of files) {
     const path = resolve(feed, file)

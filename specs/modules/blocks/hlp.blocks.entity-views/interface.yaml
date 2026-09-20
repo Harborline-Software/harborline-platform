@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.blocks.entity-views",
-  "interfaceRevision": 3,
+  "interfaceRevision": 4,
   "status": "frozen",
   "purpose": "Own the Views read model, authored view-definition lifecycle, and authorized query runtime behind Harborline-owned ports: entity list/type-filter/detail-with-breadcrumb/containment-tree reads with the 404-only-null rule, immutable authored coordinates with draft/publish/restore history, typed filter/shape/interaction admission, Access-first query execution, condition history with provenance, the two previewed writes with typed rejections, breadcrumb resolution below any renderer with the no-raw-id rule, form-binding descriptors and navigation targets over the frozen Forms wire (Design B), and a development preview adapter that fails closed in Production.",
-  "dependencies": [{"moduleId": "hlp.contracts.identities", "minimumRevision": 1}, {"moduleId": "hlp.contracts.forms", "minimumRevision": 4}],
+  "dependencies": [{"moduleId": "hlp.contracts.identities", "minimumRevision": 1}, {"moduleId": "hlp.contracts.forms", "minimumRevision": 4}, {"moduleId": "hlp.foundation.actor", "minimumRevision": 2}],
   "callerInterface": {
     "name": "IEntityReadStore / IConditionHistoryStore / IFormBindingSource / IViewNavigationTargets / BreadcrumbResolver / IViewDefinitionStore / ViewDefinitionAuthoring / ViewQueryRuntime",
     "operations": [

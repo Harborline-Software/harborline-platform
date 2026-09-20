@@ -344,3 +344,50 @@ TICKET_READY was reported for continuation after this restore result. No archite
 suite, new native consumer run or full gate is claimed by this diagnostic. T-588 still
 needs reconciliation with landed main, those verification steps, one PR, merge and
 control closure. T-589 remains unstarted until T-588 merges.
+
+## Reconciled architecture and external consumers
+
+Reconciled with platform main `4bbba70f064958dda3cddcf3712760f5d7f710c4`,
+preserving the released PR64 safety-floor contract and subsequent configuration contracts.
+Builder interface/catalogue revision is 7; Rules authoring remains revision 2.
+The architecture freeze retains Views and removes both migrated Rules and DataExchange
+entries. The clock inventory initially failed 24/25 because it still named the removed
+RuleCatalog; removing that single stale entry made all 25 pass. Scanner and canaries
+are unchanged. Protected export, seed and DataExchange source match main exactly.
+
+Fresh audited workspace-write verification on 2026-09-20 UTC:
+
+- Architecture: 25 passed, 0 failed, 0 skipped.
+- Builder definitions: 218 passed, including all four existing safety-floor cases.
+- Native rule authoring: 149 passed, 0 failed, 0 skipped.
+- Standard focused packed check: exit 0, `status: PASS`, consumers outside the repository,
+  zero source/project dependencies. Complete basic NuGet, Forms Engine, Inspection Review,
+  Workflow and calculations consumers ran. Existing safety-floor code/member assertions,
+  export/seed assertions and unrelated checks remained enabled.
+- Calculations comparison: 12 cases, 12 cross-lane verdicts, zero mismatches, seven client
+  previews and three refusals. Corpus SHA-256
+  `c616d4115aa2b555303a13ba75480bbf7fdb15387fe65d0cccb362f2b1539162`.
+
+The first packed attempt used a controller-created scratch parent inside the worktree,
+accidentally inheriting central package management and failing NU1008. Moving only the
+ignored wrapper's isolated scratch parent to ordinary sandbox OS temp resolved that error.
+The external compile then exposed a missing `System.IO` import in the new Rules fixture;
+adding that import made the complete standard run pass. No consumer assertion was removed,
+no project setting weakened, and no host execution or audit/warning exemption was used.
+
+Actual command: `node tooling/verify-package-fixtures.mjs --only calculations-capability-vertical`.
+PID 58708 exited 0 naturally at 2026-09-20 01:54:59 UTC. Full combined output is
+`artifacts/t588-local/reconciled-verification/20260920T015317Z-external-consumers-import-calculations-da86ec29.log`;
+the adjacent exit JSON records command, cwd, stdin and validated external scratch ancestry.
+Native suite logs in that directory are `20260920T014115Z-resumed-architecture-test-637703b7.log`,
+`20260920T014138Z-resumed-builder-test-8f9124ae.log` and
+`20260920T014155Z-resumed-rule-authoring-test-e6cdde70.log`, each with actual exit 0 records.
+
+All 26 newly packed native libraries identify `0.0.0-alpha.0.h9fa7e96dd92c`.
+Actual authoring tarball `@harborline-software/rule-authoring@0.1.0-alpha.0` has SHA-256
+`3171f943be05404319ac5815e035f78eceebae1edd63c25918e7c7eb53f26272`; its 19 entries contain
+no retired catalog/admission implementation files or symbols. Full identity/hash inspection:
+`20260920T015506Z-external-consumers-import-artifact-inspection-6d197177.log` in the same directory.
+
+These results satisfy the focused architecture and native-consumer checks, not the full gate.
+The gate, PR, merge and control closure remain outstanding. T-589 has not started.

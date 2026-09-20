@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
@@ -158,6 +159,19 @@ public static class TabularMappingAdmission
 {
     public static TabularMappingDocument Validate(TabularMappingDocument mapping)
     {
+        var refusals = Refusals(mapping);
+        return refusals.Count == 0 ? mapping : throw new DataExchangeAdmissionException(refusals);
+    }
+
+    internal static bool IsThreePartVersion(string? version)
+    {
+        var parts = version?.Split('.', StringSplitOptions.None);
+        return parts is { Length: 3 } && parts.All(part => int.TryParse(part, NumberStyles.None, CultureInfo.InvariantCulture, out _));
+    }
+
+    /// <summary>The complete refusal list for one mapping; empty means admitted.</summary>
+    public static IReadOnlyList<DataExchangeRefusal> Refusals(TabularMappingDocument mapping)
+    {
         ArgumentNullException.ThrowIfNull(mapping);
         var refusals = new List<DataExchangeRefusal>();
         if (!StringComparer.Ordinal.Equals(mapping.Profile, TabularMappingProfile.Family))
@@ -168,11 +182,8 @@ public static class TabularMappingAdmission
         {
             refusals.Add(new("mapping.schema_mismatch", "/schemaUri"));
         }
-        var versionParts = mapping.Version.Split('.', StringSplitOptions.None);
-        if (versionParts.Length != 3
-            || !versionParts.All(part => int.TryParse(part, out _))
-            || !int.TryParse(versionParts[0], out var major)
-            || major != TabularMappingProfile.SupportedMajorVersion)
+        if (!IsThreePartVersion(mapping.Version)
+            || int.Parse(mapping.Version.Split('.')[0], CultureInfo.InvariantCulture) != TabularMappingProfile.SupportedMajorVersion)
         {
             refusals.Add(new("mapping.major_unsupported", "/version"));
         }
@@ -198,11 +209,7 @@ public static class TabularMappingAdmission
         {
             refusals.Add(new("mapping.source_url_invalid", "/url"));
         }
-        if (refusals.Count > 0)
-        {
-            throw new DataExchangeAdmissionException(refusals);
-        }
-        return mapping;
+        return refusals;
     }
 
     private static string Escape(string value) => value
