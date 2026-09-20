@@ -15,8 +15,27 @@
         "dotnet": {"role": "implementation", "path": "projections/dotnet/contracts/hlp.contracts.identities/Authorization", "status": "preview", "packageContribution": "Harborline.Contracts"}
       }
     },
+    "hlp.contracts.fields": {
+      "interface": {"path": "specs/modules/contracts/hlp.contracts.fields/interface.yaml", "revision": 1},
+      "moduleKind": "runtime",
+      "presentation": {"disposition": "not-applicable", "rationale": "Shared field declarations carry no rendering or authoring surface."},
+      "owner": "platform-contracts",
+      "dependencies": ["hlp.contracts.identities"],
+      "status": "extracted-candidate",
+      "depth": {
+        "disposition": "deep-module",
+        "deletionTest": "PASS",
+        "redistributedComplexity": [
+          "kind, governance and scalar-shape declarations copied between the Records compiler and field consumers",
+          "three-source domain, narrowing constraint and refusal shapes independently invented by each member"
+        ]
+      },
+      "projections": {
+        "dotnet": {"role": "implementation", "path": "projections/dotnet/contracts/hlp.contracts.identities/Fields", "status": "preview", "packageContribution": "Harborline.Contracts"}
+      }
+    },
     "hlp.contracts.forms": {
-      "interface": {"path": "specs/modules/contracts/hlp.contracts.forms/interface.yaml", "revision": 5},
+      "interface": {"path": "specs/modules/contracts/hlp.contracts.forms/interface.yaml", "revision": 6},
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "Forms wire contracts are consumed by renderers but own no presentation implementation."},
       "owner": "platform-contracts",
@@ -143,11 +162,11 @@
       }
     },
     "hlp.kernel.schema-validation": {
-      "interface": {"path": "specs/modules/kernel/hlp.kernel.schema-validation/interface.yaml", "revision": 1},
+      "interface": {"path": "specs/modules/kernel/hlp.kernel.schema-validation/interface.yaml", "revision": 2},
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "JSON Schema registration and payload validation are runtime behavior with no visual presentation surface."},
       "owner": "platform-kernel",
-      "dependencies": [],
+      "dependencies": ["hlp.contracts.fields", "hlp.contracts.identities"],
       "status": "implemented-package-consumer-green",
       "depth": {
         "disposition": "deep-module",
@@ -500,7 +519,7 @@
       }
     },
     "hlp.blocks.calendar": {
-      "interface": {"path": "specs/modules/blocks/hlp.blocks.calendar/interface.yaml", "revision": 2},
+      "interface": {"path": "specs/modules/blocks/hlp.blocks.calendar/interface.yaml", "revision": 3},
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "The calendar engine produces occurrences, free/busy results, booking outcomes, and context answers consumed by scheduler/gantt renderers; it renders nothing."},
       "owner": "platform-blocks",
@@ -609,7 +628,7 @@
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "The entity-views read model produces list/detail/tree/condition data and navigation targets consumed by separate grid/table renderers; it renders nothing."},
       "owner": "platform-blocks",
-      "dependencies": ["hlp.contracts.identities", "hlp.contracts.forms", "hlp.foundation.actor"],
+      "dependencies": ["hlp.contracts.identities", "hlp.contracts.forms", "hlp.contracts.fields", "hlp.foundation.actor"],
       "status": "implemented",
       "depth": {
         "disposition": "deep-module",
@@ -664,6 +683,40 @@
             "id": "Harborline.Foundation.DataExchange",
             "assembly": "Harborline.Foundation.DataExchange",
             "manifest": "projections/dotnet/foundation/hlp.foundation.data-exchange/Harborline.Foundation.DataExchange.csproj",
+            "identityAuthority": "Harborline",
+            "producerRepository": "harborline-platform",
+            "distribution": "internal-only",
+            "candidateRole": "new-bounded-package",
+            "registryAvailable": false
+          }
+        }
+      }
+    },
+    "hlp.foundation.field-runtime": {
+      "interface": {"path": "specs/modules/foundation/hlp.foundation.field-runtime/interface.yaml", "revision": 1},
+      "moduleKind": "runtime",
+      "presentation": {"disposition": "not-applicable", "rationale": "The shared field substrate resolves domains, validates values and selects an editor contract; consuming UI projections render it."},
+      "owner": "platform-foundation",
+      "dependencies": ["hlp.contracts.fields", "hlp.contracts.identities", "hlp.foundation.rule-runtime"],
+      "status": "extracted-candidate",
+      "depth": {
+        "disposition": "deep-module",
+        "deletionTest": "PASS",
+        "redistributedComplexity": [
+          "exact field-kind binding and limit enforcement duplicated across Records, Forms, Views and mapped rows",
+          "authority-aware domain membership, narrowing and domain-driven editor selection repeated by every field consumer"
+        ]
+      },
+      "projections": {
+        "dotnet": {
+          "role": "implementation",
+          "path": "projections/dotnet/foundation/hlp.foundation.field-runtime",
+          "status": "preview",
+          "artifact": {
+            "type": "nuget",
+            "id": "Harborline.Foundation.FieldRuntime",
+            "assembly": "Harborline.Foundation.FieldRuntime",
+            "manifest": "projections/dotnet/foundation/hlp.foundation.field-runtime/Harborline.Foundation.FieldRuntime.csproj",
             "identityAuthority": "Harborline",
             "producerRepository": "harborline-platform",
             "distribution": "internal-only",
@@ -843,11 +896,11 @@
       }
     },
     "hlp.foundation.forms-engine": {
-      "interface": {"path": "specs/modules/foundation/hlp.foundation.forms-engine/interface.yaml", "revision": 9},
+      "interface": {"path": "specs/modules/foundation/hlp.foundation.forms-engine/interface.yaml", "revision": 10},
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "The Forms Engine produces render and submission data consumed by separate React and Blazor renderers; it owns no visual implementation."},
       "owner": "platform-foundation",
-      "dependencies": ["hlp.contracts.forms", "hlp.contracts.identities", "hlp.foundation.actor", "hlp.foundation.forms", "hlp.foundation.rule-runtime", "hlp.foundation.tenancy", "hlp.kernel.core", "hlp.kernel.schema-validation"],
+      "dependencies": ["hlp.contracts.forms", "hlp.contracts.identities", "hlp.contracts.fields", "hlp.foundation.actor", "hlp.foundation.forms", "hlp.foundation.rule-runtime", "hlp.foundation.tenancy", "hlp.kernel.core", "hlp.kernel.schema-validation"],
       "status": "implemented-package-consumer-green",
       "depth": {
         "disposition": "deep-module",

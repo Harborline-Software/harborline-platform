@@ -49,6 +49,7 @@ const DOTNET_SUITES = [
   ['entityViews', 'blocks-entity-views-native', "projections/dotnet/blocks/hlp.blocks.entity-views.tests/Harborline.Blocks.EntityViews.Tests.csproj"],
   ['dataExchange', 'foundation-data-exchange-native', "projections/dotnet/foundation/hlp.foundation.data-exchange.tests/Harborline.Foundation.DataExchange.Tests.csproj"],
   ['foundationScheduling', 'foundation-scheduling-native', "projections/dotnet/foundation/hlp.foundation.scheduling.tests/Harborline.Foundation.Scheduling.Tests.csproj"],
+  ['fieldRuntime', 'foundation-field-runtime-native', "projections/dotnet/foundation/hlp.foundation.field-runtime.tests/Harborline.Foundation.FieldRuntime.Tests.csproj"],
   ['blocksScheduling', 'blocks-scheduling-native', "projections/dotnet/blocks/hlp.blocks.scheduling.tests/Harborline.Blocks.Scheduling.Tests.csproj"],
   ['blocksCalendar', 'blocks-calendar-native', "projections/dotnet/blocks/hlp.blocks.calendar.tests/Harborline.Blocks.Calendar.Tests.csproj"],
   ['blocksReports', 'blocks-reports-native', "projections/dotnet/blocks/hlp.blocks.reports.tests/Harborline.Blocks.Reports.Tests.csproj"],

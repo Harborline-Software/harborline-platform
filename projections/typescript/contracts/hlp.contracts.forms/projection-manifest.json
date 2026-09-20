@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.contracts.forms",
-  "interfaceRevision": 5,
+  "interfaceRevision": 6,
   "generatedFrom": {
     "source": "pinned packages/contracts/src/forms.ts revision 1",
     "additiveGaps": [
@@ -310,7 +310,24 @@
               "kind": "array",
               "element": {
                 "kind": "object",
-                "properties": {"vocabulary":{"optional":false,"shape":{"kind":"enum","values":["sys.platform-roles","tax.roles"]}},"name":{"optional":false,"shape":{"kind":"string"}}}
+                "properties": {
+                  "vocabulary": {
+                    "optional": false,
+                    "shape": {
+                      "kind": "enum",
+                      "values": [
+                        "sys.platform-roles",
+                        "tax.roles"
+                      ]
+                    }
+                  },
+                  "name": {
+                    "optional": false,
+                    "shape": {
+                      "kind": "string"
+                    }
+                  }
+                }
               }
             }
           },
@@ -320,7 +337,24 @@
               "kind": "array",
               "element": {
                 "kind": "object",
-                "properties": {"vocabulary":{"optional":false,"shape":{"kind":"enum","values":["sys.platform-roles","tax.roles"]}},"name":{"optional":false,"shape":{"kind":"string"}}}
+                "properties": {
+                  "vocabulary": {
+                    "optional": false,
+                    "shape": {
+                      "kind": "enum",
+                      "values": [
+                        "sys.platform-roles",
+                        "tax.roles"
+                      ]
+                    }
+                  },
+                  "name": {
+                    "optional": false,
+                    "shape": {
+                      "kind": "string"
+                    }
+                  }
+                }
               }
             }
           },
@@ -815,7 +849,24 @@
               "kind": "array",
               "element": {
                 "kind": "object",
-                "properties": {"vocabulary":{"optional":false,"shape":{"kind":"enum","values":["sys.platform-roles","tax.roles"]}},"name":{"optional":false,"shape":{"kind":"string"}}}
+                "properties": {
+                  "vocabulary": {
+                    "optional": false,
+                    "shape": {
+                      "kind": "enum",
+                      "values": [
+                        "sys.platform-roles",
+                        "tax.roles"
+                      ]
+                    }
+                  },
+                  "name": {
+                    "optional": false,
+                    "shape": {
+                      "kind": "string"
+                    }
+                  }
+                }
               }
             }
           },
@@ -825,7 +876,24 @@
               "kind": "array",
               "element": {
                 "kind": "object",
-                "properties": {"vocabulary":{"optional":false,"shape":{"kind":"enum","values":["sys.platform-roles","tax.roles"]}},"name":{"optional":false,"shape":{"kind":"string"}}}
+                "properties": {
+                  "vocabulary": {
+                    "optional": false,
+                    "shape": {
+                      "kind": "enum",
+                      "values": [
+                        "sys.platform-roles",
+                        "tax.roles"
+                      ]
+                    }
+                  },
+                  "name": {
+                    "optional": false,
+                    "shape": {
+                      "kind": "string"
+                    }
+                  }
+                }
               }
             }
           },
@@ -1655,6 +1723,15 @@
               "kind": "ref",
               "name": "FormViewFieldRules"
             }
+          },
+          "permittedValues": {
+            "optional": true,
+            "shape": {
+              "kind": "array",
+              "element": {
+                "kind": "string"
+              }
+            }
           }
         }
       },
@@ -2321,7 +2398,24 @@
               "kind": "array",
               "element": {
                 "kind": "object",
-                "properties": {"vocabulary":{"optional":false,"shape":{"kind":"enum","values":["sys.platform-roles","tax.roles"]}},"name":{"optional":false,"shape":{"kind":"string"}}}
+                "properties": {
+                  "vocabulary": {
+                    "optional": false,
+                    "shape": {
+                      "kind": "enum",
+                      "values": [
+                        "sys.platform-roles",
+                        "tax.roles"
+                      ]
+                    }
+                  },
+                  "name": {
+                    "optional": false,
+                    "shape": {
+                      "kind": "string"
+                    }
+                  }
+                }
               }
             }
           },
@@ -2331,7 +2425,24 @@
               "kind": "array",
               "element": {
                 "kind": "object",
-                "properties": {"vocabulary":{"optional":false,"shape":{"kind":"enum","values":["sys.platform-roles","tax.roles"]}},"name":{"optional":false,"shape":{"kind":"string"}}}
+                "properties": {
+                  "vocabulary": {
+                    "optional": false,
+                    "shape": {
+                      "kind": "enum",
+                      "values": [
+                        "sys.platform-roles",
+                        "tax.roles"
+                      ]
+                    }
+                  },
+                  "name": {
+                    "optional": false,
+                    "shape": {
+                      "kind": "string"
+                    }
+                  }
+                }
               }
             }
           },

@@ -45,6 +45,46 @@ public sealed class CalendarEventExpansionServiceTests
     }
 
     [Fact]
+    public void RecurringEvent_AnchoredBeyondTheOccurrenceCap_StillExpandsInsideTheWindow()
+    {
+        // T-653: the producer caps a walk at 1 000 emitted occurrences. A daily series anchored
+        // 1 200 days before the window was silently empty when the composer emitted from the anchor.
+        var windowStart = new DateOnly(2026, 3, 1);
+        var anchor = windowStart.AddDays(-1200);
+        var ev = CalendarEvent.Create(Tenant, "Daily", anchor, anchor, Actor, rrule: "FREQ=DAILY");
+
+        var occ = NewSut().Expand(ev, windowStart, new DateOnly(2026, 3, 31));
+
+        Assert.Equal(31, occ.Count);
+        Assert.Equal(windowStart, occ[0].Start);
+        Assert.Equal(new DateOnly(2026, 3, 31), occ[^1].Start);
+    }
+
+    [Fact]
+    public void Override_MovingOccurrenceForwardIntoWindow_IsIncluded()
+    {
+        // The walk now emits from the window start, so an override whose RECURRENCE-ID precedes
+        // the window but whose NEW start lands inside it must be rescued like a later one is.
+        var anchor = new DateOnly(2026, 1, 5);
+        var ev = CalendarEvent.Create(Tenant, "Standup", anchor, anchor, Actor, rrule: "FREQ=WEEKLY;BYDAY=MO");
+
+        ev.OverrideOccurrence(
+            new OccurrenceOverride
+            {
+                RecurrenceId = new DateOnly(2026, 1, 26), // Monday, before the Feb window
+                NewStart     = new DateOnly(2026, 2, 3),  // moved into the Feb window
+            },
+            Actor);
+
+        var occ = NewSut().Expand(ev, new DateOnly(2026, 2, 1), new DateOnly(2026, 2, 28));
+
+        var moved = Assert.Single(occ, o => o.IsOverride);
+        Assert.Equal(new DateOnly(2026, 2, 3), moved.Start);
+        Assert.Equal(new DateOnly(2026, 1, 26), moved.RecurrenceId);
+        Assert.Equal(5, occ.Count); // Feb 2, 9, 16, 23 + the moved one
+    }
+
+    [Fact]
     public void SingleEvent_YieldsOneOccurrence_WhenInWindow()
     {
         var ev = CalendarEvent.Create(

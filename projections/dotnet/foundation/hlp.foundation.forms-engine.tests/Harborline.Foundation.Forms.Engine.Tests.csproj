@@ -14,6 +14,9 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../hlp.foundation.forms-engine/Harborline.Foundation.Forms.Engine.csproj" />
+    <ProjectReference Include="../hlp.foundation.field-runtime/Harborline.Foundation.FieldRuntime.csproj" />
+    <ProjectReference Include="../../blocks/hlp.blocks.entity-views/Harborline.Blocks.EntityViews.csproj" />
+    <ProjectReference Include="../hlp.foundation.data-exchange/Harborline.Foundation.DataExchange.csproj" />
     <ProjectReference Include="../hlp.foundation.forms-engine.restart-probe/Harborline.Foundation.Forms.Engine.RestartProbe.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
   <ItemGroup>

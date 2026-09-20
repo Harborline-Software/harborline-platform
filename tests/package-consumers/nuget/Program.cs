@@ -47,6 +47,22 @@ using FormsDrafts = Harborline.Foundation.Forms.Drafts;
 using FormsModel = Harborline.Foundation.Forms.Models;
 using BuilderDefinitions = Harborline.Blocks.BuilderDefinitions;
 using DataExchange = Harborline.Foundation.DataExchange;
+using FieldRuntime = Harborline.Foundation.FieldRuntime;
+using FieldContracts = Harborline.Contracts.Fields;
+
+var emptyFieldDomainRefusals = FieldRuntime.ValueDomainAdmission.Validate(
+    new FieldContracts.ValueDomainDefinition(), "/fields/status/value_domain");
+if (emptyFieldDomainRefusals.Count != 1
+    || emptyFieldDomainRefusals[0].Code != "field.value_domain_source_count"
+    || emptyFieldDomainRefusals[0].JsonPointer != "/fields/status/value_domain")
+    throw new InvalidOperationException("Packed field runtime did not refuse an empty value domain.");
+if (FieldRuntime.ValueDomainAdmission.Validate(
+    new FieldContracts.ValueDomainDefinition(LiteralValues: new[] { "open", "closed" }),
+    "/fields/status/value_domain").Count != 0)
+    throw new InvalidOperationException("Packed field runtime did not admit the literal-set source.");
+
+await FieldRuntimeSchemaProbe.VerifyAsync();
+await FieldRuntimeDomainProbe.VerifyAsync();
 
 if (typeof(HarborlineButton).Assembly.GetName().Name != "Harborline.UIAdapters.Blazor")
     throw new InvalidOperationException("UI assembly identity changed.");

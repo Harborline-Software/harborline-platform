@@ -1,4 +1,6 @@
 using System.Text.Json;
+using Harborline.Contracts.Fields;
+using Harborline.Contracts.Authorization;
 
 namespace Harborline.Blocks.EntityViews;
 
@@ -181,7 +183,10 @@ public enum ViewRecordFieldKind
 /// <summary>A host-owned description of a record type available to Views.</summary>
 public sealed record ViewRecordTypeDescriptor(
     string RecordType,
-    IReadOnlyDictionary<string, ViewRecordFieldKind> Fields);
+    IReadOnlyDictionary<string, ViewRecordFieldKind> Fields,
+    string? Tenant = null,
+    string? SchemaRef = null,
+    IReadOnlyDictionary<string, FieldBindingDefinition>? FieldBindings = null);
 
 /// <summary>The ambient request values used to execute a published view.</summary>
 public sealed record ViewQueryRequest(
@@ -189,7 +194,9 @@ public sealed record ViewQueryRequest(
     string DefinitionKey,
     string Principal,
     ViewPage Page,
-    ViewBinding Binding);
+    ViewBinding Binding,
+    RoleVocabulary? RoleVocabulary = null,
+    HeldRoleSet? HeldRoles = null);
 
 /// <summary>Identifies where a predicate entered the plan.</summary>
 public enum ViewPredicateSource
@@ -234,7 +241,11 @@ public sealed record ViewQueryResult(
     IReadOnlyList<ViewGroup> Groups,
     ViewMeasureResult? Measure,
     ViewAuthority Authority,
-    DateTimeOffset EvaluatedAt);
+    DateTimeOffset EvaluatedAt)
+{
+    public IReadOnlyDictionary<string, ResolvedFieldConstraints> ColumnDomains { get; init; }
+        = new Dictionary<string, ResolvedFieldConstraints>();
+}
 
 /// <summary>Resolves the current published definition revision.</summary>
 public interface IViewDefinitionSource
@@ -268,6 +279,10 @@ public interface IViewKindRegistry
 /// <summary>Resolves the field contract of a host-registered record type.</summary>
 public interface IViewRecordTypeRegistry
 {
+    /// <summary>Resolves an admitted tenant model; bound descriptors must attest the same tenant.</summary>
+    ValueTask<ViewRecordTypeDescriptor?> ResolveAsync(string tenant, string recordType,
+        CancellationToken cancellationToken = default) => ResolveAsync(recordType, cancellationToken);
+
     ValueTask<ViewRecordTypeDescriptor?> ResolveAsync(
         string recordType,
         CancellationToken cancellationToken = default);
@@ -387,6 +402,7 @@ public sealed class ViewQueryRuntime
     private readonly IViewRowSource _rows;
     private readonly IViewMeasureCatalog _measures;
     private readonly TimeProvider _clock;
+    private readonly IFieldDomainRuntime? _fieldDomains;
 
     public ViewQueryRuntime(
         IViewDefinitionSource definitions,
@@ -396,7 +412,8 @@ public sealed class ViewQueryRuntime
         IViewAccessFilter accessFilter,
         IViewRowSource rows,
         IViewMeasureCatalog measures,
-        TimeProvider clock)
+        TimeProvider clock,
+        IFieldDomainRuntime? fieldDomains = null)
     {
         _definitions = definitions ?? throw new ArgumentNullException(nameof(definitions));
         _openGate = openGate ?? throw new ArgumentNullException(nameof(openGate));
@@ -406,6 +423,7 @@ public sealed class ViewQueryRuntime
         _rows = rows ?? throw new ArgumentNullException(nameof(rows));
         _measures = measures ?? throw new ArgumentNullException(nameof(measures));
         _clock = clock ?? throw new ArgumentNullException(nameof(clock));
+        _fieldDomains = fieldDomains;
     }
 
     public async ValueTask<ViewQueryResult> ExecuteAsync(
@@ -431,7 +449,7 @@ public sealed class ViewQueryRuntime
             throw new ViewQueryException(ViewDefinitionCodes.KindUnknown, "The view kind is not registered.");
         }
         var recordType = await _recordTypes
-            .ResolveAsync(definition.RecordType, cancellationToken)
+            .ResolveAsync(request.Tenant, definition.RecordType, cancellationToken)
             .ConfigureAwait(false);
         if (ViewBindingCompatibility.GetRefusalCode(kind, request.Binding, recordType) is { } bindingRefusal)
         {
@@ -441,6 +459,26 @@ public sealed class ViewQueryRuntime
         var access = await _accessFilter
             .BuildAsync(request.Tenant, request.Principal, definition.RecordType, evaluatedAt, cancellationToken)
             .ConfigureAwait(false);
+
+        var domains = new Dictionary<string, ResolvedFieldConstraints>(StringComparer.Ordinal);
+        if (_fieldDomains is not null || recordType?.FieldBindings is not null)
+        {
+            if (_fieldDomains is null || recordType?.FieldBindings is null || recordType.Tenant != request.Tenant
+                || definition.Tenant != request.Tenant || recordType.RecordType != definition.RecordType
+                || string.IsNullOrWhiteSpace(recordType.SchemaRef))
+                throw BindingRefusal("");
+            foreach (var column in definition.Parameters.Columns)
+            {
+                var pointer = "/" + column.Field.Replace("~", "~0", StringComparison.Ordinal).Replace("/", "~1", StringComparison.Ordinal);
+                if (!recordType.FieldBindings.TryGetValue(column.Field, out var field)) throw BindingRefusal(pointer);
+                var roles = field.Constraints.ReadRoleIds.Select(RoleReference.Domain).ToArray();
+                if (roles.Length > 0 && (request.RoleVocabulary is null || request.HeldRoles is null
+                    || !RoleGateResolver.Allows(new RoleGate(roles), request.RoleVocabulary, request.HeldRoles))) continue;
+                var resolved = await _fieldDomains.NarrowAsync(field.Constraints, field.Constraints,
+                    new(new(request.Tenant), request.Principal), pointer, cancellationToken);
+                if (resolved.Values is not null) domains[column.Field] = resolved;
+            }
+        }
 
         var predicates = new List<ViewQueryPredicate>
         {
@@ -468,6 +506,9 @@ public sealed class ViewQueryRuntime
                 .EvaluateAsync(binding, page.CurrentRows, evaluatedAt, cancellationToken)
                 .ConfigureAwait(false)
             : null;
-        return new(page.Rows, page.Total, page.Groups, measure, authority, evaluatedAt);
+        return new(page.Rows, page.Total, page.Groups, measure, authority, evaluatedAt) { ColumnDomains = domains };
     }
+
+    private static FieldAdmissionException BindingRefusal(string pointer)
+        => new([new("field.binding_unresolved", pointer, "The selected column has no admitted field binding.")]);
 }
