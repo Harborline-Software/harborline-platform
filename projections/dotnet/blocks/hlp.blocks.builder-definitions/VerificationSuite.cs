@@ -204,11 +204,28 @@ public sealed class VerificationSuite
                 { new("verification-suite-contract-unknown", "contract", $"The document does not declare {Contract}.") });
             return null;
         }
+        // The document records the catalogue its predicates and actions were resolved against. A
+        // later phase extends the catalogue, so re-admitting an older document under a newer one
+        // would silently change what its assertions mean; refuse instead of re-deriving a digest.
+        if (!root.TryGetProperty("catalogue", out var catalogue) || catalogue.ValueKind != JsonValueKind.String
+            || catalogue.GetString() != VerificationCatalog.Reference.Digest)
+        {
+            refusals = Array.AsReadOnly(new VerificationRefusal[]
+            {
+                new("verification-catalogue-mismatch", "catalogue",
+                    "The suite document was written against another action and predicate catalogue."),
+            });
+            return null;
+        }
         string Text(JsonElement element, string name) =>
             element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString()! : string.Empty;
+        // Only string members are read. A number, boolean, object or array member is dropped rather
+        // than thrown on, so a malformed document reaches a named refusal (an unbound input or an
+        // absent expected value) instead of escaping this API as an InvalidOperationException.
         IReadOnlyDictionary<string, string> Map(JsonElement element, string name) =>
             element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Object
-                ? value.EnumerateObject().ToDictionary(property => property.Name, property => property.Value.GetString() ?? string.Empty, StringComparer.Ordinal)
+                ? value.EnumerateObject().Where(property => property.Value.ValueKind is JsonValueKind.String)
+                    .ToDictionary(property => property.Name, property => property.Value.GetString()!, StringComparer.Ordinal)
                 : new Dictionary<string, string>(StringComparer.Ordinal);
         JsonElement.ArrayEnumerator Items(JsonElement element, string name) =>
             element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Array
@@ -262,6 +279,9 @@ public sealed class VerificationSuite
                  })
             if (string.IsNullOrWhiteSpace(value))
                 refuse("verification-fixture-input-required", target, $"The fixture does not declare {name}; it is an explicit input, never a default.");
+        if (fixture.Instant == default)
+            refuse("verification-fixture-input-required", target,
+                "The fixture does not declare instant; it is an explicit input, never a default. A document whose instant does not parse arrives here.");
         foreach (var fact in fixture.Facts ?? [])
         {
             if (string.IsNullOrWhiteSpace(fact.RecordType))

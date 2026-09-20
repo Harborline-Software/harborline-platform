@@ -1,3 +1,4 @@
+using System.Text.Json.Nodes;
 using System.Text.Json;
 using Xunit;
 
@@ -59,6 +60,30 @@ public sealed class VerificationSuiteTests
         var parsed = VerificationSuite.Parse(Fixture().GetProperty("suite").GetRawText(), out var refusals);
         Assert.Empty(refusals);
         Assert.Equal(suite.Digest, parsed!.Digest);
+
+        // Parse refuses by name rather than throwing, and it refuses a document written against
+        // another catalogue rather than silently re-deriving its meaning under this one.
+        static string Refusal(string json)
+        {
+            Assert.Null(VerificationSuite.Parse(json, out var refused));
+            return Assert.Single(refused).Code;
+        }
+        Assert.Equal("verification-suite-document-invalid", Refusal("{"));
+        Assert.Equal("verification-suite-contract-unknown", Refusal("""{"contract":"other/v1"}"""));
+        Assert.Equal("verification-catalogue-mismatch", Refusal($$"""
+            {"contract":"harborline.verification-suite/v1","suiteId":"s","version":"1.0.0","catalogue":"{{new string('0', 64)}}"}
+            """));
+        // A member that is not a string is dropped rather than thrown on, so it lands on a named
+        // refusal. Here the dropped member is the case's only bound input.
+        var mangled = JsonNode.Parse(Fixture().GetProperty("suite").GetRawText())!;
+        mangled["cases"]![0]!["inputs"]!["recordType"] = 7;
+        Assert.Null(VerificationSuite.Parse(mangled.ToJsonString(), out var mangledRefusals));
+        Assert.Contains(mangledRefusals, refusal => refusal.Code == "verification-input-unbound");
+        // An instant that does not parse is an undeclared instant, not a zero one.
+        var undated = JsonNode.Parse(Fixture().GetProperty("suite").GetRawText())!;
+        undated["fixtures"]![0]!["instant"] = "not-an-instant";
+        Assert.Null(VerificationSuite.Parse(undated.ToJsonString(), out var undatedRefusals));
+        Assert.Contains(undatedRefusals, refusal => refusal.Code == "verification-fixture-input-required");
     }
 
     // Acceptance 2: time, identifiers, locale, ordering, actor authority and simulated ports are
@@ -208,6 +233,26 @@ public sealed class VerificationSuiteTests
         Refused("verification-outcome-missing", () => Mint(outcomes: [.. receipt.Outcomes.Skip(1)]));
         Refused("verification-outcome-unknown", () => Mint(outcomes:
             [.. receipt.Outcomes, VerificationCaseOutcome.Observed("invented", null, [])]));
+
+        // Repeating the catalogue is not a second engine, and the engine set, not the caller's
+        // ordering, decides the digest.
+        Refused("verification-engine-required", () => Mint(engines:
+            [VerificationCatalog.Reference, VerificationCatalog.Reference]));
+        Assert.Equal(receipt.Digest, Mint(engines: [.. VerificationExample.Engines.Reverse(),
+            VerificationCatalog.Reference]).Digest);
+
+        // An outcome that observed anything must have observed every assertion its case declares,
+        // so a run cannot drop the one assertion it would have failed and still report Passed.
+        var invariant = receipt.Outcomes.Single(outcome => outcome.CaseId == "approval-authority");
+        var rows = receipt.Outcomes.Where(outcome => outcome.CaseId != "approval-authority").ToArray();
+        Refused("verification-observation-missing", () => Mint(outcomes:
+            [VerificationCaseOutcome.Observed("approval-authority", null, [invariant.Observations[0]]), .. rows]));
+        Refused("verification-observation-unexpected", () => Mint(outcomes:
+            [
+                VerificationCaseOutcome.Observed("approval-authority", null,
+                    [.. invariant.Observations, new("record.number", "1.0.0", "/total", "1", "1", true)]),
+                .. rows,
+            ]));
 
         // The digest is over the canonical document, so a receipt cannot be re-read as anything else.
         var document = JsonSerializer.Deserialize<JsonElement>(receipt.Document.Span);

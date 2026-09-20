@@ -165,7 +165,10 @@ for a case that asserts nothing, `verification-predicate-unknown`, `verification
 `verification-observation-unavailable`, `verification-input-unbound` for a case whose action
 parameter is unbound, and `verification-expected-invalid` for an examples row that states no
 expectation. `Parse` re-admits a document through `Declare`, so a suite arriving over the wire
-cannot carry a case that authoring would have refused. The second gate is in the result:
+cannot carry a case that authoring would have refused; it also refuses a document written against
+another catalogue rather than re-deriving its meaning under this one, reads only string members so a
+malformed document reaches a named refusal rather than an exception, and treats an instant that does
+not parse as an undeclared instant. The second gate is in the result:
 `VerificationCaseOutcome.Status` is *derived* from the observations, and there is no constructor,
 factory or setter anywhere that produces `Passed` without a matched observation. Nothing observed is
 `Vacuous`; `Unsupported` and `Blocked` are results, not skips; and a receipt whose outcomes are not
@@ -175,7 +178,11 @@ all `Passed` is not a passing run.
 the exact candidate generation, the baseline it was prepared over, the suite reference, one
 reference per fixture — derived by the suite itself, not supplied — and every engine identity
 including the catalogue. It must answer every declared case and every declared examples row exactly
-once, so a run cannot be made green by dropping a case. `ReceiptId` is what `ProposedChangeCheck`
+once, and an outcome that observed anything must have observed every assertion its case declares —
+so a run cannot be made green by dropping a case, nor by dropping the one assertion it would have
+failed. Observing nothing at all stays legal and stays `Vacuous`. Engine identities are deduplicated
+and fully ordered, so the digest depends on the engine set rather than on how the caller assembled
+the list, and a list repeating the catalogue is not a second engine. `ReceiptId` is what `ProposedChangeCheck`
 binds, which is the seam [[T-461]] left for this slice. `Digest` is the SHA-256 of the canonical
 receipt document, so the receipt is replayable rather than a colour.
 

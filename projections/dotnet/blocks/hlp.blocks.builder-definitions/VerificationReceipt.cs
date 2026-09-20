@@ -196,13 +196,17 @@ public sealed class VerificationReceipt
         var used = suite.Cases.Select(item => item.FixtureId).Distinct(StringComparer.Ordinal)
             .OrderBy(id => id, StringComparer.Ordinal)
             .Select(id => new ConfigurationReference(id, suite.Version, suite.FixtureDigest(id))).ToArray();
-        var declaredEngines = engines.OrderBy(engine => engine.Key, StringComparer.Ordinal).ToArray();
+        // Distinct and fully ordered: the digest must depend on the engine set, not on how the
+        // caller assembled the list, and a list repeating the catalogue must not read as two engines.
+        var declaredEngines = engines.Distinct().OrderBy(engine => engine.Key, StringComparer.Ordinal)
+            .ThenBy(engine => engine.Revision, StringComparer.Ordinal)
+            .ThenBy(engine => engine.Digest, StringComparer.Ordinal).ToArray();
         if (!declaredEngines.Any(engine => engine == VerificationCatalog.Reference))
             Refuse("verification-engine-catalogue-required", "engines",
                 "The receipt does not carry the action and predicate catalogue that defined its observations.");
         if (declaredEngines.Any(engine => !IsDigest(engine.Digest)))
             Refuse("verification-engine-digest-invalid", "engines", "An engine identity has no SHA-256 digest.");
-        if (declaredEngines.Length < 2)
+        if (!declaredEngines.Any(engine => engine != VerificationCatalog.Reference))
             Refuse("verification-engine-required", "engines",
                 "The receipt names no interpreter beyond the catalogue, so it does not say what executed the cases.");
 
@@ -220,6 +224,31 @@ public sealed class VerificationReceipt
                 $"The run reports an outcome for {extra.CaseId}, which the suite does not declare.");
         if (answered.Count != outcomes.Count)
             Refuse("verification-outcome-duplicate", "outcomes", "Two outcomes answer the same case and row.");
+
+        // An outcome that observed anything must have observed every assertion its case declared.
+        // Without this a run could drop the one assertion it would have failed and still report
+        // Passed, which is the same defect as an empty case wearing a different hat. Observing
+        // nothing at all remains legal and remains Vacuous, which is not a pass either.
+        var declared = suite.Cases.ToDictionary(item => item.CaseId,
+            item => item.Assertions.Select(assertion => assertion.Key).ToHashSet(StringComparer.Ordinal), StringComparer.Ordinal);
+        foreach (var outcome in outcomes.Where(outcome => outcome.Observations.Count > 0))
+        {
+            if (!declared.TryGetValue(outcome.CaseId, out var keys)) continue;
+            var made = outcome.Observations
+                .Select(observation => observation.Target is null
+                    ? observation.PredicateId : $"{observation.PredicateId}:{observation.Target}")
+                .ToHashSet(StringComparer.Ordinal);
+            var where = outcome.RowId is null ? outcome.CaseId : $"{outcome.CaseId}[{outcome.RowId}]";
+            foreach (var missing in keys.Except(made).Order(StringComparer.Ordinal))
+                Refuse("verification-observation-missing", outcome.CaseId,
+                    $"{where} reports no observation for {missing}, which the case asserts.");
+            foreach (var extra in made.Except(keys).Order(StringComparer.Ordinal))
+                Refuse("verification-observation-unexpected", outcome.CaseId,
+                    $"{where} reports an observation for {extra}, which the case does not assert.");
+            if (made.Count != outcome.Observations.Count)
+                Refuse("verification-observation-duplicate", outcome.CaseId,
+                    $"{where} reports two observations for one assertion.");
+        }
 
         refusals = Array.AsReadOnly(found.ToArray());
         if (found.Count > 0) throw new VerificationSuiteRefusedException(refusals);
