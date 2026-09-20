@@ -13,6 +13,7 @@ export function readDefinitionJson(json: string): Json {
   const parsed: Json = JSON.parse(json)
   let offset = 0
   let duplicate: string | undefined
+  let nonfinite: string | undefined
   const whitespace = () => { while (/[\x20\t\r\n]/.test(json[offset] ?? '\0')) offset++ }
   const string = (): string => {
     const start = offset++
@@ -55,10 +56,15 @@ export function readDefinitionJson(json: string): Json {
     } else if (char === '"') {
       string()
     } else {
+      const start = offset
       while (offset < json.length && !/[\x20\t\r\n,\]}]/.test(json[offset])) offset++
+      const token = json.slice(start, offset)
+      if (location.startsWith('/envelope/provenance/') && /^-?\d/.test(token) &&
+          !Number.isFinite(Number(token)) && nonfinite === undefined) nonfinite = location
     }
   }
   walk('', 0)
   if (duplicate !== undefined) throw new DefinitionReadError('rules.definition.duplicate_member', duplicate)
+  if (nonfinite !== undefined) throw new DefinitionReadError('rules.definition.invalid_document', nonfinite)
   return parsed
 }

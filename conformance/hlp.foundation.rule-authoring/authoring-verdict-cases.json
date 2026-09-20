@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "capability": "calculations",
-  "description": "The calculations authoring-lane cross-check corpus: 12 cases derived from the frozen calculations behavior map's anchor set (compile bridge, admission fence, rule-graph). Each case is driven through BOTH packed authoring lanes (@harborline-software/rule-authoring over @harborline-software/rule-engine, and Harborline.Foundation.RuleAuthoring over Harborline.Foundation.RuleEngine); each lane asserts the pinned expected verdict AND the engine lane cross-checks verdict identity against the renderer lane's written verdicts, case by case. Drafts are the authoring-model JSON; expression values are raw JSON (the .NET lane stringifies for its RuleDefinition wire shape).",
+  "description": "The calculations authoring-lane cross-check corpus: 12 cases derived from the frozen calculations behavior map's anchor set (compile bridge, typed source intent, rule-graph). Each case is driven through BOTH packed authoring lanes (@harborline-software/rule-authoring over @harborline-software/rule-engine, and Harborline.Foundation.RuleAuthoring over Harborline.Foundation.RuleEngine); each lane asserts the pinned expected verdict AND the engine lane cross-checks verdict identity against the renderer lane's written verdicts, case by case. Preview drafts are the authoring-model JSON; intent cases use provider-neutral typed source. TS validates intent only; native shared-store behavior is checked separately. Automatic patch allocation is retired; expression values are raw JSON (the .NET lane stringifies for its RuleDefinition wire shape).",
   "cases": [
     {
       "id": "table-fires-low-band",
@@ -96,66 +96,40 @@
       "expected": {"value": 200, "firedRowId": null, "traceCodes": ["rule.trace.value_computed"]}
     },
     {
-      "id": "publish-blank-otherwise-refused",
-      "op": "publish-refusal",
-      "ruleKey": "blank-route",
-      "draft": {
-        "skin": "table",
-        "scope": "Field",
-        "scopeTarget": "outcome",
-        "outputType": "Compute",
-        "hitPolicy": "first-match",
-        "columns": [{"id": "c1", "input": "amount", "valueType": "number"}],
-        "rows": [{"id": "r1", "cells": {"c1": {"kind": "range", "lo": "0", "hi": ""}}, "output": "", "priority": 0}],
-        "noMatch": {"kind": "default", "value": ""}
-      },
-      "expected": {"ok": false, "code": "rule.skin.no_match_unresolved"}
+      "id": "intent-blank-otherwise-refused",
+      "op": "definition-intent",
+      "sourceJson": "{\"envelope\":{\"id\":\"invoice-total\",\"version\":\"1.2.3\",\"tenant\":\"tenant-a\",\"cascadeLayer\":\"domain-package\",\"provenance\":{\"kind\":\"package\",\"id\":\"finance\"},\"requires\":[\"records.invoice@2.0.0\"]},\"name\":\"Invoice total\",\"tier\":\"JsonLogic\",\"draft\":{\"kind\":\"Table\",\"scope\":\"Field\",\"scopeTarget\":\"total\",\"outputType\":\"Compute\",\"hitPolicy\":\"Priority\",\"columns\":[{\"id\":\"amount\",\"input\":\"field.amount\",\"valueType\":\"Number\"}],\"rows\":[{\"id\":\"low\",\"cells\":{\"amount\":{\"kind\":\"Range\",\"lo\":\"0\",\"hi\":\"100\"}},\"output\":\"low\",\"priority\":1}],\"noMatch\":{\"kind\":\"Default\",\"value\":\"\"}}}",
+      "expected": {
+        "ok": false,
+        "code": "rule.skin.no_match_unresolved"
+      }
     },
     {
-      "id": "publish-undeclared-ref-refused",
-      "op": "publish-refusal",
-      "ruleKey": "bad-formula",
-      "draft": {
-        "skin": "formula",
-        "scope": "Field",
-        "scopeTarget": "outcome",
-        "outputType": "Compute",
-        "inputs": [],
-        "expression": {"kind": "ref", "ref": "bonus"}
-      },
-      "expected": {"ok": false, "code": "rule.skin.formula_undeclared_ref"}
+      "id": "intent-undeclared-ref-refused",
+      "op": "definition-intent",
+      "sourceJson": "{\"envelope\":{\"id\":\"invoice-total\",\"version\":\"1.2.3\",\"tenant\":\"tenant-a\",\"cascadeLayer\":\"domain-package\",\"provenance\":{\"kind\":\"package\",\"id\":\"finance\"},\"requires\":[\"records.invoice@2.0.0\"]},\"name\":\"Invoice total\",\"tier\":\"JsonLogic\",\"draft\":{\"kind\":\"Formula\",\"scope\":\"Field\",\"scopeTarget\":\"total\",\"outputType\":\"Compute\",\"inputs\":[],\"expression\":{\"kind\":\"Ref\",\"name\":\"field.bonus\"}}}",
+      "expected": {
+        "ok": false,
+        "code": "rule.skin.formula_undeclared_ref"
+      }
     },
     {
-      "id": "publish-monotonic-mint",
-      "op": "publish-mint",
-      "ruleKey": "route",
-      "draft": {
-        "skin": "table",
-        "scope": "Field",
-        "scopeTarget": "outcome",
-        "outputType": "Compute",
-        "hitPolicy": "first-match",
-        "columns": [{"id": "c1", "input": "amount", "valueType": "number"}],
-        "rows": [{"id": "r1", "cells": {"c1": {"kind": "range", "lo": "0", "hi": "100"}}, "output": "low", "priority": 0}],
-        "noMatch": {"kind": "default", "value": "high"}
-      },
-      "expected": {"versions": ["1.0.0", "1.0.1"]}
+      "id": "table-source-intent",
+      "op": "definition-intent",
+      "sourceJson": "{\"envelope\":{\"id\":\"invoice-total\",\"version\":\"1.2.3\",\"tenant\":\"tenant-a\",\"cascadeLayer\":\"domain-package\",\"provenance\":{\"kind\":\"package\",\"id\":\"finance\"},\"requires\":[\"records.invoice@2.0.0\"]},\"name\":\"Invoice total\",\"tier\":\"JsonLogic\",\"draft\":{\"kind\":\"Table\",\"scope\":\"Field\",\"scopeTarget\":\"total\",\"outputType\":\"Compute\",\"hitPolicy\":\"Priority\",\"columns\":[{\"id\":\"amount\",\"input\":\"field.amount\",\"valueType\":\"Number\"}],\"rows\":[{\"id\":\"low\",\"cells\":{\"amount\":{\"kind\":\"Range\",\"lo\":\"0\",\"hi\":\"100\"}},\"output\":\"low\",\"priority\":1}],\"noMatch\":{\"kind\":\"Default\",\"value\":\"high\"}}}",
+      "expected": {
+        "ok": true,
+        "code": null
+      }
     },
     {
-      "id": "publish-downgrade-refused",
-      "op": "downgrade",
-      "ruleKey": "watermarked",
-      "seedVersions": ["2.4.9", "2.5.0"],
-      "downgrade": "2.4.10",
-      "draft": {
-        "skin": "formula",
-        "scope": "Field",
-        "scopeTarget": "outcome",
-        "outputType": "Compute",
-        "inputs": [],
-        "expression": null
-      },
-      "expected": {"refused": true, "versions": ["2.4.9", "2.5.0"], "nextVersion": "2.5.1"}
+      "id": "formula-source-intent",
+      "op": "definition-intent",
+      "sourceJson": "{\"envelope\":{\"id\":\"invoice-total\",\"version\":\"1.2.3\",\"tenant\":\"tenant-a\",\"cascadeLayer\":\"domain-package\",\"provenance\":{\"kind\":\"package\",\"id\":\"finance\"},\"requires\":[\"records.invoice@2.0.0\"]},\"name\":\"Invoice total\",\"tier\":\"JsonLogic\",\"draft\":{\"kind\":\"Formula\",\"scope\":\"Field\",\"scopeTarget\":\"total\",\"outputType\":\"Compute\",\"inputs\":[{\"id\":\"amount\",\"ref\":\"field.amount\",\"type\":\"Number\"}],\"expression\":{\"kind\":\"Ref\",\"name\":\"field.amount\"}}}",
+      "expected": {
+        "ok": true,
+        "code": null
+      }
     },
     {
       "id": "graph-cycle-compile-refused",

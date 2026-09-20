@@ -9,7 +9,7 @@ function formula() {
       id: 'invoice-total', version: '1.2.3', tenant: 'tenant-a', cascadeLayer: 'domain-package',
       provenance: { kind: 'package', id: 'finance' }, requires: ['records.invoice@2.0.0'],
     },
-    name: 'Invoice total', tier: 'JsonLogic', versionPolicy: { kind: 'Latest', version: null },
+    name: 'Invoice total', tier: 'JsonLogic',
     draft: {
       kind: 'Formula', scope: 'Field', scopeTarget: 'total', outputType: 'Compute',
       inputs: [{ id: 'amount', ref: 'field.amount', type: 'Number' }],
@@ -37,6 +37,17 @@ function set(source: object, path: string[], value: unknown): void {
 }
 
 describe('provider-neutral Rules definition intent', () => {
+  it('admits authored source without a consumer resolution policy', () => {
+    const source: Record<string, unknown> = formula()
+    delete source.versionPolicy
+
+    const result = validateRuleDefinitionJson(JSON.stringify(source), 'Author')
+
+    expect(result.diagnostics).toEqual([])
+    expect(result.document).not.toBeNull()
+    expect(JSON.parse(serializeRuleDefinition(result.document!))).toEqual(source)
+  })
+
   it.each([['formula', formula], ['table', table]] as const)('round-trips the native %s source without losing envelope or skin', (_name, create) => {
     const source = create()
     const result = validateRuleDefinitionJson(JSON.stringify(source), 'Author')
@@ -211,10 +222,17 @@ describe('provider-neutral Rules definition intent', () => {
     expect(Object.prototype).not.toHaveProperty('safe')
   })
 
-  it('exposes the engine limit object and preserves pinned version labels', () => {
+  it.each(['Author', 'Publish', 'Persisted'] as const)('refuses a consumer selector in authored source at %s', phase => {
+    const source = { ...formula(), versionPolicy: { kind: 'Latest', version: null } }
+    expect(validateRuleDefinitionJson(JSON.stringify(source), phase).diagnostics).toEqual([
+      { code: 'rules.definition.unknown_member', location: '/versionPolicy', phase },
+    ])
+  })
+
+  it('exposes the engine limit object and preserves authored version labels', () => {
     expect(ruleIntentSchema.limits).toBe(DEFAULT_LIMITS)
     const source = formula()
-    set(source, ['versionPolicy'], { kind: 'Pinned', version: '2147483648.0.0-alpha.10+build.01' })
+    set(source, ['envelope', 'version'], '2147483648.0.0-alpha.10+build.01')
     expect(validateRuleDefinitionJson(JSON.stringify(source), 'Publish').document).toEqual(source)
   })
 

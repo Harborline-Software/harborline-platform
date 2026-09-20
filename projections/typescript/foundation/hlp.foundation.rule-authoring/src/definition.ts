@@ -49,7 +49,6 @@ export interface RuleDefinitionDocument {
   envelope: RuleDefinitionEnvelope
   name: string
   tier: RuleTier
-  versionPolicy: { kind: 'Latest' | 'Draft'; version: null } | { kind: 'Pinned'; version: string }
   draft: RuleDefinitionFormula | RuleDefinitionTable
 }
 
@@ -242,7 +241,7 @@ function readDraft(value: Json): RuleDefinitionDocument['draft'] {
 }
 
 function readDocument(value: Json): RuleDefinitionDocument {
-  const root = object(value, '', ['envelope', 'name', 'tier', 'versionPolicy', 'draft'])
+  const root = object(value, '', ['envelope', 'name', 'tier', 'draft'])
   const p = '/envelope'
   const metadata = object(member(root, 'envelope', ''), p, ['id', 'version', 'tenant', 'cascadeLayer', 'provenance', 'requires'])
   const version = string(metadata, 'version', p)
@@ -250,19 +249,9 @@ function readDocument(value: Json): RuleDefinitionDocument {
   const envelope = { id: string(metadata, 'id', p, true), version, tenant: string(metadata, 'tenant', p, true),
     cascadeLayer: string(metadata, 'cascadeLayer', p, true), provenance,
     requires: array(metadata, 'requires', p).map((item, i) => text(item, `${p}/requires/${i}`)) }
-  const pp = '/versionPolicy'
-  const policy = object(member(root, 'versionPolicy', ''), pp, ['kind', 'version'])
-  const kind = choice(policy, 'kind', pp, ['Latest', 'Pinned', 'Draft'] as const, 'rules.definition.invalid_version_policy')
-  const label = member(policy, 'version', pp)
-  let versionPolicy: RuleDefinitionDocument['versionPolicy']
-  if (kind === 'Pinned') versionPolicy = { kind, version: text(label, `${pp}/version`) }
-  else {
-    if (label !== null) refuse('rules.definition.invalid_version_policy', `${pp}/version`)
-    versionPolicy = { kind, version: null }
-  }
   return { envelope, name: string(root, 'name', '', true),
     tier: choice(root, 'tier', '', ['JsonSchema', 'JsonLogic', 'PowerFx'] as const, 'rule.compile.unsupported_tier'),
-    versionPolicy, draft: readDraft(member(root, 'draft', '')) }
+    draft: readDraft(member(root, 'draft', '')) }
 }
 
 const editorType: Record<RuleDefinitionValueType, ColumnValueType> = { Number: 'number', Text: 'text', Boolean: 'boolean' }

@@ -15,6 +15,18 @@ public sealed class InMemoryVersionedDefinitionStore : IVersionedDefinitionStore
     // Opaque immutable strings replace Layout's serialize/deserialize snapshot. Member admission
     // replaces LayoutDefinitionAdmission; no Layout type or grammar remains in the shared store.
     private readonly object _gate = new();
+    /// <inheritdoc />
+    public ValueTask<IReadOnlyList<DefinitionKey>> ListKeysAsync(string tenant, DefinitionKind kind,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        ValidateNamespace(tenant, kind);
+        lock (_gate)
+            return ValueTask.FromResult<IReadOnlyList<DefinitionKey>>(_history.Keys
+                .Where(key => key.Tenant == tenant && key.Kind == kind)
+                .OrderBy(key => key.DefinitionId, StringComparer.Ordinal).ToArray());
+    }
+
     private readonly IReadOnlyDictionary<DefinitionKind, DefinitionAdmission> _admissions;
     private readonly Dictionary<(DefinitionKey Key, string VersionId), DefinitionRevision> _revisions = [];
     private readonly Dictionary<DefinitionKey, List<DefinitionRevision>> _history = [];
@@ -194,10 +206,15 @@ public sealed class InMemoryVersionedDefinitionStore : IVersionedDefinitionStore
     private void ValidateKey(DefinitionKey key)
     {
         ArgumentNullException.ThrowIfNull(key);
-        if (!Enum.IsDefined(key.Kind) || !_admissions.ContainsKey(key.Kind))
-            throw Refuse("definition.registry_unknown", "/registry");
-        Require(key.Tenant, "definition.tenant_required", "/tenant");
+        ValidateNamespace(key.Tenant, key.Kind);
         Require(key.DefinitionId, "definition.id_required", "/definitionId");
+    }
+
+    private void ValidateNamespace(string tenant, DefinitionKind kind)
+    {
+        if (!Enum.IsDefined(kind) || !_admissions.ContainsKey(kind))
+            throw Refuse("definition.registry_unknown", "/registry");
+        Require(tenant, "definition.tenant_required", "/tenant");
     }
 
     private DefinitionRevision Find(DefinitionKey key, string versionId)

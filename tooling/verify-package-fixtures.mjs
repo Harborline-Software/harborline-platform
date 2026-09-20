@@ -742,7 +742,7 @@ function verifyRuleAuthoringNpm() {
     return resolve(npmArtifacts, engineNames[0])
   })()
   writeFileSync(resolve(consumer, 'package.json'), '{"private":true,"type":"module"}\n')
-  writeFileSync(resolve(consumer, 'exercise.mjs'), `import assert from 'node:assert/strict'\nimport {blankTableDraft, InMemoryRuleCatalogStore, publishRule, RuleCatalog} from '@harborline-software/rule-authoring'\nconst catalog = new RuleCatalog(new InMemoryRuleCatalogStore())\nconst blank = blankTableDraft()\nawait catalog.createRule({ruleKey: 'route', name: 'Route', skinType: 'table', draft: blank})\nconst refused = await publishRule(catalog, 'route', blank)\nassert.deepEqual(refused, {ok: false, code: 'rule.skin.no_match_unresolved', message: 'no-match is unresolved'})\nconst resolvedDraft = {...blank, rows: [{id: 'r1', cells: {[blank.columns[0].id]: {kind: 'range', lo: '0', hi: '100'}}, output: 'low', priority: 0}], noMatch: {kind: 'default', value: 'high'}}\nconst published = await publishRule(catalog, 'route', resolvedDraft)\nassert.equal(published.ok && published.version, '1.0.0')\nprocess.stdout.write('packed npm authoring bridge refused the unresolved no-match and minted 1.0.0 through the fence\\n')\n`)
+  writeFileSync(resolve(consumer, 'exercise.mjs'), readFileSync(resolve(root, 'tests/package-consumers/rule-authoring-npm/exercise.mjs'), 'utf8'))
   run('npm', ['install', '--ignore-scripts', '--no-audit', '--no-fund', '--package-lock=false', artifact, packedEngine], { cwd: consumer })
   const output = run(process.execPath, ['exercise.mjs'], { cwd: consumer }).trim()
   const installed = resolve(consumer, 'node_modules/@harborline-software/rule-authoring')
@@ -1212,12 +1212,14 @@ function verifyWorkflowsCapability() {
 
 function verifyCalculationsCapability() {
   const corpusSource = resolve(root, 'conformance/hlp.foundation.rule-authoring/authoring-verdict-cases.json')
+  const intentSource = resolve(root, 'conformance/hlp.foundation.rule-authoring/definition-intent-cases.json')
   const corpusCases = JSON.parse(readFileSync(corpusSource, 'utf8')).cases.length
   if (corpusCases !== 12) throw new Error(`Calculations authoring corpus must carry exactly 12 cases: ${corpusCases}`)
 
   const rendererConsumer = resolve(fixtureRoot, 'calculations-npm-consumer')
   cpSync(resolve(root, 'tests/package-consumers/calculations-npm'), rendererConsumer, { recursive: true })
   copyFileSync(corpusSource, resolve(rendererConsumer, 'authoring-verdict-cases.json'))
+  copyFileSync(intentSource, resolve(rendererConsumer, 'definition-intent-cases.json'))
   installPackedArtifacts(rendererConsumer, ['harborline-software-rule-authoring-', 'harborline-software-rule-engine-'], 'Calculations renderer')
   assertPackedInstall(rendererConsumer, ['rule-authoring', 'rule-engine'], 'Calculations renderer')
   const [rendererBehavior] = proofLines(clientRun(rendererConsumer), ['CALCULATIONS_CLIENT_PASS:'], 'Calculations packed renderer lane')
@@ -1230,10 +1232,12 @@ function verifyCalculationsCapability() {
   const enginePackageCache = resolve(fixtureRoot, 'calculations-nuget-packages')
   cpSync(resolve(root, 'tests/package-consumers/calculations-nuget'), engineConsumer, { recursive: true })
   copyFileSync(corpusSource, resolve(engineConsumer, 'authoring-verdict-cases.json'))
+  copyFileSync(intentSource, resolve(engineConsumer, 'definition-intent-cases.json'))
   copyFileSync(resolve(rendererConsumer, 'client-verdicts.json'), resolve(engineConsumer, 'client-verdicts.json'))
-  const engineDirectReferences = assertDirectPackageReferences(engineConsumer, ['Harborline.Foundation.RuleAuthoring'], 'Calculations engine')
+  const engineDirectReferences = assertDirectPackageReferences(engineConsumer, ['Harborline.Foundation.RuleAuthoring', 'Harborline.Blocks.BuilderDefinitions'], 'Calculations engine')
   const [engineSubstrate, engineBehavior] = proofLines(runNugetConsumer(engineConsumer, enginePackageCache), ['CALCULATIONS_PACKAGE_PASS:', 'CALCULATIONS_CAPABILITY_PASS:'], 'Calculations package-only capability vertical')
   const engineHarborlineNodes = assertPackageClosure(engineConsumer, [
+    'Harborline.Blocks.BuilderDefinitions',
     'Harborline.Foundation.RuleAuthoring',
     'Harborline.Foundation.RuleEngine',
     'Harborline.Contracts',

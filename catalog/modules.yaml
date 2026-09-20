@@ -247,11 +247,11 @@
       }
     },
     "hlp.blocks.builder-definitions": {
-      "interface": {"path": "specs/modules/blocks/hlp.blocks.builder-definitions/interface.yaml", "revision": 4},
+      "interface": {"path": "specs/modules/blocks/hlp.blocks.builder-definitions/interface.yaml", "revision": 5},
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "Definition catalogue, package export, and replay are projection-neutral and have no presentation surface."},
       "owner": "platform-foundation",
-      "dependencies": [],
+      "dependencies": ["hlp.foundation.rule-authoring"],
       "status": "draft-native-green",
       "depth": {
         "disposition": "deep-module",
@@ -271,7 +271,7 @@
             "id": "Harborline.Blocks.BuilderDefinitions",
             "assembly": "Harborline.Blocks.BuilderDefinitions",
             "manifest": "projections/dotnet/blocks/hlp.blocks.builder-definitions/Harborline.Blocks.BuilderDefinitions.csproj",
-            "dependencies": [],
+            "dependencies": ["Harborline.Foundation.RuleAuthoring"],
             "identityAuthority": "Harborline",
             "producerRepository": "harborline-platform",
             "distribution": "internal-only",
@@ -714,9 +714,9 @@
       }
     },
     "hlp.foundation.rule-authoring": {
-      "interface": {"path": "specs/modules/foundation/hlp.foundation.rule-authoring/interface.yaml", "revision": 1},
+      "interface": {"path": "specs/modules/foundation/hlp.foundation.rule-authoring/interface.yaml", "revision": 2},
       "moduleKind": "runtime",
-      "presentation": {"disposition": "not-applicable", "rationale": "The authoring bridge produces drafts, lint findings, publish verdicts, and catalog records consumed by separate editor surfaces; it renders nothing."},
+      "presentation": {"disposition": "not-applicable", "rationale": "The authoring bridge produces typed source, lint findings, intent diagnostics, and previews consumed by separate editor surfaces; it renders nothing."},
       "owner": "platform-foundation",
       "dependencies": ["hlp.foundation.rule-runtime"],
       "status": "implemented",
@@ -725,7 +725,7 @@
         "deletionTest": "PASS",
         "redistributedComplexity": [
           "draft-to-skin lowering, ECMAScript coercion parity, probe-derived fired-row attribution, and advisory lint reimplemented by every Calculations editor surface",
-          "compile-first publish admission and the append-only monotonic named-rule registry re-expressed as per-host choreography that could commit an unresolved or downgraded rule"
+          "strict source decoding and full compiler intent diagnostics shared by editors and authoritative store admission"
         ]
       },
       "projections": {

@@ -392,34 +392,66 @@ if (typeof(Harborline.Blocks.ActivityTimeline.IActivityEntrySource).Assembly.Get
     throw new InvalidOperationException("Blocks ActivityTimeline assembly identity changed.");
 if (typeof(Harborline.Blocks.ActivityTimeline.ActivityEntry).GetProperty("ProposedByActorId") is not null)
     throw new InvalidOperationException("Packed ActivityEntry exposes a raw actor id — the sealing FAILED condition.");
-var packedAuthoringCatalog = new Harborline.Foundation.RuleAuthoring.RuleCatalog(
-    new Harborline.Foundation.RuleAuthoring.InMemoryRuleCatalogStore());
-var packedBlankTable = Harborline.Foundation.RuleAuthoring.RuleSeeds.BlankTableDraft();
-await packedAuthoringCatalog.CreateRuleAsync(
-    "consumer-route", "Consumer route", Harborline.Foundation.RuleAuthoring.RuleSkinType.Table, packedBlankTable);
-var packedRefusedPublish = await Harborline.Foundation.RuleAuthoring.PublishAdmission.PublishRuleAsync(
-    packedAuthoringCatalog, "consumer-route", packedBlankTable, "consumer-refused");
-if (packedRefusedPublish.Ok || packedRefusedPublish.Code != Harborline.Foundation.RuleEngine.Skins.SkinCodes.NoMatchUnresolved)
-    throw new InvalidOperationException("Packed authoring fence admitted an unresolved no-match table.");
-var packedResolvedTable = packedBlankTable with
+var packedRulesStore = new BuilderDefinitions.InMemoryVersionedDefinitionStore(
+    new Dictionary<BuilderDefinitions.DefinitionKind, BuilderDefinitions.DefinitionAdmission>
+    {
+        [BuilderDefinitions.DefinitionKind.Rules] = BuilderDefinitions.RuleDefinitionCatalog.Admit,
+    });
+var packedRulesKey = new BuilderDefinitions.DefinitionKey(
+    "tenant-consumer", BuilderDefinitions.DefinitionKind.Rules, "consumer-route");
+var packedRulesLifecyclePath = Path.Combine(Path.GetTempPath(), $"hlp-packed-rules-{Guid.NewGuid():N}.json");
+try
 {
-    Rows =
-    [
-        new Harborline.Foundation.RuleAuthoring.TableRow(
-            "r1",
-            new Dictionary<string, Harborline.Foundation.RuleAuthoring.TableCell>
-            {
-                [packedBlankTable.Columns[0].Id] = new Harborline.Foundation.RuleAuthoring.TableCell.Range("0", "100"),
-            },
-            "low",
-            0),
-    ],
-    NoMatch = new Harborline.Foundation.RuleAuthoring.NoMatchPosture.Default("high"),
-};
-var packedAdmittedPublish = await Harborline.Foundation.RuleAuthoring.PublishAdmission.PublishRuleAsync(
-    packedAuthoringCatalog, "consumer-route", packedResolvedTable, "consumer-admitted");
-if (!packedAdmittedPublish.Ok || packedAdmittedPublish.Version != "1.0.0")
-    throw new InvalidOperationException("Packed authoring fence failed to mint 1.0.0 for a resolved table.");
+    using var packedRulesLifecycle = new BuilderDefinitions.FileJournalDefinitionLifecycleStore(packedRulesLifecyclePath);
+    var packedAuthoringCatalog = new BuilderDefinitions.RuleDefinitionCatalog(packedRulesStore, packedRulesLifecycle);
+    var packedRuleSource = System.Text.Json.Nodes.JsonNode.Parse("""
+        {
+          "envelope":{"id":"consumer-route","version":"1.0.0","tenant":"tenant-consumer",
+            "cascadeLayer":"domain-package","provenance":{"id":"finance"},"requires":[]},
+          "name":"Consumer route","tier":"JsonLogic",
+          "draft":{"kind":"Table","scope":"Field","scopeTarget":"route","outputType":"Compute",
+            "hitPolicy":"FirstMatch","columns":[{"id":"amount","input":"field.amount","valueType":"Number"}],
+            "rows":[{"id":"r1","cells":{"amount":{"kind":"Range","lo":"0","hi":"100"}},"output":"low","priority":0}],
+            "noMatch":{"kind":"Default","value":""}}
+        }
+        """)!;
+    try
+    {
+        await packedAuthoringCatalog.SaveDraftJsonAsync(packedRuleSource.ToJsonString(), "version-a", 0, "refused");
+        throw new InvalidOperationException("Packed Rules admission accepted unresolved no-match.");
+    }
+    catch (BuilderDefinitions.DefinitionRefusalException refusal)
+    {
+        if (!refusal.Refusals.Any(item => item.Code == "rule.skin.no_match_unresolved"
+            && item.Pointer == "/draft/noMatch"))
+            throw;
+    }
+    if ((await packedRulesStore.ListHistoryAsync(packedRulesKey)).Count != 0)
+        throw new InvalidOperationException("Refused packed Rules source created history.");
+
+    packedRuleSource["draft"]!["noMatch"]!["value"] = "high";
+    await packedAuthoringCatalog.SaveDraftJsonAsync(packedRuleSource.ToJsonString(), "version-a", 0, "draft");
+    var packedPublication = await packedAuthoringCatalog.PublishAsync(packedRulesKey, "version-a", 1, "publish");
+    var packedReplay = await packedAuthoringCatalog.PublishAsync(packedRulesKey, "version-a", 1, "publish");
+    if (packedPublication != packedReplay || (await packedRulesStore.ListHistoryAsync(packedRulesKey)).Count != 2)
+        throw new InvalidOperationException("Packed Rules publication did not replay exactly once.");
+    var packedLoadedRule = (await packedAuthoringCatalog.LoadVersionAsync(packedRulesKey, "version-a"))!;
+    if (!System.Text.Json.Nodes.JsonNode.DeepEquals(packedRuleSource,
+        System.Text.Json.Nodes.JsonNode.Parse(Harborline.Foundation.RuleAuthoring.RuleDefinitionCodec.SerializeCanonical(packedLoadedRule.Source))))
+        throw new InvalidOperationException("Packed Rules source did not round-trip.");
+
+    var packedRestoredRule = await packedAuthoringCatalog.RestoreAsDraftAsync(
+        packedRulesKey, "version-a", "version-b", "2.0.0", 2, "restore");
+    if (packedRestoredRule.Document.BodyJson != packedPublication.Document.BodyJson
+        || (await packedAuthoringCatalog.LoadVersionAsync(packedRulesKey, "version-b"))!.Source.Envelope.Version != "2.0.0"
+        || await packedRulesStore.ResolvePublishedAsync(new(packedRulesKey, "version-a")) != packedPublication
+        || await packedRulesStore.ResolvePublishedAsync(new(packedRulesKey, "version-b")) is not null)
+        throw new InvalidOperationException("Packed Rules restore changed a publication or exposed a draft.");
+}
+finally
+{
+    File.Delete(packedRulesLifecyclePath);
+}
 if (typeof(ITenantContext).Assembly.GetName().Name != "Harborline.Foundation.MultiTenancy")
     throw new InvalidOperationException("MultiTenancy assembly identity changed.");
 if (typeof(IPartyContext).Assembly.GetName().Name != "Harborline.Foundation.Authorization")
