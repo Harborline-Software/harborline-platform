@@ -8,7 +8,7 @@ import { dirname, relative, resolve } from 'node:path'
 import { npmPackageContributionErrors } from './package-contribution-policy.mjs'
 import {requiredStepIds} from './gate-contract.mjs'
 import {moduleStatusErrors,
-  allowedPresentationDispositions, dependencylessVitestConfigError, interfaceDependencyMismatch, npmPublicDistributionAuthorized, nugetPublicDistributionAuthorized, presentationPolicyErrors, requiresQualityProfile, retiredProvenanceFieldErrors, rootScopedThemeAliasError, themingPolicyErrors} from './validator-policy.mjs'
+  allowedPresentationDispositions, dependencylessVitestConfigError, interfaceDependencyMismatch, isGateFailureEvidence, npmPublicDistributionAuthorized, nugetPublicDistributionAuthorized, presentationPolicyErrors, requiresQualityProfile, retiredProvenanceFieldErrors, rootScopedThemeAliasError, themingPolicyErrors} from './validator-policy.mjs'
 import {uiClassVocabularyErrors} from './ui-class-vocabulary.mjs'
 import {validateGallery} from './validate-gallery.mjs'
 
@@ -343,8 +343,12 @@ if (JSON.stringify(normalizedRows(catalogProjectionRows)) !== JSON.stringify(nor
   errors.push('catalog/projections.yaml differs from the authoritative module catalog')
 }
 
-const allFiles = files(root)
-const localPaths = allFiles.map(path => relative(root, path).replaceAll('\\', '/'))
+// The gate's own failure evidence is dropped here rather than exempted at the prohibited-path
+// check, because every rule below reads file CONTENT and a captured stack quotes paths and imports
+// the content rules ban too. See isGateFailureEvidence for the shape and for what still fails.
+const localPaths = files(root)
+  .map(path => relative(root, path).replaceAll('\\', '/'))
+  .filter(local => !isGateFailureEvidence(local))
 const packableManifests = []
 const publicDistributionAuthorizedManifests = []
 for (const local of localPaths.filter(path => path.endsWith('package.json') && path.startsWith('projections/'))) {
@@ -502,7 +506,7 @@ const report = {
     modules: Object.keys(catalog.modules ?? {}).length,
     projections: catalogProjectionRows.length,
     artifacts: artifactIds.size,
-    sourceFiles: allFiles.length,
+    sourceFiles: localPaths.length,
     packableManifests: packableManifests.length,
     distributionAuthorizedManifests: publicDistributionAuthorizedManifests.length,
     galleryApplications: galleryReport?.checks?.privateApplications ?? 0,
