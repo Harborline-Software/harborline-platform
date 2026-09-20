@@ -182,7 +182,8 @@ try {
   run('prop-vocabulary', process.execPath, ['tooling/gates/scan-prop-vocabulary.mjs', '--json'], root, true)
   // A static sweep over source, so it belongs with the cheap checks rather than behind the
   // thirty-eight-minute half. The shared EXPIRED rule includes non-terminal UI modules and
-  // ticket 334's dated backlog. Other unfinished gates remain a recorded worklist.
+  // ticket 334's backlog, which T-631 froze by digest and un-dated. Other unfinished gates remain
+  // a recorded worklist.
   run('ui-gate-model', process.execPath, ['tooling/gates/run-ui-gate-model.mjs', '--json'], root, true)
   run('build', process.execPath, ['tooling/run-native.mjs', '--build'], root, true)
   runReusable('native-tests', process.execPath, ['tooling/run-native.mjs'], root, true)
