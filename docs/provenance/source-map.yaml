@@ -481,7 +481,7 @@
         "projections/dotnet/blocks/hlp.blocks.entity-views.tests/AccessViewFilterTests.cs": "1513eeda4a45853f3acd5baff271a80be9ede903a2e4dc908603fda91b0dc506",
         "projections/dotnet/blocks/hlp.blocks.entity-views.tests/ViewQueryRuntimeTests.cs": "549441e12b986de19e1767ed366987bf77500002a96baa63f63fbc230222c5f5",
         "specs/modules/blocks/hlp.blocks.entity-views/interface.yaml": "eb6b19cac6460a867bd01e5c1d2bee8510bf2f1781ada8e3fd3615373c837ed1",
-        "tests/package-consumers/views-nuget/Program.cs": "56a1d9408537d90b5c680d8671608c501b98917d249f7dce4cd4fcc7b3835eee",
+        "tests/package-consumers/views-nuget/Program.cs": "a30937b2afabaa584862abbee800b66a4ffb89159226bd6dedaaf07ad14a1242",
         "tests/package-consumers/views-nuget/AccessContractProof.cs": "083e2238c397450f72dee5fd6edb620c327f728c0acca54326392dec21bdd308",
         "projections/dotnet/blocks/hlp.blocks.entity-views/CatalogueViewMeasures.cs": "adbe71355a40402425bc5bad1f3440c62b218ceda27629e529d864e00bc5af86"
       },
