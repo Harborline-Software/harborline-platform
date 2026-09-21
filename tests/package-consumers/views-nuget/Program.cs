@@ -35,11 +35,11 @@ Console.WriteLine($"VIEWS_AUTHORED_BOUND_PASS:{JsonSerializer.Serialize(new { au
 
 async Task ProveAuthoredAndBoundQuery()
 {
-    var kinds = new QueryKinds();
+    var kinds = ViewKindRegistry.Platform;
     var records = new QueryRecordTypes();
     var measures = new QueryMeasures();
     var binding = new ViewBinding(
-        "layout.table",
+        ViewKindIds.Table,
         new Dictionary<ViewShapeRole, string> { [ViewShapeRole.Title] = "title" });
     var definition = new ViewDefinition(
         new(
@@ -344,15 +344,6 @@ sealed class ThrowingStore : IEntityReadStore
         public ValueTask<EntityDetail> CreateEntityAsync(CreateEntityBody body) => throw new NotSupportedException();
         public ValueTask<EdgeSummary> AddEdgeAsync(AddEdgeBody body) => throw new NotSupportedException();
     }
-}
-
-sealed class QueryKinds : IViewKindRegistry
-{
-    private static readonly ViewKindDescriptor Table = new("layout.table", "hlp.ui.data-grid", [ViewShapeRole.Title]);
-    public ValueTask<ViewKindDescriptor?> ResolveAsync(string kind, CancellationToken cancellationToken = default) =>
-        ValueTask.FromResult<ViewKindDescriptor?>(kind == Table.Kind ? Table : null);
-    public ValueTask<IReadOnlyList<ViewKindDescriptor>> ListAsync(CancellationToken cancellationToken = default) =>
-        ValueTask.FromResult<IReadOnlyList<ViewKindDescriptor>>([Table]);
 }
 
 sealed class QueryRecordTypes : IViewRecordTypeRegistry

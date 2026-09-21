@@ -1,8 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { ViewRuntime, type ViewRenderPlan, type ViewRuntimeRow } from '@harborline-software/ui-react'
+import { VIEW_KIND_TABLE, ViewRuntime, type ViewRenderPlan, type ViewRuntimeRow } from '@harborline-software/ui-react'
 
 type ScenarioId = 'view-runtime.grid' | 'view-runtime.unknown-kind' | 'view-runtime.empty-rows' | 'view-runtime.long-content'
-const gridPlan: ViewRenderPlan = { definitionHash: 'sha256:view-assets', definitionId: 'view-assets', definitionVersion: '1', packKey: 'harborline.platform', packVersion: '1.0.0', definitionKind: 'ViewDefinition', bindings: { viewKind: 'views.entity-list/grid', parameters: { fields: [{ id: 'asset', label: 'Asset' }, { id: 'status', label: 'Status' }, { id: 'owner', label: 'Owner' }] } } }
+const gridPlan: ViewRenderPlan = { definitionHash: 'sha256:view-assets', definitionId: 'view-assets', definitionVersion: '1', packKey: 'harborline.platform', packVersion: '1.0.0', definitionKind: 'ViewDefinition', bindings: { viewKind: VIEW_KIND_TABLE, parameters: { fields: [{ id: 'asset', label: 'Asset' }, { id: 'status', label: 'Status' }, { id: 'owner', label: 'Owner' }] } } }
 const unknownPlan: ViewRenderPlan = { ...gridPlan, bindings: { ...gridPlan.bindings, viewKind: 'views.unknown' } }
 const gridRows: readonly ViewRuntimeRow[] = [{ id: 'a1', asset: 'Pier', status: 'Open', owner: 'Riley' }, { id: 'a2', asset: 'Pump', status: 'Review', owner: 'Morgan' }]
 const longContentRows: readonly ViewRuntimeRow[] = [{ id: 'a1', asset: 'A caller-owned value that is deliberately long enough to exercise the runtime handoff.', status: 'Open', owner: 'Riley' }]

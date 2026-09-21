@@ -1,3 +1,5 @@
+export const VIEW_KIND_TABLE = 'layout.table' as const
+
 export interface ViewDefinitionField { readonly id: string; readonly label?: string }
 export interface ViewRenderPlanParameters { readonly fields?: readonly ViewDefinitionField[] }
 export interface ViewRuntimeAction { readonly id: string; readonly label: string }
