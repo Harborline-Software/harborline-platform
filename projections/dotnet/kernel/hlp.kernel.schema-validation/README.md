@@ -10,19 +10,25 @@ This package intentionally excludes schema migration, epoch coordination, compac
 `RecordsIntentValidator` reports structural refusals with stable codes and RFC 6901
 pointers. `RecordsDefinitionJson` preserves the typed declaration through canonical JSON.
 
-Compositions supply exact `AdmittedFieldKind` revisions through `FieldKindRegistry`.
-Each registration names its scalar value shape and optional governance defaults.
-Unknown kinds and versions refuse compilation; a kind's name never selects its JSON type.
+Compositions inject the shared `IFieldKindRuntime`, backed by the foundation
+`FieldKindRuntime` and its exact immutable registrations. The kernel does not own a
+field-kind registry or guess built-in kinds. Unknown kinds, versions and invalid
+parameters retain their `field.*` refusals and authored pointers.
 
 `RecordsDefinitionCompiler.CompileSchema` admits and compiles a declaration without
 registering anything. `CompileAndRegisterAsync` registers the same schema text through
-`ISchemaRegistry`. Static compilation currently covers scalar shapes, literal domains,
-text patterns, string-length parameters, required fields, multiplicity and translation maps.
+`ISchemaRegistry`. Each scalar begins as a detached copy of the bound
+`ICompiledFieldKind.JsonSchema`, including exact kind metadata and every parameter.
+Records then overlays only its literal domain, pattern, requiredness, multiplicity and
+translation grammar. The registry used by composition receives the same field-kind runtime
+so runtime-only limits execute at validation time.
 `RecordsReferenceAdmission` supplies the shared target predicate for picker and write callers.
 
-`RecordsFieldKindDefaultMaterializer` copies creation defaults with kind/version provenance
-and preserves materialized author edits. A composing creation path must call it explicitly;
-compilation and publication do not silently supply defaults.
+`RecordsFieldKindDefaultMaterializer` binds every declared kind before copying creation
+defaults with kind/version provenance. It preserves materialized author edits and old
+provenance, while a later unresolved kind or invalid parameter still refuses. A composing
+creation path must call it explicitly; compilation and publication do not silently supply
+defaults.
 
 ## Boundaries and unfinished integration
 
@@ -37,7 +43,7 @@ execution. The static compiler is not a complete Records write pipeline or field
 
 ## Shared field-kind validation
 
-An optional `IFieldKindRuntime` constructor dependency binds `x-harborline-field-kind`
+A required `IFieldKindRuntime` constructor dependency binds `x-harborline-field-kind`
 metadata through shared Contracts. The field-runtime producer still owns every kind limit;
 the kernel has no foundation reference or duplicate limit implementation. The exact kind
 identity, version and parameters contribute to the schema's content address. A binding

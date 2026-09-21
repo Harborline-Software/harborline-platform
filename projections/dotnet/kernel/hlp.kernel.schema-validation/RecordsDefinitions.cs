@@ -140,19 +140,13 @@ public sealed record FieldReferenceDefinition(
 /// <summary>Materializes admitted field-kind defaults without reapplying them over author edits.</summary>
 public sealed class RecordsFieldKindDefaultMaterializer
 {
-    private readonly FieldKindRegistry _kinds;
+    private readonly IFieldKindRuntime _fieldKinds;
 
-    /// <summary>Creates a materializer over the admitted immutable kind revisions.</summary>
-    public RecordsFieldKindDefaultMaterializer(IEnumerable<AdmittedFieldKind> kinds)
-        : this(new FieldKindRegistry(kinds))
+    /// <summary>Uses the composing runtime's exact admitted kind revisions.</summary>
+    public RecordsFieldKindDefaultMaterializer(IFieldKindRuntime fieldKinds)
     {
-    }
-
-    /// <summary>Uses the same admitted kinds as definition compilation.</summary>
-    public RecordsFieldKindDefaultMaterializer(FieldKindRegistry kinds)
-    {
-        ArgumentNullException.ThrowIfNull(kinds);
-        _kinds = kinds;
+        ArgumentNullException.ThrowIfNull(fieldKinds);
+        _fieldKinds = fieldKinds;
     }
 
     /// <summary>
@@ -162,21 +156,18 @@ public sealed class RecordsFieldKindDefaultMaterializer
     public RecordTypeDefinition Materialize(RecordTypeDefinition definition)
     {
         ArgumentNullException.ThrowIfNull(definition);
-        var refusals = _kinds.Validate(definition);
-        if (refusals.Count > 0)
-        {
-            throw new RecordsDefinitionAdmissionException(refusals);
-        }
+        var bindings = RecordsFieldKindBindings.BindAll(definition, _fieldKinds);
 
         return definition with
         {
-            Fields = definition.Fields.Select(Materialize).ToArray(),
+            Fields = definition.Fields
+                .Select((field, index) => Materialize(field, bindings[index].Kind))
+                .ToArray(),
         };
     }
 
-    private RecordFieldDefinition Materialize(RecordFieldDefinition field)
+    private static RecordFieldDefinition Materialize(RecordFieldDefinition field, AdmittedFieldKind kind)
     {
-        var kind = _kinds.Resolve(field.Kind);
         if (field.KindDefaultProvenance is not null
             || field.Governance is not null
             || kind.GovernanceDefaults is null)
@@ -415,19 +406,20 @@ public sealed class RecordsDefinitionCompiler
     private const string Draft202012 = "https://json-schema.org/draft/2020-12/schema";
     private readonly ISchemaRegistry _registry;
     private readonly IFieldDomainRuntime _fieldDomains;
-    private readonly FieldKindRegistry _fieldKinds;
+    private readonly IFieldKindRuntime _fieldKinds;
 
     /// <summary>Creates a compiler backed by the platform schema registry.</summary>
     public RecordsDefinitionCompiler(
         ISchemaRegistry registry,
         IFieldDomainRuntime fieldDomains,
-        FieldKindRegistry? fieldKinds = null)
+        IFieldKindRuntime fieldKinds)
     {
         ArgumentNullException.ThrowIfNull(registry);
         ArgumentNullException.ThrowIfNull(fieldDomains);
+        ArgumentNullException.ThrowIfNull(fieldKinds);
         _registry = registry;
         _fieldDomains = fieldDomains;
-        _fieldKinds = fieldKinds ?? new FieldKindRegistry([]);
+        _fieldKinds = fieldKinds;
     }
 
     /// <summary>Validates, compiles and idempotently registers one typed Records definition.</summary>
@@ -460,27 +452,27 @@ public sealed class RecordsDefinitionCompiler
         {
             throw new RecordsDefinitionAdmissionException(admission.Refusals);
         }
-        var kindRefusals = _fieldKinds.Validate(definition);
-        if (kindRefusals.Count > 0)
-            throw new RecordsDefinitionAdmissionException(kindRefusals);
+        var bindings = RecordsFieldKindBindings.BindAll(definition, _fieldKinds);
 
-        return Compile(definition);
+        return Compile(definition, bindings);
     }
 
-    private string Compile(RecordTypeDefinition definition)
+    private static string Compile(
+        RecordTypeDefinition definition,
+        IReadOnlyList<ICompiledFieldKind> bindings)
     {
         var properties = new JsonObject();
         var required = new JsonArray();
-        foreach (var field in definition.Fields)
+        for (var index = 0; index < definition.Fields.Count; index++)
         {
+            var field = definition.Fields[index];
             if (!RecordsConstraintIntersection.TryResolve(
                     RecordsConstraintIntersection.ForField(definition, field), out var effective))
                 throw new RecordsDefinitionAdmissionException(
                     [new("records.field.constraint_intersection_empty", "/fields", "Field constraints have no admitted intersection.")]);
-            var kind = _fieldKinds.Resolve(field.Kind);
             properties[field.Key] = Compile(
                 field with { Constraints = effective, ValueDomain = effective.ValueDomain },
-                kind.ValueShape);
+                bindings[index]);
             if (field.IsIdentity || effective.Required || effective.MinimumCount > 0)
             {
                 required.Add(field.Key);
@@ -503,14 +495,11 @@ public sealed class RecordsDefinitionCompiler
         return schema.ToJsonString();
     }
 
-    private static JsonObject Compile(RecordFieldDefinition field, FieldScalarValueShape valueShape)
+    private static JsonObject Compile(RecordFieldDefinition field, ICompiledFieldKind binding)
     {
-        var jsonType = JsonType(valueShape);
-        var schema = new JsonObject
-        {
-            ["type"] = jsonType,
-        };
-        if (!string.IsNullOrWhiteSpace(field.Pattern) && jsonType == "string")
+        var schema = JsonNode.Parse(binding.JsonSchema.GetRawText())!.AsObject();
+        if (!string.IsNullOrWhiteSpace(field.Pattern)
+            && binding.Kind.ValueShape == FieldScalarValueShape.Text)
         {
             schema["pattern"] = field.Pattern;
         }
@@ -521,8 +510,6 @@ public sealed class RecordsDefinitionCompiler
             schema["enum"] = new JsonArray(values.Select(value => JsonValue.Create(value)).ToArray());
         }
 
-        AddIntegerParameter(schema, field.Kind.Parameters, "min_length", "minLength");
-        AddIntegerParameter(schema, field.Kind.Parameters, "max_length", "maxLength");
         if (field.IsTranslatable)
             schema = new JsonObject { ["type"] = "object", ["additionalProperties"] = schema };
         if (field.Reference?.Cardinality == ReferenceCardinality.Many
@@ -539,34 +526,52 @@ public sealed class RecordsDefinitionCompiler
         }
         return schema;
     }
+}
 
-    private static string JsonType(FieldScalarValueShape valueShape)
+internal static class RecordsFieldKindBindings
+{
+    internal static IReadOnlyList<ICompiledFieldKind> BindAll(
+        RecordTypeDefinition definition,
+        IFieldKindRuntime fieldKinds)
     {
-        return valueShape switch
+        var bindings = new ICompiledFieldKind?[definition.Fields.Count];
+        var refusals = new List<RecordsRefusal>();
+        for (var index = 0; index < definition.Fields.Count; index++)
         {
-            FieldScalarValueShape.Text => "string",
-            FieldScalarValueShape.Boolean => "boolean",
-            FieldScalarValueShape.Integer => "integer",
-            FieldScalarValueShape.Number => "number",
-            _ => throw new ArgumentOutOfRangeException(nameof(valueShape), valueShape, "Unsupported field scalar value shape."),
-        };
-    }
+            var field = definition.Fields[index];
+            try
+            {
+                var binding = fieldKinds.Bind(field.Kind, $"/fields/{index}/kind");
+                bindings[index] = binding;
+                if (field.IsTranslatable && binding.Kind.ValueShape != FieldScalarValueShape.Text)
+                {
+                    refusals.Add(new(
+                        "records.field.translatable_shape_incompatible",
+                        $"/fields/{index}/is_translatable",
+                        "A translatable field kind must produce text values."));
+                }
 
-    private static void AddIntegerParameter(
-        JsonObject schema,
-        IReadOnlyDictionary<string, string> parameters,
-        string parameter,
-        string keyword)
-    {
-        if (parameters.TryGetValue(parameter, out var text)
-            && int.TryParse(
-                text,
-                System.Globalization.NumberStyles.None,
-                System.Globalization.CultureInfo.InvariantCulture,
-                out var value))
-        {
-            schema[keyword] = value;
+                if (field.Reference is not null && binding.Kind.ValueShape != FieldScalarValueShape.Text)
+                {
+                    refusals.Add(new(
+                        "records.field.reference_shape_incompatible",
+                        $"/fields/{index}/reference",
+                        "A reference field kind must produce text values."));
+                }
+            }
+            catch (FieldAdmissionException exception)
+            {
+                refusals.AddRange(exception.Refusals.Select(refusal => new RecordsRefusal(
+                    refusal.Code,
+                    refusal.JsonPointer,
+                    refusal.Message)));
+            }
         }
+
+        if (refusals.Count > 0)
+            throw new RecordsDefinitionAdmissionException(refusals.AsReadOnly());
+
+        return Array.AsReadOnly(bindings.Select(binding => binding!).ToArray());
     }
 }
 

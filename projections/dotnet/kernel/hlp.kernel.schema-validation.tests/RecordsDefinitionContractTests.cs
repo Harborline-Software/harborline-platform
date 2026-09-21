@@ -10,7 +10,7 @@ public sealed class RecordsDefinitionContractTests
     [Fact]
     public async Task Compiler_registers_one_stable_schema_identity_used_for_runtime_validation()
     {
-        var registry = new InMemorySchemaRegistry();
+        var registry = new InMemorySchemaRegistry(fieldKindRuntime: RecordsTestKinds.Text);
         var compiler = new RecordsDefinitionCompiler(registry, RecordsTestDomains.CreateRuntime(), RecordsTestKinds.Text);
         var definition = ValidDefinition() with
         {
@@ -47,8 +47,7 @@ public sealed class RecordsDefinitionContractTests
     [Fact]
     public void Field_kind_defaults_materialize_once_with_provenance_and_preserve_explicit_edits()
     {
-        var materializer = new RecordsFieldKindDefaultMaterializer(
-        [
+        var materializer = new RecordsFieldKindDefaultMaterializer(RecordsTestKinds.Create(
             new AdmittedFieldKind(
                 "email",
                 "1.0.0",
@@ -56,8 +55,7 @@ public sealed class RecordsDefinitionContractTests
             new AdmittedFieldKind(
                 "phone",
                 "2.0.0",
-                new FieldGovernanceDefinition(true, true, false, "personal")),
-        ]);
+                new FieldGovernanceDefinition(true, true, false, "personal"))));
         var definition = ValidDefinition() with
         {
             Fields =
@@ -105,7 +103,28 @@ public sealed class RecordsDefinitionContractTests
         var refusal = Assert.Throws<RecordsDefinitionAdmissionException>(
             () => materializer.Materialize(unresolvedKind));
         Assert.Contains(refusal.Refusals, item =>
-            item is { Code: "records.field.kind_unresolved", JsonPointer: "/fields/0/kind" });
+            item is { Code: "field.kind_unresolved", JsonPointer: "/fields/0/kind" });
+
+        var invalidParameters = explicitlyEdited with
+        {
+            Fields =
+            [
+                explicitlyEdited.Fields[0] with
+                {
+                    Kind = new FieldKindReference("phone", "2.0.0", new Dictionary<string, string>
+                    {
+                        ["total_digits"] = "2",
+                    }),
+                },
+            ],
+        };
+        var parameterRefusal = Assert.Throws<RecordsDefinitionAdmissionException>(
+            () => materializer.Materialize(invalidParameters));
+        Assert.Contains(parameterRefusal.Refusals, item => item is
+        {
+            Code: "field.kind_parameter_type_mismatch",
+            JsonPointer: "/fields/0/kind/parameters",
+        });
     }
 
     [Fact]

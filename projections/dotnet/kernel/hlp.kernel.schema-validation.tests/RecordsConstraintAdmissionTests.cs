@@ -64,7 +64,7 @@ public sealed class RecordsConstraintAdmissionTests
     public async Task Translatable_field_values_are_locale_to_string_maps(string json, bool valid)
     {
         var definition = Definition() with { Fields = [Field() with { IsTranslatable = true }] };
-        var registry = new InMemorySchemaRegistry();
+        var registry = new InMemorySchemaRegistry(fieldKindRuntime: RecordsTestKinds.Text);
         var schema = await new RecordsDefinitionCompiler(registry, RecordsTestDomains.CreateRuntime(), RecordsTestKinds.Text).CompileAndRegisterAsync(definition);
         Assert.Equal(valid, (await registry.ValidateAsync(schema.Id, Encoding.UTF8.GetBytes(json))).IsValid);
     }
@@ -84,7 +84,7 @@ public sealed class RecordsConstraintAdmissionTests
                 Constraints = new(true, 2, 3, [], null),
             }],
         };
-        var registry = new InMemorySchemaRegistry();
+        var registry = new InMemorySchemaRegistry(fieldKindRuntime: RecordsTestKinds.Text);
         var schema = await new RecordsDefinitionCompiler(registry, RecordsTestDomains.CreateRuntime(), RecordsTestKinds.Text).CompileAndRegisterAsync(definition);
 
         Assert.Equal(valid, (await registry.ValidateAsync(schema.Id, Encoding.UTF8.GetBytes(json))).IsValid);
@@ -113,7 +113,7 @@ public sealed class RecordsConstraintAdmissionTests
             Traits = [Trait("first", "a", "b"), Trait("second", "b", "c")],
             TraitBindings = [Binding("first"), Binding("second")],
         };
-        var registry = new InMemorySchemaRegistry();
+        var registry = new InMemorySchemaRegistry(fieldKindRuntime: RecordsTestKinds.Text);
         var schema = await new RecordsDefinitionCompiler(registry, RecordsTestDomains.CreateRuntime(), RecordsTestKinds.Text).CompileAndRegisterAsync(definition);
 
         var allowed = await registry.ValidateAsync(schema.Id, Encoding.UTF8.GetBytes("""{"state":"b"}"""));

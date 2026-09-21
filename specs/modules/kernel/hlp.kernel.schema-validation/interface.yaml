@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.kernel.schema-validation",
-  "interfaceRevision": 3,
+  "interfaceRevision": 4,
   "status": "frozen",
   "purpose": "Admit typed Records declarations, compile their static field constraints to JSON Schema draft 2020-12, and register and validate content-addressed schemas with bounded, stable, field-addressable failures.",
   "dependencies": ["hlp.contracts.fields", "hlp.contracts.identities"],
@@ -14,13 +14,12 @@
     "RecordsDefinitionJson": ["SerializeCanonical", "Deserialize"],
     "RecordsIntentValidator": ["Validate", "ValidateJson", "required IFieldDomainRuntime dependency"],
     "RecordsRefusal": ["Code", "JsonPointer", "Message"],
-    "RecordsDefinitionCompiler": ["CompileSchema", "CompileAndRegisterAsync"],
-    "FieldKindRegistry": "Explicit immutable kind/version registrations; no implicit or latest-version fallback",
+    "RecordsDefinitionCompiler": ["CompileSchema", "CompileAndRegisterAsync", "required IFieldKindRuntime dependency"],
     "AdmittedFieldKind": ["KindId", "Version", "GovernanceDefaults", "ValueShape"],
     "FieldScalarValueShape": ["Text", "Boolean", "Integer", "Number"],
     "RecordsFieldKindDefaultMaterializer": ["Materialize"],
     "RecordsReferenceAdmission": ["TargetMatches", "Validate"],
-    "IFieldKindRuntime": "optional injected shared-contract binding authority; required for executable field-kind schema metadata"
+    "IFieldKindRuntime": "required injected shared-contract binding authority for exact kind admission, executable schema projection and governance defaults"
   },
   "selectedDesign": {
     "choice": "caller-backed validation registry",
@@ -42,6 +41,9 @@
     "Records uses Harborline.Contracts.Fields declarations directly and does not mirror field-kind, value-domain, governance, scalar-shape, admitted-kind or constraint DTOs.",
     "Records delegates every field constraint, every Trait slot constraint including unbound slots, and standalone field value-domain structure to IFieldDomainRuntime.ValidateDeclaration while retaining Records-owned identity, binding, reference and raw-grammar rules.",
     "Records compiler admission receives the same required IFieldDomainRuntime dependency as RecordsIntentValidator; kernel does not reference the foundation field-runtime implementation.",
+    "Records compiler and default materializer require IFieldKindRuntime; missing composition is rejected rather than replaced with an empty or guessed registry.",
+    "Each field kind binds at its exact /fields/{index}/kind pointer and field.* refusals retain their substrate code and pointer.",
+    "Records compiles a detached copy of ICompiledFieldKind.JsonSchema, preserving its exact metadata and parameters, then overlays only Records-owned grammar.",
     "No definition lifecycle store is implemented in this kernel module.",
     "Executable field-kind metadata retains the exact kind revision and every parameter in canonical schema identity.",
     "A schema declaring an executable field-kind binding refuses registration without its shared runtime or when the binding is malformed or unresolved.",

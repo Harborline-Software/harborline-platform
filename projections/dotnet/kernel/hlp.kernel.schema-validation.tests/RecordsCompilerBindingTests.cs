@@ -1,4 +1,6 @@
 using System.Text;
+using System.Text.Json;
+using Harborline.Foundation.FieldRuntime;
 using Harborline.Kernel.SchemaValidation;
 using Xunit;
 
@@ -7,10 +9,59 @@ namespace Harborline.Kernel.SchemaValidation.Tests;
 public sealed class RecordsCompilerBindingTests
 {
     [Fact]
+    public async Task Numeric_kind_projection_retains_exact_parameters_and_executes_trailing_zero_limits()
+    {
+        var admitted = new AdmittedFieldKind(
+            "decimal-measurement",
+            "1.0.0",
+            null,
+            FieldScalarValueShape.Number);
+        var runtime = new FieldKindRuntime(
+            new Harborline.Foundation.FieldRuntime.FieldKindRegistry([admitted]));
+        var registry = new InMemorySchemaRegistry(fieldKindRuntime: runtime);
+        var compiler = new RecordsDefinitionCompiler(
+            registry,
+            RecordsTestDomains.CreateRuntime(),
+            runtime);
+        var definition = Definition(new(
+            "decimal-measurement",
+            "1.0.0",
+            new Dictionary<string, string>
+            {
+                ["total_digits"] = "4",
+                ["fraction_digits"] = "2",
+                ["minimum"] = "1.2300",
+            }));
+
+        var schema = await compiler.CompileAndRegisterAsync(definition);
+        using var schemaDocument = JsonDocument.Parse(schema.JsonSchemaText);
+        var binding = schemaDocument.RootElement
+            .GetProperty("properties")
+            .GetProperty("value")
+            .GetProperty("x-harborline-field-kind");
+        var valid = await Validate(registry, schema, """{"value":12.30}""");
+        var overflow = await Validate(registry, schema, """{"value":12.300}""");
+
+        Assert.Equal("decimal-measurement", binding.GetProperty("kind_id").GetString());
+        Assert.Equal("1.0.0", binding.GetProperty("version").GetString());
+        Assert.Equal("4", binding.GetProperty("parameters").GetProperty("total_digits").GetString());
+        Assert.Equal("2", binding.GetProperty("parameters").GetProperty("fraction_digits").GetString());
+        Assert.Equal("1.2300", binding.GetProperty("parameters").GetProperty("minimum").GetString());
+        Assert.Equal("1.2300", schemaDocument.RootElement.GetProperty("properties")
+            .GetProperty("value").GetProperty("minimum").GetRawText());
+        Assert.True(valid.IsValid);
+        Assert.False(overflow.IsValid);
+        Assert.Contains(overflow.Errors, error =>
+            error.Code == "field.total_digits_exceeded" && error.JsonPointer == "/value");
+        Assert.Contains(overflow.Errors, error =>
+            error.Code == "field.fraction_digits_exceeded" && error.JsonPointer == "/value");
+    }
+
+    [Fact]
     public async Task Pure_compile_registers_nothing_and_explicit_registration_preserves_the_schema_contract()
     {
-        var registry = new InMemorySchemaRegistry();
-        var kinds = new FieldKindRegistry([new("developer-code", "1.0.0", null)]);
+        var kinds = RecordsTestKinds.Create(new AdmittedFieldKind("developer-code", "1.0.0", null));
+        var registry = new InMemorySchemaRegistry(fieldKindRuntime: kinds);
         var compiler = new RecordsDefinitionCompiler(registry, RecordsTestDomains.CreateRuntime(), kinds);
         var definition = Definition(new("developer-code", "1.0.0", new Dictionary<string, string>()));
 
@@ -34,11 +85,9 @@ public sealed class RecordsCompilerBindingTests
     [InlineData("""{"value":"12.5"}""", false)]
     public async Task Custom_kind_name_uses_its_registered_numeric_shape(string payload, bool expected)
     {
-        var registry = new InMemorySchemaRegistry();
-        var kinds = new FieldKindRegistry(
-        [
-            new("developer-measurement", "1.0.0", null, FieldScalarValueShape.Number),
-        ]);
+        var kinds = RecordsTestKinds.Create(
+            new AdmittedFieldKind("developer-measurement", "1.0.0", null, FieldScalarValueShape.Number));
+        var registry = new InMemorySchemaRegistry(fieldKindRuntime: kinds);
         var compiler = new RecordsDefinitionCompiler(registry, RecordsTestDomains.CreateRuntime(), kinds);
         var definition = Definition(new("developer-measurement", "1.0.0", new Dictionary<string, string>()));
 
@@ -53,17 +102,17 @@ public sealed class RecordsCompilerBindingTests
     {
         var invalidShape = (FieldScalarValueShape)int.MaxValue;
 
-        var error = Assert.Throws<ArgumentOutOfRangeException>(() =>
-            new FieldKindRegistry([new("developer-invalid", "1.0.0", null, invalidShape)]));
+        var error = Assert.Throws<FieldAdmissionException>(() =>
+            RecordsTestKinds.Create(new AdmittedFieldKind("developer-invalid", "1.0.0", null, invalidShape)));
 
-        Assert.Equal("kinds", error.ParamName);
+        Assert.Contains(error.Refusals, refusal => refusal.Code == "field.kind_registration_invalid");
     }
 
     [Fact]
     public async Task Numeric_kind_refuses_translation_instead_of_compiling_a_locale_to_number_map()
     {
-        var registry = new InMemorySchemaRegistry();
-        var kinds = new FieldKindRegistry([new("score", "1.0.0", null, FieldScalarValueShape.Integer)]);
+        var kinds = RecordsTestKinds.Create(new AdmittedFieldKind("score", "1.0.0", null, FieldScalarValueShape.Integer));
+        var registry = new InMemorySchemaRegistry(fieldKindRuntime: kinds);
         var compiler = new RecordsDefinitionCompiler(registry, RecordsTestDomains.CreateRuntime(), kinds);
         var authored = Definition(new("score", "1.0.0", new Dictionary<string, string>()));
         var definition = authored with
@@ -91,8 +140,11 @@ public sealed class RecordsCompilerBindingTests
     [Fact]
     public void Numeric_kind_refuses_a_reference_instead_of_compiling_it_as_text()
     {
-        var kinds = new FieldKindRegistry([new("score", "1.0.0", null, FieldScalarValueShape.Integer)]);
-        var compiler = new RecordsDefinitionCompiler(new InMemorySchemaRegistry(), RecordsTestDomains.CreateRuntime(), kinds);
+        var kinds = RecordsTestKinds.Create(new AdmittedFieldKind("score", "1.0.0", null, FieldScalarValueShape.Integer));
+        var compiler = new RecordsDefinitionCompiler(
+            new InMemorySchemaRegistry(fieldKindRuntime: kinds),
+            RecordsTestDomains.CreateRuntime(),
+            kinds);
         var authored = Definition(new("score", "1.0.0", new Dictionary<string, string>()));
         var definition = authored with
         {
@@ -123,11 +175,12 @@ public sealed class RecordsCompilerBindingTests
     [Fact]
     public async Task Pure_compile_refuses_malformed_intent_without_registry_mutation()
     {
-        var registry = new InMemorySchemaRegistry();
+        var kinds = RecordsTestKinds.Create(new AdmittedFieldKind("text", "1.0.0", null));
+        var registry = new InMemorySchemaRegistry(fieldKindRuntime: kinds);
         var compiler = new RecordsDefinitionCompiler(
             registry,
             RecordsTestDomains.CreateRuntime(),
-            new FieldKindRegistry([new("text", "1.0.0", null)]));
+            kinds);
         var definition = Definition(new("text", "1.0.0", new Dictionary<string, string>())) with
         {
             RecordTypeId = "",
@@ -147,12 +200,10 @@ public sealed class RecordsCompilerBindingTests
     [Fact]
     public async Task Exact_versions_of_one_kind_keep_their_distinct_registered_shapes()
     {
-        var registry = new InMemorySchemaRegistry();
-        var kinds = new FieldKindRegistry(
-        [
-            new("developer-versioned", "1.0.0", null, FieldScalarValueShape.Boolean),
-            new("developer-versioned", "2.0.0", null, FieldScalarValueShape.Integer),
-        ]);
+        var kinds = RecordsTestKinds.Create(
+            new AdmittedFieldKind("developer-versioned", "1.0.0", null, FieldScalarValueShape.Boolean),
+            new AdmittedFieldKind("developer-versioned", "2.0.0", null, FieldScalarValueShape.Integer));
+        var registry = new InMemorySchemaRegistry(fieldKindRuntime: kinds);
         var compiler = new RecordsDefinitionCompiler(registry, RecordsTestDomains.CreateRuntime(), kinds);
 
         var booleanSchema = await compiler.CompileAndRegisterAsync(
@@ -164,6 +215,71 @@ public sealed class RecordsCompilerBindingTests
         Assert.False((await Validate(registry, booleanSchema, """{"value":1}""")).IsValid);
         Assert.True((await Validate(registry, integerSchema, """{"value":1}""")).IsValid);
         Assert.False((await Validate(registry, integerSchema, """{"value":true}""")).IsValid);
+    }
+
+    [Fact]
+    public async Task Text_max_bytes_executes_through_the_records_compiled_schema()
+    {
+        var runtime = RecordsTestKinds.Create(new AdmittedFieldKind("short-text", "1.0.0", null));
+        var registry = new InMemorySchemaRegistry(fieldKindRuntime: runtime);
+        var compiler = new RecordsDefinitionCompiler(registry, RecordsTestDomains.CreateRuntime(), runtime);
+        var definition = Definition(new(
+            "short-text",
+            "1.0.0",
+            new Dictionary<string, string> { ["max_bytes"] = "4" }));
+
+        var schema = await compiler.CompileAndRegisterAsync(definition);
+        var valid = await Validate(registry, schema, """{"value":"cafe"}""");
+        var overflow = await Validate(registry, schema, """{"value":"café"}""");
+
+        Assert.True(valid.IsValid);
+        Assert.False(overflow.IsValid);
+        Assert.Contains(overflow.Errors, error =>
+            error.Code == "field.max_bytes_exceeded" && error.JsonPointer == "/value");
+    }
+
+    [Fact]
+    public async Task Repeated_translated_projection_keeps_the_scalar_binding_nested_at_each_locale_value()
+    {
+        var runtime = RecordsTestKinds.Create(new AdmittedFieldKind("translated-text", "1.0.0", null));
+        var registry = new InMemorySchemaRegistry(fieldKindRuntime: runtime);
+        var compiler = new RecordsDefinitionCompiler(registry, RecordsTestDomains.CreateRuntime(), runtime);
+        var authored = Definition(new(
+            "translated-text",
+            "1.0.0",
+            new Dictionary<string, string> { ["max_bytes"] = "3" }));
+        var definition = authored with
+        {
+            Fields =
+            [
+                authored.Fields[0] with
+                {
+                    IsTranslatable = true,
+                    Constraints = new(false, 0, 2, [], null),
+                },
+            ],
+        };
+
+        var schema = await compiler.CompileAndRegisterAsync(definition);
+        using var document = JsonDocument.Parse(schema.JsonSchemaText);
+        var scalar = document.RootElement.GetProperty("properties").GetProperty("value")
+            .GetProperty("items").GetProperty("additionalProperties");
+        var overflow = await Validate(registry, schema, """{"value":[{"en":"four"}]}""");
+
+        Assert.Equal("translated-text", scalar.GetProperty("x-harborline-field-kind")
+            .GetProperty("kind_id").GetString());
+        Assert.False(overflow.IsValid);
+        Assert.Contains(overflow.Errors, error =>
+            error.Code == "field.max_bytes_exceeded" && error.JsonPointer == "/value/0/en");
+    }
+
+    [Fact]
+    public void Compiler_requires_a_shared_field_kind_runtime()
+    {
+        Assert.Throws<ArgumentNullException>(() => new RecordsDefinitionCompiler(
+            new InMemorySchemaRegistry(),
+            RecordsTestDomains.CreateRuntime(),
+            null!));
     }
 
     private static RecordTypeDefinition Definition(FieldKindReference kind) => new()
