@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.kernel.work-items",
-  "interfaceRevision": 3,
+  "interfaceRevision": 4,
   "status": "frozen",
   "purpose": "Own the common one-command request admission fence plus tenant-scoped durable work-item lifecycle, idempotent transitions, optimistic concurrency, append-only history, audit, and transactional outbox behavior without importing workflow interpretation or UI state.",
   "dependencies": [
@@ -17,8 +17,7 @@
       "GetAsync(workItemId, cancellationToken) -> WorkItemSnapshot?",
       "ListOpenAsync(cancellationToken) -> IReadOnlyList<WorkItemSnapshot>",
       "TransitionAsync(expectedVersion, outcomeId, result, idempotencyKey, cancellationToken) -> WorkItemMutationResult",
-      "CommandRequestBoundary.ExecuteAsync(commands, executor) -> CommandRequestResult<TResult>",
-      "DefinitionWriteBoundary.ExecuteAsync(contractWindow, observedAt, executor) -> DefinitionWriteResult<TResult>"
+      "CommandRequestBoundary.ExecuteAsync(commands, executor) -> CommandRequestResult<TResult>"
     ],
     "context": "Every operation resolves one active tenant and server-derived Party from the current host scope. Tenant and audit actor are never accepted from request bodies."
   },
@@ -33,8 +32,7 @@
     "Outbox delivery is outside this kernel; committed envelopes are immutable and consumers must deliver idempotently.",
     "The bundled file journal flushes each checksummed complete frame before publishing in-memory indexes, truncates only an incomplete final frame, and fails startup on complete-frame corruption or unknown versions.",
     "The bundled file journal is a single-process adapter and does not claim distributed transactions or multi-node leases.",
-    "The common command request boundary materializes the request before dispatch and refuses a count greater than one with HTTP status 400, kernel.multi-command-batch, and the observed command count; refused commands never reach an executor.",
-    "A definition-backed write executes only during its half-open contract window [opensAt, closesAt); before opening or at/after closing it refuses with HTTP status 422 and names the definition, window, and observed instant."
+    "The common command request boundary materializes the request before dispatch and refuses a count greater than one with HTTP status 400, kernel.multi-command-batch, and the observed command count; refused commands never reach an executor."
   ],
   "errors": [
     "work-item.not-found",
@@ -43,8 +41,7 @@
     "work-item.version-conflict",
     "work-item.invalid-transition",
     "work-item.persistence-unavailable",
-    "kernel.multi-command-batch",
-    "kernel.definition-contract-window"
+    "kernel.multi-command-batch"
   ],
   "selectedDesign": {
     "choice": "A deep tenant-scoped state-machine boundary with atomic event, receipt, audit, and outbox persistence; parked human work is a projection of durable process state.",
