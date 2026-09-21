@@ -9,6 +9,11 @@ internal static class RecordsDefinitionShape
 {
     internal static void Validate(
         JsonElement value,
+        List<RecordsRefusal> refusals)
+        => Visit(value, typeof(RecordTypeDefinition), "", false, null, refusals);
+
+    internal static void Validate(
+        JsonElement value,
         IFieldDomainRuntime fieldDomains,
         List<RecordsRefusal> refusals)
         => Visit(value, typeof(RecordTypeDefinition), "", false, fieldDomains, refusals);
@@ -18,7 +23,7 @@ internal static class RecordsDefinitionShape
         Type type,
         string pointer,
         bool nullable,
-        IFieldDomainRuntime fieldDomains,
+        IFieldDomainRuntime? fieldDomains,
         List<RecordsRefusal> refusals)
     {
         if (value.ValueKind == JsonValueKind.Null)
@@ -27,7 +32,7 @@ internal static class RecordsDefinitionShape
             return;
         }
         type = Nullable.GetUnderlyingType(type) ?? type;
-        if (type == typeof(ValueDomainDefinition))
+        if (type == typeof(ValueDomainDefinition) && fieldDomains is not null)
         {
             refusals.AddRange(fieldDomains.ValidateValueDomainJson(value.GetRawText(), pointer)
                 .Select(refusal => new RecordsRefusal(refusal.Code, refusal.JsonPointer, refusal.Message)));

@@ -55,6 +55,53 @@ Rules binds first in T-588; Layout, Records, Views and Data exchange retire thei
 through their own slices. Forms, Workflows and Aggregates retain their existing stores under T-620's
 explicit scope boundary. No member migration or released host consumption is claimed here.
 
+## Records catalogue composition (T-615)
+
+Records composes with that store inside this existing definition-owner module. The dependency points
+inward to `hlp.kernel.schema-validation` for the canonical typed Records grammar, validator and
+compiler, and to the shared field contracts for tenant-scoped domain proofs and exact field-kind
+bindings. This module does not introduce another store, authored Records DTO, field grammar, schema
+registry or local history/replay map.
+
+`RecordsDefinitionCodec` is the reversible boundary between `RecordTypeDefinition` and
+`DefinitionDocument`. The document is authoritative for tenant, definition id, immutable version id
+and semantic version. Its body retains the Records source envelope (`package_id`, provenance,
+cascade layer, retention class, legal hold and dependencies) and all authored grammar, while
+forbidding `definition_id`, `tenant_id` and `version`. Decode restores those three values from the
+document. Consequently generic restore can retain `BodyJson` byte-for-byte and its digest while
+producing the requested new typed version metadata; conflicting or duplicate authoritative members
+refuse instead of being repaired. Forbidden authoritative names and recursively duplicated recognized
+members are compared with the same case-insensitive property-name semantics as the Records JSON
+deserializer, so casing cannot bypass the boundary; refusal pointers retain the author's exact member
+spelling with RFC 6901 escaping. Before typed decode, the reconstructed source is checked by Records'
+own pure raw-shape validator. The codec does not carry a copied field grammar.
+
+`RecordsDefinitionAdmission` supplies the async-only store callback. It decodes the store's trusted
+candidate and trusted prior revision for the exact same `VersionId`, constructs field-domain scope
+from the document tenant and explicit per-operation principal, and invokes `RecordsIntentValidator`
+for both author and publish. The callback is pure: it does not register a schema or persist catalogue
+state before the store's second fence. The explicit install method performs the same source-shape and
+Records validation as a separate pure producer seam; pack installation and its side effects remain
+outside this slice.
+
+`RecordsDefinitionLifecycle` delegates every save, publish, restore, history, published-head and
+exact-pin operation to the injected `IVersionedDefinitionStore`. `CreateDraftAsync` is the one
+creation step that materializes admitted field-kind governance defaults. `SaveDraftAsync` stores the
+author's exact later data, so governance edits and their provenance survive kind/version rebinding,
+publication and restore. Encoding retains authored nulls until Records admission: null for a
+non-nullable collection refuses with the shared Records code and pointer before any domain source is
+opened, while null remains valid for members the canonical grammar declares nullable. Raw enum and
+member shapes are likewise refused before deserialization can normalize them.
+
+`RecordsPublishedDefinitionBinder` resolves only a published Records head or an exact immutable pin
+for the explicit tenant, validates and compiles it with the real Records compiler, registers the
+content-addressed schema, and returns the compiler's one admitted result: the exact detached typed
+definition, field-kind bindings and policies used to produce that schema. The binder neither injects
+a second field-kind runtime nor rebinds fields after compilation. Draft, absent, unresolved and
+cross-tenant coordinates refuse. Catalogue publication and runtime binding are separate successes:
+schema registration happens only after the store has completed publication, a registry fault returns
+no binding and does not mutate catalogue state, and no multi-store atomicity is claimed.
+
 ## Layout producer (T-580)
 
 The Layout producer adds the platform-owned surface contract: versioned envelopes, one ordered recursive block tree for screen and page media, typed bindings, intent, portable placement, page geometry and masters, authored interactions, and immutable form references. `LayoutDefinitionAdmission` is the common structural authoring and publish validator. Its numeric limits come only from `LayoutDefinitionSchema`; the React and Blazor persisted-value entry points use the same validator and refuse invalid storage without clamping. Admitted definitions export through the existing provider-neutral package content boundary. The shared versioned store, publication concurrency, immutable history, restore and production resolution belong to T-620; this producer neither persists nor publishes. Runtime layout, binding resolution, authorization, and editors remain outside this slice.

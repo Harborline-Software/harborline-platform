@@ -1,16 +1,21 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.blocks.builder-definitions",
-  "interfaceRevision": 11,
+  "interfaceRevision": 12,
   "status": "draft",
   "purpose": "Own the shared definition catalogue substrate: registry-neutral versioned definitions, key suggestion, archive lifecycle, projection-neutral platform package export and empty-store replay, package safety-floor reattachment, and the install receipt that binds a released artifact to installed identity, capabilities, authorization outcomes and digests.",
-  "dependencies": [],
+  "dependencies": [
+    {"moduleId": "hlp.contracts.fields", "minimumRevision": 1},
+    {"moduleId": "hlp.contracts.identities", "minimumRevision": 1},
+    {"moduleId": "hlp.kernel.schema-validation", "minimumRevision": 1}
+  ],
   "sourceSurface": {
     "repository": "shipyard",
     "commit": "3410883405996dc8e4871418a441f52970d9994e",
     "paths": ["apps/carrier/src/definitions/slug.ts:13-36", "apps/carrier/src/definitions/archiveStore.ts:17-58"]
   },
   "capabilities": {
+    "recordsDefinitions": ["typed reversible DefinitionDocument codec", "async Records admission registered directly with the shared store", "typed lifecycle delegating all persistence and resolution to IVersionedDefinitionStore", "creation-only field-kind default materialization", "explicit pure install admission", "published head and exact immutable-pin binding through the Records compiler and schema registry"],
     "verificationSuite": ["declarative invariant and parameterized examples without executable content", "closed action and predicate catalogue with typed expected values", "explicit clock, zone, locale, identifier seed, ordering, actor authority and simulated ports per fixture", "structural refusal of a case with no meaningful assertion", "derived outcome status that cannot report a pass without an observation", "canonical suite and receipt documents with SHA-256 digests", "receipt binding candidate, baseline, suite, per-fixture and engine digests", "released Passed Failed Nothing-was-checked Not-supported Blocked vocabulary and shared Form bindings"],
     "configurationActivation": ["baseline-bound isolated preparation", "explicit projection and compatibility findings", "immutable prepared candidate and canonical ownership", "point-of-use authority and evidence-bound compare-and-swap decision", "API-owned atomic target contract", "released preparing refused effective status vocabulary and shared Form bindings"],
     "configurationProposal": ["proposed change bound to an exact baseline generation", "autosaved working edits with no effective reach", "immutable saved versions with authorship and rationale", "check invalidation on any later edit", "provider-neutral released package export whose digest is its own bytes",
@@ -28,6 +33,12 @@
     "ruling": "No implementation in revision 1; either UI-suggested plus server-validated or server-allocated policy may bind later."
   },
   "invariants": [
+    "Records composition lives in this existing definition-owner module and depends inward on the canonical Records grammar/compiler and shared field contracts; it introduces no member store, authored DTO copy, field grammar copy or schema registry.",
+    "A persisted Records DefinitionDocument owns tenant, definition id, immutable version id and semantic version. Its BodyJson carries only Records source metadata and authored grammar; definition_id, tenant_id and version, including every case-insensitive alias recognized by Records Web JSON deserialization, are forbidden there. Recursively duplicated recognized members are compared with those same name semantics, and refusals retain exact RFC 6901-escaped source pointers. Decoding reconstructs the same public RecordTypeDefinition without rewriting BodyJson, and restore changes only document-owned metadata.",
+    "Records async admission decodes the trusted candidate and trusted prior same-VersionId revision supplied by the shared store, binds the document tenant and explicit per-operation principal into FieldDomainScope, and uses RecordsIntentValidator for author and publish. The callback is pure and performs no schema registration or catalogue persistence.",
+    "The typed Records lifecycle delegates save, publish, restore, history, published head and exact pin to one IVersionedDefinitionStore. Creation explicitly materializes admitted field-kind defaults once; later saves preserve exact author governance and provenance, including across kind-version rebinding. Encoding retains authored nulls and raw enum/member shapes until Records' pure raw-shape admission: non-nullable nulls and invalid wire shapes refuse with the shared Records code and pointer before source IO, while grammar-declared nullable members remain valid.",
+    "Install admission is an explicit pure producer seam over the same codec, source-shape checks and RecordsIntentValidator. Installation side effects remain outside this module.",
+    "Published binding resolves only a published head or exact immutable version in the explicit tenant and Records registry, then returns the compiler's single admitted result: the detached definition, policies and exact field-kind bindings used to compile and register its deterministic schema. The binder injects no second field-kind runtime and performs no re-binding. Draft, absent, unresolved and cross-tenant pins refuse. Catalogue publication and successful runtime binding are separate operations; registry failure returns no binding and never changes catalogue state, and no multi-store atomicity is claimed.",
     "The versioned store exposes no member-specific type; host-supplied pure validators admit each supported registry.",
     "Asynchronous member admission receives the immutable candidate, phase, explicit principal context and a detached prior revision for the exact same version identity captured under the first stream fence. The author cannot supply prior state, and another version is never substituted for it.",
     "Member admission runs outside the store lock. Cancellation is checked after admission, and the expected revision and replay identity are checked again before any history, head or replay mutation.",

@@ -363,9 +363,49 @@ public static class RecordsDefinitionJson
 
     /// <summary>Serializes a definition with deterministic object-property ordering.</summary>
     public static string SerializeCanonical(RecordTypeDefinition definition)
+        => SerializeCanonical(definition, Options);
+
+    /// <summary>
+    /// Serializes the authored admission shape canonically without omitting nulls that admission
+    /// must distinguish from absent members or collection defaults.
+    /// </summary>
+    public static string SerializeCanonicalForAdmission(RecordTypeDefinition definition)
+        => SerializeCanonical(definition, AdmissionOptions);
+
+    /// <summary>
+    /// Applies the canonical Records CLR shape to raw JSON without deserializing, resolving domain
+    /// sources or mutating a registry.
+    /// </summary>
+    public static RecordsIntentValidationResult ValidateRawShape(string json)
+    {
+        ArgumentNullException.ThrowIfNull(json);
+        JsonDocument document;
+        try
+        {
+            document = JsonDocument.Parse(json);
+        }
+        catch (JsonException)
+        {
+            return new([new(
+                "records.definition.json_invalid",
+                "",
+                "The definition is not valid JSON.")]);
+        }
+
+        using (document)
+        {
+            var refusals = new List<RecordsRefusal>();
+            RecordsDefinitionShape.Validate(document.RootElement, refusals);
+            return new(refusals.AsReadOnly());
+        }
+    }
+
+    private static string SerializeCanonical(
+        RecordTypeDefinition definition,
+        JsonSerializerOptions options)
     {
         ArgumentNullException.ThrowIfNull(definition);
-        var bytes = JsonSerializer.SerializeToUtf8Bytes(definition, Options);
+        var bytes = JsonSerializer.SerializeToUtf8Bytes(definition, options);
         using var document = JsonDocument.Parse(bytes);
         return System.Text.Encoding.UTF8.GetString(CanonicalContent.Serialize(document.RootElement));
     }
@@ -405,6 +445,17 @@ public sealed class RecordsDefinitionAdmissionException : Exception
     public IReadOnlyList<RecordsRefusal> Refusals { get; }
 }
 
+/// <summary>The one admitted Records result used to compile and register a runtime schema.</summary>
+/// <param name="Definition">The detached definition admitted by the compiler.</param>
+/// <param name="FieldKinds">The exact field-kind bindings used to compile the schema.</param>
+/// <param name="Policies">The admitted type policies returned to runtime consumers.</param>
+/// <param name="Schema">The registered content-addressed schema.</param>
+public sealed record RecordsCompilationResult(
+    RecordTypeDefinition Definition,
+    IReadOnlyList<ICompiledFieldKind> FieldKinds,
+    RecordTypePolicies? Policies,
+    Schema Schema);
+
 internal sealed record AdmittedRecordsDefinition(
     RecordTypeDefinition Definition,
     IReadOnlyList<ICompiledFieldKind> KindBindings,
@@ -441,6 +492,17 @@ public sealed class RecordsDefinitionCompiler
         RecordTypeDefinition definition,
         FieldDomainScope scope,
         CancellationToken cancellationToken)
+        => (await CompileAndRegisterResultAsync(
+            definition, scope, cancellationToken).ConfigureAwait(false)).Schema;
+
+    /// <summary>
+    /// Validates, compiles and registers one definition, returning the exact admitted definition,
+    /// kind bindings and policies used for that schema.
+    /// </summary>
+    public async ValueTask<RecordsCompilationResult> CompileAndRegisterResultAsync(
+        RecordTypeDefinition definition,
+        FieldDomainScope scope,
+        CancellationToken cancellationToken)
     {
         var admission = await new RecordsIntentValidator(_fieldDomains, _fieldKinds)
             .AdmitAsync(definition, null, scope, cancellationToken).ConfigureAwait(false);
@@ -448,7 +510,7 @@ public sealed class RecordsDefinitionCompiler
             throw new RecordsDefinitionAdmissionException(admission.Refusals);
         var schemaText = Compile(admission.Admitted);
 
-        return await _registry.RegisterAsync(
+        var schema = await _registry.RegisterAsync(
             schemaText,
             tags:
             [
@@ -457,6 +519,11 @@ public sealed class RecordsDefinitionCompiler
                 $"records-definition-version:{admission.Admitted.Definition.Envelope.Version}",
             ],
             cancellationToken: cancellationToken).ConfigureAwait(false);
+        return new(
+            admission.Admitted.Definition,
+            admission.Admitted.KindBindings,
+            admission.Admitted.Definition.Policies,
+            schema);
     }
 
     /// <summary>Validates and compiles one typed Records definition without registering it.</summary>

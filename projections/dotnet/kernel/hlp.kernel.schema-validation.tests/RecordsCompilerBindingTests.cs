@@ -83,6 +83,33 @@ public sealed class RecordsCompilerBindingTests
         Assert.True(valid.IsValid);
     }
 
+    [Fact]
+    public async Task Compiler_result_returns_the_definition_and_exact_binding_used_by_its_schema()
+    {
+        var kinds = RecordsTestKinds.Create(new AdmittedFieldKind(
+            "developer-code", "1.0.0", null, FieldScalarValueShape.Text));
+        var registry = new InMemorySchemaRegistry(fieldKindRuntime: kinds);
+        var compiler = new RecordsDefinitionCompiler(
+            registry, RecordsTestDomains.CreateRuntime(), kinds);
+        var definition = Definition(new(
+            "developer-code", "1.0.0", new Dictionary<string, string>()));
+
+        var result = await compiler.CompileAndRegisterResultAsync(
+            definition, RecordsTestDomains.Scope, CancellationToken.None);
+        var valid = await registry.ValidateAsync(
+            result.Schema.Id, Encoding.UTF8.GetBytes("""{"value":"harbor"}"""));
+        var wrongShape = await registry.ValidateAsync(
+            result.Schema.Id, Encoding.UTF8.GetBytes("""{"value":true}"""));
+
+        Assert.Equal(
+            RecordsDefinitionJson.SerializeCanonical(definition),
+            RecordsDefinitionJson.SerializeCanonical(result.Definition));
+        Assert.Equal(FieldScalarValueShape.Text, Assert.Single(result.FieldKinds).Kind.ValueShape);
+        Assert.Null(result.Policies);
+        Assert.True(valid.IsValid);
+        Assert.False(wrongShape.IsValid);
+    }
+
     [Theory]
     [InlineData("""{"value":12.5}""", true)]
     [InlineData("""{"value":"12.5"}""", false)]

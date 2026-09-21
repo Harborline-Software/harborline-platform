@@ -12,7 +12,10 @@ This package intentionally excludes schema migration, epoch coordination, compac
 field kinds, and await shared narrowing/intersection proofs before admitting publication.
 Every proof in one admission must use the same source snapshot revision. Structural and
 shared `field.*` refusals retain stable RFC 6901 pointers. `RecordsDefinitionJson` preserves
-the typed declaration through canonical JSON.
+the typed declaration through canonical JSON. Its admission serializer retains nulls, and its
+pure raw-shape check applies the same CLR grammar before deserialization without opening a domain
+source or mutating the schema registry. This prevents invalid collection nulls and numeric enum
+wire values from being omitted or normalized before admission.
 
 Compositions inject the shared `IFieldKindRuntime`, backed by the foundation
 `FieldKindRuntime` and its exact immutable registrations. The kernel does not own a
@@ -21,7 +24,9 @@ parameters retain their `field.*` refusals and authored pointers.
 
 `RecordsDefinitionCompiler.CompileSchemaAsync` admits and compiles a declaration without
 registering anything. `CompileAndRegisterAsync` registers the same admitted schema text through
-`ISchemaRegistry`. Each scalar begins as a detached copy of the bound
+`ISchemaRegistry`. `CompileAndRegisterResultAsync` additionally returns the detached definition,
+policies and exact field-kind bindings from that same admission with the registered schema, so a
+consumer does not perform a second binding pass. Each scalar begins as a detached copy of the bound
 `ICompiledFieldKind.JsonSchema`, including exact kind metadata and every parameter.
 Records then overlays authored literal contributions as `enum`/`allOf` constraints plus its
 pattern, proven requiredness, multiplicity and translation grammar. Authority-filtered proof
@@ -39,9 +44,9 @@ defaults.
 ## Boundaries and unfinished integration
 
 The module contains no Records definition lifecycle store. T-620 owns the shared versioned
-store in builder-definitions. Records binding to that store, including publication, restore,
-history and production head resolution, remains owed; canonical round-trip tests do not
-prove those lifecycle operations.
+store in builder-definitions, whose Records adapter composes this grammar, validator and compiler.
+Publication, restore, history and production head resolution remain builder-definitions concerns;
+canonical round-trip tests in this module alone do not prove those lifecycle operations.
 
 Rule conditions, dynamic Taxonomy/query domain membership and policy enforcement require
 their owning interpreters. Their representation in the grammar is not evidence of runtime
