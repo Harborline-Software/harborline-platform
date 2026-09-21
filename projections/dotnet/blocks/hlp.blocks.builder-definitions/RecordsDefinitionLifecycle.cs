@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Harborline.Contracts.Fields;
 using Harborline.Foundation.Assets.Common;
+using Harborline.Kernel.Core;
 using Harborline.Kernel.SchemaValidation;
 
 namespace Harborline.Blocks.BuilderDefinitions;
@@ -191,15 +192,20 @@ public sealed class RecordsDefinitionAdmission
         {
             var principal = RequirePrincipal(context.PrincipalContext);
             var candidate = RecordsDefinitionCodec.Decode(context.Candidate.Document);
+            var policyRefusals = CollectPolicyRefusals(candidate);
             var prior = context.PriorSameVersionRevision is null
                 ? null
                 : RecordsDefinitionCodec.Decode(context.PriorSameVersionRevision.Document);
-            var result = await _validator.ValidateAsync(
-                candidate,
-                prior,
-                new FieldDomainScope(new TenantId(context.Candidate.Document.Key.Tenant), principal),
-                cancellationToken).ConfigureAwait(false);
-            return Map(result.Refusals);
+            var scope = new FieldDomainScope(
+                new TenantId(context.Candidate.Document.Key.Tenant), principal);
+            var result = policyRefusals.Count > 0
+                ? _validator.ValidateStructure(candidate, prior, scope)
+                : await _validator.ValidateAsync(
+                    candidate,
+                    prior,
+                    scope,
+                    cancellationToken).ConfigureAwait(false);
+            return Combine(policyRefusals, result.Refusals);
         }
         catch (DefinitionRefusalException exception)
         {
@@ -218,11 +224,16 @@ public sealed class RecordsDefinitionAdmission
     {
         var principal = RequirePrincipal(principalContext);
         var definition = RecordsDefinitionCodec.Decode(document);
-        var result = await _validator.ValidateAsync(
-            definition,
-            new FieldDomainScope(new TenantId(document.Key.Tenant), principal),
-            cancellationToken).ConfigureAwait(false);
-        if (result.Refusals.Count > 0) throw new DefinitionRefusalException(Map(result.Refusals));
+        var policyRefusals = CollectPolicyRefusals(definition);
+        var scope = new FieldDomainScope(new TenantId(document.Key.Tenant), principal);
+        var result = policyRefusals.Count > 0
+            ? _validator.ValidateStructure(definition, scope)
+            : await _validator.ValidateAsync(
+                definition,
+                scope,
+                cancellationToken).ConfigureAwait(false);
+        var refusals = Combine(policyRefusals, result.Refusals);
+        if (refusals.Count > 0) throw new DefinitionRefusalException(refusals);
         return definition;
     }
 
@@ -232,6 +243,37 @@ public sealed class RecordsDefinitionAdmission
             throw new DefinitionRefusalException([new("definition.principal_required", "/principal")]);
         return context.Principal;
     }
+
+    private static IReadOnlyList<DefinitionRefusal> CollectPolicyRefusals(
+        RecordTypeDefinition definition)
+    {
+        var refusals = new List<DefinitionRefusal>();
+        try
+        {
+            CompiledBootstrapCatalogue.RefusePackageReplacement(
+                [new CompiledShapeIdentity(definition.RecordTypeId)]);
+        }
+        catch (CompiledShapeReplacementException exception)
+        {
+            refusals.Add(new DefinitionRefusal(exception.Code, "/record_type_id"));
+        }
+
+        if (definition.IsSystemSealed)
+        {
+            refusals.Add(new DefinitionRefusal(
+                "records.definition.system_seal_forbidden",
+                "/is_system_sealed"));
+        }
+
+        return Array.AsReadOnly(refusals.ToArray());
+    }
+
+    private static IReadOnlyList<DefinitionRefusal> Combine(
+        IReadOnlyList<DefinitionRefusal> policyRefusals,
+        IReadOnlyList<RecordsRefusal> canonicalRefusals)
+        => Array.AsReadOnly(policyRefusals
+            .Concat(Map(canonicalRefusals))
+            .ToArray());
 
     private static IReadOnlyList<DefinitionRefusal> Map(IReadOnlyList<RecordsRefusal> refusals)
         => Array.AsReadOnly(refusals.Select(refusal =>

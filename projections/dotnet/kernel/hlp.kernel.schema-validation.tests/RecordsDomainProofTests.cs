@@ -256,6 +256,46 @@ public sealed class RecordsDomainProofTests
         Assert.Equal(0, boundary.Opens);
     }
 
+    [Fact]
+    public void Source_free_structural_validation_returns_structure_kind_and_scope_refusals()
+    {
+        var boundary = new DomainBoundary
+        {
+            OpenException = new InvalidOperationException("must not open"),
+        };
+        var definition = Definition() with
+        {
+            ClassId = "",
+            Fields =
+            [
+                Field("state") with
+                {
+                    Kind = new("missing", "1.0.0", new Dictionary<string, string>()),
+                },
+            ],
+        };
+        var validator = Validator(boundary);
+        var result = validator.ValidateStructure(
+            definition,
+            new FieldDomainScope(new TenantId("tenant-b"), ""));
+
+        Assert.Collection(
+            result.Refusals,
+            refusal => Assert.Equal(
+                ("records.definition.class_count", "/class_id"),
+                (refusal.Code, refusal.JsonPointer)),
+            refusal => Assert.Equal(
+                ("field.kind_unresolved", "/fields/0/kind"),
+                (refusal.Code, refusal.JsonPointer)),
+            refusal => Assert.Equal(
+                ("field.value_domain_principal_required", ""),
+                (refusal.Code, refusal.JsonPointer)),
+            refusal => Assert.Equal(
+                ("field.value_domain_tenant_mismatch", "/envelope/tenant_id"),
+                (refusal.Code, refusal.JsonPointer)));
+        Assert.Equal(0, boundary.Opens);
+    }
+
     [Theory]
     [InlineData(false, true, "field.value_domain_snapshot_incomplete")]
     [InlineData(true, false, "field.value_domain_source_unresolved")]

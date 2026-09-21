@@ -465,6 +465,11 @@ internal sealed record RecordsAdmissionResult(
     AdmittedRecordsDefinition? Admitted,
     IReadOnlyList<RecordsRefusal> Refusals);
 
+internal sealed record RecordsStructuralAdmission(
+    RecordTypeDefinition? Definition,
+    IReadOnlyList<ICompiledFieldKind>? KindBindings,
+    IReadOnlyList<RecordsRefusal> Refusals);
+
 /// <summary>Compiles admitted Records grammar and registers its JSON Schema 2020-12 contract.</summary>
 public sealed class RecordsDefinitionCompiler
 {
@@ -871,6 +876,25 @@ public sealed class RecordsIntentValidator
         CancellationToken cancellationToken)
         => ValidateAsync(definition, null, scope, cancellationToken);
 
+    /// <summary>
+    /// Returns canonical shape, Records structure, field-kind and scope refusals without opening a
+    /// field-domain source.
+    /// </summary>
+    public RecordsIntentValidationResult ValidateStructure(
+        RecordTypeDefinition definition,
+        FieldDomainScope scope)
+        => ValidateStructure(definition, null, scope);
+
+    /// <summary>
+    /// Returns source-free structural refusals, including immutable-identity checks against a
+    /// published revision.
+    /// </summary>
+    public RecordsIntentValidationResult ValidateStructure(
+        RecordTypeDefinition definition,
+        RecordTypeDefinition? publishedSameVersion,
+        FieldDomainScope scope)
+        => new(AdmitStructure(definition, publishedSameVersion, scope).Refusals);
+
     /// <summary>Returns every admission refusal, including immutable-identity checks against a published revision.</summary>
     public async ValueTask<RecordsIntentValidationResult> ValidateAsync(
         RecordTypeDefinition definition,
@@ -893,12 +917,36 @@ public sealed class RecordsIntentValidator
         ArgumentNullException.ThrowIfNull(scope);
         cancellationToken.ThrowIfCancellationRequested();
 
+        var structural = AdmitStructure(definition, publishedSameVersion, scope);
+        if (structural.Refusals.Count > 0
+            || structural.Definition is null
+            || structural.KindBindings is null)
+            return new(null, structural.Refusals);
+
+        var refusals = new List<RecordsRefusal>();
+        var effective = await ProveDomainsAsync(
+            structural.Definition, scope, refusals, cancellationToken).ConfigureAwait(false);
+        Deduplicate(refusals);
+        if (refusals.Count > 0 || effective is null)
+            return new(null, refusals.AsReadOnly());
+        return new(new(structural.Definition, structural.KindBindings, effective),
+            Array.Empty<RecordsRefusal>());
+    }
+
+    private RecordsStructuralAdmission AdmitStructure(
+        RecordTypeDefinition definition,
+        RecordTypeDefinition? publishedSameVersion,
+        FieldDomainScope scope)
+    {
+        ArgumentNullException.ThrowIfNull(definition);
+        ArgumentNullException.ThrowIfNull(scope);
+
         var shapeRefusals = new List<RecordsRefusal>();
         RecordsDefinitionShape.Validate(
             RecordsDefinitionJson.AdmissionShape(definition), _fieldDomains, shapeRefusals);
         if (shapeRefusals.Any(refusal => refusal.Code.StartsWith(
                 "records.definition.", StringComparison.Ordinal)))
-            return new(null, shapeRefusals.AsReadOnly());
+            return new(null, null, shapeRefusals.AsReadOnly());
 
         RecordTypeDefinition detached;
         RecordTypeDefinition? detachedPublished;
@@ -911,27 +959,19 @@ public sealed class RecordsIntentValidator
         }
         catch (JsonException)
         {
-            return new(null,
+            return new(null, null,
                 [new("records.definition.shape_invalid", "", "The definition does not match the Records grammar.")]);
         }
 
         var refusals = new List<RecordsRefusal>();
-        ValidateStructure(detached, detachedPublished, refusals);
+        ValidateRecordsStructure(detached, detachedPublished, refusals);
         var bindings = RecordsFieldKindBindings.TryBindAll(detached, _fieldKinds, refusals);
         ValidateScope(detached, scope, refusals);
         Deduplicate(refusals);
-        if (refusals.Count > 0)
-            return new(null, refusals.AsReadOnly());
-
-        var effective = await ProveDomainsAsync(
-            detached, scope, refusals, cancellationToken).ConfigureAwait(false);
-        Deduplicate(refusals);
-        if (refusals.Count > 0 || effective is null)
-            return new(null, refusals.AsReadOnly());
-        return new(new(detached, bindings!, effective), Array.Empty<RecordsRefusal>());
+        return new(detached, bindings, refusals.AsReadOnly());
     }
 
-    private void ValidateStructure(
+    private void ValidateRecordsStructure(
         RecordTypeDefinition definition,
         RecordTypeDefinition? publishedSameVersion,
         List<RecordsRefusal> refusals)

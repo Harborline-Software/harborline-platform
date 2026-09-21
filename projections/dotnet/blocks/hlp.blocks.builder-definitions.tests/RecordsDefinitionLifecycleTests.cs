@@ -104,6 +104,224 @@ public sealed class RecordsDefinitionLifecycleTests
     }
 
     [Fact]
+    public async Task Create_draft_refuses_compiled_floor_identity_without_mutating_catalogue()
+    {
+        var harness = Harness.Create();
+        var definition = CompleteDefinition("1.0.0") with { RecordTypeId = "kernel.record-type" };
+
+        var error = await Record.ExceptionAsync(() => harness.Lifecycle.CreateDraftAsync(
+            Principal, definition, "version-one", 0, "create-compiled-floor").AsTask());
+        var history = await harness.Lifecycle.ListHistoryAsync(
+            definition.Envelope.TenantId, definition.Envelope.DefinitionId);
+        var head = await harness.Lifecycle.GetPublishedHeadAsync(
+            definition.Envelope.TenantId, definition.Envelope.DefinitionId);
+        var refusal = (error as DefinitionRefusalException)?.Refusals.SingleOrDefault(row => row is
+            { Code: "kernel.compiled-shape-replacement", Pointer: "/record_type_id" });
+
+        Assert.True(
+            refusal is not null && history.Count == 0 && head is null,
+            $"Expected compiled-floor refusal without mutation; observed error={error?.GetType().Name ?? "none"}, " +
+            $"history={history.Count}, head={(head is null ? "null" : head.Source.VersionId)}.");
+    }
+
+    [Theory]
+    [InlineData("kernel.definition-package", false)]
+    [InlineData("kernel.definition-package", true)]
+    [InlineData("kernel.record-type", false)]
+    [InlineData("kernel.record-type", true)]
+    [InlineData("kernel.field", false)]
+    [InlineData("kernel.field", true)]
+    public async Task Install_refuses_every_compiled_floor_identity_regardless_of_authored_seal(
+        string recordTypeId,
+        bool isSystemSealed)
+    {
+        var harness = Harness.Create();
+        var definition = CompleteDefinition("1.0.0") with
+        {
+            RecordTypeId = recordTypeId,
+            IsSystemSealed = isSystemSealed,
+        };
+        var document = RecordsDefinitionCodec.Encode(definition, "version-one");
+
+        var error = await Assert.ThrowsAsync<DefinitionRefusalException>(() => harness.Admission
+            .AdmitInstallAsync(document, Principal, CancellationToken.None).AsTask());
+
+        Assert.Single(error.Refusals, refusal => refusal is
+            { Code: "kernel.compiled-shape-replacement", Pointer: "/record_type_id" });
+        Assert.Empty(await harness.Store.ListHistoryAsync(document.Key));
+        Assert.Null(await harness.Store.GetPublishedHeadAsync(document.Key));
+    }
+
+    [Fact]
+    public async Task Authored_system_seal_refuses_author_and_install_without_gaining_authority()
+    {
+        var harness = Harness.Create();
+        var definition = CompleteDefinition("1.0.0") with { IsSystemSealed = true };
+        var document = RecordsDefinitionCodec.Encode(definition, "version-one");
+
+        var authorError = await Record.ExceptionAsync(() => harness.Lifecycle.CreateDraftAsync(
+            Principal, definition, "version-one", 0, "create-authored-seal").AsTask());
+        var installError = await Record.ExceptionAsync(() => harness.Admission
+            .AdmitInstallAsync(document, Principal, CancellationToken.None).AsTask());
+        var history = await harness.Store.ListHistoryAsync(document.Key);
+        var head = await harness.Store.GetPublishedHeadAsync(document.Key);
+        var authorRefusal = (authorError as DefinitionRefusalException)?.Refusals.SingleOrDefault(
+            refusal => refusal is
+                { Code: "records.definition.system_seal_forbidden", Pointer: "/is_system_sealed" });
+        var installRefusal = (installError as DefinitionRefusalException)?.Refusals.SingleOrDefault(
+            refusal => refusal is
+                { Code: "records.definition.system_seal_forbidden", Pointer: "/is_system_sealed" });
+
+        Assert.True(
+            authorRefusal is not null && installRefusal is not null && history.Count == 0 && head is null,
+            $"Expected authored-seal refusals without authority; observed author={authorError?.GetType().Name ?? "none"}, " +
+            $"install={installError?.GetType().Name ?? "none"}, history={history.Count}, " +
+            $"head={(head is null ? "null" : head.Document.VersionId)}.");
+    }
+
+    [Fact]
+    public async Task Create_draft_returns_floor_and_seal_refusals_without_opening_faulting_domain()
+    {
+        var harness = Harness.Create();
+        harness.Domain.OpenFault = new InvalidOperationException("must not open");
+        var definition = CompleteDefinition("1.0.0") with
+        {
+            RecordTypeId = "kernel.record-type",
+            IsSystemSealed = true,
+        };
+
+        var error = await Assert.ThrowsAsync<DefinitionRefusalException>(() => harness.Lifecycle
+            .CreateDraftAsync(Principal, definition, "version-one", 0, "source-free-author")
+            .AsTask());
+
+        Assert.Collection(
+            error.Refusals,
+            refusal => Assert.Equal(
+                new DefinitionRefusal("kernel.compiled-shape-replacement", "/record_type_id"),
+                refusal),
+            refusal => Assert.Equal(
+                new DefinitionRefusal("records.definition.system_seal_forbidden", "/is_system_sealed"),
+                refusal));
+        Assert.Equal(0, harness.Domain.Opens);
+        Assert.Empty(await harness.Store.ListHistoryAsync(new(
+            definition.Envelope.TenantId,
+            DefinitionKind.Records,
+            definition.Envelope.DefinitionId)));
+        Assert.Null(await harness.Store.GetPublishedHeadAsync(new(
+            definition.Envelope.TenantId,
+            DefinitionKind.Records,
+            definition.Envelope.DefinitionId)));
+    }
+
+    [Fact]
+    public async Task Install_returns_floor_and_seal_refusals_without_opening_faulting_domain()
+    {
+        var harness = Harness.Create();
+        harness.Domain.OpenFault = new InvalidOperationException("must not open");
+        var definition = CompleteDefinition("1.0.0") with
+        {
+            RecordTypeId = "kernel.record-type",
+            IsSystemSealed = true,
+        };
+        var document = RecordsDefinitionCodec.Encode(definition, "version-one");
+
+        var error = await Assert.ThrowsAsync<DefinitionRefusalException>(() => harness.Admission
+            .AdmitInstallAsync(document, Principal, CancellationToken.None).AsTask());
+
+        Assert.Collection(
+            error.Refusals,
+            refusal => Assert.Equal(
+                new DefinitionRefusal("kernel.compiled-shape-replacement", "/record_type_id"),
+                refusal),
+            refusal => Assert.Equal(
+                new DefinitionRefusal("records.definition.system_seal_forbidden", "/is_system_sealed"),
+                refusal));
+        Assert.Equal(0, harness.Domain.Opens);
+        Assert.Empty(await harness.Store.ListHistoryAsync(document.Key));
+        Assert.Null(await harness.Store.GetPublishedHeadAsync(document.Key));
+    }
+
+    [Fact]
+    public async Task Author_returns_bootstrap_seal_and_canonical_structural_refusals_before_mutation()
+    {
+        var harness = Harness.Create();
+        var definition = CompleteDefinition("1.0.0") with
+        {
+            RecordTypeId = "kernel.record-type",
+            IsSystemSealed = true,
+            ClassId = "",
+        };
+
+        var error = await Assert.ThrowsAsync<DefinitionRefusalException>(() => harness.Lifecycle
+            .CreateDraftAsync(Principal, definition, "version-one", 0, "create-aggregate-refusals")
+            .AsTask());
+
+        Assert.Collection(
+            error.Refusals,
+            refusal => Assert.Equal(
+                new DefinitionRefusal("kernel.compiled-shape-replacement", "/record_type_id"),
+                refusal),
+            refusal => Assert.Equal(
+                new DefinitionRefusal("records.definition.system_seal_forbidden", "/is_system_sealed"),
+                refusal),
+            refusal => Assert.Equal(
+                new DefinitionRefusal("records.definition.class_count", "/class_id"),
+                refusal));
+        Assert.Empty(await harness.Lifecycle.ListHistoryAsync(
+            definition.Envelope.TenantId, definition.Envelope.DefinitionId));
+        Assert.Null(await harness.Lifecycle.GetPublishedHeadAsync(
+            definition.Envelope.TenantId, definition.Envelope.DefinitionId));
+    }
+
+    [Fact]
+    public async Task Install_returns_bootstrap_seal_and_canonical_structural_refusals_before_mutation()
+    {
+        var harness = Harness.Create();
+        var definition = CompleteDefinition("1.0.0") with
+        {
+            RecordTypeId = "kernel.record-type",
+            IsSystemSealed = true,
+            ClassId = "",
+        };
+        var document = RecordsDefinitionCodec.Encode(definition, "version-one");
+
+        var error = await Assert.ThrowsAsync<DefinitionRefusalException>(() => harness.Admission
+            .AdmitInstallAsync(document, Principal, CancellationToken.None).AsTask());
+
+        Assert.Collection(
+            error.Refusals,
+            refusal => Assert.Equal(
+                new DefinitionRefusal("kernel.compiled-shape-replacement", "/record_type_id"),
+                refusal),
+            refusal => Assert.Equal(
+                new DefinitionRefusal("records.definition.system_seal_forbidden", "/is_system_sealed"),
+                refusal),
+            refusal => Assert.Equal(
+                new DefinitionRefusal("records.definition.class_count", "/class_id"),
+                refusal));
+        Assert.Empty(await harness.Store.ListHistoryAsync(document.Key));
+        Assert.Null(await harness.Store.GetPublishedHeadAsync(document.Key));
+    }
+
+    [Fact]
+    public async Task Ordinary_non_floor_definition_with_false_seal_admits_author_and_install()
+    {
+        var harness = Harness.Create();
+        var definition = CompleteDefinition("1.0.0") with { IsSystemSealed = false };
+        var document = RecordsDefinitionCodec.Encode(definition, "version-one");
+
+        var installed = await harness.Admission.AdmitInstallAsync(
+            document, Principal, CancellationToken.None);
+        var authored = await harness.Lifecycle.CreateDraftAsync(
+            Principal, definition, "version-one", 0, "create-ordinary");
+
+        Assert.False(installed.IsSystemSealed);
+        Assert.False(authored.Definition.IsSystemSealed);
+        Assert.Single(await harness.Store.ListHistoryAsync(document.Key));
+        Assert.Null(await harness.Store.GetPublishedHeadAsync(document.Key));
+    }
+
+    [Fact]
     public async Task Direct_store_replacement_refuses_changed_record_type_identity_without_mutation()
     {
         var harness = Harness.Create();

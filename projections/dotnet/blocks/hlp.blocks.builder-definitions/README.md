@@ -84,6 +84,17 @@ state before the store's second fence. The explicit install method performs the 
 Records validation as a separate pure producer seam; pack installation and its side effects remain
 outside this slice.
 
+Both author and install admission bind inward to kernel.core's existing
+`CompiledBootstrapCatalogue`. A candidate for any of its three immutable identities refuses with
+`kernel.compiled-shape-replacement` at `/record_type_id` before catalogue mutation, regardless of
+the authored `is_system_sealed` value. An unrelated candidate cannot self-author that authority:
+`is_system_sealed=true` refuses with `records.definition.system_seal_forbidden` at
+`/is_system_sealed`. When either policy refusal exists, author and install admission append the
+shared validator's canonical source-free structural refusals in deterministic order and return
+before field-domain source access. A non-floor candidate with `false` proceeds through full
+asynchronous Records admission, and infrastructure failures still propagate. Builder Definitions
+copies neither the compiled identities, their matching algorithm, nor Records structural rules.
+
 `RecordsDefinitionLifecycle` delegates every save, publish, restore, history, published-head and
 exact-pin operation to the injected `IVersionedDefinitionStore`. `CreateDraftAsync` is the one
 creation step that materializes admitted field-kind governance defaults. `SaveDraftAsync` stores the

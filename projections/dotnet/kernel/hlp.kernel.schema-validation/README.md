@@ -7,9 +7,12 @@ This package intentionally excludes schema migration, epoch coordination, compac
 ## Records declaration and compilation
 
 `RecordTypeDefinition` carries the Records grammar rather than authored JSON Schema.
-`RecordsIntentValidator.ValidateAsync` and `ValidateJsonAsync` require an explicit
-`FieldDomainScope` and cancellation token. They detach the authored declaration, bind exact
-field kinds, and await shared narrowing/intersection proofs before admitting publication.
+`RecordsIntentValidator.ValidateStructure` is the public source-free structural operation. It uses
+the canonical admission path for typed shape checks, detached snapshots, Records structural checks,
+exact field-kind binding and explicit scope validation, returning `RecordsIntentValidationResult`
+without opening a field-domain source. `ValidateAsync` and `ValidateJsonAsync` require an explicit
+`FieldDomainScope` and cancellation token. They reuse that same path and await shared
+narrowing/intersection proofs only after its result is clean before admitting publication.
 Every proof in one admission must use the same source snapshot revision. Structural and
 shared `field.*` refusals retain stable RFC 6901 pointers. `RecordsDefinitionJson` preserves
 the typed declaration through canonical JSON. Its admission serializer retains nulls, and its
