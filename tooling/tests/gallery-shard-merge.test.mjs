@@ -18,7 +18,9 @@ import test from 'node:test'
 
 import { mergeShardReports } from '../gallery-shard-merge.mjs'
 import { observeGalleryRun } from '../gallery-observations.mjs'
-import { observeCompletedGalleryRun } from '../run-gallery-gate.mjs'
+import {
+  aggregateShardResults, collectShardReports, observeCompletedGalleryRun, parseShardAssignment, requiredGalleryStepIds,
+} from '../run-gallery-gate.mjs'
 
 const SUFFIX = ' is accessible and visually conformant'
 const shard = (scenarioIds, stats = {}) => ({
@@ -84,4 +86,105 @@ test('a failed browser subprocess still contributes its written observations', (
   } finally {
     rmSync(scratch, { recursive: true, force: true })
   }
+})
+
+// T-349, the MATRIX half. The shards now run on separate hosted runners and reach the collector as
+// uploaded artifacts, so there is a new way for one to go missing that the in-process merge above
+// could not have: its artifact is simply not there. The property the ticket asks to be PROVED
+// rather than assumed is that this still fails the gate, so each of the three ways a matrix shard
+// can vanish gets its own case below.
+
+const producer = (index, shards, scenarioIds, overrides = {}) => ({
+  schemaVersion: 1,
+  kind: 'gallery-shard',
+  shard: index,
+  shards,
+  passed: true,
+  results: requiredGalleryStepIds.map(id => ({id, passed: true, durationMs: 1})),
+  failure: undefined,
+  playwrightReport: shard(scenarioIds),
+  ...overrides,
+})
+
+test('--shard rejects a subset run, the way --record already rejects GALLERY_GREP', () => {
+  assert.deepEqual(parseShardAssignment('3/8'), {index: 3, total: 8})
+  assert.equal(parseShardAssignment(undefined), undefined)
+  assert.throws(() => parseShardAssignment('8'), /expects <index>\/<total>/)
+  assert.throws(() => parseShardAssignment('9/8'), /out of range/)
+  assert.throws(() => parseShardAssignment('0/8'), /out of range/)
+})
+
+test('an absent shard ARTIFACT is refused by name, not merged around', () => {
+  // Shard 2 of 3 never uploaded. This is the failure the matrix introduces and the in-process
+  // merge never had: nothing on disk to merge, and no job left to notice.
+  const present = [
+    producer(1, 3, ['a.one']),
+    producer(3, 3, ['c.three']),
+  ]
+  assert.throws(() => collectShardReports(present), /incomplete: 1 of 3 missing \(shards 2\)/)
+})
+
+test('no shard artifacts at all is refused, not read as an empty pass', () => {
+  assert.throws(() => collectShardReports([]), /matrix produced nothing/)
+})
+
+test('shards that disagree on the total are refused', () => {
+  // A re-run that changed the matrix size, or a stale artifact from an earlier run.
+  assert.throws(
+    () => collectShardReports([producer(1, 2, ['a.one']), producer(2, 3, ['b.two'])]),
+    /disagree on the shard total/,
+  )
+})
+
+test('a shard that RAN and failed a step fails the collected gate, and is named', () => {
+  const broken = producer(2, 2, ['b.two'], {
+    passed: false,
+    results: requiredGalleryStepIds.map(id => ({
+      id,
+      passed: id !== 'gallery-accessibility-and-parity',
+      durationMs: 1,
+      ...(id === 'gallery-accessibility-and-parity' ? {failureOutput: 'budget exceeded'} : {}),
+    })),
+  })
+  const aggregated = aggregateShardResults(
+    collectShardReports([producer(1, 2, ['a.one']), broken]),
+    requiredGalleryStepIds,
+  )
+  assert.equal(aggregated.length, requiredGalleryStepIds.length)
+  assert.deepEqual(aggregated.map(entry => entry.id), requiredGalleryStepIds)
+  const suite = aggregated.find(entry => entry.id === 'gallery-accessibility-and-parity')
+  assert.equal(suite.passed, false)
+  assert.match(suite.failureOutput, /budget exceeded/)
+  // Every other step passed on both shards, so only the real failure is red.
+  assert.equal(aggregated.filter(entry => !entry.passed).length, 1)
+})
+
+test('a shard whose reporter wrote nothing leaves the merge short, and reconciliation catches it', () => {
+  // The step "passed" but playwrightReport is null -- the shape a killed-after-exit-0 run would
+  // take. mergeShardReports contributes nothing for it, so the specs are declared-but-not-run.
+  const declared = ['a.one', 'b.two']
+  const complete = collectShardReports([
+    producer(1, 2, ['a.one']),
+    producer(2, 2, ['b.two'], {playwrightReport: null}),
+  ])
+  const merged = mergeShardReports(complete.map(report => report.playwrightReport))
+  const observed = observeGalleryRun(merged, declared)
+  assert.match(observed.reconciliation, /declared-but-not-run/)
+  assert.match(observed.reconciliation, /b\.two/)
+})
+
+test('a complete matrix aggregates to nine passed steps and reconciles exactly', () => {
+  const declared = ['a.one', 'b.two', 'c.three']
+  const complete = collectShardReports([
+    producer(1, 3, ['a.one']),
+    producer(3, 3, ['c.three']),
+    producer(2, 3, ['b.two']),
+  ])
+  // Restored to shard order regardless of the order the artifacts were read in.
+  assert.deepEqual(complete.map(report => report.shard), [1, 2, 3])
+  const aggregated = aggregateShardResults(complete, requiredGalleryStepIds)
+  assert.ok(aggregated.every(entry => entry.passed))
+  const observed = observeGalleryRun(mergeShardReports(complete.map(report => report.playwrightReport)), declared)
+  assert.equal(observed.reconciliation, 'exact')
+  assert.equal(observed.scenarioBrowserTests, 3)
 })

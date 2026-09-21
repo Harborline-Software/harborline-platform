@@ -53,9 +53,84 @@ const focusedPattern = process.env.GALLERY_GREP
 // keeps the ordinary gate unchanged; set GALLERY_SHARDS to split the suite across that many
 // concurrent Playwright invocations.
 const shardCount = Math.max(1, Number(process.env.GALLERY_SHARDS ?? 1) || 1)
+// T-349. The two halves of a MATRIX shard run, where each shard is its own hosted runner rather
+// than another process on this one. The distinction is the whole point: runShardedGallery below
+// DIVIDES one host's worker budget (`workersPerShard = totalWorkers / shardCount`), so on the
+// two-core ubuntu runner two in-process shards are two one-worker Playwright runs and buy nothing
+// -- measured, six consecutive validate runs killed at 942-954s against a 900s budget. A matrix
+// job is separate capacity, so each shard gets the whole PW_WORKERS budget to itself.
+//
+//   --shard=<i>/<n>  PRODUCER. Prepares and builds exactly as the ordinary gate does, runs only
+//                    shard i of the suite, and emits its step outcomes with its Playwright report
+//                    inline. It deliberately does NOT observe or reconcile: one shard has run a
+//                    fraction of the catalog, and reconciling a fraction against the whole is the
+//                    fabricated observation control ticket 100 exists to remove.
+//   --merge=<dir>    COLLECTOR. Runs no browsers. Reads every producer report in <dir>, refuses
+//                    unless all n are present and every one passed all nine steps, merges their
+//                    Playwright reports and then runs the SAME observation and reconciliation the
+//                    unsharded gate runs, emitting the same schema-3 report. Nothing downstream
+//                    (the phase-4 counts, the receipt, validate-repository) can tell the
+//                    difference, which is the property that makes this safe to land.
+const shardArgument = process.argv.find(argument => argument.startsWith('--shard='))?.slice('--shard='.length)
+const shardAssignment = parseShardAssignment(shardArgument)
+const mergeDirectory = process.argv.find(argument => argument.startsWith('--merge='))?.slice('--merge='.length)
+if (shardAssignment && mergeDirectory) throw new Error('--shard and --merge are the two halves of a matrix run; pass one')
+
+export function parseShardAssignment(value) {
+  if (!value) return undefined
+  const match = /^(\d+)\/(\d+)$/.exec(value)
+  if (!match) throw new Error(`--shard expects <index>/<total>, got ${JSON.stringify(value)}`)
+  const index = Number(match[1])
+  const total = Number(match[2])
+  if (index < 1 || total < 1 || index > total) throw new Error(`--shard=${value} is out of range`)
+  return {index, total}
+}
+
+// The nine ids a shard must report, aggregated across every shard: a step is passed only if EVERY
+// shard passed it, and its duration is the slowest shard's. Reconstructing the array this way is
+// what lets the collector reuse the unsharded `gatePassed` check verbatim instead of growing a
+// second, differently-worded notion of a complete gallery run.
+export function aggregateShardResults(shardReports, requiredIds) {
+  return requiredIds.map(id => {
+    const entries = shardReports.map(report => (report.results ?? []).find(entry => entry.id === id))
+    const failed = entries.filter(entry => !entry?.passed)
+    return {
+      id,
+      passed: entries.length > 0 && failed.length === 0,
+      durationMs: Math.max(0, ...entries.map(entry => entry?.durationMs ?? 0)),
+      shards: shardReports.map((report, position) => ({shard: report.shard ?? position + 1, passed: Boolean(entries[position]?.passed)})),
+      failureOutput: failed.length === 0 ? undefined
+        : failed.map((entry, position) => `--- shard ${shardReports[position]?.shard ?? '?'} ---\n${entry?.failureOutput ?? 'step absent from the shard report'}`).join('\n'),
+    }
+  })
+}
+
+// Fails CLOSED on an absent shard, which is the property T-349 asks to be proved rather than
+// assumed. Three ways a shard can go missing and all three land here: its artifact was never
+// uploaded (no file), its job died before the suite (passed:false), or it uploaded a report for a
+// different total (inconsistent `shards`). Note this is belt to mergeShardReports's braces --
+// even if this check were removed, a missing shard's specs are absent from the merge and
+// observeGalleryRun reports them as declared-but-not-run.
+export function collectShardReports(reports) {
+  if (reports.length === 0) throw new Error('no gallery shard reports were found; the matrix produced nothing')
+  const totals = [...new Set(reports.map(report => report.shards))]
+  if (totals.length !== 1) throw new Error(`gallery shard reports disagree on the shard total: ${JSON.stringify(totals)}`)
+  const total = totals[0]
+  const byIndex = new Map(reports.map(report => [report.shard, report]))
+  const missing = Array.from({length: total}, (_, position) => position + 1).filter(shard => !byIndex.has(shard))
+  if (missing.length > 0) {
+    throw new Error(`gallery shard reports are incomplete: ${missing.length} of ${total} missing (shards ${missing.join(', ')})`)
+  }
+  return Array.from({length: total}, (_, position) => byIndex.get(position + 1))
+}
 const recordBaselines = process.argv.includes('--record')
 const captureGallery = process.argv.includes('--capture') || /^(1|true)$/i.test(process.env.HARBORLINE_CAPTURE_GALLERY ?? '')
 if (recordBaselines && focusedPattern) throw new Error('--record requires the complete gallery gate; GALLERY_GREP is not allowed')
+// Same reason --record refuses GALLERY_GREP: both already run a deliberate subset, and a shard of
+// a subset is not a shard of the suite the collector will reconcile against the catalog.
+if (shardAssignment && (recordBaselines || focusedPattern)) {
+  throw new Error('--shard requires the complete gallery gate; GALLERY_GREP and --record are not allowed')
+}
 const baselineCaptureRoot = recordBaselines ? mkdtempSync(resolve(tmpdir(), 'hlp-gallery-baselines-')) : undefined
 const captureRunId = new Date().toISOString().replaceAll(':', '-').replace(/\.\d{3}Z$/, 'Z')
 const galleryCaptureRoot = captureGallery
@@ -242,10 +317,38 @@ export function observeCompletedGalleryRun({ results, reportPath, scenarioIds })
 // Ticket 275: the gate body runs only as the entry point. Everything above is definitions, so a
 // self-test can import run() and drive it past a tiny budget; before the guard, importing this
 // module probed ports, prepared galleries and started servers, and the export bought nothing.
+//
+// Was `results.length === 8`. A bare count cannot say WHICH step is missing or out of order, and
+// eight is exactly the kind of hand-maintained literal control ticket 100 exists to remove.
+// Module scope since T-349: the collector rebuilds the array from its shards' reports and needs
+// the same list, so a tenth step cannot be added to one half of a matrix run and not the other.
+export const requiredGalleryStepIds = [
+  'gallery-structure', 'react-gallery-typecheck', 'react-storybook-build', 'blazor-gallery-clean',
+  'blazor-gallery-build', 'gallery-tests-typecheck', 'playwright-browser', 'playwright-browser-launch',
+  'gallery-accessibility-and-parity',
+]
+const shardReportName = shardAssignment ? `test-results/results-shard-${shardAssignment.index}.json` : undefined
+
 if (import.meta.main) {
   let prepared
   let failure
+  // Set by the collector; the observation below reads it instead of a results.json this job never
+  // produced, because the collector runs no browsers.
+  let mergedShardReport
   try {
+    if (mergeDirectory) {
+      const shardReports = readdirSync(mergeDirectory, {recursive: true, withFileTypes: true})
+        .filter(entry => entry.isFile() && /^gallery-shard-\d+\.json$/.test(entry.name))
+        .map(entry => JSON.parse(readFileSync(resolve(entry.parentPath ?? entry.path, entry.name), 'utf8')))
+        .sort((left, right) => left.shard - right.shard)
+      const complete = collectShardReports(shardReports)
+      results.push(...aggregateShardResults(complete, requiredGalleryStepIds))
+      // A missing shard has already thrown above. A shard that RAN and failed is recorded as a
+      // failed step rather than thrown, so its failure text reaches the report.
+      const brokenStep = results.find(entry => !entry.passed)
+      if (brokenStep) failure = `${brokenStep.id} failed:\n${brokenStep.failureOutput}`
+      mergedShardReport = mergeShardReports(complete.map(report => report.playwrightReport ?? null))
+    } else {
     await Promise.all([assertPortAvailable(reactPort), assertPortAvailable(blazorPort)])
     prepared = prepareGalleries({ packagesReady: process.argv.includes('--packages-ready') })
     run('gallery-structure', process.execPath, ['tooling/validate-gallery.mjs'])
@@ -282,7 +385,17 @@ if (import.meta.main) {
     }
     // Sharding is refused alongside --grep or --record: both already run a deliberate subset, and
     // splitting a subset across shards would leave most of them with nothing to do.
-    if (shardCount > 1 && !focusedPattern && !recordBaselines) {
+    if (shardAssignment) {
+      // MATRIX producer. One shard, alone on this runner, so it takes the whole PW_WORKERS budget
+      // -- the opposite of runShardedGallery, which divides one budget among co-resident shards.
+      run(
+        'gallery-accessibility-and-parity',
+        'npm',
+        ['test', '--', `--shard=${shardAssignment.index}/${shardAssignment.total}`],
+        prepared.galleryTests,
+        {...galleryEnv, PLAYWRIGHT_JSON_OUTPUT_NAME: shardReportName},
+      )
+    } else if (shardCount > 1 && !focusedPattern && !recordBaselines) {
       await runShardedGallery('gallery-accessibility-and-parity', prepared.galleryTests, galleryEnv, shardCount)
     } else {
       run(
@@ -292,6 +405,7 @@ if (import.meta.main) {
         prepared.galleryTests,
         galleryEnv,
       )
+    }
     }
   } catch (error) {
     failure = error instanceof Error ? error.message : String(error)
@@ -309,17 +423,33 @@ if (import.meta.main) {
     }
   }
   
-  // Was `results.length === 8`. A bare count cannot say WHICH step is missing or out of order, and
-  // eight is exactly the kind of hand-maintained literal control ticket 100 exists to remove.
-  const requiredGalleryStepIds = [
-    'gallery-structure', 'react-gallery-typecheck', 'react-storybook-build', 'blazor-gallery-clean',
-    'blazor-gallery-build', 'gallery-tests-typecheck', 'playwright-browser', 'playwright-browser-launch',
-    'gallery-accessibility-and-parity',
-  ]
   const gatePassed = !failure
     && results.length === requiredGalleryStepIds.length
     && requiredGalleryStepIds.every((id, index) => results[index]?.id === id && results[index].passed)
-  
+
+  // MATRIX producer stops here. It has run a fraction of the suite, so every number below --
+  // browserTests, the check families, the scenario reconciliation -- would be a measurement of a
+  // fraction presented against the whole catalog. The collector makes them, once, from all shards.
+  // The Playwright report travels INLINE so one artifact carries both the outcome and the evidence.
+  if (shardAssignment) {
+    const reportFile = prepared && existsSync(resolve(prepared.galleryTests, shardReportName))
+      ? resolve(prepared.galleryTests, shardReportName)
+      : undefined
+    process.stdout.write(`${JSON.stringify({
+      schemaVersion: 1,
+      kind: 'gallery-shard',
+      shard: shardAssignment.index,
+      shards: shardAssignment.total,
+      passed: gatePassed,
+      results,
+      failure,
+      // Absent when the shard died before the reporter wrote anything. The collector merges null
+      // the same way it merges an absent artifact: the specs are missing and reconciliation says so.
+      playwrightReport: reportFile ? JSON.parse(readFileSync(reportFile, 'utf8')) : null,
+    }, null, 2)}\n`)
+    process.exitCode = gatePassed ? 0 : 1
+  } else {
+
   // Every count below is derived from the catalog AND from the conditions this run executes under,
   // and every one is COMPARED to a measurement rather than published as one. A family whose
   // measurement has no defensible derivation (contrast-ratio call sites, whose literal the ticket 100
@@ -357,11 +487,14 @@ if (import.meta.main) {
   let flakeRegistryReport
   if (flakeRegistryProblems.length === 0) {
     try {
-      observation = observeCompletedGalleryRun({
-        results,
-        reportPath: resolve(prepared?.galleryTests ?? '', 'test-results/results.json'),
-        scenarioIds: galleryModules.flatMap(module => module.scenarios.map(scenario => scenario.id)),
-      })
+      const scenarioIds = galleryModules.flatMap(module => module.scenarios.map(scenario => scenario.id))
+      observation = mergedShardReport
+        ? observeGalleryRun(mergedShardReport, scenarioIds)
+        : observeCompletedGalleryRun({
+          results,
+          reportPath: resolve(prepared?.galleryTests ?? '', 'test-results/results.json'),
+          scenarioIds,
+        })
       if (!observation) throw new Error('Playwright did not reach the browser test step')
       // A spec that passed only on retry and is not registered is red the way a failure is, focused
       // run or not: a retry nobody owns is how an intermittent regression becomes a green gate.
@@ -477,4 +610,5 @@ if (import.meta.main) {
     failure,
   }, null, 2)}\n`)
   process.exitCode = passed ? 0 : 1
+  }
 }
