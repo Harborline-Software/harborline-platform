@@ -324,13 +324,13 @@
         "projections/dotnet/kernel/hlp.kernel.work-items/DependencyInjection/WorkItemServiceCollectionExtensions.cs": "00f6c1b05076e9dd0eb1b2cbb691869f4e467e611d82a47bbbe249d25bf076e0",
         "projections/dotnet/kernel/hlp.kernel.work-items/FileJournalWorkItemStore.cs": "bebc530696ee0289bfd9fce1023dcee79161fc3723fb610ed4f493ece51aa05b",
         "projections/dotnet/kernel/hlp.kernel.work-items/InMemoryWorkItemStore.cs": "76efc3d0f76f9afa1398582aa0d1878433ba84d7488347003365e8bcd09c640c",
-        "projections/dotnet/kernel/hlp.kernel.work-items/README.md": "062a0e56f5e5e1cac43324c55149cdd4475dafd1cc50c1562935d7534870d65d",
+        "projections/dotnet/kernel/hlp.kernel.work-items/README.md": "2c0fa3582f1832dd124fe1c73c264f8115aa9652802c3fb3d5d830c0e97b4a3e",
         "projections/dotnet/kernel/hlp.kernel.work-items/Harborline.Kernel.WorkItems.csproj": "3bef0d8bc0f1a3e5043ccbe63ffd7276c72ceab4fb8fd3bc78e5895d1d94d23c",
         "projections/dotnet/kernel/hlp.kernel.work-items/WorkItemCanonical.cs": "dfb4e789d688df7610c192f7523a57190839cd52bdc6a00a0a0e20da64210d5c",
         "projections/dotnet/kernel/hlp.kernel.work-items/WorkItemContracts.cs": "481c512a9226da419ffe2980da8ef5b98a7d616039a641df60f4d3347ccab7c0",
         "projections/dotnet/kernel/hlp.kernel.work-items/WorkItemKernel.cs": "a51524524f63b01ba8b8ece28e5477481ca435b50379ed56a5a611ece21b4570",
         "projections/dotnet/kernel/hlp.kernel.work-items/WorkItemPersistence.cs": "84609b6df1e9b83c4f987ae8f41902a26b935d089e5df22c590f9dc9eb936c74",
-        "specs/modules/kernel/hlp.kernel.work-items/interface.yaml": "6d9171b3d15eadcfd3a2151859a5d43497422f8982d440b1cba18c3a6b1e5396"
+        "specs/modules/kernel/hlp.kernel.work-items/interface.yaml": "38c5bdc9832cb7d6e67e5b28a142a36636802c4523bc8d1e6b0fe4c29bc5301a"
       },
       "nextGate": "Implement hlp.blocks.inspection-review over Forms Engine and this work-item kernel, then prove the authenticated tenant-scoped vertical slice."
     },
