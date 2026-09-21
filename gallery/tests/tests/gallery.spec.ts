@@ -247,12 +247,12 @@ function storyId(index: StoryIndex, title: string, name: string): string {
 }
 
 async function openReactStory(page: Page, id: string) {
-  await page.goto(`${reactBase}/iframe.html?id=${encodeURIComponent(id)}&viewMode=story`)
+  await gotoWithTransientNetworkRetry(page, `${reactBase}/iframe.html?id=${encodeURIComponent(id)}&viewMode=story`)
   await expect(page.locator('[data-gallery-probe]')).toBeVisible()
 }
 
 async function openBlazorStory(page: Page, id: string) {
-  await page.goto(`${blazorBase}/iframe.html?id=${encodeURIComponent(id)}&viewMode=story`)
+  await gotoWithTransientNetworkRetry(page, `${blazorBase}/iframe.html?id=${encodeURIComponent(id)}&viewMode=story`)
   await page.waitForFunction(() => typeof BlazingStory !== 'undefined')
   await evaluateSettled(() => page.evaluate(() => BlazingStory.readyView()))
   await expect(page.locator('[data-gallery-probe]')).toBeVisible()
