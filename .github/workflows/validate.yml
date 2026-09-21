@@ -8,7 +8,7 @@ on:
   # here reruns that gate, and the run is green whenever publish-libraries is.
   merge_group:
   push:
-    branches: [main]
+    branches: [main, t-349-gallery-shard-matrix]
 jobs:
   # T-349. The browser suite, split across a MATRIX of ubuntu jobs -- one shard per job, each on its
   # own hosted runner.
@@ -24,7 +24,7 @@ jobs:
   # The shard count is NOT repeated anywhere: `--shard=<i>/${{ strategy.job-total }}` derives the
   # total from the matrix itself, so the two cannot drift. Sized from measurement -- see the PR.
   gallery-shard:
-    if: github.event_name == 'merge_group'
+    if: github.event_name == 'merge_group' || github.ref_name == 't-349-gallery-shard-matrix'
     runs-on: ubuntu-latest
     strategy:
       # One slow or flaky shard must not cancel the others: the collector needs every shard's
