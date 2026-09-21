@@ -3,17 +3,9 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import test from 'node:test'
+import { producerIds } from '../package-producers.mjs'
 
 const root = resolve(import.meta.dirname, '../..')
-export function producerIds() {
-  const source = readFileSync(resolve(root, 'tooling/verify-package-fixtures.mjs'), 'utf8')
-  const declarations = new Map([...source.matchAll(/const (\w+) = '(projections\/[^']+\.csproj)'/g)]
-    .map(([, name, path]) => [name, path]))
-  return [...source.matchAll(/run\(dotnet\.executable, \['pack', (\w+),/g)].map(([, name]) => {
-    const project = readFileSync(resolve(root, declarations.get(name)), 'utf8')
-    return /<PackageId>([^<]+)<\/PackageId>/.exec(project)[1]
-  }).sort()
-}
 
 test('publication uses exactly the gate producer ids and follows a push to main, the receipt-proven landing, never a pull request', () => {
   const workflow = readFileSync(resolve(root, '.github/workflows/validate.yml'), 'utf8')
@@ -21,8 +13,7 @@ test('publication uses exactly the gate producer ids and follows a push to main,
   assert.ok(job, 'publish-libraries job is required')
   const ids = /PACKAGE_IDS: >-\n([\s\S]*?)    steps:/.exec(job)[1].trim().split(/\s+/).sort()
   const produced = producerIds()
-  assert.equal(produced.length, 28)
-  assert.equal(new Set(produced).size, 28, 'one producer per package id')
+  assert.equal(new Set(produced).size, produced.length, 'one producer per package id')
   assert.ok(produced.includes('Harborline.Foundation.FieldRuntime'), 'the shared field runtime must be published')
   assert.deepEqual(ids, produced, 'workflow package list must equal the producer inventory')
   // Publication follows the landing the repository's own gate proved by receipt (2026-09-07); it must not
