@@ -12,7 +12,7 @@ public sealed class ViewRuntimeTests : BunitContext
     // The grid imports its JS module and connects on first render; the runtime test is about the mapping, so
     // bUnit answers every JS call loosely rather than scripting the grid module.
     public ViewRuntimeTests() { JSInterop.Mode = JSRuntimeMode.Loose; }
-    private static readonly ViewRenderPlan Grid = new("sha256:view-assets", "view-assets", "1", "harborline.platform", "1.0.0", "ViewDefinition", new("layout.table", new([new("asset", "Asset"), new("status", "Status"), new("owner", "Owner")]))) ;
+    private static readonly ViewRenderPlan Grid = new("sha256:view-assets", "view-assets", "1", "harborline.platform", "1.0.0", "ViewDefinition", new(ViewKindIds.Table, new([new("asset", "Asset"), new("status", "Status"), new("owner", "Owner")]))) ;
 
     [Fact]
     public void Authoring_editor_covers_the_views_grammar_and_omits_unavailable_shapes()
@@ -20,7 +20,7 @@ public sealed class ViewRuntimeTests : BunitContext
         ViewAuthoringDraft? changed = null;
         var catalogue = new ViewAuthoringCatalogue(
             [new("asset", "Asset")],
-            [new("layout.table", "Table")],
+            [new(ViewKindIds.Table, "Table")],
             [new("name", "Name"), new("status", "Status")],
             [new("asset.count", "Asset count")],
             [new("metric", "Metric")],

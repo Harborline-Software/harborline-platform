@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { ViewRuntime } from '../ViewRuntime'
-import type { ViewRenderPlan, ViewRuntimeRow } from '../ViewRuntime.types'
+import { VIEW_KIND_TABLE, type ViewRenderPlan, type ViewRuntimeRow } from '../ViewRuntime.types'
 import { ViewAuthoringEditor, emptyViewAuthoringDraft } from '../ViewAuthoringEditor'
 import type { ViewAuthoringCatalogue } from '../ViewAuthoringEditor.types'
 
@@ -11,7 +11,7 @@ const fixture = JSON.parse(readFileSync(resolve(process.cwd(), '../../../../conf
   cases: readonly { input: { plan: ViewRenderPlan; rows?: readonly ViewRuntimeRow[]; empty?: string; activateActions?: readonly string[] }; expected: { nodes?: number; columns?: readonly string[]; rowCount?: number; content?: string; actions?: readonly string[]; activated?: readonly string[] } }[]
 }
 
-const plan: ViewRenderPlan = { definitionHash: 'sha256:view-assets', definitionId: 'view-assets', definitionVersion: '1', packKey: 'harborline.platform', packVersion: '1.0.0', definitionKind: 'ViewDefinition', bindings: { viewKind: 'layout.table', parameters: { fields: [{ id: 'asset', label: 'Asset' }, { id: 'status', label: 'Status' }, { id: 'owner', label: 'Owner' }] } } }
+const plan: ViewRenderPlan = { definitionHash: 'sha256:view-assets', definitionId: 'view-assets', definitionVersion: '1', packKey: 'harborline.platform', packVersion: '1.0.0', definitionKind: 'ViewDefinition', bindings: { viewKind: VIEW_KIND_TABLE, parameters: { fields: [{ id: 'asset', label: 'Asset' }, { id: 'status', label: 'Status' }, { id: 'owner', label: 'Owner' }] } } }
 const rows: readonly ViewRuntimeRow[] = [{ id: 'a1', asset: 'Pier', status: 'Open', owner: 'Riley' }, { id: 'a2', asset: 'Pump', status: 'Review', owner: 'Morgan' }]
 const seededFormsList: ViewRenderPlan = { ...plan, definitionId: 'view-forms' }
 const catalogue = new Map([[`${seededFormsList.definitionId}@${seededFormsList.definitionVersion}`, { definitionId: seededFormsList.definitionId, definitionVersion: seededFormsList.definitionVersion, packKey: seededFormsList.packKey }]])
@@ -20,7 +20,7 @@ describe('ViewRuntime React projection', () => {
   it('authors every Views grammar section from nothing and omits unavailable shapes', () => {
     const catalogue: ViewAuthoringCatalogue = {
       recordTypes: [{ id: 'asset', label: 'Asset' }],
-      viewKinds: [{ id: 'layout.table', label: 'Table' }],
+      viewKinds: [{ id: VIEW_KIND_TABLE, label: 'Table' }],
       fields: [{ id: 'name', label: 'Name' }, { id: 'status', label: 'Status' }],
       measures: [{ id: 'asset.count', label: 'Asset count' }],
       widgets: [{ id: 'metric', label: 'Metric' }],

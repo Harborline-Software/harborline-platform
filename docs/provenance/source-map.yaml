@@ -480,8 +480,8 @@
         "projections/dotnet/blocks/hlp.blocks.entity-views/ViewQueryRuntime.cs": "8e06f74ebfccc47eac0075bc67a1240e745809b9d24f325e87729e42741b40d6",
         "projections/dotnet/blocks/hlp.blocks.entity-views.tests/AccessViewFilterTests.cs": "1513eeda4a45853f3acd5baff271a80be9ede903a2e4dc908603fda91b0dc506",
         "projections/dotnet/blocks/hlp.blocks.entity-views.tests/ViewQueryRuntimeTests.cs": "549441e12b986de19e1767ed366987bf77500002a96baa63f63fbc230222c5f5",
-        "specs/modules/blocks/hlp.blocks.entity-views/interface.yaml": "eb6b19cac6460a867bd01e5c1d2bee8510bf2f1781ada8e3fd3615373c837ed1",
-        "tests/package-consumers/views-nuget/Program.cs": "56a1d9408537d90b5c680d8671608c501b98917d249f7dce4cd4fcc7b3835eee",
+        "specs/modules/blocks/hlp.blocks.entity-views/interface.yaml": "6e32d3b1227bc1fe90599bf4fde1416d5c3ef7f2062f3ac3b26d467d1ac36593",
+        "tests/package-consumers/views-nuget/Program.cs": "a30937b2afabaa584862abbee800b66a4ffb89159226bd6dedaaf07ad14a1242",
         "tests/package-consumers/views-nuget/AccessContractProof.cs": "083e2238c397450f72dee5fd6edb620c327f728c0acca54326392dec21bdd308",
         "projections/dotnet/blocks/hlp.blocks.entity-views/CatalogueViewMeasures.cs": "adbe71355a40402425bc5bad1f3440c62b218ceda27629e529d864e00bc5af86"
       },

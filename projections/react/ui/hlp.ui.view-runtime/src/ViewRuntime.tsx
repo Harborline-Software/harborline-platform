@@ -1,8 +1,6 @@
 import { DataGrid, type DataGridColumnDef } from '@harborline-platform/hlp.ui.data-grid'
 import { Button } from '@harborline-platform/hlp.ui.button'
-import type { ViewDefinitionField, ViewRuntimeProps, ViewRuntimeRow } from './ViewRuntime.types'
-
-const GRID_KIND = 'layout.table'
+import { VIEW_KIND_TABLE, type ViewDefinitionField, type ViewRuntimeProps, type ViewRuntimeRow } from './ViewRuntime.types'
 
 function columns(fields: readonly ViewDefinitionField[]): readonly DataGridColumnDef<ViewRuntimeRow>[] {
   return fields.map((field, index) => ({ id: field.id, field: row => {
@@ -12,7 +10,7 @@ function columns(fields: readonly ViewDefinitionField[]): readonly DataGridColum
 }
 
 export function ViewRuntime({ plan, rows, accessibleName = 'View results', empty, actionsDisabled = false, onRowActivate, onAction }: ViewRuntimeProps) {
-  if (plan.definitionKind !== 'ViewDefinition' || plan.bindings.viewKind !== GRID_KIND) return null
+  if (plan.definitionKind !== 'ViewDefinition' || plan.bindings.viewKind !== VIEW_KIND_TABLE) return null
   const fields = plan.bindings.parameters?.fields
   if (!fields) return null
   const source = JSON.stringify({ definitionId: plan.definitionId, definitionVersion: plan.definitionVersion, packKey: plan.packKey })

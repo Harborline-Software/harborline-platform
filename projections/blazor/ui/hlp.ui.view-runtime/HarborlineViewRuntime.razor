@@ -1,6 +1,6 @@
 @namespace Harborline.UIAdapters.Blazor.Components.DataDisplay
 @using Harborline.UIAdapters.Blazor.Components.Buttons
-@if (Plan.DefinitionKind == "ViewDefinition" && Plan.Bindings.ViewKind == GridKind && Plan.Bindings.Parameters?.Fields is not null)
+@if (Plan.DefinitionKind == "ViewDefinition" && Plan.Bindings.ViewKind == ViewKindIds.Table && Plan.Bindings.Parameters?.Fields is not null)
 {
   <div class="hl-view-runtime"
        data-definition-source="@DefinitionSource"
@@ -18,7 +18,6 @@
   </div>
 }
 @code {
-  private const string GridKind = "layout.table";
   [Parameter, EditorRequired] public ViewRenderPlan Plan { get; set; } = default!;
   [Parameter, EditorRequired] public IReadOnlyList<ViewRuntimeRow> Rows { get; set; } = [];
   [Parameter] public string AccessibleLabel { get; set; } = "View results";
