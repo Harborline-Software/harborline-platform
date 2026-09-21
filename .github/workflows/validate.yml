@@ -66,6 +66,29 @@ jobs:
         run: git clone --quiet "https://github.com/Harborline-Software/harborline-api.git" "$RUNNER_TEMP/harborline-api"
         env:
           HARBORLINE_API_READ_TOKEN: ${{ secrets.HARBORLINE_API_READ_TOKEN }}
+      - name: Install the projection dependencies the fixtures build from
+        # prepareGalleries packs the three npm tarballs and the NuGet feed the galleries consume,
+        # and it builds them from these projections. In the phase-4 gate those installs are its own
+        # first seven steps, so the gallery inherited them; a shard job has no gate ahead of it, and
+        # without this it dies in verify-package-fixtures with "Cannot find package 'esbuild'".
+        #
+        # Six shards each packing for themselves is redundant CPU and NOT redundant wall clock --
+        # they run concurrently, so the matrix pays this once in elapsed time. Sharing one pack
+        # through an artifact was the alternative and it is worse: packageReadiness() decides an
+        # artifact is usable by comparing its mtime against its sources', and download-artifact
+        # does not preserve mtimes, so correctness would rest on the download landing after the
+        # checkout. A tree that builds what it needs has no such ordering to get wrong.
+        run: |
+          pnpm install --frozen-lockfile --ignore-scripts
+          for project in \
+            projections/react/ui/hlp.ui.button \
+            projections/typescript/contracts/hlp.contracts.forms \
+            projections/typescript/foundation/hlp.foundation.rule-runtime \
+            projections/typescript/foundation/hlp.foundation.rule-authoring \
+            projections/typescript/application/hlp.copilot.contracts; do
+            pnpm --dir "$project" install --frozen-lockfile --ignore-scripts
+          done
+          dotnet restore Harborline.Platform.slnx -v:minimal
       - name: Run gallery shard ${{ matrix.shard }} of ${{ strategy.job-total }}
         run: |
           set -o pipefail
