@@ -313,9 +313,278 @@ public sealed class VersionedDefinitionStoreTests
         Assert.Equal(2, (await store.ListHistoryAsync(source.Key)).Count);
     }
 
+    [Fact]
+    public async Task LegacyMutationCallShapesRemainSourceCompatible()
+    {
+        var source = Document();
+        CancellationToken cancellationToken = default;
+
+        IVersionedDefinitionStore noTokenSave = Store();
+        await noTokenSave.SaveDraftAsync(source, 0, "draft");
+        await noTokenSave.PublishAsync(source.Key, source.VersionId, 1, "publish", cancellationToken);
+        await noTokenSave.RestoreAsDraftAsync(source.Key, source.VersionId, "version-b", "2.0.0",
+            2, "restore", default);
+
+        IVersionedDefinitionStore typedTokenSave = Store();
+        await typedTokenSave.SaveDraftAsync(source, 0, "draft", cancellationToken);
+        await typedTokenSave.PublishAsync(source.Key, source.VersionId, 1, "publish", default);
+        await typedTokenSave.RestoreAsDraftAsync(source.Key, source.VersionId, "version-b", "2.0.0",
+            2, "restore");
+
+        IVersionedDefinitionStore positionalDefaultSave = Store();
+        await positionalDefaultSave.SaveDraftAsync(source, 0, "draft", default);
+        await positionalDefaultSave.PublishAsync(source.Key, source.VersionId, 1, "publish");
+        await positionalDefaultSave.RestoreAsDraftAsync(source.Key, source.VersionId, "version-b", "2.0.0",
+            2, "restore", cancellationToken);
+
+        InMemoryVersionedDefinitionStore targetTyped = new(
+            new Dictionary<DefinitionKind, DefinitionAdmission>());
+        Assert.NotNull(targetTyped);
+        Assert.Throws<ArgumentNullException>(() =>
+            new InMemoryVersionedDefinitionStore(null!));
+    }
+
+    [Fact]
+    public async Task DelayedAdmissionLosesTheSecondFenceWithoutHistoryHeadOrReplayMutation()
+    {
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var pause = true;
+        var store = AsyncStore(async (context, cancellationToken) =>
+        {
+            if (pause && context.Candidate.Document.BodyJson == "{\"gap\":2}")
+            {
+                entered.TrySetResult();
+                await release.Task.WaitAsync(cancellationToken);
+            }
+            return [];
+        });
+        var source = Document();
+        var alice = new DefinitionPrincipalContext("principal-alice");
+        var bob = new DefinitionPrincipalContext("principal-bob");
+        await store.SaveDraftAsync(alice, source, 0, "initial");
+
+        var stale = store.SaveDraftAsync(alice,
+            source with { BodyJson = "{\"gap\":2}" }, 1, "stale").AsTask();
+        await entered.Task;
+        var winner = await store.SaveDraftAsync(bob,
+            source with { BodyJson = "{\"gap\":3}" }, 1, "winner");
+        pause = false;
+        release.TrySetResult();
+
+        AssertRefusal(await Assert.ThrowsAsync<DefinitionRefusalException>(async () => await stale),
+            "definition.revision_conflict", "/expectedRevision");
+        Assert.Equal(2, (await store.ListHistoryAsync(source.Key)).Count);
+        Assert.Equal(winner, (await store.ListHistoryAsync(source.Key))[^1]);
+        Assert.Null(await store.GetPublishedHeadAsync(source.Key));
+
+        var later = await store.SaveDraftAsync(alice,
+            source with { BodyJson = "{\"gap\":4}" }, 2, "stale");
+        Assert.Equal(3, later.Revision);
+    }
+
+    [Fact]
+    public async Task CancellationDuringAwaitDoesNotPoisonALaterRequest()
+    {
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var store = AsyncStore(async (_, _) =>
+        {
+            entered.TrySetResult();
+            await release.Task;
+            return [];
+        });
+        var source = Document();
+        var principal = new DefinitionPrincipalContext("principal-alice");
+        using var cancellation = new CancellationTokenSource();
+
+        var cancelled = store.SaveDraftAsync(principal, source, 0, "request", cancellation.Token).AsTask();
+        await entered.Task;
+        cancellation.Cancel();
+        Assert.False(cancelled.IsCompleted);
+        release.TrySetResult();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () => await cancelled);
+
+        Assert.Empty(await store.ListHistoryAsync(source.Key));
+        Assert.Null(await store.GetPublishedHeadAsync(source.Key));
+        Assert.Equal(1, (await store.SaveDraftAsync(principal, source, 0, "request")).Revision);
+    }
+
+    [Fact]
+    public async Task AdmissionFaultDoesNotPoisonALaterRequest()
+    {
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var shouldFault = true;
+        var store = AsyncStore(async (_, _) =>
+        {
+            entered.TrySetResult();
+            await release.Task;
+            if (shouldFault) throw new InvalidOperationException("admission unavailable");
+            return [];
+        });
+        var source = Document();
+        var principal = new DefinitionPrincipalContext("principal-alice");
+
+        var faulted = store.SaveDraftAsync(principal, source, 0, "request").AsTask();
+        await entered.Task;
+        Assert.Empty(await store.ListHistoryAsync(source.Key));
+        Assert.Null(await store.GetPublishedHeadAsync(source.Key));
+        release.TrySetResult();
+        await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await faulted);
+        Assert.Empty(await store.ListHistoryAsync(source.Key));
+        Assert.Null(await store.GetPublishedHeadAsync(source.Key));
+
+        shouldFault = false;
+        Assert.Equal(1, (await store.SaveDraftAsync(principal, source, 0, "request")).Revision);
+    }
+
+    [Fact]
+    public async Task NullAsyncAdmissionResultRefusesWithoutMutation()
+    {
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var returnNull = true;
+        var store = AsyncStore(async (_, _) =>
+        {
+            entered.TrySetResult();
+            await release.Task;
+            return returnNull ? null! : Array.Empty<DefinitionRefusal>();
+        });
+        var source = Document();
+        var principal = new DefinitionPrincipalContext("principal-alice");
+
+        var invalid = store.SaveDraftAsync(principal, source, 0, "request").AsTask();
+        await entered.Task;
+        release.TrySetResult();
+        AssertRefusal(await Assert.ThrowsAsync<DefinitionRefusalException>(async () => await invalid),
+            "definition.admission_invalid", "/body");
+        Assert.Empty(await store.ListHistoryAsync(source.Key));
+        Assert.Null(await store.GetPublishedHeadAsync(source.Key));
+
+        returnNull = false;
+        Assert.Equal(1, (await store.SaveDraftAsync(principal, source, 0, "request")).Revision);
+    }
+
+    [Fact]
+    public async Task AdmissionReceivesDetachedPriorForOnlyTheSameVersionIdentity()
+    {
+        var contexts = new List<DefinitionAdmissionContext>();
+        var store = AsyncStore((context, _) =>
+        {
+            contexts.Add(context);
+            return ValueTask.FromResult<IReadOnlyList<DefinitionRefusal>>([]);
+        });
+        var principal = new DefinitionPrincipalContext("principal-alice");
+        var source = Document() with
+        {
+            BodyJson = "{\"record_type_id\":\"orders\",\"priorSameVersionRevision\":\"forged\"}"
+        };
+        var replacement = source with { BodyJson = "{\"record_type_id\":\"orders\",\"state\":2}" };
+
+        await store.SaveDraftAsync(principal, source, 0, "draft-1");
+        await store.SaveDraftAsync(principal, replacement, 1, "draft-2");
+        await store.PublishAsync(principal, source.Key, source.VersionId, 2, "publish");
+        await store.SaveDraftAsync(principal,
+            source with { VersionId = "version-b", Version = "2.0.0" }, 3, "new-version");
+        await store.RestoreAsDraftAsync(principal, source.Key, source.VersionId,
+            "version-c", "3.0.0", 4, "restore");
+
+        Assert.Null(contexts[0].PriorSameVersionRevision);
+        Assert.Equal(source.BodyJson, contexts[1].PriorSameVersionRevision!.Document.BodyJson);
+        Assert.Equal(replacement.BodyJson, contexts[2].PriorSameVersionRevision!.Document.BodyJson);
+        Assert.Equal(DefinitionStatus.Draft, contexts[2].PriorSameVersionRevision!.Status);
+        Assert.Null(contexts[3].PriorSameVersionRevision);
+        Assert.Null(contexts[4].PriorSameVersionRevision);
+        Assert.Equal(source.VersionId, contexts[4].Candidate.RestoredFromVersionId);
+        Assert.Equal(replacement.BodyJson, contexts[4].Candidate.Document.BodyJson);
+        Assert.NotSame((await store.ListHistoryAsync(source.Key))[0], contexts[1].PriorSameVersionRevision);
+    }
+
+    [Fact]
+    public async Task MemberAdmissionEnforcesImmutableBodyIdentityOnDirectDraftReplacement()
+    {
+        IVersionedDefinitionStore store = AsyncStore((context, _) =>
+        {
+            if (context.PriorSameVersionRevision is null)
+                return ValueTask.FromResult<IReadOnlyList<DefinitionRefusal>>([]);
+            using var prior = JsonDocument.Parse(context.PriorSameVersionRevision.Document.BodyJson);
+            using var candidate = JsonDocument.Parse(context.Candidate.Document.BodyJson);
+            return ValueTask.FromResult<IReadOnlyList<DefinitionRefusal>>(
+                prior.RootElement.GetProperty("record_type_id").GetString()
+                    == candidate.RootElement.GetProperty("record_type_id").GetString()
+                    ? [] : [new("records.record_type_id_immutable", "/body/record_type_id")]);
+        });
+        var principal = new DefinitionPrincipalContext("principal-alice");
+        var source = Document() with { BodyJson = "{\"record_type_id\":\"orders\"}" };
+        await store.SaveDraftAsync(principal, source, 0, "draft");
+
+        AssertRefusal(await Assert.ThrowsAsync<DefinitionRefusalException>(async () =>
+            await store.SaveDraftAsync(principal,
+                source with { BodyJson = "{\"record_type_id\":\"invoices\"}" },
+                1, "edit")), "records.record_type_id_immutable", "/body/record_type_id");
+
+        Assert.Equal(source, Assert.Single(await store.ListHistoryAsync(source.Key)).Document);
+        Assert.Null(await store.GetPublishedHeadAsync(source.Key));
+    }
+
+    [Fact]
+    public async Task AsyncRegistryRequiresExplicitNonblankPrincipal()
+    {
+        var calls = 0;
+        IVersionedDefinitionStore store = AsyncStore((_, _) =>
+        {
+            calls++;
+            return ValueTask.FromResult<IReadOnlyList<DefinitionRefusal>>([]);
+        });
+        var source = Document();
+
+        AssertRefusal(await Assert.ThrowsAsync<DefinitionRefusalException>(async () =>
+            await store.SaveDraftAsync(source, 0, "legacy")),
+            "definition.principal_required", "/principal");
+        AssertRefusal(await Assert.ThrowsAsync<DefinitionRefusalException>(async () =>
+            await store.SaveDraftAsync(new DefinitionPrincipalContext("  "), source, 0, "blank")),
+            "definition.principal_required", "/principal");
+        Assert.Equal(0, calls);
+        Assert.Empty(await store.ListHistoryAsync(source.Key));
+    }
+
+    [Fact]
+    public async Task ExactPrincipalBoundReplayBypassesUnavailableAdmission()
+    {
+        var calls = 0;
+        var unavailable = false;
+        IVersionedDefinitionStore store = AsyncStore((_, _) =>
+        {
+            calls++;
+            if (unavailable) throw new InvalidOperationException("admission unavailable");
+            return ValueTask.FromResult<IReadOnlyList<DefinitionRefusal>>([]);
+        });
+        var source = Document();
+        var alice = new DefinitionPrincipalContext("principal-alice");
+        var first = await store.SaveDraftAsync(alice, source, 0, "request");
+        unavailable = true;
+
+        Assert.Equal(first, await store.SaveDraftAsync(alice, source, 0, "request"));
+        AssertRefusal(await Assert.ThrowsAsync<DefinitionRefusalException>(async () =>
+            await store.SaveDraftAsync(new DefinitionPrincipalContext("principal-bob"),
+                source, 0, "request")),
+            "definition.replay_conflict", "/requestId");
+        Assert.Equal(1, calls);
+        Assert.Single(await store.ListHistoryAsync(source.Key));
+    }
+
     private static InMemoryVersionedDefinitionStore Store(DefinitionAdmission? admission = null)
         => new(Enum.GetValues<DefinitionKind>().ToDictionary(kind => kind,
             _ => admission ?? ((_, _) => Array.Empty<DefinitionRefusal>())));
+
+    private static InMemoryVersionedDefinitionStore AsyncStore(DefinitionAsyncAdmission admission)
+        => InMemoryVersionedDefinitionStore.CreateAsync(
+            new Dictionary<DefinitionKind, DefinitionAsyncAdmission>
+        {
+            [DefinitionKind.Rules] = admission,
+        });
 
     private static DefinitionDocument Document(DefinitionKind kind = DefinitionKind.Rules)
         => new(new("tenant-a", kind, "definition-a"), "version-a", "1.0.0", "{\"gap\":1}");

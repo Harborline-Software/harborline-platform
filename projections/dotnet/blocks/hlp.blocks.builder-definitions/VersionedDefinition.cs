@@ -49,6 +49,31 @@ public sealed record DefinitionRefusal(string Code, string Pointer);
 public delegate IReadOnlyList<DefinitionRefusal> DefinitionAdmission(
     DefinitionDocument document, DefinitionAdmissionPhase phase);
 
+/// <summary>
+/// The explicit principal supplied by the trusted host for one mutation. It scopes member
+/// admission evidence; it does not grant authorization.
+/// </summary>
+public sealed record DefinitionPrincipalContext(string Principal);
+
+/// <summary>
+/// Trusted member-admission input assembled by the store. PriorSameVersionRevision is the detached
+/// state for the candidate's exact VersionId observed under the first stream fence, or null when
+/// that version does not yet exist. Authors cannot supply it.
+/// </summary>
+public sealed record DefinitionAdmissionContext(
+    DefinitionRevision Candidate,
+    DefinitionAdmissionPhase Phase,
+    DefinitionRevision? PriorSameVersionRevision,
+    DefinitionPrincipalContext? PrincipalContext);
+
+/// <summary>
+/// Asynchronous member admission. It returns refusals without changing source or performing
+/// persistence. The store awaits it outside its lock and fences the trusted context again before
+/// committing.
+/// </summary>
+public delegate ValueTask<IReadOnlyList<DefinitionRefusal>> DefinitionAsyncAdmission(
+    DefinitionAdmissionContext context, CancellationToken cancellationToken);
+
 /// <summary>A refused operation. No history or published head changed.</summary>
 public sealed class DefinitionRefusalException : Exception
 {
@@ -72,14 +97,29 @@ public interface IVersionedDefinitionStore
     ValueTask<DefinitionRevision> SaveDraftAsync(DefinitionDocument document, long expectedRevision,
         string requestId, CancellationToken cancellationToken = default);
 
+    /// <summary>Appends an admitted draft using explicit per-operation principal context.</summary>
+    ValueTask<DefinitionRevision> SaveDraftAsync(DefinitionPrincipalContext principalContext,
+        DefinitionDocument document, long expectedRevision, string requestId,
+        CancellationToken cancellationToken = default);
+
     /// <summary>Re-admits and immutably publishes an existing draft.</summary>
     ValueTask<DefinitionRevision> PublishAsync(DefinitionKey key, string versionId, long expectedRevision,
         string requestId, CancellationToken cancellationToken = default);
+
+    /// <summary>Re-admits and publishes using explicit per-operation principal context.</summary>
+    ValueTask<DefinitionRevision> PublishAsync(DefinitionPrincipalContext principalContext,
+        DefinitionKey key, string versionId, long expectedRevision, string requestId,
+        CancellationToken cancellationToken = default);
 
     /// <summary>Copies a published body into a new draft identity and semantic version.</summary>
     ValueTask<DefinitionRevision> RestoreAsDraftAsync(DefinitionKey key, string sourceVersionId,
         string draftVersionId, string draftVersion, long expectedRevision, string requestId,
         CancellationToken cancellationToken = default);
+
+    /// <summary>Restores a new draft using explicit per-operation principal context.</summary>
+    ValueTask<DefinitionRevision> RestoreAsDraftAsync(DefinitionPrincipalContext principalContext,
+        DefinitionKey key, string sourceVersionId, string draftVersionId, string draftVersion,
+        long expectedRevision, string requestId, CancellationToken cancellationToken = default);
 
     /// <summary>Returns append-only lifecycle history in stream revision order.</summary>
     ValueTask<IReadOnlyList<DefinitionRevision>> ListHistoryAsync(DefinitionKey key,

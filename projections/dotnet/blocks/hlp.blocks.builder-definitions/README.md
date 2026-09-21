@@ -25,18 +25,29 @@ published bodies only. The head selects the highest published semantic version; 
 a draft. `DefinitionKind` values are catalogue namespaces, not transport content kinds or primitive
 numbers. Values 0 and 1 preserve existing Forms/Workflows archive namespaces; Layout retains 3.
 
-Host composition supplies a pure admission function for each supported registry. Missing registry
-admission fails closed. Member adapters validate their own typed source, numeric constraints and
-metadata consistency; they return stable codes and RFC 6901 pointers. The store validates version
-syntax and JSON syntax, retains the supplied body bytes and digest, and never normalizes a body.
-Metadata lives outside the body so a generic restore can copy source without understanding it.
+Host composition supplies a pure synchronous or asynchronous admission function for each supported
+registry. Missing registry admission fails closed. Existing synchronous registrations and calls stay
+context-free. An asynchronous registry requires a nonblank principal on each mutation; the principal
+is trusted admission input, not authorization, and is never ambient or mutable store state. Member
+adapters validate their own typed source, numeric constraints and metadata consistency; they return
+stable codes and RFC 6901 pointers. The store validates version syntax and JSON syntax, retains the
+supplied body bytes and digest, and never normalizes a body. Metadata lives outside the body so a
+generic restore can copy source without understanding it.
+
+Async-only composition uses `InMemoryVersionedDefinitionStore.CreateAsync`. Principal-aware mutation
+overloads put `DefinitionPrincipalContext` first, leaving the legacy optional `CancellationToken`
+position unchanged for source compatibility, including positional `default` calls.
 
 Every mutation requires the expected tenant/registry/definition stream revision and a request id.
-Exact replay returns the original result; changed operation, fence or payload refuses. Validation
-runs outside the store lock, followed by a second revision check before committing. Concurrent
-edits cannot overwrite each other. Published versions never change, equal-precedence versions
-cannot replace an existing published identity, and restore appends a new draft. History records
-each accepted lifecycle event rather than rewriting the earlier draft or publication event.
+Exact replay returns the original result without repeating source reads or admission; changed
+operation, fence, payload or supplied principal refuses. Admission receives the candidate, phase,
+principal and a detached prior revision for the exact same version identity captured under the first
+stream fence. A new version has no prior even when another version exists. Admission is awaited
+outside the store lock, cancellation is rechecked, and the stream is fenced again before committing.
+Concurrent edits cannot overwrite each other. Published versions never change, equal-precedence
+versions cannot replace an existing published identity, and restore appends a new draft while
+preserving source bytes and source-version attribution. History records each accepted lifecycle event
+rather than rewriting the earlier draft or publication event.
 
 `InMemoryVersionedDefinitionStore` is a reference implementation, not a durable host adapter.
 Durable adapters must atomically commit the revision, history, published head and replay result.

@@ -15,56 +15,110 @@ public sealed class InMemoryVersionedDefinitionStore : IVersionedDefinitionStore
     // Opaque immutable strings replace Layout's serialize/deserialize snapshot. Member admission
     // replaces LayoutDefinitionAdmission; no Layout type or grammar remains in the shared store.
     private readonly object _gate = new();
-    private readonly IReadOnlyDictionary<DefinitionKind, DefinitionAdmission> _admissions;
+    private readonly IReadOnlyDictionary<DefinitionKind, RegisteredAdmission> _admissions;
     private readonly Dictionary<(DefinitionKey Key, string VersionId), DefinitionRevision> _revisions = [];
     private readonly Dictionary<DefinitionKey, List<DefinitionRevision>> _history = [];
     private readonly Dictionary<(DefinitionKey Key, string RequestId), Replay> _requests = [];
 
     /// <summary>Creates a store with explicitly admitted registry validators, copied from host configuration.</summary>
     public InMemoryVersionedDefinitionStore(IReadOnlyDictionary<DefinitionKind, DefinitionAdmission> admissions)
+        : this(Register(admissions)) { }
+
+    /// <summary>Creates a store whose registered validators require explicit principal context.</summary>
+    public static InMemoryVersionedDefinitionStore CreateAsync(
+        IReadOnlyDictionary<DefinitionKind, DefinitionAsyncAdmission> admissions)
+        => new(Register(admissions));
+
+    /// <summary>Creates a store with disjoint synchronous and asynchronous registry validators.</summary>
+    public InMemoryVersionedDefinitionStore(
+        IReadOnlyDictionary<DefinitionKind, DefinitionAdmission> admissions,
+        IReadOnlyDictionary<DefinitionKind, DefinitionAsyncAdmission> asyncAdmissions)
+        : this(Register(admissions, asyncAdmissions)) { }
+
+    private InMemoryVersionedDefinitionStore(IReadOnlyDictionary<DefinitionKind, RegisteredAdmission> admissions)
     {
         ArgumentNullException.ThrowIfNull(admissions);
-        if (admissions.Any(pair => !Enum.IsDefined(pair.Key) || pair.Value is null))
-            throw Refuse("definition.registry_unknown", "/registry");
-        _admissions = new Dictionary<DefinitionKind, DefinitionAdmission>(admissions);
+        _admissions = new Dictionary<DefinitionKind, RegisteredAdmission>(admissions);
     }
 
     /// <inheritdoc />
     public ValueTask<DefinitionRevision> SaveDraftAsync(DefinitionDocument document, long expectedRevision,
         string requestId, CancellationToken cancellationToken = default)
+        => SaveDraftCoreAsync(document, expectedRevision, requestId, null, cancellationToken);
+
+    /// <inheritdoc />
+    public ValueTask<DefinitionRevision> SaveDraftAsync(DefinitionPrincipalContext principalContext,
+        DefinitionDocument document, long expectedRevision, string requestId,
+        CancellationToken cancellationToken = default)
+        => SaveDraftCoreAsync(document, expectedRevision, requestId, principalContext,
+            cancellationToken);
+
+    private ValueTask<DefinitionRevision> SaveDraftCoreAsync(DefinitionDocument document, long expectedRevision,
+        string requestId, DefinitionPrincipalContext? principalContext, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(document);
-        return Apply(document.Key, expectedRevision, requestId, Signature("draft", document),
+        return Apply(document.Key, expectedRevision, requestId,
+            OperationSignature("draft", document, principalContext),
             DefinitionAdmissionPhase.Author, () =>
             {
+                DefinitionRevision? prior = null;
                 if (_revisions.TryGetValue((document.Key, document.VersionId), out var current))
                 {
                     if (current.Status == DefinitionStatus.Published)
                         throw Refuse("definition.version_immutable", "/versionId");
                     if (!StringComparer.Ordinal.Equals(current.Document.Version, document.Version))
                         throw Refuse("definition.version_conflict", "/version");
+                    prior = Detach(current);
                 }
-                return Snapshot(document, DefinitionStatus.Draft);
-            }, cancellationToken);
+                return new(Snapshot(document, DefinitionStatus.Draft), prior);
+            }, principalContext, cancellationToken);
     }
 
     /// <inheritdoc />
     public ValueTask<DefinitionRevision> PublishAsync(DefinitionKey key, string versionId, long expectedRevision,
         string requestId, CancellationToken cancellationToken = default)
+        => PublishCoreAsync(key, versionId, expectedRevision, requestId, null, cancellationToken);
+
+    /// <inheritdoc />
+    public ValueTask<DefinitionRevision> PublishAsync(DefinitionPrincipalContext principalContext,
+        DefinitionKey key, string versionId, long expectedRevision, string requestId,
+        CancellationToken cancellationToken = default)
+        => PublishCoreAsync(key, versionId, expectedRevision, requestId, principalContext, cancellationToken);
+
+    private ValueTask<DefinitionRevision> PublishCoreAsync(DefinitionKey key, string versionId, long expectedRevision,
+        string requestId, DefinitionPrincipalContext? principalContext, CancellationToken cancellationToken)
     {
         Require(versionId, "definition.version_id_required", "/versionId");
-        return Apply(key, expectedRevision, requestId, Signature("publish", versionId),
-            DefinitionAdmissionPhase.Publish, () => Find(key, versionId), cancellationToken);
+        return Apply(key, expectedRevision, requestId,
+            OperationSignature("publish", versionId, principalContext),
+            DefinitionAdmissionPhase.Publish, () =>
+            {
+                var current = Find(key, versionId);
+                return new(Detach(current), Detach(current));
+            }, principalContext, cancellationToken);
     }
 
     /// <inheritdoc />
     public ValueTask<DefinitionRevision> RestoreAsDraftAsync(DefinitionKey key, string sourceVersionId,
         string draftVersionId, string draftVersion, long expectedRevision, string requestId,
         CancellationToken cancellationToken = default)
+        => RestoreAsDraftCoreAsync(key, sourceVersionId, draftVersionId, draftVersion, expectedRevision,
+            requestId, null, cancellationToken);
+
+    /// <inheritdoc />
+    public ValueTask<DefinitionRevision> RestoreAsDraftAsync(DefinitionPrincipalContext principalContext,
+        DefinitionKey key, string sourceVersionId, string draftVersionId, string draftVersion,
+        long expectedRevision, string requestId, CancellationToken cancellationToken = default)
+        => RestoreAsDraftCoreAsync(key, sourceVersionId, draftVersionId, draftVersion, expectedRevision,
+            requestId, principalContext, cancellationToken);
+
+    private ValueTask<DefinitionRevision> RestoreAsDraftCoreAsync(DefinitionKey key, string sourceVersionId,
+        string draftVersionId, string draftVersion, long expectedRevision, string requestId,
+        DefinitionPrincipalContext? principalContext, CancellationToken cancellationToken)
     {
         Require(sourceVersionId, "definition.version_id_required", "/sourceVersionId");
         return Apply(key, expectedRevision, requestId,
-            Signature("restore", new { sourceVersionId, draftVersionId, draftVersion }),
+            OperationSignature("restore", new { sourceVersionId, draftVersionId, draftVersion }, principalContext),
             DefinitionAdmissionPhase.Author, () =>
             {
                 var source = Find(key, sourceVersionId);
@@ -72,9 +126,11 @@ public sealed class InMemoryVersionedDefinitionStore : IVersionedDefinitionStore
                     throw Refuse("definition.published_version_required", "/sourceVersionId");
                 if (_revisions.ContainsKey((key, draftVersionId)))
                     throw Refuse("definition.version_conflict", "/versionId");
-                return Snapshot(source.Document with { VersionId = draftVersionId, Version = draftVersion },
+                var candidate = Snapshot(
+                    source.Document with { VersionId = draftVersionId, Version = draftVersion },
                     DefinitionStatus.Draft) with { RestoredFromVersionId = sourceVersionId };
-            }, cancellationToken);
+                return new(candidate, null);
+            }, principalContext, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -114,30 +170,33 @@ public sealed class InMemoryVersionedDefinitionStore : IVersionedDefinitionStore
                 && revision.Status == DefinitionStatus.Published ? revision : null);
     }
 
-    private ValueTask<DefinitionRevision> Apply(DefinitionKey key, long expectedRevision, string requestId,
-        string signature, DefinitionAdmissionPhase phase, Func<DefinitionRevision> prepare,
-        CancellationToken cancellationToken)
+    private async ValueTask<DefinitionRevision> Apply(DefinitionKey key, long expectedRevision, string requestId,
+        string signature, DefinitionAdmissionPhase phase, Func<PreparedAdmission> prepare,
+        DefinitionPrincipalContext? principalContext, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         ValidateKey(key);
+        ValidatePrincipalContext(key, principalContext);
         Require(requestId, "definition.request_id_required", "/requestId");
         if (expectedRevision < 0) throw Refuse("definition.revision_conflict", "/expectedRevision");
-        DefinitionRevision candidate;
+        PreparedAdmission prepared;
         lock (_gate)
         {
             var replay = ReplayOrFence(key, expectedRevision, requestId, signature);
-            if (replay is not null) return ValueTask.FromResult(replay);
-            candidate = prepare();
+            if (replay is not null) return replay;
+            prepared = prepare();
         }
 
         // Member code runs outside the store lock. The second fence protects this snapshot
         // against concurrent edits and against a validator that re-enters a mutation method.
-        Validate(candidate.Document, phase);
+        await ValidateAsync(prepared.Candidate, phase, prepared.PriorSameVersionRevision,
+            principalContext, cancellationToken).ConfigureAwait(false);
         cancellationToken.ThrowIfCancellationRequested();
         lock (_gate)
         {
             var replay = ReplayOrFence(key, expectedRevision, requestId, signature);
-            if (replay is not null) return ValueTask.FromResult(replay);
+            if (replay is not null) return replay;
+            var candidate = prepared.Candidate;
             if (phase == DefinitionAdmissionPhase.Publish)
             {
                 var version = DefinitionSemanticVersion.Parse(candidate.Document.Version);
@@ -149,7 +208,7 @@ public sealed class InMemoryVersionedDefinitionStore : IVersionedDefinitionStore
                 if (candidate.Status == DefinitionStatus.Published)
                 {
                     _requests.Add((key, requestId), new(expectedRevision, signature, candidate));
-                    return ValueTask.FromResult(candidate);
+                    return candidate;
                 }
                 candidate = candidate with { Status = DefinitionStatus.Published };
             }
@@ -158,7 +217,7 @@ public sealed class InMemoryVersionedDefinitionStore : IVersionedDefinitionStore
             history.Add(appended);
             _revisions[(key, appended.Document.VersionId)] = appended;
             _requests.Add((key, requestId), new(expectedRevision, signature, appended));
-            return ValueTask.FromResult(appended);
+            return appended;
         }
     }
 
@@ -177,8 +236,11 @@ public sealed class InMemoryVersionedDefinitionStore : IVersionedDefinitionStore
         return null;
     }
 
-    private void Validate(DefinitionDocument document, DefinitionAdmissionPhase phase)
+    private async ValueTask ValidateAsync(DefinitionRevision candidate, DefinitionAdmissionPhase phase,
+        DefinitionRevision? priorSameVersionRevision, DefinitionPrincipalContext? principalContext,
+        CancellationToken cancellationToken)
     {
+        var document = candidate.Document;
         ValidateKey(document.Key);
         Require(document.VersionId, "definition.version_id_required", "/versionId");
         if (!DefinitionSemanticVersion.TryParse(document.Version, out _))
@@ -186,9 +248,22 @@ public sealed class InMemoryVersionedDefinitionStore : IVersionedDefinitionStore
         try { using var parsed = JsonDocument.Parse(document.BodyJson); }
         catch (JsonException) { throw Refuse("definition.body_invalid", "/body"); }
         catch (ArgumentNullException) { throw Refuse("definition.body_invalid", "/body"); }
-        var refusals = _admissions[document.Key.Kind](document, phase);
+        var context = new DefinitionAdmissionContext(candidate, phase, priorSameVersionRevision, principalContext);
+        var refusals = await _admissions[document.Key.Kind].Callback(context, cancellationToken)
+            .ConfigureAwait(false);
         if (refusals is null) throw Refuse("definition.admission_invalid", "/body");
         if (refusals.Count > 0) throw new DefinitionRefusalException(refusals);
+    }
+
+    private void ValidatePrincipalContext(DefinitionKey key, DefinitionPrincipalContext? principalContext)
+    {
+        if (principalContext is not null)
+        {
+            Require(principalContext.Principal, "definition.principal_required", "/principal");
+            return;
+        }
+        if (_admissions[key.Kind].RequiresPrincipal)
+            throw Refuse("definition.principal_required", "/principal");
     }
 
     private void ValidateKey(DefinitionKey key)
@@ -208,8 +283,51 @@ public sealed class InMemoryVersionedDefinitionStore : IVersionedDefinitionStore
         => new(document, 0, status, document.BodyJson is null ? "" :
             Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(document.BodyJson))));
 
+    private static DefinitionRevision Detach(DefinitionRevision revision)
+        => revision with { Document = revision.Document with { Key = revision.Document.Key with { } } };
+
+    private static string OperationSignature<T>(string operation, T payload,
+        DefinitionPrincipalContext? principalContext)
+        => principalContext is null
+            ? Signature(operation, payload)
+            : Signature(operation, new { payload, principal = principalContext.Principal });
+
     private static string Signature<T>(string operation, T payload)
         => JsonSerializer.Serialize(new { operation, payload });
+
+    private static IReadOnlyDictionary<DefinitionKind, RegisteredAdmission> Register(
+        IReadOnlyDictionary<DefinitionKind, DefinitionAdmission> admissions)
+    {
+        ArgumentNullException.ThrowIfNull(admissions);
+        if (admissions.Any(pair => !Enum.IsDefined(pair.Key) || pair.Value is null))
+            throw Refuse("definition.registry_unknown", "/registry");
+        return admissions.ToDictionary(pair => pair.Key, pair =>
+            new RegisteredAdmission((context, _) =>
+                ValueTask.FromResult(pair.Value(context.Candidate.Document, context.Phase)), false));
+    }
+
+    private static IReadOnlyDictionary<DefinitionKind, RegisteredAdmission> Register(
+        IReadOnlyDictionary<DefinitionKind, DefinitionAsyncAdmission> admissions)
+    {
+        ArgumentNullException.ThrowIfNull(admissions);
+        if (admissions.Any(pair => !Enum.IsDefined(pair.Key) || pair.Value is null))
+            throw Refuse("definition.registry_unknown", "/registry");
+        return admissions.ToDictionary(pair => pair.Key, pair => new RegisteredAdmission(pair.Value, true));
+    }
+
+    private static IReadOnlyDictionary<DefinitionKind, RegisteredAdmission> Register(
+        IReadOnlyDictionary<DefinitionKind, DefinitionAdmission> admissions,
+        IReadOnlyDictionary<DefinitionKind, DefinitionAsyncAdmission> asyncAdmissions)
+    {
+        var registered = new Dictionary<DefinitionKind, RegisteredAdmission>(Register(admissions));
+        foreach (var pair in Register(asyncAdmissions))
+        {
+            if (!registered.TryAdd(pair.Key, pair.Value))
+                throw new ArgumentException("A registry can have only one admission callback.",
+                    nameof(asyncAdmissions));
+        }
+        return registered;
+    }
 
     private static void Require(string? value, string code, string pointer)
     {
@@ -217,5 +335,9 @@ public sealed class InMemoryVersionedDefinitionStore : IVersionedDefinitionStore
     }
 
     private static DefinitionRefusalException Refuse(string code, string pointer) => new([new(code, pointer)]);
+    private sealed record PreparedAdmission(
+        DefinitionRevision Candidate,
+        DefinitionRevision? PriorSameVersionRevision);
+    private sealed record RegisteredAdmission(DefinitionAsyncAdmission Callback, bool RequiresPrincipal);
     private sealed record Replay(long ExpectedRevision, string Signature, DefinitionRevision Result);
 }

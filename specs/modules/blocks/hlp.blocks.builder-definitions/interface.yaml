@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.blocks.builder-definitions",
-  "interfaceRevision": 10,
+  "interfaceRevision": 11,
   "status": "draft",
   "purpose": "Own the shared definition catalogue substrate: registry-neutral versioned definitions, key suggestion, archive lifecycle, projection-neutral platform package export and empty-store replay, package safety-floor reattachment, and the install receipt that binds a released artifact to installed identity, capabilities, authorization outcomes and digests.",
   "dependencies": [],
@@ -19,7 +19,7 @@
     "installReceipt": ["immutable released artifact identity", "installed ids, versions and digests recomputed from the installed state", "declared capability set with its expected authorization outcome", "record digests the install wrote", "per-install witness that only an install mints", "field-naming refusal for every mismatch", "DES-0007 ck-3 and ck-4 sealed-type and sealed-trait corpus probe"],
     "keys": ["deterministic ASCII kebab suggestion", ".v1 suffix", "exact-case collision suffixing"],
     "lifecycle": ["tenant and definition-kind scoped archive", "idempotent archive", "idempotent unarchive", "restart-durable visibility"],
-    "versionedDefinitions": ["opaque JSON body and digest", "stable definition id and immutable published version id", "expected stream revision", "exact operation/fence/payload replay", "append-only history", "restore-as-new-draft", "production-only resolution", "in-memory reference implementation"],
+    "versionedDefinitions": ["opaque JSON body and digest", "stable definition id and immutable published version id", "expected stream revision", "synchronous or asynchronous member admission outside the stream lock", "trusted detached prior same-version revision", "explicit per-operation principal context for asynchronous admission", "exact operation/fence/payload/principal replay", "append-only history", "restore-as-new-draft", "production-only resolution", "in-memory reference implementation"],
     "platformPackage": ["ordered manifest", "deterministic UTF-8 JSON export", "provider-neutral closure and SHA-256 digest metadata", "ADR-0097 canonical seed fixture", "present or explicitly unresolved content", "validated atomic replay into an empty target", "raise-only safety-floor reattachment with named malformed-member refusal"]
   },
   "keyAuthoritySeam": {
@@ -29,11 +29,14 @@
   },
   "invariants": [
     "The versioned store exposes no member-specific type; host-supplied pure validators admit each supported registry.",
+    "Asynchronous member admission receives the immutable candidate, phase, explicit principal context and a detached prior revision for the exact same version identity captured under the first stream fence. The author cannot supply prior state, and another version is never substituted for it.",
+    "Member admission runs outside the store lock. Cancellation is checked after admission, and the expected revision and replay identity are checked again before any history, head or replay mutation.",
+    "A registry configured only with asynchronous admission requires a nonblank explicit principal on every mutation. Principal context is admission input rather than authorization, is never ambient or store-wide mutable state, participates in replay identity whenever present, and is supplied through principal-first overloads that do not occupy the legacy CancellationToken position.",
     "Every consumer pin names both the stable definition key and immutable version id.",
     "Published versions never change and production resolution never returns a draft.",
     "Every accepted lifecycle change appends to history; restore never edits a published body.",
     "Version syntax, registry admission and member constraints refuse by stable code and RFC 6901 pointer; bodies are never repaired, normalized or clamped.",
-    "Mutations fence the per-tenant/registry/definition stream by expected revision; exact request replay returns the original result and mismatched replay refuses.",
+    "Mutations fence the per-tenant/registry/definition stream by expected revision; exact request replay returns the original result without repeating source reads or admission, and a changed operation, fence, payload or principal refuses.",
     "Durable adapters must conditionally commit history, head and replay together; the reference in-memory store claims no restart durability.",
     "Generation v1 hashes UTF-8 compact JSON with the domain harborline.configuration-generation/v1, tenant, active roots, resolved package/content references, dependency edges, ownership, platform contract, and applicable policy references.",
     "All identity collections sort by exact key using ordinal comparison; duplicate keys refuse rather than silently coalescing conflicting references. Digests are exactly 64 lowercase hexadecimal SHA-256 characters. Properties have the order emitted by ConfigurationGeneration.Resolve; there is no trailing newline or Unicode normalization.",
@@ -151,6 +154,7 @@
     {"code":"definition.published_version_required", "when":"Restore targets a draft rather than a publication."},
     {"code":"definition.body_invalid", "when":"The opaque body is not valid JSON."},
     {"code":"definition.admission_invalid", "when":"A configured validator fails to return a refusal list."},
+    {"code":"definition.principal_required", "when":"Asynchronous admission is invoked without a nonblank explicit per-operation principal."},
     {"code":"definition.not_found", "when":"A mutation targets an absent version."},
     {"code":"configuration-reference-required", "when":"A generation reference key, revision, tenant, root, dependency or owner is blank."},
     {"code":"configuration-reference-duplicate", "when":"An identity collection repeats a key, even with identical content."},
