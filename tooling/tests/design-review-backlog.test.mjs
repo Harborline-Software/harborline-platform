@@ -121,7 +121,8 @@ test('the checked-in backlog carries no date and matches the frozen digest', () 
   assert.match(list.commit, /^[0-9a-f]{40}$/)
   assert.ok(!('deadline' in list), 'T-631: the amnesty is not derived from a date any more')
   assert.equal(new Set(list.modules).size, list.modules.length)
-  assert.equal(list.modules.length, 51)
+  assert.equal(list.modules.length, 50)
+  assert.ok(!list.modules.includes('hlp.ui.select-field'), 'SelectField has Chris\'s renewed approval')
   assert.equal(backlogDigest(list.modules), FROZEN_BACKLOG_DIGEST)
 })
 
@@ -140,7 +141,8 @@ test('the checked-in backlog equals the real sweep expired set, and the sweep pa
   assert.equal(report.designReview.unfrozenBacklog, false)
   const backlogRows = report.modules.filter(module => list.modules.includes(module.moduleId))
     .map(module => module.gates.find(row => row.id === 'assertDesignReview'))
-  assert.equal(backlogRows.length, 51)
+  // Chris's 2026-09-20 SelectField review removes one expired entry.
+  assert.equal(backlogRows.length, 50)
   assert.ok(backlogRows.every(row => row.status === 'PASS' && row.note === AMNESTIED))
   assert.ok(report.modules.filter(module => list.modules.includes(module.moduleId))
     .map(module => module.gates.find(row => row.id === 'assertDesignQuality'))
@@ -153,13 +155,13 @@ test('the checked-in backlog equals the real sweep expired set, and the sweep pa
 // The acceptance line the ruling asked to be proved by running rather than by argument. The shim
 // is the harness T-631's earlier lane left behind: it moves the clock past the withdrawn deadline
 // before anything else loads, so a surviving `new Date()` comparison would still see 2026-10-01.
-test('the sweep exits zero with all 51 expired when the clock is past the withdrawn deadline', () => {
+test('the sweep exits zero with the remaining 50 expired when the clock is past the withdrawn deadline', () => {
   const sweep = spawnSync(process.execPath,
     ['--import', './tooling/tests/fixtures/clock-2026-10-01.mjs', 'tooling/gates/run-ui-gate-model.mjs', '--json'],
     {cwd: root, encoding: 'utf8', maxBuffer: 32 * 1024 * 1024})
   assert.equal(sweep.status, 0, sweep.stderr)
   const report = JSON.parse(sweep.stdout)
   assert.equal(report.status, 'PASS')
-  assert.equal(report.designReview.expired.length, 51)
+  assert.equal(report.designReview.expired.length, 50)
   assert.deepEqual(report.designReview.failingExpired, [])
 })

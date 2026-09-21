@@ -21,7 +21,8 @@ export const EXPIRED_RULE = 'An EXPIRED verdict on a module counted by the catal
 // checker in a reviewed diff instead of appending to a JSON array. `staleBacklog` already stopped
 // the list being padded with modules that are not expired; this stops it being extended with ones
 // that are.
-export const FROZEN_BACKLOG_DIGEST = 'e19ba9b2363315375ac265ce253ce7245c1c89a703baae91a6a119d69b0f7506'
+// T-485: Chris's recorded SelectField approval removes that entry, narrowing the frozen set to 50.
+export const FROZEN_BACKLOG_DIGEST = 'bb36db6a47450509cf8151619362a717cfcbc74256cdd45aa919babaf50c0cb8'
 
 /** sha256 over the sorted module ids, newline-joined. Order and duplicates cannot change it. */
 export function backlogDigest(modules) {

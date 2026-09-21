@@ -42,7 +42,6 @@
     "hlp.ui.scroll-affordance",
     "hlp.ui.search-input",
     "hlp.ui.segmented-control",
-    "hlp.ui.select-field",
     "hlp.ui.sheet",
     "hlp.ui.side-nav",
     "hlp.ui.spinner",
