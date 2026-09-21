@@ -45,4 +45,62 @@ public sealed class LayoutRuntimeTests : BunitContext
         cut.FindAll("button").Single(button => button.TextContent == "Add block").Click();
         Assert.Equal("layout.table", changed!.Blocks.Last().Kind);
     }
+
+    [Fact]
+    public void EditorBindsABlockToAnyOfTheFiveKindsAndNamesItFromTheCatalogue()
+    {
+        LayoutAuthoringDraft? changed = null;
+        var cut = Render<HarborlineLayoutAuthoringEditor>(parameters => parameters
+            .Add(x => x.Value, LayoutAuthoringDraft.Empty with { Blocks = [new("total", "layout.table", new("measure", "invoice.total"))] })
+            .Add(x => x.Catalogue, Catalogue())
+            .Add(x => x.ValueChanged, value => changed = value));
+
+        var kind = cut.Find("[aria-label='Block 1 binding kind']");
+        foreach (var label in new[] { "Record field", "Query", "Measure", "Template", "Static content" })
+            Assert.Contains(label, kind.TextContent, StringComparison.Ordinal);
+        // The name list follows the chosen kind and offers nothing from another kind.
+        Assert.Contains("Invoice total", cut.Find("[aria-label='Block 1 binding name']").TextContent, StringComparison.Ordinal);
+        Assert.DoesNotContain("Open invoices", cut.Find("[aria-label='Block 1 binding name']").TextContent, StringComparison.Ordinal);
+
+        // Rebinding to another kind preserves the block and clears the name (layout-auth-31).
+        kind.Change("query");
+        Assert.Equal(new LayoutAuthoringBinding("query", ""), changed!.Blocks.Single().Binding);
+        Assert.Equal("total", changed.Blocks.Single().Id);
+    }
+
+    [Fact]
+    public void EditorMarksAnUnboundBlockAsNeedingABindingInsteadOfRemovingIt()
+    {
+        var cut = Render<HarborlineLayoutAuthoringEditor>(parameters => parameters
+            .Add(x => x.Value, LayoutAuthoringDraft.Empty with { Blocks = [new("orphan", "layout.table", new("query", ""))] })
+            .Add(x => x.Catalogue, Catalogue()));
+
+        Assert.Equal("Block 1 needs a binding", cut.Find("[role=status]").TextContent);
+        Assert.Single(cut.FindAll("[aria-label='Block 1 binding kind']"));
+    }
+
+    [Fact]
+    public void EditorAuthorsStaticContentOnTheBlockRatherThanLookingItUp()
+    {
+        LayoutAuthoringDraft? changed = null;
+        var cut = Render<HarborlineLayoutAuthoringEditor>(parameters => parameters
+            .Add(x => x.Value, LayoutAuthoringDraft.Empty with { Blocks = [new("notice", "layout.table", new("static", ""))] })
+            .Add(x => x.Catalogue, Catalogue())
+            .Add(x => x.ValueChanged, value => changed = value));
+
+        Assert.Empty(cut.FindAll("[aria-label='Block 1 binding name']"));
+        cut.Find("[aria-label='Block 1 binding content']").Change("Registered office: Leeds");
+        Assert.Equal(new LayoutAuthoringBinding("static", "Registered office: Leeds"), changed!.Blocks.Single().Binding);
+    }
+
+    private static LayoutAuthoringCatalogue Catalogue() => new(
+        [new("layout.table", "Table")],
+        ["header.center"],
+        Bindables: new Dictionary<string, IReadOnlyList<LayoutAuthoringOption>>(StringComparer.Ordinal)
+        {
+            ["record_field"] = [new("invoice.supplier", "Supplier")],
+            ["query"] = [new("views.open-invoices", "Open invoices")],
+            ["measure"] = [new("invoice.total", "Invoice total")],
+            ["template"] = [new("tpl.remittance", "Remittance")],
+        });
 }

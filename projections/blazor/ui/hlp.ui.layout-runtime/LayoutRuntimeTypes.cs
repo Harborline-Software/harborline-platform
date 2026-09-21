@@ -10,9 +10,17 @@ public sealed record LayoutRuntimePlan(
     IReadOnlyList<LayoutRuntimeBlock> StaticRegions,
     IReadOnlyList<LayoutRuntimeDiagnostic>? Diagnostics = null);
 
+/// <summary>
+/// One authored binding: the kind (record_field, query, measure, template or static) and the
+/// name it resolves by. An empty <paramref name="Name"/> is the `needs a binding` state — the
+/// block is preserved and rebound one at a time rather than deleted (layout-auth-31).
+/// </summary>
+public sealed record LayoutAuthoringBinding(string Kind, string Name);
+
 public sealed record LayoutAuthoringBlock(
     string Id,
     string Kind,
+    LayoutAuthoringBinding? Binding = null,
     string? ParentId = null,
     string? Zone = null,
     string? Intent = null,
@@ -44,4 +52,6 @@ public sealed record LayoutAuthoringCatalogue(
     IReadOnlyList<LayoutAuthoringOption>? PageLayouts = null,
     IReadOnlyList<LayoutAuthoringOption>? PageMasters = null,
     IReadOnlyList<string>? StaticRegions = null,
-    IReadOnlyList<LayoutAuthoringOption>? HelmWidgets = null);
+    IReadOnlyList<LayoutAuthoringOption>? HelmWidgets = null,
+    // Bindables: the names offered per binding kind; `static` is authored on the block.
+    IReadOnlyDictionary<string, IReadOnlyList<LayoutAuthoringOption>>? Bindables = null);
