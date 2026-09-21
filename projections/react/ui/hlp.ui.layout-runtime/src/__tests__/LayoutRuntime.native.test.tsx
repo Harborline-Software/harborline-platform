@@ -30,4 +30,44 @@ describe('LayoutRuntime React projection', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add block' }))
     expect(changed).toHaveBeenCalledWith(expect.objectContaining({ blocks: expect.arrayContaining([expect.objectContaining({ kind: 'layout.table' })]) }))
   })
+
+  it('binds a block to any of the five kinds and names it from the catalogue', () => {
+    const changed = vi.fn()
+    const catalogue = {
+      blockKinds: [{ id: 'layout.table', label: 'Table' }],
+      zones: ['header.center'],
+      bindables: {
+        record_field: [{ id: 'invoice.supplier', label: 'Supplier' }],
+        query: [{ id: 'views.open-invoices', label: 'Open invoices' }],
+        measure: [{ id: 'invoice.total', label: 'Invoice total' }],
+        template: [{ id: 'tpl.remittance', label: 'Remittance' }],
+      },
+    }
+    render(<LayoutAuthoringEditor value={{ ...emptyLayoutAuthoringDraft(), blocks: [{ id: 'total', kind: 'layout.table', binding: { kind: 'measure', name: 'invoice.total' } }] }} catalogue={catalogue} onChange={changed} />)
+
+    // All five authored kinds are offered, and the name list follows the chosen kind.
+    const kind = screen.getByLabelText('Block 1 binding kind')
+    for (const label of ['Record field', 'Query', 'Measure', 'Template', 'Static content']) expect(kind).toHaveTextContent(label)
+    expect(screen.getByLabelText('Block 1 binding name')).toHaveTextContent('Invoice total')
+    expect(screen.getByLabelText('Block 1 binding name')).not.toHaveTextContent('Open invoices')
+
+    // Rebinding to another kind preserves the block and clears the name rather than
+    // deleting it (layout-auth-31).
+    fireEvent.change(kind, { target: { value: 'query' } })
+    expect(changed).toHaveBeenCalledWith(expect.objectContaining({ blocks: [{ id: 'total', kind: 'layout.table', binding: { kind: 'query', name: '' } }] }))
+  })
+
+  it('marks an unbound block as needing a binding instead of removing it', () => {
+    render(<LayoutAuthoringEditor value={{ ...emptyLayoutAuthoringDraft(), blocks: [{ id: 'orphan', kind: 'layout.table', binding: { kind: 'query', name: '' } }] }} catalogue={{ blockKinds: [{ id: 'layout.table', label: 'Table' }], zones: [] }} onChange={vi.fn()} />)
+    expect(screen.getByRole('status')).toHaveTextContent('Block 1 needs a binding')
+    expect(screen.getByLabelText('Block 1 binding kind')).toBeInTheDocument()
+  })
+
+  it('authors static content on the block rather than looking it up', () => {
+    const changed = vi.fn()
+    render(<LayoutAuthoringEditor value={{ ...emptyLayoutAuthoringDraft(), blocks: [{ id: 'notice', kind: 'layout.table', binding: { kind: 'static', name: '' } }] }} catalogue={{ blockKinds: [{ id: 'layout.table', label: 'Table' }], zones: [] }} onChange={changed} />)
+    expect(screen.queryByLabelText('Block 1 binding name')).toBeNull()
+    fireEvent.change(screen.getByLabelText('Block 1 binding content'), { target: { value: 'Registered office: Leeds' } })
+    expect(changed).toHaveBeenCalledWith(expect.objectContaining({ blocks: [expect.objectContaining({ binding: { kind: 'static', name: 'Registered office: Leeds' } })] }))
+  })
 })
