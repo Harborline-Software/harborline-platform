@@ -58,17 +58,18 @@
     ],
     "failingExpired": [],
     "staleBacklog": [],
+    "unfrozenBacklog": false,
     "rule": "An EXPIRED verdict on a module counted by the catalogue fails the gate on every host.",
     "backlog": {
       "count": 51,
-      "deadline": "2026-09-30",
       "ticket": 334,
-      "active": true
+      "digest": "e19ba9b2363315375ac265ce253ce7245c1c89a703baae91a6a119d69b0f7506",
+      "frozen": "e19ba9b2363315375ac265ce253ce7245c1c89a703baae91a6a119d69b0f7506"
     }
   },
   "ticket": "098",
   "subject": {
-    "moduleCount": 77,
+    "moduleCount": 79,
     "gateIds": [
       "assertDeterminism",
       "assertAccessible",
@@ -156,7 +157,7 @@
         {
           "id": "assertDesignReview",
           "status": "PASS",
-          "note": "EXPIRED (backlog 334 until 2026-09-30)"
+          "note": "EXPIRED (backlog 334; owed before R1 is released publicly)"
         },
         {
           "id": "assertDesignQuality",
@@ -234,7 +235,7 @@
         {
           "id": "assertDesignReview",
           "status": "PASS",
-          "note": "EXPIRED (backlog 334 until 2026-09-30)"
+          "note": "EXPIRED (backlog 334; owed before R1 is released publicly)"
         },
         {
           "id": "assertDesignQuality",
@@ -312,7 +313,7 @@
         {
           "id": "assertDesignReview",
           "status": "PASS",
-          "note": "EXPIRED (backlog 334 until 2026-09-30)"
+          "note": "EXPIRED (backlog 334; owed before R1 is released publicly)"
         },
         {
           "id": "assertDesignQuality",
@@ -390,7 +391,7 @@
         {
           "id": "assertDesignReview",
           "status": "PASS",
-          "note": "EXPIRED (backlog 334 until 2026-09-30)"
+          "note": "EXPIRED (backlog 334; owed before R1 is released publicly)"
         },
         {
           "id": "assertDesignQuality",
@@ -468,7 +469,7 @@
         {
           "id": "assertDesignReview",
           "status": "PASS",
-          "note": "EXPIRED (backlog 334 until 2026-09-30)"
+          "note": "EXPIRED (backlog 334; owed before R1 is released publicly)"
         },
         {
           "id": "assertDesignQuality",
@@ -546,7 +547,7 @@
         {
           "id": "assertDesignReview",
           "status": "PASS",
-          "note": "EXPIRED (backlog 334 until 2026-09-30)"
+          "note": "EXPIRED (backlog 334; owed before R1 is released publicly)"
         },
         {
           "id": "assertDesignQuality",
@@ -702,7 +703,7 @@
         {
           "id": "assertDesignReview",
           "status": "PASS",
-          "note": "EXPIRED (backlog 334 until 2026-09-30)"
+          "note": "EXPIRED (backlog 334; owed before R1 is released publicly)"
         },
         {
           "id": "assertDesignQuality",
@@ -780,7 +781,7 @@
         {
           "id": "assertDesignReview",
           "status": "PASS",
-          "note": "EXPIRED (backlog 334 until 2026-09-30)"
+          "note": "EXPIRED (backlog 334; owed before R1 is released publicly)"
         },
         {
           "id": "assertDesignQuality",
@@ -858,7 +859,7 @@
         {
           "id": "assertDesignReview",
           "status": "PASS",
-          "note": "EXPIRED (backlog 334 until 2026-09-30)"
+          "note": "EXPIRED (backlog 334; owed before R1 is released publicly)"
         },
         {
           "id": "assertDesignQuality",
@@ -1014,7 +1015,7 @@
         {
           "id": "assertDesignReview",
           "status": "PASS",
-          "note": "EXPIRED (backlog 334 until 2026-09-30)"
+          "note": "EXPIRED (backlog 334; owed before R1 is released publicly)"
         },
         {
           "id": "assertDesignQuality",
@@ -1092,7 +1093,7 @@
         {
           "id": "assertDesignReview",
           "status": "PASS",
-          "note": "EXPIRED (backlog 334 until 2026-09-30)"
+          "note": "EXPIRED (backlog 334; owed before R1 is released publicly)"
         },
         {
           "id": "assertDesignQuality",
@@ -1170,7 +1171,7 @@
         {
           "id": "assertDesignReview",
           "status": "PASS",
-          "note": "EXPIRED (backlog 334 until 2026-09-30)"
+          "note": "EXPIRED (backlog 334; owed before R1 is released publicly)"
         },
         {
           "id": "assertDesignQuality",
@@ -1248,7 +1249,7 @@
         {
           "id": "assertDesignReview",
           "status": "PASS",
-          "note": "EXPIRED (backlog 334 until 2026-09-30)"
+          "note": "EXPIRED (backlog 334; owed before R1 is released publicly)"
         },
         {
           "id": "assertDesignQuality",
@@ -1482,7 +1483,7 @@
         {
           "id": "assertDesignReview",
           "status": "PASS",
-          "note": "EXPIRED (backlog 334 until 2026-09-30)"
+          "note": "EXPIRED (backlog 334; owed before R1 is released publicly)"
         },
         {
           "id": "assertDesignQuality",
@@ -1560,7 +1561,7 @@
         {
           "id": "assertDesignReview",
           "status": "PASS",
-          "note": "EXPIRED (backlog 334 until 2026-09-30)"
+          "note": "EXPIRED (backlog 334; owed before R1 is released publicly)"
         },
         {
           "id": "assertDesignQuality",
@@ -1638,12 +1639,90 @@
         {
           "id": "assertDesignReview",
           "status": "PASS",
-          "note": "EXPIRED (backlog 334 until 2026-09-30)"
+          "note": "EXPIRED (backlog 334; owed before R1 is released publicly)"
         },
         {
           "id": "assertDesignQuality",
           "status": "UNBUILT",
           "note": "UNBUILT inherited from assertStateCompleteness"
+        }
+      ]
+    },
+    {
+      "moduleId": "hlp.ui.data-exchange",
+      "presentation": "visual",
+      "catalogStatus": "gap-implemented",
+      "terminal": false,
+      "gates": [
+        {
+          "id": "assertDeterminism",
+          "status": "PASS",
+          "note": "cheap half only: no timing or async construct declared"
+        },
+        {
+          "id": "assertAccessible",
+          "status": "PASS",
+          "note": "axe-core over 2 scenarios x 2 lanes in gallery-gate"
+        },
+        {
+          "id": "assertVisualParity",
+          "status": "PASS",
+          "note": "2 visual-parity scenario(s), lane vs lane, pixelmatch"
+        },
+        {
+          "id": "assertFunctionalParity",
+          "status": "PASS",
+          "note": "2 conformance case(s) across both lanes"
+        },
+        {
+          "id": "assertInternationalization",
+          "status": "PARTIAL",
+          "note": "no locale fixtures; only the shared canvas is exercised"
+        },
+        {
+          "id": "assertPerformanceProfile",
+          "status": "UNBUILT",
+          "note": "no client-performance measurement exists for this module; run-ui-performance.mjs records test-process wall clock and declares wallClockBudgetUsed: false"
+        },
+        {
+          "id": "assertTokenAdherence",
+          "status": "PASS",
+          "note": "every value resolves to an approved token"
+        },
+        {
+          "id": "assertStateCompleteness",
+          "status": "PASS",
+          "note": "2 mode state(s) derived from the interface, each declared by a scenario drawn in both lanes"
+        },
+        {
+          "id": "assertFocusQuality",
+          "status": "PASS",
+          "note": "focus ring is tokened, at least 2px, and offset from the control edge"
+        },
+        {
+          "id": "assertResponsiveQuality",
+          "status": "PARTIAL",
+          "note": "no scenario declares a reflow case, so WCAG 1.4.10 reflow is unmeasured for this module"
+        },
+        {
+          "id": "assertEmptyAndErrorStates",
+          "status": "UNBUILT",
+          "note": "no empty or error property, but authoringRefusals, canonicalTargets, datatypes, discoveredColumns, externalKeyColumns, formats, mappings, refusals, schedules, sourceCapabilities, transforms can be handed an empty collection; that state is reachable and undesigned"
+        },
+        {
+          "id": "assertContentResilience",
+          "status": "UNBUILT",
+          "note": "no long-content, missing-field or large-number case declared"
+        },
+        {
+          "id": "assertDesignReview",
+          "status": "UNBUILT",
+          "note": "no design-review verdict recorded for this module"
+        },
+        {
+          "id": "assertDesignQuality",
+          "status": "UNBUILT",
+          "note": "UNBUILT inherited from assertEmptyAndErrorStates, assertContentResilience, assertDesignReview"
         }
       ]
     },
@@ -1716,7 +1795,7 @@
         {
           "id": "assertDesignReview",
           "status": "PASS",
-          "note": "EXPIRED (backlog 334 until 2026-09-30)"
+          "note": "EXPIRED (backlog 334; owed before R1 is released publicly)"
         },
         {
           "id": "assertDesignQuality",
@@ -1794,7 +1873,7 @@
         {
           "id": "assertDesignReview",
           "status": "PASS",
-          "note": "EXPIRED (backlog 334 until 2026-09-30)"
+          "note": "EXPIRED (backlog 334; owed before R1 is released publicly)"
         },
         {
           "id": "assertDesignQuality",
@@ -1872,7 +1951,7 @@
         {
           "id": "assertDesignReview",
           "status": "PASS",
-          "note": "EXPIRED (backlog 334 until 2026-09-30)"
+          "note": "EXPIRED (backlog 334; owed before R1 is released publicly)"
         },
         {
           "id": "assertDesignQuality",
@@ -1950,7 +2029,7 @@
         {
           "id": "assertDesignReview",
           "status": "PASS",
-          "note": "EXPIRED (backlog 334 until 2026-09-30)"
+          "note": "EXPIRED (backlog 334; owed before R1 is released publicly)"
         },
         {
           "id": "assertDesignQuality",
@@ -2106,7 +2185,7 @@
         {
           "id": "assertDesignReview",
           "status": "PASS",
-          "note": "EXPIRED (backlog 334 until 2026-09-30)"
+          "note": "EXPIRED (backlog 334; owed before R1 is released publicly)"
         },
         {
           "id": "assertDesignQuality",
@@ -2184,7 +2263,7 @@
         {
           "id": "assertDesignReview",
           "status": "PASS",
-          "note": "EXPIRED (backlog 334 until 2026-09-30)"
+          "note": "EXPIRED (backlog 334; owed before R1 is released publicly)"
         },
         {
           "id": "assertDesignQuality",
@@ -2262,7 +2341,7 @@
         {
           "id": "assertDesignReview",
           "status": "PASS",
-          "note": "EXPIRED (backlog 334 until 2026-09-30)"
+          "note": "EXPIRED (backlog 334; owed before R1 is released publicly)"
         },
         {
           "id": "assertDesignQuality",
@@ -2340,7 +2419,7 @@
         {
           "id": "assertDesignReview",
           "status": "PASS",
-          "note": "EXPIRED (backlog 334 until 2026-09-30)"
+          "note": "EXPIRED (backlog 334; owed before R1 is released publicly)"
         },
         {
           "id": "assertDesignQuality",
@@ -2418,7 +2497,7 @@
         {
           "id": "assertDesignReview",
           "status": "PASS",
-          "note": "EXPIRED (backlog 334 until 2026-09-30)"
+          "note": "EXPIRED (backlog 334; owed before R1 is released publicly)"
         },
         {
           "id": "assertDesignQuality",
@@ -2574,7 +2653,7 @@
         {
           "id": "assertDesignReview",
           "status": "PASS",
-          "note": "EXPIRED (backlog 334 until 2026-09-30)"
+          "note": "EXPIRED (backlog 334; owed before R1 is released publicly)"
         },
         {
           "id": "assertDesignQuality",
@@ -2652,7 +2731,7 @@
         {
           "id": "assertDesignReview",
           "status": "PASS",
-          "note": "EXPIRED (backlog 334 until 2026-09-30)"
+          "note": "EXPIRED (backlog 334; owed before R1 is released publicly)"
         },
         {
           "id": "assertDesignQuality",
@@ -2730,7 +2809,7 @@
         {
           "id": "assertDesignReview",
           "status": "PASS",
-          "note": "EXPIRED (backlog 334 until 2026-09-30)"
+          "note": "EXPIRED (backlog 334; owed before R1 is released publicly)"
         },
         {
           "id": "assertDesignQuality",
@@ -2808,7 +2887,7 @@
         {
           "id": "assertDesignReview",
           "status": "PASS",
-          "note": "EXPIRED (backlog 334 until 2026-09-30)"
+          "note": "EXPIRED (backlog 334; owed before R1 is released publicly)"
         },
         {
           "id": "assertDesignQuality",
@@ -2886,7 +2965,7 @@
         {
           "id": "assertDesignReview",
           "status": "PASS",
-          "note": "EXPIRED (backlog 334 until 2026-09-30)"
+          "note": "EXPIRED (backlog 334; owed before R1 is released publicly)"
         },
         {
           "id": "assertDesignQuality",
@@ -2974,6 +3053,84 @@
       ]
     },
     {
+      "moduleId": "hlp.ui.layout-runtime",
+      "presentation": "not-applicable",
+      "catalogStatus": "draft-native-green",
+      "terminal": false,
+      "gates": [
+        {
+          "id": "assertDeterminism",
+          "status": "PASS",
+          "note": "cheap half only: no timing or async construct declared"
+        },
+        {
+          "id": "assertAccessible",
+          "status": "PASS",
+          "note": "axe-core over 0 scenarios x 2 lanes in gallery-gate"
+        },
+        {
+          "id": "assertVisualParity",
+          "status": "PARTIAL",
+          "note": "module declares NO visual-parity scenario; the gate cannot fire for it"
+        },
+        {
+          "id": "assertFunctionalParity",
+          "status": "UNBUILT",
+          "note": "no conformance fixtures"
+        },
+        {
+          "id": "assertInternationalization",
+          "status": "PARTIAL",
+          "note": "no locale fixtures; only the shared canvas is exercised"
+        },
+        {
+          "id": "assertPerformanceProfile",
+          "status": "UNBUILT",
+          "note": "no client-performance measurement exists for this module; run-ui-performance.mjs records test-process wall clock and declares wallClockBudgetUsed: false"
+        },
+        {
+          "id": "assertTokenAdherence",
+          "status": "PASS",
+          "note": "every value resolves to an approved token"
+        },
+        {
+          "id": "assertStateCompleteness",
+          "status": "UNBUILT",
+          "note": "interface carries state neither axis can name -- value; widening the vocabulary or rescoping the gate is a model change, not a fixture change"
+        },
+        {
+          "id": "assertFocusQuality",
+          "status": "UNBUILT",
+          "note": "focus scanner reported nothing for this module"
+        },
+        {
+          "id": "assertResponsiveQuality",
+          "status": "PARTIAL",
+          "note": "no scenario declares a reflow case, so WCAG 1.4.10 reflow is unmeasured for this module"
+        },
+        {
+          "id": "assertEmptyAndErrorStates",
+          "status": "UNBUILT",
+          "note": "no empty or error property, but blockKinds, blocks, diagnostics, flow, helmWidgets, pageLayouts, pageMasters, pageRuns, staticRegions, zones can be handed an empty collection; that state is reachable and undesigned"
+        },
+        {
+          "id": "assertContentResilience",
+          "status": "UNBUILT",
+          "note": "no long-content, missing-field or large-number case declared"
+        },
+        {
+          "id": "assertDesignReview",
+          "status": "UNBUILT",
+          "note": "module has no gallery scenario catalog to review against"
+        },
+        {
+          "id": "assertDesignQuality",
+          "status": "UNBUILT",
+          "note": "UNBUILT inherited from assertStateCompleteness, assertFocusQuality, assertEmptyAndErrorStates, assertContentResilience, assertDesignReview"
+        }
+      ]
+    },
+    {
       "moduleId": "hlp.ui.loading-state",
       "presentation": "visual",
       "catalogStatus": "extracted-candidate",
@@ -3042,7 +3199,7 @@
         {
           "id": "assertDesignReview",
           "status": "PASS",
-          "note": "EXPIRED (backlog 334 until 2026-09-30)"
+          "note": "EXPIRED (backlog 334; owed before R1 is released publicly)"
         },
         {
           "id": "assertDesignQuality",
@@ -3198,7 +3355,7 @@
         {
           "id": "assertDesignReview",
           "status": "PASS",
-          "note": "EXPIRED (backlog 334 until 2026-09-30)"
+          "note": "EXPIRED (backlog 334; owed before R1 is released publicly)"
         },
         {
           "id": "assertDesignQuality",
@@ -3276,7 +3433,7 @@
         {
           "id": "assertDesignReview",
           "status": "PASS",
-          "note": "EXPIRED (backlog 334 until 2026-09-30)"
+          "note": "EXPIRED (backlog 334; owed before R1 is released publicly)"
         },
         {
           "id": "assertDesignQuality",
@@ -3354,7 +3511,7 @@
         {
           "id": "assertDesignReview",
           "status": "PASS",
-          "note": "EXPIRED (backlog 334 until 2026-09-30)"
+          "note": "EXPIRED (backlog 334; owed before R1 is released publicly)"
         },
         {
           "id": "assertDesignQuality",
@@ -3510,7 +3667,7 @@
         {
           "id": "assertDesignReview",
           "status": "PASS",
-          "note": "EXPIRED (backlog 334 until 2026-09-30)"
+          "note": "EXPIRED (backlog 334; owed before R1 is released publicly)"
         },
         {
           "id": "assertDesignQuality",
@@ -3588,7 +3745,7 @@
         {
           "id": "assertDesignReview",
           "status": "PASS",
-          "note": "EXPIRED (backlog 334 until 2026-09-30)"
+          "note": "EXPIRED (backlog 334; owed before R1 is released publicly)"
         },
         {
           "id": "assertDesignQuality",
@@ -3744,7 +3901,7 @@
         {
           "id": "assertDesignReview",
           "status": "PASS",
-          "note": "EXPIRED (backlog 334 until 2026-09-30)"
+          "note": "EXPIRED (backlog 334; owed before R1 is released publicly)"
         },
         {
           "id": "assertDesignQuality",
@@ -3900,7 +4057,7 @@
         {
           "id": "assertDesignReview",
           "status": "PASS",
-          "note": "EXPIRED (backlog 334 until 2026-09-30)"
+          "note": "EXPIRED (backlog 334; owed before R1 is released publicly)"
         },
         {
           "id": "assertDesignQuality",
@@ -3978,7 +4135,7 @@
         {
           "id": "assertDesignReview",
           "status": "PASS",
-          "note": "EXPIRED (backlog 334 until 2026-09-30)"
+          "note": "EXPIRED (backlog 334; owed before R1 is released publicly)"
         },
         {
           "id": "assertDesignQuality",
@@ -4056,7 +4213,7 @@
         {
           "id": "assertDesignReview",
           "status": "PASS",
-          "note": "EXPIRED (backlog 334 until 2026-09-30)"
+          "note": "EXPIRED (backlog 334; owed before R1 is released publicly)"
         },
         {
           "id": "assertDesignQuality",
@@ -4134,7 +4291,7 @@
         {
           "id": "assertDesignReview",
           "status": "PASS",
-          "note": "EXPIRED (backlog 334 until 2026-09-30)"
+          "note": "EXPIRED (backlog 334; owed before R1 is released publicly)"
         },
         {
           "id": "assertDesignQuality",
@@ -4290,7 +4447,7 @@
         {
           "id": "assertDesignReview",
           "status": "PASS",
-          "note": "EXPIRED (backlog 334 until 2026-09-30)"
+          "note": "EXPIRED (backlog 334; owed before R1 is released publicly)"
         },
         {
           "id": "assertDesignQuality",
@@ -4368,7 +4525,7 @@
         {
           "id": "assertDesignReview",
           "status": "PASS",
-          "note": "EXPIRED (backlog 334 until 2026-09-30)"
+          "note": "EXPIRED (backlog 334; owed before R1 is released publicly)"
         },
         {
           "id": "assertDesignQuality",
@@ -4524,7 +4681,7 @@
         {
           "id": "assertDesignReview",
           "status": "PASS",
-          "note": "EXPIRED (backlog 334 until 2026-09-30)"
+          "note": "EXPIRED (backlog 334; owed before R1 is released publicly)"
         },
         {
           "id": "assertDesignQuality",
@@ -4602,7 +4759,7 @@
         {
           "id": "assertDesignReview",
           "status": "PASS",
-          "note": "EXPIRED (backlog 334 until 2026-09-30)"
+          "note": "EXPIRED (backlog 334; owed before R1 is released publicly)"
         },
         {
           "id": "assertDesignQuality",
@@ -4680,7 +4837,7 @@
         {
           "id": "assertDesignReview",
           "status": "PASS",
-          "note": "EXPIRED (backlog 334 until 2026-09-30)"
+          "note": "EXPIRED (backlog 334; owed before R1 is released publicly)"
         },
         {
           "id": "assertDesignQuality",
@@ -4914,7 +5071,7 @@
         {
           "id": "assertDesignReview",
           "status": "PASS",
-          "note": "EXPIRED (backlog 334 until 2026-09-30)"
+          "note": "EXPIRED (backlog 334; owed before R1 is released publicly)"
         },
         {
           "id": "assertDesignQuality",
@@ -4992,7 +5149,7 @@
         {
           "id": "assertDesignReview",
           "status": "PASS",
-          "note": "EXPIRED (backlog 334 until 2026-09-30)"
+          "note": "EXPIRED (backlog 334; owed before R1 is released publicly)"
         },
         {
           "id": "assertDesignQuality",
@@ -5070,7 +5227,7 @@
         {
           "id": "assertDesignReview",
           "status": "PASS",
-          "note": "EXPIRED (backlog 334 until 2026-09-30)"
+          "note": "EXPIRED (backlog 334; owed before R1 is released publicly)"
         },
         {
           "id": "assertDesignQuality",
@@ -5928,7 +6085,7 @@
         {
           "id": "assertDesignReview",
           "status": "PASS",
-          "note": "EXPIRED (backlog 334 until 2026-09-30)"
+          "note": "EXPIRED (backlog 334; owed before R1 is released publicly)"
         },
         {
           "id": "assertDesignQuality",
@@ -6084,7 +6241,7 @@
         {
           "id": "assertDesignReview",
           "status": "PASS",
-          "note": "EXPIRED (backlog 334 until 2026-09-30)"
+          "note": "EXPIRED (backlog 334; owed before R1 is released publicly)"
         },
         {
           "id": "assertDesignQuality",
@@ -6095,9 +6252,9 @@
     }
   ],
   "tally": {
-    "PASS": 655,
-    "PARTIAL": 90,
-    "UNBUILT": 172,
+    "PASS": 665,
+    "PARTIAL": 95,
+    "UNBUILT": 185,
     "NOT-APPLICABLE": 159,
     "FAIL": 2
   }

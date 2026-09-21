@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <PackageId>Harborline.Blocks.MeasureCatalogue.Tests</PackageId>
+    <AssemblyName>Harborline.Blocks.MeasureCatalogue.Tests</AssemblyName>
+    <RootNamespace>Harborline.Blocks.MeasureCatalogue.Tests</RootNamespace>
+    <IsTestProject>true</IsTestProject>
+    <IsPackable>false</IsPackable>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../hlp.blocks.measure-catalogue/Harborline.Blocks.MeasureCatalogue.csproj" />
+  </ItemGroup>
+</Project>

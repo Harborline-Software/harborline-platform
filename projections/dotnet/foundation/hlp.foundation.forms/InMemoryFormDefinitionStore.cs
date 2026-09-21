@@ -310,6 +310,9 @@ public sealed class InMemoryFormDefinitionStore : IFormDefinitionStore, IDisposa
                     $"FormDefinition '{id}' v{version} cannot transition from {existing.Status} to {target}; allowed source statuses are [{string.Join(", ", allowedFrom)}].");
             }
 
+            if (target == FormDefinitionStatus.Published)
+                ValidateDefinition(existing);
+
             if (existing.Status == target)
             {
                 return existing;

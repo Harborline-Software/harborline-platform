@@ -18,7 +18,7 @@ import {writeFileSync} from 'node:fs'
 const allStepIds = [
   'root-clean-install', 'dependency-ledger', 'npm-clean-install', 'forms-contracts-clean-install', 'rule-runtime-clean-install', 'rule-authoring-clean-install', 'copilot-contracts-clean-install', 'dotnet-restore', 'generation-smoke', 'ui-spec-authority', 'catalog-preflight',
   'tooling-selftests', 'sibling-package-origins', 'prop-vocabulary', 'ui-gate-model', 'build', 'native-tests', 'perf-budgets', 'ui-shared-conformance', 'package-consumers',
-  'gallery-gate', 'catalog-final',
+  'gallery-gate', 'release-receipt', 'catalog-final',
 ]
 
 // The steps that drive real browsers. They are the only ones that need a display, a Playwright

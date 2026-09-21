@@ -1800,6 +1800,15 @@ public static class FormsJson
             "kind": "ref",
             "name": "FormViewFieldRules"
           }
+        },
+        "permittedValues": {
+          "optional": true,
+          "shape": {
+            "kind": "array",
+            "element": {
+              "kind": "string"
+            }
+          }
         }
       }
     },

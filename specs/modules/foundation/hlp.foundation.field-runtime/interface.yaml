@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.foundation.field-runtime",
+  "interfaceRevision": 1,
+  "status": "draft",
+  "purpose": "Own shared field-kind admission, authority-aware three-source value-domain resolution, narrowing, kind limits and domain-driven editor selection under DES-0030 and T-621.",
+  "dependencies": ["hlp.contracts.fields", "hlp.contracts.identities", "hlp.foundation.rule-runtime"],
+  "types": {
+    "FieldKindReference": ["KindId", "Version", "Parameters"],
+    "AdmittedFieldKind": ["KindId", "Version", "GovernanceDefaults", "ValueShape"],
+    "ValueDomainDefinition": ["LiteralValues", "TaxonomyScheme", "RecordQuery"],
+    "FieldConstraintDefinition": ["Required", "MinimumCount", "MaximumCount", "ReadRoleIds", "ValueDomain"],
+    "FieldRefusal": ["Code", "JsonPointer", "Message"]
+  },
+  "numericKindParameters": {
+    "total_digits": "Positive integer cap on significant digits before and after the point. Leading zeroes and the sign do not count; trailing zeroes after the point do.",
+    "fraction_digits": "Non-negative integer cap on digits after the point. When both facets are declared, fraction_digits must not exceed total_digits.",
+    "declaration": "The two facets are distinct; an ambiguous precision parameter is not supported.",
+    "compilation": "fraction_digits contributes JSON Schema multipleOf equal to ten to the negative n. total_digits remains an executable validator constraint, not a silently discarded schema input.",
+    "refusal": "Each exceeded facet has its own stable field.* refusal code and RFC 6901 pointer. Validation never rounds, clamps, defaults or rewrites the value."
+  },
+  "kindLimitParameters": {
+    "min_length": "Non-negative minimum Unicode scalar count for a text kind.",
+    "max_length": "Non-negative maximum Unicode scalar count, not below min_length.",
+    "minimum": "Inclusive JSON-number minimum, compared exactly without binary floating-point conversion.",
+    "maximum": "Inclusive JSON-number maximum, not below minimum.",
+    "max_bytes": "Non-negative UTF-8 byte cap: decoded content for text and original JSON for other scalar kinds."
+  },
+  "operations": [
+    {"id": "kind.bind", "input": "FieldKindReference and authored pointer", "result": "ICompiledFieldKind or FieldAdmissionException"},
+    {"id": "kind.validate", "input": "bound kind, original JSON value and value pointer", "result": "member-neutral refusals without value mutation"},
+    {"id": "field.validate", "input": "resolved constraints, bound kind, original JSON value and value pointer", "result": "required, multiplicity, readable-membership and per-scalar kind refusals without value mutation"},
+    {"id": "domain.resolve", "input": "one declared domain, tenant/principal and authored pointer", "result": "readable values, source attribution and cardinality-derived editor at a complete pinned revision"},
+    {"id": "constraints.intersect", "input": "declared constraint floors, tenant/principal and authored pointer", "result": "resolved constraint proof or member-neutral refusal"},
+    {"id": "constraints.narrow", "input": "declared floor, complete consumer declaration, tenant/principal and authored pointer", "result": "resolved non-widening proof or member-neutral refusal"}
+  ],
+  "invariants": [
+    "Exactly one domain source is authored: literals, an immutable Taxonomy scheme, or a record query with a predicate.",
+    "Field-kind binding names an exact admitted version, never a latest-version or kind-name fallback.",
+    "The generated schema retains exact kind identity, revision and every parameter in x-harborline-field-kind metadata so runtime-only limits participate in canonical identity and execution.",
+    "Substrate refusal codes use field.* and do not depend on the consuming member.",
+    "Domain resolution must filter by read authority before returning values or deriving cardinality.",
+    "A missing or whitespace-only authenticated principal refuses before opening the tenant snapshot; the runtime preserves the supplied actor identity and does not cache authority across actors.",
+    "Subset proofs use complete unfiltered membership from one pinned tenant snapshot, but public proof values remain authority-filtered.",
+    "Record-query predicates compile and evaluate through the existing Rules producer; evaluation failure is not empty membership.",
+    "An intersection retains its contributing sources rather than relabelling dynamic membership as an authored literal domain.",
+    "A consumer may narrow required, access, multiplicity and domain constraints but may not widen them.",
+    "Value enforcement refuses rather than clamping, defaulting or normalizing authored values.",
+    "total_digits 3 with fraction_digits 0 refuses 123.4; total_digits 3 with fraction_digits 1 admits 12.3 and refuses 123.4.",
+    "A fraction_digits declaration above total_digits is refused before value submission.",
+    "Editor choice derives from the final readable domain, including an intersection or narrowing proof, never an authored ControlHint.",
+    "Three readable values select RadioGroup; forty thousand readable query values select RecordPicker. The current runtime policy uses radios for two through five values; that intermediate cutoff is implementation policy, not an owner ruling.",
+    "Shared value validation treats undefined and null as absent and an array as repeated scalar values. Required and count limits apply to the collection; the compiled kind validates each original scalar, not the collection container."
+  ],
+  "notScope": ["Records grammar", "JSON Schema registration", "definition lifecycle storage", "Rules expression evaluation", "record commit orchestration", "authoring destination"],
+  "selectedDesign": {
+    "choice": "Promote the T-615 substrate types and behavior into one shared producer.",
+    "rejected": "Leave shared field behavior in Records or create one vocabulary per consumer.",
+    "reason": "Eleven members need the same domain and limit semantics; ownership must not follow the first member implementation."
+  },
+  "package": {"nuget": "Harborline.Foundation.FieldRuntime", "assembly": "Harborline.Foundation.FieldRuntime", "distribution": "internal-only"}
+}

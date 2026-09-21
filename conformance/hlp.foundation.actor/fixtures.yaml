@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.foundation.actor",
-  "interfaceRevision": 1,
+  "interfaceRevision": 2,
   "cases": [
     {"id": "current-user-values", "operation": "actor.read", "input": {"userId": "alice", "roles": ["inspector", "reviewer"]}, "expected": {"userId": "alice", "roles": ["inspector", "reviewer"]}},
     {"id": "empty-roles-allowed", "operation": "actor.read", "input": {"userId": "alice", "roles": []}, "expected": {"userId": "alice", "roles": []}},
@@ -15,6 +15,10 @@
     {"id": "cross-tenant-party-rejected", "operation": "party.resolve-current", "input": {"tenant": "beta", "userId": "alice", "mapping": "acme:alice=11111111-1111-1111-1111-111111111111"}, "expectedError": "PartyNotProvisioned"},
     {"id": "same-context-forwarded", "operation": "party.resolve-current", "input": {"tenant": "acme", "userId": "alice"}, "expectedResolverInput": {"tenant": "acme", "userId": "alice"}},
     {"id": "cancellation-forwarded", "operation": "party.resolve-current", "input": {"tenant": "acme", "userId": "alice", "cancellationRequested": true}, "expected": "resolver-observes-cancellation"},
-    {"id": "party-id-not-caller-controlled", "operation": "party.signature", "expectedParameters": ["CancellationToken"]}
+    {"id": "party-id-not-caller-controlled", "operation": "party.signature", "expectedParameters": ["CancellationToken"]},
+    {"id": "scope-authority-admission", "operation": "access.scope", "expected": {"missingAuthority": "access.authority_missing", "wrongTenant": "access.authority_mismatch", "undeclaredReference": "access.reference_undeclared", "refusedEvaluations": 0, "permittedEvaluations": 1}},
+    {"id": "set-before-shaping", "operation": "access.filter", "consumers": ["view", "report-basis", "export", "dry-run"], "input": {"owners": ["alice", "bob", "alice", "bob", "alice"], "amounts": [10, 1000, 20, 2000, 30], "page": {"offset": 1, "limit": 2}}, "expected": {"count": 3, "sum": 60, "groups": {"alice": 3}, "pageIds": ["3", "5"], "filterAfterPageMutation": "refused"}},
+    {"id": "predicate-time-revocation", "operation": "access.validate", "input": {"stageOne": "allow", "beforeValidation": "revoke"}, "expected": {"allowed": false, "reason": "NoEffectiveRole", "commits": 0}},
+    {"id": "stored-trace", "operation": "access.trace", "expected": {"stages": ["act", "effective-roles", "standings", "verdict"], "historicalEvaluations": 0, "afterRevocation": "original-verdict-and-counterfactual", "unauthorized": "Refused", "missingDecision": "NotAvailable", "guard": "PreDecisionRefusal"}}
   ]
 }

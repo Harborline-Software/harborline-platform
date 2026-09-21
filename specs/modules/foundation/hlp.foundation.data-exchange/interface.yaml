@@ -1,21 +1,23 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.foundation.data-exchange",
-  "interfaceRevision": 2,
+  "interfaceRevision": 3,
   "status": "frozen",
   "purpose": "Own the inbound-only Data Exchange definition, constrained CSVW mapping profile, immutable tenant run evidence, distinct replay identities, bounded canonical Records command orchestration, target Access gate, effect ledger, and conservative checkpoint promotion required by ADR 0098.",
   "dependencies": [],
   "callerInterface": {
-    "name": "IDataExchangeDefinitionStore / TabularMappingAdmission / DataExchangeInterpreter / DataExchangeRuntime / DataExchangeCommitter",
+    "name": "DataExchangeDefinitionAdmission / DataExchangeDefinitionJson / DataExchangeDefinitionPackExporter / TabularMappingAdmission / DataExchangeInterpreter / DataExchangeRuntime / DataExchangeCommitter",
     "operations": [
       "TabularMappingAdmission.Validate -> accept hl:tabular-mapping/v1 with immutable schema identity and supported CSVW terms; refuse unknown profile/schema/major/hl extension or non-canonical target",
-      "IDataExchangeDefinitionStore -> immutable draft/publish/restore history and published definition pack export; credentials, cursors and retention overrides refuse",
+      "DataExchangeDefinitionAdmission.Validate / AdmitJson(body, phase, sources, catalogue) -> the complete refusal list at the author, publish and install boundaries; the shared builder-definitions catalogue (DefinitionKind.DataExchange) binds AdmitJson as its admission; unregistered kinds, non-object settings, missing dedup keys, private targets, credentials, cursors, retention overrides, rollback and export members refuse",
+      "DataExchangeDefinitionJson.SerializeCanonical / Deserialize -> canonical snake_case, ordinal-sorted, newline-terminated UTF-8 JSON for every definition member; DataExchangeDefinitionPackExporter.Export -> content kind 11 entry of canonical bytes after publish admission, carried by PlatformPackageExporter with closure, manifest and digest",
+      "IDataExchangeDefinitionResolver.ResolvePublishedHeadAsync -> the published head the interpreter runs, supplied by the host over the shared catalogue",
       "DataExchangeInterpreter.CreateDryRunAsync -> resolve a read-only source capability, discover and validate source shape, stream rows, apply CSVW null/default/type semantics and registered transforms, bind canonical payloads, persist payloads behind protected references, and continue with a closed rejection for an invalid row",
       "DataExchangeRuntime.CreateDryRunAsync -> persist a new immutable tenant review artifact with proposal fingerprints, normalized evidence, candidate checkpoint, protected snapshot reference and policy-owned lifecycle",
       "DataExchangeCommitter.CommitAsync(DryRunId, CommitOptions?, CancellationToken) -> reevaluate via IProposalEvaluationPort; stale preimage creates a linked superseding dry run and refuses; resolve mandatory source outcome policy; bounded dispatch and exact census closure",
       "DataExchangePermissions -> closed author, dry-run, commit and read-run-results capability vocabulary; target Access remains independent"
     ],
-    "context": "Definitions are portable pack content. Runs and checkpoints are operational tenant state. Hosts provide trusted proposal evaluation, source policies, lifecycle policy, target registry and durable storage. The canonical target command port owns its outcome ledger and target transactions."
+    "context": "Definitions are portable pack content stored in the shared builder-definitions catalogue; this package owns their typed shape, canonical JSON and admission, never a store. Runs and checkpoints are operational tenant state. Hosts provide trusted proposal evaluation, source policies, lifecycle policy, target registry and durable storage. The canonical target command port owns its outcome ledger and target transactions."
   },
   "invariants": [
     "Data Exchange is inbound-only; no export or global undo surface exists.",
@@ -43,6 +45,13 @@
     "definition.external_key_required",
     "definition.external_key_unknown",
     "definition.schema_version_unsupported",
+    "definition.version_invalid",
+    "definition.envelope_required",
+    "definition.settings_not_object",
+    "definition.rollback_refused",
+    "definition.export_refused",
+    "definition.body_invalid",
+    "definition.catalogue_mismatch",
     "definition.envelope_mismatch",
     "definition.format_required",
     "definition.published_head_not_found",
@@ -75,7 +84,9 @@
     "checkpoint.conflict"
   ],
   "publicSeams": [
-    "definition lifecycle and pack-export port",
+    "definition intent admission (author, publish, install) and canonical JSON",
+    "content kind 11 pack entry for the platform package",
+    "IDataExchangeDefinitionResolver published-head port",
     "mapping-profile terminal admission",
     "read-only acquisition and discovered-shape port",
     "registered transform and canonical-target capability registry",
@@ -99,9 +110,9 @@
   ],
   "conformance": {
     "nativeTests": {
-      "dotnet": 66
+      "dotnet": 91
     },
-    "nativeTestNote": "Includes semantic dependency identity and supersession, closed census/status/policy refusal, lifecycle-derived retention and legal holds, rollback refusal and domain correction, execution registry admission, authorization-context propagation, lost-response replay, read-only acquisition, CSVW mapping/coercion, protected payload handling, bounded concurrent dispatch, stale promotion refusal, and recoverable checkpoint finalization."
+    "nativeTestNote": "Includes shared-catalogue immutable heads, restore-as-new-draft, canonical JSON round trip, content kind 11 platform-package export with digest, boundary refusals with valid counterparts, semantic dependency identity and supersession, closed census/status/policy refusal, lifecycle-derived retention and legal holds, rollback refusal and domain correction, execution registry admission, authorization-context propagation, lost-response replay, read-only acquisition, CSVW mapping/coercion, protected payload handling, bounded concurrent dispatch, stale promotion refusal, and recoverable checkpoint finalization."
   },
   "selectedDesign": {
     "choice": "One packable foundation assembly owns the projection-neutral definition and execution protocol while durable persistence, connector acquisition, target Access, canonical Records commands and UI projections remain behind narrow host adapters.",

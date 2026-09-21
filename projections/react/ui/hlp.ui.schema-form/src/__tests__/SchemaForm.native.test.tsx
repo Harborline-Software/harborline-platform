@@ -153,11 +153,11 @@ describe('SchemaForm React projection', () => {
     ])
   })
 
-  it('publishes exactly the revision-1 built-in control hints', () => {
+  it('publishes the built-in control hints including runtime domain editors', () => {
     expect(Object.keys(DEFAULT_CONTROLS).sort()).toEqual([
-      'boolean', 'boolean-toggle', 'checkbox', 'currency', 'date', 'datetime', 'email',
-      'hidden', 'integer', 'multiselect', 'number', 'percentage', 'phone', 'readonly',
-      'select', 'text', 'textarea', 'time', 'url',
+      'boolean', 'boolean-toggle', 'checkbox', 'choicelist', 'currency', 'date', 'datetime', 'email',
+      'hidden', 'integer', 'multiselect', 'none', 'number', 'percentage', 'phone', 'radiogroup', 'readonly',
+      'recordpicker', 'select', 'singlevalue', 'taxonomypicker', 'text', 'textarea', 'time', 'url',
     ])
   })
 

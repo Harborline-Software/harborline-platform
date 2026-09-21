@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.ui.form-view",
-  "fixtureRevision": 1,
+  "fixtureRevision": 2,
   "cases": [
     {"id": "form-view.complete-export-surface", "input": {"sourceExportCount": 29}, "expected": {"aggregateExportCount": 29, "missing": [], "extraCanonicalOwners": 0}},
-    {"id": "form-view.canonical-owner", "input": {"families": ["localized-text", "layout", "content-action", "collection", "form-view", "candidate", "validation"]}, "expected": {"owner": "hlp.contracts.forms", "minimumRevision": 4}},
+    {"id": "form-view.canonical-owner", "input": {"families": ["localized-text", "layout", "content-action", "collection", "form-view", "candidate", "validation", "permitted-values"]}, "expected": {"owner": "hlp.contracts.forms", "minimumRevision": 6}},
     {"id": "form-view.wire-identity", "input": {"typescript": "@harborline-software/contracts", "dotnet": "Harborline.Contracts.Forms"}, "expected": {"sameFixtureRoundTrip": true, "duplicateDeclarations": 0}},
     {"id": "form-view.minimal", "input": {"formId": "inspection", "version": "1.0.0", "sections": []}, "expected": {"titleAbsent": true, "descriptionAbsent": true, "sections": 0}},
     {"id": "form-view.readable-value", "input": {"isSensitive": false, "isReadable": true, "value": "A-104"}, "expected": {"value": "A-104", "editable": true}},
@@ -24,6 +24,11 @@
     {"id": "form-view.locale-default", "input": {"text": {"defaultLocale": "de", "values": {"de": "Betrag", "en": "Amount"}}, "localeChain": ["es-MX"]}, "expected": "Betrag"},
     {"id": "form-view.locale-first", "input": {"text": {"defaultLocale": "it", "values": {"fr": "Montant", "en": "Amount"}}, "localeChain": ["es-MX"]}, "expected": "Montant"},
     {"id": "form-view.locale-fallback", "input": {"text": null, "localeChain": ["es-MX"], "fallback": "Field"}, "expected": "Field"},
-    {"id": "form-view.locale-empty", "input": {"text": {"defaultLocale": "de", "values": {}}, "localeChain": ["es-MX"]}, "expected": ""}
+    {"id": "form-view.locale-empty", "input": {"text": {"defaultLocale": "de", "values": {}}, "localeChain": ["es-MX"]}, "expected": ""},
+    {"id": "form-view.domain-permitted", "input": {"field": {"name": "status", "label": {"defaultLocale": "en", "values": {"en": "Status"}}, "isSensitive": false, "isReadable": true, "controlHint": "RadioGroup", "permittedValues": ["open", "closed", "pending"]}, "hostOptions": ["outside"]}, "expected": {"options": ["open", "closed", "pending"], "permittedValues": ["open", "closed", "pending"], "redacted": false}},
+    {"id": "form-view.domain-empty", "input": {"field": {"name": "status", "label": {"defaultLocale": "en", "values": {"en": "Status"}}, "isSensitive": false, "isReadable": true, "controlHint": "None", "permittedValues": []}, "hostOptions": ["outside"]}, "expected": {"options": [], "permittedValues": [], "redacted": false}},
+    {"id": "form-view.domain-unreadable", "input": {"field": {"name": "status", "label": {"defaultLocale": "en", "values": {"en": "Status"}}, "isSensitive": false, "isReadable": false, "controlHint": "RadioGroup", "value": "secret", "permittedValues": ["secret"]}, "hostOptions": ["outside"]}, "expected": {"options": [], "redacted": true}},
+    {"id": "form-view.domain-sensitive", "input": {"field": {"name": "status", "label": {"defaultLocale": "en", "values": {"en": "Status"}}, "isSensitive": true, "isReadable": true, "controlHint": "RadioGroup", "value": "secret", "permittedValues": ["secret"]}, "hostOptions": ["outside"]}, "expected": {"options": [], "redacted": true}},
+    {"id": "form-view.domain-redacted-host-options", "input": {"field": {"name": "status", "label": {"defaultLocale": "en", "values": {"en": "Status"}}, "isSensitive": false, "isReadable": false, "controlHint": "select"}, "hostOptions": ["secret"]}, "expected": {"options": [], "redacted": true}}
   ]
 }

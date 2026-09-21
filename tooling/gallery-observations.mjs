@@ -152,8 +152,11 @@ export function expectedChecks(modules, { ciGallery = false, capture = false, ex
   const declares = (scenario, quality) => scenario.sourceQualityCaseIds?.some(id => id.endsWith(`.quality.${quality}`)) ?? false
   // A wall-clock-exempt scenario skips its whole test, so it contributes nothing at all.
   const running = modules.flatMap(module => module.scenarios).filter(scenario => !wallClockExempt.has(scenario.id))
+  // These interaction branches in gallery.spec.ts also scan the open popup in each projection.
+  // Count only scenarios that run; keep the measured annotation count independent of this declaration.
+  const openPopupScans = new Set(['select-field.search', 'select-field.multiple', 'select-field.multiple-search'])
   return {
-    accessibilityScans: running.length * 2,
+    accessibilityScans: (running.length + running.filter(scenario => openPopupScans.has(scenario.id)).length) * 2,
     visualParityComparisons: running.filter(scenario => declares(scenario, 'visual-parity') && !pixelExempt.has(scenario.id)).length
       + button.themes * 3,
     // Per-scenario reflow (one assertion per lane, gated on the declared reflow case id) plus the six

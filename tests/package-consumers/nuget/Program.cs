@@ -10,6 +10,7 @@ using Harborline.Foundation.MultiTenancy;
 using Harborline.Foundation.Authorization;
 using Harborline.Foundation.Session;
 using Harborline.Kernel.SchemaValidation;
+using Harborline.Kernel.Core;
 using Harborline.Kernel.WorkItems;
 using Harborline.Blocks.InspectionReview;
 using Harborline.Contracts.Forms;
@@ -45,6 +46,22 @@ using FormsDrafts = Harborline.Foundation.Forms.Drafts;
 using FormsModel = Harborline.Foundation.Forms.Models;
 using BuilderDefinitions = Harborline.Blocks.BuilderDefinitions;
 using DataExchange = Harborline.Foundation.DataExchange;
+using FieldRuntime = Harborline.Foundation.FieldRuntime;
+using FieldContracts = Harborline.Contracts.Fields;
+
+var emptyFieldDomainRefusals = FieldRuntime.ValueDomainAdmission.Validate(
+    new FieldContracts.ValueDomainDefinition(), "/fields/status/value_domain");
+if (emptyFieldDomainRefusals.Count != 1
+    || emptyFieldDomainRefusals[0].Code != "field.value_domain_source_count"
+    || emptyFieldDomainRefusals[0].JsonPointer != "/fields/status/value_domain")
+    throw new InvalidOperationException("Packed field runtime did not refuse an empty value domain.");
+if (FieldRuntime.ValueDomainAdmission.Validate(
+    new FieldContracts.ValueDomainDefinition(LiteralValues: new[] { "open", "closed" }),
+    "/fields/status/value_domain").Count != 0)
+    throw new InvalidOperationException("Packed field runtime did not admit the literal-set source.");
+
+await FieldRuntimeSchemaProbe.VerifyAsync();
+await FieldRuntimeDomainProbe.VerifyAsync();
 
 if (typeof(HarborlineButton).Assembly.GetName().Name != "Harborline.UIAdapters.Blazor")
     throw new InvalidOperationException("UI assembly identity changed.");
@@ -125,6 +142,13 @@ if (Enum.GetNames<SegmentedControlSize>() is not ["Sm", "Md", "Lg", "Touch"]
     || new SelectOption("active", "Active").Value != "active"
     || new UserIdentity("Ada Lovelace").Name != "Ada Lovelace")
     throw new InvalidOperationException("Packed wave-03-04 component vocabulary changed.");
+if (typeof(HarborlineSelectField).GetProperty(nameof(HarborlineSelectField.ValueChanged))?.PropertyType != typeof(Microsoft.AspNetCore.Components.EventCallback<string>)
+    || typeof(HarborlineSelectField).GetProperty(nameof(HarborlineSelectField.Values))?.PropertyType != typeof(IReadOnlyList<string>)
+    || typeof(HarborlineSelectField).GetProperty(nameof(HarborlineSelectField.ValuesChanged))?.PropertyType != typeof(Microsoft.AspNetCore.Components.EventCallback<IReadOnlyList<string>>)
+    || typeof(HarborlineSelectField).GetProperty(nameof(HarborlineSelectField.Multiple))?.PropertyType != typeof(bool)
+    || typeof(HarborlineSelectField).GetProperty(nameof(HarborlineSelectField.Searchable))?.PropertyType != typeof(bool)
+    || new HarborlineSelectField().MaxVisibleOptions != 25)
+    throw new InvalidOperationException("Packed SelectField single, multiple, or searchable contracts are incomplete.");
 if (typeof(HarborlineChart).Assembly != typeof(HarborlineButton).Assembly
     || typeof(HarborlineChat).Assembly != typeof(HarborlineButton).Assembly
     || typeof(HarborlineDataGrid<>).Assembly != typeof(HarborlineButton).Assembly
@@ -466,7 +490,24 @@ if (!BuilderDefinitions.PlatformPackageSeed.VerifyCheckedInExport())
     throw new InvalidOperationException("Packed Builder Definitions canonical platform export differs from its producer.");
 if (BuilderDefinitions.PlatformPackageSeed.Manifest.Items.Count != 14)
     throw new InvalidOperationException("Packed Builder Definitions canonical platform seed inventory is incomplete.");
-if (typeof(DataExchange.IDataExchangeDefinitionStore).Assembly.GetName().Name != "Harborline.Foundation.DataExchange"
+var generationReference = new BuilderDefinitions.ConfigurationReference("platform", "1.0.0", new string('a', 64));
+var generationInput = new BuilderDefinitions.ResolvedConfiguration("tenant-a", ["platform"],
+    [new(generationReference, [generationReference], [])], [new("platform", "platform")], generationReference, []);
+var effectiveGeneration = BuilderDefinitions.ConfigurationGeneration.Resolve(generationInput);
+if (effectiveGeneration.Digest == generationReference.Digest
+    || BuilderDefinitions.ConfigurationGenerationDetail.Bind(effectiveGeneration)["generationDigest"] != effectiveGeneration.Digest
+    || BuilderDefinitions.ConfigurationGenerationDetail.Definition.GetProperty("formId").GetString() != "platform.detail.configuration-generation")
+    throw new InvalidOperationException("Packed complete generation identity/detail contract is absent.");
+if (BuilderDefinitions.ConfigurationGeneration.Resolve(generationInput with { Policies = [generationReference] }).Digest == effectiveGeneration.Digest)
+    throw new InvalidOperationException("Packed generation identity ignored configuration policy.");
+var malformedFloor = BuilderDefinitions.PackageSafetyFloorReattachment.Apply(
+    System.Text.Json.Nodes.JsonNode.Parse("""{"safetyFloors":{"retention":3}}""")!,
+    System.Text.Json.Nodes.JsonNode.Parse("""{"safetyFloors":{"retention":"strict"}}""")!);
+if (malformedFloor.Succeeded
+    || malformedFloor.RefusalCode != "platform-package-safety-floor-malformed"
+    || malformedFloor.Member != "retention")
+    throw new InvalidOperationException("Packed Builder Definitions safety-floor reattachment did not refuse the malformed member.");
+if (typeof(DataExchange.IDataExchangeDefinitionResolver).Assembly.GetName().Name != "Harborline.Foundation.DataExchange"
     || DataExchange.TabularMappingProfile.Family != "hl:tabular-mapping/v1"
     || DataExchange.TabularMappingProfile.SchemaUri != "https://schemas.harborline.software/mapping/tabular/v1")
     throw new InvalidOperationException("Packed Data Exchange profile or assembly identity changed.");
@@ -620,6 +661,43 @@ var packedWorkItem = await packedWorkItemKernel.CreateAsync(new CreateWorkItemRe
 });
 if (!packedWorkItem.IsSuccess || typeof(IWorkItemKernel).Assembly.GetName().Name != "Harborline.Kernel.WorkItems")
     throw new InvalidOperationException("Packed work-item kernel failed tenant-scoped creation or changed assembly identity.");
+var packedCommandExecutions = 0;
+string[] packedCommands = ["first", "second"];
+var packedBatchAdmission = await CommandRequestBoundary.ExecuteAsync(
+    packedCommands,
+    command =>
+    {
+        packedCommandExecutions++;
+        return ValueTask.FromResult(command);
+    });
+if (packedBatchAdmission.Refusal is not { Code: "kernel.multi-command-batch", StatusCode: 400, CommandCount: 2 }
+    || packedCommandExecutions != 0)
+    throw new InvalidOperationException("Packed work-item kernel did not refuse a multi-command request before execution.");
+var packedWindow = new DefinitionContractWindow(
+    "consumer-definition.v1",
+    DateTimeOffset.Parse("2026-09-18T12:00:00Z", System.Globalization.CultureInfo.InvariantCulture),
+    DateTimeOffset.Parse("2026-09-18T14:00:00Z", System.Globalization.CultureInfo.InvariantCulture));
+var packedWindowAdmission = await DefinitionWriteBoundary.ExecuteAsync(
+    packedWindow,
+    packedWindow.ClosesAt,
+    () => ValueTask.FromResult("should-not-run"));
+if (packedWindowAdmission.Refusal is not { Code: "kernel.definition-contract-window", StatusCode: 422 })
+    throw new InvalidOperationException("Packed work-item kernel did not refuse a write outside its definition contract window.");
+
+if (typeof(KernelClock).Assembly.GetName().Name != "Harborline.Kernel.Core")
+    throw new InvalidOperationException("Kernel Core assembly identity changed.");
+var packedFloorReader = new EmptyCatalogueReader();
+var packedFloor = new CompiledBootstrapCatalogue(packedFloorReader);
+foreach (var shape in CompiledBootstrapCatalogue.Shapes)
+{
+    if (await packedFloor.ResolveAsync(shape.Identity) != shape)
+        throw new InvalidOperationException($"Packed Kernel Core did not resolve compiled shape {shape.Identity}.");
+}
+if (packedFloorReader.Reads != 0 || CompiledBootstrapCatalogue.Shapes.Count != 3)
+    throw new InvalidOperationException("Packed Kernel Core read the seed store before resolving its exact compiled floor.");
+if (!KernelProfile.Capabilities.Contains(KernelProfile.ConfigurationRecovery)
+    || typeof(ConfigurationRecovery).Assembly.GetName().Name != "Harborline.Kernel.Core")
+    throw new InvalidOperationException("Packed Kernel Core does not declare configuration-recovery on the kernel profile.");
 
 Console.WriteLine("packed NuGet aggregate loaded Harborline App waves through wave-03-05, including Chart, Chat, Data Grid, Gantt, and Numeric Text Box");
 
@@ -635,6 +713,19 @@ sealed record ConsumerActorContext(
     TenantMetadata? Tenant,
     string UserId,
     IReadOnlyList<string> Roles) : IAuthenticatedActorContext;
+
+sealed class EmptyCatalogueReader : IKernelCatalogueReader
+{
+    public int Reads { get; private set; }
+
+    public ValueTask<CompiledBootstrapShape?> ReadAsync(
+        CompiledShapeIdentity identity,
+        CancellationToken cancellationToken = default)
+    {
+        Reads++;
+        return ValueTask.FromResult<CompiledBootstrapShape?>(null);
+    }
+}
 
 sealed class ConsumerPartyResolver(
     TenantId expectedTenant,

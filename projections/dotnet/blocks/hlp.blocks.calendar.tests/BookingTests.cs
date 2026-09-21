@@ -1,6 +1,7 @@
 using Harborline.Blocks.Calendar.Models;
 using Harborline.Blocks.Calendar.Services;
 using Harborline.Foundation.Assets.Common;
+using Harborline.Foundation.Authorization;
 using Harborline.Foundation.Scheduling;
 using Xunit;
 
@@ -24,7 +25,7 @@ public sealed class BookingTests
         IFreeBusyService FreeBusy,
         IBookingService Booking);
 
-    private static Sut NewSut()
+    private static Sut NewSut(IPartyContext? requester = null)
     {
         var rrule = new InMemoryRruleExpansionService();
         var expansion = new CalendarEventExpansionService(rrule);
@@ -33,9 +34,16 @@ public sealed class BookingTests
         var eventStore = new InMemoryCalendarEventStore();
         var freeBusy = new FreeBusyService(availStore, availExpansion, eventStore, expansion);
         var booking = new BookingService(
-            freeBusy, availStore, availExpansion, eventStore, new DefaultPaddingPolicy(EventPadding.None));
+            freeBusy, availStore, eventStore, new DefaultPaddingPolicy(EventPadding.None),
+            requester ?? new FixedRequester(Actor));
         return new Sut(availStore, eventStore, freeBusy, booking);
     }
+
+    /// <summary>The same stores seen through a second authenticated requester.</summary>
+    private static IBookingService AsRequester(Sut sut, Guid party)
+        => new BookingService(
+            (IAvailabilityRuntime)sut.FreeBusy, sut.Availability, sut.Events,
+            new DefaultPaddingPolicy(EventPadding.None), new FixedRequester(party));
 
     private static readonly DateOnly Day = new(2026, 3, 4);
 
@@ -56,7 +64,7 @@ public sealed class BookingTests
         var sut = NewSut();
         await SeedNineToFive(sut, Doctor);
 
-        var outcome = await sut.Booking.Book(Acme, Doctor, "Checkup", Utc(10), Utc(11), Actor, attendee: Patient);
+        var outcome = await sut.Booking.Book(Acme, Doctor, "Checkup", Utc(10), Utc(11), attendee: Patient);
 
         Assert.True(outcome.Success);
         Assert.Null(outcome.RejectionReason);
@@ -81,12 +89,65 @@ public sealed class BookingTests
         var startUtc = new DateTimeOffset(2026, 3, 4, 17, 30, 0, TimeSpan.Zero);
         var endUtc = new DateTimeOffset(2026, 3, 4, 18, 0, 0, TimeSpan.Zero);
 
-        var outcome = await sut.Booking.Book(Acme, Doctor, "LA checkup", startUtc, endUtc, Actor);
+        var outcome = await sut.Booking.Book(Acme, Doctor, "LA checkup", startUtc, endUtc);
 
         Assert.True(outcome.Success);
         // The persisted event re-expands to the exact same UTC instant it was booked at.
         var fb = await sut.FreeBusy.FreeBusy(Acme, Doctor, startUtc, endUtc);
         Assert.Empty(fb.FreeSlots);   // the only-30-min window is fully consumed
+    }
+
+    // ----------------------------------------------------------------
+    // The requester is the authenticated Party, never a caller-supplied id (T-568, L535)
+    // ----------------------------------------------------------------
+
+    [Fact]
+    public async Task Book_ByTwoAuthenticatedRequesters_RecordsEachRequesterDistinctly()
+    {
+        var alice = Guid.NewGuid();
+        var bob = Guid.NewGuid();
+        var sut = NewSut(new FixedRequester(alice));
+        await SeedNineToFive(sut, Doctor);
+
+        var byAlice = await sut.Booking.Book(Acme, Doctor, "Alice's slot", Utc(10), Utc(11));
+        var byBob = await AsRequester(sut, bob).Book(Acme, Doctor, "Bob's slot", Utc(11), Utc(12));
+
+        Assert.True(byAlice.Success);
+        Assert.True(byBob.Success);
+        Assert.Equal(alice, byAlice.Event!.CreatedBy);
+        Assert.Equal(bob, byBob.Event!.CreatedBy);
+        Assert.NotEqual(byAlice.Event.CreatedBy, byBob.Event.CreatedBy);
+
+        // The attribution is what was persisted, not just what was returned.
+        var stored = await sut.Events.GetAsync(Acme, byBob.Event.Id);
+        Assert.Equal(bob, stored!.CreatedBy);
+    }
+
+    [Fact]
+    public async Task Book_WithNoAuthenticatedRequester_RejectsNoRequester_AndWritesNothing()
+    {
+        var sut = NewSut(FixedRequester.Unauthenticated);
+        await SeedNineToFive(sut, Doctor);
+
+        var outcome = await sut.Booking.Book(Acme, Doctor, "Anonymous", Utc(10), Utc(11));
+
+        Assert.False(outcome.Success);
+        Assert.Equal(BookingOutcome.NoRequester, outcome.RejectionReason);
+        Assert.Null(outcome.Event);
+        var fb = await sut.FreeBusy.FreeBusy(Acme, Doctor, Utc(0), Utc(23));
+        Assert.Empty(fb.BusyIntervals);
+    }
+
+    [Fact]
+    public async Task Book_WithAnEmptyRequesterParty_RejectsNoRequester()
+    {
+        var sut = NewSut(new FixedRequester(Guid.Empty));
+        await SeedNineToFive(sut, Doctor);
+
+        var outcome = await sut.Booking.Book(Acme, Doctor, "Nobody", Utc(10), Utc(11));
+
+        Assert.False(outcome.Success);
+        Assert.Equal(BookingOutcome.NoRequester, outcome.RejectionReason);
     }
 
     // ----------------------------------------------------------------
@@ -99,10 +160,10 @@ public sealed class BookingTests
         var sut = NewSut();
         await SeedNineToFive(sut, Doctor);
 
-        var first = await sut.Booking.Book(Acme, Doctor, "First", Utc(10), Utc(11), Actor);
+        var first = await sut.Booking.Book(Acme, Doctor, "First", Utc(10), Utc(11));
         Assert.True(first.Success);
 
-        var second = await sut.Booking.Book(Acme, Doctor, "Second", Utc(10), Utc(11), Actor);
+        var second = await sut.Booking.Book(Acme, Doctor, "Second", Utc(10), Utc(11));
         Assert.False(second.Success);
         Assert.Equal(BookingOutcome.SlotConflict, second.RejectionReason);
         Assert.Null(second.Event);
@@ -114,14 +175,13 @@ public sealed class BookingTests
         var sut = NewSut();
         await SeedNineToFive(sut, Doctor);
 
-        await sut.Booking.Book(Acme, Doctor, "First", Utc(10), Utc(11), Actor);
+        await sut.Booking.Book(Acme, Doctor, "First", Utc(10), Utc(11));
 
         // 10:30-11:30 overlaps the 10-11 booking.
         var overlap = await sut.Booking.Book(
             Acme, Doctor, "Overlap",
             new DateTimeOffset(2026, 3, 4, 10, 30, 0, TimeSpan.Zero),
-            new DateTimeOffset(2026, 3, 4, 11, 30, 0, TimeSpan.Zero),
-            Actor);
+            new DateTimeOffset(2026, 3, 4, 11, 30, 0, TimeSpan.Zero));
 
         Assert.False(overlap.Success);
         Assert.Equal(BookingOutcome.SlotConflict, overlap.RejectionReason);
@@ -133,10 +193,10 @@ public sealed class BookingTests
         var sut = NewSut();
         await SeedNineToFive(sut, Doctor);
 
-        await sut.Booking.Book(Acme, Doctor, "First", Utc(10), Utc(11), Actor);
+        await sut.Booking.Book(Acme, Doctor, "First", Utc(10), Utc(11));
 
         // 11-12 is back-to-back with 10-11 (half-open) — not a conflict.
-        var adjacent = await sut.Booking.Book(Acme, Doctor, "Adjacent", Utc(11), Utc(12), Actor);
+        var adjacent = await sut.Booking.Book(Acme, Doctor, "Adjacent", Utc(11), Utc(12));
 
         Assert.True(adjacent.Success);
     }
@@ -153,7 +213,7 @@ public sealed class BookingTests
         lunch.SetResource(Doctor, Actor);
         await sut.Events.SaveAsync(lunch);
 
-        var outcome = await sut.Booking.Book(Acme, Doctor, "During lunch", Utc(12), Utc(13), Actor);
+        var outcome = await sut.Booking.Book(Acme, Doctor, "During lunch", Utc(12), Utc(13));
 
         Assert.False(outcome.Success);
         Assert.Equal(BookingOutcome.SlotConflict, outcome.RejectionReason);
@@ -170,7 +230,7 @@ public sealed class BookingTests
         await SeedNineToFive(sut, Doctor);
 
         // 18-19 is after the 9-17 window — not available at all.
-        var outcome = await sut.Booking.Book(Acme, Doctor, "After hours", Utc(18), Utc(19), Actor);
+        var outcome = await sut.Booking.Book(Acme, Doctor, "After hours", Utc(18), Utc(19));
 
         Assert.False(outcome.Success);
         Assert.Equal(BookingOutcome.NoAvailability, outcome.RejectionReason);
@@ -182,7 +242,7 @@ public sealed class BookingTests
         var sut = NewSut();
         // No availability saved at all.
 
-        var outcome = await sut.Booking.Book(Acme, Doctor, "Anytime", Utc(10), Utc(11), Actor);
+        var outcome = await sut.Booking.Book(Acme, Doctor, "Anytime", Utc(10), Utc(11));
 
         Assert.False(outcome.Success);
         Assert.Equal(BookingOutcome.NoAvailability, outcome.RejectionReason);
@@ -198,8 +258,7 @@ public sealed class BookingTests
         var outcome = await sut.Booking.Book(
             Acme, Doctor, "Straddle",
             new DateTimeOffset(2026, 3, 4, 16, 30, 0, TimeSpan.Zero),
-            new DateTimeOffset(2026, 3, 4, 17, 30, 0, TimeSpan.Zero),
-            Actor);
+            new DateTimeOffset(2026, 3, 4, 17, 30, 0, TimeSpan.Zero));
 
         Assert.False(outcome.Success);
         Assert.Equal(BookingOutcome.NoAvailability, outcome.RejectionReason);
@@ -211,7 +270,7 @@ public sealed class BookingTests
         var sut = NewSut();
         await SeedNineToFive(sut, Doctor);
 
-        var outcome = await sut.Booking.Book(Acme, Doctor, "Backwards", Utc(11), Utc(10), Actor);
+        var outcome = await sut.Booking.Book(Acme, Doctor, "Backwards", Utc(11), Utc(10));
 
         Assert.False(outcome.Success);
         Assert.Equal(BookingOutcome.SlotInverted, outcome.RejectionReason);
@@ -224,7 +283,7 @@ public sealed class BookingTests
         await SeedNineToFive(sut, Doctor);
         var ward = ContextRef.Of("floor", "icu-3");
 
-        var outcome = await sut.Booking.Book(Acme, Doctor, "ICU round", Utc(10), Utc(11), Actor, scheduledAgainst: ward);
+        var outcome = await sut.Booking.Book(Acme, Doctor, "ICU round", Utc(10), Utc(11), scheduledAgainst: ward);
 
         Assert.True(outcome.Success);
         Assert.Equal(ward, outcome.Event!.ScheduledAgainst);
@@ -255,10 +314,10 @@ public sealed class BookingTests
         var resolver = new SharedCalendarResolver(subStore, sharedStore);
         var eventStore = new InMemoryCalendarEventStore();
         var freeBusy = new FreeBusyService(availStore, availExpansion, eventStore, expansion, resolver, visibilityPolicy: null);
-        // The CALENDAR-LAYERS booking constructor — the booking gate resolves the SAME shared-calendar
-        // exceptions free/busy does, so the view (free/busy) and the gate (Book) agree.
+        // T-626: the booking gate reads through the SAME composition free/busy is (FreeBusyService is the
+        // IAvailabilityRuntime), so the view (free/busy) and the gate (Book) cannot disagree.
         var booking = new BookingService(
-            freeBusy, availStore, availExpansion, eventStore, new DefaultPaddingPolicy(EventPadding.None), resolver);
+            freeBusy, availStore, eventStore, new DefaultPaddingPolicy(EventPadding.None), new FixedRequester(Actor));
         return new LayeredSut(availStore, sharedStore, subStore, freeBusy, booking);
     }
 
@@ -290,7 +349,7 @@ public sealed class BookingTests
         Assert.Empty(fb.FreeSlots);
 
         // The GATE: a Wednesday booking is REJECTED — the gate matches the view (no silent admit).
-        var wedOutcome = await sut.Booking.Book(Acme, Doctor, "Wed checkup", wedStart, wedEnd, Actor);
+        var wedOutcome = await sut.Booking.Book(Acme, Doctor, "Wed checkup", wedStart, wedEnd);
         Assert.False(wedOutcome.Success);
         Assert.Equal(BookingOutcome.NoAvailability, wedOutcome.RejectionReason);
 
@@ -298,7 +357,7 @@ public sealed class BookingTests
         // the shared layer only removes the subscribed holiday, not every day.
         var tueStart = new DateTimeOffset(2026, 3, 3, 10, 0, 0, TimeSpan.Zero);
         var tueEnd = new DateTimeOffset(2026, 3, 3, 11, 0, 0, TimeSpan.Zero);
-        var tueOutcome = await sut.Booking.Book(Acme, Doctor, "Tue checkup", tueStart, tueEnd, Actor);
+        var tueOutcome = await sut.Booking.Book(Acme, Doctor, "Tue checkup", tueStart, tueEnd);
         Assert.True(tueOutcome.Success);
         Assert.Equal(tuesday, tueOutcome.Event!.Start);
     }

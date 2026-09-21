@@ -59,6 +59,15 @@ test('every declared step has an entry script', () => {
   )
 })
 
+test('native evidence includes the Blazor browser adapter test harness', () => {
+  assert.deepEqual(uncovered([
+    'tests/blazor-browser/SchemaForm.focus.test.ts',
+    'tests/blazor-browser/SelectField.keyboard.test.ts',
+    'tests/blazor-browser/setup.ts',
+    'tests/blazor-browser/vitest.config.ts',
+  ], reusableStepInputs['native-tests']), [])
+})
+
 test('an undeclared import is caught', () => {
   // Positive control. Without it this file passes just as happily when scriptClosure silently
   // returns nothing but the entry -- the exact failure it exists to prevent.

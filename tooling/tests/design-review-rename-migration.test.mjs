@@ -54,7 +54,7 @@ test('rename migration proves both pins, refuses changed content and is idempote
   const resetRecord = () => writeFileSync(recordPath, JSON.stringify(record))
   resetRecord()
   const backlogPath = resolve(root, 'expired-backlog.json')
-  const backlogBytes = JSON.stringify({ticket: 334, deadline: '2026-09-30', commit: judgedAgainst, modules: [moduleId]})
+  const backlogBytes = JSON.stringify({ticket: 334, commit: judgedAgainst, modules: [moduleId]})
   writeFileSync(backlogPath, backlogBytes)
   assert.deepEqual(legacyRecords(root), [], 'the backlog is not a legacy review record')
   renameSync(resolve(platformRoot, component), resolve(platformRoot, renamed))

@@ -130,11 +130,15 @@ S0/S1 left these `null`/empty; **S2 (below) populates them** — the participati
     `Bookable` event (the doctor as a `Resource`, the patient as an `Attendee`), enforcing
     **no-double-book** on the resource. The conflict check reads straight off free/busy
     (`NO_AVAILABILITY` when outside any availability window, `SLOT_CONFLICT` when the slot is occupied,
-    `SLOT_INVERTED` for a backwards slot). **No-double-book is enforced in-block** (the natural
-    single-node guard); the CP-class `blocks-scheduling.IScheduleReservationCoordinator` (kernel-lease
-    Flease) is the **noted seam** for cross-node reservation serialization — a higher layer wires the
-    booking through it using the same UTC slot, without dragging the kernel-lease CP machinery into
-    this pure-domain block (the S2 dep fence holds).
+    `SLOT_INVERTED` for a backwards slot, `NO_REQUESTER` when no authenticated requester resolves). The
+    **requester is never a parameter**: `BookingService` reads it from the host's `IPartyContext` (the
+    kernel's authenticated context, `hlp.foundation.actor`) and records that Party as the event's
+    `CreatedBy`; no identity, no booking. **No-double-book is enforced in-block**, and since T-659 it
+    is enforced **atomically in-block** (see the capacity epoch below) rather than by a host lock; the
+    CP-class `blocks-scheduling.IScheduleReservationCoordinator` (kernel-lease Flease) remains the
+    **noted seam** for cross-node reservation serialization — a higher layer wires the booking through
+    it using the same UTC slot, without dragging the kernel-lease CP machinery into this pure-domain
+    block (the S2 dep fence holds).
   - **Out of scope (noted, not built):** the coverage overlay (requirement + rostering — Pattern C);
     the Direction-B utilization optimizer; the vertical EventType payload + workflow-hook;
     plan-vs-actual analytics; the EF/durable store (the in-memory stores stand).
@@ -211,6 +215,47 @@ S0/S1 left these `null`/empty; **S2 (below) populates them** — the participati
     booking gate now applies shared-calendar exceptions — see below — but the broader grant-backed
     booking-authorization composition stays deferred); the EF/durable store (the in-memory stores stand).
 - **S4 — reminders.** Reminder config → schedule-trigger → Notifications block (pure composition).
+- **T-626 — the availability substrate contract (DES-0033, ADR 0080).** `IAvailabilityRuntime.Read`
+  is the one composition every member reaches — a form offering slots, a view drawing a calendar, a
+  workflow governing a booking, a rule expressing eligibility, and Booking's own gate. `FreeBusyService`
+  implements it beside the free/busy query; `BookingService` reads through it and no longer carries its
+  own shared-exception resolver (an architecture fence refuses a second one). The contract:
+  - **The window is mandatory.** `AvailabilityRequest` carries nullable `FromUtc`/`ToUtc`; an omitted
+    endpoint or an inverted window is refused **before any store read** as an `AvailabilityRefusal`
+    (`AVAILABILITY_WINDOW_UNBOUNDED` with pointer `from`/`to`, `AVAILABILITY_WINDOW_INVERTED`), the
+    shape the API maps to HTTP 400. No default window is ever substituted.
+  - **Capacity is two kinds.** `ResourceCapacity.Exclusive(resource, buffer)` or
+    `ResourceCapacity.Pool(resource, size, buffer)` — admitted Resource data Booking authors and this
+    runtime consumes. A pool is full where the overlap depth of current allocations and holds
+    (`Bookable` + `Tentative` + `Blocking` events) reaches its size; `Remaining` is derived per read.
+  - **Buffers are part of the hold.** The candidate's footprint is widened by the resource's
+    setup/cleanup (`EventPadding`) before occupancy is tested; the supply test stays on the visible
+    window, so a buffer may spill past a supply edge exactly as event padding does.
+  - **The required set is a conjunction.** `AvailabilityAnswer.Available` is true only when every
+    resource covers the whole window plus its buffers; each `ResourceAvailabilityRead` says why not
+    (`OutsideSupply` / `CapacityExhausted`) and carries `Free`/`Busy` clipped to the window.
+  - **Derived at every read, never stored.** Two reads spanning an intervening allocation, hold,
+    release or expiry differ with no invalidation call between them.
+
+- **T-659 — the claim commits under an epoch-conditional write (DES-0025 `booking-eng-24`, ADR 0095
+  ruling 8).** An availability read is **advisory**: by the time a claim reaches its save the capacity
+  it saw may be gone, so the save must not be unconditional. `ICalendarEventStore` therefore carries a
+  **capacity epoch** per `(tenant, resource)` — an opaque counter that moves on every write or removal
+  occupying that resource — and `SaveIfCapacityUnchangedAsync(event, resource, expectedEpoch)`, which
+  compares and writes **as one step in the store** and returns `false`, writing nothing, when the epoch
+  moved.
+  - `BookingService.Book` reads the epoch **before** the availability read and commits conditional on
+    it. A refused save means the capacity read is stale: the claim re-reads and re-gates, up to three
+    passes, then refuses `SLOT_CONFLICT`. It never falls back to an unconditional save, so two
+    concurrent claims on one exclusive slot produce exactly one booking with no lock in the caller.
+  - A **release** (`RemoveAsync`) moves the epoch too, so a claim that read capacity before the
+    release cannot commit against the stale count; capacity comes back exactly once, because it is
+    derived from occupancy rather than stored as a number.
+  - **An implementation must honour the atomicity.** The in-memory store compares and writes under one
+    lock — its data lives in the same process, so that is the whole of its world. A durable store
+    issues a conditional update (`… WHERE epoch = @expected`) inside its own transaction. A store that
+    compares and then writes in two steps, or that relies on a lock held by one host process, does not
+    satisfy the contract.
 
 ## Dependencies
 

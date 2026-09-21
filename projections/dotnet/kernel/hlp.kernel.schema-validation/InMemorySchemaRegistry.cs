@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using Json.Schema;
+using Harborline.Contracts.Fields;
 
 namespace Harborline.Kernel.SchemaValidation;
 
@@ -15,11 +16,11 @@ public sealed class InMemorySchemaRegistry : ISchemaRegistry
     private readonly ConcurrentDictionary<SchemaId, Entry> _schemas = new();
 
     /// <summary>Creates a registry with default or caller-supplied resource bounds.</summary>
-    public InMemorySchemaRegistry(SchemaRegistryOptions? options = null)
+    public InMemorySchemaRegistry(SchemaRegistryOptions? options = null, IFieldKindRuntime? fieldKindRuntime = null)
     {
         _options = options ?? SchemaRegistryOptions.Default;
         _options.Validate();
-        _buildOptions = TimedSchemaDialect.Build(_options.PatternMatchTimeout);
+        _buildOptions = TimedSchemaDialect.Build(_options.PatternMatchTimeout, fieldKindRuntime);
     }
 
     /// <inheritdoc />
@@ -120,7 +121,7 @@ public sealed class InMemorySchemaRegistry : ISchemaRegistry
             {
                 results = entry.ParsedSchema.Evaluate(
                     document.RootElement,
-                    new EvaluationOptions { OutputFormat = OutputFormat.List });
+                    new EvaluationOptions { OutputFormat = OutputFormat.Hierarchical });
             }
             catch (RegexMatchTimeoutException)
             {
@@ -189,6 +190,7 @@ public sealed class InMemorySchemaRegistry : ISchemaRegistry
         JsonNode? schemaNode,
         List<SchemaValidationError> errors)
     {
+        if (node.IsValid) return;
         if (node.Errors is { Count: > 0 } keywordErrors)
         {
             var pointer = node.InstanceLocation.ToString();
@@ -213,6 +215,13 @@ public sealed class InMemorySchemaRegistry : ISchemaRegistry
         JsonNode? schemaNode,
         List<SchemaValidationError> errors)
     {
+        if (keyword == FieldKindBindingKeyword.KeywordName)
+        {
+            foreach (var refusal in JsonSerializer.Deserialize<FieldRefusal[]>(detail)!)
+                errors.Add(new SchemaValidationError(refusal.JsonPointer, refusal.Message, refusal.Code));
+            return;
+        }
+
         var code = string.IsNullOrEmpty(keyword) ? "additional-properties" : keyword;
         var message = string.IsNullOrEmpty(keyword) ? detail : $"{keyword}: {detail}";
         var keywordValue = ResolveKeywordValue(schemaNode, evaluationPath, keyword);

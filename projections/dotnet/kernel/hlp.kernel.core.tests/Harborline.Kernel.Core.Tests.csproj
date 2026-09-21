@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <PackageId>Harborline.Kernel.Core.Tests</PackageId>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <AssemblyName>Harborline.Kernel.Core.Tests</AssemblyName>
+    <RootNamespace>Harborline.Kernel.Core.Tests</RootNamespace>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../hlp.kernel.core/Harborline.Kernel.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="../../../../conformance/hlp.kernel.core/fixtures.yaml" Link="fixtures.yaml" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

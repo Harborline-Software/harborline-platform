@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.contracts.fields",
+  "interfaceRevision": 1,
+  "status": "draft",
+  "purpose": "Carry the shared field-kind, domain and constraint vocabulary across the kernel Records and foundation field-runtime seam without an outward kernel dependency.",
+  "dependencies": ["hlp.contracts.identities"],
+  "types": {
+    "FieldKindReference": ["KindId", "Version", "Parameters"],
+    "AdmittedFieldKind": ["KindId", "Version", "GovernanceDefaults", "ValueShape"],
+    "ValueDomainDefinition": ["LiteralValues", "TaxonomyScheme", "RecordQuery"],
+    "FieldConstraintDefinition": ["Required", "MinimumCount", "MaximumCount", "ReadRoleIds", "ValueDomain"],
+    "FieldBindingDefinition": ["Kind", "Constraints"],
+    "FieldRefusal": ["Code", "JsonPointer", "Message"],
+    "FieldAdmissionException": ["Refusals"],
+    "IFieldKindRuntime": ["Bind"],
+    "ICompiledFieldKind": ["Kind", "JsonSchema", "Validate", "ValidateJson"],
+    "FieldDomainScope": ["Tenant", "Principal"],
+    "ValueDomainSourceKind": ["LiteralSet", "TaxonomyScheme", "RecordQuery"],
+    "FieldEditorKind": ["None", "SingleValue", "ChoiceList", "TaxonomyPicker", "RecordPicker", "RadioGroup"],
+    "ResolvedValueDomain": ["SourceKind", "Values", "Editor", "Predicate", "SnapshotRevision"],
+    "FieldDomainAttribution": ["SourceKind", "TaxonomyScheme", "RecordQuery"],
+    "ResolvedFieldConstraints": ["Required", "MinimumCount", "MaximumCount", "ReadRoleIds", "Values", "Sources", "SnapshotRevision", "Editor"],
+    "IFieldDomainRuntime": ["Validate", "ResolveAsync", "IntersectAsync", "NarrowAsync"]
+  },
+  "invariants": [
+    "One shared vocabulary is promoted from the T-615 declarations; members do not redeclare it.",
+    "Contracts contain declarations, not the field-runtime enforcement implementation.",
+    "FieldDomainScope carries the authenticated actor's exact nonblank string identity and a non-sentinel tenant; a missing principal refuses before source access.",
+    "The three domain source kinds are literals, a versioned Taxonomy scheme, and a record query with a predicate.",
+    "Substrate refusals carry member-neutral field.* codes and authored RFC 6901 locations.",
+    "A bound kind carries its runtime validator together with standard schema keywords and executable x-harborline-field-kind metadata; a schema consumer must bind that metadata rather than relying on standard keywords alone.",
+    "A domain resolution exposes only caller-readable values; its cardinality-derived editor cannot reveal unreadable membership.",
+    "Shared value validation accepts resolved constraints, a compiled kind, original JSON and a pointer; it checks required, multiplicity, readable membership and each scalar without changing values. Undefined or null means absent; arrays carry repeated values."
+  ],
+  "notScope": ["kind lookup", "domain evaluation", "limit enforcement", "editor selection", "Records grammar", "JSON Schema compilation"],
+  "packageContribution": "Harborline.Contracts"
+}

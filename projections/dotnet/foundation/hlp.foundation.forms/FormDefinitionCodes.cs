@@ -121,26 +121,6 @@ public static class FormDefinitionCodes
     /// forever).</summary>
     public const string RulesGuardUncompilable = "form.rules.guard_uncompilable";
 
-    // ── Field validation-constraint config (F-20) — fail-closed admission ────────
-
-    /// <summary>A field carries a validation constraint with an unknown code.</summary>
-    public const string ConstraintUnknownCode = "form.constraint.unknown_code";
-
-    /// <summary>A constraint's parameter is missing or not parseable for its code
-    /// (e.g. a non-numeric <c>minLength</c>, a negative length, a non-numeric bound).</summary>
-    public const string ConstraintBadParam = "form.constraint.bad_param";
-
-    /// <summary>A constraint pair conflicts (<c>minLength</c> &gt; <c>maxLength</c>,
-    /// or <c>minimum</c> &gt; <c>maximum</c>).</summary>
-    public const string ConstraintBoundsConflict = "form.constraint.bounds_conflict";
-
-    /// <summary>A <c>pattern</c> constraint's regular expression does not compile.</summary>
-    public const string ConstraintBadPattern = "form.constraint.bad_pattern";
-
-    /// <summary>A constraint is not applicable to the field's type (e.g. <c>minLength</c>
-    /// on a number field, <c>minimum</c> on a text field).</summary>
-    public const string ConstraintTypeMismatch = "form.constraint.type_mismatch";
-
     // ── Content / action blocks (F-23) — fail-closed block invariants ────────────
 
     /// <summary>A <c>Content</c> item carries no content nodes.</summary>
@@ -200,6 +180,9 @@ public static class FormDefinitionCodes
     /// <summary>A placement's <c>Width</c> token is outside
     /// <see cref="Models.LayoutIntents.Widths"/>.</summary>
     public const string LayoutUnknownWidth = "form.layout.unknown_width";
+
+    /// <summary>A numeric placement member is outside the shared Layout schema range.</summary>
+    public const string LayoutNumericOutOfRange = "form.layout.numeric_out_of_range";
 
     /// <summary>A zone layout / placement is declared on a non-<c>Group</c> item (a
     /// collection's tabular presentation is the separate grid work; fields/blocks carry

@@ -295,6 +295,8 @@ public sealed class ViewDefinitionAdmissionTests
             ViewMeasureBinding binding,
             IReadOnlyList<ViewRow> rows,
             DateTimeOffset evaluatedAt,
+            string tenant,
+            string principal,
             CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
     }

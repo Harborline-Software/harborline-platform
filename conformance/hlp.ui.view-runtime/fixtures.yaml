@@ -14,7 +14,7 @@
           "packVersion": "1.0.0",
           "definitionKind": "ViewDefinition",
           "bindings": {
-            "viewKind": "views.entity-list/grid",
+            "viewKind": "layout.table",
             "parameters": { "fields": [{ "id": "asset", "label": "Asset" }, { "id": "status", "label": "Status" }, { "id": "owner", "label": "Owner" }] }
           }
         },
@@ -38,7 +38,7 @@
       "input": {
         "plan": {
           "definitionHash": "sha256:view-empty", "definitionId": "view-empty", "definitionVersion": "1", "packKey": "harborline.platform", "packVersion": "1.0.0", "definitionKind": "ViewDefinition",
-          "bindings": { "viewKind": "views.entity-list/grid", "parameters": { "fields": [{ "id": "asset", "label": "Asset" }, { "id": "status", "label": "Status" }, { "id": "owner", "label": "Owner" }] } }
+          "bindings": { "viewKind": "layout.table", "parameters": { "fields": [{ "id": "asset", "label": "Asset" }, { "id": "status", "label": "Status" }, { "id": "owner", "label": "Owner" }] } }
         },
         "rows": [],
         "empty": "No results."
@@ -50,7 +50,7 @@
       "input": {
         "plan": {
           "definitionHash": "sha256:view-long", "definitionId": "view-long", "definitionVersion": "1", "packKey": "harborline.platform", "packVersion": "1.0.0", "definitionKind": "ViewDefinition",
-          "bindings": { "viewKind": "views.entity-list/grid", "parameters": { "fields": [{ "id": "asset", "label": "Asset" }] } }
+          "bindings": { "viewKind": "layout.table", "parameters": { "fields": [{ "id": "asset", "label": "Asset" }] } }
         },
         "rows": [{ "id": "a1", "asset": "an intentionally long caller-owned value that must remain available to the delegated grid" }]
       },
@@ -67,7 +67,7 @@
           "packVersion": "1.0.0",
           "definitionKind": "ViewDefinition",
           "bindings": {
-            "viewKind": "views.entity-list/grid",
+            "viewKind": "layout.table",
             "parameters": {
               "fields": [
                 {
@@ -172,7 +172,7 @@
           "packVersion": "1.0.0",
           "definitionKind": "ViewDefinition",
           "bindings": {
-            "viewKind": "views.entity-list/grid",
+            "viewKind": "layout.table",
             "actions": [
               {
                 "id": "first-action",

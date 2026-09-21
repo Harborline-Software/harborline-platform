@@ -1,6 +1,10 @@
 @attribute [Stories("Platform/Schema Form")]
 
 <Stories TComponent="SchemaFormScenario">
+  <Story Name="Domain-driven editors">
+    <Arguments><Arg For="_ => _.ScenarioId" Value='"schema-form.domain-editors"' /></Arguments>
+    <Template><SchemaFormScenario @attributes="context.Args" /></Template>
+  </Story>
   <Story Name="Read-only harbor inspection">
     <Arguments><Arg For="_ => _.ScenarioId" Value='"schema-form.host-readonly"' /></Arguments>
     <Template><SchemaFormScenario @attributes="context.Args" /></Template>

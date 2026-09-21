@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.blocks.measure-catalogue",
+  "interfaceRevision": 1,
+  "status": "draft",
+  "purpose": "Own one addressing and resolution path for declared and bound measure entries, the authorization-filtered input set the entries compute over, and the narrowing rule on an authored filter. It owns no aggregation math and no access policy.",
+  "dependencies": ["hlp.blocks.aggregates", "hlp.foundation.actor"],
+  "addressing": {
+    "reference": "MeasureRef, two or more lowercase dot-separated segments",
+    "kindOpacity": "The address, the descriptor and the result carry no entry kind, so a consumer cannot distinguish a declared entry from a bound entry and a replacement of one kind by the other preserves every existing reference.",
+    "uniqueness": "one address carries exactly one entry"
+  },
+  "binding": {
+    "rows": "the caller supplies them, as a materialized set or as a caller-held basis",
+    "clock": "the caller supplies the instant; the catalogue owns no clock",
+    "bindings": ["live rows at now", "pinned basis at a period boundary", "draft record set at edit"]
+  },
+  "inputSet": [
+    "Bind the production Access set filter at the caller's explicit tenant, principal, record kind and instant.",
+    "Narrow the caller's rows through that predicate before the page window, before grouping and before any fold.",
+    "A basis-reading entry receives the same bound predicate and admits no row that has not passed it.",
+    "The catalogue never widens the filtered set and never applies a filter to results."
+  ],
+  "narrowing": "A caller-supplied filter is admitted only when the entry's authored filter is still one of its conjuncts; anything else is refused as a widening.",
+  "ports": ["IMeasureCatalogue", "IMeasureEntry", "IMeasureBasis", "IAccessSetFilter"],
+  "result": {"states": ["value", "null", "unavailable"], "groupKinds": ["detail", "subtotal", "grandTotal"], "basis": "opaque caller basis token"},
+  "errors": [
+    {"code": "measure.reference_malformed", "when": "The reference text is not a legal measure address."},
+    {"code": "measure.unknown_reference", "when": "No entry is registered under the reference; refused before row enumeration."},
+    {"code": "measure.parameter_missing", "when": "A declared parameter was not supplied."},
+    {"code": "measure.parameter_unknown", "when": "A supplied parameter is not declared by the entry."},
+    {"code": "measure.parameter_invalid", "when": "A supplied parameter is not in its declared form."},
+    {"code": "measure.filter_widened", "when": "The supplied filter does not narrow the authored filter."},
+    {"code": "measure.basis_unsupported", "when": "The entry cannot read the basis the caller supplied."},
+    {"code": "measure.reference_duplicated", "when": "Two entries claimed one address at registration."}
+  ],
+  "containment": ["access policy", "aggregation operators", "cartridge math", "layout", "pinned-basis persistence", "issuance", "clocks", "interval algebra", "authoring surfaces"],
+  "presentation": {"disposition": "not-applicable", "rationale": "The catalogue resolves references and returns neutral typed cells; every renderer of those cells is a separate consumer module."},
+  "distribution": "internal-only"
+}

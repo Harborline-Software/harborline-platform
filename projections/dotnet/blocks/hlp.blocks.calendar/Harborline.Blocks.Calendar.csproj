@@ -17,6 +17,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../../contracts/hlp.contracts.identities/Harborline.Contracts.csproj" />
+    <ProjectReference Include="../../foundation/hlp.foundation.actor/Harborline.Foundation.Authorization.csproj" />
     <ProjectReference Include="../../foundation/hlp.foundation.scheduling/Harborline.Foundation.Scheduling.csproj" />
   </ItemGroup>
   <ItemGroup>

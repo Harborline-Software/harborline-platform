@@ -1,75 +1,51 @@
 using Harborline.Blocks.Calendar.Models;
 using Harborline.Foundation.Assets.Common;
+using Harborline.Foundation.Authorization;
 
 namespace Harborline.Blocks.Calendar.Services;
 
 /// <summary>
-/// The default <see cref="IBookingService"/> (Slice S3, Direction A). Composes
-/// <see cref="IFreeBusyService"/> (the no-double-book guard) + the availability supply
-/// (<see cref="IResourceAvailabilityStore"/> + <see cref="IAvailabilityExpansionService"/>, for the
-/// "is the slot inside an availability window" pre-gate and the resource's timezone) +
-/// <see cref="ICalendarEventStore"/> (where the booking lands). It reuses the <i>same</i> availability
-/// expansion free/busy uses — one source of truth for the supply, no re-implemented RRULE.
+/// The default <see cref="IBookingService"/> (Slice S3, Direction A). The booking gate reads
+/// availability through the one shared composition, <see cref="IAvailabilityRuntime"/> (T-626,
+/// ADR 0080): supply, shared-exception days, occupancy and the capacity kind are all derived there,
+/// so the gate and the free/busy view cannot disagree. This class keeps what Booking owns: the
+/// refusal vocabulary, the padding default and the persisted <see cref="Occupancy.Bookable"/> event.
 /// </summary>
 /// <remarks>
-/// <b>The booking gate matches the free/busy view (Slice CALENDAR-LAYERS).</b> The
-/// <see cref="ISharedCalendarResolver"/> is wired here so the availability pre-gate composes the SAME
-/// supply-side exception layers <see cref="FreeBusyService"/> does — the resource's own
-/// single-day/spanning exceptions (applied inside <c>Expand</c>) AND the subscribed shared-calendar
-/// holidays/closures (the resolved <c>additionalExceptionDays</c>). Without this, a resource subscribed
-/// to a "clinic closed Wednesday" shared calendar would show Wednesday busy in free/busy yet still admit
-/// a Wednesday booking — a view↔gate inconsistency. A <see langword="null"/> resolver disables the
-/// shared-calendar layer (the resource's own exceptions only — the S3 behavior).
+/// The <see cref="IResourceAvailabilityStore"/> is read here only for the resource's timezone, so the
+/// stored event is expressed in local wall-clock and re-expands to the same UTC instant. It is not a
+/// second composition: the supply itself is derived by the runtime.
+/// </remarks>
+/// <remarks>
+/// The requester is the kernel's authenticated context (<see cref="IPartyContext"/>), never a
+/// caller-supplied id (T-568, L535): every booking is attributed to the Party it resolves, and a call
+/// with no resolvable identity is refused before any read.
 /// </remarks>
 public sealed class BookingService : IBookingService
 {
-    private readonly IFreeBusyService _freeBusy;
+    private readonly IAvailabilityRuntime _runtime;
     private readonly IResourceAvailabilityStore _availabilityStore;
-    private readonly IAvailabilityExpansionService _availabilityExpansion;
     private readonly ICalendarEventStore _eventStore;
     private readonly IPaddingPolicy _paddingPolicy;
-    private readonly ISharedCalendarResolver? _sharedCalendarResolver;
+    private readonly IPartyContext _requester;
 
-    /// <summary>
-    /// The S3 constructor (no calendar-layers wiring) — the base availability pre-gate applies only the
-    /// resource's OWN exceptions; shared-calendar holidays are not composed into the booking gate.
-    /// </summary>
     public BookingService(
-        IFreeBusyService freeBusy,
+        IAvailabilityRuntime runtime,
         IResourceAvailabilityStore availabilityStore,
-        IAvailabilityExpansionService availabilityExpansion,
-        ICalendarEventStore eventStore,
-        IPaddingPolicy paddingPolicy)
-        : this(freeBusy, availabilityStore, availabilityExpansion, eventStore, paddingPolicy,
-               sharedCalendarResolver: null)
-    {
-    }
-
-    /// <summary>
-    /// The CALENDAR-LAYERS constructor — additionally composes the subscribed shared-calendar
-    /// holidays/closures (<paramref name="sharedCalendarResolver"/>) into the availability pre-gate so
-    /// the booking gate matches the free/busy view. A <see langword="null"/> resolver disables the
-    /// shared-calendar layer (the resource's own exceptions only).
-    /// </summary>
-    public BookingService(
-        IFreeBusyService freeBusy,
-        IResourceAvailabilityStore availabilityStore,
-        IAvailabilityExpansionService availabilityExpansion,
         ICalendarEventStore eventStore,
         IPaddingPolicy paddingPolicy,
-        ISharedCalendarResolver? sharedCalendarResolver)
+        IPartyContext requester)
     {
-        ArgumentNullException.ThrowIfNull(freeBusy);
+        ArgumentNullException.ThrowIfNull(runtime);
         ArgumentNullException.ThrowIfNull(availabilityStore);
-        ArgumentNullException.ThrowIfNull(availabilityExpansion);
         ArgumentNullException.ThrowIfNull(eventStore);
         ArgumentNullException.ThrowIfNull(paddingPolicy);
-        _freeBusy = freeBusy;
+        ArgumentNullException.ThrowIfNull(requester);
+        _runtime = runtime;
         _availabilityStore = availabilityStore;
-        _availabilityExpansion = availabilityExpansion;
         _eventStore = eventStore;
         _paddingPolicy = paddingPolicy;
-        _sharedCalendarResolver = sharedCalendarResolver;
+        _requester = requester;
     }
 
     /// <inheritdoc />
@@ -79,7 +55,6 @@ public sealed class BookingService : IBookingService
         string title,
         DateTimeOffset startUtc,
         DateTimeOffset endUtc,
-        Guid bookedBy,
         ParticipantRef? attendee = null,
         ContextRef? scheduledAgainst = null,
         EventPadding? padding = null,
@@ -91,8 +66,20 @@ public sealed class BookingService : IBookingService
         if (endUtc <= startUtc)
             return BookingOutcome.Rejected(BookingOutcome.SlotInverted);
 
-        // The VISIBLE (booked / shown) slot — what the patient sees and what is stored.
-        var visible = new TimeInterval(startUtc, endUtc);
+        // The requester is the authenticated principal's server-derived Party, never a caller-supplied
+        // id (L535: a booking is requested by somebody). No identity, no booking — resolved before any
+        // read so a refused caller learns nothing about the resource's availability.
+        Guid bookedBy;
+        try
+        {
+            bookedBy = await _requester.GetCurrentPartyIdAsync(ct).ConfigureAwait(false);
+        }
+        catch (PrincipalPartyResolutionException)
+        {
+            return BookingOutcome.Rejected(BookingOutcome.NoRequester);
+        }
+        if (bookedBy == Guid.Empty)
+            return BookingOutcome.Rejected(BookingOutcome.NoRequester);
 
         // Resolve the padding: a per-event override (passed in) wins over the configured policy default
         // (defaulted-at-booking). EventPadding.None ⇒ the candidate occupies exactly its visible slot.
@@ -100,80 +87,64 @@ public sealed class BookingService : IBookingService
             ? EventPadding.Of(p.Pre, p.Post)
             : _paddingPolicy.ResolveDefault(tenantId, resourceRef);
 
-        // The OCCUPIED footprint — [start − pre, end + post). The no-double-book guard is judged against
-        // THIS, not the visible slot: a padded booking must not collide with existing occupancy over its
-        // full footprint. Padding is added to the UTC instants (never wall-clock) — the UTC invariant.
-        var occupied = effectivePadding.IsNone
-            ? visible
-            : new TimeInterval(startUtc - effectivePadding.Pre, endUtc + effectivePadding.Post);
-
-        // The availability record is what makes the slot bookable AND carries the resource's tz.
+        // The availability record carries the resource's timezone (and no record means nothing to book into).
         var availability = await _availabilityStore.GetAsync(tenantId, resourceRef, ct).ConfigureAwait(false);
         if (availability is null)
             return BookingOutcome.Rejected(BookingOutcome.NoAvailability);
 
-        // The VISIBLE slot must lie inside the resource's availability supply (else NO_AVAILABILITY).
-        // Availability bounds what the demand side can BOOK (you can't take an appointment past close);
-        // padding (the doctor's post-visit documentation) may legitimately spill past the window edge,
-        // so the availability test uses the visible slot, not the occupied footprint. Reuse the SAME
-        // layered expansion free/busy uses — one source of truth, no re-implemented RRULE — so the
-        // booking gate composes the resource's OWN exceptions (inside Expand) AND the subscribed
-        // SHARED-calendar holidays/closures (the resolver). Without the shared layer the gate would admit
-        // a booking on a day free/busy shows as a shared holiday (the view↔gate inconsistency S1 names).
-        var sharedExceptionDays = await ResolveSharedExceptionDays(tenantId, resourceRef, startUtc, endUtc, ct)
-            .ConfigureAwait(false);
-        var supply = sharedExceptionDays is { Count: > 0 }
-            ? _availabilityExpansion.Expand(availability, startUtc, endUtc, sharedExceptionDays)
-            : _availabilityExpansion.Expand(availability, startUtc, endUtc);
-        var withinAvailability = supply.Any(s => visible.StartUtc >= s.StartUtc && visible.EndUtc <= s.EndUtc);
-        if (!withinAvailability)
-            return BookingOutcome.Rejected(BookingOutcome.NoAvailability);
+        // The capacity recheck and the commit are ONE step (booking-eng-24, ADR 0095 ruling 8). The
+        // epoch is read BEFORE the capacity read, and the write is conditional on it: if anything
+        // occupied this resource in between, the save refuses rather than committing against a read
+        // that is no longer true. The claim is fenced here, in the producer that owns the invariant —
+        // not by a lock in one host process, which cannot hold it for a second node.
+        for (var attempt = 1; ; attempt++)
+        {
+            var capacityEpoch = await _eventStore.GetCapacityEpochAsync(tenantId, resourceRef, ct).ConfigureAwait(false);
 
-        // Available but possibly already occupied — the no-double-book guard. The candidate's OCCUPIED
-        // footprint must not overlap any existing occupancy (each existing event's own occupied footprint,
-        // padding included). We test against the raw occupied intervals (NOT free slots): the candidate's
-        // padding may legitimately spill past an availability edge, so requiring the footprint to sit
-        // inside a free slot would wrongly reject a padded-past-close booking. Overlap (half-open) is the
-        // double-book condition; touching endpoints are back-to-back, not a conflict.
-        var existingOccupancy = await _freeBusy
-            .OccupiedIntervals(tenantId, resourceRef, occupied.StartUtc, occupied.EndUtc, ct)
-            .ConfigureAwait(false);
-        if (existingOccupancy.Any(b => b.Overlaps(occupied)))
-            return BookingOutcome.Rejected(BookingOutcome.SlotConflict);
+            // The gate: the VISIBLE slot inside the supply and the padded OCCUPIED footprint free of existing
+            // occupancy, both derived by the one composition. The shipped booking path books one exclusive
+            // resource; the padding is the buffer that is part of the hold.
+            var read = await _runtime
+                .Read(tenantId, new AvailabilityRequest(startUtc, endUtc, [ResourceCapacity.Exclusive(resourceRef, effectivePadding)]), ct)
+                .ConfigureAwait(false);
+            if (read.Refusal is not null)
+                return BookingOutcome.Rejected(BookingOutcome.SlotInverted);
+            switch (read.Resources[0].Unavailability)
+            {
+                case Unavailability.OutsideSupply:
+                    return BookingOutcome.Rejected(BookingOutcome.NoAvailability);
+                case Unavailability.CapacityExhausted:
+                    return BookingOutcome.Rejected(BookingOutcome.SlotConflict);
+            }
 
-        // Admitted. Build a single-occurrence Bookable event from the VISIBLE UTC slot, expressed in the
-        // resource's local wall-clock + tz (so the stored event reads naturally and re-expands to the
-        // same UTC instant), carrying the resolved padding envelope.
-        var ev = BuildBookableEvent(
-            tenantId, resourceRef, title, startUtc, endUtc, bookedBy, attendee, scheduledAgainst,
-            availability.Timezone, effectivePadding);
+            // Admitted by a read that is only advisory until the conditional write accepts it. Build a
+            // single-occurrence Bookable event from the VISIBLE UTC slot, expressed in the resource's
+            // local wall-clock + tz (so the stored event reads naturally and re-expands to the same UTC
+            // instant), carrying the resolved padding envelope.
+            var ev = BuildBookableEvent(
+                tenantId, resourceRef, title, startUtc, endUtc, bookedBy, attendee, scheduledAgainst,
+                availability.Timezone, effectivePadding);
 
-        await _eventStore.SaveAsync(ev, ct).ConfigureAwait(false);
-        return BookingOutcome.Booked(ev);
+            if (await _eventStore.SaveIfCapacityUnchangedAsync(ev, resourceRef, capacityEpoch, ct).ConfigureAwait(false))
+                return BookingOutcome.Booked(ev);
+
+            // The epoch moved: the capacity read is stale and nothing was written. Re-read and re-gate —
+            // the loser of a last-seat race sees the winner's write on the next pass and is refused
+            // SLOT_CONFLICT there. The retry exists only so that a claim losing the epoch to an
+            // unrelated booking on the same resource is not refused a slot that is genuinely free.
+            // ponytail: a fixed attempt cap, not a backoff — the epoch is per resource, so the
+            // contention that reaches it is a handful of writers. Narrow the epoch to the claimed
+            // footprint if a hot resource ever exhausts the cap.
+            if (attempt >= MaxCapacityAttempts)
+                return BookingOutcome.Rejected(BookingOutcome.SlotConflict);
+        }
     }
 
     /// <summary>
-    /// Resolve the subscribed shared-calendar holiday/closure days overlapping the booking window — the
-    /// SAME shared-exception layer <see cref="FreeBusyService"/>'s <c>ComposeAvailability</c> applies, so
-    /// the booking gate matches the free/busy view. Widens the local-date span by ±1 day to match the
-    /// availability expansion's tz-offset cushion. Returns <see langword="null"/> when no resolver is
-    /// wired (the S3 path — the resource's own exceptions only).
+    /// How many times a claim re-reads capacity after losing the epoch before it refuses. Each pass is
+    /// a full recheck, so refusing at the cap is conservative: it never books over an occupied slot.
     /// </summary>
-    private async Task<IReadOnlySet<DateOnly>?> ResolveSharedExceptionDays(
-        TenantId tenantId,
-        ParticipantRef resourceRef,
-        DateTimeOffset windowStartUtc,
-        DateTimeOffset windowEndUtc,
-        CancellationToken ct)
-    {
-        if (_sharedCalendarResolver is null) return null;
-
-        var localStart = DateOnly.FromDateTime(windowStartUtc.UtcDateTime).AddDays(-1);
-        var localEnd = DateOnly.FromDateTime(windowEndUtc.UtcDateTime).AddDays(1);
-        return await _sharedCalendarResolver
-            .ResolveSharedExceptionDaysAsync(tenantId, resourceRef, localStart, localEnd, ct)
-            .ConfigureAwait(false);
-    }
+    private const int MaxCapacityAttempts = 3;
 
     /// <summary>
     /// Build the single-occurrence <see cref="Occupancy.Bookable"/> event from the UTC slot, expressed

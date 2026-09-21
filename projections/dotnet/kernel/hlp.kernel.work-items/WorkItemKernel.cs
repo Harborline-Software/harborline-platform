@@ -1,6 +1,8 @@
 using Harborline.Foundation.Authorization;
 using Harborline.Foundation.MultiTenancy;
 using System.Text.Json;
+using System.Text;
+using Harborline.Kernel.Core;
 
 namespace Harborline.Kernel.WorkItems;
 
@@ -13,12 +15,12 @@ public sealed class WorkItemKernel : IWorkItemKernel
     private readonly TimeProvider _time;
 
     /// <summary>Constructs the kernel over one scoped actor context and atomic store.</summary>
-    public WorkItemKernel(ITenantContext tenantContext, IPartyContext partyContext, IWorkItemStore store, TimeProvider? timeProvider = null)
+    public WorkItemKernel(ITenantContext tenantContext, IPartyContext partyContext, IWorkItemStore store, TimeProvider timeProvider)
     {
         _tenantContext = tenantContext ?? throw new ArgumentNullException(nameof(tenantContext));
         _partyContext = partyContext ?? throw new ArgumentNullException(nameof(partyContext));
         _store = store ?? throw new ArgumentNullException(nameof(store));
-        _time = timeProvider ?? TimeProvider.System;
+        _time = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
     }
 
     /// <inheritdoc />
@@ -54,7 +56,7 @@ public sealed class WorkItemKernel : IWorkItemKernel
             ResultJson = resultJson,
             Outbox = [CreateOutbox(scope.Value.TenantId, snapshot, "Created", snapshot.BasisJson)],
         };
-        return FromStore(await _store.CommitCreateAsync(commit, cancellationToken).ConfigureAwait(false));
+        return FromStore(await CommitAsync(WorkItemCommitKind.Create, commit, cancellationToken).ConfigureAwait(false));
     }
 
     /// <inheritdoc />
@@ -124,7 +126,7 @@ public sealed class WorkItemKernel : IWorkItemKernel
             ExpectedVersion = request.ExpectedVersion,
             ExpectedStep = current.CurrentStep,
         };
-        return FromStore(await _store.CommitTransitionAsync(commit, cancellationToken).ConfigureAwait(false));
+        return FromStore(await CommitAsync(WorkItemCommitKind.Transition, commit, cancellationToken).ConfigureAwait(false));
     }
 
     /// <summary>Returns the stable deterministic key for a current snapshot.</summary>
@@ -142,6 +144,27 @@ public sealed class WorkItemKernel : IWorkItemKernel
         return StringComparer.Ordinal.Equals(receipt.Fingerprint, fingerprint)
             ? new(WorkItemMutationDisposition.Replayed, receipt.Snapshot, receipt.ResultJson)
             : new(WorkItemMutationDisposition.IdempotencyConflict, null, null);
+    }
+
+    private async ValueTask<WorkItemStoreResult> CommitAsync(
+        WorkItemCommitKind kind,
+        WorkItemCommit commit,
+        CancellationToken cancellationToken)
+    {
+        var command = new KernelCommand<WorkItemAtomicCommit>(
+            new(commit.Snapshot.Id, commit.IdempotencyKey, commit.Fingerprint),
+            new(kind, commit),
+            new(
+                $"{commit.TenantId}:{commit.Snapshot.Id}:{commit.Snapshot.Version}:audit",
+                commit.ActorId,
+                commit.Event.OccurredAt,
+                Encoding.UTF8.GetBytes(commit.Event.DataJson)));
+        var result = await KernelTransactionBoundary.ExecuteAsync(
+            [command],
+            new WorkItemKernelTransactionPort(_store),
+            cancellationToken).ConfigureAwait(false);
+        return result.Value
+            ?? throw new InvalidOperationException(result.Refusal?.Code ?? "The kernel transaction did not return a result.");
     }
 
     private async ValueTask<(string TenantId, string ActorId)?> ScopeAsync(CancellationToken cancellationToken)

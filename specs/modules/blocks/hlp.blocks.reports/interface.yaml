@@ -1,15 +1,16 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.blocks.reports",
-  "interfaceRevision": 1,
+  "interfaceRevision": 2,
   "status": "frozen",
   "purpose": "Own deterministic snapshot-marked report execution and seven report cartridges (trial balance, balance sheet, P&L, P&L by property, AR aging, AP aging, rent roll) over a Harborline-owned neutral read port.",
-  "dependencies": [{"moduleId": "hlp.contracts.identities", "minimumRevision": 1}],
+  "dependencies": [{"moduleId": "hlp.contracts.identities", "minimumRevision": 1}, {"moduleId": "hlp.blocks.measure-catalogue", "minimumRevision": 1}],
   "callerInterface": {
     "name": "IReportRunner / IReportQuerySource",
     "operations": [
       "RunAsync(kind, tenantId, principalId, parameters) -> ReportRunResult: validate, capture the snapshot marker before dispatch, execute, and carry duration/provisionality/warnings in the envelope",
-      "IReportQuerySource: read charts, accounts, posted journal rows, fiscal periods, tenant+chart-scoped AR/AP open items, parties, and leases as immutable neutral rows; no storage type crosses the seam"
+      "IReportQuerySource: read charts, accounts, posted journal rows, fiscal periods, tenant+chart-scoped AR/AP open items, parties, and leases as immutable neutral rows; no storage type crosses the seam",
+      "ReportMeasureEntries.All() -> the seven computations as bound entries in the shared measure catalogue, each running its existing cartridge over the caller-supplied ReportMeasureBasis behind the catalogue's bound Access predicate and projecting typed cells"
     ],
     "context": "Cartridges and their neutral feed model remain inside hlp.blocks.reports. Storage adapters are intentionally outside this wave; the port keeps re-binding to a future financial substrate possible without promising it (migration reports WAVE-STATE ruling 1). Open-item queries are (TenantId, ChartOfAccountsId, DateOnly)-scoped and ReportOpenItem carries both identities — restoring the pinned AP tenant-isolation semantics the first draft dropped."
   },

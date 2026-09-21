@@ -41,12 +41,16 @@ public interface IBookingService
     /// existing occupancy. On success the new event is persisted and returned; on conflict nothing is
     /// written and a <see cref="BookingOutcome.RejectionReason"/> says why.
     /// </summary>
+    /// <remarks>
+    /// The requester is never a parameter. It is the authenticated principal's server-derived Party
+    /// (<c>IPartyContext</c>), read by the implementation at the moment of the act; a call with no
+    /// authenticated identity is refused with <see cref="BookingOutcome.NoRequester"/> and writes nothing.
+    /// </remarks>
     /// <param name="tenantId">The tenant the booking belongs to.</param>
     /// <param name="resourceRef">The resource (a doctor — Party — or a room — Asset) being booked.</param>
     /// <param name="title">The appointment title.</param>
     /// <param name="startUtc">The slot start (UTC).</param>
     /// <param name="endUtc">The slot end (UTC, exclusive) — strictly after <paramref name="startUtc"/>.</param>
-    /// <param name="bookedBy">The actor making the booking (audit).</param>
     /// <param name="attendee">
     /// Optional — the demand-side party being booked in (the patient), added as an
     /// <see cref="ParticipationRole.Attendee"/>. The resource itself is always added as a
@@ -67,7 +71,6 @@ public interface IBookingService
         string title,
         DateTimeOffset startUtc,
         DateTimeOffset endUtc,
-        Guid bookedBy,
         ParticipantRef? attendee = null,
         ContextRef? scheduledAgainst = null,
         EventPadding? padding = null,

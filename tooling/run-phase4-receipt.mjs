@@ -12,6 +12,7 @@ import {tmpdir} from 'node:os'
 import path from 'node:path'
 import {acquirePhase4GateLock} from './phase4-gate-lock.mjs'
 import {formatGateFailure} from './gate-failure-report.mjs'
+import {checkReleaseReceipt, emitReleaseReceipt} from './release-receipt.mjs'
 import {cleanUpScratchOnSignal, killProcessTreeSync, sweepStaleScratchTrees, writeScratchPidFile} from './resolve-command.mjs'
 
 // Ticket 289: one prefix, shared with the self-tests and with anything else that ever mints a
@@ -102,6 +103,14 @@ const receipt = {
   gate: report,
 }
 writeFileSync(path.resolve(platform, gitDir, 'harborline-phase4-receipt.json'), `${JSON.stringify(receipt, null, 2)}\n`)
+
+// T-671. The release act is what emits the release receipt, and it is the only place the receipt
+// is checked WITH attestation: the phase-4 receipt written just above is the corroboration, so a
+// document nothing ran to produce cannot be presented here. Emitted after that write, never before.
+const releaseReceipt = emitReleaseReceipt(platform, {baseHead, testedTree, mode: report.subject.mode})
+const releaseRefusal = checkReleaseReceipt(platform, releaseReceipt, {requireAttestation: true})
+if (releaseRefusal) throw new Error(`release receipt refused: ${releaseRefusal.code} at ${releaseRefusal.field}`)
+writeFileSync(path.resolve(platform, gitDir, 'harborline-release-receipt.json'), releaseReceipt)
 process.stdout.write(`${JSON.stringify({status:'PASS', baseHead, testedTree, receipt:'$GIT_COMMON_DIR/harborline-phase4-receipt.json'}, null, 2)}\n`)
 
 function printDiskFree(label) {

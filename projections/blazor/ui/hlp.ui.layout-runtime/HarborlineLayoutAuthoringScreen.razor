@@ -1,0 +1,13 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Layout
+<HarborlineAppLayout Header="@Header" SideNav="@SideNav" ContentScroll="@ContentScroll">
+  <HarborlineLayoutAuthoringEditor Value="@Value" Catalogue="@Catalogue" ValueChanged="@ValueChanged" />
+</HarborlineAppLayout>
+
+@code {
+  [Parameter] public RenderFragment? Header { get; set; }
+  [Parameter] public RenderFragment? SideNav { get; set; }
+  [Parameter] public AppContentScroll ContentScroll { get; set; } = AppContentScroll.Main;
+  [Parameter, EditorRequired] public LayoutAuthoringDraft Value { get; set; } = LayoutAuthoringDraft.Empty;
+  [Parameter, EditorRequired] public LayoutAuthoringCatalogue Catalogue { get; set; } = new([], []);
+  [Parameter] public EventCallback<LayoutAuthoringDraft> ValueChanged { get; set; }
+}

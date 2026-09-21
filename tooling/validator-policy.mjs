@@ -126,3 +126,18 @@ export function retiredProvenanceFieldErrors(records) {
     .filter(field => Object.hasOwn(record ?? {}, field))
     .map(field => `${record.moduleId}: provenance field ${field} was retired by ticket 269 and must not return`))
 }
+
+// T-658. The phase-4 gate writes a failed step's captured output to .claude/gate-evidence/<step>.log
+// precisely so it can be READ after the run has stopped. The validator walks the working tree, so
+// that log then read as repository source and the .claude ban failed the NEXT run at
+// catalog-preflight -- `prohibited source path .claude/gate-evidence/<step>.log` -- before a single
+// real step ran. Two lanes lost time to it in one night, each seeing an unrelated failure in a
+// different step than the one that had actually failed.
+//
+// The gate's own evidence is not repository content, so it is not scanned at all: the content rules
+// would also fire on paths and imports quoted in a captured stack. The exemption is exactly the
+// shape the gate writes and nothing else -- a single `.log` directly inside that one directory --
+// so anything nested below it, any other extension, and every other path under .claude/ stay banned.
+export function isGateFailureEvidence(localPath) {
+  return /^\.claude\/gate-evidence\/[^/]+\.log$/.test(localPath)
+}

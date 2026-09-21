@@ -4,7 +4,13 @@
   <header class="hl-gallery-heading"><h2>@Copy.Title</h2><p>@Copy.Description</p></header>
   <div class="hl-gallery-stage hl-gallery-feedback-grid">
     <HarborlineLocaleProvider Locale="@Locale">
-      @if (ScenarioId == "select-field.error-state")
+      @if (ScenarioId is "select-field.search" or "select-field.multiple" or "select-field.multiple-search")
+      {
+        <HarborlineSelectField Name="extended-status" Multiple="@(ScenarioId != "select-field.search")"
+          Searchable="@(ScenarioId != "select-field.multiple")" Value="@value" ValueChanged="SetValue"
+          Values="@values" ValuesChanged="SetValues" Options="@ExtendedOptions" AccessibleName="Structure status" />
+      }
+      else if (ScenarioId == "select-field.error-state")
       {
         <HarborlineSelectField AccessibleName="Inspection status" Error="true" Name="inspection-status" Options="@Options" Value="pending" />
       }
@@ -31,6 +37,10 @@
 @code {
   [Parameter, EditorRequired] public string ScenarioId { get; set; } = "select-field.states";
   private string value = string.Empty;
+  private IReadOnlyList<string> values = ["active"];
+  private void SetValues(IReadOnlyList<string> next) => values = next;
+  private static readonly IReadOnlyList<SelectOption> ExtendedOptions =
+    [new("active", "Active"), new("pending", "Pending review"), new("archived", "Archived"), new("blocked", "Blocked", true)];
   private string? configuredScenario;
   private void SetValue(string next) => value = next;
 
@@ -43,6 +53,9 @@
 
   private (string Title, string Description) Copy => ScenarioId switch
   {
+    "select-field.search" => ("Searchable single selection", "Type to filter labels; only explicit selection changes the value."),
+    "select-field.multiple" => ("Multiple selection", "Choose multiple caller-owned options with a named listbox and optional separate search."),
+    "select-field.multiple-search" => ("Searchable multiple selection", "Choose multiple caller-owned options with a named listbox and optional separate search."),
     "select-field.states" => ("Value, placeholder, and validation", "Controlled value, identity, placeholder, density, and validation metadata remain explicit."),
     "select-field.selection" => ("Open and select", "The trigger opens one listbox and selection requests one value before closing."),
     "select-field.keyboard-dismissal" => ("Keyboard, typeahead, and dismissal", "Keyboard navigation, typeahead, Escape, Tab, and outside pointer follow one deterministic lifecycle."),

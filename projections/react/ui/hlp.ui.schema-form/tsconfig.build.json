@@ -16,6 +16,7 @@
     "outDir": "dist",
     "baseUrl": ".",
     "paths": {
+      "@harborline-platform/hlp.ui.button": ["../hlp.ui.button/dist/Button.d.ts"],
       "react": ["../hlp.ui.button/node_modules/@types/react/index.d.ts"],
       "react/jsx-runtime": ["../hlp.ui.button/node_modules/@types/react/jsx-runtime.d.ts"],
       "clsx": ["../hlp.ui.button/node_modules/clsx/clsx.d.ts"],

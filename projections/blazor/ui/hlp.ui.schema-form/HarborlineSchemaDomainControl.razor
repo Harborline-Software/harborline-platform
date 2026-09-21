@@ -1,0 +1,38 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Forms
+@using Harborline.UIAdapters.Blazor.Components.Forms.Inputs
+
+@if (Editor != "none" && Members.Count > 0)
+{
+    @if (Editor == "radiogroup")
+    {
+        <HarborlineRadioGroup Name="@Args.Field.Name" Value="@SelectedValue" Options="@RadioOptions"
+          ValueChanged="@SelectAsync" Disabled="@Args.Disabled" Required="@Args.Required"
+          Error="@Args.HasError" LabelledBy="@Args.LabelId" DescribedBy="@Args.DescribedBy" />
+    }
+    else
+    {
+        <HarborlineSelectField Name="@Args.Field.Name" Value="@SelectedValue" Options="@selectOptions"
+          Searchable="@(Editor is "recordpicker" or "taxonomypicker")" MaxVisibleOptions="25"
+          ValueChanged="@SelectAsync" Disabled="@Args.Disabled" Required="@Args.Required" Error="@Args.HasError" />
+    }
+}
+
+@code {
+    [Parameter, EditorRequired] public SchemaFormControlArgs Args { get; set; } = default!;
+    private string Editor => Args.Field.ControlHint?.ToLowerInvariant() ?? "none";
+    private IReadOnlyList<string> Members => Args.Field.PermittedValues ?? [];
+    private string SelectedValue => Args.Value is string value && Members.Contains(value, StringComparer.Ordinal) ? value : "";
+    private IReadOnlyList<HarborlineRadioOption> RadioOptions => Members.Select(value => new HarborlineRadioOption(value, value)).ToArray();
+    private IReadOnlyList<string>? previousMembers;
+    private IReadOnlyList<SelectOption> selectOptions = [];
+    protected override void OnParametersSet()
+    {
+        if (!ReferenceEquals(previousMembers, Members))
+        {
+            previousMembers = Members;
+            selectOptions = Members.Select(value => new SelectOption(value, value)).ToArray();
+        }
+    }
+    private Task SelectAsync(string member) => Args.Disabled || !Members.Contains(member, StringComparer.Ordinal)
+        ? Task.CompletedTask : Args.ValueChanged.InvokeAsync(member);
+}

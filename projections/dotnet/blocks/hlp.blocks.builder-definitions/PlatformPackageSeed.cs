@@ -95,6 +95,29 @@ public static class PlatformPackageSeed
             Item("platform-package-ck-7", PlatformSeedStage.Views, new
             {
                 members = pillarViews,
+                configurationGenerationDetail = ConfigurationGenerationDetail.Definition,
+                configurationActivationDetail = ConfigurationActivationDetail.Definition,
+                configurationActivationStatuses = ConfigurationActivationDetail.Statuses,
+                configurationProposalDetail = ConfigurationProposalDetail.Definition,
+                configurationProposalStatuses = ConfigurationProposalDetail.Statuses,
+                verificationRunDetail = VerificationDetail.Definition,
+                verificationRunStatuses = VerificationDetail.Statuses,
+                verificationCatalogue = new
+                {
+                    key = VerificationCatalog.Reference.Key,
+                    revision = VerificationCatalog.Reference.Revision,
+                    digest = VerificationCatalog.Reference.Digest,
+                    actions = VerificationCatalog.Actions.Select(action => new
+                    {
+                        actionId = action.ActionId, version = action.Version,
+                        parameters = action.Parameters, channels = action.Channels,
+                    }),
+                    predicates = VerificationCatalog.Predicates.Select(predicate => new
+                    {
+                        predicateId = predicate.PredicateId, version = predicate.Version, channel = predicate.Channel,
+                        expects = predicate.Expects.ToString(), requiresTarget = predicate.RequiresTarget,
+                    }),
+                },
                 listDefaultShape = "table",
                 showInListsOwner = "views",
                 authoring = new

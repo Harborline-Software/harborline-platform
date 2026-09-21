@@ -1,6 +1,6 @@
-# License and SBOM scan. Guarded like the other workflows: it runs only once Actions is switched on
-# for this repository (`gh variable set ACTIONS_ENABLED --body true`). Until then the same checks run
-# locally through the repository gate.
+# License and SBOM scan. `sbom` is a required context and carries no condition (T-660, the shape
+# T-633 landed in harborline-api: a job skipped by its own `if` counts as a successful required
+# check). Only the optional dependency-review job keeps the ACTIONS_ENABLED switch.
 name: license-sbom
 on:
   push:
@@ -16,7 +16,6 @@ permissions:
   pull-requests: read
 jobs:
   sbom:
-    if: vars.ACTIONS_ENABLED == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7

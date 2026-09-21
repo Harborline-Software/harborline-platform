@@ -11,6 +11,7 @@ using Harborline.Foundation.RuleEngine;
 using Harborline.Foundation.RuleEngine.Compilation;
 using Harborline.Foundation.RuleEngine.Graph;
 using Harborline.Kernel.SchemaValidation;
+using Harborline.Kernel.Core;
 
 namespace Harborline.Foundation.Forms.Engine;
 
@@ -26,6 +27,7 @@ public sealed class FormEngine : IFormEngine
     private readonly IFormProjectionSink _projections;
     private readonly FormEngineOptions _options;
     private readonly TimeProvider _clock;
+    private readonly FormFieldBinding? _fieldBinding;
 
     public FormEngine(
         IFormExecutionContextProvider contexts,
@@ -36,8 +38,11 @@ public sealed class FormEngine : IFormEngine
         IFormSensitiveReadAudit readAudit,
         IFormSubmissionTransactionStore submissions,
         IFormProjectionSink projections,
-        FormEngineOptions? options = null,
-        TimeProvider? clock = null)
+        FormEngineOptions? options,
+        TimeProvider clock,
+        IFormFieldBindingSource? fieldBindings = null,
+        Harborline.Contracts.Fields.IFieldKindRuntime? fieldKinds = null,
+        Harborline.Contracts.Fields.IFieldDomainRuntime? fieldDomains = null)
     {
         _contexts = contexts ?? throw new ArgumentNullException(nameof(contexts));
         _definitions = definitions ?? throw new ArgumentNullException(nameof(definitions));
@@ -49,7 +54,9 @@ public sealed class FormEngine : IFormEngine
         _projections = projections ?? throw new ArgumentNullException(nameof(projections));
         _options = options ?? new FormEngineOptions();
         _options.Validate();
-        _clock = clock ?? TimeProvider.System;
+        _clock = clock ?? throw new ArgumentNullException(nameof(clock));
+        if (fieldBindings is not null)
+            _fieldBinding = new(fieldBindings, fieldKinds ?? throw new ArgumentNullException(nameof(fieldKinds)), fieldDomains ?? throw new ArgumentNullException(nameof(fieldDomains)));
     }
 
     public async ValueTask<Contract.FormView> RenderAsync(
@@ -59,12 +66,13 @@ public sealed class FormEngine : IFormEngine
     {
         var scope = await RequiredScopeAsync(FormEngineAction.Read, cancellationToken).ConfigureAwait(false);
         var definition = await LoadEffectiveAsync(scope, formId, cancellationToken).ConfigureAwait(false);
+        var bindings = _fieldBinding is null ? null : await _fieldBinding.ResolveAsync(scope, definition, cancellationToken);
         if (instanceId is null)
         {
             using var empty = JsonDocument.Parse("{}");
             var sensitive = definition.Overlay.Fields.Where(row => row.Value.PiiSensitivity == State.PiiSensitivity.Sensitive).Select(row => row.Key).ToHashSet(StringComparer.Ordinal);
             var rules = EvaluateRenderRules(definition, empty, cancellationToken);
-            return FormContractMapper.ToView(scope, definition, empty, sensitive, sensitive, rules);
+            return FormContractMapper.ToView(scope, definition, empty, sensitive, sensitive, rules, bindings);
         }
 
         var submission = await ProviderAsync(() => _submissions.GetAsync(scope.Tenant, instanceId.Value, cancellationToken), cancellationToken).ConfigureAwait(false);
@@ -84,7 +92,7 @@ public sealed class FormEngine : IFormEngine
             projection.Candidate,
             projection.SensitiveFields,
             projection.WithheldFields,
-            rulesResult);
+            rulesResult, bindings);
     }
 
     public async ValueTask<Contract.ValidationResult> ValidateAsync(
@@ -132,7 +140,18 @@ public sealed class FormEngine : IFormEngine
             new(outboxId, instanceId, scope.Tenant, scope.PartyId, scope.ActorId, definition.Id, definition.Version,
                 request.CaseReference, protectedResult.ProtectedCandidate.ToArray(), instant),
             receipt);
-        var committed = await ProviderAsync(() => _submissions.CommitAsync(commit, cancellationToken), cancellationToken).ConfigureAwait(false);
+        var atomic = new KernelCommand<FormSubmissionCommit>(
+            new(instanceId.ToString(), request.IdempotencyKey, fingerprint),
+            commit,
+            new(commit.Audit.AuditId, commit.Audit.ActorId, commit.Audit.RecordedAt, commit.Audit.Payload));
+        var transaction = await ProviderAsync(
+            () => KernelTransactionBoundary.ExecuteAsync(
+                [atomic],
+                new FormSubmissionKernelTransactionPort(_submissions),
+                cancellationToken),
+            cancellationToken).ConfigureAwait(false);
+        var committed = transaction.Value
+            ?? throw new InvalidOperationException(transaction.Refusal?.Code ?? "The kernel transaction did not return a result.");
         if (committed.Disposition == FormSubmissionCommitDisposition.Conflict) throw new FormEngineIdempotencyConflictException();
         if (committed.Disposition == FormSubmissionCommitDisposition.Replayed) return committed.Receipt!;
 
@@ -197,7 +216,23 @@ public sealed class FormEngine : IFormEngine
 
     private async ValueTask<FormCandidateEvaluation> EvaluateAsync(FormExecutionScope scope, State.FormDefinition definition, JsonDocument candidate, CancellationToken cancellationToken)
     {
-        try { return await FormCandidateEvaluator.EvaluateAsync(scope, definition, candidate, _schemas, _options.MaximumCandidateBytes, _clock, cancellationToken).ConfigureAwait(false); }
+        try
+        {
+            var bindings = _fieldBinding is null ? null : await _fieldBinding.ResolveAsync(scope, definition, cancellationToken);
+            var evaluation = await FormCandidateEvaluator.EvaluateAsync(scope, definition, candidate, _schemas, _options.MaximumCandidateBytes, _clock, cancellationToken).ConfigureAwait(false);
+            if (bindings is null || evaluation.AcceptedCandidate.RootElement.ValueKind != JsonValueKind.Object) return evaluation;
+            var errors = evaluation.Errors.ToList();
+            foreach (var (name, binding) in bindings)
+            {
+                evaluation.AcceptedCandidate.RootElement.TryGetProperty(name, out var value);
+                errors.AddRange(_fieldBinding!.Validate(binding, value, FormFieldBinding.Pointer(name)).Select(refusal => new Contract.ValidationError
+                {
+                    Code = refusal.Code, JsonPointer = refusal.JsonPointer, Message = refusal.Message, Kind = Contract.ValidationErrorKind.Schema,
+                }));
+            }
+            return evaluation with { Errors = errors };
+        }
+        catch (Harborline.Contracts.Fields.FieldAdmissionException) { throw; }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch (Exception ex) when (ex is RuleEngineTimeoutException or TimeoutException) { throw new FormEngineResourceBoundException(ex); }
         catch (RuleCompilationException ex) { throw new FormEngineValidationException([new Contract.ValidationError { JsonPointer = "", Message = "A form rule could not be compiled.", Kind = Contract.ValidationErrorKind.Schema, Code = ex.Code }]); }

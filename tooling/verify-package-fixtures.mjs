@@ -775,17 +775,20 @@ function verifyNuget() {
   const tenancy = 'projections/dotnet/foundation/hlp.foundation.tenancy/Harborline.Foundation.MultiTenancy.csproj'
   const actor = 'projections/dotnet/foundation/hlp.foundation.actor/Harborline.Foundation.Authorization.csproj'
   const session = 'projections/dotnet/foundation/hlp.foundation.session/Harborline.Foundation.Session.csproj'
+  const kernelCore = 'projections/dotnet/kernel/hlp.kernel.core/Harborline.Kernel.Core.csproj'
   const schemaValidation = 'projections/dotnet/kernel/hlp.kernel.schema-validation/Harborline.Kernel.SchemaValidation.csproj'
   const workItems = 'projections/dotnet/kernel/hlp.kernel.work-items/Harborline.Kernel.WorkItems.csproj'
   const inspectionReview = 'projections/dotnet/blocks/hlp.blocks.inspection-review/Harborline.Blocks.InspectionReview.csproj'
   const builderDefinitions = 'projections/dotnet/blocks/hlp.blocks.builder-definitions/Harborline.Blocks.BuilderDefinitions.csproj'
   const aggregates = 'projections/dotnet/blocks/hlp.blocks.aggregates/Harborline.Blocks.Aggregates.csproj'
+  const measureCatalogue = 'projections/dotnet/blocks/hlp.blocks.measure-catalogue/Harborline.Blocks.MeasureCatalogue.csproj'
   const relativeChains = 'projections/dotnet/blocks/hlp.blocks.relative-chains/Harborline.Blocks.RelativeChains.csproj'
   const workflow = 'projections/dotnet/blocks/hlp.blocks.workflow/Harborline.Blocks.Workflow.csproj'
   const workflowInterpreter = 'projections/dotnet/blocks/hlp.blocks.workflow-interpreter/Harborline.Blocks.Workflow.Interpreter.csproj'
   const entityViews = 'projections/dotnet/blocks/hlp.blocks.entity-views/Harborline.Blocks.EntityViews.csproj'
   const dataExchange = 'projections/dotnet/foundation/hlp.foundation.data-exchange/Harborline.Foundation.DataExchange.csproj'
   const foundationScheduling = 'projections/dotnet/foundation/hlp.foundation.scheduling/Harborline.Foundation.Scheduling.csproj'
+  const fieldRuntime = 'projections/dotnet/foundation/hlp.foundation.field-runtime/Harborline.Foundation.FieldRuntime.csproj'
   const blocksScheduling = 'projections/dotnet/blocks/hlp.blocks.scheduling/Harborline.Blocks.Scheduling.csproj'
   const blocksCalendar = 'projections/dotnet/blocks/hlp.blocks.calendar/Harborline.Blocks.Calendar.csproj'
   const blocksReports = 'projections/dotnet/blocks/hlp.blocks.reports/Harborline.Blocks.Reports.csproj'
@@ -800,17 +803,20 @@ function verifyNuget() {
   run(dotnet.executable, ['pack', tenancy, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
   run(dotnet.executable, ['pack', actor, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
   run(dotnet.executable, ['pack', session, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
+  run(dotnet.executable, ['pack', kernelCore, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
   run(dotnet.executable, ['pack', schemaValidation, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
   run(dotnet.executable, ['pack', workItems, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
   run(dotnet.executable, ['pack', inspectionReview, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
   run(dotnet.executable, ['pack', builderDefinitions, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
   run(dotnet.executable, ['pack', aggregates, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
+  run(dotnet.executable, ['pack', measureCatalogue, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
   run(dotnet.executable, ['pack', relativeChains, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
   run(dotnet.executable, ['pack', workflow, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
   run(dotnet.executable, ['pack', workflowInterpreter, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
   run(dotnet.executable, ['pack', entityViews, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
   run(dotnet.executable, ['pack', dataExchange, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
   run(dotnet.executable, ['pack', foundationScheduling, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
+  run(dotnet.executable, ['pack', fieldRuntime, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
   run(dotnet.executable, ['pack', blocksScheduling, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
   run(dotnet.executable, ['pack', blocksCalendar, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
   run(dotnet.executable, ['pack', blocksReports, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
@@ -829,8 +835,9 @@ function verifyNuget() {
     const nuspec = zip.text(nuspecName)
     return { name, path, zip, nuspec, id: metadata(nuspec, 'id'), version: metadata(nuspec, 'version') }
   })
-  const expectedIds = ['Harborline.Blocks.ActivityTimeline', 'Harborline.Blocks.Aggregates', 'Harborline.Blocks.BuilderDefinitions', 'Harborline.Blocks.Calendar', 'Harborline.Blocks.EntityViews', 'Harborline.Blocks.InspectionReview', 'Harborline.Blocks.RelativeChains', 'Harborline.Blocks.Reports', 'Harborline.Blocks.Scheduling', 'Harborline.Blocks.Workflow', 'Harborline.Blocks.Workflow.Interpreter', 'Harborline.Foundation', 'Harborline.Foundation.DataExchange', 'Harborline.Foundation.Forms.Engine', 'Harborline.Foundation.MultiTenancy', 'Harborline.Foundation.RuleAuthoring', 'Harborline.Foundation.RuleEngine', 'Harborline.Foundation.Scheduling', 'Harborline.Kernel.SchemaValidation', 'Harborline.Kernel.WorkItems', 'Harborline.UIAdapters.Blazor', 'Harborline.Contracts', 'Harborline.Foundation.Authorization', 'Harborline.Foundation.Forms', 'Harborline.Foundation.Session']
+  const expectedIds = ['Harborline.Blocks.ActivityTimeline', 'Harborline.Blocks.Aggregates', 'Harborline.Blocks.MeasureCatalogue', 'Harborline.Blocks.BuilderDefinitions', 'Harborline.Blocks.Calendar', 'Harborline.Blocks.EntityViews', 'Harborline.Blocks.InspectionReview', 'Harborline.Blocks.RelativeChains', 'Harborline.Blocks.Reports', 'Harborline.Blocks.Scheduling', 'Harborline.Blocks.Workflow', 'Harborline.Blocks.Workflow.Interpreter', 'Harborline.Foundation', 'Harborline.Foundation.DataExchange', 'Harborline.Foundation.Forms.Engine', 'Harborline.Foundation.MultiTenancy', 'Harborline.Foundation.RuleAuthoring', 'Harborline.Foundation.RuleEngine', 'Harborline.Foundation.Scheduling', 'Harborline.Kernel.Core', 'Harborline.Kernel.SchemaValidation', 'Harborline.Kernel.WorkItems', 'Harborline.UIAdapters.Blazor', 'Harborline.Contracts', 'Harborline.Foundation.Authorization', 'Harborline.Foundation.Forms', 'Harborline.Foundation.Session']
   const actualIds = packageMetadata.map(entry => entry.id).sort()
+  expectedIds.push('Harborline.Foundation.FieldRuntime')
   if (JSON.stringify(actualIds) !== JSON.stringify(expectedIds.sort())) {
     throw new Error(`NuGet artifact ownership mismatch: ${JSON.stringify(actualIds)}`)
   }
@@ -950,7 +957,12 @@ function verifyNuget() {
     }
   }
   cpSync(resolve(root, 'tests/package-consumers/nuget'), consumer, { recursive: true })
-  const output = runNugetConsumer(consumer, packageCache).output.trim().split('\n').at(-1)
+  const consumerOutputLines = runNugetConsumer(consumer, packageCache).output.trim().split('\n')
+  const output = consumerOutputLines.at(-1)
+  const fieldRuntimeSchemaBehavior = consumerOutputLines.find(line => line.startsWith('FIELD_RUNTIME_SCHEMA_PACKAGE_PASS:'))
+  if (!fieldRuntimeSchemaBehavior) throw new Error('Packed field-runtime schema consumer did not emit its completion proof')
+  const fieldRuntimeDomainBehavior = consumerOutputLines.find(line => line.startsWith('FIELD_RUNTIME_DOMAIN_PACKAGE_PASS:'))
+  if (!fieldRuntimeDomainBehavior) throw new Error('Packed field-runtime domain consumer did not emit its completion proof')
   const assets = readFileSync(resolve(consumer, 'obj/project.assets.json'), 'utf8')
   if (assets.includes(resolve(root, 'projections')) || /"type"\s*:\s*"project"/.test(assets)) {
     throw new Error('NuGet consumer resolved a source or project dependency')
@@ -992,6 +1004,7 @@ function verifyNuget() {
     'Harborline.Foundation.Forms.Engine',
     'Harborline.Foundation.MultiTenancy',
     'Harborline.Foundation.RuleEngine',
+    'Harborline.Kernel.Core',
     'Harborline.Kernel.SchemaValidation',
     'Harborline.Contracts',
     'Harborline.Foundation.Authorization',
@@ -1035,6 +1048,7 @@ function verifyNuget() {
     'Harborline.Foundation.Forms.Engine',
     'Harborline.Foundation.MultiTenancy',
     'Harborline.Foundation.RuleEngine',
+    'Harborline.Kernel.Core',
     'Harborline.Kernel.SchemaValidation',
     'Harborline.Kernel.WorkItems',
     'Harborline.Contracts',
@@ -1091,7 +1105,7 @@ function verifyNuget() {
     id: 'platform-dotnet-package-group',
     status: 'PASS',
     artifactIdentity: `Harborline.UIAdapters.Blazor@${packedVersion}`,
-    assemblyIdentities: ['Harborline.Blocks.InspectionReview', 'Harborline.Blocks.Aggregates', 'Harborline.Blocks.RelativeChains', 'Harborline.Blocks.BuilderDefinitions', 'Harborline.Blocks.Workflow', 'Harborline.Blocks.Workflow.Interpreter', 'Harborline.Contracts', 'Harborline.Foundation.MultiTenancy', 'Harborline.Foundation.Authorization', 'Harborline.Foundation.Forms', 'Harborline.Foundation.Forms.Engine', 'Harborline.Foundation.Session', 'Harborline.Foundation.RuleEngine', 'Harborline.Kernel.SchemaValidation', 'Harborline.Kernel.WorkItems', 'Harborline.UIAdapters.Blazor', 'Harborline.Foundation'],
+    assemblyIdentities: ['Harborline.Blocks.InspectionReview', 'Harborline.Blocks.Aggregates', 'Harborline.Blocks.RelativeChains', 'Harborline.Blocks.BuilderDefinitions', 'Harborline.Blocks.Workflow', 'Harborline.Blocks.Workflow.Interpreter', 'Harborline.Contracts', 'Harborline.Foundation.MultiTenancy', 'Harborline.Foundation.Authorization', 'Harborline.Foundation.Forms', 'Harborline.Foundation.Forms.Engine', 'Harborline.Foundation.Session', 'Harborline.Foundation.RuleEngine', 'Harborline.Kernel.Core', 'Harborline.Kernel.SchemaValidation', 'Harborline.Kernel.WorkItems', 'Harborline.UIAdapters.Blazor', 'Harborline.Foundation'],
     artifacts: inspections,
     budget: budgets.nuget,
     localFeedArtifactCount: packageMetadata.length,
@@ -1100,6 +1114,8 @@ function verifyNuget() {
     sourceOrProjectDependencies: 0,
     assemblyAmbiguities: 0,
     harborlineArtifactsFromSingleCohort: true,
+    fieldRuntimeSchemaBehavior,
+    fieldRuntimeDomainBehavior,
     formsEngineDirectPackageReferences: formsEngineDirectReferences,
     formsEngineTransitiveHarborlineArtifacts: formsEngineHarborlineNodes.length,
     formsEngineAuthoringHostBehavior: formsEngineConsumerOutput,
@@ -1143,6 +1159,7 @@ function verifyDynamicFormsCapability() {
     'Harborline.Foundation.Forms.Engine',
     'Harborline.Foundation.MultiTenancy',
     'Harborline.Foundation.RuleEngine',
+    'Harborline.Kernel.Core',
     'Harborline.Kernel.SchemaValidation',
     'Harborline.Contracts',
     'Harborline.Foundation.Authorization',
@@ -1286,10 +1303,12 @@ function verifyViewsCapability() {
   cpSync(resolve(root, 'tests/package-consumers/views-nuget'), engineConsumer, { recursive: true })
   copyFileSync(corpusSource, resolve(engineConsumer, 'views-vertical-cases.json'))
   const engineDirectReferences = assertDirectPackageReferences(engineConsumer, ['Harborline.Blocks.EntityViews'], 'Views engine')
-  const [engineSubstrate, engineBehavior, authoredBoundBehavior] = proofLines(runNugetConsumer(engineConsumer, enginePackageCache), ['VIEWS_PACKAGE_PASS:', 'VIEWS_CAPABILITY_PASS:', 'VIEWS_AUTHORED_BOUND_PASS:'], 'Views engine')
+  const [engineSubstrate, engineBehavior, authoredBoundBehavior, accessBehavior] = proofLines(runNugetConsumer(engineConsumer, enginePackageCache), ['VIEWS_PACKAGE_PASS:', 'VIEWS_CAPABILITY_PASS:', 'VIEWS_AUTHORED_BOUND_PASS:', 'ACCESS_CONTRACT_PASS:'], 'Views engine')
   assertPackageClosure(
     engineConsumer,
-    ['Harborline.Blocks.EntityViews', 'Harborline.Contracts'],
+    // T-624: Views reaches measures through the shared catalogue, which brings the catalogue and
+    // the aggregates evaluator it resolves declared entries against. Views still owns no math.
+    ['Harborline.Blocks.EntityViews', 'Harborline.Blocks.MeasureCatalogue', 'Harborline.Blocks.Aggregates', 'Harborline.Contracts', 'Harborline.Foundation.Authorization', 'Harborline.Foundation.MultiTenancy', 'Harborline.Foundation.RuleEngine'],
     'Views engine',
     /Forms.*(?:Builder|Authoring)|(?:Builder|Authoring).*Forms/i,
   )
@@ -1315,6 +1334,7 @@ function verifyViewsCapability() {
     engineBehavior,
     engineSubstrate,
     authoredBoundBehavior,
+    accessBehavior,
     blazorAuthoringBehavior,
   }
 }
@@ -1332,17 +1352,20 @@ function verifySchedulingCapability() {
   cpSync(resolve(root, 'tests/package-consumers/scheduling-nuget'), consumer, { recursive: true })
   copyFileSync(corpusSource, resolve(consumer, 'scheduling-vertical-cases.json'))
   const direct = assertDirectPackageReferences(consumer, ['Harborline.Blocks.Calendar', 'Harborline.Blocks.Scheduling', 'Harborline.Foundation.Scheduling'], 'Scheduling')
-  const [packageProof, capabilityProof] = proofLines(runNugetConsumer(consumer, packageCache), ['SCHEDULING_PACKAGE_PASS:', 'SCHEDULING_CAPABILITY_PASS:'], 'Scheduling')
-  // Derived from the landed csprojs: Calendar -> Contracts + Foundation.Scheduling;
-  // Blocks.Scheduling and Foundation.Scheduling add no Harborline package edges.
+  // T-626: the availability substrate proof — four member callers through the released IAvailabilityRuntime.
+  const [packageProof, availabilityProof, capabilityProof] = proofLines(runNugetConsumer(consumer, packageCache), ['SCHEDULING_PACKAGE_PASS:', 'AVAILABILITY_SUBSTRATE_PASS:', 'SCHEDULING_CAPABILITY_PASS:'], 'Scheduling')
+  // Derived from the landed csprojs: Calendar -> Contracts + Foundation.Scheduling + Foundation.Authorization
+  // (T-568: the booking requester is the kernel's authenticated context), and Authorization ->
+  // MultiTenancy + RuleEngine; Blocks.Scheduling and Foundation.Scheduling add no Harborline package edges.
   const closure = assertPackageClosure(
     consumer,
-    ['Harborline.Blocks.Calendar', 'Harborline.Blocks.Scheduling', 'Harborline.Foundation.Scheduling', 'Harborline.Contracts'],
+    ['Harborline.Blocks.Calendar', 'Harborline.Blocks.Scheduling', 'Harborline.Foundation.Scheduling', 'Harborline.Contracts',
+      'Harborline.Foundation.Authorization', 'Harborline.Foundation.MultiTenancy', 'Harborline.Foundation.RuleEngine'],
     'Scheduling',
     /(?:Forms|Reports|Workflows|EntityViews|Kernel|Blazor|React)/i,
   )
 
-  return { id: 'scheduling-capability-vertical', status: 'PASS', anchors: 174, hostRows: 88, crossLanePairs: 0, corpusSha256: sha256(corpusSource), directPackageReferences: direct, packageClosure: closure, sourceOrProjectDependencies: 0, packageProof, capabilityProof }
+  return { id: 'scheduling-capability-vertical', status: 'PASS', anchors: 174, hostRows: 88, crossLanePairs: 0, corpusSha256: sha256(corpusSource), directPackageReferences: direct, packageClosure: closure, sourceOrProjectDependencies: 0, packageProof, availabilityProof, capabilityProof }
 }
 
 
@@ -1359,10 +1382,13 @@ function verifyReportsCapability() {
   copyFileSync(corpusSource, resolve(consumer, 'reports-vertical-cases.json'))
   const direct = assertDirectPackageReferences(consumer, ['Harborline.Blocks.Reports'], 'Reports')
   const [packageProof, capabilityProof] = proofLines(runNugetConsumer(consumer, packageCache), ['REPORTS_PACKAGE_PASS:', 'REPORTS_CAPABILITY_PASS:'], 'Reports')
-  // Derived from the landed csproj: Blocks.Reports -> Contracts only.
+  // Derived from the landed csproj: Blocks.Reports -> Contracts and, since T-624, the shared
+  // measure catalogue it registers its seven computations in, which brings the aggregates
+  // evaluator and the Access contracts the catalogue binds its filter through.
   const closure = assertPackageClosure(
     consumer,
-    ['Harborline.Blocks.Reports', 'Harborline.Contracts'],
+    ['Harborline.Blocks.Reports', 'Harborline.Blocks.MeasureCatalogue', 'Harborline.Blocks.Aggregates', 'Harborline.Contracts',
+      'Harborline.Foundation.Authorization', 'Harborline.Foundation.MultiTenancy', 'Harborline.Foundation.RuleEngine'],
     'Reports',
     /(?:Financial|Tax|Forms|Workflows|EntityViews|Kernel|Blazor|React)/i,
   )
@@ -1486,7 +1512,7 @@ function verifyAppShellCapability() {
   const assets = JSON.parse(assetsText)
   const target = Object.values(assets.targets ?? {})[0] ?? {}
   const closure = Object.keys(target).filter(x => /^Harborline\./.test(x)).map(x => x.split('/')[0]).sort()
-  const expectedClosure = ['Harborline.Foundation.MultiTenancy', 'Harborline.Contracts', 'Harborline.Foundation.Authorization', 'Harborline.Foundation.Session'].sort()
+  const expectedClosure = ['Harborline.Foundation.MultiTenancy', 'Harborline.Contracts', 'Harborline.Foundation.Authorization', 'Harborline.Foundation.Session', 'Harborline.Foundation.RuleEngine'].sort()
   if (JSON.stringify(closure) !== JSON.stringify(expectedClosure)) throw new Error(`App-shell closure drift: ${JSON.stringify(closure)}`)
 
   // Capability-host rows: cross-repo tarballs staged by explicit environment paths with the

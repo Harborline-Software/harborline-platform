@@ -13,10 +13,46 @@
   },
   "scenarios": [
     {
+      "id": "schema-form.domain-editors",
+      "name": "Domain-driven editors",
+      "surface": "domain-editors",
+      "sourceCaseIds": [
+        "schema-form.domain-none",
+        "schema-form.domain-single",
+        "schema-form.domain-choice",
+        "schema-form.domain-radio",
+        "schema-form.domain-record-picker",
+        "schema-form.domain-taxonomy-picker",
+        "schema-form.domain-search-candidate"
+      ],
+      "sourceQualityCaseIds": [
+        "schema-form.quality.field-labelling",
+        "schema-form.quality.reflow",
+        "schema-form.quality.error-association",
+        "schema-form.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "Renderer demonstration of resolved domain output. No live API; runtime domain resolution is covered by existing producer tests.",
+        "environment": { "locale": "en-US", "direction": "ltr", "theme": "light", "catalog": {} },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "raw",
+            "react": "<DomainEditorsExample />",
+            "blazor": "<HarborlineSchemaForm InitialValues=\"DomainValues\" OnValuesChange=\"DomainChanged\" OnSubmit=\"DomainSubmit\" Strings=\"EnglishStrings\" View=\"DomainView\" />",
+            "rationale": "Both lanes supply resolved ControlHint/controlHint and permittedValues to the public SchemaForm: None, SingleValue without a default, three radios, six literal choices, 80 taxonomy categories, and 40000 numbered records with bounded search matches. Public read-only and unreadable flags and submit validation demonstrate adjacent states. An allowlisted candidate summary excludes the restricted field and separates committed selection from search text. This maps renderer cases for review; it does not claim a live API, runtime domain resolution, or passing browser evidence."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
       "id": "schema-form.controls-structure",
       "name": "Ordered controls and collections",
       "surface": "controls-structure",
       "sourceCaseIds": [
+        "schema-form.platform-control-composition",
         "schema-form.section-order",
         "schema-form.hint-registry",
         "schema-form.hint-fallback",
@@ -32,7 +68,7 @@
         "schema-form.quality.forced-colors"
       ],
       "content": {
-        "blurb": "Registry resolution, fallback, nested updates, and bounded rows share one caller-defined order.",
+        "blurb": "Platform multiple selection and actions, registry resolution, fallback, nested updates, and bounded rows share one caller-defined order.",
         "environment": {
           "locale": "en-US",
           "direction": "ltr",

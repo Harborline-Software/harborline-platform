@@ -137,17 +137,17 @@ public sealed class DataExchangeInterpreter(
     private readonly IProtectedEffectPayloadStore _payloads = payloads ?? throw new ArgumentNullException(nameof(payloads));
 
     public async ValueTask<DryRunArtifact> CreateDryRunAsync(
-        IDataExchangeDefinitionStore definitions,
+        IDataExchangeDefinitionResolver definitions,
         string tenant,
         string definitionKey,
         ExchangeEvaluationContext context,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(definitions);
-        var revision = await definitions.GetPublishedHeadAsync(tenant, definitionKey, cancellationToken)
+        var definition = await definitions.ResolvePublishedHeadAsync(tenant, definitionKey, cancellationToken)
             .ConfigureAwait(false)
             ?? throw new DataExchangeCapabilityException("definition.published_head_not_found");
-        return await CreateDryRunAsync(revision.Definition, context, cancellationToken).ConfigureAwait(false);
+        return await CreateDryRunAsync(definition, context, cancellationToken).ConfigureAwait(false);
     }
 
     public async ValueTask<DryRunArtifact> CreateDryRunAsync(

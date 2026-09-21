@@ -12,7 +12,7 @@
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
 import {
-  dependencylessVitestConfigError, interfaceDependencyMismatch,
+  dependencylessVitestConfigError, interfaceDependencyMismatch, isGateFailureEvidence,
   npmPublicDistributionAuthorized, nugetPublicDistributionAuthorized,
   presentationPolicyErrors, requiresQualityProfile, retiredProvenanceFieldErrors,
   rootScopedThemeAliasError, themingPolicyErrors,
@@ -93,4 +93,15 @@ test('retired provenance source fields', () => {
   // A value is not what makes it wrong -- the field's presence is, so an empty or null one still fails.
   assert.equal(retiredProvenanceFieldErrors([{moduleId: 'm', sourcePaths: null, sourceBlobs: null}]).length, 2)
   assert.deepEqual(retiredProvenanceFieldErrors(undefined), [])
+})
+
+test("the gate's own failure evidence is not repository source", () => {
+  // T-658: exactly the shape the gate writes, and nothing else.
+  assert.equal(isGateFailureEvidence('.claude/gate-evidence/dependency-ledger.log'), true)
+  assert.equal(isGateFailureEvidence('.claude/gate-evidence/gallery-gate.log'), true)
+  assert.equal(isGateFailureEvidence('.claude/gate-evidence/pr40-phase4/report.log'), false)
+  assert.equal(isGateFailureEvidence('.claude/gate-evidence/report.json'), false)
+  assert.equal(isGateFailureEvidence('.claude/settings.json'), false)
+  assert.equal(isGateFailureEvidence('.claude/agents/gate.log'), false)
+  assert.equal(isGateFailureEvidence('docs/gate-evidence/gate.log'), false)
 })

@@ -140,18 +140,21 @@ public sealed class CalendarEventExpansionService : ICalendarEventExpansionServi
     {
         var durationDays = ev.End.DayNumber - ev.Start.DayNumber; // each occurrence keeps the master's span
 
-        // 1. Raw RRULE occurrences for the requested window. We expand from the series anchor
-        //    (ev.Start) and bound the horizon at windowEnd; leadDays=0 so nothing earlier than
-        //    `today` is dropped — we set `today = ev.Start` so the lead filter never trims the
-        //    front of the window (we filter the window ourselves below). lookaheadDays is unused
-        //    because we pass an explicit `end`.
+        // 1. Raw RRULE occurrences for the requested window. The walk starts at the series anchor
+        //    (ev.Start) and bounds the horizon at windowEnd; `today` (leadDays=0) is the earliest
+        //    date the producer emits. It is the window start less the occurrence span, not the
+        //    anchor: the producer caps emitted occurrences at 1 000, so emitting from the anchor
+        //    left a series older than the cap empty in a later window (T-653). Subtracting the span
+        //    keeps a multi-day occurrence straddling windowStart. lookaheadDays is unused because
+        //    we pass an explicit `end`.
+        var earliest = windowStart.AddDays(-durationDays);
         var raw = _rrule.ExpandOccurrences(
             rrule:          ev.Rrule!,
             start:          ev.Start,
             end:            windowEnd,
             lookaheadDays:  0,
             leadDays:       0,
-            today:          ev.Start,
+            today:          earliest,
             timezone:       ev.Timezone);
 
         var exDates = ev.ExceptionDates;          // EXDATE set (HashSet/SortedSet — O(1)/O(log n) lookup)
@@ -203,14 +206,14 @@ public sealed class CalendarEventExpansionService : ICalendarEventExpansionServi
         }
 
         // 3. An override may move an occurrence whose ORIGINAL RECURRENCE-ID fell OUTSIDE the
-        //    raw-expansion window (windowEnd bounded the raw set) but whose NEW start lands inside
-        //    the window. Catch those by scanning overrides whose RecurrenceId is beyond windowEnd
-        //    yet whose NewStart is within the window. (Overrides whose RecurrenceId <= windowEnd
-        //    were already handled in the loop above.)
+        //    raw-expansion range [earliest, windowEnd] but whose NEW start lands inside the
+        //    window. Catch those by scanning overrides whose RecurrenceId is outside that range
+        //    yet whose NewStart is within the window. (Overrides whose RecurrenceId is inside the
+        //    range were already handled in the loop above.)
         foreach (var (recurrenceId, ov) in overrides)
         {
             if (ov.IsCancelled) continue;
-            if (recurrenceId <= windowEnd) continue;                  // already considered above
+            if (recurrenceId >= earliest && recurrenceId <= windowEnd) continue; // walked above
             if (exDates.Contains(recurrenceId)) continue;             // EXDATE wins over a stale override
             if (!InWindow(ov.NewStart, ov.NewEnd ?? ov.NewStart, windowStart, windowEnd)) continue;
 

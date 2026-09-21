@@ -34,3 +34,16 @@ prove those lifecycle operations.
 Rule conditions, dynamic Taxonomy/query domain membership and policy enforcement require
 their owning interpreters. Their representation in the grammar is not evidence of runtime
 execution. The static compiler is not a complete Records write pipeline or field runtime.
+
+## Shared field-kind validation
+
+An optional `IFieldKindRuntime` constructor dependency binds `x-harborline-field-kind`
+metadata through shared Contracts. The field-runtime producer still owns every kind limit;
+the kernel has no foundation reference or duplicate limit implementation. The exact kind
+identity, version and parameters contribute to the schema's content address. A binding
+without its runtime, or with malformed or unresolved metadata, refuses registration.
+
+Evaluation passes the original JSON value and instance pointer to the bound validator.
+All `field.*` refusals survive, including simultaneous digit overflows. JSON Schema's own
+applicators handle nested properties, arrays, references and alternatives. Valid branches
+do not contribute errors from unsuccessful alternatives.
