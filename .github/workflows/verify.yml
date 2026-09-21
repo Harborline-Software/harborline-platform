@@ -72,6 +72,24 @@ jobs:
       - name: Consumer-neutral boundary
         run: bash eng/verify-boundaries.sh
 
+      # T-674, placed here for the same reason and at the same cost: two git commands, before an
+      # hour of gate. docs/evidence/phase-4/gate.json must name a run this repository can produce
+      # from main. T-568 committed one naming its own lane branch's HEAD; the squash merge discarded
+      # that commit, and the gate's release-receipt step refused it weeks later -- but only on a
+      # runner whose reused clone had lost the object, which is why it presented as flake rather
+      # than as the bad commit it was. macpro's clone held it, mac16's did not, and a merge group
+      # fetches only the queue ref. This refuses the commit instead, on every pull request and every
+      # merge group, naming the field.
+      #
+      # Deliberately NOT a phase-4 gate step: adding one means changing requiredStepIds in three
+      # files and invalidating every existing receipt (validate.yml says so at its own copy of the
+      # boundary check). The same scanner runs from .githooks/pre-commit, which is earlier but
+      # skippable; this is the copy that cannot be skipped.
+      - name: Recorded phase-4 evidence names a commit main holds
+        run: |
+          git fetch --no-tags --quiet origin main
+          node tooling/gates/scan-evidence-provenance.mjs .
+
       # The app-shell package fixtures stage two cross-repo tarballs that
       # tooling/resolve-appshell-feed.mjs rebuilds from harborline-api refs (this repo deliberately
       # never stores the bytes). harborline-api is public now, so this needs no token. It is cloned

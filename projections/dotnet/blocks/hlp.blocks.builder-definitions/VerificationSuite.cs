@@ -179,6 +179,21 @@ public sealed class VerificationSuite
     }
 
     /// <summary>
+    /// The canonical verification corpus this platform build produced, embedded in the package:
+    /// the one Records-and-Rules example, its suite document, the refusal an empty case earns, and
+    /// the recorded runs. A consumer parses <c>suite</c> out of this rather than re-declaring the
+    /// same suite by hand, so there is one corpus and it cannot drift into two.
+    /// </summary>
+    public static string Corpus()
+    {
+        using var stream = typeof(VerificationSuite).Assembly
+            .GetManifestResourceStream("Harborline.Blocks.BuilderDefinitions.verification.json")
+            ?? throw new InvalidDataException("verification-corpus-resource-missing");
+        using var reader = new StreamReader(stream);
+        return reader.ReadToEnd();
+    }
+
+    /// <summary>
     /// Reads one canonical suite document back into a suite. Parsing goes through the same
     /// <see cref="Declare"/> admission as authoring, so a document cannot carry a case into a run
     /// that authoring would have refused, and a faithful parse reproduces the same digest.

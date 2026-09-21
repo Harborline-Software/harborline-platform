@@ -1,1 +1,190 @@
-{"schemaVersion":1,"moduleId":"hlp.ui.select-field","interfaceRevision":1,"semantics":{"operation":"render one controlled, named select trigger and listbox popup with caller-owned options and optional controlled open state","observableOutput":"Equivalent selected value, popup lifecycle, option navigation, relationships, validation metadata, callbacks, sizing, dismissal, and direction behavior in React and Blazor."},"sourceSurface":{"repository":"shipyard","commit":"a5036ff8b500e0d857d7e0a698408e7cf7f6cf31","path":"packages/ui-react/src/components/forms/SelectField.tsx","blob":"7bed632d289df0f1714e03f9f153be5af47208b5","capturedExports":["SelectField","SelectOption","SelectFieldSize"]},"dependencies":["hlp.ui.cn","hlp.ui.default-strings","hlp.ui.form-field","hlp.ui.locale-provider"],"invariants":["Name is required stable control identity; Value and ordered Options are caller-owned and selection requests the chosen string exactly once.","An empty selection displays the caller placeholder or the locale catalog select placeholder when absent; selected display text is the matching caller option label.","The trigger exposes expanded and controls relationships; while open, one listbox contains one option per ordered unique value.","Open may be host-controlled; an interaction requests open-state change while rendered state continues to follow the supplied controlled value.","Disabled state native-disables the trigger and prevents open and value callbacks.","Error and required state are exposed as validation metadata; Form Field label, hint, error, required, and disabled context flow to the control with local values taking precedence.","Accessible name, described-by order, tab index, focus and blur callbacks, and host attributes reach the interactive trigger.","Canonical sizes are sm, md, and lg with md default and do not alter semantics.","Arrow keys, Home, End, Enter, Space, and typeahead provide deterministic listbox navigation and exactly-once selection.","Escape, Tab, and outside pointer close the popup; Escape restores trigger focus, Tab is not trapped, and outside-pointer focus remains on its target.","Popup width is at least the trigger width and remains viewport-clamped under zoom, reflow, and expanded content.","Direction uses logical trigger-icon, checkmark, and popup alignment while option DOM order remains unchanged.","Name is frozen as control identity; native browser form serialization is not promised until package-consumer evidence proves it.","The module owns no option loading, persistence, validation rules, authorization, or domain-specific filtering."],"errors":[{"code":"select-field-name-required","when":"Name is empty."},{"code":"duplicate-select-option-value","when":"Two options use the same stable value."},{"code":"unsupported-select-field-size","when":"Size is outside sm, md, or lg."}],"performance":{"operation":"O(n) rendering and typeahead matching for n options","maximumFixtureOptions":500},"presentation":{"disposition":"visual"},"cases":[{"id":"select-field.placeholder"},{"id":"select-field.explicit-placeholder"},{"id":"select-field.selected"},{"id":"select-field.identity"},{"id":"select-field.open"},{"id":"select-field.select"},{"id":"select-field.controlled-open"},{"id":"select-field.disabled"},{"id":"select-field.invalid-required"},{"id":"select-field.form-field"},{"id":"select-field.sizes"},{"id":"select-field.keyboard"},{"id":"select-field.dismissal"},{"id":"select-field.rtl"},{"id":"select-field.projection-equivalence"}]}
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.select-field",
+  "interfaceRevision": 2,
+  "semantics": {
+    "operation": "render a controlled named single- or multiple-choice field, optionally searchable, over caller-owned options",
+    "observableOutput": "Equivalent selected value, popup lifecycle, option navigation, relationships, validation metadata, callbacks, sizing, dismissal, and direction behavior in React and Blazor."
+  },
+  "sourceSurface": {
+    "repository": "shipyard",
+    "commit": "a5036ff8b500e0d857d7e0a698408e7cf7f6cf31",
+    "path": "packages/ui-react/src/components/forms/SelectField.tsx",
+    "blob": "7bed632d289df0f1714e03f9f153be5af47208b5",
+    "capturedExports": [
+      "SelectField",
+      "SelectOption",
+      "SelectFieldSize"
+    ]
+  },
+  "dependencies": [
+    "hlp.ui.cn",
+    "hlp.ui.default-strings",
+    "hlp.ui.form-field",
+    "hlp.ui.locale-provider",
+    "hlp.ui.input"
+  ],
+  "invariants": [
+    "Name is required stable control identity; ordered Options and selected state remain caller-owned. With Multiple false (default), Value is one string and explicit permitted selection requests the chosen string exactly once. Existing single-select callers keep their interface and behavior.",
+    "An empty selection displays the caller placeholder or the locale catalog select placeholder when absent; selected display text is the matching caller option label.",
+    "The button or editable-search trigger exposes expanded and controls relationships; while open, one listbox contains the ordered visible options with stable option identities.",
+    "Open may be host-controlled; an interaction requests open-state change while rendered state continues to follow the supplied controlled value.",
+    "Disabled state native-disables the trigger and prevents open and value callbacks.",
+    "Error and required state are exposed as validation metadata; Form Field label, hint, error, required, and disabled context flow to the control with local values taking precedence.",
+    "Accessible name, described-by order, tab index, focus and blur callbacks, and host attributes reach the interactive trigger.",
+    "Canonical sizes are sm, md, and lg with md default and do not alter semantics.",
+    "Arrow keys, Home, End, Enter, Space, and typeahead provide deterministic listbox navigation and exactly-once selection.",
+    "Escape, Tab, and outside pointer close the popup; Escape restores trigger focus, Tab is not trapped, and outside-pointer focus remains on its target.",
+    "Trigger minimum width contracts to the available container width under zoom and enlarged text. Popup width is at least the trigger width and remains viewport-clamped under zoom, reflow, and expanded content. The listbox is the sole vertical scroll owner when options exceed the popup height; the popup frame never adds a nested scrollbar. A multiple-mode search input stays outside that scrolling region. The final visible match remains reachable for selection.",
+    "Direction uses logical trigger-icon, checkmark, and popup alignment while option DOM order remains unchanged.",
+    "Name is frozen as control identity; native browser form serialization is not promised until package-consumer evidence proves it.",
+    "The module owns no option loading, persistence, validation rules, authorization, or domain-specific filtering.",
+    "Multiple true selects a controlled sequence of unique string values. React uses multiple=true with an array value and array callback; Blazor uses Multiple=true, Values and ValuesChanged. Toggling an enabled option emits a new sequence exactly once, preserving existing order and appending a newly selected value; it never mutates caller storage or invokes the single-value callback. The popup remains open after a toggle and exposes aria-multiselectable=true.",
+    "Searchable false is the default. Searchable single mode uses the platform Input as an editable combobox. Multiple mode uses a native button trigger with aria-haspopup=listbox and expanded/controls relationships, not role=combobox, and a named focusable aria-multiselectable listbox. Searchable multiple mode adds a platform Input searchbox adjacent to, not inside, that listbox in the popup. Query drafts are not selected values; typing, focus, filtering, blur, Escape and option-list changes never publish a value.",
+    "Search matches option labels by case-insensitive literal substring, not regular expressions, while preserving caller option order. Searchable mode renders at most MaxVisibleOptions matches (default 25); the bound limits rendered matches, not permitted domain membership. Non-searchable mode retains all options. A supplied bound must be a positive finite integer. No option loading, remote search, ranking or authorization occurs here.",
+    "Single searchable mode shows the selected label when closed. Dismissing without selection discards the draft and restores that label. Multiple searchable mode keeps the query separate from the selected-label summary and preserves all selected values across query edits. Selected labels are caller labels, never generated domain names.",
+    "Editable single-search preserves native text-editing keys, Space and IME composition. ArrowDown/ArrowUp navigate visible enabled options; Enter commits only an active current option and is suppressed during composition; Escape dismisses without a value callback; Tab leaves normally. In multiple mode, opening moves focus to the listbox or its separate searchbox; ArrowDown from that searchbox moves focus to the listbox without selecting. The focused listbox owns ArrowUp/ArrowDown, Home/End, Space toggling and typeahead without requiring modifiers; navigation alone never changes multiple selection. Searchbox Enter prevents implicit form submission but does not toggle an option. Escape restores trigger focus; Tab is not trapped. Non-editable single mode retains its existing keyboard contract.",
+    "An unrelated caller selection or semantic change to ordered options cancels stale draft/active state without publishing a value. A caller acknowledging the exact multiple-value sequence requested by the current toggle is not an unrelated replacement: retain the current search draft and current enabled active option, so repeated Space can select and deselect without renavigation. Recreated but semantically identical ordered options do not cancel that acknowledgment. An option removed or disabled before activation cannot be emitted from a stale event. Empty or exhausted search renders no selectable option and cannot commit free text. Disabled or read-only interaction cannot publish or toggle a value.",
+    "Multiple selection displays the selected caller labels in selected-value order; unknown caller values are not turned into synthetic options or silently deleted when another option is toggled. Clearing the last explicitly toggled value emits an empty sequence, not a default option.",
+    "Both searchable and multiple modes preserve Form Field label, described-by, required, invalid, disabled and host identity metadata. Popup geometry, direction, themes, dismissal and focus guarantees apply to every mode and to their combination."
+  ],
+  "errors": [
+    {
+      "code": "select-field-name-required",
+      "when": "Name is empty."
+    },
+    {
+      "code": "duplicate-select-option-value",
+      "when": "Two options use the same stable value."
+    },
+    {
+      "code": "unsupported-select-field-size",
+      "when": "Size is outside sm, md, or lg."
+    },
+    {
+      "code": "invalid-select-option-limit",
+      "when": "MaxVisibleOptions is not a positive finite integer."
+    },
+    {
+      "code": "duplicate-selected-value",
+      "when": "Multiple-mode controlled values contain duplicate identities."
+    }
+  ],
+  "performance": {
+    "operation": "O(n) option validation and local matching for n caller-owned options; searchable rendering is O(min(matches, MaxVisibleOptions)) with no I/O.",
+    "maximumFixtureOptions": 40000
+  },
+  "presentation": {
+    "disposition": "visual"
+  },
+  "cases": [
+    {
+      "id": "select-field.placeholder"
+    },
+    {
+      "id": "select-field.explicit-placeholder"
+    },
+    {
+      "id": "select-field.selected"
+    },
+    {
+      "id": "select-field.identity"
+    },
+    {
+      "id": "select-field.open"
+    },
+    {
+      "id": "select-field.select"
+    },
+    {
+      "id": "select-field.controlled-open"
+    },
+    {
+      "id": "select-field.disabled"
+    },
+    {
+      "id": "select-field.invalid-required"
+    },
+    {
+      "id": "select-field.form-field"
+    },
+    {
+      "id": "select-field.sizes"
+    },
+    {
+      "id": "select-field.keyboard"
+    },
+    {
+      "id": "select-field.dismissal"
+    },
+    {
+      "id": "select-field.rtl"
+    },
+    {
+      "id": "select-field.projection-equivalence"
+    },
+    {
+      "id": "select-field.search-query-is-not-selection"
+    },
+    {
+      "id": "select-field.search-selection"
+    },
+    {
+      "id": "select-field.search-dismissal"
+    },
+    {
+      "id": "select-field.search-empty"
+    },
+    {
+      "id": "select-field.search-bounded"
+    },
+    {
+      "id": "select-field.search-keyboard-composition"
+    },
+    {
+      "id": "select-field.search-membership-change"
+    },
+    {
+      "id": "select-field.multiple-toggle"
+    },
+    {
+      "id": "select-field.multiple-controlled"
+    },
+    {
+      "id": "select-field.multiple-disabled"
+    },
+    {
+      "id": "select-field.multiple-search"
+    },
+    {
+      "id": "select-field.extended-invalid-input"
+    }
+  ],
+  "designEvaluation": {
+    "selected": "extend-select-field",
+    "evidence": "docs/evidence/t621-control-composition.md",
+    "alternatives": [
+      {
+        "id": "extend-select-field",
+        "ownership": "Keep option identity, selected state, listbox interaction, field metadata and popup lifecycle with their existing owner; reuse Input for editable search.",
+        "tradeoff": "Adds explicit selection/search axes and tests their combinations while preserving the default single-select interface."
+      },
+      {
+        "id": "separate-combobox-and-multiselect",
+        "ownership": "New public owners for editable search and multiple selection.",
+        "tradeoff": "No distinct source, authorization or persistence responsibility justifies duplicating options, navigation, dismissal, labels and popup layout. Rejected for this scope."
+      },
+      {
+        "id": "schema-form-composition",
+        "ownership": "SchemaForm combines SearchInput or Input with Popover and CheckBox.",
+        "tradeoff": "Leaves query-versus-selection, listbox keyboard state and field accessibility duplicated in the consumer; moves markup without moving shared behavior. Rejected."
+      },
+      {
+        "id": "reuse-spotlight",
+        "ownership": "Adapt modal command palette actions into field selection.",
+        "tradeoff": "Modal focus, action invocation and ranked sections conflict with an inline form field and controlled candidate values. Rejected."
+      }
+    ],
+    "decision": "Extend the existing SelectField interface; create no new component identity. Domain membership resolution and authorization remain outside UI."
+  }
+}

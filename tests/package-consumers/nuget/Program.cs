@@ -143,6 +143,13 @@ if (Enum.GetNames<SegmentedControlSize>() is not ["Sm", "Md", "Lg", "Touch"]
     || new SelectOption("active", "Active").Value != "active"
     || new UserIdentity("Ada Lovelace").Name != "Ada Lovelace")
     throw new InvalidOperationException("Packed wave-03-04 component vocabulary changed.");
+if (typeof(HarborlineSelectField).GetProperty(nameof(HarborlineSelectField.ValueChanged))?.PropertyType != typeof(Microsoft.AspNetCore.Components.EventCallback<string>)
+    || typeof(HarborlineSelectField).GetProperty(nameof(HarborlineSelectField.Values))?.PropertyType != typeof(IReadOnlyList<string>)
+    || typeof(HarborlineSelectField).GetProperty(nameof(HarborlineSelectField.ValuesChanged))?.PropertyType != typeof(Microsoft.AspNetCore.Components.EventCallback<IReadOnlyList<string>>)
+    || typeof(HarborlineSelectField).GetProperty(nameof(HarborlineSelectField.Multiple))?.PropertyType != typeof(bool)
+    || typeof(HarborlineSelectField).GetProperty(nameof(HarborlineSelectField.Searchable))?.PropertyType != typeof(bool)
+    || new HarborlineSelectField().MaxVisibleOptions != 25)
+    throw new InvalidOperationException("Packed SelectField single, multiple, or searchable contracts are incomplete.");
 if (typeof(HarborlineChart).Assembly != typeof(HarborlineButton).Assembly
     || typeof(HarborlineChat).Assembly != typeof(HarborlineButton).Assembly
     || typeof(HarborlineDataGrid<>).Assembly != typeof(HarborlineButton).Assembly

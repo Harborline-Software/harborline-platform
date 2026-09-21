@@ -4,3 +4,7 @@ export function scrollAndFocus(element) {
   element.tabIndex = -1
   element.focus({ preventScroll: true })
 }
+
+export function focusSubmit(form) {
+  form?.querySelector('button[type="submit"]')?.focus()
+}

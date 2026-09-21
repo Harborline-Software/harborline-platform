@@ -11,6 +11,7 @@ import {copyCoberturaReport, coverageEnabled} from './coverage.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const reactRoot = resolve(root, 'projections/react/ui/hlp.ui.button')
+const selectFieldRoot = resolve(root, 'projections/react/ui/hlp.ui.select-field')
 const formsTypeScriptRoot = resolve(root, 'projections/typescript/contracts/hlp.contracts.forms')
 const copilotContractsRoot = resolve(root, 'projections/typescript/application/hlp.copilot.contracts')
 const ruleRuntimeTypeScriptRoot = resolve(root, 'projections/typescript/foundation/hlp.foundation.rule-runtime')
@@ -127,14 +128,21 @@ if (buildOnly) {
   // The aggregate React declaration build consumes the canonical Forms
   // declaration output, and the rule-authoring typecheck/build consumes the
   // rule-runtime declaration output. Establish both authorities first so clean
-  // builds never race a consumer against the compiler writing its dist.
+  // builds never race a consumer against the compiler writing its dist. The
+  // SelectField typecheck then consumes sibling declarations from that aggregate
+  // React build, so complete the producer before starting the consumer fan-out.
   const [formsTypeScriptBuild, ruleRuntimeTypeScriptBuild] = await Promise.all([
     run('forms-typescript-build', 'npm', ['run', 'build'], formsTypeScriptRoot),
     run('rule-runtime-typescript-build', 'pnpm', ['run', 'build'], ruleRuntimeTypeScriptRoot),
   ])
+  // SelectField's standalone typecheck reads sibling declarations emitted by this build.
+  const reactBuild = await run('react-build', 'npm', ['run', 'build'], reactRoot)
   results = [formsTypeScriptBuild, ruleRuntimeTypeScriptBuild, ...await Promise.all([
       run('react-typecheck', 'npm', ['run', 'typecheck'], reactRoot),
-      run('react-build', 'npm', ['run', 'build'], reactRoot),
+      run('select-field-typecheck', process.execPath, [
+        resolve(reactRoot, 'node_modules/typescript/bin/tsc'), '-p', 'tsconfig.typecheck.json',
+      ], selectFieldRoot),
+      reactBuild,
       run('forms-typescript-typecheck', 'npm', ['run', 'typecheck'], formsTypeScriptRoot),
       run('rule-runtime-typescript-typecheck', 'pnpm', ['run', 'typecheck'], ruleRuntimeTypeScriptRoot),
       run('rule-authoring-typescript-typecheck', 'pnpm', ['run', 'typecheck'], ruleAuthoringTypeScriptRoot),
@@ -143,8 +151,13 @@ if (buildOnly) {
       run('dotnet-build', dotnet.executable, ['build', 'Harborline.Platform.slnx', '--configuration', 'Release', '--no-restore', '-v:minimal']),
     ])]
 } else {
-  const [reactResult, formsTypeScriptResult, ruleRuntimeTypeScriptResult, ruleAuthoringTypeScriptResult, copilotTypeScriptResult, dotnetBuild] = await Promise.all([
+  const [reactResult, blazorBrowserResult, formsTypeScriptResult, ruleRuntimeTypeScriptResult, ruleAuthoringTypeScriptResult, copilotTypeScriptResult, dotnetBuild] = await Promise.all([
     run('react-native', 'npm', ['run', 'test:native'], reactRoot),
+    run('blazor-browser-native', process.execPath, [
+      resolve(reactRoot, 'node_modules/vitest/vitest.mjs'), 'run',
+      '--config', resolve(root, 'tests/blazor-browser/vitest.config.ts'),
+      '--root', resolve(root, 'tests/blazor-browser'),
+    ]),
     run('forms-typescript-native', 'npm', ['run', 'test:native'], formsTypeScriptRoot),
     run('rule-runtime-typescript-native', 'pnpm', ['test'], ruleRuntimeTypeScriptRoot),
     run('rule-authoring-typescript-native', 'pnpm', ['test'], ruleAuthoringTypeScriptRoot),
@@ -165,7 +178,7 @@ if (buildOnly) {
       ])),
     ])
     : []
-  results = [reactResult, formsTypeScriptResult, ruleRuntimeTypeScriptResult, ruleAuthoringTypeScriptResult, copilotTypeScriptResult, dotnetBuild, ...dotnetTests]
+  results = [reactResult, blazorBrowserResult, formsTypeScriptResult, ruleRuntimeTypeScriptResult, ruleAuthoringTypeScriptResult, copilotTypeScriptResult, dotnetBuild, ...dotnetTests]
   if (collectCoverage) coverage = DOTNET_SUITES
     .filter(([, id]) => results.find(result => result.id === id)?.passed)
     .map(([, id]) => copyCoberturaReport({root, resultsDirectory: resolve(root, 'artifacts/quality/coverage', id, 'results'), suite: id}))
@@ -190,6 +203,7 @@ if (!buildOnly) {
 const passed = results.every(result => result.passed)
 const reactTests = [...(results.find(result => result.id === 'react-native')?.stdout ?? '').matchAll(/Tests\s+(\d+)\s+passed/g)]
   .reduce((total, match) => total + Number(match[1]), 0)
+const blazorBrowserTests = Number(/Tests\s+(\d+)\s+passed/.exec(results.find(result => result.id === 'blazor-browser-native')?.stdout ?? '')?.[1] ?? 0)
 const ruleRuntimeTypeScriptTests = Number(/Tests\s+(\d+)\s+passed/.exec(results.find(result => result.id === 'rule-runtime-typescript-native')?.stdout ?? '')?.[1] ?? 0)
 const ruleAuthoringTypeScriptTests = Number(/Tests\s+(\d+)\s+passed/.exec(results.find(result => result.id === 'rule-authoring-typescript-native')?.stdout ?? '')?.[1] ?? 0)
 const passedOf = id => Number(/Passed:\s+(\d+)/.exec(results.find(result => result.id === id)?.stdout ?? '')?.[1] ?? 0)
@@ -200,7 +214,7 @@ process.stdout.write(`${JSON.stringify({
   mode: buildOnly ? 'build' : 'native-tests',
   dotnetSdk: dotnet.version,
   // Key order is load-bearing: validate-repository.mjs and the receipt both read this shape.
-  // The five TypeScript keys first, then DOTNET_SUITES in table order, then total.
+  // The five TypeScript keys first, then DOTNET_SUITES, browser-adapter tests, and total.
   counts: buildOnly ? undefined : {
     react: reactTests,
     formsTypeScript: formsTypeScriptTests,
@@ -208,8 +222,9 @@ process.stdout.write(`${JSON.stringify({
     ruleRuntimeTypeScript: ruleRuntimeTypeScriptTests,
     ruleAuthoringTypeScript: ruleAuthoringTypeScriptTests,
     ...dotnetCounts,
+    blazorBrowser: blazorBrowserTests,
     total: reactTests + formsTypeScriptTests + copilotTypeScriptTests + ruleRuntimeTypeScriptTests
-      + ruleAuthoringTypeScriptTests + Object.values(dotnetCounts).reduce((sum, n) => sum + n, 0),
+      + ruleAuthoringTypeScriptTests + blazorBrowserTests + Object.values(dotnetCounts).reduce((sum, n) => sum + n, 0),
   },
   coverage: collectCoverage ? coverage : undefined,
   results,

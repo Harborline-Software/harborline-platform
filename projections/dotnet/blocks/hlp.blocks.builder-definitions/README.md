@@ -139,6 +139,15 @@ autosave leaves it untouched. `ProposedChangeCheck` binds one working digest; th
 and receipt content are the verification slice's, and this producer owns only the binding and its
 invalidation through `IsCurrent`.
 
+`ProposedDefinitionEdit` carries the **transport content kind** its definition is, stated by whoever
+authored the edit (T-667). That is the whole of the definition-key to content-kind mapping: it is
+stated once, per edit, in the block that owns definitions, and a consumer turning a released package
+into an installable artifact reads the kind rather than deriving it from the definition key. A
+host-side key-to-kind table would be a second place that has to know the set of kinds, so this block
+validates only that a kind was stated and deliberately does not enumerate them — a name the transport
+does not define is that consumer's named refusal. The stated kind is part of the working digest, so
+restating a definition under another kind is an edit like any other and invalidates an earlier check.
+
 `Release` exports exactly the named saved version as one provider-neutral document through the
 existing `PlatformPackageExporter`: closure, manifest and digest, validated as replayable before it
 is exported. Its own package record carries the baseline generation, the saved version digest and

@@ -31,15 +31,8 @@ else if (Hint == "select" && Args.Field.Options.Count > 0)
 }
 else if (Hint == "multiselect")
 {
-    <select aria-describedby="@Args.DescribedBy" aria-invalid="@(Args.HasError ? "true" : null)"
-            aria-labelledby="@Args.LabelId" aria-required="@(Args.Required ? "true" : null)"
-            class="hl-schema-form__multi-select" disabled="@Args.Disabled" id="@Args.Field.Name"
-            multiple name="@Args.Field.Name" required="@Args.Required" @onchange="ChangeMultiSelectAsync">
-        @foreach (var option in Args.Field.Options)
-        {
-            <option disabled="@option.Disabled" selected="@IsSelected(option.Value)" value="@option.Value">@Resolve(option.Label, option.Value)</option>
-        }
-    </select>
+    <HarborlineSelectField Multiple="true" Values="@SelectedValues" ValuesChanged="@ChangeMultiSelectAsync"
+      Name="@Args.Field.Name" Options="@SelectOptions" Disabled="@Args.Disabled" Required="@Args.Required" Error="@Args.HasError" />
 }
 else if (Hint == "readonly")
 {
@@ -87,11 +80,10 @@ else if (Hint is "text" or "phone" or "email" or "url")
 }
 else
 {
-    <input aria-describedby="@Args.DescribedBy" aria-invalid="@(Args.HasError ? "true" : null)"
-           aria-labelledby="@Args.LabelId" aria-required="@(Args.Required ? "true" : null)"
-           autocomplete="@Autocomplete" disabled="@Args.Disabled" id="@Args.Field.Name"
-           inputmode="@InputMode" name="@Args.Field.Name" required="@Args.Required"
-           step="@Step" type="@InputType" value="@Args.StringValue" @oninput="ChangeInputAsync" />
+    <HarborlineInput DescribedBy="@Args.DescribedBy" Invalid="@Args.HasError" aria-invalid="@(Args.HasError ? "true" : null)"
+      aria-labelledby="@Args.LabelId" aria-required="@(Args.Required ? "true" : null)" Autocomplete="@Autocomplete"
+      Disabled="@Args.Disabled" Id="@Args.Field.Name" InputMode="@InputMode" Name="@Args.Field.Name" Required="@Args.Required"
+      step="@Step" Type="@InputType" Value="@Args.StringValue" ValueChanged="@ChangeTypedStringAsync" />
 }
 
 @code {
@@ -125,7 +117,8 @@ else
         _ => null,
     };
 
-    private IReadOnlyList<SelectOption> SelectOptions => Args.Field.Options
+    private IReadOnlyList<SelectOption> SelectOptions => Args.Field.PermittedValues is { } members
+        ? members.Select(value => new SelectOption(value, value)).ToArray() : Args.Field.Options
         .Select(option => new SelectOption(option.Value, Resolve(option.Label, option.Value), option.Disabled))
         .ToArray();
     private string? Locale => Args.LocaleChain.FirstOrDefault();
@@ -141,12 +134,6 @@ else
     private Task ChangeNullableNumberAsync(double? value) => Args.ValueChanged.InvokeAsync(value);
     private Task ChangeNumberStringAsync(string text) => ParseNumberAsync(text);
 
-    private Task ChangeInputAsync(ChangeEventArgs args)
-    {
-        var text = args.Value?.ToString() ?? string.Empty;
-        return Args.ValueChanged.InvokeAsync(text);
-    }
-
     private Task ParseNumberAsync(string text)
     {
         if (text.Length == 0) return Args.ValueChanged.InvokeAsync(null);
@@ -157,21 +144,9 @@ else
             : Task.CompletedTask;
     }
 
-    private Task ChangeMultiSelectAsync(ChangeEventArgs args)
-    {
-        var values = args.Value switch
-        {
-            string[] array => array,
-            IEnumerable<string> enumerable => enumerable.ToArray(),
-            string value => [value],
-            _ => [],
-        };
-        return Args.ValueChanged.InvokeAsync(values);
-    }
-
-    private bool IsSelected(string value) => Args.Value is System.Collections.IEnumerable selected
-        && Args.Value is not string
-        && selected.Cast<object?>().Any(candidate => string.Equals(candidate?.ToString(), value, StringComparison.Ordinal));
+    private Task ChangeMultiSelectAsync(IReadOnlyList<string> values) => Args.ValueChanged.InvokeAsync(values);
+    private IReadOnlyList<string> SelectedValues => Args.Value is System.Collections.IEnumerable selected && Args.Value is not string
+        ? selected.Cast<object?>().Select(value => Convert.ToString(value, CultureInfo.InvariantCulture) ?? "").ToArray() : [];
 
     private string Resolve(SchemaFormText text, string fallback) =>
         SchemaFormTextResolver.Resolve(text, Args.LocaleChain, fallback);
