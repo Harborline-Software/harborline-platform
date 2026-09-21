@@ -89,6 +89,7 @@ jobs:
             pnpm --dir "$project" install --frozen-lockfile --ignore-scripts
           done
           dotnet restore Harborline.Platform.slnx -v:minimal
+          node tooling/run-native.mjs --build
       - name: Run gallery shard ${{ matrix.shard }} of ${{ strategy.job-total }}
         run: |
           set -o pipefail
