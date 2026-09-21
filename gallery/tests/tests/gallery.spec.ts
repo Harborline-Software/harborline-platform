@@ -7,6 +7,8 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { arch, platform } from 'node:os'
 
+import { gotoWithTransientNetworkRetry } from './navigation-resilience.ts'
+
 // Control ticket 100: the gallery gate reported sixteen counts and measured none of them, and one
 // drifted for fifteen days on the very commit that added the check meant to stop drift. Every count
 // the gate now reports is recorded HERE, by the assertion that does the work, and read back out of
@@ -198,6 +200,7 @@ const loadingStateQuality = JSON.parse(readFileSync(resolve(repositoryRoot, 'con
 }
 const reactBase = process.env.REACT_GALLERY_URL ?? 'http://127.0.0.1:6106'
 const blazorBase = process.env.BLAZOR_GALLERY_URL ?? 'http://127.0.0.1:6107'
+let cachedBlazorIndex: StoryIndex | undefined
 
 async function reactIndex(page: Page): Promise<StoryIndex> {
   let index: StoryIndex | undefined
@@ -230,9 +233,11 @@ async function evaluateSettled<T>(issue: () => Promise<T>): Promise<T> {
 }
 
 async function blazorIndex(page: Page): Promise<StoryIndex> {
-  await page.goto(blazorBase)
+  if (cachedBlazorIndex) return cachedBlazorIndex
+  await gotoWithTransientNetworkRetry(page, blazorBase)
   await page.waitForFunction(() => typeof BlazingStory !== 'undefined')
-  return evaluateSettled(() => page.evaluate(() => BlazingStory.getStoryIndex()))
+  cachedBlazorIndex = await evaluateSettled(() => page.evaluate(() => BlazingStory.getStoryIndex()))
+  return cachedBlazorIndex
 }
 
 function storyId(index: StoryIndex, title: string, name: string): string {
@@ -242,12 +247,12 @@ function storyId(index: StoryIndex, title: string, name: string): string {
 }
 
 async function openReactStory(page: Page, id: string) {
-  await page.goto(`${reactBase}/iframe.html?id=${encodeURIComponent(id)}&viewMode=story`)
+  await gotoWithTransientNetworkRetry(page, `${reactBase}/iframe.html?id=${encodeURIComponent(id)}&viewMode=story`)
   await expect(page.locator('[data-gallery-probe]')).toBeVisible()
 }
 
 async function openBlazorStory(page: Page, id: string) {
-  await page.goto(`${blazorBase}/iframe.html?id=${encodeURIComponent(id)}&viewMode=story`)
+  await gotoWithTransientNetworkRetry(page, `${blazorBase}/iframe.html?id=${encodeURIComponent(id)}&viewMode=story`)
   await page.waitForFunction(() => typeof BlazingStory !== 'undefined')
   await evaluateSettled(() => page.evaluate(() => BlazingStory.readyView()))
   await expect(page.locator('[data-gallery-probe]')).toBeVisible()
