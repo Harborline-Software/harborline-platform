@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.foundation.field-runtime",
-  "interfaceRevision": 2,
+  "interfaceRevision": 3,
   "status": "draft",
   "purpose": "Own shared field-kind admission, authority-aware three-source value-domain resolution, narrowing, kind limits and domain-driven editor selection under DES-0030 and T-621.",
   "dependencies": ["hlp.contracts.fields", "hlp.contracts.identities", "hlp.foundation.rule-runtime"],
@@ -27,6 +27,7 @@
     "max_bytes": "Non-negative UTF-8 byte cap: decoded content for text and original JSON for other scalar kinds."
   },
   "operations": [
+    {"id": "domain.validate-json", "input": "one raw value-domain object and its authored pointer", "result": "all shared domain grammar refusals without source access"},
     {"id": "constraints.validate-declaration", "input": "one authored constraint declaration and its authored pointer", "result": "all multiplicity and value-domain structural refusals without source access"},
     {"id": "kind.bind", "input": "FieldKindReference and authored pointer", "result": "ICompiledFieldKind or FieldAdmissionException"},
     {"id": "kind.validate", "input": "bound kind, original JSON value and value pointer", "result": "member-neutral refusals without value mutation"},
@@ -37,6 +38,7 @@
   ],
   "invariants": [
     "Exactly one domain source is authored: literals, an immutable Taxonomy scheme, or a record query with a predicate.",
+    "Raw and typed value-domain admission share ValueDomainAdmission through IFieldDomainRuntime, including duplicate-member detection and exact RFC 6901 pointers.",
     "Declaration-only admission owns non-negative coherent multiplicity, including the required minimum, and delegates domain shape admission to the shared ValueDomainAdmission operation.",
     "Declaration-only admission performs no source access, I/O, snapshot acquisition or principal assumption; malformed multiplicity uses field.constraint_intersection_empty at the authored constraints pointer and domain refusals use its value_domain child pointer.",
     "Field-kind binding names an exact admitted version, never a latest-version or kind-name fallback.",

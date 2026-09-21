@@ -8,7 +8,7 @@ public sealed class RecordsIntentStructureTests
     [Theory]
     [InlineData(false, "/fields/0/constraints/value_domain")]
     [InlineData(true, "/traits/0/slots/0/constraints/value_domain")]
-    public void Constraint_domains_require_exactly_one_source_even_before_slot_binding(bool inSlot, string jsonPointer)
+    public async Task Constraint_domains_require_exactly_one_source_even_before_slot_binding(bool inSlot, string jsonPointer)
     {
         var mixed = new ValueDomainDefinition(["a"], new("scheme.example", "1.0.0"));
         var constraints = new FieldConstraintDefinition(false, 0, 1, [], mixed);
@@ -20,7 +20,8 @@ public sealed class RecordsIntentStructureTests
                 : [],
         };
 
-        var result = new RecordsIntentValidator(RecordsTestDomains.CreateRuntime()).Validate(definition);
+        var result = await new RecordsIntentValidator(RecordsTestDomains.CreateRuntime(), RecordsTestKinds.Text)
+            .ValidateAsync(definition, RecordsTestDomains.Scope, CancellationToken.None);
 
         Assert.Contains(result.Refusals, refusal =>
             refusal.Code == "field.value_domain_source_count" && refusal.JsonPointer == jsonPointer);
@@ -31,7 +32,7 @@ public sealed class RecordsIntentStructureTests
     [InlineData(false, 0, -1)]
     [InlineData(false, 2, 1)]
     [InlineData(true, 0, 0)]
-    public void Unbound_slot_multiplicity_must_admit_its_required_minimum(bool required, int minimum, int maximum)
+    public async Task Unbound_slot_multiplicity_must_admit_its_required_minimum(bool required, int minimum, int maximum)
     {
         var definition = Definition() with
         {
@@ -42,7 +43,8 @@ public sealed class RecordsIntentStructureTests
             ],
         };
 
-        var result = new RecordsIntentValidator(RecordsTestDomains.CreateRuntime()).Validate(definition);
+        var result = await new RecordsIntentValidator(RecordsTestDomains.CreateRuntime(), RecordsTestKinds.Text)
+            .ValidateAsync(definition, RecordsTestDomains.Scope, CancellationToken.None);
 
         Assert.Contains(result.Refusals, refusal =>
             refusal.Code == "field.constraint_intersection_empty"

@@ -32,6 +32,10 @@ public sealed class ValueDomainRuntime : IFieldDomainRuntime
     }
 
     /// <inheritdoc />
+    public IReadOnlyList<FieldRefusal> ValidateValueDomainJson(string json, string jsonPointer)
+        => ValueDomainAdmission.ValidateJson(json, jsonPointer);
+
+    /// <inheritdoc />
     public IReadOnlyList<FieldRefusal> ValidateDeclaration(
         FieldConstraintDefinition constraints,
         string jsonPointer)

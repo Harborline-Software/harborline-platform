@@ -1,15 +1,25 @@
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
+using Harborline.Contracts.Fields;
 
 namespace Harborline.Kernel.SchemaValidation;
 
 internal static class RecordsDefinitionShape
 {
-    internal static void Validate(JsonElement value, List<RecordsRefusal> refusals)
-        => Visit(value, typeof(RecordTypeDefinition), "", false, refusals);
+    internal static void Validate(
+        JsonElement value,
+        IFieldDomainRuntime fieldDomains,
+        List<RecordsRefusal> refusals)
+        => Visit(value, typeof(RecordTypeDefinition), "", false, fieldDomains, refusals);
 
-    private static void Visit(JsonElement value, Type type, string pointer, bool nullable, List<RecordsRefusal> refusals)
+    private static void Visit(
+        JsonElement value,
+        Type type,
+        string pointer,
+        bool nullable,
+        IFieldDomainRuntime fieldDomains,
+        List<RecordsRefusal> refusals)
     {
         if (value.ValueKind == JsonValueKind.Null)
         {
@@ -17,6 +27,12 @@ internal static class RecordsDefinitionShape
             return;
         }
         type = Nullable.GetUnderlyingType(type) ?? type;
+        if (type == typeof(ValueDomainDefinition))
+        {
+            refusals.AddRange(fieldDomains.ValidateValueDomainJson(value.GetRawText(), pointer)
+                .Select(refusal => new RecordsRefusal(refusal.Code, refusal.JsonPointer, refusal.Message)));
+            return;
+        }
         if (type == typeof(string))
         {
             if (value.ValueKind != JsonValueKind.String) Refuse("string_required", pointer, refusals);
@@ -46,7 +62,8 @@ internal static class RecordsDefinitionShape
             {
                 if (value.ValueKind != JsonValueKind.Object) { Refuse("object_required", pointer, refusals); return; }
                 foreach (var property in value.EnumerateObject())
-                    Visit(property.Value, type.GenericTypeArguments[1], Child(pointer, property.Name), false, refusals);
+                    Visit(property.Value, type.GenericTypeArguments[1], Child(pointer, property.Name), false,
+                        fieldDomains, refusals);
                 return;
             }
             if (generic == typeof(IReadOnlyList<>))
@@ -54,7 +71,8 @@ internal static class RecordsDefinitionShape
                 if (value.ValueKind != JsonValueKind.Array) { Refuse("array_required", pointer, refusals); return; }
                 var index = 0;
                 foreach (var item in value.EnumerateArray())
-                    Visit(item, type.GenericTypeArguments[0], $"{pointer}/{index++}", false, refusals);
+                    Visit(item, type.GenericTypeArguments[0], $"{pointer}/{index++}", false,
+                        fieldDomains, refusals);
                 return;
             }
         }
@@ -73,7 +91,7 @@ internal static class RecordsDefinitionShape
                 continue;
             }
             Visit(property.Value, declared.PropertyType, child,
-                nullability.Create(declared).ReadState == NullabilityState.Nullable, refusals);
+                nullability.Create(declared).ReadState == NullabilityState.Nullable, fieldDomains, refusals);
         }
         foreach (var (name, property) in properties)
         {

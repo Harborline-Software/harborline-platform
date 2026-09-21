@@ -6,6 +6,43 @@ namespace Harborline.Kernel.SchemaValidation.Tests;
 
 public sealed class RecordsConstraintAdmissionTests
 {
+    [Fact]
+    public async Task Distinct_complete_domain_sources_with_overlapping_members_admit()
+    {
+        var scheme = new TaxonomySchemeReference("workflow-state", "1.0.0");
+        var runtime = RecordsTestDomains.CreateRuntime(
+            new Dictionary<TaxonomySchemeReference, IReadOnlyList<Harborline.Foundation.FieldRuntime.FieldDomainMember>>
+            {
+                [scheme] = [RecordsTestDomains.Member("open"), RecordsTestDomains.Member("closed")],
+            },
+            new Dictionary<string, IReadOnlyList<Harborline.Foundation.FieldRuntime.FieldDomainMember>>
+            {
+                ["records.visible-state"] =
+                [
+                    RecordsTestDomains.Member("closed", "{\"active\":true}"),
+                    RecordsTestDomains.Member("archived", "{\"active\":true}"),
+                ],
+            });
+        var definition = Definition() with
+        {
+            Fields = [Field()],
+            Traits =
+            [
+                new("taxonomy", "1.0.0", "Taxonomy",
+                    [new("state", true, true, new(true, 1, 1, [], new(TaxonomyScheme: scheme)))]),
+                new("query", "1.0.0", "Query",
+                    [new("state", true, true, new(true, 1, 1, [], new(RecordQuery: new(
+                        "records.visible-state", "{\"==\":[{\"var\":\"active\"},true]}"))))]),
+            ],
+            TraitBindings = [Binding("taxonomy"), Binding("query")],
+        };
+
+        var result = await new RecordsIntentValidator(runtime, RecordsTestKinds.Text)
+            .ValidateAsync(definition, RecordsTestDomains.Scope, CancellationToken.None);
+
+        Assert.True(result.IsAdmitted);
+    }
+
     [Theory]
     [InlineData(null, null)]
     [InlineData("records.target", "class.target")]
@@ -25,14 +62,15 @@ public sealed class RecordsConstraintAdmissionTests
     [InlineData(-1, 1)]
     [InlineData(0, -1)]
     [InlineData(3, 2)]
-    public void Invalid_multiplicity_is_refused_during_intent_admission(int minimum, int maximum)
+    public async Task Invalid_multiplicity_is_refused_during_intent_admission(int minimum, int maximum)
     {
         var definition = Definition() with
         {
             Fields = [Field() with { Constraints = new(false, minimum, maximum, [], null) }],
         };
 
-        var result = new RecordsIntentValidator(RecordsTestDomains.CreateRuntime()).Validate(definition);
+        var result = await new RecordsIntentValidator(RecordsTestDomains.CreateRuntime(), RecordsTestKinds.Text)
+            .ValidateAsync(definition, RecordsTestDomains.Scope, CancellationToken.None);
 
         Assert.Contains(result.Refusals, refusal =>
             refusal.Code == "field.constraint_intersection_empty"
@@ -40,16 +78,17 @@ public sealed class RecordsConstraintAdmissionTests
     }
 
     [Fact]
-    public void Malformed_nested_members_return_all_structural_refusals_without_throwing()
+    public async Task Malformed_nested_members_return_all_structural_refusals_without_throwing()
     {
-        var validator = new RecordsIntentValidator(RecordsTestDomains.CreateRuntime());
+        var validator = new RecordsIntentValidator(RecordsTestDomains.CreateRuntime(), RecordsTestKinds.Text);
         var malformed = Definition() with
         {
             Envelope = new(null!, "1.0.0", "tenant-a", "package-a", "test"),
             Fields = [Field() with { Kind = null! }, null!],
         };
 
-        var typed = validator.Validate(malformed);
+        var typed = await validator.ValidateAsync(
+            malformed, RecordsTestDomains.Scope, CancellationToken.None);
 
         Assert.Equal(
             new[] { "/envelope/definition_id", "/fields/0/kind", "/fields/1" },
@@ -65,7 +104,8 @@ public sealed class RecordsConstraintAdmissionTests
     {
         var definition = Definition() with { Fields = [Field() with { IsTranslatable = true }] };
         var registry = new InMemorySchemaRegistry(fieldKindRuntime: RecordsTestKinds.Text);
-        var schema = await new RecordsDefinitionCompiler(registry, RecordsTestDomains.CreateRuntime(), RecordsTestKinds.Text).CompileAndRegisterAsync(definition);
+        var schema = await new RecordsDefinitionCompiler(registry, RecordsTestDomains.CreateRuntime(), RecordsTestKinds.Text)
+            .CompileAndRegisterAsync(definition, RecordsTestDomains.Scope, CancellationToken.None);
         Assert.Equal(valid, (await registry.ValidateAsync(schema.Id, Encoding.UTF8.GetBytes(json))).IsValid);
     }
 
@@ -85,23 +125,26 @@ public sealed class RecordsConstraintAdmissionTests
             }],
         };
         var registry = new InMemorySchemaRegistry(fieldKindRuntime: RecordsTestKinds.Text);
-        var schema = await new RecordsDefinitionCompiler(registry, RecordsTestDomains.CreateRuntime(), RecordsTestKinds.Text).CompileAndRegisterAsync(definition);
+        var schema = await new RecordsDefinitionCompiler(registry, RecordsTestDomains.CreateRuntime(), RecordsTestKinds.Text)
+            .CompileAndRegisterAsync(definition, RecordsTestDomains.Scope, CancellationToken.None);
 
         Assert.Equal(valid, (await registry.ValidateAsync(schema.Id, Encoding.UTF8.GetBytes(json))).IsValid);
     }
 
     [Fact]
-    public void Raw_intent_and_typed_intent_share_structural_admission()
+    public async Task Raw_intent_and_typed_intent_share_structural_admission()
     {
         var invalid = Definition() with { RecordTypeId = "" };
-        var validator = new RecordsIntentValidator(RecordsTestDomains.CreateRuntime());
-        var typed = validator.Validate(invalid);
-        var raw = validator.ValidateJson(RecordsDefinitionJson.SerializeCanonical(invalid));
+        var validator = new RecordsIntentValidator(RecordsTestDomains.CreateRuntime(), RecordsTestKinds.Text);
+        var typed = await validator.ValidateAsync(invalid, RecordsTestDomains.Scope, CancellationToken.None);
+        var raw = await validator.ValidateJsonAsync(
+            RecordsDefinitionJson.SerializeCanonical(invalid), RecordsTestDomains.Scope, CancellationToken.None);
 
         Assert.Equal(typed.Refusals.Select(item => (item.Code, item.JsonPointer)),
             raw.Refusals.Select(item => (item.Code, item.JsonPointer)));
         Assert.False(raw.IsAdmitted);
-        Assert.False(validator.ValidateJson("{}").IsAdmitted);
+        Assert.False((await validator.ValidateJsonAsync(
+            "{}", RecordsTestDomains.Scope, CancellationToken.None)).IsAdmitted);
     }
 
     [Fact]
@@ -114,7 +157,8 @@ public sealed class RecordsConstraintAdmissionTests
             TraitBindings = [Binding("first"), Binding("second")],
         };
         var registry = new InMemorySchemaRegistry(fieldKindRuntime: RecordsTestKinds.Text);
-        var schema = await new RecordsDefinitionCompiler(registry, RecordsTestDomains.CreateRuntime(), RecordsTestKinds.Text).CompileAndRegisterAsync(definition);
+        var schema = await new RecordsDefinitionCompiler(registry, RecordsTestDomains.CreateRuntime(), RecordsTestKinds.Text)
+            .CompileAndRegisterAsync(definition, RecordsTestDomains.Scope, CancellationToken.None);
 
         var allowed = await registry.ValidateAsync(schema.Id, Encoding.UTF8.GetBytes("""{"state":"b"}"""));
         var missing = await registry.ValidateAsync(schema.Id, Encoding.UTF8.GetBytes("{}"));
@@ -126,7 +170,7 @@ public sealed class RecordsConstraintAdmissionTests
     }
 
     [Fact]
-    public void Three_pairwise_overlapping_slots_with_no_common_value_refuse_admission()
+    public async Task Three_pairwise_overlapping_slots_with_no_common_value_refuse_admission()
     {
         var definition = Definition() with
         {
@@ -135,10 +179,11 @@ public sealed class RecordsConstraintAdmissionTests
             TraitBindings = [Binding("first"), Binding("second"), Binding("third")],
         };
 
-        var result = new RecordsIntentValidator(RecordsTestDomains.CreateRuntime()).Validate(definition);
+        var result = await new RecordsIntentValidator(RecordsTestDomains.CreateRuntime(), RecordsTestKinds.Text)
+            .ValidateAsync(definition, RecordsTestDomains.Scope, CancellationToken.None);
 
         Assert.Contains(result.Refusals, refusal =>
-            refusal.Code == "records.trait.constraint_intersection_empty"
+            refusal.Code == "field.constraint_intersection_empty"
             && refusal.JsonPointer == "/fields/0/constraints");
     }
 

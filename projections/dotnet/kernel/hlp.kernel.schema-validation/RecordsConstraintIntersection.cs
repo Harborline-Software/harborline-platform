@@ -37,39 +37,4 @@ internal static class RecordsConstraintIntersection
             constraints.Add(new(false, 0, field.Reference?.Cardinality == ReferenceCardinality.Many ? null : 1, [], null));
         return constraints;
     }
-
-    internal static bool TryResolve(
-        IEnumerable<FieldConstraintDefinition> constraints,
-        out FieldConstraintDefinition result)
-    {
-        var required = false;
-        var minimum = 0;
-        int? maximum = null;
-        HashSet<string>? roles = null;
-        ValueDomainDefinition? domain = null;
-        var compatible = true;
-        foreach (var constraint in constraints)
-        {
-            required |= constraint.Required;
-            minimum = Math.Max(minimum, constraint.MinimumCount);
-            if (constraint.MaximumCount is { } upper)
-                maximum = maximum is null ? upper : Math.Min(maximum.Value, upper);
-            if (constraint.ReadRoleIds.Count > 0)
-            {
-                if (roles is null) roles = new(constraint.ReadRoleIds, StringComparer.Ordinal);
-                else roles.IntersectWith(constraint.ReadRoleIds);
-            }
-            if (constraint.ValueDomain is not { } next) continue;
-            if (domain is null) domain = next;
-            else if (domain.LiteralValues is { } left && next.LiteralValues is { } right)
-                domain = new(LiteralValues: left.Intersect(right, StringComparer.Ordinal).ToArray());
-            else if (domain != next) compatible = false;
-        }
-
-        result = new(required, minimum, maximum, roles?.ToArray() ?? [], domain);
-        return compatible
-            && (maximum is null || maximum >= Math.Max(minimum, required ? 1 : 0))
-            && (roles is null || roles.Count > 0)
-            && domain?.LiteralValues is not { Count: 0 };
-    }
 }

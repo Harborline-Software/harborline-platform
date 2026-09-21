@@ -26,6 +26,8 @@ commit orchestration remain with their existing owners. Records integration resu
   revision or predicate-bearing record query. The host supplies a complete pinned tenant
   snapshot and per-member read authority. Returned membership and editor cardinality contain
   only values the authenticated caller may read.
+- `ValidateValueDomainJson` exposes the producer's raw `ValueDomainAdmission` operation through
+  the shared contract, preserving duplicate-member detection and exact authored pointers without I/O.
 - `IntersectAsync` and `NarrowAsync` prove constraints against complete membership, including
   members withheld from the caller. A consumer cannot widen a domain, drop required, loosen
   multiplicity or relax access. Proofs retain source and predicate attribution.
@@ -59,8 +61,6 @@ Forms wire carries that decision; rendering it is the Forms/Views consumer contr
 
 ## Verification status
 
-Verified on `main` at `406e725`. `node tooling/run-native.mjs` passes 4518 tests with
-zero failures and zero skips, including FieldRuntime 165, SchemaValidation 44,
-Forms.Engine 198, EntityViews 69, React 1437 and the architecture fences 25. The headless platform gate
-(`HARBORLINE_GATE_HEADLESS=1 node tooling/run-phase-4-gate.mjs`) is the landing path
-and runs in full on the merge queue.
+The T-615 asynchronous Records admission slice verifies the complete FieldRuntime and
+SchemaValidation test projects sequentially. The repository-wide gate remains the landing path
+and is intentionally outside this bounded implementation slice.

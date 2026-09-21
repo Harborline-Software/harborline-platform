@@ -356,6 +356,11 @@ public static class RecordsDefinitionJson
     internal static JsonElement AdmissionShape(RecordTypeDefinition definition)
         => JsonSerializer.SerializeToElement(definition, AdmissionOptions);
 
+    internal static RecordTypeDefinition Detach(RecordTypeDefinition definition)
+        => JsonSerializer.Deserialize<RecordTypeDefinition>(
+            JsonSerializer.Serialize(definition, AdmissionOptions), Options)
+            ?? throw new JsonException("Records definition cannot be null.");
+
     /// <summary>Serializes a definition with deterministic object-property ordering.</summary>
     public static string SerializeCanonical(RecordTypeDefinition definition)
     {
@@ -400,6 +405,15 @@ public sealed class RecordsDefinitionAdmissionException : Exception
     public IReadOnlyList<RecordsRefusal> Refusals { get; }
 }
 
+internal sealed record AdmittedRecordsDefinition(
+    RecordTypeDefinition Definition,
+    IReadOnlyList<ICompiledFieldKind> KindBindings,
+    IReadOnlyList<ResolvedFieldConstraints> EffectiveConstraints);
+
+internal sealed record RecordsAdmissionResult(
+    AdmittedRecordsDefinition? Admitted,
+    IReadOnlyList<RecordsRefusal> Refusals);
+
 /// <summary>Compiles admitted Records grammar and registers its JSON Schema 2020-12 contract.</summary>
 public sealed class RecordsDefinitionCompiler
 {
@@ -425,54 +439,52 @@ public sealed class RecordsDefinitionCompiler
     /// <summary>Validates, compiles and idempotently registers one typed Records definition.</summary>
     public async ValueTask<Schema> CompileAndRegisterAsync(
         RecordTypeDefinition definition,
-        CancellationToken cancellationToken = default)
+        FieldDomainScope scope,
+        CancellationToken cancellationToken)
     {
-        var schemaText = CompileSchema(definition, cancellationToken);
+        var admission = await new RecordsIntentValidator(_fieldDomains, _fieldKinds)
+            .AdmitAsync(definition, null, scope, cancellationToken).ConfigureAwait(false);
+        if (admission.Admitted is null)
+            throw new RecordsDefinitionAdmissionException(admission.Refusals);
+        var schemaText = Compile(admission.Admitted);
 
         return await _registry.RegisterAsync(
             schemaText,
             tags:
             [
                 "records-definition",
-                $"records-definition:{definition.Envelope.DefinitionId}",
-                $"records-definition-version:{definition.Envelope.Version}",
+                $"records-definition:{admission.Admitted.Definition.Envelope.DefinitionId}",
+                $"records-definition-version:{admission.Admitted.Definition.Envelope.Version}",
             ],
             cancellationToken: cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>Validates and compiles one typed Records definition without registering it.</summary>
-    public string CompileSchema(
+    public async ValueTask<string> CompileSchemaAsync(
         RecordTypeDefinition definition,
-        CancellationToken cancellationToken = default)
+        FieldDomainScope scope,
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(definition);
         cancellationToken.ThrowIfCancellationRequested();
-        var admission = new RecordsIntentValidator(_fieldDomains).Validate(definition);
-        if (!admission.IsAdmitted)
-        {
+        var admission = await new RecordsIntentValidator(_fieldDomains, _fieldKinds)
+            .AdmitAsync(definition, null, scope, cancellationToken).ConfigureAwait(false);
+        if (admission.Admitted is null)
             throw new RecordsDefinitionAdmissionException(admission.Refusals);
-        }
-        var bindings = RecordsFieldKindBindings.BindAll(definition, _fieldKinds);
-
-        return Compile(definition, bindings);
+        return Compile(admission.Admitted);
     }
 
-    private static string Compile(
-        RecordTypeDefinition definition,
-        IReadOnlyList<ICompiledFieldKind> bindings)
+    private static string Compile(AdmittedRecordsDefinition admission)
     {
+        var definition = admission.Definition;
         var properties = new JsonObject();
         var required = new JsonArray();
         for (var index = 0; index < definition.Fields.Count; index++)
         {
             var field = definition.Fields[index];
-            if (!RecordsConstraintIntersection.TryResolve(
-                    RecordsConstraintIntersection.ForField(definition, field), out var effective))
-                throw new RecordsDefinitionAdmissionException(
-                    [new("records.field.constraint_intersection_empty", "/fields", "Field constraints have no admitted intersection.")]);
-            properties[field.Key] = Compile(
-                field with { Constraints = effective, ValueDomain = effective.ValueDomain },
-                bindings[index]);
+            var effective = admission.EffectiveConstraints[index];
+            properties[field.Key] = Compile(field, admission.KindBindings[index], effective,
+                RecordsConstraintIntersection.ForField(definition, field));
             if (field.IsIdentity || effective.Required || effective.MinimumCount > 0)
             {
                 required.Add(field.Key);
@@ -495,7 +507,11 @@ public sealed class RecordsDefinitionCompiler
         return schema.ToJsonString();
     }
 
-    private static JsonObject Compile(RecordFieldDefinition field, ICompiledFieldKind binding)
+    private static JsonObject Compile(
+        RecordFieldDefinition field,
+        ICompiledFieldKind binding,
+        ResolvedFieldConstraints effective,
+        IReadOnlyList<FieldConstraintDefinition> authoredConstraints)
     {
         var schema = JsonNode.Parse(binding.JsonSchema.GetRawText())!.AsObject();
         if (!string.IsNullOrWhiteSpace(field.Pattern)
@@ -504,24 +520,29 @@ public sealed class RecordsDefinitionCompiler
             schema["pattern"] = field.Pattern;
         }
 
-        var valueDomain = field.ValueDomain ?? field.Constraints?.ValueDomain;
-        if (valueDomain?.LiteralValues is { } values)
+        var literalDomains = authoredConstraints
+            .Select(constraint => constraint.ValueDomain?.LiteralValues)
+            .OfType<IReadOnlyList<string>>()
+            .ToArray();
+        if (literalDomains.Length > 0)
         {
-            schema["enum"] = new JsonArray(values.Select(value => JsonValue.Create(value)).ToArray());
+            schema["allOf"] = new JsonArray(literalDomains
+                .Select(values => (JsonNode)new JsonObject
+                {
+                    ["enum"] = new JsonArray(values.Select(value => JsonValue.Create(value)).ToArray()),
+                })
+                .ToArray());
         }
 
         if (field.IsTranslatable)
             schema = new JsonObject { ["type"] = "object", ["additionalProperties"] = schema };
         if (field.Reference?.Cardinality == ReferenceCardinality.Many
-            || field.Constraints?.MaximumCount > 1
-            || field.Constraints is { MaximumCount: null })
+            || effective.MaximumCount > 1
+            || effective.MaximumCount is null)
         {
             var collection = new JsonObject { ["type"] = "array", ["items"] = schema };
-            if (field.Constraints is { } bounds)
-            {
-                collection["minItems"] = Math.Max(bounds.MinimumCount, bounds.Required ? 1 : 0);
-                if (bounds.MaximumCount is { } maximum) collection["maxItems"] = maximum;
-            }
+            collection["minItems"] = Math.Max(effective.MinimumCount, effective.Required ? 1 : 0);
+            if (effective.MaximumCount is { } maximum) collection["maxItems"] = maximum;
             return collection;
         }
         return schema;
@@ -534,8 +555,19 @@ internal static class RecordsFieldKindBindings
         RecordTypeDefinition definition,
         IFieldKindRuntime fieldKinds)
     {
-        var bindings = new ICompiledFieldKind?[definition.Fields.Count];
         var refusals = new List<RecordsRefusal>();
+        var bindings = TryBindAll(definition, fieldKinds, refusals);
+        if (refusals.Count > 0)
+            throw new RecordsDefinitionAdmissionException(refusals.AsReadOnly());
+        return bindings!;
+    }
+
+    internal static IReadOnlyList<ICompiledFieldKind>? TryBindAll(
+        RecordTypeDefinition definition,
+        IFieldKindRuntime fieldKinds,
+        List<RecordsRefusal> refusals)
+    {
+        var bindings = new ICompiledFieldKind?[definition.Fields.Count];
         for (var index = 0; index < definition.Fields.Count; index++)
         {
             var field = definition.Fields[index];
@@ -568,10 +600,9 @@ internal static class RecordsFieldKindBindings
             }
         }
 
-        if (refusals.Count > 0)
-            throw new RecordsDefinitionAdmissionException(refusals.AsReadOnly());
-
-        return Array.AsReadOnly(bindings.Select(binding => binding!).ToArray());
+        return bindings.Any(binding => binding is null)
+            ? null
+            : Array.AsReadOnly(bindings.Select(binding => binding!).ToArray());
     }
 }
 
@@ -656,18 +687,26 @@ public sealed class RecordsIntentValidator
         "has_workflow",
     };
     private readonly IFieldDomainRuntime _fieldDomains;
+    private readonly IFieldKindRuntime _fieldKinds;
 
-    /// <summary>Creates a validator over the shared field declaration authority.</summary>
-    public RecordsIntentValidator(IFieldDomainRuntime fieldDomains)
+    /// <summary>Creates a validator over the shared field declaration and kind authorities.</summary>
+    public RecordsIntentValidator(IFieldDomainRuntime fieldDomains, IFieldKindRuntime fieldKinds)
     {
         ArgumentNullException.ThrowIfNull(fieldDomains);
+        ArgumentNullException.ThrowIfNull(fieldKinds);
         _fieldDomains = fieldDomains;
+        _fieldKinds = fieldKinds;
     }
 
     /// <summary>Validates raw authoring intent and names ruled negative boundaries before decoding.</summary>
-    public RecordsIntentValidationResult ValidateJson(string json)
+    public async ValueTask<RecordsIntentValidationResult> ValidateJsonAsync(
+        string json,
+        FieldDomainScope scope,
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(json);
+        ArgumentNullException.ThrowIfNull(scope);
+        cancellationToken.ThrowIfCancellationRequested();
         var refusals = new List<RecordsRefusal>();
         JsonDocument document;
         try { document = JsonDocument.Parse(json); }
@@ -715,23 +754,19 @@ public sealed class RecordsIntentValidator
                     AddForbiddenFieldMember(field, index, "regex", "records.field.inline_membership_forbidden");
                     AddForbiddenFieldMember(field, index, "retention_policy", "records.field.retention_forbidden");
                     AddForbiddenFieldMember(field, index, "retention_class", "records.field.retention_forbidden");
-                    if (field.TryGetProperty("value_domain", out var domain)
-                        && domain.ValueKind == JsonValueKind.Object
-                        && domain.TryGetProperty("pattern", out _))
-                    {
-                        refusals.Add(new RecordsRefusal(
-                            "records.field.pattern_membership_forbidden",
-                            $"/fields/{index}/value_domain/pattern",
-                            "Pattern constrains shape and cannot prove value-domain membership."));
-                    }
                 }
                 index++;
             }
         }
-        RecordsDefinitionShape.Validate(root, refusals);
+        RecordsDefinitionShape.Validate(root, _fieldDomains, refusals);
         if (refusals.Count == 0)
         {
-            try { refusals.AddRange(Validate(RecordsDefinitionJson.Deserialize(json)).Refusals); }
+            try
+            {
+                var admission = await AdmitAsync(
+                    RecordsDefinitionJson.Deserialize(json), null, scope, cancellationToken).ConfigureAwait(false);
+                refusals.AddRange(admission.Refusals);
+            }
             catch (JsonException)
             {
                 refusals.Add(new("records.definition.shape_invalid", "", "The definition does not match the Records grammar."));
@@ -754,15 +789,78 @@ public sealed class RecordsIntentValidator
         }
     }
 
-    /// <summary>Returns every structural refusal for <paramref name="definition"/>.</summary>
-    public RecordsIntentValidationResult Validate(
+    /// <summary>Returns every structural and shared-domain refusal for <paramref name="definition"/>.</summary>
+    public ValueTask<RecordsIntentValidationResult> ValidateAsync(
         RecordTypeDefinition definition,
-        RecordTypeDefinition? publishedSameVersion = null)
+        FieldDomainScope scope,
+        CancellationToken cancellationToken)
+        => ValidateAsync(definition, null, scope, cancellationToken);
+
+    /// <summary>Returns every admission refusal, including immutable-identity checks against a published revision.</summary>
+    public async ValueTask<RecordsIntentValidationResult> ValidateAsync(
+        RecordTypeDefinition definition,
+        RecordTypeDefinition? publishedSameVersion,
+        FieldDomainScope scope,
+        CancellationToken cancellationToken)
+    {
+        var admission = await AdmitAsync(
+            definition, publishedSameVersion, scope, cancellationToken).ConfigureAwait(false);
+        return new(admission.Refusals);
+    }
+
+    internal async ValueTask<RecordsAdmissionResult> AdmitAsync(
+        RecordTypeDefinition definition,
+        RecordTypeDefinition? publishedSameVersion,
+        FieldDomainScope scope,
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(definition);
+        ArgumentNullException.ThrowIfNull(scope);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var shapeRefusals = new List<RecordsRefusal>();
+        RecordsDefinitionShape.Validate(
+            RecordsDefinitionJson.AdmissionShape(definition), _fieldDomains, shapeRefusals);
+        if (shapeRefusals.Any(refusal => refusal.Code.StartsWith(
+                "records.definition.", StringComparison.Ordinal)))
+            return new(null, shapeRefusals.AsReadOnly());
+
+        RecordTypeDefinition detached;
+        RecordTypeDefinition? detachedPublished;
+        try
+        {
+            detached = RecordsDefinitionJson.Detach(definition);
+            detachedPublished = publishedSameVersion is null
+                ? null
+                : RecordsDefinitionJson.Detach(publishedSameVersion);
+        }
+        catch (JsonException)
+        {
+            return new(null,
+                [new("records.definition.shape_invalid", "", "The definition does not match the Records grammar.")]);
+        }
+
         var refusals = new List<RecordsRefusal>();
-        RecordsDefinitionShape.Validate(RecordsDefinitionJson.AdmissionShape(definition), refusals);
-        if (refusals.Count > 0) return new RecordsIntentValidationResult(refusals);
+        ValidateStructure(detached, detachedPublished, refusals);
+        var bindings = RecordsFieldKindBindings.TryBindAll(detached, _fieldKinds, refusals);
+        ValidateScope(detached, scope, refusals);
+        Deduplicate(refusals);
+        if (refusals.Count > 0)
+            return new(null, refusals.AsReadOnly());
+
+        var effective = await ProveDomainsAsync(
+            detached, scope, refusals, cancellationToken).ConfigureAwait(false);
+        Deduplicate(refusals);
+        if (refusals.Count > 0 || effective is null)
+            return new(null, refusals.AsReadOnly());
+        return new(new(detached, bindings!, effective), Array.Empty<RecordsRefusal>());
+    }
+
+    private void ValidateStructure(
+        RecordTypeDefinition definition,
+        RecordTypeDefinition? publishedSameVersion,
+        List<RecordsRefusal> refusals)
+    {
         if (string.IsNullOrWhiteSpace(definition.RecordTypeId))
         {
             refusals.Add(new RecordsRefusal(
@@ -849,22 +947,63 @@ public sealed class RecordsIntentValidator
                     "An identity field cannot be translatable."));
             }
 
-            if (!string.IsNullOrWhiteSpace(field.RefinesFieldKey)
-                && field.Constraints is { } refinement
-                && definition.Fields.FirstOrDefault(candidate =>
-                    string.Equals(candidate.Key, field.RefinesFieldKey, StringComparison.Ordinal))?.Constraints is { } floor
-                && !IsNarrowerOrEqual(refinement, floor))
-            {
-                refusals.Add(new RecordsRefusal(
-                    "records.field.refinement_widens",
-                    $"/fields/{index}/constraints",
-                    "A field refinement may narrow but cannot widen its declaring field."));
-            }
         }
 
+        ValidateRefinements(definition, refusals);
         ValidateTraitBindings(definition, refusals);
+    }
 
-        return new RecordsIntentValidationResult(refusals);
+    private static void ValidateScope(
+        RecordTypeDefinition definition,
+        FieldDomainScope scope,
+        List<RecordsRefusal> refusals)
+    {
+        if (scope.Tenant.IsSystemSentinel)
+            refusals.Add(new("field.value_domain_tenant_required", "/envelope/tenant_id",
+                "A non-sentinel tenant scope is required."));
+        if (string.IsNullOrWhiteSpace(scope.Principal))
+            refusals.Add(new("field.value_domain_principal_required", "",
+                "An explicit principal is required."));
+        if (!scope.Tenant.IsSystemSentinel
+            && !string.Equals(scope.Tenant.Value, definition.Envelope.TenantId, StringComparison.Ordinal))
+            refusals.Add(new("field.value_domain_tenant_mismatch", "/envelope/tenant_id",
+                "The definition tenant does not match the field-domain scope."));
+    }
+
+    private static void ValidateRefinements(
+        RecordTypeDefinition definition,
+        List<RecordsRefusal> refusals)
+    {
+        var fields = definition.Fields
+            .Select((field, index) => (field, index))
+            .Where(item => !string.IsNullOrWhiteSpace(item.field.Key))
+            .GroupBy(item => item.field.Key, StringComparer.Ordinal)
+            .ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal);
+        for (var index = 0; index < definition.Fields.Count; index++)
+        {
+            var start = definition.Fields[index];
+            if (string.IsNullOrWhiteSpace(start.RefinesFieldKey)) continue;
+            if (!fields.ContainsKey(start.RefinesFieldKey))
+            {
+                refusals.Add(new("records.field.refinement_unresolved", $"/fields/{index}/refines_field_key",
+                    "The refined field is not declared."));
+                continue;
+            }
+
+            var visited = new HashSet<string>(StringComparer.Ordinal) { start.Key };
+            var current = start;
+            while (!string.IsNullOrWhiteSpace(current.RefinesFieldKey)
+                && fields.TryGetValue(current.RefinesFieldKey, out var parent))
+            {
+                if (!visited.Add(parent.field.Key))
+                {
+                    refusals.Add(new("records.field.refinement_cycle", $"/fields/{index}/refines_field_key",
+                        "Field refinements must be acyclic."));
+                    break;
+                }
+                current = parent.field;
+            }
+        }
     }
 
     private void ValidateTraitBindings(
@@ -901,7 +1040,6 @@ public sealed class RecordsIntentValidator
             .GroupBy(item => item.field.Key, StringComparer.Ordinal)
             .ToDictionary(group => group.Key, group => group.First());
         var seenBindings = new HashSet<(string TraitId, string TraitVersion, string SlotKey)>();
-        var resolvedByField = new Dictionary<string, List<FieldConstraintDefinition>>(StringComparer.Ordinal);
 
         for (var index = 0; index < definition.TraitBindings.Count; index++)
         {
@@ -943,21 +1081,6 @@ public sealed class RecordsIntentValidator
                 continue;
             }
 
-            if (!resolvedByField.TryGetValue(binding.FieldKey, out var constraints))
-            {
-                constraints = [];
-                resolvedByField.Add(binding.FieldKey, constraints);
-            }
-            constraints.Add(slot.Constraints);
-
-            if (field.field.Constraints is { } fieldConstraints
-                && !IsNarrowerOrEqual(fieldConstraints, slot.Constraints))
-            {
-                refusals.Add(new RecordsRefusal(
-                    "records.trait.binding_widens",
-                    $"/fields/{field.index}/constraints",
-                    "A Trait binding may narrow but cannot widen its slot."));
-            }
         }
 
         for (var traitIndex = 0; traitIndex < definition.Traits.Count; traitIndex++)
@@ -977,21 +1100,128 @@ public sealed class RecordsIntentValidator
             }
         }
 
-        foreach (var (fieldKey, constraints) in resolvedByField)
+    }
+
+    private async ValueTask<IReadOnlyList<ResolvedFieldConstraints>?> ProveDomainsAsync(
+        RecordTypeDefinition definition,
+        FieldDomainScope scope,
+        List<RecordsRefusal> refusals,
+        CancellationToken cancellationToken)
+    {
+        string? revision = null;
+        var revisionRefused = false;
+        var effective = new ResolvedFieldConstraints?[definition.Fields.Count];
+
+        for (var traitIndex = 0; traitIndex < definition.Traits.Count; traitIndex++)
         {
-            var field = fields[fieldKey].field;
-            if (field.Constraints is not null) constraints.Add(field.Constraints);
-            if (field.ValueDomain is not null)
-                constraints.Add(new(false, 0, null, [], field.ValueDomain));
-            if (RecordsConstraintIntersection.TryResolve(constraints, out _))
+            var trait = definition.Traits[traitIndex];
+            for (var slotIndex = 0; slotIndex < trait.Slots.Count; slotIndex++)
             {
-                continue;
+                await ProveAsync(
+                    () => _fieldDomains.IntersectAsync(
+                        [trait.Slots[slotIndex].Constraints], scope,
+                        $"/traits/{traitIndex}/slots/{slotIndex}/constraints", cancellationToken),
+                    $"/traits/{traitIndex}/slots/{slotIndex}/constraints").ConfigureAwait(false);
+            }
+        }
+
+        var traits = definition.Traits
+            .GroupBy(trait => (trait.TraitId, trait.Version))
+            .ToDictionary(group => group.Key, group => group.First());
+        var fields = definition.Fields
+            .Select((field, index) => (field, index))
+            .Where(item => !string.IsNullOrWhiteSpace(item.field.Key))
+            .GroupBy(item => item.field.Key, StringComparer.Ordinal)
+            .ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal);
+        foreach (var binding in definition.TraitBindings)
+        {
+            if (!traits.TryGetValue((binding.TraitId, binding.TraitVersion), out var trait)
+                || !fields.TryGetValue(binding.FieldKey, out var field)) continue;
+            var slot = trait.Slots.FirstOrDefault(candidate => candidate.SlotKey == binding.SlotKey);
+            if (slot is null) continue;
+            await ProveNarrowingAsync(slot.Constraints, field.field, field.index).ConfigureAwait(false);
+        }
+
+        for (var index = 0; index < definition.Fields.Count; index++)
+        {
+            var field = definition.Fields[index];
+            if (!string.IsNullOrWhiteSpace(field.RefinesFieldKey))
+            {
+                if (fields.TryGetValue(field.RefinesFieldKey, out var parent))
+                {
+                    foreach (var floor in RecordsConstraintIntersection.ForField(definition, parent.field))
+                        await ProveNarrowingAsync(floor, field, index).ConfigureAwait(false);
+                }
             }
 
-            refusals.Add(new RecordsRefusal(
-                "records.trait.constraint_intersection_empty",
-                $"/fields/{fields[fieldKey].index}/constraints",
-                "The slots bound to this field have no admitted constraint intersection."));
+            effective[index] = await ProveAsync(
+                () => _fieldDomains.IntersectAsync(
+                    RecordsConstraintIntersection.ForField(definition, field), scope,
+                    $"/fields/{index}/constraints", cancellationToken),
+                $"/fields/{index}/constraints").ConfigureAwait(false);
+        }
+
+        return effective.Any(item => item is null)
+            ? null
+            : Array.AsReadOnly(effective.Select(item => item!).ToArray());
+
+        async ValueTask ProveNarrowingAsync(
+            FieldConstraintDefinition floor,
+            RecordFieldDefinition field,
+            int fieldIndex)
+        {
+            if (field.Constraints is { } authored)
+            {
+                var narrowed = authored.ValueDomain is null && field.ValueDomain is not null
+                    ? authored with { ValueDomain = field.ValueDomain }
+                    : authored;
+                await ProveAsync(
+                    () => _fieldDomains.NarrowAsync(
+                        floor, narrowed, scope, $"/fields/{fieldIndex}/constraints", cancellationToken),
+                    $"/fields/{fieldIndex}/constraints").ConfigureAwait(false);
+            }
+            if (field.ValueDomain is not null)
+            {
+                await ProveAsync(
+                    () => _fieldDomains.NarrowAsync(
+                        floor, floor with { ValueDomain = field.ValueDomain }, scope,
+                        $"/fields/{fieldIndex}/value_domain", cancellationToken),
+                    $"/fields/{fieldIndex}/value_domain").ConfigureAwait(false);
+                if (field.Constraints?.ValueDomain is { } constrainedDomain)
+                {
+                    var declaredDomain = new FieldConstraintDefinition(false, 0, null, [], constrainedDomain);
+                    var narrowedDomain = new FieldConstraintDefinition(false, 0, null, [], field.ValueDomain);
+                    await ProveAsync(
+                        () => _fieldDomains.NarrowAsync(
+                            declaredDomain, narrowedDomain, scope,
+                            $"/fields/{fieldIndex}/value_domain", cancellationToken),
+                        $"/fields/{fieldIndex}/value_domain").ConfigureAwait(false);
+                }
+            }
+        }
+
+        async ValueTask<ResolvedFieldConstraints?> ProveAsync(
+            Func<ValueTask<ResolvedFieldConstraints>> operation,
+            string pointer)
+        {
+            try
+            {
+                var proof = await operation().ConfigureAwait(false);
+                if (revision is null) revision = proof.SnapshotRevision;
+                else if (!string.Equals(revision, proof.SnapshotRevision, StringComparison.Ordinal)
+                    && !revisionRefused)
+                {
+                    revisionRefused = true;
+                    refusals.Add(new("records.field.snapshot_revision_inconsistent", pointer,
+                        "All field-domain proofs in one admission must use the same snapshot revision."));
+                }
+                return proof;
+            }
+            catch (FieldAdmissionException exception)
+            {
+                AddFieldRefusals(exception.Refusals, refusals);
+                return null;
+            }
         }
     }
 
@@ -1003,6 +1233,13 @@ public sealed class RecordsIntentValidator
             refusal.Code,
             refusal.JsonPointer,
             refusal.Message)));
+    }
+
+    private static void Deduplicate(List<RecordsRefusal> refusals)
+    {
+        var unique = refusals.Distinct().ToArray();
+        refusals.Clear();
+        refusals.AddRange(unique);
     }
 
     private static int CountTargets(FieldReferenceDefinition reference)
@@ -1035,70 +1272,4 @@ public sealed class RecordsIntentValidator
     private static string EscapePointer(string value)
         => value.Replace("~", "~0", StringComparison.Ordinal).Replace("/", "~1", StringComparison.Ordinal);
 
-    private static bool IsNarrowerOrEqual(
-        FieldConstraintDefinition candidate,
-        FieldConstraintDefinition floor)
-    {
-        if (floor.Required && !candidate.Required)
-        {
-            return false;
-        }
-        if (candidate.MinimumCount < floor.MinimumCount)
-        {
-            return false;
-        }
-        if (floor.MaximumCount is not null
-            && (candidate.MaximumCount is null || candidate.MaximumCount > floor.MaximumCount))
-        {
-            return false;
-        }
-        if (floor.ReadRoleIds.Count > 0
-            && (candidate.ReadRoleIds.Count == 0
-                || candidate.ReadRoleIds.Except(floor.ReadRoleIds, StringComparer.Ordinal).Any()))
-        {
-            return false;
-        }
-        return DomainIsSubset(candidate.ValueDomain, floor.ValueDomain);
-    }
-
-    private static bool DomainIsSubset(ValueDomainDefinition? candidate, ValueDomainDefinition? floor)
-    {
-        if (floor is null)
-        {
-            return true;
-        }
-        if (candidate is null)
-        {
-            return false;
-        }
-        if (candidate.LiteralValues is not null && floor.LiteralValues is not null)
-        {
-            return !candidate.LiteralValues.Except(floor.LiteralValues, StringComparer.Ordinal).Any();
-        }
-        return candidate == floor;
-    }
-
-    private static int? Minimum(int? left, int? right)
-        => left is null ? right : right is null ? left : Math.Min(left.Value, right.Value);
-
-    private static bool DomainsIntersect(ValueDomainDefinition? left, ValueDomainDefinition? right)
-    {
-        if (left is null || right is null)
-        {
-            return true;
-        }
-        if (left.LiteralValues is not null && right.LiteralValues is not null)
-        {
-            return left.LiteralValues.Intersect(right.LiteralValues, StringComparer.Ordinal).Any();
-        }
-        if (left.TaxonomyScheme is not null && right.TaxonomyScheme is not null)
-        {
-            return left.TaxonomyScheme == right.TaxonomyScheme;
-        }
-        if (left.RecordQuery is not null && right.RecordQuery is not null)
-        {
-            return left.RecordQuery == right.RecordQuery;
-        }
-        return false;
-    }
 }

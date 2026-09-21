@@ -7,21 +7,27 @@ This package intentionally excludes schema migration, epoch coordination, compac
 ## Records declaration and compilation
 
 `RecordTypeDefinition` carries the Records grammar rather than authored JSON Schema.
-`RecordsIntentValidator` reports structural refusals with stable codes and RFC 6901
-pointers. `RecordsDefinitionJson` preserves the typed declaration through canonical JSON.
+`RecordsIntentValidator.ValidateAsync` and `ValidateJsonAsync` require an explicit
+`FieldDomainScope` and cancellation token. They detach the authored declaration, bind exact
+field kinds, and await shared narrowing/intersection proofs before admitting publication.
+Every proof in one admission must use the same source snapshot revision. Structural and
+shared `field.*` refusals retain stable RFC 6901 pointers. `RecordsDefinitionJson` preserves
+the typed declaration through canonical JSON.
 
 Compositions inject the shared `IFieldKindRuntime`, backed by the foundation
 `FieldKindRuntime` and its exact immutable registrations. The kernel does not own a
 field-kind registry or guess built-in kinds. Unknown kinds, versions and invalid
 parameters retain their `field.*` refusals and authored pointers.
 
-`RecordsDefinitionCompiler.CompileSchema` admits and compiles a declaration without
-registering anything. `CompileAndRegisterAsync` registers the same schema text through
+`RecordsDefinitionCompiler.CompileSchemaAsync` admits and compiles a declaration without
+registering anything. `CompileAndRegisterAsync` registers the same admitted schema text through
 `ISchemaRegistry`. Each scalar begins as a detached copy of the bound
 `ICompiledFieldKind.JsonSchema`, including exact kind metadata and every parameter.
-Records then overlays only its literal domain, pattern, requiredness, multiplicity and
-translation grammar. The registry used by composition receives the same field-kind runtime
-so runtime-only limits execute at validation time.
+Records then overlays authored literal contributions as `enum`/`allOf` constraints plus its
+pattern, proven requiredness, multiplicity and translation grammar. Authority-filtered proof
+values never become static schema membership, so schema identity is stable across principals.
+Dynamic Taxonomy/query declarations remain authored for runtime enforcement. The registry used
+by composition receives the same field-kind runtime so runtime-only limits execute at validation time.
 `RecordsReferenceAdmission` supplies the shared target predicate for picker and write callers.
 
 `RecordsFieldKindDefaultMaterializer` binds every declared kind before copying creation

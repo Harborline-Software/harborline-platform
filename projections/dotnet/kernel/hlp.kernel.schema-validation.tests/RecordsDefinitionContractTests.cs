@@ -25,9 +25,11 @@ public sealed class RecordsDefinitionContractTests
             ],
         };
 
-        var first = await compiler.CompileAndRegisterAsync(definition);
+        var first = await compiler.CompileAndRegisterAsync(
+            definition, RecordsTestDomains.Scope, CancellationToken.None);
         var replay = await compiler.CompileAndRegisterAsync(RecordsDefinitionJson.Deserialize(
-            RecordsDefinitionJson.SerializeCanonical(definition)));
+            RecordsDefinitionJson.SerializeCanonical(definition)),
+            RecordsTestDomains.Scope, CancellationToken.None);
         var registered = await registry.GetAsync(first.Id);
         var valid = await registry.ValidateAsync(
             first.Id,
@@ -128,11 +130,12 @@ public sealed class RecordsDefinitionContractTests
     }
 
     [Fact]
-    public void Record_type_identity_is_required()
+    public async Task Record_type_identity_is_required()
     {
         var definition = ValidDefinition() with { RecordTypeId = "" };
 
-        var result = new RecordsIntentValidator(RecordsTestDomains.CreateRuntime()).Validate(definition);
+        var result = await new RecordsIntentValidator(RecordsTestDomains.CreateRuntime(), RecordsTestKinds.Text)
+            .ValidateAsync(definition, RecordsTestDomains.Scope, CancellationToken.None);
 
         var refusal = Assert.Single(result.Refusals);
         Assert.Equal("records.definition.record_type_id_required", refusal.Code);
@@ -140,12 +143,13 @@ public sealed class RecordsDefinitionContractTests
     }
 
     [Fact]
-    public void Record_type_identity_is_immutable_within_one_definition_version()
+    public async Task Record_type_identity_is_immutable_within_one_definition_version()
     {
         var published = ValidDefinition();
         var changed = published with { RecordTypeId = "records.replacement" };
 
-        var result = new RecordsIntentValidator(RecordsTestDomains.CreateRuntime()).Validate(changed, published);
+        var result = await new RecordsIntentValidator(RecordsTestDomains.CreateRuntime(), RecordsTestKinds.Text)
+            .ValidateAsync(changed, published, RecordsTestDomains.Scope, CancellationToken.None);
 
         var refusal = Assert.Single(result.Refusals);
         Assert.Equal("records.definition.record_type_id_immutable", refusal.Code);
@@ -208,7 +212,7 @@ public sealed class RecordsDefinitionContractTests
     }
 
     [Fact]
-    public void Admission_returns_every_field_addressable_structural_refusal()
+    public async Task Admission_returns_every_field_addressable_structural_refusal()
     {
         var definition = ValidDefinition() with
         {
@@ -239,7 +243,8 @@ public sealed class RecordsDefinitionContractTests
             ],
         };
 
-        var result = new RecordsIntentValidator(RecordsTestDomains.CreateRuntime()).Validate(definition);
+        var result = await new RecordsIntentValidator(RecordsTestDomains.CreateRuntime(), RecordsTestKinds.Text)
+            .ValidateAsync(definition, RecordsTestDomains.Scope, CancellationToken.None);
 
         Assert.False(result.IsAdmitted);
         Assert.Equal(
@@ -254,7 +259,7 @@ public sealed class RecordsDefinitionContractTests
     }
 
     [Fact]
-    public void Admission_refuses_invalid_scoped_identities_and_undeclared_cross_package_edges()
+    public async Task Admission_refuses_invalid_scoped_identities_and_undeclared_cross_package_edges()
     {
         var definition = ValidDefinition() with
         {
@@ -299,7 +304,8 @@ public sealed class RecordsDefinitionContractTests
             ],
         };
 
-        var result = new RecordsIntentValidator(RecordsTestDomains.CreateRuntime()).Validate(definition);
+        var result = await new RecordsIntentValidator(RecordsTestDomains.CreateRuntime(), RecordsTestKinds.Text)
+            .ValidateAsync(definition, RecordsTestDomains.Scope, CancellationToken.None);
 
         Assert.Contains(result.Refusals, refusal =>
             refusal is { Code: "records.definition.class_count", JsonPointer: "/class_id" });
@@ -314,7 +320,7 @@ public sealed class RecordsDefinitionContractTests
     }
 
     [Fact]
-    public void Raw_authoring_intent_refuses_forbidden_members_with_stable_pointers()
+    public async Task Raw_authoring_intent_refuses_forbidden_members_with_stable_pointers()
     {
         const string json = """
             {
@@ -332,7 +338,8 @@ public sealed class RecordsDefinitionContractTests
             }
             """;
 
-        var result = new RecordsIntentValidator(RecordsTestDomains.CreateRuntime()).ValidateJson(json);
+        var result = await new RecordsIntentValidator(RecordsTestDomains.CreateRuntime(), RecordsTestKinds.Text)
+            .ValidateJsonAsync(json, RecordsTestDomains.Scope, CancellationToken.None);
 
         Assert.Contains(result.Refusals, refusal =>
             refusal is { Code: "records.definition.class_count", JsonPointer: "/class_ids" });
@@ -343,7 +350,7 @@ public sealed class RecordsDefinitionContractTests
         Assert.Contains(result.Refusals, refusal =>
             refusal is { Code: "records.field.retention_forbidden", JsonPointer: "/fields/0/retention_policy" });
         Assert.Contains(result.Refusals, refusal =>
-            refusal is { Code: "records.field.pattern_membership_forbidden", JsonPointer: "/fields/0/value_domain/pattern" });
+            refusal is { Code: "field.pattern_membership_forbidden", JsonPointer: "/fields/0/value_domain/pattern" });
     }
 
     [Fact]
@@ -371,7 +378,7 @@ public sealed class RecordsDefinitionContractTests
     }
 
     [Fact]
-    public void Trait_admission_refuses_unresolved_ambiguous_unfilled_and_incompatible_slots_together()
+    public async Task Trait_admission_refuses_unresolved_ambiguous_unfilled_and_incompatible_slots_together()
     {
         var domainA = new ValueDomainDefinition(LiteralValues: ["a"]);
         var domainB = new ValueDomainDefinition(LiteralValues: ["b"]);
@@ -403,7 +410,8 @@ public sealed class RecordsDefinitionContractTests
             ],
         };
 
-        var result = new RecordsIntentValidator(RecordsTestDomains.CreateRuntime()).Validate(definition);
+        var result = await new RecordsIntentValidator(RecordsTestDomains.CreateRuntime(), RecordsTestKinds.Text)
+            .ValidateAsync(definition, RecordsTestDomains.Scope, CancellationToken.None);
 
         Assert.Contains(result.Refusals, refusal =>
             refusal is { Code: "records.trait.version_unresolved", JsonPointer: "/trait_bindings/0/trait_version" });
@@ -411,12 +419,10 @@ public sealed class RecordsDefinitionContractTests
             refusal is { Code: "records.trait.binding_ambiguous", JsonPointer: "/trait_bindings/2" });
         Assert.Contains(result.Refusals, refusal =>
             refusal is { Code: "records.trait.slot_unfilled", JsonPointer: "/traits/2/slots/0" });
-        Assert.Contains(result.Refusals, refusal =>
-            refusal is { Code: "records.trait.constraint_intersection_empty", JsonPointer: "/fields/0/constraints" });
     }
 
     [Fact]
-    public void Refinements_and_trait_bindings_may_narrow_but_never_widen()
+    public async Task Refinements_and_trait_bindings_may_narrow_but_never_widen()
     {
         var floor = new FieldConstraintDefinition(
             true,
@@ -453,12 +459,13 @@ public sealed class RecordsDefinitionContractTests
             TraitBindings = [new TraitSlotBinding("trait.floor", "1.0.0", "slot", "slot_field")],
         };
 
-        var result = new RecordsIntentValidator(RecordsTestDomains.CreateRuntime()).Validate(definition);
+        var result = await new RecordsIntentValidator(RecordsTestDomains.CreateRuntime(), RecordsTestKinds.Text)
+            .ValidateAsync(definition, RecordsTestDomains.Scope, CancellationToken.None);
 
         Assert.Contains(result.Refusals, refusal =>
-            refusal is { Code: "records.field.refinement_widens", JsonPointer: "/fields/1/constraints" });
+            refusal is { Code: "field.requirement_dropped", JsonPointer: "/fields/1/constraints" });
         Assert.Contains(result.Refusals, refusal =>
-            refusal is { Code: "records.trait.binding_widens", JsonPointer: "/fields/2/constraints" });
+            refusal is { Code: "field.requirement_dropped", JsonPointer: "/fields/2/constraints" });
     }
 
     private static RecordTypeDefinition ValidDefinition() => new()

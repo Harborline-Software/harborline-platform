@@ -6,6 +6,19 @@ namespace Harborline.Foundation.FieldRuntime.Tests;
 public sealed class ValueDomainAdmissionTests
 {
     [Fact]
+    public void Runtime_contract_exposes_the_same_raw_admission_codes_and_pointers()
+    {
+        IFieldDomainRuntime runtime = new DomainFixture().Runtime();
+
+        var refusal = Assert.Single(runtime.ValidateValueDomainJson(
+            "{\"literal_values\":[\"open\"],\"literal_values\":[\"closed\"]}",
+            "/traits/0/slots/0/constraints/value_domain"));
+
+        Assert.Equal("field.value_domain_member_duplicate", refusal.Code);
+        Assert.Equal("/traits/0/slots/0/constraints/value_domain/literal_values", refusal.JsonPointer);
+    }
+
+    [Fact]
     public void A_domain_with_two_sources_is_refused_at_the_authored_location()
     {
         var domain = new ValueDomainDefinition(["open"], new("status", "1.0.0"));

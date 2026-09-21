@@ -31,7 +31,8 @@ public sealed class RecordsFieldKindResolutionTests
         };
 
         var error = await Assert.ThrowsAsync<RecordsDefinitionAdmissionException>(() =>
-            compiler.CompileAndRegisterAsync(definition).AsTask());
+            compiler.CompileAndRegisterAsync(
+                definition, RecordsTestDomains.Scope, CancellationToken.None).AsTask());
 
         Assert.Contains(error.Refusals, refusal =>
             refusal.Code == "field.kind_unresolved" && refusal.JsonPointer == "/fields/0/kind");
@@ -73,7 +74,8 @@ public sealed class RecordsFieldKindResolutionTests
         };
 
         var error = await Assert.ThrowsAsync<RecordsDefinitionAdmissionException>(() =>
-            compiler.CompileAndRegisterAsync(definition).AsTask());
+            compiler.CompileAndRegisterAsync(
+                definition, RecordsTestDomains.Scope, CancellationToken.None).AsTask());
 
         Assert.Contains(error.Refusals, refusal =>
             refusal is { Code: "field.kind_unresolved", JsonPointer: "/fields/0/kind" });
