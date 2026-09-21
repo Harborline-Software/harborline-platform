@@ -51,7 +51,7 @@ const required = [
   'tests/package-consumers/inspection-review-nuget/Program.cs',
 ]
 const skippedDirectories = new Set([
-  '.git', 'node_modules', 'bin', 'obj', 'dist', 'coverage', 'artifacts', '.packages',
+  '.git', '.claude', '.codex', 'node_modules', 'bin', 'obj', 'dist', 'coverage', 'artifacts', '.packages',
   'test-results', 'playwright-report', 'storybook-static',
 ])
 const allowedRoles = new Set(['implementation', 'adapter', 'generated-binding', 'host', 'compatibility-facade', 'compatibility-vocabulary'])
@@ -74,9 +74,18 @@ function exists(path) {
 
 function files(path) {
   return readdirSync(path, { withFileTypes: true }).flatMap(entry => {
-    if (entry.isDirectory() && skippedDirectories.has(entry.name)) return []
+    if (skippedDirectories.has(entry.name)) return []
+    if (entry.isSymbolicLink()) return []
     const child = resolve(path, entry.name)
-    return entry.isDirectory() ? files(child) : [child]
+    if (!entry.isDirectory()) return [child]
+    // A directory holding its own .git is a nested checkout -- an agent worktree, a sibling
+    // clone -- and its files belong to that tree, not this one. Walking them applied
+    // prohibitedPath, the vitest-config check and the sourceFiles count to another branch.
+    // Detected rather than named, because the tools that create them keep changing: this
+    // checkout carries both .claude/worktrees and .codex/worktrees today.
+    // .git is a file in a worktree and a directory in a clone, so stat rather than isFile.
+    if (statSync(resolve(child, '.git'), { throwIfNoEntry: false }) !== undefined) return []
+    return files(child)
   })
 }
 
@@ -432,7 +441,13 @@ for (const local of localPaths) {
   const machineLocalExempt = local === machineLocalPath && machineLocalIsUntracked
   if (prohibitedPath.test(local) && !machineLocalExempt) errors.push(`prohibited source path ${local}`)
   if (/\.(?:png|jpg|jpeg|gif|zip|gz|dll|dylib|exe|nupkg|tgz)$/i.test(local)) continue
-  const content = readFileSync(resolve(root, local), 'utf8')
+  let content
+  try {
+    content = readFileSync(resolve(root, local), 'utf8')
+  } catch (cause) {
+    errors.push(`unreadable source path ${local}: ${cause.code ?? cause.message}`)
+    continue
+  }
   const configDependencyError = dependencylessVitestConfigError(local, content, exists(`${dirname(local)}/package.json`))
   if (configDependencyError) {
     contributionConfigDependencyViolations += 1
