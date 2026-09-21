@@ -11,7 +11,7 @@ public sealed class RecordsDefinitionContractTests
     public async Task Compiler_registers_one_stable_schema_identity_used_for_runtime_validation()
     {
         var registry = new InMemorySchemaRegistry();
-        var compiler = new RecordsDefinitionCompiler(registry, RecordsTestKinds.Text);
+        var compiler = new RecordsDefinitionCompiler(registry, RecordsTestDomains.CreateRuntime(), RecordsTestKinds.Text);
         var definition = ValidDefinition() with
         {
             Fields =
@@ -113,7 +113,7 @@ public sealed class RecordsDefinitionContractTests
     {
         var definition = ValidDefinition() with { RecordTypeId = "" };
 
-        var result = new RecordsIntentValidator().Validate(definition);
+        var result = new RecordsIntentValidator(RecordsTestDomains.CreateRuntime()).Validate(definition);
 
         var refusal = Assert.Single(result.Refusals);
         Assert.Equal("records.definition.record_type_id_required", refusal.Code);
@@ -126,7 +126,7 @@ public sealed class RecordsDefinitionContractTests
         var published = ValidDefinition();
         var changed = published with { RecordTypeId = "records.replacement" };
 
-        var result = new RecordsIntentValidator().Validate(changed, published);
+        var result = new RecordsIntentValidator(RecordsTestDomains.CreateRuntime()).Validate(changed, published);
 
         var refusal = Assert.Single(result.Refusals);
         Assert.Equal("records.definition.record_type_id_immutable", refusal.Code);
@@ -220,14 +220,14 @@ public sealed class RecordsDefinitionContractTests
             ],
         };
 
-        var result = new RecordsIntentValidator().Validate(definition);
+        var result = new RecordsIntentValidator(RecordsTestDomains.CreateRuntime()).Validate(definition);
 
         Assert.False(result.IsAdmitted);
         Assert.Equal(
             [
                 ("records.field.identity_duplicate", "/fields/0/key"),
                 ("records.field.identity_duplicate", "/fields/1/key"),
-                ("records.field.value_domain_source_count", "/fields/2/value_domain"),
+                ("field.value_domain_source_count", "/fields/2/value_domain"),
                 ("records.field.reference_target_count", "/fields/3/reference"),
                 ("records.field.identity_translatable", "/fields/4/is_translatable"),
             ],
@@ -280,7 +280,7 @@ public sealed class RecordsDefinitionContractTests
             ],
         };
 
-        var result = new RecordsIntentValidator().Validate(definition);
+        var result = new RecordsIntentValidator(RecordsTestDomains.CreateRuntime()).Validate(definition);
 
         Assert.Contains(result.Refusals, refusal =>
             refusal is { Code: "records.definition.class_count", JsonPointer: "/class_id" });
@@ -313,7 +313,7 @@ public sealed class RecordsDefinitionContractTests
             }
             """;
 
-        var result = new RecordsIntentValidator().ValidateJson(json);
+        var result = new RecordsIntentValidator(RecordsTestDomains.CreateRuntime()).ValidateJson(json);
 
         Assert.Contains(result.Refusals, refusal =>
             refusal is { Code: "records.definition.class_count", JsonPointer: "/class_ids" });
@@ -384,7 +384,7 @@ public sealed class RecordsDefinitionContractTests
             ],
         };
 
-        var result = new RecordsIntentValidator().Validate(definition);
+        var result = new RecordsIntentValidator(RecordsTestDomains.CreateRuntime()).Validate(definition);
 
         Assert.Contains(result.Refusals, refusal =>
             refusal is { Code: "records.trait.version_unresolved", JsonPointer: "/trait_bindings/0/trait_version" });
@@ -434,7 +434,7 @@ public sealed class RecordsDefinitionContractTests
             TraitBindings = [new TraitSlotBinding("trait.floor", "1.0.0", "slot", "slot_field")],
         };
 
-        var result = new RecordsIntentValidator().Validate(definition);
+        var result = new RecordsIntentValidator(RecordsTestDomains.CreateRuntime()).Validate(definition);
 
         Assert.Contains(result.Refusals, refusal =>
             refusal is { Code: "records.field.refinement_widens", JsonPointer: "/fields/1/constraints" });

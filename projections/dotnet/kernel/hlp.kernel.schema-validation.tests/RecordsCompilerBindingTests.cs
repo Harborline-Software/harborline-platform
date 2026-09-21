@@ -11,7 +11,7 @@ public sealed class RecordsCompilerBindingTests
     {
         var registry = new InMemorySchemaRegistry();
         var kinds = new FieldKindRegistry([new("developer-code", "1.0.0", null)]);
-        var compiler = new RecordsDefinitionCompiler(registry, kinds);
+        var compiler = new RecordsDefinitionCompiler(registry, RecordsTestDomains.CreateRuntime(), kinds);
         var definition = Definition(new("developer-code", "1.0.0", new Dictionary<string, string>()));
 
         var schemaText = compiler.CompileSchema(definition);
@@ -39,7 +39,7 @@ public sealed class RecordsCompilerBindingTests
         [
             new("developer-measurement", "1.0.0", null, FieldScalarValueShape.Number),
         ]);
-        var compiler = new RecordsDefinitionCompiler(registry, kinds);
+        var compiler = new RecordsDefinitionCompiler(registry, RecordsTestDomains.CreateRuntime(), kinds);
         var definition = Definition(new("developer-measurement", "1.0.0", new Dictionary<string, string>()));
 
         var schema = await compiler.CompileAndRegisterAsync(definition);
@@ -64,7 +64,7 @@ public sealed class RecordsCompilerBindingTests
     {
         var registry = new InMemorySchemaRegistry();
         var kinds = new FieldKindRegistry([new("score", "1.0.0", null, FieldScalarValueShape.Integer)]);
-        var compiler = new RecordsDefinitionCompiler(registry, kinds);
+        var compiler = new RecordsDefinitionCompiler(registry, RecordsTestDomains.CreateRuntime(), kinds);
         var authored = Definition(new("score", "1.0.0", new Dictionary<string, string>()));
         var definition = authored with
         {
@@ -92,7 +92,7 @@ public sealed class RecordsCompilerBindingTests
     public void Numeric_kind_refuses_a_reference_instead_of_compiling_it_as_text()
     {
         var kinds = new FieldKindRegistry([new("score", "1.0.0", null, FieldScalarValueShape.Integer)]);
-        var compiler = new RecordsDefinitionCompiler(new InMemorySchemaRegistry(), kinds);
+        var compiler = new RecordsDefinitionCompiler(new InMemorySchemaRegistry(), RecordsTestDomains.CreateRuntime(), kinds);
         var authored = Definition(new("score", "1.0.0", new Dictionary<string, string>()));
         var definition = authored with
         {
@@ -126,6 +126,7 @@ public sealed class RecordsCompilerBindingTests
         var registry = new InMemorySchemaRegistry();
         var compiler = new RecordsDefinitionCompiler(
             registry,
+            RecordsTestDomains.CreateRuntime(),
             new FieldKindRegistry([new("text", "1.0.0", null)]));
         var definition = Definition(new("text", "1.0.0", new Dictionary<string, string>())) with
         {
@@ -152,7 +153,7 @@ public sealed class RecordsCompilerBindingTests
             new("developer-versioned", "1.0.0", null, FieldScalarValueShape.Boolean),
             new("developer-versioned", "2.0.0", null, FieldScalarValueShape.Integer),
         ]);
-        var compiler = new RecordsDefinitionCompiler(registry, kinds);
+        var compiler = new RecordsDefinitionCompiler(registry, RecordsTestDomains.CreateRuntime(), kinds);
 
         var booleanSchema = await compiler.CompileAndRegisterAsync(
             Definition(new("developer-versioned", "1.0.0", new Dictionary<string, string>())));

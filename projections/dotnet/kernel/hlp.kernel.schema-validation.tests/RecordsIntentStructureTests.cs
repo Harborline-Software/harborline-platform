@@ -20,10 +20,33 @@ public sealed class RecordsIntentStructureTests
                 : [],
         };
 
-        var result = new RecordsIntentValidator().Validate(definition);
+        var result = new RecordsIntentValidator(RecordsTestDomains.CreateRuntime()).Validate(definition);
 
         Assert.Contains(result.Refusals, refusal =>
-            refusal.Code == "records.field.value_domain_source_count" && refusal.JsonPointer == jsonPointer);
+            refusal.Code == "field.value_domain_source_count" && refusal.JsonPointer == jsonPointer);
+    }
+
+    [Theory]
+    [InlineData(false, -1, 1)]
+    [InlineData(false, 0, -1)]
+    [InlineData(false, 2, 1)]
+    [InlineData(true, 0, 0)]
+    public void Unbound_slot_multiplicity_must_admit_its_required_minimum(bool required, int minimum, int maximum)
+    {
+        var definition = Definition() with
+        {
+            Traits =
+            [
+                new("trait.example", "1.0.0", "Example",
+                    [new("value", false, false, new(required, minimum, maximum, [], null))]),
+            ],
+        };
+
+        var result = new RecordsIntentValidator(RecordsTestDomains.CreateRuntime()).Validate(definition);
+
+        Assert.Contains(result.Refusals, refusal =>
+            refusal.Code == "field.constraint_intersection_empty"
+            && refusal.JsonPointer == "/traits/0/slots/0/constraints");
     }
 
     private static RecordTypeDefinition Definition() => new()

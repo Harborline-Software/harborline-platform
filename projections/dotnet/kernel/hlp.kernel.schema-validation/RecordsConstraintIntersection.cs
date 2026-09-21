@@ -1,3 +1,5 @@
+using Harborline.Contracts.Fields;
+
 namespace Harborline.Kernel.SchemaValidation;
 
 internal static class RecordsConstraintIntersection

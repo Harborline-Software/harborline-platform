@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.foundation.field-runtime",
-  "interfaceRevision": 1,
+  "interfaceRevision": 2,
   "status": "draft",
   "purpose": "Own shared field-kind admission, authority-aware three-source value-domain resolution, narrowing, kind limits and domain-driven editor selection under DES-0030 and T-621.",
   "dependencies": ["hlp.contracts.fields", "hlp.contracts.identities", "hlp.foundation.rule-runtime"],
@@ -27,6 +27,7 @@
     "max_bytes": "Non-negative UTF-8 byte cap: decoded content for text and original JSON for other scalar kinds."
   },
   "operations": [
+    {"id": "constraints.validate-declaration", "input": "one authored constraint declaration and its authored pointer", "result": "all multiplicity and value-domain structural refusals without source access"},
     {"id": "kind.bind", "input": "FieldKindReference and authored pointer", "result": "ICompiledFieldKind or FieldAdmissionException"},
     {"id": "kind.validate", "input": "bound kind, original JSON value and value pointer", "result": "member-neutral refusals without value mutation"},
     {"id": "field.validate", "input": "resolved constraints, bound kind, original JSON value and value pointer", "result": "required, multiplicity, readable-membership and per-scalar kind refusals without value mutation"},
@@ -36,6 +37,8 @@
   ],
   "invariants": [
     "Exactly one domain source is authored: literals, an immutable Taxonomy scheme, or a record query with a predicate.",
+    "Declaration-only admission owns non-negative coherent multiplicity, including the required minimum, and delegates domain shape admission to the shared ValueDomainAdmission operation.",
+    "Declaration-only admission performs no source access, I/O, snapshot acquisition or principal assumption; malformed multiplicity uses field.constraint_intersection_empty at the authored constraints pointer and domain refusals use its value_domain child pointer.",
     "Field-kind binding names an exact admitted version, never a latest-version or kind-name fallback.",
     "The generated schema retains exact kind identity, revision and every parameter in x-harborline-field-kind metadata so runtime-only limits participate in canonical identity and execution.",
     "Substrate refusal codes use field.* and do not depend on the consuming member.",
@@ -54,9 +57,9 @@
   ],
   "notScope": ["Records grammar", "JSON Schema registration", "definition lifecycle storage", "Rules expression evaluation", "record commit orchestration", "authoring destination"],
   "selectedDesign": {
-    "choice": "Promote the T-615 substrate types and behavior into one shared producer.",
-    "rejected": "Leave shared field behavior in Records or create one vocabulary per consumer.",
-    "reason": "Eleven members need the same domain and limit semantics; ownership must not follow the first member implementation."
+    "choice": "Promote the T-615 substrate types and behavior into one shared producer, extending its existing runtime with declaration-only admission.",
+    "rejected": "Leave shared field behavior in Records, create one vocabulary per consumer, or create a second declaration-validation service.",
+    "reason": "Eleven members need the same domain, multiplicity and limit semantics; the existing runtime already owns intersection and narrowing, so structural admission belongs at that interface without introducing source or authority requirements."
   },
   "package": {"nuget": "Harborline.Foundation.FieldRuntime", "assembly": "Harborline.Foundation.FieldRuntime", "distribution": "internal-only"}
 }

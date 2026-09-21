@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.contracts.fields",
-  "interfaceRevision": 1,
+  "interfaceRevision": 2,
   "status": "draft",
   "purpose": "Carry the shared field-kind, domain and constraint vocabulary across the kernel Records and foundation field-runtime seam without an outward kernel dependency.",
   "dependencies": ["hlp.contracts.identities"],
@@ -21,7 +21,7 @@
     "ResolvedValueDomain": ["SourceKind", "Values", "Editor", "Predicate", "SnapshotRevision"],
     "FieldDomainAttribution": ["SourceKind", "TaxonomyScheme", "RecordQuery"],
     "ResolvedFieldConstraints": ["Required", "MinimumCount", "MaximumCount", "ReadRoleIds", "Values", "Sources", "SnapshotRevision", "Editor"],
-    "IFieldDomainRuntime": ["Validate", "ResolveAsync", "IntersectAsync", "NarrowAsync"]
+    "IFieldDomainRuntime": ["ValidateDeclaration", "Validate", "ResolveAsync", "IntersectAsync", "NarrowAsync"]
   },
   "invariants": [
     "One shared vocabulary is promoted from the T-615 declarations; members do not redeclare it.",
@@ -29,6 +29,7 @@
     "FieldDomainScope carries the authenticated actor's exact nonblank string identity and a non-sentinel tenant; a missing principal refuses before source access.",
     "The three domain source kinds are literals, a versioned Taxonomy scheme, and a record query with a predicate.",
     "Substrate refusals carry member-neutral field.* codes and authored RFC 6901 locations.",
+    "Declaration-only constraint admission validates multiplicity and value-domain shape without opening a source snapshot or assuming a principal.",
     "A bound kind carries its runtime validator together with standard schema keywords and executable x-harborline-field-kind metadata; a schema consumer must bind that metadata rather than relying on standard keywords alone.",
     "A domain resolution exposes only caller-readable values; its cardinality-derived editor cannot reveal unreadable membership.",
     "Shared value validation accepts resolved constraints, a compiled kind, original JSON and a pointer; it checks required, multiplicity, readable membership and each scalar without changing values. Undefined or null means absent; arrays carry repeated values."

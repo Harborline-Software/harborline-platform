@@ -32,6 +32,29 @@ public sealed class ValueDomainRuntime : IFieldDomainRuntime
     }
 
     /// <inheritdoc />
+    public IReadOnlyList<FieldRefusal> ValidateDeclaration(
+        FieldConstraintDefinition constraints,
+        string jsonPointer)
+    {
+        ArgumentNullException.ThrowIfNull(constraints);
+        var refusals = new List<FieldRefusal>();
+        if (constraints.MinimumCount < 0
+            || constraints.MaximumCount < 0
+            || constraints.MaximumCount < Math.Max(
+                constraints.MinimumCount,
+                constraints.Required ? 1 : 0))
+        {
+            refusals.Add(new(
+                "field.constraint_intersection_empty",
+                jsonPointer,
+                "Multiplicity must have non-negative bounds and admit its required minimum."));
+        }
+        if (constraints.ValueDomain is { } domain)
+            refusals.AddRange(ValueDomainAdmission.Validate(domain, jsonPointer + "/value_domain"));
+        return refusals.AsReadOnly();
+    }
+
+    /// <inheritdoc />
     public async ValueTask<ResolvedValueDomain> ResolveAsync(ValueDomainDefinition domain,
         FieldDomainScope scope, string jsonPointer, CancellationToken cancellationToken = default)
     {
@@ -159,6 +182,11 @@ public sealed class ValueDomainRuntime : IFieldDomainRuntime
         FieldDomainScope scope, string jsonPointer, CancellationToken cancellationToken = default)
     {
         constraints = constraints.Select(Detach).ToArray();
+        var declarationRefusals = constraints
+            .SelectMany(constraint => ValidateDeclaration(constraint, jsonPointer))
+            .ToArray();
+        if (declarationRefusals.Length > 0)
+            throw new FieldAdmissionException(declarationRefusals);
         var snapshot = await OpenSnapshotAsync(scope, jsonPointer, cancellationToken);
         // Promoted from RecordsConstraintIntersection.TryResolve; traversal remains Records-owned.
         var required = false;
@@ -170,8 +198,6 @@ public sealed class ValueDomainRuntime : IFieldDomainRuntime
         var sources = new List<FieldDomainAttribution>();
         foreach (var constraint in constraints)
         {
-            if (constraint.MinimumCount < 0 || constraint.MaximumCount < 0)
-                throw Refuse("field.constraint_intersection_empty", jsonPointer);
             required |= constraint.Required;
             minimum = Math.Max(minimum, constraint.MinimumCount);
             if (constraint.MaximumCount is { } upper)
@@ -207,10 +233,12 @@ public sealed class ValueDomainRuntime : IFieldDomainRuntime
     {
         declared = Detach(declared);
         narrowed = Detach(narrowed);
+        var declarationRefusals = new[] { declared, narrowed }
+            .SelectMany(constraint => ValidateDeclaration(constraint, jsonPointer))
+            .ToArray();
+        if (declarationRefusals.Length > 0)
+            throw new FieldAdmissionException(declarationRefusals);
         var snapshot = await OpenSnapshotAsync(scope, jsonPointer, cancellationToken);
-        foreach (var constraint in new[] { declared, narrowed })
-            if (constraint.MinimumCount < 0 || constraint.MaximumCount < Math.Max(constraint.MinimumCount, constraint.Required ? 1 : 0))
-                throw Refuse("field.constraint_intersection_empty", jsonPointer);
         if (declared.Required && !narrowed.Required) throw Refuse("field.requirement_dropped", jsonPointer);
         if (narrowed.MinimumCount < declared.MinimumCount || declared.MaximumCount is { } upper
             && (narrowed.MaximumCount is null || narrowed.MaximumCount > upper))

@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
+using Harborline.Contracts.Fields;
 
 namespace Harborline.Kernel.SchemaValidation;
 
@@ -101,38 +102,10 @@ public sealed record RecordDefinitionEnvelope(
 /// <param name="Name">The author-facing class name.</param>
 public sealed record RecordClassDefinition(string ClassId, string Name);
 
-/// <summary>A versioned field-runtime kind named by an author.</summary>
-/// <param name="KindId">The registered kind identity.</param>
-/// <param name="Version">The admitted immutable kind version.</param>
-/// <param name="Parameters">Author-supplied parameters understood by that kind.</param>
-public sealed record FieldKindReference(
-    string KindId,
-    string Version,
-    IReadOnlyDictionary<string, string> Parameters);
-
 /// <summary>A borrowed Rules expression and its grammar version.</summary>
 /// <param name="Grammar">The admitted grammar identity and version.</param>
 /// <param name="Expression">The authored expression text.</param>
 public sealed record RuleExpression(string Grammar, string Expression);
-
-/// <summary>A Taxonomy scheme used as the one permitted-value source.</summary>
-/// <param name="SchemeId">The stable scheme identity.</param>
-/// <param name="Version">The immutable scheme version.</param>
-public sealed record TaxonomySchemeReference(string SchemeId, string Version);
-
-/// <summary>A relationship and predicate used as the one permitted-value source.</summary>
-/// <param name="RecordTypeId">The queried record type.</param>
-/// <param name="Predicate">The admitted fixed Records query predicate.</param>
-public sealed record RecordQueryValueSource(string RecordTypeId, string Predicate);
-
-/// <summary>Exactly one of the three Records permitted-value sources.</summary>
-/// <param name="LiteralValues">A small inline tenant-owned literal set.</param>
-/// <param name="TaxonomyScheme">A referenced Taxonomy scheme.</param>
-/// <param name="RecordQuery">A relationship to a record type plus predicate.</param>
-public sealed record ValueDomainDefinition(
-    IReadOnlyList<string>? LiteralValues = null,
-    TaxonomySchemeReference? TaxonomyScheme = null,
-    RecordQueryValueSource? RecordQuery = null);
 
 /// <summary>A read-only coordinate into an immutable catalogue definition revision.</summary>
 /// <param name="DefinitionId">The source definition.</param>
@@ -163,46 +136,6 @@ public sealed record FieldReferenceDefinition(
     ReferenceDeleteBehavior DeleteBehavior,
     bool IsHierarchyEdge = false,
     string? TargetPackageId = null);
-
-/// <summary>The governance facts declared on one field.</summary>
-/// <param name="PersonalData">Whether the field contains personal data.</param>
-/// <param name="Confidential">Whether the field is confidential.</param>
-/// <param name="Masked">Whether the field is masked.</param>
-/// <param name="Classification">The classification identity, when one is declared.</param>
-public sealed record FieldGovernanceDefinition(
-    bool PersonalData,
-    bool Confidential,
-    bool Masked,
-    string? Classification);
-
-/// <summary>The kind/version that supplied materialized creation defaults.</summary>
-/// <param name="KindId">The field-kind identity.</param>
-/// <param name="KindVersion">The field-kind version.</param>
-public sealed record FieldKindDefaultProvenance(string KindId, string KindVersion);
-
-/// <summary>The JSON scalar shape produced by an admitted field-kind revision.</summary>
-public enum FieldScalarValueShape
-{
-    /// <summary>A JSON string.</summary>
-    Text,
-    /// <summary>A JSON boolean.</summary>
-    Boolean,
-    /// <summary>A JSON integer.</summary>
-    Integer,
-    /// <summary>A JSON number, including non-integral values.</summary>
-    Number,
-}
-
-/// <summary>An admitted field kind and the editable defaults it supplies at field creation.</summary>
-/// <param name="KindId">The registered field-kind identity.</param>
-/// <param name="Version">The admitted immutable field-kind version.</param>
-/// <param name="GovernanceDefaults">The governance values copied into a newly created field.</param>
-/// <param name="ValueShape">The JSON scalar shape produced by this exact kind revision.</param>
-public sealed record AdmittedFieldKind(
-    string KindId,
-    string Version,
-    FieldGovernanceDefinition? GovernanceDefaults,
-    FieldScalarValueShape ValueShape = FieldScalarValueShape.Text);
 
 /// <summary>Materializes admitted field-kind defaults without reapplying them over author edits.</summary>
 public sealed class RecordsFieldKindDefaultMaterializer
@@ -258,19 +191,6 @@ public sealed class RecordsFieldKindDefaultMaterializer
         };
     }
 }
-
-/// <summary>Constraints shared by fields, trait slots and refinements.</summary>
-/// <param name="Required">Whether a value is always required at this floor.</param>
-/// <param name="MinimumCount">The admitted minimum multiplicity.</param>
-/// <param name="MaximumCount">The admitted maximum multiplicity, or no finite maximum.</param>
-/// <param name="ReadRoleIds">The roles admitted to read the value.</param>
-/// <param name="ValueDomain">The admitted value domain, when constrained.</param>
-public sealed record FieldConstraintDefinition(
-    bool Required,
-    int MinimumCount,
-    int? MaximumCount,
-    IReadOnlyList<string> ReadRoleIds,
-    ValueDomainDefinition? ValueDomain);
 
 /// <summary>One Records-owned field declaration.</summary>
 public sealed record RecordFieldDefinition
@@ -494,13 +414,19 @@ public sealed class RecordsDefinitionCompiler
 {
     private const string Draft202012 = "https://json-schema.org/draft/2020-12/schema";
     private readonly ISchemaRegistry _registry;
+    private readonly IFieldDomainRuntime _fieldDomains;
     private readonly FieldKindRegistry _fieldKinds;
 
     /// <summary>Creates a compiler backed by the platform schema registry.</summary>
-    public RecordsDefinitionCompiler(ISchemaRegistry registry, FieldKindRegistry? fieldKinds = null)
+    public RecordsDefinitionCompiler(
+        ISchemaRegistry registry,
+        IFieldDomainRuntime fieldDomains,
+        FieldKindRegistry? fieldKinds = null)
     {
         ArgumentNullException.ThrowIfNull(registry);
+        ArgumentNullException.ThrowIfNull(fieldDomains);
         _registry = registry;
+        _fieldDomains = fieldDomains;
         _fieldKinds = fieldKinds ?? new FieldKindRegistry([]);
     }
 
@@ -529,7 +455,7 @@ public sealed class RecordsDefinitionCompiler
     {
         ArgumentNullException.ThrowIfNull(definition);
         cancellationToken.ThrowIfCancellationRequested();
-        var admission = new RecordsIntentValidator().Validate(definition);
+        var admission = new RecordsIntentValidator(_fieldDomains).Validate(definition);
         if (!admission.IsAdmitted)
         {
             throw new RecordsDefinitionAdmissionException(admission.Refusals);
@@ -724,6 +650,14 @@ public sealed class RecordsIntentValidator
         "can_be_exported",
         "has_workflow",
     };
+    private readonly IFieldDomainRuntime _fieldDomains;
+
+    /// <summary>Creates a validator over the shared field declaration authority.</summary>
+    public RecordsIntentValidator(IFieldDomainRuntime fieldDomains)
+    {
+        ArgumentNullException.ThrowIfNull(fieldDomains);
+        _fieldDomains = fieldDomains;
+    }
 
     /// <summary>Validates raw authoring intent and names ruled negative boundaries before decoding.</summary>
     public RecordsIntentValidationResult ValidateJson(string json)
@@ -867,15 +801,10 @@ public sealed class RecordsIntentValidator
         for (var index = 0; index < definition.Fields.Count; index++)
         {
             var field = definition.Fields[index];
-            if (field.Constraints is { } constraints
-                && (constraints.MinimumCount < 0 || constraints.MaximumCount < 0
-                    || constraints.MaximumCount < Math.Max(constraints.MinimumCount, constraints.Required ? 1 : 0)))
-            {
-                refusals.Add(new RecordsRefusal(
-                    "records.field.multiplicity_invalid",
-                    $"/fields/{index}/constraints",
-                    "Multiplicity must have non-negative bounds and admit its required minimum."));
-            }
+            if (field.Constraints is { } constraints)
+                AddFieldRefusals(_fieldDomains.ValidateDeclaration(
+                    constraints,
+                    $"/fields/{index}/constraints"), refusals);
             if (duplicateFieldKeys.Contains(field.Key))
             {
                 refusals.Add(new RecordsRefusal(
@@ -884,8 +813,10 @@ public sealed class RecordsIntentValidator
                     "Field identity must be unique within its record type."));
             }
 
-            ValidateValueDomain(field.ValueDomain, $"/fields/{index}/value_domain", refusals);
-            ValidateValueDomain(field.Constraints?.ValueDomain, $"/fields/{index}/constraints/value_domain", refusals);
+            if (field.ValueDomain is { } valueDomain)
+                AddFieldRefusals(_fieldDomains.ValidateDeclaration(
+                    new(false, 0, null, [], valueDomain),
+                    $"/fields/{index}"), refusals);
 
             if (field.Reference is { } reference && CountTargets(reference) != 1)
             {
@@ -931,7 +862,7 @@ public sealed class RecordsIntentValidator
         return new RecordsIntentValidationResult(refusals);
     }
 
-    private static void ValidateTraitBindings(
+    private void ValidateTraitBindings(
         RecordTypeDefinition definition,
         List<RecordsRefusal> refusals)
     {
@@ -945,8 +876,9 @@ public sealed class RecordsIntentValidator
         {
             var trait = definition.Traits[traitIndex];
             for (var slotIndex = 0; slotIndex < trait.Slots.Count; slotIndex++)
-                ValidateValueDomain(trait.Slots[slotIndex].Constraints.ValueDomain,
-                    $"/traits/{traitIndex}/slots/{slotIndex}/constraints/value_domain", refusals);
+                AddFieldRefusals(_fieldDomains.ValidateDeclaration(
+                    trait.Slots[slotIndex].Constraints,
+                    $"/traits/{traitIndex}/slots/{slotIndex}/constraints"), refusals);
             AddDuplicateIdentities(
                 trait.Slots.Select((slot, slotIndex) => (slot.SlotKey, slotIndex)),
                 "records.trait.slot_identity_duplicate",
@@ -1058,21 +990,15 @@ public sealed class RecordsIntentValidator
         }
     }
 
-    private static void ValidateValueDomain(
-        ValueDomainDefinition? domain,
-        string pointer,
+    private static void AddFieldRefusals(
+        IReadOnlyList<FieldRefusal> fieldRefusals,
         List<RecordsRefusal> refusals)
     {
-        if (domain is not null && CountSources(domain) != 1)
-            refusals.Add(new RecordsRefusal(
-                "records.field.value_domain_source_count", pointer,
-                "A value domain must name exactly one permitted-value source."));
+        refusals.AddRange(fieldRefusals.Select(refusal => new RecordsRefusal(
+            refusal.Code,
+            refusal.JsonPointer,
+            refusal.Message)));
     }
-
-    private static int CountSources(ValueDomainDefinition valueDomain)
-        => (valueDomain.LiteralValues is null ? 0 : 1)
-            + (valueDomain.TaxonomyScheme is null ? 0 : 1)
-            + (valueDomain.RecordQuery is null ? 0 : 1);
 
     private static int CountTargets(FieldReferenceDefinition reference)
         => (string.IsNullOrWhiteSpace(reference.TargetRecordTypeId) ? 0 : 1)

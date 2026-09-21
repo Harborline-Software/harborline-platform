@@ -1,3 +1,5 @@
+using Harborline.Contracts.Fields;
+
 namespace Harborline.Kernel.SchemaValidation;
 
 /// <summary>The immutable field-kind revisions admitted by the composing platform runtime.</summary>

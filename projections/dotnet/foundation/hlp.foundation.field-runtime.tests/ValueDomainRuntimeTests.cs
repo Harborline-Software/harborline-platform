@@ -8,6 +8,47 @@ namespace Harborline.Foundation.FieldRuntime.Tests;
 public sealed class ValueDomainRuntimeTests
 {
     [Theory]
+    [InlineData(false, 0, 1)]
+    [InlineData(true, 1, 1)]
+    [InlineData(false, 0, null)]
+    public void Declaration_admission_accepts_optional_required_and_unbounded_multiplicity(
+        bool required,
+        int minimum,
+        int? maximum)
+    {
+        IFieldDomainRuntime runtime = new ValueDomainRuntime(
+            new SnapshotRefusingSource(), new ReadAuthority(), TimeProvider.System);
+
+        var refusals = runtime.ValidateDeclaration(
+            new(required, minimum, maximum, [], new(LiteralValues: ["open"])),
+            "/fields/0/constraints");
+
+        Assert.Empty(refusals);
+    }
+
+    [Fact]
+    public void Declaration_admission_accumulates_multiplicity_and_domain_refusals_at_authored_pointers()
+    {
+        IFieldDomainRuntime runtime = new ValueDomainRuntime(
+            new SnapshotRefusingSource(), new ReadAuthority(), TimeProvider.System);
+        var declaration = new FieldConstraintDefinition(
+            true,
+            -1,
+            0,
+            [],
+            new(LiteralValues: ["open"], TaxonomyScheme: new("case-status", "1.0.0")));
+
+        var refusals = runtime.ValidateDeclaration(declaration, "/traits/0/slots/0/constraints");
+
+        Assert.Equal(
+            [
+                ("field.constraint_intersection_empty", "/traits/0/slots/0/constraints"),
+                ("field.value_domain_source_count", "/traits/0/slots/0/constraints/value_domain"),
+            ],
+            refusals.Select(refusal => (refusal.Code, refusal.JsonPointer)));
+    }
+
+    [Theory]
     [InlineData(false, 0, FieldEditorKind.None)]
     [InlineData(false, 1, FieldEditorKind.SingleValue)]
     [InlineData(false, 2, FieldEditorKind.RadioGroup)]
@@ -160,5 +201,13 @@ public sealed class ValueDomainRuntimeTests
             cancellationToken.ThrowIfCancellationRequested();
             return ValueTask.FromResult(member.ResourceId == "concept-open");
         }
+    }
+
+    private sealed class SnapshotRefusingSource : IFieldDomainSource
+    {
+        public ValueTask<IFieldDomainSnapshot> OpenSnapshotAsync(
+            TenantId tenant,
+            CancellationToken cancellationToken = default)
+            => throw new InvalidOperationException("Declaration-only admission must not access a snapshot.");
     }
 }

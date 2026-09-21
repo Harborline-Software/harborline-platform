@@ -80,6 +80,13 @@ public sealed record ResolvedFieldConstraints(
 /// <summary>The shared permitted-value and editor-choice interpreter used by member consumers.</summary>
 public interface IFieldDomainRuntime
 {
+    /// <summary>Admits one authored constraint declaration without source, snapshot, principal or I/O access.
+    /// Multiplicity refusals use <paramref name="jsonPointer"/> and value-domain refusals use its
+    /// <c>/value_domain</c> child.</summary>
+    IReadOnlyList<FieldRefusal> ValidateDeclaration(
+        FieldConstraintDefinition constraints,
+        string jsonPointer);
+
     /// <summary>Checks required, multiplicity, readable membership and each original scalar against its compiled kind.
     /// Undefined or null denotes an absent value; arrays are repeated values, never scalar containers.</summary>
     IReadOnlyList<FieldRefusal> Validate(

@@ -11,7 +11,7 @@ public sealed class RecordsFieldKindResolutionTests
     public async Task Compiler_refuses_an_unregistered_kind_instead_of_guessing_a_string(string kindId, string version)
     {
         var registry = new InMemorySchemaRegistry();
-        var compiler = new RecordsDefinitionCompiler(registry, RecordsTestKinds.Text);
+        var compiler = new RecordsDefinitionCompiler(registry, RecordsTestDomains.CreateRuntime(), RecordsTestKinds.Text);
         var definition = new RecordTypeDefinition
         {
             Envelope = new("definition.example", "1.0.0", "tenant-a", "package-a", "test"),

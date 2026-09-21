@@ -32,17 +32,17 @@ public sealed class RecordsConstraintAdmissionTests
             Fields = [Field() with { Constraints = new(false, minimum, maximum, [], null) }],
         };
 
-        var result = new RecordsIntentValidator().Validate(definition);
+        var result = new RecordsIntentValidator(RecordsTestDomains.CreateRuntime()).Validate(definition);
 
         Assert.Contains(result.Refusals, refusal =>
-            refusal.Code == "records.field.multiplicity_invalid"
+            refusal.Code == "field.constraint_intersection_empty"
             && refusal.JsonPointer == "/fields/0/constraints");
     }
 
     [Fact]
     public void Malformed_nested_members_return_all_structural_refusals_without_throwing()
     {
-        var validator = new RecordsIntentValidator();
+        var validator = new RecordsIntentValidator(RecordsTestDomains.CreateRuntime());
         var malformed = Definition() with
         {
             Envelope = new(null!, "1.0.0", "tenant-a", "package-a", "test"),
@@ -65,7 +65,7 @@ public sealed class RecordsConstraintAdmissionTests
     {
         var definition = Definition() with { Fields = [Field() with { IsTranslatable = true }] };
         var registry = new InMemorySchemaRegistry();
-        var schema = await new RecordsDefinitionCompiler(registry, RecordsTestKinds.Text).CompileAndRegisterAsync(definition);
+        var schema = await new RecordsDefinitionCompiler(registry, RecordsTestDomains.CreateRuntime(), RecordsTestKinds.Text).CompileAndRegisterAsync(definition);
         Assert.Equal(valid, (await registry.ValidateAsync(schema.Id, Encoding.UTF8.GetBytes(json))).IsValid);
     }
 
@@ -85,7 +85,7 @@ public sealed class RecordsConstraintAdmissionTests
             }],
         };
         var registry = new InMemorySchemaRegistry();
-        var schema = await new RecordsDefinitionCompiler(registry, RecordsTestKinds.Text).CompileAndRegisterAsync(definition);
+        var schema = await new RecordsDefinitionCompiler(registry, RecordsTestDomains.CreateRuntime(), RecordsTestKinds.Text).CompileAndRegisterAsync(definition);
 
         Assert.Equal(valid, (await registry.ValidateAsync(schema.Id, Encoding.UTF8.GetBytes(json))).IsValid);
     }
@@ -94,7 +94,7 @@ public sealed class RecordsConstraintAdmissionTests
     public void Raw_intent_and_typed_intent_share_structural_admission()
     {
         var invalid = Definition() with { RecordTypeId = "" };
-        var validator = new RecordsIntentValidator();
+        var validator = new RecordsIntentValidator(RecordsTestDomains.CreateRuntime());
         var typed = validator.Validate(invalid);
         var raw = validator.ValidateJson(RecordsDefinitionJson.SerializeCanonical(invalid));
 
@@ -114,7 +114,7 @@ public sealed class RecordsConstraintAdmissionTests
             TraitBindings = [Binding("first"), Binding("second")],
         };
         var registry = new InMemorySchemaRegistry();
-        var schema = await new RecordsDefinitionCompiler(registry, RecordsTestKinds.Text).CompileAndRegisterAsync(definition);
+        var schema = await new RecordsDefinitionCompiler(registry, RecordsTestDomains.CreateRuntime(), RecordsTestKinds.Text).CompileAndRegisterAsync(definition);
 
         var allowed = await registry.ValidateAsync(schema.Id, Encoding.UTF8.GetBytes("""{"state":"b"}"""));
         var missing = await registry.ValidateAsync(schema.Id, Encoding.UTF8.GetBytes("{}"));
@@ -135,7 +135,7 @@ public sealed class RecordsConstraintAdmissionTests
             TraitBindings = [Binding("first"), Binding("second"), Binding("third")],
         };
 
-        var result = new RecordsIntentValidator().Validate(definition);
+        var result = new RecordsIntentValidator(RecordsTestDomains.CreateRuntime()).Validate(definition);
 
         Assert.Contains(result.Refusals, refusal =>
             refusal.Code == "records.trait.constraint_intersection_empty"
