@@ -92,6 +92,14 @@ public interface IFieldDomainRuntime
         FieldConstraintDefinition constraints,
         string jsonPointer);
 
+    /// <summary>Checks one scalar against authored literal tokens using the runtime's membership semantics.
+    /// This source-free operation performs no snapshot, authority or source I/O and exists so executable
+    /// static schema metadata can delegate membership without fabricating a resolved proof.</summary>
+    IReadOnlyList<FieldRefusal> ValidateLiteralMembership(
+        IReadOnlyList<string> literalValues,
+        JsonElement value,
+        string jsonPointer);
+
     /// <summary>Checks required, multiplicity, readable membership and each original scalar against its compiled kind.
     /// Undefined or null denotes an absent value; arrays are repeated values, never scalar containers.</summary>
     IReadOnlyList<FieldRefusal> Validate(

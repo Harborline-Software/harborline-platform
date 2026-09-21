@@ -8,6 +8,32 @@ namespace Harborline.Foundation.FieldRuntime.Tests;
 public sealed class ValueDomainRuntimeTests
 {
     [Theory]
+    [InlineData("12.30", "12.30", true)]
+    [InlineData("12.30", "12.3", false)]
+    [InlineData("true", "true", true)]
+    [InlineData("true", "false", false)]
+    [InlineData("text", "\"text\"", true)]
+    public void Source_free_literal_membership_uses_original_scalar_tokens_without_opening_a_snapshot(
+        string literal,
+        string json,
+        bool expected)
+    {
+        var runtime = new ValueDomainRuntime(
+            new SnapshotRefusingSource(), new ReadAuthority(), TimeProvider.System);
+        using var document = JsonDocument.Parse(json);
+
+        var refusals = runtime.ValidateLiteralMembership([literal], document.RootElement, "/value");
+
+        Assert.Equal(expected, refusals.Count == 0);
+        if (!expected)
+            Assert.Contains(refusals, refusal => refusal is
+            {
+                Code: "field.value_outside_domain",
+                JsonPointer: "/value",
+            });
+    }
+
+    [Theory]
     [InlineData(false, 0, 1)]
     [InlineData(true, 1, 1)]
     [InlineData(false, 0, null)]

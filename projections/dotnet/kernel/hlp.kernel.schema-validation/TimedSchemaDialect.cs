@@ -9,7 +9,10 @@ internal static class TimedSchemaDialect
 {
     private static readonly Uri Draft202012Id = new("https://json-schema.org/draft/2020-12/schema");
 
-    internal static BuildOptions Build(TimeSpan timeout, IFieldKindRuntime? fieldKindRuntime)
+    internal static BuildOptions Build(
+        TimeSpan timeout,
+        IFieldKindRuntime? fieldKindRuntime,
+        IFieldDomainRuntime? fieldDomainRuntime)
     {
         var standardKeywords = new[]
             {
@@ -27,6 +30,7 @@ internal static class TimedSchemaDialect
             .Where(handler => handler.Name != "pattern")
             .Append((IKeywordHandler)new TimedPatternKeyword(timeout))
             .Append(new FieldKindBindingKeyword(fieldKindRuntime))
+            .Append(new LiteralDomainKeyword(fieldDomainRuntime))
             .ToList();
 
         var dialect = new Dialect(standardKeywords) { Id = Draft202012Id };

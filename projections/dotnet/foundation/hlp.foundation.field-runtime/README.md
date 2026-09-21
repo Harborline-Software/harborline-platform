@@ -28,6 +28,10 @@ commit orchestration remain with their existing owners. Records integration resu
   only values the authenticated caller may read.
 - `ValidateValueDomainJson` exposes the producer's raw `ValueDomainAdmission` operation through
   the shared contract, preserving duplicate-member detection and exact authored pointers without I/O.
+- `ValidateLiteralMembership` is the source-free executable seam for static literal metadata. It
+  compares decoded string text and original non-string JSON tokens ordinally, performs no source or
+  authority I/O, and is the same membership implementation used by resolved validation. It does not
+  resolve dynamic Taxonomy or record-query domains.
 - `IntersectAsync` and `NarrowAsync` prove constraints against complete membership, including
   members withheld from the caller. A consumer cannot widen a domain, drop required, loosen
   multiplicity or relax access. Proofs retain source and predicate attribution.

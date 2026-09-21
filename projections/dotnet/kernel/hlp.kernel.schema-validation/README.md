@@ -36,8 +36,9 @@ registering anything. `CompileAndRegisterAsync` registers the same admitted sche
 policies and exact field-kind bindings from that same admission with the registered schema, so a
 consumer does not perform a second binding pass. Each scalar begins as a detached copy of the bound
 `ICompiledFieldKind.JsonSchema`, including exact kind metadata and every parameter.
-Records then overlays authored literal contributions as `enum`/`allOf` constraints plus its
-pattern, proven requiredness, multiplicity and translation grammar. Authority-filtered proof
+Records then overlays authored text literals as standard `enum` contributions and non-text raw
+tokens as executable literal-domain contributions under `allOf`, plus its pattern, proven
+requiredness, multiplicity and translation grammar. Authority-filtered proof
 values never become static schema membership, so schema identity is stable across principals.
 Dynamic Taxonomy/query declarations remain authored for runtime enforcement. The registry used
 by composition receives the same field-kind runtime so runtime-only limits execute at validation time.
@@ -72,3 +73,14 @@ Evaluation passes the original JSON value and instance pointer to the bound vali
 All `field.*` refusals survive, including simultaneous digit overflows. JSON Schema's own
 applicators handle nested properties, arrays, references and alternatives. Valid branches
 do not contribute errors from unsuccessful alternatives.
+
+## Shared literal-domain validation
+
+For non-text kinds, `x-harborline-literal-domain` carries every authored raw literal contribution
+into the content-addressed schema. Registration binds that neutral metadata to
+`IFieldDomainRuntime.ValidateLiteralMembership`; malformed or duplicate metadata and a missing
+runtime refuse before registration. The kernel owns no membership comparison.
+
+Text literals retain standard JSON Schema `enum` because decoded string equality is exactly the
+shared runtime behavior. Dynamic Taxonomy and record-query results are never compiled into static
+membership: schema validation does not prove current authority or record-set uniqueness.

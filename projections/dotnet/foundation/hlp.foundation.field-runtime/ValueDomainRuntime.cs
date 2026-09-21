@@ -59,6 +59,30 @@ public sealed class ValueDomainRuntime : IFieldDomainRuntime
     }
 
     /// <inheritdoc />
+    public IReadOnlyList<FieldRefusal> ValidateLiteralMembership(
+        IReadOnlyList<string> literalValues,
+        JsonElement value,
+        string jsonPointer)
+    {
+        ArgumentNullException.ThrowIfNull(literalValues);
+        return ValidateLiteralMembership(
+            new HashSet<string>(literalValues, StringComparer.Ordinal),
+            value,
+            jsonPointer);
+    }
+
+    private static FieldRefusal[] ValidateLiteralMembership(
+        IReadOnlySet<string> literalValues,
+        JsonElement value,
+        string jsonPointer)
+    {
+        var member = value.ValueKind == JsonValueKind.String ? value.GetString() : value.GetRawText();
+        return member is not null && literalValues.Contains(member, StringComparer.Ordinal)
+            ? Array.Empty<FieldRefusal>()
+            : [new("field.value_outside_domain", jsonPointer, "The value is outside the permitted field domain.")];
+    }
+
+    /// <inheritdoc />
     public async ValueTask<ResolvedValueDomain> ResolveAsync(ValueDomainDefinition domain,
         FieldDomainScope scope, string jsonPointer, CancellationToken cancellationToken = default)
     {
@@ -300,7 +324,9 @@ public sealed class ValueDomainRuntime : IFieldDomainRuntime
         if (constraints.MaximumCount is { } maximum && count > maximum)
             refusals.Add(new("field.maximum_count", jsonPointer, "The value count exceeds the admitted maximum."));
         if (count == 0) return refusals;
-        var membership = constraints.Values is { } values ? new HashSet<string>(values, StringComparer.Ordinal) : null;
+        var membership = constraints.Values is { } values
+            ? new HashSet<string>(values, StringComparer.Ordinal)
+            : null;
         if (repeated)
         {
             var index = 0;
@@ -313,9 +339,8 @@ public sealed class ValueDomainRuntime : IFieldDomainRuntime
         void ValidateScalar(JsonElement item, string pointer)
         {
             refusals.AddRange(kind.Validate(item, pointer));
-            var member = item.ValueKind == JsonValueKind.String ? item.GetString() : item.GetRawText();
-            if (membership is not null && (member is null || !membership.Contains(member)))
-                refusals.Add(new("field.value_outside_domain", pointer, "The value is outside the permitted field domain."));
+            if (membership is not null)
+                refusals.AddRange(ValidateLiteralMembership(membership, item, pointer));
         }
     }
 }

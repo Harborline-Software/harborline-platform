@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.contracts.fields",
-  "interfaceRevision": 3,
+  "interfaceRevision": 4,
   "status": "draft",
   "purpose": "Carry the shared field-kind, domain and constraint vocabulary across the kernel Records and foundation field-runtime seam without an outward kernel dependency.",
   "dependencies": ["hlp.contracts.identities"],
@@ -21,7 +21,7 @@
     "ResolvedValueDomain": ["SourceKind", "Values", "Editor", "Predicate", "SnapshotRevision"],
     "FieldDomainAttribution": ["SourceKind", "TaxonomyScheme", "RecordQuery"],
     "ResolvedFieldConstraints": ["Required", "MinimumCount", "MaximumCount", "ReadRoleIds", "Values", "Sources", "SnapshotRevision", "Editor"],
-    "IFieldDomainRuntime": ["ValidateValueDomainJson", "ValidateDeclaration", "Validate", "ResolveAsync", "IntersectAsync", "NarrowAsync"]
+    "IFieldDomainRuntime": ["ValidateValueDomainJson", "ValidateDeclaration", "ValidateLiteralMembership", "Validate", "ResolveAsync", "IntersectAsync", "NarrowAsync"]
   },
   "invariants": [
     "One shared vocabulary is promoted from the T-615 declarations; members do not redeclare it.",
@@ -31,6 +31,7 @@
     "Substrate refusals carry member-neutral field.* codes and authored RFC 6901 locations.",
     "Declaration-only constraint admission validates multiplicity and value-domain shape without opening a source snapshot or assuming a principal.",
     "Raw value-domain admission is exposed through the same runtime contract and preserves shared field.* codes, duplicate-member detection and authored RFC 6901 pointers without source access.",
+    "Source-free literal membership accepts authored literal tokens, one original JSON scalar and its RFC 6901 pointer; strings compare by decoded ordinal text, non-strings compare by original JSON token text, and the operation performs no domain-source access or authority inference.",
     "A bound kind carries its runtime validator together with standard schema keywords and executable x-harborline-field-kind metadata; a schema consumer must bind that metadata rather than relying on standard keywords alone.",
     "A domain resolution exposes only caller-readable values; its cardinality-derived editor cannot reveal unreadable membership.",
     "Shared value validation accepts resolved constraints, a compiled kind, original JSON and a pointer; it checks required, multiplicity, readable membership and each scalar without changing values. Undefined or null means absent; arrays carry repeated values."

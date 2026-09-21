@@ -16,11 +16,17 @@ public sealed class InMemorySchemaRegistry : ISchemaRegistry
     private readonly ConcurrentDictionary<SchemaId, Entry> _schemas = new();
 
     /// <summary>Creates a registry with default or caller-supplied resource bounds.</summary>
-    public InMemorySchemaRegistry(SchemaRegistryOptions? options = null, IFieldKindRuntime? fieldKindRuntime = null)
+    public InMemorySchemaRegistry(
+        SchemaRegistryOptions? options = null,
+        IFieldKindRuntime? fieldKindRuntime = null,
+        IFieldDomainRuntime? fieldDomainRuntime = null)
     {
         _options = options ?? SchemaRegistryOptions.Default;
         _options.Validate();
-        _buildOptions = TimedSchemaDialect.Build(_options.PatternMatchTimeout, fieldKindRuntime);
+        _buildOptions = TimedSchemaDialect.Build(
+            _options.PatternMatchTimeout,
+            fieldKindRuntime,
+            fieldDomainRuntime);
     }
 
     /// <inheritdoc />
@@ -215,7 +221,7 @@ public sealed class InMemorySchemaRegistry : ISchemaRegistry
         JsonNode? schemaNode,
         List<SchemaValidationError> errors)
     {
-        if (keyword == FieldKindBindingKeyword.KeywordName)
+        if (keyword is FieldKindBindingKeyword.KeywordName or LiteralDomainKeyword.KeywordName)
         {
             foreach (var refusal in JsonSerializer.Deserialize<FieldRefusal[]>(detail)!)
                 errors.Add(new SchemaValidationError(refusal.JsonPointer, refusal.Message, refusal.Code));

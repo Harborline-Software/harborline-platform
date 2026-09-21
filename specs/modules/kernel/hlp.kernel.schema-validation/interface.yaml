@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.kernel.schema-validation",
-  "interfaceRevision": 7,
+  "interfaceRevision": 8,
   "status": "frozen",
   "purpose": "Admit typed Records declarations, compile their static field constraints to JSON Schema draft 2020-12, and register and validate content-addressed schemas with bounded, stable, field-addressable failures.",
   "dependencies": ["hlp.contracts.fields", "hlp.contracts.identities"],
@@ -20,7 +20,8 @@
     "FieldScalarValueShape": ["Text", "Boolean", "Integer", "Number"],
     "RecordsFieldKindDefaultMaterializer": ["Materialize"],
     "RecordsReferenceAdmission": ["TargetMatches", "Validate"],
-    "IFieldKindRuntime": "required injected shared-contract binding authority for exact kind admission, executable schema projection and governance defaults"
+    "IFieldKindRuntime": "required injected shared-contract binding authority for exact kind admission, executable schema projection and governance defaults",
+    "IFieldDomainRuntime": "required injected shared-contract authority for declaration admission, domain proofs and executable source-free literal membership"
   },
   "selectedDesign": {
     "choice": "caller-backed validation registry",
@@ -49,7 +50,9 @@
     "Records delegates raw value-domain grammar, every field constraint, every Trait slot constraint including unbound slots, narrowing and final intersection to IFieldDomainRuntime while retaining Records-owned identity, binding, reference and top-level raw-grammar rules.",
     "Full Records admission requires an explicit non-sentinel tenant, authenticated principal and cancellation token, detaches the authored candidate before source I/O, and binds exact field-kind revisions before any schema mutation.",
     "Every proof in one admission must report the same SnapshotRevision; inconsistent revisions refuse before registration.",
-    "Static schemas compile authored literal contributions as enum/allOf constraints over the executable kind schema and never compile authority-filtered resolved membership.",
+    "Static schemas compile authored text literal contributions as standard enum/allOf constraints and non-text contributions as executable x-harborline-literal-domain metadata over the executable kind schema; they never compile authority-filtered resolved membership.",
+    "Executable literal-domain metadata preserves each authored raw token in canonical schema identity, delegates membership to IFieldDomainRuntime without source access, and retains original field.* refusals and RFC 6901 pointers.",
+    "A schema declaring executable literal-domain metadata refuses registration when its shared runtime is missing or its metadata is malformed or contains duplicate members.",
     "Records compiler admission receives the same required IFieldDomainRuntime dependency as RecordsIntentValidator; kernel does not reference the foundation field-runtime implementation.",
     "Records compiler and default materializer require IFieldKindRuntime; missing composition is rejected rather than replaced with an empty or guessed registry.",
     "Each field kind binds at its exact /fields/{index}/kind pointer and field.* refusals retain their substrate code and pointer.",

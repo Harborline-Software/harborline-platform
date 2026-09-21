@@ -594,10 +594,18 @@ public sealed class RecordsDefinitionCompiler
         if (literalDomains.Length > 0)
         {
             schema["allOf"] = new JsonArray(literalDomains
-                .Select(values => (JsonNode)new JsonObject
-                {
-                    ["enum"] = new JsonArray(values.Select(value => JsonValue.Create(value)).ToArray()),
-                })
+                .Select(values => binding.Kind.ValueShape == FieldScalarValueShape.Text
+                    ? (JsonNode)new JsonObject
+                    {
+                        ["enum"] = new JsonArray(values.Select(value => JsonValue.Create(value)).ToArray()),
+                    }
+                    : new JsonObject
+                    {
+                        [LiteralDomainKeyword.KeywordName] = new JsonObject
+                        {
+                            ["values"] = new JsonArray(values.Select(value => JsonValue.Create(value)).ToArray()),
+                        },
+                    })
                 .ToArray());
         }
 
