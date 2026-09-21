@@ -194,6 +194,37 @@ public sealed class RecordsDefinitionLifecycleTests
     }
 
     [Fact]
+    public async Task Malformed_identity_admission_leaves_shared_store_unchanged_for_lifecycle_and_install()
+    {
+        var harness = Harness.Create();
+        var invalid = CompleteDefinition("1.0.0") with
+        {
+            UniqueConstraints = [new UniqueConstraintDefinition("asset-identity", ["missing_field"])],
+        };
+
+        var lifecycleError = await Assert.ThrowsAsync<DefinitionRefusalException>(() => harness.Lifecycle
+            .SaveDraftAsync(Principal, invalid, "version-one", 0, "invalid-identity").AsTask());
+        var installError = await Assert.ThrowsAsync<DefinitionRefusalException>(() => harness.Admission
+            .AdmitInstallAsync(
+                RecordsDefinitionCodec.Encode(invalid, "version-one"),
+                Principal,
+                CancellationToken.None).AsTask());
+
+        Assert.Contains(lifecycleError.Refusals, refusal => refusal is
+        {
+            Code: "records.identity.field_unresolved",
+            Pointer: "/unique_constraints/0/field_keys/0",
+        });
+        Assert.Contains(installError.Refusals, refusal => refusal is
+        {
+            Code: "records.identity.field_unresolved",
+            Pointer: "/unique_constraints/0/field_keys/0",
+        });
+        Assert.Equal(0, harness.Domain.Opens);
+        Assert.Empty(await harness.Lifecycle.ListHistoryAsync("tenant-a", invalid.Envelope.DefinitionId));
+    }
+
+    [Fact]
     public async Task Raw_numeric_enum_refuses_before_decode_normalization_or_source_io()
     {
         var harness = Harness.Create();

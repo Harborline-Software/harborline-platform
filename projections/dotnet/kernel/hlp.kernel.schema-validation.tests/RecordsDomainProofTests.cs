@@ -281,6 +281,32 @@ public sealed class RecordsDomainProofTests
     }
 
     [Fact]
+    public async Task Invalid_identity_declaration_refuses_before_source_access_or_registration()
+    {
+        var boundary = new DomainBoundary
+        {
+            OpenException = new InvalidOperationException("must not open"),
+        };
+        var definition = Definition() with
+        {
+            Fields = [Field("known")],
+            UniqueConstraints = [new UniqueConstraintDefinition("identity", ["missing"])],
+        };
+        var compiler = Compiler(boundary, out var registry);
+
+        var error = await Assert.ThrowsAsync<RecordsDefinitionAdmissionException>(() => compiler
+            .CompileAndRegisterAsync(definition, RecordsTestDomains.Scope, CancellationToken.None).AsTask());
+
+        Assert.Contains(error.Refusals, refusal => refusal is
+        {
+            Code: "records.identity.field_unresolved",
+            JsonPointer: "/unique_constraints/0/field_keys/0",
+        });
+        Assert.Equal(0, boundary.Opens);
+        Assert.Empty(await RegisteredSchemas(registry));
+    }
+
+    [Fact]
     public async Task Unbound_optional_slots_still_require_complete_domain_proofs()
     {
         var definition = Definition() with

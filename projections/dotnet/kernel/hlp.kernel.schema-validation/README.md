@@ -17,6 +17,14 @@ pure raw-shape check applies the same CLR grammar before deserialization without
 source or mutating the schema registry. This prevents invalid collection nulls and numeric enum
 wire values from being omitted or normalized before admission.
 
+Type-level unique constraints are declaration-time identity metadata. Each constraint has a
+nonblank, ordinal, record-type-scoped identity and one or more declared stable field keys; composite
+constraints may span fields whose display names are identical. Admission aggregates duplicate
+constraint identities and blank, unresolved, ambiguous or repeated field-key refusals before shared
+domain access or registry mutation. DES-0015 `records-ck-32` also applies to every participating
+field: an identity field may never be translatable. This module does not enforce uniqueness across
+stored records; atomic record-set enforcement remains the Records write interpreter's responsibility.
+
 Compositions inject the shared `IFieldKindRuntime`, backed by the foundation
 `FieldKindRuntime` and its exact immutable registrations. The kernel does not own a
 field-kind registry or guess built-in kinds. Unknown kinds, versions and invalid

@@ -1016,8 +1016,109 @@ public sealed class RecordsIntentValidator
 
         }
 
+        ValidateUniqueConstraints(definition, refusals);
         ValidateRefinements(definition, refusals);
         ValidateTraitBindings(definition, refusals);
+    }
+
+    private static void ValidateUniqueConstraints(
+        RecordTypeDefinition definition,
+        List<RecordsRefusal> refusals)
+    {
+        var declaredFieldCounts = definition.Fields
+            .Where(field => !string.IsNullOrWhiteSpace(field.Key))
+            .GroupBy(field => field.Key, StringComparer.Ordinal)
+            .ToDictionary(group => group.Key, group => group.Count(), StringComparer.Ordinal);
+
+        for (var constraintIndex = 0; constraintIndex < definition.UniqueConstraints.Count; constraintIndex++)
+        {
+            var constraint = definition.UniqueConstraints[constraintIndex];
+            if (string.IsNullOrWhiteSpace(constraint.ConstraintId))
+            {
+                refusals.Add(new RecordsRefusal(
+                    "records.identity.constraint_id_required",
+                    $"/unique_constraints/{constraintIndex}/constraint_id",
+                    "Identity constraint identity is required."));
+            }
+            if (constraint.FieldKeys.Count == 0)
+            {
+                refusals.Add(new RecordsRefusal(
+                    "records.identity.field_keys_required",
+                    $"/unique_constraints/{constraintIndex}/field_keys",
+                    "An identity constraint must name at least one field."));
+            }
+        }
+
+        AddDuplicateIdentities(
+            definition.UniqueConstraints.Select((constraint, index) => (constraint.ConstraintId, index)),
+            "records.identity.constraint_identity_duplicate",
+            "/unique_constraints/{0}/constraint_id",
+            "Identity constraint identity must be unique within the record type.",
+            refusals);
+
+        var identityFieldKeys = new HashSet<string>(StringComparer.Ordinal);
+
+        for (var constraintIndex = 0; constraintIndex < definition.UniqueConstraints.Count; constraintIndex++)
+        {
+            var constraint = definition.UniqueConstraints[constraintIndex];
+            var repeatedFieldKeys = constraint.FieldKeys
+                .Where(fieldKey => !string.IsNullOrWhiteSpace(fieldKey))
+                .GroupBy(fieldKey => fieldKey, StringComparer.Ordinal)
+                .Where(group => group.Count() > 1)
+                .Select(group => group.Key)
+                .ToHashSet(StringComparer.Ordinal);
+            for (var fieldIndex = 0; fieldIndex < constraint.FieldKeys.Count; fieldIndex++)
+            {
+                var fieldKey = constraint.FieldKeys[fieldIndex];
+                var pointer = $"/unique_constraints/{constraintIndex}/field_keys/{fieldIndex}";
+                if (string.IsNullOrWhiteSpace(fieldKey))
+                {
+                    refusals.Add(new RecordsRefusal(
+                        "records.identity.field_key_required",
+                        pointer,
+                        "An identity constraint field key cannot be blank."));
+                    continue;
+                }
+                if (repeatedFieldKeys.Contains(fieldKey))
+                {
+                    refusals.Add(new RecordsRefusal(
+                        "records.identity.field_key_duplicate",
+                        pointer,
+                        "An identity constraint cannot repeat a field key."));
+                }
+
+                if (!declaredFieldCounts.TryGetValue(fieldKey, out var declarationCount))
+                {
+                    refusals.Add(new RecordsRefusal(
+                        "records.identity.field_unresolved",
+                        pointer,
+                        "The identity constraint field is not declared by stable key."));
+                }
+                else if (declarationCount > 1)
+                {
+                    refusals.Add(new RecordsRefusal(
+                        "records.identity.field_ambiguous",
+                        pointer,
+                        "The identity constraint field key resolves to more than one declaration."));
+                }
+                else
+                {
+                    identityFieldKeys.Add(fieldKey);
+                }
+            }
+        }
+
+        for (var fieldIndex = 0; fieldIndex < definition.Fields.Count; fieldIndex++)
+        {
+            var field = definition.Fields[fieldIndex];
+            if (field.IsTranslatable && identityFieldKeys.Contains(field.Key))
+            {
+                refusals.Add(new RecordsRefusal(
+                    "records.field.identity_translatable",
+                    $"/fields/{fieldIndex}/is_translatable",
+                    "An identity field cannot be translatable."));
+            }
+        }
     }
 
     private static void ValidateScope(

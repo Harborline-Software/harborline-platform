@@ -157,6 +157,118 @@ public sealed class RecordsDefinitionContractTests
     }
 
     [Fact]
+    public async Task Type_level_identity_constraint_refuses_an_unknown_stable_field_key()
+    {
+        var definition = ValidDefinition() with
+        {
+            UniqueConstraints = [new UniqueConstraintDefinition("asset-identity", ["missing_field"])],
+        };
+
+        var result = await new RecordsIntentValidator(RecordsTestDomains.CreateRuntime(), RecordsTestKinds.Text)
+            .ValidateAsync(definition, RecordsTestDomains.Scope, CancellationToken.None);
+
+        var refusal = Assert.Single(result.Refusals);
+        Assert.Equal("records.identity.field_unresolved", refusal.Code);
+        Assert.Equal("/unique_constraints/0/field_keys/0", refusal.JsonPointer);
+    }
+
+    [Fact]
+    public async Task Typed_and_raw_identity_admission_aggregate_stable_structural_refusals()
+    {
+        var definition = ValidDefinition() with
+        {
+            Fields =
+            [
+                Field("Duplicate display name", "ambiguous"),
+                Field("Duplicate display name", "ambiguous"),
+                Field("Repeated value field", "repeated"),
+                Field("Localized identity", "localized") with { IsTranslatable = true },
+            ],
+            UniqueConstraints =
+            [
+                new UniqueConstraintDefinition("", []),
+                new UniqueConstraintDefinition(
+                    "duplicate-identity",
+                    ["", "missing", "ambiguous", "repeated", "repeated", "localized"]),
+                new UniqueConstraintDefinition("duplicate-identity", ["localized"]),
+            ],
+        };
+        var validator = new RecordsIntentValidator(RecordsTestDomains.CreateRuntime(), RecordsTestKinds.Text);
+        var expected = new[]
+        {
+            ("records.identity.constraint_id_required", "/unique_constraints/0/constraint_id"),
+            ("records.identity.field_keys_required", "/unique_constraints/0/field_keys"),
+            ("records.identity.constraint_identity_duplicate", "/unique_constraints/1/constraint_id"),
+            ("records.identity.constraint_identity_duplicate", "/unique_constraints/2/constraint_id"),
+            ("records.identity.field_key_required", "/unique_constraints/1/field_keys/0"),
+            ("records.identity.field_unresolved", "/unique_constraints/1/field_keys/1"),
+            ("records.identity.field_ambiguous", "/unique_constraints/1/field_keys/2"),
+            ("records.identity.field_key_duplicate", "/unique_constraints/1/field_keys/3"),
+            ("records.identity.field_key_duplicate", "/unique_constraints/1/field_keys/4"),
+            ("records.field.identity_translatable", "/fields/3/is_translatable"),
+        };
+
+        var typed = await validator.ValidateAsync(
+            definition, RecordsTestDomains.Scope, CancellationToken.None);
+        var raw = await validator.ValidateJsonAsync(
+            RecordsDefinitionJson.SerializeCanonicalForAdmission(definition),
+            RecordsTestDomains.Scope,
+            CancellationToken.None);
+
+        Assert.Equal(expected, IdentityRefusals(typed));
+        Assert.Equal(expected, IdentityRefusals(raw));
+
+        static IEnumerable<(string Code, string Pointer)> IdentityRefusals(
+            RecordsIntentValidationResult result)
+            => result.Refusals
+                .Where(refusal => refusal.Code.StartsWith("records.identity.", StringComparison.Ordinal)
+                    || refusal.Code == "records.field.identity_translatable")
+                .Select(refusal => (refusal.Code, refusal.JsonPointer));
+    }
+
+    [Fact]
+    public async Task Composite_identity_with_duplicate_display_names_admits_and_round_trips()
+    {
+        var definition = ValidDefinition() with
+        {
+            Fields =
+            [
+                Field("External identity", "authority") with
+                {
+                    Constraints = new FieldConstraintDefinition(false, 0, 3, [], null),
+                },
+                Field("External identity", "Authority") with
+                {
+                    Reference = new FieldReferenceDefinition(
+                        "records.authority",
+                        null,
+                        null,
+                        ReferenceCardinality.Many,
+                        ReferenceDeleteBehavior.Block),
+                },
+            ],
+            UniqueConstraints =
+            [
+                new UniqueConstraintDefinition("external-identity", ["authority", "Authority"]),
+                new UniqueConstraintDefinition("External-identity", ["authority", "Authority"]),
+            ],
+        };
+        var validator = new RecordsIntentValidator(RecordsTestDomains.CreateRuntime(), RecordsTestKinds.Text);
+
+        var typed = await validator.ValidateAsync(
+            definition, RecordsTestDomains.Scope, CancellationToken.None);
+        var json = RecordsDefinitionJson.SerializeCanonicalForAdmission(definition);
+        var raw = await validator.ValidateJsonAsync(json, RecordsTestDomains.Scope, CancellationToken.None);
+        var roundTripped = RecordsDefinitionJson.Deserialize(json);
+
+        Assert.True(typed.IsAdmitted);
+        Assert.True(raw.IsAdmitted);
+        Assert.Equal(2, roundTripped.UniqueConstraints.Count);
+        Assert.Equal(["authority", "Authority"], roundTripped.UniqueConstraints[0].FieldKeys);
+        Assert.Equal(json, RecordsDefinitionJson.SerializeCanonicalForAdmission(roundTripped));
+    }
+
+    [Fact]
     public void Complete_typed_definition_round_trips_without_an_opaque_body()
     {
         var definition = ValidDefinition() with
