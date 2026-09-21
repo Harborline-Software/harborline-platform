@@ -10,8 +10,151 @@ on:
   push:
     branches: [main]
 jobs:
+  # T-349. The browser suite, split across a MATRIX of ubuntu jobs -- one shard per job, each on its
+  # own hosted runner.
+  #
+  # Why a matrix and not GALLERY_SHARDS. In-process sharding (tooling/run-gallery-gate.mjs's
+  # runShardedGallery) DIVIDES one host's worker budget: `workersPerShard = totalWorkers /
+  # shardCount`, so the `GALLERY_SHARDS: "2"` this job used to set turned PW_WORKERS=2 into two
+  # one-worker Playwright runs on the same two cores and bought nothing. Measured: six consecutive
+  # merge-group runs killed the step at 942-954s against its 900s budget, and the gate has never
+  # been green here. A matrix job is genuinely separate capacity, so each shard gets the whole
+  # two-core budget -- which is why this option works where local sharding could not.
+  #
+  # The shard count is NOT repeated anywhere: `--shard=<i>/${{ strategy.job-total }}` derives the
+  # total from the matrix itself, so the two cannot drift.
+  #
+  # SIX, from measurement (run 35618436213, the first run in this repository's history in which the
+  # gallery suite ran to completion on ubuntu). Per-shard suite time at six: 320, 337, 349, 391,
+  # 477, 510s against the 900s step budget -- the worst shard uses 57% of it. The shards carry
+  # 90-94 specs each, so Playwright's test-level sharding balances them; 561 specs ran in total.
+  # Summed, the suite is ~2380s of work, which is why one runner could never finish it inside 900s.
+  #
+  # Not more than six: a shard job spends ~500s before the suite starts (runner setup, the
+  # projection installs, the native build, then the gallery's own prepare and builds), so past six
+  # the fixed cost already exceeds the suite and another job buys a shrinking slice of a smaller
+  # half. Not fewer: four would put the slowest shard around 750s, inside the budget only until a
+  # retry or a slow story eats the margin -- and the margin is the thing this ticket is buying.
+  gallery-shard:
+    if: github.event_name == 'merge_group'
+    runs-on: ubuntu-latest
+    strategy:
+      # One slow or flaky shard must not cancel the others: the collector needs every shard's
+      # report to reconcile, and a cancelled shard would be indistinguishable from a broken one.
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5, 6]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v6  # version comes from package.json packageManager (pnpm 11.1.3)
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: |
+            package.json
+            pnpm-lock.yaml
+            projections/react/ui/hlp.ui.button/pnpm-lock.yaml
+            projections/typescript/application/hlp.copilot.contracts/pnpm-lock.yaml
+            projections/typescript/contracts/hlp.contracts.forms/pnpm-lock.yaml
+            projections/typescript/foundation/hlp.foundation.rule-authoring/pnpm-lock.yaml
+            projections/typescript/foundation/hlp.foundation.rule-runtime/pnpm-lock.yaml
+            gallery/projections/react/pnpm-lock.yaml
+            gallery/tests/pnpm-lock.yaml
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+      - name: Install gallery browser dependencies
+        working-directory: gallery/tests
+        run: |
+          pnpm install --frozen-lockfile --ignore-scripts
+          npx playwright install --with-deps chromium
+      - name: Mirror harborline-api for the feed resolver
+        # prepareGalleries resolves the app-shell feed from harborline-api refs (see the identical
+        # step on phase-4-gate below). A shard job packs its own fixtures -- it has no phase-4 gate
+        # ahead of it to do that -- so it needs the mirror for the same reason that job does.
+        run: git clone --quiet "https://github.com/Harborline-Software/harborline-api.git" "$RUNNER_TEMP/harborline-api"
+        env:
+          HARBORLINE_API_READ_TOKEN: ${{ secrets.HARBORLINE_API_READ_TOKEN }}
+      - name: Install the projection dependencies the fixtures build from
+        # prepareGalleries packs the three npm tarballs and the NuGet feed the galleries consume,
+        # and it builds them from these projections. In the phase-4 gate those installs are its own
+        # first seven steps, so the gallery inherited them; a shard job has no gate ahead of it, and
+        # without this it dies in verify-package-fixtures with "Cannot find package 'esbuild'".
+        #
+        # Six shards each packing for themselves is redundant CPU and NOT redundant wall clock --
+        # they run concurrently, so the matrix pays this once in elapsed time. Sharing one pack
+        # through an artifact was the alternative and it is worse: packageReadiness() decides an
+        # artifact is usable by comparing its mtime against its sources', and download-artifact
+        # does not preserve mtimes, so correctness would rest on the download landing after the
+        # checkout. A tree that builds what it needs has no such ordering to get wrong.
+        run: |
+          pnpm install --frozen-lockfile --ignore-scripts
+          for project in \
+            projections/react/ui/hlp.ui.button \
+            projections/typescript/contracts/hlp.contracts.forms \
+            projections/typescript/foundation/hlp.foundation.rule-runtime \
+            projections/typescript/foundation/hlp.foundation.rule-authoring \
+            projections/typescript/application/hlp.copilot.contracts; do
+            pnpm --dir "$project" install --frozen-lockfile --ignore-scripts
+          done
+          dotnet restore Harborline.Platform.slnx -v:minimal
+          node tooling/run-native.mjs --build
+      - name: Run gallery shard ${{ matrix.shard }} of ${{ strategy.job-total }}
+        run: |
+          set -o pipefail
+          node tooling/run-gallery-gate.mjs --shard=${{ matrix.shard }}/${{ strategy.job-total }} \
+            | tee gallery-shard-${{ matrix.shard }}.json
+        env:
+          HARBORLINE_API_REPO: ${{ runner.temp }}/harborline-api
+          # Control ticket 083. The gallery's ONLY leniency, and it exists only in CI: on a 2-core
+          # shared runner four visual-parity comparisons diverge for reasons not yet understood
+          # (see the CORRECTED note in gallery.spec.ts — they are lane-versus-lane, so the
+          # Windows-baseline story first recorded here cannot be the cause), two
+          # wall-clock-budget scenarios measure the runner rather than the component, and the
+          # Blazor circuit's cold start eats most of a 45s budget before a story renders. Each
+          # exemption is named by scenario id in gallery/tests/tests/gallery.spec.ts, the a11y half
+          # of every exempted scenario still runs, and a test asserts the named ids still exist —
+          # so this cannot rot into a wider allowance than it was written for. The LOCAL gate,
+          # which is the binding one per ADR-0004, is untouched.
+          #
+          # It must MATCH the collector's setting on phase-4-gate: expectedChecks() derives the
+          # declared counts from this flag, so a shard that ran with the exemptions and a collector
+          # that reconciled without them would diverge on every check family.
+          HARBORLINE_CI_GALLERY: "1"
+          # One worker per core, UNDIVIDED. This is the whole difference from the in-process
+          # sharding this replaces: the shard has this runner to itself.
+          PW_WORKERS: "2"
+      - name: Keep the shard report whatever the outcome
+        # Carries both the shard's step outcomes and its Playwright report inline; the collector
+        # refuses unless all of them are present, so this upload is load-bearing, not diagnostic.
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: gallery-shard-${{ matrix.shard }}
+          path: gallery-shard-${{ matrix.shard }}.json
+          if-no-files-found: error
+          retention-days: 14
+      - name: Upload gallery failure evidence
+        # Moved here from phase-4-gate with the suite. It never produced anything there after the
+        # suite started being killed before the html reporter could write -- no run in the last
+        # sixty had this artifact.
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: gallery-failure-evidence-${{ matrix.shard }}
+          path: gallery/tests/playwright-report/
+          if-no-files-found: warn
+          retention-days: 14
+
   phase-4-gate:
     if: github.event_name == 'merge_group'
+    # T-349: the gallery shards have already run the browser suite on their own runners. This job's
+    # gallery-gate step collects their reports instead of running the suite (see the --merge call in
+    # run-phase-4-gate.mjs); a failed shard skips this job, so the gate cannot go green without one.
+    needs: gallery-shard
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -74,43 +217,27 @@ jobs:
       # run-phase-4-gate.mjs writes its report to stdout only (the receipt runner is what writes it
       # to disk, and CI does not run the receipt runner). Capture it here so the upload step below
       # has a file; pipefail keeps the gate's exit code (ticket 330 s4c).
+      - name: Collect the gallery shard reports
+        uses: actions/download-artifact@v7
+        with:
+          pattern: gallery-shard-*
+          path: ${{ runner.temp }}/gallery-shards
       - run: |
           set -o pipefail
           node tooling/run-phase-4-gate.mjs | tee harborline-phase4-gate-report.json
         env:
           HARBORLINE_API_REPO: ${{ runner.temp }}/harborline-api
           HARBORLINE_CONTROL_REPO: ${{ runner.temp }}/harborline-control
-          # Control ticket 083. The gallery's ONLY leniency, and it exists only here: on a 2-core
-          # shared runner four visual-parity comparisons diverge for reasons not yet understood
-          # (see the CORRECTED note in gallery.spec.ts — they are lane-versus-lane, so the
-          # Windows-baseline story first recorded here cannot be the cause), two
-          # wall-clock-budget scenarios measure the runner rather than the component, and the
-          # Blazor circuit's cold start eats most of a 45s budget before a story renders. Each
-          # exemption is named by scenario id in gallery/tests/tests/gallery.spec.ts, the a11y half
-          # of every exempted scenario still runs, and a test asserts the named ids still exist —
-          # so this cannot rot into a wider allowance than it was written for. The LOCAL gate,
-          # which is the binding one per ADR-0004, is untouched.
+          # T-349. Present: gallery-gate MERGES the matrix's shard reports rather than running the
+          # suite here. Absent (every local run): the gate is byte-for-byte what it was.
+          HARBORLINE_GALLERY_SHARD_REPORTS: ${{ runner.temp }}/gallery-shards
+          # Still required in the COLLECTOR, even though no browser runs here: expectedChecks()
+          # reads this flag to derive the declared counts it reconciles the shards' measurements
+          # against. The shards set it too; if these two ever disagree, every check family diverges.
           HARBORLINE_CI_GALLERY: "1"
-          # One worker per core. The gallery config defaults to 4, tuned against an 8-core host
-          # where the local gate runs 8 — on a 2-core runner that is 2x oversubscription, and it is
-          # the leading explanation for the four readiness failures the 45s -> 90s timeout raise did
-          # NOT convert. Every gallery test drives two pages, and the Blazor one is server-side: it
-          # needs a live circuit back to a host process that a starved thread may never let
-          # establish, so BlazingStory.readyView() waits forever rather than slowly. That is exactly
-          # what identical failures at 45s and 90s look like.
-          #
-          # MEASURED 2026-08-23 (run 32647717020): correct. Zero readiness timeouts, zero readyView
-          # mentions, and the run finished in 49 minutes against the 79-minute baseline — halving the
-          # workers cost less wall-clock than the hangs did, so there is no correctness-for-latency
-          # trade here to weigh. Do not raise this back toward the config default without repeating
-          # that measurement; the default is tuned for an 8-core host.
-          PW_WORKERS: "2"
-          # Keep the same two-browser budget while splitting the 529-spec suite across two
-          # Playwright processes. The unsharded hosted run reached the suite cleanly but was
-          # killed at the generic 900s per-step ceiling before it could emit a report. The gate
-          # merges both shard reports and reconciles the complete declared scenario set, so a
-          # missing or failed shard still fails closed.
-          GALLERY_SHARDS: "2"
+          # PW_WORKERS and GALLERY_SHARDS are deliberately gone from this job. The suite no longer
+          # runs here, so a worker count set beside a step that starts no browser is a knob that
+          # reads as live and is not. Both now live on gallery-shard, where they act.
       - name: Keep the phase-4 gate report whatever the outcome
         # The report is the only complete record of every step's counts and failure text. The job log
         # truncates it inside the embedded step output (330 s3's acceptance could not be read from the
@@ -121,14 +248,6 @@ jobs:
           name: phase4-gate-report-${{ github.run_id }}
           path: harborline-phase4-gate-report.json
           if-no-files-found: error
-          retention-days: 14
-      - name: Upload gallery failure evidence
-        if: failure()
-        uses: actions/upload-artifact@v7
-        with:
-          name: gallery-failure-evidence
-          path: gallery/tests/playwright-report/
-          if-no-files-found: warn
           retention-days: 14
 
   publish-libraries:
