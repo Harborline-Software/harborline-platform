@@ -196,7 +196,7 @@
       }
     },
     "hlp.kernel.work-items": {
-      "interface": {"path": "specs/modules/kernel/hlp.kernel.work-items/interface.yaml", "revision": 3},
+      "interface": {"path": "specs/modules/kernel/hlp.kernel.work-items/interface.yaml", "revision": 4},
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "Durable work-item lifecycle, audit, and outbox behavior produce projections consumed by separate application interfaces."},
       "owner": "platform-kernel",
