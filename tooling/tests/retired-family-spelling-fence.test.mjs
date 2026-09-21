@@ -39,6 +39,10 @@ const Retired = cp(83, 104, 105, 112, 121, 97, 114, 100)          // the F5 word
 const f5 = Retired.toLowerCase()
 const F5_UPPER = Retired.toUpperCase()
 const F2Pascal = cp(67, 97, 114, 114, 105, 101, 114)              // the F2 word, PascalCase
+const RetiredGridViewKind = cp(
+  118, 105, 101, 119, 115, 46, 101, 110, 116, 105, 116,
+  121, 45, 108, 105, 115, 116, 47, 103, 114, 105, 100,
+)
 
 /** Retired identifiers, by the slice that removed them. */
 export const RETIRED_IDENTIFIERS = [
@@ -70,6 +74,8 @@ export const RETIRED_LITERALS = [
   `${f5}-locale-provider`,
   // Slice 10 — the reports provisionality seam: the interface, its file, and its two test names.
   `Provisionality${F2Pascal}`,
+  // T-656 — Layout owns the canonical table identity; the Views-era spelling must not return.
+  RetiredGridViewKind,
 ]
 
 /**

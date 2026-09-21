@@ -1,5 +1,10 @@
 namespace Harborline.UIAdapters.Blazor.Components.DataDisplay;
 
+public static class ViewKindIds
+{
+    public const string Table = "layout.table";
+}
+
 public sealed record ViewDefinitionField(string Id, string? Label = null);
 public sealed record ViewRenderPlanParameters(IReadOnlyList<ViewDefinitionField>? Fields = null);
 public sealed record ViewRuntimeAction(string Id, string Label);
