@@ -158,9 +158,9 @@ public sealed class ExecutableFieldKindSchemaTests
             """));
     }
 
-    private static FieldKindRuntime Runtime() => new(new FieldKindRegistry([
-        new("amount", "1.0.0", null, FieldScalarValueShape.Number),
-        new("text", "1.0.0", null, FieldScalarValueShape.Text),
+    private static FieldKindRuntime Runtime() => new(new Harborline.Foundation.FieldRuntime.FieldKindRegistry([
+        new("amount", "1.0.0", null, Harborline.Contracts.Fields.FieldScalarValueShape.Number),
+        new("text", "1.0.0", null, Harborline.Contracts.Fields.FieldScalarValueShape.Text),
     ]));
 
     private static string Project(IFieldKindRuntime runtime, string kind, params (string Name, string Value)[] parameters)
