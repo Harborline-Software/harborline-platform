@@ -30,13 +30,16 @@ public sealed class KernelCoreBoundaryArchitectureTests
         ["projections/dotnet/foundation/hlp.foundation.forms/Drafts/SubmissionDraftService.cs"] = (2, "Forms draft member seam"),
         ["projections/dotnet/foundation/hlp.foundation.forms/InMemoryFormDefinitionStore.cs"] = (1, "Forms reference adapter"),
         ["projections/dotnet/foundation/hlp.foundation.forms/InMemoryReusableUnitStore.cs"] = (1, "Forms reference adapter"),
-        ["projections/dotnet/foundation/hlp.foundation.rule-runtime/Evaluators.cs"] = (4, "rule-runtime member seams"),
-        ["projections/dotnet/foundation/hlp.foundation.rule-runtime/Graph/FormRuleGraph.cs"] = (2, "rule graph member seam"),
+        ["projections/dotnet/foundation/hlp.foundation.forms-engine/FormCandidateEvaluator.cs"] = (1, "T-589 render evaluation pins the injected clock once"),
+        ["projections/dotnet/foundation/hlp.foundation.forms-engine/FormEngine.cs"] = (1, "T-589 submit evaluation pins the injected clock inside the write scope"),
+        ["projections/dotnet/foundation/hlp.foundation.rule-authoring/SkinLowering.cs"] = (1, "T-589 authoring preview pins its supplied clock once"),
     };
 
     private static readonly HashSet<string> AtomicAdapters = new(StringComparer.Ordinal)
     {
+        "projections/dotnet/foundation/hlp.foundation.forms-engine/Persistence/FileJournalFormSubmissionStore.cs",
         "projections/dotnet/foundation/hlp.foundation.forms-engine/Persistence/FormSubmissionKernelTransactionPort.cs",
+        "projections/dotnet/foundation/hlp.foundation.forms-engine/Persistence/InMemoryFormSubmissionStore.cs",
         "projections/dotnet/kernel/hlp.kernel.core/KernelTransactionBoundary.cs",
         "projections/dotnet/kernel/hlp.kernel.work-items/WorkItemKernelTransactionPort.cs",
         "projections/dotnet/kernel/hlp.kernel.work-items/FileJournalWorkItemStore.cs",
