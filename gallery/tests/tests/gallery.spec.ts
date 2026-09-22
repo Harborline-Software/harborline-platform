@@ -1339,8 +1339,9 @@ test('every CI exemption names a scenario that still exists', () => {
     .filter(id => !comparedIds.has(id)).sort()
   expect(elementOrphans, 'per-element parity register naming scenarios that are not compared').toEqual([])
   // A host key nobody runs on would silently disable its rows on every host, which is a register
-  // that claims a divergence no run can ever judge. Only the three keys the registers use.
-  const knownHosts = new Set(['windows-11-x64', 'macos-x64-intel', 'macos-arm64'])
+  // that claims a divergence no run can ever judge. Keep this list aligned with the host keys
+  // produced by galleryHostKey and measured in the registers.
+  const knownHosts = new Set(['windows-11-x64', 'linux-x64', 'macos-x64-intel', 'macos-arm64'])
   const badHosts = [...new Set(elementRegister.divergences.map(row => row.host).filter(Boolean))]
     .filter(host => !knownHosts.has(host!)).sort()
   expect(badHosts, 'per-element parity register rows naming an unknown host').toEqual([])
