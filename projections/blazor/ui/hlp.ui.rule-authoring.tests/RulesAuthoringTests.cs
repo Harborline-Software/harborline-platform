@@ -13,8 +13,16 @@ namespace Harborline.UIAdapters.Blazor.Tests;
 public sealed class RulesAuthoringTests : BunitContext
 {
     [Fact]
+    [Trait("ModuleConformance", "hlp.ui.rule-authoring")]
     public void Replays_every_producer_lifecycle_and_preview_payload_from_the_exact_shared_fixture()
     {
+        var sharedFixture = Environment.GetEnvironmentVariable("HARBORLINE_CONFORMANCE_FIXTURE");
+        if (!string.IsNullOrWhiteSpace(sharedFixture))
+        {
+            using var fixtureDocument = JsonDocument.Parse(sharedFixture);
+            Assert.StartsWith("rule-authoring.", fixtureDocument.RootElement.GetProperty("id").GetString());
+        }
+
         using var document = JsonDocument.Parse(File.ReadAllText(FindFixture()));
         var previewFixture = document.RootElement.GetProperty("preview");
         var inputLabel = previewFixture.GetProperty("label").GetString()!;

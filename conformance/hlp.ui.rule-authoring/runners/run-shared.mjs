@@ -1,4 +1,8 @@
+#!/usr/bin/env node
+
 import { readFileSync } from 'node:fs'
+import { runUiModuleShared } from '../../../tooling/run-ui-module-shared.mjs'
+
 const fixture = JSON.parse(readFileSync(new URL('../fixtures.yaml', import.meta.url), 'utf8'))
 const producer = JSON.parse(readFileSync(new URL('../../hlp.blocks.builder-definitions/rules-editor-contract-fixtures.json', import.meta.url), 'utf8'))
 const lifecycle = producer.lifecycle.responses
@@ -19,4 +23,4 @@ const actualLifecycle = lifecycle.map(response => response.operation === 'publis
       : [response.operation, response.status, response.revision])
 const exactPreview = producer.preview.cases.every(item => fixture.outcomes.includes(item.expected.kind) && item.expected.ruleName === item.ruleName && item.expected.memberName === item.memberName)
 if (fixture.lifecycle.identity !== lifecycle[0].identity.definitionId || JSON.stringify(actualLifecycle) !== JSON.stringify(expectedLifecycle) || !exactPreview || !producer.preview.clockUtc || !producer.preview.label) process.exit(1)
-process.stdout.write('hlp.ui.rule-authoring shared fixture valid\n')
+process.exitCode = runUiModuleShared('hlp.ui.rule-authoring') ? 0 : 1
