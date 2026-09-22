@@ -111,4 +111,28 @@ for (const entry of divergences.resolved ?? []) {
     `${entry.scenarioId} both measures and resolves ${entry.host}; a host is one or the other`)
 }
 
+// Element divergences are host evidence too. Linux exposed the same scheduler census already
+// measured on Windows, so keep those two scoped sets exact instead of replacing them with a
+// catch-all row that would incorrectly exempt the clean macOS host.
+const elementDivergences = JSON.parse(readFileSync(resolve(root, 'gallery/element-parity-known-divergences.json'), 'utf8'))
+const elementKeys = new Set()
+for (const row of elementDivergences.divergences) {
+  assert.ok(comparedIds.has(row.scenarioId), `element divergence ${row.scenarioId} is not a compared scenario`)
+  assert.match(row.ticket, /^\d+$/)
+  assert.ok(row.note.length > 10)
+  const key = `${row.scenarioId}\t${row.path}\t${row.property}\t${row.host ?? '*'}`
+  assert.ok(!elementKeys.has(key), `element divergence is registered twice: ${key}`)
+  elementKeys.add(key)
+}
+
+for (const scenarioId of ['scheduler.theme-dark', 'scheduler.theme-light']) {
+  const keysOn = host => new Set(elementDivergences.divergences
+    .filter(row => row.scenarioId === scenarioId && row.host === host)
+    .map(row => `${row.path}\t${row.property}`))
+  const windows = keysOn('windows-11-x64')
+  const linux = keysOn('linux-x64')
+  assert.equal(windows.size, 41, `${scenarioId} Windows census drifted; re-measure it`)
+  assert.deepEqual(linux, windows, `${scenarioId} Linux census must match its measured Windows key set exactly`)
+}
+
 process.stdout.write('gallery parity coverage check PASS\n')
