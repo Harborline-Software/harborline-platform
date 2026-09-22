@@ -8,7 +8,8 @@ function boundedOutput(value) {
   if (value === undefined || value === null) return ''
   const output = String(value)
   if (output.length <= OUTPUT_CAP) return output
-  // The retained output, including the marker, is always at most OUTPUT_CAP characters.
+  // Inline report output is capped at 16 KiB, including this marker; failed-step diagnostics stay
+  // complete in the evidence file that the report points to.
   return `${output.slice(0, OUTPUT_CAP - TRUNCATION_SUFFIX.length)}${TRUNCATION_SUFFIX}`
 }
 
