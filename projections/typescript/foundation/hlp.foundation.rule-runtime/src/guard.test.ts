@@ -46,6 +46,21 @@ describe('GuardEvaluator.evaluateGuard', () => {
       error: { code: Codes.divByZero, params: {} },
     })
   })
+
+  it('refuses an accessor-backed host context without invoking its getter', () => {
+    let invoked = false
+    const context = {} as Record<string, Json>
+    Object.defineProperty(context, 'amount', { enumerable: true, get: () => {
+      invoked = true
+      throw new Error('host callback ran')
+    } })
+
+    expect(evaluator.evaluateGuard(minimumAmount, context)).toEqual({
+      ok: false,
+      error: { code: 'rule.context_snapshot_required', params: {} },
+    })
+    expect(invoked).toBe(false)
+  })
 })
 
 describe('GuardEvaluator.evaluateValue', () => {

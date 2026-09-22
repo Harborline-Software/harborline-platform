@@ -123,6 +123,21 @@ describe('ADR 0146 D2 skins — formula', () => {
     }))
     expect(code).toBe(SkinCodes.formulaUndeclaredRef)
   })
+  it('rejects an operand incompatible with its declared input type', () => {
+    const code = codeOf(() => compileFormula({
+      ruleId: 'f', scope: 'Field', scopeTarget: 'total', action: 'Compute',
+      inputs: [{ ref: 'approved', type: 'boolean' }],
+      expression: { 'money.add': [{ var: 'approved' }, '1.00'] },
+    }))
+    expect(code).toBe('rule.skin.formula_type_mismatch')
+  })
+  it('runs core static admission before returning a lowered rule', () => {
+    const code = codeOf(() => compileFormula({
+      ruleId: 'f', scope: 'Field', scopeTarget: 'total', action: 'Compute', inputs: [],
+      expression: { 'date.today': ['unexpected'] },
+    }))
+    expect(code).toBe('rule.compile.invalid_expression')
+  })
   it('compiles when all refs are declared', () => {
     const expression: Json = { '*': [{ var: 'qty' }, { var: 'price' }] }
     const rule = compileFormula({

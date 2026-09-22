@@ -110,6 +110,18 @@ public sealed class RuleEngineUnitTests
         Assert.Equal(1, RuleCompiler.Compile(new[] { Compute("literal-data", "result", expression) }).RuleCount);
     }
 
+    [Theory]
+    [InlineData("{\"date.today\":[\"unexpected\"]}")]
+    [InlineData("{\"coding.is\":[{\"var\":\"code\"},\"system\"]}")]
+    public void CompilerRefusesExecutableOperatorsWithInvalidArityBeforeEvaluation(string expression)
+    {
+        var error = Assert.Throws<RuleCompilationException>(() =>
+            RuleCompiler.Compile(new[] { Compute("invalid-arity", "result", expression) }));
+
+        Assert.Equal(RuleEngineCodes.CompileInvalidExpression, error.Code);
+        Assert.Equal("invalid-arity", error.RuleId);
+    }
+
     // ── static bounds ─────────────────────────────────────────────────────────
 
     [Theory]

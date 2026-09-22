@@ -21,6 +21,20 @@ namespace Harborline.Foundation.RuleEngine.Tests;
 public sealed class ContextAdapterTests
 {
     [Fact]
+    public void GuardEvaluator_refuses_an_effectful_adapter_without_invoking_it()
+    {
+        var adapter = new ThrowingAdapter();
+        var rule = RuleDefinitionFactory.Create("pure", RuleTier.JsonLogic, RuleScope.Schema, "", "true", RuleActionKind.Validate);
+
+        var outcome = new GuardEvaluator(new FixedClock(new DateTimeOffset(2026, 6, 30, 0, 0, 0, TimeSpan.Zero)))
+            .EvaluateGuard(rule, adapter, RuleEvalScope.Root);
+
+        Assert.False(adapter.Invoked);
+        Assert.False(outcome.Ok);
+        Assert.Equal("rule.context_snapshot_required", outcome.Error!.Code);
+    }
+
+    [Fact]
     public void RuleEvalScope_Root_is_the_default_top_level_scope()
     {
         Assert.Equal(default, RuleEvalScope.Root);
@@ -85,6 +99,17 @@ public sealed class ContextAdapterTests
         private readonly IReadOnlyDictionary<string, JsonNode?> _data;
         public EchoPillarAdapter(IReadOnlyDictionary<string, JsonNode?> data) => _data = data;
         public IValueResolver CreateResolver(RuleEvalScope scope) => new EchoResolver(_data);
+    }
+
+    private sealed class ThrowingAdapter : IContextAdapter
+    {
+        public bool Invoked { get; private set; }
+
+        public IValueResolver CreateResolver(RuleEvalScope scope)
+        {
+            Invoked = true;
+            throw new InvalidOperationException("host callback ran");
+        }
     }
 
     private sealed class EchoResolver : IValueResolver

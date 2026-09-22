@@ -188,6 +188,29 @@ public sealed class SkinTests
     }
 
     [Fact]
+    public void Formula_RejectsAnOperandIncompatibleWithItsDeclaredInputType()
+    {
+        var expr = JsonNode.Parse("""{ "money.add": [ { "var": "approved" }, "1.00" ] }""");
+        var skin = new FormulaSkin("f", RuleScope.Field, "total", RuleActionKind.Compute,
+            new[] { new FormulaInput("approved", "boolean") }, expr);
+
+        var ex = Assert.Throws<RuleCompilationException>(() => FormulaCompiler.Compile(skin));
+
+        Assert.Equal("rule.skin.formula_type_mismatch", ex.Code);
+    }
+
+    [Fact]
+    public void Formula_AlsoRunsTheCoreStaticAdmissionBeforeReturningARule()
+    {
+        var skin = new FormulaSkin("f", RuleScope.Field, "total", RuleActionKind.Compute,
+            Array.Empty<FormulaInput>(), JsonNode.Parse("""{ "date.today": ["unexpected"] }"""));
+
+        var ex = Assert.Throws<RuleCompilationException>(() => FormulaCompiler.Compile(skin));
+
+        Assert.Equal(RuleEngineCodes.CompileInvalidExpression, ex.Code);
+    }
+
+    [Fact]
     public void Formula_AllRefsDeclared_Compiles()
     {
         var expr = JsonNode.Parse("""{ "*": [ { "var": "qty" }, { "var": "price" } ] }""");

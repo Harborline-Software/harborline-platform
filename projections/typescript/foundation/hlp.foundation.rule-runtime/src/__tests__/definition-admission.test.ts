@@ -27,6 +27,16 @@ describe('definition compiler admission', () => {
     expect(compile([compute('literal-data', 'result', expression)]).rules).toHaveLength(1)
   })
 
+  it.each([
+    { 'date.today': ['unexpected'] },
+    { 'coding.is': [{ var: 'code' }, 'system'] },
+  ])('rejects invalid executable arity before any records are evaluated: %j', expression => {
+    expect(() => compile([compute('invalid-arity', 'result', expression)])).toThrow(expect.objectContaining({
+      code: Codes.compileInvalidExpression,
+      ruleId: 'invalid-arity',
+    }))
+  })
+
   it.each(['mystery', '', 99, null])('refuses unknown tier %s instead of interpreting it as JsonLogic', tier => {
     const source = { ...compute('unknown-tier', 'total', 1), tier } as RuleDefinition
 

@@ -396,15 +396,17 @@ public sealed class LayoutBindingResolver
             Expression = expression,
             Action = RuleActionKind.Validate,
         };
-        var adapter = new LayoutSurfaceContextAdapter(root, scope);
         var evalScope = scope.IsRow ? new RuleEvalScope(scope.Section, scope.RowId) : RuleEvalScope.Root;
+        // Capture the layout producer's values before entering Rules. The evaluator never calls
+        // a layout resolver (which could be arbitrary host code) during pure evaluation.
+        var snapshot = RuleContextSnapshot.Capture(root.Values, scope.IsRow ? scope.Values : null);
         try
         {
             // Evaluation is already fail-closed: a pending, errored or budget-aborted guard is
             // Invalid. Compilation is NOT — the compiler throws on a malformed expression or a
             // reference illegal at this scope — so an uncompilable guard withholds the block
             // here rather than escaping as a fault that would blank the whole surface.
-            return _guards.EvaluateGuard(rule, adapter, evalScope, cancellationToken).Ok;
+            return _guards.EvaluateGuard(rule, snapshot, evalScope, cancellationToken).Ok;
         }
         catch (RuleCompilationException)
         {

@@ -12,7 +12,6 @@ import {
   err, refError, refPending, refResolved, unavailableAggregate,
   type EvalContext, type RefValue, type ValueResolver,
 } from './eval-support.js'
-import { ROOT_SCOPE, type ContextAdapter, type RuleEvalScope } from './context-adapter.js'
 import { evaluate, isTruthy } from './jsonlogic.js'
 
 const isPendingSentinel = (n: Json): boolean =>
@@ -44,12 +43,35 @@ class ContextBagResolver implements ValueResolver {
  * context bag into a `ContextBagResolver`. The bag has no repeating sub-collection, so the
  * scope's `rowSection` is ignored (a `row.` reference resolves to a bad-reference, as before).
  */
-class ContextBagAdapter implements ContextAdapter {
-  constructor(private readonly bag: Record<string, Json>) {}
+class ContextSnapshotError extends Error {}
 
-  createResolver(_scope: RuleEvalScope): ValueResolver {
-    return new ContextBagResolver(this.bag)
+/** Copies own data descriptors to an inert JSON snapshot without reading accessor properties. */
+function captureJson(value: Json): Json {
+  if (value === null || typeof value !== 'object') return value
+  if (Array.isArray(value)) {
+    const descriptors = Object.getOwnPropertyDescriptors(value)
+    const out: Json[] = []
+    for (let i = 0; i < value.length; i++) {
+      const descriptor = descriptors[String(i)]
+      if (!descriptor || !('value' in descriptor)) throw new ContextSnapshotError()
+      out.push(captureJson(descriptor.value as Json))
+    }
+    return out
   }
+  if (Object.getPrototypeOf(value) !== Object.prototype && Object.getPrototypeOf(value) !== null) throw new ContextSnapshotError()
+  const out: Record<string, Json> = {}
+  for (const [key, descriptor] of Object.entries(Object.getOwnPropertyDescriptors(value))) {
+    if (!descriptor.enumerable) continue
+    if (!('value' in descriptor)) throw new ContextSnapshotError()
+    out[key] = captureJson(descriptor.value as Json)
+  }
+  return out
+}
+
+function captureContext(context: Record<string, Json>): Record<string, Json> {
+  const snapshot = captureJson(context)
+  if (snapshot === null || typeof snapshot !== 'object' || Array.isArray(snapshot)) throw new ContextSnapshotError()
+  return snapshot as Record<string, Json>
 }
 
 export class GuardEvaluator {
@@ -63,9 +85,14 @@ export class GuardEvaluator {
   evaluateGuard(rule: RuleDefinition, context: Record<string, Json>, signal?: AbortSignal): Validity {
     const compiled = compile([rule], this.limits)
     if (compiled.rules.length === 0) return { ok: true } // Tier-1 guard: nothing for this engine.
+    let snapshot: Record<string, Json>
+    try { snapshot = captureContext(context) } catch (e) {
+      if (e instanceof ContextSnapshotError) return { ok: false, error: err(Codes.contextSnapshotRequired) }
+      throw e
+    }
     return this.run<Validity>(
       compiled.rules[0].ast as Json,
-      context,
+      snapshot,
       (v) => (isTruthy(v) ? { ok: true } : { ok: false, error: err(rule.id) }),
       (e) => ({ ok: false, error: e }),
       () => ({ ok: false, error: err(Codes.pendingAtSave) }),
@@ -76,9 +103,14 @@ export class GuardEvaluator {
   evaluateValue(rule: RuleDefinition, context: Record<string, Json>, signal?: AbortSignal): ComputedValue {
     const compiled = compile([rule], this.limits)
     if (compiled.rules.length === 0) return { state: 'Resolved', value: null }
+    let snapshot: Record<string, Json>
+    try { snapshot = captureContext(context) } catch (e) {
+      if (e instanceof ContextSnapshotError) return { state: 'Error', error: err(Codes.contextSnapshotRequired) }
+      throw e
+    }
     return this.run<ComputedValue>(
       compiled.rules[0].ast as Json,
-      context,
+      snapshot,
       (v) => ({ state: 'Resolved', value: v }),
       (e) => ({ state: 'Error', error: e }),
       () => ({ state: 'Pending' }),
@@ -94,8 +126,7 @@ export class GuardEvaluator {
     onPending: () => T,
     signal?: AbortSignal,
   ): T {
-    // The workflow-guard context flows through the ADR 0146 D3 seam (behaviour-neutral).
-    const ctx: EvalContext = { resolver: new ContextBagAdapter(context).createResolver(ROOT_SCOPE), now: this.clock(), budget: new EvalBudget(this.limits, signal) }
+    const ctx: EvalContext = { resolver: new ContextBagResolver(context), now: this.clock(), budget: new EvalBudget(this.limits, signal) }
     try {
       return onValue(evaluate(ast, ctx))
     } catch (e) {

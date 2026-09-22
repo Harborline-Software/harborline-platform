@@ -103,10 +103,38 @@ public static class RuleCompiler
             throw new RuleCompilationException(RuleEngineCodes.CompileInvalidExpression,
                 $"rule '{ruleId}': unsupported operator '{operation.Key}'.", ruleId);
 
-        if (operation.Value is JsonArray arguments)
-            foreach (var argument in arguments) ValidateOperators(argument, ruleId);
-        else
-            ValidateOperators(operation.Value, ruleId);
+        var arguments = operation.Value is JsonArray array
+            ? array.ToList()
+            : new List<JsonNode?> { operation.Value };
+        ValidateArity(operation.Key, arguments.Count, ruleId);
+
+        foreach (var argument in arguments)
+            ValidateOperators(argument, ruleId);
+    }
+
+    private static void ValidateArity(string operation, int count, string ruleId)
+    {
+        bool valid = operation switch
+        {
+            "var" => count is 1 or 2,
+            "missing" => count >= 1,
+            "missing_some" => count == 2,
+            "==" or "!=" or "===" or "!==" or ">" or ">=" or "<" or "<=" or "in" => count == 2,
+            "!" or "!!" => count == 1,
+            "and" or "or" or "cat" => true,
+            // A one-argument `if` is the decision-table skin's canonical otherwise-only
+            // shape; the closed interpreter returns that argument unchanged.
+            "if" => true,
+            "+" or "-" or "*" or "/" or "%" or "min" or "max" or "money.add" or "money.sub" or "money.mul" => count >= 1,
+            "agg" or "date.add" or "coding.is" => count == 3,
+            "date.diff" => count == 2,
+            "date.today" => count == 0,
+            _ => false,
+        };
+
+        if (!valid)
+            throw new RuleCompilationException(operation == "agg" ? RuleEngineCodes.CompileBadGrammar : RuleEngineCodes.CompileInvalidExpression,
+                $"rule '{ruleId}': operator '{operation}' does not accept {count} argument(s).", ruleId);
     }
 
     private static (LowerContext Ctx, CellAddress? Target, string? RowSection, string? RowField) ResolveScope(RuleDefinition rule)

@@ -87,9 +87,22 @@ public sealed class GuardEvaluator : IGuardEvaluator
     public Validity EvaluateGuard(RuleDefinition rule, IReadOnlyDictionary<string, JsonNode?> context, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(context);
-        // The workflow-guard context flows through the ADR 0146 D3 seam: a flat bag is a
-        // ContextBagAdapter, evaluated at Root (behaviour-neutral).
-        return EvaluateGuard(rule, new ContextBagAdapter(context), RuleEvalScope.Root, ct);
+        return EvaluateGuard(rule, RuleContextSnapshot.Capture(context), RuleEvalScope.Root, ct);
+    }
+
+    /// <summary>Evaluates only data captured into the runtime-owned inert snapshot contract.</summary>
+    public Validity EvaluateGuard(RuleDefinition rule, RuleContextSnapshot context, RuleEvalScope scope, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(rule);
+        ArgumentNullException.ThrowIfNull(context);
+        var compiled = RuleCompiler.Compile(new[] { rule }, _limits);
+        if (compiled.RuleCount == 0) return Validity.Valid;
+        var cr = compiled.Rules[0];
+        return Run(cr, context.CreateResolver(scope), ct,
+            onValue: v => HarborlineJsonLogic.IsTruthy(v) ? Validity.Valid : Validity.Invalid(RuleError.Of(rule.Id)),
+            onError: e => Validity.Invalid(e),
+            onPending: () => Validity.Invalid(RuleError.Of(RuleEngineCodes.PendingAtSave)),
+            onAbort: code => Validity.Invalid(RuleError.Of(code)));
     }
 
     /// <summary>
@@ -106,22 +119,28 @@ public sealed class GuardEvaluator : IGuardEvaluator
     {
         ArgumentNullException.ThrowIfNull(rule);
         ArgumentNullException.ThrowIfNull(adapter);
-        var compiled = RuleCompiler.Compile(new[] { rule }, _limits);
-        if (compiled.RuleCount == 0) return Validity.Valid; // Tier-1 guard: nothing for this engine to check.
-
-        var cr = compiled.Rules[0];
-        return Run(cr, adapter.CreateResolver(scope), ct,
-            onValue: v => HarborlineJsonLogic.IsTruthy(v) ? Validity.Valid : Validity.Invalid(RuleError.Of(rule.Id)),
-            onError: e => Validity.Invalid(e),
-            onPending: () => Validity.Invalid(RuleError.Of(RuleEngineCodes.PendingAtSave)),
-            onAbort: code => Validity.Invalid(RuleError.Of(code)));
+        // Do not call CreateResolver: an adapter is arbitrary host code. Capturers must turn
+        // source data into RuleContextSnapshot before crossing this evaluator boundary.
+        return Validity.Invalid(RuleError.Of(RuleEngineCodes.ContextSnapshotRequired));
     }
 
     /// <inheritdoc />
     public ComputedValue EvaluateValue(RuleDefinition rule, IReadOnlyDictionary<string, JsonNode?> context, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(context);
-        return EvaluateValue(rule, new ContextBagAdapter(context), RuleEvalScope.Root, ct);
+        return EvaluateValue(rule, RuleContextSnapshot.Capture(context), RuleEvalScope.Root, ct);
+    }
+
+    /// <summary>Evaluates a value against an inert captured snapshot.</summary>
+    public ComputedValue EvaluateValue(RuleDefinition rule, RuleContextSnapshot context, RuleEvalScope scope, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(rule);
+        ArgumentNullException.ThrowIfNull(context);
+        var compiled = RuleCompiler.Compile(new[] { rule }, _limits);
+        if (compiled.RuleCount == 0) return ComputedValue.Resolved(null);
+        return Run(compiled.Rules[0], context.CreateResolver(scope), ct,
+            onValue: ComputedValue.Resolved, onError: ComputedValue.OfError,
+            onPending: ComputedValue.OfPending, onAbort: code => ComputedValue.OfError(RuleError.Of(code)));
     }
 
     /// <summary>
@@ -134,15 +153,7 @@ public sealed class GuardEvaluator : IGuardEvaluator
     {
         ArgumentNullException.ThrowIfNull(rule);
         ArgumentNullException.ThrowIfNull(adapter);
-        var compiled = RuleCompiler.Compile(new[] { rule }, _limits);
-        if (compiled.RuleCount == 0) return ComputedValue.Resolved(null);
-
-        var cr = compiled.Rules[0];
-        return Run(cr, adapter.CreateResolver(scope), ct,
-            onValue: v => ComputedValue.Resolved(v),
-            onError: ComputedValue.OfError,
-            onPending: ComputedValue.OfPending,
-            onAbort: code => ComputedValue.OfError(RuleError.Of(code)));
+        return ComputedValue.OfError(RuleError.Of(RuleEngineCodes.ContextSnapshotRequired));
     }
 
     private T Run<T>(CompiledRule cr, IValueResolver resolver, CancellationToken ct,

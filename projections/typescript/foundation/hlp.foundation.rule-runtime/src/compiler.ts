@@ -42,10 +42,33 @@ function validateOperators(node: Json, ruleId: string): void {
     throw new CompileError(Codes.compileInvalidExpression,
       `rule '${ruleId}': unsupported operator '${operator}'.`, ruleId)
   }
-  if (Array.isArray(argument)) {
-    for (const item of argument) validateOperators(item, ruleId)
-  } else {
-    validateOperators(argument, ruleId)
+  const arguments_ = Array.isArray(argument) ? argument : [argument]
+  validateArity(operator, arguments_.length, ruleId)
+  for (const item of arguments_) validateOperators(item, ruleId)
+}
+
+function validateArity(operator: string, count: number, ruleId: string): void {
+  const valid = (() => {
+    switch (operator) {
+      case 'var': return count === 1 || count === 2
+      case 'missing': return count >= 1
+      case 'missing_some': return count === 2
+      case '==': case '!=': case '===': case '!==': case '>': case '>=': case '<': case '<=': case 'in': return count === 2
+      case '!': case '!!': return count === 1
+      case 'and': case 'or': case 'cat': return true
+      // The decision-table lowerer uses a one-argument `if` for an otherwise-only table.
+      case 'if': return true
+      case '+': case '-': case '*': case '/': case '%': case 'min': case 'max':
+      case 'money.add': case 'money.sub': case 'money.mul': return count >= 1
+      case 'agg': case 'date.add': case 'coding.is': return count === 3
+      case 'date.diff': return count === 2
+      case 'date.today': return count === 0
+      default: return false
+    }
+  })()
+  if (!valid) {
+    throw new CompileError(operator === 'agg' ? Codes.compileBadGrammar : Codes.compileInvalidExpression,
+      `rule '${ruleId}': operator '${operator}' does not accept ${count} argument(s).`, ruleId)
   }
 }
 
