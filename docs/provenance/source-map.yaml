@@ -485,7 +485,7 @@
         "projections/dotnet/blocks/hlp.blocks.entity-views/AccessViewFilter.cs": "cf1a7a0ed7e643c99a5fe79e699d196a6a2a3fa647c7fab1ed1c3fdbe336a92b",
         "projections/dotnet/blocks/hlp.blocks.entity-views/InMemoryViewRowSource.cs": "5f3d57d28d5fbdf7e26c1b0ef6d01d6b162553ab30d22bc8f64eecb9aeb1ca81",
         "projections/dotnet/blocks/hlp.blocks.entity-views/ViewQueryRuntime.cs": "8e06f74ebfccc47eac0075bc67a1240e745809b9d24f325e87729e42741b40d6",
-        "projections/dotnet/blocks/hlp.blocks.entity-views.tests/AccessViewFilterTests.cs": "1513eeda4a45853f3acd5baff271a80be9ede903a2e4dc908603fda91b0dc506",
+        "projections/dotnet/blocks/hlp.blocks.entity-views.tests/AccessViewFilterTests.cs": "08ebbbf4cbbede6d82ec85eaec5e71c2493f2e48f9097e75e842b5182918df33",
         "projections/dotnet/blocks/hlp.blocks.entity-views.tests/ViewQueryRuntimeTests.cs": "549441e12b986de19e1767ed366987bf77500002a96baa63f63fbc230222c5f5",
         "specs/modules/blocks/hlp.blocks.entity-views/interface.yaml": "6e32d3b1227bc1fe90599bf4fde1416d5c3ef7f2062f3ac3b26d467d1ac36593",
         "tests/package-consumers/views-nuget/Program.cs": "a30937b2afabaa584862abbee800b66a4ffb89159226bd6dedaaf07ad14a1242",
