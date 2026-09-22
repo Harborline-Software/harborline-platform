@@ -20,7 +20,7 @@ export interface CompiledRule {
 }
 
 export interface CompiledGraph {
-  rules: CompiledRule[]
+  rules: readonly CompiledRule[]
 }
 
 const operators = new Set([
@@ -102,19 +102,50 @@ export function compile(rules: RuleDefinition[], limits: RuleEngineLimits = DEFA
         `rule '${rule.id}': reference count ${references.length} exceeds the bound ${limits.maxReferencesPerRule}`, rule.id)
     }
 
-    compiled.push({
-      source: rule,
-      ast,
+    compiled.push(freezeCompiledRule({
+      source: cloneDefinition(rule),
+      ast: cloneJson(ast),
       outputType: outputTypeFor(rule.action),
-      references,
+      references: references.map((reference) => ({ ...reference })),
       staticTarget: scope.staticTarget,
       rowSection: scope.rowSection,
       rowField: scope.rowField,
-    })
+    }))
   }
 
   detectCyclesAndDepth(compiled, limits)
-  return { rules: compiled }
+  return Object.freeze({ rules: Object.freeze(compiled) })
+}
+
+function cloneDefinition(rule: RuleDefinition): RuleDefinition {
+  return {
+    ...rule,
+    expression: typeof rule.expression === 'string' ? rule.expression : cloneJson(rule.expression),
+    errorMessage: rule.errorMessage ? JSON.parse(JSON.stringify(rule.errorMessage)) : undefined,
+    presentation: rule.presentation ? JSON.parse(JSON.stringify(rule.presentation)) : undefined,
+  }
+}
+
+function cloneJson(value: Json): Json {
+  if (Array.isArray(value)) return value.map(cloneJson)
+  if (value !== null && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, cloneJson(child)]))
+  return value
+}
+
+function freezeJson(value: Json): Json {
+  if (Array.isArray(value)) { for (const child of value) freezeJson(child); return Object.freeze(value) as unknown as Json }
+  if (value !== null && typeof value === 'object') { for (const child of Object.values(value)) freezeJson(child); return Object.freeze(value) }
+  return value
+}
+
+function freezeCompiledRule(rule: CompiledRule): CompiledRule {
+  freezeJson(rule.ast)
+  if (typeof rule.source.expression !== 'string') freezeJson(rule.source.expression)
+  if (rule.source.errorMessage) Object.freeze(rule.source.errorMessage)
+  if (rule.source.presentation) Object.freeze(rule.source.presentation)
+  Object.freeze(rule.source)
+  Object.freeze(rule.references)
+  return Object.freeze(rule)
 }
 
 interface ScopeResolution {

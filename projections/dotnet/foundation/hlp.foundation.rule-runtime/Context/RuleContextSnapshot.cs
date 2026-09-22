@@ -1,4 +1,5 @@
 using System.Text.Json.Nodes;
+using System.Text.Json;
 
 using Harborline.Foundation.RuleEngine.Evaluation;
 using Harborline.Foundation.RuleEngine.Graph;
@@ -12,6 +13,11 @@ namespace Harborline.Foundation.RuleEngine.Context;
 /// </summary>
 public sealed class RuleContextSnapshot
 {
+    // Runtime input envelope, shared with the TS JSON-text capture boundary. These are
+    // implementation limits for owned evaluation data, separate from authored AST limits.
+    public const int MaxUtf8Bytes = RuntimeInputEnvelope.MaxUtf8Bytes;
+    public const int MaxDepth = RuntimeInputEnvelope.MaxDepth;
+    public const int MaxNodes = RuntimeInputEnvelope.MaxNodes;
     private readonly IReadOnlyDictionary<string, JsonNode?> _root;
     private readonly IReadOnlyDictionary<string, JsonNode?>? _row;
 
@@ -27,13 +33,50 @@ public sealed class RuleContextSnapshot
         IReadOnlyDictionary<string, JsonNode?>? row = null)
     {
         ArgumentNullException.ThrowIfNull(root);
-        return new RuleContextSnapshot(Clone(root), row is null ? null : Clone(row));
+        // This is deliberate host capture: it may enumerate the caller's trusted dictionary,
+        // but the evaluator receives only a fresh JSON parse with no caller-owned JsonNode alias.
+        var envelope = new JsonObject { ["root"] = ToObject(root) };
+        if (row is not null) envelope["row"] = ToObject(row);
+        return FromJsonText(envelope.ToJsonString());
+    }
+
+    /// <summary>Admits one bounded JSON-text context into runtime-owned inert data.</summary>
+    public static RuleContextSnapshot FromJsonText(string jsonText)
+    {
+        ArgumentNullException.ThrowIfNull(jsonText);
+        JsonObject envelope;
+        try
+        {
+            envelope = RuntimeInputEnvelope.Parse(jsonText, nameof(jsonText))?.AsObject()
+                ?? throw new ArgumentException("Rule context must be a JSON object.", nameof(jsonText));
+        }
+        catch (JsonException exception)
+        {
+            throw new ArgumentException("Rule context is not valid bounded JSON.", nameof(jsonText), exception);
+        }
+        if (!envelope.TryGetPropertyValue("root", out var rootNode) || rootNode is not JsonObject root)
+            throw new ArgumentException("Rule context must contain an object root.", nameof(jsonText));
+        JsonObject? row = null;
+        if (envelope.TryGetPropertyValue("row", out var rowNode) && rowNode is not null)
+            row = rowNode as JsonObject ?? throw new ArgumentException("Rule context row must be an object.", nameof(jsonText));
+        return new RuleContextSnapshot(CloneObject(root), row is null ? null : CloneObject(row));
     }
 
     internal IValueResolver CreateResolver(RuleEvalScope scope) => new SnapshotResolver(_root, _row, scope);
 
     private static IReadOnlyDictionary<string, JsonNode?> Clone(IReadOnlyDictionary<string, JsonNode?> source)
         => source.ToDictionary(pair => pair.Key, pair => pair.Value?.DeepClone(), StringComparer.Ordinal);
+
+    private static JsonObject ToObject(IReadOnlyDictionary<string, JsonNode?> source)
+    {
+        var result = new JsonObject();
+        foreach (var (key, value) in source) result[key] = value?.DeepClone();
+        return result;
+    }
+
+    private static IReadOnlyDictionary<string, JsonNode?> CloneObject(JsonObject source)
+        => source.ToDictionary(pair => pair.Key, pair => pair.Value?.DeepClone(), StringComparer.Ordinal);
+
 }
 
 internal sealed class SnapshotResolver(

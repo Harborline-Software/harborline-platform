@@ -138,6 +138,14 @@ describe('ADR 0146 D2 skins — formula', () => {
     }))
     expect(code).toBe('rule.compile.invalid_expression')
   })
+  it('admits a scalar string Formula literal as JSON data while retaining its source expression', () => {
+    const rule = compileFormula({
+      ruleId: 'f.scalar', scope: 'Field', scopeTarget: 'total', action: 'Compute', inputs: [],
+      expression: 'literal text',
+    })
+
+    expect(rule.expression).toBe('literal text')
+  })
   it('compiles when all refs are declared', () => {
     const expression: Json = { '*': [{ var: 'qty' }, { var: 'price' }] }
     const rule = compileFormula({

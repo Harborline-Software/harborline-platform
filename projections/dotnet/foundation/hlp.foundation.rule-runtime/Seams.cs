@@ -1,6 +1,7 @@
 using System.Text.Json.Nodes;
 
 using Harborline.Foundation.RuleEngine.Compilation;
+using Harborline.Foundation.RuleEngine.Context;
 using Harborline.Foundation.RuleEngine.Graph;
 using Harborline.Foundation.RuleEngine.Model;
 
@@ -27,7 +28,7 @@ internal interface IRuleEvaluator
 /// </summary>
 /// <remarks>
 /// Stateful: <see cref="EvaluateInstance"/> binds the current instance; subsequent
-/// <see cref="Reevaluate"/> / <see cref="AddRow"/> / <see cref="RemoveRow"/> mutate it
+/// reactive edits / <see cref="AddRow"/> / <see cref="RemoveRow"/> mutate it
 /// and recompute only the affected front (the reactive as-you-type path).
 /// </remarks>
 public interface IFormRuleGraph
@@ -39,7 +40,10 @@ public interface IFormRuleGraph
     RuleEvaluationResult EvaluateInstance(RuleInstance instance, CancellationToken ct = default);
 
     /// <summary>Applies a single top-level field change and re-evaluates the transitive dependents only.</summary>
-    RuleEvaluationResult Reevaluate(string fieldName, JsonNode? newValue, CancellationToken ct = default);
+    RuleEvaluationResult Reevaluate(string fieldName, RuleInputValue newValue, CancellationToken ct = default);
+
+    /// <summary>Rejects an unowned JSON node; callers must explicitly capture JSON text into <see cref="RuleInputValue"/>.</summary>
+    RuleEvaluationResult Reevaluate(string fieldName, JsonNode? unownedValue, CancellationToken ct = default);
 
     /// <summary>Adds a child-table row (incremental graph edit) and re-evaluates the affected aggregates + dependents.</summary>
     RuleEvaluationResult AddRow(string section, RuleRow row, CancellationToken ct = default);
@@ -55,11 +59,11 @@ public interface IFormRuleGraph
 /// </summary>
 public interface IGuardEvaluator
 {
-    /// <summary>Evaluates a guard rule (a <c>Validate</c>-shaped boolean) over a context bag.</summary>
-    Validity EvaluateGuard(RuleDefinition rule, IReadOnlyDictionary<string, JsonNode?> context,
+    /// <summary>Evaluates a guard rule only over an explicitly host-captured inert context.</summary>
+    Validity EvaluateGuard(RuleDefinition rule, RuleContextSnapshot context, RuleEvalScope scope,
         CancellationToken ct = default);
 
-    /// <summary>Evaluates a value expression (a <c>Compute</c>-shaped rule) over a context bag.</summary>
-    ComputedValue EvaluateValue(RuleDefinition rule, IReadOnlyDictionary<string, JsonNode?> context,
+    /// <summary>Evaluates a value expression only over an explicitly host-captured inert context.</summary>
+    ComputedValue EvaluateValue(RuleDefinition rule, RuleContextSnapshot context, RuleEvalScope scope,
         CancellationToken ct = default);
 }

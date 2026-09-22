@@ -83,11 +83,16 @@ public sealed class GuardEvaluator : IGuardEvaluator
         _clock = clock ?? throw new ArgumentNullException(nameof(clock));
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Refuses an uncaptured dictionary without enumerating it. Host code must explicitly capture
+    /// data before calling the snapshot overload; this method remains only to give existing binary
+    /// consumers a deterministic refusal instead of a hidden callback-capable capture.
+    /// </summary>
     public Validity EvaluateGuard(RuleDefinition rule, IReadOnlyDictionary<string, JsonNode?> context, CancellationToken ct = default)
     {
+        ArgumentNullException.ThrowIfNull(rule);
         ArgumentNullException.ThrowIfNull(context);
-        return EvaluateGuard(rule, RuleContextSnapshot.Capture(context), RuleEvalScope.Root, ct);
+        return Validity.Invalid(RuleError.Of(RuleEngineCodes.ContextSnapshotRequired));
     }
 
     /// <summary>Evaluates only data captured into the runtime-owned inert snapshot contract.</summary>
@@ -124,11 +129,12 @@ public sealed class GuardEvaluator : IGuardEvaluator
         return Validity.Invalid(RuleError.Of(RuleEngineCodes.ContextSnapshotRequired));
     }
 
-    /// <inheritdoc />
+    /// <summary>Refuses an uncaptured dictionary without reading it; use the snapshot overload.</summary>
     public ComputedValue EvaluateValue(RuleDefinition rule, IReadOnlyDictionary<string, JsonNode?> context, CancellationToken ct = default)
     {
+        ArgumentNullException.ThrowIfNull(rule);
         ArgumentNullException.ThrowIfNull(context);
-        return EvaluateValue(rule, RuleContextSnapshot.Capture(context), RuleEvalScope.Root, ct);
+        return ComputedValue.OfError(RuleError.Of(RuleEngineCodes.ContextSnapshotRequired));
     }
 
     /// <summary>Evaluates a value against an inert captured snapshot.</summary>

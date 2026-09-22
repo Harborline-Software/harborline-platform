@@ -2,6 +2,7 @@ using Harborline.Contracts.Fields;
 using Harborline.Contracts.Forms;
 using Harborline.Foundation.RuleEngine;
 using Harborline.Foundation.RuleEngine.Compilation;
+using Harborline.Foundation.RuleEngine.Context;
 using System.Text.Json.Nodes;
 using System.Text.Json;
 using System.Globalization;
@@ -105,7 +106,7 @@ public sealed class ValueDomainRuntime : IFieldDomainRuntime
                 {
                     var context = member.Fields.EnumerateObject().ToDictionary(property => property.Name,
                         property => JsonNode.Parse(property.Value.GetRawText()), StringComparer.Ordinal);
-                    validity = evaluator.EvaluateGuard(rule, context, cancellationToken);
+                    validity = evaluator.EvaluateGuard(rule, RuleContextSnapshot.Capture(context), RuleEvalScope.Root, cancellationToken);
                 }
                 catch (RuleEngineTimeoutException)
                 {

@@ -50,15 +50,41 @@ public sealed class FormRuleGraph : IFormRuleGraph
     /// <inheritdoc />
     public RuleEvaluationResult EvaluateInstance(RuleInstance instance, CancellationToken ct = default)
     {
-        _instance = instance ?? throw new ArgumentNullException(nameof(instance));
+        try
+        {
+            _instance = (instance ?? throw new ArgumentNullException(nameof(instance))).CaptureOwned();
+        }
+        catch (InvalidOperationException exception) when (exception.Message == RuleEngineCodes.ContextSnapshotRequired)
+        {
+            return FailClosed(RuleEngineCodes.ContextSnapshotRequired);
+        }
         return BuildAndEvaluate(ct);
     }
 
     /// <inheritdoc />
-    public RuleEvaluationResult Reevaluate(string fieldName, JsonNode? newValue, CancellationToken ct = default)
+    public RuleEvaluationResult Reevaluate(string fieldName, JsonNode? unownedValue, CancellationToken ct = default)
+    {
+        try { RuntimeInputEnvelope.ValidateMemberName(fieldName, nameof(fieldName)); }
+        catch (ArgumentException) { return FailClosed(RuleEngineCodes.InputTooLarge); }
+        return FailClosed(RuleEngineCodes.ContextSnapshotRequired);
+    }
+
+    /// <inheritdoc />
+    public RuleEvaluationResult Reevaluate(string fieldName, RuleInputValue newValue, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(fieldName);
-        _instance.Fields[fieldName] = newValue?.DeepClone();
+        ArgumentNullException.ThrowIfNull(newValue);
+        try { RuntimeInputEnvelope.ValidateMemberName(fieldName, nameof(fieldName)); }
+        catch (ArgumentException) { return FailClosed(RuleEngineCodes.InputTooLarge); }
+        bool hadPrevious = _instance.Fields.TryGetValue(fieldName, out var previous);
+        _instance.Fields[fieldName] = newValue.CloneOwned();
+        try { _instance.EnsureEnvelope(); }
+        catch (ArgumentException)
+        {
+            if (hadPrevious) _instance.Fields[fieldName] = previous;
+            else _instance.Fields.Remove(fieldName);
+            return FailClosed(RuleEngineCodes.InputTooLarge);
+        }
         string changedKey = CellAddress.Field(fieldName).Key;
 
         // Transitive dependents of the changed (possibly raw) cell, via the broad reader index.
@@ -125,8 +151,39 @@ public sealed class FormRuleGraph : IFormRuleGraph
     {
         ArgumentNullException.ThrowIfNull(section);
         ArgumentNullException.ThrowIfNull(row);
-        if (!_instance.Tables.TryGetValue(section, out var rows)) _instance.Tables[section] = rows = new List<RuleRow>();
-        rows.Add(row);
+        try { RuntimeInputEnvelope.ValidateMemberName(section, nameof(section)); }
+        catch (ArgumentException) { return FailClosed(RuleEngineCodes.InputTooLarge); }
+        bool createdSection = false;
+        if (!_instance.Tables.TryGetValue(section, out var rows))
+        {
+            _instance.Tables[section] = rows = new List<RuleRow>();
+            createdSection = true;
+        }
+        RuleRow captured;
+        try
+        {
+            captured = row.CaptureOwned();
+        }
+        catch (InvalidOperationException exception) when (exception.Message == RuleEngineCodes.ContextSnapshotRequired)
+        {
+            return FailClosed(RuleEngineCodes.ContextSnapshotRequired);
+        }
+        bool exceededTableLimit = rows.Count >= _limits.MaxTableRowsPerAggregate;
+        rows.Add(captured);
+        try { _instance.EnsureEnvelope(); }
+        catch (ArgumentException)
+        {
+            rows.RemoveAt(rows.Count - 1);
+            if (createdSection) _instance.Tables.Remove(section);
+            return FailClosed(RuleEngineCodes.InputTooLarge);
+        }
+        if (exceededTableLimit)
+        {
+            // Preserve the existing fail-closed aggregate result for this edit, while
+            // ensuring the rejected row cannot become unbounded future reactive state.
+            try { return BuildAndEvaluate(ct); }
+            finally { rows.RemoveAt(rows.Count - 1); }
+        }
         return BuildAndEvaluate(ct); // structural change: rebuild graph + re-link aggregates
     }
 
@@ -521,12 +578,14 @@ public sealed class FormRuleGraph : IFormRuleGraph
 
     private RuleEvaluationResult Project()
     {
+        var projectedOutcomes = _outcomes.ToDictionary(pair => pair.Key, pair => ProjectOutcome(pair.Value));
+        var projectedValues = _values.ToDictionary(pair => pair.Key, pair => ProjectValue(pair.Value));
         var visibility = new Dictionary<string, VisibilityState>();
         var validations = new List<RuleOutcome>();
         var options = new Dictionary<string, OptionsOutcome>();
-        bool hasPending = _values.Values.Any(v => v.State == ValueState.Pending);
+        bool hasPending = projectedValues.Values.Any(v => v.State == ValueState.Pending);
 
-        foreach (var outcome in _outcomes.Values)
+        foreach (var outcome in projectedOutcomes.Values)
         {
             switch (outcome.OutputType)
             {
@@ -550,13 +609,29 @@ public sealed class FormRuleGraph : IFormRuleGraph
         }
 
         return new RuleEvaluationResult(
-            new Dictionary<string, RuleOutcome>(_outcomes),
-            new Dictionary<string, ComputedValue>(_values),
+            projectedOutcomes,
+            projectedValues,
             visibility,
             validations,
             hasPending,
             options);
     }
+
+    private static ComputedValue ProjectValue(ComputedValue value)
+        => value.State == ValueState.Resolved && value.Value is JsonObject or JsonArray
+            ? value with { Value = value.Value.DeepClone() }
+            : value;
+
+    private static RuleOutcome ProjectOutcome(RuleOutcome outcome)
+        => outcome.OutputType switch
+        {
+            OutputType.Value when !ReferenceEquals(ProjectValue(outcome.Value!), outcome.Value)
+                => RuleOutcome.OfValue(outcome.RuleId, outcome.Target, ProjectValue(outcome.Value!)),
+            OutputType.Value => outcome,
+            OutputType.Options => RuleOutcome.OfOptions(outcome.RuleId, outcome.Target,
+                outcome.Options! with { Options = outcome.Options.Options?.Select(option => option?.DeepClone()).ToList() }),
+            _ => outcome,
+        };
 
     // Merge rule: any visibility-rule false hides; required/readOnly are OR-merged.
     private static VisibilityState Merge(VisibilityState a, VisibilityState b)

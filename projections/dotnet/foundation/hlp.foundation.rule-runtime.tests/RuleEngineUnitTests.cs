@@ -1,6 +1,10 @@
 using System.Text.Json.Nodes;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Text;
 
 using Harborline.Foundation.RuleEngine.Compilation;
+using Harborline.Foundation.RuleEngine.Context;
 using Harborline.Foundation.RuleEngine.Graph;
 using Harborline.Foundation.RuleEngine.Model;
 
@@ -233,7 +237,7 @@ public sealed class RuleEngineUnitTests
         var guard = new GuardEvaluator(new FixedClock(Clock), RuleEngineLimits.Default);
         var rule = RuleDefinitionFactory.Create("g.min", RuleTier.JsonLogic, RuleScope.Schema, "",
             "{\">\":[{\"var\":\"amount\"},50]}", RuleActionKind.Validate);
-        Assert.Throws<RuleEngineTimeoutException>(() => guard.EvaluateGuard(rule, Bag("amount", 100), cts.Token));
+        Assert.Throws<RuleEngineTimeoutException>(() => guard.EvaluateGuard(rule, RuleContextSnapshot.Capture(Bag("amount", 100)), RuleEvalScope.Root, cts.Token));
     }
 
     [Fact]
@@ -272,7 +276,7 @@ public sealed class RuleEngineUnitTests
         var first = graph.EvaluateInstance(Instance("{\"other\":\"before\",\"stable\":\"unchanged\"}"));
         var stableOutcome = first.ByRule["c.stable"];
 
-        var incremental = graph.Reevaluate("other", JsonValue.Create("after"));
+        var incremental = graph.Reevaluate("other", RuleInputValue.FromJsonText("\"after\""));
         var full = new FormRuleGraph(RuleCompiler.Compile(rules), new FixedClock(afterMidnight))
             .EvaluateInstance(Instance("{\"other\":\"after\",\"stable\":\"unchanged\"}"));
 
@@ -281,6 +285,213 @@ public sealed class RuleEngineUnitTests
         Assert.Equal(full.Values["field:label"].Value!.GetValue<string>(), incremental.Values["field:label"].Value!.GetValue<string>());
         Assert.Equal(full.ByRule["v.today"].Validity!.Ok, incremental.ByRule["v.today"].Validity!.Ok);
         Assert.Same(stableOutcome, incremental.ByRule["c.stable"]);
+    }
+
+    [Fact]
+    public void Graph_keeps_an_owned_instance_when_the_caller_mutates_the_original_after_evaluation()
+    {
+        var instance = Instance("{\"a\":1}");
+        var graph = Graph(new[] { Compute("c.b", "b", "{\"+\":[{\"var\":\"a\"},1]}") });
+        graph.EvaluateInstance(instance);
+        instance.Fields["a"] = JsonValue.Create(99);
+
+        var result = graph.AddRow("unrelated", new RuleRow("r1", new Dictionary<string, JsonNode?>()));
+
+        Assert.Equal(2L, result.Values["field:b"].Value!.GetValue<long>());
+    }
+
+    [Fact]
+    public void EvaluateInstance_refuses_a_converter_backed_value_added_after_capture_without_running_its_converter()
+    {
+        var canaryPath = Path.Combine(Directory.GetCurrentDirectory(), "artifacts", "t589", "converter-canary-" + Guid.NewGuid().ToString("N"));
+        var instance = Instance("{\"a\":1}");
+        instance.Fields["unsafe"] = JsonValue.Create(new WritingPayload(canaryPath));
+
+        try
+        {
+            var result = Graph(new[] { Compute("c.b", "b", "{\"+\":[{\"var\":\"a\"},1]}") }).EvaluateInstance(instance);
+
+            Assert.True(result.IsSaveBlocked);
+            Assert.False(File.Exists(canaryPath));
+        }
+        finally
+        {
+            if (File.Exists(canaryPath)) File.Delete(canaryPath);
+        }
+    }
+
+    [Fact]
+    public void Reactive_entries_refuse_converter_backed_nodes_before_the_converter_runs()
+    {
+        var canaryPath = Path.Combine(Directory.GetCurrentDirectory(), "artifacts", "t589", "converter-reactive-" + Guid.NewGuid().ToString("N"));
+        var graph = Graph(new[] { Compute("c.b", "b", "{\"+\":[{\"var\":\"a\"},1]}") });
+        graph.EvaluateInstance(Instance("{\"a\":1}"));
+        var unsafeValue = JsonValue.Create(new WritingPayload(canaryPath));
+        var row = new RuleRow("r1", new Dictionary<string, JsonNode?>());
+        row.Fields["unsafe"] = unsafeValue;
+
+        try
+        {
+            Assert.Equal(RuleEngineCodes.ContextSnapshotRequired, graph.Reevaluate("a", unsafeValue).Validations.Single().Validity!.Error!.Code);
+            Assert.Equal(RuleEngineCodes.ContextSnapshotRequired, graph.AddRow("items", row).Validations.Single().Validity!.Error!.Code);
+            Assert.False(File.Exists(canaryPath));
+            Assert.Equal(3L, graph.Reevaluate("a", RuleInputValue.FromJsonText("2")).Values["field:b"].Value!.GetValue<long>());
+        }
+        finally
+        {
+            if (File.Exists(canaryPath)) File.Delete(canaryPath);
+        }
+    }
+
+    [Fact]
+    public void RuleInstance_refuses_host_data_over_the_shared_utf8_input_envelope()
+    {
+        var source = new JsonObject { ["payload"] = new string('a', RuleContextSnapshot.MaxUtf8Bytes) };
+
+        Assert.Throws<ArgumentException>(() => RuleInstance.FromJson(source));
+    }
+
+    [Fact]
+    public void Reactive_value_capture_admits_json_null_but_instance_and_guard_require_objects()
+    {
+        var graph = Graph(new[] { Compute("c.value", "value", "{\"var\":\"a\"}") });
+        graph.EvaluateInstance(Instance("{\"a\":1}"));
+
+        var result = graph.Reevaluate("a", RuleInputValue.FromJsonText("null"));
+
+        Assert.Equal(ValueState.Resolved, result.Values["field:value"].State);
+        Assert.Null(result.Values["field:value"].Value);
+        Assert.Throws<ArgumentException>(() => RuleInstance.FromJsonText("null"));
+        Assert.Throws<ArgumentException>(() => RuleContextSnapshot.FromJsonText("null"));
+    }
+
+    [Theory]
+    [InlineData(63, true)]
+    [InlineData(64, false)]
+    public void RuleInstance_json_text_depth_counts_containers_and_allows_a_scalar_at_the_deepest_level(int nestedArrays, bool admitted)
+    {
+        string value = new string('[', nestedArrays) + "null" + new string(']', nestedArrays);
+        string json = "{\"x\":" + value + "}"; // root object + nested arrays = 64/65 containers.
+        if (admitted) _ = RuleInstance.FromJsonText(json);
+        else Assert.Throws<ArgumentException>(() => RuleInstance.FromJsonText(json));
+    }
+
+    [Fact]
+    public void Reactive_value_capture_enforces_ascii_non_ascii_byte_and_node_boundaries()
+    {
+        string asciiAt = "\"" + new string('a', RuleContextSnapshot.MaxUtf8Bytes - 2) + "\"";
+        string nonAsciiAt = "\"" + new string('é', (RuleContextSnapshot.MaxUtf8Bytes - 2) / 2) + "\"";
+        _ = RuleInputValue.FromJsonText(asciiAt);
+        _ = RuleInputValue.FromJsonText(nonAsciiAt);
+        Assert.Throws<ArgumentException>(() => RuleInputValue.FromJsonText("\"" + new string('a', RuleContextSnapshot.MaxUtf8Bytes - 1) + "\""));
+        Assert.Throws<ArgumentException>(() => RuleInputValue.FromJsonText("\"" + new string('é', ((RuleContextSnapshot.MaxUtf8Bytes - 2) / 2) + 1) + "\""));
+
+        _ = RuleInputValue.FromJsonText("[" + string.Join(',', Enumerable.Repeat("null", RuleContextSnapshot.MaxNodes - 1)) + "]");
+        Assert.Throws<ArgumentException>(() => RuleInputValue.FromJsonText("[" + string.Join(',', Enumerable.Repeat("null", RuleContextSnapshot.MaxNodes)) + "]"));
+    }
+
+    [Fact]
+    public void Rejected_cumulative_new_section_row_does_not_mutate_instance_or_cached_outcomes()
+    {
+        string initial = "{" + string.Join(',', Enumerable.Range(0, RuleContextSnapshot.MaxNodes - 2)
+            .Select(i => i == 0 ? "\"a\":1" : "\"f" + i + "\":null")) + "}";
+        var graph = Graph(new[] { Compute("c.b", "b", "{\"+\":[{\"var\":\"a\"},1]}") });
+        var first = graph.EvaluateInstance(Instance(initial));
+
+        var refused = graph.AddRow("new-section", new RuleRow("r1", new Dictionary<string, JsonNode?> { ["v"] = null }));
+
+        Assert.True(refused.IsSaveBlocked);
+        Assert.Equal(RuleEngineCodes.InputTooLarge, refused.Validations.Single().Validity!.Error!.Code);
+        var after = graph.Reevaluate("a", RuleInputValue.FromJsonText("2"));
+        Assert.Equal(3L, after.Values["field:b"].Value!.GetValue<long>());
+        var stable = after.ByRule["c.b"];
+        Assert.Same(stable, graph.Reevaluate("unused", RuleInputValue.FromJsonText("null")).ByRule["c.b"]);
+    }
+
+    [Fact]
+    public void Rejected_cumulative_byte_growth_leaves_the_prior_graph_state_usable()
+    {
+        const string Prefix = "{\"a\":1,\"payload\":\"";
+        const string Suffix = "\"}";
+        int payloadBytes = RuleContextSnapshot.MaxUtf8Bytes - Encoding.UTF8.GetByteCount(Prefix + Suffix);
+        var graph = Graph(new[] { Compute("c.b", "b", "{\"+\":[{\"var\":\"a\"},1]}") });
+        graph.EvaluateInstance(RuleInstance.FromJsonText(Prefix + new string('é', payloadBytes / 2) + Suffix));
+
+        var refused = graph.Reevaluate("unused", RuleInputValue.FromJsonText("null"));
+
+        Assert.Equal(RuleEngineCodes.InputTooLarge, refused.Validations.Single().Validity!.Error!.Code);
+        Assert.Equal(3L, graph.Reevaluate("a", RuleInputValue.FromJsonText("2")).Values["field:b"].Value!.GetValue<long>());
+    }
+
+    [Fact]
+    public void Returned_graph_value_cannot_poison_cached_json_with_a_converter()
+    {
+        var canaryPath = Path.Combine(Directory.GetCurrentDirectory(), "artifacts", "t589", "result-canary-" + Guid.NewGuid().ToString("N"));
+        var graph = Graph(new[] { Compute("c.object", "object", "{\"if\":[true,{\"left\":1,\"right\":2},null]}") });
+        var first = graph.EvaluateInstance(Instance("{\"a\":1}"));
+        var exposed = first.Values["field:object"].Value!.AsObject();
+        exposed["poison"] = JsonValue.Create(new WritingPayload(canaryPath));
+        try
+        {
+            var next = graph.Reevaluate("unrelated", RuleInputValue.FromJsonText("null"));
+            Assert.False(next.Values["field:object"].Value!.AsObject().ContainsKey("poison"));
+            Assert.False(File.Exists(canaryPath));
+        }
+        finally
+        {
+            if (File.Exists(canaryPath)) File.Delete(canaryPath);
+        }
+    }
+
+    [Fact]
+    public void Guard_var_result_is_already_detached_from_its_captured_context()
+    {
+        var guard = new GuardEvaluator(new FixedClock(Clock), RuleEngineLimits.Default);
+        var rule = RuleDefinitionFactory.Create("g.object", RuleTier.JsonLogic, RuleScope.Schema, "", "{\"var\":\"payload\"}", RuleActionKind.Compute);
+        var context = RuleContextSnapshot.FromJsonText("{\"root\":{\"payload\":{\"left\":1,\"right\":2}}}");
+        var first = guard.EvaluateValue(rule, context, RuleEvalScope.Root);
+        first.Value!.AsObject()["poison"] = true;
+
+        Assert.False(guard.EvaluateValue(rule, context, RuleEvalScope.Root).Value!.AsObject().ContainsKey("poison"));
+    }
+
+    [Fact]
+    public void Reactive_member_names_over_the_input_envelope_are_refused_before_state_mutation()
+    {
+        var graph = Graph(new[] { Compute("c.b", "b", "{\"+\":[{\"var\":\"a\"},1]}") });
+        graph.EvaluateInstance(Instance("{\"a\":1}"));
+        string oversized = new string('x', RuleContextSnapshot.MaxUtf8Bytes + 1);
+
+        Assert.Equal(RuleEngineCodes.InputTooLarge, graph.Reevaluate(oversized, RuleInputValue.FromJsonText("null")).Validations.Single().Validity!.Error!.Code);
+        Assert.Equal(2L, graph.Reevaluate("a", RuleInputValue.FromJsonText("1")).Values["field:b"].Value!.GetValue<long>());
+    }
+
+    [Fact]
+    public void Graph_captures_an_added_row_before_a_later_structural_evaluation()
+    {
+        var graph = Graph(new[] { Compute("c.total", "total", "{\"var\":\"table.sum(items.amount)\"}") });
+        graph.EvaluateInstance(Instance("{\"items\":[{\"amount\":0}]}"));
+        var row = new RuleRow("r1", new Dictionary<string, JsonNode?> { ["amount"] = JsonValue.Create(2) });
+        graph.AddRow("items", row);
+        row.Fields["amount"] = JsonValue.Create(99);
+
+        var result = graph.AddRow("items", new RuleRow("r2", new Dictionary<string, JsonNode?> { ["amount"] = JsonValue.Create(0) }));
+
+        Assert.Equal(2L, result.Values["agg:items/sum/amount"].Value!.GetValue<long>());
+    }
+
+    [Fact]
+    public void Graph_does_not_retain_a_rejected_over_limit_reactive_row()
+    {
+        var limits = RuleEngineLimits.Default with { MaxTableRowsPerAggregate = 1 };
+        var graph = Graph(new[] { Compute("c.total", "total", "{\"var\":\"table.sum(items.amount)\"}") }, limits);
+        graph.EvaluateInstance(Instance("{\"items\":[{\"amount\":1}]}"));
+
+        var rejected = graph.AddRow("items", new RuleRow("r2", new Dictionary<string, JsonNode?> { ["amount"] = JsonValue.Create(2) }));
+        Assert.Equal(ValueState.Error, rejected.Values["agg:items/sum/amount"].State);
+
+        var after = graph.RemoveRow("items", "not-present");
+        Assert.Equal(1L, after.Values["field:total"].Value!.GetValue<long>());
     }
 
     [Fact]
@@ -320,7 +531,7 @@ public sealed class RuleEngineUnitTests
         // unavailable data there: rule.bad_reference with params {agg: "section/fn/col"} — the
         // exact shape (and param order) the shared corpus pins byte-identically across tiers (ticket 162).
         var rule = Compute("g.total", "", "{\"var\":\"table.sum(items.amount)\"}", RuleScope.Schema);
-        var value = new GuardEvaluator(clock: new FixedClock(Clock)).EvaluateValue(rule, new Dictionary<string, JsonNode?>());
+        var value = new GuardEvaluator(clock: new FixedClock(Clock)).EvaluateValue(rule, RuleContextSnapshot.Capture(new Dictionary<string, JsonNode?>()), RuleEvalScope.Root);
         Assert.Equal(ValueState.Error, value.State);
         Assert.Equal(RuleEngineCodes.BadReference, value.Error!.Code);
         Assert.Equal("items/sum/amount", value.Error!.Params["agg"]);
@@ -356,7 +567,7 @@ public sealed class RuleEngineUnitTests
         var first = graph.EvaluateInstance(Instance("{\"a\":10,\"x\":100}"));
         var dBefore = first.ByRule["c.d"];
 
-        var next = graph.Reevaluate("a", JsonValue.Create(20));
+        var next = graph.Reevaluate("a", RuleInputValue.FromJsonText("20"));
 
         Assert.Equal(21L, next.Values["field:b"].Value!.GetValue<long>());
         Assert.Same(dBefore, next.ByRule["c.d"]); // not re-evaluated — referentially unchanged
@@ -446,14 +657,14 @@ public sealed class RuleEngineUnitTests
         var rule = RuleDefinitionFactory.Create("g.min", RuleTier.JsonLogic, RuleScope.Schema, "",
             "{\">\":[{\"var\":\"amount\"},50]}", RuleActionKind.Validate);
 
-        Assert.True(guard.EvaluateGuard(rule, Bag("amount", 100)).Ok);
-        var fail = guard.EvaluateGuard(rule, Bag("amount", 10));
+        Assert.True(guard.EvaluateGuard(rule, RuleContextSnapshot.Capture(Bag("amount", 100)), RuleEvalScope.Root).Ok);
+        var fail = guard.EvaluateGuard(rule, RuleContextSnapshot.Capture(Bag("amount", 10)), RuleEvalScope.Root);
         Assert.False(fail.Ok);
         Assert.Equal("g.min", fail.Error!.Code);
 
         var value = RuleDefinitionFactory.Create("g.fee", RuleTier.JsonLogic, RuleScope.Schema, "",
             "{\"money.mul\":[\"10\",\"3\"]}", RuleActionKind.Compute);
-        Assert.Equal("30", guard.EvaluateValue(value, new Dictionary<string, JsonNode?>()).Value!.GetValue<string>());
+        Assert.Equal("30", guard.EvaluateValue(value, RuleContextSnapshot.Capture(new Dictionary<string, JsonNode?>()), RuleEvalScope.Root).Value!.GetValue<string>());
     }
 
     [Fact]
@@ -463,7 +674,7 @@ public sealed class RuleEngineUnitTests
         var rule = RuleDefinitionFactory.Create("g.min", RuleTier.JsonLogic, RuleScope.Schema, "",
             "{\">\":[{\"var\":\"amount\"},50]}", RuleActionKind.Validate);
         var bag = new Dictionary<string, JsonNode?> { ["amount"] = new JsonObject { ["@pending"] = true } };
-        var v = guard.EvaluateGuard(rule, bag);
+        var v = guard.EvaluateGuard(rule, RuleContextSnapshot.Capture(bag), RuleEvalScope.Root);
         Assert.False(v.Ok);
         Assert.Equal(RuleEngineCodes.PendingAtSave, v.Error!.Code);
     }
@@ -480,6 +691,23 @@ public sealed class RuleEngineUnitTests
         {
             Reads++;
             return instants[Math.Min(_next++, instants.Length - 1)];
+        }
+    }
+
+    [JsonConverter(typeof(WritingPayloadConverter))]
+    private sealed record WritingPayload(string Path);
+
+    private sealed class WritingPayloadConverter : JsonConverter<WritingPayload>
+    {
+        public override WritingPayload? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            throw new NotSupportedException();
+        }
+
+        public override void Write(Utf8JsonWriter writer, WritingPayload value, JsonSerializerOptions options)
+        {
+            File.WriteAllText(value.Path, "converter-ran");
+            writer.WriteStringValue("unsafe");
         }
     }
 }

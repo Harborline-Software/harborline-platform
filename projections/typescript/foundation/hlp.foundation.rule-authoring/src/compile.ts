@@ -147,7 +147,7 @@ export interface PreviewResult {
 /** Compiles + evaluates a single rule over sample inputs, returning the outcome + trace. */
 function evaluateRule(def: RuleDefinition, sample: Record<string, Json>, clock: () => Date, filter: TraceAuthorityFilter): { outcome?: RuleOutcome; trace: RuleTraceEntry[] } {
   const compiled = compile([def])
-  const result = new FormRuleGraph(compiled, clock).evaluateInstance(RuleInstance.fromJson(sample))
+  const result = new FormRuleGraph(compiled, clock).evaluateInstance(RuleInstance.fromJsonText(JSON.stringify(sample)))
   let outcome: RuleOutcome | undefined
   for (const o of result.byRule.values()) {
     if (o.ruleId === def.id) {
@@ -200,7 +200,7 @@ function probeFiredRow(draft: DecisionTableDraft, sample: Record<string, Json>, 
     throw e
   }
   const compiled = compile([def])
-  const result = new FormRuleGraph(compiled, clock).evaluateInstance(RuleInstance.fromJson(sample))
+  const result = new FormRuleGraph(compiled, clock).evaluateInstance(RuleInstance.fromJsonText(JSON.stringify(sample)))
   for (const o of result.byRule.values()) {
     if (o.ruleId === def.id && o.value?.state === 'Resolved') {
       const v = o.value.value

@@ -12,7 +12,8 @@ import type {
 import { DEFAULT_LIMITS, type RuleEngineLimits } from './limits.js'
 import type { CompiledGraph, CompiledRule } from './compiler.js'
 import type { RuleRef } from './grammar.js'
-import { RuleInstance, type RuleRow } from './instance.js'
+import { detachJson, ownedInstanceDataOf, ownedRowOf, ownedValueOf, RuleInstance, type RuleRow } from './instance.js'
+import { assertBoundedMemberName, parseBoundedJsonText } from './input-envelope.js'
 import {
   EvalBudget, RuleBudget, RuleEvalError, RulePending,
   err, refError, refPending, refResolved, unavailableAggregate,
@@ -21,6 +22,9 @@ import {
 import type { ContextAdapter, RuleEvalScope } from './context-adapter.js'
 import { evaluate, isTruthy, toNumber } from './jsonlogic.js'
 import { MoneyDecimal } from './money-decimal.js'
+
+const computedExports = new WeakMap<object, ComputedValue>()
+const outcomeExports = new WeakMap<object, RuleOutcome>()
 
 export interface RuleEvaluationResult {
   byRule: Map<string, RuleOutcome>
@@ -65,8 +69,9 @@ class CellResolver implements ValueResolver {
     const key = cell.field(name)
     const cv = this.computed.get(key)
     if (cv) return fromComputed(cv, key)
-    if (name in this.instance.fields) {
-      const v = this.instance.fields[name]
+    const fields = ownedInstanceDataOf(this.instance)!.fields
+    if (name in fields) {
+      const v = fields[name]
       return isPendingSentinel(v) ? refPending : refResolved(v)
     }
     return refResolved(null)
@@ -83,7 +88,7 @@ class CellResolver implements ValueResolver {
   }
 
   private rawRowField(section: string, rowId: string, field: string): RefValue {
-    const rows = this.instance.tables[section]
+    const rows = ownedInstanceDataOf(this.instance)!.tables[section]
     const row = rows?.find((r) => r.id === rowId)
     if (row && field in row.fields) {
       const v = row.fields[field]
@@ -212,7 +217,7 @@ interface OutcomePlan {
 }
 
 export class FormRuleGraph {
-  private instance = new RuleInstance()
+  private instance = RuleInstance.empty()
   private order: ComputedCell[] = []
   private cells = new Map<string, ComputedCell>()
   private deps = new Map<string, Set<string>>()
@@ -234,12 +239,26 @@ export class FormRuleGraph {
   }
 
   evaluateInstance(instance: RuleInstance, signal?: AbortSignal): RuleEvaluationResult {
-    this.instance = instance
+    if (!RuleInstance.isRuntimeOwned(instance)) throw new Error(Codes.contextSnapshotRequired)
+    this.instance = RuleInstance.cloneOwned(instance)
     return this.buildAndEvaluate(signal)
   }
 
-  reevaluate(fieldName: string, newValue: Json, signal?: AbortSignal): RuleEvaluationResult {
-    this.instance.fields[fieldName] = newValue
+  reevaluate(fieldName: string, newValue: import('./instance.js').RuleValueSnapshot, signal?: AbortSignal): RuleEvaluationResult {
+    try { assertBoundedMemberName(fieldName, 'rule field name') } catch { return this.failClosed(Codes.inputTooLarge) }
+    const captured = ownedValueOf(newValue)
+    if (captured === undefined) throw new Error(Codes.contextSnapshotRequired)
+    const instanceData = ownedInstanceDataOf(this.instance)!
+    const hadPrevious = Object.hasOwn(instanceData.fields, fieldName)
+    const previous = instanceData.fields[fieldName]
+    instanceData.fields[fieldName] = captured
+    try { assertInstanceEnvelope(instanceData.fields, instanceData.tables) }
+    catch (error) {
+      if (hadPrevious) instanceData.fields[fieldName] = previous
+      else delete instanceData.fields[fieldName]
+      if (error instanceof RangeError) return this.failClosed(Codes.inputTooLarge)
+      throw error
+    }
     const changedKey = cell.field(fieldName)
 
     const dirty = new Set<string>()
@@ -284,15 +303,35 @@ export class FormRuleGraph {
     return this.project()
   }
 
-  addRow(section: string, row: RuleRow, signal?: AbortSignal): RuleEvaluationResult {
-    if (!this.instance.tables[section]) this.instance.tables[section] = []
-    this.instance.tables[section].push(row)
+  addRow(section: string, row: import('./instance.js').RuleRowSnapshot, signal?: AbortSignal): RuleEvaluationResult {
+    try { assertBoundedMemberName(section, 'rule section name') } catch { return this.failClosed(Codes.inputTooLarge) }
+    const captured = ownedRowOf(row)
+    if (!captured) throw new Error(Codes.contextSnapshotRequired)
+    const tables = ownedInstanceDataOf(this.instance)!.tables
+    const createdSection = !tables[section]
+    if (createdSection) tables[section] = []
+    const rows = tables[section]
+    const exceededTableLimit = rows.length >= this.limits.maxTableRowsPerAggregate
+    rows.push(captured)
+    try { assertInstanceEnvelope(ownedInstanceDataOf(this.instance)!.fields, tables) }
+    catch (error) {
+      rows.pop()
+      if (createdSection) delete tables[section]
+      if (error instanceof RangeError) return this.failClosed(Codes.inputTooLarge)
+      throw error
+    }
+    if (exceededTableLimit) {
+      // Preserve the established fail-closed aggregate result for this edit, but never
+      // retain the rejected row as future reactive state.
+      try { return this.buildAndEvaluate(signal) } finally { rows.pop() }
+    }
     return this.buildAndEvaluate(signal)
   }
 
   removeRow(section: string, rowId: string, signal?: AbortSignal): RuleEvaluationResult {
-    const rows = this.instance.tables[section]
-    if (rows) this.instance.tables[section] = rows.filter((r) => r.id !== rowId)
+    const tables = ownedInstanceDataOf(this.instance)!.tables
+    const rows = tables[section]
+    if (rows) tables[section] = rows.filter((r) => r.id !== rowId)
     return this.buildAndEvaluate(signal)
   }
 
@@ -366,7 +405,7 @@ export class FormRuleGraph {
     for (const c of this.cells.values()) { this.deps.set(c.key, new Set()); this.dependents.set(c.key, new Set()) }
     for (const c of this.cells.values()) {
       if (c.aggFold) {
-        const rows = this.instance.tables[c.aggFold.section] ?? []
+        const rows = ownedInstanceDataOf(this.instance)!.tables[c.aggFold.section] ?? []
         // F3: bound the un-budgeted edge walk — an over-cap table fails closed in foldAggregate.
         if (rows.length <= this.limits.maxTableRowsPerAggregate) {
           for (const row of rows) {
@@ -441,7 +480,7 @@ export class FormRuleGraph {
   }
 
   private rowsOf(section: string): RuleRow[] {
-    return this.instance.tables[section] ?? []
+    return ownedInstanceDataOf(this.instance)!.tables[section] ?? []
   }
 
   private edge(from: string, dep: string): void {
@@ -500,7 +539,7 @@ export class FormRuleGraph {
   }
 
   private foldAggregate(fn: string, section: string, col: string, budget: EvalBudget): ComputedValue {
-    const rows = this.instance.tables[section] ?? []
+    const rows = ownedInstanceDataOf(this.instance)!.tables[section] ?? []
     if (rows.length > this.limits.maxTableRowsPerAggregate) return { state: 'Error', error: err(Codes.tableTooLarge, 'section', section) }
 
     const values: Json[] = []
@@ -560,33 +599,31 @@ export class FormRuleGraph {
 
   private project(): RuleEvaluationResult {
     const visibility = new Map<string, VisibilityState>()
-    const validations: RuleOutcome[] = []
-    const options = new Map<string, OptionsOutcome>()
     let hasPending = [...this.values.values()].some((v) => v.state === 'Pending')
 
     for (const outcome of this.outcomes.values()) {
       if (outcome.outputType === 'Visibility') {
         const prev = visibility.get(outcome.target) ?? { visible: true, required: false, readOnly: false }
         visibility.set(outcome.target, merge(prev, outcome.visibility!))
-      } else if (outcome.outputType === 'Validity' && outcome.validity && !outcome.validity.ok) {
-        validations.push(outcome)
       } else if (outcome.outputType === 'Value' && outcome.value?.state === 'Pending') {
         hasPending = true
-      } else if (outcome.outputType === 'Options') {
-        // Last-writer-wins per cell (multiple set-options on one field is an authoring smell).
-        options.set(outcome.target, outcome.options!)
       }
     }
 
     const hasErrorValue = [...this.values.values()].some((v) => v.state === 'Error')
+    const values = new Map([...this.values].map(([key, value]) => [key, detachComputedValue(value)]))
+    const byRule = new Map([...this.outcomes].map(([key, outcome]) => [key, detachOutcome(outcome)]))
+    const exportedValidations = [...byRule.values()].filter((outcome) => outcome.outputType === 'Validity' && outcome.validity && !outcome.validity.ok)
+    const exportedOptions = new Map<string, OptionsOutcome>()
+    for (const outcome of byRule.values()) if (outcome.outputType === 'Options' && outcome.options) exportedOptions.set(outcome.target, outcome.options)
     return {
-      byRule: new Map(this.outcomes),
-      values: new Map(this.values),
+      byRule,
+      values,
       visibility,
-      validations,
-      options,
+      validations: exportedValidations,
+      options: exportedOptions,
       hasPending,
-      isSaveBlocked: validations.length > 0 || hasPending || hasErrorValue,
+      isSaveBlocked: exportedValidations.length > 0 || hasPending || hasErrorValue,
     }
   }
 
@@ -602,6 +639,43 @@ export class FormRuleGraph {
       isSaveBlocked: true,
     }
   }
+}
+
+function detachComputedValue(value: ComputedValue): ComputedValue {
+  const cached = computedExports.get(value)
+  if (cached) return cached
+  const detached = value.state === 'Resolved'
+    ? Object.freeze({ ...value, value: detachJson(value.value ?? null) })
+    : Object.freeze({ ...value, error: value.error ? Object.freeze({ ...value.error, params: Object.freeze({ ...value.error.params }) }) : undefined })
+  computedExports.set(value, detached)
+  return detached
+}
+
+function detachOutcome(outcome: RuleOutcome): RuleOutcome {
+  const cached = outcomeExports.get(outcome)
+  if (cached) return cached
+  const detached = Object.freeze({
+    ...outcome,
+    value: outcome.value ? detachComputedValue(outcome.value) : undefined,
+    options: outcome.options?.state === 'Resolved'
+      ? { ...outcome.options, options: outcome.options.options?.map(detachJson) }
+      : outcome.options ? { ...outcome.options } : undefined,
+    validity: outcome.validity ? { ...outcome.validity, error: outcome.validity.error ? { ...outcome.validity.error, params: { ...outcome.validity.error.params } } : undefined } : undefined,
+    visibility: outcome.visibility ? { ...outcome.visibility } : undefined,
+    presentation: outcome.presentation ? Object.freeze({ ...outcome.presentation }) : undefined,
+  })
+  outcomeExports.set(outcome, detached)
+  return detached
+}
+
+function assertInstanceEnvelope(fields: Record<string, Json>, tables: Record<string, RuleRow[]>): void {
+  const document: Record<string, Json> = { ...fields }
+  for (const [section, rows] of Object.entries(tables)) {
+    document[section] = rows.map((row) => ({ _id: row.id, ...row.fields }))
+  }
+  // Every source value was already captured; this bounded reconstruction only checks
+  // the prospective cumulative envelope before evaluation or cache mutation.
+  parseBoundedJsonText(JSON.stringify(document), 'rule instance')
 }
 
 function merge(a: VisibilityState, b: VisibilityState): VisibilityState {

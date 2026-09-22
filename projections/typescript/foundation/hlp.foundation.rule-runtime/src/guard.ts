@@ -13,6 +13,8 @@ import {
   type EvalContext, type RefValue, type ValueResolver,
 } from './eval-support.js'
 import { evaluate, isTruthy } from './jsonlogic.js'
+import { parseBoundedJsonText } from './input-envelope.js'
+import { detachJson } from './instance.js'
 
 const isPendingSentinel = (n: Json): boolean =>
   typeof n === 'object' && n !== null && !Array.isArray(n) &&
@@ -43,35 +45,31 @@ class ContextBagResolver implements ValueResolver {
  * context bag into a `ContextBagResolver`. The bag has no repeating sub-collection, so the
  * scope's `rowSection` is ignored (a `row.` reference resolves to a bad-reference, as before).
  */
-class ContextSnapshotError extends Error {}
+const snapshotBrand = new WeakSet<object>()
+const snapshotData = new WeakMap<object, Record<string, Json>>()
+/**
+ * Runtime-owned data admitted from JSON text before crossing into pure evaluation.
+ * Parsing belongs to the host boundary; evaluator entry never reflects over a caller object.
+ */
+export class RuleContextSnapshot {
+  // No constructor arguments or instance data: JavaScript callers can invoke a TS-private
+  // constructor, but only this module's JSON-text factory can add owned data to the WeakMap.
+  private constructor() {}
 
-/** Copies own data descriptors to an inert JSON snapshot without reading accessor properties. */
-function captureJson(value: Json): Json {
-  if (value === null || typeof value !== 'object') return value
-  if (Array.isArray(value)) {
-    const descriptors = Object.getOwnPropertyDescriptors(value)
-    const out: Json[] = []
-    for (let i = 0; i < value.length; i++) {
-      const descriptor = descriptors[String(i)]
-      if (!descriptor || !('value' in descriptor)) throw new ContextSnapshotError()
-      out.push(captureJson(descriptor.value as Json))
-    }
-    return out
+  static fromJsonText(jsonText: string): RuleContextSnapshot {
+    const parsed: unknown = parseBoundedJsonText(jsonText, 'rule context')
+    if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) throw new TypeError('rule context must be a JSON object')
+    const snapshot = new RuleContextSnapshot()
+    snapshotBrand.add(snapshot)
+    snapshotData.set(snapshot, parsed as Record<string, Json>)
+    return snapshot
   }
-  if (Object.getPrototypeOf(value) !== Object.prototype && Object.getPrototypeOf(value) !== null) throw new ContextSnapshotError()
-  const out: Record<string, Json> = {}
-  for (const [key, descriptor] of Object.entries(Object.getOwnPropertyDescriptors(value))) {
-    if (!descriptor.enumerable) continue
-    if (!('value' in descriptor)) throw new ContextSnapshotError()
-    out[key] = captureJson(descriptor.value as Json)
-  }
-  return out
 }
 
-function captureContext(context: Record<string, Json>): Record<string, Json> {
-  const snapshot = captureJson(context)
-  if (snapshot === null || typeof snapshot !== 'object' || Array.isArray(snapshot)) throw new ContextSnapshotError()
-  return snapshot as Record<string, Json>
+function contextValuesOf(value: unknown): Record<string, Json> | undefined {
+  return typeof value === 'object' && value !== null && snapshotBrand.has(value)
+    ? snapshotData.get(value)
+    : undefined
 }
 
 export class GuardEvaluator {
@@ -82,14 +80,11 @@ export class GuardEvaluator {
     if (typeof clock !== 'function') throw new TypeError('GuardEvaluator requires a caller-supplied clock')
   }
 
-  evaluateGuard(rule: RuleDefinition, context: Record<string, Json>, signal?: AbortSignal): Validity {
+  evaluateGuard(rule: RuleDefinition, context: RuleContextSnapshot, signal?: AbortSignal): Validity {
     const compiled = compile([rule], this.limits)
     if (compiled.rules.length === 0) return { ok: true } // Tier-1 guard: nothing for this engine.
-    let snapshot: Record<string, Json>
-    try { snapshot = captureContext(context) } catch (e) {
-      if (e instanceof ContextSnapshotError) return { ok: false, error: err(Codes.contextSnapshotRequired) }
-      throw e
-    }
+    const snapshot = contextValuesOf(context)
+    if (!snapshot) return { ok: false, error: err(Codes.contextSnapshotRequired) }
     return this.run<Validity>(
       compiled.rules[0].ast as Json,
       snapshot,
@@ -100,18 +95,15 @@ export class GuardEvaluator {
     )
   }
 
-  evaluateValue(rule: RuleDefinition, context: Record<string, Json>, signal?: AbortSignal): ComputedValue {
+  evaluateValue(rule: RuleDefinition, context: RuleContextSnapshot, signal?: AbortSignal): ComputedValue {
     const compiled = compile([rule], this.limits)
     if (compiled.rules.length === 0) return { state: 'Resolved', value: null }
-    let snapshot: Record<string, Json>
-    try { snapshot = captureContext(context) } catch (e) {
-      if (e instanceof ContextSnapshotError) return { state: 'Error', error: err(Codes.contextSnapshotRequired) }
-      throw e
-    }
+    const snapshot = contextValuesOf(context)
+    if (!snapshot) return { state: 'Error', error: err(Codes.contextSnapshotRequired) }
     return this.run<ComputedValue>(
       compiled.rules[0].ast as Json,
       snapshot,
-      (v) => ({ state: 'Resolved', value: v }),
+      (v) => ({ state: 'Resolved', value: detachJson(v) }),
       (e) => ({ state: 'Error', error: e }),
       () => ({ state: 'Pending' }),
       signal,

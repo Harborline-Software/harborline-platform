@@ -59,7 +59,10 @@ export function compileFormula(skin: FormulaSkin): RuleDefinition {
   }
   // The authoring bridge returns only rules admitted by the identical core fence that
   // publishes bare rules, not merely a syntactically lowered skin.
-  compile([definition])
+  // `RuleDefinition.expression` accepts either encoded JSON source or an AST. A scalar formula
+  // string is AST data, whereas the core compiler interprets a bare string as encoded source.
+  // Encode only this admission copy; retain the canonical authored AST on the returned definition.
+  compile([{ ...definition, expression: JSON.stringify(definition.expression) }])
   return definition
 }
 

@@ -150,6 +150,16 @@ var result = graph.EvaluateInstance(instance, ct);
 if (result.IsSaveBlocked) { /* fail closed: validity failure, errored value, or pending value */ }
 ```
 
+### Pure evaluator input boundary
+
+`IGuardEvaluator` accepts `RuleContextSnapshot`, not an adapter or arbitrary dictionary. A host calls
+`RuleContextSnapshot.Capture` (trusted host adaptation) or `FromJsonText` before evaluation; the
+evaluator itself never enumerates or invokes caller-owned context code. Context and graph instance
+capture admit at most 262,144 UTF-8 bytes, 64 JSON nesting levels, and 5,000 JSON values. Graphs own
+their initial instance and reactive rows, and an over-limit row produces the established fail-closed
+result without becoming future graph state. These are implementation bounds for inert runtime data,
+separate from authored-rule limits and the liveness timeout.
+
 ## CP-safety (deferred, named)
 
 v1 evaluates **first-party** definitions only. A `Compute` into a CP-locked field is subject to the

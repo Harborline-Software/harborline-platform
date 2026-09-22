@@ -1,6 +1,7 @@
 using System.Text.Json.Nodes;
 
 using Harborline.Foundation.RuleEngine.Compilation;
+using Harborline.Foundation.RuleEngine.Context;
 using Harborline.Foundation.RuleEngine.Explain;
 using Harborline.Foundation.RuleEngine.Graph;
 using Harborline.Foundation.RuleEngine.Model;
@@ -124,13 +125,13 @@ public sealed class RuleTraceTests
             """{ ">": [ { "var": "amount" }, 5000 ] }""", RuleActionKind.Validate);
         var evaluator = new GuardEvaluator(TimeProvider.System);
 
-        var pass = evaluator.EvaluateGuard(guard, new Dictionary<string, JsonNode?> { ["amount"] = 7000 });
+        var pass = evaluator.EvaluateGuard(guard, RuleContextSnapshot.Capture(new Dictionary<string, JsonNode?> { ["amount"] = 7000 }), RuleEvalScope.Root);
         var passTrace = RuleTraceBuilder.BuildGuard(guard, pass);
         Assert.Equal(RuleTraceCodes.GuardPassed, passTrace.Code);
         Assert.Equal("amount", passTrace.Params["reads"]);
         Assert.Equal("guard:g.amount", passTrace.Target);
 
-        var fail = evaluator.EvaluateGuard(guard, new Dictionary<string, JsonNode?> { ["amount"] = 3000 });
+        var fail = evaluator.EvaluateGuard(guard, RuleContextSnapshot.Capture(new Dictionary<string, JsonNode?> { ["amount"] = 3000 }), RuleEvalScope.Root);
         var failTrace = RuleTraceBuilder.BuildGuard(guard, fail);
         Assert.Equal(RuleTraceCodes.GuardFailed, failTrace.Code);
         Assert.Equal("g.amount", failTrace.Params["cause"]);

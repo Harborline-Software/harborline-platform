@@ -61,6 +61,9 @@ public static class RuleEngineCodes
     /// <summary>An effectful adapter was offered to the pure evaluator instead of a captured snapshot.</summary>
     public const string ContextSnapshotRequired = "rule.context_snapshot_required";
 
+    /// <summary>A prospective reactive mutation exceeded the finite captured-instance envelope.</summary>
+    public const string InputTooLarge = "rule.input_too_large";
+
     // ── Publish-time (compile) rejections (throw RuleCompilationException) ──
 
     /// <summary>A cyclic definition was rejected at publish (carries the cycle path).</summary>

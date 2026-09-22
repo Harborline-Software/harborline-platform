@@ -19,6 +19,7 @@ export const Codes = {
   computeScopeInvalid: 'rule.compute_scope_invalid',
   optionsNotArray: 'rule.options_not_array',
   contextSnapshotRequired: 'rule.context_snapshot_required',
+  inputTooLarge: 'rule.input_too_large',
   // compile (publish-time)
   compileCycle: 'rule.compile.cycle',
   compileDepthExceeded: 'rule.compile.depth_exceeded',

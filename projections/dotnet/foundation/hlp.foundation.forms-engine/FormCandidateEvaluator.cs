@@ -6,6 +6,7 @@ using Contract = Harborline.Contracts.Forms;
 using State = Harborline.Foundation.Forms.Models;
 using Harborline.Foundation.RuleEngine;
 using Harborline.Foundation.RuleEngine.Compilation;
+using Harborline.Foundation.RuleEngine.Context;
 using Harborline.Foundation.RuleEngine.Graph;
 using Harborline.Foundation.RuleEngine.Model;
 using Harborline.Kernel.SchemaValidation;
@@ -286,7 +287,7 @@ internal static class FormCandidateEvaluator
                 Id = $"page-guard:{page.Id}", Tier = Contract.RuleTier.JsonLogic, Scope = Contract.RuleScope.Schema,
                 ScopeTarget = "", Expression = page.VisibleWhen!, Action = Contract.RuleActionKind.Validate,
             };
-            if (evaluator.EvaluateGuard(guard, context, cancellationToken).Ok) continue;
+            if (evaluator.EvaluateGuard(guard, RuleContextSnapshot.Capture(context), RuleEvalScope.Root, cancellationToken).Ok) continue;
             hiddenPages.Add(page.Id);
             foreach (var section in page.Sections) hiddenSections.Add(section);
         }

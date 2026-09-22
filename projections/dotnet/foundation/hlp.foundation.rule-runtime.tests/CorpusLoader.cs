@@ -4,6 +4,7 @@ using System.Text.Json.Nodes;
 
 using Harborline.Foundation.RuleEngine.Compilation;
 using Harborline.Foundation.RuleEngine.Conformance;
+using Harborline.Foundation.RuleEngine.Context;
 using Harborline.Foundation.RuleEngine.Graph;
 using Harborline.Foundation.RuleEngine.Skins;
 
@@ -62,7 +63,7 @@ internal static class CorpusLoader
             caseObj["clock"]?.GetValue<string>() ?? "2026-06-30T00:00:00Z",
             CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal));
         var bag = ((JsonObject)caseObj["instance"]!).ToDictionary(kv => kv.Key, kv => kv.Value?.DeepClone());
-        var value = new GuardEvaluator(clock, ParseLimits(caseObj)).EvaluateValue(rule, bag);
+        var value = new GuardEvaluator(clock, ParseLimits(caseObj)).EvaluateValue(rule, RuleContextSnapshot.Capture(bag), RuleEvalScope.Root);
         return CanonicalJson.SerializeComputedValue(value);
     }
 
