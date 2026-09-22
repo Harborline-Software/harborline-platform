@@ -10,7 +10,7 @@ public sealed class DefinitionStoreOwnershipArchitectureTests
 {
     private const string OwnerAssembly = "Harborline.Blocks.BuilderDefinitions";
 
-    // T-620 explicitly leaves these three families on their current storage contracts.
+    // T-620 retains these two concrete stores; Aggregates retains only its storage port.
     private static readonly HashSet<string> Retained = new(StringComparer.Ordinal)
     {
         "Harborline.Foundation.Forms.InMemoryFormDefinitionStore",
@@ -25,9 +25,6 @@ public sealed class DefinitionStoreOwnershipArchitectureTests
         ["Harborline.Blocks.EntityViews.InMemoryViewDefinitionStore"] = (
             "projections/dotnet/blocks/hlp.blocks.entity-views/ViewDefinitionStore.cs",
             "07127313417a6f2120c3833dd9923dcaf8f94ba6a0548b7515caca0f5851cbe9", "T-486"),
-        ["Harborline.Foundation.RuleAuthoring.InMemoryRuleCatalogStore"] = (
-            "projections/dotnet/foundation/hlp.foundation.rule-authoring/RuleCatalog.cs",
-            "baf33be5578d4e5e84b95303b7113f27a7d98326010b1ef86ce417bc658d7992", "T-588"),
     };
 
     [Fact]

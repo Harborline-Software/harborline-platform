@@ -1,5 +1,5 @@
 // Calculations capability vertical — the ENGINE lane. Restores ONLY the packed
-// Harborline.Foundation.RuleAuthoring artifact (Harborline.Foundation.RuleEngine and
+// Harborline.Foundation.RuleAuthoring and Harborline.Blocks.BuilderDefinitions artifacts (RuleEngine and
 // Harborline.Contracts arrive transitively from the local feed) and drives the SAME 12-case
 // authoring-verdict corpus through the packaged bridge, asserting the pinned expected
 // verdicts AND cross-checking verdict identity against the renderer lane, case by case.
@@ -7,12 +7,61 @@ using System.Text.Json.Nodes;
 
 using Harborline.Contracts.Forms;
 using Harborline.Foundation.RuleAuthoring;
+using Harborline.Blocks.BuilderDefinitions;
 using Harborline.Foundation.RuleEngine.Compilation;
 using Harborline.Foundation.RuleEngine.Skins;
+using Harborline.Foundation.RuleEngine.Registry;
 
 var corpus = JsonNode.Parse(File.ReadAllText("authoring-verdict-cases.json"))!.AsObject();
 var cases = corpus["cases"]!.AsArray();
 var clientVerdicts = JsonNode.Parse(File.ReadAllText("client-verdicts.json"))!.AsArray();
+var intentCases = JsonNode.Parse(File.ReadAllText("definition-intent-cases.json"))!["cases"]!.AsArray();
+foreach (var row in intentCases)
+{
+    string source = row!["sourceJson"]!.GetValue<string>();
+    bool valid = row["expected"]!["valid"]!.GetValue<bool>();
+    foreach (var phase in Enum.GetValues<RuleIntentPhase>())
+    {
+        var result = RuleIntentValidator.ValidateJson(source, phase);
+        if (result.IsValid != valid) throw new InvalidOperationException($"Intent validity: {row["id"]}/{phase}");
+        if (valid)
+        {
+            string canonical = RuleDefinitionCodec.SerializeCanonical(result.Document!);
+            if (!JsonNode.DeepEquals(JsonNode.Parse(canonical), JsonNode.Parse(source))
+                || (row["expected"]!["canonicalJson"] is JsonValue exact && canonical != exact.GetValue<string>()))
+                throw new InvalidOperationException("Canonical source changed");
+        }
+        else if (result.Diagnostics.Count != 1 || result.Diagnostics[0].Code != row["expected"]!["code"]!.GetValue<string>()
+            || result.Diagnostics[0].Location != row["expected"]!["location"]!.GetValue<string>()
+            || result.Diagnostics[0].Phase != phase) throw new InvalidOperationException("Located diagnostic changed");
+    }
+    var store = new InMemoryVersionedDefinitionStore(new Dictionary<DefinitionKind, DefinitionAdmission>
+        { [DefinitionKind.Rules] = RuleDefinitionCatalog.Admit });
+    // Each fixture owns a fresh lifecycle journal retained with this fixture's evidence.
+    using var lifecycle = new FileJournalDefinitionLifecycleStore(Path.Combine("journals", Guid.NewGuid() + ".json"));
+    var catalog = new RuleDefinitionCatalog(store, lifecycle);
+    if (!valid)
+    {
+        try { await catalog.CreateJsonAsync(source, "a", 0, "create"); throw new Exception("Invalid source committed"); }
+        catch (DefinitionRefusalException) { }
+        if ((await store.ListKeysAsync("tenant-a", DefinitionKind.Rules)).Count != 0) throw new Exception("Refusal wrote history");
+        continue;
+    }
+    var created = await catalog.CreateJsonAsync(source, "a", 0, "create");
+    var key = created.Document.Key;
+    var published = await catalog.PublishAsync(key, "a", 1, "publish");
+    if (published != await catalog.PublishAsync(key, "a", 1, "publish")) throw new Exception("Replay changed");
+    var loaded = (await catalog.LoadVersionAsync(key, "a"))!;
+    if (!JsonNode.DeepEquals(JsonNode.Parse(source), JsonNode.Parse(RuleDefinitionCodec.SerializeCanonical(loaded.Source))))
+        throw new Exception("Packed store round-trip changed source");
+    var restored = await catalog.RestoreAsDraftAsync(key, "a", "b", "9.0.0", 2, "restore");
+    if (restored.Document.BodyJson != published.Document.BodyJson || await store.ResolvePublishedAsync(new(key, "b")) is not null)
+        throw new Exception("Restore changed bytes or exposed draft");
+    await catalog.ArchiveAsync(key);
+    var pin = await catalog.ResolveAsync(key, RuleVersionPolicy.Pinned(published.Document.Version), RuleResolveScope.Production);
+    if (pin.Snapshot?.Revision != published || (await catalog.ListAsync(key.Tenant)).Count != 0
+        || (await catalog.ListAsync(key.Tenant, true)).Count != 1) throw new Exception("Archive revoked pin or leaked list row");
+}
 
 if (typeof(SkinLowering).Assembly.GetName().Name != "Harborline.Foundation.RuleAuthoring")
     throw new InvalidOperationException("Rule Authoring assembly identity changed.");
@@ -20,7 +69,7 @@ if (typeof(SkinLowering).Assembly.GetName().Name != "Harborline.Foundation.RuleA
 var verdicts = new JsonArray();
 foreach (var row in cases.Select(node => node!.AsObject()))
 {
-    verdicts.Add(await VerdictOf(row, cases));
+    verdicts.Add(VerdictOf(row, cases));
 }
 
 // Every verdict must match the pinned expected fields.
@@ -55,7 +104,7 @@ Console.WriteLine("CALCULATIONS_CAPABILITY_PASS:" + new JsonObject
     ["crossLaneMismatches"] = 0,
 }.ToJsonString());
 
-static async Task<JsonObject> VerdictOf(JsonObject row, JsonArray cases)
+static JsonObject VerdictOf(JsonObject row, JsonArray cases)
 {
     string id = row["id"]!.GetValue<string>();
     string op = row["op"]!.GetValue<string>();
@@ -80,79 +129,11 @@ static async Task<JsonObject> VerdictOf(JsonObject row, JsonArray cases)
                 ["traceCodes"] = traceCodes,
             };
         }
-        case "publish-refusal":
+        case "definition-intent":
         {
-            var draft = DraftOf(row, cases);
-            string ruleKey = row["ruleKey"]!.GetValue<string>();
-            var catalog = new RuleCatalog(new InMemoryRuleCatalogStore());
-            await catalog.CreateRuleAsync(ruleKey, ruleKey, SkinTypeOf(draft), draft);
-            // The fence's surface gate and the advisory lint must agree on the blank-Otherwise case.
-            if (draft is DecisionTableDraft table && !RuleLint.NoMatchResolved(table)
-                && RuleLint.LintTable(table).All(f => f.Code != RuleLintCodes.NoMatchUnresolved))
-            {
-                throw new InvalidOperationException($"lint and fence disagree on no-match for {id}");
-            }
-            var outcome = await PublishAdmission.PublishRuleAsync(catalog, ruleKey, draft, $"admission-{id}");
-            var stored = await catalog.LoadRuleAsync(ruleKey)
-                ?? throw new InvalidOperationException($"rule vanished for {id}");
-            if (stored.Versions.Count != 0)
-                throw new InvalidOperationException($"refused publish still committed a version for {id}");
-            return new JsonObject
-            {
-                ["id"] = id,
-                ["op"] = op,
-                ["ok"] = outcome.Ok,
-                ["code"] = outcome.Ok ? null : outcome.Code,
-            };
-        }
-        case "publish-mint":
-        {
-            var draft = DraftOf(row, cases);
-            string ruleKey = row["ruleKey"]!.GetValue<string>();
-            var catalog = new RuleCatalog(new InMemoryRuleCatalogStore());
-            await catalog.CreateRuleAsync(ruleKey, ruleKey, SkinTypeOf(draft), draft);
-            var first = await PublishAdmission.PublishRuleAsync(catalog, ruleKey, draft, $"first-{id}");
-            await catalog.SaveDraftAsync(ruleKey, draft);
-            var second = await PublishAdmission.PublishRuleAsync(catalog, ruleKey, draft, $"second-{id}");
-            if (!first.Ok || !second.Ok)
-                throw new InvalidOperationException($"monotonic mint publish failed for {id}");
-            var stored = await catalog.LoadRuleAsync(ruleKey)
-                ?? throw new InvalidOperationException($"rule vanished for {id}");
-            var versions = new JsonArray();
-            foreach (var version in stored.Versions) versions.Add(version.Version);
-            return new JsonObject { ["id"] = id, ["op"] = op, ["versions"] = versions };
-        }
-        case "downgrade":
-        {
-            var draft = DraftOf(row, cases);
-            string ruleKey = row["ruleKey"]!.GetValue<string>();
-            var catalog = new RuleCatalog(new InMemoryRuleCatalogStore());
-            await catalog.CreateRuleAsync(ruleKey, ruleKey, SkinTypeOf(draft), draft);
-            foreach (var version in row["seedVersions"]!.AsArray())
-            {
-                await catalog.CommitPublishedVersionAsync(ruleKey, version!.GetValue<string>(), draft);
-            }
-            bool refused = false;
-            try
-            {
-                await catalog.CommitPublishedVersionAsync(ruleKey, row["downgrade"]!.GetValue<string>(), draft);
-            }
-            catch (InvalidOperationException)
-            {
-                refused = true;
-            }
-            var stored = await catalog.LoadRuleAsync(ruleKey)
-                ?? throw new InvalidOperationException($"rule vanished for {id}");
-            var versions = new JsonArray();
-            foreach (var version in stored.Versions) versions.Add(version.Version);
-            return new JsonObject
-            {
-                ["id"] = id,
-                ["op"] = op,
-                ["refused"] = refused,
-                ["versions"] = versions,
-                ["nextVersion"] = RuleCatalog.NextVersion(stored),
-            };
+            var result = RuleIntentValidator.ValidateJson(row["sourceJson"]!.GetValue<string>(), RuleIntentPhase.Publish);
+            return new JsonObject { ["id"] = id, ["op"] = op, ["ok"] = result.IsValid,
+                ["code"] = result.Diagnostics.FirstOrDefault()?.Code };
         }
         case "compile-cycle":
         {
@@ -184,9 +165,6 @@ static async Task<JsonObject> VerdictOf(JsonObject row, JsonArray cases)
             throw new InvalidOperationException($"unknown corpus op: {op}");
     }
 }
-
-static RuleSkinType SkinTypeOf(RuleDraft draft)
-    => draft is DecisionTableDraft ? RuleSkinType.Table : RuleSkinType.Formula;
 
 static RuleDraft DraftOf(JsonObject row, JsonArray cases)
 {

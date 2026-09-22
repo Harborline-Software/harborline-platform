@@ -30,7 +30,6 @@ public sealed class KernelCoreBoundaryArchitectureTests
         ["projections/dotnet/foundation/hlp.foundation.forms/Drafts/SubmissionDraftService.cs"] = (2, "Forms draft member seam"),
         ["projections/dotnet/foundation/hlp.foundation.forms/InMemoryFormDefinitionStore.cs"] = (1, "Forms reference adapter"),
         ["projections/dotnet/foundation/hlp.foundation.forms/InMemoryReusableUnitStore.cs"] = (1, "Forms reference adapter"),
-        ["projections/dotnet/foundation/hlp.foundation.rule-authoring/RuleCatalog.cs"] = (2, "rule-authoring member seam"),
         ["projections/dotnet/foundation/hlp.foundation.rule-runtime/Evaluators.cs"] = (4, "rule-runtime member seams"),
         ["projections/dotnet/foundation/hlp.foundation.rule-runtime/Graph/FormRuleGraph.cs"] = (2, "rule graph member seam"),
     };

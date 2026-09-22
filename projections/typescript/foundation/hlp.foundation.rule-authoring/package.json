@@ -2,7 +2,7 @@
   "name": "@harborline-software/rule-authoring",
   "version": "0.1.0-alpha.0",
   "private": true,
-  "description": "Calculation authoring bridge (ADR 0146 D2/D5) \u2014 the Harborline port of the Harborline App rules authoring lane: decision-table and formula drafts, draft-to-skin lowering onto @harborline-software/rule-engine, advisory lint, blank seeds, the publish admission fence, and the versioned named-rule catalog over a pluggable store port (the Harborline replacement for the pinned localStorage interim). Owns no evaluator semantics: every rejection and evaluation flows through the packed rule engine.",
+  "description": "Typed Rules source, strict codecs, full compiler intent diagnostics, advisory lint, seeds and preview. The shared .NET definition store owns publication; this package contains no persistence implementation.",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

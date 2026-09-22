@@ -4,7 +4,7 @@
   "interfaceRevision": 10,
   "status": "draft",
   "purpose": "Own the shared definition catalogue substrate: registry-neutral versioned definitions, key suggestion, archive lifecycle, projection-neutral platform package export and empty-store replay, package safety-floor reattachment, and the install receipt that binds a released artifact to installed identity, capabilities, authorization outcomes and digests.",
-  "dependencies": [],
+  "dependencies": [{"moduleId": "hlp.foundation.rule-authoring", "minimumRevision": 2}],
   "sourceSurface": {
     "repository": "shipyard",
     "commit": "3410883405996dc8e4871418a441f52970d9994e",
@@ -20,6 +20,7 @@
     "keys": ["deterministic ASCII kebab suggestion", ".v1 suffix", "exact-case collision suffixing"],
     "lifecycle": ["tenant and definition-kind scoped archive", "idempotent archive", "idempotent unarchive", "restart-durable visibility"],
     "versionedDefinitions": ["opaque JSON body and digest", "stable definition id and immutable published version id", "expected stream revision", "exact operation/fence/payload replay", "append-only history", "restore-as-new-draft", "production-only resolution", "in-memory reference implementation"],
+    "rulesCatalogue": ["typed source admission at author and publish", "create at revision zero", "detached load and tenant-scoped stable listing", "duplicate into independent history", "archive visibility without pin revocation", "caller-supplied version ids, labels, request ids and revision fences", "Latest/Pinned/Draft caller resolution"],
     "platformPackage": ["ordered manifest", "deterministic UTF-8 JSON export", "provider-neutral closure and SHA-256 digest metadata", "ADR-0097 canonical seed fixture", "present or explicitly unresolved content", "validated atomic replay into an empty target", "raise-only safety-floor reattachment with named malformed-member refusal"]
   },
   "keyAuthoritySeam": {
@@ -29,6 +30,8 @@
   },
   "invariants": [
     "The versioned store exposes no member-specific type; host-supplied pure validators admit each supported registry.",
+    "RuleDefinitionCatalog composes Rules source admission with the shared store and lifecycle; foundation never depends on blocks.",
+    "Older published history arrivals cannot lower the highest semantic-version head. The offline RuleRegistry remains a separate mechanism.",
     "Every consumer pin names both the stable definition key and immutable version id.",
     "Published versions never change and production resolution never returns a draft.",
     "Every accepted lifecycle change appends to history; restore never edits a published body.",

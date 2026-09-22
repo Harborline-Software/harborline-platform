@@ -68,6 +68,10 @@ public sealed class DefinitionRefusalException : Exception
 /// </summary>
 public interface IVersionedDefinitionStore
 {
+    /// <summary>Lists detached stream keys in an exact namespace, including drafts, by ordinal id.</summary>
+    ValueTask<IReadOnlyList<DefinitionKey>> ListKeysAsync(string tenant, DefinitionKind kind,
+        CancellationToken cancellationToken = default);
+
     /// <summary>Appends an admitted draft snapshot without changing any published version.</summary>
     ValueTask<DefinitionRevision> SaveDraftAsync(DefinitionDocument document, long expectedRevision,
         string requestId, CancellationToken cancellationToken = default);

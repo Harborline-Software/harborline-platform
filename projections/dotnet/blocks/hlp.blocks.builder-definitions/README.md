@@ -42,7 +42,7 @@ each accepted lifecycle event rather than rewriting the earlier draft or publica
 Durable adapters must atomically commit the revision, history, published head and replay result.
 Rules binds first in T-588; Layout, Records, Views and Data exchange retire their member stores
 through their own slices. Forms, Workflows and Aggregates retain their existing stores under T-620's
-explicit scope boundary. No member migration or released host consumption is claimed here.
+explicit scope boundary. No released host consumption is claimed here.
 
 ## Layout producer (T-580)
 
@@ -51,6 +51,25 @@ The Layout producer adds the platform-owned surface contract: versioned envelope
 `_shared/layout/placement.schema.json` is also embedded by Forms, so its section and item admission use the same four numeric ranges. Hosts supply one immutable `LayoutBlockKindRegistry` to producer and persisted admission. `LayoutComposition.Detach` copies a pinned surface to an independent draft candidate; Form, Template, and Report identities remain separate and no synchronisation link is created. The shared catalogue owns resolving that pin and storing the candidate.
 
 `LayoutPackIdentity` assigns content kind **17** and primitive bucket **12** additively, after the existing transport values 0–16 and 0–11 respectively. Archive `DefinitionKind` values are a different namespace; Forms remains 0 and Workflows remains 1. This producer carries the new wire identity in its export entry. It does not modify API transport, installation, the platform seed, or its pack exporter.
+
+## Rules catalogue (T-588)
+
+`RuleDefinitionCatalog` supplies create, load, exact version load, stable name/id listing,
+duplicate, archive, draft save, publish, restore and caller-policy resolution. Register
+`DefinitionKind.Rules` with `RuleDefinitionCatalog.Admit` in the shared store. The adapter
+uses foundation's strict typed source and full compiler admission; foundation never depends
+on blocks. Create fences revision zero. Duplicate copies source into a new identity and
+independent history. Listing scopes the exact tenant, reads shared keys and returns detached
+source; `includeArchived` exposes archived rows. Archive only changes list visibility and
+never revokes a published pin.
+
+Callers supply versionId, semantic version, requestId and expectedRevision; there is no Rules
+patch allocator. Latest selects the highest published generic SemVer head, so an older history
+arrival cannot lower it. Pinned binds the exact admitted label to an immutable published id,
+independent of later heads. Draft resolution is sandbox-only; production refuses every draft.
+The legacy offline `RuleRegistry` watermark remains separate and is not this shared store.
+VersionPolicy is a caller selector, absent from authored source. Restore keeps original body
+bytes while reconstructing source with the new shared identity and version metadata.
 
 ## Configuration generations (T-459)
 

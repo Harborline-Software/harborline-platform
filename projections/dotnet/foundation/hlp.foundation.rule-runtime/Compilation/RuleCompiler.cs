@@ -1,3 +1,5 @@
+using System.Text.Json.Nodes;
+
 using Harborline.Foundation.RuleEngine.Model;
 
 
@@ -22,6 +24,14 @@ public sealed class CompiledGraph
 /// </summary>
 public static class RuleCompiler
 {
+    private static readonly HashSet<string> Operators = new(StringComparer.Ordinal)
+    {
+        "var", "missing", "missing_some",
+        "==", "!=", "===", "!==", "!", "!!", "and", "or", "if",
+        ">", ">=", "<", "<=", "+", "-", "*", "/", "%", "min", "max", "in", "cat",
+        "agg", "money.add", "money.sub", "money.mul", "date.add", "date.diff", "date.today", "coding.is",
+    };
+
     /// <summary>Compiles a definition's rules; throws <see cref="RuleCompilationException"/> on rejection.</summary>
     public static CompiledGraph Compile(IReadOnlyList<RuleDefinition> rules, RuleEngineLimits? limits = null)
     {
@@ -33,13 +43,17 @@ public static class RuleCompiler
         {
             // This engine owns Tier-2 (JsonLogic). Tier-1 (JsonSchema) is the kernel validator's.
             if (rule.Tier == RuleTier.JsonSchema) continue;
-            if (rule.Tier == RuleTier.PowerFx)
+            if (rule.Tier != RuleTier.JsonLogic)
             {
                 throw new RuleCompilationException(
                     RuleEngineCodes.CompileUnsupportedTier,
-                    $"rule '{rule.Id}': Power Fx (Tier-3) is demoted in v1 — not evaluated (ADR 0140; SPINE-1).",
+                    $"rule '{rule.Id}': tier '{rule.Tier}' is unsupported by the v1 evaluator.",
                     rule.Id);
             }
+
+            if (!Enum.IsDefined(rule.Action))
+                throw new RuleCompilationException(RuleEngineCodes.CompileUnknownAction,
+                    $"rule '{rule.Id}': unknown action '{rule.Action}'.", rule.Id);
 
             var (ctx, staticTarget, rowSection, rowField) = ResolveScope(rule);
             var ast = ScopeGrammar.Lower(rule.Expression, ctx, rule.Id);
@@ -53,6 +67,7 @@ public static class RuleCompiler
                     rule.Id);
             }
 
+            ValidateOperators(ast, rule.Id);
             var refs = ScopeGrammar.ExtractRefs(ast, rule.Id);
             if (refs.Count > lim.MaxReferencesPerRule)
             {
@@ -76,6 +91,22 @@ public static class RuleCompiler
 
         DetectCyclesAndDepth(compiled, lim);
         return new CompiledGraph(compiled);
+    }
+
+    private static void ValidateOperators(JsonNode? node, string ruleId)
+    {
+        // The evaluator executes only single-property objects. Arrays and multi-property
+        // objects are literal data; their contents do not become executable declarations.
+        if (node is not JsonObject expression || expression.Count != 1) return;
+        var operation = expression.First();
+        if (!Operators.Contains(operation.Key))
+            throw new RuleCompilationException(RuleEngineCodes.CompileInvalidExpression,
+                $"rule '{ruleId}': unsupported operator '{operation.Key}'.", ruleId);
+
+        if (operation.Value is JsonArray arguments)
+            foreach (var argument in arguments) ValidateOperators(argument, ruleId);
+        else
+            ValidateOperators(operation.Value, ruleId);
     }
 
     private static (LowerContext Ctx, CellAddress? Target, string? RowSection, string? RowField) ResolveScope(RuleDefinition rule)

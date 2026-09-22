@@ -6,6 +6,82 @@ namespace Harborline.Blocks.BuilderDefinitions.Tests;
 
 public sealed class VersionedDefinitionStoreTests
 {
+    [Fact]
+    public async Task CatalogueKeysStayInsideTheirTenantAndKindAndIncludeDraftsOnlyOnce()
+    {
+        IVersionedDefinitionStore store = Store();
+        var draft = Document() with { Key = new("tenant-a", DefinitionKind.Rules, "z-rule") };
+        var published = Document() with { Key = new("tenant-a", DefinitionKind.Rules, "a-rule") };
+        var otherTenant = Document() with { Key = new("tenant-b", DefinitionKind.Rules, "foreign-rule") };
+        var otherKind = Document() with { Key = new("tenant-a", DefinitionKind.Views, "foreign-view") };
+        await store.SaveDraftAsync(draft, 0, "draft-z");
+        await store.SaveDraftAsync(published, 0, "draft-a");
+        await store.PublishAsync(published.Key, published.VersionId, 1, "publish-a");
+        await store.SaveDraftAsync(otherTenant, 0, "foreign-tenant");
+        await store.SaveDraftAsync(otherKind, 0, "foreign-kind");
+
+        var keys = await store.ListKeysAsync("tenant-a", DefinitionKind.Rules);
+
+        Assert.Equal(new[] { published.Key, draft.Key }, keys);
+        Assert.Empty(await store.ListKeysAsync("absent-tenant", DefinitionKind.Rules));
+        Assert.Equal(otherKind.Key, Assert.Single(await store.ListKeysAsync("tenant-a", DefinitionKind.Views)));
+        Assert.Null(await store.GetPublishedHeadAsync(draft.Key));
+    }
+
+    [Fact]
+    public async Task MutatingACatalogueListingCannotHideAnExistingDefinition()
+    {
+        IVersionedDefinitionStore store = Store();
+        var source = Document();
+        await store.SaveDraftAsync(source, 0, "draft");
+        var keys = await store.ListKeysAsync("tenant-a", DefinitionKind.Rules);
+        if (keys is DefinitionKey[] array)
+            array[0] = source.Key with { DefinitionId = "replacement" };
+        else if (keys is IList<DefinitionKey> mutable && !mutable.IsReadOnly)
+            mutable[0] = source.Key with { DefinitionId = "replacement" };
+
+        Assert.Equal(source.Key, Assert.Single(await store.ListKeysAsync("tenant-a", DefinitionKind.Rules)));
+        Assert.Single(await store.ListHistoryAsync(source.Key));
+    }
+
+    [Fact]
+    public async Task CatalogueListingRejectsUnknownNamespacesAndHonorsCancellation()
+    {
+        IVersionedDefinitionStore store = Store();
+        AssertRefusal(await Assert.ThrowsAsync<DefinitionRefusalException>(async () =>
+            await store.ListKeysAsync("", DefinitionKind.Rules)), "definition.tenant_required", "/tenant");
+        AssertRefusal(await Assert.ThrowsAsync<DefinitionRefusalException>(async () =>
+            await store.ListKeysAsync("tenant-a", (DefinitionKind)999)), "definition.registry_unknown", "/registry");
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
+            await store.ListKeysAsync("tenant-a", DefinitionKind.Rules, cancellation.Token));
+    }
+
+    [Fact]
+    public async Task RepublishingAPublishedVersionIsANoOpThatDoesNotAdvanceTheStream()
+    {
+        var store = Store();
+        var source = Document();
+        await store.SaveDraftAsync(source, 0, "draft");
+        var published = await store.PublishAsync(source.Key, source.VersionId, 1, "publish");
+
+        var repeated = await store.PublishAsync(source.Key, source.VersionId, 2, "repeat-publish");
+
+        Assert.Equal(published, repeated);
+        Assert.Equal(2, repeated.Revision);
+        Assert.Equal(2, (await store.ListHistoryAsync(source.Key)).Count);
+        Assert.Equal(repeated, await store.PublishAsync(source.Key, source.VersionId, 2, "repeat-publish"));
+        AssertRefusal(await Assert.ThrowsAsync<DefinitionRefusalException>(async () =>
+            await store.PublishAsync(source.Key, source.VersionId, 1, "repeat-publish")),
+            "definition.replay_conflict", "/requestId");
+
+        var restored = await store.RestoreAsDraftAsync(source.Key, source.VersionId,
+            "version-b", "1.1.0", 2, "restore-after-repeat");
+        Assert.Equal(3, restored.Revision);
+        Assert.Equal(published, await store.ResolvePublishedAsync(new(source.Key, source.VersionId)));
+    }
+
     [Theory]
     [InlineData(DefinitionKind.Views)]
     [InlineData(DefinitionKind.Reports)]

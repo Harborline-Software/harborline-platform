@@ -13,11 +13,15 @@ It provides:
 - **Lint** (`lint.ts`) — advisory authoring-time findings (`rules.lint.*`); the load-bearing
   rejection stays with the skin compiler.
 - **Seeds** (`seeds.ts`) — predefined-first blank drafts for the "New" flow.
-- **Catalog** (`RuleCatalog` over the `RuleCatalogStore` port) — the named-rule registry:
-  create / draft / append-only monotonic published versions (S-8 watermark, downgrade
-  refusal) / duplicate / archive-not-delete, with persistence injected behind the store port.
-- **Admission fence** (`publishRule`) — compile-first, fail-closed publish carrying stable
-  `rule.skin.*` rejection codes; every publish is a control change.
+- **Typed source and intent** (`RuleDefinitionDocument`, strict codec and validator) — Author,
+  Publish and Persisted diagnostics share the full compiler, stable codes and RFC 6901 locations.
+- **Key suggestion** — a pure advisory slug without a version suffix; it never allocates a key.
+
+The .NET `RuleDefinitionCatalog` in blocks.builder-definitions composes the shared versioned
+store and archive lifecycle. Foundation has no store or dependency on blocks. Callers supply
+version identities, labels, request ids and revision fences. `VersionPolicy` selects a version
+at resolution; it is not part of authored source. TS intent success and preview never claim
+that a published version was committed.
 
 The bridge OWNS NO evaluator semantics: hit-policy, no-match, reified bounds, and
 undeclared-ref enforcement live in the rule engine, the single source of truth for
