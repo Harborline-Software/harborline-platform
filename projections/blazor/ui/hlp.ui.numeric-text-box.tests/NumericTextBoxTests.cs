@@ -38,6 +38,18 @@ public sealed class NumericTextBoxTests : BunitContext
         Assert.Empty(cut.FindAll("button")); cut.Find("input").Focus(); cut.Find("input").Input("5"); cut.Find("input").Blur(); Assert.Equal(0, requests);
     }
 
+    [Fact]
+    public void PseudoEnglishCurrencyUsesEnglishFormattingAcrossHosts()
+    {
+        var cut = Render<HarborlineNumericTextBox>(parameters => parameters
+            .Add(component => component.Value, 1234567.89)
+            .Add(component => component.Format, "c2")
+            .Add(component => component.Currency, "USD")
+            .Add(component => component.Locale, "en-XA"));
+
+        Assert.Equal("$1,234,567.89", cut.Find("input").GetAttribute("value"));
+    }
+
     [Fact, Trait("ModuleConformance", "hlp.ui.numeric-text-box")]
     public void SharedFixtureConforms()
     {

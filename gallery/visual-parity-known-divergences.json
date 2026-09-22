@@ -51,6 +51,10 @@
         {
           "host": "macos-arm64",
           "worstTilePixelRatio": 0.625
+        },
+        {
+          "host": "linux-x64",
+          "worstTilePixelRatio": 0.5
         }
       ],
       "ticket": "146",
@@ -62,6 +66,10 @@
         {
           "host": "windows-11-x64",
           "worstTilePixelRatio": 0.4023
+        },
+        {
+          "host": "linux-x64",
+          "worstTilePixelRatio": 0.4453125
         }
       ],
       "ticket": "146",
