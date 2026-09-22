@@ -24,7 +24,8 @@ public sealed class RulesAuthoringTests : BunitContext
         Assert.Equal(("Draft", 1, "amount-rule"), (responses[0].GetProperty("status").GetString(), responses[0].GetProperty("revision").GetInt32(), responses[0].GetProperty("identity").GetProperty("definitionId").GetString()));
         Assert.Equal(("Published", 2), (responses[1].GetProperty("status").GetString(), responses[1].GetProperty("revision").GetInt32()));
         Assert.Equal("definition.revision_conflict", responses[3].GetProperty("refusal").GetProperty("code").GetString());
-        Assert.Equal(("fixture-v1", "1.0.0"), (responses[4].GetProperty("binding").GetProperty("versionId").GetString(), responses[4].GetProperty("binding").GetProperty("winningWatermark").GetString()));
+        var materializedBinding = responses[4].GetProperty("materialization").GetProperty("bindings")[0];
+        Assert.Equal(("fixture-v1", "1.0.0"), (materializedBinding.GetProperty("versionId").GetString(), materializedBinding.GetProperty("winningWatermark").GetString()));
         Assert.False(responses[5].GetProperty("listVisible").GetBoolean());
 
         foreach (var preview in previewFixture.GetProperty("cases").EnumerateArray())
@@ -107,7 +108,7 @@ public sealed class RulesAuthoringTests : BunitContext
         var request = requests[^1];
         cut.Render(parameters => parameters.Add(component => component.Response, new RulesOperationResponse("wrong", request.Identity, request.ExpectedRevision, request.Generation, Outcome: new RulesOutcome("Value", "sample", "2026-06-30T00:00:00.0000000Z", Value: "stale"))));
         Assert.DoesNotContain("Value: stale", cut.Markup);
-        var materialization = new RulesMaterialization([new("tenant-a", "amount-rule", "fixture-v1", "1.0.0", "{}")], "{}", "sha256:fixture");
+        var materialization = ReadMaterialization();
         cut.Render(parameters => parameters.Add(component => component.Response, new RulesOperationResponse(request.RequestId, request.Identity, request.ExpectedRevision, request.Generation, new("amount-rule", "2", "Published"), new RulesOutcome("Value", "sample", "2026-06-30T00:00:00.0000000Z", Value: "accepted"), materialization)));
         Assert.Contains("Value: accepted", cut.Markup);
         Assert.Contains("amount-rule@fixture-v1", cut.Markup);
@@ -152,6 +153,12 @@ public sealed class RulesAuthoringTests : BunitContext
         .Add(component => component.ValueChanged, EventCallback.Factory.Create(this, changed))
         .Add(component => component.OperationRequested, EventCallback.Factory.Create(this, requested ?? (_ => { }))));
     private static string? Read(JsonElement element, string name) => element.TryGetProperty(name, out var value) ? value.GetString() : null;
+    private static RulesMaterialization ReadMaterialization()
+    {
+        using var document = JsonDocument.Parse(File.ReadAllText(FindFixture()));
+        var value = document.RootElement.GetProperty("lifecycle").GetProperty("responses")[4].GetProperty("materialization");
+        return JsonSerializer.Deserialize<RulesMaterialization>(value, new JsonSerializerOptions(JsonSerializerDefaults.Web))!;
+    }
     private static string FindFixture()
     {
         for (var directory = new DirectoryInfo(Directory.GetCurrentDirectory()); directory is not null; directory = directory.Parent)

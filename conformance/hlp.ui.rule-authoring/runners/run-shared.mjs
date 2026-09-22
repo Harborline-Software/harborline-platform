@@ -13,7 +13,7 @@ const expectedLifecycle = [
 const actualLifecycle = lifecycle.map(response => response.operation === 'publish-stale'
   ? [response.operation, response.refusal.code, null]
   : response.operation === 'materialize-latest'
-    ? [response.operation, response.binding.versionId, response.binding.winningWatermark]
+    ? [response.operation, response.materialization.bindings[0].versionId, response.materialization.bindings[0].winningWatermark]
     : response.operation === 'archive'
       ? [response.operation, response.listVisible, response.publishedPinStillResolves]
       : [response.operation, response.status, response.revision])

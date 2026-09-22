@@ -393,13 +393,15 @@ public sealed class RuleDefinitionCatalogTests : IDisposable
         var binding = Assert.Single(released.Bindings);
         Assert.Equal("fixture-v1", binding.Binding.VersionId);
         Assert.Equal("1.0.0", binding.WinningWatermark);
-        var expectedMaterialization = responses[4].GetProperty("binding");
-        Assert.Equal(expectedMaterialization.GetProperty("tenant").GetString(), binding.Binding.Key.Tenant);
-        Assert.Equal(expectedMaterialization.GetProperty("definitionId").GetString(), binding.Binding.Key.DefinitionId);
-        Assert.Equal(expectedMaterialization.GetProperty("versionId").GetString(), binding.Binding.VersionId);
-        Assert.Equal(expectedMaterialization.GetProperty("winningWatermark").GetString(), binding.WinningWatermark);
-        Assert.Contains("\"winningWatermark\"", released.CanonicalContent, StringComparison.Ordinal);
-        Assert.Contains("\"source\"", released.CanonicalContent, StringComparison.Ordinal);
+        var expectedMaterialization = responses[4].GetProperty("materialization");
+        var expectedBinding = Assert.Single(expectedMaterialization.GetProperty("bindings").EnumerateArray());
+        Assert.Equal(expectedBinding.GetProperty("tenant").GetString(), binding.Binding.Key.Tenant);
+        Assert.Equal(expectedBinding.GetProperty("definitionId").GetString(), binding.Binding.Key.DefinitionId);
+        Assert.Equal(expectedBinding.GetProperty("versionId").GetString(), binding.Binding.VersionId);
+        Assert.Equal(expectedBinding.GetProperty("winningWatermark").GetString(), binding.WinningWatermark);
+        Assert.Equal(expectedBinding.GetProperty("canonicalSource").GetString(), binding.CanonicalSource);
+        Assert.Equal(expectedMaterialization.GetProperty("canonicalContent").GetString(), released.CanonicalContent);
+        Assert.Equal(expectedMaterialization.GetProperty("contentDigest").GetString(), released.ContentDigest);
         await _catalog.ArchiveAsync(Key);
         Assert.Equal(responses[5].GetProperty("listVisible").GetBoolean(),
             (await _catalog.ListAsync(Key.Tenant)).Any(snapshot => snapshot.Source.Envelope.Id == Key.DefinitionId));

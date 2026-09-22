@@ -4,9 +4,9 @@ import { resolve } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import { useState } from 'react'
 import { serializeRuleDefinition, validateRuleDefinitionJson, type RuleDefinitionExpression } from '@harborline-software/rule-authoring'
-import { GuidedExpressionEditor, RulesAuthoringEditor, emptyRulesDraft, type RulesOperationRequest } from './RulesAuthoringEditor'
+import { GuidedExpressionEditor, RulesAuthoringEditor, emptyRulesDraft, type RulesMaterialization, type RulesOperationRequest } from './RulesAuthoringEditor'
 
-const fixture = JSON.parse(readFileSync(resolve(process.cwd(), '../../../../conformance/hlp.blocks.builder-definitions/rules-editor-contract-fixtures.json'), 'utf8')) as { lifecycle: { responses: readonly unknown[] }; preview: { clockUtc: string; label: string; outcomeKinds: readonly string[]; cases: readonly { expected: { kind: string; value?: string; validity?: string; visibility?: string; presentation?: string; code?: string; ruleName: string; memberName: string } }[] } }
+const fixture = JSON.parse(readFileSync(resolve(process.cwd(), '../../../../conformance/hlp.blocks.builder-definitions/rules-editor-contract-fixtures.json'), 'utf8')) as { lifecycle: { responses: readonly { materialization?: RulesMaterialization }[] }; preview: { clockUtc: string; label: string; outcomeKinds: readonly string[]; cases: readonly { expected: { kind: string; value?: string; validity?: string; visibility?: string; presentation?: string; code?: string; ruleName: string; memberName: string } }[] } }
 const contracts = [{ site: 'rule', returnContract: 'typed value', executionTimeContract: 'preview', palette: [{ id: 'amount', label: 'Amount', valueType: 'Number' }] }] as const
 const props = (overrides: Partial<React.ComponentProps<typeof RulesAuthoringEditor>> = {}) => ({ value: emptyRulesDraft(), expressionContracts: contracts, previewKind: 'real' as const, onChange: vi.fn(), onOperation: vi.fn(), ...overrides })
 
@@ -81,10 +81,12 @@ describe('Rules authoring React projection', () => {
     const changed = vi.fn(); let request!: RulesOperationRequest
     const view = render(<RulesAuthoringEditor {...props({ value: { ...emptyRulesDraft(), identity: 'amount-rule', expectedRevision: '1', versionSelection: 'Latest' }, onChange: changed, onOperation: value => { request = value } })} />)
     fireEvent.click(screen.getByRole('button', { name: 'Publish' }))
-    view.rerender(<RulesAuthoringEditor {...props({ value: { ...emptyRulesDraft(), identity: 'amount-rule', expectedRevision: '1', versionSelection: 'Latest' }, onChange: changed, onOperation: vi.fn(), response: { requestId: request.requestId, identity: request.identity, expectedRevision: request.expectedRevision, generation: request.generation, authoritative: { identity: 'amount-rule', revision: '2', status: 'Published' }, materialization: { bindings: [{ tenant: 'tenant-a', definitionId: 'amount-rule', versionId: 'fixture-v1', winningWatermark: '1.0.0', canonicalSource: '{}' }], canonicalContent: '{}', contentDigest: 'sha256:fixture' } } })} />)
+    const materialization = fixture.lifecycle.responses[4].materialization!
+    view.rerender(<RulesAuthoringEditor {...props({ value: { ...emptyRulesDraft(), identity: 'amount-rule', expectedRevision: '1', versionSelection: 'Latest' }, onChange: changed, onOperation: vi.fn(), response: { requestId: request.requestId, identity: request.identity, expectedRevision: request.expectedRevision, generation: request.generation, authoritative: { identity: 'amount-rule', revision: '2', status: 'Published' }, materialization } })} />)
     await Promise.resolve()
     expect(changed).toHaveBeenLastCalledWith(expect.objectContaining({ expectedRevision: '2', versionSelection: 'Pinned', pinnedVersionId: 'fixture-v1' }))
     expect(screen.getByLabelText('Version selection')).toHaveValue('Pinned')
+    expect(changed).toHaveBeenLastCalledWith(expect.objectContaining({ materialization }))
   })
   it('acknowledges a correlated outcome so the next retry receives a new intent id', () => {
     const requests: RulesOperationRequest[] = []
