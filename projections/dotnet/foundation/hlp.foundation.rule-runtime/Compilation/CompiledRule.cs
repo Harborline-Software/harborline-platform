@@ -11,6 +11,9 @@ internal abstract record RuleRef;
 /// <summary>A top-level field reference (<c>field.x</c>; <c>parent.f</c> and <c>section.id.f</c> lower here).</summary>
 internal sealed record FieldRef(string Name) : RuleRef;
 
+/// <summary>An expression-valued missing key.  This is not a field named <c>*</c>:</summary>
+internal sealed record DynamicReadRef : RuleRef;
+
 /// <summary>A same-row sibling-field reference (<c>row.y</c>) — valid only in a <see cref="RuleScope.Row"/> rule.</summary>
 internal sealed record RowFieldRef(string Field) : RuleRef;
 

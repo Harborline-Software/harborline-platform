@@ -14,6 +14,7 @@ import { Codes } from '../codes.js'
 import { DEFAULT_LIMITS } from '../limits.js'
 import type { Json } from '../model.js'
 import { INPUT_MAX_NODES, INPUT_MAX_UTF8_BYTES } from '../input-envelope.js'
+import { deriveCoreTypes, type CoreJsonType } from '../core-types.js'
 
 const fixedClock = () => new Date('2026-06-30T00:00:00.000Z')
 const snapshot = (value: Record<string, Json>) => RuleContextSnapshot.fromJsonText(JSON.stringify(value))
@@ -89,6 +90,194 @@ describe('business-clock pinning', () => {
     expect(incremental.values.get('field:label')).toEqual(full.values.get('field:label'))
     expect(incremental.byRule.get('v.today')?.validity).toEqual(full.byRule.get('v.today')?.validity)
     expect(incremental.byRule.get('c.stable')).toBe(stableOutcome)
+  })
+
+  it('leaves literal date.today and var shapes inert across an unrelated edit and midnight', () => {
+    const before = new Date('2026-06-30T23:59:59.000Z')
+    const after = new Date('2026-07-01T00:00:01.000Z')
+    let reads = 0
+    const graph = new FormRuleGraph(compile([
+      rule('c.literal', 'literal', 'Compute', { cat: [{ 'date.today': [], var: 'ignored' }, [{ 'date.today': [] }, { var: 'ignored' }]] }),
+      rule('c.changed', 'changed', 'Compute', { var: 'unrelated' }),
+    ]), () => [before, after][reads++])
+
+    const first = graph.evaluateInstance(instance({ unrelated: 'before' }))
+    const literal = first.byRule.get('c.literal')
+    const next = graph.reevaluate('unrelated', valueSnapshot('after'))
+
+    expect(first.values.get('field:literal')).toEqual({ state: 'Resolved', value: '{"date.today":[],"var":"ignored"}[{"date.today":[]},{"var":"ignored"}]' })
+    expect(reads).toBe(2)
+    expect(next.byRule.get('c.literal')).toBe(literal)
+    expect(next.values.get('field:literal')).toEqual(first.values.get('field:literal'))
+  })
+})
+
+describe('core outcome and dynamic missing scheduling', () => {
+  it.each([false, true])('evaluates dynamic missing after computed producers in either source order (%s)', (reversed) => {
+    const missing = rule('a.missing', 'missing', 'Compute', { missing: [{ var: 'keys' }] })
+    const produced = rule('z.produced', 'produced', 'Compute', { if: [{ var: 'enabled' }, 1, null] })
+    const graph = new FormRuleGraph(compile(reversed ? [produced, missing] : [missing, produced]), fixedClock)
+
+    const first = graph.evaluateInstance(instance({ keys: ['produced'], enabled: true }))
+    expect(first.values.get('field:missing')).toEqual({ state: 'Resolved', value: [] })
+    expect(graph.reevaluate('enabled', valueSnapshot(false)).values.get('field:missing')).toEqual({ state: 'Resolved', value: ['produced'] })
+    expect(graph.reevaluate('enabled', valueSnapshot(true)).values.get('field:missing')).toEqual({ state: 'Resolved', value: [] })
+    expect(graph.reevaluate('keys', valueSnapshot([])).values.get('field:missing')).toEqual({ state: 'Resolved', value: [] })
+  })
+
+  it.each([false, true])('does not turn independent dynamic readers into a static cycle (%s)', (reversed) => {
+    const a = rule('a.dynamic', 'a', 'Compute', { missing: [{ var: 'keys' }] })
+    const b = rule('b.dynamic', 'b', 'Compute', { missing: [{ var: 'keys' }] })
+    const result = graphOf(reversed ? [b, a] : [a, b], { keys: ['raw'], raw: 1 }).first
+    expect(result.values.get('field:a')).toEqual({ state: 'Resolved', value: [] })
+    expect(result.values.get('field:b')).toEqual({ state: 'Resolved', value: [] })
+  })
+
+  it('does not reverse a normal downstream dependency for dynamic missing', () => {
+    const { g, first } = graphOf([
+      rule('a.dynamic', 'a', 'Compute', { missing: [{ var: 'keys' }] }),
+      rule('b.downstream', 'b', 'Compute', { '!!': [{ var: 'a' }] }),
+    ], { keys: ['raw'], raw: 1 })
+    expect(first.values.get('field:b')).toEqual({ state: 'Resolved', value: false })
+    expect(g.reevaluate('raw', valueSnapshot(null)).values.get('field:b')).toEqual({ state: 'Resolved', value: true })
+    expect(g.reevaluate('keys', valueSnapshot([])).values.get('field:b')).toEqual({ state: 'Resolved', value: false })
+  })
+
+  it('refuses a dynamic self read instead of using a raw shadow', () => {
+    const graph = new FormRuleGraph(compile([rule('a.dynamic', 'a', 'Compute', { missing: [{ var: 'keys' }] })]), fixedClock)
+    const first = graph.evaluateInstance(instance({ keys: ['a'], a: 1 }))
+    expect(first.values.get('field:a')).toEqual({ state: 'Error', error: { code: Codes.cycle, params: { cell: 'field:a' } } })
+    graph.evaluateInstance(instance({ keys: ['raw'], raw: 1 }))
+    expect(graph.reevaluate('keys', valueSnapshot(['a'])).values.get('field:a')).toEqual({ state: 'Error', error: { code: Codes.cycle, params: { cell: 'field:a' } } })
+  })
+
+  it('demands row producers before folding a dynamically demanded aggregate', () => {
+    const graph = new FormRuleGraph(compile([
+      // Deliberately first: this is the public demand path, not a topo-order test.
+      rule('a.missing', 'missing', 'Compute', { missing: [{ var: 'keys' }] }),
+      rule('b.total', 'total', 'Compute', { if: [{ '==': [{ var: 'table.sum(items.calculated)' }, 10] }, 10, null] }),
+      rule('z.calculated', 'items/calculated', 'Compute', { if: [{ var: 'enabled' }, 10, 0] }, 'Row'),
+      rule('stable.copy', 'stableOut', 'Compute', { var: 'stable' }),
+    ]), fixedClock)
+
+    const first = graph.evaluateInstance(instance({ keys: ['total'], enabled: true, stable: 'unchanged', items: [{ _id: 'r1', calculated: 99 }] }))
+    expect(first.values.get('field:total')).toEqual({ state: 'Resolved', value: 10 })
+    expect(first.values.get('field:missing')).toEqual({ state: 'Resolved', value: [] })
+    const stable = first.byRule.get('stable.copy')
+
+    const absent = graph.reevaluate('enabled', valueSnapshot(false))
+    expect(absent.values.get('field:total')).toEqual({ state: 'Resolved', value: null })
+    expect(absent.values.get('field:missing')).toEqual({ state: 'Resolved', value: ['total'] })
+    expect(absent.byRule.get('stable.copy')).toBe(stable)
+
+    const present = graph.reevaluate('enabled', valueSnapshot(true))
+    expect(present.values.get('field:total')).toEqual({ state: 'Resolved', value: 10 })
+    expect(present.values.get('field:missing')).toEqual({ state: 'Resolved', value: [] })
+    expect(present.byRule.get('stable.copy')).toBe(stable)
+  })
+
+  it('uses the declared dynamic edge bound on initial and incremental evaluation', () => {
+    const dynamic = (id: string, target: string, key: string) => rule(id, target, 'Compute', { missing: [{ var: key }] })
+    const limits = { ...DEFAULT_LIMITS, maxDependencyDepth: 2 }
+    const exact = new FormRuleGraph(compile([
+      dynamic('a.dynamic', 'a', 'keysA'),
+      dynamic('b.dynamic', 'b', 'keysB'),
+      dynamic('c.dynamic', 'c', 'keysC'),
+    ], limits), fixedClock, limits)
+    expect(exact.evaluateInstance(instance({ keysA: ['b'], keysB: ['c'], keysC: ['raw'], raw: 1 })).values.get('field:a')?.state).toBe('Resolved')
+    expect(exact.reevaluate('keysA', valueSnapshot(['b'])).values.get('field:a')?.state).toBe('Resolved')
+
+    const over = new FormRuleGraph(compile([
+      dynamic('a.dynamic', 'a', 'keysA'),
+      dynamic('b.dynamic', 'b', 'keysB'),
+      dynamic('c.dynamic', 'c', 'keysC'),
+      dynamic('d.dynamic', 'd', 'keysD'),
+    ], limits), fixedClock, limits)
+    expect(over.evaluateInstance(instance({ keysA: ['b'], keysB: ['c'], keysC: ['d'], keysD: ['raw'], raw: 1 })).values.get('field:a')?.state).toBe('Error')
+    expect(over.reevaluate('keysA', valueSnapshot(['b'])).values.get('field:a')?.state).toBe('Error')
+
+    // Zero is valid only for a no-dependency leaf; its initial evaluation still enters
+    // the same scheduler and must not be treated as depth one.
+    const zeroLimits = { ...DEFAULT_LIMITS, maxDependencyDepth: 0 }
+    const zero = new FormRuleGraph(compile([rule('leaf.literal', 'leaf', 'Compute', 1)], zeroLimits), fixedClock, zeroLimits)
+    expect(zero.evaluateInstance(instance({})).values.get('field:leaf')?.state).toBe('Resolved')
+    expect(zero.reevaluate('unrelated', valueSnapshot(null)).values.get('field:leaf')?.state).toBe('Resolved')
+  })
+
+  it('re-evaluates dynamic Required and Validate plans when their actual target changes', () => {
+    const { g, first } = graphOf([
+      rule('required.dynamic', 'target', 'Required', { missing: [{ var: 'keys' }] }),
+      rule('readonly.dynamic', 'restricted', 'ReadOnly', { missing: [{ var: 'keys' }] }),
+      rule('validate.dynamic', 'target', 'Validate', { '!': [{ missing: [{ var: 'keys' }] }] }),
+    ], { keys: ['raw'], raw: null })
+    expect(first.visibility.get('field:target')?.required).toBe(true)
+    expect(first.visibility.get('field:restricted')?.readOnly).toBe(true)
+    expect(first.byRule.get('validate.dynamic')?.validity?.ok).toBe(false)
+    const recovered = g.reevaluate('raw', valueSnapshot(1))
+    expect(recovered.visibility.get('field:target')?.required).toBe(false)
+    expect(recovered.visibility.get('field:restricted')?.readOnly).toBe(false)
+    expect(recovered.byRule.get('validate.dynamic')?.validity?.ok).toBe(true)
+  })
+
+  it('demands a computed row producer named by a dynamic missing key', () => {
+    const first = graphOf([
+      rule('a.row-missing', 'items/missing', 'Compute', { missing: [{ var: 'rowKeys' }] }, 'Row'),
+      rule('z.row-amount', 'items/amount', 'Compute', { if: [{ var: 'row.enabled' }, 1, null] }, 'Row'),
+    ], { rowKeys: ['row.amount'], items: [{ _id: 'r1', enabled: true }] }).first
+    expect(first.values.get('row:items/r1/missing')).toEqual({ state: 'Resolved', value: [] })
+  })
+
+  it('keeps a literal star field name as a normal static dependency', () => {
+    const { g, first } = graphOf([
+      rule('a.star', 'a', 'Compute', { var: 'field.*' }),
+      rule('b.downstream', 'b', 'Compute', { var: 'a' }),
+    ], { '*': 1 })
+    expect(first.values.get('field:b')).toEqual({ state: 'Resolved', value: 1 })
+    expect(g.reevaluate('*', valueSnapshot(2)).values.get('field:b')).toEqual({ state: 'Resolved', value: 2 })
+  })
+
+  it('uses row cells for missing_some keys and re-evaluates a threshold read', () => {
+    const graph = new FormRuleGraph(compile([
+      rule('a.row-missing', 'items/missing', 'Compute', { missing_some: [{ var: 'threshold' }, ['row.amount', 'row.other']] }, 'Row'),
+      rule('z.row-amount', 'items/amount', 'Compute', { if: [{ var: 'row.enabled' }, 1, null] }, 'Row'),
+    ]), fixedClock)
+
+    const first = graph.evaluateInstance(instance({ threshold: 1, items: [{ _id: 'r1', enabled: true }] }))
+    expect(first.values.get('row:items/r1/missing')).toEqual({ state: 'Resolved', value: [] })
+    expect(graph.reevaluate('threshold', valueSnapshot(2)).values.get('row:items/r1/missing')).toEqual({ state: 'Resolved', value: ['row.other'] })
+  })
+
+  it('preserves actual empty if/and/or outcomes through a downstream computation', () => {
+    const first = graphOf([
+      rule('c.empty-if', 'emptyIf', 'Compute', { if: [] }),
+      rule('c.one-if', 'oneIf', 'Compute', { if: [false, 1] }),
+      rule('c.and', 'and', 'Compute', { and: [] }),
+      rule('c.or', 'or', 'Compute', { or: [] }),
+      rule('c.downstream', 'downstream', 'Compute', { '+': [{ var: 'emptyIf' }, 1] }),
+    ], {}).first
+
+    expect(first.values.get('field:emptyIf')).toEqual({ state: 'Resolved', value: null })
+    expect(first.values.get('field:oneIf')).toEqual({ state: 'Resolved', value: null })
+    expect(first.values.get('field:and')).toEqual({ state: 'Resolved', value: true })
+    expect(first.values.get('field:or')).toEqual({ state: 'Resolved', value: false })
+    expect(first.values.get('field:downstream')?.state).toBe('Error')
+  })
+
+  it.each([
+    [{ if: [] }, {}, 'null', 'Resolved', false, false],
+    [{ if: [false, 1] }, {}, 'null', 'Resolved', false, false],
+    [{ and: [] }, {}, 'boolean', 'Resolved', false, false],
+    [{ or: [] }, {}, 'boolean', 'Resolved', false, false],
+    [{ '+': [{ var: 'value' }, 1] }, { value: {} }, 'number', 'Error', true, true],
+    [{ '+': [{ var: 'value' }, 1] }, { value: { '@pending': true } }, 'number', 'Pending', true, true],
+  ] as const)('keeps each actual transfer outcome in the derived result contract', (expression, input, type, state, canError, canPending) => {
+    const derived = deriveCoreTypes(expression, 'c.transfer')
+    const actual = graphOf([rule('c.transfer', 'transfer', 'Compute', expression)], input).first.values.get('field:transfer')!
+
+    expect(derived.types.has(type as CoreJsonType)).toBe(true)
+    expect(actual.state).toBe(state)
+    expect(derived.canError).toBe(canError)
+    expect(derived.canPending).toBe(canPending)
   })
 })
 

@@ -405,7 +405,12 @@ public sealed class RuleDefinitionCatalogTests : IDisposable
         var catalog = new RuleDefinitionCatalog(unvalidatedStore, _lifecycle);
         var error = await Assert.ThrowsAsync<DefinitionRefusalException>(async () => await catalog.LoadVersionAsync(Key, "bad"));
         Assert.Contains(error.Refusals, refusal => refusal.Code == "rule.compile.unsupported_tier" && refusal.Pointer == "/tier");
-        Assert.Equal(body, Assert.Single(await unvalidatedStore.ListHistoryAsync(Key)).Document.BodyJson);
+        // This deliberately permissive test store is not a production producer.  The catalogue
+        // no longer performs a stale pre-read; configured stores enforce Rules admission inside
+        // their atomic Apply fence.
+        await catalog.PublishAsync(Key, "bad", 1, "publish-bad");
+        Assert.NotNull(await unvalidatedStore.ResolvePublishedAsync(new(Key, "bad")));
+        Assert.All(await unvalidatedStore.ListHistoryAsync(Key), revision => Assert.Equal(body, revision.Document.BodyJson));
     }
 
     [Theory]

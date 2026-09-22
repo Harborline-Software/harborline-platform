@@ -100,11 +100,15 @@ public sealed class RuleDefinitionCatalog
     }
 
     /// <summary>Publishes a fenced shared revision.</summary>
-    public ValueTask<DefinitionRevision> PublishAsync(DefinitionKey key, string versionId, long expectedRevision,
+    public async ValueTask<DefinitionRevision> PublishAsync(DefinitionKey key, string versionId, long expectedRevision,
         string requestId, CancellationToken cancellationToken = default)
     {
         RequireRules(key, cancellationToken);
-        return _store.PublishAsync(key, versionId, expectedRevision, requestId, cancellationToken);
+        if (string.IsNullOrWhiteSpace(versionId)) throw Refuse("definition.version_id_required", "/versionId");
+        // The registered Rules admission runs inside VersionedDefinitionStore.Apply:
+        // replay/fence -> immutable candidate -> Publish admission -> second fence.  A
+        // history pre-read here would validate a stale body and undermine that atomic seam.
+        return await _store.PublishAsync(key, versionId, expectedRevision, requestId, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>Decodes an exact version from shared history.</summary>

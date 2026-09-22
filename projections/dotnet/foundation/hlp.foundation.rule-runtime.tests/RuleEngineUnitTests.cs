@@ -7,6 +7,7 @@ using Harborline.Foundation.RuleEngine.Compilation;
 using Harborline.Foundation.RuleEngine.Context;
 using Harborline.Foundation.RuleEngine.Graph;
 using Harborline.Foundation.RuleEngine.Model;
+using Harborline.Foundation.RuleEngine.Skins;
 
 
 using Xunit;
@@ -288,6 +289,29 @@ public sealed class RuleEngineUnitTests
     }
 
     [Fact]
+    public void Literal_date_today_and_var_shapes_do_not_become_clock_or_field_reads()
+    {
+        var beforeMidnight = new DateTimeOffset(2026, 6, 30, 23, 59, 59, TimeSpan.Zero);
+        var afterMidnight = new DateTimeOffset(2026, 7, 1, 0, 0, 1, TimeSpan.Zero);
+        var clock = new AdvancingClock(beforeMidnight, afterMidnight);
+        var graph = new FormRuleGraph(RuleCompiler.Compile(new[]
+        {
+            Compute("c.literal", "literal", "{\"cat\":[{\"date.today\":[],\"var\":\"ignored\"},[{\"date.today\":[]},{\"var\":\"ignored\"}]]}"),
+            Compute("c.changed", "changed", "{\"var\":\"unrelated\"}"),
+        }), clock);
+
+        var first = graph.EvaluateInstance(Instance("{\"unrelated\":\"before\"}"));
+        var literal = first.ByRule["c.literal"];
+        var literalText = first.Values["field:literal"].Value!.GetValue<string>();
+        var next = graph.Reevaluate("unrelated", RuleInputValue.FromJsonText("\"after\""));
+
+        Assert.Equal("{\"date.today\":[],\"var\":\"ignored\"}[{\"date.today\":[]},{\"var\":\"ignored\"}]", literalText);
+        Assert.Equal(2, clock.Reads);
+        Assert.Same(literal, next.ByRule["c.literal"]);
+        Assert.Equal(literalText, next.Values["field:literal"].Value!.GetValue<string>());
+    }
+
+    [Fact]
     public void Graph_keeps_an_owned_instance_when_the_caller_mutates_the_original_after_evaluation()
     {
         var instance = Instance("{\"a\":1}");
@@ -449,6 +473,329 @@ public sealed class RuleEngineUnitTests
     }
 
     [Fact]
+    public void Parsed_double_at_the_json_stringify_byte_limit_is_evaluated_without_single_precision_expansion()
+    {
+        const string Prefix = "{\"n\":1.2,\"payload\":\"";
+        const string Suffix = "\"}";
+        var payload = new string('a', RuleContextSnapshot.MaxUtf8Bytes - Encoding.UTF8.GetByteCount(Prefix + Suffix));
+
+        Assert.Equal(RuleContextSnapshot.MaxUtf8Bytes, Encoding.UTF8.GetByteCount(Prefix + payload + Suffix));
+        var result = Graph(new[] { Compute("c.copy", "copy", "{\"var\":\"payload\"}") })
+            .EvaluateInstance(RuleInstance.FromJsonText(Prefix + payload + Suffix));
+
+        Assert.Equal(ValueState.Resolved, result.Values["field:copy"].State);
+    }
+
+    [Fact]
+    public void Parsed_lone_surrogate_is_captured_and_evaluated_as_json_stringify_escaped_text()
+    {
+        var result = Graph(new[] { Compute("c.copy", "copy", "{\"var\":\"payload\"}") })
+            .EvaluateInstance(RuleInstance.FromJsonText("{\"payload\":\"\\uD800\"}"));
+
+        Assert.Equal(ValueState.Resolved, result.Values["field:copy"].State);
+        Assert.Equal("\uD800", result.Values["field:copy"].Value!.GetValue<string>());
+    }
+
+    [Fact]
+    public void Safe_clr_lone_surrogate_input_preserves_its_utf16_code_unit_without_json_reserialization()
+    {
+        var instance = RuleInstance.FromJson(new JsonObject { ["payload"] = JsonValue.Create("\uD800") });
+
+        var result = Graph(new[] { Compute("c.copy", "copy", "{\"var\":\"payload\"}") })
+            .EvaluateInstance(instance);
+
+        Assert.Equal(ValueState.Resolved, result.Values["field:copy"].State);
+        Assert.Equal("\uD800", result.Values["field:copy"].Value!.GetValue<string>());
+    }
+
+    [Fact]
+    public void Core_admission_visits_a_date_child_hidden_under_money_and_preserves_runtime_type_error()
+    {
+        var result = Graph(new[] { Compute("c.bad", "out", "{\"cat\":[{\"money.add\":[{\"date.add\":[\"2026-01-01\",1,\"day\"]},\"1.00\"]}]}") })
+            .EvaluateInstance(Instance("{}"));
+        Assert.Equal(ValueState.Error, result.Values["field:out"].State);
+    }
+
+    [Fact]
+    public void Core_admission_preserves_money_string_numeric_coercion_and_missing_dependency_updates()
+    {
+        var graph = Graph(new[]
+        {
+            Compute("c.sum", "sum", "{\"+\":[{\"money.add\":[\"1\",\"2\"]},1]}"),
+            Compute("c.missing", "missing", "{\"missing\":[{\"var\":\"keys\"}]}"),
+            Compute("c.static", "static", "{\"missing\":[[\"field.target\"]]}"),
+        });
+        var first = graph.EvaluateInstance(Instance("{\"keys\":[\"target\"],\"target\":null}"));
+        Assert.Equal(4L, first.Values["field:sum"].Value!.GetValue<long>());
+        Assert.Single(first.Values["field:missing"].Value!.AsArray());
+        Assert.Single(first.Values["field:static"].Value!.AsArray());
+
+        var updated = graph.Reevaluate("target", RuleInputValue.FromJsonText("1"));
+        Assert.Empty(updated.Values["field:missing"].Value!.AsArray());
+        Assert.Empty(updated.Values["field:static"].Value!.AsArray());
+    }
+
+    [Fact]
+    public void Core_admission_composes_known_compute_output_into_downstream_scalar_operand()
+    {
+        var error = Assert.Throws<RuleCompilationException>(() => RuleCompiler.Compile(new[]
+        {
+            Compute("c.array", "array", "[]"),
+            Compute("c.scalar", "scalar", "{\"+\":[{\"var\":\"array\"},1]}"),
+        }));
+        Assert.Equal(RuleEngineCodes.CompileInvalidExpression, error.Code);
+    }
+
+    [Fact]
+    public void Formula_roundtrip_broadens_declared_number_when_runtime_supplies_an_object()
+    {
+        var rule = FormulaCompiler.Compile(new FormulaSkin("formula.object", RuleScope.Field, "out",
+            RuleActionKind.Compute, new[] { new FormulaInput("value", "number") },
+            JsonNode.Parse("{\"+\":[{\"var\":\"value\"},1]}")));
+        var result = Graph(new[] { rule }).EvaluateInstance(Instance("{\"value\":{}}"));
+        Assert.Equal(ValueState.Error, result.Values["field:out"].State);
+    }
+
+    [Fact]
+    public void Empty_if_and_or_and_one_branch_if_preserve_their_executed_outcomes_through_a_downstream_rule()
+    {
+        var result = Graph(new[]
+        {
+            Compute("c.empty-if", "emptyIf", "{\"if\":[]}"),
+            Compute("c.one-if", "oneIf", "{\"if\":[false,1]}"),
+            Compute("c.and", "and", "{\"and\":[]}"),
+            Compute("c.or", "or", "{\"or\":[]}"),
+            Compute("c.downstream", "downstream", "{\"+\":[{\"var\":\"emptyIf\"},1]}"),
+        }).EvaluateInstance(Instance("{}"));
+
+        Assert.Null(result.Values["field:emptyIf"].Value);
+        Assert.Null(result.Values["field:oneIf"].Value);
+        Assert.True(result.Values["field:and"].Value!.GetValue<bool>());
+        Assert.False(result.Values["field:or"].Value!.GetValue<bool>());
+        Assert.Equal(ValueState.Error, result.Values["field:downstream"].State);
+    }
+
+    [Theory]
+    [MemberData(nameof(CoreTransferOutcomes))]
+    public void Core_transfer_table_contains_each_executed_result_or_failure(
+        string expression, string input, CoreJsonType resultType, ValueState actualState, bool error, bool pending)
+    {
+        var derived = CoreTypeDerivation.Derive(JsonNode.Parse(expression), "c.transfer");
+        var actual = Graph(new[] { Compute("c.transfer", "transfer", expression) })
+            .EvaluateInstance(Instance(input)).Values["field:transfer"];
+
+        Assert.NotEqual(CoreJsonType.None, derived.Types & resultType);
+        Assert.Equal(actualState, actual.State);
+        Assert.Equal(error, derived.CanError);
+        Assert.Equal(pending, derived.CanPending);
+    }
+
+    public static TheoryData<string, string, CoreJsonType, ValueState, bool, bool> CoreTransferOutcomes => new()
+    {
+        { "{\"if\":[]}", "{}", CoreJsonType.Null, ValueState.Resolved, false, false },
+        { "{\"if\":[false,1]}", "{}", CoreJsonType.Null, ValueState.Resolved, false, false },
+        { "{\"and\":[]}", "{}", CoreJsonType.Boolean, ValueState.Resolved, false, false },
+        { "{\"or\":[]}", "{}", CoreJsonType.Boolean, ValueState.Resolved, false, false },
+        { "{\"+\":[{\"var\":\"value\"},1]}", "{\"value\":{}}", CoreJsonType.Number, ValueState.Error, true, true },
+        { "{\"+\":[{\"var\":\"value\"},1]}", "{\"value\":{\"@pending\":true}}", CoreJsonType.Number, ValueState.Pending, true, true },
+    };
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Dynamic_missing_keys_schedule_computed_producers_regardless_of_source_order(bool reversed)
+    {
+        var missing = Compute("a.missing", "missing", "{\"missing\":[{\"var\":\"keys\"}]}" );
+        var produced = Compute("z.produced", "produced", "{\"if\":[{\"var\":\"enabled\"},1,null]}" );
+        var rules = reversed ? new[] { produced, missing } : new[] { missing, produced };
+        var graph = Graph(rules);
+        var first = graph.EvaluateInstance(Instance("{\"keys\":[\"produced\"],\"enabled\":true}"));
+        Assert.Empty(first.Values["field:missing"].Value!.AsArray());
+
+        var absent = graph.Reevaluate("enabled", RuleInputValue.FromJsonText("false"));
+        Assert.Single(absent.Values["field:missing"].Value!.AsArray());
+        var present = graph.Reevaluate("enabled", RuleInputValue.FromJsonText("true"));
+        Assert.Empty(present.Values["field:missing"].Value!.AsArray());
+        var noKeys = graph.Reevaluate("keys", RuleInputValue.FromJsonText("[]"));
+        Assert.Empty(noKeys.Values["field:missing"].Value!.AsArray());
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Independent_dynamic_missing_readers_do_not_form_a_static_cycle(bool reversed)
+    {
+        var a = Compute("a.dynamic", "a", "{\"missing\":[{\"var\":\"keys\"}]}" );
+        var b = Compute("b.dynamic", "b", "{\"missing\":[{\"var\":\"keys\"}]}" );
+        var result = Graph(reversed ? new[] { b, a } : new[] { a, b })
+            .EvaluateInstance(Instance("{\"keys\":[\"raw\"],\"raw\":1}"));
+
+        Assert.Empty(result.Values["field:a"].Value!.AsArray());
+        Assert.Empty(result.Values["field:b"].Value!.AsArray());
+    }
+
+    [Fact]
+    public void Dynamic_missing_does_not_reverse_a_normal_downstream_dependency()
+    {
+        var graph = Graph(new[]
+        {
+            Compute("a.dynamic", "a", "{\"missing\":[{\"var\":\"keys\"}]}" ),
+            Compute("b.downstream", "b", "{\"!!\":[{\"var\":\"a\"}]}"),
+        });
+        var first = graph.EvaluateInstance(Instance("{\"keys\":[\"raw\"],\"raw\":1}"));
+        Assert.False(first.Values["field:b"].Value!.GetValue<bool>());
+
+        Assert.True(graph.Reevaluate("raw", RuleInputValue.FromJsonText("null")).Values["field:b"].Value!.GetValue<bool>());
+        Assert.False(graph.Reevaluate("keys", RuleInputValue.FromJsonText("[]")).Values["field:b"].Value!.GetValue<bool>());
+    }
+
+    [Fact]
+    public void Dynamic_missing_self_reference_refuses_instead_of_reading_a_raw_shadow()
+    {
+        var graph = Graph(new[] { Compute("a.dynamic", "a", "{\"missing\":[{\"var\":\"keys\"}]}" ) });
+        var result = graph.EvaluateInstance(Instance("{\"keys\":[\"a\"],\"a\":1}"));
+
+        var value = result.Values["field:a"];
+        Assert.Equal(ValueState.Error, value.State);
+        Assert.Equal(RuleEngineCodes.Cycle, value.Error!.Code);
+
+        // A newly selected self key must not reuse a completed value from the preceding generation.
+        graph.EvaluateInstance(Instance("{\"keys\":[\"raw\"],\"raw\":1}"));
+        var changed = graph.Reevaluate("keys", RuleInputValue.FromJsonText("[\"a\"]"));
+        Assert.Equal(ValueState.Error, changed.Values["field:a"].State);
+        Assert.Equal(RuleEngineCodes.Cycle, changed.Values["field:a"].Error!.Code);
+    }
+
+    [Fact]
+    public void Dynamic_missing_demands_row_producers_before_folding_an_aggregate()
+    {
+        var graph = Graph(new[]
+        {
+            // Deliberately first: this is the public demand path, not a topo-order test.
+            Compute("a.missing", "missing", "{\"missing\":[{\"var\":\"keys\"}]}"),
+            Compute("b.total", "total", "{\"if\":[{\"==\":[{\"var\":\"table.sum(items.calculated)\"},10]},10,null]}"),
+            Compute("z.calculated", "items/calculated", "{\"if\":[{\"var\":\"enabled\"},10,0]}", RuleScope.Row),
+            Compute("stable.copy", "stableOut", "{\"var\":\"stable\"}"),
+        });
+
+        var first = graph.EvaluateInstance(Instance("{\"keys\":[\"total\"],\"enabled\":true,\"stable\":\"unchanged\",\"items\":[{\"_id\":\"r1\",\"calculated\":99}]}"));
+        Assert.Equal(10L, first.Values["field:total"].Value!.GetValue<long>());
+        Assert.Empty(first.Values["field:missing"].Value!.AsArray());
+        var stable = first.ByRule["stable.copy"];
+
+        var absent = graph.Reevaluate("enabled", RuleInputValue.FromJsonText("false"));
+        Assert.Null(absent.Values["field:total"].Value);
+        Assert.Equal("total", absent.Values["field:missing"].Value!.AsArray().Single()!.GetValue<string>());
+        Assert.Same(stable, absent.ByRule["stable.copy"]);
+
+        var present = graph.Reevaluate("enabled", RuleInputValue.FromJsonText("true"));
+        Assert.Equal(10L, present.Values["field:total"].Value!.GetValue<long>());
+        Assert.Empty(present.Values["field:missing"].Value!.AsArray());
+        Assert.Same(stable, present.ByRule["stable.copy"]);
+    }
+
+    [Fact]
+    public void Dynamic_demand_depth_uses_the_declared_edge_bound_on_initial_and_incremental_runs()
+    {
+        static RuleDefinition Dynamic(string id, string target, string key)
+            => Compute(id, target, "{\"missing\":[{\"var\":\"" + key + "\"}]}");
+
+        var limit = RuleEngineLimits.Default with { MaxDependencyDepth = 2 };
+        var exactRules = new[]
+        {
+            Dynamic("a.dynamic", "a", "keysA"),
+            Dynamic("b.dynamic", "b", "keysB"),
+            Dynamic("c.dynamic", "c", "keysC"),
+        };
+        var exact = Graph(exactRules, limit);
+        var first = exact.EvaluateInstance(Instance("{\"keysA\":[\"b\"],\"keysB\":[\"c\"],\"keysC\":[\"raw\"],\"raw\":1}"));
+        Assert.Equal(ValueState.Resolved, first.Values["field:a"].State); // a -> b -> c: two demand edges
+        Assert.Equal(ValueState.Resolved, exact.Reevaluate("keysA", RuleInputValue.FromJsonText("[\"b\"]")).Values["field:a"].State);
+
+        var over = Graph(new[]
+        {
+            Dynamic("a.dynamic", "a", "keysA"),
+            Dynamic("b.dynamic", "b", "keysB"),
+            Dynamic("c.dynamic", "c", "keysC"),
+            Dynamic("d.dynamic", "d", "keysD"),
+        }, limit);
+        var overFirst = over.EvaluateInstance(Instance("{\"keysA\":[\"b\"],\"keysB\":[\"c\"],\"keysC\":[\"d\"],\"keysD\":[\"raw\"],\"raw\":1}"));
+        Assert.Equal(ValueState.Error, overFirst.Values["field:a"].State); // third edge is outside the declared bound
+        Assert.Equal(ValueState.Error, over.Reevaluate("keysA", RuleInputValue.FromJsonText("[\"b\"]")).Values["field:a"].State);
+
+        // Zero is a valid compiler configuration only for a no-dependency leaf. Its initial
+        // evaluation still enters the same scheduler and must not be rejected as depth one.
+        var zero = Graph(new[] { Compute("leaf.literal", "leaf", "1") }, RuleEngineLimits.Default with { MaxDependencyDepth = 0 });
+        Assert.Equal(ValueState.Resolved, zero.EvaluateInstance(Instance("{}" )).Values["field:leaf"].State);
+        Assert.Equal(ValueState.Resolved, zero.Reevaluate("unrelated", RuleInputValue.FromJsonText("null")).Values["field:leaf"].State);
+    }
+
+    [Fact]
+    public void Dynamic_missing_non_compute_plans_recover_when_the_actual_target_changes()
+    {
+        var graph = Graph(new[]
+        {
+            RuleDefinitionFactory.Create("required.dynamic", RuleTier.JsonLogic, RuleScope.Field, "target", "{\"missing\":[{\"var\":\"keys\"}]}", RuleActionKind.Required),
+            RuleDefinitionFactory.Create("readonly.dynamic", RuleTier.JsonLogic, RuleScope.Field, "restricted", "{\"missing\":[{\"var\":\"keys\"}]}", RuleActionKind.ReadOnly),
+            RuleDefinitionFactory.Create("validate.dynamic", RuleTier.JsonLogic, RuleScope.Field, "target", "{\"!\":[{\"missing\":[{\"var\":\"keys\"}]}]}", RuleActionKind.Validate),
+        });
+        var first = graph.EvaluateInstance(Instance("{\"keys\":[\"raw\"],\"raw\":null}"));
+        Assert.True(first.Visibility["field:target"].Required);
+        Assert.True(first.Visibility["field:restricted"].ReadOnly);
+        Assert.False(first.ByRule["validate.dynamic"].Validity!.Ok);
+
+        var recovered = graph.Reevaluate("raw", RuleInputValue.FromJsonText("1"));
+        Assert.False(recovered.Visibility["field:target"].Required);
+        Assert.False(recovered.Visibility["field:restricted"].ReadOnly);
+        Assert.True(recovered.ByRule["validate.dynamic"].Validity!.Ok);
+    }
+
+    [Fact]
+    public void Dynamic_row_missing_keys_demand_the_current_row_producer()
+    {
+        var result = Graph(new[]
+        {
+            Compute("a.row-missing", "items/missing", "{\"missing\":[{\"var\":\"rowKeys\"}]}", RuleScope.Row),
+            Compute("z.row-amount", "items/amount", "{\"if\":[{\"var\":\"row.enabled\"},1,null]}", RuleScope.Row),
+        }).EvaluateInstance(Instance("{\"rowKeys\":[\"row.amount\"],\"items\":[{\"_id\":\"r1\",\"enabled\":true}]}"));
+
+        Assert.Empty(result.Values["row:items/r1/missing"].Value!.AsArray());
+    }
+
+    [Fact]
+    public void Literal_star_field_name_remains_a_normal_static_dependency()
+    {
+        var graph = Graph(new[]
+        {
+            Compute("a.star", "a", "{\"var\":\"field.*\"}"),
+            Compute("b.downstream", "b", "{\"var\":\"a\"}"),
+        });
+        var first = graph.EvaluateInstance(Instance("{\"*\":1}"));
+        Assert.Equal(1L, first.Values["field:b"].Value!.GetValue<long>());
+        Assert.Equal(2L, graph.Reevaluate("*", RuleInputValue.FromJsonText("2")).Values["field:b"].Value!.GetValue<long>());
+    }
+
+    [Fact]
+    public void Missing_some_uses_row_cells_and_a_threshold_read_as_actual_dependencies()
+    {
+        var result = Graph(new[]
+        {
+            Compute("a.row-missing", "items/missing", "{\"missing_some\":[{\"var\":\"threshold\"},[\"row.amount\",\"row.other\"]]}", RuleScope.Row),
+            Compute("z.row-amount", "items/amount", "{\"if\":[{\"var\":\"row.enabled\"},1,null]}", RuleScope.Row),
+        }).EvaluateInstance(Instance("{\"threshold\":1,\"items\":[{\"_id\":\"r1\",\"enabled\":true}]}"));
+
+        Assert.Empty(result.Values["row:items/r1/missing"].Value!.AsArray());
+        var thresholdChanged = Graph(new[]
+        {
+            Compute("a.row-missing", "items/missing", "{\"missing_some\":[{\"var\":\"threshold\"},[\"row.amount\",\"row.other\"]]}", RuleScope.Row),
+            Compute("z.row-amount", "items/amount", "{\"if\":[{\"var\":\"row.enabled\"},1,null]}", RuleScope.Row),
+        });
+        thresholdChanged.EvaluateInstance(Instance("{\"threshold\":1,\"items\":[{\"_id\":\"r1\",\"enabled\":true}]}"));
+        var updated = thresholdChanged.Reevaluate("threshold", RuleInputValue.FromJsonText("2"));
+        Assert.Equal("row.other", updated.Values["row:items/r1/missing"].Value!.AsArray().Single()!.GetValue<string>());
+    }
+
+    [Fact]
     public void Initial_mutable_fields_enforce_the_shared_node_bound_before_copying()
     {
         var instance = RuleInstance.FromJsonText("{\"seed\":null}");
@@ -461,6 +808,21 @@ public sealed class RuleEngineUnitTests
 
         instance.Fields["over"] = trusted;
         var refused = Graph(Array.Empty<RuleDefinition>()).EvaluateInstance(instance);
+        Assert.Equal(RuleEngineCodes.InputTooLarge, refused.Validations.Single().Validity!.Error!.Code);
+    }
+
+    [Fact]
+    public void Oversized_public_row_fields_are_refused_before_graph_state_is_mutated()
+    {
+        var seed = RuleInstance.FromJsonText("{\"seed\":null}");
+        var row = new RuleRow("r", new Dictionary<string, JsonNode?>());
+        for (var i = 0; i < RuleContextSnapshot.MaxNodes; i++) row.Fields["f" + i] = seed.Fields["seed"];
+        var graph = Graph([]);
+        graph.EvaluateInstance(RuleInstance.FromJsonText("{}"));
+
+        var refused = graph.AddRow("items", row);
+
+        Assert.True(refused.IsSaveBlocked);
         Assert.Equal(RuleEngineCodes.InputTooLarge, refused.Validations.Single().Validity!.Error!.Code);
     }
 

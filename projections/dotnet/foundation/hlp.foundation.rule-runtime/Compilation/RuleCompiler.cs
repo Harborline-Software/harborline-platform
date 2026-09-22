@@ -89,8 +89,36 @@ public static class RuleCompiler
             });
         }
 
+        // A value rule can feed another rule.  First derive producer result sets, then
+        // iterate the finite six-tag domain into consumers instead of treating every var
+        // as AnyJson.  Cycles are rejected below; the bounded loop is defensive.
+        ValidateCoreTypes(compiled);
         DetectCyclesAndDepth(compiled, lim);
         return new CompiledGraph(compiled);
+    }
+
+    private static void ValidateCoreTypes(IReadOnlyList<CompiledRule> rules)
+    {
+        var fields = new Dictionary<string, CoreJsonType>(StringComparer.Ordinal);
+        foreach (var rule in rules.Where(rule => rule.Source.Action == RuleActionKind.Compute
+            && rule.Source.Scope == RuleScope.Field))
+            fields[rule.Source.ScopeTarget] = CoreTypeDerivation.Derive(rule.Ast, rule.Source.Id).Types;
+
+        for (var pass = 0; pass <= rules.Count; pass++)
+        {
+            var next = new Dictionary<string, CoreJsonType>(fields, StringComparer.Ordinal);
+            foreach (var rule in rules)
+            {
+                var result = CoreTypeDerivation.Derive(rule.Ast, rule.Source.Id,
+                    path => path.StartsWith("field.", StringComparison.Ordinal)
+                        && fields.TryGetValue(path["field.".Length..], out var known)
+                        ? known : CoreJsonType.AnyJson);
+                if (rule.Source.Action == RuleActionKind.Compute && rule.Source.Scope == RuleScope.Field)
+                    next[rule.Source.ScopeTarget] = result.Types;
+            }
+            if (next.Count == fields.Count && next.All(pair => fields.TryGetValue(pair.Key, out var old) && old == pair.Value)) return;
+            fields = next;
+        }
     }
 
     private static void ValidateOperators(JsonNode? node, string ruleId)
@@ -117,7 +145,7 @@ public static class RuleCompiler
         bool valid = operation switch
         {
             "var" => count is 1 or 2,
-            "missing" => count >= 1,
+            "missing" => count >= 0,
             "missing_some" => count == 2,
             "==" or "!=" or "===" or "!==" or ">" or ">=" or "<" or "<=" or "in" => count == 2,
             "!" or "!!" => count == 1,

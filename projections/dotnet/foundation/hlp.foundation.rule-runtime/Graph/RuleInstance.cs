@@ -47,6 +47,10 @@ public sealed class RuleRow
     {
         // Fields remain publicly mutable. Validate every current descendant before any
         // clone can promote it into runtime-owned state.
+        // A row is temporarily represented by a root-only prospective instance below.
+        // Refuse an impossible member count before allocating/copying every public entry.
+        if (Fields.Count > RuntimeInputEnvelope.MaxNodes - 1)
+            throw new ArgumentException("Rule context exceeds the bounded structure envelope.");
         var prospective = new RuleInstance();
         foreach (var (key, value) in Fields) prospective.Fields[key] = value;
         prospective.EnsureEnvelope();
@@ -367,8 +371,10 @@ public sealed class RuleInstance
             if (value.TryGetValue<long>(out var longInteger)) { Add(CanonicalNumber.ToJsonString(longInteger).Length); return; }
             if (value.TryGetValue<uint>(out var unsignedInteger)) { Add(CanonicalNumber.ToJsonString((long)unsignedInteger).Length); return; }
             if (value.TryGetValue<ulong>(out var unsignedLong)) { Add(CanonicalNumber.ToJsonString((double)unsignedLong).Length); return; }
-            if (value.TryGetValue<float>(out var single)) { CountDouble(single); return; }
             if (value.TryGetValue<double>(out var number)) { CountDouble(number); return; }
+            // Parsed JsonElement numbers can satisfy both float and double. Probe the
+            // non-lossy double representation first: 1.2 must not become 1.2000000476837158.
+            if (value.TryGetValue<float>(out var single)) { CountDouble(single); return; }
             if (value.TryGetValue<decimal>(out var decimalNumber)) { CountDouble((double)decimalNumber); return; }
             throw new InvalidOperationException(RuleEngineCodes.ContextSnapshotRequired);
         }
@@ -395,8 +401,44 @@ public sealed class RuleInstance
 
     internal static JsonNode? CaptureParsedValue(JsonNode? value)
     {
-        if (value is not null) MarkTrusted(value);
-        return value?.DeepClone() is { } clone ? MarkAndReturn(clone) : null;
+        return value is null ? null : MarkAndReturn(NormalizeParsedValue(value));
+    }
+
+    // JsonElement-backed JsonValue throws when GetValue<string>() is asked for a legal
+    // JSON escaped lone surrogate. Move parsed values into ordinary owned JsonNodes at
+    // the capture boundary, preserving the UTF-16 code unit that JSON.stringify escapes.
+    private static JsonNode NormalizeParsedValue(JsonNode value) => value switch
+    {
+        JsonObject obj => new JsonObject(obj.Select(pair => KeyValuePair.Create(pair.Key,
+            pair.Value is null ? null : NormalizeParsedValue(pair.Value)))),
+        JsonArray array => new JsonArray(array.Select(item => item is null ? null : NormalizeParsedValue(item)).ToArray()),
+        // Only JsonElement-backed values came from parsed JSON and need the token
+        // decoder for escaped lone surrogates.  Safe host CLR strings are already
+        // values: routing them through ToJsonString would allow the framework to
+        // replace an unpaired UTF-16 code unit before we capture it.
+        JsonValue scalar when scalar.GetValueKind() == JsonValueKind.String && scalar.TryGetValue<JsonElement>(out var element)
+            => JsonValue.Create(ReadJsonString(element.GetRawText()))!,
+        JsonValue scalar when scalar.GetValueKind() == JsonValueKind.String => JsonValue.Create(scalar.GetValue<string>())!,
+        _ => value.DeepClone(),
+    };
+
+    private static string ReadJsonString(string json)
+    {
+        var result = new System.Text.StringBuilder();
+        for (var index = 1; index < json.Length - 1; index++)
+        {
+            var character = json[index];
+            if (character != '\\') { result.Append(character); continue; }
+            var escapeCode = json[++index];
+            result.Append(escapeCode switch
+            {
+                '"' => '"', '\\' => '\\', '/' => '/', 'b' => '\b', 'f' => '\f', 'n' => '\n', 'r' => '\r', 't' => '\t',
+                'u' => (char)Convert.ToInt32(json.Substring(index += 1, 4), 16),
+                _ => throw new ArgumentException("Invalid JSON string escape."),
+            });
+            if (escapeCode == 'u') index += 3;
+        }
+        return result.ToString();
     }
 
     internal static JsonNode? CloneTrusted(JsonNode? value)

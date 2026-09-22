@@ -70,4 +70,11 @@ describe('definition compiler admission', () => {
     if (depth === 64) expect(compile(sources).rules).toHaveLength(64)
     else expect(() => compile(sources)).toThrow(expect.objectContaining({ code: Codes.compileDepthExceeded }))
   })
+
+  it('composes a known array-producing rule into a downstream scalar admission', () => {
+    expect(() => compile([
+      compute('array', 'array', []),
+      compute('scalar', 'scalar', { '+': [{ var: 'array' }, 1] }),
+    ])).toThrow(expect.objectContaining({ code: Codes.compileInvalidExpression, ruleId: 'scalar' }))
+  })
 })

@@ -43,9 +43,12 @@ const isPendingSentinel = (n: Json): boolean =>
   Object.keys(n).length === 1 && (n as Record<string, Json>)['@pending'] === true
 
 const usesClock = (ast: Json): boolean => {
-  if (Array.isArray(ast)) return ast.some(usesClock)
-  if (typeof ast !== 'object' || ast === null) return false
-  return Object.prototype.hasOwnProperty.call(ast, 'date.today') || Object.values(ast).some(usesClock)
+  if (typeof ast !== 'object' || ast === null || Array.isArray(ast)) return false
+  const entries = Object.entries(ast)
+  if (entries.length !== 1) return false
+  const [op, raw] = entries[0]
+  if (op === 'date.today') return true
+  return Array.isArray(raw) ? raw.some(usesClock) : usesClock(raw)
 }
 
 class CellResolver implements ValueResolver {
@@ -216,6 +219,42 @@ interface OutcomePlan {
   isComputeValue: boolean
 }
 
+interface DemandState {
+  active: Set<string>
+  completed: Set<string>
+  dirty: Set<string> | null
+}
+
+/**
+ * Resolves through the graph's current evaluation generation before falling back to the
+ * ordinary context resolver. This is deliberately an evaluator wrapper, rather than a
+ * second interpreter: dynamic missing reads use the exact same JsonLogic evaluation path.
+ */
+class DemandResolver implements ValueResolver {
+  constructor(
+    private readonly fallback: ValueResolver,
+    private readonly resolve: (key: string, fallback: () => RefValue) => RefValue,
+    private readonly rowSection: string | null,
+    private readonly rowId: string | null,
+  ) {}
+
+  resolveVar(path: string): RefValue {
+    if (path.startsWith('row.')) {
+      if (this.rowSection === null || this.rowId === null) return this.fallback.resolveVar(path)
+      const key = cell.row(this.rowSection, this.rowId, path.slice('row.'.length))
+      return this.resolve(key, () => this.fallback.resolveVar(path))
+    }
+    const name = path.startsWith('field.') ? path.slice('field.'.length) : path
+    const key = cell.field(name)
+    return this.resolve(key, () => this.fallback.resolveVar(path))
+  }
+
+  resolveAgg(fn: string, section: string, col: string): RefValue {
+    const key = cell.agg(section, fn, col)
+    return this.resolve(key, () => this.fallback.resolveAgg(fn, section, col))
+  }
+}
+
 export class FormRuleGraph {
   private instance = RuleInstance.empty()
   private order: ComputedCell[] = []
@@ -225,6 +264,11 @@ export class FormRuleGraph {
   // Broad reverse index: ANY referenced cell key (raw field OR computed) -> computed cells that read it.
   // Used by the reactive path so a change to a RAW field still dirties its dependents.
   private readers = new Map<string, Set<string>>()
+  // Actual read reverse index, populated by the single evaluator for dynamic paths.
+  // It intentionally remains separate from the finite static DAG.
+  private dynamicReaders = new Map<string, Set<string>>()
+  private actualCellReads = new Map<string, Set<string>>()
+  private actualPlanReads = new Map<string, Set<string>>()
   private plans: OutcomePlan[] = []
   private values = new Map<string, ComputedValue>()
   private outcomes = new Map<string, RuleOutcome>()
@@ -272,7 +316,7 @@ export class FormRuleGraph {
     const queue = [changedKey]
     while (queue.length > 0) {
       const node = queue.shift()!
-      for (const d of this.readers.get(node) ?? []) {
+      for (const d of this.readersOf(node)) {
         if (!dirty.has(d)) { dirty.add(d); queue.push(d) }
       }
     }
@@ -284,7 +328,7 @@ export class FormRuleGraph {
     }
     while (queue.length > 0) {
       const node = queue.shift()!
-      for (const d of this.readers.get(node) ?? []) {
+      for (const d of this.readersOf(node)) {
         if (!dirty.has(d)) { dirty.add(d); queue.push(d) }
       }
     }
@@ -292,13 +336,14 @@ export class FormRuleGraph {
     this.evaluationInstant = this.clock()
     const budget = new EvalBudget(this.limits, signal)
     const adapter = new FormContextAdapter(this.values, this.instance) // ADR 0146 D3 context seam
+    const demand: DemandState = { active: new Set(), completed: new Set(), dirty }
     try {
-      for (const c of this.order) if (dirty.has(c.key)) this.values.set(c.key, this.evalComputedCell(c, budget, adapter))
+      for (const c of this.order) if (dirty.has(c.key)) this.values.set(c.key, this.evaluateDemand(c, demand, budget, adapter))
       const touched = new Set(dirty)
       touched.add(changedKey)
       for (const plan of this.plans) {
-        if (usesClock(plan.rule.ast) || [...plan.reads].some((r) => touched.has(r)) || dirty.has(plan.target)) {
-          this.outcomes.set(plan.key, this.buildPlanOutcome(plan, budget, adapter))
+        if (usesClock(plan.rule.ast) || [...plan.reads].some((r) => touched.has(r)) || this.overlaps(this.actualPlanReads.get(plan.key), touched) || dirty.has(plan.target)) {
+          this.outcomes.set(plan.key, this.buildPlanOutcome(plan, demand, budget, adapter))
         }
       }
     } catch (e) {
@@ -349,9 +394,10 @@ export class FormRuleGraph {
     this.values = new Map()
     this.outcomes = new Map()
     const adapter = new FormContextAdapter(this.values, this.instance) // ADR 0146 D3 context seam
+    const demand: DemandState = { active: new Set(), completed: new Set(), dirty: null }
     try {
-      for (const c of this.order) this.values.set(c.key, this.evalComputedCell(c, budget, adapter))
-      for (const plan of this.plans) this.outcomes.set(plan.key, this.buildPlanOutcome(plan, budget, adapter))
+      for (const c of this.order) this.values.set(c.key, this.evaluateDemand(c, demand, budget, adapter))
+      for (const plan of this.plans) this.outcomes.set(plan.key, this.buildPlanOutcome(plan, demand, budget, adapter))
     } catch (e) {
       if (e instanceof RuleBudget) return this.failClosed(Codes.budgetExceeded)
       // RuleTimeout is a non-authoritative liveness fault (D1 ratification 2026-07-01): it PROPAGATES
@@ -388,6 +434,9 @@ export class FormRuleGraph {
     this.deps = new Map()
     this.dependents = new Map()
     this.readers = new Map()
+    this.dynamicReaders = new Map()
+    this.actualCellReads = new Map()
+    this.actualPlanReads = new Map()
     this.order = []
     this.plans = []
 
@@ -425,6 +474,7 @@ export class FormRuleGraph {
             if (this.cells.has(depKey)) this.edge(c.key, depKey)
           }
         }
+
       }
     }
 
@@ -497,6 +547,42 @@ export class FormRuleGraph {
     set.add(reader)
   }
 
+  private readersOf(key: string): Set<string> {
+    return new Set([...(this.readers.get(key) ?? []), ...(this.dynamicReaders.get(key) ?? [])])
+  }
+
+  private overlaps(reads: Set<string> | undefined, touched: Set<string>): boolean {
+    return reads !== undefined && [...reads].some((key) => touched.has(key))
+  }
+
+  private clearActualCellReads(owner: string): void {
+    for (const key of this.actualCellReads.get(owner) ?? []) {
+      const readers = this.dynamicReaders.get(key)
+      readers?.delete(owner)
+      if (readers?.size === 0) this.dynamicReaders.delete(key)
+    }
+    this.actualCellReads.delete(owner)
+  }
+
+  private recordActualCellRead(owner: string, key: string): void {
+    let reads = this.actualCellReads.get(owner)
+    if (!reads) { reads = new Set(); this.actualCellReads.set(owner, reads) }
+    reads.add(key)
+    let readers = this.dynamicReaders.get(key)
+    if (!readers) { readers = new Set(); this.dynamicReaders.set(key, readers) }
+    readers.add(owner)
+  }
+
+  private beginPlanReads(owner: string): void {
+    this.actualPlanReads.set(owner, new Set())
+  }
+
+  private recordActualPlanRead(owner: string, key: string): void {
+    const reads = this.actualPlanReads.get(owner) ?? new Set<string>()
+    reads.add(key)
+    this.actualPlanReads.set(owner, reads)
+  }
+
   private topoSort(): void {
     const inDeg = new Map<string, number>()
     for (const k of this.cells.keys()) inDeg.set(k, this.deps.get(k)!.size)
@@ -516,11 +602,52 @@ export class FormRuleGraph {
     }
   }
 
-  private evalComputedCell(c: ComputedCell, budget: EvalBudget, adapter: ContextAdapter): ComputedValue {
-    if (c.cyclic) return { state: 'Error', error: err(Codes.cycle, 'cell', c.key) }
-    if (c.aggFold) return this.foldAggregate(c.aggFold.fn, c.aggFold.section, c.aggFold.col, budget)
+  private evaluateDemand(c: ComputedCell, demand: DemandState, budget: EvalBudget, adapter: ContextAdapter): ComputedValue {
+    const stable = demand.dirty === null || !demand.dirty.has(c.key) ? this.values.get(c.key) : undefined
+    if (stable) return stable
+    const completed = this.values.get(c.key)
+    if (demand.completed.has(c.key) && completed) return completed
+    if (demand.active.has(c.key)) return { state: 'Error', error: err(Codes.cycle, 'cell', c.key) }
+    // The active set is the parent chain, so before adding this cell its size is the
+    // demand-edge depth. Match static compiler admission: depth zero permits a leaf.
+    if (demand.active.size > this.limits.maxDependencyDepth) return { state: 'Error', error: err(Codes.budgetExceeded) }
 
-    const resolver = adapter.createResolver({ rowSection: c.rule!.rowSection, rowId: c.rowId })
+    budget.charge()
+    demand.active.add(c.key)
+    this.clearActualCellReads(c.key)
+    try {
+      const value = this.evalComputedCell(c, demand, budget, adapter)
+      this.values.set(c.key, value)
+      demand.completed.add(c.key)
+      return value
+    } finally {
+      demand.active.delete(c.key)
+    }
+  }
+
+  private resolveDemand(owner: string, plan: boolean, key: string, fallback: () => RefValue, demand: DemandState, budget: EvalBudget, adapter: ContextAdapter): RefValue {
+    if (plan) this.recordActualPlanRead(owner, key)
+    else this.recordActualCellRead(owner, key)
+    const target = this.cells.get(key)
+    if (!target) return fallback()
+    const value = this.evaluateDemand(target, demand, budget, adapter)
+    if (value.state === 'Resolved') return refResolved(value.value ?? null)
+    if (value.state === 'Pending') return refPending
+    return value.error?.code === Codes.cycle ? refError(value.error) : refError(err(Codes.upstreamError, 'cell', key))
+  }
+
+  private evalComputedCell(c: ComputedCell, demand: DemandState, budget: EvalBudget, adapter: ContextAdapter): ComputedValue {
+    if (c.cyclic) return { state: 'Error', error: err(Codes.cycle, 'cell', c.key) }
+    if (c.aggFold) return this.foldAggregate(c.aggFold.fn, c.aggFold.section, c.aggFold.col, demand, budget, adapter)
+
+    const scope = { rowSection: c.rule!.rowSection, rowId: c.rowId }
+    const fallback = adapter.createResolver(scope)
+    const resolver = new DemandResolver(
+      fallback,
+      (key, next) => this.resolveDemand(c.key, false, key, next, demand, budget, adapter),
+      scope.rowSection,
+      scope.rowId,
+    )
     const ctx: EvalContext = { resolver, now: this.evaluationInstant!, budget }
     try {
       return { state: 'Resolved', value: evaluate(c.rule!.ast as Json, ctx) }
@@ -531,17 +658,25 @@ export class FormRuleGraph {
     }
   }
 
-  private buildPlanOutcome(plan: OutcomePlan, budget: EvalBudget, adapter: ContextAdapter): RuleOutcome {
+  private buildPlanOutcome(plan: OutcomePlan, demand: DemandState, budget: EvalBudget, adapter: ContextAdapter): RuleOutcome {
     if (plan.isComputeValue) {
       const cv = this.values.get(plan.target) ?? { state: 'Resolved', value: null }
       return { ruleId: plan.rule.source.id, target: plan.target, outputType: 'Value', value: cv }
     }
-    const resolver = adapter.createResolver({ rowSection: plan.rule.rowSection, rowId: plan.rowId })
+    this.beginPlanReads(plan.key)
+    const scope = { rowSection: plan.rule.rowSection, rowId: plan.rowId }
+    const fallback = adapter.createResolver(scope)
+    const resolver = new DemandResolver(
+      fallback,
+      (key, next) => this.resolveDemand(plan.key, true, key, next, demand, budget, adapter),
+      scope.rowSection,
+      scope.rowId,
+    )
     const ctx: EvalContext = { resolver, now: this.evaluationInstant!, budget }
     return buildOutcome(plan.rule, plan.target, ctx).outcome
   }
 
-  private foldAggregate(fn: string, section: string, col: string, budget: EvalBudget): ComputedValue {
+  private foldAggregate(fn: string, section: string, col: string, demand: DemandState, budget: EvalBudget, adapter: ContextAdapter): ComputedValue {
     const rows = ownedInstanceDataOf(this.instance)!.tables[section] ?? []
     if (rows.length > this.limits.maxTableRowsPerAggregate) return { state: 'Error', error: err(Codes.tableTooLarge, 'section', section) }
 
@@ -550,8 +685,11 @@ export class FormRuleGraph {
       budget.charge()
       const rowKey = cell.row(section, row.id, col)
       let cv: ComputedValue
-      const computed = this.values.get(rowKey)
-      if (computed) cv = computed
+      const rowCell = this.cells.get(rowKey)
+      // A demanded aggregate can run before ordinary topo evaluation reaches this
+      // row producer. Demand the current-generation cell; only an absent producer
+      // is allowed to fall back to the raw row value.
+      if (rowCell) cv = this.evaluateDemand(rowCell, demand, budget, adapter)
       else {
         const raw = col in row.fields ? row.fields[col] : null
         cv = isPendingSentinel(raw) ? { state: 'Pending' } : { state: 'Resolved', value: raw }

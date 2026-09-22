@@ -188,15 +188,14 @@ public sealed class SkinTests
     }
 
     [Fact]
-    public void Formula_RejectsAnOperandIncompatibleWithItsDeclaredInputType()
+    public void Formula_DeclaredInputDoesNotCertifyRuntimeValuesItCannotGuard()
     {
         var expr = JsonNode.Parse("""{ "money.add": [ { "var": "approved" }, "1.00" ] }""");
         var skin = new FormulaSkin("f", RuleScope.Field, "total", RuleActionKind.Compute,
             new[] { new FormulaInput("approved", "boolean") }, expr);
 
-        var ex = Assert.Throws<RuleCompilationException>(() => FormulaCompiler.Compile(skin));
-
-        Assert.Equal("rule.skin.formula_type_mismatch", ex.Code);
+        var rule = FormulaCompiler.Compile(skin);
+        Assert.Equal(RuleActionKind.Compute, rule.Action);
     }
 
     [Fact]

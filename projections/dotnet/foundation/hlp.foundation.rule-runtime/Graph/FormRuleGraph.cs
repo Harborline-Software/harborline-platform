@@ -30,6 +30,11 @@ public sealed class FormRuleGraph : IFormRuleGraph
     // Broad reverse index: ANY referenced cell key (raw field OR computed) -> computed cells that read it.
     // Used by the reactive path so a change to a RAW field still dirties its dependents.
     private readonly Dictionary<string, HashSet<string>> _readers = new();
+    // Actual (expression-valued missing key) reads from the current generation.
+    // Kept separate from static references so a key-list change can replace them.
+    private readonly Dictionary<string, HashSet<string>> _dynamicReaders = new();
+    private readonly Dictionary<string, HashSet<string>> _actualCellReads = new();
+    private readonly Dictionary<string, HashSet<string>> _actualPlanReads = new();
     private readonly List<OutcomePlan> _plans = new();
 
     // Last evaluation state (mutated incrementally).
@@ -98,7 +103,7 @@ public sealed class FormRuleGraph : IFormRuleGraph
         while (queue.Count > 0)
         {
             var node = queue.Dequeue();
-            if (_readers.TryGetValue(node, out var readers))
+            foreach (var readers in ReadersOf(node))
             {
                 foreach (var d in readers)
                 {
@@ -116,7 +121,7 @@ public sealed class FormRuleGraph : IFormRuleGraph
         while (queue.Count > 0)
         {
             var node = queue.Dequeue();
-            if (_readers.TryGetValue(node, out var readers))
+            foreach (var readers in ReadersOf(node))
             {
                 foreach (var reader in readers)
                 {
@@ -128,18 +133,21 @@ public sealed class FormRuleGraph : IFormRuleGraph
         _evaluationInstant = _clock.GetUtcNow();
         var budget = NewBudget(ct);
         var adapter = new FormContextAdapter(_values, _instance); // ADR 0146 D3 context seam
+        var run = new DemandRun(this, budget, adapter, dirty);
         try
         {
             // Re-eval only the dirty computed cells, in topo order.
             foreach (var cell in _order.Where(c => dirty.Contains(c.Key)))
             {
-                _values[cell.Key] = EvalComputedCell(cell, budget, adapter);
+                _values[cell.Key] = run.Evaluate(cell);
             }
             // Re-eval only the outcomes that read the changed field or a dirty cell (referential stability elsewhere).
             var touched = new HashSet<string>(dirty) { changedKey };
-            foreach (var plan in _plans.Where(p => UsesClock(p.Rule) || p.Reads.Overlaps(touched) || dirty.Contains(p.Target.Key)))
+            foreach (var plan in _plans.Where(p => UsesClock(p.Rule) || p.Reads.Overlaps(touched)
+                || (_actualPlanReads.TryGetValue(p.Key, out var actual) && actual.Overlaps(touched))
+                || dirty.Contains(p.Target.Key)))
             {
-                _outcomes[plan.Key] = BuildOutcome(plan, budget, adapter);
+                _outcomes[plan.Key] = BuildOutcome(plan, run);
             }
         }
         catch (RuleBudgetException) { return FailClosed(RuleEngineCodes.BudgetExceeded); }
@@ -225,15 +233,16 @@ public sealed class FormRuleGraph : IFormRuleGraph
         _values.Clear();
         _outcomes.Clear();
         var adapter = new FormContextAdapter(_values, _instance); // ADR 0146 D3 context seam
+        var run = new DemandRun(this, budget, adapter, null);
         try
         {
             foreach (var cell in _order)
             {
-                _values[cell.Key] = EvalComputedCell(cell, budget, adapter);
+                _values[cell.Key] = run.Evaluate(cell);
             }
             foreach (var plan in _plans)
             {
-                _outcomes[plan.Key] = BuildOutcome(plan, budget, adapter);
+                _outcomes[plan.Key] = BuildOutcome(plan, run);
             }
         }
         catch (RuleBudgetException) { return FailClosed(RuleEngineCodes.BudgetExceeded); }
@@ -274,6 +283,9 @@ public sealed class FormRuleGraph : IFormRuleGraph
         _deps.Clear();
         _dependents.Clear();
         _readers.Clear();
+        _dynamicReaders.Clear();
+        _actualCellReads.Clear();
+        _actualPlanReads.Clear();
         _order.Clear();
         _plans.Clear();
 
@@ -429,6 +441,39 @@ public sealed class FormRuleGraph : IFormRuleGraph
         set.Add(reader);
     }
 
+    private IEnumerable<HashSet<string>> ReadersOf(string key)
+    {
+        if (_readers.TryGetValue(key, out var staticReaders)) yield return staticReaders;
+        if (_dynamicReaders.TryGetValue(key, out var dynamicReaders)) yield return dynamicReaders;
+    }
+
+    private void ClearActualCellReads(string owner)
+    {
+        if (!_actualCellReads.Remove(owner, out var prior)) return;
+        foreach (var key in prior)
+        {
+            if (!_dynamicReaders.TryGetValue(key, out var readers)) continue;
+            readers.Remove(owner);
+            if (readers.Count == 0) _dynamicReaders.Remove(key);
+        }
+    }
+
+    private void RecordActualCellRead(string owner, string key)
+    {
+        if (!_actualCellReads.TryGetValue(owner, out var reads)) _actualCellReads[owner] = reads = new HashSet<string>();
+        if (!reads.Add(key)) return;
+        if (!_dynamicReaders.TryGetValue(key, out var readers)) _dynamicReaders[key] = readers = new HashSet<string>();
+        readers.Add(owner);
+    }
+
+    private void BeginPlanReads(string key) => _actualPlanReads[key] = new HashSet<string>();
+
+    private void RecordActualPlanRead(string owner, string key)
+    {
+        if (!_actualPlanReads.TryGetValue(owner, out var reads)) _actualPlanReads[owner] = reads = new HashSet<string>();
+        reads.Add(key);
+    }
+
     private void TopoSort()
     {
         var inDeg = _cells.Keys.ToDictionary(k => k, k => _deps[k].Count);
@@ -453,14 +498,15 @@ public sealed class FormRuleGraph : IFormRuleGraph
 
     // ── cell + outcome evaluation ────────────────────────────────────────────
 
-    private ComputedValue EvalComputedCell(ComputedCell cell, EvalBudget budget, IContextAdapter adapter)
+    private ComputedValue EvalComputedCell(ComputedCell cell, DemandRun run)
     {
         if (cell.Cyclic) return ComputedValue.OfError(RuleError.Of(RuleEngineCodes.Cycle, "cell", cell.Key));
 
-        if (cell.AggFold is { } fold) return FoldAggregate(fold.Fn, fold.Section, fold.Col, budget);
+        if (cell.AggFold is { } fold) return FoldAggregate(fold.Fn, fold.Section, fold.Col, run);
 
-        var resolver = adapter.CreateResolver(new RuleEvalScope(cell.Rule!.RowSection, cell.RowId));
-        var ctx = new EvalContext(resolver, _evaluationInstant, budget);
+        var scope = new RuleEvalScope(cell.Rule!.RowSection, cell.RowId);
+        var resolver = new DemandResolver(run.Adapter.CreateResolver(scope), run, cell.Key, scope);
+        var ctx = new EvalContext(resolver, _evaluationInstant, run.Budget);
         try
         {
             return ComputedValue.Resolved(HarborlineJsonLogic.Evaluate(cell.Rule.Ast, ctx));
@@ -471,26 +517,33 @@ public sealed class FormRuleGraph : IFormRuleGraph
 
     private static bool UsesClock(CompiledRule? rule) => rule is not null && ContainsDateToday(rule.Ast);
 
-    private static bool ContainsDateToday(JsonNode? node) => node switch
+    private static bool ContainsDateToday(JsonNode? node)
     {
-        JsonObject obj => obj.ContainsKey("date.today") || obj.Any(pair => ContainsDateToday(pair.Value)),
-        JsonArray array => array.Any(ContainsDateToday),
-        _ => false,
-    };
+        // The evaluator only executes a single-key object; arrays and multi-key objects
+        // are literal data.  Recurse only through an executable operator's argument list.
+        if (node is not JsonObject obj || obj.Count != 1) return false;
+        var (op, raw) = obj.First();
+        if (op == "date.today") return true;
+        return raw is JsonArray args
+            ? args.Any(ContainsDateToday)
+            : ContainsDateToday(raw);
+    }
 
-    private RuleOutcome BuildOutcome(OutcomePlan plan, EvalBudget budget, IContextAdapter adapter)
+    private RuleOutcome BuildOutcome(OutcomePlan plan, DemandRun run)
     {
         if (plan.IsComputeValue)
         {
             var cv = _values.TryGetValue(plan.Target.Key, out var v) ? v : ComputedValue.Resolved(null);
             return RuleOutcome.OfValue(plan.Rule.Source.Id, plan.Target, cv);
         }
-        var resolver = adapter.CreateResolver(new RuleEvalScope(plan.Rule.RowSection, plan.RowId));
-        var ctx = new EvalContext(resolver, _evaluationInstant, budget);
+        BeginPlanReads(plan.Key);
+        var scope = new RuleEvalScope(plan.Rule.RowSection, plan.RowId);
+        var resolver = new DemandResolver(run.Adapter.CreateResolver(scope), run, plan.Key, scope, plan: true);
+        var ctx = new EvalContext(resolver, _evaluationInstant, run.Budget);
         return OutcomeBuilder.Build(plan.Rule, plan.Target, resolver, ctx).Outcome;
     }
 
-    private ComputedValue FoldAggregate(string fn, string section, string col, EvalBudget budget)
+    private ComputedValue FoldAggregate(string fn, string section, string col, DemandRun run)
     {
         if (!_instance.Tables.TryGetValue(section, out var rows)) rows = new List<RuleRow>();
         if (rows.Count > _limits.MaxTableRowsPerAggregate)
@@ -501,12 +554,15 @@ public sealed class FormRuleGraph : IFormRuleGraph
         var values = new List<JsonNode?>();
         foreach (var row in rows)
         {
-            budget.Charge();
+            run.Budget.Charge();
             var rowKey = CellAddress.Row(section, row.Id, col).Key;
             ComputedValue cv;
-            if (_values.TryGetValue(rowKey, out var computed))
+            // A demanded aggregate can run before the ordinary topo loop reaches its
+            // row producer. Demand the current-generation cell when one exists;
+            // only an absent producer is permitted to use the raw row value.
+            if (_cells.TryGetValue(rowKey, out var rowCell))
             {
-                cv = computed;
+                cv = run.Evaluate(rowCell);
             }
             else
             {
@@ -666,6 +722,109 @@ public sealed class FormRuleGraph : IFormRuleGraph
         => Compiled.Rules.Any(rule => rule.References.Any(reference => reference is AggRef aggregate && aggregate.Section == section));
 
     // ── internal node + plan records ─────────────────────────────────────────
+
+    private sealed class DemandRun
+    {
+        private readonly FormRuleGraph _graph;
+        private readonly HashSet<string> _active = new();
+        private readonly HashSet<string> _completed = new();
+        private readonly HashSet<string>? _dirty;
+
+        public DemandRun(FormRuleGraph graph, EvalBudget budget, IContextAdapter adapter, HashSet<string>? dirty)
+        {
+            _graph = graph;
+            Budget = budget;
+            Adapter = adapter;
+            _dirty = dirty;
+        }
+
+        public EvalBudget Budget { get; }
+        public IContextAdapter Adapter { get; }
+
+        public ComputedValue Evaluate(ComputedCell cell)
+        {
+            if (_dirty is not null && !_dirty.Contains(cell.Key) && _graph._values.TryGetValue(cell.Key, out var stable)) return stable;
+            if (_completed.Contains(cell.Key) && _graph._values.TryGetValue(cell.Key, out var complete)) return complete;
+            if (_active.Contains(cell.Key)) return ComputedValue.OfError(RuleError.Of(RuleEngineCodes.Cycle, "cell", cell.Key));
+            // Static admission bounds a declared chain; this closes the additional runtime
+            // dynamic chain before host recursion can grow without a validated limit.
+            // _active already contains the parent chain, so before adding this cell its
+            // count is the number of demand edges that will lead to it. Match compiler
+            // admission: depth zero permits a leaf, and only depth greater than the cap
+            // is refused.
+            if (_active.Count > Budget.Limits.MaxDependencyDepth)
+                return ComputedValue.OfError(RuleError.Of(RuleEngineCodes.BudgetExceeded));
+
+            Budget.Charge();
+            _active.Add(cell.Key);
+            _graph.ClearActualCellReads(cell.Key);
+            try
+            {
+                var value = _graph.EvalComputedCell(cell, this);
+                _graph._values[cell.Key] = value;
+                _completed.Add(cell.Key);
+                return value;
+            }
+            finally
+            {
+                _active.Remove(cell.Key);
+            }
+        }
+
+        public RefValue Resolve(string owner, bool plan, string key, Func<RefValue> fallback)
+        {
+            if (plan) _graph.RecordActualPlanRead(owner, key);
+            else _graph.RecordActualCellRead(owner, key);
+            if (!_graph._cells.TryGetValue(key, out var cell)) return fallback();
+            return FromComputed(Evaluate(cell), key);
+        }
+
+        private static RefValue FromComputed(ComputedValue value, string key) => value.State switch
+        {
+            ValueState.Resolved => RefValue.Resolved(value.Value),
+            ValueState.Pending => RefValue.Pending,
+            _ => RefValue.OfError(value.Error?.Code == RuleEngineCodes.Cycle
+                ? value.Error
+                : RuleError.Of(RuleEngineCodes.UpstreamError, "cell", key)),
+        };
+    }
+
+    private sealed class DemandResolver : IValueResolver
+    {
+        private readonly IValueResolver _fallback;
+        private readonly DemandRun _run;
+        private readonly string _owner;
+        private readonly bool _plan;
+        private readonly RuleEvalScope _scope;
+
+        public DemandResolver(IValueResolver fallback, DemandRun run, string owner, RuleEvalScope scope, bool plan = false)
+        {
+            _fallback = fallback;
+            _run = run;
+            _owner = owner;
+            _scope = scope;
+            _plan = plan;
+        }
+
+        public RefValue ResolveVar(string path)
+        {
+            if (path.StartsWith("row.", StringComparison.Ordinal))
+            {
+                if (_scope.RowSection is null || _scope.RowId is null) return _fallback.ResolveVar(path);
+                var rowKey = CellAddress.Row(_scope.RowSection, _scope.RowId, path["row.".Length..]).Key;
+                return _run.Resolve(_owner, _plan, rowKey, () => _fallback.ResolveVar(path));
+            }
+            var name = path.StartsWith("field.", StringComparison.Ordinal) ? path["field.".Length..] : path;
+            var key = CellAddress.Field(name).Key;
+            return _run.Resolve(_owner, _plan, key, () => _fallback.ResolveVar(path));
+        }
+
+        public RefValue ResolveAgg(string fn, string section, string col)
+        {
+            var key = CellAddress.TableAggregate(section, fn, col).Key;
+            return _run.Resolve(_owner, _plan, key, () => _fallback.ResolveAgg(fn, section, col));
+        }
+    }
 
     private sealed record ComputedCell(
         string Key,

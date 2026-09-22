@@ -313,8 +313,9 @@ export function validateRuleDefinitionJson(json: string, phase: RuleIntentPhase)
   }
   try {
     const lowered = compileDraft(editorDraft(draft), ruleId)
-    // The compiler accepts encoded JSON or an AST; encode to disambiguate a string literal.
-    compile([{ ...lowered, expression: canonicalJson(lowered.expression) }])
+    // compileDraft already emits the canonical encoded scalar JSON contract used by the
+    // compiler. Re-encoding here adds two quotes and changes the literal admission bound.
+    compile([lowered])
     return { document, diagnostics: [] }
   } catch (error) {
     if (!(error instanceof CompileError)) throw error

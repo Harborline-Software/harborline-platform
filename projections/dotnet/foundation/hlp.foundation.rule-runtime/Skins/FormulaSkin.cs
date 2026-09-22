@@ -25,7 +25,7 @@ namespace Harborline.Foundation.RuleEngine.Skins;
 /// <c>self</c>). Must match the <c>var</c> path used in <see cref="FormulaSkin.Expression"/> exactly
 /// (pre-lowering).</param>
 /// <param name="Type">The declared type (<c>number</c> / <c>string</c> / <c>boolean</c> / <c>any</c>) —
-/// authoring metadata in v1 (the compiler enforces declared-ness, not the type).</param>
+/// checked by the shared core type derivation.</param>
 public sealed record FormulaInput(string Ref, string Type = "any");
 
 /// <summary>
@@ -63,7 +63,13 @@ public static class FormulaCompiler
             throw Reject(SkinCodes.FormulaEmpty, id, "a formula must declare a non-empty expression");
 
         var declared = new HashSet<string>(skin.Inputs.Select(i => i.Ref), StringComparer.Ordinal);
-        var types = skin.Inputs.ToDictionary(i => i.Ref, i => ParseType(i.Type, id), StringComparer.Ordinal);
+        // Formula input declarations remain authoring metadata in the persisted RuleDefinition.
+        // A returned RuleDefinition has no runtime type guard, so using these narrower types to
+        // certify it would be unsound. Validate the declaration spelling, then use the same
+        // conservative dynamic contract as ordinary compilation.
+        foreach (var input in skin.Inputs)
+            _ = CoreTypeDerivation.ParseDeclaredType(input.Type, id,
+                message => Reject(SkinCodes.FormulaTypeMismatch, id, message));
         foreach (var referenced in CollectVarPaths(skin.Expression))
         {
             if (!declared.Contains(referenced))
@@ -71,7 +77,8 @@ public static class FormulaCompiler
                     $"expression references '{referenced}', which is not a declared input (declared: {string.Join(", ", declared.OrderBy(x => x, StringComparer.Ordinal))})");
         }
 
-        _ = Infer(skin.Expression, types, id);
+        _ = CoreTypeDerivation.Derive(skin.Expression, id,
+            refusal: message => Reject(SkinCodes.FormulaTypeMismatch, id, message));
 
         var definition = RuleDefinitionFactory.Create(
             Id: id,
@@ -99,6 +106,15 @@ public static class FormulaCompiler
     {
         switch (node)
         {
+            case JsonObject obj when obj.Count == 1 && (obj.ContainsKey("missing") || obj.ContainsKey("missing_some")):
+            {
+                var raw = obj.First().Value;
+                var args = raw is JsonArray array ? array.ToList() : new List<JsonNode?> { raw };
+                if (obj.ContainsKey("missing_some") && args.Count > 0) Walk(args[0], seen, set);
+                foreach (var keySource in obj.ContainsKey("missing_some") ? args.Skip(1) : args)
+                    CollectMissingPaths(keySource, seen, set);
+                break;
+            }
             case JsonObject obj when obj.Count == 1 && obj.ContainsKey("var"):
             {
                 string path = VarPathOf(obj["var"]);
@@ -107,87 +123,31 @@ public static class FormulaCompiler
                 if (obj["var"] is JsonArray a && a.Count > 1) Walk(a[1], seen, set);
                 break;
             }
-            case JsonObject obj:
-                foreach (var (_, v) in obj) Walk(v, seen, set);
+            case JsonObject obj when obj.Count == 1:
+            {
+                var argument = obj.First().Value;
+                if (argument is JsonArray arguments) foreach (var item in arguments) Walk(item, seen, set);
+                else Walk(argument, seen, set);
                 break;
-            case JsonArray arr:
-                foreach (var item in arr) Walk(item, seen, set);
-                break;
+            }
         }
+    }
+
+    private static void CollectMissingPaths(JsonNode? node, List<string> seen, HashSet<string> set)
+    {
+        if (node is JsonArray array) { foreach (var item in array) CollectMissingPaths(item, seen, set); return; }
+        if (node is JsonValue value && value.TryGetValue<string>(out var path) && path.Length > 0)
+        {
+            if (set.Add(path)) seen.Add(path);
+            return;
+        }
+        if (node is JsonObject expression && expression.Count == 1) Walk(expression, seen, set);
     }
 
     private static string VarPathOf(JsonNode? varNode)
         => varNode is JsonArray a
             ? (a.Count > 0 ? a[0]?.GetValue<string>() ?? "" : "")
             : varNode?.GetValue<string>() ?? "";
-
-    private enum FormulaType { Any, Null, Boolean, Number, String, Array, Object, Coding, Money, Date }
-
-    private static FormulaType ParseType(string? type, string ruleId) => (type ?? "any").ToLowerInvariant() switch
-    {
-        "any" => FormulaType.Any,
-        "null" => FormulaType.Null,
-        "boolean" => FormulaType.Boolean,
-        "number" => FormulaType.Number,
-        "string" or "text" => FormulaType.String,
-        "array" => FormulaType.Array,
-        "object" => FormulaType.Object,
-        "coding" => FormulaType.Coding,
-        "money" => FormulaType.Money,
-        "date" => FormulaType.Date,
-        _ => throw Reject(SkinCodes.FormulaTypeMismatch, ruleId, $"input declares unknown type '{type}'"),
-    };
-
-    private static FormulaType Infer(JsonNode? node, IReadOnlyDictionary<string, FormulaType> declared, string ruleId)
-    {
-        if (node is null) return FormulaType.Null;
-        if (node is JsonArray) return FormulaType.Array;
-        if (node is JsonValue value)
-        {
-            if (value.TryGetValue<bool>(out _)) return FormulaType.Boolean;
-            if (value.TryGetValue<string>(out _)) return FormulaType.String;
-            if (value.TryGetValue<double>(out _)) return FormulaType.Number;
-            return FormulaType.Any;
-        }
-        if (node is not JsonObject expression || expression.Count != 1) return FormulaType.Object;
-        var (op, argument) = expression.First();
-        var args = argument is JsonArray array ? array.ToList() : new List<JsonNode?> { argument };
-        FormulaType Arg(int index) => index < args.Count ? Infer(args[index], declared, ruleId) : FormulaType.Null;
-        void Require(int index, params FormulaType[] accepted)
-        {
-            var actual = Arg(index);
-            if (actual != FormulaType.Any && !accepted.Contains(actual))
-                throw Reject(SkinCodes.FormulaTypeMismatch, ruleId,
-                    $"operator '{op}' argument {index + 1} requires {string.Join("/", accepted).ToLowerInvariant()} but declared type is {actual.ToString().ToLowerInvariant()}");
-        }
-
-        switch (op)
-        {
-            case "var":
-                var path = VarPathOf(argument);
-                return declared.TryGetValue(path, out var type) ? type : FormulaType.Any;
-            case "money.add": case "money.sub": case "money.mul":
-                for (int i = 0; i < args.Count; i++) Require(i, FormulaType.String, FormulaType.Number, FormulaType.Money);
-                return FormulaType.Money;
-            case "date.add":
-                Require(0, FormulaType.String, FormulaType.Date); Require(1, FormulaType.Number, FormulaType.String, FormulaType.Boolean); Require(2, FormulaType.String);
-                return FormulaType.Date;
-            case "date.diff":
-                Require(0, FormulaType.String, FormulaType.Date); Require(1, FormulaType.String, FormulaType.Date);
-                return FormulaType.Number;
-            case "date.today": return FormulaType.Date;
-            case "coding.is":
-                Require(0, FormulaType.Coding, FormulaType.Array, FormulaType.Object); Require(1, FormulaType.String); Require(2, FormulaType.String);
-                return FormulaType.Boolean;
-            case "!": case "!!": case "==": case "!=": case "===": case "!==": case ">": case ">=": case "<": case "<=": case "in": return FormulaType.Boolean;
-            case "+": case "-": case "*": case "/": case "%": case "min": case "max":
-                for (int i = 0; i < args.Count; i++) Require(i, FormulaType.Number, FormulaType.String, FormulaType.Boolean);
-                return FormulaType.Number;
-            case "cat": return FormulaType.String;
-            case "missing": case "missing_some": return FormulaType.Array;
-            default: return FormulaType.Any;
-        }
-    }
 
     private static RuleCompilationException Reject(string code, string ruleId, string message)
         => new(code, $"formula skin '{ruleId}': {message}", ruleId);

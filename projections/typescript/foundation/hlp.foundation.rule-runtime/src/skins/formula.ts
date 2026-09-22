@@ -12,6 +12,7 @@
  */
 import { CompileError } from '../grammar.js'
 import { compile } from '../compiler.js'
+import { declaredCoreType, deriveCoreTypes } from '../core-types.js'
 import type { Json, RuleActionKind, RuleDefinition, RuleScope } from '../model.js'
 import { SkinCodes } from './codes.js'
 
@@ -40,21 +41,26 @@ export function compileFormula(skin: FormulaSkin): RuleDefinition {
   }
 
   const declared = new Set(skin.inputs.map((i) => i.ref))
-  const types = new Map(skin.inputs.map((i) => [i.ref, parseType(i.type, id)]))
+  // The returned RuleDefinition has no persisted runtime input guard.  Validate declared
+  // spellings but deliberately broaden evaluation proof to AnyJson rather than certifying a
+  // type which a normal graph invocation can contradict.
+  for (const input of skin.inputs) declaredCoreType(input.type, id, SkinCodes.formulaTypeMismatch)
   for (const referenced of collectVarPaths(skin.expression)) {
     if (!declared.has(referenced)) {
       throw reject(SkinCodes.formulaUndeclaredRef, id,
         `expression references '${referenced}', which is not a declared input (declared: ${[...declared].sort().join(', ')})`)
     }
   }
-  infer(skin.expression, types, id)
+  deriveCoreTypes(skin.expression, id, undefined, SkinCodes.formulaTypeMismatch)
 
   const definition: RuleDefinition = {
     id,
     tier: 'JsonLogic',
     scope: skin.scope,
     scopeTarget: skin.scopeTarget,
-    expression: skin.expression,
+    // RuleDefinition treats a string as encoded JSON source; preserve a scalar formula
+    // as its JSON literal so compile([compileFormula(skin)]) evaluates it, not a raw parser token.
+    expression: typeof skin.expression === 'string' ? JSON.stringify(skin.expression) : skin.expression,
     action: skin.action,
   }
   // The authoring bridge returns only rules admitted by the identical core fence that
@@ -62,7 +68,7 @@ export function compileFormula(skin: FormulaSkin): RuleDefinition {
   // `RuleDefinition.expression` accepts either encoded JSON source or an AST. A scalar formula
   // string is AST data, whereas the core compiler interprets a bare string as encoded source.
   // Encode only this admission copy; retain the canonical authored AST on the returned definition.
-  compile([{ ...definition, expression: JSON.stringify(definition.expression) }])
+  compile([definition])
   return definition
 }
 
@@ -74,6 +80,13 @@ function collectVarPaths(node: Json): string[] {
 }
 
 function walk(node: Json, seen: string[], set: Set<string>): void {
+  if (isObj(node) && Object.keys(node).length === 1 && ('missing' in node || 'missing_some' in node)) {
+    const raw = Object.values(node)[0]
+    const args = Array.isArray(raw) ? raw : [raw]
+    if ('missing_some' in node && args.length > 0) walk(args[0], seen, set)
+    for (const source of ('missing_some' in node ? args.slice(1) : args)) collectMissingPaths(source, seen, set)
+    return
+  }
   if (isObj(node) && Object.keys(node).length === 1 && 'var' in node) {
     const path = varPathOf(node['var'])
     if (path.length > 0 && !set.has(path)) {
@@ -84,11 +97,17 @@ function walk(node: Json, seen: string[], set: Set<string>): void {
     if (Array.isArray(v) && v.length > 1) walk(v[1], seen, set)
     return
   }
-  if (isObj(node)) {
-    for (const v of Object.values(node)) walk(v, seen, set)
-  } else if (Array.isArray(node)) {
-    for (const item of node) walk(item, seen, set)
+  if (isObj(node) && Object.keys(node).length === 1) {
+    const argument = Object.values(node)[0]
+    if (Array.isArray(argument)) for (const item of argument) walk(item, seen, set)
+    else walk(argument, seen, set)
   }
+}
+
+function collectMissingPaths(node: Json, seen: string[], set: Set<string>): void {
+  if (Array.isArray(node)) { for (const item of node) collectMissingPaths(item, seen, set); return }
+  if (typeof node === 'string' && node.length > 0) { if (!set.has(node)) { set.add(node); seen.push(node) }; return }
+  if (isObj(node) && Object.keys(node).length === 1) walk(node, seen, set)
 }
 
 function isObj(n: Json): n is { [k: string]: Json } {
@@ -98,50 +117,6 @@ function isObj(n: Json): n is { [k: string]: Json } {
 function varPathOf(varNode: Json): string {
   if (Array.isArray(varNode)) return varNode.length > 0 ? String(varNode[0]) : ''
   return typeof varNode === 'string' ? varNode : ''
-}
-
-type FormulaType = 'any' | 'null' | 'boolean' | 'number' | 'string' | 'array' | 'object' | 'coding' | 'money' | 'date'
-
-function parseType(type: string | undefined, ruleId: string): FormulaType {
-  const normalized = (type ?? 'any').toLowerCase()
-  if (normalized === 'text') return 'string'
-  if (['any', 'null', 'boolean', 'number', 'string', 'array', 'object', 'coding', 'money', 'date'].includes(normalized)) return normalized as FormulaType
-  throw reject(SkinCodes.formulaTypeMismatch, ruleId, `input declares unknown type '${type}'`)
-}
-
-function infer(node: Json, declared: Map<string, FormulaType>, ruleId: string): FormulaType {
-  if (node === null) return 'null'
-  if (Array.isArray(node)) return 'array'
-  if (typeof node === 'boolean') return 'boolean'
-  if (typeof node === 'number') return 'number'
-  if (typeof node === 'string') return 'string'
-  if (!isObj(node) || Object.keys(node).length !== 1) return 'object'
-  const [op, argument] = Object.entries(node)[0]
-  const args = Array.isArray(argument) ? argument : [argument]
-  const arg = (index: number): FormulaType => index < args.length ? infer(args[index], declared, ruleId) : 'null'
-  const require = (index: number, ...accepted: FormulaType[]): void => {
-    const actual = arg(index)
-    if (actual !== 'any' && !accepted.includes(actual)) {
-      throw reject(SkinCodes.formulaTypeMismatch, ruleId,
-        `operator '${op}' argument ${index + 1} requires ${accepted.join('/')} but declared type is ${actual}`)
-    }
-  }
-  switch (op) {
-    case 'var': return declared.get(varPathOf(argument)) ?? 'any'
-    case 'money.add': case 'money.sub': case 'money.mul':
-      args.forEach((_, i) => require(i, 'string', 'number', 'money')); return 'money'
-    case 'date.add':
-      require(0, 'string', 'date'); require(1, 'number', 'string', 'boolean'); require(2, 'string'); return 'date'
-    case 'date.diff': require(0, 'string', 'date'); require(1, 'string', 'date'); return 'number'
-    case 'date.today': return 'date'
-    case 'coding.is': require(0, 'coding', 'array', 'object'); require(1, 'string'); require(2, 'string'); return 'boolean'
-    case '!': case '!!': case '==': case '!=': case '===': case '!==': case '>': case '>=': case '<': case '<=': case 'in': return 'boolean'
-    case '+': case '-': case '*': case '/': case '%': case 'min': case 'max':
-      args.forEach((_, i) => require(i, 'number', 'string', 'boolean')); return 'number'
-    case 'cat': return 'string'
-    case 'missing': case 'missing_some': return 'array'
-    default: return 'any'
-  }
 }
 
 function reject(code: string, ruleId: string, message: string): CompileError {

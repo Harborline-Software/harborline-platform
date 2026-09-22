@@ -8,6 +8,7 @@ import { cell } from './model.js'
 import type { Json, OutputType, RuleDefinition } from './model.js'
 import { DEFAULT_LIMITS, type RuleEngineLimits } from './limits.js'
 import { CompileError, extractRefs, lower, measure, outputTypeFor, type LowerContext, type RuleRef } from './grammar.js'
+import { declaredCoreType, deriveCoreTypes } from './core-types.js'
 
 export interface CompiledRule {
   source: RuleDefinition
@@ -65,7 +66,7 @@ function validateArity(operator: string, count: number, ruleId: string): void {
   const valid = (() => {
     switch (operator) {
       case 'var': return count === 1 || count === 2
-      case 'missing': return count >= 1
+      case 'missing': return count >= 0
       case 'missing_some': return count === 2
       case '==': case '!=': case '===': case '!==': case '>': case '>=': case '<': case '<=': case 'in': return count === 2
       case '!': case '!!': return count === 1
@@ -127,11 +128,34 @@ export function compile(rules: RuleDefinition[], limits: RuleEngineLimits = DEFA
     }))
   }
 
+  validateCoreTypes(compiled)
   detectCyclesAndDepth(compiled, limits)
   const graph = Object.freeze({ rules: Object.freeze(compiled) })
   compiledGraphBrand.add(graph)
   compiledGraphData.set(graph, compiled)
   return graph
+}
+
+function validateCoreTypes(rules: readonly CompiledRule[]): void {
+  let fields = new Map<string, ReadonlySet<import('./core-types.js').CoreJsonType>>()
+  for (const rule of rules) {
+    if (rule.source.action === 'Compute' && rule.source.scope === 'Field')
+      fields.set(rule.source.scopeTarget, deriveCoreTypes(rule.ast, rule.source.id).types)
+  }
+  for (let pass = 0; pass <= rules.length; pass++) {
+    const next = new Map(fields)
+    for (const rule of rules) {
+      const result = deriveCoreTypes(rule.ast, rule.source.id,
+        (path) => path.startsWith('field.') && fields.has(path.slice('field.'.length))
+          ? fields.get(path.slice('field.'.length))! : declaredCoreType('any', rule.source.id))
+      if (rule.source.action === 'Compute' && rule.source.scope === 'Field') next.set(rule.source.scopeTarget, result.types)
+    }
+    if (next.size === fields.size && [...next].every(([key, value]) => {
+      const old = fields.get(key)
+      return old !== undefined && old.size === value.size && [...old].every(type => value.has(type))
+    })) return
+    fields = next
+  }
 }
 
 function cloneDefinition(rule: RuleDefinition): RuleDefinition {
