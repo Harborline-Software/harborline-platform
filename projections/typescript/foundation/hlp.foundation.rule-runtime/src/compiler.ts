@@ -9,6 +9,7 @@ import type { Json, OutputType, RuleDefinition } from './model.js'
 import { DEFAULT_LIMITS, type RuleEngineLimits } from './limits.js'
 import { CompileError, extractRefs, lower, measure, outputTypeFor, type LowerContext, type RuleRef } from './grammar.js'
 import { declaredCoreType, deriveCoreTypes } from './core-types.js'
+import { deriveGraphWork, type WorkProof } from './core-work.js'
 
 export interface CompiledRule {
   source: RuleDefinition
@@ -22,6 +23,8 @@ export interface CompiledRule {
 
 export interface CompiledGraph {
   rules: readonly CompiledRule[]
+  /** Compiler-owned, non-persisted finite transfer proof for the admitted program. */
+  workProof: WorkProof
 }
 
 // The exported shape remains useful to consumers that inspect admitted programs, but a
@@ -130,7 +133,11 @@ export function compile(rules: RuleDefinition[], limits: RuleEngineLimits = DEFA
 
   validateCoreTypes(compiled)
   detectCyclesAndDepth(compiled, limits)
-  const graph = Object.freeze({ rules: Object.freeze(compiled) })
+  // This is admission, not a runtime fuel estimate.  It runs only after the closed
+  // operator set and static DAG have been established, and remains out of the authored
+  // RuleDefinition document.
+  const workProof = deriveGraphWork(compiled, limits)
+  const graph = Object.freeze({ rules: Object.freeze(compiled), workProof })
   compiledGraphBrand.add(graph)
   compiledGraphData.set(graph, compiled)
   return graph

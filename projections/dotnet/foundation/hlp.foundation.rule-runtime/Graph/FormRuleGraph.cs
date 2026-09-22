@@ -47,10 +47,14 @@ public sealed class FormRuleGraph : IFormRuleGraph
         Compiled = compiled ?? throw new ArgumentNullException(nameof(compiled));
         _limits = limits ?? RuleEngineLimits.Default;
         _clock = clock ?? throw new ArgumentNullException(nameof(clock));
+        WorkProof = CoreWorkDerivation.DeriveGraph(Compiled.Rules, _limits);
     }
 
     /// <inheritdoc />
     public CompiledGraph Compiled { get; }
+
+    /// <summary>Finite proof instantiated for this graph's structural runtime dimensions.</summary>
+    public WorkProof WorkProof { get; }
 
     /// <inheritdoc />
     public RuleEvaluationResult EvaluateInstance(RuleInstance instance, CancellationToken ct = default)

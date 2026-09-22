@@ -161,6 +161,40 @@ public sealed class RuleEngineUnitTests
     }
 
     [Fact]
+    public void Compiler_enforces_ast_and_literal_boundaries_at_and_immediately_over_the_configured_limit()
+    {
+        var astLimits = RuleEngineLimits.Default with { MaxAstNodes = 1 };
+        Assert.Equal(1, RuleCompiler.Compile(new[] { Compute("ast-at", "x", "1") }, astLimits).RuleCount);
+        Assert.Equal(RuleEngineCodes.CompileAstTooLarge,
+            Assert.Throws<RuleCompilationException>(() => RuleCompiler.Compile(new[] { Compute("ast-over", "x", "{\"!\":[true]}") }, astLimits)).Code);
+
+        var literalLimits = RuleEngineLimits.Default with { MaxLiteralLength = 1 };
+        Assert.Equal(1, RuleCompiler.Compile(new[] { Compute("literal-at", "x", "\"a\"") }, literalLimits).RuleCount);
+        Assert.Equal(RuleEngineCodes.CompileLiteralTooLong,
+            Assert.Throws<RuleCompilationException>(() => RuleCompiler.Compile(new[] { Compute("literal-over", "x", "\"ab\"") }, literalLimits)).Code);
+    }
+
+    [Fact]
+    public void Compiler_derives_empty_literal_and_short_dependency_programs_without_host_depth_iteration()
+    {
+        var large = RuleEngineLimits.Default with { MaxDependencyDepth = int.MaxValue };
+        Assert.True(RuleCompiler.Compile([], large).WorkProof.MaximumEvaluationWork >= 0);
+        Assert.True(RuleCompiler.Compile(new[] { Compute("literal", "x", "1") }, large).WorkProof.MaximumResultBytes >= 1);
+        Assert.Equal(2, RuleCompiler.Compile(new[] { Compute("a", "a", "{\"var\":\"b\"}"), Compute("b", "b", "1") }, large).RuleCount);
+    }
+
+    [Fact]
+    public void Graph_instantiates_proof_for_independently_configured_structural_dimensions()
+    {
+        var compiled = RuleCompiler.Compile(new[] { Compute("row-aware", "x", "{\"var\":\"table.sum(items.amount)\"}") },
+            RuleEngineLimits.Default with { MaxTableRowsPerAggregate = 1, MaxGraphNodes = 2 });
+        var graph = new FormRuleGraph(compiled, new FixedClock(Clock),
+            RuleEngineLimits.Default with { MaxTableRowsPerAggregate = 2, MaxGraphNodes = 3 });
+        _ = graph.EvaluateInstance(Instance("{}"));
+        Assert.True(graph.WorkProof.MaximumResultBytes >= compiled.WorkProof.MaximumResultBytes);
+    }
+
+    [Fact]
     public void Compile_rejects_excess_dependency_depth()
     {
         var rules = new List<RuleDefinition> { Compute("c.f0", "f0", "{\"+\":[{\"var\":\"seed\"},1]}") };
@@ -177,6 +211,88 @@ public sealed class RuleEngineUnitTests
         var rule = Compute("c.many", "many", $"{{\"+\":[{refs}]}}");
         var ex = Assert.Throws<RuleCompilationException>(() => RuleCompiler.Compile(new[] { rule }));
         Assert.Equal(RuleEngineCodes.CompileTooManyRefs, ex.Code);
+    }
+
+    [Fact]
+    public void Compiler_publishes_a_finite_compositional_proof_that_bounds_an_executed_copying_expression()
+    {
+        var compiled = RuleCompiler.Compile(new[]
+        {
+            Compute("copying-cat", "result", "{\"cat\":[\"ab\",{\"cat\":[\"cd\",\"ef\"]}]}"),
+        });
+        var evaluated = new FormRuleGraph(compiled, new FixedClock(Clock)).EvaluateInstance(Instance("{}"));
+
+        Assert.Equal("abcdef", evaluated.Values["field:result"].Value!.GetValue<string>());
+        Assert.True(compiled.WorkProof.MaximumResultBytes >= 6);
+        Assert.True(compiled.WorkProof.MaximumEvaluationWork > 0);
+    }
+
+    [Fact]
+    public void Compiler_bounds_the_public_large_aligned_money_concatenation_in_serialized_json_bytes()
+    {
+        var integer = new string('9', 4090);
+        var fraction = "0." + new string('0', 4088) + "1";
+        var pairs = string.Join(",", Enumerable.Repeat($"{{\"money.add\":[\"{integer}\",\"{fraction}\"]}}", 60));
+        var limits = RuleEngineLimits.Default with { StepBudget = 2_000_000, WallClockCeiling = TimeSpan.FromSeconds(5) };
+        var compiled = RuleCompiler.Compile(new[]
+        {
+            Compute("aligned-money-cat", "result", $"{{\"cat\":[{pairs}]}}"),
+        }, limits);
+        var evaluated = new FormRuleGraph(compiled, new FixedClock(Clock), limits).EvaluateInstance(Instance("{}"));
+        var value = evaluated.Values["field:result"];
+        var actualBytes = Encoding.UTF8.GetByteCount(value.Value!.ToJsonString());
+
+        Assert.Equal(ValueState.Resolved, value.State);
+        Assert.Equal(490802, actualBytes);
+        Assert.True(compiled.WorkProof.MaximumResultBytes >= actualBytes);
+    }
+
+    [Fact]
+    public void Compiler_bounds_json_reescaping_and_empty_boolean_date_identities_through_execution()
+    {
+        var compiled = RuleCompiler.Compile(new[]
+        {
+            Compute("quoted-container-cat", "quoted", "{\"cat\":[{\"label\":\"\\\"quoted\\\"\",\"values\":[\"x\"]},{\"date.today\":[]}]}"),
+            Compute("empty-cat", "emptyCat", "{\"cat\":[]}"),
+            Compute("empty-and", "emptyAnd", "{\"and\":[]}"),
+            Compute("empty-or", "emptyOr", "{\"or\":[]}"),
+            Compute("strict-inequality", "different", "{\"!==\":[1,\"1\"]}"),
+        });
+        var result = new FormRuleGraph(compiled, new FixedClock(Clock)).EvaluateInstance(Instance("{}"));
+        var values = new[] { "field:quoted", "field:emptyCat", "field:emptyAnd", "field:emptyOr", "field:different" }
+            .Select(key => result.Values[key].Value!).ToArray();
+
+        Assert.Equal("", values[1].GetValue<string>());
+        Assert.True(values[2].GetValue<bool>());
+        Assert.False(values[3].GetValue<bool>());
+        Assert.True(values[4].GetValue<bool>());
+        Assert.True(compiled.WorkProof.MaximumResultBytes >= values.Max(value => Encoding.UTF8.GetByteCount(value.ToJsonString())));
+    }
+
+    [Fact]
+    public void Money_decimal_accepts_trimmed_text_but_refuses_exponent_text_through_the_executed_evaluator()
+    {
+        var result = Graph(new[]
+        {
+            Compute("trimmed-money", "trimmed", "{\"money.add\":[\" 1.20 \",\"2.30\"]}"),
+            Compute("exponent-money", "exponent", "{\"money.add\":[\"1e2\",\"1\"]}"),
+        }).EvaluateInstance(Instance("{}"));
+
+        Assert.Equal("3.5", result.Values["field:trimmed"].Value!.GetValue<string>());
+        Assert.Equal(ValueState.Error, result.Values["field:exponent"].State);
+        Assert.Equal(RuleEngineCodes.TypeError, result.Values["field:exponent"].Error!.Code);
+    }
+
+    [Fact]
+    public void Money_decimal_refuses_all_whitespace_text_through_the_executed_evaluator()
+    {
+        var result = Graph(new[]
+        {
+            Compute("blank-money", "blank", "{\"money.add\":[\"   \",\"1\"]}"),
+        }).EvaluateInstance(Instance("{}"));
+
+        Assert.Equal(ValueState.Error, result.Values["field:blank"].State);
+        Assert.Equal(RuleEngineCodes.TypeError, result.Values["field:blank"].Error!.Code);
     }
 
     [Fact]
@@ -212,6 +328,26 @@ public sealed class RuleEngineUnitTests
             .EvaluateInstance(Instance("{\"a\":1}"));
         Assert.True(result.IsSaveBlocked);
         Assert.Contains(result.Validations, v => v.Validity!.Error!.Code == RuleEngineCodes.BudgetExceeded);
+    }
+
+    [Fact]
+    public void Runtime_enforces_graph_table_and_step_boundaries_at_and_immediately_over_the_configured_limit()
+    {
+        var graphAt = Graph(new[] { Compute("graph-at", "x", "1") }, RuleEngineLimits.Default with { MaxGraphNodes = 1 });
+        Assert.Equal(1L, graphAt.EvaluateInstance(Instance("{}")).Values["field:x"].Value!.GetValue<long>());
+        var graphOver = Graph(new[] { Compute("graph-over-a", "a", "1"), Compute("graph-over-b", "b", "2") }, RuleEngineLimits.Default with { MaxGraphNodes = 1 });
+        Assert.Equal(RuleEngineCodes.GraphTooLarge, graphOver.EvaluateInstance(Instance("{}")).Validations.Single().Validity!.Error!.Code);
+
+        var total = Compute("table-total", "total", "{\"var\":\"table.sum(items.amount)\"}");
+        var tableAt = Graph(new[] { total }, RuleEngineLimits.Default with { MaxTableRowsPerAggregate = 1 });
+        Assert.Equal(1L, tableAt.EvaluateInstance(Instance("{\"items\":[{\"amount\":1}]}" )).Values["field:total"].Value!.GetValue<long>());
+        var tableOver = Graph(new[] { total }, RuleEngineLimits.Default with { MaxTableRowsPerAggregate = 1 });
+        Assert.Equal(RuleEngineCodes.TableTooLarge, tableOver.EvaluateInstance(Instance("{\"items\":[{\"amount\":1},{\"amount\":2}]}" )).Values["agg:items/sum/amount"].Error!.Code);
+
+        var stepAt = Graph(new[] { Compute("step-at", "x", "1") }, RuleEngineLimits.Default with { StepBudget = 2 });
+        Assert.Equal(1L, stepAt.EvaluateInstance(Instance("{}")).Values["field:x"].Value!.GetValue<long>());
+        var stepOver = Graph(new[] { Compute("step-over", "x", "1") }, RuleEngineLimits.Default with { StepBudget = 0 });
+        Assert.Equal(RuleEngineCodes.BudgetExceeded, stepOver.EvaluateInstance(Instance("{}")).Validations.Single().Validity!.Error!.Code);
     }
 
     [Fact]

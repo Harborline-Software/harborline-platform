@@ -8,9 +8,16 @@ namespace Harborline.Foundation.RuleEngine.Compilation;
 /// <summary>The immutable compiled form of a definition's Tier-2 rules (SPINE-1 design §2.2 step 1).</summary>
 public sealed class CompiledGraph
 {
-    internal CompiledGraph(IReadOnlyList<CompiledRule> rules) => Rules = rules;
+    internal CompiledGraph(IReadOnlyList<CompiledRule> rules, WorkProof workProof)
+    {
+        Rules = rules;
+        WorkProof = workProof;
+    }
 
     internal IReadOnlyList<CompiledRule> Rules { get; }
+
+    /// <summary>Compiler-owned finite transfer proof; never serialized into an authored definition.</summary>
+    public WorkProof WorkProof { get; }
 
     /// <summary>The number of Tier-2 rules compiled (Tier-1 rules are handled by the kernel JSON-Schema validator).</summary>
     public int RuleCount => Rules.Count;
@@ -94,7 +101,9 @@ public static class RuleCompiler
         // as AnyJson.  Cycles are rejected below; the bounded loop is defensive.
         ValidateCoreTypes(compiled);
         DetectCyclesAndDepth(compiled, lim);
-        return new CompiledGraph(compiled);
+        // Admission proof after closed-operator and static-DAG validation.  It is
+        // deliberately distinct from the runtime step/wall-clock backstops.
+        return new CompiledGraph(compiled, CoreWorkDerivation.DeriveGraph(compiled, lim));
     }
 
     private static void ValidateCoreTypes(IReadOnlyList<CompiledRule> rules)

@@ -630,6 +630,30 @@ describe('static-cap rejection (identical to the .NET integrity tier)', () => {
     expect(() => compile([r])).toThrow(CompileError)
   })
 
+  it('enforces graph, aggregate-row, and step boundaries at and immediately over their configured limit', () => {
+    const graphAt = new FormRuleGraph(compile([rule('graph-at', 'x', 'Compute', 1)]), fixedClock,
+      { ...DEFAULT_LIMITS, maxGraphNodes: 1 })
+    expect(graphAt.evaluateInstance(instance({})).values.get('field:x')).toEqual({ state: 'Resolved', value: 1 })
+    const graphOver = new FormRuleGraph(compile([
+      rule('graph-over-a', 'a', 'Compute', 1), rule('graph-over-b', 'b', 'Compute', 2),
+    ]), fixedClock, { ...DEFAULT_LIMITS, maxGraphNodes: 1 })
+    expect(graphOver.evaluateInstance(instance({})).validations[0].validity?.error?.code).toBe(Codes.graphTooLarge)
+
+    const total = rule('table-total', 'total', 'Compute', { var: 'table.sum(items.amount)' })
+    const tableAt = new FormRuleGraph(compile([total]), fixedClock, { ...DEFAULT_LIMITS, maxTableRowsPerAggregate: 1 })
+    expect(tableAt.evaluateInstance(instance({ items: [{ amount: 1 }] })).values.get('field:total')).toEqual({ state: 'Resolved', value: 1 })
+    const tableOver = new FormRuleGraph(compile([total]), fixedClock, { ...DEFAULT_LIMITS, maxTableRowsPerAggregate: 1 })
+    expect(tableOver.evaluateInstance(instance({ items: [{ amount: 1 }, { amount: 2 }] })).values.get('agg:items/sum/amount'))
+      .toMatchObject({ state: 'Error', error: { code: Codes.tableTooLarge } })
+
+    const stepAt = new FormRuleGraph(compile([rule('step-at', 'x', 'Compute', 1)]), fixedClock,
+      { ...DEFAULT_LIMITS, stepBudget: 2 })
+    expect(stepAt.evaluateInstance(instance({})).values.get('field:x')).toEqual({ state: 'Resolved', value: 1 })
+    const stepOver = new FormRuleGraph(compile([rule('step-over', 'x', 'Compute', 1)]), fixedClock,
+      { ...DEFAULT_LIMITS, stepBudget: 0 })
+    expect(stepOver.evaluateInstance(instance({})).validations[0].validity?.error?.code).toBe(Codes.budgetExceeded)
+  })
+
   it('fails closed when the per-instance step budget is exhausted', () => {
     const g = new FormRuleGraph(compile([rule('c.b', 'b', 'Compute', { '+': [{ var: 'a' }, 1] })]), fixedClock, { ...{
       maxGraphNodes: 5000, maxTableRowsPerAggregate: 2000, maxDependencyDepth: 64, maxReferencesPerRule: 64,

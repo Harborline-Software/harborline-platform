@@ -11,6 +11,7 @@ import type {
 } from './model.js'
 import { DEFAULT_LIMITS, type RuleEngineLimits } from './limits.js'
 import { ownedCompiledRulesOf, type CompiledGraph, type CompiledRule } from './compiler.js'
+import { deriveGraphWork, type WorkProof } from './core-work.js'
 import type { RuleRef } from './grammar.js'
 import { detachJson, ownedInstanceDataOf, ownedRowOf, ownedValueOf, RuleInstance, type RuleRow } from './instance.js'
 import { assertBoundedMemberName, INPUT_MAX_DEPTH, INPUT_MAX_NODES, INPUT_MAX_UTF8_BYTES, JsonStringifyByteCounter } from './input-envelope.js'
@@ -275,17 +276,22 @@ export class FormRuleGraph {
   private evaluationInstant: Date | null = null
 
   readonly compiled: CompiledGraph
+  /** Instantiated under this graph's independently supplied structural limits. */
+  readonly workProof: WorkProof
   private readonly compiledRules: readonly CompiledRule[]
+  private readonly limits: RuleEngineLimits
 
   constructor(
     compiled: CompiledGraph,
     private readonly clock: () => Date,
-    private readonly limits: RuleEngineLimits = DEFAULT_LIMITS,
+    limits: RuleEngineLimits = DEFAULT_LIMITS,
   ) {
     const ownedRules = ownedCompiledRulesOf(compiled)
     if (!ownedRules) throw new Error(Codes.contextSnapshotRequired)
     this.compiled = compiled
     this.compiledRules = ownedRules
+    this.limits = { ...limits }
+    this.workProof = deriveGraphWork(ownedRules, this.limits)
     if (typeof clock !== 'function') throw new TypeError('FormRuleGraph requires a caller-supplied clock')
   }
 
