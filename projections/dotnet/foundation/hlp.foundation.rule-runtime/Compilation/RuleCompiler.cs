@@ -8,9 +8,16 @@ namespace Harborline.Foundation.RuleEngine.Compilation;
 /// <summary>The immutable compiled form of a definition's Tier-2 rules (SPINE-1 design §2.2 step 1).</summary>
 public sealed class CompiledGraph
 {
-    internal CompiledGraph(IReadOnlyList<CompiledRule> rules) => Rules = rules;
+    internal CompiledGraph(IReadOnlyList<CompiledRule> rules, WorkProof workProof)
+    {
+        Rules = rules;
+        WorkProof = workProof;
+    }
 
     internal IReadOnlyList<CompiledRule> Rules { get; }
+
+    /// <summary>Compiler-owned finite transfer proof; never serialized into an authored definition.</summary>
+    public WorkProof WorkProof { get; }
 
     /// <summary>The number of Tier-2 rules compiled (Tier-1 rules are handled by the kernel JSON-Schema validator).</summary>
     public int RuleCount => Rules.Count;
@@ -89,8 +96,38 @@ public static class RuleCompiler
             });
         }
 
+        // A value rule can feed another rule.  First derive producer result sets, then
+        // iterate the finite six-tag domain into consumers instead of treating every var
+        // as AnyJson.  Cycles are rejected below; the bounded loop is defensive.
+        ValidateCoreTypes(compiled);
         DetectCyclesAndDepth(compiled, lim);
-        return new CompiledGraph(compiled);
+        // Admission proof after closed-operator and static-DAG validation.  It is
+        // deliberately distinct from the runtime step/wall-clock backstops.
+        return new CompiledGraph(compiled, CoreWorkDerivation.DeriveGraph(compiled, lim));
+    }
+
+    private static void ValidateCoreTypes(IReadOnlyList<CompiledRule> rules)
+    {
+        var fields = new Dictionary<string, CoreJsonType>(StringComparer.Ordinal);
+        foreach (var rule in rules.Where(rule => rule.Source.Action == RuleActionKind.Compute
+            && rule.Source.Scope == RuleScope.Field))
+            fields[rule.Source.ScopeTarget] = CoreTypeDerivation.Derive(rule.Ast, rule.Source.Id).Types;
+
+        for (var pass = 0; pass <= rules.Count; pass++)
+        {
+            var next = new Dictionary<string, CoreJsonType>(fields, StringComparer.Ordinal);
+            foreach (var rule in rules)
+            {
+                var result = CoreTypeDerivation.Derive(rule.Ast, rule.Source.Id,
+                    path => path.StartsWith("field.", StringComparison.Ordinal)
+                        && fields.TryGetValue(path["field.".Length..], out var known)
+                        ? known : CoreJsonType.AnyJson);
+                if (rule.Source.Action == RuleActionKind.Compute && rule.Source.Scope == RuleScope.Field)
+                    next[rule.Source.ScopeTarget] = result.Types;
+            }
+            if (next.Count == fields.Count && next.All(pair => fields.TryGetValue(pair.Key, out var old) && old == pair.Value)) return;
+            fields = next;
+        }
     }
 
     private static void ValidateOperators(JsonNode? node, string ruleId)
@@ -103,10 +140,38 @@ public static class RuleCompiler
             throw new RuleCompilationException(RuleEngineCodes.CompileInvalidExpression,
                 $"rule '{ruleId}': unsupported operator '{operation.Key}'.", ruleId);
 
-        if (operation.Value is JsonArray arguments)
-            foreach (var argument in arguments) ValidateOperators(argument, ruleId);
-        else
-            ValidateOperators(operation.Value, ruleId);
+        var arguments = operation.Value is JsonArray array
+            ? array.ToList()
+            : new List<JsonNode?> { operation.Value };
+        ValidateArity(operation.Key, arguments.Count, ruleId);
+
+        foreach (var argument in arguments)
+            ValidateOperators(argument, ruleId);
+    }
+
+    private static void ValidateArity(string operation, int count, string ruleId)
+    {
+        bool valid = operation switch
+        {
+            "var" => count is 1 or 2,
+            "missing" => count >= 0,
+            "missing_some" => count == 2,
+            "==" or "!=" or "===" or "!==" or ">" or ">=" or "<" or "<=" or "in" => count == 2,
+            "!" or "!!" => count == 1,
+            "and" or "or" or "cat" => true,
+            // A one-argument `if` is the decision-table skin's canonical otherwise-only
+            // shape; the closed interpreter returns that argument unchanged.
+            "if" => true,
+            "+" or "-" or "*" or "/" or "%" or "min" or "max" or "money.add" or "money.sub" or "money.mul" => count >= 1,
+            "agg" or "date.add" or "coding.is" => count == 3,
+            "date.diff" => count == 2,
+            "date.today" => count == 0,
+            _ => false,
+        };
+
+        if (!valid)
+            throw new RuleCompilationException(operation == "agg" ? RuleEngineCodes.CompileBadGrammar : RuleEngineCodes.CompileInvalidExpression,
+                $"rule '{ruleId}': operator '{operation}' does not accept {count} argument(s).", ruleId);
     }
 
     private static (LowerContext Ctx, CellAddress? Target, string? RowSection, string? RowField) ResolveScope(RuleDefinition rule)

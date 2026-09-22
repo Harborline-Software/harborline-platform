@@ -129,6 +129,22 @@ public sealed class FileJournalFormSubmissionStoreTests
     }
 
     [Fact]
+    public async Task SubmissionScope_RollbackWritesNoJournalFrameAndReopeningStartsEmpty()
+    {
+        using var fixture = new JournalFixture();
+        using (var store = fixture.Open())
+        {
+            await using var scope = await store.BeginTransactionAsync();
+            await scope.RollbackAsync();
+            Assert.Equal((0, 0, 0, 0), await store.CountsAsync());
+        }
+
+        using var reopened = fixture.Open();
+        Assert.Equal((0, 0, 0, 0), await reopened.CountsAsync());
+        Assert.Equal(0, new FileInfo(fixture.JournalPath).Length);
+    }
+
+    [Fact]
     public void FileSubmissionStore_RegistersSingletonAndRefusesLayering()
     {
         using var fixture = new JournalFixture();

@@ -527,11 +527,18 @@ function verifyNpm() {
     throw new Error(`npm UI package proof requires one packed rule-engine peer: ${JSON.stringify(ruleEngineArtifacts)}`)
   }
   const ruleEngineArtifact = resolve(npmArtifacts, ruleEngineArtifacts[0])
+  const ruleAuthoringArtifacts = readdirSync(npmArtifacts)
+    .filter(name => name.startsWith('harborline-software-rule-authoring-') && name.endsWith('.tgz'))
+  if (ruleAuthoringArtifacts.length !== 1) {
+    throw new Error(`npm UI package proof requires one packed rule-authoring peer: ${JSON.stringify(ruleAuthoringArtifacts)}`)
+  }
+  const ruleAuthoringArtifact = resolve(npmArtifacts, ruleAuthoringArtifacts[0])
   run('npm', [
     'install', '--ignore-scripts', '--no-audit', '--no-fund', '--package-lock=false',
     artifact,
     contractsArtifact,
     ruleEngineArtifact,
+    ruleAuthoringArtifact,
   ], { cwd: consumer })
   const output = run(process.execPath, ['exercise.mjs'], { cwd: consumer }).trim()
   const installed = resolve(consumer, 'node_modules/@harborline-software/ui-react')
@@ -689,7 +696,7 @@ function verifyRuleRuntimeNpm() {
   const consumer = resolve(fixtureRoot, 'rule-runtime-npm-consumer')
   mkdirSync(consumer, {recursive: true})
   writeFileSync(resolve(consumer, 'package.json'), '{"private":true,"type":"module"}\n')
-  writeFileSync(resolve(consumer, 'exercise.mjs'), `import assert from 'node:assert/strict'\nimport {compile, FormRuleGraph, RuleInstance, serializeOutcome} from '@harborline-software/rule-engine'\nconst rule = {id:'opt.result',tier:'JsonLogic',scope:'Field',scopeTarget:'result',expression:['PASS','FAIL'],action:'Options'}\nconst result = new FormRuleGraph(compile([rule])).evaluateInstance(RuleInstance.fromJson({}))\nassert.equal(serializeOutcome(result.byRule.get('opt.result')), '{"options":{"options":["PASS","FAIL"],"state":"Resolved"},"outputType":"Options","ruleId":"opt.result","target":"field:result"}')\nprocess.stdout.write('packed npm reactive Rule Runtime emitted canonical Options outcome\\n')\n`)
+  writeFileSync(resolve(consumer, 'exercise.mjs'), `import assert from 'node:assert/strict'\nimport {compile, FormRuleGraph, RuleInstance, serializeOutcome} from '@harborline-software/rule-engine'\nconst rule = {id:'opt.result',tier:'JsonLogic',scope:'Field',scopeTarget:'result',expression:['PASS','FAIL'],action:'Options'}\nconst result = new FormRuleGraph(compile([rule]), () => new Date('2026-06-30T00:00:00.000Z')).evaluateInstance(RuleInstance.fromJsonText('{}'))\nassert.equal(serializeOutcome(result.byRule.get('opt.result')), '{"options":{"options":["PASS","FAIL"],"state":"Resolved"},"outputType":"Options","ruleId":"opt.result","target":"field:result"}')\nprocess.stdout.write('packed npm reactive Rule Runtime emitted canonical Options outcome\\n')\n`)
   run('npm', ['install', '--ignore-scripts', '--no-audit', '--no-fund', '--package-lock=false', artifact], { cwd: consumer })
   const output = run(process.execPath, ['exercise.mjs'], { cwd: consumer }).trim()
   const installed = resolve(consumer, 'node_modules/@harborline-software/rule-engine')
@@ -1140,8 +1147,8 @@ function verifyDynamicFormsCapability() {
   const rendererConsumer = resolve(fixtureRoot, 'dynamic-forms-npm-consumer')
   cpSync(resolve(root, 'tests/package-consumers/dynamic-forms-npm'), rendererConsumer, { recursive: true })
   copyFileSync(corpusSource, resolve(rendererConsumer, 'cases.json'))
-  installPackedArtifacts(rendererConsumer, ['harborline-software-ui-react-', 'harborline-software-contracts-', 'harborline-software-rule-engine-'], 'Dynamic Forms renderer')
-  assertPackedInstall(rendererConsumer, ['ui-react', 'contracts', 'rule-engine'], 'Dynamic Forms renderer')
+  installPackedArtifacts(rendererConsumer, ['harborline-software-ui-react-', 'harborline-software-contracts-', 'harborline-software-rule-engine-', 'harborline-software-rule-authoring-'], 'Dynamic Forms renderer')
+  assertPackedInstall(rendererConsumer, ['ui-react', 'contracts', 'rule-engine', 'rule-authoring'], 'Dynamic Forms renderer')
   const [rendererBehavior] = proofLines(clientRun(rendererConsumer), ['DYNAMIC_FORMS_CLIENT_PASS:'], 'Dynamic Forms packed reference lane')
   const clientVerdicts = JSON.parse(readFileSync(resolve(rendererConsumer, 'client-verdicts.json'), 'utf8'))
   if (clientVerdicts.length !== corpusCases) {
@@ -1288,8 +1295,8 @@ function verifyViewsCapability() {
   cpSync(resolve(root, 'tests/package-consumers/views-npm'), rendererConsumer, { recursive: true })
   mkdirSync(resolve(rendererConsumer, '../corpus'), { recursive: true })
   copyFileSync(corpusSource, resolve(rendererConsumer, '../corpus/views-vertical-cases.json'))
-  installPackedArtifacts(rendererConsumer, ['harborline-software-ui-react-'], 'Views renderer')
-  assertPackedInstall(rendererConsumer, ['ui-react'], 'Views renderer')
+  installPackedArtifacts(rendererConsumer, ['harborline-software-ui-react-', 'harborline-software-rule-authoring-', 'harborline-software-rule-engine-'], 'Views renderer')
+  assertPackedInstall(rendererConsumer, ['ui-react', 'rule-authoring', 'rule-engine'], 'Views renderer')
   const [rendererBehavior] = proofLines(clientRun(rendererConsumer), ['VIEWS_CLIENT_PASS:'], 'Views packed renderer lane')
   const clientVerdicts = JSON.parse(readFileSync(resolve(rendererConsumer, 'client-verdicts.json'), 'utf8'))
   if (clientVerdicts.length !== 4 || clientVerdicts.some(row => row.lane !== 'renderer-acknowledged')) {
@@ -1322,7 +1329,7 @@ function verifyViewsCapability() {
   cpSync(resolve(root, 'tests/package-consumers/views-blazor-nuget'), blazorConsumer, { recursive: true })
   const blazorDirectReferences = assertDirectPackageReferences(blazorConsumer, ['Harborline.UIAdapters.Blazor'], 'Views Blazor authoring')
   const [blazorAuthoringBehavior] = proofLines(runNugetConsumer(blazorConsumer, blazorPackageCache), ['VIEWS_BLAZOR_AUTHORING_PASS:'], 'Views Blazor package-only authoring lane')
-  assertPackageClosure(blazorConsumer, ['Harborline.UIAdapters.Blazor', 'Harborline.Foundation', 'Harborline.Contracts'], 'Views Blazor authoring')
+  assertPackageClosure(blazorConsumer, ['Harborline.UIAdapters.Blazor', 'Harborline.Foundation', 'Harborline.Foundation.RuleAuthoring', 'Harborline.Foundation.RuleEngine', 'Harborline.Contracts'], 'Views Blazor authoring')
 
   return {
     id: 'views-capability-vertical',
@@ -1438,8 +1445,8 @@ function verifyAggregatesCapability() {
   mkdirSync(resolve(rendererConsumer, '../corpus'), { recursive: true })
   copyFileSync(corpusSource, resolve(rendererConsumer, '../corpus/aggregates-vertical-cases.json'))
   // Exact views-npm precedent: pass only the packed ui-react tarball; npm resolves its declared peers/dependencies.
-  installPackedArtifacts(rendererConsumer, ['harborline-software-ui-react-'], 'Aggregates renderer')
-  assertPackedInstall(rendererConsumer, ['ui-react'], 'Aggregates renderer')
+  installPackedArtifacts(rendererConsumer, ['harborline-software-ui-react-', 'harborline-software-rule-authoring-', 'harborline-software-rule-engine-'], 'Aggregates renderer')
+  assertPackedInstall(rendererConsumer, ['ui-react', 'rule-authoring', 'rule-engine'], 'Aggregates renderer')
   const [rendererTimeline, rendererProof] = proofLines(clientRun(rendererConsumer), ['CROSS_LANE_TIMELINE:', 'AGGREGATES_RENDERER_PASS:'], 'Aggregates renderer')
   if (engineTimeline !== rendererTimeline) {
     throw new Error(`Aggregates cross-lane timeline diverged byte-for-byte: ${JSON.stringify({ engineTimeline, rendererTimeline })}`)
@@ -1576,7 +1583,7 @@ try {
     completed.set(id, result)
   }
   const plans = new Map([
-    ['ui-react-package', () => runFixture('ui-react-package', verifyNpm, ['forms-contracts-package', 'rule-runtime-package'])],
+    ['ui-react-package', () => runFixture('ui-react-package', verifyNpm, ['forms-contracts-package', 'rule-runtime-package', 'rule-authoring-package'])],
     ['forms-contracts-package', () => runFixture('forms-contracts-package', verifyFormsNpm)],
     ['rule-runtime-package', () => runFixture('rule-runtime-package', verifyRuleRuntimeNpm)],
     ['rule-authoring-package', () => runFixture('rule-authoring-package', verifyRuleAuthoringNpm, ['rule-runtime-package'])],

@@ -22,7 +22,7 @@ internal sealed class FixtureAuthorizationGate : IAuthorizationDecider
         cancellationToken.ThrowIfCancellationRequested();
         Requests.Add(request);
         var inForce = !Revoked && request.At >= ValidFrom && request.At < ValidUntil;
-        var scope = new AccessScopeEvaluator(_ => new Harborline.Foundation.RuleEngine.GuardEvaluator()).Evaluate(
+        var scope = new AccessScopeEvaluator(at => new Harborline.Foundation.RuleEngine.GuardEvaluator(new FixedTimeProvider(at))).Evaluate(
             "{\"and\":[{\"==\":[{\"var\":\"record.owner\"},{\"var\":\"principal\"}]},{\"==\":[{\"var\":\"record.region\"}," + System.Text.Json.JsonSerializer.Serialize(Scope) + "]}]}",
             request, new(request.Principal, request.Tenant, request.Record.Kind, request.Record.Id, request.At,
                 ["record.owner", "record.region", "principal"]), cancellationToken);
@@ -33,6 +33,11 @@ internal sealed class FixtureAuthorizationGate : IAuthorizationDecider
         return ValueTask.FromResult(new AuthorizationDecisionEvidence(request, allowed,
             allowed ? "None" : "NoEffectiveRole", allowed ? "grant:fixture@1" : "none",
             held ? [new(Reader.Name, Scope, ValidFrom, ValidUntil, "fixture", 1, "reader", request.Operation, true, allowed)] : [], []));
+    }
+
+    private sealed class FixedTimeProvider(DateTimeOffset instant) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => instant;
     }
 }
 

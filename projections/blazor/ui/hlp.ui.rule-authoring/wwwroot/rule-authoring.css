@@ -1,0 +1,11 @@
+.hl-rules-authoring { display: grid; gap: var(--hl-space-4, 1rem); min-inline-size: 0; }
+.hl-rules-authoring__header { display: grid; gap: var(--hl-space-3, .75rem); grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr)); }
+.hl-rules-authoring label { display: grid; gap: var(--hl-space-1, .25rem); }
+.hl-rules-authoring input, .hl-rules-authoring select { box-sizing: border-box; min-inline-size: 0; max-inline-size: 100%; }
+.hl-rules-authoring fieldset { min-inline-size: 0; border: 1px solid var(--hl-color-border, currentColor); }
+.hl-rules-authoring__actions { display: flex; flex-wrap: wrap; gap: var(--hl-space-2, .5rem); }
+.hl-rules-authoring__preview { border-inline-start: .25rem solid var(--hl-color-primary, currentColor); padding-inline-start: var(--hl-space-3, .75rem); }
+.hl-rules-authoring__table-scroll { overflow-x: auto; }
+.hl-rules-authoring table { inline-size: 100%; min-inline-size: 34rem; border-collapse: collapse; }
+.hl-rules-authoring th, .hl-rules-authoring td { padding: var(--hl-space-2, .5rem); text-align: start; vertical-align: top; }
+@media (max-width: 42rem) { .hl-rules-authoring__actions { display: grid; grid-template-columns: 1fr; } .hl-rules-authoring table { min-inline-size: 28rem; } }

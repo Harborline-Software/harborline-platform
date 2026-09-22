@@ -36,10 +36,17 @@ public sealed class AccessViewFilterTests
         public ValueTask<AuthorizationDecisionEvidence> DecideAsync(AccessRequest request, CancellationToken cancellationToken = default)
         {
             Instants.Add(request.At);
-            var scope = new AccessScopeEvaluator(_ => new Harborline.Foundation.RuleEngine.GuardEvaluator()).Evaluate(
+            var scope = new AccessScopeEvaluator(at => new Harborline.Foundation.RuleEngine.GuardEvaluator(
+                new AccessViewFilterTimeProvider(at))).Evaluate(
                 "{\"==\":[{\"var\":\"record.owner\"},{\"var\":\"principal\"}]}", request,
-                new(request.Principal, request.Tenant, request.Record.Kind, request.Record.Id, request.At, ["record.owner", "principal"]));
+                new(request.Principal, request.Tenant, request.Record.Kind, request.Record.Id, request.At, ["record.owner", "principal"]),
+                cancellationToken);
             return ValueTask.FromResult(new AuthorizationDecisionEvidence(request, scope.Allowed, scope.Reason, "grant:owner", [], []));
         }
     }
+}
+
+file sealed class AccessViewFilterTimeProvider(DateTimeOffset instant) : TimeProvider
+{
+    public override DateTimeOffset GetUtcNow() => instant;
 }

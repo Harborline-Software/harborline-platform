@@ -7,7 +7,7 @@
   "dependencies": [
     {"moduleId": "hlp.contracts.identities", "interfaceRevision": 1},
     {"moduleId": "hlp.foundation.tenancy", "interfaceRevision": 1},
-    {"moduleId": "hlp.foundation.rule-runtime", "minimumRevision": 1}
+    {"moduleId": "hlp.foundation.rule-runtime", "minimumRevision": 2}
   ],
   "types": {
     "ICurrentUser": {"members": ["string UserId", "IReadOnlyList<string> Roles"]},

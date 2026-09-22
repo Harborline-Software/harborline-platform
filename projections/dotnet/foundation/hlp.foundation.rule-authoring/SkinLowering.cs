@@ -124,6 +124,7 @@ public static class SkinLowering
         FormulaExpr.Ref r => new JsonObject { ["var"] = JsonValue.Create(r.Name) },
         FormulaExpr.Literal l => CoerceValue(l.Value, l.ValueType),
         FormulaExpr.Binary b => new JsonObject { [b.Op] = new JsonArray(ExprToJson(b.Left), ExprToJson(b.Right)) },
+        FormulaExpr.Call c => new JsonObject { [c.Op] = new JsonArray(c.Args.Select(ExprToJson).ToArray()) },
         FormulaExpr.If i => new JsonObject
         {
             ["if"] = new JsonArray(ConditionToJson(i.When), ExprToJson(i.Then), ExprToJson(i.Else)),
@@ -171,17 +172,19 @@ public static class SkinLowering
     /// re-implementation that could diverge from the compiled rule.
     /// </summary>
     public static PreviewResult EvaluatePreview(
-        RuleDraft draft, string ruleId, JsonObject sample, ITraceAuthorityFilter? filter = null)
+        RuleDraft draft, string ruleId, JsonObject sample, TimeProvider clock, ITraceAuthorityFilter? filter = null)
     {
+        ArgumentNullException.ThrowIfNull(clock);
+        var pinnedClock = new PinnedClock(clock.GetUtcNow());
         var def = CompileDraft(draft, ruleId);
         var compiled = RuleCompiler.Compile(new[] { def });
-        var result = new FormRuleGraph(compiled).EvaluateInstance(RuleInstance.FromJson(sample));
+        var result = new FormRuleGraph(compiled, pinnedClock).EvaluateInstance(RuleInstance.FromJson(sample));
         RuleOutcome? outcome = result.ByRule.Values.FirstOrDefault(o => o.RuleId == def.Id);
         var trace = RuleTraceBuilder.BuildForm(compiled, result, filter ?? PassThroughTraceFilter.Instance);
         JsonNode? value = outcome?.Value is { State: ValueState.Resolved } cv ? cv.Value : null;
 
         bool probed = draft is DecisionTableDraft;
-        string? firedRowId = draft is DecisionTableDraft table ? ProbeFiredRow(table, sample) : null;
+        string? firedRowId = draft is DecisionTableDraft table ? ProbeFiredRow(table, sample, pinnedClock) : null;
         return new PreviewResult(value, outcome, firedRowId, probed, trace);
     }
 
@@ -190,7 +193,7 @@ public static class SkinLowering
     /// <summary>Determines which row fired by compiling a PROBE table (outputs = row ids) and
     /// evaluating it — the engine's own ordering + AND semantics, zero divergence from the real
     /// compiled rule.</summary>
-    private static string? ProbeFiredRow(DecisionTableDraft draft, JsonObject sample)
+    private static string? ProbeFiredRow(DecisionTableDraft draft, JsonObject sample, TimeProvider clock)
     {
         var probeRows = draft.Rows.Select(r => r with { Output = r.Id }).ToList();
         var probe = draft with { Rows = probeRows, NoMatch = new NoMatchPosture.Default(Otherwise) };
@@ -204,7 +207,7 @@ public static class SkinLowering
             return null;
         }
         var compiled = RuleCompiler.Compile(new[] { def });
-        var result = new FormRuleGraph(compiled).EvaluateInstance(RuleInstance.FromJson(sample));
+        var result = new FormRuleGraph(compiled, clock).EvaluateInstance(RuleInstance.FromJson(sample));
         foreach (var o in result.ByRule.Values)
         {
             if (o.RuleId == def.Id && o.Value is { State: ValueState.Resolved } cv)
@@ -215,5 +218,10 @@ public static class SkinLowering
             }
         }
         return null;
+    }
+
+    private sealed class PinnedClock(DateTimeOffset instant) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => instant;
     }
 }

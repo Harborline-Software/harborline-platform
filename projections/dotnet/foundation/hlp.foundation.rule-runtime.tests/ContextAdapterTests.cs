@@ -1,4 +1,6 @@
 using System.Text.Json.Nodes;
+using System.Collections;
+using System.Text;
 
 using Harborline.Foundation.RuleEngine.Context;
 using Harborline.Foundation.RuleEngine.Evaluation;
@@ -20,6 +22,72 @@ namespace Harborline.Foundation.RuleEngine.Tests;
 /// </summary>
 public sealed class ContextAdapterTests
 {
+    [Fact]
+    public void GuardEvaluator_refuses_an_effectful_adapter_without_invoking_it()
+    {
+        var adapter = new ThrowingAdapter();
+        var rule = RuleDefinitionFactory.Create("pure", RuleTier.JsonLogic, RuleScope.Schema, "", "true", RuleActionKind.Validate);
+
+        var outcome = new GuardEvaluator(new FixedClock(new DateTimeOffset(2026, 6, 30, 0, 0, 0, TimeSpan.Zero)))
+            .EvaluateGuard(rule, adapter, RuleEvalScope.Root);
+
+        Assert.False(adapter.Invoked);
+        Assert.False(outcome.Ok);
+        Assert.Equal("rule.context_snapshot_required", outcome.Error!.Code);
+    }
+
+    [Fact]
+    public void GuardEvaluator_refuses_an_uncaptured_dictionary_before_its_enumerator_can_write()
+    {
+        var writeAttemptDirectory = Path.Combine(
+            Directory.GetCurrentDirectory(),
+            "artifacts",
+            "t589",
+            "purity-canary-" + Guid.NewGuid().ToString("N"));
+        var context = new WritingDictionary(writeAttemptDirectory);
+        var rule = RuleDefinitionFactory.Create("pure.dictionary", RuleTier.JsonLogic, RuleScope.Schema, "", "true", RuleActionKind.Validate);
+
+        try
+        {
+            var outcome = new GuardEvaluator(new FixedClock(new DateTimeOffset(2026, 6, 30, 0, 0, 0, TimeSpan.Zero)))
+                .EvaluateGuard(rule, context);
+
+            Assert.False(Directory.Exists(writeAttemptDirectory));
+            Assert.False(outcome.Ok);
+            Assert.Equal("rule.context_snapshot_required", outcome.Error!.Code);
+        }
+        finally
+        {
+            if (Directory.Exists(writeAttemptDirectory)) Directory.Delete(writeAttemptDirectory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void RuleContextSnapshot_capture_refuses_a_context_over_the_utf8_byte_envelope()
+    {
+        var source = new Dictionary<string, JsonNode?>
+        {
+            ["payload"] = JsonValue.Create(new string('a', 262_144)),
+        };
+
+        Assert.Throws<ArgumentException>(() => RuleContextSnapshot.Capture(source));
+    }
+
+    [Fact]
+    public void RuleContextSnapshot_json_text_envelope_counts_utf8_bytes_for_ascii_and_non_ascii_data()
+    {
+        const string Prefix = "{\"root\":{\"payload\":\"";
+        const string Suffix = "\"}}";
+        int available = RuleContextSnapshot.MaxUtf8Bytes - Encoding.UTF8.GetByteCount(Prefix + Suffix);
+        var asciiAtLimit = Prefix + new string('a', available) + Suffix;
+        var nonAsciiAtLimit = Prefix + new string('é', available / 2) + Suffix;
+
+        _ = RuleContextSnapshot.FromJsonText(asciiAtLimit);
+        Assert.Throws<ArgumentException>(() => RuleContextSnapshot.FromJsonText(Prefix + new string('a', available + 1) + Suffix));
+        _ = RuleContextSnapshot.FromJsonText(nonAsciiAtLimit);
+        Assert.Throws<ArgumentException>(() => RuleContextSnapshot.FromJsonText(Prefix + new string('é', (available / 2) + 1) + Suffix));
+    }
+
     [Fact]
     public void RuleEvalScope_Root_is_the_default_top_level_scope()
     {
@@ -85,6 +153,33 @@ public sealed class ContextAdapterTests
         private readonly IReadOnlyDictionary<string, JsonNode?> _data;
         public EchoPillarAdapter(IReadOnlyDictionary<string, JsonNode?> data) => _data = data;
         public IValueResolver CreateResolver(RuleEvalScope scope) => new EchoResolver(_data);
+    }
+
+    private sealed class ThrowingAdapter : IContextAdapter
+    {
+        public bool Invoked { get; private set; }
+
+        public IValueResolver CreateResolver(RuleEvalScope scope)
+        {
+            Invoked = true;
+            throw new InvalidOperationException("host callback ran");
+        }
+    }
+
+    private sealed class WritingDictionary(string writeAttemptDirectory) : IReadOnlyDictionary<string, JsonNode?>
+    {
+        public JsonNode? this[string key] => throw new InvalidOperationException("Dictionary lookup must not run.");
+        public IEnumerable<string> Keys => throw new InvalidOperationException("Dictionary keys must not run.");
+        public IEnumerable<JsonNode?> Values => throw new InvalidOperationException("Dictionary values must not run.");
+        public int Count => throw new InvalidOperationException("Dictionary count must not run.");
+        public bool ContainsKey(string key) => throw new InvalidOperationException("Dictionary lookup must not run.");
+        public bool TryGetValue(string key, out JsonNode? value) => throw new InvalidOperationException("Dictionary lookup must not run.");
+        public IEnumerator<KeyValuePair<string, JsonNode?>> GetEnumerator()
+        {
+            Directory.CreateDirectory(writeAttemptDirectory);
+            yield return new KeyValuePair<string, JsonNode?>("ignored", JsonValue.Create(true));
+        }
+        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
     }
 
     private sealed class EchoResolver : IValueResolver

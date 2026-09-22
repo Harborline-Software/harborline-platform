@@ -37,4 +37,7 @@ public static class SkinCodes
     /// <summary>The formula's expression references a var that is not a declared input (named-input
     /// discipline — an undeclared reference is a compile rejection, not a silent free variable).</summary>
     public const string FormulaUndeclaredRef = "rule.skin.formula_undeclared_ref";
+
+    /// <summary>A declared formula input cannot be consumed by the closed operator's type contract.</summary>
+    public const string FormulaTypeMismatch = "rule.skin.formula_type_mismatch";
 }

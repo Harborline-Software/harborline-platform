@@ -114,6 +114,25 @@ public static class ArithOps
     public const string Divide = "/";
 }
 
+/// <summary>
+/// The remaining closed JsonLogic operator set exposed through guided formula composition.
+/// <see cref="FormulaExpr.Ref"/> owns the structured <c>var</c> form, so authors cannot encode
+/// an arbitrary variable path as an operator argument.
+/// </summary>
+public static class FormulaCallOps
+{
+    private static readonly HashSet<string> Supported = new(StringComparer.Ordinal)
+    {
+        "missing", "missing_some",
+        "==", "!=", "===", "!==", "!", "!!", "and", "or", "if",
+        ">", ">=", "<", "<=", "+", "-", "*", "/", "%", "min", "max", "in", "cat",
+        "agg", "money.add", "money.sub", "money.mul", "date.add", "date.diff", "date.today", "coding.is",
+    };
+
+    /// <summary>Returns true only for the engine's admitted non-<c>var</c> formula operators.</summary>
+    public static bool IsSupported(string? op) => op is not null && Supported.Contains(op);
+}
+
 /// <summary>One guided expression term — the constrained composition the formula editor exposes.</summary>
 public abstract record FormulaExpr
 {
@@ -124,6 +143,9 @@ public abstract record FormulaExpr
     public sealed record Literal(string Value, ColumnValueType ValueType) : FormulaExpr;
 
     public sealed record Binary(string Op, FormulaExpr Left, FormulaExpr Right) : FormulaExpr;
+
+    /// <summary>A guided call over the closed engine operator vocabulary; never raw JSON.</summary>
+    public sealed record Call(string Op, IReadOnlyList<FormulaExpr> Args) : FormulaExpr;
 
     public sealed record If(FormulaCondition When, FormulaExpr Then, FormulaExpr Else) : FormulaExpr;
 }

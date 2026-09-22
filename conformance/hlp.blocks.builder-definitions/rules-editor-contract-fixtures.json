@@ -1,0 +1,205 @@
+{
+  "schemaVersion": 1,
+  "description": "T589 supplied editor-contract fixtures. Requests are replayed against RuleDefinitionCatalog and the registered shared store; responses are producer outputs, not UI persistence claims.",
+  "lifecycle": {
+    "sourceJson": "{\"envelope\":{\"id\":\"amount-rule\",\"version\":\"1.0.0\",\"tenant\":\"tenant-a\",\"cascadeLayer\":\"domain-package\",\"provenance\":{\"kind\":\"package\",\"id\":\"finance\"},\"requires\":[]},\"name\":\"Amount rule\",\"tier\":\"JsonLogic\",\"draft\":{\"kind\":\"Formula\",\"scope\":\"Field\",\"scopeTarget\":\"total\",\"outputType\":\"Compute\",\"inputs\":[],\"expression\":{\"kind\":\"Call\",\"op\":\"cat\",\"args\":[{\"kind\":\"Literal\",\"value\":\"A\",\"valueType\":\"Text\"},{\"kind\":\"Literal\",\"value\":\"B\",\"valueType\":\"Text\"}]}}}",
+    "requests": [
+      {
+        "operation": "create",
+        "versionId": "fixture-v1",
+        "expectedRevision": 0,
+        "requestId": "fixture-create"
+      },
+      {
+        "operation": "publish",
+        "versionId": "fixture-v1",
+        "expectedRevision": 1,
+        "requestId": "fixture-publish"
+      },
+      {
+        "operation": "publish",
+        "versionId": "fixture-v1",
+        "expectedRevision": 1,
+        "requestId": "fixture-publish"
+      },
+      {
+        "operation": "publish",
+        "versionId": "fixture-v1",
+        "expectedRevision": 1,
+        "requestId": "fixture-stale"
+      }
+    ],
+    "responses": [
+      {
+        "operation": "create",
+        "status": "Draft",
+        "revision": 1,
+        "identity": {
+          "tenant": "tenant-a",
+          "definitionId": "amount-rule",
+          "versionId": "fixture-v1"
+        }
+      },
+      {
+        "operation": "publish",
+        "status": "Published",
+        "revision": 2,
+        "identity": {
+          "tenant": "tenant-a",
+          "definitionId": "amount-rule",
+          "versionId": "fixture-v1"
+        }
+      },
+      {
+        "operation": "publish-replay",
+        "status": "Published",
+        "revision": 2
+      },
+      {
+        "operation": "publish-stale",
+        "refusal": {
+          "code": "definition.revision_conflict",
+          "pointer": "/expectedRevision"
+        }
+      },
+      {
+        "operation": "materialize-latest",
+        "materialization": {
+          "bindings": [
+            {
+              "tenant": "tenant-a",
+              "definitionId": "amount-rule",
+              "versionId": "fixture-v1",
+              "winningWatermark": "1.0.0",
+              "canonicalSource": "{\"draft\":{\"expression\":{\"args\":[{\"kind\":\"Literal\",\"value\":\"A\",\"valueType\":\"Text\"},{\"kind\":\"Literal\",\"value\":\"B\",\"valueType\":\"Text\"}],\"kind\":\"Call\",\"op\":\"cat\"},\"inputs\":[],\"kind\":\"Formula\",\"outputType\":\"Compute\",\"scope\":\"Field\",\"scopeTarget\":\"total\"},\"envelope\":{\"cascadeLayer\":\"domain-package\",\"id\":\"amount-rule\",\"provenance\":{\"id\":\"finance\",\"kind\":\"package\"},\"requires\":[],\"tenant\":\"tenant-a\",\"version\":\"1.0.0\"},\"name\":\"Amount rule\",\"tier\":\"JsonLogic\"}"
+            }
+          ],
+          "canonicalContent": "{\"bindings\":[{\"definitionId\":\"amount-rule\",\"source\":{\"draft\":{\"expression\":{\"args\":[{\"kind\":\"Literal\",\"value\":\"A\",\"valueType\":\"Text\"},{\"kind\":\"Literal\",\"value\":\"B\",\"valueType\":\"Text\"}],\"kind\":\"Call\",\"op\":\"cat\"},\"inputs\":[],\"kind\":\"Formula\",\"outputType\":\"Compute\",\"scope\":\"Field\",\"scopeTarget\":\"total\"},\"envelope\":{\"cascadeLayer\":\"domain-package\",\"id\":\"amount-rule\",\"provenance\":{\"id\":\"finance\",\"kind\":\"package\"},\"requires\":[],\"tenant\":\"tenant-a\",\"version\":\"1.0.0\"},\"name\":\"Amount rule\",\"tier\":\"JsonLogic\"},\"tenant\":\"tenant-a\",\"versionId\":\"fixture-v1\",\"winningWatermark\":\"1.0.0\"}],\"kind\":\"RulesRelease\"}",
+          "contentDigest": "9b037d3cb2e5cb2c1405823d0170975408c099f44e79a59d1e9e7d9544396240"
+        }
+      },
+      {
+        "operation": "archive",
+        "listVisible": false,
+        "publishedPinStillResolves": true
+      }
+    ]
+  },
+  "preview": {
+    "clockUtc": "2026-06-30T00:00:00Z",
+    "label": "sample",
+    "namedFields": [
+      "ruleName",
+      "memberName"
+    ],
+    "outcomeKinds": [
+      "Value",
+      "Validity",
+      "Visibility",
+      "Presentation",
+      "Refusal",
+      "Pending",
+      "Uncomputable"
+    ],
+    "cases": [
+      {
+        "id": "value",
+        "mode": "preview",
+        "ruleName": "preview-value",
+        "memberName": "amount",
+        "sourceJson": "{\"envelope\":{\"id\":\"preview-value\",\"version\":\"1.0.0\",\"tenant\":\"tenant-a\",\"cascadeLayer\":\"domain-package\",\"provenance\":{\"kind\":\"package\",\"id\":\"fixture\"},\"requires\":[]},\"name\":\"Preview value\",\"tier\":\"JsonLogic\",\"draft\":{\"kind\":\"Formula\",\"scope\":\"Field\",\"scopeTarget\":\"amount\",\"outputType\":\"Compute\",\"inputs\":[],\"expression\":{\"kind\":\"Literal\",\"value\":\"ready\",\"valueType\":\"Text\"}}}",
+        "recordJson": "{}",
+        "expected": {
+          "kind": "Value",
+          "ruleName": "preview-value",
+          "memberName": "amount",
+          "value": "\"ready\""
+        }
+      },
+      {
+        "id": "validity",
+        "mode": "preview",
+        "ruleName": "preview-validity",
+        "memberName": "amount",
+        "sourceJson": "{\"envelope\":{\"id\":\"preview-validity\",\"version\":\"1.0.0\",\"tenant\":\"tenant-a\",\"cascadeLayer\":\"domain-package\",\"provenance\":{\"kind\":\"package\",\"id\":\"fixture\"},\"requires\":[]},\"name\":\"Preview validity\",\"tier\":\"JsonLogic\",\"draft\":{\"kind\":\"Formula\",\"scope\":\"Field\",\"scopeTarget\":\"amount\",\"outputType\":\"Validate\",\"inputs\":[],\"expression\":{\"kind\":\"Literal\",\"value\":\"false\",\"valueType\":\"Boolean\"}}}",
+        "recordJson": "{}",
+        "expected": {
+          "kind": "Validity",
+          "ruleName": "preview-validity",
+          "memberName": "amount",
+          "validity": "invalid",
+          "code": "preview-validity"
+        }
+      },
+      {
+        "id": "visibility",
+        "mode": "preview",
+        "ruleName": "preview-visibility",
+        "memberName": "amount",
+        "sourceJson": "{\"envelope\":{\"id\":\"preview-visibility\",\"version\":\"1.0.0\",\"tenant\":\"tenant-a\",\"cascadeLayer\":\"domain-package\",\"provenance\":{\"kind\":\"package\",\"id\":\"fixture\"},\"requires\":[]},\"name\":\"Preview visibility\",\"tier\":\"JsonLogic\",\"draft\":{\"kind\":\"Formula\",\"scope\":\"Field\",\"scopeTarget\":\"amount\",\"outputType\":\"Visibility\",\"inputs\":[],\"expression\":{\"kind\":\"Literal\",\"value\":\"false\",\"valueType\":\"Boolean\"}}}",
+        "recordJson": "{}",
+        "expected": {
+          "kind": "Visibility",
+          "ruleName": "preview-visibility",
+          "memberName": "amount",
+          "visibility": "visible=False;required=False;readOnly=False"
+        }
+      },
+      {
+        "id": "presentation",
+        "mode": "preview",
+        "ruleName": "preview-presentation",
+        "memberName": "amount",
+        "sourceJson": "{\"envelope\":{\"id\":\"preview-presentation\",\"version\":\"1.0.0\",\"tenant\":\"tenant-a\",\"cascadeLayer\":\"domain-package\",\"provenance\":{\"kind\":\"package\",\"id\":\"fixture\"},\"requires\":[]},\"name\":\"Preview presentation\",\"tier\":\"JsonLogic\",\"draft\":{\"kind\":\"Formula\",\"scope\":\"Field\",\"scopeTarget\":\"amount\",\"outputType\":\"Presentation\",\"inputs\":[],\"expression\":{\"kind\":\"Literal\",\"value\":\"true\",\"valueType\":\"Boolean\"}}}",
+        "recordJson": "{}",
+        "expected": {
+          "kind": "Presentation",
+          "ruleName": "preview-presentation",
+          "memberName": "amount",
+          "presentation": "severity=none;style="
+        }
+      },
+      {
+        "id": "refusal",
+        "mode": "preview",
+        "ruleName": "preview-refusal",
+        "memberName": "amount",
+        "sourceJson": "{\"envelope\":{\"id\":\"preview-refusal\",\"version\":\"1.0.0\",\"tenant\":\"tenant-a\",\"cascadeLayer\":\"domain-package\",\"provenance\":{\"kind\":\"package\",\"id\":\"fixture\"},\"requires\":[]},\"name\":\"Preview refusal\",\"tier\":\"JsonLogic\",\"draft\":{\"kind\":\"Formula\",\"scope\":\"Field\",\"scopeTarget\":\"amount\",\"outputType\":\"Compute\",\"inputs\":[],\"expression\":{\"kind\":\"Binary\",\"op\":\"/\",\"left\":{\"kind\":\"Literal\",\"value\":\"1\",\"valueType\":\"Number\"},\"right\":{\"kind\":\"Literal\",\"value\":\"0\",\"valueType\":\"Number\"}}}}",
+        "recordJson": "{}",
+        "expected": {
+          "kind": "Refusal",
+          "ruleName": "preview-refusal",
+          "memberName": "amount",
+          "code": "rule.div_by_zero"
+        }
+      },
+      {
+        "id": "pending",
+        "mode": "preview",
+        "ruleName": "preview-pending",
+        "memberName": "amount",
+        "sourceJson": "{\"envelope\":{\"id\":\"preview-pending\",\"version\":\"1.0.0\",\"tenant\":\"tenant-a\",\"cascadeLayer\":\"domain-package\",\"provenance\":{\"kind\":\"package\",\"id\":\"fixture\"},\"requires\":[]},\"name\":\"Preview pending\",\"tier\":\"JsonLogic\",\"draft\":{\"kind\":\"Formula\",\"scope\":\"Field\",\"scopeTarget\":\"amount\",\"outputType\":\"Compute\",\"inputs\":[{\"id\":\"raw\",\"ref\":\"raw\",\"type\":\"Number\"}],\"expression\":{\"kind\":\"Ref\",\"name\":\"raw\"}}}",
+        "recordJson": "{\"raw\":{\"@pending\":true}}",
+        "expected": {
+          "kind": "Pending",
+          "ruleName": "preview-pending",
+          "memberName": "amount"
+        }
+      },
+      {
+        "id": "uncomputable",
+        "mode": "diagnostic",
+        "ruleName": "preview-uncomputable",
+        "memberName": "amount",
+        "sourceJson": "{\"envelope\":{\"id\":\"preview-uncomputable\",\"version\":\"1.0.0\",\"tenant\":\"tenant-a\",\"cascadeLayer\":\"domain-package\",\"provenance\":{\"kind\":\"package\",\"id\":\"fixture\"},\"requires\":[]},\"name\":\"Preview uncomputable\",\"tier\":\"JsonLogic\",\"draft\":{\"kind\":\"Formula\",\"scope\":\"Field\",\"scopeTarget\":\"amount\",\"outputType\":\"Compute\",\"inputs\":[{\"id\":\"required\",\"ref\":\"field.required\",\"type\":\"Text\"}],\"expression\":{\"kind\":\"Call\",\"op\":\"+\",\"args\":[{\"kind\":\"Call\",\"op\":\"missing\",\"args\":[{\"kind\":\"Literal\",\"value\":\"field.required\",\"valueType\":\"Text\"}]},{\"kind\":\"Literal\",\"value\":\"1\",\"valueType\":\"Number\"}]}}}",
+        "recordJson": "{}",
+        "expected": {
+          "kind": "Uncomputable",
+          "ruleName": "preview-uncomputable",
+          "memberName": "amount",
+          "code": "rule.skin.formula_type_mismatch"
+        }
+      }
+    ]
+  }
+}

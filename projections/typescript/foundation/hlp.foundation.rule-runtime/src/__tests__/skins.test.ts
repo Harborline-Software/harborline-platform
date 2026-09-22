@@ -6,6 +6,9 @@
 import { describe, it, expect } from 'vitest'
 
 import { CompileError } from '../grammar.js'
+import { compile } from '../compiler.js'
+import { FormRuleGraph } from '../graph.js'
+import { RuleInstance } from '../instance.js'
 import { write } from '../canonical.js'
 import type { Json } from '../model.js'
 import {
@@ -122,6 +125,32 @@ describe('ADR 0146 D2 skins — formula', () => {
       inputs: [{ ref: 'qty', type: 'number' }], expression,
     }))
     expect(code).toBe(SkinCodes.formulaUndeclaredRef)
+  })
+  it('does not certify an unguarded declared input against contradictory runtime JSON', () => {
+    const rule = compileFormula({
+      ruleId: 'f', scope: 'Field', scopeTarget: 'total', action: 'Compute',
+      inputs: [{ ref: 'approved', type: 'boolean' }],
+      expression: { 'money.add': [{ var: 'approved' }, '1.00'] },
+    })
+    const graph = new FormRuleGraph(compile([rule]), () => new Date('2026-01-01T00:00:00Z'))
+    expect(graph.evaluateInstance(RuleInstance.fromJsonText('{"approved":{}}')).values.get('field:total')).toMatchObject({ state: 'Error' })
+  })
+  it('runs core static admission before returning a lowered rule', () => {
+    const code = codeOf(() => compileFormula({
+      ruleId: 'f', scope: 'Field', scopeTarget: 'total', action: 'Compute', inputs: [],
+      expression: { 'date.today': ['unexpected'] },
+    }))
+    expect(code).toBe('rule.compile.invalid_expression')
+  })
+  it('returns a scalar Formula literal as unambiguous JSON source for compile and graph evaluation', () => {
+    const rule = compileFormula({
+      ruleId: 'f.scalar', scope: 'Field', scopeTarget: 'total', action: 'Compute', inputs: [],
+      expression: 'literal text',
+    })
+
+    expect(rule.expression).toBe('"literal text"')
+    const graph = new FormRuleGraph(compile([rule]), () => new Date('2026-01-01T00:00:00Z'))
+    expect(graph.evaluateInstance(RuleInstance.fromJsonText('{}')).values.get('field:total')).toEqual({ state: 'Resolved', value: 'literal text' })
   })
   it('compiles when all refs are declared', () => {
     const expression: Json = { '*': [{ var: 'qty' }, { var: 'price' }] }

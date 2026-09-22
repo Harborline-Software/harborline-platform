@@ -2,7 +2,14 @@ import { fireEvent, render, renderHook, act } from '@testing-library/react'
 import * as React from 'react'
 import { describe, expect, it } from 'vitest'
 
-import type { RuleEvaluationResult, VisibilityState } from '@harborline-software/rule-engine'
+import {
+  compile,
+  FormRuleGraph,
+  RuleInstance,
+  type RuleDefinition,
+  type RuleEvaluationResult,
+  type VisibilityState,
+} from '@harborline-software/rule-engine'
 import type { FormValues, FormView, InternationalizedText } from '@harborline-platform/hlp.ui.form-view'
 import { HarborlineLocaleProvider } from '@harborline-platform/hlp.ui.locale-provider'
 
@@ -46,15 +53,29 @@ const evaluation = (over: Partial<RuleEvaluationResult>): RuleEvaluationResult =
 
 /** Fixture-driven fake engine: `b` is visible only when `a === revealValue`; `total` computes `a.length`. */
 function revealGraph(revealValue: string): RuleGraphLike {
-  return {
-    evaluateInstance: instance => {
-      const a = instance.fields.a as string | undefined
-      return evaluation({
-        visibility: new Map([['field:b', vis(a === revealValue)]]),
-        values: new Map([['field:total', { state: 'Resolved', value: String(a?.length ?? 0) }]]),
-      })
+  return new FormRuleGraph(compile([{
+    id: 'show-b',
+    tier: 'JsonLogic',
+    scope: 'Field',
+    scopeTarget: 'b',
+    expression: { '==': [{ var: 'a' }, revealValue] },
+    action: 'Visibility',
+  }, {
+    id: 'compute-total',
+    tier: 'JsonLogic',
+    scope: 'Field',
+    scopeTarget: 'total',
+    expression: {
+      if: [
+        { '==': [{ var: 'a' }, revealValue] },
+        String(revealValue.length),
+        { '==': [{ var: 'a' }, ''] },
+        '0',
+        '3',
+      ],
     },
-  }
+    action: 'Compute',
+  }] satisfies RuleDefinition[]), () => new Date('2026-06-30T00:00:00.000Z'))
 }
 
 const renderInLocale = (node: React.ReactElement) =>
@@ -360,7 +381,10 @@ describe('hlp.ui.use-form-rule-graph revision-1 shared fixtures', () => {
     const base = viewWith([field('a'), field('b'), field('total', { readOnly: true })])
     const graph = revealGraph('show')
     const outcomes = input.sequence.map(fields => {
-      const { view, computed } = projectRuleOutcomes(base, graph.evaluateInstance({ fields, tables: {} }))
+      const { view, computed } = projectRuleOutcomes(
+        base,
+        graph.evaluateInstance(RuleInstance.fromJsonText(JSON.stringify(fields))),
+      )
       return {
         visible: view.sections[0].fields.map(f => f.name),
         total: computed.total,
