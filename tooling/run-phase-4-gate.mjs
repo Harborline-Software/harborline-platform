@@ -288,7 +288,7 @@ const report = {
   },
   results,
 }
-recordPhase4Gate(resolve(root, 'docs/evidence/phase-4/gate.json'), report)
+recordPhase4Gate(resolve(root, 'docs/evidence/phase-4/gate.json'), report, {headless})
 process.stdout.write(`${JSON.stringify(report, null, 2)}\n`)
 process.exitCode = passed ? 0 : 1
 
