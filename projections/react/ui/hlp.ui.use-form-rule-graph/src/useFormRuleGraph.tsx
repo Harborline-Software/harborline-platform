@@ -1,6 +1,6 @@
 import * as React from 'react'
 
-import type { RuleEvaluationResult } from '@harborline-software/rule-engine'
+import { RuleInstance, type RuleEvaluationResult } from '@harborline-software/rule-engine'
 import type { FormValues, FormView } from '@harborline-platform/hlp.ui.form-view'
 import {
   projectRuleOutcomes,
@@ -47,7 +47,9 @@ export function useFormRuleGraph(
   const evaluated = React.useMemo<{ evaluation: RuleEvaluationResult | null; error: unknown }>(() => {
     if (!graph) return { evaluation: null, error: null }
     try {
-      return { evaluation: graph.evaluateInstance({ fields: userValues, tables: {} }), error: null }
+      const jsonText = JSON.stringify(userValues)
+      if (jsonText === undefined) throw new TypeError('form values must serialize to a JSON object')
+      return { evaluation: graph.evaluateInstance(RuleInstance.fromJsonText(jsonText)), error: null }
     } catch (error) {
       // form-rule-graph.evaluation-failed: the base view passes through and the save gate blocks.
       return { evaluation: null, error }

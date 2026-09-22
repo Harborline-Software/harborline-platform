@@ -40,7 +40,7 @@ export class RuleRowSnapshot {
       throw new TypeError('rule row must contain id and fields')
     const snapshot = new RuleRowSnapshot()
     rowBrand.add(snapshot)
-    rowData.set(snapshot, { id: value.id, fields: value.fields as Record<string, Json>, hasExplicitId: true })
+    rowData.set(snapshot, { id: value.id, fields: cloneRecord(value.fields as Record<string, Json>), hasExplicitId: true })
     return snapshot
   }
 }
@@ -62,14 +62,14 @@ export class RuleInstance {
   static fromJsonText(jsonText: string): RuleInstance {
     const json: unknown = parseBoundedJsonText(jsonText, 'rule instance')
     if (json === null || typeof json !== 'object' || Array.isArray(json)) throw new TypeError('rule instance must be a JSON object')
-    const fields: Record<string, Json> = {}
-    const tables: Record<string, RuleRow[]> = {}
+    const fields = emptyRecord<Json>()
+    const tables = emptyRecord<RuleRow[]>()
     for (const [key, value] of Object.entries(json as Record<string, Json>)) {
       if (Array.isArray(value) && value.length > 0 && value.every((e) => typeof e === 'object' && e !== null && !Array.isArray(e))) {
         const rows: RuleRow[] = value.map((el, i) => {
           const rowObj = el as Record<string, Json>
           const id = typeof rowObj['_id'] === 'string' ? rowObj['_id'] : String(i)
-          const fields: Record<string, Json> = {}
+          const fields = emptyRecord<Json>()
           for (const [fk, fv] of Object.entries(rowObj)) {
             if (fk === '_id') continue
             fields[fk] = fv
@@ -94,7 +94,7 @@ export class RuleInstance {
   static empty(): RuleInstance {
     const instance = new RuleInstance()
     instanceBrand.add(instance)
-    instanceData.set(instance, { fields: {}, tables: {} })
+    instanceData.set(instance, { fields: emptyRecord<Json>(), tables: emptyRecord<RuleRow[]>() })
     return instance
   }
 
@@ -106,10 +106,7 @@ export class RuleInstance {
     instanceBrand.add(instance)
     instanceData.set(instance, {
       fields: cloneRecord(data.fields),
-      tables: Object.fromEntries(Object.entries(data.tables).map(([section, rows]) => [
-        section,
-        rows.map((row) => ({ id: row.id, fields: cloneRecord(row.fields), hasExplicitId: row.hasExplicitId })),
-      ])),
+      tables: cloneTables(data.tables),
     })
     return instance
   }
@@ -127,7 +124,20 @@ function cloneJson(value: Json): Json {
 }
 
 function cloneRecord(source: Record<string, Json>): Record<string, Json> {
-  return Object.fromEntries(Object.entries(source).map(([key, value]) => [key, cloneJson(value)]))
+  const target = emptyRecord<Json>()
+  for (const [key, value] of Object.entries(source)) target[key] = cloneJson(value)
+  return target
+}
+
+function cloneTables(source: Record<string, RuleRow[]>): Record<string, RuleRow[]> {
+  const target = emptyRecord<RuleRow[]>()
+  for (const [section, rows] of Object.entries(source))
+    target[section] = rows.map((row) => ({ id: row.id, fields: cloneRecord(row.fields), hasExplicitId: row.hasExplicitId }))
+  return target
+}
+
+function emptyRecord<T>(): Record<string, T> {
+  return Object.create(null) as Record<string, T>
 }
 
 function freezeJson(value: Json): Json {

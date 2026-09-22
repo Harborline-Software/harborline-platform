@@ -1,0 +1,74 @@
+@namespace Harborline.UIAdapters.Blazor.Components.RuleAuthoring
+@using Harborline.Foundation.RuleAuthoring
+@using Harborline.UIAdapters.Blazor.Components.Buttons
+
+<fieldset class="hl-rules-authoring__expression">
+    <legend>@Label expression</legend>
+    <p>Returns @(Contract?.ReturnContract ?? "a producer value"); runs at @(Contract?.ExecutionTimeContract ?? "producer time").</p>
+    <label>
+        @Label expression shape
+        <select aria-label="@($"{Label} expression shape")" value="@Shape" @onchange="ChangeShape">
+            <option value="Literal">Typed literal</option><option value="Ref">Declared reference</option><option value="Call">Closed operator call</option><option value="Binary">Binary operator</option><option value="If">Conditional</option>
+        </select>
+    </label>
+    @if (Value is FormulaExpr.Literal literal)
+    {
+        <label>Literal value<input aria-label="@($"{Label} literal value")" value="@literal.Value" @onchange="ChangeLiteral" /></label>
+        <label>Literal type<select aria-label="@($"{Label} literal type")" value="@literal.ValueType" @onchange="ChangeLiteralType"><option>Text</option><option>Number</option><option>Boolean</option></select></label>
+    }
+    else if (Value is FormulaExpr.Ref reference)
+    {
+        <label>Reference<select aria-label="@($"{Label} reference")" value="@reference.Name" @onchange="ChangeReference">@foreach (var item in Contract?.Palette ?? []) { <option value="@item.Id">@item.Label</option> }</select></label>
+    }
+    else if (Value is FormulaExpr.Call call)
+    {
+        <label>Formula operator<select aria-label="@($"{Label} formula operator")" value="@call.Op" @onchange="ChangeOperator">@foreach (var op in Operators) { <option>@op</option> }</select></label>
+        <div aria-label="@($"{Label} call arguments")">@for (var index = 0; index < call.Args.Count; index++) { var current = index; <div><HarborlineGuidedExpressionEditor Site="@Site" LabelOverride="@($"{Label} argument {current + 1}")" Value="@call.Args[current]" Contract="@Contract" ValueChanged="expression => ChangeArgument(current, expression)" /><HarborlineButton ButtonType="ButtonType.Button" Variant="ButtonVariant.Secondary" Size="ButtonSize.Small" OnClick="() => RemoveArgument(current)">Remove @Label argument @(current + 1)</HarborlineButton></div> }</div>
+        <HarborlineButton ButtonType="ButtonType.Button" Variant="ButtonVariant.Secondary" Size="ButtonSize.Small" OnClick="AddArgument">Add argument</HarborlineButton>
+    }
+    else if (Value is FormulaExpr.Binary binary)
+    {
+        <label>Binary operator<select aria-label="@($"{Label} binary operator")" value="@binary.Op" @onchange="ChangeBinaryOperator"><option>+</option><option>-</option><option>*</option><option>/</option></select></label>
+        <HarborlineGuidedExpressionEditor Site="@Site" LabelOverride="@($"{Label} left operand")" Value="@binary.Left" Contract="@Contract" ValueChanged="ChangeBinaryLeft" />
+        <HarborlineGuidedExpressionEditor Site="@Site" LabelOverride="@($"{Label} right operand")" Value="@binary.Right" Contract="@Contract" ValueChanged="ChangeBinaryRight" />
+    }
+    else if (Value is FormulaExpr.If conditional)
+    {
+        <label>Condition operator<select aria-label="@($"{Label} condition operator")" value="@conditional.When.Op" @onchange="ChangeConditionOperator">@foreach (var op in CompareOperators) { <option>@op</option> }</select></label>
+        <HarborlineGuidedExpressionEditor Site="@Site" LabelOverride="@($"{Label} condition left")" Value="@conditional.When.Left" Contract="@Contract" ValueChanged="ChangeConditionLeft" />
+        <HarborlineGuidedExpressionEditor Site="@Site" LabelOverride="@($"{Label} condition right")" Value="@conditional.When.Right" Contract="@Contract" ValueChanged="ChangeConditionRight" />
+        <HarborlineGuidedExpressionEditor Site="@Site" LabelOverride="@($"{Label} then branch")" Value="@conditional.Then" Contract="@Contract" ValueChanged="ChangeThen" />
+        <HarborlineGuidedExpressionEditor Site="@Site" LabelOverride="@($"{Label} else branch")" Value="@conditional.Else" Contract="@Contract" ValueChanged="ChangeElse" />
+    }
+</fieldset>
+
+@code {
+    [Parameter, EditorRequired] public FormulaExpr Value { get; set; } = EmptyLiteral();
+    [Parameter] public RulesExpressionContract? Contract { get; set; }
+    [Parameter, EditorRequired] public string Site { get; set; } = "rule";
+    [Parameter] public string? LabelOverride { get; set; }
+    [Parameter] public EventCallback<FormulaExpr> ValueChanged { get; set; }
+
+    private string Label => LabelOverride ?? (Site == "accept-when" ? "Accept when" : Site == "default" ? "Default value" : "Rule");
+    private string Shape => Value switch { FormulaExpr.Literal => "Literal", FormulaExpr.Ref => "Ref", FormulaExpr.Call => "Call", FormulaExpr.Binary => "Binary", FormulaExpr.If => "If", _ => "Literal" };
+    private static readonly string[] Operators = ["missing", "missing_some", "==", "!=", "===", "!==", "!", "!!", "and", "or", "if", ">", ">=", "<", "<=", "+", "-", "*", "/", "%", "min", "max", "in", "cat", "agg", "money.add", "money.sub", "money.mul", "date.add", "date.diff", "date.today", "coding.is"];
+    private static readonly string[] CompareOperators = ["==", "!=", ">", ">=", "<", "<="];
+    private static FormulaExpr.Literal EmptyLiteral() => new("", ColumnValueType.Text);
+    private Task Change(FormulaExpr expression) => ValueChanged.InvokeAsync(expression);
+    private Task ChangeShape(ChangeEventArgs eventArgs) => Change(eventArgs.Value?.ToString() switch { "Ref" => new FormulaExpr.Ref(Contract?.Palette.FirstOrDefault()?.Id ?? ""), "Call" => new FormulaExpr.Call("cat", [EmptyLiteral()]), "Binary" => new FormulaExpr.Binary("+", EmptyLiteral(), EmptyLiteral()), "If" => new FormulaExpr.If(new FormulaCondition(EmptyLiteral(), "==", EmptyLiteral()), EmptyLiteral(), EmptyLiteral()), _ => EmptyLiteral() });
+    private Task ChangeLiteral(ChangeEventArgs eventArgs) => Change(((FormulaExpr.Literal)Value) with { Value = eventArgs.Value?.ToString() ?? "" });
+    private Task ChangeLiteralType(ChangeEventArgs eventArgs) => Change(((FormulaExpr.Literal)Value) with { ValueType = Enum.Parse<ColumnValueType>(eventArgs.Value?.ToString() ?? "Text") });
+    private Task ChangeReference(ChangeEventArgs eventArgs) => Change(((FormulaExpr.Ref)Value) with { Name = eventArgs.Value?.ToString() ?? "" });
+    private Task ChangeOperator(ChangeEventArgs eventArgs) => Change(((FormulaExpr.Call)Value) with { Op = eventArgs.Value?.ToString() ?? "cat" });
+    private Task ChangeArgument(int index, FormulaExpr expression) => Change(((FormulaExpr.Call)Value) with { Args = ((FormulaExpr.Call)Value).Args.Select((argument, current) => current == index ? expression : argument).ToArray() });
+    private Task AddArgument() => Change(((FormulaExpr.Call)Value) with { Args = [.. ((FormulaExpr.Call)Value).Args, EmptyLiteral()] });
+    private Task RemoveArgument(int index) => Change(((FormulaExpr.Call)Value) with { Args = ((FormulaExpr.Call)Value).Args.Where((_, current) => current != index).ToArray() });
+    private Task ChangeBinaryOperator(ChangeEventArgs eventArgs) => Change(((FormulaExpr.Binary)Value) with { Op = eventArgs.Value?.ToString() ?? "+" });
+    private Task ChangeBinaryLeft(FormulaExpr expression) => Change(((FormulaExpr.Binary)Value) with { Left = expression });
+    private Task ChangeBinaryRight(FormulaExpr expression) => Change(((FormulaExpr.Binary)Value) with { Right = expression });
+    private Task ChangeConditionOperator(ChangeEventArgs eventArgs) { var conditional = (FormulaExpr.If)Value; return Change(conditional with { When = conditional.When with { Op = eventArgs.Value?.ToString() ?? "==" } }); }
+    private Task ChangeConditionLeft(FormulaExpr expression) { var conditional = (FormulaExpr.If)Value; return Change(conditional with { When = conditional.When with { Left = expression } }); }
+    private Task ChangeConditionRight(FormulaExpr expression) { var conditional = (FormulaExpr.If)Value; return Change(conditional with { When = conditional.When with { Right = expression } }); }
+    private Task ChangeThen(FormulaExpr expression) => Change(((FormulaExpr.If)Value) with { Then = expression });
+    private Task ChangeElse(FormulaExpr expression) => Change(((FormulaExpr.If)Value) with { Else = expression });
+}

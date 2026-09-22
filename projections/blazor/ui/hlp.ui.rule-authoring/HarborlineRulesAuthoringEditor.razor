@@ -1,0 +1,104 @@
+@namespace Harborline.UIAdapters.Blazor.Components.RuleAuthoring
+@using Harborline.Contracts.Forms
+@using Harborline.Foundation.RuleAuthoring
+@using Harborline.Foundation.RuleEngine.Skins
+@using Harborline.UIAdapters.Blazor.Components.Buttons
+
+<form class="hl-rules-authoring" @onsubmit:preventDefault="true">
+    <header class="hl-rules-authoring__header">
+        <label>Rule name<input aria-label="Rule name" value="@Current.Name" @onchange="ChangeName" /></label>
+        <label>Target<input aria-label="Target" value="@Current.Draft.ScopeTarget" @onchange="ChangeTarget" /></label>
+        <label>Action<select aria-label="Rule action" value="@Current.Draft.OutputType" @onchange="ChangeAction">@foreach (var action in Enum.GetValues<RuleActionKind>()) { <option>@action</option> }</select></label>
+        <label>Scope<select aria-label="Rule scope" value="@Current.Draft.Scope" @onchange="ChangeScope">@foreach (var scope in Enum.GetValues<RuleScope>()) { <option>@scope</option> }</select></label>
+        <label>Version selection<select aria-label="Version selection" value="@Current.VersionSelection" @onchange="ChangeVersionSelection"><option>Draft</option><option>Latest</option><option>Pinned</option></select></label>
+        @if (Current.VersionSelection == "Pinned") { <label>Pinned version<input aria-label="Pinned version" value="@Current.PinnedVersionId" @onchange="ChangePinnedVersion" /></label> }
+        <output aria-label="Rule identity">@(Current.Identity == "" ? "New rule" : Current.Identity)</output>
+        <output aria-label="Expected revision">@(Current.ExpectedRevision == "" ? "New revision" : Current.ExpectedRevision)</output>
+        @if (Current.Materialization is { } materialization) { <output aria-label="Materialization">@string.Join(", ", materialization.Bindings.Select(binding => $"{binding.DefinitionId}@{binding.VersionId} ({binding.WinningWatermark})"))</output> }
+    </header>
+    <fieldset><legend>Rule shape</legend><label><input aria-label="Formula" type="radio" name="rule-shape" checked="@(Formula is not null)" @onchange="ChooseFormula" />Formula</label><label><input aria-label="Decision table" type="radio" name="rule-shape" checked="@(Table is not null)" @onchange="ChooseTable" />Decision table</label></fieldset>
+    @if (Formula is { } formula)
+    {
+        <fieldset><legend>Declared inputs</legend>@for (var index = 0; index < formula.Inputs.Count; index++) { var current = index; var input = formula.Inputs[current]; <div><label>Input @(current + 1) reference<select aria-label="@($"Input {current + 1} reference")" value="@input.Ref" @onchange="eventArgs => ChangeInputRef(current, eventArgs)">@foreach (var item in RuleContract?.Palette ?? []) { <option value="@item.Id">@item.Label</option> }</select></label><label>Input @(current + 1) type<select aria-label="@($"Input {current + 1} type")" value="@input.Type" @onchange="eventArgs => ChangeInputType(current, eventArgs)"><option>Number</option><option>Text</option><option>Boolean</option></select></label></div> }<HarborlineButton ButtonType="ButtonType.Button" Variant="ButtonVariant.Secondary" Size="ButtonSize.Small" OnClick="AddInput">Add declared input</HarborlineButton></fieldset>
+        <HarborlineGuidedExpressionEditor Site="rule" Value="@(formula.Expression ?? EmptyLiteral())" ValueChanged="ChangeExpression" Contract="@RuleContract" />
+    }
+    else if (Table is { } table)
+    {
+        <fieldset><legend>Decision table</legend>
+            <label>Hit policy<select aria-label="Hit policy" value="@table.HitPolicy" @onchange="ChangeHitPolicy"><option>FirstMatch</option><option>Priority</option></select></label>
+            <div class="hl-rules-authoring__columns">@for (var index = 0; index < table.Columns.Count; index++) { var current = index; var column = table.Columns[current]; <div><label>Column @(current + 1) input<select aria-label="@($"Column {current + 1} input")" value="@column.Input" @onchange="eventArgs => ChangeColumnInput(current, eventArgs)">@foreach (var item in RuleContract?.Palette ?? []) { <option value="@item.Id">@item.Label</option> }</select></label><label>Column @(current + 1) type<select aria-label="@($"Column {current + 1} type")" value="@column.ValueType" @onchange="eventArgs => ChangeColumnType(current, eventArgs)"><option>Number</option><option>Text</option><option>Boolean</option></select></label></div> }</div>
+            <div role="region" aria-label="Decision table" class="hl-rules-authoring__table-scroll"><table><thead><tr><th>Output</th><th>Priority</th>@foreach (var column in table.Columns) { <th>@(column.Input == "" ? column.Id : column.Input)</th> }</tr></thead><tbody>@for (var rowIndex = 0; rowIndex < table.Rows.Count; rowIndex++) { var currentRow = rowIndex; var row = table.Rows[currentRow]; <tr data-catch-all="@(IsCatchAll(row) ? "" : null)"><td><input aria-label="@($"Row {currentRow + 1} output")" value="@row.Output" @onchange="eventArgs => ChangeOutput(currentRow, eventArgs)" /></td><td><input type="number" aria-label="@($"Row {currentRow + 1} priority")" value="@row.Priority" @onchange="eventArgs => ChangePriority(currentRow, eventArgs)" /></td>@foreach (var column in table.Columns) { var cell = row.Cells.TryGetValue(column.Id, out var found) ? found : new TableCell.Any(); <td><label>Cell kind<select aria-label="@($"Row {currentRow + 1} {column.Id} cell kind")" value="@CellKind(cell)" @onchange="eventArgs => ChangeCellKind(currentRow, column.Id, eventArgs)"><option>Any</option><option>Compare</option><option>Range</option></select></label>@if (cell is TableCell.Compare compare) { <select aria-label="@($"Row {currentRow + 1} {column.Id} compare operator")" value="@compare.Op" @onchange="eventArgs => ChangeCellOperator(currentRow, column.Id, eventArgs)">@foreach (var op in CompareOperators) { <option>@op</option> }</select><input aria-label="@($"Row {currentRow + 1} {column.Id} compare value")" value="@compare.Value" @onchange="eventArgs => ChangeCellValue(currentRow, column.Id, eventArgs)" /> } else if (cell is TableCell.Range range) { <input aria-label="@($"Row {currentRow + 1} {column.Id} range lower bound")" value="@range.Lo" @onchange="eventArgs => ChangeRangeLower(currentRow, column.Id, eventArgs)" /><input aria-label="@($"Row {currentRow + 1} {column.Id} range upper bound")" value="@range.Hi" @onchange="eventArgs => ChangeRangeUpper(currentRow, column.Id, eventArgs)" /> }</td> }</tr> }</tbody></table></div>
+            <HarborlineButton ButtonType="ButtonType.Button" OnClick="AddColumn">Add column</HarborlineButton><HarborlineButton ButtonType="ButtonType.Button" OnClick="AddRow">Add row</HarborlineButton><HarborlineButton ButtonType="ButtonType.Button" OnClick="AddCatchAll">Add catch-all row</HarborlineButton>
+            <label>No-match posture<select aria-label="No-match posture" value="@NoMatchKind" @onchange="ChangeNoMatch"><option value="Default">Explicit default</option><option value="CatchAll">Catch-all row</option></select></label>
+            @if (table.NoMatch is NoMatchPosture.Default noMatch) { <label>Default output<input aria-label="Default output" value="@noMatch.Value" @onchange="ChangeDefaultOutput" /></label> }
+        </fieldset>
+    }
+    <div role="group" aria-label="Rule lifecycle" class="hl-rules-authoring__actions"><HarborlineButton ButtonType="ButtonType.Button" OnClick="Save">Save draft</HarborlineButton><HarborlineButton ButtonType="ButtonType.Button" OnClick="Preview">Preview</HarborlineButton><HarborlineButton ButtonType="ButtonType.Button" OnClick="Publish">Publish</HarborlineButton><HarborlineButton ButtonType="ButtonType.Button" OnClick="Archive">Archive</HarborlineButton></div>
+    @if (_incoming is not null) { <aside role="alert">Revision changed.<HarborlineButton ButtonType="ButtonType.Button" OnClick="Keep">Keep edits</HarborlineButton><HarborlineButton ButtonType="ButtonType.Button" OnClick="Discard">Discard edits</HarborlineButton></aside> }
+    <aside class="hl-rules-authoring__preview" aria-live="polite"><h2>Preview (@(_outcome?.InputLabel ?? PreviewKind) input)</h2><p>@OutcomeText</p></aside>
+</form>
+
+@code {
+    [Parameter, EditorRequired] public RulesDraft Value { get; set; } = RulesDraft.Empty;
+    [Parameter] public IReadOnlyList<RulesExpressionContract> ExpressionContracts { get; set; } = [];
+    [Parameter] public RulesOutcome? Outcome { get; set; }
+    [Parameter] public RulesOperationResponse? Response { get; set; }
+    [Parameter] public string PreviewKind { get; set; } = "sample";
+    [Parameter] public EventCallback<RulesDraft> ValueChanged { get; set; }
+    [Parameter] public EventCallback<RulesOperationRequest> OperationRequested { get; set; }
+
+    private RulesDraft Current = RulesDraft.Empty; private RulesDraft? _incoming; private RulesOutcome? _outcome; private RulesOutcome? _lastOutcome; private string _revision = ""; private bool _dirty; private int _generation; private static int _intent;
+    private readonly Dictionary<string, string> _intentIds = new(StringComparer.Ordinal); private readonly HashSet<string> _outstanding = new(StringComparer.Ordinal);
+    private FormulaDraft? Formula => Current.Draft as FormulaDraft; private DecisionTableDraft? Table => Current.Draft as DecisionTableDraft; private RulesExpressionContract? RuleContract => ExpressionContracts.FirstOrDefault(item => item.Site == "rule");
+    private static readonly string[] CompareOperators = ["==", "!=", ">", ">=", "<", "<="];
+    private string NoMatchKind => Table?.NoMatch is NoMatchPosture.CatchAll ? "CatchAll" : "Default";
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var key = RevisionKey(Value);
+        if (_revision != key) { if (_dirty) _incoming = Value; else { Current = Value; _generation++; _outcome = null; _outstanding.Clear(); _intentIds.Clear(); } _revision = key; }
+        if (Outcome is not null && !ReferenceEquals(Outcome, _lastOutcome)) { _lastOutcome = Outcome; if (Outcome.RequestId is null && _outstanding.Count == 0) _outcome = Outcome; else if (Matches(Outcome.RequestId, Outcome.Identity, Outcome.ExpectedRevision, Outcome.Generation)) { _outstanding.Remove(Outcome.RequestId!); foreach (var item in _intentIds.Where(item => item.Value == Outcome.RequestId).ToArray()) _intentIds.Remove(item.Key); _outcome = Outcome; } }
+        if (Response is not null && Matches(Response.RequestId, Response.Identity, Response.ExpectedRevision, Response.Generation)) { _outstanding.Remove(Response.RequestId); foreach (var item in _intentIds.Where(item => item.Value == Response.RequestId).ToArray()) _intentIds.Remove(item.Key); if (Response.Outcome is not null) _outcome = Response.Outcome; if (Response.Authoritative is not null || Response.Materialization is not null) { var identity = Response.Authoritative?.Identity ?? Current.Identity; var binding = Response.Materialization?.Bindings.FirstOrDefault(item => item.DefinitionId == identity) ?? Response.Materialization?.Bindings.FirstOrDefault(); Current = Current with { Identity = identity, ExpectedRevision = Response.Authoritative?.Revision ?? Current.ExpectedRevision, Materialization = Response.Materialization ?? Current.Materialization, VersionSelection = binding is null ? Current.VersionSelection : "Pinned", PinnedVersionId = binding?.VersionId ?? Current.PinnedVersionId }; _dirty = false; await ValueChanged.InvokeAsync(Current); } }
+    }
+
+    private static FormulaExpr.Literal EmptyLiteral() => new("", ColumnValueType.Text);
+    private static string RevisionKey(RulesDraft value) => $"{value.Identity}\u0000{value.ExpectedRevision}\u0000{value.Materialization?.ContentDigest}";
+    private bool Matches(string? request, string? identity, string? revision, int? generation) => request is not null && _outstanding.Contains(request) && identity == Current.Identity && revision == Current.ExpectedRevision && generation == _generation;
+    private string OutcomeText { get { if (_outcome is null) return "No preview has run."; var subject = string.Join(" / ", new[] { _outcome.RuleName, _outcome.MemberName }.Where(value => !string.IsNullOrWhiteSpace(value))); var result = _outcome.Kind switch { "Value" => $"Value: {_outcome.Value}", "Validity" => $"Validity: {_outcome.Validity}", "Visibility" => $"Visibility: {_outcome.Visibility}", "Presentation" => $"Presentation: {_outcome.Presentation}", "Pending" => "Preview pending.", "Uncomputable" => $"Uncomputable: {_outcome.Code}", _ => $"Refused: {_outcome.Code}" }; return $"{(subject == "" ? "" : subject + ": ")}{result} ({_outcome.InputLabel} @ {_outcome.ClockUtc})"; } }
+    private async Task Change(RulesDraft value) { Current = value; _dirty = true; _generation++; _outcome = null; await ValueChanged.InvokeAsync(value); }
+    private Task ChangeDraft(RuleDraft draft) => Change(Current with { Draft = draft });
+    private Task ChangeName(ChangeEventArgs eventArgs) => Change(Current with { Name = eventArgs.Value?.ToString() ?? "" });
+    private Task ChangeTarget(ChangeEventArgs eventArgs) => ChangeDraft(Current.Draft with { ScopeTarget = eventArgs.Value?.ToString() ?? "" });
+    private Task ChangeAction(ChangeEventArgs eventArgs) => ChangeDraft(Current.Draft with { OutputType = Enum.Parse<RuleActionKind>(eventArgs.Value?.ToString() ?? "Compute") });
+    private Task ChangeScope(ChangeEventArgs eventArgs) => ChangeDraft(Current.Draft with { Scope = Enum.Parse<RuleScope>(eventArgs.Value?.ToString() ?? "Field") });
+    private Task ChangeVersionSelection(ChangeEventArgs eventArgs) => Change(Current with { VersionSelection = eventArgs.Value?.ToString() ?? "Draft" });
+    private Task ChangePinnedVersion(ChangeEventArgs eventArgs) => Change(Current with { PinnedVersionId = eventArgs.Value?.ToString() ?? "" });
+    private Task ChooseFormula(ChangeEventArgs _) => ChangeDraft(new FormulaDraft { Scope = Current.Draft.Scope, ScopeTarget = Current.Draft.ScopeTarget, OutputType = Current.Draft.OutputType, Inputs = [], Expression = EmptyLiteral() });
+    private Task ChooseTable(ChangeEventArgs _) => ChangeDraft(new DecisionTableDraft { Scope = Current.Draft.Scope, ScopeTarget = Current.Draft.ScopeTarget, OutputType = Current.Draft.OutputType, HitPolicy = HitPolicy.FirstMatch, Columns = [], Rows = [], NoMatch = new NoMatchPosture.Default("") });
+    private Task ChangeExpression(FormulaExpr expression) => ChangeDraft(Formula! with { Expression = expression });
+    private Task AddInput() => ChangeDraft(Formula! with { Inputs = [.. Formula!.Inputs, new FormulaInputDecl(RuleContract?.Palette.FirstOrDefault()?.Id ?? $"input-{Formula.Inputs.Count + 1}", RuleContract?.Palette.FirstOrDefault()?.Id ?? "", RuleContract?.Palette.FirstOrDefault()?.ValueType ?? ColumnValueType.Number)] });
+    private Task ChangeInputRef(int index, ChangeEventArgs eventArgs) => ChangeDraft(Formula! with { Inputs = Formula!.Inputs.Select((input, current) => current == index ? input with { Ref = eventArgs.Value?.ToString() ?? "" } : input).ToArray() });
+    private Task ChangeInputType(int index, ChangeEventArgs eventArgs) => ChangeDraft(Formula! with { Inputs = Formula!.Inputs.Select((input, current) => current == index ? input with { Type = Enum.Parse<ColumnValueType>(eventArgs.Value?.ToString() ?? "Number") } : input).ToArray() });
+    private Task ChangeHitPolicy(ChangeEventArgs eventArgs) => ChangeDraft(Table! with { HitPolicy = Enum.Parse<HitPolicy>(eventArgs.Value?.ToString() ?? "FirstMatch") });
+    private Task AddColumn() { var item = RuleContract?.Palette.FirstOrDefault(); return ChangeDraft(Table! with { Columns = [.. Table!.Columns, new ConditionColumn($"column-{Table.Columns.Count + 1}", item?.Id ?? "", item?.ValueType ?? ColumnValueType.Number)] }); }
+    private Task ChangeColumnInput(int index, ChangeEventArgs eventArgs) => ChangeDraft(Table! with { Columns = Table!.Columns.Select((column, current) => current == index ? column with { Input = eventArgs.Value?.ToString() ?? "" } : column).ToArray() });
+    private Task ChangeColumnType(int index, ChangeEventArgs eventArgs) => ChangeDraft(Table! with { Columns = Table!.Columns.Select((column, current) => current == index ? column with { ValueType = Enum.Parse<ColumnValueType>(eventArgs.Value?.ToString() ?? "Number") } : column).ToArray() });
+    private Task AddRow() => AddRow(false); private Task AddCatchAll() => AddRow(true);
+    private Task AddRow(bool catchAll) { var cells = Table!.Columns.ToDictionary(column => column.Id, _ => (TableCell)new TableCell.Any()); var row = new TableRow($"{(catchAll ? "catch-all" : "row")}-{Table.Rows.Count + 1}", cells, "", Table.Rows.Count + 1); return ChangeDraft(Table with { NoMatch = catchAll ? new NoMatchPosture.CatchAll() : Table.NoMatch, Rows = [.. Table.Rows, row] }); }
+    private bool IsCatchAll(TableRow row) => Table!.Columns.Count > 0 && Table.Columns.All(column => row.Cells.TryGetValue(column.Id, out var cell) && cell is TableCell.Any);
+    private static string CellKind(TableCell cell) => cell switch { TableCell.Compare => "Compare", TableCell.Range => "Range", _ => "Any" };
+    private Task UpdateCell(int rowIndex, string column, Func<TableCell, TableCell> update) { var rows = Table!.Rows.Select((row, index) => index == rowIndex ? row with { Cells = new Dictionary<string, TableCell>(row.Cells) { [column] = update(row.Cells.TryGetValue(column, out var cell) ? cell : new TableCell.Any()) } } : row).ToArray(); return ChangeDraft(Table with { Rows = rows }); }
+    private Task ChangeCellKind(int row, string column, ChangeEventArgs eventArgs) => UpdateCell(row, column, _ => eventArgs.Value?.ToString() switch { "Compare" => new TableCell.Compare(">=", ""), "Range" => new TableCell.Range("", ""), _ => new TableCell.Any() });
+    private Task ChangeCellOperator(int row, string column, ChangeEventArgs eventArgs) => UpdateCell(row, column, cell => ((TableCell.Compare)cell) with { Op = eventArgs.Value?.ToString() ?? "==" });
+    private Task ChangeCellValue(int row, string column, ChangeEventArgs eventArgs) => UpdateCell(row, column, cell => ((TableCell.Compare)cell) with { Value = eventArgs.Value?.ToString() ?? "" });
+    private Task ChangeRangeLower(int row, string column, ChangeEventArgs eventArgs) => UpdateCell(row, column, cell => ((TableCell.Range)cell) with { Lo = eventArgs.Value?.ToString() ?? "" });
+    private Task ChangeRangeUpper(int row, string column, ChangeEventArgs eventArgs) => UpdateCell(row, column, cell => ((TableCell.Range)cell) with { Hi = eventArgs.Value?.ToString() ?? "" });
+    private Task ChangeOutput(int rowIndex, ChangeEventArgs eventArgs) => ChangeDraft(Table! with { Rows = Table!.Rows.Select((row, index) => index == rowIndex ? row with { Output = eventArgs.Value?.ToString() ?? "" } : row).ToArray() });
+    private Task ChangePriority(int rowIndex, ChangeEventArgs eventArgs) => ChangeDraft(Table! with { Rows = Table!.Rows.Select((row, index) => index == rowIndex ? row with { Priority = int.TryParse(eventArgs.Value?.ToString(), out var priority) ? priority : row.Priority } : row).ToArray() });
+    private Task ChangeNoMatch(ChangeEventArgs eventArgs) => ChangeDraft(Table! with { NoMatch = eventArgs.Value?.ToString() == "CatchAll" ? new NoMatchPosture.CatchAll() : new NoMatchPosture.Default("") });
+    private Task ChangeDefaultOutput(ChangeEventArgs eventArgs) => ChangeDraft(Table! with { NoMatch = new NoMatchPosture.Default(eventArgs.Value?.ToString() ?? "") });
+    private Task Save() => Request("save-draft"); private Task Preview() => Request("preview"); private Task Publish() => Request("publish"); private Task Archive() => Request("archive");
+    private Task Request(string operation) { var key = $"{operation}\u0000{Current.Identity}\u0000{Current.ExpectedRevision}\u0000{_generation}"; if (!_intentIds.TryGetValue(key, out var requestId)) { requestId = $"{Current.Identity}:{Current.ExpectedRevision}:{operation}:{Interlocked.Increment(ref _intent)}"; _intentIds[key] = requestId; } _outstanding.Add(requestId); return OperationRequested.InvokeAsync(new(operation, requestId, Current.Identity, Current.ExpectedRevision, _generation, Current)); }
+    private Task Keep() { _incoming = null; return Task.CompletedTask; }
+    private Task Discard() { if (_incoming is null) return Task.CompletedTask; Current = _incoming; _incoming = null; _dirty = false; _generation++; return ValueChanged.InvokeAsync(Current); }
+}

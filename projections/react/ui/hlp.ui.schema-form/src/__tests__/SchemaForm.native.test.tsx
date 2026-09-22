@@ -4,10 +4,21 @@ import { resolve } from 'node:path'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
+import { compile, FormRuleGraph, type RuleDefinition } from '@harborline-software/rule-engine'
+
 import { SchemaForm } from '../SchemaForm'
 import { DEFAULT_CONTROLS } from '../controls'
 import type { RuleGraphLike } from '../SchemaForm.types'
 import { evaluation, field, form, qualityCases, section, text } from './fixtures'
+
+const hideTriggerGraph = (): RuleGraphLike => new FormRuleGraph(compile([{
+  id: 'hide-trigger',
+  tier: 'JsonLogic',
+  scope: 'Field',
+  scopeTarget: 'trigger',
+  expression: { '!=': [{ var: 'trigger' }, 'hide'] },
+  action: 'Visibility',
+}] satisfies RuleDefinition[]), () => new Date('2026-06-30T00:00:00.000Z'))
 
 describe('SchemaForm React projection', () => {
   it('schema-form.host-readonly-unavailable', () => {
@@ -200,13 +211,7 @@ describe('SchemaForm React projection', () => {
   })
 
   it('moves focus predictably when a rule re-hides the active field', async () => {
-    const graph: RuleGraphLike = {
-      evaluateInstance: vi.fn(instance => evaluation({
-        visibility: instance.fields.trigger === 'hide'
-          ? [['field:trigger', { visible: false, required: false, readOnly: false }]]
-          : [],
-      })),
-    }
+    const graph = hideTriggerGraph()
     render(<SchemaForm initialValues={{ trigger: '' }} onSubmit={vi.fn()} ruleGraph={graph} view={form([section('s', [field('trigger', 'Trigger')])])} />)
     const input = screen.getByRole('textbox', { name: 'Trigger' })
     input.focus()

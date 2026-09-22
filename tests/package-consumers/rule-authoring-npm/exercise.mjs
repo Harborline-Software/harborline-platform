@@ -1,20 +1,11 @@
 import assert from 'node:assert/strict'
-import {
-  serializeRuleDefinition,
-  validateRuleDefinitionJson,
-} from '@harborline-software/rule-authoring'
+import { serializeRuleDefinition, validateRuleDefinitionJson } from '@harborline-software/rule-authoring'
 
-// The browser package admits source. Only the shared store may commit a publication.
 const source = {
-  envelope: {
-    id: 'route', version: '1.0.0', tenant: 'tenant-a',
-    cascadeLayer: 'domain-package', provenance: { id: 'finance' }, requires: [],
-  },
-  name: 'Route',
-  tier: 'JsonLogic',
+  envelope: { id: 'route', version: '1.0.0', tenant: 'tenant-a', cascadeLayer: 'domain-package', provenance: { id: 'finance' }, requires: [] },
+  name: 'Route', tier: 'JsonLogic',
   draft: {
-    kind: 'Table', scope: 'Field', scopeTarget: 'route', outputType: 'Compute',
-    hitPolicy: 'FirstMatch',
+    kind: 'Table', scope: 'Field', scopeTarget: 'route', outputType: 'Compute', hitPolicy: 'FirstMatch',
     columns: [{ id: 'amount', input: 'field.amount', valueType: 'Number' }],
     rows: [{ id: 'r1', cells: { amount: { kind: 'Range', lo: '0', hi: '100' } }, output: 'low', priority: 0 }],
     noMatch: { kind: 'Default', value: '' },

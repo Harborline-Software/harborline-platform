@@ -1,6 +1,8 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { expect, it, vi } from 'vitest'
 
+import { compile, FormRuleGraph, type RuleDefinition } from '@harborline-software/rule-engine'
+
 vi.mock('@harborline-platform/hlp.ui.button', async () => {
   const React = await import('react')
   return {
@@ -17,16 +19,17 @@ vi.mock('@harborline-platform/hlp.ui.button', async () => {
 
 import { SchemaForm } from '../SchemaForm'
 import type { RuleGraphLike } from '../SchemaForm.types'
-import { evaluation, field, form, section } from './fixtures'
+import { field, form, section } from './fixtures'
 
 it('recovers focus through the owned submit DOM element when a React 18 plain-function Button drops refs', async () => {
-  const graph: RuleGraphLike = {
-    evaluateInstance: vi.fn(instance => evaluation({
-      visibility: instance.fields.trigger === 'hide'
-        ? [['field:trigger', { visible: false, required: false, readOnly: false }]]
-        : [],
-    })),
-  }
+  const graph: RuleGraphLike = new FormRuleGraph(compile([{
+    id: 'hide-trigger',
+    tier: 'JsonLogic',
+    scope: 'Field',
+    scopeTarget: 'trigger',
+    expression: { '!=': [{ var: 'trigger' }, 'hide'] },
+    action: 'Visibility',
+  }] satisfies RuleDefinition[]), () => new Date('2026-06-30T00:00:00.000Z'))
   render(<SchemaForm
     initialValues={{ trigger: '', retained: '' }}
     onSubmit={vi.fn()}

@@ -441,6 +441,24 @@ describe('public input envelope boundaries', () => {
 })
 
 describe('reactive re-evaluation — transitive dependents only', () => {
+  it('treats hostile JSON member names as inert own data across initial, row, and reactive capture', () => {
+    const graph = new FormRuleGraph(compile([
+      rule('copy-constructor', 'copied-constructor', 'Compute', { var: 'constructor' }),
+      rule('copy-proto', 'copied-proto', 'Compute', { var: '__proto__' }),
+      rule('row-to-string', 'items/copied', 'Compute', { var: 'row.toString' }, 'Row'),
+    ]), fixedClock)
+
+    const first = graph.evaluateInstance(RuleInstance.fromJsonText('{"constructor":"owned","__proto__":"proto","items":[{"_id":"r1","toString":"row-owned"}]}'))
+    expect(first.values.get('field:copied-constructor')).toEqual({ state: 'Resolved', value: 'owned' })
+    expect(first.values.get('field:copied-proto')).toEqual({ state: 'Resolved', value: 'proto' })
+    expect(first.values.get('row:items/r1/copied')).toEqual({ state: 'Resolved', value: 'row-owned' })
+
+    expect(graph.reevaluate('__proto__', RuleValueSnapshot.fromJsonText('"changed"')).values.get('field:copied-proto'))
+      .toEqual({ state: 'Resolved', value: 'changed' })
+    expect(graph.addRow('items', RuleRowSnapshot.fromJsonText('{"id":"r2","fields":{"toString":"second"}}')).values.get('row:items/r2/copied'))
+      .toEqual({ state: 'Resolved', value: 'second' })
+  })
+
   it('refuses proxied form data before a RuleInstance capture trap can run', () => {
     let invoked = false
     const input = new Proxy({ a: 1 } as Record<string, Json>, {

@@ -1,0 +1,126 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.rule-authoring",
+  "sourceFixture": "conformance/hlp.ui.rule-authoring/fixtures.yaml",
+  "qualityFixture": "conformance/hlp.ui.rule-authoring/quality-fixtures.yaml",
+  "galleryInterface": {
+    "probeAttribute": "data-gallery-probe",
+    "scenarioAttribute": "data-gallery-scenario",
+    "projectionTitles": {
+      "react": "Platform/Rule authoring",
+      "blazor": "Platform/Rule authoring"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "rule-authoring.from-empty",
+      "name": "Author from empty",
+      "surface": "authoring",
+      "sourceCaseIds": [
+        "rule-authoring.from-empty"
+      ],
+      "sourceQualityCaseIds": [
+        "rule-authoring.quality.labels",
+        "rule-authoring.quality.reflow",
+        "rule-authoring.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "Guided Formula and Decision table controls remain keyboard reachable and stack at a narrow viewport.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "preview": "sample"
+        },
+        "state": {
+          "keyboard": true,
+          "narrow": true
+        },
+        "body": [
+          {
+            "control": "rule-editor",
+            "react": "<RulesAuthoringEditor />",
+            "blazor": "<HarborlineRulesAuthoringEditor />",
+            "rationale": "No raw JSON authoring surface is supplied; the editor forwards producer-owned drafts and lifecycle requests."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "rule-authoring.preview-outcomes",
+      "name": "Preview outcomes",
+      "surface": "authoring",
+      "sourceCaseIds": [
+        "rule-authoring.preview-outcomes"
+      ],
+      "sourceQualityCaseIds": [
+        "rule-authoring.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "Producer evidence names the rule, member, input sample and pinned clock.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "preview": "sample"
+        },
+        "state": {
+          "outcome": "Value"
+        },
+        "body": [
+          {
+            "control": "preview-evidence",
+            "react": "<RulesAuthoringEditor outcome={fixture} />",
+            "blazor": "<HarborlineRulesAuthoringEditor Outcome=fixture />",
+            "rationale": "The exact producer preview envelope is rendered without discriminant translation."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "rule-authoring.lifecycle-fence",
+      "name": "Lifecycle fence",
+      "surface": "authoring",
+      "sourceCaseIds": [
+        "rule-authoring.lifecycle-fence"
+      ],
+      "sourceQualityCaseIds": [
+        "rule-authoring.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "Accepted lifecycle responses advance the revision and materialize Latest as an immutable pin.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "preview": "sample"
+        },
+        "state": {
+          "identity": "amount-rule",
+          "revision": "1",
+          "selection": "Latest"
+        },
+        "body": [
+          {
+            "control": "lifecycle-actions",
+            "react": "<RulesAuthoringEditor onOperation={fixtureReplay} />",
+            "blazor": "<HarborlineRulesAuthoringEditor OperationRequested=fixtureReplay />",
+            "rationale": "The harness replays a deterministic accepted producer response while stale correlation remains fenced."
+          }
+        ],
+        "footer": []
+      }
+    }
+  ]
+}

@@ -74,7 +74,7 @@ class CellResolver implements ValueResolver {
     const cv = this.computed.get(key)
     if (cv) return fromComputed(cv, key)
     const fields = ownedInstanceDataOf(this.instance)!.fields
-    if (name in fields) {
+    if (Object.hasOwn(fields, name)) {
       const v = fields[name]
       return isPendingSentinel(v) ? refPending : refResolved(v)
     }
@@ -94,7 +94,7 @@ class CellResolver implements ValueResolver {
   private rawRowField(section: string, rowId: string, field: string): RefValue {
     const rows = ownedInstanceDataOf(this.instance)!.tables[section]
     const row = rows?.find((r) => r.id === rowId)
-    if (row && field in row.fields) {
+    if (row && Object.hasOwn(row.fields, field)) {
       const v = row.fields[field]
       return isPendingSentinel(v) ? refPending : refResolved(v)
     }
@@ -697,7 +697,7 @@ export class FormRuleGraph {
       // is allowed to fall back to the raw row value.
       if (rowCell) cv = this.evaluateDemand(rowCell, demand, budget, adapter)
       else {
-        const raw = col in row.fields ? row.fields[col] : null
+        const raw = Object.hasOwn(row.fields, col) ? row.fields[col] : null
         cv = isPendingSentinel(raw) ? { state: 'Pending' } : { state: 'Resolved', value: raw }
       }
       if (cv.state === 'Pending') return { state: 'Pending' }
