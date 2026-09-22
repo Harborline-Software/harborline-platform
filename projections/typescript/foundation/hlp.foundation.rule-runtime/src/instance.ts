@@ -12,6 +12,7 @@ const rowData = new WeakMap<object, RuleRow>()
 export interface RuleRow {
   id: string
   fields: Record<string, Json>
+  hasExplicitId: boolean
 }
 
 /** One JSON-text-captured value accepted by reactive graph mutation. */
@@ -39,7 +40,7 @@ export class RuleRowSnapshot {
       throw new TypeError('rule row must contain id and fields')
     const snapshot = new RuleRowSnapshot()
     rowBrand.add(snapshot)
-    rowData.set(snapshot, { id: value.id, fields: value.fields as Record<string, Json> })
+    rowData.set(snapshot, { id: value.id, fields: value.fields as Record<string, Json>, hasExplicitId: true })
     return snapshot
   }
 }
@@ -73,7 +74,7 @@ export class RuleInstance {
             if (fk === '_id') continue
             fields[fk] = fv
           }
-          return { id, fields }
+          return { id, fields, hasExplicitId: Object.hasOwn(rowObj, '_id') }
         })
         tables[key] = rows
       } else {
@@ -107,7 +108,7 @@ export class RuleInstance {
       fields: cloneRecord(data.fields),
       tables: Object.fromEntries(Object.entries(data.tables).map(([section, rows]) => [
         section,
-        rows.map((row) => ({ id: row.id, fields: cloneRecord(row.fields) })),
+        rows.map((row) => ({ id: row.id, fields: cloneRecord(row.fields), hasExplicitId: row.hasExplicitId })),
       ])),
     })
     return instance

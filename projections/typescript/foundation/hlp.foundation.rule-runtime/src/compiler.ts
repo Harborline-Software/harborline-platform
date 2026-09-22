@@ -23,6 +23,20 @@ export interface CompiledGraph {
   rules: readonly CompiledRule[]
 }
 
+// The exported shape remains useful to consumers that inspect admitted programs, but a
+// structural TypeScript type is not an evaluation admission credential. Keep the
+// producer-owned rule array out-of-band so a forged object (or Proxy) is refused before
+// the graph reads any caller-controlled property.
+const compiledGraphBrand = new WeakSet<object>()
+const compiledGraphData = new WeakMap<object, readonly CompiledRule[]>()
+
+/** @internal Returns compiler-owned data without reflecting over an untrusted handle. */
+export function ownedCompiledRulesOf(value: unknown): readonly CompiledRule[] | undefined {
+  return typeof value === 'object' && value !== null && compiledGraphBrand.has(value)
+    ? compiledGraphData.get(value)
+    : undefined
+}
+
 const operators = new Set([
   'var', 'missing', 'missing_some',
   '==', '!=', '===', '!==', '!', '!!', 'and', 'or', 'if',
@@ -114,7 +128,10 @@ export function compile(rules: RuleDefinition[], limits: RuleEngineLimits = DEFA
   }
 
   detectCyclesAndDepth(compiled, limits)
-  return Object.freeze({ rules: Object.freeze(compiled) })
+  const graph = Object.freeze({ rules: Object.freeze(compiled) })
+  compiledGraphBrand.add(graph)
+  compiledGraphData.set(graph, compiled)
+  return graph
 }
 
 function cloneDefinition(rule: RuleDefinition): RuleDefinition {

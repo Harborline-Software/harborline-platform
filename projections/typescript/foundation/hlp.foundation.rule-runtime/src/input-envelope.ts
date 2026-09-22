@@ -31,6 +31,69 @@ export function assertBoundedMemberName(value: unknown, label: string): asserts 
   }
 }
 
+/**
+ * Bounded byte counter for the exact JSON text emitted by ECMAScript JSON.stringify.
+ * It deliberately walks inert JSON values rather than allocating a serialized document.
+ */
+export class JsonStringifyByteCounter {
+  private count = 0
+
+  constructor(private readonly maximum: number, private readonly label: string) {}
+
+  addPunctuation(bytes: number): void {
+    if (bytes < 0 || bytes > this.maximum - this.count) throw new RangeError(`${this.label} exceeds byte ceiling`)
+    this.count += bytes
+  }
+
+  countString(value: string): void {
+    this.addPunctuation(2)
+    for (let index = 0; index < value.length; index++) {
+      const unit = value.charCodeAt(index)
+      if (unit === 0x22 || unit === 0x5c || unit === 0x08 || unit === 0x0c || unit === 0x0a || unit === 0x0d || unit === 0x09) this.addPunctuation(2)
+      else if (unit < 0x20) this.addPunctuation(6)
+      else if (unit < 0x80) this.addPunctuation(1)
+      else if (unit < 0x800) this.addPunctuation(2)
+      else if (unit >= 0xd800 && unit <= 0xdbff && index + 1 < value.length && value.charCodeAt(index + 1) >= 0xdc00 && value.charCodeAt(index + 1) <= 0xdfff) {
+        this.addPunctuation(4)
+        index++
+      } else if (unit >= 0xd800 && unit <= 0xdfff) this.addPunctuation(6) // well-formed JSON.stringify escapes lone surrogates
+      else this.addPunctuation(3)
+    }
+  }
+
+  countValue(value: Json): void {
+    if (value === null) { this.addPunctuation(4); return }
+    switch (typeof value) {
+      case 'string': this.countString(value); return
+      case 'boolean': this.addPunctuation(value ? 4 : 5); return
+      case 'number': this.addPunctuation(Number.isFinite(value) ? String(value).length : 4); return
+      case 'object':
+        if (Array.isArray(value)) {
+          this.addPunctuation(1)
+          let first = true
+          for (const child of value) {
+            if (!first) this.addPunctuation(1)
+            this.countValue(child)
+            first = false
+          }
+          this.addPunctuation(1)
+          return
+        }
+        this.addPunctuation(1)
+        let first = true
+        for (const [name, child] of Object.entries(value)) {
+          if (!first) this.addPunctuation(1)
+          this.countString(name)
+          this.addPunctuation(1)
+          this.countValue(child)
+          first = false
+        }
+        this.addPunctuation(1)
+        return
+    }
+  }
+}
+
 function validateJsonEnvelope(value: unknown, label: string): void {
   let nodes = 0
   const visit = (current: unknown, containerDepth: number): void => {

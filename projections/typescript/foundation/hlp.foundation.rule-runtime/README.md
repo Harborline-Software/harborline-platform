@@ -44,9 +44,12 @@ Evaluator entry accepts only runtime-owned snapshots. Hosts explicitly capture J
 `RuleContextSnapshot.fromJsonText`, `RuleInstance.fromJsonText`, `RuleValueSnapshot.fromJsonText`,
 or `RuleRowSnapshot.fromJsonText`; arbitrary objects, accessors, proxies, and forged instances are
 refused without reflection. Each capture admits at most 262,144 UTF-8 bytes, 64 JSON nesting levels,
-and 5,000 JSON values. Graphs take a graph-local copy of an admitted instance and never retain a
-rejected reactive row. These are implementation bounds for inert evaluation data, distinct from the
-published authored-rule limits.
+and 5,000 JSON values. Graphs take a graph-local copy of an admitted instance. The per-aggregate row
+cap applies only to a table referenced by an aggregate; a refused aggregate row is never retained.
+A `CompiledGraph` is likewise a compiler-owned handle: its public TypeScript
+shape is inspectable, but only a result returned by `compile` is admitted to `FormRuleGraph`. These
+are implementation bounds for inert evaluation data, distinct from the published authored-rule
+limits.
 
 ## Build / test
 

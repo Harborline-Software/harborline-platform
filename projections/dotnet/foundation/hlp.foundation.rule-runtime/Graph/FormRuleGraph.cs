@@ -58,6 +58,10 @@ public sealed class FormRuleGraph : IFormRuleGraph
         {
             return FailClosed(RuleEngineCodes.ContextSnapshotRequired);
         }
+        catch (ArgumentException)
+        {
+            return FailClosed(RuleEngineCodes.InputTooLarge);
+        }
         return BuildAndEvaluate(ct);
     }
 
@@ -153,12 +157,6 @@ public sealed class FormRuleGraph : IFormRuleGraph
         ArgumentNullException.ThrowIfNull(row);
         try { RuntimeInputEnvelope.ValidateMemberName(section, nameof(section)); }
         catch (ArgumentException) { return FailClosed(RuleEngineCodes.InputTooLarge); }
-        bool createdSection = false;
-        if (!_instance.Tables.TryGetValue(section, out var rows))
-        {
-            _instance.Tables[section] = rows = new List<RuleRow>();
-            createdSection = true;
-        }
         RuleRow captured;
         try
         {
@@ -168,28 +166,34 @@ public sealed class FormRuleGraph : IFormRuleGraph
         {
             return FailClosed(RuleEngineCodes.ContextSnapshotRequired);
         }
-        bool exceededTableLimit = rows.Count >= _limits.MaxTableRowsPerAggregate;
-        rows.Add(captured);
-        try { _instance.EnsureEnvelope(); }
         catch (ArgumentException)
         {
-            rows.RemoveAt(rows.Count - 1);
-            if (createdSection) _instance.Tables.Remove(section);
             return FailClosed(RuleEngineCodes.InputTooLarge);
         }
-        if (exceededTableLimit)
+        var prospective = _instance.CaptureOwned();
+        if (!prospective.Tables.TryGetValue(section, out var prospectiveRows)) prospective.Tables[section] = prospectiveRows = new List<RuleRow>();
+        prospectiveRows.Add(captured);
+        try { prospective.EnsureEnvelope(); }
+        catch (ArgumentException)
         {
-            // Preserve the existing fail-closed aggregate result for this edit, while
-            // ensuring the rejected row cannot become unbounded future reactive state.
-            try { return BuildAndEvaluate(ct); }
-            finally { rows.RemoveAt(rows.Count - 1); }
+            return FailClosed(RuleEngineCodes.InputTooLarge);
         }
+        if (_instance.Tables.TryGetValue(section, out var rows) && rows.Count >= _limits.MaxTableRowsPerAggregate && HasAggregateForSection(section))
+            return RefuseTableRow(section);
+        if (!_instance.Tables.TryGetValue(section, out rows)) _instance.Tables[section] = rows = new List<RuleRow>();
+        rows.Add(captured);
         return BuildAndEvaluate(ct); // structural change: rebuild graph + re-link aggregates
     }
 
     /// <inheritdoc />
     public RuleEvaluationResult RemoveRow(string section, string rowId, CancellationToken ct = default)
     {
+        try
+        {
+            RuntimeInputEnvelope.ValidateMemberName(section, nameof(section));
+            RuntimeInputEnvelope.ValidateMemberName(rowId, nameof(rowId));
+        }
+        catch (ArgumentException) { return FailClosed(RuleEngineCodes.InputTooLarge); }
         if (_instance.Tables.TryGetValue(section, out var rows)) rows.RemoveAll(r => r.Id == rowId);
         return BuildAndEvaluate(ct);
     }
@@ -648,6 +652,18 @@ public sealed class FormRuleGraph : IFormRuleGraph
             new List<RuleOutcome> { synthetic },
             hasPending: false);
     }
+
+    private RuleEvaluationResult RefuseTableRow(string section)
+    {
+        var accepted = Project();
+        var values = accepted.Values.ToDictionary(pair => pair.Key, pair => pair.Value);
+        foreach (var key in values.Keys.Where(key => key.StartsWith("agg:" + section + "/", StringComparison.Ordinal)).ToArray())
+            values[key] = ComputedValue.OfError(RuleError.Of(RuleEngineCodes.TableTooLarge, "section", section));
+        return new RuleEvaluationResult(accepted.ByRule, values, accepted.Visibility, accepted.Validations, accepted.HasPending, accepted.Options);
+    }
+
+    private bool HasAggregateForSection(string section)
+        => Compiled.Rules.Any(rule => rule.References.Any(reference => reference is AggRef aggregate && aggregate.Section == section));
 
     // ── internal node + plan records ─────────────────────────────────────────
 

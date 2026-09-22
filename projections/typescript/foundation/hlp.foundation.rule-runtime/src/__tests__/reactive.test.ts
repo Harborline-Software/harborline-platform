@@ -93,6 +93,22 @@ describe('business-clock pinning', () => {
 })
 
 describe('runtime-owned return and program boundaries', () => {
+  it('refuses forged and proxied compiled graphs before any caller-owned property is read', () => {
+    const forged = { rules: [compile([rule('c.safe', 'safe', 'Compute', 1)]).rules[0]] }
+    expect(() => new FormRuleGraph(forged, fixedClock)).toThrow(Codes.contextSnapshotRequired)
+
+    let invoked = false
+    const proxied = new Proxy(forged, {
+      get: () => {
+        invoked = true
+        throw new Error('compiled graph proxy ran')
+      },
+    })
+    expect(() => new FormRuleGraph(proxied, fixedClock)).toThrow(Codes.contextSnapshotRequired)
+    expect(invoked).toBe(false)
+    expect(() => new FormRuleGraph(compile([rule('c.genuine', 'genuine', 'Compute', 1)]), fixedClock)).not.toThrow()
+  })
+
   it('does not retain a caller mutation of an exposed computed object or compiled program', () => {
     const definition = rule('c.object', 'result', 'Compute', { if: [{ var: 'on' }, { answer: 1, ok: true }, { answer: 2, ok: true }] })
     const compiled = compile([definition])
@@ -127,6 +143,51 @@ describe('public input envelope boundaries', () => {
     else expect(() => RuleInstance.fromJsonText(source)).toThrow()
   })
 
+  it.each(['null', '1', '"text"', 'true'])('counts only containers at the deepest scalar leaf (%s)', (leaf) => {
+    const atLimit = `{"x":${'['.repeat(63)}${leaf}${']'.repeat(63)}}`
+    const overLimit = `{"x":${'['.repeat(64)}${leaf}${']'.repeat(64)}}`
+    expect(() => RuleInstance.fromJsonText(atLimit)).not.toThrow()
+    expect(() => RuleInstance.fromJsonText(overLimit)).toThrow()
+  })
+
+  it('counts escaped top-level, section, and row member names at the exact byte boundary', () => {
+    const fieldNames = [...Array.from({ length: 16 }, (_, i) => `f${i}`), 'f"é']
+    const rowNames = [...Array.from({ length: 16 }, (_, i) => `r${i}`), 'r"é']
+    const section = 's"é'
+    const rowId = 'row"é'
+    const document = (payload: string): string => `{${fieldNames.map((name) => `${JSON.stringify(name)}:""`).join(',')},"payload":"${payload}",${JSON.stringify(section)}:[{"_id":${JSON.stringify(rowId)},${rowNames.map((name) => `${JSON.stringify(name)}:""`).join(',')}}]}`
+    const payload = 'a'.repeat(INPUT_MAX_UTF8_BYTES - new TextEncoder().encode(document('')).length)
+
+    expect(new TextEncoder().encode(document(payload)).length).toBe(INPUT_MAX_UTF8_BYTES)
+    expect(() => RuleInstance.fromJsonText(document(payload))).not.toThrow()
+    expect(() => RuleInstance.fromJsonText(document(`${payload}a`))).toThrow()
+  })
+
+  it('evaluates an at-cap source with JSON.stringify unicode, control, escaped-name, and normalized-number bytes', () => {
+    const source = (payload: string): string => `{"\\u006Eame\\u0022":"😀😀\u2028\\b\\f","numeric":1e+00,"negative":-0,"payload":"${payload}"}`
+    const jsonStringifyDocument = (payload: string): string => `{"name\\"":"😀😀\u2028\\b\\f","numeric":1,"negative":0,"payload":"${payload}"}`
+    const payload = 'a'.repeat(INPUT_MAX_UTF8_BYTES - new TextEncoder().encode(source('')).length)
+    const graph = new FormRuleGraph(compile([rule('c.copy', 'copy', 'Compute', { var: 'payload' })]), fixedClock)
+
+    expect(new TextEncoder().encode(source(payload)).length).toBe(INPUT_MAX_UTF8_BYTES)
+    expect(new TextEncoder().encode(JSON.stringify(JSON.parse(source(payload)))).length).toBeLessThanOrEqual(INPUT_MAX_UTF8_BYTES)
+    expect(() => RuleInstance.fromJsonText(source(`${payload}a`))).toThrow(RangeError)
+    expect(graph.evaluateInstance(RuleInstance.fromJsonText(source(payload))).values.get('field:copy')?.state).toBe('Resolved')
+    expect(new TextEncoder().encode(jsonStringifyDocument(payload)).length).toBeLessThanOrEqual(INPUT_MAX_UTF8_BYTES)
+  })
+
+  it('uses the same JSON.stringify byte envelope for reactive composition', () => {
+    const source = (payload: string): string => `{"\\u006Eame\\u0022":"😀😀\u2028\\b\\f","numeric":1e+00,"negative":-0,"payload":"${payload}"}`
+    const jsonStringifyDocument = (payload: string): string => `{"name\\"":"😀😀\u2028\\b\\f","numeric":1,"negative":0,"payload":"${payload}"}`
+    const payload = 'a'.repeat(INPUT_MAX_UTF8_BYTES - new TextEncoder().encode(jsonStringifyDocument('')).length)
+    const graph = new FormRuleGraph(compile([rule('c.copy', 'copy', 'Compute', { var: 'payload' })]), fixedClock)
+    graph.evaluateInstance(RuleInstance.fromJsonText(source('')))
+
+    expect(new TextEncoder().encode(jsonStringifyDocument(payload)).length).toBe(INPUT_MAX_UTF8_BYTES)
+    expect(graph.reevaluate('payload', RuleValueSnapshot.fromJsonText(JSON.stringify(payload))).values.get('field:copy')?.state).toBe('Resolved')
+    expect(graph.reevaluate('payload', RuleValueSnapshot.fromJsonText(JSON.stringify(`${payload}a`))).validations[0].validity?.error?.code).toBe(Codes.inputTooLarge)
+  })
+
   it('admits a typed JSON null reactive value while instances and guard snapshots still require objects', () => {
     const graph = new FormRuleGraph(compile([rule('c.value', 'value', 'Compute', { var: 'a' })]), fixedClock)
     graph.evaluateInstance(instance({ a: 1 }))
@@ -142,6 +203,14 @@ describe('public input envelope boundaries', () => {
     expect(() => RuleValueSnapshot.fromJsonText(`"${'é'.repeat((INPUT_MAX_UTF8_BYTES - 2) / 2 + 1)}"`)).toThrow()
     expect(() => RuleValueSnapshot.fromJsonText(`[${Array(INPUT_MAX_NODES - 1).fill('null').join(',')}]`)).not.toThrow()
     expect(() => RuleValueSnapshot.fromJsonText(`[${Array(INPUT_MAX_NODES).fill('null').join(',')}]`)).toThrow()
+  })
+
+  it('retains inferred row ids outside the input envelope across reactive edits', () => {
+    const rows = Array.from({ length: 2000 }, () => ({ value: 1 }))
+    const graph = new FormRuleGraph(compile([rule('c.copy', 'copy', 'Compute', { var: 'a' })]), fixedClock)
+    expect(graph.evaluateInstance(instance({ a: 1, items: rows })).isSaveBlocked).toBe(false)
+    expect(graph.reevaluate('a', valueSnapshot(2)).values.get('field:copy')).toEqual({ state: 'Resolved', value: 2 })
+    expect(graph.addRow('other', rowSnapshot({ id: 'r1', fields: { v: 1 } })).values.get('field:copy')).toEqual({ state: 'Resolved', value: 2 })
   })
 
   it('atomically refuses a cumulative new-section row without disturbing cached unrelated output', () => {
@@ -171,6 +240,14 @@ describe('public input envelope boundaries', () => {
     graph.evaluateInstance(instance({ a: 1 }))
     expect(graph.reevaluate('x'.repeat(INPUT_MAX_UTF8_BYTES + 1), valueSnapshot(null)).validations[0].validity?.error?.code).toBe(Codes.inputTooLarge)
     expect(graph.reevaluate('a', valueSnapshot(1)).values.get('field:b')).toEqual({ state: 'Resolved', value: 2 })
+  })
+
+  it('refuses non-string remove identifiers before property coercion can address graph state', () => {
+    const graph = new FormRuleGraph(compile([rule('c.total', 'total', 'Compute', { var: 'table.sum(items.amount)' })]), fixedClock)
+    graph.evaluateInstance(instance({ items: [{ amount: 1 }] }))
+    const hostile = new Proxy({}, { get: () => { throw new Error('property coercion ran') } })
+    expect(graph.removeRow(hostile as string, hostile as string).validations[0].validity?.error?.code).toBe(Codes.inputTooLarge)
+    expect(graph.removeRow('items', 'missing').values.get('field:total')).toEqual({ state: 'Resolved', value: 1 })
   })
 })
 
@@ -295,9 +372,21 @@ describe('incremental child-table edit', () => {
     expect(g.addRow('items', rowSnapshot({ id: 'r2', fields: { amount: 2 } })).values.get('agg:items/sum/amount')).toEqual({
       state: 'Error', error: { code: Codes.tableTooLarge, params: { section: 'items' } },
     })
-    const after = g.removeRow('items', 'not-present')
+    const after = g.reevaluate('unrelated', valueSnapshot(null))
 
     expect(after.values.get('field:total')).toEqual({ state: 'Resolved', value: 1 })
+    expect(after.values.get('agg:items/sum/amount')).toEqual({ state: 'Resolved', value: 1 })
+  })
+
+  it('accepts over-limit unused and row-only tables rather than silently dropping rows', () => {
+    const limits = { ...DEFAULT_LIMITS, maxTableRowsPerAggregate: 1 }
+    const graph = new FormRuleGraph(compile([
+      rule('c.copy', 'copy', 'Compute', { var: 'a' }),
+      rule('c.row', 'rows/doubled', 'Compute', { '+': [{ var: 'row.value' }, 1] }, 'Row'),
+    ], limits), fixedClock, limits)
+    graph.evaluateInstance(instance({ a: 1, unused: [{ value: 1 }], rows: [{ value: 1 }] }))
+    expect(graph.addRow('unused', rowSnapshot({ id: 'r2', fields: { value: 2 } })).isSaveBlocked).toBe(false)
+    expect(graph.addRow('rows', rowSnapshot({ id: 'r3', fields: { value: 2 } })).values.get('row:rows/r3/doubled')).toEqual({ state: 'Resolved', value: 3 })
   })
 
   it('remove a row re-links the aggregate', () => {

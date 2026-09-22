@@ -10,10 +10,10 @@ import type {
   ComputedValue, Json, OptionsOutcome, RuleActionKind, RuleError, RuleOutcome, VisibilityState,
 } from './model.js'
 import { DEFAULT_LIMITS, type RuleEngineLimits } from './limits.js'
-import type { CompiledGraph, CompiledRule } from './compiler.js'
+import { ownedCompiledRulesOf, type CompiledGraph, type CompiledRule } from './compiler.js'
 import type { RuleRef } from './grammar.js'
 import { detachJson, ownedInstanceDataOf, ownedRowOf, ownedValueOf, RuleInstance, type RuleRow } from './instance.js'
-import { assertBoundedMemberName, parseBoundedJsonText } from './input-envelope.js'
+import { assertBoundedMemberName, INPUT_MAX_DEPTH, INPUT_MAX_NODES, INPUT_MAX_UTF8_BYTES, JsonStringifyByteCounter } from './input-envelope.js'
 import {
   EvalBudget, RuleBudget, RuleEvalError, RulePending,
   err, refError, refPending, refResolved, unavailableAggregate,
@@ -230,11 +230,18 @@ export class FormRuleGraph {
   private outcomes = new Map<string, RuleOutcome>()
   private evaluationInstant: Date | null = null
 
+  readonly compiled: CompiledGraph
+  private readonly compiledRules: readonly CompiledRule[]
+
   constructor(
-    readonly compiled: CompiledGraph,
+    compiled: CompiledGraph,
     private readonly clock: () => Date,
     private readonly limits: RuleEngineLimits = DEFAULT_LIMITS,
   ) {
+    const ownedRules = ownedCompiledRulesOf(compiled)
+    if (!ownedRules) throw new Error(Codes.contextSnapshotRequired)
+    this.compiled = compiled
+    this.compiledRules = ownedRules
     if (typeof clock !== 'function') throw new TypeError('FormRuleGraph requires a caller-supplied clock')
   }
 
@@ -308,27 +315,23 @@ export class FormRuleGraph {
     const captured = ownedRowOf(row)
     if (!captured) throw new Error(Codes.contextSnapshotRequired)
     const tables = ownedInstanceDataOf(this.instance)!.tables
-    const createdSection = !tables[section]
-    if (createdSection) tables[section] = []
-    const rows = tables[section]
-    const exceededTableLimit = rows.length >= this.limits.maxTableRowsPerAggregate
-    rows.push(captured)
-    try { assertInstanceEnvelope(ownedInstanceDataOf(this.instance)!.fields, tables) }
+    const rows = tables[section] ?? []
+    try { assertInstanceEnvelope(ownedInstanceDataOf(this.instance)!.fields, tables, section, captured) }
     catch (error) {
-      rows.pop()
-      if (createdSection) delete tables[section]
       if (error instanceof RangeError) return this.failClosed(Codes.inputTooLarge)
       throw error
     }
-    if (exceededTableLimit) {
-      // Preserve the established fail-closed aggregate result for this edit, but never
-      // retain the rejected row as future reactive state.
-      try { return this.buildAndEvaluate(signal) } finally { rows.pop() }
-    }
+    if (rows.length >= this.limits.maxTableRowsPerAggregate && this.hasAggregateForSection(section)) return this.refuseTableRow(section)
+    if (!tables[section]) tables[section] = rows
+    rows.push(captured)
     return this.buildAndEvaluate(signal)
   }
 
   removeRow(section: string, rowId: string, signal?: AbortSignal): RuleEvaluationResult {
+    try {
+      assertBoundedMemberName(section, 'rule section name')
+      assertBoundedMemberName(rowId, 'rule row id')
+    } catch { return this.failClosed(Codes.inputTooLarge) }
     const tables = ownedInstanceDataOf(this.instance)!.tables
     const rows = tables[section]
     if (rows) tables[section] = rows.filter((r) => r.id !== rowId)
@@ -365,7 +368,7 @@ export class FormRuleGraph {
     // no-op). Guards use the shared compiler directly (not this form graph), so they are unaffected.
     let projectedCells = 0
     const aggCells = new Set<string>()
-    for (const rule of this.compiled.rules) {
+    for (const rule of this.compiledRules) {
       if (rule.source.action === 'Compute') {
         if (rule.source.scope !== 'Field' && rule.source.scope !== 'Row' && rule.source.scope !== 'Table') {
           return Codes.computeScopeInvalid
@@ -388,7 +391,7 @@ export class FormRuleGraph {
     this.order = []
     this.plans = []
 
-    for (const rule of this.compiled.rules) {
+    for (const rule of this.compiledRules) {
       if (rule.source.action === 'Compute') this.addComputeCellsAndPlans(rule)
       else this.addNonComputePlans(rule)
 
@@ -639,6 +642,21 @@ export class FormRuleGraph {
       isSaveBlocked: true,
     }
   }
+
+  private refuseTableRow(section: string): RuleEvaluationResult {
+    const accepted = this.project()
+    const values = new Map(accepted.values)
+    for (const key of values.keys()) {
+      if (key.startsWith(`agg:${section}/`)) {
+        values.set(key, { state: 'Error', error: err(Codes.tableTooLarge, 'section', section) })
+      }
+    }
+    return { ...accepted, values, isSaveBlocked: true }
+  }
+
+  private hasAggregateForSection(section: string): boolean {
+    return this.compiledRules.some(rule => rule.references.some(reference => reference.kind === 'agg' && reference.section === section))
+  }
 }
 
 function detachComputedValue(value: ComputedValue): ComputedValue {
@@ -668,14 +686,94 @@ function detachOutcome(outcome: RuleOutcome): RuleOutcome {
   return detached
 }
 
-function assertInstanceEnvelope(fields: Record<string, Json>, tables: Record<string, RuleRow[]>): void {
-  const document: Record<string, Json> = { ...fields }
-  for (const [section, rows] of Object.entries(tables)) {
-    document[section] = rows.map((row) => ({ _id: row.id, ...row.fields }))
+function assertInstanceEnvelope(fields: Record<string, Json>, tables: Record<string, RuleRow[]>, addedSection?: string, addedRow?: RuleRow): void {
+  assertInstanceStructure(fields, tables, addedSection, addedRow)
+  // Every source value was already captured. Count the prospective logical envelope
+  // directly, including JSON.stringify punctuation and escapes, before graph mutation.
+  const counter = new JsonStringifyByteCounter(INPUT_MAX_UTF8_BYTES, 'rule instance')
+  counter.addPunctuation(1)
+  let firstRootMember = true
+  const writeRootMember = (name: string, writeValue: () => void): void => {
+    if (!firstRootMember) counter.addPunctuation(1)
+    counter.countString(name)
+    counter.addPunctuation(1)
+    writeValue()
+    firstRootMember = false
   }
-  // Every source value was already captured; this bounded reconstruction only checks
-  // the prospective cumulative envelope before evaluation or cache mutation.
-  parseBoundedJsonText(JSON.stringify(document), 'rule instance')
+  for (const [name, value] of Object.entries(fields)) writeRootMember(name, () => counter.countValue(value))
+  const tableEntries = Object.entries(tables)
+  for (const [section, existingRows] of tableEntries) {
+    writeRootMember(section, () => countRows(existingRows, counter, section === addedSection ? addedRow : undefined))
+  }
+  if (addedSection && !Object.hasOwn(tables, addedSection) && addedRow) writeRootMember(addedSection, () => countRows([], counter, addedRow))
+  counter.addPunctuation(1)
+}
+
+function assertInstanceStructure(fields: Record<string, Json>, tables: Record<string, RuleRow[]>, addedSection?: string, addedRow?: RuleRow): void {
+  let nodes = 1 // root object
+  const addNode = (): void => {
+    if (++nodes > INPUT_MAX_NODES) throw new RangeError('rule instance exceeds node ceiling')
+  }
+  const visit = (value: Json, containerDepth: number): void => {
+    addNode()
+    if (value === null || typeof value !== 'object') return
+    if (containerDepth + 1 > INPUT_MAX_DEPTH) throw new RangeError('rule instance exceeds depth ceiling')
+    if (Array.isArray(value)) {
+      for (const child of value) visit(child, containerDepth + 1)
+      return
+    }
+    for (const [name, child] of Object.entries(value)) {
+      assertBoundedMemberName(name, 'rule instance member name')
+      visit(child, containerDepth + 1)
+    }
+  }
+  for (const [name, value] of Object.entries(fields)) {
+    assertBoundedMemberName(name, 'rule instance member name')
+    visit(value, 1)
+  }
+  const visitRows = (section: string, rows: RuleRow[], appendedRow?: RuleRow): void => {
+    assertBoundedMemberName(section, 'rule instance member name')
+    addNode() // table array
+    if (2 > INPUT_MAX_DEPTH) throw new RangeError('rule instance exceeds depth ceiling')
+    const visitRow = (row: RuleRow): void => {
+      addNode() // row object
+      if (3 > INPUT_MAX_DEPTH) throw new RangeError('rule instance exceeds depth ceiling')
+      assertBoundedMemberName(row.id, 'rule row id')
+      if (row.hasExplicitId) addNode()
+      for (const [name, value] of Object.entries(row.fields)) {
+        assertBoundedMemberName(name, 'rule instance member name')
+        visit(value, 3)
+      }
+    }
+    for (const row of rows) visitRow(row)
+    if (appendedRow) visitRow(appendedRow)
+  }
+  for (const [section, existingRows] of Object.entries(tables)) visitRows(section, existingRows, section === addedSection ? addedRow : undefined)
+  if (addedSection && !Object.hasOwn(tables, addedSection) && addedRow) visitRows(addedSection, [], addedRow)
+}
+
+function countRows(rows: RuleRow[], counter: JsonStringifyByteCounter, appendedRow?: RuleRow): void {
+  counter.addPunctuation(1)
+  let firstRow = true
+  const countRow = (row: RuleRow): void => {
+    if (!firstRow) counter.addPunctuation(1)
+    counter.addPunctuation(1)
+    let firstMember = true
+    const writeMember = (name: string, writeValue: () => void): void => {
+      if (!firstMember) counter.addPunctuation(1)
+      counter.countString(name)
+      counter.addPunctuation(1)
+      writeValue()
+      firstMember = false
+    }
+    if (row.hasExplicitId) writeMember('_id', () => counter.countString(row.id))
+    for (const [name, value] of Object.entries(row.fields)) writeMember(name, () => counter.countValue(value))
+    counter.addPunctuation(1)
+    firstRow = false
+  }
+  for (const row of rows) countRow(row)
+  if (appendedRow) countRow(appendedRow)
+  counter.addPunctuation(1)
 }
 
 function merge(a: VisibilityState, b: VisibilityState): VisibilityState {
