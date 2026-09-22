@@ -253,8 +253,10 @@ async function openReactStory(page: Page, id: string) {
 
 async function openBlazorStory(page: Page, id: string) {
   await gotoWithTransientNetworkRetry(page, `${blazorBase}/iframe.html?id=${encodeURIComponent(id)}&viewMode=story`)
-  await page.waitForFunction(() => typeof BlazingStory !== 'undefined')
-  await evaluateSettled(() => page.evaluate(() => BlazingStory.readyView()))
+  // BlazingStory.readyView() exposes one module-lifetime promise, rather than a readiness
+  // predicate for the selected story. A story can render after navigation without that promise
+  // settling (notably a deliberately persistent Loading State). The probe is our per-story
+  // scene root, so its visibility is the deterministic readiness contract the tests consume.
   await expect(page.locator('[data-gallery-probe]')).toBeVisible()
 }
 
