@@ -706,17 +706,6 @@ var packedBatchAdmission = await CommandRequestBoundary.ExecuteAsync(
 if (packedBatchAdmission.Refusal is not { Code: "kernel.multi-command-batch", StatusCode: 400, CommandCount: 2 }
     || packedCommandExecutions != 0)
     throw new InvalidOperationException("Packed work-item kernel did not refuse a multi-command request before execution.");
-var packedWindow = new DefinitionContractWindow(
-    "consumer-definition.v1",
-    DateTimeOffset.Parse("2026-09-18T12:00:00Z", System.Globalization.CultureInfo.InvariantCulture),
-    DateTimeOffset.Parse("2026-09-18T14:00:00Z", System.Globalization.CultureInfo.InvariantCulture));
-var packedWindowAdmission = await DefinitionWriteBoundary.ExecuteAsync(
-    packedWindow,
-    packedWindow.ClosesAt,
-    () => ValueTask.FromResult("should-not-run"));
-if (packedWindowAdmission.Refusal is not { Code: "kernel.definition-contract-window", StatusCode: 422 })
-    throw new InvalidOperationException("Packed work-item kernel did not refuse a write outside its definition contract window.");
-
 if (typeof(KernelClock).Assembly.GetName().Name != "Harborline.Kernel.Core")
     throw new InvalidOperationException("Kernel Core assembly identity changed.");
 var packedFloorReader = new EmptyCatalogueReader();

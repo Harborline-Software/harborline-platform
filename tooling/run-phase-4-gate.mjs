@@ -158,6 +158,9 @@ function resolveFeedForPackageConsumers() {
 // cores. Overridable with GALLERY_SHARDS for measurement.
 const galleryShards = Number(process.env.GALLERY_SHARDS)
   || Math.max(1, Math.min(4, Math.floor(cpus().length / 4)))
+// T-349: the directory of per-shard reports produced by a MATRIX of ubuntu jobs. Unset for every
+// local run, so the gate on a developer's machine is byte-for-byte what it was.
+const galleryShardReports = process.env.HARBORLINE_GALLERY_SHARD_REPORTS
 
 let caughtGateError
 try {
@@ -197,8 +200,17 @@ try {
   // Skipped under HARBORLINE_GATE_HEADLESS: the MVP is headless, so a browser parity suite does not
   // decide whether a headless change may land. The scheduled cross-platform job still runs it.
   if (!headless) {
-    runReusable('gallery-gate', process.execPath, ['tooling/run-gallery-gate.mjs', '--packages-ready'], root, true,
-      { GALLERY_SHARDS: String(galleryShards) })
+    // T-349. With HARBORLINE_GALLERY_SHARD_REPORTS set, the browser suite has already run on a
+    // matrix of separate hosted runners and this step only collects them: same step id, same
+    // report shape, so the counts, reconciliations and receipt below cannot tell the two apart.
+    // Not reusable in that mode -- the shard artifacts belong to THIS run, and reusing a previous
+    // pass's gallery report against a fresh matrix would be a receipt for a run that did not happen.
+    if (galleryShardReports) {
+      run('gallery-gate', process.execPath, ['tooling/run-gallery-gate.mjs', `--merge=${galleryShardReports}`], root, true)
+    } else {
+      runReusable('gallery-gate', process.execPath, ['tooling/run-gallery-gate.mjs', '--packages-ready'], root, true,
+        { GALLERY_SHARDS: String(galleryShards) })
+    }
   }
   // T-671. Emits the release receipt from the live repository and checks every field against
   // its referent in git. There is no checked-in receipt for this to be pointed at by mistake.

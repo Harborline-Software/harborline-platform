@@ -17,9 +17,23 @@ export interface LayoutRuntimePlan {
 }
 export interface LayoutRuntimeProps { readonly plan: LayoutRuntimePlan }
 
+/** The five binding kinds a block may carry (DES-0052 layout-ck-21 to layout-ck-25). */
+export type LayoutBindingKind = 'record_field' | 'query' | 'measure' | 'template' | 'static'
+
+/**
+ * One authored binding: the kind, and the name it resolves by. A binding whose `name` is
+ * empty is the `needs a binding` state — the block is preserved and rebound one at a time
+ * rather than deleted (layout-auth-31).
+ */
+export interface LayoutAuthoringBinding {
+  readonly kind: LayoutBindingKind
+  readonly name: string
+}
+
 export interface LayoutAuthoringBlock {
   readonly id: string
   readonly kind: string
+  readonly binding?: LayoutAuthoringBinding
   readonly parentId?: string
   readonly intent?: LayoutIntent
   readonly zone?: string
@@ -44,9 +58,14 @@ export interface LayoutAuthoringDraft {
   readonly blocks: readonly LayoutAuthoringBlock[]
   readonly pageRuns?: readonly LayoutAuthoringPageRun[]
 }
+/** One name a binding picker can offer for its kind. */
+export interface LayoutBindableName { readonly id: string; readonly label: string }
+
 export interface LayoutAuthoringCatalogue {
   readonly blockKinds: readonly { readonly id: string; readonly label: string }[]
   readonly zones: readonly string[]
+  /** The names offered per binding kind; `static` is authored on the block, so it is absent. */
+  readonly bindables?: Partial<Record<Exclude<LayoutBindingKind, 'static'>, readonly LayoutBindableName[]>>
   readonly pageLayouts?: readonly { readonly id: string; readonly label: string }[]
   readonly pageMasters?: readonly { readonly id: string; readonly label: string }[]
   readonly staticRegions?: readonly string[]

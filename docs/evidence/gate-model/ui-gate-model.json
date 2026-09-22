@@ -44,7 +44,6 @@
       "hlp.ui.scroll-affordance",
       "hlp.ui.search-input",
       "hlp.ui.segmented-control",
-      "hlp.ui.select-field",
       "hlp.ui.sheet",
       "hlp.ui.side-nav",
       "hlp.ui.spinner",
@@ -61,10 +60,10 @@
     "unfrozenBacklog": false,
     "rule": "An EXPIRED verdict on a module counted by the catalogue fails the gate on every host.",
     "backlog": {
-      "count": 51,
+      "count": 50,
       "ticket": 334,
-      "digest": "e19ba9b2363315375ac265ce253ce7245c1c89a703baae91a6a119d69b0f7506",
-      "frozen": "e19ba9b2363315375ac265ce253ce7245c1c89a703baae91a6a119d69b0f7506"
+      "digest": "bb36db6a47450509cf8151619362a717cfcbc74256cdd45aa919babaf50c0cb8",
+      "frozen": "bb36db6a47450509cf8151619362a717cfcbc74256cdd45aa919babaf50c0cb8"
     }
   },
   "ticket": "098",
@@ -2530,7 +2529,7 @@
         {
           "id": "assertFunctionalParity",
           "status": "PASS",
-          "note": "22 conformance case(s) across both lanes"
+          "note": "27 conformance case(s) across both lanes"
         },
         {
           "id": "assertInternationalization",
@@ -3924,17 +3923,17 @@
         {
           "id": "assertAccessible",
           "status": "PASS",
-          "note": "axe-core over 8 scenarios x 2 lanes in gallery-gate"
+          "note": "axe-core over 9 scenarios x 2 lanes in gallery-gate"
         },
         {
           "id": "assertVisualParity",
           "status": "PASS",
-          "note": "2 visual-parity scenario(s), lane vs lane, pixelmatch"
+          "note": "3 visual-parity scenario(s), lane vs lane, pixelmatch"
         },
         {
           "id": "assertFunctionalParity",
           "status": "PASS",
-          "note": "19 conformance case(s) across both lanes"
+          "note": "27 conformance case(s) across both lanes"
         },
         {
           "id": "assertInternationalization",
@@ -3979,7 +3978,7 @@
         {
           "id": "assertDesignReview",
           "status": "PASS",
-          "note": "approved by Chris Wood on 2026-09-16T15:46:43.1410836Z against 26 surface files"
+          "note": "approved by Chris Wood on 2026-09-20T17:59:36.392Z against 27 surface files"
         },
         {
           "id": "assertDesignQuality",
@@ -4236,17 +4235,17 @@
         {
           "id": "assertAccessible",
           "status": "PASS",
-          "note": "axe-core over 10 scenarios x 2 lanes in gallery-gate"
+          "note": "axe-core over 13 scenarios x 2 lanes in gallery-gate"
         },
         {
           "id": "assertVisualParity",
           "status": "PASS",
-          "note": "2 visual-parity scenario(s), lane vs lane, pixelmatch"
+          "note": "5 visual-parity scenario(s), lane vs lane, pixelmatch"
         },
         {
           "id": "assertFunctionalParity",
           "status": "PASS",
-          "note": "15 conformance case(s) across both lanes"
+          "note": "27 conformance case(s) across both lanes"
         },
         {
           "id": "assertInternationalization",
@@ -4291,7 +4290,7 @@
         {
           "id": "assertDesignReview",
           "status": "PASS",
-          "note": "EXPIRED (backlog 334; owed before R1 is released publicly)"
+          "note": "approved by Chris Wood on 2026-09-20T04:45:20.946Z against 15 surface files"
         },
         {
           "id": "assertDesignQuality",

@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.blocks.entity-views",
-  "interfaceRevision": 5,
+  "interfaceRevision": 6,
   "status": "frozen",
   "purpose": "Own the Views read model, authored view-definition lifecycle, and authorized query runtime behind Harborline-owned ports: entity list/type-filter/detail-with-breadcrumb/containment-tree reads with the 404-only-null rule, immutable authored coordinates with draft/publish/restore history, typed filter/shape/interaction admission, Access-first query execution, condition history with provenance, the two previewed writes with typed rejections, breadcrumb resolution below any renderer with the no-raw-id rule, form-binding descriptors and navigation targets over the frozen Forms wire (Design B), and a development preview adapter that fails closed in Production.",
   "dependencies": [{"moduleId": "hlp.contracts.identities", "minimumRevision": 1}, {"moduleId": "hlp.contracts.forms", "minimumRevision": 4}, {"moduleId": "hlp.contracts.fields", "minimumRevision": 1}, {"moduleId": "hlp.foundation.actor", "minimumRevision": 2}, {"moduleId": "hlp.blocks.measure-catalogue", "minimumRevision": 1}],
   "callerInterface": {
-    "name": "IEntityReadStore / IConditionHistoryStore / IFormBindingSource / IViewNavigationTargets / BreadcrumbResolver / IViewDefinitionStore / ViewDefinitionAuthoring / ViewQueryRuntime",
+    "name": "IEntityReadStore / IConditionHistoryStore / IFormBindingSource / IViewNavigationTargets / BreadcrumbResolver / IViewDefinitionStore / ViewDefinitionAuthoring / ViewQueryRuntime / ViewKindRegistry",
     "operations": [
       "ListEntitiesAsync(type?) -> EntitySummary[] (display-name ordered)",
       "GetEntityAsync(id) -> EntityDetail? (null MEANS not-found ONLY)",
@@ -25,7 +25,8 @@
       "IViewDefinitionStore: save drafts at immutable coordinates, publish a version, resolve the highest published semantic-version head, restore a published revision into a new draft, and expose append-only revision history",
       "ViewDefinitionAuthoring.CreateDraftAsync -> terminal definition.validate admission over record fields, registered kinds/functions/measures/widgets/actions/transitions, typed parameters, and forbidden row-visibility/aggregation/viewer-relative constructs before storing the definition and authored binding",
       "ViewDefinitionPackExporter.Export -> published system/public definitions and their authored bindings only; personal definitions are never pack content",
-      "ViewQueryRuntime.ExecuteAsync -> resolve published head, authorize open, resolve kind and record shape, prepend the Access predicate, apply authored filtering/sort/group/page, evaluate named measures over current authorized rows, and return transient rows/actions/authority/evaluatedAt"
+      "ViewQueryRuntime.ExecuteAsync -> resolve published head, authorize open, resolve kind and record shape, prepend the Access predicate, apply authored filtering/sort/group/page, evaluate named measures over current authorized rows, and return transient rows/actions/authority/evaluatedAt",
+      "ViewKindRegistry.Platform / new ViewKindRegistry(descriptors) -> the production IViewKindRegistry: an immutable, duplicate-refusing register whose platform instance resolves the canonical layout.table identity to the hlp.ui.data-grid renderer and a Title role contract; the retired Views-era grid spelling resolves to nothing"
     ],
     "context": "Persistence lives behind the store ports a host supplies; the in-memory store is the test/dev double and the development preview adapter (pinned Harborline App seed tree, injected TimeProvider) throws in Production. The module references only the identity/forms/fields contracts — never a Foundation aggregate, a Kernel, a host, or a UI framework."
   },

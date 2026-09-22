@@ -20,6 +20,8 @@ The package also owns the platform definition and execution seams for authored v
 
 - `ViewDefinitionAuthoring` admits typed drafts against the same kind, record-shape, expression,
   measure, widget, action, and transition registries used by runtime composition.
+- `ViewKindRegistry.Platform` supplies the production registry for the canonical `layout.table`
+  identity; hosts may compose another immutable registry from additional Layout descriptors.
 - `IViewDefinitionStore` keeps immutable definition-and-binding snapshots at append-only coordinates;
   publishing selects the highest semantic-version head, while restore creates a new draft.
 - `ViewDefinitionPackExporter` exports published system/public definitions with their authored
