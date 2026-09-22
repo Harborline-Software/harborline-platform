@@ -1414,7 +1414,7 @@
         "conformance/hlp.ui.numeric-text-box/quality-fixtures.yaml": "bf4d9802508e078aca48e7ebc7dc74e6d58fd9e3ec85a6a812e7af08304db73d",
         "conformance/hlp.ui.numeric-text-box/runners/run-shared.mjs": "7895e277436d2bcba1f9d46891043b09039b4cfe9824e0ef0c3548bfa93b262d",
         "projections/blazor/ui/hlp.ui.numeric-text-box/NumericTextBoxTypes.cs": "29b21206c9c6571acda3b573bb401c4228a8ce0cf0cfe4e2111a93ad00a52aee",
-        "projections/blazor/ui/hlp.ui.numeric-text-box/HarborlineNumericTextBox.razor": "4c8d2bfacc951416b00c86bef2d121dc2a7b8bee8954a5778c0153a69a7437fc",
+        "projections/blazor/ui/hlp.ui.numeric-text-box/HarborlineNumericTextBox.razor": "5a28a7378b37438078e22ab87ad52f0e1f1e2543511071a8ea5c339e29effa8e",
         "projections/react/ui/hlp.ui.numeric-text-box/src/NumericTextBox.tsx": "c2cb0a6ffd083b5bf36d75b98c86bc6072cad3628db2c4c857d26b657799be50",
         "projections/react/ui/hlp.ui.numeric-text-box/src/NumericTextBox.types.ts": "2d64c43487e96b47cc1e9228b57dd5f8eb35fe0cf1453a733da2322dff65365d",
         "projections/react/ui/hlp.ui.numeric-text-box/src/__tests__/NumericTextBox.conformance.test.tsx": "cb036984dd16c43e4e4685561a09d2827a9ffae691964c840830c3ef03d38d6e",
