@@ -99,6 +99,8 @@ function exprToJson(expr: FormulaExpr): Json {
       return coerceValue(expr.value, expr.valueType)
     case 'binary':
       return { [expr.op]: [exprToJson(expr.left), exprToJson(expr.right)] }
+    case 'call':
+      return { [expr.op]: expr.args.map(exprToJson) }
     case 'if':
       return { if: [conditionToJson(expr.when), exprToJson(expr.then), exprToJson(expr.else)] }
   }

@@ -143,6 +143,17 @@ describe('formula authoring bridge', () => {
     expect(r.value).toBe(200)
   })
 
+  it('lowers a guided closed call through the shared formula compiler', () => {
+    const r = evaluatePreview(overtime({
+      inputs: [],
+      expression: { kind: 'call', op: 'cat', args: [
+        { kind: 'literal', value: 'A', valueType: 'text' },
+        { kind: 'literal', value: 'B', valueType: 'text' },
+      ] },
+    }), 'guided-call', {}, fixedClock)
+    expect(r.value).toBe('AB')
+  })
+
   it('rejects an undeclared reference (formula_undeclared_ref)', () => {
     const bad = overtime({ expression: { kind: 'ref', ref: 'bonus' } })
     try {

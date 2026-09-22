@@ -1,5 +1,9 @@
 using Harborline.Foundation.RuleAuthoring;
 using Harborline.Foundation.RuleEngine.Registry;
+using Harborline.Foundation.RuleEngine.Conformance;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json.Nodes;
 
 namespace Harborline.Blocks.BuilderDefinitions;
 
@@ -8,6 +12,25 @@ public sealed record RuleDefinitionSnapshot(DefinitionRevision Revision, RuleDef
 
 /// <summary>The result of resolving a Rules policy against shared history.</summary>
 public sealed record RuleDefinitionResolution(RuleResolutionStatus Status, RuleDefinitionSnapshot? Snapshot);
+
+/// <summary>An authoring-time Rules resolution choice supplied when preparing released content.</summary>
+public sealed record RuleReleaseSelection(DefinitionKey Key, RuleVersionPolicy Policy);
+
+/// <summary>
+/// One concrete released Rules dependency. The watermark is the winning semantic version label;
+/// the binding is the immutable consumer identity. Neither retains an authoring policy.
+/// </summary>
+public sealed record RuleReleaseBinding(DefinitionBinding Binding, string WinningWatermark, string CanonicalSource);
+
+/// <summary>
+/// Deterministic content that a released consumer can sign. Its digest covers full canonical Rules
+/// source, stream watermark and immutable binding; it is intentionally distinct from BodyJson's
+/// store digest.
+/// </summary>
+public sealed record RulesReleaseMaterialization(
+    IReadOnlyList<RuleReleaseBinding> Bindings,
+    string CanonicalContent,
+    string ContentDigest);
 
 /// <summary>Composes Rules admission with the shared definition and archive stores.</summary>
 public sealed class RuleDefinitionCatalog
@@ -170,6 +193,65 @@ public sealed class RuleDefinitionCatalog
         if (selected.Status == DefinitionStatus.Draft && scope == RuleResolveScope.Production)
             return new(RuleResolutionStatus.DraftRefused, null);
         return new(RuleResolutionStatus.Resolved, Decode(selected));
+    }
+
+    /// <summary>
+    /// Converts authoring resolution choices into only concrete released bindings. Latest is
+    /// resolved through the shared store at this point and cannot survive in returned content;
+    /// every result is re-read through <see cref="IVersionedDefinitionStore.ResolvePublishedAsync"/>.
+    /// </summary>
+    public async ValueTask<RulesReleaseMaterialization> MaterializeReleaseAsync(
+        IReadOnlyList<RuleReleaseSelection> selections, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(selections);
+        var materialized = new List<RuleReleaseBinding>(selections.Count);
+        var seen = new HashSet<DefinitionKey>();
+        for (int index = 0; index < selections.Count; index++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var selection = selections[index] ?? throw Refuse(RuleDefinitionCodes.InvalidDocument,
+                "/selections/" + index + "/key");
+            RequireRules(selection.Key, cancellationToken);
+            if (!seen.Add(selection.Key)) throw Refuse(RuleDefinitionCodes.InvalidDocument,
+                "/selections/" + index + "/key");
+            if (selection.Policy.Kind == RuleVersionPolicyKind.Draft)
+                throw Refuse("rules.release.draft_refused", "/selections/" + index + "/policy");
+
+            var resolution = await ResolveAsync(selection.Key, selection.Policy, RuleResolveScope.Production,
+                cancellationToken).ConfigureAwait(false);
+            if (resolution.Status == RuleResolutionStatus.DraftRefused)
+                throw Refuse("rules.release.draft_refused", "/selections/" + index + "/policy");
+            if (resolution.Status != RuleResolutionStatus.Resolved || resolution.Snapshot is null)
+                throw Refuse("definition.not_found", "/selections/" + index);
+
+            var binding = new DefinitionBinding(selection.Key, resolution.Snapshot.Revision.Document.VersionId);
+            var published = await _store.ResolvePublishedAsync(binding, cancellationToken).ConfigureAwait(false);
+            if (published is null || published.Revision != resolution.Snapshot.Revision.Revision)
+                throw Refuse("definition.not_found", "/selections/" + index);
+            materialized.Add(new(binding, published.Document.Version,
+                RuleDefinitionCodec.SerializeCanonical(Decode(published).Source)));
+        }
+
+        var content = new JsonObject
+        {
+            ["kind"] = "RulesRelease",
+            ["bindings"] = new JsonArray(materialized.OrderBy(item => item.Binding.Key.Tenant, StringComparer.Ordinal)
+                .ThenBy(item => item.Binding.Key.DefinitionId, StringComparer.Ordinal)
+                .ThenBy(item => item.Binding.VersionId, StringComparer.Ordinal)
+                .Select(item => (JsonNode?)new JsonObject
+                {
+                    ["tenant"] = item.Binding.Key.Tenant,
+                    ["definitionId"] = item.Binding.Key.DefinitionId,
+                    ["versionId"] = item.Binding.VersionId,
+                    ["winningWatermark"] = item.WinningWatermark,
+                    ["source"] = JsonNode.Parse(item.CanonicalSource),
+                }).ToArray()),
+        };
+        var builder = new StringBuilder();
+        CanonicalJson.Write(content, builder);
+        string canonicalContent = builder.ToString();
+        return new(materialized.AsReadOnly(), canonicalContent,
+            Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(canonicalContent))));
     }
 
     /// <summary>Validates reconstructed Rules source at the shared admission boundary.</summary>

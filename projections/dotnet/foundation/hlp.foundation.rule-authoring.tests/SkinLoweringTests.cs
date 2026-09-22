@@ -201,6 +201,92 @@ public sealed class SkinLoweringTests
     }
 
     [Fact]
+    public void GuidedCallLowersThroughTheSharedFormulaCompiler()
+    {
+        var draft = Overtime() with
+        {
+            Inputs = Array.Empty<FormulaInputDecl>(),
+            Expression = new FormulaExpr.Call("cat", new FormulaExpr[]
+            {
+                new FormulaExpr.Literal("A", ColumnValueType.Text),
+                new FormulaExpr.Literal("B", ColumnValueType.Text),
+            }),
+        };
+
+        var result = SkinLowering.EvaluatePreview(draft, "guided-call", new JsonObject(), PreviewClock);
+
+        Assert.Equal("\"AB\"", result.Value!.ToJsonString());
+    }
+
+    [Fact]
+    public void PreviewContractProjectsActualRuntimeStatesWithoutFabricatingAValue()
+    {
+        var value = RulesPreviewContract.FromPreview(
+            SkinLowering.EvaluatePreview(Overtime(), "Overtime", new JsonObject { ["hours"] = 10, ["rate"] = 20 }, PreviewClock),
+            "Overtime", "pay");
+        var refusal = RulesPreviewContract.FromPreview(
+            SkinLowering.EvaluatePreview(Overtime(), "Overtime", new JsonObject { ["hours"] = 10, ["rate"] = new JsonObject() }, PreviewClock),
+            "Overtime", "pay");
+        var pending = RulesPreviewContract.FromPreview(
+            SkinLowering.EvaluatePreview(Overtime(), "Overtime", new JsonObject { ["hours"] = 10, ["rate"] = new JsonObject { ["@pending"] = true } }, PreviewClock),
+            "Overtime", "pay");
+        var invalidDraft = Overtime() with
+        {
+            Inputs = new[] { new FormulaInputDecl("required", "required", ColumnValueType.Text) },
+            Expression = new FormulaExpr.Call("+", new FormulaExpr[]
+            {
+                new FormulaExpr.Call("missing", new FormulaExpr[] { new FormulaExpr.Literal("required", ColumnValueType.Text) }),
+                new FormulaExpr.Literal("1", ColumnValueType.Number),
+            }),
+        };
+        var invalidDocument = new RuleDefinitionDocument(
+            new("overtime", "1.0.0", "tenant-a", "domain-package", new JsonObject(), []),
+            "Overtime", RuleDefinitionTier.JsonLogic, invalidDraft);
+        var diagnostic = RulesPreviewContract.FromDiagnostic(Assert.Single(
+            RuleIntentValidator.Validate(invalidDocument, RuleIntentPhase.Author).Diagnostics), "Overtime", "pay");
+
+        Assert.Equal(RulesPreviewOutcomeKind.Value, value.Kind);
+        Assert.Equal("200", value.Value);
+        Assert.Equal(RulesPreviewOutcomeKind.Refusal, refusal.Kind);
+        Assert.False(string.IsNullOrWhiteSpace(refusal.Code));
+        Assert.Equal(RulesPreviewOutcomeKind.Pending, pending.Kind);
+        Assert.Null(pending.Value);
+        Assert.Equal(RulesPreviewOutcomeKind.Uncomputable, diagnostic.Kind);
+        Assert.Equal(SkinCodes.FormulaTypeMismatch, diagnostic.Code);
+        Assert.All(new[] { value, refusal, pending, diagnostic }, item =>
+        {
+            Assert.Equal("Overtime", item.RuleName);
+            Assert.Equal("pay", item.MemberName);
+        });
+    }
+
+    [Fact]
+    public void PreviewContractCarriesRealValidityVisibilityAndPresentationOutcomes()
+    {
+        FormulaDraft Draft(RuleActionKind action, FormulaExpr expression) => new()
+        {
+            Scope = RuleScope.Field,
+            ScopeTarget = "pay",
+            OutputType = action,
+            Inputs = [],
+            Expression = expression,
+        };
+        var validity = RulesPreviewContract.FromPreview(SkinLowering.EvaluatePreview(
+            Draft(RuleActionKind.Validate, new FormulaExpr.Literal("true", ColumnValueType.Boolean)), "Contract", new JsonObject(), PreviewClock), "Contract", "pay");
+        var visibility = RulesPreviewContract.FromPreview(SkinLowering.EvaluatePreview(
+            Draft(RuleActionKind.Visibility, new FormulaExpr.Literal("false", ColumnValueType.Boolean)), "Contract", new JsonObject(), PreviewClock), "Contract", "pay");
+        var presentation = RulesPreviewContract.FromPreview(SkinLowering.EvaluatePreview(
+            Draft(RuleActionKind.Presentation, new FormulaExpr.Literal("true", ColumnValueType.Boolean)), "Contract", new JsonObject(), PreviewClock), "Contract", "pay");
+
+        Assert.Equal(RulesPreviewOutcomeKind.Validity, validity.Kind);
+        Assert.Equal("valid", validity.Validity);
+        Assert.Equal(RulesPreviewOutcomeKind.Visibility, visibility.Kind);
+        Assert.Contains("visible=False", visibility.Visibility, StringComparison.Ordinal);
+        Assert.Equal(RulesPreviewOutcomeKind.Presentation, presentation.Kind);
+        Assert.False(string.IsNullOrWhiteSpace(presentation.Presentation));
+    }
+
+    [Fact]
     public void RejectsUndeclaredReference()
     {
         var bad = Overtime() with { Expression = new FormulaExpr.Ref("bonus") };

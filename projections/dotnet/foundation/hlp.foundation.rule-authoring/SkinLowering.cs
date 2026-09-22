@@ -124,6 +124,7 @@ public static class SkinLowering
         FormulaExpr.Ref r => new JsonObject { ["var"] = JsonValue.Create(r.Name) },
         FormulaExpr.Literal l => CoerceValue(l.Value, l.ValueType),
         FormulaExpr.Binary b => new JsonObject { [b.Op] = new JsonArray(ExprToJson(b.Left), ExprToJson(b.Right)) },
+        FormulaExpr.Call c => new JsonObject { [c.Op] = new JsonArray(c.Args.Select(ExprToJson).ToArray()) },
         FormulaExpr.If i => new JsonObject
         {
             ["if"] = new JsonArray(ConditionToJson(i.When), ExprToJson(i.Then), ExprToJson(i.Else)),
