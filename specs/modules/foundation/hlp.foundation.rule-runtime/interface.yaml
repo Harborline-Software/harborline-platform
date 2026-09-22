@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.foundation.rule-runtime",
-  "interfaceRevision": 1,
+  "interfaceRevision": 2,
   "status": "frozen",
   "purpose": "Evaluate the closed harborline-jsonlogic/v1 language deterministically for Dynamic Forms, Calculations, and workflow guards through reactive TypeScript and authoritative .NET integrity tiers.",
   "dependencies": [{"moduleId": "hlp.contracts.forms", "minimumRevision": 3}],
@@ -35,7 +35,7 @@
     "The nine-file, 74-case corpus is one language-neutral authority; canonical per-rule outcomes from both tiers must be structurally identical.",
     "Unknown operators, PowerFx evaluation, malformed grammar, cycles, resource-bound violations, and non-array Options results fail closed with stable localizable codes.",
     "The v1 operator set is closed and contains no regex or user-pattern operator; pattern validation remains in the schema-validation module.",
-    "Money uses exact decimal semantics and date.today is supplied by an injected deterministic clock.",
+    "Every FormRuleGraph and GuardEvaluator construction requires a caller-supplied business clock; each full evaluation and reactive reevaluation pins one sampled instant, while liveness timeout remains a non-authoritative infrastructure fault.",
     "Runtime step exhaustion fails closed; wall-clock or cancellation timeout is an infrastructure fault and never a divergent rule outcome.",
     "Named rule resolution excludes drafts unless explicitly requested and preserves version pins, monotonic watermarks, epoch-fenced caches, and deterministic traces.",
     "Reactive reevaluation recomputes only the transitive dependency front after a field or child-row change without changing full-evaluation outcomes."

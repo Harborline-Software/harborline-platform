@@ -30,7 +30,7 @@ public sealed class RuleTraceTests
     private static (CompiledGraph, RuleEvaluationResult) Evaluate(RuleDefinition rule, JsonObject instance)
     {
         var compiled = RuleCompiler.Compile(new[] { rule });
-        var graph = new FormRuleGraph(compiled, RuleEngineLimits.Default, TimeProvider.System);
+        var graph = new FormRuleGraph(compiled, TimeProvider.System, RuleEngineLimits.Default);
         var result = graph.EvaluateInstance(RuleInstance.FromJson(instance));
         return (compiled, result);
     }
@@ -122,7 +122,7 @@ public sealed class RuleTraceTests
     {
         var guard = RuleDefinitionFactory.Create("g.amount", RuleTier.JsonLogic, RuleScope.Schema, "",
             """{ ">": [ { "var": "amount" }, 5000 ] }""", RuleActionKind.Validate);
-        var evaluator = new GuardEvaluator();
+        var evaluator = new GuardEvaluator(TimeProvider.System);
 
         var pass = evaluator.EvaluateGuard(guard, new Dictionary<string, JsonNode?> { ["amount"] = 7000 });
         var passTrace = RuleTraceBuilder.BuildGuard(guard, pass);

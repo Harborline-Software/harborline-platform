@@ -135,8 +135,6 @@ public sealed class RuleDefinitionCatalog
         RequireRules(key, cancellationToken);
         RequirePolicy(policy);
         if (!Enum.IsDefined(scope)) throw Refuse(RuleDefinitionCodes.InvalidDocument, "/scope");
-        var history = await _store.ListHistoryAsync(key, cancellationToken).ConfigureAwait(false);
-
         DefinitionRevision? selected;
         switch (policy.Kind)
         {
@@ -146,6 +144,7 @@ public sealed class RuleDefinitionCatalog
             case RuleVersionPolicyKind.Pinned:
                 // Bind an exact admitted label to its immutable shared version identity. Prefer
                 // publication if another draft has the same label; drafts cannot shadow a pin.
+                var history = await _store.ListHistoryAsync(key, cancellationToken).ConfigureAwait(false);
                 var versions = history.GroupBy(item => item.Document.VersionId).Select(group => group.Last());
                 selected = versions.Where(item => item.Document.Version == policy.Version)
                     .OrderByDescending(item => item.Status == DefinitionStatus.Published)
@@ -156,6 +155,7 @@ public sealed class RuleDefinitionCatalog
                 break;
             case RuleVersionPolicyKind.Draft:
                 if (scope == RuleResolveScope.Production) return new(RuleResolutionStatus.DraftRefused, null);
+                history = await _store.ListHistoryAsync(key, cancellationToken).ConfigureAwait(false);
                 selected = history.GroupBy(item => item.Document.VersionId).Select(group => group.Last())
                     .Where(item => item.Status == DefinitionStatus.Draft)
                     .OrderByDescending(item => item.Revision).FirstOrDefault();

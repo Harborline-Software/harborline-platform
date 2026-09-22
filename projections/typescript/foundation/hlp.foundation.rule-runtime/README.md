@@ -24,7 +24,8 @@ is a faithful port of that spec; do not let the two diverge (the corpus catches 
 import { compile, FormRuleGraph, RuleInstance, GuardEvaluator } from '@harborline-software/rule-engine'
 
 const compiled = compile(formDefinition.rules)       // throws CompileError on a bad / cyclic def
-const graph = new FormRuleGraph(compiled)
+const businessClock = () => new Date('2026-06-30T00:00:00.000Z') // supplied by the calling host
+const graph = new FormRuleGraph(compiled, businessClock)
 let result = graph.evaluateInstance(RuleInstance.fromJson(instanceBody))
 
 // reactive as-you-type: only the transitive dependents re-evaluate

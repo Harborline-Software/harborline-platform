@@ -19,7 +19,7 @@ public sealed class AccessScopeTests
         {
             evaluations++;
             Assert.Equal(At, at);
-            return new Harborline.Foundation.RuleEngine.GuardEvaluator();
+            return new Harborline.Foundation.RuleEngine.GuardEvaluator(new FixedTimeProvider(at));
         });
         var authority = new AccessAuthorityContext("alice", "tenant-a", "work", "1", At, ["record.owner", "principal"]);
         Assert.Equal("access.authority_missing", evaluator.Evaluate(expression, request, null).Reason);
@@ -42,4 +42,9 @@ public sealed class AccessScopeTests
         Assert.Equal("access.reference_undeclared", evaluator.Evaluate(expression, request,
             new("alice", "a", "work", "1", At, ["principal"])).Reason);
     }
+}
+
+file sealed class FixedTimeProvider(DateTimeOffset instant) : TimeProvider
+{
+    public override DateTimeOffset GetUtcNow() => instant;
 }

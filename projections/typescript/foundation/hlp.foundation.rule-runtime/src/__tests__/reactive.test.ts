@@ -13,14 +13,78 @@ import { RuleInstance } from '../instance.js'
 import { Codes } from '../codes.js'
 import type { Json } from '../model.js'
 
+const fixedClock = () => new Date('2026-06-30T00:00:00.000Z')
+
 function rule(id: string, scopeTarget: string, action: RuleDefinition['action'], expression: Json, scope: RuleDefinition['scope'] = 'Field'): RuleDefinition {
   return { id, tier: 'JsonLogic', scope, scopeTarget, action, expression }
 }
 
 function graphOf(rules: RuleDefinition[], instance: Record<string, Json>) {
-  const g = new FormRuleGraph(compile(rules))
+  const g = new FormRuleGraph(compile(rules), fixedClock)
   return { g, first: g.evaluateInstance(RuleInstance.fromJson(instance)) }
 }
+
+describe('business-clock pinning', () => {
+  it('refuses graph and guard construction when an untyped consumer omits the required clock', () => {
+    const ClocklessGraph = FormRuleGraph as unknown as new (compiled: ReturnType<typeof compile>) => FormRuleGraph
+    const ClocklessGuard = GuardEvaluator as unknown as new () => GuardEvaluator
+
+    expect(() => new ClocklessGraph(compile([]))).toThrow(/clock/i)
+    expect(() => new ClocklessGuard()).toThrow(/clock/i)
+  })
+
+  it('samples an advancing clock once for an evaluation and once again for reactive re-evaluation', () => {
+    const instants = [
+      new Date('2026-06-30T23:59:59.000Z'),
+      new Date('2026-07-01T00:00:01.000Z'),
+    ]
+    let reads = 0
+    const clock = () => instants[reads++]
+    const rules = [
+      rule('c.first', 'first', 'Compute', { if: [{ var: 'toggle' }, { 'date.today': [] }, { 'date.today': [] }] }),
+      rule('c.second', 'second', 'Compute', { if: [{ var: 'toggle' }, { 'date.today': [] }, { 'date.today': [] }] }),
+    ]
+    const graph = new FormRuleGraph(compile(rules), clock)
+
+    const first = graph.evaluateInstance(RuleInstance.fromJson({ toggle: true }))
+    expect(reads).toBe(1)
+    expect(first.values.get('field:first')).toEqual({ state: 'Resolved', value: '2026-06-30' })
+    expect(first.values.get('field:second')).toEqual({ state: 'Resolved', value: '2026-06-30' })
+
+    const next = graph.reevaluate('toggle', false)
+    expect(reads).toBe(2)
+    expect(next.values.get('field:first')).toEqual({ state: 'Resolved', value: '2026-07-01' })
+    expect(next.values.get('field:second')).toEqual({ state: 'Resolved', value: '2026-07-01' })
+  })
+
+  it('treats date.today as an input without replacing genuinely unaffected outcomes', () => {
+    const before = new Date('2026-06-30T23:59:59.000Z')
+    const after = new Date('2026-07-01T00:00:01.000Z')
+    let reads = 0
+    const graph = new FormRuleGraph(compile([
+      rule('c.today', 'today', 'Compute', { 'date.today': [] }),
+      rule('c.label', 'label', 'Compute', { cat: [{ var: 'today' }, '/', { var: 'other' }] }),
+      rule('c.stable', 'stable-output', 'Compute', { var: 'stable' }),
+      rule('v.today', 'today-valid', 'Validate', { '==': [{ 'date.today': [] }, '2026-07-01'] }),
+    ]), () => [before, after][reads++])
+    const first = graph.evaluateInstance(RuleInstance.fromJson({ other: 'before', stable: 'unchanged' }))
+    const stableOutcome = first.byRule.get('c.stable')
+
+    const incremental = graph.reevaluate('other', 'after')
+    const full = new FormRuleGraph(compile([
+      rule('c.today', 'today', 'Compute', { 'date.today': [] }),
+      rule('c.label', 'label', 'Compute', { cat: [{ var: 'today' }, '/', { var: 'other' }] }),
+      rule('c.stable', 'stable-output', 'Compute', { var: 'stable' }),
+      rule('v.today', 'today-valid', 'Validate', { '==': [{ 'date.today': [] }, '2026-07-01'] }),
+    ]), () => after).evaluateInstance(RuleInstance.fromJson({ other: 'after', stable: 'unchanged' }))
+
+    expect(reads).toBe(2)
+    expect(incremental.values.get('field:today')).toEqual(full.values.get('field:today'))
+    expect(incremental.values.get('field:label')).toEqual(full.values.get('field:label'))
+    expect(incremental.byRule.get('v.today')?.validity).toEqual(full.byRule.get('v.today')?.validity)
+    expect(incremental.byRule.get('c.stable')).toBe(stableOutcome)
+  })
+})
 
 describe('reactive re-evaluation — transitive dependents only', () => {
   it('re-evaluates only the dependent front; non-dependent outcomes are referentially unchanged', () => {
@@ -116,7 +180,7 @@ describe('static-cap rejection (identical to the .NET integrity tier)', () => {
   })
 
   it('fails closed when the per-instance step budget is exhausted', () => {
-    const g = new FormRuleGraph(compile([rule('c.b', 'b', 'Compute', { '+': [{ var: 'a' }, 1] })]), { ...{
+    const g = new FormRuleGraph(compile([rule('c.b', 'b', 'Compute', { '+': [{ var: 'a' }, 1] })]), fixedClock, { ...{
       maxGraphNodes: 5000, maxTableRowsPerAggregate: 2000, maxDependencyDepth: 64, maxReferencesPerRule: 64,
       maxAstNodes: 256, maxLiteralLength: 4096, stepBudget: 0, wallClockMs: 250,
     } })
@@ -132,7 +196,7 @@ describe('wall-clock is a non-authoritative liveness fault, not a divergent outc
   // corpus. So it PROPAGATES as an infrastructure fault (RuleTimeout) rather than returning a result.
   // (An AbortSignal is the deterministic, hardware-independent way to trip the guard — the TS analog of
   // the .NET pre-cancelled CancellationToken.)
-  const one = () => new FormRuleGraph(compile([rule('c.b', 'b', 'Compute', { '+': [{ var: 'a' }, 1] })]))
+  const one = () => new FormRuleGraph(compile([rule('c.b', 'b', 'Compute', { '+': [{ var: 'a' }, 1] })]), fixedClock)
 
   it('evaluateInstance PROPAGATES RuleTimeout on an aborted signal (never a rule.timeout result)', () => {
     const ac = new AbortController()
@@ -151,7 +215,7 @@ describe('wall-clock is a non-authoritative liveness fault, not a divergent outc
   it('a guard PROPAGATES RuleTimeout on an aborted signal (not a Validity verdict)', () => {
     const ac = new AbortController()
     ac.abort()
-    const gd = new GuardEvaluator()
+    const gd = new GuardEvaluator(fixedClock)
     const r: RuleDefinition = { id: 'g.min', tier: 'JsonLogic', scope: 'Schema', scopeTarget: '', action: 'Validate', expression: { '>': [{ var: 'amount' }, 50] } }
     expect(() => gd.evaluateGuard(r, { amount: 100 }, ac.signal)).toThrow(RuleTimeout)
   })
@@ -159,7 +223,7 @@ describe('wall-clock is a non-authoritative liveness fault, not a divergent outc
   it('the op-budget, by contrast, STAYS an authoritative fail-closed OUTCOME (deterministic across tiers)', () => {
     // Distinct from the wall-clock: the op-budget is deterministic (same op count on both tiers), so it
     // remains an outcome-affecting fail-closed result — the two tiers reach it identically.
-    const g = new FormRuleGraph(compile([rule('c.b', 'b', 'Compute', { '+': [{ var: 'a' }, 1] })]), {
+    const g = new FormRuleGraph(compile([rule('c.b', 'b', 'Compute', { '+': [{ var: 'a' }, 1] })]), fixedClock, {
       maxGraphNodes: 5000, maxTableRowsPerAggregate: 2000, maxDependencyDepth: 64, maxReferencesPerRule: 64,
       maxAstNodes: 256, maxLiteralLength: 4096, stepBudget: 0, wallClockMs: 250,
     })
@@ -190,7 +254,7 @@ describe('unavailable aggregate refuses — never a fabricated null (ticket 162)
     // The guard tier's flat context bag carries no tables, so a well-formed agg reference is
     // unavailable data there: rule.bad_reference with params {agg: "section/fn/col"} — the
     // exact shape (and param order) the shared corpus pins byte-identically across tiers.
-    const guard = new GuardEvaluator()
+    const guard = new GuardEvaluator(fixedClock)
     const v: RuleDefinition = { id: 'g.total', tier: 'JsonLogic', scope: 'Schema', scopeTarget: '', action: 'Compute', expression: { var: 'table.sum(items.amount)' } }
     expect(guard.evaluateValue(v, {})).toEqual({
       state: 'Error',
@@ -200,7 +264,7 @@ describe('unavailable aggregate refuses — never a fabricated null (ticket 162)
 })
 
 describe('guard evaluator (workflow transition guards)', () => {
-  const guard = new GuardEvaluator()
+  const guard = new GuardEvaluator(fixedClock)
   const g: RuleDefinition = { id: 'g.minAmount', tier: 'JsonLogic', scope: 'Schema', scopeTarget: '', action: 'Validate', expression: { '>': [{ var: 'amount' }, 50] } }
 
   it('passes when the guard holds', () => {

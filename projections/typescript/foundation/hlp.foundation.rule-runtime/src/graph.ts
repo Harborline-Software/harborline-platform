@@ -38,6 +38,12 @@ const isPendingSentinel = (n: Json): boolean =>
   typeof n === 'object' && n !== null && !Array.isArray(n) &&
   Object.keys(n).length === 1 && (n as Record<string, Json>)['@pending'] === true
 
+const usesClock = (ast: Json): boolean => {
+  if (Array.isArray(ast)) return ast.some(usesClock)
+  if (typeof ast !== 'object' || ast === null) return false
+  return Object.prototype.hasOwnProperty.call(ast, 'date.today') || Object.values(ast).some(usesClock)
+}
+
 class CellResolver implements ValueResolver {
   constructor(
     private readonly computed: Map<string, ComputedValue>,
@@ -135,7 +141,10 @@ function buildOutcome(rule: CompiledRule, target: string, ctx: EvalContext): { o
       switch (rule.outputType) {
         case 'Value': return { outcome: { ruleId, target, outputType: 'Value', value: { state: 'Pending' } }, pending: true }
         case 'Validity': return { outcome: { ruleId, target, outputType: 'Validity', validity: { ok: false, error: err(Codes.pendingAtSave) } }, pending: true }
-        case 'Visibility': return { outcome: { ruleId, target, outputType: 'Visibility', visibility: failClosedVisibility(rule.source.action) }, pending: true }
+        case 'Visibility':
+          return rule.source.action === 'Required'
+            ? { outcome: { ruleId, target, outputType: 'Validity', validity: { ok: false, error: err(Codes.pendingAtSave, 'rule', ruleId) } }, pending: true }
+            : { outcome: { ruleId, target, outputType: 'Visibility', visibility: failClosedVisibility(rule.source.action) }, pending: true }
         case 'Options': return { outcome: { ruleId, target, outputType: 'Options', options: { state: 'Pending' } }, pending: true }
         default: return { outcome: { ruleId, target, outputType: 'Presentation', presentation: {} }, pending: true }
       }
@@ -144,13 +153,20 @@ function buildOutcome(rule: CompiledRule, target: string, ctx: EvalContext): { o
       switch (rule.outputType) {
         case 'Value': return { outcome: { ruleId, target, outputType: 'Value', value: { state: 'Error', error: e.error } }, pending: false }
         case 'Validity': return { outcome: { ruleId, target, outputType: 'Validity', validity: { ok: false, error: e.error } }, pending: false }
-        case 'Visibility': return { outcome: { ruleId, target, outputType: 'Visibility', visibility: failClosedVisibility(rule.source.action) }, pending: false }
+        case 'Visibility':
+          return rule.source.action === 'Required'
+            ? { outcome: { ruleId, target, outputType: 'Validity', validity: { ok: false, error: withRule(e.error, ruleId) } }, pending: false }
+            : { outcome: { ruleId, target, outputType: 'Visibility', visibility: failClosedVisibility(rule.source.action) }, pending: false }
         case 'Options': return { outcome: { ruleId, target, outputType: 'Options', options: { state: 'Error', error: e.error } }, pending: false }
         default: return { outcome: { ruleId, target, outputType: 'Presentation', presentation: { severity: 'error' } }, pending: false }
       }
     }
     throw e // budget / timeout propagate to abort the whole instance
   }
+}
+
+function withRule(error: RuleError, ruleId: string): RuleError {
+  return 'rule' in error.params ? error : { code: error.code, params: { ...error.params, rule: ruleId } }
 }
 
 function visibilityFor(action: RuleActionKind, result: boolean): VisibilityState {
@@ -207,12 +223,15 @@ export class FormRuleGraph {
   private plans: OutcomePlan[] = []
   private values = new Map<string, ComputedValue>()
   private outcomes = new Map<string, RuleOutcome>()
+  private evaluationInstant: Date | null = null
 
   constructor(
     readonly compiled: CompiledGraph,
+    private readonly clock: () => Date,
     private readonly limits: RuleEngineLimits = DEFAULT_LIMITS,
-    private readonly clock: () => Date = () => new Date(),
-  ) {}
+  ) {
+    if (typeof clock !== 'function') throw new TypeError('FormRuleGraph requires a caller-supplied clock')
+  }
 
   evaluateInstance(instance: RuleInstance, signal?: AbortSignal): RuleEvaluationResult {
     this.instance = instance
@@ -232,6 +251,19 @@ export class FormRuleGraph {
       }
     }
 
+    // The business clock is an explicit graph input. Seed just its readers and their transitive
+    // dependents through the existing index, preserving referential identity elsewhere.
+    for (const c of this.order) if (c.rule !== null && usesClock(c.rule.ast)) {
+      if (!dirty.has(c.key)) { dirty.add(c.key); queue.push(c.key) }
+    }
+    while (queue.length > 0) {
+      const node = queue.shift()!
+      for (const d of this.readers.get(node) ?? []) {
+        if (!dirty.has(d)) { dirty.add(d); queue.push(d) }
+      }
+    }
+
+    this.evaluationInstant = this.clock()
     const budget = new EvalBudget(this.limits, signal)
     const adapter = new FormContextAdapter(this.values, this.instance) // ADR 0146 D3 context seam
     try {
@@ -239,7 +271,7 @@ export class FormRuleGraph {
       const touched = new Set(dirty)
       touched.add(changedKey)
       for (const plan of this.plans) {
-        if ([...plan.reads].some((r) => touched.has(r)) || dirty.has(plan.target)) {
+        if (usesClock(plan.rule.ast) || [...plan.reads].some((r) => touched.has(r)) || dirty.has(plan.target)) {
           this.outcomes.set(plan.key, this.buildPlanOutcome(plan, budget, adapter))
         }
       }
@@ -270,6 +302,7 @@ export class FormRuleGraph {
     this.build()
     if (this.cells.size > this.limits.maxGraphNodes) return this.failClosed(Codes.graphTooLarge)
 
+    this.evaluationInstant = this.clock()
     const budget = new EvalBudget(this.limits, signal)
     this.values = new Map()
     this.outcomes = new Map()
@@ -446,7 +479,7 @@ export class FormRuleGraph {
     if (c.aggFold) return this.foldAggregate(c.aggFold.fn, c.aggFold.section, c.aggFold.col, budget)
 
     const resolver = adapter.createResolver({ rowSection: c.rule!.rowSection, rowId: c.rowId })
-    const ctx: EvalContext = { resolver, now: this.clock(), budget }
+    const ctx: EvalContext = { resolver, now: this.evaluationInstant!, budget }
     try {
       return { state: 'Resolved', value: evaluate(c.rule!.ast as Json, ctx) }
     } catch (e) {
@@ -462,7 +495,7 @@ export class FormRuleGraph {
       return { ruleId: plan.rule.source.id, target: plan.target, outputType: 'Value', value: cv }
     }
     const resolver = adapter.createResolver({ rowSection: plan.rule.rowSection, rowId: plan.rowId })
-    const ctx: EvalContext = { resolver, now: this.clock(), budget }
+    const ctx: EvalContext = { resolver, now: this.evaluationInstant!, budget }
     return buildOutcome(plan.rule, plan.target, ctx).outcome
   }
 

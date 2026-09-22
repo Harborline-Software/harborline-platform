@@ -49,8 +49,16 @@ public sealed record FormSubmissionCommitResult(
     FormSubmissionCommitDisposition Disposition,
     FormSubmitReceipt? Receipt);
 
+/// <summary>One real submission-store exclusion scope. A commit publishes its complete envelope once.</summary>
+public interface IFormSubmissionTransactionScope : IAsyncDisposable
+{
+    ValueTask<FormSubmissionCommitResult> CommitAsync(FormSubmissionCommit commit, CancellationToken cancellationToken = default);
+    ValueTask RollbackAsync(CancellationToken cancellationToken = default);
+}
+
 public interface IFormSubmissionTransactionStore
 {
+    ValueTask<IFormSubmissionTransactionScope> BeginTransactionAsync(CancellationToken cancellationToken = default);
     ValueTask<FormSubmissionCommitResult> CommitAsync(FormSubmissionCommit commit, CancellationToken cancellationToken = default);
     ValueTask<FormSubmissionRecord?> GetAsync(TenantId tenant, EntityId instanceId, CancellationToken cancellationToken = default);
     ValueTask<IReadOnlyList<FormProjectionEnvelope>> LeasePendingAsync(int maximum, CancellationToken cancellationToken = default);

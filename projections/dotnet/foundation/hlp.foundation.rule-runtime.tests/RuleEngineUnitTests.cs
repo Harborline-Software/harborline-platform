@@ -25,7 +25,16 @@ public sealed class RuleEngineUnitTests
         => RuleInstance.FromJson(JsonNode.Parse(json)!.AsObject());
 
     private static FormRuleGraph Graph(IReadOnlyList<RuleDefinition> rules, RuleEngineLimits? limits = null)
-        => new(RuleCompiler.Compile(rules, limits), limits, new FixedClock(Clock));
+        => new(RuleCompiler.Compile(rules, limits), new FixedClock(Clock), limits);
+
+    [Fact]
+    public void Graph_and_guard_reject_a_missing_business_clock()
+    {
+        var compiled = RuleCompiler.Compile([]);
+
+        Assert.Throws<ArgumentNullException>(() => new FormRuleGraph(compiled, clock: null!));
+        Assert.Throws<ArgumentNullException>(() => new GuardEvaluator(clock: null!));
+    }
 
     // ── cycle + tier rejection ────────────────────────────────────────────────
 
@@ -209,10 +218,57 @@ public sealed class RuleEngineUnitTests
         // "transition denied" verdict — it propagates rather than returning Validity.Invalid(timeout).
         using var cts = new CancellationTokenSource();
         cts.Cancel();
-        var guard = new GuardEvaluator(RuleEngineLimits.Default, new FixedClock(Clock));
+        var guard = new GuardEvaluator(new FixedClock(Clock), RuleEngineLimits.Default);
         var rule = RuleDefinitionFactory.Create("g.min", RuleTier.JsonLogic, RuleScope.Schema, "",
             "{\">\":[{\"var\":\"amount\"},50]}", RuleActionKind.Validate);
         Assert.Throws<RuleEngineTimeoutException>(() => guard.EvaluateGuard(rule, Bag("amount", 100), cts.Token));
+    }
+
+    [Fact]
+    public void Graph_EvaluationPinsOneInjectedInstantAcrossAllOutcomes()
+    {
+        var clock = new AdvancingClock(
+            new DateTimeOffset(2026, 6, 30, 23, 59, 59, TimeSpan.Zero),
+            new DateTimeOffset(2026, 7, 1, 0, 0, 1, TimeSpan.Zero));
+        var graph = new FormRuleGraph(RuleCompiler.Compile(
+            [
+                Compute("today.one", "one", "{\"date.today\":[]}"),
+                Compute("today.two", "two", "{\"date.today\":[]}"),
+            ]), clock, RuleEngineLimits.Default);
+
+        var result = graph.EvaluateInstance(Instance("{}"));
+
+        Assert.Equal(1, clock.Reads);
+        Assert.Equal("2026-06-30", result.Values["field:one"].Value!.GetValue<string>());
+        Assert.Equal("2026-06-30", result.Values["field:two"].Value!.GetValue<string>());
+    }
+
+    [Fact]
+    public void Reevaluate_treats_date_today_as_an_input_without_recomputing_unaffected_outcomes()
+    {
+        var beforeMidnight = new DateTimeOffset(2026, 6, 30, 23, 59, 59, TimeSpan.Zero);
+        var afterMidnight = new DateTimeOffset(2026, 7, 1, 0, 0, 1, TimeSpan.Zero);
+        var rules = new[]
+        {
+            Compute("c.today", "today", "{\"date.today\":[]}"),
+            Compute("c.label", "label", "{\"cat\":[{\"var\":\"today\"},\"/\",{\"var\":\"other\"}]}"),
+            Compute("c.stable", "stable-output", "{\"var\":\"stable\"}"),
+            RuleDefinitionFactory.Create("v.today", RuleTier.JsonLogic, RuleScope.Field, "today-valid", "{\"==\":[{\"date.today\":[]},\"2026-07-01\"]}", RuleActionKind.Validate),
+        };
+        var clock = new AdvancingClock(beforeMidnight, afterMidnight);
+        var graph = new FormRuleGraph(RuleCompiler.Compile(rules), clock);
+        var first = graph.EvaluateInstance(Instance("{\"other\":\"before\",\"stable\":\"unchanged\"}"));
+        var stableOutcome = first.ByRule["c.stable"];
+
+        var incremental = graph.Reevaluate("other", JsonValue.Create("after"));
+        var full = new FormRuleGraph(RuleCompiler.Compile(rules), new FixedClock(afterMidnight))
+            .EvaluateInstance(Instance("{\"other\":\"after\",\"stable\":\"unchanged\"}"));
+
+        Assert.Equal(2, clock.Reads);
+        Assert.Equal(full.Values["field:today"].Value!.GetValue<string>(), incremental.Values["field:today"].Value!.GetValue<string>());
+        Assert.Equal(full.Values["field:label"].Value!.GetValue<string>(), incremental.Values["field:label"].Value!.GetValue<string>());
+        Assert.Equal(full.ByRule["v.today"].Validity!.Ok, incremental.ByRule["v.today"].Validity!.Ok);
+        Assert.Same(stableOutcome, incremental.ByRule["c.stable"]);
     }
 
     [Fact]
@@ -374,7 +430,7 @@ public sealed class RuleEngineUnitTests
     [Fact]
     public void Guard_evaluator_passes_fails_and_computes()
     {
-        var guard = new GuardEvaluator(RuleEngineLimits.Default, new FixedClock(Clock));
+        var guard = new GuardEvaluator(new FixedClock(Clock), RuleEngineLimits.Default);
         var rule = RuleDefinitionFactory.Create("g.min", RuleTier.JsonLogic, RuleScope.Schema, "",
             "{\">\":[{\"var\":\"amount\"},50]}", RuleActionKind.Validate);
 
@@ -391,7 +447,7 @@ public sealed class RuleEngineUnitTests
     [Fact]
     public void Guard_evaluator_fails_closed_on_pending()
     {
-        var guard = new GuardEvaluator(RuleEngineLimits.Default, new FixedClock(Clock));
+        var guard = new GuardEvaluator(new FixedClock(Clock), RuleEngineLimits.Default);
         var rule = RuleDefinitionFactory.Create("g.min", RuleTier.JsonLogic, RuleScope.Schema, "",
             "{\">\":[{\"var\":\"amount\"},50]}", RuleActionKind.Validate);
         var bag = new Dictionary<string, JsonNode?> { ["amount"] = new JsonObject { ["@pending"] = true } };
@@ -402,4 +458,16 @@ public sealed class RuleEngineUnitTests
 
     private static Dictionary<string, JsonNode?> Bag(string key, int value)
         => new() { [key] = JsonValue.Create(value) };
+
+    private sealed class AdvancingClock(params DateTimeOffset[] instants) : TimeProvider
+    {
+        private int _next;
+        public int Reads { get; private set; }
+
+        public override DateTimeOffset GetUtcNow()
+        {
+            Reads++;
+            return instants[Math.Min(_next++, instants.Length - 1)];
+        }
+    }
 }

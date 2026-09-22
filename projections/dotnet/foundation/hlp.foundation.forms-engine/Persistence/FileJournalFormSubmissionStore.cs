@@ -78,25 +78,14 @@ public sealed class FileJournalFormSubmissionStore : IFormSubmissionTransactionS
         FormSubmissionCommit commit,
         CancellationToken cancellationToken = default)
     {
-        FormSubmissionStoreModel.ValidateAtomicEnvelope(commit);
-        var key = (commit.Submission.Tenant, commit.Submission.FormId.Value, commit.IdempotencyKey);
-        await EnterAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            if (_idempotency.TryGetValue(key, out var existing))
-            {
-                return string.Equals(existing.Submission.RequestFingerprint, commit.Submission.RequestFingerprint, StringComparison.Ordinal)
-                    ? new(FormSubmissionCommitDisposition.Replayed, existing.Receipt)
-                    : new(FormSubmissionCommitDisposition.Conflict, null);
-            }
+        await using var transaction = await BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+        return await transaction.CommitAsync(commit, cancellationToken).ConfigureAwait(false);
+    }
 
-            var snapshot = FormSubmissionStoreModel.Clone(commit);
-            EnsureCommitCanApply(snapshot);
-            await AppendAsync(JournalRecordType.Commit, ToDto(snapshot), cancellationToken).ConfigureAwait(false);
-            ApplyCommit(snapshot, lease: true);
-            return new(FormSubmissionCommitDisposition.Created, snapshot.Receipt);
-        }
-        finally { _gate.Release(); }
+    public async ValueTask<IFormSubmissionTransactionScope> BeginTransactionAsync(CancellationToken cancellationToken = default)
+    {
+        await EnterAsync(cancellationToken).ConfigureAwait(false);
+        return new Transaction(this);
     }
 
     public async ValueTask<FormSubmissionRecord?> GetAsync(
@@ -202,6 +191,50 @@ public sealed class FileJournalFormSubmissionStore : IFormSubmissionTransactionS
         if (!_disposed) return;
         _gate.Release();
         throw new ObjectDisposedException(nameof(FileJournalFormSubmissionStore));
+    }
+
+    private sealed class Transaction(FileJournalFormSubmissionStore store) : IFormSubmissionTransactionScope
+    {
+        private bool _commitAttempted;
+        private bool _released;
+
+        public async ValueTask<FormSubmissionCommitResult> CommitAsync(FormSubmissionCommit commit, CancellationToken cancellationToken = default)
+        {
+            ObjectDisposedException.ThrowIf(_released, this);
+            if (_commitAttempted) throw new InvalidOperationException("A Forms submission scope can commit only once.");
+            _commitAttempted = true;
+            FormSubmissionStoreModel.ValidateAtomicEnvelope(commit);
+            var key = (commit.Submission.Tenant, commit.Submission.FormId.Value, commit.IdempotencyKey);
+            if (store._idempotency.TryGetValue(key, out var existing))
+                return string.Equals(existing.Submission.RequestFingerprint, commit.Submission.RequestFingerprint, StringComparison.Ordinal)
+                    ? new(FormSubmissionCommitDisposition.Replayed, existing.Receipt)
+                    : new(FormSubmissionCommitDisposition.Conflict, null);
+
+            var snapshot = FormSubmissionStoreModel.Clone(commit);
+            store.EnsureCommitCanApply(snapshot);
+            await store.AppendAsync(JournalRecordType.Commit, ToDto(snapshot), cancellationToken).ConfigureAwait(false);
+            store.ApplyCommit(snapshot, lease: true);
+            return new(FormSubmissionCommitDisposition.Created, snapshot.Receipt);
+        }
+
+        public ValueTask RollbackAsync(CancellationToken cancellationToken = default)
+        {
+            Release();
+            return ValueTask.CompletedTask;
+        }
+
+        public ValueTask DisposeAsync()
+        {
+            Release();
+            return ValueTask.CompletedTask;
+        }
+
+        private void Release()
+        {
+            if (_released) return;
+            _released = true;
+            store._gate.Release();
+        }
     }
 
     private async ValueTask AppendAsync<T>(JournalRecordType type, T record, CancellationToken cancellationToken)

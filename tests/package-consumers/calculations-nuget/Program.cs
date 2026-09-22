@@ -114,7 +114,7 @@ static JsonObject VerdictOf(JsonObject row, JsonArray cases)
         {
             var draft = DraftOf(row, cases);
             var sample = row["sample"]!.AsObject().DeepClone().AsObject();
-            var result = SkinLowering.EvaluatePreview(draft, row["ruleId"]!.GetValue<string>(), sample);
+            var result = SkinLowering.EvaluatePreview(draft, row["ruleId"]!.GetValue<string>(), sample, TimeProvider.System);
             var traceCodes = new JsonArray();
             foreach (var code in result.Trace.Select(entry => entry.Code).Distinct().OrderBy(c => c, StringComparer.Ordinal))
             {

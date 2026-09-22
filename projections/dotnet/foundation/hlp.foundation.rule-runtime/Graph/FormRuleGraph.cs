@@ -35,12 +35,13 @@ public sealed class FormRuleGraph : IFormRuleGraph
     // Last evaluation state (mutated incrementally).
     private readonly Dictionary<string, ComputedValue> _values = new();
     private readonly Dictionary<string, RuleOutcome> _outcomes = new();
+    private DateTimeOffset _evaluationInstant;
 
-    public FormRuleGraph(CompiledGraph compiled, RuleEngineLimits? limits = null, TimeProvider? clock = null)
+    public FormRuleGraph(CompiledGraph compiled, TimeProvider clock, RuleEngineLimits? limits = null)
     {
         Compiled = compiled ?? throw new ArgumentNullException(nameof(compiled));
         _limits = limits ?? RuleEngineLimits.Default;
-        _clock = clock ?? TimeProvider.System;
+        _clock = clock ?? throw new ArgumentNullException(nameof(clock));
     }
 
     /// <inheritdoc />
@@ -76,6 +77,25 @@ public sealed class FormRuleGraph : IFormRuleGraph
             }
         }
 
+        // The business clock is an explicit graph input. Seed only cells that read it, then use the
+        // existing reader index to reach their transitive dependents; unrelated outcomes retain identity.
+        foreach (var cell in _order.Where(cell => UsesClock(cell.Rule)))
+        {
+            if (dirty.Add(cell.Key)) queue.Enqueue(cell.Key);
+        }
+        while (queue.Count > 0)
+        {
+            var node = queue.Dequeue();
+            if (_readers.TryGetValue(node, out var readers))
+            {
+                foreach (var reader in readers)
+                {
+                    if (dirty.Add(reader)) queue.Enqueue(reader);
+                }
+            }
+        }
+
+        _evaluationInstant = _clock.GetUtcNow();
         var budget = NewBudget(ct);
         var adapter = new FormContextAdapter(_values, _instance); // ADR 0146 D3 context seam
         try
@@ -87,7 +107,7 @@ public sealed class FormRuleGraph : IFormRuleGraph
             }
             // Re-eval only the outcomes that read the changed field or a dirty cell (referential stability elsewhere).
             var touched = new HashSet<string>(dirty) { changedKey };
-            foreach (var plan in _plans.Where(p => p.Reads.Overlaps(touched) || dirty.Contains(p.Target.Key)))
+            foreach (var plan in _plans.Where(p => UsesClock(p.Rule) || p.Reads.Overlaps(touched) || dirty.Contains(p.Target.Key)))
             {
                 _outcomes[plan.Key] = BuildOutcome(plan, budget, adapter);
             }
@@ -129,6 +149,7 @@ public sealed class FormRuleGraph : IFormRuleGraph
 
     private RuleEvaluationResult BuildAndEvaluate(CancellationToken ct)
     {
+        _evaluationInstant = _clock.GetUtcNow();
         var preflight = PreflightBounds();
         if (preflight is not null) return FailClosed(preflight);
 
@@ -378,7 +399,7 @@ public sealed class FormRuleGraph : IFormRuleGraph
         if (cell.AggFold is { } fold) return FoldAggregate(fold.Fn, fold.Section, fold.Col, budget);
 
         var resolver = adapter.CreateResolver(new RuleEvalScope(cell.Rule!.RowSection, cell.RowId));
-        var ctx = new EvalContext(resolver, _clock.GetUtcNow(), budget);
+        var ctx = new EvalContext(resolver, _evaluationInstant, budget);
         try
         {
             return ComputedValue.Resolved(HarborlineJsonLogic.Evaluate(cell.Rule.Ast, ctx));
@@ -386,6 +407,15 @@ public sealed class FormRuleGraph : IFormRuleGraph
         catch (RulePendingException) { return ComputedValue.OfPending(); }
         catch (RuleEvalException ex) { return ComputedValue.OfError(ex.Error); }
     }
+
+    private static bool UsesClock(CompiledRule? rule) => rule is not null && ContainsDateToday(rule.Ast);
+
+    private static bool ContainsDateToday(JsonNode? node) => node switch
+    {
+        JsonObject obj => obj.ContainsKey("date.today") || obj.Any(pair => ContainsDateToday(pair.Value)),
+        JsonArray array => array.Any(ContainsDateToday),
+        _ => false,
+    };
 
     private RuleOutcome BuildOutcome(OutcomePlan plan, EvalBudget budget, IContextAdapter adapter)
     {
@@ -395,7 +425,7 @@ public sealed class FormRuleGraph : IFormRuleGraph
             return RuleOutcome.OfValue(plan.Rule.Source.Id, plan.Target, cv);
         }
         var resolver = adapter.CreateResolver(new RuleEvalScope(plan.Rule.RowSection, plan.RowId));
-        var ctx = new EvalContext(resolver, _clock.GetUtcNow(), budget);
+        var ctx = new EvalContext(resolver, _evaluationInstant, budget);
         return OutcomeBuilder.Build(plan.Rule, plan.Target, resolver, ctx).Outcome;
     }
 

@@ -283,6 +283,44 @@ public sealed class RuleDefinitionCatalogTests : IDisposable
     }
 
     [Fact]
+    public async Task LatestUsesPublishedHeadWithoutReadingHistory()
+    {
+        var store = new CountingDefinitionStore(new InMemoryVersionedDefinitionStore(new Dictionary<DefinitionKind, DefinitionAdmission>
+        {
+            [DefinitionKind.Rules] = RuleDefinitionCatalog.Admit,
+        }));
+        var catalog = new RuleDefinitionCatalog(store, _lifecycle);
+        await catalog.SaveDraftJsonAsync(Source(), "published", 0, "draft-published");
+        await catalog.PublishAsync(Key, "published", 1, "publish");
+        await catalog.SaveDraftJsonAsync(Source(version: "2.0.0", value: "2"), "draft", 2, "draft-newer");
+        store.HistoryReads = 0;
+
+        var latest = await catalog.ResolveAsync(Key, RuleVersionPolicy.Latest, RuleResolveScope.Production);
+
+        Assert.Equal("published", latest.Snapshot!.Revision.Document.VersionId);
+        Assert.Equal(0, store.HistoryReads);
+    }
+
+    [Fact]
+    public async Task PinnedReadsHistoryAndKeepsThePublishedRevisionImmutable()
+    {
+        var store = new CountingDefinitionStore(new InMemoryVersionedDefinitionStore(new Dictionary<DefinitionKind, DefinitionAdmission>
+        {
+            [DefinitionKind.Rules] = RuleDefinitionCatalog.Admit,
+        }));
+        var catalog = new RuleDefinitionCatalog(store, _lifecycle);
+        await catalog.SaveDraftJsonAsync(Source(), "published", 0, "draft-published");
+        await catalog.PublishAsync(Key, "published", 1, "publish");
+        await catalog.SaveDraftJsonAsync(Source(value: "2"), "same-label-draft", 2, "draft-same-label");
+        store.HistoryReads = 0;
+
+        var pinned = await catalog.ResolveAsync(Key, RuleVersionPolicy.Pinned("1.0.0"), RuleResolveScope.Production);
+
+        Assert.Equal("published", pinned.Snapshot!.Revision.Document.VersionId);
+        Assert.Equal(1, store.HistoryReads);
+    }
+
+    [Fact]
     public async Task BodyHasNoSharedIdentityMetadataAndRestoreRetainsAllOtherSource()
     {
         var draft = await _catalog.SaveDraftJsonAsync(Source(), "a", 0, "draft");
@@ -638,5 +676,36 @@ public sealed class RuleDefinitionCatalogTests : IDisposable
     {
         _lifecycle.Dispose();
         if (Directory.Exists(_directory)) Directory.Delete(_directory, recursive: true);
+    }
+
+    private sealed class CountingDefinitionStore(IVersionedDefinitionStore inner) : IVersionedDefinitionStore
+    {
+        public int HistoryReads { get; set; }
+
+        public ValueTask<IReadOnlyList<DefinitionKey>> ListKeysAsync(string tenant, DefinitionKind kind,
+            CancellationToken cancellationToken = default) => inner.ListKeysAsync(tenant, kind, cancellationToken);
+
+        public ValueTask<DefinitionRevision> SaveDraftAsync(DefinitionDocument document, long expectedRevision,
+            string requestId, CancellationToken cancellationToken = default) => inner.SaveDraftAsync(document, expectedRevision, requestId, cancellationToken);
+
+        public ValueTask<DefinitionRevision> PublishAsync(DefinitionKey key, string versionId, long expectedRevision,
+            string requestId, CancellationToken cancellationToken = default) => inner.PublishAsync(key, versionId, expectedRevision, requestId, cancellationToken);
+
+        public ValueTask<DefinitionRevision> RestoreAsDraftAsync(DefinitionKey key, string sourceVersionId,
+            string draftVersionId, string draftVersion, long expectedRevision, string requestId,
+            CancellationToken cancellationToken = default) => inner.RestoreAsDraftAsync(key, sourceVersionId, draftVersionId, draftVersion, expectedRevision, requestId, cancellationToken);
+
+        public async ValueTask<IReadOnlyList<DefinitionRevision>> ListHistoryAsync(DefinitionKey key,
+            CancellationToken cancellationToken = default)
+        {
+            HistoryReads++;
+            return await inner.ListHistoryAsync(key, cancellationToken);
+        }
+
+        public ValueTask<DefinitionRevision?> GetPublishedHeadAsync(DefinitionKey key,
+            CancellationToken cancellationToken = default) => inner.GetPublishedHeadAsync(key, cancellationToken);
+
+        public ValueTask<DefinitionRevision?> ResolvePublishedAsync(DefinitionBinding binding,
+            CancellationToken cancellationToken = default) => inner.ResolvePublishedAsync(binding, cancellationToken);
     }
 }

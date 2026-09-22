@@ -54,9 +54,11 @@ class ContextBagAdapter implements ContextAdapter {
 
 export class GuardEvaluator {
   constructor(
+    private readonly clock: () => Date,
     private readonly limits: RuleEngineLimits = DEFAULT_LIMITS,
-    private readonly clock: () => Date = () => new Date(),
-  ) {}
+  ) {
+    if (typeof clock !== 'function') throw new TypeError('GuardEvaluator requires a caller-supplied clock')
+  }
 
   evaluateGuard(rule: RuleDefinition, context: Record<string, Json>, signal?: AbortSignal): Validity {
     const compiled = compile([rule], this.limits)

@@ -41,10 +41,6 @@ internal sealed class ContextBagResolver : IValueResolver
 /// <summary>The atom (SPINE-1 design §5.2): evaluate one compiled rule against a resolver.</summary>
 internal sealed class RuleEvaluator : IRuleEvaluator
 {
-    private readonly TimeProvider _clock;
-
-    public RuleEvaluator(TimeProvider? clock = null) => _clock = clock ?? TimeProvider.System;
-
     /// <inheritdoc />
     public RuleOutcome Evaluate(CompiledRule rule, CellAddress target, string ruleKey,
         IValueResolver resolver, DateTimeOffset now, RuleEngineLimits limits, CancellationToken ct)
@@ -81,10 +77,10 @@ public sealed class GuardEvaluator : IGuardEvaluator
     private readonly RuleEngineLimits _limits;
     private readonly TimeProvider _clock;
 
-    public GuardEvaluator(RuleEngineLimits? limits = null, TimeProvider? clock = null)
+    public GuardEvaluator(TimeProvider clock, RuleEngineLimits? limits = null)
     {
         _limits = limits ?? RuleEngineLimits.Default;
-        _clock = clock ?? TimeProvider.System;
+        _clock = clock ?? throw new ArgumentNullException(nameof(clock));
     }
 
     /// <inheritdoc />

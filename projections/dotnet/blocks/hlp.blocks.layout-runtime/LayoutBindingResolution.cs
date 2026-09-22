@@ -243,9 +243,9 @@ public sealed class LayoutBindingResolver
 {
     private readonly GuardEvaluator _guards;
 
-    /// <summary>Creates a resolver over the shared rule engine's guard evaluator.</summary>
-    /// <param name="guards">The shared evaluator; the default instance when omitted.</param>
-    public LayoutBindingResolver(GuardEvaluator? guards = null) => _guards = guards ?? new GuardEvaluator();
+    /// <summary>Creates a resolver over the caller-supplied shared rule engine evaluator.</summary>
+    /// <param name="guards">The evaluator bound to the caller's business clock.</param>
+    public LayoutBindingResolver(GuardEvaluator guards) => _guards = guards ?? throw new ArgumentNullException(nameof(guards));
 
     /// <summary>Resolves one admitted definition against one root scope.</summary>
     public LayoutBindingResolution Resolve(

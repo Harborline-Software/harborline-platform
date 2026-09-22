@@ -14,6 +14,8 @@ import { compileDraft, evaluatePreview, isCompileError } from '../compile.js'
 import { lintTable, noMatchResolved, RuleLintCodes } from '../lint.js'
 import type { DecisionTableDraft, FormulaDraft } from '../model.js'
 
+const fixedClock = () => new Date('2026-06-30T00:00:00.000Z')
+
 function amountTable(over: Partial<DecisionTableDraft> = {}): DecisionTableDraft {
   return {
     skin: 'table',
@@ -33,24 +35,38 @@ function amountTable(over: Partial<DecisionTableDraft> = {}): DecisionTableDraft
 }
 
 describe('decision-table authoring bridge', () => {
+  it('uses one caller-supplied instant for the preview and its fired-row probe', () => {
+    const instants = [
+      new Date('2026-06-30T23:59:59.000Z'),
+      new Date('2026-07-01T00:00:01.000Z'),
+    ]
+    let reads = 0
+    const clock = () => instants[reads++]
+
+    const preview = evaluatePreview(amountTable(), 'invoice-route', { amount: 500 }, clock)
+
+    expect(preview.firedRowId).toBe('r1')
+    expect(reads).toBe(1)
+  })
+
   it('compiles to a RuleDefinition and evaluates the firing row + outcome (reified bounds)', () => {
     const draft = amountTable()
     // $500 -> row 1
-    let r = evaluatePreview(draft, 'invoice-route', { amount: 500 })
+    let r = evaluatePreview(draft, 'invoice-route', { amount: 500 }, fixedClock)
     expect(r.firedRowId).toBe('r1')
     expect(r.value).toBe('Auto-approve')
     // $1000.00 is inclusive-low of row 2 (>= 1000), exclusive-high of row 1 (< 1000) -> row 2
-    r = evaluatePreview(draft, 'invoice-route', { amount: 1000 })
+    r = evaluatePreview(draft, 'invoice-route', { amount: 1000 }, fixedClock)
     expect(r.firedRowId).toBe('r2')
     expect(r.value).toBe('Manager')
     // $5000.00 is >= 5000 so it enters row 3 (Director) — the reified boundary is honest
-    r = evaluatePreview(draft, 'invoice-route', { amount: 5000 })
+    r = evaluatePreview(draft, 'invoice-route', { amount: 5000 }, fixedClock)
     expect(r.firedRowId).toBe('r3')
     expect(r.value).toBe('Director')
   })
 
   it('produces a localizable D10 trace for the evaluation (design §6.3)', () => {
-    const r = evaluatePreview(amountTable(), 'invoice-route', { amount: 500 })
+    const r = evaluatePreview(amountTable(), 'invoice-route', { amount: 500 }, fixedClock)
     expect(r.trace.length).toBeGreaterThan(0)
     expect(r.trace[0].code.startsWith('rule.trace.')).toBe(true)
   })
@@ -66,9 +82,9 @@ describe('decision-table authoring bridge', () => {
       ],
       noMatch: { kind: 'default', value: 'none' },
     })
-    expect(evaluatePreview(overlapping, 'k', { amount: 10 }).firedRowId).toBe('high')
+    expect(evaluatePreview(overlapping, 'k', { amount: 10 }, fixedClock).firedRowId).toBe('high')
     // Under first-match the DECLARED-order-first row wins instead.
-    expect(evaluatePreview({ ...overlapping, hitPolicy: 'first-match' }, 'k', { amount: 10 }).firedRowId).toBe('low')
+    expect(evaluatePreview({ ...overlapping, hitPolicy: 'first-match' }, 'k', { amount: 10 }, fixedClock).firedRowId).toBe('low')
   })
 
   it('blank Otherwise default is a compile rejection AND a surface lint error (no-match unresolved)', () => {
@@ -123,7 +139,7 @@ describe('formula authoring bridge', () => {
   }
 
   it('compiles + evaluates a valid formula', () => {
-    const r = evaluatePreview(overtime(), 'overtime', { hours: 10, rate: 20 })
+    const r = evaluatePreview(overtime(), 'overtime', { hours: 10, rate: 20 }, fixedClock)
     expect(r.value).toBe(200)
   })
 

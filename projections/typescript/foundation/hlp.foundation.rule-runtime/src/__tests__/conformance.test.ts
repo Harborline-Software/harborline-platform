@@ -137,7 +137,7 @@ function declaredRules(c: CorpusCase): RuleDefinition[] {
 function runCase(c: CorpusCase) {
   const rules = declaredRules(c)
   const compiled = compile(rules)
-  const graph = new FormRuleGraph(compiled, undefined, clockOf(c))
+  const graph = new FormRuleGraph(compiled, clockOf(c))
   const result = graph.evaluateInstance(RuleInstance.fromJson(c.instance))
   return { compiled, result }
 }
@@ -157,7 +157,7 @@ function compileRefusalCode(c: CorpusCase): string {
 function guardValueOutcome(c: CorpusCase): string {
   const rule = (c.definitionRules ?? []).map(parseRule).find((r) => r.id === c.guardValue)
   if (!rule) throw new Error(`case '${c.name}': guardValue names unknown rule '${c.guardValue}'`)
-  return serializeComputedValue(new GuardEvaluator(undefined, clockOf(c)).evaluateValue(rule, c.instance))
+  return serializeComputedValue(new GuardEvaluator(clockOf(c)).evaluateValue(rule, c.instance))
 }
 
 describe('SPINE-1 conformance corpus (TS tier — byte-identical to .NET)', () => {

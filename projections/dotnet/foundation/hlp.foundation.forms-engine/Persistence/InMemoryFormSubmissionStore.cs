@@ -33,35 +33,70 @@ public sealed class InMemoryFormSubmissionStore : IFormSubmissionTransactionStor
         FormSubmissionCommit commit,
         CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(commit);
-        FormSubmissionStoreModel.ValidateAtomicEnvelope(commit);
-        var key = (commit.Submission.Tenant, commit.Submission.FormId.Value, commit.IdempotencyKey);
+        await using var transaction = await BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+        return await transaction.CommitAsync(commit, cancellationToken).ConfigureAwait(false);
+    }
 
+    public async ValueTask<IFormSubmissionTransactionScope> BeginTransactionAsync(CancellationToken cancellationToken = default)
+    {
         await _state.Gate.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            if (_state.Idempotency.TryGetValue(key, out var existing))
-            {
-                return string.Equals(existing.Submission.RequestFingerprint, commit.Submission.RequestFingerprint, StringComparison.Ordinal)
-                    ? new(FormSubmissionCommitDisposition.Replayed, existing.Receipt)
-                    : new(FormSubmissionCommitDisposition.Conflict, null);
-            }
+        return new Transaction(_state, _commitFailure);
+    }
 
-            if (_state.Submissions.ContainsKey((commit.Submission.Tenant, commit.Submission.InstanceId.ToString()))
-                || _state.Audits.ContainsKey(commit.Audit.AuditId)
-                || _state.Pending.ContainsKey(commit.Projection.OutboxId)
-                || _state.Completed.Contains(commit.Projection.OutboxId))
+    private sealed class Transaction(
+        InMemoryFormSubmissionState state,
+        Func<FormSubmissionCommit, Exception?>? commitFailure) : IFormSubmissionTransactionScope
+    {
+        private bool _commitAttempted;
+        private bool _released;
+
+        public ValueTask<FormSubmissionCommitResult> CommitAsync(FormSubmissionCommit commit, CancellationToken cancellationToken = default)
+        {
+            ObjectDisposedException.ThrowIf(_released, this);
+            if (_commitAttempted) throw new InvalidOperationException("A Forms submission scope can commit only once.");
+            _commitAttempted = true;
+            cancellationToken.ThrowIfCancellationRequested();
+            ArgumentNullException.ThrowIfNull(commit);
+            FormSubmissionStoreModel.ValidateAtomicEnvelope(commit);
+            var key = (commit.Submission.Tenant, commit.Submission.FormId.Value, commit.IdempotencyKey);
+            if (state.Idempotency.TryGetValue(key, out var existing))
+                return ValueTask.FromResult(string.Equals(existing.Submission.RequestFingerprint, commit.Submission.RequestFingerprint, StringComparison.Ordinal)
+                    ? new FormSubmissionCommitResult(FormSubmissionCommitDisposition.Replayed, existing.Receipt)
+                    : new FormSubmissionCommitResult(FormSubmissionCommitDisposition.Conflict, null));
+
+            if (state.Submissions.ContainsKey((commit.Submission.Tenant, commit.Submission.InstanceId.ToString()))
+                || state.Audits.ContainsKey(commit.Audit.AuditId)
+                || state.Pending.ContainsKey(commit.Projection.OutboxId)
+                || state.Completed.Contains(commit.Projection.OutboxId))
                 throw new ArgumentException("Submission, audit, and outbox identities must be unique.", nameof(commit));
-            if (_commitFailure?.Invoke(commit) is { } failure) throw failure;
+            if (commitFailure?.Invoke(commit) is { } failure) throw failure;
             var snapshot = FormSubmissionStoreModel.Clone(commit);
-            _state.Submissions.Add((snapshot.Submission.Tenant, snapshot.Submission.InstanceId.ToString()), snapshot.Submission);
-            _state.Audits.Add(snapshot.Audit.AuditId, snapshot.Audit);
-            _state.Pending.Add(snapshot.Projection.OutboxId, snapshot.Projection);
-            _state.Idempotency.Add(key, snapshot);
-            _state.Leased.Add(snapshot.Projection.OutboxId);
-            return new(FormSubmissionCommitDisposition.Created, snapshot.Receipt);
+            state.Submissions.Add((snapshot.Submission.Tenant, snapshot.Submission.InstanceId.ToString()), snapshot.Submission);
+            state.Audits.Add(snapshot.Audit.AuditId, snapshot.Audit);
+            state.Pending.Add(snapshot.Projection.OutboxId, snapshot.Projection);
+            state.Idempotency.Add(key, snapshot);
+            state.Leased.Add(snapshot.Projection.OutboxId);
+            return ValueTask.FromResult(new FormSubmissionCommitResult(FormSubmissionCommitDisposition.Created, snapshot.Receipt));
         }
-        finally { _state.Gate.Release(); }
+
+        public ValueTask RollbackAsync(CancellationToken cancellationToken = default)
+        {
+            Release();
+            return ValueTask.CompletedTask;
+        }
+
+        public ValueTask DisposeAsync()
+        {
+            Release();
+            return ValueTask.CompletedTask;
+        }
+
+        private void Release()
+        {
+            if (_released) return;
+            _released = true;
+            state.Gate.Release();
+        }
     }
 
     public async ValueTask<FormSubmissionRecord?> GetAsync(

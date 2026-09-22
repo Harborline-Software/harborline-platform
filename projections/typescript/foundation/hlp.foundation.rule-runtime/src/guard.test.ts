@@ -4,6 +4,8 @@ import { Codes } from './codes.js'
 import { GuardEvaluator } from './guard.js'
 import type { Json, RuleDefinition } from './model.js'
 
+const fixedClock = () => new Date('2026-06-30T00:00:00.000Z')
+
 function rule(id: string, expression: Json, action: RuleDefinition['action'] = 'Validate'): RuleDefinition {
   return {
     id,
@@ -16,7 +18,7 @@ function rule(id: string, expression: Json, action: RuleDefinition['action'] = '
 }
 
 describe('GuardEvaluator.evaluateGuard', () => {
-  const evaluator = new GuardEvaluator()
+  const evaluator = new GuardEvaluator(fixedClock)
   const minimumAmount = rule('guard.minimum-amount', { '>=': [{ var: 'amount' }, 100] })
 
   it('accepts a boundary value and rejects a lower value with the rule id', () => {
@@ -47,7 +49,7 @@ describe('GuardEvaluator.evaluateGuard', () => {
 })
 
 describe('GuardEvaluator.evaluateValue', () => {
-  const evaluator = new GuardEvaluator()
+  const evaluator = new GuardEvaluator(fixedClock)
 
   it('resolves a deterministic expression', () => {
     expect(evaluator.evaluateValue(rule('value.total', { '+': [{ var: 'amount' }, 1] }, 'Compute'), {

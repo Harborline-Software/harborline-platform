@@ -66,6 +66,75 @@ public sealed class RuleProjectionTests
         Assert.True(notes.Rules.Value!.Required);
     }
 
+    [Fact]
+    public async Task CandidateEvaluation_ValidatesTheMaterializedComputedValue()
+    {
+        var schemas = new Harborline.Kernel.SchemaValidation.InMemorySchemaRegistry();
+        var schema = await schemas.RegisterAsync("""{"type":"object"}""");
+        var baseDefinition = Definition(schema.Id.Value, new TenantId("tenant-engine"));
+        var definition = baseDefinition with
+        {
+            Overlay = baseDefinition.Overlay with
+            {
+                Sections = baseDefinition.Overlay.Sections.Select(section => section with { Access = new([], []) }).ToArray(),
+                Rules =
+                [
+                    new("cmp.total", State.RuleTier.JsonLogic, State.RuleScope.Field, "total", "{\"*\":[{\"var\":\"amount\"},2]}", State.RuleActionKind.Compute),
+                    new("valid.total", State.RuleTier.JsonLogic, State.RuleScope.Schema, "", "{\"==\":[{\"var\":\"total\"},4]}", State.RuleActionKind.Validate),
+                ],
+            },
+        };
+        using var candidate = JsonDocument.Parse("""{"amount":2}""");
+        using var evaluation = await FormCandidateEvaluator.EvaluateAsync(
+            new(new TenantId("tenant-engine"), Guid.Parse("11111111-1111-1111-1111-111111111111"), "alice", ["reader"]),
+            definition,
+            candidate,
+            schemas,
+            FormEngineOptions.DefaultMaximumCandidateBytes,
+            TimeProvider.System,
+            CancellationToken.None);
+
+        Assert.Empty(evaluation.Errors);
+        Assert.Equal(4, evaluation.AcceptedCandidate.RootElement.GetProperty("total").GetInt32());
+    }
+
+    [Fact]
+    public async Task CandidateEvaluation_MaterializesAComputedValueBeforeItsPageGuardReadsIt()
+    {
+        var schemas = new Harborline.Kernel.SchemaValidation.InMemorySchemaRegistry();
+        var schema = await schemas.RegisterAsync("""{"type":"object"}""");
+        var baseDefinition = Definition(schema.Id.Value, new TenantId("tenant-engine"));
+        var definition = baseDefinition with
+        {
+            Overlay = baseDefinition.Overlay with
+            {
+                Sections = baseDefinition.Overlay.Sections.Select(section => section with { Access = new([], []) }).ToArray(),
+                Rules =
+                [
+                    new("cmp.total", State.RuleTier.JsonLogic, State.RuleScope.Field, "total", "{\"*\":[{\"var\":\"amount\"},2]}", State.RuleActionKind.Compute),
+                ],
+                Pages =
+                [
+                    new("computed-page", State.InternationalizedText.FromInvariant("Computed page"), ["main"], "{\"==\":[{\"var\":\"total\"},4]}"),
+                ],
+            },
+        };
+        using var candidate = JsonDocument.Parse("""{"amount":2}""");
+
+        using var evaluation = await FormCandidateEvaluator.EvaluateAsync(
+            new(new TenantId("tenant-engine"), Guid.Parse("11111111-1111-1111-1111-111111111111"), "alice", ["reader"]),
+            definition,
+            candidate,
+            schemas,
+            FormEngineOptions.DefaultMaximumCandidateBytes,
+            TimeProvider.System,
+            CancellationToken.None);
+
+        Assert.Empty(evaluation.Errors);
+        Assert.Equal(4, evaluation.AcceptedCandidate.RootElement.GetProperty("total").GetInt32());
+        Assert.DoesNotContain("total", evaluation.HiddenFields);
+    }
+
     private static async Task<(FormEngineOrchestrationTests.Harness Harness, FormSubmitReceipt Receipt)> BuildAsync(string json)
     {
         var readable = JsonDocument.Parse(json);

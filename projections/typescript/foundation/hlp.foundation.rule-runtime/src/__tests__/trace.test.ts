@@ -19,10 +19,11 @@ const hideHighEarnerComp: RuleDefinition = {
   id: 'vis.comp', tier: 'JsonLogic', scope: 'Section', scopeTarget: 'comp',
   expression: { '<=': [{ var: 'salary' }, 100000] }, action: 'Visibility',
 }
+const fixedClock = () => new Date('2026-06-30T00:00:00.000Z')
 
 function evaluate(rule: RuleDefinition, instance: Record<string, Json>) {
   const compiled = compile([rule])
-  const graph = new FormRuleGraph(compiled)
+  const graph = new FormRuleGraph(compiled, fixedClock)
   const result = graph.evaluateInstance(RuleInstance.fromJson(instance))
   return { compiled, result }
 }
@@ -90,7 +91,7 @@ describe('ADR 0146 D10 traces', () => {
 
   it('guard traces carry the code + field ref (passed / failed)', () => {
     const guard: RuleDefinition = { id: 'g.amount', tier: 'JsonLogic', scope: 'Schema', scopeTarget: '', expression: { '>': [{ var: 'amount' }, 5000] }, action: 'Validate' }
-    const evaluator = new GuardEvaluator()
+    const evaluator = new GuardEvaluator(fixedClock)
 
     const pass = evaluator.evaluateGuard(guard, { amount: 7000 })
     const passTrace = buildGuardTrace(guard, pass)

@@ -56,6 +56,24 @@ public sealed class KernelTransactionBoundaryTests
         Assert.Equal(0, port.Published);
     }
 
+    [Fact]
+    public async Task PreparedCommand_BeginsBeforePreparationAndStagesTheResultingIdentity()
+    {
+        var port = new PreparedRecordingPort();
+
+        var result = await KernelTransactionBoundary.ExecutePreparedAsync<string, string>(
+            _ =>
+            {
+                port.Events.Add("prepare");
+                return ValueTask.FromResult(Command());
+            },
+            port);
+
+        Assert.True(result.Committed);
+        Assert.Equal("committed", result.Value);
+        Assert.Equal(["begin", "prepare", "operation", "record", "audit", "commit", "dispose"], port.Events);
+    }
+
     private static KernelCommand<string> Command(string id = "one") => new(
         new(id, $"key-{id}", $"fingerprint-{id}"),
         $"record-{id}",
@@ -121,6 +139,56 @@ public sealed class KernelTransactionBoundaryTests
             public ValueTask DisposeAsync()
             {
                 owner.Events.Add("dispose");
+                return ValueTask.CompletedTask;
+            }
+        }
+    }
+
+    private sealed class PreparedRecordingPort : IKernelPreparedTransactionPort<string, string>
+    {
+        public List<string> Events { get; } = [];
+
+        public ValueTask<IKernelPreparedTransaction<string, string>> BeginAsync(CancellationToken cancellationToken = default)
+        {
+            Events.Add("begin");
+            return ValueTask.FromResult<IKernelPreparedTransaction<string, string>>(new Transaction(Events));
+        }
+
+        private sealed class Transaction(List<string> events) : IKernelPreparedTransaction<string, string>
+        {
+            public ValueTask StageOperationAsync(KernelOperationIdentity operation, CancellationToken cancellationToken = default)
+            {
+                events.Add("operation");
+                return ValueTask.CompletedTask;
+            }
+
+            public ValueTask StageRecordAsync(string record, CancellationToken cancellationToken = default)
+            {
+                events.Add("record");
+                return ValueTask.CompletedTask;
+            }
+
+            public ValueTask StageAuditAsync(KernelAuditEvidence audit, CancellationToken cancellationToken = default)
+            {
+                events.Add("audit");
+                return ValueTask.CompletedTask;
+            }
+
+            public ValueTask<string> CommitAsync(CancellationToken cancellationToken = default)
+            {
+                events.Add("commit");
+                return ValueTask.FromResult("committed");
+            }
+
+            public ValueTask RollbackAsync(CancellationToken cancellationToken = default)
+            {
+                events.Add("rollback");
+                return ValueTask.CompletedTask;
+            }
+
+            public ValueTask DisposeAsync()
+            {
+                events.Add("dispose");
                 return ValueTask.CompletedTask;
             }
         }

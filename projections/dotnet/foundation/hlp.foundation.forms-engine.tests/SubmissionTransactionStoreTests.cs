@@ -69,6 +69,19 @@ public sealed class SubmissionTransactionStoreTests
         Assert.Equal((1, 1, 0, 1), await restarted.CountsAsync());
     }
 
+    [Fact]
+    public async Task SubmissionScope_RejectsSecondCommitAndCommitAfterDisposal()
+    {
+        var store = new InMemoryFormSubmissionStore();
+        var scope = await store.BeginTransactionAsync();
+        await scope.CommitAsync(Commit("scope", "once"));
+        await Assert.ThrowsAsync<InvalidOperationException>(async () => await scope.CommitAsync(Commit("scope-second", "twice")));
+        await scope.DisposeAsync();
+        await Assert.ThrowsAsync<ObjectDisposedException>(async () => await scope.CommitAsync(Commit("scope-disposed", "never")));
+
+        Assert.Equal((1, 1, 1, 0), await store.CountsAsync());
+    }
+
     private static FormSubmissionCommit Commit(string key, string fingerprint, string localPart = "instance")
     {
         var instant = DateTimeOffset.Parse("2026-08-08T12:00:00Z");

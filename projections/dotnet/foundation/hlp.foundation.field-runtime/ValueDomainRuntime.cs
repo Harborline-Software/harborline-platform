@@ -28,7 +28,7 @@ public sealed class ValueDomainRuntime : IFieldDomainRuntime
         this.source = source;
         this.authority = authority;
         this.ruleLimits = ruleLimits ?? RuleEngineLimits.Default;
-        evaluator = new GuardEvaluator(this.ruleLimits, clock);
+        evaluator = new GuardEvaluator(clock, this.ruleLimits);
     }
 
     /// <inheritdoc />

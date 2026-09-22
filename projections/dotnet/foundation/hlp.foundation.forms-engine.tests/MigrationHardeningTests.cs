@@ -186,24 +186,176 @@ public sealed class MigrationHardeningTests
     }
 
     [Fact]
-    public async Task ValidateAndSave_RuleTimeout_FailsClosed_NotSchemaOnly()
+    public async Task SubmitAsync_EvaluatesAcceptedCandidateWhileTheRealSubmissionScopeIsActive()
+    {
+        var state = new Persistence.InMemoryFormSubmissionState();
+        var schemas = new ControlledSchemaRegistry((_, _, _) =>
+        {
+            Assert.Equal(0, state.Gate.CurrentCount);
+            return ValueTask.FromResult(new SchemaValidationResult(true, Array.Empty<SchemaValidationError>()));
+        });
+        var harness = await FormEngineOrchestrationTests.Harness.CreateAsync(
+            state: state,
+            schemaJson: """{"type":"object"}""",
+            schemaRegistry: schemas);
+        using var candidate = JsonDocument.Parse("""{"name":"Ada"}""");
+
+        await harness.Engine.SubmitAsync(new(harness.Definition.Id, candidate, "scope-active"));
+
+        Assert.Equal((1, 1, 0, 1), await harness.Store.CountsAsync());
+    }
+
+    [Fact]
+    public async Task SubmitAsync_CapturesItsClockOnceAfterOpeningTheRealSubmissionScope()
+    {
+        var state = new Persistence.InMemoryFormSubmissionState();
+        var instant = DateTimeOffset.Parse("2027-02-03T04:05:06Z");
+        var clock = new ScopeObservingClock(state, instant);
+        var harness = await FormEngineOrchestrationTests.Harness.CreateAsync(state: state, clock: clock);
+        using var candidate = JsonDocument.Parse("""{"name":"Ada"}""");
+
+        var receipt = await harness.Engine.SubmitAsync(new(harness.Definition.Id, candidate, "scope-clock"));
+
+        Assert.Equal(1, clock.Reads);
+        Assert.Equal(instant, receipt.SubmittedAt);
+        Assert.Equal((1, 1, 0, 1), await harness.Store.CountsAsync());
+    }
+
+    [Fact]
+    public async Task RenderAndSubmit_ShareOneSuppliedInstantAcrossPageGuardComputedValueReceiptAndAudit()
+    {
+        var instant = DateTimeOffset.Parse("2027-02-03T04:05:06Z");
+        var clock = new CountingClock(instant);
+        var state = new Persistence.InMemoryFormSubmissionState();
+        using var readable = JsonDocument.Parse("""{"amount":1}""");
+        var harness = await FormEngineOrchestrationTests.Harness.CreateAsync(
+            roles: ["reader"],
+            state: state,
+            clock: clock,
+            schemaJson: """{"type":"object","additionalProperties":true}""",
+            security: new FormEngineOrchestrationTests.RecordingSecurity(readable),
+            definitionFactory: ClockedPageDefinition);
+        using var candidate = JsonDocument.Parse("""{"amount":1}""");
+
+        var receipt = await harness.Engine.SubmitAsync(new(harness.Definition.Id, candidate, "clocked-page"));
+
+        Assert.Equal(1, clock.Reads);
+        Assert.Equal(instant, receipt.SubmittedAt);
+        var commit = Assert.Single(state.Idempotency.Values);
+        Assert.Equal(instant, commit.Submission.SubmittedAt);
+        Assert.Equal(instant, commit.Audit.RecordedAt);
+        Assert.Equal(instant, commit.Receipt.SubmittedAt);
+        using (var audit = JsonDocument.Parse(commit.Audit.Payload))
+        {
+            Assert.Equal(instant, audit.RootElement.GetProperty("binding").GetProperty("submittedAt").GetDateTimeOffset());
+            Assert.Contains("today", audit.RootElement.GetProperty("acceptedFields").EnumerateArray().Select(value => value.GetString()));
+        }
+
+        var view = await harness.Engine.RenderAsync(harness.Definition.Id, receipt.InstanceId);
+
+        Assert.Equal(2, clock.Reads);
+        var today = Assert.Single(Assert.Single(view.Sections).Fields, field => field.Name == "today");
+        Assert.True(today.Rules.HasValue);
+        Assert.True(today.Rules.Value!.Computed.HasValue);
+        Assert.Equal("2027-02-03", today.Rules.Value.Computed.Value.GetString());
+    }
+
+    [Fact]
+    public async Task SubmitAsync_PreparationFailureReleasesTheScopeForASuccessfulRetry()
+    {
+        var state = new Persistence.InMemoryFormSubmissionState();
+        var failing = await FormEngineOrchestrationTests.Harness.CreateAsync(
+            state: state,
+            schemaJson: """{"type":"object"}""",
+            schemaRegistry: new ControlledSchemaRegistry((_, _, _) =>
+                ValueTask.FromException<SchemaValidationResult>(new IOException("schema unavailable"))));
+        using var candidate = JsonDocument.Parse("""{"name":"Ada"}""");
+
+        await Assert.ThrowsAsync<FormEngineProviderUnavailableException>(async () =>
+            await failing.Engine.SubmitAsync(new(failing.Definition.Id, candidate, "prepare-failure")));
+        Assert.Equal((0, 0, 0, 0), await failing.Store.CountsAsync());
+
+        var retry = await FormEngineOrchestrationTests.Harness.CreateAsync(state: state);
+        await retry.Engine.SubmitAsync(new(retry.Definition.Id, candidate, "prepare-retry"));
+        Assert.Equal((1, 1, 0, 1), await retry.Store.CountsAsync());
+    }
+
+    [Fact]
+    public async Task SubmitAsync_CancelledPreparationReleasesTheScopeForASuccessfulRetry()
+    {
+        var state = new Persistence.InMemoryFormSubmissionState();
+        using var cancelled = new CancellationTokenSource();
+        var failing = await FormEngineOrchestrationTests.Harness.CreateAsync(
+            state: state,
+            schemaJson: """{"type":"object"}""",
+            schemaRegistry: new ControlledSchemaRegistry((_, _, _) =>
+            {
+                cancelled.Cancel();
+                return ValueTask.FromCanceled<SchemaValidationResult>(cancelled.Token);
+            }));
+        using var candidate = JsonDocument.Parse("""{"name":"Ada"}""");
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
+            await failing.Engine.SubmitAsync(new(failing.Definition.Id, candidate, "prepare-cancel"), cancelled.Token));
+        Assert.Equal((0, 0, 0, 0), await failing.Store.CountsAsync());
+
+        var retry = await FormEngineOrchestrationTests.Harness.CreateAsync(state: state);
+        await retry.Engine.SubmitAsync(new(retry.Definition.Id, candidate, "prepare-cancel-retry"));
+        Assert.Equal((1, 1, 0, 1), await retry.Store.CountsAsync());
+    }
+
+    [Fact]
+    public async Task SubmitAsync_CancellationWhileWaitingForTheRealSubmissionScope_CompletesBeforeTheHolderReleases()
+    {
+        var state = new Persistence.InMemoryFormSubmissionState();
+        var harness = await FormEngineOrchestrationTests.Harness.CreateAsync(state: state);
+        await using var heldScope = await harness.Store.BeginTransactionAsync();
+        using var candidate = JsonDocument.Parse("""{"name":"Ada"}""");
+        using var cancelled = new CancellationTokenSource();
+        var waitingSubmit = harness.Engine.SubmitAsync(
+            new(harness.Definition.Id, candidate, "cancel-while-waiting"),
+            cancelled.Token).AsTask();
+
+        try
+        {
+            await Task.Delay(TimeSpan.FromMilliseconds(100));
+            cancelled.Cancel();
+            using var completionTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(1));
+
+            var completed = await Task.WhenAny(waitingSubmit, Task.Delay(Timeout.InfiniteTimeSpan, completionTimeout.Token));
+
+            Assert.Same(waitingSubmit, completed);
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(async () => await waitingSubmit);
+        }
+        finally
+        {
+            await heldScope.RollbackAsync();
+            if (!waitingSubmit.IsCompleted)
+            {
+                try { await waitingSubmit; }
+                catch (OperationCanceledException) { }
+            }
+        }
+    }
+
+    [Fact]
+    public async Task SubmitAsync_RuleLivenessCancellationInsideTheOpenedScope_FailsClosedAsInfrastructure()
     {
         var schemas = new ControlledSchemaRegistry((_, _, _) =>
             ValueTask.FromResult(new SchemaValidationResult(true, Array.Empty<SchemaValidationError>())));
+        var state = new Persistence.InMemoryFormSubmissionState();
+        using var rulesLiveness = new CancellationTokenSource();
         var harness = await FormEngineOrchestrationTests.Harness.CreateAsync(
+            state: state,
             schemaJson: """{"type":"object"}""",
             definitionFactory: RuleDefinition,
-            schemaRegistry: schemas);
+            schemaRegistry: schemas,
+            clock: new ScopeCancellingClock(state, rulesLiveness));
         using var candidate = JsonDocument.Parse("""{"name":"Ada"}""");
-        using var timeout = new CancellationTokenSource();
-        timeout.Cancel();
 
-        var validationError = await Assert.ThrowsAsync<FormEngineResourceBoundException>(async () =>
-            await harness.Engine.ValidateAsync(harness.Definition.Id, candidate, timeout.Token));
         var saveError = await Assert.ThrowsAsync<FormEngineResourceBoundException>(async () =>
-            await harness.Engine.SubmitAsync(new(harness.Definition.Id, candidate, "rule-timeout"), timeout.Token));
+            await harness.Engine.SubmitAsync(new(harness.Definition.Id, candidate, "rule-timeout"), rulesLiveness.Token));
 
-        Assert.Equal("form.engine.resource-bound", validationError.Code);
         Assert.Equal("form.engine.resource-bound", saveError.Code);
         Assert.Equal(0, schemas.ValidateCalls);
         Assert.Equal((0, 0, 0, 0), await harness.Store.CountsAsync());
@@ -296,6 +448,26 @@ public sealed class MigrationHardeningTests
         };
     }
 
+    private static State.FormDefinition ClockedPageDefinition(string schema, TenantId tenant)
+    {
+        var fields = new Dictionary<string, State.FieldOverlay>(StringComparer.Ordinal)
+        {
+            ["amount"] = new(State.InternationalizedText.FromInvariant("Amount")),
+            ["today"] = new(State.InternationalizedText.FromInvariant("Today")),
+        };
+        var original = FormEngineOrchestrationTests.Harness.CreateDefinition(schema, tenant);
+        return original with
+        {
+            Overlay = original.Overlay with
+            {
+                Fields = fields,
+                Sections = [new("main", State.InternationalizedText.FromInvariant("Main"), fields.Keys.ToArray(), new([Harborline.Contracts.Authorization.RoleReference.Domain("reader")], [Harborline.Contracts.Authorization.RoleReference.Domain("reader")]))],
+                Rules = [new("cmp.today", State.RuleTier.JsonLogic, State.RuleScope.Field, "today", "{\"date.today\":[]}", State.RuleActionKind.Compute)],
+                Pages = [new("today-page", State.InternationalizedText.FromInvariant("Today"), ["main"], "{\"==\":[{\"var\":\"today\"},\"2027-02-03\"]}")],
+            },
+        };
+    }
+
     private sealed class ControlledSchemaRegistry(
         Func<KernelSchemaId, ReadOnlyMemory<byte>, CancellationToken, ValueTask<SchemaValidationResult>> validate) : ISchemaRegistry
     {
@@ -324,5 +496,38 @@ public sealed class MigrationHardeningTests
 
         public IAsyncEnumerable<Schema> ListAsync(string? tagFilter = null, CancellationToken cancellationToken = default) =>
             _inner.ListAsync(tagFilter, cancellationToken);
+    }
+
+    private sealed class ScopeObservingClock(Persistence.InMemoryFormSubmissionState state, DateTimeOffset instant) : TimeProvider
+    {
+        public int Reads { get; private set; }
+
+        public override DateTimeOffset GetUtcNow()
+        {
+            Assert.Equal(0, state.Gate.CurrentCount);
+            Reads++;
+            return instant;
+        }
+    }
+
+    private sealed class CountingClock(DateTimeOffset instant) : TimeProvider
+    {
+        public int Reads { get; private set; }
+
+        public override DateTimeOffset GetUtcNow()
+        {
+            Reads++;
+            return instant;
+        }
+    }
+
+    private sealed class ScopeCancellingClock(Persistence.InMemoryFormSubmissionState state, CancellationTokenSource cancellation) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow()
+        {
+            Assert.Equal(0, state.Gate.CurrentCount);
+            cancellation.Cancel();
+            return FormEngineOrchestrationTests.Now;
+        }
     }
 }

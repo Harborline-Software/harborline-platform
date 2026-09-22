@@ -796,7 +796,7 @@
       }
     },
     "hlp.foundation.rule-runtime": {
-      "interface": {"path": "specs/modules/foundation/hlp.foundation.rule-runtime/interface.yaml", "revision": 1},
+      "interface": {"path": "specs/modules/foundation/hlp.foundation.rule-runtime/interface.yaml", "revision": 2},
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "Rule compilation, deterministic evaluation, and reactive dependency propagation expose data outcomes rather than visual presentation."},
       "owner": "platform-foundation",
@@ -846,7 +846,7 @@
       }
     },
     "hlp.foundation.rule-authoring": {
-      "interface": {"path": "specs/modules/foundation/hlp.foundation.rule-authoring/interface.yaml", "revision": 2},
+      "interface": {"path": "specs/modules/foundation/hlp.foundation.rule-authoring/interface.yaml", "revision": 3},
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "The authoring bridge produces typed source, lint findings, intent diagnostics, and previews consumed by separate editor surfaces; it renders nothing."},
       "owner": "platform-foundation",

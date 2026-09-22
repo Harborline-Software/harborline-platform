@@ -64,6 +64,30 @@
       }
     },
     {
+      "name": "output/required-evaluation-error-refuses",
+      "definitionRules": [
+        { "id": "req.email", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "email", "action": "Required",
+          "expression": { "/": [ { "var": "numerator" }, { "var": "denominator" } ] } }
+      ],
+      "instance": { "numerator": 1, "denominator": 0 },
+      "expectedOutcomes": {
+        "req.email": { "ruleId": "req.email", "target": "field:email", "outputType": "Validity",
+          "validity": { "ok": false, "error": { "code": "rule.div_by_zero", "params": { "rule": "req.email" } } } }
+      }
+    },
+    {
+      "name": "output/required-pending-refuses",
+      "definitionRules": [
+        { "id": "req.email", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "email", "action": "Required",
+          "expression": { "==": [ { "var": "contactMe" }, true ] } }
+      ],
+      "instance": { "contactMe": { "@pending": true } },
+      "expectedOutcomes": {
+        "req.email": { "ruleId": "req.email", "target": "field:email", "outputType": "Validity",
+          "validity": { "ok": false, "error": { "code": "rule.pending_at_save", "params": { "rule": "req.email" } } } }
+      }
+    },
+    {
       "name": "output/readonly",
       "definitionRules": [
         { "id": "ro.notes", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "notes", "action": "ReadOnly",
