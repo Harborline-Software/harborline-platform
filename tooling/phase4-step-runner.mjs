@@ -8,7 +8,7 @@ function boundedOutput(value) {
   if (value === undefined || value === null) return ''
   const output = String(value)
   if (output.length <= OUTPUT_CAP) return output
-  // The retained output, including the marker, is always at most OUTPUT_CAP characters.
+  // Persisted report output is capped at OUTPUT_CAP characters, including this marker.
   return `${output.slice(0, OUTPUT_CAP - TRUNCATION_SUFFIX.length)}${TRUNCATION_SUFFIX}`
 }
 
@@ -40,8 +40,11 @@ function errorDetails(error, result) {
   return details
 }
 
+// The inline excerpt is the END of the complete output: its last 80 lines, then its last OUTPUT_CAP
+// characters. Bounding each stream first would keep the head and show the middle of a long log. A
+// failed step's complete output is in the evidence file named by failureEvidencePath.
 function failureOutput(stdout, stderr, message) {
-  return [stdout, stderr, message].filter(Boolean).join('\n').split('\n').slice(-80).join('\n')
+  return [stdout, stderr, message].filter(Boolean).join('\n').split('\n').slice(-80).join('\n').slice(-OUTPUT_CAP)
 }
 
 function completeOutput(stdout, stderr) {
@@ -93,7 +96,7 @@ export function runPhase4Step({
       durationMs: Math.round(performance.now() - started),
       passed: result.status === 0,
       report: boundedReport(report),
-      failureOutput: result.status === 0 ? undefined : failureOutput(boundedOutput(result.stdout), boundedOutput(result.stderr)),
+      failureOutput: result.status === 0 ? undefined : failureOutput(result.stdout, result.stderr),
       ...(failureEvidencePath ? {failureEvidencePath} : {}),
     }
     results.push(entry)
@@ -116,7 +119,7 @@ export function runPhase4Step({
       error: details,
       stdout,
       stderr,
-      failureOutput: failureOutput(stdout, stderr, details.message),
+      failureOutput: failureOutput(result?.stdout, result?.stderr, details.message),
       ...(failureEvidencePath ? {failureEvidencePath} : {}),
     })
     throw error
