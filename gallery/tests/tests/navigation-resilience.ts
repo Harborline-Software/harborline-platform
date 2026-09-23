@@ -3,6 +3,35 @@ export type NavigationPage = {
   waitForTimeout(milliseconds: number): Promise<void>
 }
 
+// T-717: a page-side promise that only a booted app settles (BlazingStory.getStoryIndex()) never
+// settles on a page whose boot stalled, and nothing bounded the wait but the 45 s test timeout. The
+// Blazor index is cached per worker only on success, so on mac16 one stalled boot timed out every
+// later Blazor story in that worker, about eighty tests on both attempts. Each attempt is bounded;
+// a stalled page is reloaded, a bounded number of times, and the last failure names `label`.
+export async function readWithReload<T>(page: NavigationPage, url: string, label: string, read: () => Promise<T>, attemptMs: number, attempts = 2): Promise<T> {
+  let lastError: unknown
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    await gotoWithTransientNetworkRetry(page, url)
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const stalled = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new Error(`no answer within ${attemptMs} ms`)), attemptMs)
+    })
+    const reading = read()
+    // A read abandoned to a reload rejects when its page goes away; that is not this attempt's result.
+    reading.catch(() => {})
+    try {
+      return await Promise.race([reading, stalled])
+    }
+    catch (error) {
+      lastError = error
+    }
+    finally {
+      clearTimeout(timer)
+    }
+  }
+  throw new Error(`${label}: no answer after ${attempts} bounded attempts of ${attemptMs} ms at ${url}: ${String(lastError)}`)
+}
+
 export async function gotoWithTransientNetworkRetry(page: NavigationPage, url: string): Promise<unknown> {
   const retryDelays = [250, 750]
   let lastError: unknown
