@@ -7,7 +7,7 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { arch, platform } from 'node:os'
 
-import { gotoWithTransientNetworkRetry } from './navigation-resilience.ts'
+import { gotoWithTransientNetworkRetry, openWithSubresourceRetry } from './navigation-resilience.ts'
 
 // Control ticket 100: the gallery gate reported sixteen counts and measured none of them, and one
 // drifted for fifteen days on the very commit that added the check meant to stop drift. Every count
@@ -252,14 +252,17 @@ function storyId(index: StoryIndex, title: string, name: string): string {
 // used: it is one module-lifetime promise, not a readiness predicate for the story on screen.
 const storyReadyTimeoutMs = 40_000
 
+async function openStory(page: Page, base: string, id: string) {
+  await openWithSubresourceRetry(page, `${base}/iframe.html?id=${encodeURIComponent(id)}&viewMode=story`, base,
+    () => expect(page.locator('[data-gallery-probe]')).toBeVisible({ timeout: storyReadyTimeoutMs }))
+}
+
 async function openReactStory(page: Page, id: string) {
-  await gotoWithTransientNetworkRetry(page, `${reactBase}/iframe.html?id=${encodeURIComponent(id)}&viewMode=story`)
-  await expect(page.locator('[data-gallery-probe]')).toBeVisible({ timeout: storyReadyTimeoutMs })
+  await openStory(page, reactBase, id)
 }
 
 async function openBlazorStory(page: Page, id: string) {
-  await gotoWithTransientNetworkRetry(page, `${blazorBase}/iframe.html?id=${encodeURIComponent(id)}&viewMode=story`)
-  await expect(page.locator('[data-gallery-probe]')).toBeVisible({ timeout: storyReadyTimeoutMs })
+  await openStory(page, blazorBase, id)
 }
 
 async function openProjectionStory(page: Page, projection: Projection, catalog: Catalog, scenarioName: string) {
