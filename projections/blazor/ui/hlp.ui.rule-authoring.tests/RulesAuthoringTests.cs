@@ -154,6 +154,73 @@ public sealed class RulesAuthoringTests : BunitContext
         Assert.Contains("Preview (sample input)", cut.Markup);
     }
 
+    // T-712: DES-0018 rules-auth-1, -2, -5 and -6 at the Blazor editor, matching the React lane's tests.
+    [Fact]
+    public void Rules_auth_1_holds_exactly_the_one_action_the_author_picks_for_every_action()
+    {
+        var requests = new List<RulesOperationRequest>();
+        var cut = RenderEditor(_ => { }, requests.Add);
+        var offered = cut.FindAll("select[aria-label='Rule action'] option").Select(option => option.TextContent).ToArray();
+        Assert.Equal(new[] { "Visibility", "Required", "ReadOnly", "Validate", "Compute", "Presentation", "Options" }.Order(), offered.Order());
+        foreach (var action in offered)
+        {
+            cut.Find("select[aria-label='Rule action']").Change(action);
+            cut.FindButton("Publish").Click();
+            Assert.Equal(action, requests[^1].Draft.Draft.OutputType.ToString());
+            Assert.Equal(action, cut.Find("select[aria-label='Rule action']").GetAttribute("value"));
+        }
+    }
+
+    [Fact]
+    public void Rules_auth_2_shares_one_guided_editor_across_accept_when_default_value_and_rule()
+    {
+        foreach (var (site, label) in new[] { ("accept-when", "Accept when"), ("default", "Default value"), ("rule", "Rule") })
+        {
+            FormulaExpr? changed = null;
+            var cut = Render<HarborlineGuidedExpressionEditor>(parameters => parameters
+                .Add(component => component.Site, site)
+                .Add(component => component.Value, new FormulaExpr.Call("cat", [new FormulaExpr.Literal("A", ColumnValueType.Text)]))
+                .Add(component => component.Contract, Contracts[0])
+                .Add(component => component.ValueChanged, EventCallback.Factory.Create<FormulaExpr>(this, value => changed = value)));
+            cut.Find($"input[aria-label='{label} argument 1 literal value']").Change("B");
+            Assert.Equal("B", Assert.IsType<FormulaExpr.Literal>(Assert.IsType<FormulaExpr.Call>(changed).Args[0]).Value);
+            DisposeComponents();
+        }
+    }
+
+    [Fact]
+    public void Rules_auth_5_offers_exactly_first_match_and_priority_and_round_trips_the_choice()
+    {
+        var requests = new List<RulesOperationRequest>();
+        var cut = RenderEditor(_ => { }, requests.Add);
+        cut.Find("input[aria-label='Decision table']").Change(true);
+        // Fails if a third policy becomes selectable.
+        Assert.Equal(["FirstMatch", "Priority"], cut.FindAll("select[aria-label='Hit policy'] option").Select(option => option.TextContent).ToArray());
+        foreach (var policy in new[] { HitPolicy.Priority, HitPolicy.FirstMatch })
+        {
+            cut.Find("select[aria-label='Hit policy']").Change(policy.ToString());
+            cut.FindButton("Publish").Click();
+            Assert.Equal(policy, Assert.IsType<DecisionTableDraft>(requests[^1].Draft.Draft).HitPolicy);
+        }
+    }
+
+    [Fact]
+    public void Rules_auth_6_authors_an_explicit_default_or_a_real_any_catch_all_row()
+    {
+        RulesDraft? changed = null;
+        var cut = RenderEditor(value => changed = value);
+        cut.Find("input[aria-label='Decision table']").Change(true);
+        cut.FindButton("Add column").Click();
+        cut.FindButton("Add row").Click();
+        cut.Find("input[aria-label='Default output']").Change("fallback");
+        Assert.Equal("fallback", Assert.IsType<NoMatchPosture.Default>(Assert.IsType<DecisionTableDraft>(changed!.Draft).NoMatch).Value);
+        cut.FindButton("Add catch-all row").Click();
+        var table = Assert.IsType<DecisionTableDraft>(changed!.Draft);
+        Assert.IsType<NoMatchPosture.CatchAll>(table.NoMatch);
+        Assert.IsType<TableCell.Any>(table.Rows[^1].Cells["column-1"]);
+        Assert.NotNull(cut.Find("tr[data-catch-all]"));
+    }
+
     private static readonly RulesExpressionContract[] Contracts = [new("rule", "typed value", "preview", [new("amount", "Amount", ColumnValueType.Number)])];
     private IRenderedComponent<HarborlineRulesAuthoringEditor> RenderEditor(Action<RulesDraft> changed, Action<RulesOperationRequest>? requested = null, RulesDraft? value = null) => Render<HarborlineRulesAuthoringEditor>(parameters => parameters
         .Add(component => component.Value, value ?? RulesDraft.Empty)
