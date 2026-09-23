@@ -35,7 +35,7 @@ test('an oversized failed step preserves complete output outside the bounded rec
     assert.equal(readFileSync(resolve(root, results[0].failureEvidencePath), 'utf8'), output)
     const bounded = results[0].failureOutput
     assert.ok(bounded.length <= OUTPUT_CAP)
-    assert.match(bounded, /\[truncated after 16384 characters\]$/)
+    assert.match(bounded, /x\nlast$/)
   } finally {
     rmSync(root, {recursive: true, force: true})
   }
@@ -81,12 +81,14 @@ test('a large JSON failure retains flaky-test diagnostics beyond the bounded tai
         error: 'expect(locator).toHaveCount(1) timed out',
       }],
       reportLocation: 'gallery/tests/test-results/results.json',
-      scenarioCounts: Array.from({length: 180}, (_, index) => ({
+      scenarioCounts: Array.from({length: 250}, (_, index) => ({
         module: `hlp.ui.example-${index}`,
         scenarios: index + 1,
       })),
     }
     const stdout = JSON.stringify(diagnostics, null, 2)
+    assert.ok(stdout.length > OUTPUT_CAP)
+    // 120 is the tail run-gallery-gate.mjs keeps of its own sub-steps: the window the incident lost.
     const tail = stdout.split('\n').slice(-120).join('\n')
     assert.doesNotMatch(tail, /PersonSearch|restores the saved member|toHaveCount/)
 
@@ -115,11 +117,12 @@ test('a large JSON failure retains flaky-test diagnostics beyond the bounded tai
   }
 })
 
-test('a plain-log failure keeps its final diagnostic lines in the bounded report', () => {
+test('a plain-log failure over the cap keeps its final diagnostic lines in the bounded report', () => {
   const root = mkdtempSync(resolve(tmpdir(), 'phase4-log-failure-'))
   try {
     const results = []
-    const stdout = Array.from({length: 160}, (_, index) => `progress line ${index + 1}`).join('\n')
+    const stdout = Array.from({length: 400}, (_, index) => `progress line ${index + 1} ${'.'.repeat(60)}`).join('\n')
+    assert.ok(stdout.length > OUTPUT_CAP)
     const stderr = 'FATAL: package-consumers fixture installation failed'
     assert.throws(() => runPhase4Step({
       results,
@@ -136,7 +139,8 @@ test('a plain-log failure keeps its final diagnostic lines in the bounded report
       }),
     }), /package-consumers failed/)
 
-    assert.match(results[0].failureOutput, /progress line 160/)
+    assert.match(results[0].failureOutput, /progress line 400 /)
+    assert.ok(results[0].failureOutput.length <= OUTPUT_CAP)
     assert.match(results[0].failureOutput, /FATAL: package-consumers fixture installation failed/)
     assert.equal(readFileSync(resolve(root, results[0].failureEvidencePath), 'utf8'), `${stdout}\n${stderr}`)
   } finally {
