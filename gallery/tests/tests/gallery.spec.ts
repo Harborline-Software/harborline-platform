@@ -254,7 +254,7 @@ const storyReadyTimeoutMs = 40_000
 
 async function openStory(page: Page, base: string, id: string) {
   await openWithSubresourceRetry(page, `${base}/iframe.html?id=${encodeURIComponent(id)}&viewMode=story`, base,
-    () => expect(page.locator('[data-gallery-probe]')).toBeVisible({ timeout: storyReadyTimeoutMs }))
+    timeout => expect(page.locator('[data-gallery-probe]')).toBeVisible({ timeout }), storyReadyTimeoutMs)
 }
 
 async function openReactStory(page: Page, id: string) {

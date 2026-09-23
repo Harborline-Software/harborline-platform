@@ -6,22 +6,25 @@ import { gotoWithTransientNetworkRetry, openWithSubresourceRetry } from './navig
 
 // A fake page whose goto fails one request per attempt as `failures` says, and whose readiness never
 // settles on an attempt that lost a request -- the shape the T-709 capture recorded.
-function storyPage(failures: Array<{ url: string; errorText: string } | undefined>) {
-  const listeners = new Set<(request: { url(): string; failure(): { errorText: string } }) => void>()
+type Failure = { url: string; errorText: string; navigation?: boolean }
+type Listener = (request: { url(): string; failure(): { errorText: string }; isNavigationRequest(): boolean }) => void
+
+function storyPage(failures: Array<Failure | undefined>) {
+  const listeners = new Set<Listener>()
   const gotos: string[] = []
   const waits: number[] = []
   const page = {
-    on(_: 'requestfailed', listener: (request: { url(): string; failure(): { errorText: string } }) => void) { listeners.add(listener) },
-    off(_: 'requestfailed', listener: (request: { url(): string; failure(): { errorText: string } }) => void) { listeners.delete(listener) },
+    on(_: 'requestfailed', listener: Listener) { listeners.add(listener) },
+    off(_: 'requestfailed', listener: Listener) { listeners.delete(listener) },
     async goto(url: string) {
       gotos.push(url)
       const failure = failures[gotos.length - 1]
-      if (failure) for (const listener of listeners) listener({ url: () => failure.url, failure: () => ({ errorText: failure.errorText }) })
+      if (failure) for (const listener of listeners) listener({ url: () => failure.url, failure: () => ({ errorText: failure.errorText }), isNavigationRequest: () => failure.navigation ?? false })
       return { ok: true }
     },
     async waitForTimeout(milliseconds: number) { waits.push(milliseconds) },
   }
-  const ready = () => failures[gotos.length - 1]?.errorText === 'net::ERR_NO_BUFFER_SPACE'
+  const ready = () => failures[gotos.length - 1]?.errorText === 'net::ERR_NO_BUFFER_SPACE' && !failures[gotos.length - 1]?.navigation
     ? new Promise<never>(() => {})
     : Promise.resolve()
   return { page, ready, gotos, waits }
@@ -29,30 +32,48 @@ function storyPage(failures: Array<{ url: string; errorText: string } | undefine
 
 const origin = 'http://127.0.0.1:6106'
 const story = `${origin}/iframe.html?id=x`
+const budget = 40_000
 
 test('a story page that loses one of its own requests is reloaded, not waited out', async () => {
   const { page, ready, gotos, waits } = storyPage([{ url: `${origin}/assets/preload-helper.js`, errorText: 'net::ERR_NO_BUFFER_SPACE' }])
-  await openWithSubresourceRetry(page, story, origin, ready)
+  await openWithSubresourceRetry(page, story, origin, ready, budget)
   expect(gotos).toEqual([story, story])
   expect(waits).toEqual([250])
 })
 
-test('an aborted request or another origin\'s failure does not reload the story', async () => {
-  const { page, gotos } = storyPage([{ url: `${origin}/assets/a.js`, errorText: 'net::ERR_ABORTED' }])
-  await openWithSubresourceRetry(page, story, origin, () => Promise.resolve())
-  expect(gotos).toEqual([story])
-  const other = storyPage([{ url: 'http://127.0.0.1:6107/_framework/x.dll', errorText: 'net::ERR_FAILED' }])
-  await openWithSubresourceRetry(other.page, story, origin, () => Promise.resolve())
-  expect(other.gotos).toEqual([story])
+test('an aborted request, a failed document or another origin\'s failure does not reload the story', async () => {
+  for (const failure of [
+    { url: `${origin}/assets/a.js`, errorText: 'net::ERR_ABORTED' },
+    // The document is gotoWithTransientNetworkRetry's to recover, not a lost subresource.
+    { url: story, errorText: 'net::ERR_NO_BUFFER_SPACE', navigation: true },
+    { url: 'http://127.0.0.1:6107/_framework/x.dll', errorText: 'net::ERR_FAILED' },
+    // A lookalike port shares the origin's string prefix, not its origin.
+    { url: 'http://127.0.0.1:61060/assets/x.js', errorText: 'net::ERR_FAILED' },
+  ]) {
+    const { page, gotos } = storyPage([failure])
+    await openWithSubresourceRetry(page, story, origin, () => Promise.resolve(), budget)
+    expect(gotos, failure.url).toEqual([story])
+  }
 })
 
-test('story reloads are bounded, and the last attempt fails on readiness', async () => {
+test('story reloads are bounded, share one readiness deadline, and the last attempt fails on readiness', async () => {
   const lost = { url: `${origin}/assets/a.js`, errorText: 'net::ERR_NO_BUFFER_SPACE' }
   const { page, gotos, waits } = storyPage([lost, lost, lost])
-  await expect(openWithSubresourceRetry(page, story, origin, () => Promise.reject(new Error('probe never visible'))))
-    .rejects.toThrow('probe never visible')
+  page.waitForTimeout = async milliseconds => {
+    waits.push(milliseconds)
+    await new Promise(resolve => setTimeout(resolve, milliseconds))
+  }
+  const timeouts: number[] = []
+  await expect(openWithSubresourceRetry(page, story, origin, timeout => {
+    timeouts.push(timeout)
+    return Promise.reject(new Error('probe never visible'))
+  }, 1_000)).rejects.toThrow('probe never visible')
   expect(gotos).toHaveLength(3)
   expect(waits).toEqual([250, 750])
+  // A fresh budget per attempt would pass ~1000 each time; one deadline leaves ~750, then the 1 ms floor.
+  expect(timeouts[0]).toBeGreaterThan(900)
+  expect(timeouts[1]).toBeLessThanOrEqual(760)
+  expect(timeouts[2]).toBeLessThanOrEqual(10)
 })
 
 // The T-709 mechanism in a real browser: a module the entry imports fails once at the network level,
@@ -78,7 +99,8 @@ test('a failed module import leaves the page unbooted, and the story retry recov
     await expect(probe()).rejects.toThrow()
 
     depRequests = 0
-    await openWithSubresourceRetry(page, `${base}/`, base, probe)
+    await openWithSubresourceRetry(page, `${base}/`, base,
+      timeout => expect(page.locator('[data-gallery-probe]')).toBeVisible({ timeout }), 2_000)
     expect(depRequests).toBe(2)
   }
   finally {
