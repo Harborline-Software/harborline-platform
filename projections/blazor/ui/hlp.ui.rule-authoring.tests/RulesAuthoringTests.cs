@@ -189,6 +189,42 @@ public sealed class RulesAuthoringTests : BunitContext
     }
 
     [Fact]
+    public void Rules_auth_3_carries_every_reference_form_through_producer_admission_and_receives_the_lowered_reference()
+    {
+        using var fixture = JsonDocument.Parse(File.ReadAllText(FindFixture()));
+        var forms = fixture.RootElement.GetProperty("referenceForms");
+        RulesExpressionContract[] contracts = [new("rule", "typed value", "preview", [.. forms.GetProperty("palette").EnumerateArray().Select(item =>
+            new RulesPaletteItem(item.GetProperty("id").GetString()!, item.GetProperty("label").GetString()!, Enum.Parse<ColumnValueType>(item.GetProperty("valueType").GetString()!)))])];
+        foreach (var item in forms.GetProperty("cases").EnumerateArray())
+        {
+            var id = item.GetProperty("id").GetString()!;
+            var reference = item.GetProperty("ref").GetString()!;
+            var requests = new List<RulesOperationRequest>();
+            var cut = Render<HarborlineRulesAuthoringEditor>(parameters => parameters
+                .Add(component => component.Value, RulesDraft.Empty)
+                .Add(component => component.ExpressionContracts, contracts)
+                .Add(component => component.OperationRequested, EventCallback.Factory.Create<RulesOperationRequest>(this, requests.Add)));
+            cut.Find("select[aria-label='Rule action']").Change(item.GetProperty("action").GetString()!);
+            cut.Find("select[aria-label='Rule scope']").Change(item.GetProperty("scope").GetString()!);
+            cut.Find("input[aria-label='Target']").Change(item.GetProperty("scopeTarget").GetString()!);
+            // Producer admission refuses an undeclared reference, so the author declares it first.
+            cut.FindButton("Add declared input").Click();
+            cut.Find("select[aria-label='Input 1 reference']").Change(reference);
+            cut.Find("select[aria-label='Rule expression shape']").Change("Ref");
+            cut.Find("select[aria-label='Rule reference']").Change(reference);
+            cut.FindButton("Publish").Click();
+
+            var draft = requests[^1].Draft.Draft;
+            Assert.Equal(reference, Assert.IsType<FormulaExpr.Ref>(Assert.IsType<FormulaDraft>(draft).Expression).Name);
+            var admitted = RuleIntentValidator.Validate(new RuleDefinitionDocument(
+                new RuleDefinitionEnvelope(id, "1.0.0", "tenant-a", "domain-package", new JsonObject { ["kind"] = "test" }, []),
+                id, RuleDefinitionTier.JsonLogic, draft), RuleIntentPhase.Author);
+            Assert.True(admitted.IsValid, $"{id}: {string.Join(", ", admitted.Diagnostics.Select(diagnostic => diagnostic.Code))}");
+            Assert.True(JsonNode.DeepEquals(JsonNode.Parse(item.GetProperty("lowered").GetRawText()), admitted.Lowered), $"{id}: lowered {admitted.Lowered?.ToJsonString()}");
+        }
+    }
+
+    [Fact]
     public void Rules_auth_5_offers_exactly_first_match_and_priority_and_round_trips_the_choice()
     {
         var requests = new List<RulesOperationRequest>();

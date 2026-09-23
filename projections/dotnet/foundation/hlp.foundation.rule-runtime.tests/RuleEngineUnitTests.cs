@@ -33,6 +33,18 @@ public sealed class RuleEngineUnitTests
         => new(RuleCompiler.Compile(rules, limits), new FixedClock(Clock), limits);
 
     [Fact]
+    public void Lowered_asts_show_the_grammar_rewrite_and_are_copies_the_caller_cannot_use_to_alter_the_graph()
+    {
+        var compiled = RuleCompiler.Compile([Compute("line.total", "lines/amount", "{\"var\":\"parent.z\"}", RuleScope.Row)]);
+
+        var lowered = Assert.Single(compiled.LoweredAsts);
+        Assert.True(JsonNode.DeepEquals(JsonNode.Parse("{\"var\":\"field.z\"}"), lowered));
+
+        lowered!.AsObject()["var"] = "field.tampered";
+        Assert.True(JsonNode.DeepEquals(JsonNode.Parse("{\"var\":\"field.z\"}"), compiled.LoweredAsts[0]));
+    }
+
+    [Fact]
     public void Graph_and_guard_reject_a_missing_business_clock()
     {
         var compiled = RuleCompiler.Compile([]);
