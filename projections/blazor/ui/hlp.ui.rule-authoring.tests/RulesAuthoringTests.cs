@@ -4,6 +4,7 @@ using Bunit;
 using Bunit.Rendering;
 using Harborline.Contracts.Forms;
 using Harborline.Foundation.RuleAuthoring;
+using Harborline.Foundation.RuleEngine.Skins;
 using Harborline.UIAdapters.Blazor.Components.RuleAuthoring;
 using Microsoft.AspNetCore.Components;
 using Xunit;
@@ -184,7 +185,6 @@ public sealed class RulesAuthoringTests : BunitContext
                 .Add(component => component.ValueChanged, EventCallback.Factory.Create<FormulaExpr>(this, value => changed = value)));
             cut.Find($"input[aria-label='{label} argument 1 literal value']").Change("B");
             Assert.Equal("B", Assert.IsType<FormulaExpr.Literal>(Assert.IsType<FormulaExpr.Call>(changed).Args[0]).Value);
-            DisposeComponents();
         }
     }
 
