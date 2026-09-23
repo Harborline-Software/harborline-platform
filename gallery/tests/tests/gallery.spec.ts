@@ -631,6 +631,38 @@ async function assertReflow(page: Page, scenario: Scenario, projection: string) 
   expect(overflow, `${projection} ${scenario.id} horizontal overflow at 320px and 200% text`).toBe(0)
 }
 
+async function assertRuleAuthoringKeyboard(page: Page) {
+  const ruleName = page.getByRole('textbox', { name: 'Rule name', exact: true })
+  const target = page.getByRole('textbox', { name: 'Target', exact: true })
+  const action = page.getByRole('combobox', { name: 'Rule action', exact: true })
+  const scope = page.getByRole('combobox', { name: 'Rule scope', exact: true })
+  const version = page.getByRole('combobox', { name: 'Version selection', exact: true })
+  const formula = page.getByRole('radio', { name: 'Formula', exact: true })
+  const table = page.getByRole('radio', { name: 'Decision table', exact: true })
+
+  await ruleName.focus()
+  await page.keyboard.press('Tab')
+  await expect(target).toBeFocused()
+  await page.keyboard.press('Tab')
+  await expect(action).toBeFocused()
+  await page.keyboard.press('Tab')
+  await expect(scope).toBeFocused()
+  await page.keyboard.press('Tab')
+  await expect(version).toBeFocused()
+  await page.keyboard.press('Tab')
+  await expect(formula).toBeFocused()
+
+  await page.keyboard.press('ArrowDown')
+  await expect(table).toBeChecked()
+  await page.keyboard.press('ArrowUp')
+  await expect(formula).toBeChecked()
+
+  const addInput = page.getByRole('button', { name: 'Add declared input', exact: true })
+  await addInput.focus()
+  await page.keyboard.press('Enter')
+  await expect(page.getByRole('combobox', { name: 'Input 1 reference', exact: true })).toBeVisible()
+}
+
 async function assertSchemaFormChoicePopup(page: Page, projection: Projection, testInfo: TestInfo) {
   const trigger = page.getByRole('combobox', { name: 'Literal choices', exact: true })
   const listbox = page.locator('.hl-schema-form .hl-select-field__listbox')
@@ -1309,8 +1341,9 @@ test('every CI exemption names a scenario that still exists', () => {
     .filter(id => !comparedIds.has(id)).sort()
   expect(elementOrphans, 'per-element parity register naming scenarios that are not compared').toEqual([])
   // A host key nobody runs on would silently disable its rows on every host, which is a register
-  // that claims a divergence no run can ever judge. Only the three keys the registers use.
-  const knownHosts = new Set(['windows-11-x64', 'macos-x64-intel', 'macos-arm64'])
+  // that claims a divergence no run can ever judge. Keep this list aligned with the host keys
+  // produced by galleryHostKey and measured in the registers.
+  const knownHosts = new Set(['windows-11-x64', 'linux-x64', 'macos-x64-intel', 'macos-arm64'])
   const badHosts = [...new Set(elementRegister.divergences.map(row => row.host).filter(Boolean))]
     .filter(host => !knownHosts.has(host!)).sort()
   expect(badHosts, 'per-element parity register rows naming an unknown host').toEqual([])
@@ -1400,6 +1433,10 @@ for (const catalog of catalogs) for (const scenario of catalog.scenarios) {
     if (!galleryReviewCaptureRoot && scenario.sourceQualityCaseIds?.some(id => id.endsWith('.quality.reflow'))) {
       await assertReflow(reactPage, scenario, 'react')
       await assertReflow(blazorPage, scenario, 'blazor')
+    }
+    if (scenario.id === 'rule-authoring.from-empty') {
+      await assertRuleAuthoringKeyboard(reactPage)
+      await assertRuleAuthoringKeyboard(blazorPage)
     }
     if (scenario.id === 'select-field.multiple-search') {
       await assertSearchableMultipleScroll(reactPage, 'react')

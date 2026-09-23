@@ -13,4 +13,5 @@ export const SkinCodes = {
   // formula
   formulaEmpty: 'rule.skin.formula_empty',
   formulaUndeclaredRef: 'rule.skin.formula_undeclared_ref',
+  formulaTypeMismatch: 'rule.skin.formula_type_mismatch',
 } as const

@@ -178,6 +178,12 @@ public static class RuleDefinitionCodec
                 ["kind"] = "Binary", ["op"] = value.Op,
                 ["left"] = WriteExpression(value.Left, depth + 1), ["right"] = WriteExpression(value.Right, depth + 1),
             },
+            FormulaExpr.Call value when FormulaCallOps.IsSupported(value.Op) => new()
+            {
+                ["kind"] = "Call", ["op"] = value.Op,
+                ["args"] = new JsonArray(value.Args.Select(arg => (JsonNode?)WriteExpression(arg, depth + 1)).ToArray()),
+            },
+            FormulaExpr.Call => throw Refuse(RuleEngineCodes.CompileInvalidExpression, "/draft/expression/op"),
             FormulaExpr.If value => new()
             {
                 ["kind"] = "If",
@@ -315,6 +321,14 @@ public static class RuleDefinitionCodec
                 return new FormulaExpr.Binary(FormulaOperator(node, pointer, comparison: false),
                     ReadExpression(Member(node, "left", pointer), pointer + "/left", depth + 1),
                     ReadExpression(Member(node, "right", pointer), pointer + "/right", depth + 1));
+            case "Call":
+                Object(node, pointer, "kind", "op", "args");
+                string callOp = String(node, "op", pointer);
+                if (!FormulaCallOps.IsSupported(callOp))
+                    throw Refuse(RuleEngineCodes.CompileInvalidExpression, pointer + "/op");
+                return new FormulaExpr.Call(callOp, Array(node, "args", pointer)
+                    .Select((argument, index) => ReadExpression(argument,
+                        pointer + "/args/" + index.ToString(CultureInfo.InvariantCulture), depth + 1)).ToArray());
             case "If":
                 Object(node, pointer, "kind", "when", "then", "else");
                 var condition = Object(Member(node, "when", pointer), pointer + "/when", "op", "left", "right");

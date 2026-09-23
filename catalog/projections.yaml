@@ -172,6 +172,8 @@
     {"moduleId":"hlp.ui.data-exchange","projection":"blazor","role":"adapter","status":"conformant","path":"projections/blazor/ui/hlp.ui.data-exchange"},
     {"moduleId":"hlp.ui.data-grid","projection":"react","role":"adapter","status":"conformant","path":"projections/react/ui/hlp.ui.data-grid"},
     {"moduleId":"hlp.ui.data-grid","projection":"blazor","role":"adapter","status":"conformant","path":"projections/blazor/ui/hlp.ui.data-grid"},
+    {"moduleId":"hlp.ui.rule-authoring","projection":"react","role":"adapter","status":"conformant","path":"projections/react/ui/hlp.ui.rule-authoring"},
+    {"moduleId":"hlp.ui.rule-authoring","projection":"blazor","role":"adapter","status":"conformant","path":"projections/blazor/ui/hlp.ui.rule-authoring"},
     {"moduleId":"hlp.ui.view-runtime","projection":"react","role":"adapter","status":"conformant","path":"projections/react/ui/hlp.ui.view-runtime"},
     {"moduleId":"hlp.ui.view-runtime","projection":"blazor","role":"adapter","status":"conformant","path":"projections/blazor/ui/hlp.ui.view-runtime"},
     {"moduleId":"hlp.ui.layout-runtime","projection":"react","role":"implementation","status":"preview","path":"projections/react/ui/hlp.ui.layout-runtime"},

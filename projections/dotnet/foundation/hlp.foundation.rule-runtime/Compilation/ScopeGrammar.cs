@@ -76,28 +76,23 @@ internal static class ScopeGrammar
                 string canonical = LowerVarPath(path, ctx, ruleId);
                 if (def is not null)
                 {
-                    return new JsonObject { ["var"] = new JsonArray(JsonValue.Create(canonical), def) };
+                    return new JsonObject { ["var"] = new JsonArray(JsonValue.Create(canonical), Rewrite(def, ctx, ruleId)) };
                 }
                 return new JsonObject { ["var"] = JsonValue.Create(canonical) };
             }
             case JsonObject obj:
             {
+                // The evaluator executes exactly one-key objects. A multi-key object (and
+                // every array reached as literal data) is opaque JSON, not a nested program.
+                if (obj.Count != 1) return obj.DeepClone();
                 var result = new JsonObject();
                 foreach (var (k, v) in obj)
-                {
-                    result[k] = Rewrite(v, ctx, ruleId);
-                }
+                    result[k] = v is JsonArray arguments
+                        ? new JsonArray(arguments.Select(item => Rewrite(item, ctx, ruleId)).ToArray())
+                        : Rewrite(v, ctx, ruleId);
                 return result;
             }
-            case JsonArray arr:
-            {
-                var result = new JsonArray();
-                foreach (var item in arr)
-                {
-                    result.Add(Rewrite(item, ctx, ruleId));
-                }
-                return result;
-            }
+            case JsonArray: return node.DeepClone();
             default:
                 return node?.DeepClone();
         }
@@ -209,6 +204,18 @@ internal static class ScopeGrammar
     {
         switch (node)
         {
+            case JsonObject obj when obj.Count == 1 && (obj.ContainsKey("missing") || obj.ContainsKey("missing_some")):
+            {
+                var raw = obj.First().Value;
+                var args = raw is JsonArray array ? array.ToList() : new List<JsonNode?> { raw };
+                if (obj.ContainsKey("missing_some"))
+                {
+                    if (args.Count > 0) Walk(args[0], refs, ruleId); // numeric threshold is executable
+                    if (args.Count > 1) CollectMissingKeys(args[1], refs, ruleId);
+                }
+                else foreach (var arg in args) CollectMissingKeys(arg, refs, ruleId);
+                break;
+            }
             case JsonObject obj when obj.Count == 1 && obj.ContainsKey("var"):
             {
                 string path = VarPathOf(obj["var"]);
@@ -237,12 +244,13 @@ internal static class ScopeGrammar
                     a[2]!.GetValue<string>()));
                 break;
             }
-            case JsonObject obj:
-                foreach (var (_, v) in obj) Walk(v, refs, ruleId);
+            case JsonObject obj when obj.Count == 1:
+            {
+                var argument = obj.First().Value;
+                if (argument is JsonArray arguments) foreach (var item in arguments) Walk(item, refs, ruleId);
+                else Walk(argument, refs, ruleId);
                 break;
-            case JsonArray arr:
-                foreach (var item in arr) Walk(item, refs, ruleId);
-                break;
+            }
         }
     }
 
@@ -250,6 +258,29 @@ internal static class ScopeGrammar
         => varNode is JsonArray a
             ? (a.Count > 0 ? a[0]?.GetValue<string>() ?? "" : "")
             : varNode?.GetValue<string>() ?? "";
+
+    private static void CollectMissingKeys(JsonNode? value, List<RuleRef> refs, string ruleId)
+    {
+        switch (value)
+        {
+            case JsonArray list:
+                foreach (var item in list) CollectMissingKeys(item, refs, ruleId);
+                return;
+            case JsonValue scalar when scalar.TryGetValue<string>(out var key) && key.Length > 0:
+                if (key.StartsWith("row.", StringComparison.Ordinal)) refs.Add(new RowFieldRef(key["row.".Length..]));
+                else refs.Add(new FieldRef(key.StartsWith("field.", StringComparison.Ordinal) ? key["field.".Length..] : key));
+                return;
+            case JsonObject expression when expression.Count == 1:
+                // A dynamic key expression itself has ordinary executable reads. Its resolved
+                // target is learned by graph-owned evaluation; do not overload a user field name.
+                Walk(expression, refs, ruleId);
+                refs.Add(new DynamicReadRef());
+                return;
+            default:
+                refs.Add(new DynamicReadRef());
+                return;
+        }
+    }
 
     // ── AST metrics (static bounds) ────────────────────────────────────────────
 

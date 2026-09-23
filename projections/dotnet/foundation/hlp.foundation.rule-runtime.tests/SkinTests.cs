@@ -188,6 +188,28 @@ public sealed class SkinTests
     }
 
     [Fact]
+    public void Formula_DeclaredInputDoesNotCertifyRuntimeValuesItCannotGuard()
+    {
+        var expr = JsonNode.Parse("""{ "money.add": [ { "var": "approved" }, "1.00" ] }""");
+        var skin = new FormulaSkin("f", RuleScope.Field, "total", RuleActionKind.Compute,
+            new[] { new FormulaInput("approved", "boolean") }, expr);
+
+        var rule = FormulaCompiler.Compile(skin);
+        Assert.Equal(RuleActionKind.Compute, rule.Action);
+    }
+
+    [Fact]
+    public void Formula_AlsoRunsTheCoreStaticAdmissionBeforeReturningARule()
+    {
+        var skin = new FormulaSkin("f", RuleScope.Field, "total", RuleActionKind.Compute,
+            Array.Empty<FormulaInput>(), JsonNode.Parse("""{ "date.today": ["unexpected"] }"""));
+
+        var ex = Assert.Throws<RuleCompilationException>(() => FormulaCompiler.Compile(skin));
+
+        Assert.Equal(RuleEngineCodes.CompileInvalidExpression, ex.Code);
+    }
+
+    [Fact]
     public void Formula_AllRefsDeclared_Compiles()
     {
         var expr = JsonNode.Parse("""{ "*": [ { "var": "qty" }, { "var": "price" } ] }""");

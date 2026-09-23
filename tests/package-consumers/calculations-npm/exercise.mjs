@@ -16,6 +16,7 @@ import { compile } from '@harborline-software/rule-engine'
 
 const corpus = JSON.parse(readFileSync(new URL('./authoring-verdict-cases.json', import.meta.url), 'utf8'))
 const intentCorpus = JSON.parse(readFileSync(new URL('./definition-intent-cases.json', import.meta.url), 'utf8'))
+const previewClock = () => new Date('2026-06-30T00:00:00.000Z')
 for (const row of intentCorpus.cases) {
   for (const phase of ['Author', 'Publish', 'Persisted']) {
     const result = validateRuleDefinitionJson(row.sourceJson, phase)
@@ -43,7 +44,7 @@ async function verdictOf(row) {
   switch (row.op) {
     case 'preview': {
       const draft = draftOf(row)
-      const r = evaluatePreview(draft, row.ruleId, row.sample)
+      const r = evaluatePreview(draft, row.ruleId, row.sample, previewClock)
       return {
         id: row.id,
         op: row.op,

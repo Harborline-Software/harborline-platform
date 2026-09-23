@@ -12,6 +12,24 @@
       }
     },
     {
+      "id": "formula-guided-call-roundtrip",
+      "sourceJson": "{\"envelope\":{\"id\":\"invoice-total\",\"version\":\"1.2.3\",\"tenant\":\"tenant-a\",\"cascadeLayer\":\"domain-package\",\"provenance\":{\"kind\":\"package\",\"id\":\"finance\"},\"requires\":[]},\"name\":\"Invoice total\",\"tier\":\"JsonLogic\",\"draft\":{\"kind\":\"Formula\",\"scope\":\"Field\",\"scopeTarget\":\"total\",\"outputType\":\"Compute\",\"inputs\":[],\"expression\":{\"kind\":\"Call\",\"op\":\"cat\",\"args\":[{\"kind\":\"Literal\",\"value\":\"A\",\"valueType\":\"Text\"},{\"kind\":\"Literal\",\"value\":\"B\",\"valueType\":\"Text\"}]}}}",
+      "expected": {
+        "valid": true,
+        "code": null,
+        "location": null
+      }
+    },
+    {
+      "id": "formula-guided-call-unknown-operator",
+      "sourceJson": "{\"envelope\":{\"id\":\"invoice-total\",\"version\":\"1.2.3\",\"tenant\":\"tenant-a\",\"cascadeLayer\":\"domain-package\",\"provenance\":{\"kind\":\"package\",\"id\":\"finance\"},\"requires\":[]},\"name\":\"Invoice total\",\"tier\":\"JsonLogic\",\"draft\":{\"kind\":\"Formula\",\"scope\":\"Field\",\"scopeTarget\":\"total\",\"outputType\":\"Compute\",\"inputs\":[],\"expression\":{\"kind\":\"Call\",\"op\":\"regex\",\"args\":[]}}}",
+      "expected": {
+        "valid": false,
+        "code": "rule.compile.invalid_expression",
+        "location": "/draft/expression/op"
+      }
+    },
+    {
       "id": "table-roundtrip",
       "sourceJson": "{\"envelope\":{\"id\":\"invoice-total\",\"version\":\"1.2.3\",\"tenant\":\"tenant-a\",\"cascadeLayer\":\"domain-package\",\"provenance\":{\"kind\":\"package\",\"id\":\"finance\"},\"requires\":[\"records.invoice@2.0.0\"]},\"name\":\"Invoice total\",\"tier\":\"JsonLogic\",\"draft\":{\"kind\":\"Table\",\"scope\":\"Field\",\"scopeTarget\":\"total\",\"outputType\":\"Compute\",\"hitPolicy\":\"Priority\",\"columns\":[{\"id\":\"amount\",\"input\":\"field.amount\",\"valueType\":\"Number\"}],\"rows\":[{\"id\":\"low\",\"cells\":{\"amount\":{\"kind\":\"Range\",\"lo\":\"0\",\"hi\":\"100\"}},\"output\":\"low\",\"priority\":1}],\"noMatch\":{\"kind\":\"Default\",\"value\":\"high\"}}}",
       "expected": {

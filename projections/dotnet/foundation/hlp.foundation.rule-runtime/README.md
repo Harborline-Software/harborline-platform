@@ -142,12 +142,24 @@ The op-budget and the wall-clock are NOT symmetric — only one may affect an ou
   its existing `BusinessRuleEngine` is a different (validation-only) engine and is untouched.
 
 ```csharp
-var evaluator = new GuardEvaluator();       // IGuardEvaluator
+var businessClock = TimeProvider.System;    // supplied by the calling host
+var evaluator = new GuardEvaluator(businessClock);       // IGuardEvaluator
 var compiled = RuleCompiler.Compile(rules); // throws RuleCompilationException on a bad/ cyclic def
-var graph = new FormRuleGraph(compiled);   // IFormRuleGraph
+var graph = new FormRuleGraph(compiled, businessClock);   // IFormRuleGraph
 var result = graph.EvaluateInstance(instance, ct);
 if (result.IsSaveBlocked) { /* fail closed: validity failure, errored value, or pending value */ }
 ```
+
+### Pure evaluator input boundary
+
+`IGuardEvaluator` accepts `RuleContextSnapshot`, not an adapter or arbitrary dictionary. A host calls
+`RuleContextSnapshot.Capture` (trusted host adaptation) or `FromJsonText` before evaluation; the
+evaluator itself never enumerates or invokes caller-owned context code. Context and graph instance
+capture admit at most 262,144 UTF-8 bytes, 64 JSON nesting levels, and 5,000 JSON values. Graphs own
+their initial instance and reactive rows. The per-aggregate row cap applies only to a table referenced
+by an aggregate; a refused aggregate row produces the established fail-closed result without becoming
+future graph state. These are implementation bounds for inert runtime data,
+separate from authored-rule limits and the liveness timeout.
 
 ## CP-safety (deferred, named)
 

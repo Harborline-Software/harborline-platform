@@ -6,6 +6,7 @@ using Contract = Harborline.Contracts.Forms;
 using State = Harborline.Foundation.Forms.Models;
 using Harborline.Foundation.RuleEngine;
 using Harborline.Foundation.RuleEngine.Compilation;
+using Harborline.Foundation.RuleEngine.Context;
 using Harborline.Foundation.RuleEngine.Graph;
 using Harborline.Foundation.RuleEngine.Model;
 using Harborline.Kernel.SchemaValidation;
@@ -24,13 +25,23 @@ internal sealed record FormCandidateEvaluation(
 
 internal static class FormCandidateEvaluator
 {
-    public static async ValueTask<FormCandidateEvaluation> EvaluateAsync(
+    public static ValueTask<FormCandidateEvaluation> EvaluateAsync(
         FormExecutionScope scope,
         State.FormDefinition definition,
         JsonDocument candidate,
         ISchemaRegistry schemas,
         int maximumCandidateBytes,
         TimeProvider clock,
+        CancellationToken cancellationToken) =>
+        EvaluateAsync(scope, definition, candidate, schemas, maximumCandidateBytes, clock.GetUtcNow(), cancellationToken);
+
+    public static async ValueTask<FormCandidateEvaluation> EvaluateAsync(
+        FormExecutionScope scope,
+        State.FormDefinition definition,
+        JsonDocument candidate,
+        ISchemaRegistry schemas,
+        int maximumCandidateBytes,
+        DateTimeOffset instant,
         CancellationToken cancellationToken)
     {
         var bytes = JsonSerializer.SerializeToUtf8Bytes(candidate.RootElement);
@@ -49,27 +60,27 @@ internal static class FormCandidateEvaluator
             return Invalid(candidate, Error("", "Candidate must be a JSON object.", Contract.ValidationErrorKind.Schema, "type"));
 
         var objectNode = JsonNode.Parse(candidate.RootElement.GetRawText())!.AsObject();
+        var clock = new PinnedClock(instant);
         var errors = new List<Contract.ValidationError>();
         var hidden = new HashSet<string>(StringComparer.Ordinal);
         var readOnly = new HashSet<string>(StringComparer.Ordinal);
 
         ApplyWriteAuthorization(scope, definition, objectNode, errors);
 
-        // Visibility and page guards decide which submitted members survive materialisation. Keep
-        // pruning monotonic, then evaluate every rule outcome against that one final candidate. A
-        // validation result from the raw submission must never authorize a different document.
+        // Materialise computed values before page guards read the candidate, then keep pruning
+        // monotonic. A validation result from the raw submission must never authorize a different
+        // document, and the final candidate is evaluated exactly once for diagnostics.
         RuleEvaluationResult? rules;
         while (true)
         {
             rules = EvaluateRules(definition, objectNode, clock, cancellationToken);
-            ApplyRuleProjection(definition, objectNode, rules, hidden, readOnly, errors, includeOutcomes: false, cancellationToken);
+            ApplyRuleProjection(definition, objectNode, rules, hidden, readOnly, errors, materializeValues: true, includeValueErrors: false, includeValidation: false, clock, cancellationToken);
             var removed = false;
             foreach (var key in hidden) removed |= objectNode.Remove(key);
             if (!removed) break;
         }
-
         rules = EvaluateRules(definition, objectNode, clock, cancellationToken);
-        ApplyRuleProjection(definition, objectNode, rules, hidden, readOnly, errors, includeOutcomes: true, cancellationToken);
+        ApplyRuleProjection(definition, objectNode, rules, hidden, readOnly, errors, materializeValues: true, includeValueErrors: true, includeValidation: true, clock, cancellationToken);
 
         var acceptedBytes = JsonSerializer.SerializeToUtf8Bytes(objectNode);
         SchemaValidationResult schemaResult;
@@ -127,14 +138,17 @@ internal static class FormCandidateEvaluator
         HashSet<string> hidden,
         HashSet<string> readOnly,
         List<Contract.ValidationError> errors,
-        bool includeOutcomes,
+        bool materializeValues,
+        bool includeValueErrors,
+        bool includeValidation,
+        TimeProvider clock,
         CancellationToken cancellationToken)
     {
         var hiddenPages = new HashSet<string>(StringComparer.Ordinal);
         var hiddenSections = new HashSet<string>(StringComparer.Ordinal);
         if (result is null)
         {
-            EvaluatePageGuards(definition, candidate, hiddenPages, hiddenSections, cancellationToken);
+            EvaluatePageGuards(definition, candidate, hiddenPages, hiddenSections, clock, cancellationToken);
             ExpandHiddenSections(definition, hiddenSections, hidden);
             return hiddenPages;
         }
@@ -152,19 +166,22 @@ internal static class FormCandidateEvaluator
 
         ExpandHiddenSections(definition, hiddenSections, hidden);
 
-        EvaluatePageGuards(definition, candidate, hiddenPages, hiddenSections, cancellationToken);
+        if (materializeValues)
+        {
+            foreach (var (target, computed) in result.Values)
+            {
+                if (!target.StartsWith("field:", StringComparison.Ordinal)) continue;
+                var field = target["field:".Length..];
+                if (hidden.Contains(field)) continue;
+                if (computed.State == ValueState.Resolved) candidate[field] = computed.Value?.DeepClone();
+                else if (includeValueErrors) errors.Add(Error($"/{EscapePointer(field)}", "A calculated value could not be resolved.", Contract.ValidationErrorKind.Schema, computed.Error?.Code ?? "rule.unresolved", computed.Error?.Params));
+            }
+        }
+
+        EvaluatePageGuards(definition, candidate, hiddenPages, hiddenSections, clock, cancellationToken);
         ExpandHiddenSections(definition, hiddenSections, hidden);
 
-        if (!includeOutcomes) return hiddenPages;
-
-        foreach (var (target, computed) in result.Values)
-        {
-            if (!target.StartsWith("field:", StringComparison.Ordinal)) continue;
-            var field = target["field:".Length..];
-            if (hidden.Contains(field)) continue;
-            if (computed.State == ValueState.Resolved) candidate[field] = computed.Value?.DeepClone();
-            else errors.Add(Error($"/{EscapePointer(field)}", "A calculated value could not be resolved.", Contract.ValidationErrorKind.Schema, computed.Error?.Code ?? "rule.unresolved", computed.Error?.Params));
-        }
+        if (!includeValidation) return hiddenPages;
 
         foreach (var (target, state) in result.Visibility)
         {
@@ -257,11 +274,12 @@ internal static class FormCandidateEvaluator
         JsonObject candidate,
         HashSet<string> hiddenPages,
         HashSet<string> hiddenSections,
+        TimeProvider clock,
         CancellationToken cancellationToken)
     {
         if (definition.Overlay.Pages is not { Count: > 0 }) return;
         var context = candidate.ToDictionary(row => row.Key, row => row.Value?.DeepClone(), StringComparer.Ordinal);
-        var evaluator = new GuardEvaluator();
+        var evaluator = new GuardEvaluator(clock: clock);
         foreach (var page in definition.Overlay.Pages.Where(row => row.VisibleWhen is not null))
         {
             var guard = new Contract.RuleDefinition
@@ -269,7 +287,7 @@ internal static class FormCandidateEvaluator
                 Id = $"page-guard:{page.Id}", Tier = Contract.RuleTier.JsonLogic, Scope = Contract.RuleScope.Schema,
                 ScopeTarget = "", Expression = page.VisibleWhen!, Action = Contract.RuleActionKind.Validate,
             };
-            if (evaluator.EvaluateGuard(guard, context, cancellationToken).Ok) continue;
+            if (evaluator.EvaluateGuard(guard, RuleContextSnapshot.Capture(context), RuleEvalScope.Root, cancellationToken).Ok) continue;
             hiddenPages.Add(page.Id);
             foreach (var section in page.Sections) hiddenSections.Add(section);
         }
@@ -331,6 +349,11 @@ internal static class FormCandidateEvaluator
         || node is null
         || node is JsonValue value && value.TryGetValue<string>(out var text) && text.Length == 0
         || node is JsonArray array && array.Count == 0;
+
+    private sealed class PinnedClock(DateTimeOffset instant) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => instant;
+    }
 
     private static bool TargetsPrunedField(string pointer, IReadOnlySet<string> hidden, IReadOnlySet<string> readOnly)
     {

@@ -1,6 +1,6 @@
 import * as React from 'react'
 
-import type { RuleEvaluationResult } from '@harborline-software/rule-engine'
+import { RuleInstance, type RuleEvaluationResult } from '@harborline-software/rule-engine'
 import type {
   FormValues,
   FormView,
@@ -122,8 +122,10 @@ export function useFormRuleGraph(
   }>(() => {
     if (!graph) return { evaluation: null, error: null }
     try {
+      const jsonText = JSON.stringify(userValues)
+      if (jsonText === undefined) throw new TypeError('form values must serialize to a JSON object')
       return {
-        evaluation: graph.evaluateInstance({ fields: userValues, tables: {} }),
+        evaluation: graph.evaluateInstance(RuleInstance.fromJsonText(jsonText)),
         error: null,
       }
     } catch (error) {

@@ -193,7 +193,7 @@ public sealed class LayoutBindingResolutionTests
     }
 
     private static LayoutBindingResolution Resolve(LayoutDefinition definition, ILayoutBindingSources sources)
-        => new LayoutBindingResolver().Resolve(definition, sources, LayoutBindingScope.Root(new Dictionary<string, JsonNode?>(StringComparer.Ordinal)
+        => new LayoutBindingResolver(new Harborline.Foundation.RuleEngine.GuardEvaluator(TimeProvider.System)).Resolve(definition, sources, LayoutBindingScope.Root(new Dictionary<string, JsonNode?>(StringComparer.Ordinal)
         {
             ["supplier"] = JsonValue.Create("Northwind"),
             ["status"] = JsonValue.Create("open"),

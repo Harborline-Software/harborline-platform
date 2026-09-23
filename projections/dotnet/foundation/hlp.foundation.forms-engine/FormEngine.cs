@@ -66,12 +66,13 @@ public sealed class FormEngine : IFormEngine
     {
         var scope = await RequiredScopeAsync(FormEngineAction.Read, cancellationToken).ConfigureAwait(false);
         var definition = await LoadEffectiveAsync(scope, formId, cancellationToken).ConfigureAwait(false);
+        var instant = _clock.GetUtcNow();
         var bindings = _fieldBinding is null ? null : await _fieldBinding.ResolveAsync(scope, definition, cancellationToken);
         if (instanceId is null)
         {
             using var empty = JsonDocument.Parse("{}");
             var sensitive = definition.Overlay.Fields.Where(row => row.Value.PiiSensitivity == State.PiiSensitivity.Sensitive).Select(row => row.Key).ToHashSet(StringComparer.Ordinal);
-            var rules = EvaluateRenderRules(definition, empty, cancellationToken);
+            var rules = EvaluateRenderRules(definition, empty, instant, cancellationToken);
             return FormContractMapper.ToView(scope, definition, empty, sensitive, sensitive, rules, bindings);
         }
 
@@ -81,11 +82,11 @@ public sealed class FormEngine : IFormEngine
             () => _security.ReadAsync(scope, definition, submission, cancellationToken),
             cancellationToken).ConfigureAwait(false);
         using var projection = await ProviderAsync(
-            () => BuildReadProjectionAsync(scope, submission, read, cancellationToken),
+            () => BuildReadProjectionAsync(scope, submission, read, instant, cancellationToken),
             cancellationToken).ConfigureAwait(false);
         using var ruleCandidate = CandidateWithoutSensitiveFields(
             projection.Candidate, projection.SensitiveFields);
-        var rulesResult = EvaluateRenderRules(definition, ruleCandidate, cancellationToken);
+        var rulesResult = EvaluateRenderRules(definition, ruleCandidate, instant, cancellationToken);
         return FormContractMapper.ToView(
             scope,
             definition,
@@ -109,7 +110,7 @@ public sealed class FormEngine : IFormEngine
             return Invalid(new Contract.ValidationError { JsonPointer = "", Message = "The form was not found.", Kind = Contract.ValidationErrorKind.NotFound, Code = "form.engine.not-found" });
         }
 
-        using var evaluation = await EvaluateAsync(scope, definition, candidate, cancellationToken).ConfigureAwait(false);
+        using var evaluation = await EvaluateAsync(scope, definition, candidate, _clock.GetUtcNow(), cancellationToken).ConfigureAwait(false);
         return new Contract.ValidationResult { IsValid = evaluation.Errors.Count == 0, Errors = evaluation.Errors };
     }
 
@@ -120,33 +121,34 @@ public sealed class FormEngine : IFormEngine
         ArgumentException.ThrowIfNullOrWhiteSpace(request.IdempotencyKey);
         var scope = await RequiredScopeAsync(FormEngineAction.Submit, cancellationToken).ConfigureAwait(false);
         var definition = await LoadEffectiveAsync(scope, request.FormId, cancellationToken).ConfigureAwait(false);
-        using var evaluation = await EvaluateAsync(scope, definition, request.Candidate, cancellationToken).ConfigureAwait(false);
-        if (evaluation.Errors.Count > 0) throw new FormEngineValidationException(evaluation.Errors);
-
-        var instant = _clock.GetUtcNow();
-        var instanceId = new Harborline.Foundation.Assets.Common.EntityId("harborline", "forms", Guid.NewGuid().ToString("N"));
-        var protectedResult = await ProviderAsync(
-            () => _security.ProtectAsync(
-                scope, definition, instanceId, evaluation.AcceptedCandidate, cancellationToken),
-            cancellationToken).ConfigureAwait(false);
-        var fingerprint = Fingerprint(evaluation.AcceptedCandidate.RootElement);
-        var auditPayload = BuildSubmissionAuditPayload(definition, evaluation.AcceptedCandidate, protectedResult, instant);
-        var outboxId = Guid.NewGuid().ToString("N");
-        var receipt = new FormSubmitReceipt(instanceId, instant, FormProjectionStatus.Pending, Array.Empty<FormProjectionSkip>());
-        var commit = new FormSubmissionCommit(
-            request.IdempotencyKey,
-            new(instanceId, scope.Tenant, scope.PartyId, scope.ActorId, definition.Id, definition.Version, fingerprint, protectedResult.ProtectedCandidate, instant),
-            new(Guid.NewGuid().ToString("N"), instanceId, scope.Tenant, scope.ActorId, auditPayload, instant),
-            new(outboxId, instanceId, scope.Tenant, scope.PartyId, scope.ActorId, definition.Id, definition.Version,
-                request.CaseReference, protectedResult.ProtectedCandidate.ToArray(), instant),
-            receipt);
-        var atomic = new KernelCommand<FormSubmissionCommit>(
-            new(instanceId.ToString(), request.IdempotencyKey, fingerprint),
-            commit,
-            new(commit.Audit.AuditId, commit.Audit.ActorId, commit.Audit.RecordedAt, commit.Audit.Payload));
+        FormSubmissionCommit? commit = null;
         var transaction = await ProviderAsync(
-            () => KernelTransactionBoundary.ExecuteAsync(
-                [atomic],
+            () => KernelTransactionBoundary.ExecutePreparedAsync(
+                async token =>
+                {
+                    var instant = _clock.GetUtcNow();
+                    using var evaluation = await EvaluateAsync(scope, definition, request.Candidate, instant, token).ConfigureAwait(false);
+                    if (evaluation.Errors.Count > 0) throw new FormEngineValidationException(evaluation.Errors);
+
+                    var instanceId = new Harborline.Foundation.Assets.Common.EntityId("harborline", "forms", Guid.NewGuid().ToString("N"));
+                    var protectedResult = await ProviderAsync(
+                        () => _security.ProtectAsync(scope, definition, instanceId, evaluation.AcceptedCandidate, token), token).ConfigureAwait(false);
+                    var fingerprint = Fingerprint(evaluation.AcceptedCandidate.RootElement);
+                    var auditPayload = BuildSubmissionAuditPayload(definition, evaluation.AcceptedCandidate, protectedResult, instant);
+                    var outboxId = Guid.NewGuid().ToString("N");
+                    var receipt = new FormSubmitReceipt(instanceId, instant, FormProjectionStatus.Pending, Array.Empty<FormProjectionSkip>());
+                    commit = new FormSubmissionCommit(
+                        request.IdempotencyKey,
+                        new(instanceId, scope.Tenant, scope.PartyId, scope.ActorId, definition.Id, definition.Version, fingerprint, protectedResult.ProtectedCandidate, instant),
+                        new(Guid.NewGuid().ToString("N"), instanceId, scope.Tenant, scope.ActorId, auditPayload, instant),
+                        new(outboxId, instanceId, scope.Tenant, scope.PartyId, scope.ActorId, definition.Id, definition.Version,
+                            request.CaseReference, protectedResult.ProtectedCandidate.ToArray(), instant),
+                        receipt);
+                    return new KernelCommand<FormSubmissionCommit>(
+                        new(instanceId.ToString(), request.IdempotencyKey, fingerprint),
+                        commit,
+                        new(commit.Audit.AuditId, commit.Audit.ActorId, commit.Audit.RecordedAt, commit.Audit.Payload));
+                },
                 new FormSubmissionKernelTransactionPort(_submissions),
                 cancellationToken),
             cancellationToken).ConfigureAwait(false);
@@ -154,23 +156,24 @@ public sealed class FormEngine : IFormEngine
             ?? throw new InvalidOperationException(transaction.Refusal?.Code ?? "The kernel transaction did not return a result.");
         if (committed.Disposition == FormSubmissionCommitDisposition.Conflict) throw new FormEngineIdempotencyConflictException();
         if (committed.Disposition == FormSubmissionCommitDisposition.Replayed) return committed.Receipt!;
+        var createdCommit = commit ?? throw new InvalidOperationException("The committed Forms submission was not prepared.");
 
         try
         {
-            var delivered = await _projections.DeliverAsync(commit.Projection, cancellationToken).ConfigureAwait(false);
-            await _submissions.CompleteProjectionAsync(outboxId, delivered.Skips, cancellationToken).ConfigureAwait(false);
-            return receipt with { ProjectionStatus = FormProjectionStatus.Complete, ProjectionSkips = delivered.Skips.ToArray() };
+            var delivered = await _projections.DeliverAsync(createdCommit.Projection, cancellationToken).ConfigureAwait(false);
+            await _submissions.CompleteProjectionAsync(createdCommit.Projection.OutboxId, delivered.Skips, cancellationToken).ConfigureAwait(false);
+            return createdCommit.Receipt with { ProjectionStatus = FormProjectionStatus.Complete, ProjectionSkips = delivered.Skips.ToArray() };
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            try { await _submissions.ReleaseProjectionLeaseAsync(outboxId, CancellationToken.None).ConfigureAwait(false); }
+            try { await _submissions.ReleaseProjectionLeaseAsync(createdCommit.Projection.OutboxId, CancellationToken.None).ConfigureAwait(false); }
             catch { }
             throw;
         }
         catch
         {
-            await _submissions.RetryProjectionAsync(outboxId, "form.engine.projection-pending", CancellationToken.None).ConfigureAwait(false);
-            return receipt;
+            await _submissions.RetryProjectionAsync(createdCommit.Projection.OutboxId, "form.engine.projection-pending", CancellationToken.None).ConfigureAwait(false);
+            return createdCommit.Receipt;
         }
     }
 
@@ -214,12 +217,12 @@ public sealed class FormEngine : IFormEngine
     private static bool ContainsReference(IReadOnlyList<State.FormItem>? items) =>
         items?.Any(item => item.Kind == State.FormItemKind.Reference || ContainsReference(item.Items)) == true;
 
-    private async ValueTask<FormCandidateEvaluation> EvaluateAsync(FormExecutionScope scope, State.FormDefinition definition, JsonDocument candidate, CancellationToken cancellationToken)
+    private async ValueTask<FormCandidateEvaluation> EvaluateAsync(FormExecutionScope scope, State.FormDefinition definition, JsonDocument candidate, DateTimeOffset instant, CancellationToken cancellationToken)
     {
         try
         {
             var bindings = _fieldBinding is null ? null : await _fieldBinding.ResolveAsync(scope, definition, cancellationToken);
-            var evaluation = await FormCandidateEvaluator.EvaluateAsync(scope, definition, candidate, _schemas, _options.MaximumCandidateBytes, _clock, cancellationToken).ConfigureAwait(false);
+            var evaluation = await FormCandidateEvaluator.EvaluateAsync(scope, definition, candidate, _schemas, _options.MaximumCandidateBytes, instant, cancellationToken).ConfigureAwait(false);
             if (bindings is null || evaluation.AcceptedCandidate.RootElement.ValueKind != JsonValueKind.Object) return evaluation;
             var errors = evaluation.Errors.ToList();
             foreach (var (name, binding) in bindings)
@@ -239,13 +242,13 @@ public sealed class FormEngine : IFormEngine
         catch (Exception ex) { throw new FormEngineProviderUnavailableException(ex); }
     }
 
-    private RuleEvaluationResult? EvaluateRenderRules(State.FormDefinition definition, JsonDocument candidate, CancellationToken cancellationToken)
+    private RuleEvaluationResult? EvaluateRenderRules(State.FormDefinition definition, JsonDocument candidate, DateTimeOffset instant, CancellationToken cancellationToken)
     {
         if (definition.Overlay.Rules.Count == 0 || candidate.RootElement.ValueKind != JsonValueKind.Object) return null;
         try
         {
             var compiled = RuleCompiler.Compile(definition.Overlay.Rules.Select(FormContractMapper.ToContractRule).ToArray());
-            return compiled.RuleCount == 0 ? null : new FormRuleGraph(compiled, clock: _clock).EvaluateInstance(RuleInstance.FromJson(JsonNode.Parse(candidate.RootElement.GetRawText())!.AsObject()), cancellationToken);
+            return compiled.RuleCount == 0 ? null : new FormRuleGraph(compiled, clock: new PinnedClock(instant)).EvaluateInstance(RuleInstance.FromJson(JsonNode.Parse(candidate.RootElement.GetRawText())!.AsObject()), cancellationToken);
         }
         catch (Exception ex) when (ex is RuleCompilationException or RuleEngineTimeoutException) { throw new FormEngineProviderUnavailableException(ex); }
     }
@@ -254,6 +257,7 @@ public sealed class FormEngine : IFormEngine
         FormExecutionScope scope,
         FormSubmissionRecord submission,
         FormReadableCandidate read,
+        DateTimeOffset instant,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(read);
@@ -305,7 +309,7 @@ public sealed class FormEngine : IFormEngine
                 try
                 {
                     await AppendReadAuditAsync(
-                        scope, submission.InstanceId, audit, cancellationToken).ConfigureAwait(false);
+                        scope, submission.InstanceId, audit, instant, cancellationToken).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
                 catch { }
@@ -322,7 +326,7 @@ public sealed class FormEngine : IFormEngine
                 try
                 {
                     await AppendReadAuditAsync(
-                        scope, submission.InstanceId, decryptGrants[0], cancellationToken).ConfigureAwait(false);
+                        scope, submission.InstanceId, decryptGrants[0], instant, cancellationToken).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
                 catch
@@ -345,10 +349,16 @@ public sealed class FormEngine : IFormEngine
         FormExecutionScope scope,
         Harborline.Foundation.Assets.Common.EntityId instanceId,
         FormSensitiveReadAuditEvent audit,
+        DateTimeOffset instant,
         CancellationToken cancellationToken) =>
         _readAudit.AppendAsync(
-            new(scope.Tenant, instanceId, scope.ActorId, audit, _clock.GetUtcNow()),
+            new(scope.Tenant, instanceId, scope.ActorId, audit, instant),
             cancellationToken);
+
+    private sealed class PinnedClock(DateTimeOffset instant) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => instant;
+    }
 
     private static JsonDocument CandidateWithoutSensitiveFields(
         JsonDocument candidate,

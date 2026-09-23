@@ -17,6 +17,7 @@ export interface LowerContext {
 
 export type RuleRef =
   | { kind: 'field'; name: string }
+  | { kind: 'dynamic-read' }
   | { kind: 'row'; field: string }
   | { kind: 'agg'; section: string; fn: string; col: string }
 
@@ -75,14 +76,21 @@ function rewrite(node: Json, ctx: LowerContext, ruleId: string): Json {
       return lowerAgg(path, ctx, ruleId)
     }
     const canonical = lowerVarPath(path, ctx, ruleId)
-    return def !== undefined ? { var: [canonical, def] } : { var: canonical }
+    return def !== undefined ? { var: [canonical, rewrite(def, ctx, ruleId)] } : { var: canonical }
   }
   if (isObj(node)) {
-    const result: { [k: string]: Json } = {}
-    for (const [k, v] of Object.entries(node)) result[k] = rewrite(v, ctx, ruleId)
-    return result
+    const entries = Object.entries(node)
+    if (entries.length !== 1) return cloneJson(node)
+    const [key, value] = entries[0]
+    return { [key]: Array.isArray(value) ? value.map((item) => rewrite(item, ctx, ruleId)) : rewrite(value, ctx, ruleId) }
   }
-  if (Array.isArray(node)) return node.map((x) => rewrite(x, ctx, ruleId))
+  if (Array.isArray(node)) return cloneJson(node)
+  return node
+}
+
+function cloneJson(node: Json): Json {
+  if (Array.isArray(node)) return node.map(cloneJson)
+  if (isObj(node)) return Object.fromEntries(Object.entries(node).map(([key, value]) => [key, cloneJson(value)]))
   return node
 }
 
@@ -158,6 +166,15 @@ export function extractRefs(ast: Json, ruleId = ''): RuleRef[] {
 }
 
 function walk(node: Json, refs: RuleRef[], ruleId: string): void {
+  if (isObj(node) && Object.keys(node).length === 1 && ('missing' in node || 'missing_some' in node)) {
+    const raw = Object.values(node)[0]
+    const args = Array.isArray(raw) ? raw : [raw]
+    if ('missing_some' in node) {
+      if (args.length > 0) walk(args[0], refs, ruleId)
+      if (args.length > 1) collectMissingKeys(args[1], refs, ruleId)
+    } else for (const arg of args) collectMissingKeys(arg, refs, ruleId)
+    return
+  }
   if (isObj(node) && Object.keys(node).length === 1 && 'var' in node) {
     const path = varPathOf(node['var'])
     if (path.startsWith('field.')) refs.push({ kind: 'field', name: path.slice('field.'.length) })
@@ -179,11 +196,29 @@ function walk(node: Json, refs: RuleRef[], ruleId: string): void {
     refs.push({ kind: 'agg', fn: a[0] as string, section: a[1] as string, col: a[2] as string })
     return
   }
-  if (isObj(node)) {
-    for (const v of Object.values(node)) walk(v, refs, ruleId)
-  } else if (Array.isArray(node)) {
-    for (const item of node) walk(item, refs, ruleId)
+  if (isObj(node) && Object.keys(node).length === 1) {
+    const argument = Object.values(node)[0]
+    if (Array.isArray(argument)) {
+      for (const item of argument) walk(item, refs, ruleId)
+    } else {
+      walk(argument, refs, ruleId)
+    }
   }
+}
+
+function collectMissingKeys(value: Json, refs: RuleRef[], ruleId: string): void {
+  if (Array.isArray(value)) { for (const item of value) collectMissingKeys(item, refs, ruleId); return }
+  if (typeof value === 'string' && value.length > 0) {
+    if (value.startsWith('row.')) refs.push({ kind: 'row', field: value.slice('row.'.length) })
+    else refs.push({ kind: 'field', name: value.startsWith('field.') ? value.slice('field.'.length) : value })
+    return
+  }
+  if (isObj(value) && Object.keys(value).length === 1) {
+    walk(value, refs, ruleId)
+    refs.push({ kind: 'dynamic-read' })
+    return
+  }
+  refs.push({ kind: 'dynamic-read' })
 }
 
 function varPathOf(varNode: Json): string {

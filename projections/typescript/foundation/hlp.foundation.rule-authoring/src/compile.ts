@@ -99,6 +99,8 @@ function exprToJson(expr: FormulaExpr): Json {
       return coerceValue(expr.value, expr.valueType)
     case 'binary':
       return { [expr.op]: [exprToJson(expr.left), exprToJson(expr.right)] }
+    case 'call':
+      return { [expr.op]: expr.args.map(exprToJson) }
     case 'if':
       return { if: [conditionToJson(expr.when), exprToJson(expr.then), exprToJson(expr.else)] }
   }
@@ -145,9 +147,9 @@ export interface PreviewResult {
 }
 
 /** Compiles + evaluates a single rule over sample inputs, returning the outcome + trace. */
-function evaluateRule(def: RuleDefinition, sample: Record<string, Json>, filter: TraceAuthorityFilter): { outcome?: RuleOutcome; trace: RuleTraceEntry[] } {
+function evaluateRule(def: RuleDefinition, sample: Record<string, Json>, clock: () => Date, filter: TraceAuthorityFilter): { outcome?: RuleOutcome; trace: RuleTraceEntry[] } {
   const compiled = compile([def])
-  const result = new FormRuleGraph(compiled).evaluateInstance(RuleInstance.fromJson(sample))
+  const result = new FormRuleGraph(compiled, clock).evaluateInstance(RuleInstance.fromJsonText(JSON.stringify(sample)))
   let outcome: RuleOutcome | undefined
   for (const o of result.byRule.values()) {
     if (o.ruleId === def.id) {
@@ -169,15 +171,18 @@ export function evaluatePreview(
   draft: RuleDraft,
   ruleId: string,
   sample: Record<string, Json>,
+  clock: () => Date,
   filter: TraceAuthorityFilter = passThroughTraceFilter,
 ): PreviewResult {
+  const instant = clock()
+  const pinnedClock = () => instant
   const def = compileDraft(draft, ruleId)
-  const { outcome, trace } = evaluateRule(def, sample, filter)
+  const { outcome, trace } = evaluateRule(def, sample, pinnedClock, filter)
   const value = outcome?.value?.state === 'Resolved' ? outcome.value.value : undefined
 
   let firedRowId: string | null | undefined
   if (draft.skin === 'table') {
-    firedRowId = probeFiredRow(draft, sample)
+    firedRowId = probeFiredRow(draft, sample, pinnedClock)
   }
   return { value, outcome, firedRowId, trace }
 }
@@ -186,7 +191,7 @@ const OTHERWISE = '__otherwise__'
 
 /** Determines which row fired by compiling a PROBE table (outputs = row ids) and evaluating it — the
  * engine's own ordering + AND semantics, zero divergence from the real compiled rule. */
-function probeFiredRow(draft: DecisionTableDraft, sample: Record<string, Json>): string | null {
+function probeFiredRow(draft: DecisionTableDraft, sample: Record<string, Json>, clock: () => Date): string | null {
   const probeRows: TableRow[] = draft.rows.map((r) => ({ ...r, output: r.id }))
   const probe: DecisionTableDraft = { ...draft, rows: probeRows, noMatch: { kind: 'default', value: OTHERWISE } }
   let def: RuleDefinition
@@ -197,7 +202,7 @@ function probeFiredRow(draft: DecisionTableDraft, sample: Record<string, Json>):
     throw e
   }
   const compiled = compile([def])
-  const result = new FormRuleGraph(compiled).evaluateInstance(RuleInstance.fromJson(sample))
+  const result = new FormRuleGraph(compiled, clock).evaluateInstance(RuleInstance.fromJsonText(JSON.stringify(sample)))
   for (const o of result.byRule.values()) {
     if (o.ruleId === def.id && o.value?.state === 'Resolved') {
       const v = o.value.value

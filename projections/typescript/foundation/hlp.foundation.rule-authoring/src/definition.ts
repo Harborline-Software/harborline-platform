@@ -1,5 +1,5 @@
 import { canonicalJson, compile, CompileError, DEFAULT_LIMITS, type Json, type RuleActionKind, type RuleScope, type RuleTier } from '@harborline-software/rule-engine'
-import type { ArithOp, CompareOp, ColumnValueType, FormulaExpr, RuleDraft, TableCell } from './model.js'
+import { formulaCallOps, type ArithOp, type CompareOp, type ColumnValueType, type FormulaCallOp, type FormulaExpr, type RuleDraft, type TableCell } from './model.js'
 import { compileDraft } from './compile.js'
 import { DefinitionReadError, pointer, readDefinitionJson } from './definition-json.js'
 
@@ -17,6 +17,7 @@ export type RuleDefinitionExpression =
   | { kind: 'Ref'; name: string }
   | { kind: 'Literal'; value: string; valueType: RuleDefinitionValueType }
   | { kind: 'Binary'; op: ArithOp; left: RuleDefinitionExpression; right: RuleDefinitionExpression }
+  | { kind: 'Call'; op: FormulaCallOp; args: RuleDefinitionExpression[] }
   | { kind: 'If'; when: { op: CompareOp; left: RuleDefinitionExpression; right: RuleDefinitionExpression }; then: RuleDefinitionExpression; else: RuleDefinitionExpression }
 
 export type RuleDefinitionCell =
@@ -150,6 +151,12 @@ function readExpression(value: Json, location: string, depth: number): RuleDefin
         left: readExpression(member(value, 'left', location), `${location}/left`, depth + 1),
         right: readExpression(member(value, 'right', location), `${location}/right`, depth + 1) }
     }
+    case 'Call': {
+      object(value, location, ['kind', 'op', 'args'])
+      const op = operator(value, location, formulaCallOps, badExpression)
+      return { kind: 'Call', op,
+        args: array(value, 'args', location).map((argument, index) => readExpression(argument, `${location}/args/${index}`, depth + 1)) }
+    }
     case 'If': {
       object(value, location, ['kind', 'when', 'then', 'else'])
       const path = `${location}/when`
@@ -261,6 +268,7 @@ function editorExpression(value: RuleDefinitionExpression): FormulaExpr {
     case 'Ref': return { kind: 'ref', ref: value.name }
     case 'Literal': return { kind: 'literal', value: value.value, valueType: editorType[value.valueType] }
     case 'Binary': return { kind: 'binary', op: value.op, left: editorExpression(value.left), right: editorExpression(value.right) }
+    case 'Call': return { kind: 'call', op: value.op, args: value.args.map(editorExpression) }
     case 'If': return { kind: 'if', when: { op: value.when.op, left: editorExpression(value.when.left), right: editorExpression(value.when.right) }, then: editorExpression(value.then), else: editorExpression(value.else) }
   }
 }
@@ -313,8 +321,9 @@ export function validateRuleDefinitionJson(json: string, phase: RuleIntentPhase)
   }
   try {
     const lowered = compileDraft(editorDraft(draft), ruleId)
-    // The compiler accepts encoded JSON or an AST; encode to disambiguate a string literal.
-    compile([{ ...lowered, expression: canonicalJson(lowered.expression) }])
+    // compileDraft already emits the canonical encoded scalar JSON contract used by the
+    // compiler. Re-encoding here adds two quotes and changes the literal admission bound.
+    compile([lowered])
     return { document, diagnostics: [] }
   } catch (error) {
     if (!(error instanceof CompileError)) throw error

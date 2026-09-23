@@ -8,5 +8,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="../../../../conformance/hlp.foundation.rule-authoring/definition-intent-cases.json" Link="definition-intent-cases.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../../../conformance/hlp.blocks.builder-definitions/rules-editor-contract-fixtures.json" Link="rules-editor-contract-fixtures.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

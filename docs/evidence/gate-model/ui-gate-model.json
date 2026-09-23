@@ -68,7 +68,7 @@
   },
   "ticket": "098",
   "subject": {
-    "moduleCount": 79,
+    "moduleCount": 80,
     "gateIds": [
       "assertDeterminism",
       "assertAccessible",
@@ -3832,6 +3832,84 @@
       ]
     },
     {
+      "moduleId": "hlp.ui.rule-authoring",
+      "presentation": "visual",
+      "catalogStatus": "gap-implemented",
+      "terminal": false,
+      "gates": [
+        {
+          "id": "assertDeterminism",
+          "status": "PASS",
+          "note": "cheap half only: no timing or async construct declared"
+        },
+        {
+          "id": "assertAccessible",
+          "status": "PASS",
+          "note": "axe-core over 3 scenarios x 2 lanes in gallery-gate"
+        },
+        {
+          "id": "assertVisualParity",
+          "status": "PASS",
+          "note": "3 visual-parity scenario(s), lane vs lane, pixelmatch"
+        },
+        {
+          "id": "assertFunctionalParity",
+          "status": "PASS",
+          "note": "3 conformance case(s) across both lanes"
+        },
+        {
+          "id": "assertInternationalization",
+          "status": "PARTIAL",
+          "note": "no locale fixtures; only the shared canvas is exercised"
+        },
+        {
+          "id": "assertPerformanceProfile",
+          "status": "UNBUILT",
+          "note": "no client-performance measurement exists for this module; run-ui-performance.mjs records test-process wall clock and declares wallClockBudgetUsed: false"
+        },
+        {
+          "id": "assertTokenAdherence",
+          "status": "PASS",
+          "note": "every value resolves to an approved token"
+        },
+        {
+          "id": "assertStateCompleteness",
+          "status": "PARTIAL",
+          "note": "derived [\"default\",\"loading\"] from the interface; no scenario names [\"default\",\"loading\"]"
+        },
+        {
+          "id": "assertFocusQuality",
+          "status": "UNBUILT",
+          "note": "focus scanner reported nothing for this module"
+        },
+        {
+          "id": "assertResponsiveQuality",
+          "status": "PASS",
+          "note": "reflow measured at 320px and 200% text in both lanes, with no horizontal overflow"
+        },
+        {
+          "id": "assertEmptyAndErrorStates",
+          "status": "UNBUILT",
+          "note": "no empty or error property, but bindings, expressionContracts, palette can be handed an empty collection; that state is reachable and undesigned"
+        },
+        {
+          "id": "assertContentResilience",
+          "status": "UNBUILT",
+          "note": "no long-content, missing-field or large-number case declared"
+        },
+        {
+          "id": "assertDesignReview",
+          "status": "UNBUILT",
+          "note": "no design-review verdict recorded for this module"
+        },
+        {
+          "id": "assertDesignQuality",
+          "status": "UNBUILT",
+          "note": "UNBUILT inherited from assertFocusQuality, assertEmptyAndErrorStates, assertContentResilience, assertDesignReview"
+        }
+      ]
+    },
+    {
       "moduleId": "hlp.ui.scheduler",
       "presentation": "visual",
       "catalogStatus": "gap-implemented",
@@ -3978,7 +4056,7 @@
         {
           "id": "assertDesignReview",
           "status": "PASS",
-          "note": "approved by Chris Wood on 2026-09-20T17:59:36.392Z against 27 surface files"
+          "note": "approved by CIC on 2026-09-22 against 27 surface files"
         },
         {
           "id": "assertDesignQuality",
@@ -6251,9 +6329,9 @@
     }
   ],
   "tally": {
-    "PASS": 665,
-    "PARTIAL": 95,
-    "UNBUILT": 185,
+    "PASS": 671,
+    "PARTIAL": 97,
+    "UNBUILT": 191,
     "NOT-APPLICABLE": 159,
     "FAIL": 2
   }

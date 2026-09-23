@@ -10,7 +10,7 @@
     {"moduleId": "hlp.contracts.fields", "minimumRevision": 1},
     {"moduleId": "hlp.foundation.actor", "minimumRevision": 1},
     {"moduleId": "hlp.foundation.forms", "minimumRevision": 3},
-    {"moduleId": "hlp.foundation.rule-runtime", "minimumRevision": 1},
+    {"moduleId": "hlp.foundation.rule-runtime", "minimumRevision": 2},
     {"moduleId": "hlp.foundation.tenancy", "minimumRevision": 1},
     {"moduleId": "hlp.kernel.core", "minimumRevision": 1},
     {"moduleId": "hlp.kernel.schema-validation", "minimumRevision": 1}
@@ -78,7 +78,7 @@
   "resourceLimits": {
     "candidateBytesDefault": 1048576,
     "schemaValidationBudgetDefaultMilliseconds": 2000,
-    "ruleRuntimeLimits": "hlp.foundation.rule-runtime revision 1",
+    "ruleRuntimeLimits": "hlp.foundation.rule-runtime revision 2",
     "projectionRecoveryBatchMaximum": 1000,
     "fileJournalFrameBytesDefault": 16777216,
     "fileJournalFrameBytesMaximum": 67108864

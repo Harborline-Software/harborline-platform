@@ -21,21 +21,35 @@ is a faithful port of that spec; do not let the two diverge (the corpus catches 
 ## Usage
 
 ```ts
-import { compile, FormRuleGraph, RuleInstance, GuardEvaluator } from '@harborline-software/rule-engine'
+import { compile, FormRuleGraph, RuleInstance, RuleRowSnapshot, RuleValueSnapshot } from '@harborline-software/rule-engine'
 
 const compiled = compile(formDefinition.rules)       // throws CompileError on a bad / cyclic def
-const graph = new FormRuleGraph(compiled)
-let result = graph.evaluateInstance(RuleInstance.fromJson(instanceBody))
+const businessClock = () => new Date('2026-06-30T00:00:00.000Z') // supplied by the calling host
+const graph = new FormRuleGraph(compiled, businessClock)
+let result = graph.evaluateInstance(RuleInstance.fromJsonText(JSON.stringify(instanceBody)))
 
 // reactive as-you-type: only the transitive dependents re-evaluate
-result = graph.reevaluate('amount', 1200)
-result = graph.addRow('lineItems', { id: 'r4', fields: { qty: 2, price: 5 } })
+result = graph.reevaluate('amount', RuleValueSnapshot.fromJsonText('1200'))
+result = graph.addRow('lineItems', RuleRowSnapshot.fromJsonText('{"id":"r4","fields":{"qty":2,"price":5}}'))
 
 if (result.isSaveBlocked) { /* a validity failure, errored value, or pending value */ }
 ```
 
 `Pending` is this tier's async-dependency state (a `reference.*` lookup over the Bridge); a `Pending`
 reaching the synchronous .NET tier at save is a fail-closed validation error (`rule.pending_at_save`).
+
+## Pure evaluator input boundary
+
+Evaluator entry accepts only runtime-owned snapshots. Hosts explicitly capture JSON text with
+`RuleContextSnapshot.fromJsonText`, `RuleInstance.fromJsonText`, `RuleValueSnapshot.fromJsonText`,
+or `RuleRowSnapshot.fromJsonText`; arbitrary objects, accessors, proxies, and forged instances are
+refused without reflection. Each capture admits at most 262,144 UTF-8 bytes, 64 JSON nesting levels,
+and 5,000 JSON values. Graphs take a graph-local copy of an admitted instance. The per-aggregate row
+cap applies only to a table referenced by an aggregate; a refused aggregate row is never retained.
+A `CompiledGraph` is likewise a compiler-owned handle: its public TypeScript
+shape is inspectable, but only a result returned by `compile` is admitted to `FormRuleGraph`. These
+are implementation bounds for inert evaluation data, distinct from the published authored-rule
+limits.
 
 ## Build / test
 

@@ -36,6 +36,8 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../hlp.ui.button/Harborline.UIAdapters.Blazor.csproj" />
+    <ProjectReference Include="../../../dotnet/foundation/hlp.foundation.rule-authoring/Harborline.Foundation.RuleAuthoring.csproj" />
+    <ProjectReference Include="../../../dotnet/foundation/hlp.foundation.rule-runtime/Harborline.Foundation.RuleEngine.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="../hlp.ui.context-menu.tests/**/*.cs" Link="ContextMenu/%(Filename)%(Extension)" />
@@ -97,6 +99,7 @@
     <Compile Include="../hlp.ui.gantt.tests/**/*.cs" Link="Scheduling/Gantt/%(Filename)%(Extension)" />
     <Compile Include="../hlp.ui.data-grid.tests/**/*.cs" Link="DataDisplay/DataGrid/%(Filename)%(Extension)" />
     <Compile Include="../hlp.ui.view-runtime.tests/**/*.cs" Link="DataDisplay/ViewRuntime/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.rule-authoring.tests/**/*.cs" Link="RuleAuthoring/%(Filename)%(Extension)" />
     <Compile Include="../hlp.ui.layout-runtime.tests/**/*.cs" Link="Layout/LayoutRuntime/%(Filename)%(Extension)" />
     <Compile Include="../hlp.ui.data-exchange.tests/**/*.cs" Link="DataExchange/%(Filename)%(Extension)" />
     <Compile Include="../hlp.ui.scroll-affordance.tests/**/*.cs" Link="Layout/ScrollAffordance/%(Filename)%(Extension)" />

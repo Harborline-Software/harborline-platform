@@ -149,6 +149,7 @@ public sealed class FormEngineOrchestrationTests
             IFormProjectionSink? projectionSink = null,
             ISchemaRegistry? schemaRegistry = null,
             Exception? contextFailure = null,
+            TimeProvider? clock = null,
             IFormFieldBindingSource? fieldBindings = null,
             Harborline.Contracts.Fields.IFieldKindRuntime? fieldKinds = null,
             Harborline.Contracts.Fields.IFieldDomainRuntime? fieldDomains = null)
@@ -178,7 +179,7 @@ public sealed class FormEngineOrchestrationTests
             var sink = projectionSink ?? recordingProjection;
             var actualSecurity = security ?? new RecordingSecurity();
             var engine = new FormEngine(context, new DefinitionStore(definition), reuseResolver ?? new IdentityReuseResolver(), schemas, actualSecurity,
-                readAudit ?? new RecordingReadAudit(), store, sink, options, new FixedClock(Now), fieldBindings, fieldKinds, fieldDomains);
+                readAudit ?? new RecordingReadAudit(), store, sink, options, clock ?? new FixedClock(Now), fieldBindings, fieldKinds, fieldDomains);
             return new(definition, actualState, store, context, recordingProjection, engine);
         }
 

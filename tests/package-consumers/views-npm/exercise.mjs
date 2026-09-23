@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { readFileSync, writeFileSync } from 'node:fs'
 
 const ui = await import('@harborline-software/ui-react')
-for (const carriedExport of ['DataGrid', 'Table', 'DataExportButton', 'ViewAuthoringEditor', 'emptyViewAuthoringDraft']) {
+for (const carriedExport of ['DataGrid', 'Table', 'DataExportButton', 'ViewAuthoringEditor', 'emptyViewAuthoringDraft', 'RulesAuthoringEditor', 'emptyRulesDraft']) {
   // Carried green rows: prove the export RESOLVES from the packed artifact. React components
   // may be plain functions or forwardRef/memo exotic components (typeof 'object') — both count.
   const kind = typeof ui[carriedExport]
@@ -26,4 +26,7 @@ assert.deepEqual(
   Object.keys(emptyDraft),
   ['name', 'recordType', 'viewKind', 'columns', 'sorts', 'groupBy', 'filterPredicate', 'shapeRoles', 'measure', 'widget', 'rowBehavior', 'density', 'ownership'],
 )
-process.stdout.write(`VIEWS_CLIENT_PASS:${JSON.stringify({ pairs: verdicts.length, carriedExports: 5, authoredFields: 13 })}\n`)
+const emptyRule = ui.emptyRulesDraft()
+assert.equal(emptyRule.draft.kind, 'Formula')
+assert.equal(emptyRule.draft.outputType, 'Compute')
+process.stdout.write(`VIEWS_CLIENT_PASS:${JSON.stringify({ pairs: verdicts.length, carriedExports: 7, authoredFields: 13, rulesEditor: 'Formula' })}\n`)

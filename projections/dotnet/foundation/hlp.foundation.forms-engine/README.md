@@ -16,6 +16,15 @@ immediate projection delivery, and restart recovery. Production composition requ
 state, schema, security, audit, transaction, and projection provider. The bundled in-memory
 submission adapter explicitly refuses Production.
 
+Submission preparation now runs inside the actual submission-store exclusion scope. The engine
+captures one injected-clock instant for a render or submit pipeline, materializes and evaluates the
+candidate under that scope, then gives the accepted candidate's fingerprint, record, and audit to
+the kernel transaction boundary for its normal identity and staging checks. A refusal, cancellation,
+or preparation error rolls the scope back without a submission, audit, outbox frame, or projection
+delivery. Both built-in stores expose a one-commit scope; the file journal appends only after the
+complete accepted envelope has been prepared, and projection delivery starts only after scope
+disposal.
+
 Revision 5 adds the production current-request context seam. It preserves the pinned Forms macaroon
 wire and HMAC chain while requiring an action-bound Harborline identifier, strict caveat cardinality,
 and one opaque denial. This rejects legacy actionless tokens that a holder could otherwise attenuate

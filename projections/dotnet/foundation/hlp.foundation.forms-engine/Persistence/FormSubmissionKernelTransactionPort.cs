@@ -4,30 +4,46 @@ namespace Harborline.Foundation.Forms.Engine.Persistence;
 
 /// <summary>Buffers the Forms commit until the shared kernel boundary owns the commit point.</summary>
 public sealed class FormSubmissionKernelTransactionPort(IFormSubmissionTransactionStore store)
-    : IKernelTransactionPort<FormSubmissionCommit, FormSubmissionCommitResult>
+    : IKernelTransactionPort<FormSubmissionCommit, FormSubmissionCommitResult>,
+      IKernelPreparedTransactionPort<FormSubmissionCommit, FormSubmissionCommitResult>
 {
     private readonly IFormSubmissionTransactionStore _store = store ?? throw new ArgumentNullException(nameof(store));
 
-    public ValueTask<IKernelTransaction<FormSubmissionCommit, FormSubmissionCommitResult>> BeginAsync(
+    public async ValueTask<IKernelTransaction<FormSubmissionCommit, FormSubmissionCommitResult>> BeginAsync(
         KernelOperationIdentity operation,
         CancellationToken cancellationToken = default) =>
-        ValueTask.FromResult<IKernelTransaction<FormSubmissionCommit, FormSubmissionCommitResult>>(
-            new Transaction(_store, operation));
+        new Transaction(await _store.BeginTransactionAsync(cancellationToken).ConfigureAwait(false), operation);
+
+    public async ValueTask<IKernelPreparedTransaction<FormSubmissionCommit, FormSubmissionCommitResult>> BeginAsync(
+        CancellationToken cancellationToken = default) =>
+        new Transaction(await _store.BeginTransactionAsync(cancellationToken).ConfigureAwait(false), null);
 
     private sealed class Transaction(
-        IFormSubmissionTransactionStore store,
-        KernelOperationIdentity operation)
-        : IKernelTransaction<FormSubmissionCommit, FormSubmissionCommitResult>
+        IFormSubmissionTransactionScope store,
+        KernelOperationIdentity? operation)
+        : IKernelTransaction<FormSubmissionCommit, FormSubmissionCommitResult>,
+          IKernelPreparedTransaction<FormSubmissionCommit, FormSubmissionCommitResult>
     {
         private FormSubmissionCommit? _commit;
         private KernelAuditEvidence? _audit;
+        private KernelOperationIdentity? _operation = operation;
+
+        public ValueTask StageOperationAsync(KernelOperationIdentity operation, CancellationToken cancellationToken = default)
+        {
+            ArgumentNullException.ThrowIfNull(operation);
+            if (_operation is not null && _operation != operation)
+                throw new InvalidOperationException("The Forms transaction operation cannot change after it is established.");
+            _operation = operation;
+            return ValueTask.CompletedTask;
+        }
 
         public ValueTask StageRecordAsync(FormSubmissionCommit record, CancellationToken cancellationToken = default)
         {
             ArgumentNullException.ThrowIfNull(record);
-            if (!StringComparer.Ordinal.Equals(operation.CommandId, record.Submission.InstanceId.ToString())
-                || !StringComparer.Ordinal.Equals(operation.IdempotencyKey, record.IdempotencyKey)
-                || !StringComparer.Ordinal.Equals(operation.Fingerprint, record.Submission.RequestFingerprint))
+            var establishedOperation = _operation ?? throw new InvalidOperationException("The operation must be staged before its record.");
+            if (!StringComparer.Ordinal.Equals(establishedOperation.CommandId, record.Submission.InstanceId.ToString())
+                || !StringComparer.Ordinal.Equals(establishedOperation.IdempotencyKey, record.IdempotencyKey)
+                || !StringComparer.Ordinal.Equals(establishedOperation.Fingerprint, record.Submission.RequestFingerprint))
                 throw new InvalidOperationException("The Forms commit does not match its kernel operation identity.");
             _commit = record;
             return ValueTask.CompletedTask;
@@ -56,14 +72,14 @@ public sealed class FormSubmissionKernelTransactionPort(IFormSubmissionTransacti
         {
             _commit = null;
             _audit = null;
-            return ValueTask.CompletedTask;
+            return store.RollbackAsync(cancellationToken);
         }
 
-        public ValueTask DisposeAsync()
+        public async ValueTask DisposeAsync()
         {
             _commit = null;
             _audit = null;
-            return ValueTask.CompletedTask;
+            await store.DisposeAsync().ConfigureAwait(false);
         }
     }
 }

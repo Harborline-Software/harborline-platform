@@ -1,8 +1,14 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, renderHook, screen } from '@testing-library/react'
 import * as React from 'react'
 import { describe, expect, it } from 'vitest'
 
-import type { RuleEvaluationResult, VisibilityState } from '@harborline-software/rule-engine'
+import {
+  compile,
+  FormRuleGraph,
+  type RuleDefinition,
+  type RuleEvaluationResult,
+  type VisibilityState,
+} from '@harborline-software/rule-engine'
 import type { FormView, InternationalizedText } from '@harborline-platform/hlp.ui.form-view'
 import { HarborlineLocaleProvider } from '@harborline-platform/hlp.ui.locale-provider'
 
@@ -46,12 +52,21 @@ const baseView: FormView = {
   }],
 }
 
-const hideGraph: RuleGraphLike = {
-  evaluateInstance: instance => evaluation({
-    visibility: new Map([['field:b', vis(instance.fields.a === 'show')]]),
-    values: new Map([['field:total', { state: 'Resolved', value: String((instance.fields.a as string | undefined)?.length ?? 0) }]]),
-  }),
-}
+const hideGraph: RuleGraphLike = new FormRuleGraph(compile([{
+  id: 'show-b',
+  tier: 'JsonLogic',
+  scope: 'Field',
+  scopeTarget: 'b',
+  expression: { '==': [{ var: 'a' }, 'show'] },
+  action: 'Visibility',
+}, {
+  id: 'compute-total',
+  tier: 'JsonLogic',
+  scope: 'Field',
+  scopeTarget: 'total',
+  expression: { if: [{ '==': [{ var: 'a' }, 'show'] }, '4', '0'] },
+  action: 'Compute',
+}] satisfies RuleDefinition[]), () => new Date('2026-06-30T00:00:00.000Z'))
 
 const renderInLocale = (node: React.ReactElement) =>
   render(<HarborlineLocaleProvider locale="en">{node}</HarborlineLocaleProvider>)
@@ -91,6 +106,24 @@ describe('useFormRuleGraph quality profile', () => {
 })
 
 describe('useFormRuleGraph native behavior (pinned source parity)', () => {
+  it('captures form values before evaluating a hardened FormRuleGraph', () => {
+    const rules: RuleDefinition[] = [{
+      id: 'show-b',
+      tier: 'JsonLogic',
+      scope: 'Field',
+      scopeTarget: 'b',
+      expression: { '==': [{ var: 'a' }, 'show'] },
+      action: 'Visibility',
+    }]
+    const graph = new FormRuleGraph(compile(rules), () => new Date('2026-06-30T00:00:00.000Z'))
+
+    const { result } = renderHook(() => useFormRuleGraph(graph, baseView, { initialValues: { a: 'show' } }))
+
+    expect(result.current.evaluation).not.toBeNull()
+    expect(result.current.saveBlocked).toBe(false)
+    expect(result.current.view.sections[0].fields.map(candidate => candidate.name)).toContain('b')
+  })
+
   it('setValue applies a single-field update over the candidate map', () => {
     function Harness() {
       const { view, values, setValue } = useFormRuleGraph(hideGraph, baseView, { initialValues: { a: '' } })

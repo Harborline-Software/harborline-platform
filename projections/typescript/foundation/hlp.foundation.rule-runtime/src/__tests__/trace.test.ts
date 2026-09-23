@@ -7,7 +7,7 @@ import { describe, it, expect } from 'vitest'
 
 import { compile } from '../compiler.js'
 import { FormRuleGraph } from '../graph.js'
-import { GuardEvaluator } from '../guard.js'
+import { GuardEvaluator, RuleContextSnapshot } from '../guard.js'
 import { RuleInstance } from '../instance.js'
 import type { Json, RuleDefinition } from '../model.js'
 import {
@@ -19,11 +19,13 @@ const hideHighEarnerComp: RuleDefinition = {
   id: 'vis.comp', tier: 'JsonLogic', scope: 'Section', scopeTarget: 'comp',
   expression: { '<=': [{ var: 'salary' }, 100000] }, action: 'Visibility',
 }
+const fixedClock = () => new Date('2026-06-30T00:00:00.000Z')
+const snapshot = (value: Record<string, Json>) => RuleContextSnapshot.fromJsonText(JSON.stringify(value))
 
 function evaluate(rule: RuleDefinition, instance: Record<string, Json>) {
   const compiled = compile([rule])
-  const graph = new FormRuleGraph(compiled)
-  const result = graph.evaluateInstance(RuleInstance.fromJson(instance))
+  const graph = new FormRuleGraph(compiled, fixedClock)
+  const result = graph.evaluateInstance(RuleInstance.fromJsonText(JSON.stringify(instance)))
   return { compiled, result }
 }
 
@@ -90,15 +92,15 @@ describe('ADR 0146 D10 traces', () => {
 
   it('guard traces carry the code + field ref (passed / failed)', () => {
     const guard: RuleDefinition = { id: 'g.amount', tier: 'JsonLogic', scope: 'Schema', scopeTarget: '', expression: { '>': [{ var: 'amount' }, 5000] }, action: 'Validate' }
-    const evaluator = new GuardEvaluator()
+    const evaluator = new GuardEvaluator(fixedClock)
 
-    const pass = evaluator.evaluateGuard(guard, { amount: 7000 })
+    const pass = evaluator.evaluateGuard(guard, snapshot({ amount: 7000 }))
     const passTrace = buildGuardTrace(guard, pass)
     expect(passTrace.code).toBe(RuleTraceCodes.guardPassed)
     expect(passTrace.params.reads).toBe('amount')
     expect(passTrace.target).toBe('guard:g.amount')
 
-    const fail = evaluator.evaluateGuard(guard, { amount: 3000 })
+    const fail = evaluator.evaluateGuard(guard, snapshot({ amount: 3000 }))
     const failTrace = buildGuardTrace(guard, fail)
     expect(failTrace.code).toBe(RuleTraceCodes.guardFailed)
     expect(failTrace.params.cause).toBe('g.amount')

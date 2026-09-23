@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.foundation.rule-authoring",
-  "interfaceRevision": 2,
+  "interfaceRevision": 3,
   "status": "frozen",
   "purpose": "Typed Rules source, strict canonical codecs and located intent diagnostics, with draft lowering, advisory lint, seeds and preview over the shared rule engine.",
   "dependencies": [
     {
       "moduleId": "hlp.foundation.rule-runtime",
-      "minimumRevision": 1
+      "minimumRevision": 2
     }
   ],
   "tiers": {
@@ -26,7 +26,7 @@
     "name": "RuleDefinitionCodec / RuleIntentValidator / SkinLowering / RuleLint / RuleSeeds / RuleKeySuggestion",
     "operations": [
       "CompileDraft(draft, ruleId) -> RuleDefinition (throws the engine's rule.skin.* rejection)",
-      "EvaluatePreview(draft, ruleId, sample, traceFilter?) -> {value, outcome, firedRowId, trace}",
+      "EvaluatePreview(draft, ruleId, sample, businessClock, traceFilter?) -> {value, outcome, firedRowId, trace}",
       "NoMatchResolved(tableDraft) -> bool; LintTable(tableDraft) -> rules.lint.* findings",
       "BlankTableDraft() / BlankFormulaDraft() / BlankDraftFor(skin)",
       "ValidateJson(source, Author|Publish|Persisted) -> typed source or coded RFC 6901 diagnostics",
@@ -38,7 +38,7 @@
   "invariants": [
     "The bridge owns no evaluator semantics: every compile rejection and every evaluation flows through the shipped rule engine's skin compilers and form rule graph, in both tiers.",
     "A decision table with an unresolved no-match posture cannot publish: a blank Otherwise default is blocked by the fence with the compiler's stable rule.skin.no_match_unresolved code before any compile or catalog access, and a missing catch-all is rejected by the compiler itself.",
-    "The preview's fired-row attribution is derived from an engine-compiled probe skin (outputs replaced by row ids), never a surface re-implementation of hit-policy ordering.",
+    "The preview samples its caller-supplied business clock once and gives that pin to both its engine evaluation and fired-row probe; fired-row attribution is derived from an engine-compiled probe skin (outputs replaced by row ids), never a surface re-implementation of hit-policy ordering.",
     "Author-typed strings coerce with ECMAScript Number semantics identically in both tiers, so a draft lowers to the byte-identical skin JSON either side.",
     "Lint is advisory with stable rules.lint.* codes and never prose; the load-bearing rejection remains the skin compiler.",
     "Author, Publish and Persisted use full lowering and compiler admission including cycles and static bounds, with stable code and authored pointer. Unknown and duplicate members refuse without normalization.",
@@ -67,7 +67,7 @@
   ],
   "publicSeams": [
     "typed source and intent diagnostics",
-    "trace authority filter",
+    "caller-supplied business clock and trace authority filter",
     "advisory key suggestion"
   ],
   "conformance": {

@@ -67,7 +67,8 @@ const toRule = id => {
     action: rule.action,
   }
 }
-const graphFor = ids => (ids.length ? new FormRuleGraph(compile(ids.map(toRule))) : null)
+const graphClock = () => new Date('2026-06-30T00:00:00.000Z')
+const graphFor = ids => (ids.length ? new FormRuleGraph(compile(ids.map(toRule)), graphClock) : null)
 
 async function evaluateCase(caseRow) {
   const graph = graphFor(caseRow.rules)
