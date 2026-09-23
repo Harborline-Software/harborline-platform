@@ -246,18 +246,20 @@ function storyId(index: StoryIndex, title: string, name: string): string {
   return entry!.id
 }
 
+// T-643 / T-709: a story is ready when its per-story probe is visible, in both projections. The wait
+// is bounded by the test, not by the 5 s default expect timeout, which a loaded host exceeds on a Vite
+// transform or a WASM boot; the test timeout itself is unchanged. BlazingStory.readyView() is not
+// used: it is one module-lifetime promise, not a readiness predicate for the story on screen.
+const storyReadyTimeoutMs = 40_000
+
 async function openReactStory(page: Page, id: string) {
   await gotoWithTransientNetworkRetry(page, `${reactBase}/iframe.html?id=${encodeURIComponent(id)}&viewMode=story`)
-  await expect(page.locator('[data-gallery-probe]')).toBeVisible()
+  await expect(page.locator('[data-gallery-probe]')).toBeVisible({ timeout: storyReadyTimeoutMs })
 }
 
 async function openBlazorStory(page: Page, id: string) {
   await gotoWithTransientNetworkRetry(page, `${blazorBase}/iframe.html?id=${encodeURIComponent(id)}&viewMode=story`)
-  // BlazingStory.readyView() exposes one module-lifetime promise, rather than a readiness
-  // predicate for the selected story. A story can render after navigation without that promise
-  // settling (notably a deliberately persistent Loading State). The probe is our per-story
-  // scene root, so its visibility is the deterministic readiness contract the tests consume.
-  await expect(page.locator('[data-gallery-probe]')).toBeVisible()
+  await expect(page.locator('[data-gallery-probe]')).toBeVisible({ timeout: storyReadyTimeoutMs })
 }
 
 async function openProjectionStory(page: Page, projection: Projection, catalog: Catalog, scenarioName: string) {
