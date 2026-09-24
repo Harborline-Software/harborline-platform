@@ -1,4 +1,6 @@
 using System.Text.Json;
+using Harborline.Contracts.Forms;
+using Harborline.Foundation.RuleEngine.Compilation;
 
 namespace Harborline.Blocks.BuilderDefinitions;
 
@@ -65,6 +67,10 @@ public static class LayoutDefinitionCodes
     public const string SpanWithFill = "layout.placement.span_with_fill";
     /// <summary>A capture block names a field control the host has not registered (layout-bound-3).</summary>
     public const string FieldControlUnknown = "layout.capture.control_unknown";
+    /// <summary>A capture block names a validation rule the host has not registered (layout-bound-8).</summary>
+    public const string ValidationRuleUnknown = "layout.capture.validation_rule_unknown";
+    /// <summary>A named validation rule does not validate, or its tier's compiler refuses it (layout-bound-8).</summary>
+    public const string ValidationRuleInvalid = "layout.capture.validation_rule_invalid";
 }
 
 /// <summary>Identifies one deterministic Layout admission refusal.</summary>
@@ -281,6 +287,8 @@ public static class LayoutDefinitionAdmission
             for (var index = 0; index < validationRules.Count; index++)
                 if (string.IsNullOrWhiteSpace(validationRules[index]))
                     Add(refusals, LayoutDefinitionCodes.CapturePropertiesInvalid, $"{pointer}/capture/validation_rules/{index}");
+                else if (registers.ValidationRules is { } rules)
+                    ValidateNamedRule(rules, validationRules[index], $"{pointer}/capture/validation_rules/{index}", refusals);
             // layout-bound-3: the control is one the host registered; with no register, none is.
             if (capture.Control is { } control)
             {
@@ -320,6 +328,31 @@ public static class LayoutDefinitionAdmission
             Add(refusals, LayoutDefinitionCodes.BlockChildrenInvalid, $"{pointer}/container");
         for (var index = 0; index < children.Count; index++)
             ValidateBlock(children[index], $"{pointer}/children/{index}", medium, inheritedIntent, regions, blockIds, registers, captures, refusals);
+    }
+
+    // layout-bound-8: the named rule must be registered and validate, and the shared compiler admits
+    // it by the rule's own tier (JsonLogic compiled here, JsonSchema left to the kernel validator,
+    // any other tier refused). Layout never chooses the compiler.
+    private static void ValidateNamedRule(LayoutValidationRuleRegistry rules, string name, string pointer, ICollection<LayoutDefinitionRefusal> refusals)
+    {
+        if (!rules.TryGet(name, out var rule))
+        {
+            Add(refusals, LayoutDefinitionCodes.ValidationRuleUnknown, pointer);
+            return;
+        }
+        if (rule.Action != RuleActionKind.Validate)
+        {
+            Add(refusals, LayoutDefinitionCodes.ValidationRuleInvalid, pointer);
+            return;
+        }
+        try
+        {
+            RuleCompiler.Compile([rule]);
+        }
+        catch (RuleCompilationException)
+        {
+            Add(refusals, LayoutDefinitionCodes.ValidationRuleInvalid, pointer);
+        }
     }
 
     private static void ValidateBinding(

@@ -1,4 +1,5 @@
 using System.Collections.Frozen;
+using Harborline.Contracts.Forms;
 
 namespace Harborline.Blocks.BuilderDefinitions;
 
@@ -9,10 +10,12 @@ namespace Harborline.Blocks.BuilderDefinitions;
 /// <param name="Kinds">The block-kind register (layout-bound-1).</param>
 /// <param name="FieldControls">The field controls a capture block may pick (layout-bound-3). Absent, no named control admits.</param>
 /// <param name="Pages">The page layouts and masters installed packs supply (layout-bound-7). Absent, a surface cites only its own.</param>
+/// <param name="ValidationRules">The named validation rules a capture block may cite (layout-bound-8). Absent, rule names are checked for shape only.</param>
 public sealed record LayoutHostRegisters(
     LayoutBlockKindRegistry Kinds,
     LayoutFieldControlRegistry? FieldControls = null,
-    LayoutPageRegistry? Pages = null)
+    LayoutPageRegistry? Pages = null,
+    LayoutValidationRuleRegistry? ValidationRules = null)
 {
     /// <summary>The platform's block grammar and no other register.</summary>
     public static LayoutHostRegisters Platform { get; } = new(LayoutBlockKindRegistry.Platform);
@@ -39,6 +42,32 @@ public sealed class LayoutFieldControlRegistry
     /// <summary>Returns whether the host registered the control.</summary>
     /// <param name="control">The exact control identifier.</param>
     public bool Contains(string control) => _controls.Contains(control);
+}
+
+/// <summary>
+/// DES-0052 layout-bound-8 — the named validation rules a host registers for capture blocks. Each
+/// is a Rules definition whose own tier decides which compiler admits it; Layout picks none.
+/// </summary>
+public sealed class LayoutValidationRuleRegistry
+{
+    private readonly FrozenDictionary<string, RuleDefinition> _rules;
+
+    /// <summary>Creates a register keyed by each rule's unique identifier.</summary>
+    /// <param name="rules">The registered validation rules.</param>
+    public LayoutValidationRuleRegistry(IEnumerable<RuleDefinition> rules)
+    {
+        ArgumentNullException.ThrowIfNull(rules);
+        var values = rules.ToArray();
+        if (values.Any(rule => rule is null || string.IsNullOrWhiteSpace(rule.Id)))
+            throw new ArgumentException("A validation-rule register requires identified rules.", nameof(rules));
+        _rules = values.ToFrozenDictionary(rule => rule.Id, StringComparer.Ordinal);
+    }
+
+    /// <summary>Looks up one registered rule by its exact name.</summary>
+    /// <param name="name">The rule name a capture block cites.</param>
+    /// <param name="rule">The registered rule, when found.</param>
+    public bool TryGet(string name, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out RuleDefinition? rule)
+        => _rules.TryGetValue(name, out rule);
 }
 
 /// <summary>

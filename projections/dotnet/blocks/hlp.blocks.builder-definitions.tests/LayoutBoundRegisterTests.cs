@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Harborline.Blocks.BuilderDefinitions;
+using Harborline.Contracts.Forms;
 using Xunit;
 
 namespace Harborline.Blocks.BuilderDefinitions.Tests;
@@ -66,6 +67,44 @@ public sealed class LayoutBoundRegisterTests
         AssertRefused(shadowing, pages, LayoutDefinitionCodes.PageDefinitionInvalid, "/page_layouts/0");
         AssertRefused(shadowing, pages, LayoutDefinitionCodes.PageDefinitionInvalid, "/page_masters/0");
     }
+
+    [Fact(DisplayName = "layout-bound-8: a capture block's named validation rule resolves in the host register and its tier decides the compiler")]
+    public void NamedValidationRuleResolvesAndItsTierDecidesTheCompiler()
+    {
+        var registers = new LayoutHostRegisters(LayoutBlockKindRegistry.Platform, ValidationRules: new LayoutValidationRuleRegistry(
+        [
+            Rule("rules.amount-positive", RuleTier.JsonLogic, "{\">\":[{\"var\":\"invoice.amount\"},0]}"),
+            // A schema-tier rule belongs to the kernel validator; the JsonLogic compiler never sees it.
+            Rule("rules.amount-shape", RuleTier.JsonSchema, "{\"minimum\":0}"),
+            Rule("rules.malformed", RuleTier.JsonLogic, "{\"no-such-operator\":[1]}"),
+            Rule("rules.power-fx", RuleTier.PowerFx, "Amount > 0"),
+            Rule("rules.computes", RuleTier.JsonLogic, "{\"+\":[1,2]}", RuleActionKind.Compute),
+        ]));
+
+        LayoutDefinitionAdmission.ValidateForAuthoring(CaptureSurface(new(true, ["rules.amount-positive", "rules.amount-shape"])), registers);
+        LayoutDefinitionAdmission.ValidateForPublish(Sealed(CaptureSurface(new(true, ["rules.amount-positive", "rules.amount-shape"]))), registers);
+
+        AssertRefused(CaptureSurface(new(false, ["rules.unregistered"])), registers,
+            LayoutDefinitionCodes.ValidationRuleUnknown, "/blocks/0/capture/validation_rules/0");
+        AssertRefused(CaptureSurface(new(false, ["rules.amount-positive", "rules.malformed"])), registers,
+            LayoutDefinitionCodes.ValidationRuleInvalid, "/blocks/0/capture/validation_rules/1");
+        // The tier this evaluator does not compile refuses rather than being read as JsonLogic.
+        AssertRefused(CaptureSurface(new(false, ["rules.power-fx"])), registers,
+            LayoutDefinitionCodes.ValidationRuleInvalid, "/blocks/0/capture/validation_rules/0");
+        // A rule that computes a value is not a validation rule.
+        AssertRefused(CaptureSurface(new(false, ["rules.computes"])), registers,
+            LayoutDefinitionCodes.ValidationRuleInvalid, "/blocks/0/capture/validation_rules/0");
+    }
+
+    private static RuleDefinition Rule(string id, RuleTier tier, string expression, RuleActionKind action = RuleActionKind.Validate) => new()
+    {
+        Id = id,
+        Tier = tier,
+        Scope = RuleScope.Schema,
+        ScopeTarget = "",
+        Expression = expression,
+        Action = action,
+    };
 
     internal static LayoutPageRegistry PackPages() => new(
         [
