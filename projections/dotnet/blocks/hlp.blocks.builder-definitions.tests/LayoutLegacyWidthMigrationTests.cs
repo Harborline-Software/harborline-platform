@@ -54,6 +54,28 @@ public sealed class LayoutLegacyWidthMigrationTests
         Assert.Equal(new LayoutPlacement(Width: LayoutSizing.Hug, Span: 5, Grow: 2), placement);
     }
 
+    [Theory(DisplayName = "layout-eng-9 successor: a Forms table column keeps its width and alignment")]
+    [InlineData("1/3", "end", 4, LayoutSizing.Hug, LayoutAlignment.End)]
+    [InlineData("full", "center", 1, LayoutSizing.Fill, LayoutAlignment.Center)]
+    [InlineData(null, null, 1, LayoutSizing.Hug, LayoutAlignment.Start)]
+    public void A_forms_table_column_keeps_its_width_and_alignment(
+        string? width, string? align, int span, LayoutSizing sizing, LayoutAlignment justify)
+    {
+        var placement = LayoutLegacyWidthMigration.MigrateColumn(width, align);
+
+        Assert.Equal(new LayoutPlacement(Width: sizing, Span: span, JustifySelf: justify), placement);
+    }
+
+    [Theory]
+    [InlineData("2/5", null, "/width")]
+    [InlineData(null, "baseline", "/align")]
+    public void An_unknown_column_token_refuses(string? width, string? align, string pointer)
+    {
+        var refused = Assert.Throws<LayoutDefinitionAdmissionException>(() => LayoutLegacyWidthMigration.MigrateColumn(width, align));
+
+        Assert.Equal([new LayoutDefinitionRefusal(LayoutDefinitionCodes.PlacementTokenUnknown, pointer)], refused.Refusals);
+    }
+
     [Theory]
     [InlineData(0, 0, "/col_span")]
     [InlineData(13, 0, "/col_span")]
