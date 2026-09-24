@@ -58,7 +58,7 @@ function withIntent(block: LayoutAuthoringBlock, intent: LayoutIntent): LayoutAu
 function withCapture(block: LayoutAuthoringBlock, patch: Partial<LayoutAuthoringCapture>): LayoutAuthoringBlock {
   const { capture, ...rest } = block
   const next = { ...capture, ...patch }
-  const kept: LayoutAuthoringCapture = { ...(next.required ? { required: true } : {}), ...(next.validationRules?.length ? { validationRules: next.validationRules } : {}) }
+  const kept: LayoutAuthoringCapture = { ...(next.required ? { required: true } : {}), ...(next.validationRules?.length ? { validationRules: next.validationRules } : {}), ...(next.promptOverride ? { promptOverride: next.promptOverride } : {}) }
   return Object.keys(kept).length > 0 ? { ...rest, capture: kept } : rest
 }
 
@@ -69,7 +69,8 @@ function withCapture(block: LayoutAuthoringBlock, patch: Partial<LayoutAuthoring
  * layout-auth-20: `show_when` is a Rules expression, stored exactly as written; the shared
  * engine compiles and evaluates it fail-closed, so the editor keeps no grammar of its own.
  * layout-auth-21: a capture block may add a requirement and name registered validation rules;
- * a requirement Records declares is shown and cannot be removed here.
+ * a requirement Records declares is shown and cannot be removed here. layout-auth-22: its prompt
+ * override is stored on the block, so it applies to this surface's context and nowhere else.
  */
 function BlockBehaviour({ index, block, intent, catalogue, onChange }: { index: number; block: LayoutAuthoringBlock; intent: LayoutIntent; catalogue: LayoutAuthoringCatalogue; onChange: (next: LayoutAuthoringBlock) => void }) {
   const declaredRequired = block.binding?.kind === 'record_field' && (catalogue.requiredFields ?? []).includes(block.binding.name)
@@ -82,6 +83,7 @@ function BlockBehaviour({ index, block, intent, catalogue, onChange }: { index: 
     <label>Show when<input aria-label={`Block ${index + 1} show when`} value={block.showWhen ?? ''} onChange={event => onChange({ ...block, showWhen: event.currentTarget.value || undefined })} /></label>
     {intent === 'capture' && <>
       <label><input aria-label={`Block ${index + 1} required`} type="checkbox" checked={declaredRequired || (block.capture?.required ?? false)} disabled={declaredRequired} onChange={event => onChange(withCapture(block, { required: event.currentTarget.checked }))} />Required</label>
+      <label>Prompt override<input aria-label={`Block ${index + 1} prompt override`} value={block.capture?.promptOverride ?? ''} onChange={event => onChange(withCapture(block, { promptOverride: event.currentTarget.value }))} /></label>
       {(catalogue.validationRules ?? []).map(rule => <label key={rule.id}><input aria-label={`Block ${index + 1} validation rule ${rule.label}`} type="checkbox" checked={rules.includes(rule.id)} onChange={event => onChange(withCapture(block, { validationRules: event.currentTarget.checked ? [...rules, rule.id] : rules.filter(id => id !== rule.id) }))} />{rule.label}</label>)}
     </>}
   </>

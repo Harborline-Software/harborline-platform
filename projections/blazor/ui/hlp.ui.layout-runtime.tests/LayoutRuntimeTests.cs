@@ -245,6 +245,43 @@ public sealed class LayoutRuntimeTests : BunitContext
         Assert.Equal(new LayoutAuthoringBlock("note", "layout.table", new("record_field", "invoice.note"), Intent: "observe"), changed.Blocks.Single());
     }
 
+    [Fact(DisplayName = "layout-auth-22: a capture block overrides its prompt for this surface only")]
+    public void CaptureBlockOverridesItsPromptForThisSurfaceOnly()
+    {
+        LayoutAuthoringDraft? changed = null;
+        LayoutAuthoringBlock[] blocks =
+        [
+            new("reference", "layout.table", new("record_field", "invoice.reference"), Intent: "capture"),
+            new("total", "layout.table", new("measure", "invoice.total")),
+        ];
+        var cut = Render<HarborlineLayoutAuthoringEditor>(parameters => parameters
+            .Add(x => x.Value, LayoutAuthoringDraft.Empty with { Blocks = blocks })
+            .Add(x => x.Catalogue, Catalogue())
+            .Add(x => x.ValueChanged, value => changed = value));
+
+        // A prompt override narrows capture, so an observing block is not offered one.
+        Assert.Empty(cut.FindAll("[aria-label='Block 2 prompt override']"));
+        // The override lives on this block of this surface; the field's own prompt is untouched.
+        cut.Find("[aria-label='Block 1 prompt override']").Change("Supplier reference");
+        Assert.Equal(blocks[0] with { Capture = new(PromptOverride: "Supplier reference") }, changed!.Blocks[0]);
+        Assert.Equal(blocks[1], changed.Blocks[1]);
+    }
+
+    [Fact(DisplayName = "layout-auth-22: clearing a prompt override removes it")]
+    public void ClearingAPromptOverrideRemovesIt()
+    {
+        LayoutAuthoringDraft? changed = null;
+        var block = new LayoutAuthoringBlock("reference", "layout.table", new("record_field", "invoice.reference"), Intent: "capture");
+        var cut = Render<HarborlineLayoutAuthoringEditor>(parameters => parameters
+            .Add(x => x.Value, LayoutAuthoringDraft.Empty with { Blocks = [block with { Capture = new(Required: true, PromptOverride: "Supplier reference") }] })
+            .Add(x => x.Catalogue, Catalogue())
+            .Add(x => x.ValueChanged, value => changed = value));
+
+        Assert.Equal("Supplier reference", cut.Find("[aria-label='Block 1 prompt override']").GetAttribute("value"));
+        cut.Find("[aria-label='Block 1 prompt override']").Change("");
+        Assert.Equal(block with { Capture = new(Required: true) }, changed!.Blocks.Single());
+    }
+
     private static LayoutAuthoringCatalogue Catalogue() => new(
         [new("layout.table", "Table")],
         ["header.center"],

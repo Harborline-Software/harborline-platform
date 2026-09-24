@@ -37,6 +37,8 @@ export interface LayoutAuthoringBinding {
 export interface LayoutAuthoringCapture {
   readonly required?: boolean
   readonly validationRules?: readonly string[]
+  /** layout-auth-22: the prompt this surface shows for the field, in its own context only. */
+  readonly promptOverride?: string
 }
 
 export interface LayoutAuthoringBlock {

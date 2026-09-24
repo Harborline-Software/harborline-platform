@@ -172,6 +172,30 @@ describe('LayoutRuntime React projection', () => {
     expect(changed).toHaveBeenLastCalledWith(expect.objectContaining({ blocks: [{ id: 'note', kind: 'layout.table', intent: 'observe', binding: { kind: 'record_field', name: 'invoice.note' } }] }))
   })
 
+  it('layout-auth-22: a capture block overrides its prompt for this surface only', () => {
+    const changed = vi.fn()
+    const blocks = [
+      { id: 'reference', kind: 'layout.table', intent: 'capture' as const, binding: { kind: 'record_field' as const, name: 'invoice.reference' } },
+      { id: 'total', kind: 'layout.table', binding: { kind: 'measure' as const, name: 'invoice.total' } },
+    ]
+    render(<LayoutAuthoringEditor value={{ ...emptyLayoutAuthoringDraft(), blocks }} catalogue={{ blockKinds: [{ id: 'layout.table', label: 'Table' }], zones: [] }} onChange={changed} />)
+
+    // A prompt override narrows capture, so an observing block is not offered one.
+    expect(screen.queryByLabelText('Block 2 prompt override')).toBeNull()
+    // The override lives on this block of this surface; the field's own prompt is untouched.
+    fireEvent.change(screen.getByLabelText('Block 1 prompt override'), { target: { value: 'Supplier reference' } })
+    expect(changed).toHaveBeenLastCalledWith({ ...emptyLayoutAuthoringDraft(), blocks: [{ ...blocks[0], capture: { promptOverride: 'Supplier reference' } }, blocks[1]] })
+  })
+
+  it('layout-auth-22: clearing a prompt override removes it', () => {
+    const changed = vi.fn()
+    const block = { id: 'reference', kind: 'layout.table', intent: 'capture' as const, binding: { kind: 'record_field' as const, name: 'invoice.reference' } }
+    render(<LayoutAuthoringEditor value={{ ...emptyLayoutAuthoringDraft(), blocks: [{ ...block, capture: { required: true, promptOverride: 'Supplier reference' } }] }} catalogue={{ blockKinds: [{ id: 'layout.table', label: 'Table' }], zones: [] }} onChange={changed} />)
+    expect(screen.getByLabelText('Block 1 prompt override')).toHaveValue('Supplier reference')
+    fireEvent.change(screen.getByLabelText('Block 1 prompt override'), { target: { value: '' } })
+    expect(changed.mock.lastCall![0].blocks[0]).toStrictEqual({ ...block, capture: { required: true } })
+  })
+
   it('authors static content on the block rather than looking it up', () => {
     const changed = vi.fn()
     render(<LayoutAuthoringEditor value={{ ...emptyLayoutAuthoringDraft(), blocks: [{ id: 'notice', kind: 'layout.table', binding: { kind: 'static', name: '' } }] }} catalogue={{ blockKinds: [{ id: 'layout.table', label: 'Table' }], zones: [] }} onChange={changed} />)

@@ -46,7 +46,9 @@ public sealed record LayoutAuthoringBlock(
 /// </summary>
 public sealed record LayoutAuthoringCapture(
     bool Required = false,
-    IReadOnlyList<string>? ValidationRules = null);
+    IReadOnlyList<string>? ValidationRules = null,
+    // layout-auth-22: the prompt this surface shows for the field, in its own context only.
+    string? PromptOverride = null);
 public sealed record LayoutAuthoringPageRun(string Id, string PageLayoutId, string PageMasterId);
 public sealed record LayoutAuthoringDraft(
     string Name,
