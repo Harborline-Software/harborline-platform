@@ -136,6 +136,42 @@ describe('LayoutRuntime React projection', () => {
     expect(changed.mock.lastCall![0].blocks[0]).not.toHaveProperty('showWhen', '')
   })
 
+  it('layout-auth-21: a capture block adds a requirement and named validation rules and never drops a declared requirement', () => {
+    const changed = vi.fn()
+    const blocks = [
+      { id: 'reference', kind: 'layout.table', intent: 'capture' as const, binding: { kind: 'record_field' as const, name: 'invoice.reference' } },
+      { id: 'note', kind: 'layout.table', intent: 'capture' as const, binding: { kind: 'record_field' as const, name: 'invoice.note' } },
+      { id: 'total', kind: 'layout.table', binding: { kind: 'measure' as const, name: 'invoice.total' } },
+    ]
+    render(<LayoutAuthoringEditor value={{ ...emptyLayoutAuthoringDraft(), blocks }} catalogue={{ blockKinds: [{ id: 'layout.table', label: 'Table' }], zones: [], requiredFields: ['invoice.reference'], validationRules: [{ id: 'rules.iban', label: 'IBAN checksum' }] }} onChange={changed} />)
+
+    // Records declares the reference required: the block shows it, and cannot remove it.
+    const declared = screen.getByLabelText('Block 1 required')
+    expect(declared).toBeChecked()
+    expect(declared).toBeDisabled()
+    // Only a capture block narrows capture; an observing block is offered neither control.
+    expect(screen.queryByLabelText('Block 3 required')).toBeNull()
+    expect(screen.queryByLabelText('Block 3 validation rule IBAN checksum')).toBeNull()
+
+    // A block may add a requirement Records did not declare, and name a registered rule.
+    expect(screen.getByLabelText('Block 2 required')).not.toBeChecked()
+    fireEvent.click(screen.getByLabelText('Block 2 required'))
+    expect(changed).toHaveBeenLastCalledWith(expect.objectContaining({ blocks: [blocks[0], { ...blocks[1], capture: { required: true } }, blocks[2]] }))
+    fireEvent.click(screen.getByLabelText('Block 2 validation rule IBAN checksum'))
+    expect(changed).toHaveBeenLastCalledWith(expect.objectContaining({ blocks: [blocks[0], { ...blocks[1], capture: { validationRules: ['rules.iban'] } }, blocks[2]] }))
+  })
+
+  it('layout-auth-21: a block that stops capturing drops its capture properties', () => {
+    const changed = vi.fn()
+    const block = { id: 'note', kind: 'layout.table', intent: 'capture' as const, binding: { kind: 'record_field' as const, name: 'invoice.note' }, capture: { required: true, validationRules: ['rules.iban'] } }
+    render(<LayoutAuthoringEditor value={{ ...emptyLayoutAuthoringDraft(), blocks: [block] }} catalogue={{ blockKinds: [{ id: 'layout.table', label: 'Table' }], zones: [], validationRules: [{ id: 'rules.iban', label: 'IBAN checksum' }] }} onChange={changed} />)
+    expect(screen.getByLabelText('Block 1 validation rule IBAN checksum')).toBeChecked()
+    fireEvent.click(screen.getByLabelText('Block 1 validation rule IBAN checksum'))
+    expect(changed).toHaveBeenLastCalledWith(expect.objectContaining({ blocks: [{ ...block, capture: { required: true } }] }))
+    fireEvent.change(screen.getByLabelText('Block 1 intent'), { target: { value: 'observe' } })
+    expect(changed).toHaveBeenLastCalledWith(expect.objectContaining({ blocks: [{ id: 'note', kind: 'layout.table', intent: 'observe', binding: { kind: 'record_field', name: 'invoice.note' } }] }))
+  })
+
   it('authors static content on the block rather than looking it up', () => {
     const changed = vi.fn()
     render(<LayoutAuthoringEditor value={{ ...emptyLayoutAuthoringDraft(), blocks: [{ id: 'notice', kind: 'layout.table', binding: { kind: 'static', name: '' } }] }} catalogue={{ blockKinds: [{ id: 'layout.table', label: 'Table' }], zones: [] }} onChange={changed} />)

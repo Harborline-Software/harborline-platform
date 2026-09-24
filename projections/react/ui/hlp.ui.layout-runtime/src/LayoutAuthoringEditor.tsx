@@ -1,5 +1,5 @@
 import type { ChangeEvent } from 'react'
-import type { LayoutAuthoringBlock, LayoutAuthoringCatalogue, LayoutAuthoringEditorProps, LayoutAuthoringDraft, LayoutAuthoringPageRun, LayoutBindingKind, LayoutIntent } from './LayoutRuntime.types'
+import type { LayoutAuthoringBlock, LayoutAuthoringCapture, LayoutAuthoringCatalogue, LayoutAuthoringEditorProps, LayoutAuthoringDraft, LayoutAuthoringPageRun, LayoutBindingKind, LayoutIntent } from './LayoutRuntime.types'
 
 const bindingKinds: readonly { readonly id: LayoutBindingKind; readonly label: string }[] = [
   { id: 'record_field', label: 'Record field' },
@@ -45,10 +45,21 @@ function BlockStructure({ index, block, blocks, onChange }: { index: number; blo
   </>
 }
 
-/** A block keeps only the members its intent admits: a related block observes (layout-auth-19). */
+/**
+ * A block keeps only the members its intent admits: a related block observes (layout-auth-19)
+ * and only a capture block carries capture properties (layout-auth-21).
+ */
 function withIntent(block: LayoutAuthoringBlock, intent: LayoutIntent): LayoutAuthoringBlock {
-  const { relatedRelationship, ...rest } = block
-  return { ...rest, intent, ...(intent === 'observe' && relatedRelationship ? { relatedRelationship } : {}) }
+  const { relatedRelationship, capture, ...rest } = block
+  return { ...rest, intent, ...(intent === 'observe' && relatedRelationship ? { relatedRelationship } : {}), ...(intent === 'capture' && capture ? { capture } : {}) }
+}
+
+/** Sets capture members, dropping empty ones so an unnarrowed block carries no capture object. */
+function withCapture(block: LayoutAuthoringBlock, patch: Partial<LayoutAuthoringCapture>): LayoutAuthoringBlock {
+  const { capture, ...rest } = block
+  const next = { ...capture, ...patch }
+  const kept: LayoutAuthoringCapture = { ...(next.required ? { required: true } : {}), ...(next.validationRules?.length ? { validationRules: next.validationRules } : {}) }
+  return Object.keys(kept).length > 0 ? { ...rest, capture: kept } : rest
 }
 
 /**
@@ -57,14 +68,22 @@ function withIntent(block: LayoutAuthoringBlock, intent: LayoutIntent): LayoutAu
  * declaration supplies the target, so the editor never asks for or writes one.
  * layout-auth-20: `show_when` is a Rules expression, stored exactly as written; the shared
  * engine compiles and evaluates it fail-closed, so the editor keeps no grammar of its own.
+ * layout-auth-21: a capture block may add a requirement and name registered validation rules;
+ * a requirement Records declares is shown and cannot be removed here.
  */
 function BlockBehaviour({ index, block, intent, catalogue, onChange }: { index: number; block: LayoutAuthoringBlock; intent: LayoutIntent; catalogue: LayoutAuthoringCatalogue; onChange: (next: LayoutAuthoringBlock) => void }) {
+  const declaredRequired = block.binding?.kind === 'record_field' && (catalogue.requiredFields ?? []).includes(block.binding.name)
+  const rules = block.capture?.validationRules ?? []
   return <>
     {intent === 'observe' && <select aria-label={`Block ${index + 1} related record`} value={block.relatedRelationship ?? ''} onChange={event => onChange({ ...block, relatedRelationship: event.currentTarget.value || undefined })}>
       <option value="">Not related</option>
       {(catalogue.relationships ?? []).map(relationship => <option key={relationship.id} value={relationship.id}>{relationship.label}</option>)}
     </select>}
     <label>Show when<input aria-label={`Block ${index + 1} show when`} value={block.showWhen ?? ''} onChange={event => onChange({ ...block, showWhen: event.currentTarget.value || undefined })} /></label>
+    {intent === 'capture' && <>
+      <label><input aria-label={`Block ${index + 1} required`} type="checkbox" checked={declaredRequired || (block.capture?.required ?? false)} disabled={declaredRequired} onChange={event => onChange(withCapture(block, { required: event.currentTarget.checked }))} />Required</label>
+      {(catalogue.validationRules ?? []).map(rule => <label key={rule.id}><input aria-label={`Block ${index + 1} validation rule ${rule.label}`} type="checkbox" checked={rules.includes(rule.id)} onChange={event => onChange(withCapture(block, { validationRules: event.currentTarget.checked ? [...rules, rule.id] : rules.filter(id => id !== rule.id) }))} />{rule.label}</label>)}
+    </>}
   </>
 }
 

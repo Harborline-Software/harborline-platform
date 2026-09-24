@@ -30,6 +30,15 @@ export interface LayoutAuthoringBinding {
   readonly name: string
 }
 
+/**
+ * What a capture block narrows (layout-ck-30): it may add a requirement and name registered
+ * validation rules (layout-auth-21), never remove what Records declared.
+ */
+export interface LayoutAuthoringCapture {
+  readonly required?: boolean
+  readonly validationRules?: readonly string[]
+}
+
 export interface LayoutAuthoringBlock {
   readonly id: string
   readonly kind: string
@@ -42,6 +51,8 @@ export interface LayoutAuthoringBlock {
   readonly relatedRelationship?: string
   /** layout-auth-20: the block's guard, a Rules expression the shared engine evaluates fail-closed. */
   readonly showWhen?: string
+  /** The capture properties a capture block narrows with (layout-ck-30). */
+  readonly capture?: LayoutAuthoringCapture
   readonly intent?: LayoutIntent
   readonly zone?: string
   readonly width?: LayoutSizing
@@ -79,5 +90,9 @@ export interface LayoutAuthoringCatalogue {
   readonly helmWidgets?: readonly { readonly id: string; readonly label: string }[]
   /** The Records relationships declared on the surface's record type, by key (layout-auth-19). */
   readonly relationships?: readonly LayoutBindableName[]
+  /** The record fields Records declares required; a capture block cannot drop them (layout-auth-21). */
+  readonly requiredFields?: readonly string[]
+  /** The registered validation rules a capture block may name (layout-auth-21, layout-bound-8). */
+  readonly validationRules?: readonly LayoutBindableName[]
 }
 export interface LayoutAuthoringEditorProps { readonly value: LayoutAuthoringDraft; readonly catalogue: LayoutAuthoringCatalogue; readonly onChange: (value: LayoutAuthoringDraft) => void }

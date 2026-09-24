@@ -36,7 +36,17 @@ public sealed record LayoutAuthoringBlock(
     // layout-auth-19: the declared Records relationship this block observes; only the key is stored.
     string? RelatedRelationship = null,
     // layout-auth-20: the block's guard, a Rules expression the shared engine evaluates fail-closed.
-    string? ShowWhen = null);
+    string? ShowWhen = null,
+    // The capture properties a capture block narrows with (layout-ck-30).
+    LayoutAuthoringCapture? Capture = null);
+
+/// <summary>
+/// What a capture block narrows (layout-ck-30): it may add a requirement and name registered
+/// validation rules (layout-auth-21), never remove what Records declared.
+/// </summary>
+public sealed record LayoutAuthoringCapture(
+    bool Required = false,
+    IReadOnlyList<string>? ValidationRules = null);
 public sealed record LayoutAuthoringPageRun(string Id, string PageLayoutId, string PageMasterId);
 public sealed record LayoutAuthoringDraft(
     string Name,
@@ -62,4 +72,8 @@ public sealed record LayoutAuthoringCatalogue(
     // Bindables: the names offered per binding kind; `static` is authored on the block.
     IReadOnlyDictionary<string, IReadOnlyList<LayoutAuthoringOption>>? Bindables = null,
     // Relationships: the Records relationships declared on the surface's record type, by key (layout-auth-19).
-    IReadOnlyList<LayoutAuthoringOption>? Relationships = null);
+    IReadOnlyList<LayoutAuthoringOption>? Relationships = null,
+    // RequiredFields: the record fields Records declares required; a capture block cannot drop them (layout-auth-21).
+    IReadOnlyList<string>? RequiredFields = null,
+    // ValidationRules: the registered validation rules a capture block may name (layout-auth-21, layout-bound-8).
+    IReadOnlyList<LayoutAuthoringOption>? ValidationRules = null);

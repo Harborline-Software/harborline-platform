@@ -195,6 +195,56 @@ public sealed class LayoutRuntimeTests : BunitContext
         Assert.Equal(block, changed.Blocks.Single());
     }
 
+    [Fact(DisplayName = "layout-auth-21: a capture block adds a requirement and named validation rules and never drops a declared requirement")]
+    public void CaptureBlockAddsARequirementAndNamedRulesAndNeverDropsADeclaredRequirement()
+    {
+        LayoutAuthoringDraft? changed = null;
+        LayoutAuthoringBlock[] blocks =
+        [
+            new("reference", "layout.table", new("record_field", "invoice.reference"), Intent: "capture"),
+            new("note", "layout.table", new("record_field", "invoice.note"), Intent: "capture"),
+            new("total", "layout.table", new("measure", "invoice.total")),
+        ];
+        var cut = Render<HarborlineLayoutAuthoringEditor>(parameters => parameters
+            .Add(x => x.Value, LayoutAuthoringDraft.Empty with { Blocks = blocks })
+            .Add(x => x.Catalogue, Catalogue() with { RequiredFields = ["invoice.reference"], ValidationRules = [new("rules.iban", "IBAN checksum")] })
+            .Add(x => x.ValueChanged, value => changed = value));
+
+        // Records declares the reference required: the block shows it, and cannot remove it.
+        var declared = cut.Find("[aria-label='Block 1 required']");
+        Assert.True(declared.HasAttribute("checked"));
+        Assert.True(declared.HasAttribute("disabled"));
+        // Only a capture block narrows capture; an observing block is offered neither control.
+        Assert.Empty(cut.FindAll("[aria-label='Block 3 required']"));
+        Assert.Empty(cut.FindAll("[aria-label='Block 3 validation rule IBAN checksum']"));
+
+        // A block may add a requirement Records did not declare, and name a registered rule.
+        Assert.False(cut.Find("[aria-label='Block 2 required']").HasAttribute("checked"));
+        cut.Find("[aria-label='Block 2 required']").Change(true);
+        Assert.Equal(new LayoutAuthoringCapture(Required: true), changed!.Blocks[1].Capture);
+        cut.Find("[aria-label='Block 2 validation rule IBAN checksum']").Change(true);
+        Assert.False(changed.Blocks[1].Capture!.Required);
+        Assert.Equal(["rules.iban"], changed.Blocks[1].Capture!.ValidationRules!);
+        Assert.Equal([blocks[0], blocks[2]], [changed.Blocks[0], changed.Blocks[2]]);
+    }
+
+    [Fact(DisplayName = "layout-auth-21: a block that stops capturing drops its capture properties")]
+    public void BlockThatStopsCapturingDropsItsCaptureProperties()
+    {
+        LayoutAuthoringDraft? changed = null;
+        var block = new LayoutAuthoringBlock("note", "layout.table", new("record_field", "invoice.note"), Intent: "capture", Capture: new(Required: true, ValidationRules: ["rules.iban"]));
+        var cut = Render<HarborlineLayoutAuthoringEditor>(parameters => parameters
+            .Add(x => x.Value, LayoutAuthoringDraft.Empty with { Blocks = [block] })
+            .Add(x => x.Catalogue, Catalogue() with { ValidationRules = [new("rules.iban", "IBAN checksum")] })
+            .Add(x => x.ValueChanged, value => changed = value));
+
+        Assert.True(cut.Find("[aria-label='Block 1 validation rule IBAN checksum']").HasAttribute("checked"));
+        cut.Find("[aria-label='Block 1 validation rule IBAN checksum']").Change(false);
+        Assert.Equal(new LayoutAuthoringCapture(Required: true), changed!.Blocks.Single().Capture);
+        cut.Find("[aria-label='Block 1 intent']").Change("observe");
+        Assert.Equal(new LayoutAuthoringBlock("note", "layout.table", new("record_field", "invoice.note"), Intent: "observe"), changed.Blocks.Single());
+    }
+
     private static LayoutAuthoringCatalogue Catalogue() => new(
         [new("layout.table", "Table")],
         ["header.center"],
