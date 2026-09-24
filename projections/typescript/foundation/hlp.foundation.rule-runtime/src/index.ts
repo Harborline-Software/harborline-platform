@@ -15,7 +15,7 @@ export { aggregateFolds, type BuiltInKey } from './jsonlogic.js'
 export * from './functions.js'
 // T-590 borrower environment admission (rules-ck-28, rules-eng-26).
 export {
-  admitEnvironment, BorrowerEnvironmentCodes, BorrowerEnvironmentError, evaluationPhases, fieldReadEffect, lentGrammar,
+  admitEnvironment, BorrowerEnvironmentCodes, canonicalDeclaration, BorrowerEnvironmentError, evaluationPhases, fieldReadEffect, lentGrammar,
   type AdmittedEnvironment, type BorrowerEnvironmentDeclaration, type EvaluationAdmission, type EvaluationPhase,
 } from './environment.js'
 export { CompileError, type RuleRef } from './grammar.js'

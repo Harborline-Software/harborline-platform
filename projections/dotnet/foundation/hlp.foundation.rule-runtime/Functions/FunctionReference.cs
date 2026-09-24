@@ -2,6 +2,8 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json.Nodes;
 
+using Harborline.Foundation.RuleEngine.Environments;
+
 namespace Harborline.Foundation.RuleEngine.Functions;
 
 /// <summary>
@@ -15,7 +17,7 @@ public abstract record FunctionReference
     private protected FunctionReference() { }
 
     /// <summary>Sorted-key canonical JSON carrying the <c>kind</c> discriminant.</summary>
-    public string CanonicalJson => Canonical().ToJsonString();
+    public string CanonicalJson => Canonical().ToJsonString(BorrowerEnvironmentAdmission.CanonicalOptions);
 
     /// <summary>Lower-case hex SHA-256 of <see cref="CanonicalJson"/>.</summary>
     public string Digest => Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(CanonicalJson)));

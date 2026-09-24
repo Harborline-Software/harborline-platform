@@ -1,3 +1,5 @@
+using System.Text.Encodings.Web;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 
 using Harborline.Foundation.RuleEngine.Compilation;
@@ -172,6 +174,33 @@ public static class BorrowerEnvironmentAdmission
     /// </summary>
     internal static string? Check(EvaluationAdmission? admission, CompiledGraph compiled)
         => admission is null ? NotAdmitted : admission.Environment.Refusal(compiled.Rules.Select(rule => rule.Ast));
+
+    /// <summary>Canonical JSON options shared with the TS tier's <c>JSON.stringify</c> (no HTML escaping).</summary>
+    public static JsonSerializerOptions CanonicalOptions { get; } = new() { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
+
+    /// <summary>
+    /// The canonical export of a declaration: sorted keys, every phase present with its applicability and
+    /// every variable with its type, so scope narrowing and phase exclusions survive release byte for byte.
+    /// </summary>
+    public static string CanonicalJson(BorrowerEnvironmentDeclaration declaration)
+    {
+        ArgumentNullException.ThrowIfNull(declaration);
+        return new JsonObject
+        {
+            ["borrower"] = declaration.Borrower,
+            ["effects"] = new JsonArray([.. declaration.Effects.Select(effect => (JsonNode?)effect)]),
+            ["grammar"] = declaration.Grammar,
+            ["missingValues"] = declaration.MissingValues,
+            ["operations"] = new JsonArray([.. declaration.Operations.Select(op => (JsonNode?)op)]),
+            ["phases"] = new JsonObject(declaration.Phases.OrderBy(p => p.Key.ToString(), StringComparer.Ordinal)
+                .Select(p => KeyValuePair.Create(p.Key.ToString(), (JsonNode?)p.Value))),
+            ["replay"] = declaration.Replay,
+            ["timeSource"] = declaration.TimeSource,
+            ["timeZone"] = declaration.TimeZone,
+            ["variables"] = new JsonObject(declaration.Variables.OrderBy(v => v.Key, StringComparer.Ordinal)
+                .Select(v => KeyValuePair.Create(v.Key, (JsonNode?)v.Value))),
+        }.ToJsonString(CanonicalOptions);
+    }
 
     private static bool Blank(string? value) => string.IsNullOrWhiteSpace(value);
 }

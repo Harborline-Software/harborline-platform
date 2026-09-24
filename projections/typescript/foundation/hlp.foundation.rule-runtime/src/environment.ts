@@ -96,3 +96,13 @@ export function admissionRefusal(admission: EvaluationAdmission | null | undefin
   for (const program of programs) { const refusal = walk(program); if (refusal !== null) return refusal }
   return null
 }
+
+/** The canonical export of a declaration, byte-identical to the .NET tier's `CanonicalJson`. */
+export function canonicalDeclaration(d: BorrowerEnvironmentDeclaration): string {
+  const sorted = <T>(record: Readonly<Record<string, T>>) =>
+    Object.fromEntries(Object.keys(record).sort().map((key) => [key, record[key]]))
+  return JSON.stringify({
+    borrower: d.borrower, effects: [...d.effects], grammar: d.grammar, missingValues: d.missingValues, operations: [...d.operations],
+    phases: sorted(d.phases), replay: d.replay, timeSource: d.timeSource, timeZone: d.timeZone, variables: sorted(d.variables),
+  })
+}
