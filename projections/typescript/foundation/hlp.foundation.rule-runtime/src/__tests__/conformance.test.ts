@@ -24,6 +24,10 @@ import {
   type FormulaSkin,
   type NoMatch,
 } from '../skins/index.js'
+import { admitEnvironment as admitTestEnvironment, fieldReadEffect as testFieldRead, lentGrammar as testGrammar } from '../environment.js'
+import { builtInFunctions as testBuiltIns } from '../functions.js'
+// The suite's own borrower: the whole register, every scope token, every phase (T-590 rules-eng-26).
+const testAdmission = admitTestEnvironment({ borrower: 'rule-engine-tests', grammar: testGrammar, variables: { field: 'test', row: 'test', wf: 'test', timer: 'test' }, operations: testBuiltIns.map((f) => f.key), effects: [testFieldRead], missingValues: 'missing-field-reads-null', timeSource: 'injected-test-clock', timeZone: 'utc', phases: { AuthoringValidation: true, PublishValidation: true, Render: true, Submission: true, Run: true, SignOff: true }, replay: 'deterministic' }).forPhase('Run')
 
 const here = dirname(fileURLToPath(import.meta.url))
 const corpusDir = join(here, '..', '..', '..', '..', '..', '..', 'conformance', 'hlp.foundation.rule-runtime', 'corpus')
@@ -137,7 +141,7 @@ function declaredRules(c: CorpusCase): RuleDefinition[] {
 function runCase(c: CorpusCase) {
   const rules = declaredRules(c)
   const compiled = compile(rules)
-  const graph = new FormRuleGraph(compiled, clockOf(c))
+  const graph = new FormRuleGraph(compiled, clockOf(c), testAdmission)
   const result = graph.evaluateInstance(RuleInstance.fromJsonText(JSON.stringify(c.instance)))
   return { compiled, result }
 }
@@ -157,7 +161,7 @@ function compileRefusalCode(c: CorpusCase): string {
 function guardValueOutcome(c: CorpusCase): string {
   const rule = (c.definitionRules ?? []).map(parseRule).find((r) => r.id === c.guardValue)
   if (!rule) throw new Error(`case '${c.name}': guardValue names unknown rule '${c.guardValue}'`)
-  return serializeComputedValue(new GuardEvaluator(clockOf(c)).evaluateValue(rule, RuleContextSnapshot.fromJsonText(JSON.stringify(c.instance))))
+  return serializeComputedValue(new GuardEvaluator(clockOf(c)).evaluateValue(rule, RuleContextSnapshot.fromJsonText(JSON.stringify(c.instance)), testAdmission))
 }
 
 describe('SPINE-1 conformance corpus (TS tier — byte-identical to .NET)', () => {

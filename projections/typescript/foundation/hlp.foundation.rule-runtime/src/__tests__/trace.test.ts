@@ -14,6 +14,10 @@ import {
   buildFormTrace, buildGuardTrace, RuleTraceCodes, passThroughTraceFilter,
   type TraceAuthorityFilter, type TraceFieldDisclosure,
 } from '../trace.js'
+import { admitEnvironment as admitTestEnvironment, fieldReadEffect as testFieldRead, lentGrammar as testGrammar } from '../environment.js'
+import { builtInFunctions as testBuiltIns } from '../functions.js'
+// The suite's own borrower: the whole register, every scope token, every phase (T-590 rules-eng-26).
+const testAdmission = admitTestEnvironment({ borrower: 'rule-engine-tests', grammar: testGrammar, variables: { field: 'test', row: 'test', wf: 'test', timer: 'test' }, operations: testBuiltIns.map((f) => f.key), effects: [testFieldRead], missingValues: 'missing-field-reads-null', timeSource: 'injected-test-clock', timeZone: 'utc', phases: { AuthoringValidation: true, PublishValidation: true, Render: true, Submission: true, Run: true, SignOff: true }, replay: 'deterministic' }).forPhase('Run')
 
 const hideHighEarnerComp: RuleDefinition = {
   id: 'vis.comp', tier: 'JsonLogic', scope: 'Section', scopeTarget: 'comp',
@@ -24,7 +28,7 @@ const snapshot = (value: Record<string, Json>) => RuleContextSnapshot.fromJsonTe
 
 function evaluate(rule: RuleDefinition, instance: Record<string, Json>) {
   const compiled = compile([rule])
-  const graph = new FormRuleGraph(compiled, fixedClock)
+  const graph = new FormRuleGraph(compiled, fixedClock, testAdmission)
   const result = graph.evaluateInstance(RuleInstance.fromJsonText(JSON.stringify(instance)))
   return { compiled, result }
 }
@@ -94,13 +98,13 @@ describe('ADR 0146 D10 traces', () => {
     const guard: RuleDefinition = { id: 'g.amount', tier: 'JsonLogic', scope: 'Schema', scopeTarget: '', expression: { '>': [{ var: 'amount' }, 5000] }, action: 'Validate' }
     const evaluator = new GuardEvaluator(fixedClock)
 
-    const pass = evaluator.evaluateGuard(guard, snapshot({ amount: 7000 }))
+    const pass = evaluator.evaluateGuard(guard, snapshot({ amount: 7000 }), testAdmission)
     const passTrace = buildGuardTrace(guard, pass)
     expect(passTrace.code).toBe(RuleTraceCodes.guardPassed)
     expect(passTrace.params.reads).toBe('amount')
     expect(passTrace.target).toBe('guard:g.amount')
 
-    const fail = evaluator.evaluateGuard(guard, snapshot({ amount: 3000 }))
+    const fail = evaluator.evaluateGuard(guard, snapshot({ amount: 3000 }), testAdmission)
     const failTrace = buildGuardTrace(guard, fail)
     expect(failTrace.code).toBe(RuleTraceCodes.guardFailed)
     expect(failTrace.params.cause).toBe('g.amount')
