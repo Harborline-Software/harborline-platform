@@ -4,7 +4,7 @@
   "defaultBranch": "main",
   "visibility": "private",
   "remote": {"status": "active", "requiresMaintainerApproval": true},
-  "license": "MIT",
+  "license": "Apache-2.0",
   "phase": 4,
   "sourceAuthority": "upstream-retained-until-zero-deferred-apis-and-separate-cutover-approval",
   "packageIdentityAuthority": "harborline-converged-identity",
