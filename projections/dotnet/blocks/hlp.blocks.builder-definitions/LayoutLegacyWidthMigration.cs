@@ -41,12 +41,16 @@ public static class LayoutLegacyWidthMigration
         ArgumentNullException.ThrowIfNull(legacy);
 
         var refusals = new List<LayoutDefinitionRefusal>();
-        var span = Numeric(legacy.ColSpan, LayoutNumericMember.Span, "/col_span", refusals);
-        var grow = Numeric(legacy.Grow, LayoutNumericMember.Grow, "/grow", refusals);
+        var span = LegacyInteger(legacy.ColSpan, LayoutNumericMember.Span, "/col_span", refusals);
+        var grow = LegacyInteger(legacy.Grow, LayoutNumericMember.Grow, "/grow", refusals);
+        var width = legacy.Width.HasValue ? legacy.Width.Value : FieldWidth.Auto;
+        // A width fraction or `full` and a span each claim the member's tracks: refuse, never pick one.
+        if (width != FieldWidth.Auto && legacy.ColSpan.HasValue)
+            refusals.Add(new(LayoutDefinitionCodes.LegacyPlacementConflict, "/col_span"));
         if (refusals.Count > 0) throw new LayoutDefinitionAdmissionException(Stage, refusals.AsReadOnly());
 
         var placement = new LayoutPlacement(Width: LayoutSizing.Hug, Span: span ?? 1, Grow: grow ?? 0);
-        return Apply(placement, legacy.Width.HasValue ? legacy.Width.Value : FieldWidth.Auto);
+        return WithLegacyWidth(placement, width);
     }
 
     /// <summary>
@@ -67,10 +71,10 @@ public static class LayoutLegacyWidthMigration
             refusals.Add(new(LayoutDefinitionCodes.PlacementTokenUnknown, "/align"));
         if (refusals.Count > 0) throw new LayoutDefinitionAdmissionException(Stage, refusals.AsReadOnly());
 
-        return Apply(new LayoutPlacement(Width: LayoutSizing.Hug, JustifySelf: justify), legacyWidth);
+        return WithLegacyWidth(new LayoutPlacement(Width: LayoutSizing.Hug, JustifySelf: justify), legacyWidth);
     }
 
-    private static LayoutPlacement Apply(LayoutPlacement placement, FieldWidth width) => width switch
+    private static LayoutPlacement WithLegacyWidth(LayoutPlacement placement, FieldWidth width) => width switch
     {
         FieldWidth.OneQuarter => placement with { Span = 3 },
         FieldWidth.OneThird => placement with { Span = 4 },
@@ -78,11 +82,11 @@ public static class LayoutLegacyWidthMigration
         FieldWidth.TwoThirds => placement with { Span = 8 },
         FieldWidth.ThreeQuarters => placement with { Span = 9 },
         // `full` is fill and nothing else: a twelve-track span beside it would contradict it.
-        FieldWidth.Full => placement with { Width = LayoutSizing.Fill, Span = 1 },
+        FieldWidth.Full => placement with { Width = LayoutSizing.Fill },
         _ => placement,
     };
 
-    private static int? Numeric(
+    private static int? LegacyInteger(
         Optional<decimal> legacy,
         LayoutNumericMember member,
         string pointer,

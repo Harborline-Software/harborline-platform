@@ -38,12 +38,24 @@ public sealed class LayoutLegacyWidthMigrationTests
         Assert.Equal(new LayoutPlacement(Width: LayoutSizing.Fill), placement);
     }
 
-    [Fact]
-    public void Full_drops_a_legacy_col_span_rather_than_emit_it_beside_fill()
+    [Theory]
+    [InlineData(FieldWidth.Full)]
+    [InlineData(FieldWidth.OneHalf)]
+    public void A_width_and_a_col_span_together_refuse_rather_than_one_overwriting_the_other(FieldWidth width)
     {
-        var placement = LayoutLegacyWidthMigration.Migrate(new FieldPlacement { Width = FieldWidth.Full, ColSpan = 4m });
+        var legacy = new FieldPlacement { Width = width, ColSpan = 4m };
 
-        Assert.Equal(new LayoutPlacement(Width: LayoutSizing.Fill), placement);
+        var refused = Assert.Throws<LayoutDefinitionAdmissionException>(() => LayoutLegacyWidthMigration.Migrate(legacy));
+
+        Assert.Equal([new LayoutDefinitionRefusal(LayoutDefinitionCodes.LegacyPlacementConflict, "/col_span")], refused.Refusals);
+    }
+
+    [Fact]
+    public void Auto_beside_a_col_span_keeps_the_span()
+    {
+        var placement = LayoutLegacyWidthMigration.Migrate(new FieldPlacement { Width = FieldWidth.Auto, ColSpan = 4m });
+
+        Assert.Equal(new LayoutPlacement(Width: LayoutSizing.Hug, Span: 4), placement);
     }
 
     [Fact]

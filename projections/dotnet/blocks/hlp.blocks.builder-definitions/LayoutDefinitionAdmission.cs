@@ -61,6 +61,8 @@ public static class LayoutDefinitionCodes
     public const string CapabilityUnsupported = "layout.pack.capability_unsupported";
     /// <summary>Collection bounds sit on a non-repeating block, or no row count can satisfy them.</summary>
     public const string CollectionBoundsInvalid = "layout.collection.bounds_invalid";
+    /// <summary>A legacy placement states both a width and a column span, so neither can be migrated without choosing.</summary>
+    public const string LegacyPlacementConflict = "layout.migration.placement_conflict";
 }
 
 /// <summary>Identifies one deterministic Layout admission refusal.</summary>

@@ -54,7 +54,7 @@ public sealed class LayoutBindingResolutionTests
         Assert.Equal("Registered office: Leeds", Block(resolution, "notice").Value?.ToString());
     }
 
-    [Fact]
+    [Fact(DisplayName = "layout-eng-9 successor of the Documents walker (DocumentRenderWalker.cs:113-117): each row resolves in a fresh scope and cross-row lookup refuses")]
     public void TwoRowsResolveInIsolatedScopesAndCrossRowLookupRefuses()
     {
         var resolution = Resolve(Invoice(), Sources());
@@ -162,7 +162,7 @@ public sealed class LayoutBindingResolutionTests
         [Block("cell", new LayoutRecordFieldBinding("description"))],
         Container: new(LayoutContainerKind.Stack), Repeating: true, CollectionBounds: bounds);
 
-    [Fact]
+    [Fact(DisplayName = "layout-eng-9 successor of the Documents walker (DocumentBlock.cs:42): a per-block guard fails closed per row")]
     public void APerRowGuardWithholdsOnlyTheRowItFailsFor()
     {
         var repeating = new LayoutBlock("lines", "layout.table", new LayoutQueryBinding("views.invoice-lines"), [
