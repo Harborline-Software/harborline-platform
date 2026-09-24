@@ -53,7 +53,7 @@ jobs:
     steps:
       - name: Runner
         shell: bash
-        run: echo "runner: ${{ runner.name }} (${{ runner.os }}/${{ runner.arch }})" >> "$GITHUB_STEP_SUMMARY"
+        run: echo "Runner ${{ runner.name }} (${{ runner.os }}/${{ runner.arch }})" >> "$GITHUB_STEP_SUMMARY"
 
       - uses: actions/checkout@v7
         with:
