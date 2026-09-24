@@ -63,6 +63,8 @@ public static class LayoutDefinitionCodes
     public const string CollectionBoundsInvalid = "layout.collection.bounds_invalid";
     /// <summary>A placement states a span beside <c>fill</c>, which already takes the whole run.</summary>
     public const string SpanWithFill = "layout.placement.span_with_fill";
+    /// <summary>A capture block names a field control the host has not registered (layout-bound-3).</summary>
+    public const string FieldControlUnknown = "layout.capture.control_unknown";
 }
 
 /// <summary>Identifies one deterministic Layout admission refusal.</summary>
@@ -98,7 +100,13 @@ public static class LayoutDefinitionAdmission
     /// <param name="definition">The candidate definition.</param>
     /// <param name="kinds">The host kind register.</param>
     public static void ValidateForAuthoring(LayoutDefinition definition, LayoutBlockKindRegistry kinds)
-        => Validate(definition, "definition.validate", kinds);
+        => Validate(definition, "definition.validate", new LayoutHostRegisters(kinds));
+
+    /// <summary>Validates during authoring against the host's registers.</summary>
+    /// <param name="definition">The candidate definition.</param>
+    /// <param name="registers">The host's bound registers.</param>
+    public static void ValidateForAuthoring(LayoutDefinition definition, LayoutHostRegisters registers)
+        => Validate(definition, "definition.validate", registers);
 
     /// <summary>Validates a Layout definition before publication.</summary>
     /// <param name="definition">The candidate definition.</param>
@@ -108,11 +116,21 @@ public static class LayoutDefinitionAdmission
     /// <param name="definition">The candidate definition.</param>
     /// <param name="kinds">The host kind register.</param>
     public static void ValidateForPublish(LayoutDefinition definition, LayoutBlockKindRegistry kinds)
-        => Validate(definition, PublishStage, kinds);
+        => Validate(definition, PublishStage, new LayoutHostRegisters(kinds));
+
+    /// <summary>Admits publication against the host's registers.</summary>
+    /// <param name="definition">The candidate definition.</param>
+    /// <param name="registers">The host's bound registers.</param>
+    public static void ValidateForPublish(LayoutDefinition definition, LayoutHostRegisters registers)
+        => Validate(definition, PublishStage, registers);
 
     internal static void Validate(LayoutDefinition definition, string stage, LayoutBlockKindRegistry? kinds = null)
+        => Validate(definition, stage, kinds is null ? LayoutHostRegisters.Platform : new LayoutHostRegisters(kinds));
+
+    internal static void Validate(LayoutDefinition definition, string stage, LayoutHostRegisters registers)
     {
         ArgumentNullException.ThrowIfNull(definition);
+        ArgumentNullException.ThrowIfNull(registers);
         var refusals = new List<LayoutDefinitionRefusal>();
         ValidateEnvelope(definition, refusals);
         if (stage == PublishStage) ValidateSealedCapability(definition, refusals);
@@ -132,7 +150,7 @@ public static class LayoutDefinitionAdmission
                 definition.DefaultIntent,
                 parentRegions: null,
                 blockIds,
-                kinds ?? LayoutBlockKindRegistry.Platform,
+                registers,
                 captures,
                 refusals);
         }
@@ -225,14 +243,14 @@ public static class LayoutDefinitionAdmission
         LayoutIntent inheritedIntent,
         IReadOnlySet<string>? parentRegions,
         HashSet<string> blockIds,
-        LayoutBlockKindRegistry kinds,
+        LayoutHostRegisters registers,
         bool captures,
         ICollection<LayoutDefinitionRefusal> refusals)
     {
         if (block is null) return;
         if (string.IsNullOrWhiteSpace(block.Kind))
             Add(refusals, LayoutDefinitionCodes.BlockKindInvalid, $"{pointer}/kind");
-        else if (!kinds.Contains(block.Kind))
+        else if (!registers.Kinds.Contains(block.Kind))
             Add(refusals, LayoutDefinitionCodes.BlockKindUnknown, $"{pointer}/kind");
 
         var intent = block.Intent ?? inheritedIntent;
@@ -263,6 +281,14 @@ public static class LayoutDefinitionAdmission
             for (var index = 0; index < validationRules.Count; index++)
                 if (string.IsNullOrWhiteSpace(validationRules[index]))
                     Add(refusals, LayoutDefinitionCodes.CapturePropertiesInvalid, $"{pointer}/capture/validation_rules/{index}");
+            // layout-bound-3: the control is one the host registered; with no register, none is.
+            if (capture.Control is { } control)
+            {
+                if (string.IsNullOrWhiteSpace(control.Id) || registers.FieldControls?.Contains(control.Id) != true)
+                    Add(refusals, LayoutDefinitionCodes.FieldControlUnknown, $"{pointer}/capture/control");
+                if (control.Parameters is { ValueKind: not JsonValueKind.Object })
+                    Add(refusals, LayoutDefinitionCodes.CapturePropertiesInvalid, $"{pointer}/capture/control/parameters");
+            }
         }
 
         if (block.Form is { } form
@@ -293,7 +319,7 @@ public static class LayoutDefinitionAdmission
         if (children.Count > 0 && block.Container is null)
             Add(refusals, LayoutDefinitionCodes.BlockChildrenInvalid, $"{pointer}/container");
         for (var index = 0; index < children.Count; index++)
-            ValidateBlock(children[index], $"{pointer}/children/{index}", medium, inheritedIntent, regions, blockIds, kinds, captures, refusals);
+            ValidateBlock(children[index], $"{pointer}/children/{index}", medium, inheritedIntent, regions, blockIds, registers, captures, refusals);
     }
 
     private static void ValidateBinding(

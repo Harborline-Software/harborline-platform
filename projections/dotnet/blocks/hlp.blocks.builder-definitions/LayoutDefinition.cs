@@ -239,10 +239,20 @@ public sealed record LayoutStaticBinding(JsonElement Content) : LayoutBinding;
 /// <param name="Required">Whether the member requires a value.</param>
 /// <param name="ValidationRules">The stable validation rule identifiers.</param>
 /// <param name="PromptOverride">The optional governed prompt override.</param>
+/// <param name="Control">The optional registered field control and its parameters (layout-bound-3).</param>
 public sealed record LayoutCaptureProperties(
     bool Required,
     IReadOnlyList<string> ValidationRules,
-    string? PromptOverride = null);
+    string? PromptOverride = null,
+    LayoutFieldControl? Control = null);
+
+/// <summary>
+/// DES-0052 layout-bound-3 — a registered field control picked for a capture block's field and
+/// parameterised. The control is developer-supplied; the author only names and configures it.
+/// </summary>
+/// <param name="Id">The control's identifier in the host's <see cref="LayoutFieldControlRegistry"/>.</param>
+/// <param name="Parameters">The optional parameters, a JSON object the control interprets.</param>
+public sealed record LayoutFieldControl(string Id, JsonElement? Parameters = null);
 
 /// <summary>Pins an embedded form to both its stable identity and immutable version.</summary>
 /// <param name="FormDefinitionId">The stable form definition identifier.</param>

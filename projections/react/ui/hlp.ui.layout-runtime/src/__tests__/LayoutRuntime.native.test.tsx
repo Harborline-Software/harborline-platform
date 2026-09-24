@@ -250,6 +250,26 @@ describe('LayoutRuntime React projection', () => {
     expect(changed.mock.lastCall![0]).toStrictEqual(emptyLayoutAuthoringDraft())
   })
 
+  it('layout-bound-3: a capture field picks its control from the registered field controls', () => {
+    const changed = vi.fn()
+    const blocks = [
+      { id: 'amount', kind: 'layout.table', intent: 'capture' as const, binding: { kind: 'record_field' as const, name: 'invoice.amount' }, capture: { required: true } },
+      { id: 'notice', kind: 'layout.table', intent: 'capture' as const, binding: { kind: 'static' as const, name: 'Enter amounts in GBP' } },
+    ]
+    render(<LayoutAuthoringEditor value={{ ...emptyLayoutAuthoringDraft(), blocks }} catalogue={{ blockKinds: [{ id: 'layout.table', label: 'Table' }], zones: [], fieldControls: [{ id: 'currency', label: 'Currency' }, { id: 'text', label: 'Text' }] }} onChange={changed} />)
+
+    // Only a captured field has a control; static content on a capture surface is offered none.
+    expect(screen.getByLabelText('Block 2 required')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Block 2 field control')).toBeNull()
+    const control = screen.getByLabelText('Block 1 field control')
+    expect(within(control).getAllByRole('option').map(option => option.getAttribute('value'))).toEqual(['', 'currency', 'text'])
+    fireEvent.change(control, { target: { value: 'currency' } })
+    expect(changed).toHaveBeenLastCalledWith(expect.objectContaining({ blocks: [{ ...blocks[0], capture: { required: true, control: 'currency' } }, blocks[1]] }))
+    // The runtime default stores no control.
+    fireEvent.change(control, { target: { value: '' } })
+    expect(changed.mock.lastCall![0].blocks[0]).toStrictEqual(blocks[0])
+  })
+
   it('authors static content on the block rather than looking it up', () => {
     const changed = vi.fn()
     render(<LayoutAuthoringEditor value={{ ...emptyLayoutAuthoringDraft(), blocks: [{ id: 'notice', kind: 'layout.table', binding: { kind: 'static', name: '' } }] }} catalogue={{ blockKinds: [{ id: 'layout.table', label: 'Table' }], zones: [] }} onChange={changed} />)

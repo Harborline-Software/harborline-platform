@@ -52,7 +52,9 @@ public sealed record LayoutAuthoringCapture(
     bool Required = false,
     IReadOnlyList<string>? ValidationRules = null,
     // layout-auth-22: the prompt this surface shows for the field, in its own context only.
-    string? PromptOverride = null);
+    string? PromptOverride = null,
+    // layout-bound-3: the registered field control this capture field uses; absent is the runtime's choice.
+    string? Control = null);
 public sealed record LayoutAuthoringPageRun(string Id, string PageLayoutId, string PageMasterId);
 public sealed record LayoutAuthoringDraft(
     string Name,
@@ -86,4 +88,6 @@ public sealed record LayoutAuthoringCatalogue(
     // ValidationRules: the registered validation rules a capture block may name (layout-auth-21, layout-bound-8).
     IReadOnlyList<LayoutAuthoringOption>? ValidationRules = null,
     // DrillTargets: the released surfaces a drill-through may name (layout-auth-35).
-    IReadOnlyList<LayoutAuthoringOption>? DrillTargets = null);
+    IReadOnlyList<LayoutAuthoringOption>? DrillTargets = null,
+    // FieldControls: the field controls the host registers for capture fields (layout-bound-3).
+    IReadOnlyList<LayoutAuthoringOption>? FieldControls = null);

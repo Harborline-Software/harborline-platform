@@ -351,6 +351,32 @@ public sealed class LayoutRuntimeTests : BunitContext
         Assert.Equal(LayoutAuthoringDraft.Empty, changed);
     }
 
+    [Fact(DisplayName = "layout-bound-3: a capture field picks its control from the registered field controls")]
+    public void CaptureFieldPicksItsControlFromTheRegisteredFieldControls()
+    {
+        LayoutAuthoringDraft? changed = null;
+        LayoutAuthoringBlock[] blocks =
+        [
+            new("amount", "layout.table", new("record_field", "invoice.amount"), Intent: "capture", Capture: new(Required: true)),
+            new("notice", "layout.table", new("static", "Enter amounts in GBP"), Intent: "capture"),
+        ];
+        var cut = Render<HarborlineLayoutAuthoringEditor>(parameters => parameters
+            .Add(x => x.Value, LayoutAuthoringDraft.Empty with { Blocks = blocks })
+            .Add(x => x.Catalogue, Catalogue() with { FieldControls = [new("currency", "Currency"), new("text", "Text")] })
+            .Add(x => x.ValueChanged, value => changed = value));
+
+        // Only a captured field has a control; static content on a capture surface is offered none.
+        Assert.Single(cut.FindAll("[aria-label='Block 2 required']"));
+        Assert.Empty(cut.FindAll("[aria-label='Block 2 field control']"));
+        var control = cut.Find("[aria-label='Block 1 field control']");
+        Assert.Equal(["", "currency", "text"], control.QuerySelectorAll("option").Select(option => option.GetAttribute("value")));
+        control.Change("currency");
+        Assert.Equal(blocks[0] with { Capture = new(Required: true, Control: "currency") }, changed!.Blocks[0]);
+        // The runtime default stores no control.
+        cut.Find("[aria-label='Block 1 field control']").Change("");
+        Assert.Equal(blocks[0], changed.Blocks[0]);
+    }
+
     private static LayoutAuthoringCatalogue Catalogue() => new(
         [new("layout.table", "Table")],
         ["header.center"],

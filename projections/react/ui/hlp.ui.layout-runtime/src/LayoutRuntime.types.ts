@@ -39,6 +39,8 @@ export interface LayoutAuthoringCapture {
   readonly validationRules?: readonly string[]
   /** layout-auth-22: the prompt this surface shows for the field, in its own context only. */
   readonly promptOverride?: string
+  /** layout-bound-3: the registered field control this capture field uses; absent is the runtime's choice. */
+  readonly control?: string
 }
 
 export interface LayoutAuthoringBlock {
@@ -104,5 +106,7 @@ export interface LayoutAuthoringCatalogue {
   readonly validationRules?: readonly LayoutBindableName[]
   /** The released surfaces a drill-through may name (layout-auth-35). */
   readonly drillTargets?: readonly LayoutBindableName[]
+  /** The field controls the host registers for capture fields (layout-bound-3). */
+  readonly fieldControls?: readonly LayoutBindableName[]
 }
 export interface LayoutAuthoringEditorProps { readonly value: LayoutAuthoringDraft; readonly catalogue: LayoutAuthoringCatalogue; readonly onChange: (value: LayoutAuthoringDraft) => void }
