@@ -174,6 +174,27 @@ public sealed class LayoutRuntimeTests : BunitContext
         Assert.Equal(new LayoutAuthoringBlock("supplier", "layout.table", new("record_field", "supplier.name"), Intent: "capture"), changed!.Blocks.Single());
     }
 
+    [Fact(DisplayName = "layout-auth-20: show_when is written in Rules grammar and stored verbatim for the shared engine")]
+    public void ShowWhenIsWrittenInRulesGrammarAndStoredVerbatim()
+    {
+        LayoutAuthoringDraft? changed = null;
+        var block = new LayoutAuthoringBlock("notice", "layout.table", new("record_field", "invoice.note"));
+        var cut = Render<HarborlineLayoutAuthoringEditor>(parameters => parameters
+            .Add(x => x.Value, LayoutAuthoringDraft.Empty with { Blocks = [block with { ShowWhen = "{\"var\":\"field.flagged\"}" }] })
+            .Add(x => x.Catalogue, Catalogue())
+            .Add(x => x.ValueChanged, value => changed = value));
+        var guard = cut.Find("[aria-label='Block 1 show when']");
+        Assert.Equal("{\"var\":\"field.flagged\"}", guard.GetAttribute("value"));
+
+        // The editor holds no conditional grammar of its own: the Rules expression is stored as written.
+        const string expression = " {\"==\": [{\"var\": \"field.status\"}, \"open\"]}";
+        guard.Change(expression);
+        Assert.Equal(block with { ShowWhen = expression }, changed!.Blocks.Single());
+        // Clearing the guard removes it rather than storing an empty expression.
+        cut.Find("[aria-label='Block 1 show when']").Change("");
+        Assert.Equal(block, changed.Blocks.Single());
+    }
+
     private static LayoutAuthoringCatalogue Catalogue() => new(
         [new("layout.table", "Table")],
         ["header.center"],

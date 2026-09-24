@@ -34,7 +34,9 @@ public sealed record LayoutAuthoringBlock(
     // layout-auth-18: the block repeats its children once per row of its collection binding.
     bool Repeating = false,
     // layout-auth-19: the declared Records relationship this block observes; only the key is stored.
-    string? RelatedRelationship = null);
+    string? RelatedRelationship = null,
+    // layout-auth-20: the block's guard, a Rules expression the shared engine evaluates fail-closed.
+    string? ShowWhen = null);
 public sealed record LayoutAuthoringPageRun(string Id, string PageLayoutId, string PageMasterId);
 public sealed record LayoutAuthoringDraft(
     string Name,

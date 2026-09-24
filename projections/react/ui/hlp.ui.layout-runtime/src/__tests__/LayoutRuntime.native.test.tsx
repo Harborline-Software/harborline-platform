@@ -119,6 +119,23 @@ describe('LayoutRuntime React projection', () => {
     expect(changed).toHaveBeenLastCalledWith(expect.objectContaining({ blocks: [{ id: 'supplier', kind: 'layout.table', binding: { kind: 'record_field', name: 'supplier.name' }, intent: 'capture' }] }))
   })
 
+  it('layout-auth-20: show_when is written in Rules grammar and stored verbatim for the shared engine', () => {
+    const changed = vi.fn()
+    const block = { id: 'notice', kind: 'layout.table', binding: { kind: 'record_field' as const, name: 'invoice.note' } }
+    render(<LayoutAuthoringEditor value={{ ...emptyLayoutAuthoringDraft(), blocks: [{ ...block, showWhen: '{"var":"field.flagged"}' }] }} catalogue={{ blockKinds: [{ id: 'layout.table', label: 'Table' }], zones: [] }} onChange={changed} />)
+    const guard = screen.getByLabelText('Block 1 show when')
+    expect(guard).toHaveValue('{"var":"field.flagged"}')
+
+    // The editor holds no conditional grammar of its own: the Rules expression is stored as written.
+    const expression = ' {"==": [{"var": "field.status"}, "open"]}'
+    fireEvent.change(guard, { target: { value: expression } })
+    expect(changed).toHaveBeenLastCalledWith(expect.objectContaining({ blocks: [{ ...block, showWhen: expression }] }))
+    // Clearing the guard removes it rather than storing an empty expression.
+    fireEvent.change(guard, { target: { value: '' } })
+    expect(changed).toHaveBeenLastCalledWith(expect.objectContaining({ blocks: [block] }))
+    expect(changed.mock.lastCall![0].blocks[0]).not.toHaveProperty('showWhen', '')
+  })
+
   it('authors static content on the block rather than looking it up', () => {
     const changed = vi.fn()
     render(<LayoutAuthoringEditor value={{ ...emptyLayoutAuthoringDraft(), blocks: [{ id: 'notice', kind: 'layout.table', binding: { kind: 'static', name: '' } }] }} catalogue={{ blockKinds: [{ id: 'layout.table', label: 'Table' }], zones: [] }} onChange={changed} />)

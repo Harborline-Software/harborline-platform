@@ -40,6 +40,8 @@ export interface LayoutAuthoringBlock {
   readonly repeating?: boolean
   /** layout-auth-19: the declared Records relationship this block observes; only the key is stored. */
   readonly relatedRelationship?: string
+  /** layout-auth-20: the block's guard, a Rules expression the shared engine evaluates fail-closed. */
+  readonly showWhen?: string
   readonly intent?: LayoutIntent
   readonly zone?: string
   readonly width?: LayoutSizing

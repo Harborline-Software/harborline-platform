@@ -55,6 +55,8 @@ function withIntent(block: LayoutAuthoringBlock, intent: LayoutIntent): LayoutAu
  * The block's behaviour on this surface. layout-auth-19: an observing block may traverse one
  * Records relationship the catalogue declares, and stores only its key; the relationship
  * declaration supplies the target, so the editor never asks for or writes one.
+ * layout-auth-20: `show_when` is a Rules expression, stored exactly as written; the shared
+ * engine compiles and evaluates it fail-closed, so the editor keeps no grammar of its own.
  */
 function BlockBehaviour({ index, block, intent, catalogue, onChange }: { index: number; block: LayoutAuthoringBlock; intent: LayoutIntent; catalogue: LayoutAuthoringCatalogue; onChange: (next: LayoutAuthoringBlock) => void }) {
   return <>
@@ -62,6 +64,7 @@ function BlockBehaviour({ index, block, intent, catalogue, onChange }: { index: 
       <option value="">Not related</option>
       {(catalogue.relationships ?? []).map(relationship => <option key={relationship.id} value={relationship.id}>{relationship.label}</option>)}
     </select>}
+    <label>Show when<input aria-label={`Block ${index + 1} show when`} value={block.showWhen ?? ''} onChange={event => onChange({ ...block, showWhen: event.currentTarget.value || undefined })} /></label>
   </>
 }
 

@@ -114,8 +114,10 @@
   /// The block's behaviour on this surface. layout-auth-19: an observing block may traverse one
   /// Records relationship the catalogue declares, and stores only its key; the relationship
   /// declaration supplies the target, so the editor never asks for or writes one.
+  /// layout-auth-20: show_when is a Rules expression, stored exactly as written; the shared
+  /// engine compiles and evaluates it fail-closed, so the editor keeps no grammar of its own.
   /// </summary>
-  private RenderFragment BlockBehaviour(int index, LayoutAuthoringBlock block) => @<text>@if ((block.Intent ?? Value.DefaultIntent ?? "observe") == "observe") { <select aria-label="@($"Block {index + 1} related record")" value="@(block.RelatedRelationship ?? "")" @onchange="e => Replace(index, block with { RelatedRelationship = string.IsNullOrEmpty(Text(e)) ? null : Text(e) })"><option value="">Not related</option>@Options(Catalogue.Relationships ?? [])</select> }</text>;
+  private RenderFragment BlockBehaviour(int index, LayoutAuthoringBlock block) => @<text>@if ((block.Intent ?? Value.DefaultIntent ?? "observe") == "observe") { <select aria-label="@($"Block {index + 1} related record")" value="@(block.RelatedRelationship ?? "")" @onchange="e => Replace(index, block with { RelatedRelationship = string.IsNullOrEmpty(Text(e)) ? null : Text(e) })"><option value="">Not related</option>@Options(Catalogue.Relationships ?? [])</select> }<label>Show when<input aria-label="@($"Block {index + 1} show when")" value="@(block.ShowWhen ?? "")" @onchange="e => Replace(index, block with { ShowWhen = string.IsNullOrEmpty(Text(e)) ? null : Text(e) })" /></label></text>;
 
   // layout-auth-18: only a collection can repeat, and a query or a record field is the collection.
   private static readonly HashSet<string> CollectionKinds = ["query", "record_field"];
