@@ -195,8 +195,13 @@ public sealed class InMemorySchemaRegistry : ISchemaRegistry
         {
             var pointer = node.InstanceLocation.ToString();
             var evaluationPath = node.EvaluationPath.ToString();
+            // An applicator (properties, items, allOf ...) whose subschema failed reports that failure
+            // itself; from JsonSchema.Net 9.4 the parent also carries a summary error for the same
+            // keyword. Emit only the subschema's, so one failure yields one code.
+            var reportedByChild = FailingChildKeywords(node, evaluationPath);
             foreach (var (keyword, detail) in keywordErrors)
             {
+                if (reportedByChild.Contains(keyword)) continue;
                 EmitKeywordError(keyword, detail, pointer, evaluationPath, schemaNode, errors);
             }
         }
@@ -205,6 +210,24 @@ public sealed class InMemorySchemaRegistry : ISchemaRegistry
         {
             foreach (var child in children) Walk(child, schemaNode, errors);
         }
+    }
+
+    private static HashSet<string> FailingChildKeywords(EvaluationResults node, string evaluationPath)
+    {
+        var keywords = new HashSet<string>(StringComparer.Ordinal);
+        if (node.Details is not { Count: > 0 } children) return keywords;
+        var prefix = evaluationPath.TrimEnd('/') + "/";
+        foreach (var child in children)
+        {
+            if (child.IsValid) continue;
+            var childPath = child.EvaluationPath.ToString();
+            if (!childPath.StartsWith(prefix, StringComparison.Ordinal)) continue;
+            var rest = childPath[prefix.Length..];
+            var slash = rest.IndexOf('/', StringComparison.Ordinal);
+            keywords.Add(slash < 0 ? rest : rest[..slash]);
+        }
+
+        return keywords;
     }
 
     private static void EmitKeywordError(
