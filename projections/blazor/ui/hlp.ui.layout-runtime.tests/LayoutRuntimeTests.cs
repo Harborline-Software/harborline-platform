@@ -304,6 +304,34 @@ public sealed class LayoutRuntimeTests : BunitContext
         Assert.Equal(blocks, changed.Blocks);
     }
 
+    [Fact(DisplayName = "layout-auth-34: a block declares which other blocks on this surface its selection filters")]
+    public void BlockDeclaresWhichOtherBlocksItsSelectionFilters()
+    {
+        LayoutAuthoringDraft? changed = null;
+        LayoutAuthoringBlock[] blocks =
+        [
+            new("status", "layout.table", new("query", "views.invoice-statuses")),
+            new("invoices", "layout.table", new("query", "views.open-invoices")),
+            new("total", "layout.table", new("measure", "invoice.total")),
+        ];
+        var cut = Render<HarborlineLayoutAuthoringEditor>(parameters => parameters
+            .Add(x => x.Value, LayoutAuthoringDraft.Empty with { Blocks = [blocks[0] with { FilterTargets = ["total"] }, blocks[1], blocks[2]] })
+            .Add(x => x.Catalogue, Catalogue())
+            .Add(x => x.ValueChanged, value => changed = value));
+
+        // The targets are the surface's other blocks; a block never filters itself.
+        Assert.Empty(cut.FindAll("[aria-label='Block 1 filters Block 1']"));
+        Assert.True(cut.Find("[aria-label='Block 1 filters Block 3']").HasAttribute("checked"));
+        cut.Find("[aria-label='Block 1 filters Block 2']").Change(true);
+        Assert.Equal(["total", "invoices"], changed!.Blocks[0].FilterTargets!);
+        cut.Find("[aria-label='Block 1 filters Block 3']").Change(false);
+        Assert.Equal(blocks, changed.Blocks);
+
+        // Removing a block removes every edge to it, so no filter points outside the surface.
+        cut.FindAll("button").Single(button => button.GetAttribute("aria-label") == "Remove block 3").Click();
+        Assert.Equal([blocks[0], blocks[1]], changed.Blocks);
+    }
+
     private static LayoutAuthoringCatalogue Catalogue() => new(
         [new("layout.table", "Table")],
         ["header.center"],

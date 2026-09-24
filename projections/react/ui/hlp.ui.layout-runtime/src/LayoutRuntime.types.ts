@@ -57,6 +57,8 @@ export interface LayoutAuthoringBlock {
   readonly capture?: LayoutAuthoringCapture
   /** layout-auth-33: the selection this block opens with. Authored; the live selection is never stored. */
   readonly defaultSelection?: string
+  /** layout-auth-34: the ids of the other blocks on this surface this block's selection filters. */
+  readonly filterTargets?: readonly string[]
   readonly intent?: LayoutIntent
   readonly zone?: string
   readonly width?: LayoutSizing

@@ -213,6 +213,29 @@ describe('LayoutRuntime React projection', () => {
     expect(changed.mock.lastCall![0].blocks[1]).not.toHaveProperty('defaultSelection', '')
   })
 
+  it('layout-auth-34: a block declares which other blocks on this surface its selection filters', () => {
+    const changed = vi.fn()
+    const blocks = [
+      { id: 'status', kind: 'layout.table', binding: { kind: 'query' as const, name: 'views.invoice-statuses' } },
+      { id: 'invoices', kind: 'layout.table', binding: { kind: 'query' as const, name: 'views.open-invoices' } },
+      { id: 'total', kind: 'layout.table', binding: { kind: 'measure' as const, name: 'invoice.total' } },
+    ]
+    render(<LayoutAuthoringEditor value={{ ...emptyLayoutAuthoringDraft(), blocks: [{ ...blocks[0], filterTargets: ['total'] }, blocks[1], blocks[2]] }} catalogue={{ blockKinds: [{ id: 'layout.table', label: 'Table' }], zones: [] }} onChange={changed} />)
+
+    // The targets are the surface's other blocks; a block never filters itself.
+    expect(screen.queryByLabelText('Block 1 filters Block 1')).toBeNull()
+    expect(screen.getByLabelText('Block 1 filters Block 3')).toBeChecked()
+    fireEvent.click(screen.getByLabelText('Block 1 filters Block 2'))
+    expect(changed).toHaveBeenLastCalledWith(expect.objectContaining({ blocks: [{ ...blocks[0], filterTargets: ['total', 'invoices'] }, blocks[1], blocks[2]] }))
+    fireEvent.click(screen.getByLabelText('Block 1 filters Block 3'))
+    expect(changed).toHaveBeenLastCalledWith(expect.objectContaining({ blocks }))
+    expect(changed.mock.lastCall![0].blocks[0]).not.toHaveProperty('filterTargets', [])
+
+    // Removing a block removes every edge to it, so no filter points outside the surface.
+    fireEvent.click(screen.getByRole('button', { name: 'Remove block 3' }))
+    expect(changed).toHaveBeenLastCalledWith(expect.objectContaining({ blocks: [blocks[0], blocks[1]] }))
+  })
+
   it('authors static content on the block rather than looking it up', () => {
     const changed = vi.fn()
     render(<LayoutAuthoringEditor value={{ ...emptyLayoutAuthoringDraft(), blocks: [{ id: 'notice', kind: 'layout.table', binding: { kind: 'static', name: '' } }] }} catalogue={{ blockKinds: [{ id: 'layout.table', label: 'Table' }], zones: [] }} onChange={changed} />)
