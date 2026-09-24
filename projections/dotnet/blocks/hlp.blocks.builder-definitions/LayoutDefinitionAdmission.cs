@@ -57,6 +57,8 @@ public static class LayoutDefinitionCodes
     public const string ReflowForbidden = "layout.placement.reflow_forbidden";
     /// <summary>A published payload does not declare Layout's capability with an exact minimum platform version.</summary>
     public const string CapabilityUndeclared = "layout.pack.capability_undeclared";
+    /// <summary>This host lacks the sealed capability or is below its minimum platform version.</summary>
+    public const string CapabilityUnsupported = "layout.pack.capability_unsupported";
 }
 
 /// <summary>Identifies one deterministic Layout admission refusal.</summary>

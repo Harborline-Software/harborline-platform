@@ -326,6 +326,59 @@ public sealed class LayoutDefinitionProducerTests
         LayoutDefinitionAdmission.ValidateForAuthoring(definition with { Envelope = definition.Envelope with { Requires = [] } });
     }
 
+    [Theory(DisplayName = "layout-ck-42: a host at or above the sealed minimum admits the pack")]
+    [InlineData("1.0.0")]
+    [InlineData("1.4.2")]
+    public void AHostThatSatisfiesTheSealedCapabilityAdmitsThePack(string hostVersion)
+    {
+        var pack = new[] { LayoutDefinitionPackageExporter.Export(ScreenDefinition()) };
+
+        LayoutPackHostAdmission.Admit(pack, new Dictionary<string, string> { [LayoutPackIdentity.Capability] = hostVersion });
+    }
+
+    [Theory(DisplayName = "layout-ck-42: a host lacking the capability or the version refuses the whole pack, naming both")]
+    [InlineData(null)]
+    [InlineData("0.9.0")]
+    [InlineData("1.0.0-rc.1")]
+    public void AnUnsupportedHostRefusesTheWholePackNamingTheCapabilityAndVersion(string? hostVersion)
+    {
+        var supported = ScreenDefinition();
+        var demanding = supported with
+        {
+            Envelope = supported.Envelope with
+            {
+                Identity = "surface.later",
+                Requires = [new LayoutDefinitionRequirement(LayoutPackIdentity.Capability, "1.0.0")],
+            },
+        };
+        var host = hostVersion is null
+            ? new Dictionary<string, string>()
+            : new Dictionary<string, string> { [LayoutPackIdentity.Capability] = hostVersion };
+
+        var refused = Assert.Throws<LayoutPackUnsupportedException>(() => LayoutPackHostAdmission.Admit(
+            [LayoutDefinitionPackageExporter.Export(supported), LayoutDefinitionPackageExporter.Export(demanding)], host));
+
+        Assert.Equal(LayoutDefinitionCodes.CapabilityUnsupported, refused.Code);
+        Assert.Equal(LayoutPackIdentity.Capability, refused.Capability);
+        Assert.Equal("1.0.0", refused.MinimumPlatformVersion);
+        Assert.Contains(LayoutPackIdentity.Capability, refused.Message, StringComparison.Ordinal);
+        Assert.Contains("1.0.0", refused.Message, StringComparison.Ordinal);
+    }
+
+    [Fact(DisplayName = "layout-ck-42: a payload stripped of its capability is refused, never admitted as unconstrained")]
+    public void APayloadStrippedOfItsCapabilityIsRefused()
+    {
+        var definition = ScreenDefinition();
+        var stripped = definition with { Envelope = definition.Envelope with { Requires = [] } };
+        var entry = new LayoutDefinitionPackageEntry("surface.customer", "1.0.0",
+            PlatformPackageContent.PresentJson(LayoutDefinitionJson.SerializeCanonical(stripped)));
+
+        var refused = Assert.Throws<LayoutPackUnsupportedException>(() => LayoutPackHostAdmission.Admit(
+            [entry], new Dictionary<string, string> { [LayoutPackIdentity.Capability] = "9.0.0" }));
+
+        Assert.Equal(LayoutDefinitionCodes.CapabilityUndeclared, refused.Code);
+    }
+
     [Fact(DisplayName = "Layout producer: unique pack identity and provider-neutral canonical export; lifecycle is T-620")]
     public void DefinitionExportsThroughThePlatformDocumentBoundary()
     {
