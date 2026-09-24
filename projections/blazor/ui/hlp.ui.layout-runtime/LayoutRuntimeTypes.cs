@@ -30,7 +30,9 @@ public sealed record LayoutAuthoringBlock(
     string? StaticRegion = null,
     string? WidgetId = null,
     bool BreakBefore = false,
-    bool AvoidPageBreak = false);
+    bool AvoidPageBreak = false,
+    // layout-auth-18: the block repeats its children once per row of its collection binding.
+    bool Repeating = false);
 public sealed record LayoutAuthoringPageRun(string Id, string PageLayoutId, string PageMasterId);
 public sealed record LayoutAuthoringDraft(
     string Name,

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { LayoutAuthoringEditor, emptyLayoutAuthoringDraft } from '../LayoutAuthoringEditor'
 import { LayoutRuntime } from '../LayoutRuntime'
 
@@ -61,6 +61,38 @@ describe('LayoutRuntime React projection', () => {
     render(<LayoutAuthoringEditor value={{ ...emptyLayoutAuthoringDraft(), blocks: [{ id: 'orphan', kind: 'layout.table', binding: { kind: 'query', name: '' } }] }} catalogue={{ blockKinds: [{ id: 'layout.table', label: 'Table' }], zones: [] }} onChange={vi.fn()} />)
     expect(screen.getByRole('status')).toHaveTextContent('Block 1 needs a binding')
     expect(screen.getByLabelText('Block 1 binding kind')).toBeInTheDocument()
+  })
+
+  it('layout-auth-18: a repeating block binds a collection and its row subtree is authored once', () => {
+    const changed = vi.fn()
+    const blocks = [
+      { id: 'lines', kind: 'layout.table', binding: { kind: 'query' as const, name: 'views.invoice-lines' } },
+      { id: 'amount', kind: 'layout.table', binding: { kind: 'record_field' as const, name: 'line.amount' }, parentId: 'lines' },
+      { id: 'total', kind: 'layout.table', binding: { kind: 'measure' as const, name: 'invoice.total' } },
+    ]
+    render(<LayoutAuthoringEditor value={{ ...emptyLayoutAuthoringDraft(), blocks }} catalogue={{ blockKinds: [{ id: 'layout.table', label: 'Table' }], zones: [] }} onChange={changed} />)
+
+    // Only a collection binding (a query or a record field) can repeat; a measure cannot.
+    expect(screen.queryByLabelText('Block 3 repeats per row')).toBeNull()
+    fireEvent.click(screen.getByLabelText('Block 1 repeats per row'))
+    expect(changed).toHaveBeenLastCalledWith(expect.objectContaining({ blocks: [{ ...blocks[0], repeating: true }, blocks[1], blocks[2]] }))
+
+    // The row subtree is authored once, as the repeating block's children: a block may be
+    // placed inside it, and never inside itself or its own descendant.
+    const parentOfLines = screen.getByLabelText('Block 1 parent')
+    expect(within(parentOfLines).queryByRole('option', { name: 'Block 1' })).toBeNull()
+    expect(within(parentOfLines).queryByRole('option', { name: 'Block 2' })).toBeNull()
+    expect(within(parentOfLines).getByRole('option', { name: 'Block 3' })).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('Block 3 parent'), { target: { value: 'lines' } })
+    expect(changed).toHaveBeenLastCalledWith(expect.objectContaining({ blocks: [blocks[0], blocks[1], { ...blocks[2], parentId: 'lines' }] }))
+  })
+
+  it('layout-auth-18: rebinding a repeating block to a kind that is not a collection stops it repeating', () => {
+    const changed = vi.fn()
+    render(<LayoutAuthoringEditor value={{ ...emptyLayoutAuthoringDraft(), blocks: [{ id: 'lines', kind: 'layout.table', binding: { kind: 'query', name: 'views.invoice-lines' }, repeating: true }] }} catalogue={{ blockKinds: [{ id: 'layout.table', label: 'Table' }], zones: [] }} onChange={changed} />)
+    expect(screen.getByLabelText('Block 1 repeats per row')).toBeChecked()
+    fireEvent.change(screen.getByLabelText('Block 1 binding kind'), { target: { value: 'measure' } })
+    expect(changed).toHaveBeenLastCalledWith(expect.objectContaining({ blocks: [{ id: 'lines', kind: 'layout.table', binding: { kind: 'measure', name: '' } }] }))
   })
 
   it('authors static content on the block rather than looking it up', () => {

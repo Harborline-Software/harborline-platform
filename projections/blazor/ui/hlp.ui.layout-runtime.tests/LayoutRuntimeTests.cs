@@ -93,6 +93,50 @@ public sealed class LayoutRuntimeTests : BunitContext
         Assert.Equal(new LayoutAuthoringBinding("static", "Registered office: Leeds"), changed!.Blocks.Single().Binding);
     }
 
+    [Fact(DisplayName = "layout-auth-18: a repeating block binds a collection and its row subtree is authored once")]
+    public void RepeatingBlockBindsACollectionAndItsRowSubtreeIsAuthoredOnce()
+    {
+        LayoutAuthoringDraft? changed = null;
+        LayoutAuthoringBlock[] blocks =
+        [
+            new("lines", "layout.table", new("query", "views.invoice-lines")),
+            new("amount", "layout.table", new("record_field", "line.amount"), ParentId: "lines"),
+            new("total", "layout.table", new("measure", "invoice.total")),
+        ];
+        var cut = Render<HarborlineLayoutAuthoringEditor>(parameters => parameters
+            .Add(x => x.Value, LayoutAuthoringDraft.Empty with { Blocks = blocks })
+            .Add(x => x.Catalogue, Catalogue())
+            .Add(x => x.ValueChanged, value => changed = value));
+
+        // Only a collection binding (a query or a record field) can repeat; a measure cannot.
+        Assert.Empty(cut.FindAll("[aria-label='Block 3 repeats per row']"));
+        cut.Find("[aria-label='Block 1 repeats per row']").Change(true);
+        Assert.Equal([blocks[0] with { Repeating = true }, blocks[1], blocks[2]], changed!.Blocks);
+
+        // The row subtree is authored once, as the repeating block's children: a block may be
+        // placed inside it, and never inside itself or its own descendant.
+        var parentOfLines = cut.Find("[aria-label='Block 1 parent']").TextContent;
+        Assert.DoesNotContain("Block 1", parentOfLines, StringComparison.Ordinal);
+        Assert.DoesNotContain("Block 2", parentOfLines, StringComparison.Ordinal);
+        Assert.Contains("Block 3", parentOfLines, StringComparison.Ordinal);
+        cut.Find("[aria-label='Block 3 parent']").Change("lines");
+        Assert.Equal([blocks[0], blocks[1], blocks[2] with { ParentId = "lines" }], changed.Blocks);
+    }
+
+    [Fact(DisplayName = "layout-auth-18: rebinding a repeating block to a kind that is not a collection stops it repeating")]
+    public void RebindingARepeatingBlockToANonCollectionKindStopsItRepeating()
+    {
+        LayoutAuthoringDraft? changed = null;
+        var cut = Render<HarborlineLayoutAuthoringEditor>(parameters => parameters
+            .Add(x => x.Value, LayoutAuthoringDraft.Empty with { Blocks = [new("lines", "layout.table", new("query", "views.invoice-lines"), Repeating: true)] })
+            .Add(x => x.Catalogue, Catalogue())
+            .Add(x => x.ValueChanged, value => changed = value));
+
+        Assert.True(cut.Find("[aria-label='Block 1 repeats per row']").HasAttribute("checked"));
+        cut.Find("[aria-label='Block 1 binding kind']").Change("measure");
+        Assert.Equal(new LayoutAuthoringBlock("lines", "layout.table", new("measure", "")), changed!.Blocks.Single());
+    }
+
     private static LayoutAuthoringCatalogue Catalogue() => new(
         [new("layout.table", "Table")],
         ["header.center"],

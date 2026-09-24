@@ -34,7 +34,10 @@ export interface LayoutAuthoringBlock {
   readonly id: string
   readonly kind: string
   readonly binding?: LayoutAuthoringBinding
+  /** The block this one is authored inside; absent means the surface root. */
   readonly parentId?: string
+  /** layout-auth-18: the block repeats its children once per row of its collection binding. */
+  readonly repeating?: boolean
   readonly intent?: LayoutIntent
   readonly zone?: string
   readonly width?: LayoutSizing
