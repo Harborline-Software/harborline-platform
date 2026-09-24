@@ -3,12 +3,22 @@ using Harborline.Contracts.Forms;
 namespace Harborline.Blocks.BuilderDefinitions;
 
 /// <summary>
-/// DES-0052 layout-ck-41 — migrates a legacy Forms field placement onto Layout's twelve tracks,
-/// the smallest track count divisible by both three and four.
+/// DES-0052 layout-ck-41 — migrates legacy Forms section placement into Layout, as ruled by the
+/// owner on 2026-09-24 (T-582). A legacy field used <c>col_span</c> only in a <c>grid</c> section,
+/// counted against that section's own column count, and width and grow only in a <c>flex</c>
+/// section. A grid therefore keeps its count and its spans unchanged; flex widths migrate onto
+/// twelve tracks, the smallest count divisible by both three and four. Invalid legacy numbers
+/// refuse rather than normalise (R-0108 addendum 2026-09-24).
 /// </summary>
 public static class LayoutLegacyWidthMigration
 {
     private const string Stage = "definition.migrate";
+
+    /// <summary>The legacy grid column count when a section states none.</summary>
+    private const int LegacyGridColumns = 2;
+
+    /// <summary>The track count flex widths migrate onto.</summary>
+    private const int FlexTracks = 12;
 
     private static readonly Dictionary<string, FieldWidth> WidthTokens = new(StringComparer.Ordinal)
     {
@@ -29,28 +39,47 @@ public static class LayoutLegacyWidthMigration
         ["stretch"] = LayoutAlignment.Stretch,
     };
 
-    /// <summary>Maps one legacy placement to its Layout placement.</summary>
-    /// <param name="legacy">The legacy Forms placement.</param>
-    /// <returns>The equivalent Layout placement.</returns>
-    /// <exception cref="LayoutDefinitionAdmissionException">
-    /// A legacy number is fractional or outside Layout's range. The legacy contract never bounded
-    /// these, so an invalid value is refused rather than normalised.
-    /// </exception>
-    public static LayoutPlacement Migrate(FieldPlacement legacy)
+    /// <summary>The column count of the Layout container a legacy section migrates to.</summary>
+    /// <param name="section">The legacy section layout.</param>
+    /// <returns>A grid's own count (legacy default two), twelve for flex, one for stack.</returns>
+    /// <exception cref="LayoutDefinitionAdmissionException">A grid's column count is not a whole number from one to twelve.</exception>
+    public static int ColumnCount(SectionLayout section)
     {
+        ArgumentNullException.ThrowIfNull(section);
+        return section.Kind switch
+        {
+            SectionLayoutKind.Grid => GridColumns(section),
+            SectionLayoutKind.Flex => FlexTracks,
+            _ => 1,
+        };
+    }
+
+    /// <summary>Maps one legacy field placement within its section to a Layout placement.</summary>
+    /// <param name="section">The legacy section the field sits in.</param>
+    /// <param name="legacy">The legacy field placement.</param>
+    /// <returns>The equivalent Layout placement.</returns>
+    /// <exception cref="LayoutDefinitionAdmissionException">A legacy number the section uses is fractional or out of range.</exception>
+    public static LayoutPlacement Migrate(SectionLayout section, FieldPlacement legacy)
+    {
+        ArgumentNullException.ThrowIfNull(section);
         ArgumentNullException.ThrowIfNull(legacy);
 
         var refusals = new List<LayoutDefinitionRefusal>();
-        var span = LegacyInteger(legacy.ColSpan, LayoutNumericMember.Span, "/col_span", refusals);
-        var grow = LegacyInteger(legacy.Grow, LayoutNumericMember.Grow, "/grow", refusals);
-        var width = legacy.Width.HasValue ? legacy.Width.Value : FieldWidth.Auto;
-        // A width fraction or `full` and a span each claim the member's tracks: refuse, never pick one.
-        if (width != FieldWidth.Auto && legacy.ColSpan.HasValue)
-            refusals.Add(new(LayoutDefinitionCodes.LegacyPlacementConflict, "/col_span"));
+        var placement = section.Kind switch
+        {
+            // Width and grow were flex-only: a grid keeps the span exactly as its own count read it.
+            SectionLayoutKind.Grid => new LayoutPlacement(
+                Span: LegacyInteger(legacy.ColSpan, new LayoutNumericRange(1, GridColumns(section)), "/col_span", refusals)),
+            // col_span was grid-only.
+            SectionLayoutKind.Flex => WithLegacyWidth(
+                new LayoutPlacement(Width: LayoutSizing.Hug,
+                    Grow: LegacyInteger(legacy.Grow, LayoutDefinitionSchema.Numeric(LayoutNumericMember.Grow), "/grow", refusals) ?? 0),
+                legacy.Width.HasValue ? legacy.Width.Value : FieldWidth.Auto),
+            // A stack placed neither spans nor widths.
+            _ => new LayoutPlacement(),
+        };
         if (refusals.Count > 0) throw new LayoutDefinitionAdmissionException(Stage, refusals.AsReadOnly());
-
-        var placement = new LayoutPlacement(Width: LayoutSizing.Hug, Span: span, Grow: grow ?? 0);
-        return WithLegacyWidth(placement, width);
+        return placement;
     }
 
     /// <summary>
@@ -74,6 +103,14 @@ public static class LayoutLegacyWidthMigration
         return WithLegacyWidth(new LayoutPlacement(Width: LayoutSizing.Hug, JustifySelf: justify), legacyWidth);
     }
 
+    private static int GridColumns(SectionLayout section)
+    {
+        var refusals = new List<LayoutDefinitionRefusal>();
+        var columns = LegacyInteger(section.Columns, LayoutDefinitionSchema.Numeric(LayoutNumericMember.ColumnCount), "/columns", refusals);
+        if (refusals.Count > 0) throw new LayoutDefinitionAdmissionException(Stage, refusals.AsReadOnly());
+        return columns ?? LegacyGridColumns;
+    }
+
     private static LayoutPlacement WithLegacyWidth(LayoutPlacement placement, FieldWidth width) => width switch
     {
         FieldWidth.OneQuarter => placement with { Span = 3 },
@@ -81,14 +118,14 @@ public static class LayoutLegacyWidthMigration
         FieldWidth.OneHalf => placement with { Span = 6 },
         FieldWidth.TwoThirds => placement with { Span = 8 },
         FieldWidth.ThreeQuarters => placement with { Span = 9 },
-        // `full` is fill and nothing else: a twelve-track span beside it would contradict it.
+        // `full` is fill and nothing else: it writes no span.
         FieldWidth.Full => placement with { Width = LayoutSizing.Fill },
         _ => placement,
     };
 
     private static int? LegacyInteger(
         Optional<decimal> legacy,
-        LayoutNumericMember member,
+        LayoutNumericRange range,
         string pointer,
         ICollection<LayoutDefinitionRefusal> refusals)
     {
@@ -96,7 +133,7 @@ public static class LayoutLegacyWidthMigration
         var value = legacy.Value;
         if (value == decimal.Truncate(value)
             && value is >= int.MinValue and <= int.MaxValue
-            && LayoutDefinitionSchema.Numeric(member).Contains((int)value))
+            && range.Contains((int)value))
             return (int)value;
 
         refusals.Add(new(LayoutDefinitionCodes.NumericOutOfRange, pointer));
