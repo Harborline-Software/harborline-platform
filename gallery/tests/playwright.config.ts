@@ -37,7 +37,7 @@ export default defineConfig({
   // 45s locally. The comment on `retries` above rejected raising this to hide a story that has
   // become slow, and that still holds for the LOCAL gate, which is the binding one. CI is a
   // different measurement: on a 2-core GitHub runner the Blazor circuit's own startup
-  // (BlazingStory.readyView) eats most of the budget before a component renders, so 45s there
+  // (the WebAssembly boot) eats most of the budget before a component renders, so 45s there
   // measures the runner's cold start rather than the story. Raised only under the CI flag, so a
   // slow story still surfaces on the machine that is allowed to judge it (control ticket 083).
   timeout: process.env.HARBORLINE_CI_GALLERY === '1' ? 90_000 : 45_000,

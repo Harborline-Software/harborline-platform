@@ -7,7 +7,7 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { arch, platform } from 'node:os'
 
-import { gotoWithTransientNetworkRetry, openWithSubresourceRetry } from './navigation-resilience.ts'
+import { gotoWithTransientNetworkRetry, openWithSubresourceRetry, readWithReload } from './navigation-resilience.ts'
 
 // Control ticket 100: the gallery gate reported sixteen counts and measured none of them, and one
 // drifted for fifteen days on the very commit that added the check meant to stop drift. Every count
@@ -213,7 +213,7 @@ async function reactIndex(page: Page): Promise<StoryIndex> {
 }
 
 // Under four-worker load, an evaluate that awaits a PAGE-SIDE promise (the BlazingStory
-// index/ready calls) can lose that promise to garbage collection before it settles —
+// index call) can lose that promise to garbage collection before it settles —
 // Playwright surfaces "Resulting promise was garbage collected" although the page is
 // healthy. Re-issue the evaluate a bounded number of times on exactly that error; every
 // other failure propagates unchanged. (Migration ticket 075 — observed on unrelated
@@ -232,11 +232,15 @@ async function evaluateSettled<T>(issue: () => Promise<T>): Promise<T> {
   throw lastError
 }
 
+// T-717: two bounded attempts of 15 s, reloading a stalled boot, instead of one wait bounded only by the test.
+const blazorIndexAttemptMs = 15_000
+
 async function blazorIndex(page: Page): Promise<StoryIndex> {
   if (cachedBlazorIndex) return cachedBlazorIndex
-  await gotoWithTransientNetworkRetry(page, blazorBase)
-  await page.waitForFunction(() => typeof BlazingStory !== 'undefined')
-  cachedBlazorIndex = await evaluateSettled(() => page.evaluate(() => BlazingStory.getStoryIndex()))
+  cachedBlazorIndex = await readWithReload(page, blazorBase, 'BlazingStory.getStoryIndex()', async () => {
+    await page.waitForFunction(() => typeof BlazingStory !== 'undefined')
+    return evaluateSettled(() => page.evaluate(() => BlazingStory.getStoryIndex()))
+  }, blazorIndexAttemptMs)
   return cachedBlazorIndex
 }
 
@@ -1327,7 +1331,7 @@ async function visualStyle(page: Page, selector: string) {
 }
 
 declare global {
-  const BlazingStory: { getStoryIndex(): Promise<StoryIndex>; readyView(): Promise<void> }
+  const BlazingStory: { getStoryIndex(): Promise<StoryIndex> }
 }
 
 test('every CI exemption names a scenario that still exists', () => {

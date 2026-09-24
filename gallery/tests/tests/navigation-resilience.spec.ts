@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test'
 import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 
-import { gotoWithTransientNetworkRetry, openWithSubresourceRetry } from './navigation-resilience.ts'
+import { gotoWithTransientNetworkRetry, openWithSubresourceRetry, readWithReload } from './navigation-resilience.ts'
 
 // A fake page whose goto fails one request per attempt as `failures` says, and whose readiness never
 // settles on an attempt that lost a request -- the shape the T-709 capture recorded.
@@ -161,4 +161,41 @@ test('bounds ERR_NO_BUFFER_SPACE retries', async () => {
     .rejects.toThrow('net::ERR_NO_BUFFER_SPACE')
   expect(attempts).toBe(3)
   expect(waits).toEqual([250, 750])
+})
+
+test('a read that stalls is bounded and the page reloaded, and a stall that persists names what never answered', async () => {
+  const gotos: string[] = []
+  const page = { async goto(url: string) { gotos.push(url); return { ok: true } }, async waitForTimeout() {} }
+  const read = () => gotos.length === 1 ? new Promise<string>(() => {}) : Promise.resolve('index')
+  await expect(readWithReload(page, 'http://127.0.0.1:6107', 'BlazingStory.getStoryIndex()', read, 50)).resolves.toBe('index')
+  expect(gotos).toHaveLength(2)
+
+  gotos.length = 0
+  await expect(readWithReload(page, 'http://127.0.0.1:6107', 'BlazingStory.getStoryIndex()', () => new Promise(() => {}), 50))
+    .rejects.toThrow(/^BlazingStory\.getStoryIndex\(\): no answer after 2 bounded attempts of 50 ms/)
+  expect(gotos).toHaveLength(2)
+})
+
+// The T-717 mechanism in a real browser: a page-side promise that never settles on the first load
+// hangs an unbounded evaluate for good; the bounded read reloads and gets the answer.
+test('a page-side promise that never settles is recovered by a bounded reload', async ({ page }) => {
+  let loads = 0
+  const server: Server = createServer((_, response) => {
+    loads += 1
+    response.writeHead(200, { 'content-type': 'text/html' })
+    response.end(`<!doctype html><script>window.index = () => ${loads === 1 ? 'new Promise(() => {})' : "Promise.resolve('index')"}</script>`)
+  })
+  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
+  const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}/`
+  try {
+    await page.goto(base)
+    const unbounded = page.evaluate(() => (window as unknown as { index(): Promise<string> }).index())
+    unbounded.catch(() => {})
+    await expect(Promise.race([unbounded, new Promise(resolve => setTimeout(() => resolve('still waiting'), 1_000))])).resolves.toBe('still waiting')
+
+    await expect(readWithReload(page, base, 'window.index()', () => page.evaluate(() => (window as unknown as { index(): Promise<string> }).index()), 2_000)).resolves.toBe('index')
+  }
+  finally {
+    await new Promise(resolve => server.close(resolve))
+  }
 })
