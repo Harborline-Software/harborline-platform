@@ -16,11 +16,8 @@ namespace Harborline.Foundation.RuleEngine.Skins;
 //  what "named typed inputs" buys: a formula's data dependencies are explicit and
 //  checkable at authoring time.
 //
-//  v1 type enforcement is name/presence (every referenced var is declared); the
-//  declared `Type` is authoring-surface metadata + the seam a future static type
-//  checker keys off (maturity target — not v1-blocking, mirrors the D4 cost-budget
-//  maturity note). It never changes evaluation: the produced RuleDefinition is a
-//  plain rule the D1 core evaluates.
+//  The declared type is part of admission: it constrains the closed operator
+//  contracts before lowering produces the ordinary RuleDefinition consumed by D1.
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// <summary>One declared input of a <see cref="FormulaSkin"/> — a var ref + its declared type.</summary>
@@ -28,7 +25,7 @@ namespace Harborline.Foundation.RuleEngine.Skins;
 /// <c>self</c>). Must match the <c>var</c> path used in <see cref="FormulaSkin.Expression"/> exactly
 /// (pre-lowering).</param>
 /// <param name="Type">The declared type (<c>number</c> / <c>string</c> / <c>boolean</c> / <c>any</c>) —
-/// authoring metadata in v1 (the compiler enforces declared-ness, not the type).</param>
+/// checked by the shared core type derivation.</param>
 public sealed record FormulaInput(string Ref, string Type = "any");
 
 /// <summary>
@@ -66,6 +63,13 @@ public static class FormulaCompiler
             throw Reject(SkinCodes.FormulaEmpty, id, "a formula must declare a non-empty expression");
 
         var declared = new HashSet<string>(skin.Inputs.Select(i => i.Ref), StringComparer.Ordinal);
+        // Formula input declarations remain authoring metadata in the persisted RuleDefinition.
+        // A returned RuleDefinition has no runtime type guard, so using these narrower types to
+        // certify it would be unsound. Validate the declaration spelling, then use the same
+        // conservative dynamic contract as ordinary compilation.
+        foreach (var input in skin.Inputs)
+            _ = CoreTypeDerivation.ParseDeclaredType(input.Type, id,
+                message => Reject(SkinCodes.FormulaTypeMismatch, id, message));
         foreach (var referenced in CollectVarPaths(skin.Expression))
         {
             if (!declared.Contains(referenced))
@@ -73,13 +77,20 @@ public static class FormulaCompiler
                     $"expression references '{referenced}', which is not a declared input (declared: {string.Join(", ", declared.OrderBy(x => x, StringComparer.Ordinal))})");
         }
 
-        return RuleDefinitionFactory.Create(
+        _ = CoreTypeDerivation.Derive(skin.Expression, id,
+            refusal: message => Reject(SkinCodes.FormulaTypeMismatch, id, message));
+
+        var definition = RuleDefinitionFactory.Create(
             Id: id,
             Tier: RuleTier.JsonLogic,
             Scope: skin.Scope,
             ScopeTarget: skin.ScopeTarget,
             Expression: skin.Expression.ToJsonString(),
             Action: skin.Action);
+        // Authoring callers receive only a rule that has crossed the exact same deterministic
+        // parser/grammar/arity/bound admission fence as a published bare rule.
+        _ = RuleCompiler.Compile(new[] { definition });
+        return definition;
     }
 
     /// <summary>Every distinct <c>var</c> path in the expression (pre-lowering), in first-seen order.</summary>
@@ -95,6 +106,15 @@ public static class FormulaCompiler
     {
         switch (node)
         {
+            case JsonObject obj when obj.Count == 1 && (obj.ContainsKey("missing") || obj.ContainsKey("missing_some")):
+            {
+                var raw = obj.First().Value;
+                var args = raw is JsonArray array ? array.ToList() : new List<JsonNode?> { raw };
+                if (obj.ContainsKey("missing_some") && args.Count > 0) Walk(args[0], seen, set);
+                foreach (var keySource in obj.ContainsKey("missing_some") ? args.Skip(1) : args)
+                    CollectMissingPaths(keySource, seen, set);
+                break;
+            }
             case JsonObject obj when obj.Count == 1 && obj.ContainsKey("var"):
             {
                 string path = VarPathOf(obj["var"]);
@@ -103,13 +123,25 @@ public static class FormulaCompiler
                 if (obj["var"] is JsonArray a && a.Count > 1) Walk(a[1], seen, set);
                 break;
             }
-            case JsonObject obj:
-                foreach (var (_, v) in obj) Walk(v, seen, set);
+            case JsonObject obj when obj.Count == 1:
+            {
+                var argument = obj.First().Value;
+                if (argument is JsonArray arguments) foreach (var item in arguments) Walk(item, seen, set);
+                else Walk(argument, seen, set);
                 break;
-            case JsonArray arr:
-                foreach (var item in arr) Walk(item, seen, set);
-                break;
+            }
         }
+    }
+
+    private static void CollectMissingPaths(JsonNode? node, List<string> seen, HashSet<string> set)
+    {
+        if (node is JsonArray array) { foreach (var item in array) CollectMissingPaths(item, seen, set); return; }
+        if (node is JsonValue value && value.TryGetValue<string>(out var path) && path.Length > 0)
+        {
+            if (set.Add(path)) seen.Add(path);
+            return;
+        }
+        if (node is JsonObject expression && expression.Count == 1) Walk(expression, seen, set);
     }
 
     private static string VarPathOf(JsonNode? varNode)

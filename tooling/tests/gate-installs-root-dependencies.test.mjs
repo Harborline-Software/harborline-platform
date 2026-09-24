@@ -15,7 +15,7 @@ const root = resolve(import.meta.dirname, '../..')
 const gate = readFileSync(resolve(root, 'tooling/run-phase-4-gate.mjs'), 'utf8')
 
 test('the gate clean-installs the repository root, before the tooling self-tests read it', () => {
-  const [line] = /^ *run\('root-clean-install', 'npm', \['ci'.*$/m.exec(gate) ?? []
+  const [line] = /^ *run\('root-clean-install', 'pnpm', \['install', '--frozen-lockfile'.*$/m.exec(gate) ?? []
   assert.ok(line, 'no step clean-installs the repository root; tooling imports would resolve only by accident')
   assert.match(line, /, root\)$/,
     "the root install must run in the repository root, not in a sub-project's directory")
@@ -25,6 +25,7 @@ test('the gate clean-installs the repository root, before the tooling self-tests
 
 test('the root install is part of the gate contract, so a receipt without it is refused', () => {
   assert.ok(requiredStepIds.includes('root-clean-install'))
+  assert.equal(requiredStepIds[requiredStepIds.indexOf('root-clean-install') + 1], 'dependency-ledger')
   assert.ok(requiredStepIds.indexOf('root-clean-install') < requiredStepIds.indexOf('tooling-selftests'))
 })
 

@@ -1,6 +1,6 @@
 import type * as React from 'react'
 
-import type { RuleEvaluationResult } from '@harborline-software/rule-engine'
+import type { RuleEvaluationResult, RuleInstance } from '@harborline-software/rule-engine'
 import type {
   FormActionConfig,
   FormValues,
@@ -22,13 +22,8 @@ export interface SchemaFormStrings {
   submitBlocked: string
 }
 
-export interface RuleInstanceLike {
-  fields: Record<string, unknown>
-  tables: Record<string, unknown>
-}
-
 export interface RuleGraphLike {
-  evaluateInstance(instance: RuleInstanceLike): RuleEvaluationResult
+  evaluateInstance(instance: RuleInstance): RuleEvaluationResult
 }
 
 export interface ControlArgs {
@@ -59,6 +54,8 @@ export interface SchemaFormProps {
   localeChain?: readonly string[]
   className?: string
   disabled?: boolean
+  /** Display values without submission or host mutation callbacks. */
+  readOnly?: boolean
   controls?: Record<string, ControlRenderer>
   onBlockAction?: (action: FormActionConfig) => void
 }

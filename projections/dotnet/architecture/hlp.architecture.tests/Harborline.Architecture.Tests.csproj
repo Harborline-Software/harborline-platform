@@ -15,10 +15,13 @@
   <ItemGroup>
     <!-- The tier fence reflects over every production assembly, so each one must be built and staged beside
          the test binary. Keep this list aligned with the non-test csproj files under the three tier roots. -->
+    <ProjectReference Include="../../kernel/hlp.kernel.core/Harborline.Kernel.Core.csproj" />
     <ProjectReference Include="../../kernel/hlp.kernel.schema-validation/Harborline.Kernel.SchemaValidation.csproj" />
     <ProjectReference Include="../../kernel/hlp.kernel.work-items/Harborline.Kernel.WorkItems.csproj" />
     <ProjectReference Include="../../foundation/hlp.foundation.actor/Harborline.Foundation.Authorization.csproj" />
+    <ProjectReference Include="../../foundation/hlp.foundation.data-exchange/Harborline.Foundation.DataExchange.csproj" />
     <ProjectReference Include="../../foundation/hlp.foundation.forms/Harborline.Foundation.Forms.csproj" />
+    <ProjectReference Include="../../foundation/hlp.foundation.field-runtime/Harborline.Foundation.FieldRuntime.csproj" />
     <ProjectReference Include="../../foundation/hlp.foundation.forms-engine/Harborline.Foundation.Forms.Engine.csproj" />
     <ProjectReference Include="../../foundation/hlp.foundation.rule-authoring/Harborline.Foundation.RuleAuthoring.csproj" />
     <ProjectReference Include="../../foundation/hlp.foundation.rule-runtime/Harborline.Foundation.RuleEngine.csproj" />
@@ -32,6 +35,8 @@
     <ProjectReference Include="../../blocks/hlp.blocks.calendar/Harborline.Blocks.Calendar.csproj" />
     <ProjectReference Include="../../blocks/hlp.blocks.entity-views/Harborline.Blocks.EntityViews.csproj" />
     <ProjectReference Include="../../blocks/hlp.blocks.inspection-review/Harborline.Blocks.InspectionReview.csproj" />
+    <ProjectReference Include="../../blocks/hlp.blocks.layout-runtime/Harborline.Blocks.LayoutRuntime.csproj" />
+    <ProjectReference Include="../../blocks/hlp.blocks.measure-catalogue/Harborline.Blocks.MeasureCatalogue.csproj" />
     <ProjectReference Include="../../blocks/hlp.blocks.relative-chains/Harborline.Blocks.RelativeChains.csproj" />
     <ProjectReference Include="../../blocks/hlp.blocks.reports/Harborline.Blocks.Reports.csproj" />
     <ProjectReference Include="../../blocks/hlp.blocks.scheduling/Harborline.Blocks.Scheduling.csproj" />

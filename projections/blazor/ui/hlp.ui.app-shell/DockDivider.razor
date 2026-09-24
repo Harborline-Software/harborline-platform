@@ -13,6 +13,8 @@
     [Parameter] public EventCallback Reset {get;set;}
     private ElementReference element;
     private IJSObjectReference? module;
+    private IJSObjectReference? connection;
+    private bool disposed;
     private DotNetObjectReference<DockDivider>? reference;
     private double extent, direction=1;
     private double? startFraction, startPosition;
@@ -23,17 +25,23 @@
     private static string Number(double value)=>value.ToString(System.Globalization.CultureInfo.InvariantCulture);
     protected override async Task OnAfterRenderAsync(bool first)
     {
-        if(!first)return;
-        module=await JS.InvokeAsync<IJSObjectReference>("import","./_content/Harborline.UIAdapters.Blazor/dock-divider.js");
+        if(!first||disposed)return;
+        var imported=await JS.InvokeAsync<IJSObjectReference>("import","./_content/Harborline.UIAdapters.Blazor/dock-divider.js");
+        if(disposed){await DisposeModule(imported);return;}
+        module=imported;
         reference=DotNetObjectReference.Create(this);
-        extent=await module.InvokeAsync<double>("measure",element,Vertical);
-        await module.InvokeVoidAsync("observe",element,Vertical,reference);
-        await InvokeAsync(StateHasChanged);
+        var measured=await module.InvokeAsync<double>("measure",element,Vertical);
+        if(disposed)return;
+        extent=measured;
+        var observed=await module.InvokeAsync<IJSObjectReference>("observe",element,Vertical,reference);
+        if(disposed){await DisposeConnection(observed);return;}
+        connection=observed;
+        await InvokeAsync(()=>{if(!disposed)StateHasChanged();});
     }
-    [JSInvokable] public Task Measure(double size)=>InvokeAsync(()=>{extent=size;StateHasChanged();});
-    private Task Update(double next)=>Changed.InvokeAsync(Math.Clamp(next,Minimum,Maximum)/Total);
-    private async Task Finish(bool cancel){var start=startFraction;startFraction=null;startPosition=null;pointer=null;if(cancel&&start.HasValue)await Changed.InvokeAsync(start.Value);}
-    private async Task Start(PointerEventArgs e){if(e.Button!=0||pointer.HasValue)return;startFraction=Fraction;startPosition=Vertical?e.ClientX:e.ClientY;pointer=e.PointerId;if(module is not null)direction=await module.InvokeAsync<double>("direction",element);}
+    [JSInvokable] public Task Measure(double size)=>disposed?Task.CompletedTask:InvokeAsync(()=>{if(disposed)return;extent=size;StateHasChanged();});
+    private Task Update(double next)=>disposed?Task.CompletedTask:Changed.InvokeAsync(Math.Clamp(next,Minimum,Maximum)/Total);
+    private async Task Finish(bool cancel){if(disposed)return;var start=startFraction;startFraction=null;startPosition=null;pointer=null;if(cancel&&start.HasValue)await Changed.InvokeAsync(start.Value);}
+    private async Task Start(PointerEventArgs e){if(disposed||e.Button!=0||pointer.HasValue)return;startFraction=Fraction;startPosition=Vertical?e.ClientX:e.ClientY;pointer=e.PointerId;if(module is not null){var measuredDirection=await module.InvokeAsync<double>("direction",element);if(!disposed)direction=measuredDirection;}}
     private Task Move(PointerEventArgs e)=>pointer==e.PointerId&&startPosition.HasValue?Update(startFraction!.Value*Total+(Vertical?direction:1)*((Vertical?e.ClientX:e.ClientY)-startPosition.Value)):Task.CompletedTask;
     private Task CancelPointer(PointerEventArgs e)=>pointer==e.PointerId?Finish(true):Task.CompletedTask;
     private Task CommitPointer(PointerEventArgs e)=>pointer==e.PointerId?Finish(false):Task.CompletedTask;
@@ -48,13 +56,26 @@
     {
         // Dividers handle BARE keys only. A Mod chord on a focused divider is the shell's (Mod+Enter, Mod+0,
         // Mod+K...), so it must not be consumed here — the React mirror is DockDivider.tsx keyDown.
-        if(e.CtrlKey||e.MetaKey||e.AltKey)return;
-        if(e.Key=="0"){await Finish(false);await Reset.InvokeAsync();return;}
+        if(disposed||e.CtrlKey||e.MetaKey||e.AltKey)return;
+        if(e.Key=="0"){await Finish(false);if(!disposed)await Reset.InvokeAsync();return;}
         if(e.Key is "Enter" or "Escape"){await Finish(e.Key=="Escape");return;}
         var increase=Vertical?"ArrowRight":"ArrowDown";var decrease=Vertical?"ArrowLeft":"ArrowUp";
         if(e.Key!=increase&&e.Key!=decrease&&e.Key is not ("Home" or "End"))return;
         startFraction??=Fraction;
         await Update(e.Key=="Home"?Minimum:e.Key=="End"?Maximum:Value+(e.Key==increase?1:-1)*(e.ShiftKey?32:8));
     }
-    public async ValueTask DisposeAsync(){if(module is not null){await module.InvokeVoidAsync("unobserve",element);await module.DisposeAsync();}reference?.Dispose();}
+    private static async ValueTask DisposeConnection(IJSObjectReference? resource)
+    {
+        if(resource is null)return;
+        try{try{await resource.InvokeVoidAsync("dispose");}finally{await resource.DisposeAsync();}}
+        catch(JSDisconnectedException){}
+    }
+    private static async ValueTask DisposeModule(IJSObjectReference resource){try{await resource.DisposeAsync();}catch(JSDisconnectedException){}}
+    public async ValueTask DisposeAsync()
+    {
+        if(disposed)return;
+        disposed=true;
+        try{await DisposeConnection(connection);if(module is not null)await DisposeModule(module);}
+        finally{reference?.Dispose();}
+    }
 }

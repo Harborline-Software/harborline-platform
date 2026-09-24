@@ -13,7 +13,7 @@ import type { Json, RuleDefinition } from '../model.js'
 import { compile } from '../compiler.js'
 import { CompileError } from '../grammar.js'
 import { FormRuleGraph } from '../graph.js'
-import { GuardEvaluator } from '../guard.js'
+import { GuardEvaluator, RuleContextSnapshot } from '../guard.js'
 import { RuleInstance } from '../instance.js'
 import { serializeComputedValue, serializeOutcome, write } from '../canonical.js'
 import {
@@ -137,8 +137,8 @@ function declaredRules(c: CorpusCase): RuleDefinition[] {
 function runCase(c: CorpusCase) {
   const rules = declaredRules(c)
   const compiled = compile(rules)
-  const graph = new FormRuleGraph(compiled, undefined, clockOf(c))
-  const result = graph.evaluateInstance(RuleInstance.fromJson(c.instance))
+  const graph = new FormRuleGraph(compiled, clockOf(c))
+  const result = graph.evaluateInstance(RuleInstance.fromJsonText(JSON.stringify(c.instance)))
   return { compiled, result }
 }
 
@@ -157,7 +157,7 @@ function compileRefusalCode(c: CorpusCase): string {
 function guardValueOutcome(c: CorpusCase): string {
   const rule = (c.definitionRules ?? []).map(parseRule).find((r) => r.id === c.guardValue)
   if (!rule) throw new Error(`case '${c.name}': guardValue names unknown rule '${c.guardValue}'`)
-  return serializeComputedValue(new GuardEvaluator(undefined, clockOf(c)).evaluateValue(rule, c.instance))
+  return serializeComputedValue(new GuardEvaluator(clockOf(c)).evaluateValue(rule, RuleContextSnapshot.fromJsonText(JSON.stringify(c.instance))))
 }
 
 describe('SPINE-1 conformance corpus (TS tier — byte-identical to .NET)', () => {

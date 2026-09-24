@@ -3,6 +3,8 @@ import type { Meta, StoryObj } from '@storybook/react-vite'
 import { SchemaForm } from '@harborline-software/ui-react'
 
 type ScenarioId =
+  | 'schema-form.domain-editors'
+  | 'schema-form.host-readonly'
   | 'schema-form.controls-structure'
   | 'schema-form.rules-gate'
   | 'schema-form.validation'
@@ -91,6 +93,9 @@ const CONTROLS_VIEW = {
       id: 'routing',
       title: localized('Routing'),
       fields: [
+        field('services', 'Services', { controlHint: 'multiselect', options: [
+          { value: 'pilotage', label: localized('Pilotage') }, { value: 'towage', label: localized('Towage') },
+        ] }),
         field('berthCode', 'Berth code', {
           controlHint: 'bespoke',
           helpText: localized('Resolved by the caller registry.'),
@@ -187,6 +192,85 @@ const VALIDATION_VIEW = {
   }],
 } satisfies FormView
 
+const READ_ONLY_INSPECTION_VIEW = {
+  formId: 'harbor-inspection-application',
+  version: '1.0.0',
+  title: localized('Harbor inspection application'),
+  description: localized('Completed application and inspection values from every visible built-in field kind.'),
+  sections: [
+    {
+      id: 'application',
+      title: localized('Application'),
+      fields: [
+        field('vesselName', 'Vessel name', { controlHint: 'text' }),
+        field('inspectionScope', 'Inspection scope', { controlHint: 'textarea' }),
+        field('grossTonnage', 'Gross tonnage', { controlHint: 'number' }),
+        field('crewCount', 'Crew count', { controlHint: 'integer' }),
+        field('inspectionType', 'Inspection type', { controlHint: 'select', options: [
+          { value: 'annual', label: localized('Annual safety inspection') },
+          { value: 'arrival', label: localized('Arrival inspection') },
+        ] }),
+        field('systemsReviewed', 'Systems reviewed', { controlHint: 'multiselect', options: [
+          { value: 'navigation', label: localized('Navigation') },
+          { value: 'fire', label: localized('Fire suppression') },
+          { value: 'lifesaving', label: localized('Lifesaving equipment') },
+        ] }),
+      ],
+    },
+    {
+      id: 'declarations',
+      title: localized('Declarations and schedule'),
+      fields: [
+        field('documentsVerified', 'Documents verified', { controlHint: 'checkbox' }),
+        field('masterAttested', 'Master attested', { controlHint: 'boolean' }),
+        field('followUpRequired', 'Follow-up required', { controlHint: 'boolean-toggle' }),
+        field('inspectionDate', 'Inspection date', { controlHint: 'date' }),
+        field('inspectionStarted', 'Inspection started', { controlHint: 'datetime' }),
+        field('highTide', 'High tide', { controlHint: 'time' }),
+      ],
+    },
+    {
+      id: 'commercial-contact',
+      title: localized('Commercial and contact details'),
+      fields: [
+        field('estimatedCost', 'Estimated inspection cost', { controlHint: 'currency', config: { currencyCode: 'USD', decimals: 2 } }),
+        field('completion', 'Inspection completion', { controlHint: 'percentage', config: { decimals: 1 } }),
+        field('agentPhone', 'Agent phone', { controlHint: 'phone' }),
+        field('agentEmail', 'Agent email', { controlHint: 'email' }),
+        field('certificateUrl', 'Certificate URL', { controlHint: 'url' }),
+        field('applicationStatus', 'Application status', { controlHint: 'readonly' }),
+        field('inspectorCredential', 'Inspector credential', { controlHint: 'text', isSensitive: true }),
+        field('internalFinding', 'Internal finding', { controlHint: 'text', isReadable: false }),
+        field('evidenceBundle', 'Evidence bundle', { controlHint: 'future-object', valueKind: 'object' }),
+      ],
+    },
+  ],
+} satisfies FormView
+
+const READ_ONLY_INSPECTION_VALUES = {
+  vesselName: 'MV North Star',
+  inspectionScope: 'Annual hull, machinery, navigation, and lifesaving equipment inspection.',
+  grossTonnage: 18425.5,
+  crewCount: 24,
+  inspectionType: 'annual',
+  systemsReviewed: ['navigation', 'fire', 'lifesaving'],
+  documentsVerified: true,
+  masterAttested: true,
+  followUpRequired: false,
+  inspectionDate: '2026-09-16',
+  inspectionStarted: '2026-09-16T09:30:00-04:00',
+  highTide: '14:45',
+  estimatedCost: 48750.5,
+  completion: 92.5,
+  agentPhone: '+1 410 555 0142',
+  agentEmail: 'port.agent@example.test',
+  certificateUrl: 'https://records.example.test/inspections/HLI-2048',
+  applicationStatus: 'Approved for certificate issuance',
+  inspectorCredential: 'credential-should-not-render',
+  internalFinding: 'internal-finding-should-not-render',
+  evidenceBundle: { photos: 12, report: 'HLI-2048.pdf' },
+} satisfies Record<string, unknown>
+
 const EMPTY_VIEW = {
   formId: 'empty-request',
   version: '1.0.0',
@@ -264,6 +348,61 @@ const ARABIC_VIEW = {
 } satisfies FormView
 
 const validSubmit: SchemaFormProps['onSubmit'] = () => ({ isValid: true, errors: [] })
+
+const DOMAIN_COPY = 'Renderer demonstration of resolved domain output. No live API; runtime domain resolution is covered by existing producer tests.'
+const DOMAIN_VALUES = { readOnlyStatus: 'Approved' }
+const DOMAIN_CANDIDATE_FIELDS = [
+  ['none', 'No readable values'], ['single', 'One readable value'],
+  ['radio', 'Three readable values'], ['choice', 'Literal choices'],
+  ['taxonomy', 'Taxonomy'], ['record', 'Record'], ['readOnlyStatus', 'Read-only status'],
+] as const
+const DOMAIN_VIEW = {
+  formId: 'domain-editors',
+  version: '1.0.0',
+  title: localized('Resolved domain editors'),
+  description: localized('Choose a value, then save to review validation. Search text does not change the selected candidate.'),
+  sections: [{
+    id: 'resolved-domain', title: localized('Readable choices'), fields: [
+      field('none', 'No readable values', { controlHint: 'None', permittedValues: [], helpText: localized('No editor is available.') }),
+      field('single', 'One readable value', { controlHint: 'SingleValue', permittedValues: ['Approved'], helpText: localized('Choose explicitly; nothing is selected automatically.') }),
+      field('radio', 'Three readable values', { controlHint: 'RadioGroup', permittedValues: ['Draft', 'Review', 'Approved'] }),
+      field('choice', 'Literal choices', { controlHint: 'ChoiceList', permittedValues: ['Draft', 'Review', 'Approved', 'Rejected', 'Paused', 'Closed'] }),
+      field('taxonomy', 'Taxonomy', {
+        controlHint: 'TaxonomyPicker',
+        permittedValues: Array.from({ length: 80 }, (_, index) => `Category ${String(index + 1).padStart(2, '0')}`),
+        helpText: localized('80 categories. Search for Category 08; at most 25 matches are shown.'),
+      }),
+      field('record', 'Record', {
+        controlHint: 'RecordPicker',
+        permittedValues: Array.from({ length: 40000 }, (_, index) => String(index).padStart(5, '0')),
+        helpText: localized('40,000 records. Search for 3999; at most 25 matches are shown. Try an unmatched query before selecting.'),
+      }),
+      field('readOnlyStatus', 'Read-only status', { controlHint: 'ChoiceList', permittedValues: ['Draft', 'Review', 'Approved'], readOnly: true }),
+      field('restricted', 'Restricted field', { controlHint: 'None', isReadable: false }),
+    ],
+  }],
+} satisfies FormView
+
+function DomainEditorsExample() {
+  const [candidate, setCandidate] = React.useState<Record<string, unknown>>(DOMAIN_VALUES)
+  const [saveStatus, setSaveStatus] = React.useState('Not saved.')
+  const submit: SchemaFormProps['onSubmit'] = values => {
+    const isValid = typeof values.record === 'string' && values.record.length > 0
+    setSaveStatus(isValid ? 'Saved selected candidate.' : 'Choose a record before saving.')
+    return { isValid, errors: isValid ? [] : [{ jsonPointer: '/record', message: 'Choose a record before saving.', kind: 'Schema' }] }
+  }
+  return (
+    <div style={{ minWidth: 0, width: '100%' }}>
+      <SchemaForm initialValues={DOMAIN_VALUES} onChange={setCandidate} onSubmit={submit} strings={ENGLISH_STRINGS} view={DOMAIN_VIEW} />
+      <section aria-label="Selected candidate" style={{ overflowWrap: 'anywhere' }}>
+        <h3>Selected candidate</h3>
+        <p>Typing a query leaves these values unchanged. Select a result to update them.</p>
+        <dl>{DOMAIN_CANDIDATE_FIELDS.map(([key, label]) => <React.Fragment key={key}><dt>{label}</dt><dd>{String(candidate[key] ?? 'Not selected')}</dd></React.Fragment>)}</dl>
+        <p role="status">{saveStatus}</p>
+      </section>
+    </div>
+  )
+}
 const validationSubmit: SchemaFormProps['onSubmit'] = () => ({
   isValid: false,
   errors: [
@@ -275,6 +414,8 @@ const validationSubmit: SchemaFormProps['onSubmit'] = () => ({
 
 function SchemaFormScenario({ scenarioId }: { scenarioId: ScenarioId }) {
   const titles: Record<ScenarioId, [string, string]> = {
+    'schema-form.domain-editors': ['Domain-driven editors', DOMAIN_COPY],
+    'schema-form.host-readonly': ['Read-only harbor inspection', 'A completed application exercises every visible built-in field kind without exposing editing or submission.'],
     'schema-form.controls-structure': ['Ordered controls and collections', 'Registry resolution, fallback, nested updates, and bounded rows share one caller-defined order.'],
     'schema-form.rules-gate': ['Rule outcomes and save gate', 'Visibility, required, read-only, computed, and presentation outcomes project before save.'],
     'schema-form.validation': ['Inline and summary validation', 'Save to inspect inline association, summary partitioning, and summary focus.'],
@@ -295,7 +436,11 @@ function SchemaFormScenario({ scenarioId }: { scenarioId: ScenarioId }) {
     >
       <header className="hl-gallery-heading"><h2>{title}</h2><p>{description}</p></header>
       <div className="hl-gallery-stage hl-gallery-feedback-grid">
-        {scenarioId === 'schema-form.controls-structure' ? (
+        {scenarioId === 'schema-form.domain-editors' ? (
+          <DomainEditorsExample />
+        ) : scenarioId === 'schema-form.host-readonly' ? (
+          <SchemaForm readOnly initialValues={READ_ONLY_INSPECTION_VALUES} onSubmit={validSubmit} strings={ENGLISH_STRINGS} view={READ_ONLY_INSPECTION_VIEW} />
+        ) : scenarioId === 'schema-form.controls-structure' ? (
           <SchemaForm
             controls={{ bespoke: bespokeControl }}
             initialValues={{
@@ -384,6 +529,8 @@ export default meta
 type Story = StoryObj<typeof meta>
 
 export const ControlsAndStructure: Story = { name: 'Ordered controls and collections', args: { scenarioId: 'schema-form.controls-structure' } }
+export const DomainDrivenEditors: Story = { name: 'Domain-driven editors', args: { scenarioId: 'schema-form.domain-editors' } }
+export const ReadOnly: Story = { name: 'Read-only harbor inspection', args: { scenarioId: 'schema-form.host-readonly' } }
 export const RulesAndGate: Story = { name: 'Rule outcomes and save gate', args: { scenarioId: 'schema-form.rules-gate' } }
 export const Validation: Story = { name: 'Inline and summary validation', args: { scenarioId: 'schema-form.validation' } }
 export const LocaleAndTheme: Story = { name: 'Caller locales and dark theme', args: { scenarioId: 'schema-form.locale-theme' } }

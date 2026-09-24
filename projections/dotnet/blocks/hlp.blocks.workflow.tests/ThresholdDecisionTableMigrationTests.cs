@@ -89,7 +89,7 @@ public sealed class ThresholdDecisionTableMigrationTests
     {
         var rule = DecisionTableCompiler.Compile(skin);
         var compiled = RuleCompiler.Compile(new[] { rule });
-        var graph = new FormRuleGraph(compiled, RuleEngineLimits.Default, TimeProvider.System);
+        var graph = new FormRuleGraph(compiled, TimeProvider.System, RuleEngineLimits.Default);
         var instance = RuleInstance.FromJson(new JsonObject { ["amount"] = JsonValue.Create(amount) });
         var result = graph.EvaluateInstance(instance);
         var outcome = result.ByRule[skin.RuleId];

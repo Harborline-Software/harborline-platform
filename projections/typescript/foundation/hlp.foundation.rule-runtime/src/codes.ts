@@ -18,6 +18,8 @@ export const Codes = {
   moneyAggUnsupported: 'rule.money_agg_unsupported',
   computeScopeInvalid: 'rule.compute_scope_invalid',
   optionsNotArray: 'rule.options_not_array',
+  contextSnapshotRequired: 'rule.context_snapshot_required',
+  inputTooLarge: 'rule.input_too_large',
   // compile (publish-time)
   compileCycle: 'rule.compile.cycle',
   compileDepthExceeded: 'rule.compile.depth_exceeded',
@@ -26,5 +28,6 @@ export const Codes = {
   compileLiteralTooLong: 'rule.compile.literal_too_long',
   compileInvalidExpression: 'rule.compile.invalid_expression',
   compileUnsupportedTier: 'rule.compile.unsupported_tier',
+  compileUnknownAction: 'rule.compile.unknown_action',
   compileBadGrammar: 'rule.compile.bad_grammar',
 } as const

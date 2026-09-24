@@ -24,6 +24,22 @@ function mount(open: readonly string[], extra: Record<string, unknown> = {}, vie
   return { view, panel, affordances: (id: string) => [...panel(id).querySelectorAll('[data-panel-affordances] button')].map(button => button.getAttribute('data-panel-overflow') !== null ? 'overflow' : button.getAttribute('data-panel-pop-out') !== null ? 'pop-out' : button.getAttribute('data-panel-expand') !== null ? 'expand' : 'close') }
 }
 
+it('anchors the one dock Spread control to the active compact sheet without changing host availability', () => {
+  const changed = vi.fn()
+  const { view, panel } = mount(['notifications', 'pilot'], { onSpreadChange: changed }, 480)
+  const spread = view.getByRole('button', { name: 'Spread panels' })
+  expect(spread.closest('[data-shell-panel-id]')).toBe(panel('pilot'))
+  expect(spread.closest('.hl-app-shell__end-panel-header')).toBeNull()
+  expect(spread.parentElement).toHaveClass('hl-app-shell__dock-actions')
+  expect(spread).toBeEnabled()
+  fireEvent.click(spread)
+  expect(changed).toHaveBeenCalledWith(true)
+  view.unmount()
+  const blocked = mount(['pilot'], { spreadUnavailable: true, spreadUnavailableReason: 'Host unavailable' }, 480)
+  expect(blocked.view.getByRole('button', { name: 'Spread panels' })).toBeDisabled()
+  expect(blocked.view.getByRole('status')).toHaveTextContent('Host unavailable')
+})
+
 it('gives every panel the header form it earned and the invariant affordance group', () => {
   const { panel, affordances } = mount(fixture.headerForms.map((row: { panelId: string }) => row.panelId))
   for (const row of fixture.headerForms) {

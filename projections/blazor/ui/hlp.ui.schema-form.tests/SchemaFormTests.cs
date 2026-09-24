@@ -7,6 +7,312 @@ namespace Harborline.UIAdapters.Blazor.Tests;
 
 public sealed class SchemaFormTests : BunitContext
 {
+    [Fact]
+    public void MultipleChoiceComposesNamedListboxAndSubmitsExplicitCandidate()
+    {
+        IReadOnlyDictionary<string, object?>? submitted = null;
+        var tags = Field("tags", "Tags") with { ControlHint = "multiselect", Options = [new("one", Text("One")), new("two", Text("Two"))] };
+        var cut = RenderForm(Form([Section("main", [RuntimeDomainField("RecordPicker", ["Alpha", "Beta"]), tags])]),
+            submit: values => { submitted = values; return ValueTask.FromResult<SchemaFormValidationResult?>(null); });
+        cut.Find("button[name=tags]").Click();
+        var list = cut.Find("[role=listbox]");
+        Assert.Equal("true", list.GetAttribute("aria-multiselectable"));
+        list.KeyDown("End"); list.KeyDown(" "); list.KeyDown("Escape");
+        var input = cut.Find("input[role=combobox]");
+        input.Input("Be"); input.KeyDown("Enter");
+        Assert.Null(submitted);
+        input.KeyDown("ArrowDown"); input.KeyDown("Enter");
+        cut.Find("form").Submit();
+        Assert.NotNull(submitted);
+        Assert.Equal("Beta", submitted["status"]);
+        Assert.Equal(["two"], Assert.IsAssignableFrom<IEnumerable<string>>(submitted["tags"]));
+    }
+
+    public SchemaFormTests()
+    {
+        JSInterop.SetupModule("./_content/Harborline.UIAdapters.Blazor/select-field.js").Mode = JSRuntimeMode.Loose;
+        var schema = JSInterop.SetupModule("./_content/Harborline.UIAdapters.Blazor/schema-form.js");
+        schema.Mode = JSRuntimeMode.Loose;
+    }
+
+    [Fact]
+    public void Picker_requires_fresh_explicit_selection_when_membership_removes_then_restores_the_input()
+    {
+        var field = RuntimeDomainField("RecordPicker", ["allowed", "second"]);
+        var cut = RenderForm(Form([Section("main", [field])]));
+        Assert.Single(cut.FindAll("input[role='combobox']"));
+        cut.Find("input[role=combobox]").Input("second");
+        cut.Find("input[role=combobox]").KeyDown("ArrowDown");
+
+        cut.Render(parameters => parameters.Add(component => component.View,
+            Form([Section("main", [field with { PermittedValues = [] }])])));
+        Assert.Empty(cut.FindAll("input[role='combobox']"));
+        Assert.Empty(cut.FindAll("output"));
+
+        cut.Render(parameters => parameters.Add(component => component.View, Form([Section("main", [field])])));
+        Assert.Single(cut.FindAll("input[role='combobox']"));
+        var input = cut.Find("input[role=combobox]");
+        input.KeyDown("Enter");
+        Assert.Equal("", input.GetAttribute("value"));
+        input.Input("second"); input.KeyDown("ArrowDown"); input.KeyDown("Enter");
+        Assert.Equal("second", cut.Find("input").GetAttribute("value"));
+    }
+
+    [Fact]
+    public void Runtime_empty_domain_offers_no_editable_value_or_wider_host_options()
+    {
+        IReadOnlyDictionary<string, object?>? changed = null;
+        var field = RuntimeDomainField("None", []);
+        var cut = RenderForm(Form([Section("main", [field])]), valuesChanged: value => changed = value);
+
+        Assert.Empty(cut.FindAll("input[name='status'],textarea[name='status'],[role='combobox'],[role='radio']"));
+        Assert.Empty(cut.FindAll("output"));
+        Assert.DoesNotContain("Outside", cut.Markup, StringComparison.Ordinal);
+        Assert.Null(changed);
+    }
+
+    [Theory]
+    [InlineData("SingleValue")]
+    [InlineData("ChoiceList")]
+    public void Runtime_choice_requires_explicit_permitted_selection_without_defaulting(string editor)
+    {
+        string[] values = editor == "SingleValue" ? ["allowed"] : ["one", "two", "three", "four", "five", "six"];
+        var selected = editor == "SingleValue" ? "allowed" : "six";
+        IReadOnlyDictionary<string, object?>? changed = null;
+        var field = RuntimeDomainField(editor, values);
+        var cut = RenderForm(Form([Section("main", [field])]), valuesChanged: value => changed = value);
+
+        Assert.Empty(cut.FindAll("input[name='status'][type='text'],textarea[name='status']"));
+        Assert.Null(changed);
+        cut.Find("[role='combobox']").Click();
+        var options = cut.FindAll("[role='option']");
+        Assert.Equal(values.Length, options.Count);
+        Assert.All(options, option => Assert.NotEqual("true", option.GetAttribute("aria-selected")));
+        Assert.DoesNotContain("Outside", cut.Markup, StringComparison.Ordinal);
+        Assert.Single(options, option => option.TextContent.Trim() == selected).Click();
+        Assert.NotNull(changed);
+        Assert.Equal(selected, changed["status"]);
+    }
+
+    [Theory]
+    [InlineData("RecordPicker")]
+    [InlineData("TaxonomyPicker")]
+    public void Resolved_domain_uses_bounded_typeahead_without_choosing_a_default(string editor)
+    {
+        var wire = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            name = "postcode",
+            label = new { defaultLocale = "en", values = new Dictionary<string, string> { ["en"] = "Postcode" } },
+            isSensitive = false,
+            isReadable = true,
+            controlHint = editor,
+            permittedValues = Enumerable.Range(0, 40000)
+                .Select(index => index.ToString("D5", System.Globalization.CultureInfo.InvariantCulture)).ToArray(),
+        });
+        var field = System.Text.Json.JsonSerializer.Deserialize<SchemaFormField>(wire,
+            new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web))!;
+        var cut = RenderForm(Form([Section("main", [field])]));
+
+        var input = cut.Find("input[role='combobox']");
+        Assert.True(string.IsNullOrEmpty(input.GetAttribute("value")));
+        Assert.True(cut.FindAll("[role='option']").Count <= 25);
+        input.Input("3999");
+        var options = cut.FindAll("[role='option']");
+        Assert.True(options.Count <= 25);
+        Assert.Single(options, option => option.TextContent == "39999").Click();
+        Assert.Equal("39999", input.GetAttribute("value"));
+    }
+
+    [Fact]
+    public void Runtime_three_value_domain_renders_radios_without_wider_host_options()
+    {
+        var wire = """
+            {"name":"status","label":{"defaultLocale":"en","values":{"en":"Status"}},
+             "isSensitive":false,"isReadable":true,"controlHint":"RadioGroup",
+             "permittedValues":["open","closed","pending"]}
+            """;
+        var field = System.Text.Json.JsonSerializer.Deserialize<SchemaFormField>(wire,
+            new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web))!;
+        var cut = RenderForm(Form([Section("main", [field with
+        {
+            Options = [new("outside", Text("Outside"))],
+        }])]));
+
+        Assert.Empty(cut.FindAll("input[name='status'][type='text'],input[name='status']:not([type])"));
+        var radios = cut.FindAll("[role='radio'],input[type='radio']");
+        Assert.Equal(3, radios.Count);
+        Assert.All(radios, radio => Assert.False(radio.HasAttribute("checked")
+            || radio.GetAttribute("aria-checked") == "true"));
+        Assert.Contains("open", cut.Markup, StringComparison.Ordinal);
+        Assert.Contains("closed", cut.Markup, StringComparison.Ordinal);
+        Assert.Contains("pending", cut.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("Outside", cut.Markup, StringComparison.Ordinal);
+    }
+
+    [Fact(DisplayName = "schema-form.host-readonly-unavailable")]
+    public void Read_only_structured_values_fail_closed_without_stringification()
+    {
+        var structured = new UnexpectedReadOnlyValue();
+        var view = Form([Section("details", [
+            Field("unknown", "Unknown") with { ControlHint = "future-object", ValueKind = "object" },
+            Field("text", "Text"),
+            Field("secret", "Secret") with { IsSensitive = true },
+        ])]);
+        var cut = Render<HarborlineSchemaForm>(parameters => parameters
+            .Add(component => component.View, view)
+            .Add(component => component.Values, new Dictionary<string, object?> { ["unknown"] = structured, ["text"] = structured, ["secret"] = structured })
+            .Add(component => component.ReadOnly, true)
+            .Add(component => component.OnSubmit, _ => ValueTask.FromResult<SchemaFormValidationResult?>(null)));
+        Assert.Equal(2, cut.FindAll("[data-error-code='schema-form.unavailable-value']").Count);
+        Assert.Equal(new SchemaFormStrings().Redacted, cut.Find("#secret").TextContent);
+        Assert.Equal(0, structured.Stringifications);
+        Assert.Empty(cut.FindAll("input,select,textarea,button"));
+    }
+
+    private sealed class UnexpectedReadOnlyValue
+    {
+        public int Stringifications { get; private set; }
+        public override string ToString() { Stringifications++; return "must-not-render"; }
+    }
+
+    [Fact]
+    public void Read_only_renders_every_visible_builtin_hint_and_keeps_hidden_nonvisual()
+    {
+        var visible = new (string Hint, string Name, object? Value)[]
+        {
+            ("text", "vesselName", "MV North Star"), ("textarea", "inspectionScope", "Annual hull and machinery inspection."),
+            ("number", "grossTonnage", 18425.5d), ("integer", "crewCount", 24), ("select", "inspectionType", "annual"),
+            ("multiselect", "systemsReviewed", new[] { "navigation", "fire" }), ("checkbox", "documentsVerified", true),
+            ("boolean", "masterAttested", true), ("boolean-toggle", "followUpRequired", false), ("date", "inspectionDate", "2026-09-16"),
+            ("datetime", "inspectionStarted", "2026-09-16T09:30:00-04:00"), ("time", "highTide", "14:45"),
+            ("currency", "estimatedCost", 48750.5d), ("percentage", "completion", 92.5d), ("phone", "agentPhone", "+1 410 555 0142"),
+            ("email", "agentEmail", "port.agent@example.test"), ("url", "certificateUrl", "https://records.example.test/inspections/HLI-2048"),
+            ("readonly", "applicationStatus", "Approved for certificate issuance"),
+        };
+        var fields = visible.Select(item => Field(item.Name, item.Name) with
+        {
+            ControlHint = item.Hint,
+            Options = item.Hint switch
+            {
+                "select" => [new("annual", Text("Annual safety inspection"))],
+                "multiselect" => [new("navigation", Text("Navigation")), new("fire", Text("Fire suppression"))],
+                _ => [],
+            },
+        }).Append(Field("transportToken", "Transport token") with { ControlHint = "hidden" }).ToArray();
+        var values = visible.ToDictionary(item => item.Name, item => item.Value);
+        values["transportToken"] = "kept";
+        var cut = Render<HarborlineSchemaForm>(parameters => parameters
+            .Add(component => component.View, Form([Section("inspection", fields)]))
+            .Add(component => component.Values, values)
+            .Add(component => component.ReadOnly, true)
+            .Add(component => component.OnSubmit, _ => ValueTask.FromResult<SchemaFormValidationResult?>(null)));
+
+        var expected = new Dictionary<string, string>
+        {
+            ["vesselName"] = "MV North Star", ["inspectionScope"] = "Annual hull and machinery inspection.", ["grossTonnage"] = "18425.5",
+            ["crewCount"] = "24", ["inspectionType"] = "Annual safety inspection", ["systemsReviewed"] = "Navigation, Fire suppression",
+            ["documentsVerified"] = "true", ["masterAttested"] = "true", ["followUpRequired"] = "false", ["inspectionDate"] = "2026-09-16",
+            ["inspectionStarted"] = "2026-09-16T09:30:00-04:00", ["highTide"] = "14:45", ["estimatedCost"] = "48750.5",
+            ["completion"] = "92.5", ["agentPhone"] = "+1 410 555 0142", ["agentEmail"] = "port.agent@example.test",
+            ["certificateUrl"] = "https://records.example.test/inspections/HLI-2048", ["applicationStatus"] = "Approved for certificate issuance",
+        };
+        foreach (var pair in expected) Assert.Equal(pair.Value, cut.Find($"#{pair.Key}").TextContent);
+        Assert.Equal("kept", cut.Find("input[type='hidden'][name='transportToken']").GetAttribute("value"));
+        Assert.DoesNotContain("Transport token", cut.Markup, StringComparison.Ordinal);
+        Assert.Empty(cut.FindAll("input:not([type='hidden']),select,textarea,button[type='submit']"));
+    }
+
+    [Fact]
+    public void Read_only_multiselect_refuses_undeclared_and_structured_values_without_stringification()
+    {
+        var structured = new UnexpectedReadOnlyValue();
+        var fields = new[]
+        {
+            Field("undeclared", "Undeclared") with { ControlHint = "multiselect", Options = [new("navigation", Text("Navigation"))] },
+            Field("structured", "Structured") with { ControlHint = "multiselect", Options = [new("navigation", Text("Navigation"))] },
+        };
+        var cut = Render<HarborlineSchemaForm>(parameters => parameters
+            .Add(component => component.View, Form([Section("inspection", fields)]))
+            .Add(component => component.Values, new Dictionary<string, object?> { ["undeclared"] = new[] { "fire" }, ["structured"] = new[] { structured } })
+            .Add(component => component.ReadOnly, true)
+            .Add(component => component.OnSubmit, _ => ValueTask.FromResult<SchemaFormValidationResult?>(null)));
+        Assert.Equal(2, cut.FindAll("[data-error-code='schema-form.unavailable-value']").Count);
+        Assert.Equal(0, structured.Stringifications);
+    }
+
+    [Fact]
+    public void Sensitive_and_unreadable_hidden_fields_are_suppressed_before_hidden_serialization()
+    {
+        var structured = new UnexpectedReadOnlyValue();
+        var fields = new[]
+        {
+            Field("sensitive", "Sensitive") with { ControlHint = "hidden", IsSensitive = true },
+            Field("unreadable", "Unreadable") with { ControlHint = "hidden", IsReadable = false },
+            Field("structured", "Structured") with { ControlHint = "hidden" },
+        };
+        var cut = Render<HarborlineSchemaForm>(parameters => parameters
+            .Add(component => component.View, Form([Section("details", fields)]))
+            .Add(component => component.Values, new Dictionary<string, object?> { ["sensitive"] = structured, ["unreadable"] = "secret", ["structured"] = structured })
+            .Add(component => component.ReadOnly, true)
+            .Add(component => component.OnSubmit, _ => ValueTask.FromResult<SchemaFormValidationResult?>(null)));
+
+        Assert.DoesNotContain("Sensitive", cut.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("Unreadable", cut.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("Structured", cut.Markup, StringComparison.Ordinal);
+        Assert.Single(cut.FindAll("input[type='hidden']"));
+        Assert.Equal(string.Empty, cut.Find("input[type='hidden'][name='structured']").GetAttribute("value"));
+        Assert.Equal(0, structured.Stringifications);
+    }
+
+    [Fact]
+    public void Read_only_multiselect_uses_first_matching_label_for_duplicate_option_values()
+    {
+        var options = new[]
+        {
+            new SchemaFormOption("navigation", Text("Navigation")),
+            new SchemaFormOption("navigation", Text("Duplicate")),
+        };
+        var field = Field("systems", "Systems") with { ControlHint = "multiselect", Options = options };
+        var cut = Render<HarborlineSchemaForm>(parameters => parameters
+            .Add(component => component.View, Form([Section("inspection", [field])]))
+            .Add(component => component.Values, new Dictionary<string, object?> { ["systems"] = new[] { "navigation" } })
+            .Add(component => component.ReadOnly, true)
+            .Add(component => component.OnSubmit, _ => ValueTask.FromResult<SchemaFormValidationResult?>(null)));
+
+        Assert.Equal("Navigation", cut.Find("#systems").TextContent);
+    }
+
+    [Fact(DisplayName = "schema-form.host-readonly")]
+    public void Read_only_outputs_have_no_submit_and_reject_programmatic_submission()
+    {
+        var submissions = 0;
+        var changes = 0;
+        var actions = 0;
+        var values = new Dictionary<string, object?> { ["title"] = "Published" };
+        var graph = new TestRuleGraph(_ => Evaluation(values: new Dictionary<string, SchemaFormRuleValue>
+            { ["field:title"] = new(SchemaFormRuleValueState.Resolved, "Computed") }));
+        var view = Form([Section("details", [Field("title", "Title")]), Section("actions", [],
+            [new SchemaFormActionItem("open", new(SchemaFormActionKind.OpenUrl, Text("Open"), Url: "https://example.test"))])]);
+        var cut = Render<HarborlineSchemaForm>(parameters => parameters
+            .Add(component => component.View, view)
+            .Add(component => component.Values, values)
+            .Add(component => component.RuleGraph, graph)
+            .Add(component => component.ReadOnly, true)
+            .Add(component => component.OnBlockAction, _ => actions++)
+            .Add(component => component.OnValuesChange, _ => changes++)
+            .Add(component => component.OnSubmit, _ => { submissions++; return ValueTask.FromResult<SchemaFormValidationResult?>(null); }));
+        Assert.Equal("Computed", cut.Find("output").TextContent);
+        Assert.Empty(cut.FindAll("input,select,textarea,button[type=submit]"));
+        cut.Find("button").Click();
+        Assert.Equal(0, actions);
+        cut.Find("form").Submit();
+        Assert.Equal(0, submissions);
+        Assert.Equal(0, changes);
+        Assert.Equal("Published", values["title"]);
+        cut.Render(parameters => parameters.Add(component => component.ReadOnly, false).Add(component => component.RuleGraph, null));
+        Assert.Equal("Published", cut.Find("input").GetAttribute("value"));
+        Assert.Single(cut.FindAll("button[type=submit]"));
+    }
     [Fact(DisplayName = "schema-form.section-order")]
     public void SchemaFormSectionOrder()
     {
@@ -458,12 +764,97 @@ public sealed class SchemaFormTests : BunitContext
         if (string.IsNullOrWhiteSpace(raw)) return;
         using var fixture = System.Text.Json.JsonDocument.Parse(raw);
         Assert.StartsWith("schema-form.", fixture.RootElement.GetProperty("id").GetString());
+        if (fixture.RootElement.GetProperty("id").GetString()!.StartsWith("schema-form.domain-", StringComparison.Ordinal))
+        {
+            AssertRuntimeDomainFixture(fixture.RootElement);
+            return;
+        }
         var cut = Render<HarborlineSchemaForm>(parameters => parameters
             .Add(component => component.View, Form([Section("shared", [Field("fixture-field", "Shared fixture")])]))
             .Add(component => component.InitialValues, new Dictionary<string, object?> { ["fixture-field"] = "rendered" })
             .Add(component => component.OnSubmit, _ => ValueTask.FromResult<SchemaFormValidationResult?>(null)));
         Assert.Equal("Shared fixture", cut.Find("label").TextContent);
         Assert.Equal("rendered", cut.Find("input[name='fixture-field']").GetAttribute("value"));
+    }
+
+    private void AssertRuntimeDomainFixture(System.Text.Json.JsonElement fixture)
+    {
+        var input = fixture.GetProperty("input");
+        var expected = fixture.GetProperty("expected");
+        var editor = input.GetProperty("editor").GetString()!;
+        var values = input.TryGetProperty("values", out var members)
+            ? members.EnumerateArray().Select(value => value.GetString()!).ToArray()
+            : Enumerable.Range(0, input.GetProperty("valueSequence").GetProperty("count").GetInt32())
+                .Select(index => index.ToString(
+                    "D" + input.GetProperty("valueSequence").GetProperty("width").GetInt32(),
+                    System.Globalization.CultureInfo.InvariantCulture)).ToArray();
+        var hostOptions = input.GetProperty("hostOptions").EnumerateArray()
+            .Select(value => value.GetString()!).ToArray();
+        var field = RuntimeDomainField(editor, values) with
+        {
+            Options = hostOptions.Select(value => new SchemaFormOption(value, Text(value))).ToArray(),
+        };
+        var changes = new List<IReadOnlyDictionary<string, object?>>();
+        var cut = RenderForm(Form([Section("shared", [field])]), valuesChanged: changes.Add);
+
+        Assert.Empty(cut.FindAll("textarea[name='status']"));
+        if (editor == "None")
+        {
+            Assert.Empty(cut.FindAll("input[name='status'],[role='combobox'],[role='radio']"));
+            Assert.Equal(expected.GetProperty("candidateChanges").GetInt32(), changes.Count);
+            foreach (var outside in hostOptions) Assert.DoesNotContain(outside, cut.Markup, StringComparison.Ordinal);
+            return;
+        }
+
+        Assert.Equal(expected.GetProperty("initialCandidateChanges").GetInt32(), changes.Count);
+        if (editor == "RadioGroup")
+        {
+            Assert.Empty(cut.FindAll("input[name='status'][type='text'],input[name='status']:not([type])"));
+            var radios = cut.FindAll("input[type='radio']");
+            Assert.Equal(expected.GetProperty("optionCount").GetInt32(), radios.Count);
+            Assert.All(radios, radio => Assert.False(radio.HasAttribute("checked")));
+            foreach (var outside in hostOptions) Assert.DoesNotContain(radios, radio => radio.GetAttribute("value") == outside);
+            Assert.Single(radios, radio => radio.GetAttribute("value") == input.GetProperty("select").GetString()).Change(true);
+        }
+        else if (editor is "SingleValue" or "ChoiceList")
+        {
+            Assert.Empty(cut.FindAll("input[name='status'][type='text']"));
+            cut.Find("[role='combobox']").Click();
+            var options = cut.FindAll("[role='option']");
+            Assert.Equal(expected.GetProperty("optionCount").GetInt32(), options.Count);
+            Assert.All(options, option => Assert.NotEqual("true", option.GetAttribute("aria-selected")));
+            foreach (var outside in hostOptions) Assert.DoesNotContain(options, option => option.TextContent.Trim() == outside);
+            Assert.Single(options, option => option.TextContent.Trim() == input.GetProperty("select").GetString()).Click();
+        }
+        else
+        {
+            Assert.Contains(editor, new[] { "RecordPicker", "TaxonomyPicker" });
+            var picker = cut.Find("input[role='combobox']");
+            Assert.True(string.IsNullOrEmpty(picker.GetAttribute("value")));
+            var maximum = expected.GetProperty("maximumVisibleOptions").GetInt32();
+            Assert.True(cut.FindAll("[role='option']").Count <= maximum);
+            if (input.TryGetProperty("invalidQuery", out var invalidQuery))
+            {
+                picker.Input(invalidQuery.GetString());
+                Assert.Empty(cut.FindAll("[role='option']"));
+                picker.KeyDown(new Microsoft.AspNetCore.Components.Web.KeyboardEventArgs { Key = "Enter" });
+                Assert.Equal(expected.GetProperty("searchCandidateChanges").GetInt32(), changes.Count);
+            }
+            picker.Input(input.GetProperty("query").GetString());
+            Assert.Empty(changes);
+            var options = cut.FindAll("[role='option']");
+            Assert.True(options.Count <= maximum);
+            foreach (var outside in hostOptions) Assert.DoesNotContain(options, option => option.TextContent.Trim() == outside);
+            if (input.TryGetProperty("keyboardSelection", out var keys))
+            {
+                foreach (var key in keys.EnumerateArray())
+                    picker.KeyDown(new Microsoft.AspNetCore.Components.Web.KeyboardEventArgs { Key = key.GetString()! });
+            }
+            else Assert.Single(options, option => option.TextContent.Trim() == input.GetProperty("select").GetString()).Click();
+            Assert.Equal(expected.GetProperty("selected").GetString(), picker.GetAttribute("value"));
+        }
+        Assert.NotEmpty(changes);
+        Assert.Equal(expected.GetProperty("selected").GetString(), changes[^1]["status"]);
     }
 
     private IRenderedComponent<HarborlineSchemaForm> RenderForm(
@@ -485,6 +876,25 @@ public sealed class SchemaFormTests : BunitContext
             .Add(component => component.LocaleChain, localeChain ?? [])
             .Add(component => component.OnValuesChange, EventCallback.Factory.Create<IReadOnlyDictionary<string, object?>>(
                 this, candidate => valuesChanged?.Invoke(candidate))));
+
+    private static SchemaFormField RuntimeDomainField(string editor, string[] values)
+    {
+        var wire = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            name = "status",
+            label = new { defaultLocale = "en", values = new Dictionary<string, string> { ["en"] = "Status" } },
+            isSensitive = false,
+            isReadable = true,
+            controlHint = editor,
+            permittedValues = values,
+        });
+        var field = System.Text.Json.JsonSerializer.Deserialize<SchemaFormField>(wire,
+            new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web))!;
+        return field with
+        {
+            Options = [new("outside", Text("Outside"))],
+        };
+    }
 
     private static SchemaFormText Text(string value) => SchemaFormText.From(value);
 

@@ -11,6 +11,7 @@ import {copyCoberturaReport, coverageEnabled} from './coverage.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const reactRoot = resolve(root, 'projections/react/ui/hlp.ui.button')
+const selectFieldRoot = resolve(root, 'projections/react/ui/hlp.ui.select-field')
 const formsTypeScriptRoot = resolve(root, 'projections/typescript/contracts/hlp.contracts.forms')
 const copilotContractsRoot = resolve(root, 'projections/typescript/application/hlp.copilot.contracts')
 const ruleRuntimeTypeScriptRoot = resolve(root, 'projections/typescript/foundation/hlp.foundation.rule-runtime')
@@ -38,15 +39,19 @@ const DOTNET_SUITES = [
   ['actor', 'foundation-actor-native', "projections/dotnet/foundation/hlp.foundation.actor.tests/Harborline.Foundation.Authorization.Tests.csproj"],
   ['session', 'foundation-session-native', "projections/dotnet/foundation/hlp.foundation.session.tests/Harborline.Foundation.Session.Tests.csproj"],
   ['uiSupport', 'foundation-ui-support-native', "projections/dotnet/foundation/hlp.ui.support.tests/Harborline.Foundation.UI.Tests.csproj"],
+  ['kernelCore', 'kernel-core-native', "projections/dotnet/kernel/hlp.kernel.core.tests/Harborline.Kernel.Core.Tests.csproj"],
   ['schemaValidation', 'kernel-schema-validation-native', "projections/dotnet/kernel/hlp.kernel.schema-validation.tests/Harborline.Kernel.SchemaValidation.Tests.csproj"],
   ['workItems', 'kernel-work-items-native', "projections/dotnet/kernel/hlp.kernel.work-items.tests/Harborline.Kernel.WorkItems.Tests.csproj"],
   ['inspectionReview', 'blocks-inspection-review-native', "projections/dotnet/blocks/hlp.blocks.inspection-review.tests/Harborline.Blocks.InspectionReview.Tests.csproj"],
   ['aggregates', 'blocks-aggregates-native', "projections/dotnet/blocks/hlp.blocks.aggregates.tests/Harborline.Blocks.Aggregates.Tests.csproj"],
+  ['measureCatalogue', 'blocks-measure-catalogue-native', "projections/dotnet/blocks/hlp.blocks.measure-catalogue.tests/Harborline.Blocks.MeasureCatalogue.Tests.csproj"],
   ['relativeChains', 'blocks-relative-chains-native', "projections/dotnet/blocks/hlp.blocks.relative-chains.tests/Harborline.Blocks.RelativeChains.Tests.csproj"],
   ['workflow', 'blocks-workflow-native', "projections/dotnet/blocks/hlp.blocks.workflow.tests/Harborline.Blocks.Workflow.Tests.csproj"],
   ['workflowInterpreter', 'blocks-workflow-interpreter-native', "projections/dotnet/blocks/hlp.blocks.workflow-interpreter.tests/Harborline.Blocks.Workflow.Interpreter.Tests.csproj"],
   ['entityViews', 'blocks-entity-views-native', "projections/dotnet/blocks/hlp.blocks.entity-views.tests/Harborline.Blocks.EntityViews.Tests.csproj"],
+  ['dataExchange', 'foundation-data-exchange-native', "projections/dotnet/foundation/hlp.foundation.data-exchange.tests/Harborline.Foundation.DataExchange.Tests.csproj"],
   ['foundationScheduling', 'foundation-scheduling-native', "projections/dotnet/foundation/hlp.foundation.scheduling.tests/Harborline.Foundation.Scheduling.Tests.csproj"],
+  ['fieldRuntime', 'foundation-field-runtime-native', "projections/dotnet/foundation/hlp.foundation.field-runtime.tests/Harborline.Foundation.FieldRuntime.Tests.csproj"],
   ['blocksScheduling', 'blocks-scheduling-native', "projections/dotnet/blocks/hlp.blocks.scheduling.tests/Harborline.Blocks.Scheduling.Tests.csproj"],
   ['blocksCalendar', 'blocks-calendar-native', "projections/dotnet/blocks/hlp.blocks.calendar.tests/Harborline.Blocks.Calendar.Tests.csproj"],
   ['blocksReports', 'blocks-reports-native', "projections/dotnet/blocks/hlp.blocks.reports.tests/Harborline.Blocks.Reports.Tests.csproj"],
@@ -55,6 +60,7 @@ const DOTNET_SUITES = [
   ['ruleAuthoringDotnet', 'foundation-rule-authoring-native', "projections/dotnet/foundation/hlp.foundation.rule-authoring.tests/Harborline.Foundation.RuleAuthoring.Tests.csproj"],
   ['formsDotnet', 'foundation-forms-native', "projections/dotnet/foundation/hlp.foundation.forms.tests/Harborline.Foundation.Forms.Tests.csproj"],
   ['builderDefinitions', 'blocks-builder-definitions-native', "projections/dotnet/blocks/hlp.blocks.builder-definitions.tests/Harborline.Blocks.BuilderDefinitions.Tests.csproj"],
+  ['layoutRuntime', 'blocks-layout-runtime-native', "projections/dotnet/blocks/hlp.blocks.layout-runtime.tests/Harborline.Blocks.LayoutRuntime.Tests.csproj"],
   ['formsEngineDotnet', 'foundation-forms-engine-native', "projections/dotnet/foundation/hlp.foundation.forms-engine.tests/Harborline.Foundation.Forms.Engine.Tests.csproj"],
   ['architecture', 'platform-architecture-native', "projections/dotnet/architecture/hlp.architecture.tests/Harborline.Architecture.Tests.csproj"],
 ]
@@ -122,14 +128,21 @@ if (buildOnly) {
   // The aggregate React declaration build consumes the canonical Forms
   // declaration output, and the rule-authoring typecheck/build consumes the
   // rule-runtime declaration output. Establish both authorities first so clean
-  // builds never race a consumer against the compiler writing its dist.
+  // builds never race a consumer against the compiler writing its dist. The
+  // SelectField typecheck then consumes sibling declarations from that aggregate
+  // React build, so complete the producer before starting the consumer fan-out.
   const [formsTypeScriptBuild, ruleRuntimeTypeScriptBuild] = await Promise.all([
     run('forms-typescript-build', 'npm', ['run', 'build'], formsTypeScriptRoot),
     run('rule-runtime-typescript-build', 'pnpm', ['run', 'build'], ruleRuntimeTypeScriptRoot),
   ])
+  // SelectField's standalone typecheck reads sibling declarations emitted by this build.
+  const reactBuild = await run('react-build', 'npm', ['run', 'build'], reactRoot)
   results = [formsTypeScriptBuild, ruleRuntimeTypeScriptBuild, ...await Promise.all([
       run('react-typecheck', 'npm', ['run', 'typecheck'], reactRoot),
-      run('react-build', 'npm', ['run', 'build'], reactRoot),
+      run('select-field-typecheck', process.execPath, [
+        resolve(reactRoot, 'node_modules/typescript/bin/tsc'), '-p', 'tsconfig.typecheck.json',
+      ], selectFieldRoot),
+      reactBuild,
       run('forms-typescript-typecheck', 'npm', ['run', 'typecheck'], formsTypeScriptRoot),
       run('rule-runtime-typescript-typecheck', 'pnpm', ['run', 'typecheck'], ruleRuntimeTypeScriptRoot),
       run('rule-authoring-typescript-typecheck', 'pnpm', ['run', 'typecheck'], ruleAuthoringTypeScriptRoot),
@@ -138,8 +151,13 @@ if (buildOnly) {
       run('dotnet-build', dotnet.executable, ['build', 'Harborline.Platform.slnx', '--configuration', 'Release', '--no-restore', '-v:minimal']),
     ])]
 } else {
-  const [reactResult, formsTypeScriptResult, ruleRuntimeTypeScriptResult, ruleAuthoringTypeScriptResult, copilotTypeScriptResult, dotnetBuild] = await Promise.all([
+  const [reactResult, blazorBrowserResult, formsTypeScriptResult, ruleRuntimeTypeScriptResult, ruleAuthoringTypeScriptResult, copilotTypeScriptResult, dotnetBuild] = await Promise.all([
     run('react-native', 'npm', ['run', 'test:native'], reactRoot),
+    run('blazor-browser-native', process.execPath, [
+      resolve(reactRoot, 'node_modules/vitest/vitest.mjs'), 'run',
+      '--config', resolve(root, 'tests/blazor-browser/vitest.config.ts'),
+      '--root', resolve(root, 'tests/blazor-browser'),
+    ]),
     run('forms-typescript-native', 'npm', ['run', 'test:native'], formsTypeScriptRoot),
     run('rule-runtime-typescript-native', 'pnpm', ['test'], ruleRuntimeTypeScriptRoot),
     run('rule-authoring-typescript-native', 'pnpm', ['test'], ruleAuthoringTypeScriptRoot),
@@ -160,7 +178,7 @@ if (buildOnly) {
       ])),
     ])
     : []
-  results = [reactResult, formsTypeScriptResult, ruleRuntimeTypeScriptResult, ruleAuthoringTypeScriptResult, copilotTypeScriptResult, dotnetBuild, ...dotnetTests]
+  results = [reactResult, blazorBrowserResult, formsTypeScriptResult, ruleRuntimeTypeScriptResult, ruleAuthoringTypeScriptResult, copilotTypeScriptResult, dotnetBuild, ...dotnetTests]
   if (collectCoverage) coverage = DOTNET_SUITES
     .filter(([, id]) => results.find(result => result.id === id)?.passed)
     .map(([, id]) => copyCoberturaReport({root, resultsDirectory: resolve(root, 'artifacts/quality/coverage', id, 'results'), suite: id}))
@@ -185,6 +203,7 @@ if (!buildOnly) {
 const passed = results.every(result => result.passed)
 const reactTests = [...(results.find(result => result.id === 'react-native')?.stdout ?? '').matchAll(/Tests\s+(\d+)\s+passed/g)]
   .reduce((total, match) => total + Number(match[1]), 0)
+const blazorBrowserTests = Number(/Tests\s+(\d+)\s+passed/.exec(results.find(result => result.id === 'blazor-browser-native')?.stdout ?? '')?.[1] ?? 0)
 const ruleRuntimeTypeScriptTests = Number(/Tests\s+(\d+)\s+passed/.exec(results.find(result => result.id === 'rule-runtime-typescript-native')?.stdout ?? '')?.[1] ?? 0)
 const ruleAuthoringTypeScriptTests = Number(/Tests\s+(\d+)\s+passed/.exec(results.find(result => result.id === 'rule-authoring-typescript-native')?.stdout ?? '')?.[1] ?? 0)
 const passedOf = id => Number(/Passed:\s+(\d+)/.exec(results.find(result => result.id === id)?.stdout ?? '')?.[1] ?? 0)
@@ -195,7 +214,7 @@ process.stdout.write(`${JSON.stringify({
   mode: buildOnly ? 'build' : 'native-tests',
   dotnetSdk: dotnet.version,
   // Key order is load-bearing: validate-repository.mjs and the receipt both read this shape.
-  // The five TypeScript keys first, then DOTNET_SUITES in table order, then total.
+  // The five TypeScript keys first, then DOTNET_SUITES, browser-adapter tests, and total.
   counts: buildOnly ? undefined : {
     react: reactTests,
     formsTypeScript: formsTypeScriptTests,
@@ -203,8 +222,9 @@ process.stdout.write(`${JSON.stringify({
     ruleRuntimeTypeScript: ruleRuntimeTypeScriptTests,
     ruleAuthoringTypeScript: ruleAuthoringTypeScriptTests,
     ...dotnetCounts,
+    blazorBrowser: blazorBrowserTests,
     total: reactTests + formsTypeScriptTests + copilotTypeScriptTests + ruleRuntimeTypeScriptTests
-      + ruleAuthoringTypeScriptTests + Object.values(dotnetCounts).reduce((sum, n) => sum + n, 0),
+      + ruleAuthoringTypeScriptTests + blazorBrowserTests + Object.values(dotnetCounts).reduce((sum, n) => sum + n, 0),
   },
   coverage: collectCoverage ? coverage : undefined,
   results,

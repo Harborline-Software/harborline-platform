@@ -1,0 +1,51 @@
+@namespace Harborline.UIAdapters.Blazor.Components.DataExchange
+@* Inline siblings stay contiguous: Razor whitespace changes their wrapping relative to React. *@
+<form class="hl-data-exchange-authoring" @onsubmit="PreventSubmit"><label>Definition name<input aria-label="Definition name" value="@Value.Name" @onchange="e => Change(Value with { Name = Text(e) })" /></label><fieldset><legend>Source</legend><label>Source capability<select aria-label="Source capability" value="@Value.SourceCapability" @onchange="e => Change(Value with { SourceCapability = Text(e) })"><option value="">Choose a capability</option>@Options(Catalogue.SourceCapabilities)</select></label><label>Connector version<input aria-label="Connector version" value="@Value.ConnectorVersion" @onchange="e => Change(Value with { ConnectorVersion = Text(e) })" /></label><label>Format<select aria-label="Format" value="@Value.FormatCapability" @onchange="e => Change(Value with { FormatCapability = Text(e) })"><option value="">Choose a format</option>@Options(Catalogue.Formats)</select></label><label>Secret reference<input aria-label="Secret reference" value="@Value.SecretReference" @onchange="e => Change(Value with { SecretReference = Text(e) })" /></label><button type="button" @onclick="DiscoverSource">Discover source</button></fieldset><fieldset><legend>Discovered source shape</legend>@for (var index = 0; index < Value.DiscoveredColumns.Count; index++) { var current = index; var column = Value.DiscoveredColumns[current]; <label><input type="checkbox" aria-label="@($"Include {column.Name}")" checked="@column.Selected" @onchange="e => SelectColumn(current, e.Value is true)" />@column.Name</label> }</fieldset><fieldset><legend>Mapping profile</legend><dl><dt>Profile</dt><dd>@MappingProfile</dd><dt>Schema</dt><dd>@MappingSchema</dd><dt>Document version</dt><dd>@MappingVersion</dd></dl></fieldset><fieldset><legend>Canonical mappings</legend>
+    @for (var index = 0; index < Value.Mappings.Count; index++) { var current = index; var mapping = Value.Mappings[current]; <div><select aria-label="@($"Mapping {current + 1} source column")" value="@mapping.SourceColumn" @onchange="e => ReplaceMapping(current, mapping with { SourceColumn = Text(e) })"><option value="">Choose source column</option>@SourceOptions()</select><select aria-label="@($"Mapping {current + 1} canonical target")" value="@mapping.CanonicalTarget" @onchange="e => ReplaceMapping(current, mapping with { CanonicalTarget = Text(e) })"><option value="">Choose canonical target</option>@Options(Catalogue.CanonicalTargets)</select><input aria-label="@($"Mapping {current + 1} target pointer")" value="@mapping.TargetPointer" @onchange="e => ReplaceMapping(current, mapping with { TargetPointer = Text(e) })" /><select aria-label="@($"Mapping {current + 1} datatype")" value="@mapping.Datatype" @onchange="e => ReplaceMapping(current, mapping with { Datatype = Text(e) })">@Options(Catalogue.Datatypes)</select><label><input type="checkbox" aria-label="@($"Mapping {current + 1} required")" checked="@mapping.Required" @onchange="e => ReplaceMapping(current, mapping with { Required = e.Value is true })" />Required</label><input aria-label="@($"Mapping {current + 1} null")" value="@mapping.NullValue" @onchange="e => ReplaceMapping(current, mapping with { NullValue = Text(e) })" /><input aria-label="@($"Mapping {current + 1} default")" value="@mapping.DefaultValue" @onchange="e => ReplaceMapping(current, mapping with { DefaultValue = Text(e) })" /><input aria-label="@($"Mapping {current + 1} separator")" value="@mapping.Separator" @onchange="e => ReplaceMapping(current, mapping with { Separator = Text(e) })" /><select aria-label="@($"Mapping {current + 1} transform")" value="@mapping.Transform" @onchange="e => ReplaceMapping(current, mapping with { Transform = Text(e) })"><option value="">No transform</option>@Options(Catalogue.Transforms)</select><button type="button" aria-label="@($"Remove mapping {current + 1}")" @onclick="() => RemoveMapping(current)">Remove</button></div> }
+    <button type="button" @onclick="AddMapping">Add mapping</button></fieldset><label>External key columns<input aria-label="External key columns" value="@string.Join(", ", Value.ExternalKeyColumns)" @onchange="ChangeExternalKeys" /></label><label>Replay policy<select aria-label="Replay policy" value="@Value.ReplayPolicy" @onchange="e => Change(Value with { ReplayPolicy = Text(e) })"><option value="append">Append</option><option value="overwrite">Overwrite</option><option value="append_dedup">Append and deduplicate</option></select></label><label>Schedule reference<select aria-label="Schedule reference" value="@Value.ScheduleReference" @onchange="e => Change(Value with { ScheduleReference = Text(e) })"><option value="">Manual only</option>@Options(Catalogue.Schedules)</select></label><fieldset><legend>Reference set deliveries</legend><input aria-label="Reference dataset" value="@Value.ReferenceDataset" @onchange="e => Change(Value with { ReferenceDataset = Text(e) })" /><input aria-label="Pack distribution" value="@Value.PackDistribution" @onchange="e => Change(Value with { PackDistribution = Text(e) })" /><input aria-label="Feed distribution" value="@Value.FeedDistribution" @onchange="e => Change(Value with { FeedDistribution = Text(e) })" /></fieldset><div><button type="button" @onclick="SaveDraft">Save draft</button><button type="button" disabled="@(!PublishEnabled)" @onclick="Publish">Publish definition</button></div>
+  @if (AuthoringRefusals.Count > 0) { <fieldset><legend>Authoring refusals</legend><ul>@foreach (var refusal in AuthoringRefusals) { <li><span>@refusal.Stage</span>: <a href="@refusal.TargetHref">@refusal.Code</a></li> }</ul></fieldset> }
+  <div><button type="button" @onclick="CreateDryRun">Create dry run</button><button type="button" aria-label="Commit reviewed run" disabled="@(!CommitEnabled)" @onclick="Commit">Commit reviewed run</button></div>
+  @if (Run is not null) { <fieldset><legend>Persisted run evidence</legend><dl><dt>Dry run</dt><dd>@Run.DryRunId</dd>@if (Run.BatchIdentity is not null) { <dt>Batch identity</dt><dd>@Run.BatchIdentity</dd> }<dt>Status</dt><dd>@Run.Status</dd><dt>Staleness</dt><dd>@(Run.Stale ? "Stale" : "Current")</dd><dt>Candidate checkpoint</dt><dd>@Run.CandidateCheckpoint</dd></dl><p>Applied @Run.Census.Applied; skipped @Run.Census.Skipped; conflicted @Run.Census.Conflicted; rejected @Run.Census.Rejected; failed @Run.Census.Failed; halted @Run.Census.Halted</p><ul>@foreach (var refusal in Run.Refusals) { <li>@refusal</li> }</ul></fieldset> }
+</form>
+
+@code {
+  public const string MappingProfile = "hl:tabular-mapping/v1";
+  public const string MappingSchema = "https://schemas.harborline.software/mapping/tabular/v1";
+  public const string MappingVersion = "1.0.0";
+  [Parameter, EditorRequired] public DataExchangeAuthoringDraft Value { get; set; } = DataExchangeAuthoringDraft.Empty;
+  [Parameter, EditorRequired] public DataExchangeAuthoringCatalogue Catalogue { get; set; } = new([], [], [], [], []);
+  [Parameter] public DataExchangeRunSummary? Run { get; set; }
+  [Parameter] public bool CanCommit { get; set; }
+  [Parameter] public bool CanPublish { get; set; }
+  [Parameter] public IReadOnlyList<DataExchangeAuthoringRefusal> AuthoringRefusals { get; set; } = [];
+  [Parameter] public EventCallback<DataExchangeAuthoringDraft> ValueChanged { get; set; }
+  [Parameter] public EventCallback DiscoverSource { get; set; }
+  [Parameter] public EventCallback CreateDryRun { get; set; }
+  [Parameter] public EventCallback CommitReviewedRun { get; set; }
+  [Parameter] public EventCallback SaveDraft { get; set; }
+  [Parameter] public EventCallback PublishDefinition { get; set; }
+  private bool CommitEnabled => CanCommit && Run is { Stale: false, Status: "Ready" };
+  private bool PublishEnabled => CanPublish && AuthoringRefusals.Count == 0;
+  private static string Text(ChangeEventArgs args) => args.Value?.ToString() ?? "";
+  private Task Change(DataExchangeAuthoringDraft draft) => ValueChanged.InvokeAsync(draft);
+  private Task SelectColumn(int index, bool selected) => Change(Value with { DiscoveredColumns = Value.DiscoveredColumns.Select((column, position) => position == index ? column with { Selected = selected } : column).ToArray() });
+  private Task ReplaceMapping(int index, DataExchangeMappingRow mapping) => Change(Value with { Mappings = Value.Mappings.Select((current, position) => position == index ? mapping : current).ToArray() });
+  private Task RemoveMapping(int index) => Change(Value with { Mappings = Value.Mappings.Where((_, position) => position != index).ToArray() });
+  private Task AddMapping() => Change(Value with { Mappings = [.. Value.Mappings, new(Value.DiscoveredColumns.FirstOrDefault(column => column.Selected)?.Name ?? "", "", "", "string", false, "", "", "", "")] });
+  private Task ChangeExternalKeys(ChangeEventArgs args) => Change(Value with { ExternalKeyColumns = Text(args).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries) });
+  private Task Commit() => CommitEnabled ? CommitReviewedRun.InvokeAsync() : Task.CompletedTask;
+  private Task Publish() => PublishEnabled ? PublishDefinition.InvokeAsync() : Task.CompletedTask;
+  private static void PreventSubmit() { }
+  private RenderFragment SourceOptions() => Options(Value.DiscoveredColumns.Where(column => column.Selected).Select(column => new DataExchangeOption(column.Name, column.Name)).ToArray());
+  private static RenderFragment Options(IReadOnlyList<DataExchangeOption> options) => builder =>
+  {
+    var sequence = 0;
+    foreach (var option in options)
+    {
+      builder.OpenElement(sequence++, "option");
+      builder.AddAttribute(sequence++, "value", option.Id);
+      builder.AddContent(sequence++, option.Label);
+      builder.CloseElement();
+    }
+  };
+}

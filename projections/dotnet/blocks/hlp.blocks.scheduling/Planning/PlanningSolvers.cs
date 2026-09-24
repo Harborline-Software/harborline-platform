@@ -8,6 +8,18 @@ public sealed class DeterministicExhaustiveProofSolver : IPlanningSolver
 
     public SchedulingProposal Solve(CompiledPlanningProblem problem, int deterministicWorkBudget)
     {
+        var incompleteFactSets = problem.IncompleteFactSets;
+        if (incompleteFactSets.Count > 0)
+        {
+            return Proposal(
+                problem,
+                SolveStatus.Indeterminate,
+                [],
+                0,
+                "PINNED_FACTS_INCOMPLETE",
+                incompleteFactSets);
+        }
+
         if (deterministicWorkBudget <= 0)
         {
             return Proposal(problem, SolveStatus.Indeterminate, [], 0, "WORK_BUDGET_EXHAUSTED");
@@ -80,7 +92,8 @@ public sealed class DeterministicExhaustiveProofSolver : IPlanningSolver
         SolveStatus status,
         IReadOnlyList<AssignmentCandidate> assignments,
         int workUnits,
-        string reasonCode) =>
+        string reasonCode,
+        IReadOnlyList<string>? incompleteFactSets = null) =>
         new(
             $"{SolverId}:{problem.ProfileId}:{problem.InputVersion}:{status}",
             problem.ProfileId,
@@ -90,7 +103,8 @@ public sealed class DeterministicExhaustiveProofSolver : IPlanningSolver
             status,
             assignments,
             workUnits,
-            reasonCode);
+            reasonCode,
+            incompleteFactSets ?? []);
 }
 
 public sealed class GreedyFirstFitSolver : IPlanningSolver
@@ -167,7 +181,8 @@ public sealed class GreedyFirstFitSolver : IPlanningSolver
             status,
             assignments,
             workUnits,
-            reasonCode);
+            reasonCode,
+            []);
 }
 
 internal static class AssignmentRules

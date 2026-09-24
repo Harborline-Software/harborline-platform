@@ -282,6 +282,45 @@ test('every path to one repository resolves to one lock directory', () => {
   }
 })
 
+test('a contended EPERM from the candidate mkdir is ridden out instead of killing the gate', async () => {
+  // T-663. Windows reports EPERM for contention on the candidate mkdir the same way it does on the
+  // atomic rename, and the mkdir path used to rethrow it -- exit 1 before a single stage ran.
+  const repository = createRepositoryWithWorktree()
+  process.env.HARBORLINE_PHASE4_GATE_LOCK_TEST_MKDIR_EPERM = '3'
+  try {
+    const lock = await acquirePhase4GateLock({repositoryRoot: repository.primary, command: 'eperm-retry', pollIntervalMs: 5})
+    assert.equal(JSON.parse(readFileSync(path.join(lock.lockDirectory, 'owner.json'), 'utf8')).pid, process.pid)
+    lock.release()
+  } finally {
+    delete process.env.HARBORLINE_PHASE4_GATE_LOCK_TEST_MKDIR_EPERM
+    rmSync(repository.scratch, {recursive: true, force: true})
+  }
+})
+
+test('a permanent EPERM from the candidate mkdir still exits, naming the path and the denial', async () => {
+  // The other half of T-663: an EPERM that never clears is a write denial against the .git the lock
+  // lives in, not a lost race, and it must say which of the two paths raised it rather than spin.
+  const repository = createRepositoryWithWorktree()
+  process.env.HARBORLINE_PHASE4_GATE_LOCK_TEST_MKDIR_EPERM = '1000000'
+  try {
+    await assert.rejects(acquirePhase4GateLock({
+      repositoryRoot: repository.primary,
+      command: 'eperm-denied',
+      pollIntervalMs: 1,
+      candidateMkdirEpermBudgetMs: 25,
+    }), error => {
+      assert.match(error.message, /EPERM creating candidate directory .*harborline-phase4-gate\.lock\.candidate-/)
+      assert.match(error.message, /write denial against .* for this process, not contention/)
+      assert.equal(error.cause?.code, 'EPERM')
+      return true
+    })
+    assert.ok(!existsSync(resolvePhase4GateLockDirectory(repository.primary)), 'a denied acquisition left a lock behind')
+  } finally {
+    delete process.env.HARBORLINE_PHASE4_GATE_LOCK_TEST_MKDIR_EPERM
+    rmSync(repository.scratch, {recursive: true, force: true})
+  }
+})
+
 function createRepositoryWithWorktree() {
   const scratch = mkdtempSync(path.join(tmpdir(), 'phase4-gate-lock-'))
   const primary = path.join(scratch, 'primary')

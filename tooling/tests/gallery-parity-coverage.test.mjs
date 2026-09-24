@@ -56,7 +56,7 @@ assert.ok(real.totals.compared > 0 && real.totals.uncompared > 0)
 // never fail for being fixed. The gallery spec judges a run against ITS OWN host's row and fails
 // loudly when the host has no row, so the register must never carry a catch-all host either.
 // NOTE: the stricter bar (worstTilePixelRatio - tolerance > the ceiling, i.e. the whole +/-tolerance
-// window clear of the noise field) now holds for all four remaining host entries (the lowest is
+// window clear of the noise field) now holds for all six remaining host entries (the lowest is
 // scheduler.theme-light on windows-11-x64 at 0.4023, floor 0.3723). The row that failed it,
 // side-nav.theme-dark on macos-x64-intel (0.2891, floor 0.2591), is gone: 282 train C reconciled the
 // side-nav stylesheet with its authority and BOTH side-nav scenarios fell under the frozen tile
@@ -65,7 +65,7 @@ const divergences = JSON.parse(readFileSync(resolve(root, 'gallery/visual-parity
 const tileThreshold = JSON.parse(readFileSync(resolve(root, 'catalog/ui-theme-registry.json'), 'utf8')).visualParity.maximumChangedTilePixelRatio
 const comparedIds = new Set(real.modules.flatMap(module => module.compared))
 const measuredNoiseCeiling = 0.2656
-const unknownHost = 'linux-x64'
+const unknownHost = 'freebsd-x64'
 for (const row of divergences.divergences) {
   assert.ok(comparedIds.has(row.scenarioId), `known divergence ${row.scenarioId} is not a compared scenario`)
   assert.ok(Array.isArray(row.measurements) && row.measurements.length > 0,
@@ -109,6 +109,30 @@ for (const entry of divergences.resolved ?? []) {
   assert.ok(row, `${entry.scenarioId} is resolved on ${entry.host} but has no divergence row for the other hosts`)
   assert.equal(row.measurements.find(measurement => measurement.host === entry.host), undefined,
     `${entry.scenarioId} both measures and resolves ${entry.host}; a host is one or the other`)
+}
+
+// Element divergences are host evidence too. Linux exposed the same scheduler census already
+// measured on Windows, so keep those two scoped sets exact instead of replacing them with a
+// catch-all row that would incorrectly exempt the clean macOS host.
+const elementDivergences = JSON.parse(readFileSync(resolve(root, 'gallery/element-parity-known-divergences.json'), 'utf8'))
+const elementKeys = new Set()
+for (const row of elementDivergences.divergences) {
+  assert.ok(comparedIds.has(row.scenarioId), `element divergence ${row.scenarioId} is not a compared scenario`)
+  assert.match(row.ticket, /^\d+$/)
+  assert.ok(row.note.length > 10)
+  const key = `${row.scenarioId}\t${row.path}\t${row.property}\t${row.host ?? '*'}`
+  assert.ok(!elementKeys.has(key), `element divergence is registered twice: ${key}`)
+  elementKeys.add(key)
+}
+
+for (const scenarioId of ['scheduler.theme-dark', 'scheduler.theme-light']) {
+  const keysOn = host => new Set(elementDivergences.divergences
+    .filter(row => row.scenarioId === scenarioId && row.host === host)
+    .map(row => `${row.path}\t${row.property}`))
+  const windows = keysOn('windows-11-x64')
+  const linux = keysOn('linux-x64')
+  assert.equal(windows.size, 41, `${scenarioId} Windows census drifted; re-measure it`)
+  assert.deepEqual(linux, windows, `${scenarioId} Linux census must match its measured Windows key set exactly`)
 }
 
 process.stdout.write('gallery parity coverage check PASS\n')

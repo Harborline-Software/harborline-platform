@@ -3,17 +3,9 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import test from 'node:test'
+import { producerIds } from '../package-producers.mjs'
 
 const root = resolve(import.meta.dirname, '../..')
-export function producerIds() {
-  const source = readFileSync(resolve(root, 'tooling/verify-package-fixtures.mjs'), 'utf8')
-  const declarations = new Map([...source.matchAll(/const (\w+) = '(projections\/[^']+\.csproj)'/g)]
-    .map(([, name, path]) => [name, path]))
-  return [...source.matchAll(/run\(dotnet\.executable, \['pack', (\w+),/g)].map(([, name]) => {
-    const project = readFileSync(resolve(root, declarations.get(name)), 'utf8')
-    return /<PackageId>([^<]+)<\/PackageId>/.exec(project)[1]
-  }).sort()
-}
 
 test('publication uses exactly the gate producer ids and follows a push to main, the receipt-proven landing, never a pull request', () => {
   const workflow = readFileSync(resolve(root, '.github/workflows/validate.yml'), 'utf8')
@@ -21,13 +13,16 @@ test('publication uses exactly the gate producer ids and follows a push to main,
   assert.ok(job, 'publish-libraries job is required')
   const ids = /PACKAGE_IDS: >-\n([\s\S]*?)    steps:/.exec(job)[1].trim().split(/\s+/).sort()
   const produced = producerIds()
-  assert.equal(produced.length, 24)
-  assert.equal(new Set(produced).size, 24, 'one producer per package id')
+  assert.equal(new Set(produced).size, produced.length, 'one producer per package id')
+  assert.ok(produced.includes('Harborline.Foundation.FieldRuntime'), 'the shared field runtime must be published')
   assert.deepEqual(ids, produced, 'workflow package list must equal the producer inventory')
   // Publication follows the landing the repository's own gate proved by receipt (2026-09-07); it must not
   // wait on the ubuntu rerun of that gate, and it must never run for a pull request.
   assert.doesNotMatch(job, /needs: phase-4-gate/)
   assert.match(job, /if: github.event_name == 'push' && github.ref == 'refs\/heads\/main'\n/)
+  // T-579: the push to main is publication only. The ubuntu gate runs in the merge group and never on
+  // the push, so the push run is green exactly when publication is.
+  assert.match(workflow, /  phase-4-gate:\n    if: github.event_name == 'merge_group'\n/)
   assert.doesNotMatch(workflow, /ACTIONS_ENABLED/)
   assert.match(job, /packages: write/)
   assert.match(job, /node tooling\/verify-package-fixtures\.mjs --pack-libraries/)

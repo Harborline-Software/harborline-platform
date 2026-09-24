@@ -6,6 +6,7 @@ import { resolve } from 'node:path'
 import { inflateRawSync } from 'node:zlib'
 import test from 'node:test'
 import { computePackageVersion, readPackageVersionProps } from '../package-version.mjs'
+import { producerIds } from '../package-producers.mjs'
 
 const root = resolve(import.meta.dirname, '../..')
 function zipEntries(path) {
@@ -51,16 +52,17 @@ function metadata(nuspec, name) {
 }
 
 
-test('all 24 packed nuspecs and manifest hashes agree with the version derived by the consumer pin', () => {
+test('every packed nuspec and manifest hash agrees with the version derived by the consumer pin, for exactly the producer inventory', () => {
   // eng/platform-pin.json directs the consumer to import this function from its pinned tree.
   const version = computePackageVersion(root)
   assert.equal(readPackageVersionProps(root), version)
   const feed = resolve(root, 'artifacts/packages/nuget')
   const manifest = JSON.parse(readFileSync(resolve(feed, 'manifest.json'), 'utf8'))
   const files = readdirSync(feed).filter(name => name.endsWith('.nupkg')).sort()
-  assert.equal(files.length, 24)
-  assert.equal(manifest.length, 24)
-  assert.equal(new Set(manifest.map(row => row.id)).size, 24)
+  // The inventory is derived from the producer, never restated as a count: a literal here went stale
+  // when the 28th package landed and failed publication silently for nine commits (T-682). A deepEqual
+  // names the ids that appeared or went missing; `28 !== 27` named nothing.
+  assert.deepEqual(manifest.map(row => row.id).sort(), producerIds(), 'packed manifest must contain exactly the producer inventory')
   assert.deepEqual(files, manifest.map(row => `${row.id}.${row.version}.nupkg`).sort())
   for (const file of files) {
     const path = resolve(feed, file)

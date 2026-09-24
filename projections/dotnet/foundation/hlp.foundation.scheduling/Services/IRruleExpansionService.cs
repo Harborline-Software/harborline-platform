@@ -27,8 +27,14 @@ namespace Harborline.Foundation.Scheduling;
 /// </para>
 /// <para>
 /// Unsupported RRULE components (EXDATE, BYWEEKNO, BYYEARDAY, etc.)
-/// are silently ignored in v1. The Ical.Net-backed follow-on hand-off
-/// will replace this implementation with full RFC 5545 support.
+/// are refused so an authored restriction cannot be silently discarded.
+/// </para>
+/// <para>
+/// <b>Completeness</b> — occurrences are returned only when every occurrence relevant to the
+/// requested range has been evaluated. A walk that reaches the 1 000-occurrence cap with range
+/// still to cover refuses with <see cref="RruleExpansionCapExceededException"/>; it never
+/// returns a partial list, because a caller cannot distinguish one from a complete result
+/// (DES-0057 §10 ruling 3).
 /// </para>
 /// </remarks>
 public interface IRruleExpansionService
@@ -69,13 +75,22 @@ public interface IRruleExpansionService
     /// <returns>
     /// Occurrences in ascending date order, filtered by
     /// <paramref name="leadDays"/> and bounded by <paramref name="end"/>
-    /// (or <c>today + lookaheadDays</c>). Never exceeds 1 000 items.
+    /// (or <c>today + lookaheadDays</c>). Never exceeds 1 000 items, and never a partial
+    /// result: see the completeness remark above.
     /// </returns>
     /// <exception cref="FormatException">
-    /// Thrown when <paramref name="rrule"/> is missing a <c>FREQ=</c> component.
+    /// Thrown when <paramref name="rrule"/> is missing a <c>FREQ=</c> component, or when an
+    /// admitted part carries an out-of-bound or malformed value (named in the message).
     /// </exception>
     /// <exception cref="ArgumentException">
     /// Thrown when <paramref name="rrule"/> is null or whitespace.
+    /// </exception>
+    /// <exception cref="NotSupportedException">
+    /// Thrown when <paramref name="rrule"/> contains a component outside the supported subset.
+    /// </exception>
+    /// <exception cref="RruleExpansionCapExceededException">
+    /// Thrown when the walk reaches the 1 000-occurrence cap before the requested range has been
+    /// fully evaluated, so no complete answer exists to return.
     /// </exception>
     IReadOnlyList<DateOnly> ExpandOccurrences(
         string rrule,

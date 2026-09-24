@@ -1,3 +1,4 @@
+using System.Globalization;
 using Harborline.Foundation.Scheduling;
 using Xunit;
 
@@ -236,6 +237,29 @@ public sealed class InMemoryRruleExpansionServiceTests
             new[] { DayOfWeek.Monday, DayOfWeek.Wednesday, DayOfWeek.Friday }));
     }
 
+    [Fact]
+    public void Expand_WeeklyInterval2_ByDay_HonorsIntervalFromStart()
+    {
+        // The anchor is a Wednesday so the test also proves that INTERVAL is
+        // measured across RFC weeks, not seven-day buckets starting at DTSTART.
+        var anchor = new DateOnly(2026, 1, 7);
+        var occurrences = Sut.ExpandOccurrences(
+            rrule: "FREQ=WEEKLY;INTERVAL=2;BYDAY=MO",
+            start: anchor,
+            end: new DateOnly(2026, 2, 9),
+            lookaheadDays: 35,
+            leadDays: 0,
+            today: anchor,
+            timezone: "UTC");
+
+        Assert.Equal(
+            [
+                new DateOnly(2026, 1, 19),
+                new DateOnly(2026, 2, 2),
+            ],
+            occurrences);
+    }
+
     // ----------------------------------------------------------------
     // New: BYDAY ordinal (monthly) — "1MO" = first Monday
     // ----------------------------------------------------------------
@@ -283,6 +307,67 @@ public sealed class InMemoryRruleExpansionServiceTests
         Assert.Equal(new DateOnly(2026, 2, 27), occurrences[1]);
         Assert.Equal(new DateOnly(2026, 3, 27), occurrences[2]);
         Assert.All(occurrences, d => Assert.Equal(DayOfWeek.Friday, d.DayOfWeek));
+    }
+
+    [Fact]
+    public void Expand_MonthlyInterval3_ByMonthDay_HonorsIntervalFromStart()
+    {
+        var anchor = new DateOnly(2026, 1, 1);
+        var occurrences = Sut.ExpandOccurrences(
+            rrule: "FREQ=MONTHLY;INTERVAL=3;BYMONTHDAY=15",
+            start: anchor,
+            end: new DateOnly(2026, 12, 31),
+            lookaheadDays: 365,
+            leadDays: 0,
+            today: anchor,
+            timezone: "UTC");
+
+        Assert.Equal(
+            [
+                new DateOnly(2026, 1, 15),
+                new DateOnly(2026, 4, 15),
+                new DateOnly(2026, 7, 15),
+                new DateOnly(2026, 10, 15),
+            ],
+            occurrences);
+    }
+
+    [Fact]
+    public void Expand_MonthlyInterval3_ByDay_HonorsIntervalFromStart()
+    {
+        var anchor = new DateOnly(2026, 1, 1);
+        var occurrences = Sut.ExpandOccurrences(
+            rrule: "FREQ=MONTHLY;INTERVAL=3;BYDAY=1MO",
+            start: anchor,
+            end: new DateOnly(2026, 12, 31),
+            lookaheadDays: 365,
+            leadDays: 0,
+            today: anchor,
+            timezone: "UTC");
+
+        Assert.Equal(
+            [
+                new DateOnly(2026, 1, 5),
+                new DateOnly(2026, 4, 6),
+                new DateOnly(2026, 7, 6),
+                new DateOnly(2026, 10, 5),
+            ],
+            occurrences);
+    }
+
+    [Fact]
+    public void Expand_UnsupportedComponent_IsRefused()
+    {
+        var exception = Assert.Throws<NotSupportedException>(() => Sut.ExpandOccurrences(
+            rrule: "FREQ=WEEKLY;BYWEEKNO=2",
+            start: Today,
+            end: Today.AddDays(30),
+            lookaheadDays: 30,
+            leadDays: 0,
+            today: Today,
+            timezone: "UTC"));
+
+        Assert.Contains("BYWEEKNO", exception.Message, StringComparison.Ordinal);
     }
 
     // ----------------------------------------------------------------
@@ -365,15 +450,180 @@ public sealed class InMemoryRruleExpansionServiceTests
     }
 
     // ----------------------------------------------------------------
-    // Occurrence cap guard
+    // T-647 / DES-0057 eng-9: an out-of-bound or malformed value of an
+    // admitted part is refused naming the part, never dropped.
+    // ----------------------------------------------------------------
+
+    [Theory]
+    [InlineData("FREQ=MONTHLY;BYMONTHDAY=31", "BYMONTHDAY")]
+    [InlineData("FREQ=MONTHLY;BYMONTHDAY=0", "BYMONTHDAY")]
+    [InlineData("FREQ=DAILY;INTERVAL=0", "INTERVAL")]
+    [InlineData("FREQ=DAILY;COUNT=0", "COUNT")]
+    [InlineData("FREQ=DAILY;UNTIL=2026-01-01", "UNTIL")]
+    [InlineData("FREQ=WEEKLY;BYDAY=XX", "BYDAY")]
+    [InlineData("FREQ=MONTHLY;BYDAY=6MO", "BYDAY")]
+    [InlineData("FREQ=YEARLY;BYMONTH=13", "BYMONTH")]
+    public void Expand_OutOfBoundValue_IsRefusedNamingThePart(string rrule, string part)
+    {
+        var exception = Assert.Throws<FormatException>(() => Expand(rrule, Today, Today.AddDays(365)));
+        Assert.Contains(part, exception.Message, StringComparison.Ordinal);
+    }
+
+    // ----------------------------------------------------------------
+    // T-647 / DES-0057 eng-7: every admitted selector applies under every
+    // FREQ it is admitted with (RFC 5545 §3.3.10 limit/expand table).
     // ----------------------------------------------------------------
 
     [Fact]
-    public void Expand_OccurrenceCap_NeverExceeds1000()
+    public void Expand_Daily_ByDay_LimitsToNamedWeekdays()
     {
-        // Daily with a 10-year horizon would produce ~3650 but cap at 1000.
+        // Anchor Thu 1 Jan 2026; Mondays 5, 12 and Wednesdays 7, 14.
+        Assert.Equal(
+            [new DateOnly(2026, 1, 5), new DateOnly(2026, 1, 7), new DateOnly(2026, 1, 12), new DateOnly(2026, 1, 14)],
+            Expand("FREQ=DAILY;BYDAY=MO,WE", Today, new DateOnly(2026, 1, 14)));
+    }
+
+    [Fact]
+    public void Expand_Daily_ByMonthDay_LimitsToFirstOfMonth()
+    {
+        Assert.Equal(
+            [new DateOnly(2026, 2, 1), new DateOnly(2026, 3, 1), new DateOnly(2026, 4, 1)],
+            Expand("FREQ=DAILY;BYMONTHDAY=1", new DateOnly(2026, 1, 15), new DateOnly(2026, 4, 30)));
+    }
+
+    [Fact]
+    public void Expand_Monthly_ByDayAndByMonthDay_Intersect()
+    {
+        // A Monday on days 1..7 is the first Monday: the same dates as BYDAY=1MO.
+        Assert.Equal(
+            [new DateOnly(2026, 1, 5), new DateOnly(2026, 2, 2), new DateOnly(2026, 3, 2), new DateOnly(2026, 4, 6)],
+            Expand("FREQ=MONTHLY;BYDAY=MO;BYMONTHDAY=1,2,3,4,5,6,7", Today, new DateOnly(2026, 4, 30)));
+    }
+
+    [Fact]
+    public void Expand_Weekly_ByMonthDay_IsRefused()
+    {
+        var exception = Assert.Throws<NotSupportedException>(
+            () => Expand("FREQ=WEEKLY;BYMONTHDAY=15", Today, Today.AddDays(60)));
+        Assert.Contains("BYMONTHDAY", exception.Message, StringComparison.Ordinal);
+    }
+
+    // ----------------------------------------------------------------
+    // T-647 / DES-0057 eng-8: YEARLY selectors expand the year rather than
+    // filtering the anniversary of the anchor.
+    // ----------------------------------------------------------------
+
+    [Fact]
+    public void Expand_Yearly_ByMonthAndByMonthDay_AnchoredInJanuary_YieldsEveryMarch15()
+    {
+        Assert.Equal(
+            [
+                new DateOnly(2026, 3, 15), new DateOnly(2027, 3, 15), new DateOnly(2028, 3, 15),
+                new DateOnly(2029, 3, 15), new DateOnly(2030, 3, 15),
+            ],
+            Expand("FREQ=YEARLY;BYMONTH=3;BYMONTHDAY=15", Today, new DateOnly(2030, 12, 31)));
+    }
+
+    [Fact]
+    public void Expand_Yearly_ByDayAndByMonth_YieldsEveryMondayInJanuary()
+    {
+        Assert.Equal(
+            [
+                new DateOnly(2026, 1, 5), new DateOnly(2026, 1, 12), new DateOnly(2026, 1, 19), new DateOnly(2026, 1, 26),
+                new DateOnly(2027, 1, 4), new DateOnly(2027, 1, 11), new DateOnly(2027, 1, 18), new DateOnly(2027, 1, 25),
+            ],
+            Expand("FREQ=YEARLY;BYDAY=MO;BYMONTH=1", Today, new DateOnly(2027, 12, 31)));
+    }
+
+    [Fact]
+    public void Expand_YearlyInterval2_ByMonthAndByMonthDay_HonorsIntervalFromStart()
+    {
+        Assert.Equal(
+            [new DateOnly(2026, 3, 15), new DateOnly(2028, 3, 15), new DateOnly(2030, 3, 15)],
+            Expand("FREQ=YEARLY;INTERVAL=2;BYMONTH=3;BYMONTHDAY=15", Today, new DateOnly(2030, 12, 31)));
+    }
+
+    private static IReadOnlyList<DateOnly> Expand(string rrule, DateOnly start, DateOnly end) =>
+        Sut.ExpandOccurrences(rrule, start, end, lookaheadDays: 3650, leadDays: 0, today: start, timezone: "UTC");
+
+    // ----------------------------------------------------------------
+    // Occurrence cap: refuse, never truncate (DES-0057 s10 ruling 3, T-647 eng-10).
+    // Rewritten from Expand_OccurrenceCap_NeverExceeds1000, which asserted the truncation the
+    // ruling removed. Every case here drives the producer directly: both calendar consumers
+    // expand from their window start since T-653, so a cap hit is unreachable through them.
+    // ----------------------------------------------------------------
+
+    [Fact]
+    public void Expand_OccurrenceCap_NeverReturnsAnUnmarkedPartial()
+    {
+        // Daily over a ~13-year horizon: the 1 001st occurrence exists inside the requested
+        // range, so the range cannot be evaluated and the expansion refuses.
+        var refusal = Assert.Throws<RruleExpansionCapExceededException>(() => Sut.ExpandOccurrences(
+            rrule: "FREQ=DAILY",
+            start: Today,
+            end: Today.AddDays(5000),
+            lookaheadDays: 5000,
+            leadDays: 0,
+            today: Today,
+            timezone: "UTC"));
+
+        // The refusal carries enough to diagnose both the rule and the configuration.
+        Assert.Equal("FREQ=DAILY", refusal.RecurrenceId);
+        Assert.Equal(Today, refusal.Anchor);
+        Assert.Equal(Today, refusal.RequestedRangeStart);
+        Assert.Equal(Today.AddDays(5000), refusal.RequestedRangeEnd);
+        Assert.Equal(1000, refusal.CandidateLimit);
+        Assert.Equal(1001, refusal.CandidatesExamined);
+        Assert.Equal(Today.AddDays(1000), refusal.LastEvaluatedOccurrence);
+        Assert.Equal(RecurrenceBound.None, refusal.Bound);
+        Assert.Contains("FREQ=DAILY", refusal.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Expand_OccurrenceCap_LeadDaysShiftTheRefusedRangeStart()
+    {
+        // leadDays moves the first date the caller asked about; the refusal reports that, not
+        // the anchor, so a reader can see which range could not be evaluated.
+        var refusal = Assert.Throws<RruleExpansionCapExceededException>(() => Sut.ExpandOccurrences(
+            rrule: "FREQ=DAILY",
+            start: Today,
+            end: Today.AddDays(5000),
+            lookaheadDays: 5000,
+            leadDays: 30,
+            today: Today,
+            timezone: "UTC"));
+
+        Assert.Equal(Today, refusal.Anchor);
+        Assert.Equal(Today.AddDays(30), refusal.RequestedRangeStart);
+    }
+
+    [Fact]
+    public void Expand_OccurrenceCap_FilledExactlyByTheRange_Succeeds()
+    {
+        // 1 000 occurrences and no range left to walk: everything relevant was evaluated, so
+        // this is a complete answer and not a refusal. The boundary that stops the refusal
+        // degenerating into "refuse whenever the result is full".
         var occurrences = Sut.ExpandOccurrences(
             rrule: "FREQ=DAILY",
+            start: Today,
+            end: Today.AddDays(999),
+            lookaheadDays: 999,
+            leadDays: 0,
+            today: Today,
+            timezone: "UTC");
+
+        Assert.Equal(1000, occurrences.Count);
+        Assert.Equal(Today.AddDays(999), occurrences[^1]);
+    }
+
+    [Fact]
+    public void Expand_CountBoundedRuleEndingBeforeTheCap_Succeeds()
+    {
+        // The positive control the ruling adds: a rule that ends through COUNT before the cap
+        // still succeeds normally over the same horizon that refuses unbounded. Without this the
+        // row could be satisfied by refusing everything.
+        var occurrences = Sut.ExpandOccurrences(
+            rrule: "FREQ=DAILY;COUNT=900",
             start: Today,
             end: Today.AddDays(5000),
             lookaheadDays: 5000,
@@ -381,6 +631,41 @@ public sealed class InMemoryRruleExpansionServiceTests
             today: Today,
             timezone: "UTC");
 
-        Assert.Equal(1000, occurrences.Count);
+        Assert.Equal(900, occurrences.Count);
+        Assert.Equal(Today, occurrences[0]);
+        Assert.Equal(Today.AddDays(899), occurrences[^1]);
+    }
+
+    [Fact]
+    public void Expand_UntilBoundedRuleEndingBeforeTheCap_Succeeds()
+    {
+        var occurrences = Sut.ExpandOccurrences(
+            rrule: "FREQ=DAILY;UNTIL=" + Today.AddDays(899).ToString("yyyyMMdd", CultureInfo.InvariantCulture),
+            start: Today,
+            end: Today.AddDays(5000),
+            lookaheadDays: 5000,
+            leadDays: 0,
+            today: Today,
+            timezone: "UTC");
+
+        Assert.Equal(900, occurrences.Count);
+        Assert.Equal(Today.AddDays(899), occurrences[^1]);
+    }
+
+    [Fact]
+    public void Expand_CountBoundedRuleExceedingTheCap_RefusesNamingTheCountBound()
+    {
+        // Bounded is not the same as evaluable: COUNT past the cap still cannot be answered.
+        var refusal = Assert.Throws<RruleExpansionCapExceededException>(() => Sut.ExpandOccurrences(
+            rrule: "FREQ=DAILY;COUNT=1200",
+            start: Today,
+            end: Today.AddDays(5000),
+            lookaheadDays: 5000,
+            leadDays: 0,
+            today: Today,
+            timezone: "UTC"));
+
+        Assert.Equal(RecurrenceBound.Count, refusal.Bound);
+        Assert.Equal(1001, refusal.CandidatesExamined);
     }
 }

@@ -40,6 +40,29 @@ public sealed record PrecedenceConstraint(
     string AfterActivityId,
     int MinimumGapSlots);
 
+public static class PlanningFactSets
+{
+    public const string Activities = "activities";
+    public const string TimeWindows = "time-windows";
+    public const string Resources = "resources";
+    public const string ResourceRequirements = "resource-requirements";
+    public const string Precedence = "precedence";
+
+    public static IReadOnlyList<string> Required { get; } =
+    [
+        Activities,
+        TimeWindows,
+        Resources,
+        ResourceRequirements,
+        Precedence,
+    ];
+}
+
+public sealed record PlanningFactSetPin(
+    string FactSet,
+    string Version,
+    bool IsComplete);
+
 public sealed record SchedulingProfile(
     string ProfileId,
     string InputVersion,
@@ -47,7 +70,8 @@ public sealed record SchedulingProfile(
     IReadOnlyList<TimeWindow> TimeWindows,
     IReadOnlyList<PlanningResource> Resources,
     IReadOnlyList<ResourceRequirement> ResourceRequirements,
-    IReadOnlyList<PrecedenceConstraint> Precedence);
+    IReadOnlyList<PrecedenceConstraint> Precedence,
+    IReadOnlyList<PlanningFactSetPin> FactSetPins);
 
 public sealed record AssignmentCandidate(
     string ActivityId,
@@ -60,7 +84,14 @@ public sealed record CompiledPlanningProblem(
     string InputVersion,
     IReadOnlyList<Activity> Activities,
     IReadOnlyDictionary<string, IReadOnlyList<AssignmentCandidate>> CandidatesByActivity,
-    IReadOnlyList<PrecedenceConstraint> Precedence);
+    IReadOnlyList<PrecedenceConstraint> Precedence,
+    IReadOnlyList<PlanningFactSetPin> FactSetPins)
+{
+    public IReadOnlyList<string> IncompleteFactSets => PlanningFactSets.Required
+        .Where(required => !FactSetPins.Any(pin =>
+            string.Equals(pin.FactSet, required, StringComparison.Ordinal) && pin.IsComplete))
+        .ToArray();
+}
 
 public sealed record SchedulingProposal(
     string ProposalId,
@@ -71,7 +102,8 @@ public sealed record SchedulingProposal(
     SolveStatus Status,
     IReadOnlyList<AssignmentCandidate> Assignments,
     int WorkUnits,
-    string ReasonCode);
+    string ReasonCode,
+    IReadOnlyList<string> IncompleteFactSets);
 
 public interface IPlanningSolver
 {

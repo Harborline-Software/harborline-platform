@@ -3,6 +3,30 @@ import { resolve } from 'node:path'
 import { connect as connectBlazorGrid } from '../../projections/blazor/ui/hlp.ui.data-grid/wwwroot/data-grid-component.js'
 
 describe('DataGrid Blazor JavaScript conformance', () => {
+  it.each(['null container', 'null viewport', 'removed container', 'removed viewport', 'replaced viewport'])('does not connect a %s', (state) => {
+    const observe = vi.fn()
+    vi.stubGlobal('ResizeObserver', vi.fn(() => ({ observe })))
+    let container = document.createElement('div')
+    let viewport = document.createElement('div')
+    container.append(viewport)
+    document.body.append(container)
+    const listener = vi.spyOn(viewport, 'addEventListener')
+    const callback = { invokeMethodAsync: vi.fn() }
+    if (state === 'null container') { container.remove(); container = null }
+    if (state === 'null viewport') { viewport.remove(); viewport = null }
+    if (state === 'removed container') container.remove()
+    if (state === 'removed viewport') viewport.remove()
+    if (state === 'replaced viewport') document.body.append(viewport)
+
+    expect(connectBlazorGrid(container, viewport, callback, 44)).toBeNull()
+    expect(listener).not.toHaveBeenCalled()
+    expect(ResizeObserver).not.toHaveBeenCalled()
+    expect(callback.invokeMethodAsync).not.toHaveBeenCalled()
+    container?.remove()
+    viewport?.remove()
+    vi.unstubAllGlobals()
+  })
+
   it('measures the Blazor outer container while its max-content viewport stays wide', () => {
     let observer
     class TestResizeObserver {
@@ -16,6 +40,7 @@ describe('DataGrid Blazor JavaScript conformance', () => {
     const container = document.createElement('div')
     const viewport = document.createElement('div')
     container.append(viewport)
+    document.body.append(container)
     Object.defineProperty(container, 'clientWidth', { configurable: true, value: 320 })
     Object.defineProperty(viewport, 'clientWidth', { configurable: true, value: 640 })
     const callback = { invokeMethodAsync: vi.fn() }
@@ -28,6 +53,7 @@ describe('DataGrid Blazor JavaScript conformance', () => {
     expect(callback.invokeMethodAsync).toHaveBeenLastCalledWith('OnResizedAsync', 160, false)
 
     connection.dispose()
+    container.remove()
     vi.unstubAllGlobals()
   })
 
@@ -38,6 +64,7 @@ describe('DataGrid Blazor JavaScript conformance', () => {
     const container = document.createElement('div')
     const viewport = document.createElement('div')
     container.append(viewport)
+    document.body.append(container)
     const reported = []
     const callback = { invokeMethodAsync: (name, value) => { if (name === 'OnScrolledAsync') reported.push(value) } }
 
@@ -46,6 +73,7 @@ describe('DataGrid Blazor JavaScript conformance', () => {
     expect(viewport.scrollTop).toBe(preserved.scrollTop)
     expect(reported).toEqual([preserved.scrollTop])
     connection.dispose()
+    container.remove()
     vi.unstubAllGlobals()
   })
 

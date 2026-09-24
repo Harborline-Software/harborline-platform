@@ -1,43 +1,50 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.foundation.rule-authoring",
-  "interfaceRevision": 1,
+  "interfaceRevision": 3,
   "status": "frozen",
-  "purpose": "Bridge the Calculations authoring surface onto the shipped rule engine: decision-table and formula drafts, draft-to-skin lowering, advisory lint, blank seeds, live preview through the real reactive tier, the versioned named-rule catalog over a pluggable store port, and the compile-first publish admission fence (ADR 0146 D2/D5/D7).",
-  "dependencies": [{"moduleId": "hlp.foundation.rule-runtime", "minimumRevision": 1}],
+  "purpose": "Typed Rules source, strict canonical codecs and located intent diagnostics, with draft lowering, advisory lint, seeds and preview over the shared rule engine.",
+  "dependencies": [
+    {
+      "moduleId": "hlp.foundation.rule-runtime",
+      "minimumRevision": 2
+    }
+  ],
   "tiers": {
     "typescript": {
       "package": "@harborline-software/rule-authoring",
-      "role": "editor-facing drafts, lowering, lint, seeds, preview, catalog, and publish fence over the packed reactive engine",
+      "role": "editor-facing typed source, intent diagnostics and preview; publication is committed only by the .NET shared store",
       "peer": "@harborline-software/rule-engine"
     },
     "dotnet": {
       "package": "Harborline.Foundation.RuleAuthoring",
       "assembly": "Harborline.Foundation.RuleAuthoring",
-      "role": "the same authoring bridge over the authoritative integrity tier, for hosts that author or publish rules server-side"
+      "role": "typed source and full compiler admission consumed by blocks.builder-definitions"
     }
   },
   "callerInterface": {
-    "name": "SkinLowering / RuleLint / RuleSeeds / RuleCatalog / PublishAdmission",
+    "name": "RuleDefinitionCodec / RuleIntentValidator / SkinLowering / RuleLint / RuleSeeds / RuleKeySuggestion",
     "operations": [
       "CompileDraft(draft, ruleId) -> RuleDefinition (throws the engine's rule.skin.* rejection)",
-      "EvaluatePreview(draft, ruleId, sample, traceFilter?) -> {value, outcome, firedRowId, trace}",
+      "EvaluatePreview(draft, ruleId, sample, businessClock, traceFilter?) -> {value, outcome, firedRowId, trace}",
       "NoMatchResolved(tableDraft) -> bool; LintTable(tableDraft) -> rules.lint.* findings",
       "BlankTableDraft() / BlankFormulaDraft() / BlankDraftFor(skin)",
-      "RuleCatalog(store, clock?): ListRules / LoadRule / CreateRule / SaveDraft / CommitPublishedVersion / DuplicateRule / SetArchived; NextVersion / MintRuleKey",
-      "PublishRule(catalog, ruleKey, draft) -> {ok, version, definition} | {ok:false, code, message}"
+      "ValidateJson(source, Author|Publish|Persisted) -> typed source or coded RFC 6901 diagnostics",
+      "SerializeCanonical(source) -> canonical source JSON; SerializeBody / ParseBody split shared identity metadata",
+      "RuleKeySuggestion.Suggest / suggestRuleKey -> advisory key without allocation"
     ],
-    "context": "Persistence lives behind the RuleCatalogStore port a host supplies (the Harborline replacement for the pinned per-tenant-device localStorage interim). The clock is injected. Publish is a control change gated behind a human CP confirm by the caller."
+    "context": "Foundation owns source and intent only, with no dependency on blocks. Hosts compose RuleDefinitionCatalog with IVersionedDefinitionStore and IDefinitionLifecycleStore in blocks.builder-definitions. A successful TS Publish-phase diagnostic result is not a committed publication."
   },
   "invariants": [
     "The bridge owns no evaluator semantics: every compile rejection and every evaluation flows through the shipped rule engine's skin compilers and form rule graph, in both tiers.",
     "A decision table with an unresolved no-match posture cannot publish: a blank Otherwise default is blocked by the fence with the compiler's stable rule.skin.no_match_unresolved code before any compile or catalog access, and a missing catch-all is rejected by the compiler itself.",
-    "Publish is compile-first and fail-closed: any rule.skin.* rejection returns its stable code and leaves the catalog untouched; a missing rule returns rules.publish.not_found without minting a version.",
-    "Published versions are append-only and monotonic per rule key under the S-8 watermark; a downgrade commit is refused without changing stored history, and the next version is minted from the highest published (patch bump; 1.0.0 first).",
-    "Create refuses an existing rule key; duplicate forks the working draft under a new key; archive toggles list visibility and never deletes.",
-    "The preview's fired-row attribution is derived from an engine-compiled probe skin (outputs replaced by row ids), never a surface re-implementation of hit-policy ordering.",
+    "The preview samples its caller-supplied business clock once and gives that pin to both its engine evaluation and fired-row probe; fired-row attribution is derived from an engine-compiled probe skin (outputs replaced by row ids), never a surface re-implementation of hit-policy ordering.",
     "Author-typed strings coerce with ECMAScript Number semantics identically in both tiers, so a draft lowers to the byte-identical skin JSON either side.",
-    "Lint is advisory with stable rules.lint.* codes and never prose; the load-bearing rejection remains the skin compiler."
+    "Lint is advisory with stable rules.lint.* codes and never prose; the load-bearing rejection remains the skin compiler.",
+    "Author, Publish and Persisted use full lowering and compiler admission including cycles and static bounds, with stable code and authored pointer. Unknown and duplicate members refuse without normalization.",
+    "VersionPolicy is a caller selector, never an authored source member. The shared store owns semantic-version admission; source preserves the label.",
+    "Provider-neutral metadata excludes policy-owned retention and legal-hold authority. Canonical round-trip preserves admitted source.",
+    "TS preview and intent validation do not persist or allocate versions."
   ],
   "errors": [
     "rule.skin.no_match_unresolved",
@@ -48,26 +55,38 @@
     "rule.skin.decision_table_invalid_hit_policy",
     "rule.skin.formula_empty",
     "rule.skin.formula_undeclared_ref",
-    "rules.publish.not_found",
     "rules.lint.no_match_unresolved",
     "rules.lint.non_terminal_catch_all",
     "rules.lint.empty_output",
     "rules.lint.gap",
-    "rules.lint.overlap"
+    "rules.lint.overlap",
+    "rules.definition.invalid_document",
+    "rules.definition.unknown_member",
+    "rules.definition.duplicate_member",
+    "rule.compile.*"
   ],
-  "publicSeams": ["rule catalog store port", "injected clock", "trace authority filter"],
+  "publicSeams": [
+    "typed source and intent diagnostics",
+    "caller-supplied business clock and trace authority filter",
+    "advisory key suggestion"
+  ],
   "conformance": {
-    "nativeTests": {"typescript": 35, "dotnet": 34},
+    "sharedCorpus": "conformance/hlp.foundation.rule-authoring/definition-intent-cases.json",
+    "phases": [
+      "Author",
+      "Publish",
+      "Persisted"
+    ],
     "packageFixture": "calculations-capability-vertical (verify-package-fixtures)"
   },
   "selectedDesign": {
-    "choice": "One thin authoring bridge per tier over the packed rule engine, with the registry's caller-observable semantics preserved verbatim from the pinned Harborline App client and persistence narrowed to an injected store port.",
+    "choice": "Foundation supplies typed source and diagnostics; blocks composes Rules with the single shared versioned-definition store.",
     "rejected": [
-      "Port the pinned localStorage catalog client verbatim, keeping a browser-storage persistence coupling the Harborline seam never had.",
-      "Re-implement hit-policy/no-match/undeclared-ref checks in the authoring layer, creating a second source of rejection that could drift from the engine.",
-      "Defer the named-rule catalog to the app shell, leaving Calculations without a publishable registry seam at package parity."
+      "Rules-local dictionary or browser localStorage persistence",
+      "A foundation dependency on blocks",
+      "Automatic Rules patch allocation beside caller-supplied generic labels"
     ],
-    "reason": "The Harborline App rules lane is surface + interim persistence over the engine; the migration-durable parts are its editor drafts, fence semantics, and registry contract — not the storage stopgap."
+    "reason": "One authority for revision fences, exact replay, immutable published history and semantic-version heads."
   },
   "behaviorEvidence": {
     "sourceCapture": "migration://preprocessing/calculations/generated/calculations-rules-source.json",

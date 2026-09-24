@@ -1,4 +1,5 @@
 @namespace Harborline.UIAdapters.Blazor.Components.Forms
+@using Harborline.UIAdapters.Blazor.Components.Buttons
 @using Microsoft.AspNetCore.Components.Web
 @using Microsoft.JSInterop
 @using Harborline.UIAdapters.Blazor.Base
@@ -9,6 +10,7 @@
 @if (store is not null)
 {
     <CascadingValue Value="@store" IsFixed="true">
+    <CascadingValue Name="SchemaFormReadOnly" Value="@ReadOnly">
         <form @ref="formElement" aria-label="@ResolvedTitle" class="@CombineClasses("hl-schema-form")" dir="@Direction"
               novalidate style="@CombineStyles()" @onsubmit="HandleSubmitAsync" @onsubmit:preventDefault
               @attributes="AdditionalAttributes">
@@ -48,15 +50,19 @@
                 @foreach (var section in VisibleSections)
                 {
                     <HarborlineSchemaSection @key="section.Id" Action="@HandleAction" ByField="@byField"
-                                           Disabled="@(Disabled || submitting)"
+                                           Disabled="@(Disabled || ReadOnly || submitting)"
                                            FieldFocused="@SetFocusedField" LocaleChain="@LocaleChain" Registry="@registry" Section="@section"
                                            RegisterElement="@RegisterSection" SetValue="@SetValueAsync" Strings="@Copy" />
                 }
-                <button @ref="submitElement" class="hl-schema-form__submit" disabled="@(Disabled || submitting || saveBlocked)" type="submit">
+                @if (!ReadOnly)
+                {
+                <HarborlineButton Class="hl-schema-form__submit" Enabled="@(!Disabled && !submitting && !saveBlocked)" Loading="@submitting" Variant="ButtonVariant.Primary" ButtonType="ButtonType.Submit">
                     @(submitting ? Copy.Submitting : Copy.Submit)
-                </button>
+                </HarborlineButton>
+                }
             }
         </form>
+    </CascadingValue>
     </CascadingValue>
 }
 
@@ -80,6 +86,7 @@
     [Parameter] public IReadOnlyDictionary<string, SchemaFormControlRenderer>? Controls { get; set; }
     [Parameter] public EventCallback<SchemaFormAction> OnBlockAction { get; set; }
     [Parameter] public bool Disabled { get; set; }
+    [Parameter] public bool ReadOnly { get; set; }
 
     private SchemaFormValueStore? store;
     private SchemaFormValueStore? candidateStore;
@@ -105,7 +112,6 @@
     private ElementReference summary;
     private ElementReference empty;
     private ElementReference formElement;
-    private ElementReference submitElement;
     private readonly Dictionary<string, ElementReference> sectionElements = new(StringComparer.Ordinal);
     private IJSObjectReference? module;
 
@@ -182,12 +188,14 @@
         else if (focusSubmit)
         {
             focusSubmit = false;
-            await submitElement.FocusAsync();
+            module ??= await JavaScript.InvokeAsync<IJSObjectReference>("import", "./_content/Harborline.UIAdapters.Blazor/schema-form.js");
+            await module.InvokeVoidAsync("focusSubmit", formElement);
         }
     }
 
     private async Task SetValueAsync(IReadOnlyList<object> path, object? value)
     {
+        if (ReadOnly) return;
         var controlled = Values is not null;
         var nextCandidate = controlled ? candidateStore!.With(path, value) : candidateStore!.Set(path, value);
         var callbackCandidate = store!.With(path, value);
@@ -240,7 +248,7 @@
 
     private async Task HandleSubmitAsync()
     {
-        if (Disabled || submitting) return;
+        if (Disabled || ReadOnly || submitting) return;
         if (saveBlocked)
         {
             blockedAttempt = true;
@@ -264,6 +272,7 @@
 
     private async Task HandleAction(SchemaFormAction action)
     {
+        if (ReadOnly) return;
         if (action.Kind == SchemaFormActionKind.ScrollToSection)
         {
             if (action.SectionId is not null

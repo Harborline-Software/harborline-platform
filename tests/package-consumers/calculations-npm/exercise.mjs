@@ -1,24 +1,39 @@
 // Calculations capability vertical — the RENDERER lane. Installs ONLY the packed
 // @harborline-software/rule-authoring and @harborline-software/rule-engine artifacts and drives
 // the 12-case authoring-verdict corpus through the packaged bridge: author -> lint ->
-// publish fence -> compile -> evaluate -> trace, writing its verdicts for the engine lane
+// typed intent -> compile -> evaluate -> trace, writing its verdicts for the engine lane
 // to cross-check case by case.
 import { readFileSync, writeFileSync } from 'node:fs'
+import assert from 'node:assert/strict'
 
 import {
-  InMemoryRuleCatalogStore,
-  RuleCatalog,
   evaluatePreview,
   isCompileError,
-  lintTable,
-  nextVersion,
-  noMatchResolved,
-  publishRule,
-  RuleLintCodes,
+  validateRuleDefinitionJson,
+  serializeRuleDefinition,
 } from '@harborline-software/rule-authoring'
 import { compile } from '@harborline-software/rule-engine'
 
 const corpus = JSON.parse(readFileSync(new URL('./authoring-verdict-cases.json', import.meta.url), 'utf8'))
+const intentCorpus = JSON.parse(readFileSync(new URL('./definition-intent-cases.json', import.meta.url), 'utf8'))
+const previewClock = () => new Date('2026-06-30T00:00:00.000Z')
+for (const row of intentCorpus.cases) {
+  for (const phase of ['Author', 'Publish', 'Persisted']) {
+    const result = validateRuleDefinitionJson(row.sourceJson, phase)
+    assert.equal(result.document !== null, row.expected.valid, `${row.id}/${phase}`)
+    if (row.expected.valid) {
+      assert.deepEqual(result.diagnostics, [])
+      const canonical = serializeRuleDefinition(result.document)
+      assert.deepEqual(JSON.parse(canonical), JSON.parse(row.sourceJson))
+      if (row.expected.canonicalJson) assert.equal(canonical, row.expected.canonicalJson)
+    } else {
+      assert.equal(result.diagnostics.length, 1)
+      assert.equal(result.diagnostics[0].code, row.expected.code)
+      assert.equal(result.diagnostics[0].location, row.expected.location)
+      assert.equal(result.diagnostics[0].phase, phase)
+    }
+  }
+}
 
 function draftOf(row) {
   const base = row.draft ?? structuredClone(corpus.cases.find(c => c.id === row.draftRef).draft)
@@ -29,7 +44,7 @@ async function verdictOf(row) {
   switch (row.op) {
     case 'preview': {
       const draft = draftOf(row)
-      const r = evaluatePreview(draft, row.ruleId, row.sample)
+      const r = evaluatePreview(draft, row.ruleId, row.sample, previewClock)
       return {
         id: row.id,
         op: row.op,
@@ -38,50 +53,9 @@ async function verdictOf(row) {
         traceCodes: [...new Set(r.trace.map(entry => entry.code))].sort(),
       }
     }
-    case 'publish-refusal': {
-      const draft = draftOf(row)
-      const catalog = new RuleCatalog(new InMemoryRuleCatalogStore())
-      await catalog.createRule({ ruleKey: row.ruleKey, name: row.ruleKey, skinType: draft.skin, draft })
-      // The fence's surface gate and the advisory lint must agree on the blank-Otherwise case.
-      if (draft.skin === 'table' && !noMatchResolved(draft)
-          && !lintTable(draft).some(f => f.code === RuleLintCodes.noMatchUnresolved)) {
-        throw new Error(`lint and fence disagree on no-match for ${row.id}`)
-      }
-      const outcome = await publishRule(catalog, row.ruleKey, draft)
-      const stored = await catalog.loadRule(row.ruleKey)
-      if (stored.versions.length !== 0) throw new Error(`refused publish still committed a version for ${row.id}`)
-      return { id: row.id, op: row.op, ok: outcome.ok, code: outcome.ok ? null : outcome.code }
-    }
-    case 'publish-mint': {
-      const draft = draftOf(row)
-      const catalog = new RuleCatalog(new InMemoryRuleCatalogStore())
-      await catalog.createRule({ ruleKey: row.ruleKey, name: row.ruleKey, skinType: draft.skin, draft })
-      const first = await publishRule(catalog, row.ruleKey, draft)
-      await catalog.saveDraft(row.ruleKey, draft)
-      const second = await publishRule(catalog, row.ruleKey, draft)
-      if (!first.ok || !second.ok) throw new Error(`monotonic mint publish failed for ${row.id}`)
-      const stored = await catalog.loadRule(row.ruleKey)
-      return { id: row.id, op: row.op, versions: stored.versions.map(v => v.version) }
-    }
-    case 'downgrade': {
-      const draft = draftOf(row)
-      const catalog = new RuleCatalog(new InMemoryRuleCatalogStore())
-      await catalog.createRule({ ruleKey: row.ruleKey, name: row.ruleKey, skinType: draft.skin, draft })
-      for (const version of row.seedVersions) await catalog.commitPublishedVersion(row.ruleKey, version, draft)
-      let refused = false
-      try {
-        await catalog.commitPublishedVersion(row.ruleKey, row.downgrade, draft)
-      } catch {
-        refused = true
-      }
-      const stored = await catalog.loadRule(row.ruleKey)
-      return {
-        id: row.id,
-        op: row.op,
-        refused,
-        versions: stored.versions.map(v => v.version),
-        nextVersion: nextVersion(stored),
-      }
+    case 'definition-intent': {
+      const result = validateRuleDefinitionJson(row.sourceJson, 'Publish')
+      return { id: row.id, op: row.op, ok: result.document !== null, code: result.diagnostics[0]?.code ?? null }
     }
     case 'compile-cycle': {
       try {
@@ -115,5 +89,5 @@ writeFileSync(new URL('./client-verdicts.json', import.meta.url), JSON.stringify
 console.log('CALCULATIONS_CLIENT_PASS:' + JSON.stringify({
   cases: verdicts.length,
   previews: verdicts.filter(v => v.op === 'preview').length,
-  refusals: verdicts.filter(v => v.op === 'publish-refusal' || v.op === 'downgrade' || v.op === 'compile-cycle').length,
+  refusals: verdicts.filter(v => v.ok === false || v.op === 'compile-cycle').length,
 }))

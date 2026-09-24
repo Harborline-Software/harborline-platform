@@ -7,5 +7,6 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Harborline.Foundation.RuleAuthoring" Version="$(HarborlinePackedVersion)" />
+    <PackageReference Include="Harborline.Blocks.BuilderDefinitions" Version="$(HarborlinePackedVersion)" />
   </ItemGroup>
 </Project>

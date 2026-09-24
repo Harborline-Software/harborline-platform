@@ -1,32 +1,35 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.foundation.scheduling",
-  "interfaceRevision": 1,
+  "interfaceRevision": 4,
   "status": "frozen",
-  "purpose": "Own the bounded RRULE expansion engine (FREQ/INTERVAL/BYDAY/BYMONTHDAY/BYMONTH, COUNT/UNTIL, lead-day skip, fail-closed malformed rules, hard 1000-occurrence cap) and the derived due-queue query (active-schedule expansion, completion diffing, overdue-first ordering, inclusive window, fail-closed inverted window), plus the source-agnostic due-occurrence seam the ADR-0149-amendment relative-chain generator lands behind later.",
+  "purpose": "Own the bounded RRULE expansion engine (FREQ/INTERVAL/BYDAY/BYMONTHDAY/BYMONTH, COUNT/UNTIL, selector-aware interval expansion, lead-day skip, fail-closed malformed or unsupported rules, hard 1000-occurrence cap refused rather than truncated) and the derived due-queue query (active-schedule expansion, completion diffing, overdue-first ordering, inclusive window, fail-closed inverted window), plus the source-agnostic due-occurrence seam the ADR-0149-amendment relative-chain generator lands behind later.",
   "dependencies": [],
   "callerInterface": {
     "name": "IRruleExpansionService / IDueQueueQueryService / IDueOccurrenceSource",
     "operations": [
-      "ExpandOccurrences(rrule, start, end?, lookaheadDays, leadDays, today, timezone) -> ascending DateOnly occurrences, never exceeding 1000; FormatException on a missing FREQ; ArgumentException on blank input",
+      "ExpandOccurrences(rrule, start, end?, lookaheadDays, leadDays, today, timezone) -> ascending DateOnly occurrences, never exceeding 1000 and never partial; selector matches honor INTERVAL from DTSTART; RruleExpansionCapExceededException when the 1000-occurrence candidate limit is reached before the requested range is fully evaluated, carrying recurrence id, anchor, requested range, candidate limit, candidates examined, last evaluated occurrence and the COUNT/UNTIL bound; FormatException on a missing FREQ or on an out-of-bound or malformed value of an admitted part (named); ArgumentException on blank input; NotSupportedException on a component outside the bounded subset or BYMONTHDAY under WEEKLY",
       "Query(schedules, completionHistory, windowStart, windowEnd, asOf) -> incomplete due occurrences, most-overdue first then upcoming by due date; throws on an inverted window",
       "IDueOccurrenceSource.DeriveDue(completionHistory, windowStart, windowEnd, asOf) — the source-agnostic seam; RruleDueOccurrenceSource is the first source; CompositeDueOccurrenceSource merges sources and re-applies the pinned queue ordering"
     ],
-    "context": "Cross-tier consistency is binding: the expander mirrors the ui-react SchedulerRecurrence expandRecurrence subset exactly so the same RRULE expands identically on both tiers. Callers inject today/asOf — the engine never reads ambient time. The seam exists by user ruling 2026-08-16 (migration ticket 086): the event-anchored relative-chain generator is post-gate substrate that plugs in behind IDueOccurrenceSource with no breaking change."
+    "context": "The bounded subset is the recurrence-expansion producer contract for Scheduling, Booking, and availability. Callers inject today/asOf — the engine never reads ambient time. The seam exists by user ruling 2026-08-16 (migration ticket 086): the event-anchored relative-chain generator is post-gate substrate that plugs in behind IDueOccurrenceSource with no breaking change."
   },
   "invariants": [
-    "The supported RRULE subset is closed (unsupported components are ignored in v1, documented for the Ical.Net follow-on); a missing FREQ or blank rule fails closed, never expands empty.",
+    "The supported RRULE subset is closed: an unsupported component is refused rather than silently discarded, and a missing FREQ or blank rule fails closed rather than expanding empty.",
+    "WEEKLY rules with BYDAY and MONTHLY rules with BYDAY or BYMONTHDAY admit matches only in RFC weeks or calendar months whose elapsed count from DTSTART is a multiple of INTERVAL.",
+    "Every admitted selector applies under every FREQ it is admitted with (RFC 5545 s3.3.10): BYDAY and BYMONTHDAY limit DAILY, intersect under MONTHLY, and expand YEARLY day by day; an out-of-bound or malformed value of an admitted part is refused naming the part, never dropped.",
     "No expansion call ever yields more than 1000 occurrences.",
+    "Occurrences are returned only when every occurrence relevant to the requested range has been evaluated: a walk that reaches the 1000-occurrence candidate limit with range left to cover refuses with a dedicated domain type rather than returning an unmarked partial, and a rule bounded by COUNT or UNTIL that ends before the limit succeeds normally (DES-0057 s10 ruling 3).",
     "UNTIL wins over COUNT when both are present; BYMONTHDAY is capped at 28 to avoid month-end ambiguity.",
     "The due queue diffs completion history by (subject, schedule, dueDate) identity and orders most-overdue first, then upcoming by due date; an inverted window is a fail-closed rejection.",
     "The due-occurrence seam is source-agnostic: the pinned query stays byte-faithful beneath it, and composing additional sources preserves the pinned ordering across the merged set.",
     "The engine reads no ambient clock or timezone; today/asOf are injected at every call site."
   ],
-  "errors": ["FormatException (missing FREQ)", "ArgumentException (blank rule; inverted window)"],
+  "errors": ["FormatException (missing FREQ; out-of-bound or malformed value of an admitted part)", "ArgumentException (blank rule; inverted window)", "NotSupportedException (RRULE component outside the bounded subset; BYMONTHDAY under WEEKLY)", "RruleExpansionCapExceededException (candidate limit reached before the requested range was fully evaluated)"],
   "publicSeams": ["due-occurrence source seam (ticket 086)", "injected wall-clock today/asOf"],
   "conformance": {
-    "nativeTests": {"dotnet": 28},
-    "nativeTestNote": "19 pinned RRULE cases + 6 pinned due-queue cases under their pinned names, plus 3 seam tests proving the source-agnostic port (not pinned rows)"
+    "nativeTests": {"dotnet": 52},
+    "nativeTestNote": "43 RRULE cases, including selector-aware weekly/monthly intervals for BYDAY and BYMONTHDAY, unsupported-part and out-of-bound-value refusal, DAILY and MONTHLY selector application, YEARLY expansion, and the occurrence-cap refusal with its COUNT/UNTIL-bounded positive controls and the exactly-full-range success (T-647), plus 6 pinned due-queue cases and 3 seam tests proving the source-agnostic port"
   },
   "selectedDesign": {
     "choice": "Verbatim port of the pinned foundation-scheduling engine with one additive seam above the pinned query.",

@@ -35,7 +35,7 @@ test('an oversized failed step preserves complete output outside the bounded rec
     assert.equal(readFileSync(resolve(root, results[0].failureEvidencePath), 'utf8'), output)
     const bounded = results[0].failureOutput
     assert.ok(bounded.length <= OUTPUT_CAP)
-    assert.match(bounded, /\[truncated after 16384 characters\]$/)
+    assert.match(bounded, /x\nlast$/)
   } finally {
     rmSync(root, {recursive: true, force: true})
   }
@@ -64,6 +64,85 @@ test('a failed step carries a pointer to failure output that exists', () => {
     // PASS-only record so a red run keeps the previous pass's step-reuse baseline.
     assert.equal(results[0].failureEvidencePath, '.claude/gate-evidence/pointer-step.log')
     assert.equal(existsSync(resolve(root, results[0].failureEvidencePath)), true)
+  } finally {
+    rmSync(root, {recursive: true, force: true})
+  }
+})
+
+test('a large JSON failure retains flaky-test diagnostics beyond the bounded tail', () => {
+  const root = mkdtempSync(resolve(tmpdir(), 'phase4-json-failure-'))
+  try {
+    const results = []
+    const diagnostics = {
+      failingTests: ['gallery/MemberEdit.spec.ts: restores the saved member'],
+      flakyTests: [{
+        id: 'gallery/PersonSearch.spec.ts: filters results',
+        retries: 2,
+        error: 'expect(locator).toHaveCount(1) timed out',
+      }],
+      reportLocation: 'gallery/tests/test-results/results.json',
+      scenarioCounts: Array.from({length: 250}, (_, index) => ({
+        module: `hlp.ui.example-${index}`,
+        scenarios: index + 1,
+      })),
+    }
+    const stdout = JSON.stringify(diagnostics, null, 2)
+    assert.ok(stdout.length > OUTPUT_CAP)
+    // 120 is the tail run-gallery-gate.mjs keeps of its own sub-steps: the window the incident lost.
+    const tail = stdout.split('\n').slice(-120).join('\n')
+    assert.doesNotMatch(tail, /PersonSearch|restores the saved member|toHaveCount/)
+
+    assert.throws(() => runPhase4Step({
+      results,
+      id: 'gallery-gate',
+      executable: process.execPath,
+      args: ['tooling/run-gallery-gate.mjs', '--packages-ready'],
+      cwd: root,
+      json: true,
+      env: {},
+      failureEvidence: failureEvidence(root, 'gallery-gate'),
+      execute: () => ({
+        result: {status: 1, stdout, stderr: ''},
+        outcome: {status: 1, report: {status: 'FAIL'}},
+      }),
+    }), /gallery-gate failed/)
+
+    const entry = results[0]
+    assert.deepEqual(entry.command, [process.execPath, 'tooling/run-gallery-gate.mjs', '--packages-ready'])
+    assert.equal(entry.exitCode, 1)
+    assert.equal(entry.failureEvidencePath, '.claude/gate-evidence/gallery-gate.log')
+    assert.deepEqual(JSON.parse(readFileSync(resolve(root, entry.failureEvidencePath), 'utf8')), diagnostics)
+  } finally {
+    rmSync(root, {recursive: true, force: true})
+  }
+})
+
+test('a plain-log failure over the cap keeps its final diagnostic lines in the bounded report', () => {
+  const root = mkdtempSync(resolve(tmpdir(), 'phase4-log-failure-'))
+  try {
+    const results = []
+    const stdout = Array.from({length: 400}, (_, index) => `progress line ${index + 1} ${'.'.repeat(60)}`).join('\n')
+    assert.ok(stdout.length > OUTPUT_CAP)
+    const stderr = 'FATAL: package-consumers fixture installation failed'
+    assert.throws(() => runPhase4Step({
+      results,
+      id: 'package-consumers',
+      executable: 'pnpm',
+      args: ['install', '--frozen-lockfile'],
+      cwd: root,
+      json: false,
+      env: {},
+      failureEvidence: failureEvidence(root, 'package-consumers'),
+      execute: () => ({
+        result: {status: 1, stdout, stderr},
+        outcome: {status: 1, report: {status: 'FAIL'}},
+      }),
+    }), /package-consumers failed/)
+
+    assert.match(results[0].failureOutput, /progress line 400 /)
+    assert.ok(results[0].failureOutput.length <= OUTPUT_CAP)
+    assert.match(results[0].failureOutput, /FATAL: package-consumers fixture installation failed/)
+    assert.equal(readFileSync(resolve(root, results[0].failureEvidencePath), 'utf8'), `${stdout}\n${stderr}`)
   } finally {
     rmSync(root, {recursive: true, force: true})
   }

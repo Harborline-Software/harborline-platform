@@ -144,7 +144,14 @@
         if (value is null) return string.Empty;
         try
         {
-            var culture = CultureInfo.GetCultureInfo(EffectiveLocale);
+            // .NET/ICU assigns different regional currency metadata to the en-XA
+            // pseudo-locale on Windows and Linux. JavaScript Intl treats en-XA as
+            // English formatting, so normalize it the same way as the other
+            // Blazor date/time formatters before resolving the currency symbol.
+            var formattingLocale = string.Equals(EffectiveLocale, "en-XA", StringComparison.OrdinalIgnoreCase)
+                ? "en-US"
+                : EffectiveLocale;
+            var culture = CultureInfo.GetCultureInfo(formattingLocale);
             if (Format is { Length: > 0 } format && (format[0] == 'c' || format[0] == 'p'))
             {
                 var digits = format.Length > 1 && int.TryParse(format[1..], out var parsed) ? parsed : format[0] == 'c' ? 2 : 0;

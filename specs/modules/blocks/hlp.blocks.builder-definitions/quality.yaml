@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.blocks.builder-definitions",
-  "profileRevision": 1,
+  "profileRevision": 6,
   "riskTier": "A",
   "dimensions": {
-    "durability": {"disposition":"required", "caseIds":["archive.starts-empty","archive.idempotent","archive.unarchive-idempotent","archive.namespaced"]},
-    "concurrency": {"disposition":"required", "rationale":"Lifecycle mutations serialize; key allocation is deliberately deferred behind IDefinitionKeyAuthority."},
+    "durability": {"disposition":"required", "caseIds":["archive.starts-empty","archive.idempotent","archive.unarchive-idempotent","archive.namespaced","platform-package.deterministic-export","platform-package.canonical-byte-identity","platform-package.adr-0097-inventory","platform-package.explicit-absences","platform-package.empty-replay","platform-package.empty-manifest-refusal","platform-package.package-first-refusal","platform-package.package-count-refusal","platform-package.non-empty-refusal","platform-package.order-refusal","platform-package.unknown-stage-refusal","platform-package.duplicate-refusal","platform-package.dependency-refusal","platform-package.unresolved-refusal","platform-package.safety-floor-lower-clamp","platform-package.safety-floor-missing-restore","platform-package.safety-floor-object-restore","platform-package.safety-floor-malformed-refusal","install-receipt.emits-every-field","install-receipt.checker-accepts-the-real-install","install-receipt.installed-digest-mismatch-refusal","install-receipt.digests-read-back-not-echoed","install-receipt.authorization-mismatch-refusal","install-receipt.hand-written-refusal","install-receipt.fixture-kept-refusal","install-receipt.edited-document-refusal","install-receipt.des-0007-sealed-rows","install-receipt.sealed-type-not-reported-refusal","install-receipt.sealed-trait-not-reported-refusal","install-receipt.sealed-trait-not-in-record-refusal","release-receipt.same-artifact-identity","release-receipt.checked-in-artifact-is-the-seed","release-receipt.drifted-artifact-refused"]},
+    "concurrency": {"disposition":"required", "rationale":"Lifecycle mutations serialize; platform seed replay binds through one atomic apply-to-empty target operation; key allocation is deliberately deferred behind IDefinitionKeyAuthority."},
     "security": {"disposition":"required", "rationale":"Tenant and kind are mandatory durable key components; authorization remains a composing server-host responsibility."},
     "accessibility": {"disposition":"not-applicable", "rationale":"No presentation surface."},
     "internationalization": {"disposition":"not-applicable", "rationale":"Pinned slugging is deliberately ASCII and locale-invariant."},
@@ -13,8 +13,8 @@
   },
   "componentStages": [
     {"id":"contract", "dimensions":["durability","concurrency","security"], "gate":"spec and catalog validation"},
-    {"id":"projection-native", "dimensions":["durability","concurrency","security"], "gate":"18 mapped xUnit declarations"},
-    {"id":"package-consumer", "dimensions":["durability","security"], "gate":"packed NuGet consumer"},
+    {"id":"projection-native", "dimensions":["durability","concurrency","security"], "gate":"46 passing xUnit cases including the ADR-0097 fixture, migration-authority ids, absence probes, export, atomic replay refusals, and safety-floor reattachment"},
+    {"id":"package-consumer", "dimensions":["durability","security"], "gate":"packed NuGet consumer loads and byte-verifies the embedded canonical platform export and refuses a malformed reattached safety-floor member"},
     {"id":"clean-clone", "dimensions":["durability","concurrency","security"], "gate":"complete repository gate"}
   ]
 }

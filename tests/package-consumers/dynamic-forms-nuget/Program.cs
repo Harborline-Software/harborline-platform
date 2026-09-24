@@ -45,6 +45,7 @@ for (var index = 0; index < caseRows.Length; index += 1)
 
 var sink = new RecordingProjectionSink();
 var services = new ServiceCollection();
+services.AddSingleton(TimeProvider.System);
 services.AddSingleton<IFormExecutionContextProvider, ConsumerExecutionContext>();
 services.AddSingleton<IFormDefinitionStore>(definitionStore);
 services.AddSingleton<IReuseResolver, IdentityReuseResolver>();

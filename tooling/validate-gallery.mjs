@@ -30,14 +30,14 @@ const requiredFiles = [
   'catalog/ui-theme-registry.json',
   ...definitions.flatMap(definition => [definition.catalog, ...Object.values(definition.stories)]),
   'gallery/projections/react/package.json',
-  'gallery/projections/react/package-lock.json',
+  'gallery/projections/react/pnpm-lock.yaml',
   'gallery/projections/react/.storybook/main.ts',
   'gallery/projections/react/.storybook/preview.ts',
   'gallery/projections/blazor/Harborline.Gallery.Blazor.csproj',
   ...definitions.map(definition => definition.stories.blazor.replace('.stories.razor', 'Scenario.razor')),
   'gallery/projections/blazor/wwwroot/gallery.css',
   'gallery/tests/package.json',
-  'gallery/tests/package-lock.json',
+  'gallery/tests/pnpm-lock.yaml',
   'gallery/tests/playwright.config.ts',
   'gallery/tests/tests/gallery.spec.ts',
   'tooling/prepare-galleries.mjs',
@@ -141,6 +141,9 @@ for (const path of ['gallery/projections/blazor/wwwroot/index.html', 'gallery/pr
   }
   if (!source.includes('_content/Harborline.UIAdapters.Blazor/empty-state.css')) {
     errors.push(`${path}: Empty State does not load CSS from the packed aggregate artifact`)
+  }
+  if (!source.includes('_content/Harborline.UIAdapters.Blazor/rule-authoring.css')) {
+    errors.push(`${path}: Rule Authoring does not load CSS from the packed aggregate artifact`)
   }
 }
 if (exists('catalog/ui-theme-registry.json') && exists('gallery/styles/canvas.css')) {

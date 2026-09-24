@@ -2,5 +2,12 @@
   <PropertyGroup>
     <PackageId>Harborline.Blocks.BuilderDefinitions.Tests</PackageId><IsPackable>false</IsPackable><IsTestProject>true</IsTestProject><AssemblyName>Harborline.Blocks.BuilderDefinitions.Tests</AssemblyName><RootNamespace>Harborline.Blocks.BuilderDefinitions.Tests</RootNamespace><GenerateDocumentationFile>false</GenerateDocumentationFile></PropertyGroup>
   <ItemGroup><PackageReference Include="Microsoft.NET.Test.Sdk" /><PackageReference Include="xunit" /><PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all" /></ItemGroup>
-  <ItemGroup><ProjectReference Include="../hlp.blocks.builder-definitions/Harborline.Blocks.BuilderDefinitions.csproj" /></ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../hlp.blocks.builder-definitions/Harborline.Blocks.BuilderDefinitions.csproj" />
+    <ProjectReference Include="../../foundation/hlp.foundation.rule-authoring/Harborline.Foundation.RuleAuthoring.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="../../../../conformance/hlp.foundation.rule-authoring/definition-intent-cases.json" Link="definition-intent-cases.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../../../conformance/hlp.blocks.builder-definitions/rules-editor-contract-fixtures.json" Link="rules-editor-contract-fixtures.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

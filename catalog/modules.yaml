@@ -15,8 +15,27 @@
         "dotnet": {"role": "implementation", "path": "projections/dotnet/contracts/hlp.contracts.identities/Authorization", "status": "preview", "packageContribution": "Harborline.Contracts"}
       }
     },
+    "hlp.contracts.fields": {
+      "interface": {"path": "specs/modules/contracts/hlp.contracts.fields/interface.yaml", "revision": 1},
+      "moduleKind": "runtime",
+      "presentation": {"disposition": "not-applicable", "rationale": "Shared field declarations carry no rendering or authoring surface."},
+      "owner": "platform-contracts",
+      "dependencies": ["hlp.contracts.identities"],
+      "status": "extracted-candidate",
+      "depth": {
+        "disposition": "deep-module",
+        "deletionTest": "PASS",
+        "redistributedComplexity": [
+          "kind, governance and scalar-shape declarations copied between the Records compiler and field consumers",
+          "three-source domain, narrowing constraint and refusal shapes independently invented by each member"
+        ]
+      },
+      "projections": {
+        "dotnet": {"role": "implementation", "path": "projections/dotnet/contracts/hlp.contracts.identities/Fields", "status": "preview", "packageContribution": "Harborline.Contracts"}
+      }
+    },
     "hlp.contracts.forms": {
-      "interface": {"path": "specs/modules/contracts/hlp.contracts.forms/interface.yaml", "revision": 5},
+      "interface": {"path": "specs/modules/contracts/hlp.contracts.forms/interface.yaml", "revision": 6},
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "Forms wire contracts are consumed by renderers but own no presentation implementation."},
       "owner": "platform-contracts",
@@ -108,12 +127,46 @@
         }
       }
     },
+    "hlp.kernel.core": {
+      "interface": {"path": "specs/modules/kernel/hlp.kernel.core/interface.yaml", "revision": 2},
+      "moduleKind": "runtime",
+      "presentation": {"disposition": "not-applicable", "rationale": "The kernel clock, atomic command transaction, and compiled bootstrap floor are host runtime contracts with no visual presentation surface."},
+      "owner": "platform-kernel",
+      "dependencies": [],
+      "status": "implemented-package-consumer-green",
+      "depth": {
+        "disposition": "deep-module",
+        "deletionTest": "PASS",
+        "redistributedComplexity": [
+          "authoritative clock selection, backdate admission, and expiry rules repeated in every kernel-facing member",
+          "record, audit, operation identity, and commit atomicity exposed as caller choreography while bootstrap resolution depends on an unavailable catalogue"
+        ]
+      },
+      "projections": {
+        "dotnet": {
+          "role": "implementation",
+          "path": "projections/dotnet/kernel/hlp.kernel.core",
+          "status": "preview",
+          "artifact": {
+            "type": "nuget",
+            "id": "Harborline.Kernel.Core",
+            "assembly": "Harborline.Kernel.Core",
+            "manifest": "projections/dotnet/kernel/hlp.kernel.core/Harborline.Kernel.Core.csproj",
+            "identityAuthority": "Harborline",
+            "producerRepository": "harborline-platform",
+            "distribution": "internal-only",
+            "candidateRole": "new-bounded-package",
+            "registryAvailable": false
+          }
+        }
+      }
+    },
     "hlp.kernel.schema-validation": {
-      "interface": {"path": "specs/modules/kernel/hlp.kernel.schema-validation/interface.yaml", "revision": 1},
+      "interface": {"path": "specs/modules/kernel/hlp.kernel.schema-validation/interface.yaml", "revision": 2},
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "JSON Schema registration and payload validation are runtime behavior with no visual presentation surface."},
       "owner": "platform-kernel",
-      "dependencies": [],
+      "dependencies": ["hlp.contracts.fields", "hlp.contracts.identities"],
       "status": "implemented-package-consumer-green",
       "depth": {
         "disposition": "deep-module",
@@ -143,11 +196,11 @@
       }
     },
     "hlp.kernel.work-items": {
-      "interface": {"path": "specs/modules/kernel/hlp.kernel.work-items/interface.yaml", "revision": 1},
+      "interface": {"path": "specs/modules/kernel/hlp.kernel.work-items/interface.yaml", "revision": 4},
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "Durable work-item lifecycle, audit, and outbox behavior produce projections consumed by separate application interfaces."},
       "owner": "platform-kernel",
-      "dependencies": ["hlp.contracts.identities", "hlp.foundation.actor", "hlp.foundation.tenancy"],
+      "dependencies": ["hlp.contracts.identities", "hlp.foundation.actor", "hlp.foundation.tenancy", "hlp.kernel.core"],
       "status": "implemented-package-consumer-green",
       "depth": {
         "disposition": "deep-module",
@@ -167,7 +220,7 @@
             "id": "Harborline.Kernel.WorkItems",
             "assembly": "Harborline.Kernel.WorkItems",
             "manifest": "projections/dotnet/kernel/hlp.kernel.work-items/Harborline.Kernel.WorkItems.csproj",
-            "dependencies": ["Harborline.Contracts", "Harborline.Foundation.Authorization", "Harborline.Foundation.MultiTenancy"],
+            "dependencies": ["Harborline.Contracts", "Harborline.Foundation.Authorization", "Harborline.Foundation.MultiTenancy", "Harborline.Kernel.Core"],
             "identityAuthority": "Harborline",
             "producerRepository": "harborline-platform",
             "distribution": "internal-only",
@@ -247,11 +300,11 @@
       }
     },
     "hlp.blocks.builder-definitions": {
-      "interface": {"path": "specs/modules/blocks/hlp.blocks.builder-definitions/interface.yaml", "revision": 1},
+      "interface": {"path": "specs/modules/blocks/hlp.blocks.builder-definitions/interface.yaml", "revision": 10},
       "moduleKind": "runtime",
-      "presentation": {"disposition": "not-applicable", "rationale": "Key suggestion and durable definition archive lifecycle have no presentation surface."},
+      "presentation": {"disposition": "not-applicable", "rationale": "Definition catalogue, package export, and replay are projection-neutral and have no presentation surface."},
       "owner": "platform-foundation",
-      "dependencies": [],
+      "dependencies": ["hlp.foundation.rule-authoring"],
       "status": "draft-native-green",
       "depth": {
         "disposition": "deep-module",
@@ -271,7 +324,7 @@
             "id": "Harborline.Blocks.BuilderDefinitions",
             "assembly": "Harborline.Blocks.BuilderDefinitions",
             "manifest": "projections/dotnet/blocks/hlp.blocks.builder-definitions/Harborline.Blocks.BuilderDefinitions.csproj",
-            "dependencies": [],
+            "dependencies": ["Harborline.Foundation.RuleAuthoring"],
             "identityAuthority": "Harborline",
             "producerRepository": "harborline-platform",
             "distribution": "internal-only",
@@ -280,6 +333,16 @@
           }
         }
       }
+    },
+    "hlp.blocks.layout-runtime": {
+      "interface": {"path": "specs/modules/blocks/hlp.blocks.layout-runtime/interface.yaml", "revision": 2},
+      "moduleKind": "runtime",
+      "presentation": {"disposition": "not-applicable", "rationale": "The definition resolver and flow planner return neutral render plans and own no framework presentation."},
+      "owner": "platform-foundation",
+      "dependencies": ["hlp.blocks.builder-definitions", "hlp.foundation.rule-runtime"],
+      "status": "draft-native-green",
+      "depth": {"disposition": "deep-module", "deletionTest": "PASS", "redistributedComplexity": ["exact immutable definition binding, persisted-value admission, and recursive layout flow would otherwise fork across every renderer", "screen and page boundaries, static regions, and break planning would otherwise become inconsistent local projection policy"]},
+      "projections": {"dotnet": {"role": "implementation", "path": "projections/dotnet/blocks/hlp.blocks.layout-runtime", "status": "preview", "artifact": {"type": "nuget", "id": "Harborline.Blocks.LayoutRuntime", "assembly": "Harborline.Blocks.LayoutRuntime", "manifest": "projections/dotnet/blocks/hlp.blocks.layout-runtime/Harborline.Blocks.LayoutRuntime.csproj", "dependencies": ["Harborline.Blocks.BuilderDefinitions", "Harborline.Foundation.RuleEngine"], "identityAuthority": "Harborline", "producerRepository": "harborline-platform", "distribution": "internal-only", "candidateRole": "new-bounded-package", "registryAvailable": false}}}
     },
     "hlp.blocks.aggregates": {
       "interface": {"path": "specs/modules/blocks/hlp.blocks.aggregates/interface.yaml", "revision": 1},
@@ -307,6 +370,41 @@
             "assembly": "Harborline.Blocks.Aggregates",
             "manifest": "projections/dotnet/blocks/hlp.blocks.aggregates/Harborline.Blocks.Aggregates.csproj",
             "dependencies": [],
+            "identityAuthority": "Harborline",
+            "producerRepository": "harborline-platform",
+            "distribution": "internal-only",
+            "candidateRole": "new-bounded-package",
+            "registryAvailable": false
+          }
+        }
+      }
+    },
+    "hlp.blocks.measure-catalogue": {
+      "interface": {"path": "specs/modules/blocks/hlp.blocks.measure-catalogue/interface.yaml", "revision": 1},
+      "moduleKind": "runtime",
+      "presentation": {"disposition": "not-applicable", "rationale": "The catalogue resolves references and returns neutral typed cells; every renderer of those cells is a separate consumer module."},
+      "owner": "platform-blocks",
+      "dependencies": ["hlp.blocks.aggregates", "hlp.foundation.actor"],
+      "status": "draft-native-green",
+      "depth": {
+        "disposition": "deep-module",
+        "deletionTest": "PASS",
+        "redistributedComplexity": [
+          "one address for declared and bound entries would otherwise fork into a per-consumer naming scheme and a kind-specific dispatch in every caller",
+          "binding the authorization-filtered input set before grouping, paging and folding would otherwise be re-decided, or forgotten, by each measure consumer"
+        ]
+      },
+      "projections": {
+        "dotnet": {
+          "role": "implementation",
+          "path": "projections/dotnet/blocks/hlp.blocks.measure-catalogue",
+          "status": "preview",
+          "artifact": {
+            "type": "nuget",
+            "id": "Harborline.Blocks.MeasureCatalogue",
+            "assembly": "Harborline.Blocks.MeasureCatalogue",
+            "manifest": "projections/dotnet/blocks/hlp.blocks.measure-catalogue/Harborline.Blocks.MeasureCatalogue.csproj",
+            "dependencies": ["Harborline.Blocks.Aggregates", "Harborline.Foundation.Authorization"],
             "identityAuthority": "Harborline",
             "producerRepository": "harborline-platform",
             "distribution": "internal-only",
@@ -422,7 +520,7 @@
       }
     },
     "hlp.blocks.scheduling": {
-      "interface": {"path": "specs/modules/blocks/hlp.blocks.scheduling/interface.yaml", "revision": 2},
+      "interface": {"path": "specs/modules/blocks/hlp.blocks.scheduling/interface.yaml", "revision": 3},
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "Reservation coordination and the planning seed produce outcomes and plans; the pinned Razor view surface is deliberately excluded as UI."},
       "owner": "platform-blocks",
@@ -456,11 +554,11 @@
       }
     },
     "hlp.blocks.calendar": {
-      "interface": {"path": "specs/modules/blocks/hlp.blocks.calendar/interface.yaml", "revision": 1},
+      "interface": {"path": "specs/modules/blocks/hlp.blocks.calendar/interface.yaml", "revision": 3},
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "The calendar engine produces occurrences, free/busy results, booking outcomes, and context answers consumed by scheduler/gantt renderers; it renders nothing."},
       "owner": "platform-blocks",
-      "dependencies": ["hlp.contracts.identities", "hlp.foundation.scheduling"],
+      "dependencies": ["hlp.contracts.identities", "hlp.foundation.actor", "hlp.foundation.scheduling"],
       "status": "implemented",
       "depth": {
         "disposition": "deep-module",
@@ -480,7 +578,7 @@
             "id": "Harborline.Blocks.Calendar",
             "assembly": "Harborline.Blocks.Calendar",
             "manifest": "projections/dotnet/blocks/hlp.blocks.calendar/Harborline.Blocks.Calendar.csproj",
-            "dependencies": ["Harborline.Contracts", "Harborline.Foundation.Scheduling"],
+            "dependencies": ["Harborline.Contracts", "Harborline.Foundation.Authorization", "Harborline.Foundation.Scheduling"],
             "identityAuthority": "Harborline",
             "producerRepository": "harborline-platform",
             "distribution": "internal-only",
@@ -526,11 +624,11 @@
       }
     },
     "hlp.blocks.reports": {
-      "interface": {"path": "specs/modules/blocks/hlp.blocks.reports/interface.yaml", "revision": 1},
+      "interface": {"path": "specs/modules/blocks/hlp.blocks.reports/interface.yaml", "revision": 2},
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "The report engine and cartridges return typed ReportRunResult envelopes; chart/grid/export rendering is owned by existing UI modules."},
       "owner": "platform-blocks",
-      "dependencies": ["hlp.contracts.identities"],
+      "dependencies": ["hlp.contracts.identities", "hlp.blocks.measure-catalogue"],
       "status": "implemented",
       "depth": {
         "disposition": "deep-module",
@@ -550,7 +648,7 @@
             "id": "Harborline.Blocks.Reports",
             "assembly": "Harborline.Blocks.Reports",
             "manifest": "projections/dotnet/blocks/hlp.blocks.reports/Harborline.Blocks.Reports.csproj",
-            "dependencies": ["Harborline.Contracts"],
+            "dependencies": ["Harborline.Contracts", "Harborline.Blocks.MeasureCatalogue"],
             "identityAuthority": "Harborline",
             "producerRepository": "harborline-platform",
             "distribution": "internal-only",
@@ -561,11 +659,11 @@
       }
     },
     "hlp.blocks.entity-views": {
-      "interface": {"path": "specs/modules/blocks/hlp.blocks.entity-views/interface.yaml", "revision": 2},
+      "interface": {"path": "specs/modules/blocks/hlp.blocks.entity-views/interface.yaml", "revision": 6},
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "The entity-views read model produces list/detail/tree/condition data and navigation targets consumed by separate grid/table renderers; it renders nothing."},
       "owner": "platform-blocks",
-      "dependencies": ["hlp.contracts.identities", "hlp.contracts.forms"],
+      "dependencies": ["hlp.contracts.identities", "hlp.contracts.forms", "hlp.contracts.fields", "hlp.foundation.actor", "hlp.blocks.measure-catalogue"],
       "status": "implemented",
       "depth": {
         "disposition": "deep-module",
@@ -585,7 +683,75 @@
             "id": "Harborline.Blocks.EntityViews",
             "assembly": "Harborline.Blocks.EntityViews",
             "manifest": "projections/dotnet/blocks/hlp.blocks.entity-views/Harborline.Blocks.EntityViews.csproj",
-            "dependencies": ["Harborline.Contracts"],
+            "dependencies": ["Harborline.Contracts", "Harborline.Foundation.Authorization", "Harborline.Blocks.MeasureCatalogue"],
+            "identityAuthority": "Harborline",
+            "producerRepository": "harborline-platform",
+            "distribution": "internal-only",
+            "candidateRole": "new-bounded-package",
+            "registryAvailable": false
+          }
+        }
+      }
+    },
+    "hlp.foundation.data-exchange": {
+      "interface": {"path": "specs/modules/foundation/hlp.foundation.data-exchange/interface.yaml", "revision": 3},
+      "moduleKind": "runtime",
+      "presentation": {"disposition": "not-applicable", "rationale": "The foundation package owns projection-neutral definition and execution contracts; React and Blazor editors are separate projections over this interface."},
+      "owner": "platform-foundation",
+      "dependencies": [],
+      "status": "implemented",
+      "depth": {
+        "disposition": "deep-module",
+        "deletionTest": "PASS",
+        "redistributedComplexity": [
+          "profile admission, canonical identity derivation, staleness comparison, outcome census, replay eligibility and contiguous checkpoint promotion reimplemented by every connector",
+          "immutable evidence, double-gated command dispatch and no-undo boundaries allowed to drift across target domains"
+        ]
+      },
+      "projections": {
+        "dotnet": {
+          "role": "implementation",
+          "path": "projections/dotnet/foundation/hlp.foundation.data-exchange",
+          "status": "preview",
+          "artifact": {
+            "type": "nuget",
+            "id": "Harborline.Foundation.DataExchange",
+            "assembly": "Harborline.Foundation.DataExchange",
+            "manifest": "projections/dotnet/foundation/hlp.foundation.data-exchange/Harborline.Foundation.DataExchange.csproj",
+            "identityAuthority": "Harborline",
+            "producerRepository": "harborline-platform",
+            "distribution": "internal-only",
+            "candidateRole": "new-bounded-package",
+            "registryAvailable": false
+          }
+        }
+      }
+    },
+    "hlp.foundation.field-runtime": {
+      "interface": {"path": "specs/modules/foundation/hlp.foundation.field-runtime/interface.yaml", "revision": 1},
+      "moduleKind": "runtime",
+      "presentation": {"disposition": "not-applicable", "rationale": "The shared field substrate resolves domains, validates values and selects an editor contract; consuming UI projections render it."},
+      "owner": "platform-foundation",
+      "dependencies": ["hlp.contracts.fields", "hlp.contracts.identities", "hlp.foundation.rule-runtime"],
+      "status": "extracted-candidate",
+      "depth": {
+        "disposition": "deep-module",
+        "deletionTest": "PASS",
+        "redistributedComplexity": [
+          "exact field-kind binding and limit enforcement duplicated across Records, Forms, Views and mapped rows",
+          "authority-aware domain membership, narrowing and domain-driven editor selection repeated by every field consumer"
+        ]
+      },
+      "projections": {
+        "dotnet": {
+          "role": "implementation",
+          "path": "projections/dotnet/foundation/hlp.foundation.field-runtime",
+          "status": "preview",
+          "artifact": {
+            "type": "nuget",
+            "id": "Harborline.Foundation.FieldRuntime",
+            "assembly": "Harborline.Foundation.FieldRuntime",
+            "manifest": "projections/dotnet/foundation/hlp.foundation.field-runtime/Harborline.Foundation.FieldRuntime.csproj",
             "identityAuthority": "Harborline",
             "producerRepository": "harborline-platform",
             "distribution": "internal-only",
@@ -596,7 +762,7 @@
       }
     },
     "hlp.foundation.scheduling": {
-      "interface": {"path": "specs/modules/foundation/hlp.foundation.scheduling/interface.yaml", "revision": 1},
+      "interface": {"path": "specs/modules/foundation/hlp.foundation.scheduling/interface.yaml", "revision": 4},
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "RRULE expansion and due-queue derivation produce date sequences and queue items consumed by packs and daemons; the module renders nothing."},
       "owner": "platform-foundation",
@@ -630,7 +796,7 @@
       }
     },
     "hlp.foundation.rule-runtime": {
-      "interface": {"path": "specs/modules/foundation/hlp.foundation.rule-runtime/interface.yaml", "revision": 1},
+      "interface": {"path": "specs/modules/foundation/hlp.foundation.rule-runtime/interface.yaml", "revision": 2},
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "Rule compilation, deterministic evaluation, and reactive dependency propagation expose data outcomes rather than visual presentation."},
       "owner": "platform-foundation",
@@ -680,9 +846,9 @@
       }
     },
     "hlp.foundation.rule-authoring": {
-      "interface": {"path": "specs/modules/foundation/hlp.foundation.rule-authoring/interface.yaml", "revision": 1},
+      "interface": {"path": "specs/modules/foundation/hlp.foundation.rule-authoring/interface.yaml", "revision": 3},
       "moduleKind": "runtime",
-      "presentation": {"disposition": "not-applicable", "rationale": "The authoring bridge produces drafts, lint findings, publish verdicts, and catalog records consumed by separate editor surfaces; it renders nothing."},
+      "presentation": {"disposition": "not-applicable", "rationale": "The authoring bridge produces typed source, lint findings, intent diagnostics, and previews consumed by separate editor surfaces; it renders nothing."},
       "owner": "platform-foundation",
       "dependencies": ["hlp.foundation.rule-runtime"],
       "status": "implemented",
@@ -691,7 +857,7 @@
         "deletionTest": "PASS",
         "redistributedComplexity": [
           "draft-to-skin lowering, ECMAScript coercion parity, probe-derived fired-row attribution, and advisory lint reimplemented by every Calculations editor surface",
-          "compile-first publish admission and the append-only monotonic named-rule registry re-expressed as per-host choreography that could commit an unresolved or downgraded rule"
+          "strict source decoding and full compiler intent diagnostics shared by editors and authoritative store admission"
         ]
       },
       "projections": {
@@ -765,11 +931,11 @@
       }
     },
     "hlp.foundation.forms-engine": {
-      "interface": {"path": "specs/modules/foundation/hlp.foundation.forms-engine/interface.yaml", "revision": 8},
+      "interface": {"path": "specs/modules/foundation/hlp.foundation.forms-engine/interface.yaml", "revision": 10},
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "The Forms Engine produces render and submission data consumed by separate React and Blazor renderers; it owns no visual implementation."},
       "owner": "platform-foundation",
-      "dependencies": ["hlp.contracts.forms", "hlp.contracts.identities", "hlp.foundation.actor", "hlp.foundation.forms", "hlp.foundation.rule-runtime", "hlp.foundation.tenancy", "hlp.kernel.schema-validation"],
+      "dependencies": ["hlp.contracts.forms", "hlp.contracts.identities", "hlp.contracts.fields", "hlp.foundation.actor", "hlp.foundation.forms", "hlp.foundation.rule-runtime", "hlp.foundation.tenancy", "hlp.kernel.core", "hlp.kernel.schema-validation"],
       "status": "implemented-package-consumer-green",
       "depth": {
         "disposition": "deep-module",
@@ -789,7 +955,7 @@
             "id": "Harborline.Foundation.Forms.Engine",
             "assembly": "Harborline.Foundation.Forms.Engine",
             "manifest": "projections/dotnet/foundation/hlp.foundation.forms-engine/Harborline.Foundation.Forms.Engine.csproj",
-            "dependencies": ["Harborline.Contracts", "Harborline.Foundation.Authorization", "Harborline.Foundation.Forms", "Harborline.Foundation.RuleEngine", "Harborline.Foundation.MultiTenancy", "Harborline.Kernel.SchemaValidation"],
+            "dependencies": ["Harborline.Contracts", "Harborline.Foundation.Authorization", "Harborline.Foundation.Forms", "Harborline.Foundation.RuleEngine", "Harborline.Foundation.MultiTenancy", "Harborline.Kernel.Core", "Harborline.Kernel.SchemaValidation"],
             "identityAuthority": "Harborline",
             "producerRepository": "harborline-platform",
             "distribution": "internal-only",
@@ -835,12 +1001,12 @@
       }
     },
     "hlp.foundation.actor": {
-      "interface": {"path": "specs/modules/foundation/hlp.foundation.actor/interface.yaml", "revision": 1},
+      "interface": {"path": "specs/modules/foundation/hlp.foundation.actor/interface.yaml", "revision": 2},
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "Authenticated actor and server-derived Party resolution are host/runtime behavior with no presentation surface."},
       "owner": "platform-foundation",
-      "dependencies": ["hlp.contracts.identities", "hlp.foundation.tenancy"],
-      "status": "implemented-package-consumer-green",
+      "dependencies": ["hlp.contracts.identities", "hlp.foundation.tenancy", "hlp.foundation.rule-runtime"],
+      "status": "implemented",
       "depth": {
         "disposition": "deep-module",
         "deletionTest": "PASS",
@@ -859,7 +1025,7 @@
             "id": "Harborline.Foundation.Authorization",
             "assembly": "Harborline.Foundation.Authorization",
             "manifest": "projections/dotnet/foundation/hlp.foundation.actor/Harborline.Foundation.Authorization.csproj",
-            "dependencies": ["Harborline.Contracts", "Harborline.Foundation.MultiTenancy"],
+            "dependencies": ["Harborline.Contracts", "Harborline.Foundation.MultiTenancy", "Harborline.Foundation.RuleEngine"],
             "identityAuthority": "Harborline",
             "producerRepository": "harborline-platform",
             "distribution": "internal-only",
@@ -961,7 +1127,7 @@
       }
     },
     "hlp.ui.form-view": {
-      "interface": {"path": "specs/modules/ui/hlp.ui.form-view/interface.yaml", "revision": 1},
+      "interface": {"path": "specs/modules/ui/hlp.ui.form-view/interface.yaml", "revision": 2},
       "moduleKind": "compatibility",
       "presentation": {"disposition": "not-applicable", "rationale": "The module preserves the public UI forms support surface over canonical Forms contracts; SchemaForm owns rendering."},
       "qualityProfile": {"path": "specs/modules/ui/hlp.ui.form-view/quality.yaml", "revision": 1},
@@ -1506,7 +1672,7 @@
       "interface":{"path":"specs/modules/ui/hlp.ui.segmented-control/interface.yaml","revision":1},"moduleKind":"interactive-component","presentation":{"disposition":"visual"},"qualityProfile":{"path":"specs/modules/ui/hlp.ui.segmented-control/quality.yaml","revision":1},"owner":"platform-ui","dependencies":["hlp.ui.default-strings","hlp.ui.locale-provider","hlp.ui.touch-target","hlp.ui.use-can-show-master-detail","hlp.ui.use-media-query"],"status":"gap-implemented","depth":{"disposition":"deep-module","deletionTest":"PASS","redistributedComplexity":["radio-group naming, controlled selection, roving focus, disabled-option skipping, wrapping arrows, Home and End repeated by every segmented choice surface","rich-label naming, touch density, full-width distribution, logical RTL arrows, themes, and forced colors drifting across projections"]},"projections":{"react":{"role":"adapter","seam":"ui.segmented-control.framework","path":"projections/react/ui/hlp.ui.segmented-control","status":"conformant","packageContribution":"@harborline-software/ui-react","conformanceRunner":"conformance/hlp.ui.segmented-control/runners/run-shared.mjs"},"blazor":{"role":"adapter","seam":"ui.segmented-control.framework","path":"projections/blazor/ui/hlp.ui.segmented-control","status":"conformant","packageContribution":"Harborline.UIAdapters.Blazor","conformanceRunner":"conformance/hlp.ui.segmented-control/runners/run-shared.mjs"}}
     },
     "hlp.ui.select-field": {
-      "interface":{"path":"specs/modules/ui/hlp.ui.select-field/interface.yaml","revision":1},"moduleKind":"interactive-component","presentation":{"disposition":"visual"},"qualityProfile":{"path":"specs/modules/ui/hlp.ui.select-field/quality.yaml","revision":1},"owner":"platform-ui","dependencies":["hlp.ui.cn","hlp.ui.default-strings","hlp.ui.form-field","hlp.ui.locale-provider"],"status":"gap-implemented","depth":{"disposition":"deep-module","deletionTest":"PASS","redistributedComplexity":["controlled combobox state, listbox navigation, typeahead, selection, dismissal, focus return, and Form Field metadata repeated by every enumerated form control","localized placeholder, logical popup geometry, viewport clamping, validation, themes, and projection parity drifting independently"]},"projections":{"react":{"role":"adapter","seam":"ui.select-field.framework","path":"projections/react/ui/hlp.ui.select-field","status":"conformant","packageContribution":"@harborline-software/ui-react","conformanceRunner":"conformance/hlp.ui.select-field/runners/run-shared.mjs"},"blazor":{"role":"adapter","seam":"ui.select-field.framework","path":"projections/blazor/ui/hlp.ui.select-field","status":"conformant","packageContribution":"Harborline.UIAdapters.Blazor","conformanceRunner":"conformance/hlp.ui.select-field/runners/run-shared.mjs"}}
+      "interface":{"path":"specs/modules/ui/hlp.ui.select-field/interface.yaml","revision":2},"moduleKind":"interactive-component","presentation":{"disposition":"visual"},"qualityProfile":{"path":"specs/modules/ui/hlp.ui.select-field/quality.yaml","revision":2},"owner":"platform-ui","dependencies":["hlp.ui.cn","hlp.ui.default-strings","hlp.ui.form-field","hlp.ui.locale-provider","hlp.ui.input"],"status":"gap-implemented","depth":{"disposition":"deep-module","deletionTest":"PASS","redistributedComplexity":["controlled combobox state, listbox navigation, typeahead, selection, dismissal, focus return, and Form Field metadata repeated by every enumerated form control","localized placeholder, logical popup geometry, viewport clamping, validation, themes, and projection parity drifting independently"]},"projections":{"react":{"role":"adapter","seam":"ui.select-field.framework","path":"projections/react/ui/hlp.ui.select-field","status":"conformant","packageContribution":"@harborline-software/ui-react","conformanceRunner":"conformance/hlp.ui.select-field/runners/run-shared.mjs"},"blazor":{"role":"adapter","seam":"ui.select-field.framework","path":"projections/blazor/ui/hlp.ui.select-field","status":"conformant","packageContribution":"Harborline.UIAdapters.Blazor","conformanceRunner":"conformance/hlp.ui.select-field/runners/run-shared.mjs"}}
     },
     "hlp.ui.switch": {
       "interface":{"path":"specs/modules/ui/hlp.ui.switch/interface.yaml","revision":1},"moduleKind":"interactive-component","presentation":{"disposition":"visual"},"qualityProfile":{"path":"specs/modules/ui/hlp.ui.switch/quality.yaml","revision":1},"owner":"platform-ui","dependencies":["hlp.ui.cn","hlp.ui.default-strings","hlp.ui.form-field","hlp.ui.locale-provider","hlp.ui.touch-target","hlp.ui.use-can-show-master-detail","hlp.ui.use-media-query"],"status":"gap-implemented","depth":{"disposition":"deep-module","deletionTest":"PASS","redistributedComplexity":["controlled and uncontrolled binary state, stable naming, native keyboard activation, Form Field metadata, and form values repeated by every boolean control","coarse-pointer overlay, canonical sizing, non-color validation, logical RTL thumb motion, localization, and compatibility aliases drifting across projections"]},"projections":{"react":{"role":"adapter","seam":"ui.switch.framework","path":"projections/react/ui/hlp.ui.switch","status":"conformant","packageContribution":"@harborline-software/ui-react","conformanceRunner":"conformance/hlp.ui.switch/runners/run-shared.mjs"},"blazor":{"role":"adapter","seam":"ui.switch.framework","path":"projections/blazor/ui/hlp.ui.switch","status":"conformant","packageContribution":"Harborline.UIAdapters.Blazor","conformanceRunner":"conformance/hlp.ui.switch/runners/run-shared.mjs"}}
@@ -1518,10 +1684,10 @@
       "interface":{"path":"specs/modules/ui/hlp.ui.user-menu/interface.yaml","revision":1},"moduleKind":"interactive-component","presentation":{"disposition":"visual"},"qualityProfile":{"path":"specs/modules/ui/hlp.ui.user-menu/quality.yaml","revision":1},"owner":"platform-ui","dependencies":["hlp.ui.cn","hlp.ui.popover","hlp.ui.touch-target","hlp.ui.use-is-mobile","hlp.ui.use-media-query"],"status":"gap-implemented","depth":{"disposition":"deep-module","deletionTest":"PASS","redistributedComplexity":["identity normalization, initials, ordered action and link policy, menu versus custom-dialog semantics, keyboard navigation, and focus restoration repeated by every account surface","localized trigger and sign-out chrome, disabled behavior, placement, logical alignment, touch sizing, and theme parity drifting across projections"]},"projections":{"react":{"role":"adapter","seam":"ui.user-menu.framework","path":"projections/react/ui/hlp.ui.user-menu","status":"conformant","packageContribution":"@harborline-software/ui-react","conformanceRunner":"conformance/hlp.ui.user-menu/runners/run-shared.mjs"},"blazor":{"role":"adapter","seam":"ui.user-menu.framework","path":"projections/blazor/ui/hlp.ui.user-menu","status":"conformant","packageContribution":"Harborline.UIAdapters.Blazor","conformanceRunner":"conformance/hlp.ui.user-menu/runners/run-shared.mjs"}}
     },
     "hlp.ui.app-layout": {
-      "interface":{"path":"specs/modules/ui/hlp.ui.app-layout/interface.yaml","revision":1},"moduleKind":"interactive-component","presentation":{"disposition":"visual"},"qualityProfile":{"path":"specs/modules/ui/hlp.ui.app-layout/quality.yaml","revision":1},"owner":"platform-ui","dependencies":["hlp.ui.cn","hlp.ui.icon-button","hlp.ui.touch-target","hlp.ui.use-is-mobile","hlp.ui.use-media-query"],"status":"gap-implemented","depth":{"disposition":"deep-module","deletionTest":"PASS","redistributedComplexity":["single-main and single-navigation ownership, exact rail capability, controlled drawer lifecycle, viewport transition, focus containment, and scroll ownership repeated by every application shell","rail geometry, fixed header reservation, logical drawer placement, safe areas, reflow, deterministic structural performance, and theme parity drifting across projections"]},"projections":{"react":{"role":"adapter","seam":"ui.app-layout.framework","path":"projections/react/ui/hlp.ui.app-layout","status":"conformant","packageContribution":"@harborline-software/ui-react","conformanceRunner":"conformance/hlp.ui.app-layout/runners/run-shared.mjs"},"blazor":{"role":"adapter","seam":"ui.app-layout.framework","path":"projections/blazor/ui/hlp.ui.app-layout","status":"conformant","packageContribution":"Harborline.UIAdapters.Blazor","conformanceRunner":"conformance/hlp.ui.app-layout/runners/run-shared.mjs"}}
+      "interface":{"path":"specs/modules/ui/hlp.ui.app-layout/interface.yaml","revision":2},"moduleKind":"interactive-component","presentation":{"disposition":"visual"},"qualityProfile":{"path":"specs/modules/ui/hlp.ui.app-layout/quality.yaml","revision":1},"owner":"platform-ui","dependencies":["hlp.ui.cn","hlp.ui.icon-button","hlp.ui.touch-target","hlp.ui.use-is-mobile","hlp.ui.use-media-query"],"status":"gap-implemented","depth":{"disposition":"deep-module","deletionTest":"PASS","redistributedComplexity":["single-main and single-navigation ownership, exact rail capability, controlled drawer lifecycle, viewport transition, focus containment, and scroll ownership repeated by every application shell","rail geometry, fixed header reservation, logical drawer placement, safe areas, reflow, deterministic structural performance, and theme parity drifting across projections"]},"projections":{"react":{"role":"adapter","seam":"ui.app-layout.framework","path":"projections/react/ui/hlp.ui.app-layout","status":"conformant","packageContribution":"@harborline-software/ui-react","conformanceRunner":"conformance/hlp.ui.app-layout/runners/run-shared.mjs"},"blazor":{"role":"adapter","seam":"ui.app-layout.framework","path":"projections/blazor/ui/hlp.ui.app-layout","status":"conformant","packageContribution":"Harborline.UIAdapters.Blazor","conformanceRunner":"conformance/hlp.ui.app-layout/runners/run-shared.mjs"}}
     },
     "hlp.ui.app-shell": {
-      "interface":{"path":"specs/modules/ui/hlp.ui.app-shell/interface.yaml","revision":4},"moduleKind":"interactive-component","presentation":{"disposition":"visual"},"qualityProfile":{"path":"specs/modules/ui/hlp.ui.app-shell/quality.yaml","revision":1},"owner":"platform-ui","dependencies":["hlp.contracts.authorization","hlp.ui.app-layout","hlp.ui.icon-button","hlp.ui.tooltip"],"status":"gap-implemented","depth":{"disposition":"deep-module","deletionTest":"PASS","redistributedComplexity":["workspace switching, move-not-copy pinning, nav threads with rename and row menus, action overflow, storage restore, and shortcut grammar repeated by every application shell consumer","active-first switcher ordering, pin caps, end-panel overlay geometry, and chrome accessibility drifting across projections"]},"projections":{"react":{"role":"adapter","seam":"ui.app-shell.framework","path":"projections/react/ui/hlp.ui.app-shell","status":"conformant","packageContribution":"@harborline-software/ui-react","conformanceRunner":"conformance/hlp.ui.app-shell/runners/run-shared.mjs"},"blazor":{"role":"adapter","seam":"ui.app-shell.framework","path":"projections/blazor/ui/hlp.ui.app-shell","status":"conformant","packageContribution":"Harborline.UIAdapters.Blazor","conformanceRunner":"conformance/hlp.ui.app-shell/runners/run-shared.mjs"}}
+      "interface":{"path":"specs/modules/ui/hlp.ui.app-shell/interface.yaml","revision":5},"moduleKind":"interactive-component","presentation":{"disposition":"visual"},"qualityProfile":{"path":"specs/modules/ui/hlp.ui.app-shell/quality.yaml","revision":1},"owner":"platform-ui","dependencies":["hlp.contracts.authorization","hlp.ui.app-layout","hlp.ui.icon-button","hlp.ui.tooltip"],"status":"gap-implemented","depth":{"disposition":"deep-module","deletionTest":"PASS","redistributedComplexity":["workspace switching, move-not-copy pinning, nav threads with rename and row menus, action overflow, storage restore, and shortcut grammar repeated by every application shell consumer","active-first switcher ordering, pin caps, end-panel overlay geometry, and chrome accessibility drifting across projections"]},"projections":{"react":{"role":"adapter","seam":"ui.app-shell.framework","path":"projections/react/ui/hlp.ui.app-shell","status":"conformant","packageContribution":"@harborline-software/ui-react","conformanceRunner":"conformance/hlp.ui.app-shell/runners/run-shared.mjs"},"blazor":{"role":"adapter","seam":"ui.app-shell.framework","path":"projections/blazor/ui/hlp.ui.app-shell","status":"conformant","packageContribution":"Harborline.UIAdapters.Blazor","conformanceRunner":"conformance/hlp.ui.app-shell/runners/run-shared.mjs"}}
     },
     "hlp.ui.detail-panel": {
       "interface":{"path":"specs/modules/ui/hlp.ui.detail-panel/interface.yaml","revision":3},"moduleKind":"interactive-component","presentation":{"disposition":"visual"},"qualityProfile":{"path":"specs/modules/ui/hlp.ui.detail-panel/quality.yaml","revision":1},"owner":"platform-ui","dependencies":["hlp.ui.use-can-show-master-detail"],"status":"gap-implemented","depth":{"disposition":"deep-module","deletionTest":"PASS","redistributedComplexity":["selection-detail presentation, width clamping, docked-versus-modal boundary behavior, and dismissal focus rules repeated by every master-detail page","end-side geometry, drawer-pattern dismissal, and landmark naming drifting across projections"]},"projections":{"react":{"role":"adapter","seam":"ui.detail-panel.framework","path":"projections/react/ui/hlp.ui.detail-panel","status":"conformant","packageContribution":"@harborline-software/ui-react","conformanceRunner":"conformance/hlp.ui.detail-panel/runners/run-shared.mjs"},"blazor":{"role":"adapter","seam":"ui.detail-panel.framework","path":"projections/blazor/ui/hlp.ui.detail-panel","status":"conformant","packageContribution":"Harborline.UIAdapters.Blazor","conformanceRunner":"conformance/hlp.ui.detail-panel/runners/run-shared.mjs"}}
@@ -1532,11 +1698,25 @@
     "hlp.ui.chat": {
       "interface":{"path":"specs/modules/ui/hlp.ui.chat/interface.yaml","revision":1},"moduleKind":"interactive-component","presentation":{"disposition":"visual"},"qualityProfile":{"path":"specs/modules/ui/hlp.ui.chat/quality.yaml","revision":1},"owner":"platform-ui","dependencies":["hlp.ui.default-strings","hlp.ui.locale-provider"],"status":"gap-implemented","depth":{"disposition":"deep-module","deletionTest":"PASS","redistributedComplexity":["explicit message ownership, controlled submission, suggestions, typing, and complete replacement repeated by every assistant shell","log semantics, callback order, keyboard focus, localization, RTL, motion, and bounded history drifting across projections"]},"projections":{"react":{"role":"adapter","seam":"ui.chat.framework","path":"projections/react/ui/hlp.ui.chat","status":"conformant","packageContribution":"@harborline-software/ui-react","conformanceRunner":"conformance/hlp.ui.chat/runners/run-shared.mjs"},"blazor":{"role":"adapter","seam":"ui.chat.framework","path":"projections/blazor/ui/hlp.ui.chat","status":"conformant","packageContribution":"Harborline.UIAdapters.Blazor","conformanceRunner":"conformance/hlp.ui.chat/runners/run-shared.mjs"}}
     },
+    "hlp.ui.data-exchange": {
+      "interface":{"path":"specs/modules/ui/hlp.ui.data-exchange/interface.yaml","revision":1},"moduleKind":"interactive-component","presentation":{"disposition":"visual"},"qualityProfile":{"path":"specs/modules/ui/hlp.ui.data-exchange/quality.yaml","revision":1},"owner":"platform-ui","dependencies":[],"status":"gap-implemented","depth":{"disposition":"deep-module","deletionTest":"PASS","redistributedComplexity":["profile identity, source-shape narrowing, canonical mapping rows, replay and schedule policy repeated by every Data Exchange host","stale review and commit-authority gating drifting between React and Blazor consumers"]},"projections":{"react":{"role":"adapter","seam":"ui.data-exchange.framework","path":"projections/react/ui/hlp.ui.data-exchange","status":"conformant","packageContribution":"@harborline-software/ui-react","conformanceRunner":"conformance/hlp.ui.data-exchange/runners/run-shared.mjs"},"blazor":{"role":"adapter","seam":"ui.data-exchange.framework","path":"projections/blazor/ui/hlp.ui.data-exchange","status":"conformant","packageContribution":"Harborline.UIAdapters.Blazor","conformanceRunner":"conformance/hlp.ui.data-exchange/runners/run-shared.mjs"}}
+    },
     "hlp.ui.data-grid": {
       "interface":{"path":"specs/modules/ui/hlp.ui.data-grid/interface.yaml","revision":5},"moduleKind":"interactive-component","presentation":{"disposition":"visual"},"qualityProfile":{"path":"specs/modules/ui/hlp.ui.data-grid/quality.yaml","revision":1},"owner":"platform-ui","dependencies":["hlp.ui.default-strings","hlp.ui.locale-provider","hlp.ui.touch-target"],"status":"gap-implemented","depth":{"disposition":"deep-module","deletionTest":"PASS","redistributedComplexity":["stable row and column identity, ordered grouping, expansion, cell slots, and replacement repeated by every report surface","provider-neutral bounded windows, keyboard reachability, ARIA row metadata, RTL, and ten-thousand-row behavior absent from the source renderer"]},"projections":{"react":{"role":"adapter","seam":"ui.data-grid.framework","path":"projections/react/ui/hlp.ui.data-grid","status":"conformant","packageContribution":"@harborline-software/ui-react","conformanceRunner":"conformance/hlp.ui.data-grid/runners/run-shared.mjs"},"blazor":{"role":"adapter","seam":"ui.data-grid.framework","path":"projections/blazor/ui/hlp.ui.data-grid","status":"conformant","packageContribution":"Harborline.UIAdapters.Blazor","conformanceRunner":"conformance/hlp.ui.data-grid/runners/run-shared.mjs"}}
     },
+    "hlp.ui.rule-authoring": {"interface":{"path":"specs/modules/ui/hlp.ui.rule-authoring/interface.yaml","revision":1},"moduleKind":"interactive-component","presentation":{"disposition":"visual"},"qualityProfile":{"path":"specs/modules/ui/hlp.ui.rule-authoring/quality.yaml","revision":1},"owner":"platform-ui","dependencies":["hlp.ui.button","hlp.foundation.rule-authoring"],"status":"gap-implemented","depth":{"disposition":"deep-module","deletionTest":"PASS","redistributedComplexity":["closed formula and decision-table drafting repeated by every Rules host","dirty replacement decisions, immutable materialization, and stale lifecycle response fencing drifting between React and Blazor"]},"projections":{"react":{"role":"adapter","seam":"ui.rule-authoring.framework","path":"projections/react/ui/hlp.ui.rule-authoring","status":"conformant","packageContribution":"@harborline-software/ui-react","conformanceRunner":"conformance/hlp.ui.rule-authoring/runners/run-shared.mjs"},"blazor":{"role":"adapter","seam":"ui.rule-authoring.framework","path":"projections/blazor/ui/hlp.ui.rule-authoring","status":"conformant","packageContribution":"Harborline.UIAdapters.Blazor","conformanceRunner":"conformance/hlp.ui.rule-authoring/runners/run-shared.mjs"}}},
     "hlp.ui.view-runtime": {
-      "interface":{"path":"specs/modules/ui/hlp.ui.view-runtime/interface.yaml","revision":1},"moduleKind":"interactive-component","presentation":{"disposition":"visual"},"qualityProfile":{"path":"specs/modules/ui/hlp.ui.view-runtime/quality.yaml","revision":1},"owner":"platform-ui","dependencies":["hlp.ui.data-grid"],"status":"gap-implemented","depth":{"disposition":"deep-module","deletionTest":"PASS","redistributedComplexity":["definition envelope interpretation and field-to-grid translation repeated by every seeded list view","unknown-kind inertness and the definition identity hook drifting across projections"]},"projections":{"react":{"role":"adapter","seam":"ui.view-runtime.framework","path":"projections/react/ui/hlp.ui.view-runtime","status":"conformant","packageContribution":"@harborline-software/ui-react","conformanceRunner":"conformance/hlp.ui.view-runtime/runners/run-shared.mjs"},"blazor":{"role":"adapter","seam":"ui.view-runtime.framework","path":"projections/blazor/ui/hlp.ui.view-runtime","status":"conformant","packageContribution":"Harborline.UIAdapters.Blazor","conformanceRunner":"conformance/hlp.ui.view-runtime/runners/run-shared.mjs"}}
+      "interface":{"path":"specs/modules/ui/hlp.ui.view-runtime/interface.yaml","revision":7},"moduleKind":"interactive-component","presentation":{"disposition":"visual"},"qualityProfile":{"path":"specs/modules/ui/hlp.ui.view-runtime/quality.yaml","revision":1},"owner":"platform-ui","dependencies":["hlp.ui.data-grid","hlp.ui.button"],"status":"gap-implemented","depth":{"disposition":"deep-module","deletionTest":"PASS","redistributedComplexity":["definition envelope interpretation and field-to-grid translation repeated by every seeded list view","unknown-kind inertness and the definition identity hook drifting across projections"]},"projections":{"react":{"role":"adapter","seam":"ui.view-runtime.framework","path":"projections/react/ui/hlp.ui.view-runtime","status":"conformant","packageContribution":"@harborline-software/ui-react","conformanceRunner":"conformance/hlp.ui.view-runtime/runners/run-shared.mjs"},"blazor":{"role":"adapter","seam":"ui.view-runtime.framework","path":"projections/blazor/ui/hlp.ui.view-runtime","status":"conformant","packageContribution":"Harborline.UIAdapters.Blazor","conformanceRunner":"conformance/hlp.ui.view-runtime/runners/run-shared.mjs"}}
+    },
+    "hlp.ui.layout-runtime": {
+      "interface":{"path":"specs/modules/ui/hlp.ui.layout-runtime/interface.yaml","revision":2},
+      "moduleKind":"runtime",
+      "presentation":{"disposition":"not-applicable","rationale":"The aggregate contribution supplies reusable Layout authoring and rendering primitives; products own the surrounding visual composition."},
+      "owner":"platform-ui",
+      "dependencies":["hlp.blocks.layout-runtime"],
+      "status":"draft-native-green",
+      "depth":{"disposition":"deep-module","deletionTest":"PASS","redistributedComplexity":["layout token selection, recursive region editing, and canonical block-kind selection otherwise repeat in every member editor","screen and page render-plan interpretation otherwise diverges across framework-specific hosts"]},
+      "projections":{"react":{"role":"implementation","path":"projections/react/ui/hlp.ui.layout-runtime","status":"preview","packageContribution":"@harborline-software/ui-react"},"blazor":{"role":"implementation","path":"projections/blazor/ui/hlp.ui.layout-runtime","status":"preview","packageContribution":"Harborline.UIAdapters.Blazor"}}
     },
     "hlp.ui.gantt": {
       "interface":{"path":"specs/modules/ui/hlp.ui.gantt/interface.yaml","revision":1},"moduleKind":"interactive-component","presentation":{"disposition":"visual"},"qualityProfile":{"path":"specs/modules/ui/hlp.ui.gantt/quality.yaml","revision":1},"owner":"platform-ui","dependencies":["hlp.ui.default-strings","hlp.ui.locale-provider"],"status":"gap-implemented","depth":{"disposition":"deep-module","deletionTest":"PASS","redistributedComplexity":["ordered calendar tasks, finish-to-start edges, controlled zoom, columns, and read-only policy repeated by schedule views","provider-private geometry, timezone-stable labels, non-color progress, keyboard access, and replacement parity drifting across renderers"]},"projections":{"react":{"role":"adapter","seam":"ui.gantt.framework","path":"projections/react/ui/hlp.ui.gantt","status":"conformant","packageContribution":"@harborline-software/ui-react","conformanceRunner":"conformance/hlp.ui.gantt/runners/run-shared.mjs"},"blazor":{"role":"adapter","seam":"ui.gantt.framework","path":"projections/blazor/ui/hlp.ui.gantt","status":"conformant","packageContribution":"Harborline.UIAdapters.Blazor","conformanceRunner":"conformance/hlp.ui.gantt/runners/run-shared.mjs"}}
@@ -1563,7 +1743,7 @@
       "interface":{"path":"specs/modules/ui/hlp.ui.scheduler/interface.yaml","revision":1},"moduleKind":"interactive-component","presentation":{"disposition":"visual"},"qualityProfile":{"path":"specs/modules/ui/hlp.ui.scheduler/quality.yaml","revision":1},"owner":"platform-ui","dependencies":["hlp.ui.default-strings","hlp.ui.empty-state","hlp.ui.locale-provider","hlp.ui.use-is-mobile","hlp.ui.use-scroll-affordance"],"status":"gap-implemented","depth":{"disposition":"deep-module","deletionTest":"PASS","redistributedComplexity":["four views, controlled date and view, work-calendar layout, editing, and bounded recurrence repeated by every scheduling surface","overlap geometry, responsive overflow, locale and RTL, read-only enforcement, deterministic large-data replacement, and provider isolation drifting across projections"]},"projections":{"react":{"role":"adapter","seam":"ui.scheduler.framework","path":"projections/react/ui/hlp.ui.scheduler","status":"conformant","packageContribution":"@harborline-software/ui-react","conformanceRunner":"conformance/hlp.ui.scheduler/runners/run-shared.mjs"},"blazor":{"role":"adapter","seam":"ui.scheduler.framework","path":"projections/blazor/ui/hlp.ui.scheduler","status":"conformant","packageContribution":"Harborline.UIAdapters.Blazor","conformanceRunner":"conformance/hlp.ui.scheduler/runners/run-shared.mjs"}}
     },
     "hlp.ui.schema-form": {
-      "interface":{"path":"specs/modules/ui/hlp.ui.schema-form/interface.yaml","revision":1},"moduleKind":"interactive-component","presentation":{"disposition":"visual"},"qualityProfile":{"path":"specs/modules/ui/hlp.ui.schema-form/quality.yaml","revision":1},"owner":"platform-ui","dependencies":["hlp.contracts.forms","hlp.foundation.rule-runtime","hlp.ui.check-box","hlp.ui.cn","hlp.ui.date-field","hlp.ui.date-time-field","hlp.ui.form-field","hlp.ui.form-view","hlp.ui.input","hlp.ui.number-field","hlp.ui.numeric-text-box","hlp.ui.radio-group","hlp.ui.select-field","hlp.ui.switch","hlp.ui.text-area","hlp.ui.text-box"],"status":"extracted-candidate","depth":{"disposition":"deep-module","deletionTest":"PASS","redistributedComplexity":["FormView section and field walking, control-hint resolution, and the five rule outcome projections otherwise repeated by every form host","JSON-Pointer error partitioning, fail-closed unrecognised values, nested group and collection paths, and locale-sensitive field formatting drifting between React and Blazor"]},
+      "interface":{"path":"specs/modules/ui/hlp.ui.schema-form/interface.yaml","revision":4},"moduleKind":"interactive-component","presentation":{"disposition":"visual"},"qualityProfile":{"path":"specs/modules/ui/hlp.ui.schema-form/quality.yaml","revision":1},"owner":"platform-ui","dependencies":["hlp.ui.button", "hlp.contracts.forms","hlp.foundation.rule-runtime","hlp.ui.check-box","hlp.ui.cn","hlp.ui.date-field","hlp.ui.date-time-field","hlp.ui.form-field","hlp.ui.form-view","hlp.ui.input","hlp.ui.number-field","hlp.ui.numeric-text-box","hlp.ui.radio-group","hlp.ui.select-field","hlp.ui.switch","hlp.ui.text-area","hlp.ui.text-box"],"status":"extracted-candidate","depth":{"disposition":"deep-module","deletionTest":"PASS","redistributedComplexity":["FormView section and field walking, control-hint resolution, and the five rule outcome projections otherwise repeated by every form host","JSON-Pointer error partitioning, fail-closed unrecognised values, nested group and collection paths, and locale-sensitive field formatting drifting between React and Blazor"]},
       "projections": {
         "react": {"role":"adapter","seam":"ui.schema-form.framework","path":"projections/react/ui/hlp.ui.schema-form","status":"conformant","packageContribution":"@harborline-software/ui-react","conformanceRunner":"conformance/hlp.ui.schema-form/runners/run-shared.mjs"},
         "blazor": {"role":"adapter","seam":"ui.schema-form.framework","path":"projections/blazor/ui/hlp.ui.schema-form","status":"conformant","packageContribution":"Harborline.UIAdapters.Blazor","conformanceRunner":"conformance/hlp.ui.schema-form/runners/run-shared.mjs"}
@@ -1703,7 +1883,9 @@
     "ui.detail-panel.framework": {"interfaceOwner":"hlp.ui.detail-panel","status":"conformant","adapters":["react","blazor"]},
     "ui.chart.framework": {"interfaceOwner":"hlp.ui.chart","status":"conformant","adapters":["react","blazor"]},
     "ui.chat.framework": {"interfaceOwner":"hlp.ui.chat","status":"conformant","adapters":["react","blazor"]},
+    "ui.data-exchange.framework": {"interfaceOwner":"hlp.ui.data-exchange","status":"conformant","adapters":["react","blazor"]},
     "ui.data-grid.framework": {"interfaceOwner":"hlp.ui.data-grid","status":"conformant","adapters":["react","blazor"]},
+    "ui.rule-authoring.framework": {"interfaceOwner":"hlp.ui.rule-authoring","status":"conformant","adapters":["react","blazor"]},
     "ui.view-runtime.framework": {"interfaceOwner":"hlp.ui.view-runtime","status":"conformant","adapters":["react","blazor"]},
     "ui.gantt.framework": {"interfaceOwner":"hlp.ui.gantt","status":"conformant","adapters":["react","blazor"]},
     "ui.numeric-text-box.framework": {"interfaceOwner":"hlp.ui.numeric-text-box","status":"conformant","adapters":["react","blazor"]},

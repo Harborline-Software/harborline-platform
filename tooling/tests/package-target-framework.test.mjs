@@ -37,7 +37,7 @@ test('the shared framework rule selects packable Harborline libraries after proj
       assert.equal(result.Properties.TargetFrameworkVersion, expected.replace('net', 'v'), name)
       assert.ok(result.Properties.OutputPath.replaceAll('\\', '/').endsWith(`${expected}/`), name)
       const dependency = result.Items.PackageVersion.find(item => item.Identity === 'Microsoft.AspNetCore.Components.Web')
-      assert.match(dependency.Version, expected === 'net10.0' ? /^10\.[0-9]+\.[0-9]+$/ : /^11\..*-preview\./, name)
+      assert.match(dependency.Version, expected === 'net10.0' ? /^10\.[0-9]+\.[0-9]+$/ : /^11\.[0-9]+\.[0-9]+(-(preview|rc)(\.[0-9]+)+)?$/, name)
     }
   } finally {
     rmSync(scratch, { recursive: true, force: true })

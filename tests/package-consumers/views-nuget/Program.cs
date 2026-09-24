@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Reflection;
 using System.Text.Json;
 using Harborline.Blocks.EntityViews;
+using Harborline.Foundation.Authorization;
 
 const string Building = "entity:preview/building-1";
 const string Bedroom = "entity:preview/bedroom-1";
@@ -27,6 +28,97 @@ ProveAssemblyClosure();
 ProveProductionGuard(clock);
 await ProveFailureAndBreadcrumbGuards(clock);
 Console.WriteLine($"VIEWS_CAPABILITY_PASS:{JsonSerializer.Serialize(new { pairs = 4, failedConditionGuards = 4 })}");
+await ProveAuthoredAndBoundQuery();
+await AccessContractProof.RunAsync();
+Console.WriteLine("ACCESS_CONTRACT_PASS:{\"filter\":true,\"check\":true,\"trace\":true}");
+Console.WriteLine($"VIEWS_AUTHORED_BOUND_PASS:{JsonSerializer.Serialize(new { authored = true, bound = true, accessBeforePage = true })}");
+
+async Task ProveAuthoredAndBoundQuery()
+{
+    var kinds = ViewKindRegistry.Platform;
+    var records = new QueryRecordTypes();
+    var measures = new QueryMeasures();
+    var binding = new ViewBinding(
+        ViewKindIds.Table,
+        new Dictionary<ViewShapeRole, string> { [ViewShapeRole.Title] = "title" });
+    var definition = new ViewDefinition(
+        new(
+            "work.queue",
+            "1.0.0",
+            "team-a",
+            ViewCascadeLayer.Pack,
+            JsonSerializer.SerializeToElement(new { source = "package-fixture" }),
+            [new("records.query", "1.0.0")]),
+        1,
+        "Work queue",
+        "work-item",
+        ViewOwnershipTier.System,
+        "work:read",
+        new(
+            [new("title", 240)],
+            [new("title", ViewSortDirection.Ascending)],
+            ViewFilter.Equal("state", "open"),
+            "state",
+            new("work.count", new Dictionary<string, string> { ["format"] = "integer" })));
+    var store = new InMemoryViewDefinitionStore();
+    var authoring = new ViewDefinitionAuthoring(
+        new ViewDefinitionAdmission(
+            kinds,
+            records,
+            measures,
+            new ViewExpressionFunctionRegistry(),
+            new QueryInteractions()),
+        store);
+    await authoring.CreateDraftAsync(new(definition, binding));
+    var published = await store.PublishAsync("team-a", "work.queue", "1.0.0");
+
+    var access = new AccessProvider(new FixtureAuthorizationGate());
+    var accessClock = new FixedTimeProvider(FixtureAuthorizationGate.Epoch);
+    var runtime = new ViewQueryRuntime(
+        store,
+        new AccessViewOpenGate(access, accessClock, ["work.open"]),
+        kinds,
+        records,
+        new AccessViewFilter(access, "records:read"),
+        new InMemoryViewRowSource([
+            QueryRow("visible", "A", "party:operator-1", "open"),
+            QueryRow("hidden", "B", "party:other", "open"),
+            QueryRow("visible-2", "C", "party:operator-1", "open"),
+            QueryRow("hidden-2", "D", "party:other", "open"),
+            QueryRow("visible-3", "E", "party:operator-1", "open"),
+        ]),
+        measures,
+        accessClock);
+    var result = await runtime.ExecuteAsync(new(
+        "team-a",
+        "work.queue",
+        "party:operator-1",
+        new(1, 2),
+        published.Binding));
+
+    Check(result.Total == 3 && result.Rows.Select(row => row.Id).SequenceEqual(["visible-2", "visible-3"]), "authored+Access query before paging");
+    Check(result.Groups.Single().Count == 3, "only visible rows grouped");
+    Check(result.Measure == new ViewMeasureResult("work.count", 3), "catalogue measure over current rows");
+    Check(result.Authority.CanOpen && result.Authority.Actions.Single().Action == "work.open", "authority travels with rows");
+    var personal = definition with { Ownership = ViewOwnershipTier.Personal };
+    var export = ViewDefinitionPackExporter.Export([
+        new(personal, published.Binding, ViewDefinitionStatus.Published),
+        published,
+    ]);
+    Check(export.Select(item => item.Definition.Key).SequenceEqual(["work.queue"]), "personal views never travel");
+    Check(export.Single().Binding.ShapeRoles[ViewShapeRole.Title] == "title", "authored binding travels with the definition");
+}
+
+ViewRow QueryRow(string id, string title, string assignee, string state) => new(
+    id,
+    new Dictionary<string, object?>
+    {
+        ["title"] = title,
+        ["assignee"] = assignee,
+        ["owner"] = assignee,
+        ["region"] = "north",
+        ["state"] = state,
+    });
 
 async Task ProveAnchors(DevelopmentPreviewAdapter store)
 {
@@ -252,4 +344,32 @@ sealed class ThrowingStore : IEntityReadStore
         public ValueTask<EntityDetail> CreateEntityAsync(CreateEntityBody body) => throw new NotSupportedException();
         public ValueTask<EdgeSummary> AddEdgeAsync(AddEdgeBody body) => throw new NotSupportedException();
     }
+}
+
+sealed class QueryRecordTypes : IViewRecordTypeRegistry
+{
+    public ValueTask<ViewRecordTypeDescriptor?> ResolveAsync(string recordType, CancellationToken cancellationToken = default) =>
+        ValueTask.FromResult<ViewRecordTypeDescriptor?>(new(
+            recordType,
+            new Dictionary<string, ViewRecordFieldKind>
+            {
+                ["title"] = ViewRecordFieldKind.Text,
+                ["assignee"] = ViewRecordFieldKind.Text,
+                ["state"] = ViewRecordFieldKind.Text,
+            }));
+}
+
+sealed class QueryMeasures : IViewMeasureCatalog
+{
+    public ValueTask<ViewMeasureDescriptor?> ResolveAsync(string name, CancellationToken cancellationToken = default) =>
+        ValueTask.FromResult<ViewMeasureDescriptor?>(name == "work.count" ? new(name, ["format"]) : null);
+    public ValueTask<ViewMeasureResult> EvaluateAsync(ViewMeasureBinding binding, IReadOnlyList<ViewRow> rows, DateTimeOffset evaluatedAt, string tenant, string principal, CancellationToken cancellationToken = default) =>
+        ValueTask.FromResult(new ViewMeasureResult(binding.Name, rows.Count));
+}
+
+sealed class QueryInteractions : IViewInteractionRegistry
+{
+    public ValueTask<ViewWidgetDescriptor?> ResolveWidgetAsync(string widget, CancellationToken cancellationToken = default) => ValueTask.FromResult<ViewWidgetDescriptor?>(null);
+    public ValueTask<bool> HasRowActionAsync(string action, CancellationToken cancellationToken = default) => ValueTask.FromResult(action == "work.open");
+    public ValueTask<bool> HasWorkflowTransitionAsync(string transition, CancellationToken cancellationToken = default) => ValueTask.FromResult(false);
 }

@@ -3,14 +3,30 @@
 @using Microsoft.AspNetCore.Components.Web
 @implements IDisposable
 
-@if (IsHidden)
+@if (IsHidden && (Field.IsSensitive || !Field.IsReadable))
 {
-    @ResolvedControl
 }
 else if (Field.IsSensitive || !Field.IsReadable)
 {
     <HarborlineFormField Disabled="true" Hint="@ResolvedHint" Label="@ResolvedLabel" Name="@Field.Name">
         <output aria-disabled="true" class="hl-schema-form__readonly" id="@Field.Name">@Strings.Redacted</output>
+    </HarborlineFormField>
+}
+else if (IsHidden)
+{
+    @ResolvedControl
+}
+else if (ReadOnly)
+{
+    <HarborlineFormField Hint="@ResolvedHint" Label="@ResolvedLabel" Name="@Field.Name">
+        @if (!TryReadOnlyValue(out var displayValue))
+        {
+            @Unavailable(ControlHint)
+        }
+        else
+        {
+            <output class="hl-schema-form__readonly" id="@Field.Name">@displayValue</output>
+        }
     </HarborlineFormField>
 }
 else
@@ -32,6 +48,7 @@ else
 
 @code {
     [CascadingParameter] private SchemaFormValueStore Store { get; set; } = default!;
+    [CascadingParameter(Name = "SchemaFormReadOnly")] private bool ReadOnly { get; set; }
     [Parameter, EditorRequired] public SchemaFormField Field { get; set; } = default!;
     [Parameter, EditorRequired] public IReadOnlyList<object> Path { get; set; } = [];
     [Parameter, EditorRequired] public IReadOnlyList<string> LocaleChain { get; set; } = [];
@@ -54,9 +71,10 @@ else
     private SchemaFormControlRegistry? previousRegistry;
     private string? previousError;
     private bool previousDisabled;
+    private bool previousReadOnly;
 
     private object? Value => Store.Get(Path);
-    private string StringValue => Value switch
+    private string StringValue => IsStructured(Value) ? string.Empty : Value switch
     {
         null => string.Empty,
         bool flag => flag ? "true" : "false",
@@ -78,6 +96,17 @@ else
     {
         var value = Value;
         var hint = ControlHint;
+        if (hint is "none" or "singlevalue" or "choicelist" or "radiogroup" or "recordpicker" or "taxonomypicker")
+        {
+            builder.OpenComponent<HarborlineSchemaDomainControl>(0);
+            builder.SetKey((hint, Field.PermittedValues is { Count: > 0 }));
+            builder.AddAttribute(1, nameof(HarborlineSchemaDomainControl.Args), new SchemaFormControlArgs(
+                Field, LocaleChain, value, StringValue, !string.IsNullOrEmpty(Error), Field.Required,
+                EffectiveDisabled, Strings, EventCallback.Factory.Create<object?>(this, HandleValueChangedAsync),
+                $"{Field.Name}-label", DescribedBy));
+            builder.CloseComponent();
+            return;
+        }
         if (!Registry.TryGet(hint, out var renderer))
         {
             if (IsStructured(value) || Field.ValueKind is { } valueKind && !valueKind.Equals("string", StringComparison.OrdinalIgnoreCase))
@@ -120,7 +149,7 @@ else
             || !ReferenceEquals(Strings, previousStrings)
             || !ReferenceEquals(Registry, previousRegistry)
             || Error != previousError
-            || Disabled != previousDisabled;
+            || Disabled != previousDisabled || ReadOnly != previousReadOnly;
         previousField = Field;
         previousPath = Path.ToArray();
         previousLocaleChain = LocaleChain;
@@ -128,6 +157,7 @@ else
         previousRegistry = Registry;
         previousError = Error;
         previousDisabled = Disabled;
+        previousReadOnly = ReadOnly;
 
         if (!PathsEqual(Path, subscribedPath))
         {
@@ -165,6 +195,45 @@ else
         && value is not bool
         && value is not byte and not sbyte and not short and not ushort and not int and not uint
         && value is not long and not ulong and not float and not double and not decimal;
+
+    private bool TryReadOnlyValue(out string displayValue)
+    {
+        displayValue = string.Empty;
+        if (Value is null) return true;
+
+        if (ControlHint == "multiselect")
+        {
+            if (Value is string || Value is not System.Collections.IEnumerable values) return false;
+            var selected = values.Cast<object?>().ToArray();
+            if (!selected.All(IsScalar)) return false;
+            var keys = selected.Select(ScalarString).ToArray();
+            var options = keys.Select(key => Field.Options.FirstOrDefault(option => option.Value == key)).ToArray();
+            if (options.Any(option => option is null)) return false;
+            displayValue = string.Join(", ", options.Select(option => Resolve(option!.Label)));
+            return true;
+        }
+
+        if (!IsScalar(Value)) return false;
+        displayValue = ScalarString(Value);
+        if (ControlHint == "select")
+        {
+            var selectedValue = displayValue;
+            var option = Field.Options.FirstOrDefault(candidate => candidate.Value == selectedValue);
+            if (option is not null) displayValue = Resolve(option.Label);
+        }
+        return true;
+    }
+
+    private static bool IsScalar(object? value) => value is string or bool || value is not null && value is
+        byte or sbyte or short or ushort or int or uint or long or ulong or float or double or decimal;
+
+    private static string ScalarString(object? value) => value switch
+    {
+        null => string.Empty,
+        bool flag => flag ? "true" : "false",
+        IFormattable formatted => formatted.ToString(null, System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty,
+        _ => value.ToString() ?? string.Empty,
+    };
 
     private static bool PathsEqual(IReadOnlyList<object> left, IReadOnlyList<object>? right) =>
         right is not null && left.Count == right.Count && left.Zip(right).All(pair => Equals(pair.First, pair.Second));

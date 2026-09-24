@@ -5,6 +5,8 @@ const aggregateRoot = resolve(import.meta.dirname, '../hlp.ui.button')
 export default {
   resolve: {
     alias: {
+      '@harborline-platform/hlp.ui.button': resolve(aggregateRoot, 'src/Button.tsx'),
+      '@harborline-software/rule-engine': resolve(import.meta.dirname, '../../../typescript/foundation/hlp.foundation.rule-runtime/src/index.ts'),
       react: resolve(aggregateRoot, 'node_modules/react'),
       'react-dom': resolve(aggregateRoot, 'node_modules/react-dom'),
       '@testing-library/react': resolve(aggregateRoot, 'node_modules/@testing-library/react'),

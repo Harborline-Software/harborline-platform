@@ -17,6 +17,20 @@ namespace Harborline.Foundation.RuleAuthoring.Tests;
 /// </summary>
 public sealed class SkinLoweringTests
 {
+    private static readonly TimeProvider PreviewClock = new FixedTimeProvider(new DateTimeOffset(2026, 6, 30, 0, 0, 0, TimeSpan.Zero));
+
+    [Fact]
+    public void Preview_and_fired_row_probe_share_one_caller_supplied_instant()
+    {
+        var clock = new AdvancingTimeProvider(
+            new DateTimeOffset(2026, 6, 30, 23, 59, 59, TimeSpan.Zero),
+            new DateTimeOffset(2026, 7, 1, 0, 0, 1, TimeSpan.Zero));
+
+        var result = SkinLowering.EvaluatePreview(AmountTable(), "invoice-route", Sample(500), clock);
+
+        Assert.Equal("r1", result.FiredRowId);
+        Assert.Equal(1, clock.Reads);
+    }
     private static DecisionTableDraft AmountTable() => new()
     {
         Scope = RuleScope.Field,
@@ -43,15 +57,15 @@ public sealed class SkinLoweringTests
     {
         var draft = AmountTable();
         // $500 -> row 1
-        var r = SkinLowering.EvaluatePreview(draft, "invoice-route", Sample(500));
+        var r = SkinLowering.EvaluatePreview(draft, "invoice-route", Sample(500), PreviewClock);
         Assert.Equal("r1", r.FiredRowId);
         Assert.Equal("\"Auto-approve\"", r.Value?.ToJsonString());
         // $1000.00 is inclusive-low of row 2 (>= 1000), exclusive-high of row 1 (< 1000) -> row 2
-        r = SkinLowering.EvaluatePreview(draft, "invoice-route", Sample(1000));
+        r = SkinLowering.EvaluatePreview(draft, "invoice-route", Sample(1000), PreviewClock);
         Assert.Equal("r2", r.FiredRowId);
         Assert.Equal("\"Manager\"", r.Value?.ToJsonString());
         // $5000.00 is >= 5000 so it enters row 3 (Director) — the reified boundary is honest
-        r = SkinLowering.EvaluatePreview(draft, "invoice-route", Sample(5000));
+        r = SkinLowering.EvaluatePreview(draft, "invoice-route", Sample(5000), PreviewClock);
         Assert.Equal("r3", r.FiredRowId);
         Assert.Equal("\"Director\"", r.Value?.ToJsonString());
     }
@@ -59,7 +73,7 @@ public sealed class SkinLoweringTests
     [Fact]
     public void ProducesLocalizableTraceForTheEvaluation()
     {
-        var r = SkinLowering.EvaluatePreview(AmountTable(), "invoice-route", Sample(500));
+        var r = SkinLowering.EvaluatePreview(AmountTable(), "invoice-route", Sample(500), PreviewClock);
         Assert.NotEmpty(r.Trace);
         Assert.StartsWith("rule.trace.", r.Trace[0].Code, StringComparison.Ordinal);
     }
@@ -78,10 +92,48 @@ public sealed class SkinLoweringTests
             },
             NoMatch = new NoMatchPosture.Default("none"),
         };
-        Assert.Equal("high", SkinLowering.EvaluatePreview(overlapping, "k", Sample(10)).FiredRowId);
+        Assert.Equal("high", SkinLowering.EvaluatePreview(overlapping, "k", Sample(10), PreviewClock).FiredRowId);
         // Under first-match the DECLARED-order-first row wins instead.
         var firstMatch = overlapping with { HitPolicy = HitPolicy.FirstMatch };
-        Assert.Equal("low", SkinLowering.EvaluatePreview(firstMatch, "k", Sample(10)).FiredRowId);
+        Assert.Equal("low", SkinLowering.EvaluatePreview(firstMatch, "k", Sample(10), PreviewClock).FiredRowId);
+    }
+
+    [Fact]
+    public void PriorityCatchAllKeepsTheSameWinningRowAndValueInPreviewAndRuntime()
+    {
+        var table = AmountTable() with
+        {
+            HitPolicy = HitPolicy.Priority,
+            Rows = new[]
+            {
+                new TableRow("conditional", Cells("c1", new TableCell.Compare(">=", "0")), "CONDITIONAL", 1),
+                new TableRow("wildcard", Cells("c1", new TableCell.Any()), "WILDCARD", 10),
+            },
+            NoMatch = new NoMatchPosture.CatchAll(),
+        };
+
+        var preview = SkinLowering.EvaluatePreview(table, "priority-catch-all", Sample(10), PreviewClock);
+
+        Assert.Equal("wildcard", preview.FiredRowId);
+        Assert.Equal("\"WILDCARD\"", preview.Value?.ToJsonString());
+    }
+
+    [Fact]
+    public void RejectsMalformedRangeBoundWithCellNamed()
+    {
+        var table = AmountTable() with
+        {
+            Rows = new[]
+            {
+                new TableRow("malformed", Cells("c1", new TableCell.Range("not-a-number", "100")), "x", 0),
+            },
+        };
+
+        var ex = Assert.Throws<RuleCompilationException>(() =>
+            SkinLowering.CompileDraft(table, "malformed-bound"));
+
+        Assert.Equal(SkinCodes.DecisionTableBadCell, ex.Code);
+        Assert.Contains("malformed/c1", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -143,9 +195,95 @@ public sealed class SkinLoweringTests
     public void CompilesAndEvaluatesValidFormula()
     {
         var sample = new JsonObject { ["hours"] = 10, ["rate"] = 20 };
-        var r = SkinLowering.EvaluatePreview(Overtime(), "overtime", sample);
+        var r = SkinLowering.EvaluatePreview(Overtime(), "overtime", sample, PreviewClock);
         Assert.Equal("200", r.Value?.ToJsonString());
         Assert.False(r.FiredRowProbed); // a formula preview never probes a fired row
+    }
+
+    [Fact]
+    public void GuidedCallLowersThroughTheSharedFormulaCompiler()
+    {
+        var draft = Overtime() with
+        {
+            Inputs = Array.Empty<FormulaInputDecl>(),
+            Expression = new FormulaExpr.Call("cat", new FormulaExpr[]
+            {
+                new FormulaExpr.Literal("A", ColumnValueType.Text),
+                new FormulaExpr.Literal("B", ColumnValueType.Text),
+            }),
+        };
+
+        var result = SkinLowering.EvaluatePreview(draft, "guided-call", new JsonObject(), PreviewClock);
+
+        Assert.Equal("\"AB\"", result.Value!.ToJsonString());
+    }
+
+    [Fact]
+    public void PreviewContractProjectsActualRuntimeStatesWithoutFabricatingAValue()
+    {
+        var value = RulesPreviewContract.FromPreview(
+            SkinLowering.EvaluatePreview(Overtime(), "Overtime", new JsonObject { ["hours"] = 10, ["rate"] = 20 }, PreviewClock),
+            "Overtime", "pay");
+        var refusal = RulesPreviewContract.FromPreview(
+            SkinLowering.EvaluatePreview(Overtime(), "Overtime", new JsonObject { ["hours"] = 10, ["rate"] = new JsonObject() }, PreviewClock),
+            "Overtime", "pay");
+        var pending = RulesPreviewContract.FromPreview(
+            SkinLowering.EvaluatePreview(Overtime(), "Overtime", new JsonObject { ["hours"] = 10, ["rate"] = new JsonObject { ["@pending"] = true } }, PreviewClock),
+            "Overtime", "pay");
+        var invalidDraft = Overtime() with
+        {
+            Inputs = new[] { new FormulaInputDecl("required", "required", ColumnValueType.Text) },
+            Expression = new FormulaExpr.Call("+", new FormulaExpr[]
+            {
+                new FormulaExpr.Call("missing", new FormulaExpr[] { new FormulaExpr.Literal("required", ColumnValueType.Text) }),
+                new FormulaExpr.Literal("1", ColumnValueType.Number),
+            }),
+        };
+        var invalidDocument = new RuleDefinitionDocument(
+            new("overtime", "1.0.0", "tenant-a", "domain-package", new JsonObject(), []),
+            "Overtime", RuleDefinitionTier.JsonLogic, invalidDraft);
+        var diagnostic = RulesPreviewContract.FromDiagnostic(Assert.Single(
+            RuleIntentValidator.Validate(invalidDocument, RuleIntentPhase.Author).Diagnostics), "Overtime", "pay");
+
+        Assert.Equal(RulesPreviewOutcomeKind.Value, value.Kind);
+        Assert.Equal("200", value.Value);
+        Assert.Equal(RulesPreviewOutcomeKind.Refusal, refusal.Kind);
+        Assert.False(string.IsNullOrWhiteSpace(refusal.Code));
+        Assert.Equal(RulesPreviewOutcomeKind.Pending, pending.Kind);
+        Assert.Null(pending.Value);
+        Assert.Equal(RulesPreviewOutcomeKind.Uncomputable, diagnostic.Kind);
+        Assert.Equal(SkinCodes.FormulaTypeMismatch, diagnostic.Code);
+        Assert.All(new[] { value, refusal, pending, diagnostic }, item =>
+        {
+            Assert.Equal("Overtime", item.RuleName);
+            Assert.Equal("pay", item.MemberName);
+        });
+    }
+
+    [Fact]
+    public void PreviewContractCarriesRealValidityVisibilityAndPresentationOutcomes()
+    {
+        FormulaDraft Draft(RuleActionKind action, FormulaExpr expression) => new()
+        {
+            Scope = RuleScope.Field,
+            ScopeTarget = "pay",
+            OutputType = action,
+            Inputs = [],
+            Expression = expression,
+        };
+        var validity = RulesPreviewContract.FromPreview(SkinLowering.EvaluatePreview(
+            Draft(RuleActionKind.Validate, new FormulaExpr.Literal("true", ColumnValueType.Boolean)), "Contract", new JsonObject(), PreviewClock), "Contract", "pay");
+        var visibility = RulesPreviewContract.FromPreview(SkinLowering.EvaluatePreview(
+            Draft(RuleActionKind.Visibility, new FormulaExpr.Literal("false", ColumnValueType.Boolean)), "Contract", new JsonObject(), PreviewClock), "Contract", "pay");
+        var presentation = RulesPreviewContract.FromPreview(SkinLowering.EvaluatePreview(
+            Draft(RuleActionKind.Presentation, new FormulaExpr.Literal("true", ColumnValueType.Boolean)), "Contract", new JsonObject(), PreviewClock), "Contract", "pay");
+
+        Assert.Equal(RulesPreviewOutcomeKind.Validity, validity.Kind);
+        Assert.Equal("valid", validity.Validity);
+        Assert.Equal(RulesPreviewOutcomeKind.Visibility, visibility.Kind);
+        Assert.Contains("visible=False", visibility.Visibility, StringComparison.Ordinal);
+        Assert.Equal(RulesPreviewOutcomeKind.Presentation, presentation.Kind);
+        Assert.False(string.IsNullOrWhiteSpace(presentation.Presentation));
     }
 
     [Fact]
@@ -154,5 +292,21 @@ public sealed class SkinLoweringTests
         var bad = Overtime() with { Expression = new FormulaExpr.Ref("bonus") };
         var e = Assert.Throws<RuleCompilationException>(() => SkinLowering.CompileDraft(bad, "overtime"));
         Assert.Equal(SkinCodes.FormulaUndeclaredRef, e.Code);
+    }
+}
+
+file sealed class FixedTimeProvider(DateTimeOffset instant) : TimeProvider
+{
+    public override DateTimeOffset GetUtcNow() => instant;
+}
+
+file sealed class AdvancingTimeProvider(params DateTimeOffset[] instants) : TimeProvider
+{
+    private int next;
+    public int Reads { get; private set; }
+    public override DateTimeOffset GetUtcNow()
+    {
+        Reads++;
+        return instants[Math.Min(next++, instants.Length - 1)];
     }
 }

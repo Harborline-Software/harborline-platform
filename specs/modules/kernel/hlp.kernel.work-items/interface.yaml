@@ -1,10 +1,11 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.kernel.work-items",
-  "interfaceRevision": 1,
+  "interfaceRevision": 4,
   "status": "frozen",
-  "purpose": "Own tenant-scoped durable work-item lifecycle, idempotent transitions, optimistic concurrency, append-only history, audit, and transactional outbox behavior without importing workflow interpretation or UI state.",
+  "purpose": "Own the common one-command request admission fence plus tenant-scoped durable work-item lifecycle, idempotent transitions, optimistic concurrency, append-only history, audit, and transactional outbox behavior without importing workflow interpretation or UI state.",
   "dependencies": [
+    {"moduleId": "hlp.kernel.core", "minimumRevision": 1},
     {"moduleId": "hlp.contracts.identities", "minimumRevision": 1},
     {"moduleId": "hlp.foundation.actor", "minimumRevision": 1},
     {"moduleId": "hlp.foundation.tenancy", "minimumRevision": 1}
@@ -15,7 +16,8 @@
       "CreateAsync(request, cancellationToken) -> WorkItemMutationResult",
       "GetAsync(workItemId, cancellationToken) -> WorkItemSnapshot?",
       "ListOpenAsync(cancellationToken) -> IReadOnlyList<WorkItemSnapshot>",
-      "TransitionAsync(expectedVersion, outcomeId, result, idempotencyKey, cancellationToken) -> WorkItemMutationResult"
+      "TransitionAsync(expectedVersion, outcomeId, result, idempotencyKey, cancellationToken) -> WorkItemMutationResult",
+      "CommandRequestBoundary.ExecuteAsync(commands, executor) -> CommandRequestResult<TResult>"
     ],
     "context": "Every operation resolves one active tenant and server-derived Party from the current host scope. Tenant and audit actor are never accepted from request bodies."
   },
@@ -29,7 +31,8 @@
     "The deterministic versioned step key is derived from a structured tenant, work item, iteration, and current-step payload with no delimiter ambiguity, clock, or random input.",
     "Outbox delivery is outside this kernel; committed envelopes are immutable and consumers must deliver idempotently.",
     "The bundled file journal flushes each checksummed complete frame before publishing in-memory indexes, truncates only an incomplete final frame, and fails startup on complete-frame corruption or unknown versions.",
-    "The bundled file journal is a single-process adapter and does not claim distributed transactions or multi-node leases."
+    "The bundled file journal is a single-process adapter and does not claim distributed transactions or multi-node leases.",
+    "The common command request boundary materializes the request before dispatch and refuses a count greater than one with HTTP status 400, kernel.multi-command-batch, and the observed command count; refused commands never reach an executor."
   ],
   "errors": [
     "work-item.not-found",
@@ -37,7 +40,8 @@
     "work-item.idempotency-conflict",
     "work-item.version-conflict",
     "work-item.invalid-transition",
-    "work-item.persistence-unavailable"
+    "work-item.persistence-unavailable",
+    "kernel.multi-command-batch"
   ],
   "selectedDesign": {
     "choice": "A deep tenant-scoped state-machine boundary with atomic event, receipt, audit, and outbox persistence; parked human work is a projection of durable process state.",

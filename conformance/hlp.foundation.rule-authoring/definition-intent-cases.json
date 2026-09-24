@@ -1,0 +1,286 @@
+{
+  "schemaVersion": 1,
+  "description": "T-588 provider-neutral definition intent fixtures. Both projections must evaluate the identical source JSON at Author, Publish and Persisted. Version-label admission belongs to the shared store and is tested at that composition boundary.",
+  "cases": [
+    {
+      "id": "formula-roundtrip",
+      "sourceJson": "{\"envelope\":{\"id\":\"invoice-total\",\"version\":\"1.2.3\",\"tenant\":\"tenant-a\",\"cascadeLayer\":\"domain-package\",\"provenance\":{\"kind\":\"package\",\"id\":\"finance\"},\"requires\":[\"records.invoice@2.0.0\"]},\"name\":\"Invoice total\",\"tier\":\"JsonLogic\",\"draft\":{\"kind\":\"Formula\",\"scope\":\"Field\",\"scopeTarget\":\"total\",\"outputType\":\"Compute\",\"inputs\":[{\"id\":\"amount\",\"ref\":\"field.amount\",\"type\":\"Number\"}],\"expression\":{\"kind\":\"Ref\",\"name\":\"field.amount\"}}}",
+      "expected": {
+        "valid": true,
+        "code": null,
+        "location": null
+      }
+    },
+    {
+      "id": "formula-guided-call-roundtrip",
+      "sourceJson": "{\"envelope\":{\"id\":\"invoice-total\",\"version\":\"1.2.3\",\"tenant\":\"tenant-a\",\"cascadeLayer\":\"domain-package\",\"provenance\":{\"kind\":\"package\",\"id\":\"finance\"},\"requires\":[]},\"name\":\"Invoice total\",\"tier\":\"JsonLogic\",\"draft\":{\"kind\":\"Formula\",\"scope\":\"Field\",\"scopeTarget\":\"total\",\"outputType\":\"Compute\",\"inputs\":[],\"expression\":{\"kind\":\"Call\",\"op\":\"cat\",\"args\":[{\"kind\":\"Literal\",\"value\":\"A\",\"valueType\":\"Text\"},{\"kind\":\"Literal\",\"value\":\"B\",\"valueType\":\"Text\"}]}}}",
+      "expected": {
+        "valid": true,
+        "code": null,
+        "location": null
+      }
+    },
+    {
+      "id": "formula-guided-call-unknown-operator",
+      "sourceJson": "{\"envelope\":{\"id\":\"invoice-total\",\"version\":\"1.2.3\",\"tenant\":\"tenant-a\",\"cascadeLayer\":\"domain-package\",\"provenance\":{\"kind\":\"package\",\"id\":\"finance\"},\"requires\":[]},\"name\":\"Invoice total\",\"tier\":\"JsonLogic\",\"draft\":{\"kind\":\"Formula\",\"scope\":\"Field\",\"scopeTarget\":\"total\",\"outputType\":\"Compute\",\"inputs\":[],\"expression\":{\"kind\":\"Call\",\"op\":\"regex\",\"args\":[]}}}",
+      "expected": {
+        "valid": false,
+        "code": "rule.compile.invalid_expression",
+        "location": "/draft/expression/op"
+      }
+    },
+    {
+      "id": "table-roundtrip",
+      "sourceJson": "{\"envelope\":{\"id\":\"invoice-total\",\"version\":\"1.2.3\",\"tenant\":\"tenant-a\",\"cascadeLayer\":\"domain-package\",\"provenance\":{\"kind\":\"package\",\"id\":\"finance\"},\"requires\":[\"records.invoice@2.0.0\"]},\"name\":\"Invoice total\",\"tier\":\"JsonLogic\",\"draft\":{\"kind\":\"Table\",\"scope\":\"Field\",\"scopeTarget\":\"total\",\"outputType\":\"Compute\",\"hitPolicy\":\"Priority\",\"columns\":[{\"id\":\"amount\",\"input\":\"field.amount\",\"valueType\":\"Number\"}],\"rows\":[{\"id\":\"low\",\"cells\":{\"amount\":{\"kind\":\"Range\",\"lo\":\"0\",\"hi\":\"100\"}},\"output\":\"low\",\"priority\":1}],\"noMatch\":{\"kind\":\"Default\",\"value\":\"high\"}}}",
+      "expected": {
+        "valid": true,
+        "code": null,
+        "location": null
+      }
+    },
+    {
+      "id": "tier-PowerFx",
+      "sourceJson": "{\"envelope\":{\"id\":\"invoice-total\",\"version\":\"1.2.3\",\"tenant\":\"tenant-a\",\"cascadeLayer\":\"domain-package\",\"provenance\":{\"kind\":\"package\",\"id\":\"finance\"},\"requires\":[\"records.invoice@2.0.0\"]},\"name\":\"Invoice total\",\"tier\":\"PowerFx\",\"draft\":{\"kind\":\"Formula\",\"scope\":\"Field\",\"scopeTarget\":\"total\",\"outputType\":\"Compute\",\"inputs\":[{\"id\":\"amount\",\"ref\":\"field.amount\",\"type\":\"Number\"}],\"expression\":{\"kind\":\"Ref\",\"name\":\"field.amount\"}}}",
+      "expected": {
+        "valid": false,
+        "code": "rule.compile.unsupported_tier",
+        "location": "/tier"
+      }
+    },
+    {
+      "id": "tier-JsonSchema",
+      "sourceJson": "{\"envelope\":{\"id\":\"invoice-total\",\"version\":\"1.2.3\",\"tenant\":\"tenant-a\",\"cascadeLayer\":\"domain-package\",\"provenance\":{\"kind\":\"package\",\"id\":\"finance\"},\"requires\":[\"records.invoice@2.0.0\"]},\"name\":\"Invoice total\",\"tier\":\"JsonSchema\",\"draft\":{\"kind\":\"Formula\",\"scope\":\"Field\",\"scopeTarget\":\"total\",\"outputType\":\"Compute\",\"inputs\":[{\"id\":\"amount\",\"ref\":\"field.amount\",\"type\":\"Number\"}],\"expression\":{\"kind\":\"Ref\",\"name\":\"field.amount\"}}}",
+      "expected": {
+        "valid": false,
+        "code": "rule.compile.unsupported_tier",
+        "location": "/tier"
+      }
+    },
+    {
+      "id": "tier-unknown",
+      "sourceJson": "{\"envelope\":{\"id\":\"invoice-total\",\"version\":\"1.2.3\",\"tenant\":\"tenant-a\",\"cascadeLayer\":\"domain-package\",\"provenance\":{\"kind\":\"package\",\"id\":\"finance\"},\"requires\":[\"records.invoice@2.0.0\"]},\"name\":\"Invoice total\",\"tier\":\"unknown\",\"draft\":{\"kind\":\"Formula\",\"scope\":\"Field\",\"scopeTarget\":\"total\",\"outputType\":\"Compute\",\"inputs\":[{\"id\":\"amount\",\"ref\":\"field.amount\",\"type\":\"Number\"}],\"expression\":{\"kind\":\"Ref\",\"name\":\"field.amount\"}}}",
+      "expected": {
+        "valid": false,
+        "code": "rule.compile.unsupported_tier",
+        "location": "/tier"
+      }
+    },
+    {
+      "id": "tier-2",
+      "sourceJson": "{\"envelope\":{\"id\":\"invoice-total\",\"version\":\"1.2.3\",\"tenant\":\"tenant-a\",\"cascadeLayer\":\"domain-package\",\"provenance\":{\"kind\":\"package\",\"id\":\"finance\"},\"requires\":[\"records.invoice@2.0.0\"]},\"name\":\"Invoice total\",\"tier\":2,\"draft\":{\"kind\":\"Formula\",\"scope\":\"Field\",\"scopeTarget\":\"total\",\"outputType\":\"Compute\",\"inputs\":[{\"id\":\"amount\",\"ref\":\"field.amount\",\"type\":\"Number\"}],\"expression\":{\"kind\":\"Ref\",\"name\":\"field.amount\"}}}",
+      "expected": {
+        "valid": false,
+        "code": "rule.compile.unsupported_tier",
+        "location": "/tier"
+      }
+    },
+    {
+      "id": "unknown-scope",
+      "sourceJson": "{\"envelope\":{\"id\":\"invoice-total\",\"version\":\"1.2.3\",\"tenant\":\"tenant-a\",\"cascadeLayer\":\"domain-package\",\"provenance\":{\"kind\":\"package\",\"id\":\"finance\"},\"requires\":[\"records.invoice@2.0.0\"]},\"name\":\"Invoice total\",\"tier\":\"JsonLogic\",\"draft\":{\"kind\":\"Formula\",\"scope\":\"unknown\",\"scopeTarget\":\"total\",\"outputType\":\"Compute\",\"inputs\":[{\"id\":\"amount\",\"ref\":\"field.amount\",\"type\":\"Number\"}],\"expression\":{\"kind\":\"Ref\",\"name\":\"field.amount\"}}}",
+      "expected": {
+        "valid": false,
+        "code": "rule.compile.bad_grammar",
+        "location": "/draft/scope"
+      }
+    },
+    {
+      "id": "unknown-outputType",
+      "sourceJson": "{\"envelope\":{\"id\":\"invoice-total\",\"version\":\"1.2.3\",\"tenant\":\"tenant-a\",\"cascadeLayer\":\"domain-package\",\"provenance\":{\"kind\":\"package\",\"id\":\"finance\"},\"requires\":[\"records.invoice@2.0.0\"]},\"name\":\"Invoice total\",\"tier\":\"JsonLogic\",\"draft\":{\"kind\":\"Formula\",\"scope\":\"Field\",\"scopeTarget\":\"total\",\"outputType\":\"unknown\",\"inputs\":[{\"id\":\"amount\",\"ref\":\"field.amount\",\"type\":\"Number\"}],\"expression\":{\"kind\":\"Ref\",\"name\":\"field.amount\"}}}",
+      "expected": {
+        "valid": false,
+        "code": "rule.compile.unknown_action",
+        "location": "/draft/outputType"
+      }
+    },
+    {
+      "id": "no-authority-retentionClass",
+      "sourceJson": "{\"envelope\":{\"id\":\"invoice-total\",\"version\":\"1.2.3\",\"tenant\":\"tenant-a\",\"cascadeLayer\":\"domain-package\",\"provenance\":{\"kind\":\"package\",\"id\":\"finance\"},\"requires\":[\"records.invoice@2.0.0\"],\"retentionClass\":\"tenant-choice\"},\"name\":\"Invoice total\",\"tier\":\"JsonLogic\",\"draft\":{\"kind\":\"Formula\",\"scope\":\"Field\",\"scopeTarget\":\"total\",\"outputType\":\"Compute\",\"inputs\":[{\"id\":\"amount\",\"ref\":\"field.amount\",\"type\":\"Number\"}],\"expression\":{\"kind\":\"Ref\",\"name\":\"field.amount\"}}}",
+      "expected": {
+        "valid": false,
+        "code": "rules.definition.unknown_member",
+        "location": "/envelope/retentionClass"
+      }
+    },
+    {
+      "id": "no-authority-legalHold",
+      "sourceJson": "{\"envelope\":{\"id\":\"invoice-total\",\"version\":\"1.2.3\",\"tenant\":\"tenant-a\",\"cascadeLayer\":\"domain-package\",\"provenance\":{\"kind\":\"package\",\"id\":\"finance\"},\"requires\":[\"records.invoice@2.0.0\"],\"legalHold\":\"tenant-choice\"},\"name\":\"Invoice total\",\"tier\":\"JsonLogic\",\"draft\":{\"kind\":\"Formula\",\"scope\":\"Field\",\"scopeTarget\":\"total\",\"outputType\":\"Compute\",\"inputs\":[{\"id\":\"amount\",\"ref\":\"field.amount\",\"type\":\"Number\"}],\"expression\":{\"kind\":\"Ref\",\"name\":\"field.amount\"}}}",
+      "expected": {
+        "valid": false,
+        "code": "rules.definition.unknown_member",
+        "location": "/envelope/legalHold"
+      }
+    },
+    {
+      "id": "bad-cell-kind",
+      "sourceJson": "{\"envelope\":{\"id\":\"invoice-total\",\"version\":\"1.2.3\",\"tenant\":\"tenant-a\",\"cascadeLayer\":\"domain-package\",\"provenance\":{\"kind\":\"package\",\"id\":\"finance\"},\"requires\":[\"records.invoice@2.0.0\"]},\"name\":\"Invoice total\",\"tier\":\"JsonLogic\",\"draft\":{\"kind\":\"Table\",\"scope\":\"Field\",\"scopeTarget\":\"total\",\"outputType\":\"Compute\",\"hitPolicy\":\"Priority\",\"columns\":[{\"id\":\"amount\",\"input\":\"field.amount\",\"valueType\":\"Number\"}],\"rows\":[{\"id\":\"low\",\"cells\":{\"amount\":{\"kind\":\"unknown\",\"lo\":\"0\",\"hi\":\"100\"}},\"output\":\"low\",\"priority\":1}],\"noMatch\":{\"kind\":\"Default\",\"value\":\"high\"}}}",
+      "expected": {
+        "valid": false,
+        "code": "rule.skin.decision_table_bad_cell",
+        "location": "/draft/rows/0/cells/amount/kind"
+      }
+    },
+    {
+      "id": "bad-cell-hi",
+      "sourceJson": "{\"envelope\":{\"id\":\"invoice-total\",\"version\":\"1.2.3\",\"tenant\":\"tenant-a\",\"cascadeLayer\":\"domain-package\",\"provenance\":{\"kind\":\"package\",\"id\":\"finance\"},\"requires\":[\"records.invoice@2.0.0\"]},\"name\":\"Invoice total\",\"tier\":\"JsonLogic\",\"draft\":{\"kind\":\"Table\",\"scope\":\"Field\",\"scopeTarget\":\"total\",\"outputType\":\"Compute\",\"hitPolicy\":\"Priority\",\"columns\":[{\"id\":\"amount\",\"input\":\"field.amount\",\"valueType\":\"Number\"}],\"rows\":[{\"id\":\"low\",\"cells\":{\"amount\":{\"kind\":\"Range\",\"lo\":\"0\",\"hi\":\"nonnumeric\"}},\"output\":\"low\",\"priority\":1}],\"noMatch\":{\"kind\":\"Default\",\"value\":\"high\"}}}",
+      "expected": {
+        "valid": false,
+        "code": "rule.skin.decision_table_bad_cell",
+        "location": "/draft/rows/0/cells/amount/hi"
+      }
+    },
+    {
+      "id": "unknown-cell-not-dropped",
+      "sourceJson": "{\"envelope\":{\"id\":\"invoice-total\",\"version\":\"1.2.3\",\"tenant\":\"tenant-a\",\"cascadeLayer\":\"domain-package\",\"provenance\":{\"kind\":\"package\",\"id\":\"finance\"},\"requires\":[\"records.invoice@2.0.0\"]},\"name\":\"Invoice total\",\"tier\":\"JsonLogic\",\"draft\":{\"kind\":\"Table\",\"scope\":\"Field\",\"scopeTarget\":\"total\",\"outputType\":\"Compute\",\"hitPolicy\":\"Priority\",\"columns\":[{\"id\":\"amount\",\"input\":\"field.amount\",\"valueType\":\"Number\"}],\"rows\":[{\"id\":\"low\",\"cells\":{\"amount\":{\"kind\":\"Range\",\"lo\":\"0\",\"hi\":\"100\"},\"missing/column\":{\"kind\":\"Any\"}},\"output\":\"low\",\"priority\":1}],\"noMatch\":{\"kind\":\"Default\",\"value\":\"high\"}}}",
+      "expected": {
+        "valid": false,
+        "code": "rule.skin.decision_table_bad_cell",
+        "location": "/draft/rows/0/cells/missing~1column"
+      }
+    },
+    {
+      "id": "unknown-hit-policy",
+      "sourceJson": "{\"envelope\":{\"id\":\"invoice-total\",\"version\":\"1.2.3\",\"tenant\":\"tenant-a\",\"cascadeLayer\":\"domain-package\",\"provenance\":{\"kind\":\"package\",\"id\":\"finance\"},\"requires\":[\"records.invoice@2.0.0\"]},\"name\":\"Invoice total\",\"tier\":\"JsonLogic\",\"draft\":{\"kind\":\"Table\",\"scope\":\"Field\",\"scopeTarget\":\"total\",\"outputType\":\"Compute\",\"hitPolicy\":\"Collect\",\"columns\":[{\"id\":\"amount\",\"input\":\"field.amount\",\"valueType\":\"Number\"}],\"rows\":[{\"id\":\"low\",\"cells\":{\"amount\":{\"kind\":\"Range\",\"lo\":\"0\",\"hi\":\"100\"}},\"output\":\"low\",\"priority\":1}],\"noMatch\":{\"kind\":\"Default\",\"value\":\"high\"}}}",
+      "expected": {
+        "valid": false,
+        "code": "rule.skin.decision_table_invalid_hit_policy",
+        "location": "/draft/hitPolicy"
+      }
+    },
+    {
+      "id": "blank-default",
+      "sourceJson": "{\"envelope\":{\"id\":\"invoice-total\",\"version\":\"1.2.3\",\"tenant\":\"tenant-a\",\"cascadeLayer\":\"domain-package\",\"provenance\":{\"kind\":\"package\",\"id\":\"finance\"},\"requires\":[\"records.invoice@2.0.0\"]},\"name\":\"Invoice total\",\"tier\":\"JsonLogic\",\"draft\":{\"kind\":\"Table\",\"scope\":\"Field\",\"scopeTarget\":\"total\",\"outputType\":\"Compute\",\"hitPolicy\":\"Priority\",\"columns\":[{\"id\":\"amount\",\"input\":\"field.amount\",\"valueType\":\"Number\"}],\"rows\":[{\"id\":\"low\",\"cells\":{\"amount\":{\"kind\":\"Range\",\"lo\":\"0\",\"hi\":\"100\"}},\"output\":\"low\",\"priority\":1}],\"noMatch\":{\"kind\":\"Default\",\"value\":\"\"}}}",
+      "expected": {
+        "valid": false,
+        "code": "rule.skin.no_match_unresolved",
+        "location": "/draft/noMatch"
+      }
+    },
+    {
+      "id": "bad-literal-Number-NaN",
+      "sourceJson": "{\"envelope\":{\"id\":\"invoice-total\",\"version\":\"1.2.3\",\"tenant\":\"tenant-a\",\"cascadeLayer\":\"domain-package\",\"provenance\":{\"kind\":\"package\",\"id\":\"finance\"},\"requires\":[\"records.invoice@2.0.0\"]},\"name\":\"Invoice total\",\"tier\":\"JsonLogic\",\"draft\":{\"kind\":\"Formula\",\"scope\":\"Field\",\"scopeTarget\":\"total\",\"outputType\":\"Compute\",\"inputs\":[{\"id\":\"amount\",\"ref\":\"field.amount\",\"type\":\"Number\"}],\"expression\":{\"kind\":\"Literal\",\"value\":\"NaN\",\"valueType\":\"Number\"}}}",
+      "expected": {
+        "valid": false,
+        "code": "rule.compile.invalid_expression",
+        "location": "/draft/expression/value"
+      }
+    },
+    {
+      "id": "bad-literal-Number-Infinity",
+      "sourceJson": "{\"envelope\":{\"id\":\"invoice-total\",\"version\":\"1.2.3\",\"tenant\":\"tenant-a\",\"cascadeLayer\":\"domain-package\",\"provenance\":{\"kind\":\"package\",\"id\":\"finance\"},\"requires\":[\"records.invoice@2.0.0\"]},\"name\":\"Invoice total\",\"tier\":\"JsonLogic\",\"draft\":{\"kind\":\"Formula\",\"scope\":\"Field\",\"scopeTarget\":\"total\",\"outputType\":\"Compute\",\"inputs\":[{\"id\":\"amount\",\"ref\":\"field.amount\",\"type\":\"Number\"}],\"expression\":{\"kind\":\"Literal\",\"value\":\"Infinity\",\"valueType\":\"Number\"}}}",
+      "expected": {
+        "valid": false,
+        "code": "rule.compile.invalid_expression",
+        "location": "/draft/expression/value"
+      }
+    },
+    {
+      "id": "bad-literal-Boolean-TRUE",
+      "sourceJson": "{\"envelope\":{\"id\":\"invoice-total\",\"version\":\"1.2.3\",\"tenant\":\"tenant-a\",\"cascadeLayer\":\"domain-package\",\"provenance\":{\"kind\":\"package\",\"id\":\"finance\"},\"requires\":[\"records.invoice@2.0.0\"]},\"name\":\"Invoice total\",\"tier\":\"JsonLogic\",\"draft\":{\"kind\":\"Formula\",\"scope\":\"Field\",\"scopeTarget\":\"total\",\"outputType\":\"Compute\",\"inputs\":[{\"id\":\"amount\",\"ref\":\"field.amount\",\"type\":\"Number\"}],\"expression\":{\"kind\":\"Literal\",\"value\":\"TRUE\",\"valueType\":\"Boolean\"}}}",
+      "expected": {
+        "valid": false,
+        "code": "rule.compile.invalid_expression",
+        "location": "/draft/expression/value"
+      }
+    },
+    {
+      "id": "bad-literal-Boolean-tru",
+      "sourceJson": "{\"envelope\":{\"id\":\"invoice-total\",\"version\":\"1.2.3\",\"tenant\":\"tenant-a\",\"cascadeLayer\":\"domain-package\",\"provenance\":{\"kind\":\"package\",\"id\":\"finance\"},\"requires\":[\"records.invoice@2.0.0\"]},\"name\":\"Invoice total\",\"tier\":\"JsonLogic\",\"draft\":{\"kind\":\"Formula\",\"scope\":\"Field\",\"scopeTarget\":\"total\",\"outputType\":\"Compute\",\"inputs\":[{\"id\":\"amount\",\"ref\":\"field.amount\",\"type\":\"Number\"}],\"expression\":{\"kind\":\"Literal\",\"value\":\"tru\",\"valueType\":\"Boolean\"}}}",
+      "expected": {
+        "valid": false,
+        "code": "rule.compile.invalid_expression",
+        "location": "/draft/expression/value"
+      }
+    },
+    {
+      "id": "literal-at-bound",
+      "sourceJson": "{\"envelope\":{\"id\":\"invoice-total\",\"version\":\"1.2.3\",\"tenant\":\"tenant-a\",\"cascadeLayer\":\"domain-package\",\"provenance\":{\"kind\":\"package\",\"id\":\"finance\"},\"requires\":[\"records.invoice@2.0.0\"]},\"name\":\"Invoice total\",\"tier\":\"JsonLogic\",\"draft\":{\"kind\":\"Formula\",\"scope\":\"Field\",\"scopeTarget\":\"total\",\"outputType\":\"Compute\",\"inputs\":[{\"id\":\"amount\",\"ref\":\"field.amount\",\"type\":\"Number\"}],\"expression\":{\"kind\":\"Literal\",\"value\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"valueType\":\"Text\"}}}",
+      "expected": {
+        "valid": true,
+        "code": null,
+        "location": null
+      }
+    },
+    {
+      "id": "literal-over-bound",
+      "sourceJson": "{\"envelope\":{\"id\":\"invoice-total\",\"version\":\"1.2.3\",\"tenant\":\"tenant-a\",\"cascadeLayer\":\"domain-package\",\"provenance\":{\"kind\":\"package\",\"id\":\"finance\"},\"requires\":[\"records.invoice@2.0.0\"]},\"name\":\"Invoice total\",\"tier\":\"JsonLogic\",\"draft\":{\"kind\":\"Formula\",\"scope\":\"Field\",\"scopeTarget\":\"total\",\"outputType\":\"Compute\",\"inputs\":[{\"id\":\"amount\",\"ref\":\"field.amount\",\"type\":\"Number\"}],\"expression\":{\"kind\":\"Literal\",\"value\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"valueType\":\"Text\"}}}",
+      "expected": {
+        "valid": false,
+        "code": "rule.compile.literal_too_long",
+        "location": "/draft/expression"
+      }
+    },
+    {
+      "id": "self-cycle",
+      "sourceJson": "{\"envelope\":{\"id\":\"invoice-total\",\"version\":\"1.2.3\",\"tenant\":\"tenant-a\",\"cascadeLayer\":\"domain-package\",\"provenance\":{\"kind\":\"package\",\"id\":\"finance\"},\"requires\":[\"records.invoice@2.0.0\"]},\"name\":\"Invoice total\",\"tier\":\"JsonLogic\",\"draft\":{\"kind\":\"Formula\",\"scope\":\"Field\",\"scopeTarget\":\"total\",\"outputType\":\"Compute\",\"inputs\":[{\"id\":\"amount\",\"ref\":\"field.total\",\"type\":\"Number\"}],\"expression\":{\"kind\":\"Ref\",\"name\":\"field.total\"}}}",
+      "expected": {
+        "valid": false,
+        "code": "rule.compile.cycle",
+        "location": "/draft/expression"
+      }
+    },
+    {
+      "id": "hand-written-empty-comparison",
+      "sourceJson": "{\"envelope\":{\"id\":\"empty-check\",\"version\":\"1.0.0\",\"tenant\":\"tenant-a\",\"cascadeLayer\":\"domain-package\",\"provenance\":{\"kind\":\"package\",\"id\":\"finance\"},\"requires\":[]},\"name\":\"Hand-written empty check\",\"tier\":\"JsonLogic\",\"draft\":{\"kind\":\"Formula\",\"scope\":\"Field\",\"scopeTarget\":\"result\",\"outputType\":\"Compute\",\"inputs\":[{\"id\":\"value\",\"ref\":\"field.value\",\"type\":\"Text\"}],\"expression\":{\"kind\":\"If\",\"when\":{\"op\":\"==\",\"left\":{\"kind\":\"Ref\",\"name\":\"field.value\"},\"right\":{\"kind\":\"Literal\",\"value\":\"\",\"valueType\":\"Text\"}},\"then\":{\"kind\":\"Literal\",\"value\":\"empty\",\"valueType\":\"Text\"},\"else\":{\"kind\":\"Literal\",\"value\":\"present\",\"valueType\":\"Text\"}}}}",
+      "expected": {
+        "valid": true,
+        "code": null,
+        "location": null
+      }
+    },
+    {
+      "id": "nonfinite-provenance-cannot-emit-invalid-canonical-json",
+      "sourceJson": "{\"envelope\":{\"id\":\"overflow-check\",\"version\":\"1.0.0\",\"tenant\":\"tenant-a\",\"cascadeLayer\":\"domain-package\",\"provenance\":{\"overflow\":1e400},\"requires\":[]},\"name\":\"Overflow check\",\"tier\":\"JsonLogic\",\"draft\":{\"kind\":\"Formula\",\"scope\":\"Field\",\"scopeTarget\":\"total\",\"outputType\":\"Compute\",\"inputs\":[],\"expression\":{\"kind\":\"Literal\",\"value\":\"1\",\"valueType\":\"Number\"}}}",
+      "expected": {
+        "valid": false,
+        "code": "rules.definition.invalid_document",
+        "location": "/envelope/provenance/overflow"
+      }
+    },
+    {
+      "id": "finite-large-provenance-preserved",
+      "sourceJson": "{\"envelope\":{\"id\":\"numeric-control\",\"version\":\"1.0.0\",\"tenant\":\"tenant-a\",\"cascadeLayer\":\"domain-package\",\"provenance\":{\"large\":1e300,\"negative\":-1e300,\"zero\":0},\"requires\":[]},\"name\":\"Numeric control\",\"tier\":\"JsonLogic\",\"draft\":{\"kind\":\"Formula\",\"scope\":\"Field\",\"scopeTarget\":\"total\",\"outputType\":\"Compute\",\"inputs\":[],\"expression\":{\"kind\":\"Literal\",\"value\":\"1\",\"valueType\":\"Number\"}}}",
+      "expected": {
+        "valid": true,
+        "code": null,
+        "location": null,
+        "canonicalJson": "{\"draft\":{\"expression\":{\"kind\":\"Literal\",\"value\":\"1\",\"valueType\":\"Number\"},\"inputs\":[],\"kind\":\"Formula\",\"outputType\":\"Compute\",\"scope\":\"Field\",\"scopeTarget\":\"total\"},\"envelope\":{\"cascadeLayer\":\"domain-package\",\"id\":\"numeric-control\",\"provenance\":{\"large\":1e+300,\"negative\":-1e+300,\"zero\":0},\"requires\":[],\"tenant\":\"tenant-a\",\"version\":\"1.0.0\"},\"name\":\"Numeric control\",\"tier\":\"JsonLogic\"}"
+      }
+    },
+    {
+      "id": "nested-overflow-pointer-is-escaped",
+      "sourceJson": "{\"envelope\":{\"id\":\"numeric-control\",\"version\":\"1.0.0\",\"tenant\":\"tenant-a\",\"cascadeLayer\":\"domain-package\",\"provenance\":{\"a/b~c\":[-1e400]},\"requires\":[]},\"name\":\"Numeric control\",\"tier\":\"JsonLogic\",\"draft\":{\"kind\":\"Formula\",\"scope\":\"Field\",\"scopeTarget\":\"total\",\"outputType\":\"Compute\",\"inputs\":[],\"expression\":{\"kind\":\"Literal\",\"value\":\"1\",\"valueType\":\"Number\"}}}",
+      "expected": {
+        "valid": false,
+        "code": "rules.definition.invalid_document",
+        "location": "/envelope/provenance/a~1b~0c/0"
+      }
+    },
+    {
+      "id": "duplicate-precedes-provenance-overflow",
+      "sourceJson": "{\"envelope\":{\"id\":\"numeric-control\",\"version\":\"1.0.0\",\"tenant\":\"tenant-a\",\"cascadeLayer\":\"domain-package\",\"provenance\":{\"overflow\":1e400,\"duplicate\":0,\"duplicate\":1},\"requires\":[]},\"name\":\"Numeric control\",\"tier\":\"JsonLogic\",\"draft\":{\"kind\":\"Formula\",\"scope\":\"Field\",\"scopeTarget\":\"total\",\"outputType\":\"Compute\",\"inputs\":[],\"expression\":{\"kind\":\"Literal\",\"value\":\"1\",\"valueType\":\"Number\"}}}",
+      "expected": {
+        "valid": false,
+        "code": "rules.definition.duplicate_member",
+        "location": "/envelope/provenance/duplicate"
+      }
+    },
+    {
+      "id": "duplicate-tier",
+      "sourceJson": "{\"envelope\":{\"id\":\"invoice-total\",\"version\":\"1.2.3\",\"tenant\":\"tenant-a\",\"cascadeLayer\":\"domain-package\",\"provenance\":{\"kind\":\"package\",\"id\":\"finance\"},\"requires\":[\"records.invoice@2.0.0\"]},\"name\":\"Invoice total\",\"tier\":\"PowerFx\",\"tier\":\"JsonLogic\",\"draft\":{\"kind\":\"Formula\",\"scope\":\"Field\",\"scopeTarget\":\"total\",\"outputType\":\"Compute\",\"inputs\":[{\"id\":\"amount\",\"ref\":\"field.amount\",\"type\":\"Number\"}],\"expression\":{\"kind\":\"Ref\",\"name\":\"field.amount\"}}}",
+      "expected": {
+        "valid": false,
+        "code": "rules.definition.duplicate_member",
+        "location": "/tier"
+      }
+    },
+    {
+      "id": "escaped-duplicate-tier",
+      "sourceJson": "{\"envelope\":{\"id\":\"invoice-total\",\"version\":\"1.2.3\",\"tenant\":\"tenant-a\",\"cascadeLayer\":\"domain-package\",\"provenance\":{\"kind\":\"package\",\"id\":\"finance\"},\"requires\":[\"records.invoice@2.0.0\"]},\"name\":\"Invoice total\",\"tier\":\"PowerFx\",\"ti\\u0065r\":\"JsonLogic\",\"draft\":{\"kind\":\"Formula\",\"scope\":\"Field\",\"scopeTarget\":\"total\",\"outputType\":\"Compute\",\"inputs\":[{\"id\":\"amount\",\"ref\":\"field.amount\",\"type\":\"Number\"}],\"expression\":{\"kind\":\"Ref\",\"name\":\"field.amount\"}}}",
+      "expected": {
+        "valid": false,
+        "code": "rules.definition.duplicate_member",
+        "location": "/tier"
+      }
+    }
+  ]
+}

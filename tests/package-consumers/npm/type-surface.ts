@@ -1,3 +1,4 @@
+import type * as React from 'react'
 import {
   Breadcrumb,
   Chart,
@@ -10,6 +11,8 @@ import {
   DateTimeField,
   DataExportButton,
   DataGrid,
+  DataExchangeAuthoringEditor,
+  emptyDataExchangeDraft,
   ErrorCard,
   FormView,
   FormViewField,
@@ -67,6 +70,7 @@ import {
   type DateTimeFieldProps,
   type DataExportButtonProps,
   type DataGridProps,
+  type DataExchangeAuthoringEditorProps,
   type ErrorCardProps,
   type FormFieldProps,
   type FormValues,
@@ -161,6 +165,43 @@ const pageProps: PageProps = { title: 'Inspection' }
 const searchInputProps: SearchInputProps = { value: '', onChange() {} }
 const segmentedControlProps: SegmentedControlProps = { accessibleName: 'View', options: [{ value: 'day', label: 'Day' }], value: 'day', onValueChange() {} }
 const selectFieldProps: SelectFieldProps = { name: 'status', value: 'active', options: [{ value: 'active', label: 'Active' }], onValueChange() {}, accessibleName: 'Status' }
+const searchableSelectFieldProps: SelectFieldProps = {
+  name: 'search-status', searchable: true, value: 'active', options: selectFieldProps.options,
+  onValueChange(value) { void value.toUpperCase() }, accessibleName: 'Search status', maxVisibleOptions: 25,
+}
+const multipleSelectFieldProps: SelectFieldProps = {
+  name: 'statuses', multiple: true, searchable: true, value: ['active'] as readonly string[],
+  options: selectFieldProps.options, accessibleName: 'Statuses',
+  onValueChange(values) { void values.map(value => value.toUpperCase()) },
+}
+type SelectFieldSurface = React.ComponentPropsWithRef<typeof SelectField>
+const selectInputRef: React.RefObject<HTMLInputElement | null> = { current: null }
+const selectButtonRef: React.RefObject<HTMLButtonElement | null> = { current: null }
+const searchableSelectSurface: SelectFieldSurface = {
+  ...searchableSelectFieldProps, searchable: true, ref: selectInputRef,
+  onFocus(event) { const input: HTMLInputElement = event.currentTarget; input.select() },
+  onBlur(event) { const input: HTMLInputElement = event.currentTarget; input.select() },
+  onKeyDown(event) { const input: HTMLInputElement = event.currentTarget; input.select() },
+}
+const ordinarySelectSurface: SelectFieldSurface = {
+  ...selectFieldProps, ref: selectButtonRef,
+  onFocus(event) { const button: HTMLButtonElement = event.currentTarget; void button.formAction },
+  onBlur(event) { const button: HTMLButtonElement = event.currentTarget; void button.formAction },
+  onKeyDown(event) { const button: HTMLButtonElement = event.currentTarget; void button.formAction },
+}
+const multipleSelectSurface: SelectFieldSurface = {
+  ...multipleSelectFieldProps, ref: selectButtonRef,
+  onFocus(event) { const button: HTMLButtonElement = event.currentTarget; void button.formAction },
+  onBlur(event) { const button: HTMLButtonElement = event.currentTarget; void button.formAction },
+  onKeyDown(event) { const button: HTMLButtonElement = event.currentTarget; void button.formAction },
+}
+// @ts-expect-error Searchable single has an input ref.
+const wrongSearchRef: SelectFieldSurface = { ...searchableSelectFieldProps, ref: selectButtonRef }
+// @ts-expect-error Ordinary single has a button ref.
+const wrongSingleRef: SelectFieldSurface = { ...selectFieldProps, ref: selectInputRef }
+// @ts-expect-error Multiple keeps a button ref even when searchable.
+const wrongMultipleRef: SelectFieldSurface = { ...multipleSelectFieldProps, ref: selectInputRef }
+void [searchableSelectSurface, ordinarySelectSurface, multipleSelectSurface, wrongSearchRef, wrongSingleRef, wrongMultipleRef]
 const switchProps: SwitchProps = { checked: true, onCheckedChange() {}, accessibleName: 'Alerts' }
 const toastService: ToastService = createToastService()
 const toasterProps: ToasterProps = { service: toastService, maximumVisible: 3 }
@@ -172,6 +213,7 @@ type GridRow = { id: string; structure: string; photos: number }
 const dataGridProps: DataGridProps<GridRow> = { accessibleName: 'Structures', rows: [], columns: [{ id: 'structure', field: 'structure', header: 'Structure', removalPriority: 1 }], getRowId: row => row.id }
 const ganttProps: GanttProps = { tasks: [{ id: 'capture', title: 'Capture', start: '2026-08-11', end: '2026-08-12' }], zoom: 'week' }
 const numericTextBoxProps: NumericTextBoxProps = { value: 42.5, onChange() {}, min: 0, max: 100, decimals: 2, 'aria-label': 'Progress' }
+const dataExchangeAuthoringProps: DataExchangeAuthoringEditorProps = { value: emptyDataExchangeDraft(), catalogue: { sourceCapabilities: [], canonicalTargets: [], datatypes: [], transforms: [], schedules: [] }, canCommit: false, onChange() {}, onDiscoverSource() {}, onDryRun() {}, onCommit() {} }
 
 const field = FormViewField.normalize({
   name: 'amount',
@@ -205,6 +247,8 @@ void [
   DateTimeField,
   DataExportButton,
   DataGrid,
+  DataExchangeAuthoringEditor,
+  dataExchangeAuthoringProps,
   dataGridProps,
   dataExportProps,
   dateProps,
@@ -240,6 +284,8 @@ void [
   segmentedControlProps,
   SelectField,
   selectFieldProps,
+  searchableSelectFieldProps,
+  multipleSelectFieldProps,
   Switch,
   switchProps,
   Toaster,

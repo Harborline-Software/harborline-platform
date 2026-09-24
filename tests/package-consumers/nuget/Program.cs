@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -10,6 +11,7 @@ using Harborline.Foundation.MultiTenancy;
 using Harborline.Foundation.Authorization;
 using Harborline.Foundation.Session;
 using Harborline.Kernel.SchemaValidation;
+using Harborline.Kernel.Core;
 using Harborline.Kernel.WorkItems;
 using Harborline.Blocks.InspectionReview;
 using Harborline.Contracts.Forms;
@@ -35,6 +37,7 @@ using Harborline.UIAdapters.Blazor.Components.Forms;
 using Harborline.UIAdapters.Blazor.Components.Forms.Inputs;
 using Harborline.UIAdapters.Blazor.Components.AI;
 using Harborline.UIAdapters.Blazor.Components.Scheduling;
+using Harborline.UIAdapters.Blazor.Components.DataExchange;
 using Harborline.UIAdapters.Blazor.Shell;
 using Harborline.UIAdapters.Blazor.Accessibility;
 using Harborline.UIAdapters.Blazor.Browser;
@@ -43,6 +46,23 @@ using FormsState = Harborline.Foundation.Forms;
 using FormsDrafts = Harborline.Foundation.Forms.Drafts;
 using FormsModel = Harborline.Foundation.Forms.Models;
 using BuilderDefinitions = Harborline.Blocks.BuilderDefinitions;
+using DataExchange = Harborline.Foundation.DataExchange;
+using FieldRuntime = Harborline.Foundation.FieldRuntime;
+using FieldContracts = Harborline.Contracts.Fields;
+
+var emptyFieldDomainRefusals = FieldRuntime.ValueDomainAdmission.Validate(
+    new FieldContracts.ValueDomainDefinition(), "/fields/status/value_domain");
+if (emptyFieldDomainRefusals.Count != 1
+    || emptyFieldDomainRefusals[0].Code != "field.value_domain_source_count"
+    || emptyFieldDomainRefusals[0].JsonPointer != "/fields/status/value_domain")
+    throw new InvalidOperationException("Packed field runtime did not refuse an empty value domain.");
+if (FieldRuntime.ValueDomainAdmission.Validate(
+    new FieldContracts.ValueDomainDefinition(LiteralValues: new[] { "open", "closed" }),
+    "/fields/status/value_domain").Count != 0)
+    throw new InvalidOperationException("Packed field runtime did not admit the literal-set source.");
+
+await FieldRuntimeSchemaProbe.VerifyAsync();
+await FieldRuntimeDomainProbe.VerifyAsync();
 
 if (typeof(HarborlineButton).Assembly.GetName().Name != "Harborline.UIAdapters.Blazor")
     throw new InvalidOperationException("UI assembly identity changed.");
@@ -123,6 +143,13 @@ if (Enum.GetNames<SegmentedControlSize>() is not ["Sm", "Md", "Lg", "Touch"]
     || new SelectOption("active", "Active").Value != "active"
     || new UserIdentity("Ada Lovelace").Name != "Ada Lovelace")
     throw new InvalidOperationException("Packed wave-03-04 component vocabulary changed.");
+if (typeof(HarborlineSelectField).GetProperty(nameof(HarborlineSelectField.ValueChanged))?.PropertyType != typeof(Microsoft.AspNetCore.Components.EventCallback<string>)
+    || typeof(HarborlineSelectField).GetProperty(nameof(HarborlineSelectField.Values))?.PropertyType != typeof(IReadOnlyList<string>)
+    || typeof(HarborlineSelectField).GetProperty(nameof(HarborlineSelectField.ValuesChanged))?.PropertyType != typeof(Microsoft.AspNetCore.Components.EventCallback<IReadOnlyList<string>>)
+    || typeof(HarborlineSelectField).GetProperty(nameof(HarborlineSelectField.Multiple))?.PropertyType != typeof(bool)
+    || typeof(HarborlineSelectField).GetProperty(nameof(HarborlineSelectField.Searchable))?.PropertyType != typeof(bool)
+    || new HarborlineSelectField().MaxVisibleOptions != 25)
+    throw new InvalidOperationException("Packed SelectField single, multiple, or searchable contracts are incomplete.");
 if (typeof(HarborlineChart).Assembly != typeof(HarborlineButton).Assembly
     || typeof(HarborlineChat).Assembly != typeof(HarborlineButton).Assembly
     || typeof(HarborlineDataGrid<>).Assembly != typeof(HarborlineButton).Assembly
@@ -291,7 +318,7 @@ if (!packedRenderField.ReadOnly
     || FormViewText.Resolve(packedViewField.Label, ["ar-AE"], "Field") != "المبلغ")
     throw new InvalidOperationException("Packed Form View binding weakened redaction or changed locale resolution.");
 var packedRule = FormsJson.Deserialize<RuleDefinition>("""{"id":"opt.result","tier":"JsonLogic","scope":"Field","scopeTarget":"result","expression":"[\"PASS\",\"FAIL\"]","action":"Options"}""");
-var packedRuleResult = new FormRuleGraph(RuleCompiler.Compile([packedRule]))
+var packedRuleResult = new FormRuleGraph(RuleCompiler.Compile([packedRule]), TimeProvider.System)
     .EvaluateInstance(RuleInstance.FromJson(new System.Text.Json.Nodes.JsonObject()));
 if (!packedRuleResult.Options.TryGetValue("field:result", out var packedRuleOptions)
     || packedRuleOptions.Options?.Select(value => value?.GetValue<string>()).ToArray() is not ["PASS", "FAIL"])
@@ -390,34 +417,66 @@ if (typeof(Harborline.Blocks.ActivityTimeline.IActivityEntrySource).Assembly.Get
     throw new InvalidOperationException("Blocks ActivityTimeline assembly identity changed.");
 if (typeof(Harborline.Blocks.ActivityTimeline.ActivityEntry).GetProperty("ProposedByActorId") is not null)
     throw new InvalidOperationException("Packed ActivityEntry exposes a raw actor id — the sealing FAILED condition.");
-var packedAuthoringCatalog = new Harborline.Foundation.RuleAuthoring.RuleCatalog(
-    new Harborline.Foundation.RuleAuthoring.InMemoryRuleCatalogStore());
-var packedBlankTable = Harborline.Foundation.RuleAuthoring.RuleSeeds.BlankTableDraft();
-await packedAuthoringCatalog.CreateRuleAsync(
-    "consumer-route", "Consumer route", Harborline.Foundation.RuleAuthoring.RuleSkinType.Table, packedBlankTable);
-var packedRefusedPublish = await Harborline.Foundation.RuleAuthoring.PublishAdmission.PublishRuleAsync(
-    packedAuthoringCatalog, "consumer-route", packedBlankTable);
-if (packedRefusedPublish.Ok || packedRefusedPublish.Code != Harborline.Foundation.RuleEngine.Skins.SkinCodes.NoMatchUnresolved)
-    throw new InvalidOperationException("Packed authoring fence admitted an unresolved no-match table.");
-var packedResolvedTable = packedBlankTable with
+var packedRulesStore = new BuilderDefinitions.InMemoryVersionedDefinitionStore(
+    new Dictionary<BuilderDefinitions.DefinitionKind, BuilderDefinitions.DefinitionAdmission>
+    {
+        [BuilderDefinitions.DefinitionKind.Rules] = BuilderDefinitions.RuleDefinitionCatalog.Admit,
+    });
+var packedRulesKey = new BuilderDefinitions.DefinitionKey(
+    "tenant-consumer", BuilderDefinitions.DefinitionKind.Rules, "consumer-route");
+var packedRulesLifecyclePath = Path.Combine(Path.GetTempPath(), $"hlp-packed-rules-{Guid.NewGuid():N}.json");
+try
 {
-    Rows =
-    [
-        new Harborline.Foundation.RuleAuthoring.TableRow(
-            "r1",
-            new Dictionary<string, Harborline.Foundation.RuleAuthoring.TableCell>
-            {
-                [packedBlankTable.Columns[0].Id] = new Harborline.Foundation.RuleAuthoring.TableCell.Range("0", "100"),
-            },
-            "low",
-            0),
-    ],
-    NoMatch = new Harborline.Foundation.RuleAuthoring.NoMatchPosture.Default("high"),
-};
-var packedAdmittedPublish = await Harborline.Foundation.RuleAuthoring.PublishAdmission.PublishRuleAsync(
-    packedAuthoringCatalog, "consumer-route", packedResolvedTable);
-if (!packedAdmittedPublish.Ok || packedAdmittedPublish.Version != "1.0.0")
-    throw new InvalidOperationException("Packed authoring fence failed to mint 1.0.0 for a resolved table.");
+    using var packedRulesLifecycle = new BuilderDefinitions.FileJournalDefinitionLifecycleStore(packedRulesLifecyclePath);
+    var packedAuthoringCatalog = new BuilderDefinitions.RuleDefinitionCatalog(packedRulesStore, packedRulesLifecycle);
+    var packedRuleSource = System.Text.Json.Nodes.JsonNode.Parse("""
+        {
+          "envelope":{"id":"consumer-route","version":"1.0.0","tenant":"tenant-consumer",
+            "cascadeLayer":"domain-package","provenance":{"id":"finance"},"requires":[]},
+          "name":"Consumer route","tier":"JsonLogic",
+          "draft":{"kind":"Table","scope":"Field","scopeTarget":"route","outputType":"Compute",
+            "hitPolicy":"FirstMatch","columns":[{"id":"amount","input":"field.amount","valueType":"Number"}],
+            "rows":[{"id":"r1","cells":{"amount":{"kind":"Range","lo":"0","hi":"100"}},"output":"low","priority":0}],
+            "noMatch":{"kind":"Default","value":""}}
+        }
+        """)!;
+    try
+    {
+        await packedAuthoringCatalog.SaveDraftJsonAsync(packedRuleSource.ToJsonString(), "version-a", 0, "refused");
+        throw new InvalidOperationException("Packed Rules admission accepted unresolved no-match.");
+    }
+    catch (BuilderDefinitions.DefinitionRefusalException refusal)
+    {
+        if (!refusal.Refusals.Any(item => item.Code == "rule.skin.no_match_unresolved"
+            && item.Pointer == "/draft/noMatch"))
+            throw;
+    }
+    if ((await packedRulesStore.ListHistoryAsync(packedRulesKey)).Count != 0)
+        throw new InvalidOperationException("Refused packed Rules source created history.");
+
+    packedRuleSource["draft"]!["noMatch"]!["value"] = "high";
+    await packedAuthoringCatalog.SaveDraftJsonAsync(packedRuleSource.ToJsonString(), "version-a", 0, "draft");
+    var packedPublication = await packedAuthoringCatalog.PublishAsync(packedRulesKey, "version-a", 1, "publish");
+    var packedReplay = await packedAuthoringCatalog.PublishAsync(packedRulesKey, "version-a", 1, "publish");
+    if (packedPublication != packedReplay || (await packedRulesStore.ListHistoryAsync(packedRulesKey)).Count != 2)
+        throw new InvalidOperationException("Packed Rules publication did not replay exactly once.");
+    var packedLoadedRule = (await packedAuthoringCatalog.LoadVersionAsync(packedRulesKey, "version-a"))!;
+    if (!System.Text.Json.Nodes.JsonNode.DeepEquals(packedRuleSource,
+        System.Text.Json.Nodes.JsonNode.Parse(Harborline.Foundation.RuleAuthoring.RuleDefinitionCodec.SerializeCanonical(packedLoadedRule.Source))))
+        throw new InvalidOperationException("Packed Rules source did not round-trip.");
+
+    var packedRestoredRule = await packedAuthoringCatalog.RestoreAsDraftAsync(
+        packedRulesKey, "version-a", "version-b", "2.0.0", 2, "restore");
+    if (packedRestoredRule.Document.BodyJson != packedPublication.Document.BodyJson
+        || (await packedAuthoringCatalog.LoadVersionAsync(packedRulesKey, "version-b"))!.Source.Envelope.Version != "2.0.0"
+        || await packedRulesStore.ResolvePublishedAsync(new(packedRulesKey, "version-a")) != packedPublication
+        || await packedRulesStore.ResolvePublishedAsync(new(packedRulesKey, "version-b")) is not null)
+        throw new InvalidOperationException("Packed Rules restore changed a publication or exposed a draft.");
+}
+finally
+{
+    File.Delete(packedRulesLifecyclePath);
+}
 if (typeof(ITenantContext).Assembly.GetName().Name != "Harborline.Foundation.MultiTenancy")
     throw new InvalidOperationException("MultiTenancy assembly identity changed.");
 if (typeof(IPartyContext).Assembly.GetName().Name != "Harborline.Foundation.Authorization")
@@ -447,6 +506,46 @@ if (BuilderDefinitions.DefinitionKeySuggester.Suggest("Tenant Intake", new HashS
     throw new InvalidOperationException("Packed Builder Definitions key suggestion changed.");
 if (typeof(BuilderDefinitions.IDefinitionKeyAuthority).IsInterface is false)
     throw new InvalidOperationException("Packed Builder Definitions key-authority seam is absent.");
+var platformManifest = new BuilderDefinitions.PlatformPackageManifest(
+    1,
+    "harborline.platform",
+    "consumer-smoke",
+    [new BuilderDefinitions.PlatformPackageItem(
+        "platform-package",
+        BuilderDefinitions.PlatformSeedStage.PackageRecord,
+        [],
+        BuilderDefinitions.PlatformPackageContent.PresentJson("{}"u8))]);
+if (BuilderDefinitions.PlatformPackageExporter.Export(platformManifest).Length == 0)
+    throw new InvalidOperationException("Packed Builder Definitions platform manifest export is absent.");
+if (!BuilderDefinitions.PlatformPackageReplayer.Validate(platformManifest).Succeeded)
+    throw new InvalidOperationException("Packed Builder Definitions platform manifest validation failed.");
+if (!BuilderDefinitions.PlatformPackageSeed.VerifyCheckedInExport())
+    throw new InvalidOperationException("Packed Builder Definitions canonical platform export differs from its producer.");
+if (BuilderDefinitions.PlatformPackageSeed.Manifest.Items.Count != 14)
+    throw new InvalidOperationException("Packed Builder Definitions canonical platform seed inventory is incomplete.");
+var generationReference = new BuilderDefinitions.ConfigurationReference("platform", "1.0.0", new string('a', 64));
+var generationInput = new BuilderDefinitions.ResolvedConfiguration("tenant-a", ["platform"],
+    [new(generationReference, [generationReference], [])], [new("platform", "platform")], generationReference, []);
+var effectiveGeneration = BuilderDefinitions.ConfigurationGeneration.Resolve(generationInput);
+if (effectiveGeneration.Digest == generationReference.Digest
+    || BuilderDefinitions.ConfigurationGenerationDetail.Bind(effectiveGeneration)["generationDigest"] != effectiveGeneration.Digest
+    || BuilderDefinitions.ConfigurationGenerationDetail.Definition.GetProperty("formId").GetString() != "platform.detail.configuration-generation")
+    throw new InvalidOperationException("Packed complete generation identity/detail contract is absent.");
+if (BuilderDefinitions.ConfigurationGeneration.Resolve(generationInput with { Policies = [generationReference] }).Digest == effectiveGeneration.Digest)
+    throw new InvalidOperationException("Packed generation identity ignored configuration policy.");
+var malformedFloor = BuilderDefinitions.PackageSafetyFloorReattachment.Apply(
+    System.Text.Json.Nodes.JsonNode.Parse("""{"safetyFloors":{"retention":3}}""")!,
+    System.Text.Json.Nodes.JsonNode.Parse("""{"safetyFloors":{"retention":"strict"}}""")!);
+if (malformedFloor.Succeeded
+    || malformedFloor.RefusalCode != "platform-package-safety-floor-malformed"
+    || malformedFloor.Member != "retention")
+    throw new InvalidOperationException("Packed Builder Definitions safety-floor reattachment did not refuse the malformed member.");
+if (typeof(DataExchange.IDataExchangeDefinitionResolver).Assembly.GetName().Name != "Harborline.Foundation.DataExchange"
+    || DataExchange.TabularMappingProfile.Family != "hl:tabular-mapping/v1"
+    || DataExchange.TabularMappingProfile.SchemaUri != "https://schemas.harborline.software/mapping/tabular/v1")
+    throw new InvalidOperationException("Packed Data Exchange profile or assembly identity changed.");
+if (typeof(HarborlineDataExchangeAuthoringEditor).Assembly != typeof(HarborlineButton).Assembly)
+    throw new InvalidOperationException("Data Exchange authoring is not packaged with the aggregate Blazor UI projection.");
 if (typeof(FormsState.IFormDefinitionStore).Assembly.GetName().Name != "Harborline.Foundation.Forms")
     throw new InvalidOperationException("Forms state assembly identity changed.");
 var formsStateStore = new FormsState.InMemoryFormDefinitionStore();
@@ -595,6 +694,32 @@ var packedWorkItem = await packedWorkItemKernel.CreateAsync(new CreateWorkItemRe
 });
 if (!packedWorkItem.IsSuccess || typeof(IWorkItemKernel).Assembly.GetName().Name != "Harborline.Kernel.WorkItems")
     throw new InvalidOperationException("Packed work-item kernel failed tenant-scoped creation or changed assembly identity.");
+var packedCommandExecutions = 0;
+string[] packedCommands = ["first", "second"];
+var packedBatchAdmission = await CommandRequestBoundary.ExecuteAsync(
+    packedCommands,
+    command =>
+    {
+        packedCommandExecutions++;
+        return ValueTask.FromResult(command);
+    });
+if (packedBatchAdmission.Refusal is not { Code: "kernel.multi-command-batch", StatusCode: 400, CommandCount: 2 }
+    || packedCommandExecutions != 0)
+    throw new InvalidOperationException("Packed work-item kernel did not refuse a multi-command request before execution.");
+if (typeof(KernelClock).Assembly.GetName().Name != "Harborline.Kernel.Core")
+    throw new InvalidOperationException("Kernel Core assembly identity changed.");
+var packedFloorReader = new EmptyCatalogueReader();
+var packedFloor = new CompiledBootstrapCatalogue(packedFloorReader);
+foreach (var shape in CompiledBootstrapCatalogue.Shapes)
+{
+    if (await packedFloor.ResolveAsync(shape.Identity) != shape)
+        throw new InvalidOperationException($"Packed Kernel Core did not resolve compiled shape {shape.Identity}.");
+}
+if (packedFloorReader.Reads != 0 || CompiledBootstrapCatalogue.Shapes.Count != 3)
+    throw new InvalidOperationException("Packed Kernel Core read the seed store before resolving its exact compiled floor.");
+if (!KernelProfile.Capabilities.Contains(KernelProfile.ConfigurationRecovery)
+    || typeof(ConfigurationRecovery).Assembly.GetName().Name != "Harborline.Kernel.Core")
+    throw new InvalidOperationException("Packed Kernel Core does not declare configuration-recovery on the kernel profile.");
 
 Console.WriteLine("packed NuGet aggregate loaded Harborline App waves through wave-03-05, including Chart, Chat, Data Grid, Gantt, and Numeric Text Box");
 
@@ -610,6 +735,19 @@ sealed record ConsumerActorContext(
     TenantMetadata? Tenant,
     string UserId,
     IReadOnlyList<string> Roles) : IAuthenticatedActorContext;
+
+sealed class EmptyCatalogueReader : IKernelCatalogueReader
+{
+    public int Reads { get; private set; }
+
+    public ValueTask<CompiledBootstrapShape?> ReadAsync(
+        CompiledShapeIdentity identity,
+        CancellationToken cancellationToken = default)
+    {
+        Reads++;
+        return ValueTask.FromResult<CompiledBootstrapShape?>(null);
+    }
+}
 
 sealed class ConsumerPartyResolver(
     TenantId expectedTenant,

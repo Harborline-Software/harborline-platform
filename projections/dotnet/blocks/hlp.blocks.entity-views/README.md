@@ -13,3 +13,23 @@ It provides:
 
 The package owns no HTTP routes, EF persistence, host composition, or renderer. It references only
 the frozen identities/forms contracts and is not authorized for public distribution.
+
+## Authored and bound views
+
+The package also owns the platform definition and execution seams for authored views:
+
+- `ViewDefinitionAuthoring` admits typed drafts against the same kind, record-shape, expression,
+  measure, widget, action, and transition registries used by runtime composition.
+- `ViewKindRegistry.Platform` supplies the production registry for the canonical `layout.table`
+  identity; hosts may compose another immutable registry from additional Layout descriptors.
+- `IViewDefinitionStore` keeps immutable definition-and-binding snapshots at append-only coordinates;
+  publishing selects the highest semantic-version head, while restore creates a new draft.
+- `ViewDefinitionPackExporter` exports published system/public definitions with their authored
+  bindings and excludes personal definitions.
+- `ViewQueryRuntime` checks view-open authority and record shape before data access, then applies
+  the Access predicate before authored filters, sorting, grouping, paging, counts, or measures.
+- Measures see only current authorized rows and an injected `TimeProvider` instant. Results are
+  transient and carry rows, totals, groups, measures, row-action authority, and evaluation time.
+
+Hosts provide persistence, Access policy, record rows, measure implementations, and registries.
+Layout owns renderers; this module retains the binding contracts and registered view kinds.

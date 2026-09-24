@@ -58,6 +58,12 @@ public static class RuleEngineCodes
     /// options must be a JSON array; fail closed instead of coercing (ADR 0146 D2 Wave-1).</summary>
     public const string OptionsNotArray = "rule.options_not_array";
 
+    /// <summary>An effectful adapter was offered to the pure evaluator instead of a captured snapshot.</summary>
+    public const string ContextSnapshotRequired = "rule.context_snapshot_required";
+
+    /// <summary>A prospective reactive mutation exceeded the finite captured-instance envelope.</summary>
+    public const string InputTooLarge = "rule.input_too_large";
+
     // ── Publish-time (compile) rejections (throw RuleCompilationException) ──
 
     /// <summary>A cyclic definition was rejected at publish (carries the cycle path).</summary>
@@ -80,6 +86,9 @@ public static class RuleEngineCodes
 
     /// <summary>A rule declared a tier the v1 evaluator does not implement (e.g. PowerFx).</summary>
     public const string CompileUnsupportedTier = "rule.compile.unsupported_tier";
+
+    /// <summary>A rule declares an action outside the closed action vocabulary.</summary>
+    public const string CompileUnknownAction = "rule.compile.unknown_action";
 
     /// <summary>A scope-grammar reference was malformed or invalid for the rule's scope.</summary>
     public const string CompileBadGrammar = "rule.compile.bad_grammar";

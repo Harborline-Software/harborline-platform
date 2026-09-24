@@ -1,7 +1,7 @@
 {
   "name": "@harborline-software/rule-engine",
   "version": "0.1.0-alpha.0",
-  "description": "SPINE-1 Tier-2 rule engine — the reactive client tier (ADR 0140 D2 / ADR 0055 follow-up). The TS port of Harborline.Foundation.RuleEngine: a dependency-graph evaluator over the closed harborline-jsonlogic/v1 operator set with fail-closed resource bounds, authoring-time cycle detection, reactive re-evaluation, and async Pending. Emits RuleOutcome values byte-identical to the .NET integrity tier (proven by the shared conformance corpus).",
+  "description": "SPINE-1 Tier-2 rule engine \u2014 the reactive client tier (ADR 0140 D2 / ADR 0055 follow-up). The TS port of Harborline.Foundation.RuleEngine: a dependency-graph evaluator over the closed harborline-jsonlogic/v1 operator set with fail-closed resource bounds, authoring-time cycle detection, reactive re-evaluation, and async Pending. Emits RuleOutcome values byte-identical to the .NET integrity tier (proven by the shared conformance corpus).",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -25,12 +25,12 @@
     "clean": "rm -rf dist"
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
-    "@typescript/native": "npm:typescript@^7.0.2",
-    "eslint": "^10.7.0",
-    "typescript": "npm:@typescript/typescript6@^6.0.2",
-    "typescript-eslint": "^8.63.0",
-    "vitest": "^4.1.10"
+    "@eslint/js": "10.0.1",
+    "@typescript/native": "npm:typescript@7.0.2",
+    "eslint": "10.7.0",
+    "typescript": "npm:@typescript/typescript6@6.0.2",
+    "typescript-eslint": "8.63.0",
+    "vitest": "4.1.11"
   },
   "license": "Apache-2.0",
   "repository": {
@@ -38,5 +38,14 @@
     "url": "git+https://github.com/Harborline-Software/harborline-platform.git",
     "directory": "projections/typescript/foundation/hlp.foundation.rule-runtime"
   },
-  "private": true
+  "private": true,
+  "packageManager": "pnpm@11.1.3",
+  "justifications": {
+    "@eslint/js": "R-0084",
+    "@typescript/native": "R-0086",
+    "eslint": "R-0084",
+    "typescript": "R-0086",
+    "typescript-eslint": "R-0084",
+    "vitest": "R-0083"
+  }
 }

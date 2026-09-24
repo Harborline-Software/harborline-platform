@@ -42,6 +42,7 @@ internal readonly struct MoneyDecimal
     {
         if (string.IsNullOrEmpty(text)) throw new FormatException("empty money literal");
         var s = text.Trim();
+        if (s.Length == 0) throw new FormatException("empty money literal");
         bool neg = false;
         int i = 0;
         if (s[0] == '+' || s[0] == '-') { neg = s[0] == '-'; i = 1; }

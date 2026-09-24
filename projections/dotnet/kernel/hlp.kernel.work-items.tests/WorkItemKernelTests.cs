@@ -15,7 +15,7 @@ public sealed class WorkItemKernelTests
     {
         using var fixtures = JsonDocument.Parse(await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "fixtures.yaml")));
         Assert.Equal("hlp.kernel.work-items", fixtures.RootElement.GetProperty("moduleId").GetString());
-        Assert.Equal(6, fixtures.RootElement.GetProperty("cases").GetArrayLength());
+        Assert.Equal(8, fixtures.RootElement.GetProperty("cases").GetArrayLength());
         var path = TempPath();
         IWorkItemStore store = durable ? new FileJournalWorkItemStore(path) : new InMemoryWorkItemStore();
         try
@@ -105,7 +105,7 @@ public sealed class WorkItemKernelTests
     {
         var store = new InMemoryWorkItemStore();
         var context = new TestContext("tenant-a", "actor-a", TenantStatus.Suspended);
-        var kernel = new WorkItemKernel(context, new TestPartyContext(), store);
+        var kernel = new WorkItemKernel(context, new TestPartyContext(), store, new FixedTimeProvider());
 
         Assert.Equal(WorkItemMutationDisposition.Denied, (await kernel.CreateAsync(Create("item-1"))).Disposition);
         Assert.Null(await kernel.GetAsync("item-1"));

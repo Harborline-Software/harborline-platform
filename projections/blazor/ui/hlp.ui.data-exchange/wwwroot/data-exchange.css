@@ -1,0 +1,10 @@
+.hl-data-exchange-authoring :is(button, input, select):focus-visible {
+  outline: 2px solid var(--hl-button-focus);
+  outline-offset: 2px;
+}
+
+@media (forced-colors: active) {
+  .hl-data-exchange-authoring :is(button, input, select):focus-visible {
+    outline-color: Highlight;
+  }
+}

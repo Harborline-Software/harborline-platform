@@ -149,6 +149,37 @@ body {
   min-width: 0;
 }
 
+/* Keep the all-kinds read-only proof visible as one reviewable capture. */
+[data-gallery-scenario='schema-form.host-readonly'] .hl-schema-form {
+  gap: 0.75rem;
+  max-inline-size: none;
+  padding: 1rem;
+}
+
+[data-gallery-scenario='schema-form.host-readonly'] .hl-schema-form__section + .hl-schema-form__section {
+  padding-block-start: 0.75rem;
+}
+
+[data-gallery-scenario='schema-form.host-readonly'] .hl-schema-form__section > legend {
+  margin-block-end: 0.5rem;
+}
+
+[data-gallery-scenario='schema-form.host-readonly'] .hl-schema-form__fields {
+  gap: 0.5rem 0.75rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+[data-gallery-scenario='schema-form.host-readonly'] :is(.hl-schema-form__readonly, .hl-schema-form__unavailable) {
+  min-block-size: 2.25rem;
+  padding-block: 0.375rem;
+}
+
+@media (max-width: 44rem) {
+  [data-gallery-scenario='schema-form.host-readonly'] .hl-schema-form__fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 .hl-gallery-feedback-stack {
   display: flex;
   flex: 1 1 100%;

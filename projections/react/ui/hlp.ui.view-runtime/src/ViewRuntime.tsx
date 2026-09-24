@@ -1,7 +1,6 @@
 import { DataGrid, type DataGridColumnDef } from '@harborline-platform/hlp.ui.data-grid'
-import type { ViewDefinitionField, ViewRuntimeProps, ViewRuntimeRow } from './ViewRuntime.types'
-
-const GRID_KIND = 'views.entity-list/grid'
+import { Button } from '@harborline-platform/hlp.ui.button'
+import { VIEW_KIND_TABLE, type ViewDefinitionField, type ViewRuntimeProps, type ViewRuntimeRow } from './ViewRuntime.types'
 
 function columns(fields: readonly ViewDefinitionField[]): readonly DataGridColumnDef<ViewRuntimeRow>[] {
   return fields.map((field, index) => ({ id: field.id, field: row => {
@@ -10,15 +9,15 @@ function columns(fields: readonly ViewDefinitionField[]): readonly DataGridColum
   }, header: field.label ?? field.id, removalPriority: fields.length - index }))
 }
 
-function definitionSource(definition: ViewRuntimeProps['definition']): string | undefined {
-  if (!definition.packKey?.trim()) return undefined
-  return JSON.stringify({ definitionId: definition.id, definitionVersion: definition.version, packKey: definition.packKey })
-}
-
-export function ViewRuntime({ definition, rows, accessibleName = 'View results', empty }: ViewRuntimeProps) {
-  if (definition.kind !== GRID_KIND) return null
-  const source = definitionSource(definition)
+export function ViewRuntime({ plan, rows, accessibleName = 'View results', empty, actionsDisabled = false, onRowActivate, onAction }: ViewRuntimeProps) {
+  if (plan.definitionKind !== 'ViewDefinition' || plan.bindings.viewKind !== VIEW_KIND_TABLE) return null
+  const fields = plan.bindings.parameters?.fields
+  if (!fields) return null
+  const source = JSON.stringify({ definitionId: plan.definitionId, definitionVersion: plan.definitionVersion, packKey: plan.packKey })
   return <div className="hl-view-runtime" data-definition-source={source} title={source === undefined ? undefined : `Definition source: ${source}`}>
-    <DataGrid accessibleName={accessibleName} columns={columns(definition.body.fields)} empty={empty} getRowId={row => row.id} rows={rows} />
+    {!!plan.bindings.actions?.length && <div className="hl-view-runtime__actions" role="group" aria-label={accessibleName}>
+      {plan.bindings.actions.map(action => <Button key={action.id} type="button" intent="secondary" size="sm" disabled={actionsDisabled} onClick={() => onAction?.(action.id)}>{action.label}</Button>)}
+    </div>}
+    <DataGrid accessibleName={accessibleName} columns={columns(fields)} empty={empty} getRowId={row => row.id} rows={rows} onRowActivate={onRowActivate === undefined ? undefined : activation => onRowActivate(activation.rowId)} />
   </div>
 }

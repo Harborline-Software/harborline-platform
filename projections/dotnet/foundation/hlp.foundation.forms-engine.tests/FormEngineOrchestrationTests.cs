@@ -148,7 +148,11 @@ public sealed class FormEngineOrchestrationTests
             Func<FormSubmissionCommit, Exception?>? commitFailure = null,
             IFormProjectionSink? projectionSink = null,
             ISchemaRegistry? schemaRegistry = null,
-            Exception? contextFailure = null)
+            Exception? contextFailure = null,
+            TimeProvider? clock = null,
+            IFormFieldBindingSource? fieldBindings = null,
+            Harborline.Contracts.Fields.IFieldKindRuntime? fieldKinds = null,
+            Harborline.Contracts.Fields.IFieldDomainRuntime? fieldDomains = null)
         {
             var schemas = schemaRegistry ?? new InMemorySchemaRegistry();
             var schema = await schemas.RegisterAsync(schemaJson ?? """{"type":"object","properties":{"name":{"type":"string","minLength":1},"secret":{"type":"string"}},"required":["name"],"additionalProperties":false}""");
@@ -175,7 +179,7 @@ public sealed class FormEngineOrchestrationTests
             var sink = projectionSink ?? recordingProjection;
             var actualSecurity = security ?? new RecordingSecurity();
             var engine = new FormEngine(context, new DefinitionStore(definition), reuseResolver ?? new IdentityReuseResolver(), schemas, actualSecurity,
-                readAudit ?? new RecordingReadAudit(), store, sink, options, new FixedClock(Now));
+                readAudit ?? new RecordingReadAudit(), store, sink, options, clock ?? new FixedClock(Now), fieldBindings, fieldKinds, fieldDomains);
             return new(definition, actualState, store, context, recordingProjection, engine);
         }
 

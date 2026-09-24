@@ -1,0 +1,40 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Layout
+@if (Plan.Diagnostics is { Count: > 0 })
+{
+  <section class="hl-layout-runtime__diagnostics" role="alert" data-definition-source="@Source">
+    @foreach (var diagnostic in Plan.Diagnostics) { <p>@diagnostic.Code at @diagnostic.Pointer</p> }
+  </section>
+}
+else if (Plan.Medium == "page")
+{
+  <article class="hl-layout-runtime hl-layout-runtime--page" data-definition-source="@Source" data-fragmentainer="page">@Content</article>
+}
+else
+{
+  <section class="hl-layout-runtime hl-layout-runtime--screen" data-definition-source="@Source" data-fragmentainer="screen">@Content</section>
+}
+
+@code {
+  [Parameter, EditorRequired] public LayoutRuntimePlan Plan { get; set; } = new("", "", "screen", [], []);
+  private string Source => $"{{\"definitionId\":\"{Plan.DefinitionId}\",\"definitionVersionId\":\"{Plan.DefinitionVersionId}\"}}";
+  private RenderFragment Content => builder =>
+  {
+    var sequence = 0;
+    foreach (var block in Plan.StaticRegions)
+    {
+      builder.OpenElement(sequence++, "aside");
+      builder.AddAttribute(sequence++, "data-layout-static-region", block.Zone ?? "static");
+      builder.AddAttribute(sequence++, "data-layout-kind", block.Kind);
+      builder.CloseElement();
+    }
+    foreach (var block in Plan.Flow)
+    {
+      builder.OpenElement(sequence++, "div");
+      builder.AddAttribute(sequence++, "data-layout-block", block.Id);
+      builder.AddAttribute(sequence++, "data-layout-kind", block.Kind);
+      builder.AddAttribute(sequence++, "data-layout-depth", block.Depth);
+      if (block.Zone is not null) builder.AddAttribute(sequence++, "data-layout-zone", block.Zone);
+      builder.CloseElement();
+    }
+  };
+}

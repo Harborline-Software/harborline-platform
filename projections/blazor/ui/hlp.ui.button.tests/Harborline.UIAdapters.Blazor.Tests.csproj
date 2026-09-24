@@ -5,6 +5,24 @@
     <IsPackable>false</IsPackable>
     <AssemblyName>Harborline.UIAdapters.Blazor.Tests</AssemblyName>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <!--      2026-09-15: BL0016 is not an error in THIS project, and nowhere else.
+
+      Directory.Build.props sets TreatWarningsAsErrors=true, and its safety valve
+      (CodeAnalysisTreatWarningsAsErrors=false) exempts CA rules only. BL0016 is a Blazor SDK rule,
+      so the valve misses it and every hit became a build error: 28 of them, all in this project,
+      failing the phase-4 gate and with it the required `verify` check on every platform pull
+      request. main's own validate had been red on this since 2026-09-13.
+
+      BL0016 asks that a JS interop call be guarded with try/catch, because a component whose
+      circuit has disconnected throws. That is sound advice for a COMPONENT. These are bUnit tests
+      that invoke interop deliberately, and a try/catch around them would swallow the exact failure
+      each test exists to detect — the guard would make the test unable to fail.
+
+      WarningsNotAsErrors, not NoWarn: the rule still runs and each hit is still emitted, counted
+      and visible in the build log, exactly as the CA wave is. The production Blazor projects keep
+      BL0016 binding as an error; nothing here changes them.
+    -->
+    <WarningsNotAsErrors>$(WarningsNotAsErrors);BL0016</WarningsNotAsErrors>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="AngleSharp" />
@@ -18,6 +36,8 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../hlp.ui.button/Harborline.UIAdapters.Blazor.csproj" />
+    <ProjectReference Include="../../../dotnet/foundation/hlp.foundation.rule-authoring/Harborline.Foundation.RuleAuthoring.csproj" />
+    <ProjectReference Include="../../../dotnet/foundation/hlp.foundation.rule-runtime/Harborline.Foundation.RuleEngine.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="../hlp.ui.context-menu.tests/**/*.cs" Link="ContextMenu/%(Filename)%(Extension)" />
@@ -79,6 +99,9 @@
     <Compile Include="../hlp.ui.gantt.tests/**/*.cs" Link="Scheduling/Gantt/%(Filename)%(Extension)" />
     <Compile Include="../hlp.ui.data-grid.tests/**/*.cs" Link="DataDisplay/DataGrid/%(Filename)%(Extension)" />
     <Compile Include="../hlp.ui.view-runtime.tests/**/*.cs" Link="DataDisplay/ViewRuntime/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.rule-authoring.tests/**/*.cs" Link="RuleAuthoring/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.layout-runtime.tests/**/*.cs" Link="Layout/LayoutRuntime/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.data-exchange.tests/**/*.cs" Link="DataExchange/%(Filename)%(Extension)" />
     <Compile Include="../hlp.ui.scroll-affordance.tests/**/*.cs" Link="Layout/ScrollAffordance/%(Filename)%(Extension)" />
     <Compile Include="../hlp.ui.dialog.tests/**/*.cs" Link="Feedback/Dialog/%(Filename)%(Extension)" />
     <Compile Include="../hlp.ui.side-nav.tests/**/*.cs" Link="Navigation/SideNav/%(Filename)%(Extension)" />

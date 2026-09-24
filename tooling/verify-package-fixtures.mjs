@@ -527,11 +527,18 @@ function verifyNpm() {
     throw new Error(`npm UI package proof requires one packed rule-engine peer: ${JSON.stringify(ruleEngineArtifacts)}`)
   }
   const ruleEngineArtifact = resolve(npmArtifacts, ruleEngineArtifacts[0])
+  const ruleAuthoringArtifacts = readdirSync(npmArtifacts)
+    .filter(name => name.startsWith('harborline-software-rule-authoring-') && name.endsWith('.tgz'))
+  if (ruleAuthoringArtifacts.length !== 1) {
+    throw new Error(`npm UI package proof requires one packed rule-authoring peer: ${JSON.stringify(ruleAuthoringArtifacts)}`)
+  }
+  const ruleAuthoringArtifact = resolve(npmArtifacts, ruleAuthoringArtifacts[0])
   run('npm', [
     'install', '--ignore-scripts', '--no-audit', '--no-fund', '--package-lock=false',
     artifact,
     contractsArtifact,
     ruleEngineArtifact,
+    ruleAuthoringArtifact,
   ], { cwd: consumer })
   const output = run(process.execPath, ['exercise.mjs'], { cwd: consumer }).trim()
   const installed = resolve(consumer, 'node_modules/@harborline-software/ui-react')
@@ -689,7 +696,7 @@ function verifyRuleRuntimeNpm() {
   const consumer = resolve(fixtureRoot, 'rule-runtime-npm-consumer')
   mkdirSync(consumer, {recursive: true})
   writeFileSync(resolve(consumer, 'package.json'), '{"private":true,"type":"module"}\n')
-  writeFileSync(resolve(consumer, 'exercise.mjs'), `import assert from 'node:assert/strict'\nimport {compile, FormRuleGraph, RuleInstance, serializeOutcome} from '@harborline-software/rule-engine'\nconst rule = {id:'opt.result',tier:'JsonLogic',scope:'Field',scopeTarget:'result',expression:['PASS','FAIL'],action:'Options'}\nconst result = new FormRuleGraph(compile([rule])).evaluateInstance(RuleInstance.fromJson({}))\nassert.equal(serializeOutcome(result.byRule.get('opt.result')), '{"options":{"options":["PASS","FAIL"],"state":"Resolved"},"outputType":"Options","ruleId":"opt.result","target":"field:result"}')\nprocess.stdout.write('packed npm reactive Rule Runtime emitted canonical Options outcome\\n')\n`)
+  writeFileSync(resolve(consumer, 'exercise.mjs'), `import assert from 'node:assert/strict'\nimport {compile, FormRuleGraph, RuleInstance, serializeOutcome} from '@harborline-software/rule-engine'\nconst rule = {id:'opt.result',tier:'JsonLogic',scope:'Field',scopeTarget:'result',expression:['PASS','FAIL'],action:'Options'}\nconst result = new FormRuleGraph(compile([rule]), () => new Date('2026-06-30T00:00:00.000Z')).evaluateInstance(RuleInstance.fromJsonText('{}'))\nassert.equal(serializeOutcome(result.byRule.get('opt.result')), '{"options":{"options":["PASS","FAIL"],"state":"Resolved"},"outputType":"Options","ruleId":"opt.result","target":"field:result"}')\nprocess.stdout.write('packed npm reactive Rule Runtime emitted canonical Options outcome\\n')\n`)
   run('npm', ['install', '--ignore-scripts', '--no-audit', '--no-fund', '--package-lock=false', artifact], { cwd: consumer })
   const output = run(process.execPath, ['exercise.mjs'], { cwd: consumer }).trim()
   const installed = resolve(consumer, 'node_modules/@harborline-software/rule-engine')
@@ -742,7 +749,7 @@ function verifyRuleAuthoringNpm() {
     return resolve(npmArtifacts, engineNames[0])
   })()
   writeFileSync(resolve(consumer, 'package.json'), '{"private":true,"type":"module"}\n')
-  writeFileSync(resolve(consumer, 'exercise.mjs'), `import assert from 'node:assert/strict'\nimport {blankTableDraft, InMemoryRuleCatalogStore, publishRule, RuleCatalog} from '@harborline-software/rule-authoring'\nconst catalog = new RuleCatalog(new InMemoryRuleCatalogStore())\nconst blank = blankTableDraft()\nawait catalog.createRule({ruleKey: 'route', name: 'Route', skinType: 'table', draft: blank})\nconst refused = await publishRule(catalog, 'route', blank)\nassert.deepEqual(refused, {ok: false, code: 'rule.skin.no_match_unresolved', message: 'no-match is unresolved'})\nconst resolvedDraft = {...blank, rows: [{id: 'r1', cells: {[blank.columns[0].id]: {kind: 'range', lo: '0', hi: '100'}}, output: 'low', priority: 0}], noMatch: {kind: 'default', value: 'high'}}\nconst published = await publishRule(catalog, 'route', resolvedDraft)\nassert.equal(published.ok && published.version, '1.0.0')\nprocess.stdout.write('packed npm authoring bridge refused the unresolved no-match and minted 1.0.0 through the fence\\n')\n`)
+  writeFileSync(resolve(consumer, 'exercise.mjs'), readFileSync(resolve(root, 'tests/package-consumers/rule-authoring-npm/exercise.mjs'), 'utf8'))
   run('npm', ['install', '--ignore-scripts', '--no-audit', '--no-fund', '--package-lock=false', artifact, packedEngine], { cwd: consumer })
   const output = run(process.execPath, ['exercise.mjs'], { cwd: consumer }).trim()
   const installed = resolve(consumer, 'node_modules/@harborline-software/rule-authoring')
@@ -775,16 +782,20 @@ function verifyNuget() {
   const tenancy = 'projections/dotnet/foundation/hlp.foundation.tenancy/Harborline.Foundation.MultiTenancy.csproj'
   const actor = 'projections/dotnet/foundation/hlp.foundation.actor/Harborline.Foundation.Authorization.csproj'
   const session = 'projections/dotnet/foundation/hlp.foundation.session/Harborline.Foundation.Session.csproj'
+  const kernelCore = 'projections/dotnet/kernel/hlp.kernel.core/Harborline.Kernel.Core.csproj'
   const schemaValidation = 'projections/dotnet/kernel/hlp.kernel.schema-validation/Harborline.Kernel.SchemaValidation.csproj'
   const workItems = 'projections/dotnet/kernel/hlp.kernel.work-items/Harborline.Kernel.WorkItems.csproj'
   const inspectionReview = 'projections/dotnet/blocks/hlp.blocks.inspection-review/Harborline.Blocks.InspectionReview.csproj'
   const builderDefinitions = 'projections/dotnet/blocks/hlp.blocks.builder-definitions/Harborline.Blocks.BuilderDefinitions.csproj'
   const aggregates = 'projections/dotnet/blocks/hlp.blocks.aggregates/Harborline.Blocks.Aggregates.csproj'
+  const measureCatalogue = 'projections/dotnet/blocks/hlp.blocks.measure-catalogue/Harborline.Blocks.MeasureCatalogue.csproj'
   const relativeChains = 'projections/dotnet/blocks/hlp.blocks.relative-chains/Harborline.Blocks.RelativeChains.csproj'
   const workflow = 'projections/dotnet/blocks/hlp.blocks.workflow/Harborline.Blocks.Workflow.csproj'
   const workflowInterpreter = 'projections/dotnet/blocks/hlp.blocks.workflow-interpreter/Harborline.Blocks.Workflow.Interpreter.csproj'
   const entityViews = 'projections/dotnet/blocks/hlp.blocks.entity-views/Harborline.Blocks.EntityViews.csproj'
+  const dataExchange = 'projections/dotnet/foundation/hlp.foundation.data-exchange/Harborline.Foundation.DataExchange.csproj'
   const foundationScheduling = 'projections/dotnet/foundation/hlp.foundation.scheduling/Harborline.Foundation.Scheduling.csproj'
+  const fieldRuntime = 'projections/dotnet/foundation/hlp.foundation.field-runtime/Harborline.Foundation.FieldRuntime.csproj'
   const blocksScheduling = 'projections/dotnet/blocks/hlp.blocks.scheduling/Harborline.Blocks.Scheduling.csproj'
   const blocksCalendar = 'projections/dotnet/blocks/hlp.blocks.calendar/Harborline.Blocks.Calendar.csproj'
   const blocksReports = 'projections/dotnet/blocks/hlp.blocks.reports/Harborline.Blocks.Reports.csproj'
@@ -799,16 +810,20 @@ function verifyNuget() {
   run(dotnet.executable, ['pack', tenancy, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
   run(dotnet.executable, ['pack', actor, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
   run(dotnet.executable, ['pack', session, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
+  run(dotnet.executable, ['pack', kernelCore, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
   run(dotnet.executable, ['pack', schemaValidation, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
   run(dotnet.executable, ['pack', workItems, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
   run(dotnet.executable, ['pack', inspectionReview, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
   run(dotnet.executable, ['pack', builderDefinitions, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
   run(dotnet.executable, ['pack', aggregates, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
+  run(dotnet.executable, ['pack', measureCatalogue, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
   run(dotnet.executable, ['pack', relativeChains, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
   run(dotnet.executable, ['pack', workflow, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
   run(dotnet.executable, ['pack', workflowInterpreter, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
   run(dotnet.executable, ['pack', entityViews, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
+  run(dotnet.executable, ['pack', dataExchange, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
   run(dotnet.executable, ['pack', foundationScheduling, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
+  run(dotnet.executable, ['pack', fieldRuntime, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
   run(dotnet.executable, ['pack', blocksScheduling, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
   run(dotnet.executable, ['pack', blocksCalendar, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
   run(dotnet.executable, ['pack', blocksReports, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
@@ -827,8 +842,9 @@ function verifyNuget() {
     const nuspec = zip.text(nuspecName)
     return { name, path, zip, nuspec, id: metadata(nuspec, 'id'), version: metadata(nuspec, 'version') }
   })
-  const expectedIds = ['Harborline.Blocks.ActivityTimeline', 'Harborline.Blocks.Aggregates', 'Harborline.Blocks.BuilderDefinitions', 'Harborline.Blocks.Calendar', 'Harborline.Blocks.EntityViews', 'Harborline.Blocks.InspectionReview', 'Harborline.Blocks.RelativeChains', 'Harborline.Blocks.Reports', 'Harborline.Blocks.Scheduling', 'Harborline.Blocks.Workflow', 'Harborline.Blocks.Workflow.Interpreter', 'Harborline.Foundation', 'Harborline.Foundation.Forms.Engine', 'Harborline.Foundation.MultiTenancy', 'Harborline.Foundation.RuleAuthoring', 'Harborline.Foundation.RuleEngine', 'Harborline.Foundation.Scheduling', 'Harborline.Kernel.SchemaValidation', 'Harborline.Kernel.WorkItems', 'Harborline.UIAdapters.Blazor', 'Harborline.Contracts', 'Harborline.Foundation.Authorization', 'Harborline.Foundation.Forms', 'Harborline.Foundation.Session']
+  const expectedIds = ['Harborline.Blocks.ActivityTimeline', 'Harborline.Blocks.Aggregates', 'Harborline.Blocks.MeasureCatalogue', 'Harborline.Blocks.BuilderDefinitions', 'Harborline.Blocks.Calendar', 'Harborline.Blocks.EntityViews', 'Harborline.Blocks.InspectionReview', 'Harborline.Blocks.RelativeChains', 'Harborline.Blocks.Reports', 'Harborline.Blocks.Scheduling', 'Harborline.Blocks.Workflow', 'Harborline.Blocks.Workflow.Interpreter', 'Harborline.Foundation', 'Harborline.Foundation.DataExchange', 'Harborline.Foundation.Forms.Engine', 'Harborline.Foundation.MultiTenancy', 'Harborline.Foundation.RuleAuthoring', 'Harborline.Foundation.RuleEngine', 'Harborline.Foundation.Scheduling', 'Harborline.Kernel.Core', 'Harborline.Kernel.SchemaValidation', 'Harborline.Kernel.WorkItems', 'Harborline.UIAdapters.Blazor', 'Harborline.Contracts', 'Harborline.Foundation.Authorization', 'Harborline.Foundation.Forms', 'Harborline.Foundation.Session']
   const actualIds = packageMetadata.map(entry => entry.id).sort()
+  expectedIds.push('Harborline.Foundation.FieldRuntime')
   if (JSON.stringify(actualIds) !== JSON.stringify(expectedIds.sort())) {
     throw new Error(`NuGet artifact ownership mismatch: ${JSON.stringify(actualIds)}`)
   }
@@ -926,8 +942,8 @@ function verifyNuget() {
     ['microsoft.extensions.dependencyinjection.abstractions', '10.0.10'],
     ['microsoft.extensions.dependencyinjection', '10.0.10'],
     ['microsoft.extensions.logging.abstractions', '10.0.10'],
-    ['microsoft.extensions.dependencyinjection.abstractions', '11.0.0-preview.7.26381.103'],
-    ['microsoft.extensions.dependencyinjection', '11.0.0-preview.7.26381.103'],
+    ['microsoft.extensions.dependencyinjection.abstractions', '11.0.0-rc.1.26425.128'],
+    ['microsoft.extensions.dependencyinjection', '11.0.0-rc.1.26425.128'],
   ]) {
     const packagePath = resolve(globalNugetPackages, id, version, `${id}.${version}.nupkg`)
     const artifactPath = resolve(nugetArtifacts, `${id}.${version}.nupkg`)
@@ -948,7 +964,12 @@ function verifyNuget() {
     }
   }
   cpSync(resolve(root, 'tests/package-consumers/nuget'), consumer, { recursive: true })
-  const output = runNugetConsumer(consumer, packageCache).output.trim().split('\n').at(-1)
+  const consumerOutputLines = runNugetConsumer(consumer, packageCache).output.trim().split('\n')
+  const output = consumerOutputLines.at(-1)
+  const fieldRuntimeSchemaBehavior = consumerOutputLines.find(line => line.startsWith('FIELD_RUNTIME_SCHEMA_PACKAGE_PASS:'))
+  if (!fieldRuntimeSchemaBehavior) throw new Error('Packed field-runtime schema consumer did not emit its completion proof')
+  const fieldRuntimeDomainBehavior = consumerOutputLines.find(line => line.startsWith('FIELD_RUNTIME_DOMAIN_PACKAGE_PASS:'))
+  if (!fieldRuntimeDomainBehavior) throw new Error('Packed field-runtime domain consumer did not emit its completion proof')
   const assets = readFileSync(resolve(consumer, 'obj/project.assets.json'), 'utf8')
   if (assets.includes(resolve(root, 'projections')) || /"type"\s*:\s*"project"/.test(assets)) {
     throw new Error('NuGet consumer resolved a source or project dependency')
@@ -990,6 +1011,7 @@ function verifyNuget() {
     'Harborline.Foundation.Forms.Engine',
     'Harborline.Foundation.MultiTenancy',
     'Harborline.Foundation.RuleEngine',
+    'Harborline.Kernel.Core',
     'Harborline.Kernel.SchemaValidation',
     'Harborline.Contracts',
     'Harborline.Foundation.Authorization',
@@ -1033,6 +1055,7 @@ function verifyNuget() {
     'Harborline.Foundation.Forms.Engine',
     'Harborline.Foundation.MultiTenancy',
     'Harborline.Foundation.RuleEngine',
+    'Harborline.Kernel.Core',
     'Harborline.Kernel.SchemaValidation',
     'Harborline.Kernel.WorkItems',
     'Harborline.Contracts',
@@ -1089,7 +1112,7 @@ function verifyNuget() {
     id: 'platform-dotnet-package-group',
     status: 'PASS',
     artifactIdentity: `Harborline.UIAdapters.Blazor@${packedVersion}`,
-    assemblyIdentities: ['Harborline.Blocks.InspectionReview', 'Harborline.Blocks.Aggregates', 'Harborline.Blocks.RelativeChains', 'Harborline.Blocks.BuilderDefinitions', 'Harborline.Blocks.Workflow', 'Harborline.Blocks.Workflow.Interpreter', 'Harborline.Contracts', 'Harborline.Foundation.MultiTenancy', 'Harborline.Foundation.Authorization', 'Harborline.Foundation.Forms', 'Harborline.Foundation.Forms.Engine', 'Harborline.Foundation.Session', 'Harborline.Foundation.RuleEngine', 'Harborline.Kernel.SchemaValidation', 'Harborline.Kernel.WorkItems', 'Harborline.UIAdapters.Blazor', 'Harborline.Foundation'],
+    assemblyIdentities: ['Harborline.Blocks.InspectionReview', 'Harborline.Blocks.Aggregates', 'Harborline.Blocks.RelativeChains', 'Harborline.Blocks.BuilderDefinitions', 'Harborline.Blocks.Workflow', 'Harborline.Blocks.Workflow.Interpreter', 'Harborline.Contracts', 'Harborline.Foundation.MultiTenancy', 'Harborline.Foundation.Authorization', 'Harborline.Foundation.Forms', 'Harborline.Foundation.Forms.Engine', 'Harborline.Foundation.Session', 'Harborline.Foundation.RuleEngine', 'Harborline.Kernel.Core', 'Harborline.Kernel.SchemaValidation', 'Harborline.Kernel.WorkItems', 'Harborline.UIAdapters.Blazor', 'Harborline.Foundation'],
     artifacts: inspections,
     budget: budgets.nuget,
     localFeedArtifactCount: packageMetadata.length,
@@ -1098,6 +1121,8 @@ function verifyNuget() {
     sourceOrProjectDependencies: 0,
     assemblyAmbiguities: 0,
     harborlineArtifactsFromSingleCohort: true,
+    fieldRuntimeSchemaBehavior,
+    fieldRuntimeDomainBehavior,
     formsEngineDirectPackageReferences: formsEngineDirectReferences,
     formsEngineTransitiveHarborlineArtifacts: formsEngineHarborlineNodes.length,
     formsEngineAuthoringHostBehavior: formsEngineConsumerOutput,
@@ -1122,8 +1147,8 @@ function verifyDynamicFormsCapability() {
   const rendererConsumer = resolve(fixtureRoot, 'dynamic-forms-npm-consumer')
   cpSync(resolve(root, 'tests/package-consumers/dynamic-forms-npm'), rendererConsumer, { recursive: true })
   copyFileSync(corpusSource, resolve(rendererConsumer, 'cases.json'))
-  installPackedArtifacts(rendererConsumer, ['harborline-software-ui-react-', 'harborline-software-contracts-', 'harborline-software-rule-engine-'], 'Dynamic Forms renderer')
-  assertPackedInstall(rendererConsumer, ['ui-react', 'contracts', 'rule-engine'], 'Dynamic Forms renderer')
+  installPackedArtifacts(rendererConsumer, ['harborline-software-ui-react-', 'harborline-software-contracts-', 'harborline-software-rule-engine-', 'harborline-software-rule-authoring-'], 'Dynamic Forms renderer')
+  assertPackedInstall(rendererConsumer, ['ui-react', 'contracts', 'rule-engine', 'rule-authoring'], 'Dynamic Forms renderer')
   const [rendererBehavior] = proofLines(clientRun(rendererConsumer), ['DYNAMIC_FORMS_CLIENT_PASS:'], 'Dynamic Forms packed reference lane')
   const clientVerdicts = JSON.parse(readFileSync(resolve(rendererConsumer, 'client-verdicts.json'), 'utf8'))
   if (clientVerdicts.length !== corpusCases) {
@@ -1141,6 +1166,7 @@ function verifyDynamicFormsCapability() {
     'Harborline.Foundation.Forms.Engine',
     'Harborline.Foundation.MultiTenancy',
     'Harborline.Foundation.RuleEngine',
+    'Harborline.Kernel.Core',
     'Harborline.Kernel.SchemaValidation',
     'Harborline.Contracts',
     'Harborline.Foundation.Authorization',
@@ -1210,12 +1236,14 @@ function verifyWorkflowsCapability() {
 
 function verifyCalculationsCapability() {
   const corpusSource = resolve(root, 'conformance/hlp.foundation.rule-authoring/authoring-verdict-cases.json')
+  const intentSource = resolve(root, 'conformance/hlp.foundation.rule-authoring/definition-intent-cases.json')
   const corpusCases = JSON.parse(readFileSync(corpusSource, 'utf8')).cases.length
   if (corpusCases !== 12) throw new Error(`Calculations authoring corpus must carry exactly 12 cases: ${corpusCases}`)
 
   const rendererConsumer = resolve(fixtureRoot, 'calculations-npm-consumer')
   cpSync(resolve(root, 'tests/package-consumers/calculations-npm'), rendererConsumer, { recursive: true })
   copyFileSync(corpusSource, resolve(rendererConsumer, 'authoring-verdict-cases.json'))
+  copyFileSync(intentSource, resolve(rendererConsumer, 'definition-intent-cases.json'))
   installPackedArtifacts(rendererConsumer, ['harborline-software-rule-authoring-', 'harborline-software-rule-engine-'], 'Calculations renderer')
   assertPackedInstall(rendererConsumer, ['rule-authoring', 'rule-engine'], 'Calculations renderer')
   const [rendererBehavior] = proofLines(clientRun(rendererConsumer), ['CALCULATIONS_CLIENT_PASS:'], 'Calculations packed renderer lane')
@@ -1228,10 +1256,12 @@ function verifyCalculationsCapability() {
   const enginePackageCache = resolve(fixtureRoot, 'calculations-nuget-packages')
   cpSync(resolve(root, 'tests/package-consumers/calculations-nuget'), engineConsumer, { recursive: true })
   copyFileSync(corpusSource, resolve(engineConsumer, 'authoring-verdict-cases.json'))
+  copyFileSync(intentSource, resolve(engineConsumer, 'definition-intent-cases.json'))
   copyFileSync(resolve(rendererConsumer, 'client-verdicts.json'), resolve(engineConsumer, 'client-verdicts.json'))
-  const engineDirectReferences = assertDirectPackageReferences(engineConsumer, ['Harborline.Foundation.RuleAuthoring'], 'Calculations engine')
+  const engineDirectReferences = assertDirectPackageReferences(engineConsumer, ['Harborline.Foundation.RuleAuthoring', 'Harborline.Blocks.BuilderDefinitions'], 'Calculations engine')
   const [engineSubstrate, engineBehavior] = proofLines(runNugetConsumer(engineConsumer, enginePackageCache), ['CALCULATIONS_PACKAGE_PASS:', 'CALCULATIONS_CAPABILITY_PASS:'], 'Calculations package-only capability vertical')
   const engineHarborlineNodes = assertPackageClosure(engineConsumer, [
+    'Harborline.Blocks.BuilderDefinitions',
     'Harborline.Foundation.RuleAuthoring',
     'Harborline.Foundation.RuleEngine',
     'Harborline.Contracts',
@@ -1265,8 +1295,8 @@ function verifyViewsCapability() {
   cpSync(resolve(root, 'tests/package-consumers/views-npm'), rendererConsumer, { recursive: true })
   mkdirSync(resolve(rendererConsumer, '../corpus'), { recursive: true })
   copyFileSync(corpusSource, resolve(rendererConsumer, '../corpus/views-vertical-cases.json'))
-  installPackedArtifacts(rendererConsumer, ['harborline-software-ui-react-'], 'Views renderer')
-  assertPackedInstall(rendererConsumer, ['ui-react'], 'Views renderer')
+  installPackedArtifacts(rendererConsumer, ['harborline-software-ui-react-', 'harborline-software-rule-authoring-', 'harborline-software-rule-engine-'], 'Views renderer')
+  assertPackedInstall(rendererConsumer, ['ui-react', 'rule-authoring', 'rule-engine'], 'Views renderer')
   const [rendererBehavior] = proofLines(clientRun(rendererConsumer), ['VIEWS_CLIENT_PASS:'], 'Views packed renderer lane')
   const clientVerdicts = JSON.parse(readFileSync(resolve(rendererConsumer, 'client-verdicts.json'), 'utf8'))
   if (clientVerdicts.length !== 4 || clientVerdicts.some(row => row.lane !== 'renderer-acknowledged')) {
@@ -1284,13 +1314,22 @@ function verifyViewsCapability() {
   cpSync(resolve(root, 'tests/package-consumers/views-nuget'), engineConsumer, { recursive: true })
   copyFileSync(corpusSource, resolve(engineConsumer, 'views-vertical-cases.json'))
   const engineDirectReferences = assertDirectPackageReferences(engineConsumer, ['Harborline.Blocks.EntityViews'], 'Views engine')
-  const [engineSubstrate, engineBehavior] = proofLines(runNugetConsumer(engineConsumer, enginePackageCache), ['VIEWS_PACKAGE_PASS:', 'VIEWS_CAPABILITY_PASS:'], 'Views engine')
+  const [engineSubstrate, engineBehavior, authoredBoundBehavior, accessBehavior] = proofLines(runNugetConsumer(engineConsumer, enginePackageCache), ['VIEWS_PACKAGE_PASS:', 'VIEWS_CAPABILITY_PASS:', 'VIEWS_AUTHORED_BOUND_PASS:', 'ACCESS_CONTRACT_PASS:'], 'Views engine')
   assertPackageClosure(
     engineConsumer,
-    ['Harborline.Blocks.EntityViews', 'Harborline.Contracts'],
+    // T-624: Views reaches measures through the shared catalogue, which brings the catalogue and
+    // the aggregates evaluator it resolves declared entries against. Views still owns no math.
+    ['Harborline.Blocks.EntityViews', 'Harborline.Blocks.MeasureCatalogue', 'Harborline.Blocks.Aggregates', 'Harborline.Contracts', 'Harborline.Foundation.Authorization', 'Harborline.Foundation.MultiTenancy', 'Harborline.Foundation.RuleEngine'],
     'Views engine',
     /Forms.*(?:Builder|Authoring)|(?:Builder|Authoring).*Forms/i,
   )
+
+  const blazorConsumer = resolve(fixtureRoot, 'views-blazor-nuget-consumer')
+  const blazorPackageCache = resolve(fixtureRoot, 'views-blazor-nuget-packages')
+  cpSync(resolve(root, 'tests/package-consumers/views-blazor-nuget'), blazorConsumer, { recursive: true })
+  const blazorDirectReferences = assertDirectPackageReferences(blazorConsumer, ['Harborline.UIAdapters.Blazor'], 'Views Blazor authoring')
+  const [blazorAuthoringBehavior] = proofLines(runNugetConsumer(blazorConsumer, blazorPackageCache), ['VIEWS_BLAZOR_AUTHORING_PASS:'], 'Views Blazor package-only authoring lane')
+  assertPackageClosure(blazorConsumer, ['Harborline.UIAdapters.Blazor', 'Harborline.Foundation', 'Harborline.Foundation.RuleAuthoring', 'Harborline.Foundation.RuleEngine', 'Harborline.Contracts'], 'Views Blazor authoring')
 
   return {
     id: 'views-capability-vertical',
@@ -1298,12 +1337,16 @@ function verifyViewsCapability() {
     corpusCases,
     corpusSha256: sha256(corpusSource),
     rendererArtifacts: ['@harborline-software/ui-react'],
+    blazorDirectPackageReferences: blazorDirectReferences,
     engineDirectPackageReferences: engineDirectReferences,
     crossLaneVerdicts: clientVerdicts.length,
     sourceOrProjectDependencies: 0,
     rendererBehavior,
     engineBehavior,
     engineSubstrate,
+    authoredBoundBehavior,
+    accessBehavior,
+    blazorAuthoringBehavior,
   }
 }
 
@@ -1320,17 +1363,20 @@ function verifySchedulingCapability() {
   cpSync(resolve(root, 'tests/package-consumers/scheduling-nuget'), consumer, { recursive: true })
   copyFileSync(corpusSource, resolve(consumer, 'scheduling-vertical-cases.json'))
   const direct = assertDirectPackageReferences(consumer, ['Harborline.Blocks.Calendar', 'Harborline.Blocks.Scheduling', 'Harborline.Foundation.Scheduling'], 'Scheduling')
-  const [packageProof, capabilityProof] = proofLines(runNugetConsumer(consumer, packageCache), ['SCHEDULING_PACKAGE_PASS:', 'SCHEDULING_CAPABILITY_PASS:'], 'Scheduling')
-  // Derived from the landed csprojs: Calendar -> Contracts + Foundation.Scheduling;
-  // Blocks.Scheduling and Foundation.Scheduling add no Harborline package edges.
+  // T-626: the availability substrate proof — four member callers through the released IAvailabilityRuntime.
+  const [packageProof, availabilityProof, capabilityProof] = proofLines(runNugetConsumer(consumer, packageCache), ['SCHEDULING_PACKAGE_PASS:', 'AVAILABILITY_SUBSTRATE_PASS:', 'SCHEDULING_CAPABILITY_PASS:'], 'Scheduling')
+  // Derived from the landed csprojs: Calendar -> Contracts + Foundation.Scheduling + Foundation.Authorization
+  // (T-568: the booking requester is the kernel's authenticated context), and Authorization ->
+  // MultiTenancy + RuleEngine; Blocks.Scheduling and Foundation.Scheduling add no Harborline package edges.
   const closure = assertPackageClosure(
     consumer,
-    ['Harborline.Blocks.Calendar', 'Harborline.Blocks.Scheduling', 'Harborline.Foundation.Scheduling', 'Harborline.Contracts'],
+    ['Harborline.Blocks.Calendar', 'Harborline.Blocks.Scheduling', 'Harborline.Foundation.Scheduling', 'Harborline.Contracts',
+      'Harborline.Foundation.Authorization', 'Harborline.Foundation.MultiTenancy', 'Harborline.Foundation.RuleEngine'],
     'Scheduling',
     /(?:Forms|Reports|Workflows|EntityViews|Kernel|Blazor|React)/i,
   )
 
-  return { id: 'scheduling-capability-vertical', status: 'PASS', anchors: 174, hostRows: 88, crossLanePairs: 0, corpusSha256: sha256(corpusSource), directPackageReferences: direct, packageClosure: closure, sourceOrProjectDependencies: 0, packageProof, capabilityProof }
+  return { id: 'scheduling-capability-vertical', status: 'PASS', anchors: 174, hostRows: 88, crossLanePairs: 0, corpusSha256: sha256(corpusSource), directPackageReferences: direct, packageClosure: closure, sourceOrProjectDependencies: 0, packageProof, availabilityProof, capabilityProof }
 }
 
 
@@ -1347,10 +1393,13 @@ function verifyReportsCapability() {
   copyFileSync(corpusSource, resolve(consumer, 'reports-vertical-cases.json'))
   const direct = assertDirectPackageReferences(consumer, ['Harborline.Blocks.Reports'], 'Reports')
   const [packageProof, capabilityProof] = proofLines(runNugetConsumer(consumer, packageCache), ['REPORTS_PACKAGE_PASS:', 'REPORTS_CAPABILITY_PASS:'], 'Reports')
-  // Derived from the landed csproj: Blocks.Reports -> Contracts only.
+  // Derived from the landed csproj: Blocks.Reports -> Contracts and, since T-624, the shared
+  // measure catalogue it registers its seven computations in, which brings the aggregates
+  // evaluator and the Access contracts the catalogue binds its filter through.
   const closure = assertPackageClosure(
     consumer,
-    ['Harborline.Blocks.Reports', 'Harborline.Contracts'],
+    ['Harborline.Blocks.Reports', 'Harborline.Blocks.MeasureCatalogue', 'Harborline.Blocks.Aggregates', 'Harborline.Contracts',
+      'Harborline.Foundation.Authorization', 'Harborline.Foundation.MultiTenancy', 'Harborline.Foundation.RuleEngine'],
     'Reports',
     /(?:Financial|Tax|Forms|Workflows|EntityViews|Kernel|Blazor|React)/i,
   )
@@ -1396,8 +1445,8 @@ function verifyAggregatesCapability() {
   mkdirSync(resolve(rendererConsumer, '../corpus'), { recursive: true })
   copyFileSync(corpusSource, resolve(rendererConsumer, '../corpus/aggregates-vertical-cases.json'))
   // Exact views-npm precedent: pass only the packed ui-react tarball; npm resolves its declared peers/dependencies.
-  installPackedArtifacts(rendererConsumer, ['harborline-software-ui-react-'], 'Aggregates renderer')
-  assertPackedInstall(rendererConsumer, ['ui-react'], 'Aggregates renderer')
+  installPackedArtifacts(rendererConsumer, ['harborline-software-ui-react-', 'harborline-software-rule-authoring-', 'harborline-software-rule-engine-'], 'Aggregates renderer')
+  assertPackedInstall(rendererConsumer, ['ui-react', 'rule-authoring', 'rule-engine'], 'Aggregates renderer')
   const [rendererTimeline, rendererProof] = proofLines(clientRun(rendererConsumer), ['CROSS_LANE_TIMELINE:', 'AGGREGATES_RENDERER_PASS:'], 'Aggregates renderer')
   if (engineTimeline !== rendererTimeline) {
     throw new Error(`Aggregates cross-lane timeline diverged byte-for-byte: ${JSON.stringify({ engineTimeline, rendererTimeline })}`)
@@ -1474,7 +1523,7 @@ function verifyAppShellCapability() {
   const assets = JSON.parse(assetsText)
   const target = Object.values(assets.targets ?? {})[0] ?? {}
   const closure = Object.keys(target).filter(x => /^Harborline\./.test(x)).map(x => x.split('/')[0]).sort()
-  const expectedClosure = ['Harborline.Foundation.MultiTenancy', 'Harborline.Contracts', 'Harborline.Foundation.Authorization', 'Harborline.Foundation.Session'].sort()
+  const expectedClosure = ['Harborline.Foundation.MultiTenancy', 'Harborline.Contracts', 'Harborline.Foundation.Authorization', 'Harborline.Foundation.Session', 'Harborline.Foundation.RuleEngine'].sort()
   if (JSON.stringify(closure) !== JSON.stringify(expectedClosure)) throw new Error(`App-shell closure drift: ${JSON.stringify(closure)}`)
 
   // Capability-host rows: cross-repo tarballs staged by explicit environment paths with the
@@ -1534,7 +1583,7 @@ try {
     completed.set(id, result)
   }
   const plans = new Map([
-    ['ui-react-package', () => runFixture('ui-react-package', verifyNpm, ['forms-contracts-package', 'rule-runtime-package'])],
+    ['ui-react-package', () => runFixture('ui-react-package', verifyNpm, ['forms-contracts-package', 'rule-runtime-package', 'rule-authoring-package'])],
     ['forms-contracts-package', () => runFixture('forms-contracts-package', verifyFormsNpm)],
     ['rule-runtime-package', () => runFixture('rule-runtime-package', verifyRuleRuntimeNpm)],
     ['rule-authoring-package', () => runFixture('rule-authoring-package', verifyRuleAuthoringNpm, ['rule-runtime-package'])],

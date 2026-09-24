@@ -1,2 +1,8 @@
 .hl-view-runtime { min-inline-size: 0; }
-.hl-view-runtime :focus-visible { outline: 2px solid var(--hl-focus); outline-offset: 2px; }
+.hl-view-runtime__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-block-end: clamp(0.75rem, 2vw, 1rem);
+}

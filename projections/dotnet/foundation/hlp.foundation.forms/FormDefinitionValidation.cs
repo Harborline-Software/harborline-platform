@@ -53,9 +53,7 @@ internal static class FormDefinitionValidation
                 }
             }
 
-            // F-23: the section's own layout intents (breakpoint/density/align/width tokens)
-            // are validated against the closed vocabularies, fail-closed. Only the NEW
-            // members are checked — the Rev-6 members keep their tolerant posture.
+            // Both section and item placement use the same token and numeric admission.
             LayoutIntentValidator.Validate(
                 section.Layout,
                 section.FieldPlacement,

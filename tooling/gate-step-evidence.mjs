@@ -17,6 +17,7 @@ const BUILD_INPUTS = [
   'Directory.Packages.props',
   'global.json',
   'package.json',
+  '_shared',
   'catalog',
   'conformance',
   'projections',
@@ -37,6 +38,7 @@ export const reusableStepEntryScript = {
 export const reusableStepInputs = {
   'native-tests': [
     ...BUILD_INPUTS,
+    'tests/blazor-browser',
     'tooling/run-native.mjs',
     'tooling/coverage.mjs',
     'tooling/coverage.runsettings',

@@ -158,6 +158,9 @@ function resolveFeedForPackageConsumers() {
 // cores. Overridable with GALLERY_SHARDS for measurement.
 const galleryShards = Number(process.env.GALLERY_SHARDS)
   || Math.max(1, Math.min(4, Math.floor(cpus().length / 4)))
+// T-349: the directory of per-shard reports produced by a MATRIX of ubuntu jobs. Unset for every
+// local run, so the gate on a developer's machine is byte-for-byte what it was.
+const galleryShardReports = process.env.HARBORLINE_GALLERY_SHARD_REPORTS
 
 let caughtGateError
 try {
@@ -166,12 +169,13 @@ try {
   // subdirectories. A lane worktree has a root node_modules left over from earlier work, so the
   // tooling self-tests passed there and failed in the receipt's detached tested tree, where the
   // five files that reach render-digest.mjs could not resolve 'typescript' (ticket 138 s3).
-  run('root-clean-install', 'npm', ['ci', '--ignore-scripts', '--no-audit', '--no-fund'], root)
-  run('npm-clean-install', 'npm', ['ci', '--ignore-scripts', '--no-audit', '--no-fund'], reactRoot)
-  run('forms-contracts-clean-install', 'npm', ['ci', '--ignore-scripts', '--no-audit', '--no-fund'], formsContractsRoot)
+  run('root-clean-install', 'pnpm', ['install', '--frozen-lockfile', '--ignore-scripts'], root)
+  run('dependency-ledger', process.execPath, ['tooling/dependency-ledger.mjs'], root)
+  run('npm-clean-install', 'pnpm', ['install', '--frozen-lockfile', '--ignore-scripts'], reactRoot)
+  run('forms-contracts-clean-install', 'pnpm', ['install', '--frozen-lockfile', '--ignore-scripts'], formsContractsRoot)
   run('rule-runtime-clean-install', 'pnpm', ['install', '--frozen-lockfile', '--ignore-scripts'], ruleRuntimeRoot)
   run('rule-authoring-clean-install', 'pnpm', ['install', '--frozen-lockfile', '--ignore-scripts'], ruleAuthoringRoot)
-  run('copilot-contracts-clean-install', 'npm', ['ci', '--ignore-scripts', '--no-audit', '--no-fund'], copilotContractsRoot)
+  run('copilot-contracts-clean-install', 'pnpm', ['install', '--frozen-lockfile', '--ignore-scripts'], copilotContractsRoot)
   run('dotnet-restore', dotnet.executable, ['restore', 'Harborline.Platform.slnx', '--force', '--no-cache', '-v:minimal'])
   run('generation-smoke', process.execPath, ['tooling/generate-blazor-smoke.mjs', ...generationSmokeModuleIds.flatMap(moduleId => ['--module', moduleId])], root, true)
   run('ui-spec-authority', process.execPath, ['tooling/sync-ui-spec-authority.mjs', '--check'], root, true)
@@ -181,7 +185,8 @@ try {
   run('prop-vocabulary', process.execPath, ['tooling/gates/scan-prop-vocabulary.mjs', '--json'], root, true)
   // A static sweep over source, so it belongs with the cheap checks rather than behind the
   // thirty-eight-minute half. The shared EXPIRED rule includes non-terminal UI modules and
-  // ticket 334's dated backlog. Other unfinished gates remain a recorded worklist.
+  // ticket 334's backlog, which T-631 froze by digest and un-dated. Other unfinished gates remain
+  // a recorded worklist.
   run('ui-gate-model', process.execPath, ['tooling/gates/run-ui-gate-model.mjs', '--json'], root, true)
   run('build', process.execPath, ['tooling/run-native.mjs', '--build'], root, true)
   runReusable('native-tests', process.execPath, ['tooling/run-native.mjs'], root, true)
@@ -195,9 +200,21 @@ try {
   // Skipped under HARBORLINE_GATE_HEADLESS: the MVP is headless, so a browser parity suite does not
   // decide whether a headless change may land. The scheduled cross-platform job still runs it.
   if (!headless) {
-    runReusable('gallery-gate', process.execPath, ['tooling/run-gallery-gate.mjs', '--packages-ready'], root, true,
-      { GALLERY_SHARDS: String(galleryShards) })
+    // T-349. With HARBORLINE_GALLERY_SHARD_REPORTS set, the browser suite has already run on a
+    // matrix of separate hosted runners and this step only collects them: same step id, same
+    // report shape, so the counts, reconciliations and receipt below cannot tell the two apart.
+    // Not reusable in that mode -- the shard artifacts belong to THIS run, and reusing a previous
+    // pass's gallery report against a fresh matrix would be a receipt for a run that did not happen.
+    if (galleryShardReports) {
+      run('gallery-gate', process.execPath, ['tooling/run-gallery-gate.mjs', `--merge=${galleryShardReports}`], root, true)
+    } else {
+      runReusable('gallery-gate', process.execPath, ['tooling/run-gallery-gate.mjs', '--packages-ready'], root, true,
+        { GALLERY_SHARDS: String(galleryShards) })
+    }
   }
+  // T-671. Emits the release receipt from the live repository and checks every field against
+  // its referent in git. There is no checked-in receipt for this to be pointed at by mistake.
+  run('release-receipt', process.execPath, ['tooling/release-receipt.mjs'], root, true)
   run('catalog-final', process.execPath, ['tooling/validate-repository.mjs', '--allow-stale-gate'], root, true)
 } catch (error) {
   caughtGateError = error

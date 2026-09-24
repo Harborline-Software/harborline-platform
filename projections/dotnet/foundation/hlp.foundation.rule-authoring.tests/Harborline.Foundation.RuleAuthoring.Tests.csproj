@@ -15,4 +15,8 @@
   <ItemGroup>
     <ProjectReference Include="../hlp.foundation.rule-authoring/Harborline.Foundation.RuleAuthoring.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="../../../../conformance/hlp.foundation.rule-authoring/definition-intent-cases.json"
+          Link="definition-intent-cases.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

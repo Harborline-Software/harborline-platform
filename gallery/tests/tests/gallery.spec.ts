@@ -1,11 +1,13 @@
 import { AxeBuilder } from '@axe-core/playwright'
-import { expect, test, type Page, type TestInfo } from '@playwright/test'
+import { expect, test, type Locator, type Page, type TestInfo } from '@playwright/test'
 import pixelmatch from 'pixelmatch'
 import { PNG } from 'pngjs'
 import { appendFileSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { arch, platform } from 'node:os'
+
+import { gotoWithTransientNetworkRetry, openWithSubresourceRetry, readWithReload } from './navigation-resilience.ts'
 
 // Control ticket 100: the gallery gate reported sixteen counts and measured none of them, and one
 // drifted for fifteen days on the very commit that added the check meant to stop drift. Every count
@@ -198,6 +200,7 @@ const loadingStateQuality = JSON.parse(readFileSync(resolve(repositoryRoot, 'con
 }
 const reactBase = process.env.REACT_GALLERY_URL ?? 'http://127.0.0.1:6106'
 const blazorBase = process.env.BLAZOR_GALLERY_URL ?? 'http://127.0.0.1:6107'
+let cachedBlazorIndex: StoryIndex | undefined
 
 async function reactIndex(page: Page): Promise<StoryIndex> {
   let index: StoryIndex | undefined
@@ -210,7 +213,7 @@ async function reactIndex(page: Page): Promise<StoryIndex> {
 }
 
 // Under four-worker load, an evaluate that awaits a PAGE-SIDE promise (the BlazingStory
-// index/ready calls) can lose that promise to garbage collection before it settles —
+// index call) can lose that promise to garbage collection before it settles —
 // Playwright surfaces "Resulting promise was garbage collected" although the page is
 // healthy. Re-issue the evaluate a bounded number of times on exactly that error; every
 // other failure propagates unchanged. (Migration ticket 075 — observed on unrelated
@@ -229,10 +232,16 @@ async function evaluateSettled<T>(issue: () => Promise<T>): Promise<T> {
   throw lastError
 }
 
+// T-717: two bounded attempts of 15 s, reloading a stalled boot, instead of one wait bounded only by the test.
+const blazorIndexAttemptMs = 15_000
+
 async function blazorIndex(page: Page): Promise<StoryIndex> {
-  await page.goto(blazorBase)
-  await page.waitForFunction(() => typeof BlazingStory !== 'undefined')
-  return evaluateSettled(() => page.evaluate(() => BlazingStory.getStoryIndex()))
+  if (cachedBlazorIndex) return cachedBlazorIndex
+  cachedBlazorIndex = await readWithReload(page, blazorBase, 'BlazingStory.getStoryIndex()', async () => {
+    await page.waitForFunction(() => typeof BlazingStory !== 'undefined')
+    return evaluateSettled(() => page.evaluate(() => BlazingStory.getStoryIndex()))
+  }, blazorIndexAttemptMs)
+  return cachedBlazorIndex
 }
 
 function storyId(index: StoryIndex, title: string, name: string): string {
@@ -241,16 +250,23 @@ function storyId(index: StoryIndex, title: string, name: string): string {
   return entry!.id
 }
 
+// T-643 / T-709: a story is ready when its per-story probe is visible, in both projections. The wait
+// is bounded by the test, not by the 5 s default expect timeout, which a loaded host exceeds on a Vite
+// transform or a WASM boot; the test timeout itself is unchanged. BlazingStory.readyView() is not
+// used: it is one module-lifetime promise, not a readiness predicate for the story on screen.
+const storyReadyTimeoutMs = 40_000
+
+async function openStory(page: Page, base: string, id: string) {
+  await openWithSubresourceRetry(page, `${base}/iframe.html?id=${encodeURIComponent(id)}&viewMode=story`, base,
+    timeout => expect(page.locator('[data-gallery-probe]')).toBeVisible({ timeout }), storyReadyTimeoutMs)
+}
+
 async function openReactStory(page: Page, id: string) {
-  await page.goto(`${reactBase}/iframe.html?id=${encodeURIComponent(id)}&viewMode=story`)
-  await expect(page.locator('[data-gallery-probe]')).toBeVisible()
+  await openStory(page, reactBase, id)
 }
 
 async function openBlazorStory(page: Page, id: string) {
-  await page.goto(`${blazorBase}/iframe.html?id=${encodeURIComponent(id)}&viewMode=story`)
-  await page.waitForFunction(() => typeof BlazingStory !== 'undefined')
-  await evaluateSettled(() => page.evaluate(() => BlazingStory.readyView()))
-  await expect(page.locator('[data-gallery-probe]')).toBeVisible()
+  await openStory(page, blazorBase, id)
 }
 
 async function openProjectionStory(page: Page, projection: Projection, catalog: Catalog, scenarioName: string) {
@@ -390,6 +406,52 @@ async function prepareScenario(page: Page, scenario: Scenario) {
     return
   }
   if (scenario.id.startsWith('select-field.')) {
+    if (scenario.id === 'select-field.multiple' || scenario.id === 'select-field.multiple-search') {
+      const trigger = page.getByRole('button', { name: 'Structure status' })
+      await expect(page.getByRole('combobox')).toHaveCount(0)
+      await trigger.click()
+      const list = page.getByRole('listbox', { name: 'Structure status' })
+      await expect(list).toHaveAttribute('aria-multiselectable', 'true')
+      await assertAccessible(page, scenario, 'open multiple popup')
+      if (scenario.id === 'select-field.multiple-search') {
+        const search = page.getByRole('searchbox', { name: 'Structure status' })
+        await expect(list.getByRole('searchbox')).toHaveCount(0)
+        await expect(search).toBeFocused()
+        await search.fill('pending')
+        await search.press('Enter')
+        await expect(list.getByRole('option', { name: 'Pending review' })).toHaveAttribute('aria-selected', 'false')
+        await search.press('ArrowDown')
+      } else {
+        await expect(list).toBeFocused()
+        await list.press('ArrowDown')
+      }
+      await expect(list).toBeFocused()
+      await list.press('Space')
+      await expect(trigger).toContainText('Pending review')
+      await expect(list).toBeVisible()
+      await list.press('Space')
+      await expect(trigger).not.toContainText('Pending review')
+      await expect(list.getByRole('option', { name: 'Pending review' })).toHaveAttribute('aria-selected', 'false')
+      await list.press('Escape')
+      await expect(trigger).toBeFocused()
+      await expect(list).toBeHidden()
+      return
+    }
+    if (scenario.id === 'select-field.search') {
+      const search = page.getByRole('combobox', { name: 'Structure status' })
+      await search.fill('pending')
+      await expect(page.getByRole('option')).toHaveCount(1)
+      await assertAccessible(page, scenario, 'open editable popup')
+      await search.press('ArrowDown')
+      await search.press('Enter')
+      await expect(search).toHaveValue('Pending review')
+      await search.fill('unknown')
+      await expect(page.getByRole('option')).toHaveCount(0)
+      await search.press('Enter')
+      await search.press('Escape')
+      await expect(search).toHaveValue('Pending review')
+      return
+    }
     const trigger = page.getByRole('combobox').first()
     await trigger.click()
     await expect(page.getByRole('listbox').first()).toBeVisible()
@@ -538,8 +600,6 @@ const reflowKnownOverflow = new Map<string, number>([
   ['app-shell.actions-endpanel|blazor', 552],
   ['app-layout.dismissal-scroll|react', 454],
   ['app-layout.dismissal-scroll|blazor', 454],
-  ['select-field.states|react', 52],
-  ['select-field.states|blazor', 52],
   ['user-menu.placement-dismissal|react', 37],
   ['user-menu.placement-dismissal|blazor', 37],
 ])
@@ -580,6 +640,179 @@ async function assertReflow(page: Page, scenario: Scenario, projection: string) 
   expect(overflow, `${projection} ${scenario.id} horizontal overflow at 320px and 200% text`).toBe(0)
 }
 
+async function assertRuleAuthoringKeyboard(page: Page) {
+  const ruleName = page.getByRole('textbox', { name: 'Rule name', exact: true })
+  const target = page.getByRole('textbox', { name: 'Target', exact: true })
+  const action = page.getByRole('combobox', { name: 'Rule action', exact: true })
+  const scope = page.getByRole('combobox', { name: 'Rule scope', exact: true })
+  const version = page.getByRole('combobox', { name: 'Version selection', exact: true })
+  const formula = page.getByRole('radio', { name: 'Formula', exact: true })
+  const table = page.getByRole('radio', { name: 'Decision table', exact: true })
+
+  await ruleName.focus()
+  await page.keyboard.press('Tab')
+  await expect(target).toBeFocused()
+  await page.keyboard.press('Tab')
+  await expect(action).toBeFocused()
+  await page.keyboard.press('Tab')
+  await expect(scope).toBeFocused()
+  await page.keyboard.press('Tab')
+  await expect(version).toBeFocused()
+  await page.keyboard.press('Tab')
+  await expect(formula).toBeFocused()
+
+  await page.keyboard.press('ArrowDown')
+  await expect(table).toBeChecked()
+  await page.keyboard.press('ArrowUp')
+  await expect(formula).toBeChecked()
+
+  const addInput = page.getByRole('button', { name: 'Add declared input', exact: true })
+  await addInput.focus()
+  await page.keyboard.press('Enter')
+  await expect(page.getByRole('combobox', { name: 'Input 1 reference', exact: true })).toBeVisible()
+}
+
+async function assertSchemaFormChoicePopup(page: Page, projection: Projection, testInfo: TestInfo) {
+  const trigger = page.getByRole('combobox', { name: 'Literal choices', exact: true })
+  const listbox = page.locator('.hl-schema-form .hl-select-field__listbox')
+  const labels = ['Draft', 'Review', 'Approved', 'Rejected', 'Paused', 'Closed']
+  const measurements = []
+  await page.evaluate(() => document.fonts.ready)
+  for (const width of [920, 320]) for (const textSize of ['100%', '200%']) {
+    await page.setViewportSize({ width, height: 720 })
+    await page.evaluate(size => { document.documentElement.style.fontSize = size }, textSize)
+    for (const selected of ['Closed', 'Review']) {
+      await trigger.click()
+      await listbox.getByRole('option', { name: selected, exact: true }).click()
+      await expect(trigger).toHaveText(new RegExp(selected))
+      await expect(listbox).toBeHidden()
+      const closedProbeOverflow = await page.locator('[data-gallery-probe]').evaluate(element =>
+        Math.max(0, element.scrollWidth - element.clientWidth))
+      await trigger.click()
+      await expect(listbox.getByRole('option')).toHaveText(labels.map(label => new RegExp(label)))
+      for (const label of labels) {
+        const option = listbox.getByRole('option', { name: label, exact: true })
+        await option.scrollIntoViewIfNeeded()
+        await expect(option).toBeInViewport()
+      }
+      const geometry = await listbox.evaluate(element => {
+        const popup = element.closest('.hl-select-field__popup')!.getBoundingClientRect()
+        const button = element.closest('.hl-select-field')!.querySelector('[role="combobox"]')!.getBoundingClientRect()
+        return {
+          popupWidth: popup.width,
+          triggerWidth: button.width,
+          fieldWidth: element.closest('.hl-form-field__control')!.getBoundingClientRect().width,
+          left: popup.left,
+          right: popup.right,
+          viewportWidth: document.documentElement.clientWidth,
+          // Match assertReflow's component boundary; Storybook's outer padded scene is not SchemaForm.
+          probeOverflow: (() => {
+            const probe = element.closest('[data-gallery-probe]')!
+            return Math.max(0, probe.scrollWidth - probe.clientWidth)
+          })(),
+          popupOverflow: Math.max(0, element.scrollWidth - element.clientWidth),
+          labels: [...element.querySelectorAll('[role="option"]')].map(option => {
+            const label = option.lastElementChild!
+            const box = label.getBoundingClientRect()
+            return { text: label.textContent, width: box.width, height: box.height, lineHeight: parseFloat(getComputedStyle(label).lineHeight) }
+          }),
+        }
+      })
+      measurements.push({ projection, width, textSize, selected, closedProbeOverflow, ...geometry })
+      const context = `${projection} Literal choices at ${width}px / ${textSize}, selected ${selected}`
+      // Soft geometry assertions retain evidence from both lanes and every size on failure.
+      expect.soft(geometry.popupWidth, `${context}: popup covers trigger`).toBeGreaterThanOrEqual(geometry.triggerWidth - 1)
+      expect.soft(geometry.popupWidth, `${context}: popup fits available field width`).toBeLessThanOrEqual(geometry.fieldWidth + 1)
+      expect.soft(geometry.left, `${context}: popup left edge`).toBeGreaterThanOrEqual(0)
+      expect.soft(geometry.right, `${context}: popup right edge`).toBeLessThanOrEqual(geometry.viewportWidth)
+      expect.soft(geometry.probeOverflow, `${context}: horizontal component overflow`).toBe(0)
+      expect.soft(closedProbeOverflow, `${context}: closed control horizontal component overflow`).toBe(0)
+      expect.soft(geometry.popupOverflow, `${context}: horizontal popup overflow`).toBe(0)
+      // At narrow widths wrapping is legitimate; desktop has ample room for all six short labels.
+      if (width === 920) for (const label of geometry.labels) {
+        expect.soft(label.height, `${context}: ${label.text} should fit on one line (label width ${label.width}px)`)
+          .toBeLessThanOrEqual(label.lineHeight + 1)
+      }
+      await trigger.press('Escape')
+      await expect(listbox).toBeHidden()
+    }
+  }
+  await testInfo.attach(`${projection}-schema-form-popup`, {
+    body: JSON.stringify(measurements, null, 2), contentType: 'application/json',
+  })
+}
+
+async function assertSinglePopupScroll(listbox: Locator, context: string) {
+  await expect(listbox).toBeVisible()
+  const scroll = await listbox.evaluate(element => {
+    const popup = element.closest('.hl-select-field__popup')!
+    return {
+      owners: [popup, ...popup.querySelectorAll('*')]
+        .filter(node => /auto|scroll/.test(getComputedStyle(node).overflowY) && node.scrollHeight > node.clientHeight + 1)
+        .map(node => node.getAttribute('role')),
+      outerOverflow: popup.scrollHeight - popup.clientHeight,
+    }
+  })
+  expect(scroll.owners, `${context}: one scrolling listbox`).toEqual(['listbox'])
+  expect(scroll.outerOverflow, `${context}: popup content fits its frame`).toBeLessThanOrEqual(1)
+  const last = listbox.getByRole('option').last()
+  await last.scrollIntoViewIfNeeded()
+  await expect(last).toBeInViewport()
+  const position = await last.evaluate(option => {
+    const list = option.closest('[role="listbox"]')!
+    return {
+      top: option.getBoundingClientRect().top - list.getBoundingClientRect().top,
+      bottom: option.getBoundingClientRect().bottom - list.getBoundingClientRect().bottom,
+      scrollTop: list.scrollTop,
+    }
+  })
+  expect(position.top, `${context}: final option top visible`).toBeGreaterThanOrEqual(-1)
+  expect(position.bottom, `${context}: final option bottom visible`).toBeLessThanOrEqual(1)
+  expect(position.scrollTop, `${context}: listbox actually scrolls`).toBeGreaterThan(0)
+  return last
+}
+
+async function assertSchemaFormPickerScroll(page: Page, projection: Projection) {
+  const viewport = page.viewportSize()!
+  const fontSize = await page.evaluate(() => document.documentElement.style.fontSize)
+  for (const [width, height] of [[920, 720], [320, 480]] as const) for (const textSize of ['100%', '200%']) {
+    await page.setViewportSize({ width, height })
+    await page.evaluate(size => { document.documentElement.style.fontSize = size }, textSize)
+    for (const [name, query] of [['Taxonomy', 'Category 0'], ['Record', '3999']] as const) {
+      const control = page.getByRole('combobox', { name, exact: true })
+      await control.fill(query)
+      const listbox = page.getByRole('listbox', { name, exact: true })
+      const context = `${projection} ${name} at ${width}x${height} / ${textSize}`
+      const last = await assertSinglePopupScroll(listbox, context)
+      const value = (await last.innerText()).trim()
+      await last.click()
+      await expect(control).toHaveValue(value.replace(/^✓\s*/, ''))
+      await expect(listbox).toBeHidden()
+    }
+  }
+  await page.setViewportSize(viewport)
+  await page.evaluate(size => { document.documentElement.style.fontSize = size }, fontSize)
+}
+
+async function assertSearchableMultipleScroll(page: Page, projection: Projection) {
+  for (const [height, textSize] of [[200, '100%'], [320, '200%']] as const) {
+    await page.setViewportSize({ width: 320, height })
+    await page.evaluate(size => { document.documentElement.style.fontSize = size }, textSize)
+    const trigger = page.getByRole('button', { name: 'Structure status', exact: true })
+    await trigger.click()
+    const search = page.getByRole('searchbox', { name: 'Structure status', exact: true })
+    await search.fill('')
+    const listbox = page.getByRole('listbox', { name: 'Structure status', exact: true })
+    await assertSinglePopupScroll(listbox, `${projection} searchable multiple at 320x${height} / ${textSize}`)
+    await expect(search).toBeInViewport()
+    await search.fill('pending')
+    await expect(listbox.getByRole('option')).toHaveCount(1)
+    await search.press('Escape')
+    await expect(trigger).toBeFocused()
+    await expect(listbox).toBeHidden()
+  }
+}
+
 async function assertAccessible(page: Page, scenario: Scenario, projection: string) {
   // Storybook's a11y addon runs its own axe pass on story load; on heavy stories it can still be
   // in flight when this scan starts, and axe-core rejects concurrent runs in one frame.
@@ -605,9 +838,54 @@ async function recordReactBaseline(page: Page, catalog: Catalog, scenario: Scena
 
 async function captureGalleryReviewPair(reactPage: Page, blazorPage: Page, catalog: Catalog, scenario: Scenario) {
   if (!galleryReviewCaptureRoot) return
+  if (scenario.id === 'schema-form.host-readonly') {
+    await Promise.all([reactPage, blazorPage].map(page => page.setViewportSize({
+      width: page.viewportSize()!.width,
+      height: 1200,
+    })))
+  }
   const reactLocator = reactPage.locator('[data-gallery-probe]')
   const blazorLocator = blazorPage.locator('[data-gallery-probe]')
   await Promise.all([reactLocator.waitFor(), blazorLocator.waitFor()])
+  if (scenario.id === 'schema-form.host-readonly') {
+    const expectedOutputs = [
+      'MV North Star',
+      'Annual hull, machinery, navigation, and lifesaving equipment inspection.',
+      '18425.5',
+      '24',
+      'Annual safety inspection',
+      'Navigation, Fire suppression, Lifesaving equipment',
+      'true',
+      'true',
+      'false',
+      '2026-09-16',
+      '2026-09-16T09:30:00-04:00',
+      '14:45',
+      '48750.5',
+      '92.5',
+      '+1 410 555 0142',
+      'port.agent@example.test',
+      'https://records.example.test/inspections/HLI-2048',
+      'Approved for certificate issuance',
+      'Restricted value',
+      'Restricted value',
+      'Control unavailable: future-object',
+    ]
+    for (const locator of [reactLocator, blazorLocator]) {
+      await expect(locator.locator('output')).toHaveText(expectedOutputs)
+      for (const [id, value] of [
+        ['vesselName', 'MV North Star'],
+        ['inspectionType', 'Annual safety inspection'],
+        ['systemsReviewed', 'Navigation, Fire suppression, Lifesaving equipment'],
+        ['documentsVerified', 'true'],
+        ['masterAttested', 'true'],
+        ['followUpRequired', 'false'],
+        ['certificateUrl', 'https://records.example.test/inspections/HLI-2048'],
+        ['applicationStatus', 'Approved for certificate issuance'],
+      ] as const) await expect(locator.locator(`#${id}`)).toHaveText(value)
+      await expect(locator.locator('input, select, textarea, button[type="submit"]')).toHaveCount(0)
+    }
+  }
   await Promise.all([
     reactPage.waitForFunction(() => {
       const probe = document.querySelector('[data-gallery-probe]')
@@ -635,6 +913,32 @@ async function captureGalleryReviewPair(reactPage: Page, blazorPage: Page, catal
 
   const reactPng = PNG.sync.read(reactBytes)
   const blazorPng = PNG.sync.read(blazorBytes)
+  if (scenario.id === 'schema-form.host-readonly') {
+    for (const [projection, png] of [['react', reactPng], ['blazor', blazorPng]] as const) {
+      expect(png.height, `${projection} all-kinds capture must include the full form`).toBeGreaterThan(704)
+      let bottomInk = 0
+      const firstBottomRow = Math.floor(png.height * 0.75)
+      for (let y = firstBottomRow; y < png.height - 4; y += 1) {
+        for (let x = 4; x < png.width - 4; x += 1) {
+          const offset = (y * png.width + x) * 4
+          if (png.data[offset]! < 210 || png.data[offset + 1]! < 210 || png.data[offset + 2]! < 210) bottomInk += 1
+        }
+      }
+      expect(bottomInk, `${projection} all-kinds capture bottom quarter is blank or clipped`).toBeGreaterThan(500)
+    }
+  }
+  if (scenario.id === 'schema-form.host-readonly') {
+    for (const [lane, png] of [['react', reactPng], ['blazor', blazorPng]] as const) {
+      let contentPixels = 0
+      // Exclude the frame: an empty bordered probe must not count as rendered content.
+      for (let y = 20; y < png.height - 20; y++) for (let x = 20; x < png.width - 20; x++) {
+        const offset = (y * png.width + x) * 4
+        if (png.data[offset + 3] > 250 && png.data[offset] < 100
+          && png.data[offset + 1] < 100 && png.data[offset + 2] < 100) contentPixels++
+      }
+      expect(contentPixels, `${lane} read-only capture must contain visible text, not an empty frame`).toBeGreaterThan(100)
+    }
+  }
   let changedPixelRatio: number | null = null
   let diffFile: string | null = null
   if (reactPng.width === blazorPng.width && reactPng.height === blazorPng.height) {
@@ -1027,7 +1331,7 @@ async function visualStyle(page: Page, selector: string) {
 }
 
 declare global {
-  const BlazingStory: { getStoryIndex(): Promise<StoryIndex>; readyView(): Promise<void> }
+  const BlazingStory: { getStoryIndex(): Promise<StoryIndex> }
 }
 
 test('every CI exemption names a scenario that still exists', () => {
@@ -1046,8 +1350,9 @@ test('every CI exemption names a scenario that still exists', () => {
     .filter(id => !comparedIds.has(id)).sort()
   expect(elementOrphans, 'per-element parity register naming scenarios that are not compared').toEqual([])
   // A host key nobody runs on would silently disable its rows on every host, which is a register
-  // that claims a divergence no run can ever judge. Only the three keys the registers use.
-  const knownHosts = new Set(['windows-11-x64', 'macos-x64-intel', 'macos-arm64'])
+  // that claims a divergence no run can ever judge. Keep this list aligned with the host keys
+  // produced by galleryHostKey and measured in the registers.
+  const knownHosts = new Set(['windows-11-x64', 'linux-x64', 'macos-x64-intel', 'macos-arm64'])
   const badHosts = [...new Set(elementRegister.divergences.map(row => row.host).filter(Boolean))]
     .filter(host => !knownHosts.has(host!)).sort()
   expect(badHosts, 'per-element parity register rows naming an unknown host').toEqual([])
@@ -1107,6 +1412,14 @@ for (const catalog of catalogs) for (const scenario of catalog.scenarios) {
       openBlazorStory(blazorPage, storyId(blazor, catalog.galleryInterface.projectionTitles.blazor, scenario.name)),
     ])
     await Promise.all([prepareScenario(reactPage, scenario), prepareScenario(blazorPage, scenario)])
+    if (scenario.id === 'data-exchange.authoring' || scenario.id === 'data-exchange.stale-review') {
+      for (const page of [reactPage, blazorPage]) {
+        await expect(page.getByRole('textbox', { name: 'Reference dataset', exact: true })).toHaveValue('dataset.customers')
+        await expect(page.getByRole('textbox', { name: 'Pack distribution', exact: true })).toHaveValue('pack://customers')
+        await expect(page.getByRole('textbox', { name: 'Feed distribution', exact: true })).toHaveValue('feed://customers')
+        await expect(page.getByRole('combobox', { name: 'Format', exact: true }).locator('option')).toHaveText(['Choose a format', 'CSV'])
+      }
+    }
     await captureGalleryReviewPair(reactPage, blazorPage, catalog, scenario)
     await recordReactBaseline(reactPage, catalog, scenario)
     await assertAccessible(reactPage, scenario, 'react')
@@ -1129,6 +1442,47 @@ for (const catalog of catalogs) for (const scenario of catalog.scenarios) {
     if (!galleryReviewCaptureRoot && scenario.sourceQualityCaseIds?.some(id => id.endsWith('.quality.reflow'))) {
       await assertReflow(reactPage, scenario, 'react')
       await assertReflow(blazorPage, scenario, 'blazor')
+    }
+    if (scenario.id === 'rule-authoring.from-empty') {
+      await assertRuleAuthoringKeyboard(reactPage)
+      await assertRuleAuthoringKeyboard(blazorPage)
+    }
+    if (scenario.id === 'select-field.multiple-search') {
+      await assertSearchableMultipleScroll(reactPage, 'react')
+      await assertSearchableMultipleScroll(blazorPage, 'blazor')
+    }
+    if (scenario.id === 'schema-form.controls-structure') {
+      for (const page of [reactPage, blazorPage]) {
+        const services = page.getByRole('button', { name: 'Services', exact: true })
+        await services.click()
+        const choices = page.getByRole('listbox', { name: 'Services', exact: true })
+        await expect(choices).toHaveAttribute('aria-multiselectable', 'true')
+        await choices.press('End')
+        await choices.press('Space')
+        await expect(services).toContainText('Towage')
+        await expect(choices).toBeVisible()
+        await choices.press('Escape')
+        await expect(services).toBeFocused()
+      }
+    }
+    if (scenario.id === 'schema-form.domain-editors') {
+      await assertSchemaFormChoicePopup(reactPage, 'react', testInfo)
+      await assertSchemaFormChoicePopup(blazorPage, 'blazor', testInfo)
+      await assertSchemaFormPickerScroll(reactPage, 'react')
+      await assertSchemaFormPickerScroll(blazorPage, 'blazor')
+      for (const page of [reactPage, blazorPage]) {
+        const record = page.getByRole('combobox', { name: 'Record', exact: true })
+        await record.fill('outside')
+        await expect(page.getByRole('option')).toHaveCount(0)
+        await record.press('Enter')
+        await expect(page.getByText('Saved selected candidate.', { exact: true })).toHaveCount(0)
+        await record.fill('3999')
+        expect(await page.getByRole('option').count()).toBeLessThanOrEqual(25)
+        await record.press('ArrowDown')
+        await record.press('Enter')
+        await page.getByRole('button', { name: 'Save request', exact: true }).click()
+        await expect(page.getByText('Saved selected candidate.', { exact: true })).toBeVisible()
+      }
     }
     await Promise.all([reactContext.close(), blazorContext.close()])
   })
@@ -1528,26 +1882,32 @@ for (const projection of ['react', 'blazor'] as const) {
     await separator.press('ArrowRight')
     expect(Number(await separator.getAttribute('aria-valuenow'))).toBeGreaterThan(before)
 
-    const scrollbar = await page.locator('.hl-app-shell__rail-scroll').evaluate(element => {
-      const style=getComputedStyle(element); const pseudo=getComputedStyle(element,'::-webkit-scrollbar')
-      const paintedSurfaces: string[]=[]
-      for(let candidate: Element|null=element; candidate; candidate=candidate.parentElement){
-        const background=getComputedStyle(candidate).backgroundColor
-        const channels=background.match(/[\d.]+/g)?.map(Number) ?? []
-        const alpha=channels[3] ?? (channels.length >= 3 ? 1 : 0)
-        if(alpha>0){paintedSurfaces.push(background);if(alpha>=1)break}
-      }
-      return {gutter:element.getBoundingClientRect().width-element.clientWidth,pseudoWidth:Number.parseFloat(pseudo.width),scrollbarColor:style.scrollbarColor,paintedSurfaces}
-    })
-    expect(Math.max(scrollbar.gutter,scrollbar.pseudoWidth)).toBeGreaterThanOrEqual(24)
-    const thumb = scrollbar.scrollbarColor.match(/rgba?\([^)]*\)/)?.[0]
-    expect(thumb).toBeTruthy()
-    expect(scrollbar.paintedSurfaces.length, 'scrollbar must resolve to a painted ancestor').toBeGreaterThan(0)
-    const paintedSurface=scrollbar.paintedSurfaces.reduceRight((background, foreground)=>compositeColor(foreground,background),'rgb(255, 255, 255)')
-    const paintedThumb=compositeColor(thumb!,paintedSurface)
-    const plantedLowContrastThumb=compositeColor('rgba(118, 118, 118, 0.3)',paintedSurface)
-    expect(contrastRatio(plantedLowContrastThumb, paintedSurface), 'alpha-composited planted thumb').toBeLessThan(3)
-    expect(contrastRatio(paintedThumb, paintedSurface)).toBeGreaterThanOrEqual(3)
+    for (const theme of ['light', 'dark']) {
+      await page.locator('[data-gallery-probe]').evaluate((element, value) => element.setAttribute('data-theme', value), theme)
+      const scrollbar = await page.locator('.hl-app-shell__rail-scroll').evaluate(element => {
+        const style=getComputedStyle(element); const pseudo=getComputedStyle(element,'::-webkit-scrollbar')
+        const paintedSurfaces: string[]=[]
+        for(let candidate: Element|null=element; candidate; candidate=candidate.parentElement){
+          const background=getComputedStyle(candidate).backgroundColor
+          const channels=background.match(/[\d.]+/g)?.map(Number) ?? []
+          const alpha=channels[3] ?? (channels.length >= 3 ? 1 : 0)
+          if(alpha>0){paintedSurfaces.push(background);if(alpha>=1)break}
+        }
+        return {gutter:element.getBoundingClientRect().width-element.clientWidth,pseudoWidth:Number.parseFloat(pseudo.width),scrollbarColor:style.scrollbarColor,paintedSurfaces}
+      })
+      expect(Math.max(scrollbar.gutter,scrollbar.pseudoWidth)).toBeGreaterThanOrEqual(24)
+      const thumb = scrollbar.scrollbarColor.match(/rgba?\([^)]*\)/)?.[0]
+      expect(thumb).toBeTruthy()
+      expect(scrollbar.paintedSurfaces.length, 'scrollbar must resolve to a painted ancestor').toBeGreaterThan(0)
+      const paintedSurface=scrollbar.paintedSurfaces.reduceRight((background, foreground)=>compositeColor(foreground,background),'rgb(255, 255, 255)')
+      const paintedThumb=compositeColor(thumb!,paintedSurface)
+      const plantedLowContrastThumb=compositeColor('rgba(118, 118, 118, 0.3)',paintedSurface)
+      expect(contrastRatio(plantedLowContrastThumb, paintedSurface), 'alpha-composited planted thumb').toBeLessThan(3)
+      test.info().annotations.push({type: 'app-shell-scrollbar', description: JSON.stringify({
+        projection, theme, thumb: paintedThumb, track: paintedSurface, contrast: contrastRatio(paintedThumb, paintedSurface),
+      })})
+      expect(contrastRatio(paintedThumb, paintedSurface), `${projection} ${theme} scrollbar thumb`).toBeGreaterThanOrEqual(3)
+    }
 
     await page.setViewportSize({width: 1200, height: 720})
     await expect(page.locator('[data-shell-bar-slot="cluster"] > [data-action-id="documents"]')).toHaveCount(1)

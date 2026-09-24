@@ -14,6 +14,8 @@
     <PackageReference Include="Microsoft.AspNetCore.Components.Web" />
     <ProjectReference Include="../../../dotnet/contracts/hlp.contracts.identities/Harborline.Contracts.csproj" />
     <ProjectReference Include="../../../dotnet/foundation/hlp.ui.button/Harborline.Foundation.csproj" />
+    <ProjectReference Include="../../../dotnet/foundation/hlp.foundation.rule-authoring/Harborline.Foundation.RuleAuthoring.csproj" />
+    <ProjectReference Include="../../../dotnet/foundation/hlp.foundation.rule-runtime/Harborline.Foundation.RuleEngine.csproj" />
     <RazorComponent Include="../hlp.ui.form-field/**/*.razor" Link="Components/Forms/%(Filename)%(Extension)" />
     <Compile Include="../hlp.ui.form-field/**/*.cs" Link="Components/Forms/%(Filename)%(Extension)" />
     <Content Include="../hlp.ui.form-field/wwwroot/**" Link="wwwroot/%(RecursiveDir)%(Filename)%(Extension)" />
@@ -184,6 +186,15 @@
     <RazorComponent Include="../hlp.ui.view-runtime/**/*.razor" Link="Components/DataDisplay/%(Filename)%(Extension)" />
     <Compile Include="../hlp.ui.view-runtime/**/*.cs" Link="Components/DataDisplay/%(Filename)%(Extension)" />
     <Content Include="../hlp.ui.view-runtime/wwwroot/**" Link="wwwroot/%(Filename)%(Extension)" />
+    <RazorComponent Include="../hlp.ui.rule-authoring/**/*.razor" Link="Components/RuleAuthoring/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.rule-authoring/**/*.cs" Link="Components/RuleAuthoring/%(Filename)%(Extension)" />
+    <Content Include="../hlp.ui.rule-authoring/wwwroot/**" Link="wwwroot/%(Filename)%(Extension)" />
+    <RazorComponent Include="../hlp.ui.layout-runtime/**/*.razor" Link="Components/Layout/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.layout-runtime/**/*.cs" Link="Components/Layout/%(Filename)%(Extension)" />
+    <Content Include="../hlp.ui.layout-runtime/wwwroot/**" Link="wwwroot/%(Filename)%(Extension)" />
+    <RazorComponent Include="../hlp.ui.data-exchange/**/*.razor" Link="Components/DataExchange/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.data-exchange/**/*.cs" Link="Components/DataExchange/%(Filename)%(Extension)" />
+    <Content Include="../hlp.ui.data-exchange/wwwroot/**" Link="wwwroot/%(Filename)%(Extension)" />
     <RazorComponent Include="../hlp.ui.scroll-affordance/**/*.razor" Link="Components/Layout/%(Filename)%(Extension)" />
     <Compile Include="../hlp.ui.scroll-affordance/**/*.cs" Link="Components/Layout/%(Filename)%(Extension)" />
     <Content Include="../hlp.ui.scroll-affordance/wwwroot/**" Link="wwwroot/%(Filename)%(Extension)" />

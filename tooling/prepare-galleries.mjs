@@ -16,6 +16,7 @@ const galleryTests = resolve(root, 'gallery/tests')
 const blazorProject = resolve(root, 'gallery/projections/blazor/Harborline.Gallery.Blazor.csproj')
 const contractsNpmArtifact = resolve(root, 'artifacts/packages/npm/harborline-software-contracts-0.0.0-alpha.0.tgz')
 const ruleEngineNpmArtifact = resolve(root, 'artifacts/packages/npm/harborline-software-rule-engine-0.1.0-alpha.0.tgz')
+const ruleAuthoringNpmArtifact = resolve(root, 'artifacts/packages/npm/harborline-software-rule-authoring-0.1.0-alpha.0.tgz')
 const npmArtifact = resolve(root, 'artifacts/packages/npm/harborline-software-ui-react-0.8.0-alpha.tgz')
 const nugetFeed = resolve(root, 'artifacts/packages/nuget')
 const packageCache = resolve(root, '.packages/gallery')
@@ -27,6 +28,10 @@ const packageArtifactSpecs = [
   {
     artifact: ruleEngineNpmArtifact,
     inputs: [resolve(root, 'projections/typescript/foundation/hlp.foundation.rule-runtime')],
+  },
+  {
+    artifact: ruleAuthoringNpmArtifact,
+    inputs: [resolve(root, 'projections/typescript/foundation/hlp.foundation.rule-authoring')],
   },
   {
     artifact: npmArtifact,
@@ -183,12 +188,12 @@ export function prepareGalleries({ packagesReady = false } = {}) {
   }
   assertFeedMatchesSources()
 
-  run('npm', ['ci', '--ignore-scripts', '--no-audit', '--no-fund'], reactGallery)
+  run('pnpm', ['install', '--frozen-lockfile', '--ignore-scripts'], reactGallery)
   run('npm', [
     'install', '--no-save', '--package-lock=false', '--ignore-scripts', '--no-audit', '--no-fund',
-    contractsNpmArtifact, ruleEngineNpmArtifact, npmArtifact,
+    contractsNpmArtifact, ruleEngineNpmArtifact, ruleAuthoringNpmArtifact, npmArtifact,
   ], reactGallery)
-  run('npm', ['ci', '--ignore-scripts', '--no-audit', '--no-fund'], galleryTests)
+  run('pnpm', ['install', '--frozen-lockfile', '--ignore-scripts'], galleryTests)
   // Windows returns EPERM here when anything still holds a handle under the NuGet package cache --
   // a dotnet build server or a virus scanner that has not let go yet. `force: true` does NOT cover
   // it: force suppresses "missing", not "locked". Four gate runs failed on this, each reporting

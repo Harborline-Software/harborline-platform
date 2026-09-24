@@ -12,6 +12,7 @@
     <PackageReference Include="Harborline.Foundation.Authorization" Version="$(HarborlinePackedVersion)" />
     <PackageReference Include="Harborline.Foundation.Session" Version="$(HarborlinePackedVersion)" />
     <PackageReference Include="Harborline.Kernel.SchemaValidation" Version="$(HarborlinePackedVersion)" />
+    <PackageReference Include="Harborline.Kernel.Core" Version="$(HarborlinePackedVersion)" />
     <PackageReference Include="Harborline.Kernel.WorkItems" Version="$(HarborlinePackedVersion)" />
     <PackageReference Include="Harborline.Blocks.InspectionReview" Version="$(HarborlinePackedVersion)" />
     <PackageReference Include="Harborline.Blocks.Aggregates" Version="$(HarborlinePackedVersion)" />
@@ -19,6 +20,7 @@
     <PackageReference Include="Harborline.Blocks.Workflow" Version="$(HarborlinePackedVersion)" />
     <PackageReference Include="Harborline.Blocks.Workflow.Interpreter" Version="$(HarborlinePackedVersion)" />
     <PackageReference Include="Harborline.Blocks.EntityViews" Version="$(HarborlinePackedVersion)" />
+    <PackageReference Include="Harborline.Foundation.DataExchange" Version="$(HarborlinePackedVersion)" />
     <PackageReference Include="Harborline.Foundation.Scheduling" Version="$(HarborlinePackedVersion)" />
     <PackageReference Include="Harborline.Blocks.Scheduling" Version="$(HarborlinePackedVersion)" />
     <PackageReference Include="Harborline.Blocks.Calendar" Version="$(HarborlinePackedVersion)" />
@@ -28,6 +30,7 @@
     <PackageReference Include="Harborline.Foundation.RuleEngine" Version="$(HarborlinePackedVersion)" />
     <PackageReference Include="Harborline.Foundation.RuleAuthoring" Version="$(HarborlinePackedVersion)" />
     <PackageReference Include="Harborline.Foundation.Forms" Version="$(HarborlinePackedVersion)" />
+    <PackageReference Include="Harborline.Foundation.FieldRuntime" Version="$(HarborlinePackedVersion)" />
     <PackageReference Include="Harborline.Foundation.Forms.Engine" Version="$(HarborlinePackedVersion)" />
   </ItemGroup>
 </Project>

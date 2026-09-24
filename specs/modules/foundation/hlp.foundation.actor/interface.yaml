@@ -1,12 +1,13 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.foundation.actor",
-  "interfaceRevision": 1,
+  "interfaceRevision": 2,
   "status": "frozen",
-  "purpose": "Expose the authenticated user and resolve that same tenant-bound principal to a server-derived PartyId without importing authorization policy, session storage, or a People persistence implementation.",
+  "purpose": "Expose authenticated actor resolution and Access set filtering, predicate-time row checks, admitted scope evaluation and stored trace projection/read contracts. The host authorization gate remains the sole decider; audit storage and HTTP remain host adapters.",
   "dependencies": [
     {"moduleId": "hlp.contracts.identities", "interfaceRevision": 1},
-    {"moduleId": "hlp.foundation.tenancy", "interfaceRevision": 1}
+    {"moduleId": "hlp.foundation.tenancy", "interfaceRevision": 1},
+    {"moduleId": "hlp.foundation.rule-runtime", "minimumRevision": 2}
   ],
   "types": {
     "ICurrentUser": {"members": ["string UserId", "IReadOnlyList<string> Roles"]},
@@ -21,7 +22,14 @@
       "members": ["ValueTask<Guid> GetCurrentPartyIdAsync(CancellationToken cancellationToken)"]
     },
     "PrincipalPartyResolutionFailure": ["NoAuthenticatedPrincipal", "TenantUnresolved", "TenantSentinel", "PartyNotProvisioned"],
-    "PrincipalPartyResolutionException": {"members": ["PrincipalPartyResolutionFailure Failure"]}
+    "PrincipalPartyResolutionException": {"members": ["PrincipalPartyResolutionFailure Failure"]},
+    "IAuthorizationDecider": {"members": ["DecideAsync(AccessRequest, CancellationToken) -> AuthorizationDecisionEvidence; adapter to the existing host gate"]},
+    "IAccessSetFilter": {"members": ["Bind(operation, principal, tenant, recordKind, instant) -> AccessSetPredicate"]},
+    "AccessProvider": {"members": ["CheckAsync(request) -> AccessCheck", "ValidateAsync(request, validationAtSameInstant) -> AccessCheck"]},
+    "AccessScopeEvaluator": {"members": ["Evaluate(expression, request, admittedAuthority) -> AccessCheck"]},
+    "AuthorizationDecisionEvidence": {"members": ["Project() -> four immutable AuthorizationTraceStep values; verdict supplied only by the enforcing gate"]},
+    "IAuthorizationTraceStore": {"members": ["FindAsync(tenant, entryId) -> stored AuthorizationTraceSnapshot or absence"]},
+    "AuthorizationTraceReader": {"members": ["ReadAsync(tenant, caller, entryId, instant) -> Available | NotAvailable | Refused | PreDecisionRefusal"]}
   },
   "operations": [
     {
@@ -42,10 +50,16 @@
     "An unresolved, default, or system-sentinel tenant fails before the resolver is called.",
     "An unmapped or cross-tenant principal fails closed as PartyNotProvisioned.",
     "Cancellation is forwarded to the resolver.",
-    "Roles do not authorize operations in this module; policy evaluation remains a separate boundary."
+    "Roles do not authorize operations in this module; the existing host gate remains the sole decider.",
+    "Scope evaluation requires exact principal, tenant, record and instant authority and declared references before calling the shared evaluator once.",
+    "The Access predicate filters the complete candidate set before counts, groups, sums, exports or pages.",
+    "Validation executes a fresh row check at its predicate instant; stage-one evidence cannot substitute for it.",
+    "Evidence projection never calculates a verdict. Trace reads authorize the current read and return frozen historical steps and counterfactual without replay.",
+    "Unauthorized reads hide existence; no decision is absence; pre-decision refusal is distinct from a four-step decision."
   ],
   "notScope": [
-    "authorization policy or permission evaluation",
+    "grant union, binding intersection, roster policy or a second authorization verdict calculator",
+    "audit-store implementation, HTTP adapters and Access administration",
     "OIDC or Okta token validation",
     "session establishment and persistence",
     "People or Party persistence",

@@ -19,6 +19,7 @@ import {resolve} from 'node:path'
 import {createGateModel} from '../gates/gate-rows.mjs'
 import {recordsRoot, referenceRevision, referenceSurface, reviewVerdict} from '../gates/design-review.mjs'
 import {resolvePin} from '../gates/design-review-pins.mjs'
+import {verifyIndexProvenance} from '../gates/design-review-provenance.mjs'
 
 const platformRoot = resolve(import.meta.dirname, '../..')
 const git = (...args) => execFileSync('git', args, {cwd: platformRoot, maxBuffer: 1 << 28, stdio: ['ignore', 'pipe', 'pipe']}).toString('utf8')
@@ -66,7 +67,7 @@ const HISTORY_REF = (() => {
 function assertFreshHistoryFacts() {
   const root = git('rev-list', '--max-parents=0', 'HEAD').trim()
   const rootDate = Date.parse(git('log', '-1', '--format=%cI', root).trim())
-  for (const record of records().map(reviewedRecord)) {
+  for (const record of legacyRecords()) {
     assert.ok(rootDate > Date.parse(record.recordedAt),
       `${record.moduleId}: the history root ${root.slice(0, 12)} does not postdate the verdict, so its pin should be derivable here and is not`)
     assert.throws(() => git('cat-file', '-e', `${record.reference.pin}^{commit}`),
@@ -88,13 +89,21 @@ function reviewedRecord(record) {
   return {...record, reference}
 }
 
+// Only migrated judgements make historical pin/date claims. Modern judgements bind an index
+// manifest and are verified independently below, including in a fresh public-history clone.
+const legacyRecords = () => records().filter(record => !record.reference.provenance).map(reviewedRecord)
+
 test('every design-review record binds a surface, so none can reach the gate on the legacy digest', () => {
   const all = records()
   assert.ok(all.length >= 59, `expected the recorded corpus, got ${all.length}`)
   for (const record of all) {
     assert.ok(record.reference?.surface, `${record.moduleId} binds no surface`)
     assert.ok(Object.keys(record.reference.surface).length > 0, `${record.moduleId} binds an empty surface`)
-    assert.ok(record.reference?.pin, `${record.moduleId} does not name the commit it was migrated against`)
+    if (record.reference.provenance) {
+      assert.equal(verifyIndexProvenance(platformRoot, record), true, record.moduleId)
+    } else {
+      assert.ok(record.reference?.pin, `${record.moduleId} does not name the commit it was migrated against`)
+    }
   }
 })
 
@@ -102,7 +111,7 @@ test('every design-review record binds a surface, so none can reach the gate on 
 // must come back the same. A pin edited to a friendlier commit fails here.
 test('every pin is the commit the verdict was actually given against', () => {
   if (!carriesArchiveHistory) return assertFreshHistoryFacts()
-  for (const record of records().map(reviewedRecord)) {
+  for (const record of legacyRecords()) {
     const {commit} = resolvePin(platformRoot, record, HISTORY_REF)
     assert.equal(commit, record.reference.pin, `${record.moduleId} names a pin its own revision and date do not resolve to`)
   }
@@ -129,7 +138,7 @@ test('the migration is judged at the polish pin: the changed modules expire and 
   execFileSync('tar', ['-xf', '-'], {cwd: scratch, input: archive})
   const expired = new Map()
   const standing = []
-  for (const record of records().map(reviewedRecord)) {
+  for (const record of legacyRecords()) {
     // A verdict recorded after the polish cannot be judged at it -- its pin is not an ancestor, so
     // the tree here predates the files it bound. Skipped by NAME, not by a silent catch.
     let judgeable = true

@@ -14,9 +14,9 @@ export { CompileError, type RuleRef } from './grammar.js'
 // ADR 0146 D2 authoring skins (compile layer): decision-table + formula representations lowering to a
 // plain RuleDefinition the D1 core evaluates — one expression language, never a parallel evaluator.
 export * from './skins/index.js'
-export { RuleInstance, type RuleRow } from './instance.js'
+export { RuleInstance, RuleRowSnapshot, RuleValueSnapshot, type RuleRow } from './instance.js'
 export { FormRuleGraph, type RuleEvaluationResult } from './graph.js'
-export { GuardEvaluator } from './guard.js'
+export { GuardEvaluator, RuleContextSnapshot } from './guard.js'
 export { serializeOutcome, write as canonicalJson } from './canonical.js'
 // ADR 0146 D5 named-rule registry + version policies: resolve rules by (tenant, rule-key) under a
 // latest | pinned | draft policy (draft-exclusion enforced at the resolve path — board F6), the S-8

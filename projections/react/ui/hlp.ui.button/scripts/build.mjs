@@ -9,6 +9,7 @@ const typeScript = resolve(root, 'node_modules/typescript/bin/tsc')
 const formsContractsRoot = resolve(root, '../../../typescript/contracts/hlp.contracts.forms')
 const contextRoot = resolve(root, '../hlp.ui.context-menu')
 const ruleRuntimeRoot = resolve(root, '../../../typescript/foundation/hlp.foundation.rule-runtime')
+const ruleAuthoringRoot = resolve(root, '../../../typescript/foundation/hlp.foundation.rule-authoring')
 
 rmSync(dist, { recursive: true, force: true })
 mkdirSync(dist, { recursive: true })
@@ -31,6 +32,7 @@ compile(formsContractsRoot, ['-p', 'tsconfig.build.json'])
 // point in the past and fatal on a checkout that had not: TS2307 in SchemaForm.types.ts and
 // useFormRuleGraph.ts. Reproduced in a clean worktree before fixing (control ticket 089).
 compile(ruleRuntimeRoot, ['-p', 'tsconfig.build.json'])
+compile(ruleAuthoringRoot, ['-p', 'tsconfig.json'])
 
 const contributions = [
   ['aspect-lens', resolve(root, '../hlp.ui.aspect-lens'), true],
@@ -97,6 +99,9 @@ const contributions = [
   ['chat', resolve(root, '../hlp.ui.chat'), true],
   ['data-grid', resolve(root, '../hlp.ui.data-grid'), true],
   ['view-runtime', resolve(root, '../hlp.ui.view-runtime'), true],
+  ['rule-authoring', resolve(root, '../hlp.ui.rule-authoring'), true],
+  ['layout-runtime', resolve(root, '../hlp.ui.layout-runtime'), true],
+  ['data-exchange', resolve(root, '../hlp.ui.data-exchange'), true],
   ['gantt', resolve(root, '../hlp.ui.gantt'), true],
   ['numeric-text-box', resolve(root, '../hlp.ui.numeric-text-box'), true],
   ['scroll-affordance', resolve(root, '../hlp.ui.scroll-affordance'), false],
@@ -121,6 +126,8 @@ for (const [name, contributionRoot] of contributions) {
     '-p', 'tsconfig.build.json', '--declaration', '--emitDeclarationOnly',
     '--outDir', contributionDist, '--rootDir', resolve(contributionRoot, 'src'),
   ])
+  // ViewRuntime consumes Button's leaf declaration; build it once its locale dependencies exist.
+  if (name === 'locale-provider') compile(root, ['-p', 'tsconfig.build.json'])
 }
 
 const toneStyleDeclaration = resolve(root, '../hlp.ui.tone-style/dist/toneStyle.d.ts')
@@ -152,7 +159,6 @@ for (const [relativePath, source, replacement] of contributionDeclarationAliases
 
 // The retained package source delegates its legacy locale exports to the new
 // contribution declarations built above.
-compile(root, ['-p', 'tsconfig.build.json'])
 const localeDeclaration = resolve(dist, 'locale.d.ts')
 writeFileSync(localeDeclaration, readFileSync(localeDeclaration, 'utf8')
   .replaceAll('@harborline-platform/hlp.ui.locale-provider', './locale-provider/index')
@@ -172,8 +178,17 @@ appendFileSync(resolve(dist, 'index.d.ts'), "\nexport { SchemaForm, DEFAULT_CONT
 // Named rather than star: use-form-rule-graph re-exports schema-form's RuleGraphLike type.
 appendFileSync(resolve(dist, 'index.d.ts'), "\nexport { projectRuleOutcomes, useFormRuleGraph, ReactiveSchemaForm } from './use-form-rule-graph/index'\nexport type { UseFormRuleGraphResult, ReactiveSchemaFormProps } from './use-form-rule-graph/index'\n")
 
-const external = ['react', 'react-dom', 'react/jsx-runtime', '@radix-ui/react-slot', 'clsx', 'tailwind-merge']
+const external = [
+  'react',
+  'react-dom',
+  'react/jsx-runtime',
+  '@harborline-software/rule-engine',
+  '@radix-ui/react-slot',
+  'clsx',
+  'tailwind-merge',
+]
 const alias = {
+  '@harborline-platform/hlp.ui.button': resolve(root, 'src/Button.tsx'),
   '@harborline-software/contracts/authorization': resolve(formsContractsRoot, 'dist/authorization.js'),
   '@harborline-platform/hlp.ui.aspect-lens': resolve(root, '../hlp.ui.aspect-lens/src/index.ts'),
   '@harborline-platform/hlp.ui.default-strings': resolve(root, '../hlp.ui.default-strings/src/index.ts'),
@@ -263,7 +278,9 @@ writeFileSync(resolve(dist, 'style.css'), [
   readFileSync(resolve(root, '../hlp.ui.chart/src/style.css'), 'utf8'),
   readFileSync(resolve(root, '../hlp.ui.chat/src/style.css'), 'utf8'),
   readFileSync(resolve(root, '../hlp.ui.data-grid/src/style.css'), 'utf8'),
+  readFileSync(resolve(root, '../hlp.ui.rule-authoring/src/style.css'), 'utf8'),
   readFileSync(resolve(root, '../hlp.ui.view-runtime/src/style.css'), 'utf8'),
+  readFileSync(resolve(root, '../hlp.ui.data-exchange/src/style.css'), 'utf8'),
   readFileSync(resolve(root, '../hlp.ui.gantt/src/style.css'), 'utf8'),
   readFileSync(resolve(root, '../hlp.ui.numeric-text-box/src/style.css'), 'utf8'),
   readFileSync(resolve(root, '../hlp.ui.scroll-affordance/src/style.css'), 'utf8'),

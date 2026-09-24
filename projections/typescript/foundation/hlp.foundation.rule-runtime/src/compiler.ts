@@ -8,6 +8,8 @@ import { cell } from './model.js'
 import type { Json, OutputType, RuleDefinition } from './model.js'
 import { DEFAULT_LIMITS, type RuleEngineLimits } from './limits.js'
 import { CompileError, extractRefs, lower, measure, outputTypeFor, type LowerContext, type RuleRef } from './grammar.js'
+import { declaredCoreType, deriveCoreTypes } from './core-types.js'
+import { deriveGraphWork, type WorkProof } from './core-work.js'
 
 export interface CompiledRule {
   source: RuleDefinition
@@ -20,7 +22,72 @@ export interface CompiledRule {
 }
 
 export interface CompiledGraph {
-  rules: CompiledRule[]
+  rules: readonly CompiledRule[]
+  /** Compiler-owned, non-persisted finite transfer proof for the admitted program. */
+  workProof: WorkProof
+}
+
+// The exported shape remains useful to consumers that inspect admitted programs, but a
+// structural TypeScript type is not an evaluation admission credential. Keep the
+// producer-owned rule array out-of-band so a forged object (or Proxy) is refused before
+// the graph reads any caller-controlled property.
+const compiledGraphBrand = new WeakSet<object>()
+const compiledGraphData = new WeakMap<object, readonly CompiledRule[]>()
+
+/** @internal Returns compiler-owned data without reflecting over an untrusted handle. */
+export function ownedCompiledRulesOf(value: unknown): readonly CompiledRule[] | undefined {
+  return typeof value === 'object' && value !== null && compiledGraphBrand.has(value)
+    ? compiledGraphData.get(value)
+    : undefined
+}
+
+const operators = new Set([
+  'var', 'missing', 'missing_some',
+  '==', '!=', '===', '!==', '!', '!!', 'and', 'or', 'if',
+  '>', '>=', '<', '<=', '+', '-', '*', '/', '%', 'min', 'max', 'in', 'cat',
+  'agg', 'money.add', 'money.sub', 'money.mul', 'date.add', 'date.diff', 'date.today', 'coding.is',
+])
+
+const actions = new Set(['Compute', 'Validate', 'Presentation', 'Options', 'Visibility', 'Required', 'ReadOnly'])
+
+function validateOperators(node: Json, ruleId: string): void {
+  // Match the evaluator boundary: arrays and multi-property objects are literal data.
+  if (node === null || typeof node !== 'object' || Array.isArray(node)) return
+  const entries = Object.entries(node)
+  if (entries.length !== 1) return
+  const [operator, argument] = entries[0]
+  if (!operators.has(operator)) {
+    throw new CompileError(Codes.compileInvalidExpression,
+      `rule '${ruleId}': unsupported operator '${operator}'.`, ruleId)
+  }
+  const arguments_ = Array.isArray(argument) ? argument : [argument]
+  validateArity(operator, arguments_.length, ruleId)
+  for (const item of arguments_) validateOperators(item, ruleId)
+}
+
+function validateArity(operator: string, count: number, ruleId: string): void {
+  const valid = (() => {
+    switch (operator) {
+      case 'var': return count === 1 || count === 2
+      case 'missing': return count >= 0
+      case 'missing_some': return count === 2
+      case '==': case '!=': case '===': case '!==': case '>': case '>=': case '<': case '<=': case 'in': return count === 2
+      case '!': case '!!': return count === 1
+      case 'and': case 'or': case 'cat': return true
+      // The decision-table lowerer uses a one-argument `if` for an otherwise-only table.
+      case 'if': return true
+      case '+': case '-': case '*': case '/': case '%': case 'min': case 'max':
+      case 'money.add': case 'money.sub': case 'money.mul': return count >= 1
+      case 'agg': case 'date.add': case 'coding.is': return count === 3
+      case 'date.diff': return count === 2
+      case 'date.today': return count === 0
+      default: return false
+    }
+  })()
+  if (!valid) {
+    throw new CompileError(operator === 'agg' ? Codes.compileBadGrammar : Codes.compileInvalidExpression,
+      `rule '${ruleId}': operator '${operator}' does not accept ${count} argument(s).`, ruleId)
+  }
 }
 
 export function compile(rules: RuleDefinition[], limits: RuleEngineLimits = DEFAULT_LIMITS): CompiledGraph {
@@ -28,9 +95,13 @@ export function compile(rules: RuleDefinition[], limits: RuleEngineLimits = DEFA
 
   for (const rule of rules) {
     if (rule.tier === 'JsonSchema') continue
-    if (rule.tier === 'PowerFx') {
+    if (rule.tier !== 'JsonLogic') {
       throw new CompileError(Codes.compileUnsupportedTier,
-        `rule '${rule.id}': Power Fx (Tier-3) is demoted in v1 — not evaluated (ADR 0140; SPINE-1).`, rule.id)
+        `rule '${rule.id}': tier '${rule.tier}' is unsupported by the v1 evaluator.`, rule.id)
+    }
+
+    if (!actions.has(rule.action)) {
+      throw new CompileError(Codes.compileUnknownAction, `rule '${rule.id}': unknown action '${rule.action}'.`, rule.id)
     }
 
     const scope = resolveScope(rule)
@@ -42,25 +113,87 @@ export function compile(rules: RuleDefinition[], limits: RuleEngineLimits = DEFA
         `rule '${rule.id}': AST node count ${nodes} exceeds the bound ${limits.maxAstNodes}`, rule.id)
     }
 
+    validateOperators(ast, rule.id)
     const references = extractRefs(ast, rule.id)
     if (references.length > limits.maxReferencesPerRule) {
       throw new CompileError(Codes.compileTooManyRefs,
         `rule '${rule.id}': reference count ${references.length} exceeds the bound ${limits.maxReferencesPerRule}`, rule.id)
     }
 
-    compiled.push({
-      source: rule,
-      ast,
+    compiled.push(freezeCompiledRule({
+      source: cloneDefinition(rule),
+      ast: cloneJson(ast),
       outputType: outputTypeFor(rule.action),
-      references,
+      references: references.map((reference) => ({ ...reference })),
       staticTarget: scope.staticTarget,
       rowSection: scope.rowSection,
       rowField: scope.rowField,
-    })
+    }))
   }
 
+  validateCoreTypes(compiled)
   detectCyclesAndDepth(compiled, limits)
-  return { rules: compiled }
+  // This is admission, not a runtime fuel estimate.  It runs only after the closed
+  // operator set and static DAG have been established, and remains out of the authored
+  // RuleDefinition document.
+  const workProof = deriveGraphWork(compiled, limits)
+  const graph = Object.freeze({ rules: Object.freeze(compiled), workProof })
+  compiledGraphBrand.add(graph)
+  compiledGraphData.set(graph, compiled)
+  return graph
+}
+
+function validateCoreTypes(rules: readonly CompiledRule[]): void {
+  let fields = new Map<string, ReadonlySet<import('./core-types.js').CoreJsonType>>()
+  for (const rule of rules) {
+    if (rule.source.action === 'Compute' && rule.source.scope === 'Field')
+      fields.set(rule.source.scopeTarget, deriveCoreTypes(rule.ast, rule.source.id).types)
+  }
+  for (let pass = 0; pass <= rules.length; pass++) {
+    const next = new Map(fields)
+    for (const rule of rules) {
+      const result = deriveCoreTypes(rule.ast, rule.source.id,
+        (path) => path.startsWith('field.') && fields.has(path.slice('field.'.length))
+          ? fields.get(path.slice('field.'.length))! : declaredCoreType('any', rule.source.id))
+      if (rule.source.action === 'Compute' && rule.source.scope === 'Field') next.set(rule.source.scopeTarget, result.types)
+    }
+    if (next.size === fields.size && [...next].every(([key, value]) => {
+      const old = fields.get(key)
+      return old !== undefined && old.size === value.size && [...old].every(type => value.has(type))
+    })) return
+    fields = next
+  }
+}
+
+function cloneDefinition(rule: RuleDefinition): RuleDefinition {
+  return {
+    ...rule,
+    expression: typeof rule.expression === 'string' ? rule.expression : cloneJson(rule.expression),
+    errorMessage: rule.errorMessage ? JSON.parse(JSON.stringify(rule.errorMessage)) : undefined,
+    presentation: rule.presentation ? JSON.parse(JSON.stringify(rule.presentation)) : undefined,
+  }
+}
+
+function cloneJson(value: Json): Json {
+  if (Array.isArray(value)) return value.map(cloneJson)
+  if (value !== null && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, cloneJson(child)]))
+  return value
+}
+
+function freezeJson(value: Json): Json {
+  if (Array.isArray(value)) { for (const child of value) freezeJson(child); return Object.freeze(value) as unknown as Json }
+  if (value !== null && typeof value === 'object') { for (const child of Object.values(value)) freezeJson(child); return Object.freeze(value) }
+  return value
+}
+
+function freezeCompiledRule(rule: CompiledRule): CompiledRule {
+  freezeJson(rule.ast)
+  if (typeof rule.source.expression !== 'string') freezeJson(rule.source.expression)
+  if (rule.source.errorMessage) Object.freeze(rule.source.errorMessage)
+  if (rule.source.presentation) Object.freeze(rule.source.presentation)
+  Object.freeze(rule.source)
+  Object.freeze(rule.references)
+  return Object.freeze(rule)
 }
 
 interface ScopeResolution {

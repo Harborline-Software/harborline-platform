@@ -8,7 +8,9 @@
 // was written and either could have been changed to anything at all without a check noticing. A
 // status that cannot be wrong is not a status; it is a comment.
 //
-// This step records unfinished work; the shared EXPIRED rule applies ticket 334's dated backlog.
+// This step records unfinished work; the shared EXPIRED rule applies ticket 334's backlog. T-631
+// took the date out of that backlog and froze its membership, so this step is also the place an
+// expired review OUTSIDE the frozen list fails -- see design-review-status.mjs.
 // validate-repository.mjs refuses a status claim the receipt does not support. Other unfinished
 // gates remain a worklist rather than making every non-terminal module fail this step.
 //

@@ -20,7 +20,7 @@ export type RuleSkinType = 'condition' | 'table' | 'formula'
 
 /** The output a table/formula produces — the author-facing name for the engine `RuleActionKind`
  * (design §2.1 outcome column / §3.1 output-type selector). `Compute` is the default. */
-export type RuleOutputType = 'Compute' | 'Options' | 'Validate' | 'Visibility'
+export type RuleOutputType = RuleActionKind
 
 /** Maps the author-facing output type to the engine action kind the skin declares. */
 export function outputActionKind(t: RuleOutputType): RuleActionKind {
@@ -97,6 +97,18 @@ export interface FormulaInputDecl {
 /** The arithmetic operator set (closed — the engine ships `+ - * /`). */
 export type ArithOp = '+' | '-' | '*' | '/'
 
+/**
+ * The rest of the engine's closed formula vocabulary. `ref` owns the structured `var`
+ * form, so an editor cannot smuggle an undeclared variable path through a raw call.
+ */
+export const formulaCallOps = [
+  'missing', 'missing_some',
+  '==', '!=', '===', '!==', '!', '!!', 'and', 'or', 'if',
+  '>', '>=', '<', '<=', '+', '-', '*', '/', '%', 'min', 'max', 'in', 'cat',
+  'agg', 'money.add', 'money.sub', 'money.mul', 'date.add', 'date.diff', 'date.today', 'coding.is',
+] as const
+export type FormulaCallOp = (typeof formulaCallOps)[number]
+
 /** One guided expression term — the constrained composition the formula editor exposes (design §3.1:
  * "guided composition, not a code box"). v1 supports a conditional shape and a binary-arithmetic
  * shape over declared inputs + literals; the closed operator set keeps `formula_undeclared_ref`
@@ -105,6 +117,7 @@ export type FormulaExpr =
   | { kind: 'ref'; ref: string }
   | { kind: 'literal'; value: string; valueType: ColumnValueType }
   | { kind: 'binary'; op: ArithOp; left: FormulaExpr; right: FormulaExpr }
+  | { kind: 'call'; op: FormulaCallOp; args: FormulaExpr[] }
   | { kind: 'if'; when: FormulaCondition; then: FormulaExpr; else: FormulaExpr }
 
 /** A guided boolean condition for the `if` shape — one comparison over declared inputs/literals. */

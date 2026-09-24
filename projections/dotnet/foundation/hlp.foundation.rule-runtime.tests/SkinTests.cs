@@ -66,6 +66,38 @@ public sealed class SkinTests
     }
 
     [Fact]
+    public void DecisionTable_UnknownCellKind_RejectedWithInputNamed()
+    {
+        var rows = new[]
+        {
+            new DecisionRow(new[] { new DecisionCell((CellKind)99) }, JsonValue.Create("x")),
+        };
+
+        var ex = Assert.Throws<RuleCompilationException>(() =>
+            DecisionTableCompiler.Compile(MinimalTable(inputs: new[] { "amount" }, rows: rows)));
+
+        Assert.Equal(SkinCodes.DecisionTableBadCell, ex.Code);
+        Assert.Contains("amount", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void DecisionTable_NonNumericRangeBound_RejectedWithInputNamed()
+    {
+        var rows = new[]
+        {
+            new DecisionRow(
+                new[] { DecisionCell.Range(JsonValue.Create("not-a-number"), null) },
+                JsonValue.Create("x")),
+        };
+
+        var ex = Assert.Throws<RuleCompilationException>(() =>
+            DecisionTableCompiler.Compile(MinimalTable(inputs: new[] { "amount" }, rows: rows)));
+
+        Assert.Equal(SkinCodes.DecisionTableBadCell, ex.Code);
+        Assert.Contains("amount", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void DecisionTable_NoExplicitNoMatch_Rejected()
     {
         // Neither a declared default nor a catch-all → a silent null on no-match is forbidden (board F1).
@@ -153,6 +185,28 @@ public sealed class SkinTests
         var ex = Assert.Throws<RuleCompilationException>(() => FormulaCompiler.Compile(skin));
         Assert.Equal(SkinCodes.FormulaUndeclaredRef, ex.Code);
         Assert.Contains("price", ex.Message);
+    }
+
+    [Fact]
+    public void Formula_DeclaredInputDoesNotCertifyRuntimeValuesItCannotGuard()
+    {
+        var expr = JsonNode.Parse("""{ "money.add": [ { "var": "approved" }, "1.00" ] }""");
+        var skin = new FormulaSkin("f", RuleScope.Field, "total", RuleActionKind.Compute,
+            new[] { new FormulaInput("approved", "boolean") }, expr);
+
+        var rule = FormulaCompiler.Compile(skin);
+        Assert.Equal(RuleActionKind.Compute, rule.Action);
+    }
+
+    [Fact]
+    public void Formula_AlsoRunsTheCoreStaticAdmissionBeforeReturningARule()
+    {
+        var skin = new FormulaSkin("f", RuleScope.Field, "total", RuleActionKind.Compute,
+            Array.Empty<FormulaInput>(), JsonNode.Parse("""{ "date.today": ["unexpected"] }"""));
+
+        var ex = Assert.Throws<RuleCompilationException>(() => FormulaCompiler.Compile(skin));
+
+        Assert.Equal(RuleEngineCodes.CompileInvalidExpression, ex.Code);
     }
 
     [Fact]

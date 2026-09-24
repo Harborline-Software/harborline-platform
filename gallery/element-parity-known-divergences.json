@@ -1,5 +1,5 @@
 {
-  "rule": "Element-level lane divergences that exist on main today, registered BY SCENARIO, ELEMENT PATH and PROPERTY with the ticket that owns the fix. Exact both ways: a delta not listed here fails the gallery gate, and a listed row that no longer differs fails until it is deleted. Tolerances are never widened to admit a row. A row may carry a host (windows-11-x64, macos-x64-intel, macos-arm64) when the divergence was measured on that host only: on other hosts the row is IGNORED, neither asserted nor stale, so each host is held to its own census. A row without a host applies on every host. Never scope a row to a host without measuring it there with the measure flag.",
+  "rule": "Element-level lane divergences that exist on main today, registered BY SCENARIO, ELEMENT PATH and PROPERTY with the ticket that owns the fix. Exact both ways: a delta not listed here fails the gallery gate, and a listed row that no longer differs fails until it is deleted. Tolerances are never widened to admit a row. A row may carry a host (windows-11-x64, linux-x64, macos-x64-intel, macos-arm64) when the divergence was measured on that host only: on other hosts the row is IGNORED, neither asserted nor stale, so each host is held to its own census. A row without a host applies on every host. Never scope a row to a host without measuring it there with the measure flag.",
   "measureFlag": "HARBORLINE_GALLERY_ELEMENT_MEASURE",
   "divergences": [
     {
@@ -130,89 +130,6 @@
     },
     {
       "scenarioId": "app-shell.theme-dark",
-      "path": ">div[1]>div[1]>div[1]>div[1]>div[1]>header[1]>div[1]>div[2]>button[1]>svg[1]",
-      "property": "element",
-      "ticket": "141",
-      "note": "the canvas paints both lanes; the rail and panel chrome diverge",
-      "hiddenDescendants": {
-        "react": 1,
-        "blazor": 0
-      }
-    },
-    {
-      "scenarioId": "app-shell.theme-dark",
-      "path": ">div[1]>div[1]>div[1]>div[1]>div[1]>header[1]>div[1]>div[3]>button[1]>svg[1]",
-      "property": "element",
-      "ticket": "141",
-      "note": "the canvas paints both lanes; the rail and panel chrome diverge",
-      "hiddenDescendants": {
-        "react": 2,
-        "blazor": 0
-      }
-    },
-    {
-      "scenarioId": "app-shell.theme-dark",
-      "path": ">div[1]>div[1]>div[1]>div[1]>div[1]>header[1]>div[1]>div[4]>button[1]>svg[1]",
-      "property": "element",
-      "ticket": "141",
-      "note": "the canvas paints both lanes; the rail and panel chrome diverge",
-      "hiddenDescendants": {
-        "react": 2,
-        "blazor": 0
-      }
-    },
-    {
-      "scenarioId": "app-shell.theme-dark",
-      "path": ">div[1]>div[1]>div[1]>div[1]>div[1]>header[1]>div[1]>div[5]",
-      "property": "box",
-      "ticket": "141",
-      "note": "the canvas paints both lanes; the rail and panel chrome diverge"
-    },
-    {
-      "scenarioId": "app-shell.theme-dark",
-      "path": ">div[1]>div[1]>div[1]>div[1]>div[1]>header[1]>div[1]>div[5]>span[1]",
-      "property": "box",
-      "ticket": "141",
-      "note": "the canvas paints both lanes; the rail and panel chrome diverge"
-    },
-    {
-      "scenarioId": "app-shell.theme-dark",
-      "path": ">div[1]>div[1]>div[1]>div[1]>div[1]>header[1]>div[1]>div[6]",
-      "property": "box",
-      "ticket": "141",
-      "note": "the canvas paints both lanes; the rail and panel chrome diverge"
-    },
-    {
-      "scenarioId": "app-shell.theme-dark",
-      "path": ">div[1]>div[1]>div[1]>div[1]>div[1]>header[1]>div[1]>div[6]>button[1]",
-      "property": "box",
-      "ticket": "141",
-      "note": "the canvas paints both lanes; the rail and panel chrome diverge"
-    },
-    {
-      "scenarioId": "app-shell.theme-dark",
-      "path": ">div[1]>div[1]>div[1]>div[1]>div[1]>header[1]>div[1]>div[6]>button[1]>svg[1]",
-      "property": "element",
-      "ticket": "141",
-      "note": "the canvas paints both lanes; the rail and panel chrome diverge",
-      "hiddenDescendants": {
-        "react": 2,
-        "blazor": 0
-      }
-    },
-    {
-      "scenarioId": "app-shell.theme-dark",
-      "path": ">div[1]>div[1]>div[1]>div[1]>div[1]>header[1]>div[1]>div[6]>div[1]>button[1]>svg[1]",
-      "property": "element",
-      "ticket": "141",
-      "note": "the canvas paints both lanes; the rail and panel chrome diverge",
-      "hiddenDescendants": {
-        "react": 3,
-        "blazor": 0
-      }
-    },
-    {
-      "scenarioId": "app-shell.theme-dark",
       "path": ">div[1]>div[1]>div[1]>div[1]>div[1]>nav[1]>div[1]>div[1]>section[2]>div[2]>button[1]>svg[1]>path[1]",
       "property": "box",
       "ticket": "141",
@@ -270,89 +187,6 @@
       "property": "box",
       "ticket": "141",
       "note": "the canvas paints both lanes; the rail and panel chrome diverge"
-    },
-    {
-      "scenarioId": "app-shell.theme-light",
-      "path": ">div[1]>div[1]>div[1]>div[1]>div[1]>header[1]>div[1]>div[2]>button[1]>svg[1]",
-      "property": "element",
-      "ticket": "141",
-      "note": "the canvas paints both lanes; the rail and panel chrome diverge",
-      "hiddenDescendants": {
-        "react": 1,
-        "blazor": 0
-      }
-    },
-    {
-      "scenarioId": "app-shell.theme-light",
-      "path": ">div[1]>div[1]>div[1]>div[1]>div[1]>header[1]>div[1]>div[3]>button[1]>svg[1]",
-      "property": "element",
-      "ticket": "141",
-      "note": "the canvas paints both lanes; the rail and panel chrome diverge",
-      "hiddenDescendants": {
-        "react": 2,
-        "blazor": 0
-      }
-    },
-    {
-      "scenarioId": "app-shell.theme-light",
-      "path": ">div[1]>div[1]>div[1]>div[1]>div[1]>header[1]>div[1]>div[4]>button[1]>svg[1]",
-      "property": "element",
-      "ticket": "141",
-      "note": "the canvas paints both lanes; the rail and panel chrome diverge",
-      "hiddenDescendants": {
-        "react": 2,
-        "blazor": 0
-      }
-    },
-    {
-      "scenarioId": "app-shell.theme-light",
-      "path": ">div[1]>div[1]>div[1]>div[1]>div[1]>header[1]>div[1]>div[5]",
-      "property": "box",
-      "ticket": "141",
-      "note": "the canvas paints both lanes; the rail and panel chrome diverge"
-    },
-    {
-      "scenarioId": "app-shell.theme-light",
-      "path": ">div[1]>div[1]>div[1]>div[1]>div[1]>header[1]>div[1]>div[5]>span[1]",
-      "property": "box",
-      "ticket": "141",
-      "note": "the canvas paints both lanes; the rail and panel chrome diverge"
-    },
-    {
-      "scenarioId": "app-shell.theme-light",
-      "path": ">div[1]>div[1]>div[1]>div[1]>div[1]>header[1]>div[1]>div[6]",
-      "property": "box",
-      "ticket": "141",
-      "note": "the canvas paints both lanes; the rail and panel chrome diverge"
-    },
-    {
-      "scenarioId": "app-shell.theme-light",
-      "path": ">div[1]>div[1]>div[1]>div[1]>div[1]>header[1]>div[1]>div[6]>button[1]",
-      "property": "box",
-      "ticket": "141",
-      "note": "the canvas paints both lanes; the rail and panel chrome diverge"
-    },
-    {
-      "scenarioId": "app-shell.theme-light",
-      "path": ">div[1]>div[1]>div[1]>div[1]>div[1]>header[1]>div[1]>div[6]>button[1]>svg[1]",
-      "property": "element",
-      "ticket": "141",
-      "note": "the canvas paints both lanes; the rail and panel chrome diverge",
-      "hiddenDescendants": {
-        "react": 2,
-        "blazor": 0
-      }
-    },
-    {
-      "scenarioId": "app-shell.theme-light",
-      "path": ">div[1]>div[1]>div[1]>div[1]>div[1]>header[1]>div[1]>div[6]>div[1]>button[1]>svg[1]",
-      "property": "element",
-      "ticket": "141",
-      "note": "the canvas paints both lanes; the rail and panel chrome diverge",
-      "hiddenDescendants": {
-        "react": 3,
-        "blazor": 0
-      }
     },
     {
       "scenarioId": "app-shell.theme-light",
@@ -658,11 +492,27 @@
     },
     {
       "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
       "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[2]",
       "property": "box",
       "ticket": "146",
       "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
       "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[2]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
     },
     {
       "scenarioId": "scheduler.theme-dark",
@@ -674,11 +524,27 @@
     },
     {
       "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[4]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
       "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]",
       "property": "box",
       "ticket": "146",
       "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
       "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
     },
     {
       "scenarioId": "scheduler.theme-dark",
@@ -690,11 +556,27 @@
     },
     {
       "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>div[1]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
       "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>div[1]>div[1]",
       "property": "box",
       "ticket": "146",
       "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
       "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>div[1]>div[1]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
     },
     {
       "scenarioId": "scheduler.theme-dark",
@@ -706,11 +588,27 @@
     },
     {
       "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>div[1]>div[1]>span[1]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
       "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>div[1]>div[1]>span[2]",
       "property": "box",
       "ticket": "146",
       "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
       "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>div[1]>div[1]>span[2]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
     },
     {
       "scenarioId": "scheduler.theme-dark",
@@ -722,11 +620,27 @@
     },
     {
       "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>div[2]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
       "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>div[2]>div[1]",
       "property": "box",
       "ticket": "146",
       "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
       "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>div[2]>div[1]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
     },
     {
       "scenarioId": "scheduler.theme-dark",
@@ -738,11 +652,27 @@
     },
     {
       "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>div[2]>div[1]>span[1]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
       "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>div[2]>div[1]>span[2]",
       "property": "box",
       "ticket": "146",
       "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
       "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>div[2]>div[1]>span[2]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
     },
     {
       "scenarioId": "scheduler.theme-dark",
@@ -754,11 +684,27 @@
     },
     {
       "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>div[3]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
       "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>div[3]>div[1]",
       "property": "box",
       "ticket": "146",
       "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
       "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>div[3]>div[1]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
     },
     {
       "scenarioId": "scheduler.theme-dark",
@@ -770,11 +716,27 @@
     },
     {
       "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>div[3]>div[1]>span[1]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
       "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>div[3]>div[1]>span[2]",
       "property": "box",
       "ticket": "146",
       "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
       "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>div[3]>div[1]>span[2]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
     },
     {
       "scenarioId": "scheduler.theme-dark",
@@ -786,11 +748,27 @@
     },
     {
       "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[1]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
       "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[10]",
       "property": "box",
       "ticket": "146",
       "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
       "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[10]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
     },
     {
       "scenarioId": "scheduler.theme-dark",
@@ -802,11 +780,27 @@
     },
     {
       "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[11]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
       "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[12]",
       "property": "box",
       "ticket": "146",
       "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
       "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[12]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
     },
     {
       "scenarioId": "scheduler.theme-dark",
@@ -818,11 +812,27 @@
     },
     {
       "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[13]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
       "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[14]",
       "property": "box",
       "ticket": "146",
       "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
       "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[14]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
     },
     {
       "scenarioId": "scheduler.theme-dark",
@@ -834,11 +844,27 @@
     },
     {
       "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[15]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
       "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[16]",
       "property": "box",
       "ticket": "146",
       "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
       "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[16]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
     },
     {
       "scenarioId": "scheduler.theme-dark",
@@ -850,11 +876,27 @@
     },
     {
       "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[17]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
       "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[18]",
       "property": "box",
       "ticket": "146",
       "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
       "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[18]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
     },
     {
       "scenarioId": "scheduler.theme-dark",
@@ -866,11 +908,27 @@
     },
     {
       "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[19]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
       "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[2]",
       "property": "box",
       "ticket": "146",
       "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
       "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[2]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
     },
     {
       "scenarioId": "scheduler.theme-dark",
@@ -882,11 +940,27 @@
     },
     {
       "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[20]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
       "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[21]",
       "property": "box",
       "ticket": "146",
       "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
       "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[21]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
     },
     {
       "scenarioId": "scheduler.theme-dark",
@@ -898,11 +972,27 @@
     },
     {
       "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[22]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
       "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[23]",
       "property": "box",
       "ticket": "146",
       "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
       "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[23]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
     },
     {
       "scenarioId": "scheduler.theme-dark",
@@ -914,11 +1004,27 @@
     },
     {
       "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[24]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
       "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[25]",
       "property": "box",
       "ticket": "146",
       "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
       "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[25]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
     },
     {
       "scenarioId": "scheduler.theme-dark",
@@ -930,11 +1036,27 @@
     },
     {
       "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[3]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
       "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[4]",
       "property": "box",
       "ticket": "146",
       "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
       "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[4]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
     },
     {
       "scenarioId": "scheduler.theme-dark",
@@ -946,11 +1068,27 @@
     },
     {
       "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[5]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
       "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[6]",
       "property": "box",
       "ticket": "146",
       "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
       "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[6]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
     },
     {
       "scenarioId": "scheduler.theme-dark",
@@ -962,7 +1100,31 @@
     },
     {
       "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[7]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
       "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[8]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[8]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-dark",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[9]",
       "property": "box",
       "ticket": "146",
       "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
@@ -973,8 +1135,8 @@
       "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[9]",
       "property": "box",
       "ticket": "146",
-      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
-      "host": "windows-11-x64"
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
     },
     {
       "scenarioId": "scheduler.theme-light",
@@ -986,11 +1148,27 @@
     },
     {
       "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
       "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[2]",
       "property": "box",
       "ticket": "146",
       "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
       "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[2]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
     },
     {
       "scenarioId": "scheduler.theme-light",
@@ -1002,11 +1180,27 @@
     },
     {
       "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[4]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
       "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]",
       "property": "box",
       "ticket": "146",
       "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
       "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
     },
     {
       "scenarioId": "scheduler.theme-light",
@@ -1018,11 +1212,27 @@
     },
     {
       "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>div[1]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
       "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>div[1]>div[1]",
       "property": "box",
       "ticket": "146",
       "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
       "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>div[1]>div[1]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
     },
     {
       "scenarioId": "scheduler.theme-light",
@@ -1034,11 +1244,27 @@
     },
     {
       "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>div[1]>div[1]>span[1]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
       "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>div[1]>div[1]>span[2]",
       "property": "box",
       "ticket": "146",
       "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
       "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>div[1]>div[1]>span[2]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
     },
     {
       "scenarioId": "scheduler.theme-light",
@@ -1050,11 +1276,27 @@
     },
     {
       "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>div[2]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
       "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>div[2]>div[1]",
       "property": "box",
       "ticket": "146",
       "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
       "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>div[2]>div[1]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
     },
     {
       "scenarioId": "scheduler.theme-light",
@@ -1066,11 +1308,27 @@
     },
     {
       "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>div[2]>div[1]>span[1]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
       "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>div[2]>div[1]>span[2]",
       "property": "box",
       "ticket": "146",
       "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
       "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>div[2]>div[1]>span[2]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
     },
     {
       "scenarioId": "scheduler.theme-light",
@@ -1082,11 +1340,27 @@
     },
     {
       "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>div[3]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
       "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>div[3]>div[1]",
       "property": "box",
       "ticket": "146",
       "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
       "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>div[3]>div[1]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
     },
     {
       "scenarioId": "scheduler.theme-light",
@@ -1098,11 +1372,27 @@
     },
     {
       "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>div[3]>div[1]>span[1]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
       "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>div[3]>div[1]>span[2]",
       "property": "box",
       "ticket": "146",
       "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
       "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>div[3]>div[1]>span[2]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
     },
     {
       "scenarioId": "scheduler.theme-light",
@@ -1114,11 +1404,27 @@
     },
     {
       "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[1]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
       "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[10]",
       "property": "box",
       "ticket": "146",
       "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
       "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[10]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
     },
     {
       "scenarioId": "scheduler.theme-light",
@@ -1130,11 +1436,27 @@
     },
     {
       "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[11]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
       "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[12]",
       "property": "box",
       "ticket": "146",
       "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
       "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[12]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
     },
     {
       "scenarioId": "scheduler.theme-light",
@@ -1146,11 +1468,27 @@
     },
     {
       "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[13]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
       "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[14]",
       "property": "box",
       "ticket": "146",
       "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
       "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[14]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
     },
     {
       "scenarioId": "scheduler.theme-light",
@@ -1162,11 +1500,27 @@
     },
     {
       "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[15]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
       "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[16]",
       "property": "box",
       "ticket": "146",
       "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
       "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[16]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
     },
     {
       "scenarioId": "scheduler.theme-light",
@@ -1178,11 +1532,27 @@
     },
     {
       "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[17]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
       "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[18]",
       "property": "box",
       "ticket": "146",
       "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
       "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[18]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
     },
     {
       "scenarioId": "scheduler.theme-light",
@@ -1194,11 +1564,27 @@
     },
     {
       "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[19]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
       "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[2]",
       "property": "box",
       "ticket": "146",
       "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
       "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[2]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
     },
     {
       "scenarioId": "scheduler.theme-light",
@@ -1210,11 +1596,27 @@
     },
     {
       "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[20]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
       "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[21]",
       "property": "box",
       "ticket": "146",
       "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
       "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[21]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
     },
     {
       "scenarioId": "scheduler.theme-light",
@@ -1226,11 +1628,27 @@
     },
     {
       "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[22]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
       "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[23]",
       "property": "box",
       "ticket": "146",
       "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
       "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[23]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
     },
     {
       "scenarioId": "scheduler.theme-light",
@@ -1242,11 +1660,27 @@
     },
     {
       "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[24]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
       "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[25]",
       "property": "box",
       "ticket": "146",
       "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
       "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[25]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
     },
     {
       "scenarioId": "scheduler.theme-light",
@@ -1258,11 +1692,27 @@
     },
     {
       "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[3]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
       "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[4]",
       "property": "box",
       "ticket": "146",
       "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
       "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[4]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
     },
     {
       "scenarioId": "scheduler.theme-light",
@@ -1274,11 +1724,27 @@
     },
     {
       "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[5]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
       "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[6]",
       "property": "box",
       "ticket": "146",
       "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
       "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[6]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
     },
     {
       "scenarioId": "scheduler.theme-light",
@@ -1290,7 +1756,31 @@
     },
     {
       "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[7]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
       "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[8]",
+      "property": "box",
+      "ticket": "146",
+      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
+      "host": "windows-11-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[8]",
+      "property": "box",
+      "ticket": "146",
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
+    },
+    {
+      "scenarioId": "scheduler.theme-light",
+      "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[9]",
       "property": "box",
       "ticket": "146",
       "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
@@ -1301,8 +1791,8 @@
       "path": ">div[1]>div[1]>div[1]>div[2]>div[1]>div[6]>span[9]",
       "property": "box",
       "ticket": "146",
-      "note": "month and agenda views render from different DOM in each lane. Measured on windows-11-x64 only: on macos-arm64 (macbook-pro-73, Apple M1 Pro) at 089619a7 the scheduler element census is clean in both lanes, 0 of 41 rows per scenario still differ, so the row is scoped to Windows.",
-      "host": "windows-11-x64"
+      "note": "Measured on linux-x64 in merge-group a99f8a7304938de40673b80ccdbbcc8dd06dc2ee, validate run 35768797109: the same exact 41-row scheduler census differs for this scenario; the row remains host-scoped because macos-arm64 is clean.",
+      "host": "linux-x64"
     },
     {
       "scenarioId": "schema-form.locale-theme",

@@ -1,3 +1,5 @@
+using System.Text.Json.Nodes;
+
 using Harborline.Foundation.RuleEngine.Model;
 
 
@@ -6,12 +8,26 @@ namespace Harborline.Foundation.RuleEngine.Compilation;
 /// <summary>The immutable compiled form of a definition's Tier-2 rules (SPINE-1 design §2.2 step 1).</summary>
 public sealed class CompiledGraph
 {
-    internal CompiledGraph(IReadOnlyList<CompiledRule> rules) => Rules = rules;
+    internal CompiledGraph(IReadOnlyList<CompiledRule> rules, WorkProof workProof)
+    {
+        Rules = rules;
+        WorkProof = workProof;
+    }
 
     internal IReadOnlyList<CompiledRule> Rules { get; }
 
+    /// <summary>Compiler-owned finite transfer proof; never serialized into an authored definition.</summary>
+    public WorkProof WorkProof { get; }
+
     /// <summary>The number of Tier-2 rules compiled (Tier-1 rules are handled by the kernel JSON-Schema validator).</summary>
     public int RuleCount => Rules.Count;
+
+    /// <summary>
+    /// Each compiled rule's lowered AST in compile order, with references rewritten as the grammar
+    /// defines them (e.g. <c>parent.z</c> to <c>field.z</c>). Returned as copies, so a caller cannot
+    /// alter a compiled rule. The TypeScript engine exposes the same through <c>rules[].ast</c>.
+    /// </summary>
+    public IReadOnlyList<JsonNode?> LoweredAsts => [.. Rules.Select(rule => rule.Ast?.DeepClone())];
 }
 
 /// <summary>
@@ -22,6 +38,14 @@ public sealed class CompiledGraph
 /// </summary>
 public static class RuleCompiler
 {
+    private static readonly HashSet<string> Operators = new(StringComparer.Ordinal)
+    {
+        "var", "missing", "missing_some",
+        "==", "!=", "===", "!==", "!", "!!", "and", "or", "if",
+        ">", ">=", "<", "<=", "+", "-", "*", "/", "%", "min", "max", "in", "cat",
+        "agg", "money.add", "money.sub", "money.mul", "date.add", "date.diff", "date.today", "coding.is",
+    };
+
     /// <summary>Compiles a definition's rules; throws <see cref="RuleCompilationException"/> on rejection.</summary>
     public static CompiledGraph Compile(IReadOnlyList<RuleDefinition> rules, RuleEngineLimits? limits = null)
     {
@@ -33,13 +57,17 @@ public static class RuleCompiler
         {
             // This engine owns Tier-2 (JsonLogic). Tier-1 (JsonSchema) is the kernel validator's.
             if (rule.Tier == RuleTier.JsonSchema) continue;
-            if (rule.Tier == RuleTier.PowerFx)
+            if (rule.Tier != RuleTier.JsonLogic)
             {
                 throw new RuleCompilationException(
                     RuleEngineCodes.CompileUnsupportedTier,
-                    $"rule '{rule.Id}': Power Fx (Tier-3) is demoted in v1 — not evaluated (ADR 0140; SPINE-1).",
+                    $"rule '{rule.Id}': tier '{rule.Tier}' is unsupported by the v1 evaluator.",
                     rule.Id);
             }
+
+            if (!Enum.IsDefined(rule.Action))
+                throw new RuleCompilationException(RuleEngineCodes.CompileUnknownAction,
+                    $"rule '{rule.Id}': unknown action '{rule.Action}'.", rule.Id);
 
             var (ctx, staticTarget, rowSection, rowField) = ResolveScope(rule);
             var ast = ScopeGrammar.Lower(rule.Expression, ctx, rule.Id);
@@ -53,6 +81,7 @@ public static class RuleCompiler
                     rule.Id);
             }
 
+            ValidateOperators(ast, rule.Id);
             var refs = ScopeGrammar.ExtractRefs(ast, rule.Id);
             if (refs.Count > lim.MaxReferencesPerRule)
             {
@@ -74,8 +103,82 @@ public static class RuleCompiler
             });
         }
 
+        // A value rule can feed another rule.  First derive producer result sets, then
+        // iterate the finite six-tag domain into consumers instead of treating every var
+        // as AnyJson.  Cycles are rejected below; the bounded loop is defensive.
+        ValidateCoreTypes(compiled);
         DetectCyclesAndDepth(compiled, lim);
-        return new CompiledGraph(compiled);
+        // Admission proof after closed-operator and static-DAG validation.  It is
+        // deliberately distinct from the runtime step/wall-clock backstops.
+        return new CompiledGraph(compiled, CoreWorkDerivation.DeriveGraph(compiled, lim));
+    }
+
+    private static void ValidateCoreTypes(IReadOnlyList<CompiledRule> rules)
+    {
+        var fields = new Dictionary<string, CoreJsonType>(StringComparer.Ordinal);
+        foreach (var rule in rules.Where(rule => rule.Source.Action == RuleActionKind.Compute
+            && rule.Source.Scope == RuleScope.Field))
+            fields[rule.Source.ScopeTarget] = CoreTypeDerivation.Derive(rule.Ast, rule.Source.Id).Types;
+
+        for (var pass = 0; pass <= rules.Count; pass++)
+        {
+            var next = new Dictionary<string, CoreJsonType>(fields, StringComparer.Ordinal);
+            foreach (var rule in rules)
+            {
+                var result = CoreTypeDerivation.Derive(rule.Ast, rule.Source.Id,
+                    path => path.StartsWith("field.", StringComparison.Ordinal)
+                        && fields.TryGetValue(path["field.".Length..], out var known)
+                        ? known : CoreJsonType.AnyJson);
+                if (rule.Source.Action == RuleActionKind.Compute && rule.Source.Scope == RuleScope.Field)
+                    next[rule.Source.ScopeTarget] = result.Types;
+            }
+            if (next.Count == fields.Count && next.All(pair => fields.TryGetValue(pair.Key, out var old) && old == pair.Value)) return;
+            fields = next;
+        }
+    }
+
+    private static void ValidateOperators(JsonNode? node, string ruleId)
+    {
+        // The evaluator executes only single-property objects. Arrays and multi-property
+        // objects are literal data; their contents do not become executable declarations.
+        if (node is not JsonObject expression || expression.Count != 1) return;
+        var operation = expression.First();
+        if (!Operators.Contains(operation.Key))
+            throw new RuleCompilationException(RuleEngineCodes.CompileInvalidExpression,
+                $"rule '{ruleId}': unsupported operator '{operation.Key}'.", ruleId);
+
+        var arguments = operation.Value is JsonArray array
+            ? array.ToList()
+            : new List<JsonNode?> { operation.Value };
+        ValidateArity(operation.Key, arguments.Count, ruleId);
+
+        foreach (var argument in arguments)
+            ValidateOperators(argument, ruleId);
+    }
+
+    private static void ValidateArity(string operation, int count, string ruleId)
+    {
+        bool valid = operation switch
+        {
+            "var" => count is 1 or 2,
+            "missing" => count >= 0,
+            "missing_some" => count == 2,
+            "==" or "!=" or "===" or "!==" or ">" or ">=" or "<" or "<=" or "in" => count == 2,
+            "!" or "!!" => count == 1,
+            "and" or "or" or "cat" => true,
+            // A one-argument `if` is the decision-table skin's canonical otherwise-only
+            // shape; the closed interpreter returns that argument unchanged.
+            "if" => true,
+            "+" or "-" or "*" or "/" or "%" or "min" or "max" or "money.add" or "money.sub" or "money.mul" => count >= 1,
+            "agg" or "date.add" or "coding.is" => count == 3,
+            "date.diff" => count == 2,
+            "date.today" => count == 0,
+            _ => false,
+        };
+
+        if (!valid)
+            throw new RuleCompilationException(operation == "agg" ? RuleEngineCodes.CompileBadGrammar : RuleEngineCodes.CompileInvalidExpression,
+                $"rule '{ruleId}': operator '{operation}' does not accept {count} argument(s).", ruleId);
     }
 
     private static (LowerContext Ctx, CellAddress? Target, string? RowSection, string? RowField) ResolveScope(RuleDefinition rule)

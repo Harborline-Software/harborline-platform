@@ -12,8 +12,9 @@ import {
   err, refError, refPending, refResolved, unavailableAggregate,
   type EvalContext, type RefValue, type ValueResolver,
 } from './eval-support.js'
-import { ROOT_SCOPE, type ContextAdapter, type RuleEvalScope } from './context-adapter.js'
 import { evaluate, isTruthy } from './jsonlogic.js'
+import { parseBoundedJsonText } from './input-envelope.js'
+import { detachJson } from './instance.js'
 
 const isPendingSentinel = (n: Json): boolean =>
   typeof n === 'object' && n !== null && !Array.isArray(n) &&
@@ -44,26 +45,49 @@ class ContextBagResolver implements ValueResolver {
  * context bag into a `ContextBagResolver`. The bag has no repeating sub-collection, so the
  * scope's `rowSection` is ignored (a `row.` reference resolves to a bad-reference, as before).
  */
-class ContextBagAdapter implements ContextAdapter {
-  constructor(private readonly bag: Record<string, Json>) {}
+const snapshotBrand = new WeakSet<object>()
+const snapshotData = new WeakMap<object, Record<string, Json>>()
+/**
+ * Runtime-owned data admitted from JSON text before crossing into pure evaluation.
+ * Parsing belongs to the host boundary; evaluator entry never reflects over a caller object.
+ */
+export class RuleContextSnapshot {
+  // No constructor arguments or instance data: JavaScript callers can invoke a TS-private
+  // constructor, but only this module's JSON-text factory can add owned data to the WeakMap.
+  private constructor() {}
 
-  createResolver(_scope: RuleEvalScope): ValueResolver {
-    return new ContextBagResolver(this.bag)
+  static fromJsonText(jsonText: string): RuleContextSnapshot {
+    const parsed: unknown = parseBoundedJsonText(jsonText, 'rule context')
+    if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) throw new TypeError('rule context must be a JSON object')
+    const snapshot = new RuleContextSnapshot()
+    snapshotBrand.add(snapshot)
+    snapshotData.set(snapshot, parsed as Record<string, Json>)
+    return snapshot
   }
+}
+
+function contextValuesOf(value: unknown): Record<string, Json> | undefined {
+  return typeof value === 'object' && value !== null && snapshotBrand.has(value)
+    ? snapshotData.get(value)
+    : undefined
 }
 
 export class GuardEvaluator {
   constructor(
+    private readonly clock: () => Date,
     private readonly limits: RuleEngineLimits = DEFAULT_LIMITS,
-    private readonly clock: () => Date = () => new Date(),
-  ) {}
+  ) {
+    if (typeof clock !== 'function') throw new TypeError('GuardEvaluator requires a caller-supplied clock')
+  }
 
-  evaluateGuard(rule: RuleDefinition, context: Record<string, Json>, signal?: AbortSignal): Validity {
+  evaluateGuard(rule: RuleDefinition, context: RuleContextSnapshot, signal?: AbortSignal): Validity {
     const compiled = compile([rule], this.limits)
     if (compiled.rules.length === 0) return { ok: true } // Tier-1 guard: nothing for this engine.
+    const snapshot = contextValuesOf(context)
+    if (!snapshot) return { ok: false, error: err(Codes.contextSnapshotRequired) }
     return this.run<Validity>(
       compiled.rules[0].ast as Json,
-      context,
+      snapshot,
       (v) => (isTruthy(v) ? { ok: true } : { ok: false, error: err(rule.id) }),
       (e) => ({ ok: false, error: e }),
       () => ({ ok: false, error: err(Codes.pendingAtSave) }),
@@ -71,13 +95,15 @@ export class GuardEvaluator {
     )
   }
 
-  evaluateValue(rule: RuleDefinition, context: Record<string, Json>, signal?: AbortSignal): ComputedValue {
+  evaluateValue(rule: RuleDefinition, context: RuleContextSnapshot, signal?: AbortSignal): ComputedValue {
     const compiled = compile([rule], this.limits)
     if (compiled.rules.length === 0) return { state: 'Resolved', value: null }
+    const snapshot = contextValuesOf(context)
+    if (!snapshot) return { state: 'Error', error: err(Codes.contextSnapshotRequired) }
     return this.run<ComputedValue>(
       compiled.rules[0].ast as Json,
-      context,
-      (v) => ({ state: 'Resolved', value: v }),
+      snapshot,
+      (v) => ({ state: 'Resolved', value: detachJson(v) }),
       (e) => ({ state: 'Error', error: e }),
       () => ({ state: 'Pending' }),
       signal,
@@ -92,8 +118,7 @@ export class GuardEvaluator {
     onPending: () => T,
     signal?: AbortSignal,
   ): T {
-    // The workflow-guard context flows through the ADR 0146 D3 seam (behaviour-neutral).
-    const ctx: EvalContext = { resolver: new ContextBagAdapter(context).createResolver(ROOT_SCOPE), now: this.clock(), budget: new EvalBudget(this.limits, signal) }
+    const ctx: EvalContext = { resolver: new ContextBagResolver(context), now: this.clock(), budget: new EvalBudget(this.limits, signal) }
     try {
       return onValue(evaluate(ast, ctx))
     } catch (e) {

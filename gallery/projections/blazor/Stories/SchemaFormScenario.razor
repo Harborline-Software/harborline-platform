@@ -1,7 +1,29 @@
 <section class="hl-gallery-scene" data-gallery-probe data-gallery-scenario="@ScenarioId" data-theme="@Theme">
   <header class="hl-gallery-heading"><h2>@Copy.Title</h2><p>@Copy.Description</p></header>
   <div class="hl-gallery-stage hl-gallery-feedback-grid">
-    @if (ScenarioId == "schema-form.controls-structure")
+    @if (ScenarioId == "schema-form.domain-editors")
+    {
+      <div style="min-width: 0; width: 100%">
+        <HarborlineSchemaForm InitialValues="DomainValues" OnValuesChange="DomainChanged" OnSubmit="DomainSubmit"
+                            Strings="EnglishStrings" View="DomainView" />
+        <section aria-label="Selected candidate" style="overflow-wrap: anywhere">
+          <h3>Selected candidate</h3>
+          <p>Typing a query leaves these values unchanged. Select a result to update them.</p>
+          <dl>
+            @foreach (var (key, label) in DomainCandidateFields)
+            {
+              <dt>@label</dt><dd>@(domainCandidate.GetValueOrDefault(key) ?? "Not selected")</dd>
+            }
+          </dl>
+          <p role="status">@domainSaveStatus</p>
+        </section>
+      </div>
+    }
+    else if (ScenarioId == "schema-form.host-readonly")
+    {
+      <HarborlineSchemaForm ReadOnly="true" InitialValues="ReadOnlyValues" OnSubmit="ValidSubmit" Strings="EnglishStrings" View="ReadOnlyInspectionView" />
+    }
+    else if (ScenarioId == "schema-form.controls-structure")
     {
       <HarborlineSchemaForm Controls="CustomControls" InitialValues="ControlsValues" OnSubmit="ValidSubmit"
                           Strings="EnglishStrings" View="ControlsView" />
@@ -97,6 +119,58 @@
     SubmitBlocked = "يتعذر الحفظ أثناء انتظار القواعد.",
   };
 
+  private const string DomainCopy = "Renderer demonstration of resolved domain output. No live API; runtime domain resolution is covered by existing producer tests.";
+  private static readonly IReadOnlyDictionary<string, object?> DomainValues = new Dictionary<string, object?> { ["readOnlyStatus"] = "Approved" };
+  private static readonly (string Key, string Label)[] DomainCandidateFields =
+  [
+    ("none", "No readable values"), ("single", "One readable value"),
+    ("radio", "Three readable values"), ("choice", "Literal choices"),
+    ("taxonomy", "Taxonomy"), ("record", "Record"), ("readOnlyStatus", "Read-only status"),
+  ];
+  private static readonly SchemaFormView DomainView = new()
+  {
+    FormId = "domain-editors", Version = "1.0.0",
+    Title = Text("Resolved domain editors"),
+    Description = Text("Choose a value, then save to review validation. Search text does not change the selected candidate."),
+    Sections =
+    [
+      new()
+      {
+        Id = "resolved-domain", Title = Text("Readable choices"), Fields =
+        [
+          Field("none", "No readable values", "None", Text("No editor is available.")) with { PermittedValues = [] },
+          Field("single", "One readable value", "SingleValue", Text("Choose explicitly; nothing is selected automatically.")) with { PermittedValues = ["Approved"] },
+          Field("radio", "Three readable values", "RadioGroup") with { PermittedValues = ["Draft", "Review", "Approved"] },
+          Field("choice", "Literal choices", "ChoiceList") with { PermittedValues = ["Draft", "Review", "Approved", "Rejected", "Paused", "Closed"] },
+          Field("taxonomy", "Taxonomy", "TaxonomyPicker", Text("80 categories. Search for Category 08; at most 25 matches are shown.")) with
+          {
+            PermittedValues = Enumerable.Range(1, 80).Select(index => "Category " + index.ToString("D2", System.Globalization.CultureInfo.InvariantCulture)).ToArray(),
+          },
+          Field("record", "Record", "RecordPicker", Text("40,000 records. Search for 3999; at most 25 matches are shown. Try an unmatched query before selecting.")) with
+          {
+            PermittedValues = Enumerable.Range(0, 40000).Select(index => index.ToString("D5", System.Globalization.CultureInfo.InvariantCulture)).ToArray(),
+          },
+          Field("readOnlyStatus", "Read-only status", "ChoiceList") with { PermittedValues = ["Draft", "Review", "Approved"], ReadOnly = true },
+          Field("restricted", "Restricted field", "None") with { IsReadable = false },
+        ],
+      },
+    ],
+  };
+  private IReadOnlyDictionary<string, object?> domainCandidate = DomainValues;
+  private string domainSaveStatus = "Not saved.";
+
+  private void DomainChanged(IReadOnlyDictionary<string, object?> values) => domainCandidate = values;
+
+  private ValueTask<SchemaFormValidationResult?> DomainSubmit(IReadOnlyDictionary<string, object?> values)
+  {
+    var isValid = values.GetValueOrDefault("record") is string { Length: > 0 };
+    domainSaveStatus = isValid ? "Saved selected candidate." : "Choose a record before saving.";
+    StateHasChanged();
+    return ValueTask.FromResult<SchemaFormValidationResult?>(isValid
+      ? SchemaFormValidationResult.Valid
+      : new(false, [new("/record", "Choose a record before saving.")]));
+  }
+
   private static readonly SchemaFormView ControlsView = new()
   {
     FormId = "arrival-request",
@@ -111,6 +185,7 @@
         Title = Text("Routing"),
         Fields =
         [
+          Field("services", "Services", "multiselect") with { Options = [new("pilotage", Text("Pilotage")), new("towage", Text("Towage"))] },
           Field("berthCode", "Berth code", "bespoke", Text("Resolved by the caller registry.")),
           Field("arrivalWindow", "Arrival window", "future-string", Text("An unknown string hint falls back to text.")),
           Field("cargoShape", "Cargo shape", "future-object", Text("Structured values fail closed.")) with { ValueKind = "object" },
@@ -179,6 +254,79 @@
         [
           Field("name", "Requester name", help: Text("Use the name shown on the manifest.")),
           Field("email", "Contact email", "email"),
+        ],
+      },
+    ],
+  };
+
+  private static readonly SchemaFormView ReadOnlyInspectionView = new()
+  {
+    FormId = "harbor-inspection-application",
+    Version = "1.0.0",
+    Title = Text("Harbor inspection application"),
+    Description = Text("Completed application and inspection values from every visible built-in field kind."),
+    Sections =
+    [
+      new()
+      {
+        Id = "application",
+        Title = Text("Application"),
+        Fields =
+        [
+          Field("vesselName", "Vessel name", "text"),
+          Field("inspectionScope", "Inspection scope", "textarea"),
+          Field("grossTonnage", "Gross tonnage", "number"),
+          Field("crewCount", "Crew count", "integer"),
+          Field("inspectionType", "Inspection type", "select") with
+          {
+            Options = [new("annual", Text("Annual safety inspection")), new("arrival", Text("Arrival inspection"))],
+          },
+          Field("systemsReviewed", "Systems reviewed", "multiselect") with
+          {
+            Options =
+            [
+              new("navigation", Text("Navigation")),
+              new("fire", Text("Fire suppression")),
+              new("lifesaving", Text("Lifesaving equipment")),
+            ],
+          },
+        ],
+      },
+      new()
+      {
+        Id = "declarations",
+        Title = Text("Declarations and schedule"),
+        Fields =
+        [
+          Field("documentsVerified", "Documents verified", "checkbox"),
+          Field("masterAttested", "Master attested", "boolean"),
+          Field("followUpRequired", "Follow-up required", "boolean-toggle"),
+          Field("inspectionDate", "Inspection date", "date"),
+          Field("inspectionStarted", "Inspection started", "datetime"),
+          Field("highTide", "High tide", "time"),
+        ],
+      },
+      new()
+      {
+        Id = "commercial-contact",
+        Title = Text("Commercial and contact details"),
+        Fields =
+        [
+          Field("estimatedCost", "Estimated inspection cost", "currency") with
+          {
+            Config = new Dictionary<string, object?> { ["currencyCode"] = "USD", ["decimals"] = 2 },
+          },
+          Field("completion", "Inspection completion", "percentage") with
+          {
+            Config = new Dictionary<string, object?> { ["decimals"] = 1 },
+          },
+          Field("agentPhone", "Agent phone", "phone"),
+          Field("agentEmail", "Agent email", "email"),
+          Field("certificateUrl", "Certificate URL", "url"),
+          Field("applicationStatus", "Application status", "readonly"),
+          Field("inspectorCredential", "Inspector credential", "text") with { IsSensitive = true },
+          Field("internalFinding", "Internal finding", "text") with { IsReadable = false },
+          Field("evidenceBundle", "Evidence bundle", "future-object") with { ValueKind = "object" },
         ],
       },
     ],
@@ -302,6 +450,30 @@
     ["name"] = "",
     ["email"] = "ops@example.test",
   };
+  private static readonly IReadOnlyDictionary<string, object?> ReadOnlyValues = new Dictionary<string, object?>
+  {
+    ["vesselName"] = "MV North Star",
+    ["inspectionScope"] = "Annual hull, machinery, navigation, and lifesaving equipment inspection.",
+    ["grossTonnage"] = 18425.5d,
+    ["crewCount"] = 24,
+    ["inspectionType"] = "annual",
+    ["systemsReviewed"] = new[] { "navigation", "fire", "lifesaving" },
+    ["documentsVerified"] = true,
+    ["masterAttested"] = true,
+    ["followUpRequired"] = false,
+    ["inspectionDate"] = "2026-09-16",
+    ["inspectionStarted"] = "2026-09-16T09:30:00-04:00",
+    ["highTide"] = "14:45",
+    ["estimatedCost"] = 48750.5d,
+    ["completion"] = 92.5d,
+    ["agentPhone"] = "+1 410 555 0142",
+    ["agentEmail"] = "port.agent@example.test",
+    ["certificateUrl"] = "https://records.example.test/inspections/HLI-2048",
+    ["applicationStatus"] = "Approved for certificate issuance",
+    ["inspectorCredential"] = "credential-should-not-render",
+    ["internalFinding"] = "internal-finding-should-not-render",
+    ["evidenceBundle"] = new Dictionary<string, object?> { ["photos"] = 12, ["report"] = "HLI-2048.pdf" },
+  };
 
   private static readonly IReadOnlyDictionary<string, object?> EmptyValues = new Dictionary<string, object?>();
 
@@ -357,7 +529,9 @@
   private static readonly IReadOnlyDictionary<string, (string Title, string Description)> CopyByScenario =
     new Dictionary<string, (string, string)>
     {
+      ["schema-form.domain-editors"] = ("Domain-driven editors", DomainCopy),
       ["schema-form.controls-structure"] = ("Ordered controls and collections", "Registry resolution, fallback, nested updates, and bounded rows share one caller-defined order."),
+      ["schema-form.host-readonly"] = ("Read-only harbor inspection", "A completed application exercises every visible built-in field kind without exposing editing or submission."),
       ["schema-form.rules-gate"] = ("Rule outcomes and save gate", "Visibility, required, read-only, computed, and presentation outcomes project before save."),
       ["schema-form.validation"] = ("Inline and summary validation", "Save to inspect inline association, summary partitioning, and summary focus."),
       ["schema-form.locale-theme"] = ("Caller locales and dark theme", "Pseudo-expanded and Arabic copy exercise locale formatting, logical direction, and shared theme tokens."),

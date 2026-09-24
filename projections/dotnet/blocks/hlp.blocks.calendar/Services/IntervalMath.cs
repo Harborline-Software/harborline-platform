@@ -96,4 +96,36 @@ internal static class IntervalMath
         }
         return result;
     }
+
+    /// <summary>
+    /// The merged spans where at least <paramref name="depth"/> of <paramref name="intervals"/> overlap
+    /// (T-626 pool capacity). With <paramref name="depth"/> = 1 this is <see cref="Merge"/>: the
+    /// exclusive kind is a pool of one in the algebra, and only there.
+    /// </summary>
+    public static List<TimeInterval> WhereDepthAtLeast(IEnumerable<TimeInterval> intervals, int depth)
+        => Merge(Sweep(intervals).Where(s => s.Depth >= depth).Select(s => s.Segment));
+
+    /// <summary>The deepest overlap among <paramref name="intervals"/> inside <paramref name="within"/>; 0 when none touches it.</summary>
+    public static int MaxDepth(IEnumerable<TimeInterval> intervals, TimeInterval within)
+        => Sweep(intervals.Select(iv => Clip(iv, within.StartUtc, within.EndUtc)).Where(c => c.HasValue).Select(c => c!.Value))
+            .Select(s => s.Depth).DefaultIfEmpty(0).Max();
+
+    /// <summary>Plane sweep: every positive-length segment between consecutive endpoints, with how many intervals cover it.</summary>
+    private static IEnumerable<(TimeInterval Segment, int Depth)> Sweep(IEnumerable<TimeInterval> intervals)
+    {
+        var edges = new List<(DateTimeOffset At, int Delta)>();
+        foreach (var iv in intervals)
+        {
+            edges.Add((iv.StartUtc, +1));
+            edges.Add((iv.EndUtc, -1));
+        }
+        edges.Sort(static (a, b) => a.At.CompareTo(b.At));
+        var depth = 0;
+        for (var i = 0; i < edges.Count; i++)
+        {
+            depth += edges[i].Delta;
+            if (i + 1 < edges.Count && depth > 0 && edges[i + 1].At > edges[i].At)
+                yield return (new TimeInterval(edges[i].At, edges[i + 1].At), depth);
+        }
+    }
 }
