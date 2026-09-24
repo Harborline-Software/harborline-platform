@@ -238,8 +238,10 @@ public sealed class LayoutBindingResolutionTests
         var missingTrace = new RecordingTrace();
         var deniedTrace = new RecordingTrace();
 
-        var missing = Resolve(definition, new RelatedOutcomeSources(LayoutRelatedResult.Absent), missingTrace, "request-7");
-        var denied = Resolve(definition, new RelatedOutcomeSources(LayoutRelatedResult.Denied("access.denied", "/grants/owner")), deniedTrace, "request-7");
+        var request = new LayoutResolutionRequest("request-7", "principal.clerk-4");
+        var owner = new LayoutRecordReference("record-type.party", "party-19");
+        var missing = Resolve(definition, new RelatedOutcomeSources(LayoutRelatedResult.Absent), missingTrace, request);
+        var denied = Resolve(definition, new RelatedOutcomeSources(LayoutRelatedResult.Denied("access.denied", "/grants/owner", owner)), deniedTrace, request);
 
         // What the viewer receives cannot tell the two apart: no refusal, no marker, same blocks.
         Assert.Equal(Describe(missing), Describe(denied));
@@ -248,16 +250,28 @@ public sealed class LayoutBindingResolutionTests
 
         Assert.Empty(missingTrace.Denials);
         Assert.Equal(
-            new LayoutRelatedDenial("request-7", "owner-card", LayoutBindingKinds.Static, "invoice.owner", "access.denied", "/grants/owner"),
+            new LayoutRelatedDenial("request-7", "principal.clerk-4", "owner-card", LayoutBindingKinds.Static, "invoice.owner", owner, "access.denied", "/grants/owner"),
             Assert.Single(deniedTrace.Denials));
     }
 
-    [Theory(DisplayName = "layout-run-5: resolution refuses to run without a request to key denial evidence by")]
-    [InlineData("")]
-    [InlineData(" ")]
-    public void ResolutionRefusesToRunWithoutARequestIdentity(string requestId)
+    [Theory(DisplayName = "layout-run-5: resolution refuses to run without the request and principal that key denial evidence")]
+    [InlineData("", "principal.clerk-4")]
+    [InlineData(" ", "principal.clerk-4")]
+    [InlineData("request-7", "")]
+    public void ResolutionRefusesToRunWithoutARequestIdentity(string requestId, string principalId)
     {
-        Assert.Throws<ArgumentException>(() => Resolve(Invoice(), Sources(), new RecordingTrace(), requestId));
+        Assert.Throws<ArgumentException>(() => Resolve(Invoice(), Sources(), new RecordingTrace(), new LayoutResolutionRequest(requestId, principalId)));
+    }
+
+    [Fact(DisplayName = "layout-run-5: a source that reports a denial without its evidence faults rather than losing it")]
+    public void ADenialWithoutEvidenceFaults()
+    {
+        var definition = Definition(LayoutMedium.Screen, LayoutIntent.Observe,
+            new LayoutBlock("owner-card", "layout.list", new LayoutStaticBinding(Json("\"Owner\"")), [], RelatedRelationship: "invoice.owner"));
+
+        Assert.Throws<InvalidOperationException>(() => Resolve(definition,
+            new RelatedOutcomeSources(new LayoutRelatedResult(LayoutRelatedOutcome.Denied)), new RecordingTrace(),
+            new LayoutResolutionRequest("request-7", "principal.clerk-4")));
     }
 
     private static string Describe(LayoutBindingResolution resolution) => JsonSerializer.Serialize(new
@@ -267,9 +281,9 @@ public sealed class LayoutBindingResolutionTests
         resolution.Hidden,
     });
 
-    private static LayoutBindingResolution Resolve(LayoutDefinition definition, ILayoutBindingSources sources, ILayoutDecisionTrace trace, string requestId)
+    private static LayoutBindingResolution Resolve(LayoutDefinition definition, ILayoutBindingSources sources, ILayoutDecisionTrace trace, LayoutResolutionRequest request)
         => new LayoutBindingResolver(new Harborline.Foundation.RuleEngine.GuardEvaluator(TimeProvider.System))
-            .Resolve(definition, sources, LayoutBindingScope.Root(new Dictionary<string, JsonNode?>(StringComparer.Ordinal)), trace, requestId);
+            .Resolve(definition, sources, LayoutBindingScope.Root(new Dictionary<string, JsonNode?>(StringComparer.Ordinal)), trace, request);
 
     private sealed class RecordingTrace : ILayoutDecisionTrace
     {
@@ -295,7 +309,7 @@ public sealed class LayoutBindingResolutionTests
         {
             ["supplier"] = JsonValue.Create("Northwind"),
             ["status"] = JsonValue.Create("open"),
-        }), new RecordingTrace(), "request-1");
+        }), new RecordingTrace(), new LayoutResolutionRequest("request-1", "principal.clerk-4"));
 
     private static LayoutResolvedBlock Block(LayoutBindingResolution resolution, string id)
         => resolution.Blocks.First(block => block.BlockId == id);

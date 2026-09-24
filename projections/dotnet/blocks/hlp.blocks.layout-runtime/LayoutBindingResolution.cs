@@ -86,7 +86,10 @@ public interface ILayoutBindingSources
     /// <summary>
     /// Traverses one declared Records relationship to the second record's scope, under the acting
     /// principal. Missing and denied are distinct here so the denial can reach the protected trace;
-    /// the resolver makes them identical to the viewer (layout-eng-31).
+    /// the resolver makes them identical to the viewer (layout-eng-31). The implementation must keep
+    /// them observationally indistinguishable to an unauthorized caller, including response shape,
+    /// status or error classification where applicable, and externally observable timing; report a
+    /// denial only through <see cref="LayoutRelatedResult.Denied"/>.
     /// </summary>
     LayoutRelatedResult ResolveRelated(LayoutBindingScope scope, string relationship);
 }
@@ -109,11 +112,13 @@ public enum LayoutRelatedOutcome
 /// <param name="Scope">The related record's scope when <see cref="LayoutRelatedOutcome.Resolved"/>.</param>
 /// <param name="DenialCode">The access decision's stable code when <see cref="LayoutRelatedOutcome.Denied"/>.</param>
 /// <param name="DenialPointer">The access decision's pointer when <see cref="LayoutRelatedOutcome.Denied"/>.</param>
+/// <param name="DeniedTarget">The record the principal was denied, when <see cref="LayoutRelatedOutcome.Denied"/>.</param>
 public readonly record struct LayoutRelatedResult(
     LayoutRelatedOutcome Outcome,
     LayoutBindingScope Scope = default,
     string? DenialCode = null,
-    string? DenialPointer = null)
+    string? DenialPointer = null,
+    LayoutRecordReference? DeniedTarget = null)
 {
     /// <summary>A declared relationship with no target.</summary>
     public static LayoutRelatedResult Absent => new(LayoutRelatedOutcome.Absent);
@@ -125,27 +130,40 @@ public readonly record struct LayoutRelatedResult(
     public static LayoutRelatedResult Resolved(LayoutBindingScope scope) => new(LayoutRelatedOutcome.Resolved, scope);
 
     /// <summary>A target the acting principal may not observe.</summary>
-    public static LayoutRelatedResult Denied(string code, string pointer)
+    public static LayoutRelatedResult Denied(string code, string pointer, LayoutRecordReference target)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(code);
         ArgumentException.ThrowIfNullOrWhiteSpace(pointer);
-        return new(LayoutRelatedOutcome.Denied, default, code, pointer);
+        ArgumentNullException.ThrowIfNull(target);
+        return new(LayoutRelatedOutcome.Denied, default, code, pointer, target);
     }
 }
 
 /// <summary>
 /// DES-0052 layout-run-5 — one related-binding denial, keyed by authored block and relationship
-/// plus the request, for a reader authorized for both. Never part of the viewer's resolution.
+/// plus the request. It names the acting principal and the denied record so the host can
+/// authorize a reader against both the trace and that record. Never part of the viewer's resolution.
 /// </summary>
 public sealed record LayoutRelatedDenial(
     string RequestId,
+    string PrincipalId,
     string BlockId,
     string BindingKind,
     string RelationshipKey,
+    LayoutRecordReference Target,
     string Code,
     string Pointer);
 
-/// <summary>The host's protected decision trace; Layout only writes to it.</summary>
+/// <summary>A typed reference to one record: its Records type and its identity.</summary>
+public sealed record LayoutRecordReference(string RecordTypeId, string RecordId);
+
+/// <summary>The request a resolution runs for: its identity and the acting principal.</summary>
+public sealed record LayoutResolutionRequest(string RequestId, string PrincipalId);
+
+/// <summary>
+/// The host's protected decision trace. Layout only writes to it: the host owns the store and every
+/// reader (owner ruling 2026-09-24, R-0115).
+/// </summary>
 public interface ILayoutDecisionTrace
 {
     /// <summary>Records one related-binding denial.</summary>
@@ -332,23 +350,25 @@ public sealed class LayoutBindingResolver
     public LayoutBindingResolver(GuardEvaluator guards) => _guards = guards ?? throw new ArgumentNullException(nameof(guards));
 
     /// <summary>
-    /// Resolves one admitted definition against one root scope, writing each related-binding
-    /// denial to <paramref name="trace"/> under <paramref name="requestId"/> (layout-run-5).
+    /// Resolves one admitted definition against one root scope for <paramref name="request"/>,
+    /// writing each related-binding denial to <paramref name="trace"/> (layout-run-5).
     /// </summary>
     public LayoutBindingResolution Resolve(
         LayoutDefinition definition,
         ILayoutBindingSources sources,
         LayoutBindingScope root,
         ILayoutDecisionTrace trace,
-        string requestId,
+        LayoutResolutionRequest request,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(definition);
         ArgumentNullException.ThrowIfNull(sources);
         // Denial evidence is mandatory (layout-run-5): no trace or request, no resolution.
         ArgumentNullException.ThrowIfNull(trace);
-        ArgumentException.ThrowIfNullOrWhiteSpace(requestId);
-        var denials = new DenialSink(trace, requestId);
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentException.ThrowIfNullOrWhiteSpace(request.RequestId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(request.PrincipalId);
+        var denials = new DenialSink(trace, request);
 
         var blocks = new List<LayoutResolvedBlock>();
         var refusals = new List<LayoutBindingRefusal>();
@@ -532,11 +552,20 @@ public sealed class LayoutBindingResolver
         }
     }
 
-    private readonly record struct DenialSink(ILayoutDecisionTrace Trace, string RequestId)
+    private readonly record struct DenialSink(ILayoutDecisionTrace Trace, LayoutResolutionRequest Request)
     {
         public void Record(LayoutBlock block, string relationship, LayoutRelatedResult related)
-            => Trace.RecordDenial(new(RequestId, block.Id, LayoutBindingKinds.Of(block.Binding), relationship,
-                related.DenialCode ?? string.Empty, related.DenialPointer ?? string.Empty));
+        {
+            // A source that reports a denial without its evidence is a host defect; losing the
+            // evidence silently is what layout-run-5 forbids, so it faults instead.
+            if (related.DeniedTarget is not { } target
+                || string.IsNullOrWhiteSpace(related.DenialCode)
+                || string.IsNullOrWhiteSpace(related.DenialPointer))
+                throw new InvalidOperationException(
+                    $"The binding source denied '{relationship}' on block '{block.Id}' without a target, code and pointer; use LayoutRelatedResult.Denied.");
+            Trace.RecordDenial(new(Request.RequestId, Request.PrincipalId, block.Id, LayoutBindingKinds.Of(block.Binding),
+                relationship, target, related.DenialCode, related.DenialPointer));
+        }
     }
 
     private static string RowIdOf(JsonNode? row, int index)
