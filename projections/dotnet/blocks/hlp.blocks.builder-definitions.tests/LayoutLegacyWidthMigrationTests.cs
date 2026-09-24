@@ -18,7 +18,7 @@ public sealed class LayoutLegacyWidthMigrationTests
 
     private static readonly SectionLayout Stack = new() { Kind = SectionLayoutKind.Stack };
 
-    [Fact(DisplayName = "grid: the form-view.layout fixture (3 columns, colSpan 2, width 2/3) keeps span 2 in a 3-column container")]
+    [Fact(DisplayName = "layout-ck-41, grid: the form-view.layout fixture (3 columns, colSpan 2, width 2/3) keeps span 2 in a 3-column container")]
     public void A_grid_keeps_its_column_count_and_its_span()
     {
         var section = Grid(3m);
@@ -28,19 +28,19 @@ public sealed class LayoutLegacyWidthMigrationTests
             LayoutLegacyWidthMigration.Migrate(section, new FieldPlacement { ColSpan = 2m, Width = FieldWidth.TwoThirds }));
     }
 
-    [Fact]
+    [Fact(DisplayName = "layout-ck-41: a grid with no legacy columns keeps the legacy default of two")]
     public void A_grid_with_no_legacy_columns_keeps_the_legacy_default_of_two()
     {
         Assert.Equal(2, LayoutLegacyWidthMigration.ColumnCount(Grid()));
     }
 
-    [Fact]
+    [Fact(DisplayName = "layout-ck-41: a grid field with no col span carries no span")]
     public void A_grid_field_with_no_col_span_carries_no_span()
     {
         Assert.Equal(new LayoutPlacement(), LayoutLegacyWidthMigration.Migrate(Grid(4m), new FieldPlacement { Grow = 3m }));
     }
 
-    [Theory]
+    [Theory(DisplayName = "layout-ck-41: a grid column count outside one to twelve refuses")]
     [InlineData(0)]
     [InlineData(13)]
     [InlineData(2.5)]
@@ -51,7 +51,7 @@ public sealed class LayoutLegacyWidthMigrationTests
         Assert.Equal([new LayoutDefinitionRefusal(LayoutDefinitionCodes.NumericOutOfRange, "/columns")], refused.Refusals);
     }
 
-    [Theory]
+    [Theory(DisplayName = "layout-ck-41: a grid col span outside one to its column count refuses")]
     [InlineData(4)]
     [InlineData(0)]
     [InlineData(1.5)]
@@ -63,7 +63,7 @@ public sealed class LayoutLegacyWidthMigrationTests
         Assert.Equal([new LayoutDefinitionRefusal(LayoutDefinitionCodes.NumericOutOfRange, "/col_span")], refused.Refusals);
     }
 
-    [Theory]
+    [Theory(DisplayName = "layout-ck-41: a flex fractional width becomes its twelve track span")]
     [InlineData(FieldWidth.OneQuarter, 3)]
     [InlineData(FieldWidth.OneThird, 4)]
     [InlineData(FieldWidth.OneHalf, 6)]
@@ -75,21 +75,21 @@ public sealed class LayoutLegacyWidthMigrationTests
         Assert.Equal(new LayoutPlacement(Span: span), LayoutLegacyWidthMigration.Migrate(Flex, new FieldPlacement { Width = width }));
     }
 
-    [Fact]
+    [Fact(DisplayName = "layout-ck-41: flex auto becomes hug and full becomes fill with no span")]
     public void Flex_auto_becomes_hug_and_full_becomes_fill_with_no_span()
     {
         Assert.Equal(new LayoutPlacement(Width: LayoutSizing.Hug), LayoutLegacyWidthMigration.Migrate(Flex, new FieldPlacement { Width = FieldWidth.Auto }));
         Assert.Equal(new LayoutPlacement(Width: LayoutSizing.Fill), LayoutLegacyWidthMigration.Migrate(Flex, new FieldPlacement { Width = FieldWidth.Full }));
     }
 
-    [Fact]
+    [Fact(DisplayName = "layout-ck-41: flex carries grow and ignores a col span")]
     public void Flex_carries_grow_and_ignores_a_col_span()
     {
         Assert.Equal(new LayoutPlacement(Span: 6, Grow: 2),
             LayoutLegacyWidthMigration.Migrate(Flex, new FieldPlacement { Width = FieldWidth.OneHalf, Grow = 2m, ColSpan = 4m }));
     }
 
-    [Theory]
+    [Theory(DisplayName = "layout-ck-41: a flex grow outside its range refuses")]
     [InlineData(-1)]
     [InlineData(13)]
     [InlineData(0.5)]
@@ -101,7 +101,7 @@ public sealed class LayoutLegacyWidthMigrationTests
         Assert.Equal([new LayoutDefinitionRefusal(LayoutDefinitionCodes.NumericOutOfRange, "/grow")], refused.Refusals);
     }
 
-    [Fact]
+    [Fact(DisplayName = "layout-ck-41: a stack ignores span width and grow")]
     public void A_stack_ignores_span_width_and_grow()
     {
         Assert.Equal(1, LayoutLegacyWidthMigration.ColumnCount(Stack));
@@ -121,7 +121,7 @@ public sealed class LayoutLegacyWidthMigrationTests
         Assert.Equal(new LayoutPlacement(Width: sizing, Span: span, JustifySelf: justify), placement);
     }
 
-    [Theory]
+    [Theory(DisplayName = "layout-eng-9 successor: an unknown Forms table column token refuses")]
     [InlineData("2/5", null, "/width")]
     [InlineData(null, "baseline", "/align")]
     public void An_unknown_column_token_refuses(string? width, string? align, string pointer)

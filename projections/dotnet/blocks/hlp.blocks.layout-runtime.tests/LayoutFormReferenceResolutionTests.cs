@@ -13,7 +13,7 @@ public sealed class LayoutFormReferenceResolutionTests
     private const string Tenant = "tenant-a";
     private static readonly DefinitionKey Form = new(Tenant, DefinitionKind.Forms, "form.customer");
 
-    [Fact]
+    [Fact(DisplayName = "layout-ck-37: a pinned reference resolves its own version while a newer one is published")]
     public async Task A_pinned_reference_resolves_its_own_version_while_a_newer_one_is_published()
     {
         var store = await StoreWithTwoPublishedVersions();
@@ -25,7 +25,7 @@ public sealed class LayoutFormReferenceResolutionTests
         Assert.Equal("form.customer@3.0.0", (await store.GetPublishedHeadAsync(Form))?.Document.VersionId);
     }
 
-    [Theory]
+    [Theory(DisplayName = "layout-ck-37: a pin with no published version resolves nothing rather than the head")]
     [InlineData("form.customer@2.2.0")]
     [InlineData("form.customer@3.1.0-draft")]
     public async Task A_pin_with_no_published_version_resolves_nothing_rather_than_the_head(string versionId)

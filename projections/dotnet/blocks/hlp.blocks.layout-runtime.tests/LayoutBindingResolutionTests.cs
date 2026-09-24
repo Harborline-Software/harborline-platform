@@ -16,7 +16,7 @@ namespace Harborline.Blocks.LayoutRuntime.Tests;
 /// </summary>
 public sealed class LayoutBindingResolutionTests
 {
-    [Fact]
+    [Fact(DisplayName = "layout-eng-28, layout-eng-29: a mixed-binding invoice places a field, a query, a measure and repeated rows")]
     public void MixedBindingInvoicePlacesFieldQueryMeasureAndRepeatedRows()
     {
         var resolution = Resolve(Invoice(), Sources());
@@ -54,7 +54,7 @@ public sealed class LayoutBindingResolutionTests
         Assert.Equal("Registered office: Leeds", Block(resolution, "notice").Value?.ToString());
     }
 
-    [Fact(DisplayName = "layout-eng-9 successor of the Documents walker (DocumentRenderWalker.cs:113-117): each row resolves in a fresh scope and cross-row lookup refuses")]
+    [Fact(DisplayName = "layout-eng-17, layout-run-2, layout-eng-9 successor of the Documents walker (DocumentRenderWalker.cs:113-117): each row resolves in a fresh scope and cross-row lookup refuses")]
     public void TwoRowsResolveInIsolatedScopesAndCrossRowLookupRefuses()
     {
         var resolution = Resolve(Invoice(), Sources());
@@ -77,7 +77,7 @@ public sealed class LayoutBindingResolutionTests
         Assert.Empty(crossRow.Blocks);
     }
 
-    [Fact]
+    [Fact(DisplayName = "layout-eng-14, layout-run-4: a missing binding yields one refusal naming the block and kind, and its counterpart resolves exactly once")]
     public void AMissingBindingYieldsOneRefusalNamingTheBlockAndKindWhileItsCounterpartResolvesExactlyOnce()
     {
         var resolution = Resolve(
@@ -97,7 +97,7 @@ public sealed class LayoutBindingResolutionTests
         Assert.Equal("good-total", Assert.Single(resolution.Blocks).BlockId);
     }
 
-    [Fact]
+    [Fact(DisplayName = "layout-eng-14, layout-run-4: every binding kind refuses by its own name when the source cannot resolve it")]
     public void EveryBindingKindRefusesByItsOwnNameWhenTheSourceCannotResolveIt()
     {
         var resolution = Resolve(
@@ -115,7 +115,7 @@ public sealed class LayoutBindingResolutionTests
         Assert.Equal(["absent.field", "views.absent", "measure.absent", "tpl.absent"], resolution.Refusals.Select(refusal => refusal.Name));
     }
 
-    [Fact]
+    [Fact(DisplayName = "layout-eng-14, layout-run-4: an unresolvable collection refuses once rather than per row")]
     public void AnUnresolvableCollectionRefusesOnceRatherThanPerRow()
     {
         var repeating = new LayoutBlock("absent-lines", "layout.table", new LayoutQueryBinding("views.absent"), [
@@ -165,7 +165,7 @@ public sealed class LayoutBindingResolutionTests
         [Block("cell", new LayoutRecordFieldBinding("description"))],
         Container: new(LayoutContainerKind.Stack), Repeating: true, CollectionBounds: bounds);
 
-    [Fact(DisplayName = "layout-eng-9 successor of the Documents walker (DocumentBlock.cs:42): a per-block guard fails closed per row")]
+    [Fact(DisplayName = "layout-eng-16, layout-eng-9 successor of the Documents walker (DocumentBlock.cs:42): a per-block guard fails closed per row")]
     public void APerRowGuardWithholdsOnlyTheRowItFailsFor()
     {
         var repeating = new LayoutBlock("lines", "layout.table", new LayoutQueryBinding("views.invoice-lines"), [
@@ -180,7 +180,7 @@ public sealed class LayoutBindingResolutionTests
         Assert.Empty(resolution.Refusals);
     }
 
-    [Fact]
+    [Fact(DisplayName = "layout-eng-16: a guard fails closed on an unknown reference and on a malformed expression")]
     public void AGuardFailsClosedOnAnUnknownReferenceAndOnAMalformedExpression()
     {
         foreach (var expression in new[]
@@ -200,7 +200,7 @@ public sealed class LayoutBindingResolutionTests
         }
     }
 
-    [Fact]
+    [Fact(DisplayName = "layout-eng-16: a guard that holds places the block through the shared evaluator")]
     public void AGuardThatHoldsPlacesTheBlockThroughTheSharedEvaluator()
     {
         var resolution = Resolve(
@@ -212,7 +212,7 @@ public sealed class LayoutBindingResolutionTests
         Assert.Equal("Northwind", Assert.Single(resolution.Blocks).Value?.ToString());
     }
 
-    [Fact]
+    [Fact(DisplayName = "layout-auth-19 (runtime): a related block observes the second record and an undeclared relationship refuses")]
     public void ARelatedBlockObservesTheSecondRecordAndRefusesAnUndeclaredRelationship()
     {
         var related = new LayoutBlock("supplier-card", "layout.list", new LayoutStaticBinding(Json("\"Supplier\"")), [
