@@ -252,6 +252,14 @@ public sealed class LayoutBindingResolutionTests
             Assert.Single(deniedTrace.Denials));
     }
 
+    [Theory(DisplayName = "layout-run-5: resolution refuses to run without a request to key denial evidence by")]
+    [InlineData("")]
+    [InlineData(" ")]
+    public void ResolutionRefusesToRunWithoutARequestIdentity(string requestId)
+    {
+        Assert.Throws<ArgumentException>(() => Resolve(Invoice(), Sources(), new RecordingTrace(), requestId));
+    }
+
     private static string Describe(LayoutBindingResolution resolution) => JsonSerializer.Serialize(new
     {
         blocks = resolution.Blocks.Select(block => new { block.BlockId, block.BindingKind, block.Name, Value = block.Value?.ToJsonString(), block.RowId }),
@@ -287,7 +295,7 @@ public sealed class LayoutBindingResolutionTests
         {
             ["supplier"] = JsonValue.Create("Northwind"),
             ["status"] = JsonValue.Create("open"),
-        }));
+        }), new RecordingTrace(), "request-1");
 
     private static LayoutResolvedBlock Block(LayoutBindingResolution resolution, string id)
         => resolution.Blocks.First(block => block.BlockId == id);

@@ -125,7 +125,12 @@ public readonly record struct LayoutRelatedResult(
     public static LayoutRelatedResult Resolved(LayoutBindingScope scope) => new(LayoutRelatedOutcome.Resolved, scope);
 
     /// <summary>A target the acting principal may not observe.</summary>
-    public static LayoutRelatedResult Denied(string code, string pointer) => new(LayoutRelatedOutcome.Denied, default, code, pointer);
+    public static LayoutRelatedResult Denied(string code, string pointer)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(code);
+        ArgumentException.ThrowIfNullOrWhiteSpace(pointer);
+        return new(LayoutRelatedOutcome.Denied, default, code, pointer);
+    }
 }
 
 /// <summary>
@@ -326,14 +331,6 @@ public sealed class LayoutBindingResolver
     /// <param name="guards">The evaluator bound to the caller's business clock.</param>
     public LayoutBindingResolver(GuardEvaluator guards) => _guards = guards ?? throw new ArgumentNullException(nameof(guards));
 
-    /// <summary>Resolves one admitted definition against one root scope, with no decision trace.</summary>
-    public LayoutBindingResolution Resolve(
-        LayoutDefinition definition,
-        ILayoutBindingSources sources,
-        LayoutBindingScope root,
-        CancellationToken cancellationToken = default)
-        => Resolve(definition, sources, root, trace: null, requestId: null, cancellationToken);
-
     /// <summary>
     /// Resolves one admitted definition against one root scope, writing each related-binding
     /// denial to <paramref name="trace"/> under <paramref name="requestId"/> (layout-run-5).
@@ -342,13 +339,16 @@ public sealed class LayoutBindingResolver
         LayoutDefinition definition,
         ILayoutBindingSources sources,
         LayoutBindingScope root,
-        ILayoutDecisionTrace? trace,
-        string? requestId,
+        ILayoutDecisionTrace trace,
+        string requestId,
         CancellationToken cancellationToken = default)
     {
-        var denials = new DenialSink(trace, requestId ?? string.Empty);
         ArgumentNullException.ThrowIfNull(definition);
         ArgumentNullException.ThrowIfNull(sources);
+        // Denial evidence is mandatory (layout-run-5): no trace or request, no resolution.
+        ArgumentNullException.ThrowIfNull(trace);
+        ArgumentException.ThrowIfNullOrWhiteSpace(requestId);
+        var denials = new DenialSink(trace, requestId);
 
         var blocks = new List<LayoutResolvedBlock>();
         var refusals = new List<LayoutBindingRefusal>();
@@ -391,8 +391,7 @@ public sealed class LayoutBindingResolver
                 case LayoutRelatedOutcome.Denied:
                     // layout-eng-31: the viewer sees exactly what an absent target shows — nothing,
                     // with no refusal, marker or correlation id. Only the protected trace learns why.
-                    denials.Trace?.RecordDenial(new(denials.RequestId, block.Id, LayoutBindingKinds.Of(block.Binding),
-                        relationship, related.DenialCode ?? string.Empty, related.DenialPointer ?? string.Empty));
+                    denials.Record(block, relationship, related);
                     return;
                 case LayoutRelatedOutcome.Absent:
                     return;
@@ -533,7 +532,12 @@ public sealed class LayoutBindingResolver
         }
     }
 
-    private readonly record struct DenialSink(ILayoutDecisionTrace? Trace, string RequestId);
+    private readonly record struct DenialSink(ILayoutDecisionTrace Trace, string RequestId)
+    {
+        public void Record(LayoutBlock block, string relationship, LayoutRelatedResult related)
+            => Trace.RecordDenial(new(RequestId, block.Id, LayoutBindingKinds.Of(block.Binding), relationship,
+                related.DenialCode ?? string.Empty, related.DenialPointer ?? string.Empty));
+    }
 
     private static string RowIdOf(JsonNode? row, int index)
         => row is JsonObject obj && obj.TryGetPropertyValue("id", out var id) && id is not null
