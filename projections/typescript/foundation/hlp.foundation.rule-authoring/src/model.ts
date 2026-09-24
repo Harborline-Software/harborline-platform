@@ -11,7 +11,7 @@
  * intent legibly and hands it to the compiler, which is the single source of truth for rejection.
  */
 
-import type { HitPolicy, RuleActionKind, RuleScope } from '@harborline-software/rule-engine'
+import { builtInFunctions, type BuiltInKey, type HitPolicy, type RuleActionKind, type RuleScope } from '@harborline-software/rule-engine'
 
 /** The three authoring skins, one per type badge (design §0). `condition` reuses the form builder's
  * `RuleBuilder` and is documented (design §4) but not authored here yet — table + formula are the
@@ -101,13 +101,11 @@ export type ArithOp = '+' | '-' | '*' | '/'
  * The rest of the engine's closed formula vocabulary. `ref` owns the structured `var`
  * form, so an editor cannot smuggle an undeclared variable path through a raw call.
  */
-export const formulaCallOps = [
-  'missing', 'missing_some',
-  '==', '!=', '===', '!==', '!', '!!', 'and', 'or', 'if',
-  '>', '>=', '<', '<=', '+', '-', '*', '/', '%', 'min', 'max', 'in', 'cat',
-  'agg', 'money.add', 'money.sub', 'money.mul', 'date.add', 'date.diff', 'date.today', 'coding.is',
-] as const
-export type FormulaCallOp = (typeof formulaCallOps)[number]
+export type FormulaCallOp = Exclude<BuiltInKey, 'var'>
+/** Generated from the R1 built-in register (rules-eng-27) in register order, never a hand list. */
+export const formulaCallOps: readonly FormulaCallOp[] = builtInFunctions
+  .filter((f) => f.authorable)
+  .map((f) => f.key as FormulaCallOp)
 
 /** One guided expression term — the constrained composition the formula editor exposes (design §3.1:
  * "guided composition, not a code box"). v1 supports a conditional shape and a binary-arithmetic

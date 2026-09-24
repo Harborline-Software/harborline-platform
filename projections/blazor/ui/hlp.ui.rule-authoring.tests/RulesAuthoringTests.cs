@@ -224,6 +224,51 @@ public sealed class RulesAuthoringTests : BunitContext
         }
     }
 
+    [Fact(DisplayName = "rules-auth-20, rules-auth-3: the Blazor lane authors every fixture reference form from the palette generated from the register and Records fields")]
+    public void Generated_palette_carries_every_reference_form_through_the_Blazor_editor()
+    {
+        var records = new RecordFieldSet(
+            [new("total", "total", ColumnValueType.Number), new("x", "x", ColumnValueType.Number), new("z", "z", ColumnValueType.Number), new("f", "f", ColumnValueType.Number, Section: "s")],
+            [new("lines", [new("y", "y", ColumnValueType.Number), new("amount", "amount", ColumnValueType.Number)])]);
+        using var fixture = JsonDocument.Parse(File.ReadAllText(FindFixture()));
+        foreach (var item in fixture.RootElement.GetProperty("referenceForms").GetProperty("cases").EnumerateArray())
+        {
+            var id = item.GetProperty("id").GetString()!;
+            var reference = item.GetProperty("ref").GetString()!;
+            var generated = RulesPaletteGenerator.Generate(records, Enum.Parse<RuleScope>(item.GetProperty("scope").GetString()!), item.GetProperty("scopeTarget").GetString()!);
+            RulesExpressionContract[] contracts = [new("rule", "typed value", "preview", RulesPaletteItem.From(generated))];
+            var requests = new List<RulesOperationRequest>();
+            var cut = Render<HarborlineRulesAuthoringEditor>(parameters => parameters
+                .Add(component => component.Value, RulesDraft.Empty)
+                .Add(component => component.ExpressionContracts, contracts)
+                .Add(component => component.OperationRequested, EventCallback.Factory.Create<RulesOperationRequest>(this, requests.Add)));
+            cut.Find("select[aria-label='Rule action']").Change(item.GetProperty("action").GetString()!);
+            cut.Find("select[aria-label='Rule scope']").Change(item.GetProperty("scope").GetString()!);
+            cut.Find("input[aria-label='Target']").Change(item.GetProperty("scopeTarget").GetString()!);
+            cut.FindButton("Add declared input").Click();
+            Assert.Contains(reference, cut.FindAll("select[aria-label='Input 1 reference'] option").Select(option => option.GetAttribute("value")));
+            cut.Find("select[aria-label='Input 1 reference']").Change(reference);
+            cut.Find("select[aria-label='Rule expression shape']").Change("Ref");
+            cut.Find("select[aria-label='Rule reference']").Change(reference);
+            cut.FindButton("Publish").Click();
+
+            var draft = requests[^1].Draft.Draft;
+            var admitted = RuleIntentValidator.Validate(new RuleDefinitionDocument(
+                new RuleDefinitionEnvelope(id, "1.0.0", "tenant-a", "domain-package", new JsonObject { ["kind"] = "test" }, []),
+                id, RuleDefinitionTier.JsonLogic, draft), RuleIntentPhase.Author);
+            Assert.True(admitted.IsValid, $"{id}: {string.Join(", ", admitted.Diagnostics.Select(diagnostic => diagnostic.Code))}");
+            Assert.True(JsonNode.DeepEquals(JsonNode.Parse(item.GetProperty("lowered").GetRawText()), admitted.Lowered), $"{id}: lowered {admitted.Lowered?.ToJsonString()}");
+        }
+    }
+
+    [Fact(DisplayName = "rules-auth-20, rules-eng-27: the Blazor call-operator choices are the register's authorable built-ins")]
+    public void Blazor_operator_choices_are_the_register()
+    {
+        var cut = RenderEditor(_ => { }, _ => { });
+        cut.Find("select[aria-label='Rule expression shape']").Change("Call");
+        Assert.Equal(FormulaCallOps.All, cut.FindAll("select[aria-label='Rule formula operator'] option").Select(option => option.TextContent).ToArray());
+    }
+
     [Fact]
     public void Rules_auth_5_offers_exactly_first_match_and_priority_and_round_trips_the_choice()
     {

@@ -3,7 +3,12 @@ using Harborline.Foundation.RuleAuthoring;
 
 namespace Harborline.UIAdapters.Blazor.Components.RuleAuthoring;
 
-public sealed record RulesPaletteItem(string Id, string Label, ColumnValueType ValueType);
+public sealed record RulesPaletteItem(string Id, string Label, ColumnValueType ValueType)
+{
+    /// <summary>The references of a palette generated from the register and Records fields (rules-auth-20).</summary>
+    public static IReadOnlyList<RulesPaletteItem> From(RulesPalette palette)
+        => [.. palette.References.Select(reference => new RulesPaletteItem(reference.Id, reference.Label, reference.ValueType))];
+}
 public sealed record RulesExpressionContract(string Site, string ReturnContract, string ExecutionTimeContract, IReadOnlyList<RulesPaletteItem> Palette);
 public sealed record RulesReleaseBinding(string Tenant, string DefinitionId, string VersionId, string WinningWatermark, string CanonicalSource);
 public sealed record RulesMaterialization(IReadOnlyList<RulesReleaseBinding> Bindings, string CanonicalContent, string ContentDigest);

@@ -1,3 +1,4 @@
+using Harborline.Foundation.RuleEngine.Functions;
 using Harborline.Foundation.RuleEngine.Skins;
 
 namespace Harborline.Foundation.RuleAuthoring;
@@ -121,16 +122,12 @@ public static class ArithOps
 /// </summary>
 public static class FormulaCallOps
 {
-    private static readonly HashSet<string> Supported = new(StringComparer.Ordinal)
-    {
-        "missing", "missing_some",
-        "==", "!=", "===", "!==", "!", "!!", "and", "or", "if",
-        ">", ">=", "<", "<=", "+", "-", "*", "/", "%", "min", "max", "in", "cat",
-        "agg", "money.add", "money.sub", "money.mul", "date.add", "date.diff", "date.today", "coding.is",
-    };
+    /// <summary>The authorable built-ins in register order, generated from the R1 register (rules-eng-27).</summary>
+    public static IReadOnlyList<string> All { get; } = [.. BuiltInFunctionRegister.Functions.Where(f => f.Authorable).Select(f => f.Key)];
 
     /// <summary>Returns true only for the engine's admitted non-<c>var</c> formula operators.</summary>
-    public static bool IsSupported(string? op) => op is not null && Supported.Contains(op);
+    public static bool IsSupported(string? op) => op is not null
+        && BuiltInFunctionRegister.TryResolve(op, out var function) && function.Authorable;
 }
 
 /// <summary>One guided expression term — the constrained composition the formula editor exposes.</summary>

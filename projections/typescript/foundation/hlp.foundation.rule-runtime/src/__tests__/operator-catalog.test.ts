@@ -13,6 +13,7 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
+import { builtInRegister } from '../jsonlogic.js'
 
 // The frozen, closed harborline-jsonlogic/v1 operator set (design §1.4 / README). DELIBERATELY EXCLUDED:
 // any regex/pattern operator (Decision DG); map/filter/reduce/merge (deferred — folds use agg).
@@ -31,11 +32,9 @@ const evaluatorSrc = readFileSync(join(here, '..', 'jsonlogic.ts'), 'utf8')
 
 describe('operator-catalog erosion guard (D1 fix 3 — TS tier)', () => {
   it('the evaluator implements EXACTLY the frozen v1 operator set', () => {
-    // Each operator arm is `case '<op>':`. Capture the single-quoted labels (the `default:` has none).
-    const implemented = new Set(
-      [...evaluatorSrc.matchAll(/case\s+'((?:[^'\\]|\\.)*)':/g)].map((m) => m[1]),
-    )
-    expect(implemented.size, 'extracted no `case` arms — the scan regex or switch shape changed').toBeGreaterThan(0)
+    // Since T-590 the R1 register is the evaluator's only dispatch table (rules-eng-27).
+    const implemented = new Set<string>(Object.keys(builtInRegister))
+    expect(implemented.size, 'the register is empty').toBeGreaterThan(0)
 
     const added = [...implemented].filter((op) => !FROZEN_V1_OPERATORS.has(op)).sort()
     const removed = [...FROZEN_V1_OPERATORS].filter((op) => !implemented.has(op)).sort()

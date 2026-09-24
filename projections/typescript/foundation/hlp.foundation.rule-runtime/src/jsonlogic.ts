@@ -27,6 +27,74 @@ function argList(argNode: Json): Json[] {
   return Array.isArray(argNode) ? argNode : [argNode]
 }
 
+type Impl = (args: Json[], ctx: EvalContext, ev: (i: number) => Json) => Json
+interface BuiltInImpl { readonly category: string; readonly minArity: number; readonly maxArity: number; readonly authorable: boolean; readonly invoke: Impl }
+const def = (category: string, minArity: number, maxArity: number, invoke: Impl, authorable = true): BuiltInImpl =>
+  ({ category, minArity, maxArity, authorable, invoke })
+const all = (args: Json[], ev: (i: number) => Json): Json[] => args.map((_, i) => ev(i))
+
+/**
+ * The R1 built-in register (DES-0018 rules-eng-27), TS tier: the evaluator's only dispatch table,
+ * the compiler's operator and arity source, and the origin of both editor palettes. Every entry
+ * carries its implementation, so nothing is registered that cannot execute. Mirrors the .NET
+ * `BuiltInFunctionRegister`; the operator-catalog guards pin both tiers to one set.
+ */
+export const builtInRegister = {
+  var: def('data', 1, 2, (a, c) => evalVar(a, c), false),
+  missing: def('data', 0, -1, (a, c) => evalMissing(a, c)),
+  missing_some: def('data', 2, 2, (a, c) => evalMissingSome(a, c)),
+
+  '==': def('logic', 2, 2, (_a, _c, ev) => looseEquals(ev(0), ev(1))),
+  '!=': def('logic', 2, 2, (_a, _c, ev) => !looseEquals(ev(0), ev(1))),
+  '===': def('logic', 2, 2, (_a, _c, ev) => strictEquals(ev(0), ev(1))),
+  '!==': def('logic', 2, 2, (_a, _c, ev) => !strictEquals(ev(0), ev(1))),
+  '!': def('logic', 1, 1, (_a, _c, ev) => !isTruthy(ev(0))),
+  '!!': def('logic', 1, 1, (_a, _c, ev) => isTruthy(ev(0))),
+  and: def('logic', 0, -1, (a, c) => evalAnd(a, c)),
+  or: def('logic', 0, -1, (a, c) => evalOr(a, c)),
+  // A one-argument `if` is the decision-table lowerer's otherwise-only shape.
+  if: def('logic', 0, -1, (a, c) => evalIf(a, c)),
+
+  '>': def('compare', 2, 2, (_a, _c, ev) => compare(ev(0), ev(1)) > 0),
+  '>=': def('compare', 2, 2, (_a, _c, ev) => compare(ev(0), ev(1)) >= 0),
+  '<': def('compare', 2, 2, (_a, _c, ev) => compare(ev(0), ev(1)) < 0),
+  '<=': def('compare', 2, 2, (_a, _c, ev) => compare(ev(0), ev(1)) <= 0),
+
+  '+': def('arithmetic', 1, -1, (a, _c, ev) => arith(all(a, ev), '+')),
+  '-': def('arithmetic', 1, -1, (a, _c, ev) => arith(all(a, ev), '-')),
+  '*': def('arithmetic', 1, -1, (a, _c, ev) => arith(all(a, ev), '*')),
+  '/': def('arithmetic', 1, -1, (a, _c, ev) => arith(all(a, ev), '/')),
+  '%': def('arithmetic', 1, -1, (a, _c, ev) => arith(all(a, ev), '%')),
+  min: def('arithmetic', 1, -1, (a, _c, ev) => minMax(all(a, ev), true)),
+  max: def('arithmetic', 1, -1, (a, _c, ev) => minMax(all(a, ev), false)),
+
+  in: def('membership', 2, 2, (_a, _c, ev) => evalIn(ev(0), ev(1))),
+  cat: def('text', 0, -1, (a, c) => evalCat(a, c)),
+
+  agg: def('fold', 3, 3, (_a, c, ev) => evalAgg(ev(0), ev(1), ev(2), c)),
+  'money.add': def('money', 1, -1, (a, c, ev) => money(all(a, ev), '+', c)),
+  'money.sub': def('money', 1, -1, (a, c, ev) => money(all(a, ev), '-', c)),
+  'money.mul': def('money', 1, -1, (a, c, ev) => money(all(a, ev), '*', c)),
+  'date.add': def('date', 3, 3, (_a, _c, ev) => dateAddOp(ev(0), ev(1), ev(2))),
+  'date.diff': def('date', 2, 2, (_a, _c, ev) => dateDiffOp(ev(0), ev(1))),
+  'date.today': def('date', 0, 0, (_a, c) => today(c.now)),
+  'coding.is': def('coding', 3, 3, (_a, _c, ev) => evalCodingIs(ev(0), asString(ev(1)) ?? '', asString(ev(2)) ?? '')),
+} as const satisfies Record<string, BuiltInImpl>
+
+/** A key of the R1 built-in register. */
+export type BuiltInKey = keyof typeof builtInRegister
+
+/** The one registered implementation for `key`, or undefined when it is not a built-in. */
+export function registeredBuiltIn(key: string): BuiltInImpl | undefined {
+  return Object.hasOwn(builtInRegister, key) ? builtInRegister[key as BuiltInKey] : undefined
+}
+
+/** True when the register admits `count` arguments for `key`. */
+export function admitsArity(key: string, count: number): boolean {
+  const f = registeredBuiltIn(key)
+  return f !== undefined && count >= f.minArity && (f.maxArity < 0 || count <= f.maxArity)
+}
+
 export function evaluate(node: Json, ctx: EvalContext): Json {
   ctx.budget.charge()
 
@@ -36,50 +104,10 @@ export function evaluate(node: Json, ctx: EvalContext): Json {
   const args = argList(node[op])
   const ev = (i: number): Json => (i < args.length ? evaluate(args[i], ctx) : null)
 
-  switch (op) {
-    case 'var': return evalVar(args, ctx)
-    case 'missing': return evalMissing(args, ctx)
-    case 'missing_some': return evalMissingSome(args, ctx)
-
-    case '==': return looseEquals(ev(0), ev(1))
-    case '!=': return !looseEquals(ev(0), ev(1))
-    case '===': return strictEquals(ev(0), ev(1))
-    case '!==': return !strictEquals(ev(0), ev(1))
-    case '!': return !isTruthy(ev(0))
-    case '!!': return isTruthy(ev(0))
-
-    case 'and': return evalAnd(args, ctx)
-    case 'or': return evalOr(args, ctx)
-    case 'if': return evalIf(args, ctx)
-
-    case '>': return compare(ev(0), ev(1)) > 0
-    case '>=': return compare(ev(0), ev(1)) >= 0
-    case '<': return compare(ev(0), ev(1)) < 0
-    case '<=': return compare(ev(0), ev(1)) <= 0
-
-    case '+': return arith(args.map((_, i) => ev(i)), '+')
-    case '-': return arith(args.map((_, i) => ev(i)), '-')
-    case '*': return arith(args.map((_, i) => ev(i)), '*')
-    case '/': return arith(args.map((_, i) => ev(i)), '/')
-    case '%': return arith(args.map((_, i) => ev(i)), '%')
-    case 'min': return minMax(args.map((_, i) => ev(i)), true)
-    case 'max': return minMax(args.map((_, i) => ev(i)), false)
-
-    case 'in': return evalIn(ev(0), ev(1))
-    case 'cat': return evalCat(args, ctx)
-
-    case 'agg': return evalAgg(ev(0), ev(1), ev(2), ctx)
-    case 'money.add': return money(args.map((_, i) => ev(i)), '+', ctx)
-    case 'money.sub': return money(args.map((_, i) => ev(i)), '-', ctx)
-    case 'money.mul': return money(args.map((_, i) => ev(i)), '*', ctx)
-    case 'date.add': return dateAddOp(ev(0), ev(1), ev(2))
-    case 'date.diff': return dateDiffOp(ev(0), ev(1))
-    case 'date.today': return today(ctx.now)
-    case 'coding.is': return evalCodingIs(ev(0), asString(ev(1)) ?? '', asString(ev(2)) ?? '')
-
-    default:
-      throw new RuleEvalError(err(Codes.unknownOperator, 'op', op))
-  }
+  // The register is the only dispatch table (rules-eng-27); an unregistered key refuses.
+  const f = registeredBuiltIn(op)
+  if (f === undefined) throw new RuleEvalError(err(Codes.unknownOperator, 'op', op))
+  return f.invoke(args, ctx, ev)
 }
 
 // ── var / missing ───────────────────────────────────────────────────────────
