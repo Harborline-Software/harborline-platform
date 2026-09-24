@@ -6,14 +6,12 @@ namespace Harborline.Blocks.BuilderDefinitions;
 /// </summary>
 /// <param name="code">The stable refusal code.</param>
 /// <param name="definitionId">The Layout definition whose sealed requirement refused.</param>
-/// <param name="capability">The capability the payload declares, or Layout's own when it declares none.</param>
 /// <param name="minimumPlatformVersion">The declared minimum platform version, or <see langword="null"/> when undeclared.</param>
 public sealed class LayoutPackUnsupportedException(
     string code,
     string definitionId,
-    string capability,
     string? minimumPlatformVersion)
-    : Exception($"{code}: '{definitionId}' requires {capability} {minimumPlatformVersion ?? "(undeclared)"}; the whole pack is refused.")
+    : Exception($"{code}: '{definitionId}' requires {LayoutPackIdentity.Capability} {minimumPlatformVersion ?? "(undeclared)"}; the whole pack is refused.")
 {
     /// <summary>Gets the stable refusal code.</summary>
     public string Code { get; } = code;
@@ -22,7 +20,7 @@ public sealed class LayoutPackUnsupportedException(
     public string DefinitionId { get; } = definitionId;
 
     /// <summary>Gets the required capability.</summary>
-    public string Capability { get; } = capability;
+    public string Capability => LayoutPackIdentity.Capability;
 
     /// <summary>Gets the required minimum platform version.</summary>
     public string? MinimumPlatformVersion { get; } = minimumPlatformVersion;
@@ -49,13 +47,14 @@ public static class LayoutPackHostAdmission
         foreach (var entry in entries)
         {
             var definition = LayoutDefinitionJson.Deserialize(entry.Content.Payload.Span);
-            var sealedRequirement = definition.Envelope.Requires?
-                .FirstOrDefault(requirement => requirement?.Capability == LayoutPackIdentity.Capability);
+            var index = LayoutPackIdentity.SealedRequirementIndex(definition.Envelope.Requires);
+            var sealedRequirement = index < 0 ? null : definition.Envelope.Requires[index];
             if (sealedRequirement?.MinimumPlatformVersion is not { } minimum
+                || !LayoutVersionSyntax.IsValid(minimum)
                 || !DefinitionSemanticVersion.TryParse(minimum, out var required))
             {
                 throw new LayoutPackUnsupportedException(LayoutDefinitionCodes.CapabilityUndeclared,
-                    entry.DefinitionId, LayoutPackIdentity.Capability, sealedRequirement?.MinimumPlatformVersion);
+                    entry.DefinitionId, sealedRequirement?.MinimumPlatformVersion);
             }
 
             if (!hostCapabilities.TryGetValue(LayoutPackIdentity.Capability, out var provided)
@@ -63,7 +62,7 @@ public static class LayoutPackHostAdmission
                 || host.CompareTo(required) < 0)
             {
                 throw new LayoutPackUnsupportedException(LayoutDefinitionCodes.CapabilityUnsupported,
-                    entry.DefinitionId, LayoutPackIdentity.Capability, minimum);
+                    entry.DefinitionId, minimum);
             }
         }
     }

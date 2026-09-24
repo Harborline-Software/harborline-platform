@@ -361,6 +361,32 @@ public sealed class LayoutDefinitionProducerTests
             refused.Refusals);
     }
 
+    [Fact(DisplayName = "layout-ck-42: a second platform.layout declaration refuses at publish and at install")]
+    public void ASecondCapabilityDeclarationRefusesAtPublishAndInstall()
+    {
+        var definition = ScreenDefinition();
+        var doubled = definition with
+        {
+            Envelope = definition.Envelope with
+            {
+                Requires =
+                [
+                    new LayoutDefinitionRequirement(LayoutPackIdentity.Capability, "1.0.0"),
+                    new LayoutDefinitionRequirement(LayoutPackIdentity.Capability, "3.0.0"),
+                ],
+            },
+        };
+
+        var published = Assert.Throws<LayoutDefinitionAdmissionException>(() => LayoutDefinitionAdmission.ValidateForPublish(doubled));
+        Assert.Equal([new LayoutDefinitionRefusal(LayoutDefinitionCodes.CapabilityUndeclared, "/envelope/requires")], published.Refusals);
+
+        var entry = new LayoutDefinitionPackageEntry("surface.customer", "1.0.0",
+            PlatformPackageContent.PresentJson(LayoutDefinitionJson.SerializeCanonical(doubled)));
+        var installed = Assert.Throws<LayoutPackUnsupportedException>(() => LayoutPackHostAdmission.Admit(
+            [entry], new Dictionary<string, string> { [LayoutPackIdentity.Capability] = "1.5.0" }));
+        Assert.Equal(LayoutDefinitionCodes.CapabilityUndeclared, installed.Code);
+    }
+
     [Fact(DisplayName = "layout-ck-42: a draft may omit the capability; only the sealed payload must carry it")]
     public void AuthoringDoesNotRequireTheCapability()
     {

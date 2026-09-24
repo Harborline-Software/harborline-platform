@@ -158,15 +158,12 @@ public static class LayoutDefinitionAdmission
     // version, so a host can refuse the whole pack by name. A draft may omit it; publication seals it.
     private static void ValidateSealedCapability(LayoutDefinition definition, ICollection<LayoutDefinitionRefusal> refusals)
     {
-        var requirements = definition.Envelope?.Requires ?? [];
-        for (var index = 0; index < requirements.Count; index++)
-        {
-            if (requirements[index]?.Capability != LayoutPackIdentity.Capability) continue;
-            if (!LayoutVersionSyntax.IsValid(requirements[index].MinimumPlatformVersion))
-                Add(refusals, LayoutDefinitionCodes.CapabilityUndeclared, $"/envelope/requires/{index}/minimum_platform_version");
-            return;
-        }
-        Add(refusals, LayoutDefinitionCodes.CapabilityUndeclared, "/envelope/requires");
+        var requirements = definition.Envelope?.Requires;
+        var index = LayoutPackIdentity.SealedRequirementIndex(requirements);
+        if (index < 0)
+            Add(refusals, LayoutDefinitionCodes.CapabilityUndeclared, "/envelope/requires");
+        else if (!LayoutVersionSyntax.IsValid(requirements![index].MinimumPlatformVersion))
+            Add(refusals, LayoutDefinitionCodes.CapabilityUndeclared, $"/envelope/requires/{index}/minimum_platform_version");
     }
 
     private static void ValidateEnvelope(LayoutDefinition definition, ICollection<LayoutDefinitionRefusal> refusals)
