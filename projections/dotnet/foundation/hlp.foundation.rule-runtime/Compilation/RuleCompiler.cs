@@ -21,6 +21,13 @@ public sealed class CompiledGraph
 
     /// <summary>The number of Tier-2 rules compiled (Tier-1 rules are handled by the kernel JSON-Schema validator).</summary>
     public int RuleCount => Rules.Count;
+
+    /// <summary>
+    /// Each compiled rule's lowered AST in compile order, with references rewritten as the grammar
+    /// defines them (e.g. <c>parent.z</c> to <c>field.z</c>). Returned as copies, so a caller cannot
+    /// alter a compiled rule. The TypeScript engine exposes the same through <c>rules[].ast</c>.
+    /// </summary>
+    public IReadOnlyList<JsonNode?> LoweredAsts => [.. Rules.Select(rule => rule.Ast?.DeepClone())];
 }
 
 /// <summary>

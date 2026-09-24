@@ -41,6 +41,9 @@ public sealed record RuleIntentResult(
     IReadOnlyList<RuleIntentDiagnostic> Diagnostics)
 {
     public bool IsValid => Document is not null && Diagnostics.Count == 0;
+
+    /// <summary>The admitted rule as the engine lowered it (references rewritten, e.g. <c>parent.z</c> to <c>field.z</c>). Present only when admitted.</summary>
+    public JsonNode? Lowered { get; init; }
 }
 
 /// <summary>Schema facts consumed by editors and admission; numeric limits have one owner.</summary>

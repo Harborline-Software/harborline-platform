@@ -6,7 +6,7 @@ import { useState } from 'react'
 import { serializeRuleDefinition, validateRuleDefinitionJson, type RuleDefinitionExpression } from '@harborline-software/rule-authoring'
 import { GuidedExpressionEditor, RulesAuthoringEditor, emptyRulesDraft, type RulesMaterialization, type RulesOperationRequest } from './RulesAuthoringEditor'
 
-const fixture = JSON.parse(readFileSync(resolve(process.cwd(), '../../../../conformance/hlp.blocks.builder-definitions/rules-editor-contract-fixtures.json'), 'utf8')) as { lifecycle: { responses: readonly { materialization?: RulesMaterialization }[] }; preview: { clockUtc: string; label: string; outcomeKinds: readonly string[]; cases: readonly { expected: { kind: string; value?: string; validity?: string; visibility?: string; presentation?: string; code?: string; ruleName: string; memberName: string } }[] } }
+const fixture = JSON.parse(readFileSync(resolve(process.cwd(), '../../../../conformance/hlp.blocks.builder-definitions/rules-editor-contract-fixtures.json'), 'utf8')) as { lifecycle: { responses: readonly { materialization?: RulesMaterialization }[] }; preview: { clockUtc: string; label: string; outcomeKinds: readonly string[]; cases: readonly { expected: { kind: string; value?: string; validity?: string; visibility?: string; presentation?: string; code?: string; ruleName: string; memberName: string } }[] }; referenceForms: { palette: readonly { id: string; label: string; valueType: 'Number' | 'Text' | 'Boolean' }[]; cases: readonly { id: string; ref: string; action: string; scope: string; scopeTarget: string; lowered: unknown }[] } }
 const contracts = [{ site: 'rule', returnContract: 'typed value', executionTimeContract: 'preview', palette: [{ id: 'amount', label: 'Amount', valueType: 'Number' }] }] as const
 const props = (overrides: Partial<React.ComponentProps<typeof RulesAuthoringEditor>> = {}) => ({ value: emptyRulesDraft(), expressionContracts: contracts, previewKind: 'real' as const, onChange: vi.fn(), onOperation: vi.fn(), ...overrides })
 
@@ -87,6 +87,51 @@ describe('Rules authoring React projection', () => {
     expect(changed).toHaveBeenLastCalledWith(expect.objectContaining({ expectedRevision: '2', versionSelection: 'Pinned', pinnedVersionId: 'fixture-v1' }))
     expect(screen.getByLabelText('Version selection')).toHaveValue('Pinned')
     expect(changed).toHaveBeenLastCalledWith(expect.objectContaining({ materialization }))
+  })
+  // T-712: DES-0018 rules-auth-1, -3 and -5 at the editor (rules-auth-2 and -6 are the shared-editor and catch-all tests above).
+  it('rules-auth-1: holds exactly the one action the author picks, for every action', () => {
+    const requested = vi.fn(); render(<RulesAuthoringEditor {...props({ onOperation: requested })} />)
+    const offered = Array.from((screen.getByLabelText('Rule action') as HTMLSelectElement).options).map(option => option.value)
+    expect(offered).toEqual(['Visibility', 'Required', 'ReadOnly', 'Validate', 'Compute', 'Presentation', 'Options'])
+    for (const action of offered) {
+      fireEvent.change(screen.getByLabelText('Rule action'), { target: { value: action } })
+      fireEvent.click(screen.getByRole('button', { name: 'Publish' }))
+      expect(requested.mock.lastCall![0].draft.draft.outputType).toBe(action)
+      expect(screen.getByLabelText('Rule action')).toHaveValue(action)
+    }
+  })
+  it('rules-auth-3: carries every reference form through producer admission and receives the reference the producer lowered', () => {
+    const palette = [{ site: 'rule' as const, returnContract: 'typed value', executionTimeContract: 'preview', palette: fixture.referenceForms.palette }]
+    for (const item of fixture.referenceForms.cases) {
+      const requested = vi.fn(); const { unmount } = render(<RulesAuthoringEditor {...props({ expressionContracts: palette, onOperation: requested })} />)
+      fireEvent.change(screen.getByLabelText('Rule action'), { target: { value: item.action } })
+      fireEvent.change(screen.getByLabelText('Rule scope'), { target: { value: item.scope } })
+      fireEvent.change(screen.getByLabelText('Target'), { target: { value: item.scopeTarget } })
+      // Producer admission refuses an undeclared reference, so the author declares it first.
+      fireEvent.click(screen.getByRole('button', { name: 'Add declared input' }))
+      fireEvent.change(screen.getByLabelText('Input 1 reference'), { target: { value: item.ref } })
+      fireEvent.change(screen.getByLabelText('Rule expression shape'), { target: { value: 'Ref' } })
+      fireEvent.change(screen.getByLabelText('Rule reference'), { target: { value: item.ref } })
+      fireEvent.click(screen.getByRole('button', { name: 'Publish' }))
+      const draft = requested.mock.lastCall![0].draft.draft
+      expect(draft.expression, item.id).toEqual({ kind: 'Ref', name: item.ref })
+      const json = serializeRuleDefinition({ envelope: { id: item.id, version: '1.0.0', tenant: 'tenant-a', cascadeLayer: 'domain-package', provenance: { kind: 'test' }, requires: [] }, name: item.id, tier: 'JsonLogic', draft })
+      const admitted = validateRuleDefinitionJson(json, 'Author')
+      expect(admitted.diagnostics, item.id).toEqual([])
+      expect(admitted.lowered, item.id).toEqual(item.lowered)
+      unmount()
+    }
+  })
+  it('rules-auth-5: offers exactly FirstMatch and Priority and round-trips the choice', () => {
+    const requested = vi.fn(); render(<RulesAuthoringEditor {...props({ onOperation: requested })} />)
+    fireEvent.click(screen.getByLabelText('Decision table'))
+    // Fails if a third policy becomes selectable.
+    expect(Array.from((screen.getByLabelText('Hit policy') as HTMLSelectElement).options).map(option => option.value)).toEqual(['FirstMatch', 'Priority'])
+    for (const policy of ['Priority', 'FirstMatch']) {
+      fireEvent.change(screen.getByLabelText('Hit policy'), { target: { value: policy } })
+      fireEvent.click(screen.getByRole('button', { name: 'Publish' }))
+      expect(requested.mock.lastCall![0].draft.draft.hitPolicy).toBe(policy)
+    }
   })
   it('acknowledges a correlated outcome so the next retry receives a new intent id', () => {
     const requests: RulesOperationRequest[] = []

@@ -201,5 +201,116 @@
         }
       }
     ]
+  },
+  "referenceForms": {
+    "description": "T-712 (DES-0018 rules-auth-3): one palette entry per rules-ck-7 reference form. Each editor lane picks the entry as a declared reference, declares it as an input, replays the authored rule through producer admission, and asserts the reference the producer lowered. The engine owns what each form means (corpus case table/per-row-parent-reach-out); T-590's generated palette must be able to produce every entry. A self case uses Validate: a Compute rule reading its own target is a cycle, which the producer refuses.",
+    "palette": [
+      {
+        "id": "self",
+        "label": "This field",
+        "valueType": "Number"
+      },
+      {
+        "id": "field.x",
+        "label": "Field x",
+        "valueType": "Number"
+      },
+      {
+        "id": "row.y",
+        "label": "Row field y",
+        "valueType": "Number"
+      },
+      {
+        "id": "parent.z",
+        "label": "Parent field z",
+        "valueType": "Number"
+      },
+      {
+        "id": "section.s.f",
+        "label": "Section s field f",
+        "valueType": "Number"
+      },
+      {
+        "id": "table.sum(lines.amount)",
+        "label": "Sum of lines amount",
+        "valueType": "Number"
+      }
+    ],
+    "cases": [
+      {
+        "id": "self-in-field",
+        "ref": "self",
+        "action": "Validate",
+        "scope": "Field",
+        "scopeTarget": "total",
+        "lowered": {
+          "var": "field.total"
+        }
+      },
+      {
+        "id": "self-in-row",
+        "ref": "self",
+        "action": "Validate",
+        "scope": "Row",
+        "scopeTarget": "lines/amount",
+        "lowered": {
+          "var": "row.amount"
+        }
+      },
+      {
+        "id": "field",
+        "ref": "field.x",
+        "action": "Compute",
+        "scope": "Field",
+        "scopeTarget": "total",
+        "lowered": {
+          "var": "field.x"
+        }
+      },
+      {
+        "id": "row",
+        "ref": "row.y",
+        "action": "Compute",
+        "scope": "Row",
+        "scopeTarget": "lines/amount",
+        "lowered": {
+          "var": "row.y"
+        }
+      },
+      {
+        "id": "parent",
+        "ref": "parent.z",
+        "action": "Compute",
+        "scope": "Row",
+        "scopeTarget": "lines/amount",
+        "lowered": {
+          "var": "field.z"
+        }
+      },
+      {
+        "id": "section",
+        "ref": "section.s.f",
+        "action": "Compute",
+        "scope": "Field",
+        "scopeTarget": "total",
+        "lowered": {
+          "var": "field.f"
+        }
+      },
+      {
+        "id": "agg",
+        "ref": "table.sum(lines.amount)",
+        "action": "Compute",
+        "scope": "Field",
+        "scopeTarget": "total",
+        "lowered": {
+          "agg": [
+            "sum",
+            "lines",
+            "amount"
+          ]
+        }
+      }
+    ]
   }
 }

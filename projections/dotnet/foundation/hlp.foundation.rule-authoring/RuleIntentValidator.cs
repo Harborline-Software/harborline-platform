@@ -48,8 +48,8 @@ public static class RuleIntentValidator
             // Both authored skins lower to JsonLogic. JsonSchema remains the kernel validator's
             // distinct rule tier; it cannot relabel this source or bypass its compiler admission.
             var definition = SkinLowering.CompileDraft(document.Draft, document.Envelope.Id);
-            _ = RuleCompiler.Compile(new[] { definition });
-            return new(document, Array.Empty<RuleIntentDiagnostic>());
+            var graph = RuleCompiler.Compile(new[] { definition });
+            return new(document, Array.Empty<RuleIntentDiagnostic>()) { Lowered = graph.LoweredAsts.FirstOrDefault() };
         }
         catch (RuleCompilationException error)
         {

@@ -64,6 +64,8 @@ export interface RuleIntentDiagnostic {
 export interface RuleIntentResult {
   document: RuleDefinitionDocument | null
   diagnostics: RuleIntentDiagnostic[]
+  /** The admitted rule as the engine lowered it (references rewritten, e.g. `parent.z` to `field.z`). Present only when admitted. */
+  lowered?: Json
 }
 
 export const ruleIntentSchema = { limits: DEFAULT_LIMITS }
@@ -323,8 +325,8 @@ export function validateRuleDefinitionJson(json: string, phase: RuleIntentPhase)
     const lowered = compileDraft(editorDraft(draft), ruleId)
     // compileDraft already emits the canonical encoded scalar JSON contract used by the
     // compiler. Re-encoding here adds two quotes and changes the literal admission bound.
-    compile([lowered])
-    return { document, diagnostics: [] }
+    const graph = compile([lowered])
+    return { document, diagnostics: [], lowered: graph.rules[0].ast }
   } catch (error) {
     if (!(error instanceof CompileError)) throw error
     return { document: null, diagnostics: [{ code: error.code, location: compileLocation(error.code, draft), phase,
