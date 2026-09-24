@@ -95,6 +95,30 @@ describe('LayoutRuntime React projection', () => {
     expect(changed).toHaveBeenLastCalledWith(expect.objectContaining({ blocks: [{ id: 'lines', kind: 'layout.table', binding: { kind: 'measure', name: '' } }] }))
   })
 
+  it('layout-auth-19: a related block traverses a declared Records relationship and persists only its key', () => {
+    const changed = vi.fn()
+    const blocks = [
+      { id: 'supplier', kind: 'layout.table', binding: { kind: 'record_field' as const, name: 'supplier.name' } },
+      { id: 'entry', kind: 'layout.table', intent: 'capture' as const, binding: { kind: 'record_field' as const, name: 'invoice.reference' } },
+    ]
+    render(<LayoutAuthoringEditor value={{ ...emptyLayoutAuthoringDraft(), blocks }} catalogue={{ blockKinds: [{ id: 'layout.table', label: 'Table' }], zones: [], relationships: [{ id: 'invoice.supplier', label: 'Invoice supplier' }] }} onChange={changed} />)
+
+    // A related block observes; a capture block is never offered a traversal.
+    expect(screen.queryByLabelText('Block 2 related record')).toBeNull()
+    // Only relationships Records declares are offered, and the block stores the key alone.
+    const related = screen.getByLabelText('Block 1 related record')
+    expect(within(related).getAllByRole('option').map(option => option.textContent)).toEqual(['Not related', 'Invoice supplier'])
+    fireEvent.change(related, { target: { value: 'invoice.supplier' } })
+    expect(changed).toHaveBeenLastCalledWith(expect.objectContaining({ blocks: [{ ...blocks[0], relatedRelationship: 'invoice.supplier' }, blocks[1]] }))
+  })
+
+  it('layout-auth-19: a related block that stops observing drops its relationship', () => {
+    const changed = vi.fn()
+    render(<LayoutAuthoringEditor value={{ ...emptyLayoutAuthoringDraft(), blocks: [{ id: 'supplier', kind: 'layout.table', binding: { kind: 'record_field', name: 'supplier.name' }, relatedRelationship: 'invoice.supplier' }] }} catalogue={{ blockKinds: [{ id: 'layout.table', label: 'Table' }], zones: [], relationships: [{ id: 'invoice.supplier', label: 'Invoice supplier' }] }} onChange={changed} />)
+    fireEvent.change(screen.getByLabelText('Block 1 intent'), { target: { value: 'capture' } })
+    expect(changed).toHaveBeenLastCalledWith(expect.objectContaining({ blocks: [{ id: 'supplier', kind: 'layout.table', binding: { kind: 'record_field', name: 'supplier.name' }, intent: 'capture' }] }))
+  })
+
   it('authors static content on the block rather than looking it up', () => {
     const changed = vi.fn()
     render(<LayoutAuthoringEditor value={{ ...emptyLayoutAuthoringDraft(), blocks: [{ id: 'notice', kind: 'layout.table', binding: { kind: 'static', name: '' } }] }} catalogue={{ blockKinds: [{ id: 'layout.table', label: 'Table' }], zones: [] }} onChange={changed} />)

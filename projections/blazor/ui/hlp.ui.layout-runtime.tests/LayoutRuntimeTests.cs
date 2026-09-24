@@ -137,6 +137,43 @@ public sealed class LayoutRuntimeTests : BunitContext
         Assert.Equal(new LayoutAuthoringBlock("lines", "layout.table", new("measure", "")), changed!.Blocks.Single());
     }
 
+    [Fact(DisplayName = "layout-auth-19: a related block traverses a declared Records relationship and persists only its key")]
+    public void RelatedBlockTraversesADeclaredRelationshipAndPersistsOnlyItsKey()
+    {
+        LayoutAuthoringDraft? changed = null;
+        LayoutAuthoringBlock[] blocks =
+        [
+            new("supplier", "layout.table", new("record_field", "supplier.name")),
+            new("entry", "layout.table", new("record_field", "invoice.reference"), Intent: "capture"),
+        ];
+        var cut = Render<HarborlineLayoutAuthoringEditor>(parameters => parameters
+            .Add(x => x.Value, LayoutAuthoringDraft.Empty with { Blocks = blocks })
+            .Add(x => x.Catalogue, Catalogue() with { Relationships = [new("invoice.supplier", "Invoice supplier")] })
+            .Add(x => x.ValueChanged, value => changed = value));
+
+        // A related block observes; a capture block is never offered a traversal.
+        Assert.Empty(cut.FindAll("[aria-label='Block 2 related record']"));
+        // Only relationships Records declares are offered, and the block stores the key alone.
+        var related = cut.Find("[aria-label='Block 1 related record']");
+        Assert.Equal(["Not related", "Invoice supplier"], related.QuerySelectorAll("option").Select(option => option.TextContent));
+        Assert.Equal(["", "invoice.supplier"], related.QuerySelectorAll("option").Select(option => option.GetAttribute("value")));
+        related.Change("invoice.supplier");
+        Assert.Equal([blocks[0] with { RelatedRelationship = "invoice.supplier" }, blocks[1]], changed!.Blocks);
+    }
+
+    [Fact(DisplayName = "layout-auth-19: a related block that stops observing drops its relationship")]
+    public void RelatedBlockThatStopsObservingDropsItsRelationship()
+    {
+        LayoutAuthoringDraft? changed = null;
+        var cut = Render<HarborlineLayoutAuthoringEditor>(parameters => parameters
+            .Add(x => x.Value, LayoutAuthoringDraft.Empty with { Blocks = [new("supplier", "layout.table", new("record_field", "supplier.name"), RelatedRelationship: "invoice.supplier")] })
+            .Add(x => x.Catalogue, Catalogue() with { Relationships = [new("invoice.supplier", "Invoice supplier")] })
+            .Add(x => x.ValueChanged, value => changed = value));
+
+        cut.Find("[aria-label='Block 1 intent']").Change("capture");
+        Assert.Equal(new LayoutAuthoringBlock("supplier", "layout.table", new("record_field", "supplier.name"), Intent: "capture"), changed!.Blocks.Single());
+    }
+
     private static LayoutAuthoringCatalogue Catalogue() => new(
         [new("layout.table", "Table")],
         ["header.center"],

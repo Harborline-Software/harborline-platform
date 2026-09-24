@@ -38,6 +38,8 @@ export interface LayoutAuthoringBlock {
   readonly parentId?: string
   /** layout-auth-18: the block repeats its children once per row of its collection binding. */
   readonly repeating?: boolean
+  /** layout-auth-19: the declared Records relationship this block observes; only the key is stored. */
+  readonly relatedRelationship?: string
   readonly intent?: LayoutIntent
   readonly zone?: string
   readonly width?: LayoutSizing
@@ -73,5 +75,7 @@ export interface LayoutAuthoringCatalogue {
   readonly pageMasters?: readonly { readonly id: string; readonly label: string }[]
   readonly staticRegions?: readonly string[]
   readonly helmWidgets?: readonly { readonly id: string; readonly label: string }[]
+  /** The Records relationships declared on the surface's record type, by key (layout-auth-19). */
+  readonly relationships?: readonly LayoutBindableName[]
 }
 export interface LayoutAuthoringEditorProps { readonly value: LayoutAuthoringDraft; readonly catalogue: LayoutAuthoringCatalogue; readonly onChange: (value: LayoutAuthoringDraft) => void }

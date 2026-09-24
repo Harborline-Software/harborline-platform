@@ -32,7 +32,9 @@ public sealed record LayoutAuthoringBlock(
     bool BreakBefore = false,
     bool AvoidPageBreak = false,
     // layout-auth-18: the block repeats its children once per row of its collection binding.
-    bool Repeating = false);
+    bool Repeating = false,
+    // layout-auth-19: the declared Records relationship this block observes; only the key is stored.
+    string? RelatedRelationship = null);
 public sealed record LayoutAuthoringPageRun(string Id, string PageLayoutId, string PageMasterId);
 public sealed record LayoutAuthoringDraft(
     string Name,
@@ -56,4 +58,6 @@ public sealed record LayoutAuthoringCatalogue(
     IReadOnlyList<string>? StaticRegions = null,
     IReadOnlyList<LayoutAuthoringOption>? HelmWidgets = null,
     // Bindables: the names offered per binding kind; `static` is authored on the block.
-    IReadOnlyDictionary<string, IReadOnlyList<LayoutAuthoringOption>>? Bindables = null);
+    IReadOnlyDictionary<string, IReadOnlyList<LayoutAuthoringOption>>? Bindables = null,
+    // Relationships: the Records relationships declared on the surface's record type, by key (layout-auth-19).
+    IReadOnlyList<LayoutAuthoringOption>? Relationships = null);
