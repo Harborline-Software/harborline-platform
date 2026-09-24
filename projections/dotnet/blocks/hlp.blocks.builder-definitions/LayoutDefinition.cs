@@ -251,6 +251,18 @@ public sealed record LayoutFormReference(
     string FormDefinitionId,
     string FormVersionId);
 
+/// <summary>
+/// The inclusive row-count bounds a repeating block narrows its collection to (DES-0052
+/// layout-ck-40). Runtime data outside them refuses; it is never truncated.
+/// </summary>
+/// <param name="Minimum">The inclusive minimum row count.</param>
+/// <param name="Maximum">The inclusive maximum row count, or <see langword="null"/> for no upper bound.</param>
+public sealed record LayoutCollectionBounds(int Minimum, int? Maximum = null)
+{
+    /// <summary>Whether <paramref name="count"/> rows lie inside the bounds.</summary>
+    public bool Contains(int count) => count >= Minimum && (Maximum is null || count <= Maximum);
+}
+
 /// <summary>Represents one ordered node in the Layout definition tree.</summary>
 /// <param name="Id">The definition-local block identifier.</param>
 /// <param name="Kind">The released component kind.</param>
@@ -272,6 +284,7 @@ public sealed record LayoutFormReference(
 /// <param name="FilterTargets">The optional local block filter targets.</param>
 /// <param name="Form">The optional immutable form reference.</param>
 /// <param name="LiveSelection">A diagnostic-only field that admission always refuses.</param>
+/// <param name="CollectionBounds">The optional row-count bounds a repeating block narrows to.</param>
 public sealed record LayoutBlock(
     string Id,
     string Kind,
@@ -292,7 +305,8 @@ public sealed record LayoutBlock(
     JsonElement? DefaultSelection = null,
     IReadOnlyList<string>? FilterTargets = null,
     LayoutFormReference? Form = null,
-    JsonElement? LiveSelection = null);
+    JsonElement? LiveSelection = null,
+    LayoutCollectionBounds? CollectionBounds = null);
 
 /// <summary>Describes a page layout's four governed margins.</summary>
 /// <param name="Top">The top margin token.</param>

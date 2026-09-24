@@ -280,6 +280,26 @@ public sealed class LayoutDefinitionProducerTests
             "/blocks/0/children/1/live_selection");
     }
 
+    [Fact(DisplayName = "layout-ck-40: a repeating block admits bounds it can satisfy")]
+    public void ARepeatingBlockAdmitsSatisfiableBounds()
+    {
+        LayoutDefinitionAdmission.ValidateForPublish(ScreenDefinition(block => block.Id == "query"
+            ? block with { CollectionBounds = new LayoutCollectionBounds(0, 20) } : block));
+    }
+
+    [Theory(DisplayName = "layout-ck-40: malformed or misplaced collection bounds refuse")]
+    [InlineData("query", -1, 5)]
+    [InlineData("query", 3, 2)]
+    [InlineData("measure", 0, 5)]
+    public void MalformedOrMisplacedCollectionBoundsRefuse(string blockId, int minimum, int maximum)
+    {
+        var definition = ScreenDefinition(block => block.Id == blockId
+            ? block with { CollectionBounds = new LayoutCollectionBounds(minimum, maximum) } : block);
+        var pointer = blockId == "query" ? "/blocks/0/children/1/collection_bounds" : "/blocks/0/children/2/collection_bounds";
+
+        AssertRefusal(definition, LayoutDefinitionCodes.CollectionBoundsInvalid, pointer);
+    }
+
     [Fact(DisplayName = "layout-ck-42: publication refuses a Layout that does not declare platform.layout in its payload")]
     public void PublicationRefusesALayoutThatDoesNotDeclareItsCapability()
     {

@@ -59,6 +59,8 @@ public static class LayoutDefinitionCodes
     public const string CapabilityUndeclared = "layout.pack.capability_undeclared";
     /// <summary>This host lacks the sealed capability or is below its minimum platform version.</summary>
     public const string CapabilityUnsupported = "layout.pack.capability_unsupported";
+    /// <summary>Collection bounds sit on a non-repeating block, or no row count can satisfy them.</summary>
+    public const string CollectionBoundsInvalid = "layout.collection.bounds_invalid";
 }
 
 /// <summary>Identifies one deterministic Layout admission refusal.</summary>
@@ -273,6 +275,9 @@ public static class LayoutDefinitionAdmission
             Add(refusals, LayoutDefinitionCodes.LiveSelectionForbidden, $"{pointer}/live_selection");
         if (block.Repeating && (block.Container is null || block.Binding is not (LayoutQueryBinding or LayoutRecordFieldBinding)))
             Add(refusals, LayoutDefinitionCodes.ScopedContainerInvalid, $"{pointer}/repeating");
+        if (block.CollectionBounds is { } bounds
+            && (!block.Repeating || bounds.Minimum < 0 || bounds.Maximum < bounds.Minimum))
+            Add(refusals, LayoutDefinitionCodes.CollectionBoundsInvalid, $"{pointer}/collection_bounds");
         if (block.RelatedRelationship is { } relationship
             && (string.IsNullOrWhiteSpace(relationship) || block.Container is null || intent != LayoutIntent.Observe))
             Add(refusals, LayoutDefinitionCodes.ScopedContainerInvalid, $"{pointer}/related_relationship");

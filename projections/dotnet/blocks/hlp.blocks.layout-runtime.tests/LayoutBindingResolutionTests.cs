@@ -127,6 +127,41 @@ public sealed class LayoutBindingResolutionTests
         Assert.Empty(resolution.Blocks);
     }
 
+    [Theory(DisplayName = "layout-ck-40: a collection at each effective bound renders completely")]
+    [InlineData(2, 5)]
+    [InlineData(0, 2)]
+    [InlineData(2, 2)]
+    public void ACollectionAtEachEffectiveBoundRendersCompletely(int minimum, int maximum)
+    {
+        var resolution = Resolve(Definition(LayoutMedium.Screen, LayoutIntent.Observe, Lines(new(minimum, maximum))), Sources());
+
+        Assert.Empty(resolution.Refusals);
+        Assert.Equal(["line-1", "line-2"], resolution.Blocks.Where(block => block.BlockId == "cell").Select(block => block.RowId));
+    }
+
+    [Theory(DisplayName = "layout-ck-40: runtime cardinality outside the bounds refuses the whole block and returns no partial row set")]
+    [InlineData(3, 5)]
+    [InlineData(0, 1)]
+    public void RuntimeCardinalityOutsideTheBoundsRefusesWithNoPartialRows(int minimum, int maximum)
+    {
+        var resolution = Resolve(
+            Definition(LayoutMedium.Screen, LayoutIntent.Observe, Lines(new(minimum, maximum)), Block("after", new LayoutRecordFieldBinding("supplier"))),
+            Sources());
+
+        var refusal = Assert.Single(resolution.Refusals);
+        Assert.Equal("lines", refusal.BlockId);
+        Assert.Equal(LayoutBindingRefusalCodes.CollectionOutOfBounds, refusal.Code);
+        // Neither the container nor any row placed: nothing truncated, nothing partial.
+        Assert.DoesNotContain(resolution.Blocks, block => block.BlockId is "lines" or "cell");
+        // The rest of the surface still resolves.
+        Assert.Equal("after", Assert.Single(resolution.Blocks).BlockId);
+    }
+
+    private static LayoutBlock Lines(LayoutCollectionBounds bounds) => new(
+        "lines", "layout.table", new LayoutQueryBinding("views.invoice-lines"),
+        [Block("cell", new LayoutRecordFieldBinding("description"))],
+        Container: new(LayoutContainerKind.Stack), Repeating: true, CollectionBounds: bounds);
+
     [Fact]
     public void APerRowGuardWithholdsOnlyTheRowItFailsFor()
     {

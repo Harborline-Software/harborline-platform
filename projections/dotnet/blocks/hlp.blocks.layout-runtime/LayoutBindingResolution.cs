@@ -107,6 +107,16 @@ public readonly record struct LayoutBindingScope(
     public bool IsRow => Section is not null;
 }
 
+/// <summary>Stable codes a <see cref="LayoutBindingRefusal"/> carries.</summary>
+public static class LayoutBindingRefusalCodes
+{
+    /// <summary>layout-run-4: the source cannot resolve the authored name.</summary>
+    public const string Unresolvable = "layout.binding.unresolvable";
+
+    /// <summary>layout-ck-40: the collection's row count lies outside the block's bounds.</summary>
+    public const string CollectionOutOfBounds = "layout.collection.out_of_bounds";
+}
+
 /// <summary>
 /// DES-0052 layout-run-4 — one unresolvable binding, reported by block and binding kind when
 /// the surface is resolved. The surface still resolves: every other block keeps its result, so
@@ -116,12 +126,21 @@ public readonly record struct LayoutBindingScope(
 /// <param name="BindingKind">The authored binding kind, spelled as <see cref="LayoutBindingKinds"/>.</param>
 /// <param name="Name">The authored name that did not resolve.</param>
 /// <param name="RowId">The repeating row the refusal occurred in, or <see langword="null"/> at the root.</param>
-public sealed record LayoutBindingRefusal(string BlockId, string BindingKind, string Name, string? RowId = null)
+/// <param name="Code">The stable refusal code, one of <see cref="LayoutBindingRefusalCodes"/>.</param>
+public sealed record LayoutBindingRefusal(
+    string BlockId,
+    string BindingKind,
+    string Name,
+    string? RowId = null,
+    string Code = LayoutBindingRefusalCodes.Unresolvable)
 {
     /// <summary>The refusal text, naming the block and the binding kind.</summary>
-    public string Message => RowId is null
-        ? $"Block '{BlockId}' has an unresolvable {BindingKind} binding '{Name}'."
-        : $"Block '{BlockId}' (row '{RowId}') has an unresolvable {BindingKind} binding '{Name}'.";
+    public string Message => (Code, RowId) switch
+    {
+        (LayoutBindingRefusalCodes.CollectionOutOfBounds, _) => $"Block '{BlockId}' collection '{Name}' has a row count outside its bounds; no rows were placed.",
+        (_, null) => $"Block '{BlockId}' has an unresolvable {BindingKind} binding '{Name}'.",
+        _ => $"Block '{BlockId}' (row '{RowId}') has an unresolvable {BindingKind} binding '{Name}'.",
+    };
 }
 
 /// <summary>
@@ -322,6 +341,14 @@ public sealed class LayoutBindingResolver
         if (!sources.TryResolveCollection(scope, name, out var rows))
         {
             refusals.Add(new(block.Id, kind, name, scope.RowId));
+            return;
+        }
+
+        // layout-ck-40: a count outside the bounds refuses the whole block. Placing the rows that
+        // fit would be a truncated, unmarked partial, which the ruling forbids.
+        if (block.CollectionBounds is { } bounds && !bounds.Contains(rows.Count))
+        {
+            refusals.Add(new(block.Id, kind, name, scope.RowId, LayoutBindingRefusalCodes.CollectionOutOfBounds));
             return;
         }
 
