@@ -62,9 +62,9 @@ public static class LayoutBindingKinds
 /// measure-catalogue-cc-6), and never runs a query (Views keeps the query).
 /// </summary>
 /// <remarks>
-/// Every member returns <see langword="false"/> for a name the source cannot resolve. The
-/// resolver turns that into one <see cref="LayoutBindingRefusal"/>; a source never throws to
-/// signal an unresolvable name.
+/// Every <c>TryResolve</c> member returns <see langword="false"/> for a name the source cannot
+/// resolve, and the resolver turns that into one <see cref="LayoutBindingRefusal"/>; a source
+/// never throws to signal an unresolvable name. <see cref="ResolveRelated"/> reports its outcome.
 /// </remarks>
 public interface ILayoutBindingSources
 {
@@ -83,8 +83,68 @@ public interface ILayoutBindingSources
     /// <summary>Resolves the rows a repeating block iterates, in authored order.</summary>
     bool TryResolveCollection(LayoutBindingScope scope, string name, out IReadOnlyList<JsonNode?> rows);
 
-    /// <summary>Traverses one declared Records relationship to the second record's scope.</summary>
-    bool TryResolveRelated(LayoutBindingScope scope, string relationship, out LayoutBindingScope related);
+    /// <summary>
+    /// Traverses one declared Records relationship to the second record's scope, under the acting
+    /// principal. Missing and denied are distinct here so the denial can reach the protected trace;
+    /// the resolver makes them identical to the viewer (layout-eng-31).
+    /// </summary>
+    LayoutRelatedResult ResolveRelated(LayoutBindingScope scope, string relationship);
+}
+
+/// <summary>How one related-block traversal ended.</summary>
+public enum LayoutRelatedOutcome
+{
+    /// <summary>The related record resolved.</summary>
+    Resolved,
+    /// <summary>The relationship is declared and has no target for this record.</summary>
+    Absent,
+    /// <summary>A target exists and the acting principal may not observe it.</summary>
+    Denied,
+    /// <summary>The relationship is not declared: an authoring fault, refused by name.</summary>
+    Undeclared,
+}
+
+/// <summary>The result of one related-block traversal.</summary>
+/// <param name="Outcome">How the traversal ended.</param>
+/// <param name="Scope">The related record's scope when <see cref="LayoutRelatedOutcome.Resolved"/>.</param>
+/// <param name="DenialCode">The access decision's stable code when <see cref="LayoutRelatedOutcome.Denied"/>.</param>
+/// <param name="DenialPointer">The access decision's pointer when <see cref="LayoutRelatedOutcome.Denied"/>.</param>
+public readonly record struct LayoutRelatedResult(
+    LayoutRelatedOutcome Outcome,
+    LayoutBindingScope Scope = default,
+    string? DenialCode = null,
+    string? DenialPointer = null)
+{
+    /// <summary>A declared relationship with no target.</summary>
+    public static LayoutRelatedResult Absent => new(LayoutRelatedOutcome.Absent);
+
+    /// <summary>An undeclared relationship.</summary>
+    public static LayoutRelatedResult Undeclared => new(LayoutRelatedOutcome.Undeclared);
+
+    /// <summary>A resolved related record.</summary>
+    public static LayoutRelatedResult Resolved(LayoutBindingScope scope) => new(LayoutRelatedOutcome.Resolved, scope);
+
+    /// <summary>A target the acting principal may not observe.</summary>
+    public static LayoutRelatedResult Denied(string code, string pointer) => new(LayoutRelatedOutcome.Denied, default, code, pointer);
+}
+
+/// <summary>
+/// DES-0052 layout-run-5 — one related-binding denial, keyed by authored block and relationship
+/// plus the request, for a reader authorized for both. Never part of the viewer's resolution.
+/// </summary>
+public sealed record LayoutRelatedDenial(
+    string RequestId,
+    string BlockId,
+    string BindingKind,
+    string RelationshipKey,
+    string Code,
+    string Pointer);
+
+/// <summary>The host's protected decision trace; Layout only writes to it.</summary>
+public interface ILayoutDecisionTrace
+{
+    /// <summary>Records one related-binding denial.</summary>
+    void RecordDenial(LayoutRelatedDenial denial);
 }
 
 /// <summary>
@@ -266,13 +326,27 @@ public sealed class LayoutBindingResolver
     /// <param name="guards">The evaluator bound to the caller's business clock.</param>
     public LayoutBindingResolver(GuardEvaluator guards) => _guards = guards ?? throw new ArgumentNullException(nameof(guards));
 
-    /// <summary>Resolves one admitted definition against one root scope.</summary>
+    /// <summary>Resolves one admitted definition against one root scope, with no decision trace.</summary>
     public LayoutBindingResolution Resolve(
         LayoutDefinition definition,
         ILayoutBindingSources sources,
         LayoutBindingScope root,
         CancellationToken cancellationToken = default)
+        => Resolve(definition, sources, root, trace: null, requestId: null, cancellationToken);
+
+    /// <summary>
+    /// Resolves one admitted definition against one root scope, writing each related-binding
+    /// denial to <paramref name="trace"/> under <paramref name="requestId"/> (layout-run-5).
+    /// </summary>
+    public LayoutBindingResolution Resolve(
+        LayoutDefinition definition,
+        ILayoutBindingSources sources,
+        LayoutBindingScope root,
+        ILayoutDecisionTrace? trace,
+        string? requestId,
+        CancellationToken cancellationToken = default)
     {
+        var denials = new DenialSink(trace, requestId ?? string.Empty);
         ArgumentNullException.ThrowIfNull(definition);
         ArgumentNullException.ThrowIfNull(sources);
 
@@ -280,7 +354,7 @@ public sealed class LayoutBindingResolver
         var refusals = new List<LayoutBindingRefusal>();
         var hidden = new List<string>();
         foreach (var block in definition.Blocks ?? [])
-            Walk(block, sources, root, root, blocks, refusals, hidden, cancellationToken);
+            Walk(block, sources, root, root, blocks, refusals, hidden, denials, cancellationToken);
         return new(blocks.AsReadOnly(), refusals.AsReadOnly(), hidden.AsReadOnly());
     }
 
@@ -292,6 +366,7 @@ public sealed class LayoutBindingResolver
         ICollection<LayoutResolvedBlock> blocks,
         ICollection<LayoutBindingRefusal> refusals,
         ICollection<string> hidden,
+        DenialSink denials,
         CancellationToken cancellationToken)
     {
         // A guard is evaluated before the binding: a withheld block resolves nothing, so a
@@ -307,23 +382,35 @@ public sealed class LayoutBindingResolver
         var childScope = scope;
         if (block.RelatedRelationship is { Length: > 0 } relationship)
         {
-            if (!sources.TryResolveRelated(scope, relationship, out var related))
+            var related = sources.ResolveRelated(scope, relationship);
+            switch (related.Outcome)
             {
-                refusals.Add(new(block.Id, LayoutBindingKinds.Of(block.Binding), relationship, scope.RowId));
-                return;
+                case LayoutRelatedOutcome.Resolved:
+                    childScope = related.Scope;
+                    break;
+                case LayoutRelatedOutcome.Denied:
+                    // layout-eng-31: the viewer sees exactly what an absent target shows — nothing,
+                    // with no refusal, marker or correlation id. Only the protected trace learns why.
+                    denials.Trace?.RecordDenial(new(denials.RequestId, block.Id, LayoutBindingKinds.Of(block.Binding),
+                        relationship, related.DenialCode ?? string.Empty, related.DenialPointer ?? string.Empty));
+                    return;
+                case LayoutRelatedOutcome.Absent:
+                    return;
+                default:
+                    refusals.Add(new(block.Id, LayoutBindingKinds.Of(block.Binding), relationship, scope.RowId));
+                    return;
             }
-            childScope = related;
         }
 
         if (block.Repeating)
         {
-            RepeatChildren(block, sources, root, childScope, blocks, refusals, hidden, cancellationToken);
+            RepeatChildren(block, sources, root, childScope, blocks, refusals, hidden, denials, cancellationToken);
             return;
         }
 
         Place(block, sources, childScope, blocks, refusals);
         foreach (var child in block.Children ?? [])
-            Walk(child, sources, root, childScope, blocks, refusals, hidden, cancellationToken);
+            Walk(child, sources, root, childScope, blocks, refusals, hidden, denials, cancellationToken);
     }
 
     private void RepeatChildren(
@@ -334,6 +421,7 @@ public sealed class LayoutBindingResolver
         ICollection<LayoutResolvedBlock> blocks,
         ICollection<LayoutBindingRefusal> refusals,
         ICollection<string> hidden,
+        DenialSink denials,
         CancellationToken cancellationToken)
     {
         var kind = LayoutBindingKinds.Of(block.Binding);
@@ -362,7 +450,7 @@ public sealed class LayoutBindingResolver
             var rowId = RowIdOf(row, index);
             var rowScope = new LayoutBindingScope(name, rowId, ValuesOf(row));
             foreach (var child in block.Children ?? [])
-                Walk(child, sources, root, rowScope, blocks, refusals, hidden, cancellationToken);
+                Walk(child, sources, root, rowScope, blocks, refusals, hidden, denials, cancellationToken);
             index++;
         }
     }
@@ -444,6 +532,8 @@ public sealed class LayoutBindingResolver
             return false;
         }
     }
+
+    private readonly record struct DenialSink(ILayoutDecisionTrace? Trace, string RequestId);
 
     private static string RowIdOf(JsonNode? row, int index)
         => row is JsonObject obj && obj.TryGetPropertyValue("id", out var id) && id is not null

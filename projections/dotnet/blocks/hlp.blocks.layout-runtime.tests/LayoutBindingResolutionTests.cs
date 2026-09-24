@@ -227,6 +227,61 @@ public sealed class LayoutBindingResolutionTests
         Assert.Equal("invoice.not-declared", Assert.Single(refused.Refusals).Name);
     }
 
+    [Fact(DisplayName = "layout-eng-31, layout-run-5: a missing and a denied related target are identical absence; only the protected trace sees the denial")]
+    public void AMissingAndADeniedRelatedTargetAreIdenticalAbsenceAndOnlyTheTraceSeesTheDenial()
+    {
+        var definition = Definition(LayoutMedium.Screen, LayoutIntent.Observe,
+            new LayoutBlock("owner-card", "layout.list", new LayoutStaticBinding(Json("\"Owner\"")), [
+                Block("owner-name", new LayoutRecordFieldBinding("name")),
+            ], RelatedRelationship: "invoice.owner"),
+            Block("supplier", new LayoutRecordFieldBinding("supplier")));
+        var missingTrace = new RecordingTrace();
+        var deniedTrace = new RecordingTrace();
+
+        var missing = Resolve(definition, new RelatedOutcomeSources(LayoutRelatedResult.Absent), missingTrace, "request-7");
+        var denied = Resolve(definition, new RelatedOutcomeSources(LayoutRelatedResult.Denied("access.denied", "/grants/owner")), deniedTrace, "request-7");
+
+        // What the viewer receives cannot tell the two apart: no refusal, no marker, same blocks.
+        Assert.Equal(Describe(missing), Describe(denied));
+        Assert.Empty(denied.Refusals);
+        Assert.Equal(["supplier"], denied.Blocks.Select(block => block.BlockId));
+
+        Assert.Empty(missingTrace.Denials);
+        Assert.Equal(
+            new LayoutRelatedDenial("request-7", "owner-card", LayoutBindingKinds.Static, "invoice.owner", "access.denied", "/grants/owner"),
+            Assert.Single(deniedTrace.Denials));
+    }
+
+    private static string Describe(LayoutBindingResolution resolution) => JsonSerializer.Serialize(new
+    {
+        blocks = resolution.Blocks.Select(block => new { block.BlockId, block.BindingKind, block.Name, Value = block.Value?.ToJsonString(), block.RowId }),
+        resolution.Refusals,
+        resolution.Hidden,
+    });
+
+    private static LayoutBindingResolution Resolve(LayoutDefinition definition, ILayoutBindingSources sources, ILayoutDecisionTrace trace, string requestId)
+        => new LayoutBindingResolver(new Harborline.Foundation.RuleEngine.GuardEvaluator(TimeProvider.System))
+            .Resolve(definition, sources, LayoutBindingScope.Root(new Dictionary<string, JsonNode?>(StringComparer.Ordinal)), trace, requestId);
+
+    private sealed class RecordingTrace : ILayoutDecisionTrace
+    {
+        public List<LayoutRelatedDenial> Denials { get; } = [];
+
+        public void RecordDenial(LayoutRelatedDenial denial) => Denials.Add(denial);
+    }
+
+    private sealed class RelatedOutcomeSources(LayoutRelatedResult outcome) : ILayoutBindingSources
+    {
+        private readonly FixtureSources _fixture = new();
+
+        public bool TryResolveField(LayoutBindingScope scope, string fieldPath, out JsonNode? value) => _fixture.TryResolveField(scope, fieldPath, out value);
+        public bool TryResolveQuery(LayoutBindingScope scope, string viewDefinitionId, out JsonNode? value) => _fixture.TryResolveQuery(scope, viewDefinitionId, out value);
+        public bool TryResolveMeasure(LayoutBindingScope scope, string measurePath, out JsonNode? value) => _fixture.TryResolveMeasure(scope, measurePath, out value);
+        public bool TryResolveTemplate(LayoutBindingScope scope, string templateDefinitionId, out JsonNode? value) => _fixture.TryResolveTemplate(scope, templateDefinitionId, out value);
+        public bool TryResolveCollection(LayoutBindingScope scope, string name, out IReadOnlyList<JsonNode?> rows) => _fixture.TryResolveCollection(scope, name, out rows);
+        public LayoutRelatedResult ResolveRelated(LayoutBindingScope scope, string relationship) => outcome;
+    }
+
     private static LayoutBindingResolution Resolve(LayoutDefinition definition, ILayoutBindingSources sources)
         => new LayoutBindingResolver(new Harborline.Foundation.RuleEngine.GuardEvaluator(TimeProvider.System)).Resolve(definition, sources, LayoutBindingScope.Root(new Dictionary<string, JsonNode?>(StringComparer.Ordinal)
         {
@@ -320,12 +375,9 @@ public sealed class LayoutBindingResolutionTests
             return true;
         }
 
-        public bool TryResolveRelated(LayoutBindingScope scope, string relationship, out LayoutBindingScope related)
-        {
-            related = relationship == "invoice.supplier"
-                ? new LayoutBindingScope(null, null, Related)
-                : default;
-            return relationship == "invoice.supplier";
-        }
+        public LayoutRelatedResult ResolveRelated(LayoutBindingScope scope, string relationship)
+            => relationship == "invoice.supplier"
+                ? LayoutRelatedResult.Resolved(new LayoutBindingScope(null, null, Related))
+                : LayoutRelatedResult.Undeclared;
     }
 }
