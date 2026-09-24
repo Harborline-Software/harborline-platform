@@ -280,6 +280,34 @@ public sealed class LayoutDefinitionProducerTests
             "/blocks/0/children/1/live_selection");
     }
 
+    [Fact(DisplayName = "layout-ck-41 (owner ruling 2026-09-24): an omitted span, span 1 and fill are three distinct persisted states")]
+    public void AnOmittedSpanSpanOneAndFillPersistDistinctly()
+    {
+        // The capture block's persisted placement object, after publish admission and a canonical round trip.
+        System.Text.Json.Nodes.JsonObject Persisted(LayoutPlacement placement)
+        {
+            var definition = ScreenDefinition(block => block.Id == "capture" ? block with { Placement = placement } : block);
+            LayoutDefinitionAdmission.ValidateForPublish(definition);
+            var root = System.Text.Json.Nodes.JsonNode.Parse(LayoutDefinitionJson.SerializeCanonical(definition))!;
+            var capture = root["blocks"]![0]!["children"]!.AsArray().Single(child => (string?)child!["id"] == "capture")!;
+            return capture["placement"]!.AsObject();
+        }
+
+        Assert.False(Persisted(new LayoutPlacement()).ContainsKey("span"));
+        Assert.Equal(1, (int)Persisted(new LayoutPlacement(Span: 1))["span"]!);
+        var fill = Persisted(new LayoutPlacement(Width: LayoutSizing.Fill));
+        Assert.False(fill.ContainsKey("span"));
+        Assert.Equal("fill", (string?)fill["width"]);
+    }
+
+    [Fact(DisplayName = "layout-ck-41 (owner ruling 2026-09-24): a span beside fill refuses")]
+    public void ASpanBesideFillRefuses()
+    {
+        AssertRefusal(ScreenDefinition(block => block.Id == "capture"
+                ? block with { Placement = new LayoutPlacement(Width: LayoutSizing.Fill, Span: 4) } : block),
+            LayoutDefinitionCodes.SpanWithFill, "/blocks/0/children/0/placement/span");
+    }
+
     [Fact(DisplayName = "T-582 item 5: all five bindings survive pack export and host admission as references")]
     public void AllFiveBindingsSurvivePackExportAndInstallAsReferences()
     {
@@ -514,7 +542,6 @@ public sealed class LayoutDefinitionProducerTests
                             "main",
                             LayoutSizing.Fill,
                             LayoutSizing.Hug,
-                            Span: 1,
                             Grow: 0,
                             JustifySelf: LayoutAlignment.Start,
                             AlignSelf: LayoutAlignment.Center),
@@ -526,7 +553,7 @@ public sealed class LayoutDefinitionProducerTests
                         new LayoutQueryBinding("view.customer-orders"),
                         LayoutIntent.Observe,
                         container: new LayoutContainer(LayoutContainerKind.Stack),
-                        placement: new LayoutPlacement("main", LayoutSizing.Fill, LayoutSizing.Hug, Span: 1, Grow: 1),
+                        placement: new LayoutPlacement("main", LayoutSizing.Fill, LayoutSizing.Hug, Grow: 1),
                         repeating: true,
                         relatedRelationship: "customer.orders",
                         showWhen: "rule.customer.orders.visible",
@@ -699,7 +726,7 @@ public sealed class LayoutDefinitionProducerTests
             {
                 (LayoutNumericMember.ColumnCount, "root") => block with { Container = block.Container! with { ColumnCount = value } },
                 (LayoutNumericMember.Gap, "root") => block with { Container = block.Container! with { Gap = value } },
-                (LayoutNumericMember.Span, "capture") => block with { Placement = block.Placement! with { Span = value } },
+                (LayoutNumericMember.Span, "capture") => block with { Placement = block.Placement! with { Span = value, Width = LayoutSizing.Hug } },
                 (LayoutNumericMember.Grow, "capture") => block with { Placement = block.Placement! with { Grow = value } },
                 _ => block,
             }),

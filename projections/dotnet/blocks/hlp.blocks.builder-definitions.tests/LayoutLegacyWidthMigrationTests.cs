@@ -68,10 +68,10 @@ public sealed class LayoutLegacyWidthMigrationTests
 
     [Theory(DisplayName = "layout-eng-9 successor: a Forms table column keeps its width and alignment")]
     [InlineData("1/3", "end", 4, LayoutSizing.Hug, LayoutAlignment.End)]
-    [InlineData("full", "center", 1, LayoutSizing.Fill, LayoutAlignment.Center)]
-    [InlineData(null, null, 1, LayoutSizing.Hug, LayoutAlignment.Start)]
+    [InlineData("full", "center", null, LayoutSizing.Fill, LayoutAlignment.Center)]
+    [InlineData(null, null, null, LayoutSizing.Hug, LayoutAlignment.Start)]
     public void A_forms_table_column_keeps_its_width_and_alignment(
-        string? width, string? align, int span, LayoutSizing sizing, LayoutAlignment justify)
+        string? width, string? align, int? span, LayoutSizing sizing, LayoutAlignment justify)
     {
         var placement = LayoutLegacyWidthMigration.MigrateColumn(width, align);
 

@@ -63,6 +63,8 @@ public static class LayoutDefinitionCodes
     public const string CollectionBoundsInvalid = "layout.collection.bounds_invalid";
     /// <summary>A legacy placement states both a width and a column span, so neither can be migrated without choosing.</summary>
     public const string LegacyPlacementConflict = "layout.migration.placement_conflict";
+    /// <summary>A placement states a span beside <c>fill</c>, which already takes the whole run.</summary>
+    public const string SpanWithFill = "layout.placement.span_with_fill";
 }
 
 /// <summary>Identifies one deterministic Layout admission refusal.</summary>
@@ -385,7 +387,13 @@ public static class LayoutDefinitionAdmission
             Add(refusals, LayoutDefinitionCodes.ZoneUnknown, $"{pointer}/zone");
         if (placement.PixelPosition is not null)
             Add(refusals, LayoutDefinitionCodes.PixelPlacementForbidden, $"{pointer}/pixel_position");
-        AddNumeric(placement.Span, LayoutNumericMember.Span, $"{pointer}/span", refusals);
+        if (placement.Span is { } span)
+        {
+            AddNumeric(span, LayoutNumericMember.Span, $"{pointer}/span", refusals);
+            // fill takes the whole run; a span beside it is a second, contradictory width.
+            if (placement.Width == LayoutSizing.Fill)
+                Add(refusals, LayoutDefinitionCodes.SpanWithFill, $"{pointer}/span");
+        }
         AddNumeric(placement.Grow, LayoutNumericMember.Grow, $"{pointer}/grow", refusals);
     }
 

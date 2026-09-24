@@ -191,7 +191,7 @@ public sealed record LayoutContainer(
 /// <param name="Zone">The optional named region.</param>
 /// <param name="Width">The width behavior.</param>
 /// <param name="Height">The height behavior.</param>
-/// <param name="Span">The governed track span.</param>
+/// <param name="Span">The governed track span, or <see langword="null"/> when the member states none (auto placement). Absent, an explicit 1, and <c>fill</c> are distinct states.</param>
 /// <param name="Grow">The governed growth weight.</param>
 /// <param name="JustifySelf">The optional inline override.</param>
 /// <param name="AlignSelf">The optional block override.</param>
@@ -200,7 +200,7 @@ public sealed record LayoutPlacement(
     string? Zone = null,
     LayoutSizing Width = LayoutSizing.Hug,
     LayoutSizing Height = LayoutSizing.Hug,
-    int Span = 1,
+    int? Span = null,
     int Grow = 0,
     LayoutAlignment? JustifySelf = null,
     LayoutAlignment? AlignSelf = null,

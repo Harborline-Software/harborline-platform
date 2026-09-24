@@ -49,7 +49,7 @@ public static class LayoutLegacyWidthMigration
             refusals.Add(new(LayoutDefinitionCodes.LegacyPlacementConflict, "/col_span"));
         if (refusals.Count > 0) throw new LayoutDefinitionAdmissionException(Stage, refusals.AsReadOnly());
 
-        var placement = new LayoutPlacement(Width: LayoutSizing.Hug, Span: span ?? 1, Grow: grow ?? 0);
+        var placement = new LayoutPlacement(Width: LayoutSizing.Hug, Span: span, Grow: grow ?? 0);
         return WithLegacyWidth(placement, width);
     }
 
