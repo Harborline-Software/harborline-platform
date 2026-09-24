@@ -46,7 +46,7 @@ public sealed class LayoutRuntimeTests : BunitContext
         Assert.Equal("layout.table", changed!.Blocks.Last().Kind);
     }
 
-    [Fact]
+    [Fact(DisplayName = "layout-auth-13..16: the editor binds a block to any of the five kinds and names it from the catalogue")]
     public void EditorBindsABlockToAnyOfTheFiveKindsAndNamesItFromTheCatalogue()
     {
         LayoutAuthoringDraft? changed = null;
@@ -68,7 +68,7 @@ public sealed class LayoutRuntimeTests : BunitContext
         Assert.Equal("total", changed.Blocks.Single().Id);
     }
 
-    [Fact]
+    [Fact(DisplayName = "layout-auth-31: the editor marks an unbound block as needing a binding instead of removing it")]
     public void EditorMarksAnUnboundBlockAsNeedingABindingInsteadOfRemovingIt()
     {
         var cut = Render<HarborlineLayoutAuthoringEditor>(parameters => parameters

@@ -31,7 +31,7 @@ describe('LayoutRuntime React projection', () => {
     expect(changed).toHaveBeenCalledWith(expect.objectContaining({ blocks: expect.arrayContaining([expect.objectContaining({ kind: 'layout.table' })]) }))
   })
 
-  it('binds a block to any of the five kinds and names it from the catalogue', () => {
+  it('layout-auth-13..16: binds a block to any of the five kinds and names it from the catalogue', () => {
     const changed = vi.fn()
     const catalogue = {
       blockKinds: [{ id: 'layout.table', label: 'Table' }],
@@ -57,7 +57,7 @@ describe('LayoutRuntime React projection', () => {
     expect(changed).toHaveBeenCalledWith(expect.objectContaining({ blocks: [{ id: 'total', kind: 'layout.table', binding: { kind: 'query', name: '' } }] }))
   })
 
-  it('marks an unbound block as needing a binding instead of removing it', () => {
+  it('layout-auth-31: marks an unbound block as needing a binding instead of removing it', () => {
     render(<LayoutAuthoringEditor value={{ ...emptyLayoutAuthoringDraft(), blocks: [{ id: 'orphan', kind: 'layout.table', binding: { kind: 'query', name: '' } }] }} catalogue={{ blockKinds: [{ id: 'layout.table', label: 'Table' }], zones: [] }} onChange={vi.fn()} />)
     expect(screen.getByRole('status')).toHaveTextContent('Block 1 needs a binding')
     expect(screen.getByLabelText('Block 1 binding kind')).toBeInTheDocument()

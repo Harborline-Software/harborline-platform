@@ -138,7 +138,7 @@ public sealed class LayoutDefinitionProducerTests
         Assert.Equal(LayoutCascadeLayer.DomainPackage, roundTrip.Envelope.CascadeLayer);
         Assert.Equal("regulated", roundTrip.Envelope.RetentionClass);
         Assert.True(roundTrip.Envelope.LegalHold);
-        Assert.Equal("records", Assert.Single(roundTrip.Envelope.Requires).Capability);
+        Assert.Equal(["records", LayoutPackIdentity.Capability], roundTrip.Envelope.Requires.Select(requirement => requirement.Capability));
         Assert.Equal(LayoutMedium.Screen, roundTrip.Medium);
         Assert.Equal(LayoutIntent.Capture, roundTrip.DefaultIntent);
         Assert.Equal(["root", "capture", "query", "measure", "static"], Flatten(roundTrip.Blocks).Select(block => block.Id));
@@ -280,6 +280,202 @@ public sealed class LayoutDefinitionProducerTests
             "/blocks/0/children/1/live_selection");
     }
 
+    [Fact(DisplayName = "layout-ck-41 (owner ruling 2026-09-24): an omitted span, span 1 and fill are three distinct persisted states")]
+    public void AnOmittedSpanSpanOneAndFillPersistDistinctly()
+    {
+        // The capture block's persisted placement object, after publish admission and a canonical round trip.
+        System.Text.Json.Nodes.JsonObject Persisted(LayoutPlacement placement)
+        {
+            var definition = ScreenDefinition(block => block.Id == "capture" ? block with { Placement = placement } : block);
+            LayoutDefinitionAdmission.ValidateForPublish(definition);
+            var root = System.Text.Json.Nodes.JsonNode.Parse(LayoutDefinitionJson.SerializeCanonical(definition))!;
+            var capture = root["blocks"]![0]!["children"]!.AsArray().Single(child => (string?)child!["id"] == "capture")!;
+            return capture["placement"]!.AsObject();
+        }
+
+        Assert.False(Persisted(new LayoutPlacement()).ContainsKey("span"));
+        Assert.Equal(1, (int)Persisted(new LayoutPlacement(Span: 1))["span"]!);
+        var fill = Persisted(new LayoutPlacement(Width: LayoutSizing.Fill));
+        Assert.False(fill.ContainsKey("span"));
+        Assert.Equal("fill", (string?)fill["width"]);
+    }
+
+    [Fact(DisplayName = "layout-ck-41 (owner ruling 2026-09-24): a span beside fill refuses")]
+    public void ASpanBesideFillRefuses()
+    {
+        AssertRefusal(ScreenDefinition(block => block.Id == "capture"
+                ? block with { Placement = new LayoutPlacement(Width: LayoutSizing.Fill, Span: 4) } : block),
+            LayoutDefinitionCodes.SpanWithFill, "/blocks/0/children/0/placement/span");
+    }
+
+    [Fact(DisplayName = "T-582 item 5: all five bindings survive pack export and host admission as references")]
+    public void AllFiveBindingsSurvivePackExportAndInstallAsReferences()
+    {
+        var pack = new[]
+        {
+            LayoutDefinitionPackageExporter.Export(ScreenDefinition()),
+            LayoutDefinitionPackageExporter.Export(PageDefinition()),
+        };
+        LayoutPackHostAdmission.Admit(pack, new Dictionary<string, string> { [LayoutPackIdentity.Capability] = "1.0.0" });
+
+        var installed = pack
+            .SelectMany(entry => Flatten(LayoutDefinitionJson.Deserialize(entry.Content.Payload.Span).Blocks))
+            .Select(block => block.Binding)
+            .ToArray();
+
+        // Each kind still names what it binds; nothing was resolved into the payload.
+        Assert.Contains(new LayoutQueryBinding("view.customer-orders"), installed);
+        Assert.Contains(new LayoutMeasureBinding("orders.total"), installed);
+        Assert.Contains(new LayoutTemplateBinding("template.invoice"), installed);
+        Assert.Contains(installed, binding => binding is LayoutRecordFieldBinding { FieldPath: "customer.name" });
+        Assert.Contains(installed, binding => binding is LayoutStaticBinding { Content.ValueKind: JsonValueKind.Object });
+    }
+
+    [Fact(DisplayName = "layout-ck-40: a repeating block admits bounds it can satisfy")]
+    public void ARepeatingBlockAdmitsSatisfiableBounds()
+    {
+        LayoutDefinitionAdmission.ValidateForPublish(ScreenDefinition(block => block.Id == "query"
+            ? block with { CollectionBounds = new LayoutCollectionBounds(0, 20) } : block));
+    }
+
+    [Theory(DisplayName = "layout-ck-40: malformed or misplaced collection bounds refuse")]
+    [InlineData("query", -1, 5)]
+    [InlineData("query", 3, 2)]
+    [InlineData("measure", 0, 5)]
+    public void MalformedOrMisplacedCollectionBoundsRefuse(string blockId, int minimum, int maximum)
+    {
+        var definition = ScreenDefinition(block => block.Id == blockId
+            ? block with { CollectionBounds = new LayoutCollectionBounds(minimum, maximum) } : block);
+        var pointer = blockId == "query" ? "/blocks/0/children/1/collection_bounds" : "/blocks/0/children/2/collection_bounds";
+
+        AssertRefusal(definition, LayoutDefinitionCodes.CollectionBoundsInvalid, pointer);
+    }
+
+    [Fact(DisplayName = "layout-ck-42: publication refuses a Layout that does not declare platform.layout in its payload")]
+    public void PublicationRefusesALayoutThatDoesNotDeclareItsCapability()
+    {
+        var definition = ScreenDefinition();
+        var undeclared = definition with
+        {
+            Envelope = definition.Envelope with { Requires = [new LayoutDefinitionRequirement("records", "1.0.0")] },
+        };
+
+        var refused = Assert.Throws<LayoutDefinitionAdmissionException>(() => LayoutDefinitionAdmission.ValidateForPublish(undeclared));
+
+        Assert.Equal("definition.publish", refused.Stage);
+        Assert.Equal([new LayoutDefinitionRefusal(LayoutDefinitionCodes.CapabilityUndeclared, "/envelope/requires")], refused.Refusals);
+    }
+
+    [Theory(DisplayName = "layout-ck-42: publication refuses platform.layout without an exact minimum platform version")]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("1.0")]
+    [InlineData("latest")]
+    public void PublicationRefusesTheCapabilityWithoutAnExactMinimumPlatformVersion(string? minimum)
+    {
+        var definition = ScreenDefinition();
+        var unversioned = definition with
+        {
+            Envelope = definition.Envelope with
+            {
+                Requires = [new LayoutDefinitionRequirement("records", "1.0.0"), new LayoutDefinitionRequirement(LayoutPackIdentity.Capability, minimum)],
+            },
+        };
+
+        var refused = Assert.Throws<LayoutDefinitionAdmissionException>(() => LayoutDefinitionAdmission.ValidateForPublish(unversioned));
+
+        Assert.Equal(
+            [new LayoutDefinitionRefusal(LayoutDefinitionCodes.CapabilityUndeclared, "/envelope/requires/1/minimum_platform_version")],
+            refused.Refusals);
+    }
+
+    [Fact(DisplayName = "layout-ck-42: a second platform.layout declaration refuses at publish and at install")]
+    public void ASecondCapabilityDeclarationRefusesAtPublishAndInstall()
+    {
+        var definition = ScreenDefinition();
+        var doubled = definition with
+        {
+            Envelope = definition.Envelope with
+            {
+                Requires =
+                [
+                    new LayoutDefinitionRequirement(LayoutPackIdentity.Capability, "1.0.0"),
+                    new LayoutDefinitionRequirement(LayoutPackIdentity.Capability, "3.0.0"),
+                ],
+            },
+        };
+
+        var published = Assert.Throws<LayoutDefinitionAdmissionException>(() => LayoutDefinitionAdmission.ValidateForPublish(doubled));
+        Assert.Equal([new LayoutDefinitionRefusal(LayoutDefinitionCodes.CapabilityUndeclared, "/envelope/requires")], published.Refusals);
+
+        var entry = new LayoutDefinitionPackageEntry("surface.customer", "1.0.0",
+            PlatformPackageContent.PresentJson(LayoutDefinitionJson.SerializeCanonical(doubled)));
+        var installed = Assert.Throws<LayoutPackUnsupportedException>(() => LayoutPackHostAdmission.Admit(
+            [entry], new Dictionary<string, string> { [LayoutPackIdentity.Capability] = "1.5.0" }));
+        Assert.Equal(LayoutDefinitionCodes.CapabilityUndeclared, installed.Code);
+    }
+
+    [Fact(DisplayName = "layout-ck-42: a draft may omit the capability; only the sealed payload must carry it")]
+    public void AuthoringDoesNotRequireTheCapability()
+    {
+        var definition = ScreenDefinition();
+
+        LayoutDefinitionAdmission.ValidateForAuthoring(definition with { Envelope = definition.Envelope with { Requires = [] } });
+    }
+
+    [Theory(DisplayName = "layout-ck-42: a host at or above the sealed minimum admits the pack")]
+    [InlineData("1.0.0")]
+    [InlineData("1.4.2")]
+    public void AHostThatSatisfiesTheSealedCapabilityAdmitsThePack(string hostVersion)
+    {
+        var pack = new[] { LayoutDefinitionPackageExporter.Export(ScreenDefinition()) };
+
+        LayoutPackHostAdmission.Admit(pack, new Dictionary<string, string> { [LayoutPackIdentity.Capability] = hostVersion });
+    }
+
+    [Theory(DisplayName = "layout-ck-42: a host lacking the capability or the version refuses the whole pack, naming both")]
+    [InlineData(null)]
+    [InlineData("0.9.0")]
+    [InlineData("1.0.0-rc.1")]
+    public void AnUnsupportedHostRefusesTheWholePackNamingTheCapabilityAndVersion(string? hostVersion)
+    {
+        var supported = ScreenDefinition();
+        var demanding = supported with
+        {
+            Envelope = supported.Envelope with
+            {
+                Identity = "surface.later",
+                Requires = [new LayoutDefinitionRequirement(LayoutPackIdentity.Capability, "1.0.0")],
+            },
+        };
+        var host = hostVersion is null
+            ? new Dictionary<string, string>()
+            : new Dictionary<string, string> { [LayoutPackIdentity.Capability] = hostVersion };
+
+        var refused = Assert.Throws<LayoutPackUnsupportedException>(() => LayoutPackHostAdmission.Admit(
+            [LayoutDefinitionPackageExporter.Export(supported), LayoutDefinitionPackageExporter.Export(demanding)], host));
+
+        Assert.Equal(LayoutDefinitionCodes.CapabilityUnsupported, refused.Code);
+        Assert.Equal(LayoutPackIdentity.Capability, refused.Capability);
+        Assert.Equal("1.0.0", refused.MinimumPlatformVersion);
+        Assert.Contains(LayoutPackIdentity.Capability, refused.Message, StringComparison.Ordinal);
+        Assert.Contains("1.0.0", refused.Message, StringComparison.Ordinal);
+    }
+
+    [Fact(DisplayName = "layout-ck-42: a payload stripped of its capability is refused, never admitted as unconstrained")]
+    public void APayloadStrippedOfItsCapabilityIsRefused()
+    {
+        var definition = ScreenDefinition();
+        var stripped = definition with { Envelope = definition.Envelope with { Requires = [] } };
+        var entry = new LayoutDefinitionPackageEntry("surface.customer", "1.0.0",
+            PlatformPackageContent.PresentJson(LayoutDefinitionJson.SerializeCanonical(stripped)));
+
+        var refused = Assert.Throws<LayoutPackUnsupportedException>(() => LayoutPackHostAdmission.Admit(
+            [entry], new Dictionary<string, string> { [LayoutPackIdentity.Capability] = "9.0.0" }));
+
+        Assert.Equal(LayoutDefinitionCodes.CapabilityUndeclared, refused.Code);
+    }
+
     [Fact(DisplayName = "Layout producer: unique pack identity and provider-neutral canonical export; lifecycle is T-620")]
     public void DefinitionExportsThroughThePlatformDocumentBoundary()
     {
@@ -346,7 +542,6 @@ public sealed class LayoutDefinitionProducerTests
                             "main",
                             LayoutSizing.Fill,
                             LayoutSizing.Hug,
-                            Span: 1,
                             Grow: 0,
                             JustifySelf: LayoutAlignment.Start,
                             AlignSelf: LayoutAlignment.Center),
@@ -358,7 +553,7 @@ public sealed class LayoutDefinitionProducerTests
                         new LayoutQueryBinding("view.customer-orders"),
                         LayoutIntent.Observe,
                         container: new LayoutContainer(LayoutContainerKind.Stack),
-                        placement: new LayoutPlacement("main", LayoutSizing.Fill, LayoutSizing.Hug, Span: 1, Grow: 1),
+                        placement: new LayoutPlacement("main", LayoutSizing.Fill, LayoutSizing.Hug, Grow: 1),
                         repeating: true,
                         relatedRelationship: "customer.orders",
                         showWhen: "rule.customer.orders.visible",
@@ -452,7 +647,7 @@ public sealed class LayoutDefinitionProducerTests
             JsonSerializer.SerializeToElement(new { package = "customer-domain", source = "authoring" }),
             "regulated",
             LegalHold: true,
-            Requires: [new LayoutDefinitionRequirement("records", "1.0.0")]),
+            Requires: [new LayoutDefinitionRequirement("records", "1.0.0"), new LayoutDefinitionRequirement(LayoutPackIdentity.Capability, "1.0.0")]),
         SchemaVersion: 1,
         Medium: medium,
         DefaultIntent: defaultIntent,
@@ -531,7 +726,7 @@ public sealed class LayoutDefinitionProducerTests
             {
                 (LayoutNumericMember.ColumnCount, "root") => block with { Container = block.Container! with { ColumnCount = value } },
                 (LayoutNumericMember.Gap, "root") => block with { Container = block.Container! with { Gap = value } },
-                (LayoutNumericMember.Span, "capture") => block with { Placement = block.Placement! with { Span = value } },
+                (LayoutNumericMember.Span, "capture") => block with { Placement = block.Placement! with { Span = value, Width = LayoutSizing.Hug } },
                 (LayoutNumericMember.Grow, "capture") => block with { Placement = block.Placement! with { Grow = value } },
                 _ => block,
             }),
