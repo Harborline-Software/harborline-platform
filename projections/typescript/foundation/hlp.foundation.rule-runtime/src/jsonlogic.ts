@@ -81,6 +81,9 @@ export const builtInRegister = {
   'coding.is': def('coding', 3, 3, (_a, _c, ev) => evalCodingIs(ev(0), asString(ev(1)) ?? '', asString(ev(2)) ?? '')),
 } as const satisfies Record<string, BuiltInImpl>
 
+/** The folds `agg` accepts over a bounded child collection (rules-bound-4, rules-eng-16); mirrors the .NET register. */
+export const aggregateFolds = ['sum', 'count', 'avg', 'min', 'max', 'any', 'all'] as const
+
 /** A key of the R1 built-in register. */
 export type BuiltInKey = keyof typeof builtInRegister
 

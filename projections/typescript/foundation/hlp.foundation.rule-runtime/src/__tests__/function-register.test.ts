@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 import {
-  builtInFunctions, canonicalFunctionReference, compile, displayFunctionReference, FunctionReferenceCodes,
+  aggregateFolds, builtInFunctions, canonicalFunctionReference, compile, displayFunctionReference, FunctionReferenceCodes,
   isRegisteredBuiltIn, packageFunction, readFunctionReference, readPackagePayload, resolveBuiltIn, CompileError,
 } from '../index.js'
 import { evaluate } from '../jsonlogic.js'
@@ -61,5 +61,16 @@ describe('T-590 R1 register and discriminated function reference (TS tier)', () 
     const refused = code(() => compile([{ id: 'r', tier: 'JsonLogic', scope: 'Field', scopeTarget: 'a', action: 'Compute', expression: '{"shadow":[1]}' }]))
     expect(refused).toBe('rule.compile.invalid_expression')
     expect(CompileError).toBeDefined()
+  })
+
+  it('rules-eng-16, rules-bound-4, rules-auth-27: agg folds only a registered bounded fold over a named child collection; search, query and taxonomy traversal refuse (TS tier)', () => {
+    const compileOne = (expression: unknown) => code(() => compile([{ id: 'r', tier: 'JsonLogic', scope: 'Field', scopeTarget: 'out', action: 'Compute', expression: expression as string }]))
+    for (const fold of aggregateFolds) expect(compileOne({ var: `table.${fold}(items.amount)` }), fold).toBeUndefined()
+    for (const bad of [{ agg: ['median', 'items', 'amount'] }, { agg: ['search', 'items', 'amount'] }, { agg: ['sum', { var: 'field.section' }, 'amount'] }]) {
+      expect(compileOne(bad), JSON.stringify(bad)).toBe('rule.compile.bad_grammar')
+    }
+    for (const bad of [{ search: ['assets', 'pump'] }, { query: ['assets', true] }, { 'interval.overlaps': [1, 2] }, { 'taxonomy.subsumes': ['a', 'b', 'c'] }, { 'taxonomy.succeeds': ['a', 'b', 'c'] }, { measure: ['asset.score'] }, { reduce: [[], 1, 0] }, { filter: [[], true] }, { map: [[], 1] }]) {
+      expect(compileOne(bad), JSON.stringify(bad)).toBe('rule.compile.invalid_expression')
+    }
   })
 })

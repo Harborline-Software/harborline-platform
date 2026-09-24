@@ -3,7 +3,7 @@
  * `RulesPaletteGenerator`: functions come from the R1 built-in register and references from the
  * Records fields, shaped by the rule's scope, so an author is offered only forms the compiler admits.
  */
-import { builtInFunctions, type BuiltInFunctionDefinition, type RuleScope } from '@harborline-software/rule-engine'
+import { aggregateFolds, builtInFunctions, type BuiltInFunctionDefinition, type RuleScope } from '@harborline-software/rule-engine'
 import type { RuleDefinitionValueType as ColumnValueType } from './definition.js'
 
 /** A field as Records owns it. The palette reads these facts and stores no copy of the schema. */
@@ -13,9 +13,6 @@ export interface RecordTableFact { readonly key: string; readonly columns: reado
 export interface RecordFieldSet { readonly fields: readonly RecordFieldFact[]; readonly tables: readonly RecordTableFact[] }
 export interface RulesPaletteReference { readonly id: string; readonly label: string; readonly valueType: ColumnValueType }
 export interface RulesPalette { readonly functions: readonly BuiltInFunctionDefinition[]; readonly references: readonly RulesPaletteReference[] }
-
-/** The folds `agg` accepts over a bounded child collection (rules-bound-4); mirrors the .NET register. */
-export const aggregateFolds = ['sum', 'count', 'avg', 'min', 'max', 'any', 'all'] as const
 
 const folds = (fold: string, type: ColumnValueType) =>
   fold === 'count' || ((fold === 'any' || fold === 'all') ? type === 'Boolean' : type === 'Number')

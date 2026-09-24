@@ -11,7 +11,7 @@ export * from './codes.js'
 export * from './limits.js'
 export { compile, type CompiledGraph, type CompiledRule } from './compiler.js'
 // T-590 R1 built-in register and the discriminated function reference (rules-eng-27, rules-ck-29).
-export { type BuiltInKey } from './jsonlogic.js'
+export { aggregateFolds, type BuiltInKey } from './jsonlogic.js'
 export * from './functions.js'
 // T-590 borrower environment admission (rules-ck-28, rules-eng-26).
 export {
