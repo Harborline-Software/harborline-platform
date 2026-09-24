@@ -280,6 +280,29 @@ public sealed class LayoutDefinitionProducerTests
             "/blocks/0/children/1/live_selection");
     }
 
+    [Fact(DisplayName = "T-582 item 5: all five bindings survive pack export and host admission as references")]
+    public void AllFiveBindingsSurvivePackExportAndInstallAsReferences()
+    {
+        var pack = new[]
+        {
+            LayoutDefinitionPackageExporter.Export(ScreenDefinition()),
+            LayoutDefinitionPackageExporter.Export(PageDefinition()),
+        };
+        LayoutPackHostAdmission.Admit(pack, new Dictionary<string, string> { [LayoutPackIdentity.Capability] = "1.0.0" });
+
+        var installed = pack
+            .SelectMany(entry => Flatten(LayoutDefinitionJson.Deserialize(entry.Content.Payload.Span).Blocks))
+            .Select(block => block.Binding)
+            .ToArray();
+
+        // Each kind still names what it binds; nothing was resolved into the payload.
+        Assert.Contains(new LayoutQueryBinding("view.customer-orders"), installed);
+        Assert.Contains(new LayoutMeasureBinding("orders.total"), installed);
+        Assert.Contains(new LayoutTemplateBinding("template.invoice"), installed);
+        Assert.Contains(installed, binding => binding is LayoutRecordFieldBinding { FieldPath: "customer.name" });
+        Assert.Contains(installed, binding => binding is LayoutStaticBinding { Content.ValueKind: JsonValueKind.Object });
+    }
+
     [Fact(DisplayName = "layout-ck-40: a repeating block admits bounds it can satisfy")]
     public void ARepeatingBlockAdmitsSatisfiableBounds()
     {
