@@ -65,11 +65,14 @@ public sealed class LayoutBindingResolutionTests
         Assert.Equal(["Cement", "Ballast"], rows.Select(row => row.Value?.ToString()));
         Assert.Equal(["line-1", "line-2"], rows.Select(row => row.RowId));
 
-        // A guard reaching for a row while at the surface root cannot see one: fail-closed.
-        var crossRow = Resolve(
+        // A guard reaching for a row while at the surface root cannot see one: fail-closed. The root
+        // carries a field of the same name, so a row reference that leaked to the root would hold.
+        var crossRow = new LayoutBindingResolver(new Harborline.Foundation.RuleEngine.GuardEvaluator(TimeProvider.System)).Resolve(
             Definition(LayoutMedium.Screen, LayoutIntent.Observe,
                 Block("stray", new LayoutRecordFieldBinding("supplier"), showWhen: "{\"==\":[{\"var\":\"row.description\"},\"Cement\"]}")),
-            Sources());
+            Sources(),
+            LayoutBindingScope.Root(new Dictionary<string, JsonNode?>(StringComparer.Ordinal) { ["description"] = JsonValue.Create("Cement") }),
+            new RecordingTrace(), new LayoutResolutionRequest("request-1", "principal.clerk-4"));
         Assert.Equal("stray", Assert.Single(crossRow.Hidden));
         Assert.Empty(crossRow.Blocks);
     }
@@ -356,7 +359,9 @@ public sealed class LayoutBindingResolutionTests
             // A row scope answers from its own row, never from the surface root.
             if (scope.IsRow) return scope.Values.TryGetValue(fieldPath, out value);
             if (scope.Values.TryGetValue(fieldPath, out value)) return true;
-            return Fields.TryGetValue(fieldPath, out value) || Related.TryGetValue(fieldPath, out value);
+            // Only the related scope answers the related record's fields, so a resolver that forgot to
+            // switch scope cannot pass by reading them from the surface root.
+            return Fields.TryGetValue(fieldPath, out value);
         }
 
         public bool TryResolveQuery(LayoutBindingScope scope, string viewDefinitionId, out JsonNode? value)
