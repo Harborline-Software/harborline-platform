@@ -37,8 +37,10 @@ export const requiredStepIds = headless
   ? allStepIds.filter(id => !browserStepIds.includes(id))
   : allStepIds
 
-export function recordPhase4Gate(evidencePath, report) {
-  if (report.status !== 'PASS') return false
+export function recordPhase4Gate(evidencePath, report, {headless: isHeadless = false} = {}) {
+  // A headless report contains no gallery observation. Leaving the prior full receipt intact is
+  // more honest than replacing it with an absence that a later model reads as UNBUILT.
+  if (report.status !== 'PASS' || isHeadless) return false
   writeFileSync(evidencePath, `${JSON.stringify(report, null, 2)}\n`)
   return true
 }

@@ -31,3 +31,18 @@ test('a failed gate never overwrites prior passing evidence', () => {
     rmSync(root, {recursive: true, force: true})
   }
 })
+
+test('a headless passing gate records no gallery assertion and never overwrites a prior full receipt', () => {
+  const root = mkdtempSync(resolve(tmpdir(), 'phase4-evidence-'))
+  try {
+    const evidence = resolve(root, 'gate.json')
+    const prior = '{"status":"PASS","results":[{"id":"gallery-gate","passed":true}]}\n'
+    const headlessReport = {status: 'PASS', results: []}
+    writeFileSync(evidence, prior)
+    assert.equal(headlessReport.results.find(result => result.id === 'gallery-gate'), undefined)
+    assert.equal(recordPhase4Gate(evidence, headlessReport, {headless: true}), false)
+    assert.equal(readFileSync(evidence, 'utf8'), prior)
+  } finally {
+    rmSync(root, {recursive: true, force: true})
+  }
+})
