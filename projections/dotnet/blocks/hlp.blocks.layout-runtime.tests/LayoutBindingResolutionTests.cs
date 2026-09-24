@@ -180,7 +180,7 @@ public sealed class LayoutBindingResolutionTests
         Assert.Empty(resolution.Refusals);
     }
 
-    [Fact(DisplayName = "layout-eng-16: a guard fails closed on an unknown reference and on a malformed expression")]
+    [Fact(DisplayName = "layout-eng-16, layout-auth-20 (runtime): a guard fails closed on an unknown reference and on a malformed expression")]
     public void AGuardFailsClosedOnAnUnknownReferenceAndOnAMalformedExpression()
     {
         foreach (var expression in new[]
@@ -200,7 +200,7 @@ public sealed class LayoutBindingResolutionTests
         }
     }
 
-    [Fact(DisplayName = "layout-eng-16: a guard that holds places the block through the shared evaluator")]
+    [Fact(DisplayName = "layout-eng-16, layout-auth-20 (runtime): a guard that holds places the block through the shared evaluator")]
     public void AGuardThatHoldsPlacesTheBlockThroughTheSharedEvaluator()
     {
         var resolution = Resolve(
