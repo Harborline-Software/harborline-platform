@@ -38,7 +38,9 @@ public sealed record LayoutAuthoringBlock(
     // layout-auth-20: the block's guard, a Rules expression the shared engine evaluates fail-closed.
     string? ShowWhen = null,
     // The capture properties a capture block narrows with (layout-ck-30).
-    LayoutAuthoringCapture? Capture = null);
+    LayoutAuthoringCapture? Capture = null,
+    // layout-auth-33: the selection this block opens with. Authored; the live selection is never stored.
+    string? DefaultSelection = null);
 
 /// <summary>
 /// What a capture block narrows (layout-ck-30): it may add a requirement and name registered

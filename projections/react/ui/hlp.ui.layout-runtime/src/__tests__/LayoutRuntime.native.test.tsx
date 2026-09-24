@@ -196,6 +196,23 @@ describe('LayoutRuntime React projection', () => {
     expect(changed.mock.lastCall![0].blocks[0]).toStrictEqual({ ...block, capture: { required: true } })
   })
 
+  it('layout-auth-33: a block declares the selection it opens with, on that block only', () => {
+    const changed = vi.fn()
+    const blocks = [
+      { id: 'status', kind: 'layout.list', binding: { kind: 'query' as const, name: 'views.invoice-statuses' } },
+      { id: 'invoices', kind: 'layout.table', binding: { kind: 'query' as const, name: 'views.open-invoices' } },
+    ]
+    render(<LayoutAuthoringEditor value={{ ...emptyLayoutAuthoringDraft(), blocks: [blocks[0], { ...blocks[1], defaultSelection: 'inv-1' }] }} catalogue={{ blockKinds: [{ id: 'layout.table', label: 'Table' }, { id: 'layout.list', label: 'List' }], zones: [] }} onChange={changed} />)
+    expect(screen.getByLabelText('Block 2 default selection')).toHaveValue('inv-1')
+
+    fireEvent.change(screen.getByLabelText('Block 1 default selection'), { target: { value: 'overdue' } })
+    expect(changed).toHaveBeenLastCalledWith(expect.objectContaining({ blocks: [{ ...blocks[0], defaultSelection: 'overdue' }, { ...blocks[1], defaultSelection: 'inv-1' }] }))
+    // Clearing the default removes it; the block then opens with no selection.
+    fireEvent.change(screen.getByLabelText('Block 2 default selection'), { target: { value: '' } })
+    expect(changed).toHaveBeenLastCalledWith(expect.objectContaining({ blocks }))
+    expect(changed.mock.lastCall![0].blocks[1]).not.toHaveProperty('defaultSelection', '')
+  })
+
   it('authors static content on the block rather than looking it up', () => {
     const changed = vi.fn()
     render(<LayoutAuthoringEditor value={{ ...emptyLayoutAuthoringDraft(), blocks: [{ id: 'notice', kind: 'layout.table', binding: { kind: 'static', name: '' } }] }} catalogue={{ blockKinds: [{ id: 'layout.table', label: 'Table' }], zones: [] }} onChange={changed} />)

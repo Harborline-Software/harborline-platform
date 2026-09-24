@@ -55,6 +55,8 @@ export interface LayoutAuthoringBlock {
   readonly showWhen?: string
   /** The capture properties a capture block narrows with (layout-ck-30). */
   readonly capture?: LayoutAuthoringCapture
+  /** layout-auth-33: the selection this block opens with. Authored; the live selection is never stored. */
+  readonly defaultSelection?: string
   readonly intent?: LayoutIntent
   readonly zone?: string
   readonly width?: LayoutSizing

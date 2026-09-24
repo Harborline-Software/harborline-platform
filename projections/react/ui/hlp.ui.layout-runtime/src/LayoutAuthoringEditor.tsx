@@ -71,6 +71,8 @@ function withCapture(block: LayoutAuthoringBlock, patch: Partial<LayoutAuthoring
  * layout-auth-21: a capture block may add a requirement and name registered validation rules;
  * a requirement Records declares is shown and cannot be removed here. layout-auth-22: its prompt
  * override is stored on the block, so it applies to this surface's context and nowhere else.
+ * layout-auth-33: the selection the block opens with is authored here; what a reader has
+ * selected at run time is execution state and is never offered for saving.
  */
 function BlockBehaviour({ index, block, intent, catalogue, onChange }: { index: number; block: LayoutAuthoringBlock; intent: LayoutIntent; catalogue: LayoutAuthoringCatalogue; onChange: (next: LayoutAuthoringBlock) => void }) {
   const declaredRequired = block.binding?.kind === 'record_field' && (catalogue.requiredFields ?? []).includes(block.binding.name)
@@ -80,6 +82,7 @@ function BlockBehaviour({ index, block, intent, catalogue, onChange }: { index: 
       <option value="">Not related</option>
       {(catalogue.relationships ?? []).map(relationship => <option key={relationship.id} value={relationship.id}>{relationship.label}</option>)}
     </select>}
+    <label>Default selection<input aria-label={`Block ${index + 1} default selection`} value={block.defaultSelection ?? ''} onChange={event => onChange({ ...block, defaultSelection: event.currentTarget.value || undefined })} /></label>
     <label>Show when<input aria-label={`Block ${index + 1} show when`} value={block.showWhen ?? ''} onChange={event => onChange({ ...block, showWhen: event.currentTarget.value || undefined })} /></label>
     {intent === 'capture' && <>
       <label><input aria-label={`Block ${index + 1} required`} type="checkbox" checked={declaredRequired || (block.capture?.required ?? false)} disabled={declaredRequired} onChange={event => onChange(withCapture(block, { required: event.currentTarget.checked }))} />Required</label>

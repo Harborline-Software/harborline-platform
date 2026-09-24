@@ -282,6 +282,28 @@ public sealed class LayoutRuntimeTests : BunitContext
         Assert.Equal(block with { Capture = new(Required: true) }, changed!.Blocks.Single());
     }
 
+    [Fact(DisplayName = "layout-auth-33: a block declares the selection it opens with, on that block only")]
+    public void BlockDeclaresTheSelectionItOpensWith()
+    {
+        LayoutAuthoringDraft? changed = null;
+        LayoutAuthoringBlock[] blocks =
+        [
+            new("status", "layout.list", new("query", "views.invoice-statuses")),
+            new("invoices", "layout.table", new("query", "views.open-invoices")),
+        ];
+        var cut = Render<HarborlineLayoutAuthoringEditor>(parameters => parameters
+            .Add(x => x.Value, LayoutAuthoringDraft.Empty with { Blocks = [blocks[0], blocks[1] with { DefaultSelection = "inv-1" }] })
+            .Add(x => x.Catalogue, Catalogue())
+            .Add(x => x.ValueChanged, value => changed = value));
+        Assert.Equal("inv-1", cut.Find("[aria-label='Block 2 default selection']").GetAttribute("value"));
+
+        cut.Find("[aria-label='Block 1 default selection']").Change("overdue");
+        Assert.Equal([blocks[0] with { DefaultSelection = "overdue" }, blocks[1] with { DefaultSelection = "inv-1" }], changed!.Blocks);
+        // Clearing the default removes it; the block then opens with no selection.
+        cut.Find("[aria-label='Block 2 default selection']").Change("");
+        Assert.Equal(blocks, changed.Blocks);
+    }
+
     private static LayoutAuthoringCatalogue Catalogue() => new(
         [new("layout.table", "Table")],
         ["header.center"],
