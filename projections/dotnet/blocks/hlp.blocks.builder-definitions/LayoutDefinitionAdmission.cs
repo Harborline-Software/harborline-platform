@@ -161,7 +161,7 @@ public static class LayoutDefinitionAdmission
             if (string.IsNullOrWhiteSpace(drillTargets[index]))
                 Add(refusals, LayoutDefinitionCodes.InteractionTargetUnknown, $"/drill_through_targets/{index}");
         }
-        ValidatePages(definition, blockIds, refusals);
+        ValidatePages(definition, blockIds, registers.Pages, refusals);
         if (definition.SubmitGate is { } submitGate
             && (definition.DefaultIntent != LayoutIntent.Capture || string.IsNullOrWhiteSpace(submitGate)))
             Add(refusals, LayoutDefinitionCodes.SubmitGateInvalid, "/submit_gate");
@@ -421,9 +421,12 @@ public static class LayoutDefinitionAdmission
         AddNumeric(placement.Grow, LayoutNumericMember.Grow, $"{pointer}/grow", refusals);
     }
 
+    // layout-bound-7: a run cites the surface's own page definitions or those a pack supplies. A
+    // local definition may not reuse a supplied id, so every citation names exactly one definition.
     private static void ValidatePages(
         LayoutDefinition definition,
         HashSet<string> blockIds,
+        LayoutPageRegistry? supplied,
         ICollection<LayoutDefinitionRefusal> refusals)
     {
         var layouts = new HashSet<string>(StringComparer.Ordinal);
@@ -438,6 +441,7 @@ public static class LayoutDefinitionAdmission
                 continue;
             }
             if (string.IsNullOrWhiteSpace(layout.Id) || !layouts.Add(layout.Id)
+                || supplied?.Layouts.ContainsKey(layout.Id) == true
                 || string.IsNullOrWhiteSpace(layout.Sheet)
                 || layout.Margins is null || layout.MarginBoxes is null)
                 Add(refusals, LayoutDefinitionCodes.PageDefinitionInvalid, pointer);
@@ -455,9 +459,10 @@ public static class LayoutDefinitionAdmission
                 Add(refusals, LayoutDefinitionCodes.PageDefinitionInvalid, pointer);
                 continue;
             }
-            if (string.IsNullOrWhiteSpace(master.Id) || !masters.Add(master.Id))
+            if (string.IsNullOrWhiteSpace(master.Id) || !masters.Add(master.Id)
+                || supplied?.Masters.ContainsKey(master.Id) == true)
                 Add(refusals, LayoutDefinitionCodes.PageDefinitionInvalid, pointer);
-            if (!layouts.Contains(master.PageLayoutId))
+            if (!layouts.Contains(master.PageLayoutId) && supplied?.Layouts.ContainsKey(master.PageLayoutId) != true)
                 Add(refusals, LayoutDefinitionCodes.PageReferenceUnknown, $"{pointer}/page_layout_id");
             if (master.First is null || master.Left is null || master.Right is null)
                 Add(refusals, LayoutDefinitionCodes.PageDefinitionInvalid, pointer);
@@ -475,21 +480,20 @@ public static class LayoutDefinitionAdmission
             }
             if (string.IsNullOrWhiteSpace(run.Id) || !runs.Add(run.Id) || run.BlockIds is null || run.BlockIds.Count == 0)
                 Add(refusals, LayoutDefinitionCodes.PageDefinitionInvalid, pointer);
-            if (!layouts.Contains(run.PageLayoutId))
+            if (!layouts.Contains(run.PageLayoutId) && supplied?.Layouts.ContainsKey(run.PageLayoutId) != true)
                 Add(refusals, LayoutDefinitionCodes.PageReferenceUnknown, $"{pointer}/page_layout_id");
-            if (!masters.Contains(run.PageMasterId))
-                Add(refusals, LayoutDefinitionCodes.PageReferenceUnknown, $"{pointer}/page_master_id");
-            else if (pageMasters.First(master => master?.Id == run.PageMasterId).PageLayoutId != run.PageLayoutId)
+            var cited = masters.Contains(run.PageMasterId)
+                ? pageMasters.First(master => master?.Id == run.PageMasterId)
+                : supplied?.Masters.GetValueOrDefault(run.PageMasterId);
+            if (cited is null || cited.PageLayoutId != run.PageLayoutId)
                 Add(refusals, LayoutDefinitionCodes.PageReferenceUnknown, $"{pointer}/page_master_id");
             var runBlocks = run.BlockIds ?? [];
             for (var blockIndex = 0; blockIndex < runBlocks.Count; blockIndex++)
                 if (!blockIds.Contains(runBlocks[blockIndex]))
                     Add(refusals, LayoutDefinitionCodes.PageReferenceUnknown, $"{pointer}/block_ids/{blockIndex}");
         }
-        if (definition.Medium == LayoutMedium.Page
-            && ((definition.PageLayouts?.Count ?? 0) == 0
-                || (definition.PageMasters?.Count ?? 0) == 0
-                || (definition.PageRuns?.Count ?? 0) == 0))
+        // Every run already resolves its geometry and master, locally or from a pack.
+        if (definition.Medium == LayoutMedium.Page && (definition.PageRuns?.Count ?? 0) == 0)
             Add(refusals, LayoutDefinitionCodes.PageDefinitionInvalid, "/page_runs");
         if (definition.Medium == LayoutMedium.Screen
             && ((definition.PageLayouts?.Count ?? 0) > 0
@@ -520,6 +524,12 @@ public static class LayoutPersistedValueAdmission
     /// <param name="kinds">The host register, or the platform grammar when omitted.</param>
     public static void ValidateForRuntime(LayoutDefinition definition, LayoutBlockKindRegistry? kinds = null)
         => LayoutDefinitionAdmission.Validate(definition, "render.runtime", kinds);
+
+    /// <summary>Validates persisted values against the host's registers before the runtime flows them.</summary>
+    /// <param name="definition">The immutable persisted Layout definition.</param>
+    /// <param name="registers">The host's bound registers.</param>
+    public static void ValidateForRuntime(LayoutDefinition definition, LayoutHostRegisters registers)
+        => LayoutDefinitionAdmission.Validate(definition, "render.runtime", registers);
 
     /// <summary>Validates persisted values before React rendering.</summary>
     /// <param name="definition">The persisted definition.</param>

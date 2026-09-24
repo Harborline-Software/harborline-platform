@@ -36,6 +36,54 @@ public sealed class LayoutBoundRegisterTests
         => AssertRefused(CaptureSurface(new(false, [], Control: new("text"))), new LayoutHostRegisters(LayoutBlockKindRegistry.Platform),
             LayoutDefinitionCodes.FieldControlUnknown, "/blocks/0/capture/control");
 
+    [Fact(DisplayName = "layout-bound-7: a page run cites the page layout and master a pack supplies")]
+    public void PageRunCitesThePageLayoutAndMasterAPackSupplies()
+    {
+        var pages = new LayoutHostRegisters(LayoutBlockKindRegistry.Platform, Pages: PackPages());
+        var citing = PageSurface(new("run", "pack.a4", "pack.master", ["body"]));
+
+        LayoutDefinitionAdmission.ValidateForAuthoring(citing, pages);
+        LayoutDefinitionAdmission.ValidateForPublish(Sealed(citing), pages);
+        // Without the pack's register the same citation names nothing.
+        AssertRefused(citing, LayoutHostRegisters.Platform, LayoutDefinitionCodes.PageReferenceUnknown, "/page_runs/0/page_layout_id");
+        AssertRefused(citing, LayoutHostRegisters.Platform, LayoutDefinitionCodes.PageReferenceUnknown, "/page_runs/0/page_master_id");
+        // A cited master must sit over the run's cited geometry.
+        AssertRefused(PageSurface(new("run", "pack.letter", "pack.master", ["body"])), pages,
+            LayoutDefinitionCodes.PageReferenceUnknown, "/page_runs/0/page_master_id");
+    }
+
+    [Fact(DisplayName = "layout-bound-7: a surface-local page definition may not shadow one the pack supplies")]
+    public void SurfaceLocalPageDefinitionMayNotShadowAPackOne()
+    {
+        var pages = new LayoutHostRegisters(LayoutBlockKindRegistry.Platform, Pages: PackPages());
+        var local = PackPages();
+        var shadowing = PageSurface(new("run", "pack.a4", "pack.master", ["body"])) with
+        {
+            PageLayouts = [local.Layouts["pack.a4"]],
+            PageMasters = [local.Masters["pack.master"]],
+        };
+
+        AssertRefused(shadowing, pages, LayoutDefinitionCodes.PageDefinitionInvalid, "/page_layouts/0");
+        AssertRefused(shadowing, pages, LayoutDefinitionCodes.PageDefinitionInvalid, "/page_masters/0");
+    }
+
+    internal static LayoutPageRegistry PackPages() => new(
+        [
+            new("pack.a4", "a4", LayoutPageOrientation.Portrait, new("12mm", "12mm", "12mm", "12mm"), new("10mm", "10mm")),
+            new("pack.letter", "letter", LayoutPageOrientation.Portrait, new("1in", "1in", "1in", "1in"), new("0.5in", "0.5in")),
+        ],
+        [new("pack.master", "pack.a4", new(null, "first.center", null), new(null, "left.center", null), new(null, "right.center", null))]);
+
+    internal static LayoutDefinition PageSurface(LayoutPageRun run) => new(
+        new("surface.statement", "1.0.0", "tenant-a", LayoutCascadeLayer.DomainPackage,
+            JsonSerializer.SerializeToElement(new { source = "test" }), "standard", false, []),
+        1, LayoutMedium.Page, LayoutIntent.Observe,
+        [
+            new("heading", "layout.text", new LayoutStaticBinding(JsonSerializer.SerializeToElement("Statement")), [], FlowRole: LayoutFlowRole.Static, StaticRegion: "first.center"),
+            new("body", "layout.text", new LayoutStaticBinding(JsonSerializer.SerializeToElement("Body")), []),
+        ],
+        [], [], [run], null, []);
+
     internal static void AssertRefused(LayoutDefinition definition, LayoutHostRegisters registers, string code, string pointer)
     {
         var refused = Assert.Throws<LayoutDefinitionAdmissionException>(() => LayoutDefinitionAdmission.ValidateForAuthoring(definition, registers));
