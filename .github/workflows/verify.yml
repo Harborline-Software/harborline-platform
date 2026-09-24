@@ -41,7 +41,7 @@ jobs:
     # 404 slice 4 completes it: the budget now rides the serial perf slot, so it is asserted with
     # nothing else competing and any macOS runner gives the same verdict. The pin is gone (#35) and
     # the reason it existed cannot come back.
-    runs-on: [self-hosted, macOS]
+    runs-on: [self-hosted, macOS, ARM64, macpro]
     # The ubuntu gate took 49 minutes at PW_WORKERS=2. These hosts are 8-core and run the gallery at
     # the config default, but the whole gate is the long pole in this repository; 90 keeps a slow run
     # from being cut off mid-gallery, and the merge queue's check timeout must exceed it.
@@ -50,6 +50,10 @@ jobs:
       DOTNET_CLI_TELEMETRY_OPTOUT: '1'
       DEVELOPER_DIR: /Library/Developer/CommandLineTools
     steps:
+      - name: Runner
+        shell: bash
+        run: echo "runner: ${{ runner.name }} (${{ runner.os }}/${{ runner.arch }})" >> "$GITHUB_STEP_SUMMARY"
+
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
