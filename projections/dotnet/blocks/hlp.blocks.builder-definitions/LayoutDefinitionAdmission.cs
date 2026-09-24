@@ -55,6 +55,8 @@ public static class LayoutDefinitionCodes
     public const string SubmitGateInvalid = "layout.capture.submit_gate_invalid";
     /// <summary>A screen arrangement would require two-dimensional scrolling at 320 CSS pixels.</summary>
     public const string ReflowForbidden = "layout.placement.reflow_forbidden";
+    /// <summary>A published payload does not declare Layout's capability with an exact minimum platform version.</summary>
+    public const string CapabilityUndeclared = "layout.pack.capability_undeclared";
 }
 
 /// <summary>Identifies one deterministic Layout admission refusal.</summary>
@@ -80,6 +82,8 @@ public sealed class LayoutDefinitionAdmissionException(
 /// <summary>One structural validator used by editor validation and publication.</summary>
 public static class LayoutDefinitionAdmission
 {
+    private const string PublishStage = "definition.publish";
+
     /// <summary>Validates a Layout definition during authoring.</summary>
     /// <param name="definition">The candidate definition.</param>
     public static void ValidateForAuthoring(LayoutDefinition definition) => Validate(definition, "definition.validate");
@@ -92,19 +96,20 @@ public static class LayoutDefinitionAdmission
 
     /// <summary>Validates a Layout definition before publication.</summary>
     /// <param name="definition">The candidate definition.</param>
-    public static void ValidateForPublish(LayoutDefinition definition) => Validate(definition, "definition.publish");
+    public static void ValidateForPublish(LayoutDefinition definition) => Validate(definition, PublishStage);
 
     /// <summary>Admits publication against the host's immutable kind register.</summary>
     /// <param name="definition">The candidate definition.</param>
     /// <param name="kinds">The host kind register.</param>
     public static void ValidateForPublish(LayoutDefinition definition, LayoutBlockKindRegistry kinds)
-        => Validate(definition, "definition.publish", kinds);
+        => Validate(definition, PublishStage, kinds);
 
     internal static void Validate(LayoutDefinition definition, string stage, LayoutBlockKindRegistry? kinds = null)
     {
         ArgumentNullException.ThrowIfNull(definition);
         var refusals = new List<LayoutDefinitionRefusal>();
         ValidateEnvelope(definition, refusals);
+        if (stage == PublishStage) ValidateSealedCapability(definition, refusals);
 
         var blocks = definition.Blocks ?? [];
         if (blocks.Count == 0) Add(refusals, LayoutDefinitionCodes.TreeEmpty, "/blocks");
@@ -144,6 +149,21 @@ public static class LayoutDefinitionAdmission
         => blocks.Any(block => block is not null
             && ((block.Intent ?? defaultIntent) == LayoutIntent.Capture
                 || HasCapture(block.Children ?? [], defaultIntent)));
+
+    // layout-ck-42: the signed payload carries Layout's capability and an exact minimum platform
+    // version, so a host can refuse the whole pack by name. A draft may omit it; publication seals it.
+    private static void ValidateSealedCapability(LayoutDefinition definition, ICollection<LayoutDefinitionRefusal> refusals)
+    {
+        var requirements = definition.Envelope?.Requires ?? [];
+        for (var index = 0; index < requirements.Count; index++)
+        {
+            if (requirements[index]?.Capability != LayoutPackIdentity.Capability) continue;
+            if (!LayoutVersionSyntax.IsValid(requirements[index].MinimumPlatformVersion))
+                Add(refusals, LayoutDefinitionCodes.CapabilityUndeclared, $"/envelope/requires/{index}/minimum_platform_version");
+            return;
+        }
+        Add(refusals, LayoutDefinitionCodes.CapabilityUndeclared, "/envelope/requires");
+    }
 
     private static void ValidateEnvelope(LayoutDefinition definition, ICollection<LayoutDefinitionRefusal> refusals)
     {

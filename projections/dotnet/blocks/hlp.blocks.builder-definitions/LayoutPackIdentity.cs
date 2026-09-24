@@ -8,4 +8,10 @@ public static class LayoutPackIdentity
 
     /// <summary>Layout follows primitive buckets 0 through 11; 99 remains Other.</summary>
     public const int Primitive = 12;
+
+    /// <summary>
+    /// The capability a published Layout declares, with its minimum platform version, inside the
+    /// signed payload (DES-0052 layout-ck-42). Named by the owner on 2026-09-24.
+    /// </summary>
+    public const string Capability = "platform.layout";
 }

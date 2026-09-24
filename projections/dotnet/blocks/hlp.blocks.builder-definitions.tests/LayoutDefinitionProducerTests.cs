@@ -138,7 +138,7 @@ public sealed class LayoutDefinitionProducerTests
         Assert.Equal(LayoutCascadeLayer.DomainPackage, roundTrip.Envelope.CascadeLayer);
         Assert.Equal("regulated", roundTrip.Envelope.RetentionClass);
         Assert.True(roundTrip.Envelope.LegalHold);
-        Assert.Equal("records", Assert.Single(roundTrip.Envelope.Requires).Capability);
+        Assert.Equal(["records", LayoutPackIdentity.Capability], roundTrip.Envelope.Requires.Select(requirement => requirement.Capability));
         Assert.Equal(LayoutMedium.Screen, roundTrip.Medium);
         Assert.Equal(LayoutIntent.Capture, roundTrip.DefaultIntent);
         Assert.Equal(["root", "capture", "query", "measure", "static"], Flatten(roundTrip.Blocks).Select(block => block.Id));
@@ -278,6 +278,52 @@ public sealed class LayoutDefinitionProducerTests
                 : block),
             LayoutDefinitionCodes.LiveSelectionForbidden,
             "/blocks/0/children/1/live_selection");
+    }
+
+    [Fact(DisplayName = "layout-ck-42: publication refuses a Layout that does not declare platform.layout in its payload")]
+    public void PublicationRefusesALayoutThatDoesNotDeclareItsCapability()
+    {
+        var definition = ScreenDefinition();
+        var undeclared = definition with
+        {
+            Envelope = definition.Envelope with { Requires = [new LayoutDefinitionRequirement("records", "1.0.0")] },
+        };
+
+        var refused = Assert.Throws<LayoutDefinitionAdmissionException>(() => LayoutDefinitionAdmission.ValidateForPublish(undeclared));
+
+        Assert.Equal("definition.publish", refused.Stage);
+        Assert.Equal([new LayoutDefinitionRefusal(LayoutDefinitionCodes.CapabilityUndeclared, "/envelope/requires")], refused.Refusals);
+    }
+
+    [Theory(DisplayName = "layout-ck-42: publication refuses platform.layout without an exact minimum platform version")]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("1.0")]
+    [InlineData("latest")]
+    public void PublicationRefusesTheCapabilityWithoutAnExactMinimumPlatformVersion(string? minimum)
+    {
+        var definition = ScreenDefinition();
+        var unversioned = definition with
+        {
+            Envelope = definition.Envelope with
+            {
+                Requires = [new LayoutDefinitionRequirement("records", "1.0.0"), new LayoutDefinitionRequirement(LayoutPackIdentity.Capability, minimum)],
+            },
+        };
+
+        var refused = Assert.Throws<LayoutDefinitionAdmissionException>(() => LayoutDefinitionAdmission.ValidateForPublish(unversioned));
+
+        Assert.Equal(
+            [new LayoutDefinitionRefusal(LayoutDefinitionCodes.CapabilityUndeclared, "/envelope/requires/1/minimum_platform_version")],
+            refused.Refusals);
+    }
+
+    [Fact(DisplayName = "layout-ck-42: a draft may omit the capability; only the sealed payload must carry it")]
+    public void AuthoringDoesNotRequireTheCapability()
+    {
+        var definition = ScreenDefinition();
+
+        LayoutDefinitionAdmission.ValidateForAuthoring(definition with { Envelope = definition.Envelope with { Requires = [] } });
     }
 
     [Fact(DisplayName = "Layout producer: unique pack identity and provider-neutral canonical export; lifecycle is T-620")]
@@ -452,7 +498,7 @@ public sealed class LayoutDefinitionProducerTests
             JsonSerializer.SerializeToElement(new { package = "customer-domain", source = "authoring" }),
             "regulated",
             LegalHold: true,
-            Requires: [new LayoutDefinitionRequirement("records", "1.0.0")]),
+            Requires: [new LayoutDefinitionRequirement("records", "1.0.0"), new LayoutDefinitionRequirement(LayoutPackIdentity.Capability, "1.0.0")]),
         SchemaVersion: 1,
         Medium: medium,
         DefaultIntent: defaultIntent,
