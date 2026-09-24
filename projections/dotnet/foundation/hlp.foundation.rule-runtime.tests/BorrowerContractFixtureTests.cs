@@ -65,6 +65,8 @@ public sealed class BorrowerContractFixtureTests
         var reference = Fixture["reference"]!.AsObject();
         var compiled = RuleCompiler.Compile([RuleDefinitionFactory.Create("ref", RuleTier.JsonLogic, RuleScope.Field, "out",
             reference["expression"]!.ToJsonString(), RuleActionKind.Compute)]);
+        // The rule holds the path and nothing else: no copy of the record's schema travels with it.
+        Assert.True(JsonNode.DeepEquals(reference["expression"], Assert.Single(compiled.LoweredAsts)));
         var result = new FormRuleGraph(compiled, new FixedClock(DateTimeOffset.UnixEpoch), TestAdmission.Any)
             .EvaluateInstance(RuleInstance.FromJson(reference["instance"]!.AsObject().DeepClone().AsObject()));
         Assert.Equal(reference["expected"]!.GetValue<long>(), result.Values["field:out"].Value!.GetValue<long>());

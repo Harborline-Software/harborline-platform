@@ -33,14 +33,17 @@ public sealed class RulesBoundCapabilityTests
             var seed = RuleSeeds.BlankDraftFor(skin);
             Assert.Equal(skin == RuleSkinType.Table, seed is DecisionTableDraft);
         }
-        var table = RuleSeeds.BlankTableDraft() with { NoMatch = new NoMatchPosture.Default("none") };
+        var tableSeed = RuleSeeds.BlankTableDraft();
+        var table = tableSeed with { Rows = [tableSeed.Rows[0] with { Output = "in-range" }], NoMatch = new NoMatchPosture.Default("none") };
         var formula = RuleSeeds.BlankFormulaDraft() with { Expression = new FormulaExpr.Literal("7", ColumnValueType.Number) };
-        foreach (var (id, draft) in new (string, RuleDraft)[] { ("table", table), ("formula", formula) })
+        foreach (var (id, draft, expected) in new (string, RuleDraft, string)[] { ("table", table, "\"in-range\""), ("formula", formula, "7") })
         {
             var definition = SkinLowering.CompileDraft(draft, id);
             Assert.Equal(Harborline.Contracts.Forms.RuleTier.JsonLogic, definition.Tier);
             var preview = SkinLowering.EvaluatePreview(draft, id, JsonNode.Parse("""{"amount":5}""")!.AsObject(), TimeProvider.System);
-            Assert.NotNull(preview.Outcome);
+            Assert.Equal(expected, preview.Value?.ToJsonString());
         }
+        // The table's no-match branch is reachable through the same engine.
+        Assert.Equal("\"none\"", SkinLowering.EvaluatePreview(table, "table", JsonNode.Parse("""{"amount":-1}""")!.AsObject(), TimeProvider.System).Value?.ToJsonString());
     }
 }

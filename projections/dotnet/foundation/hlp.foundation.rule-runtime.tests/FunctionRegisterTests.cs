@@ -60,6 +60,12 @@ public sealed class FunctionRegisterTests
     {
         var keys = BuiltInFunctionRegister.Functions.Select(function => function.Key).ToList();
         Assert.Equal(keys.Count, keys.Distinct(StringComparer.Ordinal).Count());
+        // The register carries exactly the executable v1 built-ins: a deleted entry is a lost built-in.
+        Assert.Equal(
+            ["var", "missing", "missing_some", "==", "!=", "===", "!==", "!", "!!", "and", "or", "if", ">", ">=", "<", "<=",
+             "+", "-", "*", "/", "%", "min", "max", "in", "cat", "agg", "money.add", "money.sub", "money.mul",
+             "date.add", "date.diff", "date.today", "coding.is"],
+            keys);
         Assert.All(BuiltInFunctionRegister.Functions, function => Assert.Same(function.Reference, BuiltInFunctionRegister.Resolve(function.Key)));
 
         foreach (var function in BuiltInFunctionRegister.Functions)

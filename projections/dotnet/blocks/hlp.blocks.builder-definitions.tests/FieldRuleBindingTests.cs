@@ -2,6 +2,7 @@ using System.Text.Json.Nodes;
 
 using Harborline.Contracts.Forms;
 using Harborline.Foundation.RuleAuthoring;
+using VisibilityState = Harborline.Foundation.RuleEngine.Model.VisibilityState;
 
 using Xunit;
 
@@ -41,6 +42,11 @@ public sealed class FieldRuleBindingTests : IDisposable
             Assert.True(RuleIntentValidator.Validate(document, RuleIntentPhase.Publish).IsValid, property.ToString());
             var stored = await RoundTrip(document, "v1", 0);
             Assert.Equal(document.Draft, stored.Draft);
+
+            // The stored rule evaluates to the property the checkbox names, and only that one.
+            var visibility = Preview(stored, "{\"amount\":5}").Outcome!.Visibility!;
+            Assert.Equal(property == FieldCheckbox.Hidden ? new VisibilityState(Visible: false) : property == FieldCheckbox.Required
+                ? new VisibilityState(Required: true) : new VisibilityState(ReadOnly: true), visibility);
         }
         var listed = await _catalog.ListAsync("tenant-a");
         Assert.Equal(3, listed.Count);
@@ -61,7 +67,21 @@ public sealed class FieldRuleBindingTests : IDisposable
             var document = FieldRuleBindings.Preset(Envelope($"field-{kind}".ToLowerInvariant()), "field_" + kind.ToString().ToLowerInvariant(), kind, preset);
             var admitted = RuleIntentValidator.Validate(document, RuleIntentPhase.Publish);
             Assert.True(admitted.IsValid, $"{kind}: {string.Join(", ", admitted.Diagnostics.Select(d => d.Code))}");
-            Assert.Equal(RuleActionKind.Validate, (await RoundTrip(document, "v1", 0)).Draft.OutputType);
+            var stored = await RoundTrip(document, "v1", 0);
+            Assert.Equal(RuleActionKind.Validate, stored.Draft.OutputType);
+
+            // Exact check, evaluated either side of its boundary.
+            var field = "field_" + kind.ToString().ToLowerInvariant();
+            var (expression, pass, fail) = kind switch
+            {
+                ColumnValueType.Number => ("""{">=":[{"var":"field.field_number"},0]}""", "0", "-1"),
+                ColumnValueType.Text => ("""{"!=":[{"var":"field.field_text"},""]}""", "\"a\"", "\"\""),
+                _ => ("""{"==":[{"var":"field.field_boolean"},true]}""", "true", "false"),
+            };
+            var lowered = RuleIntentValidator.Validate(stored, RuleIntentPhase.Publish).Lowered;
+            Assert.True(JsonNode.DeepEquals(JsonNode.Parse(expression), lowered), $"{kind}: {lowered?.ToJsonString()}");
+            Assert.True(Preview(stored, $"{{\"{field}\":{pass}}}").Outcome!.Validity!.Ok, $"{kind} at {pass}");
+            Assert.False(Preview(stored, $"{{\"{field}\":{fail}}}").Outcome!.Validity!.Ok, $"{kind} at {fail}");
         }
         Assert.Throws<ArgumentException>(() => FieldRuleBindings.Preset(Envelope("x"), "x", ColumnValueType.Text, FieldPreset.NonNegative));
         Assert.Equal(3, (await _catalog.ListAsync("tenant-a")).Count);
@@ -117,6 +137,9 @@ public sealed class FieldRuleBindingTests : IDisposable
         Assert.Empty(lineage.CalculationsReadBy["subtotal-calc"]);
         Assert.Equal(["total-calc", "unused-calc"], lineage.DeadWeight);
     }
+
+    private static PreviewResult Preview(RuleDefinitionDocument document, string sample)
+        => SkinLowering.EvaluatePreview(document.Draft, document.Envelope.Id, JsonNode.Parse(sample)!.AsObject(), TimeProvider.System);
 
     public void Dispose()
     {
