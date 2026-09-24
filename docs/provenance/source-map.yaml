@@ -228,7 +228,7 @@
         "projections/dotnet/kernel/hlp.kernel.schema-validation/SchemaContracts.cs": "60084a052fde5c35c075e395d6b6e55261e86f40074b891b8618c35a14a3e646",
         "projections/dotnet/kernel/hlp.kernel.schema-validation/CanonicalContent.cs": "61ade55602a8f488762b7b92d484cef428903f7d62d7de5c15585523435ed834",
         "projections/dotnet/kernel/hlp.kernel.schema-validation/TimedSchemaDialect.cs": "4d3f5a49124b15e1499b18a949ae22331bc09c806507e920e3dee4b166660b1e",
-        "projections/dotnet/kernel/hlp.kernel.schema-validation/InMemorySchemaRegistry.cs": "bbaeddb6430f6cf95dddee75009a388414aff068db4e66dd73301d658db24b5b",
+        "projections/dotnet/kernel/hlp.kernel.schema-validation/InMemorySchemaRegistry.cs": "db934cb5c2821c25bd0a788e5678ba9af221cb8f263f841c29f99a5f701b3325",
         "projections/dotnet/kernel/hlp.kernel.schema-validation.tests/SchemaValidationTests.cs": "5e0aba33342edb63b261422fe9788f1327c68eba75560c9995d3c2780f99683e",
         "conformance/hlp.kernel.schema-validation/fixtures.yaml": "07bb0b4e3c1057c0fa9992b4e38148eb20fd05495a6296b8c0b4fd756a8c551c",
         "specs/modules/kernel/hlp.kernel.schema-validation/interface.yaml": "81082ab4ae5e692c221f9e4105a95160fef35648985278c9b6adb3e3f98a12e7"
