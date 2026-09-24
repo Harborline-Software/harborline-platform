@@ -318,7 +318,8 @@ if (!packedRenderField.ReadOnly
     || FormViewText.Resolve(packedViewField.Label, ["ar-AE"], "Field") != "المبلغ")
     throw new InvalidOperationException("Packed Form View binding weakened redaction or changed locale resolution.");
 var packedRule = FormsJson.Deserialize<RuleDefinition>("""{"id":"opt.result","tier":"JsonLogic","scope":"Field","scopeTarget":"result","expression":"[\"PASS\",\"FAIL\"]","action":"Options"}""");
-var packedRuleResult = new FormRuleGraph(RuleCompiler.Compile([packedRule]), TimeProvider.System)
+var packedRuleResult = new FormRuleGraph(RuleCompiler.Compile([packedRule]), TimeProvider.System,
+        Harborline.Foundation.Forms.Engine.FormsExpressionEnvironment.Admitted.For(Harborline.Foundation.RuleEngine.Environments.EvaluationPhase.Render))
     .EvaluateInstance(RuleInstance.FromJson(new System.Text.Json.Nodes.JsonObject()));
 if (!packedRuleResult.Options.TryGetValue("field:result", out var packedRuleOptions)
     || packedRuleOptions.Options?.Select(value => value?.GetValue<string>()).ToArray() is not ["PASS", "FAIL"])

@@ -10,6 +10,7 @@ using Harborline.Foundation.Forms.Engine.Security;
 using Harborline.Foundation.RuleEngine;
 using Harborline.Foundation.RuleEngine.Compilation;
 using Harborline.Foundation.RuleEngine.Graph;
+using Harborline.Foundation.RuleEngine.Environments;
 using Harborline.Kernel.SchemaValidation;
 using Harborline.Kernel.Core;
 
@@ -248,7 +249,7 @@ public sealed class FormEngine : IFormEngine
         try
         {
             var compiled = RuleCompiler.Compile(definition.Overlay.Rules.Select(FormContractMapper.ToContractRule).ToArray());
-            return compiled.RuleCount == 0 ? null : new FormRuleGraph(compiled, clock: new PinnedClock(instant)).EvaluateInstance(RuleInstance.FromJson(JsonNode.Parse(candidate.RootElement.GetRawText())!.AsObject()), cancellationToken);
+            return compiled.RuleCount == 0 ? null : new FormRuleGraph(compiled, new PinnedClock(instant), FormsExpressionEnvironment.Admitted.For(EvaluationPhase.Render)).EvaluateInstance(RuleInstance.FromJson(JsonNode.Parse(candidate.RootElement.GetRawText())!.AsObject()), cancellationToken);
         }
         catch (Exception ex) when (ex is RuleCompilationException or RuleEngineTimeoutException) { throw new FormEngineProviderUnavailableException(ex); }
     }

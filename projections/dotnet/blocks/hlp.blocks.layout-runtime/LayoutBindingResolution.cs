@@ -7,6 +7,7 @@ using Harborline.Foundation.RuleEngine.Compilation;
 using Harborline.Foundation.RuleEngine.Context;
 using Harborline.Foundation.RuleEngine.Evaluation;
 using RuleError = Harborline.Foundation.RuleEngine.Model.RuleError;
+using Harborline.Foundation.RuleEngine.Environments;
 
 namespace Harborline.Blocks.LayoutRuntime;
 
@@ -540,7 +541,7 @@ public sealed class LayoutBindingResolver
             // Invalid. Compilation is NOT — the compiler throws on a malformed expression or a
             // reference illegal at this scope — so an uncompilable guard withholds the block
             // here rather than escaping as a fault that would blank the whole surface.
-            return _guards.EvaluateGuard(rule, snapshot, evalScope, cancellationToken).Ok;
+            return _guards.EvaluateGuard(rule, snapshot, evalScope, LayoutExpressionEnvironment.Admitted.For(EvaluationPhase.Render), cancellationToken).Ok;
         }
         catch (RuleCompilationException)
         {
