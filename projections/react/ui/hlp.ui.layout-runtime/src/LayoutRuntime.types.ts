@@ -81,6 +81,8 @@ export interface LayoutAuthoringDraft {
   readonly gap?: number
   readonly blocks: readonly LayoutAuthoringBlock[]
   readonly pageRuns?: readonly LayoutAuthoringPageRun[]
+  /** layout-auth-35: the released surfaces a reader may drill through to from this one. */
+  readonly drillThroughTargets?: readonly string[]
 }
 /** One name a binding picker can offer for its kind. */
 export interface LayoutBindableName { readonly id: string; readonly label: string }
@@ -100,5 +102,7 @@ export interface LayoutAuthoringCatalogue {
   readonly requiredFields?: readonly string[]
   /** The registered validation rules a capture block may name (layout-auth-21, layout-bound-8). */
   readonly validationRules?: readonly LayoutBindableName[]
+  /** The released surfaces a drill-through may name (layout-auth-35). */
+  readonly drillTargets?: readonly LayoutBindableName[]
 }
 export interface LayoutAuthoringEditorProps { readonly value: LayoutAuthoringDraft; readonly catalogue: LayoutAuthoringCatalogue; readonly onChange: (value: LayoutAuthoringDraft) => void }

@@ -236,6 +236,20 @@ describe('LayoutRuntime React projection', () => {
     expect(changed).toHaveBeenLastCalledWith(expect.objectContaining({ blocks: [blocks[0], blocks[1]] }))
   })
 
+  it('layout-auth-35: the surface declares its drill-through targets by reference to released surfaces', () => {
+    const changed = vi.fn()
+    const value = { ...emptyLayoutAuthoringDraft(), drillThroughTargets: ['surface.supplier'] }
+    render(<LayoutAuthoringEditor value={value} catalogue={{ blockKinds: [{ id: 'layout.table', label: 'Table' }], zones: [], drillTargets: [{ id: 'surface.supplier', label: 'Supplier' }, { id: 'surface.payment', label: 'Payment' }] }} onChange={changed} />)
+
+    expect(screen.getByLabelText('Drill through to Supplier')).toBeChecked()
+    expect(screen.getByLabelText('Drill through to Payment')).not.toBeChecked()
+    fireEvent.click(screen.getByLabelText('Drill through to Payment'))
+    expect(changed).toHaveBeenLastCalledWith({ ...value, drillThroughTargets: ['surface.supplier', 'surface.payment'] })
+    // Removing the last target leaves the surface with none, not an empty list.
+    fireEvent.click(screen.getByLabelText('Drill through to Supplier'))
+    expect(changed.mock.lastCall![0]).toStrictEqual(emptyLayoutAuthoringDraft())
+  })
+
   it('authors static content on the block rather than looking it up', () => {
     const changed = vi.fn()
     render(<LayoutAuthoringEditor value={{ ...emptyLayoutAuthoringDraft(), blocks: [{ id: 'notice', kind: 'layout.table', binding: { kind: 'static', name: '' } }] }} catalogue={{ blockKinds: [{ id: 'layout.table', label: 'Table' }], zones: [] }} onChange={changed} />)

@@ -63,7 +63,9 @@ public sealed record LayoutAuthoringDraft(
     string? ContainerFlow = null,
     int? Gap = null,
     string? Density = null,
-    IReadOnlyList<LayoutAuthoringPageRun>? PageRuns = null)
+    IReadOnlyList<LayoutAuthoringPageRun>? PageRuns = null,
+    // layout-auth-35: the released surfaces a reader may drill through to from this one.
+    IReadOnlyList<string>? DrillThroughTargets = null)
 {
     public static LayoutAuthoringDraft Empty { get; } = new("", "screen", null, []);
 }
@@ -82,4 +84,6 @@ public sealed record LayoutAuthoringCatalogue(
     // RequiredFields: the record fields Records declares required; a capture block cannot drop them (layout-auth-21).
     IReadOnlyList<string>? RequiredFields = null,
     // ValidationRules: the registered validation rules a capture block may name (layout-auth-21, layout-bound-8).
-    IReadOnlyList<LayoutAuthoringOption>? ValidationRules = null);
+    IReadOnlyList<LayoutAuthoringOption>? ValidationRules = null,
+    // DrillTargets: the released surfaces a drill-through may name (layout-auth-35).
+    IReadOnlyList<LayoutAuthoringOption>? DrillTargets = null);

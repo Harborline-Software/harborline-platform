@@ -332,6 +332,25 @@ public sealed class LayoutRuntimeTests : BunitContext
         Assert.Equal([blocks[0], blocks[1]], changed.Blocks);
     }
 
+    [Fact(DisplayName = "layout-auth-35: the surface declares its drill-through targets by reference to released surfaces")]
+    public void SurfaceDeclaresItsDrillThroughTargets()
+    {
+        LayoutAuthoringDraft? changed = null;
+        var value = LayoutAuthoringDraft.Empty with { DrillThroughTargets = ["surface.supplier"] };
+        var cut = Render<HarborlineLayoutAuthoringEditor>(parameters => parameters
+            .Add(x => x.Value, value)
+            .Add(x => x.Catalogue, Catalogue() with { DrillTargets = [new("surface.supplier", "Supplier"), new("surface.payment", "Payment")] })
+            .Add(x => x.ValueChanged, next => changed = next));
+
+        Assert.True(cut.Find("[aria-label='Drill through to Supplier']").HasAttribute("checked"));
+        Assert.False(cut.Find("[aria-label='Drill through to Payment']").HasAttribute("checked"));
+        cut.Find("[aria-label='Drill through to Payment']").Change(true);
+        Assert.Equal(["surface.supplier", "surface.payment"], changed!.DrillThroughTargets!);
+        // Removing the last target leaves the surface with none, not an empty list.
+        cut.Find("[aria-label='Drill through to Supplier']").Change(false);
+        Assert.Equal(LayoutAuthoringDraft.Empty, changed);
+    }
+
     private static LayoutAuthoringCatalogue Catalogue() => new(
         [new("layout.table", "Table")],
         ["header.center"],
