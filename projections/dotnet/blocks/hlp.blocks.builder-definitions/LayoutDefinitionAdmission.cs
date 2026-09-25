@@ -83,6 +83,12 @@ public static class LayoutDefinitionCodes
     public const string ValidationRuleUnknown = "layout.capture.validation_rule_unknown";
     /// <summary>A named validation rule does not validate, or its tier's compiler refuses it (layout-bound-8).</summary>
     public const string ValidationRuleInvalid = "layout.capture.validation_rule_invalid";
+    /// <summary>The acting author could not read the source a binding names (layout-auth-24).</summary>
+    public const string BindingUnreadable = "layout.binding.unreadable";
+    /// <summary>A filter-propagation edge targets a block whose binding a selection cannot narrow (layout-auth-36).</summary>
+    public const string FilterTargetUnnarrowable = "layout.interaction.filter_target_unnarrowable";
+    /// <summary>The acting author could not open a drill-through target (layout-auth-36).</summary>
+    public const string DrillThroughForbidden = "layout.interaction.drill_through_forbidden";
 }
 
 /// <summary>Identifies one deterministic Layout admission refusal.</summary>
@@ -155,7 +161,7 @@ public static class LayoutDefinitionAdmission
 
         var blocks = definition.Blocks ?? [];
         if (blocks.Count == 0) Add(refusals, LayoutDefinitionCodes.TreeEmpty, "/blocks");
-        var blockIds = new HashSet<string>(StringComparer.Ordinal);
+        var blockIds = new Dictionary<string, LayoutBlock>(StringComparer.Ordinal);
         CollectBlockIds(blocks, "/blocks", blockIds, refusals);
         var captures = HasCapture(blocks, definition.DefaultIntent);
 
@@ -180,6 +186,9 @@ public static class LayoutDefinitionAdmission
         {
             if (string.IsNullOrWhiteSpace(drillTargets[index]))
                 Add(refusals, LayoutDefinitionCodes.InteractionTargetUnknown, $"/drill_through_targets/{index}");
+            // layout-auth-36: the author may not route a reader to a surface the author could not open.
+            else if (registers.Access is { } access && !access.CanOpen(drillTargets[index]))
+                Add(refusals, LayoutDefinitionCodes.DrillThroughForbidden, $"/drill_through_targets/{index}");
         }
         ValidatePages(definition, blockIds, registers.Pages, refusals);
         if (definition.SubmitGate is { } submitGate
@@ -240,7 +249,7 @@ public static class LayoutDefinitionAdmission
     private static void CollectBlockIds(
         IReadOnlyList<LayoutBlock> blocks,
         string pointer,
-        ISet<string> blockIds,
+        IDictionary<string, LayoutBlock> blockIds,
         ICollection<LayoutDefinitionRefusal> refusals)
     {
         for (var index = 0; index < blocks.Count; index++)
@@ -249,7 +258,7 @@ public static class LayoutDefinitionAdmission
             var blockPointer = $"{pointer}/{index}";
             if (block is null || string.IsNullOrWhiteSpace(block.Id))
                 Add(refusals, LayoutDefinitionCodes.BlockIdInvalid, $"{blockPointer}/id");
-            else if (!blockIds.Add(block.Id))
+            else if (!blockIds.TryAdd(block.Id, block))
                 Add(refusals, LayoutDefinitionCodes.BlockIdDuplicate, $"{blockPointer}/id");
             if (block?.Children is { } children)
                 CollectBlockIds(children, $"{blockPointer}/children", blockIds, refusals);
@@ -262,7 +271,7 @@ public static class LayoutDefinitionAdmission
         LayoutMedium medium,
         LayoutIntent inheritedIntent,
         IReadOnlySet<string>? parentRegions,
-        HashSet<string> blockIds,
+        IReadOnlyDictionary<string, LayoutBlock> blockIds,
         LayoutHostRegisters registers,
         bool captures,
         bool publishing,
@@ -282,6 +291,10 @@ public static class LayoutDefinitionAdmission
             Add(refusals, LayoutDefinitionCodes.CaptureOnPage, $"{pointer}/intent");
 
         ValidateBinding(block.Binding, intent, medium, captures, $"{pointer}/binding", refusals);
+        // layout-auth-24: authority travels with the read, so a block never binds a source its author
+        // could not read. Static content is read from nowhere and is never asked about.
+        if (registers.Access is { } access && block.Binding is not (null or LayoutStaticBinding) && !access.CanRead(block.Binding))
+            Add(refusals, LayoutDefinitionCodes.BindingUnreadable, $"{pointer}/binding");
         ValidateContainer(block.Container, medium, $"{pointer}/container", refusals);
         ValidatePlacement(block.Placement, parentRegions, $"{pointer}/placement", refusals);
 
@@ -352,8 +365,12 @@ public static class LayoutDefinitionAdmission
 
         var filterTargets = block.FilterTargets ?? [];
         for (var index = 0; index < filterTargets.Count; index++)
-            if (!blockIds.Contains(filterTargets[index]))
+            if (!blockIds.TryGetValue(filterTargets[index], out var target))
                 Add(refusals, LayoutDefinitionCodes.InteractionTargetUnknown, $"{pointer}/filter_targets/{index}");
+            // layout-auth-36: a selection narrows a set. A query or a measure is one; a record field,
+            // a template and static content are not, so an edge to one would filter nothing.
+            else if (target?.Binding is not (LayoutQueryBinding or LayoutMeasureBinding))
+                Add(refusals, LayoutDefinitionCodes.FilterTargetUnnarrowable, $"{pointer}/filter_targets/{index}");
 
         var regions = block.Container?.Regions is { } declared
             ? new HashSet<string>(declared, StringComparer.Ordinal)
@@ -518,7 +535,7 @@ public static class LayoutDefinitionAdmission
     // local definition may not reuse a supplied id, so every citation names exactly one definition.
     private static void ValidatePages(
         LayoutDefinition definition,
-        HashSet<string> blockIds,
+        IReadOnlyDictionary<string, LayoutBlock> blockIds,
         LayoutPageRegistry? supplied,
         ICollection<LayoutDefinitionRefusal> refusals)
     {
@@ -582,7 +599,7 @@ public static class LayoutDefinitionAdmission
                 Add(refusals, LayoutDefinitionCodes.PageReferenceUnknown, $"{pointer}/page_master_id");
             var runBlocks = run.BlockIds ?? [];
             for (var blockIndex = 0; blockIndex < runBlocks.Count; blockIndex++)
-                if (!blockIds.Contains(runBlocks[blockIndex]))
+                if (!blockIds.ContainsKey(runBlocks[blockIndex]))
                     Add(refusals, LayoutDefinitionCodes.PageReferenceUnknown, $"{pointer}/block_ids/{blockIndex}");
         }
         // Every run already resolves its geometry and master, locally or from a pack.

@@ -15,15 +15,33 @@ namespace Harborline.Blocks.BuilderDefinitions;
 /// <param name="Pages">The page layouts and masters installed packs supply (layout-bound-7). Absent, a surface cites only its own.</param>
 /// <param name="ValidationRules">The named validation rules a capture block may cite (layout-bound-8). Absent, publication refuses every named rule.</param>
 /// <param name="Fields">The record fields a capture block's control is checked against at publication (T-724 ruling 37). Absent, publication refuses every authored control.</param>
+/// <param name="Access">The acting author's Access (layout-auth-24, layout-auth-36). The host's authoring and publishing routes supply it; pack export and install have no acting author and pass none, and render folds the reader's own Access instead (layout-eng-15).</param>
 public sealed record LayoutHostRegisters(
     LayoutBlockKindRegistry Kinds,
     LayoutFieldControlRegistry? FieldControls = null,
     LayoutPageRegistry? Pages = null,
     LayoutValidationRuleRegistry? ValidationRules = null,
-    LayoutRecordFieldRegistry? Fields = null)
+    LayoutRecordFieldRegistry? Fields = null,
+    ILayoutAccess? Access = null)
 {
     /// <summary>The platform's block grammar and no other register.</summary>
     public static LayoutHostRegisters Platform { get; } = new(LayoutBlockKindRegistry.Platform);
+}
+
+/// <summary>
+/// The acting principal's Access answers for one request (DES-0032 §4). The host builds it over its
+/// sole authorization decider for one principal at one instant. Layout asks; it computes no verdict,
+/// caches none and never substitutes another principal's answer.
+/// </summary>
+public interface ILayoutAccess
+{
+    /// <summary>Whether the principal may read the source <paramref name="binding"/> names.</summary>
+    /// <param name="binding">A record-field, query, measure or template binding; static content is never asked about.</param>
+    bool CanRead(LayoutBinding binding);
+
+    /// <summary>Whether the principal may open the published surface <paramref name="surfaceId"/>.</summary>
+    /// <param name="surfaceId">The surface's definition identity.</param>
+    bool CanOpen(string surfaceId);
 }
 
 /// <summary>One record field as Records declares it: its value kind and whether a value domain governs it.</summary>
