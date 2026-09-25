@@ -64,9 +64,9 @@ public sealed class InMemoryVersionedDefinitionStore : IVersionedDefinitionStore
     public ValueTask<DefinitionRevision> PublishAsync(DefinitionKey key, string versionId, long expectedRevision,
         string requestId, CancellationToken cancellationToken = default)
     {
-        Require(versionId, "definition.version_id_required", "/versionId");
+        Require(versionId, "definition.version_id_required", "/versionId", DefinitionAdmissionPhase.Publish);
         return Apply(key, expectedRevision, requestId, Signature("publish", versionId),
-            DefinitionAdmissionPhase.Publish, () => Find(key, versionId), cancellationToken);
+            DefinitionAdmissionPhase.Publish, () => Find(key, versionId, DefinitionAdmissionPhase.Publish), cancellationToken);
     }
 
     /// <inheritdoc />
@@ -131,13 +131,13 @@ public sealed class InMemoryVersionedDefinitionStore : IVersionedDefinitionStore
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        ValidateKey(key);
-        Require(requestId, "definition.request_id_required", "/requestId");
-        if (expectedRevision < 0) throw Refuse("definition.revision_conflict", "/expectedRevision");
+        ValidateKey(key, phase);
+        Require(requestId, "definition.request_id_required", "/requestId", phase);
+        if (expectedRevision < 0) throw Refuse("definition.revision_conflict", "/expectedRevision", phase);
         DefinitionRevision candidate;
         lock (_gate)
         {
-            var replay = ReplayOrFence(key, expectedRevision, requestId, signature);
+            var replay = ReplayOrFence(key, expectedRevision, requestId, signature, phase);
             if (replay is not null) return ValueTask.FromResult(replay);
             candidate = prepare();
         }
@@ -148,7 +148,7 @@ public sealed class InMemoryVersionedDefinitionStore : IVersionedDefinitionStore
         cancellationToken.ThrowIfCancellationRequested();
         lock (_gate)
         {
-            var replay = ReplayOrFence(key, expectedRevision, requestId, signature);
+            var replay = ReplayOrFence(key, expectedRevision, requestId, signature, phase);
             if (replay is not null) return ValueTask.FromResult(replay);
             if (phase == DefinitionAdmissionPhase.Publish)
             {
@@ -157,7 +157,7 @@ public sealed class InMemoryVersionedDefinitionStore : IVersionedDefinitionStore
                     && item.Status == DefinitionStatus.Published
                     && item.Document.VersionId != candidate.Document.VersionId
                     && DefinitionSemanticVersion.Parse(item.Document.Version).CompareTo(version) == 0))
-                    throw Refuse("definition.version_conflict", "/version");
+                    throw Refuse("definition.version_conflict", "/version", phase);
                 if (candidate.Status == DefinitionStatus.Published)
                 {
                     _requests.Add((key, requestId), new(expectedRevision, signature, candidate));
@@ -175,51 +175,51 @@ public sealed class InMemoryVersionedDefinitionStore : IVersionedDefinitionStore
     }
 
     private DefinitionRevision? ReplayOrFence(DefinitionKey key, long expectedRevision,
-        string requestId, string signature)
+        string requestId, string signature, DefinitionAdmissionPhase phase)
     {
         if (_requests.TryGetValue((key, requestId), out var replay))
         {
             if (replay.ExpectedRevision != expectedRevision || !StringComparer.Ordinal.Equals(replay.Signature, signature))
-                throw Refuse("definition.replay_conflict", "/requestId");
+                throw Refuse("definition.replay_conflict", "/requestId", phase);
             return replay.Result;
         }
         long currentRevision = _history.TryGetValue(key, out var history) ? history[^1].Revision : 0;
         if (currentRevision != expectedRevision)
-            throw Refuse("definition.revision_conflict", "/expectedRevision");
+            throw Refuse("definition.revision_conflict", "/expectedRevision", phase);
         return null;
     }
 
     private void Validate(DefinitionDocument document, DefinitionAdmissionPhase phase)
     {
-        ValidateKey(document.Key);
-        Require(document.VersionId, "definition.version_id_required", "/versionId");
+        ValidateKey(document.Key, phase);
+        Require(document.VersionId, "definition.version_id_required", "/versionId", phase);
         if (!DefinitionSemanticVersion.TryParse(document.Version, out _))
-            throw Refuse("definition.version_invalid", "/version");
+            throw Refuse("definition.version_invalid", "/version", phase);
         try { using var parsed = JsonDocument.Parse(document.BodyJson); }
-        catch (JsonException) { throw Refuse("definition.body_invalid", "/body"); }
-        catch (ArgumentNullException) { throw Refuse("definition.body_invalid", "/body"); }
+        catch (JsonException) { throw Refuse("definition.body_invalid", "/body", phase); }
+        catch (ArgumentNullException) { throw Refuse("definition.body_invalid", "/body", phase); }
         var refusals = _admissions[document.Key.Kind](document, phase);
-        if (refusals is null) throw Refuse("definition.admission_invalid", "/body");
-        if (refusals.Count > 0) throw new DefinitionRefusalException(refusals);
+        if (refusals is null) throw Refuse("definition.admission_invalid", "/body", phase);
+        if (refusals.Count > 0) throw new DefinitionRefusalException(phase, refusals);
     }
 
-    private void ValidateKey(DefinitionKey key)
+    private void ValidateKey(DefinitionKey key, DefinitionAdmissionPhase stage = DefinitionAdmissionPhase.Author)
     {
         ArgumentNullException.ThrowIfNull(key);
-        ValidateNamespace(key.Tenant, key.Kind);
-        Require(key.DefinitionId, "definition.id_required", "/definitionId");
+        ValidateNamespace(key.Tenant, key.Kind, stage);
+        Require(key.DefinitionId, "definition.id_required", "/definitionId", stage);
     }
 
-    private void ValidateNamespace(string tenant, DefinitionKind kind)
+    private void ValidateNamespace(string tenant, DefinitionKind kind, DefinitionAdmissionPhase stage = DefinitionAdmissionPhase.Author)
     {
         if (!Enum.IsDefined(kind) || !_admissions.ContainsKey(kind))
-            throw Refuse("definition.registry_unknown", "/registry");
-        Require(tenant, "definition.tenant_required", "/tenant");
+            throw Refuse("definition.registry_unknown", "/registry", stage);
+        Require(tenant, "definition.tenant_required", "/tenant", stage);
     }
 
-    private DefinitionRevision Find(DefinitionKey key, string versionId)
+    private DefinitionRevision Find(DefinitionKey key, string versionId, DefinitionAdmissionPhase stage = DefinitionAdmissionPhase.Author)
         => _revisions.TryGetValue((key, versionId), out var source) ? source
-            : throw Refuse("definition.not_found", "/versionId");
+            : throw Refuse("definition.not_found", "/versionId", stage);
 
     private static DefinitionRevision Snapshot(DefinitionDocument document, DefinitionStatus status)
         => new(document, 0, status, document.BodyJson is null ? "" :
@@ -228,11 +228,12 @@ public sealed class InMemoryVersionedDefinitionStore : IVersionedDefinitionStore
     private static string Signature<T>(string operation, T payload)
         => JsonSerializer.Serialize(new { operation, payload });
 
-    private static void Require(string? value, string code, string pointer)
+    private static void Require(string? value, string code, string pointer, DefinitionAdmissionPhase stage = DefinitionAdmissionPhase.Author)
     {
-        if (string.IsNullOrWhiteSpace(value)) throw Refuse(code, pointer);
+        if (string.IsNullOrWhiteSpace(value)) throw Refuse(code, pointer, stage);
     }
 
-    private static DefinitionRefusalException Refuse(string code, string pointer) => new([new(code, pointer)]);
+    private static DefinitionRefusalException Refuse(string code, string pointer,
+        DefinitionAdmissionPhase stage = DefinitionAdmissionPhase.Author) => new(stage, [new(code, pointer)]);
     private sealed record Replay(long ExpectedRevision, string Signature, DefinitionRevision Result);
 }

@@ -103,5 +103,6 @@ public static class BookingDefinitionPackage
         return refusals;
     }
 
-    private static DefinitionRefusalException Refuse(string code, string pointer) => new([new(code, pointer)]);
+    private static DefinitionRefusalException Refuse(string code, string pointer)
+        => new(DefinitionAdmissionPhase.Publish, [new(code, pointer)]);
 }

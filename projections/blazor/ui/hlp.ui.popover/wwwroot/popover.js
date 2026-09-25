@@ -81,9 +81,27 @@ export function connect(trigger, anchor, content, options, callback) {
   document.addEventListener('pointerdown', onPointer, true)
   window.addEventListener('resize', onViewport)
   window.addEventListener('scroll', onViewport, true)
-  requestAnimationFrame(() => { reposition(); (content.querySelector(focusable) ?? content).focus() })
+  // T-713: placement used to be computed once, a frame after the WebAssembly render, and again only
+  // on window resize or scroll, so an anchor that moved while the page settled left the popover
+  // behind (seen as a 16 px displacement in the RTL gallery story). While open, re-place whenever
+  // the anchor's box, the content's size or the viewport changes; an unchanged frame costs two reads.
+  let frame = 0
+  let measured = ''
+  const follow = () => {
+    const reference = anchor ?? trigger
+    if (reference && content) {
+      const r = reference.getBoundingClientRect()
+      const c = content.getBoundingClientRect()
+      const key = [r.left, r.top, r.width, r.height, c.width, c.height,
+        document.documentElement.clientWidth || window.innerWidth, document.documentElement.clientHeight || window.innerHeight].join()
+      if (key !== measured) { measured = key; reposition() }
+    }
+    frame = requestAnimationFrame(follow)
+  }
+  frame = requestAnimationFrame(() => { follow(); (content.querySelector(focusable) ?? content).focus() })
   return {
     dispose() {
+      cancelAnimationFrame(frame)
       document.removeEventListener('keydown', onKey)
       document.removeEventListener('pointerdown', onPointer, true)
       window.removeEventListener('resize', onViewport)
