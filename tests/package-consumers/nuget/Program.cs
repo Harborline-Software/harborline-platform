@@ -429,7 +429,7 @@ var packedRulesLifecyclePath = Path.Combine(Path.GetTempPath(), $"hlp-packed-rul
 try
 {
     using var packedRulesLifecycle = new BuilderDefinitions.FileJournalDefinitionLifecycleStore(packedRulesLifecyclePath);
-    var packedAuthoringCatalog = new BuilderDefinitions.RuleDefinitionCatalog(packedRulesStore, packedRulesLifecycle);
+    var packedAuthoringCatalog = new BuilderDefinitions.RuleDefinitionCatalog(packedRulesStore, packedRulesLifecycle, (_, _) => ValueTask.FromResult(true));
     var packedRuleSource = System.Text.Json.Nodes.JsonNode.Parse("""
         {
           "envelope":{"id":"consumer-route","version":"1.0.0","tenant":"tenant-consumer",
