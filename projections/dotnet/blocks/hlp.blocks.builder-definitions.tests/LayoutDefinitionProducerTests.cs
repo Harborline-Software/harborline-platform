@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 
 using Harborline.Blocks.BuilderDefinitions;
+using Harborline.Contracts.Authorization;
 
 using Xunit;
 
@@ -71,6 +72,60 @@ public sealed class LayoutDefinitionProducerTests
         var mixed = ScreenDefinition(block => block.Id == "static"
             ? block with { Intent = LayoutIntent.Issue, Binding = new LayoutRecordFieldBinding("customer.name") } : block);
         LayoutDefinitionAdmission.ValidateForPublish(mixed, Hosted);
+    }
+
+    private static readonly LayoutSubmitGate CustomerEditorGate = new(Role: RoleReference.Domain("customer-editor"));
+
+    private static readonly AuthorizationCapabilityRegister Capabilities = AuthorizationCapabilityRegister.FromDeclarations(
+        [new(new("records:write"), 1), new(new("layout:open"), 1)]);
+
+    [Fact(DisplayName = "layout-auth-23: a submit gate naming an unregistered capability is refused at authoring, by name (T-747)")]
+    public void ASubmitGateNamingAnUnregisteredCapabilityIsRefusedAtAuthoring()
+    {
+        var registers = Hosted with { Capabilities = Capabilities };
+        var unknown = ScreenDefinition() with { SubmitGate = new(Capability: new("layout:submit")) };
+
+        var error = Assert.Throws<LayoutDefinitionAdmissionException>(() => LayoutDefinitionAdmission.ValidateForAuthoring(unknown, registers));
+
+        Assert.Equal("definition.validate", error.Stage);
+        Assert.Equal([new LayoutDefinitionRefusal(LayoutDefinitionCodes.SubmitGateCapabilityUnknown, "/submit_gate/capability/name")], error.Refusals);
+        Assert.Throws<LayoutDefinitionAdmissionException>(() => LayoutDefinitionAdmission.ValidateForPublish(unknown, registers));
+        // A host that registers no capabilities admits no capability arm: nothing is string-matched.
+        Assert.Throws<LayoutDefinitionAdmissionException>(() => LayoutDefinitionAdmission.ValidateForAuthoring(unknown with { SubmitGate = new(Capability: new("records:write")) }, Hosted));
+        // A malformed name is refused the same way rather than thrown past admission.
+        AssertRefusal(unknown with { SubmitGate = new(Capability: new("Records:Write")) }, LayoutDefinitionCodes.SubmitGateCapabilityUnknown, "/submit_gate/capability/name");
+    }
+
+    [Fact(DisplayName = "layout-auth-23: a submit gate's capability arm resolves through the Access register (T-747)")]
+    public void ASubmitGateCapabilityArmResolvesThroughTheRegister()
+    {
+        var registers = Hosted with { Capabilities = Capabilities };
+        var gated = ScreenDefinition() with { SubmitGate = new(Capability: new("records:write")) };
+
+        LayoutDefinitionAdmission.ValidateForAuthoring(gated, registers);
+        LayoutDefinitionAdmission.ValidateForPublish(gated, registers);
+        var json = Encoding.UTF8.GetString(LayoutDefinitionJson.SerializeCanonical(gated));
+        Assert.Contains("\"submit_gate\":{\"capability\":{\"name\":\"records:write\"}}", json, StringComparison.Ordinal);
+        Assert.Equal(gated.SubmitGate, LayoutDefinitionJson.Deserialize(Encoding.UTF8.GetBytes(json)).SubmitGate);
+    }
+
+    [Fact(DisplayName = "layout-auth-23: a submit gate holds exactly one of role, standing or capability (T-724 ruling 77)")]
+    public void ASubmitGateHoldsExactlyOneArm()
+    {
+        var registers = Hosted with { Capabilities = Capabilities };
+        LayoutDefinitionAdmission.ValidateForAuthoring(ScreenDefinition() with { SubmitGate = new(Standing: new("assigned-reviewer")) }, registers);
+        foreach (var gate in new LayoutSubmitGate[]
+        {
+            new(),
+            new(Role: RoleReference.Domain("customer-editor"), Standing: new("assigned-reviewer")),
+            new(Role: RoleReference.Domain("customer-editor"), Capability: new("records:write")),
+            new(Standing: new("assigned-reviewer"), Capability: new("records:write")),
+        })
+        {
+            var error = Assert.Throws<LayoutDefinitionAdmissionException>(() =>
+                LayoutDefinitionAdmission.ValidateForAuthoring(ScreenDefinition() with { SubmitGate = gate }, registers));
+            Assert.Equal([new LayoutDefinitionRefusal(LayoutDefinitionCodes.SubmitGateFormInvalid, "/submit_gate")], error.Refusals);
+        }
     }
 
     [Fact(DisplayName = "layout-ck-43, layout-ck-44: a text binding of literal and field runs, with a field run's fallback, round-trips and refuses a malformed run or capture")]
@@ -219,7 +274,7 @@ public sealed class LayoutDefinitionProducerTests
         Assert.True(staticBlock.BreakAfter);
         Assert.Equal(["query"], Flatten(roundTrip.Blocks).Single(block => block.Id == "measure").FilterTargets);
         Assert.Equal(["surface.customer-detail"], roundTrip.DrillThroughTargets);
-        Assert.Equal("role.customer-editor", roundTrip.SubmitGate);
+        Assert.Equal(CustomerEditorGate, roundTrip.SubmitGate);
 
         var json = Encoding.UTF8.GetString(canonical);
         Assert.Contains("\"form_definition_id\":\"form.customer\"", json, StringComparison.Ordinal);
@@ -631,7 +686,7 @@ public sealed class LayoutDefinitionProducerTests
                         breakAfter: true),
                 ]),
         };
-        return Definition(LayoutMedium.Screen, LayoutIntent.Capture, Map(blocks, mutate), submitGate: "role.customer-editor", drillTargets: ["surface.customer-detail"]);
+        return Definition(LayoutMedium.Screen, LayoutIntent.Capture, Map(blocks, mutate), submitGate: CustomerEditorGate, drillTargets: ["surface.customer-detail"]);
     }
 
     private static LayoutDefinition PageDefinition(Func<LayoutBlock, LayoutBlock>? mutate = null)
@@ -691,7 +746,7 @@ public sealed class LayoutDefinitionProducerTests
         LayoutMedium medium,
         LayoutIntent defaultIntent,
         IReadOnlyList<LayoutBlock> blocks,
-        string? submitGate = null,
+        LayoutSubmitGate? submitGate = null,
         IReadOnlyList<string>? drillTargets = null,
         IReadOnlyList<LayoutPageLayoutDefinition>? pageLayouts = null,
         IReadOnlyList<LayoutPageMasterDefinition>? pageMasters = null,

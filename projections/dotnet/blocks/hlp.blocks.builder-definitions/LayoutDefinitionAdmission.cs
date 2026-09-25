@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Harborline.Contracts.Authorization;
 using Harborline.Contracts.Forms;
 using Harborline.Foundation.RuleEngine.Compilation;
 using Harborline.Foundation.RuleEngine.References;
@@ -56,6 +57,10 @@ public static class LayoutDefinitionCodes
     public const string ScopedContainerInvalid = "layout.block.scoped_container_invalid";
     /// <summary>A submit gate requires a capture-dominant surface.</summary>
     public const string SubmitGateInvalid = "layout.capture.submit_gate_invalid";
+    /// <summary>A submit gate names none or more than one of role, standing and capability (T-724 ruling 77).</summary>
+    public const string SubmitGateFormInvalid = "layout.capture.submit_gate_form_invalid";
+    /// <summary>A submit gate names a capability Access's register does not declare (layout-auth-23, T-747).</summary>
+    public const string SubmitGateCapabilityUnknown = "layout.capture.submit_gate_capability_unknown";
     /// <summary>A screen arrangement would require two-dimensional scrolling at 320 CSS pixels.</summary>
     public const string ReflowForbidden = "layout.placement.reflow_forbidden";
     /// <summary>A published payload does not declare Layout's capability with an exact minimum platform version.</summary>
@@ -187,11 +192,36 @@ public static class LayoutDefinitionAdmission
                 Add(refusals, LayoutDefinitionCodes.InteractionTargetUnknown, $"/drill_through_targets/{index}");
         }
         ValidatePages(definition, blockIds, registers.Pages, refusals);
-        if (definition.SubmitGate is { } submitGate
-            && (definition.DefaultIntent != LayoutIntent.Capture || string.IsNullOrWhiteSpace(submitGate)))
-            Add(refusals, LayoutDefinitionCodes.SubmitGateInvalid, "/submit_gate");
+        if (definition.SubmitGate is { } submitGate)
+            ValidateSubmitGate(submitGate, definition.DefaultIntent, registers.Capabilities, refusals);
 
         if (refusals.Count > 0) throw new LayoutDefinitionAdmissionException(stage, refusals);
+    }
+
+    private static void ValidateSubmitGate(
+        LayoutSubmitGate gate,
+        LayoutIntent defaultIntent,
+        AuthorizationCapabilityRegister? capabilities,
+        ICollection<LayoutDefinitionRefusal> refusals)
+    {
+        if (defaultIntent != LayoutIntent.Capture)
+            Add(refusals, LayoutDefinitionCodes.SubmitGateInvalid, "/submit_gate");
+        else if (!gate.IsWellFormed)
+            Add(refusals, LayoutDefinitionCodes.SubmitGateFormInvalid, "/submit_gate");
+        else if (gate.Capability is { } capability && !IsRegistered(capability, capabilities))
+            Add(refusals, LayoutDefinitionCodes.SubmitGateCapabilityUnknown, "/submit_gate/capability/name");
+    }
+
+    private static bool IsRegistered(AuthorizationCapabilityReference capability, AuthorizationCapabilityRegister? capabilities)
+    {
+        try
+        {
+            return capabilities?.Resolve(capability) is not null;
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
     }
 
     private static bool HasCapture(IReadOnlyList<LayoutBlock> blocks, LayoutIntent defaultIntent)
