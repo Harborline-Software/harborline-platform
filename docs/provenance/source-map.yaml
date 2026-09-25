@@ -144,7 +144,7 @@
         "projections/dotnet/foundation/hlp.foundation.forms/InMemoryFormDefinitionStore.cs": "ac067267628c1846b639d60114779aeef935c1f4d7336c4896c84edb0335638c",
         "projections/dotnet/foundation/hlp.foundation.forms/IReusableUnitStore.cs": "157d7c65abd940d7ec35169140cf9dcb34ae7bbafbf1b1837bb2c813aa284a1f",
         "projections/dotnet/foundation/hlp.foundation.forms/ReuseResolver.cs": "36a67ce952aa9c3d37c2658508200df86f4ff0b9c166690a14957998bd354a17",
-        "projections/dotnet/foundation/hlp.foundation.forms/FormDefinitionValidation.cs": "a0c8a22320accfa3d8ecf20ac5fc5c8a2dcc61608999dc9b5208b3fa10efa9a0",
+        "projections/dotnet/foundation/hlp.foundation.forms/FormDefinitionValidation.cs": "a87dbbc6af383c19cac8fcad7755fde85dd932d9eee1d3fd6cb1799147e63997",
         "projections/dotnet/foundation/hlp.foundation.forms/FormDefinitionAuthoringValidation.cs": "08c36e204f5dd54e3356e74ad9d0d89b60c35ed63088f56783f0fa6bc7a8e336",
         "projections/dotnet/foundation/hlp.foundation.forms/Models/FormDefinition.cs": "7f8d55658dccc2be7939160d5172ea5315d36e0a965202f0d227e72874070529",
         "projections/dotnet/foundation/hlp.foundation.forms/Models/FormDefinitionAuthoring.cs": "b4194fd50f235d207672f6fd9b975f4abe0c8cbba6bd10c2b64f17b79cd17e90",
