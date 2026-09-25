@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace Harborline.Foundation.Documents;
 
@@ -11,6 +12,14 @@ public static class TemplateDefinitionCodes
     public const string DocumentTypeRequired = "documents.template.document_type_required";
     /// <summary>A required body member is missing or malformed.</summary>
     public const string BodyInvalid = "documents.template.body_invalid";
+    /// <summary>The surface pin resolves no published surface (documents-ck-7).</summary>
+    public const string SurfaceUnresolved = "documents.template.surface_unresolved";
+    /// <summary>The resolved surface is not the exact identity and version pinned.</summary>
+    public const string SurfacePinMismatch = "documents.template.surface_pin_mismatch";
+    /// <summary>A template composes page media only (ADR 0092, ADR 0094).</summary>
+    public const string SurfaceMediumUnsupported = "documents.template.surface_medium_unsupported";
+    /// <summary>A template's surface is issue-dominant; any other default intent is unsupported.</summary>
+    public const string SurfaceIntentUnsupported = "documents.template.surface_intent_unsupported";
 }
 
 /// <summary>A stable, localizable refusal at an RFC 6901 pointer.</summary>
@@ -70,8 +79,48 @@ public static class TemplateDefinitionAdmission
             refusals.Add(new(TemplateDefinitionCodes.BodyInvalid, "/locale"));
         if (template.Surface is null || Blank(template.Surface.SurfaceDefinitionId) || Blank(template.Surface.SurfaceVersion))
             refusals.Add(new(TemplateDefinitionCodes.BodyInvalid, "/surface"));
+        else Surface(template.Surface, surfaces, stage, refusals);
         return refusals;
     }
+
+    /// <summary>
+    /// The persisted read: a stored template and the surface it pins are re-admitted before rendering, and an
+    /// invalid stored value is diagnosed by name rather than clamped or normalised.
+    /// </summary>
+    /// <exception cref="TemplateAdmissionException">A stored value is invalid.</exception>
+    public static void ValidatePersisted(TemplateDefinition template, TemplateSurfaces surfaces)
+    {
+        var refusals = Validate(template, surfaces, TemplateAdmissionStage.Persisted);
+        if (refusals.Count > 0) throw new TemplateAdmissionException("render.runtime", refusals);
+    }
+
+    // documents-ck-7: the flat list is replaced by the pinned Layout tree. Layout's validator owns the tree,
+    // placement and numeric ranges; Documents adds only what the composition requires of it.
+    private static void Surface(TemplateSurfacePin pin, TemplateSurfaces surfaces, TemplateAdmissionStage stage,
+        List<TemplateRefusal> refusals)
+    {
+        var json = surfaces.Resolve(pin);
+        JsonObject? surface;
+        try { surface = json is null ? null : JsonNode.Parse(json) as JsonObject; }
+        catch (JsonException) { surface = null; }
+        if (surface is null)
+        {
+            refusals.Add(new(TemplateDefinitionCodes.SurfaceUnresolved, "/surface"));
+            return;
+        }
+        if (Text(surface["envelope"]?["identity"]) != pin.SurfaceDefinitionId)
+            refusals.Add(new(TemplateDefinitionCodes.SurfacePinMismatch, "/surface/surface_definition_id"));
+        if (Text(surface["envelope"]?["version"]) != pin.SurfaceVersion)
+            refusals.Add(new(TemplateDefinitionCodes.SurfacePinMismatch, "/surface/surface_version"));
+        if (Text(surface["medium"]) != "page")
+            refusals.Add(new(TemplateDefinitionCodes.SurfaceMediumUnsupported, "/surface/medium"));
+        if (Text(surface["default_intent"]) != "issue")
+            refusals.Add(new(TemplateDefinitionCodes.SurfaceIntentUnsupported, "/surface/default_intent"));
+        refusals.AddRange(surfaces.Admit(json!, stage).Select(refusal => refusal with { Pointer = "/surface" + refusal.Pointer }));
+    }
+
+    private static string? Text(JsonNode? node)
+        => node?.GetValueKind() == JsonValueKind.String ? node.GetValue<string>() : null;
 
     /// <summary>Refuses publication by throwing every refusal.</summary>
     /// <exception cref="TemplateAdmissionException">The template was refused.</exception>
