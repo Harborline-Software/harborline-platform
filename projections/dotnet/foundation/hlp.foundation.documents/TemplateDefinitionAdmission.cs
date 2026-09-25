@@ -20,6 +20,12 @@ public static class TemplateDefinitionCodes
     public const string SurfaceMediumUnsupported = "documents.template.surface_medium_unsupported";
     /// <summary>A template's surface is issue-dominant; any other default intent is unsupported.</summary>
     public const string SurfaceIntentUnsupported = "documents.template.surface_intent_unsupported";
+    /// <summary>A repeating region declares no columns (documents-auth-19).</summary>
+    public const string RepeatingRegionColumnsRequired = "documents.template.repeating_region_columns_required";
+    /// <summary>Authored content carries a server-derived authority field (documents-auth-18).</summary>
+    public const string AuthorityFieldForbidden = "documents.template.authority_field_forbidden";
+    /// <summary>A pack entry's key or version disagrees with the envelope it carries.</summary>
+    public const string EnvelopeMismatch = "documents.template.envelope_mismatch";
 }
 
 /// <summary>A stable, localizable refusal at an RFC 6901 pointer.</summary>
@@ -116,7 +122,22 @@ public static class TemplateDefinitionAdmission
             refusals.Add(new(TemplateDefinitionCodes.SurfaceMediumUnsupported, "/surface/medium"));
         if (Text(surface["default_intent"]) != "issue")
             refusals.Add(new(TemplateDefinitionCodes.SurfaceIntentUnsupported, "/surface/default_intent"));
+        if (surface["blocks"] is JsonArray blocks) RepeatingRegions(blocks, "/surface/blocks", refusals);
         refusals.AddRange(surfaces.Admit(json!, stage).Select(refusal => refusal with { Pointer = "/surface" + refusal.Pointer }));
+    }
+
+    // documents-auth-19: in the Layout tree a repeating region is a repeating block and its columns are its
+    // children. A column-less region is a refusal, never an empty table.
+    private static void RepeatingRegions(JsonArray blocks, string pointer, List<TemplateRefusal> refusals)
+    {
+        for (var index = 0; index < blocks.Count; index++)
+        {
+            var at = $"{pointer}/{index}";
+            var children = blocks[index]?["children"] as JsonArray;
+            if (blocks[index]?["repeating"]?.GetValueKind() == JsonValueKind.True && (children?.Count ?? 0) == 0)
+                refusals.Add(new(TemplateDefinitionCodes.RepeatingRegionColumnsRequired, $"{at}/children"));
+            if (children is not null) RepeatingRegions(children, $"{at}/children", refusals);
+        }
     }
 
     private static string? Text(JsonNode? node)

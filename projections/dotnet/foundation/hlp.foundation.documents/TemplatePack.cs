@@ -22,6 +22,8 @@ public static class TemplatePack
 {
     // Server-derived: the installing host stamps them and authored content never carries them.
     private static readonly string[] ServerDerived = ["tenant", "provenance"];
+    // documents-auth-18: owner, tenant, pack key and provenance are never authored.
+    private static readonly string[] AuthorityFields = ["owner", "tenant", "pack_key", "provenance"];
 
     /// <summary>Projects one template into pack content after publish admission. Publishes nothing.</summary>
     /// <exception cref="TemplateAdmissionException">The template was refused.</exception>
@@ -46,14 +48,56 @@ public static class TemplatePack
         JsonObject? body;
         try { body = JsonNode.Parse(content) as JsonObject; }
         catch (JsonException) { body = null; }
-        if (body?["envelope"] is not JsonObject)
+        if (body?["envelope"] is not JsonObject envelope)
         {
             miss = new(TemplateDefinitionCodes.BodyInvalid, "");
             return false;
         }
+        foreach (var (node, pointer) in new[] { (body, ""), (envelope, "/envelope") })
+            if (AuthorityFields.FirstOrDefault(node.ContainsKey) is { } field)
+            {
+                miss = new(TemplateDefinitionCodes.AuthorityFieldForbidden, $"{pointer}/{field}");
+                return false;
+            }
         try { template = TemplateDefinitionJson.FromNode(Stamp(body, tenant, provenance)); }
         catch (JsonException) { miss = new(TemplateDefinitionCodes.BodyInvalid, ""); }
         return template is not null;
+    }
+
+    /// <summary>
+    /// Install-time admission of a pack's templates. Each entry is parsed, admitted and published on its own:
+    /// a refused entry is reported by name and skipped, and every valid sibling still installs.
+    /// </summary>
+    public static async ValueTask<IReadOnlyList<TemplateInstallOutcome>> InstallAsync(
+        IReadOnlyList<TemplatePackEntry> entries, TemplateInstallTarget target)
+    {
+        ArgumentNullException.ThrowIfNull(entries);
+        ArgumentNullException.ThrowIfNull(target);
+        var outcomes = new List<TemplateInstallOutcome>(entries.Count);
+        foreach (var entry in entries)
+        {
+            TemplateInstallOutcome Refused(params TemplateRefusal[] refusals)
+                => new(entry.DefinitionId, entry.Version, TemplateInstallOutcomeKind.Refused, refusals);
+            if (!TryParse(entry.Content, target.Tenant, target.Provenance, out var template, out var miss))
+            {
+                outcomes.Add(Refused(miss!));
+                continue;
+            }
+            if (template!.Envelope.Identity != entry.DefinitionId || template.Envelope.Version != entry.Version)
+            {
+                outcomes.Add(Refused(new TemplateRefusal(TemplateDefinitionCodes.EnvelopeMismatch, "/envelope")));
+                continue;
+            }
+            var refusals = TemplateDefinitionAdmission.Validate(template, target.Surfaces);
+            if (refusals.Count > 0)
+            {
+                outcomes.Add(Refused([.. refusals]));
+                continue;
+            }
+            await target.Publish(template).ConfigureAwait(false);
+            outcomes.Add(new(entry.DefinitionId, entry.Version, TemplateInstallOutcomeKind.Published, []));
+        }
+        return outcomes;
     }
 
     private static JsonObject Stamp(JsonObject body, string tenant, JsonElement provenance)
@@ -64,3 +108,31 @@ public static class TemplatePack
         return body;
     }
 }
+
+/// <summary>What happened to one pack entry at install.</summary>
+public enum TemplateInstallOutcomeKind
+{
+    /// <summary>The template was admitted and published.</summary>
+    Published,
+    /// <summary>The same key, version and body is already stored; nothing was written.</summary>
+    AlreadyPresent,
+    /// <summary>The entry was refused by name and skipped; its siblings are unaffected.</summary>
+    Refused,
+}
+
+/// <summary>One entry's install outcome.</summary>
+public sealed record TemplateInstallOutcome(
+    string DefinitionId, string Version, TemplateInstallOutcomeKind Kind, IReadOnlyList<TemplateRefusal> Refusals);
+
+/// <summary>The installing host: its tenant and provenance stamp, the surface binding and the shared catalogue.</summary>
+/// <param name="Tenant">The installing tenant, stamped on every template.</param>
+/// <param name="Provenance">The pack provenance, stamped on every template.</param>
+/// <param name="Surfaces">The surface binding admission uses.</param>
+/// <param name="ResolveStored">The canonical bytes already stored for the template's key and version, or null.</param>
+/// <param name="Publish">Publishes an admitted template into the shared catalogue.</param>
+public sealed record TemplateInstallTarget(
+    string Tenant,
+    JsonElement Provenance,
+    TemplateSurfaces Surfaces,
+    Func<TemplateDefinition, ValueTask<byte[]?>> ResolveStored,
+    Func<TemplateDefinition, ValueTask> Publish);
