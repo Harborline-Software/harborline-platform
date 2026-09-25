@@ -185,6 +185,23 @@ public sealed class LayoutBoundRegisterTests
         Action = action,
     };
 
+    [Fact(DisplayName = "layout-bound-7: two packs supplying the same page id refuse by name (T-724 ruling 40)")]
+    public void TwoPacksSupplyingTheSamePageIdRefuseByName()
+    {
+        var one = PackPages();
+        var layouts = one.Layouts.Values.OrderBy(layout => layout.Id, StringComparer.Ordinal).ToArray();
+        var master = one.Masters["pack.master"];
+
+        var twiceLayout = Assert.Throws<LayoutDefinitionAdmissionException>(() => new LayoutPageRegistry([.. layouts, layouts[0]], [master]));
+        Assert.Equal("register.pages", twiceLayout.Stage);
+        Assert.Equal(new LayoutDefinitionRefusal(LayoutDefinitionCodes.PageSuppliedTwice, "/page_layouts/2"), Assert.Single(twiceLayout.Refusals));
+        var twiceMaster = Assert.Throws<LayoutDefinitionAdmissionException>(() => new LayoutPageRegistry(layouts, [master, master]));
+        Assert.Equal(new LayoutDefinitionRefusal(LayoutDefinitionCodes.PageSuppliedTwice, "/page_masters/1"), Assert.Single(twiceMaster.Refusals));
+        // A master over geometry no pack supplies is named too.
+        var orphan = Assert.Throws<LayoutDefinitionAdmissionException>(() => new LayoutPageRegistry([], [master]));
+        Assert.Equal(new LayoutDefinitionRefusal(LayoutDefinitionCodes.PageReferenceUnknown, "/page_masters/0/page_layout_id"), Assert.Single(orphan.Refusals));
+    }
+
     internal static LayoutPageRegistry PackPages() => new(
         [
             new("pack.a4", "a4", LayoutPageOrientation.Portrait, new("12mm", "12mm", "12mm", "12mm"), new("10mm", "10mm")),

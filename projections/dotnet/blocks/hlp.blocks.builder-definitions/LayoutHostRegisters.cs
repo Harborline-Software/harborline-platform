@@ -154,10 +154,23 @@ public sealed class LayoutPageRegistry
         if (layoutValues.Any(layout => layout is null || string.IsNullOrWhiteSpace(layout.Id))
             || masterValues.Any(master => master is null || string.IsNullOrWhiteSpace(master.Id)))
             throw new ArgumentException("A page register requires identified definitions.");
+        // T-724 ruling 40: two packs supplying one id make every citation of it ambiguous; refuse by name.
+        var refusals = new List<LayoutDefinitionRefusal>();
+        var layoutIds = new HashSet<string>(StringComparer.Ordinal);
+        for (var index = 0; index < layoutValues.Length; index++)
+            if (!layoutIds.Add(layoutValues[index].Id))
+                refusals.Add(new(LayoutDefinitionCodes.PageSuppliedTwice, $"/page_layouts/{index}"));
+        var masterIds = new HashSet<string>(StringComparer.Ordinal);
+        for (var index = 0; index < masterValues.Length; index++)
+        {
+            if (!masterIds.Add(masterValues[index].Id))
+                refusals.Add(new(LayoutDefinitionCodes.PageSuppliedTwice, $"/page_masters/{index}"));
+            if (!layoutIds.Contains(masterValues[index].PageLayoutId))
+                refusals.Add(new(LayoutDefinitionCodes.PageReferenceUnknown, $"/page_masters/{index}/page_layout_id"));
+        }
+        if (refusals.Count > 0) throw new LayoutDefinitionAdmissionException("register.pages", refusals);
         Layouts = layoutValues.ToFrozenDictionary(layout => layout.Id, StringComparer.Ordinal);
         Masters = masterValues.ToFrozenDictionary(master => master.Id, StringComparer.Ordinal);
-        if (masterValues.Any(master => !Layouts.ContainsKey(master.PageLayoutId)))
-            throw new ArgumentException("Every supplied page master must sit over a supplied page layout.", nameof(masters));
     }
 
     /// <summary>The supplied page geometries, by id.</summary>

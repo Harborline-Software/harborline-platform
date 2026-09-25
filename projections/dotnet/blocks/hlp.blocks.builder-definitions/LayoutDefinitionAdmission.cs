@@ -75,6 +75,8 @@ public static class LayoutDefinitionCodes
     public const string ControlValueKindMismatch = "layout.capture.control_value_kind_mismatch";
     /// <summary>An authored control names a field whose value domain picks its editor (layout-bound-10, T-724 ruling 37).</summary>
     public const string ControlDisplacesValueDomain = "layout.capture.control_displaces_value_domain";
+    /// <summary>Two installed packs supply the same page layout or page master id (layout-bound-7, T-724 ruling 40).</summary>
+    public const string PageSuppliedTwice = "layout.page.supplied_twice";
     /// <summary>A capture block names a validation rule the host has not registered (layout-bound-8).</summary>
     public const string ValidationRuleUnknown = "layout.capture.validation_rule_unknown";
     /// <summary>A named validation rule does not validate, or its tier's compiler refuses it (layout-bound-8).</summary>
