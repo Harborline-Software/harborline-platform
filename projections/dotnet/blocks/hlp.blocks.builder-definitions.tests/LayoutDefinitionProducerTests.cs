@@ -9,6 +9,20 @@ namespace Harborline.Blocks.BuilderDefinitions.Tests;
 
 public sealed class LayoutDefinitionProducerTests
 {
+    // Publication resolves the fixture's named validation rule (T-724 ruling 36).
+    private static readonly LayoutHostRegisters Hosted = new(LayoutBlockKindRegistry.Platform, ValidationRules: new LayoutValidationRuleRegistry(
+    [
+        new Harborline.Contracts.Forms.RuleDefinition
+        {
+            Id = "customer.name.required",
+            Tier = Harborline.Contracts.Forms.RuleTier.JsonLogic,
+            Scope = Harborline.Contracts.Forms.RuleScope.Schema,
+            ScopeTarget = "",
+            Expression = "{\"!!\":[{\"var\":\"customer.name\"}]}",
+            Action = Harborline.Contracts.Forms.RuleActionKind.Validate,
+        },
+    ]));
+
     [Theory]
     [InlineData(LayoutCompositionKind.Form)]
     [InlineData(LayoutCompositionKind.Template)]
@@ -56,7 +70,7 @@ public sealed class LayoutDefinitionProducerTests
         AssertRefusal(ScreenDefinition() with { SchemaVersion = 0 }, LayoutDefinitionCodes.EnvelopeInvalid, "/schema_version");
         var mixed = ScreenDefinition(block => block.Id == "static"
             ? block with { Intent = LayoutIntent.Issue, Binding = new LayoutRecordFieldBinding("customer.name") } : block);
-        LayoutDefinitionAdmission.ValidateForPublish(mixed);
+        LayoutDefinitionAdmission.ValidateForPublish(mixed, Hosted);
         AssertRefusal(PageDefinition(block => block.Id == "document"
             ? block with { Binding = new LayoutRecordFieldBinding("customer.name") } : block),
             LayoutDefinitionCodes.IntentBindingUnsupported, "/blocks/0/children/1/binding");
@@ -68,7 +82,7 @@ public sealed class LayoutDefinitionProducerTests
         var definition = ScreenDefinition(block => block with { Kind = "host.component" });
         var kinds = new LayoutBlockKindRegistry(["host.component"]);
         LayoutDefinitionAdmission.ValidateForAuthoring(definition, kinds);
-        var entry = LayoutDefinitionPackageExporter.Export(definition, kinds);
+        var entry = LayoutDefinitionPackageExporter.Export(definition, Hosted with { Kinds = kinds });
         var roundTrip = LayoutDefinitionJson.Deserialize(entry.Content.Payload.Span);
         LayoutPersistedValueAdmission.ValidateForReact(roundTrip, kinds);
         LayoutPersistedValueAdmission.ValidateForBlazor(roundTrip, kinds);
@@ -86,7 +100,7 @@ public sealed class LayoutDefinitionProducerTests
             "query" => block with { Intent = null },
             _ => block,
         });
-        LayoutDefinitionAdmission.ValidateForPublish(definition with { DefaultIntent = LayoutIntent.Observe, SubmitGate = null });
+        LayoutDefinitionAdmission.ValidateForPublish(definition with { DefaultIntent = LayoutIntent.Observe, SubmitGate = null }, Hosted);
     }
 
     [Fact]
@@ -129,7 +143,7 @@ public sealed class LayoutDefinitionProducerTests
     {
         var definition = ScreenDefinition();
 
-        LayoutDefinitionAdmission.ValidateForPublish(definition);
+        LayoutDefinitionAdmission.ValidateForPublish(definition, Hosted);
         var canonical = LayoutDefinitionJson.SerializeCanonical(definition);
         var roundTrip = LayoutDefinitionJson.Deserialize(canonical);
 
@@ -179,7 +193,7 @@ public sealed class LayoutDefinitionProducerTests
     {
         var definition = PageDefinition();
 
-        LayoutDefinitionAdmission.ValidateForPublish(definition);
+        LayoutDefinitionAdmission.ValidateForPublish(definition, Hosted);
         var roundTrip = LayoutDefinitionJson.Deserialize(LayoutDefinitionJson.SerializeCanonical(definition));
 
         Assert.Equal(LayoutMedium.Page, roundTrip.Medium);
@@ -231,8 +245,8 @@ public sealed class LayoutDefinitionProducerTests
 
             LayoutDefinitionAdmission.ValidateForAuthoring(minimum);
             LayoutDefinitionAdmission.ValidateForAuthoring(maximum);
-            LayoutDefinitionAdmission.ValidateForPublish(minimum);
-            LayoutDefinitionAdmission.ValidateForPublish(maximum);
+            LayoutDefinitionAdmission.ValidateForPublish(minimum, Hosted);
+            LayoutDefinitionAdmission.ValidateForPublish(maximum, Hosted);
             LayoutPersistedValueAdmission.ValidateForReact(minimum);
             LayoutPersistedValueAdmission.ValidateForReact(maximum);
             LayoutPersistedValueAdmission.ValidateForBlazor(minimum);
@@ -240,8 +254,8 @@ public sealed class LayoutDefinitionProducerTests
 
             AssertRangeRefusal(() => LayoutDefinitionAdmission.ValidateForAuthoring(below), member, "definition.validate");
             AssertRangeRefusal(() => LayoutDefinitionAdmission.ValidateForAuthoring(above), member, "definition.validate");
-            AssertRangeRefusal(() => LayoutDefinitionAdmission.ValidateForPublish(below), member, "definition.publish");
-            AssertRangeRefusal(() => LayoutDefinitionAdmission.ValidateForPublish(above), member, "definition.publish");
+            AssertRangeRefusal(() => LayoutDefinitionAdmission.ValidateForPublish(below, Hosted), member, "definition.publish");
+            AssertRangeRefusal(() => LayoutDefinitionAdmission.ValidateForPublish(above, Hosted), member, "definition.publish");
             AssertRangeRefusal(() => LayoutPersistedValueAdmission.ValidateForReact(below), member, "render.react");
             AssertRangeRefusal(() => LayoutPersistedValueAdmission.ValidateForReact(above), member, "render.react");
             AssertRangeRefusal(() => LayoutPersistedValueAdmission.ValidateForBlazor(below), member, "render.blazor");
@@ -287,7 +301,7 @@ public sealed class LayoutDefinitionProducerTests
         System.Text.Json.Nodes.JsonObject Persisted(LayoutPlacement placement)
         {
             var definition = ScreenDefinition(block => block.Id == "capture" ? block with { Placement = placement } : block);
-            LayoutDefinitionAdmission.ValidateForPublish(definition);
+            LayoutDefinitionAdmission.ValidateForPublish(definition, Hosted);
             var root = System.Text.Json.Nodes.JsonNode.Parse(LayoutDefinitionJson.SerializeCanonical(definition))!;
             var capture = root["blocks"]![0]!["children"]!.AsArray().Single(child => (string?)child!["id"] == "capture")!;
             return capture["placement"]!.AsObject();
@@ -313,8 +327,8 @@ public sealed class LayoutDefinitionProducerTests
     {
         var pack = new[]
         {
-            LayoutDefinitionPackageExporter.Export(ScreenDefinition()),
-            LayoutDefinitionPackageExporter.Export(PageDefinition()),
+            LayoutDefinitionPackageExporter.Export(ScreenDefinition(), Hosted),
+            LayoutDefinitionPackageExporter.Export(PageDefinition(), Hosted),
         };
         LayoutPackHostAdmission.Admit(pack, new Dictionary<string, string> { [LayoutPackIdentity.Capability] = "1.0.0" });
 
@@ -335,7 +349,7 @@ public sealed class LayoutDefinitionProducerTests
     public void ARepeatingBlockAdmitsSatisfiableBounds()
     {
         LayoutDefinitionAdmission.ValidateForPublish(ScreenDefinition(block => block.Id == "query"
-            ? block with { CollectionBounds = new LayoutCollectionBounds(0, 20) } : block));
+            ? block with { CollectionBounds = new LayoutCollectionBounds(0, 20) } : block), Hosted);
     }
 
     [Theory(DisplayName = "layout-ck-40: malformed or misplaced collection bounds refuse")]
@@ -360,7 +374,7 @@ public sealed class LayoutDefinitionProducerTests
             Envelope = definition.Envelope with { Requires = [new LayoutDefinitionRequirement("records", "1.0.0")] },
         };
 
-        var refused = Assert.Throws<LayoutDefinitionAdmissionException>(() => LayoutDefinitionAdmission.ValidateForPublish(undeclared));
+        var refused = Assert.Throws<LayoutDefinitionAdmissionException>(() => LayoutDefinitionAdmission.ValidateForPublish(undeclared, Hosted));
 
         Assert.Equal("definition.publish", refused.Stage);
         Assert.Equal([new LayoutDefinitionRefusal(LayoutDefinitionCodes.CapabilityUndeclared, "/envelope/requires")], refused.Refusals);
@@ -382,7 +396,7 @@ public sealed class LayoutDefinitionProducerTests
             },
         };
 
-        var refused = Assert.Throws<LayoutDefinitionAdmissionException>(() => LayoutDefinitionAdmission.ValidateForPublish(unversioned));
+        var refused = Assert.Throws<LayoutDefinitionAdmissionException>(() => LayoutDefinitionAdmission.ValidateForPublish(unversioned, Hosted));
 
         Assert.Equal(
             [new LayoutDefinitionRefusal(LayoutDefinitionCodes.CapabilityUndeclared, "/envelope/requires/1/minimum_platform_version")],
@@ -405,7 +419,7 @@ public sealed class LayoutDefinitionProducerTests
             },
         };
 
-        var published = Assert.Throws<LayoutDefinitionAdmissionException>(() => LayoutDefinitionAdmission.ValidateForPublish(doubled));
+        var published = Assert.Throws<LayoutDefinitionAdmissionException>(() => LayoutDefinitionAdmission.ValidateForPublish(doubled, Hosted));
         Assert.Equal([new LayoutDefinitionRefusal(LayoutDefinitionCodes.CapabilityUndeclared, "/envelope/requires")], published.Refusals);
 
         var entry = new LayoutDefinitionPackageEntry("surface.customer", "1.0.0",
@@ -428,7 +442,7 @@ public sealed class LayoutDefinitionProducerTests
     [InlineData("1.4.2")]
     public void AHostThatSatisfiesTheSealedCapabilityAdmitsThePack(string hostVersion)
     {
-        var pack = new[] { LayoutDefinitionPackageExporter.Export(ScreenDefinition()) };
+        var pack = new[] { LayoutDefinitionPackageExporter.Export(ScreenDefinition(), Hosted) };
 
         LayoutPackHostAdmission.Admit(pack, new Dictionary<string, string> { [LayoutPackIdentity.Capability] = hostVersion });
     }
@@ -453,7 +467,7 @@ public sealed class LayoutDefinitionProducerTests
             : new Dictionary<string, string> { [LayoutPackIdentity.Capability] = hostVersion };
 
         var refused = Assert.Throws<LayoutPackUnsupportedException>(() => LayoutPackHostAdmission.Admit(
-            [LayoutDefinitionPackageExporter.Export(supported), LayoutDefinitionPackageExporter.Export(demanding)], host));
+            [LayoutDefinitionPackageExporter.Export(supported, Hosted), LayoutDefinitionPackageExporter.Export(demanding, Hosted)], host));
 
         Assert.Equal(LayoutDefinitionCodes.CapabilityUnsupported, refused.Code);
         Assert.Equal(LayoutPackIdentity.Capability, refused.Capability);
@@ -483,7 +497,7 @@ public sealed class LayoutDefinitionProducerTests
         Assert.NotEqual((int)DefinitionKind.Forms, (int)DefinitionKind.Layout);
         Assert.NotEqual((int)DefinitionKind.Workflows, (int)DefinitionKind.Layout);
 
-        var entry = LayoutDefinitionPackageExporter.Export(ScreenDefinition());
+        var entry = LayoutDefinitionPackageExporter.Export(ScreenDefinition(), Hosted);
 
         Assert.Equal(DefinitionKind.Layout, entry.Kind);
         Assert.Equal(17, entry.ContentKind);
@@ -501,7 +515,7 @@ public sealed class LayoutDefinitionProducerTests
     {
         var invalid = WithNumeric(ScreenDefinition(), LayoutNumericMember.Span, 0);
 
-        var error = Assert.Throws<LayoutDefinitionAdmissionException>(() => LayoutDefinitionPackageExporter.Export(invalid));
+        var error = Assert.Throws<LayoutDefinitionAdmissionException>(() => LayoutDefinitionPackageExporter.Export(invalid, Hosted));
 
         Assert.Equal("definition.publish", error.Stage);
         Assert.Contains(error.Refusals, refusal => refusal is

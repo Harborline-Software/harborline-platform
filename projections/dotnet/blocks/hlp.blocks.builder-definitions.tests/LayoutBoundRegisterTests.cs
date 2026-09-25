@@ -96,6 +96,18 @@ public sealed class LayoutBoundRegisterTests
             LayoutDefinitionCodes.ValidationRuleInvalid, "/blocks/0/capture/validation_rules/0");
     }
 
+    [Fact(DisplayName = "layout-bound-8: named validation rules with no register to resolve them refuse (T-724 ruling 36)")]
+    public void NamedValidationRulesWithNoRegisterRefuse()
+    {
+        var naming = CaptureSurface(new(false, ["rules.amount-positive"]));
+        // A draft keeps its names while it is authored; publication must resolve them.
+        LayoutDefinitionAdmission.ValidateForAuthoring(naming, LayoutHostRegisters.Platform);
+        var publish = Assert.Throws<LayoutDefinitionAdmissionException>(() => LayoutDefinitionAdmission.ValidateForPublish(Sealed(naming), LayoutHostRegisters.Platform));
+        Assert.Contains(publish.Refusals, refusal => refusal.Code == LayoutDefinitionCodes.ValidationRuleUnknown);
+        // A capture block that names no rule needs no register.
+        LayoutDefinitionAdmission.ValidateForPublish(Sealed(CaptureSurface(new(true, []))), LayoutHostRegisters.Platform);
+    }
+
     private static RuleDefinition Rule(string id, RuleTier tier, string expression, RuleActionKind action = RuleActionKind.Validate) => new()
     {
         Id = id,

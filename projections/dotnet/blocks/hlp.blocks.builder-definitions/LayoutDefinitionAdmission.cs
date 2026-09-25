@@ -158,6 +158,8 @@ public static class LayoutDefinitionAdmission
                 blockIds,
                 registers,
                 captures,
+                publishing: stage == PublishStage,
+                rowSection: null,
                 refusals);
         }
 
@@ -251,6 +253,8 @@ public static class LayoutDefinitionAdmission
         HashSet<string> blockIds,
         LayoutHostRegisters registers,
         bool captures,
+        bool publishing,
+        string? rowSection,
         ICollection<LayoutDefinitionRefusal> refusals)
     {
         if (block is null) return;
@@ -287,8 +291,10 @@ public static class LayoutDefinitionAdmission
             for (var index = 0; index < validationRules.Count; index++)
                 if (string.IsNullOrWhiteSpace(validationRules[index]))
                     Add(refusals, LayoutDefinitionCodes.CapturePropertiesInvalid, $"{pointer}/capture/validation_rules/{index}");
-                else if (registers.ValidationRules is { } rules)
-                    ValidateNamedRule(rules, validationRules[index], $"{pointer}/capture/validation_rules/{index}", refusals);
+                // Publication resolves every name and fails closed without a register (T-724
+                // ruling 36); a supplied register is honoured at every stage.
+                else if (registers.ValidationRules is not null || publishing)
+                    ValidateNamedRule(registers.ValidationRules, validationRules[index], $"{pointer}/capture/validation_rules/{index}", refusals);
             // layout-bound-3: the control is one the host registered; with no register, none is.
             if (capture.Control is { } control)
             {
@@ -327,15 +333,18 @@ public static class LayoutDefinitionAdmission
         if (children.Count > 0 && block.Container is null)
             Add(refusals, LayoutDefinitionCodes.BlockChildrenInvalid, $"{pointer}/container");
         for (var index = 0; index < children.Count; index++)
-            ValidateBlock(children[index], $"{pointer}/children/{index}", medium, inheritedIntent, regions, blockIds, registers, captures, refusals);
+            ValidateBlock(children[index], $"{pointer}/children/{index}", medium, inheritedIntent, regions, blockIds, registers, captures, publishing,
+                block.Repeating ? CollectionName(block.Binding) : rowSection, refusals);
     }
 
     // layout-bound-8: the named rule must be registered and validate, and the shared compiler admits
     // it by the rule's own tier (JsonLogic compiled here, JsonSchema left to the kernel validator,
     // any other tier refused). Layout never chooses the compiler.
-    private static void ValidateNamedRule(LayoutValidationRuleRegistry rules, string name, string pointer, ICollection<LayoutDefinitionRefusal> refusals)
+    // With no register a name resolves to nothing, so it refuses (T-724 ruling 36).
+    private static void ValidateNamedRule(LayoutValidationRuleRegistry? rules, string name, string pointer, ICollection<LayoutDefinitionRefusal> refusals)
     {
-        if (!rules.TryGet(name, out var rule))
+        RuleDefinition? rule = null;
+        if (rules?.TryGet(name, out rule) != true || rule is null)
         {
             Add(refusals, LayoutDefinitionCodes.ValidationRuleUnknown, pointer);
             return;
@@ -354,6 +363,14 @@ public static class LayoutDefinitionAdmission
             Add(refusals, LayoutDefinitionCodes.ValidationRuleInvalid, pointer);
         }
     }
+
+    // The collection a repeating block iterates, which names its children's row section.
+    private static string? CollectionName(LayoutBinding? binding) => binding switch
+    {
+        LayoutQueryBinding value => value.ViewDefinitionId,
+        LayoutRecordFieldBinding value => value.FieldPath,
+        _ => null,
+    };
 
     private static void ValidateBinding(
         LayoutBinding? binding,

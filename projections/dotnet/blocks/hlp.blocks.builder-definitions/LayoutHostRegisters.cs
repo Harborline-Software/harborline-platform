@@ -10,7 +10,7 @@ namespace Harborline.Blocks.BuilderDefinitions;
 /// <param name="Kinds">The block-kind register (layout-bound-1).</param>
 /// <param name="FieldControls">The field controls a capture block may pick (layout-bound-3). Absent, no named control admits.</param>
 /// <param name="Pages">The page layouts and masters installed packs supply (layout-bound-7). Absent, a surface cites only its own.</param>
-/// <param name="ValidationRules">The named validation rules a capture block may cite (layout-bound-8). Absent, rule names are checked for shape only.</param>
+/// <param name="ValidationRules">The named validation rules a capture block may cite (layout-bound-8). Absent, every named rule refuses.</param>
 public sealed record LayoutHostRegisters(
     LayoutBlockKindRegistry Kinds,
     LayoutFieldControlRegistry? FieldControls = null,
