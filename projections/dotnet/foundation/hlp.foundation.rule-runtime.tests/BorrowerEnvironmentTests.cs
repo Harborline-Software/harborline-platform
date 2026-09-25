@@ -133,6 +133,7 @@ public sealed class BorrowerEnvironmentTests
     [
         "projections/dotnet/blocks/hlp.blocks.layout-runtime/LayoutBindingResolution.cs",
         "projections/dotnet/foundation/hlp.foundation.actor/AccessScope.cs",
+        "projections/dotnet/foundation/hlp.foundation.documents/DocumentsExpressionEnvironment.cs",
         "projections/dotnet/foundation/hlp.foundation.field-runtime/ValueDomainRuntime.cs",
         "projections/dotnet/foundation/hlp.foundation.forms-engine/FormCandidateEvaluator.cs",
         "projections/dotnet/foundation/hlp.foundation.forms-engine/FormEngine.cs",

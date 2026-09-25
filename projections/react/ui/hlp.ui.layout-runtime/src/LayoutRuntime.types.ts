@@ -45,6 +45,17 @@ export interface LayoutAuthoringCapture {
   readonly control?: string
 }
 
+/** A Rules named predicate's exact pin (rules-ck-22): nothing floats. */
+export interface LayoutPredicatePin { readonly name: string; readonly version: string; readonly digest: string }
+
+/**
+ * layout-ck-29: a guard holds exactly one of a Rules expression, compiled at publish, or a named
+ * predicate by exact pin, resolved from the definition's pinned closure. Both fail closed.
+ */
+export type LayoutAuthoringShowWhen =
+  | { readonly expression: string; readonly predicate?: never }
+  | { readonly predicate: LayoutPredicatePin; readonly expression?: never }
+
 export interface LayoutAuthoringBlock {
   readonly id: string
   readonly kind: string
@@ -57,8 +68,8 @@ export interface LayoutAuthoringBlock {
   readonly container?: LayoutContainerFlow
   /** layout-auth-19: the declared Records relationship this block observes; only the key is stored. */
   readonly relatedRelationship?: string
-  /** layout-auth-20: the block's guard, a Rules expression the shared engine evaluates fail-closed. */
-  readonly showWhen?: string
+  /** layout-ck-29, layout-auth-20: the block's guard, holding exactly one form; absent, the block always shows. */
+  readonly showWhen?: LayoutAuthoringShowWhen
   /** The guided expression `showWhen` was lowered from; absent when the guard was written as raw text (T-724 ruling 39). */
   readonly showWhenGuide?: RuleDefinitionExpression
   /** The capture properties a capture block narrows with (layout-ck-30). */
@@ -118,5 +129,7 @@ export interface LayoutAuthoringCatalogue {
   readonly valueDomainFields?: readonly string[]
   /** The references a show_when guard may read, offered by the guided expression editor (layout-auth-20). */
   readonly guardReferences?: readonly { readonly id: string; readonly label: string; readonly valueType: RuleDefinitionValueType }[]
+  /** The named predicates a show_when guard may cite, each by its exact pin (layout-ck-29). */
+  readonly predicates?: readonly { readonly label: string; readonly pin: LayoutPredicatePin }[]
 }
 export interface LayoutAuthoringEditorProps { readonly value: LayoutAuthoringDraft; readonly catalogue: LayoutAuthoringCatalogue; readonly onChange: (value: LayoutAuthoringDraft) => void }

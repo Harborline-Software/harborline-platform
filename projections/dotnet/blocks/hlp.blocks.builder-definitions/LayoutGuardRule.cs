@@ -1,4 +1,5 @@
 using Harborline.Contracts.Forms;
+using Harborline.Foundation.RuleEngine.References;
 
 namespace Harborline.Blocks.BuilderDefinitions;
 
@@ -8,6 +9,27 @@ namespace Harborline.Blocks.BuilderDefinitions;
 /// </summary>
 public static class LayoutGuardRule
 {
+    private static readonly PinnedClosure NoPredicates = new([], []);
+
+    /// <summary>The consumer kind a Layout guard binds its named predicate as (T-724 ruling 72).</summary>
+    public const PredicateConsumer Consumer = PredicateConsumer.LayoutGuard;
+
+    /// <summary>
+    /// Builds the guard rule for one block's declared guard. A predicate resolves only through
+    /// <paramref name="predicates"/>, the closure the definition was published with.
+    /// </summary>
+    /// <exception cref="NamedReferenceException">The guard holds neither form or both, or its pin does not resolve.</exception>
+    public static RuleDefinition For(string blockId, LayoutShowWhen guard, string? rowSection, PinnedClosure? predicates)
+    {
+        ArgumentNullException.ThrowIfNull(guard);
+        if (!guard.IsWellFormed)
+            throw new NamedReferenceException(NamedReferences.Malformed, "show_when holds exactly one of expression or predicate");
+        var expression = guard.Predicate is { } pin
+            ? NamedReferences.Bind(Consumer, pin, predicates ?? NoPredicates).Expression
+            : guard.Expression!;
+        return For(blockId, expression, rowSection);
+    }
+
     /// <summary>Builds the guard rule for one block.</summary>
     /// <param name="blockId">The guarded block.</param>
     /// <param name="expression">The authored Rules expression.</param>

@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Harborline.Contracts.Forms;
 using Harborline.Foundation.RuleEngine.Compilation;
+using Harborline.Foundation.RuleEngine.References;
 
 namespace Harborline.Blocks.BuilderDefinitions;
 
@@ -79,6 +80,10 @@ public static class LayoutDefinitionCodes
     public const string PageSuppliedTwice = "layout.page.supplied_twice";
     /// <summary>A block's show_when does not compile at its scope (layout-auth-20, T-724 ruling 39).</summary>
     public const string GuardInvalid = "layout.guard.invalid";
+    /// <summary>A declared show_when holds neither or both of expression and predicate (layout-ck-29).</summary>
+    public const string GuardFormInvalid = "layout.guard.form_invalid";
+    /// <summary>A show_when predicate's exact pin does not resolve in the pinned closure (layout-ck-29).</summary>
+    public const string GuardUnresolved = "layout.guard.predicate_unresolved";
     /// <summary>A capture block names a validation rule the host has not registered (layout-bound-8).</summary>
     public const string ValidationRuleUnknown = "layout.capture.validation_rule_unknown";
     /// <summary>A named validation rule does not validate, or its tier's compiler refuses it (layout-bound-8).</summary>
@@ -326,17 +331,28 @@ public static class LayoutDefinitionAdmission
                 || string.IsNullOrWhiteSpace(form.FormVersionId)
                 || form.FormVersionId.Contains("latest", StringComparison.OrdinalIgnoreCase)))
             Add(refusals, LayoutDefinitionCodes.FormReferenceInvalid, $"{pointer}/form");
-        // T-724 ruling 39: publication compiles the guard as the runtime will, so a malformed one
-        // refuses here instead of withholding its block on every render.
-        if (publishing && block.ShowWhen is { Length: > 0 } guard)
+        // layout-ck-29: a declared guard holds exactly one form, at every stage. T-724 ruling 39:
+        // publication compiles it as the runtime will, so a malformed one refuses here instead of
+        // withholding its block on every render. A predicate resolves through the pinned closure;
+        // with none supplied it resolves nothing (T-724 ruling 36's pattern).
+        if (block.ShowWhen is { } guard)
         {
-            try
+            if (!guard.IsWellFormed)
+                Add(refusals, LayoutDefinitionCodes.GuardFormInvalid, $"{pointer}/show_when");
+            else if (publishing || (guard.Predicate is not null && registers.Predicates is not null))
             {
-                RuleCompiler.Compile([LayoutGuardRule.For(block.Id, guard, rowSection)]);
-            }
-            catch (RuleCompilationException)
-            {
-                Add(refusals, LayoutDefinitionCodes.GuardInvalid, $"{pointer}/show_when");
+                try
+                {
+                    RuleCompiler.Compile([LayoutGuardRule.For(block.Id, guard, rowSection, registers.Predicates)]);
+                }
+                catch (NamedReferenceException)
+                {
+                    Add(refusals, LayoutDefinitionCodes.GuardUnresolved, $"{pointer}/show_when/predicate");
+                }
+                catch (RuleCompilationException)
+                {
+                    Add(refusals, LayoutDefinitionCodes.GuardInvalid, $"{pointer}/show_when");
+                }
             }
         }
         if (block.LiveSelection.HasValue)
@@ -435,16 +451,29 @@ public static class LayoutDefinitionAdmission
             LayoutMeasureBinding value => value.MeasurePath,
             LayoutTemplateBinding value => value.TemplateDefinitionId,
             LayoutStaticBinding => "static",
+            LayoutTextBinding => "text",
             _ => string.Empty,
         };
         if (string.IsNullOrWhiteSpace(identity)) Add(refusals, LayoutDefinitionCodes.BindingInvalid, pointer);
+        // layout-ck-43, layout-ck-44: a text binding has runs, each exactly a literal or a field.
+        if (binding is LayoutTextBinding text)
+        {
+            var runs = text.Runs ?? [];
+            if (runs.Count == 0) Add(refusals, LayoutDefinitionCodes.BindingInvalid, $"{pointer}/runs");
+            for (var index = 0; index < runs.Count; index++)
+                if (runs[index] is not { IsWellFormed: true })
+                    Add(refusals, LayoutDefinitionCodes.BindingInvalid, $"{pointer}/runs/{index}");
+        }
 
         var unsupported = (intent, binding) switch
         {
             (LayoutIntent.Capture, LayoutQueryBinding) => true,
             (LayoutIntent.Capture, LayoutMeasureBinding) => true,
             (LayoutIntent.Capture, LayoutTemplateBinding) => true,
-            (LayoutIntent.Issue, LayoutRecordFieldBinding) => !captures,
+            (LayoutIntent.Capture, LayoutTextBinding) => true,
+            // layout-auth-25 (amended 2026-09-25): an issue block on page media reads a record field
+            // to render it, as ADR 0092's invoice does. Reading grants no capture (layout-auth-28).
+            (LayoutIntent.Issue, LayoutRecordFieldBinding or LayoutTextBinding) => !captures && medium != LayoutMedium.Page,
             _ => false,
         };
         if (unsupported) Add(refusals, LayoutDefinitionCodes.IntentBindingUnsupported, pointer);

@@ -1,7 +1,7 @@
 import { useState, type ChangeEvent } from 'react'
 import { GuidedExpressionEditor } from '@harborline-platform/hlp.ui.rule-authoring'
 import { formulaDraftToSkin, type FormulaExpr, type RuleDefinitionExpression } from '@harborline-software/rule-authoring'
-import type { LayoutAuthoringBlock, LayoutAuthoringCapture, LayoutAuthoringCatalogue, LayoutAuthoringEditorProps, LayoutAuthoringDraft, LayoutAuthoringPageRun, LayoutBindingKind, LayoutContainerFlow, LayoutIntent } from './LayoutRuntime.types'
+import type { LayoutAuthoringBlock, LayoutAuthoringCapture, LayoutAuthoringCatalogue, LayoutAuthoringEditorProps, LayoutAuthoringDraft, LayoutAuthoringPageRun, LayoutBindingKind, LayoutContainerFlow, LayoutIntent, LayoutPredicatePin } from './LayoutRuntime.types'
 
 const bindingKinds: readonly { readonly id: LayoutBindingKind; readonly label: string }[] = [
   { id: 'record_field', label: 'Record field' },
@@ -101,8 +101,10 @@ function withCapture(block: LayoutAuthoringBlock, patch: Partial<LayoutAuthoring
  * Records relationship the catalogue declares, and stores only its key; the relationship
  * declaration supplies the target, so the editor never asks for or writes one.
  * layout-auth-20: `show_when` is authored with the shared guided expression editor and lowered
- * through Rules' own formula lowering; raw Rules text, stored exactly as written, is the escape
- * hatch. The editor keeps no grammar of its own, and publication compiles the result.
+ * through Rules' own formula lowering into its `expression`; raw Rules text, stored exactly as
+ * written, is the escape hatch. The editor keeps no grammar of its own, and publication compiles
+ * the result. layout-ck-29: a guard may instead cite a catalogue predicate by its exact pin; the
+ * guard always holds exactly one form.
  * layout-auth-21: a capture block may add a requirement and name registered validation rules;
  * a requirement Records declares is shown and cannot be removed here. layout-auth-22: its prompt
  * override is stored on the block, so it applies to this surface's context and nowhere else.
@@ -116,7 +118,10 @@ function withCapture(block: LayoutAuthoringBlock, patch: Partial<LayoutAuthoring
 function BlockBehaviour({ index, block, blocks, intent, catalogue, onChange }: { index: number; block: LayoutAuthoringBlock; blocks: readonly LayoutAuthoringBlock[]; intent: LayoutIntent; catalogue: LayoutAuthoringCatalogue; onChange: (next: LayoutAuthoringBlock) => void }) {
   const targets = block.filterTargets ?? []
   // layout-auth-20 (T-724 ruling 39): the guided editor is the default; raw Rules text is the escape hatch.
-  const [rawGuard, setRawGuard] = useState(block.showWhen !== undefined && block.showWhenGuide === undefined)
+  // layout-ck-29: a named predicate by exact pin is the third form, picked from the catalogue.
+  const [guardMode, setGuardMode] = useState(block.showWhen?.predicate ? 'predicate' : block.showWhen !== undefined && block.showWhenGuide === undefined ? 'raw' : 'guided')
+  const pinId = (pin: LayoutPredicatePin) => `${pin.name}@${pin.version}`
+  const predicates = catalogue.predicates ?? []
   const { showWhen: _text, showWhenGuide: _guide, ...unguarded } = block
   const guardContract = { site: 'rule' as const, returnContract: 'a boolean', executionTimeContract: 'render', palette: catalogue.guardReferences ?? [] }
   const declaredRequired = block.binding?.kind === 'record_field' && (catalogue.requiredFields ?? []).includes(block.binding.name)
@@ -128,10 +133,13 @@ function BlockBehaviour({ index, block, blocks, intent, catalogue, onChange }: {
     </select>}
     <label>Default selection<input aria-label={`Block ${index + 1} default selection`} value={block.defaultSelection ?? ''} onChange={event => onChange({ ...block, defaultSelection: event.currentTarget.value || undefined })} /></label>
     {blocks.map((other, position) => other.id !== block.id && <label key={other.id}><input aria-label={`Block ${index + 1} filters Block ${position + 1}`} type="checkbox" checked={targets.includes(other.id)} onChange={event => onChange(withFilterTargets(block, event.currentTarget.checked ? [...targets, other.id] : targets.filter(id => id !== other.id)))} />{`Filters Block ${position + 1}`}</label>)}
-    <select aria-label={`Block ${index + 1} show when authoring`} value={rawGuard ? 'raw' : 'guided'} onChange={event => setRawGuard(event.currentTarget.value === 'raw')}><option value="guided">Guided expression</option><option value="raw">Rules text</option></select>
-    {rawGuard
-      ? <label>Show when<input aria-label={`Block ${index + 1} show when`} value={block.showWhen ?? ''} onChange={event => onChange(event.currentTarget.value ? { ...unguarded, showWhen: event.currentTarget.value } : unguarded)} /></label>
-      : <GuidedExpressionEditor site="rule" label={`Block ${index + 1} show when`} value={block.showWhenGuide ?? null} contract={guardContract} onChange={guide => onChange({ ...unguarded, showWhen: guardText(guide), showWhenGuide: guide })} />}
+    <select aria-label={`Block ${index + 1} show when authoring`} value={guardMode} onChange={event => setGuardMode(event.currentTarget.value)}><option value="guided">Guided expression</option><option value="raw">Rules text</option><option value="predicate">Named predicate</option></select>
+    {guardMode === 'raw' && <label>Show when<input aria-label={`Block ${index + 1} show when`} value={block.showWhen?.expression ?? ''} onChange={event => onChange(event.currentTarget.value ? { ...unguarded, showWhen: { expression: event.currentTarget.value } } : unguarded)} /></label>}
+    {guardMode === 'guided' && <GuidedExpressionEditor site="rule" label={`Block ${index + 1} show when`} value={block.showWhenGuide ?? null} contract={guardContract} onChange={guide => onChange({ ...unguarded, showWhen: { expression: guardText(guide) }, showWhenGuide: guide })} />}
+    {guardMode === 'predicate' && <select aria-label={`Block ${index + 1} show when predicate`} value={block.showWhen?.predicate ? pinId(block.showWhen.predicate) : ''} onChange={event => { const picked = predicates.find(option => pinId(option.pin) === event.currentTarget.value); onChange(picked ? { ...unguarded, showWhen: { predicate: picked.pin } } : unguarded) }}>
+      <option value="">No predicate</option>
+      {predicates.map(option => <option key={pinId(option.pin)} value={pinId(option.pin)}>{option.label}</option>)}
+    </select>}
     {block.showWhen !== undefined && <button type="button" aria-label={`Remove block ${index + 1} show when`} onClick={() => onChange(unguarded)}>Remove guard</button>}
     {intent === 'capture' && <>
       <label><input aria-label={`Block ${index + 1} required`} type="checkbox" checked={declaredRequired || (block.capture?.required ?? false)} disabled={declaredRequired} onChange={event => onChange(withCapture(block, { required: event.currentTarget.checked }))} />Required</label>

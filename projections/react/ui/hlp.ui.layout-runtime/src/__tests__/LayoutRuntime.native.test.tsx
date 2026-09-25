@@ -125,18 +125,18 @@ describe('LayoutRuntime React projection', () => {
   it('layout-auth-20: show_when is written in Rules grammar and stored verbatim for the shared engine', () => {
     const changed = vi.fn()
     const block = { id: 'notice', kind: 'layout.table', binding: { kind: 'record_field' as const, name: 'invoice.note' } }
-    render(<LayoutAuthoringEditor value={{ ...emptyLayoutAuthoringDraft(), blocks: [{ ...block, showWhen: '{"var":"field.flagged"}' }] }} catalogue={{ blockKinds: [{ id: 'layout.table', label: 'Table' }], zones: [] }} onChange={changed} />)
+    render(<LayoutAuthoringEditor value={{ ...emptyLayoutAuthoringDraft(), blocks: [{ ...block, showWhen: { expression: '{"var":"field.flagged"}' } }] }} catalogue={{ blockKinds: [{ id: 'layout.table', label: 'Table' }], zones: [] }} onChange={changed} />)
     const guard = screen.getByLabelText('Block 1 show when')
     expect(guard).toHaveValue('{"var":"field.flagged"}')
 
     // The editor holds no conditional grammar of its own: the Rules expression is stored as written.
     const expression = ' {"==": [{"var": "field.status"}, "open"]}'
     fireEvent.change(guard, { target: { value: expression } })
-    expect(changed).toHaveBeenLastCalledWith(expect.objectContaining({ blocks: [{ ...block, showWhen: expression }] }))
+    expect(changed).toHaveBeenLastCalledWith(expect.objectContaining({ blocks: [{ ...block, showWhen: { expression } }] }))
     // Clearing the guard removes it rather than storing an empty expression.
     fireEvent.change(guard, { target: { value: '' } })
     expect(changed).toHaveBeenLastCalledWith(expect.objectContaining({ blocks: [block] }))
-    expect(changed.mock.lastCall![0].blocks[0]).not.toHaveProperty('showWhen', '')
+    expect(changed.mock.lastCall![0].blocks[0]).not.toHaveProperty('showWhen')
   })
 
   it('layout-auth-21: a capture block adds a requirement and named validation rules and never drops a declared requirement', () => {
@@ -289,7 +289,7 @@ describe('LayoutRuntime React projection', () => {
   it('layout-auth-20: show_when is authored with the shared guided expression editor and lowered to Rules text (T-724 ruling 39)', () => {
     const changed = vi.fn()
     const guide = { kind: 'Call' as const, op: '==' as const, args: [{ kind: 'Ref' as const, name: 'field.status' }, { kind: 'Literal' as const, value: 'open', valueType: 'Text' as const }] }
-    const guarded = { id: 'notice', kind: 'layout.table', binding: { kind: 'static' as const, name: 'Overdue' }, showWhen: '{"==":[{"var":"field.status"},"open"]}', showWhenGuide: guide }
+    const guarded = { id: 'notice', kind: 'layout.table', binding: { kind: 'static' as const, name: 'Overdue' }, showWhen: { expression: '{"==":[{"var":"field.status"},"open"]}' }, showWhenGuide: guide }
     const unguarded = { id: 'total', kind: 'layout.table', binding: { kind: 'measure' as const, name: 'invoice.total' } }
     render(<LayoutAuthoringEditor value={{ ...emptyLayoutAuthoringDraft(), blocks: [guarded, unguarded] }} catalogue={{ blockKinds: [{ id: 'layout.table', label: 'Table' }], zones: [], guardReferences: [{ id: 'field.status', label: 'Status', valueType: 'Text' }] }} onChange={changed} />)
 
@@ -300,7 +300,7 @@ describe('LayoutRuntime React projection', () => {
     // Editing the guided expression stores the guide and the Rules text the shared engine compiles.
     fireEvent.change(screen.getByLabelText('Block 1 show when argument 2 literal value'), { target: { value: 'closed' } })
     const edited = changed.mock.lastCall![0].blocks[0]
-    expect(edited.showWhen).toBe('{"==":[{"var":"field.status"},"closed"]}')
+    expect(edited.showWhen).toStrictEqual({ expression: '{"==":[{"var":"field.status"},"closed"]}' })
     expect(edited.showWhenGuide.args[1].value).toBe('closed')
 
     // Removing the guard removes both.
@@ -311,14 +311,28 @@ describe('LayoutRuntime React projection', () => {
   it('layout-auth-20: raw Rules text stays available as the escape hatch (T-724 ruling 39)', () => {
     const changed = vi.fn()
     const guide = { kind: 'Ref' as const, name: 'field.flagged' }
-    render(<LayoutAuthoringEditor value={{ ...emptyLayoutAuthoringDraft(), blocks: [{ id: 'notice', kind: 'layout.table', binding: { kind: 'static', name: 'Flagged' }, showWhen: '{"var":"field.flagged"}', showWhenGuide: guide }] }} catalogue={{ blockKinds: [{ id: 'layout.table', label: 'Table' }], zones: [] }} onChange={changed} />)
+    render(<LayoutAuthoringEditor value={{ ...emptyLayoutAuthoringDraft(), blocks: [{ id: 'notice', kind: 'layout.table', binding: { kind: 'static', name: 'Flagged' }, showWhen: { expression: '{"var":"field.flagged"}' }, showWhenGuide: guide }] }} catalogue={{ blockKinds: [{ id: 'layout.table', label: 'Table' }], zones: [] }} onChange={changed} />)
     expect(screen.queryByLabelText('Block 1 show when')).toBeNull()
 
     fireEvent.change(screen.getByLabelText('Block 1 show when authoring'), { target: { value: 'raw' } })
     expect(screen.getByLabelText('Block 1 show when')).toHaveValue('{"var":"field.flagged"}')
     fireEvent.change(screen.getByLabelText('Block 1 show when'), { target: { value: '{"!":[{"var":"field.flagged"}]}' } })
     // Raw text is stored verbatim and the guide, which no longer describes it, is dropped.
-    expect(changed.mock.lastCall![0].blocks[0]).toStrictEqual({ id: 'notice', kind: 'layout.table', binding: { kind: 'static', name: 'Flagged' }, showWhen: '{"!":[{"var":"field.flagged"}]}' })
+    expect(changed.mock.lastCall![0].blocks[0]).toStrictEqual({ id: 'notice', kind: 'layout.table', binding: { kind: 'static', name: 'Flagged' }, showWhen: { expression: '{"!":[{"var":"field.flagged"}]}' } })
+  })
+
+  it('layout-ck-29: show_when cites a catalogue predicate by exact pin, and the guard holds exactly one form', () => {
+    const changed = vi.fn()
+    const pin = { name: 'invoice.overdue', version: '1.0.0', digest: 'a'.repeat(64) }
+    const block = { id: 'notice', kind: 'layout.table', binding: { kind: 'static' as const, name: 'Overdue' } }
+    render(<LayoutAuthoringEditor value={{ ...emptyLayoutAuthoringDraft(), blocks: [{ ...block, showWhen: { expression: '{"var":"field.flagged"}' } }] }} catalogue={{ blockKinds: [{ id: 'layout.table', label: 'Table' }], zones: [], predicates: [{ label: 'Overdue', pin }] }} onChange={changed} />)
+
+    fireEvent.change(screen.getByLabelText('Block 1 show when authoring'), { target: { value: 'predicate' } })
+    fireEvent.change(screen.getByLabelText('Block 1 show when predicate'), { target: { value: 'invoice.overdue@1.0.0' } })
+    // Picking a predicate replaces the expression: the stored guard carries the whole pin and nothing else.
+    expect(changed.mock.lastCall![0].blocks[0]).toStrictEqual({ ...block, showWhen: { predicate: pin } })
+    fireEvent.change(screen.getByLabelText('Block 1 show when predicate'), { target: { value: '' } })
+    expect(changed.mock.lastCall![0].blocks[0]).toStrictEqual(block)
   })
 
   function Authoring({ initial, onDraft }: { initial: LayoutAuthoringDraft; onDraft: (draft: LayoutAuthoringDraft) => void }) {

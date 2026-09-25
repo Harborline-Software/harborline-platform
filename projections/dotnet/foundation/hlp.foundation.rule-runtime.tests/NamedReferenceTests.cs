@@ -20,7 +20,7 @@ public sealed class NamedReferenceTests
     private static RuleContextSnapshot Facts(string json)
         => RuleContextSnapshot.Capture(JsonNode.Parse(json)!.AsObject().ToDictionary(p => p.Key, p => p.Value?.DeepClone()));
 
-    [Fact(DisplayName = "rules-ck-22, rules-auth-9: one immutable named predicate is authored once and reused by a view filter, a rule condition, an automation condition and a report population through its exact pin")]
+    [Fact(DisplayName = "rules-ck-22, rules-auth-9: one immutable named predicate is authored once and reused by a view filter, a rule condition, an automation condition, a report population and a Layout guard through its exact pin")]
     public void Named_predicate_is_authored_once_and_reused_by_every_consumer_kind()
     {
         var v1 = new NamedPredicate("overdue", "1.0.0", """{">":[{"var":"days_late"},30]}""");
