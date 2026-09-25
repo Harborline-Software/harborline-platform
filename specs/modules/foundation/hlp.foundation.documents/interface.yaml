@@ -9,32 +9,46 @@
     "name": "TemplateDefinitionJson / TemplateDefinitionAdmission / TemplatePack",
     "operations": [
       "TemplateDefinitionJson.SerializeCanonical / Deserialize -> canonical snake_case, ordinal-sorted, newline-terminated UTF-8 JSON; unknown members refuse",
-      "TemplateDefinitionAdmission.Validate(template, surfaces) -> every refusal at once; TemplateSurfaces is the host's binding of the shared catalogue's exact surface pin and Layout's own validator",
+      "TemplateDefinitionAdmission.Validate(template, surfaces) -> every refusal at once: envelope, document type, and the exact surface pin, which must resolve a page surface with default intent issue whose repeating regions declare columns; Layout's own validator is consumed through TemplateSurfaces, so schema-owned numeric ranges refuse at publish",
+      "TemplateDefinitionAdmission.ValidatePersisted(template, surfaces) -> the persisted read: an invalid stored value is diagnosed by name (stage render.runtime) and never clamped",
+      "TemplateDefinitionAdmission.AdmitCatalogueBody(tenant, id, version, body, publishing, surfaces) -> the shared catalogue's admission for DefinitionKind.Templates; a publishing body must state the catalogue's tenant, key and version",
       "TemplatePack.Export(template, surfaces) -> content kind 6 entry of canonical authored bytes and SHA-256 digest after publish admission; server-derived members are never exported",
-      "TemplatePack.TryParse(content, tenant, provenance) -> a template stamped with the installing tenant and provenance, or a named miss; never an exception"
+      "TemplatePack.TryParse(content, tenant, provenance) -> a template stamped with the installing tenant and provenance, or a named miss; never an exception; owner, tenant, pack_key and provenance in authored content refuse by name",
+      "TemplatePack.InstallAsync(entries, target) -> one outcome per entry (Published, AlreadyPresent, Refused); a refused entry never blocks its siblings; a stored key and version with a different body refuses with pinned_tuple_conflict and is never replaced"
     ],
     "context": "Templates are portable pack content stored in the shared builder-definitions catalogue; this package owns their typed shape, canonical JSON and admission, never a store and never a Layout type. The host binds the catalogue and Layout's validator."
   },
   "invariants": [
     "Content kind 6 is kept; this package allocates no content kind or pillar number.",
     "A template pins its Layout surface by exact identity and version and never copies it.",
-    "Tenant and provenance are server-derived: exported content never carries them and installation stamps them."
+    "Tenant and provenance are server-derived: exported content never carries them and installation stamps them.",
+    "A published key and version never changes body; a reinstall with a different body refuses by name."
   ],
   "errors": [
     "documents.template.envelope_invalid",
     "documents.template.document_type_required",
-    "documents.template.body_invalid"
+    "documents.template.body_invalid",
+    "documents.template.surface_unresolved",
+    "documents.template.surface_pin_mismatch",
+    "documents.template.surface_medium_unsupported",
+    "documents.template.surface_intent_unsupported",
+    "documents.template.repeating_region_columns_required",
+    "documents.template.authority_field_forbidden",
+    "documents.template.envelope_mismatch",
+    "documents.template.catalogue_mismatch",
+    "documents.template.pinned_tuple_conflict"
   ],
   "publicSeams": [
     "template intent admission and canonical JSON",
-    "content kind 6 pack entry",
-    "TemplateSurfaces: exact surface pin resolution and Layout admission supplied by the host"
+    "content kind 6 pack entry and per-entry install",
+    "TemplateSurfaces: exact surface pin resolution and Layout admission supplied by the host",
+    "TemplateInstallTarget: stored-tuple lookup and publication over the shared catalogue supplied by the host"
   ],
   "conformance": {
     "nativeTests": {
-      "dotnet": 3
+      "dotnet": 19
     },
-    "nativeTestNote": "Covers content kind 6 round trip with identical pin and digest, envelope members and document type."
+    "nativeTestNote": "Covers content kind 6 round trip with identical pin and digest, envelope members, document type, page/issue surface pin, Layout schema ranges at publish and at the persisted read, authority fields, column-less regions, named misses with sibling install, Forms-pattern versioning in the shared catalogue and the pinned-tuple body conflict."
   },
   "selectedDesign": {
     "choice": "One packable foundation assembly owns the template definition and its admission; the Layout surface is reached only through a host-supplied pin resolver and validator, because foundation assemblies may not reference the blocks tier where Layout lives.",
