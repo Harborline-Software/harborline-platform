@@ -166,6 +166,15 @@ public sealed class BookingDefinitionTests
         Assert.Equal((0, BookingHoldCodes.LifetimeInvalid), policy.Lifetime(0));
     }
 
+    [Fact(DisplayName = "booking-ck-8, T-724 ruling 70: a Resource that omits hold_mode cannot be held")]
+    public void ResourceWithoutHoldModeCannotBeHeld()
+    {
+        var resource = BookingResourceDefinition.Parse(Fixtures.Resource(body => body.Remove("hold_mode")).ToJsonString());
+        Assert.Equal(BookingHoldMode.None, resource.HoldMode);
+        // Would fail if the omission default were flipped to Allowed.
+        Assert.Null(BookingHoldPolicy.For([resource]));
+    }
+
     private static Action<JsonObject> Hold(string mode, int? defaultMinutes, int? maximumMinutes) => body =>
     {
         body["hold_mode"] = mode;

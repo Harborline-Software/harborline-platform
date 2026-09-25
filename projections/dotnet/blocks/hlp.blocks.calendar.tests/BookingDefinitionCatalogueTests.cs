@@ -115,6 +115,29 @@ public sealed class BookingDefinitionCatalogueTests
         Assert.Equal([new DefinitionRefusal(BookingDefinitionCodes.PublishedVersionRequired, "/versionId")], refusal.Refusals);
     }
 
+    [Fact(DisplayName = "booking-ck-8, T-724 ruling 70: a Resource's hold durations round-trip through pack export and install as whole-minute integers, not ISO 8601")]
+    public async Task HoldDurationsRoundTripAsWholeMinutePackIntegers()
+    {
+        var published = await PublishAsync(DefinitionKind.Resources, "1.0.0", 0, body =>
+        {
+            body["hold_mode"] = "allowed";
+            body["default_duration_minutes"] = 15;
+            body["maximum_duration_minutes"] = 30;
+        });
+        var entry = BookingDefinitionPackage.Export(published);
+        var exported = (JsonObject)JsonNode.Parse(entry.Content.Payload.Span)!;
+        // Would fail if the exporter ever scaled or wrote these as ISO 8601 duration strings.
+        Assert.Equal(System.Text.Json.JsonValueKind.Number, exported["default_duration_minutes"]!.GetValueKind());
+        Assert.Equal(System.Text.Json.JsonValueKind.Number, exported["maximum_duration_minutes"]!.GetValueKind());
+        Assert.Equal(15, exported["default_duration_minutes"]!.GetValue<int>());
+        Assert.Equal(30, exported["maximum_duration_minutes"]!.GetValue<int>());
+
+        Assert.Empty(BookingDefinitionPackage.Admit([entry], Fixtures.Context()));
+        var installed = BookingResourceDefinition.Parse(Encoding.UTF8.GetString(entry.Content.Payload.Span));
+        Assert.Equal(15, installed.DefaultHoldMinutes);
+        Assert.Equal(30, installed.MaximumHoldMinutes);
+    }
+
     [Fact(DisplayName = "booking-auth-18: a hold or an allocation placed in a pack refuses at export and at install")]
     public async Task RuntimeDataNeverTravels()
     {
@@ -162,9 +185,9 @@ public sealed class BookingDefinitionCatalogueTests
         => new(contentKind, id, "1.0.0",
             PlatformPackageContent.PresentJson(Encoding.UTF8.GetBytes(Fixtures.Packed(body, id).ToJsonString())));
 
-    private async Task<DefinitionRevision> PublishAsync(DefinitionKind kind, string version, long revision)
+    private async Task<DefinitionRevision> PublishAsync(DefinitionKind kind, string version, long revision, Action<JsonObject>? edit = null)
     {
-        var document = Fixtures.Document(kind, Body(kind), version: version);
+        var document = Fixtures.Document(kind, Body(kind, edit), version: version);
         await _store.SaveDraftAsync(document, revision, "save " + version);
         return await _store.PublishAsync(document.Key, document.VersionId, revision + 1, "publish " + version);
     }
