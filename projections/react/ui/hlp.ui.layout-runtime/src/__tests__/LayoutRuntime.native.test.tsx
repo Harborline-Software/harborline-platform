@@ -283,6 +283,41 @@ describe('LayoutRuntime React projection', () => {
     expect(screen.getByLabelText('Block 2 field control')).toBeInTheDocument()
   })
 
+  it('layout-auth-20: show_when is authored with the shared guided expression editor and lowered to Rules text (T-724 ruling 39)', () => {
+    const changed = vi.fn()
+    const guide = { kind: 'Call' as const, op: '==' as const, args: [{ kind: 'Ref' as const, name: 'field.status' }, { kind: 'Literal' as const, value: 'open', valueType: 'Text' as const }] }
+    const guarded = { id: 'notice', kind: 'layout.table', binding: { kind: 'static' as const, name: 'Overdue' }, showWhen: '{"==":[{"var":"field.status"},"open"]}', showWhenGuide: guide }
+    const unguarded = { id: 'total', kind: 'layout.table', binding: { kind: 'measure' as const, name: 'invoice.total' } }
+    render(<LayoutAuthoringEditor value={{ ...emptyLayoutAuthoringDraft(), blocks: [guarded, unguarded] }} catalogue={{ blockKinds: [{ id: 'layout.table', label: 'Table' }], zones: [], guardReferences: [{ id: 'field.status', label: 'Status', valueType: 'Text' }] }} onChange={changed} />)
+
+    // A block with no guard opens in the guided editor; the raw text box is not the default.
+    expect(screen.getByLabelText('Block 2 show when expression shape')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Block 2 show when')).toBeNull()
+
+    // Editing the guided expression stores the guide and the Rules text the shared engine compiles.
+    fireEvent.change(screen.getByLabelText('Block 1 show when argument 2 literal value'), { target: { value: 'closed' } })
+    const edited = changed.mock.lastCall![0].blocks[0]
+    expect(edited.showWhen).toBe('{"==":[{"var":"field.status"},"closed"]}')
+    expect(edited.showWhenGuide.args[1].value).toBe('closed')
+
+    // Removing the guard removes both.
+    fireEvent.click(screen.getByRole('button', { name: 'Remove block 1 show when' }))
+    expect(changed.mock.lastCall![0].blocks[0]).toStrictEqual({ id: 'notice', kind: 'layout.table', binding: { kind: 'static', name: 'Overdue' } })
+  })
+
+  it('layout-auth-20: raw Rules text stays available as the escape hatch (T-724 ruling 39)', () => {
+    const changed = vi.fn()
+    const guide = { kind: 'Ref' as const, name: 'field.flagged' }
+    render(<LayoutAuthoringEditor value={{ ...emptyLayoutAuthoringDraft(), blocks: [{ id: 'notice', kind: 'layout.table', binding: { kind: 'static', name: 'Flagged' }, showWhen: '{"var":"field.flagged"}', showWhenGuide: guide }] }} catalogue={{ blockKinds: [{ id: 'layout.table', label: 'Table' }], zones: [] }} onChange={changed} />)
+    expect(screen.queryByLabelText('Block 1 show when')).toBeNull()
+
+    fireEvent.change(screen.getByLabelText('Block 1 show when authoring'), { target: { value: 'raw' } })
+    expect(screen.getByLabelText('Block 1 show when')).toHaveValue('{"var":"field.flagged"}')
+    fireEvent.change(screen.getByLabelText('Block 1 show when'), { target: { value: '{"!":[{"var":"field.flagged"}]}' } })
+    // Raw text is stored verbatim and the guide, which no longer describes it, is dropped.
+    expect(changed.mock.lastCall![0].blocks[0]).toStrictEqual({ id: 'notice', kind: 'layout.table', binding: { kind: 'static', name: 'Flagged' }, showWhen: '{"!":[{"var":"field.flagged"}]}' })
+  })
+
   it('authors static content on the block rather than looking it up', () => {
     const changed = vi.fn()
     render(<LayoutAuthoringEditor value={{ ...emptyLayoutAuthoringDraft(), blocks: [{ id: 'notice', kind: 'layout.table', binding: { kind: 'static', name: '' } }] }} catalogue={{ blockKinds: [{ id: 'layout.table', label: 'Table' }], zones: [] }} onChange={changed} />)

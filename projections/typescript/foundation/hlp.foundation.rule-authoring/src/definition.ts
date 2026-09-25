@@ -1,6 +1,6 @@
 import { canonicalJson, compile, CompileError, DEFAULT_LIMITS, type Json, type RuleActionKind, type RuleScope, type RuleTier } from '@harborline-software/rule-engine'
 import { formulaCallOps, type ArithOp, type CompareOp, type ColumnValueType, type FormulaCallOp, type FormulaExpr, type RuleDraft, type TableCell } from './model.js'
-import { compileDraft } from './compile.js'
+import { compileDraft, formulaDraftToSkin } from './compile.js'
 import { DefinitionReadError, pointer, readDefinitionJson } from './definition-json.js'
 
 export interface RuleDefinitionEnvelope {
@@ -264,6 +264,14 @@ function readDocument(value: Json): RuleDefinitionDocument {
 }
 
 const editorType: Record<RuleDefinitionValueType, ColumnValueType> = { Number: 'number', Text: 'text', Boolean: 'boolean' }
+
+/**
+ * Lowers one guided expression to the Rules text a guard carries, through the shipped formula
+ * lowering — a Layout block's show_when is authored this way (T-582, T-724 ruling 39).
+ */
+export function expressionToRulesText(value: RuleDefinitionExpression): string {
+  return JSON.stringify(formulaDraftToSkin({ skin: 'formula', scope: 'Schema', scopeTarget: '', outputType: 'Validate', inputs: [], expression: editorExpression(value) }, 'guard').expression)
+}
 
 function editorExpression(value: RuleDefinitionExpression): FormulaExpr {
   switch (value.kind) {

@@ -1,3 +1,6 @@
+using Harborline.Foundation.RuleAuthoring;
+using Harborline.UIAdapters.Blazor.Components.RuleAuthoring;
+
 namespace Harborline.UIAdapters.Blazor.Components.Layout;
 
 public sealed record LayoutRuntimeDiagnostic(string Code, string Pointer);
@@ -37,6 +40,8 @@ public sealed record LayoutAuthoringBlock(
     string? RelatedRelationship = null,
     // layout-auth-20: the block's guard, a Rules expression the shared engine evaluates fail-closed.
     string? ShowWhen = null,
+    // The guided expression ShowWhen was lowered from; absent when the guard was written as raw text (T-724 ruling 39).
+    FormulaExpr? ShowWhenGuide = null,
     // The capture properties a capture block narrows with (layout-ck-30).
     LayoutAuthoringCapture? Capture = null,
     // layout-auth-33: the selection this block opens with. Authored; the live selection is never stored.
@@ -92,4 +97,6 @@ public sealed record LayoutAuthoringCatalogue(
     // FieldControls: the field controls the host registers for capture fields (layout-bound-3).
     IReadOnlyList<LayoutAuthoringOption>? FieldControls = null,
     // ValueDomainFields: the record fields whose value domain picks their editor; they take no authored control (layout-bound-10).
-    IReadOnlyList<string>? ValueDomainFields = null);
+    IReadOnlyList<string>? ValueDomainFields = null,
+    // GuardReferences: the references a show_when guard may read, offered by the guided expression editor (layout-auth-20).
+    IReadOnlyList<RulesPaletteItem>? GuardReferences = null);

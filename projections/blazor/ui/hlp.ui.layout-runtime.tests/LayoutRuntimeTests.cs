@@ -1,5 +1,7 @@
 using Bunit;
+using Harborline.Foundation.RuleAuthoring;
 using Harborline.UIAdapters.Blazor.Components.Layout;
+using Harborline.UIAdapters.Blazor.Components.RuleAuthoring;
 using Xunit;
 
 namespace Harborline.UIAdapters.Blazor.Tests;
@@ -393,6 +395,51 @@ public sealed class LayoutRuntimeTests : BunitContext
         Assert.Empty(cut.FindAll("[aria-label='Block 1 field control']"));
         Assert.Contains("Block 1 control is chosen by its value domain", cut.Markup, StringComparison.Ordinal);
         Assert.Single(cut.FindAll("[aria-label='Block 2 field control']"));
+    }
+
+    [Fact(DisplayName = "layout-auth-20: show_when is authored with the shared guided expression editor and lowered to Rules text (T-724 ruling 39)")]
+    public void ShowWhenIsAuthoredWithTheSharedGuidedExpressionEditor()
+    {
+        LayoutAuthoringDraft? changed = null;
+        var guide = new FormulaExpr.Call("==", [new FormulaExpr.Ref("field.status"), new FormulaExpr.Literal("open", ColumnValueType.Text)]);
+        var guarded = new LayoutAuthoringBlock("notice", "layout.table", new("static", "Overdue"), ShowWhen: "{\"==\":[{\"var\":\"field.status\"},\"open\"]}", ShowWhenGuide: guide);
+        var unguarded = new LayoutAuthoringBlock("total", "layout.table", new("measure", "invoice.total"));
+        var cut = Render<HarborlineLayoutAuthoringEditor>(parameters => parameters
+            .Add(x => x.Value, LayoutAuthoringDraft.Empty with { Blocks = [guarded, unguarded] })
+            .Add(x => x.Catalogue, Catalogue() with { GuardReferences = [new("field.status", "Status", ColumnValueType.Text)] })
+            .Add(x => x.ValueChanged, value => changed = value));
+
+        // A block with no guard opens in the guided editor; the raw text box is not the default.
+        Assert.Single(cut.FindAll("[aria-label='Block 2 show when expression shape']"));
+        Assert.Empty(cut.FindAll("[aria-label='Block 2 show when']"));
+
+        // Editing the guided expression stores the guide and the Rules text the shared engine compiles.
+        cut.Find("[aria-label='Block 1 show when argument 2 literal value']").Change("closed");
+        var edited = changed!.Blocks[0];
+        Assert.Equal("{\"==\":[{\"var\":\"field.status\"},\"closed\"]}", edited.ShowWhen);
+        Assert.Equal(new FormulaExpr.Literal("closed", ColumnValueType.Text), ((FormulaExpr.Call)edited.ShowWhenGuide!).Args[1]);
+
+        // Removing the guard removes both.
+        cut.FindAll("button").Single(button => button.GetAttribute("aria-label") == "Remove block 1 show when").Click();
+        Assert.Equal(new LayoutAuthoringBlock("notice", "layout.table", new("static", "Overdue")), changed.Blocks[0]);
+    }
+
+    [Fact(DisplayName = "layout-auth-20: raw Rules text stays available as the escape hatch (T-724 ruling 39)")]
+    public void RawRulesTextStaysAvailableAsTheEscapeHatch()
+    {
+        LayoutAuthoringDraft? changed = null;
+        var block = new LayoutAuthoringBlock("notice", "layout.table", new("static", "Flagged"), ShowWhen: "{\"var\":\"field.flagged\"}", ShowWhenGuide: new FormulaExpr.Ref("field.flagged"));
+        var cut = Render<HarborlineLayoutAuthoringEditor>(parameters => parameters
+            .Add(x => x.Value, LayoutAuthoringDraft.Empty with { Blocks = [block] })
+            .Add(x => x.Catalogue, Catalogue())
+            .Add(x => x.ValueChanged, value => changed = value));
+        Assert.Empty(cut.FindAll("[aria-label='Block 1 show when']"));
+
+        cut.Find("[aria-label='Block 1 show when authoring']").Change("raw");
+        Assert.Equal("{\"var\":\"field.flagged\"}", cut.Find("[aria-label='Block 1 show when']").GetAttribute("value"));
+        cut.Find("[aria-label='Block 1 show when']").Change("{\"!\":[{\"var\":\"field.flagged\"}]}");
+        // Raw text is stored verbatim and the guide, which no longer describes it, is dropped.
+        Assert.Equal(new LayoutAuthoringBlock("notice", "layout.table", new("static", "Flagged"), ShowWhen: "{\"!\":[{\"var\":\"field.flagged\"}]}"), changed!.Blocks.Single());
     }
 
     private static LayoutAuthoringCatalogue Catalogue() => new(

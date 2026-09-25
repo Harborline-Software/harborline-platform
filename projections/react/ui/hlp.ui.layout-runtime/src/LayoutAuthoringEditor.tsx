@@ -1,4 +1,6 @@
-import type { ChangeEvent } from 'react'
+import { useState, type ChangeEvent } from 'react'
+import { GuidedExpressionEditor } from '@harborline-platform/hlp.ui.rule-authoring'
+import { expressionToRulesText } from '@harborline-software/rule-authoring'
 import type { LayoutAuthoringBlock, LayoutAuthoringCapture, LayoutAuthoringCatalogue, LayoutAuthoringEditorProps, LayoutAuthoringDraft, LayoutAuthoringPageRun, LayoutBindingKind, LayoutIntent } from './LayoutRuntime.types'
 
 const bindingKinds: readonly { readonly id: LayoutBindingKind; readonly label: string }[] = [
@@ -72,8 +74,9 @@ function withCapture(block: LayoutAuthoringBlock, patch: Partial<LayoutAuthoring
  * The block's behaviour on this surface. layout-auth-19: an observing block may traverse one
  * Records relationship the catalogue declares, and stores only its key; the relationship
  * declaration supplies the target, so the editor never asks for or writes one.
- * layout-auth-20: `show_when` is a Rules expression, stored exactly as written; the shared
- * engine compiles and evaluates it fail-closed, so the editor keeps no grammar of its own.
+ * layout-auth-20: `show_when` is authored with the shared guided expression editor and lowered
+ * through Rules' own formula lowering; raw Rules text, stored exactly as written, is the escape
+ * hatch. The editor keeps no grammar of its own, and publication compiles the result.
  * layout-auth-21: a capture block may add a requirement and name registered validation rules;
  * a requirement Records declares is shown and cannot be removed here. layout-auth-22: its prompt
  * override is stored on the block, so it applies to this surface's context and nowhere else.
@@ -86,6 +89,10 @@ function withCapture(block: LayoutAuthoringBlock, patch: Partial<LayoutAuthoring
  */
 function BlockBehaviour({ index, block, blocks, intent, catalogue, onChange }: { index: number; block: LayoutAuthoringBlock; blocks: readonly LayoutAuthoringBlock[]; intent: LayoutIntent; catalogue: LayoutAuthoringCatalogue; onChange: (next: LayoutAuthoringBlock) => void }) {
   const targets = block.filterTargets ?? []
+  // layout-auth-20 (T-724 ruling 39): the guided editor is the default; raw Rules text is the escape hatch.
+  const [rawGuard, setRawGuard] = useState(block.showWhen !== undefined && block.showWhenGuide === undefined)
+  const { showWhen: _text, showWhenGuide: _guide, ...unguarded } = block
+  const guardContract = { site: 'rule' as const, returnContract: 'a boolean', executionTimeContract: 'render', palette: catalogue.guardReferences ?? [] }
   const declaredRequired = block.binding?.kind === 'record_field' && (catalogue.requiredFields ?? []).includes(block.binding.name)
   const rules = block.capture?.validationRules ?? []
   return <>
@@ -95,7 +102,11 @@ function BlockBehaviour({ index, block, blocks, intent, catalogue, onChange }: {
     </select>}
     <label>Default selection<input aria-label={`Block ${index + 1} default selection`} value={block.defaultSelection ?? ''} onChange={event => onChange({ ...block, defaultSelection: event.currentTarget.value || undefined })} /></label>
     {blocks.map((other, position) => other.id !== block.id && <label key={other.id}><input aria-label={`Block ${index + 1} filters Block ${position + 1}`} type="checkbox" checked={targets.includes(other.id)} onChange={event => onChange(withFilterTargets(block, event.currentTarget.checked ? [...targets, other.id] : targets.filter(id => id !== other.id)))} />{`Filters Block ${position + 1}`}</label>)}
-    <label>Show when<input aria-label={`Block ${index + 1} show when`} value={block.showWhen ?? ''} onChange={event => onChange({ ...block, showWhen: event.currentTarget.value || undefined })} /></label>
+    <select aria-label={`Block ${index + 1} show when authoring`} value={rawGuard ? 'raw' : 'guided'} onChange={event => setRawGuard(event.currentTarget.value === 'raw')}><option value="guided">Guided expression</option><option value="raw">Rules text</option></select>
+    {rawGuard
+      ? <label>Show when<input aria-label={`Block ${index + 1} show when`} value={block.showWhen ?? ''} onChange={event => onChange(event.currentTarget.value ? { ...unguarded, showWhen: event.currentTarget.value } : unguarded)} /></label>
+      : <GuidedExpressionEditor site="rule" label={`Block ${index + 1} show when`} value={block.showWhenGuide ?? null} contract={guardContract} onChange={guide => onChange({ ...unguarded, showWhen: expressionToRulesText(guide), showWhenGuide: guide })} />}
+    {block.showWhen !== undefined && <button type="button" aria-label={`Remove block ${index + 1} show when`} onClick={() => onChange(unguarded)}>Remove guard</button>}
     {intent === 'capture' && <>
       <label><input aria-label={`Block ${index + 1} required`} type="checkbox" checked={declaredRequired || (block.capture?.required ?? false)} disabled={declaredRequired} onChange={event => onChange(withCapture(block, { required: event.currentTarget.checked }))} />Required</label>
       {block.binding?.kind === 'record_field' && (catalogue.valueDomainFields ?? []).includes(block.binding.name) && <span>{`Block ${index + 1} control is chosen by its value domain`}</span>}

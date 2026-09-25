@@ -1,3 +1,5 @@
+import type { RuleDefinitionExpression, RuleDefinitionValueType } from '@harborline-software/rule-authoring'
+
 export type LayoutMedium = 'screen' | 'page'
 export type LayoutContainerToken = 'sm' | 'md' | 'lg'
 export type LayoutIntent = 'capture' | 'observe' | 'issue'
@@ -55,6 +57,8 @@ export interface LayoutAuthoringBlock {
   readonly relatedRelationship?: string
   /** layout-auth-20: the block's guard, a Rules expression the shared engine evaluates fail-closed. */
   readonly showWhen?: string
+  /** The guided expression `showWhen` was lowered from; absent when the guard was written as raw text (T-724 ruling 39). */
+  readonly showWhenGuide?: RuleDefinitionExpression
   /** The capture properties a capture block narrows with (layout-ck-30). */
   readonly capture?: LayoutAuthoringCapture
   /** layout-auth-33: the selection this block opens with. Authored; the live selection is never stored. */
@@ -110,5 +114,7 @@ export interface LayoutAuthoringCatalogue {
   readonly fieldControls?: readonly LayoutBindableName[]
   /** The record fields whose value domain picks their editor; they take no authored control (layout-bound-10). */
   readonly valueDomainFields?: readonly string[]
+  /** The references a show_when guard may read, offered by the guided expression editor (layout-auth-20). */
+  readonly guardReferences?: readonly { readonly id: string; readonly label: string; readonly valueType: RuleDefinitionValueType }[]
 }
 export interface LayoutAuthoringEditorProps { readonly value: LayoutAuthoringDraft; readonly catalogue: LayoutAuthoringCatalogue; readonly onChange: (value: LayoutAuthoringDraft) => void }
