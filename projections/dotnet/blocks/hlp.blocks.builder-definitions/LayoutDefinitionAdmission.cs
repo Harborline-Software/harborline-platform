@@ -77,6 +77,8 @@ public static class LayoutDefinitionCodes
     public const string ControlDisplacesValueDomain = "layout.capture.control_displaces_value_domain";
     /// <summary>Two installed packs supply the same page layout or page master id (layout-bound-7, T-724 ruling 40).</summary>
     public const string PageSuppliedTwice = "layout.page.supplied_twice";
+    /// <summary>A block's show_when does not compile at its scope (layout-auth-20, T-724 ruling 39).</summary>
+    public const string GuardInvalid = "layout.guard.invalid";
     /// <summary>A capture block names a validation rule the host has not registered (layout-bound-8).</summary>
     public const string ValidationRuleUnknown = "layout.capture.validation_rule_unknown";
     /// <summary>A named validation rule does not validate, or its tier's compiler refuses it (layout-bound-8).</summary>
@@ -324,6 +326,19 @@ public static class LayoutDefinitionAdmission
                 || string.IsNullOrWhiteSpace(form.FormVersionId)
                 || form.FormVersionId.Contains("latest", StringComparison.OrdinalIgnoreCase)))
             Add(refusals, LayoutDefinitionCodes.FormReferenceInvalid, $"{pointer}/form");
+        // T-724 ruling 39: publication compiles the guard as the runtime will, so a malformed one
+        // refuses here instead of withholding its block on every render.
+        if (publishing && block.ShowWhen is { Length: > 0 } guard)
+        {
+            try
+            {
+                RuleCompiler.Compile([LayoutGuardRule.For(block.Id, guard, rowSection)]);
+            }
+            catch (RuleCompilationException)
+            {
+                Add(refusals, LayoutDefinitionCodes.GuardInvalid, $"{pointer}/show_when");
+            }
+        }
         if (block.LiveSelection.HasValue)
             Add(refusals, LayoutDefinitionCodes.LiveSelectionForbidden, $"{pointer}/live_selection");
         if (block.Repeating && (block.Container is null || block.Binding is not (LayoutQueryBinding or LayoutRecordFieldBinding)))

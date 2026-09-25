@@ -202,6 +202,32 @@ public sealed class LayoutBoundRegisterTests
         Assert.Equal(new LayoutDefinitionRefusal(LayoutDefinitionCodes.PageReferenceUnknown, "/page_masters/0/page_layout_id"), Assert.Single(orphan.Refusals));
     }
 
+    [Fact(DisplayName = "layout-auth-20: publication compiles show_when and refuses a malformed guard (T-724 ruling 39)")]
+    public void PublicationCompilesShowWhenAndRefusesAMalformedGuard()
+    {
+        LayoutDefinitionAdmission.ValidateForPublish(Sealed(GuardSurface("{\"==\":[{\"var\":\"field.status\"},\"open\"]}", "{\"==\":[{\"var\":\"row.status\"},\"open\"]}")), LayoutHostRegisters.Platform);
+
+        // A malformed guard would hide its block forever at run time; publication refuses it instead.
+        AssertPublishRefused(GuardSurface("{\"no-such-operator\":[1]}", null), LayoutHostRegisters.Platform, LayoutDefinitionCodes.GuardInvalid, "/blocks/0/show_when");
+        AssertPublishRefused(GuardSurface("status == open", null), LayoutHostRegisters.Platform, LayoutDefinitionCodes.GuardInvalid, "/blocks/0/show_when");
+        // A row reference compiles only inside the repeating block's rows, exactly as the runtime scopes it.
+        AssertPublishRefused(GuardSurface("{\"==\":[{\"var\":\"row.status\"},\"open\"]}", null), LayoutHostRegisters.Platform, LayoutDefinitionCodes.GuardInvalid, "/blocks/0/show_when");
+        // A draft keeps an unfinished guard while it is authored.
+        LayoutDefinitionAdmission.ValidateForAuthoring(GuardSurface("status == open", null), LayoutHostRegisters.Platform);
+    }
+
+    private static LayoutDefinition GuardSurface(string surfaceGuard, string? rowGuard) => new(
+        new("surface.invoice", "1.0.0", "tenant-a", LayoutCascadeLayer.DomainPackage,
+            JsonSerializer.SerializeToElement(new { source = "test" }), "standard", false, []),
+        1, LayoutMedium.Screen, LayoutIntent.Observe,
+        [
+            new("notice", "layout.text", new LayoutStaticBinding(JsonSerializer.SerializeToElement("Overdue")), [], ShowWhen: surfaceGuard),
+            new("lines", "layout.table", new LayoutQueryBinding("views.invoice-lines"),
+                [new("amount", "layout.field", new LayoutRecordFieldBinding("line.amount"), [], ShowWhen: rowGuard)],
+                Container: new(LayoutContainerKind.Stack), Repeating: true),
+        ],
+        [], [], [], null, []);
+
     internal static LayoutPageRegistry PackPages() => new(
         [
             new("pack.a4", "a4", LayoutPageOrientation.Portrait, new("12mm", "12mm", "12mm", "12mm"), new("10mm", "10mm")),

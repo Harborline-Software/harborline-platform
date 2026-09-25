@@ -172,7 +172,7 @@ public sealed class LayoutDefinitionProducerTests
         Assert.IsType<LayoutQueryBinding>(query.Binding);
         Assert.True(query.Repeating);
         Assert.Equal("customer.orders", query.RelatedRelationship);
-        Assert.Equal("rule.customer.orders.visible", query.ShowWhen);
+        Assert.Equal("{\"!!\":[{\"var\":\"field.customer.name\"}]}", query.ShowWhen);
         Assert.IsType<LayoutMeasureBinding>(Flatten(roundTrip.Blocks).Single(block => block.Id == "measure").Binding);
         var staticBlock = Flatten(roundTrip.Blocks).Single(block => block.Id == "static");
         Assert.IsType<LayoutStaticBinding>(staticBlock.Binding);
@@ -570,7 +570,7 @@ public sealed class LayoutDefinitionProducerTests
                         placement: new LayoutPlacement("main", LayoutSizing.Fill, LayoutSizing.Hug, Grow: 1),
                         repeating: true,
                         relatedRelationship: "customer.orders",
-                        showWhen: "rule.customer.orders.visible",
+                        showWhen: "{\"!!\":[{\"var\":\"field.customer.name\"}]}",
                         defaultSelection: JsonSerializer.SerializeToElement(new { status = "open" })),
                     Block(
                         "measure",
