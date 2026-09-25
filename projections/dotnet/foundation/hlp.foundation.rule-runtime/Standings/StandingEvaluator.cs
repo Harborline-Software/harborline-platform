@@ -18,6 +18,30 @@ public sealed record StandingDecision(string RuleId, string RuleVersion, Standin
 /// <summary>The standings one visible record carries, with every applicable rule's decision.</summary>
 public sealed record StandingRowOutcome(string RecordId, IReadOnlyList<StandingReference> Standings, IReadOnlyList<StandingDecision> Decisions);
 
+/// <summary>Whether a standing evidence read returned evidence, was refused, or does not apply.</summary>
+public enum StandingEvidenceAvailability
+{
+    /// <summary>The evidence is returned.</summary>
+    Available,
+    /// <summary>The rule is not declared on the record's type, so no evidence exists.</summary>
+    NotApplicable,
+    /// <summary>The read was refused; even existence is hidden.</summary>
+    Refused,
+}
+
+/// <summary>One rule's evidence for one record: the deciding rule, its verdict and the input values it read.</summary>
+public sealed record StandingEvidence(
+    string RuleId,
+    string RuleVersion,
+    StandingReference Standing,
+    bool Carries,
+    IReadOnlyDictionary<string, JsonNode?> Inputs,
+    DateTimeOffset Instant,
+    string? RefusalCode);
+
+/// <summary>The outcome of a standing evidence read.</summary>
+public sealed record StandingEvidenceRead(StandingEvidenceAvailability Availability, StandingEvidence? Evidence);
+
 /// <summary>
 /// An authorized standing evaluation over a result set: the visible row count, per-standing counts over every
 /// visible row, one page of outcomes, and the number of predicate evaluations it took.
@@ -104,6 +128,35 @@ public sealed class StandingEvaluator(RuleEngineLimits? limits = null)
         }
 
         return new(visible, counts, page, verdicts.Count);
+    }
+
+    /// <summary>
+    /// The separately authorized read of one rule's standing evidence, which, unlike a decision, carries the
+    /// predicate's input values. <paramref name="authorizeEvidenceRead"/> runs first, so a refusal reveals nothing
+    /// about whether evidence exists; a rule declared on another record type is not applicable.
+    /// </summary>
+    public async ValueTask<StandingEvidenceRead> ReadEvidenceAsync(
+        StandingRecord record,
+        StandingRuleDefinition rule,
+        Func<StandingRecord, CancellationToken, ValueTask<bool>> authorizeEvidenceRead,
+        EvaluationAdmission? admission,
+        DateTimeOffset instant,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(record);
+        ArgumentNullException.ThrowIfNull(rule);
+        ArgumentNullException.ThrowIfNull(authorizeEvidenceRead);
+        if (!await authorizeEvidenceRead(record, cancellationToken).ConfigureAwait(false))
+            return new(StandingEvidenceAvailability.Refused, null);
+        if (!string.Equals(rule.RecordType, record.RecordType, StringComparison.Ordinal))
+            return new(StandingEvidenceAvailability.NotApplicable, null);
+
+        var inputs = rule.InputFields.ToDictionary(field => field,
+            field => record.FieldValues.TryGetValue(field, out var value) ? value?.DeepClone() : null, StringComparer.Ordinal);
+        var verdict = new GuardEvaluator(new PinnedClock(instant), _limits)
+            .EvaluateGuard(rule.Predicate, RuleContextSnapshot.Capture(inputs), RuleEvalScope.Root, admission, cancellationToken);
+        return new(StandingEvidenceAvailability.Available,
+            new(rule.RuleId, rule.RuleVersion, rule.Standing, verdict.Ok, inputs, instant, RefusalOf(rule, verdict)));
     }
 
     // A predicate that is simply false reports its own rule id; only an engine refusal is a refusal code.

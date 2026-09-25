@@ -16,6 +16,7 @@ import {
 } from '../trace.js'
 import { admitEnvironment as admitTestEnvironment, fieldReadEffect as testFieldRead, lentGrammar as testGrammar } from '../environment.js'
 import { builtInFunctions as testBuiltIns } from '../functions.js'
+import { compileDecisionTable, type DecisionTableSkin } from '../skins/decision-table.js'
 // The suite's own borrower: the whole register, every scope token, every phase (T-590 rules-eng-26).
 const testAdmission = admitTestEnvironment({ borrower: 'rule-engine-tests', grammar: testGrammar, variables: { field: 'test', row: 'test', wf: 'test', timer: 'test' }, operations: testBuiltIns.map((f) => f.key), effects: [testFieldRead], missingValues: 'missing-field-reads-null', timeSource: 'injected-test-clock', timeZone: 'utc', phases: { AuthoringValidation: true, PublishValidation: true, Render: true, Submission: true, Run: true, SignOff: true }, replay: 'deterministic' }).forPhase('Run')
 
@@ -109,5 +110,25 @@ describe('ADR 0146 D10 traces', () => {
     expect(failTrace.code).toBe(RuleTraceCodes.guardFailed)
     expect(failTrace.params.cause).toBe('g.amount')
     expect(Object.values(failTrace.params).join('|')).not.toContain('3000')
+  })
+})
+
+describe('T-591 decision trace', () => {
+  it.each(['priority', 'first-match'] as const)('rules-run-2: a decision-table outcome names the deciding rule, its reads and its declared %s hit policy, never a value', (hitPolicy) => {
+    const table: DecisionTableSkin = {
+      ruleId: 'tier.table', scope: 'Field', scopeTarget: 'tier', action: 'Compute', hitPolicy, inputs: ['amount'],
+      rows: [{ when: [{ kind: 'compare', op: '>=', value: 1000 }], output: 'gold', priority: 1 }, { when: [{ kind: 'compare', op: '>=', value: 100 }], output: 'silver', priority: 5 }],
+      noMatch: { kind: 'default', value: 'bronze' },
+    }
+    const formula: RuleDefinition = { id: 'limit.check', tier: 'JsonLogic', scope: 'Field', scopeTarget: 'limit', expression: { '<=': [{ var: 'amount' }, { var: 'limit' }] }, action: 'Validate' }
+    const compiled = compile([compileDecisionTable(table), formula])
+    const result = new FormRuleGraph(compiled, fixedClock, testAdmission).evaluateInstance(RuleInstance.fromJsonText(JSON.stringify({ amount: 1500, limit: 10 })))
+    const trace = buildFormTrace(compiled, result, passThroughTraceFilter, [table])
+    const decided = trace.find((entry) => entry.ruleId === 'tier.table')!
+    expect(decided.code).toBe(RuleTraceCodes.valueComputed)
+    expect(decided.params).toMatchObject({ rule: 'tier.table', reads: 'amount', hitPolicy })
+    expect(trace.find((entry) => entry.ruleId === 'limit.check')!.params.hitPolicy).toBeUndefined()
+    const params = trace.flatMap((entry) => Object.values(entry.params)).join('|')
+    for (const leaked of ['1500', 'gold', 'silver', 'bronze']) expect(params).not.toContain(leaked)
   })
 })

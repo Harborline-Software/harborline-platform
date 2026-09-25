@@ -42,7 +42,7 @@ public sealed class StandingTests
     public async Task Standing_set_evaluation_is_sublinear_in_shared_inputs_and_exact_per_record()
     {
         // Workload stated before running: 1,000 asset rows, all status "open", amounts 0..999.
-        var rows = Enumerable.Range(0, 1000).Select(i => Row("a" + i.ToString("D4"), "open", i)).ToArray();
+        var rows = Enumerable.Range(0, 1000).Select(i => Row("a" + i.ToString("D4", System.Globalization.CultureInfo.InvariantCulture), "open", i)).ToArray();
         var open = Rule("open", "open", """{"==":[{"var":"status"},"open"]}""", "status");
         var large = Rule("large", "large", """{">":[{"var":"amount"},500]}""", "amount");
         var evaluator = new StandingEvaluator();
@@ -70,12 +70,12 @@ public sealed class StandingTests
     [Fact(DisplayName = "rules-eng-20: interleaved unauthorized rows are removed before standing evaluation, counting and paging, so they never alter visible counts, pages or the evaluation count")]
     public async Task Unauthorized_rows_never_reach_standing_evaluation_counts_or_pages()
     {
-        var authorized = Enumerable.Range(0, 1000).Select(i => Row("a" + i.ToString("D4"), "open", i)).ToArray();
+        var authorized = Enumerable.Range(0, 1000).Select(i => Row("a" + i.ToString("D4", System.Globalization.CultureInfo.InvariantCulture), "open", i)).ToArray();
         // Each denied row carries the standing with a value no authorized row has.
-        var interleaved = authorized.SelectMany((row, i) => new[] { Row("d" + i.ToString("D4"), "open", 5000 + i), row }).ToArray();
+        var interleaved = authorized.SelectMany((row, i) => new[] { Row("d" + i.ToString("D4", System.Globalization.CultureInfo.InvariantCulture), "open", 5000 + i), row }).ToArray();
         var large = Rule("large", "large", """{">":[{"var":"amount"},500]}""", "amount");
         var evaluator = new StandingEvaluator();
-        ValueTask<bool> Access(StandingRecord row, CancellationToken ct) => ValueTask.FromResult(row.RecordId.StartsWith('a'));
+        ValueTask<bool> Access(StandingRecord row, CancellationToken ct) => ValueTask.FromResult(row.RecordId.StartsWith('a', StringComparison.Ordinal));
 
         var expected = await evaluator.EvaluateSetAsync(authorized, Everyone, [large], TestAdmission.Any, At, 490, 20);
         var actual = await evaluator.EvaluateSetAsync(interleaved, Access, [large], TestAdmission.Any, At, 490, 20);
