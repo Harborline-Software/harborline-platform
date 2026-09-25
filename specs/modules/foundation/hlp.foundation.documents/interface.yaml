@@ -26,7 +26,8 @@
     "A template pins its Layout surface by exact identity and version and never copies it.",
     "Tenant and provenance are server-derived: exported content never carries them and installation stamps them.",
     "A published key and version never changes body; a reinstall with a different body refuses by name.",
-    "A document guard evaluates only under the admitted documents-ck-25 environment: field reads only, render and sign-off phases, no ambient default."
+    "A document guard evaluates only under the admitted documents-ck-25 environment: field reads only, render and sign-off phases, no ambient default.",
+    "Publication refuses a Template -> pinned surface -> Template walk that returns to the version being published; detach lineage is not an edge."
   ],
   "errors": [
     "documents.template.envelope_invalid",
@@ -40,7 +41,8 @@
     "documents.template.authority_field_forbidden",
     "documents.template.envelope_mismatch",
     "documents.template.catalogue_mismatch",
-    "documents.template.pinned_tuple_conflict"
+    "documents.template.pinned_tuple_conflict",
+    "documents.template.composition_cycle"
   ],
   "publicSeams": [
     "template intent admission and canonical JSON",
@@ -50,9 +52,9 @@
   ],
   "conformance": {
     "nativeTests": {
-      "dotnet": 23
+      "dotnet": 27
     },
-    "nativeTestNote": "Covers content kind 6 round trip with identical pin and digest, envelope members, document type, page/issue surface pin, Layout schema ranges at publish and at the persisted read, authority fields, column-less regions, named misses with sibling install, Forms-pattern versioning in the shared catalogue and the pinned-tuple body conflict. Adds the documents-ck-25 declaration against the released borrower fixture and guard admission, and parity tests for the retired documents-ck-8 and documents-ck-9."
+    "nativeTestNote": "Covers content kind 6 round trip with identical pin and digest, envelope members, document type, page/issue surface pin, Layout schema ranges at publish and at the persisted read, authority fields, column-less regions, named misses with sibling install, Forms-pattern versioning in the shared catalogue and the pinned-tuple body conflict. Adds the documents-ck-25 declaration against the released borrower fixture and guard admission, and parity tests for the retired documents-ck-8 and documents-ck-9. Adds the owner ruling Q8 cycle refusal: direct and longer cycles, a different version, and a detached copy."
   },
   "selectedDesign": {
     "choice": "One packable foundation assembly owns the template definition and its admission; the Layout surface is reached only through a host-supplied pin resolver and validator, because foundation assemblies may not reference the blocks tier where Layout lives.",
