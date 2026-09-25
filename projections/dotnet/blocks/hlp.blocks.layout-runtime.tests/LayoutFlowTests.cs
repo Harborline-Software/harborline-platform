@@ -119,6 +119,55 @@ public sealed class LayoutFlowTests
         Assert.Equal(("left", "lines", "left-header"), (fragments[1].Variant, Assert.Single(fragments[1].Flow).BlockId, Assert.Single(fragments[1].StaticRegions).BlockId));
     }
 
+    [Fact(DisplayName = "layout-bound-7: a page run flows through the page layout and master a pack supplies")]
+    public void PageRunFlowsThroughThePackSuppliedMaster()
+    {
+        var provenance = JsonSerializer.SerializeToElement(new { source = "test" });
+        var definition = new LayoutDefinition(
+            new("statement", "1.0.0", "tenant-a", LayoutCascadeLayer.TenantConfiguration, provenance, "standard", false, []),
+            1, LayoutMedium.Page, LayoutIntent.Observe,
+            [
+                new("first-header", "layout.text", new LayoutStaticBinding(JsonSerializer.SerializeToElement("First")), [], FlowRole: LayoutFlowRole.Static, StaticRegion: "first.center"),
+                new("summary", "layout.text", new LayoutStaticBinding(JsonSerializer.SerializeToElement("Summary")), []),
+            ],
+            [], [], [new("run", "pack.letter", "pack.master", ["summary"])], null, []);
+
+        var fragment = Assert.Single(new LayoutRuntimeEngine().Flow(definition, PackPages()).PageFragments!);
+
+        Assert.Equal(("pack.letter", "pack.master", "first"), (fragment.PageLayoutId, fragment.PageMasterId, fragment.Variant));
+        Assert.Equal("summary", Assert.Single(fragment.Flow).BlockId);
+        Assert.Equal("first-header", Assert.Single(fragment.StaticRegions).BlockId);
+    }
+
+    [Fact(DisplayName = "layout-bound-7: a published surface citing a pack master resolves through the host's page register")]
+    public async Task PublishedSurfaceCitingAPackMasterResolvesThroughTheHostRegister()
+    {
+        var key = new DefinitionKey("tenant-a", DefinitionKind.Layout, "statement");
+        var store = new InMemoryVersionedDefinitionStore(new Dictionary<DefinitionKind, DefinitionAdmission>
+        {
+            [DefinitionKind.Layout] = (_, _) => [],
+        });
+        var provenance = JsonSerializer.SerializeToElement(new { source = "test" });
+        var definition = new LayoutDefinition(
+            new("statement", "1.0.0", "tenant-a", LayoutCascadeLayer.TenantConfiguration, provenance, "standard", false, []),
+            1, LayoutMedium.Page, LayoutIntent.Observe,
+            [new("summary", "layout.text", new LayoutStaticBinding(JsonSerializer.SerializeToElement("Summary")), [])],
+            [], [], [new("run", "pack.letter", "pack.master", ["summary"])], null, []);
+        await store.SaveDraftAsync(new(key, "version-1", "1.0.0", Encoding.UTF8.GetString(LayoutDefinitionJson.SerializeCanonical(definition))), 0, "draft-1");
+        await store.PublishAsync(key, "version-1", 1, "publish-1");
+
+        var resolved = await new LayoutPublishedSurfaceResolver(store, registers: new(LayoutBlockKindRegistry.Platform, Pages: PackPages())).ResolveAsync(new(key, "version-1"));
+
+        Assert.Equal("pack.master", Assert.Single(resolved.Plan.PageFragments!).PageMasterId);
+        // The same body without the pack's register cites nothing it can resolve.
+        var refused = await Assert.ThrowsAsync<InvalidOperationException>(async () => await new LayoutPublishedSurfaceResolver(store).ResolveAsync(new(key, "version-1")));
+        Assert.Equal("layout.persisted_body_invalid", refused.Message);
+    }
+
+    private static LayoutPageRegistry PackPages() => new(
+        [new("pack.letter", "letter", LayoutPageOrientation.Portrait, new("sm", "sm", "sm", "sm"), new("sm", "sm"))],
+        [new("pack.master", "pack.letter", new(null, "first.center", null), new(null, "left.center", null), new(null, "right.center", null))]);
+
     private static LayoutDefinition Definition(LayoutMedium medium) => new(
         new("invoice", "1.0.0", "tenant-a", LayoutCascadeLayer.TenantConfiguration,
             JsonSerializer.SerializeToElement(new { source = "test" }), "standard", false, []),

@@ -1,3 +1,6 @@
+using Harborline.Foundation.RuleAuthoring;
+using Harborline.UIAdapters.Blazor.Components.RuleAuthoring;
+
 namespace Harborline.UIAdapters.Blazor.Components.Layout;
 
 public sealed record LayoutRuntimeDiagnostic(string Code, string Pointer);
@@ -30,7 +33,35 @@ public sealed record LayoutAuthoringBlock(
     string? StaticRegion = null,
     string? WidgetId = null,
     bool BreakBefore = false,
-    bool AvoidPageBreak = false);
+    bool AvoidPageBreak = false,
+    // layout-auth-18: the block repeats its children once per row of its collection binding.
+    bool Repeating = false,
+    // The flow this block arranges its children in; admission requires one on a repeating block or any parent (T-724 ruling 41).
+    string? Container = null,
+    // layout-auth-19: the declared Records relationship this block observes; only the key is stored.
+    string? RelatedRelationship = null,
+    // layout-auth-20: the block's guard, a Rules expression the shared engine evaluates fail-closed.
+    string? ShowWhen = null,
+    // The guided expression ShowWhen was lowered from; absent when the guard was written as raw text (T-724 ruling 39).
+    FormulaExpr? ShowWhenGuide = null,
+    // The capture properties a capture block narrows with (layout-ck-30).
+    LayoutAuthoringCapture? Capture = null,
+    // layout-auth-33: the selection this block opens with. Authored; the live selection is never stored.
+    string? DefaultSelection = null,
+    // layout-auth-34: the ids of the other blocks on this surface this block's selection filters.
+    IReadOnlyList<string>? FilterTargets = null);
+
+/// <summary>
+/// What a capture block narrows (layout-ck-30): it may add a requirement and name registered
+/// validation rules (layout-auth-21), never remove what Records declared.
+/// </summary>
+public sealed record LayoutAuthoringCapture(
+    bool Required = false,
+    IReadOnlyList<string>? ValidationRules = null,
+    // layout-auth-22: the prompt this surface shows for the field, in its own context only.
+    string? PromptOverride = null,
+    // layout-bound-3: the registered field control this capture field uses; absent is the runtime's choice.
+    string? Control = null);
 public sealed record LayoutAuthoringPageRun(string Id, string PageLayoutId, string PageMasterId);
 public sealed record LayoutAuthoringDraft(
     string Name,
@@ -41,7 +72,9 @@ public sealed record LayoutAuthoringDraft(
     string? ContainerFlow = null,
     int? Gap = null,
     string? Density = null,
-    IReadOnlyList<LayoutAuthoringPageRun>? PageRuns = null)
+    IReadOnlyList<LayoutAuthoringPageRun>? PageRuns = null,
+    // layout-auth-35: the released surfaces a reader may drill through to from this one.
+    IReadOnlyList<string>? DrillThroughTargets = null)
 {
     public static LayoutAuthoringDraft Empty { get; } = new("", "screen", null, []);
 }
@@ -54,4 +87,18 @@ public sealed record LayoutAuthoringCatalogue(
     IReadOnlyList<string>? StaticRegions = null,
     IReadOnlyList<LayoutAuthoringOption>? HelmWidgets = null,
     // Bindables: the names offered per binding kind; `static` is authored on the block.
-    IReadOnlyDictionary<string, IReadOnlyList<LayoutAuthoringOption>>? Bindables = null);
+    IReadOnlyDictionary<string, IReadOnlyList<LayoutAuthoringOption>>? Bindables = null,
+    // Relationships: the Records relationships declared on the surface's record type, by key (layout-auth-19).
+    IReadOnlyList<LayoutAuthoringOption>? Relationships = null,
+    // RequiredFields: the record fields Records declares required; a capture block cannot drop them (layout-auth-21).
+    IReadOnlyList<string>? RequiredFields = null,
+    // ValidationRules: the registered validation rules a capture block may name (layout-auth-21, layout-bound-8).
+    IReadOnlyList<LayoutAuthoringOption>? ValidationRules = null,
+    // DrillTargets: the released surfaces a drill-through may name (layout-auth-35).
+    IReadOnlyList<LayoutAuthoringOption>? DrillTargets = null,
+    // FieldControls: the field controls the host registers for capture fields (layout-bound-3).
+    IReadOnlyList<LayoutAuthoringOption>? FieldControls = null,
+    // ValueDomainFields: the record fields whose value domain picks their editor; they take no authored control (layout-bound-10).
+    IReadOnlyList<string>? ValueDomainFields = null,
+    // GuardReferences: the references a show_when guard may read, offered by the guided expression editor (layout-auth-20).
+    IReadOnlyList<RulesPaletteItem>? GuardReferences = null);

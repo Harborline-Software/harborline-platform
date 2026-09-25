@@ -40,14 +40,16 @@ public sealed record LayoutRenderPlan(
 public sealed class LayoutRuntimeEngine
 {
     /// <summary>Creates one medium-specific plan while preserving authored tree order.</summary>
-    public LayoutRenderPlan Flow(LayoutDefinition definition)
+    /// <param name="definition">The admitted definition.</param>
+    /// <param name="pages">The page layouts and masters packs supply, which a run may cite (layout-bound-7).</param>
+    public LayoutRenderPlan Flow(LayoutDefinition definition, LayoutPageRegistry? pages = null)
     {
         ArgumentNullException.ThrowIfNull(definition);
         var flow = new List<LayoutFlowBlock>();
         var staticRegions = new List<LayoutFlowBlock>();
         foreach (var block in definition.Blocks ?? []) Append(block, 0, flow, staticRegions);
         var pageFragments = definition.Medium == LayoutMedium.Page
-            ? Fragment(definition, flow, staticRegions)
+            ? Fragment(definition, pages, flow, staticRegions)
             : null;
         return new(
             new(definition.Medium == LayoutMedium.Screen ? "screen" : "page"),
@@ -58,11 +60,15 @@ public sealed class LayoutRuntimeEngine
 
     private static IReadOnlyList<LayoutPageFragment> Fragment(
         LayoutDefinition definition,
+        LayoutPageRegistry? supplied,
         IReadOnlyList<LayoutFlowBlock> allFlow,
         IReadOnlyList<LayoutFlowBlock> allStatic)
     {
+        // Admission refuses a local id that shadows a supplied one, so the union is unambiguous.
         var layouts = (definition.PageLayouts ?? []).ToDictionary(value => value.Id, StringComparer.Ordinal);
         var masters = (definition.PageMasters ?? []).ToDictionary(value => value.Id, StringComparer.Ordinal);
+        foreach (var (id, layout) in supplied?.Layouts ?? new Dictionary<string, LayoutPageLayoutDefinition>()) layouts.TryAdd(id, layout);
+        foreach (var (id, master) in supplied?.Masters ?? new Dictionary<string, LayoutPageMasterDefinition>()) masters.TryAdd(id, master);
         var runs = definition.PageRuns ?? [];
         if (runs.Count == 0) return [];
         var fragments = new List<LayoutPageFragment>();

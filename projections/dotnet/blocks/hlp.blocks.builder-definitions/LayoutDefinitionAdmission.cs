@@ -1,4 +1,6 @@
 using System.Text.Json;
+using Harborline.Contracts.Forms;
+using Harborline.Foundation.RuleEngine.Compilation;
 
 namespace Harborline.Blocks.BuilderDefinitions;
 
@@ -63,6 +65,24 @@ public static class LayoutDefinitionCodes
     public const string CollectionBoundsInvalid = "layout.collection.bounds_invalid";
     /// <summary>A placement states a span beside <c>fill</c>, which already takes the whole run.</summary>
     public const string SpanWithFill = "layout.placement.span_with_fill";
+    /// <summary>A capture block names a field control the host has not registered (layout-bound-3).</summary>
+    public const string FieldControlUnknown = "layout.capture.control_unknown";
+    /// <summary>A field control's parameters do not satisfy the schema it declares (T-724 ruling 38).</summary>
+    public const string ControlParametersInvalid = "layout.capture.control_parameters_invalid";
+    /// <summary>Publication cannot find the record field a capture block's control is authored for (T-724 ruling 37).</summary>
+    public const string CaptureFieldUnknown = "layout.capture.field_unknown";
+    /// <summary>An authored control does not accept the field's value kind (T-724 ruling 37).</summary>
+    public const string ControlValueKindMismatch = "layout.capture.control_value_kind_mismatch";
+    /// <summary>An authored control names a field whose value domain picks its editor (layout-bound-10, T-724 ruling 37).</summary>
+    public const string ControlDisplacesValueDomain = "layout.capture.control_displaces_value_domain";
+    /// <summary>Two installed packs supply the same page layout or page master id (layout-bound-7, T-724 ruling 40).</summary>
+    public const string PageSuppliedTwice = "layout.page.supplied_twice";
+    /// <summary>A block's show_when does not compile at its scope (layout-auth-20, T-724 ruling 39).</summary>
+    public const string GuardInvalid = "layout.guard.invalid";
+    /// <summary>A capture block names a validation rule the host has not registered (layout-bound-8).</summary>
+    public const string ValidationRuleUnknown = "layout.capture.validation_rule_unknown";
+    /// <summary>A named validation rule does not validate, or its tier's compiler refuses it (layout-bound-8).</summary>
+    public const string ValidationRuleInvalid = "layout.capture.validation_rule_invalid";
 }
 
 /// <summary>Identifies one deterministic Layout admission refusal.</summary>
@@ -98,7 +118,13 @@ public static class LayoutDefinitionAdmission
     /// <param name="definition">The candidate definition.</param>
     /// <param name="kinds">The host kind register.</param>
     public static void ValidateForAuthoring(LayoutDefinition definition, LayoutBlockKindRegistry kinds)
-        => Validate(definition, "definition.validate", kinds);
+        => Validate(definition, "definition.validate", new LayoutHostRegisters(kinds));
+
+    /// <summary>Validates during authoring against the host's registers.</summary>
+    /// <param name="definition">The candidate definition.</param>
+    /// <param name="registers">The host's bound registers.</param>
+    public static void ValidateForAuthoring(LayoutDefinition definition, LayoutHostRegisters registers)
+        => Validate(definition, "definition.validate", registers);
 
     /// <summary>Validates a Layout definition before publication.</summary>
     /// <param name="definition">The candidate definition.</param>
@@ -108,11 +134,21 @@ public static class LayoutDefinitionAdmission
     /// <param name="definition">The candidate definition.</param>
     /// <param name="kinds">The host kind register.</param>
     public static void ValidateForPublish(LayoutDefinition definition, LayoutBlockKindRegistry kinds)
-        => Validate(definition, PublishStage, kinds);
+        => Validate(definition, PublishStage, new LayoutHostRegisters(kinds));
+
+    /// <summary>Admits publication against the host's registers.</summary>
+    /// <param name="definition">The candidate definition.</param>
+    /// <param name="registers">The host's bound registers.</param>
+    public static void ValidateForPublish(LayoutDefinition definition, LayoutHostRegisters registers)
+        => Validate(definition, PublishStage, registers);
 
     internal static void Validate(LayoutDefinition definition, string stage, LayoutBlockKindRegistry? kinds = null)
+        => Validate(definition, stage, kinds is null ? LayoutHostRegisters.Platform : new LayoutHostRegisters(kinds));
+
+    internal static void Validate(LayoutDefinition definition, string stage, LayoutHostRegisters registers)
     {
         ArgumentNullException.ThrowIfNull(definition);
+        ArgumentNullException.ThrowIfNull(registers);
         var refusals = new List<LayoutDefinitionRefusal>();
         ValidateEnvelope(definition, refusals);
         if (stage == PublishStage) ValidateSealedCapability(definition, refusals);
@@ -132,8 +168,10 @@ public static class LayoutDefinitionAdmission
                 definition.DefaultIntent,
                 parentRegions: null,
                 blockIds,
-                kinds ?? LayoutBlockKindRegistry.Platform,
+                registers,
                 captures,
+                publishing: stage == PublishStage,
+                rowSection: null,
                 refusals);
         }
 
@@ -143,7 +181,7 @@ public static class LayoutDefinitionAdmission
             if (string.IsNullOrWhiteSpace(drillTargets[index]))
                 Add(refusals, LayoutDefinitionCodes.InteractionTargetUnknown, $"/drill_through_targets/{index}");
         }
-        ValidatePages(definition, blockIds, refusals);
+        ValidatePages(definition, blockIds, registers.Pages, refusals);
         if (definition.SubmitGate is { } submitGate
             && (definition.DefaultIntent != LayoutIntent.Capture || string.IsNullOrWhiteSpace(submitGate)))
             Add(refusals, LayoutDefinitionCodes.SubmitGateInvalid, "/submit_gate");
@@ -225,14 +263,16 @@ public static class LayoutDefinitionAdmission
         LayoutIntent inheritedIntent,
         IReadOnlySet<string>? parentRegions,
         HashSet<string> blockIds,
-        LayoutBlockKindRegistry kinds,
+        LayoutHostRegisters registers,
         bool captures,
+        bool publishing,
+        string? rowSection,
         ICollection<LayoutDefinitionRefusal> refusals)
     {
         if (block is null) return;
         if (string.IsNullOrWhiteSpace(block.Kind))
             Add(refusals, LayoutDefinitionCodes.BlockKindInvalid, $"{pointer}/kind");
-        else if (!kinds.Contains(block.Kind))
+        else if (!registers.Kinds.Contains(block.Kind))
             Add(refusals, LayoutDefinitionCodes.BlockKindUnknown, $"{pointer}/kind");
 
         var intent = block.Intent ?? inheritedIntent;
@@ -263,6 +303,22 @@ public static class LayoutDefinitionAdmission
             for (var index = 0; index < validationRules.Count; index++)
                 if (string.IsNullOrWhiteSpace(validationRules[index]))
                     Add(refusals, LayoutDefinitionCodes.CapturePropertiesInvalid, $"{pointer}/capture/validation_rules/{index}");
+                // Publication resolves every name and fails closed without a register (T-724
+                // ruling 36); a supplied register is honoured at every stage.
+                else if (registers.ValidationRules is not null || publishing)
+                    ValidateNamedRule(registers.ValidationRules, validationRules[index], $"{pointer}/capture/validation_rules/{index}", refusals);
+            // layout-bound-3: the control is one the host registered; with no register, none is.
+            if (capture.Control is { } control)
+            {
+                if (string.IsNullOrWhiteSpace(control.Id) || registers.FieldControls?.Contains(control.Id) != true)
+                    Add(refusals, LayoutDefinitionCodes.FieldControlUnknown, $"{pointer}/capture/control");
+                else
+                {
+                    if (control.Parameters is { } parameters && !registers.FieldControls.AcceptsParameters(control.Id, parameters))
+                        Add(refusals, LayoutDefinitionCodes.ControlParametersInvalid, $"{pointer}/capture/control/parameters");
+                    if (publishing) ValidateControlField(registers, control, block.Binding, $"{pointer}/capture/control", refusals);
+                }
+            }
         }
 
         if (block.Form is { } form
@@ -270,6 +326,19 @@ public static class LayoutDefinitionAdmission
                 || string.IsNullOrWhiteSpace(form.FormVersionId)
                 || form.FormVersionId.Contains("latest", StringComparison.OrdinalIgnoreCase)))
             Add(refusals, LayoutDefinitionCodes.FormReferenceInvalid, $"{pointer}/form");
+        // T-724 ruling 39: publication compiles the guard as the runtime will, so a malformed one
+        // refuses here instead of withholding its block on every render.
+        if (publishing && block.ShowWhen is { Length: > 0 } guard)
+        {
+            try
+            {
+                RuleCompiler.Compile([LayoutGuardRule.For(block.Id, guard, rowSection)]);
+            }
+            catch (RuleCompilationException)
+            {
+                Add(refusals, LayoutDefinitionCodes.GuardInvalid, $"{pointer}/show_when");
+            }
+        }
         if (block.LiveSelection.HasValue)
             Add(refusals, LayoutDefinitionCodes.LiveSelectionForbidden, $"{pointer}/live_selection");
         if (block.Repeating && (block.Container is null || block.Binding is not (LayoutQueryBinding or LayoutRecordFieldBinding)))
@@ -293,8 +362,58 @@ public static class LayoutDefinitionAdmission
         if (children.Count > 0 && block.Container is null)
             Add(refusals, LayoutDefinitionCodes.BlockChildrenInvalid, $"{pointer}/container");
         for (var index = 0; index < children.Count; index++)
-            ValidateBlock(children[index], $"{pointer}/children/{index}", medium, inheritedIntent, regions, blockIds, kinds, captures, refusals);
+            ValidateBlock(children[index], $"{pointer}/children/{index}", medium, inheritedIntent, regions, blockIds, registers, captures, publishing,
+                block.Repeating ? CollectionName(block.Binding) : rowSection, refusals);
     }
+
+    // layout-bound-8: the named rule must be registered and validate, and the shared compiler admits
+    // it by the rule's own tier (JsonLogic compiled here, JsonSchema left to the kernel validator,
+    // any other tier refused). Layout never chooses the compiler.
+    // With no register a name resolves to nothing, so it refuses (T-724 ruling 36).
+    private static void ValidateNamedRule(LayoutValidationRuleRegistry? rules, string name, string pointer, ICollection<LayoutDefinitionRefusal> refusals)
+    {
+        RuleDefinition? rule = null;
+        if (rules?.TryGet(name, out rule) != true || rule is null)
+        {
+            Add(refusals, LayoutDefinitionCodes.ValidationRuleUnknown, pointer);
+            return;
+        }
+        if (rule.Action != RuleActionKind.Validate)
+        {
+            Add(refusals, LayoutDefinitionCodes.ValidationRuleInvalid, pointer);
+            return;
+        }
+        try
+        {
+            RuleCompiler.Compile([rule]);
+        }
+        catch (RuleCompilationException)
+        {
+            Add(refusals, LayoutDefinitionCodes.ValidationRuleInvalid, pointer);
+        }
+    }
+
+    // T-724 ruling 37: publication looks the field up. A value domain's resolver picks that field's
+    // editor and Layout passes its choice through (layout-bound-10), so an authored control there
+    // refuses; on any other field the control must accept the field's value kind.
+    private static void ValidateControlField(LayoutHostRegisters registers, LayoutFieldControl control, LayoutBinding? binding, string pointer, ICollection<LayoutDefinitionRefusal> refusals)
+    {
+        var field = binding is LayoutRecordFieldBinding bound ? registers.Fields?.Find(bound.FieldPath) : null;
+        if (field is null)
+            Add(refusals, LayoutDefinitionCodes.CaptureFieldUnknown, pointer);
+        else if (field.HasValueDomain)
+            Add(refusals, LayoutDefinitionCodes.ControlDisplacesValueDomain, pointer);
+        else if (registers.FieldControls!.Find(control.Id)?.ValueShapes.Contains(field.ValueShape) != true)
+            Add(refusals, LayoutDefinitionCodes.ControlValueKindMismatch, pointer);
+    }
+
+    // The collection a repeating block iterates, which names its children's row section.
+    private static string? CollectionName(LayoutBinding? binding) => binding switch
+    {
+        LayoutQueryBinding value => value.ViewDefinitionId,
+        LayoutRecordFieldBinding value => value.FieldPath,
+        _ => null,
+    };
 
     private static void ValidateBinding(
         LayoutBinding? binding,
@@ -395,9 +514,12 @@ public static class LayoutDefinitionAdmission
         AddNumeric(placement.Grow, LayoutNumericMember.Grow, $"{pointer}/grow", refusals);
     }
 
+    // layout-bound-7: a run cites the surface's own page definitions or those a pack supplies. A
+    // local definition may not reuse a supplied id, so every citation names exactly one definition.
     private static void ValidatePages(
         LayoutDefinition definition,
         HashSet<string> blockIds,
+        LayoutPageRegistry? supplied,
         ICollection<LayoutDefinitionRefusal> refusals)
     {
         var layouts = new HashSet<string>(StringComparer.Ordinal);
@@ -412,6 +534,7 @@ public static class LayoutDefinitionAdmission
                 continue;
             }
             if (string.IsNullOrWhiteSpace(layout.Id) || !layouts.Add(layout.Id)
+                || supplied?.Layouts.ContainsKey(layout.Id) == true
                 || string.IsNullOrWhiteSpace(layout.Sheet)
                 || layout.Margins is null || layout.MarginBoxes is null)
                 Add(refusals, LayoutDefinitionCodes.PageDefinitionInvalid, pointer);
@@ -429,9 +552,10 @@ public static class LayoutDefinitionAdmission
                 Add(refusals, LayoutDefinitionCodes.PageDefinitionInvalid, pointer);
                 continue;
             }
-            if (string.IsNullOrWhiteSpace(master.Id) || !masters.Add(master.Id))
+            if (string.IsNullOrWhiteSpace(master.Id) || !masters.Add(master.Id)
+                || supplied?.Masters.ContainsKey(master.Id) == true)
                 Add(refusals, LayoutDefinitionCodes.PageDefinitionInvalid, pointer);
-            if (!layouts.Contains(master.PageLayoutId))
+            if (!layouts.Contains(master.PageLayoutId) && supplied?.Layouts.ContainsKey(master.PageLayoutId) != true)
                 Add(refusals, LayoutDefinitionCodes.PageReferenceUnknown, $"{pointer}/page_layout_id");
             if (master.First is null || master.Left is null || master.Right is null)
                 Add(refusals, LayoutDefinitionCodes.PageDefinitionInvalid, pointer);
@@ -449,21 +573,20 @@ public static class LayoutDefinitionAdmission
             }
             if (string.IsNullOrWhiteSpace(run.Id) || !runs.Add(run.Id) || run.BlockIds is null || run.BlockIds.Count == 0)
                 Add(refusals, LayoutDefinitionCodes.PageDefinitionInvalid, pointer);
-            if (!layouts.Contains(run.PageLayoutId))
+            if (!layouts.Contains(run.PageLayoutId) && supplied?.Layouts.ContainsKey(run.PageLayoutId) != true)
                 Add(refusals, LayoutDefinitionCodes.PageReferenceUnknown, $"{pointer}/page_layout_id");
-            if (!masters.Contains(run.PageMasterId))
-                Add(refusals, LayoutDefinitionCodes.PageReferenceUnknown, $"{pointer}/page_master_id");
-            else if (pageMasters.First(master => master?.Id == run.PageMasterId).PageLayoutId != run.PageLayoutId)
+            var cited = masters.Contains(run.PageMasterId)
+                ? pageMasters.First(master => master?.Id == run.PageMasterId)
+                : supplied?.Masters.GetValueOrDefault(run.PageMasterId);
+            if (cited is null || cited.PageLayoutId != run.PageLayoutId)
                 Add(refusals, LayoutDefinitionCodes.PageReferenceUnknown, $"{pointer}/page_master_id");
             var runBlocks = run.BlockIds ?? [];
             for (var blockIndex = 0; blockIndex < runBlocks.Count; blockIndex++)
                 if (!blockIds.Contains(runBlocks[blockIndex]))
                     Add(refusals, LayoutDefinitionCodes.PageReferenceUnknown, $"{pointer}/block_ids/{blockIndex}");
         }
-        if (definition.Medium == LayoutMedium.Page
-            && ((definition.PageLayouts?.Count ?? 0) == 0
-                || (definition.PageMasters?.Count ?? 0) == 0
-                || (definition.PageRuns?.Count ?? 0) == 0))
+        // Every run already resolves its geometry and master, locally or from a pack.
+        if (definition.Medium == LayoutMedium.Page && (definition.PageRuns?.Count ?? 0) == 0)
             Add(refusals, LayoutDefinitionCodes.PageDefinitionInvalid, "/page_runs");
         if (definition.Medium == LayoutMedium.Screen
             && ((definition.PageLayouts?.Count ?? 0) > 0
@@ -494,6 +617,12 @@ public static class LayoutPersistedValueAdmission
     /// <param name="kinds">The host register, or the platform grammar when omitted.</param>
     public static void ValidateForRuntime(LayoutDefinition definition, LayoutBlockKindRegistry? kinds = null)
         => LayoutDefinitionAdmission.Validate(definition, "render.runtime", kinds);
+
+    /// <summary>Validates persisted values against the host's registers before the runtime flows them.</summary>
+    /// <param name="definition">The immutable persisted Layout definition.</param>
+    /// <param name="registers">The host's bound registers.</param>
+    public static void ValidateForRuntime(LayoutDefinition definition, LayoutHostRegisters registers)
+        => LayoutDefinitionAdmission.Validate(definition, "render.runtime", registers);
 
     /// <summary>Validates persisted values before React rendering.</summary>
     /// <param name="definition">The persisted definition.</param>
