@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.foundation.documents",
+  "interfaceRevision": 1,
+  "status": "frozen",
+  "purpose": "Own the Documents composition's TemplateDefinition (content kind 6): its envelope, canonical JSON, pack content and structural admission over an exactly pinned Layout page surface with intent issue (DES-0021, ADR 0092, ADR 0094).",
+  "dependencies": [],
+  "callerInterface": {
+    "name": "TemplateDefinitionJson / TemplateDefinitionAdmission / TemplatePack",
+    "operations": [
+      "TemplateDefinitionJson.SerializeCanonical / Deserialize -> canonical snake_case, ordinal-sorted, newline-terminated UTF-8 JSON; unknown members refuse",
+      "TemplateDefinitionAdmission.Validate(template, surfaces) -> every refusal at once; TemplateSurfaces is the host's binding of the shared catalogue's exact surface pin and Layout's own validator",
+      "TemplatePack.Export(template, surfaces) -> content kind 6 entry of canonical authored bytes and SHA-256 digest after publish admission; server-derived members are never exported",
+      "TemplatePack.TryParse(content, tenant, provenance) -> a template stamped with the installing tenant and provenance, or a named miss; never an exception"
+    ],
+    "context": "Templates are portable pack content stored in the shared builder-definitions catalogue; this package owns their typed shape, canonical JSON and admission, never a store and never a Layout type. The host binds the catalogue and Layout's validator."
+  },
+  "invariants": [
+    "Content kind 6 is kept; this package allocates no content kind or pillar number.",
+    "A template pins its Layout surface by exact identity and version and never copies it.",
+    "Tenant and provenance are server-derived: exported content never carries them and installation stamps them."
+  ],
+  "errors": [
+    "documents.template.envelope_invalid",
+    "documents.template.document_type_required",
+    "documents.template.body_invalid"
+  ],
+  "publicSeams": [
+    "template intent admission and canonical JSON",
+    "content kind 6 pack entry",
+    "TemplateSurfaces: exact surface pin resolution and Layout admission supplied by the host"
+  ],
+  "conformance": {
+    "nativeTests": {
+      "dotnet": 3
+    },
+    "nativeTestNote": "Covers content kind 6 round trip with identical pin and digest, envelope members and document type."
+  },
+  "selectedDesign": {
+    "choice": "One packable foundation assembly owns the template definition and its admission; the Layout surface is reached only through a host-supplied pin resolver and validator, because foundation assemblies may not reference the blocks tier where Layout lives.",
+    "rejected": [
+      "Copy the Layout surface into the template (a second placement grammar).",
+      "Reference Harborline.Blocks.BuilderDefinitions from foundation (tier fence)."
+    ],
+    "reason": "Documents keeps its own artefact and composes Layout's surface contract without absorbing it (ADR 0092 ruling 4, layout-ck-32)."
+  },
+  "package": {
+    "nuget": "Harborline.Foundation.Documents",
+    "assembly": "Harborline.Foundation.Documents",
+    "distribution": "internal-only"
+  }
+}

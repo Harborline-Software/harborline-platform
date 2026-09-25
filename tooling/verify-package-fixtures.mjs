@@ -794,6 +794,7 @@ function verifyNuget() {
   const workflowInterpreter = 'projections/dotnet/blocks/hlp.blocks.workflow-interpreter/Harborline.Blocks.Workflow.Interpreter.csproj'
   const entityViews = 'projections/dotnet/blocks/hlp.blocks.entity-views/Harborline.Blocks.EntityViews.csproj'
   const dataExchange = 'projections/dotnet/foundation/hlp.foundation.data-exchange/Harborline.Foundation.DataExchange.csproj'
+  const documents = 'projections/dotnet/foundation/hlp.foundation.documents/Harborline.Foundation.Documents.csproj'
   const foundationScheduling = 'projections/dotnet/foundation/hlp.foundation.scheduling/Harborline.Foundation.Scheduling.csproj'
   const fieldRuntime = 'projections/dotnet/foundation/hlp.foundation.field-runtime/Harborline.Foundation.FieldRuntime.csproj'
   const blocksScheduling = 'projections/dotnet/blocks/hlp.blocks.scheduling/Harborline.Blocks.Scheduling.csproj'
@@ -822,6 +823,7 @@ function verifyNuget() {
   run(dotnet.executable, ['pack', workflowInterpreter, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
   run(dotnet.executable, ['pack', entityViews, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
   run(dotnet.executable, ['pack', dataExchange, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
+  run(dotnet.executable, ['pack', documents, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
   run(dotnet.executable, ['pack', foundationScheduling, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
   run(dotnet.executable, ['pack', fieldRuntime, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
   run(dotnet.executable, ['pack', blocksScheduling, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
@@ -842,7 +844,7 @@ function verifyNuget() {
     const nuspec = zip.text(nuspecName)
     return { name, path, zip, nuspec, id: metadata(nuspec, 'id'), version: metadata(nuspec, 'version') }
   })
-  const expectedIds = ['Harborline.Blocks.ActivityTimeline', 'Harborline.Blocks.Aggregates', 'Harborline.Blocks.MeasureCatalogue', 'Harborline.Blocks.BuilderDefinitions', 'Harborline.Blocks.Calendar', 'Harborline.Blocks.EntityViews', 'Harborline.Blocks.InspectionReview', 'Harborline.Blocks.RelativeChains', 'Harborline.Blocks.Reports', 'Harborline.Blocks.Scheduling', 'Harborline.Blocks.Workflow', 'Harborline.Blocks.Workflow.Interpreter', 'Harborline.Foundation', 'Harborline.Foundation.DataExchange', 'Harborline.Foundation.Forms.Engine', 'Harborline.Foundation.MultiTenancy', 'Harborline.Foundation.RuleAuthoring', 'Harborline.Foundation.RuleEngine', 'Harborline.Foundation.Scheduling', 'Harborline.Kernel.Core', 'Harborline.Kernel.SchemaValidation', 'Harborline.Kernel.WorkItems', 'Harborline.UIAdapters.Blazor', 'Harborline.Contracts', 'Harborline.Foundation.Authorization', 'Harborline.Foundation.Forms', 'Harborline.Foundation.Session']
+  const expectedIds = ['Harborline.Blocks.ActivityTimeline', 'Harborline.Blocks.Aggregates', 'Harborline.Blocks.MeasureCatalogue', 'Harborline.Blocks.BuilderDefinitions', 'Harborline.Blocks.Calendar', 'Harborline.Blocks.EntityViews', 'Harborline.Blocks.InspectionReview', 'Harborline.Blocks.RelativeChains', 'Harborline.Blocks.Reports', 'Harborline.Blocks.Scheduling', 'Harborline.Blocks.Workflow', 'Harborline.Blocks.Workflow.Interpreter', 'Harborline.Foundation', 'Harborline.Foundation.DataExchange', 'Harborline.Foundation.Documents', 'Harborline.Foundation.Forms.Engine', 'Harborline.Foundation.MultiTenancy', 'Harborline.Foundation.RuleAuthoring', 'Harborline.Foundation.RuleEngine', 'Harborline.Foundation.Scheduling', 'Harborline.Kernel.Core', 'Harborline.Kernel.SchemaValidation', 'Harborline.Kernel.WorkItems', 'Harborline.UIAdapters.Blazor', 'Harborline.Contracts', 'Harborline.Foundation.Authorization', 'Harborline.Foundation.Forms', 'Harborline.Foundation.Session']
   const actualIds = packageMetadata.map(entry => entry.id).sort()
   expectedIds.push('Harborline.Foundation.FieldRuntime')
   if (JSON.stringify(actualIds) !== JSON.stringify(expectedIds.sort())) {
