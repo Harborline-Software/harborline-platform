@@ -9,6 +9,9 @@ public sealed class SafetyFloorTests
 {
     private const string Seed = """{"safetyFloors":{"retention":3,"audit":4,"review":2}}""";
 
+    private static readonly Harborline.Foundation.RuleEngine.RulesCapabilityCheck Floor = RulesGrants.Only(Harborline.Foundation.RuleEngine.RulesPermissions.AuthorFloor);
+    private static readonly Harborline.Foundation.RuleEngine.RulesCapabilityCheck NoFloor = RulesGrants.Only(Harborline.Foundation.RuleEngine.RulesPermissions.Author);
+
     private static readonly string[] Members = ["retention", "audit", "review"];
 
     private static JsonNode Json(string text) => JsonNode.Parse(text)!;
@@ -38,29 +41,29 @@ public sealed class SafetyFloorTests
     }
 
     [Fact(DisplayName = "rules-auth-8: a sealed floor read reports its writability and reason before any write; without the author-floor grant it is not writable and authoring refuses without mutating")]
-    public void Sealed_floor_writability_is_reported_on_read()
+    public async Task Sealed_floor_writability_is_reported_on_read()
     {
         Assert.Equal(
             [new SafetyFloorMemberState("retention", 3, true, SafetyFloorAuthoring.RaiseOnly),
              new SafetyFloorMemberState("audit", 4, true, SafetyFloorAuthoring.RaiseOnly),
              new SafetyFloorMemberState("review", 2, true, SafetyFloorAuthoring.RaiseOnly)],
-            SafetyFloorAuthoring.Describe(Json(Seed), authorFloorAllowed: true));
-        Assert.All(SafetyFloorAuthoring.Describe(Json(Seed), authorFloorAllowed: false),
+            await SafetyFloorAuthoring.DescribeAsync(Json(Seed), Floor));
+        Assert.All(await SafetyFloorAuthoring.DescribeAsync(Json(Seed), NoFloor),
             state => Assert.Equal((false, SafetyFloorAuthoring.AuthorFloorDenied), (state.Writable, state.Reason)));
 
         var candidate = Json("""{"safetyFloors":{"retention":5,"audit":4,"review":2}}""");
         var before = candidate.ToJsonString();
-        var denied = SafetyFloorAuthoring.Author(Json(Seed), candidate, authorFloorAllowed: false);
+        var denied = (await SafetyFloorAuthoring.AuthorAsync(Json(Seed), candidate, NoFloor));
         Assert.Equal([new DefinitionRefusal(SafetyFloorAuthoring.AuthorFloorDenied, "/safetyFloors")], denied.Refusals);
         Assert.Null(denied.Content);
         Assert.Equal(before, candidate.ToJsonString());
     }
 
     [Fact(DisplayName = "rules-auth-8: authoring a floor may raise and never lower: three independent invalid members return exactly three code/pointer refusals and no content, and the valid counterpart has none")]
-    public void Authoring_refuses_every_lowering_by_pointer()
+    public async Task Authoring_refuses_every_lowering_by_pointer()
     {
-        var invalid = SafetyFloorAuthoring.Author(Json(Seed),
-            Json("""{"safetyFloors":{"retention":1,"audit":"strict"}}"""), authorFloorAllowed: true);
+        var invalid = (await SafetyFloorAuthoring.AuthorAsync(Json(Seed),
+            Json("""{"safetyFloors":{"retention":1,"audit":"strict"}}"""), Floor));
         Assert.Equal(
             [new DefinitionRefusal(SafetyFloorAuthoring.Lowered, "/safetyFloors/retention"),
              new DefinitionRefusal(SafetyFloorAuthoring.Malformed, "/safetyFloors/audit"),
@@ -71,10 +74,10 @@ public sealed class SafetyFloorTests
         Assert.Equal([new DefinitionRefusal(SafetyFloorAuthoring.Lowered, "/safetyFloors/retention"),
                       new DefinitionRefusal(SafetyFloorAuthoring.Lowered, "/safetyFloors/audit"),
                       new DefinitionRefusal(SafetyFloorAuthoring.Lowered, "/safetyFloors/review")],
-            SafetyFloorAuthoring.Author(Json(Seed), Json("""{"name":"x"}"""), authorFloorAllowed: true).Refusals);
+            (await SafetyFloorAuthoring.AuthorAsync(Json(Seed), Json("""{"name":"x"}"""), Floor)).Refusals);
 
-        var valid = SafetyFloorAuthoring.Author(Json(Seed),
-            Json("""{"safetyFloors":{"retention":3,"audit":6,"review":2,"extra":1}}"""), authorFloorAllowed: true);
+        var valid = (await SafetyFloorAuthoring.AuthorAsync(Json(Seed),
+            Json("""{"safetyFloors":{"retention":3,"audit":6,"review":2,"extra":1}}"""), Floor));
         Assert.Empty(valid.Refusals);
         Assert.Equal(6, valid.Content!["safetyFloors"]!["audit"]!.GetValue<int>());
     }

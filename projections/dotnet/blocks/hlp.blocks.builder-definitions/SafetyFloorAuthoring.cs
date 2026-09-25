@@ -1,5 +1,7 @@
 using System.Text.Json.Nodes;
 
+using Harborline.Foundation.RuleEngine;
+
 namespace Harborline.Blocks.BuilderDefinitions;
 
 /// <summary>A sealed floor member as a read reports it: its seeded floor, and whether and why it may be written.</summary>
@@ -9,12 +11,12 @@ public sealed record SafetyFloorMemberState(string Member, int SeedFloor, bool W
 public sealed record SafetyFloorAuthoringResult(IReadOnlyList<DefinitionRefusal> Refusals, JsonNode? Content)
 {
     /// <summary>Floor authoring runs at the author stage.</summary>
-    public DefinitionAdmissionPhase Stage => DefinitionAdmissionPhase.Author;
+    public DefinitionAdmissionPhase Stage { get; } = DefinitionAdmissionPhase.Author;
 }
 
 /// <summary>
 /// Authoring a sealed safety floor (DES-0018 <c>rules-auth-8</c>): a downstream author may raise a seeded floor and
-/// never lower it. The <c>author-floor</c> grant is Access's verdict, supplied by the host; Rules only narrows.
+/// never lower it. The <c>rules:author-floor</c> capability is Access's verdict, supplied by the host; Rules only narrows.
 /// Reattachment clamps and reports (<see cref="PackageSafetyFloorReattachment"/>); authoring refuses instead,
 /// reporting every lowered or malformed member at once and changing nothing.
 /// </summary>
@@ -32,16 +34,30 @@ public static class SafetyFloorAuthoring
     /// <summary>A seeded floor member is present as a non-integer.</summary>
     public const string Malformed = "platform-package-safety-floor-malformed";
 
-    /// <summary>Reports each sealed floor member's writability and reason before any write is attempted.</summary>
-    public static IReadOnlyList<SafetyFloorMemberState> Describe(JsonNode seed, bool authorFloorAllowed)
+    /// <summary>Reports each sealed floor member's writability and reason before any write, reading <c>rules:author-floor</c>.</summary>
+    public static async ValueTask<IReadOnlyList<SafetyFloorMemberState>> DescribeAsync(JsonNode seed, RulesCapabilityCheck capabilities,
+        CancellationToken cancellationToken = default)
+        => Describe(seed, await AllowsAsync(capabilities, cancellationToken).ConfigureAwait(false));
+
+    /// <summary>Admits <paramref name="candidate"/> only under <c>rules:author-floor</c> and only when every seeded floor is kept or raised.</summary>
+    public static async ValueTask<SafetyFloorAuthoringResult> AuthorAsync(JsonNode seed, JsonNode candidate, RulesCapabilityCheck capabilities,
+        CancellationToken cancellationToken = default)
+        => Author(seed, candidate, await AllowsAsync(capabilities, cancellationToken).ConfigureAwait(false));
+
+    private static ValueTask<bool> AllowsAsync(RulesCapabilityCheck capabilities, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(capabilities);
+        return capabilities(RulesPermissions.AuthorFloor, cancellationToken);
+    }
+
+    private static IReadOnlyList<SafetyFloorMemberState> Describe(JsonNode seed, bool authorFloorAllowed)
     {
         ArgumentNullException.ThrowIfNull(seed);
         return [.. SeedFloors(seed).Select(floor => new SafetyFloorMemberState(floor.Member, floor.Floor,
             authorFloorAllowed, authorFloorAllowed ? RaiseOnly : AuthorFloorDenied))];
     }
 
-    /// <summary>Admits <paramref name="candidate"/> only when every seeded floor is present and at least its seed value.</summary>
-    public static SafetyFloorAuthoringResult Author(JsonNode seed, JsonNode candidate, bool authorFloorAllowed)
+    private static SafetyFloorAuthoringResult Author(JsonNode seed, JsonNode candidate, bool authorFloorAllowed)
     {
         ArgumentNullException.ThrowIfNull(seed);
         ArgumentNullException.ThrowIfNull(candidate);

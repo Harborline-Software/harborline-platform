@@ -77,15 +77,15 @@ public sealed class DecisionTraceTests
         static ValueTask<bool> Deny(StandingRecord row, CancellationToken ct) => ValueTask.FromResult(false);
         static ValueTask<bool> Allow(StandingRecord row, CancellationToken ct) => ValueTask.FromResult(true);
 
-        var refused = await evaluator.ReadEvidenceAsync(record, rule, Deny, TestAdmission.Any, At);
+        var refused = await evaluator.ReadEvidenceAsync(Grants.All, record, rule, Deny, TestAdmission.Any, At);
         Assert.Equal((StandingEvidenceAvailability.Refused, null), (refused.Availability, refused.Evidence));
         // Refusal hides whether evidence would exist.
-        Assert.Equal(StandingEvidenceAvailability.Refused, (await evaluator.ReadEvidenceAsync(other, rule, Deny, TestAdmission.Any, At)).Availability);
+        Assert.Equal(StandingEvidenceAvailability.Refused, (await evaluator.ReadEvidenceAsync(Grants.All, other, rule, Deny, TestAdmission.Any, At)).Availability);
 
-        var absent = await evaluator.ReadEvidenceAsync(other, rule, Allow, TestAdmission.Any, At);
+        var absent = await evaluator.ReadEvidenceAsync(Grants.All, other, rule, Allow, TestAdmission.Any, At);
         Assert.Equal((StandingEvidenceAvailability.NotApplicable, null), (absent.Availability, absent.Evidence));
 
-        var read = await evaluator.ReadEvidenceAsync(record, rule, Allow, TestAdmission.Any, At);
+        var read = await evaluator.ReadEvidenceAsync(Grants.All, record, rule, Allow, TestAdmission.Any, At);
         Assert.Equal(StandingEvidenceAvailability.Available, read.Availability);
         var evidence = read.Evidence!;
         Assert.Equal(("large", "1.0.0", true, At), (evidence.RuleId, evidence.RuleVersion, evidence.Carries, evidence.Instant));

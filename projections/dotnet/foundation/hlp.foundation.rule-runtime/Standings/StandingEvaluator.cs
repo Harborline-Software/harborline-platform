@@ -65,6 +65,7 @@ public sealed class StandingEvaluator(RuleEngineLimits? limits = null)
     private readonly RuleEngineLimits _limits = limits ?? RuleEngineLimits.Default;
 
     /// <summary>Evaluates <paramref name="definitions"/> over the candidates <paramref name="authorize"/> admits.</summary>
+    /// <param name="capabilities">The host's Access verdicts; evaluation needs rules:evaluate-explain and records:read.</param>
     /// <param name="candidates">The complete tenant-bound candidate set, before any count or page.</param>
     /// <param name="authorize">The host's Access row check, bound to the reading principal and instant.</param>
     /// <param name="definitions">The installed standing rules.</param>
@@ -74,6 +75,7 @@ public sealed class StandingEvaluator(RuleEngineLimits? limits = null)
     /// <param name="take">The page size.</param>
     /// <param name="cancellationToken">Cancels evaluation.</param>
     public async ValueTask<StandingSetResult> EvaluateSetAsync(
+        RulesCapabilityCheck capabilities,
         IEnumerable<StandingRecord> candidates,
         Func<StandingRecord, CancellationToken, ValueTask<bool>> authorize,
         IReadOnlyList<StandingRuleDefinition> definitions,
@@ -88,6 +90,9 @@ public sealed class StandingEvaluator(RuleEngineLimits? limits = null)
         ArgumentNullException.ThrowIfNull(definitions);
         ArgumentOutOfRangeException.ThrowIfNegative(skip);
         ArgumentOutOfRangeException.ThrowIfNegative(take);
+        // The operation boundary: rules:evaluate-explain and records:read, before any row is checked or read.
+        if (!await RulesPermissions.AllowsEvaluateExplainAsync(capabilities, cancellationToken).ConfigureAwait(false))
+            throw new RulesPermissionException(RulesPermissions.EvaluateExplain);
 
         var ordered = definitions.OrderBy(rule => rule.RuleId, StringComparer.Ordinal)
             .ThenBy(rule => rule.RuleVersion, StringComparer.Ordinal).ToArray();
@@ -136,6 +141,7 @@ public sealed class StandingEvaluator(RuleEngineLimits? limits = null)
     /// about whether evidence exists; a rule declared on another record type is not applicable.
     /// </summary>
     public async ValueTask<StandingEvidenceRead> ReadEvidenceAsync(
+        RulesCapabilityCheck capabilities,
         StandingRecord record,
         StandingRuleDefinition rule,
         Func<StandingRecord, CancellationToken, ValueTask<bool>> authorizeEvidenceRead,
@@ -146,7 +152,8 @@ public sealed class StandingEvaluator(RuleEngineLimits? limits = null)
         ArgumentNullException.ThrowIfNull(record);
         ArgumentNullException.ThrowIfNull(rule);
         ArgumentNullException.ThrowIfNull(authorizeEvidenceRead);
-        if (!await authorizeEvidenceRead(record, cancellationToken).ConfigureAwait(false))
+        if (!await RulesPermissions.AllowsEvaluateExplainAsync(capabilities, cancellationToken).ConfigureAwait(false)
+            || !await authorizeEvidenceRead(record, cancellationToken).ConfigureAwait(false))
             return new(StandingEvidenceAvailability.Refused, null);
         if (!string.Equals(rule.RecordType, record.RecordType, StringComparison.Ordinal))
             return new(StandingEvidenceAvailability.NotApplicable, null);

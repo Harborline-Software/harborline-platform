@@ -1,4 +1,5 @@
 using Harborline.Foundation.RuleAuthoring;
+using Harborline.Foundation.RuleEngine;
 using Harborline.Foundation.RuleEngine.Registry;
 using Harborline.Foundation.RuleEngine.Conformance;
 using System.Security.Cryptography;
@@ -37,14 +38,26 @@ public sealed class RuleDefinitionCatalog
 {
     private readonly IVersionedDefinitionStore _store;
     private readonly IDefinitionLifecycleStore _lifecycle;
+    private readonly RulesCapabilityCheck _capabilities;
 
-    /// <summary>Composes shared history and lifecycle state.</summary>
-    public RuleDefinitionCatalog(IVersionedDefinitionStore store, IDefinitionLifecycleStore lifecycle)
+    /// <summary>
+    /// Composes shared history and lifecycle state behind the host's Access verdicts: authoring operations need
+    /// <c>rules:author</c>, publication and release materialisation need <c>rules:publish</c> (DES-0018 §6).
+    /// </summary>
+    public RuleDefinitionCatalog(IVersionedDefinitionStore store, IDefinitionLifecycleStore lifecycle, RulesCapabilityCheck capabilities)
     {
         ArgumentNullException.ThrowIfNull(store);
         ArgumentNullException.ThrowIfNull(lifecycle);
+        ArgumentNullException.ThrowIfNull(capabilities);
         _store = store;
         _lifecycle = lifecycle;
+        _capabilities = capabilities;
+    }
+
+    private async ValueTask RequireAsync(string permission, DefinitionAdmissionPhase stage, CancellationToken cancellationToken)
+    {
+        if (!await _capabilities(permission, cancellationToken).ConfigureAwait(false))
+            throw new DefinitionRefusalException(stage, [new(RulesPermissions.DeniedCode, "")]);
     }
 
     /// <summary>Creates a new stream at revision zero using caller-supplied version identity.</summary>
@@ -105,21 +118,23 @@ public sealed class RuleDefinitionCatalog
     /// <summary>Changes list visibility through the shared lifecycle without revoking published pins.</summary>
     public async ValueTask ArchiveAsync(DefinitionKey key, CancellationToken cancellationToken = default)
     {
+        await RequireAsync(RulesPermissions.Author, DefinitionAdmissionPhase.Author, cancellationToken).ConfigureAwait(false);
         if (await LoadAsync(key, cancellationToken).ConfigureAwait(false) is null)
             throw Refuse("definition.not_found", "/definitionId");
         await _lifecycle.ArchiveAsync(new(key.Tenant, key.Kind, key.DefinitionId), cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>Admits and saves authored Rules JSON as a shared draft.</summary>
-    public ValueTask<DefinitionRevision> SaveDraftJsonAsync(string json, string versionId, long expectedRevision,
+    public async ValueTask<DefinitionRevision> SaveDraftJsonAsync(string json, string versionId, long expectedRevision,
         string requestId, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        await RequireAsync(RulesPermissions.Author, DefinitionAdmissionPhase.Author, cancellationToken).ConfigureAwait(false);
         var source = RequireSource(RuleIntentValidator.ValidateJson(json, RuleIntentPhase.Author));
         var envelope = source.Envelope;
         var document = new DefinitionDocument(new(envelope.Tenant, DefinitionKind.Rules, envelope.Id),
             versionId, envelope.Version, RuleDefinitionCodec.SerializeBody(source));
-        return _store.SaveDraftAsync(document, expectedRevision, requestId, cancellationToken);
+        return await _store.SaveDraftAsync(document, expectedRevision, requestId, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>Publishes a fenced shared revision.</summary>
@@ -128,6 +143,7 @@ public sealed class RuleDefinitionCatalog
     {
         RequireRules(key, cancellationToken);
         if (string.IsNullOrWhiteSpace(versionId)) throw Refuse("definition.version_id_required", "/versionId", DefinitionAdmissionPhase.Publish);
+        await RequireAsync(RulesPermissions.Publish, DefinitionAdmissionPhase.Publish, cancellationToken).ConfigureAwait(false);
         // The registered Rules admission runs inside VersionedDefinitionStore.Apply:
         // replay/fence -> immutable candidate -> Publish admission -> second fence.  A
         // history pre-read here would validate a stale body and undermine that atomic seam.
@@ -146,13 +162,14 @@ public sealed class RuleDefinitionCatalog
     }
 
     /// <summary>Restores published body bytes under new shared metadata.</summary>
-    public ValueTask<DefinitionRevision> RestoreAsDraftAsync(DefinitionKey key, string sourceVersionId,
+    public async ValueTask<DefinitionRevision> RestoreAsDraftAsync(DefinitionKey key, string sourceVersionId,
         string draftVersionId, string draftVersion, long expectedRevision, string requestId,
         CancellationToken cancellationToken = default)
     {
         RequireRules(key, cancellationToken);
-        return _store.RestoreAsDraftAsync(key, sourceVersionId, draftVersionId, draftVersion,
-            expectedRevision, requestId, cancellationToken);
+        await RequireAsync(RulesPermissions.Author, DefinitionAdmissionPhase.Author, cancellationToken).ConfigureAwait(false);
+        return await _store.RestoreAsDraftAsync(key, sourceVersionId, draftVersionId, draftVersion,
+            expectedRevision, requestId, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>Resolves a caller policy against shared history, independently of list visibility.</summary>
@@ -204,6 +221,7 @@ public sealed class RuleDefinitionCatalog
         IReadOnlyList<RuleReleaseSelection> selections, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(selections);
+        await RequireAsync(RulesPermissions.Publish, DefinitionAdmissionPhase.Publish, cancellationToken).ConfigureAwait(false);
         var materialized = new List<RuleReleaseBinding>(selections.Count);
         var seen = new HashSet<DefinitionKey>();
         for (int index = 0; index < selections.Count; index++)
