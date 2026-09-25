@@ -30,7 +30,7 @@ public sealed class LayoutAuthorizationTests
             () => LayoutDefinitionAdmission.ValidateForPublish(definition, registers, access),
         })
         {
-            var error = Assert.Throws<LayoutDefinitionAdmissionException>(validate);
+            var error = Assert.Throws<DefinitionRefusalException>(validate);
             Assert.Equal(
                 ["/blocks/1/binding", "/blocks/2/binding", "/blocks/3/binding"],
                 error.Refusals.Where(refusal => refusal.Code == LayoutDefinitionCodes.BindingUnreadable).Select(refusal => refusal.Pointer));
@@ -66,7 +66,7 @@ public sealed class LayoutAuthorizationTests
             new LayoutTextRun(FieldPath: "employee.salary", Fallback: "-"),
         ])));
 
-        var error = Assert.Throws<LayoutDefinitionAdmissionException>(() => LayoutDefinitionAdmission.ValidateForPublish(definition, access));
+        var error = Assert.Throws<DefinitionRefusalException>(() => LayoutDefinitionAdmission.ValidateForPublish(definition, access));
         var refusal = Assert.Single(error.Refusals);
         Assert.Equal((LayoutDefinitionCodes.BindingUnreadable, "/blocks/0/binding/runs/3/field_path"), (refusal.Code, refusal.Pointer));
         // Each field run is asked about exactly as a record-field binding naming it; the text binding
@@ -81,7 +81,7 @@ public sealed class LayoutAuthorizationTests
         var definition = Surface(
             Block("lines", new LayoutQueryBinding("view.lines"), container: new LayoutContainer(LayoutContainerKind.Stack), repeating: true,
                 children: [Block("cost", new LayoutRecordFieldBinding("line.cost"))]));
-        var error = Assert.Throws<LayoutDefinitionAdmissionException>(() =>
+        var error = Assert.Throws<DefinitionRefusalException>(() =>
             LayoutDefinitionAdmission.ValidateForAuthoring(definition, new FixtureAccess(unreadable: ["line.cost"])));
         var refusal = Assert.Single(error.Refusals);
         Assert.Equal((LayoutDefinitionCodes.BindingUnreadable, "/blocks/0/children/0/binding"), (refusal.Code, refusal.Pointer));
@@ -97,7 +97,7 @@ public sealed class LayoutAuthorizationTests
             Block("customer-name", new LayoutRecordFieldBinding("customer.name")),
             Block("help", new LayoutStaticBinding(JsonSerializer.SerializeToElement("Help"))));
 
-        var error = Assert.Throws<LayoutDefinitionAdmissionException>(() => LayoutDefinitionAdmission.ValidateForAuthoring(definition, LayoutTestAccess.GrantsAll));
+        var error = Assert.Throws<DefinitionRefusalException>(() => LayoutDefinitionAdmission.ValidateForAuthoring(definition, LayoutTestAccess.GrantsAll));
 
         // A query and a measure are sets a selection narrows; a record field and static content are not.
         Assert.Equal(
@@ -113,7 +113,7 @@ public sealed class LayoutAuthorizationTests
             DrillThroughTargets = ["surface.order-detail", "surface.payroll"],
         };
         var access = new FixtureAccess(unopenable: ["surface.payroll"]);
-        var error = Assert.Throws<LayoutDefinitionAdmissionException>(() => LayoutDefinitionAdmission.ValidateForPublish(definition, access));
+        var error = Assert.Throws<DefinitionRefusalException>(() => LayoutDefinitionAdmission.ValidateForPublish(definition, access));
         var refusal = Assert.Single(error.Refusals);
         Assert.Equal((LayoutDefinitionCodes.DrillThroughForbidden, "/drill_through_targets/1"), (refusal.Code, refusal.Pointer));
         Assert.Equal(["surface.order-detail", "surface.payroll"], access.Opened);

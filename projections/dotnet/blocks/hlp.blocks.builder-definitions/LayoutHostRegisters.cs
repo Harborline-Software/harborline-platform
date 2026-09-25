@@ -15,7 +15,7 @@ namespace Harborline.Blocks.BuilderDefinitions;
 /// <param name="FieldControls">The field controls a capture block may pick (layout-bound-3). Absent, no named control admits.</param>
 /// <param name="Pages">The page layouts and masters installed packs supply (layout-bound-7). Absent, a surface cites only its own.</param>
 /// <param name="ValidationRules">The named validation rules a capture block may cite (layout-bound-8). Absent, publication refuses every named rule.</param>
-/// <param name="Fields">The record fields a capture block's control is checked against at publication (T-724 ruling 37). Absent, publication refuses every authored control.</param>
+/// <param name="Fields">The record fields a capture block's control and requirement are checked against (T-724 rulings 37 and 78). Absent, publication refuses every authored control and every explicit <c>required: false</c>.</param>
 /// <param name="Predicates">The pinned closure a <c>show_when</c> predicate resolves through (layout-ck-29). Absent, publication refuses every predicate guard.</param>
 public sealed record LayoutHostRegisters(
     LayoutBlockKindRegistry Kinds,
@@ -45,11 +45,12 @@ public interface ILayoutAccess
     bool CanOpen(string surfaceId);
 }
 
-/// <summary>One record field as Records declares it: its value kind and whether a value domain governs it.</summary>
+/// <summary>One record field as Records declares it: its value kind, whether a value domain governs it, and whether it is required.</summary>
 /// <param name="FieldPath">The stable field path a record-field binding names.</param>
 /// <param name="ValueShape">The field's value kind.</param>
 /// <param name="HasValueDomain">Whether a value domain governs the field, so its resolver picks the editor (layout-bound-10).</param>
-public sealed record LayoutRecordFieldDescriptor(string FieldPath, FieldScalarValueShape ValueShape, bool HasValueDomain);
+/// <param name="Required">Whether Records requires a value, which no surface may drop (layout-auth-29).</param>
+public sealed record LayoutRecordFieldDescriptor(string FieldPath, FieldScalarValueShape ValueShape, bool HasValueDomain, bool Required = false);
 
 /// <summary>The record fields publication looks a capture block's authored control up against (T-724 ruling 37).</summary>
 public sealed class LayoutRecordFieldRegistry
@@ -174,7 +175,8 @@ public sealed class LayoutPageRegistry
             || masterValues.Any(master => master is null || string.IsNullOrWhiteSpace(master.Id)))
             throw new ArgumentException("A page register requires identified definitions.");
         // T-724 ruling 40: two packs supplying one id make every citation of it ambiguous; refuse by name.
-        var refusals = new List<LayoutDefinitionRefusal>();
+        // The installed packs supply the register, so its refusal is an install refusal.
+        var refusals = new List<DefinitionRefusal>();
         var layoutIds = new HashSet<string>(StringComparer.Ordinal);
         for (var index = 0; index < layoutValues.Length; index++)
             if (!layoutIds.Add(layoutValues[index].Id))
@@ -187,7 +189,7 @@ public sealed class LayoutPageRegistry
             if (!layoutIds.Contains(masterValues[index].PageLayoutId))
                 refusals.Add(new(LayoutDefinitionCodes.PageReferenceUnknown, $"/page_masters/{index}/page_layout_id"));
         }
-        if (refusals.Count > 0) throw new LayoutDefinitionAdmissionException("register.pages", refusals);
+        if (refusals.Count > 0) throw new DefinitionRefusalException(DefinitionAdmissionPhase.Install, refusals);
         Layouts = layoutValues.ToFrozenDictionary(layout => layout.Id, StringComparer.Ordinal);
         Masters = masterValues.ToFrozenDictionary(master => master.Id, StringComparer.Ordinal);
     }

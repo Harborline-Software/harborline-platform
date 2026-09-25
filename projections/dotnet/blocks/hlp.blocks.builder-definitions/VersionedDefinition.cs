@@ -39,6 +39,8 @@ public enum DefinitionAdmissionPhase
     Publish,
     /// <summary>Installation of released content against its pinned dependency closure.</summary>
     Install,
+    /// <summary>Re-admission of persisted published content against this host before it renders (T-583 item 2).</summary>
+    Render,
 }
 
 /// <summary>

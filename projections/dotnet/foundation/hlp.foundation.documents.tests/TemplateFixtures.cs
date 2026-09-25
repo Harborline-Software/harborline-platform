@@ -75,7 +75,7 @@ internal static class TemplateFixtures
             else LayoutDefinitionAdmission.ValidateForPublish(definition, GrantsAllAuthor.Instance);
             return [];
         }
-        catch (LayoutDefinitionAdmissionException refused)
+        catch (DefinitionRefusalException refused)
         {
             return refused.Refusals.Select(refusal => new TemplateRefusal(refusal.Code, refusal.Pointer)).ToArray();
         }

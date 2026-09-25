@@ -94,32 +94,23 @@ public static class LayoutDefinitionCodes
     public const string FilterTargetUnnarrowable = "layout.interaction.filter_target_unnarrowable";
     /// <summary>The acting author could not open a drill-through target (layout-auth-36).</summary>
     public const string DrillThroughForbidden = "layout.interaction.drill_through_forbidden";
+    /// <summary>A capture block states <c>required: false</c> on a field Records requires (layout-auth-29, T-724 ruling 78).</summary>
+    public const string RequirementDropped = "layout.capture.requirement_dropped";
+    /// <summary>The surface's envelope does not require the package a cross-package edge targets (layout-auth-30).</summary>
+    public const string ReferenceDependencyUndeclared = "layout.reference.dependency_undeclared";
+    /// <summary>The producer package does not expose the definition a cross-package edge targets (layout-auth-30).</summary>
+    public const string ReferenceNotExposed = "layout.reference.not_exposed";
+    /// <summary>The producer exposes the targeted definition at another version or digest (layout-auth-30).</summary>
+    public const string ReferenceExposureIncompatible = "layout.reference.exposure_incompatible";
 }
 
-/// <summary>Identifies one deterministic Layout admission refusal.</summary>
-/// <param name="Code">The stable refusal code.</param>
-/// <param name="Pointer">The JSON pointer to the refused member.</param>
-public sealed record LayoutDefinitionRefusal(string Code, string Pointer);
-
-/// <summary>Reports all refusals found during one admission stage.</summary>
-/// <param name="stage">The stable admission stage.</param>
-/// <param name="refusals">The ordered refusal set.</param>
-public sealed class LayoutDefinitionAdmissionException(
-    string stage,
-    IReadOnlyList<LayoutDefinitionRefusal> refusals)
-    : Exception("The Layout definition was refused.")
-{
-    /// <summary>Gets the stable admission stage.</summary>
-    public string Stage { get; } = stage;
-
-    /// <summary>Gets the ordered refusal set.</summary>
-    public IReadOnlyList<LayoutDefinitionRefusal> Refusals { get; } = refusals;
-}
-
-/// <summary>One structural validator used by editor validation and publication.</summary>
+/// <summary>
+/// One structural validator used by editor validation, publication and render. Every refusal is raised in the
+/// shared envelope (<see cref="DefinitionRefusalException"/>, T-724 ruling 61) with the stage that refused stated
+/// by the caller, never defaulted, and with every refusal found rather than the first.
+/// </summary>
 public static class LayoutDefinitionAdmission
 {
-    private const string PublishStage = "definition.publish";
 
     /// <summary>Validates a Layout definition during authoring, as <paramref name="author"/>.</summary>
     /// <param name="definition">The candidate definition.</param>
@@ -141,7 +132,7 @@ public static class LayoutDefinitionAdmission
     public static void ValidateForAuthoring(LayoutDefinition definition, LayoutHostRegisters registers, ILayoutAccess author)
     {
         ArgumentNullException.ThrowIfNull(author);
-        Validate(definition, "definition.validate", registers, author);
+        Validate(definition, DefinitionAdmissionPhase.Author, registers, author);
     }
 
     /// <summary>Validates a Layout definition before an author publishes it.</summary>
@@ -164,24 +155,24 @@ public static class LayoutDefinitionAdmission
     public static void ValidateForPublish(LayoutDefinition definition, LayoutHostRegisters registers, ILayoutAccess author)
     {
         ArgumentNullException.ThrowIfNull(author);
-        Validate(definition, PublishStage, registers, author);
+        Validate(definition, DefinitionAdmissionPhase.Publish, registers, author);
     }
 
     // Authorless publication admission: pack export has no acting author, so there is no one whose
     // read to check; the reader's Access is folded in at render instead (layout-eng-15, T-724 ruling 75).
     internal static void ValidateAuthorlessPublish(LayoutDefinition definition, LayoutHostRegisters registers)
-        => Validate(definition, PublishStage, registers, author: null);
+        => Validate(definition, DefinitionAdmissionPhase.Publish, registers, author: null);
 
-    internal static void Validate(LayoutDefinition definition, string stage, LayoutBlockKindRegistry? kinds = null)
+    internal static void Validate(LayoutDefinition definition, DefinitionAdmissionPhase stage, LayoutBlockKindRegistry? kinds = null)
         => Validate(definition, stage, kinds is null ? LayoutHostRegisters.Platform : new LayoutHostRegisters(kinds), author: null);
 
-    internal static void Validate(LayoutDefinition definition, string stage, LayoutHostRegisters registers, ILayoutAccess? author)
+    internal static void Validate(LayoutDefinition definition, DefinitionAdmissionPhase stage, LayoutHostRegisters registers, ILayoutAccess? author)
     {
         ArgumentNullException.ThrowIfNull(definition);
         ArgumentNullException.ThrowIfNull(registers);
-        var refusals = new List<LayoutDefinitionRefusal>();
+        var refusals = new List<DefinitionRefusal>();
         ValidateEnvelope(definition, refusals);
-        if (stage == PublishStage) ValidateSealedCapability(definition, refusals);
+        if (stage == DefinitionAdmissionPhase.Publish) ValidateSealedCapability(definition, refusals);
 
         var blocks = definition.Blocks ?? [];
         if (blocks.Count == 0) Add(refusals, LayoutDefinitionCodes.TreeEmpty, "/blocks");
@@ -201,7 +192,7 @@ public static class LayoutDefinitionAdmission
                 registers,
                 author,
                 captures,
-                publishing: stage == PublishStage,
+                publishing: stage == DefinitionAdmissionPhase.Publish,
                 rowSection: null,
                 refusals);
         }
@@ -220,7 +211,7 @@ public static class LayoutDefinitionAdmission
             && (definition.DefaultIntent != LayoutIntent.Capture || string.IsNullOrWhiteSpace(submitGate)))
             Add(refusals, LayoutDefinitionCodes.SubmitGateInvalid, "/submit_gate");
 
-        if (refusals.Count > 0) throw new LayoutDefinitionAdmissionException(stage, refusals);
+        if (refusals.Count > 0) throw new DefinitionRefusalException(stage, refusals);
     }
 
     private static bool HasCapture(IReadOnlyList<LayoutBlock> blocks, LayoutIntent defaultIntent)
@@ -230,7 +221,7 @@ public static class LayoutDefinitionAdmission
 
     // layout-ck-42: the signed payload carries Layout's capability and an exact minimum platform
     // version, so a host can refuse the whole pack by name. A draft may omit it; publication seals it.
-    private static void ValidateSealedCapability(LayoutDefinition definition, ICollection<LayoutDefinitionRefusal> refusals)
+    private static void ValidateSealedCapability(LayoutDefinition definition, ICollection<DefinitionRefusal> refusals)
     {
         var requirements = definition.Envelope?.Requires;
         var index = LayoutPackIdentity.SealedRequirementIndex(requirements);
@@ -240,7 +231,7 @@ public static class LayoutDefinitionAdmission
             Add(refusals, LayoutDefinitionCodes.CapabilityUndeclared, $"/envelope/requires/{index}/minimum_platform_version");
     }
 
-    private static void ValidateEnvelope(LayoutDefinition definition, ICollection<LayoutDefinitionRefusal> refusals)
+    private static void ValidateEnvelope(LayoutDefinition definition, ICollection<DefinitionRefusal> refusals)
     {
         var envelope = definition.Envelope;
         if (envelope is null
@@ -275,7 +266,7 @@ public static class LayoutDefinitionAdmission
         IReadOnlyList<LayoutBlock> blocks,
         string pointer,
         IDictionary<string, LayoutBlock> blockIds,
-        ICollection<LayoutDefinitionRefusal> refusals)
+        ICollection<DefinitionRefusal> refusals)
     {
         for (var index = 0; index < blocks.Count; index++)
         {
@@ -302,7 +293,7 @@ public static class LayoutDefinitionAdmission
         bool captures,
         bool publishing,
         string? rowSection,
-        ICollection<LayoutDefinitionRefusal> refusals)
+        ICollection<DefinitionRefusal> refusals)
     {
         if (block is null) return;
         if (string.IsNullOrWhiteSpace(block.Kind))
@@ -353,6 +344,17 @@ public static class LayoutDefinitionAdmission
                 // ruling 36); a supplied register is honoured at every stage.
                 else if (registers.ValidationRules is not null || publishing)
                     ValidateNamedRule(registers.ValidationRules, validationRules[index], $"{pointer}/capture/validation_rules/{index}", refusals);
+            // layout-auth-29 (T-724 ruling 78): a surface adds a requirement and never drops one Records
+            // declared. Omission is no override, so only an explicit false is checked, and publication
+            // fails closed when it cannot look the field up.
+            if (capture.Required == false && (registers.Fields is not null || publishing))
+            {
+                var field = block.Binding is LayoutRecordFieldBinding bound ? registers.Fields?.Find(bound.FieldPath) : null;
+                if (field is null && publishing)
+                    Add(refusals, LayoutDefinitionCodes.CaptureFieldUnknown, $"{pointer}/capture/required");
+                else if (field?.Required == true)
+                    Add(refusals, LayoutDefinitionCodes.RequirementDropped, $"{pointer}/capture/required");
+            }
             // layout-bound-3: the control is one the host registered; with no register, none is.
             if (capture.Control is { } control)
             {
@@ -431,7 +433,7 @@ public static class LayoutDefinitionAdmission
     // it by the rule's own tier (JsonLogic compiled here, JsonSchema left to the kernel validator,
     // any other tier refused). Layout never chooses the compiler.
     // With no register a name resolves to nothing, so it refuses (T-724 ruling 36).
-    private static void ValidateNamedRule(LayoutValidationRuleRegistry? rules, string name, string pointer, ICollection<LayoutDefinitionRefusal> refusals)
+    private static void ValidateNamedRule(LayoutValidationRuleRegistry? rules, string name, string pointer, ICollection<DefinitionRefusal> refusals)
     {
         RuleDefinition? rule = null;
         if (rules?.TryGet(name, out rule) != true || rule is null)
@@ -457,7 +459,7 @@ public static class LayoutDefinitionAdmission
     // T-724 ruling 37: publication looks the field up. A value domain's resolver picks that field's
     // editor and Layout passes its choice through (layout-bound-10), so an authored control there
     // refuses; on any other field the control must accept the field's value kind.
-    private static void ValidateControlField(LayoutHostRegisters registers, LayoutFieldControl control, LayoutBinding? binding, string pointer, ICollection<LayoutDefinitionRefusal> refusals)
+    private static void ValidateControlField(LayoutHostRegisters registers, LayoutFieldControl control, LayoutBinding? binding, string pointer, ICollection<DefinitionRefusal> refusals)
     {
         var field = binding is LayoutRecordFieldBinding bound ? registers.Fields?.Find(bound.FieldPath) : null;
         if (field is null)
@@ -482,7 +484,7 @@ public static class LayoutDefinitionAdmission
         LayoutMedium medium,
         bool captures,
         string pointer,
-        ICollection<LayoutDefinitionRefusal> refusals)
+        ICollection<DefinitionRefusal> refusals)
     {
         if (binding is null)
         {
@@ -532,7 +534,7 @@ public static class LayoutDefinitionAdmission
         LayoutContainer? container,
         LayoutMedium medium,
         string pointer,
-        ICollection<LayoutDefinitionRefusal> refusals)
+        ICollection<DefinitionRefusal> refusals)
     {
         if (container is null) return;
         if (!Enum.IsDefined(container.Kind)) Add(refusals, LayoutDefinitionCodes.PlacementTokenUnknown, $"{pointer}/kind");
@@ -565,7 +567,7 @@ public static class LayoutDefinitionAdmission
         LayoutPlacement? placement,
         IReadOnlySet<string>? parentRegions,
         string pointer,
-        ICollection<LayoutDefinitionRefusal> refusals)
+        ICollection<DefinitionRefusal> refusals)
     {
         if (placement is null) return;
         if (!Enum.IsDefined(placement.Width)) Add(refusals, LayoutDefinitionCodes.PlacementTokenUnknown, $"{pointer}/width");
@@ -594,7 +596,7 @@ public static class LayoutDefinitionAdmission
         LayoutDefinition definition,
         IReadOnlyDictionary<string, LayoutBlock> blockIds,
         LayoutPageRegistry? supplied,
-        ICollection<LayoutDefinitionRefusal> refusals)
+        ICollection<DefinitionRefusal> refusals)
     {
         var layouts = new HashSet<string>(StringComparer.Ordinal);
         var pageLayouts = definition.PageLayouts ?? [];
@@ -673,13 +675,13 @@ public static class LayoutDefinitionAdmission
         int value,
         LayoutNumericMember member,
         string pointer,
-        ICollection<LayoutDefinitionRefusal> refusals)
+        ICollection<DefinitionRefusal> refusals)
     {
         if (!LayoutDefinitionSchema.Numeric(member).Contains(value))
             Add(refusals, LayoutDefinitionCodes.NumericOutOfRange, pointer);
     }
 
-    private static void Add(ICollection<LayoutDefinitionRefusal> refusals, string code, string pointer)
+    private static void Add(ICollection<DefinitionRefusal> refusals, string code, string pointer)
         => refusals.Add(new(code, pointer));
 }
 
@@ -690,23 +692,23 @@ public static class LayoutPersistedValueAdmission
     /// <param name="definition">The immutable persisted Layout definition.</param>
     /// <param name="kinds">The host register, or the platform grammar when omitted.</param>
     public static void ValidateForRuntime(LayoutDefinition definition, LayoutBlockKindRegistry? kinds = null)
-        => LayoutDefinitionAdmission.Validate(definition, "render.runtime", kinds);
+        => LayoutDefinitionAdmission.Validate(definition, DefinitionAdmissionPhase.Render, kinds);
 
     /// <summary>Validates persisted values against the host's registers before the runtime flows them.</summary>
     /// <param name="definition">The immutable persisted Layout definition.</param>
     /// <param name="registers">The host's bound registers.</param>
     public static void ValidateForRuntime(LayoutDefinition definition, LayoutHostRegisters registers)
-        => LayoutDefinitionAdmission.Validate(definition, "render.runtime", registers, author: null);
+        => LayoutDefinitionAdmission.Validate(definition, DefinitionAdmissionPhase.Render, registers, author: null);
 
     /// <summary>Validates persisted values before React rendering.</summary>
     /// <param name="definition">The persisted definition.</param>
     /// <param name="kinds">The host register, or the platform grammar when omitted.</param>
     public static void ValidateForReact(LayoutDefinition definition, LayoutBlockKindRegistry? kinds = null)
-        => LayoutDefinitionAdmission.Validate(definition, "render.react", kinds);
+        => LayoutDefinitionAdmission.Validate(definition, DefinitionAdmissionPhase.Render, kinds);
 
     /// <summary>Validates persisted values before Blazor rendering.</summary>
     /// <param name="definition">The persisted definition.</param>
     /// <param name="kinds">The host register, or the platform grammar when omitted.</param>
     public static void ValidateForBlazor(LayoutDefinition definition, LayoutBlockKindRegistry? kinds = null)
-        => LayoutDefinitionAdmission.Validate(definition, "render.blazor", kinds);
+        => LayoutDefinitionAdmission.Validate(definition, DefinitionAdmissionPhase.Render, kinds);
 }

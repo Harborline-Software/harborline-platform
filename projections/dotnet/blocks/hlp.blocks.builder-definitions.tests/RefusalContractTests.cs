@@ -25,7 +25,7 @@ public sealed class RefusalContractTests
             await store.PublishAsync(Draft.Key, "v1", 1, "r2"));
         Assert.Equal(DefinitionAdmissionPhase.Publish, publishing.Stage);
 
-        Assert.Equal(["Author", "Publish", "Install"], Enum.GetNames<DefinitionAdmissionPhase>());
+        Assert.Equal(["Author", "Publish", "Install", "Render"], Enum.GetNames<DefinitionAdmissionPhase>());
         Assert.Null(new DefinitionRefusal("c", "/p").Target);
     }
 }

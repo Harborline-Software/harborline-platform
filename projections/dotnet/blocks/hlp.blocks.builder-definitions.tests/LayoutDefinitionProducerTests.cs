@@ -125,7 +125,7 @@ public sealed class LayoutDefinitionProducerTests
         var roundTrip = LayoutDefinitionJson.Deserialize(entry.Content.Payload.Span);
         LayoutPersistedValueAdmission.ValidateForReact(roundTrip, kinds);
         LayoutPersistedValueAdmission.ValidateForBlazor(roundTrip, kinds);
-        Assert.Throws<LayoutDefinitionAdmissionException>(() => LayoutPersistedValueAdmission.ValidateForReact(definition));
+        Assert.Throws<DefinitionRefusalException>(() => LayoutPersistedValueAdmission.ValidateForReact(definition));
     }
 
     [Fact]
@@ -295,14 +295,14 @@ public sealed class LayoutDefinitionProducerTests
             LayoutPersistedValueAdmission.ValidateForBlazor(minimum);
             LayoutPersistedValueAdmission.ValidateForBlazor(maximum);
 
-            AssertRangeRefusal(() => LayoutDefinitionAdmission.ValidateForAuthoring(below, LayoutTestAccess.GrantsAll), member, "definition.validate");
-            AssertRangeRefusal(() => LayoutDefinitionAdmission.ValidateForAuthoring(above, LayoutTestAccess.GrantsAll), member, "definition.validate");
-            AssertRangeRefusal(() => LayoutDefinitionAdmission.ValidateForPublish(below, Hosted, LayoutTestAccess.GrantsAll), member, "definition.publish");
-            AssertRangeRefusal(() => LayoutDefinitionAdmission.ValidateForPublish(above, Hosted, LayoutTestAccess.GrantsAll), member, "definition.publish");
-            AssertRangeRefusal(() => LayoutPersistedValueAdmission.ValidateForReact(below), member, "render.react");
-            AssertRangeRefusal(() => LayoutPersistedValueAdmission.ValidateForReact(above), member, "render.react");
-            AssertRangeRefusal(() => LayoutPersistedValueAdmission.ValidateForBlazor(below), member, "render.blazor");
-            AssertRangeRefusal(() => LayoutPersistedValueAdmission.ValidateForBlazor(above), member, "render.blazor");
+            AssertRangeRefusal(() => LayoutDefinitionAdmission.ValidateForAuthoring(below, LayoutTestAccess.GrantsAll), member, DefinitionAdmissionPhase.Author);
+            AssertRangeRefusal(() => LayoutDefinitionAdmission.ValidateForAuthoring(above, LayoutTestAccess.GrantsAll), member, DefinitionAdmissionPhase.Author);
+            AssertRangeRefusal(() => LayoutDefinitionAdmission.ValidateForPublish(below, Hosted, LayoutTestAccess.GrantsAll), member, DefinitionAdmissionPhase.Publish);
+            AssertRangeRefusal(() => LayoutDefinitionAdmission.ValidateForPublish(above, Hosted, LayoutTestAccess.GrantsAll), member, DefinitionAdmissionPhase.Publish);
+            AssertRangeRefusal(() => LayoutPersistedValueAdmission.ValidateForReact(below), member, DefinitionAdmissionPhase.Render);
+            AssertRangeRefusal(() => LayoutPersistedValueAdmission.ValidateForReact(above), member, DefinitionAdmissionPhase.Render);
+            AssertRangeRefusal(() => LayoutPersistedValueAdmission.ValidateForBlazor(below), member, DefinitionAdmissionPhase.Render);
+            AssertRangeRefusal(() => LayoutPersistedValueAdmission.ValidateForBlazor(above), member, DefinitionAdmissionPhase.Render);
         }
     }
 
@@ -417,10 +417,10 @@ public sealed class LayoutDefinitionProducerTests
             Envelope = definition.Envelope with { Requires = [new LayoutDefinitionRequirement("records", "1.0.0")] },
         };
 
-        var refused = Assert.Throws<LayoutDefinitionAdmissionException>(() => LayoutDefinitionAdmission.ValidateForPublish(undeclared, Hosted, LayoutTestAccess.GrantsAll));
+        var refused = Assert.Throws<DefinitionRefusalException>(() => LayoutDefinitionAdmission.ValidateForPublish(undeclared, Hosted, LayoutTestAccess.GrantsAll));
 
-        Assert.Equal("definition.publish", refused.Stage);
-        Assert.Equal([new LayoutDefinitionRefusal(LayoutDefinitionCodes.CapabilityUndeclared, "/envelope/requires")], refused.Refusals);
+        Assert.Equal(DefinitionAdmissionPhase.Publish, refused.Stage);
+        Assert.Equal([new DefinitionRefusal(LayoutDefinitionCodes.CapabilityUndeclared, "/envelope/requires")], refused.Refusals);
     }
 
     [Theory(DisplayName = "layout-ck-42: publication refuses platform.layout without an exact minimum platform version")]
@@ -439,10 +439,10 @@ public sealed class LayoutDefinitionProducerTests
             },
         };
 
-        var refused = Assert.Throws<LayoutDefinitionAdmissionException>(() => LayoutDefinitionAdmission.ValidateForPublish(unversioned, Hosted, LayoutTestAccess.GrantsAll));
+        var refused = Assert.Throws<DefinitionRefusalException>(() => LayoutDefinitionAdmission.ValidateForPublish(unversioned, Hosted, LayoutTestAccess.GrantsAll));
 
         Assert.Equal(
-            [new LayoutDefinitionRefusal(LayoutDefinitionCodes.CapabilityUndeclared, "/envelope/requires/1/minimum_platform_version")],
+            [new DefinitionRefusal(LayoutDefinitionCodes.CapabilityUndeclared, "/envelope/requires/1/minimum_platform_version")],
             refused.Refusals);
     }
 
@@ -462,8 +462,8 @@ public sealed class LayoutDefinitionProducerTests
             },
         };
 
-        var published = Assert.Throws<LayoutDefinitionAdmissionException>(() => LayoutDefinitionAdmission.ValidateForPublish(doubled, Hosted, LayoutTestAccess.GrantsAll));
-        Assert.Equal([new LayoutDefinitionRefusal(LayoutDefinitionCodes.CapabilityUndeclared, "/envelope/requires")], published.Refusals);
+        var published = Assert.Throws<DefinitionRefusalException>(() => LayoutDefinitionAdmission.ValidateForPublish(doubled, Hosted, LayoutTestAccess.GrantsAll));
+        Assert.Equal([new DefinitionRefusal(LayoutDefinitionCodes.CapabilityUndeclared, "/envelope/requires")], published.Refusals);
 
         var entry = new LayoutDefinitionPackageEntry("surface.customer", "1.0.0",
             PlatformPackageContent.PresentJson(LayoutDefinitionJson.SerializeCanonical(doubled)));
@@ -558,9 +558,9 @@ public sealed class LayoutDefinitionProducerTests
     {
         var invalid = WithNumeric(ScreenDefinition(), LayoutNumericMember.Span, 0);
 
-        var error = Assert.Throws<LayoutDefinitionAdmissionException>(() => LayoutDefinitionPackageExporter.Export(invalid, Hosted));
+        var error = Assert.Throws<DefinitionRefusalException>(() => LayoutDefinitionPackageExporter.Export(invalid, Hosted));
 
-        Assert.Equal("definition.publish", error.Stage);
+        Assert.Equal(DefinitionAdmissionPhase.Publish, error.Stage);
         Assert.Contains(error.Refusals, refusal => refusal is
         {
             Code: LayoutDefinitionCodes.NumericOutOfRange,
@@ -789,9 +789,9 @@ public sealed class LayoutDefinitionProducerTests
             }),
         };
 
-    private static void AssertRangeRefusal(Action action, LayoutNumericMember member, string stage)
+    private static void AssertRangeRefusal(Action action, LayoutNumericMember member, DefinitionAdmissionPhase stage)
     {
-        var error = Assert.Throws<LayoutDefinitionAdmissionException>(action);
+        var error = Assert.Throws<DefinitionRefusalException>(action);
         Assert.Equal(stage, error.Stage);
         var refusal = Assert.Single(error.Refusals, refusal => refusal.Code == LayoutDefinitionCodes.NumericOutOfRange);
         Assert.Equal(member switch
@@ -806,7 +806,7 @@ public sealed class LayoutDefinitionProducerTests
 
     private static void AssertRefusal(LayoutDefinition definition, string code, string pointer)
     {
-        var error = Assert.Throws<LayoutDefinitionAdmissionException>(() =>
+        var error = Assert.Throws<DefinitionRefusalException>(() =>
             LayoutDefinitionAdmission.ValidateForAuthoring(definition, LayoutTestAccess.GrantsAll));
         Assert.Contains(error.Refusals, refusal => refusal.Code == code && refusal.Pointer == pointer);
     }

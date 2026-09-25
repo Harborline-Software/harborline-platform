@@ -33,8 +33,23 @@ public static class RuleCrossPackageAuthoring
         IReadOnlyList<PackageExposure> exposures)
     {
         ArgumentNullException.ThrowIfNull(consumer);
+        return CrossPackageEdges.Check(consumer.Requires, references, exposures, DependencyUndeclared, NotExposed, ExposureIncompatible);
+    }
+}
+
+/// <summary>
+/// The member-neutral half of DES-0014 K9, shared by Rules (<c>rules-auth-30</c>) and Layout (<c>layout-auth-30</c>) under
+/// T-724 ruling 57: an edge needs the consumer's <c>requires</c> and the producer's exposure. Each member names its own codes.
+/// </summary>
+internal static class CrossPackageEdges
+{
+    internal static DefinitionRefusalReport Check(IEnumerable<string> requires, IReadOnlyList<CrossPackageReference> references,
+        IReadOnlyList<PackageExposure> exposures, string dependencyUndeclared, string notExposed, string exposureIncompatible)
+    {
+        ArgumentNullException.ThrowIfNull(requires);
         ArgumentNullException.ThrowIfNull(references);
         ArgumentNullException.ThrowIfNull(exposures);
+        var required = requires.ToHashSet(StringComparer.Ordinal);
         var refusals = new List<DefinitionRefusal>();
         foreach (var reference in references)
         {
@@ -45,13 +60,14 @@ public static class RuleCrossPackageAuthoring
                 .FirstOrDefault(item => string.Equals(item.DefinitionId, target.DefinitionId, StringComparison.Ordinal));
             string? visible = exposed is null ? null : $"{exposed.PackageId}/{exposed.DefinitionId}@{exposed.Version}";
 
-            if (!consumer.Requires.Contains(target.PackageId, StringComparer.Ordinal))
-                refusals.Add(new(DependencyUndeclared, reference.Pointer, visible));
+            if (!required.Contains(target.PackageId))
+                refusals.Add(new(dependencyUndeclared, reference.Pointer, visible));
             if (exposed is null)
-                refusals.Add(new(NotExposed, reference.Pointer));
+                refusals.Add(new(notExposed, reference.Pointer));
             else if (exposed.Version != target.Version || exposed.Digest != target.Digest)
-                refusals.Add(new(ExposureIncompatible, reference.Pointer, visible));
+                refusals.Add(new(exposureIncompatible, reference.Pointer, visible));
         }
+        // Authoring-only (T-724 ruling 57): publication and installation gates are T-615's.
         return new(DefinitionAdmissionPhase.Author, refusals.AsReadOnly());
     }
 }

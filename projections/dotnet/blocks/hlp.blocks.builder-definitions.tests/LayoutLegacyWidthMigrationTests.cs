@@ -46,9 +46,9 @@ public sealed class LayoutLegacyWidthMigrationTests
     [InlineData(2.5)]
     public void A_grid_column_count_outside_one_to_twelve_refuses(double columns)
     {
-        var refused = Assert.Throws<LayoutDefinitionAdmissionException>(() => LayoutLegacyWidthMigration.ColumnCount(Grid((decimal)columns)));
+        var refused = Assert.Throws<DefinitionRefusalException>(() => LayoutLegacyWidthMigration.ColumnCount(Grid((decimal)columns)));
 
-        Assert.Equal([new LayoutDefinitionRefusal(LayoutDefinitionCodes.NumericOutOfRange, "/columns")], refused.Refusals);
+        Assert.Equal([new DefinitionRefusal(LayoutDefinitionCodes.NumericOutOfRange, "/columns")], refused.Refusals);
     }
 
     [Theory(DisplayName = "layout-ck-41: a grid col span outside one to its column count refuses")]
@@ -57,10 +57,10 @@ public sealed class LayoutLegacyWidthMigrationTests
     [InlineData(1.5)]
     public void A_grid_col_span_outside_one_to_its_column_count_refuses(double colSpan)
     {
-        var refused = Assert.Throws<LayoutDefinitionAdmissionException>(
+        var refused = Assert.Throws<DefinitionRefusalException>(
             () => LayoutLegacyWidthMigration.Migrate(Grid(3m), new FieldPlacement { ColSpan = (decimal)colSpan }));
 
-        Assert.Equal([new LayoutDefinitionRefusal(LayoutDefinitionCodes.NumericOutOfRange, "/col_span")], refused.Refusals);
+        Assert.Equal([new DefinitionRefusal(LayoutDefinitionCodes.NumericOutOfRange, "/col_span")], refused.Refusals);
     }
 
     [Theory(DisplayName = "layout-ck-41: a flex fractional width becomes its twelve track span")]
@@ -95,10 +95,10 @@ public sealed class LayoutLegacyWidthMigrationTests
     [InlineData(0.5)]
     public void A_flex_grow_outside_its_range_refuses(double grow)
     {
-        var refused = Assert.Throws<LayoutDefinitionAdmissionException>(
+        var refused = Assert.Throws<DefinitionRefusalException>(
             () => LayoutLegacyWidthMigration.Migrate(Flex, new FieldPlacement { Grow = (decimal)grow }));
 
-        Assert.Equal([new LayoutDefinitionRefusal(LayoutDefinitionCodes.NumericOutOfRange, "/grow")], refused.Refusals);
+        Assert.Equal([new DefinitionRefusal(LayoutDefinitionCodes.NumericOutOfRange, "/grow")], refused.Refusals);
     }
 
     [Fact(DisplayName = "layout-ck-41: a stack ignores span width and grow")]
@@ -126,8 +126,8 @@ public sealed class LayoutLegacyWidthMigrationTests
     [InlineData(null, "baseline", "/align")]
     public void An_unknown_column_token_refuses(string? width, string? align, string pointer)
     {
-        var refused = Assert.Throws<LayoutDefinitionAdmissionException>(() => LayoutLegacyWidthMigration.MigrateColumn(width, align));
+        var refused = Assert.Throws<DefinitionRefusalException>(() => LayoutLegacyWidthMigration.MigrateColumn(width, align));
 
-        Assert.Equal([new LayoutDefinitionRefusal(LayoutDefinitionCodes.PlacementTokenUnknown, pointer)], refused.Refusals);
+        Assert.Equal([new DefinitionRefusal(LayoutDefinitionCodes.PlacementTokenUnknown, pointer)], refused.Refusals);
     }
 }

@@ -100,7 +100,7 @@ public sealed class LayoutBoundRegisterTests
 
     private static void AssertPublishRefused(LayoutDefinition definition, LayoutHostRegisters registers, string code, string pointer)
     {
-        var refused = Assert.Throws<LayoutDefinitionAdmissionException>(() => LayoutDefinitionAdmission.ValidateForPublish(Sealed(definition), registers, LayoutTestAccess.GrantsAll));
+        var refused = Assert.Throws<DefinitionRefusalException>(() => LayoutDefinitionAdmission.ValidateForPublish(Sealed(definition), registers, LayoutTestAccess.GrantsAll));
         Assert.Contains(refused.Refusals, refusal => refusal.Code == code && refusal.Pointer == pointer);
     }
 
@@ -169,7 +169,7 @@ public sealed class LayoutBoundRegisterTests
         var naming = CaptureSurface(new(false, ["rules.amount-positive"]));
         // A draft keeps its names while it is authored; publication must resolve them.
         LayoutDefinitionAdmission.ValidateForAuthoring(naming, LayoutHostRegisters.Platform, LayoutTestAccess.GrantsAll);
-        var publish = Assert.Throws<LayoutDefinitionAdmissionException>(() => LayoutDefinitionAdmission.ValidateForPublish(Sealed(naming), LayoutHostRegisters.Platform, LayoutTestAccess.GrantsAll));
+        var publish = Assert.Throws<DefinitionRefusalException>(() => LayoutDefinitionAdmission.ValidateForPublish(Sealed(naming), LayoutHostRegisters.Platform, LayoutTestAccess.GrantsAll));
         Assert.Contains(publish.Refusals, refusal => refusal.Code == LayoutDefinitionCodes.ValidationRuleUnknown);
         // A capture block that names no rule needs no register.
         LayoutDefinitionAdmission.ValidateForPublish(Sealed(CaptureSurface(new(true, []))), LayoutHostRegisters.Platform, LayoutTestAccess.GrantsAll);
@@ -192,14 +192,14 @@ public sealed class LayoutBoundRegisterTests
         var layouts = one.Layouts.Values.OrderBy(layout => layout.Id, StringComparer.Ordinal).ToArray();
         var master = one.Masters["pack.master"];
 
-        var twiceLayout = Assert.Throws<LayoutDefinitionAdmissionException>(() => new LayoutPageRegistry([.. layouts, layouts[0]], [master]));
-        Assert.Equal("register.pages", twiceLayout.Stage);
-        Assert.Equal(new LayoutDefinitionRefusal(LayoutDefinitionCodes.PageSuppliedTwice, "/page_layouts/2"), Assert.Single(twiceLayout.Refusals));
-        var twiceMaster = Assert.Throws<LayoutDefinitionAdmissionException>(() => new LayoutPageRegistry(layouts, [master, master]));
-        Assert.Equal(new LayoutDefinitionRefusal(LayoutDefinitionCodes.PageSuppliedTwice, "/page_masters/1"), Assert.Single(twiceMaster.Refusals));
+        var twiceLayout = Assert.Throws<DefinitionRefusalException>(() => new LayoutPageRegistry([.. layouts, layouts[0]], [master]));
+        Assert.Equal(DefinitionAdmissionPhase.Install, twiceLayout.Stage);
+        Assert.Equal(new DefinitionRefusal(LayoutDefinitionCodes.PageSuppliedTwice, "/page_layouts/2"), Assert.Single(twiceLayout.Refusals));
+        var twiceMaster = Assert.Throws<DefinitionRefusalException>(() => new LayoutPageRegistry(layouts, [master, master]));
+        Assert.Equal(new DefinitionRefusal(LayoutDefinitionCodes.PageSuppliedTwice, "/page_masters/1"), Assert.Single(twiceMaster.Refusals));
         // A master over geometry no pack supplies is named too.
-        var orphan = Assert.Throws<LayoutDefinitionAdmissionException>(() => new LayoutPageRegistry([], [master]));
-        Assert.Equal(new LayoutDefinitionRefusal(LayoutDefinitionCodes.PageReferenceUnknown, "/page_masters/0/page_layout_id"), Assert.Single(orphan.Refusals));
+        var orphan = Assert.Throws<DefinitionRefusalException>(() => new LayoutPageRegistry([], [master]));
+        Assert.Equal(new DefinitionRefusal(LayoutDefinitionCodes.PageReferenceUnknown, "/page_masters/0/page_layout_id"), Assert.Single(orphan.Refusals));
     }
 
     [Fact(DisplayName = "layout-auth-20: publication compiles show_when and refuses a malformed guard (T-724 ruling 39)")]
@@ -225,11 +225,11 @@ public sealed class LayoutBoundRegisterTests
         foreach (var broken in new[] { both, neither, blank })
         {
             // Authoring, publication and the runtime gate all refuse it: a declared guard is required.
-            var authoring = Assert.Throws<LayoutDefinitionAdmissionException>(() => LayoutDefinitionAdmission.ValidateForAuthoring(GuardSurface(broken, null), Predicates, LayoutTestAccess.GrantsAll));
-            Assert.Contains(new LayoutDefinitionRefusal(LayoutDefinitionCodes.GuardFormInvalid, "/blocks/0/show_when"), authoring.Refusals);
+            var authoring = Assert.Throws<DefinitionRefusalException>(() => LayoutDefinitionAdmission.ValidateForAuthoring(GuardSurface(broken, null), Predicates, LayoutTestAccess.GrantsAll));
+            Assert.Contains(new DefinitionRefusal(LayoutDefinitionCodes.GuardFormInvalid, "/blocks/0/show_when"), authoring.Refusals);
             AssertPublishRefused(GuardSurface(broken, null), Predicates, LayoutDefinitionCodes.GuardFormInvalid, "/blocks/0/show_when");
-            var runtime = Assert.Throws<LayoutDefinitionAdmissionException>(() => LayoutPersistedValueAdmission.ValidateForRuntime(GuardSurface(broken, null), Predicates));
-            Assert.Contains(new LayoutDefinitionRefusal(LayoutDefinitionCodes.GuardFormInvalid, "/blocks/0/show_when"), runtime.Refusals);
+            var runtime = Assert.Throws<DefinitionRefusalException>(() => LayoutPersistedValueAdmission.ValidateForRuntime(GuardSurface(broken, null), Predicates));
+            Assert.Contains(new DefinitionRefusal(LayoutDefinitionCodes.GuardFormInvalid, "/blocks/0/show_when"), runtime.Refusals);
         }
         // An absent guard is no guard: the block always shows, and nothing refuses.
         LayoutDefinitionAdmission.ValidateForPublish(Sealed(GuardSurface(null, null)), LayoutHostRegisters.Platform, LayoutTestAccess.GrantsAll);
@@ -346,7 +346,7 @@ public sealed class LayoutBoundRegisterTests
 
     internal static void AssertRefused(LayoutDefinition definition, LayoutHostRegisters registers, string code, string pointer)
     {
-        var refused = Assert.Throws<LayoutDefinitionAdmissionException>(() => LayoutDefinitionAdmission.ValidateForAuthoring(definition, registers, LayoutTestAccess.GrantsAll));
+        var refused = Assert.Throws<DefinitionRefusalException>(() => LayoutDefinitionAdmission.ValidateForAuthoring(definition, registers, LayoutTestAccess.GrantsAll));
         Assert.Contains(refused.Refusals, refusal => refusal.Code == code && refusal.Pointer == pointer);
     }
 
