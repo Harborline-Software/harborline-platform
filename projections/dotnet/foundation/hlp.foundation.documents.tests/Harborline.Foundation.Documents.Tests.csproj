@@ -17,4 +17,7 @@
     <!-- Supplied Layout contract and the shared catalogue: bound here, never by the foundation assembly (tier fence). -->
     <ProjectReference Include="../../blocks/hlp.blocks.builder-definitions/Harborline.Blocks.BuilderDefinitions.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="../../../../conformance/hlp.foundation.rule-runtime/borrower-contracts.json" Link="borrower-contracts.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

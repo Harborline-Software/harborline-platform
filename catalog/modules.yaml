@@ -732,7 +732,7 @@
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "The foundation package owns the projection-neutral TemplateDefinition and its admission; the template editor and page rendering are separate projections."},
       "owner": "platform-foundation",
-      "dependencies": [],
+      "dependencies": ["hlp.foundation.rule-runtime"],
       "status": "implemented",
       "depth": {
         "disposition": "deep-module",

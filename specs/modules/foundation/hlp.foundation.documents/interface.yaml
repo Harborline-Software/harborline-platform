@@ -4,7 +4,9 @@
   "interfaceRevision": 1,
   "status": "frozen",
   "purpose": "Own the Documents composition's TemplateDefinition (content kind 6): its envelope, canonical JSON, pack content and structural admission over an exactly pinned Layout page surface with intent issue (DES-0021, ADR 0092, ADR 0094).",
-  "dependencies": [],
+  "dependencies": [
+    "hlp.foundation.rule-runtime"
+  ],
   "callerInterface": {
     "name": "TemplateDefinitionJson / TemplateDefinitionAdmission / TemplatePack",
     "operations": [
