@@ -33,6 +33,7 @@ public sealed class KernelCoreBoundaryArchitectureTests
         ["projections/dotnet/foundation/hlp.foundation.forms-engine/FormCandidateEvaluator.cs"] = (1, "T-589 render evaluation pins the injected clock once"),
         ["projections/dotnet/foundation/hlp.foundation.forms-engine/FormEngine.cs"] = (1, "T-589 submit evaluation pins the injected clock inside the write scope"),
         ["projections/dotnet/foundation/hlp.foundation.rule-authoring/SkinLowering.cs"] = (1, "T-589 authoring preview pins its supplied clock once"),
+        ["projections/dotnet/foundation/hlp.foundation.rule-runtime/Standings/StandingEvaluator.cs"] = (1, "T-591 standing set evaluation pins its supplied act instant once"),
     };
 
     private static readonly HashSet<string> AtomicAdapters = new(StringComparer.Ordinal)

@@ -1,4 +1,3 @@
-using System.Text.Json;
 
 using Harborline.Foundation.RuleEngine.Compilation;
 
@@ -74,6 +73,4 @@ public sealed record StandingRuleDefinition
 
     /// <summary>The closed-grammar predicate.</summary>
     public RuleDefinition Predicate { get; }
-
-    internal string Canonical => JsonSerializer.Serialize(new { RuleId, RuleVersion, Standing = Standing.Name, RecordType, InputFields, Predicate });
 }

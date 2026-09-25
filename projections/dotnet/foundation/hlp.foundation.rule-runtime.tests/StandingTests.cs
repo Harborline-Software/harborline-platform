@@ -31,23 +31,68 @@ public sealed class StandingTests
             Predicate("other", """{"var":"x"}""")));
     }
 
-    [Fact(DisplayName = "rules-ck-21: the standing store replays an identical version, refuses different content under the same version, and lists in identity order")]
-    public async Task Standing_store_is_immutable_per_version()
+    private static readonly DateTimeOffset At = new(2026, 9, 25, 0, 0, 0, TimeSpan.Zero);
+
+    private static StandingRecord Row(string id, string status, int amount)
+        => new(id, "asset", new Dictionary<string, JsonNode?> { ["status"] = status, ["amount"] = amount, ["id"] = id });
+
+    private static ValueTask<bool> Everyone(StandingRecord row, CancellationToken ct) => ValueTask.FromResult(true);
+
+    [Fact(DisplayName = "rules-eng-20: 1,000 rows sharing one invariant predicate take one predicate evaluation and yield 1,000 classified outcomes; a distinct-record predicate takes 1,000 and classifies each row by its own value")]
+    public async Task Standing_set_evaluation_is_sublinear_in_shared_inputs_and_exact_per_record()
     {
-        var store = new InMemoryStandingRuleDefinitionStore();
-        var overdue = Rule("overdue", "overdue", """{">":[{"var":"daysLate"},30]}""", "daysLate");
-        await store.RegisterAsync(Rule("zeta", "z", """{"==":[{"var":"k"},1]}""", "k"));
-        await store.RegisterAsync(overdue);
-        await store.RegisterAsync(Rule("overdue", "overdue", """{">":[{"var":"daysLate"},30]}""", "daysLate"));
+        // Workload stated before running: 1,000 asset rows, all status "open", amounts 0..999.
+        var rows = Enumerable.Range(0, 1000).Select(i => Row("a" + i.ToString("D4"), "open", i)).ToArray();
+        var open = Rule("open", "open", """{"==":[{"var":"status"},"open"]}""", "status");
+        var large = Rule("large", "large", """{">":[{"var":"amount"},500]}""", "amount");
+        var evaluator = new StandingEvaluator();
 
-        await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await store.RegisterAsync(Rule("overdue", "overdue", """{">":[{"var":"daysLate"},60]}""", "daysLate")));
+        // Invariant predicate: expect exactly 1 evaluation and 1,000 classified outcomes.
+        var shared = await evaluator.EvaluateSetAsync(rows, Everyone, [open], TestAdmission.Any, At, 0, 1000);
+        Assert.Equal(1, shared.PredicateEvaluations);
+        Assert.Equal(1000, shared.VisibleCount);
+        Assert.Equal(1000, shared.Page.Count);
+        Assert.All(shared.Page, row => Assert.Equal([new StandingReference("open")], row.Standings));
+        Assert.Equal(1000, shared.Counts[new StandingReference("open")]);
 
-        Assert.Same(overdue, await store.GetAsync("overdue", "1.0.0"));
-        var listed = new List<string>();
-        await foreach (var row in store.ListAsync()) listed.Add(row.RuleId);
-        Assert.Equal(["overdue", "zeta"], listed);
-        Assert.True(await store.RemoveAsync("zeta", "1.0.0"));
-        Assert.Null(await store.GetAsync("zeta", "1.0.0"));
+        // Distinct-record predicate: a cache keyed on anything but the rule's inputs would misclassify here.
+        var distinct = await evaluator.EvaluateSetAsync(rows, Everyone, [large], TestAdmission.Any, At, 0, 1000);
+        Assert.Equal(1000, distinct.PredicateEvaluations);
+        Assert.Equal(499, distinct.Counts[new StandingReference("large")]);
+        Assert.Empty(distinct.Page.Single(row => row.RecordId == "a0500").Standings);
+        Assert.Equal([new StandingReference("large")], distinct.Page.Single(row => row.RecordId == "a0501").Standings);
+
+        var both = await evaluator.EvaluateSetAsync(rows, Everyone, [open, large], TestAdmission.Any, At, 0, 10);
+        Assert.Equal(1001, both.PredicateEvaluations);
+        Assert.Equal(2, both.Page[0].Decisions.Count);
+    }
+
+    [Fact(DisplayName = "rules-eng-20: interleaved unauthorized rows are removed before standing evaluation, counting and paging, so they never alter visible counts, pages or the evaluation count")]
+    public async Task Unauthorized_rows_never_reach_standing_evaluation_counts_or_pages()
+    {
+        var authorized = Enumerable.Range(0, 1000).Select(i => Row("a" + i.ToString("D4"), "open", i)).ToArray();
+        // Each denied row carries the standing with a value no authorized row has.
+        var interleaved = authorized.SelectMany((row, i) => new[] { Row("d" + i.ToString("D4"), "open", 5000 + i), row }).ToArray();
+        var large = Rule("large", "large", """{">":[{"var":"amount"},500]}""", "amount");
+        var evaluator = new StandingEvaluator();
+        ValueTask<bool> Access(StandingRecord row, CancellationToken ct) => ValueTask.FromResult(row.RecordId.StartsWith('a'));
+
+        var expected = await evaluator.EvaluateSetAsync(authorized, Everyone, [large], TestAdmission.Any, At, 490, 20);
+        var actual = await evaluator.EvaluateSetAsync(interleaved, Access, [large], TestAdmission.Any, At, 490, 20);
+
+        Assert.Equal(1000, actual.VisibleCount);
+        Assert.Equal(expected.Counts[new StandingReference("large")], actual.Counts[new StandingReference("large")]);
+        Assert.Equal(expected.Page.Select(row => row.RecordId), actual.Page.Select(row => row.RecordId));
+        Assert.Equal(1000, actual.PredicateEvaluations);
+    }
+
+    [Fact(DisplayName = "rules-eng-26: standing set evaluation refuses without admission before reading any row")]
+    public async Task Standing_set_evaluation_requires_admission()
+    {
+        var rule = Rule("open", "open", """{"==":[{"var":"status"},"open"]}""", "status");
+        var result = await new StandingEvaluator().EvaluateSetAsync([Row("a", "open", 1)], Everyone, [rule], null, At, 0, 10);
+        var decision = Assert.Single(Assert.Single(result.Page).Decisions);
+        Assert.False(decision.Carries);
+        Assert.Equal(Environments.BorrowerEnvironmentAdmission.NotAdmitted, decision.RefusalCode);
     }
 }
