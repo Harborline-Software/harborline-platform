@@ -30,10 +30,16 @@ public static class TemplatePack
     public static TemplatePackEntry Export(TemplateDefinition template, TemplateSurfaces surfaces)
     {
         TemplateDefinitionAdmission.ValidateForPublish(template, surfaces);
+        return new(template.Envelope.Identity, template.Envelope.Version, Authored(template));
+    }
+
+    // The authored body: canonical JSON without the server-derived members.
+    private static byte[] Authored(TemplateDefinition template)
+    {
         var node = TemplateDefinitionJson.ToNode(template);
         var envelope = node["envelope"]!.AsObject();
         foreach (var member in ServerDerived) envelope.Remove(member);
-        return new(template.Envelope.Identity, template.Envelope.Version, TemplateDefinitionJson.Canonical(node));
+        return TemplateDefinitionJson.Canonical(node);
     }
 
     /// <summary>
@@ -94,6 +100,15 @@ public static class TemplatePack
                 outcomes.Add(Refused([.. refusals]));
                 continue;
             }
+            // documents-auth-26: a stored key and version is a pinned tuple. The same body replays; a different
+            // body refuses once by name and the stored body is never replaced.
+            if (await target.ResolveStored(template).ConfigureAwait(false) is { } stored)
+            {
+                outcomes.Add(Authored(stored).AsSpan().SequenceEqual(Authored(template))
+                    ? new(entry.DefinitionId, entry.Version, TemplateInstallOutcomeKind.AlreadyPresent, [])
+                    : Refused(new TemplateRefusal(TemplateDefinitionCodes.PinnedTupleConflict, "/envelope/version")));
+                continue;
+            }
             await target.Publish(template).ConfigureAwait(false);
             outcomes.Add(new(entry.DefinitionId, entry.Version, TemplateInstallOutcomeKind.Published, []));
         }
@@ -128,11 +143,11 @@ public sealed record TemplateInstallOutcome(
 /// <param name="Tenant">The installing tenant, stamped on every template.</param>
 /// <param name="Provenance">The pack provenance, stamped on every template.</param>
 /// <param name="Surfaces">The surface binding admission uses.</param>
-/// <param name="ResolveStored">The canonical bytes already stored for the template's key and version, or null.</param>
+/// <param name="ResolveStored">The template already stored under the same key and version, or null.</param>
 /// <param name="Publish">Publishes an admitted template into the shared catalogue.</param>
 public sealed record TemplateInstallTarget(
     string Tenant,
     JsonElement Provenance,
     TemplateSurfaces Surfaces,
-    Func<TemplateDefinition, ValueTask<byte[]?>> ResolveStored,
+    Func<TemplateDefinition, ValueTask<TemplateDefinition?>> ResolveStored,
     Func<TemplateDefinition, ValueTask> Publish);

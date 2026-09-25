@@ -26,6 +26,10 @@ public static class TemplateDefinitionCodes
     public const string AuthorityFieldForbidden = "documents.template.authority_field_forbidden";
     /// <summary>A pack entry's key or version disagrees with the envelope it carries.</summary>
     public const string EnvelopeMismatch = "documents.template.envelope_mismatch";
+    /// <summary>A catalogue body's envelope disagrees with the catalogue's tenant, key or version (documents-ck-16).</summary>
+    public const string CatalogueMismatch = "documents.template.catalogue_mismatch";
+    /// <summary>A stored key and version already hold a different body (documents-auth-26).</summary>
+    public const string PinnedTupleConflict = "documents.template.pinned_tuple_conflict";
 }
 
 /// <summary>A stable, localizable refusal at an RFC 6901 pointer.</summary>
@@ -142,6 +146,29 @@ public static class TemplateDefinitionAdmission
 
     private static string? Text(JsonNode? node)
         => node?.GetValueKind() == JsonValueKind.String ? node.GetValue<string>() : null;
+
+    /// <summary>
+    /// The shared catalogue's admission for <c>DefinitionKind.Templates</c>: the stored body must state the
+    /// catalogue's own tenant, key and version before it publishes, so an exact pin never resolves a body
+    /// claiming another version. A draft may disagree (a restored copy) until it is re-versioned.
+    /// </summary>
+    public static IReadOnlyList<TemplateRefusal> AdmitCatalogueBody(
+        string tenant, string definitionId, string version, string bodyJson, bool publishing, TemplateSurfaces surfaces)
+    {
+        TemplateDefinition template;
+        try { template = TemplateDefinitionJson.Deserialize(System.Text.Encoding.UTF8.GetBytes(bodyJson ?? "")); }
+        catch (JsonException) { return [new(TemplateDefinitionCodes.BodyInvalid, "")]; }
+        var refusals = new List<TemplateRefusal>();
+        foreach (var (stated, expected, member) in new[]
+        {
+            (template.Envelope?.Tenant, tenant, "tenant"),
+            (template.Envelope?.Identity, definitionId, "identity"),
+            (template.Envelope?.Version, version, "version"),
+        })
+            if (publishing && !StringComparer.Ordinal.Equals(stated, expected))
+                refusals.Add(new(TemplateDefinitionCodes.CatalogueMismatch, $"/envelope/{member}"));
+        return refusals.Count > 0 ? refusals : Validate(template, surfaces);
+    }
 
     /// <summary>Refuses publication by throwing every refusal.</summary>
     /// <exception cref="TemplateAdmissionException">The template was refused.</exception>

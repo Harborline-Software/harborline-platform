@@ -23,6 +23,9 @@ public enum DefinitionKind
     Records = 8,
     /// <summary>Pilot definitions.</summary>
     Pilot = 9,
+    // 10 and 11 are held by the Booking namespaces in flight (T-605).
+    /// <summary>Documents template definitions (DES-0021 documents-ck-16).</summary>
+    Templates = 12,
 }
 
 /// <summary>Identifies one definition inside a tenant- and kind-scoped archive namespace.</summary>

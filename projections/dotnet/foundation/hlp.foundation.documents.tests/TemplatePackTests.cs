@@ -80,6 +80,6 @@ public sealed class TemplatePackTests
 
     private static TemplateInstallTarget Target(List<TemplateDefinition> published) => new(
         Tenant, Provenance, Surfaces(),
-        _ => ValueTask.FromResult<byte[]?>(null),
+        _ => ValueTask.FromResult<TemplateDefinition?>(null),
         template => { published.Add(template); return ValueTask.CompletedTask; });
 }
