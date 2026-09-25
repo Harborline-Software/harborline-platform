@@ -174,7 +174,13 @@
   /// layout-auth-18: a repeating block binds a collection, and its row subtree is authored once
   /// as its children. A block can be placed inside any block but itself or its own descendant.
   /// </summary>
-  private RenderFragment BlockStructure(int index, LayoutAuthoringBlock block) => @<text><select aria-label="@($"Block {index + 1} parent")" value="@(block.ParentId ?? "")" @onchange="e => Replace(index, block with { ParentId = string.IsNullOrEmpty(Text(e)) ? null : Text(e) })"><option value="">Surface root</option>@foreach (var (candidate, position) in Parents(block)) { <option value="@candidate.Id">@($"Block {position + 1}")</option> }</select>@if (block.Binding is { } binding && CollectionKinds.Contains(binding.Kind)) { <label><input aria-label="@($"Block {index + 1} repeats per row")" type="checkbox" checked="@block.Repeating" @onchange="e => Replace(index, block with { Repeating = IsChecked(e) })" />Repeats per row</label> }</text>;
+  private RenderFragment BlockStructure(int index, LayoutAuthoringBlock block) => @<text><select aria-label="@($"Block {index + 1} parent")" value="@(block.ParentId ?? "")" @onchange="e => Place(block, Text(e))"><option value="">Surface root</option>@foreach (var (candidate, position) in Parents(block)) { <option value="@candidate.Id">@($"Block {position + 1}")</option> }</select>@if (block.Binding is { } binding && CollectionKinds.Contains(binding.Kind)) { <label><input aria-label="@($"Block {index + 1} repeats per row")" type="checkbox" checked="@block.Repeating" @onchange="e => Replace(index, IsChecked(e) ? WithContainer(block with { Repeating = true }) : block with { Repeating = false })" />Repeats per row</label> }@if (block.Repeating || Value.Blocks.Any(child => child.ParentId == block.Id)) { <select aria-label="@($"Block {index + 1} container")" value="@(block.Container ?? "stack")" @onchange="e => Replace(index, block with { Container = Text(e) })">@Options(Flows)</select> }</text>;
+
+  // T-724 ruling 41: a block that repeats or has children gets the container admission requires.
+  private static LayoutAuthoringBlock WithContainer(LayoutAuthoringBlock block) => block.Container is null ? block with { Container = "stack" } : block;
+
+  private Task Place(LayoutAuthoringBlock block, string parentId)
+    => Change(Value with { Blocks = Value.Blocks.Select(candidate => candidate.Id == block.Id ? candidate with { ParentId = parentId.Length == 0 ? null : parentId } : candidate.Id == parentId ? WithContainer(candidate) : candidate).ToArray() });
 
   private IEnumerable<(LayoutAuthoringBlock Candidate, int Position)> Parents(LayoutAuthoringBlock block)
     => Value.Blocks.Select((candidate, position) => (candidate, position)).Where(pair => pair.candidate.Id != block.Id && !IsInside(pair.candidate, block.Id));

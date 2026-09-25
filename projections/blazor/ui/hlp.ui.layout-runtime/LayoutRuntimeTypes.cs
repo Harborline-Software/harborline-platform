@@ -36,6 +36,8 @@ public sealed record LayoutAuthoringBlock(
     bool AvoidPageBreak = false,
     // layout-auth-18: the block repeats its children once per row of its collection binding.
     bool Repeating = false,
+    // The flow this block arranges its children in; admission requires one on a repeating block or any parent (T-724 ruling 41).
+    string? Container = null,
     // layout-auth-19: the declared Records relationship this block observes; only the key is stored.
     string? RelatedRelationship = null,
     // layout-auth-20: the block's guard, a Rules expression the shared engine evaluates fail-closed.

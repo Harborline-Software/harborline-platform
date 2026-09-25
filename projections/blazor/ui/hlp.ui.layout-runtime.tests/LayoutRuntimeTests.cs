@@ -1,3 +1,6 @@
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
 using Bunit;
 using Harborline.Foundation.RuleAuthoring;
 using Harborline.UIAdapters.Blazor.Components.Layout;
@@ -113,7 +116,7 @@ public sealed class LayoutRuntimeTests : BunitContext
         // Only a collection binding (a query or a record field) can repeat; a measure cannot.
         Assert.Empty(cut.FindAll("[aria-label='Block 3 repeats per row']"));
         cut.Find("[aria-label='Block 1 repeats per row']").Change(true);
-        Assert.Equal([blocks[0] with { Repeating = true }, blocks[1], blocks[2]], changed!.Blocks);
+        Assert.Equal([blocks[0] with { Repeating = true, Container = "stack" }, blocks[1], blocks[2]], changed!.Blocks);
 
         // The row subtree is authored once, as the repeating block's children: a block may be
         // placed inside it, and never inside itself or its own descendant.
@@ -122,7 +125,7 @@ public sealed class LayoutRuntimeTests : BunitContext
         Assert.DoesNotContain("Block 2", parentOfLines, StringComparison.Ordinal);
         Assert.Contains("Block 3", parentOfLines, StringComparison.Ordinal);
         cut.Find("[aria-label='Block 3 parent']").Change("lines");
-        Assert.Equal([blocks[0], blocks[1], blocks[2] with { ParentId = "lines" }], changed.Blocks);
+        Assert.Equal([blocks[0] with { Container = "stack" }, blocks[1], blocks[2] with { ParentId = "lines" }], changed.Blocks);
     }
 
     [Fact(DisplayName = "layout-auth-18: rebinding a repeating block to a kind that is not a collection stops it repeating")]
@@ -440,6 +443,58 @@ public sealed class LayoutRuntimeTests : BunitContext
         cut.Find("[aria-label='Block 1 show when']").Change("{\"!\":[{\"var\":\"field.flagged\"}]}");
         // Raw text is stored verbatim and the guide, which no longer describes it, is dropped.
         Assert.Equal(new LayoutAuthoringBlock("notice", "layout.table", new("static", "Flagged"), ShowWhen: "{\"!\":[{\"var\":\"field.flagged\"}]}"), changed!.Blocks.Single());
+    }
+
+    [Fact(DisplayName = "layout-auth-18: a repeating block authored here gets the container admission requires, and matches the shared admitted fixture (T-724 ruling 41)")]
+    public void RepeatingBlockAuthoredHereMatchesTheSharedAdmittedFixture()
+    {
+        var value = LayoutAuthoringDraft.Empty with
+        {
+            Blocks = [new("lines", "layout.table", new("query", "views.invoice-lines")), new("amount", "layout.table", new("record_field", "line.amount"))],
+        };
+        var cut = Render<HarborlineLayoutAuthoringEditor>(parameters => parameters
+            .Add(x => x.Value, value)
+            .Add(x => x.Catalogue, Catalogue())
+            .Add(x => x.ValueChanged, next => value = next));
+        Assert.Empty(cut.FindAll("[aria-label='Block 1 container']"));
+
+        cut.Find("[aria-label='Block 1 repeats per row']").Change(true);
+        cut.Render(parameters => parameters.Add(x => x.Value, value));
+        cut.Find("[aria-label='Block 2 parent']").Change("lines");
+        cut.Render(parameters => parameters.Add(x => x.Value, value));
+
+        // builder-definitions admits exactly these blocks (LayoutBoundRegisterTests, same fixture).
+        var fixture = JsonNode.Parse(File.ReadAllText(Path.Combine(RepositoryRoot(), "_shared", "layout", "authored-repeating-block.json")))!["blocks"];
+        var authored = JsonSerializer.SerializeToNode(value.Blocks, new JsonSerializerOptions(JsonSerializerDefaults.Web) { DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingDefault });
+        Assert.True(JsonNode.DeepEquals(fixture, authored), authored!.ToJsonString());
+
+        // The container is offered once a block repeats or has children, and can be changed, never removed.
+        var container = cut.Find("[aria-label='Block 1 container']");
+        Assert.Equal(["stack", "flow", "areas"], container.QuerySelectorAll("option").Select(option => option.GetAttribute("value")));
+        Assert.Empty(cut.FindAll("[aria-label='Block 2 container']"));
+        container.Change("flow");
+        Assert.Equal("flow", value.Blocks[0].Container);
+    }
+
+    [Fact(DisplayName = "layout-auth-18: placing a block inside another gives the new parent a default container (T-724 ruling 41)")]
+    public void PlacingABlockInsideAnotherGivesTheParentADefaultContainer()
+    {
+        LayoutAuthoringDraft? changed = null;
+        LayoutAuthoringBlock[] blocks = [new("group", "layout.table", new("static", "Totals")), new("total", "layout.table", new("measure", "invoice.total"))];
+        var cut = Render<HarborlineLayoutAuthoringEditor>(parameters => parameters
+            .Add(x => x.Value, LayoutAuthoringDraft.Empty with { Blocks = blocks })
+            .Add(x => x.Catalogue, Catalogue())
+            .Add(x => x.ValueChanged, next => changed = next));
+
+        cut.Find("[aria-label='Block 2 parent']").Change("group");
+        Assert.Equal([blocks[0] with { Container = "stack" }, blocks[1] with { ParentId = "group" }], changed!.Blocks);
+    }
+
+    private static string RepositoryRoot()
+    {
+        for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)
+            if (File.Exists(Path.Combine(directory.FullName, "Harborline.Platform.slnx"))) return directory.FullName;
+        throw new InvalidOperationException("The platform repository root was not found above the test output.");
     }
 
     private static LayoutAuthoringCatalogue Catalogue() => new(

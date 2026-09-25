@@ -228,6 +228,45 @@ public sealed class LayoutBoundRegisterTests
         ],
         [], [], [], null, []);
 
+    [Fact(DisplayName = "layout-auth-18: the repeating block both editors author passes admission (T-724 ruling 41)")]
+    public void TheRepeatingBlockBothEditorsAuthorPassesAdmission()
+    {
+        // The React and Blazor editor tests each prove they produce exactly this fixture.
+        using var fixture = JsonDocument.Parse(File.ReadAllText(Path.Combine(RepositoryRoot(), "_shared", "layout", "authored-repeating-block.json")));
+        var drafted = fixture.RootElement.GetProperty("blocks").EnumerateArray().ToArray();
+
+        LayoutBlock Build(JsonElement block) => new(
+            block.GetProperty("id").GetString()!,
+            block.GetProperty("kind").GetString()!,
+            block.GetProperty("binding").GetProperty("kind").GetString() switch
+            {
+                "query" => new LayoutQueryBinding(block.GetProperty("binding").GetProperty("name").GetString()!),
+                "record_field" => new LayoutRecordFieldBinding(block.GetProperty("binding").GetProperty("name").GetString()!),
+                var kind => throw new InvalidOperationException($"The fixture uses binding kind '{kind}', which this projection does not map."),
+            },
+            drafted.Where(child => child.TryGetProperty("parentId", out var parent) && parent.GetString() == block.GetProperty("id").GetString()).Select(Build).ToArray(),
+            Container: block.TryGetProperty("container", out var container) ? new(Enum.Parse<LayoutContainerKind>(container.GetString()!, ignoreCase: true)) : null,
+            Repeating: block.TryGetProperty("repeating", out var repeating) && repeating.GetBoolean());
+
+        var definition = new LayoutDefinition(
+            new("surface.invoice", "1.0.0", "tenant-a", LayoutCascadeLayer.DomainPackage,
+                JsonSerializer.SerializeToElement(new { source = "editor" }), "standard", false, []),
+            1, LayoutMedium.Screen, LayoutIntent.Observe,
+            drafted.Where(block => !block.TryGetProperty("parentId", out _)).Select(Build).ToArray(),
+            [], [], [], null, []);
+
+        LayoutDefinitionAdmission.ValidateForAuthoring(definition, LayoutHostRegisters.Platform);
+        LayoutDefinitionAdmission.ValidateForPublish(Sealed(definition), LayoutHostRegisters.Platform);
+        Assert.True(Assert.Single(definition.Blocks).Repeating);
+    }
+
+    private static string RepositoryRoot()
+    {
+        for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)
+            if (File.Exists(Path.Combine(directory.FullName, "Harborline.Platform.slnx"))) return directory.FullName;
+        throw new InvalidOperationException("The platform repository root was not found above the test output.");
+    }
+
     internal static LayoutPageRegistry PackPages() => new(
         [
             new("pack.a4", "a4", LayoutPageOrientation.Portrait, new("12mm", "12mm", "12mm", "12mm"), new("10mm", "10mm")),

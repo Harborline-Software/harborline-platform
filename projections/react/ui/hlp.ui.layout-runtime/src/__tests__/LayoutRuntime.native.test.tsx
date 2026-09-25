@@ -1,4 +1,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
+import { useState } from 'react'
+import authored from '../../../../../../_shared/layout/authored-repeating-block.json'
+import type { LayoutAuthoringDraft } from '../LayoutRuntime.types'
 import { LayoutAuthoringEditor, emptyLayoutAuthoringDraft } from '../LayoutAuthoringEditor'
 import { LayoutRuntime } from '../LayoutRuntime'
 
@@ -75,7 +78,7 @@ describe('LayoutRuntime React projection', () => {
     // Only a collection binding (a query or a record field) can repeat; a measure cannot.
     expect(screen.queryByLabelText('Block 3 repeats per row')).toBeNull()
     fireEvent.click(screen.getByLabelText('Block 1 repeats per row'))
-    expect(changed).toHaveBeenLastCalledWith(expect.objectContaining({ blocks: [{ ...blocks[0], repeating: true }, blocks[1], blocks[2]] }))
+    expect(changed).toHaveBeenLastCalledWith(expect.objectContaining({ blocks: [{ ...blocks[0], repeating: true, container: 'stack' }, blocks[1], blocks[2]] }))
 
     // The row subtree is authored once, as the repeating block's children: a block may be
     // placed inside it, and never inside itself or its own descendant.
@@ -84,7 +87,7 @@ describe('LayoutRuntime React projection', () => {
     expect(within(parentOfLines).queryByRole('option', { name: 'Block 2' })).toBeNull()
     expect(within(parentOfLines).getByRole('option', { name: 'Block 3' })).toBeInTheDocument()
     fireEvent.change(screen.getByLabelText('Block 3 parent'), { target: { value: 'lines' } })
-    expect(changed).toHaveBeenLastCalledWith(expect.objectContaining({ blocks: [blocks[0], blocks[1], { ...blocks[2], parentId: 'lines' }] }))
+    expect(changed).toHaveBeenLastCalledWith(expect.objectContaining({ blocks: [{ ...blocks[0], container: 'stack' }, blocks[1], { ...blocks[2], parentId: 'lines' }] }))
   })
 
   it('layout-auth-18: rebinding a repeating block to a kind that is not a collection stops it repeating', () => {
@@ -316,6 +319,45 @@ describe('LayoutRuntime React projection', () => {
     fireEvent.change(screen.getByLabelText('Block 1 show when'), { target: { value: '{"!":[{"var":"field.flagged"}]}' } })
     // Raw text is stored verbatim and the guide, which no longer describes it, is dropped.
     expect(changed.mock.lastCall![0].blocks[0]).toStrictEqual({ id: 'notice', kind: 'layout.table', binding: { kind: 'static', name: 'Flagged' }, showWhen: '{"!":[{"var":"field.flagged"}]}' })
+  })
+
+  function Authoring({ initial, onDraft }: { initial: LayoutAuthoringDraft; onDraft: (draft: LayoutAuthoringDraft) => void }) {
+    const [value, setValue] = useState(initial)
+    return <LayoutAuthoringEditor value={value} catalogue={{ blockKinds: [{ id: 'layout.table', label: 'Table' }], zones: [] }} onChange={next => { setValue(next); onDraft(next) }} />
+  }
+
+  it('layout-auth-18: a repeating block authored here gets the container admission requires, and matches the shared admitted fixture (T-724 ruling 41)', () => {
+    const drafts: LayoutAuthoringDraft[] = []
+    render(<Authoring initial={{ ...emptyLayoutAuthoringDraft(), blocks: [
+      { id: 'lines', kind: 'layout.table', binding: { kind: 'query', name: 'views.invoice-lines' } },
+      { id: 'amount', kind: 'layout.table', binding: { kind: 'record_field', name: 'line.amount' } },
+    ] }} onDraft={draft => drafts.push(draft)} />)
+    expect(screen.queryByLabelText('Block 1 container')).toBeNull()
+
+    fireEvent.click(screen.getByLabelText('Block 1 repeats per row'))
+    fireEvent.change(screen.getByLabelText('Block 2 parent'), { target: { value: 'lines' } })
+    // builder-definitions admits exactly these blocks (LayoutBoundRegisterTests, same fixture).
+    expect(JSON.parse(JSON.stringify(drafts.at(-1)!.blocks))).toStrictEqual(authored.blocks)
+
+    // The container is offered once a block repeats or has children, and can be changed, never removed.
+    const container = screen.getByLabelText('Block 1 container')
+    expect(within(container).getAllByRole('option').map(option => option.getAttribute('value'))).toEqual(['stack', 'flow', 'areas'])
+    expect(screen.queryByLabelText('Block 2 container')).toBeNull()
+    fireEvent.change(container, { target: { value: 'flow' } })
+    expect(drafts.at(-1)!.blocks[0].container).toBe('flow')
+  })
+
+  it('layout-auth-18: placing a block inside another gives the new parent a default container (T-724 ruling 41)', () => {
+    const drafts: LayoutAuthoringDraft[] = []
+    render(<Authoring initial={{ ...emptyLayoutAuthoringDraft(), blocks: [
+      { id: 'group', kind: 'layout.table', binding: { kind: 'static', name: 'Totals' } },
+      { id: 'total', kind: 'layout.table', binding: { kind: 'measure', name: 'invoice.total' } },
+    ] }} onDraft={draft => drafts.push(draft)} />)
+    fireEvent.change(screen.getByLabelText('Block 2 parent'), { target: { value: 'group' } })
+    expect(drafts.at(-1)!.blocks).toStrictEqual([
+      { id: 'group', kind: 'layout.table', binding: { kind: 'static', name: 'Totals' }, container: 'stack' },
+      { id: 'total', kind: 'layout.table', binding: { kind: 'measure', name: 'invoice.total' }, parentId: 'group' },
+    ])
   })
 
   it('authors static content on the block rather than looking it up', () => {

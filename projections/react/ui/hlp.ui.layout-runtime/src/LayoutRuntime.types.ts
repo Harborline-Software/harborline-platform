@@ -53,6 +53,8 @@ export interface LayoutAuthoringBlock {
   readonly parentId?: string
   /** layout-auth-18: the block repeats its children once per row of its collection binding. */
   readonly repeating?: boolean
+  /** The flow this block arranges its children in; admission requires one on a repeating block or any parent (T-724 ruling 41). */
+  readonly container?: LayoutContainerFlow
   /** layout-auth-19: the declared Records relationship this block observes; only the key is stored. */
   readonly relatedRelationship?: string
   /** layout-auth-20: the block's guard, a Rules expression the shared engine evaluates fail-closed. */
