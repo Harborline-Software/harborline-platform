@@ -20,6 +20,18 @@ public sealed record LayoutRuntimePlan(
 /// </summary>
 public sealed record LayoutAuthoringBinding(string Kind, string Name);
 
+/// <summary>A Rules named predicate's exact pin (rules-ck-22): nothing floats.</summary>
+public sealed record LayoutAuthoringPredicatePin(string Name, string Version, string Digest);
+
+/// <summary>
+/// layout-ck-29: a guard holds exactly one of a Rules expression, compiled at publish, or a named
+/// predicate by exact pin, resolved from the definition's pinned closure. Both fail closed.
+/// </summary>
+public sealed record LayoutAuthoringShowWhen(string? Expression = null, LayoutAuthoringPredicatePin? Predicate = null);
+
+/// <summary>A named predicate a show_when guard may cite (layout-ck-29).</summary>
+public sealed record LayoutAuthoringPredicate(string Label, LayoutAuthoringPredicatePin Pin);
+
 public sealed record LayoutAuthoringBlock(
     string Id,
     string Kind,
@@ -40,8 +52,8 @@ public sealed record LayoutAuthoringBlock(
     string? Container = null,
     // layout-auth-19: the declared Records relationship this block observes; only the key is stored.
     string? RelatedRelationship = null,
-    // layout-auth-20: the block's guard, a Rules expression the shared engine evaluates fail-closed.
-    string? ShowWhen = null,
+    // layout-ck-29, layout-auth-20: the block's guard, holding exactly one form; absent, the block always shows.
+    LayoutAuthoringShowWhen? ShowWhen = null,
     // The guided expression ShowWhen was lowered from; absent when the guard was written as raw text (T-724 ruling 39).
     FormulaExpr? ShowWhenGuide = null,
     // The capture properties a capture block narrows with (layout-ck-30).
@@ -101,4 +113,6 @@ public sealed record LayoutAuthoringCatalogue(
     // ValueDomainFields: the record fields whose value domain picks their editor; they take no authored control (layout-bound-10).
     IReadOnlyList<string>? ValueDomainFields = null,
     // GuardReferences: the references a show_when guard may read, offered by the guided expression editor (layout-auth-20).
-    IReadOnlyList<RulesPaletteItem>? GuardReferences = null);
+    IReadOnlyList<RulesPaletteItem>? GuardReferences = null,
+    // Predicates: the named predicates a show_when guard may cite, each by its exact pin (layout-ck-29).
+    IReadOnlyList<LayoutAuthoringPredicate>? Predicates = null);

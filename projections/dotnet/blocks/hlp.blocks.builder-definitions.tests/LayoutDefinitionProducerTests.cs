@@ -71,9 +71,48 @@ public sealed class LayoutDefinitionProducerTests
         var mixed = ScreenDefinition(block => block.Id == "static"
             ? block with { Intent = LayoutIntent.Issue, Binding = new LayoutRecordFieldBinding("customer.name") } : block);
         LayoutDefinitionAdmission.ValidateForPublish(mixed, Hosted);
-        AssertRefusal(PageDefinition(block => block.Id == "document"
-            ? block with { Binding = new LayoutRecordFieldBinding("customer.name") } : block),
+    }
+
+    [Fact(DisplayName = "layout-ck-43, layout-ck-44: a text binding of literal and field runs, with a field run's fallback, round-trips and refuses a malformed run or capture")]
+    public void ATextBindingRoundTripsAndRefusesAMalformedRunOrCapture()
+    {
+        var text = new LayoutTextBinding([new LayoutTextRun(Text: "Bill to: "), new LayoutTextRun(FieldPath: "customer.name", Fallback: "Customer")]);
+        var definition = PageDefinition(block => block.Id == "document" ? block with { Binding = text } : block);
+        LayoutDefinitionAdmission.ValidateForPublish(definition, Hosted);
+
+        var canonical = LayoutDefinitionJson.SerializeCanonical(definition);
+        var json = Encoding.UTF8.GetString(canonical);
+        Assert.Contains("{\"binding_kind\":\"text\",\"runs\":[{\"text\":\"Bill to: \"},{\"fallback\":\"Customer\",\"field_path\":\"customer.name\"}]}", json, StringComparison.Ordinal);
+        Assert.Equal(canonical, LayoutDefinitionJson.SerializeCanonical(LayoutDefinitionJson.Deserialize(canonical)));
+
+        AssertRefusal(PageDefinition(block => block.Id == "document" ? block with { Binding = new LayoutTextBinding([]) } : block),
+            LayoutDefinitionCodes.BindingInvalid, "/blocks/0/children/1/binding/runs");
+        AssertRefusal(PageDefinition(block => block.Id == "document" ? block with { Binding = new LayoutTextBinding([new LayoutTextRun(FieldPath: " ")]) } : block),
+            LayoutDefinitionCodes.BindingInvalid, "/blocks/0/children/1/binding/runs/0");
+        // A run is exactly one of a literal or a field; a fallback belongs to a field run only.
+        foreach (var malformed in new[] { new LayoutTextRun(), new LayoutTextRun(Text: "x", FieldPath: "customer.name"), new LayoutTextRun(Text: "x", Fallback: "y") })
+            AssertRefusal(PageDefinition(block => block.Id == "document" ? block with { Binding = new LayoutTextBinding([new LayoutTextRun(Text: "ok"), malformed]) } : block),
+                LayoutDefinitionCodes.BindingInvalid, "/blocks/0/children/1/binding/runs/1");
+        // Composed text is output: a capture block cannot bind it.
+        AssertRefusal(ScreenDefinition(block => block.Id == "capture" ? block with { Binding = text } : block),
+            LayoutDefinitionCodes.IntentBindingUnsupported, "/blocks/0/children/0/binding");
+    }
+
+    [Fact(DisplayName = "layout-auth-25 (amended 2026-09-25): an issue block on page media reads a record field to render it; a screen surface that captures nothing still refuses one, and page media still never capture")]
+    public void AnIssueBlockOnPageMediaReadsARecordField()
+    {
+        // ADR 0092 decision 1's invoice: record fields, intent issue, page media.
+        var invoice = PageDefinition(block => block.Id == "document"
+            ? block with { Binding = new LayoutRecordFieldBinding("customer.name") } : block);
+        LayoutDefinitionAdmission.ValidateForPublish(invoice, Hosted);
+
+        // Read-for-rendering only: the same block on a screen that captures nothing still refuses,
+        AssertRefusal(invoice with { Medium = LayoutMedium.Screen, PageLayouts = [], PageMasters = [], PageRuns = [] },
             LayoutDefinitionCodes.IntentBindingUnsupported, "/blocks/0/children/1/binding");
+        // and reading grants no capture: a capture block on page media refuses as before (layout-auth-28).
+        AssertRefusal(PageDefinition(block => block.Id == "document"
+            ? block with { Binding = new LayoutRecordFieldBinding("customer.name"), Intent = LayoutIntent.Capture } : block),
+            LayoutDefinitionCodes.CaptureOnPage, "/blocks/0/children/1/intent");
     }
 
     [Fact]
@@ -172,7 +211,8 @@ public sealed class LayoutDefinitionProducerTests
         Assert.IsType<LayoutQueryBinding>(query.Binding);
         Assert.True(query.Repeating);
         Assert.Equal("customer.orders", query.RelatedRelationship);
-        Assert.Equal("{\"!!\":[{\"var\":\"field.customer.name\"}]}", query.ShowWhen);
+        Assert.Equal("{\"!!\":[{\"var\":\"field.customer.name\"}]}", query.ShowWhen!.Expression);
+        Assert.Null(query.ShowWhen.Predicate);
         Assert.IsType<LayoutMeasureBinding>(Flatten(roundTrip.Blocks).Single(block => block.Id == "measure").Binding);
         var staticBlock = Flatten(roundTrip.Blocks).Single(block => block.Id == "static");
         Assert.IsType<LayoutStaticBinding>(staticBlock.Binding);
@@ -186,6 +226,9 @@ public sealed class LayoutDefinitionProducerTests
         Assert.Contains("\"form_version_id\":\"form.customer@2.1.0\"", json, StringComparison.Ordinal);
         Assert.DoesNotContain("latest", json, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("\"order\"", json, StringComparison.Ordinal);
+        // layout-ck-29: the guard is an object holding its one form, never a bare string.
+        Assert.Contains("\"show_when\":{\"expression\":\"", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("is_well_formed", json, StringComparison.Ordinal);
     }
 
     [Fact(DisplayName = "layout-ck-16..20,24,33: page geometry, masters, static regions and page runs round-trip")]
@@ -570,7 +613,7 @@ public sealed class LayoutDefinitionProducerTests
                         placement: new LayoutPlacement("main", LayoutSizing.Fill, LayoutSizing.Hug, Grow: 1),
                         repeating: true,
                         relatedRelationship: "customer.orders",
-                        showWhen: "{\"!!\":[{\"var\":\"field.customer.name\"}]}",
+                        showWhen: new LayoutShowWhen(Expression: "{\"!!\":[{\"var\":\"field.customer.name\"}]}"),
                         defaultSelection: JsonSerializer.SerializeToElement(new { status = "open" })),
                     Block(
                         "measure",
@@ -687,7 +730,7 @@ public sealed class LayoutDefinitionProducerTests
         LayoutBreakInside breakInside = LayoutBreakInside.Auto,
         bool repeating = false,
         string? relatedRelationship = null,
-        string? showWhen = null,
+        LayoutShowWhen? showWhen = null,
         LayoutCaptureProperties? capture = null,
         JsonElement? defaultSelection = null,
         IReadOnlyList<string>? filterTargets = null,

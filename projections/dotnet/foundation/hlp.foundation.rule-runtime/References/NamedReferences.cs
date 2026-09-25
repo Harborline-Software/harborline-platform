@@ -108,6 +108,8 @@ public enum PredicateConsumer
     RuleCondition,
     AutomationCondition,
     ReportPopulation,
+    /// <summary>A Layout block's <c>show_when</c> guard (DES-0052 <c>layout-ck-29</c>, T-724 ruling 72).</summary>
+    LayoutGuard,
 }
 
 /// <summary>

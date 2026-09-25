@@ -185,7 +185,7 @@ public sealed class LayoutRuntimeTests : BunitContext
         LayoutAuthoringDraft? changed = null;
         var block = new LayoutAuthoringBlock("notice", "layout.table", new("record_field", "invoice.note"));
         var cut = Render<HarborlineLayoutAuthoringEditor>(parameters => parameters
-            .Add(x => x.Value, LayoutAuthoringDraft.Empty with { Blocks = [block with { ShowWhen = "{\"var\":\"field.flagged\"}" }] })
+            .Add(x => x.Value, LayoutAuthoringDraft.Empty with { Blocks = [block with { ShowWhen = new(Expression: "{\"var\":\"field.flagged\"}") }] })
             .Add(x => x.Catalogue, Catalogue())
             .Add(x => x.ValueChanged, value => changed = value));
         var guard = cut.Find("[aria-label='Block 1 show when']");
@@ -194,7 +194,7 @@ public sealed class LayoutRuntimeTests : BunitContext
         // The editor holds no conditional grammar of its own: the Rules expression is stored as written.
         const string expression = " {\"==\": [{\"var\": \"field.status\"}, \"open\"]}";
         guard.Change(expression);
-        Assert.Equal(block with { ShowWhen = expression }, changed!.Blocks.Single());
+        Assert.Equal(block with { ShowWhen = new(Expression: expression) }, changed!.Blocks.Single());
         // Clearing the guard removes it rather than storing an empty expression.
         cut.Find("[aria-label='Block 1 show when']").Change("");
         Assert.Equal(block, changed.Blocks.Single());
@@ -405,7 +405,7 @@ public sealed class LayoutRuntimeTests : BunitContext
     {
         LayoutAuthoringDraft? changed = null;
         var guide = new FormulaExpr.Call("==", [new FormulaExpr.Ref("field.status"), new FormulaExpr.Literal("open", ColumnValueType.Text)]);
-        var guarded = new LayoutAuthoringBlock("notice", "layout.table", new("static", "Overdue"), ShowWhen: "{\"==\":[{\"var\":\"field.status\"},\"open\"]}", ShowWhenGuide: guide);
+        var guarded = new LayoutAuthoringBlock("notice", "layout.table", new("static", "Overdue"), ShowWhen: new(Expression: "{\"==\":[{\"var\":\"field.status\"},\"open\"]}"), ShowWhenGuide: guide);
         var unguarded = new LayoutAuthoringBlock("total", "layout.table", new("measure", "invoice.total"));
         var cut = Render<HarborlineLayoutAuthoringEditor>(parameters => parameters
             .Add(x => x.Value, LayoutAuthoringDraft.Empty with { Blocks = [guarded, unguarded] })
@@ -419,7 +419,7 @@ public sealed class LayoutRuntimeTests : BunitContext
         // Editing the guided expression stores the guide and the Rules text the shared engine compiles.
         cut.Find("[aria-label='Block 1 show when argument 2 literal value']").Change("closed");
         var edited = changed!.Blocks[0];
-        Assert.Equal("{\"==\":[{\"var\":\"field.status\"},\"closed\"]}", edited.ShowWhen);
+        Assert.Equal(new LayoutAuthoringShowWhen(Expression: "{\"==\":[{\"var\":\"field.status\"},\"closed\"]}"), edited.ShowWhen);
         Assert.Equal(new FormulaExpr.Literal("closed", ColumnValueType.Text), ((FormulaExpr.Call)edited.ShowWhenGuide!).Args[1]);
 
         // Removing the guard removes both.
@@ -431,7 +431,7 @@ public sealed class LayoutRuntimeTests : BunitContext
     public void RawRulesTextStaysAvailableAsTheEscapeHatch()
     {
         LayoutAuthoringDraft? changed = null;
-        var block = new LayoutAuthoringBlock("notice", "layout.table", new("static", "Flagged"), ShowWhen: "{\"var\":\"field.flagged\"}", ShowWhenGuide: new FormulaExpr.Ref("field.flagged"));
+        var block = new LayoutAuthoringBlock("notice", "layout.table", new("static", "Flagged"), ShowWhen: new(Expression: "{\"var\":\"field.flagged\"}"), ShowWhenGuide: new FormulaExpr.Ref("field.flagged"));
         var cut = Render<HarborlineLayoutAuthoringEditor>(parameters => parameters
             .Add(x => x.Value, LayoutAuthoringDraft.Empty with { Blocks = [block] })
             .Add(x => x.Catalogue, Catalogue())
@@ -442,7 +442,26 @@ public sealed class LayoutRuntimeTests : BunitContext
         Assert.Equal("{\"var\":\"field.flagged\"}", cut.Find("[aria-label='Block 1 show when']").GetAttribute("value"));
         cut.Find("[aria-label='Block 1 show when']").Change("{\"!\":[{\"var\":\"field.flagged\"}]}");
         // Raw text is stored verbatim and the guide, which no longer describes it, is dropped.
-        Assert.Equal(new LayoutAuthoringBlock("notice", "layout.table", new("static", "Flagged"), ShowWhen: "{\"!\":[{\"var\":\"field.flagged\"}]}"), changed!.Blocks.Single());
+        Assert.Equal(new LayoutAuthoringBlock("notice", "layout.table", new("static", "Flagged"), ShowWhen: new(Expression: "{\"!\":[{\"var\":\"field.flagged\"}]}")), changed!.Blocks.Single());
+    }
+
+    [Fact(DisplayName = "layout-ck-29: show_when cites a catalogue predicate by exact pin, and the guard holds exactly one form")]
+    public void ShowWhenCitesACataloguePredicateByExactPin()
+    {
+        LayoutAuthoringDraft? changed = null;
+        var pin = new LayoutAuthoringPredicatePin("invoice.overdue", "1.0.0", new string('a', 64));
+        var block = new LayoutAuthoringBlock("notice", "layout.table", new("static", "Overdue"));
+        var cut = Render<HarborlineLayoutAuthoringEditor>(parameters => parameters
+            .Add(x => x.Value, LayoutAuthoringDraft.Empty with { Blocks = [block with { ShowWhen = new(Expression: "{\"var\":\"field.flagged\"}") }] })
+            .Add(x => x.Catalogue, Catalogue() with { Predicates = [new("Overdue", pin)] })
+            .Add(x => x.ValueChanged, value => changed = value));
+
+        cut.Find("[aria-label='Block 1 show when authoring']").Change("predicate");
+        cut.Find("[aria-label='Block 1 show when predicate']").Change("invoice.overdue@1.0.0");
+        // Picking a predicate replaces the expression: the stored guard carries the whole pin and nothing else.
+        Assert.Equal(block with { ShowWhen = new(Predicate: pin) }, changed!.Blocks.Single());
+        cut.Find("[aria-label='Block 1 show when predicate']").Change("");
+        Assert.Equal(block, changed.Blocks.Single());
     }
 
     [Fact(DisplayName = "layout-auth-18: a repeating block authored here gets the container admission requires, and matches the shared admitted fixture (T-724 ruling 41)")]
