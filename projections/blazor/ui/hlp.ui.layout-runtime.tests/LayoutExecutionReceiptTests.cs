@@ -46,6 +46,8 @@ public sealed class LayoutExecutionReceiptTests : BunitContext
         Assert.Equal(0, reads);
         Toggle(cut);
         Assert.Equal("Unable to read the authorization trace.", cut.Find("[role=alert]").TextContent);
+        Toggle(cut);
+        Assert.Equal(1, reads);
         cut.Find("button").Click();
         Assert.Equal(2, reads);
         Assert.Single(cut.FindAll("[data-layout-access-evidence=valid]"));

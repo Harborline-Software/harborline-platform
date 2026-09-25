@@ -34,6 +34,8 @@ describe('LayoutExecutionReceipt React projection', () => {
     expect(read).not.toHaveBeenCalled()
     await toggle(details, true)
     expect(screen.getByRole('alert')).toHaveTextContent('Unable to read the authorization trace.')
+    await toggle(details, false)
+    expect(read).toHaveBeenCalledTimes(1)
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Retry trace read' })) })
     expect(read).toHaveBeenCalledTimes(2)
     expect(container.querySelector('[data-layout-access-evidence=valid]')).toBeInTheDocument()
