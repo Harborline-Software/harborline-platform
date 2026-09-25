@@ -1,4 +1,5 @@
 export { LayoutRuntime } from './LayoutRuntime'
+export { LayoutExecutionReceipt } from './LayoutExecutionReceipt'
 export { LayoutAuthoringEditor, emptyLayoutAuthoringDraft } from './LayoutAuthoringEditor'
 export { LayoutAuthoringScreen } from './LayoutAuthoringScreen'
-export type { LayoutAuthoringBlock, LayoutAuthoringCatalogue, LayoutAuthoringDraft, LayoutAuthoringEditorProps, LayoutAuthoringShowWhen, LayoutContainerToken, LayoutMedium, LayoutPredicatePin, LayoutRuntimeAuthority, LayoutRuntimeBlock, LayoutRuntimeDiagnostic, LayoutRuntimePlan, LayoutRuntimeProps } from './LayoutRuntime.types'
+export type { LayoutAuthoringBlock, LayoutAuthoringCatalogue, LayoutAuthoringDraft, LayoutAuthoringEditorProps, LayoutAccessEvidence, LayoutAccessTrace, LayoutAccessTraceStage, LayoutAuthoringShowWhen, LayoutContainerToken, LayoutExecutionReceiptProps, LayoutExecutionTraceStep, LayoutMedium, LayoutPredicatePin, LayoutRuntimeAuthority, LayoutRuntimeBlock, LayoutRuntimeDiagnostic, LayoutRuntimePlan, LayoutRuntimeProps, LayoutRunReceipt } from './LayoutRuntime.types'

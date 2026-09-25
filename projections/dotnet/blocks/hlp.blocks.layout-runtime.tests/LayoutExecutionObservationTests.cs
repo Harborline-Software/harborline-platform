@@ -97,7 +97,7 @@ public sealed class LayoutExecutionObservationTests
         step.GetProperty("ordinal").GetInt32(), step.GetProperty("stage").GetString()!, step.GetProperty("facts").EnumerateArray().Select(fact => fact.GetString()!)))];
 
     private static JsonElement Fixture() =>
-        JsonDocument.Parse(File.ReadAllText(Path.Combine(RepositoryRoot(), "_shared", "layout", "execution-observation.json"))).RootElement;
+        JsonElement.Parse(File.ReadAllText(Path.Combine(RepositoryRoot(), "_shared", "layout", "execution-observation.json")));
 
     private static string RepositoryRoot()
     {

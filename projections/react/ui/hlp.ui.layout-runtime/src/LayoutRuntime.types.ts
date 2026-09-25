@@ -138,3 +138,27 @@ export interface LayoutAuthoringCatalogue {
   readonly predicates?: readonly { readonly label: string; readonly pin: LayoutPredicatePin }[]
 }
 export interface LayoutAuthoringEditorProps { readonly value: LayoutAuthoringDraft; readonly catalogue: LayoutAuthoringCatalogue; readonly onChange: (value: LayoutAuthoringDraft) => void }
+
+/** DES-0056 execution-runtime-ck-4: one execution-trace step, verbatim. */
+export interface LayoutExecutionTraceStep { readonly ordinal: number; readonly phase: string; readonly status: string }
+/** DES-0056 execution-runtime-ck-3, as the host's authorized read returned it; `accessDecisionId` null is no recorded decision. */
+export interface LayoutRunReceipt {
+  readonly runId: string
+  readonly status: string
+  readonly accessDecisionId: string | null
+  readonly trace: readonly LayoutExecutionTraceStep[]
+}
+/** What following the Access decision link yielded; the platform classifies it (LayoutExecutionObservation). */
+export type LayoutAccessEvidence = 'absent' | 'missing' | 'forbidden' | 'malformed' | 'valid'
+export interface LayoutAccessTraceStage { readonly ordinal: number; readonly stage: string; readonly facts: readonly string[] }
+export interface LayoutAccessTrace {
+  readonly evidence: LayoutAccessEvidence
+  readonly version: number | null
+  readonly stages: readonly LayoutAccessTraceStage[]
+  readonly decidingGrant: string | null
+}
+/** layout-eng-30: `readAccessTrace` is asked only when the disclosure opens, by the receipt's decision identity. */
+export interface LayoutExecutionReceiptProps {
+  readonly receipt: LayoutRunReceipt
+  readonly readAccessTrace: (accessDecisionId: string) => Promise<LayoutAccessTrace>
+}
