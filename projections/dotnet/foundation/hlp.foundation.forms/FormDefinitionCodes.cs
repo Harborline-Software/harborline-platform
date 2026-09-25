@@ -121,6 +121,12 @@ public static class FormDefinitionCodes
     /// forever).</summary>
     public const string RulesGuardUncompilable = "form.rules.guard_uncompilable";
 
+    /// <summary>A rule declares a tier the platform rule compiler cannot evaluate for its action: any
+    /// tier other than JsonLogic, except the JsonSchema tier on <c>Validate</c>. Refused at
+    /// validate so the rule is never admitted and then silently skipped (DES-0016 forms-eng-4 and
+    /// forms-eng-16; ledger L368).</summary>
+    public const string RulesTierUnsupported = "form.rules.tier_unsupported";
+
     // ── Content / action blocks (F-23) — fail-closed block invariants ────────────
 
     /// <summary>A <c>Content</c> item carries no content nodes.</summary>
