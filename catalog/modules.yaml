@@ -1713,7 +1713,7 @@
       "moduleKind":"runtime",
       "presentation":{"disposition":"not-applicable","rationale":"The aggregate contribution supplies reusable Layout authoring and rendering primitives; products own the surrounding visual composition."},
       "owner":"platform-ui",
-      "dependencies":["hlp.blocks.layout-runtime"],
+      "dependencies":["hlp.blocks.layout-runtime","hlp.ui.rule-authoring"],
       "status":"draft-native-green",
       "depth":{"disposition":"deep-module","deletionTest":"PASS","redistributedComplexity":["layout token selection, recursive region editing, and canonical block-kind selection otherwise repeat in every member editor","screen and page render-plan interpretation otherwise diverges across framework-specific hosts"]},
       "projections":{"react":{"role":"implementation","path":"projections/react/ui/hlp.ui.layout-runtime","status":"preview","packageContribution":"@harborline-software/ui-react"},"blazor":{"role":"implementation","path":"projections/blazor/ui/hlp.ui.layout-runtime","status":"preview","packageContribution":"Harborline.UIAdapters.Blazor"}}
