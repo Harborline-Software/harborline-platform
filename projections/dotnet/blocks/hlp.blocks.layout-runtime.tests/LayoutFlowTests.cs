@@ -90,7 +90,7 @@ public sealed class LayoutFlowTests
             Blocks = [new("flow", "layout.flow", new LayoutStaticBinding(JsonSerializer.SerializeToElement("Flow")), [], Container: new(LayoutContainerKind.Flow, Wrap: LayoutWrap.NoWrap, ColumnCount: 2))],
         };
 
-        var exception = Assert.Throws<LayoutDefinitionAdmissionException>(() => LayoutDefinitionAdmission.ValidateForAuthoring(definition));
+        var exception = Assert.Throws<LayoutDefinitionAdmissionException>(() => LayoutDefinitionAdmission.ValidateForAuthoring(definition, GrantsAllAuthor.Instance));
 
         Assert.Contains(exception.Refusals, refusal => refusal.Code == LayoutDefinitionCodes.ReflowForbidden);
     }
@@ -189,4 +189,14 @@ public sealed class LayoutFlowTests
                 .ToArray(),
         };
     }
+}
+
+/// <summary>An author who may read every source and open every surface; T-583's checks are proved in LayoutAuthorizationTests.</summary>
+internal sealed class GrantsAllAuthor : ILayoutAccess
+{
+    public static readonly GrantsAllAuthor Instance = new();
+
+    public bool CanRead(LayoutBinding binding) => true;
+
+    public bool CanOpen(string surfaceId) => true;
 }

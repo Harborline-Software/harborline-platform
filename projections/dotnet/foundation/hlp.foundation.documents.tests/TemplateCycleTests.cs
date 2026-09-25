@@ -90,7 +90,8 @@ public sealed class TemplateCycleTests
             {
                 Identity = "surface.invoice-copy",
                 Provenance = TemplateFixtures.Json("""{"detached_from":{"composition":"template.invoice","composition_version":"2.0.0","surface":"surface.invoice","surface_version":"1.0.0"}}"""),
-            });
+            },
+            GrantsAllAuthor.Instance);
         var pinned = template with { Surface = new("surface.invoice-copy", SurfaceVersion) };
         var surfaces = Surfaces(new Dictionary<TemplateSurfacePin, string>
         {

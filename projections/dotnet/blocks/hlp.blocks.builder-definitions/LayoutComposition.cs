@@ -31,12 +31,14 @@ public static class LayoutComposition
     /// <param name="reference">The source composition and surface pin.</param>
     /// <param name="source">The surface resolved by the shared catalogue using the immutable pin.</param>
     /// <param name="draftEnvelope">The new draft's independent envelope.</param>
+    /// <param name="author">The detaching author's Access; the candidate is admitted as that author's draft.</param>
     /// <param name="kinds">The host kind register, or the platform grammar.</param>
     /// <returns>A detached candidate, not a stored or published version. The composition is unchanged.</returns>
     public static LayoutDefinition Detach(
         LayoutCompositionReference reference,
         LayoutDefinition source,
         LayoutDefinitionEnvelope draftEnvelope,
+        ILayoutAccess author,
         LayoutBlockKindRegistry? kinds = null)
     {
         ArgumentNullException.ThrowIfNull(reference);
@@ -52,7 +54,7 @@ public static class LayoutComposition
             || draftEnvelope.Tenant != source.Envelope.Tenant)
             throw new ArgumentException("layout.composition.detach_invalid", nameof(reference));
         var candidate = source with { Envelope = draftEnvelope };
-        LayoutDefinitionAdmission.ValidateForAuthoring(candidate, kinds ?? LayoutBlockKindRegistry.Platform);
+        LayoutDefinitionAdmission.ValidateForAuthoring(candidate, kinds ?? LayoutBlockKindRegistry.Platform, author);
         return LayoutDefinitionJson.Deserialize(LayoutDefinitionJson.SerializeCanonical(candidate));
     }
 }

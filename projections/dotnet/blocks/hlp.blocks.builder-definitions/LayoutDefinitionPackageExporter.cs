@@ -27,13 +27,14 @@ public static class LayoutDefinitionPackageExporter
     public static LayoutDefinitionPackageEntry Export(LayoutDefinition definition, LayoutBlockKindRegistry? kinds = null)
         => Export(definition, new LayoutHostRegisters(kinds ?? LayoutBlockKindRegistry.Platform));
 
-    /// <summary>Projects one definition after publication admission against the host's registers.</summary>
+    /// <summary>Projects one definition after authorless publication admission against the host's registers.</summary>
     /// <param name="definition">The definition selected by the shared catalogue.</param>
     /// <param name="registers">The host's bound registers.</param>
     /// <returns>The provider-neutral entry. This operation does not publish a version.</returns>
     public static LayoutDefinitionPackageEntry Export(LayoutDefinition definition, LayoutHostRegisters registers)
     {
-        LayoutDefinitionAdmission.ValidateForPublish(definition, registers);
+        // Export has no acting author; the reader's Access is folded in at render (layout-eng-15).
+        LayoutDefinitionAdmission.ValidateAuthorlessPublish(definition, registers);
         return new(definition.Envelope.Identity, definition.Envelope.Version,
             PlatformPackageContent.PresentJson(LayoutDefinitionJson.SerializeCanonical(definition)));
     }
