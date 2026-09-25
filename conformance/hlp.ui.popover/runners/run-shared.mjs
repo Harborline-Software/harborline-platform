@@ -11,6 +11,7 @@ const blazorJavaScript = spawnSync(process.execPath, [
   vitest,
   'run',
   'conformance/hlp.ui.popover/popover-placement.test.mjs',
+  'conformance/hlp.ui.popover/popover-follow.test.mjs',
   '--globals',
   '--environment', 'node',
 ], {
