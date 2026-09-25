@@ -107,8 +107,8 @@
       "sourceState": "Revision 2 adds typed Rules definitions, strict JSON admission, phase-specific intent diagnostics, and key suggestions in both projections. Draft lowering, advisory lint, seeds, and probe-derived preview remain. The builder-definitions RuleDefinitionCatalog composes the shared versioned-definition and lifecycle stores for save, publish, load, history, restore, duplicate, archive, and policy resolution. The former RuleCatalogStore, PublishAdmission, and per-tenant-device localStorage interim are retired rather than retained as alternate persistence or admission producers. The shared intent corpus and packed consumers exercise the released boundaries. Editor and manager surfaces remain assigned to T-589; full-gate evidence is recorded separately.",
       "contentHashes": {
         "conformance/hlp.foundation.rule-authoring/definition-intent-cases.json": "08f5598e982493022f2ab625c020201a9ca6bd3315904b45379a51571c5684b5",
-        "projections/dotnet/blocks/hlp.blocks.builder-definitions/RuleDefinitionCatalog.cs": "33f1621b26f9e1cf0e5165b883419bf756822887e8c139cf596bc62d7a9278ae",
-        "projections/dotnet/blocks/hlp.blocks.builder-definitions.tests/RuleDefinitionCatalogTests.cs": "ef235c909eb57d946a760bef13f5dcb6c027dda634ed689d139b1dc9c762b344",
+        "projections/dotnet/blocks/hlp.blocks.builder-definitions/RuleDefinitionCatalog.cs": "1d1798d36b4ed0fc0da192fceacdb3db068fc11860cb27438713f31ccb288db3",
+        "projections/dotnet/blocks/hlp.blocks.builder-definitions.tests/RuleDefinitionCatalogTests.cs": "5f70071705141b2114eeb04e0c8a7ce4ee9fe0ab8fdcaea1af23ac99212be45d",
         "projections/dotnet/foundation/hlp.foundation.rule-authoring/ContractAliases.cs": "ec712c94e073a59aae5828d28932c98589a436df4274c33eaf5a58885738d1fe",
         "projections/dotnet/foundation/hlp.foundation.rule-authoring/JsNumberMirror.cs": "d0c85a75eac8d46948706d03870f77e57c4a0fc64bb2bd334212140ab73dcf10",
         "projections/dotnet/foundation/hlp.foundation.rule-authoring/RuleAuthoringModel.cs": "b8c79ab5fae6598b18ac32d819270215950e7387e060e6e3b8c61f379e897e0f",
