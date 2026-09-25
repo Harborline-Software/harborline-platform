@@ -236,6 +236,19 @@ public sealed class LayoutBindingResolutionTests
         Assert.Equal("gated", Assert.Single(Guarded(new(), closure).Hidden));
     }
 
+    [Fact(DisplayName = "layout-bound-9 (runtime): a guard evaluates through the kernel's function register under Layout's admitted environment")]
+    public void GuardEvaluatesThroughTheKernelRegisterUnderLayoutsEnvironment()
+    {
+        var resolution = Resolve(Definition(LayoutMedium.Screen, LayoutIntent.Observe,
+            // Kernel functions evaluate: cat builds "open-Northwind" and in finds it.
+            Block("registered", new LayoutRecordFieldBinding("supplier"), "{\"in\":[{\"cat\":[{\"var\":\"field.status\"},\"-\",{\"var\":\"field.supplier\"}]},[\"open-Northwind\"]]}"),
+            // A workflow variable is not lent to Layout; the kernel refuses it before reading any value.
+            Block("unlent", new LayoutRecordFieldBinding("supplier"), "{\"!\":[{\"var\":\"wf.state\"}]}")), Sources());
+
+        Assert.Equal("registered", Assert.Single(resolution.Blocks).BlockId);
+        Assert.Equal(["unlent"], resolution.Hidden);
+    }
+
     [Fact(DisplayName = "layout-auth-19 (runtime): a related block observes the second record and an undeclared relationship refuses")]
     public void ARelatedBlockObservesTheSecondRecordAndRefusesAnUndeclaredRelationship()
     {

@@ -252,6 +252,21 @@ public sealed class LayoutBoundRegisterTests
     public void ALayoutGuardIdentifiesItselfAsLayoutGuard()
         => Assert.Equal(Harborline.Foundation.RuleEngine.References.PredicateConsumer.LayoutGuard, LayoutGuardRule.Consumer);
 
+    [Fact(DisplayName = "layout-bound-9: publication admits show_when functions only from the kernel's BuiltInFunctionRegister")]
+    public void ShowWhenFunctionsResolveOnlyThroughTheKernelRegister()
+    {
+        // Registered kernel functions (text, membership, date) publish, at the root and in a row.
+        LayoutDefinitionAdmission.ValidateForPublish(Sealed(GuardSurface(
+            Expr("{\"in\":[{\"cat\":[{\"var\":\"field.status\"},\"-\",{\"var\":\"field.region\"}]},[\"open-eu\",\"open-us\"]]}"),
+            Expr("{\">\":[{\"date.diff\":[{\"date.today\":[]},{\"var\":\"row.due\"}]},30]}"))), LayoutHostRegisters.Platform);
+
+        // A function the register does not have refuses, however it is spelled: no pack library
+        // evaluates a guard (T-590's register is the compiler's only operator table).
+        foreach (var unregistered in new[] { "lib.is_weekend", "acme::is_weekend", "date.weekday" })
+            AssertPublishRefused(GuardSurface(Expr($"{{\"{unregistered}\":[{{\"var\":\"field.due\"}}]}}"), null), LayoutHostRegisters.Platform,
+                LayoutDefinitionCodes.GuardInvalid, "/blocks/0/show_when");
+    }
+
     private static readonly Harborline.Foundation.RuleEngine.References.NamedPredicate Overdue = new("invoice.overdue", "1.0.0", "{\"==\":[{\"var\":\"field.status\"},\"overdue\"]}");
 
     private static readonly LayoutHostRegisters Predicates = LayoutHostRegisters.Platform with
