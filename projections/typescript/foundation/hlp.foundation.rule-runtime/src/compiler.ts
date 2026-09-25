@@ -10,6 +10,7 @@ import { DEFAULT_LIMITS, type RuleEngineLimits } from './limits.js'
 import { CompileError, extractRefs, lower, measure, outputTypeFor, type LowerContext, type RuleRef } from './grammar.js'
 import { declaredCoreType, deriveCoreTypes } from './core-types.js'
 import { deriveGraphWork, type WorkProof } from './core-work.js'
+import { admitsArity, registeredBuiltIn } from './jsonlogic.js'
 
 export interface CompiledRule {
   source: RuleDefinition
@@ -41,12 +42,6 @@ export function ownedCompiledRulesOf(value: unknown): readonly CompiledRule[] | 
     : undefined
 }
 
-const operators = new Set([
-  'var', 'missing', 'missing_some',
-  '==', '!=', '===', '!==', '!', '!!', 'and', 'or', 'if',
-  '>', '>=', '<', '<=', '+', '-', '*', '/', '%', 'min', 'max', 'in', 'cat',
-  'agg', 'money.add', 'money.sub', 'money.mul', 'date.add', 'date.diff', 'date.today', 'coding.is',
-])
 
 const actions = new Set(['Compute', 'Validate', 'Presentation', 'Options', 'Visibility', 'Required', 'ReadOnly'])
 
@@ -56,7 +51,7 @@ function validateOperators(node: Json, ruleId: string): void {
   const entries = Object.entries(node)
   if (entries.length !== 1) return
   const [operator, argument] = entries[0]
-  if (!operators.has(operator)) {
+  if (registeredBuiltIn(operator) === undefined) {
     throw new CompileError(Codes.compileInvalidExpression,
       `rule '${ruleId}': unsupported operator '${operator}'.`, ruleId)
   }
@@ -66,25 +61,7 @@ function validateOperators(node: Json, ruleId: string): void {
 }
 
 function validateArity(operator: string, count: number, ruleId: string): void {
-  const valid = (() => {
-    switch (operator) {
-      case 'var': return count === 1 || count === 2
-      case 'missing': return count >= 0
-      case 'missing_some': return count === 2
-      case '==': case '!=': case '===': case '!==': case '>': case '>=': case '<': case '<=': case 'in': return count === 2
-      case '!': case '!!': return count === 1
-      case 'and': case 'or': case 'cat': return true
-      // The decision-table lowerer uses a one-argument `if` for an otherwise-only table.
-      case 'if': return true
-      case '+': case '-': case '*': case '/': case '%': case 'min': case 'max':
-      case 'money.add': case 'money.sub': case 'money.mul': return count >= 1
-      case 'agg': case 'date.add': case 'coding.is': return count === 3
-      case 'date.diff': return count === 2
-      case 'date.today': return count === 0
-      default: return false
-    }
-  })()
-  if (!valid) {
+  if (!admitsArity(operator, count)) {
     throw new CompileError(operator === 'agg' ? Codes.compileBadGrammar : Codes.compileInvalidExpression,
       `rule '${ruleId}': operator '${operator}' does not accept ${count} argument(s).`, ruleId)
   }

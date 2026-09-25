@@ -1,4 +1,6 @@
 @namespace Harborline.UIAdapters.Blazor.Components.Layout
+@using Harborline.Foundation.RuleAuthoring
+@using Harborline.UIAdapters.Blazor.Components.RuleAuthoring
 <form class="hl-layout-authoring" @onsubmit="PreventSubmit">
   <label>Layout name<input aria-label="Layout name" value="@Value.Name" @onchange="e => Change(Value with { Name = Text(e) })" /></label>
   <label>Medium<select aria-label="Layout medium" value="@Value.Medium" @onchange="e => Change(Value with { Medium = Text(e) })"><option value="screen">Screen</option><option value="page">Page</option></select></label>
@@ -7,7 +9,9 @@
   <label>Collapse below<select aria-label="Collapse below" value="@Value.CollapseBelow" @onchange="e => Change(Value with { CollapseBelow = string.IsNullOrEmpty(Text(e)) ? null : Text(e) })"><option value="">No collapse</option>@foreach (var token in Tokens) { <option value="@token">@token</option> }</select></label>
   <label>Gap<select aria-label="Container gap" value="@(Value.Gap ?? 0)" @onchange="e => Change(Value with { Gap = int.Parse(Text(e), System.Globalization.CultureInfo.InvariantCulture) })">@foreach (var gap in Gaps) { <option value="@gap">@gap</option> }</select></label>
   <label>Density<select aria-label="Container density" value="@Value.Density" @onchange="e => Change(Value with { Density = string.IsNullOrEmpty(Text(e)) ? null : Text(e) })"><option value="">Default density</option><option value="comfortable">comfortable</option><option value="compact">compact</option></select></label>
-  <fieldset><legend>Blocks</legend>@for (var index = 0; index < Value.Blocks.Count; index++) { var current = index; var block = Value.Blocks[index]; <div><select aria-label="@($"Block {current + 1} kind")" value="@block.Kind" @onchange="e => ChangeKind(current, block, Text(e))"><option value="">Choose a block</option>@Options(Kinds)</select>@if (block.Kind == "layout.dashboard-widget") { <select aria-label="@($"Block {current + 1} Helm widget")" value="@block.WidgetId" @onchange="e => Replace(current, block with { WidgetId = string.IsNullOrEmpty(Text(e)) ? null : Text(e) })"><option value="">Choose a registered widget</option>@Options(Catalogue.HelmWidgets ?? [])</select> }<select aria-label="@($"Block {current + 1} intent")" value="@(block.Intent ?? Value.DefaultIntent ?? "observe")" @onchange="e => Replace(current, block with { Intent = Text(e) })">@Options(Intents)</select>@BindingPicker(current, block)<select aria-label="@($"Block {current + 1} zone")" value="@block.Zone" @onchange="e => Replace(current, block with { Zone = string.IsNullOrEmpty(Text(e)) ? null : Text(e) })"><option value="">No zone</option>@foreach (var zone in Catalogue.Zones) { <option value="@zone">@zone</option> }</select><select aria-label="@($"Block {current + 1} width")" value="@(block.Width ?? "hug")" @onchange="e => Replace(current, block with { Width = Text(e) })">@Options(Sizings)</select><select aria-label="@($"Block {current + 1} alignment")" value="@(block.AlignSelf ?? "stretch")" @onchange="e => Replace(current, block with { AlignSelf = Text(e) })">@Options(Alignments)</select><select aria-label="@($"Block {current + 1} static region")" value="@block.StaticRegion" @onchange="e => Replace(current, block with { StaticRegion = string.IsNullOrEmpty(Text(e)) ? null : Text(e) })"><option value="">Flow content</option>@foreach (var region in Catalogue.StaticRegions ?? []) { <option value="@region">@region</option> }</select><label><input aria-label="@($"Block {current + 1} break before")" type="checkbox" checked="@block.BreakBefore" @onchange="e => Replace(current, block with { BreakBefore = IsChecked(e) })" />Start page run on a new sheet</label><label><input aria-label="@($"Block {current + 1} avoid page break")" type="checkbox" checked="@block.AvoidPageBreak" @onchange="e => Replace(current, block with { AvoidPageBreak = IsChecked(e) })" />Keep row whole</label><button type="button" aria-label="@($"Remove block {current + 1}")" @onclick="() => Remove(current)">Remove</button></div> }<button type="button" @onclick="Add">Add block</button></fieldset>
+  <fieldset><legend>Blocks</legend>@for (var index = 0; index < Value.Blocks.Count; index++) { var current = index; var block = Value.Blocks[index]; <div><select aria-label="@($"Block {current + 1} kind")" value="@block.Kind" @onchange="e => ChangeKind(current, block, Text(e))"><option value="">Choose a block</option>@Options(Kinds)</select>@if (block.Kind == "layout.dashboard-widget") { <select aria-label="@($"Block {current + 1} Helm widget")" value="@block.WidgetId" @onchange="e => Replace(current, block with { WidgetId = string.IsNullOrEmpty(Text(e)) ? null : Text(e) })"><option value="">Choose a registered widget</option>@Options(Catalogue.HelmWidgets ?? [])</select> }<select aria-label="@($"Block {current + 1} intent")" value="@(block.Intent ?? Value.DefaultIntent ?? "observe")" @onchange="e => Replace(current, WithIntent(block, Text(e)))">@Options(Intents)</select>@BindingPicker(current, block)@BlockStructure(current, block)@BlockBehaviour(current, block)<select aria-label="@($"Block {current + 1} zone")" value="@block.Zone" @onchange="e => Replace(current, block with { Zone = string.IsNullOrEmpty(Text(e)) ? null : Text(e) })"><option value="">No zone</option>@foreach (var zone in Catalogue.Zones) { <option value="@zone">@zone</option> }</select><select aria-label="@($"Block {current + 1} width")" value="@(block.Width ?? "hug")" @onchange="e => Replace(current, block with { Width = Text(e) })">@Options(Sizings)</select><select aria-label="@($"Block {current + 1} alignment")" value="@(block.AlignSelf ?? "stretch")" @onchange="e => Replace(current, block with { AlignSelf = Text(e) })">@Options(Alignments)</select><select aria-label="@($"Block {current + 1} static region")" value="@block.StaticRegion" @onchange="e => Replace(current, block with { StaticRegion = string.IsNullOrEmpty(Text(e)) ? null : Text(e) })"><option value="">Flow content</option>@foreach (var region in Catalogue.StaticRegions ?? []) { <option value="@region">@region</option> }</select><label><input aria-label="@($"Block {current + 1} break before")" type="checkbox" checked="@block.BreakBefore" @onchange="e => Replace(current, block with { BreakBefore = IsChecked(e) })" />Start page run on a new sheet</label><label><input aria-label="@($"Block {current + 1} avoid page break")" type="checkbox" checked="@block.AvoidPageBreak" @onchange="e => Replace(current, block with { AvoidPageBreak = IsChecked(e) })" />Keep row whole</label><button type="button" aria-label="@($"Remove block {current + 1}")" @onclick="() => Remove(current)">Remove</button></div> }<button type="button" @onclick="Add">Add block</button></fieldset>
+  @* layout-auth-35: drill-through targets belong to the surface and name released surfaces only. *@
+  <fieldset><legend>Drill-through targets</legend>@foreach (var target in Catalogue.DrillTargets ?? []) { <label><input aria-label="@($"Drill through to {target.Label}")" type="checkbox" checked="@((Value.DrillThroughTargets ?? []).Contains(target.Id))" @onchange="e => SetDrills(Toggle(Value.DrillThroughTargets, target.Id, IsChecked(e)))" />@target.Label</label> }</fieldset>
   @if (Value.Medium == "page") { <fieldset><legend>Page runs</legend>@for (var index = 0; index < (Value.PageRuns?.Count ?? 0); index++) { var current = index; var run = Value.PageRuns![index]; <div><select aria-label="@($"Page run {current + 1} layout")" value="@run.PageLayoutId" @onchange="e => ReplaceRun(current, run with { PageLayoutId = Text(e) })">@Options(Catalogue.PageLayouts ?? [])</select><select aria-label="@($"Page run {current + 1} master")" value="@run.PageMasterId" @onchange="e => ReplaceRun(current, run with { PageMasterId = Text(e) })">@Options(Catalogue.PageMasters ?? [])</select><button type="button" @onclick="() => RemoveRun(current)">Remove run</button></div> }<button type="button" @onclick="AddRun">Add page run</button></fieldset> }
 </form>
 @code {
@@ -27,9 +31,11 @@
   private static bool IsChecked(ChangeEventArgs args) => args.Value is bool value && value;
   private static void PreventSubmit() { }
   private Task Change(LayoutAuthoringDraft value) => ValueChanged.InvokeAsync(value);
+  private Task SetDrills(IReadOnlyList<string> targets) => Change(Value with { DrillThroughTargets = targets.Count > 0 ? targets : null });
   private Task Replace(int index, LayoutAuthoringBlock next) => Change(Value with { Blocks = Value.Blocks.Select((current, position) => position == index ? next : current).ToArray() });
   private Task ChangeKind(int index, LayoutAuthoringBlock block, string kind) => Replace(index, block with { Kind = kind, WidgetId = kind == "layout.dashboard-widget" ? block.WidgetId : null });
-  private Task Remove(int index) => Change(Value with { Blocks = Value.Blocks.Where((_, position) => position != index).ToArray() });
+  // Removing a block removes every filter edge to it, so no edge points outside the surface (layout-auth-34).
+  private Task Remove(int index) => Change(Value with { Blocks = Value.Blocks.Where((_, position) => position != index).Select(other => other.FilterTargets is null ? other : WithFilterTargets(other, Toggle(other.FilterTargets, Value.Blocks[index].Id, false))).ToArray() });
   private Task Add() => Change(Value with { Blocks = [.. Value.Blocks, new($"block-{Value.Blocks.Count + 1}", Kinds.FirstOrDefault()?.Id ?? "layout.table")] });
   private Task ReplaceRun(int index, LayoutAuthoringPageRun next) => Change(Value with { PageRuns = (Value.PageRuns ?? []).Select((current, position) => position == index ? next : current).ToArray() });
   private Task RemoveRun(int index) => Change(Value with { PageRuns = (Value.PageRuns ?? []).Where((_, position) => position != index).ToArray() });
@@ -102,8 +108,94 @@
     }
   };
 
+  // Rebinding keeps the block, clears the name, and stops a repeat the new kind cannot carry.
   private Task Rebind(int index, LayoutAuthoringBlock block, string kind)
-    => Replace(index, block with { Binding = kind.Length == 0 ? null : new(kind, "") });
+    => Replace(index, block with { Binding = kind.Length == 0 ? null : new(kind, ""), Repeating = block.Repeating && CollectionKinds.Contains(kind) });
+
+  // layout-auth-20 (T-724 ruling 39): the guided editor is the default; raw Rules text is the escape hatch.
+  private readonly Dictionary<string, bool> _rawGuards = new(StringComparer.Ordinal);
+  private bool RawGuard(LayoutAuthoringBlock block)
+    => _rawGuards.TryGetValue(block.Id, out var raw) ? raw : block.ShowWhen is not null && block.ShowWhenGuide is null;
+  private void SetRawGuard(LayoutAuthoringBlock block, string mode) => _rawGuards[block.Id] = mode == "raw";
+  private static readonly FormulaExpr EmptyGuard = new FormulaExpr.Literal(string.Empty, ColumnValueType.Text);
+  private RulesExpressionContract GuardContract => new("rule", "a boolean", "render", Catalogue.GuardReferences ?? []);
+  // Lowered through Rules' own formula lowering, so the guard is the text the shared engine compiles.
+  private static string? GuardText(FormulaExpr guide) => SkinLowering.FormulaDraftToSkin(new FormulaDraft
+  {
+    Scope = Harborline.Contracts.Forms.RuleScope.Schema,
+    ScopeTarget = "",
+    OutputType = Harborline.Contracts.Forms.RuleActionKind.Validate,
+    Inputs = [],
+    Expression = guide,
+  }, "guard").Expression?.ToJsonString();
+
+  // A block keeps only the members its intent admits: a related block observes (layout-auth-19)
+  // and only a capture block carries capture properties (layout-auth-21).
+  private static LayoutAuthoringBlock WithIntent(LayoutAuthoringBlock block, string intent)
+    => block with { Intent = intent, RelatedRelationship = intent == "observe" ? block.RelatedRelationship : null, Capture = intent == "capture" ? block.Capture : null };
+
+  // Sets the filter edges, storing none rather than an empty list (layout-auth-34).
+  private static LayoutAuthoringBlock WithFilterTargets(LayoutAuthoringBlock block, IReadOnlyList<string> targets)
+    => block with { FilterTargets = targets.Count > 0 ? targets : null };
+
+  // Sets capture members, dropping empty ones so an unnarrowed block carries no capture object.
+  private static LayoutAuthoringBlock WithCapture(LayoutAuthoringBlock block, LayoutAuthoringCapture next)
+    => block with { Capture = next.Required || next.ValidationRules is { Count: > 0 } || !string.IsNullOrEmpty(next.PromptOverride) || !string.IsNullOrEmpty(next.Control) ? next with { ValidationRules = next.ValidationRules is { Count: > 0 } ? next.ValidationRules : null, PromptOverride = string.IsNullOrEmpty(next.PromptOverride) ? null : next.PromptOverride, Control = string.IsNullOrEmpty(next.Control) ? null : next.Control } : null };
+
+  private bool DeclaredRequired(LayoutAuthoringBlock block)
+    => block.Binding is { Kind: "record_field" } binding && (Catalogue.RequiredFields ?? []).Contains(binding.Name);
+
+  private static IReadOnlyList<string> Toggle(IReadOnlyList<string>? values, string value, bool on)
+    => on ? [.. values ?? [], value] : (values ?? []).Where(current => current != value).ToArray();
+
+  /// <summary>
+  /// The block's behaviour on this surface. layout-auth-19: an observing block may traverse one
+  /// Records relationship the catalogue declares, and stores only its key; the relationship
+  /// declaration supplies the target, so the editor never asks for or writes one.
+  /// layout-auth-20: show_when is authored with the shared guided expression editor and lowered
+  /// through Rules' own formula lowering; raw Rules text, stored exactly as written, is the escape
+  /// hatch. The editor keeps no grammar of its own, and publication compiles the result.
+  /// layout-auth-21: a capture block may add a requirement and name registered validation rules;
+  /// a requirement Records declares is shown and cannot be removed here. layout-auth-22: its prompt
+  /// override is stored on the block, so it applies to this surface's context and nowhere else.
+  /// layout-bound-3: a captured field picks its control from the controls the host registers,
+  /// unless a value domain governs the field: its resolver picks the editor (layout-bound-10).
+  /// layout-auth-33: the selection the block opens with is authored here; what a reader has
+  /// selected at run time is execution state and is never offered for saving.
+  /// layout-auth-34: the blocks this block's selection filters are chosen from the surface's other
+  /// blocks, never itself, so every edge stays on the surface.
+  /// </summary>
+  private RenderFragment BlockBehaviour(int index, LayoutAuthoringBlock block) => @<text>@if ((block.Intent ?? Value.DefaultIntent ?? "observe") == "observe") { <select aria-label="@($"Block {index + 1} related record")" value="@(block.RelatedRelationship ?? "")" @onchange="e => Replace(index, block with { RelatedRelationship = string.IsNullOrEmpty(Text(e)) ? null : Text(e) })"><option value="">Not related</option>@Options(Catalogue.Relationships ?? [])</select> }<label>Default selection<input aria-label="@($"Block {index + 1} default selection")" value="@(block.DefaultSelection ?? "")" @onchange="e => Replace(index, block with { DefaultSelection = string.IsNullOrEmpty(Text(e)) ? null : Text(e) })" /></label>@for (var position = 0; position < Value.Blocks.Count; position++) { var other = Value.Blocks[position]; if (other.Id == block.Id) continue; var targetLabel = $"Block {position + 1}"; <label><input aria-label="@($"Block {index + 1} filters {targetLabel}")" type="checkbox" checked="@((block.FilterTargets ?? []).Contains(other.Id))" @onchange="e => Replace(index, WithFilterTargets(block, Toggle(block.FilterTargets, other.Id, IsChecked(e))))" />Filters @targetLabel</label> }<select aria-label="@($"Block {index + 1} show when authoring")" value="@(RawGuard(block) ? "raw" : "guided")" @onchange="e => SetRawGuard(block, Text(e))"><option value="guided">Guided expression</option><option value="raw">Rules text</option></select>@if (RawGuard(block)) { <label>Show when<input aria-label="@($"Block {index + 1} show when")" value="@(block.ShowWhen ?? "")" @onchange="e => Replace(index, block with { ShowWhen = string.IsNullOrEmpty(Text(e)) ? null : Text(e), ShowWhenGuide = null })" /></label> } else { <HarborlineGuidedExpressionEditor Site="rule" LabelOverride="@($"Block {index + 1} show when")" Value="@(block.ShowWhenGuide ?? EmptyGuard)" Contract="@GuardContract" ValueChanged="guide => Replace(index, block with { ShowWhen = GuardText(guide), ShowWhenGuide = guide })" /> }@if (block.ShowWhen is not null) { <button type="button" aria-label="@($"Remove block {index + 1} show when")" @onclick="() => Replace(index, block with { ShowWhen = null, ShowWhenGuide = null })">Remove guard</button> }@if ((block.Intent ?? Value.DefaultIntent ?? "observe") == "capture") { var capture = block.Capture ?? new(); <label><input aria-label="@($"Block {index + 1} required")" type="checkbox" checked="@(DeclaredRequired(block) || capture.Required)" disabled="@DeclaredRequired(block)" @onchange="e => Replace(index, WithCapture(block, capture with { Required = IsChecked(e) }))" />Required</label>@if (block.Binding is { Kind: "record_field" } valueField && (Catalogue.ValueDomainFields ?? []).Contains(valueField.Name)) { <span>@($"Block {index + 1} control is chosen by its value domain")</span> } else if (block.Binding is { Kind: "record_field" }) { <select aria-label="@($"Block {index + 1} field control")" value="@(capture.Control ?? "")" @onchange="e => Replace(index, WithCapture(block, capture with { Control = Text(e) }))"><option value="">Runtime default</option>@Options(Catalogue.FieldControls ?? [])</select> }<label>Prompt override<input aria-label="@($"Block {index + 1} prompt override")" value="@(capture.PromptOverride ?? "")" @onchange="e => Replace(index, WithCapture(block, capture with { PromptOverride = Text(e) }))" /></label>@foreach (var rule in Catalogue.ValidationRules ?? []) { <label><input aria-label="@($"Block {index + 1} validation rule {rule.Label}")" type="checkbox" checked="@((capture.ValidationRules ?? []).Contains(rule.Id))" @onchange="e => Replace(index, WithCapture(block, capture with { ValidationRules = Toggle(capture.ValidationRules, rule.Id, IsChecked(e)) }))" />@rule.Label</label> } }</text>;
+
+  // layout-auth-18: only a collection can repeat, and a query or a record field is the collection.
+  private static readonly HashSet<string> CollectionKinds = ["query", "record_field"];
+
+  /// <summary>
+  /// layout-auth-18: a repeating block binds a collection, and its row subtree is authored once
+  /// as its children. A block can be placed inside any block but itself or its own descendant.
+  /// </summary>
+  private RenderFragment BlockStructure(int index, LayoutAuthoringBlock block) => @<text><select aria-label="@($"Block {index + 1} parent")" value="@(block.ParentId ?? "")" @onchange="e => Place(block, Text(e))"><option value="">Surface root</option>@foreach (var (candidate, position) in Parents(block)) { <option value="@candidate.Id">@($"Block {position + 1}")</option> }</select>@if (block.Binding is { } binding && CollectionKinds.Contains(binding.Kind)) { <label><input aria-label="@($"Block {index + 1} repeats per row")" type="checkbox" checked="@block.Repeating" @onchange="e => Replace(index, IsChecked(e) ? WithContainer(block with { Repeating = true }) : block with { Repeating = false })" />Repeats per row</label> }@if (block.Repeating || Value.Blocks.Any(child => child.ParentId == block.Id)) { <select aria-label="@($"Block {index + 1} container")" value="@(block.Container ?? "stack")" @onchange="e => Replace(index, block with { Container = Text(e) })">@Options(Flows)</select> }</text>;
+
+  // T-724 ruling 41: a block that repeats or has children gets the container admission requires.
+  private static LayoutAuthoringBlock WithContainer(LayoutAuthoringBlock block) => block.Container is null ? block with { Container = "stack" } : block;
+
+  private Task Place(LayoutAuthoringBlock block, string parentId)
+    => Change(Value with { Blocks = Value.Blocks.Select(candidate => candidate.Id == block.Id ? candidate with { ParentId = parentId.Length == 0 ? null : parentId } : candidate.Id == parentId ? WithContainer(candidate) : candidate).ToArray() });
+
+  private IEnumerable<(LayoutAuthoringBlock Candidate, int Position)> Parents(LayoutAuthoringBlock block)
+    => Value.Blocks.Select((candidate, position) => (candidate, position)).Where(pair => pair.candidate.Id != block.Id && !IsInside(pair.candidate, block.Id));
+
+  // Whether block sits anywhere inside ancestorId, bounded so a malformed cycle cannot spin.
+  private bool IsInside(LayoutAuthoringBlock block, string ancestorId)
+  {
+    LayoutAuthoringBlock? current = block;
+    for (var step = 0; current?.ParentId is { } parent && step < Value.Blocks.Count; step++)
+    {
+      if (parent == ancestorId) return true;
+      current = Value.Blocks.FirstOrDefault(candidate => candidate.Id == parent);
+    }
+    return false;
+  }
 
   private static RenderFragment Options(IReadOnlyList<LayoutAuthoringOption> options) => builder => { var sequence = 0; foreach (var option in options) { builder.OpenElement(sequence++, "option"); builder.AddAttribute(sequence++, "value", option.Id); builder.AddContent(sequence++, option.Label); builder.CloseElement(); } };
 }

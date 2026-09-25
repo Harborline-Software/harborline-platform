@@ -1,0 +1,1339 @@
+{
+  "schemaVersion": 1,
+  "description": "T-590 released evaluator/binding contract fixtures (DES-0018 rules-eng-26, rules-ck-28). One named probe per borrow-grammar edge in T-487's Channels acceptance: the borrower's typed declaration (ADR 0099 decision 8) with its canonical export, one admitted program that evaluates, one program outside the declaration that refuses by code, and one phase the declaration marks inapplicable. Declarations for DES-0016/0017/0019/0020/0021/0022/0023 transcribe their *-ck expression-environment rows; the others are drawn from each record's borrowed-grammar row until that record carries its own declaration row. Consumer integration stays with the member tickets.",
+  "borrowers": [
+    {
+      "edge": "DES-0015 -> DES-0018 borrow grammar",
+      "declaration": {
+        "borrower": "records-auth-12",
+        "grammar": "harborline-jsonlogic/v1",
+        "variables": {
+          "field": "record field",
+          "row": "child row",
+          "caller": "authenticated-principal"
+        },
+        "operations": [
+          "var",
+          "missing",
+          "missing_some",
+          "==",
+          "!=",
+          "===",
+          "!==",
+          "!",
+          "!!",
+          "and",
+          "or",
+          "if",
+          ">",
+          ">=",
+          "<",
+          "<=",
+          "+",
+          "-",
+          "*",
+          "/",
+          "%",
+          "min",
+          "max",
+          "in",
+          "cat",
+          "agg",
+          "money.add",
+          "money.sub",
+          "money.mul",
+          "date.add",
+          "date.diff",
+          "date.today",
+          "coding.is"
+        ],
+        "effects": [
+          "field-read"
+        ],
+        "missingValues": "missing-field-reads-null",
+        "timeSource": "evaluated-at",
+        "timeZone": "utc",
+        "phases": {
+          "AuthoringValidation": false,
+          "PublishValidation": true,
+          "Render": false,
+          "Submission": true,
+          "Run": false,
+          "SignOff": false
+        },
+        "replay": "deterministic"
+      },
+      "canonical": "{\"borrower\":\"records-auth-12\",\"effects\":[\"field-read\"],\"grammar\":\"harborline-jsonlogic/v1\",\"missingValues\":\"missing-field-reads-null\",\"operations\":[\"var\",\"missing\",\"missing_some\",\"==\",\"!=\",\"===\",\"!==\",\"!\",\"!!\",\"and\",\"or\",\"if\",\">\",\">=\",\"<\",\"<=\",\"+\",\"-\",\"*\",\"/\",\"%\",\"min\",\"max\",\"in\",\"cat\",\"agg\",\"money.add\",\"money.sub\",\"money.mul\",\"date.add\",\"date.diff\",\"date.today\",\"coding.is\"],\"phases\":{\"AuthoringValidation\":false,\"PublishValidation\":true,\"Render\":false,\"Run\":false,\"SignOff\":false,\"Submission\":true},\"replay\":\"deterministic\",\"timeSource\":\"evaluated-at\",\"timeZone\":\"utc\",\"variables\":{\"caller\":\"authenticated-principal\",\"field\":\"record field\",\"row\":\"child row\"}}",
+      "admittedPhase": "Submission",
+      "inapplicablePhase": "Run",
+      "admitted": {
+        "expression": {
+          ">": [
+            {
+              "var": "field.amount"
+            },
+            10
+          ]
+        },
+        "context": {
+          "amount": 20
+        },
+        "expectedOk": true
+      },
+      "refused": {
+        "expression": {
+          "==": [
+            {
+              "var": "wf.state"
+            },
+            "open"
+          ]
+        },
+        "code": "rule.environment.variable_not_admitted"
+      }
+    },
+    {
+      "edge": "DES-0016 -> DES-0018 borrow grammar",
+      "declaration": {
+        "borrower": "forms-ck-13",
+        "grammar": "harborline-jsonlogic/v1",
+        "variables": {
+          "candidate": "form-submission-candidate",
+          "caller": "authenticated-principal",
+          "clock": "evaluated-at",
+          "record_type": "required-record-type-id",
+          "field": "record-type-schema-field",
+          "row": "record-type-schema-child-row"
+        },
+        "operations": [
+          "var",
+          "missing",
+          "missing_some",
+          "==",
+          "!=",
+          "===",
+          "!==",
+          "!",
+          "!!",
+          "and",
+          "or",
+          "if",
+          ">",
+          ">=",
+          "<",
+          "<=",
+          "+",
+          "-",
+          "*",
+          "/",
+          "%",
+          "min",
+          "max",
+          "in",
+          "cat",
+          "agg",
+          "money.add",
+          "money.sub",
+          "money.mul",
+          "date.add",
+          "date.diff",
+          "date.today",
+          "coding.is"
+        ],
+        "effects": [
+          "field-read"
+        ],
+        "missingValues": "missing-field-reads-null",
+        "timeSource": "evaluated-at",
+        "timeZone": "utc",
+        "phases": {
+          "AuthoringValidation": false,
+          "PublishValidation": false,
+          "Render": true,
+          "Submission": true,
+          "Run": false,
+          "SignOff": false
+        },
+        "replay": "deterministic"
+      },
+      "canonical": "{\"borrower\":\"forms-ck-13\",\"effects\":[\"field-read\"],\"grammar\":\"harborline-jsonlogic/v1\",\"missingValues\":\"missing-field-reads-null\",\"operations\":[\"var\",\"missing\",\"missing_some\",\"==\",\"!=\",\"===\",\"!==\",\"!\",\"!!\",\"and\",\"or\",\"if\",\">\",\">=\",\"<\",\"<=\",\"+\",\"-\",\"*\",\"/\",\"%\",\"min\",\"max\",\"in\",\"cat\",\"agg\",\"money.add\",\"money.sub\",\"money.mul\",\"date.add\",\"date.diff\",\"date.today\",\"coding.is\"],\"phases\":{\"AuthoringValidation\":false,\"PublishValidation\":false,\"Render\":true,\"Run\":false,\"SignOff\":false,\"Submission\":true},\"replay\":\"deterministic\",\"timeSource\":\"evaluated-at\",\"timeZone\":\"utc\",\"variables\":{\"caller\":\"authenticated-principal\",\"candidate\":\"form-submission-candidate\",\"clock\":\"evaluated-at\",\"field\":\"record-type-schema-field\",\"record_type\":\"required-record-type-id\",\"row\":\"record-type-schema-child-row\"}}",
+      "admittedPhase": "Submission",
+      "inapplicablePhase": "Run",
+      "admitted": {
+        "expression": {
+          ">": [
+            {
+              "var": "field.amount"
+            },
+            10
+          ]
+        },
+        "context": {
+          "amount": 20
+        },
+        "expectedOk": true
+      },
+      "refused": {
+        "expression": {
+          "==": [
+            {
+              "var": "wf.state"
+            },
+            "open"
+          ]
+        },
+        "code": "rule.environment.variable_not_admitted"
+      }
+    },
+    {
+      "edge": "DES-0017 -> DES-0018 borrow grammar",
+      "declaration": {
+        "borrower": "views-ck-14",
+        "grammar": "harborline-jsonlogic/v1",
+        "variables": {
+          "field": "typed record field",
+          "caller": "authenticated-principal",
+          "clock": "evaluated-at"
+        },
+        "operations": [
+          "var",
+          "missing",
+          "missing_some",
+          "==",
+          "!=",
+          "===",
+          "!==",
+          "!",
+          "!!",
+          "and",
+          "or",
+          "if",
+          ">",
+          ">=",
+          "<",
+          "<=",
+          "+",
+          "-",
+          "*",
+          "/",
+          "%",
+          "min",
+          "max",
+          "in",
+          "cat",
+          "money.add",
+          "money.sub",
+          "money.mul",
+          "date.add",
+          "date.diff",
+          "date.today",
+          "coding.is"
+        ],
+        "effects": [
+          "field-read"
+        ],
+        "missingValues": "missing-field-reads-null",
+        "timeSource": "evaluated-at",
+        "timeZone": "utc",
+        "phases": {
+          "AuthoringValidation": false,
+          "PublishValidation": false,
+          "Render": true,
+          "Submission": false,
+          "Run": true,
+          "SignOff": false
+        },
+        "replay": "deterministic"
+      },
+      "canonical": "{\"borrower\":\"views-ck-14\",\"effects\":[\"field-read\"],\"grammar\":\"harborline-jsonlogic/v1\",\"missingValues\":\"missing-field-reads-null\",\"operations\":[\"var\",\"missing\",\"missing_some\",\"==\",\"!=\",\"===\",\"!==\",\"!\",\"!!\",\"and\",\"or\",\"if\",\">\",\">=\",\"<\",\"<=\",\"+\",\"-\",\"*\",\"/\",\"%\",\"min\",\"max\",\"in\",\"cat\",\"money.add\",\"money.sub\",\"money.mul\",\"date.add\",\"date.diff\",\"date.today\",\"coding.is\"],\"phases\":{\"AuthoringValidation\":false,\"PublishValidation\":false,\"Render\":true,\"Run\":true,\"SignOff\":false,\"Submission\":false},\"replay\":\"deterministic\",\"timeSource\":\"evaluated-at\",\"timeZone\":\"utc\",\"variables\":{\"caller\":\"authenticated-principal\",\"clock\":\"evaluated-at\",\"field\":\"typed record field\"}}",
+      "admittedPhase": "Run",
+      "inapplicablePhase": "Submission",
+      "admitted": {
+        "expression": {
+          ">": [
+            {
+              "var": "field.amount"
+            },
+            10
+          ]
+        },
+        "context": {
+          "amount": 20
+        },
+        "expectedOk": true
+      },
+      "refused": {
+        "expression": {
+          ">": [
+            {
+              "var": "table.sum(items.qty)"
+            },
+            0
+          ]
+        },
+        "code": "rule.environment.operation_not_admitted"
+      }
+    },
+    {
+      "edge": "DES-0019 -> DES-0018 borrow grammar",
+      "declaration": {
+        "borrower": "workflows-ck-29",
+        "grammar": "harborline-jsonlogic/v1",
+        "variables": {
+          "field": "typed record/set/case subject field",
+          "wf": "run identity",
+          "timer": "run timer",
+          "caller": "principal",
+          "clock": "evaluated-at"
+        },
+        "operations": [
+          "var",
+          "missing",
+          "missing_some",
+          "==",
+          "!=",
+          "===",
+          "!==",
+          "!",
+          "!!",
+          "and",
+          "or",
+          "if",
+          ">",
+          ">=",
+          "<",
+          "<=",
+          "+",
+          "-",
+          "*",
+          "/",
+          "%",
+          "min",
+          "max",
+          "in",
+          "cat",
+          "money.add",
+          "money.sub",
+          "money.mul",
+          "date.add",
+          "date.diff",
+          "date.today",
+          "coding.is"
+        ],
+        "effects": [
+          "field-read"
+        ],
+        "missingValues": "missing-field-reads-null",
+        "timeSource": "evaluated-at",
+        "timeZone": "utc",
+        "phases": {
+          "AuthoringValidation": false,
+          "PublishValidation": false,
+          "Render": false,
+          "Submission": false,
+          "Run": true,
+          "SignOff": false
+        },
+        "replay": "deterministic"
+      },
+      "canonical": "{\"borrower\":\"workflows-ck-29\",\"effects\":[\"field-read\"],\"grammar\":\"harborline-jsonlogic/v1\",\"missingValues\":\"missing-field-reads-null\",\"operations\":[\"var\",\"missing\",\"missing_some\",\"==\",\"!=\",\"===\",\"!==\",\"!\",\"!!\",\"and\",\"or\",\"if\",\">\",\">=\",\"<\",\"<=\",\"+\",\"-\",\"*\",\"/\",\"%\",\"min\",\"max\",\"in\",\"cat\",\"money.add\",\"money.sub\",\"money.mul\",\"date.add\",\"date.diff\",\"date.today\",\"coding.is\"],\"phases\":{\"AuthoringValidation\":false,\"PublishValidation\":false,\"Render\":false,\"Run\":true,\"SignOff\":false,\"Submission\":false},\"replay\":\"deterministic\",\"timeSource\":\"evaluated-at\",\"timeZone\":\"utc\",\"variables\":{\"caller\":\"principal\",\"clock\":\"evaluated-at\",\"field\":\"typed record/set/case subject field\",\"timer\":\"run timer\",\"wf\":\"run identity\"}}",
+      "admittedPhase": "Run",
+      "inapplicablePhase": "Render",
+      "admitted": {
+        "expression": {
+          ">": [
+            {
+              "var": "field.amount"
+            },
+            10
+          ]
+        },
+        "context": {
+          "amount": 20
+        },
+        "expectedOk": true
+      },
+      "refused": {
+        "expression": {
+          ">": [
+            {
+              "var": "table.sum(items.qty)"
+            },
+            0
+          ]
+        },
+        "code": "rule.environment.operation_not_admitted"
+      }
+    },
+    {
+      "edge": "DES-0020 -> DES-0018 borrow grammar",
+      "declaration": {
+        "borrower": "reports-ck-24",
+        "grammar": "harborline-jsonlogic/v1",
+        "variables": {
+          "field": "typed parameter or authorized row field",
+          "basis": "pinned basis",
+          "clock": "period clock"
+        },
+        "operations": [
+          "var",
+          "missing",
+          "missing_some",
+          "==",
+          "!=",
+          "===",
+          "!==",
+          "!",
+          "!!",
+          "and",
+          "or",
+          "if",
+          ">",
+          ">=",
+          "<",
+          "<=",
+          "+",
+          "-",
+          "*",
+          "/",
+          "%",
+          "min",
+          "max",
+          "in",
+          "cat",
+          "money.add",
+          "money.sub",
+          "money.mul",
+          "date.add",
+          "date.diff",
+          "date.today",
+          "coding.is"
+        ],
+        "effects": [
+          "field-read"
+        ],
+        "missingValues": "missing-field-reads-null",
+        "timeSource": "period-clock",
+        "timeZone": "utc",
+        "phases": {
+          "AuthoringValidation": false,
+          "PublishValidation": false,
+          "Render": false,
+          "Submission": false,
+          "Run": true,
+          "SignOff": true
+        },
+        "replay": "deterministic"
+      },
+      "canonical": "{\"borrower\":\"reports-ck-24\",\"effects\":[\"field-read\"],\"grammar\":\"harborline-jsonlogic/v1\",\"missingValues\":\"missing-field-reads-null\",\"operations\":[\"var\",\"missing\",\"missing_some\",\"==\",\"!=\",\"===\",\"!==\",\"!\",\"!!\",\"and\",\"or\",\"if\",\">\",\">=\",\"<\",\"<=\",\"+\",\"-\",\"*\",\"/\",\"%\",\"min\",\"max\",\"in\",\"cat\",\"money.add\",\"money.sub\",\"money.mul\",\"date.add\",\"date.diff\",\"date.today\",\"coding.is\"],\"phases\":{\"AuthoringValidation\":false,\"PublishValidation\":false,\"Render\":false,\"Run\":true,\"SignOff\":true,\"Submission\":false},\"replay\":\"deterministic\",\"timeSource\":\"period-clock\",\"timeZone\":\"utc\",\"variables\":{\"basis\":\"pinned basis\",\"clock\":\"period clock\",\"field\":\"typed parameter or authorized row field\"}}",
+      "admittedPhase": "Run",
+      "inapplicablePhase": "Render",
+      "admitted": {
+        "expression": {
+          ">": [
+            {
+              "var": "field.amount"
+            },
+            10
+          ]
+        },
+        "context": {
+          "amount": 20
+        },
+        "expectedOk": true
+      },
+      "refused": {
+        "expression": {
+          ">": [
+            {
+              "var": "table.sum(items.qty)"
+            },
+            0
+          ]
+        },
+        "code": "rule.environment.operation_not_admitted"
+      }
+    },
+    {
+      "edge": "DES-0021 -> DES-0018 borrow grammar",
+      "declaration": {
+        "borrower": "documents-ck-25",
+        "grammar": "harborline-jsonlogic/v1",
+        "variables": {
+          "field": "typed record field",
+          "row": "per-row scope",
+          "caller": "issuance-principal",
+          "clock": "pinned-issue-clock"
+        },
+        "operations": [
+          "var",
+          "missing",
+          "missing_some",
+          "==",
+          "!=",
+          "===",
+          "!==",
+          "!",
+          "!!",
+          "and",
+          "or",
+          "if",
+          ">",
+          ">=",
+          "<",
+          "<=",
+          "+",
+          "-",
+          "*",
+          "/",
+          "%",
+          "min",
+          "max",
+          "in",
+          "cat",
+          "agg",
+          "money.add",
+          "money.sub",
+          "money.mul",
+          "date.add",
+          "date.diff",
+          "date.today",
+          "coding.is"
+        ],
+        "effects": [
+          "field-read"
+        ],
+        "missingValues": "missing-field-reads-null",
+        "timeSource": "pinned-issue-clock",
+        "timeZone": "utc",
+        "phases": {
+          "AuthoringValidation": false,
+          "PublishValidation": false,
+          "Render": true,
+          "Submission": false,
+          "Run": false,
+          "SignOff": true
+        },
+        "replay": "deterministic"
+      },
+      "canonical": "{\"borrower\":\"documents-ck-25\",\"effects\":[\"field-read\"],\"grammar\":\"harborline-jsonlogic/v1\",\"missingValues\":\"missing-field-reads-null\",\"operations\":[\"var\",\"missing\",\"missing_some\",\"==\",\"!=\",\"===\",\"!==\",\"!\",\"!!\",\"and\",\"or\",\"if\",\">\",\">=\",\"<\",\"<=\",\"+\",\"-\",\"*\",\"/\",\"%\",\"min\",\"max\",\"in\",\"cat\",\"agg\",\"money.add\",\"money.sub\",\"money.mul\",\"date.add\",\"date.diff\",\"date.today\",\"coding.is\"],\"phases\":{\"AuthoringValidation\":false,\"PublishValidation\":false,\"Render\":true,\"Run\":false,\"SignOff\":true,\"Submission\":false},\"replay\":\"deterministic\",\"timeSource\":\"pinned-issue-clock\",\"timeZone\":\"utc\",\"variables\":{\"caller\":\"issuance-principal\",\"clock\":\"pinned-issue-clock\",\"field\":\"typed record field\",\"row\":\"per-row scope\"}}",
+      "admittedPhase": "Render",
+      "inapplicablePhase": "Submission",
+      "admitted": {
+        "expression": {
+          ">": [
+            {
+              "var": "field.amount"
+            },
+            10
+          ]
+        },
+        "context": {
+          "amount": 20
+        },
+        "expectedOk": true
+      },
+      "refused": {
+        "expression": {
+          "==": [
+            {
+              "var": "wf.state"
+            },
+            "open"
+          ]
+        },
+        "code": "rule.environment.variable_not_admitted"
+      }
+    },
+    {
+      "edge": "DES-0022 -> DES-0018 borrow grammar",
+      "declaration": {
+        "borrower": "scheduling-ck-23",
+        "grammar": "harborline-jsonlogic/v1",
+        "variables": {
+          "field": "candidate assignment or resource/chain/occurrence fact",
+          "clock": "planning clock"
+        },
+        "operations": [
+          "var",
+          "missing",
+          "missing_some",
+          "==",
+          "!=",
+          "===",
+          "!==",
+          "!",
+          "!!",
+          "and",
+          "or",
+          "if",
+          ">",
+          ">=",
+          "<",
+          "<=",
+          "+",
+          "-",
+          "*",
+          "/",
+          "%",
+          "min",
+          "max",
+          "in",
+          "cat",
+          "money.add",
+          "money.sub",
+          "money.mul",
+          "date.add",
+          "date.diff",
+          "date.today",
+          "coding.is"
+        ],
+        "effects": [
+          "field-read"
+        ],
+        "missingValues": "missing-field-reads-null",
+        "timeSource": "planning-clock",
+        "timeZone": "utc",
+        "phases": {
+          "AuthoringValidation": false,
+          "PublishValidation": false,
+          "Render": false,
+          "Submission": false,
+          "Run": true,
+          "SignOff": false
+        },
+        "replay": "deterministic"
+      },
+      "canonical": "{\"borrower\":\"scheduling-ck-23\",\"effects\":[\"field-read\"],\"grammar\":\"harborline-jsonlogic/v1\",\"missingValues\":\"missing-field-reads-null\",\"operations\":[\"var\",\"missing\",\"missing_some\",\"==\",\"!=\",\"===\",\"!==\",\"!\",\"!!\",\"and\",\"or\",\"if\",\">\",\">=\",\"<\",\"<=\",\"+\",\"-\",\"*\",\"/\",\"%\",\"min\",\"max\",\"in\",\"cat\",\"money.add\",\"money.sub\",\"money.mul\",\"date.add\",\"date.diff\",\"date.today\",\"coding.is\"],\"phases\":{\"AuthoringValidation\":false,\"PublishValidation\":false,\"Render\":false,\"Run\":true,\"SignOff\":false,\"Submission\":false},\"replay\":\"deterministic\",\"timeSource\":\"planning-clock\",\"timeZone\":\"utc\",\"variables\":{\"clock\":\"planning clock\",\"field\":\"candidate assignment or resource/chain/occurrence fact\"}}",
+      "admittedPhase": "Run",
+      "inapplicablePhase": "Render",
+      "admitted": {
+        "expression": {
+          ">": [
+            {
+              "var": "field.amount"
+            },
+            10
+          ]
+        },
+        "context": {
+          "amount": 20
+        },
+        "expectedOk": true
+      },
+      "refused": {
+        "expression": {
+          ">": [
+            {
+              "var": "table.sum(items.qty)"
+            },
+            0
+          ]
+        },
+        "code": "rule.environment.operation_not_admitted"
+      }
+    },
+    {
+      "edge": "DES-0023 -> DES-0018 borrow grammar",
+      "declaration": {
+        "borrower": "data-exchange-ck-26",
+        "grammar": "harborline-jsonlogic/v1",
+        "variables": {
+          "field": "typed source row or target contract field",
+          "caller": "authenticated-principal",
+          "clock": "run-pinned-clock"
+        },
+        "operations": [
+          "var",
+          "missing",
+          "missing_some",
+          "==",
+          "!=",
+          "===",
+          "!==",
+          "!",
+          "!!",
+          "and",
+          "or",
+          "if",
+          ">",
+          ">=",
+          "<",
+          "<=",
+          "+",
+          "-",
+          "*",
+          "/",
+          "%",
+          "min",
+          "max",
+          "in",
+          "cat",
+          "money.add",
+          "money.sub",
+          "money.mul",
+          "date.add",
+          "date.diff",
+          "date.today",
+          "coding.is"
+        ],
+        "effects": [
+          "field-read"
+        ],
+        "missingValues": "missing-field-reads-null",
+        "timeSource": "run-pinned-clock",
+        "timeZone": "utc",
+        "phases": {
+          "AuthoringValidation": false,
+          "PublishValidation": false,
+          "Render": false,
+          "Submission": false,
+          "Run": true,
+          "SignOff": false
+        },
+        "replay": "deterministic"
+      },
+      "canonical": "{\"borrower\":\"data-exchange-ck-26\",\"effects\":[\"field-read\"],\"grammar\":\"harborline-jsonlogic/v1\",\"missingValues\":\"missing-field-reads-null\",\"operations\":[\"var\",\"missing\",\"missing_some\",\"==\",\"!=\",\"===\",\"!==\",\"!\",\"!!\",\"and\",\"or\",\"if\",\">\",\">=\",\"<\",\"<=\",\"+\",\"-\",\"*\",\"/\",\"%\",\"min\",\"max\",\"in\",\"cat\",\"money.add\",\"money.sub\",\"money.mul\",\"date.add\",\"date.diff\",\"date.today\",\"coding.is\"],\"phases\":{\"AuthoringValidation\":false,\"PublishValidation\":false,\"Render\":false,\"Run\":true,\"SignOff\":false,\"Submission\":false},\"replay\":\"deterministic\",\"timeSource\":\"run-pinned-clock\",\"timeZone\":\"utc\",\"variables\":{\"caller\":\"authenticated-principal\",\"clock\":\"run-pinned-clock\",\"field\":\"typed source row or target contract field\"}}",
+      "admittedPhase": "Run",
+      "inapplicablePhase": "Submission",
+      "admitted": {
+        "expression": {
+          ">": [
+            {
+              "var": "field.amount"
+            },
+            10
+          ]
+        },
+        "context": {
+          "amount": 20
+        },
+        "expectedOk": true
+      },
+      "refused": {
+        "expression": {
+          ">": [
+            {
+              "var": "table.sum(items.qty)"
+            },
+            0
+          ]
+        },
+        "code": "rule.environment.operation_not_admitted"
+      }
+    },
+    {
+      "edge": "DES-0025 -> DES-0018 borrow grammar",
+      "declaration": {
+        "borrower": "booking-auth-9",
+        "grammar": "harborline-jsonlogic/v1",
+        "variables": {
+          "field": "subject or bookable fact",
+          "clock": "evaluated-at"
+        },
+        "operations": [
+          "var",
+          "missing",
+          "missing_some",
+          "==",
+          "!=",
+          "===",
+          "!==",
+          "!",
+          "!!",
+          "and",
+          "or",
+          "if",
+          ">",
+          ">=",
+          "<",
+          "<=",
+          "+",
+          "-",
+          "*",
+          "/",
+          "%",
+          "min",
+          "max",
+          "in",
+          "cat",
+          "money.add",
+          "money.sub",
+          "money.mul",
+          "date.add",
+          "date.diff",
+          "date.today",
+          "coding.is"
+        ],
+        "effects": [
+          "field-read"
+        ],
+        "missingValues": "missing-field-reads-null",
+        "timeSource": "evaluated-at",
+        "timeZone": "utc",
+        "phases": {
+          "AuthoringValidation": false,
+          "PublishValidation": false,
+          "Render": false,
+          "Submission": true,
+          "Run": true,
+          "SignOff": false
+        },
+        "replay": "deterministic"
+      },
+      "canonical": "{\"borrower\":\"booking-auth-9\",\"effects\":[\"field-read\"],\"grammar\":\"harborline-jsonlogic/v1\",\"missingValues\":\"missing-field-reads-null\",\"operations\":[\"var\",\"missing\",\"missing_some\",\"==\",\"!=\",\"===\",\"!==\",\"!\",\"!!\",\"and\",\"or\",\"if\",\">\",\">=\",\"<\",\"<=\",\"+\",\"-\",\"*\",\"/\",\"%\",\"min\",\"max\",\"in\",\"cat\",\"money.add\",\"money.sub\",\"money.mul\",\"date.add\",\"date.diff\",\"date.today\",\"coding.is\"],\"phases\":{\"AuthoringValidation\":false,\"PublishValidation\":false,\"Render\":false,\"Run\":true,\"SignOff\":false,\"Submission\":true},\"replay\":\"deterministic\",\"timeSource\":\"evaluated-at\",\"timeZone\":\"utc\",\"variables\":{\"clock\":\"evaluated-at\",\"field\":\"subject or bookable fact\"}}",
+      "admittedPhase": "Submission",
+      "inapplicablePhase": "Render",
+      "admitted": {
+        "expression": {
+          ">": [
+            {
+              "var": "field.amount"
+            },
+            10
+          ]
+        },
+        "context": {
+          "amount": 20
+        },
+        "expectedOk": true
+      },
+      "refused": {
+        "expression": {
+          ">": [
+            {
+              "var": "table.sum(items.qty)"
+            },
+            0
+          ]
+        },
+        "code": "rule.environment.operation_not_admitted"
+      }
+    },
+    {
+      "edge": "DES-0030 -> DES-0018 borrow grammar",
+      "declaration": {
+        "borrower": "field-runtime-ck-6",
+        "grammar": "harborline-jsonlogic/v1",
+        "variables": {
+          "field": "record value",
+          "row": "row-scoped record value"
+        },
+        "operations": [
+          "var",
+          "missing",
+          "missing_some",
+          "==",
+          "!=",
+          "===",
+          "!==",
+          "!",
+          "!!",
+          "and",
+          "or",
+          "if",
+          ">",
+          ">=",
+          "<",
+          "<=",
+          "+",
+          "-",
+          "*",
+          "/",
+          "%",
+          "min",
+          "max",
+          "in",
+          "cat",
+          "agg",
+          "money.add",
+          "money.sub",
+          "money.mul",
+          "date.add",
+          "date.diff",
+          "date.today",
+          "coding.is"
+        ],
+        "effects": [
+          "field-read"
+        ],
+        "missingValues": "missing-field-reads-null",
+        "timeSource": "evaluated-at",
+        "timeZone": "utc",
+        "phases": {
+          "AuthoringValidation": false,
+          "PublishValidation": false,
+          "Render": true,
+          "Submission": true,
+          "Run": false,
+          "SignOff": false
+        },
+        "replay": "deterministic"
+      },
+      "canonical": "{\"borrower\":\"field-runtime-ck-6\",\"effects\":[\"field-read\"],\"grammar\":\"harborline-jsonlogic/v1\",\"missingValues\":\"missing-field-reads-null\",\"operations\":[\"var\",\"missing\",\"missing_some\",\"==\",\"!=\",\"===\",\"!==\",\"!\",\"!!\",\"and\",\"or\",\"if\",\">\",\">=\",\"<\",\"<=\",\"+\",\"-\",\"*\",\"/\",\"%\",\"min\",\"max\",\"in\",\"cat\",\"agg\",\"money.add\",\"money.sub\",\"money.mul\",\"date.add\",\"date.diff\",\"date.today\",\"coding.is\"],\"phases\":{\"AuthoringValidation\":false,\"PublishValidation\":false,\"Render\":true,\"Run\":false,\"SignOff\":false,\"Submission\":true},\"replay\":\"deterministic\",\"timeSource\":\"evaluated-at\",\"timeZone\":\"utc\",\"variables\":{\"field\":\"record value\",\"row\":\"row-scoped record value\"}}",
+      "admittedPhase": "Render",
+      "inapplicablePhase": "Run",
+      "admitted": {
+        "expression": {
+          ">": [
+            {
+              "var": "field.amount"
+            },
+            10
+          ]
+        },
+        "context": {
+          "amount": 20
+        },
+        "expectedOk": true
+      },
+      "refused": {
+        "expression": {
+          "==": [
+            {
+              "var": "wf.state"
+            },
+            "open"
+          ]
+        },
+        "code": "rule.environment.variable_not_admitted"
+      }
+    },
+    {
+      "edge": "DES-0031 -> DES-0018 borrow grammar",
+      "declaration": {
+        "borrower": "measure-catalogue-filter",
+        "grammar": "harborline-jsonlogic/v1",
+        "variables": {
+          "field": "measure row field",
+          "clock": "basis instant"
+        },
+        "operations": [
+          "var",
+          "missing",
+          "missing_some",
+          "==",
+          "!=",
+          "===",
+          "!==",
+          "!",
+          "!!",
+          "and",
+          "or",
+          "if",
+          ">",
+          ">=",
+          "<",
+          "<=",
+          "+",
+          "-",
+          "*",
+          "/",
+          "%",
+          "min",
+          "max",
+          "in",
+          "cat",
+          "money.add",
+          "money.sub",
+          "money.mul",
+          "date.add",
+          "date.diff",
+          "date.today",
+          "coding.is"
+        ],
+        "effects": [
+          "field-read"
+        ],
+        "missingValues": "missing-field-reads-null",
+        "timeSource": "basis-instant",
+        "timeZone": "utc",
+        "phases": {
+          "AuthoringValidation": false,
+          "PublishValidation": false,
+          "Render": false,
+          "Submission": false,
+          "Run": true,
+          "SignOff": false
+        },
+        "replay": "deterministic"
+      },
+      "canonical": "{\"borrower\":\"measure-catalogue-filter\",\"effects\":[\"field-read\"],\"grammar\":\"harborline-jsonlogic/v1\",\"missingValues\":\"missing-field-reads-null\",\"operations\":[\"var\",\"missing\",\"missing_some\",\"==\",\"!=\",\"===\",\"!==\",\"!\",\"!!\",\"and\",\"or\",\"if\",\">\",\">=\",\"<\",\"<=\",\"+\",\"-\",\"*\",\"/\",\"%\",\"min\",\"max\",\"in\",\"cat\",\"money.add\",\"money.sub\",\"money.mul\",\"date.add\",\"date.diff\",\"date.today\",\"coding.is\"],\"phases\":{\"AuthoringValidation\":false,\"PublishValidation\":false,\"Render\":false,\"Run\":true,\"SignOff\":false,\"Submission\":false},\"replay\":\"deterministic\",\"timeSource\":\"basis-instant\",\"timeZone\":\"utc\",\"variables\":{\"clock\":\"basis instant\",\"field\":\"measure row field\"}}",
+      "admittedPhase": "Run",
+      "inapplicablePhase": "Render",
+      "admitted": {
+        "expression": {
+          ">": [
+            {
+              "var": "field.amount"
+            },
+            10
+          ]
+        },
+        "context": {
+          "amount": 20
+        },
+        "expectedOk": true
+      },
+      "refused": {
+        "expression": {
+          ">": [
+            {
+              "var": "table.sum(items.qty)"
+            },
+            0
+          ]
+        },
+        "code": "rule.environment.operation_not_admitted"
+      }
+    },
+    {
+      "edge": "DES-0032 -> DES-0018 borrow grammar",
+      "declaration": {
+        "borrower": "access-scope-guard",
+        "grammar": "harborline-jsonlogic/v1",
+        "variables": {
+          "field": "access facts"
+        },
+        "operations": [
+          "var",
+          "missing",
+          "missing_some",
+          "==",
+          "!=",
+          "===",
+          "!==",
+          "!",
+          "!!",
+          "and",
+          "or",
+          "if",
+          ">",
+          ">=",
+          "<",
+          "<=",
+          "+",
+          "-",
+          "*",
+          "/",
+          "%",
+          "min",
+          "max",
+          "in",
+          "cat",
+          "money.add",
+          "money.sub",
+          "money.mul",
+          "date.add",
+          "date.diff",
+          "date.today",
+          "coding.is"
+        ],
+        "effects": [
+          "field-read"
+        ],
+        "missingValues": "missing-field-reads-null",
+        "timeSource": "request-instant",
+        "timeZone": "utc",
+        "phases": {
+          "AuthoringValidation": false,
+          "PublishValidation": false,
+          "Render": false,
+          "Submission": false,
+          "Run": true,
+          "SignOff": false
+        },
+        "replay": "deterministic"
+      },
+      "canonical": "{\"borrower\":\"access-scope-guard\",\"effects\":[\"field-read\"],\"grammar\":\"harborline-jsonlogic/v1\",\"missingValues\":\"missing-field-reads-null\",\"operations\":[\"var\",\"missing\",\"missing_some\",\"==\",\"!=\",\"===\",\"!==\",\"!\",\"!!\",\"and\",\"or\",\"if\",\">\",\">=\",\"<\",\"<=\",\"+\",\"-\",\"*\",\"/\",\"%\",\"min\",\"max\",\"in\",\"cat\",\"money.add\",\"money.sub\",\"money.mul\",\"date.add\",\"date.diff\",\"date.today\",\"coding.is\"],\"phases\":{\"AuthoringValidation\":false,\"PublishValidation\":false,\"Render\":false,\"Run\":true,\"SignOff\":false,\"Submission\":false},\"replay\":\"deterministic\",\"timeSource\":\"request-instant\",\"timeZone\":\"utc\",\"variables\":{\"field\":\"access facts\"}}",
+      "admittedPhase": "Run",
+      "inapplicablePhase": "Render",
+      "admitted": {
+        "expression": {
+          ">": [
+            {
+              "var": "field.amount"
+            },
+            10
+          ]
+        },
+        "context": {
+          "amount": 20
+        },
+        "expectedOk": true
+      },
+      "refused": {
+        "expression": {
+          ">": [
+            {
+              "var": "table.sum(items.qty)"
+            },
+            0
+          ]
+        },
+        "code": "rule.environment.operation_not_admitted"
+      }
+    },
+    {
+      "edge": "DES-0033 -> DES-0018 borrow grammar",
+      "declaration": {
+        "borrower": "availability-eligibility",
+        "grammar": "harborline-jsonlogic/v1",
+        "variables": {
+          "field": "subject or bookable fact",
+          "clock": "evaluated-at"
+        },
+        "operations": [
+          "var",
+          "missing",
+          "missing_some",
+          "==",
+          "!=",
+          "===",
+          "!==",
+          "!",
+          "!!",
+          "and",
+          "or",
+          "if",
+          ">",
+          ">=",
+          "<",
+          "<=",
+          "+",
+          "-",
+          "*",
+          "/",
+          "%",
+          "min",
+          "max",
+          "in",
+          "cat",
+          "money.add",
+          "money.sub",
+          "money.mul",
+          "date.add",
+          "date.diff",
+          "date.today",
+          "coding.is"
+        ],
+        "effects": [
+          "field-read"
+        ],
+        "missingValues": "missing-field-reads-null",
+        "timeSource": "evaluated-at",
+        "timeZone": "utc",
+        "phases": {
+          "AuthoringValidation": false,
+          "PublishValidation": false,
+          "Render": false,
+          "Submission": false,
+          "Run": true,
+          "SignOff": false
+        },
+        "replay": "deterministic"
+      },
+      "canonical": "{\"borrower\":\"availability-eligibility\",\"effects\":[\"field-read\"],\"grammar\":\"harborline-jsonlogic/v1\",\"missingValues\":\"missing-field-reads-null\",\"operations\":[\"var\",\"missing\",\"missing_some\",\"==\",\"!=\",\"===\",\"!==\",\"!\",\"!!\",\"and\",\"or\",\"if\",\">\",\">=\",\"<\",\"<=\",\"+\",\"-\",\"*\",\"/\",\"%\",\"min\",\"max\",\"in\",\"cat\",\"money.add\",\"money.sub\",\"money.mul\",\"date.add\",\"date.diff\",\"date.today\",\"coding.is\"],\"phases\":{\"AuthoringValidation\":false,\"PublishValidation\":false,\"Render\":false,\"Run\":true,\"SignOff\":false,\"Submission\":false},\"replay\":\"deterministic\",\"timeSource\":\"evaluated-at\",\"timeZone\":\"utc\",\"variables\":{\"clock\":\"evaluated-at\",\"field\":\"subject or bookable fact\"}}",
+      "admittedPhase": "Run",
+      "inapplicablePhase": "Render",
+      "admitted": {
+        "expression": {
+          ">": [
+            {
+              "var": "field.amount"
+            },
+            10
+          ]
+        },
+        "context": {
+          "amount": 20
+        },
+        "expectedOk": true
+      },
+      "refused": {
+        "expression": {
+          ">": [
+            {
+              "var": "table.sum(items.qty)"
+            },
+            0
+          ]
+        },
+        "code": "rule.environment.operation_not_admitted"
+      }
+    },
+    {
+      "edge": "DES-0052 -> DES-0018 borrow grammar",
+      "declaration": {
+        "borrower": "layout-auth-20",
+        "grammar": "harborline-jsonlogic/v1",
+        "variables": {
+          "field": "layout root value",
+          "row": "repeating-collection row value"
+        },
+        "operations": [
+          "var",
+          "missing",
+          "missing_some",
+          "==",
+          "!=",
+          "===",
+          "!==",
+          "!",
+          "!!",
+          "and",
+          "or",
+          "if",
+          ">",
+          ">=",
+          "<",
+          "<=",
+          "+",
+          "-",
+          "*",
+          "/",
+          "%",
+          "min",
+          "max",
+          "in",
+          "cat",
+          "agg",
+          "money.add",
+          "money.sub",
+          "money.mul",
+          "date.add",
+          "date.diff",
+          "date.today",
+          "coding.is"
+        ],
+        "effects": [
+          "field-read"
+        ],
+        "missingValues": "missing-field-reads-null",
+        "timeSource": "render-clock",
+        "timeZone": "utc",
+        "phases": {
+          "AuthoringValidation": false,
+          "PublishValidation": false,
+          "Render": true,
+          "Submission": false,
+          "Run": false,
+          "SignOff": false
+        },
+        "replay": "deterministic"
+      },
+      "canonical": "{\"borrower\":\"layout-auth-20\",\"effects\":[\"field-read\"],\"grammar\":\"harborline-jsonlogic/v1\",\"missingValues\":\"missing-field-reads-null\",\"operations\":[\"var\",\"missing\",\"missing_some\",\"==\",\"!=\",\"===\",\"!==\",\"!\",\"!!\",\"and\",\"or\",\"if\",\">\",\">=\",\"<\",\"<=\",\"+\",\"-\",\"*\",\"/\",\"%\",\"min\",\"max\",\"in\",\"cat\",\"agg\",\"money.add\",\"money.sub\",\"money.mul\",\"date.add\",\"date.diff\",\"date.today\",\"coding.is\"],\"phases\":{\"AuthoringValidation\":false,\"PublishValidation\":false,\"Render\":true,\"Run\":false,\"SignOff\":false,\"Submission\":false},\"replay\":\"deterministic\",\"timeSource\":\"render-clock\",\"timeZone\":\"utc\",\"variables\":{\"field\":\"layout root value\",\"row\":\"repeating-collection row value\"}}",
+      "admittedPhase": "Render",
+      "inapplicablePhase": "Submission",
+      "admitted": {
+        "expression": {
+          ">": [
+            {
+              "var": "field.amount"
+            },
+            10
+          ]
+        },
+        "context": {
+          "amount": 20
+        },
+        "expectedOk": true
+      },
+      "refused": {
+        "expression": {
+          "==": [
+            {
+              "var": "wf.state"
+            },
+            "open"
+          ]
+        },
+        "code": "rule.environment.variable_not_admitted"
+      }
+    }
+  ],
+  "reference": {
+    "edge": "DES-0018 -> DES-0015 reference",
+    "expression": {
+      "var": "field.amount"
+    },
+    "instance": {
+      "amount": 42
+    },
+    "expected": 42
+  },
+  "probes": {
+    "predicate": {
+      "name": "overdue",
+      "version": "1.0.0",
+      "expression": {
+        ">": [
+          {
+            "var": "days_late"
+          },
+          30
+        ]
+      },
+      "context": {
+        "days_late": 45
+      },
+      "expectedOk": true
+    },
+    "calculationPin": {
+      "name": "line-total",
+      "version": "1.0.0",
+      "expression": {
+        "money.mul": [
+          {
+            "var": "price"
+          },
+          {
+            "var": "qty"
+          }
+        ]
+      },
+      "context": {
+        "price": "2.50",
+        "qty": 4
+      },
+      "expected": "10"
+    },
+    "boundedAgg": {
+      "admitted": {
+        "var": "table.sum(items.amount)"
+      },
+      "instance": {
+        "items": [
+          {
+            "id": "a",
+            "amount": 2
+          },
+          {
+            "id": "b",
+            "amount": 5
+          }
+        ]
+      },
+      "expected": 7,
+      "refused": [
+        {
+          "agg": [
+            "median",
+            "items",
+            "amount"
+          ]
+        },
+        {
+          "agg": [
+            "sum",
+            {
+              "var": "field.section"
+            },
+            "amount"
+          ]
+        }
+      ],
+      "refusedCode": "rule.compile.bad_grammar"
+    }
+  }
+}

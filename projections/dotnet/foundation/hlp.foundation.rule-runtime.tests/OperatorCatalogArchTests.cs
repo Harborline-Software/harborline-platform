@@ -1,5 +1,3 @@
-using System.Text.RegularExpressions;
-
 using Xunit;
 
 namespace Harborline.Foundation.RuleEngine.Tests;
@@ -36,29 +34,19 @@ public sealed class OperatorCatalogArchTests
     [Fact]
     public void Evaluator_implements_EXACTLY_the_frozen_v1_operator_set()
     {
-        string source = ReadEvaluatorSource();
-        int switchAt = source.IndexOf("return op switch", StringComparison.Ordinal);
-        Assert.True(switchAt >= 0, "could not locate the `return op switch` operator dispatch in HarborlineJsonLogic.cs");
-        string switchBody = source[switchAt..];
-
-        // Every operator arm is a double-quoted string literal immediately before `=>`. The default arm
-        // is `_ =>` (no literal), and the arm expressions carry no `"literal" =>`, so this captures the
-        // operator KEYS exactly. (Char-literal switches elsewhere use single quotes.)
-        var implemented = Regex.Matches(switchBody, "\"([^\"\\\\]+)\"\\s*=>")
-            .Select(m => m.Groups[1].Value)
-            .ToHashSet(StringComparer.Ordinal);
-
-        Assert.True(implemented.Count > 0, "extracted no operator arms — the scan regex or the switch shape changed");
+        // Since T-590 the R1 register is the evaluator's only dispatch table (rules-eng-27), so the
+        // guard pins the register instead of scanning a switch that no longer exists.
+        var implemented = Functions.BuiltInFunctionRegister.Functions.Select(f => f.Key).ToHashSet(StringComparer.Ordinal);
 
         var added = implemented.Except(FrozenV1Operators).OrderBy(s => s, StringComparer.Ordinal).ToList();
         var removed = FrozenV1Operators.Except(implemented).OrderBy(s => s, StringComparer.Ordinal).ToList();
 
         Assert.True(added.Count == 0,
-            $"NEW operator(s) added to the evaluator without deliberate review: [{string.Join(", ", added)}]. "
+            $"NEW operator(s) added to the register without deliberate review: [{string.Join(", ", added)}]. "
             + "The harborline-jsonlogic/v1 set is CLOSED (D1). If intended, amend FrozenV1Operators + the TS "
             + "operator-catalog test + the README operator table + design §1.4 — never silently.");
         Assert.True(removed.Count == 0,
-            $"operator(s) removed from the evaluator: [{string.Join(", ", removed)}]. Removing an operator "
+            $"operator(s) removed from the register: [{string.Join(", ", removed)}]. Removing an operator "
             + "breaks the closed v1 set — amend FrozenV1Operators deliberately if this is intended.");
     }
 

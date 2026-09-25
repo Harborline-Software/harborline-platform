@@ -10,6 +10,9 @@ import { SchemaForm } from '../SchemaForm'
 import { DEFAULT_CONTROLS } from '../controls'
 import type { RuleGraphLike } from '../SchemaForm.types'
 import { evaluation, field, form, qualityCases, section, text } from './fixtures'
+import { admitEnvironment as admitTestEnvironment, builtInFunctions as testBuiltIns, fieldReadEffect as testFieldRead, lentGrammar as testGrammar } from '@harborline-software/rule-engine'
+// The fixture host's borrower environment (T-590 rules-eng-26): Forms-shaped, every register key, render phase.
+const testAdmission = admitTestEnvironment({ borrower: 'react-rule-graph-fixture', grammar: testGrammar, variables: { field: 'form field', row: 'form row' }, operations: testBuiltIns.map((f) => f.key), effects: [testFieldRead], missingValues: 'missing-field-reads-null', timeSource: 'evaluated-at', timeZone: 'utc', phases: { AuthoringValidation: false, PublishValidation: false, Render: true, Submission: true, Run: false, SignOff: false }, replay: 'deterministic' }).forPhase('Render')
 
 const hideTriggerGraph = (): RuleGraphLike => new FormRuleGraph(compile([{
   id: 'hide-trigger',
@@ -18,7 +21,7 @@ const hideTriggerGraph = (): RuleGraphLike => new FormRuleGraph(compile([{
   scopeTarget: 'trigger',
   expression: { '!=': [{ var: 'trigger' }, 'hide'] },
   action: 'Visibility',
-}] satisfies RuleDefinition[]), () => new Date('2026-06-30T00:00:00.000Z'))
+}] satisfies RuleDefinition[]), () => new Date('2026-06-30T00:00:00.000Z'), testAdmission)
 
 describe('SchemaForm React projection', () => {
   it('schema-form.host-readonly-unavailable', () => {

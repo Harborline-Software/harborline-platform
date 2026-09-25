@@ -6,6 +6,7 @@ using Harborline.Foundation.RuleEngine.Context;
 using System.Text.Json.Nodes;
 using System.Text.Json;
 using System.Globalization;
+using Harborline.Foundation.RuleEngine.Environments;
 
 namespace Harborline.Foundation.FieldRuntime;
 
@@ -31,6 +32,9 @@ public sealed class ValueDomainRuntime : IFieldDomainRuntime
         this.ruleLimits = ruleLimits ?? RuleEngineLimits.Default;
         evaluator = new GuardEvaluator(clock, this.ruleLimits);
     }
+
+    // Domain resolution feeds the picker the author sees, so it presents the Render admission.
+    private static readonly EvaluationAdmission admission = ValueDomainExpressionEnvironment.Admitted.For(EvaluationPhase.Render);
 
     /// <inheritdoc />
     public async ValueTask<ResolvedValueDomain> ResolveAsync(ValueDomainDefinition domain,
@@ -106,7 +110,7 @@ public sealed class ValueDomainRuntime : IFieldDomainRuntime
                 {
                     var context = member.Fields.EnumerateObject().ToDictionary(property => property.Name,
                         property => JsonNode.Parse(property.Value.GetRawText()), StringComparer.Ordinal);
-                    validity = evaluator.EvaluateGuard(rule, RuleContextSnapshot.Capture(context), RuleEvalScope.Root, cancellationToken);
+                    validity = evaluator.EvaluateGuard(rule, RuleContextSnapshot.Capture(context), RuleEvalScope.Root, admission, cancellationToken);
                 }
                 catch (RuleEngineTimeoutException)
                 {

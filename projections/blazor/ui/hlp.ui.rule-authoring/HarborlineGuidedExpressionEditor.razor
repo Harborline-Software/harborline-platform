@@ -51,7 +51,8 @@
 
     private string Label => LabelOverride ?? (Site == "accept-when" ? "Accept when" : Site == "default" ? "Default value" : "Rule");
     private string Shape => Value switch { FormulaExpr.Literal => "Literal", FormulaExpr.Ref => "Ref", FormulaExpr.Call => "Call", FormulaExpr.Binary => "Binary", FormulaExpr.If => "If", _ => "Literal" };
-    private static readonly string[] Operators = ["missing", "missing_some", "==", "!=", "===", "!==", "!", "!!", "and", "or", "if", ">", ">=", "<", "<=", "+", "-", "*", "/", "%", "min", "max", "in", "cat", "agg", "money.add", "money.sub", "money.mul", "date.add", "date.diff", "date.today", "coding.is"];
+    // Generated from the R1 built-in register (rules-eng-27), never a hand list.
+    private static IReadOnlyList<string> Operators => FormulaCallOps.All;
     private static readonly string[] CompareOperators = ["==", "!=", ">", ">=", "<", "<="];
     private static FormulaExpr.Literal EmptyLiteral() => new("", ColumnValueType.Text);
     private Task Change(FormulaExpr expression) => ValueChanged.InvokeAsync(expression);

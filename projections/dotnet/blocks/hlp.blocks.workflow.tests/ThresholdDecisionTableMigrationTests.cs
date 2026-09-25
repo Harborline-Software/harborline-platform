@@ -5,6 +5,8 @@ using Harborline.Blocks.Workflow.Durable;
 using Harborline.Contracts.Forms;
 using Harborline.Foundation.RuleEngine;
 using Harborline.Foundation.RuleEngine.Compilation;
+using Harborline.Foundation.RuleEngine.Environments;
+using Harborline.Foundation.RuleEngine.Functions;
 using Harborline.Foundation.RuleEngine.Graph;
 using Harborline.Foundation.RuleEngine.Skins;
 
@@ -89,7 +91,7 @@ public sealed class ThresholdDecisionTableMigrationTests
     {
         var rule = DecisionTableCompiler.Compile(skin);
         var compiled = RuleCompiler.Compile(new[] { rule });
-        var graph = new FormRuleGraph(compiled, TimeProvider.System, RuleEngineLimits.Default);
+        var graph = new FormRuleGraph(compiled, TimeProvider.System, WorkflowTestAdmission.Any, RuleEngineLimits.Default);
         var instance = RuleInstance.FromJson(new JsonObject { ["amount"] = JsonValue.Create(amount) });
         var result = graph.EvaluateInstance(instance);
         var outcome = result.ByRule[skin.RuleId];
@@ -126,4 +128,16 @@ public sealed class ThresholdDecisionTableMigrationTests
         var actual = EvaluateSkin(ToSkin(version, "invoice.approval"), amount);
         Assert.Equal(expected, actual);
     }
+}
+
+/// <summary>The workflow decision borrower's environment (DES-0019 workflows-ck-29) as this migration probe declares it.</summary>
+internal static class WorkflowTestAdmission
+{
+    internal static EvaluationAdmission Any { get; } = BorrowerEnvironmentAdmission.Admit(new BorrowerEnvironmentDeclaration(
+        "workflows-ck-29", BorrowerEnvironmentAdmission.Grammar,
+        new Dictionary<string, string> { ["field"] = "case subject field", ["wf"] = "run identity", ["timer"] = "run timer" },
+        [.. BuiltInFunctionRegister.Functions.Select(function => function.Key)], [BorrowerEnvironmentAdmission.FieldRead],
+        "missing-field-reads-null", "evaluated-at", "utc",
+        Enum.GetValues<EvaluationPhase>().ToDictionary(phase => phase, phase => phase == EvaluationPhase.Run),
+        "deterministic-over-run-clock")).For(EvaluationPhase.Run);
 }

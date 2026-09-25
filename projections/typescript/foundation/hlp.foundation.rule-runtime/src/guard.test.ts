@@ -3,6 +3,10 @@ import { describe, expect, it } from 'vitest'
 import { Codes } from './codes.js'
 import { GuardEvaluator, RuleContextSnapshot } from './guard.js'
 import type { Json, RuleDefinition } from './model.js'
+import { admitEnvironment as admitTestEnvironment, fieldReadEffect as testFieldRead, lentGrammar as testGrammar } from './environment.js'
+import { builtInFunctions as testBuiltIns } from './functions.js'
+// The suite's own borrower: the whole register, every scope token, every phase (T-590 rules-eng-26).
+const testAdmission = admitTestEnvironment({ borrower: 'rule-engine-tests', grammar: testGrammar, variables: { field: 'test', row: 'test', wf: 'test', timer: 'test' }, operations: testBuiltIns.map((f) => f.key), effects: [testFieldRead], missingValues: 'missing-field-reads-null', timeSource: 'injected-test-clock', timeZone: 'utc', phases: { AuthoringValidation: true, PublishValidation: true, Render: true, Submission: true, Run: true, SignOff: true }, replay: 'deterministic' }).forPhase('Run')
 
 const fixedClock = () => new Date('2026-06-30T00:00:00.000Z')
 const snapshot = (value: Record<string, Json>) => RuleContextSnapshot.fromJsonText(JSON.stringify(value))
@@ -23,26 +27,26 @@ describe('GuardEvaluator.evaluateGuard', () => {
   const minimumAmount = rule('guard.minimum-amount', { '>=': [{ var: 'amount' }, 100] })
 
   it('accepts a boundary value and rejects a lower value with the rule id', () => {
-    expect(evaluator.evaluateGuard(minimumAmount, snapshot({ amount: 100 }))).toEqual({ ok: true })
-    expect(evaluator.evaluateGuard(minimumAmount, snapshot({ amount: 99 }))).toEqual({
+    expect(evaluator.evaluateGuard(minimumAmount, snapshot({ amount: 100 }), testAdmission)).toEqual({ ok: true })
+    expect(evaluator.evaluateGuard(minimumAmount, snapshot({ amount: 99 }), testAdmission)).toEqual({
       ok: false,
       error: { code: 'guard.minimum-amount', params: {} },
     })
   })
 
   it('fails closed with typed results for an empty context and a pending dependency', () => {
-    expect(evaluator.evaluateGuard(minimumAmount, snapshot({}))).toEqual({
+    expect(evaluator.evaluateGuard(minimumAmount, snapshot({}), testAdmission)).toEqual({
       ok: false,
       error: { code: Codes.typeError, params: { reason: 'null-as-number' } },
     })
-    expect(evaluator.evaluateGuard(minimumAmount, snapshot({ amount: { '@pending': true } }))).toEqual({
+    expect(evaluator.evaluateGuard(minimumAmount, snapshot({ amount: { '@pending': true } }), testAdmission)).toEqual({
       ok: false,
       error: { code: Codes.pendingAtSave, params: {} },
     })
   })
 
   it('returns a stable error result for an invalid division expression', () => {
-    expect(evaluator.evaluateGuard(rule('guard.invalid', { '/': [1, 0] }), snapshot({}))).toEqual({
+    expect(evaluator.evaluateGuard(rule('guard.invalid', { '/': [1, 0] }), snapshot({}), testAdmission)).toEqual({
       ok: false,
       error: { code: Codes.divByZero, params: {} },
     })
@@ -56,7 +60,7 @@ describe('GuardEvaluator.evaluateGuard', () => {
       throw new Error('host callback ran')
     } })
 
-    expect(evaluator.evaluateGuard(minimumAmount, context as unknown as RuleContextSnapshot)).toEqual({
+    expect(evaluator.evaluateGuard(minimumAmount, context as unknown as RuleContextSnapshot, testAdmission)).toEqual({
       ok: false,
       error: { code: 'rule.context_snapshot_required', params: {} },
     })
@@ -80,7 +84,7 @@ describe('GuardEvaluator.evaluateGuard', () => {
       },
     })
 
-    expect(evaluator.evaluateGuard(minimumAmount, context as unknown as RuleContextSnapshot)).toEqual({
+    expect(evaluator.evaluateGuard(minimumAmount, context as unknown as RuleContextSnapshot, testAdmission)).toEqual({
       ok: false,
       error: { code: Codes.contextSnapshotRequired, params: {} },
     })
@@ -97,7 +101,7 @@ describe('GuardEvaluator.evaluateGuard', () => {
       },
     }))
 
-    expect(evaluator.evaluateGuard(minimumAmount, forged)).toEqual({
+    expect(evaluator.evaluateGuard(minimumAmount, forged, testAdmission)).toEqual({
       ok: false,
       error: { code: Codes.contextSnapshotRequired, params: {} },
     })
@@ -112,7 +116,7 @@ describe('GuardEvaluator.evaluateGuard', () => {
       throw new Error('replacement values ran')
     } })
 
-    expect(evaluator.evaluateGuard(minimumAmount, context)).toEqual({ ok: true })
+    expect(evaluator.evaluateGuard(minimumAmount, context, testAdmission)).toEqual({ ok: true })
     expect(invoked).toBe(false)
   })
 
@@ -141,20 +145,20 @@ describe('GuardEvaluator.evaluateValue', () => {
   it('resolves a deterministic expression', () => {
     expect(evaluator.evaluateValue(rule('value.total', { '+': [{ var: 'amount' }, 1] }, 'Compute'), snapshot({
       amount: 41,
-    }))).toEqual({ state: 'Resolved', value: 42 })
+    }), testAdmission)).toEqual({ state: 'Resolved', value: 42 })
   })
 
   it('resolves a missing value as null and preserves a pending value as Pending', () => {
     const reference = rule('value.reference', { var: 'amount' }, 'Compute')
 
-    expect(evaluator.evaluateValue(reference, snapshot({}))).toEqual({ state: 'Resolved', value: null })
-    expect(evaluator.evaluateValue(reference, snapshot({ amount: { '@pending': true } }))).toEqual({
+    expect(evaluator.evaluateValue(reference, snapshot({}), testAdmission)).toEqual({ state: 'Resolved', value: null })
+    expect(evaluator.evaluateValue(reference, snapshot({ amount: { '@pending': true } }), testAdmission)).toEqual({
       state: 'Pending',
     })
   })
 
   it('returns the stable error result for an invalid division expression', () => {
-    expect(evaluator.evaluateValue(rule('value.invalid', { '/': [1, 0] }, 'Compute'), snapshot({}))).toEqual({
+    expect(evaluator.evaluateValue(rule('value.invalid', { '/': [1, 0] }, 'Compute'), snapshot({}), testAdmission)).toEqual({
       state: 'Error',
       error: { code: Codes.divByZero, params: {} },
     })

@@ -7,6 +7,7 @@ using Harborline.Foundation.RuleEngine.Compilation;
 using Harborline.Foundation.RuleEngine.Context;
 using Harborline.Foundation.RuleEngine.Evaluation;
 using RuleError = Harborline.Foundation.RuleEngine.Model.RuleError;
+using Harborline.Foundation.RuleEngine.Environments;
 
 namespace Harborline.Blocks.LayoutRuntime;
 
@@ -519,17 +520,8 @@ public sealed class LayoutBindingResolver
         // layout-local conditional (layout-eng-16, layout-auth-20). A block inside a repeating
         // container is a Row-scoped rule over that container's section, which is what makes a
         // `row.` reference legal there and illegal anywhere else.
-        var rule = new RuleDefinition
-        {
-            Id = $"layout.show_when.{block.Id}",
-            Tier = RuleTier.JsonLogic,
-            Scope = scope.IsRow ? RuleScope.Row : RuleScope.Schema,
-            // A Row-scoped rule's target is 'section/field': the repeating collection and the
-            // block the guard attaches to within one row.
-            ScopeTarget = scope.IsRow ? $"{scope.Section}/{block.Id}" : block.Id,
-            Expression = expression,
-            Action = RuleActionKind.Validate,
-        };
+        // The same rule publication compiled (T-724 ruling 39).
+        var rule = LayoutGuardRule.For(block.Id, expression, scope.IsRow ? scope.Section : null);
         var evalScope = scope.IsRow ? new RuleEvalScope(scope.Section, scope.RowId) : RuleEvalScope.Root;
         // Capture the layout producer's values before entering Rules. The evaluator never calls
         // a layout resolver (which could be arbitrary host code) during pure evaluation.
@@ -540,7 +532,7 @@ public sealed class LayoutBindingResolver
             // Invalid. Compilation is NOT — the compiler throws on a malformed expression or a
             // reference illegal at this scope — so an uncompilable guard withholds the block
             // here rather than escaping as a fault that would blank the whole surface.
-            return _guards.EvaluateGuard(rule, snapshot, evalScope, cancellationToken).Ok;
+            return _guards.EvaluateGuard(rule, snapshot, evalScope, LayoutExpressionEnvironment.Admitted.For(EvaluationPhase.Render), cancellationToken).Ok;
         }
         catch (RuleCompilationException)
         {

@@ -3,7 +3,8 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import { useState } from 'react'
-import { serializeRuleDefinition, validateRuleDefinitionJson, type RuleDefinitionExpression } from '@harborline-software/rule-authoring'
+import { formulaCallOps, generatePalette, serializeRuleDefinition, validateRuleDefinitionJson, type RecordFieldSet, type RuleDefinitionExpression } from '@harborline-software/rule-authoring'
+import type { RuleScope } from '@harborline-software/rule-engine'
 import { GuidedExpressionEditor, RulesAuthoringEditor, emptyRulesDraft, type RulesMaterialization, type RulesOperationRequest } from './RulesAuthoringEditor'
 
 const fixture = JSON.parse(readFileSync(resolve(process.cwd(), '../../../../conformance/hlp.blocks.builder-definitions/rules-editor-contract-fixtures.json'), 'utf8')) as { lifecycle: { responses: readonly { materialization?: RulesMaterialization }[] }; preview: { clockUtc: string; label: string; outcomeKinds: readonly string[]; cases: readonly { expected: { kind: string; value?: string; validity?: string; visibility?: string; presentation?: string; code?: string; ruleName: string; memberName: string } }[] }; referenceForms: { palette: readonly { id: string; label: string; valueType: 'Number' | 'Text' | 'Boolean' }[]; cases: readonly { id: string; ref: string; action: string; scope: string; scopeTarget: string; lowered: unknown }[] } }
@@ -121,6 +122,33 @@ describe('Rules authoring React projection', () => {
       expect(admitted.lowered, item.id).toEqual(item.lowered)
       unmount()
     }
+  })
+  it('rules-auth-20, rules-auth-3: the React lane authors every fixture reference form from the palette generated from the register and Records fields', () => {
+    const records: RecordFieldSet = { fields: [{ key: 'total', label: 'total', valueType: 'Number' }, { key: 'x', label: 'x', valueType: 'Number' }, { key: 'z', label: 'z', valueType: 'Number' }, { key: 'f', label: 'f', valueType: 'Number', section: 's' }], tables: [{ key: 'lines', columns: [{ key: 'y', label: 'y', valueType: 'Number' }, { key: 'amount', label: 'amount', valueType: 'Number' }] }] }
+    for (const item of fixture.referenceForms.cases) {
+      const generated = generatePalette(records, item.scope as RuleScope, item.scopeTarget)
+      const requested = vi.fn(); const { unmount } = render(<RulesAuthoringEditor {...props({ expressionContracts: [{ site: 'rule', returnContract: 'typed value', executionTimeContract: 'preview', palette: generated.references }], onOperation: requested })} />)
+      fireEvent.change(screen.getByLabelText('Rule action'), { target: { value: item.action } })
+      fireEvent.change(screen.getByLabelText('Rule scope'), { target: { value: item.scope } })
+      fireEvent.change(screen.getByLabelText('Target'), { target: { value: item.scopeTarget } })
+      fireEvent.click(screen.getByRole('button', { name: 'Add declared input' }))
+      expect(Array.from((screen.getByLabelText('Input 1 reference') as HTMLSelectElement).options).map(option => option.value), item.id).toContain(item.ref)
+      fireEvent.change(screen.getByLabelText('Input 1 reference'), { target: { value: item.ref } })
+      fireEvent.change(screen.getByLabelText('Rule expression shape'), { target: { value: 'Ref' } })
+      fireEvent.change(screen.getByLabelText('Rule reference'), { target: { value: item.ref } })
+      fireEvent.click(screen.getByRole('button', { name: 'Publish' }))
+      const draft = requested.mock.lastCall![0].draft.draft
+      const json = serializeRuleDefinition({ envelope: { id: item.id, version: '1.0.0', tenant: 'tenant-a', cascadeLayer: 'domain-package', provenance: { kind: 'test' }, requires: [] }, name: item.id, tier: 'JsonLogic', draft })
+      const admitted = validateRuleDefinitionJson(json, 'Author')
+      expect(admitted.diagnostics, item.id).toEqual([])
+      expect(admitted.lowered, item.id).toEqual(item.lowered)
+      unmount()
+    }
+  })
+  it('rules-auth-20, rules-eng-27: the React call-operator choices are the register authorable built-ins', () => {
+    render(<RulesAuthoringEditor {...props()} />)
+    fireEvent.change(screen.getByLabelText('Rule expression shape'), { target: { value: 'Call' } })
+    expect(Array.from((screen.getByLabelText('Rule formula operator') as HTMLSelectElement).options).map(option => option.value)).toEqual([...formulaCallOps])
   })
   it('rules-auth-5: offers exactly FirstMatch and Priority and round-trips the choice', () => {
     const requested = vi.fn(); render(<RulesAuthoringEditor {...props({ onOperation: requested })} />)

@@ -238,6 +238,12 @@ internal static class ScopeGrammar
                 {
                     throw Bad(ruleId, "a table aggregate must be a static [fn, section, col] string triple");
                 }
+                // rules-eng-16: a fold is one of the register's bounded folds over a named child
+                // collection; anything else (a search, a query, a catalogue measure) is not a fold.
+                if (!Functions.BuiltInFunctionRegister.AggregateFolds.Contains(a[0]!.GetValue<string>()))
+                {
+                    throw Bad(ruleId, $"'{a[0]!.GetValue<string>()}' is not a registered bounded fold");
+                }
                 refs.Add(new AggRef(
                     a[1]!.GetValue<string>(),
                     a[0]!.GetValue<string>(),
