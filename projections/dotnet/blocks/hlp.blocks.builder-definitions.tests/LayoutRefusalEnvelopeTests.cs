@@ -38,6 +38,7 @@ public sealed class LayoutRefusalEnvelopeTests
             (DefinitionAdmissionPhase.Author, () => LayoutDefinitionAdmission.ValidateForAuthoring(ThreeFaults, LayoutTestAccess.GrantsAll)),
             (DefinitionAdmissionPhase.Publish, () => LayoutDefinitionAdmission.ValidateForPublish(ThreeFaults, LayoutTestAccess.GrantsAll)),
             (DefinitionAdmissionPhase.Render, () => LayoutPersistedValueAdmission.ValidateForRuntime(ThreeFaults)),
+            (DefinitionAdmissionPhase.Render, () => LayoutPersistedValueAdmission.ValidateForRuntime(ThreeFaults, LayoutHostRegisters.Platform)),
             (DefinitionAdmissionPhase.Render, () => LayoutPersistedValueAdmission.ValidateForReact(ThreeFaults)),
             (DefinitionAdmissionPhase.Render, () => LayoutPersistedValueAdmission.ValidateForBlazor(ThreeFaults)),
         })
