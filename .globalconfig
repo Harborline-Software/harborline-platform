@@ -1,0 +1,4 @@
+is_global = true
+
+# Enums must not alias a value by accident: an alias can merge two namespaces silently (T-593, owner ruling Q9).
+dotnet_diagnostic.CA1069.severity = error

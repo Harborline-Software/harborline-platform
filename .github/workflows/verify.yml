@@ -13,10 +13,17 @@
 # check, so a required job that carries `vars.ACTIONS_ENABLED == 'true'` turns green the moment the
 # variable is deleted. The lane keeps the switch (it costs self-hosted machine time); the context
 # cannot be skipped and is green only when the lane it stands for ran and passed.
+#
+# Owner decision 2026-09-25: a draft PR no longer starts the self-hosted verify-shared lane. Drafts
+# were queuing behind the merge-queue's own runs on macpro, delaying every ready-for-review PR behind
+# work nobody had asked to be checked yet. Marking a PR ready for review (or opening it non-draft)
+# now triggers the full run; the `verify` aggregator stays unconditional and required (T-633/T-660) so
+# a draft's skipped lane reports a failure with an explicit message, not a false-green required check.
 name: verify
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
   merge_group:
 
 concurrency:
@@ -31,7 +38,8 @@ jobs:
     if: >-
       vars.ACTIONS_ENABLED == 'true' &&
       (github.event_name == 'merge_group' ||
-       github.event.pull_request.head.repo.full_name == github.repository)
+       (github.event.pull_request.head.repo.full_name == github.repository &&
+        github.event.pull_request.draft == false))
     # Ticket 404: this job was pinned to macpro because the SchemaForm wall-clock budget passed there and
     # failed on mac16. That premise is measured false. The budget was asserted inside the parallel module
     # fan-out, where six module runners and their dotnet children compete, so it reported the scheduler and
@@ -165,5 +173,9 @@ jobs:
         env:
           NEEDS: ${{ toJSON(needs) }}
         run: |
+          if [ "${{ github.event.pull_request.draft }}" = "true" ]; then
+            echo "::error::draft PR: self-hosted lanes are not run; mark ready for review to verify"
+            exit 1
+          fi
           echo "$NEEDS"
           jq -e 'all(.[]; .result == "success")' <<< "$NEEDS" >/dev/null || { echo "::error::a lane the verify context stands for did not succeed"; exit 1; }
