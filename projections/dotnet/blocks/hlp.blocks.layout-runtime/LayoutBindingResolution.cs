@@ -360,6 +360,7 @@ public sealed class LayoutBindingResolver
         LayoutBindingScope root,
         ILayoutDecisionTrace trace,
         LayoutResolutionRequest request,
+        ILayoutAccess access,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(definition);
@@ -369,19 +370,22 @@ public sealed class LayoutBindingResolver
         ArgumentNullException.ThrowIfNull(request);
         ArgumentException.ThrowIfNullOrWhiteSpace(request.RequestId);
         ArgumentException.ThrowIfNullOrWhiteSpace(request.PrincipalId);
+        // layout-eng-15: the reader's Access is folded in before any set-scoped read, so no Access, no resolution.
+        ArgumentNullException.ThrowIfNull(access);
         var denials = new DenialSink(trace, request);
 
         var blocks = new List<LayoutResolvedBlock>();
         var refusals = new List<LayoutBindingRefusal>();
         var hidden = new List<string>();
         foreach (var block in definition.Blocks ?? [])
-            Walk(block, sources, root, root, blocks, refusals, hidden, denials, cancellationToken);
+            Walk(block, sources, access, root, root, blocks, refusals, hidden, denials, cancellationToken);
         return new(blocks.AsReadOnly(), refusals.AsReadOnly(), hidden.AsReadOnly());
     }
 
     private void Walk(
         LayoutBlock block,
         ILayoutBindingSources sources,
+        ILayoutAccess access,
         LayoutBindingScope root,
         LayoutBindingScope scope,
         ICollection<LayoutResolvedBlock> blocks,
@@ -424,18 +428,19 @@ public sealed class LayoutBindingResolver
 
         if (block.Repeating)
         {
-            RepeatChildren(block, sources, root, childScope, blocks, refusals, hidden, denials, cancellationToken);
+            RepeatChildren(block, sources, access, root, childScope, blocks, refusals, hidden, denials, cancellationToken);
             return;
         }
 
-        Place(block, sources, childScope, blocks, refusals);
+        Place(block, sources, access, childScope, blocks, refusals);
         foreach (var child in block.Children ?? [])
-            Walk(child, sources, root, childScope, blocks, refusals, hidden, denials, cancellationToken);
+            Walk(child, sources, access, root, childScope, blocks, refusals, hidden, denials, cancellationToken);
     }
 
     private void RepeatChildren(
         LayoutBlock block,
         ILayoutBindingSources sources,
+        ILayoutAccess access,
         LayoutBindingScope root,
         LayoutBindingScope scope,
         ICollection<LayoutResolvedBlock> blocks,
@@ -446,7 +451,10 @@ public sealed class LayoutBindingResolver
     {
         var kind = LayoutBindingKinds.Of(block.Binding);
         var name = LayoutBindingKinds.NameOf(block.Binding);
-        if (!sources.TryResolveCollection(scope, name, out var rows))
+        IReadOnlyList<JsonNode?> rows = [];
+        // layout-eng-15: a query collection the reader may not read is never read, so it is empty,
+        // exactly as a folded source returns a set with no visible rows.
+        if (MayRead(block.Binding, access) && !sources.TryResolveCollection(scope, name, out rows))
         {
             refusals.Add(new(block.Id, kind, name, scope.RowId));
             return;
@@ -470,7 +478,7 @@ public sealed class LayoutBindingResolver
             var rowId = RowIdOf(row, index);
             var rowScope = new LayoutBindingScope(name, rowId, ValuesOf(row));
             foreach (var child in block.Children ?? [])
-                Walk(child, sources, root, rowScope, blocks, refusals, hidden, denials, cancellationToken);
+                Walk(child, sources, access, root, rowScope, blocks, refusals, hidden, denials, cancellationToken);
             index++;
         }
     }
@@ -478,15 +486,21 @@ public sealed class LayoutBindingResolver
     private static void Place(
         LayoutBlock block,
         ILayoutBindingSources sources,
+        ILayoutAccess access,
         LayoutBindingScope scope,
         ICollection<LayoutResolvedBlock> blocks,
         ICollection<LayoutBindingRefusal> refusals)
     {
         var kind = LayoutBindingKinds.Of(block.Binding);
         var name = LayoutBindingKinds.NameOf(block.Binding);
-        JsonNode? value;
+        JsonNode? value = null;
         var resolved = block.Binding switch
         {
+            // layout-eng-15: Access is folded in before the read. A query or measure the reader may not
+            // read is never asked of its source, so nothing is read or counted. The block places with no
+            // value, the missing-value path a denied field read takes too (layout-ck-44), and no refusal
+            // tells the reader why.
+            LayoutQueryBinding or LayoutMeasureBinding when !MayRead(block.Binding, access) => true,
             // Static content is authored on the block; nothing is looked up (layout-ck-25).
             LayoutStaticBinding content => Static(content, out value),
             LayoutRecordFieldBinding field => sources.TryResolveField(scope, field.FieldPath, out value),
@@ -499,6 +513,12 @@ public sealed class LayoutBindingResolver
         if (resolved) blocks.Add(new(block.Id, block.Kind, kind, name, value, scope.RowId));
         else refusals.Add(new(block.Id, kind, name, scope.RowId));
     }
+
+    // Whether a binding may be read from its source: always for a record field, template or static
+    // binding (their own reads apply their own checks), and for a query or measure only when the
+    // reader's Access allows it.
+    private static bool MayRead(LayoutBinding binding, ILayoutAccess access)
+        => binding is not (LayoutQueryBinding or LayoutMeasureBinding) || access.CanRead(binding);
 
     private static bool Static(LayoutStaticBinding binding, out JsonNode? value)
     {

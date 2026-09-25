@@ -72,7 +72,7 @@ public sealed class LayoutBindingResolutionTests
                 Block("stray", new LayoutRecordFieldBinding("supplier"), showWhen: "{\"==\":[{\"var\":\"row.description\"},\"Cement\"]}")),
             Sources(),
             LayoutBindingScope.Root(new Dictionary<string, JsonNode?>(StringComparer.Ordinal) { ["description"] = JsonValue.Create("Cement") }),
-            new RecordingTrace(), new LayoutResolutionRequest("request-1", "principal.clerk-4"));
+            new RecordingTrace(), new LayoutResolutionRequest("request-1", "principal.clerk-4"), GrantsAll.Instance);
         Assert.Equal("stray", Assert.Single(crossRow.Hidden));
         Assert.Empty(crossRow.Blocks);
     }
@@ -299,7 +299,17 @@ public sealed class LayoutBindingResolutionTests
 
     private static LayoutBindingResolution Resolve(LayoutDefinition definition, ILayoutBindingSources sources, ILayoutDecisionTrace trace, LayoutResolutionRequest request)
         => new LayoutBindingResolver(new Harborline.Foundation.RuleEngine.GuardEvaluator(TimeProvider.System))
-            .Resolve(definition, sources, LayoutBindingScope.Root(new Dictionary<string, JsonNode?>(StringComparer.Ordinal)), trace, request);
+            .Resolve(definition, sources, LayoutBindingScope.Root(new Dictionary<string, JsonNode?>(StringComparer.Ordinal)), trace, request, GrantsAll.Instance);
+
+    /// <summary>A reader who may read every source and open every surface; layout-eng-15 is proved in LayoutAccessFoldTests.</summary>
+    private sealed class GrantsAll : ILayoutAccess
+    {
+        public static readonly GrantsAll Instance = new();
+
+        public bool CanRead(LayoutBinding binding) => true;
+
+        public bool CanOpen(string surfaceId) => true;
+    }
 
     private sealed class RecordingTrace : ILayoutDecisionTrace
     {
@@ -325,7 +335,7 @@ public sealed class LayoutBindingResolutionTests
         {
             ["supplier"] = JsonValue.Create("Northwind"),
             ["status"] = JsonValue.Create("open"),
-        }), new RecordingTrace(), new LayoutResolutionRequest("request-1", "principal.clerk-4"));
+        }), new RecordingTrace(), new LayoutResolutionRequest("request-1", "principal.clerk-4"), GrantsAll.Instance);
 
     private static LayoutResolvedBlock Block(LayoutBindingResolution resolution, string id)
         => resolution.Blocks.First(block => block.BlockId == id);
