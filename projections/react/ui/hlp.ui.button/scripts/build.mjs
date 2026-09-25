@@ -190,6 +190,9 @@ const external = [
 const alias = {
   '@harborline-platform/hlp.ui.button': resolve(root, 'src/Button.tsx'),
   '@harborline-software/contracts/authorization': resolve(formsContractsRoot, 'dist/authorization.js'),
+  // T-590: the Rules editor reads its call-operator choices from the register-generated
+  // `formulaCallOps`, a value import; the compiled authoring bridge is bundled like the contracts.
+  '@harborline-software/rule-authoring': resolve(ruleAuthoringRoot, 'dist/index.js'),
   '@harborline-platform/hlp.ui.aspect-lens': resolve(root, '../hlp.ui.aspect-lens/src/index.ts'),
   '@harborline-platform/hlp.ui.default-strings': resolve(root, '../hlp.ui.default-strings/src/index.ts'),
   '@harborline-platform/hlp.ui.form-field-context': resolve(root, '../hlp.ui.form-field/src/FormFieldContext.tsx'),

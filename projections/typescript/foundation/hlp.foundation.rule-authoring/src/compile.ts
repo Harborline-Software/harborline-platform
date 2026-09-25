@@ -42,6 +42,7 @@ import {
   type TableCell,
   type TableRow,
 } from './model.js'
+import { rulesPreviewEnvironment } from './preview-environment.js'
 
 /** Coerce an author-typed string cell/input value to the JSON the engine compares against. */
 export function coerceValue(raw: string, type: ColumnValueType): Json {
@@ -149,7 +150,7 @@ export interface PreviewResult {
 /** Compiles + evaluates a single rule over sample inputs, returning the outcome + trace. */
 function evaluateRule(def: RuleDefinition, sample: Record<string, Json>, clock: () => Date, filter: TraceAuthorityFilter): { outcome?: RuleOutcome; trace: RuleTraceEntry[] } {
   const compiled = compile([def])
-  const result = new FormRuleGraph(compiled, clock).evaluateInstance(RuleInstance.fromJsonText(JSON.stringify(sample)))
+  const result = new FormRuleGraph(compiled, clock, rulesPreviewEnvironment.forPhase('AuthoringValidation')).evaluateInstance(RuleInstance.fromJsonText(JSON.stringify(sample)))
   let outcome: RuleOutcome | undefined
   for (const o of result.byRule.values()) {
     if (o.ruleId === def.id) {
@@ -202,7 +203,7 @@ function probeFiredRow(draft: DecisionTableDraft, sample: Record<string, Json>, 
     throw e
   }
   const compiled = compile([def])
-  const result = new FormRuleGraph(compiled, clock).evaluateInstance(RuleInstance.fromJsonText(JSON.stringify(sample)))
+  const result = new FormRuleGraph(compiled, clock, rulesPreviewEnvironment.forPhase('AuthoringValidation')).evaluateInstance(RuleInstance.fromJsonText(JSON.stringify(sample)))
   for (const o of result.byRule.values()) {
     if (o.ruleId === def.id && o.value?.state === 'Resolved') {
       const v = o.value.value

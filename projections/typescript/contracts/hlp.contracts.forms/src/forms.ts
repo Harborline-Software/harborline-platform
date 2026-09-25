@@ -165,7 +165,7 @@ export interface SectionLayout {
   direction?: FlexDirection
   /** flex only — wrap behaviour. Default `'wrap'`. */
   wrap?: FlexWrap
-  /** grid only — number of equal-width column tracks (1–4). Default `2`. */
+  /** grid only — number of equal-width column tracks (1–12, the platform placement schema's `column_count` range). Default `2`. */
   columns?: number
   /** flex + grid — gap between items (a spacing token step). Default `4`. */
   gap?: LayoutGap
@@ -183,7 +183,7 @@ export interface SectionLayout {
  * the field takes its natural size / one grid track.
  */
 export interface FieldPlacement {
-  /** grid only — how many column tracks this field spans (1–4). */
+  /** grid only — how many column tracks this field spans (1–12, the platform placement schema's `span` range). */
   colSpan?: number
   /** flex only — `flex-grow` factor (0 = don't grow). */
   grow?: number

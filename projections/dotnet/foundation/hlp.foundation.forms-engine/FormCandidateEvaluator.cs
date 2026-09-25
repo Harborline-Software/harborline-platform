@@ -9,6 +9,7 @@ using Harborline.Foundation.RuleEngine.Compilation;
 using Harborline.Foundation.RuleEngine.Context;
 using Harborline.Foundation.RuleEngine.Graph;
 using Harborline.Foundation.RuleEngine.Model;
+using Harborline.Foundation.RuleEngine.Environments;
 using Harborline.Kernel.SchemaValidation;
 
 namespace Harborline.Foundation.Forms.Engine;
@@ -128,7 +129,7 @@ internal static class FormCandidateEvaluator
         if (definition.Overlay.Rules.Count == 0) return null;
         var compiled = RuleCompiler.Compile(definition.Overlay.Rules.Select(FormContractMapper.ToContractRule).ToArray());
         if (compiled.RuleCount == 0) return null;
-        return new FormRuleGraph(compiled, clock: clock).EvaluateInstance(RuleInstance.FromJson(candidate), cancellationToken);
+        return new FormRuleGraph(compiled, clock, FormsExpressionEnvironment.Admitted.For(EvaluationPhase.Submission)).EvaluateInstance(RuleInstance.FromJson(candidate), cancellationToken);
     }
 
     private static HashSet<string> ApplyRuleProjection(
@@ -287,7 +288,7 @@ internal static class FormCandidateEvaluator
                 Id = $"page-guard:{page.Id}", Tier = Contract.RuleTier.JsonLogic, Scope = Contract.RuleScope.Schema,
                 ScopeTarget = "", Expression = page.VisibleWhen!, Action = Contract.RuleActionKind.Validate,
             };
-            if (evaluator.EvaluateGuard(guard, RuleContextSnapshot.Capture(context), RuleEvalScope.Root, cancellationToken).Ok) continue;
+            if (evaluator.EvaluateGuard(guard, RuleContextSnapshot.Capture(context), RuleEvalScope.Root, FormsExpressionEnvironment.Admitted.For(EvaluationPhase.Submission), cancellationToken).Ok) continue;
             hiddenPages.Add(page.Id);
             foreach (var section in page.Sections) hiddenSections.Add(section);
         }

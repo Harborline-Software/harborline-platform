@@ -19,6 +19,10 @@ import {
   type DecisionTableSkin,
   type NoMatch,
 } from '../skins/index.js'
+import { admitEnvironment as admitTestEnvironment, fieldReadEffect as testFieldRead, lentGrammar as testGrammar } from '../environment.js'
+import { builtInFunctions as testBuiltIns } from '../functions.js'
+// The suite's own borrower: the whole register, every scope token, every phase (T-590 rules-eng-26).
+const testAdmission = admitTestEnvironment({ borrower: 'rule-engine-tests', grammar: testGrammar, variables: { field: 'test', row: 'test', wf: 'test', timer: 'test' }, operations: testBuiltIns.map((f) => f.key), effects: [testFieldRead], missingValues: 'missing-field-reads-null', timeSource: 'injected-test-clock', timeZone: 'utc', phases: { AuthoringValidation: true, PublishValidation: true, Render: true, Submission: true, Run: true, SignOff: true }, replay: 'deterministic' }).forPhase('Run')
 
 function minimalTable(over: Partial<DecisionTableSkin> = {}): DecisionTableSkin {
   return {
@@ -132,7 +136,7 @@ describe('ADR 0146 D2 skins — formula', () => {
       inputs: [{ ref: 'approved', type: 'boolean' }],
       expression: { 'money.add': [{ var: 'approved' }, '1.00'] },
     })
-    const graph = new FormRuleGraph(compile([rule]), () => new Date('2026-01-01T00:00:00Z'))
+    const graph = new FormRuleGraph(compile([rule]), () => new Date('2026-01-01T00:00:00Z'), testAdmission)
     expect(graph.evaluateInstance(RuleInstance.fromJsonText('{"approved":{}}')).values.get('field:total')).toMatchObject({ state: 'Error' })
   })
   it('runs core static admission before returning a lowered rule', () => {
@@ -149,7 +153,7 @@ describe('ADR 0146 D2 skins — formula', () => {
     })
 
     expect(rule.expression).toBe('"literal text"')
-    const graph = new FormRuleGraph(compile([rule]), () => new Date('2026-01-01T00:00:00Z'))
+    const graph = new FormRuleGraph(compile([rule]), () => new Date('2026-01-01T00:00:00Z'), testAdmission)
     expect(graph.evaluateInstance(RuleInstance.fromJsonText('{}')).values.get('field:total')).toEqual({ state: 'Resolved', value: 'literal text' })
   })
   it('compiles when all refs are declared', () => {

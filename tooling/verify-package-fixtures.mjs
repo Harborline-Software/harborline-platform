@@ -696,7 +696,8 @@ function verifyRuleRuntimeNpm() {
   const consumer = resolve(fixtureRoot, 'rule-runtime-npm-consumer')
   mkdirSync(consumer, {recursive: true})
   writeFileSync(resolve(consumer, 'package.json'), '{"private":true,"type":"module"}\n')
-  writeFileSync(resolve(consumer, 'exercise.mjs'), `import assert from 'node:assert/strict'\nimport {compile, FormRuleGraph, RuleInstance, serializeOutcome} from '@harborline-software/rule-engine'\nconst rule = {id:'opt.result',tier:'JsonLogic',scope:'Field',scopeTarget:'result',expression:['PASS','FAIL'],action:'Options'}\nconst result = new FormRuleGraph(compile([rule]), () => new Date('2026-06-30T00:00:00.000Z')).evaluateInstance(RuleInstance.fromJsonText('{}'))\nassert.equal(serializeOutcome(result.byRule.get('opt.result')), '{"options":{"options":["PASS","FAIL"],"state":"Resolved"},"outputType":"Options","ruleId":"opt.result","target":"field:result"}')\nprocess.stdout.write('packed npm reactive Rule Runtime emitted canonical Options outcome\\n')\n`)
+  writeFileSync(resolve(consumer, 'exercise.mjs'), `import assert from 'node:assert/strict'\nimport {admitEnvironment, builtInFunctions, compile, fieldReadEffect, FormRuleGraph, lentGrammar, RuleInstance, serializeOutcome} from '@harborline-software/rule-engine'\nconst rule = {id:'opt.result',tier:'JsonLogic',scope:'Field',scopeTarget:'result',expression:['PASS','FAIL'],action:'Options'}\nconst admission = admitEnvironment({borrower:'rule-runtime-npm-consumer',grammar:lentGrammar,variables:{field:'form field'},operations:builtInFunctions.map(f => f.key),effects:[fieldReadEffect],missingValues:'missing-field-reads-null',timeSource:'evaluated-at',timeZone:'utc',phases:{AuthoringValidation:false,PublishValidation:false,Render:true,Submission:false,Run:false,SignOff:false},replay:'deterministic'}).forPhase('Render')
+const result = new FormRuleGraph(compile([rule]), () => new Date('2026-06-30T00:00:00.000Z'), admission).evaluateInstance(RuleInstance.fromJsonText('{}'))\nassert.equal(serializeOutcome(result.byRule.get('opt.result')), '{"options":{"options":["PASS","FAIL"],"state":"Resolved"},"outputType":"Options","ruleId":"opt.result","target":"field:result"}')\nprocess.stdout.write('packed npm reactive Rule Runtime emitted canonical Options outcome\\n')\n`)
   run('npm', ['install', '--ignore-scripts', '--no-audit', '--no-fund', '--package-lock=false', artifact], { cwd: consumer })
   const output = run(process.execPath, ['exercise.mjs'], { cwd: consumer }).trim()
   const installed = resolve(consumer, 'node_modules/@harborline-software/rule-engine')
@@ -935,15 +936,17 @@ function verifyNuget() {
   const consumer = resolve(fixtureRoot, 'nuget-consumer')
   const packageCache = resolve(fixtureRoot, 'nuget-packages')
   for (const [id, version] of [
-    ['jsonschema.net', '9.2.2'],
-    ['jsonpointer.net', '7.0.1'],
+    // The pinned JsonSchema.Net comes from the central pin, so a version bump cannot strand this
+    // offline feed; its transitive JsonPointer.Net is listed by hand (9.4.0 needs 7.0.2).
+    ['jsonschema.net', /Include="JsonSchema\.Net" Version="([^"]+)"/.exec(readFileSync(resolve(root, 'Directory.Packages.props'), 'utf8'))[1]],
+    ['jsonpointer.net', '7.0.2'],
     ['json.more.net', '3.0.1'],
     ['humanizer.core', '3.0.10'],
     ['microsoft.extensions.dependencyinjection.abstractions', '10.0.10'],
     ['microsoft.extensions.dependencyinjection', '10.0.10'],
     ['microsoft.extensions.logging.abstractions', '10.0.10'],
-    ['microsoft.extensions.dependencyinjection.abstractions', '11.0.0-preview.7.26381.103'],
-    ['microsoft.extensions.dependencyinjection', '11.0.0-preview.7.26381.103'],
+    ['microsoft.extensions.dependencyinjection.abstractions', '11.0.0-rc.1.26425.128'],
+    ['microsoft.extensions.dependencyinjection', '11.0.0-rc.1.26425.128'],
   ]) {
     const packagePath = resolve(globalNugetPackages, id, version, `${id}.${version}.nupkg`)
     const artifactPath = resolve(nugetArtifacts, `${id}.${version}.nupkg`)
@@ -1368,10 +1371,12 @@ function verifySchedulingCapability() {
   // Derived from the landed csprojs: Calendar -> Contracts + Foundation.Scheduling + Foundation.Authorization
   // (T-568: the booking requester is the kernel's authenticated context), and Authorization ->
   // MultiTenancy + RuleEngine; Blocks.Scheduling and Foundation.Scheduling add no Harborline package edges.
+  // T-605: Calendar -> BuilderDefinitions (Booking definitions bind the shared store) -> RuleAuthoring.
   const closure = assertPackageClosure(
     consumer,
     ['Harborline.Blocks.Calendar', 'Harborline.Blocks.Scheduling', 'Harborline.Foundation.Scheduling', 'Harborline.Contracts',
-      'Harborline.Foundation.Authorization', 'Harborline.Foundation.MultiTenancy', 'Harborline.Foundation.RuleEngine'],
+      'Harborline.Foundation.Authorization', 'Harborline.Foundation.MultiTenancy', 'Harborline.Foundation.RuleEngine',
+      'Harborline.Blocks.BuilderDefinitions', 'Harborline.Foundation.RuleAuthoring'],
     'Scheduling',
     /(?:Forms|Reports|Workflows|EntityViews|Kernel|Blazor|React)/i,
   )

@@ -191,7 +191,7 @@ public sealed record LayoutContainer(
 /// <param name="Zone">The optional named region.</param>
 /// <param name="Width">The width behavior.</param>
 /// <param name="Height">The height behavior.</param>
-/// <param name="Span">The governed track span.</param>
+/// <param name="Span">The governed track span, or <see langword="null"/> when the member states none (auto placement). Absent, an explicit 1, and <c>fill</c> are distinct states.</param>
 /// <param name="Grow">The governed growth weight.</param>
 /// <param name="JustifySelf">The optional inline override.</param>
 /// <param name="AlignSelf">The optional block override.</param>
@@ -200,7 +200,7 @@ public sealed record LayoutPlacement(
     string? Zone = null,
     LayoutSizing Width = LayoutSizing.Hug,
     LayoutSizing Height = LayoutSizing.Hug,
-    int Span = 1,
+    int? Span = null,
     int Grow = 0,
     LayoutAlignment? JustifySelf = null,
     LayoutAlignment? AlignSelf = null,
@@ -239,10 +239,20 @@ public sealed record LayoutStaticBinding(JsonElement Content) : LayoutBinding;
 /// <param name="Required">Whether the member requires a value.</param>
 /// <param name="ValidationRules">The stable validation rule identifiers.</param>
 /// <param name="PromptOverride">The optional governed prompt override.</param>
+/// <param name="Control">The optional registered field control and its parameters (layout-bound-3).</param>
 public sealed record LayoutCaptureProperties(
     bool Required,
     IReadOnlyList<string> ValidationRules,
-    string? PromptOverride = null);
+    string? PromptOverride = null,
+    LayoutFieldControl? Control = null);
+
+/// <summary>
+/// DES-0052 layout-bound-3 — a registered field control picked for a capture block's field and
+/// parameterised. The control is developer-supplied; the author only names and configures it.
+/// </summary>
+/// <param name="Id">The control's identifier in the host's <see cref="LayoutFieldControlRegistry"/>.</param>
+/// <param name="Parameters">The optional parameters, a JSON object the control interprets.</param>
+public sealed record LayoutFieldControl(string Id, JsonElement? Parameters = null);
 
 /// <summary>Pins an embedded form to both its stable identity and immutable version.</summary>
 /// <param name="FormDefinitionId">The stable form definition identifier.</param>
@@ -250,6 +260,18 @@ public sealed record LayoutCaptureProperties(
 public sealed record LayoutFormReference(
     string FormDefinitionId,
     string FormVersionId);
+
+/// <summary>
+/// The inclusive row-count bounds a repeating block narrows its collection to (DES-0052
+/// layout-ck-40). Runtime data outside them refuses; it is never truncated.
+/// </summary>
+/// <param name="Minimum">The inclusive minimum row count.</param>
+/// <param name="Maximum">The inclusive maximum row count, or <see langword="null"/> for no upper bound.</param>
+public sealed record LayoutCollectionBounds(int Minimum, int? Maximum = null)
+{
+    /// <summary>Whether <paramref name="count"/> rows lie inside the bounds.</summary>
+    public bool Contains(int count) => count >= Minimum && (Maximum is null || count <= Maximum);
+}
 
 /// <summary>Represents one ordered node in the Layout definition tree.</summary>
 /// <param name="Id">The definition-local block identifier.</param>
@@ -272,6 +294,7 @@ public sealed record LayoutFormReference(
 /// <param name="FilterTargets">The optional local block filter targets.</param>
 /// <param name="Form">The optional immutable form reference.</param>
 /// <param name="LiveSelection">A diagnostic-only field that admission always refuses.</param>
+/// <param name="CollectionBounds">The optional row-count bounds a repeating block narrows to.</param>
 public sealed record LayoutBlock(
     string Id,
     string Kind,
@@ -292,7 +315,8 @@ public sealed record LayoutBlock(
     JsonElement? DefaultSelection = null,
     IReadOnlyList<string>? FilterTargets = null,
     LayoutFormReference? Form = null,
-    JsonElement? LiveSelection = null);
+    JsonElement? LiveSelection = null,
+    LayoutCollectionBounds? CollectionBounds = null);
 
 /// <summary>Describes a page layout's four governed margins.</summary>
 /// <param name="Top">The top margin token.</param>

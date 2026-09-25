@@ -12,6 +12,8 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../../foundation/hlp.foundation.rule-authoring/Harborline.Foundation.RuleAuthoring.csproj" />
+    <!-- T-582 (T-724 ruling 38): a field control's parameters validate against the schema it declares. -->
+    <PackageReference Include="JsonSchema.Net" />
     <EmbeddedResource Include="../../../../_shared/layout/placement.schema.json" LogicalName="Harborline.Layout.PlacementSchema" />
     <None Include="README.md" Pack="true" PackagePath="/" />
     <EmbeddedResource Include="../../../../_shared/packs/platform/platform-pack.export.json" LogicalName="Harborline.Blocks.BuilderDefinitions.platform-pack.export.json" />

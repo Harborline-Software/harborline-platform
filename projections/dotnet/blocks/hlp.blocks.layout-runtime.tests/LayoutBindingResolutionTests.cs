@@ -16,7 +16,7 @@ namespace Harborline.Blocks.LayoutRuntime.Tests;
 /// </summary>
 public sealed class LayoutBindingResolutionTests
 {
-    [Fact]
+    [Fact(DisplayName = "layout-eng-28, layout-eng-29: a mixed-binding invoice places a field, a query, a measure and repeated rows")]
     public void MixedBindingInvoicePlacesFieldQueryMeasureAndRepeatedRows()
     {
         var resolution = Resolve(Invoice(), Sources());
@@ -54,7 +54,7 @@ public sealed class LayoutBindingResolutionTests
         Assert.Equal("Registered office: Leeds", Block(resolution, "notice").Value?.ToString());
     }
 
-    [Fact]
+    [Fact(DisplayName = "layout-eng-17, layout-run-2, layout-eng-9 successor of the Documents walker (DocumentRenderWalker.cs:113-117): each row resolves in a fresh scope and cross-row lookup refuses")]
     public void TwoRowsResolveInIsolatedScopesAndCrossRowLookupRefuses()
     {
         var resolution = Resolve(Invoice(), Sources());
@@ -65,16 +65,19 @@ public sealed class LayoutBindingResolutionTests
         Assert.Equal(["Cement", "Ballast"], rows.Select(row => row.Value?.ToString()));
         Assert.Equal(["line-1", "line-2"], rows.Select(row => row.RowId));
 
-        // A guard reaching for a row while at the surface root cannot see one: fail-closed.
-        var crossRow = Resolve(
+        // A guard reaching for a row while at the surface root cannot see one: fail-closed. The root
+        // carries a field of the same name, so a row reference that leaked to the root would hold.
+        var crossRow = new LayoutBindingResolver(new Harborline.Foundation.RuleEngine.GuardEvaluator(TimeProvider.System)).Resolve(
             Definition(LayoutMedium.Screen, LayoutIntent.Observe,
                 Block("stray", new LayoutRecordFieldBinding("supplier"), showWhen: "{\"==\":[{\"var\":\"row.description\"},\"Cement\"]}")),
-            Sources());
+            Sources(),
+            LayoutBindingScope.Root(new Dictionary<string, JsonNode?>(StringComparer.Ordinal) { ["description"] = JsonValue.Create("Cement") }),
+            new RecordingTrace(), new LayoutResolutionRequest("request-1", "principal.clerk-4"));
         Assert.Equal("stray", Assert.Single(crossRow.Hidden));
         Assert.Empty(crossRow.Blocks);
     }
 
-    [Fact]
+    [Fact(DisplayName = "layout-eng-14, layout-run-4: a missing binding yields one refusal naming the block and kind, and its counterpart resolves exactly once")]
     public void AMissingBindingYieldsOneRefusalNamingTheBlockAndKindWhileItsCounterpartResolvesExactlyOnce()
     {
         var resolution = Resolve(
@@ -94,7 +97,7 @@ public sealed class LayoutBindingResolutionTests
         Assert.Equal("good-total", Assert.Single(resolution.Blocks).BlockId);
     }
 
-    [Fact]
+    [Fact(DisplayName = "layout-eng-14, layout-run-4: every binding kind refuses by its own name when the source cannot resolve it")]
     public void EveryBindingKindRefusesByItsOwnNameWhenTheSourceCannotResolveIt()
     {
         var resolution = Resolve(
@@ -112,7 +115,7 @@ public sealed class LayoutBindingResolutionTests
         Assert.Equal(["absent.field", "views.absent", "measure.absent", "tpl.absent"], resolution.Refusals.Select(refusal => refusal.Name));
     }
 
-    [Fact]
+    [Fact(DisplayName = "layout-eng-14, layout-run-4: an unresolvable collection refuses once rather than per row")]
     public void AnUnresolvableCollectionRefusesOnceRatherThanPerRow()
     {
         var repeating = new LayoutBlock("absent-lines", "layout.table", new LayoutQueryBinding("views.absent"), [
@@ -127,7 +130,42 @@ public sealed class LayoutBindingResolutionTests
         Assert.Empty(resolution.Blocks);
     }
 
-    [Fact]
+    [Theory(DisplayName = "layout-ck-40: a collection at each effective bound renders completely")]
+    [InlineData(2, 5)]
+    [InlineData(0, 2)]
+    [InlineData(2, 2)]
+    public void ACollectionAtEachEffectiveBoundRendersCompletely(int minimum, int maximum)
+    {
+        var resolution = Resolve(Definition(LayoutMedium.Screen, LayoutIntent.Observe, Lines(new(minimum, maximum))), Sources());
+
+        Assert.Empty(resolution.Refusals);
+        Assert.Equal(["line-1", "line-2"], resolution.Blocks.Where(block => block.BlockId == "cell").Select(block => block.RowId));
+    }
+
+    [Theory(DisplayName = "layout-ck-40: runtime cardinality outside the bounds refuses the whole block and returns no partial row set")]
+    [InlineData(3, 5)]
+    [InlineData(0, 1)]
+    public void RuntimeCardinalityOutsideTheBoundsRefusesWithNoPartialRows(int minimum, int maximum)
+    {
+        var resolution = Resolve(
+            Definition(LayoutMedium.Screen, LayoutIntent.Observe, Lines(new(minimum, maximum)), Block("after", new LayoutRecordFieldBinding("supplier"))),
+            Sources());
+
+        var refusal = Assert.Single(resolution.Refusals);
+        Assert.Equal("lines", refusal.BlockId);
+        Assert.Equal(LayoutBindingRefusalCodes.CollectionOutOfBounds, refusal.Code);
+        // Neither the container nor any row placed: nothing truncated, nothing partial.
+        Assert.DoesNotContain(resolution.Blocks, block => block.BlockId is "lines" or "cell");
+        // The rest of the surface still resolves.
+        Assert.Equal("after", Assert.Single(resolution.Blocks).BlockId);
+    }
+
+    private static LayoutBlock Lines(LayoutCollectionBounds bounds) => new(
+        "lines", "layout.table", new LayoutQueryBinding("views.invoice-lines"),
+        [Block("cell", new LayoutRecordFieldBinding("description"))],
+        Container: new(LayoutContainerKind.Stack), Repeating: true, CollectionBounds: bounds);
+
+    [Fact(DisplayName = "layout-eng-16, layout-eng-9 successor of the Documents walker (DocumentBlock.cs:42): a per-block guard fails closed per row")]
     public void APerRowGuardWithholdsOnlyTheRowItFailsFor()
     {
         var repeating = new LayoutBlock("lines", "layout.table", new LayoutQueryBinding("views.invoice-lines"), [
@@ -142,7 +180,7 @@ public sealed class LayoutBindingResolutionTests
         Assert.Empty(resolution.Refusals);
     }
 
-    [Fact]
+    [Fact(DisplayName = "layout-eng-16, layout-auth-20 (runtime): a guard fails closed on an unknown reference and on a malformed expression")]
     public void AGuardFailsClosedOnAnUnknownReferenceAndOnAMalformedExpression()
     {
         foreach (var expression in new[]
@@ -162,7 +200,7 @@ public sealed class LayoutBindingResolutionTests
         }
     }
 
-    [Fact]
+    [Fact(DisplayName = "layout-eng-16, layout-auth-20 (runtime): a guard that holds places the block through the shared evaluator")]
     public void AGuardThatHoldsPlacesTheBlockThroughTheSharedEvaluator()
     {
         var resolution = Resolve(
@@ -174,7 +212,20 @@ public sealed class LayoutBindingResolutionTests
         Assert.Equal("Northwind", Assert.Single(resolution.Blocks).Value?.ToString());
     }
 
-    [Fact]
+    [Fact(DisplayName = "layout-bound-9 (runtime): a guard evaluates through the kernel's function register under Layout's admitted environment")]
+    public void GuardEvaluatesThroughTheKernelRegisterUnderLayoutsEnvironment()
+    {
+        var resolution = Resolve(Definition(LayoutMedium.Screen, LayoutIntent.Observe,
+            // Kernel functions evaluate: cat builds "open-Northwind" and in finds it.
+            Block("registered", new LayoutRecordFieldBinding("supplier"), "{\"in\":[{\"cat\":[{\"var\":\"field.status\"},\"-\",{\"var\":\"field.supplier\"}]},[\"open-Northwind\"]]}"),
+            // A workflow variable is not lent to Layout; the kernel refuses it before reading any value.
+            Block("unlent", new LayoutRecordFieldBinding("supplier"), "{\"!\":[{\"var\":\"wf.state\"}]}")), Sources());
+
+        Assert.Equal("registered", Assert.Single(resolution.Blocks).BlockId);
+        Assert.Equal(["unlent"], resolution.Hidden);
+    }
+
+    [Fact(DisplayName = "layout-auth-19 (runtime): a related block observes the second record and an undeclared relationship refuses")]
     public void ARelatedBlockObservesTheSecondRecordAndRefusesAnUndeclaredRelationship()
     {
         var related = new LayoutBlock("supplier-card", "layout.list", new LayoutStaticBinding(Json("\"Supplier\"")), [
@@ -192,12 +243,89 @@ public sealed class LayoutBindingResolutionTests
         Assert.Equal("invoice.not-declared", Assert.Single(refused.Refusals).Name);
     }
 
+    [Fact(DisplayName = "layout-eng-31, layout-run-5: a missing and a denied related target are identical absence; only the protected trace sees the denial")]
+    public void AMissingAndADeniedRelatedTargetAreIdenticalAbsenceAndOnlyTheTraceSeesTheDenial()
+    {
+        var definition = Definition(LayoutMedium.Screen, LayoutIntent.Observe,
+            new LayoutBlock("owner-card", "layout.list", new LayoutStaticBinding(Json("\"Owner\"")), [
+                Block("owner-name", new LayoutRecordFieldBinding("name")),
+            ], RelatedRelationship: "invoice.owner"),
+            Block("supplier", new LayoutRecordFieldBinding("supplier")));
+        var missingTrace = new RecordingTrace();
+        var deniedTrace = new RecordingTrace();
+
+        var request = new LayoutResolutionRequest("request-7", "principal.clerk-4");
+        var owner = new LayoutRecordReference("record-type.party", "party-19");
+        var missing = Resolve(definition, new RelatedOutcomeSources(LayoutRelatedResult.Absent), missingTrace, request);
+        var denied = Resolve(definition, new RelatedOutcomeSources(LayoutRelatedResult.Denied("access.denied", "/grants/owner", owner)), deniedTrace, request);
+
+        // What the viewer receives cannot tell the two apart: no refusal, no marker, same blocks.
+        Assert.Equal(Describe(missing), Describe(denied));
+        Assert.Empty(denied.Refusals);
+        Assert.Equal(["supplier"], denied.Blocks.Select(block => block.BlockId));
+
+        Assert.Empty(missingTrace.Denials);
+        Assert.Equal(
+            new LayoutRelatedDenial("request-7", "principal.clerk-4", "owner-card", LayoutBindingKinds.Static, "invoice.owner", owner, "access.denied", "/grants/owner"),
+            Assert.Single(deniedTrace.Denials));
+    }
+
+    [Theory(DisplayName = "layout-run-5: resolution refuses to run without the request and principal that key denial evidence")]
+    [InlineData("", "principal.clerk-4")]
+    [InlineData(" ", "principal.clerk-4")]
+    [InlineData("request-7", "")]
+    public void ResolutionRefusesToRunWithoutARequestIdentity(string requestId, string principalId)
+    {
+        Assert.Throws<ArgumentException>(() => Resolve(Invoice(), Sources(), new RecordingTrace(), new LayoutResolutionRequest(requestId, principalId)));
+    }
+
+    [Fact(DisplayName = "layout-run-5: a source that reports a denial without its evidence faults rather than losing it")]
+    public void ADenialWithoutEvidenceFaults()
+    {
+        var definition = Definition(LayoutMedium.Screen, LayoutIntent.Observe,
+            new LayoutBlock("owner-card", "layout.list", new LayoutStaticBinding(Json("\"Owner\"")), [], RelatedRelationship: "invoice.owner"));
+
+        Assert.Throws<InvalidOperationException>(() => Resolve(definition,
+            new RelatedOutcomeSources(new LayoutRelatedResult(LayoutRelatedOutcome.Denied)), new RecordingTrace(),
+            new LayoutResolutionRequest("request-7", "principal.clerk-4")));
+    }
+
+    private static string Describe(LayoutBindingResolution resolution) => JsonSerializer.Serialize(new
+    {
+        blocks = resolution.Blocks.Select(block => new { block.BlockId, block.BindingKind, block.Name, Value = block.Value?.ToJsonString(), block.RowId }),
+        resolution.Refusals,
+        resolution.Hidden,
+    });
+
+    private static LayoutBindingResolution Resolve(LayoutDefinition definition, ILayoutBindingSources sources, ILayoutDecisionTrace trace, LayoutResolutionRequest request)
+        => new LayoutBindingResolver(new Harborline.Foundation.RuleEngine.GuardEvaluator(TimeProvider.System))
+            .Resolve(definition, sources, LayoutBindingScope.Root(new Dictionary<string, JsonNode?>(StringComparer.Ordinal)), trace, request);
+
+    private sealed class RecordingTrace : ILayoutDecisionTrace
+    {
+        public List<LayoutRelatedDenial> Denials { get; } = [];
+
+        public void RecordDenial(LayoutRelatedDenial denial) => Denials.Add(denial);
+    }
+
+    private sealed class RelatedOutcomeSources(LayoutRelatedResult outcome) : ILayoutBindingSources
+    {
+        private readonly FixtureSources _fixture = new();
+
+        public bool TryResolveField(LayoutBindingScope scope, string fieldPath, out JsonNode? value) => _fixture.TryResolveField(scope, fieldPath, out value);
+        public bool TryResolveQuery(LayoutBindingScope scope, string viewDefinitionId, out JsonNode? value) => _fixture.TryResolveQuery(scope, viewDefinitionId, out value);
+        public bool TryResolveMeasure(LayoutBindingScope scope, string measurePath, out JsonNode? value) => _fixture.TryResolveMeasure(scope, measurePath, out value);
+        public bool TryResolveTemplate(LayoutBindingScope scope, string templateDefinitionId, out JsonNode? value) => _fixture.TryResolveTemplate(scope, templateDefinitionId, out value);
+        public bool TryResolveCollection(LayoutBindingScope scope, string name, out IReadOnlyList<JsonNode?> rows) => _fixture.TryResolveCollection(scope, name, out rows);
+        public LayoutRelatedResult ResolveRelated(LayoutBindingScope scope, string relationship) => outcome;
+    }
+
     private static LayoutBindingResolution Resolve(LayoutDefinition definition, ILayoutBindingSources sources)
         => new LayoutBindingResolver(new Harborline.Foundation.RuleEngine.GuardEvaluator(TimeProvider.System)).Resolve(definition, sources, LayoutBindingScope.Root(new Dictionary<string, JsonNode?>(StringComparer.Ordinal)
         {
             ["supplier"] = JsonValue.Create("Northwind"),
             ["status"] = JsonValue.Create("open"),
-        }));
+        }), new RecordingTrace(), new LayoutResolutionRequest("request-1", "principal.clerk-4"));
 
     private static LayoutResolvedBlock Block(LayoutBindingResolution resolution, string id)
         => resolution.Blocks.First(block => block.BlockId == id);
@@ -244,7 +372,9 @@ public sealed class LayoutBindingResolutionTests
             // A row scope answers from its own row, never from the surface root.
             if (scope.IsRow) return scope.Values.TryGetValue(fieldPath, out value);
             if (scope.Values.TryGetValue(fieldPath, out value)) return true;
-            return Fields.TryGetValue(fieldPath, out value) || Related.TryGetValue(fieldPath, out value);
+            // Only the related scope answers the related record's fields, so a resolver that forgot to
+            // switch scope cannot pass by reading them from the surface root.
+            return Fields.TryGetValue(fieldPath, out value);
         }
 
         public bool TryResolveQuery(LayoutBindingScope scope, string viewDefinitionId, out JsonNode? value)
@@ -285,12 +415,9 @@ public sealed class LayoutBindingResolutionTests
             return true;
         }
 
-        public bool TryResolveRelated(LayoutBindingScope scope, string relationship, out LayoutBindingScope related)
-        {
-            related = relationship == "invoice.supplier"
-                ? new LayoutBindingScope(null, null, Related)
-                : default;
-            return relationship == "invoice.supplier";
-        }
+        public LayoutRelatedResult ResolveRelated(LayoutBindingScope scope, string relationship)
+            => relationship == "invoice.supplier"
+                ? LayoutRelatedResult.Resolved(new LayoutBindingScope(null, null, Related))
+                : LayoutRelatedResult.Undeclared;
     }
 }

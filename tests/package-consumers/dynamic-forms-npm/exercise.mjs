@@ -32,7 +32,7 @@ const React = await import('react')
 const { act } = React
 const { createRoot } = await import('react-dom/client')
 const { SchemaForm, useFormRuleGraph, ReactiveSchemaForm, FormView } = await import('@harborline-software/ui-react')
-const { compile, FormRuleGraph } = await import('@harborline-software/rule-engine')
+const { admitEnvironment, builtInFunctions, compile, fieldReadEffect, FormRuleGraph, lentGrammar } = await import('@harborline-software/rule-engine')
 
 const corpus = JSON.parse(readFileSync(new URL('./cases.json', import.meta.url), 'utf8'))
 const text = value => ({ defaultLocale: 'en', values: { en: value } })
@@ -68,7 +68,9 @@ const toRule = id => {
   }
 }
 const graphClock = () => new Date('2026-06-30T00:00:00.000Z')
-const graphFor = ids => (ids.length ? new FormRuleGraph(compile(ids.map(toRule)), graphClock) : null)
+// The consumer's own borrower environment (T-590 rules-eng-26), admitted by the packed engine.
+const graphAdmission = admitEnvironment({ borrower: 'dynamic-forms-consumer', grammar: lentGrammar, variables: { field: 'form field', row: 'form row' }, operations: builtInFunctions.map(f => f.key), effects: [fieldReadEffect], missingValues: 'missing-field-reads-null', timeSource: 'evaluated-at', timeZone: 'utc', phases: { AuthoringValidation: false, PublishValidation: false, Render: true, Submission: true, Run: false, SignOff: false }, replay: 'deterministic' }).forPhase('Render')
+const graphFor = ids => (ids.length ? new FormRuleGraph(compile(ids.map(toRule)), graphClock, graphAdmission) : null)
 
 async function evaluateCase(caseRow) {
   const graph = graphFor(caseRow.rules)
