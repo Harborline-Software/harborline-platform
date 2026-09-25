@@ -4,7 +4,7 @@ Owns the platform-neutral, inbound-only Data Exchange contracts: the constrained
 profile, canonical Records target admission, immutable run evidence, stable replay identities, and
 bounded per-command commit orchestration.
 
-The definition is content kind 11 and lives in the shared builder-definitions catalogue under
+The definition is content kind 12 and lives in the shared builder-definitions catalogue under
 `DefinitionKind.DataExchange`; this package supplies its canonical JSON, the phase-aware intent
 validator the catalogue binds as admission, and the pack entry the platform package exports. It owns
 no definition store.

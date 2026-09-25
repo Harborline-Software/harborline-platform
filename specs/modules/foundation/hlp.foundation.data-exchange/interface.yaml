@@ -10,7 +10,7 @@
     "operations": [
       "TabularMappingAdmission.Validate -> accept hl:tabular-mapping/v1 with immutable schema identity and supported CSVW terms; refuse unknown profile/schema/major/hl extension or non-canonical target",
       "DataExchangeDefinitionAdmission.Validate / AdmitJson(body, phase, sources, catalogue) -> the complete refusal list at the author, publish and install boundaries; the shared builder-definitions catalogue (DefinitionKind.DataExchange) binds AdmitJson as its admission; unregistered kinds, non-object settings, missing dedup keys, private targets, credentials, cursors, retention overrides, rollback and export members refuse",
-      "DataExchangeDefinitionJson.SerializeCanonical / Deserialize -> canonical snake_case, ordinal-sorted, newline-terminated UTF-8 JSON for every definition member; DataExchangeDefinitionPackExporter.Export -> content kind 11 entry of canonical bytes after publish admission, carried by PlatformPackageExporter with closure, manifest and digest",
+      "DataExchangeDefinitionJson.SerializeCanonical / Deserialize -> canonical snake_case, ordinal-sorted, newline-terminated UTF-8 JSON for every definition member; DataExchangeDefinitionPackExporter.Export -> content kind 12 entry of canonical bytes after publish admission, carried by PlatformPackageExporter with closure, manifest and digest",
       "IDataExchangeDefinitionResolver.ResolvePublishedHeadAsync -> the published head the interpreter runs, supplied by the host over the shared catalogue",
       "DataExchangeInterpreter.CreateDryRunAsync -> resolve a read-only source capability, discover and validate source shape, stream rows, apply CSVW null/default/type semantics and registered transforms, bind canonical payloads, persist payloads behind protected references, and continue with a closed rejection for an invalid row",
       "DataExchangeRuntime.CreateDryRunAsync -> persist a new immutable tenant review artifact with proposal fingerprints, normalized evidence, candidate checkpoint, protected snapshot reference and policy-owned lifecycle",
@@ -85,7 +85,7 @@
   ],
   "publicSeams": [
     "definition intent admission (author, publish, install) and canonical JSON",
-    "content kind 11 pack entry for the platform package",
+    "content kind 12 pack entry for the platform package",
     "IDataExchangeDefinitionResolver published-head port",
     "mapping-profile terminal admission",
     "read-only acquisition and discovered-shape port",
@@ -112,7 +112,7 @@
     "nativeTests": {
       "dotnet": 91
     },
-    "nativeTestNote": "Includes shared-catalogue immutable heads, restore-as-new-draft, canonical JSON round trip, content kind 11 platform-package export with digest, boundary refusals with valid counterparts, semantic dependency identity and supersession, closed census/status/policy refusal, lifecycle-derived retention and legal holds, rollback refusal and domain correction, execution registry admission, authorization-context propagation, lost-response replay, read-only acquisition, CSVW mapping/coercion, protected payload handling, bounded concurrent dispatch, stale promotion refusal, and recoverable checkpoint finalization."
+    "nativeTestNote": "Includes shared-catalogue immutable heads, restore-as-new-draft, canonical JSON round trip, content kind 12 platform-package export with digest, boundary refusals with valid counterparts, semantic dependency identity and supersession, closed census/status/policy refusal, lifecycle-derived retention and legal holds, rollback refusal and domain correction, execution registry admission, authorization-context propagation, lost-response replay, read-only acquisition, CSVW mapping/coercion, protected payload handling, bounded concurrent dispatch, stale promotion refusal, and recoverable checkpoint finalization."
   },
   "selectedDesign": {
     "choice": "One packable foundation assembly owns the projection-neutral definition and execution protocol while durable persistence, connector acquisition, target Access, canonical Records commands and UI projections remain behind narrow host adapters.",
