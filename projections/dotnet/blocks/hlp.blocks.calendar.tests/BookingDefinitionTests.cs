@@ -41,7 +41,7 @@ public sealed class BookingDefinitionTests
         AssertRefusals(refusals, expected is null ? [] : [(expected, "/from_type_id")]);
     }
 
-    [Fact(DisplayName = "booking-ck-4: capacity is exclusive by default, or a pool with its size")]
+    [Fact(DisplayName = "booking-ck-4: capacity is exclusive by default, or a pool with its size; a size without a pool refuses")]
     public void CapacityIsExclusiveByDefault()
     {
         var exclusive = BookingResourceDefinition.Parse(Fixtures.Resource(body => body.Remove("capacity_kind")).ToJsonString());
@@ -56,6 +56,11 @@ public sealed class BookingDefinitionTests
         Assert.Equal(4, pool.PoolSize);
         AssertRefusals(Admit(DefinitionKind.Resources, Fixtures.Resource(body => body["capacity_kind"] = "scalar")),
             [(BookingDefinitionCodes.CapacityKindUnknown, "/capacity_kind")]);
+        // T-724 Q4: a pool size is refused, never ignored, unless the capacity is a pool.
+        AssertRefusals(Admit(DefinitionKind.Resources, Fixtures.Resource(item => item["pool_size"] = 1)),
+            [(BookingDefinitionCodes.PoolSizeWithoutPool, "/pool_size")]);
+        AssertRefusals(Admit(DefinitionKind.Resources, Fixtures.Resource(item => { item.Remove("capacity_kind"); item["pool_size"] = 4; })),
+            [(BookingDefinitionCodes.PoolSizeWithoutPool, "/pool_size")]);
     }
 
     [Theory(DisplayName = "booking-auth-12: a pool with no size, or a size below one, refuses; size one passes")]
@@ -75,9 +80,6 @@ public sealed class BookingDefinitionTests
             else item["pool_size"] = JsonNode.Parse(size);
         });
         AssertRefusals(Admit(DefinitionKind.Resources, body), expected is null ? [] : [(expected, "/pool_size")]);
-        // An exclusive resource declares no pool size: capacity is two kinds, not a number.
-        AssertRefusals(Admit(DefinitionKind.Resources, Fixtures.Resource(item => item["pool_size"] = 1)),
-            [(BookingDefinitionCodes.PoolSizeInvalid, "/pool_size")]);
     }
 
     [Fact(DisplayName = "booking-ck-5: setup and cleanup minutes are declared on the Resource; a negative buffer refuses")]

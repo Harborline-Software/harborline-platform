@@ -28,8 +28,10 @@ public static class BookingDefinitionCodes
     public const string ResourceTypeNotAdmitted = "booking.resource.type_not_admitted";
     /// <summary>Capacity is neither exclusive nor pool (booking-ck-4).</summary>
     public const string CapacityKindUnknown = "booking.resource.capacity_kind_unknown";
-    /// <summary>A pool without a whole size of at least one, or a size on an exclusive resource (booking-auth-12).</summary>
+    /// <summary>A pool without a whole size of at least one (booking-auth-12).</summary>
     public const string PoolSizeInvalid = "booking.resource.pool_size_invalid";
+    /// <summary>A pool size on a resource whose capacity is not a pool; refused, never ignored (booking-ck-4, T-724 Q4).</summary>
+    public const string PoolSizeWithoutPool = "booking.resource.pool_size_without_pool";
     /// <summary>A setup or cleanup buffer that is not a whole number of minutes at or above zero (booking-ck-5).</summary>
     public const string BufferInvalid = "booking.resource.buffer_invalid";
     /// <summary>Maintenance authored as a block list instead of named record state (booking-ck-6, L506).</summary>
@@ -172,8 +174,10 @@ public static class BookingDefinitionAdmission
         var capacity = body["capacity_kind"] is null ? "exclusive" : Text(body["capacity_kind"]);
         if (capacity is not ("exclusive" or "pool"))
             refusals.Add(new(BookingDefinitionCodes.CapacityKindUnknown, "/capacity_kind"));
-        else if (capacity == "pool" ? Whole(body["pool_size"]) is not >= 1 : body.ContainsKey("pool_size"))
+        else if (capacity == "pool" && Whole(body["pool_size"]) is not >= 1)
             refusals.Add(new(BookingDefinitionCodes.PoolSizeInvalid, "/pool_size"));
+        else if (capacity != "pool" && body.ContainsKey("pool_size"))
+            refusals.Add(new(BookingDefinitionCodes.PoolSizeWithoutPool, "/pool_size"));
 
         foreach (var buffer in new[] { "setup_minutes", "cleanup_minutes" })
             if (body.ContainsKey(buffer) && Whole(body[buffer]) is not >= 0)
