@@ -216,6 +216,21 @@ public sealed class LayoutBoundRegisterTests
         LayoutDefinitionAdmission.ValidateForAuthoring(GuardSurface("status == open", null), LayoutHostRegisters.Platform);
     }
 
+    [Fact(DisplayName = "layout-bound-9: publication admits show_when functions only from the kernel's BuiltInFunctionRegister")]
+    public void ShowWhenFunctionsResolveOnlyThroughTheKernelRegister()
+    {
+        // Registered kernel functions (text, membership, date) publish, at the root and in a row.
+        LayoutDefinitionAdmission.ValidateForPublish(Sealed(GuardSurface(
+            "{\"in\":[{\"cat\":[{\"var\":\"field.status\"},\"-\",{\"var\":\"field.region\"}]},[\"open-eu\",\"open-us\"]]}",
+            "{\">\":[{\"date.diff\":[{\"date.today\":[]},{\"var\":\"row.due\"}]},30]}")), LayoutHostRegisters.Platform);
+
+        // A function the register does not have refuses, however it is spelled: no pack library
+        // evaluates a guard (T-590's register is the compiler's only operator table).
+        foreach (var unregistered in new[] { "lib.is_weekend", "acme::is_weekend", "date.weekday" })
+            AssertPublishRefused(GuardSurface($"{{\"{unregistered}\":[{{\"var\":\"field.due\"}}]}}", null), LayoutHostRegisters.Platform,
+                LayoutDefinitionCodes.GuardInvalid, "/blocks/0/show_when");
+    }
+
     private static LayoutDefinition GuardSurface(string surfaceGuard, string? rowGuard) => new(
         new("surface.invoice", "1.0.0", "tenant-a", LayoutCascadeLayer.DomainPackage,
             JsonSerializer.SerializeToElement(new { source = "test" }), "standard", false, []),
