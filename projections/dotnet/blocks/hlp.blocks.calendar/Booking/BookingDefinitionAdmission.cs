@@ -1,0 +1,183 @@
+using System.Text.Json;
+using System.Text.Json.Nodes;
+
+using Harborline.Blocks.BuilderDefinitions;
+
+namespace Harborline.Blocks.Calendar.Booking;
+
+/// <summary>Stable refusal codes of Booking definition admission (DES-0025 sections 2, 4 and 7).</summary>
+public static class BookingDefinitionCodes
+{
+    /// <summary>The body is not a JSON object.</summary>
+    public const string BodyInvalid = "booking.definition.body_invalid";
+    /// <summary>The body's <c>kind</c> is not the archive namespace's definition kind.</summary>
+    public const string KindMismatch = "booking.definition.kind_mismatch";
+    /// <summary>A member outside the fixed vocabulary (L536).</summary>
+    public const string MemberUnknown = "booking.definition.member_unknown";
+    /// <summary>The definition has no name.</summary>
+    public const string NameRequired = "booking.definition.name_required";
+    /// <summary>A referenced record type does not exist.</summary>
+    public const string TypeUnknown = "booking.definition.type_unknown";
+    /// <summary>An envelope member is missing or malformed (booking-ck-17).</summary>
+    public const string EnvelopeInvalid = "booking.envelope.invalid";
+    /// <summary>The envelope's identity, tenant or version disagrees with the stored document.</summary>
+    public const string EnvelopeMismatch = "booking.envelope.mismatch";
+    /// <summary>The Resource's type lacks the sealed Bookable Resource trait (booking-ck-3, L1085).</summary>
+    public const string ResourceTypeNotAdmitted = "booking.resource.type_not_admitted";
+    /// <summary>Capacity is neither exclusive nor pool (booking-ck-4).</summary>
+    public const string CapacityKindUnknown = "booking.resource.capacity_kind_unknown";
+    /// <summary>A pool without a whole size of at least one, or a size on an exclusive resource (booking-auth-12).</summary>
+    public const string PoolSizeInvalid = "booking.resource.pool_size_invalid";
+    /// <summary>A setup or cleanup buffer that is not a whole number of minutes at or above zero (booking-ck-5).</summary>
+    public const string BufferInvalid = "booking.resource.buffer_invalid";
+    /// <summary>Maintenance authored as a block list instead of named record state (booking-ck-6, L506).</summary>
+    public const string MaintenanceNotFromRecord = "booking.resource.maintenance_not_from_record";
+    /// <summary>The Resource names no base-hours source (booking-ck-7).</summary>
+    public const string AvailabilitySourceRequired = "booking.resource.availability_source_required";
+}
+
+/// <summary>
+/// What admission reads from the host: the sealed traits a record type bears (<see langword="null"/>
+/// for an unknown type), and whether an id names an admitted Resource definition.
+/// </summary>
+public sealed record BookingAdmissionContext(
+    Func<string, IReadOnlySet<string>?> RecordTypeTraits,
+    Func<string, bool> IsAdmittedResource);
+
+/// <summary>
+/// Structural admission of Booking definitions (DES-0025 booking-eng-23, ADR 0071). One pure check
+/// serves validate, publish and install; it reports every refusal and changes nothing.
+/// </summary>
+public static class BookingDefinitionAdmission
+{
+    /// <summary>The sealed trait that admits a record type to reservation (platform seed ck-4, L1085).</summary>
+    public const string BookableResourceTrait = "platform.trait.bookable-resource";
+
+    private static readonly string[] EnvelopeMembers =
+        ["identity", "version", "tenant", "cascade_layer", "provenance", "retention_class", "legal_hold", "requires"];
+    private static readonly string[] CascadeLayers =
+        ["kernel_core", "subsystem", "platform_package", "domain_package", "tenant_configuration"];
+    private static readonly string[] ResourceMembers =
+        ["kind", "envelope", "name", "from_type_id", "capacity_kind", "pool_size", "setup_minutes", "cleanup_minutes",
+         "maintenance_windows", "availability_from"];
+
+    /// <summary>The shared store's validator for <see cref="DefinitionKind.Resources"/> and <see cref="DefinitionKind.Bookables"/>.</summary>
+    public static DefinitionAdmission For(BookingAdmissionContext context)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        return (document, _) => Validate(document, context);
+    }
+
+    /// <summary>Returns every structural refusal of one document, in document order.</summary>
+    public static IReadOnlyList<DefinitionRefusal> Validate(DefinitionDocument document, BookingAdmissionContext context)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+        ArgumentNullException.ThrowIfNull(context);
+        if (Parse(document.BodyJson) is not { } body) return [new(BookingDefinitionCodes.BodyInvalid, "")];
+        var expected = document.Key.Kind switch
+        {
+            DefinitionKind.Resources => "resource",
+            _ => null,
+        };
+        if (expected is null) return [new("definition.registry_unknown", "/registry")];
+        if (Text(body["kind"]) != expected) return [new(BookingDefinitionCodes.KindMismatch, "/kind")];
+
+        var refusals = new List<DefinitionRefusal>();
+        Members(body, ResourceMembers, "", refusals);
+        Envelope(body["envelope"], document, refusals);
+        if (string.IsNullOrWhiteSpace(Text(body["name"]))) refusals.Add(new(BookingDefinitionCodes.NameRequired, "/name"));
+        Resource(body, context, refusals);
+        return refusals;
+    }
+
+    private static void Resource(JsonObject body, BookingAdmissionContext context, List<DefinitionRefusal> refusals)
+    {
+        if (RecordType(body, "from_type_id", context, refusals) is { } traits && !traits.Contains(BookableResourceTrait))
+            refusals.Add(new(BookingDefinitionCodes.ResourceTypeNotAdmitted, "/from_type_id"));
+
+        var capacity = body["capacity_kind"] is null ? "exclusive" : Text(body["capacity_kind"]);
+        if (capacity is not ("exclusive" or "pool"))
+            refusals.Add(new(BookingDefinitionCodes.CapacityKindUnknown, "/capacity_kind"));
+        else if (capacity == "pool" ? Whole(body["pool_size"]) is not >= 1 : body.ContainsKey("pool_size"))
+            refusals.Add(new(BookingDefinitionCodes.PoolSizeInvalid, "/pool_size"));
+
+        foreach (var buffer in new[] { "setup_minutes", "cleanup_minutes" })
+            if (body.ContainsKey(buffer) && Whole(body[buffer]) is not >= 0)
+                refusals.Add(new(BookingDefinitionCodes.BufferInvalid, "/" + buffer));
+
+        if (body["maintenance_windows"] is JsonArray windows)
+        {
+            for (var index = 0; index < windows.Count; index++)
+                if (string.IsNullOrWhiteSpace(Text(windows[index])))
+                    refusals.Add(new(BookingDefinitionCodes.MaintenanceNotFromRecord, $"/maintenance_windows/{index}"));
+        }
+        else if (body.ContainsKey("maintenance_windows"))
+            refusals.Add(new(BookingDefinitionCodes.MaintenanceNotFromRecord, "/maintenance_windows"));
+
+        if (string.IsNullOrWhiteSpace(Text(body["availability_from"])))
+            refusals.Add(new(BookingDefinitionCodes.AvailabilitySourceRequired, "/availability_from"));
+    }
+
+    private static IReadOnlySet<string>? RecordType(JsonObject body, string member, BookingAdmissionContext context,
+        List<DefinitionRefusal> refusals)
+    {
+        var typeId = Text(body[member]);
+        var traits = string.IsNullOrWhiteSpace(typeId) ? null : context.RecordTypeTraits(typeId);
+        if (traits is null) refusals.Add(new(BookingDefinitionCodes.TypeUnknown, "/" + member));
+        return traits;
+    }
+
+    private static void Envelope(JsonNode? node, DefinitionDocument document, List<DefinitionRefusal> refusals)
+    {
+        if (node is not JsonObject envelope)
+        {
+            refusals.Add(new(BookingDefinitionCodes.EnvelopeInvalid, "/envelope"));
+            return;
+        }
+        Members(envelope, EnvelopeMembers, "/envelope", refusals);
+        foreach (var (member, actual) in new[]
+        {
+            ("identity", document.Key.DefinitionId), ("tenant", document.Key.Tenant), ("version", document.Version),
+        })
+        {
+            var value = Text(envelope[member]);
+            if (string.IsNullOrWhiteSpace(value)) refusals.Add(new(BookingDefinitionCodes.EnvelopeInvalid, "/envelope/" + member));
+            else if (value != actual) refusals.Add(new(BookingDefinitionCodes.EnvelopeMismatch, "/envelope/" + member));
+        }
+        if (!CascadeLayers.Contains(Text(envelope["cascade_layer"])))
+            refusals.Add(new(BookingDefinitionCodes.EnvelopeInvalid, "/envelope/cascade_layer"));
+        if (envelope["provenance"] is not JsonObject)
+            refusals.Add(new(BookingDefinitionCodes.EnvelopeInvalid, "/envelope/provenance"));
+        if (string.IsNullOrWhiteSpace(Text(envelope["retention_class"])))
+            refusals.Add(new(BookingDefinitionCodes.EnvelopeInvalid, "/envelope/retention_class"));
+        if (envelope["legal_hold"]?.GetValueKind() is not (JsonValueKind.True or JsonValueKind.False))
+            refusals.Add(new(BookingDefinitionCodes.EnvelopeInvalid, "/envelope/legal_hold"));
+        if (envelope["requires"] is not JsonArray requires)
+            refusals.Add(new(BookingDefinitionCodes.EnvelopeInvalid, "/envelope/requires"));
+        else
+            for (var index = 0; index < requires.Count; index++)
+                if (string.IsNullOrWhiteSpace(Text((requires[index] as JsonObject)?["capability"])))
+                    refusals.Add(new(BookingDefinitionCodes.EnvelopeInvalid, $"/envelope/requires/{index}"));
+    }
+
+    private static void Members(JsonObject node, string[] allowed, string pointer, List<DefinitionRefusal> refusals)
+    {
+        foreach (var member in node)
+            if (!allowed.Contains(member.Key))
+                refusals.Add(new(BookingDefinitionCodes.MemberUnknown, $"{pointer}/{Escape(member.Key)}"));
+    }
+
+    internal static JsonObject? Parse(string? json)
+    {
+        try { return JsonNode.Parse(json ?? "") as JsonObject; }
+        catch (JsonException) { return null; }
+    }
+
+    internal static string? Text(JsonNode? node)
+        => node?.GetValueKind() == JsonValueKind.String ? node.GetValue<string>() : null;
+
+    internal static int? Whole(JsonNode? node)
+        => node?.GetValueKind() == JsonValueKind.Number && node.AsValue().TryGetValue<int>(out var value) ? value : null;
+
+    private static string Escape(string member) => member.Replace("~", "~0").Replace("/", "~1");
+}
