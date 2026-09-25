@@ -930,7 +930,7 @@
       }
     },
     "hlp.foundation.forms": {
-      "interface": {"path": "specs/modules/foundation/hlp.foundation.forms/interface.yaml", "revision": 3},
+      "interface": {"path": "specs/modules/foundation/hlp.foundation.forms/interface.yaml", "revision": 4},
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "Definition lifecycle, bounded reuse, and draft state produce data consumed by separate renderers and the Forms Engine."},
       "owner": "platform-foundation",
@@ -965,7 +965,7 @@
       }
     },
     "hlp.foundation.forms-engine": {
-      "interface": {"path": "specs/modules/foundation/hlp.foundation.forms-engine/interface.yaml", "revision": 11},
+      "interface": {"path": "specs/modules/foundation/hlp.foundation.forms-engine/interface.yaml", "revision": 12},
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "The Forms Engine produces render and submission data consumed by separate React and Blazor renderers; it owns no visual implementation."},
       "owner": "platform-foundation",
