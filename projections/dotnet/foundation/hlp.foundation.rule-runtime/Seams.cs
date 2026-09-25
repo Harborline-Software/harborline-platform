@@ -2,6 +2,7 @@ using System.Text.Json.Nodes;
 
 using Harborline.Foundation.RuleEngine.Compilation;
 using Harborline.Foundation.RuleEngine.Context;
+using Harborline.Foundation.RuleEngine.Environments;
 using Harborline.Foundation.RuleEngine.Graph;
 using Harborline.Foundation.RuleEngine.Model;
 
@@ -61,9 +62,9 @@ public interface IGuardEvaluator
 {
     /// <summary>Evaluates a guard rule only over an explicitly host-captured inert context.</summary>
     Validity EvaluateGuard(RuleDefinition rule, RuleContextSnapshot context, RuleEvalScope scope,
-        CancellationToken ct = default);
+        EvaluationAdmission? admission, CancellationToken ct = default);
 
     /// <summary>Evaluates a value expression only over an explicitly host-captured inert context.</summary>
     ComputedValue EvaluateValue(RuleDefinition rule, RuleContextSnapshot context, RuleEvalScope scope,
-        CancellationToken ct = default);
+        EvaluationAdmission? admission, CancellationToken ct = default);
 }

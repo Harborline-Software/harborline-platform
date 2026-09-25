@@ -4,6 +4,7 @@
  * cells with Error/Pending propagation, and reactively re-evaluates the transitive
  * dependents on a single-cell change or a child-table row add/remove.
  */
+import { admissionRefusal, type EvaluationAdmission } from './environment.js'
 import { Codes } from './codes.js'
 import { cell } from './model.js'
 import type {
@@ -281,27 +282,34 @@ export class FormRuleGraph {
   private readonly compiledRules: readonly CompiledRule[]
   private readonly limits: RuleEngineLimits
 
+  /** rules-eng-26: null when the admission covers the program; otherwise every entry point refuses with it. */
+  private readonly refusal: string | null
+
   constructor(
     compiled: CompiledGraph,
     private readonly clock: () => Date,
+    admission: EvaluationAdmission | null,
     limits: RuleEngineLimits = DEFAULT_LIMITS,
   ) {
     const ownedRules = ownedCompiledRulesOf(compiled)
     if (!ownedRules) throw new Error(Codes.contextSnapshotRequired)
     this.compiled = compiled
     this.compiledRules = ownedRules
+    this.refusal = admissionRefusal(admission, ownedRules.map((rule) => rule.ast))
     this.limits = { ...limits }
     this.workProof = deriveGraphWork(ownedRules, this.limits)
     if (typeof clock !== 'function') throw new TypeError('FormRuleGraph requires a caller-supplied clock')
   }
 
   evaluateInstance(instance: RuleInstance, signal?: AbortSignal): RuleEvaluationResult {
+    if (this.refusal !== null) return this.failClosed(this.refusal)
     if (!RuleInstance.isRuntimeOwned(instance)) throw new Error(Codes.contextSnapshotRequired)
     this.instance = RuleInstance.cloneOwned(instance)
     return this.buildAndEvaluate(signal)
   }
 
   reevaluate(fieldName: string, newValue: import('./instance.js').RuleValueSnapshot, signal?: AbortSignal): RuleEvaluationResult {
+    if (this.refusal !== null) return this.failClosed(this.refusal)
     try { assertBoundedMemberName(fieldName, 'rule field name') } catch { return this.failClosed(Codes.inputTooLarge) }
     const captured = ownedValueOf(newValue)
     if (captured === undefined) throw new Error(Codes.contextSnapshotRequired)
@@ -362,6 +370,7 @@ export class FormRuleGraph {
   }
 
   addRow(section: string, row: import('./instance.js').RuleRowSnapshot, signal?: AbortSignal): RuleEvaluationResult {
+    if (this.refusal !== null) return this.failClosed(this.refusal)
     try { assertBoundedMemberName(section, 'rule section name') } catch { return this.failClosed(Codes.inputTooLarge) }
     const captured = ownedRowOf(row)
     if (!captured) throw new Error(Codes.contextSnapshotRequired)
@@ -379,6 +388,7 @@ export class FormRuleGraph {
   }
 
   removeRow(section: string, rowId: string, signal?: AbortSignal): RuleEvaluationResult {
+    if (this.refusal !== null) return this.failClosed(this.refusal)
     try {
       assertBoundedMemberName(section, 'rule section name')
       assertBoundedMemberName(rowId, 'rule row id')

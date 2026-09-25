@@ -6,6 +6,10 @@ import { FormRuleGraph } from '../graph.js'
 import { RuleInstance } from '../instance.js'
 import { DEFAULT_LIMITS } from '../limits.js'
 import type { Json, RuleDefinition } from '../model.js'
+import { admitEnvironment as admitTestEnvironment, fieldReadEffect as testFieldRead, lentGrammar as testGrammar } from '../environment.js'
+import { builtInFunctions as testBuiltIns } from '../functions.js'
+// The suite's own borrower: the whole register, every scope token, every phase (T-590 rules-eng-26).
+const testAdmission = admitTestEnvironment({ borrower: 'rule-engine-tests', grammar: testGrammar, variables: { field: 'test', row: 'test', wf: 'test', timer: 'test' }, operations: testBuiltIns.map((f) => f.key), effects: [testFieldRead], missingValues: 'missing-field-reads-null', timeSource: 'injected-test-clock', timeZone: 'utc', phases: { AuthoringValidation: true, PublishValidation: true, Render: true, Submission: true, Run: true, SignOff: true }, replay: 'deterministic' }).forPhase('Run')
 
 function compute(id: string, target: string, expression: Json): RuleDefinition {
   return { id, tier: 'JsonLogic', scope: 'Field', scopeTarget: target, action: 'Compute', expression }
@@ -96,7 +100,7 @@ describe('definition compiler admission', () => {
   it('instantiates a proof for independently configured graph structural dimensions', () => {
     const compiled = compile([compute('row-aware', 'x', { var: 'table.sum(items.amount)' })],
       { ...DEFAULT_LIMITS, maxTableRowsPerAggregate: 1, maxGraphNodes: 2 })
-    const graph = new FormRuleGraph(compiled, () => new Date('2026-09-22T00:00:00Z'),
+    const graph = new FormRuleGraph(compiled, () => new Date('2026-09-22T00:00:00Z'), testAdmission,
       { ...DEFAULT_LIMITS, maxTableRowsPerAggregate: 2, maxGraphNodes: 3 })
     graph.evaluateInstance(RuleInstance.fromJsonText('{}'))
     expect(graph.workProof.maximumResultBytes).toBeGreaterThanOrEqual(compiled.workProof.maximumResultBytes)
@@ -104,7 +108,7 @@ describe('definition compiler admission', () => {
 
   it('captures mutable runtime structural limits with its instantiated proof', () => {
     const sourceLimits = { ...DEFAULT_LIMITS, maxGraphNodes: 1, maxTableRowsPerAggregate: 1 }
-    const graph = new FormRuleGraph(compile([compute('one', 'x', 1)]), () => new Date('2026-09-22T00:00:00Z'), sourceLimits)
+    const graph = new FormRuleGraph(compile([compute('one', 'x', 1)]), () => new Date('2026-09-22T00:00:00Z'), testAdmission, sourceLimits)
     const proof = graph.workProof
     sourceLimits.maxGraphNodes = 0
     sourceLimits.maxTableRowsPerAggregate = 0
@@ -124,7 +128,7 @@ describe('definition compiler admission', () => {
     const graph = compile([
       compute('copying-cat', 'result', { cat: ['ab', { cat: ['cd', 'ef'] }] }),
     ])
-    const evaluated = new FormRuleGraph(graph, () => new Date('2026-09-22T00:00:00.000Z'))
+    const evaluated = new FormRuleGraph(graph, () => new Date('2026-09-22T00:00:00.000Z'), testAdmission)
       .evaluateInstance(RuleInstance.fromJsonText('{}'))
     const value = evaluated.values.get('field:result')
 
@@ -143,7 +147,7 @@ describe('definition compiler admission', () => {
     ])
     // Deliberately diagnostic-only: this is not a production limit change.
     const limits = { ...DEFAULT_LIMITS, stepBudget: 2_000_000, wallClockMs: 5000 }
-    const evaluated = new FormRuleGraph(graph, () => new Date('2026-09-22T00:00:00.000Z'), limits)
+    const evaluated = new FormRuleGraph(graph, () => new Date('2026-09-22T00:00:00.000Z'), testAdmission, limits)
       .evaluateInstance(RuleInstance.fromJsonText('{}'))
     const value = evaluated.values.get('field:result')
 
@@ -161,7 +165,7 @@ describe('definition compiler admission', () => {
       compute('empty-or', 'emptyOr', { or: [] }),
       compute('strict-inequality', 'different', { '!==': [1, '1'] }),
     ])
-    const result = new FormRuleGraph(graph, () => new Date('2026-09-22T00:00:00.000Z'))
+    const result = new FormRuleGraph(graph, () => new Date('2026-09-22T00:00:00.000Z'), testAdmission)
       .evaluateInstance(RuleInstance.fromJsonText('{}'))
     const values = ['field:quoted', 'field:emptyCat', 'field:emptyAnd', 'field:emptyOr', 'field:different']
       .map(key => result.values.get(key)?.value)
@@ -176,7 +180,7 @@ describe('definition compiler admission', () => {
     const graph = new FormRuleGraph(compile([
       compute('trimmed-money', 'trimmed', { 'money.add': [' 1.20 ', '2.30'] }),
       compute('exponent-money', 'exponent', { 'money.add': ['1e2', '1'] }),
-    ]), () => new Date('2026-09-22T00:00:00.000Z'))
+    ]), () => new Date('2026-09-22T00:00:00.000Z'), testAdmission)
     const result = graph.evaluateInstance(RuleInstance.fromJsonText('{}'))
 
     expect(result.values.get('field:trimmed')).toEqual({ state: 'Resolved', value: '3.5' })
@@ -186,7 +190,7 @@ describe('definition compiler admission', () => {
   it('refuses all-whitespace money text through the public evaluator', () => {
     const graph = new FormRuleGraph(compile([
       compute('blank-money', 'blank', { 'money.add': ['   ', '1'] }),
-    ]), () => new Date('2026-09-22T00:00:00.000Z'))
+    ]), () => new Date('2026-09-22T00:00:00.000Z'), testAdmission)
     const result = graph.evaluateInstance(RuleInstance.fromJsonText('{}'))
 
     expect(result.values.get('field:blank')).toMatchObject({ state: 'Error', error: { code: Codes.typeError } })

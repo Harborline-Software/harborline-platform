@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json.Nodes;
 
+using Harborline.Foundation.RuleEngine.Functions;
 using Harborline.Foundation.RuleEngine.Model;
 
 namespace Harborline.Foundation.RuleEngine.Evaluation;
@@ -46,68 +47,28 @@ internal static class HarborlineJsonLogic
         var (op, argNode) = (obj.First().Key, obj.First().Value);
         var args = AsArgList(argNode);
 
-        return op switch
-        {
-            "var" => EvalVar(args, ctx),
-            "missing" => EvalMissing(args, ctx),
-            "missing_some" => EvalMissingSome(args, ctx),
-
-            "==" => Bool(LooseEquals(Eval(args, 0, ctx), Eval(args, 1, ctx))),
-            "!=" => Bool(!LooseEquals(Eval(args, 0, ctx), Eval(args, 1, ctx))),
-            "===" => Bool(StrictEquals(Eval(args, 0, ctx), Eval(args, 1, ctx))),
-            "!==" => Bool(!StrictEquals(Eval(args, 0, ctx), Eval(args, 1, ctx))),
-            "!" => Bool(!IsTruthy(Eval(args, 0, ctx))),
-            "!!" => Bool(IsTruthy(Eval(args, 0, ctx))),
-
-            "and" => EvalAnd(args, ctx),
-            "or" => EvalOr(args, ctx),
-            "if" => EvalIf(args, ctx),
-
-            ">" => Bool(Compare(args, ctx) > 0),
-            ">=" => Bool(Compare(args, ctx) >= 0),
-            "<" => Bool(Compare(args, ctx) < 0),
-            "<=" => Bool(Compare(args, ctx) <= 0),
-
-            "+" => Arith(args, ctx, '+'),
-            "-" => Arith(args, ctx, '-'),
-            "*" => Arith(args, ctx, '*'),
-            "/" => Arith(args, ctx, '/'),
-            "%" => Arith(args, ctx, '%'),
-            "min" => MinMax(args, ctx, min: true),
-            "max" => MinMax(args, ctx, min: false),
-
-            "in" => EvalIn(args, ctx),
-            "cat" => EvalCat(args, ctx),
-
-            "agg" => EvalAgg(args, ctx),
-            "money.add" => Money(args, ctx, '+'),
-            "money.sub" => Money(args, ctx, '-'),
-            "money.mul" => Money(args, ctx, '*'),
-            "date.add" => DateAdd(args, ctx),
-            "date.diff" => DateDiff(args, ctx),
-            "date.today" => JsonValue.Create(DateMath.Today(ctx.Now)),
-            "coding.is" => EvalCodingIs(args, ctx),
-
-            _ => throw new RuleEvalException(RuleError.Of(RuleEngineCodes.UnknownOperator, "op", op)),
-        };
+        // The R1 register is the only dispatch table (rules-eng-27); an unregistered key refuses.
+        return BuiltInFunctionRegister.TryResolve(op, out var function)
+            ? function.Invoke(args, ctx)
+            : throw new RuleEvalException(RuleError.Of(RuleEngineCodes.UnknownOperator, "op", op));
     }
 
     // ── operand plumbing ────────────────────────────────────────────────────
 
-    private static List<JsonNode?> AsArgList(JsonNode? argNode)
+    internal static List<JsonNode?> AsArgList(JsonNode? argNode)
     {
         if (argNode is JsonArray arr) return arr.Select(x => x).ToList();
         return new List<JsonNode?> { argNode };
     }
 
-    private static JsonNode? Eval(List<JsonNode?> args, int i, EvalContext ctx)
+    internal static JsonNode? Eval(List<JsonNode?> args, int i, EvalContext ctx)
         => i < args.Count ? Evaluate(args[i], ctx) : null;
 
-    private static JsonNode Bool(bool b) => JsonValue.Create(b);
+    internal static JsonNode Bool(bool b) => JsonValue.Create(b);
 
     // ── var / missing ───────────────────────────────────────────────────────
 
-    private static JsonNode? EvalVar(List<JsonNode?> args, EvalContext ctx)
+    internal static JsonNode? EvalVar(List<JsonNode?> args, EvalContext ctx)
     {
         string path = AsString(args.Count > 0 ? Evaluate(args[0], ctx) : null) ?? "";
         if (path.Length == 0) return null;
@@ -115,7 +76,7 @@ internal static class HarborlineJsonLogic
         return Unwrap(rv, args.Count > 1 ? Evaluate(args[1], ctx) : null);
     }
 
-    private static JsonNode? Unwrap(RefValue rv, JsonNode? fallback)
+    internal static JsonNode? Unwrap(RefValue rv, JsonNode? fallback)
     {
         switch (rv.State)
         {
@@ -126,7 +87,7 @@ internal static class HarborlineJsonLogic
         }
     }
 
-    private static JsonNode EvalMissing(List<JsonNode?> args, EvalContext ctx)
+    internal static JsonNode EvalMissing(List<JsonNode?> args, EvalContext ctx)
     {
         var keys = args.Count == 1 && Evaluate(args[0], ctx) is JsonArray a
             ? a.Select(x => AsString(x) ?? "").ToList()
@@ -143,7 +104,7 @@ internal static class HarborlineJsonLogic
         return missing;
     }
 
-    private static JsonNode EvalMissingSome(List<JsonNode?> args, EvalContext ctx)
+    internal static JsonNode EvalMissingSome(List<JsonNode?> args, EvalContext ctx)
     {
         int min = (int)ToNumber(Eval(args, 0, ctx));
         var keysNode = Eval(args, 1, ctx);
@@ -163,7 +124,7 @@ internal static class HarborlineJsonLogic
 
     // ── logic ───────────────────────────────────────────────────────────────
 
-    private static JsonNode? EvalAnd(List<JsonNode?> args, EvalContext ctx)
+    internal static JsonNode? EvalAnd(List<JsonNode?> args, EvalContext ctx)
     {
         JsonNode? last = JsonValue.Create(true);
         foreach (var a in args)
@@ -174,7 +135,7 @@ internal static class HarborlineJsonLogic
         return last;
     }
 
-    private static JsonNode? EvalOr(List<JsonNode?> args, EvalContext ctx)
+    internal static JsonNode? EvalOr(List<JsonNode?> args, EvalContext ctx)
     {
         JsonNode? last = JsonValue.Create(false);
         foreach (var a in args)
@@ -185,7 +146,7 @@ internal static class HarborlineJsonLogic
         return last;
     }
 
-    private static JsonNode? EvalIf(List<JsonNode?> args, EvalContext ctx)
+    internal static JsonNode? EvalIf(List<JsonNode?> args, EvalContext ctx)
     {
         int i = 0;
         for (; i + 1 < args.Count; i += 2)
@@ -197,7 +158,7 @@ internal static class HarborlineJsonLogic
 
     // ── compare / arithmetic ────────────────────────────────────────────────
 
-    private static int Compare(List<JsonNode?> args, EvalContext ctx)
+    internal static int Compare(List<JsonNode?> args, EvalContext ctx)
     {
         double a = ToNumber(Eval(args, 0, ctx));
         double b = ToNumber(Eval(args, 1, ctx));
@@ -206,7 +167,7 @@ internal static class HarborlineJsonLogic
         return a < b ? -1 : a > b ? 1 : 0;
     }
 
-    private static JsonNode Arith(List<JsonNode?> args, EvalContext ctx, char op)
+    internal static JsonNode Arith(List<JsonNode?> args, EvalContext ctx, char op)
     {
         var values = args.Select(a => Evaluate(a, ctx)).ToList();
 
@@ -238,7 +199,7 @@ internal static class HarborlineJsonLogic
         return NumNode(acc);
     }
 
-    private static JsonNode MinMax(List<JsonNode?> args, EvalContext ctx, bool min)
+    internal static JsonNode MinMax(List<JsonNode?> args, EvalContext ctx, bool min)
     {
         if (args.Count == 0) throw new RuleEvalException(RuleError.Of(RuleEngineCodes.TypeError, "op", min ? "min" : "max"));
         double best = ToNumber(Eval(args, 0, ctx));
@@ -252,7 +213,7 @@ internal static class HarborlineJsonLogic
 
     // ── membership / string ─────────────────────────────────────────────────
 
-    private static JsonNode EvalIn(List<JsonNode?> args, EvalContext ctx)
+    internal static JsonNode EvalIn(List<JsonNode?> args, EvalContext ctx)
     {
         var needle = Eval(args, 0, ctx);
         var hay = Eval(args, 1, ctx);
@@ -267,7 +228,7 @@ internal static class HarborlineJsonLogic
         return Bool(false);
     }
 
-    private static JsonNode EvalCat(List<JsonNode?> args, EvalContext ctx)
+    internal static JsonNode EvalCat(List<JsonNode?> args, EvalContext ctx)
     {
         var sb = new StringBuilder();
         foreach (var a in args)
@@ -281,7 +242,7 @@ internal static class HarborlineJsonLogic
 
     // ── earlier source extensions ─────────────────────────────────────────────────
 
-    private static JsonNode? EvalAgg(List<JsonNode?> args, EvalContext ctx)
+    internal static JsonNode? EvalAgg(List<JsonNode?> args, EvalContext ctx)
     {
         string fn = AsString(Eval(args, 0, ctx)) ?? throw BadAgg();
         string section = AsString(Eval(args, 1, ctx)) ?? throw BadAgg();
@@ -289,9 +250,9 @@ internal static class HarborlineJsonLogic
         return Unwrap(ctx.Resolver.ResolveAgg(fn, section, col), null);
     }
 
-    private static RuleEvalException BadAgg() => new(RuleError.Of(RuleEngineCodes.BadReference, "op", "agg"));
+    internal static RuleEvalException BadAgg() => new(RuleError.Of(RuleEngineCodes.BadReference, "op", "agg"));
 
-    private static JsonNode Money(List<JsonNode?> args, EvalContext ctx, char op)
+    internal static JsonNode Money(List<JsonNode?> args, EvalContext ctx, char op)
     {
         try
         {
@@ -314,7 +275,7 @@ internal static class HarborlineJsonLogic
         }
     }
 
-    private static MoneyDecimal ToMoney(JsonNode? n)
+    internal static MoneyDecimal ToMoney(JsonNode? n)
     {
         if (n is JsonValue v)
         {
@@ -328,7 +289,7 @@ internal static class HarborlineJsonLogic
         throw new FormatException("money operand must be a decimal string or an integer");
     }
 
-    private static JsonNode DateAdd(List<JsonNode?> args, EvalContext ctx)
+    internal static JsonNode DateAdd(List<JsonNode?> args, EvalContext ctx)
     {
         try
         {
@@ -343,7 +304,7 @@ internal static class HarborlineJsonLogic
         }
     }
 
-    private static JsonNode DateDiff(List<JsonNode?> args, EvalContext ctx)
+    internal static JsonNode DateDiff(List<JsonNode?> args, EvalContext ctx)
     {
         try
         {
@@ -363,7 +324,7 @@ internal static class HarborlineJsonLogic
     /// concrete domain type (ADR 0056 <c>TaxonomyClassification</c>) to keep the engine
     /// foundation-light; the form/workflow layer maps its concept to this shape.
     /// </summary>
-    private static JsonNode EvalCodingIs(List<JsonNode?> args, EvalContext ctx)
+    internal static JsonNode EvalCodingIs(List<JsonNode?> args, EvalContext ctx)
     {
         var value = Eval(args, 0, ctx);
         string system = AsString(Eval(args, 1, ctx)) ?? "";
@@ -410,7 +371,7 @@ internal static class HarborlineJsonLogic
         }
     }
 
-    private static bool TryDouble(JsonValue v, out double d)
+    internal static bool TryDouble(JsonValue v, out double d)
     {
         if (v.TryGetValue<double>(out d)) return true;
         if (v.TryGetValue<long>(out var l)) { d = l; return true; }
@@ -420,7 +381,7 @@ internal static class HarborlineJsonLogic
         return false;
     }
 
-    private static JsonNode NumNode(double d)
+    internal static JsonNode NumNode(double d)
     {
         if (!double.IsFinite(d)) throw new RuleEvalException(RuleError.Of(RuleEngineCodes.TypeError, "reason", "non-finite"));
         if (d == Math.Floor(d) && Math.Abs(d) < 9.007e15) return JsonValue.Create((long)d);
@@ -440,7 +401,7 @@ internal static class HarborlineJsonLogic
         return n?.ToJsonString();
     }
 
-    private static bool StrictEquals(JsonNode? a, JsonNode? b)
+    internal static bool StrictEquals(JsonNode? a, JsonNode? b)
     {
         if (a is null || b is null) return a is null && b is null;
         if (a is JsonValue va && b is JsonValue vb)
@@ -455,7 +416,7 @@ internal static class HarborlineJsonLogic
         return a.ToJsonString() == b.ToJsonString();
     }
 
-    private static bool LooseEquals(JsonNode? a, JsonNode? b)
+    internal static bool LooseEquals(JsonNode? a, JsonNode? b)
     {
         if (a is null || b is null) return a is null && b is null;
         if (a is JsonValue va && b is JsonValue vb)
@@ -470,7 +431,7 @@ internal static class HarborlineJsonLogic
         return a.ToJsonString() == b.ToJsonString();
     }
 
-    private static bool TryCoerceNumber(JsonValue v, out double d)
+    internal static bool TryCoerceNumber(JsonValue v, out double d)
     {
         if (TryDouble(v, out d)) return true;
         if (v.TryGetValue<bool>(out var b)) { d = b ? 1 : 0; return true; }

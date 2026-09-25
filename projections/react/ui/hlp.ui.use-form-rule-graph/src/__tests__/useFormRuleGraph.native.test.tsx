@@ -14,6 +14,9 @@ import { HarborlineLocaleProvider } from '@harborline-platform/hlp.ui.locale-pro
 
 import { ReactiveSchemaForm, projectRuleOutcomes, useFormRuleGraph, type RuleGraphLike } from '../index'
 import { fixture, qualityCases } from './fixtures'
+import { admitEnvironment as admitTestEnvironment, builtInFunctions as testBuiltIns, fieldReadEffect as testFieldRead, lentGrammar as testGrammar } from '@harborline-software/rule-engine'
+// The fixture host's borrower environment (T-590 rules-eng-26): Forms-shaped, every register key, render phase.
+const testAdmission = admitTestEnvironment({ borrower: 'react-rule-graph-fixture', grammar: testGrammar, variables: { field: 'form field', row: 'form row' }, operations: testBuiltIns.map((f) => f.key), effects: [testFieldRead], missingValues: 'missing-field-reads-null', timeSource: 'evaluated-at', timeZone: 'utc', phases: { AuthoringValidation: false, PublishValidation: false, Render: true, Submission: true, Run: false, SignOff: false }, replay: 'deterministic' }).forPhase('Render')
 
 const tt = (en: string): InternationalizedText => ({ defaultLocale: 'en', values: { en } })
 const field = (name: string, label: string, over: Record<string, unknown> = {}) => ({
@@ -66,7 +69,7 @@ const hideGraph: RuleGraphLike = new FormRuleGraph(compile([{
   scopeTarget: 'total',
   expression: { if: [{ '==': [{ var: 'a' }, 'show'] }, '4', '0'] },
   action: 'Compute',
-}] satisfies RuleDefinition[]), () => new Date('2026-06-30T00:00:00.000Z'))
+}] satisfies RuleDefinition[]), () => new Date('2026-06-30T00:00:00.000Z'), testAdmission)
 
 const renderInLocale = (node: React.ReactElement) =>
   render(<HarborlineLocaleProvider locale="en">{node}</HarborlineLocaleProvider>)
@@ -115,7 +118,7 @@ describe('useFormRuleGraph native behavior (pinned source parity)', () => {
       expression: { '==': [{ var: 'a' }, 'show'] },
       action: 'Visibility',
     }]
-    const graph = new FormRuleGraph(compile(rules), () => new Date('2026-06-30T00:00:00.000Z'))
+    const graph = new FormRuleGraph(compile(rules), () => new Date('2026-06-30T00:00:00.000Z'), testAdmission)
 
     const { result } = renderHook(() => useFormRuleGraph(graph, baseView, { initialValues: { a: 'show' } }))
 

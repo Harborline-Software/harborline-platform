@@ -5,6 +5,7 @@ using Harborline.Contracts.Forms;
 using Harborline.Foundation.RuleEngine;
 using Harborline.Foundation.RuleEngine.Compilation;
 using Harborline.Foundation.RuleEngine.Context;
+using Harborline.Foundation.RuleEngine.Environments;
 
 namespace Harborline.Foundation.Authorization;
 
@@ -78,7 +79,7 @@ public sealed class AccessScopeEvaluator
             {
                 Id = "access.scope_false", Tier = RuleTier.JsonLogic, Scope = RuleScope.Field,
                 ScopeTarget = "access", Action = RuleActionKind.Validate, Expression = expression,
-            }, RuleContextSnapshot.Capture(facts), RuleEvalScope.Root, cancellationToken);
+            }, RuleContextSnapshot.Capture(facts), RuleEvalScope.Root, AccessExpressionEnvironment.Admitted.For(EvaluationPhase.Run), cancellationToken);
             return new(result.Ok, result.Ok ? "access.scope_matched" : "access.scope_false");
         }
         catch (JsonException) { return new(false, "access.scope_invalid"); }

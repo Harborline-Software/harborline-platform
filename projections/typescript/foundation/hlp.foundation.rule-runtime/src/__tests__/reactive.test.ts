@@ -15,6 +15,10 @@ import { DEFAULT_LIMITS } from '../limits.js'
 import type { Json } from '../model.js'
 import { INPUT_MAX_NODES, INPUT_MAX_UTF8_BYTES } from '../input-envelope.js'
 import { deriveCoreTypes, type CoreJsonType } from '../core-types.js'
+import { admitEnvironment as admitTestEnvironment, fieldReadEffect as testFieldRead, lentGrammar as testGrammar } from '../environment.js'
+import { builtInFunctions as testBuiltIns } from '../functions.js'
+// The suite's own borrower: the whole register, every scope token, every phase (T-590 rules-eng-26).
+const testAdmission = admitTestEnvironment({ borrower: 'rule-engine-tests', grammar: testGrammar, variables: { field: 'test', row: 'test', wf: 'test', timer: 'test' }, operations: testBuiltIns.map((f) => f.key), effects: [testFieldRead], missingValues: 'missing-field-reads-null', timeSource: 'injected-test-clock', timeZone: 'utc', phases: { AuthoringValidation: true, PublishValidation: true, Render: true, Submission: true, Run: true, SignOff: true }, replay: 'deterministic' }).forPhase('Run')
 
 const fixedClock = () => new Date('2026-06-30T00:00:00.000Z')
 const snapshot = (value: Record<string, Json>) => RuleContextSnapshot.fromJsonText(JSON.stringify(value))
@@ -27,7 +31,7 @@ function rule(id: string, scopeTarget: string, action: RuleDefinition['action'],
 }
 
 function graphOf(rules: RuleDefinition[], instance: Record<string, Json>) {
-  const g = new FormRuleGraph(compile(rules), fixedClock)
+  const g = new FormRuleGraph(compile(rules), fixedClock, testAdmission)
   return { g, first: g.evaluateInstance(RuleInstance.fromJsonText(JSON.stringify(instance))) }
 }
 
@@ -51,7 +55,7 @@ describe('business-clock pinning', () => {
       rule('c.first', 'first', 'Compute', { if: [{ var: 'toggle' }, { 'date.today': [] }, { 'date.today': [] }] }),
       rule('c.second', 'second', 'Compute', { if: [{ var: 'toggle' }, { 'date.today': [] }, { 'date.today': [] }] }),
     ]
-    const graph = new FormRuleGraph(compile(rules), clock)
+    const graph = new FormRuleGraph(compile(rules), clock, testAdmission)
 
     const first = graph.evaluateInstance(instance({ toggle: true }))
     expect(reads).toBe(1)
@@ -73,7 +77,7 @@ describe('business-clock pinning', () => {
       rule('c.label', 'label', 'Compute', { cat: [{ var: 'today' }, '/', { var: 'other' }] }),
       rule('c.stable', 'stable-output', 'Compute', { var: 'stable' }),
       rule('v.today', 'today-valid', 'Validate', { '==': [{ 'date.today': [] }, '2026-07-01'] }),
-    ]), () => [before, after][reads++])
+    ]), () => [before, after][reads++], testAdmission)
     const first = graph.evaluateInstance(instance({ other: 'before', stable: 'unchanged' }))
     const stableOutcome = first.byRule.get('c.stable')
 
@@ -83,7 +87,7 @@ describe('business-clock pinning', () => {
       rule('c.label', 'label', 'Compute', { cat: [{ var: 'today' }, '/', { var: 'other' }] }),
       rule('c.stable', 'stable-output', 'Compute', { var: 'stable' }),
       rule('v.today', 'today-valid', 'Validate', { '==': [{ 'date.today': [] }, '2026-07-01'] }),
-    ]), () => after).evaluateInstance(instance({ other: 'after', stable: 'unchanged' }))
+    ]), () => after, testAdmission).evaluateInstance(instance({ other: 'after', stable: 'unchanged' }))
 
     expect(reads).toBe(2)
     expect(incremental.values.get('field:today')).toEqual(full.values.get('field:today'))
@@ -99,7 +103,7 @@ describe('business-clock pinning', () => {
     const graph = new FormRuleGraph(compile([
       rule('c.literal', 'literal', 'Compute', { cat: [{ 'date.today': [], var: 'ignored' }, [{ 'date.today': [] }, { var: 'ignored' }]] }),
       rule('c.changed', 'changed', 'Compute', { var: 'unrelated' }),
-    ]), () => [before, after][reads++])
+    ]), () => [before, after][reads++], testAdmission)
 
     const first = graph.evaluateInstance(instance({ unrelated: 'before' }))
     const literal = first.byRule.get('c.literal')
@@ -116,7 +120,7 @@ describe('core outcome and dynamic missing scheduling', () => {
   it.each([false, true])('evaluates dynamic missing after computed producers in either source order (%s)', (reversed) => {
     const missing = rule('a.missing', 'missing', 'Compute', { missing: [{ var: 'keys' }] })
     const produced = rule('z.produced', 'produced', 'Compute', { if: [{ var: 'enabled' }, 1, null] })
-    const graph = new FormRuleGraph(compile(reversed ? [produced, missing] : [missing, produced]), fixedClock)
+    const graph = new FormRuleGraph(compile(reversed ? [produced, missing] : [missing, produced]), fixedClock, testAdmission)
 
     const first = graph.evaluateInstance(instance({ keys: ['produced'], enabled: true }))
     expect(first.values.get('field:missing')).toEqual({ state: 'Resolved', value: [] })
@@ -144,7 +148,7 @@ describe('core outcome and dynamic missing scheduling', () => {
   })
 
   it('refuses a dynamic self read instead of using a raw shadow', () => {
-    const graph = new FormRuleGraph(compile([rule('a.dynamic', 'a', 'Compute', { missing: [{ var: 'keys' }] })]), fixedClock)
+    const graph = new FormRuleGraph(compile([rule('a.dynamic', 'a', 'Compute', { missing: [{ var: 'keys' }] })]), fixedClock, testAdmission)
     const first = graph.evaluateInstance(instance({ keys: ['a'], a: 1 }))
     expect(first.values.get('field:a')).toEqual({ state: 'Error', error: { code: Codes.cycle, params: { cell: 'field:a' } } })
     graph.evaluateInstance(instance({ keys: ['raw'], raw: 1 }))
@@ -158,7 +162,7 @@ describe('core outcome and dynamic missing scheduling', () => {
       rule('b.total', 'total', 'Compute', { if: [{ '==': [{ var: 'table.sum(items.calculated)' }, 10] }, 10, null] }),
       rule('z.calculated', 'items/calculated', 'Compute', { if: [{ var: 'enabled' }, 10, 0] }, 'Row'),
       rule('stable.copy', 'stableOut', 'Compute', { var: 'stable' }),
-    ]), fixedClock)
+    ]), fixedClock, testAdmission)
 
     const first = graph.evaluateInstance(instance({ keys: ['total'], enabled: true, stable: 'unchanged', items: [{ _id: 'r1', calculated: 99 }] }))
     expect(first.values.get('field:total')).toEqual({ state: 'Resolved', value: 10 })
@@ -183,7 +187,7 @@ describe('core outcome and dynamic missing scheduling', () => {
       dynamic('a.dynamic', 'a', 'keysA'),
       dynamic('b.dynamic', 'b', 'keysB'),
       dynamic('c.dynamic', 'c', 'keysC'),
-    ], limits), fixedClock, limits)
+    ], limits), fixedClock, testAdmission, limits)
     expect(exact.evaluateInstance(instance({ keysA: ['b'], keysB: ['c'], keysC: ['raw'], raw: 1 })).values.get('field:a')?.state).toBe('Resolved')
     expect(exact.reevaluate('keysA', valueSnapshot(['b'])).values.get('field:a')?.state).toBe('Resolved')
 
@@ -192,14 +196,14 @@ describe('core outcome and dynamic missing scheduling', () => {
       dynamic('b.dynamic', 'b', 'keysB'),
       dynamic('c.dynamic', 'c', 'keysC'),
       dynamic('d.dynamic', 'd', 'keysD'),
-    ], limits), fixedClock, limits)
+    ], limits), fixedClock, testAdmission, limits)
     expect(over.evaluateInstance(instance({ keysA: ['b'], keysB: ['c'], keysC: ['d'], keysD: ['raw'], raw: 1 })).values.get('field:a')?.state).toBe('Error')
     expect(over.reevaluate('keysA', valueSnapshot(['b'])).values.get('field:a')?.state).toBe('Error')
 
     // Zero is valid only for a no-dependency leaf; its initial evaluation still enters
     // the same scheduler and must not be treated as depth one.
     const zeroLimits = { ...DEFAULT_LIMITS, maxDependencyDepth: 0 }
-    const zero = new FormRuleGraph(compile([rule('leaf.literal', 'leaf', 'Compute', 1)], zeroLimits), fixedClock, zeroLimits)
+    const zero = new FormRuleGraph(compile([rule('leaf.literal', 'leaf', 'Compute', 1)], zeroLimits), fixedClock, testAdmission, zeroLimits)
     expect(zero.evaluateInstance(instance({})).values.get('field:leaf')?.state).toBe('Resolved')
     expect(zero.reevaluate('unrelated', valueSnapshot(null)).values.get('field:leaf')?.state).toBe('Resolved')
   })
@@ -240,7 +244,7 @@ describe('core outcome and dynamic missing scheduling', () => {
     const graph = new FormRuleGraph(compile([
       rule('a.row-missing', 'items/missing', 'Compute', { missing_some: [{ var: 'threshold' }, ['row.amount', 'row.other']] }, 'Row'),
       rule('z.row-amount', 'items/amount', 'Compute', { if: [{ var: 'row.enabled' }, 1, null] }, 'Row'),
-    ]), fixedClock)
+    ]), fixedClock, testAdmission)
 
     const first = graph.evaluateInstance(instance({ threshold: 1, items: [{ _id: 'r1', enabled: true }] }))
     expect(first.values.get('row:items/r1/missing')).toEqual({ state: 'Resolved', value: [] })
@@ -284,7 +288,7 @@ describe('core outcome and dynamic missing scheduling', () => {
 describe('runtime-owned return and program boundaries', () => {
   it('refuses forged and proxied compiled graphs before any caller-owned property is read', () => {
     const forged = { rules: [compile([rule('c.safe', 'safe', 'Compute', 1)]).rules[0]] }
-    expect(() => new FormRuleGraph(forged, fixedClock)).toThrow(Codes.contextSnapshotRequired)
+    expect(() => new FormRuleGraph(forged, fixedClock, testAdmission)).toThrow(Codes.contextSnapshotRequired)
 
     let invoked = false
     const proxied = new Proxy(forged, {
@@ -293,15 +297,15 @@ describe('runtime-owned return and program boundaries', () => {
         throw new Error('compiled graph proxy ran')
       },
     })
-    expect(() => new FormRuleGraph(proxied, fixedClock)).toThrow(Codes.contextSnapshotRequired)
+    expect(() => new FormRuleGraph(proxied, fixedClock, testAdmission)).toThrow(Codes.contextSnapshotRequired)
     expect(invoked).toBe(false)
-    expect(() => new FormRuleGraph(compile([rule('c.genuine', 'genuine', 'Compute', 1)]), fixedClock)).not.toThrow()
+    expect(() => new FormRuleGraph(compile([rule('c.genuine', 'genuine', 'Compute', 1)]), fixedClock, testAdmission)).not.toThrow()
   })
 
   it('does not retain a caller mutation of an exposed computed object or compiled program', () => {
     const definition = rule('c.object', 'result', 'Compute', { if: [{ var: 'on' }, { answer: 1, ok: true }, { answer: 2, ok: true }] })
     const compiled = compile([definition])
-    const graph = new FormRuleGraph(compiled, fixedClock)
+    const graph = new FormRuleGraph(compiled, fixedClock, testAdmission)
     const first = graph.evaluateInstance(instance({ on: true }))
     const exposed = first.values.get('field:result')!.value as Record<string, Json>
     expect(() => { exposed.answer = 99 }).toThrow()
@@ -317,11 +321,11 @@ describe('runtime-owned return and program boundaries', () => {
     const guard = new GuardEvaluator(fixedClock)
     const definition = rule('g.object', 'result', 'Compute', { if: [true, { answer: 1, ok: true }, null] })
     const context = RuleContextSnapshot.fromJsonText('{}')
-    const first = guard.evaluateValue(definition, context)
+    const first = guard.evaluateValue(definition, context, testAdmission)
     const exposed = first.value as Record<string, Json>
     expect(() => Object.defineProperty(exposed, 'answer', { get: () => 99, configurable: true })).toThrow()
 
-    expect(guard.evaluateValue(definition, context)).toEqual({ state: 'Resolved', value: { answer: 1, ok: true } })
+    expect(guard.evaluateValue(definition, context, testAdmission)).toEqual({ state: 'Resolved', value: { answer: 1, ok: true } })
   })
 })
 
@@ -356,7 +360,7 @@ describe('public input envelope boundaries', () => {
     const source = (payload: string): string => `{"\\u006Eame\\u0022":"😀😀\u2028\\b\\f","numeric":1e+00,"negative":-0,"payload":"${payload}"}`
     const jsonStringifyDocument = (payload: string): string => `{"name\\"":"😀😀\u2028\\b\\f","numeric":1,"negative":0,"payload":"${payload}"}`
     const payload = 'a'.repeat(INPUT_MAX_UTF8_BYTES - new TextEncoder().encode(source('')).length)
-    const graph = new FormRuleGraph(compile([rule('c.copy', 'copy', 'Compute', { var: 'payload' })]), fixedClock)
+    const graph = new FormRuleGraph(compile([rule('c.copy', 'copy', 'Compute', { var: 'payload' })]), fixedClock, testAdmission)
 
     expect(new TextEncoder().encode(source(payload)).length).toBe(INPUT_MAX_UTF8_BYTES)
     expect(new TextEncoder().encode(JSON.stringify(JSON.parse(source(payload)))).length).toBeLessThanOrEqual(INPUT_MAX_UTF8_BYTES)
@@ -369,7 +373,7 @@ describe('public input envelope boundaries', () => {
     const source = (payload: string): string => `{"\\u006Eame\\u0022":"😀😀\u2028\\b\\f","numeric":1e+00,"negative":-0,"payload":"${payload}"}`
     const jsonStringifyDocument = (payload: string): string => `{"name\\"":"😀😀\u2028\\b\\f","numeric":1,"negative":0,"payload":"${payload}"}`
     const payload = 'a'.repeat(INPUT_MAX_UTF8_BYTES - new TextEncoder().encode(jsonStringifyDocument('')).length)
-    const graph = new FormRuleGraph(compile([rule('c.copy', 'copy', 'Compute', { var: 'payload' })]), fixedClock)
+    const graph = new FormRuleGraph(compile([rule('c.copy', 'copy', 'Compute', { var: 'payload' })]), fixedClock, testAdmission)
     graph.evaluateInstance(RuleInstance.fromJsonText(source('')))
 
     expect(new TextEncoder().encode(jsonStringifyDocument(payload)).length).toBe(INPUT_MAX_UTF8_BYTES)
@@ -378,7 +382,7 @@ describe('public input envelope boundaries', () => {
   })
 
   it('admits a typed JSON null reactive value while instances and guard snapshots still require objects', () => {
-    const graph = new FormRuleGraph(compile([rule('c.value', 'value', 'Compute', { var: 'a' })]), fixedClock)
+    const graph = new FormRuleGraph(compile([rule('c.value', 'value', 'Compute', { var: 'a' })]), fixedClock, testAdmission)
     graph.evaluateInstance(instance({ a: 1 }))
     expect(graph.reevaluate('a', RuleValueSnapshot.fromJsonText('null')).values.get('field:value')).toEqual({ state: 'Resolved', value: null })
     expect(() => RuleInstance.fromJsonText('null')).toThrow()
@@ -396,7 +400,7 @@ describe('public input envelope boundaries', () => {
 
   it('retains inferred row ids outside the input envelope across reactive edits', () => {
     const rows = Array.from({ length: 2000 }, () => ({ value: 1 }))
-    const graph = new FormRuleGraph(compile([rule('c.copy', 'copy', 'Compute', { var: 'a' })]), fixedClock)
+    const graph = new FormRuleGraph(compile([rule('c.copy', 'copy', 'Compute', { var: 'a' })]), fixedClock, testAdmission)
     expect(graph.evaluateInstance(instance({ a: 1, items: rows })).isSaveBlocked).toBe(false)
     expect(graph.reevaluate('a', valueSnapshot(2)).values.get('field:copy')).toEqual({ state: 'Resolved', value: 2 })
     expect(graph.addRow('other', rowSnapshot({ id: 'r1', fields: { v: 1 } })).values.get('field:copy')).toEqual({ state: 'Resolved', value: 2 })
@@ -404,7 +408,7 @@ describe('public input envelope boundaries', () => {
 
   it('atomically refuses a cumulative new-section row without disturbing cached unrelated output', () => {
     const body = `{${Array.from({ length: INPUT_MAX_NODES - 2 }, (_, i) => i === 0 ? '"a":1' : `"f${i}":null`).join(',')}}`
-    const graph = new FormRuleGraph(compile([rule('c.b', 'b', 'Compute', { '+': [{ var: 'a' }, 1] })]), fixedClock)
+    const graph = new FormRuleGraph(compile([rule('c.b', 'b', 'Compute', { '+': [{ var: 'a' }, 1] })]), fixedClock, testAdmission)
     graph.evaluateInstance(RuleInstance.fromJsonText(body))
     const refused = graph.addRow('new-section', RuleRowSnapshot.fromJsonText('{"id":"r1","fields":{"v":null}}'))
     expect(refused.isSaveBlocked).toBe(true)
@@ -418,21 +422,21 @@ describe('public input envelope boundaries', () => {
   it('atomically refuses cumulative non-ascii byte growth while preserving the prior graph', () => {
     const prefix = '{"a":1,"payload":"'
     const source = `${prefix}${'é'.repeat((INPUT_MAX_UTF8_BYTES - prefix.length - 2) / 2)}"}`
-    const graph = new FormRuleGraph(compile([rule('c.b', 'b', 'Compute', { '+': [{ var: 'a' }, 1] })]), fixedClock)
+    const graph = new FormRuleGraph(compile([rule('c.b', 'b', 'Compute', { '+': [{ var: 'a' }, 1] })]), fixedClock, testAdmission)
     graph.evaluateInstance(RuleInstance.fromJsonText(source))
     expect(graph.reevaluate('unused', valueSnapshot(null)).validations[0].validity?.error?.code).toBe(Codes.inputTooLarge)
     expect(graph.reevaluate('a', valueSnapshot(2)).values.get('field:b')).toEqual({ state: 'Resolved', value: 3 })
   })
 
   it('refuses an oversized dynamic member name before it can enter reactive state', () => {
-    const graph = new FormRuleGraph(compile([rule('c.b', 'b', 'Compute', { '+': [{ var: 'a' }, 1] })]), fixedClock)
+    const graph = new FormRuleGraph(compile([rule('c.b', 'b', 'Compute', { '+': [{ var: 'a' }, 1] })]), fixedClock, testAdmission)
     graph.evaluateInstance(instance({ a: 1 }))
     expect(graph.reevaluate('x'.repeat(INPUT_MAX_UTF8_BYTES + 1), valueSnapshot(null)).validations[0].validity?.error?.code).toBe(Codes.inputTooLarge)
     expect(graph.reevaluate('a', valueSnapshot(1)).values.get('field:b')).toEqual({ state: 'Resolved', value: 2 })
   })
 
   it('refuses non-string remove identifiers before property coercion can address graph state', () => {
-    const graph = new FormRuleGraph(compile([rule('c.total', 'total', 'Compute', { var: 'table.sum(items.amount)' })]), fixedClock)
+    const graph = new FormRuleGraph(compile([rule('c.total', 'total', 'Compute', { var: 'table.sum(items.amount)' })]), fixedClock, testAdmission)
     graph.evaluateInstance(instance({ items: [{ amount: 1 }] }))
     const hostile = new Proxy({}, { get: () => { throw new Error('property coercion ran') } })
     expect(graph.removeRow(hostile as string, hostile as string).validations[0].validity?.error?.code).toBe(Codes.inputTooLarge)
@@ -446,7 +450,7 @@ describe('reactive re-evaluation — transitive dependents only', () => {
       rule('copy-constructor', 'copied-constructor', 'Compute', { var: 'constructor' }),
       rule('copy-proto', 'copied-proto', 'Compute', { var: '__proto__' }),
       rule('row-to-string', 'items/copied', 'Compute', { var: 'row.toString' }, 'Row'),
-    ]), fixedClock)
+    ]), fixedClock, testAdmission)
 
     const first = graph.evaluateInstance(RuleInstance.fromJsonText('{"constructor":"owned","__proto__":"proto","items":[{"_id":"r1","toString":"row-owned"}]}'))
     expect(first.values.get('field:copied-constructor')).toEqual({ state: 'Resolved', value: 'owned' })
@@ -484,7 +488,7 @@ describe('reactive re-evaluation — transitive dependents only', () => {
       throw new Error('replacement tables ran')
     } })
 
-    const graph = new FormRuleGraph(compile([rule('c.b', 'b', 'Compute', { '+': [{ var: 'a' }, 1] })]), fixedClock)
+    const graph = new FormRuleGraph(compile([rule('c.b', 'b', 'Compute', { '+': [{ var: 'a' }, 1] })]), fixedClock, testAdmission)
     expect(graph.evaluateInstance(input).values.get('field:b')).toEqual({ state: 'Resolved', value: 2 })
     expect(invoked).toBe(false)
   })
@@ -492,8 +496,8 @@ describe('reactive re-evaluation — transitive dependents only', () => {
   it('does not share mutable reactive state when two graphs receive one owned instance', () => {
     const rules = [rule('c.b', 'b', 'Compute', { '+': [{ var: 'a' }, 1] })]
     const source = instance({ a: 1 })
-    const first = new FormRuleGraph(compile(rules), fixedClock)
-    const second = new FormRuleGraph(compile(rules), fixedClock)
+    const first = new FormRuleGraph(compile(rules), fixedClock, testAdmission)
+    const second = new FormRuleGraph(compile(rules), fixedClock, testAdmission)
     first.evaluateInstance(source)
     second.evaluateInstance(source)
 
@@ -573,7 +577,7 @@ describe('incremental child-table edit', () => {
 
   it('does not retain a rejected over-limit reactive row', () => {
     const compiled = compile(rules, { ...DEFAULT_LIMITS, maxTableRowsPerAggregate: 1 })
-    const g = new FormRuleGraph(compiled, fixedClock, { ...DEFAULT_LIMITS, maxTableRowsPerAggregate: 1 })
+    const g = new FormRuleGraph(compiled, fixedClock, testAdmission, { ...DEFAULT_LIMITS, maxTableRowsPerAggregate: 1 })
     g.evaluateInstance(instance({ items: [{ amount: 1 }] }))
 
     expect(g.addRow('items', rowSnapshot({ id: 'r2', fields: { amount: 2 } })).values.get('agg:items/sum/amount')).toEqual({
@@ -590,7 +594,7 @@ describe('incremental child-table edit', () => {
     const graph = new FormRuleGraph(compile([
       rule('c.copy', 'copy', 'Compute', { var: 'a' }),
       rule('c.row', 'rows/doubled', 'Compute', { '+': [{ var: 'row.value' }, 1] }, 'Row'),
-    ], limits), fixedClock, limits)
+    ], limits), fixedClock, testAdmission, limits)
     graph.evaluateInstance(instance({ a: 1, unused: [{ value: 1 }], rows: [{ value: 1 }] }))
     expect(graph.addRow('unused', rowSnapshot({ id: 'r2', fields: { value: 2 } })).isSaveBlocked).toBe(false)
     expect(graph.addRow('rows', rowSnapshot({ id: 'r3', fields: { value: 2 } })).values.get('row:rows/r3/doubled')).toEqual({ state: 'Resolved', value: 3 })
@@ -649,31 +653,31 @@ describe('static-cap rejection (identical to the .NET integrity tier)', () => {
   })
 
   it('enforces graph, aggregate-row, and step boundaries at and immediately over their configured limit', () => {
-    const graphAt = new FormRuleGraph(compile([rule('graph-at', 'x', 'Compute', 1)]), fixedClock,
+    const graphAt = new FormRuleGraph(compile([rule('graph-at', 'x', 'Compute', 1)]), fixedClock, testAdmission,
       { ...DEFAULT_LIMITS, maxGraphNodes: 1 })
     expect(graphAt.evaluateInstance(instance({})).values.get('field:x')).toEqual({ state: 'Resolved', value: 1 })
     const graphOver = new FormRuleGraph(compile([
       rule('graph-over-a', 'a', 'Compute', 1), rule('graph-over-b', 'b', 'Compute', 2),
-    ]), fixedClock, { ...DEFAULT_LIMITS, maxGraphNodes: 1 })
+    ]), fixedClock, testAdmission, { ...DEFAULT_LIMITS, maxGraphNodes: 1 })
     expect(graphOver.evaluateInstance(instance({})).validations[0].validity?.error?.code).toBe(Codes.graphTooLarge)
 
     const total = rule('table-total', 'total', 'Compute', { var: 'table.sum(items.amount)' })
-    const tableAt = new FormRuleGraph(compile([total]), fixedClock, { ...DEFAULT_LIMITS, maxTableRowsPerAggregate: 1 })
+    const tableAt = new FormRuleGraph(compile([total]), fixedClock, testAdmission, { ...DEFAULT_LIMITS, maxTableRowsPerAggregate: 1 })
     expect(tableAt.evaluateInstance(instance({ items: [{ amount: 1 }] })).values.get('field:total')).toEqual({ state: 'Resolved', value: 1 })
-    const tableOver = new FormRuleGraph(compile([total]), fixedClock, { ...DEFAULT_LIMITS, maxTableRowsPerAggregate: 1 })
+    const tableOver = new FormRuleGraph(compile([total]), fixedClock, testAdmission, { ...DEFAULT_LIMITS, maxTableRowsPerAggregate: 1 })
     expect(tableOver.evaluateInstance(instance({ items: [{ amount: 1 }, { amount: 2 }] })).values.get('agg:items/sum/amount'))
       .toMatchObject({ state: 'Error', error: { code: Codes.tableTooLarge } })
 
-    const stepAt = new FormRuleGraph(compile([rule('step-at', 'x', 'Compute', 1)]), fixedClock,
+    const stepAt = new FormRuleGraph(compile([rule('step-at', 'x', 'Compute', 1)]), fixedClock, testAdmission,
       { ...DEFAULT_LIMITS, stepBudget: 2 })
     expect(stepAt.evaluateInstance(instance({})).values.get('field:x')).toEqual({ state: 'Resolved', value: 1 })
-    const stepOver = new FormRuleGraph(compile([rule('step-over', 'x', 'Compute', 1)]), fixedClock,
+    const stepOver = new FormRuleGraph(compile([rule('step-over', 'x', 'Compute', 1)]), fixedClock, testAdmission,
       { ...DEFAULT_LIMITS, stepBudget: 0 })
     expect(stepOver.evaluateInstance(instance({})).validations[0].validity?.error?.code).toBe(Codes.budgetExceeded)
   })
 
   it('fails closed when the per-instance step budget is exhausted', () => {
-    const g = new FormRuleGraph(compile([rule('c.b', 'b', 'Compute', { '+': [{ var: 'a' }, 1] })]), fixedClock, { ...{
+    const g = new FormRuleGraph(compile([rule('c.b', 'b', 'Compute', { '+': [{ var: 'a' }, 1] })]), fixedClock, testAdmission, { ...{
       maxGraphNodes: 5000, maxTableRowsPerAggregate: 2000, maxDependencyDepth: 64, maxReferencesPerRule: 64,
       maxAstNodes: 256, maxLiteralLength: 4096, stepBudget: 0, wallClockMs: 250,
     } })
@@ -689,7 +693,7 @@ describe('wall-clock is a non-authoritative liveness fault, not a divergent outc
   // corpus. So it PROPAGATES as an infrastructure fault (RuleTimeout) rather than returning a result.
   // (An AbortSignal is the deterministic, hardware-independent way to trip the guard — the TS analog of
   // the .NET pre-cancelled CancellationToken.)
-  const one = () => new FormRuleGraph(compile([rule('c.b', 'b', 'Compute', { '+': [{ var: 'a' }, 1] })]), fixedClock)
+  const one = () => new FormRuleGraph(compile([rule('c.b', 'b', 'Compute', { '+': [{ var: 'a' }, 1] })]), fixedClock, testAdmission)
 
   it('evaluateInstance PROPAGATES RuleTimeout on an aborted signal (never a rule.timeout result)', () => {
     const ac = new AbortController()
@@ -710,13 +714,13 @@ describe('wall-clock is a non-authoritative liveness fault, not a divergent outc
     ac.abort()
     const gd = new GuardEvaluator(fixedClock)
     const r: RuleDefinition = { id: 'g.min', tier: 'JsonLogic', scope: 'Schema', scopeTarget: '', action: 'Validate', expression: { '>': [{ var: 'amount' }, 50] } }
-    expect(() => gd.evaluateGuard(r, snapshot({ amount: 100 }), ac.signal)).toThrow(RuleTimeout)
+    expect(() => gd.evaluateGuard(r, snapshot({ amount: 100 }), testAdmission, ac.signal)).toThrow(RuleTimeout)
   })
 
   it('the op-budget, by contrast, STAYS an authoritative fail-closed OUTCOME (deterministic across tiers)', () => {
     // Distinct from the wall-clock: the op-budget is deterministic (same op count on both tiers), so it
     // remains an outcome-affecting fail-closed result — the two tiers reach it identically.
-    const g = new FormRuleGraph(compile([rule('c.b', 'b', 'Compute', { '+': [{ var: 'a' }, 1] })]), fixedClock, {
+    const g = new FormRuleGraph(compile([rule('c.b', 'b', 'Compute', { '+': [{ var: 'a' }, 1] })]), fixedClock, testAdmission, {
       maxGraphNodes: 5000, maxTableRowsPerAggregate: 2000, maxDependencyDepth: 64, maxReferencesPerRule: 64,
       maxAstNodes: 256, maxLiteralLength: 4096, stepBudget: 0, wallClockMs: 250,
     })
@@ -749,7 +753,7 @@ describe('unavailable aggregate refuses — never a fabricated null (ticket 162)
     // exact shape (and param order) the shared corpus pins byte-identically across tiers.
     const guard = new GuardEvaluator(fixedClock)
     const v: RuleDefinition = { id: 'g.total', tier: 'JsonLogic', scope: 'Schema', scopeTarget: '', action: 'Compute', expression: { var: 'table.sum(items.amount)' } }
-    expect(guard.evaluateValue(v, snapshot({}))).toEqual({
+    expect(guard.evaluateValue(v, snapshot({}), testAdmission)).toEqual({
       state: 'Error',
       error: { code: Codes.badReference, params: { agg: 'items/sum/amount' } },
     })
@@ -761,19 +765,19 @@ describe('guard evaluator (workflow transition guards)', () => {
   const g: RuleDefinition = { id: 'g.minAmount', tier: 'JsonLogic', scope: 'Schema', scopeTarget: '', action: 'Validate', expression: { '>': [{ var: 'amount' }, 50] } }
 
   it('passes when the guard holds', () => {
-    expect(guard.evaluateGuard(g, snapshot({ amount: 100 }))).toEqual({ ok: true })
+    expect(guard.evaluateGuard(g, snapshot({ amount: 100 }), testAdmission)).toEqual({ ok: true })
   })
 
   it('fails closed with a stable code when the guard does not hold', () => {
-    expect(guard.evaluateGuard(g, snapshot({ amount: 10 }))).toEqual({ ok: false, error: { code: 'g.minAmount', params: {} } })
+    expect(guard.evaluateGuard(g, snapshot({ amount: 10 }), testAdmission)).toEqual({ ok: false, error: { code: 'g.minAmount', params: {} } })
   })
 
   it('evaluates a value expression', () => {
     const v: RuleDefinition = { id: 'g.fee', tier: 'JsonLogic', scope: 'Schema', scopeTarget: '', action: 'Compute', expression: { 'money.mul': ['10', '3'] } }
-    expect(guard.evaluateValue(v, snapshot({}))).toEqual({ state: 'Resolved', value: '30' })
+    expect(guard.evaluateValue(v, snapshot({}), testAdmission)).toEqual({ state: 'Resolved', value: '30' })
   })
 
   it('fails closed on a pending dependency (server tier)', () => {
-    expect(guard.evaluateGuard(g, snapshot({ amount: { '@pending': true } }))).toEqual({ ok: false, error: { code: Codes.pendingAtSave, params: {} } })
+    expect(guard.evaluateGuard(g, snapshot({ amount: { '@pending': true } }), testAdmission)).toEqual({ ok: false, error: { code: Codes.pendingAtSave, params: {} } })
   })
 })
