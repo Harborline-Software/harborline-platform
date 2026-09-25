@@ -43,17 +43,17 @@
       "sourceExtracted": true,
       "sourceState": "Revision 1 remains an exact 79-declaration hash-bound capture. Revision 2 adds the Options vocabulary proven by both pinned Rule Runtime tiers. Revision 3 adds Carrier fieldsMeta so exact field types, validations, and options survive save/load/history/restore. Revision 4 adds the pinned Forms Engine's complete optional FormView field-rule projection without conflating visibility with authorization. The result is 84 TypeScript/C# declarations and 104 closed literals. Twenty-six neutral cases and clean npm/NuGet consumers cover recursive wire data, dependent-choice outcomes, complete aspect overlays, lossless authoring, server rule projection, and fail-closed discriminators without source/project fallback.",
       "contentHashes": {
-        "conformance/hlp.contracts.forms/fixtures.yaml": "f81a31ec503ae22bb0d4bc809ce979d7e5ab2f2cc58205d296cbc2f049789461",
+        "conformance/hlp.contracts.forms/fixtures.yaml": "da91e0b98033f9a0c0212cbe0025b53acaf992cc680216b1efb5311b8f8c6554",
         "conformance/hlp.contracts.forms/runners/run-shared.mjs": "079ddaee7b11e10dc5218eefdd75df74774a640eff09d332e63116d6482f72b7",
-        "projections/dotnet/contracts/hlp.contracts.identities.tests/FormsContractTests.cs": "2b0bb254ce31e6049e9373fa3fcc81d88f26a0b37238f0c79fbdb34379c92773",
-        "projections/dotnet/contracts/hlp.contracts.identities.tests/FormsFixtureConformanceTests.cs": "bed037e0a0cc0b6ba51c7dd406852f3755c7a4af2508a408c53722fb8c3ccba8",
-        "projections/dotnet/contracts/hlp.contracts.identities/Forms/FormsContracts.g.cs": "7d6bde023cd149b624d9f6e08160c6bb0b8eafa40cafa71046399c35ad9daaeb",
+        "projections/dotnet/contracts/hlp.contracts.identities.tests/FormsContractTests.cs": "e52944f10e028fd0861cc8665bcc8d0caeff235304402d6036a207b198d11ee0",
+        "projections/dotnet/contracts/hlp.contracts.identities.tests/FormsFixtureConformanceTests.cs": "9e4057c7f9af4a6897449f96bf99eeb4aafbf1603bdaaabae3928c6d562f0b9c",
+        "projections/dotnet/contracts/hlp.contracts.identities/Forms/FormsContracts.g.cs": "fb6a2b6a0214d231b934bdb1efb0e700a4e6cf128730ab798f0e5b705373850e",
         "projections/dotnet/contracts/hlp.contracts.identities/Forms/FormsJson.g.cs": "a036f2bfa2c70dbb5a2c56d22b9a6f1ee3de702f091dc4e085c0a5271e1986c5",
         "projections/typescript/contracts/hlp.contracts.forms/package.json": "56c9b679ba169767f3025abc516ff624d7bcb1e20524de539243dca111101c14",
         "projections/typescript/contracts/hlp.contracts.forms/projection-manifest.json": "7af5328b57e8001bdbc6d4dd746a3771b21e10193b6a3846c2aeecd2fcb71a36",
         "projections/typescript/contracts/hlp.contracts.forms/src/forms.ts": "f79abd3e68d7975cb77b11556724750df1fd5cd6922be667737b6431fe8f94dc",
         "projections/typescript/contracts/hlp.contracts.forms/src/wire.ts": "07d68b7030a9336a23434fb9cb7306e4a95c33929b6d24d0a8d502f3f2621777",
-        "specs/modules/contracts/hlp.contracts.forms/interface.yaml": "f53bde0ad9b316eb1180377f6ba76bb78d7bab9472f109b25ca31218805a2b2f"
+        "specs/modules/contracts/hlp.contracts.forms/interface.yaml": "605d93881121de55ba2eb332a91a20539b8e8c31638ca28be3d2283d68fd0c98"
       },
       "nextGate": "Consume the completed dual-tier Rule Runtime from the Forms state and executable Forms Engine modules."
     },
@@ -200,9 +200,9 @@
         "projections/dotnet/foundation/hlp.foundation.forms-engine/Capabilities/MacaroonFormCapabilityVerifier.cs": "fa222f638742ce08980898cb118e179ff07f07d71277011f2962edbe9eb6280a",
         "projections/dotnet/foundation/hlp.foundation.forms-engine/CurrentFormExecutionContextProvider.cs": "6dcb960adf1e80e41a4c59eac4725df5cb8fedfaf864658a488109215375b5b3",
         "projections/dotnet/foundation/hlp.foundation.forms-engine/DependencyInjection/FormEngineServiceCollectionExtensions.cs": "ecc3dbde43fdeed6ff1b217e9175deb04fc81b8e6ab2c725a1a56faf48225a9a",
-        "projections/dotnet/foundation/hlp.foundation.forms-engine/FormCandidateEvaluator.cs": "59784830424158a5289ca2ff7dbe560b6028f7e4d248fd8b826c535a08303719",
-        "projections/dotnet/foundation/hlp.foundation.forms-engine/FormContractMapper.cs": "98822be95a31e2a08b55679c043e49eb6db42a4b467ba294b05bdb23312b1906",
-        "projections/dotnet/foundation/hlp.foundation.forms-engine/FormEngine.cs": "e0cba948c9243f8db08378a3e513555e8036dbb0e4684cd3bdcbd59abb8d2d8c",
+        "projections/dotnet/foundation/hlp.foundation.forms-engine/FormCandidateEvaluator.cs": "c0e920a19d145d48211e005516292e42e46522c6fa5e25b2402a6f6ebce481fe",
+        "projections/dotnet/foundation/hlp.foundation.forms-engine/FormContractMapper.cs": "7c6b1fdc9bbb4431a93dc44b3d4b6f0af7eef1b7165d4282234016c3ad3c4f99",
+        "projections/dotnet/foundation/hlp.foundation.forms-engine/FormEngine.cs": "12eee5926aac4cc97b71628229f2a86e81b35e46b521061ea7171f66d79c65f3",
         "projections/dotnet/foundation/hlp.foundation.forms-engine/FormEngineContracts.cs": "528b218f59557cc92b0bc5618caed16b03429f5c38a0618056dc1d3d0b13029e",
         "projections/dotnet/foundation/hlp.foundation.forms-engine/FormEngineExceptions.cs": "4f56de07105cc7a8fea3a0c78afe29bab4343e77e54d7c1c52639d6c355c2e96",
         "projections/dotnet/foundation/hlp.foundation.forms-engine/FormEngineOptions.cs": "32bad8fe54c34e2757fe30e4ae95bc76c6245e807b182cc9b966bcaa6342bd44",
@@ -215,7 +215,7 @@
         "projections/dotnet/foundation/hlp.foundation.forms-engine/RuleCompileAdmission.cs": "34e17b89ea4570b2a42eb69312acc932a64ccf68a52ad73096c257fe82310965",
         "projections/dotnet/foundation/hlp.foundation.forms-engine/Security/FormFieldSecurity.cs": "b290e0be47db8065fd8732c38d18ee87d7ae471d8e2d6b356ef59f0d7f7138fd",
         "projections/dotnet/foundation/hlp.foundation.forms-engine/Security/TenantBoundAesGcmFormFieldSecurity.cs": "1b8c13084d4fb25f87cce282a32379fc863c4da5cfba70fd57b4d9240b76ab5d",
-        "specs/modules/foundation/hlp.foundation.forms-engine/interface.yaml": "964337df9afb3e9f9707cb38557eb6bcf6d8d30effb51d20aa28c1e55e0333c9"
+        "specs/modules/foundation/hlp.foundation.forms-engine/interface.yaml": "c7950e6369ce421ef1f54deb3992f30fa4b98f5d4aff331e816a2483a184ee19"
       },
       "nextGate": "Prove the first authenticated inspection vertical: active-tenant list/detail, tenant-authored form, idempotent submit and calculation, durable inspection-review work item, approve/rework transition, and indistinguishable unknown/cross-tenant failures."
     },
@@ -909,9 +909,9 @@
         "conformance/hlp.ui.form-view/runners/run-shared.mjs": "6c44fd6ea2e7ea3000f4c806e9877f7c83912e39c25f384188a676187f9d75ac",
         "specs/modules/ui/hlp.ui.form-view/interface.yaml": "0d0ed294fb463b84ff146db83fc9514bd639d9c72506e21d793ca43d0ae0ebfe",
         "specs/modules/ui/hlp.ui.form-view/quality.yaml": "7c2b7e01733a4a6957a563e8c87228ab99ce538df28e08695dc88ef8aeb50b9b",
-        "specs/modules/contracts/hlp.contracts.forms/interface.yaml": "f53bde0ad9b316eb1180377f6ba76bb78d7bab9472f109b25ca31218805a2b2f",
+        "specs/modules/contracts/hlp.contracts.forms/interface.yaml": "605d93881121de55ba2eb332a91a20539b8e8c31638ca28be3d2283d68fd0c98",
         "projections/typescript/contracts/hlp.contracts.forms/src/forms.ts": "f79abd3e68d7975cb77b11556724750df1fd5cd6922be667737b6431fe8f94dc",
-        "projections/dotnet/contracts/hlp.contracts.identities/Forms/FormsContracts.g.cs": "7d6bde023cd149b624d9f6e08160c6bb0b8eafa40cafa71046399c35ad9daaeb"
+        "projections/dotnet/contracts/hlp.contracts.identities/Forms/FormsContracts.g.cs": "fb6a2b6a0214d231b934bdb1efb0e700a4e6cf128730ab798f0e5b705373850e"
       },
       "nextGate": "Retain this conformant compatibility binding and canonical Forms dependency while HLF-052 advances to the next Carrier-essential dependency wave."
     },

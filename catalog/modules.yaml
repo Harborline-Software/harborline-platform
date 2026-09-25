@@ -35,7 +35,7 @@
       }
     },
     "hlp.contracts.forms": {
-      "interface": {"path": "specs/modules/contracts/hlp.contracts.forms/interface.yaml", "revision": 6},
+      "interface": {"path": "specs/modules/contracts/hlp.contracts.forms/interface.yaml", "revision": 7},
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "Forms wire contracts are consumed by renderers but own no presentation implementation."},
       "owner": "platform-contracts",
@@ -965,7 +965,7 @@
       }
     },
     "hlp.foundation.forms-engine": {
-      "interface": {"path": "specs/modules/foundation/hlp.foundation.forms-engine/interface.yaml", "revision": 10},
+      "interface": {"path": "specs/modules/foundation/hlp.foundation.forms-engine/interface.yaml", "revision": 11},
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "The Forms Engine produces render and submission data consumed by separate React and Blazor renderers; it owns no visual implementation."},
       "owner": "platform-foundation",
