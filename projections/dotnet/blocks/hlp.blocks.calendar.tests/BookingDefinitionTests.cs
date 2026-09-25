@@ -120,6 +120,128 @@ public sealed class BookingDefinitionTests
             [(BookingDefinitionCodes.AvailabilitySourceRequired, "/availability_from")]);
     }
 
+    [Fact(DisplayName = "booking-ck-10,15: a Bookable declares positive duration intervals and the record type it is offered against")]
+    public void BookableDeclaresDurationAndOfferedType()
+    {
+        var bookable = BookingBookableDefinition.Parse(Fixtures.Bookable("induction").ToJsonString());
+        Assert.Equal([90], bookable.DurationIntervals);
+        Assert.Equal("type.learner", bookable.OnTypeId);
+        AssertRefusals(Admit(DefinitionKind.Bookables, Fixtures.Bookable("induction", body => body["on_type_id"] = "type.missing")),
+            [(BookingDefinitionCodes.TypeUnknown, "/on_type_id")]);
+    }
+
+    [Theory(DisplayName = "booking-auth-13: a zero or negative duration refuses, because only intervals can overlap")]
+    [InlineData("[90]", null, null)]
+    [InlineData("[30, 60]", null, null)]
+    [InlineData("[0]", BookingDefinitionCodes.DurationInvalid, "/duration_intervals/0")]
+    [InlineData("[30, -15]", BookingDefinitionCodes.DurationInvalid, "/duration_intervals/1")]
+    [InlineData("[]", BookingDefinitionCodes.DurationInvalid, "/duration_intervals")]
+    [InlineData("90", BookingDefinitionCodes.DurationInvalid, "/duration_intervals")]
+    public void DurationMustBePositive(string durations, string? code, string? location)
+    {
+        var refusals = Admit(DefinitionKind.Bookables, Fixtures.Bookable("induction", body => body["duration_intervals"] = JsonNode.Parse(durations)));
+        AssertRefusals(refusals, code is null ? [] : [(code, location!)]);
+    }
+
+    [Fact(DisplayName = "booking-ck-11: required resources are a conjunction; a candidate list refuses")]
+    public void RequiredResourcesAreAConjunction()
+    {
+        Assert.Equal(["instructor", "room"], BookingBookableDefinition.Parse(Fixtures.Bookable("induction").ToJsonString()).Requires);
+        AssertRefusals(Admit(DefinitionKind.Bookables, Fixtures.Bookable("induction", body => body.Remove("require_all"))), []);
+        AssertRefusals(Admit(DefinitionKind.Bookables, Fixtures.Bookable("induction", body => body["require_all"] = false)),
+            [(BookingDefinitionCodes.CandidateListForbidden, "/require_all")]);
+    }
+
+    [Fact(DisplayName = "booking-auth-11: every required resource that is not an admitted Resource refuses, one refusal each")]
+    public void RequiredResourceMustBeAdmitted()
+    {
+        var body = Fixtures.Bookable("procedure", item => item["requires"] = new JsonArray("nurse", "room", "pump", "line"));
+        AssertRefusals(Admit(DefinitionKind.Bookables, body), [
+            (BookingDefinitionCodes.RequiredResourceUnknown, "/requires/0"),
+            (BookingDefinitionCodes.RequiredResourceUnknown, "/requires/2"),
+            (BookingDefinitionCodes.RequiredResourceUnknown, "/requires/3"),
+        ]);
+        AssertRefusals(Admit(DefinitionKind.Bookables, body, Fixtures.Context("nurse", "room", "pump", "line")), []);
+    }
+
+    [Fact(DisplayName = "booking-ck-12: the book gate names platform or domain roles and capabilities")]
+    public void BookGateNamesRolesAndCapabilities()
+    {
+        var bookable = BookingBookableDefinition.Parse(Fixtures.Bookable("induction").ToJsonString());
+        Assert.Equal([
+            new BookGateEntry(new("sys.platform-roles", "administrator"), null),
+            new BookGateEntry(new("tax.roles", "trainer"), null),
+            new BookGateEntry(null, "training.book"),
+        ], bookable.BookGate);
+        AssertRefusals(Admit(DefinitionKind.Bookables, Fixtures.Bookable("induction", body => body["book_gate"] = new JsonArray(
+            new JsonObject { ["role"] = new JsonObject { ["vocabulary"] = "tenant.custom", ["name"] = "x" } },
+            new JsonObject { ["capability"] = "training.book", ["role"] = new JsonObject { ["vocabulary"] = "tax.roles", ["name"] = "x" } }))),
+            [(BookingDefinitionCodes.GateEntryInvalid, "/book_gate/0"), (BookingDefinitionCodes.GateEntryInvalid, "/book_gate/1")]);
+    }
+
+    [Fact(DisplayName = "booking-auth-14: a standing in the book gate refuses; the allocation being created does not exist yet")]
+    public void BookGateRefusesAStanding()
+        => AssertRefusals(Admit(DefinitionKind.Bookables, Fixtures.Bookable("induction", body => ((JsonArray)body["book_gate"]!).Add(
+            new JsonObject { ["standing"] = new JsonObject { ["name"] = "author" } }))),
+            [(BookingDefinitionCodes.GateStandingForbidden, "/book_gate/3")]);
+
+    [Fact(DisplayName = "booking-ck-13: eligibility is an optional Rules predicate carried verbatim for server-side evaluation")]
+    public void EligibilityIsCarriedVerbatim()
+    {
+        Assert.Equal("subject.qualification.current == true",
+            BookingBookableDefinition.Parse(Fixtures.Bookable("induction").ToJsonString()).EligibilityExpression);
+        Assert.Null(BookingBookableDefinition.Parse(Fixtures.Bookable("induction", body => body.Remove("eligibility_expression")).ToJsonString()).EligibilityExpression);
+        AssertRefusals(Admit(DefinitionKind.Bookables, Fixtures.Bookable("induction", body => body["eligibility_expression"] = new JsonObject())),
+            [(BookingDefinitionCodes.EligibilityInvalid, "/eligibility_expression")]);
+    }
+
+    [Fact(DisplayName = "booking-ck-14: waitlist is a flag declaring only that a queue exists")]
+    public void WaitlistIsAFlag()
+    {
+        Assert.True(BookingBookableDefinition.Parse(Fixtures.Bookable("induction").ToJsonString()).Waitlist);
+        Assert.False(BookingBookableDefinition.Parse(Fixtures.Bookable("induction", body => body.Remove("waitlist")).ToJsonString()).Waitlist);
+    }
+
+    [Fact(DisplayName = "booking-auth-16: an expiring-offer lifecycle authored on the Bookable refuses; that is a Workflow")]
+    public void WaitlistOfferLifecycleRefuses()
+        => AssertRefusals(Admit(DefinitionKind.Bookables, Fixtures.Bookable("induction", body => body["waitlist"] = new JsonObject
+        {
+            ["offer_expires_after_minutes"] = 30,
+            ["on_expiry"] = "offer_next",
+        })), [(BookingDefinitionCodes.WaitlistLifecycleForbidden, "/waitlist")]);
+
+    [Fact(DisplayName = "booking-auth-21: a Bookable offered against a Schedulable type that is not a Resource is not refused")]
+    public void SchedulableTypeIsNotRefused()
+    {
+        AssertRefusals(Admit(DefinitionKind.Bookables, Fixtures.Bookable("induction", body => body["on_type_id"] = "type.crew")), []);
+        AssertRefusals(Admit(DefinitionKind.Bookables, Fixtures.Bookable("induction", body => body["on_type_id"] = "type.room")), []);
+    }
+
+    [Theory(DisplayName = "booking-ck-17: both definitions carry the full envelope, agreeing with the stored identity")]
+    [InlineData(DefinitionKind.Resources)]
+    [InlineData(DefinitionKind.Bookables)]
+    public void BothDefinitionsCarryTheEnvelope(DefinitionKind kind)
+    {
+        JsonObject Body(Action<JsonObject> edit) => kind == DefinitionKind.Resources
+            ? Fixtures.Resource("x", body => edit((JsonObject)body["envelope"]!))
+            : Fixtures.Bookable("x", body => edit((JsonObject)body["envelope"]!));
+        AssertRefusals(Admit(kind, Body(_ => { })), []);
+        var members = new[] { "identity", "version", "tenant", "cascade_layer", "provenance", "retention_class", "legal_hold", "requires" };
+        foreach (var member in members)
+        {
+            var body = Body(envelope => envelope.Remove(member));
+            var document = Fixtures.Document(kind, body) with { Key = new(Fixtures.Tenant, kind, "x"), Version = "1.0.0" };
+            Assert.Equal([new DefinitionRefusal(BookingDefinitionCodes.EnvelopeInvalid, "/envelope/" + member)],
+                BookingDefinitionAdmission.Validate(document, Fixtures.Context()));
+        }
+        var stranger = Fixtures.Document(kind, Body(_ => { })) with { Key = new("tenant.b", kind, "x") };
+        Assert.Equal([new DefinitionRefusal(BookingDefinitionCodes.EnvelopeMismatch, "/envelope/tenant")],
+            BookingDefinitionAdmission.Validate(stranger, Fixtures.Context()));
+        Assert.Equal([new DefinitionRefusal(BookingDefinitionCodes.KindMismatch, "/kind")],
+            BookingDefinitionAdmission.Validate(Fixtures.Document(kind == DefinitionKind.Resources ? DefinitionKind.Bookables : DefinitionKind.Resources,
+                Body(_ => { })), Fixtures.Context()));
+    }
+
     internal static IReadOnlyList<DefinitionRefusal> Admit(DefinitionKind kind, JsonObject body, BookingAdmissionContext? context = null)
         => BookingDefinitionAdmission.For(context ?? Fixtures.Context())(Fixtures.Document(kind, body), DefinitionAdmissionPhase.Author);
 
@@ -138,7 +260,7 @@ internal static class Fixtures
             "type.room" => new HashSet<string> { BookingDefinitionAdmission.BookableResourceTrait },
             "type.nurse" => new HashSet<string> { BookingDefinitionAdmission.BookableResourceTrait, "platform.trait.schedulable" },
             "type.crew" => new HashSet<string> { "platform.trait.schedulable" },
-            "type.note" => new HashSet<string>(),
+            "type.note" or "type.learner" => new HashSet<string>(),
             _ => null,
         },
         id => (resources.Length == 0 ? ["instructor", "room"] : resources).Contains(id));
@@ -168,6 +290,28 @@ internal static class Fixtures
             ["cleanup_minutes"] = 15,
             ["maintenance_windows"] = new JsonArray("field.out_of_service"),
             ["availability_from"] = "supply.base-hours",
+        };
+        edit?.Invoke(body);
+        return body;
+    }
+
+    public static JsonObject Bookable(string id, Action<JsonObject>? edit = null, string version = "1.0.0")
+    {
+        var body = new JsonObject
+        {
+            ["kind"] = "bookable",
+            ["envelope"] = Envelope(id, version),
+            ["name"] = "Induction class",
+            ["on_type_id"] = "type.learner",
+            ["duration_intervals"] = new JsonArray(90),
+            ["requires"] = new JsonArray("instructor", "room"),
+            ["require_all"] = true,
+            ["book_gate"] = new JsonArray(
+                new JsonObject { ["role"] = new JsonObject { ["vocabulary"] = "sys.platform-roles", ["name"] = "administrator" } },
+                new JsonObject { ["role"] = new JsonObject { ["vocabulary"] = "tax.roles", ["name"] = "trainer" } },
+                new JsonObject { ["capability"] = "training.book" }),
+            ["eligibility_expression"] = "subject.qualification.current == true",
+            ["waitlist"] = true,
         };
         edit?.Invoke(body);
         return body;

@@ -34,6 +34,20 @@ public static class BookingDefinitionCodes
     public const string MaintenanceNotFromRecord = "booking.resource.maintenance_not_from_record";
     /// <summary>The Resource names no base-hours source (booking-ck-7).</summary>
     public const string AvailabilitySourceRequired = "booking.resource.availability_source_required";
+    /// <summary>A duration list that is empty, or holds a duration that is not a positive whole number of minutes (booking-auth-13).</summary>
+    public const string DurationInvalid = "booking.bookable.duration_invalid";
+    /// <summary>A required resource that is not an admitted Resource (booking-auth-11, L1085).</summary>
+    public const string RequiredResourceUnknown = "booking.bookable.required_resource_unknown";
+    /// <summary>Required resources authored as alternatives rather than a conjunction (booking-ck-11, L504).</summary>
+    public const string CandidateListForbidden = "booking.bookable.candidate_list_forbidden";
+    /// <summary>A book-gate entry that is not exactly one platform or domain role or one capability (booking-ck-12).</summary>
+    public const string GateEntryInvalid = "booking.bookable.gate_entry_invalid";
+    /// <summary>A standing in the book gate (booking-auth-14, L509).</summary>
+    public const string GateStandingForbidden = "booking.bookable.gate_standing_forbidden";
+    /// <summary>An eligibility expression that is not a nonblank predicate text (booking-ck-13).</summary>
+    public const string EligibilityInvalid = "booking.bookable.eligibility_invalid";
+    /// <summary>A waitlist authored as anything but a flag, such as an expiring-offer lifecycle (booking-auth-16, L508).</summary>
+    public const string WaitlistLifecycleForbidden = "booking.bookable.waitlist_lifecycle_forbidden";
 }
 
 /// <summary>
@@ -60,6 +74,9 @@ public static class BookingDefinitionAdmission
     private static readonly string[] ResourceMembers =
         ["kind", "envelope", "name", "from_type_id", "capacity_kind", "pool_size", "setup_minutes", "cleanup_minutes",
          "maintenance_windows", "availability_from"];
+    private static readonly string[] BookableMembers =
+        ["kind", "envelope", "name", "on_type_id", "duration_intervals", "requires", "require_all", "book_gate",
+         "eligibility_expression", "waitlist"];
 
     /// <summary>The shared store's validator for <see cref="DefinitionKind.Resources"/> and <see cref="DefinitionKind.Bookables"/>.</summary>
     public static DefinitionAdmission For(BookingAdmissionContext context)
@@ -77,17 +94,61 @@ public static class BookingDefinitionAdmission
         var expected = document.Key.Kind switch
         {
             DefinitionKind.Resources => "resource",
+            DefinitionKind.Bookables => "bookable",
             _ => null,
         };
         if (expected is null) return [new("definition.registry_unknown", "/registry")];
         if (Text(body["kind"]) != expected) return [new(BookingDefinitionCodes.KindMismatch, "/kind")];
 
         var refusals = new List<DefinitionRefusal>();
-        Members(body, ResourceMembers, "", refusals);
+        Members(body, expected == "resource" ? ResourceMembers : BookableMembers, "", refusals);
         Envelope(body["envelope"], document, refusals);
         if (string.IsNullOrWhiteSpace(Text(body["name"]))) refusals.Add(new(BookingDefinitionCodes.NameRequired, "/name"));
-        Resource(body, context, refusals);
+        if (expected == "resource") Resource(body, context, refusals);
+        else Bookable(body, context, refusals);
         return refusals;
+    }
+
+    private static void Bookable(JsonObject body, BookingAdmissionContext context, List<DefinitionRefusal> refusals)
+    {
+        // Offered against any known type: Schedulable and Resource admission are independent (booking-auth-21).
+        RecordType(body, "on_type_id", context, refusals);
+
+        if (body["duration_intervals"] is not JsonArray { Count: > 0 } durations)
+            refusals.Add(new(BookingDefinitionCodes.DurationInvalid, "/duration_intervals"));
+        else
+            for (var index = 0; index < durations.Count; index++)
+                if (Whole(durations[index]) is not > 0)
+                    refusals.Add(new(BookingDefinitionCodes.DurationInvalid, $"/duration_intervals/{index}"));
+
+        if (body["requires"] is not JsonArray requires)
+            refusals.Add(new(BookingDefinitionCodes.RequiredResourceUnknown, "/requires"));
+        else
+            for (var index = 0; index < requires.Count; index++)
+                if (Text(requires[index]) is not { } id || string.IsNullOrWhiteSpace(id) || !context.IsAdmittedResource(id))
+                    refusals.Add(new(BookingDefinitionCodes.RequiredResourceUnknown, $"/requires/{index}"));
+        if (body.ContainsKey("require_all") && body["require_all"]?.GetValueKind() != JsonValueKind.True)
+            refusals.Add(new(BookingDefinitionCodes.CandidateListForbidden, "/require_all"));
+
+        if (body["book_gate"] is JsonArray gate)
+        {
+            for (var index = 0; index < gate.Count; index++)
+            {
+                var entry = gate[index] as JsonObject;
+                if (entry?.ContainsKey("standing") == true)
+                    refusals.Add(new(BookingDefinitionCodes.GateStandingForbidden, $"/book_gate/{index}"));
+                else if (entry is null || BookGateEntry.Read(entry) is null)
+                    refusals.Add(new(BookingDefinitionCodes.GateEntryInvalid, $"/book_gate/{index}"));
+            }
+        }
+        else if (body.ContainsKey("book_gate"))
+            refusals.Add(new(BookingDefinitionCodes.GateEntryInvalid, "/book_gate"));
+
+        if (body.ContainsKey("eligibility_expression") && string.IsNullOrWhiteSpace(Text(body["eligibility_expression"])))
+            refusals.Add(new(BookingDefinitionCodes.EligibilityInvalid, "/eligibility_expression"));
+
+        if (body.ContainsKey("waitlist") && body["waitlist"]?.GetValueKind() is not (JsonValueKind.True or JsonValueKind.False))
+            refusals.Add(new(BookingDefinitionCodes.WaitlistLifecycleForbidden, "/waitlist"));
     }
 
     private static void Resource(JsonObject body, BookingAdmissionContext context, List<DefinitionRefusal> refusals)
@@ -179,5 +240,5 @@ public static class BookingDefinitionAdmission
     internal static int? Whole(JsonNode? node)
         => node?.GetValueKind() == JsonValueKind.Number && node.AsValue().TryGetValue<int>(out var value) ? value : null;
 
-    private static string Escape(string member) => member.Replace("~", "~0").Replace("/", "~1");
+    private static string Escape(string member) => member.Replace("~", "~0", StringComparison.Ordinal).Replace("/", "~1", StringComparison.Ordinal);
 }
