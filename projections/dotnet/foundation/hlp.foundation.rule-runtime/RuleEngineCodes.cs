@@ -92,4 +92,7 @@ public static class RuleEngineCodes
 
     /// <summary>A scope-grammar reference was malformed or invalid for the rule's scope.</summary>
     public const string CompileBadGrammar = "rule.compile.bad_grammar";
+
+    /// <summary>True for a publish-time (compile) rejection code, which a guard returns as its error (T-687).</summary>
+    public static bool IsCompileRejection(string? code) => code?.StartsWith("rule.compile.", StringComparison.Ordinal) == true;
 }

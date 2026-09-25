@@ -101,7 +101,12 @@ public sealed class GuardEvaluator : IGuardEvaluator
     {
         ArgumentNullException.ThrowIfNull(rule);
         ArgumentNullException.ThrowIfNull(context);
-        var compiled = RuleCompiler.Compile(new[] { rule }, _limits);
+        CompiledGraph compiled;
+        // T-687: a rule that does not compile is a withheld guard carrying the compile code, like an
+        // evaluation fault, so callers need not hand-roll the fail-closed guarantee. The message
+        // (which can quote the expression) stays out of the result.
+        try { compiled = RuleCompiler.Compile(new[] { rule }, _limits); }
+        catch (RuleCompilationException ex) { return Validity.Invalid(RuleError.Of(ex.Code)); }
         // rules-eng-26: evaluation needs admission evidence; the check runs before any value is read.
         if (BorrowerEnvironmentAdmission.Check(admission, compiled) is { } refusal) return Validity.Invalid(RuleError.Of(refusal));
         if (compiled.RuleCount == 0) return Validity.Valid;
