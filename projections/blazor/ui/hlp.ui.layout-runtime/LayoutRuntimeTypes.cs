@@ -5,13 +5,17 @@ namespace Harborline.UIAdapters.Blazor.Components.Layout;
 
 public sealed record LayoutRuntimeDiagnostic(string Code, string Pointer);
 public sealed record LayoutRuntimeBlock(string Id, string Kind, int Depth, string? Zone = null);
+/// <summary>DES-0052 C1, layout-eng-26: the authority the platform returned with the surface. The lane derives nothing from it.</summary>
+public sealed record LayoutRuntimeAuthority(bool CanSubmit);
+// Authority: absent, the surface is read-only (no authority, no submit).
 public sealed record LayoutRuntimePlan(
     string DefinitionId,
     string DefinitionVersionId,
     string Medium,
     IReadOnlyList<LayoutRuntimeBlock> Flow,
     IReadOnlyList<LayoutRuntimeBlock> StaticRegions,
-    IReadOnlyList<LayoutRuntimeDiagnostic>? Diagnostics = null);
+    IReadOnlyList<LayoutRuntimeDiagnostic>? Diagnostics = null,
+    LayoutRuntimeAuthority? Authority = null);
 
 /// <summary>
 /// One authored binding: the kind (record_field, query, measure, template or static) and the

@@ -1,0 +1,12 @@
+{
+  "definitionId": "surface.customer-edit",
+  "definitionVersionId": "version-1",
+  "medium": "screen",
+  "flow": [
+    { "id": "name", "kind": "layout.field", "depth": 0 },
+    { "id": "orders", "kind": "layout.table", "depth": 0 },
+    { "id": "orders-total", "kind": "layout.metric", "depth": 0 }
+  ],
+  "staticRegions": [],
+  "authority": { "canSubmit": false }
+}

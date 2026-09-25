@@ -9,6 +9,8 @@ export type LayoutSizing = 'hug' | 'fill' | 'fixed'
 
 export interface LayoutRuntimeDiagnostic { readonly code: string; readonly pointer: string }
 export interface LayoutRuntimeBlock { readonly id: string; readonly kind: string; readonly depth: number; readonly zone?: string }
+/** DES-0052 C1, layout-eng-26: the authority the platform returned with the surface. The lane derives nothing from it. */
+export interface LayoutRuntimeAuthority { readonly canSubmit: boolean }
 export interface LayoutRuntimePlan {
   readonly definitionId: string
   readonly definitionVersionId: string
@@ -16,8 +18,11 @@ export interface LayoutRuntimePlan {
   readonly flow: readonly LayoutRuntimeBlock[]
   readonly staticRegions: readonly LayoutRuntimeBlock[]
   readonly diagnostics?: readonly LayoutRuntimeDiagnostic[]
+  /** Absent, the surface is read-only: no authority, no submit. */
+  readonly authority?: LayoutRuntimeAuthority
 }
-export interface LayoutRuntimeProps { readonly plan: LayoutRuntimePlan }
+/** `onSubmit` hands the submit to the host, which re-asks the platform's gate before any write. */
+export interface LayoutRuntimeProps { readonly plan: LayoutRuntimePlan; readonly onSubmit?: () => void }
 
 /** The five binding kinds a block may carry (DES-0052 layout-ck-21 to layout-ck-25). */
 export type LayoutBindingKind = 'record_field' | 'query' | 'measure' | 'template' | 'static'

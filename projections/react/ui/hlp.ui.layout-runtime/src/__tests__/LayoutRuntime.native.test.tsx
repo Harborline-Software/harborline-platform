@@ -1,7 +1,8 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { useState } from 'react'
 import authored from '../../../../../../_shared/layout/authored-repeating-block.json'
-import type { LayoutAuthoringDraft } from '../LayoutRuntime.types'
+import denyAll from '../../../../../../_shared/layout/deny-all-authority.json'
+import type { LayoutAuthoringDraft, LayoutRuntimePlan } from '../LayoutRuntime.types'
 import { LayoutAuthoringEditor, emptyLayoutAuthoringDraft } from '../LayoutAuthoringEditor'
 import { LayoutRuntime } from '../LayoutRuntime'
 
@@ -12,6 +13,27 @@ describe('LayoutRuntime React projection', () => {
     expect(container.querySelectorAll('[data-layout-block]')).toHaveLength(2)
     expect(container.querySelector('[data-layout-static-region=header\\.center]')).toBeInTheDocument()
     expect(container.firstElementChild).toHaveAttribute('data-definition-source', '{"definitionId":"invoice","definitionVersionId":"version-7"}')
+  })
+
+  it('layout-eng-26: a full-data, deny-all authority renders every block read-only and leaves zero live submit controls', () => {
+    const plan = denyAll as LayoutRuntimePlan
+    const { container } = render(<LayoutRuntime plan={plan} onSubmit={vi.fn()} />)
+    const blocks = [...container.querySelectorAll('[data-layout-block]')]
+    expect(blocks.map(block => block.getAttribute('data-layout-block'))).toEqual(['name', 'orders', 'orders-total'])
+    for (const block of blocks) expect(block).toHaveAttribute('data-layout-readonly', 'true')
+    expect(container.querySelectorAll('[data-layout-submit], button, input[type=submit]')).toHaveLength(0)
+    // No authority at all is read-only too: the lane never assumes one.
+    const bare = render(<LayoutRuntime plan={{ ...plan, authority: undefined }} />)
+    expect(bare.container.querySelectorAll('button')).toHaveLength(0)
+  })
+
+  it('layout-eng-26: an admitted authority renders one submit control, which hands the submit to the host', () => {
+    const submitted = vi.fn()
+    const { container } = render(<LayoutRuntime plan={{ ...(denyAll as LayoutRuntimePlan), authority: { canSubmit: true } }} onSubmit={submitted} />)
+    expect(container.querySelector('[data-layout-readonly]')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
+    expect(container.querySelectorAll('[data-layout-submit]')).toHaveLength(1)
+    expect(submitted).toHaveBeenCalledTimes(1)
   })
 
   it('renders persisted invalid values as diagnostics without normalization', () => {

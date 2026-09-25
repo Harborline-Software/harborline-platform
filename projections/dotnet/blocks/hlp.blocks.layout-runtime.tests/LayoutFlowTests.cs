@@ -35,7 +35,7 @@ public sealed class LayoutFlowTests
         await store.SaveDraftAsync(new(key, "version-1", "1.0.0", body), 0, "draft-1");
         await store.PublishAsync(key, "version-1", 1, "publish-1");
 
-        var plan = await new LayoutPublishedSurfaceResolver(store).ResolveAsync(new(key, "version-1"));
+        var plan = await new LayoutPublishedSurfaceResolver(store).ResolveAsync(new(key, "version-1"), GrantsAllAuthor.Instance, GrantsAllAuthor.Instance);
 
         Assert.Equal("invoice", plan.Definition.Envelope.Identity);
         Assert.Equal("version-1", plan.VersionId);
@@ -57,7 +57,7 @@ public sealed class LayoutFlowTests
         await store.SaveDraftAsync(new(key, "version-2", "1.0.0", Encoding.UTF8.GetString(LayoutDefinitionJson.SerializeCanonical(invalid))), 0, "draft-2");
         await store.PublishAsync(key, "version-2", 1, "publish-2");
 
-        var exception = await Assert.ThrowsAsync<InvalidOperationException>(async () => await new LayoutPublishedSurfaceResolver(store).ResolveAsync(new(key, "version-2")));
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(async () => await new LayoutPublishedSurfaceResolver(store).ResolveAsync(new(key, "version-2"), GrantsAllAuthor.Instance, GrantsAllAuthor.Instance));
 
         Assert.Equal("layout.persisted_body_invalid", exception.Message);
     }
@@ -156,11 +156,11 @@ public sealed class LayoutFlowTests
         await store.SaveDraftAsync(new(key, "version-1", "1.0.0", Encoding.UTF8.GetString(LayoutDefinitionJson.SerializeCanonical(definition))), 0, "draft-1");
         await store.PublishAsync(key, "version-1", 1, "publish-1");
 
-        var resolved = await new LayoutPublishedSurfaceResolver(store, registers: new(LayoutBlockKindRegistry.Platform, Pages: PackPages())).ResolveAsync(new(key, "version-1"));
+        var resolved = await new LayoutPublishedSurfaceResolver(store, registers: new(LayoutBlockKindRegistry.Platform, Pages: PackPages())).ResolveAsync(new(key, "version-1"), GrantsAllAuthor.Instance, GrantsAllAuthor.Instance);
 
         Assert.Equal("pack.master", Assert.Single(resolved.Plan.PageFragments!).PageMasterId);
         // The same body without the pack's register cites nothing it can resolve.
-        var refused = await Assert.ThrowsAsync<InvalidOperationException>(async () => await new LayoutPublishedSurfaceResolver(store).ResolveAsync(new(key, "version-1")));
+        var refused = await Assert.ThrowsAsync<InvalidOperationException>(async () => await new LayoutPublishedSurfaceResolver(store).ResolveAsync(new(key, "version-1"), GrantsAllAuthor.Instance, GrantsAllAuthor.Instance));
         Assert.Equal("layout.persisted_body_invalid", refused.Message);
     }
 
@@ -191,12 +191,16 @@ public sealed class LayoutFlowTests
     }
 }
 
-/// <summary>An author who may read every source and open every surface; T-583's checks are proved in LayoutAuthorizationTests.</summary>
-internal sealed class GrantsAllAuthor : ILayoutAccess
+/// <summary>A principal who may read every source, open every surface and submit; T-583's checks are proved in LayoutAuthorizationTests and LayoutAuthorityGateTests.</summary>
+internal sealed class GrantsAllAuthor : ILayoutAccess, ILayoutSubmitAccess
 {
     public static readonly GrantsAllAuthor Instance = new();
 
     public bool CanRead(LayoutBinding binding) => true;
 
     public bool CanOpen(string surfaceId) => true;
+
+    public bool Satisfies(LayoutSubmitGate gate) => true;
+
+    public bool CanWrite() => true;
 }
