@@ -31,8 +31,8 @@ public sealed class LayoutBoundRegisterTests
         var parameters = JsonSerializer.SerializeToElement(new { precision = 2 });
         var admitted = CaptureSurface(new(false, [], Control: new("currency", parameters)));
 
-        LayoutDefinitionAdmission.ValidateForAuthoring(admitted, Controls);
-        LayoutDefinitionAdmission.ValidateForPublish(Sealed(CaptureSurface(new(false, [], Control: new("currency", parameters)), "invoice.amount")), ControlsAndFields);
+        LayoutDefinitionAdmission.ValidateForAuthoring(admitted, Controls, LayoutTestAccess.GrantsAll);
+        LayoutDefinitionAdmission.ValidateForPublish(Sealed(CaptureSurface(new(false, [], Control: new("currency", parameters)), "invoice.amount")), ControlsAndFields, LayoutTestAccess.GrantsAll);
         var roundTrip = LayoutDefinitionJson.Deserialize(LayoutDefinitionJson.SerializeCanonical(admitted));
         var control = Assert.Single(roundTrip.Blocks).Capture!.Control!;
         Assert.Equal("currency", control.Id);
@@ -47,14 +47,14 @@ public sealed class LayoutBoundRegisterTests
     [Fact(DisplayName = "layout-bound-3: a control's parameters validate against the schema it declares, and a control with none accepts none (T-724 ruling 38)")]
     public void ControlParametersValidateAgainstTheDeclaredSchema()
     {
-        LayoutDefinitionAdmission.ValidateForAuthoring(CaptureSurface(new(false, [], Control: new("currency", JsonSerializer.SerializeToElement(new { precision = 2 })))), Controls);
+        LayoutDefinitionAdmission.ValidateForAuthoring(CaptureSurface(new(false, [], Control: new("currency", JsonSerializer.SerializeToElement(new { precision = 2 })))), Controls, LayoutTestAccess.GrantsAll);
         AssertRefused(CaptureSurface(new(false, [], Control: new("currency", JsonSerializer.SerializeToElement(new { precision = -1 })))), Controls,
             LayoutDefinitionCodes.ControlParametersInvalid, "/blocks/0/capture/control/parameters");
         AssertRefused(CaptureSurface(new(false, [], Control: new("currency", JsonSerializer.SerializeToElement(new { colour = "red" })))), Controls,
             LayoutDefinitionCodes.ControlParametersInvalid, "/blocks/0/capture/control/parameters");
 
         // A control that declares no schema takes no parameters: an empty object is no parameters.
-        LayoutDefinitionAdmission.ValidateForAuthoring(CaptureSurface(new(false, [], Control: new("text", JsonSerializer.SerializeToElement(new { })))), Controls);
+        LayoutDefinitionAdmission.ValidateForAuthoring(CaptureSurface(new(false, [], Control: new("text", JsonSerializer.SerializeToElement(new { })))), Controls, LayoutTestAccess.GrantsAll);
         AssertRefused(CaptureSurface(new(false, [], Control: new("text", JsonSerializer.SerializeToElement(new { multiline = true })))), Controls,
             LayoutDefinitionCodes.ControlParametersInvalid, "/blocks/0/capture/control/parameters");
     }
@@ -77,8 +77,8 @@ public sealed class LayoutBoundRegisterTests
     [Fact(DisplayName = "layout-bound-3: publication looks up the field and refuses a control that does not accept its value kind (T-724 ruling 37)")]
     public void PublicationRefusesAControlThatDoesNotAcceptTheFieldValueKind()
     {
-        LayoutDefinitionAdmission.ValidateForPublish(Sealed(CaptureSurface(new(false, [], Control: new("text")))), ControlsAndFields);
-        LayoutDefinitionAdmission.ValidateForPublish(Sealed(CaptureSurface(new(false, [], Control: new("currency")), "invoice.amount")), ControlsAndFields);
+        LayoutDefinitionAdmission.ValidateForPublish(Sealed(CaptureSurface(new(false, [], Control: new("text")))), ControlsAndFields, LayoutTestAccess.GrantsAll);
+        LayoutDefinitionAdmission.ValidateForPublish(Sealed(CaptureSurface(new(false, [], Control: new("currency")), "invoice.amount")), ControlsAndFields, LayoutTestAccess.GrantsAll);
         AssertPublishRefused(CaptureSurface(new(false, [], Control: new("currency"))), ControlsAndFields,
             LayoutDefinitionCodes.ControlValueKindMismatch, "/blocks/0/capture/control");
         // The field must be found to be checked: an unknown field, or no field register, refuses.
@@ -92,7 +92,7 @@ public sealed class LayoutBoundRegisterTests
     public void AuthoredControlCannotDisplaceTheValueDomainResolver()
     {
         // With no authored control, the field runtime's value-domain resolver picks the editor and Layout passes it through.
-        LayoutDefinitionAdmission.ValidateForPublish(Sealed(CaptureSurface(new(true, []), "invoice.status")), ControlsAndFields);
+        LayoutDefinitionAdmission.ValidateForPublish(Sealed(CaptureSurface(new(true, []), "invoice.status")), ControlsAndFields, LayoutTestAccess.GrantsAll);
         // Naming a control on that field would displace the resolver's choice, so publication refuses it.
         AssertPublishRefused(CaptureSurface(new(false, [], Control: new("text")), "invoice.status"), ControlsAndFields,
             LayoutDefinitionCodes.ControlDisplacesValueDomain, "/blocks/0/capture/control");
@@ -100,7 +100,7 @@ public sealed class LayoutBoundRegisterTests
 
     private static void AssertPublishRefused(LayoutDefinition definition, LayoutHostRegisters registers, string code, string pointer)
     {
-        var refused = Assert.Throws<LayoutDefinitionAdmissionException>(() => LayoutDefinitionAdmission.ValidateForPublish(Sealed(definition), registers));
+        var refused = Assert.Throws<LayoutDefinitionAdmissionException>(() => LayoutDefinitionAdmission.ValidateForPublish(Sealed(definition), registers, LayoutTestAccess.GrantsAll));
         Assert.Contains(refused.Refusals, refusal => refusal.Code == code && refusal.Pointer == pointer);
     }
 
@@ -110,8 +110,8 @@ public sealed class LayoutBoundRegisterTests
         var pages = new LayoutHostRegisters(LayoutBlockKindRegistry.Platform, Pages: PackPages());
         var citing = PageSurface(new("run", "pack.a4", "pack.master", ["body"]));
 
-        LayoutDefinitionAdmission.ValidateForAuthoring(citing, pages);
-        LayoutDefinitionAdmission.ValidateForPublish(Sealed(citing), pages);
+        LayoutDefinitionAdmission.ValidateForAuthoring(citing, pages, LayoutTestAccess.GrantsAll);
+        LayoutDefinitionAdmission.ValidateForPublish(Sealed(citing), pages, LayoutTestAccess.GrantsAll);
         // Without the pack's register the same citation names nothing.
         AssertRefused(citing, LayoutHostRegisters.Platform, LayoutDefinitionCodes.PageReferenceUnknown, "/page_runs/0/page_layout_id");
         AssertRefused(citing, LayoutHostRegisters.Platform, LayoutDefinitionCodes.PageReferenceUnknown, "/page_runs/0/page_master_id");
@@ -148,8 +148,8 @@ public sealed class LayoutBoundRegisterTests
             Rule("rules.computes", RuleTier.JsonLogic, "{\"+\":[1,2]}", RuleActionKind.Compute),
         ]));
 
-        LayoutDefinitionAdmission.ValidateForAuthoring(CaptureSurface(new(true, ["rules.amount-positive", "rules.amount-shape"])), registers);
-        LayoutDefinitionAdmission.ValidateForPublish(Sealed(CaptureSurface(new(true, ["rules.amount-positive", "rules.amount-shape"]))), registers);
+        LayoutDefinitionAdmission.ValidateForAuthoring(CaptureSurface(new(true, ["rules.amount-positive", "rules.amount-shape"])), registers, LayoutTestAccess.GrantsAll);
+        LayoutDefinitionAdmission.ValidateForPublish(Sealed(CaptureSurface(new(true, ["rules.amount-positive", "rules.amount-shape"]))), registers, LayoutTestAccess.GrantsAll);
 
         AssertRefused(CaptureSurface(new(false, ["rules.unregistered"])), registers,
             LayoutDefinitionCodes.ValidationRuleUnknown, "/blocks/0/capture/validation_rules/0");
@@ -168,11 +168,11 @@ public sealed class LayoutBoundRegisterTests
     {
         var naming = CaptureSurface(new(false, ["rules.amount-positive"]));
         // A draft keeps its names while it is authored; publication must resolve them.
-        LayoutDefinitionAdmission.ValidateForAuthoring(naming, LayoutHostRegisters.Platform);
-        var publish = Assert.Throws<LayoutDefinitionAdmissionException>(() => LayoutDefinitionAdmission.ValidateForPublish(Sealed(naming), LayoutHostRegisters.Platform));
+        LayoutDefinitionAdmission.ValidateForAuthoring(naming, LayoutHostRegisters.Platform, LayoutTestAccess.GrantsAll);
+        var publish = Assert.Throws<LayoutDefinitionAdmissionException>(() => LayoutDefinitionAdmission.ValidateForPublish(Sealed(naming), LayoutHostRegisters.Platform, LayoutTestAccess.GrantsAll));
         Assert.Contains(publish.Refusals, refusal => refusal.Code == LayoutDefinitionCodes.ValidationRuleUnknown);
         // A capture block that names no rule needs no register.
-        LayoutDefinitionAdmission.ValidateForPublish(Sealed(CaptureSurface(new(true, []))), LayoutHostRegisters.Platform);
+        LayoutDefinitionAdmission.ValidateForPublish(Sealed(CaptureSurface(new(true, []))), LayoutHostRegisters.Platform, LayoutTestAccess.GrantsAll);
     }
 
     private static RuleDefinition Rule(string id, RuleTier tier, string expression, RuleActionKind action = RuleActionKind.Validate) => new()
@@ -205,7 +205,7 @@ public sealed class LayoutBoundRegisterTests
     [Fact(DisplayName = "layout-auth-20: publication compiles show_when and refuses a malformed guard (T-724 ruling 39)")]
     public void PublicationCompilesShowWhenAndRefusesAMalformedGuard()
     {
-        LayoutDefinitionAdmission.ValidateForPublish(Sealed(GuardSurface(Expr("{\"==\":[{\"var\":\"field.status\"},\"open\"]}"), Expr("{\"==\":[{\"var\":\"row.status\"},\"open\"]}"))), LayoutHostRegisters.Platform);
+        LayoutDefinitionAdmission.ValidateForPublish(Sealed(GuardSurface(Expr("{\"==\":[{\"var\":\"field.status\"},\"open\"]}"), Expr("{\"==\":[{\"var\":\"row.status\"},\"open\"]}"))), LayoutHostRegisters.Platform, LayoutTestAccess.GrantsAll);
 
         // A malformed guard would hide its block forever at run time; publication refuses it instead.
         AssertPublishRefused(GuardSurface(Expr("{\"no-such-operator\":[1]}"), null), LayoutHostRegisters.Platform, LayoutDefinitionCodes.GuardInvalid, "/blocks/0/show_when");
@@ -213,7 +213,7 @@ public sealed class LayoutBoundRegisterTests
         // A row reference compiles only inside the repeating block's rows, exactly as the runtime scopes it.
         AssertPublishRefused(GuardSurface(Expr("{\"==\":[{\"var\":\"row.status\"},\"open\"]}"), null), LayoutHostRegisters.Platform, LayoutDefinitionCodes.GuardInvalid, "/blocks/0/show_when");
         // A draft keeps an unfinished guard while it is authored.
-        LayoutDefinitionAdmission.ValidateForAuthoring(GuardSurface(Expr("status == open"), null), LayoutHostRegisters.Platform);
+        LayoutDefinitionAdmission.ValidateForAuthoring(GuardSurface(Expr("status == open"), null), LayoutHostRegisters.Platform, LayoutTestAccess.GrantsAll);
     }
 
     [Fact(DisplayName = "layout-ck-29: show_when holds exactly one of expression or predicate; neither or both refuses at every stage")]
@@ -225,20 +225,20 @@ public sealed class LayoutBoundRegisterTests
         foreach (var broken in new[] { both, neither, blank })
         {
             // Authoring, publication and the runtime gate all refuse it: a declared guard is required.
-            var authoring = Assert.Throws<LayoutDefinitionAdmissionException>(() => LayoutDefinitionAdmission.ValidateForAuthoring(GuardSurface(broken, null), Predicates));
+            var authoring = Assert.Throws<LayoutDefinitionAdmissionException>(() => LayoutDefinitionAdmission.ValidateForAuthoring(GuardSurface(broken, null), Predicates, LayoutTestAccess.GrantsAll));
             Assert.Contains(new LayoutDefinitionRefusal(LayoutDefinitionCodes.GuardFormInvalid, "/blocks/0/show_when"), authoring.Refusals);
             AssertPublishRefused(GuardSurface(broken, null), Predicates, LayoutDefinitionCodes.GuardFormInvalid, "/blocks/0/show_when");
             var runtime = Assert.Throws<LayoutDefinitionAdmissionException>(() => LayoutPersistedValueAdmission.ValidateForRuntime(GuardSurface(broken, null), Predicates));
             Assert.Contains(new LayoutDefinitionRefusal(LayoutDefinitionCodes.GuardFormInvalid, "/blocks/0/show_when"), runtime.Refusals);
         }
         // An absent guard is no guard: the block always shows, and nothing refuses.
-        LayoutDefinitionAdmission.ValidateForPublish(Sealed(GuardSurface(null, null)), LayoutHostRegisters.Platform);
+        LayoutDefinitionAdmission.ValidateForPublish(Sealed(GuardSurface(null, null)), LayoutHostRegisters.Platform, LayoutTestAccess.GrantsAll);
     }
 
     [Fact(DisplayName = "layout-ck-29: a predicate guard resolves its ExactPin through the pinned closure at publish and refuses one that will not resolve")]
     public void APredicateGuardResolvesItsExactPinThroughThePinnedClosure()
     {
-        LayoutDefinitionAdmission.ValidateForPublish(Sealed(GuardSurface(new(Predicate: Overdue.Pin), new(Predicate: Overdue.Pin))), Predicates);
+        LayoutDefinitionAdmission.ValidateForPublish(Sealed(GuardSurface(new(Predicate: Overdue.Pin), new(Predicate: Overdue.Pin))), Predicates, LayoutTestAccess.GrantsAll);
 
         // No closure resolves nothing, so publication fails closed (T-724 ruling 36's pattern).
         AssertPublishRefused(GuardSurface(new(Predicate: Overdue.Pin), null), LayoutHostRegisters.Platform, LayoutDefinitionCodes.GuardUnresolved, "/blocks/0/show_when/predicate");
@@ -258,7 +258,7 @@ public sealed class LayoutBoundRegisterTests
         // Registered kernel functions (text, membership, date) publish, at the root and in a row.
         LayoutDefinitionAdmission.ValidateForPublish(Sealed(GuardSurface(
             Expr("{\"in\":[{\"cat\":[{\"var\":\"field.status\"},\"-\",{\"var\":\"field.region\"}]},[\"open-eu\",\"open-us\"]]}"),
-            Expr("{\">\":[{\"date.diff\":[{\"date.today\":[]},{\"var\":\"row.due\"}]},30]}"))), LayoutHostRegisters.Platform);
+            Expr("{\">\":[{\"date.diff\":[{\"date.today\":[]},{\"var\":\"row.due\"}]},30]}"))), LayoutHostRegisters.Platform, LayoutTestAccess.GrantsAll);
 
         // A function the register does not have refuses, however it is spelled: no pack library
         // evaluates a guard (T-590's register is the compiler's only operator table).
@@ -315,8 +315,8 @@ public sealed class LayoutBoundRegisterTests
             drafted.Where(block => !block.TryGetProperty("parentId", out _)).Select(Build).ToArray(),
             [], [], [], null, []);
 
-        LayoutDefinitionAdmission.ValidateForAuthoring(definition, LayoutHostRegisters.Platform);
-        LayoutDefinitionAdmission.ValidateForPublish(Sealed(definition), LayoutHostRegisters.Platform);
+        LayoutDefinitionAdmission.ValidateForAuthoring(definition, LayoutHostRegisters.Platform, LayoutTestAccess.GrantsAll);
+        LayoutDefinitionAdmission.ValidateForPublish(Sealed(definition), LayoutHostRegisters.Platform, LayoutTestAccess.GrantsAll);
         Assert.True(Assert.Single(definition.Blocks).Repeating);
     }
 
@@ -346,7 +346,7 @@ public sealed class LayoutBoundRegisterTests
 
     internal static void AssertRefused(LayoutDefinition definition, LayoutHostRegisters registers, string code, string pointer)
     {
-        var refused = Assert.Throws<LayoutDefinitionAdmissionException>(() => LayoutDefinitionAdmission.ValidateForAuthoring(definition, registers));
+        var refused = Assert.Throws<LayoutDefinitionAdmissionException>(() => LayoutDefinitionAdmission.ValidateForAuthoring(definition, registers, LayoutTestAccess.GrantsAll));
         Assert.Contains(refused.Refusals, refusal => refusal.Code == code && refusal.Pointer == pointer);
     }
 

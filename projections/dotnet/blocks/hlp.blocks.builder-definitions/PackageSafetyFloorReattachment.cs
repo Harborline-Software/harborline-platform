@@ -11,7 +11,14 @@ public sealed record PackageSafetyFloorReattachmentResult(
     bool Succeeded,
     JsonNode? Content,
     string? RefusalCode,
-    string? Member);
+    string? Member)
+{
+    /// <summary>Every seeded floor this reattachment restored or raised, in seed order (DES-0018 <c>rules-auth-26</c>).</summary>
+    public IReadOnlyList<PackageSafetyFloorClamp> Clamps { get; init; } = [];
+}
+
+/// <summary>One reported clamp: the seeded floor and the candidate value it replaced, null when the member was absent.</summary>
+public sealed record PackageSafetyFloorClamp(string Member, int SeedFloor, int? CandidateFloor);
 
 /// <summary>Enforces raise-only safety floors when tenant content is reattached to a released seed.</summary>
 public static class PackageSafetyFloorReattachment
@@ -40,9 +47,10 @@ public static class PackageSafetyFloorReattachment
             return Refused(FloorsMember);
         }
 
+        var clamps = new List<PackageSafetyFloorClamp>();
         if (reattached[FloorsMember] is not JsonObject candidateFloors)
         {
-            candidateFloors = (JsonObject)seedFloors.DeepClone();
+            candidateFloors = [];
             reattached[FloorsMember] = candidateFloors;
         }
 
@@ -56,6 +64,7 @@ public static class PackageSafetyFloorReattachment
             if (!candidateFloors.TryGetPropertyValue(member, out var candidateValue) || candidateValue is null)
             {
                 candidateFloors[member] = seedFloor;
+                clamps.Add(new(member, seedFloor, null));
                 continue;
             }
 
@@ -68,10 +77,11 @@ public static class PackageSafetyFloorReattachment
             if (candidateFloor < seedFloor)
             {
                 candidateFloors[member] = seedFloor;
+                clamps.Add(new(member, seedFloor, candidateFloor));
             }
         }
 
-        return Accepted(reattached);
+        return Accepted(reattached) with { Clamps = clamps.AsReadOnly() };
     }
 
     private static PackageSafetyFloorReattachmentResult Accepted(JsonNode content)

@@ -362,10 +362,23 @@ export const PopoverContent = React.forwardRef<HTMLDivElement, PopoverContentPro
         },
       ))
     }
-    update()
+    // T-713: placing only here and on window resize or scroll left the popover behind an anchor
+    // that moved while the page settled. While open, re-place whenever the anchor's box, the
+    // content's size or the viewport changes, as the Blazor lane's connect() does.
+    let frame = 0
+    let measured = ''
+    const follow = () => {
+      const bounds = anchor.getBoundingClientRect()
+      const key = [bounds.left, bounds.top, bounds.width, bounds.height, content.offsetWidth, content.offsetHeight,
+        document.documentElement.clientWidth || window.innerWidth, document.documentElement.clientHeight || window.innerHeight].join()
+      if (key !== measured) { measured = key; update() }
+      frame = requestAnimationFrame(follow)
+    }
+    follow()
     window.addEventListener('resize', update)
     window.addEventListener('scroll', update, true)
     return () => {
+      cancelAnimationFrame(frame)
       window.removeEventListener('resize', update)
       window.removeEventListener('scroll', update, true)
     }

@@ -25,7 +25,7 @@ public sealed class RuleDefinitionCatalogTests : IDisposable
             [DefinitionKind.Rules] = RuleDefinitionCatalog.Admit,
         });
         _lifecycle = new(Path.Combine(_directory, "lifecycle.json"));
-        _catalog = new(_store, _lifecycle);
+        _catalog = new(_store, _lifecycle, RulesGrants.All);
     }
 
     [Fact]
@@ -79,7 +79,7 @@ public sealed class RuleDefinitionCatalogTests : IDisposable
         });
         var formsKey = Key with { Kind = DefinitionKind.Forms };
         await store.SaveDraftAsync(new(formsKey, "form-version", "1.0.0", "{}"), 0, "form-draft");
-        var catalog = new RuleDefinitionCatalog(store, _lifecycle);
+        var catalog = new RuleDefinitionCatalog(store, _lifecycle, RulesGrants.All);
 
         var error = await Assert.ThrowsAsync<DefinitionRefusalException>(async () =>
             await catalog.PublishAsync(formsKey, "form-version", 1, "rules-publish"));
@@ -127,7 +127,7 @@ public sealed class RuleDefinitionCatalogTests : IDisposable
                 ? RuleDefinitionCatalog.Admit(document, phase)
                 : Array.Empty<DefinitionRefusal>(),
         });
-        var publishCatalog = new RuleDefinitionCatalog(publishStore, _lifecycle);
+        var publishCatalog = new RuleDefinitionCatalog(publishStore, _lifecycle, RulesGrants.All);
         var body = source.DeepClone().AsObject();
         var envelope = body["envelope"]!.AsObject();
         envelope.Remove("id");
@@ -459,7 +459,7 @@ public sealed class RuleDefinitionCatalogTests : IDisposable
         {
             [DefinitionKind.Rules] = RuleDefinitionCatalog.Admit,
         }));
-        var catalog = new RuleDefinitionCatalog(store, _lifecycle);
+        var catalog = new RuleDefinitionCatalog(store, _lifecycle, RulesGrants.All);
         await catalog.SaveDraftJsonAsync(Source(), "published", 0, "draft-published");
         await catalog.PublishAsync(Key, "published", 1, "publish");
         await catalog.SaveDraftJsonAsync(Source(version: "2.0.0", value: "2"), "draft", 2, "draft-newer");
@@ -478,7 +478,7 @@ public sealed class RuleDefinitionCatalogTests : IDisposable
         {
             [DefinitionKind.Rules] = RuleDefinitionCatalog.Admit,
         }));
-        var catalog = new RuleDefinitionCatalog(store, _lifecycle);
+        var catalog = new RuleDefinitionCatalog(store, _lifecycle, RulesGrants.All);
         await catalog.SaveDraftJsonAsync(Source(), "published", 0, "draft-published");
         await catalog.PublishAsync(Key, "published", 1, "publish");
         await catalog.SaveDraftJsonAsync(Source(value: "2"), "same-label-draft", 2, "draft-same-label");
@@ -572,7 +572,7 @@ public sealed class RuleDefinitionCatalogTests : IDisposable
         string body = RuleDefinitionCodec.SerializeBody(RuleDefinitionCodec.Parse(Source(), RuleIntentPhase.Author).Document!)
             .Replace("JsonLogic", "PowerFx", StringComparison.Ordinal);
         await unvalidatedStore.SaveDraftAsync(new(Key, "bad", "1.0.0", body), 0, "bad");
-        var catalog = new RuleDefinitionCatalog(unvalidatedStore, _lifecycle);
+        var catalog = new RuleDefinitionCatalog(unvalidatedStore, _lifecycle, RulesGrants.All);
         var error = await Assert.ThrowsAsync<DefinitionRefusalException>(async () => await catalog.LoadVersionAsync(Key, "bad"));
         Assert.Contains(error.Refusals, refusal => refusal.Code == "rule.compile.unsupported_tier" && refusal.Pointer == "/tier");
         // This deliberately permissive test store is not a production producer.  The catalogue
@@ -657,7 +657,7 @@ public sealed class RuleDefinitionCatalogTests : IDisposable
             [DefinitionKind.Rules] = (document, phase) => phase == DefinitionAdmissionPhase.Publish && fail
                 ? throw failure : RuleDefinitionCatalog.Admit(document, phase),
         });
-        var catalog = new RuleDefinitionCatalog(store, _lifecycle);
+        var catalog = new RuleDefinitionCatalog(store, _lifecycle, RulesGrants.All);
         await catalog.CreateJsonAsync(Source(), "a", 0, "create");
         Assert.Same(failure, await Assert.ThrowsAsync<IOException>(async () =>
             await catalog.PublishAsync(Key, "a", 1, "publish")));
@@ -826,7 +826,7 @@ public sealed class RuleDefinitionCatalogTests : IDisposable
         Assert.Equal(DefinitionStatus.Published, (await _catalog.PublishAsync(Key, "a", 1, "publish")).Status);
     }
 
-    private static string Source(string version = "1.0.0", string value = "1")
+    internal static string Source(string version = "1.0.0", string value = "1")
     {
         var source = JsonNode.Parse("""
             {

@@ -21,7 +21,7 @@ public sealed class FieldRuleBindingTests : IDisposable
         _catalog = new(new InMemoryVersionedDefinitionStore(new Dictionary<DefinitionKind, DefinitionAdmission>
         {
             [DefinitionKind.Rules] = RuleDefinitionCatalog.Admit,
-        }), _lifecycle);
+        }), _lifecycle, RulesGrants.All);
     }
 
     private static RuleDefinitionEnvelope Envelope(string id, string version = "1.0.0")

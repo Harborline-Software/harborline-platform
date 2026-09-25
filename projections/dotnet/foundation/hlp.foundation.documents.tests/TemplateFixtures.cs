@@ -72,7 +72,7 @@ internal static class TemplateFixtures
         {
             var definition = LayoutDefinitionJson.Deserialize(Encoding.UTF8.GetBytes(json));
             if (stage == TemplateAdmissionStage.Persisted) LayoutPersistedValueAdmission.ValidateForRuntime(definition);
-            else LayoutDefinitionAdmission.ValidateForPublish(definition);
+            else LayoutDefinitionAdmission.ValidateForPublish(definition, GrantsAllAuthor.Instance);
             return [];
         }
         catch (LayoutDefinitionAdmissionException refused)
@@ -82,4 +82,14 @@ internal static class TemplateFixtures
     }
 
     public static JsonElement Json(string json) => JsonDocument.Parse(json).RootElement.Clone();
+}
+
+/// <summary>An author who may read every source and open every surface; Layout's authorization checks are proved in Layout's own tests.</summary>
+internal sealed class GrantsAllAuthor : ILayoutAccess
+{
+    public static readonly GrantsAllAuthor Instance = new();
+
+    public bool CanRead(LayoutBinding binding) => true;
+
+    public bool CanOpen(string surfaceId) => true;
 }

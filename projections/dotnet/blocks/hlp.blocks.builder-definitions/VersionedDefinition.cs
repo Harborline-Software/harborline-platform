@@ -37,10 +37,18 @@ public enum DefinitionAdmissionPhase
     Author,
     /// <summary>Publication of an immutable version.</summary>
     Publish,
+    /// <summary>Installation of released content against its pinned dependency closure.</summary>
+    Install,
 }
 
-/// <summary>A stable, localizable refusal at an RFC 6901 pointer.</summary>
-public sealed record DefinitionRefusal(string Code, string Pointer);
+/// <summary>
+/// A stable, localizable refusal at an RFC 6901 pointer. <paramref name="Target"/> names a fetchable definition the
+/// refusal concerns, and is present only when revealing it is safe and authorized; otherwise it is omitted.
+/// </summary>
+public sealed record DefinitionRefusal(string Code, string Pointer, string? Target = null);
+
+/// <summary>A pure admission verdict: the stage it ran at and every refusal, empty when admitted.</summary>
+public sealed record DefinitionRefusalReport(DefinitionAdmissionPhase Stage, IReadOnlyList<DefinitionRefusal> Refusals);
 
 /// <summary>
 /// Pure member admission. It returns refusals without changing source or performing persistence.
@@ -52,9 +60,12 @@ public delegate IReadOnlyList<DefinitionRefusal> DefinitionAdmission(
 /// <summary>A refused operation. No history or published head changed.</summary>
 public sealed class DefinitionRefusalException : Exception
 {
-    /// <summary>Captures a detached refusal list.</summary>
-    public DefinitionRefusalException(IEnumerable<DefinitionRefusal> refusals)
-        : base("definition.refused") => Refusals = Array.AsReadOnly(refusals.ToArray());
+    /// <summary>Captures a detached refusal list and the stage that refused.</summary>
+    public DefinitionRefusalException(DefinitionAdmissionPhase stage, IEnumerable<DefinitionRefusal> refusals)
+        : base("definition.refused") => (Stage, Refusals) = (stage, Array.AsReadOnly(refusals.ToArray()));
+
+    /// <summary>The admission stage that refused. Store reads and composition outside an admission report Author.</summary>
+    public DefinitionAdmissionPhase Stage { get; }
 
     /// <summary>The coded, located reasons for refusal.</summary>
     public IReadOnlyList<DefinitionRefusal> Refusals { get; }

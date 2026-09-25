@@ -32,6 +32,22 @@ public sealed record LayoutHostRegisters(
     public static LayoutHostRegisters Platform { get; } = new(LayoutBlockKindRegistry.Platform);
 }
 
+/// <summary>
+/// The acting principal's Access answers for one request (DES-0032 §4). The host builds it over its
+/// sole authorization decider for one principal at one instant. Layout asks; it computes no verdict,
+/// caches none and never substitutes another principal's answer.
+/// </summary>
+public interface ILayoutAccess
+{
+    /// <summary>Whether the principal may read the source <paramref name="binding"/> names.</summary>
+    /// <param name="binding">A record-field, query, measure or template binding. Static content is never asked about, and a text binding is asked once per field run, as the record-field binding that run names.</param>
+    bool CanRead(LayoutBinding binding);
+
+    /// <summary>Whether the principal may open the published surface <paramref name="surfaceId"/>.</summary>
+    /// <param name="surfaceId">The surface's definition identity.</param>
+    bool CanOpen(string surfaceId);
+}
+
 /// <summary>One record field as Records declares it: its value kind and whether a value domain governs it.</summary>
 /// <param name="FieldPath">The stable field path a record-field binding names.</param>
 /// <param name="ValueShape">The field's value kind.</param>
