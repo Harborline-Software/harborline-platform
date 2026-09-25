@@ -73,7 +73,7 @@ public sealed record BookGateEntry(RoleReference? Role, string? Capability)
 public sealed record BookingBookableDefinition(
     string Name,
     string OnTypeId,
-    IReadOnlyList<int> DurationIntervals,
+    IReadOnlyList<int> DurationIntervalsMinutes,
     IReadOnlyList<string> Requires,
     IReadOnlyList<BookGateEntry> BookGate,
     string? EligibilityExpression,
@@ -87,7 +87,7 @@ public sealed record BookingBookableDefinition(
         return new(
             BookingResourceDefinition.Required(body["name"]),
             BookingResourceDefinition.Required(body["on_type_id"]),
-            ((JsonArray)body["duration_intervals"]!).Select(item => Whole(item) ?? throw new FormatException(BookingDefinitionCodes.DurationInvalid)).ToArray(),
+            ((JsonArray)body["duration_intervals_minutes"]!).Select(item => Whole(item) ?? throw new FormatException(BookingDefinitionCodes.DurationInvalid)).ToArray(),
             BookingResourceDefinition.Strings(body["requires"]),
             body["book_gate"] is JsonArray gate
                 ? gate.Select(item => BookGateEntry.Read((JsonObject)item!) ?? throw new FormatException(BookingDefinitionCodes.GateEntryInvalid)).ToArray()

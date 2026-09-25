@@ -89,7 +89,7 @@ public static class BookingDefinitionAdmission
         ["kind", "envelope", "name", "from_type_id", "capacity_kind", "pool_size", "setup_minutes", "cleanup_minutes",
          "maintenance_windows", "availability_from"];
     private static readonly string[] BookableMembers =
-        ["kind", "envelope", "name", "on_type_id", "duration_intervals", "requires", "require_all", "book_gate",
+        ["kind", "envelope", "name", "on_type_id", "duration_intervals_minutes", "requires", "require_all", "book_gate",
          "eligibility_expression", "waitlist"];
 
     /// <summary>The shared store's validator for <see cref="DefinitionKind.Resources"/> and <see cref="DefinitionKind.Bookables"/>.</summary>
@@ -129,12 +129,12 @@ public static class BookingDefinitionAdmission
         // Offered against any known type: Schedulable and Resource admission are independent (booking-auth-21).
         RecordType(body, "on_type_id", context, refusals);
 
-        if (body["duration_intervals"] is not JsonArray { Count: > 0 } durations)
-            refusals.Add(new(BookingDefinitionCodes.DurationInvalid, "/duration_intervals"));
+        if (body["duration_intervals_minutes"] is not JsonArray { Count: > 0 } durations)
+            refusals.Add(new(BookingDefinitionCodes.DurationInvalid, "/duration_intervals_minutes"));
         else
             for (var index = 0; index < durations.Count; index++)
                 if (Whole(durations[index]) is not > 0)
-                    refusals.Add(new(BookingDefinitionCodes.DurationInvalid, $"/duration_intervals/{index}"));
+                    refusals.Add(new(BookingDefinitionCodes.DurationInvalid, $"/duration_intervals_minutes/{index}"));
 
         if (body["requires"] is not JsonArray requires)
             refusals.Add(new(BookingDefinitionCodes.RequiredResourceUnknown, "/requires"));

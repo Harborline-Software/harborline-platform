@@ -122,11 +122,14 @@ public sealed class BookingDefinitionTests
             [(BookingDefinitionCodes.AvailabilitySourceRequired, "/availability_from")]);
     }
 
-    [Fact(DisplayName = "booking-ck-10,15: a Bookable declares positive duration intervals and the record type it is offered against")]
+    [Fact(DisplayName = "booking-ck-10,15: a Bookable declares positive duration intervals in whole minutes and the record type it is offered against")]
     public void BookableDeclaresDurationAndOfferedType()
     {
         var bookable = BookingBookableDefinition.Parse(Fixtures.Bookable().ToJsonString());
-        Assert.Equal([90], bookable.DurationIntervals);
+        Assert.Equal([90], bookable.DurationIntervalsMinutes);
+        // T-724 Q2: the unit is whole minutes and the name says so; a unitless member is not in the vocabulary.
+        AssertRefusals(Admit(DefinitionKind.Bookables, Fixtures.Bookable(body => body["duration_intervals"] = new JsonArray(90))),
+            [(BookingDefinitionCodes.MemberUnknown, "/duration_intervals")]);
         Assert.Equal("type.learner", bookable.OnTypeId);
         AssertRefusals(Admit(DefinitionKind.Bookables, Fixtures.Bookable(body => body["on_type_id"] = "type.missing")),
             [(BookingDefinitionCodes.TypeUnknown, "/on_type_id")]);
@@ -135,13 +138,13 @@ public sealed class BookingDefinitionTests
     [Theory(DisplayName = "booking-auth-13: a zero or negative duration refuses, because only intervals can overlap")]
     [InlineData("[90]", null, null)]
     [InlineData("[30, 60]", null, null)]
-    [InlineData("[0]", BookingDefinitionCodes.DurationInvalid, "/duration_intervals/0")]
-    [InlineData("[30, -15]", BookingDefinitionCodes.DurationInvalid, "/duration_intervals/1")]
-    [InlineData("[]", BookingDefinitionCodes.DurationInvalid, "/duration_intervals")]
-    [InlineData("90", BookingDefinitionCodes.DurationInvalid, "/duration_intervals")]
+    [InlineData("[0]", BookingDefinitionCodes.DurationInvalid, "/duration_intervals_minutes/0")]
+    [InlineData("[30, -15]", BookingDefinitionCodes.DurationInvalid, "/duration_intervals_minutes/1")]
+    [InlineData("[]", BookingDefinitionCodes.DurationInvalid, "/duration_intervals_minutes")]
+    [InlineData("90", BookingDefinitionCodes.DurationInvalid, "/duration_intervals_minutes")]
     public void DurationMustBePositive(string durations, string? code, string? location)
     {
-        var refusals = Admit(DefinitionKind.Bookables, Fixtures.Bookable(body => body["duration_intervals"] = JsonNode.Parse(durations)));
+        var refusals = Admit(DefinitionKind.Bookables, Fixtures.Bookable(body => body["duration_intervals_minutes"] = JsonNode.Parse(durations)));
         AssertRefusals(refusals, code is null ? [] : [(code, location!)]);
     }
 
@@ -313,7 +316,7 @@ internal static class Fixtures
             ["envelope"] = Envelope(),
             ["name"] = "Induction class",
             ["on_type_id"] = "type.learner",
-            ["duration_intervals"] = new JsonArray(90),
+            ["duration_intervals_minutes"] = new JsonArray(90),
             ["requires"] = new JsonArray("instructor", "room"),
             ["require_all"] = true,
             ["book_gate"] = new JsonArray(
