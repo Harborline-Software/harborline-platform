@@ -38,8 +38,7 @@ public sealed class LayoutAccessFoldTests
             [new LayoutBlock("cost", "layout.text", new LayoutRecordFieldBinding("cost"), [])],
             Container: new LayoutContainer(LayoutContainerKind.Stack), Repeating: true));
         // The author could read every source when the surface was published.
-        LayoutDefinitionAdmission.ValidateForPublish(definition,
-            new LayoutHostRegisters(LayoutBlockKindRegistry.Platform, Access: new ReaderAccess()));
+        LayoutDefinitionAdmission.ValidateForPublish(definition, new ReaderAccess());
 
         var sources = new RecordingSources();
         var narrowed = Resolve(definition, sources, new ReaderAccess(unreadable: ["views.lines"]));

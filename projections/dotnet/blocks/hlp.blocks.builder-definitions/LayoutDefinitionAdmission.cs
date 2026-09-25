@@ -116,42 +116,61 @@ public static class LayoutDefinitionAdmission
 {
     private const string PublishStage = "definition.publish";
 
-    /// <summary>Validates a Layout definition during authoring.</summary>
+    /// <summary>Validates a Layout definition during authoring, as <paramref name="author"/>.</summary>
     /// <param name="definition">The candidate definition.</param>
-    public static void ValidateForAuthoring(LayoutDefinition definition) => Validate(definition, "definition.validate");
+    /// <param name="author">The acting author's Access (layout-auth-24, layout-auth-36). Required: a missing port fails rather than skipping the checks (T-724 ruling 75).</param>
+    public static void ValidateForAuthoring(LayoutDefinition definition, ILayoutAccess author)
+        => ValidateForAuthoring(definition, LayoutHostRegisters.Platform, author);
 
-    /// <summary>Validates using the host's immutable kind register.</summary>
+    /// <summary>Validates using the host's immutable kind register, as <paramref name="author"/>.</summary>
     /// <param name="definition">The candidate definition.</param>
     /// <param name="kinds">The host kind register.</param>
-    public static void ValidateForAuthoring(LayoutDefinition definition, LayoutBlockKindRegistry kinds)
-        => Validate(definition, "definition.validate", new LayoutHostRegisters(kinds));
+    /// <param name="author">The acting author's Access.</param>
+    public static void ValidateForAuthoring(LayoutDefinition definition, LayoutBlockKindRegistry kinds, ILayoutAccess author)
+        => ValidateForAuthoring(definition, new LayoutHostRegisters(kinds), author);
 
-    /// <summary>Validates during authoring against the host's registers.</summary>
+    /// <summary>Validates during authoring against the host's registers, as <paramref name="author"/>.</summary>
     /// <param name="definition">The candidate definition.</param>
     /// <param name="registers">The host's bound registers.</param>
-    public static void ValidateForAuthoring(LayoutDefinition definition, LayoutHostRegisters registers)
-        => Validate(definition, "definition.validate", registers);
+    /// <param name="author">The acting author's Access.</param>
+    public static void ValidateForAuthoring(LayoutDefinition definition, LayoutHostRegisters registers, ILayoutAccess author)
+    {
+        ArgumentNullException.ThrowIfNull(author);
+        Validate(definition, "definition.validate", registers, author);
+    }
 
-    /// <summary>Validates a Layout definition before publication.</summary>
+    /// <summary>Validates a Layout definition before an author publishes it.</summary>
     /// <param name="definition">The candidate definition.</param>
-    public static void ValidateForPublish(LayoutDefinition definition) => Validate(definition, PublishStage);
+    /// <param name="author">The publishing author's Access. Required: a missing port fails rather than skipping the checks (T-724 ruling 75).</param>
+    public static void ValidateForPublish(LayoutDefinition definition, ILayoutAccess author)
+        => ValidateForPublish(definition, LayoutHostRegisters.Platform, author);
 
-    /// <summary>Admits publication against the host's immutable kind register.</summary>
+    /// <summary>Admits an author's publication against the host's immutable kind register.</summary>
     /// <param name="definition">The candidate definition.</param>
     /// <param name="kinds">The host kind register.</param>
-    public static void ValidateForPublish(LayoutDefinition definition, LayoutBlockKindRegistry kinds)
-        => Validate(definition, PublishStage, new LayoutHostRegisters(kinds));
+    /// <param name="author">The publishing author's Access.</param>
+    public static void ValidateForPublish(LayoutDefinition definition, LayoutBlockKindRegistry kinds, ILayoutAccess author)
+        => ValidateForPublish(definition, new LayoutHostRegisters(kinds), author);
 
-    /// <summary>Admits publication against the host's registers.</summary>
+    /// <summary>Admits an author's publication against the host's registers.</summary>
     /// <param name="definition">The candidate definition.</param>
     /// <param name="registers">The host's bound registers.</param>
-    public static void ValidateForPublish(LayoutDefinition definition, LayoutHostRegisters registers)
-        => Validate(definition, PublishStage, registers);
+    /// <param name="author">The publishing author's Access.</param>
+    public static void ValidateForPublish(LayoutDefinition definition, LayoutHostRegisters registers, ILayoutAccess author)
+    {
+        ArgumentNullException.ThrowIfNull(author);
+        Validate(definition, PublishStage, registers, author);
+    }
+
+    // Authorless publication admission: pack export has no acting author, so there is no one whose
+    // read to check; the reader's Access is folded in at render instead (layout-eng-15, T-724 ruling 75).
+    internal static void ValidateAuthorlessPublish(LayoutDefinition definition, LayoutHostRegisters registers)
+        => Validate(definition, PublishStage, registers, author: null);
 
     internal static void Validate(LayoutDefinition definition, string stage, LayoutBlockKindRegistry? kinds = null)
-        => Validate(definition, stage, kinds is null ? LayoutHostRegisters.Platform : new LayoutHostRegisters(kinds));
+        => Validate(definition, stage, kinds is null ? LayoutHostRegisters.Platform : new LayoutHostRegisters(kinds), author: null);
 
-    internal static void Validate(LayoutDefinition definition, string stage, LayoutHostRegisters registers)
+    internal static void Validate(LayoutDefinition definition, string stage, LayoutHostRegisters registers, ILayoutAccess? author)
     {
         ArgumentNullException.ThrowIfNull(definition);
         ArgumentNullException.ThrowIfNull(registers);
@@ -175,6 +194,7 @@ public static class LayoutDefinitionAdmission
                 parentRegions: null,
                 blockIds,
                 registers,
+                author,
                 captures,
                 publishing: stage == PublishStage,
                 rowSection: null,
@@ -187,7 +207,7 @@ public static class LayoutDefinitionAdmission
             if (string.IsNullOrWhiteSpace(drillTargets[index]))
                 Add(refusals, LayoutDefinitionCodes.InteractionTargetUnknown, $"/drill_through_targets/{index}");
             // layout-auth-36: the author may not route a reader to a surface the author could not open.
-            else if (registers.Access is { } access && !access.CanOpen(drillTargets[index]))
+            else if (author is not null && !author.CanOpen(drillTargets[index]))
                 Add(refusals, LayoutDefinitionCodes.DrillThroughForbidden, $"/drill_through_targets/{index}");
         }
         ValidatePages(definition, blockIds, registers.Pages, refusals);
@@ -273,6 +293,7 @@ public static class LayoutDefinitionAdmission
         IReadOnlySet<string>? parentRegions,
         IReadOnlyDictionary<string, LayoutBlock> blockIds,
         LayoutHostRegisters registers,
+        ILayoutAccess? author,
         bool captures,
         bool publishing,
         string? rowSection,
@@ -293,7 +314,7 @@ public static class LayoutDefinitionAdmission
         ValidateBinding(block.Binding, intent, medium, captures, $"{pointer}/binding", refusals);
         // layout-auth-24: authority travels with the read, so a block never binds a source its author
         // could not read. Static content is read from nowhere and is never asked about.
-        if (registers.Access is { } access && block.Binding is not (null or LayoutStaticBinding) && !access.CanRead(block.Binding))
+        if (author is not null && block.Binding is not (null or LayoutStaticBinding) && !author.CanRead(block.Binding))
             Add(refusals, LayoutDefinitionCodes.BindingUnreadable, $"{pointer}/binding");
         ValidateContainer(block.Container, medium, $"{pointer}/container", refusals);
         ValidatePlacement(block.Placement, parentRegions, $"{pointer}/placement", refusals);
@@ -379,7 +400,7 @@ public static class LayoutDefinitionAdmission
         if (children.Count > 0 && block.Container is null)
             Add(refusals, LayoutDefinitionCodes.BlockChildrenInvalid, $"{pointer}/container");
         for (var index = 0; index < children.Count; index++)
-            ValidateBlock(children[index], $"{pointer}/children/{index}", medium, inheritedIntent, regions, blockIds, registers, captures, publishing,
+            ValidateBlock(children[index], $"{pointer}/children/{index}", medium, inheritedIntent, regions, blockIds, registers, author, captures, publishing,
                 block.Repeating ? CollectionName(block.Binding) : rowSection, refusals);
     }
 
@@ -639,7 +660,7 @@ public static class LayoutPersistedValueAdmission
     /// <param name="definition">The immutable persisted Layout definition.</param>
     /// <param name="registers">The host's bound registers.</param>
     public static void ValidateForRuntime(LayoutDefinition definition, LayoutHostRegisters registers)
-        => LayoutDefinitionAdmission.Validate(definition, "render.runtime", registers);
+        => LayoutDefinitionAdmission.Validate(definition, "render.runtime", registers, author: null);
 
     /// <summary>Validates persisted values before React rendering.</summary>
     /// <param name="definition">The persisted definition.</param>
