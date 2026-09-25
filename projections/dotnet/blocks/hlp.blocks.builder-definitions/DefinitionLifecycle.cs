@@ -27,6 +27,8 @@ public enum DefinitionKind
     Resources = 10,
     /// <summary>Booking Bookable definitions (DES-0025 booking-ck-9).</summary>
     Bookables = 11,
+    /// <summary>Documents template definitions (DES-0021 documents-ck-16).</summary>
+    Templates = 12,
 }
 
 /// <summary>Identifies one definition inside a tenant- and kind-scoped archive namespace.</summary>
