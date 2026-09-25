@@ -69,6 +69,12 @@ public static class LayoutDefinitionCodes
     public const string FieldControlUnknown = "layout.capture.control_unknown";
     /// <summary>A field control's parameters do not satisfy the schema it declares (T-724 ruling 38).</summary>
     public const string ControlParametersInvalid = "layout.capture.control_parameters_invalid";
+    /// <summary>Publication cannot find the record field a capture block's control is authored for (T-724 ruling 37).</summary>
+    public const string CaptureFieldUnknown = "layout.capture.field_unknown";
+    /// <summary>An authored control does not accept the field's value kind (T-724 ruling 37).</summary>
+    public const string ControlValueKindMismatch = "layout.capture.control_value_kind_mismatch";
+    /// <summary>An authored control names a field whose value domain picks its editor (layout-bound-10, T-724 ruling 37).</summary>
+    public const string ControlDisplacesValueDomain = "layout.capture.control_displaces_value_domain";
     /// <summary>A capture block names a validation rule the host has not registered (layout-bound-8).</summary>
     public const string ValidationRuleUnknown = "layout.capture.validation_rule_unknown";
     /// <summary>A named validation rule does not validate, or its tier's compiler refuses it (layout-bound-8).</summary>
@@ -302,8 +308,12 @@ public static class LayoutDefinitionAdmission
             {
                 if (string.IsNullOrWhiteSpace(control.Id) || registers.FieldControls?.Contains(control.Id) != true)
                     Add(refusals, LayoutDefinitionCodes.FieldControlUnknown, $"{pointer}/capture/control");
-                else if (control.Parameters is { } parameters && !registers.FieldControls.AcceptsParameters(control.Id, parameters))
-                    Add(refusals, LayoutDefinitionCodes.ControlParametersInvalid, $"{pointer}/capture/control/parameters");
+                else
+                {
+                    if (control.Parameters is { } parameters && !registers.FieldControls.AcceptsParameters(control.Id, parameters))
+                        Add(refusals, LayoutDefinitionCodes.ControlParametersInvalid, $"{pointer}/capture/control/parameters");
+                    if (publishing) ValidateControlField(registers, control, block.Binding, $"{pointer}/capture/control", refusals);
+                }
             }
         }
 
@@ -364,6 +374,20 @@ public static class LayoutDefinitionAdmission
         {
             Add(refusals, LayoutDefinitionCodes.ValidationRuleInvalid, pointer);
         }
+    }
+
+    // T-724 ruling 37: publication looks the field up. A value domain's resolver picks that field's
+    // editor and Layout passes its choice through (layout-bound-10), so an authored control there
+    // refuses; on any other field the control must accept the field's value kind.
+    private static void ValidateControlField(LayoutHostRegisters registers, LayoutFieldControl control, LayoutBinding? binding, string pointer, ICollection<LayoutDefinitionRefusal> refusals)
+    {
+        var field = binding is LayoutRecordFieldBinding bound ? registers.Fields?.Find(bound.FieldPath) : null;
+        if (field is null)
+            Add(refusals, LayoutDefinitionCodes.CaptureFieldUnknown, pointer);
+        else if (field.HasValueDomain)
+            Add(refusals, LayoutDefinitionCodes.ControlDisplacesValueDomain, pointer);
+        else if (registers.FieldControls!.Find(control.Id)?.ValueShapes.Contains(field.ValueShape) != true)
+            Add(refusals, LayoutDefinitionCodes.ControlValueKindMismatch, pointer);
     }
 
     // The collection a repeating block iterates, which names its children's row section.

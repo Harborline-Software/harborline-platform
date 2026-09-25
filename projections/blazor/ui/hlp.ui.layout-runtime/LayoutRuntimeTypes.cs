@@ -90,4 +90,6 @@ public sealed record LayoutAuthoringCatalogue(
     // DrillTargets: the released surfaces a drill-through may name (layout-auth-35).
     IReadOnlyList<LayoutAuthoringOption>? DrillTargets = null,
     // FieldControls: the field controls the host registers for capture fields (layout-bound-3).
-    IReadOnlyList<LayoutAuthoringOption>? FieldControls = null);
+    IReadOnlyList<LayoutAuthoringOption>? FieldControls = null,
+    // ValueDomainFields: the record fields whose value domain picks their editor; they take no authored control (layout-bound-10).
+    IReadOnlyList<string>? ValueDomainFields = null);

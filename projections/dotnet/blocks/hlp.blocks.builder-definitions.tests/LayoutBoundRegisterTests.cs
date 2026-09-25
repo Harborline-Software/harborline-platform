@@ -32,7 +32,7 @@ public sealed class LayoutBoundRegisterTests
         var admitted = CaptureSurface(new(false, [], Control: new("currency", parameters)));
 
         LayoutDefinitionAdmission.ValidateForAuthoring(admitted, Controls);
-        LayoutDefinitionAdmission.ValidateForPublish(Sealed(admitted), Controls);
+        LayoutDefinitionAdmission.ValidateForPublish(Sealed(CaptureSurface(new(false, [], Control: new("currency", parameters)), "invoice.amount")), ControlsAndFields);
         var roundTrip = LayoutDefinitionJson.Deserialize(LayoutDefinitionJson.SerializeCanonical(admitted));
         var control = Assert.Single(roundTrip.Blocks).Capture!.Control!;
         Assert.Equal("currency", control.Id);
@@ -63,6 +63,46 @@ public sealed class LayoutBoundRegisterTests
     public void NamedFieldControlWithNoRegisterRefuses()
         => AssertRefused(CaptureSurface(new(false, [], Control: new("text"))), new LayoutHostRegisters(LayoutBlockKindRegistry.Platform),
             LayoutDefinitionCodes.FieldControlUnknown, "/blocks/0/capture/control");
+
+    private static readonly LayoutHostRegisters ControlsAndFields = Controls with
+    {
+        Fields = new LayoutRecordFieldRegistry(
+        [
+            new("invoice.reference", FieldScalarValueShape.Text, HasValueDomain: false),
+            new("invoice.amount", FieldScalarValueShape.Number, HasValueDomain: false),
+            new("invoice.status", FieldScalarValueShape.Text, HasValueDomain: true),
+        ]),
+    };
+
+    [Fact(DisplayName = "layout-bound-3: publication looks up the field and refuses a control that does not accept its value kind (T-724 ruling 37)")]
+    public void PublicationRefusesAControlThatDoesNotAcceptTheFieldValueKind()
+    {
+        LayoutDefinitionAdmission.ValidateForPublish(Sealed(CaptureSurface(new(false, [], Control: new("text")))), ControlsAndFields);
+        LayoutDefinitionAdmission.ValidateForPublish(Sealed(CaptureSurface(new(false, [], Control: new("currency")), "invoice.amount")), ControlsAndFields);
+        AssertPublishRefused(CaptureSurface(new(false, [], Control: new("currency"))), ControlsAndFields,
+            LayoutDefinitionCodes.ControlValueKindMismatch, "/blocks/0/capture/control");
+        // The field must be found to be checked: an unknown field, or no field register, refuses.
+        AssertPublishRefused(CaptureSurface(new(false, [], Control: new("text")), "invoice.unknown"), ControlsAndFields,
+            LayoutDefinitionCodes.CaptureFieldUnknown, "/blocks/0/capture/control");
+        AssertPublishRefused(CaptureSurface(new(false, [], Control: new("text"))), Controls,
+            LayoutDefinitionCodes.CaptureFieldUnknown, "/blocks/0/capture/control");
+    }
+
+    [Fact(DisplayName = "layout-bound-10: an authored control cannot displace the value-domain resolver's choice (T-724 ruling 37)")]
+    public void AuthoredControlCannotDisplaceTheValueDomainResolver()
+    {
+        // With no authored control, the field runtime's value-domain resolver picks the editor and Layout passes it through.
+        LayoutDefinitionAdmission.ValidateForPublish(Sealed(CaptureSurface(new(true, []), "invoice.status")), ControlsAndFields);
+        // Naming a control on that field would displace the resolver's choice, so publication refuses it.
+        AssertPublishRefused(CaptureSurface(new(false, [], Control: new("text")), "invoice.status"), ControlsAndFields,
+            LayoutDefinitionCodes.ControlDisplacesValueDomain, "/blocks/0/capture/control");
+    }
+
+    private static void AssertPublishRefused(LayoutDefinition definition, LayoutHostRegisters registers, string code, string pointer)
+    {
+        var refused = Assert.Throws<LayoutDefinitionAdmissionException>(() => LayoutDefinitionAdmission.ValidateForPublish(Sealed(definition), registers));
+        Assert.Contains(refused.Refusals, refusal => refusal.Code == code && refusal.Pointer == pointer);
+    }
 
     [Fact(DisplayName = "layout-bound-7: a page run cites the page layout and master a pack supplies")]
     public void PageRunCitesThePageLayoutAndMasterAPackSupplies()
@@ -171,10 +211,10 @@ public sealed class LayoutBoundRegisterTests
     internal static LayoutDefinition Sealed(LayoutDefinition definition)
         => definition with { Envelope = definition.Envelope with { Requires = [new(LayoutPackIdentity.Capability, "1.0.0")] } };
 
-    internal static LayoutDefinition CaptureSurface(LayoutCaptureProperties capture) => new(
+    internal static LayoutDefinition CaptureSurface(LayoutCaptureProperties capture, string fieldPath = "invoice.reference") => new(
         new("surface.invoice", "1.0.0", "tenant-a", LayoutCascadeLayer.DomainPackage,
             JsonSerializer.SerializeToElement(new { source = "test" }), "standard", false, []),
         1, LayoutMedium.Screen, LayoutIntent.Capture,
-        [new("reference", "layout.field", new LayoutRecordFieldBinding("invoice.reference"), [], Capture: capture)],
+        [new("reference", "layout.field", new LayoutRecordFieldBinding(fieldPath), [], Capture: capture)],
         [], [], [], null, []);
 }

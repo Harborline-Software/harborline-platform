@@ -13,15 +13,44 @@ namespace Harborline.Blocks.BuilderDefinitions;
 /// <param name="Kinds">The block-kind register (layout-bound-1).</param>
 /// <param name="FieldControls">The field controls a capture block may pick (layout-bound-3). Absent, no named control admits.</param>
 /// <param name="Pages">The page layouts and masters installed packs supply (layout-bound-7). Absent, a surface cites only its own.</param>
-/// <param name="ValidationRules">The named validation rules a capture block may cite (layout-bound-8). Absent, every named rule refuses.</param>
+/// <param name="ValidationRules">The named validation rules a capture block may cite (layout-bound-8). Absent, publication refuses every named rule.</param>
+/// <param name="Fields">The record fields a capture block's control is checked against at publication (T-724 ruling 37). Absent, publication refuses every authored control.</param>
 public sealed record LayoutHostRegisters(
     LayoutBlockKindRegistry Kinds,
     LayoutFieldControlRegistry? FieldControls = null,
     LayoutPageRegistry? Pages = null,
-    LayoutValidationRuleRegistry? ValidationRules = null)
+    LayoutValidationRuleRegistry? ValidationRules = null,
+    LayoutRecordFieldRegistry? Fields = null)
 {
     /// <summary>The platform's block grammar and no other register.</summary>
     public static LayoutHostRegisters Platform { get; } = new(LayoutBlockKindRegistry.Platform);
+}
+
+/// <summary>One record field as Records declares it: its value kind and whether a value domain governs it.</summary>
+/// <param name="FieldPath">The stable field path a record-field binding names.</param>
+/// <param name="ValueShape">The field's value kind.</param>
+/// <param name="HasValueDomain">Whether a value domain governs the field, so its resolver picks the editor (layout-bound-10).</param>
+public sealed record LayoutRecordFieldDescriptor(string FieldPath, FieldScalarValueShape ValueShape, bool HasValueDomain);
+
+/// <summary>The record fields publication looks a capture block's authored control up against (T-724 ruling 37).</summary>
+public sealed class LayoutRecordFieldRegistry
+{
+    private readonly FrozenDictionary<string, LayoutRecordFieldDescriptor> _fields;
+
+    /// <summary>Creates a register keyed by each field's unique path.</summary>
+    /// <param name="fields">The declared fields.</param>
+    public LayoutRecordFieldRegistry(IEnumerable<LayoutRecordFieldDescriptor> fields)
+    {
+        ArgumentNullException.ThrowIfNull(fields);
+        var values = fields.ToArray();
+        if (values.Any(field => field is null || string.IsNullOrWhiteSpace(field.FieldPath)))
+            throw new ArgumentException("A field register requires identified fields.", nameof(fields));
+        _fields = values.ToFrozenDictionary(field => field.FieldPath, StringComparer.Ordinal);
+    }
+
+    /// <summary>Looks up one declared field.</summary>
+    /// <param name="fieldPath">The exact field path.</param>
+    public LayoutRecordFieldDescriptor? Find(string fieldPath) => _fields.GetValueOrDefault(fieldPath);
 }
 
 /// <summary>One field control a host registers (layout-bound-3).</summary>

@@ -270,6 +270,19 @@ describe('LayoutRuntime React projection', () => {
     expect(changed.mock.lastCall![0].blocks[0]).toStrictEqual(blocks[0])
   })
 
+  it('layout-bound-10: a field whose value domain picks its editor offers no authored control', () => {
+    const blocks = [
+      { id: 'status', kind: 'layout.table', intent: 'capture' as const, binding: { kind: 'record_field' as const, name: 'invoice.status' } },
+      { id: 'reference', kind: 'layout.table', intent: 'capture' as const, binding: { kind: 'record_field' as const, name: 'invoice.reference' } },
+    ]
+    render(<LayoutAuthoringEditor value={{ ...emptyLayoutAuthoringDraft(), blocks }} catalogue={{ blockKinds: [{ id: 'layout.table', label: 'Table' }], zones: [], fieldControls: [{ id: 'text', label: 'Text' }], valueDomainFields: ['invoice.status'] }} onChange={vi.fn()} />)
+
+    // The value domain's resolver picks the editor; Layout passes that choice through.
+    expect(screen.queryByLabelText('Block 1 field control')).toBeNull()
+    expect(screen.getByText('Block 1 control is chosen by its value domain')).toBeInTheDocument()
+    expect(screen.getByLabelText('Block 2 field control')).toBeInTheDocument()
+  })
+
   it('authors static content on the block rather than looking it up', () => {
     const changed = vi.fn()
     render(<LayoutAuthoringEditor value={{ ...emptyLayoutAuthoringDraft(), blocks: [{ id: 'notice', kind: 'layout.table', binding: { kind: 'static', name: '' } }] }} catalogue={{ blockKinds: [{ id: 'layout.table', label: 'Table' }], zones: [] }} onChange={changed} />)

@@ -108,5 +108,7 @@ export interface LayoutAuthoringCatalogue {
   readonly drillTargets?: readonly LayoutBindableName[]
   /** The field controls the host registers for capture fields (layout-bound-3). */
   readonly fieldControls?: readonly LayoutBindableName[]
+  /** The record fields whose value domain picks their editor; they take no authored control (layout-bound-10). */
+  readonly valueDomainFields?: readonly string[]
 }
 export interface LayoutAuthoringEditorProps { readonly value: LayoutAuthoringDraft; readonly catalogue: LayoutAuthoringCatalogue; readonly onChange: (value: LayoutAuthoringDraft) => void }

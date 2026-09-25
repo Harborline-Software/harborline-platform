@@ -77,7 +77,8 @@ function withCapture(block: LayoutAuthoringBlock, patch: Partial<LayoutAuthoring
  * layout-auth-21: a capture block may add a requirement and name registered validation rules;
  * a requirement Records declares is shown and cannot be removed here. layout-auth-22: its prompt
  * override is stored on the block, so it applies to this surface's context and nowhere else.
- * layout-bound-3: a captured field picks its control from the controls the host registers.
+ * layout-bound-3: a captured field picks its control from the controls the host registers,
+ * unless a value domain governs the field: its resolver picks the editor (layout-bound-10).
  * layout-auth-33: the selection the block opens with is authored here; what a reader has
  * selected at run time is execution state and is never offered for saving.
  * layout-auth-34: the blocks this block's selection filters are chosen from the surface's other
@@ -97,7 +98,8 @@ function BlockBehaviour({ index, block, blocks, intent, catalogue, onChange }: {
     <label>Show when<input aria-label={`Block ${index + 1} show when`} value={block.showWhen ?? ''} onChange={event => onChange({ ...block, showWhen: event.currentTarget.value || undefined })} /></label>
     {intent === 'capture' && <>
       <label><input aria-label={`Block ${index + 1} required`} type="checkbox" checked={declaredRequired || (block.capture?.required ?? false)} disabled={declaredRequired} onChange={event => onChange(withCapture(block, { required: event.currentTarget.checked }))} />Required</label>
-      {block.binding?.kind === 'record_field' && <select aria-label={`Block ${index + 1} field control`} value={block.capture?.control ?? ''} onChange={event => onChange(withCapture(block, { control: event.currentTarget.value }))}>
+      {block.binding?.kind === 'record_field' && (catalogue.valueDomainFields ?? []).includes(block.binding.name) && <span>{`Block ${index + 1} control is chosen by its value domain`}</span>}
+      {block.binding?.kind === 'record_field' && !(catalogue.valueDomainFields ?? []).includes(block.binding.name) && <select aria-label={`Block ${index + 1} field control`} value={block.capture?.control ?? ''} onChange={event => onChange(withCapture(block, { control: event.currentTarget.value }))}>
         <option value="">Runtime default</option>
         {(catalogue.fieldControls ?? []).map(control => <option key={control.id} value={control.id}>{control.label}</option>)}
       </select>}

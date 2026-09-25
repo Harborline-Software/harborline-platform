@@ -377,6 +377,24 @@ public sealed class LayoutRuntimeTests : BunitContext
         Assert.Equal(blocks[0], changed.Blocks[0]);
     }
 
+    [Fact(DisplayName = "layout-bound-10: a field whose value domain picks its editor offers no authored control")]
+    public void ValueDomainFieldOffersNoAuthoredControl()
+    {
+        LayoutAuthoringBlock[] blocks =
+        [
+            new("status", "layout.table", new("record_field", "invoice.status"), Intent: "capture"),
+            new("reference", "layout.table", new("record_field", "invoice.reference"), Intent: "capture"),
+        ];
+        var cut = Render<HarborlineLayoutAuthoringEditor>(parameters => parameters
+            .Add(x => x.Value, LayoutAuthoringDraft.Empty with { Blocks = blocks })
+            .Add(x => x.Catalogue, Catalogue() with { FieldControls = [new("text", "Text")], ValueDomainFields = ["invoice.status"] }));
+
+        // The value domain's resolver picks the editor; Layout passes that choice through.
+        Assert.Empty(cut.FindAll("[aria-label='Block 1 field control']"));
+        Assert.Contains("Block 1 control is chosen by its value domain", cut.Markup, StringComparison.Ordinal);
+        Assert.Single(cut.FindAll("[aria-label='Block 2 field control']"));
+    }
+
     private static LayoutAuthoringCatalogue Catalogue() => new(
         [new("layout.table", "Table")],
         ["header.center"],
