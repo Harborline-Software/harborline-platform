@@ -31,6 +31,18 @@ public sealed class AccessScopeTests
         Assert.Equal(1, evaluations);
     }
 
+    // T-687: the seam returns a compile failure as a result, so the scope must still tell it from a false scope.
+    [Fact]
+    public void Uncompilable_scope_is_invalid_not_false()
+    {
+        var request = new AccessRequest("records:read", "alice", "a", new("a", "work", "1", new Dictionary<string, JsonNode?>()), At);
+        var evaluator = new AccessScopeEvaluator(at => new Harborline.Foundation.RuleEngine.GuardEvaluator(new FixedTimeProvider(at)));
+        Assert.Equal("access.scope_invalid", evaluator.Evaluate("{\"frobnicate\":[{\"var\":\"principal\"}]}", request,
+            new("alice", "a", "work", "1", At, ["principal"])).Reason);
+        Assert.Equal("access.scope_false", evaluator.Evaluate("{\"==\":[{\"var\":\"principal\"},\"bob\"]}", request,
+            new("alice", "a", "work", "1", At, ["principal"])).Reason);
+    }
+
     [Theory]
     [InlineData("{\"or\":[true,{\"var\":\"record.secret\"}]}")]
     [InlineData("{\"var\":[{\"var\":\"principal\"},true]}")]

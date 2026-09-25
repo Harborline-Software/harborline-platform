@@ -135,6 +135,31 @@ public sealed class RuleProjectionTests
         Assert.DoesNotContain("total", evaluation.HiddenFields);
     }
 
+    // T-687: an uncompilable page guard withholds its page instead of faulting the whole evaluation.
+    [Fact]
+    public async Task CandidateEvaluation_HidesAPageWhoseGuardDoesNotCompile()
+    {
+        var schemas = new Harborline.Kernel.SchemaValidation.InMemorySchemaRegistry();
+        var schema = await schemas.RegisterAsync("""{"type":"object"}""");
+        var baseDefinition = Definition(schema.Id.Value, new TenantId("tenant-engine"));
+        var definition = baseDefinition with
+        {
+            Overlay = baseDefinition.Overlay with
+            {
+                Sections = baseDefinition.Overlay.Sections.Select(section => section with { Access = new([], []) }).ToArray(),
+                Rules = [],
+                Pages = [new("bad-page", State.InternationalizedText.FromInvariant("Bad page"), ["main"], "{\"frobnicate\":[1]}")],
+            },
+        };
+        using var candidate = JsonDocument.Parse("""{"amount":2}""");
+
+        using var evaluation = await FormCandidateEvaluator.EvaluateAsync(
+            new(new TenantId("tenant-engine"), Guid.Parse("11111111-1111-1111-1111-111111111111"), "alice", ["reader"]),
+            definition, candidate, schemas, FormEngineOptions.DefaultMaximumCandidateBytes, TimeProvider.System, CancellationToken.None);
+
+        Assert.Contains("amount", evaluation.HiddenFields);
+    }
+
     private static async Task<(FormEngineOrchestrationTests.Harness Harness, FormSubmitReceipt Receipt)> BuildAsync(string json)
     {
         var readable = JsonDocument.Parse(json);
