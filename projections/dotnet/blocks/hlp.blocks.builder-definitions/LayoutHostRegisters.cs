@@ -37,7 +37,7 @@ public sealed record LayoutHostRegisters(
 public interface ILayoutAccess
 {
     /// <summary>Whether the principal may read the source <paramref name="binding"/> names.</summary>
-    /// <param name="binding">A record-field, query, measure or template binding; static content is never asked about.</param>
+    /// <param name="binding">A record-field, query, measure or template binding. Static content is never asked about, and a text binding is asked once per field run, as the record-field binding that run names.</param>
     bool CanRead(LayoutBinding binding);
 
     /// <summary>Whether the principal may open the published surface <paramref name="surfaceId"/>.</summary>

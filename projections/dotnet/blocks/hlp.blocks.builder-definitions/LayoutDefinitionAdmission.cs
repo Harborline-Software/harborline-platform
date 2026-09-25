@@ -318,8 +318,15 @@ public static class LayoutDefinitionAdmission
 
         ValidateBinding(block.Binding, intent, medium, captures, $"{pointer}/binding", refusals);
         // layout-auth-24: authority travels with the read, so a block never binds a source its author
-        // could not read. Static content is read from nowhere and is never asked about.
-        if (author is not null && block.Binding is not (null or LayoutStaticBinding) && !author.CanRead(block.Binding))
+        // could not read. Static content and literal runs are read from nowhere and are never asked
+        // about; each field run of a text binding is asked exactly as a record-field binding naming it.
+        if (author is not null && block.Binding is LayoutTextBinding { Runs: { } runs })
+        {
+            for (var index = 0; index < runs.Count; index++)
+                if (runs[index]?.FieldPath is { Length: > 0 } fieldPath && !author.CanRead(new LayoutRecordFieldBinding(fieldPath)))
+                    Add(refusals, LayoutDefinitionCodes.BindingUnreadable, $"{pointer}/binding/runs/{index}/field_path");
+        }
+        else if (author is not null && block.Binding is not (null or LayoutStaticBinding) && !author.CanRead(block.Binding))
             Add(refusals, LayoutDefinitionCodes.BindingUnreadable, $"{pointer}/binding");
         ValidateContainer(block.Container, medium, $"{pointer}/container", refusals);
         ValidatePlacement(block.Placement, parentRegions, $"{pointer}/placement", refusals);

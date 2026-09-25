@@ -54,6 +54,27 @@ public sealed class LayoutAuthorizationTests
         Assert.Throws<ArgumentNullException>(() => LayoutDefinitionAdmission.ValidateForPublish(definition, LayoutHostRegisters.Platform, null!));
     }
 
+    [Fact(DisplayName = "layout-auth-24: a text binding refuses at each field run the author could not read, asked as that field; literal runs are never asked about")]
+    public void ATextRunNamingAFieldTheAuthorCouldNotReadRefuses()
+    {
+        var access = new FixtureAccess(unreadable: ["employee.salary"]);
+        var definition = Surface(Block("pay-line", new LayoutTextBinding(
+        [
+            new LayoutTextRun(Text: "Name: "),
+            new LayoutTextRun(FieldPath: "employee.name"),
+            new LayoutTextRun(Text: " earns "),
+            new LayoutTextRun(FieldPath: "employee.salary", Fallback: "-"),
+        ])));
+
+        var error = Assert.Throws<LayoutDefinitionAdmissionException>(() => LayoutDefinitionAdmission.ValidateForPublish(definition, access));
+        var refusal = Assert.Single(error.Refusals);
+        Assert.Equal((LayoutDefinitionCodes.BindingUnreadable, "/blocks/0/binding/runs/3/field_path"), (refusal.Code, refusal.Pointer));
+        // Each field run is asked about exactly as a record-field binding naming it; the text binding
+        // itself and its literal runs never reach the port.
+        Assert.Equal(["employee.name", "employee.salary"], access.Asked);
+        Assert.All(access.Kinds, kind => Assert.Equal(nameof(LayoutRecordFieldBinding), kind));
+    }
+
     [Fact(DisplayName = "layout-auth-24: a binding nested in a repeating block is checked like one at the root")]
     public void ANestedBindingTheAuthorCouldNotReadRefuses()
     {
@@ -109,6 +130,8 @@ public sealed class LayoutAuthorizationTests
 
         public List<string> Opened { get; } = [];
 
+        public List<string> Kinds { get; } = [];
+
         public bool CanRead(LayoutBinding binding)
         {
             var name = binding switch
@@ -120,6 +143,7 @@ public sealed class LayoutAuthorizationTests
                 _ => "static",
             };
             Asked.Add(name);
+            Kinds.Add(binding.GetType().Name);
             return !_unreadable.Contains(name);
         }
 
