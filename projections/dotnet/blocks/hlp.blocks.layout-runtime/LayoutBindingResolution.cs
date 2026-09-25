@@ -8,6 +8,7 @@ using Harborline.Foundation.RuleEngine.Context;
 using Harborline.Foundation.RuleEngine.Evaluation;
 using RuleError = Harborline.Foundation.RuleEngine.Model.RuleError;
 using Harborline.Foundation.RuleEngine.Environments;
+using Harborline.Foundation.RuleEngine.References;
 
 namespace Harborline.Blocks.LayoutRuntime;
 
@@ -345,10 +346,16 @@ internal sealed class LayoutValueResolver : IValueResolver
 public sealed class LayoutBindingResolver
 {
     private readonly GuardEvaluator _guards;
+    private readonly PinnedClosure? _predicates;
 
     /// <summary>Creates a resolver over the caller-supplied shared rule engine evaluator.</summary>
     /// <param name="guards">The evaluator bound to the caller's business clock.</param>
-    public LayoutBindingResolver(GuardEvaluator guards) => _guards = guards ?? throw new ArgumentNullException(nameof(guards));
+    /// <param name="predicates">The pinned closure the definition was published with; a <c>show_when</c> predicate resolves only here (layout-ck-29). Absent, every predicate guard withholds its block.</param>
+    public LayoutBindingResolver(GuardEvaluator guards, PinnedClosure? predicates = null)
+    {
+        _guards = guards ?? throw new ArgumentNullException(nameof(guards));
+        _predicates = predicates;
+    }
 
     /// <summary>
     /// Resolves one admitted definition against one root scope for <paramref name="request"/>,
@@ -514,14 +521,24 @@ public sealed class LayoutBindingResolver
 
     private bool IsVisible(LayoutBlock block, LayoutBindingScope root, LayoutBindingScope scope, CancellationToken cancellationToken)
     {
-        if (block.ShowWhen is not { Length: > 0 } expression) return true;
+        // layout-ck-29: an absent guard is no guard; a declared one must hold and fails closed.
+        if (block.ShowWhen is not { } guard) return true;
 
         // The guard is Rules' grammar, evaluated by the shared engine and never by a
         // layout-local conditional (layout-eng-16, layout-auth-20). A block inside a repeating
         // container is a Row-scoped rule over that container's section, which is what makes a
         // `row.` reference legal there and illegal anywhere else.
-        // The same rule publication compiled (T-724 ruling 39).
-        var rule = LayoutGuardRule.For(block.Id, expression, scope.IsRow ? scope.Section : null);
+        // The same rule publication compiled (T-724 ruling 39). A guard holding neither form or
+        // both, or a predicate pin the closure cannot resolve, withholds the block.
+        RuleDefinition rule;
+        try
+        {
+            rule = LayoutGuardRule.For(block.Id, guard, scope.IsRow ? scope.Section : null, _predicates);
+        }
+        catch (NamedReferenceException)
+        {
+            return false;
+        }
         var evalScope = scope.IsRow ? new RuleEvalScope(scope.Section, scope.RowId) : RuleEvalScope.Root;
         // Capture the layout producer's values before entering Rules. The evaluator never calls
         // a layout resolver (which could be arbitrary host code) during pure evaluation.

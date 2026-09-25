@@ -205,18 +205,59 @@ public sealed class LayoutBoundRegisterTests
     [Fact(DisplayName = "layout-auth-20: publication compiles show_when and refuses a malformed guard (T-724 ruling 39)")]
     public void PublicationCompilesShowWhenAndRefusesAMalformedGuard()
     {
-        LayoutDefinitionAdmission.ValidateForPublish(Sealed(GuardSurface("{\"==\":[{\"var\":\"field.status\"},\"open\"]}", "{\"==\":[{\"var\":\"row.status\"},\"open\"]}")), LayoutHostRegisters.Platform);
+        LayoutDefinitionAdmission.ValidateForPublish(Sealed(GuardSurface(Expr("{\"==\":[{\"var\":\"field.status\"},\"open\"]}"), Expr("{\"==\":[{\"var\":\"row.status\"},\"open\"]}"))), LayoutHostRegisters.Platform);
 
         // A malformed guard would hide its block forever at run time; publication refuses it instead.
-        AssertPublishRefused(GuardSurface("{\"no-such-operator\":[1]}", null), LayoutHostRegisters.Platform, LayoutDefinitionCodes.GuardInvalid, "/blocks/0/show_when");
-        AssertPublishRefused(GuardSurface("status == open", null), LayoutHostRegisters.Platform, LayoutDefinitionCodes.GuardInvalid, "/blocks/0/show_when");
+        AssertPublishRefused(GuardSurface(Expr("{\"no-such-operator\":[1]}"), null), LayoutHostRegisters.Platform, LayoutDefinitionCodes.GuardInvalid, "/blocks/0/show_when");
+        AssertPublishRefused(GuardSurface(Expr("status == open"), null), LayoutHostRegisters.Platform, LayoutDefinitionCodes.GuardInvalid, "/blocks/0/show_when");
         // A row reference compiles only inside the repeating block's rows, exactly as the runtime scopes it.
-        AssertPublishRefused(GuardSurface("{\"==\":[{\"var\":\"row.status\"},\"open\"]}", null), LayoutHostRegisters.Platform, LayoutDefinitionCodes.GuardInvalid, "/blocks/0/show_when");
+        AssertPublishRefused(GuardSurface(Expr("{\"==\":[{\"var\":\"row.status\"},\"open\"]}"), null), LayoutHostRegisters.Platform, LayoutDefinitionCodes.GuardInvalid, "/blocks/0/show_when");
         // A draft keeps an unfinished guard while it is authored.
-        LayoutDefinitionAdmission.ValidateForAuthoring(GuardSurface("status == open", null), LayoutHostRegisters.Platform);
+        LayoutDefinitionAdmission.ValidateForAuthoring(GuardSurface(Expr("status == open"), null), LayoutHostRegisters.Platform);
     }
 
-    private static LayoutDefinition GuardSurface(string surfaceGuard, string? rowGuard) => new(
+    [Fact(DisplayName = "layout-ck-29: show_when holds exactly one of expression or predicate; neither or both refuses at every stage")]
+    public void ShowWhenHoldsExactlyOneOfExpressionOrPredicate()
+    {
+        var both = new LayoutShowWhen("{\"var\":\"field.flagged\"}", Overdue.Pin);
+        var neither = new LayoutShowWhen();
+        var blank = new LayoutShowWhen(Expression: " ");
+        foreach (var broken in new[] { both, neither, blank })
+        {
+            // Authoring, publication and the runtime gate all refuse it: a declared guard is required.
+            var authoring = Assert.Throws<LayoutDefinitionAdmissionException>(() => LayoutDefinitionAdmission.ValidateForAuthoring(GuardSurface(broken, null), Predicates));
+            Assert.Contains(new LayoutDefinitionRefusal(LayoutDefinitionCodes.GuardFormInvalid, "/blocks/0/show_when"), authoring.Refusals);
+            AssertPublishRefused(GuardSurface(broken, null), Predicates, LayoutDefinitionCodes.GuardFormInvalid, "/blocks/0/show_when");
+            var runtime = Assert.Throws<LayoutDefinitionAdmissionException>(() => LayoutPersistedValueAdmission.ValidateForRuntime(GuardSurface(broken, null), Predicates));
+            Assert.Contains(new LayoutDefinitionRefusal(LayoutDefinitionCodes.GuardFormInvalid, "/blocks/0/show_when"), runtime.Refusals);
+        }
+        // An absent guard is no guard: the block always shows, and nothing refuses.
+        LayoutDefinitionAdmission.ValidateForPublish(Sealed(GuardSurface(null, null)), LayoutHostRegisters.Platform);
+    }
+
+    [Fact(DisplayName = "layout-ck-29: a predicate guard resolves its ExactPin through the pinned closure at publish and refuses one that will not resolve")]
+    public void APredicateGuardResolvesItsExactPinThroughThePinnedClosure()
+    {
+        LayoutDefinitionAdmission.ValidateForPublish(Sealed(GuardSurface(new(Predicate: Overdue.Pin), new(Predicate: Overdue.Pin))), Predicates);
+
+        // No closure resolves nothing, so publication fails closed (T-724 ruling 36's pattern).
+        AssertPublishRefused(GuardSurface(new(Predicate: Overdue.Pin), null), LayoutHostRegisters.Platform, LayoutDefinitionCodes.GuardUnresolved, "/blocks/0/show_when/predicate");
+        // A pin whose digest is not the closure's, a version the closure lacks, and a floating version all refuse.
+        AssertPublishRefused(GuardSurface(new(Predicate: Overdue.Pin with { Digest = new string('0', 64) }), null), Predicates, LayoutDefinitionCodes.GuardUnresolved, "/blocks/0/show_when/predicate");
+        AssertPublishRefused(GuardSurface(new(Predicate: Overdue.Pin with { Version = "9.0.0" }), null), Predicates, LayoutDefinitionCodes.GuardUnresolved, "/blocks/0/show_when/predicate");
+        AssertPublishRefused(GuardSurface(new(Predicate: Overdue.Pin with { Version = "latest" }), null), Predicates, LayoutDefinitionCodes.GuardUnresolved, "/blocks/0/show_when/predicate");
+    }
+
+    private static readonly Harborline.Foundation.RuleEngine.References.NamedPredicate Overdue = new("invoice.overdue", "1.0.0", "{\"==\":[{\"var\":\"field.status\"},\"overdue\"]}");
+
+    private static readonly LayoutHostRegisters Predicates = LayoutHostRegisters.Platform with
+    {
+        Predicates = new Harborline.Foundation.RuleEngine.References.PinnedClosure([Overdue], []),
+    };
+
+    private static LayoutShowWhen Expr(string expression) => new(Expression: expression);
+
+    private static LayoutDefinition GuardSurface(LayoutShowWhen? surfaceGuard, LayoutShowWhen? rowGuard) => new(
         new("surface.invoice", "1.0.0", "tenant-a", LayoutCascadeLayer.DomainPackage,
             JsonSerializer.SerializeToElement(new { source = "test" }), "standard", false, []),
         1, LayoutMedium.Screen, LayoutIntent.Observe,

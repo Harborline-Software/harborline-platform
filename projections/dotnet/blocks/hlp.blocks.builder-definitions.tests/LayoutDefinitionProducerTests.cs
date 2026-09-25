@@ -172,7 +172,8 @@ public sealed class LayoutDefinitionProducerTests
         Assert.IsType<LayoutQueryBinding>(query.Binding);
         Assert.True(query.Repeating);
         Assert.Equal("customer.orders", query.RelatedRelationship);
-        Assert.Equal("{\"!!\":[{\"var\":\"field.customer.name\"}]}", query.ShowWhen);
+        Assert.Equal("{\"!!\":[{\"var\":\"field.customer.name\"}]}", query.ShowWhen!.Expression);
+        Assert.Null(query.ShowWhen.Predicate);
         Assert.IsType<LayoutMeasureBinding>(Flatten(roundTrip.Blocks).Single(block => block.Id == "measure").Binding);
         var staticBlock = Flatten(roundTrip.Blocks).Single(block => block.Id == "static");
         Assert.IsType<LayoutStaticBinding>(staticBlock.Binding);
@@ -186,6 +187,8 @@ public sealed class LayoutDefinitionProducerTests
         Assert.Contains("\"form_version_id\":\"form.customer@2.1.0\"", json, StringComparison.Ordinal);
         Assert.DoesNotContain("latest", json, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("\"order\"", json, StringComparison.Ordinal);
+        // layout-ck-29: the guard is an object holding its one form, never a bare string.
+        Assert.Contains("\"show_when\":{\"expression\":", json, StringComparison.Ordinal);
     }
 
     [Fact(DisplayName = "layout-ck-16..20,24,33: page geometry, masters, static regions and page runs round-trip")]
@@ -570,7 +573,7 @@ public sealed class LayoutDefinitionProducerTests
                         placement: new LayoutPlacement("main", LayoutSizing.Fill, LayoutSizing.Hug, Grow: 1),
                         repeating: true,
                         relatedRelationship: "customer.orders",
-                        showWhen: "{\"!!\":[{\"var\":\"field.customer.name\"}]}",
+                        showWhen: new LayoutShowWhen(Expression: "{\"!!\":[{\"var\":\"field.customer.name\"}]}"),
                         defaultSelection: JsonSerializer.SerializeToElement(new { status = "open" })),
                     Block(
                         "measure",
@@ -687,7 +690,7 @@ public sealed class LayoutDefinitionProducerTests
         LayoutBreakInside breakInside = LayoutBreakInside.Auto,
         bool repeating = false,
         string? relatedRelationship = null,
-        string? showWhen = null,
+        LayoutShowWhen? showWhen = null,
         LayoutCaptureProperties? capture = null,
         JsonElement? defaultSelection = null,
         IReadOnlyList<string>? filterTargets = null,

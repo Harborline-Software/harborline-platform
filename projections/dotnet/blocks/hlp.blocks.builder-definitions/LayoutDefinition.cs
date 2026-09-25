@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Harborline.Foundation.RuleEngine.References;
 
 namespace Harborline.Blocks.BuilderDefinitions;
 
@@ -273,6 +274,21 @@ public sealed record LayoutCollectionBounds(int Minimum, int? Maximum = null)
     public bool Contains(int count) => count >= Minimum && (Maximum is null || count <= Maximum);
 }
 
+/// <summary>
+/// DES-0052 layout-ck-29 — a block's guard. It holds exactly one of <see cref="Expression"/> (Rules
+/// text, compiled at publish, T-724 ruling 39) or <see cref="Predicate"/> (a Rules named predicate
+/// by its exact pin, resolved from the definition's pinned closure, rules-ck-22). An absent guard
+/// means the block always shows; a declared guard holding neither form or both refuses, and one
+/// that cannot be evaluated withholds its block.
+/// </summary>
+/// <param name="Expression">The Rules expression text.</param>
+/// <param name="Predicate">The exact pin of a named predicate.</param>
+public sealed record LayoutShowWhen(string? Expression = null, ExactPin? Predicate = null)
+{
+    /// <summary>Whether the guard holds exactly one form.</summary>
+    public bool IsWellFormed => string.IsNullOrWhiteSpace(Expression) != (Predicate is null);
+}
+
 /// <summary>Represents one ordered node in the Layout definition tree.</summary>
 /// <param name="Id">The definition-local block identifier.</param>
 /// <param name="Kind">The released component kind.</param>
@@ -288,7 +304,7 @@ public sealed record LayoutCollectionBounds(int Minimum, int? Maximum = null)
 /// <param name="BreakInside">The inside-break behavior.</param>
 /// <param name="Repeating">Whether the container repeats its children in per-row scopes.</param>
 /// <param name="RelatedRelationship">The optional related-record relationship.</param>
-/// <param name="ShowWhen">The optional governed visibility expression.</param>
+/// <param name="ShowWhen">The optional guard (layout-ck-29). Absent, the block always shows.</param>
 /// <param name="Capture">The optional capture properties.</param>
 /// <param name="DefaultSelection">The optional immutable default selection.</param>
 /// <param name="FilterTargets">The optional local block filter targets.</param>
@@ -310,7 +326,7 @@ public sealed record LayoutBlock(
     LayoutBreakInside BreakInside = LayoutBreakInside.Auto,
     bool Repeating = false,
     string? RelatedRelationship = null,
-    string? ShowWhen = null,
+    LayoutShowWhen? ShowWhen = null,
     LayoutCaptureProperties? Capture = null,
     JsonElement? DefaultSelection = null,
     IReadOnlyList<string>? FilterTargets = null,

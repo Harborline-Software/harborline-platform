@@ -212,6 +212,30 @@ public sealed class LayoutBindingResolutionTests
         Assert.Equal("Northwind", Assert.Single(resolution.Blocks).Value?.ToString());
     }
 
+    [Fact(DisplayName = "layout-ck-29 (runtime): a predicate guard evaluates through its ExactPin in the pinned closure and fails closed when the pin will not resolve")]
+    public void APredicateGuardEvaluatesThroughItsPinnedClosureAndFailsClosed()
+    {
+        var open = new Harborline.Foundation.RuleEngine.References.NamedPredicate("invoice.open", "1.0.0", "{\"==\":[{\"var\":\"field.status\"},\"open\"]}");
+        var closed = new Harborline.Foundation.RuleEngine.References.NamedPredicate("invoice.closed", "1.0.0", "{\"==\":[{\"var\":\"field.status\"},\"closed\"]}");
+        var closure = new Harborline.Foundation.RuleEngine.References.PinnedClosure([open, closed], []);
+        LayoutBindingResolution Guarded(LayoutShowWhen guard, Harborline.Foundation.RuleEngine.References.PinnedClosure? predicates)
+            => new LayoutBindingResolver(new Harborline.Foundation.RuleEngine.GuardEvaluator(TimeProvider.System), predicates).Resolve(
+                Definition(LayoutMedium.Screen, LayoutIntent.Observe, new LayoutBlock("gated", "layout.list", new LayoutRecordFieldBinding("supplier"), [], ShowWhen: guard)),
+                Sources(),
+                LayoutBindingScope.Root(new Dictionary<string, JsonNode?>(StringComparer.Ordinal) { ["status"] = JsonValue.Create("open") }),
+                new RecordingTrace(), new LayoutResolutionRequest("request-1", "principal.clerk-4"));
+
+        // The pinned predicate holds, so the block places; the other pinned predicate does not.
+        Assert.Equal("Northwind", Assert.Single(Guarded(new(Predicate: open.Pin), closure).Blocks).Value?.ToString());
+        Assert.Equal("gated", Assert.Single(Guarded(new(Predicate: closed.Pin), closure).Hidden));
+
+        // Fail closed: no closure, a digest the closure does not carry, and a guard holding both forms.
+        Assert.Equal("gated", Assert.Single(Guarded(new(Predicate: open.Pin), null).Hidden));
+        Assert.Equal("gated", Assert.Single(Guarded(new(Predicate: open.Pin with { Digest = closed.Pin.Digest }), closure).Hidden));
+        Assert.Equal("gated", Assert.Single(Guarded(new("{\"==\":[1,1]}", open.Pin), closure).Hidden));
+        Assert.Equal("gated", Assert.Single(Guarded(new(), closure).Hidden));
+    }
+
     [Fact(DisplayName = "layout-auth-19 (runtime): a related block observes the second record and an undeclared relationship refuses")]
     public void ARelatedBlockObservesTheSecondRecordAndRefusesAnUndeclaredRelationship()
     {
@@ -322,7 +346,7 @@ public sealed class LayoutBindingResolutionTests
     private static JsonElement Json(string raw) => JsonDocument.Parse(raw).RootElement.Clone();
 
     private static LayoutBlock Block(string id, LayoutBinding binding, string? showWhen = null)
-        => new(id, "layout.list", binding, [], ShowWhen: showWhen);
+        => new(id, "layout.list", binding, [], ShowWhen: showWhen is null ? null : new(Expression: showWhen));
 
     private static LayoutDefinition Definition(LayoutMedium medium, LayoutIntent intent, params LayoutBlock[] blocks)
         => new(new("invoice", "1.0.0", "tenant-a", LayoutCascadeLayer.TenantConfiguration, JsonSerializer.SerializeToElement(new { source = "t-582" }), "standard", false, []), 1, medium, intent, blocks, [], [], [], null, []);
