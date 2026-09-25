@@ -21,6 +21,15 @@ public interface IFormExecutionContextProvider
     ValueTask<FormExecutionScope> GetRequiredAsync(FormEngineAction action, CancellationToken cancellationToken = default);
 }
 
+/// <summary>
+/// DES-0016 forms-eng-2 — the host decides whether the submitter satisfies the form's own submit gate
+/// (role, standing or capability, forms-ck-4). A form that declares a gate with no port is refused.
+/// </summary>
+public interface IFormSubmitGateAccess
+{
+    ValueTask<bool> SatisfiesAsync(FormExecutionScope scope, Harborline.Foundation.Forms.Models.FormDefinition definition, FormSubmitGate gate, CancellationToken cancellationToken = default);
+}
+
 public sealed record FormSubmitRequest(
     FormDefinitionId FormId,
     JsonDocument Candidate,

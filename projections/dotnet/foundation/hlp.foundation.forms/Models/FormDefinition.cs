@@ -85,6 +85,9 @@ namespace Harborline.Foundation.Forms.Models;
 /// <see cref="CreatedAt"/> on a freshly-registered revision.</param>
 /// <param name="Authoring">Optional immutable Harborline App authoring metadata that cannot be
 /// reconstructed exactly from the schema and runtime overlay.</param>
+/// <param name="SubmitGate">Who may submit this form (DES-0016 forms-ck-4): exactly one of a role, a
+/// standing or a registered authorization capability. Absent, the form keeps the generic Forms write
+/// capability.</param>
 public sealed record FormDefinition(
     FormDefinitionId Id,
     SemanticVersion Version,
@@ -96,4 +99,5 @@ public sealed record FormDefinition(
     FormDefinitionLineage? Lineage,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt,
-    FormDefinitionAuthoring? Authoring = null);
+    FormDefinitionAuthoring? Authoring = null,
+    FormSubmitGate? SubmitGate = null);

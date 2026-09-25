@@ -224,4 +224,13 @@ public static class FormDefinitionCodes
     /// carrying a <c>sectionId</c>, or a <c>scroll-to-section</c> carrying a <c>url</c>. Inert at
     /// render, but a config the admission tolerates silently is a footgun; fail-closed instead.</summary>
     public const string BlocksActionExtraneousTarget = "form.blocks.action_extraneous_target";
+
+    // ── Submit gate (DES-0016 forms-ck-4, forms-auth-16; T-724 ruling 77) ─────────
+
+    /// <summary>A submit gate names none, or more than one, of role, standing and capability.</summary>
+    public const string SubmitGateFormInvalid = "form.submit_gate.form_invalid";
+
+    /// <summary>A submit gate names a capability Access's register does not declare: a form cannot
+    /// declare an authorization capability of its own (forms-auth-16, T-747).</summary>
+    public const string SubmitGateCapabilityUnknown = "form.submit_gate.capability_unknown";
 }
