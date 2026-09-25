@@ -38,6 +38,14 @@ public static class BookingDefinitionCodes
     public const string MaintenanceNotFromRecord = "booking.resource.maintenance_not_from_record";
     /// <summary>The Resource names no base-hours source (booking-ck-7).</summary>
     public const string AvailabilitySourceRequired = "booking.resource.availability_source_required";
+    /// <summary><c>hold_mode</c> is neither <c>none</c> nor <c>allowed</c> (booking-ck-8).</summary>
+    public const string HoldModeUnknown = "booking.resource.hold_mode_unknown";
+    /// <summary>An allowed hold without a positive whole default or maximum lifetime in minutes (booking-ck-8).</summary>
+    public const string HoldDurationInvalid = "booking.resource.hold_duration_invalid";
+    /// <summary>A hold lifetime on a Resource that permits no holds (booking-ck-8).</summary>
+    public const string HoldDurationWithoutHold = "booking.resource.hold_duration_without_hold";
+    /// <summary>A default hold lifetime above the maximum (booking-ck-8).</summary>
+    public const string HoldDefaultExceedsMaximum = "booking.resource.hold_default_exceeds_maximum";
     /// <summary>A duration list that is empty, or holds a duration that is not a positive whole number of minutes (booking-auth-13).</summary>
     public const string DurationInvalid = "booking.bookable.duration_invalid";
     /// <summary>A required resource that is not an admitted Resource (booking-auth-11, L1085).</summary>
@@ -87,7 +95,7 @@ public static class BookingDefinitionAdmission
         ["kernel_core", "subsystem", "platform_package", "domain_package", "tenant_configuration"];
     private static readonly string[] ResourceMembers =
         ["kind", "envelope", "name", "from_type_id", "capacity_kind", "pool_size", "setup_minutes", "cleanup_minutes",
-         "maintenance_windows", "availability_from"];
+         "maintenance_windows", "availability_from", "hold_mode", "default_duration_minutes", "maximum_duration_minutes"];
     private static readonly string[] BookableMembers =
         ["kind", "envelope", "name", "on_type_id", "duration_intervals_minutes", "requires", "require_all", "book_gate",
          "eligibility_expression", "waitlist"];
@@ -194,6 +202,31 @@ public static class BookingDefinitionAdmission
 
         if (string.IsNullOrWhiteSpace(Text(body["availability_from"])))
             refusals.Add(new(BookingDefinitionCodes.AvailabilitySourceRequired, "/availability_from"));
+
+        HoldPolicy(body, refusals);
+    }
+
+    // T-724 rulings Q1, Q20 and Q22: the Resource carries a hold policy; the hold stays runtime state.
+    private static void HoldPolicy(JsonObject body, List<DefinitionRefusal> refusals)
+    {
+        var mode = body["hold_mode"] is null ? "none" : Text(body["hold_mode"]);
+        if (mode is not ("none" or "allowed"))
+        {
+            refusals.Add(new(BookingDefinitionCodes.HoldModeUnknown, "/hold_mode"));
+            return;
+        }
+        var durations = new[] { "default_duration_minutes", "maximum_duration_minutes" };
+        if (mode == "none")
+        {
+            foreach (var member in durations)
+                if (body.ContainsKey(member)) refusals.Add(new(BookingDefinitionCodes.HoldDurationWithoutHold, "/" + member));
+            return;
+        }
+        foreach (var member in durations)
+            if (Whole(body[member]) is not > 0) refusals.Add(new(BookingDefinitionCodes.HoldDurationInvalid, "/" + member));
+        if (Whole(body[durations[0]]) is > 0 and var defaultMinutes && Whole(body[durations[1]]) is > 0 and var maximumMinutes
+            && defaultMinutes > maximumMinutes)
+            refusals.Add(new(BookingDefinitionCodes.HoldDefaultExceedsMaximum, "/default_duration_minutes"));
     }
 
     private static IReadOnlySet<string>? RecordType(JsonObject body, string member, BookingAdmissionContext context,

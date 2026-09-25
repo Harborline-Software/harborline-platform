@@ -122,6 +122,57 @@ public sealed class BookingDefinitionTests
             [(BookingDefinitionCodes.AvailabilitySourceRequired, "/availability_from")]);
     }
 
+    [Fact(DisplayName = "booking-ck-8: a Resource declares a hold policy, none by default or allowed with default and maximum whole minutes")]
+    public void ResourceDeclaresAHoldPolicy()
+    {
+        var none = BookingResourceDefinition.Parse(Fixtures.Resource().ToJsonString());
+        Assert.Equal((BookingHoldMode.None, (int?)null, (int?)null), (none.HoldMode, none.DefaultHoldMinutes, none.MaximumHoldMinutes));
+        var allowed = BookingResourceDefinition.Parse(Fixtures.Resource(Hold("allowed", 15, 30)).ToJsonString());
+        Assert.Equal((BookingHoldMode.Allowed, (int?)15, (int?)30), (allowed.HoldMode, allowed.DefaultHoldMinutes, allowed.MaximumHoldMinutes));
+        AssertRefusals(Admit(DefinitionKind.Resources, Fixtures.Resource(Hold("allowed", 30, 30))), []);
+        AssertRefusals(Admit(DefinitionKind.Resources, Fixtures.Resource(Hold("none", null, null))), []);
+
+        AssertRefusals(Admit(DefinitionKind.Resources, Fixtures.Resource(Hold("sometimes", null, null))),
+            [(BookingDefinitionCodes.HoldModeUnknown, "/hold_mode")]);
+        AssertRefusals(Admit(DefinitionKind.Resources, Fixtures.Resource(Hold("allowed", null, 0))), [
+            (BookingDefinitionCodes.HoldDurationInvalid, "/default_duration_minutes"),
+            (BookingDefinitionCodes.HoldDurationInvalid, "/maximum_duration_minutes"),
+        ]);
+        AssertRefusals(Admit(DefinitionKind.Resources, Fixtures.Resource(Hold("allowed", 45, 30))),
+            [(BookingDefinitionCodes.HoldDefaultExceedsMaximum, "/default_duration_minutes")]);
+        AssertRefusals(Admit(DefinitionKind.Resources, Fixtures.Resource(Hold("none", 15, 30))), [
+            (BookingDefinitionCodes.HoldDurationWithoutHold, "/default_duration_minutes"),
+            (BookingDefinitionCodes.HoldDurationWithoutHold, "/maximum_duration_minutes"),
+        ]);
+        AssertRefusals(Admit(DefinitionKind.Resources, Fixtures.Resource(body => body["maximum_duration_minutes"] = 30)),
+            [(BookingDefinitionCodes.HoldDurationWithoutHold, "/maximum_duration_minutes")]);
+    }
+
+    [Fact(DisplayName = "booking-ck-8: a Bookable hold takes the minimum policy across its required Resources, and any Resource without holds means confirm directly")]
+    public void BookableHoldPolicyIsTheMinimumAcrossResources()
+    {
+        BookingResourceDefinition Resource(Action<JsonObject> edit) => BookingResourceDefinition.Parse(Fixtures.Resource(edit).ToJsonString());
+        var nurse = Resource(Hold("allowed", 20, 60));
+        var pump = Resource(Hold("allowed", 10, 90));
+        var line = Resource(Hold("none", null, null));
+
+        Assert.Null(BookingHoldPolicy.For([nurse, pump, line]));
+        Assert.Null(BookingHoldPolicy.For([]));
+        var policy = BookingHoldPolicy.For([nurse, pump])!;
+        Assert.Equal(new BookingHoldPolicy(10, 60), policy);
+        Assert.Equal((10, (string?)null), policy.Lifetime(null));
+        Assert.Equal((60, (string?)null), policy.Lifetime(60));
+        Assert.Equal((0, BookingHoldCodes.LifetimeExceedsMaximum), policy.Lifetime(61));
+        Assert.Equal((0, BookingHoldCodes.LifetimeInvalid), policy.Lifetime(0));
+    }
+
+    private static Action<JsonObject> Hold(string mode, int? defaultMinutes, int? maximumMinutes) => body =>
+    {
+        body["hold_mode"] = mode;
+        if (defaultMinutes is { } d) body["default_duration_minutes"] = d;
+        if (maximumMinutes is { } m) body["maximum_duration_minutes"] = m;
+    };
+
     [Fact(DisplayName = "booking-ck-10,15: a Bookable declares positive duration intervals in whole minutes and the record type it is offered against")]
     public void BookableDeclaresDurationAndOfferedType()
     {

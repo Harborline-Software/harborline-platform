@@ -32,13 +32,18 @@ public static class BookingHoldCodes
     public const string Terminal = "booking.hold.terminal";
     /// <summary>An expiry attempted before the hold's expiry instant.</summary>
     public const string NotExpired = "booking.hold.not_expired";
+    /// <summary>A requested hold lifetime that is not a positive whole number of minutes.</summary>
+    public const string LifetimeInvalid = "booking.hold.lifetime_invalid";
+    /// <summary>A requested hold lifetime above the Bookable's effective maximum (T-724 ruling Q21).</summary>
+    public const string LifetimeExceedsMaximum = "booking.hold.lifetime_exceeds_maximum";
 }
 
 /// <summary>The hold after a transition, and the refusal when the requested transition did not happen.</summary>
 public sealed record BookingHoldOutcome(BookingHold Hold, string? Refusal);
 
 /// <summary>
-/// A hold is Booking runtime state, never pack content (ADR 0095 ruling 7). These transitions are
+/// A hold is Booking runtime state, never pack content (ADR 0095 ruling 7). It is valid over the
+/// half-open interval [created, <see cref="ExpiresAtUtc"/>): at or after expiry it is expired (T-724 Q3). These transitions are
 /// pure: the caller passes the kernel clock read inside the commit's transaction, never the client's
 /// clock or the request's start time (ADR 0095 Q2, booking-ck-22), and commits the result under the
 /// same version fence. The transactional effect is T-606's.

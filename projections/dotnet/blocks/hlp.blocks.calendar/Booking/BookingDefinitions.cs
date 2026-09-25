@@ -19,7 +19,10 @@ public sealed record BookingResourceDefinition(
     int SetupMinutes,
     int CleanupMinutes,
     IReadOnlyList<string> MaintenanceWindows,
-    string AvailabilityFrom)
+    string AvailabilityFrom,
+    BookingHoldMode HoldMode = BookingHoldMode.None,
+    int? DefaultHoldMinutes = null,
+    int? MaximumHoldMinutes = null)
 {
     /// <summary>Reads an admitted Resource body.</summary>
     /// <exception cref="FormatException">The body was not admitted as a Resource.</exception>
@@ -35,7 +38,10 @@ public sealed record BookingResourceDefinition(
             Whole(body["setup_minutes"]) ?? 0,
             Whole(body["cleanup_minutes"]) ?? 0,
             Strings(body["maintenance_windows"]),
-            Required(body["availability_from"]));
+            Required(body["availability_from"]),
+            Text(body["hold_mode"]) == "allowed" ? BookingHoldMode.Allowed : BookingHoldMode.None,
+            Whole(body["default_duration_minutes"]),
+            Whole(body["maximum_duration_minutes"]));
     }
 
     internal static JsonObject Admitted(string bodyJson, string kind)
@@ -95,4 +101,43 @@ public sealed record BookingBookableDefinition(
             Text(body["eligibility_expression"]),
             body["waitlist"]?.GetValueKind() == System.Text.Json.JsonValueKind.True);
     }
+}
+
+/// <summary>
+/// Whether a Resource permits holds (booking-ck-8, T-724 rulings Q1, Q20 and Q22). A permitted hold
+/// uses the Resource's capacity kind to determine its claim: the entire Resource for exclusive, or an
+/// explicit positive unit quantity not exceeding available pooled capacity for pool. The hold mode
+/// does not redefine the capacity kind.
+/// </summary>
+public enum BookingHoldMode
+{
+    None,
+    Allowed,
+}
+
+/// <summary>
+/// A Bookable's effective hold policy across its required Resources (T-724 ruling Q21): the minimum
+/// of their default lifetimes and the minimum of their maximums, in whole minutes. One hold claims
+/// every required Resource with one expiry, so any Resource that permits no hold means the Bookable
+/// cannot be held and is confirmed directly.
+/// </summary>
+public sealed record BookingHoldPolicy(int DefaultMinutes, int MaximumMinutes)
+{
+    /// <summary>The effective policy, or <see langword="null"/> when the Bookable cannot be held.</summary>
+    public static BookingHoldPolicy? For(IReadOnlyCollection<BookingResourceDefinition> required)
+    {
+        ArgumentNullException.ThrowIfNull(required);
+        if (required.Count == 0 || required.Any(resource => resource.HoldMode != BookingHoldMode.Allowed)) return null;
+        return new(required.Min(resource => resource.DefaultHoldMinutes!.Value),
+            required.Min(resource => resource.MaximumHoldMinutes!.Value));
+    }
+
+    /// <summary>The lifetime a hold receives: the default when none is requested; above the maximum refuses.</summary>
+    public (int Minutes, string? Refusal) Lifetime(int? requestedMinutes) => requestedMinutes switch
+    {
+        null => (DefaultMinutes, null),
+        <= 0 => (0, BookingHoldCodes.LifetimeInvalid),
+        var minutes when minutes > MaximumMinutes => (0, BookingHoldCodes.LifetimeExceedsMaximum),
+        var minutes => (minutes.Value, null),
+    };
 }
