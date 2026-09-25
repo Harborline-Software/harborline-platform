@@ -127,7 +127,7 @@ public sealed class RuleDefinitionCatalog
         string requestId, CancellationToken cancellationToken = default)
     {
         RequireRules(key, cancellationToken);
-        if (string.IsNullOrWhiteSpace(versionId)) throw Refuse("definition.version_id_required", "/versionId");
+        if (string.IsNullOrWhiteSpace(versionId)) throw Refuse("definition.version_id_required", "/versionId", DefinitionAdmissionPhase.Publish);
         // The registered Rules admission runs inside VersionedDefinitionStore.Apply:
         // replay/fence -> immutable candidate -> Publish admission -> second fence.  A
         // history pre-read here would validate a stale body and undermine that atomic seam.
@@ -215,19 +215,19 @@ public sealed class RuleDefinitionCatalog
             if (!seen.Add(selection.Key)) throw Refuse(RuleDefinitionCodes.InvalidDocument,
                 "/selections/" + index + "/key");
             if (selection.Policy.Kind == RuleVersionPolicyKind.Draft)
-                throw Refuse("rules.release.draft_refused", "/selections/" + index + "/policy");
+                throw Refuse("rules.release.draft_refused", "/selections/" + index + "/policy", DefinitionAdmissionPhase.Publish);
 
             var resolution = await ResolveAsync(selection.Key, selection.Policy, RuleResolveScope.Production,
                 cancellationToken).ConfigureAwait(false);
             if (resolution.Status == RuleResolutionStatus.DraftRefused)
-                throw Refuse("rules.release.draft_refused", "/selections/" + index + "/policy");
+                throw Refuse("rules.release.draft_refused", "/selections/" + index + "/policy", DefinitionAdmissionPhase.Publish);
             if (resolution.Status != RuleResolutionStatus.Resolved || resolution.Snapshot is null)
-                throw Refuse("definition.not_found", "/selections/" + index);
+                throw Refuse("definition.not_found", "/selections/" + index, DefinitionAdmissionPhase.Publish);
 
             var binding = new DefinitionBinding(selection.Key, resolution.Snapshot.Revision.Document.VersionId);
             var published = await _store.ResolvePublishedAsync(binding, cancellationToken).ConfigureAwait(false);
             if (published is null || published.Revision != resolution.Snapshot.Revision.Revision)
-                throw Refuse("definition.not_found", "/selections/" + index);
+                throw Refuse("definition.not_found", "/selections/" + index, DefinitionAdmissionPhase.Publish);
             materialized.Add(new(binding, published.Document.Version,
                 RuleDefinitionCodec.SerializeCanonical(Decode(published).Source)));
         }
@@ -278,7 +278,7 @@ public sealed class RuleDefinitionCatalog
         => new(revision, RequireSource(ValidateSource(revision.Document, RuleIntentPhase.Persisted)));
 
     private static RuleDefinitionDocument RequireSource(RuleIntentResult result)
-        => result.IsValid ? result.Document! : throw new DefinitionRefusalException(Refusals(result));
+        => result.IsValid ? result.Document! : throw new DefinitionRefusalException(StageOf(result), Refusals(result));
 
     private static DefinitionRefusal[] Refusals(RuleIntentResult result)
         => result.Diagnostics.Select(item => new DefinitionRefusal(item.Code, item.Location)).ToArray();
@@ -297,5 +297,9 @@ public sealed class RuleDefinitionCatalog
         if (key.Kind != DefinitionKind.Rules) throw Refuse("definition.registry_unknown", "/registry");
     }
 
-    private static DefinitionRefusalException Refuse(string code, string pointer) => new([new(code, pointer)]);
+    private static DefinitionRefusalException Refuse(string code, string pointer,
+        DefinitionAdmissionPhase stage = DefinitionAdmissionPhase.Author) => new(stage, [new(code, pointer)]);
+
+    private static DefinitionAdmissionPhase StageOf(RuleIntentResult result)
+        => result.Diagnostics.Any(item => item.Phase == RuleIntentPhase.Publish) ? DefinitionAdmissionPhase.Publish : DefinitionAdmissionPhase.Author;
 }

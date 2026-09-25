@@ -6,7 +6,11 @@ namespace Harborline.Blocks.BuilderDefinitions;
 public sealed record SafetyFloorMemberState(string Member, int SeedFloor, bool Writable, string Reason);
 
 /// <summary>An authoring verdict: every refusal as a stable code and RFC 6901 pointer, and content only when there are none.</summary>
-public sealed record SafetyFloorAuthoringResult(IReadOnlyList<DefinitionRefusal> Refusals, JsonNode? Content);
+public sealed record SafetyFloorAuthoringResult(IReadOnlyList<DefinitionRefusal> Refusals, JsonNode? Content)
+{
+    /// <summary>Floor authoring runs at the author stage.</summary>
+    public DefinitionAdmissionPhase Stage => DefinitionAdmissionPhase.Author;
+}
 
 /// <summary>
 /// Authoring a sealed safety floor (DES-0018 <c>rules-auth-8</c>): a downstream author may raise a seeded floor and
