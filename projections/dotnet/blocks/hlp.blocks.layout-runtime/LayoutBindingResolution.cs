@@ -70,8 +70,15 @@ public static class LayoutBindingKinds
 /// </remarks>
 public interface ILayoutBindingSources
 {
-    /// <summary>Resolves one record-field result for the record in <paramref name="scope"/>.</summary>
-    bool TryResolveField(LayoutBindingScope scope, string fieldPath, out JsonNode? value);
+    /// <summary>
+    /// Reads one record field for the record in <paramref name="scope"/>, under the acting principal.
+    /// A declared field with no value is <see cref="LayoutFieldResult.Resolved"/> with a null value; a
+    /// field the principal may not read is <see cref="LayoutFieldResult.Denied"/>, which the resolver
+    /// renders exactly as the missing value and reports only to the protected trace (layout-auth-25,
+    /// layout-eng-31). The same observational-indistinguishability duty as <see cref="ResolveRelated"/>
+    /// applies; an unknown name is <see cref="LayoutFieldResult.Undeclared"/>.
+    /// </summary>
+    LayoutFieldResult ResolveField(LayoutBindingScope scope, string fieldPath);
 
     /// <summary>Resolves one named query's result.</summary>
     bool TryResolveQuery(LayoutBindingScope scope, string viewDefinitionId, out JsonNode? value);
@@ -156,6 +163,59 @@ public sealed record LayoutRelatedDenial(
     string Code,
     string Pointer);
 
+/// <summary>How one record-field read ended.</summary>
+public enum LayoutFieldOutcome
+{
+    /// <summary>The field was read; its value may be null (missing).</summary>
+    Resolved,
+    /// <summary>The acting principal may not read the field.</summary>
+    Denied,
+    /// <summary>The name is not a field of this record: an authoring fault, refused by name.</summary>
+    Undeclared,
+}
+
+/// <summary>The result of one record-field read.</summary>
+/// <param name="Outcome">How the read ended.</param>
+/// <param name="Value">The field's value when <see cref="LayoutFieldOutcome.Resolved"/>; null when it is missing.</param>
+/// <param name="DenialCode">The access decision's stable code when <see cref="LayoutFieldOutcome.Denied"/>.</param>
+/// <param name="DenialPointer">The access decision's pointer when <see cref="LayoutFieldOutcome.Denied"/>.</param>
+/// <param name="DeniedRecord">The record whose field was denied, when <see cref="LayoutFieldOutcome.Denied"/>.</param>
+public readonly record struct LayoutFieldResult(
+    LayoutFieldOutcome Outcome,
+    JsonNode? Value = null,
+    string? DenialCode = null,
+    string? DenialPointer = null,
+    LayoutRecordReference? DeniedRecord = null)
+{
+    /// <summary>A name that is not a field of this record.</summary>
+    public static LayoutFieldResult Undeclared => new(LayoutFieldOutcome.Undeclared);
+
+    /// <summary>A field read, whose value may be null.</summary>
+    public static LayoutFieldResult Resolved(JsonNode? value) => new(LayoutFieldOutcome.Resolved, value);
+
+    /// <summary>A field the acting principal may not read.</summary>
+    public static LayoutFieldResult Denied(string code, string pointer, LayoutRecordReference record)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(code);
+        ArgumentException.ThrowIfNullOrWhiteSpace(pointer);
+        ArgumentNullException.ThrowIfNull(record);
+        return new(LayoutFieldOutcome.Denied, null, code, pointer, record);
+    }
+}
+
+/// <summary>
+/// DES-0052 layout-auth-25, layout-run-5 — one record-field read denial, keyed by authored block and
+/// field plus the request. Never part of the viewer's resolution.
+/// </summary>
+public sealed record LayoutFieldDenial(
+    string RequestId,
+    string PrincipalId,
+    string BlockId,
+    string FieldPath,
+    LayoutRecordReference Record,
+    string Code,
+    string Pointer);
+
 /// <summary>A typed reference to one record: its Records type and its identity.</summary>
 public sealed record LayoutRecordReference(string RecordTypeId, string RecordId);
 
@@ -170,6 +230,9 @@ public interface ILayoutDecisionTrace
 {
     /// <summary>Records one related-binding denial.</summary>
     void RecordDenial(LayoutRelatedDenial denial);
+
+    /// <summary>Records one record-field read denial (layout-auth-25).</summary>
+    void RecordFieldDenial(LayoutFieldDenial denial);
 }
 
 /// <summary>
@@ -435,7 +498,7 @@ public sealed class LayoutBindingResolver
             return;
         }
 
-        Place(block, sources, childScope, blocks, refusals);
+        Place(block, sources, childScope, blocks, refusals, denials);
         foreach (var child in block.Children ?? [])
             Walk(child, sources, root, childScope, blocks, refusals, hidden, denials, cancellationToken);
     }
@@ -487,7 +550,8 @@ public sealed class LayoutBindingResolver
         ILayoutBindingSources sources,
         LayoutBindingScope scope,
         ICollection<LayoutResolvedBlock> blocks,
-        ICollection<LayoutBindingRefusal> refusals)
+        ICollection<LayoutBindingRefusal> refusals,
+        DenialSink denials)
     {
         var kind = LayoutBindingKinds.Of(block.Binding);
         var name = LayoutBindingKinds.NameOf(block.Binding);
@@ -496,7 +560,7 @@ public sealed class LayoutBindingResolver
         {
             // Static content is authored on the block; nothing is looked up (layout-ck-25).
             LayoutStaticBinding content => Static(content, out value),
-            LayoutRecordFieldBinding field => sources.TryResolveField(scope, field.FieldPath, out value),
+            LayoutRecordFieldBinding field => ReadField(block, sources, scope, field.FieldPath, denials, out value),
             LayoutQueryBinding query => sources.TryResolveQuery(scope, query.ViewDefinitionId, out value),
             LayoutMeasureBinding measure => sources.TryResolveMeasure(scope, measure.MeasurePath, out value),
             LayoutTemplateBinding template => sources.TryResolveTemplate(scope, template.TemplateDefinitionId, out value),
@@ -505,6 +569,16 @@ public sealed class LayoutBindingResolver
 
         if (resolved) blocks.Add(new(block.Id, block.Kind, kind, name, value, scope.RowId));
         else refusals.Add(new(block.Id, kind, name, scope.RowId));
+    }
+
+    // layout-auth-25, layout-eng-31: a field the principal may not read renders exactly as a missing
+    // one, a resolved null, and only the protected trace learns why.
+    private static bool ReadField(LayoutBlock block, ILayoutBindingSources sources, LayoutBindingScope scope, string fieldPath, DenialSink denials, out JsonNode? value)
+    {
+        var read = sources.ResolveField(scope, fieldPath);
+        value = read.Outcome == LayoutFieldOutcome.Resolved ? read.Value : null;
+        if (read.Outcome == LayoutFieldOutcome.Denied) denials.RecordField(block, fieldPath, read);
+        return read.Outcome != LayoutFieldOutcome.Undeclared;
     }
 
     private static bool Static(LayoutStaticBinding binding, out JsonNode? value)
@@ -574,6 +648,16 @@ public sealed class LayoutBindingResolver
                     $"The binding source denied '{relationship}' on block '{block.Id}' without a target, code and pointer; use LayoutRelatedResult.Denied.");
             Trace.RecordDenial(new(Request.RequestId, Request.PrincipalId, block.Id, LayoutBindingKinds.Of(block.Binding),
                 relationship, target, related.DenialCode, related.DenialPointer));
+        }
+
+        public void RecordField(LayoutBlock block, string fieldPath, LayoutFieldResult read)
+        {
+            if (read.DeniedRecord is not { } record
+                || string.IsNullOrWhiteSpace(read.DenialCode)
+                || string.IsNullOrWhiteSpace(read.DenialPointer))
+                throw new InvalidOperationException(
+                    $"The binding source denied field '{fieldPath}' on block '{block.Id}' without a record, code and pointer; use LayoutFieldResult.Denied.");
+            Trace.RecordFieldDenial(new(Request.RequestId, Request.PrincipalId, block.Id, fieldPath, record, read.DenialCode, read.DenialPointer));
         }
     }
 

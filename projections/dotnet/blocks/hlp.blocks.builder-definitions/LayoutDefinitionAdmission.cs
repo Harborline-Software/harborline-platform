@@ -460,7 +460,9 @@ public static class LayoutDefinitionAdmission
             (LayoutIntent.Capture, LayoutQueryBinding) => true,
             (LayoutIntent.Capture, LayoutMeasureBinding) => true,
             (LayoutIntent.Capture, LayoutTemplateBinding) => true,
-            (LayoutIntent.Issue, LayoutRecordFieldBinding) => !captures,
+            // layout-auth-25 (amended 2026-09-25): an issue block on page media reads a record field
+            // to render it, as ADR 0092's invoice does. Reading grants no capture (layout-auth-28).
+            (LayoutIntent.Issue, LayoutRecordFieldBinding) => !captures && medium != LayoutMedium.Page,
             _ => false,
         };
         if (unsupported) Add(refusals, LayoutDefinitionCodes.IntentBindingUnsupported, pointer);

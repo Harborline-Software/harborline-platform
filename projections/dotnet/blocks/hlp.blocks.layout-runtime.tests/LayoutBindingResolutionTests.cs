@@ -281,6 +281,34 @@ public sealed class LayoutBindingResolutionTests
             Assert.Single(deniedTrace.Denials));
     }
 
+    [Fact(DisplayName = "layout-auth-25, layout-eng-31: an issue block on page media reads a record field, and one the principal cannot read renders exactly like a missing one; only the trace sees the denial")]
+    public void AnIssueBlockOnPageMediaReadsARecordFieldAndADeniedFieldLooksMissing()
+    {
+        // ADR 0092 decision 1's invoice: the same record fields, issued on page media.
+        var definition = Definition(LayoutMedium.Page, LayoutIntent.Issue,
+            Block("total", new LayoutRecordFieldBinding("invoice.total")),
+            Block("supplier", new LayoutRecordFieldBinding("supplier")));
+        var request = new LayoutResolutionRequest("request-9", "principal.clerk-4");
+        var invoice = new LayoutRecordReference("record-type.invoice", "invoice-42");
+
+        var readable = Resolve(definition, new FieldOutcomeSources("invoice.total", LayoutFieldResult.Resolved(JsonValue.Create(412.5m))), new RecordingTrace(), request);
+        Assert.Equal("412.5", Block(readable, "total").Value?.ToString());
+
+        var missingTrace = new RecordingTrace();
+        var deniedTrace = new RecordingTrace();
+        var missing = Resolve(definition, new FieldOutcomeSources("invoice.total", LayoutFieldResult.Resolved(null)), missingTrace, request);
+        var denied = Resolve(definition, new FieldOutcomeSources("invoice.total", LayoutFieldResult.Denied("access.field_denied", "/grants/total", invoice)), deniedTrace, request);
+
+        // The viewer cannot tell a denied field from a missing one: same blocks, same value, no refusal.
+        Assert.Equal(Describe(missing), Describe(denied));
+        Assert.Empty(denied.Refusals);
+        Assert.Null(Block(denied, "total").Value);
+        Assert.Empty(missingTrace.FieldDenials);
+        Assert.Equal(
+            new LayoutFieldDenial("request-9", "principal.clerk-4", "total", "invoice.total", invoice, "access.field_denied", "/grants/total"),
+            Assert.Single(deniedTrace.FieldDenials));
+    }
+
     [Theory(DisplayName = "layout-run-5: resolution refuses to run without the request and principal that key denial evidence")]
     [InlineData("", "principal.clerk-4")]
     [InlineData(" ", "principal.clerk-4")]
@@ -315,15 +343,30 @@ public sealed class LayoutBindingResolutionTests
     private sealed class RecordingTrace : ILayoutDecisionTrace
     {
         public List<LayoutRelatedDenial> Denials { get; } = [];
+        public List<LayoutFieldDenial> FieldDenials { get; } = [];
 
         public void RecordDenial(LayoutRelatedDenial denial) => Denials.Add(denial);
+        public void RecordFieldDenial(LayoutFieldDenial denial) => FieldDenials.Add(denial);
+    }
+
+    /// <summary>The fixture's sources with one record field answered by a fixed outcome.</summary>
+    private sealed class FieldOutcomeSources(string fieldPath, LayoutFieldResult outcome) : ILayoutBindingSources
+    {
+        private readonly FixtureSources _fixture = new();
+
+        public LayoutFieldResult ResolveField(LayoutBindingScope scope, string path) => path == fieldPath ? outcome : _fixture.ResolveField(scope, path);
+        public bool TryResolveQuery(LayoutBindingScope scope, string viewDefinitionId, out JsonNode? value) => _fixture.TryResolveQuery(scope, viewDefinitionId, out value);
+        public bool TryResolveMeasure(LayoutBindingScope scope, string measurePath, out JsonNode? value) => _fixture.TryResolveMeasure(scope, measurePath, out value);
+        public bool TryResolveTemplate(LayoutBindingScope scope, string templateDefinitionId, out JsonNode? value) => _fixture.TryResolveTemplate(scope, templateDefinitionId, out value);
+        public bool TryResolveCollection(LayoutBindingScope scope, string name, out IReadOnlyList<JsonNode?> rows) => _fixture.TryResolveCollection(scope, name, out rows);
+        public LayoutRelatedResult ResolveRelated(LayoutBindingScope scope, string relationship) => _fixture.ResolveRelated(scope, relationship);
     }
 
     private sealed class RelatedOutcomeSources(LayoutRelatedResult outcome) : ILayoutBindingSources
     {
         private readonly FixtureSources _fixture = new();
 
-        public bool TryResolveField(LayoutBindingScope scope, string fieldPath, out JsonNode? value) => _fixture.TryResolveField(scope, fieldPath, out value);
+        public LayoutFieldResult ResolveField(LayoutBindingScope scope, string fieldPath) => _fixture.ResolveField(scope, fieldPath);
         public bool TryResolveQuery(LayoutBindingScope scope, string viewDefinitionId, out JsonNode? value) => _fixture.TryResolveQuery(scope, viewDefinitionId, out value);
         public bool TryResolveMeasure(LayoutBindingScope scope, string measurePath, out JsonNode? value) => _fixture.TryResolveMeasure(scope, measurePath, out value);
         public bool TryResolveTemplate(LayoutBindingScope scope, string templateDefinitionId, out JsonNode? value) => _fixture.TryResolveTemplate(scope, templateDefinitionId, out value);
@@ -378,15 +421,18 @@ public sealed class LayoutBindingResolutionTests
             ["name"] = JsonValue.Create("Northwind Aggregates Ltd"),
         };
 
-        public bool TryResolveField(LayoutBindingScope scope, string fieldPath, out JsonNode? value)
+        public LayoutFieldResult ResolveField(LayoutBindingScope scope, string fieldPath)
         {
             // A row scope answers from its own row, never from the surface root.
-            if (scope.IsRow) return scope.Values.TryGetValue(fieldPath, out value);
-            if (scope.Values.TryGetValue(fieldPath, out value)) return true;
+            if (scope.IsRow) return Found(scope.Values, fieldPath);
+            if (scope.Values.ContainsKey(fieldPath)) return Found(scope.Values, fieldPath);
             // Only the related scope answers the related record's fields, so a resolver that forgot to
             // switch scope cannot pass by reading them from the surface root.
-            return Fields.TryGetValue(fieldPath, out value);
+            return Found(Fields, fieldPath);
         }
+
+        private static LayoutFieldResult Found(IReadOnlyDictionary<string, JsonNode?> values, string fieldPath)
+            => values.TryGetValue(fieldPath, out var value) ? LayoutFieldResult.Resolved(value) : LayoutFieldResult.Undeclared;
 
         public bool TryResolveQuery(LayoutBindingScope scope, string viewDefinitionId, out JsonNode? value)
         {

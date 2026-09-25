@@ -71,9 +71,23 @@ public sealed class LayoutDefinitionProducerTests
         var mixed = ScreenDefinition(block => block.Id == "static"
             ? block with { Intent = LayoutIntent.Issue, Binding = new LayoutRecordFieldBinding("customer.name") } : block);
         LayoutDefinitionAdmission.ValidateForPublish(mixed, Hosted);
-        AssertRefusal(PageDefinition(block => block.Id == "document"
-            ? block with { Binding = new LayoutRecordFieldBinding("customer.name") } : block),
+    }
+
+    [Fact(DisplayName = "layout-auth-25 (amended 2026-09-25): an issue block on page media reads a record field to render it; a screen surface that captures nothing still refuses one, and page media still never capture")]
+    public void AnIssueBlockOnPageMediaReadsARecordField()
+    {
+        // ADR 0092 decision 1's invoice: record fields, intent issue, page media.
+        var invoice = PageDefinition(block => block.Id == "document"
+            ? block with { Binding = new LayoutRecordFieldBinding("customer.name") } : block);
+        LayoutDefinitionAdmission.ValidateForPublish(invoice, Hosted);
+
+        // Read-for-rendering only: the same block on a screen that captures nothing still refuses,
+        AssertRefusal(invoice with { Medium = LayoutMedium.Screen, PageLayouts = [], PageMasters = [], PageRuns = [] },
             LayoutDefinitionCodes.IntentBindingUnsupported, "/blocks/0/children/1/binding");
+        // and reading grants no capture: a capture block on page media refuses as before (layout-auth-28).
+        AssertRefusal(PageDefinition(block => block.Id == "document"
+            ? block with { Binding = new LayoutRecordFieldBinding("customer.name"), Intent = LayoutIntent.Capture } : block),
+            LayoutDefinitionCodes.CaptureOnPage, "/blocks/0/children/1/intent");
     }
 
     [Fact]
