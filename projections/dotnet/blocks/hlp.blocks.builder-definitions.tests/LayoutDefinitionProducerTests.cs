@@ -73,6 +73,31 @@ public sealed class LayoutDefinitionProducerTests
         LayoutDefinitionAdmission.ValidateForPublish(mixed, Hosted);
     }
 
+    [Fact(DisplayName = "layout-ck-43, layout-ck-44: a text binding of literal and field runs, with a field run's fallback, round-trips and refuses a malformed run or capture")]
+    public void ATextBindingRoundTripsAndRefusesAMalformedRunOrCapture()
+    {
+        var text = new LayoutTextBinding([new LayoutTextRun(Text: "Bill to: "), new LayoutTextRun(FieldPath: "customer.name", Fallback: "Customer")]);
+        var definition = PageDefinition(block => block.Id == "document" ? block with { Binding = text } : block);
+        LayoutDefinitionAdmission.ValidateForPublish(definition, Hosted);
+
+        var canonical = LayoutDefinitionJson.SerializeCanonical(definition);
+        var json = Encoding.UTF8.GetString(canonical);
+        Assert.Contains("{\"binding_kind\":\"text\",\"runs\":[{\"text\":\"Bill to: \"},{\"fallback\":\"Customer\",\"field_path\":\"customer.name\"}]}", json, StringComparison.Ordinal);
+        Assert.Equal(canonical, LayoutDefinitionJson.SerializeCanonical(LayoutDefinitionJson.Deserialize(canonical)));
+
+        AssertRefusal(PageDefinition(block => block.Id == "document" ? block with { Binding = new LayoutTextBinding([]) } : block),
+            LayoutDefinitionCodes.BindingInvalid, "/blocks/0/children/1/binding/runs");
+        AssertRefusal(PageDefinition(block => block.Id == "document" ? block with { Binding = new LayoutTextBinding([new LayoutTextRun(FieldPath: " ")]) } : block),
+            LayoutDefinitionCodes.BindingInvalid, "/blocks/0/children/1/binding/runs/0");
+        // A run is exactly one of a literal or a field; a fallback belongs to a field run only.
+        foreach (var malformed in new[] { new LayoutTextRun(), new LayoutTextRun(Text: "x", FieldPath: "customer.name"), new LayoutTextRun(Text: "x", Fallback: "y") })
+            AssertRefusal(PageDefinition(block => block.Id == "document" ? block with { Binding = new LayoutTextBinding([new LayoutTextRun(Text: "ok"), malformed]) } : block),
+                LayoutDefinitionCodes.BindingInvalid, "/blocks/0/children/1/binding/runs/1");
+        // Composed text is output: a capture block cannot bind it.
+        AssertRefusal(ScreenDefinition(block => block.Id == "capture" ? block with { Binding = text } : block),
+            LayoutDefinitionCodes.IntentBindingUnsupported, "/blocks/0/children/0/binding");
+    }
+
     [Fact(DisplayName = "layout-auth-25 (amended 2026-09-25): an issue block on page media reads a record field to render it; a screen surface that captures nothing still refuses one, and page media still never capture")]
     public void AnIssueBlockOnPageMediaReadsARecordField()
     {
@@ -202,7 +227,8 @@ public sealed class LayoutDefinitionProducerTests
         Assert.DoesNotContain("latest", json, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("\"order\"", json, StringComparison.Ordinal);
         // layout-ck-29: the guard is an object holding its one form, never a bare string.
-        Assert.Contains("\"show_when\":{\"expression\":", json, StringComparison.Ordinal);
+        Assert.Contains("\"show_when\":{\"expression\":\"", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("is_well_formed", json, StringComparison.Ordinal);
     }
 
     [Fact(DisplayName = "layout-ck-16..20,24,33: page geometry, masters, static regions and page runs round-trip")]

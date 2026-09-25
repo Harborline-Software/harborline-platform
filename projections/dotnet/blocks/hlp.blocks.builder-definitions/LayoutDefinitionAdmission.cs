@@ -451,18 +451,29 @@ public static class LayoutDefinitionAdmission
             LayoutMeasureBinding value => value.MeasurePath,
             LayoutTemplateBinding value => value.TemplateDefinitionId,
             LayoutStaticBinding => "static",
+            LayoutTextBinding => "text",
             _ => string.Empty,
         };
         if (string.IsNullOrWhiteSpace(identity)) Add(refusals, LayoutDefinitionCodes.BindingInvalid, pointer);
+        // layout-ck-43, layout-ck-44: a text binding has runs, each exactly a literal or a field.
+        if (binding is LayoutTextBinding text)
+        {
+            var runs = text.Runs ?? [];
+            if (runs.Count == 0) Add(refusals, LayoutDefinitionCodes.BindingInvalid, $"{pointer}/runs");
+            for (var index = 0; index < runs.Count; index++)
+                if (runs[index] is not { IsWellFormed: true })
+                    Add(refusals, LayoutDefinitionCodes.BindingInvalid, $"{pointer}/runs/{index}");
+        }
 
         var unsupported = (intent, binding) switch
         {
             (LayoutIntent.Capture, LayoutQueryBinding) => true,
             (LayoutIntent.Capture, LayoutMeasureBinding) => true,
             (LayoutIntent.Capture, LayoutTemplateBinding) => true,
+            (LayoutIntent.Capture, LayoutTextBinding) => true,
             // layout-auth-25 (amended 2026-09-25): an issue block on page media reads a record field
             // to render it, as ADR 0092's invoice does. Reading grants no capture (layout-auth-28).
-            (LayoutIntent.Issue, LayoutRecordFieldBinding) => !captures && medium != LayoutMedium.Page,
+            (LayoutIntent.Issue, LayoutRecordFieldBinding or LayoutTextBinding) => !captures && medium != LayoutMedium.Page,
             _ => false,
         };
         if (unsupported) Add(refusals, LayoutDefinitionCodes.IntentBindingUnsupported, pointer);

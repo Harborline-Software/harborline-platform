@@ -34,6 +34,9 @@ public static class LayoutBindingKinds
     /// <summary>layout-ck-25: content authored on the block itself.</summary>
     public const string Static = "static";
 
+    /// <summary>layout-ck-43: text composed of literal and record-field runs.</summary>
+    public const string Text = "text";
+
     /// <summary>Names the authored kind of one binding.</summary>
     public static string Of(LayoutBinding binding) => binding switch
     {
@@ -42,6 +45,7 @@ public static class LayoutBindingKinds
         LayoutMeasureBinding => Measure,
         LayoutTemplateBinding => Template,
         LayoutStaticBinding => Static,
+        LayoutTextBinding => Text,
         _ => "unknown",
     };
 
@@ -53,6 +57,7 @@ public static class LayoutBindingKinds
         LayoutMeasureBinding value => value.MeasurePath,
         LayoutTemplateBinding value => value.TemplateDefinitionId,
         LayoutStaticBinding => Static,
+        LayoutTextBinding => Text,
         _ => string.Empty,
     };
 }
@@ -561,6 +566,7 @@ public sealed class LayoutBindingResolver
             // Static content is authored on the block; nothing is looked up (layout-ck-25).
             LayoutStaticBinding content => Static(content, out value),
             LayoutRecordFieldBinding field => ReadField(block, sources, scope, field.FieldPath, denials, out value),
+            LayoutTextBinding text => Compose(block, text, sources, scope, denials, out value, ref name),
             LayoutQueryBinding query => sources.TryResolveQuery(scope, query.ViewDefinitionId, out value),
             LayoutMeasureBinding measure => sources.TryResolveMeasure(scope, measure.MeasurePath, out value),
             LayoutTemplateBinding template => sources.TryResolveTemplate(scope, template.TemplateDefinitionId, out value),
@@ -579,6 +585,31 @@ public sealed class LayoutBindingResolver
         value = read.Outcome == LayoutFieldOutcome.Resolved ? read.Value : null;
         if (read.Outcome == LayoutFieldOutcome.Denied) denials.RecordField(block, fieldPath, read);
         return read.Outcome != LayoutFieldOutcome.Undeclared;
+    }
+
+    // layout-ck-43: the runs compose in order. layout-ck-44: a field run whose value is absent (null
+    // or missing, or denied, which looks missing) shows its fallback; an empty string is a value.
+    // An undeclared field refuses the block by that field's name.
+    private static bool Compose(LayoutBlock block, LayoutTextBinding text, ILayoutBindingSources sources, LayoutBindingScope scope, DenialSink denials, out JsonNode? value, ref string name)
+    {
+        value = null;
+        var composed = new System.Text.StringBuilder();
+        foreach (var run in text.Runs)
+        {
+            if (run.FieldPath is not { } path)
+            {
+                composed.Append(run.Text);
+                continue;
+            }
+            if (!ReadField(block, sources, scope, path, denials, out var field))
+            {
+                name = path;
+                return false;
+            }
+            composed.Append(field is null || field.GetValueKind() == System.Text.Json.JsonValueKind.Null ? run.Fallback : field.ToString());
+        }
+        value = JsonValue.Create(composed.ToString());
+        return true;
     }
 
     private static bool Static(LayoutStaticBinding binding, out JsonNode? value)
