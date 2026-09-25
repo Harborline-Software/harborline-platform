@@ -1,6 +1,6 @@
 import { useState, type ChangeEvent } from 'react'
 import { GuidedExpressionEditor } from '@harborline-platform/hlp.ui.rule-authoring'
-import { expressionToRulesText } from '@harborline-software/rule-authoring'
+import { formulaDraftToSkin, type FormulaExpr, type RuleDefinitionExpression } from '@harborline-software/rule-authoring'
 import type { LayoutAuthoringBlock, LayoutAuthoringCapture, LayoutAuthoringCatalogue, LayoutAuthoringEditorProps, LayoutAuthoringDraft, LayoutAuthoringPageRun, LayoutBindingKind, LayoutContainerFlow, LayoutIntent } from './LayoutRuntime.types'
 
 const bindingKinds: readonly { readonly id: LayoutBindingKind; readonly label: string }[] = [
@@ -21,6 +21,24 @@ const gaps = [0, 1, 2, 3, 4, 5, 6, 7, 8] as const
 
 /** layout-auth-18: only a collection can repeat, and a query or a record field is the collection. */
 const collectionKinds: readonly LayoutBindingKind[] = ['query', 'record_field']
+
+// The guided editor speaks the definition shape; Rules' formula lowering takes its editor shape.
+// ponytail: mirrors rule-authoring's private editorExpression, since that frozen module exports no guard lowering.
+function formulaExpression(value: RuleDefinitionExpression): FormulaExpr {
+  const type = { Number: 'number', Text: 'text', Boolean: 'boolean' } as const
+  switch (value.kind) {
+    case 'Ref': return { kind: 'ref', ref: value.name }
+    case 'Literal': return { kind: 'literal', value: value.value, valueType: type[value.valueType] }
+    case 'Binary': return { kind: 'binary', op: value.op, left: formulaExpression(value.left), right: formulaExpression(value.right) }
+    case 'Call': return { kind: 'call', op: value.op, args: value.args.map(formulaExpression) }
+    case 'If': return { kind: 'if', when: { op: value.when.op, left: formulaExpression(value.when.left), right: formulaExpression(value.when.right) }, then: formulaExpression(value.then), else: formulaExpression(value.else) }
+  }
+}
+
+/** Lowers a guided guard to the Rules text publication compiles (T-724 ruling 39). */
+function guardText(guide: RuleDefinitionExpression): string {
+  return JSON.stringify(formulaDraftToSkin({ skin: 'formula', scope: 'Schema', scopeTarget: '', outputType: 'Validate', inputs: [], expression: formulaExpression(guide) }, 'guard').expression)
+}
 
 /** A repeating block or a parent needs a container; the default is a stack (T-724 ruling 41). */
 function withContainer(block: LayoutAuthoringBlock): LayoutAuthoringBlock {
@@ -113,7 +131,7 @@ function BlockBehaviour({ index, block, blocks, intent, catalogue, onChange }: {
     <select aria-label={`Block ${index + 1} show when authoring`} value={rawGuard ? 'raw' : 'guided'} onChange={event => setRawGuard(event.currentTarget.value === 'raw')}><option value="guided">Guided expression</option><option value="raw">Rules text</option></select>
     {rawGuard
       ? <label>Show when<input aria-label={`Block ${index + 1} show when`} value={block.showWhen ?? ''} onChange={event => onChange(event.currentTarget.value ? { ...unguarded, showWhen: event.currentTarget.value } : unguarded)} /></label>
-      : <GuidedExpressionEditor site="rule" label={`Block ${index + 1} show when`} value={block.showWhenGuide ?? null} contract={guardContract} onChange={guide => onChange({ ...unguarded, showWhen: expressionToRulesText(guide), showWhenGuide: guide })} />}
+      : <GuidedExpressionEditor site="rule" label={`Block ${index + 1} show when`} value={block.showWhenGuide ?? null} contract={guardContract} onChange={guide => onChange({ ...unguarded, showWhen: guardText(guide), showWhenGuide: guide })} />}
     {block.showWhen !== undefined && <button type="button" aria-label={`Remove block ${index + 1} show when`} onClick={() => onChange(unguarded)}>Remove guard</button>}
     {intent === 'capture' && <>
       <label><input aria-label={`Block ${index + 1} required`} type="checkbox" checked={declaredRequired || (block.capture?.required ?? false)} disabled={declaredRequired} onChange={event => onChange(withCapture(block, { required: event.currentTarget.checked }))} />Required</label>

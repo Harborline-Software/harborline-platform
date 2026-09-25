@@ -123,7 +123,7 @@
         "projections/typescript/foundation/hlp.foundation.rule-authoring/package.json": "80b158588c0792d4aa0ae3a11d61de28967ce136e0af8362aa4544ecc75176f9",
         "projections/typescript/foundation/hlp.foundation.rule-authoring/src/compile.ts": "e1e77f1a0f8ca445f30f054fb619eb3ea0fc1d86fbb3992bf736c67000bacdf4",
         "projections/typescript/foundation/hlp.foundation.rule-authoring/src/definition-json.ts": "f8b2b8c2b798695ca596820c715d4471c0d26c17a2ffc3655fc75e952d12c5a4",
-        "projections/typescript/foundation/hlp.foundation.rule-authoring/src/definition.ts": "9e8bde5d98888bc7a265f802cc3bc8615bd4378c1821cfa69e70b83c05c79e32",
+        "projections/typescript/foundation/hlp.foundation.rule-authoring/src/definition.ts": "0898665a8f585b9e4fb7d2398919aedfd44fa8932f48852c25ac1c56107f2418",
         "projections/typescript/foundation/hlp.foundation.rule-authoring/src/index.ts": "f4e92388e771c270ce576bd8bf4ed38eab0ac5868c78d57db162fdaf0eeeaf85",
         "projections/typescript/foundation/hlp.foundation.rule-authoring/src/key-suggestion.ts": "f573576bf24c3b9e3afbc614c7a42326f7a395d4d7b980b0442effea3e3edeee",
         "projections/typescript/foundation/hlp.foundation.rule-authoring/src/lint.ts": "d5e0ea55c258732dbf030f8cb677d8e22ca34698c559dc248dedf75bd83abae4",
