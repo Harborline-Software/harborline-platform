@@ -47,7 +47,8 @@ internal static class FormContractMapper
         IReadOnlySet<string> sensitiveFields,
         IReadOnlySet<string> withheldFields,
         RuleEvaluationResult? rules,
-        IReadOnlyDictionary<string, FormBoundField>? bindings = null)
+        IReadOnlyDictionary<string, FormBoundField>? bindings,
+        IReadOnlySet<string> hiddenPages)
     {
         var readable = FormCandidateEvaluator.ReadableFields(scope, definition);
         var projected = new Dictionary<string, Contract.FormViewField>(StringComparer.Ordinal);
@@ -97,6 +98,15 @@ internal static class FormContractMapper
             Title = definition.Overlay.Title is null ? default : Contract.Optional<Contract.InternationalizedText?>.Some(ToText(definition.Overlay.Title)),
             Description = definition.Overlay.Description is null ? default : Contract.Optional<Contract.InternationalizedText?>.Some(ToText(definition.Overlay.Description)),
             Sections = sections,
+            Pages = definition.Overlay.Pages is { Count: > 0 } pages
+                ? pages.Select(page => new Contract.FormViewPage
+                {
+                    Id = page.Id,
+                    Title = ToText(page.Title),
+                    Sections = page.Sections.ToArray(),
+                    Visible = !hiddenPages.Contains(page.Id),
+                }).ToArray()
+                : default(Contract.Optional<IReadOnlyList<Contract.FormViewPage>>),
         };
     }
 

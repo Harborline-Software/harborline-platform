@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.foundation.forms-engine",
-  "interfaceRevision": 10,
+  "interfaceRevision": 11,
   "status": "frozen",
   "purpose": "Own the complete tenant-scoped Dynamic Forms authoring admission, render, validate, calculate, protect, submit, audit, projection-outbox, and recovery behavior behind narrow caller interfaces and production-safe ports.",
   "dependencies": [
-    {"moduleId": "hlp.contracts.forms", "minimumRevision": 6},
+    {"moduleId": "hlp.contracts.forms", "minimumRevision": 7},
     {"moduleId": "hlp.contracts.identities", "minimumRevision": 1},
     {"moduleId": "hlp.contracts.fields", "minimumRevision": 1},
     {"moduleId": "hlp.foundation.actor", "minimumRevision": 1},
@@ -41,12 +41,13 @@
     "projectionDelivery": "Lease one self-contained durable outbox envelope with tenant, Party, actor, form/version, instance, case reference, accepted protected values, and the engine submit instant. Suppress concurrent in-process delivery, release leases on cancellation/failure, and require sink idempotency for crash-boundary retries. Return typed reason/field/target skips; pending and failed rows remain recoverable after a new engine/adapter instance starts."
   },
   "capabilities": {
-    "render": ["load current published definition", "resolve bounded reusable references", "enforce section and field read roles", "project nested items and layout", "evaluate calculations and presentation rules", "withhold ciphertext", "decrypt only with current capability and successful audit"],
+    "render": ["load current published definition", "resolve bounded reusable references", "enforce section and field read roles", "project nested items and layout", "decide page visibility through Rules guards", "evaluate calculations and presentation rules", "withhold ciphertext", "decrypt only with current capability and successful audit"],
     "validate": ["candidate byte ceiling", "schema lookup and stable errors", "rule evaluation", "hidden/read-only pruning", "calculated accepted values", "authorization failures", "provider and rule timeouts fail closed"],
     "submit": ["section and field write authorization", "protect classified and undeclared values", "canonical request fingerprint", "idempotent receipt", "atomic submission/audit/outbox", "one submit instant", "accepted/pruned projection values", "case reference", "explicit projection status"],
     "recovery": ["lease pending outbox rows", "idempotent delivery", "complete or retry", "restart recovery", "duplicate-attempt suppression"]
   },
   "invariants": [
+    "Render decides each declared page's visibility through its Rules guard in the Render phase, over the same sensitive-stripped candidate its field rules read with resolved computed values materialised first, and projects the verdict, never the guard; a guard that does not evaluate hides its page.",
     "Bound fields use the shared field runtime for complete-membership narrowing, inherited domain authority, kind-limit execution and readable-domain editor choice; author-carried ControlHint does not select the rendered editor, including for unbound schemas.",
     "Unreadable or withheld fields expose neither permitted values nor a derived editor. Shared required, multiplicity, domain and kind validation receives the accepted candidate without rewriting its numeric spelling, and preserves neutral field.* refusals at escaped RFC 6901 pointers.",
     "Unknown, inactive-tenant, cross-tenant, and absent instances are indistinguishable at the caller interface.",

@@ -4,7 +4,7 @@ import test from 'node:test'
 import {formsWireSurface, readFormsWire, HARBORLINE_JSONLOGIC_V1} from '../dist/index.js'
 
 test('exports the complete frozen forms surface', () => {
-  assert.equal(formsWireSurface.declarations.length, 84)
+  assert.equal(formsWireSurface.declarations.length, 85)
   assert.equal(HARBORLINE_JSONLOGIC_V1, 'harborline-jsonlogic/v1')
   assert.deepEqual(formsWireSurface.closedValues.LayoutGap, [0, 1, 2, 3, 4, 5, 6, 8])
   assert.deepEqual(formsWireSurface.closedValues.RuleActionKind, ['Visibility', 'Required', 'ReadOnly', 'Validate', 'Compute', 'Presentation', 'Options'])

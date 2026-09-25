@@ -37,7 +37,7 @@ public sealed class FormsFixtureConformanceTests
             }
         }
 
-        Assert.Equal(28, cases.Length);
+        Assert.Equal(29, cases.Length);
     }
 
     private static void AssertClosedValues(JsonElement fixture)

@@ -10,7 +10,7 @@ public sealed class FormsContractTests
     [Fact]
     public void Surface_contains_all_frozen_exports_and_exact_closed_layout_values()
     {
-        Assert.Equal(84, FormsContractSurface.Exports.Count);
+        Assert.Equal(85, FormsContractSurface.Exports.Count);
         Assert.Contains(nameof(FormDefinition), FormsContractSurface.Exports);
         Assert.Contains(nameof(OptionsOutcome), FormsContractSurface.Exports);
         Assert.Contains(nameof(FormViewFieldRules), FormsContractSurface.Exports);
