@@ -218,7 +218,7 @@ jobs:
       # to disk, and CI does not run the receipt runner). Capture it here so the upload step below
       # has a file; pipefail keeps the gate's exit code (ticket 330 s4c).
       - name: Collect the gallery shard reports
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           pattern: gallery-shard-*
           path: ${{ runner.temp }}/gallery-shards
