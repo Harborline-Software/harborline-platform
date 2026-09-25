@@ -46,6 +46,59 @@ public sealed record HeldRoleSet(
 public sealed record RecordStandingReference(
     [property: JsonPropertyName("name")] string Name);
 
+public sealed record AuthorizationCapabilityReference(
+    [property: JsonPropertyName("name")] string Name);
+
+public sealed record AuthorizationCapabilityDefinition(
+    [property: JsonPropertyName("capability")] AuthorizationCapabilityReference Capability,
+    [property: JsonPropertyName("version")] int Version);
+
+public sealed class AuthorizationCapabilityRegister
+{
+    private readonly IReadOnlyDictionary<string, AuthorizationCapabilityDefinition> _definitions;
+
+    private AuthorizationCapabilityRegister(IReadOnlyDictionary<string, AuthorizationCapabilityDefinition> definitions) =>
+        _definitions = definitions;
+
+    public static AuthorizationCapabilityRegister FromDeclarations(IEnumerable<AuthorizationCapabilityDefinition> definitions)
+    {
+        ArgumentNullException.ThrowIfNull(definitions);
+        var snapshot = new Dictionary<string, AuthorizationCapabilityDefinition>(StringComparer.Ordinal);
+        foreach (var definition in definitions)
+        {
+            ArgumentNullException.ThrowIfNull(definition);
+            ValidateReference(definition.Capability);
+            if (definition.Version < 1)
+                throw new ArgumentException($"invalid-authorization-capability-version: {definition.Capability.Name}", nameof(definitions));
+            if (!snapshot.TryAdd(definition.Capability.Name, definition))
+                throw new ArgumentException($"duplicate-authorization-capability: {definition.Capability.Name}", nameof(definitions));
+        }
+        return new AuthorizationCapabilityRegister(new ReadOnlyDictionary<string, AuthorizationCapabilityDefinition>(snapshot));
+    }
+
+    public AuthorizationCapabilityDefinition? Resolve(AuthorizationCapabilityReference capability)
+    {
+        ValidateReference(capability);
+        return _definitions.GetValueOrDefault(capability.Name);
+    }
+
+    public AuthorizationCapabilityDefinition Require(AuthorizationCapabilityReference capability) =>
+        Resolve(capability) ?? throw new KeyNotFoundException($"unknown-authorization-capability: {capability.Name}");
+
+    // owner:operation, lower-case kebab segments: records:read, layout:open, rules:evaluate-explain.
+    private static void ValidateReference(AuthorizationCapabilityReference capability)
+    {
+        ArgumentNullException.ThrowIfNull(capability);
+        var parts = (capability.Name ?? string.Empty).Split(':');
+        if (parts.Length != 2 || !parts.All(IsSegment))
+            throw new ArgumentException($"invalid-authorization-capability: {capability.Name}", nameof(capability));
+    }
+
+    private static bool IsSegment(string segment) =>
+        segment.Length > 0 && segment[0] is >= 'a' and <= 'z'
+        && segment.All(c => c is >= 'a' and <= 'z' or >= '0' and <= '9' or '-');
+}
+
 public static class PlatformRoleVocabulary
 {
     private static readonly IReadOnlyCollection<RoleReference> DefinedRoles =

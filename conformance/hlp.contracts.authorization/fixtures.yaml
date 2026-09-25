@@ -6,6 +6,10 @@
     {"roleDefinitionId":"3b69e3cb-ec5e-4ad7-8c90-16ebc1896102","role":{"vocabulary":"sys.platform-roles","name":"auditor"},"displayName":"Auditor","owner":{"kind":"Platform","ownerId":"harborline-platform"},"isSealed":true},
     {"roleDefinitionId":"00000000-0000-0000-0000-000000000003","role":{"vocabulary":"tax.roles","name":"InvoiceApprover"},"displayName":"Invoice approver","owner":{"kind":"Package","ownerId":"finance"},"isSealed":false}
   ],
+  "capabilities": [
+    {"capability":{"name":"records:write"},"version":1},
+    {"capability":{"name":"layout:open"},"version":2}
+  ],
   "cases": [
     {"id":"resolve-qualified-role","operation":"resolve","role":{"vocabulary":"tax.roles","name":"InvoiceApprover"},"expected":"Invoice approver"},
     {"id":"require-qualified-role","operation":"require","role":{"vocabulary":"sys.platform-roles","name":"auditor"},"expected":"Auditor"},
@@ -22,6 +26,13 @@
     {"id":"domain-platform-inversion-refused","operation":"invalid","mutation":"domain-platform","expectedError":"invalid-role-ownership"},
     {"id":"unsealed-platform-refused","operation":"invalid","mutation":"unsealed-platform","expectedError":"invalid-role-ownership"},
     {"id":"sealed-domain-refused","operation":"invalid","mutation":"sealed-domain","expectedError":"invalid-role-ownership"},
-    {"id":"invented-platform-role-refused","operation":"invalid","mutation":"invented-platform-role","expectedError":"invalid-platform-role"}
+    {"id":"invented-platform-role-refused","operation":"invalid","mutation":"invented-platform-role","expectedError":"invalid-platform-role"},
+    {"id":"capability-resolves-with-version","operation":"resolve-capability","capability":{"name":"layout:open"},"expected":2},
+    {"id":"unknown-capability-resolves-undefined","operation":"resolve-capability","capability":{"name":"layout:submit"},"expected":null},
+    {"id":"unknown-capability-require-refused-by-name","operation":"require-capability","capability":{"name":"layout:submit"},"expectedError":"unknown-authorization-capability: layout:submit"},
+    {"id":"malformed-capability-reference-refused","operation":"require-capability","capability":{"name":"RECORDS:WRITE"},"expectedError":"invalid-authorization-capability: RECORDS:WRITE"},
+    {"id":"duplicate-capability-refused","operation":"invalid-capabilities","mutation":"duplicate","expectedError":"duplicate-authorization-capability: records:write"},
+    {"id":"malformed-capability-refused","operation":"invalid-capabilities","mutation":"malformed","expectedError":"invalid-authorization-capability: records"},
+    {"id":"unversioned-capability-refused","operation":"invalid-capabilities","mutation":"unversioned","expectedError":"invalid-authorization-capability-version: records:write"}
   ]
 }
