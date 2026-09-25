@@ -3,7 +3,6 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Harborline.Contracts.Forms;
 using Harborline.Foundation.RuleEngine;
-using Harborline.Foundation.RuleEngine.Compilation;
 using Harborline.Foundation.RuleEngine.Context;
 using Harborline.Foundation.RuleEngine.Environments;
 
@@ -80,10 +79,10 @@ public sealed class AccessScopeEvaluator
                 Id = "access.scope_false", Tier = RuleTier.JsonLogic, Scope = RuleScope.Field,
                 ScopeTarget = "access", Action = RuleActionKind.Validate, Expression = expression,
             }, RuleContextSnapshot.Capture(facts), RuleEvalScope.Root, AccessExpressionEnvironment.Admitted.For(EvaluationPhase.Run), cancellationToken);
-            return new(result.Ok, result.Ok ? "access.scope_matched" : "access.scope_false");
+            return new(result.Ok, result.Ok ? "access.scope_matched"
+                : RuleEngineCodes.IsCompileRejection(result.Error?.Code) ? "access.scope_invalid" : "access.scope_false");
         }
         catch (JsonException) { return new(false, "access.scope_invalid"); }
-        catch (RuleCompilationException) { return new(false, "access.scope_invalid"); }
     }
 
     // Inspect every branch, including short-circuited branches, before any field can be read.

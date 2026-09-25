@@ -1431,6 +1431,20 @@ public sealed class RuleEngineUnitTests
         Assert.Equal(RuleEngineCodes.PendingAtSave, v.Error!.Code);
     }
 
+    // T-687: a rule that does not compile is a withheld guard carrying the compile code, not an
+    // exception, so no caller of the seam has to hand-roll the fail-closed guarantee.
+    [Theory]
+    [InlineData("{\"frobnicate\":[1]}")]
+    [InlineData("not json")]
+    public void Guard_evaluator_fails_closed_on_a_rule_that_does_not_compile(string expression)
+    {
+        var guard = new GuardEvaluator(new FixedClock(Clock), RuleEngineLimits.Default);
+        var rule = RuleDefinitionFactory.Create("g.bad", RuleTier.JsonLogic, RuleScope.Schema, "", expression, RuleActionKind.Validate);
+        var v = guard.EvaluateGuard(rule, RuleContextSnapshot.Capture(Bag("amount", 1)), RuleEvalScope.Root, TestAdmission.Any);
+        Assert.False(v.Ok);
+        Assert.Equal(RuleEngineCodes.CompileInvalidExpression, v.Error!.Code);
+    }
+
     private static Dictionary<string, JsonNode?> Bag(string key, int value)
         => new() { [key] = JsonValue.Create(value) };
 

@@ -15,12 +15,17 @@ public sealed class LayoutPublishedSurfaceResolver
 {
     private readonly IVersionedDefinitionStore _store;
     private readonly LayoutRuntimeEngine _engine;
+    private readonly LayoutHostRegisters _registers;
 
     /// <summary>Creates a resolver over the shared registry-neutral definition store.</summary>
-    public LayoutPublishedSurfaceResolver(IVersionedDefinitionStore store, LayoutRuntimeEngine? engine = null)
+    /// <param name="store">The shared definition store.</param>
+    /// <param name="engine">The flow engine, or a new one.</param>
+    /// <param name="registers">The host's bound registers, or the platform grammar alone.</param>
+    public LayoutPublishedSurfaceResolver(IVersionedDefinitionStore store, LayoutRuntimeEngine? engine = null, LayoutHostRegisters? registers = null)
     {
         _store = store ?? throw new ArgumentNullException(nameof(store));
         _engine = engine ?? new LayoutRuntimeEngine();
+        _registers = registers ?? LayoutHostRegisters.Platform;
     }
 
     /// <summary>Resolves one exact published Layout version and derives its renderer-neutral plan.</summary>
@@ -48,13 +53,13 @@ public sealed class LayoutPublishedSurfaceResolver
 
         try
         {
-            LayoutPersistedValueAdmission.ValidateForRuntime(definition);
+            LayoutPersistedValueAdmission.ValidateForRuntime(definition, _registers);
         }
         catch (LayoutDefinitionAdmissionException exception)
         {
             throw new InvalidOperationException("layout.persisted_body_invalid", exception);
         }
 
-        return new(revision.Document.VersionId, definition, _engine.Flow(definition));
+        return new(revision.Document.VersionId, definition, _engine.Flow(definition, _registers.Pages));
     }
 }
