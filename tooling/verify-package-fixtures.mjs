@@ -1371,10 +1371,12 @@ function verifySchedulingCapability() {
   // Derived from the landed csprojs: Calendar -> Contracts + Foundation.Scheduling + Foundation.Authorization
   // (T-568: the booking requester is the kernel's authenticated context), and Authorization ->
   // MultiTenancy + RuleEngine; Blocks.Scheduling and Foundation.Scheduling add no Harborline package edges.
+  // T-605: Calendar -> BuilderDefinitions (Booking definitions bind the shared store) -> RuleAuthoring.
   const closure = assertPackageClosure(
     consumer,
     ['Harborline.Blocks.Calendar', 'Harborline.Blocks.Scheduling', 'Harborline.Foundation.Scheduling', 'Harborline.Contracts',
-      'Harborline.Foundation.Authorization', 'Harborline.Foundation.MultiTenancy', 'Harborline.Foundation.RuleEngine'],
+      'Harborline.Foundation.Authorization', 'Harborline.Foundation.MultiTenancy', 'Harborline.Foundation.RuleEngine',
+      'Harborline.Blocks.BuilderDefinitions', 'Harborline.Foundation.RuleAuthoring'],
     'Scheduling',
     /(?:Forms|Reports|Workflows|EntityViews|Kernel|Blazor|React)/i,
   )

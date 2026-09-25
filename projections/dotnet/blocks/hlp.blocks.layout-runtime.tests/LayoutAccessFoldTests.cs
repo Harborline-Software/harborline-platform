@@ -98,8 +98,8 @@ public sealed class LayoutAccessFoldTests
     {
         public List<string> Reads { get; } = [];
 
-        public bool TryResolveField(LayoutBindingScope scope, string fieldPath, out JsonNode? value)
-            => scope.Values.TryGetValue(fieldPath, out value);
+        public LayoutFieldResult ResolveField(LayoutBindingScope scope, string fieldPath)
+            => scope.Values.TryGetValue(fieldPath, out var value) ? LayoutFieldResult.Resolved(value) : LayoutFieldResult.Undeclared;
 
         public bool TryResolveQuery(LayoutBindingScope scope, string viewDefinitionId, out JsonNode? value)
         {
@@ -134,5 +134,7 @@ public sealed class LayoutAccessFoldTests
     private sealed class NoTrace : ILayoutDecisionTrace
     {
         public void RecordDenial(LayoutRelatedDenial denial) => throw new InvalidOperationException("No related binding is denied here.");
+
+        public void RecordFieldDenial(LayoutFieldDenial denial) => throw new InvalidOperationException("No field read is denied here.");
     }
 }

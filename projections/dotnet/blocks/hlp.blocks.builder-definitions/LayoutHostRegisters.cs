@@ -2,6 +2,7 @@ using System.Collections.Frozen;
 using System.Text.Json;
 using Harborline.Contracts.Fields;
 using Harborline.Contracts.Forms;
+using Harborline.Foundation.RuleEngine.References;
 using Json.Schema;
 
 namespace Harborline.Blocks.BuilderDefinitions;
@@ -15,12 +16,14 @@ namespace Harborline.Blocks.BuilderDefinitions;
 /// <param name="Pages">The page layouts and masters installed packs supply (layout-bound-7). Absent, a surface cites only its own.</param>
 /// <param name="ValidationRules">The named validation rules a capture block may cite (layout-bound-8). Absent, publication refuses every named rule.</param>
 /// <param name="Fields">The record fields a capture block's control is checked against at publication (T-724 ruling 37). Absent, publication refuses every authored control.</param>
+/// <param name="Predicates">The pinned closure a <c>show_when</c> predicate resolves through (layout-ck-29). Absent, publication refuses every predicate guard.</param>
 public sealed record LayoutHostRegisters(
     LayoutBlockKindRegistry Kinds,
     LayoutFieldControlRegistry? FieldControls = null,
     LayoutPageRegistry? Pages = null,
     LayoutValidationRuleRegistry? ValidationRules = null,
-    LayoutRecordFieldRegistry? Fields = null)
+    LayoutRecordFieldRegistry? Fields = null,
+    PinnedClosure? Predicates = null)
 {
     /// <summary>The platform's block grammar and no other register.</summary>
     public static LayoutHostRegisters Platform { get; } = new(LayoutBlockKindRegistry.Platform);

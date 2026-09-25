@@ -23,6 +23,10 @@ public enum DefinitionKind
     Records = 8,
     /// <summary>Pilot definitions.</summary>
     Pilot = 9,
+    /// <summary>Booking Resource definitions (DES-0025 booking-ck-2).</summary>
+    Resources = 10,
+    /// <summary>Booking Bookable definitions (DES-0025 booking-ck-9).</summary>
+    Bookables = 11,
 }
 
 /// <summary>Identifies one definition inside a tenant- and kind-scoped archive namespace.</summary>
