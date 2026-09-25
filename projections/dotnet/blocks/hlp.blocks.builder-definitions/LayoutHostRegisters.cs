@@ -19,6 +19,8 @@ namespace Harborline.Blocks.BuilderDefinitions;
 /// <param name="Fields">The record fields a capture block's control is checked against at publication (T-724 ruling 37). Absent, publication refuses every authored control.</param>
 /// <param name="Predicates">The pinned closure a <c>show_when</c> predicate resolves through (layout-ck-29). Absent, publication refuses every predicate guard.</param>
 /// <param name="Capabilities">Access's capability register a submit gate's capability arm resolves through (T-747). Absent, every capability arm refuses.</param>
+/// <param name="Roles">Access's role vocabulary a submit gate's role arm resolves through (layout-auth-23). Absent, publication refuses every role arm.</param>
+/// <param name="Standings">The standings installed standing rules declare, which a submit gate's standing arm names (layout-auth-23). Absent, publication refuses every standing arm.</param>
 public sealed record LayoutHostRegisters(
     LayoutBlockKindRegistry Kinds,
     LayoutFieldControlRegistry? FieldControls = null,
@@ -26,7 +28,9 @@ public sealed record LayoutHostRegisters(
     LayoutValidationRuleRegistry? ValidationRules = null,
     LayoutRecordFieldRegistry? Fields = null,
     PinnedClosure? Predicates = null,
-    AuthorizationCapabilityRegister? Capabilities = null)
+    AuthorizationCapabilityRegister? Capabilities = null,
+    RoleVocabulary? Roles = null,
+    IReadOnlySet<RecordStandingReference>? Standings = null)
 {
     /// <summary>The platform's block grammar and no other register.</summary>
     public static LayoutHostRegisters Platform { get; } = new(LayoutBlockKindRegistry.Platform);
