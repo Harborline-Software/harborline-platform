@@ -37,24 +37,24 @@ public sealed class BookingDefinitionTests
     [InlineData("type.missing", BookingDefinitionCodes.TypeUnknown)]
     public void ResourceAdmissionReadsOnlyTheBookableResourceTrait(string typeId, string? expected)
     {
-        var refusals = Admit(DefinitionKind.Resources, Fixtures.Resource("room", body => body["from_type_id"] = typeId));
+        var refusals = Admit(DefinitionKind.Resources, Fixtures.Resource(body => body["from_type_id"] = typeId));
         AssertRefusals(refusals, expected is null ? [] : [(expected, "/from_type_id")]);
     }
 
     [Fact(DisplayName = "booking-ck-4: capacity is exclusive by default, or a pool with its size")]
     public void CapacityIsExclusiveByDefault()
     {
-        var exclusive = BookingResourceDefinition.Parse(Fixtures.Resource("room", body => body.Remove("capacity_kind")).ToJsonString());
+        var exclusive = BookingResourceDefinition.Parse(Fixtures.Resource(body => body.Remove("capacity_kind")).ToJsonString());
         Assert.Equal(CapacityKind.Exclusive, exclusive.CapacityKind);
         Assert.Null(exclusive.PoolSize);
-        var pool = BookingResourceDefinition.Parse(Fixtures.Resource("room", body =>
+        var pool = BookingResourceDefinition.Parse(Fixtures.Resource(body =>
         {
             body["capacity_kind"] = "pool";
             body["pool_size"] = 4;
         }).ToJsonString());
         Assert.Equal(CapacityKind.Pool, pool.CapacityKind);
         Assert.Equal(4, pool.PoolSize);
-        AssertRefusals(Admit(DefinitionKind.Resources, Fixtures.Resource("room", body => body["capacity_kind"] = "scalar")),
+        AssertRefusals(Admit(DefinitionKind.Resources, Fixtures.Resource(body => body["capacity_kind"] = "scalar")),
             [(BookingDefinitionCodes.CapacityKindUnknown, "/capacity_kind")]);
     }
 
@@ -68,7 +68,7 @@ public sealed class BookingDefinitionTests
     [InlineData(null, BookingDefinitionCodes.PoolSizeInvalid)]
     public void PoolSizeMustBeAtLeastOne(string? size, string? expected)
     {
-        var body = Fixtures.Resource("room", item =>
+        var body = Fixtures.Resource(item =>
         {
             item["capacity_kind"] = "pool";
             if (size is null) item.Remove("pool_size");
@@ -76,23 +76,23 @@ public sealed class BookingDefinitionTests
         });
         AssertRefusals(Admit(DefinitionKind.Resources, body), expected is null ? [] : [(expected, "/pool_size")]);
         // An exclusive resource declares no pool size: capacity is two kinds, not a number.
-        AssertRefusals(Admit(DefinitionKind.Resources, Fixtures.Resource("room", item => item["pool_size"] = 1)),
+        AssertRefusals(Admit(DefinitionKind.Resources, Fixtures.Resource(item => item["pool_size"] = 1)),
             [(BookingDefinitionCodes.PoolSizeInvalid, "/pool_size")]);
     }
 
     [Fact(DisplayName = "booking-ck-5: setup and cleanup minutes are declared on the Resource; a negative buffer refuses")]
     public void BuffersAreDeclaredOnTheResource()
     {
-        var resource = BookingResourceDefinition.Parse(Fixtures.Resource("room").ToJsonString());
+        var resource = BookingResourceDefinition.Parse(Fixtures.Resource().ToJsonString());
         Assert.Equal(10, resource.SetupMinutes);
         Assert.Equal(15, resource.CleanupMinutes);
-        var unbuffered = BookingResourceDefinition.Parse(Fixtures.Resource("room", body =>
+        var unbuffered = BookingResourceDefinition.Parse(Fixtures.Resource(body =>
         {
             body.Remove("setup_minutes");
             body.Remove("cleanup_minutes");
         }).ToJsonString());
         Assert.Equal((0, 0), (unbuffered.SetupMinutes, unbuffered.CleanupMinutes));
-        AssertRefusals(Admit(DefinitionKind.Resources, Fixtures.Resource("room", body =>
+        AssertRefusals(Admit(DefinitionKind.Resources, Fixtures.Resource(body =>
         {
             body["setup_minutes"] = -1;
             body["cleanup_minutes"] = "15";
@@ -103,8 +103,8 @@ public sealed class BookingDefinitionTests
     public void MaintenanceIsReadFromTheRecord()
     {
         Assert.Equal(["field.out_of_service"],
-            BookingResourceDefinition.Parse(Fixtures.Resource("room").ToJsonString()).MaintenanceWindows);
-        AssertRefusals(Admit(DefinitionKind.Resources, Fixtures.Resource("room", body => body["maintenance_windows"] = new JsonArray(
+            BookingResourceDefinition.Parse(Fixtures.Resource().ToJsonString()).MaintenanceWindows);
+        AssertRefusals(Admit(DefinitionKind.Resources, Fixtures.Resource(body => body["maintenance_windows"] = new JsonArray(
             "field.out_of_service",
             new JsonObject { ["start"] = "2026-10-01T08:00:00Z", ["end"] = "2026-10-01T12:00:00Z" }))),
             [(BookingDefinitionCodes.MaintenanceNotFromRecord, "/maintenance_windows/1")]);
@@ -113,20 +113,20 @@ public sealed class BookingDefinitionTests
     [Fact(DisplayName = "booking-ck-7: availability_from names the base-hours source; a Resource without one refuses")]
     public void AvailabilitySourceIsRequired()
     {
-        Assert.Equal("supply.base-hours", BookingResourceDefinition.Parse(Fixtures.Resource("room").ToJsonString()).AvailabilityFrom);
-        AssertRefusals(Admit(DefinitionKind.Resources, Fixtures.Resource("room", body => body.Remove("availability_from"))),
+        Assert.Equal("supply.base-hours", BookingResourceDefinition.Parse(Fixtures.Resource().ToJsonString()).AvailabilityFrom);
+        AssertRefusals(Admit(DefinitionKind.Resources, Fixtures.Resource(body => body.Remove("availability_from"))),
             [(BookingDefinitionCodes.AvailabilitySourceRequired, "/availability_from")]);
-        AssertRefusals(Admit(DefinitionKind.Resources, Fixtures.Resource("room", body => body["availability_from"] = " ")),
+        AssertRefusals(Admit(DefinitionKind.Resources, Fixtures.Resource(body => body["availability_from"] = " ")),
             [(BookingDefinitionCodes.AvailabilitySourceRequired, "/availability_from")]);
     }
 
     [Fact(DisplayName = "booking-ck-10,15: a Bookable declares positive duration intervals and the record type it is offered against")]
     public void BookableDeclaresDurationAndOfferedType()
     {
-        var bookable = BookingBookableDefinition.Parse(Fixtures.Bookable("induction").ToJsonString());
+        var bookable = BookingBookableDefinition.Parse(Fixtures.Bookable().ToJsonString());
         Assert.Equal([90], bookable.DurationIntervals);
         Assert.Equal("type.learner", bookable.OnTypeId);
-        AssertRefusals(Admit(DefinitionKind.Bookables, Fixtures.Bookable("induction", body => body["on_type_id"] = "type.missing")),
+        AssertRefusals(Admit(DefinitionKind.Bookables, Fixtures.Bookable(body => body["on_type_id"] = "type.missing")),
             [(BookingDefinitionCodes.TypeUnknown, "/on_type_id")]);
     }
 
@@ -139,23 +139,23 @@ public sealed class BookingDefinitionTests
     [InlineData("90", BookingDefinitionCodes.DurationInvalid, "/duration_intervals")]
     public void DurationMustBePositive(string durations, string? code, string? location)
     {
-        var refusals = Admit(DefinitionKind.Bookables, Fixtures.Bookable("induction", body => body["duration_intervals"] = JsonNode.Parse(durations)));
+        var refusals = Admit(DefinitionKind.Bookables, Fixtures.Bookable(body => body["duration_intervals"] = JsonNode.Parse(durations)));
         AssertRefusals(refusals, code is null ? [] : [(code, location!)]);
     }
 
     [Fact(DisplayName = "booking-ck-11: required resources are a conjunction; a candidate list refuses")]
     public void RequiredResourcesAreAConjunction()
     {
-        Assert.Equal(["instructor", "room"], BookingBookableDefinition.Parse(Fixtures.Bookable("induction").ToJsonString()).Requires);
-        AssertRefusals(Admit(DefinitionKind.Bookables, Fixtures.Bookable("induction", body => body.Remove("require_all"))), []);
-        AssertRefusals(Admit(DefinitionKind.Bookables, Fixtures.Bookable("induction", body => body["require_all"] = false)),
+        Assert.Equal(["instructor", "room"], BookingBookableDefinition.Parse(Fixtures.Bookable().ToJsonString()).Requires);
+        AssertRefusals(Admit(DefinitionKind.Bookables, Fixtures.Bookable(body => body.Remove("require_all"))), []);
+        AssertRefusals(Admit(DefinitionKind.Bookables, Fixtures.Bookable(body => body["require_all"] = false)),
             [(BookingDefinitionCodes.CandidateListForbidden, "/require_all")]);
     }
 
     [Fact(DisplayName = "booking-auth-11: every required resource that is not an admitted Resource refuses, one refusal each")]
     public void RequiredResourceMustBeAdmitted()
     {
-        var body = Fixtures.Bookable("procedure", item => item["requires"] = new JsonArray("nurse", "room", "pump", "line"));
+        var body = Fixtures.Bookable(item => item["requires"] = new JsonArray("nurse", "room", "pump", "line"));
         AssertRefusals(Admit(DefinitionKind.Bookables, body), [
             (BookingDefinitionCodes.RequiredResourceUnknown, "/requires/0"),
             (BookingDefinitionCodes.RequiredResourceUnknown, "/requires/2"),
@@ -167,13 +167,13 @@ public sealed class BookingDefinitionTests
     [Fact(DisplayName = "booking-ck-12: the book gate names platform or domain roles and capabilities")]
     public void BookGateNamesRolesAndCapabilities()
     {
-        var bookable = BookingBookableDefinition.Parse(Fixtures.Bookable("induction").ToJsonString());
+        var bookable = BookingBookableDefinition.Parse(Fixtures.Bookable().ToJsonString());
         Assert.Equal([
             new BookGateEntry(new("sys.platform-roles", "administrator"), null),
             new BookGateEntry(new("tax.roles", "trainer"), null),
             new BookGateEntry(null, "training.book"),
         ], bookable.BookGate);
-        AssertRefusals(Admit(DefinitionKind.Bookables, Fixtures.Bookable("induction", body => body["book_gate"] = new JsonArray(
+        AssertRefusals(Admit(DefinitionKind.Bookables, Fixtures.Bookable(body => body["book_gate"] = new JsonArray(
             new JsonObject { ["role"] = new JsonObject { ["vocabulary"] = "tenant.custom", ["name"] = "x" } },
             new JsonObject { ["capability"] = "training.book", ["role"] = new JsonObject { ["vocabulary"] = "tax.roles", ["name"] = "x" } }))),
             [(BookingDefinitionCodes.GateEntryInvalid, "/book_gate/0"), (BookingDefinitionCodes.GateEntryInvalid, "/book_gate/1")]);
@@ -181,7 +181,7 @@ public sealed class BookingDefinitionTests
 
     [Fact(DisplayName = "booking-auth-14: a standing in the book gate refuses; the allocation being created does not exist yet")]
     public void BookGateRefusesAStanding()
-        => AssertRefusals(Admit(DefinitionKind.Bookables, Fixtures.Bookable("induction", body => ((JsonArray)body["book_gate"]!).Add(
+        => AssertRefusals(Admit(DefinitionKind.Bookables, Fixtures.Bookable(body => ((JsonArray)body["book_gate"]!).Add(
             new JsonObject { ["standing"] = new JsonObject { ["name"] = "author" } }))),
             [(BookingDefinitionCodes.GateStandingForbidden, "/book_gate/3")]);
 
@@ -189,22 +189,22 @@ public sealed class BookingDefinitionTests
     public void EligibilityIsCarriedVerbatim()
     {
         Assert.Equal("subject.qualification.current == true",
-            BookingBookableDefinition.Parse(Fixtures.Bookable("induction").ToJsonString()).EligibilityExpression);
-        Assert.Null(BookingBookableDefinition.Parse(Fixtures.Bookable("induction", body => body.Remove("eligibility_expression")).ToJsonString()).EligibilityExpression);
-        AssertRefusals(Admit(DefinitionKind.Bookables, Fixtures.Bookable("induction", body => body["eligibility_expression"] = new JsonObject())),
+            BookingBookableDefinition.Parse(Fixtures.Bookable().ToJsonString()).EligibilityExpression);
+        Assert.Null(BookingBookableDefinition.Parse(Fixtures.Bookable(body => body.Remove("eligibility_expression")).ToJsonString()).EligibilityExpression);
+        AssertRefusals(Admit(DefinitionKind.Bookables, Fixtures.Bookable(body => body["eligibility_expression"] = new JsonObject())),
             [(BookingDefinitionCodes.EligibilityInvalid, "/eligibility_expression")]);
     }
 
     [Fact(DisplayName = "booking-ck-14: waitlist is a flag declaring only that a queue exists")]
     public void WaitlistIsAFlag()
     {
-        Assert.True(BookingBookableDefinition.Parse(Fixtures.Bookable("induction").ToJsonString()).Waitlist);
-        Assert.False(BookingBookableDefinition.Parse(Fixtures.Bookable("induction", body => body.Remove("waitlist")).ToJsonString()).Waitlist);
+        Assert.True(BookingBookableDefinition.Parse(Fixtures.Bookable().ToJsonString()).Waitlist);
+        Assert.False(BookingBookableDefinition.Parse(Fixtures.Bookable(body => body.Remove("waitlist")).ToJsonString()).Waitlist);
     }
 
     [Fact(DisplayName = "booking-auth-16: an expiring-offer lifecycle authored on the Bookable refuses; that is a Workflow")]
     public void WaitlistOfferLifecycleRefuses()
-        => AssertRefusals(Admit(DefinitionKind.Bookables, Fixtures.Bookable("induction", body => body["waitlist"] = new JsonObject
+        => AssertRefusals(Admit(DefinitionKind.Bookables, Fixtures.Bookable(body => body["waitlist"] = new JsonObject
         {
             ["offer_expires_after_minutes"] = 30,
             ["on_expiry"] = "offer_next",
@@ -213,30 +213,40 @@ public sealed class BookingDefinitionTests
     [Fact(DisplayName = "booking-auth-21: a Bookable offered against a Schedulable type that is not a Resource is not refused")]
     public void SchedulableTypeIsNotRefused()
     {
-        AssertRefusals(Admit(DefinitionKind.Bookables, Fixtures.Bookable("induction", body => body["on_type_id"] = "type.crew")), []);
-        AssertRefusals(Admit(DefinitionKind.Bookables, Fixtures.Bookable("induction", body => body["on_type_id"] = "type.room")), []);
+        AssertRefusals(Admit(DefinitionKind.Bookables, Fixtures.Bookable(body => body["on_type_id"] = "type.crew")), []);
+        AssertRefusals(Admit(DefinitionKind.Bookables, Fixtures.Bookable(body => body["on_type_id"] = "type.room")), []);
     }
 
-    [Theory(DisplayName = "booking-ck-17: both definitions carry the full envelope, agreeing with the stored identity")]
+    [Theory(DisplayName = "booking-ck-17: both definitions carry the full envelope; the store owns identity, version and tenant, and the pack carries all eight")]
     [InlineData(DefinitionKind.Resources)]
     [InlineData(DefinitionKind.Bookables)]
     public void BothDefinitionsCarryTheEnvelope(DefinitionKind kind)
     {
         JsonObject Body(Action<JsonObject> edit) => kind == DefinitionKind.Resources
-            ? Fixtures.Resource("x", body => edit((JsonObject)body["envelope"]!))
-            : Fixtures.Bookable("x", body => edit((JsonObject)body["envelope"]!));
+            ? Fixtures.Resource(body => edit((JsonObject)body["envelope"]!))
+            : Fixtures.Bookable(body => edit((JsonObject)body["envelope"]!));
         AssertRefusals(Admit(kind, Body(_ => { })), []);
-        var members = new[] { "identity", "version", "tenant", "cascade_layer", "provenance", "retention_class", "legal_hold", "requires" };
-        foreach (var member in members)
+        foreach (var member in new[] { "cascade_layer", "provenance", "retention_class", "legal_hold", "requires" })
+            AssertRefusals(Admit(kind, Body(envelope => envelope.Remove(member))), [(BookingDefinitionCodes.EnvelopeInvalid, "/envelope/" + member)]);
+        // Store metadata is never duplicated into the stored body, so a restored draft cannot disagree with it.
+        AssertRefusals(Admit(kind, Body(envelope => envelope["version"] = "1.0.0")), [(BookingDefinitionCodes.EnvelopeStoreOwned, "/envelope/version")]);
+
+        var contentKind = BookingPackIdentity.ContentKindOf(kind);
+        var packed = Fixtures.Packed(Body(_ => { }), "x");
+        var entry = (JsonObject body) => new BookingPackEntry(contentKind, "x", "1.0.0",
+            PlatformPackageContent.PresentJson(System.Text.Encoding.UTF8.GetBytes(body.ToJsonString())));
+        Assert.Empty(BookingDefinitionPackage.Admit([entry(packed)], Fixtures.Context()));
+        foreach (var member in new[] { "identity", "version", "tenant" })
         {
-            var body = Body(envelope => envelope.Remove(member));
-            var document = Fixtures.Document(kind, body) with { Key = new(Fixtures.Tenant, kind, "x"), Version = "1.0.0" };
-            Assert.Equal([new DefinitionRefusal(BookingDefinitionCodes.EnvelopeInvalid, "/envelope/" + member)],
-                BookingDefinitionAdmission.Validate(document, Fixtures.Context()));
+            var missing = (JsonObject)packed.DeepClone();
+            ((JsonObject)missing["envelope"]!).Remove(member);
+            Assert.Equal([new DefinitionRefusal(BookingDefinitionCodes.EnvelopeInvalid, "/entries/0/envelope/" + member)],
+                BookingDefinitionPackage.Admit([entry(missing)], Fixtures.Context()));
         }
-        var stranger = Fixtures.Document(kind, Body(_ => { })) with { Key = new("tenant.b", kind, "x") };
-        Assert.Equal([new DefinitionRefusal(BookingDefinitionCodes.EnvelopeMismatch, "/envelope/tenant")],
-            BookingDefinitionAdmission.Validate(stranger, Fixtures.Context()));
+        var stranger = (JsonObject)packed.DeepClone();
+        stranger["envelope"]!["identity"] = "y";
+        Assert.Equal([new DefinitionRefusal(BookingDefinitionCodes.EnvelopeMismatch, "/entries/0/envelope/identity")],
+            BookingDefinitionPackage.Admit([entry(stranger)], Fixtures.Context()));
         Assert.Equal([new DefinitionRefusal(BookingDefinitionCodes.KindMismatch, "/kind")],
             BookingDefinitionAdmission.Validate(Fixtures.Document(kind == DefinitionKind.Resources ? DefinitionKind.Bookables : DefinitionKind.Resources,
                 Body(_ => { })), Fixtures.Context()));
@@ -265,11 +275,9 @@ internal static class Fixtures
         },
         id => (resources.Length == 0 ? ["instructor", "room"] : resources).Contains(id));
 
-    public static JsonObject Envelope(string id, string version = "1.0.0") => new()
+    /// <summary>The stored envelope: identity, version and tenant are the store's document metadata.</summary>
+    public static JsonObject Envelope() => new()
     {
-        ["identity"] = id,
-        ["version"] = version,
-        ["tenant"] = Tenant,
         ["cascade_layer"] = "domain_package",
         ["provenance"] = new JsonObject { ["kind"] = "package", ["package"] = "training" },
         ["retention_class"] = "definition",
@@ -277,12 +285,12 @@ internal static class Fixtures
         ["requires"] = new JsonArray(),
     };
 
-    public static JsonObject Resource(string id, Action<JsonObject>? edit = null, string version = "1.0.0")
+    public static JsonObject Resource(Action<JsonObject>? edit = null)
     {
         var body = new JsonObject
         {
             ["kind"] = "resource",
-            ["envelope"] = Envelope(id, version),
+            ["envelope"] = Envelope(),
             ["name"] = "Induction room",
             ["from_type_id"] = "type.room",
             ["capacity_kind"] = "exclusive",
@@ -295,12 +303,12 @@ internal static class Fixtures
         return body;
     }
 
-    public static JsonObject Bookable(string id, Action<JsonObject>? edit = null, string version = "1.0.0")
+    public static JsonObject Bookable(Action<JsonObject>? edit = null)
     {
         var body = new JsonObject
         {
             ["kind"] = "bookable",
-            ["envelope"] = Envelope(id, version),
+            ["envelope"] = Envelope(),
             ["name"] = "Induction class",
             ["on_type_id"] = "type.learner",
             ["duration_intervals"] = new JsonArray(90),
@@ -317,11 +325,17 @@ internal static class Fixtures
         return body;
     }
 
-    public static DefinitionDocument Document(DefinitionKind kind, JsonObject body, string? versionId = null)
+    public static DefinitionDocument Document(DefinitionKind kind, JsonObject body, string id = "x", string version = "1.0.0")
+        => new(new(Tenant, kind, id), $"{id}@{version}", version, body.ToJsonString());
+
+    /// <summary>The body as it travels: the full envelope with identity, version and tenant.</summary>
+    public static JsonObject Packed(JsonObject body, string id, string version = "1.0.0")
     {
-        var envelope = body["envelope"] as JsonObject;
-        var id = envelope?["identity"]?.GetValue<string>() ?? "unnamed";
-        var version = envelope?["version"]?.GetValue<string>() ?? "1.0.0";
-        return new(new(Tenant, kind, id), versionId ?? $"{id}@{version}", version, body.ToJsonString());
+        var packed = (JsonObject)body.DeepClone();
+        var envelope = (JsonObject)packed["envelope"]!;
+        envelope["identity"] = id;
+        envelope["version"] = version;
+        envelope["tenant"] = Tenant;
+        return packed;
     }
 }

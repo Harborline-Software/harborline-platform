@@ -9,11 +9,9 @@ namespace Harborline.Blocks.Calendar.Booking;
 
 /// <summary>
 /// A Resource: what supplies capacity (DES-0025 booking-ck-2 to ck-7). Read from an admitted body;
-/// the stored JSON, not this view, is the definition.
+/// the stored JSON, not this view, is the definition, and identity and version are the store's.
 /// </summary>
 public sealed record BookingResourceDefinition(
-    string Id,
-    string Version,
     string Name,
     string FromTypeId,
     CapacityKind CapacityKind,
@@ -30,7 +28,7 @@ public sealed record BookingResourceDefinition(
         var body = Admitted(bodyJson, "resource");
         var pool = Text(body["capacity_kind"]) == "pool";
         return new(
-            Required(body["envelope"]?["identity"]), Required(body["envelope"]?["version"]), Required(body["name"]),
+            Required(body["name"]),
             Required(body["from_type_id"]),
             pool ? CapacityKind.Pool : CapacityKind.Exclusive,
             pool ? Whole(body["pool_size"]) : null,
@@ -73,8 +71,6 @@ public sealed record BookGateEntry(RoleReference? Role, string? Capability)
 /// A Bookable: what may be booked (DES-0025 booking-ck-9 to ck-15). Read from an admitted body.
 /// </summary>
 public sealed record BookingBookableDefinition(
-    string Id,
-    string Version,
     string Name,
     string OnTypeId,
     IReadOnlyList<int> DurationIntervals,
@@ -89,8 +85,6 @@ public sealed record BookingBookableDefinition(
     {
         var body = BookingResourceDefinition.Admitted(bodyJson, "bookable");
         return new(
-            BookingResourceDefinition.Required(body["envelope"]?["identity"]),
-            BookingResourceDefinition.Required(body["envelope"]?["version"]),
             BookingResourceDefinition.Required(body["name"]),
             BookingResourceDefinition.Required(body["on_type_id"]),
             ((JsonArray)body["duration_intervals"]!).Select(item => Whole(item) ?? throw new FormatException(BookingDefinitionCodes.DurationInvalid)).ToArray(),

@@ -20,8 +20,10 @@ public static class BookingDefinitionCodes
     public const string TypeUnknown = "booking.definition.type_unknown";
     /// <summary>An envelope member is missing or malformed (booking-ck-17).</summary>
     public const string EnvelopeInvalid = "booking.envelope.invalid";
-    /// <summary>The envelope's identity, tenant or version disagrees with the stored document.</summary>
+    /// <summary>A packed envelope's identity or version disagrees with its pack entry.</summary>
     public const string EnvelopeMismatch = "booking.envelope.mismatch";
+    /// <summary>A stored body repeats identity, version or tenant, which the store owns as document metadata.</summary>
+    public const string EnvelopeStoreOwned = "booking.envelope.store_owned";
     /// <summary>The Resource's type lacks the sealed Bookable Resource trait (booking-ck-3, L1085).</summary>
     public const string ResourceTypeNotAdmitted = "booking.resource.type_not_admitted";
     /// <summary>Capacity is neither exclusive nor pool (booking-ck-4).</summary>
@@ -48,6 +50,14 @@ public static class BookingDefinitionCodes
     public const string EligibilityInvalid = "booking.bookable.eligibility_invalid";
     /// <summary>A waitlist authored as anything but a flag, such as an expiring-offer lifecycle (booking-auth-16, L508).</summary>
     public const string WaitlistLifecycleForbidden = "booking.bookable.waitlist_lifecycle_forbidden";
+    /// <summary>An Allocation or a hold authored as a definition: instances are tenant data (booking-auth-17, L499, L531).</summary>
+    public const string RuntimeDataNotADefinition = "booking.allocation.not_a_definition";
+    /// <summary>An Allocation or a hold on the pack path (booking-auth-18, L532).</summary>
+    public const string RuntimeDataInPack = "booking.pack.runtime_data_forbidden";
+    /// <summary>A pack entry whose content kind is not a Booking definition kind.</summary>
+    public const string PackContentUnsupported = "booking.pack.content_unsupported";
+    /// <summary>Only an immutable published version exports.</summary>
+    public const string PublishedVersionRequired = "booking.pack.published_version_required";
 }
 
 /// <summary>
@@ -67,6 +77,8 @@ public static class BookingDefinitionAdmission
     /// <summary>The sealed trait that admits a record type to reservation (platform seed ck-4, L1085).</summary>
     public const string BookableResourceTrait = "platform.trait.bookable-resource";
 
+    /// <summary>Envelope members the shared store owns as document metadata; the pack carries them.</summary>
+    internal static readonly string[] StoreOwnedEnvelopeMembers = ["identity", "version", "tenant"];
     private static readonly string[] EnvelopeMembers =
         ["identity", "version", "tenant", "cascade_layer", "provenance", "retention_class", "legal_hold", "requires"];
     private static readonly string[] CascadeLayers =
@@ -91,6 +103,7 @@ public static class BookingDefinitionAdmission
         ArgumentNullException.ThrowIfNull(document);
         ArgumentNullException.ThrowIfNull(context);
         if (Parse(document.BodyJson) is not { } body) return [new(BookingDefinitionCodes.BodyInvalid, "")];
+        if (IsRuntimeData(body)) return [new(BookingDefinitionCodes.RuntimeDataNotADefinition, "/kind")];
         var expected = document.Key.Kind switch
         {
             DefinitionKind.Resources => "resource",
@@ -102,7 +115,7 @@ public static class BookingDefinitionAdmission
 
         var refusals = new List<DefinitionRefusal>();
         Members(body, expected == "resource" ? ResourceMembers : BookableMembers, "", refusals);
-        Envelope(body["envelope"], document, refusals);
+        Envelope(body["envelope"], refusals);
         if (string.IsNullOrWhiteSpace(Text(body["name"]))) refusals.Add(new(BookingDefinitionCodes.NameRequired, "/name"));
         if (expected == "resource") Resource(body, context, refusals);
         else Bookable(body, context, refusals);
@@ -188,7 +201,7 @@ public static class BookingDefinitionAdmission
         return traits;
     }
 
-    private static void Envelope(JsonNode? node, DefinitionDocument document, List<DefinitionRefusal> refusals)
+    private static void Envelope(JsonNode? node, List<DefinitionRefusal> refusals)
     {
         if (node is not JsonObject envelope)
         {
@@ -196,15 +209,8 @@ public static class BookingDefinitionAdmission
             return;
         }
         Members(envelope, EnvelopeMembers, "/envelope", refusals);
-        foreach (var (member, actual) in new[]
-        {
-            ("identity", document.Key.DefinitionId), ("tenant", document.Key.Tenant), ("version", document.Version),
-        })
-        {
-            var value = Text(envelope[member]);
-            if (string.IsNullOrWhiteSpace(value)) refusals.Add(new(BookingDefinitionCodes.EnvelopeInvalid, "/envelope/" + member));
-            else if (value != actual) refusals.Add(new(BookingDefinitionCodes.EnvelopeMismatch, "/envelope/" + member));
-        }
+        foreach (var member in StoreOwnedEnvelopeMembers)
+            if (envelope.ContainsKey(member)) refusals.Add(new(BookingDefinitionCodes.EnvelopeStoreOwned, "/envelope/" + member));
         if (!CascadeLayers.Contains(Text(envelope["cascade_layer"])))
             refusals.Add(new(BookingDefinitionCodes.EnvelopeInvalid, "/envelope/cascade_layer"));
         if (envelope["provenance"] is not JsonObject)
@@ -233,6 +239,9 @@ public static class BookingDefinitionAdmission
         try { return JsonNode.Parse(json ?? "") as JsonObject; }
         catch (JsonException) { return null; }
     }
+
+    /// <summary>An Allocation or a hold is runtime state, never definition or pack content.</summary>
+    internal static bool IsRuntimeData(JsonObject body) => Text(body["kind"]) is "allocation" or "hold";
 
     internal static string? Text(JsonNode? node)
         => node?.GetValueKind() == JsonValueKind.String ? node.GetValue<string>() : null;
