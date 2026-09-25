@@ -67,6 +67,8 @@ public static class LayoutDefinitionCodes
     public const string SpanWithFill = "layout.placement.span_with_fill";
     /// <summary>A capture block names a field control the host has not registered (layout-bound-3).</summary>
     public const string FieldControlUnknown = "layout.capture.control_unknown";
+    /// <summary>A field control's parameters do not satisfy the schema it declares (T-724 ruling 38).</summary>
+    public const string ControlParametersInvalid = "layout.capture.control_parameters_invalid";
     /// <summary>A capture block names a validation rule the host has not registered (layout-bound-8).</summary>
     public const string ValidationRuleUnknown = "layout.capture.validation_rule_unknown";
     /// <summary>A named validation rule does not validate, or its tier's compiler refuses it (layout-bound-8).</summary>
@@ -300,8 +302,8 @@ public static class LayoutDefinitionAdmission
             {
                 if (string.IsNullOrWhiteSpace(control.Id) || registers.FieldControls?.Contains(control.Id) != true)
                     Add(refusals, LayoutDefinitionCodes.FieldControlUnknown, $"{pointer}/capture/control");
-                if (control.Parameters is { ValueKind: not JsonValueKind.Object })
-                    Add(refusals, LayoutDefinitionCodes.CapturePropertiesInvalid, $"{pointer}/capture/control/parameters");
+                else if (control.Parameters is { } parameters && !registers.FieldControls.AcceptsParameters(control.Id, parameters))
+                    Add(refusals, LayoutDefinitionCodes.ControlParametersInvalid, $"{pointer}/capture/control/parameters");
             }
         }
 

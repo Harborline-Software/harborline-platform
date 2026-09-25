@@ -1,5 +1,8 @@
 using System.Collections.Frozen;
+using System.Text.Json;
+using Harborline.Contracts.Fields;
 using Harborline.Contracts.Forms;
+using Json.Schema;
 
 namespace Harborline.Blocks.BuilderDefinitions;
 
@@ -21,27 +24,61 @@ public sealed record LayoutHostRegisters(
     public static LayoutHostRegisters Platform { get; } = new(LayoutBlockKindRegistry.Platform);
 }
 
+/// <summary>One field control a host registers (layout-bound-3).</summary>
+/// <param name="Id">The control identifier, such as a schema-form control hint.</param>
+/// <param name="ValueShapes">The field value kinds the control accepts (T-724 ruling 37).</param>
+/// <param name="ParameterSchema">The JSON Schema its parameters must satisfy; absent, it takes none (T-724 ruling 38).</param>
+public sealed record LayoutFieldControlDescriptor(
+    string Id,
+    IReadOnlyList<FieldScalarValueShape> ValueShapes,
+    JsonElement? ParameterSchema = null);
+
 /// <summary>
 /// DES-0052 layout-bound-3 — the field controls a host registers for capture blocks. A capture
 /// block names one of these and parameterises it; admission refuses a control not registered.
 /// </summary>
 public sealed class LayoutFieldControlRegistry
 {
-    private readonly FrozenSet<string> _controls;
+    private readonly FrozenDictionary<string, (LayoutFieldControlDescriptor Descriptor, JsonSchema? Schema)> _controls;
 
-    /// <summary>Creates an immutable register from nonempty control identifiers.</summary>
-    /// <param name="controls">The registered control identifiers, such as the schema-form control hints.</param>
-    public LayoutFieldControlRegistry(IEnumerable<string> controls)
+    /// <summary>Creates an immutable register; each declared parameter schema must build.</summary>
+    /// <param name="controls">The registered controls.</param>
+    public LayoutFieldControlRegistry(IEnumerable<LayoutFieldControlDescriptor> controls)
     {
         ArgumentNullException.ThrowIfNull(controls);
-        _controls = controls.ToFrozenSet(StringComparer.Ordinal);
-        if (_controls.Any(string.IsNullOrWhiteSpace))
-            throw new ArgumentException("A field-control register requires nonempty identifiers.", nameof(controls));
+        var values = controls.ToArray();
+        if (values.Any(control => control is null || string.IsNullOrWhiteSpace(control.Id) || control.ValueShapes is null))
+            throw new ArgumentException("A field-control register requires identified controls with value shapes.", nameof(controls));
+        // ponytail: developer-declared schemas run without the kernel's pattern timeout; route through
+        // hlp.kernel.schema-validation if a control ever declares an untrusted pattern.
+        _controls = values.ToFrozenDictionary(
+            control => control.Id,
+            control => (control, control.ParameterSchema is { } schema
+                ? JsonSchema.Build(schema, new BuildOptions(), new Uri($"urn:harborline:layout:field-control:{Uri.EscapeDataString(control.Id)}"))
+                : (JsonSchema?)null),
+            StringComparer.Ordinal);
     }
 
     /// <summary>Returns whether the host registered the control.</summary>
     /// <param name="control">The exact control identifier.</param>
-    public bool Contains(string control) => _controls.Contains(control);
+    public bool Contains(string control) => _controls.ContainsKey(control);
+
+    /// <summary>Looks up one registered control.</summary>
+    /// <param name="control">The exact control identifier.</param>
+    public LayoutFieldControlDescriptor? Find(string control)
+        => _controls.TryGetValue(control, out var entry) ? entry.Descriptor : null;
+
+    /// <summary>
+    /// Whether <paramref name="parameters"/> satisfy the control's declared schema. A control that
+    /// declares none accepts no parameters, and an empty object is no parameters (T-724 ruling 38).
+    /// </summary>
+    public bool AcceptsParameters(string control, JsonElement parameters)
+    {
+        if (!_controls.TryGetValue(control, out var entry) || parameters.ValueKind != JsonValueKind.Object) return false;
+        return entry.Schema is { } schema
+            ? schema.Evaluate(parameters, new EvaluationOptions()).IsValid
+            : !parameters.EnumerateObject().Any();
+    }
 }
 
 /// <summary>

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Harborline.Blocks.BuilderDefinitions;
+using Harborline.Contracts.Fields;
 using Harborline.Contracts.Forms;
 using Xunit;
 
@@ -11,7 +12,18 @@ namespace Harborline.Blocks.BuilderDefinitions.Tests;
 /// </summary>
 public sealed class LayoutBoundRegisterTests
 {
-    private static readonly LayoutHostRegisters Controls = new(LayoutBlockKindRegistry.Platform, FieldControls: new LayoutFieldControlRegistry(["text", "currency"]));
+    private static readonly JsonElement PrecisionSchema = JsonSerializer.SerializeToElement(new
+    {
+        type = "object",
+        properties = new { precision = new { type = "integer", minimum = 0 } },
+        additionalProperties = false,
+    });
+
+    private static readonly LayoutHostRegisters Controls = new(LayoutBlockKindRegistry.Platform, FieldControls: new LayoutFieldControlRegistry(
+    [
+        new("text", [FieldScalarValueShape.Text]),
+        new("currency", [FieldScalarValueShape.Number], PrecisionSchema),
+    ]));
 
     [Fact(DisplayName = "layout-bound-3: a capture block's field control is a registered control, parameterised")]
     public void CaptureBlockFieldControlIsARegisteredControlParameterised()
@@ -29,7 +41,22 @@ public sealed class LayoutBoundRegisterTests
         AssertRefused(CaptureSurface(new(false, [], Control: new("signature"))), Controls,
             LayoutDefinitionCodes.FieldControlUnknown, "/blocks/0/capture/control");
         AssertRefused(CaptureSurface(new(false, [], Control: new("currency", JsonSerializer.SerializeToElement(2)))), Controls,
-            LayoutDefinitionCodes.CapturePropertiesInvalid, "/blocks/0/capture/control/parameters");
+            LayoutDefinitionCodes.ControlParametersInvalid, "/blocks/0/capture/control/parameters");
+    }
+
+    [Fact(DisplayName = "layout-bound-3: a control's parameters validate against the schema it declares, and a control with none accepts none (T-724 ruling 38)")]
+    public void ControlParametersValidateAgainstTheDeclaredSchema()
+    {
+        LayoutDefinitionAdmission.ValidateForAuthoring(CaptureSurface(new(false, [], Control: new("currency", JsonSerializer.SerializeToElement(new { precision = 2 })))), Controls);
+        AssertRefused(CaptureSurface(new(false, [], Control: new("currency", JsonSerializer.SerializeToElement(new { precision = -1 })))), Controls,
+            LayoutDefinitionCodes.ControlParametersInvalid, "/blocks/0/capture/control/parameters");
+        AssertRefused(CaptureSurface(new(false, [], Control: new("currency", JsonSerializer.SerializeToElement(new { colour = "red" })))), Controls,
+            LayoutDefinitionCodes.ControlParametersInvalid, "/blocks/0/capture/control/parameters");
+
+        // A control that declares no schema takes no parameters: an empty object is no parameters.
+        LayoutDefinitionAdmission.ValidateForAuthoring(CaptureSurface(new(false, [], Control: new("text", JsonSerializer.SerializeToElement(new { })))), Controls);
+        AssertRefused(CaptureSurface(new(false, [], Control: new("text", JsonSerializer.SerializeToElement(new { multiline = true })))), Controls,
+            LayoutDefinitionCodes.ControlParametersInvalid, "/blocks/0/capture/control/parameters");
     }
 
     [Fact(DisplayName = "layout-bound-3: a named field control with no register to check it against refuses")]
