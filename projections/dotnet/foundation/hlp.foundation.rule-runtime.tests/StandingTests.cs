@@ -111,7 +111,7 @@ public sealed class RulesPermissionTests
 {
     private static readonly DateTimeOffset At = new(2026, 9, 25, 0, 0, 0, TimeSpan.Zero);
 
-    [Fact(DisplayName = "DES-0018 §6 permission fragments: Rules declares exactly rules:author, rules:publish, rules:author-floor and rules:evaluate-explain")]
+    [Fact(DisplayName = "rules-auth-34: Rules declares exactly four permissions, rules:author, rules:publish, rules:author-floor and rules:evaluate-explain, and seeds no role grants")]
     public void Rules_declares_its_four_capabilities()
         => Assert.Equal(["rules:author", "rules:publish", "rules:author-floor", "rules:evaluate-explain"], RulesPermissions.All);
 
