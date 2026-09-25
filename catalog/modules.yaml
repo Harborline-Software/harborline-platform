@@ -796,7 +796,7 @@
       }
     },
     "hlp.foundation.rule-runtime": {
-      "interface": {"path": "specs/modules/foundation/hlp.foundation.rule-runtime/interface.yaml", "revision": 2},
+      "interface": {"path": "specs/modules/foundation/hlp.foundation.rule-runtime/interface.yaml", "revision": 3},
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "Rule compilation, deterministic evaluation, and reactive dependency propagation expose data outcomes rather than visual presentation."},
       "owner": "platform-foundation",

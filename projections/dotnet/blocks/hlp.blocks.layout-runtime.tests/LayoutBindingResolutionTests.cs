@@ -330,7 +330,7 @@ public sealed class LayoutBindingResolutionTests
         Assert.Equal(("line", LayoutBindingKinds.Text, "no.such.field"), (refusal.BlockId, refusal.BindingKind, refusal.Name));
     }
 
-    [Fact(DisplayName = "layout-ck-44: a field run's fallback literal shows when the value is null, missing or denied; an empty string is a value and shows as itself")]
+    [Fact(DisplayName = "layout-ck-44 (T-724 ruling 71): a field run's fallback renders only for a null or missing value; an empty string renders blank; a denied read renders exactly like missing")]
     public void AFieldRunsFallbackShowsWhenTheValueIsAbsent()
     {
         var definition = Definition(LayoutMedium.Page, LayoutIntent.Issue,
@@ -346,7 +346,10 @@ public sealed class LayoutBindingResolutionTests
         Assert.Equal("Memo: ", Rendered(LayoutFieldResult.Resolved(JsonValue.Create(""))));
         // A denied field is a missing one (layout-auth-25): the fallback shows and only the trace learns why.
         var trace = new RecordingTrace();
-        Assert.Equal("Memo: none given", Rendered(LayoutFieldResult.Denied("access.field_denied", "/grants/memo", invoice), trace));
+        var missing = Resolve(definition, new FieldOutcomeSources("invoice.memo", LayoutFieldResult.Resolved(null)), new RecordingTrace(), new LayoutResolutionRequest("request-3", "principal.clerk-4"));
+        var denied = Resolve(definition, new FieldOutcomeSources("invoice.memo", LayoutFieldResult.Denied("access.field_denied", "/grants/memo", invoice)), trace, new LayoutResolutionRequest("request-3", "principal.clerk-4"));
+        Assert.Equal(Describe(missing), Describe(denied));
+        Assert.Equal("Memo: none given", Block(denied, "memo").Value!.GetValue<string>());
         Assert.Equal("invoice.memo", Assert.Single(trace.FieldDenials).FieldPath);
 
         // With no fallback an absent value contributes nothing.

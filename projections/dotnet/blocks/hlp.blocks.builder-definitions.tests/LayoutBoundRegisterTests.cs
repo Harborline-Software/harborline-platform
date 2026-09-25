@@ -248,6 +248,10 @@ public sealed class LayoutBoundRegisterTests
         AssertPublishRefused(GuardSurface(new(Predicate: Overdue.Pin with { Version = "latest" }), null), Predicates, LayoutDefinitionCodes.GuardUnresolved, "/blocks/0/show_when/predicate");
     }
 
+    [Fact(DisplayName = "layout-ck-29 (T-724 ruling 72): a Layout guard binds its named predicate as PredicateConsumer.LayoutGuard")]
+    public void ALayoutGuardIdentifiesItselfAsLayoutGuard()
+        => Assert.Equal(Harborline.Foundation.RuleEngine.References.PredicateConsumer.LayoutGuard, LayoutGuardRule.Consumer);
+
     private static readonly Harborline.Foundation.RuleEngine.References.NamedPredicate Overdue = new("invoice.overdue", "1.0.0", "{\"==\":[{\"var\":\"field.status\"},\"overdue\"]}");
 
     private static readonly LayoutHostRegisters Predicates = LayoutHostRegisters.Platform with

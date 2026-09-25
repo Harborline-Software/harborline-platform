@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.foundation.rule-runtime",
-  "interfaceRevision": 2,
+  "interfaceRevision": 3,
   "status": "frozen",
   "purpose": "Evaluate the closed harborline-jsonlogic/v1 language deterministically for Dynamic Forms, Calculations, and workflow guards through reactive TypeScript and authoritative .NET integrity tiers.",
   "dependencies": [{"moduleId": "hlp.contracts.forms", "minimumRevision": 3}],
@@ -42,6 +42,7 @@
     "Every evaluation entry point in both tiers (guard and value snapshot overloads, full and incremental FormRuleGraph evaluation) requires an EvaluationAdmission minted only by BorrowerEnvironmentAdmission from the borrower's typed declaration (T-590, rules-eng-26); a missing admission, an inapplicable phase, or a program using an operation or scope token the declaration does not lend refuses with a rule.environment.* code before any value is read, and an architecture test inventories every production call site.",
     "conformance/hlp.foundation.rule-runtime/borrower-contracts.json is the released evaluator/binding contract (T-590): one named probe per borrow-grammar edge with the borrower's typed declaration and its canonical export, replayed by both tiers, plus the predicate, exact-calculation-pin and bounded-agg probes.",
     "Runtime step exhaustion fails closed; wall-clock or cancellation timeout is an infrastructure fault and never a divergent rule outcome.",
+    "A named predicate is bound through its exact pin for one of five consumer kinds: view filter, rule condition, automation condition, report population and Layout guard. The same pin yields the same expression for every kind (rules-auth-9; LayoutGuard added by T-724 ruling 72).",
     "Named rule resolution excludes drafts unless explicitly requested and preserves version pins, monotonic watermarks, epoch-fenced caches, and deterministic traces.",
     "Reactive reevaluation recomputes only the transitive dependency front after a field or child-row change without changing full-evaluation outcomes."
   ],
