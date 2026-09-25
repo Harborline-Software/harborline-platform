@@ -139,7 +139,7 @@ public sealed class DataExchangeDefinitionStoreTests
         using var document = JsonDocument.Parse(exported);
         var root = document.RootElement;
 
-        Assert.Equal(11, entry.ContentKind);
+        Assert.Equal(12, entry.ContentKind); // the api's PackContentKind.DataExchangeDefinition; 11 is ScheduleDefinition
         Assert.Equal(DataExchangePackIdentity.ContentKind, entry.ContentKind);
         Assert.True(PlatformPackageReplayer.Validate(manifest).Succeeded);
         Assert.True(PlatformPackageExporter.Verify(manifest, exported));
