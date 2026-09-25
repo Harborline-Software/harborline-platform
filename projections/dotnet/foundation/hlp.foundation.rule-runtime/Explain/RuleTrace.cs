@@ -2,6 +2,7 @@ using System.Text;
 
 using Harborline.Foundation.RuleEngine.Compilation;
 using Harborline.Foundation.RuleEngine.Model;
+using Harborline.Foundation.RuleEngine.Skins;
 
 
 namespace Harborline.Foundation.RuleEngine.Explain;
@@ -104,7 +105,18 @@ public static class RuleTraceBuilder
     /// </summary>
     public static IReadOnlyList<RuleTraceEntry> BuildForm(
         CompiledGraph compiled, RuleEvaluationResult result, ITraceAuthorityFilter? filter = null)
+        => BuildForm(compiled, result, filter, []);
+
+    /// <summary>
+    /// Builds the form trace naming, for every rule a decision table supplied, the table's declared hit policy
+    /// (DES-0018 <c>rules-run-2</c>) as the <c>hitPolicy</c> param. The policy comes from the authored table,
+    /// never from evaluation, so the trace stays a value-free projection.
+    /// </summary>
+    public static IReadOnlyList<RuleTraceEntry> BuildForm(
+        CompiledGraph compiled, RuleEvaluationResult result, ITraceAuthorityFilter? filter, IReadOnlyCollection<DecisionTableSkin> tables)
     {
+        ArgumentNullException.ThrowIfNull(tables);
+        var policies = tables.ToDictionary(table => table.RuleId, table => table.HitPolicy, StringComparer.Ordinal);
         ArgumentNullException.ThrowIfNull(compiled);
         ArgumentNullException.ThrowIfNull(result);
         var f = filter ?? PassThroughTraceFilter.Instance;
@@ -118,7 +130,10 @@ public static class RuleTraceBuilder
         {
             var outcome = result.ByRule[key];
             rulesById.TryGetValue(outcome.RuleId, out var rule);
-            entries.Add(DescribeOutcome(key, outcome, rule, f));
+            var entry = DescribeOutcome(key, outcome, rule, f);
+            if (policies.TryGetValue(outcome.RuleId, out var policy))
+                entry = entry with { Params = new Dictionary<string, string>(entry.Params, StringComparer.Ordinal) { ["hitPolicy"] = WireName(policy) } };
+            entries.Add(entry);
         }
         return entries;
     }
@@ -187,6 +202,9 @@ public static class RuleTraceBuilder
         }
         return new RuleTraceEntry(outcome.RuleId, outcome.Target.Key, code, p);
     }
+
+    // The authored wire form both tiers share (the conformance corpus spelling).
+    private static string WireName(HitPolicy policy) => policy == HitPolicy.FirstMatch ? "first-match" : "priority";
 
     private static string VisibilityCode(RuleActionKind action, VisibilityState v) => action switch
     {

@@ -39,7 +39,8 @@ foreach (var row in intentCases)
         { [DefinitionKind.Rules] = RuleDefinitionCatalog.Admit });
     // Each fixture owns a fresh lifecycle journal retained with this fixture's evidence.
     using var lifecycle = new FileJournalDefinitionLifecycleStore(Path.Combine("journals", Guid.NewGuid() + ".json"));
-    var catalog = new RuleDefinitionCatalog(store, lifecycle);
+    // The fixture host grants every Rules capability; role assignment is host seed policy.
+    var catalog = new RuleDefinitionCatalog(store, lifecycle, (_, _) => ValueTask.FromResult(true));
     if (!valid)
     {
         try { await catalog.CreateJsonAsync(source, "a", 0, "create"); throw new Exception("Invalid source committed"); }

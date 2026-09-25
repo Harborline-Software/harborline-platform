@@ -15,6 +15,7 @@ import { compile, type CompiledGraph, type CompiledRule } from './compiler.js'
 import { CompileError, type RuleRef } from './grammar.js'
 import type { RuleEvaluationResult } from './graph.js'
 import type { RuleActionKind, RuleDefinition, RuleOutcome, Validity, VisibilityState } from './model.js'
+import type { DecisionTableSkin } from './skins/decision-table.js'
 
 /** Stable trace codes — byte-identical to the .NET `RuleTraceCodes`. */
 export const RuleTraceCodes = {
@@ -64,7 +65,9 @@ export function buildFormTrace(
   compiled: CompiledGraph,
   result: RuleEvaluationResult,
   filter: TraceAuthorityFilter = passThroughTraceFilter,
+  tables: readonly Pick<DecisionTableSkin, 'ruleId' | 'hitPolicy'>[] = [],
 ): RuleTraceEntry[] {
+  const policies = new Map(tables.map((table) => [table.ruleId, table.hitPolicy]))
   const rulesById = new Map<string, CompiledRule>()
   for (const r of compiled.rules) rulesById.set(r.source.id, r)
 
@@ -72,7 +75,11 @@ export function buildFormTrace(
   // Deterministic order (Map insertion order is not guaranteed identical cross-tier): sort by rule key.
   for (const key of [...result.byRule.keys()].sort()) {
     const outcome = result.byRule.get(key)!
-    entries.push(describeOutcome(outcome, rulesById.get(outcome.ruleId), filter))
+    const entry = describeOutcome(outcome, rulesById.get(outcome.ruleId), filter)
+    const policy = policies.get(outcome.ruleId)
+    // DES-0018 rules-run-2: a table-supplied outcome names its declared hit policy (the authored wire form).
+    if (policy !== undefined) entry.params.hitPolicy = policy
+    entries.push(entry)
   }
   return entries
 }
