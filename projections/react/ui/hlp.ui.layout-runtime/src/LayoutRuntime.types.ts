@@ -1,3 +1,5 @@
+import type { RuleDefinitionExpression, RuleDefinitionValueType } from '@harborline-software/rule-authoring'
+
 export type LayoutMedium = 'screen' | 'page'
 export type LayoutContainerToken = 'sm' | 'md' | 'lg'
 export type LayoutIntent = 'capture' | 'observe' | 'issue'
@@ -30,11 +32,41 @@ export interface LayoutAuthoringBinding {
   readonly name: string
 }
 
+/**
+ * What a capture block narrows (layout-ck-30): it may add a requirement and name registered
+ * validation rules (layout-auth-21), never remove what Records declared.
+ */
+export interface LayoutAuthoringCapture {
+  readonly required?: boolean
+  readonly validationRules?: readonly string[]
+  /** layout-auth-22: the prompt this surface shows for the field, in its own context only. */
+  readonly promptOverride?: string
+  /** layout-bound-3: the registered field control this capture field uses; absent is the runtime's choice. */
+  readonly control?: string
+}
+
 export interface LayoutAuthoringBlock {
   readonly id: string
   readonly kind: string
   readonly binding?: LayoutAuthoringBinding
+  /** The block this one is authored inside; absent means the surface root. */
   readonly parentId?: string
+  /** layout-auth-18: the block repeats its children once per row of its collection binding. */
+  readonly repeating?: boolean
+  /** The flow this block arranges its children in; admission requires one on a repeating block or any parent (T-724 ruling 41). */
+  readonly container?: LayoutContainerFlow
+  /** layout-auth-19: the declared Records relationship this block observes; only the key is stored. */
+  readonly relatedRelationship?: string
+  /** layout-auth-20: the block's guard, a Rules expression the shared engine evaluates fail-closed. */
+  readonly showWhen?: string
+  /** The guided expression `showWhen` was lowered from; absent when the guard was written as raw text (T-724 ruling 39). */
+  readonly showWhenGuide?: RuleDefinitionExpression
+  /** The capture properties a capture block narrows with (layout-ck-30). */
+  readonly capture?: LayoutAuthoringCapture
+  /** layout-auth-33: the selection this block opens with. Authored; the live selection is never stored. */
+  readonly defaultSelection?: string
+  /** layout-auth-34: the ids of the other blocks on this surface this block's selection filters. */
+  readonly filterTargets?: readonly string[]
   readonly intent?: LayoutIntent
   readonly zone?: string
   readonly width?: LayoutSizing
@@ -57,6 +89,8 @@ export interface LayoutAuthoringDraft {
   readonly gap?: number
   readonly blocks: readonly LayoutAuthoringBlock[]
   readonly pageRuns?: readonly LayoutAuthoringPageRun[]
+  /** layout-auth-35: the released surfaces a reader may drill through to from this one. */
+  readonly drillThroughTargets?: readonly string[]
 }
 /** One name a binding picker can offer for its kind. */
 export interface LayoutBindableName { readonly id: string; readonly label: string }
@@ -70,5 +104,19 @@ export interface LayoutAuthoringCatalogue {
   readonly pageMasters?: readonly { readonly id: string; readonly label: string }[]
   readonly staticRegions?: readonly string[]
   readonly helmWidgets?: readonly { readonly id: string; readonly label: string }[]
+  /** The Records relationships declared on the surface's record type, by key (layout-auth-19). */
+  readonly relationships?: readonly LayoutBindableName[]
+  /** The record fields Records declares required; a capture block cannot drop them (layout-auth-21). */
+  readonly requiredFields?: readonly string[]
+  /** The registered validation rules a capture block may name (layout-auth-21, layout-bound-8). */
+  readonly validationRules?: readonly LayoutBindableName[]
+  /** The released surfaces a drill-through may name (layout-auth-35). */
+  readonly drillTargets?: readonly LayoutBindableName[]
+  /** The field controls the host registers for capture fields (layout-bound-3). */
+  readonly fieldControls?: readonly LayoutBindableName[]
+  /** The record fields whose value domain picks their editor; they take no authored control (layout-bound-10). */
+  readonly valueDomainFields?: readonly string[]
+  /** The references a show_when guard may read, offered by the guided expression editor (layout-auth-20). */
+  readonly guardReferences?: readonly { readonly id: string; readonly label: string; readonly valueType: RuleDefinitionValueType }[]
 }
 export interface LayoutAuthoringEditorProps { readonly value: LayoutAuthoringDraft; readonly catalogue: LayoutAuthoringCatalogue; readonly onChange: (value: LayoutAuthoringDraft) => void }

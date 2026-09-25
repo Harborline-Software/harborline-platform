@@ -5,6 +5,7 @@ using Harborline.Foundation.RuleEngine.Explain;
 using Harborline.Foundation.RuleEngine.Graph;
 using Harborline.Foundation.RuleEngine.Model;
 using Harborline.Foundation.RuleEngine.Skins;
+using Harborline.Foundation.RuleEngine.Environments;
 
 namespace Harborline.Foundation.RuleAuthoring;
 
@@ -178,7 +179,7 @@ public static class SkinLowering
         var pinnedClock = new PinnedClock(clock.GetUtcNow());
         var def = CompileDraft(draft, ruleId);
         var compiled = RuleCompiler.Compile(new[] { def });
-        var result = new FormRuleGraph(compiled, pinnedClock).EvaluateInstance(RuleInstance.FromJson(sample));
+        var result = new FormRuleGraph(compiled, pinnedClock, RulesPreviewEnvironment.Admitted.For(EvaluationPhase.AuthoringValidation)).EvaluateInstance(RuleInstance.FromJson(sample));
         RuleOutcome? outcome = result.ByRule.Values.FirstOrDefault(o => o.RuleId == def.Id);
         var trace = RuleTraceBuilder.BuildForm(compiled, result, filter ?? PassThroughTraceFilter.Instance);
         JsonNode? value = outcome?.Value is { State: ValueState.Resolved } cv ? cv.Value : null;
@@ -207,7 +208,7 @@ public static class SkinLowering
             return null;
         }
         var compiled = RuleCompiler.Compile(new[] { def });
-        var result = new FormRuleGraph(compiled, clock).EvaluateInstance(RuleInstance.FromJson(sample));
+        var result = new FormRuleGraph(compiled, clock, RulesPreviewEnvironment.Admitted.For(EvaluationPhase.AuthoringValidation)).EvaluateInstance(RuleInstance.FromJson(sample));
         foreach (var o in result.ByRule.Values)
         {
             if (o.RuleId == def.Id && o.Value is { State: ValueState.Resolved } cv)

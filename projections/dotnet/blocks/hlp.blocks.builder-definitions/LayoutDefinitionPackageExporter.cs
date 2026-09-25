@@ -25,8 +25,15 @@ public static class LayoutDefinitionPackageExporter
     /// <param name="kinds">The host kind register, or the platform grammar.</param>
     /// <returns>The provider-neutral entry. This operation does not publish a version.</returns>
     public static LayoutDefinitionPackageEntry Export(LayoutDefinition definition, LayoutBlockKindRegistry? kinds = null)
+        => Export(definition, new LayoutHostRegisters(kinds ?? LayoutBlockKindRegistry.Platform));
+
+    /// <summary>Projects one definition after publication admission against the host's registers.</summary>
+    /// <param name="definition">The definition selected by the shared catalogue.</param>
+    /// <param name="registers">The host's bound registers.</param>
+    /// <returns>The provider-neutral entry. This operation does not publish a version.</returns>
+    public static LayoutDefinitionPackageEntry Export(LayoutDefinition definition, LayoutHostRegisters registers)
     {
-        LayoutDefinitionAdmission.ValidateForPublish(definition, kinds ?? LayoutBlockKindRegistry.Platform);
+        LayoutDefinitionAdmission.ValidateForPublish(definition, registers);
         return new(definition.Envelope.Identity, definition.Envelope.Version,
             PlatformPackageContent.PresentJson(LayoutDefinitionJson.SerializeCanonical(definition)));
     }

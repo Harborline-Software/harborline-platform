@@ -8,6 +8,7 @@
 import { Codes } from './codes.js'
 import type { Json, OutputType, RuleActionKind, RuleScope } from './model.js'
 import type { RuleEngineLimits } from './limits.js'
+import { aggregateFolds } from './jsonlogic.js'
 
 export interface LowerContext {
   scope: RuleScope
@@ -192,6 +193,11 @@ function walk(node: Json, refs: RuleRef[], ruleId: string): void {
     if (!Array.isArray(a) || a.length !== 3 || a.some((part) => typeof part !== 'string')) {
       throw new CompileError(Codes.compileBadGrammar,
         `rule '${ruleId}': a table aggregate must be a static [fn, section, col] string triple`, ruleId)
+    }
+    // rules-eng-16: a fold is one of the register's bounded folds over a named child collection;
+    // anything else (a search, a query, a catalogue measure) is not a fold.
+    if (!(aggregateFolds as readonly string[]).includes(a[0] as string)) {
+      throw new CompileError(Codes.compileBadGrammar, `rule '${ruleId}': '${a[0] as string}' is not a registered bounded fold`, ruleId)
     }
     refs.push({ kind: 'agg', fn: a[0] as string, section: a[1] as string, col: a[2] as string })
     return

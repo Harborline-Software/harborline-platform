@@ -30,7 +30,7 @@ public sealed class RuleEngineUnitTests
         => RuleInstance.FromJson(JsonNode.Parse(json)!.AsObject());
 
     private static FormRuleGraph Graph(IReadOnlyList<RuleDefinition> rules, RuleEngineLimits? limits = null)
-        => new(RuleCompiler.Compile(rules, limits), new FixedClock(Clock), limits);
+        => new(RuleCompiler.Compile(rules, limits), new FixedClock(Clock), TestAdmission.Any, limits);
 
     [Fact]
     public void Lowered_asts_show_the_grammar_rewrite_and_are_copies_the_caller_cannot_use_to_alter_the_graph()
@@ -49,7 +49,7 @@ public sealed class RuleEngineUnitTests
     {
         var compiled = RuleCompiler.Compile([]);
 
-        Assert.Throws<ArgumentNullException>(() => new FormRuleGraph(compiled, clock: null!));
+        Assert.Throws<ArgumentNullException>(() => new FormRuleGraph(compiled, clock: null!, TestAdmission.Any));
         Assert.Throws<ArgumentNullException>(() => new GuardEvaluator(clock: null!));
     }
 
@@ -200,7 +200,7 @@ public sealed class RuleEngineUnitTests
     {
         var compiled = RuleCompiler.Compile(new[] { Compute("row-aware", "x", "{\"var\":\"table.sum(items.amount)\"}") },
             RuleEngineLimits.Default with { MaxTableRowsPerAggregate = 1, MaxGraphNodes = 2 });
-        var graph = new FormRuleGraph(compiled, new FixedClock(Clock),
+        var graph = new FormRuleGraph(compiled, new FixedClock(Clock), TestAdmission.Any,
             RuleEngineLimits.Default with { MaxTableRowsPerAggregate = 2, MaxGraphNodes = 3 });
         _ = graph.EvaluateInstance(Instance("{}"));
         Assert.True(graph.WorkProof.MaximumResultBytes >= compiled.WorkProof.MaximumResultBytes);
@@ -232,7 +232,7 @@ public sealed class RuleEngineUnitTests
         {
             Compute("copying-cat", "result", "{\"cat\":[\"ab\",{\"cat\":[\"cd\",\"ef\"]}]}"),
         });
-        var evaluated = new FormRuleGraph(compiled, new FixedClock(Clock)).EvaluateInstance(Instance("{}"));
+        var evaluated = new FormRuleGraph(compiled, new FixedClock(Clock), TestAdmission.Any).EvaluateInstance(Instance("{}"));
 
         Assert.Equal("abcdef", evaluated.Values["field:result"].Value!.GetValue<string>());
         Assert.True(compiled.WorkProof.MaximumResultBytes >= 6);
@@ -250,7 +250,7 @@ public sealed class RuleEngineUnitTests
         {
             Compute("aligned-money-cat", "result", $"{{\"cat\":[{pairs}]}}"),
         }, limits);
-        var evaluated = new FormRuleGraph(compiled, new FixedClock(Clock), limits).EvaluateInstance(Instance("{}"));
+        var evaluated = new FormRuleGraph(compiled, new FixedClock(Clock), TestAdmission.Any, limits).EvaluateInstance(Instance("{}"));
         var value = evaluated.Values["field:result"];
         var actualBytes = Encoding.UTF8.GetByteCount(value.Value!.ToJsonString());
 
@@ -270,7 +270,7 @@ public sealed class RuleEngineUnitTests
             Compute("empty-or", "emptyOr", "{\"or\":[]}"),
             Compute("strict-inequality", "different", "{\"!==\":[1,\"1\"]}"),
         });
-        var result = new FormRuleGraph(compiled, new FixedClock(Clock)).EvaluateInstance(Instance("{}"));
+        var result = new FormRuleGraph(compiled, new FixedClock(Clock), TestAdmission.Any).EvaluateInstance(Instance("{}"));
         var values = new[] { "field:quoted", "field:emptyCat", "field:emptyAnd", "field:emptyOr", "field:different" }
             .Select(key => result.Values[key].Value!).ToArray();
 
@@ -386,7 +386,7 @@ public sealed class RuleEngineUnitTests
         var guard = new GuardEvaluator(new FixedClock(Clock), RuleEngineLimits.Default);
         var rule = RuleDefinitionFactory.Create("g.min", RuleTier.JsonLogic, RuleScope.Schema, "",
             "{\">\":[{\"var\":\"amount\"},50]}", RuleActionKind.Validate);
-        Assert.Throws<RuleEngineTimeoutException>(() => guard.EvaluateGuard(rule, RuleContextSnapshot.Capture(Bag("amount", 100)), RuleEvalScope.Root, cts.Token));
+        Assert.Throws<RuleEngineTimeoutException>(() => guard.EvaluateGuard(rule, RuleContextSnapshot.Capture(Bag("amount", 100)), RuleEvalScope.Root, TestAdmission.Any, cts.Token));
     }
 
     [Fact]
@@ -399,7 +399,7 @@ public sealed class RuleEngineUnitTests
             [
                 Compute("today.one", "one", "{\"date.today\":[]}"),
                 Compute("today.two", "two", "{\"date.today\":[]}"),
-            ]), clock, RuleEngineLimits.Default);
+            ]), clock, TestAdmission.Any, RuleEngineLimits.Default);
 
         var result = graph.EvaluateInstance(Instance("{}"));
 
@@ -421,12 +421,12 @@ public sealed class RuleEngineUnitTests
             RuleDefinitionFactory.Create("v.today", RuleTier.JsonLogic, RuleScope.Field, "today-valid", "{\"==\":[{\"date.today\":[]},\"2026-07-01\"]}", RuleActionKind.Validate),
         };
         var clock = new AdvancingClock(beforeMidnight, afterMidnight);
-        var graph = new FormRuleGraph(RuleCompiler.Compile(rules), clock);
+        var graph = new FormRuleGraph(RuleCompiler.Compile(rules), clock, TestAdmission.Any);
         var first = graph.EvaluateInstance(Instance("{\"other\":\"before\",\"stable\":\"unchanged\"}"));
         var stableOutcome = first.ByRule["c.stable"];
 
         var incremental = graph.Reevaluate("other", RuleInputValue.FromJsonText("\"after\""));
-        var full = new FormRuleGraph(RuleCompiler.Compile(rules), new FixedClock(afterMidnight))
+        var full = new FormRuleGraph(RuleCompiler.Compile(rules), new FixedClock(afterMidnight), TestAdmission.Any)
             .EvaluateInstance(Instance("{\"other\":\"after\",\"stable\":\"unchanged\"}"));
 
         Assert.Equal(2, clock.Reads);
@@ -446,7 +446,7 @@ public sealed class RuleEngineUnitTests
         {
             Compute("c.literal", "literal", "{\"cat\":[{\"date.today\":[],\"var\":\"ignored\"},[{\"date.today\":[]},{\"var\":\"ignored\"}]]}"),
             Compute("c.changed", "changed", "{\"var\":\"unrelated\"}"),
-        }), clock);
+        }), clock, TestAdmission.Any);
 
         var first = graph.EvaluateInstance(Instance("{\"unrelated\":\"before\"}"));
         var literal = first.ByRule["c.literal"];
@@ -1169,10 +1169,10 @@ public sealed class RuleEngineUnitTests
         var guard = new GuardEvaluator(new FixedClock(Clock), RuleEngineLimits.Default);
         var rule = RuleDefinitionFactory.Create("g.object", RuleTier.JsonLogic, RuleScope.Schema, "", "{\"var\":\"payload\"}", RuleActionKind.Compute);
         var context = RuleContextSnapshot.FromJsonText("{\"root\":{\"payload\":{\"left\":1,\"right\":2}}}");
-        var first = guard.EvaluateValue(rule, context, RuleEvalScope.Root);
+        var first = guard.EvaluateValue(rule, context, RuleEvalScope.Root, TestAdmission.Any);
         first.Value!.AsObject()["poison"] = true;
 
-        Assert.False(guard.EvaluateValue(rule, context, RuleEvalScope.Root).Value!.AsObject().ContainsKey("poison"));
+        Assert.False(guard.EvaluateValue(rule, context, RuleEvalScope.Root, TestAdmission.Any).Value!.AsObject().ContainsKey("poison"));
     }
 
     [Fact]
@@ -1283,7 +1283,7 @@ public sealed class RuleEngineUnitTests
         // unavailable data there: rule.bad_reference with params {agg: "section/fn/col"} — the
         // exact shape (and param order) the shared corpus pins byte-identically across tiers (ticket 162).
         var rule = Compute("g.total", "", "{\"var\":\"table.sum(items.amount)\"}", RuleScope.Schema);
-        var value = new GuardEvaluator(clock: new FixedClock(Clock)).EvaluateValue(rule, RuleContextSnapshot.Capture(new Dictionary<string, JsonNode?>()), RuleEvalScope.Root);
+        var value = new GuardEvaluator(clock: new FixedClock(Clock)).EvaluateValue(rule, RuleContextSnapshot.Capture(new Dictionary<string, JsonNode?>()), RuleEvalScope.Root, TestAdmission.Any);
         Assert.Equal(ValueState.Error, value.State);
         Assert.Equal(RuleEngineCodes.BadReference, value.Error!.Code);
         Assert.Equal("items/sum/amount", value.Error!.Params["agg"]);
@@ -1409,14 +1409,14 @@ public sealed class RuleEngineUnitTests
         var rule = RuleDefinitionFactory.Create("g.min", RuleTier.JsonLogic, RuleScope.Schema, "",
             "{\">\":[{\"var\":\"amount\"},50]}", RuleActionKind.Validate);
 
-        Assert.True(guard.EvaluateGuard(rule, RuleContextSnapshot.Capture(Bag("amount", 100)), RuleEvalScope.Root).Ok);
-        var fail = guard.EvaluateGuard(rule, RuleContextSnapshot.Capture(Bag("amount", 10)), RuleEvalScope.Root);
+        Assert.True(guard.EvaluateGuard(rule, RuleContextSnapshot.Capture(Bag("amount", 100)), RuleEvalScope.Root, TestAdmission.Any).Ok);
+        var fail = guard.EvaluateGuard(rule, RuleContextSnapshot.Capture(Bag("amount", 10)), RuleEvalScope.Root, TestAdmission.Any);
         Assert.False(fail.Ok);
         Assert.Equal("g.min", fail.Error!.Code);
 
         var value = RuleDefinitionFactory.Create("g.fee", RuleTier.JsonLogic, RuleScope.Schema, "",
             "{\"money.mul\":[\"10\",\"3\"]}", RuleActionKind.Compute);
-        Assert.Equal("30", guard.EvaluateValue(value, RuleContextSnapshot.Capture(new Dictionary<string, JsonNode?>()), RuleEvalScope.Root).Value!.GetValue<string>());
+        Assert.Equal("30", guard.EvaluateValue(value, RuleContextSnapshot.Capture(new Dictionary<string, JsonNode?>()), RuleEvalScope.Root, TestAdmission.Any).Value!.GetValue<string>());
     }
 
     [Fact]
@@ -1426,9 +1426,23 @@ public sealed class RuleEngineUnitTests
         var rule = RuleDefinitionFactory.Create("g.min", RuleTier.JsonLogic, RuleScope.Schema, "",
             "{\">\":[{\"var\":\"amount\"},50]}", RuleActionKind.Validate);
         var bag = new Dictionary<string, JsonNode?> { ["amount"] = new JsonObject { ["@pending"] = true } };
-        var v = guard.EvaluateGuard(rule, RuleContextSnapshot.Capture(bag), RuleEvalScope.Root);
+        var v = guard.EvaluateGuard(rule, RuleContextSnapshot.Capture(bag), RuleEvalScope.Root, TestAdmission.Any);
         Assert.False(v.Ok);
         Assert.Equal(RuleEngineCodes.PendingAtSave, v.Error!.Code);
+    }
+
+    // T-687: a rule that does not compile is a withheld guard carrying the compile code, not an
+    // exception, so no caller of the seam has to hand-roll the fail-closed guarantee.
+    [Theory]
+    [InlineData("{\"frobnicate\":[1]}")]
+    [InlineData("not json")]
+    public void Guard_evaluator_fails_closed_on_a_rule_that_does_not_compile(string expression)
+    {
+        var guard = new GuardEvaluator(new FixedClock(Clock), RuleEngineLimits.Default);
+        var rule = RuleDefinitionFactory.Create("g.bad", RuleTier.JsonLogic, RuleScope.Schema, "", expression, RuleActionKind.Validate);
+        var v = guard.EvaluateGuard(rule, RuleContextSnapshot.Capture(Bag("amount", 1)), RuleEvalScope.Root, TestAdmission.Any);
+        Assert.False(v.Ok);
+        Assert.Equal(RuleEngineCodes.CompileInvalidExpression, v.Error!.Code);
     }
 
     private static Dictionary<string, JsonNode?> Bag(string key, int value)

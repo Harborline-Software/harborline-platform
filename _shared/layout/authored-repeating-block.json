@@ -1,0 +1,18 @@
+{
+  "description": "T-582 (T-724 ruling 41): the draft both Layout editors produce when an author makes a query block repeat and places a field block inside it. Each editor's test must produce exactly these blocks, and builder-definitions admission must accept them.",
+  "blocks": [
+    {
+      "id": "lines",
+      "kind": "layout.table",
+      "binding": { "kind": "query", "name": "views.invoice-lines" },
+      "repeating": true,
+      "container": "stack"
+    },
+    {
+      "id": "amount",
+      "kind": "layout.table",
+      "binding": { "kind": "record_field", "name": "line.amount" },
+      "parentId": "lines"
+    }
+  ]
+}

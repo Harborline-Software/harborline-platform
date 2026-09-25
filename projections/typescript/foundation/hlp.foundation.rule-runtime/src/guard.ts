@@ -3,6 +3,7 @@
  * transition guard / action condition (a one-node graph) over a flat context bag.
  * Fail-closed: a pending/errored guard does not let a transition fire.
  */
+import { admissionRefusal, type EvaluationAdmission } from './environment.js'
 import { Codes } from './codes.js'
 import type { ComputedValue, Json, RuleDefinition, Validity } from './model.js'
 import { DEFAULT_LIMITS, type RuleEngineLimits } from './limits.js'
@@ -80,8 +81,11 @@ export class GuardEvaluator {
     if (typeof clock !== 'function') throw new TypeError('GuardEvaluator requires a caller-supplied clock')
   }
 
-  evaluateGuard(rule: RuleDefinition, context: RuleContextSnapshot, signal?: AbortSignal): Validity {
+  evaluateGuard(rule: RuleDefinition, context: RuleContextSnapshot, admission: EvaluationAdmission | null, signal?: AbortSignal): Validity {
     const compiled = compile([rule], this.limits)
+    // rules-eng-26: admission evidence is checked before any value is read.
+    const refusal = admissionRefusal(admission, compiled.rules.map((r) => r.ast))
+    if (refusal !== null) return { ok: false, error: err(refusal) }
     if (compiled.rules.length === 0) return { ok: true } // Tier-1 guard: nothing for this engine.
     const snapshot = contextValuesOf(context)
     if (!snapshot) return { ok: false, error: err(Codes.contextSnapshotRequired) }
@@ -95,8 +99,10 @@ export class GuardEvaluator {
     )
   }
 
-  evaluateValue(rule: RuleDefinition, context: RuleContextSnapshot, signal?: AbortSignal): ComputedValue {
+  evaluateValue(rule: RuleDefinition, context: RuleContextSnapshot, admission: EvaluationAdmission | null, signal?: AbortSignal): ComputedValue {
     const compiled = compile([rule], this.limits)
+    const refusal = admissionRefusal(admission, compiled.rules.map((r) => r.ast))
+    if (refusal !== null) return { state: 'Error', error: err(refusal) }
     if (compiled.rules.length === 0) return { state: 'Resolved', value: null }
     const snapshot = contextValuesOf(context)
     if (!snapshot) return { state: 'Error', error: err(Codes.contextSnapshotRequired) }

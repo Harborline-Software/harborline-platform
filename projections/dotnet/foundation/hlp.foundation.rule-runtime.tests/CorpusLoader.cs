@@ -63,7 +63,7 @@ internal static class CorpusLoader
             caseObj["clock"]?.GetValue<string>() ?? "2026-06-30T00:00:00Z",
             CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal));
         var bag = ((JsonObject)caseObj["instance"]!).ToDictionary(kv => kv.Key, kv => kv.Value?.DeepClone());
-        var value = new GuardEvaluator(clock, ParseLimits(caseObj)).EvaluateValue(rule, RuleContextSnapshot.Capture(bag), RuleEvalScope.Root);
+        var value = new GuardEvaluator(clock, ParseLimits(caseObj)).EvaluateValue(rule, RuleContextSnapshot.Capture(bag), RuleEvalScope.Root, TestAdmission.Any);
         return CanonicalJson.SerializeComputedValue(value);
     }
 
@@ -91,7 +91,7 @@ internal static class CorpusLoader
             caseObj["clock"]?.GetValue<string>() ?? "2026-06-30T00:00:00Z",
             CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.AssumeUniversal | System.Globalization.DateTimeStyles.AdjustToUniversal));
 
-        var graph = new FormRuleGraph(compiled, clock, limits);
+        var graph = new FormRuleGraph(compiled, clock, TestAdmission.Any, limits);
         var instance = RuleInstance.FromJson((JsonObject)caseObj["instance"]!);
         var result = graph.EvaluateInstance(instance);
         return (compiled, result);

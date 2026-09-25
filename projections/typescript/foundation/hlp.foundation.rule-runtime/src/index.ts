@@ -10,6 +10,14 @@ export * from './model.js'
 export * from './codes.js'
 export * from './limits.js'
 export { compile, type CompiledGraph, type CompiledRule } from './compiler.js'
+// T-590 R1 built-in register and the discriminated function reference (rules-eng-27, rules-ck-29).
+export { aggregateFolds, type BuiltInKey } from './jsonlogic.js'
+export * from './functions.js'
+// T-590 borrower environment admission (rules-ck-28, rules-eng-26).
+export {
+  admitEnvironment, BorrowerEnvironmentCodes, canonicalDeclaration, BorrowerEnvironmentError, evaluationPhases, fieldReadEffect, lentGrammar,
+  type AdmittedEnvironment, type BorrowerEnvironmentDeclaration, type EvaluationAdmission, type EvaluationPhase,
+} from './environment.js'
 export { CompileError, type RuleRef } from './grammar.js'
 // ADR 0146 D2 authoring skins (compile layer): decision-table + formula representations lowering to a
 // plain RuleDefinition the D1 core evaluates — one expression language, never a parallel evaluator.

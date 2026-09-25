@@ -1,6 +1,7 @@
 using System.Text.Json.Nodes;
 
 using Harborline.Foundation.RuleEngine.Compilation;
+using Harborline.Foundation.RuleEngine.Environments;
 using Harborline.Foundation.RuleEngine.Context;
 using Harborline.Foundation.RuleEngine.Evaluation;
 using Harborline.Foundation.RuleEngine.Model;
@@ -41,12 +42,18 @@ public sealed class FormRuleGraph : IFormRuleGraph
     private readonly Dictionary<string, ComputedValue> _values = new();
     private readonly Dictionary<string, RuleOutcome> _outcomes = new();
     private DateTimeOffset _evaluationInstant;
+    private readonly string? _refusal;
 
-    public FormRuleGraph(CompiledGraph compiled, TimeProvider clock, RuleEngineLimits? limits = null)
+    /// <summary>
+    /// Binds a compiled graph to a borrower's admitted environment (rules-eng-26). A null or insufficient
+    /// admission does not throw here: every evaluation entry point refuses with its code instead.
+    /// </summary>
+    public FormRuleGraph(CompiledGraph compiled, TimeProvider clock, EvaluationAdmission? admission, RuleEngineLimits? limits = null)
     {
         Compiled = compiled ?? throw new ArgumentNullException(nameof(compiled));
         _limits = limits ?? RuleEngineLimits.Default;
         _clock = clock ?? throw new ArgumentNullException(nameof(clock));
+        _refusal = BorrowerEnvironmentAdmission.Check(admission, compiled);
         WorkProof = CoreWorkDerivation.DeriveGraph(Compiled.Rules, _limits);
     }
 
@@ -59,6 +66,7 @@ public sealed class FormRuleGraph : IFormRuleGraph
     /// <inheritdoc />
     public RuleEvaluationResult EvaluateInstance(RuleInstance instance, CancellationToken ct = default)
     {
+        if (_refusal is not null) return FailClosed(_refusal);
         try
         {
             _instance = (instance ?? throw new ArgumentNullException(nameof(instance))).CaptureOwned();
@@ -77,6 +85,7 @@ public sealed class FormRuleGraph : IFormRuleGraph
     /// <inheritdoc />
     public RuleEvaluationResult Reevaluate(string fieldName, JsonNode? unownedValue, CancellationToken ct = default)
     {
+        if (_refusal is not null) return FailClosed(_refusal);
         try { RuntimeInputEnvelope.ValidateMemberName(fieldName, nameof(fieldName)); }
         catch (ArgumentException) { return FailClosed(RuleEngineCodes.InputTooLarge); }
         return FailClosed(RuleEngineCodes.ContextSnapshotRequired);
@@ -85,6 +94,7 @@ public sealed class FormRuleGraph : IFormRuleGraph
     /// <inheritdoc />
     public RuleEvaluationResult Reevaluate(string fieldName, RuleInputValue newValue, CancellationToken ct = default)
     {
+        if (_refusal is not null) return FailClosed(_refusal);
         ArgumentNullException.ThrowIfNull(fieldName);
         ArgumentNullException.ThrowIfNull(newValue);
         try { RuntimeInputEnvelope.ValidateMemberName(fieldName, nameof(fieldName)); }
@@ -165,6 +175,7 @@ public sealed class FormRuleGraph : IFormRuleGraph
     /// <inheritdoc />
     public RuleEvaluationResult AddRow(string section, RuleRow row, CancellationToken ct = default)
     {
+        if (_refusal is not null) return FailClosed(_refusal);
         ArgumentNullException.ThrowIfNull(section);
         ArgumentNullException.ThrowIfNull(row);
         try { RuntimeInputEnvelope.ValidateMemberName(section, nameof(section)); }
@@ -200,6 +211,7 @@ public sealed class FormRuleGraph : IFormRuleGraph
     /// <inheritdoc />
     public RuleEvaluationResult RemoveRow(string section, string rowId, CancellationToken ct = default)
     {
+        if (_refusal is not null) return FailClosed(_refusal);
         try
         {
             RuntimeInputEnvelope.ValidateMemberName(section, nameof(section));

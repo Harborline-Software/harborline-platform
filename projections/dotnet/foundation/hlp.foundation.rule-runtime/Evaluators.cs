@@ -2,6 +2,7 @@ using System.Text.Json.Nodes;
 
 using Harborline.Foundation.RuleEngine.Compilation;
 using Harborline.Foundation.RuleEngine.Context;
+using Harborline.Foundation.RuleEngine.Environments;
 using Harborline.Foundation.RuleEngine.Evaluation;
 using Harborline.Foundation.RuleEngine.Graph;
 using Harborline.Foundation.RuleEngine.Model;
@@ -96,11 +97,18 @@ public sealed class GuardEvaluator : IGuardEvaluator
     }
 
     /// <summary>Evaluates only data captured into the runtime-owned inert snapshot contract.</summary>
-    public Validity EvaluateGuard(RuleDefinition rule, RuleContextSnapshot context, RuleEvalScope scope, CancellationToken ct = default)
+    public Validity EvaluateGuard(RuleDefinition rule, RuleContextSnapshot context, RuleEvalScope scope, EvaluationAdmission? admission, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(rule);
         ArgumentNullException.ThrowIfNull(context);
-        var compiled = RuleCompiler.Compile(new[] { rule }, _limits);
+        CompiledGraph compiled;
+        // T-687: a rule that does not compile is a withheld guard carrying the compile code, like an
+        // evaluation fault, so callers need not hand-roll the fail-closed guarantee. The message
+        // (which can quote the expression) stays out of the result.
+        try { compiled = RuleCompiler.Compile(new[] { rule }, _limits); }
+        catch (RuleCompilationException ex) { return Validity.Invalid(RuleError.Of(ex.Code)); }
+        // rules-eng-26: evaluation needs admission evidence; the check runs before any value is read.
+        if (BorrowerEnvironmentAdmission.Check(admission, compiled) is { } refusal) return Validity.Invalid(RuleError.Of(refusal));
         if (compiled.RuleCount == 0) return Validity.Valid;
         var cr = compiled.Rules[0];
         return Run(cr, context.CreateResolver(scope), ct,
@@ -138,11 +146,12 @@ public sealed class GuardEvaluator : IGuardEvaluator
     }
 
     /// <summary>Evaluates a value against an inert captured snapshot.</summary>
-    public ComputedValue EvaluateValue(RuleDefinition rule, RuleContextSnapshot context, RuleEvalScope scope, CancellationToken ct = default)
+    public ComputedValue EvaluateValue(RuleDefinition rule, RuleContextSnapshot context, RuleEvalScope scope, EvaluationAdmission? admission, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(rule);
         ArgumentNullException.ThrowIfNull(context);
         var compiled = RuleCompiler.Compile(new[] { rule }, _limits);
+        if (BorrowerEnvironmentAdmission.Check(admission, compiled) is { } refusal) return ComputedValue.OfError(RuleError.Of(refusal));
         if (compiled.RuleCount == 0) return ComputedValue.Resolved(null);
         return Run(compiled.Rules[0], context.CreateResolver(scope), ct,
             onValue: ComputedValue.Resolved, onError: ComputedValue.OfError,

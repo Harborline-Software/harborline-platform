@@ -1,5 +1,6 @@
 using System.Text.Json.Nodes;
 
+using Harborline.Foundation.RuleEngine.Functions;
 using Harborline.Foundation.RuleEngine.Model;
 
 
@@ -38,14 +39,6 @@ public sealed class CompiledGraph
 /// </summary>
 public static class RuleCompiler
 {
-    private static readonly HashSet<string> Operators = new(StringComparer.Ordinal)
-    {
-        "var", "missing", "missing_some",
-        "==", "!=", "===", "!==", "!", "!!", "and", "or", "if",
-        ">", ">=", "<", "<=", "+", "-", "*", "/", "%", "min", "max", "in", "cat",
-        "agg", "money.add", "money.sub", "money.mul", "date.add", "date.diff", "date.today", "coding.is",
-    };
-
     /// <summary>Compiles a definition's rules; throws <see cref="RuleCompilationException"/> on rejection.</summary>
     public static CompiledGraph Compile(IReadOnlyList<RuleDefinition> rules, RuleEngineLimits? limits = null)
     {
@@ -143,42 +136,19 @@ public static class RuleCompiler
         // objects are literal data; their contents do not become executable declarations.
         if (node is not JsonObject expression || expression.Count != 1) return;
         var operation = expression.First();
-        if (!Operators.Contains(operation.Key))
+        if (!BuiltInFunctionRegister.TryResolve(operation.Key, out var function))
             throw new RuleCompilationException(RuleEngineCodes.CompileInvalidExpression,
                 $"rule '{ruleId}': unsupported operator '{operation.Key}'.", ruleId);
 
         var arguments = operation.Value is JsonArray array
             ? array.ToList()
             : new List<JsonNode?> { operation.Value };
-        ValidateArity(operation.Key, arguments.Count, ruleId);
+        if (!function.Admits(arguments.Count))
+            throw new RuleCompilationException(operation.Key == "agg" ? RuleEngineCodes.CompileBadGrammar : RuleEngineCodes.CompileInvalidExpression,
+                $"rule '{ruleId}': operator '{operation.Key}' does not accept {arguments.Count} argument(s).", ruleId);
 
         foreach (var argument in arguments)
             ValidateOperators(argument, ruleId);
-    }
-
-    private static void ValidateArity(string operation, int count, string ruleId)
-    {
-        bool valid = operation switch
-        {
-            "var" => count is 1 or 2,
-            "missing" => count >= 0,
-            "missing_some" => count == 2,
-            "==" or "!=" or "===" or "!==" or ">" or ">=" or "<" or "<=" or "in" => count == 2,
-            "!" or "!!" => count == 1,
-            "and" or "or" or "cat" => true,
-            // A one-argument `if` is the decision-table skin's canonical otherwise-only
-            // shape; the closed interpreter returns that argument unchanged.
-            "if" => true,
-            "+" or "-" or "*" or "/" or "%" or "min" or "max" or "money.add" or "money.sub" or "money.mul" => count >= 1,
-            "agg" or "date.add" or "coding.is" => count == 3,
-            "date.diff" => count == 2,
-            "date.today" => count == 0,
-            _ => false,
-        };
-
-        if (!valid)
-            throw new RuleCompilationException(operation == "agg" ? RuleEngineCodes.CompileBadGrammar : RuleEngineCodes.CompileInvalidExpression,
-                $"rule '{ruleId}': operator '{operation}' does not accept {count} argument(s).", ruleId);
     }
 
     private static (LowerContext Ctx, CellAddress? Target, string? RowSection, string? RowField) ResolveScope(RuleDefinition rule)

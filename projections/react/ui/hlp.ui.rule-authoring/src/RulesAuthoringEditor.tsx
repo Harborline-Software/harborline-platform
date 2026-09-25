@@ -1,5 +1,5 @@
 import { Button } from '@harborline-platform/hlp.ui.button'
-import type { FormulaCallOp, RuleDefinitionExpression, RuleDefinitionFormula, RuleDefinitionTable, RuleDefinitionValueType } from '@harborline-software/rule-authoring'
+import { formulaCallOps, type FormulaCallOp, type RuleDefinitionExpression, type RuleDefinitionFormula, type RuleDefinitionTable, type RuleDefinitionValueType } from '@harborline-software/rule-authoring'
 import { useEffect, useRef, useState } from 'react'
 
 export type RulesOutcomeKind = 'Value' | 'Validity' | 'Visibility' | 'Presentation' | 'Refusal' | 'Pending' | 'Uncomputable'
@@ -17,14 +17,8 @@ export interface RulesOperationResponse { readonly requestId: string; readonly i
 export interface RulesAuthoringEditorProps { readonly value: RulesDraft; readonly expressionContracts: readonly RulesExpressionContract[]; readonly previewKind: 'sample' | 'real'; readonly outcome?: RulesOutcome; readonly response?: RulesOperationResponse; readonly onChange: (value: RulesDraft) => void; readonly onOperation: (request: RulesOperationRequest) => void | RulesOperationResponse | Promise<void | RulesOperationResponse> }
 export interface GuidedExpressionEditorProps { readonly site: ExpressionSite; readonly value: RulesExpression | null; readonly contract?: RulesExpressionContract; readonly onChange: (expression: RulesExpression) => void; readonly label?: string }
 
-const formulaOperatorSet = {
-  missing: true, missing_some: true, '==': true, '!=': true, '===': true, '!==': true,
-  '!': true, '!!': true, and: true, or: true, if: true, '>': true, '>=': true, '<': true, '<=': true,
-  '+': true, '-': true, '*': true, '/': true, '%': true, min: true, max: true, in: true, cat: true,
-  agg: true, 'money.add': true, 'money.sub': true, 'money.mul': true,
-  'date.add': true, 'date.diff': true, 'date.today': true, 'coding.is': true,
-} satisfies Record<FormulaCallOp, true>
-const formulaOperators = Object.keys(formulaOperatorSet) as FormulaCallOp[]
+// Generated from the R1 built-in register (rules-eng-27), never a hand list.
+const formulaOperators = formulaCallOps
 const actions = ['Visibility', 'Required', 'ReadOnly', 'Validate', 'Compute', 'Presentation', 'Options'] as const
 const scopes = ['Field', 'Section', 'Schema', 'Row', 'Table'] as const
 const compareOperators = ['==', '!=', '>', '>=', '<', '<='] as const
