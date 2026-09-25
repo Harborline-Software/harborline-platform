@@ -78,3 +78,48 @@ export function roleGateAllows(gate: RoleGate, vocabulary: RoleVocabulary, held:
   const heldKeys = new Set(held.roles.map(role => keyOf(role)))
   return gate.requiredRoles.some(role => heldKeys.has(keyOf(role)))
 }
+
+export interface AuthorizationCapabilityReference { readonly name: string }
+export interface AuthorizationCapabilityDefinition {
+  readonly capability: AuthorizationCapabilityReference
+  readonly version: number
+}
+
+const capabilityName = /^[a-z][a-z0-9-]*:[a-z][a-z0-9-]*$/
+
+function validateCapability(capability: AuthorizationCapabilityReference): void {
+  if (typeof capability?.name !== 'string' || !capabilityName.test(capability.name))
+    throw new TypeError(`invalid-authorization-capability: ${String(capability?.name)}`)
+}
+
+export class AuthorizationCapabilityRegister {
+  readonly #definitions: ReadonlyMap<string, AuthorizationCapabilityDefinition>
+
+  private constructor(definitions: ReadonlyMap<string, AuthorizationCapabilityDefinition>) {
+    this.#definitions = definitions
+  }
+
+  static fromDeclarations(definitions: readonly AuthorizationCapabilityDefinition[]): AuthorizationCapabilityRegister {
+    const snapshot = new Map<string, AuthorizationCapabilityDefinition>()
+    for (const definition of definitions) {
+      validateCapability(definition.capability)
+      const {name} = definition.capability
+      if (!Number.isInteger(definition.version) || definition.version < 1)
+        throw new TypeError(`invalid-authorization-capability-version: ${name}`)
+      if (snapshot.has(name)) throw new TypeError(`duplicate-authorization-capability: ${name}`)
+      snapshot.set(name, Object.freeze({capability: Object.freeze({name}), version: definition.version}))
+    }
+    return new AuthorizationCapabilityRegister(snapshot)
+  }
+
+  resolve(capability: AuthorizationCapabilityReference): AuthorizationCapabilityDefinition | undefined {
+    validateCapability(capability)
+    return this.#definitions.get(capability.name)
+  }
+
+  require(capability: AuthorizationCapabilityReference): AuthorizationCapabilityDefinition {
+    const definition = this.resolve(capability)
+    if (!definition) throw new TypeError(`unknown-authorization-capability: ${capability.name}`)
+    return definition
+  }
+}

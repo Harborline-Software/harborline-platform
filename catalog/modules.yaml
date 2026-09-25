@@ -3,7 +3,7 @@
   "repository": "harborline-platform",
   "modules": {
     "hlp.contracts.authorization": {
-      "interface": {"path": "specs/modules/contracts/hlp.contracts.authorization/interface.yaml", "revision": 1},
+      "interface": {"path": "specs/modules/contracts/hlp.contracts.authorization/interface.yaml", "revision": 2},
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "Qualified role vocabulary and deterministic gate resolution have no presentation surface."},
       "owner": "platform-contracts",

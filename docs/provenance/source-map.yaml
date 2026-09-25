@@ -27,13 +27,13 @@
       "sourceExtracted": true,
       "sourceState": "Revision 1 mirrors the fixed API role DTO shapes and adds powerless, pure vocabulary resolution.",
       "contentHashes": {
-        "conformance/hlp.contracts.authorization/fixtures.yaml": "02e5b15aeb15aee469bf379ec223ae0ffeb06a41563c18eb3c8934235972493d",
-        "conformance/hlp.contracts.authorization/runners/run-shared.mjs": "721d36b340eb2e60da8a62f391b735d6a6fc30535cb02f676247cf1edf45ba79",
+        "conformance/hlp.contracts.authorization/fixtures.yaml": "9bb07384dee17fb705560d8c53874a576744c179daad946f96b45b450b4876a6",
+        "conformance/hlp.contracts.authorization/runners/run-shared.mjs": "cbbc9783465ec71c0d3ef8f77acee86c27b11c69548358d9390f663aa9572801",
         "projections/dotnet/contracts/hlp.contracts.identities.tests/AuthorizationContractTests.cs": "a3070f00c0812a64e72ff191491104bda080761f72b9717aa903f7ad2dab589a",
-        "projections/dotnet/contracts/hlp.contracts.identities/Authorization/AuthorizationContracts.g.cs": "109719e6cbdc27347c9d927e0814b884aba701c034ca5d725b3e275d17e0c984",
-        "projections/typescript/contracts/hlp.contracts.forms/src/authorization.ts": "700c5f327ea5bc6895e2b00b0a4e952487fd0d648ab7b893705201c7fe038c8c",
+        "projections/dotnet/contracts/hlp.contracts.identities/Authorization/AuthorizationContracts.g.cs": "ec8f16350e46335d82e43128ba8d8e69b2be4f098c5816184d873a1b69391b75",
+        "projections/typescript/contracts/hlp.contracts.forms/src/authorization.ts": "3346fe9a148bd451baaa6ef8bfb3826fd64f72242a44e18fc39e91af5b705a43",
         "projections/typescript/contracts/hlp.contracts.forms/tests/authorization.test.mjs": "06524ec466cc3a83b395efcb62e89cd6b6958258da9fa3c60bb86507a34b5261",
-        "specs/modules/contracts/hlp.contracts.authorization/interface.yaml": "57fb593c3ca87ff32f91510eae16d48c7d97c3455f9f0eb0b829b99e60e218dc"
+        "specs/modules/contracts/hlp.contracts.authorization/interface.yaml": "4355787bacca5d9bf6603b208dab8813ec2588bbbfe13720c985983bc7a500e9"
       },
       "nextGate": "Consumed by workflow, Forms, and app-shell role gates."
     },
