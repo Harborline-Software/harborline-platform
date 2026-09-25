@@ -1234,6 +1234,26 @@ public sealed record FormViewSection
 
 }
 
+public sealed record FormViewPage
+{
+    [JsonPropertyName("id")]
+    [JsonRequired]
+    public required string Id { get; init; }
+
+    [JsonPropertyName("title")]
+    [JsonRequired]
+    public required InternationalizedText Title { get; init; }
+
+    [JsonPropertyName("sections")]
+    [JsonRequired]
+    public required IReadOnlyList<string> Sections { get; init; }
+
+    [JsonPropertyName("visible")]
+    [JsonRequired]
+    public required bool Visible { get; init; }
+
+}
+
 public sealed record FormView
 {
     [JsonPropertyName("formId")]
@@ -1255,6 +1275,10 @@ public sealed record FormView
     [JsonPropertyName("sections")]
     [JsonRequired]
     public required IReadOnlyList<FormViewSection> Sections { get; init; }
+
+    [JsonPropertyName("pages")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public Optional<IReadOnlyList<FormViewPage>> Pages { get; init; }
 
 }
 
@@ -1758,6 +1782,7 @@ public static class FormsContractSurface
         "FormViewField",
         "FormViewItem",
         "FormViewSection",
+        "FormViewPage",
         "FormView",
         "ValidationErrorKind",
         "ValidationError",
@@ -1847,6 +1872,7 @@ public static class FormsContractSurface
         ["FormViewField"] = typeof(FormViewField),
         ["FormViewItem"] = typeof(FormViewItem),
         ["FormViewSection"] = typeof(FormViewSection),
+        ["FormViewPage"] = typeof(FormViewPage),
         ["FormView"] = typeof(FormView),
         ["ValidationErrorKind"] = typeof(ValidationErrorKind),
         ["ValidationError"] = typeof(ValidationError),

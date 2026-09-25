@@ -2017,6 +2017,39 @@ public static class FormsJson
         }
       }
     },
+    "FormViewPage": {
+      "kind": "object",
+      "properties": {
+        "id": {
+          "optional": false,
+          "shape": {
+            "kind": "string"
+          }
+        },
+        "title": {
+          "optional": false,
+          "shape": {
+            "kind": "ref",
+            "name": "InternationalizedText"
+          }
+        },
+        "sections": {
+          "optional": false,
+          "shape": {
+            "kind": "array",
+            "element": {
+              "kind": "string"
+            }
+          }
+        },
+        "visible": {
+          "optional": false,
+          "shape": {
+            "kind": "boolean"
+          }
+        }
+      }
+    },
     "FormView": {
       "kind": "object",
       "properties": {
@@ -2059,6 +2092,16 @@ public static class FormsJson
             "element": {
               "kind": "ref",
               "name": "FormViewSection"
+            }
+          }
+        },
+        "pages": {
+          "optional": true,
+          "shape": {
+            "kind": "array",
+            "element": {
+              "kind": "ref",
+              "name": "FormViewPage"
             }
           }
         }

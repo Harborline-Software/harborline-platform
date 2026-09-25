@@ -48,11 +48,11 @@
         "projections/dotnet/contracts/hlp.contracts.identities.tests/FormsContractTests.cs": "2b0bb254ce31e6049e9373fa3fcc81d88f26a0b37238f0c79fbdb34379c92773",
         "projections/dotnet/contracts/hlp.contracts.identities.tests/FormsFixtureConformanceTests.cs": "bed037e0a0cc0b6ba51c7dd406852f3755c7a4af2508a408c53722fb8c3ccba8",
         "projections/dotnet/contracts/hlp.contracts.identities/Forms/FormsContracts.g.cs": "7d6bde023cd149b624d9f6e08160c6bb0b8eafa40cafa71046399c35ad9daaeb",
-        "projections/dotnet/contracts/hlp.contracts.identities/Forms/FormsJson.g.cs": "0514f29a303f817f7322c4c0b6e22ac446d8df5d08e31a48a243e00ef36cfa18",
+        "projections/dotnet/contracts/hlp.contracts.identities/Forms/FormsJson.g.cs": "a036f2bfa2c70dbb5a2c56d22b9a6f1ee3de702f091dc4e085c0a5271e1986c5",
         "projections/typescript/contracts/hlp.contracts.forms/package.json": "56c9b679ba169767f3025abc516ff624d7bcb1e20524de539243dca111101c14",
-        "projections/typescript/contracts/hlp.contracts.forms/projection-manifest.json": "976fedc00ed0fef692a4439a8f21b1afcdb197b7612a4ef8d4c1e8913e003de4",
-        "projections/typescript/contracts/hlp.contracts.forms/src/forms.ts": "d032dcd2e65bea38b2ee9f141d91d37a61e21a114138b6b411622d206dc412af",
-        "projections/typescript/contracts/hlp.contracts.forms/src/wire.ts": "e37e2f409fa6eb97c2d50ce6fbde086d0f2ea829ca743a2f76685d765875a09d",
+        "projections/typescript/contracts/hlp.contracts.forms/projection-manifest.json": "7af5328b57e8001bdbc6d4dd746a3771b21e10193b6a3846c2aeecd2fcb71a36",
+        "projections/typescript/contracts/hlp.contracts.forms/src/forms.ts": "f79abd3e68d7975cb77b11556724750df1fd5cd6922be667737b6431fe8f94dc",
+        "projections/typescript/contracts/hlp.contracts.forms/src/wire.ts": "07d68b7030a9336a23434fb9cb7306e4a95c33929b6d24d0a8d502f3f2621777",
         "specs/modules/contracts/hlp.contracts.forms/interface.yaml": "f53bde0ad9b316eb1180377f6ba76bb78d7bab9472f109b25ca31218805a2b2f"
       },
       "nextGate": "Consume the completed dual-tier Rule Runtime from the Forms state and executable Forms Engine modules."
@@ -910,7 +910,7 @@
         "specs/modules/ui/hlp.ui.form-view/interface.yaml": "0d0ed294fb463b84ff146db83fc9514bd639d9c72506e21d793ca43d0ae0ebfe",
         "specs/modules/ui/hlp.ui.form-view/quality.yaml": "7c2b7e01733a4a6957a563e8c87228ab99ce538df28e08695dc88ef8aeb50b9b",
         "specs/modules/contracts/hlp.contracts.forms/interface.yaml": "f53bde0ad9b316eb1180377f6ba76bb78d7bab9472f109b25ca31218805a2b2f",
-        "projections/typescript/contracts/hlp.contracts.forms/src/forms.ts": "d032dcd2e65bea38b2ee9f141d91d37a61e21a114138b6b411622d206dc412af",
+        "projections/typescript/contracts/hlp.contracts.forms/src/forms.ts": "f79abd3e68d7975cb77b11556724750df1fd5cd6922be667737b6431fe8f94dc",
         "projections/dotnet/contracts/hlp.contracts.identities/Forms/FormsContracts.g.cs": "7d6bde023cd149b624d9f6e08160c6bb0b8eafa40cafa71046399c35ad9daaeb"
       },
       "nextGate": "Retain this conformant compatibility binding and canonical Forms dependency while HLF-052 advances to the next Carrier-essential dependency wave."

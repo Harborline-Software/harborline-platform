@@ -276,7 +276,8 @@ internal static class FormCandidateEvaluator
         HashSet<string> hiddenPages,
         HashSet<string> hiddenSections,
         TimeProvider clock,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        EvaluationPhase phase = EvaluationPhase.Submission)
     {
         if (definition.Overlay.Pages is not { Count: > 0 }) return;
         var context = candidate.ToDictionary(row => row.Key, row => row.Value?.DeepClone(), StringComparer.Ordinal);
@@ -288,10 +289,31 @@ internal static class FormCandidateEvaluator
                 Id = $"page-guard:{page.Id}", Tier = Contract.RuleTier.JsonLogic, Scope = Contract.RuleScope.Schema,
                 ScopeTarget = "", Expression = page.VisibleWhen!, Action = Contract.RuleActionKind.Validate,
             };
-            if (evaluator.EvaluateGuard(guard, RuleContextSnapshot.Capture(context), RuleEvalScope.Root, FormsExpressionEnvironment.Admitted.For(EvaluationPhase.Submission), cancellationToken).Ok) continue;
+            if (evaluator.EvaluateGuard(guard, RuleContextSnapshot.Capture(context), RuleEvalScope.Root, FormsExpressionEnvironment.Admitted.For(phase), cancellationToken).Ok) continue;
             hiddenPages.Add(page.Id);
             foreach (var section in page.Sections) hiddenSections.Add(section);
         }
+    }
+
+    /// <summary>
+    /// The pages the render path hides (forms-eng-4): each page guard is evaluated through Rules
+    /// over the rendered candidate with resolved computed values materialised first, as submit does.
+    /// </summary>
+    internal static IReadOnlySet<string> HiddenPages(
+        State.FormDefinition definition,
+        JsonDocument candidate,
+        RuleEvaluationResult? rules,
+        DateTimeOffset instant,
+        CancellationToken cancellationToken)
+    {
+        var hiddenPages = new HashSet<string>(StringComparer.Ordinal);
+        if (definition.Overlay.Pages is not { Count: > 0 } || candidate.RootElement.ValueKind != JsonValueKind.Object) return hiddenPages;
+        var node = JsonNode.Parse(candidate.RootElement.GetRawText())!.AsObject();
+        foreach (var (target, computed) in rules?.Values ?? new Dictionary<string, ComputedValue>())
+            if (target.StartsWith("field:", StringComparison.Ordinal) && computed.State == ValueState.Resolved)
+                node[target["field:".Length..]] = computed.Value?.DeepClone();
+        EvaluatePageGuards(definition, node, hiddenPages, new HashSet<string>(StringComparer.Ordinal), new PinnedClock(instant), cancellationToken, EvaluationPhase.Render);
+        return hiddenPages;
     }
 
     internal static IReadOnlySet<string> ReadableFields(FormExecutionScope scope, State.FormDefinition definition)

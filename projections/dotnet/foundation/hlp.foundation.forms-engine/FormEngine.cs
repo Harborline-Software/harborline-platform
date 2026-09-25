@@ -74,7 +74,8 @@ public sealed class FormEngine : IFormEngine
             using var empty = JsonDocument.Parse("{}");
             var sensitive = definition.Overlay.Fields.Where(row => row.Value.PiiSensitivity == State.PiiSensitivity.Sensitive).Select(row => row.Key).ToHashSet(StringComparer.Ordinal);
             var rules = EvaluateRenderRules(definition, empty, instant, cancellationToken);
-            return FormContractMapper.ToView(scope, definition, empty, sensitive, sensitive, rules, bindings);
+            var hiddenPages = FormCandidateEvaluator.HiddenPages(definition, empty, rules, instant, cancellationToken);
+            return FormContractMapper.ToView(scope, definition, empty, sensitive, sensitive, rules, bindings, hiddenPages);
         }
 
         var submission = await ProviderAsync(() => _submissions.GetAsync(scope.Tenant, instanceId.Value, cancellationToken), cancellationToken).ConfigureAwait(false);
@@ -94,7 +95,8 @@ public sealed class FormEngine : IFormEngine
             projection.Candidate,
             projection.SensitiveFields,
             projection.WithheldFields,
-            rulesResult, bindings);
+            rulesResult, bindings,
+            FormCandidateEvaluator.HiddenPages(definition, ruleCandidate, rulesResult, instant, cancellationToken));
     }
 
     public async ValueTask<Contract.ValidationResult> ValidateAsync(
