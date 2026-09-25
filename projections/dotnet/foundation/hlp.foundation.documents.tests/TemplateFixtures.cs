@@ -54,22 +54,32 @@ internal static class TemplateFixtures
     public static TemplateSurfaces Surfaces(LayoutDefinition? surface = null) => Surfaces(
         Encoding.UTF8.GetString(LayoutDefinitionJson.SerializeCanonical(surface ?? Surface())));
 
-    public static TemplateSurfaces Surfaces(string surfaceJson) => new(
-        pin => pin == new TemplateSurfacePin(SurfaceId, SurfaceVersion) ? surfaceJson : null,
-        (json, stage) =>
+    public static TemplateSurfaces Surfaces(string surfaceJson)
+        => Surfaces(new Dictionary<TemplateSurfacePin, string> { [new(SurfaceId, SurfaceVersion)] = surfaceJson });
+
+    /// <summary>Several published surfaces, and the host's resolution of a template id to the version it names.</summary>
+    public static TemplateSurfaces Surfaces(
+        IReadOnlyDictionary<TemplateSurfacePin, string> surfaces, Func<string, TemplateDefinition?>? templates = null) => new(
+        pin => surfaces.TryGetValue(pin, out var json) ? json : null,
+        Admit,
+        templates ?? (_ => null));
+
+    public static string Canonical(LayoutDefinition surface) => Encoding.UTF8.GetString(LayoutDefinitionJson.SerializeCanonical(surface));
+
+    private static IReadOnlyList<TemplateRefusal> Admit(string json, TemplateAdmissionStage stage)
+    {
+        try
         {
-            try
-            {
-                var definition = LayoutDefinitionJson.Deserialize(Encoding.UTF8.GetBytes(json));
-                if (stage == TemplateAdmissionStage.Persisted) LayoutPersistedValueAdmission.ValidateForRuntime(definition);
-                else LayoutDefinitionAdmission.ValidateForPublish(definition);
-                return [];
-            }
-            catch (LayoutDefinitionAdmissionException refused)
-            {
-                return refused.Refusals.Select(refusal => new TemplateRefusal(refusal.Code, refusal.Pointer)).ToArray();
-            }
-        });
+            var definition = LayoutDefinitionJson.Deserialize(Encoding.UTF8.GetBytes(json));
+            if (stage == TemplateAdmissionStage.Persisted) LayoutPersistedValueAdmission.ValidateForRuntime(definition);
+            else LayoutDefinitionAdmission.ValidateForPublish(definition);
+            return [];
+        }
+        catch (LayoutDefinitionAdmissionException refused)
+        {
+            return refused.Refusals.Select(refusal => new TemplateRefusal(refusal.Code, refusal.Pointer)).ToArray();
+        }
+    }
 
     public static JsonElement Json(string json) => JsonDocument.Parse(json).RootElement.Clone();
 }

@@ -30,6 +30,8 @@ public static class TemplateDefinitionCodes
     public const string CatalogueMismatch = "documents.template.catalogue_mismatch";
     /// <summary>A stored key and version already hold a different body (documents-auth-26).</summary>
     public const string PinnedTupleConflict = "documents.template.pinned_tuple_conflict";
+    /// <summary>The pinned surface leads back to the template version being published (owner ruling Q8).</summary>
+    public const string CompositionCycle = "documents.template.composition_cycle";
 }
 
 /// <summary>A stable, localizable refusal at an RFC 6901 pointer.</summary>
@@ -51,9 +53,14 @@ public enum TemplateAdmissionStage
 /// </summary>
 /// <param name="Resolve">The published surface's canonical Layout JSON, or null when the pin resolves nothing.</param>
 /// <param name="Admit">Layout's admission of that JSON at the stage, as refusals relative to the surface root.</param>
+/// <param name="ResolveTemplate">
+/// The template version a surface block's template binding (layout-ck-24) resolves to, or null. Layout's binding
+/// names a template by id only, so the host owns the version it resolves, over the same state publication commits.
+/// </param>
 public sealed record TemplateSurfaces(
     Func<TemplateSurfacePin, string?> Resolve,
-    Func<string, TemplateAdmissionStage, IReadOnlyList<TemplateRefusal>> Admit);
+    Func<string, TemplateAdmissionStage, IReadOnlyList<TemplateRefusal>> Admit,
+    Func<string, TemplateDefinition?> ResolveTemplate);
 
 /// <summary>Every refusal found at one admission stage.</summary>
 public sealed class TemplateAdmissionException(string stage, IReadOnlyList<TemplateRefusal> refusals)
@@ -89,7 +96,11 @@ public static class TemplateDefinitionAdmission
             refusals.Add(new(TemplateDefinitionCodes.BodyInvalid, "/locale"));
         if (template.Surface is null || Blank(template.Surface.SurfaceDefinitionId) || Blank(template.Surface.SurfaceVersion))
             refusals.Add(new(TemplateDefinitionCodes.BodyInvalid, "/surface"));
-        else Surface(template.Surface, surfaces, stage, refusals);
+        else
+        {
+            Surface(template.Surface, surfaces, stage, refusals);
+            if (template.Envelope is not null) Cycle(template, surfaces, refusals);
+        }
         return refusals;
     }
 
@@ -142,6 +153,52 @@ public static class TemplateDefinitionAdmission
                 refusals.Add(new(TemplateDefinitionCodes.RepeatingRegionColumnsRequired, $"{at}/children"));
             if (children is not null) RepeatingRegions(children, $"{at}/children", refusals);
         }
+    }
+
+    // Owner ruling Q8: walk the resolved, versioned graph. Edges are exactly a template's surface pin and a
+    // surface block's template binding resolved to a version; detach lineage is not an edge. Refuse when the walk
+    // returns to the version being published, at the first hop's block.
+    private static void Cycle(TemplateDefinition candidate, TemplateSurfaces surfaces, List<TemplateRefusal> refusals)
+    {
+        var self = (candidate.Envelope.Identity, candidate.Envelope.Version);
+        var seen = new HashSet<(string, string)> { self };
+        var pending = new Stack<(TemplateSurfacePin Pin, string? FirstHop)>();
+        pending.Push((candidate.Surface, null));
+        while (pending.Count > 0)
+        {
+            var (pin, firstHop) = pending.Pop();
+            if (Parse(surfaces.Resolve(pin))?["blocks"] is not JsonArray blocks) continue;
+            foreach (var (templateId, pointer) in TemplateBindings(blocks, "/surface/blocks"))
+            {
+                if (surfaces.ResolveTemplate(templateId) is not { Envelope: { } envelope } named) continue;
+                var hop = firstHop ?? pointer;
+                if ((envelope.Identity, envelope.Version) == self)
+                {
+                    refusals.Add(new(TemplateDefinitionCodes.CompositionCycle, hop));
+                    return;
+                }
+                if (named.Surface is not null && seen.Add((envelope.Identity, envelope.Version))) pending.Push((named.Surface, hop));
+            }
+        }
+    }
+
+    private static IEnumerable<(string TemplateId, string Pointer)> TemplateBindings(JsonArray blocks, string pointer)
+    {
+        for (var index = 0; index < blocks.Count; index++)
+        {
+            var at = $"{pointer}/{index}";
+            if (blocks[index]?["binding"] is JsonObject binding && Text(binding["binding_kind"]) == "template"
+                && Text(binding["template_definition_id"]) is { } id)
+                yield return (id, $"{at}/binding");
+            if (blocks[index]?["children"] is JsonArray children)
+                foreach (var nested in TemplateBindings(children, $"{at}/children")) yield return nested;
+        }
+    }
+
+    private static JsonObject? Parse(string? json)
+    {
+        try { return json is null ? null : JsonNode.Parse(json) as JsonObject; }
+        catch (JsonException) { return null; }
     }
 
     private static string? Text(JsonNode? node)
