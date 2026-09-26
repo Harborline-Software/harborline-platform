@@ -132,6 +132,49 @@ public sealed class AssistanceDefinitionTests
         Assert.Contains(AssistanceDefinitionAdmission.Validate(definition, AssistanceAdmissionPhase.Author, Catalogue()), refusal => refusal.Code == "definition.args_schema_not_object");
     }
 
+    [Fact(DisplayName = "duplicate CommandId values refuse instead of admitting")]
+    public void Duplicate_command_id_refuses()
+    {
+        var definition = Definition() with { Commands = [Command("customer.update"), Command("customer.update")] };
+        Assert.Contains(AssistanceDefinitionAdmission.Validate(definition, AssistanceAdmissionPhase.Author, Catalogue()), refusal => refusal.Code == "definition.command_duplicate");
+    }
+
+    [Fact(DisplayName = "narrowing against a previous definition with duplicate CommandId values does not throw")]
+    public void Narrowing_against_previous_with_duplicate_command_ids_does_not_throw()
+    {
+        // Only the previous definition carries the duplicate; ToDictionary used to throw
+        // ArgumentException building the narrowing lookup regardless of whose duplicate it was.
+        var previousWithDuplicates = Definition() with { Commands = [Command("customer.update"), Command("customer.update")] };
+        var exception = Record.Exception(() =>
+            AssistanceDefinitionAdmission.Validate(Definition(), AssistanceAdmissionPhase.Install, Catalogue(), previousWithDuplicates));
+        Assert.Null(exception);
+    }
+
+    [Fact(DisplayName = "a body missing a required member refuses definition.body_invalid instead of throwing")]
+    public void Missing_required_member_refuses_instead_of_throwing()
+    {
+        var body = "{\"tenant\":\"tenant-a\",\"key\":\"assistance.customer\",\"version\":\"1.0.0\",\"surface\":\"customer\",\"route\":\"/customers/{customerId}\",\"commands\":[],\"context_allowlist\":[],\"recipients\":[\"support\"]}";
+        // "provider" is required and absent.
+        Assert.Contains(AssistanceDefinitionAdmission.AdmitJson(body, AssistanceAdmissionPhase.Author, Catalogue()), refusal => refusal.Code == "definition.body_invalid");
+    }
+
+    [Fact(DisplayName = "an explicit null for a required member refuses definition.body_invalid instead of throwing")]
+    public void Null_required_member_refuses_instead_of_throwing()
+    {
+        var body = "{\"tenant\":\"tenant-a\",\"key\":\"assistance.customer\",\"version\":\"1.0.0\",\"surface\":\"customer\",\"route\":\"/customers/{customerId}\",\"commands\":null,\"context_allowlist\":[],\"recipients\":[\"support\"],\"provider\":{\"provider_id\":\"provider-a\",\"model_id\":\"model-a\"}}";
+        Assert.Contains(AssistanceDefinitionAdmission.AdmitJson(body, AssistanceAdmissionPhase.Author, Catalogue()), refusal => refusal.Code == "definition.body_invalid");
+    }
+
+    [Fact(DisplayName = "a command missing args_schema refuses instead of throwing when narrowed against a previous definition")]
+    public void Missing_args_schema_refuses_instead_of_throwing_during_narrowing()
+    {
+        var body = "{\"tenant\":\"tenant-a\",\"key\":\"assistance.customer\",\"version\":\"1.0.0\",\"surface\":\"customer\",\"route\":\"/customers/{customerId}\",\"commands\":[{\"command_id\":\"customer.update\",\"aliases\":[],\"classification\":{\"tier\":\"ap\",\"undoable\":true}}],\"context_allowlist\":[],\"recipients\":[\"support\"],\"provider\":{\"provider_id\":\"provider-a\",\"model_id\":\"model-a\"}}";
+        // "args_schema" is required and absent on the command. A previous definition naming the same
+        // command id used to reach ValidateNarrowing's GetRawText() call on the default JsonElement
+        // and throw InvalidOperationException instead of refusing.
+        Assert.Contains(AssistanceDefinitionAdmission.AdmitJson(body, AssistanceAdmissionPhase.Install, Catalogue(), catalogue: null, previous: Definition()), refusal => refusal.Code == "definition.body_invalid");
+    }
+
     [Fact]
     public void Store_adapter_targets_the_reserved_pilot_namespace()
     {

@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.foundation.assistance",
+  "interfaceRevision": 1,
+  "status": "draft",
+  "purpose": "Own the Assistance composition's AssistanceDefinition (DES-0026, DefinitionKind.Pilot): its envelope, canonical JSON, phase-aware structural intent admission and the reserved content-kind pack entry. Assistance owns no primitive row and no second action catalogue; the binding narrows the Workflows-owned catalogue it references.",
+  "dependencies": [],
+  "callerInterface": {
+    "name": "AssistanceDefinitionJson / AssistanceDefinitionAdmission / AssistanceDefinitionStoreAdmission / AssistanceDefinitionPackExporter",
+    "operations": [
+      "AssistanceDefinitionJson.SerializeCanonical / Deserialize -> canonical snake_case, ordinal-sorted, newline-terminated UTF-8 JSON; unknown members refuse; a missing or null required member refuses at deserialize rather than reaching admission",
+      "AssistanceDefinitionAdmission.Validate(definition, phase, commands, previous) / AdmitJson(body, phase, commands, catalogue, previous) -> the complete refusal list at the Author, Publish and Install boundaries: unresolved command references, a lowered classification tier or a widened args schema/recipient set against `previous`, an invalid or missing NEVER archetype/justification, a duplicate command id, and envelope/version/schema-version shape",
+      "AssistanceDefinitionStoreAdmission.Admit(document, phase, commands, previous) -> adapts Validate/AdmitJson into the shared builder-definitions catalogue's DefinitionAdmission delegate under the already-reserved DefinitionKind.Pilot namespace",
+      "AssistanceDefinitionPackExporter.Export(definition, commands) -> the reserved content-kind pack entry of canonical bytes after Publish admission"
+    ],
+    "context": "Bindings are portable pack content stored in the shared builder-definitions catalogue; this package owns their typed shape, canonical JSON and structural admission, never a store, never the Workflows-owned action catalogue, and never a provider or proposal runtime. Command references are resolved through an injected ICommandCatalogueRegistry seam; no released Workflows command-authority digest is consumed yet (ADR 0096 ruling 5f is future work). The proposal/receipt/delegation wire and runtime contracts already exist at projections/typescript/application/hlp.copilot.contracts and are out of this module's scope."
+  },
+  "invariants": [
+    "Assistance owns no primitive row in DES-0002 and creates no second action catalogue or interpreter (pilot-ck-1).",
+    "A binding may only narrow a referenced command: raise its classification tier, tighten its args schema, or shrink its recipient set; never the reverse (pilot-ck-8, pilot-auth-10).",
+    "A NEVER command always carries one of the five named archetypes and a non-empty justification (pilot-ck-9, pilot-auth-11).",
+    "No prompt or instruction-text member exists anywhere on the definition (pilot-ck-20, pilot-auth-12).",
+    "Tenant, proposals, dispositions, audit rows, model weights and provider credentials never travel in the pack."
+  ],
+  "errors": [
+    "definition.body_invalid",
+    "definition.settings_not_object",
+    "definition.version_invalid",
+    "definition.schema_version_unsupported",
+    "definition.surface_required",
+    "definition.route_required",
+    "definition.envelope_required",
+    "definition.envelope_mismatch",
+    "definition.provider_required",
+    "definition.model_required",
+    "definition.command_unregistered",
+    "definition.command_duplicate",
+    "definition.args_schema_not_object",
+    "definition.args_schema_widened",
+    "definition.tier_lowered",
+    "definition.never_archetype_required",
+    "definition.never_archetype_unknown",
+    "definition.never_justification_required",
+    "definition.context_definition_required",
+    "definition.context_field_required",
+    "definition.recipient_required",
+    "definition.recipients_widened",
+    "definition.catalogue_mismatch"
+  ],
+  "publicSeams": [
+    "definition intent admission (Author, Publish, Install) and canonical JSON",
+    "the reserved DefinitionKind.Pilot content-kind pack entry",
+    "ICommandCatalogueRegistry command-reference resolution port"
+  ]
+}

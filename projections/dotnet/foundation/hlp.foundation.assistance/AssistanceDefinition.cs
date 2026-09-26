@@ -58,7 +58,11 @@ public static class AssistanceDefinitionJson
     }
     private static JsonSerializerOptions CreateOptions()
     {
-        var options = new JsonSerializerOptions(JsonSerializerDefaults.Web) { PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull, UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow, WriteIndented = false };
+        // RespectNullableAnnotations/RespectRequiredConstructorParameters turn a missing or null
+        // required member (e.g. provider, commands, a command's classification or args_schema) into
+        // a JsonException at Deserialize, so AdmitJson refuses definition.body_invalid instead of a
+        // null reaching Validate/ValidateNarrowing and throwing.
+        var options = new JsonSerializerOptions(JsonSerializerDefaults.Web) { PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull, UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow, RespectNullableAnnotations = true, RespectRequiredConstructorParameters = true, WriteIndented = false };
         options.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.SnakeCaseLower));
         return options;
     }
@@ -111,6 +115,10 @@ public static class AssistanceDefinitionAdmission
         if (string.IsNullOrWhiteSpace(definition.Provider.ModelId)) refusals.Add(new("definition.model_required", "/provider/model_id"));
         // Registered-provider floors are deferred by DES-0026 open ruling 5.
         for (var index = 0; index < definition.Commands.Count; index++) ValidateCommand(definition.Commands[index], index, commands, refusals);
+        var seenCommandIds = new HashSet<string>(StringComparer.Ordinal);
+        for (var index = 0; index < definition.Commands.Count; index++)
+            if (!seenCommandIds.Add(definition.Commands[index].CommandId))
+                refusals.Add(new("definition.command_duplicate", $"/commands/{index}/command_id"));
         for (var index = 0; index < definition.ContextAllowlist.Count; index++)
         {
             var entry = definition.ContextAllowlist[index];
@@ -133,7 +141,12 @@ public static class AssistanceDefinitionAdmission
     }
     private static void ValidateNarrowing(AssistanceDefinition definition, AssistanceDefinition previous, List<AssistanceRefusal> refusals)
     {
-        var oldCommands = previous.Commands.ToDictionary(command => command.CommandId, StringComparer.Ordinal);
+        // GroupBy tolerates a previous definition that itself contains duplicate CommandId values
+        // (refused by Validate above, but still passable as `previous`) rather than throwing from
+        // ToDictionary's duplicate-key check.
+        var oldCommands = previous.Commands
+            .GroupBy(command => command.CommandId, StringComparer.Ordinal)
+            .ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal);
         foreach (var (command, index) in definition.Commands.Select((command, index) => (command, index)))
         {
             if (!oldCommands.TryGetValue(command.CommandId, out var old)) continue;
