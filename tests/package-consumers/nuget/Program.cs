@@ -591,7 +591,9 @@ var stateDefinition = new FormsModel.FormDefinition(
                 true,
                 [new FormsModel.FormFieldValidation("required")],
                 ["PASS", "FAIL"]),
-        }));
+        }),
+    new Harborline.Contracts.Authorization.SubmitGate(
+        Role: Harborline.Contracts.Authorization.RoleReference.Domain("inspector")));
 await formsAuthoringPublisher.RegisterAndPublishAsync(stateDefinition);
 var packedStateDefinition = await formsStateStore.GetCurrentPublishedAsync(stateDefinition.Tenant, stateDefinition.Id);
 if (packedStateDefinition?.Version != definitionVersion)

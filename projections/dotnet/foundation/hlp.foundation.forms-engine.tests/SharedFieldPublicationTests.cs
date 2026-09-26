@@ -41,7 +41,12 @@ public sealed class SharedFieldPublicationTests
                     new("hidden", "b", System.Text.Json.JsonSerializer.SerializeToElement(new { enabled = false }))],
             },
         };
-        var definition = Harness.CreateDefinition(host.SchemaRef, host.Tenant) with { Status = FormDefinitionStatus.Draft };
+        var definition = Harness.CreateDefinition(host.SchemaRef, host.Tenant) with
+        {
+            Status = FormDefinitionStatus.Draft,
+            SubmitGate = new Harborline.Contracts.Authorization.SubmitGate(
+                Role: Harborline.Contracts.Authorization.RoleReference.Domain("admin")),
+        };
         var services = new ServiceCollection();
         services.AddSingleton<IFormDefinitionStore, InMemoryFormDefinitionStore>();
         if (scenario != "missing-caller")
@@ -94,6 +99,8 @@ public sealed class SharedFieldPublicationTests
         var definition = Harness.CreateDefinition(host.SchemaRef, host.Tenant) with
         {
             Status = FormDefinitionStatus.Draft,
+            SubmitGate = new Harborline.Contracts.Authorization.SubmitGate(
+                Role: Harborline.Contracts.Authorization.RoleReference.Domain("admin")),
             Authoring = scenario == "widening"
                 ? new(new Dictionary<string, FormFieldAuthoringMetadata>
                 {

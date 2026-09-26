@@ -122,6 +122,7 @@ static FormDefinition BuildDefinition(string id, AuthoringRequest request) =>
                 RuleActionKind.Compute)]),
         null,
         DateTimeOffset.UnixEpoch,
-        DateTimeOffset.UnixEpoch);
+        DateTimeOffset.UnixEpoch,
+        SubmitGate: new(Role: Harborline.Contracts.Authorization.RoleReference.Domain("inspector")));
 
 sealed record AuthoringRequest(string Expression, string? ClassificationCode = null);

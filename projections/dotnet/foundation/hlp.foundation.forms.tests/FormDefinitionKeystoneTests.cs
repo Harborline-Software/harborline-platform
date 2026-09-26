@@ -240,7 +240,9 @@ public sealed class FormDefinitionKeystoneTests
                 Rules: Array.Empty<RuleDefinition>()),
             Lineage: null,
             CreatedAt: Now,
-            UpdatedAt: Now);
+            UpdatedAt: Now,
+            SubmitGate: new Harborline.Contracts.Authorization.SubmitGate(
+                Role: Harborline.Contracts.Authorization.RoleReference.Domain("tenant:admin")));
 
     private static FieldOverlay SimpleFieldOverlay(string label)
         => new(Label: InternationalizedText.FromInvariant(label));

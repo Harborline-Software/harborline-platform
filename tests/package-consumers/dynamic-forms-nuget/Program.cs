@@ -52,6 +52,7 @@ services.AddSingleton<IReuseResolver, IdentityReuseResolver>();
 services.AddSingleton<ISchemaRegistry>(schemas);
 services.AddSingleton<IFormFieldSecurity, PassThroughFieldSecurity>();
 services.AddSingleton<IFormSensitiveReadAudit, NullReadAudit>();
+services.AddSingleton<IFormSubmitGateAccess, AllowAllSubmitGateAccess>();
 services.AddSingleton(sink);
 services.AddSingleton<IFormProjectionSink>(provider => provider.GetRequiredService<RecordingProjectionSink>());
 services.AddHarborlineFormsEngineInMemorySubmissionStore(FormEngineHostEnvironment.Test);
@@ -240,7 +241,8 @@ static FormDefinition BuildDefinition(JsonElement corpus, string id, string sche
     }).ToArray();
     var now = DateTimeOffset.Parse("2026-08-08T12:00:00Z");
     return new(new(id), new(1, 0, 0), FormDefinitionStatus.Draft, new("tenant-vertical"), IdentityRef.System,
-        new(schemaId), new(fields, sections, rules, Pages: pages), null, now, now);
+        new(schemaId), new(fields, sections, rules, Pages: pages), null, now, now,
+        SubmitGate: new(Role: Harborline.Contracts.Authorization.RoleReference.Domain("admin")));
 }
 
 static FormItem ToItem(JsonElement item)
@@ -288,6 +290,17 @@ sealed class IdentityReuseResolver : IReuseResolver
 {
     public ValueTask<ResolvedFormDefinition> ResolveAsync(FormDefinition definition, CancellationToken ct = default) =>
         ValueTask.FromResult(new ResolvedFormDefinition(definition, new Dictionary<string, ReuseProvenance>()));
+}
+
+// The parity corpus exercises rule/schema admission, not submit-gate authorization, so every
+// declared gate (added when submit_gate became required at publish, T-756) is satisfied here.
+sealed class AllowAllSubmitGateAccess : IFormSubmitGateAccess
+{
+    public ValueTask<bool> SatisfiesAsync(
+        FormExecutionScope scope,
+        FormDefinition definition,
+        Harborline.Contracts.Authorization.SubmitGate gate,
+        CancellationToken cancellationToken = default) => ValueTask.FromResult(true);
 }
 
 sealed class PassThroughFieldSecurity : IFormFieldSecurity
