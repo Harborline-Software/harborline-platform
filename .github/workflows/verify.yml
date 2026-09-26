@@ -48,9 +48,16 @@ jobs:
     # the only eligible runner for every platform PR, observed with mac16 idle and a verify queued.
     # 404 slice 4 completes it: the budget now rides the serial perf slot, so it is asserted with
     # nothing else competing and any macOS runner gives the same verdict. The perf pin is gone (#35).
-    # T-701 pins the lane to macpro for a different reason: mac16 is reserved for the perf-quiet job
-    # (T-268), so no gate lane may land on it by label match.
-    runs-on: [self-hosted, macOS, ARM64, macpro]
+    # T-701 pinned the lane to macpro for a different reason: mac16 is reserved for the perf-quiet job
+    # (T-268), so no gate lane should land on it by label match.
+    # T-724 ruling 117: that reservation is relieved deliberately. `[self-hosted, macOS]` is a
+    # capability label both org runner mac16 (`[self-hosted, X64, macOS, mac16, perf-quiet]`) and
+    # repo runner macpro (`[self-hosted, macOS, ARM64, macpro]`) satisfy -- confirmed against the live
+    # runner registrations, and no other self-hosted macOS runner exists in this org or repo. Landing
+    # on mac16 during the day is now acceptable because (a) T-404 is fixed, so no wall-clock row can
+    # disagree by host, and (b) the "Shut down build servers" step below leaves mac16 clean for the
+    # night's perf-quiet job. Perf-quiet jobs are untouched by this change and stay scheduled at night.
+    runs-on: [self-hosted, macOS]
     # The ubuntu gate took 49 minutes at PW_WORKERS=2. These hosts are 8-core and run the gallery at
     # the config default, but the whole gate is the long pole in this repository; 90 keeps a slow run
     # from being cut off mid-gallery, and the merge queue's check timeout must exceed it.
@@ -159,6 +166,18 @@ jobs:
             docs/evidence/phase-4/gate.json
             .claude/gate-evidence/
             gallery/tests/playwright-report/
+
+      # T-724 ruling 117: this lane can now land on mac16, which the perf-quiet job (T-268) also
+      # uses at night. `always()` so a red gate still leaves the host clean. `dotnet build-server
+      # shutdown` stops the MSBuild/VBCSCompiler/Razor nodes this run started; the pkill covers any
+      # dotnet-hosted process the shutdown command does not reach (e.g. one already wedged). Both
+      # commands are allowed to fail (host has none running, or the platform lacks pkill) --
+      # nothing here should fail the job over cleanup.
+      - name: Shut down build servers (mac16 perf-quiet cleanliness)
+        if: always()
+        run: |
+          dotnet build-server shutdown || true
+          pkill -f 'dotnet.*(MSBuild|VBCSCompiler|Razor)' || true
 
   verify:
     # T-660: the required context. Deliberately unconditional (`always()`), so neither the kill
