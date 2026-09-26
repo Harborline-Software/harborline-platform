@@ -43,10 +43,10 @@ public sealed class TaxonomyDefinitionTests
     public void Previous_definition_rules_admit_corrected_counterparts()
     {
         var prior = Definition([Node("a", status: TaxonomyNodeStatus.Tombstoned)]);
-        RefusesThenAdmits(Definition([Node("a")]), "definition.tombstone_reactivated", previous: prior);
+        RefusesThenAdmits(Definition([Node("a")]), "definition.tombstone_reactivated", previous: prior, admitted: Definition([Node("a", status: TaxonomyNodeStatus.Tombstoned)]));
         var oldHistory = new DisplayHistoryEntry("old", "old description", DateTimeOffset.UnixEpoch);
         var historyPrior = Definition([Node("a", history: [oldHistory])]);
-        RefusesThenAdmits(Definition([Node("a", history: [])]), "definition.display_history_not_append_only", previous: historyPrior);
+        RefusesThenAdmits(Definition([Node("a", history: [])]), "definition.display_history_not_append_only", previous: historyPrior, admitted: Definition([Node("a", history: [oldHistory])]));
     }
 
     [Fact(DisplayName = "taxonomy-auth-18, taxonomy-eng-8 and taxonomy-eng-18: parent cycles and depth-bound excess refuse, then corrected counterparts admit")]
@@ -103,13 +103,39 @@ public sealed class TaxonomyDefinitionTests
         Assert.Contains(refusals, refusal => refusal.Code == "definition.successor_unknown");
     }
 
+    [Fact(DisplayName = "CodeRabbit 4112629550: a malformed definition_id in the body refuses definition.body_invalid instead of throwing FormatException")]
+    public void Malformed_definition_id_refuses_instead_of_throwing()
+    {
+        var body = CanonicalBody().Replace("\"definition_id\":\"acme.health.icd\"", "\"definition_id\":\"acme..icd\"", StringComparison.Ordinal);
+        var refusals = TaxonomyDefinitionAdmission.AdmitJson(body, TaxonomyAdmissionPhase.Install);
+        Assert.Contains(refusals, refusal => refusal.Code == "definition.body_invalid");
+    }
+
+    [Fact(DisplayName = "CodeRabbit 4112629562: a null node entry refuses definition.body_invalid instead of throwing NullReferenceException")]
+    public void Null_node_entry_refuses_instead_of_throwing()
+    {
+        var body = CanonicalBody().Replace("\"nodes\":[{", "\"nodes\":[null,{", StringComparison.Ordinal);
+        var refusals = TaxonomyDefinitionAdmission.AdmitJson(body, TaxonomyAdmissionPhase.Install);
+        Assert.Contains(refusals, refusal => refusal.Code == "definition.body_invalid");
+    }
+
+    [Fact(DisplayName = "CodeRabbit 4112629562 root cause: a missing required member refuses definition.body_invalid instead of deserializing a default")]
+    public void Missing_required_member_refuses_instead_of_deserializing_a_default()
+    {
+        var body = CanonicalBody().Replace("\"owner\":\"author\",", "", StringComparison.Ordinal);
+        var refusals = TaxonomyDefinitionAdmission.AdmitJson(body, TaxonomyAdmissionPhase.Install);
+        Assert.Contains(refusals, refusal => refusal.Code == "definition.body_invalid");
+    }
+
+    private static string CanonicalBody() => Encoding.UTF8.GetString(TaxonomyDefinitionJson.SerializeCanonical(Definition()));
+
     private static readonly TaxonomyDefinitionId Id = new("acme", "health", "icd");
-    private static TaxonomyDefinition Definition(IReadOnlyList<TaxonomyNode>? nodes = null) => new("tenant-a", Id, "1.0.0", TaxonomyGovernanceRegime.Civilian, "author", new("source", "0.9.0", "author", DateTimeOffset.UnixEpoch, "derivation"), nodes ?? [Node("root")], Envelope: Envelope());
+    private static TaxonomyDefinition Definition(IReadOnlyList<TaxonomyNode>? nodes = null) => new("tenant-a", Id, "1.0.0", TaxonomyGovernanceRegime.Civilian, "author", nodes ?? [Node("root")], Envelope: Envelope(), DerivedFrom: new("source", "0.9.0", "author", DateTimeOffset.UnixEpoch, "derivation"));
     private static TaxonomyDefinitionEnvelope Envelope(string? identity = null) => new(identity ?? Id.ToString(), "1.0.0", "tenant-a", TaxonomyCascadeLayer.Tenant, JsonDocument.Parse("{\"source\":\"tenant\"}").RootElement.Clone(), []);
-    private static TaxonomyNode Node(string code, string? parent = null, TaxonomyNodeStatus status = TaxonomyNodeStatus.Active, string? successor = null, string? reason = "retired", IReadOnlyList<DisplayHistoryEntry>? history = null) => new(code, $"Display {code}", $"Description {code}", parent, status, DateTimeOffset.UnixEpoch, status == TaxonomyNodeStatus.Tombstoned ? DateTimeOffset.UnixEpoch : null, successor, reason, history ?? [new($"Display {code}", $"Description {code}", DateTimeOffset.UnixEpoch)]);
-    private static void RefusesThenAdmits(TaxonomyDefinition refused, string code, TaxonomyAdmissionPhase phase = TaxonomyAdmissionPhase.Author, TaxonomyDefinition? previous = null)
+    private static TaxonomyNode Node(string code, string? parent = null, TaxonomyNodeStatus status = TaxonomyNodeStatus.Active, string? successor = null, string? reason = "retired", IReadOnlyList<DisplayHistoryEntry>? history = null) => new(code, $"Display {code}", $"Description {code}", status, history ?? [new($"Display {code}", $"Description {code}", DateTimeOffset.UnixEpoch)], ParentCode: parent, PublishedAt: DateTimeOffset.UnixEpoch, TombstonedAt: status == TaxonomyNodeStatus.Tombstoned ? DateTimeOffset.UnixEpoch : null, SuccessorCode: successor, DeprecationReason: reason);
+    private static void RefusesThenAdmits(TaxonomyDefinition refused, string code, TaxonomyAdmissionPhase phase = TaxonomyAdmissionPhase.Author, TaxonomyDefinition? previous = null, TaxonomyDefinition? admitted = null)
     {
         Assert.Contains(TaxonomyDefinitionAdmission.Validate(refused, phase, previous), refusal => refusal.Code == code);
-        Assert.Empty(TaxonomyDefinitionAdmission.Validate(Definition(), phase));
+        Assert.Empty(TaxonomyDefinitionAdmission.Validate(admitted ?? Definition(), phase, previous));
     }
 }
