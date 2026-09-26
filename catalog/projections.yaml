@@ -27,6 +27,7 @@
     {"moduleId":"hlp.blocks.reports","projection":"dotnet","role":"implementation","status":"preview","path":"projections/dotnet/blocks/hlp.blocks.reports","artifact":"Harborline.Blocks.Reports"},
     {"moduleId":"hlp.blocks.entity-views","projection":"dotnet","role":"implementation","status":"preview","path":"projections/dotnet/blocks/hlp.blocks.entity-views","artifact":"Harborline.Blocks.EntityViews"},
     {"moduleId":"hlp.foundation.data-exchange","projection":"dotnet","role":"implementation","status":"preview","path":"projections/dotnet/foundation/hlp.foundation.data-exchange","artifact":"Harborline.Foundation.DataExchange"},
+    {"moduleId":"hlp.foundation.assistance","projection":"dotnet","role":"implementation","status":"preview","path":"projections/dotnet/foundation/hlp.foundation.assistance","artifact":"Harborline.Foundation.Assistance"},
     {"moduleId":"hlp.foundation.documents","projection":"dotnet","role":"implementation","status":"preview","path":"projections/dotnet/foundation/hlp.foundation.documents","artifact":"Harborline.Foundation.Documents"},
     {"moduleId":"hlp.foundation.scheduling","projection":"dotnet","role":"implementation","status":"preview","path":"projections/dotnet/foundation/hlp.foundation.scheduling","artifact":"Harborline.Foundation.Scheduling"},
     {"moduleId":"hlp.foundation.field-runtime","projection":"dotnet","role":"implementation","status":"preview","path":"projections/dotnet/foundation/hlp.foundation.field-runtime","artifact":"Harborline.Foundation.FieldRuntime"},

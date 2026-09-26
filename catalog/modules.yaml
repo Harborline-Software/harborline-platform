@@ -727,6 +727,40 @@
         }
       }
     },
+    "hlp.foundation.assistance": {
+      "interface": {"path": "specs/modules/foundation/hlp.foundation.assistance/interface.yaml", "revision": 1},
+      "moduleKind": "runtime",
+      "presentation": {"disposition": "not-applicable", "rationale": "The foundation package owns the projection-neutral AssistanceDefinition and its phase-aware admission; the binding editor and reading-surface panel are separate projections over this interface."},
+      "owner": "platform-foundation",
+      "dependencies": [],
+      "status": "implemented",
+      "depth": {
+        "disposition": "deep-module",
+        "deletionTest": "PASS",
+        "redistributedComplexity": [
+          "command-narrowing (tier, args schema, recipients), NEVER-archetype and context-allowlist admission reimplemented by every host that authors or installs an Assistance binding",
+          "canonical envelope shape and the reserved DefinitionKind.Pilot namespace allowed to drift between the definition producer and the shared builder-definitions catalogue"
+        ]
+      },
+      "projections": {
+        "dotnet": {
+          "role": "implementation",
+          "path": "projections/dotnet/foundation/hlp.foundation.assistance",
+          "status": "preview",
+          "artifact": {
+            "type": "nuget",
+            "id": "Harborline.Foundation.Assistance",
+            "assembly": "Harborline.Foundation.Assistance",
+            "manifest": "projections/dotnet/foundation/hlp.foundation.assistance/Harborline.Foundation.Assistance.csproj",
+            "identityAuthority": "Harborline",
+            "producerRepository": "harborline-platform",
+            "distribution": "internal-only",
+            "candidateRole": "new-bounded-package",
+            "registryAvailable": false
+          }
+        }
+      }
+    },
     "hlp.foundation.documents": {
       "interface": {"path": "specs/modules/foundation/hlp.foundation.documents/interface.yaml", "revision": 1},
       "moduleKind": "runtime",
