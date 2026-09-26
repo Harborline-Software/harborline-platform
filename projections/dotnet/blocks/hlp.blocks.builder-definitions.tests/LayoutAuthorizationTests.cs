@@ -121,7 +121,40 @@ public sealed class LayoutAuthorizationTests
         LayoutDefinitionAdmission.ValidateForPublish(definition, new FixtureAccess());
     }
 
-    private sealed class FixtureAccess(IEnumerable<string>? unreadable = null, IEnumerable<string>? unopenable = null) : ILayoutAccess
+    [Fact(DisplayName = "layout-auth-38: authoring refuses when the acting author's Access reports no layout:author grant, distinct from the unreadable-binding check")]
+    public void AuthoringAndDetachRefuseWhenTheAuthorCannotAuthor()
+    {
+        var access = new FixtureAccess(canAuthor: false);
+        Assert.False(access.CanAuthor());
+        var definition = Surface(Block("orders", new LayoutQueryBinding("view.orders")));
+
+        var authoringError = Assert.Throws<DefinitionRefusalException>(() =>
+            LayoutDefinitionAdmission.ValidateForAuthoring(definition, LayoutHostRegisters.Platform, access));
+        Assert.Equal([LayoutDefinitionCodes.AuthorForbidden], authoringError.Refusals.Select(refusal => refusal.Code));
+        Assert.DoesNotContain(authoringError.Refusals, refusal => refusal.Code == LayoutDefinitionCodes.BindingUnreadable);
+
+        var reference = new LayoutCompositionReference(LayoutCompositionKind.Form, "composition.orders", "1.0.0", "surface.orders", "1.0.0");
+        var detachError = Assert.Throws<DefinitionRefusalException>(() =>
+            LayoutComposition.Detach(reference, definition, definition.Envelope with { Identity = "surface.detached", Version = "1.0.0" }, access));
+        Assert.Equal([LayoutDefinitionCodes.AuthorForbidden], detachError.Refusals.Select(refusal => refusal.Code));
+
+        LayoutDefinitionAdmission.ValidateForPublish(definition, LayoutHostRegisters.Platform, access);
+    }
+
+    [Fact(DisplayName = "layout-auth-39: publication refuses when the acting author's Access reports no layout:publish grant")]
+    public void PublicationRefusesWhenTheAuthorCannotPublish()
+    {
+        var access = new FixtureAccess(canPublish: false);
+        Assert.False(access.CanPublish());
+        var definition = Surface(Block("orders", new LayoutQueryBinding("view.orders")));
+
+        var error = Assert.Throws<DefinitionRefusalException>(() =>
+            LayoutDefinitionAdmission.ValidateForPublish(definition, LayoutHostRegisters.Platform, access));
+
+        Assert.Equal([LayoutDefinitionCodes.PublishForbidden], error.Refusals.Select(refusal => refusal.Code));
+    }
+
+    private sealed class FixtureAccess(IEnumerable<string>? unreadable = null, IEnumerable<string>? unopenable = null, bool canAuthor = true, bool canPublish = true) : ILayoutAccess
     {
         private readonly HashSet<string> _unreadable = new(unreadable ?? [], StringComparer.Ordinal);
         private readonly HashSet<string> _unopenable = new(unopenable ?? [], StringComparer.Ordinal);
@@ -131,6 +164,10 @@ public sealed class LayoutAuthorizationTests
         public List<string> Opened { get; } = [];
 
         public List<string> Kinds { get; } = [];
+
+        public bool CanAuthor() => canAuthor;
+
+        public bool CanPublish() => canPublish;
 
         public bool CanRead(LayoutBinding binding)
         {
@@ -191,6 +228,10 @@ internal static class LayoutTestAccess
 
     private sealed class AllowAll : ILayoutAccess
     {
+        public bool CanAuthor() => true;
+
+        public bool CanPublish() => true;
+
         public bool CanRead(LayoutBinding binding) => true;
 
         public bool CanOpen(string surfaceId) => true;

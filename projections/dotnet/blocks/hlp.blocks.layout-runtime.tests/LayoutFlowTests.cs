@@ -197,6 +197,10 @@ internal sealed class GrantsAllAuthor : ILayoutAccess, ILayoutSubmitAccess
 {
     public static readonly GrantsAllAuthor Instance = new();
 
+    public bool CanAuthor() => true;
+
+    public bool CanPublish() => true;
+
     public bool CanRead(LayoutBinding binding) => true;
 
     public bool CanOpen(string surfaceId) => true;

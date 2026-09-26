@@ -151,6 +151,10 @@ public sealed class LayoutAuthorityGateTests
 
         public List<SubmitGate> Gates { get; } = [];
 
+        public bool CanAuthor() => true;
+
+        public bool CanPublish() => true;
+
         public bool CanRead(LayoutBinding binding) => read;
 
         public bool CanOpen(string surfaceId)

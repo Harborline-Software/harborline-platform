@@ -43,6 +43,12 @@ public sealed record LayoutHostRegisters(
 /// </summary>
 public interface ILayoutAccess
 {
+    /// <summary>Whether the principal may author Layout surfaces (<c>layout:author</c>, T-724 ruling 76, layout-auth-38).</summary>
+    bool CanAuthor();
+
+    /// <summary>Whether the principal may publish Layout surfaces (<c>layout:publish</c>, T-724 ruling 76, layout-auth-39).</summary>
+    bool CanPublish();
+
     /// <summary>Whether the principal may read the source <paramref name="binding"/> names.</summary>
     /// <param name="binding">A record-field, query, measure or template binding. Static content is never asked about, and a text binding is asked once per field run, as the record-field binding that run names.</param>
     bool CanRead(LayoutBinding binding);
