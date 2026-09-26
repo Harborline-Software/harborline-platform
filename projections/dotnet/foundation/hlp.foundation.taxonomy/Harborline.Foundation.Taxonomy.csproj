@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <HarborlinePublicDistributionAuthorized>false</HarborlinePublicDistributionAuthorized>
+    <PackageId>Harborline.Foundation.Taxonomy</PackageId>
+    <AssemblyName>Harborline.Foundation.Taxonomy</AssemblyName>
+    <RootNamespace>Harborline.Foundation.Taxonomy</RootNamespace>
+    <Description>Portable Taxonomy definition contracts and phase-aware admission for Harborline Platform.</Description>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageReleaseNotes>Internal-only projection; public distribution is not authorized.</PackageReleaseNotes>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="/" />
+    <None Include="../../../../LICENSE" Link="LICENSE" Pack="true" PackagePath="/" />
+  </ItemGroup>
+</Project>

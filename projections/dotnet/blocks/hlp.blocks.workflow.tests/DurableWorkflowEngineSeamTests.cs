@@ -19,6 +19,38 @@ namespace Harborline.Blocks.Workflow.Tests;
 public sealed class DurableWorkflowEngineSeamTests
 {
     private const string Tenant = "tenant:acme";
+    private static readonly IWorkflowDefinitionExecutionStore AdmittedDefinitionStore = new AlwaysAdmittedDefinitionStore();
+
+    [Fact]
+    public async Task TypedHandlerDispatch_WithMissingPinnedDefinition_IsRefusedBeforeTheHandlerRuns()
+    {
+        using var fixture = new JournalFixture();
+        using var store = fixture.Open();
+        await CreateAsync(store, "inst-missing-definition", step: "step-1");
+        var dispatcher = new WorkflowTriggerDispatcher(
+            store, new[] { new AdvanceOnceHandler() }, definitionStore: new InMemoryWorkflowDefinitionStore());
+
+        await Assert.ThrowsAsync<WorkflowDefinitionNotFoundException>(() => dispatcher.DispatchAsync(
+            WorkflowTrigger.For(WorkflowTriggerKind.Event, "inst-missing-definition", "step-1")));
+
+        Assert.Equal("step-1", (await store.LoadAsync("inst-missing-definition"))!.CurrentStep);
+    }
+
+    [Fact]
+    public async Task TypedHandlerDispatch_WithNoAuthority_IsRefusedBeforeTheHandlerRuns()
+    {
+        using var fixture = new JournalFixture();
+        using var store = fixture.Open();
+        await CreateAsync(store, "inst-no-authority", step: "step-1");
+        var dispatcher = new WorkflowTriggerDispatcher(
+            store, new[] { new AdvanceOnceHandler() }, definitionStore: new NoAuthorityDefinitionStore());
+
+        var exception = await Assert.ThrowsAsync<WorkflowAdmissionException>(() => dispatcher.DispatchAsync(
+            WorkflowTrigger.For(WorkflowTriggerKind.Event, "inst-no-authority", "step-1")));
+
+        Assert.Contains(exception.Result.Violations, violation => violation.Code == WorkflowAdmissionCodes.ActionUnclassified);
+        Assert.Equal("step-1", (await store.LoadAsync("inst-no-authority"))!.CurrentStep);
+    }
 
     // ── The four triggers + dispatch outcomes (NodeWorkflowEngineTests rows) ──
 
@@ -33,7 +65,8 @@ public sealed class DurableWorkflowEngineSeamTests
         using var store = fixture.Open();
         var id = $"inst-{kind}";
         await CreateAsync(store, id, step: "step-1");
-        var dispatcher = new WorkflowTriggerDispatcher(store, new[] { new AdvanceOnceHandler() });
+        var dispatcher = new WorkflowTriggerDispatcher(
+            store, new[] { new AdvanceOnceHandler() }, definitionStore: AdmittedDefinitionStore);
 
         var payload = kind == WorkflowTriggerKind.HumanAction ? "{\"decision\":\"approve\"}" : "{}";
         var result = await dispatcher.DispatchAsync(WorkflowTrigger.For(kind, id, "step-1", payload));
@@ -47,7 +80,8 @@ public sealed class DurableWorkflowEngineSeamTests
     {
         using var fixture = new JournalFixture();
         using var store = fixture.Open();
-        var dispatcher = new WorkflowTriggerDispatcher(store, new[] { new AdvanceOnceHandler() });
+        var dispatcher = new WorkflowTriggerDispatcher(
+            store, new[] { new AdvanceOnceHandler() }, definitionStore: AdmittedDefinitionStore);
 
         Assert.Equal(
             WorkflowDispatchResult.UnknownInstance,
@@ -67,7 +101,8 @@ public sealed class DurableWorkflowEngineSeamTests
         using var fixture = new JournalFixture();
         using var store = fixture.Open();
         await CreateAsync(store, "inst-daemon", step: "step-1");
-        var dispatcher = new WorkflowTriggerDispatcher(store, new[] { new AdvanceOnceHandler() });
+        var dispatcher = new WorkflowTriggerDispatcher(
+            store, new[] { new AdvanceOnceHandler() }, definitionStore: AdmittedDefinitionStore);
 
         // An over-reporting schedule source (at-least-once): the SAME due trigger twice.
         var source = new StaticScheduleSource(
@@ -114,7 +149,8 @@ public sealed class DurableWorkflowEngineSeamTests
         Assert.Equal(1, (await restarted.LoadAsync("restart-1"))!.Iteration);
 
         var handler = new InvoiceApprovalHandler(Table(), new StaticInvoiceContext(amount: 9000m));
-        var dispatcher = new WorkflowTriggerDispatcher(restarted, new[] { handler });
+        var dispatcher = new WorkflowTriggerDispatcher(
+            restarted, new[] { handler }, definitionStore: AdmittedDefinitionStore);
         var result = await dispatcher.DispatchAsync(
             WorkflowTrigger.For(WorkflowTriggerKind.HumanAction, "restart-1", "approve", "{\"decision\":\"approve\"}"));
 
@@ -131,7 +167,8 @@ public sealed class DurableWorkflowEngineSeamTests
         await CreateAsync(store, "inst-runaway", step: "approve", status: WorkflowStatus.Parked);
         var handler = new SendBackForeverHandler();
         var dispatcher = new WorkflowTriggerDispatcher(
-            store, new IWorkflowStepHandler[] { handler }, new WorkflowEngineOptions { MaxIterations = 3 });
+            store, new IWorkflowStepHandler[] { handler }, new WorkflowEngineOptions { MaxIterations = 3 },
+            definitionStore: AdmittedDefinitionStore);
 
         WorkflowDispatchResult last = default;
         for (var pass = 0; pass < 5; pass++)
@@ -155,7 +192,8 @@ public sealed class DurableWorkflowEngineSeamTests
         using var store = fixture.Open();
         await CreateAsync(store, "inst-sendback", step: "approve", status: WorkflowStatus.Parked);
         var handler = new InvoiceApprovalHandler(Table(), new StaticInvoiceContext(amount: 9000m));
-        var dispatcher = new WorkflowTriggerDispatcher(store, new[] { handler });
+        var dispatcher = new WorkflowTriggerDispatcher(
+            store, new[] { handler }, definitionStore: AdmittedDefinitionStore);
 
         // Two legitimate send-back round-trips, then approve.
         for (var round = 0; round < 2; round++)
@@ -181,7 +219,8 @@ public sealed class DurableWorkflowEngineSeamTests
         using var store = fixture.Open();
         await CreateAsync(store, "inst-under", step: "decide");
         var dispatcher = new WorkflowTriggerDispatcher(
-            store, new[] { new InvoiceApprovalHandler(Table(), new StaticInvoiceContext(amount: 1200m)) });
+            store, new[] { new InvoiceApprovalHandler(Table(), new StaticInvoiceContext(amount: 1200m)) },
+            definitionStore: AdmittedDefinitionStore);
 
         Assert.Equal(WorkflowDispatchResult.Advanced, await dispatcher.DispatchAsync(
             WorkflowTrigger.For(WorkflowTriggerKind.Event, "inst-under", "decide")));
@@ -196,7 +235,8 @@ public sealed class DurableWorkflowEngineSeamTests
         using var store = fixture.Open();
         await CreateAsync(store, "inst-over", step: "decide");
         var dispatcher = new WorkflowTriggerDispatcher(
-            store, new[] { new InvoiceApprovalHandler(Table(), new StaticInvoiceContext(amount: 9000m)) });
+            store, new[] { new InvoiceApprovalHandler(Table(), new StaticInvoiceContext(amount: 9000m)) },
+            definitionStore: AdmittedDefinitionStore);
 
         Assert.Equal(WorkflowDispatchResult.Parked, await dispatcher.DispatchAsync(
             WorkflowTrigger.For(WorkflowTriggerKind.Event, "inst-over", "decide")));
@@ -217,7 +257,8 @@ public sealed class DurableWorkflowEngineSeamTests
         using var store = fixture.Open();
         await CreateAsync(store, "inst-reject", step: "approve", status: WorkflowStatus.Parked);
         var dispatcher = new WorkflowTriggerDispatcher(
-            store, new[] { new InvoiceApprovalHandler(Table(), new StaticInvoiceContext(amount: 9000m)) });
+            store, new[] { new InvoiceApprovalHandler(Table(), new StaticInvoiceContext(amount: 9000m)) },
+            definitionStore: AdmittedDefinitionStore);
 
         Assert.Equal(WorkflowDispatchResult.Advanced, await dispatcher.DispatchAsync(
             WorkflowTrigger.For(WorkflowTriggerKind.HumanAction, "inst-reject", "approve", "{\"decision\":\"reject\"}")));
@@ -232,7 +273,8 @@ public sealed class DurableWorkflowEngineSeamTests
         using var store = fixture.Open();
         await CreateAsync(store, "inst-basis", step: "decide");
         var dispatcher = new WorkflowTriggerDispatcher(
-            store, new[] { new InvoiceApprovalHandler(Table(), new StaticInvoiceContext(amount: 9000m)) });
+            store, new[] { new InvoiceApprovalHandler(Table(), new StaticInvoiceContext(amount: 9000m)) },
+            definitionStore: AdmittedDefinitionStore);
         await dispatcher.DispatchAsync(WorkflowTrigger.For(WorkflowTriggerKind.Event, "inst-basis", "decide"));
 
         // The durable park event carries the FE-1 basis (preview + fired row/version) — arch-tested by name.
@@ -254,7 +296,8 @@ public sealed class DurableWorkflowEngineSeamTests
         var table = new ThresholdDecisionTable(new[] { V1(), V2() });
         await CreateAsync(store, "inst-d7", step: "decide");
         var dispatcher = new WorkflowTriggerDispatcher(
-            store, new[] { new InvoiceApprovalHandler(table, new StaticInvoiceContext(amount: 7500m)) });
+            store, new[] { new InvoiceApprovalHandler(table, new StaticInvoiceContext(amount: 7500m)) },
+            definitionStore: AdmittedDefinitionStore);
 
         Assert.Equal(WorkflowDispatchResult.Parked, await dispatcher.DispatchAsync(
             WorkflowTrigger.For(WorkflowTriggerKind.Event, "inst-d7", "decide")));
@@ -284,7 +327,8 @@ public sealed class DurableWorkflowEngineSeamTests
         using var store = fixture.Open();
         await CreateAsync(store, "inst-recurring", key: "recurring-generation", step: "generate@2026-07-01");
         var dispatcher = new WorkflowTriggerDispatcher(
-            store, new[] { new RecurringGenerationHandler(new StaticRecurringContext()) });
+            store, new[] { new RecurringGenerationHandler(new StaticRecurringContext()) },
+            definitionStore: AdmittedDefinitionStore);
 
         Assert.Equal(WorkflowDispatchResult.Advanced, await dispatcher.DispatchAsync(
             WorkflowTrigger.For(WorkflowTriggerKind.Schedule, "inst-recurring", "generate@2026-07-01")));
@@ -300,7 +344,8 @@ public sealed class DurableWorkflowEngineSeamTests
         using var store = fixture.Open();
         await CreateAsync(store, "inst-redeliver", key: "recurring-generation", step: "generate@2026-07-01");
         var dispatcher = new WorkflowTriggerDispatcher(
-            store, new[] { new RecurringGenerationHandler(new StaticRecurringContext()) });
+            store, new[] { new RecurringGenerationHandler(new StaticRecurringContext()) },
+            definitionStore: AdmittedDefinitionStore);
 
         await dispatcher.DispatchAsync(WorkflowTrigger.For(WorkflowTriggerKind.Schedule, "inst-redeliver", "generate@2026-07-01"));
         // The redelivered occurrence (a resume after a crash-and-redeliver) is a durable no-op.
@@ -316,7 +361,8 @@ public sealed class DurableWorkflowEngineSeamTests
         using var store = fixture.Open();
         await CreateAsync(store, "inst-schedule", key: "recurring-generation", step: "generate@2026-07-01");
         var dispatcher = new WorkflowTriggerDispatcher(
-            store, new[] { new RecurringGenerationHandler(new StaticRecurringContext()) });
+            store, new[] { new RecurringGenerationHandler(new StaticRecurringContext()) },
+            definitionStore: AdmittedDefinitionStore);
         var source = new StaticScheduleSource(
             WorkflowTrigger.For(WorkflowTriggerKind.Schedule, "inst-schedule", "generate@2026-07-01"));
 
@@ -412,7 +458,8 @@ public sealed class DurableWorkflowEngineSeamTests
         using var fixture = new JournalFixture();
         using var store = fixture.Open();
         var dispatcher = new WorkflowTriggerDispatcher(
-            store, new[] { new GraphRagProposalHandler(new StaticKgContext("answer-only proposal")) });
+            store, new[] { new GraphRagProposalHandler(new StaticKgContext("answer-only proposal")) },
+            definitionStore: AdmittedDefinitionStore);
         // An actionless (Q&A) proposal never instantiates an approval process: no instance row
         // exists, a stray trigger is UnknownInstance, and nothing is parked or committed.
         Assert.Equal(WorkflowDispatchResult.UnknownInstance, await dispatcher.DispatchAsync(
@@ -429,7 +476,8 @@ public sealed class DurableWorkflowEngineSeamTests
         using var store = fixture.Open();
         await CreateAsync(store, "inst-attr", step: "approve", status: WorkflowStatus.Parked);
         var confirmer = Guid.Parse("40000000-0000-0000-0000-000000000001");
-        var dispatcher = new WorkflowTriggerDispatcher(store, new[] { new AttributingHandler(confirmer) });
+        var dispatcher = new WorkflowTriggerDispatcher(
+            store, new[] { new AttributingHandler(confirmer) }, definitionStore: AdmittedDefinitionStore);
 
         await dispatcher.DispatchAsync(WorkflowTrigger.For(
             WorkflowTriggerKind.HumanAction, "inst-attr", "approve", "{\"decision\":\"approve\"}"));
@@ -513,7 +561,8 @@ public sealed class DurableWorkflowEngineSeamTests
             var store = fixture.Open();
             await DurableWorkflowEngineSeamTests.CreateAsync(store, id, key: "kg-action-approval", step: step, status: status);
             var dispatcher = new WorkflowTriggerDispatcher(
-                store, new[] { new GraphRagProposalHandler(new StaticKgContext(proposal)) });
+                store, new[] { new GraphRagProposalHandler(new StaticKgContext(proposal)) },
+                definitionStore: AdmittedDefinitionStore);
             return new KgHarness(fixture, store, dispatcher);
         }
 
@@ -531,6 +580,40 @@ public sealed class DurableWorkflowEngineSeamTests
         public ValueTask<WorkflowStepOutcome> DecideAsync(
             WorkflowInstanceRecord instance, WorkflowTrigger trigger, CancellationToken ct = default)
             => ValueTask.FromResult(WorkflowStepOutcome.Advance("step-2", Effect("advanced")));
+    }
+
+    /// <summary>Execution-store test double for durable-commit rows that do not exercise definition admission.</summary>
+    private sealed class AlwaysAdmittedDefinitionStore : IWorkflowDefinitionExecutionStore
+    {
+        public ValueTask<WorkflowDefinitionRecord?> GetAdmittedCurrentPublishedAsync(
+            string tenant, string key, CancellationToken ct = default)
+            => ValueTask.FromResult<WorkflowDefinitionRecord?>(new(
+                tenant, key, "test", WorkflowDefinitionStatus.Published, default));
+
+        public ValueTask<WorkflowDefinitionRecord> GetAdmittedAsync(
+            string tenant, string key, string version, CancellationToken ct = default)
+            => ValueTask.FromResult(new WorkflowDefinitionRecord(
+                tenant, key, version, WorkflowDefinitionStatus.Published, default));
+    }
+
+    /// <summary>Models the execution-store refusal emitted when re-admission cannot derive valid authority.</summary>
+    private sealed class NoAuthorityDefinitionStore : IWorkflowDefinitionExecutionStore
+    {
+        public ValueTask<WorkflowDefinitionRecord?> GetAdmittedCurrentPublishedAsync(
+            string tenant, string key, CancellationToken ct = default)
+            => throw Refused();
+
+        public ValueTask<WorkflowDefinitionRecord> GetAdmittedAsync(
+            string tenant, string key, string version, CancellationToken ct = default)
+            => throw Refused();
+
+        private static WorkflowAdmissionException Refused() => new(new WorkflowAdmissionResult
+        {
+            Violations = [new(
+                WorkflowAdmissionCodes.ActionUnclassified,
+                "action 'a1' has no validated authority classification.",
+                "a1")],
+        });
     }
 
     private sealed class SendBackForeverHandler : IWorkflowStepHandler
