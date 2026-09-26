@@ -2,15 +2,15 @@
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
 
-import {configProblems, isTestProject, plainRazor, reportCounts, repository, sourceDirectories} from '../stryker.mjs'
+import {configProblems, isTestProject, plainRazor, reportCounts, repository, sourceDirectories, thresholdsFor} from '../stryker.mjs'
 
 const testCsproj = '<PackageReference Include="Microsoft.NET.Test.Sdk" /><ProjectReference Include="../lib/Lib.csproj" />'
 const config = (overrides = {}) => JSON.stringify({'stryker-config': {
   project: 'Lib.csproj', since: {enabled: true, target: 'origin/main'},
   thresholds: {high: 80, low: 60, break: 60}, reporters: ['json'], ...overrides}})
-const repo = (files, exclusions = {}) => ({
+const repo = (files, exclusions = {}, baselines = {'p/lib.tests/Lib.Tests.csproj': {break: 55}}) => ({
   testProjects: Object.keys(files).filter(file => file.endsWith('.csproj') && isTestProject(files[file])),
-  exclusions, readFile: file => files[file]})
+  exclusions, baselines, readFile: file => files[file]})
 const base = {'p/lib.tests/Lib.Tests.csproj': testCsproj, 'p/lib/Lib.csproj': '<Project />', 'p/lib.tests/stryker-config.json': config()}
 
 test('a configured test project whose target exists has no problems', () => {
@@ -33,9 +33,21 @@ test('a config naming a project that is not a reference, or a reference that is 
 test('off-standard thresholds, an html reporter, and a missing since are refused', () => {
   const problems = configProblems(repo({...base, 'p/lib.tests/stryker-config.json':
     config({thresholds: {high: 80, low: 60, break: 0}, reporters: ['json', 'html'], since: {enabled: false}})})).join('\n')
-  assert.match(problems, /thresholds must be high 80, low 60, break 60/)
+  assert.match(problems, /break 0 is below the recorded baseline 55/)
   assert.match(problems, /reporters are json only/)
   assert.match(problems, /since must be enabled against origin\/main/)
+})
+
+test('break starts at the measured baseline and may rise; low and high keep 60/80 under Stryker break <= low <= high', () => {
+  // Owner ruling 2026-09-26: break is the project's baseline floor, not a flat 60.
+  assert.deepEqual(thresholdsFor(54.94), {high: 80, low: 60, break: 54})
+  assert.deepEqual(thresholdsFor(84.61), {high: 84, low: 84, break: 84})
+  const problems = (overrides, baselines) => configProblems(repo({...base, 'p/lib.tests/stryker-config.json': config(overrides)}, {}, baselines)).join('\n')
+  assert.match(problems({}, {}), /no measured baseline in tooling\/stryker-baselines.json/)
+  assert.equal(problems({thresholds: {high: 80, low: 60, break: 58}}), '')
+  assert.match(problems({thresholds: {high: 80, low: 50, break: 50}}), /low >= 60/)
+  assert.match(problems({thresholds: {high: 80, low: 60, break: 70}}), /break <= low <= high/)
+  assert.match(problems({}, {'p/lib.tests/Lib.Tests.csproj': {break: 55}, 'p/gone.tests/G.csproj': {break: 1}}), /p\/gone.tests\/G.csproj is not a test project/)
 })
 
 test('a source project a test references but nothing mutates is a gap', () => {
