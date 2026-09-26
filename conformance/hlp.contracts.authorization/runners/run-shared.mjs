@@ -20,6 +20,20 @@ const clone = value => JSON.parse(JSON.stringify(value))
 
 for (const row of fixture.cases) {
   const definitions = clone(fixture.definitions)
+  const capabilities = clone(fixture.capabilities)
+  if (row.operation === 'invalid-capabilities') {
+    if (row.mutation === 'duplicate') capabilities.push({...clone(capabilities[0]), version: 2})
+    if (row.mutation === 'malformed') capabilities[0].capability.name = 'records'
+    if (row.mutation === 'unversioned') capabilities[0].version = 0
+    assert.throws(() => contracts.AuthorizationCapabilityRegister.fromDeclarations(capabilities), {message: row.expectedError})
+    continue
+  }
+  if (row.operation.endsWith('-capability')) {
+    const register = contracts.AuthorizationCapabilityRegister.fromDeclarations(capabilities)
+    if (row.expectedError) assert.throws(() => register.require(row.capability), {message: row.expectedError})
+    else assert.equal(register.resolve(row.capability)?.version ?? null, row.expected)
+    continue
+  }
   if (row.operation === 'invalid') {
     if (row.mutation === 'duplicate') definitions.push(clone(definitions[0]))
     if (row.mutation === 'unknown-vocabulary') definitions[0].role.vocabulary = 'sys.roles'

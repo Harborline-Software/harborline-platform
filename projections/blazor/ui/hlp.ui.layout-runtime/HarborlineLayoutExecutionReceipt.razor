@@ -1,0 +1,84 @@
+@namespace Harborline.UIAdapters.Blazor.Components.Layout
+@* DES-0052 layout-eng-30: the authorized receipt, run identity, status and execution trace, verbatim. The linked
+   Access trace is read only when its disclosure opens; the platform classifies the read and this derives nothing. *@
+<section class="hl-layout-receipt" data-layout-receipt>
+  <dl>
+    <dt>Run</dt><dd data-layout-run-id>@Receipt.RunId</dd>
+    <dt>Status</dt><dd data-layout-run-status>@Receipt.Status</dd>
+  </dl>
+  <ol aria-label="Execution trace">
+    @foreach (var step in Receipt.Trace) { <li data-layout-trace-ordinal="@step.Ordinal">@step.Phase: @step.Status</li> }
+  </ol>
+  @if (Receipt.AccessDecisionId is not { } decision)
+  {
+    <p data-layout-access-evidence="absent">@Notices["absent"]</p>
+  }
+  else
+  {
+    <details @ontoggle="ToggledAsync">
+      <summary>Access decision <span data-layout-access-decision>@decision</span></summary>
+      @if (loading) { <p role="status">Loading authorization trace…</p> }
+      @if (failed)
+      {
+        <p role="alert">Unable to read the authorization trace.</p>
+        <button type="button" @onclick="LoadAsync">Retry trace read</button>
+      }
+      @if (trace is { Evidence: "valid" })
+      {
+        <div data-layout-access-evidence="valid">
+          <p data-layout-access-version>Version @trace.Version</p>
+          <ol aria-label="Authorization trace">
+            @for (var index = 0; index < trace.Stages.Count; index++)
+            {
+              var stage = trace.Stages[index];
+              <li data-layout-access-stage="@stage.Stage">
+                <h4>@StageLabels[index]</h4>
+                @foreach (var fact in stage.Facts) { <p style="overflow-wrap:anywhere">@fact</p> }
+              </li>
+            }
+          </ol>
+          <p data-layout-deciding-grant>Deciding grant: @(trace.DecidingGrant ?? "None recorded")</p>
+        </div>
+      }
+      else if (trace is not null)
+      {
+        <p data-layout-access-evidence="@trace.Evidence">@Notices[trace.Evidence]</p>
+      }
+    </details>
+  }
+</section>
+
+@code {
+  [Parameter, EditorRequired] public LayoutRunReceipt Receipt { get; set; } = new("", "", null, []);
+  /// <summary>The host's authorized Access trace read, asked by the receipt's decision identity when the disclosure opens.</summary>
+  [Parameter, EditorRequired] public Func<string, Task<LayoutAccessTrace>> ReadAccessTrace { get; set; } = _ => throw new InvalidOperationException("No trace read.");
+  private static readonly string[] StageLabels = ["Act", "Effective roles", "Standings", "Verdict"];
+  private static readonly Dictionary<string, string> Notices = new(StringComparer.Ordinal)
+  {
+    ["absent"] = "No Access decision was recorded for this run.",
+    ["missing"] = "No authorization trace is stored for this decision.",
+    ["forbidden"] = "You may not read this authorization trace.",
+    ["malformed"] = "The stored authorization trace is malformed.",
+  };
+  private LayoutAccessTrace? trace;
+  private bool open;
+  private bool loading;
+  private bool failed;
+
+  // Blazor's toggle carries no state, so the disclosure's open state is tracked here; closing never reads.
+  private Task ToggledAsync()
+  {
+    open = !open;
+    return open && trace is null ? LoadAsync() : Task.CompletedTask;
+  }
+
+  private async Task LoadAsync()
+  {
+    if (Receipt.AccessDecisionId is not { } decision || loading) return;
+    loading = true;
+    failed = false;
+    try { trace = await ReadAccessTrace(decision); }
+    catch (Exception) { failed = true; }
+    finally { loading = false; }
+  }
+}

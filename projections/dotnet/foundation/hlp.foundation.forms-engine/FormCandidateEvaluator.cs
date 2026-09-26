@@ -149,7 +149,7 @@ internal static class FormCandidateEvaluator
         var hiddenSections = new HashSet<string>(StringComparer.Ordinal);
         if (result is null)
         {
-            EvaluatePageGuards(definition, candidate, hiddenPages, hiddenSections, clock, cancellationToken);
+            EvaluatePageGuards(definition, candidate, hiddenPages, hiddenSections, clock, FormsExpressionEnvironment.Admitted.For(EvaluationPhase.Submission), cancellationToken);
             ExpandHiddenSections(definition, hiddenSections, hidden);
             return hiddenPages;
         }
@@ -179,7 +179,7 @@ internal static class FormCandidateEvaluator
             }
         }
 
-        EvaluatePageGuards(definition, candidate, hiddenPages, hiddenSections, clock, cancellationToken);
+        EvaluatePageGuards(definition, candidate, hiddenPages, hiddenSections, clock, FormsExpressionEnvironment.Admitted.For(EvaluationPhase.Submission), cancellationToken);
         ExpandHiddenSections(definition, hiddenSections, hidden);
 
         if (!includeValidation) return hiddenPages;
@@ -276,6 +276,7 @@ internal static class FormCandidateEvaluator
         HashSet<string> hiddenPages,
         HashSet<string> hiddenSections,
         TimeProvider clock,
+        EvaluationAdmission admission,
         CancellationToken cancellationToken)
     {
         if (definition.Overlay.Pages is not { Count: > 0 }) return;
@@ -288,10 +289,31 @@ internal static class FormCandidateEvaluator
                 Id = $"page-guard:{page.Id}", Tier = Contract.RuleTier.JsonLogic, Scope = Contract.RuleScope.Schema,
                 ScopeTarget = "", Expression = page.VisibleWhen!, Action = Contract.RuleActionKind.Validate,
             };
-            if (evaluator.EvaluateGuard(guard, RuleContextSnapshot.Capture(context), RuleEvalScope.Root, FormsExpressionEnvironment.Admitted.For(EvaluationPhase.Submission), cancellationToken).Ok) continue;
+            if (evaluator.EvaluateGuard(guard, RuleContextSnapshot.Capture(context), RuleEvalScope.Root, admission, cancellationToken).Ok) continue;
             hiddenPages.Add(page.Id);
             foreach (var section in page.Sections) hiddenSections.Add(section);
         }
+    }
+
+    /// <summary>
+    /// The pages the render path hides (forms-eng-4): each page guard is evaluated through Rules
+    /// over the rendered candidate with resolved computed values materialised first, as submit does.
+    /// </summary>
+    internal static IReadOnlySet<string> HiddenPages(
+        State.FormDefinition definition,
+        JsonDocument candidate,
+        RuleEvaluationResult? rules,
+        DateTimeOffset instant,
+        CancellationToken cancellationToken)
+    {
+        var hiddenPages = new HashSet<string>(StringComparer.Ordinal);
+        if (definition.Overlay.Pages is not { Count: > 0 } || candidate.RootElement.ValueKind != JsonValueKind.Object) return hiddenPages;
+        var node = JsonNode.Parse(candidate.RootElement.GetRawText())!.AsObject();
+        foreach (var (target, computed) in rules?.Values ?? new Dictionary<string, ComputedValue>())
+            if (target.StartsWith("field:", StringComparison.Ordinal) && computed.State == ValueState.Resolved)
+                node[target["field:".Length..]] = computed.Value?.DeepClone();
+        EvaluatePageGuards(definition, node, hiddenPages, new HashSet<string>(StringComparer.Ordinal), new PinnedClock(instant), FormsExpressionEnvironment.Admitted.For(EvaluationPhase.Render), cancellationToken);
+        return hiddenPages;
     }
 
     internal static IReadOnlySet<string> ReadableFields(FormExecutionScope scope, State.FormDefinition definition)

@@ -891,6 +891,19 @@ export interface FormViewSection {
  * an instance (`FormView`). What `GET /api/local-node/forms/{formId}` returns;
  * what the React `SchemaForm` renderer consumes.
  */
+/**
+ * A wizard page of a `FormView` (`FormViewPage`, revision 7). `visible` is the server's
+ * verdict on the page's Rules guard for this caller and candidate; the guard itself is
+ * never sent, so a client cannot re-decide it.
+ */
+export interface FormViewPage {
+  id: string
+  title: InternationalizedText
+  /** Ordered ids of the `FormView.sections` on this page. */
+  sections: string[]
+  visible: boolean
+}
+
 export interface FormView {
   formId: string
   /** Canonical `"{major}.{minor}.{patch}"`. */
@@ -898,6 +911,8 @@ export interface FormView {
   title?: InternationalizedText | null
   description?: InternationalizedText | null
   sections: FormViewSection[]
+  /** Present only when the definition declares pages (revision 7). */
+  pages?: FormViewPage[]
 }
 
 // ── Validation (mirrors foundation-forms-engine ValidationResult) ─────────────

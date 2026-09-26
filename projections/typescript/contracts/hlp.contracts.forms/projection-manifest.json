@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.contracts.forms",
-  "interfaceRevision": 6,
+  "interfaceRevision": 7,
   "generatedFrom": {
     "source": "pinned packages/contracts/src/forms.ts revision 1",
     "additiveGaps": [
@@ -10,8 +10,8 @@
     ]
   },
   "surfaceCounts": {
-    "declarations": 84,
-    "interfaces": 55,
+    "declarations": 85,
+    "interfaces": 56,
     "typeAliases": 28,
     "constants": 1,
     "closedLiteralMembers": 104
@@ -1940,6 +1940,39 @@
           }
         }
       },
+      "FormViewPage": {
+        "kind": "object",
+        "properties": {
+          "id": {
+            "optional": false,
+            "shape": {
+              "kind": "string"
+            }
+          },
+          "title": {
+            "optional": false,
+            "shape": {
+              "kind": "ref",
+              "name": "InternationalizedText"
+            }
+          },
+          "sections": {
+            "optional": false,
+            "shape": {
+              "kind": "array",
+              "element": {
+                "kind": "string"
+              }
+            }
+          },
+          "visible": {
+            "optional": false,
+            "shape": {
+              "kind": "boolean"
+            }
+          }
+        }
+      },
       "FormView": {
         "kind": "object",
         "properties": {
@@ -1982,6 +2015,16 @@
               "element": {
                 "kind": "ref",
                 "name": "FormViewSection"
+              }
+            }
+          },
+          "pages": {
+            "optional": true,
+            "shape": {
+              "kind": "array",
+              "element": {
+                "kind": "ref",
+                "name": "FormViewPage"
               }
             }
           }

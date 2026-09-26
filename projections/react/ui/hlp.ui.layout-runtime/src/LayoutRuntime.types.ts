@@ -9,6 +9,8 @@ export type LayoutSizing = 'hug' | 'fill' | 'fixed'
 
 export interface LayoutRuntimeDiagnostic { readonly code: string; readonly pointer: string }
 export interface LayoutRuntimeBlock { readonly id: string; readonly kind: string; readonly depth: number; readonly zone?: string }
+/** DES-0052 C1, layout-eng-26: the authority the platform returned with the surface. The lane derives nothing from it. */
+export interface LayoutRuntimeAuthority { readonly canSubmit: boolean }
 export interface LayoutRuntimePlan {
   readonly definitionId: string
   readonly definitionVersionId: string
@@ -16,8 +18,11 @@ export interface LayoutRuntimePlan {
   readonly flow: readonly LayoutRuntimeBlock[]
   readonly staticRegions: readonly LayoutRuntimeBlock[]
   readonly diagnostics?: readonly LayoutRuntimeDiagnostic[]
+  /** Absent, the surface is read-only: no authority, no submit. */
+  readonly authority?: LayoutRuntimeAuthority
 }
-export interface LayoutRuntimeProps { readonly plan: LayoutRuntimePlan }
+/** `onSubmit` hands the submit to the host, which re-asks the platform's gate before any write. */
+export interface LayoutRuntimeProps { readonly plan: LayoutRuntimePlan; readonly onSubmit?: () => void }
 
 /** The five binding kinds a block may carry (DES-0052 layout-ck-21 to layout-ck-25). */
 export type LayoutBindingKind = 'record_field' | 'query' | 'measure' | 'template' | 'static'
@@ -133,3 +138,27 @@ export interface LayoutAuthoringCatalogue {
   readonly predicates?: readonly { readonly label: string; readonly pin: LayoutPredicatePin }[]
 }
 export interface LayoutAuthoringEditorProps { readonly value: LayoutAuthoringDraft; readonly catalogue: LayoutAuthoringCatalogue; readonly onChange: (value: LayoutAuthoringDraft) => void }
+
+/** DES-0056 execution-runtime-ck-4: one execution-trace step, verbatim. */
+export interface LayoutExecutionTraceStep { readonly ordinal: number; readonly phase: string; readonly status: string }
+/** DES-0056 execution-runtime-ck-3, as the host's authorized read returned it; `accessDecisionId` null is no recorded decision. */
+export interface LayoutRunReceipt {
+  readonly runId: string
+  readonly status: string
+  readonly accessDecisionId: string | null
+  readonly trace: readonly LayoutExecutionTraceStep[]
+}
+/** What following the Access decision link yielded; the platform classifies it (LayoutExecutionObservation). */
+export type LayoutAccessEvidence = 'absent' | 'missing' | 'forbidden' | 'malformed' | 'valid'
+export interface LayoutAccessTraceStage { readonly ordinal: number; readonly stage: string; readonly facts: readonly string[] }
+export interface LayoutAccessTrace {
+  readonly evidence: LayoutAccessEvidence
+  readonly version: number | null
+  readonly stages: readonly LayoutAccessTraceStage[]
+  readonly decidingGrant: string | null
+}
+/** layout-eng-30: `readAccessTrace` is asked only when the disclosure opens, by the receipt's decision identity. */
+export interface LayoutExecutionReceiptProps {
+  readonly receipt: LayoutRunReceipt
+  readonly readAccessTrace: (accessDecisionId: string) => Promise<LayoutAccessTrace>
+}

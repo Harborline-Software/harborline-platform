@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Harborline.Contracts.Authorization;
 using Harborline.Contracts.Forms;
 using Harborline.Foundation.RuleEngine.Compilation;
 using Harborline.Foundation.RuleEngine.References;
@@ -56,6 +57,14 @@ public static class LayoutDefinitionCodes
     public const string ScopedContainerInvalid = "layout.block.scoped_container_invalid";
     /// <summary>A submit gate requires a capture-dominant surface.</summary>
     public const string SubmitGateInvalid = "layout.capture.submit_gate_invalid";
+    /// <summary>A submit gate names none or more than one of role, standing and capability (T-724 ruling 77).</summary>
+    public const string SubmitGateFormInvalid = "layout.capture.submit_gate_form_invalid";
+    /// <summary>A submit gate names a capability Access's register does not declare (layout-auth-23, T-747).</summary>
+    public const string SubmitGateCapabilityUnknown = "layout.capture.submit_gate_capability_unknown";
+    /// <summary>A submit gate names a role Access's role vocabulary does not define (layout-auth-23).</summary>
+    public const string SubmitGateRoleUnknown = "layout.capture.submit_gate_role_unknown";
+    /// <summary>A submit gate names a standing no installed standing rule declares (layout-auth-23).</summary>
+    public const string SubmitGateStandingUnknown = "layout.capture.submit_gate_standing_unknown";
     /// <summary>A screen arrangement would require two-dimensional scrolling at 320 CSS pixels.</summary>
     public const string ReflowForbidden = "layout.placement.reflow_forbidden";
     /// <summary>A published payload does not declare Layout's capability with an exact minimum platform version.</summary>
@@ -207,11 +216,56 @@ public static class LayoutDefinitionAdmission
                 Add(refusals, LayoutDefinitionCodes.DrillThroughForbidden, $"/drill_through_targets/{index}");
         }
         ValidatePages(definition, blockIds, registers.Pages, refusals);
-        if (definition.SubmitGate is { } submitGate
-            && (definition.DefaultIntent != LayoutIntent.Capture || string.IsNullOrWhiteSpace(submitGate)))
-            Add(refusals, LayoutDefinitionCodes.SubmitGateInvalid, "/submit_gate");
+        if (definition.SubmitGate is { } submitGate)
+            ValidateSubmitGate(submitGate, definition.DefaultIntent, registers, publishing: stage == PublishStage, refusals);
 
         if (refusals.Count > 0) throw new DefinitionRefusalException(stage, refusals);
+    }
+
+    private static void ValidateSubmitGate(
+        LayoutSubmitGate gate,
+        LayoutIntent defaultIntent,
+        LayoutHostRegisters registers,
+        bool publishing,
+        ICollection<LayoutDefinitionRefusal> refusals)
+    {
+        if (defaultIntent != LayoutIntent.Capture)
+            Add(refusals, LayoutDefinitionCodes.SubmitGateInvalid, "/submit_gate");
+        else if (!gate.IsWellFormed)
+            Add(refusals, LayoutDefinitionCodes.SubmitGateFormInvalid, "/submit_gate");
+        else if (gate.Capability is { } capability && !IsRegistered(capability, registers.Capabilities))
+            Add(refusals, LayoutDefinitionCodes.SubmitGateCapabilityUnknown, "/submit_gate/capability/name");
+        // layout-auth-23: the role and standing arms resolve through Access's role vocabulary and the
+        // installed standing rules. Publication fails closed without them; a supplied register is
+        // honoured at every stage (T-724 ruling 36's pattern).
+        else if (gate.Role is { } role && (registers.Roles is not null || publishing) && !IsDefined(role, registers.Roles))
+            Add(refusals, LayoutDefinitionCodes.SubmitGateRoleUnknown, "/submit_gate/role");
+        else if (gate.Standing is { } standing && (registers.Standings is not null || publishing) && registers.Standings?.Contains(standing) != true)
+            Add(refusals, LayoutDefinitionCodes.SubmitGateStandingUnknown, "/submit_gate/standing/name");
+    }
+
+    private static bool IsDefined(RoleReference role, RoleVocabulary? roles)
+    {
+        try
+        {
+            return roles?.Resolve(role) is not null;
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+    }
+
+    private static bool IsRegistered(AuthorizationCapabilityReference capability, AuthorizationCapabilityRegister? capabilities)
+    {
+        try
+        {
+            return capabilities?.Resolve(capability) is not null;
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
     }
 
     private static bool HasCapture(IReadOnlyList<LayoutBlock> blocks, LayoutIntent defaultIntent)

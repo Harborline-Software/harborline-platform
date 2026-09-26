@@ -12,9 +12,10 @@ namespace Harborline.Foundation.Forms.Models;
 /// optional server-side advanced-function provider behind the same contract.
 /// </para>
 /// <para>
-/// Tier-3 (<see cref="PowerFx"/>) is accepted as an enum value so authored
-/// definitions can declare future intent without a schema migration; the SPINE-1
-/// evaluator rejects Power-Fx-tier expressions in v1 (it is not evaluated).
+/// Tier-3 (<see cref="PowerFx"/>) stays an enum value so the wire shape needs no
+/// migration when a provider exists, but it is not evaluated in v1, so the store
+/// refuses it at validate (DES-0016 forms-eng-16). The JsonSchema tier is admitted
+/// only on <see cref="RuleActionKind.Validate"/> rules.
 /// </para>
 /// </remarks>
 public enum RuleTier

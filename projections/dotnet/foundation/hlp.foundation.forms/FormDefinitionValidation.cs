@@ -125,6 +125,18 @@ internal static class FormDefinitionValidation
             {
                 throw new FormDefinitionValidationException(definition.Id, $"rule '{rule.Id}' has empty expression.");
             }
+
+            // forms-eng-4/16: rules are evaluated in Rules' JsonLogic grammar. The JsonSchema tier is
+            // constraint validation only (T-732 compiles it). Any other tier or action would be admitted
+            // here and then skipped or refused later, so the gate is structural at validate.
+            if (rule.Tier != RuleTier.JsonLogic && !(rule.Tier == RuleTier.JsonSchema && rule.Action == RuleActionKind.Validate))
+            {
+                throw new FormDefinitionValidationException(
+                    definition.Id,
+                    $"rule '{rule.Id}' tier '{rule.Tier}' cannot evaluate action '{rule.Action}'; use the JsonLogic tier.",
+                    FormDefinitionCodes.RulesTierUnsupported,
+                    rule.Id);
+            }
         }
 
         ValidatePagesOrThrow(definition, sectionIds, rulesById);

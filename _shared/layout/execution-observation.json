@@ -1,0 +1,80 @@
+{
+  "receipt": {
+    "runId": "run.workflow.invoice-approval.0001",
+    "status": "succeeded",
+    "accessDecisionId": "audit.decision.16300000-0000-0000-0000-000000000001",
+    "trace": [
+      { "ordinal": 1, "phase": "submitted", "status": "succeeded" },
+      { "ordinal": 2, "phase": "approval", "status": "succeeded" },
+      { "ordinal": 3, "phase": "posted", "status": "succeeded" }
+    ]
+  },
+  "absentReceipt": {
+    "runId": "run.index-rebuild.0002",
+    "status": "failed",
+    "accessDecisionId": null,
+    "trace": [{ "ordinal": 1, "phase": "rebuild", "status": "failed" }]
+  },
+  "reads": {
+    "valid": {
+      "availability": "Available",
+      "version": 2,
+      "steps": [
+        { "ordinal": 1, "stage": "act", "facts": ["kind:Gate", "act:invoice.approve", "target:invoice/inv-163", "principal:party-163", "tenant:tenant-163", "at:2026-09-07T12:00:00.0000000+00:00"] },
+        { "ordinal": 2, "stage": "effective-roles", "facts": ["role:finance/approver;scope:Tenant:tenant-163;valid:2026-09-01T00:00:00.0000000+00:00..open;binding:grant-163@1;definition:definition-163;atom:invoice.approve;in-force:yes;deciding", "deciding:grant:grant-163@1"] },
+        { "ordinal": 3, "stage": "standings", "facts": ["standings:none"] },
+        { "ordinal": 4, "stage": "verdict", "facts": ["verdict:allowed", "refusal:None", "version:2"] }
+      ]
+    },
+    "mixed": {
+      "availability": "Available",
+      "version": 2,
+      "steps": [
+        { "ordinal": 1, "stage": "act", "facts": ["kind:Gate", "act:invoice.approve", "target:invoice/inv-164", "principal:party-164", "tenant:tenant-163", "at:2026-09-07T12:00:00.0000000+00:00"] },
+        { "ordinal": 2, "stage": "effective-roles", "facts": ["role:finance/approver;scope:Tenant:tenant-163;valid:2026-09-01T00:00:00.0000000+00:00..open;binding:grant-164@3;definition:definition-163;atom:invoice.approve;in-force:yes;deciding", "deciding:standing:approver-rule", "deciding:grant:grant-164@3"] },
+        { "ordinal": 3, "stage": "standings", "facts": ["role:finance/approver;rule:approver-rule;evidence:4"] },
+        { "ordinal": 4, "stage": "verdict", "facts": ["verdict:allowed", "refusal:None", "version:2"] }
+      ]
+    },
+    "missing": { "availability": "NotAvailable", "version": null, "steps": [] },
+    "forbidden": { "availability": "Refused", "version": null, "steps": [] },
+    "malformed": {
+      "availability": "Available",
+      "version": 2,
+      "steps": [
+        { "ordinal": 1, "stage": "act", "facts": ["kind:Gate"] },
+        { "ordinal": 2, "stage": "standings", "facts": ["standings:none"] },
+        { "ordinal": 3, "stage": "effective-roles", "facts": ["deciding:grant:grant-163@1"] },
+        { "ordinal": 4, "stage": "verdict", "facts": ["verdict:allowed"] }
+      ]
+    }
+  },
+  "traces": {
+    "absent": { "evidence": "absent", "version": null, "stages": [], "decidingGrant": null },
+    "valid": {
+      "evidence": "valid",
+      "version": 2,
+      "stages": [
+        { "ordinal": 1, "stage": "act", "facts": ["kind:Gate", "act:invoice.approve", "target:invoice/inv-163", "principal:party-163", "tenant:tenant-163", "at:2026-09-07T12:00:00.0000000+00:00"] },
+        { "ordinal": 2, "stage": "effective-roles", "facts": ["role:finance/approver;scope:Tenant:tenant-163;valid:2026-09-01T00:00:00.0000000+00:00..open;binding:grant-163@1;definition:definition-163;atom:invoice.approve;in-force:yes;deciding", "deciding:grant:grant-163@1"] },
+        { "ordinal": 3, "stage": "standings", "facts": ["standings:none"] },
+        { "ordinal": 4, "stage": "verdict", "facts": ["verdict:allowed", "refusal:None", "version:2"] }
+      ],
+      "decidingGrant": "grant-163@1"
+    },
+    "mixed": {
+      "evidence": "valid",
+      "version": 2,
+      "stages": [
+        { "ordinal": 1, "stage": "act", "facts": ["kind:Gate", "act:invoice.approve", "target:invoice/inv-164", "principal:party-164", "tenant:tenant-163", "at:2026-09-07T12:00:00.0000000+00:00"] },
+        { "ordinal": 2, "stage": "effective-roles", "facts": ["role:finance/approver;scope:Tenant:tenant-163;valid:2026-09-01T00:00:00.0000000+00:00..open;binding:grant-164@3;definition:definition-163;atom:invoice.approve;in-force:yes;deciding", "deciding:standing:approver-rule", "deciding:grant:grant-164@3"] },
+        { "ordinal": 3, "stage": "standings", "facts": ["role:finance/approver;rule:approver-rule;evidence:4"] },
+        { "ordinal": 4, "stage": "verdict", "facts": ["verdict:allowed", "refusal:None", "version:2"] }
+      ],
+      "decidingGrant": "grant-164@3"
+    },
+    "missing": { "evidence": "missing", "version": null, "stages": [], "decidingGrant": null },
+    "forbidden": { "evidence": "forbidden", "version": null, "stages": [], "decidingGrant": null },
+    "malformed": { "evidence": "malformed", "version": null, "stages": [], "decidingGrant": null }
+  }
+}
