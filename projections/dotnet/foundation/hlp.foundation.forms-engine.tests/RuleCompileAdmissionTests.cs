@@ -28,15 +28,30 @@ public sealed class RuleCompileAdmissionTests
     public void No_Rules_No_Pages_Passes() => RuleCompileAdmission.ValidateOrThrow(Definition());
 
     [Fact]
-    public void Tier1_JsonSchema_Rules_Are_Skipped()
+    public void Tier1_JsonSchema_Rule_Compiles_Against_The_Kernel_Dialect()
     {
         var definition = Definition(rules:
         [
-            Rule("tier1", State.RuleScope.Field, "account", "not json - tier 1 is not compiled",
+            Rule("tier1", State.RuleScope.Field, "account", """{"type":"string"}""",
                 State.RuleActionKind.Validate, State.RuleTier.JsonSchema),
         ]);
 
         RuleCompileAdmission.ValidateOrThrow(definition);
+    }
+
+    [Fact]
+    public void Malformed_Tier1_JsonSchema_Rule_Rejects_With_Stable_Code()
+    {
+        var definition = Definition(rules:
+        [
+            Rule("tier1-broken", State.RuleScope.Field, "account", "not json - tier 1 is not compiled",
+                State.RuleActionKind.Validate, State.RuleTier.JsonSchema),
+        ]);
+
+        var exception = Assert.Throws<FormDefinitionValidationException>(() => RuleCompileAdmission.ValidateOrThrow(definition));
+
+        Assert.Equal(FormDefinitionCodes.RulesUncompilable, exception.Code);
+        Assert.Contains("tier1-broken", exception.Message, StringComparison.Ordinal);
     }
 
     [Fact]
