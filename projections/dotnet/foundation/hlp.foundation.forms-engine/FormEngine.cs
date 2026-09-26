@@ -68,8 +68,18 @@ public sealed class FormEngine : IFormEngine
         Harborline.Foundation.Assets.Common.EntityId? instanceId,
         CancellationToken cancellationToken = default)
     {
-        var scope = await RequiredScopeAsync(FormEngineAction.Read, cancellationToken).ConfigureAwait(false);
-        var definition = await LoadEffectiveAsync(scope, formId, cancellationToken).ConfigureAwait(false);
+        FormExecutionScope scope;
+        var submitImpliesRead = false;
+        try { scope = await RequiredScopeAsync(FormEngineAction.Read, cancellationToken).ConfigureAwait(false); }
+        catch (FormEngineDeniedException) when (instanceId is null)
+        {
+            // forms-eng-8 (L342, L358): permission to submit implies reading the blank form, never a submission.
+            scope = await RequiredScopeAsync(FormEngineAction.Submit, cancellationToken).ConfigureAwait(false);
+            submitImpliesRead = true;
+        }
+        var head = await LoadPublishedAsync(scope, formId, cancellationToken).ConfigureAwait(false);
+        if (submitImpliesRead) await RequireSubmitGateAsync(scope, head, cancellationToken).ConfigureAwait(false);
+        var definition = await ResolveEffectiveAsync(head, cancellationToken).ConfigureAwait(false);
         var instant = _clock.GetUtcNow();
         var bindings = _fieldBinding is null ? null : await _fieldBinding.ResolveAsync(scope, definition, cancellationToken);
         if (instanceId is null)
