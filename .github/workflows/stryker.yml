@@ -1,0 +1,93 @@
+# stryker: Stryker.NET mutation testing (control T-720; PROC-0002 "Mutation evidence as an artefact"; owner ruling Q43).
+#
+# Pull request: `node tooling/stryker.mjs run` mutates each project whose .cs/.razor source changed since origin/main
+# and writes the Survived and NoCoverage mutants on changed lines to the step summary, as review feedback. It is
+# never compared with a project's floor. It fails only when mutable code changed and 0 mutants were tested, because
+# Stryker exits 0 having mutated nothing (T-720 spike). No source change: skipped, green. Advisory: not in `verify`'s
+# needs, not a required check.
+#
+# Schedule (03:00 America/New_York, 07:00 UTC) and workflow_dispatch: `node tooling/stryker.mjs full` runs every
+# configured project on main and fails when a project scores below its baseline in tooling/stryker-baselines.json.
+#
+# winbox, not the Macs: macpro carries verify-shared, the platform bottleneck, and mac16 is the perf-quiet runner
+# (T-724 ruling 8). The fork guard is verify-shared's, character for character, so a fork pull request never runs
+# its author's code on our machine; a draft waits until it is marked ready.
+name: stryker
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  schedule:
+    - cron: '0 7 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: stryker-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  stryker:
+    if: >-
+      vars.ACTIONS_ENABLED == 'true' &&
+      (github.event_name == 'schedule' ||
+       github.event_name == 'workflow_dispatch' ||
+       (github.event.pull_request.head.repo.full_name == github.repository &&
+        github.event.pull_request.draft == false))
+    runs-on: [self-hosted, Windows, winbox]
+    timeout-minutes: ${{ github.event_name == 'pull_request' && 60 || 720 }}
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+    steps:
+      # fetch-depth 0 so refs/remotes/origin/main exists: the configs' since target and the script's changed-source
+      # test both diff against it. A plain clone, never a linked worktree (see tooling/stryker.mjs). Every later git
+      # call is local (diff, ls-files, rev-parse), so the checkout token is not left in .git/config.
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          clean: true
+          persist-credentials: false
+
+      - name: Restore the pinned dotnet-stryker
+        run: dotnet tool restore
+
+      # The builder-definitions tests read DES-0007 from a control checkout, as verify's gate does. The token reaches
+      # git as an environment-only config entry (GIT_CONFIG_COUNT): it is not in the URL, not in git's argv, and not
+      # written to the mirror's .git/config.
+      - name: Mirror harborline-control for the tests that read it
+        env:
+          PINS_TOKEN: ${{ secrets.HARBORLINE_PINS_TOKEN }}
+        run: |
+          $basic = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("x-access-token:$env:PINS_TOKEN"))
+          Write-Output "::add-mask::$basic"
+          $env:GIT_CONFIG_COUNT = '1'
+          $env:GIT_CONFIG_KEY_0 = 'http.https://github.com/.extraheader'
+          $env:GIT_CONFIG_VALUE_0 = "AUTHORIZATION: basic $basic"
+          git clone --quiet https://github.com/Harborline-Software/harborline-control.git "$env:RUNNER_TEMP/harborline-control"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Mutate changed .NET source (pull request)
+        if: github.event_name == 'pull_request'
+        run: node tooling/stryker.mjs run
+        env:
+          HARBORLINE_CONTROL_REPO: ${{ runner.temp }}/harborline-control
+
+      - name: Mutate every project and hold each to its baseline (scheduled)
+        if: github.event_name != 'pull_request'
+        run: node tooling/stryker.mjs full
+        env:
+          HARBORLINE_CONTROL_REPO: ${{ runner.temp }}/harborline-control
+
+      - name: Mutation reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: stryker-report-${{ github.run_id }}
+          if-no-files-found: ignore
+          retention-days: 14
+          path: StrykerOutput/*/reports/mutation-report.json

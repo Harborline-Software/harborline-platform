@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json.schemastore.org/stryker-config",
+  "stryker-config": {
+    "project": "Harborline.Foundation.Documents.csproj",
+    "since": {
+      "enabled": true,
+      "target": "origin/main"
+    },
+    "thresholds": {
+      "high": 80,
+      "low": 75,
+      "break": 75
+    },
+    "reporters": [
+      "json"
+    ]
+  }
+}

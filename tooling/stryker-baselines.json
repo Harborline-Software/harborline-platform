@@ -1,0 +1,302 @@
+{
+  "projections/blazor/ui/hlp.ui.button.tests/Harborline.UIAdapters.Blazor.Tests.csproj": {
+    "break": 38,
+    "score": 38.87,
+    "tested": 8899,
+    "total": 25539,
+    "detected": 4338,
+    "undetected": 6821,
+    "measured": "2026-09-26",
+    "commit": "3dbabe488dabff55e0a8cdce0fcbf847a63e43ec"
+  },
+  "projections/dotnet/blocks/hlp.blocks.activity-timeline.tests/Harborline.Blocks.ActivityTimeline.Tests.csproj": {
+    "break": 70,
+    "score": 70.58,
+    "tested": 31,
+    "total": 44,
+    "detected": 24,
+    "undetected": 10,
+    "measured": "2026-09-26",
+    "commit": "a66297826031eb80b21cb68a1d628a1a59c68327"
+  },
+  "projections/dotnet/blocks/hlp.blocks.aggregates.tests/Harborline.Blocks.Aggregates.Tests.csproj": {
+    "break": 50,
+    "score": 50.34,
+    "tested": 312,
+    "total": 544,
+    "detected": 220,
+    "undetected": 217,
+    "measured": "2026-09-26",
+    "commit": "a66297826031eb80b21cb68a1d628a1a59c68327"
+  },
+  "projections/dotnet/blocks/hlp.blocks.builder-definitions.tests/Harborline.Blocks.BuilderDefinitions.Tests.csproj": {
+    "break": 74,
+    "score": 74.67,
+    "tested": 3142,
+    "total": 4069,
+    "detected": 2606,
+    "undetected": 884,
+    "measured": "2026-09-26",
+    "commit": "c09cfcacf303b1944afadf7e891428ecc9d737cb"
+  },
+  "projections/dotnet/blocks/hlp.blocks.calendar.tests/Harborline.Blocks.Calendar.Tests.csproj": {
+    "break": 64,
+    "score": 64.96,
+    "tested": 1127,
+    "total": 1648,
+    "detected": 838,
+    "undetected": 452,
+    "measured": "2026-09-26",
+    "commit": "c09cfcacf303b1944afadf7e891428ecc9d737cb"
+  },
+  "projections/dotnet/blocks/hlp.blocks.entity-views.tests/Harborline.Blocks.EntityViews.Tests.csproj": {
+    "break": 50,
+    "score": 50.22,
+    "tested": 531,
+    "total": 990,
+    "detected": 340,
+    "undetected": 337,
+    "measured": "2026-09-26",
+    "commit": "c09cfcacf303b1944afadf7e891428ecc9d737cb"
+  },
+  "projections/dotnet/blocks/hlp.blocks.inspection-review.tests/Harborline.Blocks.InspectionReview.Tests.csproj": {
+    "break": 51,
+    "score": 51.02,
+    "tested": 211,
+    "total": 343,
+    "detected": 124,
+    "undetected": 119,
+    "measured": "2026-09-26",
+    "commit": "c09cfcacf303b1944afadf7e891428ecc9d737cb"
+  },
+  "projections/dotnet/blocks/hlp.blocks.layout-runtime.tests/Harborline.Blocks.LayoutRuntime.Tests.csproj": {
+    "break": 60,
+    "score": 60.66,
+    "tested": 128,
+    "total": 333,
+    "detected": 91,
+    "undetected": 59,
+    "measured": "2026-09-26",
+    "commit": "c09cfcacf303b1944afadf7e891428ecc9d737cb"
+  },
+  "projections/dotnet/blocks/hlp.blocks.measure-catalogue.tests/Harborline.Blocks.MeasureCatalogue.Tests.csproj": {
+    "break": 47,
+    "score": 47,
+    "tested": 82,
+    "total": 130,
+    "detected": 47,
+    "undetected": 53,
+    "measured": "2026-09-26",
+    "commit": "c09cfcacf303b1944afadf7e891428ecc9d737cb"
+  },
+  "projections/dotnet/blocks/hlp.blocks.relative-chains.tests/Harborline.Blocks.RelativeChains.Tests.csproj": {
+    "break": 51,
+    "score": 51.4,
+    "tested": 198,
+    "total": 322,
+    "detected": 110,
+    "undetected": 104,
+    "measured": "2026-09-26",
+    "commit": "c09cfcacf303b1944afadf7e891428ecc9d737cb"
+  },
+  "projections/dotnet/blocks/hlp.blocks.reports.tests/Harborline.Blocks.Reports.Tests.csproj": {
+    "break": 58,
+    "score": 58.22,
+    "tested": 556,
+    "total": 809,
+    "detected": 386,
+    "undetected": 277,
+    "measured": "2026-09-26",
+    "commit": "c09cfcacf303b1944afadf7e891428ecc9d737cb"
+  },
+  "projections/dotnet/blocks/hlp.blocks.scheduling.tests/Harborline.Blocks.Scheduling.Tests.csproj": {
+    "break": 40,
+    "score": 40.79,
+    "tested": 329,
+    "total": 701,
+    "detected": 195,
+    "undetected": 283,
+    "measured": "2026-09-26",
+    "commit": "c09cfcacf303b1944afadf7e891428ecc9d737cb"
+  },
+  "projections/dotnet/blocks/hlp.blocks.workflow-interpreter.tests/Harborline.Blocks.Workflow.Interpreter.Tests.csproj": {
+    "break": 46,
+    "score": 46.87,
+    "tested": 73,
+    "total": 133,
+    "detected": 45,
+    "undetected": 51,
+    "measured": "2026-09-26",
+    "commit": "c09cfcacf303b1944afadf7e891428ecc9d737cb"
+  },
+  "projections/dotnet/blocks/hlp.blocks.workflow.tests/Harborline.Blocks.Workflow.Tests.csproj": {
+    "break": 51,
+    "score": 51.8,
+    "tested": 646,
+    "total": 1107,
+    "detected": 417,
+    "undetected": 388,
+    "measured": "2026-09-26",
+    "commit": "c09cfcacf303b1944afadf7e891428ecc9d737cb"
+  },
+  "projections/dotnet/contracts/hlp.contracts.identities.tests/Harborline.Contracts.Tests.csproj": {
+    "break": 49,
+    "score": 49.26,
+    "tested": 143,
+    "total": 270,
+    "detected": 101,
+    "undetected": 104,
+    "measured": "2026-09-26",
+    "commit": "c09cfcacf303b1944afadf7e891428ecc9d737cb"
+  },
+  "projections/dotnet/foundation/hlp.foundation.actor.tests/Harborline.Foundation.Authorization.Tests.csproj": {
+    "break": 52,
+    "score": 52.86,
+    "tested": 212,
+    "total": 295,
+    "detected": 120,
+    "undetected": 107,
+    "measured": "2026-09-26",
+    "commit": "c09cfcacf303b1944afadf7e891428ecc9d737cb"
+  },
+  "projections/dotnet/foundation/hlp.foundation.data-exchange.tests/Harborline.Foundation.DataExchange.Tests.csproj": {
+    "break": 61,
+    "score": 61.97,
+    "tested": 671,
+    "total": 1000,
+    "detected": 471,
+    "undetected": 289,
+    "measured": "2026-09-26",
+    "commit": "c09cfcacf303b1944afadf7e891428ecc9d737cb"
+  },
+  "projections/dotnet/foundation/hlp.foundation.documents.tests/Harborline.Foundation.Documents.Tests.csproj": {
+    "break": 75,
+    "score": 75.63,
+    "tested": 215,
+    "total": 332,
+    "detected": 180,
+    "undetected": 58,
+    "measured": "2026-09-26",
+    "commit": "c09cfcacf303b1944afadf7e891428ecc9d737cb"
+  },
+  "projections/dotnet/foundation/hlp.foundation.field-runtime.tests/Harborline.Foundation.FieldRuntime.Tests.csproj": {
+    "break": 71,
+    "score": 71.23,
+    "tested": 510,
+    "total": 798,
+    "detected": 426,
+    "undetected": 172,
+    "measured": "2026-09-26",
+    "commit": "c09cfcacf303b1944afadf7e891428ecc9d737cb"
+  },
+  "projections/dotnet/foundation/hlp.foundation.forms-engine.tests/Harborline.Foundation.Forms.Engine.Tests.csproj": {
+    "break": 54,
+    "score": 54.3,
+    "tested": 1578,
+    "total": 2525,
+    "detected": 1027,
+    "undetected": 864,
+    "measured": "2026-09-26",
+    "commit": "c09cfcacf303b1944afadf7e891428ecc9d737cb"
+  },
+  "projections/dotnet/foundation/hlp.foundation.forms.tests/Harborline.Foundation.Forms.Tests.csproj": {
+    "break": 56,
+    "score": 56.92,
+    "tested": 677,
+    "total": 1258,
+    "detected": 448,
+    "undetected": 339,
+    "measured": "2026-09-26",
+    "commit": "c09cfcacf303b1944afadf7e891428ecc9d737cb"
+  },
+  "projections/dotnet/foundation/hlp.foundation.rule-authoring.tests/Harborline.Foundation.RuleAuthoring.Tests.csproj": {
+    "break": 55,
+    "score": 55.73,
+    "tested": 547,
+    "total": 1013,
+    "detected": 384,
+    "undetected": 305,
+    "measured": "2026-09-26",
+    "commit": "c09cfcacf303b1944afadf7e891428ecc9d737cb"
+  },
+  "projections/dotnet/foundation/hlp.foundation.rule-runtime.tests/Harborline.Foundation.RuleEngine.Tests.csproj": {
+    "break": 53,
+    "score": 53.04,
+    "tested": 2563,
+    "total": 4007,
+    "detected": 1552,
+    "undetected": 1374,
+    "measured": "2026-09-26",
+    "commit": "c09cfcacf303b1944afadf7e891428ecc9d737cb"
+  },
+  "projections/dotnet/foundation/hlp.foundation.scheduling.tests/Harborline.Foundation.Scheduling.Tests.csproj": {
+    "break": 71,
+    "score": 71.11,
+    "tested": 265,
+    "total": 372,
+    "detected": 197,
+    "undetected": 80,
+    "measured": "2026-09-26",
+    "commit": "c09cfcacf303b1944afadf7e891428ecc9d737cb"
+  },
+  "projections/dotnet/foundation/hlp.foundation.session.tests/Harborline.Foundation.Session.Tests.csproj": {
+    "break": 60,
+    "score": 60.43,
+    "tested": 77,
+    "total": 112,
+    "detected": 55,
+    "undetected": 36,
+    "measured": "2026-09-26",
+    "commit": "c09cfcacf303b1944afadf7e891428ecc9d737cb"
+  },
+  "projections/dotnet/foundation/hlp.foundation.tenancy.tests/Harborline.Foundation.MultiTenancy.Tests.csproj": {
+    "break": 54,
+    "score": 54.54,
+    "tested": 11,
+    "total": 15,
+    "detected": 6,
+    "undetected": 5,
+    "measured": "2026-09-26",
+    "commit": "c09cfcacf303b1944afadf7e891428ecc9d737cb"
+  },
+  "projections/dotnet/foundation/hlp.ui.support.tests/Harborline.Foundation.UI.Tests.csproj": {
+    "break": 38,
+    "score": 38.03,
+    "tested": 453,
+    "total": 637,
+    "detected": 213,
+    "undetected": 347,
+    "measured": "2026-09-26",
+    "commit": "c09cfcacf303b1944afadf7e891428ecc9d737cb"
+  },
+  "projections/dotnet/kernel/hlp.kernel.core.tests/Harborline.Kernel.Core.Tests.csproj": {
+    "break": 55,
+    "score": 55.17,
+    "tested": 111,
+    "total": 138,
+    "detected": 64,
+    "undetected": 52,
+    "measured": "2026-09-26",
+    "commit": "c09cfcacf303b1944afadf7e891428ecc9d737cb"
+  },
+  "projections/dotnet/kernel/hlp.kernel.schema-validation.tests/Harborline.Kernel.SchemaValidation.Tests.csproj": {
+    "break": 48,
+    "score": 48.28,
+    "tested": 236,
+    "total": 396,
+    "detected": 127,
+    "undetected": 136,
+    "measured": "2026-09-26",
+    "commit": "c09cfcacf303b1944afadf7e891428ecc9d737cb"
+  },
+  "projections/dotnet/kernel/hlp.kernel.work-items.tests/Harborline.Kernel.WorkItems.Tests.csproj": {
+    "break": 42,
+    "score": 42.95,
+    "tested": 241,
+    "total": 404,
+    "detected": 125,
+    "undetected": 166,
+    "measured": "2026-09-26",
+    "commit": "c09cfcacf303b1944afadf7e891428ecc9d737cb"
+  }
+}
