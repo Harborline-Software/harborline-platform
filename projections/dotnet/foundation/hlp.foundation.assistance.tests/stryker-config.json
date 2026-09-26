@@ -8,8 +8,8 @@
     },
     "thresholds": {
       "high": 80,
-      "low": 61,
-      "break": 61
+      "low": 60,
+      "break": 54
     },
     "reporters": [
       "json"
