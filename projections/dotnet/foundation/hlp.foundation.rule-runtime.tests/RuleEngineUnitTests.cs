@@ -1445,6 +1445,22 @@ public sealed class RuleEngineUnitTests
         Assert.Equal(RuleEngineCodes.CompileInvalidExpression, v.Error!.Code);
     }
 
+    // T-739: compilation is part of the value-evaluation fail-closed contract, so callers see
+    // the stable code rather than a compiler exception (and no expression text escapes).
+    [Theory]
+    [InlineData("{\"frobnicate\":[1]}")]
+    [InlineData("not json")]
+    public void Value_evaluator_fails_closed_on_a_rule_that_does_not_compile(string expression)
+    {
+        var guard = new GuardEvaluator(new FixedClock(Clock), RuleEngineLimits.Default);
+        var rule = RuleDefinitionFactory.Create("v.bad", RuleTier.JsonLogic, RuleScope.Schema, "", expression, RuleActionKind.Compute);
+
+        var value = guard.EvaluateValue(rule, RuleContextSnapshot.Capture(Bag("amount", 1)), RuleEvalScope.Root, TestAdmission.Any);
+
+        Assert.Equal(ValueState.Error, value.State);
+        Assert.Equal(RuleEngineCodes.CompileInvalidExpression, value.Error!.Code);
+    }
+
     private static Dictionary<string, JsonNode?> Bag(string key, int value)
         => new() { [key] = JsonValue.Create(value) };
 
