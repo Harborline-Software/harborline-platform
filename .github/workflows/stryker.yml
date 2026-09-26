@@ -12,6 +12,11 @@
 # winbox, not the Macs: macpro carries verify-shared, the platform bottleneck, and mac16 is the perf-quiet runner
 # (T-724 ruling 8). The fork guard is verify-shared's, character for character, so a fork pull request never runs
 # its author's code on our machine; a draft waits until it is marked ready.
+#
+# T-724 ruling 118 (Q50): the pull_request path (changed-lines feedback) moved to a standard GitHub-hosted
+# ubuntu-latest runner -- Stryker.NET and its msbuild-path fallback are both no-ops off win32 (tooling/stryker.mjs),
+# so nothing in `node tooling/stryker.mjs run` is Windows-only. The schedule/workflow_dispatch path (full run held
+# to baselines) stays on winbox exactly as before.
 name: stryker
 
 on:
@@ -22,7 +27,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: stryker-${{ github.event.pull_request.number || github.ref }}
+  group: ${{ github.event_name == 'pull_request' && format('stryker-pr-{0}', github.event.pull_request.number) || format('stryker-{0}', github.ref) }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
@@ -36,7 +41,7 @@ jobs:
        github.event_name == 'workflow_dispatch' ||
        (github.event.pull_request.head.repo.full_name == github.repository &&
         github.event.pull_request.draft == false))
-    runs-on: [self-hosted, Windows, winbox]
+    runs-on: ${{ github.event_name == 'pull_request' && 'ubuntu-latest' || fromJSON('["self-hosted","Windows","winbox"]') }}
     timeout-minutes: ${{ github.event_name == 'pull_request' && 60 || 720 }}
     defaults:
       run:
@@ -52,6 +57,18 @@ jobs:
           fetch-depth: 0
           clean: true
           persist-credentials: false
+
+      # winbox already carries the pinned SDK and Node on PATH (see verify.yml); the hosted PR runner needs both
+      # installed -- tooling/stryker.mjs itself runs under node, same version as the repo's other hosted jobs.
+      - uses: actions/setup-dotnet@v6
+        if: github.event_name == 'pull_request'
+        with:
+          global-json-file: global.json
+
+      - uses: actions/setup-node@v7
+        if: github.event_name == 'pull_request'
+        with:
+          node-version: 24
 
       - name: Restore the pinned dotnet-stryker
         run: dotnet tool restore
@@ -89,5 +106,5 @@ jobs:
         with:
           name: stryker-report-${{ github.run_id }}
           if-no-files-found: ignore
-          retention-days: 14
+          retention-days: ${{ github.event_name == 'pull_request' && 7 || 14 }}
           path: StrykerOutput/*/reports/mutation-report.json
