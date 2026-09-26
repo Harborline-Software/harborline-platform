@@ -6,11 +6,15 @@ namespace Harborline.Foundation.Forms;
 
 /// <summary>
 /// Reports the immutable Published revisions created by <see cref="SubmitGateSeedMigration"/>,
-/// and legacy Published forms for which the caller supplied no replacement gate.
+/// legacy Published forms for which the caller supplied no replacement gate, forms deferred
+/// because a pending Draft outranks the Published revision being migrated, and System-owned
+/// Withdrawn revisions with no gate that an operator can repair and restore.
 /// </summary>
 public sealed record SubmitGateSeedMigrationResult(
     IReadOnlyList<FormDefinition> Published,
-    IReadOnlyList<FormDefinition> Skipped);
+    IReadOnlyList<FormDefinition> Skipped,
+    IReadOnlyList<FormDefinition> DeferredPendingDraft,
+    IReadOnlyList<FormDefinition> WithdrawnPendingGate);
 
 /// <summary>
 /// Seeds explicit submit gates onto legacy Published forms without rewriting immutable history.
@@ -36,11 +40,25 @@ public sealed class SubmitGateSeedMigration(IFormDefinitionStore definitions)
 
         var published = new List<FormDefinition>();
         var skipped = new List<FormDefinition>();
+        var deferredPendingDraft = new List<FormDefinition>();
         await foreach (var definition in _definitions.ListCurrentPublishedByTenantAsync(tenant, ct))
         {
             ct.ThrowIfCancellationRequested();
             if (definition.SubmitGate is not null)
             {
+                continue;
+            }
+
+            // A Draft above the Published version being migrated is a pending author edit. Bumping
+            // past it (the old NextVersionAsync picked the highest version across EVERY status,
+            // Draft included, and republished the LEGACY content one patch above it) would let the
+            // migrated legacy content outrank and permanently shadow that Draft once published,
+            // since GetCurrentPublishedAsync/ListCurrentPublishedByTenantAsync select by version, not
+            // by recency. Defer instead: the operator resolves the Draft (gates and publishes it, or
+            // discards it) before this form is safe to migrate.
+            if (await HasDraftAboveAsync(tenant, definition.Id, definition.Version, ct).ConfigureAwait(false))
+            {
+                deferredPendingDraft.Add(definition);
                 continue;
             }
 
@@ -59,7 +77,40 @@ public sealed class SubmitGateSeedMigration(IFormDefinitionStore definitions)
             published.Add(await _definitions.RegisterAndPublishAsync(revision, ct).ConfigureAwait(false));
         }
 
-        return new SubmitGateSeedMigrationResult(published, skipped);
+        // Legacy System-owned Withdrawn revisions with no gate cannot be restored to Published
+        // (RestorePackProjectionAsync now requires one, fail-closed) and this migration never
+        // republishes a Withdrawn revision on the operator's behalf. Surface them so the operator
+        // can map a gate and repair each one directly.
+        var withdrawnPendingGate = new List<FormDefinition>();
+        await foreach (var candidate in _definitions.ListByTenantAsync(tenant, ct))
+        {
+            ct.ThrowIfCancellationRequested();
+            if (candidate.Status == FormDefinitionStatus.Withdrawn
+                && candidate.Owner == IdentityRef.System
+                && candidate.SubmitGate is null)
+            {
+                withdrawnPendingGate.Add(candidate);
+            }
+        }
+
+        return new SubmitGateSeedMigrationResult(published, skipped, deferredPendingDraft, withdrawnPendingGate);
+    }
+
+    private async ValueTask<bool> HasDraftAboveAsync(
+        TenantId tenant,
+        FormDefinitionId id,
+        SemanticVersion current,
+        CancellationToken ct)
+    {
+        await foreach (var candidate in _definitions.ListByTenantAsync(tenant, ct))
+        {
+            if (candidate.Id == id && candidate.Status == FormDefinitionStatus.Draft && candidate.Version > current)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private async ValueTask<SemanticVersion> NextVersionAsync(

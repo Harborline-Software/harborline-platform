@@ -94,7 +94,7 @@ public sealed class InMemoryFormDefinitionStore : IFormDefinitionStore, IDisposa
     public async ValueTask<FormDefinition> RegisterAsync(FormDefinition definition, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(definition);
-        ValidateDefinition(definition);
+        ValidateDefinition(definition, requireSubmitGate: definition.Status == FormDefinitionStatus.Published);
 
         await _mutationLock.WaitAsync(ct).ConfigureAwait(false);
         try
@@ -181,7 +181,7 @@ public sealed class InMemoryFormDefinitionStore : IFormDefinitionStore, IDisposa
     public async ValueTask<FormDefinition> CreateAsync(FormDefinition definition, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(definition);
-        ValidateDefinition(definition);
+        ValidateDefinition(definition, requireSubmitGate: definition.Status == FormDefinitionStatus.Published);
 
         await _mutationLock.WaitAsync(ct).ConfigureAwait(false);
         try
@@ -285,6 +285,18 @@ public sealed class InMemoryFormDefinitionStore : IFormDefinitionStore, IDisposa
 
     /// <inheritdoc />
     public void Dispose() => _mutationLock.Dispose();
+
+    /// <summary>
+    /// Test-only seam: inserts <paramref name="definition"/> as-is, bypassing
+    /// <see cref="ValidateDefinition"/>. Production writes always validate; this exists solely so
+    /// tests can simulate a row already persisted before submit_gate became required at publish
+    /// (T-756) — data this package's own write paths can no longer produce.
+    /// </summary>
+    internal void SeedLegacyRevisionForTesting(FormDefinition definition)
+    {
+        ArgumentNullException.ThrowIfNull(definition);
+        _store = MutateStore(_store, definition);
+    }
 
     private async ValueTask<FormDefinition> TransitionAsync(
         TenantId tenant,
