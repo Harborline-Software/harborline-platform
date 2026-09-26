@@ -1,35 +1,899 @@
 {
-  "why": "Owner ruling 2026-09-26: each package's break starts at the floor of its lowest observed score and is raised as test-improvement tickets land. PROC-0002's high 80 / low 60 stay the target. A package with no measured baseline takes the default. tooling/strykerjs.mjs check refuses a break below its baseline.",
-  "default": {
-    "break": 60,
-    "why": "PROC-0002 break, for a package with no measured baseline yet"
-  },
+  "why": "Owner ruling 2026-09-26: each package's break starts at the floor of its lowest observed score and is raised as test-improvement tickets land. PROC-0002's high 80 / low 60 stay the target. Owner ruling Q43: only the scheduled full run compares a package score to its break; a PR run reports the survivors on its changed lines. Every mutated package has an entry; tooling/strykerjs.mjs check refuses a missing or pending entry and a break below its baseline.",
   "packages": {
+    "projections/react/ui/hlp.ui.accordion": {
+      "baseline": 70,
+      "break": 70,
+      "score": 70.87,
+      "tested": 125,
+      "observed": [
+        70.87
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.accordion/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.action-menu": {
+      "baseline": 68,
+      "break": 68,
+      "score": 68.98,
+      "tested": 307,
+      "observed": [
+        68.98
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.action-menu/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.activity-log": {
+      "baseline": 75,
+      "break": 75,
+      "score": 75.34,
+      "tested": 71,
+      "observed": [
+        75.34
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.activity-log/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.alert": {
+      "baseline": 20,
+      "break": 20,
+      "score": 20.83,
+      "tested": 47,
+      "observed": [
+        20.83
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.alert/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.app-layout": {
+      "baseline": 43,
+      "break": 43,
+      "score": 43.19,
+      "tested": 150,
+      "observed": [
+        43.19
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.app-layout/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.app-shell": {
+      "baseline": 65,
+      "break": 65,
+      "score": 65.42,
+      "tested": 1861,
+      "observed": [
+        65.42
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.app-shell/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.badge": {
+      "baseline": 41,
+      "break": 41,
+      "score": 41.51,
+      "tested": 28,
+      "observed": [
+        41.51
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.badge/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.breadcrumb": {
+      "baseline": 72,
+      "break": 72,
+      "score": 72.5,
+      "tested": 40,
+      "observed": [
+        72.5
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.breadcrumb/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.button": {
+      "baseline": 25,
+      "break": 25,
+      "score": 25.26,
+      "tested": 179,
+      "observed": [
+        25.26
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.button/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.card": {
+      "baseline": 67,
+      "break": 67,
+      "score": 67.8,
+      "tested": 58,
+      "observed": [
+        67.8
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.card/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.chart": {
+      "baseline": 72,
+      "break": 72,
+      "score": 72.96,
+      "tested": 302,
+      "observed": [
+        72.96
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.chart/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.chat": {
+      "baseline": 61,
+      "break": 61,
+      "score": 61.57,
+      "tested": 215,
+      "observed": [
+        61.57
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.chat/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.check-box": {
+      "baseline": 71,
+      "break": 71,
+      "score": 71.43,
+      "tested": 69,
+      "observed": [
+        71.43
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.check-box/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.chip": {
+      "baseline": 65,
+      "break": 65,
+      "score": 65.14,
+      "tested": 104,
+      "observed": [
+        65.14
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.chip/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.cn": {
+      "baseline": 100,
+      "break": 100,
+      "score": 100.0,
+      "tested": 1,
+      "observed": [
+        100.0
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.cn/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.collapsible": {
+      "baseline": 57,
+      "break": 57,
+      "score": 57.14,
+      "tested": 35,
+      "observed": [
+        57.14
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.collapsible/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.confirm-dialog": {
+      "baseline": 86,
+      "break": 86,
+      "score": 86.96,
+      "tested": 23,
+      "observed": [
+        86.96
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.confirm-dialog/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.context-menu": {
+      "baseline": 49,
+      "break": 49,
+      "score": 49.19,
+      "tested": 221,
+      "observed": [
+        49.19
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.context-menu/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.conversation-list": {
+      "baseline": 78,
+      "break": 78,
+      "score": 78.29,
+      "tested": 169,
+      "observed": [
+        78.29
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.conversation-list/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.data-exchange": {
+      "baseline": 19,
+      "break": 19,
+      "score": 19.15,
+      "tested": 124,
+      "observed": [
+        19.15
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.data-exchange/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.data-export-button": {
+      "baseline": 36,
+      "break": 36,
+      "score": 36.92,
+      "tested": 99,
+      "observed": [
+        36.92
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.data-export-button/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.data-grid": {
+      "baseline": 77,
+      "break": 77,
+      "score": 77.41,
+      "tested": 850,
+      "observed": [
+        77.41
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.data-grid/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.date-field": {
+      "baseline": 42,
+      "break": 42,
+      "score": 42.86,
+      "tested": 28,
+      "observed": [
+        42.86
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.date-field/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.date-time-field": {
+      "baseline": 42,
+      "break": 42,
+      "score": 42.86,
+      "tested": 28,
+      "observed": [
+        42.86
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.date-time-field/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.default-strings": {
+      "baseline": 85,
+      "break": 85,
+      "score": 85.71,
+      "tested": 7,
+      "observed": [
+        85.71
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.default-strings/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.detail-panel": {
+      "baseline": 62,
+      "break": 62,
+      "score": 62.6,
+      "tested": 234,
+      "observed": [
+        62.6
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.detail-panel/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.dialog": {
+      "baseline": 70,
+      "break": 70,
+      "score": 70.83,
+      "tested": 140,
+      "observed": [
+        70.83
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.dialog/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.empty-state": {
+      "baseline": 66,
+      "break": 66,
+      "score": 66.67,
+      "tested": 45,
+      "observed": [
+        66.67
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.empty-state/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.error-card": {
+      "baseline": 90,
+      "break": 90,
+      "score": 90.48,
+      "tested": 21,
+      "observed": [
+        90.48
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.error-card/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.form-field": {
+      "baseline": 48,
+      "break": 48,
+      "score": 48.65,
+      "tested": 37,
+      "observed": [
+        48.65
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.form-field/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.form-view": {
+      "baseline": 73,
+      "break": 73,
+      "score": 73.28,
+      "tested": 113,
+      "observed": [
+        73.28
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.form-view/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.gantt": {
+      "baseline": 56,
+      "break": 56,
+      "score": 56.79,
+      "tested": 430,
+      "observed": [
+        56.79
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.gantt/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.guarded-control": {
+      "baseline": 22,
+      "break": 22,
+      "score": 22.69,
+      "tested": 206,
+      "observed": [
+        22.69
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.guarded-control/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.icon-button": {
+      "baseline": 70,
+      "break": 70,
+      "score": 70.97,
+      "tested": 31,
+      "observed": [
+        70.97
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.icon-button/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.input": {
+      "baseline": 21,
+      "break": 21,
+      "score": 21.67,
+      "tested": 58,
+      "observed": [
+        21.67
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.input/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.layers-rail": {
+      "baseline": 27,
+      "break": 27,
+      "score": 27.16,
+      "tested": 192,
+      "observed": [
+        27.16
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.layers-rail/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.layers-state": {
+      "baseline": 86,
+      "break": 86,
+      "score": 86.57,
+      "tested": 63,
+      "observed": [
+        86.57
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.layers-state/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
     "projections/react/ui/hlp.ui.layout-runtime": {
       "baseline": 59,
       "break": 59,
+      "score": 59.05,
+      "tested": 696,
       "observed": [
         61.18,
+        59.05,
         59.05
       ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.layout-runtime/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential",
       "spread": 2.13,
-      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers",
-      "note": "two identical runs differed by 17 killed mutants (2.13 points); if CI shows a wider spread the baseline may need lowering"
+      "note": "three identical full runs scored 61.18, 59.05 and 59.05 (spread 2.13). Only the scheduled full run compares the break (Q43); if CI shows a wider spread, the baseline may need lowering"
+    },
+    "projections/react/ui/hlp.ui.loading-state": {
+      "baseline": 89,
+      "break": 89,
+      "score": 89.47,
+      "tested": 19,
+      "observed": [
+        89.47
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.loading-state/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.locale-provider": {
+      "baseline": 61,
+      "break": 61,
+      "score": 61.64,
+      "tested": 67,
+      "observed": [
+        61.64
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.locale-provider/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.notification-center": {
+      "baseline": 33,
+      "break": 33,
+      "score": 33.83,
+      "tested": 179,
+      "observed": [
+        33.83
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.notification-center/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.number-field": {
+      "baseline": 60,
+      "break": 60,
+      "score": 60.0,
+      "tested": 50,
+      "observed": [
+        60.0
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.number-field/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.numeric-text-box": {
+      "baseline": 68,
+      "break": 68,
+      "score": 68.86,
+      "tested": 327,
+      "observed": [
+        68.86
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.numeric-text-box/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.page": {
+      "baseline": 49,
+      "break": 49,
+      "score": 49.02,
+      "tested": 48,
+      "observed": [
+        49.02
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.page/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.popover": {
+      "baseline": 69,
+      "break": 69,
+      "score": 69.67,
+      "tested": 353,
+      "observed": [
+        69.67
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.popover/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.radio-group": {
+      "baseline": 69,
+      "break": 69,
+      "score": 69.57,
+      "tested": 69,
+      "observed": [
+        69.57
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.radio-group/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.rail-labels": {
+      "baseline": 22,
+      "break": 22,
+      "score": 22.73,
+      "tested": 22,
+      "observed": [
+        22.73
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.rail-labels/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.rule-authoring": {
+      "baseline": 57,
+      "break": 57,
+      "score": 57.83,
+      "tested": 623,
+      "observed": [
+        57.83
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.rule-authoring/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.scheduler": {
+      "baseline": 41,
+      "break": 41,
+      "score": 41.53,
+      "tested": 1281,
+      "observed": [
+        41.53
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.scheduler/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.schema-form": {
+      "baseline": 68,
+      "break": 68,
+      "score": 68.08,
+      "tested": 922,
+      "observed": [
+        68.08
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.schema-form/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.scroll-affordance": {
+      "baseline": 73,
+      "break": 73,
+      "score": 73.33,
+      "tested": 59,
+      "observed": [
+        73.33
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.scroll-affordance/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.search-input": {
+      "baseline": 40,
+      "break": 40,
+      "score": 40.0,
+      "tested": 48,
+      "observed": [
+        40.0
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.search-input/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.segmented-control": {
+      "baseline": 49,
+      "break": 49,
+      "score": 49.04,
+      "tested": 152,
+      "observed": [
+        49.04
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.segmented-control/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.select-field": {
+      "baseline": 62,
+      "break": 62,
+      "score": 62.83,
+      "tested": 639,
+      "observed": [
+        62.83
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.select-field/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.separator": {
+      "baseline": 80,
+      "break": 80,
+      "score": 80.77,
+      "tested": 26,
+      "observed": [
+        80.77
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.separator/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.sheet": {
+      "baseline": 51,
+      "break": 51,
+      "score": 51.57,
+      "tested": 227,
+      "observed": [
+        51.57
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.sheet/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.side-nav-group": {
+      "baseline": 82,
+      "break": 82,
+      "score": 82.35,
+      "tested": 17,
+      "observed": [
+        82.35
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.side-nav-group/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.side-nav": {
+      "baseline": 59,
+      "break": 59,
+      "score": 59.39,
+      "tested": 224,
+      "observed": [
+        59.39
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.side-nav/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.spinner": {
+      "baseline": 76,
+      "break": 76,
+      "score": 76.19,
+      "tested": 19,
+      "observed": [
+        76.19
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.spinner/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.spotlight": {
+      "baseline": 62,
+      "break": 62,
+      "score": 62.66,
+      "tested": 223,
+      "observed": [
+        62.66
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.spotlight/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.switch-field": {
+      "baseline": 100,
+      "break": 100,
+      "score": 100.0,
+      "tested": 7,
+      "observed": [
+        100.0
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.switch-field/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.switch": {
+      "baseline": 53,
+      "break": 53,
+      "score": 53.0,
+      "tested": 100,
+      "observed": [
+        53.0
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.switch/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.table": {
+      "baseline": 52,
+      "break": 52,
+      "score": 52.94,
+      "tested": 17,
+      "observed": [
+        52.94
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.table/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.text-area": {
+      "baseline": 56,
+      "break": 56,
+      "score": 56.32,
+      "tested": 86,
+      "observed": [
+        56.32
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.text-area/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.text-box": {
+      "baseline": 49,
+      "break": 49,
+      "score": 49.64,
+      "tested": 136,
+      "observed": [
+        49.64
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.text-box/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.toaster": {
+      "baseline": 46,
+      "break": 46,
+      "score": 46.91,
+      "tested": 247,
+      "observed": [
+        46.91
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.toaster/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.tone-style": {
+      "baseline": 1,
+      "break": 1,
+      "score": 1.92,
+      "tested": 52,
+      "observed": [
+        1.92
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.tone-style/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.tooltip": {
+      "baseline": 75,
+      "break": 75,
+      "score": 75.0,
+      "tested": 92,
+      "observed": [
+        75.0
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.tooltip/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.touch-target": {
+      "baseline": 0,
+      "break": 0,
+      "score": 0.0,
+      "tested": 4,
+      "observed": [
+        0.0
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.touch-target/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.use-can-show-master-detail": {
+      "baseline": 86,
+      "break": 86,
+      "score": 86.36,
+      "tested": 44,
+      "observed": [
+        86.36
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.use-can-show-master-detail/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.use-form-rule-graph": {
+      "baseline": 81,
+      "break": 81,
+      "score": 81.36,
+      "tested": 58,
+      "observed": [
+        81.36
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.use-form-rule-graph/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.use-is-mobile": {
+      "baseline": 40,
+      "break": 40,
+      "score": 40.0,
+      "tested": 5,
+      "observed": [
+        40.0
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.use-is-mobile/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.use-media-query": {
+      "baseline": 96,
+      "break": 96,
+      "score": 96.3,
+      "tested": 27,
+      "observed": [
+        96.3
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.use-media-query/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.use-nav-collapsed": {
+      "baseline": 94,
+      "break": 94,
+      "score": 94.74,
+      "tested": 57,
+      "observed": [
+        94.74
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.use-nav-collapsed/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.use-outside-click": {
+      "baseline": 97,
+      "break": 97,
+      "score": 97.3,
+      "tested": 37,
+      "observed": [
+        97.3
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.use-outside-click/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.use-scroll-affordance": {
+      "baseline": 75,
+      "break": 75,
+      "score": 75.6,
+      "tested": 199,
+      "observed": [
+        75.6
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.use-scroll-affordance/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.user-menu": {
+      "baseline": 42,
+      "break": 42,
+      "score": 42.86,
+      "tested": 295,
+      "observed": [
+        42.86
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.user-menu/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.view-runtime": {
+      "baseline": 33,
+      "break": 33,
+      "score": 33.94,
+      "tested": 144,
+      "observed": [
+        33.94
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.view-runtime/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
+    },
+    "projections/react/ui/hlp.ui.window": {
+      "baseline": 60,
+      "break": 60,
+      "score": 60.34,
+      "tested": 469,
+      "observed": [
+        60.34
+      ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.ui.window/mutation.json",
+      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
     },
     "projections/typescript/foundation/hlp.foundation.rule-authoring": {
       "baseline": 73,
       "break": 73,
+      "score": 73.77,
+      "tested": 1114,
       "observed": [
         73.77
       ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.foundation.rule-authoring/mutation.json",
       "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers"
     },
     "projections/typescript/foundation/hlp.foundation.rule-runtime": {
       "baseline": 63,
       "break": 63,
+      "score": 63.49,
+      "tested": 4843,
       "observed": [
         63.49
       ],
+      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.foundation.rule-runtime/mutation.json",
       "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers"
     }
   }
