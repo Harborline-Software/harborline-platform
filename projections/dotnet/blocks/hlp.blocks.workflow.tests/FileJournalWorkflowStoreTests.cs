@@ -96,7 +96,8 @@ public sealed class FileJournalWorkflowStoreTests
         Assert.Equal("approve", instance.CurrentStep);
 
         // Resume: the parked human task advances exactly once through the dispatcher.
-        var dispatcher = new WorkflowTriggerDispatcher(restarted, new[] { new StaticHandler() });
+        var dispatcher = new WorkflowTriggerDispatcher(
+            restarted, new[] { new StaticHandler() }, definitionStore: new AlwaysAdmittedDefinitionStore());
         var result = await dispatcher.DispatchAsync(
             WorkflowTrigger.For(WorkflowTriggerKind.HumanAction, "restart-1", "approve", "{\"decision\":\"approve\"}"));
         Assert.Equal(WorkflowDispatchResult.Advanced, result);
@@ -274,6 +275,20 @@ public sealed class FileJournalWorkflowStoreTests
         public ValueTask<WorkflowStepOutcome> DecideAsync(
             WorkflowInstanceRecord instance, WorkflowTrigger trigger, CancellationToken ct = default)
             => ValueTask.FromResult(WorkflowStepOutcome.Complete("posted", Effect("resumed-post")));
+    }
+
+    /// <summary>Execution-store test double for this journal-restart row; admission is covered at its own seam.</summary>
+    private sealed class AlwaysAdmittedDefinitionStore : IWorkflowDefinitionExecutionStore
+    {
+        public ValueTask<WorkflowDefinitionRecord?> GetAdmittedCurrentPublishedAsync(
+            string tenant, string key, CancellationToken ct = default)
+            => ValueTask.FromResult<WorkflowDefinitionRecord?>(new(
+                tenant, key, "test", WorkflowDefinitionStatus.Published, default));
+
+        public ValueTask<WorkflowDefinitionRecord> GetAdmittedAsync(
+            string tenant, string key, string version, CancellationToken ct = default)
+            => ValueTask.FromResult(new WorkflowDefinitionRecord(
+                tenant, key, version, WorkflowDefinitionStatus.Published, default));
     }
 
     internal static async Task RunProbeAsync(string journalPath, string mode)
