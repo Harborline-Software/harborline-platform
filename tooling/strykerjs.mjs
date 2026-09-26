@@ -74,10 +74,16 @@ export function mutableFiles(dir, files) {
 
 export function tally(report) {
   const counts = {}
-  for (const file of Object.values(report?.files ?? {})) for (const mutant of file.mutants ?? []) counts[mutant.status] = (counts[mutant.status] ?? 0) + 1
+  for (const file of Object.values(report?.files ?? {})) {
+    for (const mutant of file.mutants ?? []) {
+      // A Survived mutant whose run completed zero tests was never tested: the per-mutant form of "ran nothing".
+      const status = mutant.status === 'Survived' && mutant.testsCompleted === 0 ? 'SurvivedNoTestsRan' : mutant.status
+      counts[status] = (counts[status] ?? 0) + 1
+    }
+  }
   const tested = [...TESTED].reduce((sum, status) => sum + (counts[status] ?? 0), 0)
   const detected = (counts.Killed ?? 0) + (counts.Timeout ?? 0)
-  const valid = tested + (counts.NoCoverage ?? 0)
+  const valid = tested + (counts.NoCoverage ?? 0) + (counts.SurvivedNoTestsRan ?? 0)
   return {counts, tested, score: valid ? Math.round((detected / valid) * 10000) / 100 : null}
 }
 
@@ -87,6 +93,7 @@ export function verdict({status, output, report}) {
   if (!report) return {ok: false, message: `no mutation.json written (stryker exit ${status})`}
   const {tested, score, counts} = tally(report)
   if (tested === 0) return {ok: false, message: `0 mutants tested (${JSON.stringify(counts)}); a run that tests nothing is not a pass`}
+  if (counts.SurvivedNoTestsRan) return {ok: false, message: `${counts.SurvivedNoTestsRan} covered mutants ran zero tests: the test runner is not executing mutant runs (${JSON.stringify(counts)})`}
   if (status !== 0) return {ok: false, message: `stryker exit ${status}: score ${score} under break 60, or a run error (${tested} tested)`}
   return {ok: true, message: `${tested} tested, score ${score} ${JSON.stringify(counts)}`}
 }
@@ -101,6 +108,8 @@ function runPackage(dir, entry, files) {
   const bin = path.join(root, entry.toolchain, 'node_modules/@stryker-mutator/core/bin/stryker.js')
   if (!existsSync(bin)) return {ok: false, message: `StrykerJS is not installed in ${entry.toolchain}; run pnpm install --frozen-lockfile there`}
   const before = mutate.map(file => readFileSync(path.join(cwd, file), 'utf8'))
+  const status = () => git('status', '--porcelain', '--untracked-files=all', '--', dir).stdout
+  const statusBefore = status()
   const run = spawnSync(process.execPath, [bin, 'run', path.relative(cwd, config), '--mutate', mutate.join(',')], {cwd, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024})
   const output = `${run.stdout ?? ''}${run.stderr ?? ''}`
   process.stdout.write(output)
@@ -109,6 +118,9 @@ function runPackage(dir, entry, files) {
   // inPlace mode edits the working tree; Stryker restores it, and this refuses a run that did not.
   const dirty = mutate.filter((file, index) => readFileSync(path.join(cwd, file), 'utf8') !== before[index])
   if (dirty.length) return {ok: false, message: `source left mutated after the in-place run: ${dirty.join(', ')}`}
+  // A mutant with a side effect (one wrote a file named "-s" into the api's capability-host) lands in the real tree in place.
+  const strays = lines(status()).filter(line => !lines(statusBefore).includes(line))
+  if (strays.length) return {ok: false, message: `the run left files in the working tree: ${strays.join('; ')}`}
   return verdict({status: run.status, output, report})
 }
 

@@ -27,6 +27,9 @@ test('a report with zero tested mutants fails even when Stryker exits 0 (the T-7
   assert.equal(verdict({status: 0, output: '', report: undefined}).ok, false)
   assert.equal(verdict({status: 0, output: '', report: report([])}).ok, false)
   assert.equal(verdict({status: 0, output: '', report: report(['NoCoverage', 'CompileError'])}).ok, false)
+  const ranNoTests = {files: {'src/a.ts': {mutants: [{status: 'Survived', testsCompleted: 0}, {status: 'Killed', testsCompleted: 3}]}}}
+  assert.equal(tally(ranNoTests).tested, 1, 'a Survived mutant that ran zero tests was not tested')
+  assert.equal(verdict({status: 0, output: '', report: ranNoTests}).ok, false, 'any such mutant means the runner is not running mutant tests')
 })
 
 test('a run with tested mutants passes above break and fails below it', () => {
