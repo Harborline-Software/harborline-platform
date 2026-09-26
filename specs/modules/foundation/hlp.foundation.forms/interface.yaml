@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.foundation.forms",
-  "interfaceRevision": 3,
+  "interfaceRevision": 4,
   "status": "frozen",
   "purpose": "Own complete caller-backed Dynamic Forms definition, immutable version, bounded reuse, authenticated draft, and pre-auth capture state without exposing persistence choreography or executable engine behavior.",
   "dependencies": [
@@ -11,7 +11,7 @@
     {"moduleId": "hlp.foundation.actor", "minimumRevision": 1}
   ],
   "capabilities": {
-    "definitions": ["atomically create first revision", "register immutable revision", "atomically register and publish one admitted Draft revision", "load exact revision", "load highest published revision", "list full history by tenant", "list one current published revision per id", "publish", "deprecate", "withdraw", "restore system pack projection", "validate lineage, overlay, and authoring metadata", "preserve exact field type, validations, and options"],
+    "definitions": ["atomically create first revision", "register immutable revision", "atomically register and publish one admitted Draft revision", "load exact revision", "load highest published revision", "list full history by tenant", "list one current published revision per id", "publish", "deprecate", "withdraw", "restore system pack projection", "validate lineage, overlay, and authoring metadata", "admit a submit gate naming exactly one of role, standing or an Access-registered capability", "preserve exact field type, validations, and options"],
     "reuse": ["register immutable unit revision", "lifecycle transitions", "latest-published or pinned resolution", "CP-locked form-component expansion", "bounded tree validation", "workflow-subgraph fail-closed fence"],
     "drafts": ["save", "form-bound resume", "list mine", "form-bound abandon", "preserve creation time on resave", "atomic tenant-party-actor scope", "defensive body copy"],
     "preAuth": ["short-TTL capture", "promote after identification", "retain on failed identification", "discard", "sweep expired"]
@@ -28,7 +28,8 @@
     "Draft tenant, PartyId, and actor are derived atomically from one authenticated actor scope and are never body supplied.",
     "Resume and abandon require both form id and case id; a mismatched route form cannot observe or delete the draft.",
     "Unresolved actors, tenants, parties, reusable units, and invalid trees fail before mutation.",
-    "Pre-auth captures are ephemeral, defensively copied, and must promote or purge."
+    "Pre-auth captures are ephemeral, defensively copied, and must promote or purge.",
+    "A declared submit gate names exactly one of role, standing or capability, and its capability arm resolves only through Access's capability register; with no register every capability arm is refused, so a form never owns a capability of its own."
   ],
   "resourceLimits": {"treeDepth": 32, "treeNodes": 4096, "contentNodesPerBlock": 256},
   "nativeEvidence": {"tests": 130, "sourceSuites": 8, "implementedGapCases": 9},
