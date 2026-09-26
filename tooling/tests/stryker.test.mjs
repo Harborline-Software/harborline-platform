@@ -38,18 +38,21 @@ test('off-standard thresholds, an html reporter, and a missing since are refused
   assert.match(problems, /since must be enabled against origin\/main/)
 })
 
-test('break starts at the measured baseline and may rise; low = max(60, break) and high = 80 (Q45)', () => {
+test('break starts at the measured baseline and may rise; low = max(60, break), high = max(80, break) (Q45, ruling 96)', () => {
   // Owner ruling 2026-09-26: break is the project's baseline floor, not a flat 60.
   assert.deepEqual(thresholdsFor(54.94), {high: 80, low: 60, break: 54})
   assert.deepEqual(thresholdsFor(74.67), {high: 80, low: 74, break: 74})
+  assert.deepEqual(thresholdsFor(85.2), {high: 85, low: 85, break: 85})
   const problems = (overrides, baselines) => configProblems(repo({...base, 'p/lib.tests/stryker-config.json': config(overrides)}, {}, baselines)).join('\n')
   assert.match(problems({}, {}), /no measured baseline in tooling\/stryker-baselines.json/)
   assert.equal(problems({thresholds: {high: 80, low: 60, break: 58}}), '')
   assert.match(problems({thresholds: {high: 80, low: 50, break: 50}}), /low = max\(60, break\) = 60/)
   assert.match(problems({thresholds: {high: 80, low: 60, break: 70}}), /low = max\(60, break\) = 70/)
-  assert.match(problems({thresholds: {high: 80, low: 75, break: 70}}), /= 70 and high = 80/)
+  assert.match(problems({thresholds: {high: 80, low: 75, break: 70}}), /= 70 and high = max\(80, break\) = 80/)
   assert.equal(problems({thresholds: {high: 80, low: 70, break: 70}}), '')
-  assert.match(problems({thresholds: {high: 85, low: 60, break: 58}}), /high = 80/)
+  assert.match(problems({thresholds: {high: 85, low: 60, break: 58}}), /high = max\(80, break\) = 80/)
+  assert.equal(problems({thresholds: {high: 85, low: 85, break: 85}}), '')
+  assert.match(problems({thresholds: {high: 80, low: 85, break: 85}}), /high = max\(80, break\) = 85/)
   assert.match(problems({}, {'p/lib.tests/Lib.Tests.csproj': {break: 55}, 'p/gone.tests/G.csproj': {break: 1}}), /p\/gone.tests\/G.csproj is not a test project/)
 })
 

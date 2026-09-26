@@ -3,7 +3,7 @@
 //   node tooling/stryker.mjs check   every test project has a stryker-config.json beside it or an entry in
 //                                    tooling/stryker-exclusions.json; every config names one of its test project's
 //                                    ProjectReferences, which exists, and holds the standard (since origin/main, json
-//                                    reporter, low = max(60, break), high = 80, break >= the project's baseline in
+//                                    reporter, low = max(60, break), high = max(80, break), break >= the project's baseline in
 //                                    tooling/stryker-baselines.json); every source project a test references is
 //                                    mutated by some config or excluded. No silent gaps.
 //   node tooling/stryker.mjs run     PR mode: mutate each project whose .cs/.razor source differs from origin/main,
@@ -70,11 +70,11 @@ export function configProblems({testProjects, exclusions, baselines = {}, readFi
     else if (readFile(target) === undefined) problems.push(`${configPath}: project ${target} does not exist`)
     else mutated.add(target)
     // Owner ruling 2026-09-26: break starts at the project's measured baseline and only rises. Q45 option 1: low is
-    // max(60, break) and high is 80, exactly (Stryker refuses break > low).
+    // max(60, break) and high is max(80, break) (ruling 96), exactly; Stryker refuses break > low > high.
     const {high, low, break: breakAt} = config.thresholds ?? {}, baseline = baselines[test]
     if (!Number.isInteger(baseline?.break)) problems.push(`${test}: no measured baseline in ${baselinesFile}; run node tooling/stryker.mjs baseline`)
     else if (!(breakAt >= baseline.break)) problems.push(`${configPath}: break ${breakAt} is below the recorded baseline ${baseline.break}`)
-    if (low !== Math.max(60, breakAt) || high !== 80) problems.push(`${configPath}: thresholds must be low = max(60, break) = ${Math.max(60, breakAt)} and high = 80 (Q45)`)
+    if (low !== Math.max(60, breakAt) || high !== Math.max(80, breakAt)) problems.push(`${configPath}: thresholds must be low = max(60, break) = ${Math.max(60, breakAt)} and high = max(80, break) = ${Math.max(80, breakAt)} (Q45, ruling 96)`)
     if (!config.reporters?.includes('json')) problems.push(`${configPath}: reporters must include json`)
     if (config.reporters?.includes('html')) problems.push(`${configPath}: reporters are json only (owner, 2026-09-26)`)
     if (config.since?.enabled !== true || config.since?.target !== 'origin/main') problems.push(`${configPath}: since must be enabled against origin/main`)
@@ -96,11 +96,10 @@ export function repository() {
   return {testProjects, exclusions: JSON.parse(read(exclusionsFile)), baselines: JSON.parse(read(baselinesFile) ?? '{}'), readFile: read}
 }
 
-// The thresholds a measured score implies (Q45 option 1): break is its floor, low = max(60, break), high = 80.
-// ponytail: a baseline above 80 gives low > high, which Stryker refuses; that needs a ruling if a project gets there.
+// The thresholds a measured score implies: break is its floor, low = max(60, break) (Q45), high = max(80, break) (ruling 96).
 export function thresholdsFor(score) {
   const breakAt = Math.floor(score ?? 0)
-  return {high: 80, low: Math.max(60, breakAt), break: breakAt}
+  return {high: Math.max(80, breakAt), low: Math.max(60, breakAt), break: breakAt}
 }
 
 // Buildalyzer reads TargetFramework literally from the csproj; ours comes from Directory.Build.props, so it guesses
