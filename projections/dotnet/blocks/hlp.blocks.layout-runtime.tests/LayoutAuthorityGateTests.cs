@@ -186,7 +186,7 @@ public sealed class LayoutAuthorityGateTests
             return true;
         }
 
-        public bool TryResolveTemplate(LayoutBindingScope scope, string templateDefinitionId, out JsonNode? value)
+        public bool TryResolveTemplate(LayoutBindingScope scope, string templateDefinitionId, string templateVersion, out JsonNode? value)
         {
             value = null;
             return false;
