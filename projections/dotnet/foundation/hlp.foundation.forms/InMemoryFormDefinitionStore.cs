@@ -135,7 +135,7 @@ public sealed class InMemoryFormDefinitionStore : IFormDefinitionStore, IDisposa
         CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(definition);
-        ValidateDefinition(definition);
+        ValidateDefinition(definition, requireSubmitGate: true);
         if (definition.Status != FormDefinitionStatus.Draft)
         {
             throw new FormDefinitionValidationException(
@@ -312,7 +312,7 @@ public sealed class InMemoryFormDefinitionStore : IFormDefinitionStore, IDisposa
             }
 
             if (target == FormDefinitionStatus.Published)
-                ValidateDefinition(existing);
+                ValidateDefinition(existing, requireSubmitGate: existing.Status != target);
 
             if (existing.Status == target)
             {
@@ -365,12 +365,12 @@ public sealed class InMemoryFormDefinitionStore : IFormDefinitionStore, IDisposa
         return rebuilt;
     }
 
-    private void ValidateDefinition(FormDefinition definition)
+    private void ValidateDefinition(FormDefinition definition, bool requireSubmitGate = false)
     {
         FormDefinitionValidation.ValidateOverlayOrThrow(definition);
         FormDefinitionValidation.ValidateSchemaRefOrThrow(definition);
         FormDefinitionAuthoringValidation.ValidateOrThrow(definition);
-        FormDefinitionValidation.ValidateSubmitGateOrThrow(definition, _capabilities);
+        FormDefinitionValidation.ValidateSubmitGateOrThrow(definition, _capabilities, requireSubmitGate);
     }
 
     private static bool IsIdenticalPublishedRetry(

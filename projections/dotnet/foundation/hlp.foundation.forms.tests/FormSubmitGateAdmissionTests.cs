@@ -80,12 +80,45 @@ public sealed class FormSubmitGateAdmissionTests
         Assert.Equal(FormDefinitionCodes.SubmitGateCapabilityUnknown, refusal.Code);
     }
 
-    private static FormDefinition Form(SubmitGate gate)
+    [Fact(DisplayName = "forms-ck-4: publish requires an explicit submit gate while draft saves remain ungated")]
+    public async Task PublishRequiresGateWhileDraftSaveDoesNot()
+    {
+        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now), Register);
+
+        var atomicRefusal = await Assert.ThrowsAsync<FormDefinitionValidationException>(
+            async () => await store.RegisterAndPublishAsync(Form(id: "missing-gate-atomic")));
+
+        Assert.Equal(FormDefinitionCodes.SubmitGateRequired, atomicRefusal.Code);
+        Assert.Equal("/submit_gate", atomicRefusal.Target);
+
+        var transitionDraft = Form(id: "missing-gate-transition");
+        await store.RegisterAsync(transitionDraft);
+        var transitionRefusal = await Assert.ThrowsAsync<FormDefinitionValidationException>(
+            async () => await store.PublishAsync(transitionDraft.Tenant, transitionDraft.Id, transitionDraft.Version));
+
+        Assert.Equal(FormDefinitionCodes.SubmitGateRequired, transitionRefusal.Code);
+        Assert.Equal("/submit_gate", transitionRefusal.Target);
+
+        await store.RegisterAsync(Form(id: "ungated-register-draft"));
+        await store.CreateAsync(Form(id: "ungated-create-draft"));
+
+        var gate = new SubmitGate(Role: RoleReference.Domain("inspector"));
+        var atomicallyPublished = await store.RegisterAndPublishAsync(Form(gate, "gated-atomic"));
+        var gatedTransitionDraft = Form(gate, "gated-transition");
+        await store.RegisterAsync(gatedTransitionDraft);
+        var transitioned = await store.PublishAsync(
+            gatedTransitionDraft.Tenant, gatedTransitionDraft.Id, gatedTransitionDraft.Version);
+
+        Assert.Equal(FormDefinitionStatus.Published, atomicallyPublished.Status);
+        Assert.Equal(FormDefinitionStatus.Published, transitioned.Status);
+    }
+
+    private static FormDefinition Form(SubmitGate? gate = null, string id = "submit-gate")
     {
         var fields = new Dictionary<string, FieldOverlay> { ["name"] = new(InternationalizedText.FromInvariant("name")) };
         var access = new SectionAccess(ReadRoles: [RoleReference.Domain("*")], WriteRoles: [RoleReference.Domain("tenant:admin")]);
         return new FormDefinition(
-            Id: new FormDefinitionId("submit-gate"),
+            Id: new FormDefinitionId(id),
             Version: new SemanticVersion(1, 0, 0),
             Status: FormDefinitionStatus.Draft,
             Tenant: new TenantId("tenant:acme"),
