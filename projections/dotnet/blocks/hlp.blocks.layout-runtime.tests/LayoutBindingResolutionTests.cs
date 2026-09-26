@@ -43,7 +43,7 @@ public sealed class LayoutBindingResolutionTests
     {
         var resolution = Resolve(
             Definition(LayoutMedium.Page, LayoutIntent.Issue,
-                Block("letter", new LayoutTemplateBinding("tpl.remittance")),
+                Block("letter", new LayoutTemplateBinding("tpl.remittance", "1.0.0")),
                 Block("notice", new LayoutStaticBinding(Json("\"Registered office: Leeds\"")))),
             Sources());
 
@@ -52,6 +52,21 @@ public sealed class LayoutBindingResolutionTests
         Assert.Equal(LayoutBindingKinds.Template, Block(resolution, "letter").BindingKind);
         // Static content is authored, never looked up: no source was consulted for it.
         Assert.Equal("Registered office: Leeds", Block(resolution, "notice").Value?.ToString());
+    }
+
+    [Fact(DisplayName = "layout-ck-37: template resolution receives the exact pinned version and never follows latest")]
+    public void TemplateBindingResolvesOnlyThePinnedVersion()
+    {
+        // layout-ck-37: deleting the version argument would allow a host to substitute its latest published template.
+        var sources = new PinnedTemplateSources();
+        var resolution = Resolve(
+            Definition(LayoutMedium.Page, LayoutIntent.Issue,
+                Block("letter", new LayoutTemplateBinding("tpl.remittance", "1.0.0"))),
+            sources);
+
+        Assert.Empty(resolution.Refusals);
+        Assert.Equal("pinned", Assert.Single(resolution.Blocks).Value?.ToString());
+        Assert.Equal([("tpl.remittance", "1.0.0")], sources.TemplateReads);
     }
 
     [Fact(DisplayName = "layout-eng-17, layout-run-2, layout-eng-9 successor of the Documents walker (DocumentRenderWalker.cs:113-117): each row resolves in a fresh scope and cross-row lookup refuses")]
@@ -105,7 +120,7 @@ public sealed class LayoutBindingResolutionTests
                 Block("f", new LayoutRecordFieldBinding("absent.field")),
                 Block("q", new LayoutQueryBinding("views.absent")),
                 Block("m", new LayoutMeasureBinding("measure.absent")),
-                Block("t", new LayoutTemplateBinding("tpl.absent"))),
+                Block("t", new LayoutTemplateBinding("tpl.absent", "1.0.0"))),
             Sources());
 
         Assert.Empty(resolution.Blocks);
@@ -441,7 +456,7 @@ public sealed class LayoutBindingResolutionTests
         public LayoutFieldResult ResolveField(LayoutBindingScope scope, string path) => path == fieldPath ? outcome : _fixture.ResolveField(scope, path);
         public bool TryResolveQuery(LayoutBindingScope scope, string viewDefinitionId, out JsonNode? value) => _fixture.TryResolveQuery(scope, viewDefinitionId, out value);
         public bool TryResolveMeasure(LayoutBindingScope scope, string measurePath, out JsonNode? value) => _fixture.TryResolveMeasure(scope, measurePath, out value);
-        public bool TryResolveTemplate(LayoutBindingScope scope, string templateDefinitionId, out JsonNode? value) => _fixture.TryResolveTemplate(scope, templateDefinitionId, out value);
+        public bool TryResolveTemplate(LayoutBindingScope scope, string templateDefinitionId, string templateVersion, out JsonNode? value) => _fixture.TryResolveTemplate(scope, templateDefinitionId, templateVersion, out value);
         public bool TryResolveCollection(LayoutBindingScope scope, string name, out IReadOnlyList<JsonNode?> rows) => _fixture.TryResolveCollection(scope, name, out rows);
         public LayoutRelatedResult ResolveRelated(LayoutBindingScope scope, string relationship) => _fixture.ResolveRelated(scope, relationship);
     }
@@ -453,9 +468,30 @@ public sealed class LayoutBindingResolutionTests
         public LayoutFieldResult ResolveField(LayoutBindingScope scope, string fieldPath) => _fixture.ResolveField(scope, fieldPath);
         public bool TryResolveQuery(LayoutBindingScope scope, string viewDefinitionId, out JsonNode? value) => _fixture.TryResolveQuery(scope, viewDefinitionId, out value);
         public bool TryResolveMeasure(LayoutBindingScope scope, string measurePath, out JsonNode? value) => _fixture.TryResolveMeasure(scope, measurePath, out value);
-        public bool TryResolveTemplate(LayoutBindingScope scope, string templateDefinitionId, out JsonNode? value) => _fixture.TryResolveTemplate(scope, templateDefinitionId, out value);
+        public bool TryResolveTemplate(LayoutBindingScope scope, string templateDefinitionId, string templateVersion, out JsonNode? value) => _fixture.TryResolveTemplate(scope, templateDefinitionId, templateVersion, out value);
         public bool TryResolveCollection(LayoutBindingScope scope, string name, out IReadOnlyList<JsonNode?> rows) => _fixture.TryResolveCollection(scope, name, out rows);
         public LayoutRelatedResult ResolveRelated(LayoutBindingScope scope, string relationship) => outcome;
+    }
+
+    private sealed class PinnedTemplateSources : ILayoutBindingSources
+    {
+        private readonly FixtureSources _fixture = new();
+
+        public List<(string Id, string Version)> TemplateReads { get; } = [];
+
+        public LayoutFieldResult ResolveField(LayoutBindingScope scope, string fieldPath) => _fixture.ResolveField(scope, fieldPath);
+        public bool TryResolveQuery(LayoutBindingScope scope, string viewDefinitionId, out JsonNode? value) => _fixture.TryResolveQuery(scope, viewDefinitionId, out value);
+        public bool TryResolveMeasure(LayoutBindingScope scope, string measurePath, out JsonNode? value) => _fixture.TryResolveMeasure(scope, measurePath, out value);
+        public bool TryResolveTemplate(LayoutBindingScope scope, string templateDefinitionId, string templateVersion, out JsonNode? value)
+        {
+            TemplateReads.Add((templateDefinitionId, templateVersion));
+            value = (templateDefinitionId, templateVersion) == ("tpl.remittance", "1.0.0")
+                ? JsonValue.Create("pinned")
+                : null;
+            return value is not null;
+        }
+        public bool TryResolveCollection(LayoutBindingScope scope, string name, out IReadOnlyList<JsonNode?> rows) => _fixture.TryResolveCollection(scope, name, out rows);
+        public LayoutRelatedResult ResolveRelated(LayoutBindingScope scope, string relationship) => _fixture.ResolveRelated(scope, relationship);
     }
 
     private static LayoutBindingResolution Resolve(LayoutDefinition definition, ILayoutBindingSources sources)
@@ -535,9 +571,9 @@ public sealed class LayoutBindingResolutionTests
             return value is not null;
         }
 
-        public bool TryResolveTemplate(LayoutBindingScope scope, string templateDefinitionId, out JsonNode? value)
+        public bool TryResolveTemplate(LayoutBindingScope scope, string templateDefinitionId, string templateVersion, out JsonNode? value)
         {
-            value = templateDefinitionId == "tpl.remittance" ? JsonValue.Create("remittance") : null;
+            value = (templateDefinitionId, templateVersion) == ("tpl.remittance", "1.0.0") ? JsonValue.Create("remittance") : null;
             return value is not null;
         }
 
