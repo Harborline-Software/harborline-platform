@@ -153,7 +153,8 @@ public sealed class FormEngineOrchestrationTests
             IFormFieldBindingSource? fieldBindings = null,
             Harborline.Contracts.Fields.IFieldKindRuntime? fieldKinds = null,
             Harborline.Contracts.Fields.IFieldDomainRuntime? fieldDomains = null,
-            IFormSubmitGateAccess? submitGates = null)
+            IFormSubmitGateAccess? submitGates = null,
+            IReadOnlySet<FormEngineAction>? grantedActions = null)
         {
             var schemas = schemaRegistry ?? new InMemorySchemaRegistry();
             var schema = await schemas.RegisterAsync(schemaJson ?? """{"type":"object","properties":{"name":{"type":"string","minLength":1},"secret":{"type":"string"}},"required":["name"],"additionalProperties":false}""");
@@ -175,7 +176,7 @@ public sealed class FormEngineOrchestrationTests
                 Guid.NewGuid(), role, role.Name, new(RoleOwnerKind.Package, "forms-engine-tests"), false)));
             var context = new RecordingContext(
                 new(scopeTenant ?? Tenant, Guid.Parse("11111111-1111-1111-1111-111111111111"), "alice", heldNames,
-                    roleVocabulary, new HeldRoleSet(heldReferences)), contextFailure);
+                    roleVocabulary, new HeldRoleSet(heldReferences)), contextFailure, grantedActions);
             var recordingProjection = projection ?? new RecordingProjection();
             var sink = projectionSink ?? recordingProjection;
             var actualSecurity = security ?? new RecordingSecurity();
@@ -197,13 +198,14 @@ public sealed class FormEngineOrchestrationTests
             null, Now, Now);
     }
 
-    internal sealed class RecordingContext(FormExecutionScope scope, Exception? failure = null) : IFormExecutionContextProvider
+    internal sealed class RecordingContext(FormExecutionScope scope, Exception? failure = null, IReadOnlySet<FormEngineAction>? granted = null) : IFormExecutionContextProvider
     {
         public List<FormEngineAction> Actions { get; } = [];
         public ValueTask<FormExecutionScope> GetRequiredAsync(FormEngineAction action, CancellationToken cancellationToken = default)
         {
             Actions.Add(action);
             if (failure is not null) return ValueTask.FromException<FormExecutionScope>(failure);
+            if (granted is not null && !granted.Contains(action)) return ValueTask.FromException<FormExecutionScope>(new FormEngineDeniedException());
             return ValueTask.FromResult(scope);
         }
     }
