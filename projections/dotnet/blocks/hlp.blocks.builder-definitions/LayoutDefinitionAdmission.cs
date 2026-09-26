@@ -217,7 +217,7 @@ public static class LayoutDefinitionAdmission
         }
         ValidatePages(definition, blockIds, registers.Pages, refusals);
         if (definition.SubmitGate is { } submitGate)
-            ValidateSubmitGate(submitGate, definition.DefaultIntent, registers, publishing: stage == PublishStage, refusals);
+            ValidateSubmitGate(submitGate, definition.DefaultIntent, registers, publishing: stage == DefinitionAdmissionPhase.Publish, refusals);
 
         if (refusals.Count > 0) throw new DefinitionRefusalException(stage, refusals);
     }
@@ -227,7 +227,7 @@ public static class LayoutDefinitionAdmission
         LayoutIntent defaultIntent,
         LayoutHostRegisters registers,
         bool publishing,
-        ICollection<LayoutDefinitionRefusal> refusals)
+        ICollection<DefinitionRefusal> refusals)
     {
         if (defaultIntent != LayoutIntent.Capture)
             Add(refusals, LayoutDefinitionCodes.SubmitGateInvalid, "/submit_gate");

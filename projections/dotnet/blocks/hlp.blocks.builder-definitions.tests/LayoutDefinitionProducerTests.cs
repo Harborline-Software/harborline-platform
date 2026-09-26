@@ -89,13 +89,13 @@ public sealed class LayoutDefinitionProducerTests
         var registers = Hosted with { Capabilities = Capabilities };
         var unknown = ScreenDefinition() with { SubmitGate = new(Capability: new("layout:submit")) };
 
-        var error = Assert.Throws<LayoutDefinitionAdmissionException>(() => LayoutDefinitionAdmission.ValidateForAuthoring(unknown, registers, LayoutTestAccess.GrantsAll));
+        var error = Assert.Throws<DefinitionRefusalException>(() => LayoutDefinitionAdmission.ValidateForAuthoring(unknown, registers, LayoutTestAccess.GrantsAll));
 
-        Assert.Equal("definition.validate", error.Stage);
-        Assert.Equal([new LayoutDefinitionRefusal(LayoutDefinitionCodes.SubmitGateCapabilityUnknown, "/submit_gate/capability/name")], error.Refusals);
-        Assert.Throws<LayoutDefinitionAdmissionException>(() => LayoutDefinitionAdmission.ValidateForPublish(unknown, registers, LayoutTestAccess.GrantsAll));
+        Assert.Equal(DefinitionAdmissionPhase.Author, error.Stage);
+        Assert.Equal([new DefinitionRefusal(LayoutDefinitionCodes.SubmitGateCapabilityUnknown, "/submit_gate/capability/name")], error.Refusals);
+        Assert.Throws<DefinitionRefusalException>(() => LayoutDefinitionAdmission.ValidateForPublish(unknown, registers, LayoutTestAccess.GrantsAll));
         // A host that registers no capabilities admits no capability arm: nothing is string-matched.
-        Assert.Throws<LayoutDefinitionAdmissionException>(() => LayoutDefinitionAdmission.ValidateForAuthoring(unknown with { SubmitGate = new(Capability: new("records:write")) }, Hosted, LayoutTestAccess.GrantsAll));
+        Assert.Throws<DefinitionRefusalException>(() => LayoutDefinitionAdmission.ValidateForAuthoring(unknown with { SubmitGate = new(Capability: new("records:write")) }, Hosted, LayoutTestAccess.GrantsAll));
         // A malformed name is refused the same way rather than thrown past admission.
         AssertRefusal(unknown with { SubmitGate = new(Capability: new("Records:Write")) }, LayoutDefinitionCodes.SubmitGateCapabilityUnknown, "/submit_gate/capability/name");
     }
@@ -126,9 +126,9 @@ public sealed class LayoutDefinitionProducerTests
             new(Standing: new("assigned-reviewer"), Capability: new("records:write")),
         })
         {
-            var error = Assert.Throws<LayoutDefinitionAdmissionException>(() =>
+            var error = Assert.Throws<DefinitionRefusalException>(() =>
                 LayoutDefinitionAdmission.ValidateForAuthoring(ScreenDefinition() with { SubmitGate = gate }, registers, LayoutTestAccess.GrantsAll));
-            Assert.Equal([new LayoutDefinitionRefusal(LayoutDefinitionCodes.SubmitGateFormInvalid, "/submit_gate")], error.Refusals);
+            Assert.Equal([new DefinitionRefusal(LayoutDefinitionCodes.SubmitGateFormInvalid, "/submit_gate")], error.Refusals);
         }
     }
 
