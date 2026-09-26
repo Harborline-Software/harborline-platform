@@ -20,7 +20,9 @@ public sealed class InMemoryVersionedDefinitionStore : IVersionedDefinitionStore
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        ValidateNamespace(tenant, kind);
+        // Key listing has no admission of its own; every current caller (RuleDefinitionCatalog's
+        // List/Load composition) is authoring-surface, so Author is the explicit stage here.
+        ValidateNamespace(tenant, kind, DefinitionAdmissionPhase.Author);
         lock (_gate)
             return ValueTask.FromResult<IReadOnlyList<DefinitionKey>>(_history.Keys
                 .Where(key => key.Tenant == tenant && key.Kind == kind)
@@ -36,8 +38,10 @@ public sealed class InMemoryVersionedDefinitionStore : IVersionedDefinitionStore
     public InMemoryVersionedDefinitionStore(IReadOnlyDictionary<DefinitionKind, DefinitionAdmission> admissions)
     {
         ArgumentNullException.ThrowIfNull(admissions);
+        // Construction-time validation, before any operation exists to name a stage. Author is the
+        // earliest lifecycle stage and matches host wiring, which always runs during authoring setup.
         if (admissions.Any(pair => !Enum.IsDefined(pair.Key) || pair.Value is null))
-            throw Refuse("definition.registry_unknown", "/registry");
+            throw Refuse("definition.registry_unknown", "/registry", DefinitionAdmissionPhase.Author);
         _admissions = new Dictionary<DefinitionKind, DefinitionAdmission>(admissions);
     }
 
@@ -52,9 +56,9 @@ public sealed class InMemoryVersionedDefinitionStore : IVersionedDefinitionStore
                 if (_revisions.TryGetValue((document.Key, document.VersionId), out var current))
                 {
                     if (current.Status == DefinitionStatus.Published)
-                        throw Refuse("definition.version_immutable", "/versionId");
+                        throw Refuse("definition.version_immutable", "/versionId", DefinitionAdmissionPhase.Author);
                     if (!StringComparer.Ordinal.Equals(current.Document.Version, document.Version))
-                        throw Refuse("definition.version_conflict", "/version");
+                        throw Refuse("definition.version_conflict", "/version", DefinitionAdmissionPhase.Author);
                 }
                 return Snapshot(document, DefinitionStatus.Draft);
             }, cancellationToken);
@@ -74,16 +78,16 @@ public sealed class InMemoryVersionedDefinitionStore : IVersionedDefinitionStore
         string draftVersionId, string draftVersion, long expectedRevision, string requestId,
         CancellationToken cancellationToken = default)
     {
-        Require(sourceVersionId, "definition.version_id_required", "/sourceVersionId");
+        Require(sourceVersionId, "definition.version_id_required", "/sourceVersionId", DefinitionAdmissionPhase.Author);
         return Apply(key, expectedRevision, requestId,
             Signature("restore", new { sourceVersionId, draftVersionId, draftVersion }),
             DefinitionAdmissionPhase.Author, () =>
             {
-                var source = Find(key, sourceVersionId);
+                var source = Find(key, sourceVersionId, DefinitionAdmissionPhase.Author);
                 if (source.Status != DefinitionStatus.Published)
-                    throw Refuse("definition.published_version_required", "/sourceVersionId");
+                    throw Refuse("definition.published_version_required", "/sourceVersionId", DefinitionAdmissionPhase.Author);
                 if (_revisions.ContainsKey((key, draftVersionId)))
-                    throw Refuse("definition.version_conflict", "/versionId");
+                    throw Refuse("definition.version_conflict", "/versionId", DefinitionAdmissionPhase.Author);
                 return Snapshot(source.Document with { VersionId = draftVersionId, Version = draftVersion },
                     DefinitionStatus.Draft) with { RestoredFromVersionId = sourceVersionId };
             }, cancellationToken);
@@ -94,7 +98,9 @@ public sealed class InMemoryVersionedDefinitionStore : IVersionedDefinitionStore
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        ValidateKey(key);
+        // Plain history read, outside any admission. Every current caller composes authoring views
+        // (RuleDefinitionCatalog Load/LoadVersion/Resolve), so Author is the explicit stage.
+        ValidateKey(key, DefinitionAdmissionPhase.Author);
         lock (_gate)
             return ValueTask.FromResult<IReadOnlyList<DefinitionRevision>>(
                 _history.TryGetValue(key, out var history) ? history.ToArray() : []);
@@ -105,7 +111,9 @@ public sealed class InMemoryVersionedDefinitionStore : IVersionedDefinitionStore
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        ValidateKey(key);
+        // Same reasoning as ListHistoryAsync: a plain read whose current callers are all authoring
+        // composition (LoadAsync's published-head fallback, ResolveAsync's Latest policy).
+        ValidateKey(key, DefinitionAdmissionPhase.Author);
         lock (_gate)
             return ValueTask.FromResult(_revisions.Values
                 .Where(revision => revision.Document.Key == key && revision.Status == DefinitionStatus.Published)
@@ -119,8 +127,11 @@ public sealed class InMemoryVersionedDefinitionStore : IVersionedDefinitionStore
     {
         cancellationToken.ThrowIfCancellationRequested();
         ArgumentNullException.ThrowIfNull(binding);
-        ValidateKey(binding.Key);
-        Require(binding.VersionId, "definition.version_id_required", "/versionId");
+        // Unlike the other plain reads, this one binds an immutable *published* pin — the shape used
+        // by release materialization and future install-time resolution — so Publish is the explicit
+        // stage rather than Author.
+        ValidateKey(binding.Key, DefinitionAdmissionPhase.Publish);
+        Require(binding.VersionId, "definition.version_id_required", "/versionId", DefinitionAdmissionPhase.Publish);
         lock (_gate)
             return ValueTask.FromResult(_revisions.TryGetValue((binding.Key, binding.VersionId), out var revision)
                 && revision.Status == DefinitionStatus.Published ? revision : null);
@@ -203,21 +214,21 @@ public sealed class InMemoryVersionedDefinitionStore : IVersionedDefinitionStore
         if (refusals.Count > 0) throw new DefinitionRefusalException(phase, refusals);
     }
 
-    private void ValidateKey(DefinitionKey key, DefinitionAdmissionPhase stage = DefinitionAdmissionPhase.Author)
+    private void ValidateKey(DefinitionKey key, DefinitionAdmissionPhase stage)
     {
         ArgumentNullException.ThrowIfNull(key);
         ValidateNamespace(key.Tenant, key.Kind, stage);
         Require(key.DefinitionId, "definition.id_required", "/definitionId", stage);
     }
 
-    private void ValidateNamespace(string tenant, DefinitionKind kind, DefinitionAdmissionPhase stage = DefinitionAdmissionPhase.Author)
+    private void ValidateNamespace(string tenant, DefinitionKind kind, DefinitionAdmissionPhase stage)
     {
         if (!Enum.IsDefined(kind) || !_admissions.ContainsKey(kind))
             throw Refuse("definition.registry_unknown", "/registry", stage);
         Require(tenant, "definition.tenant_required", "/tenant", stage);
     }
 
-    private DefinitionRevision Find(DefinitionKey key, string versionId, DefinitionAdmissionPhase stage = DefinitionAdmissionPhase.Author)
+    private DefinitionRevision Find(DefinitionKey key, string versionId, DefinitionAdmissionPhase stage)
         => _revisions.TryGetValue((key, versionId), out var source) ? source
             : throw Refuse("definition.not_found", "/versionId", stage);
 
@@ -228,12 +239,12 @@ public sealed class InMemoryVersionedDefinitionStore : IVersionedDefinitionStore
     private static string Signature<T>(string operation, T payload)
         => JsonSerializer.Serialize(new { operation, payload });
 
-    private static void Require(string? value, string code, string pointer, DefinitionAdmissionPhase stage = DefinitionAdmissionPhase.Author)
+    private static void Require(string? value, string code, string pointer, DefinitionAdmissionPhase stage)
     {
         if (string.IsNullOrWhiteSpace(value)) throw Refuse(code, pointer, stage);
     }
 
-    private static DefinitionRefusalException Refuse(string code, string pointer,
-        DefinitionAdmissionPhase stage = DefinitionAdmissionPhase.Author) => new(stage, [new(code, pointer)]);
+    private static DefinitionRefusalException Refuse(string code, string pointer, DefinitionAdmissionPhase stage)
+        => new(stage, [new(code, pointer)]);
     private sealed record Replay(long ExpectedRevision, string Signature, DefinitionRevision Result);
 }

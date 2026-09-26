@@ -65,7 +65,7 @@ public sealed class RuleDefinitionCatalog
         string requestId, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        if (expectedRevision != 0) throw Refuse("definition.revision_conflict", "/expectedRevision");
+        if (expectedRevision != 0) throw Refuse("definition.revision_conflict", "/expectedRevision", DefinitionAdmissionPhase.Author);
         return SaveDraftJsonAsync(json, versionId, 0, requestId, cancellationToken);
     }
 
@@ -73,7 +73,8 @@ public sealed class RuleDefinitionCatalog
     public async ValueTask<RuleDefinitionSnapshot?> LoadAsync(DefinitionKey key,
         CancellationToken cancellationToken = default)
     {
-        RequireRules(key, cancellationToken);
+        // LoadAsync's only callers in this file (ListAsync, DuplicateAsync) are authoring reads.
+        RequireRules(key, DefinitionAdmissionPhase.Author, cancellationToken);
         var history = await _store.ListHistoryAsync(key, cancellationToken).ConfigureAwait(false);
         var current = history.GroupBy(item => item.Document.VersionId).Select(group => group.Last())
             .Where(item => item.Status == DefinitionStatus.Draft)
@@ -105,7 +106,8 @@ public sealed class RuleDefinitionCatalog
         CancellationToken cancellationToken = default)
     {
         var original = await LoadVersionAsync(key, sourceVersionId, cancellationToken).ConfigureAwait(false)
-            ?? throw Refuse("definition.not_found", "/sourceVersionId");
+            // DuplicateAsync always goes on to create a new draft (CreateJsonAsync): Author.
+            ?? throw Refuse("definition.not_found", "/sourceVersionId", DefinitionAdmissionPhase.Author);
         var source = original.Source with
         {
             Name = name,
@@ -120,7 +122,7 @@ public sealed class RuleDefinitionCatalog
     {
         await RequireAsync(RulesPermissions.Author, DefinitionAdmissionPhase.Author, cancellationToken).ConfigureAwait(false);
         if (await LoadAsync(key, cancellationToken).ConfigureAwait(false) is null)
-            throw Refuse("definition.not_found", "/definitionId");
+            throw Refuse("definition.not_found", "/definitionId", DefinitionAdmissionPhase.Author);
         await _lifecycle.ArchiveAsync(new(key.Tenant, key.Kind, key.DefinitionId), cancellationToken).ConfigureAwait(false);
     }
 
@@ -141,7 +143,7 @@ public sealed class RuleDefinitionCatalog
     public async ValueTask<DefinitionRevision> PublishAsync(DefinitionKey key, string versionId, long expectedRevision,
         string requestId, CancellationToken cancellationToken = default)
     {
-        RequireRules(key, cancellationToken);
+        RequireRules(key, DefinitionAdmissionPhase.Publish, cancellationToken);
         if (string.IsNullOrWhiteSpace(versionId)) throw Refuse("definition.version_id_required", "/versionId", DefinitionAdmissionPhase.Publish);
         await RequireAsync(RulesPermissions.Publish, DefinitionAdmissionPhase.Publish, cancellationToken).ConfigureAwait(false);
         // The registered Rules admission runs inside VersionedDefinitionStore.Apply:
@@ -154,8 +156,9 @@ public sealed class RuleDefinitionCatalog
     public async ValueTask<RuleDefinitionSnapshot?> LoadVersionAsync(DefinitionKey key, string versionId,
         CancellationToken cancellationToken = default)
     {
-        RequireRules(key, cancellationToken);
-        if (string.IsNullOrWhiteSpace(versionId)) throw Refuse("definition.version_id_required", "/versionId");
+        // LoadVersionAsync's only caller in this file (DuplicateAsync) is an authoring read.
+        RequireRules(key, DefinitionAdmissionPhase.Author, cancellationToken);
+        if (string.IsNullOrWhiteSpace(versionId)) throw Refuse("definition.version_id_required", "/versionId", DefinitionAdmissionPhase.Author);
         var history = await _store.ListHistoryAsync(key, cancellationToken).ConfigureAwait(false);
         var revision = history.LastOrDefault(item => item.Document.VersionId == versionId);
         return revision is null ? null : Decode(revision);
@@ -166,7 +169,7 @@ public sealed class RuleDefinitionCatalog
         string draftVersionId, string draftVersion, long expectedRevision, string requestId,
         CancellationToken cancellationToken = default)
     {
-        RequireRules(key, cancellationToken);
+        RequireRules(key, DefinitionAdmissionPhase.Author, cancellationToken);
         await RequireAsync(RulesPermissions.Author, DefinitionAdmissionPhase.Author, cancellationToken).ConfigureAwait(false);
         return await _store.RestoreAsDraftAsync(key, sourceVersionId, draftVersionId, draftVersion,
             expectedRevision, requestId, cancellationToken).ConfigureAwait(false);
@@ -176,9 +179,12 @@ public sealed class RuleDefinitionCatalog
     public async ValueTask<RuleDefinitionResolution> ResolveAsync(DefinitionKey key, RuleVersionPolicy policy,
         RuleResolveScope scope, CancellationToken cancellationToken = default)
     {
-        RequireRules(key, cancellationToken);
-        RequirePolicy(policy);
-        if (!Enum.IsDefined(scope)) throw Refuse(RuleDefinitionCodes.InvalidDocument, "/scope");
+        // ResolveAsync only guards its own key/policy shape here; MaterializeReleaseAsync already
+        // asserted rules:publish before reaching this call, so this guard reports Author, matching
+        // ResolveAsync's other (authoring-preview) callers.
+        RequireRules(key, DefinitionAdmissionPhase.Author, cancellationToken);
+        RequirePolicy(policy, DefinitionAdmissionPhase.Author);
+        if (!Enum.IsDefined(scope)) throw Refuse(RuleDefinitionCodes.InvalidDocument, "/scope", DefinitionAdmissionPhase.Author);
         DefinitionRevision? selected;
         switch (policy.Kind)
         {
@@ -204,7 +210,7 @@ public sealed class RuleDefinitionCatalog
                     .Where(item => item.Status == DefinitionStatus.Draft)
                     .OrderByDescending(item => item.Revision).FirstOrDefault();
                 break;
-            default: throw Refuse(RuleDefinitionCodes.InvalidVersionPolicy, "/versionPolicy/kind");
+            default: throw Refuse(RuleDefinitionCodes.InvalidVersionPolicy, "/versionPolicy/kind", DefinitionAdmissionPhase.Author);
         }
         if (selected is null) return new(RuleResolutionStatus.NotFound, null);
         if (selected.Status == DefinitionStatus.Draft && scope == RuleResolveScope.Production)
@@ -227,11 +233,12 @@ public sealed class RuleDefinitionCatalog
         for (int index = 0; index < selections.Count; index++)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            // MaterializeReleaseAsync is entirely Publish-gated (rules:publish already asserted above).
             var selection = selections[index] ?? throw Refuse(RuleDefinitionCodes.InvalidDocument,
-                "/selections/" + index + "/key");
-            RequireRules(selection.Key, cancellationToken);
+                "/selections/" + index + "/key", DefinitionAdmissionPhase.Publish);
+            RequireRules(selection.Key, DefinitionAdmissionPhase.Publish, cancellationToken);
             if (!seen.Add(selection.Key)) throw Refuse(RuleDefinitionCodes.InvalidDocument,
-                "/selections/" + index + "/key");
+                "/selections/" + index + "/key", DefinitionAdmissionPhase.Publish);
             if (selection.Policy.Kind == RuleVersionPolicyKind.Draft)
                 throw Refuse("rules.release.draft_refused", "/selections/" + index + "/policy", DefinitionAdmissionPhase.Publish);
 
@@ -301,22 +308,22 @@ public sealed class RuleDefinitionCatalog
     private static DefinitionRefusal[] Refusals(RuleIntentResult result)
         => result.Diagnostics.Select(item => new DefinitionRefusal(item.Code, item.Location)).ToArray();
 
-    private static void RequirePolicy(RuleVersionPolicy policy)
+    private static void RequirePolicy(RuleVersionPolicy policy, DefinitionAdmissionPhase stage)
     {
-        if (!Enum.IsDefined(policy.Kind)) throw Refuse(RuleDefinitionCodes.InvalidVersionPolicy, "/versionPolicy/kind");
+        if (!Enum.IsDefined(policy.Kind)) throw Refuse(RuleDefinitionCodes.InvalidVersionPolicy, "/versionPolicy/kind", stage);
         if (policy.Kind == RuleVersionPolicyKind.Pinned && !DefinitionSemanticVersion.TryParse(policy.Version, out _))
-            throw Refuse("definition.version_invalid", "/versionPolicy/version");
+            throw Refuse("definition.version_invalid", "/versionPolicy/version", stage);
     }
 
-    private static void RequireRules(DefinitionKey key, CancellationToken cancellationToken)
+    private static void RequireRules(DefinitionKey key, DefinitionAdmissionPhase stage, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         ArgumentNullException.ThrowIfNull(key);
-        if (key.Kind != DefinitionKind.Rules) throw Refuse("definition.registry_unknown", "/registry");
+        if (key.Kind != DefinitionKind.Rules) throw Refuse("definition.registry_unknown", "/registry", stage);
     }
 
-    private static DefinitionRefusalException Refuse(string code, string pointer,
-        DefinitionAdmissionPhase stage = DefinitionAdmissionPhase.Author) => new(stage, [new(code, pointer)]);
+    private static DefinitionRefusalException Refuse(string code, string pointer, DefinitionAdmissionPhase stage)
+        => new(stage, [new(code, pointer)]);
 
     private static DefinitionAdmissionPhase StageOf(RuleIntentResult result)
         => result.Diagnostics.Any(item => item.Phase == RuleIntentPhase.Publish) ? DefinitionAdmissionPhase.Publish : DefinitionAdmissionPhase.Author;

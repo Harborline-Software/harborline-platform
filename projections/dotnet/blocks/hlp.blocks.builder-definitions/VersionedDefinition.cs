@@ -64,7 +64,7 @@ public sealed class DefinitionRefusalException : Exception
     public DefinitionRefusalException(DefinitionAdmissionPhase stage, IEnumerable<DefinitionRefusal> refusals)
         : base("definition.refused") => (Stage, Refusals) = (stage, Array.AsReadOnly(refusals.ToArray()));
 
-    /// <summary>The admission stage that refused. Store reads and composition outside an admission report Author.</summary>
+    /// <summary>The admission stage that refused. There is no default: every refusal names its stage explicitly (T-724 ruling 79).</summary>
     public DefinitionAdmissionPhase Stage { get; }
 
     /// <summary>The coded, located reasons for refusal.</summary>
