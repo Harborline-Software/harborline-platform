@@ -6,7 +6,13 @@ public sealed class DeterministicExhaustiveProofSolver : IPlanningSolver
 
     public SolverGuarantee Guarantee => SolverGuarantee.FeasibleProof;
 
-    public SchedulingProposal Solve(CompiledPlanningProblem problem, int deterministicWorkBudget)
+    public SchedulingProposal Solve(CompiledPlanningProblem problem, int deterministicWorkBudget) =>
+        AssignmentRules.MeasureSolve(
+            SolverId,
+            problem,
+            () => SolveCore(problem, deterministicWorkBudget));
+
+    private SchedulingProposal SolveCore(CompiledPlanningProblem problem, int deterministicWorkBudget)
     {
         var incompleteFactSets = problem.IncompleteFactSets;
         if (incompleteFactSets.Count > 0)
@@ -113,7 +119,13 @@ public sealed class GreedyFirstFitSolver : IPlanningSolver
 
     public SolverGuarantee Guarantee => SolverGuarantee.BoundedHeuristic;
 
-    public SchedulingProposal Solve(CompiledPlanningProblem problem, int deterministicWorkBudget)
+    public SchedulingProposal Solve(CompiledPlanningProblem problem, int deterministicWorkBudget) =>
+        AssignmentRules.MeasureSolve(
+            SolverId,
+            problem,
+            () => SolveCore(problem, deterministicWorkBudget));
+
+    private SchedulingProposal SolveCore(CompiledPlanningProblem problem, int deterministicWorkBudget)
     {
         if (deterministicWorkBudget <= 0)
         {
@@ -187,6 +199,22 @@ public sealed class GreedyFirstFitSolver : IPlanningSolver
 
 internal static class AssignmentRules
 {
+    public static SchedulingProposal MeasureSolve(
+        string solverId,
+        CompiledPlanningProblem problem,
+        Func<SchedulingProposal> solve)
+    {
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        var proposal = solve();
+        stopwatch.Stop();
+        SchedulingTelemetry.RecordPlanOutcome(
+            solverId,
+            stopwatch.Elapsed.TotalMilliseconds,
+            problem.Activities.Count - proposal.Assignments.Count,
+            proposal.ReasonCode);
+        return proposal;
+    }
+
     public static bool CanAdd(
         AssignmentCandidate candidate,
         IReadOnlyDictionary<string, AssignmentCandidate> assignments,

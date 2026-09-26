@@ -123,6 +123,7 @@ public sealed class FiniteCandidateCompiler
                 !PlanningFactSets.Required.Contains(value.FactSet, StringComparer.Ordinal) ||
                 string.IsNullOrWhiteSpace(value.Version)))
         {
+            SchedulingTelemetry.RecordAdmissionRefusal("duplicate_fact_set_pin");
             throw new UnsupportedProfileException(
                 "Planning fact-set pins must have unique supported names and non-empty versions.");
         }
@@ -130,6 +131,7 @@ public sealed class FiniteCandidateCompiler
         var activityIds = profile.Activities.Select(value => value.Id).ToHashSet(StringComparer.Ordinal);
         if (activityIds.Count != profile.Activities.Count || profile.Activities.Any(value => value.DurationSlots <= 0))
         {
+            SchedulingTelemetry.RecordAdmissionRefusal("invalid_activity_ids");
             throw new UnsupportedProfileException("Activities must have unique ids and positive durations.");
         }
 
@@ -137,6 +139,7 @@ public sealed class FiniteCandidateCompiler
         if (resourceIds.Count != profile.Resources.Count ||
             profile.Resources.Any(value => string.IsNullOrWhiteSpace(value.Id) || value.Capabilities.Count == 0))
         {
+            SchedulingTelemetry.RecordAdmissionRefusal("invalid_resource_ids");
             throw new UnsupportedProfileException("Resources must have unique ids and capabilities.");
         }
 
@@ -146,6 +149,7 @@ public sealed class FiniteCandidateCompiler
                 !activityIds.Contains(value.ActivityId) ||
                 value.EarliestStartSlot > value.LatestStartSlot))
         {
+            SchedulingTelemetry.RecordAdmissionRefusal("invalid_time_windows");
             throw new UnsupportedProfileException("Time windows must be unique, ordered, and reference activities.");
         }
 
@@ -154,12 +158,14 @@ public sealed class FiniteCandidateCompiler
             .ToHashSet(StringComparer.Ordinal);
         if (requirementIds.Count != profile.ResourceRequirements.Count)
         {
+            SchedulingTelemetry.RecordAdmissionRefusal("duplicate_requirement_ids");
             throw new UnsupportedProfileException("Resource requirements must have unique ids.");
         }
 
         var precedenceIds = profile.Precedence.Select(value => value.Id).ToHashSet(StringComparer.Ordinal);
         if (precedenceIds.Count != profile.Precedence.Count)
         {
+            SchedulingTelemetry.RecordAdmissionRefusal("duplicate_precedence_ids");
             throw new UnsupportedProfileException("Precedence constraints must have unique ids.");
         }
 
@@ -167,11 +173,13 @@ public sealed class FiniteCandidateCompiler
         {
             if (profile.TimeWindows.Count(value => value.ActivityId == activityId) != 1)
             {
+                SchedulingTelemetry.RecordAdmissionRefusal("activity_missing_time_window");
                 throw new UnsupportedProfileException($"Activity {activityId} must have exactly one time window.");
             }
 
             if (!profile.ResourceRequirements.Any(value => value.ActivityId == activityId))
             {
+                SchedulingTelemetry.RecordAdmissionRefusal("activity_missing_requirement");
                 throw new UnsupportedProfileException($"Activity {activityId} must have a resource requirement.");
             }
         }
@@ -181,6 +189,7 @@ public sealed class FiniteCandidateCompiler
                 string.IsNullOrWhiteSpace(value.Capability) ||
                 value.Quantity <= 0))
         {
+            SchedulingTelemetry.RecordAdmissionRefusal("invalid_resource_requirement");
             throw new UnsupportedProfileException("Resource requirements must reference activities and positive quantities.");
         }
 
@@ -190,6 +199,7 @@ public sealed class FiniteCandidateCompiler
                 value.BeforeActivityId == value.AfterActivityId ||
                 value.MinimumGapSlots < 0))
         {
+            SchedulingTelemetry.RecordAdmissionRefusal("invalid_precedence_constraint");
             throw new UnsupportedProfileException("Precedence constraints must reference distinct activities.");
         }
     }
