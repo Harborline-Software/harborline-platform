@@ -138,7 +138,19 @@ export interface LayoutAuthoringCatalogue {
   /** The named predicates a show_when guard may cite, each by its exact pin (layout-ck-29). */
   readonly predicates?: readonly { readonly label: string; readonly pin: LayoutPredicatePin }[]
 }
-export interface LayoutAuthoringEditorProps { readonly value: LayoutAuthoringDraft; readonly catalogue: LayoutAuthoringCatalogue; readonly onChange: (value: LayoutAuthoringDraft) => void }
+/** T-724 rulings 61 and 80: the stage that refused. Always stated; there is no default (ruling 79). */
+export type LayoutRefusalStage = 'author' | 'publish' | 'install' | 'render'
+/** One stable refusal tuple; `target` names the fetchable definition and is present only when the platform judged it safe to reveal. */
+export interface LayoutRefusal { readonly code: string; readonly pointer: string; readonly target?: string }
+/** The shared refusal envelope, `{ stage, refusals: [{ code, pointer, target? }] }`, as the platform returned it (T-583 item 2). */
+export interface LayoutRefusalEnvelope { readonly stage: LayoutRefusalStage; readonly refusals: readonly LayoutRefusal[] }
+export interface LayoutAuthoringEditorProps {
+  readonly value: LayoutAuthoringDraft
+  readonly catalogue: LayoutAuthoringCatalogue
+  readonly onChange: (value: LayoutAuthoringDraft) => void
+  /** The platform's refusal of this draft, displayed verbatim: the editor adds no message or policy of its own. */
+  readonly refusal?: LayoutRefusalEnvelope
+}
 
 /** DES-0056 execution-runtime-ck-4: one execution-trace step, verbatim. */
 export interface LayoutExecutionTraceStep { readonly ordinal: number; readonly phase: string; readonly status: string }

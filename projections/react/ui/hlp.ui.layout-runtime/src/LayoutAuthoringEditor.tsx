@@ -188,7 +188,14 @@ function BindingPicker({ index, block, catalogue, onChange }: { index: number; b
   </>
 }
 
-export function LayoutAuthoringEditor({ value, catalogue, onChange }: LayoutAuthoringEditorProps) {
+// T-583 item 2: the platform's refusal payload, verbatim. No local string table and no inferred policy.
+function RefusalList({ refusal }: { refusal: NonNullable<LayoutAuthoringEditorProps['refusal']> }) {
+  return <section className="hl-layout-authoring__refusals" role="alert" data-refusal-stage={refusal.stage}>
+    <ul>{refusal.refusals.map(item => <li key={`${item.code}:${item.pointer}:${item.target ?? ''}`} data-refusal-code={item.code} data-refusal-pointer={item.pointer} data-refusal-target={item.target}>{`${refusal.stage}: ${item.code} at ${item.pointer}${item.target === undefined ? '' : ` (${item.target})`}`}</li>)}</ul>
+  </section>
+}
+
+export function LayoutAuthoringEditor({ value, catalogue, onChange, refusal }: LayoutAuthoringEditorProps) {
   const set = <K extends keyof LayoutAuthoringDraft>(key: K, next: LayoutAuthoringDraft[K]) => onChange({ ...value, [key]: next })
   const changeBlock = (index: number, next: LayoutAuthoringBlock) => set('blocks', value.blocks.map((block, current) => current === index ? next : block))
   const changePageRun = (index: number, next: LayoutAuthoringPageRun) => set('pageRuns', (value.pageRuns ?? []).map((run, current) => current === index ? next : run))
@@ -198,6 +205,7 @@ export function LayoutAuthoringEditor({ value, catalogue, onChange }: LayoutAuth
   // layout-auth-35: drill-through targets belong to the surface and name released surfaces only.
   const setDrills = (next: readonly string[]) => { const { drillThroughTargets, ...rest } = value; onChange(next.length > 0 ? { ...rest, drillThroughTargets: next } : drillThroughTargets ? rest : value) }
   return <form className="hl-layout-authoring" onSubmit={event => event.preventDefault()}>
+    {refusal && refusal.refusals.length > 0 && <RefusalList refusal={refusal} />}
     <label>Layout name<input aria-label="Layout name" value={value.name} onChange={event => set('name', event.currentTarget.value)} /></label>
     <label>Medium<select aria-label="Layout medium" value={value.medium} onChange={event => set('medium', choice(event) as LayoutAuthoringDraft['medium'])}><option value="screen">Screen</option><option value="page">Page</option></select></label>
     <label>Default intent<select aria-label="Default intent" value={value.defaultIntent ?? 'observe'} onChange={event => set('defaultIntent', choice(event) as LayoutAuthoringDraft['defaultIntent'])}>{intents.map(intent => <option key={intent} value={intent}>{intent}</option>)}</select></label>

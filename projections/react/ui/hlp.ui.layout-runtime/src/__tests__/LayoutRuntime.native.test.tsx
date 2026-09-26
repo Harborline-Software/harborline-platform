@@ -2,7 +2,8 @@ import { fireEvent, render, screen, within } from '@testing-library/react'
 import { useState } from 'react'
 import authored from '../../../../../../_shared/layout/authored-repeating-block.json'
 import denyAll from '../../../../../../_shared/layout/deny-all-authority.json'
-import type { LayoutAuthoringDraft, LayoutRuntimePlan } from '../LayoutRuntime.types'
+import refusalEnvelope from '../../../../../../_shared/layout/refusal-envelope.json'
+import type { LayoutAuthoringDraft, LayoutRefusalEnvelope, LayoutRuntimePlan } from '../LayoutRuntime.types'
 import { LayoutAuthoringEditor, emptyLayoutAuthoringDraft } from '../LayoutAuthoringEditor'
 import { LayoutRuntime } from '../LayoutRuntime'
 
@@ -39,6 +40,26 @@ describe('LayoutRuntime React projection', () => {
   it('renders persisted invalid values as diagnostics without normalization', () => {
     render(<LayoutRuntime plan={{ definitionId: 'invoice', definitionVersionId: 'version-7', medium: 'page', flow: [], staticRegions: [], diagnostics: [{ code: 'layout.numeric.out_of_range', pointer: '/blocks/0/placement/span' }] }} />)
     expect(screen.getByRole('alert')).toHaveTextContent('layout.numeric.out_of_range at /blocks/0/placement/span')
+  })
+
+  it('T-583 item 2: the editor displays the platform refusal payload verbatim, stage, code, pointer and target, and invents no message', () => {
+    const refusal = refusalEnvelope as LayoutRefusalEnvelope
+    render(<LayoutAuthoringEditor value={emptyLayoutAuthoringDraft()} catalogue={{ blockKinds: [], zones: [] }} onChange={vi.fn()} refusal={refusal} />)
+    const alert = screen.getByRole('alert')
+    expect(alert).toHaveAttribute('data-refusal-stage', 'install')
+    const items = within(alert).getAllByRole('listitem')
+    expect(items.map(item => [item.getAttribute('data-refusal-code'), item.getAttribute('data-refusal-pointer'), item.getAttribute('data-refusal-target')])).toEqual(refusal.refusals.map(item => [item.code, item.pointer, item.target]))
+    // Only the payload's own values: nothing looked up from a local string table.
+    expect(items.map(item => item.textContent)).toEqual(refusal.refusals.map(item => `install: ${item.code} at ${item.pointer} (${item.target})`))
+  })
+
+  it('T-583 item 2: a refusal without a target shows none, and no refusal renders no alert', () => {
+    const { rerender } = render(<LayoutAuthoringEditor value={emptyLayoutAuthoringDraft()} catalogue={{ blockKinds: [], zones: [] }} onChange={vi.fn()} refusal={{ stage: 'author', refusals: [{ code: 'layout.reference.not_exposed', pointer: '/blocks/0/binding' }] }} />)
+    const item = within(screen.getByRole('alert')).getByRole('listitem')
+    expect(item.textContent).toBe('author: layout.reference.not_exposed at /blocks/0/binding')
+    expect(item).not.toHaveAttribute('data-refusal-target')
+    rerender(<LayoutAuthoringEditor value={emptyLayoutAuthoringDraft()} catalogue={{ blockKinds: [], zones: [] }} onChange={vi.fn()} />)
+    expect(screen.queryByRole('alert')).toBeNull()
   })
 
   it('authors the closed layout grammar without a separate reading-order or numeric control', () => {

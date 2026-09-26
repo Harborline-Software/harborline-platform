@@ -64,6 +64,65 @@ public sealed class LayoutRefusalEnvelopeTests
         LayoutDefinitionAdmission.ValidateForAuthoring(valid, LayoutTestAccess.GrantsAll);
         LayoutDefinitionAdmission.ValidateForPublish(valid, LayoutTestAccess.GrantsAll);
         LayoutPersistedValueAdmission.ValidateForRuntime(valid);
+        LayoutPackHostAdmission.Admit([Entry(valid)], Host);
+    }
+
+    private static readonly IReadOnlyDictionary<string, string> Host = new Dictionary<string, string> { [LayoutPackIdentity.Capability] = "1.0.0" };
+
+    private static LayoutDefinitionPackageEntry Entry(LayoutDefinition definition) => new(definition.Envelope.Identity, definition.Envelope.Version,
+        PlatformPackageContent.PresentJson(LayoutDefinitionJson.SerializeCanonical(definition)));
+
+    [Fact(DisplayName = "T-583 item 2: install refuses the same three code and pointer refusals in the shared envelope at the install stage, each naming its fetchable definition target")]
+    public void ThreeFaultsReportThreeRefusalsAtInstall()
+    {
+        var refused = Assert.Throws<DefinitionRefusalException>(() => LayoutPackHostAdmission.Admit([Entry(ThreeFaults)], Host));
+
+        Assert.Equal(DefinitionAdmissionPhase.Install, refused.Stage);
+        Assert.Equal(Expected.Select(refusal => refusal with { Target = "surface.orders@1.0.0" }), refused.Refusals);
+
+        // Both editor lanes display _shared/layout/refusal-envelope.json; it is this payload, verbatim.
+        var shared = JsonSerializer.Deserialize<DefinitionRefusalReport>(
+            File.ReadAllText(Path.Combine(RepositoryRoot(), "_shared", "layout", "refusal-envelope.json")),
+            new JsonSerializerOptions(JsonSerializerDefaults.Web) { Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter(JsonNamingPolicy.CamelCase) } })!;
+        Assert.Equal(refused.Stage, shared.Stage);
+        Assert.Equal(refused.Refusals, shared.Refusals);
+    }
+
+    private static string RepositoryRoot()
+    {
+        for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)
+            if (Directory.Exists(Path.Combine(directory.FullName, "_shared", "layout"))) return directory.FullName;
+        throw new DirectoryNotFoundException("_shared/layout");
+    }
+
+    [Fact(DisplayName = "T-583 item 2: install reports every refused entry's tuples across the whole pack, each under its own target, rather than stopping at the first")]
+    public void InstallAccumulatesAcrossThePack()
+    {
+        var stripped = ThreeFaults with
+        {
+            Envelope = ThreeFaults.Envelope with { Identity = "surface.stripped", Requires = [] },
+            Blocks = [ThreeFaults.Blocks[0] with { Kind = "layout.table" }],
+        };
+
+        var refused = Assert.Throws<DefinitionRefusalException>(() => LayoutPackHostAdmission.Admit([Entry(ThreeFaults), Entry(stripped)], Host));
+
+        Assert.Equal(DefinitionAdmissionPhase.Install, refused.Stage);
+        Assert.Equal(
+            [.. Expected.Select(refusal => refusal with { Target = "surface.orders@1.0.0" }),
+             new DefinitionRefusal(LayoutDefinitionCodes.CapabilityUndeclared, "/envelope/requires", "surface.stripped@1.0.0")],
+            refused.Refusals);
+    }
+
+    [Fact(DisplayName = "T-583 item 2: a kind this host's register lacks refuses at install with the common layout.block.kind_unknown code instead of rendering blank; the host that registers it installs")]
+    public void AnUnregisteredKindRefusesAtInstall()
+    {
+        var hosted = ThreeFaults with { Blocks = [ThreeFaults.Blocks[0] with { Kind = "host.component" }] };
+
+        LayoutPackHostAdmission.Admit([Entry(hosted)], Host, new LayoutHostRegisters(new LayoutBlockKindRegistry(["host.component"])));
+        var refused = Assert.Throws<DefinitionRefusalException>(() => LayoutPackHostAdmission.Admit([Entry(hosted)], Host));
+
+        Assert.Equal(DefinitionAdmissionPhase.Install, refused.Stage);
+        Assert.Equal([new DefinitionRefusal(LayoutDefinitionCodes.BlockKindUnknown, "/blocks/0/kind", "surface.orders@1.0.0")], refused.Refusals);
     }
 
     [Fact(DisplayName = "T-583 item 2: authorless pack export refuses in the shared envelope at the publish stage")]

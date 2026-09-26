@@ -1,6 +1,6 @@
 @namespace Harborline.UIAdapters.Blazor.Components.Layout
 <HarborlineAppLayout Header="@Header" SideNav="@SideNav" ContentScroll="@ContentScroll">
-  <HarborlineLayoutAuthoringEditor Value="@Value" Catalogue="@Catalogue" ValueChanged="@ValueChanged" />
+  <HarborlineLayoutAuthoringEditor Value="@Value" Catalogue="@Catalogue" ValueChanged="@ValueChanged" Refusal="@Refusal" />
 </HarborlineAppLayout>
 
 @code {
@@ -10,4 +10,5 @@
   [Parameter, EditorRequired] public LayoutAuthoringDraft Value { get; set; } = LayoutAuthoringDraft.Empty;
   [Parameter, EditorRequired] public LayoutAuthoringCatalogue Catalogue { get; set; } = new([], []);
   [Parameter] public EventCallback<LayoutAuthoringDraft> ValueChanged { get; set; }
+  [Parameter] public LayoutRefusalEnvelope? Refusal { get; set; }
 }

@@ -56,6 +56,34 @@ public sealed class LayoutRuntimeTests : BunitContext
         Assert.Equal(1, submitted);
     }
 
+    [Fact(DisplayName = "T-583 item 2: the editor displays the platform refusal payload verbatim, stage, code, pointer and target, and invents no message")]
+    public void TheEditorDisplaysTheRefusalPayloadVerbatim()
+    {
+        var refusal = JsonSerializer.Deserialize<LayoutRefusalEnvelope>(File.ReadAllText(Path.Combine(RepositoryRoot(), "_shared", "layout", "refusal-envelope.json")), new JsonSerializerOptions(JsonSerializerDefaults.Web))!;
+        var cut = Render<HarborlineLayoutAuthoringEditor>(parameters => parameters
+            .Add(x => x.Value, LayoutAuthoringDraft.Empty).Add(x => x.Catalogue, new LayoutAuthoringCatalogue([], [])).Add(x => x.Refusal, refusal));
+        var alert = cut.Find("[role=alert]");
+        Assert.Equal("install", alert.GetAttribute("data-refusal-stage"));
+        var items = cut.FindAll("[role=alert] li");
+        Assert.Equal(refusal.Refusals.Select(item => (item.Code, item.Pointer, item.Target)),
+            items.Select(item => (item.GetAttribute("data-refusal-code")!, item.GetAttribute("data-refusal-pointer")!, item.GetAttribute("data-refusal-target"))));
+        // Only the payload's own values: nothing looked up from a local string table.
+        Assert.Equal(refusal.Refusals.Select(item => $"install: {item.Code} at {item.Pointer} ({item.Target})"), items.Select(item => item.TextContent));
+    }
+
+    [Fact(DisplayName = "T-583 item 2: a refusal without a target shows none, and no refusal renders no alert")]
+    public void ARefusalWithoutATargetShowsNone()
+    {
+        var cut = Render<HarborlineLayoutAuthoringEditor>(parameters => parameters
+            .Add(x => x.Value, LayoutAuthoringDraft.Empty).Add(x => x.Catalogue, new LayoutAuthoringCatalogue([], []))
+            .Add(x => x.Refusal, new LayoutRefusalEnvelope("author", [new("layout.reference.not_exposed", "/blocks/0/binding")])));
+        var item = cut.Find("[role=alert] li");
+        Assert.Equal("author: layout.reference.not_exposed at /blocks/0/binding", item.TextContent);
+        Assert.False(item.HasAttribute("data-refusal-target"));
+        Assert.Empty(Render<HarborlineLayoutAuthoringEditor>(parameters => parameters
+            .Add(x => x.Value, LayoutAuthoringDraft.Empty).Add(x => x.Catalogue, new LayoutAuthoringCatalogue([], []))).FindAll("[role=alert]"));
+    }
+
     // The one platform model both lanes render (LayoutAuthorityGateTests derives the same flow and authority).
     private static LayoutRuntimePlan DenyAll()
         => JsonSerializer.Deserialize<LayoutRuntimePlan>(File.ReadAllText(Path.Combine(RepositoryRoot(), "_shared", "layout", "deny-all-authority.json")), new JsonSerializerOptions(JsonSerializerDefaults.Web))!;

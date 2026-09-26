@@ -1,0 +1,8 @@
+{
+  "stage": "install",
+  "refusals": [
+    { "code": "layout.block.kind_unknown", "pointer": "/blocks/0/kind", "target": "surface.orders@1.0.0" },
+    { "code": "layout.binding.invalid", "pointer": "/blocks/1/binding", "target": "surface.orders@1.0.0" },
+    { "code": "layout.placement.reflow_forbidden", "pointer": "/blocks/2/container", "target": "surface.orders@1.0.0" }
+  ]
+}
