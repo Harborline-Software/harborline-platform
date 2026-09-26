@@ -1,13 +1,13 @@
-# stryker: Stryker.NET mutation testing on the .NET code a pull request changes (control T-720; PROC-0002,
-# "Mutation evidence as an artefact": since origin/main, break 60, low 60, high 80, json report).
+# stryker: Stryker.NET mutation testing (control T-720; PROC-0002 "Mutation evidence as an artefact"; owner ruling Q43).
 #
-# Advisory in review (T-720). It is not in the `verify` aggregator's needs and is not a required check, so a red
-# run here never blocks a merge; it is the evidence a reviewer reads.
+# Pull request: `node tooling/stryker.mjs run` mutates each project whose .cs/.razor source changed since origin/main
+# and writes the Survived and NoCoverage mutants on changed lines to the step summary, as review feedback. It is
+# never compared with a project's floor. It fails only when mutable code changed and 0 mutants were tested, because
+# Stryker exits 0 having mutated nothing (T-720 spike). No source change: skipped, green. Advisory: not in `verify`'s
+# needs, not a required check.
 #
-# tooling/stryker.mjs does the work: every test project has a stryker-config.json or an entry in
-# tooling/stryker-exclusions.json; each configured project whose .cs source changed is mutated; the run fails when
-# its json report shows 0 mutants tested, because Stryker exits 0 having mutated nothing (T-720 spike). No source
-# change: skipped, green.
+# Schedule (03:00 America/New_York, 07:00 UTC) and workflow_dispatch: `node tooling/stryker.mjs full` runs every
+# configured project on main and fails when a project scores below its baseline in tooling/stryker-baselines.json.
 #
 # winbox, not the Macs: macpro carries verify-shared, the platform bottleneck, and mac16 is the perf-quiet runner
 # (T-724 ruling 8). The fork guard is verify-shared's, character for character, so a fork pull request never runs
@@ -17,10 +17,13 @@ name: stryker
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
+  schedule:
+    - cron: '0 7 * * *'
+  workflow_dispatch:
 
 concurrency:
-  group: stryker-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
+  group: stryker-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -29,18 +32,20 @@ jobs:
   stryker:
     if: >-
       vars.ACTIONS_ENABLED == 'true' &&
-      github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.draft == false
+      (github.event_name == 'schedule' ||
+       github.event_name == 'workflow_dispatch' ||
+       (github.event.pull_request.head.repo.full_name == github.repository &&
+        github.event.pull_request.draft == false))
     runs-on: [self-hosted, Windows, winbox]
-    timeout-minutes: 60
+    timeout-minutes: ${{ github.event_name == 'pull_request' && 60 || 720 }}
     defaults:
       run:
         shell: pwsh
     env:
       DOTNET_CLI_TELEMETRY_OPTOUT: '1'
     steps:
-      # fetch-depth 0 so refs/remotes/origin/main exists: the configs' since target and the script's
-      # changed-source test both diff against it. A plain clone, never a linked worktree (see tooling/stryker.mjs).
+      # fetch-depth 0 so refs/remotes/origin/main exists: the configs' since target and the script's changed-source
+      # test both diff against it. A plain clone, never a linked worktree (see tooling/stryker.mjs).
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
@@ -49,10 +54,23 @@ jobs:
       - name: Restore the pinned dotnet-stryker
         run: dotnet tool restore
 
-      - name: Mutate changed .NET source
-        run: node tooling/stryker.mjs run
+      # The builder-definitions tests read DES-0007 from a control checkout, as verify's gate does.
+      - name: Mirror harborline-control for the tests that read it
+        run: git clone --quiet "https://x-access-token:${{ secrets.HARBORLINE_PINS_TOKEN }}@github.com/Harborline-Software/harborline-control.git" "$env:RUNNER_TEMP/harborline-control"
 
-      - name: Mutation report
+      - name: Mutate changed .NET source (pull request)
+        if: github.event_name == 'pull_request'
+        run: node tooling/stryker.mjs run
+        env:
+          HARBORLINE_CONTROL_REPO: ${{ runner.temp }}/harborline-control
+
+      - name: Mutate every project and hold each to its baseline (scheduled)
+        if: github.event_name != 'pull_request'
+        run: node tooling/stryker.mjs full
+        env:
+          HARBORLINE_CONTROL_REPO: ${{ runner.temp }}/harborline-control
+
+      - name: Mutation reports
         if: always()
         uses: actions/upload-artifact@v7
         with:

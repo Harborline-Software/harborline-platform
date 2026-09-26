@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
 
-import {configProblems, isTestProject, plainRazor, reportCounts, repository, sourceDirectories, thresholdsFor} from '../stryker.mjs'
+import {changedLines, configProblems, isTestProject, plainRazor, reportCounts, repository, sourceDirectories, survivorsOnChangedLines, thresholdsFor} from '../stryker.mjs'
 
 const testCsproj = '<PackageReference Include="Microsoft.NET.Test.Sdk" /><ProjectReference Include="../lib/Lib.csproj" />'
 const config = (overrides = {}) => JSON.stringify({'stryker-config': {
@@ -86,6 +86,20 @@ test('Razor generator output becomes plain C# that Stryker mutates, and names it
   assert.match(text, /#pragma warning disable 1591/)
   // Only the lines #line maps to a .razor are mutated; the render scaffolding between them is not.
   assert.deepEqual(spans.map(([from, to]) => text.slice(from, to)), ['count++;\r\n', 'using A;\r\n'])
+})
+
+test('PR feedback lists Survived and NoCoverage mutants on changed lines only (Q43), and every one in a changed .razor', () => {
+  const diff = ['diff --git a/p/lib/A.cs b/p/lib/A.cs', '--- a/p/lib/A.cs', '+++ b/p/lib/A.cs', '@@ -10,0 +11,2 @@', '+x', '+y',
+    '@@ -20 +22 @@', '-a', '+b', '--- a/p/lib/Gone.cs', '+++ /dev/null', '@@ -1,3 +0,0 @@'].join('\n')
+  const lines = changedLines(diff)
+  assert.deepEqual([...lines['p/lib/A.cs']], [11, 12, 22])
+  assert.equal(lines['p/lib/Gone.cs'], undefined)
+  const at = (line, status) => ({status, mutatorName: 'm', replacement: 'r', location: {start: {line}}})
+  const report = {files: {
+    'C:/repo/p/lib/A.cs': {mutants: [at(11, 'Survived'), at(12, 'Killed'), at(22, 'NoCoverage'), at(30, 'Survived')]},
+    'C:/repo/p/ui/obj/Debug/net10.0/stryker-razor/X_razor.cs': {mutants: [at(400, 'Survived')]}}}
+  assert.deepEqual(survivorsOnChangedLines(report, lines, 'C:/repo').map(s => `${s.file}:${s.line}:${s.status}`),
+    ['p/lib/A.cs:11:Survived', 'p/lib/A.cs:22:NoCoverage', 'p/ui/obj/Debug/net10.0/stryker-razor/X_razor.cs:400:Survived'])
 })
 
 test('a project compiles from its own directory and every directory it links', () => {
