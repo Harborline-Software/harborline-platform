@@ -20,3 +20,6 @@ artifacts/
 .codex/
 .wolf/
 harborline-phase4-gate-report.json
+
+# Stryker.NET output (T-720); CI uploads the json report as an artifact.
+StrykerOutput/

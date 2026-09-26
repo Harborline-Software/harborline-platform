@@ -1,0 +1,62 @@
+# stryker: Stryker.NET mutation testing on the .NET code a pull request changes (control T-720; PROC-0002,
+# "Mutation evidence as an artefact": since origin/main, break 60, low 60, high 80, json report).
+#
+# Advisory in review (T-720). It is not in the `verify` aggregator's needs and is not a required check, so a red
+# run here never blocks a merge; it is the evidence a reviewer reads.
+#
+# tooling/stryker.mjs does the work: every test project has a stryker-config.json or an entry in
+# tooling/stryker-exclusions.json; each configured project whose .cs source changed is mutated; the run fails when
+# its json report shows 0 mutants tested, because Stryker exits 0 having mutated nothing (T-720 spike). No source
+# change: skipped, green.
+#
+# winbox, not the Macs: macpro carries verify-shared, the platform bottleneck, and mac16 is the perf-quiet runner
+# (T-724 ruling 8). The fork guard is verify-shared's, character for character, so a fork pull request never runs
+# its author's code on our machine; a draft waits until it is marked ready.
+name: stryker
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+concurrency:
+  group: stryker-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  stryker:
+    if: >-
+      vars.ACTIONS_ENABLED == 'true' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.draft == false
+    runs-on: [self-hosted, Windows, winbox]
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+    steps:
+      # fetch-depth 0 so refs/remotes/origin/main exists: the configs' since target and the script's
+      # changed-source test both diff against it. A plain clone, never a linked worktree (see tooling/stryker.mjs).
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          clean: true
+
+      - name: Restore the pinned dotnet-stryker
+        run: dotnet tool restore
+
+      - name: Mutate changed .NET source
+        run: node tooling/stryker.mjs run
+
+      - name: Mutation report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: stryker-report-${{ github.run_id }}
+          if-no-files-found: ignore
+          retention-days: 14
+          path: StrykerOutput/*/reports/mutation-report.json

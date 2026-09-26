@@ -1,0 +1,8 @@
+{
+  "projections/blazor/ui/hlp.ui.button.tests/Harborline.UIAdapters.Blazor.Tests.csproj": "Razor: Stryker.NET 5.0.0 carries Roslyn 5.9 and the .NET 11 RC1 Razor generator needs 5.11, so the Blazor adapters never compile under Stryker (stryker-net#3813); lift when a release carries Roslyn >= 5.11.",
+  "projections/blazor/ui/hlp.ui.button/Harborline.UIAdapters.Blazor.csproj": "Razor project, mutated only by the Blazor test project excluded above (stryker-net#3813).",
+  "projections/dotnet/architecture/hlp.architecture.tests/Harborline.Architecture.Tests.csproj": "Architecture tests scan source text and assembly shape, not behaviour; every project they reference is mutated by its own test project's config.",
+  "projections/dotnet/blocks/hlp.blocks.scheduling.restart-probe/Harborline.Blocks.Scheduling.RestartProbe.csproj": "Test harness executable the scheduling tests spawn to simulate a restart; mutating it scores the harness, not the product.",
+  "projections/dotnet/blocks/hlp.blocks.workflow.restart-probe/Harborline.Blocks.Workflow.RestartProbe.csproj": "Test harness executable the workflow tests spawn to simulate a restart; mutating it scores the harness, not the product.",
+  "projections/dotnet/foundation/hlp.foundation.forms-engine.restart-probe/Harborline.Foundation.Forms.Engine.RestartProbe.csproj": "Test harness executable the forms-engine tests spawn to simulate a restart; mutating it scores the harness, not the product."
+}
