@@ -28,6 +28,7 @@
     <ProjectReference Include="../../foundation/hlp.foundation.rule-runtime/Harborline.Foundation.RuleEngine.csproj" />
     <ProjectReference Include="../../foundation/hlp.foundation.scheduling/Harborline.Foundation.Scheduling.csproj" />
     <ProjectReference Include="../../foundation/hlp.foundation.session/Harborline.Foundation.Session.csproj" />
+    <ProjectReference Include="../../foundation/hlp.foundation.taxonomy/Harborline.Foundation.Taxonomy.csproj" />
     <ProjectReference Include="../../foundation/hlp.foundation.tenancy/Harborline.Foundation.MultiTenancy.csproj" />
     <ProjectReference Include="../../foundation/hlp.ui.button/Harborline.Foundation.csproj" />
     <ProjectReference Include="../../blocks/hlp.blocks.activity-timeline/Harborline.Blocks.ActivityTimeline.csproj" />

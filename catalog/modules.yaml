@@ -727,6 +727,40 @@
         }
       }
     },
+    "hlp.foundation.taxonomy": {
+      "interface": {"path": "specs/modules/foundation/hlp.foundation.taxonomy/interface.yaml", "revision": 1},
+      "moduleKind": "runtime",
+      "presentation": {"disposition": "not-applicable", "rationale": "The foundation package owns the projection-neutral TaxonomyDefinition and its admission; the scheme/overlay editor and catalogue views are separate projections over this interface."},
+      "owner": "platform-foundation",
+      "dependencies": [],
+      "status": "implemented",
+      "depth": {
+        "disposition": "deep-module",
+        "deletionTest": "PASS",
+        "redistributedComplexity": [
+          "canonical identity derivation, phase-aware structural admission, cycle/depth-bounded parent-edge validation and monotonic-tombstone checking reimplemented by every host that authors or installs a taxonomy",
+          "governance-regime and Authoritative-owner rules allowed to drift between authoring, publish and install call sites"
+        ]
+      },
+      "projections": {
+        "dotnet": {
+          "role": "implementation",
+          "path": "projections/dotnet/foundation/hlp.foundation.taxonomy",
+          "status": "preview",
+          "artifact": {
+            "type": "nuget",
+            "id": "Harborline.Foundation.Taxonomy",
+            "assembly": "Harborline.Foundation.Taxonomy",
+            "manifest": "projections/dotnet/foundation/hlp.foundation.taxonomy/Harborline.Foundation.Taxonomy.csproj",
+            "identityAuthority": "Harborline",
+            "producerRepository": "harborline-platform",
+            "distribution": "internal-only",
+            "candidateRole": "new-bounded-package",
+            "registryAvailable": false
+          }
+        }
+      }
+    },
     "hlp.foundation.documents": {
       "interface": {"path": "specs/modules/foundation/hlp.foundation.documents/interface.yaml", "revision": 1},
       "moduleKind": "runtime",

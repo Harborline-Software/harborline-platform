@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.foundation.taxonomy",
+  "interfaceRevision": 1,
+  "status": "frozen",
+  "purpose": "Own the portable Taxonomy definition (content kind 7, DES-0024), its canonical projection-neutral JSON, and the phase-aware structural admission that authoring, publish and install all run before any traversal, tenancy or authorization gate is reached.",
+  "dependencies": [],
+  "callerInterface": {
+    "name": "TaxonomyDefinitionAdmission / TaxonomyDefinitionJson / TaxonomyDefinitionPackExporter",
+    "operations": [
+      "TaxonomyDefinitionAdmission.Validate / AdmitJson(body, phase, catalogue, previous) -> the complete structural refusal list at the Author, Publish and Install boundaries; unpinned/malformed version, unsupported schema version, missing or mismatched envelope, Authoritative governance authored tenant-side, an Authoritative definition owned by anyone but the Harborline actor, a definition published with no nodes, duplicate node codes, an unknown parent code, a parent-edge cycle or a chain past the depth bound, a missing deprecation reason at tombstone, a successor naming an unknown or tombstoned node, and — against a supplied previous version — a tombstoned node reactivated or its display history rewritten, all refuse",
+      "TaxonomyDefinitionAdmission.Require -> the definition, or throws TaxonomyAdmissionException carrying the same refusal list",
+      "TaxonomyDefinitionJson.SerializeCanonical / Deserialize -> canonical snake_case, ordinal-sorted, newline-terminated UTF-8 JSON for every definition member, including the three-part TaxonomyDefinitionId as one dotted string",
+      "TaxonomyDefinitionPackExporter.Export -> content kind 7 entry of canonical bytes after Publish-phase admission"
+    ],
+    "context": "The definition is portable pack content: a concept scheme (TaxonomyDefinition) owning its own node set (TaxonomyNode), never a separate primitive and never a store. This package owns only the typed shape, canonical JSON and structural admission; it holds no catalogue, no traversal interpreter (ancestors, descendants, subsumption, succession, value-domain/overlay expansion, release diffing), no kernel-core tenancy or authorization gate, and no authoring UI. Those are later T-493 slices."
+  },
+  "invariants": [
+    "A TaxonomyNode's ParentCode names at most one parent; the shape has no field through which a second parent could be expressed.",
+    "There is no delete operation; a concept is inactivated (Status = Tombstoned) and its code is never reused by the producer's own admission, checked against a supplied previous version.",
+    "A parent-edge walk is bounded at 64 hops and refuses a cycle or an excess chain at admission time, rather than looping; this is a structural check, not the interpreter's ancestor/descendant traversal.",
+    "An Authoritative definition is owned by the literal Harborline actor id and is never authorable at the Author phase.",
+    "A definition publishes only with a non-empty node set; an empty scheme refuses at Publish and Install.",
+    "A successor code must name an existing, Active node in the same definition; the producer does not follow succession transitively.",
+    "Canonical JSON is snake_case, ordinal-key-sorted and newline-terminated; re-serializing a deserialized definition is byte-identical."
+  ],
+  "errors": [
+    "definition.body_invalid",
+    "definition.settings_not_object",
+    "definition.version_invalid",
+    "definition.schema_version_unsupported",
+    "definition.envelope_required",
+    "definition.envelope_mismatch",
+    "definition.governance_not_authorable",
+    "definition.authoritative_owner_invalid",
+    "definition.no_terms",
+    "definition.node_code_duplicate",
+    "definition.parent_unknown",
+    "definition.parent_cycle",
+    "definition.traversal_depth_exceeded",
+    "definition.deprecation_reason_required",
+    "definition.successor_unknown",
+    "definition.successor_tombstoned",
+    "definition.tombstone_reactivated",
+    "definition.display_history_not_append_only",
+    "definition.catalogue_mismatch"
+  ],
+  "publicSeams": [
+    "definition intent admission (author, publish, install) and canonical JSON",
+    "content kind 7 pack entry for the platform package"
+  ],
+  "conformance": {
+    "nativeTests": {
+      "dotnet": 11
+    },
+    "nativeTestNote": "Byte-identical canonical JSON round trip; Authoritative governance/owner refusals with corrected counterparts; deprecation-reason, successor, duplicate-code, parent-unknown, parent-cycle, depth-bound, no-terms, envelope and catalogue-coordinate refusals each proven to refuse then admit; monotonic-tombstone and append-only-display-history checks against a previous version; two structural-impossibility reflection tests (no delete operation, single nullable ParentCode); one test proving two independent refusals accumulate in a single Validate call."
+  },
+  "selectedDesign": {
+    "choice": "One packable foundation assembly owns the projection-neutral TaxonomyDefinition, its canonical JSON and its structural admission; the traversal interpreter, kernel-core tenancy/authorization gates, the authoring editor and pack transport are separate, later slices behind narrow host adapters.",
+    "rejected": [
+      "Build the traversal interpreter (ancestors, descendants, subsumption, succession) in this slice — DES-0024's own open ruling 2 (overlay vs. fork) is unruled and blocks Collection/Overlay; the interpreter is scoped out entirely rather than half-built against an unruled model.",
+      "Reimplement the vendor-node-edit authorization check here — DES-0024 §6 places that gate in kernel core, not in a producer library."
+    ],
+    "reason": "Mirrors how DataExchangeDefinition and the AssistanceDefinition producer each landed their own definition-and-admission slice first, before any consumer or catalogue wiring existed."
+  },
+  "package": {
+    "nuget": "Harborline.Foundation.Taxonomy",
+    "assembly": "Harborline.Foundation.Taxonomy",
+    "distribution": "internal-only"
+  }
+}
