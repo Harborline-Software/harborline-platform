@@ -8,6 +8,17 @@ public sealed record LayoutRuntimeBlock(string Id, string Kind, int Depth, strin
 /// <summary>DES-0052 C1, layout-eng-26: the authority the platform returned with the surface. The lane derives nothing from it.</summary>
 public sealed record LayoutRuntimeAuthority(bool CanSubmit);
 // Authority: absent, the surface is read-only (no authority, no submit).
+/// <summary>DES-0056 execution-runtime-ck-4: one execution-trace step, verbatim.</summary>
+public sealed record LayoutExecutionTraceStep(int Ordinal, string Phase, string Status);
+/// <summary>DES-0056 execution-runtime-ck-3, as the host's authorized read returned it; a null <paramref name="AccessDecisionId"/> is no recorded decision.</summary>
+public sealed record LayoutRunReceipt(string RunId, string Status, string? AccessDecisionId, IReadOnlyList<LayoutExecutionTraceStep> Trace);
+/// <summary>One of Access's four stages, as stored.</summary>
+public sealed record LayoutAccessTraceStage(int Ordinal, string Stage, IReadOnlyList<string> Facts);
+/// <summary>
+/// What following the Access decision link yielded, classified by the platform (LayoutExecutionObservation):
+/// <c>absent</c>, <c>missing</c>, <c>forbidden</c>, <c>malformed</c> or <c>valid</c>. The lane derives nothing.
+/// </summary>
+public sealed record LayoutAccessTrace(string Evidence, int? Version, IReadOnlyList<LayoutAccessTraceStage> Stages, string? DecidingGrant);
 public sealed record LayoutRuntimePlan(
     string DefinitionId,
     string DefinitionVersionId,

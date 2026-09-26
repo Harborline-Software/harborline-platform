@@ -335,14 +335,14 @@
       }
     },
     "hlp.blocks.layout-runtime": {
-      "interface": {"path": "specs/modules/blocks/hlp.blocks.layout-runtime/interface.yaml", "revision": 6},
+      "interface": {"path": "specs/modules/blocks/hlp.blocks.layout-runtime/interface.yaml", "revision": 7},
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "The definition resolver and flow planner return neutral render plans and own no framework presentation."},
       "owner": "platform-foundation",
-      "dependencies": ["hlp.blocks.builder-definitions", "hlp.foundation.rule-runtime"],
+      "dependencies": ["hlp.blocks.builder-definitions", "hlp.foundation.rule-runtime", "hlp.foundation.actor"],
       "status": "draft-native-green",
       "depth": {"disposition": "deep-module", "deletionTest": "PASS", "redistributedComplexity": ["exact immutable definition binding, persisted-value admission, and recursive layout flow would otherwise fork across every renderer", "screen and page boundaries, static regions, and break planning would otherwise become inconsistent local projection policy"]},
-      "projections": {"dotnet": {"role": "implementation", "path": "projections/dotnet/blocks/hlp.blocks.layout-runtime", "status": "preview", "artifact": {"type": "nuget", "id": "Harborline.Blocks.LayoutRuntime", "assembly": "Harborline.Blocks.LayoutRuntime", "manifest": "projections/dotnet/blocks/hlp.blocks.layout-runtime/Harborline.Blocks.LayoutRuntime.csproj", "dependencies": ["Harborline.Blocks.BuilderDefinitions", "Harborline.Foundation.RuleEngine"], "identityAuthority": "Harborline", "producerRepository": "harborline-platform", "distribution": "internal-only", "candidateRole": "new-bounded-package", "registryAvailable": false}}}
+      "projections": {"dotnet": {"role": "implementation", "path": "projections/dotnet/blocks/hlp.blocks.layout-runtime", "status": "preview", "artifact": {"type": "nuget", "id": "Harborline.Blocks.LayoutRuntime", "assembly": "Harborline.Blocks.LayoutRuntime", "manifest": "projections/dotnet/blocks/hlp.blocks.layout-runtime/Harborline.Blocks.LayoutRuntime.csproj", "dependencies": ["Harborline.Blocks.BuilderDefinitions", "Harborline.Foundation.RuleEngine", "Harborline.Foundation.Authorization"], "identityAuthority": "Harborline", "producerRepository": "harborline-platform", "distribution": "internal-only", "candidateRole": "new-bounded-package", "registryAvailable": false}}}
     },
     "hlp.blocks.aggregates": {
       "interface": {"path": "specs/modules/blocks/hlp.blocks.aggregates/interface.yaml", "revision": 1},
@@ -1743,7 +1743,7 @@
       "interface":{"path":"specs/modules/ui/hlp.ui.view-runtime/interface.yaml","revision":7},"moduleKind":"interactive-component","presentation":{"disposition":"visual"},"qualityProfile":{"path":"specs/modules/ui/hlp.ui.view-runtime/quality.yaml","revision":1},"owner":"platform-ui","dependencies":["hlp.ui.data-grid","hlp.ui.button"],"status":"gap-implemented","depth":{"disposition":"deep-module","deletionTest":"PASS","redistributedComplexity":["definition envelope interpretation and field-to-grid translation repeated by every seeded list view","unknown-kind inertness and the definition identity hook drifting across projections"]},"projections":{"react":{"role":"adapter","seam":"ui.view-runtime.framework","path":"projections/react/ui/hlp.ui.view-runtime","status":"conformant","packageContribution":"@harborline-software/ui-react","conformanceRunner":"conformance/hlp.ui.view-runtime/runners/run-shared.mjs"},"blazor":{"role":"adapter","seam":"ui.view-runtime.framework","path":"projections/blazor/ui/hlp.ui.view-runtime","status":"conformant","packageContribution":"Harborline.UIAdapters.Blazor","conformanceRunner":"conformance/hlp.ui.view-runtime/runners/run-shared.mjs"}}
     },
     "hlp.ui.layout-runtime": {
-      "interface":{"path":"specs/modules/ui/hlp.ui.layout-runtime/interface.yaml","revision":4},
+      "interface":{"path":"specs/modules/ui/hlp.ui.layout-runtime/interface.yaml","revision":5},
       "moduleKind":"runtime",
       "presentation":{"disposition":"not-applicable","rationale":"The aggregate contribution supplies reusable Layout authoring and rendering primitives; products own the surrounding visual composition."},
       "owner":"platform-ui",
