@@ -13,7 +13,7 @@ namespace Harborline.Foundation.Forms.Engine.Tests;
 /// </summary>
 public sealed class FormSubmitGateEngineTests
 {
-    private static readonly FormSubmitGate InspectorGate = new(Role: RoleReference.Domain("inspector"));
+    private static readonly SubmitGate InspectorGate = new(Role: RoleReference.Domain("inspector"));
 
     [Fact(DisplayName = "forms-eng-2: a submitter who fails the form's own gate is refused before reuse or the candidate is resolved, and nothing is written")]
     public async Task FailedGateRefusesBeforeResolvingAnything()
@@ -60,8 +60,8 @@ public sealed class FormSubmitGateEngineTests
 
     private sealed class GateAccess(bool satisfied) : IFormSubmitGateAccess
     {
-        public List<FormSubmitGate> Asked { get; } = [];
-        public ValueTask<bool> SatisfiesAsync(FormExecutionScope scope, FormDefinition definition, FormSubmitGate gate, CancellationToken cancellationToken = default)
+        public List<SubmitGate> Asked { get; } = [];
+        public ValueTask<bool> SatisfiesAsync(FormExecutionScope scope, FormDefinition definition, SubmitGate gate, CancellationToken cancellationToken = default)
         {
             Asked.Add(gate);
             return ValueTask.FromResult(satisfied);

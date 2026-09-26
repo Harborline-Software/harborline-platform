@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.blocks.builder-definitions",
-  "interfaceRevision": 10,
+  "interfaceRevision": 11,
   "status": "draft",
   "purpose": "Own the shared definition catalogue substrate: registry-neutral versioned definitions, key suggestion, archive lifecycle, projection-neutral platform package export and empty-store replay, package safety-floor reattachment, and the install receipt that binds a released artifact to installed identity, capabilities, authorization outcomes and digests.",
   "dependencies": [{"moduleId": "hlp.foundation.rule-authoring", "minimumRevision": 3}],
@@ -29,6 +29,7 @@
     "ruling": "No implementation in revision 1; either UI-suggested plus server-validated or server-allocated policy may bind later."
   },
   "invariants": [
+    "A Layout submit_gate is the shared hlp.contracts.authorization SubmitGate. A surface that pins a form refuses its own submit_gate by name at /submit_gate (layout.capture.submit_gate_on_pinned_form), at whichever stage admission runs; the pinned form's gate is the sole gate for that submit, and only a surface that pins no form keeps its own (layout-ck-31, layout-auth-23, T-724 ruling 81).",
     "The versioned store exposes no member-specific type; host-supplied pure validators admit each supported registry.",
     "RuleDefinitionCatalog composes Rules source admission with the shared store and lifecycle; foundation never depends on blocks.",
     "Older published history arrivals cannot lower the highest semantic-version head. The offline RuleRegistry remains a separate mechanism.",

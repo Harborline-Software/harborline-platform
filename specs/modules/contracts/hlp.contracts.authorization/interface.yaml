@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.contracts.authorization",
-  "interfaceRevision": 2,
+  "interfaceRevision": 3,
   "status": "frozen",
-  "purpose": "Provide one powerless, API-shaped role vocabulary, deterministic role-gate resolver and register of named, versioned authorization capabilities shared by workflow, Forms, Layout, and navigation projections.",
+  "purpose": "Provide one powerless, API-shaped role vocabulary, deterministic role-gate resolver and register of named, versioned authorization capabilities, and the one submit gate, shared by workflow, Forms, Layout, and navigation projections.",
   "dependencies": [],
-  "surfaceCounts": {"declarations": 12, "interfaces": 8, "typeAliases": 1, "classes": 2, "functions": 1, "closedLiteralMembers": 7},
+  "surfaceCounts": {"declarations": 14, "interfaces": 9, "typeAliases": 1, "classes": 2, "functions": 2, "closedLiteralMembers": 7},
   "fixtureCases": 23,
-  "exports": ["RoleVocabularyName", "RoleReference", "RoleOwner", "RoleDefinition", "RoleGate", "HeldRoleSet", "RecordStandingReference", "RoleVocabulary", "roleGateAllows", "AuthorizationCapabilityReference", "AuthorizationCapabilityDefinition", "AuthorizationCapabilityRegister"],
+  "exports": ["RoleVocabularyName", "RoleReference", "RoleOwner", "RoleDefinition", "RoleGate", "HeldRoleSet", "RecordStandingReference", "RoleVocabulary", "roleGateAllows", "AuthorizationCapabilityReference", "AuthorizationCapabilityDefinition", "AuthorizationCapabilityRegister", "SubmitGate", "submitGateIsWellFormed"],
   "invariants": [
     "Role references preserve the API wire's separate vocabulary and name members and accept only sys.platform-roles or tax.roles.",
     "Platform-owned roles live only in sys.platform-roles and are sealed; sys.platform-roles contains only Platform-owned sealed entries; taxonomy entries are unsealed and Package- or Tenant-owned.",
@@ -18,6 +18,7 @@
     "The fixed PlatformRoleVocabulary contains only Administrator and Auditor and contains no duty or job-title roles.",
     "The capability register holds code-declared capabilities named owner:operation in lower-case kebab segments, each with a version of at least 1; duplicate or malformed declarations are rejected, the register never mints a name, and an unknown or malformed reference is refused by name rather than string-matched (T-747, T-724 ruling 77).",
     "Capability references are name-only and have a wire shape distinct from role references.",
+    "SubmitGate is the one submit-gate type Forms (forms-ck-4) and Layout (layout-auth-23) share: exactly one of a role, a record standing or an authorization capability, each arm keeping its own wire shape; no engine declares a gate type of its own (T-724 ruling 81, T-755).",
     "The module owns no permissions, atoms, grants, capability bindings, standings computation, tenant derivation, persistence, HTTP client, or authorization administration behavior."
   ],
   "notScope": ["HTTP", "role minting", "permission atoms", "grants", "capability bindings", "capability decisions", "standing computation", "tenant scope derivation", "persistence"],

@@ -23,3 +23,7 @@ harborline-phase4-gate-report.json
 
 # Stryker.NET output (T-720); CI uploads the json report as an artifact.
 StrykerOutput/
+# StrykerJS (tooling/strykerjs.mjs): sandbox, in-place backups, setup files left by an aborted run, reports.
+.stryker-tmp/
+stryker-setup-*.js
+**/reports/mutation/

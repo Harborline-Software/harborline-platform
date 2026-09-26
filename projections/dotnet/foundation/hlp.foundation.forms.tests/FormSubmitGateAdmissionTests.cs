@@ -27,13 +27,13 @@ public sealed class FormSubmitGateAdmissionTests
         using var store = new InMemoryFormDefinitionStore(new FixedClock(Now), Register);
         var gate = arm switch
         {
-            "role" => new FormSubmitGate(Role: RoleReference.Domain("inspector")),
-            "standing" => new FormSubmitGate(Standing: new RecordStandingReference("author")),
-            _ => new FormSubmitGate(Capability: RoleGrant),
+            "role" => new SubmitGate(Role: RoleReference.Domain("inspector")),
+            "standing" => new SubmitGate(Standing: new RecordStandingReference("author")),
+            _ => new SubmitGate(Capability: RoleGrant),
         };
 
         var stored = await store.RegisterAsync(Form(gate));
-        var roundTripped = JsonSerializer.Deserialize<FormSubmitGate>(JsonSerializer.Serialize(stored.SubmitGate));
+        var roundTripped = JsonSerializer.Deserialize<SubmitGate>(JsonSerializer.Serialize(stored.SubmitGate));
 
         Assert.Equal(gate, stored.SubmitGate);
         Assert.Equal(gate, roundTripped);
@@ -46,8 +46,8 @@ public sealed class FormSubmitGateAdmissionTests
     {
         using var store = new InMemoryFormDefinitionStore(new FixedClock(Now), Register);
         var gate = twoArms
-            ? new FormSubmitGate(Role: RoleReference.Domain("inspector"), Capability: RoleGrant)
-            : new FormSubmitGate();
+            ? new SubmitGate(Role: RoleReference.Domain("inspector"), Capability: RoleGrant)
+            : new SubmitGate();
 
         var refusal = await Assert.ThrowsAsync<FormDefinitionValidationException>(async () => await store.RegisterAsync(Form(gate)));
 
@@ -59,7 +59,7 @@ public sealed class FormSubmitGateAdmissionTests
     public async Task FormOwnCapabilityIsRefused()
     {
         using var store = new InMemoryFormDefinitionStore(new FixedClock(Now), Register);
-        var definition = Form(new FormSubmitGate(Capability: new AuthorizationCapabilityReference("forms:submit-inspection")));
+        var definition = Form(new SubmitGate(Capability: new AuthorizationCapabilityReference("forms:submit-inspection")));
 
         var refusal = await Assert.ThrowsAsync<FormDefinitionValidationException>(async () => await store.RegisterAsync(definition));
 
@@ -75,12 +75,12 @@ public sealed class FormSubmitGateAdmissionTests
         using var store = new InMemoryFormDefinitionStore(new FixedClock(Now));
 
         var refusal = await Assert.ThrowsAsync<FormDefinitionValidationException>(
-            async () => await store.RegisterAsync(Form(new FormSubmitGate(Capability: RoleGrant))));
+            async () => await store.RegisterAsync(Form(new SubmitGate(Capability: RoleGrant))));
 
         Assert.Equal(FormDefinitionCodes.SubmitGateCapabilityUnknown, refusal.Code);
     }
 
-    private static FormDefinition Form(FormSubmitGate gate)
+    private static FormDefinition Form(SubmitGate gate)
     {
         var fields = new Dictionary<string, FieldOverlay> { ["name"] = new(InternationalizedText.FromInvariant("name")) };
         var access = new SectionAccess(ReadRoles: [RoleReference.Domain("*")], WriteRoles: [RoleReference.Domain("tenant:admin")]);

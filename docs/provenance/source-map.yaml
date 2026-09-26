@@ -30,10 +30,10 @@
         "conformance/hlp.contracts.authorization/fixtures.yaml": "9bb07384dee17fb705560d8c53874a576744c179daad946f96b45b450b4876a6",
         "conformance/hlp.contracts.authorization/runners/run-shared.mjs": "cbbc9783465ec71c0d3ef8f77acee86c27b11c69548358d9390f663aa9572801",
         "projections/dotnet/contracts/hlp.contracts.identities.tests/AuthorizationContractTests.cs": "a3070f00c0812a64e72ff191491104bda080761f72b9717aa903f7ad2dab589a",
-        "projections/dotnet/contracts/hlp.contracts.identities/Authorization/AuthorizationContracts.g.cs": "ec8f16350e46335d82e43128ba8d8e69b2be4f098c5816184d873a1b69391b75",
-        "projections/typescript/contracts/hlp.contracts.forms/src/authorization.ts": "3346fe9a148bd451baaa6ef8bfb3826fd64f72242a44e18fc39e91af5b705a43",
-        "projections/typescript/contracts/hlp.contracts.forms/tests/authorization.test.mjs": "06524ec466cc3a83b395efcb62e89cd6b6958258da9fa3c60bb86507a34b5261",
-        "specs/modules/contracts/hlp.contracts.authorization/interface.yaml": "4355787bacca5d9bf6603b208dab8813ec2588bbbfe13720c985983bc7a500e9"
+        "projections/dotnet/contracts/hlp.contracts.identities/Authorization/AuthorizationContracts.g.cs": "9757e30127c28977b2c13b9890f191d914677474eac6055bb5bb784fb798f0ac",
+        "projections/typescript/contracts/hlp.contracts.forms/src/authorization.ts": "a2c5a6d5c68d11f45f8a348bd825c572359a434f6146ec70f3454b9a9a5f0a96",
+        "projections/typescript/contracts/hlp.contracts.forms/tests/authorization.test.mjs": "4513cd81aa46d34a41b4da8ca2d24b60918fd7de534b91fc7745c2477c69db68",
+        "specs/modules/contracts/hlp.contracts.authorization/interface.yaml": "736256cd4623c741fdb0a2d06777861206af1600f22ce738ca545d4f36686995"
       },
       "nextGate": "Consumed by workflow, Forms, and app-shell role gates."
     },
@@ -91,7 +91,7 @@
         "projections/dotnet/foundation/hlp.foundation.rule-runtime/Model/RuleOutcome.cs": "f3a01ae9ca416d9d564a9482939fd66a680097318c48f5975a073b94d8ff6efa",
         "projections/dotnet/foundation/hlp.foundation.rule-runtime/RuleEngineLimits.cs": "f2df1e4d55bd151dbd111878cdef82f9163ab0371c36c675fb64fb7b61be2c0c",
         "projections/dotnet/foundation/hlp.foundation.rule-runtime/Harborline.Foundation.RuleEngine.csproj": "f6dd38c2716cd4b525efa0cfeac63e31d4abc21d16c2819dfa915c1ac625eb7e",
-        "projections/typescript/foundation/hlp.foundation.rule-runtime/package.json": "8676525338995dd98918a3a052a0ec131ec318694c1f1284d90bab87940000ac",
+        "projections/typescript/foundation/hlp.foundation.rule-runtime/package.json": "ce68d991fec4a63b9eeac801d45a17e7d8a18ca178fdb4c93ba8dfb56877413a",
         "projections/typescript/foundation/hlp.foundation.rule-runtime/src/compiler.ts": "8d76bb12bc3ee5cf29320d09fe0ace42ba3dbe10663929a40b45b1baf1b4ccf0",
         "projections/typescript/foundation/hlp.foundation.rule-runtime/src/graph.ts": "0a9db83857b3e9299292735d83046672678136a9f008cebd44fd3be322e57fc8",
         "projections/typescript/foundation/hlp.foundation.rule-runtime/src/jsonlogic.ts": "7d15d74fdaf0893f623fcb2882bb1824aac909d8672c60620ce71d29dc22c3e6",
@@ -120,7 +120,7 @@
         "projections/dotnet/foundation/hlp.foundation.rule-authoring/RuleSeeds.cs": "c5f87832d133d50ad0bff51f4a2ed97df521dd4cf95cf22efad7354151bdbb37",
         "projections/dotnet/foundation/hlp.foundation.rule-authoring/Harborline.Foundation.RuleAuthoring.csproj": "ddfcbc25626517e31a525eb254b64218b8e0bd2e4dabbd8c7e5455840d197b7d",
         "projections/dotnet/foundation/hlp.foundation.rule-authoring/SkinLowering.cs": "767c453655d11518eff69156d4ebee1ce127968dcdc62e0b583ce24ccfe57e3e",
-        "projections/typescript/foundation/hlp.foundation.rule-authoring/package.json": "80b158588c0792d4aa0ae3a11d61de28967ce136e0af8362aa4544ecc75176f9",
+        "projections/typescript/foundation/hlp.foundation.rule-authoring/package.json": "2d5aeefedcc6f4c69d3d073b12798c606b8f3fa808a7a37100abe6dd0ba0203a",
         "projections/typescript/foundation/hlp.foundation.rule-authoring/src/compile.ts": "769f529d586bd2f58093ae950e1998b6c1ab14f6bc9d27de22e5412c6bb08008",
         "projections/typescript/foundation/hlp.foundation.rule-authoring/src/definition-json.ts": "f8b2b8c2b798695ca596820c715d4471c0d26c17a2ffc3655fc75e952d12c5a4",
         "projections/typescript/foundation/hlp.foundation.rule-authoring/src/definition.ts": "0898665a8f585b9e4fb7d2398919aedfd44fa8932f48852c25ac1c56107f2418",
@@ -146,7 +146,7 @@
         "projections/dotnet/foundation/hlp.foundation.forms/ReuseResolver.cs": "36a67ce952aa9c3d37c2658508200df86f4ff0b9c166690a14957998bd354a17",
         "projections/dotnet/foundation/hlp.foundation.forms/FormDefinitionValidation.cs": "26773d9b29c208291c0e5b72e36f5bd6c18243cd053baf1a7bc0798b09023484",
         "projections/dotnet/foundation/hlp.foundation.forms/FormDefinitionAuthoringValidation.cs": "08c36e204f5dd54e3356e74ad9d0d89b60c35ed63088f56783f0fa6bc7a8e336",
-        "projections/dotnet/foundation/hlp.foundation.forms/Models/FormDefinition.cs": "03431749bad474dc76442f61cd8797fc28f12bfb0197dafed417b648984dd1db",
+        "projections/dotnet/foundation/hlp.foundation.forms/Models/FormDefinition.cs": "d9f721f011e2898960c447202ead64a6616c412911362b481f28e5eb0e3ddb1f",
         "projections/dotnet/foundation/hlp.foundation.forms/Models/FormDefinitionAuthoring.cs": "b4194fd50f235d207672f6fd9b975f4abe0c8cbba6bd10c2b64f17b79cd17e90",
         "projections/dotnet/foundation/hlp.foundation.forms/Drafts/IFormsActorScope.cs": "7230a137e53e7ce1d6084dd2ad620c1ab6445e4fc637051ab89eaaa328c4f955",
         "projections/dotnet/foundation/hlp.foundation.forms/Drafts/AuthenticatedFormsActorScope.cs": "a72347563c620cd4deb209e1026cd2f0b48deb25b5764e39c86e53a1b38ce683",
@@ -159,7 +159,7 @@
         "projections/dotnet/foundation/hlp.foundation.forms.tests/ReuseCascadeResolverTests.cs": "3e5ef84de250880b77f867b8015428beb2b9233f0454f769ab6be7e3711984c6",
         "projections/dotnet/foundation/hlp.foundation.forms.tests/SubmissionDraftTests.cs": "ac5aa07c5296b8aa0f0b15421b4447ca3dddabb0f9edd1f7ecea8f335ad47561",
         "projections/dotnet/foundation/hlp.foundation.forms.tests/FormsStateGapTests.cs": "72118c1379d9cbd7db373944e4edd7a2aac7af23c34591d2da3f9f19699d5d19",
-        "specs/modules/foundation/hlp.foundation.forms/interface.yaml": "54cd9ff34150d997a2f35048e0ec9a6c987b77d4f6d862421fd371f04def810e"
+        "specs/modules/foundation/hlp.foundation.forms/interface.yaml": "2dfa43e639012e79ef6e925add161e5d700bc0444ba811b442fa4bbb4d4b386f"
       },
       "nextGate": "Consume the package-green Forms state through the Forms Engine in the authenticated inspection-review vertical slice."
     },
@@ -203,7 +203,7 @@
         "projections/dotnet/foundation/hlp.foundation.forms-engine/FormCandidateEvaluator.cs": "d9379c1c1ac86ce5acfc153e2e0b6c2ff8a6b0189e40e374f1c7c9ed20c13699",
         "projections/dotnet/foundation/hlp.foundation.forms-engine/FormContractMapper.cs": "7c6b1fdc9bbb4431a93dc44b3d4b6f0af7eef1b7165d4282234016c3ad3c4f99",
         "projections/dotnet/foundation/hlp.foundation.forms-engine/FormEngine.cs": "52b9afd8018dad7186bdc786a50e8917d77fcbc49e0444eaec49eca6e21e77be",
-        "projections/dotnet/foundation/hlp.foundation.forms-engine/FormEngineContracts.cs": "6cd33971da32a81df122a7dc67f84539c125131316b423ced48b980bc25f3c4f",
+        "projections/dotnet/foundation/hlp.foundation.forms-engine/FormEngineContracts.cs": "2363c264464487796e5768cadd5baef5ca0a8843c2ec47a9d9e0ff7e99834549",
         "projections/dotnet/foundation/hlp.foundation.forms-engine/FormEngineExceptions.cs": "4f56de07105cc7a8fea3a0c78afe29bab4343e77e54d7c1c52639d6c355c2e96",
         "projections/dotnet/foundation/hlp.foundation.forms-engine/FormEngineOptions.cs": "32bad8fe54c34e2757fe30e4ae95bc76c6245e807b182cc9b966bcaa6342bd44",
         "projections/dotnet/foundation/hlp.foundation.forms-engine/Persistence/FileJournalFormSubmissionStore.cs": "5d0359b91725cf2b673a48ad3537692b9c69c6f6a1d2316d41645bce09f70888",
@@ -215,7 +215,7 @@
         "projections/dotnet/foundation/hlp.foundation.forms-engine/RuleCompileAdmission.cs": "34e17b89ea4570b2a42eb69312acc932a64ccf68a52ad73096c257fe82310965",
         "projections/dotnet/foundation/hlp.foundation.forms-engine/Security/FormFieldSecurity.cs": "b290e0be47db8065fd8732c38d18ee87d7ae471d8e2d6b356ef59f0d7f7138fd",
         "projections/dotnet/foundation/hlp.foundation.forms-engine/Security/TenantBoundAesGcmFormFieldSecurity.cs": "1b8c13084d4fb25f87cce282a32379fc863c4da5cfba70fd57b4d9240b76ab5d",
-        "specs/modules/foundation/hlp.foundation.forms-engine/interface.yaml": "bf4a33fdc2f66a12e25dcabf11fbee17203af2aa0978590cfae3e1f6dec91267"
+        "specs/modules/foundation/hlp.foundation.forms-engine/interface.yaml": "4cd5ea63d4583e0f9e78f346c3cd9557c6b75b6d6b3bc70a6ce59ca6d195250f"
       },
       "nextGate": "Prove the first authenticated inspection vertical: active-tenant list/detail, tenant-authored form, idempotent submit and calculation, durable inspection-review work item, approve/rework transition, and indistinguishable unknown/cross-tenant failures."
     },
