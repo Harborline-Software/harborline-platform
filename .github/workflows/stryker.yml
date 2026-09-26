@@ -45,18 +45,31 @@ jobs:
       DOTNET_CLI_TELEMETRY_OPTOUT: '1'
     steps:
       # fetch-depth 0 so refs/remotes/origin/main exists: the configs' since target and the script's changed-source
-      # test both diff against it. A plain clone, never a linked worktree (see tooling/stryker.mjs).
+      # test both diff against it. A plain clone, never a linked worktree (see tooling/stryker.mjs). Every later git
+      # call is local (diff, ls-files, rev-parse), so the checkout token is not left in .git/config.
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
           clean: true
+          persist-credentials: false
 
       - name: Restore the pinned dotnet-stryker
         run: dotnet tool restore
 
-      # The builder-definitions tests read DES-0007 from a control checkout, as verify's gate does.
+      # The builder-definitions tests read DES-0007 from a control checkout, as verify's gate does. The token reaches
+      # git as an environment-only config entry (GIT_CONFIG_COUNT): it is not in the URL, not in git's argv, and not
+      # written to the mirror's .git/config.
       - name: Mirror harborline-control for the tests that read it
-        run: git clone --quiet "https://x-access-token:${{ secrets.HARBORLINE_PINS_TOKEN }}@github.com/Harborline-Software/harborline-control.git" "$env:RUNNER_TEMP/harborline-control"
+        env:
+          PINS_TOKEN: ${{ secrets.HARBORLINE_PINS_TOKEN }}
+        run: |
+          $basic = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("x-access-token:$env:PINS_TOKEN"))
+          Write-Output "::add-mask::$basic"
+          $env:GIT_CONFIG_COUNT = '1'
+          $env:GIT_CONFIG_KEY_0 = 'http.https://github.com/.extraheader'
+          $env:GIT_CONFIG_VALUE_0 = "AUTHORIZATION: basic $basic"
+          git clone --quiet https://github.com/Harborline-Software/harborline-control.git "$env:RUNNER_TEMP/harborline-control"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Mutate changed .NET source (pull request)
         if: github.event_name == 'pull_request'

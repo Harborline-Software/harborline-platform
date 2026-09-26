@@ -2,7 +2,12 @@
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
 
-import {changedLines, configProblems, isTestProject, plainRazor, razorTested, reportCounts, repository, sourceDirectories, survivorsOnChangedLines, thresholdsFor} from '../stryker.mjs'
+import path from 'node:path'
+
+import {changedLines, configProblems, fullModeBreak, isTestProject, plainRazor, razorTested, reportCounts, repository, sourceDirectories,
+  survivorsOnChangedLines, testedInChanged, thresholdsFor} from '../stryker.mjs'
+
+const repoRoot = path.resolve('stryker-fixture-repo')
 
 const testCsproj = '<PackageReference Include="Microsoft.NET.Test.Sdk" /><ProjectReference Include="../lib/Lib.csproj" />'
 const config = (overrides = {}) => JSON.stringify({'stryker-config': {
@@ -101,11 +106,33 @@ test('PR feedback lists Survived and NoCoverage mutants on changed lines only (Q
   assert.deepEqual([...lines['p/lib/A.cs']], [11, 12, 22])
   assert.equal(lines['p/lib/Gone.cs'], undefined)
   const at = (line, status) => ({status, mutatorName: 'm', replacement: 'r', location: {start: {line}}})
+  // Report paths are absolute in the host's own form (Stryker writes them so), built here with node:path so the
+  // fixture holds on Windows and on the Linux verify-shared runner alike.
   const report = {files: {
-    'C:/repo/p/lib/A.cs': {mutants: [at(11, 'Survived'), at(12, 'Killed'), at(22, 'NoCoverage'), at(30, 'Survived')]},
-    'C:/repo/p/ui/obj/Debug/net10.0/stryker-razor/X_razor.cs': {mutants: [at(400, 'Survived')]}}}
-  assert.deepEqual(survivorsOnChangedLines(report, lines, 'C:/repo').map(s => `${s.file}:${s.line}:${s.status}`),
+    [path.join(repoRoot, 'p', 'lib', 'A.cs')]: {mutants: [at(11, 'Survived'), at(12, 'Killed'), at(22, 'NoCoverage'), at(30, 'Survived')]},
+    [path.join(repoRoot, 'p', 'ui', 'obj', 'Debug', 'net10.0', 'stryker-razor', 'X_razor.cs')]: {mutants: [at(400, 'Survived')]}}}
+  assert.deepEqual(survivorsOnChangedLines(report, lines, repoRoot).map(s => `${s.file}:${s.line}:${s.status}`),
     ['p/lib/A.cs:11:Survived', 'p/lib/A.cs:22:NoCoverage', 'p/ui/obj/Debug/net10.0/stryker-razor/X_razor.cs:400:Survived'])
+})
+
+test('the zero-mutant guard counts only mutants tested in the changed source, not ones a changed test pulled in', () => {
+  const killed = {mutants: [{status: 'Killed'}, {status: 'Survived'}]}
+  // A PR that changes A.cs and a test: Stryker tests B.cs mutants (covered by the changed test) and none in A.cs.
+  const elsewhere = {files: {[path.join(repoRoot, 'p', 'lib', 'B.cs')]: killed, [path.join(repoRoot, 'p', 'lib', 'A.cs')]: {mutants: [{status: 'Ignored'}]}}}
+  assert.equal(reportCounts(elsewhere).tested, 2)
+  assert.equal(testedInChanged(elsewhere, ['p/lib/A.cs'], repoRoot), 0)
+  assert.equal(testedInChanged({files: {[path.join(repoRoot, 'p', 'lib', 'A.cs')]: killed}}, ['p/lib/A.cs'], repoRoot), 2)
+  // Razor output counts only when a .razor changed.
+  const razor = {files: {[path.join(repoRoot, 'p', 'ui', 'obj', 'stryker-razor', 'X_razor.cs')]: killed}}
+  assert.equal(testedInChanged(razor, ['p/ui/X.razor'], repoRoot), 2)
+  assert.equal(testedInChanged(razor, ['p/ui/Y.cs'], repoRoot), 0)
+})
+
+test('full mode holds a project to the higher of its recorded baseline and its configured break', () => {
+  // Recorded 50, configured 70 by hand, score 60: the configured 70 binds.
+  assert.equal(fullModeBreak({break: 50}, {thresholds: {break: 70}}), 70)
+  assert.equal(fullModeBreak({break: 50}, {thresholds: {break: 50}}), 50)
+  assert.equal(fullModeBreak(undefined, {thresholds: {break: 40}}), 40)
 })
 
 test('a project compiles from its own directory and every directory it links', () => {
