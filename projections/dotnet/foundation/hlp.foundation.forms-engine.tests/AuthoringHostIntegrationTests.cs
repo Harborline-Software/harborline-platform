@@ -236,6 +236,8 @@ public sealed class AuthoringHostIntegrationTests
                 rules),
             null,
             DateTimeOffset.UnixEpoch,
-            DateTimeOffset.UnixEpoch);
+            DateTimeOffset.UnixEpoch,
+            SubmitGate: new Harborline.Contracts.Authorization.SubmitGate(
+                Role: Harborline.Contracts.Authorization.RoleReference.Domain("author")));
     }
 }
