@@ -1,4 +1,5 @@
 using Harborline.Blocks.BuilderDefinitions;
+using System.Text.Json.Nodes;
 
 using Xunit;
 
@@ -16,9 +17,9 @@ public sealed class TemplateCycleTests
     private static readonly TemplateSurfacePin Other = new("surface.statement", "1.0.0");
 
     // A page surface whose masthead block names a template (layout-ck-24).
-    private static LayoutDefinition Naming(string surfaceId, string templateId) => Surface(blocks:
+    private static LayoutDefinition Naming(string surfaceId, string templateId, string templateVersion) => Surface(blocks:
     [
-        new("masthead", "layout.document", new LayoutTemplateBinding(templateId), []),
+        new("masthead", "layout.document", new LayoutTemplateBinding(templateId, templateVersion), []),
         new("body", "layout.text", new LayoutStaticBinding(TemplateFixtures.Json("\"Body\"")), []),
     ]) is var surface ? surface with { Envelope = surface.Envelope with { Identity = surfaceId } } : null!;
 
@@ -27,8 +28,8 @@ public sealed class TemplateCycleTests
     {
         var template = Template("2.0.0");
         var surfaces = Surfaces(
-            new Dictionary<TemplateSurfacePin, string> { [template.Surface] = Canonical(Naming(SurfaceId, "template.invoice")) },
-            id => id == "template.invoice" ? template : null);
+            new Dictionary<TemplateSurfacePin, string> { [template.Surface] = Canonical(Naming(SurfaceId, "template.invoice", "2.0.0")) },
+            (id, version) => (id, version) == ("template.invoice", "2.0.0") ? template : null);
 
         Assert.Equal(
             [new TemplateRefusal(TemplateDefinitionCodes.CompositionCycle, "/surface/blocks/0/binding")],
@@ -46,9 +47,14 @@ public sealed class TemplateCycleTests
         };
         var surfaces = Surfaces(new Dictionary<TemplateSurfacePin, string>
         {
-            [invoice.Surface] = Canonical(Naming(SurfaceId, "template.statement")),
-            [Other] = Canonical(Naming(Other.SurfaceDefinitionId, "template.invoice")),
-        }, id => id switch { "template.invoice" => invoice, "template.statement" => statement, _ => null });
+            [invoice.Surface] = Canonical(Naming(SurfaceId, "template.statement", "1.0.0")),
+            [Other] = Canonical(Naming(Other.SurfaceDefinitionId, "template.invoice", "2.0.0")),
+        }, (id, version) => (id, version) switch
+        {
+            ("template.invoice", "2.0.0") => invoice,
+            ("template.statement", "1.0.0") => statement,
+            _ => null,
+        });
 
         Assert.Equal(
             [new TemplateRefusal(TemplateDefinitionCodes.CompositionCycle, "/surface/blocks/0/binding")],
@@ -57,9 +63,9 @@ public sealed class TemplateCycleTests
         var unrelated = Template("3.0.0") with { Envelope = Template().Envelope with { Identity = "template.cover", Version = "3.0.0" } };
         Assert.Empty(TemplateDefinitionAdmission.Validate(unrelated, Surfaces(new Dictionary<TemplateSurfacePin, string>
         {
-            [unrelated.Surface] = Canonical(Naming(SurfaceId, "template.statement")),
-            [Other] = Canonical(Naming(Other.SurfaceDefinitionId, "template.statement")),
-        }, id => id == "template.statement" ? statement : null)));
+            [unrelated.Surface] = Canonical(Naming(SurfaceId, "template.statement", "1.0.0")),
+            [Other] = Canonical(Naming(Other.SurfaceDefinitionId, "template.statement", "1.0.0")),
+        }, (id, version) => (id, version) == ("template.statement", "1.0.0") ? statement : null)));
     }
 
     [Fact(DisplayName = "documents-q8: a surface naming a different version of the same template is not a cycle and publishes")]
@@ -69,11 +75,28 @@ public sealed class TemplateCycleTests
         var candidate = Template("2.0.0");
         var surfaces = Surfaces(new Dictionary<TemplateSurfacePin, string>
         {
-            [candidate.Surface] = Canonical(Naming(SurfaceId, "template.invoice")),
+            [candidate.Surface] = Canonical(Naming(SurfaceId, "template.invoice", "1.0.0")),
             [Other] = Canonical(Surface() with { Envelope = Surface().Envelope with { Identity = Other.SurfaceDefinitionId } }),
-        }, id => id == "template.invoice" ? published : null);
+        }, (id, version) => (id, version) == ("template.invoice", "1.0.0") ? published : null);
 
         Assert.Empty(TemplateDefinitionAdmission.Validate(candidate, surfaces));
+    }
+
+    [Fact(DisplayName = "layout-ck-24: a binding pinned to the candidate version refuses even when the host's later version would not close the cycle")]
+    public void PinnedVersionClosesCycleIndependentlyOfTheHostsLaterVersion()
+    {
+        // layout-ck-24: the published binding's version, not a host-selected latest version, is the graph edge.
+        var candidate = Template("1.0.0");
+        var later = Template("2.0.0") with { Surface = Other };
+        var surfaces = Surfaces(new Dictionary<TemplateSurfacePin, string>
+        {
+            [candidate.Surface] = NamingPinned(SurfaceId, "template.invoice", "1.0.0"),
+            [Other] = Canonical(Surface() with { Envelope = Surface().Envelope with { Identity = Other.SurfaceDefinitionId } }),
+        }, (_, _) => later);
+
+        Assert.Equal(
+            [new TemplateRefusal(TemplateDefinitionCodes.CompositionCycle, "/surface/blocks/0/binding")],
+            TemplateDefinitionAdmission.Validate(candidate, surfaces));
     }
 
     [Fact(DisplayName = "documents-q8: a detached copy of a surface whose composition is the template adds no edge and publishes")]
@@ -97,8 +120,15 @@ public sealed class TemplateCycleTests
         {
             [pinned.Surface] = Canonical(copy),
             [template.Surface] = Canonical(source),
-        }, id => id == "template.invoice" ? template : null);
+        }, (id, version) => (id, version) == ("template.invoice", "2.0.0") ? template : null);
 
         Assert.Empty(TemplateDefinitionAdmission.Validate(pinned, surfaces));
+    }
+
+    private static string NamingPinned(string surfaceId, string templateId, string templateVersion)
+    {
+        var json = JsonNode.Parse(Canonical(Naming(surfaceId, templateId, "ignored")))!.AsObject();
+        json["blocks"]![0]!["binding"]!["template_version"] = templateVersion;
+        return json.ToJsonString();
     }
 }

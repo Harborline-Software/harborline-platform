@@ -57,12 +57,12 @@ internal static class TemplateFixtures
     public static TemplateSurfaces Surfaces(string surfaceJson)
         => Surfaces(new Dictionary<TemplateSurfacePin, string> { [new(SurfaceId, SurfaceVersion)] = surfaceJson });
 
-    /// <summary>Several published surfaces, and the host's resolution of a template id to the version it names.</summary>
+    /// <summary>Several published surfaces, and the host's exact resolution of a template id and version.</summary>
     public static TemplateSurfaces Surfaces(
-        IReadOnlyDictionary<TemplateSurfacePin, string> surfaces, Func<string, TemplateDefinition?>? templates = null) => new(
+        IReadOnlyDictionary<TemplateSurfacePin, string> surfaces, Func<string, string, TemplateDefinition?>? templates = null) => new(
         pin => surfaces.TryGetValue(pin, out var json) ? json : null,
         Admit,
-        templates ?? (_ => null));
+        templates ?? ((_, _) => null));
 
     public static string Canonical(LayoutDefinition surface) => Encoding.UTF8.GetString(LayoutDefinitionJson.SerializeCanonical(surface));
 
