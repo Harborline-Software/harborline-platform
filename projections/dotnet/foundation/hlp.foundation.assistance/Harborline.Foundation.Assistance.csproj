@@ -11,7 +11,6 @@
     <NoWarn>$(NoWarn);CS1591</NoWarn>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="../../blocks/hlp.blocks.builder-definitions/Harborline.Blocks.BuilderDefinitions.csproj" />
     <None Include="README.md" Pack="true" PackagePath="/" />
     <None Include="../../../../LICENSE" Link="LICENSE" Pack="true" PackagePath="/" />
   </ItemGroup>

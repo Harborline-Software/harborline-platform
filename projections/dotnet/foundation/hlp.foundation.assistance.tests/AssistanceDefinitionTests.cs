@@ -1,6 +1,5 @@
 using System.Reflection;
 using System.Text.Json;
-using Harborline.Blocks.BuilderDefinitions;
 using Harborline.Foundation.Assistance;
 using Xunit;
 
@@ -173,13 +172,6 @@ public sealed class AssistanceDefinitionTests
         // command id used to reach ValidateNarrowing's GetRawText() call on the default JsonElement
         // and throw InvalidOperationException instead of refusing.
         Assert.Contains(AssistanceDefinitionAdmission.AdmitJson(body, AssistanceAdmissionPhase.Install, Catalogue(), catalogue: null, previous: Definition()), refusal => refusal.Code == "definition.body_invalid");
-    }
-
-    [Fact]
-    public void Store_adapter_targets_the_reserved_pilot_namespace()
-    {
-        var document = new DefinitionDocument(new(Tenant, DefinitionKind.Pilot, Key), "1.0.0", "1.0.0", System.Text.Encoding.UTF8.GetString(AssistanceDefinitionJson.SerializeCanonical(Definition())));
-        Assert.Empty(AssistanceDefinitionStoreAdmission.Admit(document, DefinitionAdmissionPhase.Publish, Catalogue()));
     }
 
     private static AssistanceDefinition Definition(AssistanceClassificationTier tier = AssistanceClassificationTier.Ap, JsonElement? schema = null, IReadOnlyList<string>? recipients = null, string? archetype = "security-access-control", string? justification = "Human review is mandatory.") => new(

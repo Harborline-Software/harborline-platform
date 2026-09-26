@@ -2,7 +2,6 @@ using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
-using Harborline.Blocks.BuilderDefinitions;
 
 namespace Harborline.Foundation.Assistance;
 
@@ -169,17 +168,11 @@ public static class AssistanceDefinitionAdmission
     }
 }
 
-/// <summary>Adapter for binding Assistance under the shared catalogue's reserved <see cref="DefinitionKind.Pilot"/> namespace.</summary>
-public static class AssistanceDefinitionStoreAdmission
-{
-    public static IReadOnlyList<DefinitionRefusal> Admit(DefinitionDocument document, DefinitionAdmissionPhase phase) => Admit(document, phase, new EmptyCommandCatalogueRegistry());
-    public static IReadOnlyList<DefinitionRefusal> Admit(DefinitionDocument document, DefinitionAdmissionPhase phase, ICommandCatalogueRegistry commands, AssistanceDefinition? previous = null)
-    {
-        ArgumentNullException.ThrowIfNull(document);
-        var assistancePhase = phase switch { DefinitionAdmissionPhase.Author => AssistanceAdmissionPhase.Author, DefinitionAdmissionPhase.Publish => AssistanceAdmissionPhase.Publish, _ => AssistanceAdmissionPhase.Install };
-        return AssistanceDefinitionAdmission.AdmitJson(document.BodyJson, assistancePhase, commands, new(document.Key.Tenant, document.Key.DefinitionId, document.Version), previous).Select(refusal => new DefinitionRefusal(refusal.Code, refusal.Pointer)).ToArray();
-    }
-}
+// A store adapter binding this admission under the shared catalogue's reserved DefinitionKind.Pilot
+// namespace (hlp.blocks.builder-definitions) is deliberately not built in this foundation package:
+// foundation must not reference blocks (TierDirectionArchitectureTests), so that adapter belongs in
+// the blocks tier once a host actually consumes Pilot definitions - mirroring how DataExchange's own
+// foundation package carries no such adapter either.
 
 public sealed record AssistanceDefinitionPackageEntry(string DefinitionId, string Version, ReadOnlyMemory<byte> Content) { public int ContentKind => AssistancePackIdentity.ContentKind; }
 /// <summary>Admits at Publish and projects canonical bytes; publication itself belongs to the shared catalogue.</summary>
