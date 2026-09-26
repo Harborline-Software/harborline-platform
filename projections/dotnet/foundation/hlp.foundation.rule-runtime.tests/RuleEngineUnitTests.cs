@@ -77,6 +77,31 @@ public sealed class RuleEngineUnitTests
         Assert.Equal(RuleEngineCodes.CompileUnsupportedTier, ex.Code);
     }
 
+    [Fact]
+    public void Compile_refuses_malformed_json_schema_tier_rule_with_owning_id()
+    {
+        var rule = RuleDefinitionFactory.Create("schema.malformed", RuleTier.JsonSchema,
+            RuleScope.Schema, "", "{\"type\":", RuleActionKind.Validate);
+
+        var error = Assert.Throws<RuleCompilationException>(() => RuleCompiler.Compile(new[] { rule }));
+
+        Assert.Equal(RuleEngineCodes.CompileInvalidJsonSchema, error.Code);
+        Assert.Equal("schema.malformed", error.RuleId);
+        Assert.StartsWith("rule 'schema.malformed':", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Compile_admits_valid_json_schema_tier_rule()
+    {
+        var rule = RuleDefinitionFactory.Create("schema.valid", RuleTier.JsonSchema, RuleScope.Schema, "",
+            """{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"name":{"type":"string"}}}""",
+            RuleActionKind.Validate);
+
+        var compiled = RuleCompiler.Compile(new[] { rule });
+
+        Assert.Equal(0, compiled.RuleCount);
+    }
+
     [Theory]
     [InlineData(-1)]
     [InlineData(99)]
