@@ -20,3 +20,8 @@ artifacts/
 .codex/
 .wolf/
 harborline-phase4-gate-report.json
+
+# StrykerJS (tooling/strykerjs.mjs): sandbox, in-place backups, setup files left by an aborted run, reports.
+.stryker-tmp/
+stryker-setup-*.js
+**/reports/mutation/

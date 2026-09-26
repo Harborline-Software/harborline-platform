@@ -132,6 +132,8 @@
     "test:scheduler": "vitest run --config ../hlp.ui.scheduler/vitest.config.ts --root ../hlp.ui.scheduler -t \"^(?!.*\\[PerfBudget\\])\""
   },
   "devDependencies": {
+    "@stryker-mutator/core": "10.0.0",
+    "@stryker-mutator/vitest-runner": "10.0.0",
     "@testing-library/dom": "10.4.1",
     "@testing-library/jest-dom": "6.9.1",
     "@testing-library/react": "16.3.2",
@@ -175,6 +177,8 @@
     "react-dom": "R-0080",
     "typescript": "R-0086",
     "vitest": "R-0083",
-    "@testing-library/dom": "R-0083"
+    "@testing-library/dom": "R-0083",
+    "@stryker-mutator/core": "R-0083",
+    "@stryker-mutator/vitest-runner": "R-0083"
   }
 }
