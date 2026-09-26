@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import {test} from 'node:test'
 
-import {changedLines, configProblems, isTestProject, plainRazor, reportCounts, repository, sourceDirectories, survivorsOnChangedLines, thresholdsFor} from '../stryker.mjs'
+import {changedLines, configProblems, isTestProject, plainRazor, razorTested, reportCounts, repository, sourceDirectories, survivorsOnChangedLines, thresholdsFor} from '../stryker.mjs'
 
 const testCsproj = '<PackageReference Include="Microsoft.NET.Test.Sdk" /><ProjectReference Include="../lib/Lib.csproj" />'
 const config = (overrides = {}) => JSON.stringify({'stryker-config': {
@@ -111,4 +111,13 @@ test('PR feedback lists Survived and NoCoverage mutants on changed lines only (Q
 test('a project compiles from its own directory and every directory it links', () => {
   assert.deepEqual(sourceDirectories('p/ui/a/A.csproj', '<Compile Include="../b/**/*.cs" /><RazorComponent Include="../c/**/*.razor" />'),
     ['p/ui/a', 'p/ui/b', 'p/ui/c'])
+})
+
+test('a Razor report with no tested mutant in a .razor span is caught however many .cs mutants it tested (ruling 91)', () => {
+  // The first UIAdapters.Blazor baseline: 854 .cs mutants tested, every .razor span dropped by a '!**/stryker-razor/**' glob.
+  const csOnly = {files: {'C:\\r\\ui\\a\\Store.cs': {mutants: [{status: 'Killed'}, {status: 'Survived'}]}}}
+  assert.equal(razorTested(csOnly), 0)
+  // Stryker writes Windows paths with backslashes; the check normalizes them.
+  const withRazor = {files: {...csOnly.files, 'C:\\r\\ui\\a\\obj\\Debug\\net10.0\\stryker-razor\\G\\X_razor.cs': {mutants: [{status: 'Killed'}, {status: 'Ignored'}]}}}
+  assert.equal(razorTested(withRazor), 1)
 })

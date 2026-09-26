@@ -27,6 +27,11 @@ const read = file => existsSync(path.join(root, file)) ? readFileSync(path.join(
 
 export const isTestProject = text => testProjectMarker.test(text)
 
+// Tested mutants in the rewritten Razor output, i.e. in #line spans of .razor files. Ruling 91 (Q40): a Razor project
+// whose run tested none of them mutated no Razor, however many .cs mutants it tested.
+export const razorTested = report => reportCounts({files: Object.fromEntries(Object.entries(report?.files ?? {})
+  .filter(([file]) => file.replaceAll('\\', '/').includes('/stryker-razor/')))}).tested
+
 // Status names from the mutation-testing-report schema; the score is Stryker's own: detected / (detected + undetected).
 export function reportCounts(report) {
   const mutants = Object.values(report.files ?? {}).flatMap(file => file.mutants ?? [])
@@ -150,7 +155,10 @@ function razorRun(target, changed) {
   const intermediate = path.join(projectDirectory, dotnet('msbuild', target, '-nologo', '-getProperty:IntermediateOutputPath', '-p:Configuration=Debug').trim())
   const generated = path.join(intermediate, 'generated', 'Microsoft.CodeAnalysis.Razor.Compiler'), plain = path.join(intermediate, 'stryker-razor')
   rmSync(plain, {recursive: true, force: true})
-  const mutate = changed ? changed.filter(file => file.endsWith('.cs')).map(file => `**/${path.posix.basename(file)}`) : ['**/*.cs', '!**/stryker-razor/**']
+  // Full mode lists the tracked .cs sources by name rather than '**/*.cs' plus '!**/stryker-razor/**': Stryker lets an
+  // exclude beat every include, so that negation silently dropped all the .razor spans (T-720 baseline, 2026-09-26).
+  const sources = changed ?? git('ls-files', '--', ...sourceDirectories(target, read(target)).map(directory => `${directory}/*.cs`))
+  const mutate = sources.filter(file => file.endsWith('.cs') && !/\.tests\//.test(file)).map(file => `**/${path.posix.basename(file)}`)
   for (const file of readdirSync(generated, {recursive: true}).filter(name => name.endsWith('.g.cs'))) {
     const {source, text, spans} = plainRazor(readFileSync(path.join(generated, file), 'utf8'))
     const destination = path.join(plain, file.replace(/\.g\.cs$/, '.cs'))
@@ -186,7 +194,7 @@ function mutateProject(test, changed, strykerArgs) {
   const report = existsSync(reportPath) ? JSON.parse(readFileSync(reportPath, 'utf8')) : undefined
   const counts = report && reportCounts(report)
   console.log(`${test}: exit ${stryker.status}, ${JSON.stringify(counts ?? 'no json report')}, report ${reportPath}`)
-  return {status: stryker.status, counts, report, reportPath}
+  return {status: stryker.status, counts, report, reportPath, razor: Boolean(razor)}
 }
 
 // Lines added or changed since origin/main, per repository-relative file, from `git diff -U0` hunk headers.
@@ -235,7 +243,10 @@ function run(repo, only, strykerArgs) {
     const changed = git('diff', '--name-only', 'origin/main', '--', ...sourceDirectories(target, targetText).flatMap(directory =>
       razor ? [`${directory}/*.cs`, `${directory}/*.razor`] : [`${directory}/*.cs`])).filter(file => !/\.tests\//.test(file))
     if (!changed.length) { console.log(`${test}: no source change in ${path.posix.dirname(target)} since origin/main, skipped`); continue }
-    const {counts, report} = mutateProject(test, changed, strykerArgs)
+    const {counts, report, razor: isRazor} = mutateProject(test, changed, strykerArgs)
+    if (isRazor && changed.some(file => file.endsWith('.razor')) && !razorTested(report)) {
+      summarize(`### ${test}\n\n**FAIL**: a .razor file changed but 0 Razor mutants were tested.`); failed = true; continue
+    }
     // ponytail: a changed .cs file with nothing mutable in it (an interface, a comment) fails here; judge it by the report.
     if (!counts?.tested) { summarize(`### ${test}\n\n**FAIL**: ${changed.length} changed source file(s) but 0 mutants tested.`); failed = true; continue }
     const survivors = survivorsOnChangedLines(report, changedLines(git('diff', '-U0', 'origin/main', '--', ...changed).join('\n')))
@@ -252,8 +263,9 @@ function full(repo, only, strykerArgs, record) {
   let failed = false
   const commit = git('rev-parse', 'HEAD')[0], measured = new Date().toISOString().slice(0, 10)
   for (const test of selected(repo, only)) {
-    const {counts} = mutateProject(test, undefined, strykerArgs)
+    const {counts, report, razor: isRazor} = mutateProject(test, undefined, strykerArgs)
     if (!counts?.tested) { summarize(`- ${test}: **FAIL**, 0 mutants tested`); failed = true; continue }
+    if (isRazor && !razorTested(report)) { summarize(`- ${test}: **FAIL**, Razor project but 0 Razor mutants tested; nothing recorded`); failed = true; continue }
     if (!record) {
       const floor = repo.baselines[test]?.break, below = !(counts.score >= floor)
       summarize(`- ${test}: ${counts.tested} tested, score ${counts.score} %, break ${floor}${below ? ' **FAIL**' : ''}`)
