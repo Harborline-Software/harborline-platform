@@ -27,6 +27,8 @@
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
+    "@stryker-mutator/core": "10.0.0",
+    "@stryker-mutator/vitest-runner": "10.0.0",
     "@typescript/native": "npm:typescript@7.0.2",
     "eslint": "10.8.1",
     "typescript": "npm:@typescript/typescript6@6.0.2",
@@ -54,6 +56,8 @@
     "eslint": "R-0084",
     "typescript": "R-0086",
     "typescript-eslint": "R-0084",
-    "vitest": "R-0083"
+    "vitest": "R-0083",
+    "@stryker-mutator/core": "R-0083",
+    "@stryker-mutator/vitest-runner": "R-0083"
   }
 }
