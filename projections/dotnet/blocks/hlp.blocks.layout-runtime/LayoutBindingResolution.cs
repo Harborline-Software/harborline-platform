@@ -3,7 +3,6 @@ using System.Text.Json.Nodes;
 using Harborline.Blocks.BuilderDefinitions;
 using Harborline.Contracts.Forms;
 using Harborline.Foundation.RuleEngine;
-using Harborline.Foundation.RuleEngine.Compilation;
 using Harborline.Foundation.RuleEngine.Context;
 using Harborline.Foundation.RuleEngine.Evaluation;
 using RuleError = Harborline.Foundation.RuleEngine.Model.RuleError;
@@ -670,15 +669,10 @@ public sealed class LayoutBindingResolver
         var snapshot = RuleContextSnapshot.Capture(root.Values, scope.IsRow ? scope.Values : null);
         try
         {
-            // Evaluation is already fail-closed: a pending, errored or budget-aborted guard is
-            // Invalid. Compilation is NOT — the compiler throws on a malformed expression or a
-            // reference illegal at this scope — so an uncompilable guard withholds the block
-            // here rather than escaping as a fault that would blank the whole surface.
+            // Evaluation and compilation are fail-closed: a pending, errored, budget-aborted, or
+            // uncompilable guard is Invalid, so it withholds the block rather than blanking the
+            // whole surface.
             return _guards.EvaluateGuard(rule, snapshot, evalScope, LayoutExpressionEnvironment.Admitted.For(EvaluationPhase.Render), cancellationToken).Ok;
-        }
-        catch (RuleCompilationException)
-        {
-            return false;
         }
         catch (RuleEngineTimeoutException)
         {

@@ -200,6 +200,18 @@ public sealed class LayoutBindingResolutionTests
         }
     }
 
+    [Fact(DisplayName = "layout-eng-16 (runtime): an uncompilable ShowWhen is withheld by the shared evaluator")]
+    public void AnUncompilableShowWhenIsWithheldWithoutALayoutLocalCompilerCatch()
+    {
+        var resolution = Resolve(
+            Definition(LayoutMedium.Screen, LayoutIntent.Observe,
+                Block("gated", new LayoutRecordFieldBinding("supplier"), showWhen: "{\"frobnicate\":[1]}")),
+            Sources());
+
+        Assert.Equal("gated", Assert.Single(resolution.Hidden));
+        Assert.Empty(resolution.Blocks);
+    }
+
     [Fact(DisplayName = "layout-eng-16, layout-auth-20 (runtime): a guard that holds places the block through the shared evaluator")]
     public void AGuardThatHoldsPlacesTheBlockThroughTheSharedEvaluator()
     {
