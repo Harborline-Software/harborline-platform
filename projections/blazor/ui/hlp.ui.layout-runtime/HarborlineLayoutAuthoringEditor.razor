@@ -2,6 +2,8 @@
 @using Harborline.Foundation.RuleAuthoring
 @using Harborline.UIAdapters.Blazor.Components.RuleAuthoring
 <form class="hl-layout-authoring" @onsubmit="PreventSubmit">
+  @* T-583 item 2: the platform's refusal payload, verbatim. No local string table and no inferred policy. *@
+  @if (Refusal is { Refusals.Count: > 0 } refusal) { <section class="hl-layout-authoring__refusals" role="alert" data-refusal-stage="@refusal.Stage"><ul>@foreach (var item in refusal.Refusals) { <li data-refusal-code="@item.Code" data-refusal-pointer="@item.Pointer" data-refusal-target="@item.Target">@($"{refusal.Stage}: {item.Code} at {item.Pointer}{(item.Target is null ? "" : $" ({item.Target})")}")</li> }</ul></section> }
   <label>Layout name<input aria-label="Layout name" value="@Value.Name" @onchange="e => Change(Value with { Name = Text(e) })" /></label>
   <label>Medium<select aria-label="Layout medium" value="@Value.Medium" @onchange="e => Change(Value with { Medium = Text(e) })"><option value="screen">Screen</option><option value="page">Page</option></select></label>
   <label>Default intent<select aria-label="Default intent" value="@(Value.DefaultIntent ?? "observe")" @onchange="e => Change(Value with { DefaultIntent = Text(e) })">@Options(Intents)</select></label>
@@ -26,6 +28,8 @@
   [Parameter, EditorRequired] public LayoutAuthoringDraft Value { get; set; } = LayoutAuthoringDraft.Empty;
   [Parameter, EditorRequired] public LayoutAuthoringCatalogue Catalogue { get; set; } = new([], []);
   [Parameter] public EventCallback<LayoutAuthoringDraft> ValueChanged { get; set; }
+  /// <summary>The platform's refusal of this draft, displayed verbatim: the editor adds no message or policy of its own.</summary>
+  [Parameter] public LayoutRefusalEnvelope? Refusal { get; set; }
   private IReadOnlyList<LayoutAuthoringOption> Kinds => Catalogue.BlockKinds.Where(kind => CanonicalKinds.Contains(kind.Id)).ToArray();
   private static string Text(ChangeEventArgs args) => args.Value?.ToString() ?? "";
   private static bool IsChecked(ChangeEventArgs args) => args.Value is bool value && value;

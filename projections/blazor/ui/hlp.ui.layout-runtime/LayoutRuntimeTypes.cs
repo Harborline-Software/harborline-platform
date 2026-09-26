@@ -4,6 +4,15 @@ using Harborline.UIAdapters.Blazor.Components.RuleAuthoring;
 namespace Harborline.UIAdapters.Blazor.Components.Layout;
 
 public sealed record LayoutRuntimeDiagnostic(string Code, string Pointer);
+
+/// <summary>One stable refusal tuple; <paramref name="Target"/> names the fetchable definition and is present only when the platform judged it safe to reveal (T-724 ruling 61).</summary>
+public sealed record LayoutRefusal(string Code, string Pointer, string? Target = null);
+
+/// <summary>
+/// The shared refusal envelope as the platform returned it (T-583 item 2). <paramref name="Stage"/> is
+/// always stated, one of <c>author</c>, <c>publish</c>, <c>install</c> or <c>render</c> (T-724 rulings 79 and 80).
+/// </summary>
+public sealed record LayoutRefusalEnvelope(string Stage, IReadOnlyList<LayoutRefusal> Refusals);
 public sealed record LayoutRuntimeBlock(string Id, string Kind, int Depth, string? Zone = null);
 /// <summary>DES-0052 C1, layout-eng-26: the authority the platform returned with the surface. The lane derives nothing from it.</summary>
 public sealed record LayoutRuntimeAuthority(bool CanSubmit);
