@@ -130,13 +130,17 @@ public sealed class LayoutAuthorizationTests
 
         var authoringError = Assert.Throws<DefinitionRefusalException>(() =>
             LayoutDefinitionAdmission.ValidateForAuthoring(definition, LayoutHostRegisters.Platform, access));
-        Assert.Equal([LayoutDefinitionCodes.AuthorForbidden], authoringError.Refusals.Select(refusal => refusal.Code));
+        Assert.Equal(
+            [(LayoutDefinitionCodes.AuthorForbidden, "")],
+            authoringError.Refusals.Select(refusal => (refusal.Code, refusal.Pointer)));
         Assert.DoesNotContain(authoringError.Refusals, refusal => refusal.Code == LayoutDefinitionCodes.BindingUnreadable);
 
         var reference = new LayoutCompositionReference(LayoutCompositionKind.Form, "composition.orders", "1.0.0", "surface.orders", "1.0.0");
         var detachError = Assert.Throws<DefinitionRefusalException>(() =>
             LayoutComposition.Detach(reference, definition, definition.Envelope with { Identity = "surface.detached", Version = "1.0.0" }, access));
-        Assert.Equal([LayoutDefinitionCodes.AuthorForbidden], detachError.Refusals.Select(refusal => refusal.Code));
+        Assert.Equal(
+            [(LayoutDefinitionCodes.AuthorForbidden, "")],
+            detachError.Refusals.Select(refusal => (refusal.Code, refusal.Pointer)));
 
         LayoutDefinitionAdmission.ValidateForPublish(definition, LayoutHostRegisters.Platform, access);
     }
@@ -151,7 +155,9 @@ public sealed class LayoutAuthorizationTests
         var error = Assert.Throws<DefinitionRefusalException>(() =>
             LayoutDefinitionAdmission.ValidateForPublish(definition, LayoutHostRegisters.Platform, access));
 
-        Assert.Equal([LayoutDefinitionCodes.PublishForbidden], error.Refusals.Select(refusal => refusal.Code));
+        Assert.Equal(
+            [(LayoutDefinitionCodes.PublishForbidden, "")],
+            error.Refusals.Select(refusal => (refusal.Code, refusal.Pointer)));
     }
 
     private sealed class FixtureAccess(IEnumerable<string>? unreadable = null, IEnumerable<string>? unopenable = null, bool canAuthor = true, bool canPublish = true) : ILayoutAccess
