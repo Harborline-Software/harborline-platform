@@ -7,15 +7,19 @@
 }
 else if (Plan.Medium == "page")
 {
-  <article class="hl-layout-runtime hl-layout-runtime--page" data-definition-source="@Source" data-fragmentainer="page">@Content</article>
+  <article class="hl-layout-runtime hl-layout-runtime--page" data-definition-source="@Source" data-fragmentainer="page" data-layout-readonly="@ReadOnly">@Content</article>
 }
 else
 {
-  <section class="hl-layout-runtime hl-layout-runtime--screen" data-definition-source="@Source" data-fragmentainer="screen">@Content</section>
+  <section class="hl-layout-runtime hl-layout-runtime--screen" data-definition-source="@Source" data-fragmentainer="screen" data-layout-readonly="@ReadOnly">@Content</section>
 }
 
 @code {
   [Parameter, EditorRequired] public LayoutRuntimePlan Plan { get; set; } = new("", "", "screen", [], []);
+  /// <summary>Hands the submit to the host, which re-asks the platform's gate before any write.</summary>
+  [Parameter] public EventCallback OnSubmit { get; set; }
+  // layout-eng-26: read-only unless the platform's authority says this principal may submit.
+  private string? ReadOnly => Plan.Authority?.CanSubmit == true ? null : "true";
   private string Source => $"{{\"definitionId\":\"{Plan.DefinitionId}\",\"definitionVersionId\":\"{Plan.DefinitionVersionId}\"}}";
   private RenderFragment Content => builder =>
   {
@@ -34,6 +38,16 @@ else
       builder.AddAttribute(sequence++, "data-layout-kind", block.Kind);
       builder.AddAttribute(sequence++, "data-layout-depth", block.Depth);
       if (block.Zone is not null) builder.AddAttribute(sequence++, "data-layout-zone", block.Zone);
+      builder.AddAttribute(sequence++, "data-layout-readonly", ReadOnly);
+      builder.CloseElement();
+    }
+    if (ReadOnly is null)
+    {
+      builder.OpenElement(sequence++, "button");
+      builder.AddAttribute(sequence++, "type", "button");
+      builder.AddAttribute(sequence++, "data-layout-submit", true);
+      builder.AddAttribute(sequence++, "onclick", EventCallback.Factory.Create(this, () => OnSubmit.InvokeAsync()));
+      builder.AddContent(sequence++, "Submit");
       builder.CloseElement();
     }
   };

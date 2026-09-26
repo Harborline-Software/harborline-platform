@@ -31,6 +31,35 @@ public sealed class LayoutRuntimeTests : BunitContext
         Assert.Single(cut.FindAll("[role=alert]"));
     }
 
+    [Fact(DisplayName = "layout-eng-26: a full-data, deny-all authority renders every block read-only and leaves zero live submit controls")]
+    public void ADenyAllAuthorityRendersReadOnlyWithNoSubmitControl()
+    {
+        var plan = DenyAll();
+        var cut = Render<HarborlineLayoutRuntime>(parameters => parameters.Add(x => x.Plan, plan).Add(x => x.OnSubmit, () => throw new InvalidOperationException("No submit is live.")));
+        var blocks = cut.FindAll("[data-layout-block]");
+        Assert.Equal(["name", "orders", "orders-total"], blocks.Select(block => block.GetAttribute("data-layout-block")));
+        Assert.All(blocks, block => Assert.Equal("true", block.GetAttribute("data-layout-readonly")));
+        Assert.Empty(cut.FindAll("[data-layout-submit], button, input[type=submit]"));
+        // No authority at all is read-only too: the lane never assumes one.
+        Assert.Empty(Render<HarborlineLayoutRuntime>(parameters => parameters.Add(x => x.Plan, plan with { Authority = null })).FindAll("button"));
+    }
+
+    [Fact(DisplayName = "layout-eng-26: an admitted authority renders one submit control, which hands the submit to the host")]
+    public void AnAdmittedAuthorityRendersOneSubmitControl()
+    {
+        var submitted = 0;
+        var cut = Render<HarborlineLayoutRuntime>(parameters => parameters
+            .Add(x => x.Plan, DenyAll() with { Authority = new(CanSubmit: true) })
+            .Add(x => x.OnSubmit, () => submitted++));
+        Assert.Empty(cut.FindAll("[data-layout-readonly]"));
+        cut.FindAll("[data-layout-submit]").Single().Click();
+        Assert.Equal(1, submitted);
+    }
+
+    // The one platform model both lanes render (LayoutAuthorityGateTests derives the same flow and authority).
+    private static LayoutRuntimePlan DenyAll()
+        => JsonSerializer.Deserialize<LayoutRuntimePlan>(File.ReadAllText(Path.Combine(RepositoryRoot(), "_shared", "layout", "deny-all-authority.json")), new JsonSerializerOptions(JsonSerializerDefaults.Web))!;
+
     [Fact]
     public void EditorOffersTheClosedLayoutGrammarWithoutAReadingOrderOrNumericControl()
     {

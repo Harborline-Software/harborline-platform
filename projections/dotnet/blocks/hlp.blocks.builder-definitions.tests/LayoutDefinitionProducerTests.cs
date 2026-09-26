@@ -22,6 +22,10 @@ public sealed class LayoutDefinitionProducerTests
             Expression = "{\"!!\":[{\"var\":\"customer.name\"}]}",
             Action = Harborline.Contracts.Forms.RuleActionKind.Validate,
         },
+    ]), Roles: RoleVocabulary.FromApi(
+    [
+        // The fixture's submit gate names this role; publication resolves it (layout-auth-23).
+        new(Guid.Parse("7d4c1a9e-0000-4000-8000-000000000001"), RoleReference.Domain("customer-editor"), "Customer editor", new(RoleOwnerKind.Package, "orders-domain"), IsSealed: false),
     ]));
 
     [Theory]

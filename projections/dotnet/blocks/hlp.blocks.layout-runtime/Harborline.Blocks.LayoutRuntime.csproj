@@ -12,6 +12,7 @@
   <ItemGroup>
     <ProjectReference Include="../hlp.blocks.builder-definitions/Harborline.Blocks.BuilderDefinitions.csproj" />
     <ProjectReference Include="../../foundation/hlp.foundation.rule-runtime/Harborline.Foundation.RuleEngine.csproj" />
+    <ProjectReference Include="../../foundation/hlp.foundation.actor/Harborline.Foundation.Authorization.csproj" />
     <None Include="README.md" Pack="true" PackagePath="/" />
     <None Include="../../../../LICENSE" Link="LICENSE" Pack="true" PackagePath="/" />
   </ItemGroup>
