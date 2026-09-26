@@ -1,0 +1,108 @@
+using System.Text.Json;
+using Harborline.Contracts.Authorization;
+using Harborline.Foundation.Assets.Common;
+using Harborline.Foundation.Forms.Exceptions;
+using Harborline.Foundation.Forms.Models;
+using Xunit;
+
+namespace Harborline.Foundation.Forms.Tests;
+
+/// <summary>
+/// DES-0016 forms-ck-4 and forms-auth-16 (T-485 slice 3; T-724 ruling 77; T-747): the form declares who
+/// may submit it, as exactly one of a role, a standing or a capability Access registers.
+/// </summary>
+public sealed class FormSubmitGateAdmissionTests
+{
+    private static readonly DateTimeOffset Now = new(2026, 9, 25, 12, 0, 0, TimeSpan.Zero);
+    private static readonly AuthorizationCapabilityReference RoleGrant = new("access:role-grant");
+    private static readonly AuthorizationCapabilityRegister Register =
+        AuthorizationCapabilityRegister.FromDeclarations([new AuthorizationCapabilityDefinition(RoleGrant, 1)]);
+
+    public static TheoryData<string> Arms => ["role", "standing", "capability"];
+
+    [Theory(DisplayName = "forms-ck-4: a submit gate naming exactly one of role, standing or capability is stored and round-trips through JSON")]
+    [MemberData(nameof(Arms))]
+    public async Task OneArmGateIsStoredAndRoundTrips(string arm)
+    {
+        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now), Register);
+        var gate = arm switch
+        {
+            "role" => new FormSubmitGate(Role: RoleReference.Domain("inspector")),
+            "standing" => new FormSubmitGate(Standing: new RecordStandingReference("author")),
+            _ => new FormSubmitGate(Capability: RoleGrant),
+        };
+
+        var stored = await store.RegisterAsync(Form(gate));
+        var roundTripped = JsonSerializer.Deserialize<FormSubmitGate>(JsonSerializer.Serialize(stored.SubmitGate));
+
+        Assert.Equal(gate, stored.SubmitGate);
+        Assert.Equal(gate, roundTripped);
+    }
+
+    [Theory(DisplayName = "forms-ck-4: a submit gate naming no arm, or more than one, is refused by name")]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task MalformedGateIsRefused(bool twoArms)
+    {
+        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now), Register);
+        var gate = twoArms
+            ? new FormSubmitGate(Role: RoleReference.Domain("inspector"), Capability: RoleGrant)
+            : new FormSubmitGate();
+
+        var refusal = await Assert.ThrowsAsync<FormDefinitionValidationException>(async () => await store.RegisterAsync(Form(gate)));
+
+        Assert.Equal(FormDefinitionCodes.SubmitGateFormInvalid, refusal.Code);
+        Assert.Equal("/submit_gate", refusal.Target);
+    }
+
+    [Fact(DisplayName = "forms-auth-16: a form declaring a capability Access does not register is refused by name and persists nothing")]
+    public async Task FormOwnCapabilityIsRefused()
+    {
+        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now), Register);
+        var definition = Form(new FormSubmitGate(Capability: new AuthorizationCapabilityReference("forms:submit-inspection")));
+
+        var refusal = await Assert.ThrowsAsync<FormDefinitionValidationException>(async () => await store.RegisterAsync(definition));
+
+        Assert.Equal(FormDefinitionCodes.SubmitGateCapabilityUnknown, refusal.Code);
+        Assert.Equal("/submit_gate/capability/name", refusal.Target);
+        await Assert.ThrowsAsync<FormDefinitionNotFoundException>(
+            async () => await store.GetAsync(definition.Tenant, definition.Id, definition.Version));
+    }
+
+    [Fact(DisplayName = "forms-auth-16: with no Access register, every capability arm is refused")]
+    public async Task CapabilityArmWithoutRegisterIsRefused()
+    {
+        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now));
+
+        var refusal = await Assert.ThrowsAsync<FormDefinitionValidationException>(
+            async () => await store.RegisterAsync(Form(new FormSubmitGate(Capability: RoleGrant))));
+
+        Assert.Equal(FormDefinitionCodes.SubmitGateCapabilityUnknown, refusal.Code);
+    }
+
+    private static FormDefinition Form(FormSubmitGate gate)
+    {
+        var fields = new Dictionary<string, FieldOverlay> { ["name"] = new(InternationalizedText.FromInvariant("name")) };
+        var access = new SectionAccess(ReadRoles: [RoleReference.Domain("*")], WriteRoles: [RoleReference.Domain("tenant:admin")]);
+        return new FormDefinition(
+            Id: new FormDefinitionId("submit-gate"),
+            Version: new SemanticVersion(1, 0, 0),
+            Status: FormDefinitionStatus.Draft,
+            Tenant: new TenantId("tenant:acme"),
+            Owner: IdentityRef.System,
+            SchemaRef: new SchemaId("sha256:submit-gate"),
+            Overlay: new HarborlineOverlay(
+                Fields: fields,
+                Sections: [new FormSection("sec", InternationalizedText.FromInvariant("sec"), ["name"], access)],
+                Rules: []),
+            Lineage: null,
+            CreatedAt: Now,
+            UpdatedAt: Now,
+            SubmitGate: gate);
+    }
+
+    private sealed class FixedClock(DateTimeOffset now) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => now;
+    }
+}

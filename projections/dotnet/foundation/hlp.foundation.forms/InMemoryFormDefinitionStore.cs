@@ -1,3 +1,4 @@
+using Harborline.Contracts.Authorization;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -30,6 +31,7 @@ public sealed class InMemoryFormDefinitionStore : IFormDefinitionStore, IDisposa
 {
     private readonly SemaphoreSlim _mutationLock = new(initialCount: 1, maxCount: 1);
     private readonly TimeProvider _time;
+    private readonly AuthorizationCapabilityRegister? _capabilities;
 
     // tenant → id → version → definition
     private Dictionary<TenantId, Dictionary<FormDefinitionId, Dictionary<SemanticVersion, FormDefinition>>> _store = new();
@@ -38,10 +40,13 @@ public sealed class InMemoryFormDefinitionStore : IFormDefinitionStore, IDisposa
     /// <param name="time">Time source for lifecycle-transition timestamps.
     /// Pass <see cref="TimeProvider.System"/> in production; pass a test
     /// double for deterministic clocks in tests.</param>
-    public InMemoryFormDefinitionStore(TimeProvider time)
+    /// <param name="capabilities">Access's capability register a submit gate's capability arm resolves
+    /// through (forms-auth-16, T-747). Absent, every capability arm is refused.</param>
+    public InMemoryFormDefinitionStore(TimeProvider time, AuthorizationCapabilityRegister? capabilities = null)
     {
         ArgumentNullException.ThrowIfNull(time);
         _time = time;
+        _capabilities = capabilities;
     }
 
     /// <summary>Constructs a registry using <see cref="TimeProvider.System"/>.</summary>
@@ -89,9 +94,7 @@ public sealed class InMemoryFormDefinitionStore : IFormDefinitionStore, IDisposa
     public async ValueTask<FormDefinition> RegisterAsync(FormDefinition definition, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(definition);
-        FormDefinitionValidation.ValidateOverlayOrThrow(definition);
-        FormDefinitionValidation.ValidateSchemaRefOrThrow(definition);
-        FormDefinitionAuthoringValidation.ValidateOrThrow(definition);
+        ValidateDefinition(definition);
 
         await _mutationLock.WaitAsync(ct).ConfigureAwait(false);
         try
@@ -178,9 +181,7 @@ public sealed class InMemoryFormDefinitionStore : IFormDefinitionStore, IDisposa
     public async ValueTask<FormDefinition> CreateAsync(FormDefinition definition, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(definition);
-        FormDefinitionValidation.ValidateOverlayOrThrow(definition);
-        FormDefinitionValidation.ValidateSchemaRefOrThrow(definition);
-        FormDefinitionAuthoringValidation.ValidateOrThrow(definition);
+        ValidateDefinition(definition);
 
         await _mutationLock.WaitAsync(ct).ConfigureAwait(false);
         try
@@ -364,11 +365,12 @@ public sealed class InMemoryFormDefinitionStore : IFormDefinitionStore, IDisposa
         return rebuilt;
     }
 
-    private static void ValidateDefinition(FormDefinition definition)
+    private void ValidateDefinition(FormDefinition definition)
     {
         FormDefinitionValidation.ValidateOverlayOrThrow(definition);
         FormDefinitionValidation.ValidateSchemaRefOrThrow(definition);
         FormDefinitionAuthoringValidation.ValidateOrThrow(definition);
+        FormDefinitionValidation.ValidateSubmitGateOrThrow(definition, _capabilities);
     }
 
     private static bool IsIdenticalPublishedRetry(

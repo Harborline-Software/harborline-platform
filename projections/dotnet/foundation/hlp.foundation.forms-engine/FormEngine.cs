@@ -29,6 +29,7 @@ public sealed class FormEngine : IFormEngine
     private readonly FormEngineOptions _options;
     private readonly TimeProvider _clock;
     private readonly FormFieldBinding? _fieldBinding;
+    private readonly IFormSubmitGateAccess? _submitGates;
 
     public FormEngine(
         IFormExecutionContextProvider contexts,
@@ -43,8 +44,10 @@ public sealed class FormEngine : IFormEngine
         TimeProvider clock,
         IFormFieldBindingSource? fieldBindings = null,
         Harborline.Contracts.Fields.IFieldKindRuntime? fieldKinds = null,
-        Harborline.Contracts.Fields.IFieldDomainRuntime? fieldDomains = null)
+        Harborline.Contracts.Fields.IFieldDomainRuntime? fieldDomains = null,
+        IFormSubmitGateAccess? submitGates = null)
     {
+        _submitGates = submitGates;
         _contexts = contexts ?? throw new ArgumentNullException(nameof(contexts));
         _definitions = definitions ?? throw new ArgumentNullException(nameof(definitions));
         _reuse = reuse ?? throw new ArgumentNullException(nameof(reuse));
@@ -123,7 +126,9 @@ public sealed class FormEngine : IFormEngine
         ArgumentNullException.ThrowIfNull(request.Candidate);
         ArgumentException.ThrowIfNullOrWhiteSpace(request.IdempotencyKey);
         var scope = await RequiredScopeAsync(FormEngineAction.Submit, cancellationToken).ConfigureAwait(false);
-        var definition = await LoadEffectiveAsync(scope, request.FormId, cancellationToken).ConfigureAwait(false);
+        var head = await LoadPublishedAsync(scope, request.FormId, cancellationToken).ConfigureAwait(false);
+        await RequireSubmitGateAsync(scope, head, cancellationToken).ConfigureAwait(false);
+        var definition = await ResolveEffectiveAsync(head, cancellationToken).ConfigureAwait(false);
         FormSubmissionCommit? commit = null;
         var transaction = await ProviderAsync(
             () => KernelTransactionBoundary.ExecutePreparedAsync(
@@ -192,12 +197,31 @@ public sealed class FormEngine : IFormEngine
     }
 
     private async ValueTask<State.FormDefinition> LoadEffectiveAsync(FormExecutionScope scope, State.FormDefinitionId id, CancellationToken cancellationToken)
+        => await ResolveEffectiveAsync(await LoadPublishedAsync(scope, id, cancellationToken).ConfigureAwait(false), cancellationToken).ConfigureAwait(false);
+
+    private async ValueTask<State.FormDefinition> LoadPublishedAsync(FormExecutionScope scope, State.FormDefinitionId id, CancellationToken cancellationToken)
     {
         State.FormDefinition? definition;
         try { definition = await _definitions.GetCurrentPublishedAsync(scope.Tenant, id, cancellationToken).ConfigureAwait(false); }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch (Exception ex) { throw new FormEngineProviderUnavailableException(ex); }
-        if (definition is null) throw new FormEngineNotFoundException();
+        return definition ?? throw new FormEngineNotFoundException();
+    }
+
+    // forms-eng-2: the form's own gate is checked on the published head, before reuse, bindings or the candidate
+    // are resolved. A declared gate with no host port, or any port failure, refuses (deny by default).
+    private async ValueTask RequireSubmitGateAsync(FormExecutionScope scope, State.FormDefinition head, CancellationToken cancellationToken)
+    {
+        if (head.SubmitGate is not { } gate) return;
+        bool satisfied;
+        try { satisfied = gate.IsWellFormed && _submitGates is not null && await _submitGates.SatisfiesAsync(scope, head, gate, cancellationToken).ConfigureAwait(false); }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+        catch { satisfied = false; }
+        if (!satisfied) throw new FormEngineDeniedException();
+    }
+
+    private async ValueTask<State.FormDefinition> ResolveEffectiveAsync(State.FormDefinition definition, CancellationToken cancellationToken)
+    {
         try
         {
             var effective = (await _reuse.ResolveAsync(definition, cancellationToken).ConfigureAwait(false)).Effective;

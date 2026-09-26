@@ -1,3 +1,4 @@
+using Harborline.Contracts.Authorization;
 using Harborline.Foundation.Forms.Exceptions;
 using Harborline.Foundation.Forms.Models;
 
@@ -11,6 +12,29 @@ namespace Harborline.Foundation.Forms;
 /// </summary>
 internal static class FormDefinitionValidation
 {
+    /// <summary>
+    /// DES-0016 forms-ck-4 and forms-auth-16: a declared submit gate names exactly one arm, and its
+    /// capability arm resolves through Access's register. No register means no capability is admitted.
+    /// </summary>
+    public static void ValidateSubmitGateOrThrow(FormDefinition definition, AuthorizationCapabilityRegister? capabilities)
+    {
+        if (definition.SubmitGate is not { } gate) return;
+        if (!gate.IsWellFormed)
+            throw new FormDefinitionValidationException(
+                definition.Id, "submit_gate must name exactly one of role, standing or capability.",
+                FormDefinitionCodes.SubmitGateFormInvalid, "/submit_gate");
+        if (gate.Capability is { } capability && !IsRegistered(capability, capabilities))
+            throw new FormDefinitionValidationException(
+                definition.Id, $"submit_gate names capability '{capability.Name}', which Access does not declare.",
+                FormDefinitionCodes.SubmitGateCapabilityUnknown, "/submit_gate/capability/name");
+    }
+
+    private static bool IsRegistered(AuthorizationCapabilityReference capability, AuthorizationCapabilityRegister? capabilities)
+    {
+        try { return capabilities?.Resolve(capability) is not null; }
+        catch (ArgumentException) { return false; }
+    }
+
     /// <summary>
     /// Validates the Forms overlay: section ids unique, every field referenced by
     /// a section is declared in <see cref="HarborlineOverlay.Fields"/>, rule ids unique,
