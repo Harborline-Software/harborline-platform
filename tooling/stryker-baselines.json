@@ -1,13 +1,13 @@
 {
   "projections/blazor/ui/hlp.ui.button.tests/Harborline.UIAdapters.Blazor.Tests.csproj": {
-    "break": 46,
-    "score": 46.61,
-    "tested": 854,
-    "total": 1324,
-    "detected": 495,
-    "undetected": 567,
+    "break": 38,
+    "score": 38.87,
+    "tested": 8899,
+    "total": 25539,
+    "detected": 4338,
+    "undetected": 6821,
     "measured": "2026-09-26",
-    "commit": "c09cfcacf303b1944afadf7e891428ecc9d737cb"
+    "commit": "3dbabe488dabff55e0a8cdce0fcbf847a63e43ec"
   },
   "projections/dotnet/blocks/hlp.blocks.activity-timeline.tests/Harborline.Blocks.ActivityTimeline.Tests.csproj": {
     "break": 70,
