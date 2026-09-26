@@ -70,7 +70,7 @@ public sealed class LayoutDefinitionProducerTests
     {
         AssertRefusal(ScreenDefinition(block => block.Id == "query" ? block with { Container = null } : block),
             LayoutDefinitionCodes.ScopedContainerInvalid, "/blocks/0/children/1/repeating");
-        AssertRefusal(ScreenDefinition() with { DefaultIntent = LayoutIntent.Observe },
+        AssertRefusal(UnpinnedScreen() with { DefaultIntent = LayoutIntent.Observe },
             LayoutDefinitionCodes.SubmitGateInvalid, "/submit_gate");
         AssertRefusal(ScreenDefinition() with { SchemaVersion = 0 }, LayoutDefinitionCodes.EnvelopeInvalid, "/schema_version");
         var mixed = ScreenDefinition(block => block.Id == "static"
@@ -87,7 +87,7 @@ public sealed class LayoutDefinitionProducerTests
     public void ASubmitGateNamingAnUnregisteredCapabilityIsRefusedAtAuthoring()
     {
         var registers = Hosted with { Capabilities = Capabilities };
-        var unknown = ScreenDefinition() with { SubmitGate = new(Capability: new("layout:submit")) };
+        var unknown = UnpinnedScreen() with { SubmitGate = new(Capability: new("layout:submit")) };
 
         var error = Assert.Throws<DefinitionRefusalException>(() => LayoutDefinitionAdmission.ValidateForAuthoring(unknown, registers, LayoutTestAccess.GrantsAll));
 
@@ -104,7 +104,7 @@ public sealed class LayoutDefinitionProducerTests
     public void ASubmitGateCapabilityArmResolvesThroughTheRegister()
     {
         var registers = Hosted with { Capabilities = Capabilities };
-        var gated = ScreenDefinition() with { SubmitGate = new(Capability: new("records:write")) };
+        var gated = UnpinnedScreen() with { SubmitGate = new(Capability: new("records:write")) };
 
         LayoutDefinitionAdmission.ValidateForAuthoring(gated, registers, LayoutTestAccess.GrantsAll);
         LayoutDefinitionAdmission.ValidateForPublish(gated, registers, LayoutTestAccess.GrantsAll);
@@ -117,7 +117,7 @@ public sealed class LayoutDefinitionProducerTests
     public void ASubmitGateHoldsExactlyOneArm()
     {
         var registers = Hosted with { Capabilities = Capabilities };
-        LayoutDefinitionAdmission.ValidateForAuthoring(ScreenDefinition() with { SubmitGate = new(Standing: new("assigned-reviewer")) }, registers, LayoutTestAccess.GrantsAll);
+        LayoutDefinitionAdmission.ValidateForAuthoring(UnpinnedScreen() with { SubmitGate = new(Standing: new("assigned-reviewer")) }, registers, LayoutTestAccess.GrantsAll);
         foreach (var gate in new LayoutSubmitGate[]
         {
             new(),
@@ -127,7 +127,7 @@ public sealed class LayoutDefinitionProducerTests
         })
         {
             var error = Assert.Throws<DefinitionRefusalException>(() =>
-                LayoutDefinitionAdmission.ValidateForAuthoring(ScreenDefinition() with { SubmitGate = gate }, registers, LayoutTestAccess.GrantsAll));
+                LayoutDefinitionAdmission.ValidateForAuthoring(UnpinnedScreen() with { SubmitGate = gate }, registers, LayoutTestAccess.GrantsAll));
             Assert.Equal([new DefinitionRefusal(LayoutDefinitionCodes.SubmitGateFormInvalid, "/submit_gate")], error.Refusals);
         }
     }
@@ -278,7 +278,7 @@ public sealed class LayoutDefinitionProducerTests
         Assert.True(staticBlock.BreakAfter);
         Assert.Equal(["query"], Flatten(roundTrip.Blocks).Single(block => block.Id == "measure").FilterTargets);
         Assert.Equal(["surface.customer-detail"], roundTrip.DrillThroughTargets);
-        Assert.Equal(CustomerEditorGate, roundTrip.SubmitGate);
+        Assert.Null(roundTrip.SubmitGate);
 
         var json = Encoding.UTF8.GetString(canonical);
         Assert.Contains("\"form_definition_id\":\"form.customer\"", json, StringComparison.Ordinal);
@@ -693,8 +693,12 @@ public sealed class LayoutDefinitionProducerTests
                         breakAfter: true),
                 ]),
         };
-        return Definition(LayoutMedium.Screen, LayoutIntent.Capture, Map(blocks, mutate), submitGate: CustomerEditorGate, drillTargets: ["surface.customer-detail"]);
+        // The capture block pins a form, so the screen submits under that form's gate and declares none (layout-ck-31, T-724 ruling 81).
+        return Definition(LayoutMedium.Screen, LayoutIntent.Capture, Map(blocks, mutate), drillTargets: ["surface.customer-detail"]);
     }
+
+    // A screen that pins no form keeps its own submit gate (layout-ck-31).
+    private static LayoutDefinition UnpinnedScreen() => ScreenDefinition(block => block with { Form = null }) with { SubmitGate = CustomerEditorGate };
 
     private static LayoutDefinition PageDefinition(Func<LayoutBlock, LayoutBlock>? mutate = null)
     {

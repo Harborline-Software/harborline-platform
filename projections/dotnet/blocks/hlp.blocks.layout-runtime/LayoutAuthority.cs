@@ -62,6 +62,10 @@ public static class LayoutAuthorityGate
     {
         ArgumentNullException.ThrowIfNull(definition);
         ArgumentNullException.ThrowIfNull(submitter);
+        // layout-ck-31 (T-724 ruling 81): a surface that pins a form submits under that form's own gate alone,
+        // which the Forms engine decides. Installed content that still declares a gate of its own is refused here.
+        if (definition.SubmitGate is not null && LayoutDefinitionAdmission.PinsForm(definition))
+            throw new DefinitionRefusalException(DefinitionAdmissionPhase.Render, [new(LayoutDefinitionCodes.SubmitGateOnPinnedForm, "/submit_gate")]);
         // Only a capture-dominant surface submits. Its gate, when it declares one, and the Records write
         // check must both allow; either alone never does.
         var canSubmit = definition.DefaultIntent == LayoutIntent.Capture

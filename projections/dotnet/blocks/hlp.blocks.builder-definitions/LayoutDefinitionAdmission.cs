@@ -218,7 +218,10 @@ public static class LayoutDefinitionAdmission
                 Add(refusals, LayoutDefinitionCodes.DrillThroughForbidden, $"/drill_through_targets/{index}");
         }
         ValidatePages(definition, blockIds, registers.Pages, refusals);
-        if (definition.SubmitGate is { } submitGate)
+        // layout-ck-31 (T-724 ruling 81): a surface that pins a form submits under that form's gate alone.
+        if (definition.SubmitGate is not null && PinsForm(definition))
+            Add(refusals, LayoutDefinitionCodes.SubmitGateOnPinnedForm, "/submit_gate");
+        else if (definition.SubmitGate is { } submitGate)
             ValidateSubmitGate(submitGate, definition.DefaultIntent, registers, publishing: stage == DefinitionAdmissionPhase.Publish, refusals);
 
         if (refusals.Count > 0) throw new DefinitionRefusalException(stage, refusals);
@@ -269,6 +272,17 @@ public static class LayoutDefinitionAdmission
             return false;
         }
     }
+
+    /// <summary>Whether any block of <paramref name="definition"/> pins a form (layout-ck-37). Such a surface submits under the form's own gate (layout-ck-31, T-724 ruling 81).</summary>
+    /// <param name="definition">The surface.</param>
+    public static bool PinsForm(LayoutDefinition definition)
+    {
+        ArgumentNullException.ThrowIfNull(definition);
+        return PinsForm(definition.Blocks ?? []);
+    }
+
+    private static bool PinsForm(IReadOnlyList<LayoutBlock> blocks)
+        => blocks.Any(block => block is not null && (block.Form is not null || PinsForm(block.Children ?? [])));
 
     private static bool HasCapture(IReadOnlyList<LayoutBlock> blocks, LayoutIntent defaultIntent)
         => blocks.Any(block => block is not null
