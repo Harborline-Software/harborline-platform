@@ -437,7 +437,7 @@ public sealed record LayoutPageRun(
 /// <param name="PageLayouts">The page geometry definitions.</param>
 /// <param name="PageMasters">The static-region definitions.</param>
 /// <param name="PageRuns">The flow-content assignments.</param>
-/// <param name="SubmitGate">The optional submit gate: exactly one of a role, a standing or an authorization capability.</param>
+/// <param name="SubmitGate">The optional submit gate, the shared <c>hlp.contracts.authorization</c> type (layout-auth-23): exactly one of a role, a standing or an authorization capability. Refused on a surface that pins a form (layout-ck-31).</param>
 /// <param name="DrillThroughTargets">The released drill-through target identifiers.</param>
 public sealed record LayoutDefinition(
     LayoutDefinitionEnvelope Envelope,
@@ -448,23 +448,5 @@ public sealed record LayoutDefinition(
     IReadOnlyList<LayoutPageLayoutDefinition> PageLayouts,
     IReadOnlyList<LayoutPageMasterDefinition> PageMasters,
     IReadOnlyList<LayoutPageRun> PageRuns,
-    LayoutSubmitGate? SubmitGate,
+    SubmitGate? SubmitGate,
     IReadOnlyList<string> DrillThroughTargets);
-
-/// <summary>
-/// DES-0052 layout-auth-23 — a capture-dominant surface's submit gate. It names exactly one of a
-/// role, a record standing or an authorization capability (T-724 ruling 77); the capability arm
-/// resolves through Access's capability register (T-747).
-/// </summary>
-/// <param name="Role">The role a submitter must hold.</param>
-/// <param name="Standing">The standing a submitter must have on the record.</param>
-/// <param name="Capability">The authorization capability the submit is gated on.</param>
-public sealed record LayoutSubmitGate(
-    RoleReference? Role = null,
-    RecordStandingReference? Standing = null,
-    AuthorizationCapabilityReference? Capability = null)
-{
-    /// <summary>Whether the gate names exactly one arm.</summary>
-    [JsonIgnore]
-    public bool IsWellFormed => (Role is null ? 0 : 1) + (Standing is null ? 0 : 1) + (Capability is null ? 0 : 1) == 1;
-}

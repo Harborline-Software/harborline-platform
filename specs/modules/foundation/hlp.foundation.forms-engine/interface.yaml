@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.foundation.forms-engine",
-  "interfaceRevision": 12,
+  "interfaceRevision": 13,
   "status": "frozen",
   "purpose": "Own the complete tenant-scoped Dynamic Forms authoring admission, render, validate, calculate, protect, submit, audit, projection-outbox, and recovery behavior behind narrow caller interfaces and production-safe ports.",
   "dependencies": [
@@ -9,7 +9,7 @@
     {"moduleId": "hlp.contracts.identities", "minimumRevision": 1},
     {"moduleId": "hlp.contracts.fields", "minimumRevision": 1},
     {"moduleId": "hlp.foundation.actor", "minimumRevision": 1},
-    {"moduleId": "hlp.foundation.forms", "minimumRevision": 4},
+    {"moduleId": "hlp.foundation.forms", "minimumRevision": 5},
     {"moduleId": "hlp.foundation.rule-runtime", "minimumRevision": 2},
     {"moduleId": "hlp.foundation.tenancy", "minimumRevision": 1},
     {"moduleId": "hlp.kernel.core", "minimumRevision": 1},
@@ -47,7 +47,7 @@
     "recovery": ["lease pending outbox rows", "idempotent delivery", "complete or retry", "restart recovery", "duplicate-attempt suppression"]
   },
   "invariants": [
-    "Submit checks the form's own submit gate on the published head through the host's IFormSubmitGateAccess port before reuse, bindings or the candidate are resolved; a declared gate with no port, an unsatisfied gate or a failing port refuses with the generic denial and writes nothing.",
+    "Submit checks the form's own submit gate on the published head through the host's IFormSubmitGateAccess port, which receives the shared hlp.contracts.authorization SubmitGate (T-755), before reuse, bindings or the candidate are resolved; a declared gate with no port, an unsatisfied gate or a failing port refuses with the generic denial and writes nothing.",
     "Render decides each declared page's visibility through its Rules guard in the Render phase, over the same sensitive-stripped candidate its field rules read with resolved computed values materialised first, and projects the verdict, never the guard; a guard that does not evaluate hides its page.",
     "Bound fields use the shared field runtime for complete-membership narrowing, inherited domain authority, kind-limit execution and readable-domain editor choice; author-carried ControlHint does not select the rendered editor, including for unbound schemas.",
     "Unreadable or withheld fields expose neither permitted values nor a derived editor. Shared required, multiplicity, domain and kind validation receives the accepted candidate without rewriting its numeric spelling, and preserves neutral field.* refusals at escaped RFC 6901 pointers.",

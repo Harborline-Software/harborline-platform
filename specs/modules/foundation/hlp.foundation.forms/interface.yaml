@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.foundation.forms",
-  "interfaceRevision": 4,
+  "interfaceRevision": 5,
   "status": "frozen",
   "purpose": "Own complete caller-backed Dynamic Forms definition, immutable version, bounded reuse, authenticated draft, and pre-auth capture state without exposing persistence choreography or executable engine behavior.",
   "dependencies": [
@@ -29,7 +29,7 @@
     "Resume and abandon require both form id and case id; a mismatched route form cannot observe or delete the draft.",
     "Unresolved actors, tenants, parties, reusable units, and invalid trees fail before mutation.",
     "Pre-auth captures are ephemeral, defensively copied, and must promote or purge.",
-    "A declared submit gate names exactly one of role, standing or capability, and its capability arm resolves only through Access's capability register; with no register every capability arm is refused, so a form never owns a capability of its own."
+    "A declared submit gate names exactly one of role, standing or capability, and its capability arm resolves only through Access's capability register; with no register every capability arm is refused, so a form never owns a capability of its own. The gate is the shared hlp.contracts.authorization SubmitGate (T-755)."
   ],
   "resourceLimits": {"treeDepth": 32, "treeNodes": 4096, "contentNodesPerBlock": 256},
   "nativeEvidence": {"tests": 130, "sourceSuites": 8, "implementedGapCases": 9},

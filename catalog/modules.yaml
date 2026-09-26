@@ -3,7 +3,7 @@
   "repository": "harborline-platform",
   "modules": {
     "hlp.contracts.authorization": {
-      "interface": {"path": "specs/modules/contracts/hlp.contracts.authorization/interface.yaml", "revision": 2},
+      "interface": {"path": "specs/modules/contracts/hlp.contracts.authorization/interface.yaml", "revision": 3},
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "Qualified role vocabulary and deterministic gate resolution have no presentation surface."},
       "owner": "platform-contracts",
@@ -300,7 +300,7 @@
       }
     },
     "hlp.blocks.builder-definitions": {
-      "interface": {"path": "specs/modules/blocks/hlp.blocks.builder-definitions/interface.yaml", "revision": 10},
+      "interface": {"path": "specs/modules/blocks/hlp.blocks.builder-definitions/interface.yaml", "revision": 11},
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "Definition catalogue, package export, and replay are projection-neutral and have no presentation surface."},
       "owner": "platform-foundation",
@@ -335,7 +335,7 @@
       }
     },
     "hlp.blocks.layout-runtime": {
-      "interface": {"path": "specs/modules/blocks/hlp.blocks.layout-runtime/interface.yaml", "revision": 8},
+      "interface": {"path": "specs/modules/blocks/hlp.blocks.layout-runtime/interface.yaml", "revision": 9},
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "The definition resolver and flow planner return neutral render plans and own no framework presentation."},
       "owner": "platform-foundation",
@@ -930,7 +930,7 @@
       }
     },
     "hlp.foundation.forms": {
-      "interface": {"path": "specs/modules/foundation/hlp.foundation.forms/interface.yaml", "revision": 4},
+      "interface": {"path": "specs/modules/foundation/hlp.foundation.forms/interface.yaml", "revision": 5},
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "Definition lifecycle, bounded reuse, and draft state produce data consumed by separate renderers and the Forms Engine."},
       "owner": "platform-foundation",
@@ -965,7 +965,7 @@
       }
     },
     "hlp.foundation.forms-engine": {
-      "interface": {"path": "specs/modules/foundation/hlp.foundation.forms-engine/interface.yaml", "revision": 12},
+      "interface": {"path": "specs/modules/foundation/hlp.foundation.forms-engine/interface.yaml", "revision": 13},
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "The Forms Engine produces render and submission data consumed by separate React and Blazor renderers; it owns no visual implementation."},
       "owner": "platform-foundation",

@@ -85,6 +85,17 @@ export interface AuthorizationCapabilityDefinition {
   readonly version: number
 }
 
+/** The one submit gate Forms (forms-ck-4) and Layout (layout-auth-23) share: exactly one arm (T-724 rulings 77 and 81, T-755). */
+export interface SubmitGate {
+  readonly role?: RoleReference
+  readonly standing?: RecordStandingReference
+  readonly capability?: AuthorizationCapabilityReference
+}
+
+export function submitGateIsWellFormed(gate: SubmitGate): boolean {
+  return [gate.role, gate.standing, gate.capability].filter(arm => arm != null).length === 1
+}
+
 const capabilityName = /^[a-z][a-z0-9-]*:[a-z][a-z0-9-]*$/
 
 function validateCapability(capability: AuthorizationCapabilityReference): void {

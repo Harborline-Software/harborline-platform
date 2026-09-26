@@ -1,4 +1,5 @@
 using Harborline.Blocks.BuilderDefinitions;
+using Harborline.Contracts.Authorization;
 
 namespace Harborline.Blocks.LayoutRuntime;
 
@@ -10,7 +11,7 @@ public interface ILayoutSubmitAccess
 {
     /// <summary>Whether the principal satisfies the surface's submit gate: its role, standing or capability (layout-auth-23).</summary>
     /// <param name="gate">The admitted gate, holding exactly one arm.</param>
-    bool Satisfies(LayoutSubmitGate gate);
+    bool Satisfies(SubmitGate gate);
 
     /// <summary>The existing Records write check on the record the surface captures into.</summary>
     bool CanWrite();
@@ -62,6 +63,10 @@ public static class LayoutAuthorityGate
     {
         ArgumentNullException.ThrowIfNull(definition);
         ArgumentNullException.ThrowIfNull(submitter);
+        // layout-ck-31 (T-724 ruling 81): a surface that pins a form submits under that form's own gate alone,
+        // which the Forms engine decides. Installed content that still declares a gate of its own is refused here.
+        if (definition.SubmitGate is not null && LayoutDefinitionAdmission.PinsForm(definition))
+            throw new DefinitionRefusalException(DefinitionAdmissionPhase.Render, [new(LayoutDefinitionCodes.SubmitGateOnPinnedForm, "/submit_gate")]);
         // Only a capture-dominant surface submits. Its gate, when it declares one, and the Records write
         // check must both allow; either alone never does.
         var canSubmit = definition.DefaultIntent == LayoutIntent.Capture

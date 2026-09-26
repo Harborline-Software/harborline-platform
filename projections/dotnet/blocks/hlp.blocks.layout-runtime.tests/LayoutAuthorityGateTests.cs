@@ -96,6 +96,27 @@ public sealed class LayoutAuthorityGateTests
         Assert.False(LayoutAuthorityGate.Authority(ungated with { DefaultIntent = LayoutIntent.Observe }, new Authority()).CanSubmit);
     }
 
+    [Fact(DisplayName = "layout-ck-31, layout-auth-23: a surface that pins a form submits under the form's gate alone; installed content still declaring its own gate refuses at render (T-724 rulings 80, 81)")]
+    public void AFormPinningSurfaceSubmitsUnderTheFormGateAlone()
+    {
+        var pinned = Surface() with
+        {
+            Blocks = [.. Surface().Blocks, new LayoutBlock("inspection", "layout.form", new LayoutRecordFieldBinding("customer.name"), [],
+                Form: new LayoutFormReference("form.inspection", "form.inspection@1.0.0"))],
+            SubmitGate = null,
+        };
+        // Layout asks no gate of its own; the Records write check still applies.
+        var submitter = new Authority(gate: false);
+        Assert.True(LayoutAuthorityGate.Authority(pinned, submitter).CanSubmit);
+        Assert.Empty(submitter.Gates);
+        Assert.False(LayoutAuthorityGate.Authority(pinned, new Authority(write: false)).CanSubmit);
+
+        var legacy = pinned with { SubmitGate = Surface().SubmitGate };
+        var error = Assert.Throws<DefinitionRefusalException>(() => LayoutAuthorityGate.Authority(legacy, new Authority()));
+        Assert.Equal(DefinitionAdmissionPhase.Render, error.Stage);
+        Assert.Equal([new DefinitionRefusal(LayoutDefinitionCodes.SubmitGateOnPinnedForm, "/submit_gate")], error.Refusals);
+    }
+
     private static async Task<InMemoryVersionedDefinitionStore> Published()
     {
         var store = new InMemoryVersionedDefinitionStore(new Dictionary<DefinitionKind, DefinitionAdmission> { [DefinitionKind.Layout] = (_, _) => [] });
@@ -114,7 +135,7 @@ public sealed class LayoutAuthorityGateTests
             new LayoutBlock("orders", "layout.table", new LayoutQueryBinding("views.orders"), [], Intent: LayoutIntent.Observe),
             new LayoutBlock("orders-total", "layout.metric", new LayoutMeasureBinding("orders.total"), [], Intent: LayoutIntent.Observe),
         ],
-        [], [], [], new LayoutSubmitGate(Role: RoleReference.Domain("customer-editor")), []);
+        [], [], [], new SubmitGate(Role: RoleReference.Domain("customer-editor")), []);
 
     private static string RepositoryRoot()
     {
@@ -128,7 +149,7 @@ public sealed class LayoutAuthorityGateTests
     {
         public List<string> Opened { get; } = [];
 
-        public List<LayoutSubmitGate> Gates { get; } = [];
+        public List<SubmitGate> Gates { get; } = [];
 
         public bool CanRead(LayoutBinding binding) => read;
 
@@ -138,7 +159,7 @@ public sealed class LayoutAuthorityGateTests
             return open;
         }
 
-        public bool Satisfies(LayoutSubmitGate submitGate)
+        public bool Satisfies(SubmitGate submitGate)
         {
             Gates.Add(submitGate);
             return gate;

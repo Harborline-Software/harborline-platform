@@ -27,7 +27,7 @@ public interface IFormExecutionContextProvider
 /// </summary>
 public interface IFormSubmitGateAccess
 {
-    ValueTask<bool> SatisfiesAsync(FormExecutionScope scope, Harborline.Foundation.Forms.Models.FormDefinition definition, FormSubmitGate gate, CancellationToken cancellationToken = default);
+    ValueTask<bool> SatisfiesAsync(FormExecutionScope scope, Harborline.Foundation.Forms.Models.FormDefinition definition, SubmitGate gate, CancellationToken cancellationToken = default);
 }
 
 public sealed record FormSubmitRequest(
