@@ -54,13 +54,14 @@ public enum TemplateAdmissionStage
 /// <param name="Resolve">The published surface's canonical Layout JSON, or null when the pin resolves nothing.</param>
 /// <param name="Admit">Layout's admission of that JSON at the stage, as refusals relative to the surface root.</param>
 /// <param name="ResolveTemplate">
-/// The template version a surface block's template binding (layout-ck-24) resolves to, or null. Layout's binding
-/// names a template by id only, so the host owns the version it resolves, over the same state publication commits.
+/// The exact pinned template version a surface block's template binding (layout-ck-24) resolves to, or null.
+/// The host resolves that id-and-version pair only: it never follows latest-published or applies a host-side
+/// current-version resolution.
 /// </param>
 public sealed record TemplateSurfaces(
     Func<TemplateSurfacePin, string?> Resolve,
     Func<string, TemplateAdmissionStage, IReadOnlyList<TemplateRefusal>> Admit,
-    Func<string, TemplateDefinition?> ResolveTemplate);
+    Func<string, string, TemplateDefinition?> ResolveTemplate);
 
 /// <summary>Every refusal found at one admission stage.</summary>
 public sealed class TemplateAdmissionException(string stage, IReadOnlyList<TemplateRefusal> refusals)
@@ -168,28 +169,30 @@ public static class TemplateDefinitionAdmission
         {
             var (pin, firstHop) = pending.Pop();
             if (Parse(surfaces.Resolve(pin))?["blocks"] is not JsonArray blocks) continue;
-            foreach (var (templateId, pointer) in TemplateBindings(blocks, "/surface/blocks"))
+            foreach (var (templateId, templateVersion, pointer) in TemplateBindings(blocks, "/surface/blocks"))
             {
-                if (surfaces.ResolveTemplate(templateId) is not { Envelope: { } envelope } named) continue;
                 var hop = firstHop ?? pointer;
-                if ((envelope.Identity, envelope.Version) == self)
+                if ((templateId, templateVersion) == self)
                 {
                     refusals.Add(new(TemplateDefinitionCodes.CompositionCycle, hop));
                     return;
                 }
-                if (named.Surface is not null && seen.Add((envelope.Identity, envelope.Version))) pending.Push((named.Surface, hop));
+                if (surfaces.ResolveTemplate(templateId, templateVersion) is not { Envelope: { } envelope } named
+                    || (envelope.Identity, envelope.Version) != (templateId, templateVersion)) continue;
+                if (named.Surface is not null && seen.Add((templateId, templateVersion))) pending.Push((named.Surface, hop));
             }
         }
     }
 
-    private static IEnumerable<(string TemplateId, string Pointer)> TemplateBindings(JsonArray blocks, string pointer)
+    private static IEnumerable<(string TemplateId, string TemplateVersion, string Pointer)> TemplateBindings(JsonArray blocks, string pointer)
     {
         for (var index = 0; index < blocks.Count; index++)
         {
             var at = $"{pointer}/{index}";
             if (blocks[index]?["binding"] is JsonObject binding && Text(binding["binding_kind"]) == "template"
-                && Text(binding["template_definition_id"]) is { } id)
-                yield return (id, $"{at}/binding");
+                && Text(binding["template_definition_id"]) is { } id
+                && Text(binding["template_version"]) is { } version)
+                yield return (id, version, $"{at}/binding");
             if (blocks[index]?["children"] is JsonArray children)
                 foreach (var nested in TemplateBindings(children, $"{at}/children")) yield return nested;
         }
