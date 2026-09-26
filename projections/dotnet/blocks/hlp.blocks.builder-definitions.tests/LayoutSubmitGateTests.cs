@@ -62,6 +62,37 @@ public sealed class LayoutSubmitGateTests
             LayoutDefinitionCodes.SubmitGateCapabilityUnknown, "/submit_gate/capability/name");
     }
 
+    [Fact(DisplayName = "layout-ck-31, layout-auth-23: a surface that pins a form refuses its own submit_gate by name; the form's gate is the sole gate (T-724 ruling 81)")]
+    public void ASurfaceThatPinsAFormRefusesItsOwnSubmitGate()
+    {
+        var registers = LayoutHostRegisters.Platform with { Roles = Roles };
+        // The pin may sit anywhere in the tree, not only at the root.
+        var nested = new LayoutBlock("section", "layout.stack", new LayoutRecordFieldBinding("customer.name"), [PinnedForm],
+            Container: new LayoutContainer(LayoutContainerKind.Stack));
+        foreach (var blocks in new[] { new[] { PinnedForm }, [nested] })
+            AssertRefused(Capture(new(Role: Editor)) with { Blocks = blocks }, registers,
+                LayoutDefinitionCodes.SubmitGateOnPinnedForm, "/submit_gate");
+    }
+
+    [Fact(DisplayName = "layout-ck-31, layout-auth-23: a surface that pins no form keeps its own submit_gate, and a form-pinning surface with no gate of its own admits")]
+    public void AnUnpinnedSurfaceKeepsItsOwnGate()
+    {
+        var registers = LayoutHostRegisters.Platform with { Roles = Roles };
+        var unpinned = Capture(new(Role: Editor));
+        LayoutDefinitionAdmission.ValidateForAuthoring(unpinned, registers, LayoutTestAccess.GrantsAll);
+        LayoutDefinitionAdmission.ValidateForPublish(unpinned, registers, LayoutTestAccess.GrantsAll);
+        // Ruling 77's arm checks still apply to the unpinned surface's own gate.
+        AssertRefused(Capture(new(Role: RoleReference.Domain("customer-approver"))), registers,
+            LayoutDefinitionCodes.SubmitGateRoleUnknown, "/submit_gate/role");
+
+        var pinnedUngated = unpinned with { Blocks = [PinnedForm], SubmitGate = null };
+        LayoutDefinitionAdmission.ValidateForAuthoring(pinnedUngated, registers, LayoutTestAccess.GrantsAll);
+        LayoutDefinitionAdmission.ValidateForPublish(pinnedUngated, registers, LayoutTestAccess.GrantsAll);
+    }
+
+    private static readonly LayoutBlock PinnedForm = new("inspection", "layout.form", new LayoutRecordFieldBinding("customer.name"), [],
+        Form: new LayoutFormReference("form.inspection", "form.inspection@1.0.0"));
+
     private static void AssertRefused(LayoutDefinition definition, LayoutHostRegisters registers, string code, string pointer)
     {
         foreach (var validate in new Action[]

@@ -65,6 +65,8 @@ public static class LayoutDefinitionCodes
     public const string SubmitGateRoleUnknown = "layout.capture.submit_gate_role_unknown";
     /// <summary>A submit gate names a standing no installed standing rule declares (layout-auth-23).</summary>
     public const string SubmitGateStandingUnknown = "layout.capture.submit_gate_standing_unknown";
+    /// <summary>A surface that pins a form declares its own submit gate; the pinned form's gate is the sole gate for that submit (layout-ck-31, T-724 ruling 81).</summary>
+    public const string SubmitGateOnPinnedForm = "layout.capture.submit_gate_on_pinned_form";
     /// <summary>A screen arrangement would require two-dimensional scrolling at 320 CSS pixels.</summary>
     public const string ReflowForbidden = "layout.placement.reflow_forbidden";
     /// <summary>A published payload does not declare Layout's capability with an exact minimum platform version.</summary>
