@@ -19,6 +19,7 @@
     <ProjectReference Include="../../kernel/hlp.kernel.schema-validation/Harborline.Kernel.SchemaValidation.csproj" />
     <ProjectReference Include="../../kernel/hlp.kernel.work-items/Harborline.Kernel.WorkItems.csproj" />
     <ProjectReference Include="../../foundation/hlp.foundation.actor/Harborline.Foundation.Authorization.csproj" />
+    <ProjectReference Include="../../foundation/hlp.foundation.assistance/Harborline.Foundation.Assistance.csproj" />
     <ProjectReference Include="../../foundation/hlp.foundation.data-exchange/Harborline.Foundation.DataExchange.csproj" />
     <ProjectReference Include="../../foundation/hlp.foundation.documents/Harborline.Foundation.Documents.csproj" />
     <ProjectReference Include="../../foundation/hlp.foundation.forms/Harborline.Foundation.Forms.csproj" />
