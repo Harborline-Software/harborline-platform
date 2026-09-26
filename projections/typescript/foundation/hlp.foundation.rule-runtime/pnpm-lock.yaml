@@ -9,6 +9,10 @@ overrides:
   nanoid@<3.3.18: '>=3.3.18'
   postcss@<=8.5.17: '>=8.5.18'
 
+patchedDependencies:
+  '@stryker-mutator/core@10.0.0': aaa9352ad292c7442e4dfda7c8b4e14b5812355737b7cc1b842d7b8dfdcb225c
+  '@stryker-mutator/vitest-runner@10.0.0': ad1830ce17e952b0c741c7ed3ec881304ff05836076b5e5e27d2704e9bfd5577
+
 importers:
 
   .:
@@ -18,10 +22,10 @@ importers:
         version: 10.0.1(eslint@10.7.0)
       '@stryker-mutator/core':
         specifier: 10.0.0
-        version: 10.0.0
+        version: 10.0.0(patch_hash=aaa9352ad292c7442e4dfda7c8b4e14b5812355737b7cc1b842d7b8dfdcb225c)
       '@stryker-mutator/vitest-runner':
         specifier: 10.0.0
-        version: 10.0.0(@stryker-mutator/core@10.0.0)(vitest@4.1.11(vite@8.1.1))
+        version: 10.0.0(patch_hash=ad1830ce17e952b0c741c7ed3ec881304ff05836076b5e5e27d2704e9bfd5577)(@stryker-mutator/core@10.0.0(patch_hash=aaa9352ad292c7442e4dfda7c8b4e14b5812355737b7cc1b842d7b8dfdcb225c))(vitest@4.1.11(vite@8.1.1))
       '@typescript/native':
         specifier: npm:typescript@7.0.2
         version: typescript@7.0.2
@@ -2125,7 +2129,7 @@ snapshots:
       tslib: 2.8.1
       typed-inject: 5.0.0
 
-  '@stryker-mutator/core@10.0.0':
+  '@stryker-mutator/core@10.0.0(patch_hash=aaa9352ad292c7442e4dfda7c8b4e14b5812355737b7cc1b842d7b8dfdcb225c)':
     dependencies:
       '@inquirer/prompts': 8.7.2
       '@stryker-mutator/api': 10.0.0
@@ -2175,10 +2179,10 @@ snapshots:
 
   '@stryker-mutator/util@10.0.0': {}
 
-  '@stryker-mutator/vitest-runner@10.0.0(@stryker-mutator/core@10.0.0)(vitest@4.1.11(vite@8.1.1))':
+  '@stryker-mutator/vitest-runner@10.0.0(patch_hash=ad1830ce17e952b0c741c7ed3ec881304ff05836076b5e5e27d2704e9bfd5577)(@stryker-mutator/core@10.0.0(patch_hash=aaa9352ad292c7442e4dfda7c8b4e14b5812355737b7cc1b842d7b8dfdcb225c))(vitest@4.1.11(vite@8.1.1))':
     dependencies:
       '@stryker-mutator/api': 10.0.0
-      '@stryker-mutator/core': 10.0.0
+      '@stryker-mutator/core': 10.0.0(patch_hash=aaa9352ad292c7442e4dfda7c8b4e14b5812355737b7cc1b842d7b8dfdcb225c)
       '@stryker-mutator/util': 10.0.0
       semver: 7.8.5
       tslib: 2.8.1
