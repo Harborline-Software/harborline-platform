@@ -43,6 +43,7 @@ public sealed class WorkflowTriggerDispatcher : IWorkflowTriggerDispatcher
     private readonly IWorkflowStore _store;
     private readonly FrozenDictionary<string, IWorkflowStepHandler> _handlers;
     private readonly IDeclarativeWorkflowInterpreter? _interpreter;
+    private readonly IWorkflowDefinitionExecutionStore? _definitionStore;
     private readonly WorkflowEngineOptions _options;
 
     /// <summary>
@@ -61,16 +62,22 @@ public sealed class WorkflowTriggerDispatcher : IWorkflowTriggerDispatcher
     /// (the pre-A1 posture) an unhandled definition throws, exactly as before. A registered typed handler
     /// always wins for its key, so the interpreter is purely additive.
     /// </param>
+    /// <param name="definitionStore">
+    /// The execution-only definition store. Every non-terminal dispatch loads the instance's exact pinned
+    /// revision through this re-admitting face before either a typed handler or the interpreter may run.
+    /// </param>
     public WorkflowTriggerDispatcher(
         IWorkflowStore store,
         IEnumerable<IWorkflowStepHandler> handlers,
         WorkflowEngineOptions? options = null,
-        IDeclarativeWorkflowInterpreter? interpreter = null)
+        IDeclarativeWorkflowInterpreter? interpreter = null,
+        IWorkflowDefinitionExecutionStore? definitionStore = null)
     {
         _store = store ?? throw new ArgumentNullException(nameof(store));
         ArgumentNullException.ThrowIfNull(handlers);
         _handlers = handlers.ToFrozenDictionary(h => h.DefinitionKey, StringComparer.Ordinal);
         _interpreter = interpreter;
+        _definitionStore = definitionStore;
         _options = (options ?? WorkflowEngineOptions.Default).Validated();
     }
 
@@ -100,6 +107,19 @@ public sealed class WorkflowTriggerDispatcher : IWorkflowTriggerDispatcher
         {
             return WorkflowDispatchResult.ReplayedNoOp;
         }
+
+        // ── PINNED DEFINITION GATE ──
+        // The execution-store face loads the instance's exact (tenant, key, version) revision and re-runs
+        // admission against the current capability-authority registry. It throws the established
+        // WorkflowDefinitionNotFoundException / WorkflowAdmissionException failure modes, so neither a typed
+        // handler nor the interpreter can execute without a present, admitted, authority-derived definition.
+        // Keep this before branch selection: typed handlers are not allowed to bypass the interpreter's gate.
+        var definitionStore = _definitionStore ?? throw new InvalidOperationException(
+            $"No {nameof(IWorkflowDefinitionExecutionStore)} is configured for dispatch of instance " +
+            $"'{trigger.InstanceId}'. Execution requires a pinned, re-admitted workflow definition.");
+        await definitionStore
+            .GetAdmittedAsync(instance.TenantId, instance.DefinitionKey, instance.DefinitionVersion, ct)
+            .ConfigureAwait(false);
 
         // A registered per-definition handler always wins for its key (the hand-audited invoice / recurring /
         // kg handlers). The general A1 interpreter is the FALLBACK: consulted only when no typed handler
