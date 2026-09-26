@@ -25,7 +25,7 @@ public sealed class SchedulingTelemetryTests
 
         var refusal = Assert.Single(measurements.ForInstrument("scheduling.admission.refusals"));
         Assert.Equal(1, refusal.Value);
-        Assert.Equal("duplicate_fact_set_pin", refusal.Tags["reason"]);
+        Assert.Equal("invalid_fact_set_pin", refusal.Tags["reason"]);
     }
 
     [Fact]
@@ -45,13 +45,20 @@ public sealed class SchedulingTelemetryTests
 
         var proposal = solver.Solve(problem, deterministicWorkBudget: 10);
 
+        // Both activities compete for the single resource-1 candidate in the same slot, so the
+        // greedy solver deterministically assigns activity-1 and dead-ends on activity-2. These are
+        // concrete expectations from the fixture shape, not re-derived from the proposal under test,
+        // so a wrong solver outcome (and a telemetry value that merely mirrors it) cannot both pass.
+        Assert.Equal(SolveStatus.Partial, proposal.Status);
+        Assert.Equal("GREEDY_DEAD_END", proposal.ReasonCode);
+        Assert.Single(proposal.Assignments);
+
         var duration = Assert.Single(measurements.ForInstrument("scheduling.plan.duration_ms"));
         Assert.Equal(solver.SolverId, duration.Tags["solver_id"]);
         var unassigned = Assert.Single(measurements.ForInstrument("scheduling.plan.unassigned"));
-        Assert.Equal(problem.Activities.Count - proposal.Assignments.Count, unassigned.Value);
+        Assert.Equal(1, unassigned.Value);
         Assert.Equal(solver.SolverId, unassigned.Tags["solver_id"]);
-        Assert.Equal(proposal.ReasonCode, unassigned.Tags["reason_code"]);
-        Assert.True(unassigned.Value > 0);
+        Assert.Equal("GREEDY_DEAD_END", unassigned.Tags["reason_code"]);
     }
 
     [Fact]

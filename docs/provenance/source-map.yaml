@@ -508,7 +508,7 @@
         "projections/dotnet/blocks/hlp.blocks.scheduling/LeaseContracts.cs": "16dd8c98385d004db99f27f5ba8c5d490bbe61a796b2379df5f2e4580d2c3127",
         "projections/dotnet/blocks/hlp.blocks.scheduling/Models/ReservationOutcome.cs": "98c844e82a9417e37dbe750da458339e38d105e4040a4270d25c312eebee5465",
         "projections/dotnet/blocks/hlp.blocks.scheduling/Models/SlotReservation.cs": "0d16e2fec46cd63c0ef25f979534202499bceded2975a562f45e0cd2d3b636f6",
-        "projections/dotnet/blocks/hlp.blocks.scheduling/Planning/FiniteCandidateCompiler.cs": "37a721da0295d881902410e1855d90616011fd1b3cd4e64b97e10bd14f26b9c3",
+        "projections/dotnet/blocks/hlp.blocks.scheduling/Planning/FiniteCandidateCompiler.cs": "47e7974e585bb6eb3ddb454c64f34f41f246405d3af34a98b30016c4f190c83a",
         "projections/dotnet/blocks/hlp.blocks.scheduling/Planning/FixturePlanning.cs": "87a5d6b8fb2c7be92e5a90e75220c55b9027939a1acdc976af80c3ae76a71fd0",
         "projections/dotnet/blocks/hlp.blocks.scheduling/Planning/Fixtures/README.md": "56b43ade20114968f07e0173d66244ab0265dc9bbbd0b699888a5f75ef0ad1e5",
         "projections/dotnet/blocks/hlp.blocks.scheduling/Planning/Fixtures/construction-multifamily.feasible.json": "50a44636a1abd756642fa5def7b93b9e2a5c6f0ca700a04cbda7d10260d7906b",

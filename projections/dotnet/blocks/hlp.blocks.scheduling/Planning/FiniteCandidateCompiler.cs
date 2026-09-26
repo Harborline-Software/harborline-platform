@@ -123,7 +123,7 @@ public sealed class FiniteCandidateCompiler
                 !PlanningFactSets.Required.Contains(value.FactSet, StringComparer.Ordinal) ||
                 string.IsNullOrWhiteSpace(value.Version)))
         {
-            SchedulingTelemetry.RecordAdmissionRefusal("duplicate_fact_set_pin");
+            SchedulingTelemetry.RecordAdmissionRefusal("invalid_fact_set_pin");
             throw new UnsupportedProfileException(
                 "Planning fact-set pins must have unique supported names and non-empty versions.");
         }
