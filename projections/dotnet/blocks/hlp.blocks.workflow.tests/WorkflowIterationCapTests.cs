@@ -27,7 +27,7 @@ public sealed class WorkflowIterationCapTests
     }
 
     /// <summary>A minimal in-memory store: instances (with the durable iteration) + idempotency rows.</summary>
-    private sealed class InMemoryStore : IWorkflowStore
+    private sealed class InMemoryStore : IWorkflowStore, IWorkflowDefinitionExecutionStore
     {
         private readonly Dictionary<string, WorkflowInstanceRecord> _instances = new();
         private readonly Dictionary<string, WorkflowStepIdempotencyRecord> _idem = new();
@@ -69,6 +69,16 @@ public sealed class WorkflowIterationCapTests
             return Task.CompletedTask;
         }
 
+        public ValueTask<WorkflowDefinitionRecord?> GetAdmittedCurrentPublishedAsync(
+            string tenant, string key, CancellationToken ct = default)
+            => ValueTask.FromResult<WorkflowDefinitionRecord?>(new(
+                tenant, key, "v1", WorkflowDefinitionStatus.Published, default));
+
+        public ValueTask<WorkflowDefinitionRecord> GetAdmittedAsync(
+            string tenant, string key, string version, CancellationToken ct = default)
+            => ValueTask.FromResult(new WorkflowDefinitionRecord(
+                tenant, key, version, WorkflowDefinitionStatus.Published, default));
+
         private static WorkflowInstanceRecord Clone(WorkflowInstanceRecord r) => new()
         {
             Id = r.Id, TenantId = r.TenantId, DefinitionKey = r.DefinitionKey,
@@ -90,7 +100,7 @@ public sealed class WorkflowIterationCapTests
         var store = new InMemoryStore();
         await store.CreateInstanceAsync(NewInstance("loop-1"));
         var dispatcher = new WorkflowTriggerDispatcher(store, new[] { new AlwaysLoopBackHandler() },
-            new WorkflowEngineOptions { MaxIterations = 100 });
+            new WorkflowEngineOptions { MaxIterations = 100 }, definitionStore: store);
 
         Assert.Equal(0, (await store.LoadAsync("loop-1"))!.Iteration);
 
@@ -107,7 +117,7 @@ public sealed class WorkflowIterationCapTests
         var store = new InMemoryStore();
         await store.CreateInstanceAsync(NewInstance("loop-cap"));
         var dispatcher = new WorkflowTriggerDispatcher(store, new[] { new AlwaysLoopBackHandler() },
-            new WorkflowEngineOptions { MaxIterations = 5 });
+            new WorkflowEngineOptions { MaxIterations = 5 }, definitionStore: store);
 
         // Drive the loop step repeatedly; it MUST reach the terminal Failed state within a bounded count.
         WorkflowDispatchResult result = WorkflowDispatchResult.Parked;
@@ -129,7 +139,7 @@ public sealed class WorkflowIterationCapTests
         var store = new InMemoryStore();
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             new WorkflowTriggerDispatcher(store, new[] { new AlwaysLoopBackHandler() },
-                new WorkflowEngineOptions { MaxIterations = 0 }));
+                new WorkflowEngineOptions { MaxIterations = 0 }, definitionStore: store));
     }
 
     [Fact(DisplayName = "A0: with no options the default cap (50) applies — the dispatcher still bounds a runaway")]
@@ -137,7 +147,8 @@ public sealed class WorkflowIterationCapTests
     {
         var store = new InMemoryStore();
         await store.CreateInstanceAsync(NewInstance("loop-default"));
-        var dispatcher = new WorkflowTriggerDispatcher(store, new[] { new AlwaysLoopBackHandler() });
+        var dispatcher = new WorkflowTriggerDispatcher(
+            store, new[] { new AlwaysLoopBackHandler() }, definitionStore: store);
 
         WorkflowDispatchResult result = WorkflowDispatchResult.Parked;
         var steps = 0;
