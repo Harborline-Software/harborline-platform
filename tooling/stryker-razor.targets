@@ -1,0 +1,22 @@
+<Project>
+  <!-- T-720, owner ruling Q40 option 3: Razor projects are mutated, not excluded.
+       Stryker.NET 5.0.0 compiles mutants with its own Roslyn 5.9; the .NET 11 RC1 Razor source generator needs
+       5.11 (stryker-net#3813), so a Razor project never compiles inside Stryker. tooling/stryker.mjs first builds
+       the project with the real SDK and EmitCompilerGeneratedFiles, then runs Stryker with this file imported
+       through CustomAfterMicrosoftCommonTargets and HarborlineStrykerRazorProject naming that one project: the
+       Razor generator is removed and its output, rewritten by the script as plain C# under stryker-razor/, is compiled.
+       Nothing imports this file outside a Stryker run, so the product build is unchanged. -->
+  <Target Name="HarborlineStrykerPlainRazor"
+          AfterTargets="_PrepareRazorSourceGenerators"
+          Condition="'$(MSBuildProjectFullPath)' == '$(HarborlineStrykerRazorProject)'">
+    <PropertyGroup>
+      <_HarborlineRazorGenerated>$(IntermediateOutputPath)stryker-razor/</_HarborlineRazorGenerated>
+    </PropertyGroup>
+    <Error Condition="!Exists('$(_HarborlineRazorGenerated)')"
+           Text="T-720: no emitted Razor output at $(_HarborlineRazorGenerated); tooling/stryker.mjs emits it before Stryker runs." />
+    <ItemGroup>
+      <Analyzer Remove="@(_RazorAnalyzer)" />
+      <Compile Include="$(_HarborlineRazorGenerated)**/*.cs" />
+    </ItemGroup>
+  </Target>
+</Project>
