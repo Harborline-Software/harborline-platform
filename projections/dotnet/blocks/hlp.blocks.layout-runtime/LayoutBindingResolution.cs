@@ -90,8 +90,8 @@ public interface ILayoutBindingSources
     /// <summary>Resolves one catalogue measure's already-computed result by stable path.</summary>
     bool TryResolveMeasure(LayoutBindingScope scope, string measurePath, out JsonNode? value);
 
-    /// <summary>Resolves one named template definition.</summary>
-    bool TryResolveTemplate(LayoutBindingScope scope, string templateDefinitionId, out JsonNode? value);
+    /// <summary>Resolves one exact pinned template definition version.</summary>
+    bool TryResolveTemplate(LayoutBindingScope scope, string templateDefinitionId, string templateVersion, out JsonNode? value);
 
     /// <summary>Resolves the rows a repeating block iterates, in authored order.</summary>
     bool TryResolveCollection(LayoutBindingScope scope, string name, out IReadOnlyList<JsonNode?> rows);
@@ -582,7 +582,7 @@ public sealed class LayoutBindingResolver
             LayoutTextBinding text => Compose(block, text, sources, scope, denials, out value, ref name),
             LayoutQueryBinding query => sources.TryResolveQuery(scope, query.ViewDefinitionId, out value),
             LayoutMeasureBinding measure => sources.TryResolveMeasure(scope, measure.MeasurePath, out value),
-            LayoutTemplateBinding template => sources.TryResolveTemplate(scope, template.TemplateDefinitionId, out value),
+            LayoutTemplateBinding template => sources.TryResolveTemplate(scope, template.TemplateDefinitionId, template.TemplateVersion, out value),
             _ => Unresolved(out value),
         };
 

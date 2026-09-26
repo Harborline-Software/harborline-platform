@@ -571,7 +571,10 @@ public static class LayoutDefinitionAdmission
             LayoutTextBinding => "text",
             _ => string.Empty,
         };
-        if (string.IsNullOrWhiteSpace(identity)) Add(refusals, LayoutDefinitionCodes.BindingInvalid, pointer);
+        if (string.IsNullOrWhiteSpace(identity)
+            || binding is LayoutTemplateBinding { TemplateVersion: var templateVersion }
+                && string.IsNullOrWhiteSpace(templateVersion))
+            Add(refusals, LayoutDefinitionCodes.BindingInvalid, pointer);
         // layout-ck-43, layout-ck-44: a text binding has runs, each exactly a literal or a field.
         if (binding is LayoutTextBinding text)
         {
