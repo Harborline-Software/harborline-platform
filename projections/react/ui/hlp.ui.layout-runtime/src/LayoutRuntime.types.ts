@@ -42,7 +42,8 @@ export interface LayoutAuthoringBinding {
  * validation rules (layout-auth-21), never remove what Records declared.
  */
 export interface LayoutAuthoringCapture {
-  readonly required?: boolean
+  /** layout-auth-29 (T-724 ruling 78): true adds a requirement; absent is no override. The editor never writes false. */
+  readonly required?: true
   readonly validationRules?: readonly string[]
   /** layout-auth-22: the prompt this surface shows for the field, in its own context only. */
   readonly promptOverride?: string

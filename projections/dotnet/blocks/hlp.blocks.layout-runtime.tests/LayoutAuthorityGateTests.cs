@@ -23,14 +23,14 @@ public sealed class LayoutAuthorityGateTests
         var store = await Published();
         var reader = new Authority(open: false);
 
-        var refused = await Assert.ThrowsAsync<LayoutDefinitionAdmissionException>(async () =>
+        var refused = await Assert.ThrowsAsync<DefinitionRefusalException>(async () =>
             await new LayoutPublishedSurfaceResolver(store).ResolveAsync(new(Key, "version-1"), reader, reader));
-        Assert.Equal((LayoutAuthorityCodes.OpenStage, LayoutAuthorityCodes.OpenForbidden, ""),
+        Assert.Equal((DefinitionAdmissionPhase.Render, LayoutAuthorityCodes.OpenForbidden, ""),
             (refused.Stage, Assert.Single(refused.Refusals).Code, refused.Refusals[0].Pointer));
         Assert.Equal(["surface.customer-edit"], reader.Opened);
 
         // Refused before the read: a version that does not exist refuses identically, so a denial reveals nothing.
-        var missing = await Assert.ThrowsAsync<LayoutDefinitionAdmissionException>(async () =>
+        var missing = await Assert.ThrowsAsync<DefinitionRefusalException>(async () =>
             await new LayoutPublishedSurfaceResolver(store).ResolveAsync(new(Key, "version-9"), reader, reader));
         Assert.Equal(refused.Refusals, missing.Refusals);
 
@@ -53,8 +53,8 @@ public sealed class LayoutAuthorityGateTests
 
         Assert.True(surface.Authority.ReadOnly);
         Assert.False(surface.Authority.CanSubmit);
-        var submit = Assert.Throws<LayoutDefinitionAdmissionException>(() => LayoutAuthorityGate.RequireSubmit(surface.Definition, denyAll));
-        Assert.Equal((LayoutAuthorityCodes.SubmitStage, LayoutAuthorityCodes.SubmitForbidden), (submit.Stage, Assert.Single(submit.Refusals).Code));
+        var submit = Assert.Throws<DefinitionRefusalException>(() => LayoutAuthorityGate.RequireSubmit(surface.Definition, denyAll));
+        Assert.Equal((DefinitionAdmissionPhase.Render, LayoutAuthorityCodes.SubmitForbidden), (submit.Stage, Assert.Single(submit.Refusals).Code));
 
         // Full data, nothing read: every set-scoped block resolves empty (layout-eng-15).
         var resolution = new LayoutBindingResolver(new GuardEvaluator(TimeProvider.System)).Resolve(
@@ -81,7 +81,7 @@ public sealed class LayoutAuthorityGateTests
             Assert.Equal(allowed, LayoutAuthorityGate.Authority(gated, submitter).CanSubmit);
             if (allowed) LayoutAuthorityGate.RequireSubmit(gated, submitter);
             else Assert.Equal(LayoutAuthorityCodes.SubmitForbidden,
-                Assert.Single(Assert.Throws<LayoutDefinitionAdmissionException>(() => LayoutAuthorityGate.RequireSubmit(gated, submitter)).Refusals).Code);
+                Assert.Single(Assert.Throws<DefinitionRefusalException>(() => LayoutAuthorityGate.RequireSubmit(gated, submitter)).Refusals).Code);
         }
         // The gate is asked with the surface's own gate, and nothing else stands in for it.
         var asked = new Authority();

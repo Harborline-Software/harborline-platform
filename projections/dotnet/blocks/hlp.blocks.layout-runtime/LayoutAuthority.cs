@@ -27,7 +27,7 @@ public sealed record LayoutSurfaceAuthority(bool CanSubmit)
     public bool ReadOnly => !CanSubmit;
 }
 
-/// <summary>Stable codes and stages the open and submit gates refuse with.</summary>
+/// <summary>Stable codes the open and submit gates refuse with, both at the <see cref="DefinitionAdmissionPhase.Render"/> stage (T-724 ruling 80).</summary>
 public static class LayoutAuthorityCodes
 {
     /// <summary>The principal may not open the surface (<c>layout:open</c>, layout-eng-26).</summary>
@@ -35,12 +35,6 @@ public static class LayoutAuthorityCodes
 
     /// <summary>The principal may not submit the surface: its submit gate or the Records write check refused (T-724 ruling 76).</summary>
     public const string SubmitForbidden = "layout.submit.forbidden";
-
-    /// <summary>The stage an open refusal is raised at.</summary>
-    public const string OpenStage = "render.open";
-
-    /// <summary>The stage a submit refusal is raised at.</summary>
-    public const string SubmitStage = "render.submit";
 }
 
 /// <summary>
@@ -58,7 +52,7 @@ public static class LayoutAuthorityGate
         ArgumentException.ThrowIfNullOrWhiteSpace(surfaceId);
         ArgumentNullException.ThrowIfNull(reader);
         if (!reader.CanOpen(surfaceId))
-            throw new LayoutDefinitionAdmissionException(LayoutAuthorityCodes.OpenStage, [new(LayoutAuthorityCodes.OpenForbidden, "")]);
+            throw new DefinitionRefusalException(DefinitionAdmissionPhase.Render, [new(LayoutAuthorityCodes.OpenForbidden, "")]);
     }
 
     /// <summary>The authority an opened surface carries for <paramref name="submitter"/>.</summary>
@@ -82,6 +76,6 @@ public static class LayoutAuthorityGate
     public static void RequireSubmit(LayoutDefinition definition, ILayoutSubmitAccess submitter)
     {
         if (!Authority(definition, submitter).CanSubmit)
-            throw new LayoutDefinitionAdmissionException(LayoutAuthorityCodes.SubmitStage, [new(LayoutAuthorityCodes.SubmitForbidden, "")]);
+            throw new DefinitionRefusalException(DefinitionAdmissionPhase.Render, [new(LayoutAuthorityCodes.SubmitForbidden, "")]);
     }
 }

@@ -66,7 +66,7 @@ public sealed class LayoutPublishedSurfaceResolver
         {
             LayoutPersistedValueAdmission.ValidateForRuntime(definition, _registers);
         }
-        catch (LayoutDefinitionAdmissionException exception)
+        catch (DefinitionRefusalException exception)
         {
             throw new InvalidOperationException("layout.persisted_body_invalid", exception);
         }

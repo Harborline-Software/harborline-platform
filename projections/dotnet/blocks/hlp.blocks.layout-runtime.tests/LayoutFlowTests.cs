@@ -90,7 +90,7 @@ public sealed class LayoutFlowTests
             Blocks = [new("flow", "layout.flow", new LayoutStaticBinding(JsonSerializer.SerializeToElement("Flow")), [], Container: new(LayoutContainerKind.Flow, Wrap: LayoutWrap.NoWrap, ColumnCount: 2))],
         };
 
-        var exception = Assert.Throws<LayoutDefinitionAdmissionException>(() => LayoutDefinitionAdmission.ValidateForAuthoring(definition, GrantsAllAuthor.Instance));
+        var exception = Assert.Throws<DefinitionRefusalException>(() => LayoutDefinitionAdmission.ValidateForAuthoring(definition, GrantsAllAuthor.Instance));
 
         Assert.Contains(exception.Refusals, refusal => refusal.Code == LayoutDefinitionCodes.ReflowForbidden);
     }

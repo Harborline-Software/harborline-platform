@@ -12,7 +12,8 @@ namespace Harborline.Blocks.BuilderDefinitions;
 /// </summary>
 public static class LayoutLegacyWidthMigration
 {
-    private const string Stage = "definition.migrate";
+    // A migrated section becomes authored Layout content, so a legacy number it cannot carry refuses at authoring.
+    private const DefinitionAdmissionPhase Stage = DefinitionAdmissionPhase.Author;
 
     /// <summary>The legacy grid column count when a section states none.</summary>
     private const int LegacyGridColumns = 2;
@@ -42,7 +43,7 @@ public static class LayoutLegacyWidthMigration
     /// <summary>The column count of the Layout container a legacy section migrates to.</summary>
     /// <param name="section">The legacy section layout.</param>
     /// <returns>A grid's own count (legacy default two), twelve for flex, one for stack.</returns>
-    /// <exception cref="LayoutDefinitionAdmissionException">A grid's column count is not a whole number from one to twelve.</exception>
+    /// <exception cref="DefinitionRefusalException">A grid's column count is not a whole number from one to twelve.</exception>
     public static int ColumnCount(SectionLayout section)
     {
         ArgumentNullException.ThrowIfNull(section);
@@ -58,13 +59,13 @@ public static class LayoutLegacyWidthMigration
     /// <param name="section">The legacy section the field sits in.</param>
     /// <param name="legacy">The legacy field placement.</param>
     /// <returns>The equivalent Layout placement.</returns>
-    /// <exception cref="LayoutDefinitionAdmissionException">A legacy number the section uses is fractional or out of range.</exception>
+    /// <exception cref="DefinitionRefusalException">A legacy number the section uses is fractional or out of range.</exception>
     public static LayoutPlacement Migrate(SectionLayout section, FieldPlacement legacy)
     {
         ArgumentNullException.ThrowIfNull(section);
         ArgumentNullException.ThrowIfNull(legacy);
 
-        var refusals = new List<LayoutDefinitionRefusal>();
+        var refusals = new List<DefinitionRefusal>();
         var placement = section.Kind switch
         {
             // Width and grow were flex-only: a grid keeps the span exactly as its own count read it.
@@ -78,7 +79,7 @@ public static class LayoutLegacyWidthMigration
             // A stack placed neither spans nor widths.
             _ => new LayoutPlacement(),
         };
-        if (refusals.Count > 0) throw new LayoutDefinitionAdmissionException(Stage, refusals.AsReadOnly());
+        if (refusals.Count > 0) throw new DefinitionRefusalException(Stage, refusals.AsReadOnly());
         return placement;
     }
 
@@ -89,25 +90,25 @@ public static class LayoutLegacyWidthMigration
     /// <param name="width">The legacy width token; <see langword="null"/> is <c>auto</c>.</param>
     /// <param name="align">The legacy alignment token; <see langword="null"/> is <c>start</c>, as the legacy renderer drew it.</param>
     /// <returns>The equivalent Layout placement.</returns>
-    /// <exception cref="LayoutDefinitionAdmissionException">A token is not one the legacy contract admitted.</exception>
+    /// <exception cref="DefinitionRefusalException">A token is not one the legacy contract admitted.</exception>
     public static LayoutPlacement MigrateColumn(string? width, string? align)
     {
-        var refusals = new List<LayoutDefinitionRefusal>();
+        var refusals = new List<DefinitionRefusal>();
         if (!WidthTokens.TryGetValue(width ?? "auto", out var legacyWidth))
             refusals.Add(new(LayoutDefinitionCodes.PlacementTokenUnknown, "/width"));
         // Stated explicitly: an absent Layout alignment inherits the container's stretch.
         if (!AlignTokens.TryGetValue(align ?? "start", out var justify))
             refusals.Add(new(LayoutDefinitionCodes.PlacementTokenUnknown, "/align"));
-        if (refusals.Count > 0) throw new LayoutDefinitionAdmissionException(Stage, refusals.AsReadOnly());
+        if (refusals.Count > 0) throw new DefinitionRefusalException(Stage, refusals.AsReadOnly());
 
         return WithLegacyWidth(new LayoutPlacement(Width: LayoutSizing.Hug, JustifySelf: justify), legacyWidth);
     }
 
     private static int GridColumns(SectionLayout section)
     {
-        var refusals = new List<LayoutDefinitionRefusal>();
+        var refusals = new List<DefinitionRefusal>();
         var columns = LegacyInteger(section.Columns, LayoutDefinitionSchema.Numeric(LayoutNumericMember.ColumnCount), "/columns", refusals);
-        if (refusals.Count > 0) throw new LayoutDefinitionAdmissionException(Stage, refusals.AsReadOnly());
+        if (refusals.Count > 0) throw new DefinitionRefusalException(Stage, refusals.AsReadOnly());
         return columns ?? LegacyGridColumns;
     }
 
@@ -127,7 +128,7 @@ public static class LayoutLegacyWidthMigration
         Optional<decimal> legacy,
         LayoutNumericRange range,
         string pointer,
-        ICollection<LayoutDefinitionRefusal> refusals)
+        ICollection<DefinitionRefusal> refusals)
     {
         if (!legacy.HasValue) return null;
         var value = legacy.Value;

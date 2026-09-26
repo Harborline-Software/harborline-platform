@@ -257,9 +257,26 @@ public sealed class LayoutRuntimeTests : BunitContext
         cut.Find("[aria-label='Block 2 required']").Change(true);
         Assert.Equal(new LayoutAuthoringCapture(Required: true), changed!.Blocks[1].Capture);
         cut.Find("[aria-label='Block 2 validation rule IBAN checksum']").Change(true);
-        Assert.False(changed.Blocks[1].Capture!.Required);
+        Assert.Null(changed.Blocks[1].Capture!.Required);
         Assert.Equal(["rules.iban"], changed.Blocks[1].Capture!.ValidationRules!);
         Assert.Equal([blocks[0], blocks[2]], [changed.Blocks[0], changed.Blocks[2]]);
+    }
+
+    [Fact(DisplayName = "layout-auth-29: unchecking an added requirement omits it rather than storing false (T-724 ruling 78)")]
+    public void UncheckingAnAddedRequirementOmitsIt()
+    {
+        LayoutAuthoringDraft? changed = null;
+        var block = new LayoutAuthoringBlock("note", "layout.table", new("record_field", "invoice.note"), Intent: "capture", Capture: new(Required: true, ValidationRules: ["rules.iban"]));
+        var cut = Render<HarborlineLayoutAuthoringEditor>(parameters => parameters
+            .Add(x => x.Value, LayoutAuthoringDraft.Empty with { Blocks = [block] })
+            .Add(x => x.Catalogue, Catalogue() with { ValidationRules = [new("rules.iban", "IBAN checksum")] })
+            .Add(x => x.ValueChanged, value => changed = value));
+
+        cut.Find("[aria-label='Block 1 required']").Change(false);
+        // Omission is no override, so Records' own requirement stands; false would be refused on a required field.
+        var capture = changed!.Blocks.Single().Capture!;
+        Assert.Null(capture.Required);
+        Assert.Equal(["rules.iban"], capture.ValidationRules!);
     }
 
     [Fact(DisplayName = "layout-auth-21: a block that stops capturing drops its capture properties")]

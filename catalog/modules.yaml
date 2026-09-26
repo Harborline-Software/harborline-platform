@@ -335,7 +335,7 @@
       }
     },
     "hlp.blocks.layout-runtime": {
-      "interface": {"path": "specs/modules/blocks/hlp.blocks.layout-runtime/interface.yaml", "revision": 7},
+      "interface": {"path": "specs/modules/blocks/hlp.blocks.layout-runtime/interface.yaml", "revision": 8},
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "The definition resolver and flow planner return neutral render plans and own no framework presentation."},
       "owner": "platform-foundation",

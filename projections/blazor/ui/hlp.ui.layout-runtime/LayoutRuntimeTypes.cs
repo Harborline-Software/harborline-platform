@@ -83,7 +83,8 @@ public sealed record LayoutAuthoringBlock(
 /// validation rules (layout-auth-21), never remove what Records declared.
 /// </summary>
 public sealed record LayoutAuthoringCapture(
-    bool Required = false,
+    // layout-auth-29 (T-724 ruling 78): true adds a requirement; absent is no override. Never false, which the definition refuses on a Records-required field.
+    bool? Required = null,
     IReadOnlyList<string>? ValidationRules = null,
     // layout-auth-22: the prompt this surface shows for the field, in its own context only.
     string? PromptOverride = null,

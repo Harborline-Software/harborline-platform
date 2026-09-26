@@ -265,12 +265,13 @@ public sealed record LayoutTextRun(string? Text = null, string? FieldPath = null
 }
 
 /// <summary>Describes capture behavior without embedding control-specific state.</summary>
-/// <param name="Required">Whether the member requires a value.</param>
+/// <param name="Required">An override that adds a requirement (<see langword="true"/>). Omitted is no override, so Records' own
+/// requirement stands; an explicit <see langword="false"/> on a field Records requires is refused (layout-auth-29, T-724 ruling 78).</param>
 /// <param name="ValidationRules">The stable validation rule identifiers.</param>
 /// <param name="PromptOverride">The optional governed prompt override.</param>
 /// <param name="Control">The optional registered field control and its parameters (layout-bound-3).</param>
 public sealed record LayoutCaptureProperties(
-    bool Required,
+    bool? Required,
     IReadOnlyList<string> ValidationRules,
     string? PromptOverride = null,
     LayoutFieldControl? Control = null);

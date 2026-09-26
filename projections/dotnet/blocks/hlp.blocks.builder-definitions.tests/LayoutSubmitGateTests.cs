@@ -30,9 +30,9 @@ public sealed class LayoutSubmitGateTests
         foreach (var role in new[] { RoleReference.Domain("customer-approver"), new RoleReference("tenant.invented", "customer-editor") })
             AssertRefused(Capture(new(Role: role)), registers, LayoutDefinitionCodes.SubmitGateRoleUnknown, "/submit_gate/role");
         // Publication fails closed without the vocabulary; nothing is string-matched.
-        var error = Assert.Throws<LayoutDefinitionAdmissionException>(() =>
+        var error = Assert.Throws<DefinitionRefusalException>(() =>
             LayoutDefinitionAdmission.ValidateForPublish(Capture(new(Role: Editor)), LayoutHostRegisters.Platform, LayoutTestAccess.GrantsAll));
-        Assert.Equal([new LayoutDefinitionRefusal(LayoutDefinitionCodes.SubmitGateRoleUnknown, "/submit_gate/role")], error.Refusals);
+        Assert.Equal([new DefinitionRefusal(LayoutDefinitionCodes.SubmitGateRoleUnknown, "/submit_gate/role")], error.Refusals);
     }
 
     [Fact(DisplayName = "layout-auth-23: a submit gate's standing arm resolves through the declared standings, and an undeclared standing refuses by name")]
@@ -43,9 +43,9 @@ public sealed class LayoutSubmitGateTests
         LayoutDefinitionAdmission.ValidateForPublish(Capture(new(Standing: new("assigned-reviewer"))), registers, LayoutTestAccess.GrantsAll);
 
         AssertRefused(Capture(new(Standing: new("account-owner"))), registers, LayoutDefinitionCodes.SubmitGateStandingUnknown, "/submit_gate/standing/name");
-        var error = Assert.Throws<LayoutDefinitionAdmissionException>(() =>
+        var error = Assert.Throws<DefinitionRefusalException>(() =>
             LayoutDefinitionAdmission.ValidateForPublish(Capture(new(Standing: new("assigned-reviewer"))), LayoutHostRegisters.Platform, LayoutTestAccess.GrantsAll));
-        Assert.Equal([new LayoutDefinitionRefusal(LayoutDefinitionCodes.SubmitGateStandingUnknown, "/submit_gate/standing/name")], error.Refusals);
+        Assert.Equal([new DefinitionRefusal(LayoutDefinitionCodes.SubmitGateStandingUnknown, "/submit_gate/standing/name")], error.Refusals);
     }
 
     [Fact(DisplayName = "T-724 ruling 76: Layout declares layout:author, layout:publish and layout:open, and no layout:submit")]
@@ -70,8 +70,8 @@ public sealed class LayoutSubmitGateTests
             () => LayoutDefinitionAdmission.ValidateForPublish(definition, registers, LayoutTestAccess.GrantsAll),
         })
         {
-            var error = Assert.Throws<LayoutDefinitionAdmissionException>(validate);
-            Assert.Equal([new LayoutDefinitionRefusal(code, pointer)], error.Refusals);
+            var error = Assert.Throws<DefinitionRefusalException>(validate);
+            Assert.Equal([new DefinitionRefusal(code, pointer)], error.Refusals);
         }
     }
 
