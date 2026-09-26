@@ -186,6 +186,17 @@ describe('LayoutRuntime React projection', () => {
     expect(changed).toHaveBeenLastCalledWith(expect.objectContaining({ blocks: [blocks[0], { ...blocks[1], capture: { validationRules: ['rules.iban'] } }, blocks[2]] }))
   })
 
+  it('layout-auth-29: unchecking an added requirement omits it rather than storing false (T-724 ruling 78)', () => {
+    const changed = vi.fn()
+    const block = { id: 'note', kind: 'layout.table', intent: 'capture' as const, binding: { kind: 'record_field' as const, name: 'invoice.note' }, capture: { required: true, validationRules: ['rules.iban'] } }
+    render(<LayoutAuthoringEditor value={{ ...emptyLayoutAuthoringDraft(), blocks: [block] }} catalogue={{ blockKinds: [{ id: 'layout.table', label: 'Table' }], zones: [], validationRules: [{ id: 'rules.iban', label: 'IBAN checksum' }] }} onChange={changed} />)
+    fireEvent.click(screen.getByLabelText('Block 1 required'))
+    // Omission is no override, so Records' own requirement stands; false would be refused on a required field.
+    const capture = changed.mock.lastCall![0].blocks[0].capture
+    expect(capture).toEqual({ validationRules: ['rules.iban'] })
+    expect('required' in capture).toBe(false)
+  })
+
   it('layout-auth-21: a block that stops capturing drops its capture properties', () => {
     const changed = vi.fn()
     const block = { id: 'note', kind: 'layout.table', intent: 'capture' as const, binding: { kind: 'record_field' as const, name: 'invoice.note' }, capture: { required: true, validationRules: ['rules.iban'] } }

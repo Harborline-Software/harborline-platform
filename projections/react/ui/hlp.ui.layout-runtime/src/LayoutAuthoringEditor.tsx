@@ -142,7 +142,7 @@ function BlockBehaviour({ index, block, blocks, intent, catalogue, onChange }: {
     </select>}
     {block.showWhen !== undefined && <button type="button" aria-label={`Remove block ${index + 1} show when`} onClick={() => onChange(unguarded)}>Remove guard</button>}
     {intent === 'capture' && <>
-      <label><input aria-label={`Block ${index + 1} required`} type="checkbox" checked={declaredRequired || (block.capture?.required ?? false)} disabled={declaredRequired} onChange={event => onChange(withCapture(block, { required: event.currentTarget.checked }))} />Required</label>
+      <label><input aria-label={`Block ${index + 1} required`} type="checkbox" checked={declaredRequired || (block.capture?.required ?? false)} disabled={declaredRequired} onChange={event => onChange(withCapture(block, { required: event.currentTarget.checked || undefined }))} />Required</label>
       {block.binding?.kind === 'record_field' && (catalogue.valueDomainFields ?? []).includes(block.binding.name) && <span>{`Block ${index + 1} control is chosen by its value domain`}</span>}
       {block.binding?.kind === 'record_field' && !(catalogue.valueDomainFields ?? []).includes(block.binding.name) && <select aria-label={`Block ${index + 1} field control`} value={block.capture?.control ?? ''} onChange={event => onChange(withCapture(block, { control: event.currentTarget.value }))}>
         <option value="">Runtime default</option>
