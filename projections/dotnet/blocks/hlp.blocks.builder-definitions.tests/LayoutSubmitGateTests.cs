@@ -106,7 +106,7 @@ public sealed class LayoutSubmitGateTests
         }
     }
 
-    private static LayoutDefinition Capture(LayoutSubmitGate gate) => new(
+    private static LayoutDefinition Capture(SubmitGate gate) => new(
         new LayoutDefinitionEnvelope(
             "surface.customer-edit",
             "1.0.0",

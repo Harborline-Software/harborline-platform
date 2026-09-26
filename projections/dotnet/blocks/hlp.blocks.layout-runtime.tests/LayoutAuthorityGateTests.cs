@@ -135,7 +135,7 @@ public sealed class LayoutAuthorityGateTests
             new LayoutBlock("orders", "layout.table", new LayoutQueryBinding("views.orders"), [], Intent: LayoutIntent.Observe),
             new LayoutBlock("orders-total", "layout.metric", new LayoutMeasureBinding("orders.total"), [], Intent: LayoutIntent.Observe),
         ],
-        [], [], [], new LayoutSubmitGate(Role: RoleReference.Domain("customer-editor")), []);
+        [], [], [], new SubmitGate(Role: RoleReference.Domain("customer-editor")), []);
 
     private static string RepositoryRoot()
     {
@@ -149,7 +149,7 @@ public sealed class LayoutAuthorityGateTests
     {
         public List<string> Opened { get; } = [];
 
-        public List<LayoutSubmitGate> Gates { get; } = [];
+        public List<SubmitGate> Gates { get; } = [];
 
         public bool CanRead(LayoutBinding binding) => read;
 
@@ -159,7 +159,7 @@ public sealed class LayoutAuthorityGateTests
             return open;
         }
 
-        public bool Satisfies(LayoutSubmitGate submitGate)
+        public bool Satisfies(SubmitGate submitGate)
         {
             Gates.Add(submitGate);
             return gate;

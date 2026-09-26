@@ -78,7 +78,7 @@ public sealed class LayoutDefinitionProducerTests
         LayoutDefinitionAdmission.ValidateForPublish(mixed, Hosted, LayoutTestAccess.GrantsAll);
     }
 
-    private static readonly LayoutSubmitGate CustomerEditorGate = new(Role: RoleReference.Domain("customer-editor"));
+    private static readonly SubmitGate CustomerEditorGate = new(Role: RoleReference.Domain("customer-editor"));
 
     private static readonly AuthorizationCapabilityRegister Capabilities = AuthorizationCapabilityRegister.FromDeclarations(
         [new(new("records:write"), 1), new(new("layout:open"), 1)]);
@@ -118,7 +118,7 @@ public sealed class LayoutDefinitionProducerTests
     {
         var registers = Hosted with { Capabilities = Capabilities };
         LayoutDefinitionAdmission.ValidateForAuthoring(UnpinnedScreen() with { SubmitGate = new(Standing: new("assigned-reviewer")) }, registers, LayoutTestAccess.GrantsAll);
-        foreach (var gate in new LayoutSubmitGate[]
+        foreach (var gate in new SubmitGate[]
         {
             new(),
             new(Role: RoleReference.Domain("customer-editor"), Standing: new("assigned-reviewer")),
@@ -757,7 +757,7 @@ public sealed class LayoutDefinitionProducerTests
         LayoutMedium medium,
         LayoutIntent defaultIntent,
         IReadOnlyList<LayoutBlock> blocks,
-        LayoutSubmitGate? submitGate = null,
+        SubmitGate? submitGate = null,
         IReadOnlyList<string>? drillTargets = null,
         IReadOnlyList<LayoutPageLayoutDefinition>? pageLayouts = null,
         IReadOnlyList<LayoutPageMasterDefinition>? pageMasters = null,

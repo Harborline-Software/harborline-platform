@@ -1,4 +1,5 @@
 using Harborline.Blocks.BuilderDefinitions;
+using Harborline.Contracts.Authorization;
 
 namespace Harborline.Blocks.LayoutRuntime;
 
@@ -10,7 +11,7 @@ public interface ILayoutSubmitAccess
 {
     /// <summary>Whether the principal satisfies the surface's submit gate: its role, standing or capability (layout-auth-23).</summary>
     /// <param name="gate">The admitted gate, holding exactly one arm.</param>
-    bool Satisfies(LayoutSubmitGate gate);
+    bool Satisfies(SubmitGate gate);
 
     /// <summary>The existing Records write check on the record the surface captures into.</summary>
     bool CanWrite();

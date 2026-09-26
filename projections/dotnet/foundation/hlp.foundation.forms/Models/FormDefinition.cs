@@ -1,3 +1,4 @@
+using Harborline.Contracts.Authorization;
 using Harborline.Foundation.Assets.Common;
 
 namespace Harborline.Foundation.Forms.Models;
@@ -100,4 +101,4 @@ public sealed record FormDefinition(
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt,
     FormDefinitionAuthoring? Authoring = null,
-    FormSubmitGate? SubmitGate = null);
+    SubmitGate? SubmitGate = null);

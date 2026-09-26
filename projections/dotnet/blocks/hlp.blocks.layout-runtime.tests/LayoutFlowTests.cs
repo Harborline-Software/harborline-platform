@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text;
 using Harborline.Blocks.BuilderDefinitions;
 using Harborline.Blocks.LayoutRuntime;
+using Harborline.Contracts.Authorization;
 using Xunit;
 
 namespace Harborline.Blocks.LayoutRuntime.Tests;
@@ -200,7 +201,7 @@ internal sealed class GrantsAllAuthor : ILayoutAccess, ILayoutSubmitAccess
 
     public bool CanOpen(string surfaceId) => true;
 
-    public bool Satisfies(LayoutSubmitGate gate) => true;
+    public bool Satisfies(SubmitGate gate) => true;
 
     public bool CanWrite() => true;
 }

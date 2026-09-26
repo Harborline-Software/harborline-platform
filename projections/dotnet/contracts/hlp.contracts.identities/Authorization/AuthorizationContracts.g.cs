@@ -53,6 +53,17 @@ public sealed record AuthorizationCapabilityDefinition(
     [property: JsonPropertyName("capability")] AuthorizationCapabilityReference Capability,
     [property: JsonPropertyName("version")] int Version);
 
+// The one submit gate Forms (forms-ck-4) and Layout (layout-auth-23) share (T-724 rulings 77 and 81, T-755):
+// exactly one of a role, a record standing or a registered authorization capability.
+public sealed record SubmitGate(
+    [property: JsonPropertyName("role")] RoleReference? Role = null,
+    [property: JsonPropertyName("standing")] RecordStandingReference? Standing = null,
+    [property: JsonPropertyName("capability")] AuthorizationCapabilityReference? Capability = null)
+{
+    [JsonIgnore]
+    public bool IsWellFormed => (Role is null ? 0 : 1) + (Standing is null ? 0 : 1) + (Capability is null ? 0 : 1) == 1;
+}
+
 public sealed class AuthorizationCapabilityRegister
 {
     private readonly IReadOnlyDictionary<string, AuthorizationCapabilityDefinition> _definitions;

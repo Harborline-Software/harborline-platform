@@ -228,7 +228,7 @@ public static class LayoutDefinitionAdmission
     }
 
     private static void ValidateSubmitGate(
-        LayoutSubmitGate gate,
+        SubmitGate gate,
         LayoutIntent defaultIntent,
         LayoutHostRegisters registers,
         bool publishing,
