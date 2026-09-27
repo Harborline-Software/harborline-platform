@@ -65,6 +65,12 @@ jobs:
     env:
       DOTNET_CLI_TELEMETRY_OPTOUT: '1'
       DEVELOPER_DIR: /Library/Developer/CommandLineTools
+      # T-724 ruling 117: this lane shares its hosts (and their user) with other repositories' runners,
+      # so it must leave nothing behind and must never kill anything. No reusable MSBuild nodes, no
+      # MSBuild server, no shared compiler server: every build process exits with its own build.
+      MSBUILDDISABLENODEREUSE: '1'
+      DOTNET_CLI_USE_MSBUILD_SERVER: '0'
+      UseSharedCompilation: 'false'
     steps:
       - name: Runner
         shell: bash
@@ -166,18 +172,6 @@ jobs:
             docs/evidence/phase-4/gate.json
             .claude/gate-evidence/
             gallery/tests/playwright-report/
-
-      # T-724 ruling 117: this lane can now land on mac16, which the perf-quiet job (T-268) also
-      # uses at night. `always()` so a red gate still leaves the host clean. `dotnet build-server
-      # shutdown` stops the MSBuild/VBCSCompiler/Razor nodes this run started; the pkill covers any
-      # dotnet-hosted process the shutdown command does not reach (e.g. one already wedged). Both
-      # commands are allowed to fail (host has none running, or the platform lacks pkill) --
-      # nothing here should fail the job over cleanup.
-      - name: Shut down build servers (mac16 perf-quiet cleanliness)
-        if: always()
-        run: |
-          dotnet build-server shutdown || true
-          pkill -f 'dotnet.*(MSBuild|VBCSCompiler|Razor)' || true
 
   verify:
     # T-660: the required context. Deliberately unconditional (`always()`), so neither the kill
