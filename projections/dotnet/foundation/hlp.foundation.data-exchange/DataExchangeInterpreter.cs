@@ -47,6 +47,8 @@ public interface IDataExchangeCapabilityRegistry
     INamedMappingTransform ResolveTransform(string name);
 
     bool CanWrite(string targetContract, string targetPointer);
+
+    ICanonicalTargetCommandPort? ResolveTargetLedger(string targetContract);
 }
 
 public sealed class DataExchangeCapabilityException(string code) : Exception(code)
@@ -180,6 +182,8 @@ public sealed class DataExchangeInterpreter(
             context.LookupVersionsFingerprint,
             context.MatchingInputsFingerprint,
             context.SelectedBoundary ?? context.InputBoundary);
+        var batchIdentity = ExchangeIdentity.DeriveBatch(BatchIdentityInputs.From(definition.Tenant, proposal));
+        var ledger = _capabilities.ResolveTargetLedger(mapping.Target.Contract);
         var dryRunId = DryRunId.New();
         var effects = new List<ProposedEffect>();
         var evaluations = new List<DryRunEffectEvaluation>();
@@ -210,8 +214,29 @@ public sealed class DataExchangeInterpreter(
                         ["targetContract"] = mapping.Target.Contract,
                     },
                     payloadReference);
-                effects.Add(effect);
-                evaluations.Add(new(effect, new(ExchangeEffectStatus.Applied, "mapping.proposed")));
+                var effectIdentity = ExchangeIdentity.DeriveEffect(
+                    batchIdentity, mapping.Target.Contract, externalIdentity, row.SourceRecordVersion, "canonical-record");
+                EffectTerminalOutcome outcome;
+                try
+                {
+                    var existing = ledger is null
+                        ? null
+                        : await ledger.GetOutcomeAsync(effectIdentity, cancellationToken).ConfigureAwait(false);
+                    outcome = Classify(existing, payloadDigest);
+                }
+                catch (Exception exception) when (exception is not DataExchangeCommitRefusedException)
+                {
+                    // Only a failure of the read-only ledger lookup itself is downgraded to a
+                    // per-row Failed outcome so the batch continues (eng-10). A refusal raised by
+                    // Map/payload storage (e.g. FieldAdmissionException) is a fail-closed boundary
+                    // and must keep propagating, never be silently swallowed into a Failed row.
+                    outcome = new(ExchangeEffectStatus.Failed, "run.effect_evaluation_failed");
+                }
+                if (outcome.Status == ExchangeEffectStatus.Applied)
+                {
+                    effects.Add(effect);
+                }
+                evaluations.Add(new(effect, outcome));
             }
             catch (MappingRowException exception)
             {
@@ -243,6 +268,28 @@ public sealed class DataExchangeInterpreter(
                 PrescribedId: dryRunId,
                 ExpectedCheckpoint: context.ExpectedCheckpoint),
             cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Classifies one successfully-mapped row against its prior ledger outcome, if any, into one of
+    /// the six terminal arms (data-exchange-eng-8). A dry run only ever reads the ledger; it never
+    /// claims or writes to it.
+    /// </summary>
+    private static EffectTerminalOutcome Classify(EffectLedgerEntry? existing, string payloadDigest)
+    {
+        if (existing is null)
+        {
+            return new(ExchangeEffectStatus.Applied, "mapping.proposed");
+        }
+        if (existing.Outcome.Status is ExchangeEffectStatus.Applied or ExchangeEffectStatus.Skipped)
+        {
+            return StringComparer.Ordinal.Equals(existing.PayloadDigest, payloadDigest)
+                ? new(ExchangeEffectStatus.Skipped, "replay.already_applied")
+                : new(ExchangeEffectStatus.Conflicted, "replay.effect_conflict");
+        }
+        return existing.Outcome.Status == ExchangeEffectStatus.Halted
+            ? new(ExchangeEffectStatus.Halted, "run.effect_previously_halted")
+            : new(ExchangeEffectStatus.Failed, "run.effect_previously_failed");
     }
 
     private static void ValidateShape(TabularMappingDocument mapping, DiscoveredSourceShape shape)

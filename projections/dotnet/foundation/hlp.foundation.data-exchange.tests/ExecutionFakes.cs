@@ -89,6 +89,24 @@ internal abstract class FakeTargetCommandPort : ICanonicalTargetCommandPort
             _claims.Remove(command.EffectIdentity);
         }
     }
+
+    protected void Preload(EffectLedgerEntry entry)
+    {
+        lock (_gate)
+        {
+            _outcomes[entry.EffectIdentity] = entry;
+        }
+    }
+}
+
+internal sealed class FakeExchangeLedger : FakeTargetCommandPort
+{
+    public void SetOutcome(EffectLedgerEntry entry) => Preload(entry);
+
+    public override ValueTask<EffectTerminalOutcome> ApplyAsync(
+        CanonicalRecordsCommand command,
+        CancellationToken cancellationToken = default)
+        => throw new InvalidOperationException("Dry-run ledger must not apply target commands.");
 }
 
 internal sealed class FakeProposalEvaluator : IProposalEvaluationPort

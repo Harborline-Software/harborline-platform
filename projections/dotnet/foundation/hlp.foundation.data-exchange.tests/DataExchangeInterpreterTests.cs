@@ -202,7 +202,9 @@ internal sealed class StubSource(DiscoveredSourceShape shape, IReadOnlyList<Acqu
     }
 }
 
-internal sealed class StubCapabilities(IReadOnlyAcquisitionSource source) : IDataExchangeCapabilityRegistry
+internal sealed class StubCapabilities(
+    IReadOnlyAcquisitionSource source,
+    ICanonicalTargetCommandPort? targetLedger = null) : IDataExchangeCapabilityRegistry
 {
     public int CommandsApplied { get; private set; }
 
@@ -219,6 +221,8 @@ internal sealed class StubCapabilities(IReadOnlyAcquisitionSource source) : IDat
     };
 
     public bool CanWrite(string targetContract, string targetPointer) => true;
+
+    public ICanonicalTargetCommandPort? ResolveTargetLedger(string targetContract) => targetLedger;
 
     private sealed class DelegateTransform(Func<object?, object?> transform) : INamedMappingTransform
     {
