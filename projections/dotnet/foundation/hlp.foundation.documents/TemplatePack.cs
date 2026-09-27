@@ -2,6 +2,8 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
+using Harborline.Blocks.BuilderDefinitions;
+
 namespace Harborline.Foundation.Documents;
 
 /// <summary>One template as provider-neutral pack content (DES-0021 section 7).</summary>
@@ -26,7 +28,7 @@ public static class TemplatePack
     private static readonly string[] AuthorityFields = ["owner", "tenant", "pack_key", "provenance"];
 
     /// <summary>Projects one template into pack content after publish admission. Publishes nothing.</summary>
-    /// <exception cref="TemplateAdmissionException">The template was refused.</exception>
+    /// <exception cref="DefinitionRefusalException">The template was refused.</exception>
     public static TemplatePackEntry Export(TemplateDefinition template, TemplateSurfaces surfaces)
     {
         TemplateDefinitionAdmission.ValidateForPublish(template, surfaces);
@@ -47,7 +49,7 @@ public static class TemplatePack
     /// provenance. A malformed item is a named miss, never an exception.
     /// </summary>
     public static bool TryParse(ReadOnlySpan<byte> content, string tenant, JsonElement provenance,
-        out TemplateDefinition? template, out TemplateRefusal? miss)
+        out TemplateDefinition? template, out DefinitionRefusal? miss)
     {
         template = null;
         miss = null;
@@ -82,7 +84,7 @@ public static class TemplatePack
         var outcomes = new List<TemplateInstallOutcome>(entries.Count);
         foreach (var entry in entries)
         {
-            TemplateInstallOutcome Refused(params TemplateRefusal[] refusals)
+            TemplateInstallOutcome Refused(params DefinitionRefusal[] refusals)
                 => new(entry.DefinitionId, entry.Version, TemplateInstallOutcomeKind.Refused, refusals);
             if (!TryParse(entry.Content, target.Tenant, target.Provenance, out var template, out var miss))
             {
@@ -91,7 +93,7 @@ public static class TemplatePack
             }
             if (template!.Envelope.Identity != entry.DefinitionId || template.Envelope.Version != entry.Version)
             {
-                outcomes.Add(Refused(new TemplateRefusal(TemplateDefinitionCodes.EnvelopeMismatch, "/envelope")));
+                outcomes.Add(Refused(new DefinitionRefusal(TemplateDefinitionCodes.EnvelopeMismatch, "/envelope")));
                 continue;
             }
             var refusals = TemplateDefinitionAdmission.Validate(template, target.Surfaces);
@@ -106,7 +108,7 @@ public static class TemplatePack
             {
                 outcomes.Add(Authored(stored).AsSpan().SequenceEqual(Authored(template))
                     ? new(entry.DefinitionId, entry.Version, TemplateInstallOutcomeKind.AlreadyPresent, [])
-                    : Refused(new TemplateRefusal(TemplateDefinitionCodes.PinnedTupleConflict, "/envelope/version")));
+                    : Refused(new DefinitionRefusal(TemplateDefinitionCodes.PinnedTupleConflict, "/envelope/version")));
                 continue;
             }
             await target.Publish(template).ConfigureAwait(false);
@@ -137,7 +139,7 @@ public enum TemplateInstallOutcomeKind
 
 /// <summary>One entry's install outcome.</summary>
 public sealed record TemplateInstallOutcome(
-    string DefinitionId, string Version, TemplateInstallOutcomeKind Kind, IReadOnlyList<TemplateRefusal> Refusals);
+    string DefinitionId, string Version, TemplateInstallOutcomeKind Kind, IReadOnlyList<DefinitionRefusal> Refusals);
 
 /// <summary>The installing host: its tenant and provenance stamp, the surface binding and the shared catalogue.</summary>
 /// <param name="Tenant">The installing tenant, stamped on every template.</param>

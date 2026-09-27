@@ -1,6 +1,8 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
+using Harborline.Blocks.BuilderDefinitions;
+
 namespace Harborline.Foundation.Documents;
 
 /// <summary>Stable refusal codes of template admission.</summary>
@@ -34,18 +36,6 @@ public static class TemplateDefinitionCodes
     public const string CompositionCycle = "documents.template.composition_cycle";
 }
 
-/// <summary>A stable, localizable refusal at an RFC 6901 pointer.</summary>
-public sealed record TemplateRefusal(string Code, string Pointer);
-
-/// <summary>The boundary a surface is admitted at.</summary>
-public enum TemplateAdmissionStage
-{
-    /// <summary>Authoring validation and publication: the platform intent validator.</summary>
-    Publish,
-    /// <summary>A stored definition read back for rendering: invalid values are diagnosed, never clamped.</summary>
-    Persisted,
-}
-
 /// <summary>
 /// The host's binding of the Layout surface contract. Documents is a foundation assembly and never references
 /// Layout's blocks-tier types; the host resolves the exact pin from the shared catalogue and runs Layout's own
@@ -60,33 +50,22 @@ public enum TemplateAdmissionStage
 /// </param>
 public sealed record TemplateSurfaces(
     Func<TemplateSurfacePin, string?> Resolve,
-    Func<string, TemplateAdmissionStage, IReadOnlyList<TemplateRefusal>> Admit,
+    Func<string, DefinitionAdmissionPhase, IReadOnlyList<DefinitionRefusal>> Admit,
     Func<string, string, TemplateDefinition?> ResolveTemplate);
-
-/// <summary>Every refusal found at one admission stage.</summary>
-public sealed class TemplateAdmissionException(string stage, IReadOnlyList<TemplateRefusal> refusals)
-    : Exception("The template definition was refused.")
-{
-    /// <summary>The stable admission stage.</summary>
-    public string Stage { get; } = stage;
-
-    /// <summary>The ordered refusals.</summary>
-    public IReadOnlyList<TemplateRefusal> Refusals { get; } = refusals;
-}
 
 /// <summary>One pure structural validator for authoring, publication, installation and persisted reads.</summary>
 public static class TemplateDefinitionAdmission
 {
     /// <summary>Returns every refusal of one template, in document order. Changes nothing.</summary>
-    public static IReadOnlyList<TemplateRefusal> Validate(TemplateDefinition template, TemplateSurfaces surfaces)
-        => Validate(template, surfaces, TemplateAdmissionStage.Publish);
+    public static IReadOnlyList<DefinitionRefusal> Validate(TemplateDefinition template, TemplateSurfaces surfaces)
+        => Validate(template, surfaces, DefinitionAdmissionPhase.Publish);
 
-    internal static IReadOnlyList<TemplateRefusal> Validate(
-        TemplateDefinition template, TemplateSurfaces surfaces, TemplateAdmissionStage stage)
+    internal static IReadOnlyList<DefinitionRefusal> Validate(
+        TemplateDefinition template, TemplateSurfaces surfaces, DefinitionAdmissionPhase stage)
     {
         ArgumentNullException.ThrowIfNull(template);
         ArgumentNullException.ThrowIfNull(surfaces);
-        var refusals = new List<TemplateRefusal>();
+        var refusals = new List<DefinitionRefusal>();
         Envelope(template.Envelope, refusals);
         if (string.IsNullOrWhiteSpace(template.DocumentType))
             refusals.Add(new(TemplateDefinitionCodes.DocumentTypeRequired, "/document_type"));
@@ -109,17 +88,17 @@ public static class TemplateDefinitionAdmission
     /// The persisted read: a stored template and the surface it pins are re-admitted before rendering, and an
     /// invalid stored value is diagnosed by name rather than clamped or normalised.
     /// </summary>
-    /// <exception cref="TemplateAdmissionException">A stored value is invalid.</exception>
+    /// <exception cref="DefinitionRefusalException">A stored value is invalid.</exception>
     public static void ValidatePersisted(TemplateDefinition template, TemplateSurfaces surfaces)
     {
-        var refusals = Validate(template, surfaces, TemplateAdmissionStage.Persisted);
-        if (refusals.Count > 0) throw new TemplateAdmissionException("render.runtime", refusals);
+        var refusals = Validate(template, surfaces, DefinitionAdmissionPhase.Render);
+        if (refusals.Count > 0) throw new DefinitionRefusalException(DefinitionAdmissionPhase.Render, refusals);
     }
 
     // documents-ck-7: the flat list is replaced by the pinned Layout tree. Layout's validator owns the tree,
     // placement and numeric ranges; Documents adds only what the composition requires of it.
-    private static void Surface(TemplateSurfacePin pin, TemplateSurfaces surfaces, TemplateAdmissionStage stage,
-        List<TemplateRefusal> refusals)
+    private static void Surface(TemplateSurfacePin pin, TemplateSurfaces surfaces, DefinitionAdmissionPhase stage,
+        List<DefinitionRefusal> refusals)
     {
         var json = surfaces.Resolve(pin);
         JsonObject? surface;
@@ -144,7 +123,7 @@ public static class TemplateDefinitionAdmission
 
     // documents-auth-19: in the Layout tree a repeating region is a repeating block and its columns are its
     // children. A column-less region is a refusal, never an empty table.
-    private static void RepeatingRegions(JsonArray blocks, string pointer, List<TemplateRefusal> refusals)
+    private static void RepeatingRegions(JsonArray blocks, string pointer, List<DefinitionRefusal> refusals)
     {
         for (var index = 0; index < blocks.Count; index++)
         {
@@ -159,7 +138,7 @@ public static class TemplateDefinitionAdmission
     // Owner ruling Q8: walk the resolved, versioned graph. Edges are exactly a template's surface pin and a
     // surface block's template binding resolved to a version; detach lineage is not an edge. Refuse when the walk
     // returns to the version being published, at the first hop's block.
-    private static void Cycle(TemplateDefinition candidate, TemplateSurfaces surfaces, List<TemplateRefusal> refusals)
+    private static void Cycle(TemplateDefinition candidate, TemplateSurfaces surfaces, List<DefinitionRefusal> refusals)
     {
         var self = (candidate.Envelope.Identity, candidate.Envelope.Version);
         var seen = new HashSet<(string, string)> { self };
@@ -212,13 +191,13 @@ public static class TemplateDefinitionAdmission
     /// catalogue's own tenant, key and version before it publishes, so an exact pin never resolves a body
     /// claiming another version. A draft may disagree (a restored copy) until it is re-versioned.
     /// </summary>
-    public static IReadOnlyList<TemplateRefusal> AdmitCatalogueBody(
+    public static IReadOnlyList<DefinitionRefusal> AdmitCatalogueBody(
         string tenant, string definitionId, string version, string bodyJson, bool publishing, TemplateSurfaces surfaces)
     {
         TemplateDefinition template;
         try { template = TemplateDefinitionJson.Deserialize(System.Text.Encoding.UTF8.GetBytes(bodyJson ?? "")); }
         catch (JsonException) { return [new(TemplateDefinitionCodes.BodyInvalid, "")]; }
-        var refusals = new List<TemplateRefusal>();
+        var refusals = new List<DefinitionRefusal>();
         foreach (var (stated, expected, member) in new[]
         {
             (template.Envelope?.Tenant, tenant, "tenant"),
@@ -231,14 +210,14 @@ public static class TemplateDefinitionAdmission
     }
 
     /// <summary>Refuses publication by throwing every refusal.</summary>
-    /// <exception cref="TemplateAdmissionException">The template was refused.</exception>
+    /// <exception cref="DefinitionRefusalException">The template was refused.</exception>
     public static void ValidateForPublish(TemplateDefinition template, TemplateSurfaces surfaces)
     {
         var refusals = Validate(template, surfaces);
-        if (refusals.Count > 0) throw new TemplateAdmissionException("definition.publish", refusals);
+        if (refusals.Count > 0) throw new DefinitionRefusalException(DefinitionAdmissionPhase.Publish, refusals);
     }
 
-    private static void Envelope(TemplateDefinitionEnvelope? envelope, List<TemplateRefusal> refusals)
+    private static void Envelope(TemplateDefinitionEnvelope? envelope, List<DefinitionRefusal> refusals)
     {
         if (envelope is null)
         {

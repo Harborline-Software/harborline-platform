@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <HarborlinePublicDistributionAuthorized>false</HarborlinePublicDistributionAuthorized>
+    <PackageId>Harborline.Foundation.Definitions</PackageId>
+    <AssemblyName>Harborline.Foundation.Definitions</AssemblyName>
+    <RootNamespace>Harborline.Foundation.Definitions</RootNamespace>
+    <Description>Shared definition-admission refusal envelope.</Description>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageReleaseNotes>New package (owner ruling Q48 / T-724 ruling 116): the shared definition-admission refusal envelope (DefinitionAdmissionPhase, DefinitionRefusal, DefinitionRefusalReport, DefinitionRefusalException), moved here from Harborline.Blocks.BuilderDefinitions, which now forwards those four types to this package with [TypeForwardedTo] for binary compatibility. Internal-only projection; public distribution is not authorized.</PackageReleaseNotes>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="/" />
+    <None Include="../../../../LICENSE" Link="LICENSE" Pack="true" PackagePath="/" />
+  </ItemGroup>
+</Project>

@@ -48,7 +48,7 @@ public sealed class TemplatePackTests
         Assert.False(TemplatePack.TryParse(Encoding.UTF8.GetBytes(content.ToJsonString()), Tenant, Provenance, out var template, out var miss));
 
         Assert.Null(template);
-        Assert.Equal(new TemplateRefusal(TemplateDefinitionCodes.AuthorityFieldForbidden, pointer), miss);
+        Assert.Equal(new DefinitionRefusal(TemplateDefinitionCodes.AuthorityFieldForbidden, pointer), miss);
     }
 
     [Fact(DisplayName = "documents-auth-19: a repeating region declared with no columns refuses rather than rendering an empty table")]
@@ -57,7 +57,7 @@ public sealed class TemplatePackTests
         var blocks = Surface().Blocks.Select(block => block.Repeating ? block with { Children = [] } : block).ToArray();
 
         Assert.Equal(
-            [new TemplateRefusal(TemplateDefinitionCodes.RepeatingRegionColumnsRequired, "/surface/blocks/1/children")],
+            [new DefinitionRefusal(TemplateDefinitionCodes.RepeatingRegionColumnsRequired, "/surface/blocks/1/children")],
             TemplateDefinitionAdmission.Validate(Template(), Surfaces(Surface(blocks: blocks))));
         Assert.Empty(TemplateDefinitionAdmission.Validate(Template(), Surfaces()));
     }

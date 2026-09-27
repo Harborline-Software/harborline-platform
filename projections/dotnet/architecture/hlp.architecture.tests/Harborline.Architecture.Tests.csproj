@@ -21,6 +21,7 @@
     <ProjectReference Include="../../foundation/hlp.foundation.actor/Harborline.Foundation.Authorization.csproj" />
     <ProjectReference Include="../../foundation/hlp.foundation.assistance/Harborline.Foundation.Assistance.csproj" />
     <ProjectReference Include="../../foundation/hlp.foundation.data-exchange/Harborline.Foundation.DataExchange.csproj" />
+    <ProjectReference Include="../../foundation/hlp.foundation.definitions/Harborline.Foundation.Definitions.csproj" />
     <ProjectReference Include="../../foundation/hlp.foundation.documents/Harborline.Foundation.Documents.csproj" />
     <ProjectReference Include="../../foundation/hlp.foundation.forms/Harborline.Foundation.Forms.csproj" />
     <ProjectReference Include="../../foundation/hlp.foundation.field-runtime/Harborline.Foundation.FieldRuntime.csproj" />
@@ -45,5 +46,6 @@
     <ProjectReference Include="../../blocks/hlp.blocks.scheduling/Harborline.Blocks.Scheduling.csproj" />
     <ProjectReference Include="../../blocks/hlp.blocks.workflow/Harborline.Blocks.Workflow.csproj" />
     <ProjectReference Include="../../blocks/hlp.blocks.workflow-interpreter/Harborline.Blocks.Workflow.Interpreter.csproj" />
+    <ProjectReference Include="../../../../tests/package-consumers/documents-envelope-binary-compat/Consumer.csproj" />
   </ItemGroup>
 </Project>

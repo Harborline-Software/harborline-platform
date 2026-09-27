@@ -2,6 +2,8 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
+using Harborline.Blocks.BuilderDefinitions;
+
 using Xunit;
 
 using static Harborline.Foundation.Documents.Tests.TemplateFixtures;
@@ -56,7 +58,7 @@ public sealed class TemplateDefinitionTests
         })
         {
             var refusal = Assert.Single(TemplateDefinitionAdmission.Validate(template with { Envelope = broken }, Surfaces()));
-            Assert.Equal(new TemplateRefusal(TemplateDefinitionCodes.EnvelopeInvalid, pointer), refusal);
+            Assert.Equal(new DefinitionRefusal(TemplateDefinitionCodes.EnvelopeInvalid, pointer), refusal);
         }
     }
 
@@ -69,7 +71,7 @@ public sealed class TemplateDefinitionTests
         Assert.Equal("credit-note", imported!.DocumentType);
 
         var refusal = Assert.Single(TemplateDefinitionAdmission.Validate(template with { DocumentType = " " }, Surfaces()));
-        Assert.Equal(new TemplateRefusal(TemplateDefinitionCodes.DocumentTypeRequired, "/document_type"), refusal);
-        Assert.Throws<TemplateAdmissionException>(() => TemplatePack.Export(template with { DocumentType = "" }, Surfaces()));
+        Assert.Equal(new DefinitionRefusal(TemplateDefinitionCodes.DocumentTypeRequired, "/document_type"), refusal);
+        Assert.Throws<DefinitionRefusalException>(() => TemplatePack.Export(template with { DocumentType = "" }, Surfaces()));
     }
 }

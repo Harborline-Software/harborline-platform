@@ -8,9 +8,10 @@
     <Description>Shared definition catalogue substrate, including deterministic platform package export, empty-store replay, and raise-only safety-floor reattachment.</Description>
     <PackageTags>harborline;forms;workflows;builder;definitions;archive;package;seed</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <PackageReleaseNotes>Internal-only projection; public distribution is not authorized.</PackageReleaseNotes>
+    <PackageReleaseNotes>Owner ruling Q48 / T-724 ruling 116: DefinitionAdmissionPhase, DefinitionRefusal, DefinitionRefusalReport and DefinitionRefusalException moved to the new Harborline.Foundation.Definitions package; this package now takes a dependency on it and forwards those four types with [TypeForwardedTo] for binary compatibility (same namespace, same members, no source change required of existing consumers). Internal-only projection; public distribution is not authorized.</PackageReleaseNotes>
   </PropertyGroup>
   <ItemGroup>
+    <ProjectReference Include="../../foundation/hlp.foundation.definitions/Harborline.Foundation.Definitions.csproj" />
     <ProjectReference Include="../../foundation/hlp.foundation.rule-authoring/Harborline.Foundation.RuleAuthoring.csproj" />
     <!-- T-582 (T-724 ruling 38): a field control's parameters validate against the schema it declares. -->
     <PackageReference Include="JsonSchema.Net" />
