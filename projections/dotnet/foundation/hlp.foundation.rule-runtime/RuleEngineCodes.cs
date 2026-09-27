@@ -84,6 +84,9 @@ public static class RuleEngineCodes
     /// <summary>A rule expression was not parseable JSON / well-formed JsonLogic.</summary>
     public const string CompileInvalidExpression = "rule.compile.invalid_expression";
 
+    /// <summary>A JsonSchema-tier rule was not a valid draft 2020-12 JSON Schema.</summary>
+    public const string CompileInvalidJsonSchema = "rule.compile.invalid_json_schema";
+
     /// <summary>A rule declared a tier the v1 evaluator does not implement (e.g. PowerFx).</summary>
     public const string CompileUnsupportedTier = "rule.compile.unsupported_tier";
 

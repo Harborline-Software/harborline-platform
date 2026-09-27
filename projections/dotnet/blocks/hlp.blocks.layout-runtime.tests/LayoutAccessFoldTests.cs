@@ -81,6 +81,10 @@ public sealed class LayoutAccessFoldTests
     {
         private readonly HashSet<string> _unreadable = new(unreadable ?? [], StringComparer.Ordinal);
 
+        public bool CanAuthor() => true;
+
+        public bool CanPublish() => true;
+
         public bool CanRead(LayoutBinding binding) => !_unreadable.Contains(binding switch
         {
             LayoutQueryBinding value => value.ViewDefinitionId,
@@ -115,7 +119,7 @@ public sealed class LayoutAccessFoldTests
             return true;
         }
 
-        public bool TryResolveTemplate(LayoutBindingScope scope, string templateDefinitionId, out JsonNode? value)
+        public bool TryResolveTemplate(LayoutBindingScope scope, string templateDefinitionId, string templateVersion, out JsonNode? value)
         {
             value = null;
             return false;

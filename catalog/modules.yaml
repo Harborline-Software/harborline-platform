@@ -727,6 +727,108 @@
         }
       }
     },
+    "hlp.foundation.assistance": {
+      "interface": {"path": "specs/modules/foundation/hlp.foundation.assistance/interface.yaml", "revision": 1},
+      "moduleKind": "runtime",
+      "presentation": {"disposition": "not-applicable", "rationale": "The foundation package owns the projection-neutral AssistanceDefinition and its phase-aware admission; the binding editor and reading-surface panel are separate projections over this interface."},
+      "owner": "platform-foundation",
+      "dependencies": [],
+      "status": "implemented",
+      "depth": {
+        "disposition": "deep-module",
+        "deletionTest": "PASS",
+        "redistributedComplexity": [
+          "command-narrowing (tier, args schema, recipients), NEVER-archetype and context-allowlist admission reimplemented by every host that authors or installs an Assistance binding",
+          "canonical envelope shape and the reserved DefinitionKind.Pilot namespace allowed to drift between the definition producer and the shared builder-definitions catalogue"
+        ]
+      },
+      "projections": {
+        "dotnet": {
+          "role": "implementation",
+          "path": "projections/dotnet/foundation/hlp.foundation.assistance",
+          "status": "preview",
+          "artifact": {
+            "type": "nuget",
+            "id": "Harborline.Foundation.Assistance",
+            "assembly": "Harborline.Foundation.Assistance",
+            "manifest": "projections/dotnet/foundation/hlp.foundation.assistance/Harborline.Foundation.Assistance.csproj",
+            "identityAuthority": "Harborline",
+            "producerRepository": "harborline-platform",
+            "distribution": "internal-only",
+            "candidateRole": "new-bounded-package",
+            "registryAvailable": false
+          }
+        }
+      }
+    },
+    "hlp.foundation.taxonomy": {
+      "interface": {"path": "specs/modules/foundation/hlp.foundation.taxonomy/interface.yaml", "revision": 1},
+      "moduleKind": "runtime",
+      "presentation": {"disposition": "not-applicable", "rationale": "The foundation package owns the projection-neutral TaxonomyDefinition and its admission; the scheme/overlay editor and catalogue views are separate projections over this interface."},
+      "owner": "platform-foundation",
+      "dependencies": [],
+      "status": "implemented",
+      "depth": {
+        "disposition": "deep-module",
+        "deletionTest": "PASS",
+        "redistributedComplexity": [
+          "canonical identity derivation, phase-aware structural admission, cycle/depth-bounded parent-edge validation and monotonic-tombstone checking reimplemented by every host that authors or installs a taxonomy",
+          "governance-regime and Authoritative-owner rules allowed to drift between authoring, publish and install call sites"
+        ]
+      },
+      "projections": {
+        "dotnet": {
+          "role": "implementation",
+          "path": "projections/dotnet/foundation/hlp.foundation.taxonomy",
+          "status": "preview",
+          "artifact": {
+            "type": "nuget",
+            "id": "Harborline.Foundation.Taxonomy",
+            "assembly": "Harborline.Foundation.Taxonomy",
+            "manifest": "projections/dotnet/foundation/hlp.foundation.taxonomy/Harborline.Foundation.Taxonomy.csproj",
+            "identityAuthority": "Harborline",
+            "producerRepository": "harborline-platform",
+            "distribution": "internal-only",
+            "candidateRole": "new-bounded-package",
+            "registryAvailable": false
+          }
+        }
+      }
+    },
+    "hlp.foundation.definitions": {
+      "interface": {"path": "specs/modules/foundation/hlp.foundation.definitions/interface.yaml", "revision": 1},
+      "moduleKind": "compatibility",
+      "presentation": {"disposition": "not-applicable", "rationale": "A foundation-tier home for four pure data/exception types; there is no UI surface at any tier."},
+      "owner": "platform-foundation",
+      "dependencies": [],
+      "status": "implemented",
+      "depth": {
+        "disposition": "compatibility-binding",
+        "deletionTest": "PASS",
+        "redistributedComplexity": [
+          "every producer (Layout, Calendar, Rules in blocks; Documents in foundation) would go back to reimplementing its own stage vocabulary and refusal shape, exactly the T-583-vs-T-757 divergence this module exists to close",
+          "Documents could not reach the shared envelope at all without crossing the foundation->blocks tier fence that hlp.architecture.tests enforces, forcing its own string-stage TemplateAdmissionException back into existence"
+        ]
+      },
+      "projections": {
+        "dotnet": {
+          "role": "implementation",
+          "path": "projections/dotnet/foundation/hlp.foundation.definitions",
+          "status": "preview",
+          "artifact": {
+            "type": "nuget",
+            "id": "Harborline.Foundation.Definitions",
+            "assembly": "Harborline.Foundation.Definitions",
+            "manifest": "projections/dotnet/foundation/hlp.foundation.definitions/Harborline.Foundation.Definitions.csproj",
+            "identityAuthority": "Harborline",
+            "producerRepository": "harborline-platform",
+            "distribution": "internal-only",
+            "candidateRole": "new-bounded-package",
+            "registryAvailable": false
+          }
+        }
+      }
+    },
     "hlp.foundation.documents": {
       "interface": {"path": "specs/modules/foundation/hlp.foundation.documents/interface.yaml", "revision": 1},
       "moduleKind": "runtime",

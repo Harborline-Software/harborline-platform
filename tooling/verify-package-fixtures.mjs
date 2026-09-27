@@ -795,6 +795,7 @@ function verifyNuget() {
   const workflowInterpreter = 'projections/dotnet/blocks/hlp.blocks.workflow-interpreter/Harborline.Blocks.Workflow.Interpreter.csproj'
   const entityViews = 'projections/dotnet/blocks/hlp.blocks.entity-views/Harborline.Blocks.EntityViews.csproj'
   const dataExchange = 'projections/dotnet/foundation/hlp.foundation.data-exchange/Harborline.Foundation.DataExchange.csproj'
+  const definitions = 'projections/dotnet/foundation/hlp.foundation.definitions/Harborline.Foundation.Definitions.csproj'
   const documents = 'projections/dotnet/foundation/hlp.foundation.documents/Harborline.Foundation.Documents.csproj'
   const foundationScheduling = 'projections/dotnet/foundation/hlp.foundation.scheduling/Harborline.Foundation.Scheduling.csproj'
   const fieldRuntime = 'projections/dotnet/foundation/hlp.foundation.field-runtime/Harborline.Foundation.FieldRuntime.csproj'
@@ -824,6 +825,7 @@ function verifyNuget() {
   run(dotnet.executable, ['pack', workflowInterpreter, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
   run(dotnet.executable, ['pack', entityViews, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
   run(dotnet.executable, ['pack', dataExchange, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
+  run(dotnet.executable, ['pack', definitions, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
   run(dotnet.executable, ['pack', documents, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
   run(dotnet.executable, ['pack', foundationScheduling, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
   run(dotnet.executable, ['pack', fieldRuntime, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
@@ -1270,6 +1272,8 @@ function verifyCalculationsCapability() {
     'Harborline.Foundation.Definitions',
     'Harborline.Foundation.RuleAuthoring',
     'Harborline.Foundation.RuleEngine',
+    // T-732: RuleEngine now compiles the JsonSchema tier against the kernel's own dialect.
+    'Harborline.Kernel.SchemaValidation',
     'Harborline.Contracts',
   ], 'Calculations engine')
 
@@ -1325,7 +1329,8 @@ function verifyViewsCapability() {
     engineConsumer,
     // T-624: Views reaches measures through the shared catalogue, which brings the catalogue and
     // the aggregates evaluator it resolves declared entries against. Views still owns no math.
-    ['Harborline.Blocks.EntityViews', 'Harborline.Blocks.MeasureCatalogue', 'Harborline.Blocks.Aggregates', 'Harborline.Contracts', 'Harborline.Foundation.Authorization', 'Harborline.Foundation.MultiTenancy', 'Harborline.Foundation.RuleEngine'],
+    // T-732: RuleEngine now compiles the JsonSchema tier against the kernel's own dialect.
+    ['Harborline.Blocks.EntityViews', 'Harborline.Blocks.MeasureCatalogue', 'Harborline.Blocks.Aggregates', 'Harborline.Contracts', 'Harborline.Foundation.Authorization', 'Harborline.Foundation.MultiTenancy', 'Harborline.Foundation.RuleEngine', 'Harborline.Kernel.SchemaValidation'],
     'Views engine',
     /Forms.*(?:Builder|Authoring)|(?:Builder|Authoring).*Forms/i,
   )
@@ -1335,7 +1340,8 @@ function verifyViewsCapability() {
   cpSync(resolve(root, 'tests/package-consumers/views-blazor-nuget'), blazorConsumer, { recursive: true })
   const blazorDirectReferences = assertDirectPackageReferences(blazorConsumer, ['Harborline.UIAdapters.Blazor'], 'Views Blazor authoring')
   const [blazorAuthoringBehavior] = proofLines(runNugetConsumer(blazorConsumer, blazorPackageCache), ['VIEWS_BLAZOR_AUTHORING_PASS:'], 'Views Blazor package-only authoring lane')
-  assertPackageClosure(blazorConsumer, ['Harborline.UIAdapters.Blazor', 'Harborline.Foundation', 'Harborline.Foundation.RuleAuthoring', 'Harborline.Foundation.RuleEngine', 'Harborline.Contracts'], 'Views Blazor authoring')
+  // T-732: RuleEngine now compiles the JsonSchema tier against the kernel's own dialect.
+  assertPackageClosure(blazorConsumer, ['Harborline.UIAdapters.Blazor', 'Harborline.Foundation', 'Harborline.Foundation.RuleAuthoring', 'Harborline.Foundation.RuleEngine', 'Harborline.Kernel.SchemaValidation', 'Harborline.Contracts'], 'Views Blazor authoring')
 
   return {
     id: 'views-capability-vertical',
@@ -1379,9 +1385,14 @@ function verifySchedulingCapability() {
     consumer,
     ['Harborline.Blocks.Calendar', 'Harborline.Blocks.Scheduling', 'Harborline.Foundation.Scheduling', 'Harborline.Contracts',
       'Harborline.Foundation.Authorization', 'Harborline.Foundation.MultiTenancy', 'Harborline.Foundation.RuleEngine',
+      // T-732: RuleEngine now compiles the JsonSchema tier against the kernel's own dialect.
+      'Harborline.Kernel.SchemaValidation',
       'Harborline.Blocks.BuilderDefinitions', 'Harborline.Foundation.Definitions', 'Harborline.Foundation.RuleAuthoring'],
     'Scheduling',
-    /(?:Forms|Reports|Workflows|EntityViews|Kernel|Blazor|React)/i,
+    // T-732: RuleEngine's own Kernel.SchemaValidation dependency (compiling the JsonSchema tier
+    // against the kernel's dialect) is now an expected, always-present part of the RuleEngine
+    // closure every consumer inherits; every OTHER Kernel package remains excluded pollution.
+    /(?:Forms|Reports|Workflows|EntityViews|Kernel(?!\.SchemaValidation\b)|Blazor|React)/i,
   )
 
   return { id: 'scheduling-capability-vertical', status: 'PASS', anchors: 174, hostRows: 88, crossLanePairs: 0, corpusSha256: sha256(corpusSource), directPackageReferences: direct, packageClosure: closure, sourceOrProjectDependencies: 0, packageProof, availabilityProof, capabilityProof }
@@ -1407,9 +1418,12 @@ function verifyReportsCapability() {
   const closure = assertPackageClosure(
     consumer,
     ['Harborline.Blocks.Reports', 'Harborline.Blocks.MeasureCatalogue', 'Harborline.Blocks.Aggregates', 'Harborline.Contracts',
-      'Harborline.Foundation.Authorization', 'Harborline.Foundation.MultiTenancy', 'Harborline.Foundation.RuleEngine'],
+      'Harborline.Foundation.Authorization', 'Harborline.Foundation.MultiTenancy', 'Harborline.Foundation.RuleEngine',
+      // T-732: RuleEngine now compiles the JsonSchema tier against the kernel's own dialect.
+      'Harborline.Kernel.SchemaValidation'],
     'Reports',
-    /(?:Financial|Tax|Forms|Workflows|EntityViews|Kernel|Blazor|React)/i,
+    // T-732: see the identical note in verifySchedulingCapability.
+    /(?:Financial|Tax|Forms|Workflows|EntityViews|Kernel(?!\.SchemaValidation\b)|Blazor|React)/i,
   )
 
   return { id: 'reports-capability-vertical', status: 'PASS', anchors: 162, hostRows: 12, clientRows: 3, crossLanePairs: 0, corpusSha256: sha256(corpusSource), directPackageReferences: direct, packageClosure: closure, sourceOrProjectDependencies: 0, packageProof, capabilityProof }
@@ -1531,7 +1545,8 @@ function verifyAppShellCapability() {
   const assets = JSON.parse(assetsText)
   const target = Object.values(assets.targets ?? {})[0] ?? {}
   const closure = Object.keys(target).filter(x => /^Harborline\./.test(x)).map(x => x.split('/')[0]).sort()
-  const expectedClosure = ['Harborline.Foundation.MultiTenancy', 'Harborline.Contracts', 'Harborline.Foundation.Authorization', 'Harborline.Foundation.Session', 'Harborline.Foundation.RuleEngine'].sort()
+  // T-732: RuleEngine now compiles the JsonSchema tier against the kernel's own dialect.
+  const expectedClosure = ['Harborline.Foundation.MultiTenancy', 'Harborline.Contracts', 'Harborline.Foundation.Authorization', 'Harborline.Foundation.Session', 'Harborline.Foundation.RuleEngine', 'Harborline.Kernel.SchemaValidation'].sort()
   if (JSON.stringify(closure) !== JSON.stringify(expectedClosure)) throw new Error(`App-shell closure drift: ${JSON.stringify(closure)}`)
 
   // Capability-host rows: cross-repo tarballs staged by explicit environment paths with the

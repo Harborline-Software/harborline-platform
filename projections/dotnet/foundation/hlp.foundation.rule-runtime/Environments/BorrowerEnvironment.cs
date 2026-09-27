@@ -175,6 +175,20 @@ public static class BorrowerEnvironmentAdmission
     internal static string? Check(EvaluationAdmission? admission, CompiledGraph compiled)
         => admission is null ? NotAdmitted : admission.Environment.Refusal(compiled.Rules.Select(rule => rule.Ast));
 
+    /// <summary>
+    /// Checks, without evaluating it, whether a compiled guard only addresses operations and variables the
+    /// borrower's declaration admits for <paramref name="phase"/>. Returns <see langword="null"/> when it
+    /// is admitted, otherwise the stable refusal code.
+    /// </summary>
+    public static string? CheckCompiledGuard(
+        CompiledGraph compiled,
+        BorrowerEnvironmentDeclaration declaration,
+        EvaluationPhase phase)
+    {
+        ArgumentNullException.ThrowIfNull(compiled);
+        return Admit(declaration).For(phase).Environment.Refusal(compiled.LoweredAsts);
+    }
+
     /// <summary>Canonical JSON options shared with the TS tier's <c>JSON.stringify</c> (no HTML escaping).</summary>
     public static JsonSerializerOptions CanonicalOptions { get; } = new() { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
 

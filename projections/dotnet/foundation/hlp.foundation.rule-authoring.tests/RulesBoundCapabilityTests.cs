@@ -12,7 +12,11 @@ public sealed class RulesBoundCapabilityTests
 {
     private static RuleDefinition Rule(Harborline.Contracts.Forms.RuleTier tier) => new()
     {
-        Id = "t", Tier = tier, Scope = RuleScope.Field, ScopeTarget = "total", Expression = """{"+":[1,2]}""", Action = RuleActionKind.Compute,
+        Id = "t", Tier = tier, Scope = RuleScope.Field, ScopeTarget = "total",
+        Expression = tier == Harborline.Contracts.Forms.RuleTier.JsonSchema
+            ? """{"type":"number"}"""
+            : """{"+":[1,2]}""",
+        Action = RuleActionKind.Compute,
     };
 
     [Fact(DisplayName = "rules-bound-5: Tier-1 JSON Schema is the kernel's, Tier-2 JSON Logic compiles here, and Tier-3 Power Fx is refused by code behind the same contract")]

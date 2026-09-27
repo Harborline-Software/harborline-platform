@@ -435,7 +435,9 @@ public sealed class FormLayoutBreadthTests
                 Rules: Array.Empty<RuleDefinition>()),
             Lineage: null,
             CreatedAt: Now,
-            UpdatedAt: Now);
+            UpdatedAt: Now,
+            SubmitGate: new Harborline.Contracts.Authorization.SubmitGate(
+                Role: Harborline.Contracts.Authorization.RoleReference.Domain("tenant:admin")));
     }
 
     private sealed class FixedClock : TimeProvider

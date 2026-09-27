@@ -150,7 +150,12 @@ public sealed class GuardEvaluator : IGuardEvaluator
     {
         ArgumentNullException.ThrowIfNull(rule);
         ArgumentNullException.ThrowIfNull(context);
-        var compiled = RuleCompiler.Compile(new[] { rule }, _limits);
+        CompiledGraph compiled;
+        // T-739: a rule that does not compile is an errored computed value carrying the compile
+        // code, like an evaluation fault, so callers need not hand-roll the fail-closed guarantee.
+        // The message (which can quote the expression) stays out of the result.
+        try { compiled = RuleCompiler.Compile(new[] { rule }, _limits); }
+        catch (RuleCompilationException ex) { return ComputedValue.OfError(RuleError.Of(ex.Code)); }
         if (BorrowerEnvironmentAdmission.Check(admission, compiled) is { } refusal) return ComputedValue.OfError(RuleError.Of(refusal));
         if (compiled.RuleCount == 0) return ComputedValue.Resolved(null);
         return Run(compiled.Rules[0], context.CreateResolver(scope), ct,

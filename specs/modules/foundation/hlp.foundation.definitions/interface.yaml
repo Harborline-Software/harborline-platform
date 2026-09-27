@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.foundation.definitions",
+  "interfaceRevision": 1,
+  "status": "frozen",
+  "purpose": "Own the shared definition-admission refusal envelope (DefinitionAdmissionPhase, DefinitionRefusal, DefinitionRefusalReport, DefinitionRefusalException) at the foundation tier, so a foundation-tier producer (Documents) and blocks-tier producers (Layout, Calendar, Rules) resolve the exact same runtime type. hlp.blocks.builder-definitions forwards its former public names here with [TypeForwardedTo] for binary compatibility (owner ruling Q48, T-724 ruling 116); this module owns the types, that one keeps every existing consumer's identity and reference unchanged.",
+  "dependencies": [],
+  "callerInterface": {
+    "name": "DefinitionAdmissionPhase / DefinitionRefusal / DefinitionRefusalReport / DefinitionRefusalException",
+    "operations": [
+      "DefinitionAdmissionPhase -> the four-stage admission boundary (Author, Publish, Install, Render) every refusal names explicitly; no default stage (T-724 ruling 79)",
+      "DefinitionRefusal(Code, Pointer, Target?) -> one stable, localizable refusal at an RFC 6901 pointer; Target is present only when revealing it is safe and authorized",
+      "DefinitionRefusalReport(Stage, Refusals) -> a pure admission verdict, empty Refusals meaning admitted",
+      "DefinitionRefusalException(Stage, Refusals) -> the shared refused-operation exception every producer throws; history and published head are unchanged when it throws"
+    ]
+  }
+}

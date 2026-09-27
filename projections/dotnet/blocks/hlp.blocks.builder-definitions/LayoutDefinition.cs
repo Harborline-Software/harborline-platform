@@ -230,9 +230,10 @@ public sealed record LayoutQueryBinding(string ViewDefinitionId) : LayoutBinding
 /// <param name="MeasurePath">The stable measure path.</param>
 public sealed record LayoutMeasureBinding(string MeasurePath) : LayoutBinding;
 
-/// <summary>Binds a page block to a released template definition.</summary>
+/// <summary>Binds a page block to an exact released template definition version.</summary>
 /// <param name="TemplateDefinitionId">The released template identifier.</param>
-public sealed record LayoutTemplateBinding(string TemplateDefinitionId) : LayoutBinding;
+/// <param name="TemplateVersion">The exact immutable released template version.</param>
+public sealed record LayoutTemplateBinding(string TemplateDefinitionId, string TemplateVersion) : LayoutBinding;
 
 /// <summary>Binds a block to immutable static content.</summary>
 /// <param name="Content">The static JSON value.</param>

@@ -19,6 +19,7 @@ public sealed class DataExchangeDefinitionStoreTests
     private static readonly DefinitionKey CatalogueKey = new(Tenant, DefinitionKind.DataExchange, Key);
 
     [Fact]
+    [Trait("Holds", "data-exchange-ck-7")]
     public async Task Catalogue_keeps_published_heads_immutable_and_restore_registers_a_new_draft()
     {
         var catalogue = Catalogue();
@@ -71,6 +72,22 @@ public sealed class DataExchangeDefinitionStoreTests
     }
 
     [Fact]
+    [Trait("Holds", "data-exchange-ck-1")]
+    [Trait("Holds", "data-exchange-ck-2")]
+    [Trait("Holds", "data-exchange-ck-3")]
+    [Trait("Holds", "data-exchange-ck-4")]
+    [Trait("Holds", "data-exchange-ck-5")]
+    [Trait("Holds", "data-exchange-ck-6")]
+    [Trait("Holds", "data-exchange-ck-9")]
+    [Trait("Holds", "data-exchange-ck-11")]
+    [Trait("Holds", "data-exchange-ck-12")]
+    [Trait("Holds", "data-exchange-ck-13")]
+    [Trait("Holds", "data-exchange-ck-14")]
+    [Trait("Holds", "data-exchange-ck-15")]
+    [Trait("Holds", "data-exchange-ck-16")]
+    [Trait("Holds", "data-exchange-ck-22")]
+    [Trait("Holds", "data-exchange-ck-23")]
+    [Trait("Holds", "data-exchange-eng-3")]
     public void Every_definition_member_round_trips_through_canonical_json()
     {
         var definition = Definition("1.0.0") with
@@ -125,6 +142,8 @@ public sealed class DataExchangeDefinitionStoreTests
     }
 
     [Fact]
+    [Trait("Holds", "data-exchange-ck-8")]
+    [Trait("Holds", "data-exchange-ck-25")]
     public void Pack_export_carries_content_kind_11_through_the_platform_package_with_closure_and_digest()
     {
         var entry = DataExchangeDefinitionPackExporter.Export(Definition("1.0.0"), Sources());
@@ -155,6 +174,8 @@ public sealed class DataExchangeDefinitionStoreTests
     }
 
     [Fact]
+    [Trait("Holds", "data-exchange-ck-22")]
+    [Trait("Holds", "data-exchange-auth-25")]
     public void Create_does_not_seed_a_cadence_and_refresh_is_only_a_schedule_citation()
     {
         var created = Definition("1.0.0") with { RefreshScheduleReference = null };
@@ -188,6 +209,13 @@ public sealed class DataExchangeDefinitionStoreTests
 
     [Theory]
     [MemberData(nameof(AuthoringRefusals))]
+    [Trait("Holds", "data-exchange-ck-13")]
+    [Trait("Holds", "data-exchange-eng-2")]
+    [Trait("Holds", "data-exchange-eng-3")]
+    [Trait("Holds", "data-exchange-auth-15")]
+    [Trait("Holds", "data-exchange-auth-17")]
+    [Trait("Holds", "data-exchange-auth-18")]
+    [Trait("Holds", "data-exchange-auth-21")]
     public async Task Each_authoring_refusal_admits_nothing_and_its_valid_counterpart_admits_exactly_one(
         string variant, string code, string pointer)
     {
@@ -210,6 +238,11 @@ public sealed class DataExchangeDefinitionStoreTests
     [InlineData("export", "{\"shape\":\"RowSet\"}", "definition.export_refused", "/export")]
     [InlineData("direction", "\"outbound\"", "definition.export_refused", "/direction")]
     [InlineData("connection_state", "\"open\"", "definition.body_invalid", "/")]
+    [Trait("Holds", "data-exchange-ck-24")]
+    [Trait("Holds", "data-exchange-auth-16")]
+    [Trait("Holds", "data-exchange-auth-17")]
+    [Trait("Holds", "data-exchange-auth-20")]
+    [Trait("Holds", "data-exchange-auth-23")]
     public async Task Install_refuses_non_object_settings_rollback_export_and_unknown_members_with_zero_publication(
         string member, string valueJson, string code, string pointer)
     {
@@ -227,6 +260,7 @@ public sealed class DataExchangeDefinitionStoreTests
     }
 
     [Fact]
+    [Trait("Holds", "data-exchange-eng-2")]
     public async Task Publish_readmits_and_refuses_a_kind_the_host_no_longer_registers()
     {
         var sources = new MutableSources();
@@ -260,6 +294,9 @@ public sealed class DataExchangeDefinitionStoreTests
     [InlineData("accessToken")]
     [InlineData("clientSecret")]
     [InlineData("pass.word")]
+    [Trait("Holds", "data-exchange-ck-8")]
+    [Trait("Holds", "data-exchange-ck-25")]
+    [Trait("Holds", "data-exchange-auth-17")]
     public void Credential_aliases_are_refused_even_when_a_capability_schema_declares_them(string parameter)
     {
         var definition = Definition("1.0.0") with

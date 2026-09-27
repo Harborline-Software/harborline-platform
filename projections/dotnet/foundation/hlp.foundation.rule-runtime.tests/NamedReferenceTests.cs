@@ -119,8 +119,8 @@ public sealed class NamedReferenceTests
         Assert.True(Guard.EvaluateGuard(coded, Facts("""{"c":{"system":"asset-class","code":"rotating"}}"""), RuleEvalScope.Root, TestAdmission.Any).Ok);
         Assert.False(Guard.EvaluateGuard(coded, Facts("""{"c":{"system":"asset-class","code":"pump"}}"""), RuleEvalScope.Root, TestAdmission.Any).Ok);
 
-        // The engine assembly cannot reach a catalogue or a search: it references only the contracts.
-        Assert.Equal(["Harborline.Contracts", "System.Runtime"], typeof(GuardEvaluator).Assembly.GetReferencedAssemblies()
+        // The engine assembly cannot reach a catalogue or a search: it references only contracts and schema validation.
+        Assert.Equal(["Harborline.Contracts", "Harborline.Kernel.SchemaValidation", "System.Runtime"], typeof(GuardEvaluator).Assembly.GetReferencedAssemblies()
             .Select(a => a.Name!).Where(n => n.StartsWith("Harborline", StringComparison.Ordinal) || n == "System.Runtime").Order(StringComparer.Ordinal));
     }
 

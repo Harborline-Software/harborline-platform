@@ -2,6 +2,7 @@ using System.Text.Json.Nodes;
 
 using Harborline.Foundation.RuleEngine.Functions;
 using Harborline.Foundation.RuleEngine.Model;
+using Harborline.Kernel.SchemaValidation;
 
 
 namespace Harborline.Foundation.RuleEngine.Compilation;
@@ -48,8 +49,11 @@ public static class RuleCompiler
 
         foreach (var rule in rules)
         {
-            // This engine owns Tier-2 (JsonLogic). Tier-1 (JsonSchema) is the kernel validator's.
-            if (rule.Tier == RuleTier.JsonSchema) continue;
+            if (rule.Tier == RuleTier.JsonSchema)
+            {
+                ValidateJsonSchema(rule);
+                continue;
+            }
             if (rule.Tier != RuleTier.JsonLogic)
             {
                 throw new RuleCompilationException(
@@ -104,6 +108,21 @@ public static class RuleCompiler
         // Admission proof after closed-operator and static-DAG validation.  It is
         // deliberately distinct from the runtime step/wall-clock backstops.
         return new CompiledGraph(compiled, CoreWorkDerivation.DeriveGraph(compiled, lim));
+    }
+
+    private static void ValidateJsonSchema(RuleDefinition rule)
+    {
+        try
+        {
+            new InMemorySchemaRegistry().RegisterAsync(rule.Expression).AsTask().GetAwaiter().GetResult();
+        }
+        catch (InvalidSchemaException exception)
+        {
+            throw new RuleCompilationException(
+                RuleEngineCodes.CompileInvalidJsonSchema,
+                $"rule '{rule.Id}': JSON Schema is malformed or invalid for draft 2020-12: {exception.Message}",
+                rule.Id);
+        }
     }
 
     private static void ValidateCoreTypes(IReadOnlyList<CompiledRule> rules)

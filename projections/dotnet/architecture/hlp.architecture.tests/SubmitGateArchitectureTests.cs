@@ -126,6 +126,10 @@ public sealed class SubmitGateArchitectureTests
 
     private sealed class GrantsAll : ILayoutAccess
     {
+        public bool CanAuthor() => true;
+
+        public bool CanPublish() => true;
+
         public bool CanRead(LayoutBinding binding) => true;
 
         public bool CanOpen(string surfaceId) => true;

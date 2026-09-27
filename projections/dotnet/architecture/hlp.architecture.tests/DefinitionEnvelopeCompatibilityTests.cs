@@ -42,8 +42,8 @@ public sealed class DefinitionEnvelopeCompatibilityTests
 
     private static Type ResolveEnvelopeType(Assembly producer)
     {
-        var envelopeAssemblyName = Assert.Single(producer.GetReferencedAssemblies().Where(reference =>
-            string.Equals(reference.Name, "Harborline.Foundation.Definitions", StringComparison.Ordinal)));
+        var envelopeAssemblyName = Assert.Single(producer.GetReferencedAssemblies(), reference =>
+            string.Equals(reference.Name, "Harborline.Foundation.Definitions", StringComparison.Ordinal));
         var envelopeAssembly = Assembly.Load(envelopeAssemblyName);
         return envelopeAssembly.GetType(typeof(DefinitionRefusalException).FullName!, throwOnError: true)!;
     }

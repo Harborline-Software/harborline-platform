@@ -151,6 +151,10 @@ public sealed class LayoutAuthorityGateTests
 
         public List<SubmitGate> Gates { get; } = [];
 
+        public bool CanAuthor() => true;
+
+        public bool CanPublish() => true;
+
         public bool CanRead(LayoutBinding binding) => read;
 
         public bool CanOpen(string surfaceId)
@@ -186,7 +190,7 @@ public sealed class LayoutAuthorityGateTests
             return true;
         }
 
-        public bool TryResolveTemplate(LayoutBindingScope scope, string templateDefinitionId, out JsonNode? value)
+        public bool TryResolveTemplate(LayoutBindingScope scope, string templateDefinitionId, string templateVersion, out JsonNode? value)
         {
             value = null;
             return false;

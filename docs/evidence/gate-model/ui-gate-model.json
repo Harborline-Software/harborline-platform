@@ -3110,7 +3110,7 @@
         {
           "id": "assertEmptyAndErrorStates",
           "status": "UNBUILT",
-          "note": "no empty or error property, but blockKinds, blocks, diagnostics, flow, helmWidgets, pageLayouts, pageMasters, pageRuns, staticRegions, zones can be handed an empty collection; that state is reachable and undesigned"
+          "note": "no empty or error property, but blockKinds, blocks, diagnostics, drillTargets, drillThroughTargets, facts, fieldControls, filterTargets, flow, helmWidgets, pageLayouts, pageMasters, pageRuns, refusals, relationships, requiredFields, stages, staticRegions, trace, validationRules, valueDomainFields, zones can be handed an empty collection; that state is reachable and undesigned"
         },
         {
           "id": "assertContentResilience",

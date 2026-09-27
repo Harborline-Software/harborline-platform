@@ -205,7 +205,9 @@ public sealed class FormsStateGapTests
             null,
             DateTimeOffset.UnixEpoch,
             DateTimeOffset.UnixEpoch,
-            authoring);
+            authoring,
+            new Harborline.Contracts.Authorization.SubmitGate(
+                Role: Harborline.Contracts.Authorization.RoleReference.Domain("inspector")));
 
     private sealed class FixedActorScope(FormsActorScope scope) : IFormsActorScope
     {

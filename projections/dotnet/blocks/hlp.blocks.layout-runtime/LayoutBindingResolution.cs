@@ -3,7 +3,6 @@ using System.Text.Json.Nodes;
 using Harborline.Blocks.BuilderDefinitions;
 using Harborline.Contracts.Forms;
 using Harborline.Foundation.RuleEngine;
-using Harborline.Foundation.RuleEngine.Compilation;
 using Harborline.Foundation.RuleEngine.Context;
 using Harborline.Foundation.RuleEngine.Evaluation;
 using RuleError = Harborline.Foundation.RuleEngine.Model.RuleError;
@@ -91,8 +90,8 @@ public interface ILayoutBindingSources
     /// <summary>Resolves one catalogue measure's already-computed result by stable path.</summary>
     bool TryResolveMeasure(LayoutBindingScope scope, string measurePath, out JsonNode? value);
 
-    /// <summary>Resolves one named template definition.</summary>
-    bool TryResolveTemplate(LayoutBindingScope scope, string templateDefinitionId, out JsonNode? value);
+    /// <summary>Resolves one exact pinned template definition version.</summary>
+    bool TryResolveTemplate(LayoutBindingScope scope, string templateDefinitionId, string templateVersion, out JsonNode? value);
 
     /// <summary>Resolves the rows a repeating block iterates, in authored order.</summary>
     bool TryResolveCollection(LayoutBindingScope scope, string name, out IReadOnlyList<JsonNode?> rows);
@@ -583,7 +582,7 @@ public sealed class LayoutBindingResolver
             LayoutTextBinding text => Compose(block, text, sources, scope, denials, out value, ref name),
             LayoutQueryBinding query => sources.TryResolveQuery(scope, query.ViewDefinitionId, out value),
             LayoutMeasureBinding measure => sources.TryResolveMeasure(scope, measure.MeasurePath, out value),
-            LayoutTemplateBinding template => sources.TryResolveTemplate(scope, template.TemplateDefinitionId, out value),
+            LayoutTemplateBinding template => sources.TryResolveTemplate(scope, template.TemplateDefinitionId, template.TemplateVersion, out value),
             _ => Unresolved(out value),
         };
 
@@ -670,15 +669,10 @@ public sealed class LayoutBindingResolver
         var snapshot = RuleContextSnapshot.Capture(root.Values, scope.IsRow ? scope.Values : null);
         try
         {
-            // Evaluation is already fail-closed: a pending, errored or budget-aborted guard is
-            // Invalid. Compilation is NOT — the compiler throws on a malformed expression or a
-            // reference illegal at this scope — so an uncompilable guard withholds the block
-            // here rather than escaping as a fault that would blank the whole surface.
+            // Evaluation and compilation are fail-closed: a pending, errored, budget-aborted, or
+            // uncompilable guard is Invalid, so it withholds the block rather than blanking the
+            // whole surface.
             return _guards.EvaluateGuard(rule, snapshot, evalScope, LayoutExpressionEnvironment.Admitted.For(EvaluationPhase.Render), cancellationToken).Ok;
-        }
-        catch (RuleCompilationException)
-        {
-            return false;
         }
         catch (RuleEngineTimeoutException)
         {

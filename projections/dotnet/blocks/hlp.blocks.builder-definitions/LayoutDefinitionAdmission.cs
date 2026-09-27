@@ -2,6 +2,8 @@ using System.Text.Json;
 using Harborline.Contracts.Authorization;
 using Harborline.Contracts.Forms;
 using Harborline.Foundation.RuleEngine.Compilation;
+using Harborline.Foundation.RuleEngine.Environments;
+using Harborline.Foundation.RuleEngine.Functions;
 using Harborline.Foundation.RuleEngine.References;
 
 namespace Harborline.Blocks.BuilderDefinitions;
@@ -91,6 +93,8 @@ public static class LayoutDefinitionCodes
     public const string PageSuppliedTwice = "layout.page.supplied_twice";
     /// <summary>A block's show_when does not compile at its scope (layout-auth-20, T-724 ruling 39).</summary>
     public const string GuardInvalid = "layout.guard.invalid";
+    /// <summary>A block's show_when addresses a variable Layout does not admit at publication.</summary>
+    public const string GuardVariableNotAdmitted = "layout.guard.variable_not_admitted";
     /// <summary>A declared show_when holds neither or both of expression and predicate (layout-ck-29).</summary>
     public const string GuardFormInvalid = "layout.guard.form_invalid";
     /// <summary>A show_when predicate's exact pin does not resolve in the pinned closure (layout-ck-29).</summary>
@@ -101,6 +105,10 @@ public static class LayoutDefinitionCodes
     public const string ValidationRuleInvalid = "layout.capture.validation_rule_invalid";
     /// <summary>The acting author could not read the source a binding names (layout-auth-24).</summary>
     public const string BindingUnreadable = "layout.binding.unreadable";
+    /// <summary>The acting author lacks the Layout author grant (layout-auth-38).</summary>
+    public const string AuthorForbidden = "layout.author.forbidden";
+    /// <summary>The acting author lacks the Layout publish grant (layout-auth-39).</summary>
+    public const string PublishForbidden = "layout.publish.forbidden";
     /// <summary>A filter-propagation edge targets a block whose binding a selection cannot narrow (layout-auth-36).</summary>
     public const string FilterTargetUnnarrowable = "layout.interaction.filter_target_unnarrowable";
     /// <summary>The acting author could not open a drill-through target (layout-auth-36).</summary>
@@ -122,6 +130,23 @@ public static class LayoutDefinitionCodes
 /// </summary>
 public static class LayoutDefinitionAdmission
 {
+    private static readonly BorrowerEnvironmentDeclaration PublishGuardEnvironment = new(
+        Borrower: "layout-ck-29",
+        Grammar: BorrowerEnvironmentAdmission.Grammar,
+        Variables: new Dictionary<string, string>
+        {
+            ["field"] = "layout root value",
+            ["row"] = "repeating-collection row value",
+            ["section"] = "layout section value",
+        },
+        Operations: [.. BuiltInFunctionRegister.Functions.Select(function => function.Key)],
+        Effects: [BorrowerEnvironmentAdmission.FieldRead],
+        MissingValues: "missing-field-reads-null",
+        TimeSource: "publish-validation-does-not-read-time",
+        TimeZone: "utc",
+        Phases: Enum.GetValues<EvaluationPhase>().ToDictionary(phase => phase, phase => phase is EvaluationPhase.PublishValidation),
+        Replay: "pure-static-admission");
+
 
     /// <summary>Validates a Layout definition during authoring, as <paramref name="author"/>.</summary>
     /// <param name="definition">The candidate definition.</param>
@@ -184,6 +209,13 @@ public static class LayoutDefinitionAdmission
         var refusals = new List<DefinitionRefusal>();
         ValidateEnvelope(definition, refusals);
         if (stage == DefinitionAdmissionPhase.Publish) ValidateSealedCapability(definition, refusals);
+        if (author is not null)
+        {
+            if (stage == DefinitionAdmissionPhase.Author && !author.CanAuthor())
+                Add(refusals, LayoutDefinitionCodes.AuthorForbidden, "");
+            else if (stage == DefinitionAdmissionPhase.Publish && !author.CanPublish())
+                Add(refusals, LayoutDefinitionCodes.PublishForbidden, "");
+        }
 
         var blocks = definition.Blocks ?? [];
         if (blocks.Count == 0) Add(refusals, LayoutDefinitionCodes.TreeEmpty, "/blocks");
@@ -456,7 +488,10 @@ public static class LayoutDefinitionAdmission
             {
                 try
                 {
-                    RuleCompiler.Compile([LayoutGuardRule.For(block.Id, guard, rowSection, registers.Predicates)]);
+                    var compiled = RuleCompiler.Compile([LayoutGuardRule.For(block.Id, guard, rowSection, registers.Predicates)]);
+                    if (publishing && BorrowerEnvironmentAdmission.CheckCompiledGuard(
+                        compiled, PublishGuardEnvironment, EvaluationPhase.PublishValidation) is not null)
+                        Add(refusals, LayoutDefinitionCodes.GuardVariableNotAdmitted, $"{pointer}/show_when");
                 }
                 catch (NamedReferenceException)
                 {
@@ -571,7 +606,10 @@ public static class LayoutDefinitionAdmission
             LayoutTextBinding => "text",
             _ => string.Empty,
         };
-        if (string.IsNullOrWhiteSpace(identity)) Add(refusals, LayoutDefinitionCodes.BindingInvalid, pointer);
+        if (string.IsNullOrWhiteSpace(identity)
+            || binding is LayoutTemplateBinding { TemplateVersion: var templateVersion }
+                && string.IsNullOrWhiteSpace(templateVersion))
+            Add(refusals, LayoutDefinitionCodes.BindingInvalid, pointer);
         // layout-ck-43, layout-ck-44: a text binding has runs, each exactly a literal or a field.
         if (binding is LayoutTextBinding text)
         {

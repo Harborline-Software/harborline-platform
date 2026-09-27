@@ -77,6 +77,31 @@ public sealed class RuleEngineUnitTests
         Assert.Equal(RuleEngineCodes.CompileUnsupportedTier, ex.Code);
     }
 
+    [Fact]
+    public void Compile_refuses_malformed_json_schema_tier_rule_with_owning_id()
+    {
+        var rule = RuleDefinitionFactory.Create("schema.malformed", RuleTier.JsonSchema,
+            RuleScope.Schema, "", "{\"type\":", RuleActionKind.Validate);
+
+        var error = Assert.Throws<RuleCompilationException>(() => RuleCompiler.Compile(new[] { rule }));
+
+        Assert.Equal(RuleEngineCodes.CompileInvalidJsonSchema, error.Code);
+        Assert.Equal("schema.malformed", error.RuleId);
+        Assert.StartsWith("rule 'schema.malformed':", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Compile_admits_valid_json_schema_tier_rule()
+    {
+        var rule = RuleDefinitionFactory.Create("schema.valid", RuleTier.JsonSchema, RuleScope.Schema, "",
+            """{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"name":{"type":"string"}}}""",
+            RuleActionKind.Validate);
+
+        var compiled = RuleCompiler.Compile(new[] { rule });
+
+        Assert.Equal(0, compiled.RuleCount);
+    }
+
     [Theory]
     [InlineData(-1)]
     [InlineData(99)]
@@ -1443,6 +1468,22 @@ public sealed class RuleEngineUnitTests
         var v = guard.EvaluateGuard(rule, RuleContextSnapshot.Capture(Bag("amount", 1)), RuleEvalScope.Root, TestAdmission.Any);
         Assert.False(v.Ok);
         Assert.Equal(RuleEngineCodes.CompileInvalidExpression, v.Error!.Code);
+    }
+
+    // T-739: compilation is part of the value-evaluation fail-closed contract, so callers see
+    // the stable code rather than a compiler exception (and no expression text escapes).
+    [Theory]
+    [InlineData("{\"frobnicate\":[1]}")]
+    [InlineData("not json")]
+    public void Value_evaluator_fails_closed_on_a_rule_that_does_not_compile(string expression)
+    {
+        var guard = new GuardEvaluator(new FixedClock(Clock), RuleEngineLimits.Default);
+        var rule = RuleDefinitionFactory.Create("v.bad", RuleTier.JsonLogic, RuleScope.Schema, "", expression, RuleActionKind.Compute);
+
+        var value = guard.EvaluateValue(rule, RuleContextSnapshot.Capture(Bag("amount", 1)), RuleEvalScope.Root, TestAdmission.Any);
+
+        Assert.Equal(ValueState.Error, value.State);
+        Assert.Equal(RuleEngineCodes.CompileInvalidExpression, value.Error!.Code);
     }
 
     private static Dictionary<string, JsonNode?> Bag(string key, int value)

@@ -306,6 +306,8 @@ public sealed class LayoutDefinitionProducerTests
         Assert.Equal(["page-root"], Assert.Single(roundTrip.PageRuns).BlockIds);
         var template = Assert.IsType<LayoutTemplateBinding>(Flatten(roundTrip.Blocks).Single(block => block.Id == "document").Binding);
         Assert.Equal("template.invoice", template.TemplateDefinitionId);
+        Assert.Equal("2.0.0", template.TemplateVersion);
+        Assert.Contains("\"template_version\":\"2.0.0\"", Encoding.UTF8.GetString(LayoutDefinitionJson.SerializeCanonical(definition)), StringComparison.Ordinal);
         var header = Flatten(roundTrip.Blocks).Single(block => block.Id == "header");
         Assert.Equal(LayoutFlowRole.Static, header.FlowRole);
         Assert.Equal("header.center", header.StaticRegion);
@@ -322,6 +324,18 @@ public sealed class LayoutDefinitionProducerTests
             LayoutDefinitionCodes.PageDefinitionInvalid, "/page_runs/1");
         AssertRefusal(definition with { PageLayouts = [null!] },
             LayoutDefinitionCodes.PageDefinitionInvalid, "/page_layouts/0");
+    }
+
+    [Fact(DisplayName = "layout-ck-24: publishing refuses a template binding without its exact version")]
+    public void TemplateBindingWithoutVersionRefusesAtPublication()
+    {
+        // layout-ck-24: deleting the immutable version from the binding must refuse publication.
+        AssertRefusal(
+            PageDefinition(block => block.Id == "document"
+                ? block with { Binding = new LayoutTemplateBinding("template.invoice", " ") }
+                : block),
+            LayoutDefinitionCodes.BindingInvalid,
+            "/blocks/0/children/1/binding");
     }
 
     [Fact]
@@ -442,7 +456,7 @@ public sealed class LayoutDefinitionProducerTests
         // Each kind still names what it binds; nothing was resolved into the payload.
         Assert.Contains(new LayoutQueryBinding("view.customer-orders"), installed);
         Assert.Contains(new LayoutMeasureBinding("orders.total"), installed);
-        Assert.Contains(new LayoutTemplateBinding("template.invoice"), installed);
+        Assert.Contains(new LayoutTemplateBinding("template.invoice", "2.0.0"), installed);
         Assert.Contains(installed, binding => binding is LayoutRecordFieldBinding { FieldPath: "customer.name" });
         Assert.Contains(installed, binding => binding is LayoutStaticBinding { Content.ValueKind: JsonValueKind.Object });
     }
@@ -722,7 +736,7 @@ public sealed class LayoutDefinitionProducerTests
                     Block(
                         "document",
                         "layout.document",
-                        new LayoutTemplateBinding("template.invoice"),
+                        new LayoutTemplateBinding("template.invoice", "2.0.0"),
                         LayoutIntent.Issue,
                         breakBefore: true,
                         breakInside: LayoutBreakInside.AvoidPage),

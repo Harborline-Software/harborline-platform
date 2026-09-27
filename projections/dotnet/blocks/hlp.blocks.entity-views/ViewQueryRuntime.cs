@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using System.Text.Json;
 using Harborline.Contracts.Fields;
 using Harborline.Contracts.Authorization;
@@ -196,7 +197,8 @@ public sealed record ViewQueryRequest(
     ViewPage Page,
     ViewBinding Binding,
     RoleVocabulary? RoleVocabulary = null,
-    HeldRoleSet? HeldRoles = null);
+    HeldRoleSet? HeldRoles = null,
+    string? IfNoneMatch = null);
 
 /// <summary>Identifies where a predicate entered the plan.</summary>
 public enum ViewPredicateSource
@@ -243,6 +245,10 @@ public sealed record ViewQueryResult(
     ViewAuthority Authority,
     DateTimeOffset EvaluatedAt)
 {
+    public required string ETag { get; init; }
+
+    public bool NotModified { get; init; }
+
     public IReadOnlyDictionary<string, ResolvedFieldConstraints> ColumnDomains { get; init; }
         = new Dictionary<string, ResolvedFieldConstraints>();
 }
@@ -512,7 +518,87 @@ public sealed class ViewQueryRuntime
                 .EvaluateAsync(binding, page.CurrentRows, evaluatedAt, request.Tenant, request.Principal, cancellationToken)
                 .ConfigureAwait(false)
             : null;
-        return new(page.Rows, page.Total, page.Groups, measure, authority, evaluatedAt) { ColumnDomains = domains };
+        var eTag = ComputeETag(definition, request, authority, page, measure);
+        // ponytail: the row page and measure are still computed before the comparison — this trims the response body, not the query cost. Upgrade path: a per-view/per-tenant write-stamp checked before running the row source, if query cost ever matters more than bandwidth.
+        var notModified = !string.IsNullOrEmpty(eTag)
+            && string.Equals(eTag, request.IfNoneMatch, StringComparison.Ordinal);
+        return new(
+            notModified ? [] : page.Rows,
+            page.Total,
+            notModified ? [] : page.Groups,
+            notModified ? null : measure,
+            authority,
+            evaluatedAt)
+        {
+            ETag = eTag,
+            NotModified = notModified,
+            ColumnDomains = domains,
+        };
+    }
+
+    private static string ComputeETag(
+        ViewDefinition definition,
+        ViewQueryRequest request,
+        ViewAuthority authority,
+        ViewRowPage page,
+        ViewMeasureResult? measure)
+    {
+        var canonical = new
+        {
+            Definition = new
+            {
+                definition.Envelope.Identity,
+                definition.Version,
+            },
+            Query = new
+            {
+                Page = new { request.Page.Offset, request.Page.Limit },
+                Binding = new
+                {
+                    request.Binding.Kind,
+                    ShapeRoles = request.Binding.ShapeRoles
+                        .OrderBy(role => role.Key)
+                        .Select(role => new { Role = role.Key, role.Value }),
+                    RowBehavior = request.Binding.RowBehavior is { } rowBehavior
+                        ? new { rowBehavior.OpenAction, rowBehavior.InlineEdit }
+                        : null,
+                    request.Binding.Density,
+                    Widget = request.Binding.Widget is { } widget
+                        ? new
+                        {
+                            widget.Widget,
+                            Parameters = widget.Parameters
+                                .OrderBy(parameter => parameter.Key, StringComparer.Ordinal)
+                                .Select(parameter => new { parameter.Key, parameter.Value }),
+                        }
+                        : null,
+                    request.Binding.BoardMoveTransition,
+                },
+            },
+            Authority = new
+            {
+                authority.CanOpen,
+                Actions = authority.Actions
+                    .OrderBy(action => action.Action, StringComparer.Ordinal)
+                    .ThenBy(action => action.Allowed)
+                    .Select(action => new { action.Action, action.Allowed }),
+            },
+            Result = new
+            {
+                Rows = page.Rows.Select(row => new
+                {
+                    row.Id,
+                    Values = row.Values
+                        .OrderBy(value => value.Key, StringComparer.Ordinal)
+                        .Select(value => new { value.Key, value.Value }),
+                }),
+                page.Total,
+                Groups = page.Groups.Select(group => new { group.Key, group.Count }),
+                Measure = measure is { } result ? new { result.Name, result.Value } : null,
+            },
+        };
+        var serialized = JsonSerializer.SerializeToUtf8Bytes(canonical);
+        return Convert.ToHexString(SHA256.HashData(serialized));
     }
 
     private static FieldAdmissionException BindingRefusal(string pointer)

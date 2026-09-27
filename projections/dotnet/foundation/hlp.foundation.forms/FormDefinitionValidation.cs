@@ -5,10 +5,10 @@ using Harborline.Foundation.Forms.Models;
 namespace Harborline.Foundation.Forms;
 
 /// <summary>
-/// Shared registration-time invariant checks for <see cref="IFormDefinitionStore"/>
+/// Shared definition-admission invariant checks for <see cref="IFormDefinitionStore"/>
 /// implementations. Centralised so the in-memory reference store and the durable
-/// entity-store-backed store enforce identical overlay + schema-ref invariants and
-/// cannot drift apart.
+/// entity-store-backed store enforce identical registration + publication invariants
+/// and cannot drift apart.
 /// </summary>
 internal static class FormDefinitionValidation
 {
@@ -16,9 +16,25 @@ internal static class FormDefinitionValidation
     /// DES-0016 forms-ck-4 and forms-auth-16: a declared submit gate names exactly one arm, and its
     /// capability arm resolves through Access's register. No register means no capability is admitted.
     /// </summary>
-    public static void ValidateSubmitGateOrThrow(FormDefinition definition, AuthorizationCapabilityRegister? capabilities)
+    public static void ValidateSubmitGateOrThrow(
+        FormDefinition definition,
+        AuthorizationCapabilityRegister? capabilities,
+        bool requiredForPublish = false)
     {
-        if (definition.SubmitGate is not { } gate) return;
+        if (definition.SubmitGate is not { } gate)
+        {
+            if (requiredForPublish)
+            {
+                throw new FormDefinitionValidationException(
+                    definition.Id,
+                    "a Published definition must declare submit_gate.",
+                    FormDefinitionCodes.SubmitGateRequired,
+                    "/submit_gate");
+            }
+
+            return;
+        }
+
         if (!gate.IsWellFormed)
             throw new FormDefinitionValidationException(
                 definition.Id, "submit_gate must name exactly one of role, standing or capability.",

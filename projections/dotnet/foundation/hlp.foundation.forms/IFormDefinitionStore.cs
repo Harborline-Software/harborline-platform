@@ -83,8 +83,8 @@ public interface IFormDefinitionStore
     /// <exception cref="FormDefinitionConflictException">A different revision at this
     /// (tenant, id, version) is already registered. An identical retry returns the existing
     /// Published revision.</exception>
-    /// <exception cref="FormDefinitionValidationException">The revision is not a valid Draft or
-    /// violates a definition invariant.</exception>
+    /// <exception cref="FormDefinitionValidationException">The revision is not a valid Draft,
+    /// omits its required submit gate, or violates a definition invariant.</exception>
     ValueTask<FormDefinition> RegisterAndPublishAsync(
         FormDefinition schema,
         CancellationToken ct = default);
@@ -99,7 +99,8 @@ public interface IFormDefinitionStore
 
     /// <summary>
     /// Transitions a schema revision from <see cref="FormDefinitionStatus.Draft"/>
-    /// to <see cref="FormDefinitionStatus.Published"/>. No-op if the revision is
+    /// to <see cref="FormDefinitionStatus.Published"/>. A Draft must declare a submit gate
+    /// before this transition. No-op if the revision is
     /// already Published. Throws when the revision is Deprecated or
     /// Withdrawn (forward-only transitions; rollback registers a new
     /// version with the desired state).

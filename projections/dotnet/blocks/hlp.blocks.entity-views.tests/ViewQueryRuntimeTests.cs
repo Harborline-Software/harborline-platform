@@ -279,6 +279,106 @@ public sealed class ViewQueryRuntimeTests
         Assert.Collection(result.Rows, row => Assert.Equal("urgent", row.Id));
     }
 
+    [Fact(DisplayName = "identical authored view requests produce a stable ETag")]
+    public async Task IdenticalRequestsProduceTheSameETag()
+    {
+        var runtime = Runtime(
+            new ViewAuthority(CanOpen: true, Actions: [new("work.open", true)]),
+            [Row("one", "A", "party:operator-1", "open")]);
+
+        var first = await runtime.ExecuteAsync(Request());
+        var second = await runtime.ExecuteAsync(Request());
+
+        Assert.False(string.IsNullOrWhiteSpace(first.ETag));
+        Assert.Equal(first.ETag, second.ETag);
+    }
+
+    [Fact(DisplayName = "the requested page is part of an authored view ETag")]
+    public async Task ChangingPageChangesETag()
+    {
+        var runtime = Runtime(
+            new ViewAuthority(CanOpen: true, Actions: [new("work.open", true)]),
+            [Row("one", "A", "party:operator-1", "open")]);
+
+        var first = await runtime.ExecuteAsync(Request());
+        var nextPage = await runtime.ExecuteAsync(Request() with { Page = new(Offset: 1, Limit: 25) });
+
+        Assert.NotEqual(first.ETag, nextPage.ETag);
+    }
+
+    [Fact(DisplayName = "resolved row-action authority scopes an authored view ETag")]
+    public async Task ChangingAuthorityChangesETag()
+    {
+        var rows = new[] { Row("one", "A", "party:operator-1", "open") };
+        var allowed = await Runtime(
+            new ViewAuthority(CanOpen: true, Actions: [new("work.open", true)]), rows)
+            .ExecuteAsync(Request());
+        var denied = await Runtime(
+            new ViewAuthority(CanOpen: true, Actions: [new("work.open", false)]), rows)
+            .ExecuteAsync(Request());
+
+        Assert.NotEqual(allowed.ETag, denied.ETag);
+    }
+
+    [Fact(DisplayName = "changed row data invalidates an authored view ETag")]
+    public async Task ChangingRowDataChangesETag()
+    {
+        var original = await Runtime(
+            new ViewAuthority(CanOpen: true, Actions: []),
+            [Row("one", "A", "party:operator-1", "open")])
+            .ExecuteAsync(Request());
+        var changed = await Runtime(
+            new ViewAuthority(CanOpen: true, Actions: []),
+            [Row("one", "changed", "party:operator-1", "open")])
+            .ExecuteAsync(Request());
+
+        Assert.NotEqual(original.ETag, changed.ETag);
+    }
+
+    [Fact(DisplayName = "a matching ETag trims an authored view payload")]
+    public async Task MatchingETagReturnsNotModifiedAndNonMatchingETagReturnsPayload()
+    {
+        var definition = Definition() with
+        {
+            Parameters = Definition().Parameters with { GroupBy = "state", Measure = new(
+                "work.open-count", new Dictionary<string, string> { ["format"] = "integer" }) },
+        };
+        var rows = new[] { Row("one", "A", "party:operator-1", "open") };
+        var runtime = Runtime(new ViewAuthority(CanOpen: true, Actions: []), rows, definition);
+        var initial = await runtime.ExecuteAsync(Request());
+
+        var matching = await runtime.ExecuteAsync(Request() with { IfNoneMatch = initial.ETag });
+        var nonMatching = await runtime.ExecuteAsync(Request() with { IfNoneMatch = "different" });
+
+        Assert.True(matching.NotModified);
+        Assert.Equal(initial.ETag, matching.ETag);
+        Assert.Equal(initial.Total, matching.Total);
+        Assert.Empty(matching.Rows);
+        Assert.Empty(matching.Groups);
+        Assert.Null(matching.Measure);
+        Assert.False(nonMatching.NotModified);
+        Assert.NotEmpty(nonMatching.Rows);
+        Assert.NotEmpty(nonMatching.Groups);
+        Assert.NotNull(nonMatching.Measure);
+    }
+
+    private static ViewQueryRuntime Runtime(
+        ViewAuthority authority,
+        IReadOnlyList<ViewRow> rows,
+        ViewDefinition? definition = null)
+    {
+        var calls = new List<string>();
+        return new ViewQueryRuntime(
+            new RecordingDefinitions(calls, definition ?? Definition()),
+            new RecordingOpenGate(calls, authority),
+            new RecordingKinds(calls, IsRegistered: true),
+            new RecordingRecordTypes(calls),
+            new RecordingAccessFilter(calls),
+            new InMemoryViewRowSource(rows),
+            new RecordingMeasures(calls),
+            new FixedTimeProvider(DateTimeOffset.UnixEpoch));
+    }
+
     private static ViewDefinition Definition(
         ViewMeasureBinding? measure = null,
         ViewFilter? filter = null) => new(

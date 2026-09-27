@@ -94,7 +94,7 @@ public sealed class InMemoryFormDefinitionStore : IFormDefinitionStore, IDisposa
     public async ValueTask<FormDefinition> RegisterAsync(FormDefinition definition, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(definition);
-        ValidateDefinition(definition);
+        ValidateDefinition(definition, requireSubmitGate: definition.Status == FormDefinitionStatus.Published);
 
         await _mutationLock.WaitAsync(ct).ConfigureAwait(false);
         try
@@ -135,7 +135,7 @@ public sealed class InMemoryFormDefinitionStore : IFormDefinitionStore, IDisposa
         CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(definition);
-        ValidateDefinition(definition);
+        ValidateDefinition(definition, requireSubmitGate: true);
         if (definition.Status != FormDefinitionStatus.Draft)
         {
             throw new FormDefinitionValidationException(
@@ -181,7 +181,7 @@ public sealed class InMemoryFormDefinitionStore : IFormDefinitionStore, IDisposa
     public async ValueTask<FormDefinition> CreateAsync(FormDefinition definition, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(definition);
-        ValidateDefinition(definition);
+        ValidateDefinition(definition, requireSubmitGate: definition.Status == FormDefinitionStatus.Published);
 
         await _mutationLock.WaitAsync(ct).ConfigureAwait(false);
         try
@@ -286,6 +286,18 @@ public sealed class InMemoryFormDefinitionStore : IFormDefinitionStore, IDisposa
     /// <inheritdoc />
     public void Dispose() => _mutationLock.Dispose();
 
+    /// <summary>
+    /// Test-only seam: inserts <paramref name="definition"/> as-is, bypassing
+    /// <see cref="ValidateDefinition"/>. Production writes always validate; this exists solely so
+    /// tests can simulate a row already persisted before submit_gate became required at publish
+    /// (T-756) — data this package's own write paths can no longer produce.
+    /// </summary>
+    internal void SeedLegacyRevisionForTesting(FormDefinition definition)
+    {
+        ArgumentNullException.ThrowIfNull(definition);
+        _store = MutateStore(_store, definition);
+    }
+
     private async ValueTask<FormDefinition> TransitionAsync(
         TenantId tenant,
         FormDefinitionId id,
@@ -312,7 +324,7 @@ public sealed class InMemoryFormDefinitionStore : IFormDefinitionStore, IDisposa
             }
 
             if (target == FormDefinitionStatus.Published)
-                ValidateDefinition(existing);
+                ValidateDefinition(existing, requireSubmitGate: existing.Status != target);
 
             if (existing.Status == target)
             {
@@ -365,12 +377,12 @@ public sealed class InMemoryFormDefinitionStore : IFormDefinitionStore, IDisposa
         return rebuilt;
     }
 
-    private void ValidateDefinition(FormDefinition definition)
+    private void ValidateDefinition(FormDefinition definition, bool requireSubmitGate = false)
     {
         FormDefinitionValidation.ValidateOverlayOrThrow(definition);
         FormDefinitionValidation.ValidateSchemaRefOrThrow(definition);
         FormDefinitionAuthoringValidation.ValidateOrThrow(definition);
-        FormDefinitionValidation.ValidateSubmitGateOrThrow(definition, _capabilities);
+        FormDefinitionValidation.ValidateSubmitGateOrThrow(definition, _capabilities, requireSubmitGate);
     }
 
     private static bool IsIdenticalPublishedRetry(

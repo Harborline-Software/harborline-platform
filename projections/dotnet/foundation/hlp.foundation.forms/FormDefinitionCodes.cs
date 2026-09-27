@@ -233,4 +233,7 @@ public static class FormDefinitionCodes
     /// <summary>A submit gate names a capability Access's register does not declare: a form cannot
     /// declare an authorization capability of its own (forms-auth-16, T-747).</summary>
     public const string SubmitGateCapabilityUnknown = "form.submit_gate.capability_unknown";
+
+    /// <summary>A definition reaching Published status does not declare a submit gate.</summary>
+    public const string SubmitGateRequired = "form.submit_gate.required";
 }

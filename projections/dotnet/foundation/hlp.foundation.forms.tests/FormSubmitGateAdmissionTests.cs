@@ -80,12 +80,95 @@ public sealed class FormSubmitGateAdmissionTests
         Assert.Equal(FormDefinitionCodes.SubmitGateCapabilityUnknown, refusal.Code);
     }
 
-    private static FormDefinition Form(SubmitGate gate)
+    [Fact(DisplayName = "forms-ck-4: publish requires an explicit submit gate while draft saves remain ungated")]
+    public async Task PublishRequiresGateWhileDraftSaveDoesNot()
+    {
+        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now), Register);
+
+        var atomicRefusal = await Assert.ThrowsAsync<FormDefinitionValidationException>(
+            async () => await store.RegisterAndPublishAsync(Form(id: "missing-gate-atomic")));
+
+        Assert.Equal(FormDefinitionCodes.SubmitGateRequired, atomicRefusal.Code);
+        Assert.Equal("/submit_gate", atomicRefusal.Target);
+
+        var transitionDraft = Form(id: "missing-gate-transition");
+        await store.RegisterAsync(transitionDraft);
+        var transitionRefusal = await Assert.ThrowsAsync<FormDefinitionValidationException>(
+            async () => await store.PublishAsync(transitionDraft.Tenant, transitionDraft.Id, transitionDraft.Version));
+
+        Assert.Equal(FormDefinitionCodes.SubmitGateRequired, transitionRefusal.Code);
+        Assert.Equal("/submit_gate", transitionRefusal.Target);
+
+        await store.RegisterAsync(Form(id: "ungated-register-draft"));
+        await store.CreateAsync(Form(id: "ungated-create-draft"));
+
+        var gate = new SubmitGate(Role: RoleReference.Domain("inspector"));
+        var atomicallyPublished = await store.RegisterAndPublishAsync(Form(gate, "gated-atomic"));
+        var gatedTransitionDraft = Form(gate, "gated-transition");
+        await store.RegisterAsync(gatedTransitionDraft);
+        var transitioned = await store.PublishAsync(
+            gatedTransitionDraft.Tenant, gatedTransitionDraft.Id, gatedTransitionDraft.Version);
+
+        Assert.Equal(FormDefinitionStatus.Published, atomicallyPublished.Status);
+        Assert.Equal(FormDefinitionStatus.Published, transitioned.Status);
+    }
+
+    [Fact(DisplayName = "forms-ck-4: RegisterAsync and CreateAsync refuse a directly persisted Published definition with no gate")]
+    public async Task DirectPersistOfPublishedRequiresGate()
+    {
+        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now), Register);
+
+        var registerRefusal = await Assert.ThrowsAsync<FormDefinitionValidationException>(
+            async () => await store.RegisterAsync(Form(id: "direct-register-published") with { Status = FormDefinitionStatus.Published }));
+        Assert.Equal(FormDefinitionCodes.SubmitGateRequired, registerRefusal.Code);
+        Assert.Equal("/submit_gate", registerRefusal.Target);
+        await Assert.ThrowsAsync<FormDefinitionNotFoundException>(
+            async () => await store.GetAsync(new TenantId("tenant:acme"), new FormDefinitionId("direct-register-published"), new SemanticVersion(1, 0, 0)));
+
+        var createRefusal = await Assert.ThrowsAsync<FormDefinitionValidationException>(
+            async () => await store.CreateAsync(Form(id: "direct-create-published") with { Status = FormDefinitionStatus.Published }));
+        Assert.Equal(FormDefinitionCodes.SubmitGateRequired, createRefusal.Code);
+        Assert.Equal("/submit_gate", createRefusal.Target);
+
+        var gate = new SubmitGate(Role: RoleReference.Domain("inspector"));
+        var registeredGated = await store.RegisterAsync(
+            Form(gate, "direct-register-published-gated") with { Status = FormDefinitionStatus.Published });
+        var createdGated = await store.CreateAsync(
+            Form(gate, "direct-create-published-gated") with { Status = FormDefinitionStatus.Published });
+
+        Assert.Equal(FormDefinitionStatus.Published, registeredGated.Status);
+        Assert.Equal(FormDefinitionStatus.Published, createdGated.Status);
+    }
+
+    [Fact(DisplayName = "forms-ck-4: restoring a System-owned Withdrawn legacy revision with no gate is refused by the same stable code")]
+    public async Task RestoreOfUngatedWithdrawnLegacyRevisionIsRefused()
+    {
+        using var store = new InMemoryFormDefinitionStore(new FixedClock(Now), Register);
+        // Simulates a row persisted before submit_gate became required at publish (T-756); no
+        // write path in this package can produce an ungated Withdrawn revision today.
+        var legacy = Form(id: "legacy-pack-projection") with { Status = FormDefinitionStatus.Withdrawn };
+        store.SeedLegacyRevisionForTesting(legacy);
+
+        var refusal = await Assert.ThrowsAsync<FormDefinitionValidationException>(
+            async () => await store.RestorePackProjectionAsync(legacy.Tenant, legacy.Id, legacy.Version));
+
+        Assert.Equal(FormDefinitionCodes.SubmitGateRequired, refusal.Code);
+        Assert.Equal("/submit_gate", refusal.Target);
+        var stillWithdrawn = await store.GetAsync(legacy.Tenant, legacy.Id, legacy.Version);
+        Assert.Equal(FormDefinitionStatus.Withdrawn, stillWithdrawn.Status);
+
+        var gated = legacy with { SubmitGate = new SubmitGate(Role: RoleReference.Domain("inspector")) };
+        store.SeedLegacyRevisionForTesting(gated);
+        var restored = await store.RestorePackProjectionAsync(gated.Tenant, gated.Id, gated.Version);
+        Assert.Equal(FormDefinitionStatus.Published, restored.Status);
+    }
+
+    private static FormDefinition Form(SubmitGate? gate = null, string id = "submit-gate")
     {
         var fields = new Dictionary<string, FieldOverlay> { ["name"] = new(InternationalizedText.FromInvariant("name")) };
         var access = new SectionAccess(ReadRoles: [RoleReference.Domain("*")], WriteRoles: [RoleReference.Domain("tenant:admin")]);
         return new FormDefinition(
-            Id: new FormDefinitionId("submit-gate"),
+            Id: new FormDefinitionId(id),
             Version: new SemanticVersion(1, 0, 0),
             Status: FormDefinitionStatus.Draft,
             Tenant: new TenantId("tenant:acme"),

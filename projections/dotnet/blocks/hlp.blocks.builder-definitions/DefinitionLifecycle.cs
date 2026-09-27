@@ -29,6 +29,8 @@ public enum DefinitionKind
     Bookables = 11,
     /// <summary>Documents template definitions (DES-0021 documents-ck-16).</summary>
     Templates = 12,
+    /// <summary>Released navigation definitions (DES-0052 layout-eng-24).</summary>
+    Navigation = 13,
 }
 
 /// <summary>Identifies one definition inside a tenant- and kind-scoped archive namespace.</summary>
