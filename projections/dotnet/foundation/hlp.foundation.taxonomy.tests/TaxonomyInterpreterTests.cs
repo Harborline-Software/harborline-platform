@@ -116,16 +116,61 @@ public sealed class TaxonomyInterpreterTests
         Assert.Equal("9.9.9", overlayMissing.Coordinates.Version);
     }
 
-    [Fact(DisplayName = "taxonomy-auth-22: an overlay refuses to copy a vendor node")]
-    public void Refuses_overlay_node_that_copies_a_vendor_node()
+    [Fact(DisplayName = "taxonomy-auth-22: expanding an overlay that copies a vendor node is a named refusal")]
+    public void Expand_refuses_overlay_node_that_copies_a_vendor_node()
     {
         var vendorId = new TaxonomyDefinitionId("vendor", "health", "scheme");
+        var overlayId = new TaxonomyDefinitionId("tenant", "health", "scheme-overlay");
         var vendor = Definition("vendor-registry", vendorId, "1.0.0", [Node("shared")]);
-        var overlay = Definition("tenant-a", new("tenant", "health", "scheme-overlay"), "1.0.0", [Node("shared")], Overlay: new(vendorId, "1.0.0"));
+        var overlay = Definition("tenant-a", overlayId, "1.0.0", [Node("shared")], Overlay: new(vendorId, "1.0.0"));
 
-        var exception = Assert.Throws<TaxonomyOverlayException>(() => new TaxonomyInterpreter([vendor, overlay]).RefuseOverlayCopiesVendorNodes(overlay, vendor));
-        Assert.Equal("taxonomy.overlay_copies_vendor_node", exception.Code);
-        Assert.Contains("shared", exception.Message, StringComparison.Ordinal);
+        var refusal = Assert.IsType<TaxonomyOverlayExpansionCopiesVendorNode>(new TaxonomyInterpreter([vendor, overlay]).ExpandOverlay(new("tenant-a", overlayId, "1.0.0"), "1.0.0"));
+        Assert.Equal("shared", refusal.Code);
+    }
+
+    [Fact(DisplayName = "taxonomy-auth-10: expanding an overlay whose designation names an unknown vendor node is a named refusal")]
+    public void Expand_refuses_designation_naming_an_unknown_vendor_node()
+    {
+        var vendorId = new TaxonomyDefinitionId("vendor", "health", "scheme");
+        var overlayId = new TaxonomyDefinitionId("tenant", "health", "scheme-overlay");
+        var vendor = Definition("vendor-registry", vendorId, "1.0.0", [Node("root")]);
+        var overlay = Definition("tenant-a", overlayId, "1.0.0", [Node("tenant-extra", "root")], Overlay: new(vendorId, "1.0.0")) with
+        {
+            OverlayDesignations = [new("missing-vendor-code", "Renamed", null)],
+        };
+
+        var refusal = Assert.IsType<TaxonomyOverlayExpansionUnknownDesignation>(new TaxonomyInterpreter([vendor, overlay]).ExpandOverlay(new("tenant-a", overlayId, "1.0.0"), "1.0.0"));
+        Assert.Equal("missing-vendor-code", refusal.VendorNodeCode);
+    }
+
+    [Fact(DisplayName = "eng-12: an overlay's vendor reference resolving to more than one tenant refuses rather than picking one silently")]
+    public void Expand_refuses_ambiguous_vendor_registered_under_two_tenants()
+    {
+        var vendorId = new TaxonomyDefinitionId("vendor", "health", "scheme");
+        var overlayId = new TaxonomyDefinitionId("tenant", "health", "scheme-overlay");
+        var vendorUnderTenantA = Definition("tenant-a", vendorId, "1.0.0", [Node("root")]);
+        var vendorUnderTenantB = Definition("tenant-b", vendorId, "1.0.0", [Node("root")]);
+        var overlay = Definition("tenant-a", overlayId, "1.0.0", [Node("tenant-extra", "root")], Overlay: new(vendorId, "1.0.0"));
+
+        var refusal = Assert.IsType<TaxonomyOverlayExpansionAmbiguousVendor>(new TaxonomyInterpreter([vendorUnderTenantA, vendorUnderTenantB, overlay]).ExpandOverlay(new("tenant-a", overlayId, "1.0.0"), "1.0.0"));
+        Assert.Equal(vendorId, refusal.VendorDefinitionId);
+        Assert.Equal(["tenant-a", "tenant-b"], refusal.Tenants.OrderBy(tenant => tenant, StringComparer.Ordinal));
+    }
+
+    [Fact(DisplayName = "taxonomy-auth-10: a designation's display/description is applied over the vendor node without changing it")]
+    public void Resolves_overlay_designation_display_over_the_vendor_nodes_own_value()
+    {
+        var vendorId = new TaxonomyDefinitionId("vendor", "health", "scheme");
+        var overlayId = new TaxonomyDefinitionId("tenant", "health", "scheme-overlay");
+        var vendor = Definition("vendor-registry", vendorId, "1.0.0", [Node("root", display: "Vendor label")]);
+        var overlay = Definition("tenant-a", overlayId, "1.0.0", [], Overlay: new(vendorId, "1.0.0")) with
+        {
+            OverlayDesignations = [new("root", "Tenant label", null)],
+        };
+
+        var resolved = new TaxonomyInterpreter([vendor, overlay]).ResolveOverlayDesignations(overlay, vendor);
+        Assert.Equal("Tenant label", Assert.Single(resolved).Display);
+        Assert.Equal("Vendor label", vendor.Nodes[0].Display);
     }
 
     [Fact] public void Diff_reports_added_changed_and_newly_tombstoned_nodes()

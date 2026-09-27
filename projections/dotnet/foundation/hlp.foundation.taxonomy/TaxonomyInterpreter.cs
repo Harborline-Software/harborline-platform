@@ -28,6 +28,22 @@ public sealed record ResolvedTaxonomyOverlayExpansion(IReadOnlyList<string> Code
 /// <summary>The overlay itself, or the vendor definition at the requested version, was not found.</summary>
 public sealed record TaxonomyOverlayExpansionNotFound(TaxonomyDefinitionCoordinates Coordinates) : TaxonomyOverlayExpansionResult;
 
+/// <summary>The vendor definition id and version named by the overlay resolves to more than one
+/// tenant's registration; expansion refuses rather than silently picking whichever the index
+/// happens to return first.</summary>
+public sealed record TaxonomyOverlayExpansionAmbiguousVendor(TaxonomyDefinitionId VendorDefinitionId, string VendorVersion, IReadOnlyList<string> Tenants) : TaxonomyOverlayExpansionResult;
+
+/// <summary>taxonomy-auth-22: the overlay's own node set re-declares one of the vendor's own codes
+/// instead of layering a designation onto it.</summary>
+public sealed record TaxonomyOverlayExpansionCopiesVendorNode(string Code) : TaxonomyOverlayExpansionResult;
+
+/// <summary>taxonomy-auth-10: an overlay designation names a vendor node code the vendor scheme does not have.</summary>
+public sealed record TaxonomyOverlayExpansionUnknownDesignation(string VendorNodeCode) : TaxonomyOverlayExpansionResult;
+
+/// <summary>An overlay designation's effective display/description, layered over the vendor node's own
+/// values without changing the vendor node's own definition (taxonomy-auth-10).</summary>
+public sealed record ResolvedTaxonomyOverlayDesignation(string VendorNodeCode, string Display, string Description);
+
 /// <summary>A classification resolved within its pinned definition.</summary>
 public sealed record ResolvedTaxonomyClassification(TaxonomyClassificationReference Reference, TaxonomyNode Node)
 {
@@ -157,8 +173,13 @@ public sealed class TaxonomyInterpreter
         Index(definition); return definition.Nodes.Select(node => node.Code).ToArray();
     }
 
-    /// <summary>Expands an overlay against the vendor version selected for this call, not the version recorded when it was authored.
-    /// A missing overlay or vendor definition is a typed <see cref="TaxonomyOverlayExpansionNotFound"/> refusal, never an empty expansion.</summary>
+    /// <summary>Expands an overlay against the vendor version selected for this call, not the version
+    /// recorded when it was authored (taxonomy-eng-12): calling this again after a new vendor release
+    /// is registered under the same <see cref="TaxonomyDefinitionId"/>, at a higher version, picks up
+    /// the vendor's new concepts with no change to the overlay itself. Every refusal is a typed
+    /// member of <see cref="TaxonomyOverlayExpansionResult"/>, never a silently empty expansion and
+    /// never an exception, matching this interpreter's other business-rule refusals (e.g.
+    /// <see cref="TaxonomySuccessionResult"/>) rather than its traversal-integrity exceptions.</summary>
     public TaxonomyOverlayExpansionResult ExpandOverlay(TaxonomyDefinitionCoordinates overlayCoordinates, string vendorVersion)
     {
         var overlayResolution = ResolveDefinition(overlayCoordinates);
@@ -166,25 +187,42 @@ public sealed class TaxonomyInterpreter
         var overlay = ((ResolvedTaxonomyDefinition)overlayResolution).Definition;
         if (overlay.Overlay is null) throw new TaxonomyOverlayException("taxonomy.overlay_reference_missing", "The overlay has no vendor reference.");
 
-        var vendorCoordinates = definitions.Keys.FirstOrDefault(coordinates =>
-            coordinates.DefinitionId == overlay.Overlay.VendorDefinitionId && coordinates.Version == vendorVersion);
-        if (vendorCoordinates is null) return new TaxonomyOverlayExpansionNotFound(new("", overlay.Overlay.VendorDefinitionId, vendorVersion));
-        var vendorResolution = ResolveDefinition(vendorCoordinates);
-        if (vendorResolution is TaxonomyDefinitionNotFound vendorNotFound) return new TaxonomyOverlayExpansionNotFound(vendorNotFound.Coordinates);
-        var vendor = ((ResolvedTaxonomyDefinition)vendorResolution).Definition;
-        RefuseOverlayCopiesVendorNodes(overlay, vendor);
+        // Matched by (DefinitionId, Version) only, deliberately: a vendor scheme is registered once
+        // and named by many tenants' overlays, so its own coordinates carry whichever tenant it was
+        // indexed under. More than one match means two DIFFERENT registrations collided on the same
+        // vendor id/version, which is ambiguous and refuses rather than picking the first arbitrarily.
+        var vendorMatches = definitions.Where(entry => entry.Key.DefinitionId == overlay.Overlay.VendorDefinitionId && entry.Key.Version == vendorVersion).ToArray();
+        if (vendorMatches.Length == 0) return new TaxonomyOverlayExpansionNotFound(new("", overlay.Overlay.VendorDefinitionId, vendorVersion));
+        if (vendorMatches.Length > 1) return new TaxonomyOverlayExpansionAmbiguousVendor(overlay.Overlay.VendorDefinitionId, vendorVersion, vendorMatches.Select(entry => entry.Key.Tenant).ToArray());
+        var vendor = vendorMatches[0].Value;
+
+        var vendorCodes = Index(vendor);
+        var copiedCode = Index(overlay).Keys.FirstOrDefault(vendorCodes.ContainsKey);
+        if (copiedCode is not null) return new TaxonomyOverlayExpansionCopiesVendorNode(copiedCode);
+
+        var unknownDesignation = (overlay.OverlayDesignations ?? []).Select(designation => designation.VendorNodeCode).FirstOrDefault(code => code is not null && !vendorCodes.ContainsKey(code));
+        if (unknownDesignation is not null) return new TaxonomyOverlayExpansionUnknownDesignation(unknownDesignation);
+
         return new ResolvedTaxonomyOverlayExpansion(ExpandWholeScheme(vendor).Concat(ExpandWholeScheme(overlay)).ToArray());
     }
 
-    /// <summary>Refuses an overlay that re-declares a vendor concept instead of layering a designation onto it.</summary>
-    public void RefuseOverlayCopiesVendorNodes(TaxonomyDefinition overlay, TaxonomyDefinition vendor)
+    /// <summary>Resolves each overlay designation's effective display and description: the overlay's
+    /// own value where it supplied one, the vendor node's own value otherwise (taxonomy-auth-10 — a
+    /// designation adds a label/description without changing the vendor node's own definition).
+    /// Throws for a designation naming a code the vendor scheme does not have; callers that already
+    /// went through <see cref="ExpandOverlay"/> or vendor-aware <c>Validate</c> will not hit this.</summary>
+    public IReadOnlyList<ResolvedTaxonomyOverlayDesignation> ResolveOverlayDesignations(TaxonomyDefinition overlay, TaxonomyDefinition vendor)
     {
         ArgumentNullException.ThrowIfNull(overlay); ArgumentNullException.ThrowIfNull(vendor);
         var vendorNodes = Index(vendor);
-        foreach (var code in Index(overlay).Keys)
+        var results = new List<ResolvedTaxonomyOverlayDesignation>();
+        foreach (var designation in overlay.OverlayDesignations ?? [])
         {
-            if (vendorNodes.ContainsKey(code)) throw new TaxonomyOverlayException("taxonomy.overlay_copies_vendor_node", $"Overlay node '{code}' copies a vendor node.");
+            if (designation.VendorNodeCode is null || !vendorNodes.TryGetValue(designation.VendorNodeCode, out var vendorNode))
+                throw new TaxonomyOverlayException("taxonomy.overlay_designation_vendor_node_unknown", $"Overlay designation names unknown vendor node '{designation.VendorNodeCode}'.");
+            results.Add(new(designation.VendorNodeCode, designation.Display ?? vendorNode.Display, designation.Description ?? vendorNode.Description));
         }
+        return results;
     }
 
     public TaxonomyDefinitionChangeSet Diff(TaxonomyDefinition previous, TaxonomyDefinition current)

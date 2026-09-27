@@ -98,11 +98,16 @@ public static class TaxonomyDefinitionAdmission
         }
         return refusals;
     }
-    public static TaxonomyDefinition Require(TaxonomyDefinition definition, TaxonomyAdmissionPhase phase, TaxonomyDefinition? previous = null)
+    public static TaxonomyDefinition Require(TaxonomyDefinition definition, TaxonomyAdmissionPhase phase, TaxonomyDefinition? previous = null, TaxonomyDefinition? vendor = null)
     {
-        var refusals = Validate(definition, phase, previous); return refusals.Count == 0 ? definition : throw new TaxonomyAdmissionException(refusals);
+        var refusals = Validate(definition, phase, previous, vendor); return refusals.Count == 0 ? definition : throw new TaxonomyAdmissionException(refusals);
     }
-    public static IReadOnlyList<TaxonomyRefusal> Validate(TaxonomyDefinition definition, TaxonomyAdmissionPhase phase, TaxonomyDefinition? previous = null)
+    /// <summary><paramref name="vendor"/> is the resolved vendor scheme an overlay names by reference
+    /// (taxonomy-auth-9). It is optional because admission at Author phase may run before the vendor
+    /// is resolvable; when supplied, taxonomy-auth-22 (an overlay copying a vendor node) and an
+    /// overlay designation naming an unknown vendor node both refuse here, at the same admission call
+    /// every other structural refusal runs through, rather than only in a separately callable helper.</summary>
+    public static IReadOnlyList<TaxonomyRefusal> Validate(TaxonomyDefinition definition, TaxonomyAdmissionPhase phase, TaxonomyDefinition? previous = null, TaxonomyDefinition? vendor = null)
     {
         ArgumentNullException.ThrowIfNull(definition); var refusals = new List<TaxonomyRefusal>();
         if (!IsThreePartVersion(definition.Version)) refusals.Add(new("definition.version_invalid", "/version"));
@@ -135,7 +140,30 @@ public static class TaxonomyDefinitionAdmission
             if (node.Status == TaxonomyNodeStatus.Tombstoned && string.IsNullOrWhiteSpace(node.DeprecationReason)) refusals.Add(new("definition.deprecation_reason_required", $"/nodes/{index}/deprecation_reason"));
             if (node.SuccessorCode is not null) { if (!byCode.TryGetValue(node.SuccessorCode, out var successor)) refusals.Add(new("definition.successor_unknown", $"/nodes/{index}/successor_code")); else if (definition.Nodes[successor].Status == TaxonomyNodeStatus.Tombstoned) refusals.Add(new("definition.successor_tombstoned", $"/nodes/{index}/successor_code")); }
         }
-        ValidateParents(definition.Nodes, byCode, refusals); if (previous is not null) ValidatePrevious(definition, previous, refusals); return refusals;
+        ValidateParents(definition.Nodes, byCode, refusals); if (previous is not null) ValidatePrevious(definition, previous, refusals);
+        if (vendor is not null && definition.Overlay is not null) ValidateOverlayAgainstVendor(definition, vendor, refusals);
+        return refusals;
+    }
+    private static void ValidateOverlayAgainstVendor(TaxonomyDefinition definition, TaxonomyDefinition vendor, List<TaxonomyRefusal> refusals)
+    {
+        var vendorCodes = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var node in vendor.Nodes ?? []) if (node?.Code is not null) vendorCodes.Add(node.Code);
+        for (var index = 0; index < definition.Nodes.Count; index++)
+        {
+            var node = definition.Nodes[index];
+            // taxonomy-auth-22: an overlay's own nodes must be new, never a re-declaration of one of
+            // the vendor's own concepts (FHIR CodeSystem supplement: a supplement adds designations to
+            // existing codes, it never redefines one as if it were its own new concept).
+            if (node?.Code is not null && vendorCodes.Contains(node.Code)) refusals.Add(new("overlay.copies_vendor_node", $"/nodes/{index}/code"));
+        }
+        if (definition.OverlayDesignations is null) return;
+        for (var index = 0; index < definition.OverlayDesignations.Count; index++)
+        {
+            var designation = definition.OverlayDesignations[index];
+            // taxonomy-auth-10: a designation adds a label/description to an EXISTING vendor concept;
+            // one naming a code the vendor scheme does not have refuses rather than publishing inert.
+            if (designation?.VendorNodeCode is not null && !vendorCodes.Contains(designation.VendorNodeCode)) refusals.Add(new("overlay.designation_vendor_node_unknown", $"/overlay_designations/{index}/vendor_node_code"));
+        }
     }
     private static void ValidateOverlay(TaxonomyDefinition definition, List<TaxonomyRefusal> refusals)
     {
@@ -203,8 +231,8 @@ public static class TaxonomyDefinitionAdmission
 public sealed record TaxonomyDefinitionPackageEntry(string DefinitionId, string Version, ReadOnlyMemory<byte> Content) { public int ContentKind => TaxonomyPackIdentity.ContentKind; }
 public static class TaxonomyDefinitionPackExporter
 {
-    public static TaxonomyDefinitionPackageEntry Export(TaxonomyDefinition definition, TaxonomyDefinition? previous = null)
+    public static TaxonomyDefinitionPackageEntry Export(TaxonomyDefinition definition, TaxonomyDefinition? previous = null, TaxonomyDefinition? vendor = null)
     {
-        TaxonomyDefinitionAdmission.Require(definition, TaxonomyAdmissionPhase.Publish, previous); return new(definition.DefinitionId.ToString(), definition.Version, TaxonomyDefinitionJson.SerializeCanonical(definition));
+        TaxonomyDefinitionAdmission.Require(definition, TaxonomyAdmissionPhase.Publish, previous, vendor); return new(definition.DefinitionId.ToString(), definition.Version, TaxonomyDefinitionJson.SerializeCanonical(definition));
     }
 }

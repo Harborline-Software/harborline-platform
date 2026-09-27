@@ -129,6 +129,47 @@ public sealed class TaxonomyDefinitionTests
         Assert.Contains(refusals, refusal => refusal.Code == "overlay.vendor_node_code_missing" && refusal.Pointer == "/overlay_designations/2/vendor_node_code");
     }
 
+    [Fact(DisplayName = "taxonomy-auth-22: publish refuses an overlay that copies a vendor node when the vendor is supplied")]
+    public void Publish_refuses_overlay_that_copies_a_vendor_node_when_vendor_is_known()
+    {
+        var vendorId = new TaxonomyDefinitionId("vendor", "health", "scheme");
+        var vendor = Definition([Node("shared")]) with { DefinitionId = vendorId };
+        var overlay = Definition([Node("shared")]) with { Overlay = new(vendorId, "1.0.0") };
+
+        var refusals = TaxonomyDefinitionAdmission.Validate(overlay, TaxonomyAdmissionPhase.Publish, vendor: vendor);
+        Assert.Contains(refusals, refusal => refusal.Code == "overlay.copies_vendor_node" && refusal.Pointer == "/nodes/0/code");
+        Assert.Throws<TaxonomyAdmissionException>(() => TaxonomyDefinitionAdmission.Require(overlay, TaxonomyAdmissionPhase.Publish, vendor: vendor));
+    }
+
+    [Fact(DisplayName = "taxonomy-auth-10: publish refuses an overlay designation naming an unknown vendor node when the vendor is supplied")]
+    public void Publish_refuses_designation_naming_unknown_vendor_node_when_vendor_is_known()
+    {
+        var vendorId = new TaxonomyDefinitionId("vendor", "health", "scheme");
+        var vendor = Definition([Node("root")]) with { DefinitionId = vendorId };
+        var overlay = Definition([Node("tenant-extra", "root")]) with
+        {
+            Overlay = new(vendorId, "1.0.0"),
+            OverlayDesignations = [new("missing-vendor-code", "Renamed", null)],
+        };
+
+        var refusals = TaxonomyDefinitionAdmission.Validate(overlay, TaxonomyAdmissionPhase.Publish, vendor: vendor);
+        Assert.Contains(refusals, refusal => refusal.Code == "overlay.designation_vendor_node_unknown" && refusal.Pointer == "/overlay_designations/0/vendor_node_code");
+    }
+
+    [Fact(DisplayName = "taxonomy-auth-22/-10: an overlay that only adds a new node and a valid designation admits cleanly when the vendor is supplied")]
+    public void Publish_admits_a_well_formed_overlay_when_vendor_is_known()
+    {
+        var vendorId = new TaxonomyDefinitionId("vendor", "health", "scheme");
+        var vendor = Definition([Node("root")]) with { DefinitionId = vendorId };
+        var overlay = Definition([Node("tenant-extra", "root")]) with
+        {
+            Overlay = new(vendorId, "1.0.0"),
+            OverlayDesignations = [new("root", "Tenant label", null)],
+        };
+
+        Assert.Empty(TaxonomyDefinitionAdmission.Validate(overlay, TaxonomyAdmissionPhase.Publish, vendor: vendor));
+    }
+
     [Fact(DisplayName = "CodeRabbit 4112629550: a malformed definition_id in the body refuses definition.body_invalid instead of throwing FormatException")]
     public void Malformed_definition_id_refuses_instead_of_throwing()
     {
