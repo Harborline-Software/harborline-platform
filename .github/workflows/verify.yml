@@ -1,24 +1,5 @@
-# verify: the phase-4 gate on a self-hosted macOS runner, as a pull-request check and as the
-# merge-queue check. This is the gate ADR-0004 calls binding — the one the Mac landings run and the
-# one the receipt is bound to — and it is the gate the ubuntu `validate` job has never been green on
-# (see the publish-libraries comment in validate.yml). Shape copied from harborline-api's verify.yml
-# (control: docs/velocity/landing.md).
-#
-# Fork safety: harborline-platform is public and the shared lane runs on our own machines. It runs
-# only for pull requests whose head lives in this repository, and for merge-queue groups (which are
-# built from already-reviewed heads). A fork PR gets the hosted checks only.
-#
-# T-660 (the shape T-633 landed in harborline-api): `verify` is the required context, and it is an
-# aggregator with no condition. GitHub counts a job skipped by its own `if` as a SUCCESSFUL required
-# check, so a required job that carries `vars.ACTIONS_ENABLED == 'true'` turns green the moment the
-# variable is deleted. The lane keeps the switch (it costs self-hosted machine time); the context
-# cannot be skipped and is green only when the lane it stands for ran and passed.
-#
-# Owner decision 2026-09-25: a draft PR no longer starts the self-hosted verify-shared lane. Drafts
-# were queuing behind the merge-queue's own runs on macpro, delaying every ready-for-review PR behind
-# work nobody had asked to be checked yet. Marking a PR ready for review (or opening it non-draft)
-# now triggers the full run; the `verify` aggregator stays unconditional and required (T-633/T-660) so
-# a draft's skipped lane reports a failure with an explicit message, not a false-green required check.
+# verify: the phase-4 gate runs on a standard GitHub-hosted macOS runner.
+# The required aggregator remains unconditional and fails when its lane is skipped or red.
 name: verify
 
 on:
@@ -40,27 +21,8 @@ jobs:
       (github.event_name == 'merge_group' ||
        (github.event.pull_request.head.repo.full_name == github.repository &&
         github.event.pull_request.draft == false))
-    # Ticket 404: this job was pinned to macpro because the SchemaForm wall-clock budget passed there and
-    # failed on mac16. That premise is measured false. The budget was asserted inside the parallel module
-    # fan-out, where six module runners and their dotnet children compete, so it reported the scheduler and
-    # not the host: mac16 sampled quiet measures a 115.8 ms p95 on the row that failed, against 537.8 ms on
-    # the same machine under load. The pin was also the platform queue's serialisation point -- macpro was
-    # the only eligible runner for every platform PR, observed with mac16 idle and a verify queued.
-    # 404 slice 4 completes it: the budget now rides the serial perf slot, so it is asserted with
-    # nothing else competing and any macOS runner gives the same verdict. The perf pin is gone (#35).
-    # T-701 pinned the lane to macpro for a different reason: mac16 is reserved for the perf-quiet job
-    # (T-268), so no gate lane should land on it by label match.
-    # T-724 ruling 117: that reservation is relieved deliberately. `[self-hosted, macOS]` is a
-    # capability label both org runner mac16 (`[self-hosted, X64, macOS, mac16, perf-quiet]`) and
-    # repo runner macpro (`[self-hosted, macOS, ARM64, macpro]`) satisfy -- confirmed against the live
-    # runner registrations, and no other self-hosted macOS runner exists in this org or repo. Landing
-    # on mac16 during the day is now acceptable because (a) T-404 is fixed, so no wall-clock row can
-    # disagree by host, and (b) the "Shut down build servers" step below leaves mac16 clean for the
-    # night's perf-quiet job. Perf-quiet jobs are untouched by this change and stay scheduled at night.
-    runs-on: [self-hosted, macOS]
-    # The ubuntu gate took 49 minutes at PW_WORKERS=2. These hosts are 8-core and run the gallery at
-    # the config default, but the whole gate is the long pole in this repository; 90 keeps a slow run
-    # from being cut off mid-gallery, and the merge queue's check timeout must exceed it.
+    runs-on: macos-15
+    # Allow the full gallery gate to finish on the hosted image.
     timeout-minutes: 90
     env:
       DOTNET_CLI_TELEMETRY_OPTOUT: '1'
@@ -81,10 +43,16 @@ jobs:
           fetch-depth: 0
           clean: true
 
-      # No setup-node / setup-dotnet / pnpm-action here, deliberately: the runner's PATH carries the
-      # host toolchain that every green Mac gate in this repository was measured with, and
-      # global.json pins the SDK that resolve-dotnet.mjs resolves. Printing the versions makes a
-      # host-versus-host disagreement attributable instead of a mystery.
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
       - name: Host toolchain
         run: |
           for tool in node npm pnpm dotnet git jq; do
@@ -145,8 +113,7 @@ jobs:
       #
       # HARBORLINE_CI_GALLERY is deliberately NOT set. That variable is the ubuntu gate's only
       # leniency and it exists because a 2-core shared runner could not hold the gallery's budgets.
-      # This is the binding gate on an 8-core host we own: it runs strict, exactly as the Mac
-      # landings ran it.
+      # Keep the binding gate strict on hosted macOS.
       - name: Phase-4 gate
         # HARBORLINE_GATE_HEADLESS: the MVP is headless. The browser parity suite stays in the
         # scheduled cross-platform job, where a slow run costs nobody a landing; it is not the thing
