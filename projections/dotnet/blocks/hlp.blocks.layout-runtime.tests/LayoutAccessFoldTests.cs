@@ -81,6 +81,10 @@ public sealed class LayoutAccessFoldTests
     {
         private readonly HashSet<string> _unreadable = new(unreadable ?? [], StringComparer.Ordinal);
 
+        public bool CanAuthor() => true;
+
+        public bool CanPublish() => true;
+
         public bool CanRead(LayoutBinding binding) => !_unreadable.Contains(binding switch
         {
             LayoutQueryBinding value => value.ViewDefinitionId,

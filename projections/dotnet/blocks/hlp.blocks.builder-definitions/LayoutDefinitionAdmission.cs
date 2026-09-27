@@ -105,6 +105,10 @@ public static class LayoutDefinitionCodes
     public const string ValidationRuleInvalid = "layout.capture.validation_rule_invalid";
     /// <summary>The acting author could not read the source a binding names (layout-auth-24).</summary>
     public const string BindingUnreadable = "layout.binding.unreadable";
+    /// <summary>The acting author lacks the Layout author grant (layout-auth-38).</summary>
+    public const string AuthorForbidden = "layout.author.forbidden";
+    /// <summary>The acting author lacks the Layout publish grant (layout-auth-39).</summary>
+    public const string PublishForbidden = "layout.publish.forbidden";
     /// <summary>A filter-propagation edge targets a block whose binding a selection cannot narrow (layout-auth-36).</summary>
     public const string FilterTargetUnnarrowable = "layout.interaction.filter_target_unnarrowable";
     /// <summary>The acting author could not open a drill-through target (layout-auth-36).</summary>
@@ -205,6 +209,13 @@ public static class LayoutDefinitionAdmission
         var refusals = new List<DefinitionRefusal>();
         ValidateEnvelope(definition, refusals);
         if (stage == DefinitionAdmissionPhase.Publish) ValidateSealedCapability(definition, refusals);
+        if (author is not null)
+        {
+            if (stage == DefinitionAdmissionPhase.Author && !author.CanAuthor())
+                Add(refusals, LayoutDefinitionCodes.AuthorForbidden, "");
+            else if (stage == DefinitionAdmissionPhase.Publish && !author.CanPublish())
+                Add(refusals, LayoutDefinitionCodes.PublishForbidden, "");
+        }
 
         var blocks = definition.Blocks ?? [];
         if (blocks.Count == 0) Add(refusals, LayoutDefinitionCodes.TreeEmpty, "/blocks");

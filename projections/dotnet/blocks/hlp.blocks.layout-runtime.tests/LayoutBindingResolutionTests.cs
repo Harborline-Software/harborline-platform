@@ -434,6 +434,10 @@ public sealed class LayoutBindingResolutionTests
     {
         public static readonly GrantsAll Instance = new();
 
+        public bool CanAuthor() => true;
+
+        public bool CanPublish() => true;
+
         public bool CanRead(LayoutBinding binding) => true;
 
         public bool CanOpen(string surfaceId) => true;
