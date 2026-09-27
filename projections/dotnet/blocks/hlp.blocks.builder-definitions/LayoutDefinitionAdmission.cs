@@ -2,6 +2,8 @@ using System.Text.Json;
 using Harborline.Contracts.Authorization;
 using Harborline.Contracts.Forms;
 using Harborline.Foundation.RuleEngine.Compilation;
+using Harborline.Foundation.RuleEngine.Environments;
+using Harborline.Foundation.RuleEngine.Functions;
 using Harborline.Foundation.RuleEngine.References;
 
 namespace Harborline.Blocks.BuilderDefinitions;
@@ -91,6 +93,8 @@ public static class LayoutDefinitionCodes
     public const string PageSuppliedTwice = "layout.page.supplied_twice";
     /// <summary>A block's show_when does not compile at its scope (layout-auth-20, T-724 ruling 39).</summary>
     public const string GuardInvalid = "layout.guard.invalid";
+    /// <summary>A block's show_when addresses a variable Layout does not admit at publication.</summary>
+    public const string GuardVariableNotAdmitted = "layout.guard.variable_not_admitted";
     /// <summary>A declared show_when holds neither or both of expression and predicate (layout-ck-29).</summary>
     public const string GuardFormInvalid = "layout.guard.form_invalid";
     /// <summary>A show_when predicate's exact pin does not resolve in the pinned closure (layout-ck-29).</summary>
@@ -122,6 +126,23 @@ public static class LayoutDefinitionCodes
 /// </summary>
 public static class LayoutDefinitionAdmission
 {
+    private static readonly BorrowerEnvironmentDeclaration PublishGuardEnvironment = new(
+        Borrower: "layout-ck-29",
+        Grammar: BorrowerEnvironmentAdmission.Grammar,
+        Variables: new Dictionary<string, string>
+        {
+            ["field"] = "layout root value",
+            ["row"] = "repeating-collection row value",
+            ["section"] = "layout section value",
+        },
+        Operations: [.. BuiltInFunctionRegister.Functions.Select(function => function.Key)],
+        Effects: [BorrowerEnvironmentAdmission.FieldRead],
+        MissingValues: "missing-field-reads-null",
+        TimeSource: "publish-validation-does-not-read-time",
+        TimeZone: "utc",
+        Phases: Enum.GetValues<EvaluationPhase>().ToDictionary(phase => phase, phase => phase is EvaluationPhase.PublishValidation),
+        Replay: "pure-static-admission");
+
 
     /// <summary>Validates a Layout definition during authoring, as <paramref name="author"/>.</summary>
     /// <param name="definition">The candidate definition.</param>
@@ -456,7 +477,10 @@ public static class LayoutDefinitionAdmission
             {
                 try
                 {
-                    RuleCompiler.Compile([LayoutGuardRule.For(block.Id, guard, rowSection, registers.Predicates)]);
+                    var compiled = RuleCompiler.Compile([LayoutGuardRule.For(block.Id, guard, rowSection, registers.Predicates)]);
+                    if (publishing && BorrowerEnvironmentAdmission.CheckCompiledGuard(
+                        compiled, PublishGuardEnvironment, EvaluationPhase.PublishValidation) is not null)
+                        Add(refusals, LayoutDefinitionCodes.GuardVariableNotAdmitted, $"{pointer}/show_when");
                 }
                 catch (NamedReferenceException)
                 {

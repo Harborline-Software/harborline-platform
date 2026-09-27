@@ -216,6 +216,17 @@ public sealed class LayoutBoundRegisterTests
         LayoutDefinitionAdmission.ValidateForAuthoring(GuardSurface(Expr("status == open"), null), LayoutHostRegisters.Platform, LayoutTestAccess.GrantsAll);
     }
 
+    [Fact(DisplayName = "T-741: publication admits Layout guard variables and refuses unavailable declared environments")]
+    public void PublicationChecksShowWhenAgainstLayoutsDeclaredEnvironment()
+    {
+        LayoutDefinitionAdmission.ValidateForPublish(Sealed(GuardSurface(Expr("""{"==":[{"var":"field.status"},"open"]}"""), null)),
+            LayoutHostRegisters.Platform, LayoutTestAccess.GrantsAll);
+
+        foreach (var unavailable in new[] { "wf.state", "timer.due", "candidate.status" })
+            AssertPublishRefused(GuardSurface(Expr($"{{\"var\":\"{unavailable}\"}}"), null), LayoutHostRegisters.Platform,
+                LayoutDefinitionCodes.GuardVariableNotAdmitted, "/blocks/0/show_when");
+    }
+
     [Fact(DisplayName = "layout-ck-29: show_when holds exactly one of expression or predicate; neither or both refuses at every stage")]
     public void ShowWhenHoldsExactlyOneOfExpressionOrPredicate()
     {

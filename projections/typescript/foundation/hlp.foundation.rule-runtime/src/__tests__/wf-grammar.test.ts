@@ -65,4 +65,19 @@ describe('WF-KEY wf./timer. process-context grammar', () => {
     // Only the real form field participates in the dependency graph.
     expect(refs).toEqual([{ kind: 'field', name: 'amount' }])
   })
+
+  // T-741 (codex review finding): the .NET tier preserves `candidate.` as a declared context
+  // prefix (like `wf.`/`timer.`) so Rules' admission check can refuse an undeclared reference
+  // instead of it being silently rewritten into a field read. This tier must lower it
+  // identically, or a guard the .NET publish check refuses would still resolve (wrongly) as a
+  // field read here — a fail-closed gap across tiers.
+  it('lowers candidate.<name> canonically, like wf./timer. (T-741 cross-tier parity)', () => {
+    const ast = lower(JSON.stringify({ var: 'candidate.status' }), schemaCtx, 'g')
+    expect(varPath(ast)).toBe('candidate.status')
+  })
+
+  it('does NOT extract candidate. as a field/row dep', () => {
+    const ast = lower(JSON.stringify({ var: 'candidate.status' }), schemaCtx, 'g')
+    expect(extractRefs(ast)).toEqual([])
+  })
 })

@@ -142,7 +142,10 @@ function lowerVarPath(path: string, ctx: LowerContext, ruleId: string): string {
   // deps (see `extractRefs` below — only field./row./agg participate in the form graph).
   // Additive: no form rule addresses a `wf.`/`timer.`-prefixed cell, so existing lowering
   // is byte-identical. The contract that authors these is @harborline-software/contracts WorkflowDefinition.
-  if (path.startsWith('wf.') || path.startsWith('timer.')) {
+  // T-741: `candidate.` is a third declared context prefix, mirrored from the .NET tier's
+  // ScopeGrammar so Rules' borrower-admission check (DES-0018 rules-ck-28) can refuse an
+  // undeclared reference on both tiers rather than only where it happens to run first.
+  if (path.startsWith('wf.') || path.startsWith('timer.') || path.startsWith('candidate.')) {
     return path
   }
   return 'field.' + path

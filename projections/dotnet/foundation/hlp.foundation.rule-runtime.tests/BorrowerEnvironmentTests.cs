@@ -5,6 +5,7 @@ using System.Text.RegularExpressions;
 using Harborline.Foundation.RuleEngine.Compilation;
 using Harborline.Foundation.RuleEngine.Context;
 using Harborline.Foundation.RuleEngine.Environments;
+using Harborline.Foundation.RuleEngine.Evaluation;
 using Harborline.Foundation.RuleEngine.Graph;
 using Harborline.Foundation.RuleEngine.Model;
 
@@ -59,6 +60,34 @@ public sealed class BorrowerEnvironmentTests
         Assert.Equal(EvaluationPhase.Render, environment.For(EvaluationPhase.Render).Phase);
         Assert.Equal(BorrowerEnvironmentAdmission.PhaseNotAdmitted,
             Assert.Throws<BorrowerEnvironmentException>(() => environment.For(EvaluationPhase.Submission)).Code);
+    }
+
+    [Fact(DisplayName = "T-741: compiled guard admission is pure, phase-bound, and retains declared context prefixes")]
+    public void Compiled_guard_admission_is_pure_and_checks_declared_prefixes()
+    {
+        var declaration = TestAdmission.Declaration(variables: ["field", "row", "section"]);
+        var permitted = RuleCompiler.Compile([Rule("permitted", "ok", """{"var":"field.status"}""", RuleActionKind.Validate, RuleScope.Schema)]);
+        var candidate = RuleCompiler.Compile([Rule("candidate", "ok", """{"var":"candidate.status"}""", RuleActionKind.Validate, RuleScope.Schema)]);
+        var workflow = RuleCompiler.Compile([Rule("workflow", "ok", """{"var":"wf.state"}""", RuleActionKind.Validate, RuleScope.Schema)]);
+        var timer = RuleCompiler.Compile([Rule("timer", "ok", """{"var":"timer.due"}""", RuleActionKind.Validate, RuleScope.Schema)]);
+        var clock = new ThrowingClock();
+        var records = new ThrowingRecordReader();
+
+        Assert.Null(BorrowerEnvironmentAdmission.CheckCompiledGuard(permitted, declaration, EvaluationPhase.PublishValidation));
+        foreach (var compiled in new[] { candidate, workflow, timer })
+            Assert.Equal(BorrowerEnvironmentAdmission.VariableNotAdmitted,
+                BorrowerEnvironmentAdmission.CheckCompiledGuard(compiled, declaration, EvaluationPhase.PublishValidation));
+        Assert.Equal(0, clock.Reads);
+        Assert.Equal(0, records.Reads);
+
+        var parameters = typeof(BorrowerEnvironmentAdmission)
+            .GetMethod(nameof(BorrowerEnvironmentAdmission.CheckCompiledGuard))!.GetParameters();
+        Assert.Equal([typeof(CompiledGraph), typeof(BorrowerEnvironmentDeclaration), typeof(EvaluationPhase)],
+            parameters.Select(parameter => parameter.ParameterType));
+
+        Assert.Equal(BorrowerEnvironmentAdmission.PhaseNotAdmitted,
+            Assert.Throws<BorrowerEnvironmentException>(() => BorrowerEnvironmentAdmission.CheckCompiledGuard(
+                permitted, TestAdmission.Declaration(phases: [EvaluationPhase.Render]), EvaluationPhase.PublishValidation)).Code);
     }
 
     [Fact(DisplayName = "rules-eng-26: guard and value overloads evaluate under an admitted declaration and refuse the unadmitted counterpart")]
@@ -169,5 +198,33 @@ public sealed class BorrowerEnvironmentTests
         var engine = typeof(GuardEvaluator).Assembly;
         foreach (var raw in new[] { "Harborline.Foundation.RuleEngine.Evaluation.HarborlineJsonLogic", "Harborline.Foundation.RuleEngine.RuleEvaluator", "Harborline.Foundation.RuleEngine.Evaluation.EvalContext" })
             Assert.False(engine.GetType(raw, throwOnError: true)!.IsPublic, $"{raw} must stay an internal seam");
+    }
+
+    private sealed class ThrowingClock : TimeProvider
+    {
+        public int Reads { get; private set; }
+
+        public override DateTimeOffset GetUtcNow()
+        {
+            Reads++;
+            throw new InvalidOperationException("The admission check must not read the clock.");
+        }
+    }
+
+    private sealed class ThrowingRecordReader : IValueResolver
+    {
+        public int Reads { get; private set; }
+
+        public RefValue ResolveVar(string path)
+        {
+            Reads++;
+            throw new InvalidOperationException("The admission check must not read a record.");
+        }
+
+        public RefValue ResolveAgg(string fn, string section, string col)
+        {
+            Reads++;
+            throw new InvalidOperationException("The admission check must not read a record.");
+        }
     }
 }

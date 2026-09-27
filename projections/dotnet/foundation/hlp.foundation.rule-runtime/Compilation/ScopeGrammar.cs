@@ -10,8 +10,9 @@ namespace Harborline.Foundation.RuleEngine.Compilation;
 /// The neutral compiler's grammar-lowering half (SPINE-1 design §1.2). Lowers the
 /// structured scope-grammar (<c>self</c> / <c>field.x</c> / <c>row.y</c> /
 /// <c>table.agg(col)</c> / <c>parent.f</c> / <c>section.id.f</c>) carried inside a
-/// rule's opaque JsonLogic expression into a canonical normalized AST (only
-/// <c>field.</c> / <c>row.</c> vars + the <c>agg</c> operator). Performed ONCE so
+/// rule's opaque JsonLogic expression into a canonical normalized AST (record
+/// <c>field.</c> / <c>row.</c> vars, declared context prefixes, and the <c>agg</c>
+/// operator). Performed ONCE so
 /// both tiers consume the identical normalized AST — the corpus pins
 /// <c>expectedAst</c> so a lowering divergence is caught, not just an eval divergence.
 /// </summary>
@@ -168,12 +169,12 @@ internal static class ScopeGrammar
             if (lastDot < 0) throw Bad(ruleId, $"malformed section reference '{path}' (expected section.<id>.<field>)");
             return "field." + rest[(lastDot + 1)..];
         }
-        // WF-KEY (ADR 0140) process-context prefixes: wf.state / wf.actor / wf.iteration /
-        // timer.<id>. A workflow guard reads the PROCESS context bag, not a record cell, so
-        // these pass through CANONICALLY (no "field." rewrite) and are NOT extracted as field
-        // deps (see ExtractRefs below). Additive: no form rule addresses a wf./timer. cell, so
-        // existing lowering is byte-identical. Mirrors @harborline-software/rule-engine grammar.ts.
-        if (path.StartsWith("wf.", StringComparison.Ordinal) || path.StartsWith("timer.", StringComparison.Ordinal))
+        // Declared context prefixes are preserved so borrower admission can distinguish them from
+        // record fields. A workflow guard reads wf./timer. from its process bag, while Forms may
+        // declare candidate. separately from field.; none of these is a field dependency.
+        if (path.StartsWith("wf.", StringComparison.Ordinal)
+            || path.StartsWith("timer.", StringComparison.Ordinal)
+            || path.StartsWith("candidate.", StringComparison.Ordinal))
         {
             return path;
         }
