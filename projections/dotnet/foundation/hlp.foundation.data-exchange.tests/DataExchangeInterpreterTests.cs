@@ -7,6 +7,34 @@ namespace Harborline.Foundation.DataExchange.Tests;
 public sealed class DataExchangeInterpreterTests
 {
     [Fact]
+    public async Task Composite_external_key_does_not_collide_with_the_effect_identity_separator()
+    {
+        // A two-column external key previously joined with '|', the same character
+        // ExchangeIdentity.DeriveEffect refuses inside any identity component; every row with a
+        // composite key aborted the whole batch instead of getting its own exit (eng-10, spec
+        // review c1). Two rows here would each already have failed the whole dry run before the fix.
+        var definition = Definition() with { ExternalKeyColumns = ["CustomerNumber", "Email"] };
+        var source = new StubSource(
+            new DiscoveredSourceShape([new("CustomerNumber", "string"), new("Email", "string"), new("CreditLimit", "decimal")]),
+            [
+                new(0, "customer-1", "v1", "cursor-1", new Dictionary<string, string?> { ["CustomerNumber"] = "C-1", ["Email"] = "a@example.com", ["CreditLimit"] = "1" }),
+                new(1, "customer-2", "v1", "cursor-2", new Dictionary<string, string?> { ["CustomerNumber"] = "C-2", ["Email"] = "b@example.com", ["CreditLimit"] = "2" }),
+            ]);
+        var interpreter = new DataExchangeInterpreter(
+            new StubCapabilities(source),
+            new DataExchangeRuntime(new InMemoryExchangeRunStore(), TimeProvider.System, new FakeLifecyclePolicy()),
+            new InMemoryProtectedEffectPayloadStore());
+
+        var dryRun = await interpreter.CreateDryRunAsync(
+            definition,
+            new ExchangeEvaluationContext("actor", "sha256:source", "window", null, "authz", "standard"));
+
+        Assert.Equal(2, dryRun.Census.Accounted);
+        Assert.Equal(2, dryRun.Census.Applied);
+        Assert.Equal("CustomerNumber=C-1\u001fEmail=a@example.com", dryRun.NormalizedEffects[0].SourceRecordIdentity);
+    }
+
+    [Fact]
     public async Task Dry_run_acquires_maps_and_protects_payload_without_writing_records()
     {
         var source = new StubSource(
@@ -202,7 +230,9 @@ internal sealed class StubSource(DiscoveredSourceShape shape, IReadOnlyList<Acqu
     }
 }
 
-internal sealed class StubCapabilities(IReadOnlyAcquisitionSource source) : IDataExchangeCapabilityRegistry
+internal sealed class StubCapabilities(
+    IReadOnlyAcquisitionSource source,
+    ICanonicalTargetCommandPort? targetLedger = null) : IDataExchangeCapabilityRegistry
 {
     public int CommandsApplied { get; private set; }
 
@@ -219,6 +249,8 @@ internal sealed class StubCapabilities(IReadOnlyAcquisitionSource source) : IDat
     };
 
     public bool CanWrite(string targetContract, string targetPointer) => true;
+
+    public ICanonicalTargetCommandPort? ResolveTargetLedger(string targetContract) => targetLedger;
 
     private sealed class DelegateTransform(Func<object?, object?> transform) : INamedMappingTransform
     {

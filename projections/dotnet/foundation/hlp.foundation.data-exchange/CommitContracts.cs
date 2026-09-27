@@ -43,7 +43,8 @@ public sealed record EffectLedgerEntry(
     EffectIdempotencyIdentity EffectIdentity,
     AttemptId AttemptId,
     EffectTerminalOutcome Outcome,
-    DateTimeOffset RecordedAt);
+    DateTimeOffset RecordedAt,
+    string? PayloadDigest = null);
 
 public enum ExchangeRunTerminalStatus
 {

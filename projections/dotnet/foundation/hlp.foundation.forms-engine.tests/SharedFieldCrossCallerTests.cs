@@ -81,6 +81,7 @@ public sealed class SharedFieldCrossCallerTests
         public IReadOnlyAcquisitionSource ResolveSource(string capabilityId, string connectorVersion) => this;
         public INamedMappingTransform ResolveTransform(string name) => throw new NotSupportedException();
         public bool CanWrite(string targetContract, string targetPointer) => targetContract == "records.model/v1" && targetPointer == "/model/name";
+        public ICanonicalTargetCommandPort? ResolveTargetLedger(string targetContract) => null;
         public ValueTask<DiscoveredSourceShape> DiscoverAsync(ExchangeSourceBinding binding, CancellationToken cancellationToken = default)
             => ValueTask.FromResult(new DiscoveredSourceShape([new("Name", "string")]));
         public async IAsyncEnumerable<AcquiredSourceRecord> ReadAsync(ExchangeSourceBinding binding, string inputBoundary,

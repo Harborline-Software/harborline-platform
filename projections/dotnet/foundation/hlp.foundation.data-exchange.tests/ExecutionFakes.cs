@@ -36,6 +36,7 @@ internal abstract class FakeTargetCommandPort : ICanonicalTargetCommandPort
     {
         lock (_gate)
         {
+            WriteAttempts++;
             var existing = _outcomes.GetValueOrDefault(effectIdentity);
             if (existing is not null && !ExchangeOutcomePolicies.For(existing.Outcome.Status).Retryable)
                 return ValueTask.FromResult(new EffectClaim(false, existing));
@@ -66,6 +67,7 @@ internal abstract class FakeTargetCommandPort : ICanonicalTargetCommandPort
         var outcome = new EffectTerminalOutcome(ExchangeEffectStatus.Applied, "records.corrected");
         lock (_gate)
         {
+            WriteAttempts++;
             var existing = _outcomes.GetValueOrDefault(command.OriginalCommand.EffectIdentity);
             if (existing?.Outcome.Status != ExchangeEffectStatus.Conflicted)
                 throw new ExchangeRunConflictException("Only a recorded conflict can be forward-corrected.");
@@ -85,10 +87,37 @@ internal abstract class FakeTargetCommandPort : ICanonicalTargetCommandPort
         {
             if (!_claims.TryGetValue(command.EffectIdentity, out var claim) || claim.AttemptId != command.AttemptId)
                 throw new ExchangeRunConflictException("The effect attempt no longer owns the active claim.");
-            _outcomes[command.EffectIdentity] = new(command.BatchIdentity, command.EffectIdentity, command.AttemptId, outcome, DateTimeOffset.UtcNow);
+            // The digest is populated from the command's own payload (spec review c4): a writer
+            // that left it null would make every later replay of an unchanged, successfully
+            // applied effect misclassify as Conflicted instead of Skipped.
+            _outcomes[command.EffectIdentity] = new(
+                command.BatchIdentity, command.EffectIdentity, command.AttemptId, outcome, DateTimeOffset.UtcNow,
+                ExchangePayloadDigest.Compute(command.Payload));
             _claims.Remove(command.EffectIdentity);
         }
     }
+
+    protected void Preload(EffectLedgerEntry entry)
+    {
+        lock (_gate)
+        {
+            _outcomes[entry.EffectIdentity] = entry;
+        }
+    }
+
+    /// <summary>How many times this port's write surface (claim or forward-correction) was
+    /// invoked — a dry run must leave this at zero (data-exchange spec c8 / T-601 acceptance).</summary>
+    public int WriteAttempts { get; private set; }
+}
+
+internal sealed class FakeExchangeLedger : FakeTargetCommandPort
+{
+    public void SetOutcome(EffectLedgerEntry entry) => Preload(entry);
+
+    public override ValueTask<EffectTerminalOutcome> ApplyAsync(
+        CanonicalRecordsCommand command,
+        CancellationToken cancellationToken = default)
+        => throw new InvalidOperationException("Dry-run ledger must not apply target commands.");
 }
 
 internal sealed class FakeProposalEvaluator : IProposalEvaluationPort
