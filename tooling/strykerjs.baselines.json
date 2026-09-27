@@ -875,26 +875,28 @@
       "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers, sequential"
     },
     "projections/typescript/foundation/hlp.foundation.rule-authoring": {
-      "baseline": 73,
-      "break": 73,
-      "score": 73.77,
-      "tested": 1114,
+      "baseline": 75,
+      "break": 75,
+      "score": 75.52,
+      "tested": 1103,
       "observed": [
-        73.77
+        75.52,
+        75.52
       ],
-      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.foundation.rule-authoring/mutation.json",
-      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers"
+      "report": "C:/hl-ab/rb-reports/platform/hlp.foundation.rule-authoring/run1.json",
+      "measured": "2026-09-26, winbox, 2 quiet-host runs, patched StrykerJS 10.0.0, --concurrency 4 (winbox is also a CI runner tonight), run1 RuntimeError 11 / CompileError 0, run2 RuntimeError 11 / CompileError 0; lower run is the floor (ruling T-724 98)."
     },
     "projections/typescript/foundation/hlp.foundation.rule-runtime": {
-      "baseline": 63,
-      "break": 63,
-      "score": 63.49,
-      "tested": 4843,
+      "baseline": 59,
+      "break": 59,
+      "score": 59.34,
+      "tested": 4845,
       "observed": [
-        63.49
+        59.34,
+        59.38
       ],
-      "report": "C:/hl-ab/wt-strykerjs/platform-reports/hlp.foundation.rule-runtime/mutation.json",
-      "measured": "2026-09-26, winbox, every mutable file (--all), StrykerJS 10.0.0 vitest-runner, 15 workers"
+      "report": "C:/hl-ab/rb-reports/platform/hlp.foundation.rule-runtime/run1.json",
+      "measured": "2026-09-26, winbox, 2 quiet-host runs, patched StrykerJS 10.0.0, --concurrency 4 (winbox is also a CI runner tonight), run1 RuntimeError 2 / CompileError 0, run2 RuntimeError 2 / CompileError 0; lower run is the floor (ruling T-724 98). Old break 63 was measured before #148 fixed static-mutant activation and counted false static survivors/timeouts as kills; the new floor is genuinely lower, not a regression."
     }
   }
 }
