@@ -70,36 +70,29 @@ public sealed class TaxonomyInterpreter
 
     public ResolvedTaxonomyClassification? ResolveClassification(TaxonomyDefinition definition, TaxonomyClassificationReference reference)
     {
-        EnsureInitialized();
         ArgumentNullException.ThrowIfNull(definition); ArgumentNullException.ThrowIfNull(reference);
         if (CoordinatesOf(definition) != reference.DefinitionCoordinates) throw new ArgumentException("The classification reference does not pin the supplied definition.", nameof(reference));
+        // A malformed/blank code is an ordinary "not found" outcome (taxonomy-eng-2), not a boundary error.
+        if (string.IsNullOrEmpty(reference.Code)) return null;
         return Index(definition).TryGetValue(reference.Code, out var node) ? new ResolvedTaxonomyClassification(reference, node) : null;
     }
 
     public IReadOnlyList<ResolvedTaxonomyClassification?> ResolveClassifications(TaxonomyDefinition definition, IReadOnlyList<TaxonomyClassificationReference> references)
     {
         ArgumentNullException.ThrowIfNull(references);
-        return references.Select(reference => ResolveClassification(definition, reference)).ToArray();
+        return references.Select(reference => reference is null ? null : ResolveClassification(definition, reference)).ToArray();
     }
 
     public IReadOnlyList<TaxonomyNode> GetAncestors(TaxonomyDefinition definition, string code)
     {
-        EnsureInitialized();
+        ArgumentNullException.ThrowIfNull(code);
         var byCode = Index(definition); if (!byCode.TryGetValue(code, out var current)) return [];
-        var result = new List<TaxonomyNode>(); var seen = new HashSet<string>(StringComparer.Ordinal) { current.Code }; var depth = 0;
-        while (current.ParentCode is not null)
-        {
-            if (depth >= TaxonomyDefinitionAdmission.MaximumParentTraversalDepth) throw TraversalDepth();
-            if (!byCode.TryGetValue(current.ParentCode, out var parent)) throw new TaxonomyTraversalException("taxonomy.parent_unknown", $"Parent '{current.ParentCode}' is not in the definition.");
-            if (!seen.Add(parent.Code)) throw new TaxonomyTraversalException("taxonomy.parent_cycle", "A parent cycle was encountered during traversal.");
-            result.Add(parent); current = parent; depth++;
-        }
-        return result;
+        return WalkParents(byCode, current).ToArray();
     }
     /// <summary>Returns descendants in pre-order, with siblings ordered by first appearance in <see cref="TaxonomyDefinition.Nodes"/>.</summary>
     public IReadOnlyList<TaxonomyNode> GetDescendants(TaxonomyDefinition definition, string code)
     {
-        EnsureInitialized();
+        ArgumentNullException.ThrowIfNull(code);
         var byCode = Index(definition); if (!byCode.ContainsKey(code)) return [];
         var children = definition.Nodes.Where(node => node.ParentCode is not null).GroupBy(node => node.ParentCode!, StringComparer.Ordinal).ToDictionary(group => group.Key, group => group.ToArray(), StringComparer.Ordinal);
         var result = new List<TaxonomyNode>(); var seen = new HashSet<string>(StringComparer.Ordinal) { code };
@@ -119,24 +112,16 @@ public sealed class TaxonomyInterpreter
 
     public bool Subsumes(TaxonomyDefinition definition, string ancestorCode, string descendantCode)
     {
-        EnsureInitialized();
+        ArgumentNullException.ThrowIfNull(ancestorCode); ArgumentNullException.ThrowIfNull(descendantCode);
         var byCode = Index(definition); if (!byCode.TryGetValue(ancestorCode, out _) || !byCode.TryGetValue(descendantCode, out var current)) return false;
         if (ancestorCode == descendantCode) return true;
-        var seen = new HashSet<string>(StringComparer.Ordinal) { current.Code }; var depth = 0;
-        while (current.ParentCode is not null)
-        {
-            if (depth >= TaxonomyDefinitionAdmission.MaximumParentTraversalDepth) throw TraversalDepth();
-            if (!byCode.TryGetValue(current.ParentCode, out var parent)) throw new TaxonomyTraversalException("taxonomy.parent_unknown", $"Parent '{current.ParentCode}' is not in the definition.");
-            if (!seen.Add(parent.Code)) throw new TaxonomyTraversalException("taxonomy.parent_cycle", "A parent cycle was encountered during traversal.");
-            if (parent.Code == ancestorCode) return true;
-            current = parent; depth++;
-        }
+        foreach (var parent in WalkParents(byCode, current)) { if (parent.Code == ancestorCode) return true; }
         return false;
     }
 
     public TaxonomySuccessionResult ResolveSuccession(TaxonomyDefinition definition, string code)
     {
-        EnsureInitialized();
+        ArgumentNullException.ThrowIfNull(code);
         var byCode = Index(definition); if (!byCode.TryGetValue(code, out var current)) return new TaxonomySuccessionRefusal(code, "classification_unknown");
         var seen = new HashSet<string>(StringComparer.Ordinal); var depth = 0;
         while (true)
@@ -153,13 +138,11 @@ public sealed class TaxonomyInterpreter
     /// <summary>Expands the whole pinned scheme, including tombstoned nodes; collection expansion is intentionally not provided.</summary>
     public IReadOnlyList<string> ExpandWholeScheme(TaxonomyDefinition definition)
     {
-        EnsureInitialized();
         Index(definition); return definition.Nodes.Select(node => node.Code).ToArray();
     }
 
     public TaxonomyDefinitionChangeSet Diff(TaxonomyDefinition previous, TaxonomyDefinition current)
     {
-        EnsureInitialized();
         ArgumentNullException.ThrowIfNull(previous); ArgumentNullException.ThrowIfNull(current);
         var previousIdentity = CoordinatesOf(previous) with { Version = "" };
         var currentIdentity = CoordinatesOf(current) with { Version = "" };
@@ -176,7 +159,20 @@ public sealed class TaxonomyInterpreter
     }
 
     private static TaxonomyDefinitionCoordinates CoordinatesOf(TaxonomyDefinition definition) => new(definition.Tenant, definition.DefinitionId, definition.Version);
-    private void EnsureInitialized() => _ = definitions.Count;
+    /// <summary>Walks direct <see cref="TaxonomyNode.ParentCode"/> edges from <paramref name="start"/> to the root,
+    /// yielding each parent in order. Shared by <see cref="GetAncestors"/> and <see cref="Subsumes"/> so the cycle
+    /// guard and depth bound (<see cref="TaxonomyDefinitionAdmission.MaximumParentTraversalDepth"/>) live in one place.</summary>
+    private static IEnumerable<TaxonomyNode> WalkParents(IReadOnlyDictionary<string, TaxonomyNode> byCode, TaxonomyNode start)
+    {
+        var current = start; var seen = new HashSet<string>(StringComparer.Ordinal) { current.Code }; var depth = 0;
+        while (current.ParentCode is not null)
+        {
+            if (depth >= TaxonomyDefinitionAdmission.MaximumParentTraversalDepth) throw TraversalDepth();
+            if (!byCode.TryGetValue(current.ParentCode, out var parent)) throw new TaxonomyTraversalException("taxonomy.parent_unknown", $"Parent '{current.ParentCode}' is not in the definition.");
+            if (!seen.Add(parent.Code)) throw new TaxonomyTraversalException("taxonomy.parent_cycle", "A parent cycle was encountered during traversal.");
+            yield return parent; current = parent; depth++;
+        }
+    }
     private static Dictionary<string, TaxonomyNode> Index(TaxonomyDefinition definition)
     {
         ArgumentNullException.ThrowIfNull(definition); if (definition.Nodes is null) throw new TaxonomyTraversalException("taxonomy.definition_malformed", "The definition has no node collection.");

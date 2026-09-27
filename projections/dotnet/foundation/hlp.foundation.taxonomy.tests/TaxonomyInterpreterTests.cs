@@ -26,6 +26,14 @@ public sealed class TaxonomyInterpreterTests
         Assert.Collection(results, first => Assert.Equal("child", first!.Node.Code), second => Assert.Null(second), third => Assert.Equal("root", third!.Node.Code));
     }
 
+    [Fact] public void A_null_or_blank_code_is_an_unknown_classification_not_a_thrown_exception()
+    {
+        var definition = Definition(); var interpreter = Interpreter(definition);
+        Assert.Null(interpreter.ResolveClassification(definition, Reference(null!)));
+        Assert.Null(interpreter.ResolveClassification(definition, Reference("")));
+        Assert.Equal([null], interpreter.ResolveClassifications(definition, [Reference(null!)]));
+    }
+
     [Fact] public void Tombstoned_classification_resolves_as_inactive()
     {
         var definition = Definition(); var result = Interpreter(definition).ResolveClassification(definition, Reference("retired"));
