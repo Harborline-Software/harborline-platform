@@ -25,13 +25,15 @@ public sealed record TaxonomyDefinitionRequirement(string Capability, string? Mi
 public sealed record TaxonomyDefinitionEnvelope(string Identity, string Version, string Tenant, TaxonomyCascadeLayer CascadeLayer, JsonElement Provenance, IReadOnlyList<TaxonomyDefinitionRequirement> Requires);
 public sealed record TaxonomyLineage(string Source, string AncestorVersion, string DerivingActor, DateTimeOffset Time, string Reason);
 public sealed record DisplayHistoryEntry(string Display, string Description, DateTimeOffset ChangedAt);
+public sealed record TaxonomyOverlayReference(TaxonomyDefinitionId VendorDefinitionId, string VendorVersion);
+public sealed record TaxonomyOverlayDesignation(string VendorNodeCode, string? Display = null, string? Description = null);
 // Nullable members with no positional default (ParentCode, PublishedAt, TombstonedAt, SuccessorCode,
 // DeprecationReason) trail the required ones: RespectRequiredConstructorParameters treats a
 // parameter with no default as required regardless of its nullable annotation, and our own writer
 // (DefaultIgnoreCondition.WhenWritingNull) omits a null member from canonical JSON, so an omitted
 // member needs a default to round-trip.
 public sealed record TaxonomyNode(string Code, string Display, string Description, TaxonomyNodeStatus Status, IReadOnlyList<DisplayHistoryEntry> DisplayHistoryEntries, string? ParentCode = null, DateTimeOffset? PublishedAt = null, DateTimeOffset? TombstonedAt = null, string? SuccessorCode = null, string? DeprecationReason = null);
-public sealed record TaxonomyDefinition(string Tenant, TaxonomyDefinitionId DefinitionId, string Version, TaxonomyGovernanceRegime Governance, string Owner, IReadOnlyList<TaxonomyNode> Nodes, int SchemaVersion = 1, TaxonomyDefinitionEnvelope? Envelope = null, TaxonomyLineage? DerivedFrom = null);
+public sealed record TaxonomyDefinition(string Tenant, TaxonomyDefinitionId DefinitionId, string Version, TaxonomyGovernanceRegime Governance, string Owner, IReadOnlyList<TaxonomyNode> Nodes, int SchemaVersion = 1, TaxonomyDefinitionEnvelope? Envelope = null, TaxonomyLineage? DerivedFrom = null, TaxonomyOverlayReference? Overlay = null, IReadOnlyList<TaxonomyOverlayDesignation>? OverlayDesignations = null);
 public enum TaxonomyAdmissionPhase { Author, Publish, Install }
 public sealed record TaxonomyCatalogueCoordinates(string Tenant, TaxonomyDefinitionId DefinitionId, string Version);
 public sealed record TaxonomyRefusal(string Code, string Pointer);
@@ -96,11 +98,16 @@ public static class TaxonomyDefinitionAdmission
         }
         return refusals;
     }
-    public static TaxonomyDefinition Require(TaxonomyDefinition definition, TaxonomyAdmissionPhase phase, TaxonomyDefinition? previous = null)
+    public static TaxonomyDefinition Require(TaxonomyDefinition definition, TaxonomyAdmissionPhase phase, TaxonomyDefinition? previous = null, TaxonomyDefinition? vendor = null)
     {
-        var refusals = Validate(definition, phase, previous); return refusals.Count == 0 ? definition : throw new TaxonomyAdmissionException(refusals);
+        var refusals = Validate(definition, phase, previous, vendor); return refusals.Count == 0 ? definition : throw new TaxonomyAdmissionException(refusals);
     }
-    public static IReadOnlyList<TaxonomyRefusal> Validate(TaxonomyDefinition definition, TaxonomyAdmissionPhase phase, TaxonomyDefinition? previous = null)
+    /// <summary><paramref name="vendor"/> is the resolved vendor scheme an overlay names by reference
+    /// (taxonomy-auth-9). It is optional because admission at Author phase may run before the vendor
+    /// is resolvable; when supplied, taxonomy-auth-22 (an overlay copying a vendor node) and an
+    /// overlay designation naming an unknown vendor node both refuse here, at the same admission call
+    /// every other structural refusal runs through, rather than only in a separately callable helper.</summary>
+    public static IReadOnlyList<TaxonomyRefusal> Validate(TaxonomyDefinition definition, TaxonomyAdmissionPhase phase, TaxonomyDefinition? previous = null, TaxonomyDefinition? vendor = null)
     {
         ArgumentNullException.ThrowIfNull(definition); var refusals = new List<TaxonomyRefusal>();
         if (!IsThreePartVersion(definition.Version)) refusals.Add(new("definition.version_invalid", "/version"));
@@ -109,6 +116,7 @@ public static class TaxonomyDefinitionAdmission
         else if (definition.Envelope.Identity != definition.DefinitionId.ToString() || definition.Envelope.Version != definition.Version || definition.Envelope.Tenant != definition.Tenant) refusals.Add(new("definition.envelope_mismatch", "/envelope"));
         if (phase == TaxonomyAdmissionPhase.Author && definition.Governance == TaxonomyGovernanceRegime.Authoritative) refusals.Add(new("definition.governance_not_authorable", "/governance"));
         if (definition.Governance == TaxonomyGovernanceRegime.Authoritative && definition.Owner != HarborlineActorId) refusals.Add(new("definition.authoritative_owner_invalid", "/owner"));
+        ValidateOverlay(definition, refusals);
         // System.Text.Json's RespectNullableAnnotations does not enforce nullability of a
         // collection's own elements (a JSON `null` entry in "nodes" still deserializes), so a null
         // list or a null/malformed element refuses here rather than the loops below dereferencing it.
@@ -126,11 +134,59 @@ public static class TaxonomyDefinitionAdmission
         {
             var node = definition.Nodes[index];
             if (node is null || node.Code is null) continue;
-            if (node.ParentCode is not null && !byCode.ContainsKey(node.ParentCode)) refusals.Add(new("definition.parent_unknown", $"/nodes/{index}/parent_code"));
+            // An overlay may attach a tenant-owned node below a vendor node. That parent cannot be
+            // resolved here because admission receives only the overlay definition.
+            if (definition.Overlay is null && node.ParentCode is not null && !byCode.ContainsKey(node.ParentCode)) refusals.Add(new("definition.parent_unknown", $"/nodes/{index}/parent_code"));
             if (node.Status == TaxonomyNodeStatus.Tombstoned && string.IsNullOrWhiteSpace(node.DeprecationReason)) refusals.Add(new("definition.deprecation_reason_required", $"/nodes/{index}/deprecation_reason"));
             if (node.SuccessorCode is not null) { if (!byCode.TryGetValue(node.SuccessorCode, out var successor)) refusals.Add(new("definition.successor_unknown", $"/nodes/{index}/successor_code")); else if (definition.Nodes[successor].Status == TaxonomyNodeStatus.Tombstoned) refusals.Add(new("definition.successor_tombstoned", $"/nodes/{index}/successor_code")); }
         }
-        ValidateParents(definition.Nodes, byCode, refusals); if (previous is not null) ValidatePrevious(definition, previous, refusals); return refusals;
+        ValidateParents(definition.Nodes, byCode, refusals); if (previous is not null) ValidatePrevious(definition, previous, refusals);
+        if (vendor is not null && definition.Overlay is not null) ValidateOverlayAgainstVendor(definition, vendor, refusals);
+        return refusals;
+    }
+    private static void ValidateOverlayAgainstVendor(TaxonomyDefinition definition, TaxonomyDefinition vendor, List<TaxonomyRefusal> refusals)
+    {
+        var vendorCodes = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var node in vendor.Nodes ?? []) if (node?.Code is not null) vendorCodes.Add(node.Code);
+        for (var index = 0; index < definition.Nodes.Count; index++)
+        {
+            var node = definition.Nodes[index];
+            // taxonomy-auth-22: an overlay's own nodes must be new, never a re-declaration of one of
+            // the vendor's own concepts (FHIR CodeSystem supplement: a supplement adds designations to
+            // existing codes, it never redefines one as if it were its own new concept).
+            if (node?.Code is not null && vendorCodes.Contains(node.Code)) refusals.Add(new("overlay.copies_vendor_node", $"/nodes/{index}/code"));
+        }
+        if (definition.OverlayDesignations is null) return;
+        for (var index = 0; index < definition.OverlayDesignations.Count; index++)
+        {
+            var designation = definition.OverlayDesignations[index];
+            // taxonomy-auth-10: a designation adds a label/description to an EXISTING vendor concept;
+            // one naming a code the vendor scheme does not have refuses rather than publishing inert.
+            if (designation?.VendorNodeCode is not null && !vendorCodes.Contains(designation.VendorNodeCode)) refusals.Add(new("overlay.designation_vendor_node_unknown", $"/overlay_designations/{index}/vendor_node_code"));
+        }
+    }
+    private static void ValidateOverlay(TaxonomyDefinition definition, List<TaxonomyRefusal> refusals)
+    {
+        var overlayMode = definition.Overlay is not null || definition.OverlayDesignations is not null;
+        if (overlayMode && definition.Overlay is null)
+        {
+            refusals.Add(new("overlay.reference_missing", "/overlay"));
+        }
+        else if (definition.Overlay is not null)
+        {
+            var vendorId = definition.Overlay.VendorDefinitionId;
+            if (vendorId is null || string.IsNullOrWhiteSpace(vendorId.Vendor) || string.IsNullOrWhiteSpace(vendorId.Domain) || string.IsNullOrWhiteSpace(vendorId.TaxonomyName)) refusals.Add(new("overlay.vendor_definition_id_invalid", "/overlay/vendor_definition_id"));
+            if (string.IsNullOrWhiteSpace(definition.Overlay.VendorVersion)) refusals.Add(new("overlay.vendor_version_missing", "/overlay/vendor_version"));
+        }
+        if (definition.OverlayDesignations is null) return;
+        var designatedCodes = new Dictionary<string, int>(StringComparer.Ordinal);
+        for (var index = 0; index < definition.OverlayDesignations.Count; index++)
+        {
+            var designation = definition.OverlayDesignations[index];
+            if (designation is null) { refusals.Add(new("overlay.designation_invalid", $"/overlay_designations/{index}")); continue; }
+            if (string.IsNullOrWhiteSpace(designation.VendorNodeCode)) { refusals.Add(new("overlay.vendor_node_code_missing", $"/overlay_designations/{index}/vendor_node_code")); continue; }
+            if (!designatedCodes.TryAdd(designation.VendorNodeCode, index)) refusals.Add(new("overlay.vendor_node_code_duplicate", $"/overlay_designations/{index}/vendor_node_code"));
+        }
     }
     private static void ValidateParents(IReadOnlyList<TaxonomyNode> nodes, IReadOnlyDictionary<string, int> byCode, List<TaxonomyRefusal> refusals)
     {
@@ -175,8 +231,8 @@ public static class TaxonomyDefinitionAdmission
 public sealed record TaxonomyDefinitionPackageEntry(string DefinitionId, string Version, ReadOnlyMemory<byte> Content) { public int ContentKind => TaxonomyPackIdentity.ContentKind; }
 public static class TaxonomyDefinitionPackExporter
 {
-    public static TaxonomyDefinitionPackageEntry Export(TaxonomyDefinition definition, TaxonomyDefinition? previous = null)
+    public static TaxonomyDefinitionPackageEntry Export(TaxonomyDefinition definition, TaxonomyDefinition? previous = null, TaxonomyDefinition? vendor = null)
     {
-        TaxonomyDefinitionAdmission.Require(definition, TaxonomyAdmissionPhase.Publish, previous); return new(definition.DefinitionId.ToString(), definition.Version, TaxonomyDefinitionJson.SerializeCanonical(definition));
+        TaxonomyDefinitionAdmission.Require(definition, TaxonomyAdmissionPhase.Publish, previous, vendor); return new(definition.DefinitionId.ToString(), definition.Version, TaxonomyDefinitionJson.SerializeCanonical(definition));
     }
 }

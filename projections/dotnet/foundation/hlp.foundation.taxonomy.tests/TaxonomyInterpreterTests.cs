@@ -86,6 +86,93 @@ public sealed class TaxonomyInterpreterTests
         var definition = Definition(); Assert.Equal(["root", "child", "leaf", "retired"], Interpreter(definition).ExpandWholeScheme(definition));
     }
 
+    [Fact(DisplayName = "DES-0024 taxonomy-eng-12: an overlay is re-expanded against the vendor's next release")]
+    public void Expands_overlay_by_reference_against_the_requested_vendor_version()
+    {
+        var vendorId = new TaxonomyDefinitionId("vendor", "health", "scheme");
+        var overlayId = new TaxonomyDefinitionId("tenant", "health", "scheme-overlay");
+        var vendorV1 = Definition("vendor-registry", vendorId, "1.0.0", [Node("root")]);
+        var overlay = Definition("tenant-a", overlayId, "1.0.0", [Node("tenant-extra", "root")], Overlay: new(vendorId, "1.0.0"));
+
+        Assert.Equal(["root", "tenant-extra"], Assert.IsType<ResolvedTaxonomyOverlayExpansion>(new TaxonomyInterpreter([vendorV1, overlay]).ExpandOverlay(new("tenant-a", overlayId, "1.0.0"), "1.0.0")).Codes);
+
+        var vendorV11 = Definition("vendor-registry", vendorId, "1.1.0", [Node("root"), Node("added", "root")]);
+        Assert.Contains("added", Assert.IsType<ResolvedTaxonomyOverlayExpansion>(new TaxonomyInterpreter([vendorV1, vendorV11, overlay]).ExpandOverlay(new("tenant-a", overlayId, "1.0.0"), "1.1.0")).Codes);
+    }
+
+    [Fact(DisplayName = "eng-12: expanding an overlay whose vendor version is not installed is a named refusal, never an empty expansion")]
+    public void Expands_overlay_refuses_by_name_when_the_vendor_version_is_not_installed()
+    {
+        var vendorId = new TaxonomyDefinitionId("vendor", "health", "scheme");
+        var overlayId = new TaxonomyDefinitionId("tenant", "health", "scheme-overlay");
+        var vendorV1 = Definition("vendor-registry", vendorId, "1.0.0", [Node("root")]);
+        var overlay = Definition("tenant-a", overlayId, "1.0.0", [Node("tenant-extra", "root")], Overlay: new(vendorId, "1.0.0"));
+        var interpreter = new TaxonomyInterpreter([vendorV1, overlay]);
+
+        var vendorMissing = Assert.IsType<TaxonomyOverlayExpansionNotFound>(interpreter.ExpandOverlay(new("tenant-a", overlayId, "1.0.0"), "9.9.9"));
+        Assert.Equal("9.9.9", vendorMissing.Coordinates.Version);
+
+        var overlayMissing = Assert.IsType<TaxonomyOverlayExpansionNotFound>(interpreter.ExpandOverlay(new("tenant-a", overlayId, "9.9.9"), "1.0.0"));
+        Assert.Equal("9.9.9", overlayMissing.Coordinates.Version);
+    }
+
+    [Fact(DisplayName = "taxonomy-auth-22: expanding an overlay that copies a vendor node is a named refusal")]
+    public void Expand_refuses_overlay_node_that_copies_a_vendor_node()
+    {
+        var vendorId = new TaxonomyDefinitionId("vendor", "health", "scheme");
+        var overlayId = new TaxonomyDefinitionId("tenant", "health", "scheme-overlay");
+        var vendor = Definition("vendor-registry", vendorId, "1.0.0", [Node("shared")]);
+        var overlay = Definition("tenant-a", overlayId, "1.0.0", [Node("shared")], Overlay: new(vendorId, "1.0.0"));
+
+        var refusal = Assert.IsType<TaxonomyOverlayExpansionCopiesVendorNode>(new TaxonomyInterpreter([vendor, overlay]).ExpandOverlay(new("tenant-a", overlayId, "1.0.0"), "1.0.0"));
+        Assert.Equal("shared", refusal.Code);
+    }
+
+    [Fact(DisplayName = "taxonomy-auth-10: expanding an overlay whose designation names an unknown vendor node is a named refusal")]
+    public void Expand_refuses_designation_naming_an_unknown_vendor_node()
+    {
+        var vendorId = new TaxonomyDefinitionId("vendor", "health", "scheme");
+        var overlayId = new TaxonomyDefinitionId("tenant", "health", "scheme-overlay");
+        var vendor = Definition("vendor-registry", vendorId, "1.0.0", [Node("root")]);
+        var overlay = Definition("tenant-a", overlayId, "1.0.0", [Node("tenant-extra", "root")], Overlay: new(vendorId, "1.0.0")) with
+        {
+            OverlayDesignations = [new("missing-vendor-code", "Renamed", null)],
+        };
+
+        var refusal = Assert.IsType<TaxonomyOverlayExpansionUnknownDesignation>(new TaxonomyInterpreter([vendor, overlay]).ExpandOverlay(new("tenant-a", overlayId, "1.0.0"), "1.0.0"));
+        Assert.Equal("missing-vendor-code", refusal.VendorNodeCode);
+    }
+
+    [Fact(DisplayName = "eng-12: an overlay's vendor reference resolving to more than one tenant refuses rather than picking one silently")]
+    public void Expand_refuses_ambiguous_vendor_registered_under_two_tenants()
+    {
+        var vendorId = new TaxonomyDefinitionId("vendor", "health", "scheme");
+        var overlayId = new TaxonomyDefinitionId("tenant", "health", "scheme-overlay");
+        var vendorUnderTenantA = Definition("tenant-a", vendorId, "1.0.0", [Node("root")]);
+        var vendorUnderTenantB = Definition("tenant-b", vendorId, "1.0.0", [Node("root")]);
+        var overlay = Definition("tenant-a", overlayId, "1.0.0", [Node("tenant-extra", "root")], Overlay: new(vendorId, "1.0.0"));
+
+        var refusal = Assert.IsType<TaxonomyOverlayExpansionAmbiguousVendor>(new TaxonomyInterpreter([vendorUnderTenantA, vendorUnderTenantB, overlay]).ExpandOverlay(new("tenant-a", overlayId, "1.0.0"), "1.0.0"));
+        Assert.Equal(vendorId, refusal.VendorDefinitionId);
+        Assert.Equal(["tenant-a", "tenant-b"], refusal.Tenants.OrderBy(tenant => tenant, StringComparer.Ordinal));
+    }
+
+    [Fact(DisplayName = "taxonomy-auth-10: a designation's display/description is applied over the vendor node without changing it")]
+    public void Resolves_overlay_designation_display_over_the_vendor_nodes_own_value()
+    {
+        var vendorId = new TaxonomyDefinitionId("vendor", "health", "scheme");
+        var overlayId = new TaxonomyDefinitionId("tenant", "health", "scheme-overlay");
+        var vendor = Definition("vendor-registry", vendorId, "1.0.0", [Node("root", display: "Vendor label")]);
+        var overlay = Definition("tenant-a", overlayId, "1.0.0", [], Overlay: new(vendorId, "1.0.0")) with
+        {
+            OverlayDesignations = [new("root", "Tenant label", null)],
+        };
+
+        var resolved = new TaxonomyInterpreter([vendor, overlay]).ResolveOverlayDesignations(overlay, vendor);
+        Assert.Equal("Tenant label", Assert.Single(resolved).Display);
+        Assert.Equal("Vendor label", vendor.Nodes[0].Display);
+    }
+
     [Fact] public void Diff_reports_added_changed_and_newly_tombstoned_nodes()
     {
         var before = Definition([Node("root"), Node("a", display: "A", description: "old"), Node("b", parent: "root", successor: "root")]);
@@ -103,5 +190,6 @@ public sealed class TaxonomyInterpreterTests
     private static TaxonomyClassificationReference Reference(string code) => new("tenant-a", Id, "1.0.0", code);
     private static TaxonomyInterpreter Interpreter(params TaxonomyDefinition[] definitions) => new(definitions.Length == 0 ? [Definition()] : definitions);
     private static TaxonomyDefinition Definition(IReadOnlyList<TaxonomyNode>? nodes = null) => new("tenant-a", Id, "1.0.0", TaxonomyGovernanceRegime.Civilian, "author", nodes ?? [Node("root"), Node("child", "root"), Node("leaf", "child"), Node("retired", "root", TaxonomyNodeStatus.Tombstoned, "child")], Envelope: new(Id.ToString(), "1.0.0", "tenant-a", TaxonomyCascadeLayer.Tenant, JsonElement.Parse("{}"), []));
+    private static TaxonomyDefinition Definition(string tenant, TaxonomyDefinitionId id, string version, IReadOnlyList<TaxonomyNode> nodes, TaxonomyOverlayReference? Overlay = null) => new(tenant, id, version, TaxonomyGovernanceRegime.Civilian, "author", nodes, Envelope: new(id.ToString(), version, tenant, TaxonomyCascadeLayer.Tenant, JsonElement.Parse("{}"), []), Overlay: Overlay);
     private static TaxonomyNode Node(string code, string? parent = null, TaxonomyNodeStatus status = TaxonomyNodeStatus.Active, string? successor = null, string? display = null, string? description = null) => new(code, display ?? $"Display {code}", description ?? $"Description {code}", status, [], ParentCode: parent, SuccessorCode: successor, DeprecationReason: status == TaxonomyNodeStatus.Tombstoned ? "retired" : null);
 }
