@@ -103,6 +103,32 @@ public sealed class TaxonomyDefinitionTests
         Assert.Contains(refusals, refusal => refusal.Code == "definition.successor_unknown");
     }
 
+    [Fact(DisplayName = "taxonomy-auth-9: an overlay requires a complete vendor reference")]
+    public void Overlay_reference_requires_non_blank_vendor_definition_id_and_version()
+    {
+        var missing = Definition() with { OverlayDesignations = [] };
+        var blankId = Definition() with { Overlay = new(new(" ", "health", "scheme"), "1.0.0") };
+        var blankVersion = Definition() with { Overlay = new(Id, " ") };
+
+        Assert.Contains(TaxonomyDefinitionAdmission.Validate(missing, TaxonomyAdmissionPhase.Author), refusal => refusal.Code == "overlay.reference_missing" && refusal.Pointer == "/overlay");
+        Assert.Contains(TaxonomyDefinitionAdmission.Validate(blankId, TaxonomyAdmissionPhase.Author), refusal => refusal.Code == "overlay.vendor_definition_id_invalid" && refusal.Pointer == "/overlay/vendor_definition_id");
+        Assert.Contains(TaxonomyDefinitionAdmission.Validate(blankVersion, TaxonomyAdmissionPhase.Author), refusal => refusal.Code == "overlay.vendor_version_missing" && refusal.Pointer == "/overlay/vendor_version");
+    }
+
+    [Fact(DisplayName = "taxonomy-auth-10: an overlay designates each vendor node at most once")]
+    public void Overlay_designations_require_a_non_blank_unique_vendor_node_code()
+    {
+        var overlay = Definition() with
+        {
+            Overlay = new(new("vendor", "health", "scheme"), "1.0.0"),
+            OverlayDesignations = [new("shared", "One", null), new("shared", null, "Two"), new(" ", null, null)],
+        };
+
+        var refusals = TaxonomyDefinitionAdmission.Validate(overlay, TaxonomyAdmissionPhase.Author);
+        Assert.Contains(refusals, refusal => refusal.Code == "overlay.vendor_node_code_duplicate" && refusal.Pointer == "/overlay_designations/1/vendor_node_code");
+        Assert.Contains(refusals, refusal => refusal.Code == "overlay.vendor_node_code_missing" && refusal.Pointer == "/overlay_designations/2/vendor_node_code");
+    }
+
     [Fact(DisplayName = "CodeRabbit 4112629550: a malformed definition_id in the body refuses definition.body_invalid instead of throwing FormatException")]
     public void Malformed_definition_id_refuses_instead_of_throwing()
     {

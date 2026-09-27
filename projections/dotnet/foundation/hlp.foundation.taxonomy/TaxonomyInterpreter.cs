@@ -18,6 +18,16 @@ public sealed record TaxonomyDefinitionNotFound(TaxonomyDefinitionCoordinates Co
 /// <summary>The result of resolving a pinned definition; misses do not throw.</summary>
 public abstract record TaxonomyDefinitionResolution;
 
+/// <summary>The result of expanding an overlay; a missing overlay or vendor definition is a typed
+/// refusal naming which coordinates were not found, never an empty expansion.</summary>
+public abstract record TaxonomyOverlayExpansionResult;
+
+/// <summary>A successful overlay expansion: the vendor's codes at the requested version, then the overlay's own.</summary>
+public sealed record ResolvedTaxonomyOverlayExpansion(IReadOnlyList<string> Codes) : TaxonomyOverlayExpansionResult;
+
+/// <summary>The overlay itself, or the vendor definition at the requested version, was not found.</summary>
+public sealed record TaxonomyOverlayExpansionNotFound(TaxonomyDefinitionCoordinates Coordinates) : TaxonomyOverlayExpansionResult;
+
 /// <summary>A classification resolved within its pinned definition.</summary>
 public sealed record ResolvedTaxonomyClassification(TaxonomyClassificationReference Reference, TaxonomyNode Node)
 {
@@ -26,6 +36,12 @@ public sealed record ResolvedTaxonomyClassification(TaxonomyClassificationRefere
 
 /// <summary>Thrown only when defensive traversal detects malformed graph data.</summary>
 public sealed class TaxonomyTraversalException(string code, string message) : InvalidOperationException(message)
+{
+    public string Code { get; } = code;
+}
+
+/// <summary>Thrown when an overlay violates its reference-only relationship to its vendor scheme.</summary>
+public sealed class TaxonomyOverlayException(string code, string message) : InvalidOperationException(message)
 {
     public string Code { get; } = code;
 }
@@ -139,6 +155,36 @@ public sealed class TaxonomyInterpreter
     public IReadOnlyList<string> ExpandWholeScheme(TaxonomyDefinition definition)
     {
         Index(definition); return definition.Nodes.Select(node => node.Code).ToArray();
+    }
+
+    /// <summary>Expands an overlay against the vendor version selected for this call, not the version recorded when it was authored.
+    /// A missing overlay or vendor definition is a typed <see cref="TaxonomyOverlayExpansionNotFound"/> refusal, never an empty expansion.</summary>
+    public TaxonomyOverlayExpansionResult ExpandOverlay(TaxonomyDefinitionCoordinates overlayCoordinates, string vendorVersion)
+    {
+        var overlayResolution = ResolveDefinition(overlayCoordinates);
+        if (overlayResolution is TaxonomyDefinitionNotFound overlayNotFound) return new TaxonomyOverlayExpansionNotFound(overlayNotFound.Coordinates);
+        var overlay = ((ResolvedTaxonomyDefinition)overlayResolution).Definition;
+        if (overlay.Overlay is null) throw new TaxonomyOverlayException("taxonomy.overlay_reference_missing", "The overlay has no vendor reference.");
+
+        var vendorCoordinates = definitions.Keys.FirstOrDefault(coordinates =>
+            coordinates.DefinitionId == overlay.Overlay.VendorDefinitionId && coordinates.Version == vendorVersion);
+        if (vendorCoordinates is null) return new TaxonomyOverlayExpansionNotFound(new("", overlay.Overlay.VendorDefinitionId, vendorVersion));
+        var vendorResolution = ResolveDefinition(vendorCoordinates);
+        if (vendorResolution is TaxonomyDefinitionNotFound vendorNotFound) return new TaxonomyOverlayExpansionNotFound(vendorNotFound.Coordinates);
+        var vendor = ((ResolvedTaxonomyDefinition)vendorResolution).Definition;
+        RefuseOverlayCopiesVendorNodes(overlay, vendor);
+        return new ResolvedTaxonomyOverlayExpansion(ExpandWholeScheme(vendor).Concat(ExpandWholeScheme(overlay)).ToArray());
+    }
+
+    /// <summary>Refuses an overlay that re-declares a vendor concept instead of layering a designation onto it.</summary>
+    public void RefuseOverlayCopiesVendorNodes(TaxonomyDefinition overlay, TaxonomyDefinition vendor)
+    {
+        ArgumentNullException.ThrowIfNull(overlay); ArgumentNullException.ThrowIfNull(vendor);
+        var vendorNodes = Index(vendor);
+        foreach (var code in Index(overlay).Keys)
+        {
+            if (vendorNodes.ContainsKey(code)) throw new TaxonomyOverlayException("taxonomy.overlay_copies_vendor_node", $"Overlay node '{code}' copies a vendor node.");
+        }
     }
 
     public TaxonomyDefinitionChangeSet Diff(TaxonomyDefinition previous, TaxonomyDefinition current)
