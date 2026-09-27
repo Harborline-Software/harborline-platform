@@ -7,7 +7,7 @@ namespace Harborline.Kernel.SchemaValidation.Records;
 public sealed record RecordTypeDefinition(string RecordTypeId, IReadOnlyList<FieldDefinition> Fields);
 
 /// <summary>An authored Record Type field whose stable identity is its containing type and key.</summary>
-public sealed record FieldDefinition(string FieldKey, string DisplayName);
+public sealed record FieldDefinition(string FieldKey, string DisplayName, Harborline.Contracts.Fields.ValueDomainDefinition? ValueDomain = null, string? Pattern = null);
 
 /// <summary>Validates the Records identity contract before a definition can mutate the schema registry.</summary>
 public sealed class RecordsIntentValidator
@@ -42,6 +42,21 @@ public sealed class RecordsIntentValidator
         var fieldKeys = new HashSet<string>(StringComparer.Ordinal);
         foreach (var (field, index) in (candidate.Fields ?? []).Select((field, index) => (field, index)))
         {
+            if (field.ValueDomain is { } valueDomain)
+            {
+                var sourceCount =
+                    (valueDomain.LiteralValues is not null ? 1 : 0) +
+                    (valueDomain.TaxonomyScheme is not null ? 1 : 0) +
+                    (valueDomain.RecordQuery is not null ? 1 : 0);
+                if (sourceCount != 1)
+                {
+                    refusals.Add(new(
+                        "records.value_domain.source_count",
+                        $"/fields/{index}/value_domain",
+                        "A value domain must name exactly one of a literal set, a taxonomy scheme or a record query."));
+                }
+            }
+
             if (string.IsNullOrWhiteSpace(field.FieldKey))
             {
                 refusals.Add(new(
@@ -99,10 +114,21 @@ public sealed class RecordTypeSchemaCompiler
         var properties = new Dictionary<string, object>(StringComparer.Ordinal);
         foreach (var field in candidate.Fields ?? [])
         {
-            properties.Add(field.FieldKey, new Dictionary<string, string>
+            var propertySchema = new Dictionary<string, object>
             {
                 ["type"] = "string",
-            });
+            };
+            if (field.ValueDomain?.LiteralValues is { Count: > 0 } literalValues)
+            {
+                propertySchema.Add("enum", literalValues);
+            }
+
+            if (!string.IsNullOrWhiteSpace(field.Pattern))
+            {
+                propertySchema.Add("pattern", field.Pattern);
+            }
+
+            properties.Add(field.FieldKey, propertySchema);
         }
 
         var document = new Dictionary<string, object>
