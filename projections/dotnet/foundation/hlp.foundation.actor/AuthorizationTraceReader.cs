@@ -13,6 +13,8 @@ public enum AuthorizationTraceAvailability
     Refused,
     /// <summary>A guard refused before the decider ran.</summary>
     PreDecisionRefusal,
+    /// <summary>A stored decision trace exists but has an invalid shape.</summary>
+    Malformed,
 }
 
 /// <summary>Public guard evidence, excluding classified diagnostics.</summary>
@@ -76,15 +78,16 @@ public sealed class AuthorizationTraceReader(IAuthorizationTraceStore store, IAu
         if (!check.Allowed) return new(AuthorizationTraceAvailability.Refused, null, [], null);
         if (snapshot?.Refusal is { } refusal)
             return new(AuthorizationTraceAvailability.PreDecisionRefusal, null, [], null, refusal);
+        if (snapshot is null) return new(AuthorizationTraceAvailability.NotAvailable, null, [], null);
 
         // Select by ordinal: approval traces reuse the stage names under ordinals 5..8.
-        var steps = (snapshot?.Steps ?? []).Where(step => step.Ordinal is >= 1 and <= AuthorizationDecisionEvidence.StepCount)
+        var steps = snapshot.Steps.Where(step => step.Ordinal is >= 1 and <= AuthorizationDecisionEvidence.StepCount)
             .OrderBy(step => step.Ordinal).ToImmutableArray();
         string[] stages = ["act", "effective-roles", "standings", "verdict"];
-        return steps.Length == AuthorizationDecisionEvidence.StepCount && snapshot?.Version is not null
+        return steps.Length == AuthorizationDecisionEvidence.StepCount && snapshot.Version is not null
             && steps.Select(step => step.Ordinal).SequenceEqual([1, 2, 3, 4])
             && steps.Select(step => step.Stage).SequenceEqual(stages)
                 ? new(AuthorizationTraceAvailability.Available, snapshot.Version, steps, snapshot.Counterfactual)
-                : new(AuthorizationTraceAvailability.NotAvailable, null, [], null);
+                : new(AuthorizationTraceAvailability.Malformed, null, [], null);
     }
 }
