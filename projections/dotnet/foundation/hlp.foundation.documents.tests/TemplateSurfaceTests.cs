@@ -18,18 +18,18 @@ public sealed class TemplateSurfaceTests
         Assert.Empty(TemplateDefinitionAdmission.Validate(Template(), Surfaces()));
 
         Assert.Equal(
-            [new TemplateRefusal(TemplateDefinitionCodes.SurfaceMediumUnsupported, "/surface/medium")],
+            [new DefinitionRefusal(TemplateDefinitionCodes.SurfaceMediumUnsupported, "/surface/medium")],
             TemplateDefinitionAdmission.Validate(Template(), Surfaces(Surface(medium: LayoutMedium.Screen, intent: LayoutIntent.Issue))));
         Assert.Equal(
-            [new TemplateRefusal(TemplateDefinitionCodes.SurfaceIntentUnsupported, "/surface/default_intent")],
+            [new DefinitionRefusal(TemplateDefinitionCodes.SurfaceIntentUnsupported, "/surface/default_intent")],
             TemplateDefinitionAdmission.Validate(Template(), Surfaces(Surface(intent: LayoutIntent.Observe))));
         Assert.Equal(
-            [new TemplateRefusal(TemplateDefinitionCodes.SurfaceUnresolved, "/surface")],
+            [new DefinitionRefusal(TemplateDefinitionCodes.SurfaceUnresolved, "/surface")],
             TemplateDefinitionAdmission.Validate(Template() with { Surface = new(SurfaceId, "2.0.0") }, Surfaces()));
 
         var moved = Surface() with { Envelope = Surface().Envelope with { Version = "1.1.0" } };
         Assert.Equal(
-            [new TemplateRefusal(TemplateDefinitionCodes.SurfacePinMismatch, "/surface/surface_version")],
+            [new DefinitionRefusal(TemplateDefinitionCodes.SurfacePinMismatch, "/surface/surface_version")],
             TemplateDefinitionAdmission.Validate(Template(), Surfaces(moved)));
     }
 
@@ -43,9 +43,9 @@ public sealed class TemplateSurfaceTests
 
         var refusals = TemplateDefinitionAdmission.Validate(Template(), Surfaces(Surface(blocks: blocks)));
 
-        Assert.Equal([new TemplateRefusal(LayoutDefinitionCodes.NumericOutOfRange, "/surface/blocks/0/placement/span")], refusals);
-        var refused = Assert.Throws<TemplateAdmissionException>(() => TemplatePack.Export(Template(), Surfaces(Surface(blocks: blocks))));
-        Assert.Equal("definition.publish", refused.Stage);
+        Assert.Equal([new DefinitionRefusal(LayoutDefinitionCodes.NumericOutOfRange, "/surface/blocks/0/placement/span")], refusals);
+        var refused = Assert.Throws<DefinitionRefusalException>(() => TemplatePack.Export(Template(), Surfaces(Surface(blocks: blocks))));
+        Assert.Equal(DefinitionAdmissionPhase.Publish, refused.Stage);
     }
 
     [Fact(DisplayName = "documents-ck-7: a stored surface holding an invalid value is diagnosed at the persisted read and never clamped")]
@@ -56,9 +56,9 @@ public sealed class TemplateSurfaceTests
         stored["blocks"]![0]!["placement"] = new JsonObject { ["span"] = range.Maximum + 5 };
         var surfaces = Surfaces(stored.ToJsonString());
 
-        var refused = Assert.Throws<TemplateAdmissionException>(() => TemplateDefinitionAdmission.ValidatePersisted(Template(), surfaces));
+        var refused = Assert.Throws<DefinitionRefusalException>(() => TemplateDefinitionAdmission.ValidatePersisted(Template(), surfaces));
 
-        Assert.Equal("render.runtime", refused.Stage);
-        Assert.Equal([new TemplateRefusal(LayoutDefinitionCodes.NumericOutOfRange, "/surface/blocks/0/placement/span")], refused.Refusals);
+        Assert.Equal(DefinitionAdmissionPhase.Render, refused.Stage);
+        Assert.Equal([new DefinitionRefusal(LayoutDefinitionCodes.NumericOutOfRange, "/surface/blocks/0/placement/span")], refused.Refusals);
     }
 }

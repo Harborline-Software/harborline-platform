@@ -65,6 +65,15 @@ public sealed class TierDirectionArchitectureTests
             "Offending assembly references:\n" + string.Join("\n", violations));
     }
 
+    [Fact]
+    public void BuilderDefinitions_references_foundation_definition_envelope()
+    {
+        var builderDefinitions = LoadTierAssemblies()["blocks"]["Harborline.Blocks.BuilderDefinitions"];
+
+        Assert.Contains(builderDefinitions.GetReferencedAssemblies(), reference =>
+            string.Equals(reference.Name, "Harborline.Foundation.Definitions", StringComparison.Ordinal));
+    }
+
     private static List<string> FindViolations(
         IReadOnlyDictionary<string, Assembly> assemblies,
         IReadOnlySet<string> forbidden)

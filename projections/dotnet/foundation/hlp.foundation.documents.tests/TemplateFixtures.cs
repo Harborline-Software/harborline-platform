@@ -66,18 +66,18 @@ internal static class TemplateFixtures
 
     public static string Canonical(LayoutDefinition surface) => Encoding.UTF8.GetString(LayoutDefinitionJson.SerializeCanonical(surface));
 
-    private static IReadOnlyList<TemplateRefusal> Admit(string json, TemplateAdmissionStage stage)
+    private static IReadOnlyList<DefinitionRefusal> Admit(string json, DefinitionAdmissionPhase stage)
     {
         try
         {
             var definition = LayoutDefinitionJson.Deserialize(Encoding.UTF8.GetBytes(json));
-            if (stage == TemplateAdmissionStage.Persisted) LayoutPersistedValueAdmission.ValidateForRuntime(definition);
+            if (stage == DefinitionAdmissionPhase.Render) LayoutPersistedValueAdmission.ValidateForRuntime(definition);
             else LayoutDefinitionAdmission.ValidateForPublish(definition, GrantsAllAuthor.Instance);
             return [];
         }
         catch (DefinitionRefusalException refused)
         {
-            return refused.Refusals.Select(refusal => new TemplateRefusal(refusal.Code, refusal.Pointer)).ToArray();
+            return refused.Refusals;
         }
     }
 

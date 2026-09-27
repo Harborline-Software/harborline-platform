@@ -55,7 +55,7 @@ public sealed class TemplateCatalogueTests
         var conflict = Assert.Single(await TemplatePack.InstallAsync([changed], Target(store)));
 
         Assert.Equal(TemplateInstallOutcomeKind.Refused, conflict.Kind);
-        Assert.Equal([new TemplateRefusal(TemplateDefinitionCodes.PinnedTupleConflict, "/envelope/version")], conflict.Refusals);
+        Assert.Equal([new DefinitionRefusal(TemplateDefinitionCodes.PinnedTupleConflict, "/envelope/version")], conflict.Refusals);
         var stored = (await store.ResolvePublishedAsync(new(Key, "1.0.0")))!;
         Assert.Equal("invoice", TemplateDefinitionJson.Deserialize(Encoding.UTF8.GetBytes(stored.Document.BodyJson)).DocumentType);
         Assert.Equal(2, (await store.ListHistoryAsync(Key)).Count);

@@ -31,7 +31,7 @@ public sealed class TemplateCycleTests
             id => id == "template.invoice" ? template : null);
 
         Assert.Equal(
-            [new TemplateRefusal(TemplateDefinitionCodes.CompositionCycle, "/surface/blocks/0/binding")],
+            [new DefinitionRefusal(TemplateDefinitionCodes.CompositionCycle, "/surface/blocks/0/binding")],
             TemplateDefinitionAdmission.Validate(template, surfaces));
     }
 
@@ -51,7 +51,7 @@ public sealed class TemplateCycleTests
         }, id => id switch { "template.invoice" => invoice, "template.statement" => statement, _ => null });
 
         Assert.Equal(
-            [new TemplateRefusal(TemplateDefinitionCodes.CompositionCycle, "/surface/blocks/0/binding")],
+            [new DefinitionRefusal(TemplateDefinitionCodes.CompositionCycle, "/surface/blocks/0/binding")],
             TemplateDefinitionAdmission.Validate(invoice, surfaces));
         // A cycle that never returns to the version being published does not refuse it, and the walk terminates.
         var unrelated = Template("3.0.0") with { Envelope = Template().Envelope with { Identity = "template.cover", Version = "3.0.0" } };
