@@ -76,7 +76,11 @@ public sealed class FileJournalSchedulingStore : IDisposable
         {
             var key = Key(tenantId, definitionId);
             var current = drafts.TryGetValue(key, out var found) ? found.Revision : 0;
-            if (current != expectedRevision) return SchedulingDraftSaveResult.Conflict(current);
+            if (current != expectedRevision)
+            {
+                global::Harborline.Blocks.Scheduling.SchedulingTelemetry.RecordStaleCommitRefusal();
+                return SchedulingDraftSaveResult.Conflict(current);
+            }
             var revision = checked(current + 1);
             var dto = new DraftCommitDto(tenantId, definitionId, revision, documentJson, serverActorId,
                 timeProvider.GetUtcNow());
