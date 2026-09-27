@@ -402,7 +402,7 @@
         "projections/dotnet/blocks/hlp.blocks.workflow.tests/WorkflowIterationCapTests.cs": "4e5c3ba19bcc88c77954892215ee21bc6126b95f9c57501860f02ceac29cb5f3",
         "projections/dotnet/blocks/hlp.blocks.workflow/Durable/CapabilityAuthorityRegistry.cs": "7886e95002b6951dce17abc02869e5fe1e4ef4cc1d52e556d980d977937ad246",
         "projections/dotnet/blocks/hlp.blocks.workflow/Durable/DurableWorkflowModel.cs": "f2c17163431a3dda8be595197039ac0a786e39695705aa963fb9271c4dd84d1b",
-        "projections/dotnet/blocks/hlp.blocks.workflow/Durable/DurableWorkflowServiceCollectionExtensions.cs": "15b9b91faccacf6f52c3796dd930f1327924a8a6d0b1378c83f2ac45ad7fafaf",
+        "projections/dotnet/blocks/hlp.blocks.workflow/Durable/DurableWorkflowServiceCollectionExtensions.cs": "d3e8dee534d79da4e6bdcf5d6ee122d80d1c2c11b7080251a16e440fedd491f5",
         "projections/dotnet/blocks/hlp.blocks.workflow/Durable/FileJournalWorkflowStore.cs": "fee169e5348fe82f7e1e8c7ddf92035d4af6470e1bdeb0465f6f46ee6ef5f9d3",
         "projections/dotnet/blocks/hlp.blocks.workflow/Durable/GraphRagProposalHandler.cs": "bfcc15bdc294c0e6fd532aa6ae12bab93d7922e865d8a08710a6d4f09f345ead",
         "projections/dotnet/blocks/hlp.blocks.workflow/Durable/HumanApprovalHandlerBase.cs": "b15ee97966358781bd8b81993784e3bcc9304c84c7208146344a7af3f7546433",
