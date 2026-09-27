@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 using Harborline.Blocks.Workflow.Durable;
 
 using Xunit;
@@ -16,7 +18,18 @@ namespace Harborline.Blocks.Workflow.Tests;
 /// </summary>
 public sealed class WorkflowAdmissionValidatorTests
 {
-    private static readonly IWorkflowAdmissionValidator Validator = new WorkflowAdmissionValidator();
+    private static readonly IWorkflowAdmissionValidator Validator = new WorkflowAdmissionValidator(
+        CapabilityAuthorityRegistry.Canonical,
+        new FakeEffectCatalog("ledger.post-journal-entry", "notify.email"));
+
+    /// <summary>Effect-catalogue test double: only the named capabilities resolve (DES-0019 workflows-bound-1).</summary>
+    private sealed class FakeEffectCatalog(params string[] known) : IWorkflowEffectCatalog
+    {
+        private readonly HashSet<string> _known = new(known, StringComparer.Ordinal);
+        public bool IsEffectingCapability(string capabilityRef) => _known.Contains(capabilityRef);
+        public EffectKey? EffectKeyFor(string capabilityRef) =>
+            _known.Contains(capabilityRef) ? new EffectKey(capabilityRef, WorkflowEffectReach.Internal) : null;
+    }
 
     // ── builders for the canonical invoice-approval graph ────────────────────
     //
@@ -191,31 +204,32 @@ public sealed class WorkflowAdmissionValidatorTests
     [Fact]
     public void Refuses_an_unknown_capability_declared_ap_fail_closed_to_cp()
     {
-        // Unknown ⇒ CP (fail-closed); declaring AP ⇒ mismatch ⇒ refuse. An unregistered capability
-        // can never be laundered to AP through an authored label.
+        // The capability is refused because the effect catalogue does not know it, before any
+        // classification mismatch can be derived.
         var def = InvoiceApproval(Action("totally.unregistered", ActionClassification.AP, "t-approve"));
         var result = Validator.Validate(def);
         Assert.False(result.IsValid);
-        Assert.Contains(result.Violations, x => x.Code == WorkflowAdmissionCodes.ClassificationMismatch);
+        Assert.Contains(result.Violations, x => x.Code == WorkflowAdmissionCodes.UnknownCapability);
     }
 
     [Fact]
-    public void Admits_an_unknown_capability_declared_cp_on_the_human_approve_transition()
+    public void Refuses_an_unknown_capability_even_when_declared_cp_on_the_human_approve_transition()
     {
-        // Unknown ⇒ CP; declaring CP ⇒ match; fires on the human approve transition ⇒ human-gated ⇒ admits.
+        // The capability is refused for being unknown to the catalogue, regardless of the human gate.
         var def = InvoiceApproval(Action("totally.unregistered", ActionClassification.CP, "t-approve"));
         var result = Validator.Validate(def);
-        Assert.True(result.IsValid, string.Join("; ", result.Violations.Select(x => x.Code)));
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Violations, x => x.Code == WorkflowAdmissionCodes.UnknownCapability);
     }
 
     [Fact]
     public void Refuses_an_unknown_capability_declared_cp_on_the_autonomous_issued_transition()
     {
-        // Unknown ⇒ CP; declaring CP ⇒ match; but it fires on the autonomous Issued edge ⇒ CP fence refuses.
+        // The capability is refused for being unknown to the catalogue before the CP-reachability check.
         var def = InvoiceApproval(Action("totally.unregistered", ActionClassification.CP, "t-issue"));
         var result = Validator.Validate(def);
         Assert.False(result.IsValid);
-        Assert.Contains(result.Violations, x => x.Code == WorkflowAdmissionCodes.CpReachableWithoutHumanTask);
+        Assert.Contains(result.Violations, x => x.Code == WorkflowAdmissionCodes.UnknownCapability);
     }
 
     // ── FINDING 1 — the two taint-model holes the tightened fence must now refuse ─

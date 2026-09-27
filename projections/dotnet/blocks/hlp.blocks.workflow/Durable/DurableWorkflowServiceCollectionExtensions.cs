@@ -38,7 +38,9 @@ public static class DurableWorkflowServiceCollectionExtensions
         // WF-KEY (ADR 0140): the fail-closed authoring/publish-time CP-reachability gate. Stateless;
         // structural BFS over a WorkflowDefinition + registry-derived classification. The authoring face
         // of ADR 0135 A1 R-1. Resolves the registry above via its ctor.
-        services.AddSingleton<IWorkflowAdmissionValidator, WorkflowAdmissionValidator>();
+        services.AddSingleton<IWorkflowAdmissionValidator>(sp => new WorkflowAdmissionValidator(
+            sp.GetRequiredService<ICapabilityAuthorityRegistry>(),
+            sp.GetRequiredService<IWorkflowEffectCatalog>()));
 
         // ── ADR 0143 broker-PEP enforcement seam (the effect-execution boundary) ──────────────────
         // ADR 0135 A1 R-1 (D7-re-pin) / ADR 0143 R1-E item 4 — LOAD-time re-validation of a persisted
@@ -100,9 +102,16 @@ public static class DurableWorkflowServiceCollectionExtensions
         // An interpreter / instantiation / D7-re-pin path injects the execution face, so load-for-execution
         // can only traverse the re-admitting reads (GetAdmitted*Async) — the safe path is the only path a
         // DI-resolved executor can reach. One instance backs both so authoring + execution never desync.
+        // If the host called AddDurableWorkflowEngine() first, the fully-wired IWorkflowAdmissionValidator
+        // (catalog-aware) is already registered and wins here. If this method is used standalone (a
+        // lightweight authoring-only composition with no effect factories at all — see
+        // InMemoryWorkflowDefinitionStoreTests), there is nothing to consult anyway; still resolve
+        // IWorkflowEffectCatalog if some caller registered one independently, so this fallback is never
+        // weaker than what the container actually has wired.
         services.AddSingleton(sp =>
             new InMemoryWorkflowDefinitionStore(
-                sp.GetService<IWorkflowAdmissionValidator>() ?? new WorkflowAdmissionValidator()));
+                sp.GetService<IWorkflowAdmissionValidator>()
+                ?? new WorkflowAdmissionValidator(CapabilityAuthorityRegistry.Canonical, sp.GetService<IWorkflowEffectCatalog>())));
         services.AddSingleton<IWorkflowDefinitionStore>(
             sp => sp.GetRequiredService<InMemoryWorkflowDefinitionStore>());
         services.AddSingleton<IWorkflowDefinitionExecutionStore>(

@@ -34,6 +34,13 @@ public static class WorkflowAdmissionCodes
     public const string ActionUnclassified = "workflow.admission.action_unclassified";
 
     /// <summary>
+    /// An action's CapabilityRef does not resolve against the installed pack's action catalogue (the
+    /// effect catalog the broker reads, DES-0019 workflows-bound-1) — refused, never silently derived
+    /// to CP and admitted (ADR 0143).
+    /// </summary>
+    public const string UnknownCapability = "workflow.admission.unknown_capability";
+
+    /// <summary>
     /// An action's author-declared classification does NOT match the class DERIVED from the canonical
     /// capability→authority registry (ADR 0143 — a CP capability cannot be laundered to AP; an unknown
     /// capability derives to CP). Fail-closed refusal.
@@ -115,6 +122,7 @@ public interface IWorkflowAdmissionValidator
 public sealed class WorkflowAdmissionValidator : IWorkflowAdmissionValidator
 {
     private readonly ICapabilityAuthorityRegistry _registry;
+    private readonly IWorkflowEffectCatalog? _effectCatalog;
 
     /// <summary>Constructs the validator over the CANONICAL capability→authority registry (ADR 0143).</summary>
     public WorkflowAdmissionValidator()
@@ -127,7 +135,24 @@ public sealed class WorkflowAdmissionValidator : IWorkflowAdmissionValidator
     /// registry is the source of truth for an action's CP/AP class; the authored label must match it.
     /// </summary>
     public WorkflowAdmissionValidator(ICapabilityAuthorityRegistry registry)
-        => _registry = registry ?? throw new ArgumentNullException(nameof(registry));
+        : this(registry, null)
+    {
+    }
+
+    /// <summary>
+    /// Constructs the validator over an explicit registry AND effect catalogue. The effect catalogue is
+    /// the installed pack's action catalogue (DES-0019 workflows-bound-1) — a capability absent from it
+    /// is refused outright. <paramref name="effectCatalog"/> is null in the two legacy overloads above
+    /// (a caller that does not yet compose one; e.g. an isolated unit test or the package-consumer
+    /// fixture) — a null catalogue SKIPS the presence check entirely (existing behavior, unchanged), it
+    /// does NOT mean "nothing is known". Production DI (see
+    /// DurableWorkflowServiceCollectionExtensions) always supplies the real one.
+    /// </summary>
+    public WorkflowAdmissionValidator(ICapabilityAuthorityRegistry registry, IWorkflowEffectCatalog? effectCatalog)
+    {
+        _registry = registry ?? throw new ArgumentNullException(nameof(registry));
+        _effectCatalog = effectCatalog;
+    }
 
     public void EnsureAdmissible(WorkflowDefinition definition)
     {
@@ -216,7 +241,20 @@ public sealed class WorkflowAdmissionValidator : IWorkflowAdmissionValidator
                     continue;
                 }
 
-                // (2) Registry-DERIVED classification (ADR 0143, red-team Chain 1+5 / F2). The class is
+                // (2) The effect catalogue (DES-0019 workflows-bound-1 — the installed pack's action
+                // catalogue, the same catalog the broker reads) is consulted BEFORE deriving CP/AP. A
+                // capability absent from it is refused outright — it must never be silently derived to
+                // CP via the registry fallback and admitted on a matching author label (ADR 0143).
+                if (_effectCatalog is not null && !_effectCatalog.IsEffectingCapability(a.CapabilityRef))
+                {
+                    v.Add(new(WorkflowAdmissionCodes.UnknownCapability,
+                        $"action '{a.Id}' names capability '{a.CapabilityRef}', which the installed " +
+                        "pack's action catalogue does not recognize (no registered effect). An unknown " +
+                        "capability is refused, never derived to CP.", a.Id));
+                    continue;
+                }
+
+                // (3) Registry-DERIVED classification (ADR 0143, red-team Chain 1+5 / F2). The class is
                 //     DERIVED from the canonical capability→authority registry (unknown ⇒ CP, fail-closed) —
                 //     the SAME source the carrier-sdk `authorityOf` + the `.mjs` bridge use. The authored
                 //     label is a NON-authoritative assertion that MUST equal the derived class: a mismatch is
@@ -233,7 +271,7 @@ public sealed class WorkflowAdmissionValidator : IWorkflowAdmissionValidator
                     continue;
                 }
 
-                // (3) A CP action (by the DERIVED class) that is NOT human-gated at the point of firing ⇒ refuse.
+                // (4) A CP action (by the DERIVED class) that is NOT human-gated at the point of firing ⇒ refuse.
                 if (derived == ActionClassification.CP &&
                     FiresWithoutHumanGate(a, definition, transitionById, triggerById))
                 {
