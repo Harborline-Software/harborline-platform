@@ -60,6 +60,18 @@ public sealed record CanonicalEffectPayload(
     string TargetContract,
     IReadOnlyDictionary<string, object?> Values);
 
+/// <summary>
+/// The one canonicalization of a <see cref="CanonicalEffectPayload"/> into the digest a dry run
+/// compares against a ledger's recorded <see cref="EffectLedgerEntry.PayloadDigest"/>. Shared by
+/// the interpreter and by every target-ledger writer so a replayed effect's "same content" check
+/// (data-exchange-eng-8) never drifts between the two sides of that comparison.
+/// </summary>
+public static class ExchangePayloadDigest
+{
+    public static string Compute(CanonicalEffectPayload payload)
+        => "sha256:" + Convert.ToHexStringLower(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(payload)));
+}
+
 public interface IProtectedEffectPayloadStore
 {
     ValueTask<string> SaveAsync(
@@ -196,7 +208,7 @@ public sealed class DataExchangeInterpreter(
             {
                 var payload = Map(mapping, row);
                 var externalIdentity = ExternalIdentity(definition, payload, row.SourceRecordIdentity);
-                var payloadDigest = Digest(payload);
+                var payloadDigest = ExchangePayloadDigest.Compute(payload);
                 var payloadReference = await _payloads.SaveAsync(
                     dryRunId,
                     row.SourceOrdinal,
@@ -222,6 +234,19 @@ public sealed class DataExchangeInterpreter(
                     var existing = ledger is null
                         ? null
                         : await ledger.GetOutcomeAsync(effectIdentity, cancellationToken).ConfigureAwait(false);
+                    if (existing is not null)
+                    {
+                        // Refuse rather than silently reclassify a corrupt or foreign ledger row
+                        // (spec review c3): an unrecognized status, or an entry keyed to a
+                        // different batch/effect than the one just looked up, is not evidence
+                        // this dry run may reason about.
+                        ExchangeRunClosure.ValidateOutcome(existing.Outcome);
+                        if (existing.BatchIdentity != batchIdentity || existing.EffectIdentity != effectIdentity)
+                        {
+                            throw new DataExchangeCommitRefusedException(
+                                "run.ledger_mismatch", "The recorded outcome belongs to different semantic intent.");
+                        }
+                    }
                     outcome = Classify(existing, payloadDigest);
                 }
                 catch (Exception exception) when (exception is not DataExchangeCommitRefusedException)
@@ -287,9 +312,11 @@ public sealed class DataExchangeInterpreter(
                 ? new(ExchangeEffectStatus.Skipped, "replay.already_applied")
                 : new(ExchangeEffectStatus.Conflicted, "replay.effect_conflict");
         }
-        return existing.Outcome.Status == ExchangeEffectStatus.Halted
-            ? new(ExchangeEffectStatus.Halted, "run.effect_previously_halted")
-            : new(ExchangeEffectStatus.Failed, "run.effect_previously_failed");
+        // A prior Conflicted, Rejected, Failed or Halted outcome is already one of the six closed
+        // arms (eng-8) and already carries the correction/retry/acknowledgement semantics
+        // CommitContracts assigns per status (spec review c2). Reporting anything other than that
+        // recorded outcome, verbatim, would erase that meaning rather than merely re-observe it.
+        return existing.Outcome;
     }
 
     private static void ValidateShape(TabularMappingDocument mapping, DiscoveredSourceShape shape)
@@ -385,17 +412,17 @@ public sealed class DataExchangeInterpreter(
             return fallback;
         }
         var targets = definition.Mapping.Columns.ToDictionary(column => column.Name, column => column.Target, StringComparer.Ordinal);
-        return string.Join("|", definition.ExternalKeyColumns.Select(column =>
+        // A composite external key joins with the ASCII unit separator, not '|': ExchangeIdentity's
+        // own Join() refuses any identity component that contains '|' (its own canonical
+        // separator), so a two-plus-column key joined with '|' aborted every row that reached
+        // ExchangeIdentity.DeriveEffect (spec review c1). U+001F cannot appear in ordinary column
+        // values and is never forbidden by that check.
+        return string.Join('\u001f', definition.ExternalKeyColumns.Select(column =>
             $"{column}={Convert.ToString(payload.Values[targets[column]], CultureInfo.InvariantCulture)}"));
     }
 
-    private static string Digest<T>(T value)
-    {
-        var bytes = value is TabularMappingDocument mapping
-            ? Encoding.UTF8.GetBytes(TabularMappingJson.Serialize(mapping))
-            : JsonSerializer.SerializeToUtf8Bytes(value);
-        return "sha256:" + Convert.ToHexStringLower(SHA256.HashData(bytes));
-    }
+    private static string Digest(TabularMappingDocument mapping)
+        => "sha256:" + Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(TabularMappingJson.Serialize(mapping))));
 
     private sealed class MappingRowException(string code, string pointer) : Exception(code)
     {
