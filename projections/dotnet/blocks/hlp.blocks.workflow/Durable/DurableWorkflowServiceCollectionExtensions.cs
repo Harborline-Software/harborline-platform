@@ -38,7 +38,9 @@ public static class DurableWorkflowServiceCollectionExtensions
         // WF-KEY (ADR 0140): the fail-closed authoring/publish-time CP-reachability gate. Stateless;
         // structural BFS over a WorkflowDefinition + registry-derived classification. The authoring face
         // of ADR 0135 A1 R-1. Resolves the registry above via its ctor.
-        services.AddSingleton<IWorkflowAdmissionValidator, WorkflowAdmissionValidator>();
+        services.AddSingleton<IWorkflowAdmissionValidator>(sp => new WorkflowAdmissionValidator(
+            sp.GetRequiredService<ICapabilityAuthorityRegistry>(),
+            sp.GetRequiredService<IWorkflowEffectCatalog>()));
 
         // ── ADR 0143 broker-PEP enforcement seam (the effect-execution boundary) ──────────────────
         // ADR 0135 A1 R-1 (D7-re-pin) / ADR 0143 R1-E item 4 — LOAD-time re-validation of a persisted
