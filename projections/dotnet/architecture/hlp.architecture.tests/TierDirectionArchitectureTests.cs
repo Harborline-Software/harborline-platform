@@ -134,7 +134,7 @@ public sealed class TierDirectionArchitectureTests
             || directoryName.EndsWith(".restart-probe", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static string RepositoryRoot()
+    internal static string RepositoryRoot()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
         while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "repository.yaml")))

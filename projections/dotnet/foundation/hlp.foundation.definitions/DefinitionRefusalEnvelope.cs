@@ -1,3 +1,8 @@
+// Namespace deliberately unchanged from these types' original home in hlp.blocks.builder-definitions (blocks
+// tier). Owner ruling Q48 / T-724 ruling 116 requires their full namespace, name, generic shape, accessibility and
+// public contract preserved so [TypeForwardedTo] in that assembly resolves them by exact type name and every
+// existing compiled consumer keeps resolving the same runtime type without a source change. This file is the
+// only place these four types are defined; do not add a second copy under Harborline.Foundation.Definitions.
 namespace Harborline.Blocks.BuilderDefinitions;
 
 /// <summary>The admission boundary presented to a member's validator.</summary>
