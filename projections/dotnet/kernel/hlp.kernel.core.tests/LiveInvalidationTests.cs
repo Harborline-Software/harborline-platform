@@ -7,6 +7,17 @@ namespace Harborline.Kernel.Core.Tests;
 public sealed class LiveInvalidationTests
 {
     [Fact]
+    public void WirePayloadRejectsANullInvalidation() =>
+        Assert.Throws<ArgumentNullException>("invalidation", () => LiveInvalidationWire.Serialize(null!));
+
+    [Theory]
+    [InlineData("")]
+    [InlineData(" ")]
+    public void WirePayloadRejectsAnUnnamedResource(string resourceId) =>
+        Assert.Throws<ArgumentException>("invalidation.ResourceId", () =>
+            LiveInvalidationWire.Serialize(new LiveInvalidation(resourceId, 7)));
+
+    [Fact]
     public void WirePayloadContainsOnlyResourceIdentityAndVersion()
     {
         var message = new LiveInvalidation("work-item/42", 7);
