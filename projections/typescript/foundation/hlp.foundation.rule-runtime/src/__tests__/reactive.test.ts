@@ -208,6 +208,34 @@ describe('core outcome and dynamic missing scheduling', () => {
     expect(zero.reevaluate('unrelated', valueSnapshot(null)).values.get('field:leaf')?.state).toBe('Resolved')
   })
 
+  it('names the computed rule and cell when dynamic demand exceeds its depth budget', () => {
+    const dynamic = (id: string, target: string, key: string) => rule(id, target, 'Compute', { missing: [{ var: key }] })
+    const limits = { ...DEFAULT_LIMITS, maxDependencyDepth: 2 }
+    const graph = new FormRuleGraph(compile([
+      dynamic('a.dynamic', 'a', 'keysA'),
+      dynamic('b.dynamic', 'b', 'keysB'),
+      dynamic('c.dynamic', 'c', 'keysC'),
+      dynamic('d.dynamic', 'd', 'keysD'),
+    ], limits), fixedClock, testAdmission, limits)
+
+    const result = graph.evaluateInstance(instance({ keysA: ['b'], keysB: ['c'], keysC: ['d'], keysD: ['raw'], raw: 1 }))
+
+    expect(result.values.get('field:a')?.error).toEqual({
+      code: Codes.budgetExceeded,
+      params: { rule: 'd.dynamic', cell: 'field:d' },
+    })
+  })
+
+  it('keeps ordinary dependency failures attributed to the upstream cell', () => {
+    const { first } = graphOf([
+      rule('a.copy', 'a', 'Compute', { var: 'b' }),
+      rule('b.divide', 'b', 'Compute', { '/': [1, 0] }),
+    ], {})
+
+    expect(first.values.get('field:b')?.error?.code).toBe(Codes.divByZero)
+    expect(first.values.get('field:a')?.error).toEqual({ code: Codes.upstreamError, params: { cell: 'field:b' } })
+  })
+
   it('re-evaluates dynamic Required and Validate plans when their actual target changes', () => {
     const { g, first } = graphOf([
       rule('required.dynamic', 'target', 'Required', { missing: [{ var: 'keys' }] }),

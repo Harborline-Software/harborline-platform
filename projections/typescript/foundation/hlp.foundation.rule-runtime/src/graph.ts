@@ -626,7 +626,9 @@ export class FormRuleGraph {
     if (demand.active.has(c.key)) return { state: 'Error', error: err(Codes.cycle, 'cell', c.key) }
     // The active set is the parent chain, so before adding this cell its size is the
     // demand-edge depth. Match static compiler admission: depth zero permits a leaf.
-    if (demand.active.size > this.limits.maxDependencyDepth) return { state: 'Error', error: err(Codes.budgetExceeded) }
+    if (demand.active.size > this.limits.maxDependencyDepth) return {
+      state: 'Error', error: { code: Codes.budgetExceeded, params: { cell: c.key, ...(c.rule ? { rule: c.rule.source.id } : {}) } },
+    }
 
     budget.charge()
     demand.active.add(c.key)
@@ -649,7 +651,8 @@ export class FormRuleGraph {
     const value = this.evaluateDemand(target, demand, budget, adapter)
     if (value.state === 'Resolved') return refResolved(value.value ?? null)
     if (value.state === 'Pending') return refPending
-    return value.error?.code === Codes.cycle ? refError(value.error) : refError(err(Codes.upstreamError, 'cell', key))
+    return value.error?.code === Codes.cycle || value.error?.code === Codes.budgetExceeded
+      ? refError(value.error) : refError(err(Codes.upstreamError, 'cell', key))
   }
 
   private evalComputedCell(c: ComputedCell, demand: DemandState, budget: EvalBudget, adapter: ContextAdapter): ComputedValue {
