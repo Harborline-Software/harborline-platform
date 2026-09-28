@@ -67,7 +67,7 @@ export class JsonStringifyByteCounter {
       case 'string': this.countString(value); return
       case 'boolean': this.addPunctuation(value ? 4 : 5); return
       case 'number': this.addPunctuation(Number.isFinite(value) ? String(value).length : 4); return
-      case 'object':
+      case 'object': {
         if (Array.isArray(value)) {
           this.addPunctuation(1)
           let first = true
@@ -90,6 +90,7 @@ export class JsonStringifyByteCounter {
         }
         this.addPunctuation(1)
         return
+      }
     }
   }
 }

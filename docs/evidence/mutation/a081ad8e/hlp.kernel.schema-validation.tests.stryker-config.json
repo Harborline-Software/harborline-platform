@@ -1,0 +1,16 @@
+{
+  "stryker-config": {
+    "project": "Harborline.Kernel.SchemaValidation.csproj",
+    "since": {
+      "enabled": false
+    },
+    "thresholds": {
+      "high": 80,
+      "low": 60,
+      "break": 0
+    },
+    "reporters": [
+      "json"
+    ]
+  }
+}

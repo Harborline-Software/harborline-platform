@@ -221,6 +221,120 @@ public sealed class RuleEngineUnitTests
     }
 
     [Fact]
+    public void Compiler_bounds_one_dynamic_cell_independently_of_unused_graph_capacity()
+    {
+        var rules = new[] { Compute("dynamic", "result", "{\"missing\":[{\"var\":\"keys\"}]}") };
+        var oneCell = RuleCompiler.Compile(rules, RuleEngineLimits.Default with { MaxGraphNodes = 1 }).WorkProof;
+        var defaultCapacity = RuleCompiler.Compile(rules).WorkProof;
+
+        Assert.Equal(oneCell.MaximumResultBytes, defaultCapacity.MaximumResultBytes);
+        Assert.Equal(oneCell.MaximumEvaluationWork, defaultCapacity.MaximumEvaluationWork);
+    }
+
+    [Fact]
+    public void Compiler_counts_actual_computed_and_aggregate_cells_in_dynamic_proof()
+    {
+        var dynamic = Compute("dynamic", "result", "{\"missing\":[{\"var\":\"keys\"}]}");
+        var oneCell = RuleCompiler.Compile([dynamic]).WorkProof;
+        var twoCells = RuleCompiler.Compile([dynamic, Compute("second", "second", "1")]).WorkProof;
+        var aggregate = RuleDefinitionFactory.Create("aggregate", RuleTier.JsonLogic, RuleScope.Field, "check",
+            "{\"==\":[{\"var\":\"table.sum(items.amount)\"},0]}", RuleActionKind.Validate);
+        var withAggregate = RuleCompiler.Compile([dynamic, aggregate]).WorkProof;
+
+        Assert.Equal(oneCell.MaximumResultBytes, twoCells.MaximumResultBytes);
+        Assert.True(twoCells.MaximumEvaluationWork > oneCell.MaximumEvaluationWork);
+        Assert.Equal(oneCell.MaximumResultBytes, withAggregate.MaximumResultBytes);
+        Assert.True(oneCell.MaximumEvaluationWork >= oneCell.MaximumResultBytes);
+    }
+
+    [Fact]
+    public void Compiler_does_not_copy_dynamically_inspected_values_into_row_missing_result()
+    {
+        var row = Compute("row", "items/calculated", "{\"missing\":[{\"var\":\"rowKeys\"}]}", RuleScope.Row);
+        var oneRow = RuleCompiler.Compile([row], RuleEngineLimits.Default with
+        {
+            MaxGraphNodes = 1,
+            MaxTableRowsPerAggregate = 2,
+        }).WorkProof;
+        var twoRows = RuleCompiler.Compile([row], RuleEngineLimits.Default with
+        {
+            MaxGraphNodes = 2,
+            MaxTableRowsPerAggregate = 2,
+        }).WorkProof;
+
+        Assert.Equal(oneRow.MaximumResultBytes, twoRows.MaximumResultBytes);
+        Assert.True(twoRows.MaximumEvaluationWork > oneRow.MaximumEvaluationWork);
+    }
+
+    [Fact]
+    public void Compiler_bounds_table_compute_value_copied_through_aggregate_reference()
+    {
+        var copies = "{\"cat\":[" + string.Join(',', Enumerable.Repeat("{\"var\":\"table.sum(items.amount)\"}", 10)) + "]}";
+        var rules = new[]
+        {
+            Compute("table-value", "items/sum/amount", "{\"var\":\"payload\"}", RuleScope.Table),
+            Compute("copies", "result", copies),
+        };
+        var limits = RuleEngineLimits.Default with { MaxTableRowsPerAggregate = 1, StepBudget = 10_000_000 };
+        var compiled = RuleCompiler.Compile(rules, limits);
+        var evaluated = new FormRuleGraph(compiled, new FixedClock(Clock), TestAdmission.Any, limits)
+            .EvaluateInstance(Instance(JsonSerializer.Serialize(new { payload = new string('x', 80_000) })));
+        var value = evaluated.Values["field:result"];
+
+        Assert.Equal(ValueState.Resolved, value.State);
+        Assert.True(compiled.WorkProof.MaximumResultBytes >= Encoding.UTF8.GetByteCount(value.Value!.ToJsonString()));
+    }
+
+    [Fact]
+    public void Compiler_keeps_larger_table_bound_for_admitted_duplicate_target()
+    {
+        var copies = "{\"cat\":[" + string.Join(',', Enumerable.Repeat("{\"var\":\"table.sum(items.amount)\"}", 10)) + "]}";
+        var rules = new[]
+        {
+            Compute("small-table", "items/sum/amount", "\"a\"", RuleScope.Table),
+            Compute("large-table", "items/sum/amount", "{\"var\":\"payload\"}", RuleScope.Table),
+            Compute("copies", "result", copies),
+        };
+        var limits = RuleEngineLimits.Default with { MaxTableRowsPerAggregate = 1, StepBudget = 10_000_000 };
+        var compiled = RuleCompiler.Compile(rules, limits);
+        var evaluated = new FormRuleGraph(compiled, new FixedClock(Clock), TestAdmission.Any, limits)
+            .EvaluateInstance(Instance(JsonSerializer.Serialize(new { payload = new string('x', 80_000) })));
+        var value = evaluated.Values["field:result"];
+
+        Assert.Equal(ValueState.Resolved, value.State);
+        Assert.True(compiled.WorkProof.MaximumResultBytes >= Encoding.UTF8.GetByteCount(value.Value!.ToJsonString()));
+    }
+
+    [Theory]
+    [InlineData("empty", "16394000", "0")]
+    [InlineData("literal", "16394000", "130")]
+    [InlineData("dynamic", "1310725002", "398373634780430518")]
+    [InlineData("two-compute", "1310725002", "796747264317950648")]
+    [InlineData("aggregate-validate", "1310725002", "796829528653110775")]
+    [InlineData("row-two", "1310725002", "1573833540185021324")]
+    public void Compiler_pins_public_work_proof_for_cross_tier_calibration(string name, string resultBytes, string work)
+    {
+        var dynamic = Compute("dynamic", "result", "{\"missing\":[{\"var\":\"keys\"}]}");
+        IReadOnlyList<RuleDefinition> rules = name switch
+        {
+            "empty" => [],
+            "literal" => [Compute("literal", "x", "1")],
+            "dynamic" => [dynamic],
+            "two-compute" => [dynamic, Compute("second", "second", "1")],
+            "aggregate-validate" => [dynamic, RuleDefinitionFactory.Create("aggregate", RuleTier.JsonLogic, RuleScope.Field,
+                "check", "{\"==\":[{\"var\":\"table.sum(items.amount)\"},0]}", RuleActionKind.Validate)],
+            "row-two" => [Compute("row", "items/calculated", "{\"missing\":[{\"var\":\"rowKeys\"}]}", RuleScope.Row)],
+            _ => throw new ArgumentOutOfRangeException(nameof(name)),
+        };
+        var limits = name == "row-two" ? RuleEngineLimits.Default with { MaxGraphNodes = 2, MaxTableRowsPerAggregate = 2 }
+            : RuleEngineLimits.Default;
+        var proof = RuleCompiler.Compile(rules, limits).WorkProof;
+
+        Assert.Equal(resultBytes, proof.MaximumResultBytes.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        Assert.Equal(work, proof.MaximumEvaluationWork.ToString(System.Globalization.CultureInfo.InvariantCulture));
+    }
+
+    [Fact]
     public void Graph_instantiates_proof_for_independently_configured_structural_dimensions()
     {
         var compiled = RuleCompiler.Compile(new[] { Compute("row-aware", "x", "{\"var\":\"table.sum(items.amount)\"}") },
@@ -355,6 +469,7 @@ public sealed class RuleEngineUnitTests
         var result = Graph(rules, limits).EvaluateInstance(Instance("{\"x\":1,\"y\":2}"));
         Assert.True(result.IsSaveBlocked);
         Assert.Contains(result.Validations, v => v.Validity!.Error!.Code == RuleEngineCodes.GraphTooLarge);
+        Assert.Empty(Assert.Single(result.Validations).Validity!.Error!.Params);
     }
 
     [Fact]
@@ -365,6 +480,101 @@ public sealed class RuleEngineUnitTests
             .EvaluateInstance(Instance("{\"a\":1}"));
         Assert.True(result.IsSaveBlocked);
         Assert.Contains(result.Validations, v => v.Validity!.Error!.Code == RuleEngineCodes.BudgetExceeded);
+    }
+
+    [Fact]
+    public void Initial_graph_budget_abort_names_the_in_flight_rule_without_replacing_the_synthetic_blocker()
+    {
+        var limits = RuleEngineLimits.Default with { StepBudget = 0 };
+        var result = Graph(new[] { Compute("c.b", "b", "{\"+\":[{\"var\":\"a\"},1]}") }, limits)
+            .EvaluateInstance(Instance("{\"a\":1}"));
+
+        var refusal = Assert.Single(result.Validations);
+        Assert.Equal("rule.engine", refusal.RuleId);
+        Assert.Equal(RuleEngineCodes.BudgetExceeded, refusal.Validity!.Error!.Code);
+        Assert.Equal("c.b", refusal.Validity.Error.Params["rule"]);
+        Assert.True(result.IsSaveBlocked);
+    }
+
+    [Fact]
+    public void Incremental_graph_budget_abort_names_the_in_flight_rule_without_replacing_the_synthetic_blocker()
+    {
+        var limits = RuleEngineLimits.Default with { StepBudget = 0 };
+        var graph = Graph(new[] { Compute("c.b", "b", "{\"+\":[{\"var\":\"a\"},1]}") }, limits);
+        graph.EvaluateInstance(Instance("{\"a\":1}"));
+
+        var result = graph.Reevaluate("a", RuleInputValue.FromJsonText("2"));
+
+        var refusal = Assert.Single(result.Validations);
+        Assert.Equal("rule.engine", refusal.RuleId);
+        Assert.Equal(RuleEngineCodes.BudgetExceeded, refusal.Validity!.Error!.Code);
+        Assert.Equal("c.b", refusal.Validity.Error.Params["rule"]);
+        Assert.True(result.IsSaveBlocked);
+    }
+
+    [Fact]
+    public void Validation_plan_budget_abort_names_the_in_flight_rule()
+    {
+        var limits = RuleEngineLimits.Default with { StepBudget = 0 };
+        var rule = RuleDefinitionFactory.Create("v.a", RuleTier.JsonLogic, RuleScope.Field, "a",
+            "{\"==\":[{\"var\":\"a\"},1]}", RuleActionKind.Validate);
+
+        var result = Graph(new[] { rule }, limits).EvaluateInstance(Instance("{\"a\":1}"));
+
+        var refusal = Assert.Single(result.Validations);
+        Assert.Equal("rule.engine", refusal.RuleId);
+        Assert.Equal(RuleEngineCodes.BudgetExceeded, refusal.Validity!.Error!.Code);
+        Assert.Equal("v.a", refusal.Validity.Error.Params["rule"]);
+    }
+
+    [Fact]
+    public void Incremental_validation_plan_budget_abort_names_the_in_flight_rule()
+    {
+        var limits = RuleEngineLimits.Default with { StepBudget = 0 };
+        var rule = RuleDefinitionFactory.Create("v.a", RuleTier.JsonLogic, RuleScope.Field, "a",
+            "{\"==\":[{\"var\":\"a\"},1]}", RuleActionKind.Validate);
+        var graph = Graph(new[] { rule }, limits);
+        graph.EvaluateInstance(Instance("{\"a\":1}"));
+
+        var result = graph.Reevaluate("a", RuleInputValue.FromJsonText("2"));
+
+        var refusal = Assert.Single(result.Validations);
+        Assert.Equal("rule.engine", refusal.RuleId);
+        Assert.Equal(RuleEngineCodes.BudgetExceeded, refusal.Validity!.Error!.Code);
+        Assert.Equal("v.a", refusal.Validity.Error.Params["rule"]);
+    }
+
+    [Fact]
+    public void Aggregate_budget_abort_names_the_cell_when_no_rule_is_in_flight()
+    {
+        var limits = RuleEngineLimits.Default with { StepBudget = 0 };
+        var graph = Graph(new[] { Compute("c.total", "total", "{\"var\":\"table.sum(items.amount)\"}") }, limits);
+
+        var result = graph.EvaluateInstance(Instance("{\"items\":[{\"amount\":1}]}"));
+
+        var refusal = Assert.Single(result.Validations);
+        Assert.Equal("rule.engine", refusal.RuleId);
+        Assert.Equal(RuleEngineCodes.BudgetExceeded, refusal.Validity!.Error!.Code);
+        Assert.Equal("agg:items/sum/amount", refusal.Validity.Error.Params["cell"]);
+        Assert.False(refusal.Validity.Error.Params.ContainsKey("rule"));
+    }
+
+    [Fact]
+    public void Whole_graph_budget_abort_names_the_outer_rule_after_a_nested_demand_succeeds()
+    {
+        var limits = RuleEngineLimits.Default with { StepBudget = 50 };
+        var graph = Graph(new[]
+        {
+            Compute("a.dynamic", "a", "{\"cat\":[{\"missing\":[{\"var\":\"keys\"}]},{\"var\":\"long\"}]}"),
+            Compute("b.dynamic", "b", "\"ok\""),
+        }, limits);
+
+        var result = graph.EvaluateInstance(Instance("{\"keys\":[\"b\"],\"long\":\"" + new string('x', 100) + "\"}"));
+
+        var refusal = Assert.Single(result.Validations);
+        Assert.Equal("rule.engine", refusal.RuleId);
+        Assert.Equal(RuleEngineCodes.BudgetExceeded, refusal.Validity!.Error!.Code);
+        Assert.Equal("a.dynamic", refusal.Validity.Error.Params["rule"]);
     }
 
     [Fact]
@@ -383,6 +593,8 @@ public sealed class RuleEngineUnitTests
 
         var stepAt = Graph(new[] { Compute("step-at", "x", "1") }, RuleEngineLimits.Default with { StepBudget = 2 });
         Assert.Equal(1L, stepAt.EvaluateInstance(Instance("{}")).Values["field:x"].Value!.GetValue<long>());
+        var stepOne = Graph(new[] { Compute("step-one", "x", "1") }, RuleEngineLimits.Default with { StepBudget = 1 });
+        Assert.Equal(RuleEngineCodes.BudgetExceeded, stepOne.EvaluateInstance(Instance("{}")).Validations.Single().Validity!.Error!.Code);
         var stepOver = Graph(new[] { Compute("step-over", "x", "1") }, RuleEngineLimits.Default with { StepBudget = 0 });
         Assert.Equal(RuleEngineCodes.BudgetExceeded, stepOver.EvaluateInstance(Instance("{}")).Validations.Single().Validity!.Error!.Code);
     }
@@ -793,6 +1005,23 @@ public sealed class RuleEngineUnitTests
         Assert.Empty(noKeys.Values["field:missing"].Value!.AsArray());
     }
 
+    [Fact]
+    public void Dynamic_reader_drops_a_previous_dependency_when_its_key_changes()
+    {
+        var graph = Graph(new[]
+        {
+            Compute("a.dynamic", "a", "{\"!!\":[{\"missing\":[{\"var\":\"keys\"}]}]}"),
+            Compute("b.value", "b", "{\"var\":\"bRaw\"}"),
+            Compute("c.value", "c", "{\"var\":\"cRaw\"}"),
+        });
+        graph.EvaluateInstance(Instance("{\"keys\":[\"b\"],\"bRaw\":1,\"cRaw\":2}"));
+        var switched = graph.Reevaluate("keys", RuleInputValue.FromJsonText("[\"c\"]"));
+
+        var afterFormerDependency = graph.Reevaluate("bRaw", RuleInputValue.FromJsonText("3"));
+
+        Assert.Same(switched.ByRule["a.dynamic"], afterFormerDependency.ByRule["a.dynamic"]);
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -825,7 +1054,7 @@ public sealed class RuleEngineUnitTests
     [Fact]
     public void Dynamic_missing_self_reference_refuses_instead_of_reading_a_raw_shadow()
     {
-        var graph = Graph(new[] { Compute("a.dynamic", "a", "{\"missing\":[{\"var\":\"keys\"}]}" ) });
+        var graph = Graph(new[] { Compute("a.dynamic", "a", "{\"missing\":[{\"var\":\"keys\"}]}" ) }, RuleEngineLimits.Default with { StepBudget = 20 });
         var result = graph.EvaluateInstance(Instance("{\"keys\":[\"a\"],\"a\":1}"));
 
         var value = result.Values["field:a"];
@@ -901,6 +1130,28 @@ public sealed class RuleEngineUnitTests
         var zero = Graph(new[] { Compute("leaf.literal", "leaf", "1") }, RuleEngineLimits.Default with { MaxDependencyDepth = 0 });
         Assert.Equal(ValueState.Resolved, zero.EvaluateInstance(Instance("{}" )).Values["field:leaf"].State);
         Assert.Equal(ValueState.Resolved, zero.Reevaluate("unrelated", RuleInputValue.FromJsonText("null")).Values["field:leaf"].State);
+    }
+
+    [Fact]
+    public void Dynamic_demand_depth_refusal_names_the_computed_rule_and_cell()
+    {
+        static RuleDefinition Dynamic(string id, string target, string key)
+            => Compute(id, target, "{\"missing\":[{\"var\":\"" + key + "\"}]}");
+
+        var graph = Graph(new[]
+        {
+            Dynamic("a.dynamic", "a", "keysA"),
+            Dynamic("b.dynamic", "b", "keysB"),
+            Dynamic("c.dynamic", "c", "keysC"),
+            Dynamic("d.dynamic", "d", "keysD"),
+        }, RuleEngineLimits.Default with { MaxDependencyDepth = 2 });
+
+        var result = graph.EvaluateInstance(Instance("{\"keysA\":[\"b\"],\"keysB\":[\"c\"],\"keysC\":[\"d\"],\"keysD\":[\"raw\"],\"raw\":1}"));
+
+        var error = result.Values["field:a"].Error!;
+        Assert.Equal(RuleEngineCodes.BudgetExceeded, error.Code);
+        Assert.Equal("d.dynamic", error.Params["rule"]);
+        Assert.Equal("field:d", error.Params["cell"]);
     }
 
     [Fact]
@@ -1454,6 +1705,34 @@ public sealed class RuleEngineUnitTests
         var v = guard.EvaluateGuard(rule, RuleContextSnapshot.Capture(bag), RuleEvalScope.Root, TestAdmission.Any);
         Assert.False(v.Ok);
         Assert.Equal(RuleEngineCodes.PendingAtSave, v.Error!.Code);
+    }
+
+    [Fact]
+    public void Guard_budget_refusal_names_the_rule()
+    {
+        var guard = new GuardEvaluator(new FixedClock(Clock), RuleEngineLimits.Default with { StepBudget = 0 });
+        var rule = RuleDefinitionFactory.Create("g.budget", RuleTier.JsonLogic, RuleScope.Schema, "",
+            "true", RuleActionKind.Validate);
+
+        var result = guard.EvaluateGuard(rule, RuleContextSnapshot.Capture(new Dictionary<string, JsonNode?>()), RuleEvalScope.Root, TestAdmission.Any);
+
+        Assert.False(result.Ok);
+        Assert.Equal(RuleEngineCodes.BudgetExceeded, result.Error!.Code);
+        Assert.Equal("g.budget", result.Error.Params["rule"]);
+    }
+
+    [Fact]
+    public void Value_budget_refusal_names_the_rule()
+    {
+        var guard = new GuardEvaluator(new FixedClock(Clock), RuleEngineLimits.Default with { StepBudget = 0 });
+        var rule = RuleDefinitionFactory.Create("v.budget", RuleTier.JsonLogic, RuleScope.Schema, "",
+            "1", RuleActionKind.Compute);
+
+        var result = guard.EvaluateValue(rule, RuleContextSnapshot.Capture(new Dictionary<string, JsonNode?>()), RuleEvalScope.Root, TestAdmission.Any);
+
+        Assert.Equal(ValueState.Error, result.State);
+        Assert.Equal(RuleEngineCodes.BudgetExceeded, result.Error!.Code);
+        Assert.Equal("v.budget", result.Error.Params["rule"]);
     }
 
     // T-687: a rule that does not compile is a withheld guard carrying the compile code, not an

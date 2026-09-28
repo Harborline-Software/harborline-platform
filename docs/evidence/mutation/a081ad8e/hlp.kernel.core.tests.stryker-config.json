@@ -1,0 +1,16 @@
+{
+  "stryker-config": {
+    "project": "Harborline.Kernel.Core.csproj",
+    "since": {
+      "enabled": false
+    },
+    "thresholds": {
+      "high": 80,
+      "low": 68,
+      "break": 0
+    },
+    "reporters": [
+      "json"
+    ]
+  }
+}

@@ -161,10 +161,12 @@ public sealed class FormRuleGraph : IFormRuleGraph
                 || (_actualPlanReads.TryGetValue(p.Key, out var actual) && actual.Overlaps(touched))
                 || dirty.Contains(p.Target.Key)))
             {
+                run.InFlightRule = plan.Rule.Source.Id;
+                run.InFlightCell = null;
                 _outcomes[plan.Key] = BuildOutcome(plan, run);
             }
         }
-        catch (RuleBudgetException) { return FailClosed(RuleEngineCodes.BudgetExceeded); }
+        catch (RuleBudgetException) { return FailClosed(RuleEngineCodes.BudgetExceeded, run.InFlightRule, run.InFlightCell); }
         // RuleEngineTimeoutException is a non-authoritative liveness fault (D1 ratification): it is NOT
         // caught here — it propagates as an infrastructure exception so the wall-clock can never emit a
         // divergent evaluation outcome. The op-budget above is the sole authoritative fail-closed bound.
@@ -258,10 +260,12 @@ public sealed class FormRuleGraph : IFormRuleGraph
             }
             foreach (var plan in _plans)
             {
+                run.InFlightRule = plan.Rule.Source.Id;
+                run.InFlightCell = null;
                 _outcomes[plan.Key] = BuildOutcome(plan, run);
             }
         }
-        catch (RuleBudgetException) { return FailClosed(RuleEngineCodes.BudgetExceeded); }
+        catch (RuleBudgetException) { return FailClosed(RuleEngineCodes.BudgetExceeded, run.InFlightRule, run.InFlightCell); }
         // RuleEngineTimeoutException is a non-authoritative liveness fault (D1 ratification 2026-07-01):
         // it is NOT caught here — it propagates as an infrastructure exception so the wall-clock can never
         // emit a divergent evaluation outcome. The op-budget above is the sole authoritative fail-closed bound.
@@ -713,10 +717,13 @@ public sealed class FormRuleGraph : IFormRuleGraph
     private static VisibilityState Merge(VisibilityState a, VisibilityState b)
         => new(a.Visible && b.Visible, a.Required || b.Required, a.ReadOnly || b.ReadOnly);
 
-    private RuleEvaluationResult FailClosed(string code)
+    private RuleEvaluationResult FailClosed(string code, string? ruleId = null, string? cellKey = null)
     {
+        var error = ruleId is not null ? RuleError.Of(code, "rule", ruleId)
+            : cellKey is not null ? RuleError.Of(code, "cell", cellKey)
+            : RuleError.Of(code);
         var synthetic = RuleOutcome.OfValidity("rule.engine", CellAddress.Schema(),
-            Validity.Invalid(RuleError.Of(code)));
+            Validity.Invalid(error));
         return new RuleEvaluationResult(
             new Dictionary<string, RuleOutcome> { ["rule.engine"] = synthetic },
             new Dictionary<string, ComputedValue>(),
@@ -756,6 +763,8 @@ public sealed class FormRuleGraph : IFormRuleGraph
 
         public EvalBudget Budget { get; }
         public IContextAdapter Adapter { get; }
+        public string? InFlightRule { get; set; }
+        public string? InFlightCell { get; set; }
 
         public ComputedValue Evaluate(ComputedCell cell)
         {
@@ -769,8 +778,16 @@ public sealed class FormRuleGraph : IFormRuleGraph
             // admission: depth zero permits a leaf, and only depth greater than the cap
             // is refused.
             if (_active.Count > Budget.Limits.MaxDependencyDepth)
-                return ComputedValue.OfError(RuleError.Of(RuleEngineCodes.BudgetExceeded));
+            {
+                var parameters = new Dictionary<string, string> { ["cell"] = cell.Key };
+                if (cell.Rule is not null) parameters["rule"] = cell.Rule.Source.Id;
+                return ComputedValue.OfError(new RuleError(RuleEngineCodes.BudgetExceeded, parameters));
+            }
 
+            var previousRule = InFlightRule;
+            var previousCell = InFlightCell;
+            InFlightRule = cell.Rule?.Source.Id;
+            InFlightCell = cell.Rule is null ? cell.Key : null;
             Budget.Charge();
             _active.Add(cell.Key);
             _graph.ClearActualCellReads(cell.Key);
@@ -779,6 +796,8 @@ public sealed class FormRuleGraph : IFormRuleGraph
                 var value = _graph.EvalComputedCell(cell, this);
                 _graph._values[cell.Key] = value;
                 _completed.Add(cell.Key);
+                InFlightRule = previousRule;
+                InFlightCell = previousCell;
                 return value;
             }
             finally
@@ -799,7 +818,7 @@ public sealed class FormRuleGraph : IFormRuleGraph
         {
             ValueState.Resolved => RefValue.Resolved(value.Value),
             ValueState.Pending => RefValue.Pending,
-            _ => RefValue.OfError(value.Error?.Code == RuleEngineCodes.Cycle
+            _ => RefValue.OfError(value.Error?.Code is RuleEngineCodes.Cycle or RuleEngineCodes.BudgetExceeded
                 ? value.Error
                 : RuleError.Of(RuleEngineCodes.UpstreamError, "cell", key)),
         };

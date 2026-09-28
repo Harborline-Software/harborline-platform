@@ -115,7 +115,7 @@ public sealed class GuardEvaluator : IGuardEvaluator
             onValue: v => HarborlineJsonLogic.IsTruthy(v) ? Validity.Valid : Validity.Invalid(RuleError.Of(rule.Id)),
             onError: e => Validity.Invalid(e),
             onPending: () => Validity.Invalid(RuleError.Of(RuleEngineCodes.PendingAtSave)),
-            onAbort: code => Validity.Invalid(RuleError.Of(code)));
+            onAbort: code => Validity.Invalid(RuleError.Of(code, "rule", rule.Id)));
     }
 
     /// <summary>
@@ -160,7 +160,7 @@ public sealed class GuardEvaluator : IGuardEvaluator
         if (compiled.RuleCount == 0) return ComputedValue.Resolved(null);
         return Run(compiled.Rules[0], context.CreateResolver(scope), ct,
             onValue: ComputedValue.Resolved, onError: ComputedValue.OfError,
-            onPending: ComputedValue.OfPending, onAbort: code => ComputedValue.OfError(RuleError.Of(code)));
+            onPending: ComputedValue.OfPending, onAbort: code => ComputedValue.OfError(RuleError.Of(code, "rule", rule.Id)));
     }
 
     /// <summary>

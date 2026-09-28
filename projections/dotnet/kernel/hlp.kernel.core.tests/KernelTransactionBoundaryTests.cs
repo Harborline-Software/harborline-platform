@@ -43,6 +43,36 @@ public sealed class KernelTransactionBoundaryTests
     }
 
     [Theory]
+    [InlineData(" ", "key-one", "fingerprint-one")]
+    [InlineData("one", " ", "fingerprint-one")]
+    [InlineData("one", "key-one", " ")]
+    public async Task InvalidOperationIdentityIsRejectedBeforeTransactionBegins(
+        string commandId, string idempotencyKey, string fingerprint)
+    {
+        var port = new RecordingPort();
+        var invalid = Command() with { Operation = new(commandId, idempotencyKey, fingerprint) };
+
+        await Assert.ThrowsAsync<ArgumentException>(async () =>
+            await KernelTransactionBoundary.ExecuteAsync([invalid], port));
+
+        Assert.Empty(port.Events);
+    }
+
+    [Theory]
+    [InlineData(" ", "actor")]
+    [InlineData("audit-one", " ")]
+    public async Task InvalidAuditEvidenceIsRejectedBeforeTransactionBegins(string auditId, string actorId)
+    {
+        var port = new RecordingPort();
+        var invalid = Command() with { Audit = Command().Audit with { AuditId = auditId, ActorId = actorId } };
+
+        await Assert.ThrowsAsync<ArgumentException>(async () =>
+            await KernelTransactionBoundary.ExecuteAsync([invalid], port));
+
+        Assert.Empty(port.Events);
+    }
+
+    [Theory]
     [InlineData("record")]
     [InlineData("audit")]
     [InlineData("commit")]
@@ -72,6 +102,93 @@ public sealed class KernelTransactionBoundaryTests
         Assert.True(result.Committed);
         Assert.Equal("committed", result.Value);
         Assert.Equal(["begin", "prepare", "operation", "record", "audit", "commit", "dispose"], port.Events);
+    }
+
+    [Fact]
+    public async Task InvalidPreparedOperationRollsBackBeforeStaging()
+    {
+        var port = new PreparedRecordingPort();
+        var invalid = Command() with { Operation = new(" ", "key-one", "fingerprint-one") };
+
+        await Assert.ThrowsAsync<ArgumentException>(async () =>
+            await KernelTransactionBoundary.ExecutePreparedAsync<string, string>(
+                _ => ValueTask.FromResult(invalid), port));
+
+        Assert.Equal(["begin", "rollback", "dispose"], port.Events);
+    }
+
+    [Fact]
+    public async Task InvalidPreparedAuditRollsBackBeforeStaging()
+    {
+        var port = new PreparedRecordingPort();
+        var invalid = Command() with { Audit = Command().Audit with { AuditId = " " } };
+
+        await Assert.ThrowsAsync<ArgumentException>(async () =>
+            await KernelTransactionBoundary.ExecutePreparedAsync<string, string>(
+                _ => ValueTask.FromResult(invalid), port));
+
+        Assert.Equal(["begin", "rollback", "dispose"], port.Events);
+    }
+
+    [Fact]
+    public async Task PreparedTransactionRejectsNullProducerBeforeBegin()
+    {
+        var port = new PreparedRecordingPort();
+
+        await Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            await KernelTransactionBoundary.ExecutePreparedAsync<string, string>(null!, port));
+
+        Assert.Empty(port.Events);
+    }
+
+    [Fact]
+    public async Task PreparedTransactionRejectsNullPort()
+    {
+        await Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            await KernelTransactionBoundary.ExecutePreparedAsync<string, string>(
+                _ => ValueTask.FromResult(Command()), null!));
+    }
+
+    [Fact]
+    public async Task PreparedTransactionRollsBackWhenProducerReturnsNullCommand()
+    {
+        var port = new PreparedRecordingPort();
+
+        await Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            await KernelTransactionBoundary.ExecutePreparedAsync<string, string>(
+                _ => ValueTask.FromResult<KernelCommand<string>>(null!), port));
+
+        Assert.Equal(["begin", "rollback", "dispose"], port.Events);
+    }
+
+    [Fact]
+    public async Task TransactionRejectsNullCommandsBeforeBegin()
+    {
+        var port = new RecordingPort();
+
+        var error = await Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            await KernelTransactionBoundary.ExecuteAsync<string, string>(null!, port));
+
+        Assert.Equal("commands", error.ParamName);
+        Assert.Empty(port.Events);
+    }
+
+    [Fact]
+    public async Task TransactionRejectsNullPort()
+    {
+        await Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            await KernelTransactionBoundary.ExecuteAsync<string, string>([Command()], null!));
+    }
+
+    [Fact]
+    public async Task TransactionRejectsNullCommandBeforeBegin()
+    {
+        var port = new RecordingPort();
+
+        await Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            await KernelTransactionBoundary.ExecuteAsync<string, string>([null!], port));
+
+        Assert.Empty(port.Events);
     }
 
     private static KernelCommand<string> Command(string id = "one") => new(

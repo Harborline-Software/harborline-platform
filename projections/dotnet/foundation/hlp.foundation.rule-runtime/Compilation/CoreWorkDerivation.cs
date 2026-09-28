@@ -63,6 +63,11 @@ internal static class CoreWorkDerivation
                         next[key] = next.TryGetValue(key, out var old) ? BigInteger.Max(old, proofs[index].Result) : proofs[index].Result;
                     }
                 }
+                if (rule.Source.Scope == RuleScope.Table && rule.StaticTarget is { } tableTarget)
+                {
+                    var key = tableTarget.Key;
+                    next[key] = next.TryGetValue(key, out var old) ? BigInteger.Max(old, proofs[index].Result) : proofs[index].Result;
+                }
             }
             dynamicResult = Max(BigInteger.Max(InputBytes, aggregateResult), proofs.Select(proof => proof.Result));
             bool unchanged = next.Count == staticResults.Count && next.All(pair => staticResults.TryGetValue(pair.Key, out var old) && old == pair.Value);
@@ -70,18 +75,18 @@ internal static class CoreWorkDerivation
             if (unchanged) break;
         }
 
-        // Active-cycle refusal and per-generation completion mean a successful dynamic
-        // demand chain has no repeated cell.  Its semantic height is consequently the
-        // validated cell inventory, not the active-stack limit.  Each closed transfer
-        // either selects a value, makes a fixed scalar, or serializes AST/input-node
-        // children; compose that affine transfer by exponentiation, not by re-walking
-        // a dependency-free expression once for every possible cell.
-        if (rules.Any(rule => rule.References.OfType<DynamicReadRef>().Any()))
+        BigInteger potentialCells = 0;
+        foreach (var rule in rules)
         {
-            var childrenPerCell = new BigInteger(Math.Max(limits.MaxAstNodes, RuntimeInputEnvelope.MaxNodes));
-            dynamicResult = RepeatedCellEnvelope(dynamicResult, 6 * childrenPerCell, aggregateResult,
-                Math.Max(0, limits.MaxGraphNodes));
+            if (rule.Source.Action == RuleActionKind.Compute)
+                potentialCells += rule.Source.Scope == RuleScope.Row ? Math.Max(0, limits.MaxGraphNodes) : 1;
+            potentialCells += rule.References.Count(reference => reference is AggRef);
         }
+        int demandCellBound = (int)BigInteger.Min(Math.Max(0, limits.MaxGraphNodes), potentialCells);
+
+        // Result-carrying var chains are statically checked DAGs. Dynamic missing
+        // reads only test presence and return key names, so they cannot copy a
+        // demanded cell's value into this result. The inventory still bounds demand work.
 
         BigInteger localWork = 0, resolverReads = 0, aggregateReads = 0, maxCellWork = 1;
         for (int index = 0; index < rules.Count; index++)
@@ -105,12 +110,12 @@ internal static class CoreWorkDerivation
             // every executable operand position; use the same finite child factor as
             // result composition for one demanded cell's work transfer.
             var childFactor = 6 * new BigInteger(Math.Max(limits.MaxAstNodes, RuntimeInputEnvelope.MaxNodes));
-            maxCellWork = BigInteger.Max(maxCellWork, childFactor * (BigInteger.Max(BigInteger.Max(dynamicResult, aggregateResult), InputBytes)));
+            maxCellWork = BigInteger.Max(maxCellWork, childFactor * (dynamicResult + aggregateResult + InputBytes));
         }
 
         // Dynamic reads are actual scheduling work: a lookup and (at most) the accepted
         // active-chain demand.  Completed cells remain memoized only for this generation.
-        var dynamicDemand = resolverReads * (BigInteger.One + Math.Max(0, limits.MaxGraphNodes) * maxCellWork);
+        var dynamicDemand = resolverReads * (BigInteger.One + demandCellBound * maxCellWork);
         // Each aggregate fold visits only the validated row envelope / configured row cap;
         // conversion and copying of a captured value are bounded by that input envelope.
         var foldWork = aggregateReads * Math.Max(0, limits.MaxTableRowsPerAggregate)
@@ -152,7 +157,7 @@ internal static class CoreWorkDerivation
             "+" or "-" or "*" or "/" or "%" or "min" or "max" => Base(NumberBytes, childBytes),
             "in" => Base(5, InputNodes * (childBytes + 1)),
             "cat" => Cat(args.Count, children, childWork, childReads, aggregateReads),
-            "agg" => Base(aggregateResult, childBytes + 1, childReads + 1, aggregateReads + 1),
+            "agg" => Base(AggregateResult(raw, aggregateResult, staticReference), childBytes + 1, childReads + 1, aggregateReads + 1),
             // Parsing scans complete input before refusal; accepted decimal digit/scale and
             // alignment/multiplication retain the existing 4096 bound.
             "money.add" or "money.sub" => Base(MoneyDigits + MoneyScale + args.Count + 4,
@@ -180,6 +185,14 @@ internal static class CoreWorkDerivation
         };
         var resolved = path is null ? dependencyResult : staticReference?.Invoke(path) ?? InputBytes;
         return new(BigInteger.Max(resolved, childResult), 1 + childWork + childBytes + 1, childReads + 1, aggregateReads);
+    }
+
+    private static BigInteger AggregateResult(JsonNode? raw, BigInteger foldResult, Func<string, BigInteger?>? staticReference)
+    {
+        if (raw is not JsonArray { Count: 3 } parts || parts.Any(part => part is not JsonValue value || !value.TryGetValue<string>(out _)))
+            return foldResult;
+        var key = CellAddress.TableAggregate(parts[1]!.GetValue<string>(), parts[0]!.GetValue<string>(), parts[2]!.GetValue<string>()).Key;
+        return BigInteger.Max(foldResult, staticReference?.Invoke(key) ?? BigInteger.Zero);
     }
 
     private static NodeProof Missing(IReadOnlyList<JsonNode?> args, IReadOnlyList<NodeProof> children,
@@ -226,14 +239,6 @@ internal static class CoreWorkDerivation
     private static BigInteger Max(BigInteger initial, IEnumerable<BigInteger> values)
         => values.Aggregate(initial, BigInteger.Max);
 
-    private static BigInteger RepeatedCellEnvelope(BigInteger seed, BigInteger factor, BigInteger addend, int cells)
-    {
-        if (cells <= 0) return seed;
-        if (factor.IsZero) return addend;
-        if (factor.IsOne) return seed + cells * addend;
-        var power = BigInteger.Pow(factor, cells);
-        return power * seed + addend * ((power - BigInteger.One) / (factor - BigInteger.One));
-    }
 }
 
 /// <summary>Non-persisted compiler proof; it never appears in canonical authored definitions.</summary>

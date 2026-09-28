@@ -7,7 +7,7 @@
  */
 import { deriveCoreTypes } from './core-types.js'
 import type { RuleEngineLimits } from './limits.js'
-import type { Json, RuleDefinition } from './model.js'
+import { cell, type Json, type RuleDefinition } from './model.js'
 
 const INPUT_BYTES = 262_144n
 const INPUT_NODES = 5_000n
@@ -133,8 +133,11 @@ function deriveNode(node: Json, dependencyResult: bigint, aggregateResult: bigin
       // Repeated concatenation copies growing prefixes even where a host uses ropes.
       return base(output, BigInt(args.length) * output)
     }
-    case 'agg':
-      return base(aggregateResult, childBytes + 1n, child.reads + 1n, child.aggregateReads + 1n)
+    case 'agg': {
+      const computed = Array.isArray(raw) && raw.length === 3 && raw.every(part => typeof part === 'string')
+        ? staticReference?.(cell.agg(raw[1] as string, raw[0] as string, raw[2] as string)) : undefined
+      return base(max(aggregateResult, computed ?? 0n), childBytes + 1n, child.reads + 1n, child.aggregateReads + 1n)
+    }
     case 'money.add': case 'money.sub': case 'money.mul': {
       // Parse scans the whole captured operand before its 4096-digit refusal; successful
       // decimal alignment/multiply is bounded by the existing 4096 digit/scale contract.
@@ -166,19 +169,9 @@ export function deriveCoreWork(node: Json, ruleId: string, dependencyResult = IN
   return deriveNode(node, dependencyResult, aggregateResult, staticReference)
 }
 
-function repeatedCellEnvelope(seed: bigint, factor: bigint, addend: bigint, cells: number): bigint {
-  const steps = BigInt(Math.max(0, cells))
-  if (steps === 0n) return seed
-  if (factor === 0n) return addend
-  if (factor === 1n) return seed + steps * addend
-  const power = factor ** steps
-  return power * seed + addend * ((power - 1n) / (factor - 1n))
-}
-
 /**
  * Combines actual admitted rules with finite runtime dimensions.  Dynamic paths are
- * not claimed to be static edges: each resolver lookup is charged, and a dynamic chain
- * is unrolled only through the scheduler's validated depth bound.
+ * not claimed to be static edges: each resolver lookup and possible cell demand is charged.
  */
 export function deriveGraphWork(rules: readonly { source: RuleDefinition, ast: Json, references?: readonly { kind: string }[] }[], limits: RuleEngineLimits): WorkProof {
   const aggregateResult = BigInt(Math.max(0, limits.maxTableRowsPerAggregate)) * MONEY_ADD_RESULT_BYTES
@@ -202,6 +195,11 @@ export function deriveGraphWork(rules: readonly { source: RuleDefinition, ast: J
           next.set(key, max(next.get(key) ?? 0n, perRule[index].result))
         }
       }
+      if (rule.source.scope === 'Table') {
+        const [section, fn, col] = rule.source.scopeTarget.split('/')
+        const key = cell.agg(section, fn, col)
+        next.set(key, max(next.get(key) ?? 0n, perRule[index].result))
+      }
     }
     dynamicResult = max(INPUT_BYTES, aggregateResult, ...perRule.map(proof => proof.result))
     const unchanged = next.size === staticResults.size && [...next].every(([key, value]) => staticResults.get(key) === value)
@@ -209,19 +207,20 @@ export function deriveGraphWork(rules: readonly { source: RuleDefinition, ast: J
     if (unchanged) break
   }
 
-  // A successful dynamic demand chain has no repeated cell: the scheduler refuses an
-  // active cycle and retains completed cells only for this generation.  Its semantic
-  // height is therefore bounded by the validated cell inventory, not the active-stack
-  // depth.  Every closed transfer either selects a value, produces a fixed scalar, or
-  // serializes at most AST/input-node children; the latter is at most this affine map.
-  // Exponentiation composes it in log(cell-count) proof work, rather than re-walking a
-  // dependency-free expression once per possible cell.
-  const hasDynamicRead = rules.some(rule => rule.references?.some(reference => reference.kind === 'dynamic-read'))
-  if (hasDynamicRead) {
-    const childrenPerCell = BigInt(Math.max(limits.maxAstNodes, Number(INPUT_NODES)))
-    dynamicResult = repeatedCellEnvelope(dynamicResult, 6n * childrenPerCell, aggregateResult,
-      Math.max(0, limits.maxGraphNodes))
+  // Dynamic demand can reach only Compute and aggregate cells. A row Compute may
+  // expand to the full graph cap; a field/table Compute and an aggregate reference
+  // contribute one cell each. Repeated references only overcount this inventory.
+  let potentialCells = 0
+  for (const rule of rules) {
+    if (rule.source.action === 'Compute') potentialCells += rule.source.scope === 'Row' ? Math.max(0, limits.maxGraphNodes) : 1
+    potentialCells += rule.references?.filter(reference => reference.kind === 'agg').length ?? 0
   }
+  const demandCellBound = Math.min(Math.max(0, limits.maxGraphNodes), potentialCells)
+
+  // A result-carrying var chain is a statically checked DAG. Dynamic missing
+  // reads only test presence and return key names, so they cannot copy a
+  // demanded cell's value into this result. The inventory still bounds demand work.
+  const hasDynamicRead = rules.some(rule => rule.references?.some(reference => reference.kind === 'dynamic-read'))
 
   let localWork = 0n
   let resolverReads = 0n
@@ -250,7 +249,7 @@ export function deriveGraphWork(rules: readonly { source: RuleDefinition, ast: J
 
   // Actual dynamic reads can demand a completed graph cell.  The current generation
   // completes each cell once; repeated resolver calls still pay lookup/demand work.
-  const dynamicDemand = resolverReads * add(1n, BigInt(Math.max(0, limits.maxGraphNodes)) * maxCellWork)
+  const dynamicDemand = resolverReads * add(1n, BigInt(demandCellBound) * maxCellWork)
   // Each aggregate fold visits at most the admitted rows and converts/copies a bounded
   // captured row value.  This is separate from the evaluator's agg resolver arm.
   const foldWork = aggregateReads * BigInt(Math.max(0, limits.maxTableRowsPerAggregate))

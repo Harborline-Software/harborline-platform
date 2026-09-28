@@ -148,11 +148,40 @@ describe('core outcome and dynamic missing scheduling', () => {
   })
 
   it('refuses a dynamic self read instead of using a raw shadow', () => {
-    const graph = new FormRuleGraph(compile([rule('a.dynamic', 'a', 'Compute', { missing: [{ var: 'keys' }] })]), fixedClock, testAdmission)
+    const graph = new FormRuleGraph(compile([rule('a.dynamic', 'a', 'Compute', { missing: [{ var: 'keys' }] })]), fixedClock, testAdmission,
+      { ...DEFAULT_LIMITS, stepBudget: 20 })
     const first = graph.evaluateInstance(instance({ keys: ['a'], a: 1 }))
     expect(first.values.get('field:a')).toEqual({ state: 'Error', error: { code: Codes.cycle, params: { cell: 'field:a' } } })
     graph.evaluateInstance(instance({ keys: ['raw'], raw: 1 }))
     expect(graph.reevaluate('keys', valueSnapshot(['a'])).values.get('field:a')).toEqual({ state: 'Error', error: { code: Codes.cycle, params: { cell: 'field:a' } } })
+  })
+
+  it('drops a previous dynamic dependency when its key changes', () => {
+    const graph = new FormRuleGraph(compile([
+      rule('a.dynamic', 'a', 'Compute', { '!!': [{ missing: [{ var: 'keys' }] }] }),
+      rule('b.value', 'b', 'Compute', { var: 'bRaw' }),
+      rule('c.value', 'c', 'Compute', { var: 'cRaw' }),
+    ]), fixedClock, testAdmission)
+    graph.evaluateInstance(instance({ keys: ['b'], bRaw: 1, cRaw: 2 }))
+    const switched = graph.reevaluate('keys', valueSnapshot(['c']))
+
+    const afterFormerDependency = graph.reevaluate('bRaw', valueSnapshot(3))
+
+    expect(afterFormerDependency.byRule.get('a.dynamic')).toBe(switched.byRule.get('a.dynamic'))
+  })
+
+  it('uses a completed dynamic producer once per incremental run at the step boundary', () => {
+    const graph = new FormRuleGraph(compile([
+      rule('a.dynamic', 'a', 'Compute', { missing: [{ var: 'keys' }] }),
+      rule('b.value', 'b', 'Compute', { var: 'raw' }),
+    ]), fixedClock, testAdmission, { ...DEFAULT_LIMITS, stepBudget: 7 })
+    expect(graph.evaluateInstance(instance({ keys: ['b'], raw: 1 })).isSaveBlocked).toBe(false)
+
+    const result = graph.reevaluate('raw', valueSnapshot(2))
+
+    expect(result.isSaveBlocked).toBe(false)
+    expect(result.values.get('field:b')).toEqual({ state: 'Resolved', value: 2 })
+    expect(result.values.get('field:a')).toEqual({ state: 'Resolved', value: [] })
   })
 
   it('demands row producers before folding a dynamically demanded aggregate', () => {
@@ -206,6 +235,34 @@ describe('core outcome and dynamic missing scheduling', () => {
     const zero = new FormRuleGraph(compile([rule('leaf.literal', 'leaf', 'Compute', 1)], zeroLimits), fixedClock, testAdmission, zeroLimits)
     expect(zero.evaluateInstance(instance({})).values.get('field:leaf')?.state).toBe('Resolved')
     expect(zero.reevaluate('unrelated', valueSnapshot(null)).values.get('field:leaf')?.state).toBe('Resolved')
+  })
+
+  it('names the computed rule and cell when dynamic demand exceeds its depth budget', () => {
+    const dynamic = (id: string, target: string, key: string) => rule(id, target, 'Compute', { missing: [{ var: key }] })
+    const limits = { ...DEFAULT_LIMITS, maxDependencyDepth: 2 }
+    const graph = new FormRuleGraph(compile([
+      dynamic('a.dynamic', 'a', 'keysA'),
+      dynamic('b.dynamic', 'b', 'keysB'),
+      dynamic('c.dynamic', 'c', 'keysC'),
+      dynamic('d.dynamic', 'd', 'keysD'),
+    ], limits), fixedClock, testAdmission, limits)
+
+    const result = graph.evaluateInstance(instance({ keysA: ['b'], keysB: ['c'], keysC: ['d'], keysD: ['raw'], raw: 1 }))
+
+    expect(result.values.get('field:a')?.error).toEqual({
+      code: Codes.budgetExceeded,
+      params: { rule: 'd.dynamic', cell: 'field:d' },
+    })
+  })
+
+  it('keeps ordinary dependency failures attributed to the upstream cell', () => {
+    const { first } = graphOf([
+      rule('a.copy', 'a', 'Compute', { var: 'b' }),
+      rule('b.divide', 'b', 'Compute', { '/': [1, 0] }),
+    ], {})
+
+    expect(first.values.get('field:b')?.error?.code).toBe(Codes.divByZero)
+    expect(first.values.get('field:a')?.error).toEqual({ code: Codes.upstreamError, params: { cell: 'field:b' } })
   })
 
   it('re-evaluates dynamic Required and Validate plans when their actual target changes', () => {
@@ -660,6 +717,7 @@ describe('static-cap rejection (identical to the .NET integrity tier)', () => {
       rule('graph-over-a', 'a', 'Compute', 1), rule('graph-over-b', 'b', 'Compute', 2),
     ]), fixedClock, testAdmission, { ...DEFAULT_LIMITS, maxGraphNodes: 1 })
     expect(graphOver.evaluateInstance(instance({})).validations[0].validity?.error?.code).toBe(Codes.graphTooLarge)
+    expect(graphOver.evaluateInstance(instance({})).validations[0].validity?.error?.params).toEqual({})
 
     const total = rule('table-total', 'total', 'Compute', { var: 'table.sum(items.amount)' })
     const tableAt = new FormRuleGraph(compile([total]), fixedClock, testAdmission, { ...DEFAULT_LIMITS, maxTableRowsPerAggregate: 1 })
@@ -671,6 +729,9 @@ describe('static-cap rejection (identical to the .NET integrity tier)', () => {
     const stepAt = new FormRuleGraph(compile([rule('step-at', 'x', 'Compute', 1)]), fixedClock, testAdmission,
       { ...DEFAULT_LIMITS, stepBudget: 2 })
     expect(stepAt.evaluateInstance(instance({})).values.get('field:x')).toEqual({ state: 'Resolved', value: 1 })
+    const stepOne = new FormRuleGraph(compile([rule('step-one', 'x', 'Compute', 1)]), fixedClock, testAdmission,
+      { ...DEFAULT_LIMITS, stepBudget: 1 })
+    expect(stepOne.evaluateInstance(instance({})).validations[0].validity?.error?.code).toBe(Codes.budgetExceeded)
     const stepOver = new FormRuleGraph(compile([rule('step-over', 'x', 'Compute', 1)]), fixedClock, testAdmission,
       { ...DEFAULT_LIMITS, stepBudget: 0 })
     expect(stepOver.evaluateInstance(instance({})).validations[0].validity?.error?.code).toBe(Codes.budgetExceeded)
@@ -684,6 +745,52 @@ describe('static-cap rejection (identical to the .NET integrity tier)', () => {
     const res = g.evaluateInstance(instance({ a: 1 }))
     expect(res.isSaveBlocked).toBe(true)
     expect(res.validations[0].validity?.error?.code).toBe(Codes.budgetExceeded)
+  })
+
+  it('names the computed rule on an initial whole-graph budget abort', () => {
+    const graph = new FormRuleGraph(compile([rule('c.total', 'total', 'Compute', 1)]), fixedClock, testAdmission,
+      { ...DEFAULT_LIMITS, stepBudget: 0 })
+
+    const result = graph.evaluateInstance(instance({}))
+
+    expect(result.validations[0]).toMatchObject({ ruleId: 'rule.engine', validity: {
+      error: { code: Codes.budgetExceeded, params: { rule: 'c.total' } },
+    } })
+  })
+
+  it('names the validation rule on an initial whole-graph budget abort', () => {
+    const graph = new FormRuleGraph(compile([rule('v.ready', 'ready', 'Validate', true)]), fixedClock, testAdmission,
+      { ...DEFAULT_LIMITS, stepBudget: 0 })
+
+    const result = graph.evaluateInstance(instance({}))
+
+    expect(result.validations[0]).toMatchObject({ ruleId: 'rule.engine', validity: {
+      error: { code: Codes.budgetExceeded, params: { rule: 'v.ready' } },
+    } })
+  })
+
+  it('returns a named refusal when incremental validation exhausts the graph budget', () => {
+    const graph = new FormRuleGraph(compile([rule('v.ready', 'ready', 'Validate',
+      { if: [{ var: 'toggle' }, true, { '+': [1, 2, 3, 4] }] })]), fixedClock, testAdmission,
+    { ...DEFAULT_LIMITS, stepBudget: 5 })
+    expect(graph.evaluateInstance(instance({ toggle: true })).isSaveBlocked).toBe(false)
+
+    const result = graph.reevaluate('toggle', valueSnapshot(false))
+
+    expect(result.validations[0]).toMatchObject({ ruleId: 'rule.engine', validity: {
+      error: { code: Codes.budgetExceeded, params: { rule: 'v.ready' } },
+    } })
+  })
+
+  it('names the aggregate cell when a whole-graph budget abort has no rule in flight', () => {
+    const graph = new FormRuleGraph(compile([rule('c.total', 'total', 'Compute', { var: 'table.sum(items.amount)' })]),
+      fixedClock, testAdmission, { ...DEFAULT_LIMITS, stepBudget: 0 })
+
+    const result = graph.evaluateInstance(instance({ items: [{ amount: 1 }] }))
+
+    expect(result.validations[0]).toMatchObject({ ruleId: 'rule.engine', validity: {
+      error: { code: Codes.budgetExceeded, params: { cell: 'agg:items/sum/amount' } },
+    } })
   })
 })
 
@@ -772,9 +879,71 @@ describe('guard evaluator (workflow transition guards)', () => {
     expect(guard.evaluateGuard(g, snapshot({ amount: 10 }), testAdmission)).toEqual({ ok: false, error: { code: 'g.minAmount', params: {} } })
   })
 
+  it('does not treat an inherited object name as a supplied guard context value', () => {
+    const inheritedName: RuleDefinition = { id: 'g.ownContextOnly', tier: 'JsonLogic', scope: 'Schema', scopeTarget: '', action: 'Validate', expression: { var: 'toString' } }
+    expect(guard.evaluateGuard(inheritedName, snapshot({}), testAdmission)).toEqual({ ok: false, error: { code: 'g.ownContextOnly', params: {} } })
+  })
+
+  it('returns a refusal when a guard expression cannot compile', () => {
+    const invalid: RuleDefinition = { id: 'g.invalid', tier: 'JsonLogic', scope: 'Schema', scopeTarget: '', action: 'Validate', expression: { unknown_operator: [] } }
+    expect(guard.evaluateGuard(invalid, snapshot({}), testAdmission)).toEqual({ ok: false, error: { code: Codes.compileInvalidExpression, params: {} } })
+  })
+
+  it('refuses an uncaptured context even when the rule belongs to another tier', () => {
+    const otherTier: RuleDefinition = { id: 'g.otherTier', tier: 'JsonSchema', scope: 'Schema', scopeTarget: '', action: 'Validate', expression: { type: 'object' } }
+    expect(guard.evaluateGuard(otherTier, {} as RuleContextSnapshot, testAdmission)).toEqual({ ok: false, error: { code: Codes.contextSnapshotRequired, params: {} } })
+  })
+
+  it('keeps the other-tier guard neutral when the context is captured', () => {
+    const otherTier: RuleDefinition = { id: 'g.otherTier', tier: 'JsonSchema', scope: 'Schema', scopeTarget: '', action: 'Validate', expression: { type: 'object' } }
+    expect(guard.evaluateGuard(otherTier, snapshot({}), testAdmission)).toEqual({ ok: true })
+  })
+
   it('evaluates a value expression', () => {
     const v: RuleDefinition = { id: 'g.fee', tier: 'JsonLogic', scope: 'Schema', scopeTarget: '', action: 'Compute', expression: { 'money.mul': ['10', '3'] } }
     expect(guard.evaluateValue(v, snapshot({}), testAdmission)).toEqual({ state: 'Resolved', value: '30' })
+  })
+
+  it.each([
+    ['guard', 'Validate', (evaluator: GuardEvaluator, rule: RuleDefinition) => evaluator.evaluateGuard(rule, snapshot({}), testAdmission)],
+    ['value', 'Compute', (evaluator: GuardEvaluator, rule: RuleDefinition) => evaluator.evaluateValue(rule, snapshot({}), testAdmission)],
+  ] as const)('names the responsible rule when a %s exceeds its step budget', (kind, action, evaluate) => {
+    const evaluator = new GuardEvaluator(fixedClock, { ...DEFAULT_LIMITS, stepBudget: 0 })
+    const rule: RuleDefinition = { id: `${kind}.budget`, tier: 'JsonLogic', scope: 'Schema', scopeTarget: '', action, expression: 1 }
+
+    const result = evaluate(evaluator, rule)
+
+    expect(result).toEqual(kind === 'guard'
+      ? { ok: false, error: { code: Codes.budgetExceeded, params: { rule: rule.id } } }
+      : { state: 'Error', error: { code: Codes.budgetExceeded, params: { rule: rule.id } } })
+  })
+
+  it('returns an error value when a value expression cannot compile', () => {
+    const invalid: RuleDefinition = { id: 'g.invalidValue', tier: 'JsonLogic', scope: 'Schema', scopeTarget: '', action: 'Compute', expression: { unknown_operator: [] } }
+    expect(guard.evaluateValue(invalid, snapshot({}), testAdmission)).toEqual({ state: 'Error', error: { code: Codes.compileInvalidExpression, params: {} } })
+  })
+
+  it('refuses an uncaptured value context even when the rule belongs to another tier', () => {
+    const otherTier: RuleDefinition = { id: 'g.otherValueTier', tier: 'JsonSchema', scope: 'Schema', scopeTarget: '', action: 'Compute', expression: { type: 'object' } }
+    expect(guard.evaluateValue(otherTier, {} as RuleContextSnapshot, testAdmission)).toEqual({ state: 'Error', error: { code: Codes.contextSnapshotRequired, params: {} } })
+  })
+
+  it('keeps the other-tier value neutral when the context is captured', () => {
+    const otherTier: RuleDefinition = { id: 'g.otherValueTier', tier: 'JsonSchema', scope: 'Schema', scopeTarget: '', action: 'Compute', expression: { type: 'object' } }
+    expect(guard.evaluateValue(otherTier, snapshot({}), testAdmission)).toEqual({ state: 'Resolved', value: null })
+  })
+
+  it.each([
+    ['guard', (rule: RuleDefinition) => guard.evaluateGuard(rule, snapshot({}), testAdmission)],
+    ['value', (rule: RuleDefinition) => guard.evaluateValue(rule, snapshot({}), testAdmission)],
+  ])('propagates an unexpected compiler fault from %s evaluation', (_, evaluate) => {
+    const failure = new Error('compiler infrastructure fault')
+    const broken = new Proxy(g, { get(target, key, receiver) {
+      if (key === 'tier') throw failure
+      return Reflect.get(target, key, receiver)
+    } })
+
+    expect(() => evaluate(broken)).toThrow(failure)
   })
 
   it('fails closed on a pending dependency (server tier)', () => {
