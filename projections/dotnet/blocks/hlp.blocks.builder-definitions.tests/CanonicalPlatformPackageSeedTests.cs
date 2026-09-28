@@ -19,6 +19,11 @@ public sealed class CanonicalPlatformPackageSeedTests
     [Fact]
     public void Fixture_has_the_ruled_member_inventory()
     {
+        var contract = Payload("platform-package-ck-1").GetProperty("contract");
+
+        Assert.Equal(1, contract.GetProperty("major").GetInt32());
+        Assert.Equal(0, contract.GetProperty("minor").GetInt32());
+        Assert.Equal([1, 1], contract.GetProperty("window").EnumerateArray().Select(value => value.GetInt32()));
         Assert.Equal(34, Members("platform-package-ck-2").GetArrayLength());
         Assert.Equal(4, Members("platform-package-ck-3").GetArrayLength());
         Assert.Equal(2, Members("platform-package-ck-4").GetArrayLength());

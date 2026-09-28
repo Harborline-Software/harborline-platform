@@ -179,6 +179,16 @@
     "measured": "2026-09-26",
     "commit": "c09cfcacf303b1944afadf7e891428ecc9d737cb"
   },
+  "projections/dotnet/foundation/hlp.foundation.definitions.tests/Harborline.Foundation.Definitions.Tests.csproj": {
+    "break": 93,
+    "score": 93.54,
+    "tested": 31,
+    "total": 33,
+    "detected": 29,
+    "undetected": 2,
+    "measured": "2026-09-28",
+    "commit": "c4c8e2f6e5acf6a51aace23fd1351f5e01bc5a87"
+  },
   "projections/dotnet/foundation/hlp.foundation.documents.tests/Harborline.Foundation.Documents.Tests.csproj": {
     "break": 75,
     "score": 75.63,
@@ -290,14 +300,14 @@
     "commit": "c09cfcacf303b1944afadf7e891428ecc9d737cb"
   },
   "projections/dotnet/kernel/hlp.kernel.core.tests/Harborline.Kernel.Core.Tests.csproj": {
-    "break": 68,
-    "score": 68.64,
-    "tested": 116,
-    "total": 141,
-    "detected": 81,
-    "undetected": 37,
-    "measured": "2026-09-27",
-    "commit": "16916cda536aead91e1b998f360695ef8c6737e7"
+    "break": 87,
+    "score": 87.12,
+    "tested": 231,
+    "total": 254,
+    "detected": 203,
+    "undetected": 30,
+    "measured": "2026-09-28",
+    "commit": "1c6a88a9602ac639ab7b91fe87611077c45fa141"
   },
   "projections/dotnet/kernel/hlp.kernel.schema-validation.tests/Harborline.Kernel.SchemaValidation.Tests.csproj": {
     "break": 48,

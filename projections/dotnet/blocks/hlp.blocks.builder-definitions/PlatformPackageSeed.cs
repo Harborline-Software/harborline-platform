@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Harborline.Foundation.Definitions;
 
 namespace Harborline.Blocks.BuilderDefinitions;
 
@@ -11,6 +12,9 @@ public static class PlatformPackageSeed
 
     /// <summary>The canonical dependency-free platform package manifest.</summary>
     public static PlatformPackageManifest Manifest => CanonicalManifest;
+
+    /// <summary>Reads the declared contract window from the checked-in canonical export.</summary>
+    public static DefinitionContractWindow ContractWindow => ReadContractWindow(LoadCheckedInExport());
 
     /// <summary>Exports the canonical provider-neutral closure, manifest, and digest document.</summary>
     public static byte[] Export() => PlatformPackageExporter.Export(CanonicalManifest);
@@ -27,6 +31,64 @@ public static class PlatformPackageSeed
 
     /// <summary>Reports whether the embedded checked-in document is the byte-identical canonical export.</summary>
     public static bool VerifyCheckedInExport() => PlatformPackageExporter.Verify(CanonicalManifest, LoadCheckedInExport());
+
+    /// <summary>Reads and validates the ck-1 contract declaration from a platform package export.</summary>
+    public static DefinitionContractWindow ReadContractWindow(ReadOnlySpan<byte> export)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(export.ToArray());
+            if (!document.RootElement.TryGetProperty("items", out var items) || items.ValueKind != JsonValueKind.Array)
+            {
+                throw MalformedContract();
+            }
+
+            var packageItems = items.EnumerateArray()
+                .Where(item => item.TryGetProperty("id", out var id) && id.ValueKind == JsonValueKind.String && id.GetString() == "platform-package-ck-1")
+                .ToArray();
+            if (packageItems.Length != 1
+                || !packageItems[0].TryGetProperty("content", out var content)
+                || !content.TryGetProperty("payload", out var payload)
+                || !payload.TryGetProperty("contract", out var contract)
+                || contract.ValueKind != JsonValueKind.Object
+                || !contract.TryGetProperty("major", out var majorElement)
+                || !majorElement.TryGetInt32(out var major)
+                || !contract.TryGetProperty("minor", out var minorElement)
+                || !minorElement.TryGetInt32(out var minor)
+                || !contract.TryGetProperty("window", out var windowElement)
+                || windowElement.ValueKind != JsonValueKind.Array)
+            {
+                throw MalformedContract();
+            }
+
+            var window = windowElement.EnumerateArray().ToArray();
+            if (window.Length != 2
+                || !window[0].TryGetInt32(out var oldestMajor)
+                || !window[1].TryGetInt32(out var newestMajor)
+                || major < 0
+                || minor < 0
+                || oldestMajor < 0
+                || newestMajor < 0
+                || newestMajor != major
+                || oldestMajor > newestMajor
+                || (major >= 1 && oldestMajor < 1))
+            {
+                throw MalformedContract();
+            }
+
+            return new DefinitionContractWindow(major, minor, oldestMajor);
+        }
+        catch (JsonException)
+        {
+            throw MalformedContract();
+        }
+        catch (InvalidOperationException)
+        {
+            throw MalformedContract();
+        }
+    }
+
+    private static InvalidDataException MalformedContract() => new("platform-package-contract-malformed");
 
     private static PlatformPackageManifest BuildManifest()
     {
@@ -79,7 +141,13 @@ public static class PlatformPackageSeed
 
         return new PlatformPackageManifest(1, "harborline.platform", "1.0.0", new[]
         {
-            Item("platform-package-ck-1", PlatformSeedStage.PackageRecord, new { id = "harborline.platform", provenance = new { kind = "platform" }, version = "1.0.0" }),
+            Item("platform-package-ck-1", PlatformSeedStage.PackageRecord, new
+            {
+                id = "harborline.platform",
+                provenance = new { kind = "platform" },
+                version = "1.0.0",
+                contract = new { major = 1, minor = 0, window = new[] { 1, 1 } },
+            }),
             Item("platform-package-ck-2", PlatformSeedStage.SystemRecordTypes, new { members = definitionTypes }, "platform-package-ck-1"),
             Item("platform-package-ck-3", PlatformSeedStage.SystemRecordTypes, new { members = operationalTypes }, "platform-package-ck-2"),
             Item("platform-package-ck-4", PlatformSeedStage.SystemRecordTypes, new
