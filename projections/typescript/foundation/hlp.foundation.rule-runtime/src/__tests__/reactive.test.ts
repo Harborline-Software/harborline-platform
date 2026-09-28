@@ -782,6 +782,16 @@ describe('guard evaluator (workflow transition guards)', () => {
     expect(guard.evaluateGuard(invalid, snapshot({}), testAdmission)).toEqual({ ok: false, error: { code: Codes.compileInvalidExpression, params: {} } })
   })
 
+  it('refuses an uncaptured context even when the rule belongs to another tier', () => {
+    const otherTier: RuleDefinition = { id: 'g.otherTier', tier: 'JsonSchema', scope: 'Schema', scopeTarget: '', action: 'Validate', expression: { type: 'object' } }
+    expect(guard.evaluateGuard(otherTier, {} as RuleContextSnapshot, testAdmission)).toEqual({ ok: false, error: { code: Codes.contextSnapshotRequired, params: {} } })
+  })
+
+  it('keeps the other-tier guard neutral when the context is captured', () => {
+    const otherTier: RuleDefinition = { id: 'g.otherTier', tier: 'JsonSchema', scope: 'Schema', scopeTarget: '', action: 'Validate', expression: { type: 'object' } }
+    expect(guard.evaluateGuard(otherTier, snapshot({}), testAdmission)).toEqual({ ok: true })
+  })
+
   it('evaluates a value expression', () => {
     const v: RuleDefinition = { id: 'g.fee', tier: 'JsonLogic', scope: 'Schema', scopeTarget: '', action: 'Compute', expression: { 'money.mul': ['10', '3'] } }
     expect(guard.evaluateValue(v, snapshot({}), testAdmission)).toEqual({ state: 'Resolved', value: '30' })
@@ -790,6 +800,16 @@ describe('guard evaluator (workflow transition guards)', () => {
   it('returns an error value when a value expression cannot compile', () => {
     const invalid: RuleDefinition = { id: 'g.invalidValue', tier: 'JsonLogic', scope: 'Schema', scopeTarget: '', action: 'Compute', expression: { unknown_operator: [] } }
     expect(guard.evaluateValue(invalid, snapshot({}), testAdmission)).toEqual({ state: 'Error', error: { code: Codes.compileInvalidExpression, params: {} } })
+  })
+
+  it('refuses an uncaptured value context even when the rule belongs to another tier', () => {
+    const otherTier: RuleDefinition = { id: 'g.otherValueTier', tier: 'JsonSchema', scope: 'Schema', scopeTarget: '', action: 'Compute', expression: { type: 'object' } }
+    expect(guard.evaluateValue(otherTier, {} as RuleContextSnapshot, testAdmission)).toEqual({ state: 'Error', error: { code: Codes.contextSnapshotRequired, params: {} } })
+  })
+
+  it('keeps the other-tier value neutral when the context is captured', () => {
+    const otherTier: RuleDefinition = { id: 'g.otherValueTier', tier: 'JsonSchema', scope: 'Schema', scopeTarget: '', action: 'Compute', expression: { type: 'object' } }
+    expect(guard.evaluateValue(otherTier, snapshot({}), testAdmission)).toEqual({ state: 'Resolved', value: null })
   })
 
   it.each([

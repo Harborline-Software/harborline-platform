@@ -92,9 +92,9 @@ export class GuardEvaluator {
     // rules-eng-26: admission evidence is checked before any value is read.
     const refusal = admissionRefusal(admission, compiled.rules.map((r) => r.ast))
     if (refusal !== null) return { ok: false, error: err(refusal) }
-    if (compiled.rules.length === 0) return { ok: true } // Tier-1 guard: nothing for this engine.
     const snapshot = contextValuesOf(context)
     if (!snapshot) return { ok: false, error: err(Codes.contextSnapshotRequired) }
+    if (compiled.rules.length === 0) return { ok: true } // Tier-1 guard: nothing for this engine.
     return this.run<Validity>(
       compiled.rules[0].ast as Json,
       snapshot,
@@ -114,9 +114,9 @@ export class GuardEvaluator {
     }
     const refusal = admissionRefusal(admission, compiled.rules.map((r) => r.ast))
     if (refusal !== null) return { state: 'Error', error: err(refusal) }
-    if (compiled.rules.length === 0) return { state: 'Resolved', value: null }
     const snapshot = contextValuesOf(context)
     if (!snapshot) return { state: 'Error', error: err(Codes.contextSnapshotRequired) }
+    if (compiled.rules.length === 0) return { state: 'Resolved', value: null }
     return this.run<ComputedValue>(
       compiled.rules[0].ast as Json,
       snapshot,
