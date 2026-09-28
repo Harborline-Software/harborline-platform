@@ -265,4 +265,182 @@ describe('provider-neutral Rules definition intent', () => {
     expect(validateRuleDefinitionJson('['.repeat(1025) + '0' + ']'.repeat(1025), 'Author').diagnostics).toEqual([{ code: 'rules.definition.invalid_document', location: '', phase: 'Author' }])
     expect(validateRuleDefinitionJson('{"a":1,"a":2,}', 'Author').diagnostics).toEqual([{ code: 'rules.definition.invalid_document', location: '', phase: 'Author' }])
   })
+
+  it('refuses a definition whose provenance reaches the JSON nesting boundary', () => {
+    const source = formula()
+    let deeplyNested: unknown = 0
+    // The root, envelope, provenance, and this member consume the first three levels.
+    for (let i = 0; i < DEFAULT_LIMITS.maxAstNodes * 4 - 2; i++) deeplyNested = [deeplyNested]
+    source.envelope.provenance.deep = deeplyNested as never
+
+    expect(validateRuleDefinitionJson(JSON.stringify(source), 'Persisted')).toEqual({
+      document: null,
+      diagnostics: [{ code: 'rules.definition.invalid_document', location: '', phase: 'Persisted' }],
+    })
+  })
+
+  it.each([
+    [['envelope', 'id'], '/envelope/id'],
+    [['envelope', 'tenant'], '/envelope/tenant'],
+    [['envelope', 'cascadeLayer'], '/envelope/cascadeLayer'],
+    [['name'], '/name'],
+    [['draft', 'inputs', '0', 'id'], '/draft/inputs/0/id'],
+    [['draft', 'inputs', '0', 'ref'], '/draft/inputs/0/ref'],
+  ])('refuses blank required formula text at %s', (path, location) => {
+    const source = formula()
+    set(source, path, ' \t ')
+
+    expect(validateRuleDefinitionJson(JSON.stringify(source), 'Author').diagnostics).toEqual([
+      { code: 'rules.definition.invalid_document', location, phase: 'Author' },
+    ])
+  })
+
+  it.each([
+    [['draft', 'columns', '0', 'id'], '/draft/columns/0/id'],
+    [['draft', 'columns', '0', 'input'], '/draft/columns/0/input'],
+    [['draft', 'rows', '0', 'id'], '/draft/rows/0/id'],
+  ])('refuses blank required table text at %s', (path, location) => {
+    const source = table()
+    set(source, path, '')
+
+    expect(validateRuleDefinitionJson(JSON.stringify(source), 'Author').diagnostics).toEqual([
+      { code: 'rules.definition.invalid_document', location, phase: 'Author' },
+    ])
+  })
+
+  it.each([
+    [1.5, '/draft/rows/0/priority'],
+    [-2147483649, '/draft/rows/0/priority'],
+    [2147483648, '/draft/rows/0/priority'],
+  ])('refuses a non-int32 table priority %s', (priority, location) => {
+    const source = table()
+    source.draft.rows[0].priority = priority
+
+    expect(validateRuleDefinitionJson(JSON.stringify(source), 'Publish').diagnostics).toEqual([
+      { code: 'rules.definition.invalid_document', location, phase: 'Publish' },
+    ])
+  })
+
+  it.each([-2147483648, 2147483647])('admits the inclusive int32 table-priority boundary %s', (priority) => {
+    const source = table()
+    source.draft.rows[0].priority = priority
+
+    expect(validateRuleDefinitionJson(JSON.stringify(source), 'Publish')).toMatchObject({
+      document: source,
+      diagnostics: [],
+    })
+  })
+
+  it('refuses an empty Boolean literal instead of treating it as false', () => {
+    const source = formula()
+    set(source, ['draft', 'expression'], { kind: 'Literal', value: '', valueType: 'Boolean' })
+
+    expect(validateRuleDefinitionJson(JSON.stringify(source), 'Author').diagnostics).toEqual([
+      { code: 'rule.compile.invalid_expression', location: '/draft/expression/value', phase: 'Author' },
+    ])
+  })
+
+  it('refuses an unknown no-match posture instead of silently making it a catch-all', () => {
+    const source = table()
+    set(source, ['draft', 'noMatch'], { kind: 'Unexpected' })
+
+    expect(validateRuleDefinitionJson(JSON.stringify(source), 'Publish').diagnostics).toEqual([
+      { code: 'rule.skin.no_match_unresolved', location: '/draft/noMatch/kind', phase: 'Publish' },
+    ])
+  })
+
+  it('lowers Boolean and Number formula literals to their declared JSON types', () => {
+    const booleanSource = formula()
+    set(booleanSource, ['draft', 'expression'], { kind: 'Literal', value: 'true', valueType: 'Boolean' })
+    const numberSource = formula()
+    set(numberSource, ['draft', 'expression'], { kind: 'Literal', value: '42', valueType: 'Number' })
+
+    expect(validateRuleDefinitionJson(JSON.stringify(booleanSource), 'Publish').lowered).toBe(true)
+    expect(validateRuleDefinitionJson(JSON.stringify(numberSource), 'Publish').lowered).toBe(42)
+  })
+
+  it('lowers Number, Text, and Boolean table columns using their editor types', () => {
+    const source = table()
+    source.draft.columns = [
+      { id: 'amount', input: 'field.amount', valueType: 'Number' },
+      { id: 'status', input: 'field.status', valueType: 'Text' },
+      { id: 'approved', input: 'field.approved', valueType: 'Boolean' },
+    ]
+    source.draft.rows[0].cells = {
+      amount: { kind: 'Compare', op: '==', value: '42' },
+      status: { kind: 'Compare', op: '==', value: 'open' },
+      approved: { kind: 'Compare', op: '==', value: 'true' },
+    }
+
+    expect(validateRuleDefinitionJson(JSON.stringify(source), 'Publish').lowered).toEqual({
+      if: [
+        { and: [
+          { '==': [{ var: 'field.amount' }, 42] },
+          { '==': [{ var: 'field.status' }, 'open'] },
+          { '==': [{ var: 'field.approved' }, true] },
+        ] },
+        'low',
+        'high',
+      ],
+    })
+  })
+
+  it('preserves table cell conditions and priority ordering in the lowered program', () => {
+    const source = table()
+    source.draft.rows = [
+      { id: 'first', cells: { amount: { kind: 'Compare', op: '>=', value: '0' } }, output: 'first', priority: 1 },
+      { id: 'second', cells: { amount: { kind: 'Range', lo: '0', hi: '100' } }, output: 'second', priority: 9 },
+    ]
+
+    expect(validateRuleDefinitionJson(JSON.stringify(source), 'Publish').lowered).toEqual({
+      if: [
+        { and: [{ '>=': [{ var: 'field.amount' }, 0] }, { '<': [{ var: 'field.amount' }, 100] }] }, 'second',
+        { '>=': [{ var: 'field.amount' }, 0] }, 'first',
+        'high',
+      ],
+    })
+  })
+
+  it('keeps FirstMatch tables in source order instead of applying priority', () => {
+    const source = table()
+    source.draft.hitPolicy = 'FirstMatch'
+    source.draft.rows = [
+      { id: 'first', cells: { amount: { kind: 'Compare', op: '>=', value: '0' } }, output: 'first', priority: 1 },
+      { id: 'second', cells: { amount: { kind: 'Range', lo: '0', hi: '100' } }, output: 'second', priority: 9 },
+    ]
+
+    expect(validateRuleDefinitionJson(JSON.stringify(source), 'Publish').lowered).toEqual({
+      if: [
+        { '>=': [{ var: 'field.amount' }, 0] }, 'first',
+        { and: [{ '>=': [{ var: 'field.amount' }, 0] }, { '<': [{ var: 'field.amount' }, 100] }] }, 'second',
+        'high',
+      ],
+    })
+  })
+
+  it('lowers Priority tables by ordering matching rows by descending priority', () => {
+    const source = table()
+    source.draft.hitPolicy = 'Priority'
+    source.draft.rows = [
+      { id: 'first', cells: { amount: { kind: 'Compare', op: '>=', value: '0' } }, output: 'first', priority: 1 },
+      { id: 'second', cells: { amount: { kind: 'Range', lo: '0', hi: '100' } }, output: 'second', priority: 9 },
+    ]
+
+    expect(validateRuleDefinitionJson(JSON.stringify(source), 'Publish').lowered).toEqual({
+      if: [
+        { and: [{ '>=': [{ var: 'field.amount' }, 0] }, { '<': [{ var: 'field.amount' }, 100] }] }, 'second',
+        { '>=': [{ var: 'field.amount' }, 0] }, 'first',
+        'high',
+      ],
+    })
+  })
+
+  it('refuses engine-only calls from authored formula source', () => {
+    const source = formula()
+    set(source, ['draft', 'expression'], { kind: 'Call', op: 'var', args: [{ kind: 'Literal', value: 'field.amount', valueType: 'Text' }] })
+
+    expect(validateRuleDefinitionJson(JSON.stringify(source), 'Author').diagnostics).toEqual([
+      { code: 'rule.compile.invalid_expression', location: '/draft/expression/op', phase: 'Author' },
+    ])
+  })
 })

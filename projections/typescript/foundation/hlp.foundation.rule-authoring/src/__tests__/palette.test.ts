@@ -44,4 +44,8 @@ describe('T-590 generated palette (TS lane)', () => {
     expect([...formulaCallOps]).toEqual(palette.functions.map((f) => f.key))
     for (const f of palette.functions) expect(resolveBuiltIn(f.key)).toBe(f.reference)
   })
+
+  it('excludes the engine-only var operation from formula call choices', () => {
+    expect(formulaCallOps).not.toContain('var')
+  })
 })
