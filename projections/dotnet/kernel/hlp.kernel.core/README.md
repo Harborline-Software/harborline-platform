@@ -6,6 +6,18 @@ exist before a catalogue seed is installed.
 
 It contains no host persistence, member interpreter, package installer, or HTTP adapter.
 
+## Clock and compiled bootstrap floor
+
+`KernelClock.GetUtcNow()` assigns the recorded instant from the host's injected authoritative
+clock. A recorded instant is never requestable. `ResolveEffectiveFromAsync` admits an omitted,
+equal, or future effective instant; an explicit past effective instant requires
+`IKernelBackdateCapability` and otherwise refuses with `kernel.backdate-capability-required`.
+
+The Definition Package, Record Type and Field shapes are a compiled, self-describing floor. Each
+shape carries its stable key and the complete DES-0004 section 1 member list (key, kind,
+requiredness, cardinality and reference target), so no catalogue seed is read to describe it. A
+package may not replace a floor shape by either its key or identity, case-insensitively.
+
 ## Configuration recovery (T-587)
 
 `KernelProfile` is the kernel profile record: it declares the `configuration-recovery` capability in

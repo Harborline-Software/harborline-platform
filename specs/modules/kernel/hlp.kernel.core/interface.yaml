@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.kernel.core",
-  "interfaceRevision": 2,
+  "interfaceRevision": 3,
   "status": "frozen",
   "purpose": "Own the shared one-command atomic transaction boundary, authoritative injected clock, three immutable compiled shapes available before catalogue seed installation, and configuration recovery under the kernel profile's own constrained capability.",
   "dependencies": [],
@@ -12,7 +12,7 @@
     "name": "KernelTransactionBoundary / KernelClock / CompiledBootstrapCatalogue / ConfigurationRecovery",
     "operations": [
       "ExecuteAsync(commands, transactionPort) -> KernelTransactionResult",
-      "KernelClock.GetUtcNow / ResolveRecordedAtAsync -> authoritative or capability-admitted instant",
+      "KernelClock.GetUtcNow / ResolveEffectiveFromAsync -> authoritative recorded instant or capability-admitted effective instant",
       "ResolveAsync(shapeIdentity) -> compiled floor first, then host catalogue",
       "ConfigurationRecovery.RecoverAsync(request, transactionPort) -> committed ConfigurationRecoveryRecord or a refusal naming the state"
     ],
@@ -23,8 +23,8 @@
     "The boundary stages one record and its audit evidence under one operation identity, commits them together, and rolls back after any staging or commit fault.",
     "Host persistence stays behind IKernelTransactionPort; the kernel package contains no database, filesystem, or transport adapter.",
     "Definition Package, Record Type, and Field are the exact compiled bootstrap floor and resolve without a host catalogue read.",
-    "A package cannot replace a compiled bootstrap identity.",
-    "Captured client timestamps never change authoritative stamping or expiry; an explicit different recorded instant requires the named backdate capability.",
+    "A package cannot replace a compiled bootstrap identity or key.",
+    "Recorded instants are assigned only by the authoritative clock; an explicit past effective instant requires the named backdate capability, while omitted, equal and future effective instants are admitted.",
     "Kernel-facing member constructors require a supplied clock and never fall back to system time.",
     "The kernel profile record declares the configuration-recovery capability in compiled code; recovery refuses by that name when the host admits no capability for the actor and tenant.",
     "Recovery reads the kernel profile only. It holds no seam to IKernelCatalogueReader, a pack or a released definition, and the assembly references no other Harborline assembly, so the Configuration Management package being missing, deactivated or corrupt cannot change its outcome.",
