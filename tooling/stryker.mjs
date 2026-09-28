@@ -255,8 +255,10 @@ function run(repo, only, strykerArgs) {
   let failed = false
   for (const test of selected(repo, only)) {
     const target = targetOf(test, read), targetText = read(target), razor = targetText.includes('Microsoft.NET.Sdk.Razor')
-    const changed = git('diff', '--name-only', 'origin/main', '--', ...sourceDirectories(target, targetText).flatMap(directory =>
-      razor ? [`${directory}/*.cs`, `${directory}/*.razor`] : [`${directory}/*.cs`])).filter(file => !/\.tests\//.test(file))
+    // A file the change only deletes from (removed outright, or lines removed and none added) has no new code to mutate.
+    const changed = git('diff', '--numstat', '--diff-filter=d', 'origin/main', '--', ...sourceDirectories(target, targetText).flatMap(directory =>
+      razor ? [`${directory}/*.cs`, `${directory}/*.razor`] : [`${directory}/*.cs`]))
+      .map(row => row.split('\t')).filter(([added]) => added !== '0').map(([, , file]) => file).filter(file => !/\.tests\//.test(file))
     if (!changed.length) { console.log(`${test}: no source change in ${path.posix.dirname(target)} since origin/main, skipped`); continue }
     const {counts, report, razor: isRazor} = mutateProject(test, changed, strykerArgs)
     if (isRazor && changed.some(file => file.endsWith('.razor')) && !razorTested(report)) {
