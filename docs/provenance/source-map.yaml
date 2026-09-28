@@ -93,7 +93,7 @@
         "projections/dotnet/foundation/hlp.foundation.rule-runtime/Harborline.Foundation.RuleEngine.csproj": "8c6851d4ec0b0410b9c539310ea4c33b374a243d8c111af3fe2dd09bea8e334c",
         "projections/typescript/foundation/hlp.foundation.rule-runtime/package.json": "ce68d991fec4a63b9eeac801d45a17e7d8a18ca178fdb4c93ba8dfb56877413a",
         "projections/typescript/foundation/hlp.foundation.rule-runtime/src/compiler.ts": "8d76bb12bc3ee5cf29320d09fe0ace42ba3dbe10663929a40b45b1baf1b4ccf0",
-        "projections/typescript/foundation/hlp.foundation.rule-runtime/src/graph.ts": "0a9db83857b3e9299292735d83046672678136a9f008cebd44fd3be322e57fc8",
+        "projections/typescript/foundation/hlp.foundation.rule-runtime/src/graph.ts": "ab9f5b18f6e86f0de141544dfe5ab6453ab2d44109a6504914484884336cae97",
         "projections/typescript/foundation/hlp.foundation.rule-runtime/src/jsonlogic.ts": "7d15d74fdaf0893f623fcb2882bb1824aac909d8672c60620ce71d29dc22c3e6",
         "projections/typescript/foundation/hlp.foundation.rule-runtime/src/model.ts": "900fc1ed2abb707518e4dc94abac7184e2e6b6827982de0cb52f7f9a0393be5a",
         "specs/modules/foundation/hlp.foundation.rule-runtime/interface.yaml": "cf027b549195c9c0f99d313330628361295dbb7247db7e71f91c3402ff9cb472"
@@ -228,8 +228,8 @@
         "projections/dotnet/kernel/hlp.kernel.schema-validation/SchemaContracts.cs": "60084a052fde5c35c075e395d6b6e55261e86f40074b891b8618c35a14a3e646",
         "projections/dotnet/kernel/hlp.kernel.schema-validation/CanonicalContent.cs": "61ade55602a8f488762b7b92d484cef428903f7d62d7de5c15585523435ed834",
         "projections/dotnet/kernel/hlp.kernel.schema-validation/TimedSchemaDialect.cs": "4d3f5a49124b15e1499b18a949ae22331bc09c806507e920e3dee4b166660b1e",
-        "projections/dotnet/kernel/hlp.kernel.schema-validation/InMemorySchemaRegistry.cs": "db934cb5c2821c25bd0a788e5678ba9af221cb8f263f841c29f99a5f701b3325",
-        "projections/dotnet/kernel/hlp.kernel.schema-validation.tests/SchemaValidationTests.cs": "5e0aba33342edb63b261422fe9788f1327c68eba75560c9995d3c2780f99683e",
+        "projections/dotnet/kernel/hlp.kernel.schema-validation/InMemorySchemaRegistry.cs": "acc0c97e4889588d05a29bfcb6277026e70eefad37a8e39518bfd4d317a72c6c",
+        "projections/dotnet/kernel/hlp.kernel.schema-validation.tests/SchemaValidationTests.cs": "0523fc9dbb0e533cf94b3b8f96278d1ad9793a31f99faf4a497903788dd13dfb",
         "conformance/hlp.kernel.schema-validation/fixtures.yaml": "07bb0b4e3c1057c0fa9992b4e38148eb20fd05495a6296b8c0b4fd756a8c551c",
         "specs/modules/kernel/hlp.kernel.schema-validation/interface.yaml": "81082ab4ae5e692c221f9e4105a95160fef35648985278c9b6adb3e3f98a12e7"
       },
@@ -326,7 +326,7 @@
         "projections/dotnet/kernel/hlp.kernel.work-items.tests/CommandRequestBoundaryTests.cs": "ac9ba063caac634ad663380649db91fff8c2fbdb16555df09c996889153de838",
         "projections/dotnet/kernel/hlp.kernel.work-items.tests/Harborline.Kernel.WorkItems.Tests.csproj": "5e4767a208bb9a78ae64b59191e391ed5ebc6072558b1feda3cd024ae1b427ea",
         "projections/dotnet/kernel/hlp.kernel.work-items.tests/WorkItemCompositionTests.cs": "b48a62da9d2ff0a31ce839d7b13da0b653ebe3fe98ee350e2e5eb89dce778a39",
-        "projections/dotnet/kernel/hlp.kernel.work-items.tests/WorkItemKernelTests.cs": "8904b43acc5eb63e3ac6a6e104060742415a9cdf34733a7829b89968b819b2ed",
+        "projections/dotnet/kernel/hlp.kernel.work-items.tests/WorkItemKernelTests.cs": "0ce877e678e4b291cbcf2212230960a3cbea1803ffeb0d34ef1f5e9958b5f5e8",
         "projections/dotnet/kernel/hlp.kernel.work-items/CommandRequestBoundary.cs": "3fddcbda34a886d8c35a5c5fe2ea05ce841186d5f9cc5d5397b5a33168e450f3",
         "projections/dotnet/kernel/hlp.kernel.work-items/DependencyInjection/WorkItemServiceCollectionExtensions.cs": "00f6c1b05076e9dd0eb1b2cbb691869f4e467e611d82a47bbbe249d25bf076e0",
         "projections/dotnet/kernel/hlp.kernel.work-items/FileJournalWorkItemStore.cs": "bebc530696ee0289bfd9fce1023dcee79161fc3723fb610ed4f493ece51aa05b",
