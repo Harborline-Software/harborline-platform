@@ -797,6 +797,20 @@ describe('guard evaluator (workflow transition guards)', () => {
     expect(guard.evaluateValue(v, snapshot({}), testAdmission)).toEqual({ state: 'Resolved', value: '30' })
   })
 
+  it.each([
+    ['guard', 'Validate', (evaluator: GuardEvaluator, rule: RuleDefinition) => evaluator.evaluateGuard(rule, snapshot({}), testAdmission)],
+    ['value', 'Compute', (evaluator: GuardEvaluator, rule: RuleDefinition) => evaluator.evaluateValue(rule, snapshot({}), testAdmission)],
+  ] as const)('names the responsible rule when a %s exceeds its step budget', (kind, action, evaluate) => {
+    const evaluator = new GuardEvaluator(fixedClock, { ...DEFAULT_LIMITS, stepBudget: 0 })
+    const rule: RuleDefinition = { id: `${kind}.budget`, tier: 'JsonLogic', scope: 'Schema', scopeTarget: '', action, expression: 1 }
+
+    const result = evaluate(evaluator, rule)
+
+    expect(result).toEqual(kind === 'guard'
+      ? { ok: false, error: { code: Codes.budgetExceeded, params: { rule: rule.id } } }
+      : { state: 'Error', error: { code: Codes.budgetExceeded, params: { rule: rule.id } } })
+  })
+
   it('returns an error value when a value expression cannot compile', () => {
     const invalid: RuleDefinition = { id: 'g.invalidValue', tier: 'JsonLogic', scope: 'Schema', scopeTarget: '', action: 'Compute', expression: { unknown_operator: [] } }
     expect(guard.evaluateValue(invalid, snapshot({}), testAdmission)).toEqual({ state: 'Error', error: { code: Codes.compileInvalidExpression, params: {} } })

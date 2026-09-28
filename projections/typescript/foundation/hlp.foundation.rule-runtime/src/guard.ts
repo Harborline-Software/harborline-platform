@@ -97,6 +97,7 @@ export class GuardEvaluator {
     if (compiled.rules.length === 0) return { ok: true } // Tier-1 guard: nothing for this engine.
     return this.run<Validity>(
       compiled.rules[0].ast as Json,
+      rule.id,
       snapshot,
       (v) => (isTruthy(v) ? { ok: true } : { ok: false, error: err(rule.id) }),
       (e) => ({ ok: false, error: e }),
@@ -119,6 +120,7 @@ export class GuardEvaluator {
     if (compiled.rules.length === 0) return { state: 'Resolved', value: null }
     return this.run<ComputedValue>(
       compiled.rules[0].ast as Json,
+      rule.id,
       snapshot,
       (v) => ({ state: 'Resolved', value: detachJson(v) }),
       (e) => ({ state: 'Error', error: e }),
@@ -129,6 +131,7 @@ export class GuardEvaluator {
 
   private run<T>(
     ast: Json,
+    ruleId: string,
     context: Record<string, Json>,
     onValue: (v: Json) => T,
     onError: (e: ReturnType<typeof err>) => T,
@@ -141,7 +144,7 @@ export class GuardEvaluator {
     } catch (e) {
       if (e instanceof RuleEvalError) return onError(e.error)
       if (e instanceof RulePending) return onPending()
-      if (e instanceof RuleBudget) return onError(err(Codes.budgetExceeded))
+      if (e instanceof RuleBudget) return onError(err(Codes.budgetExceeded, 'rule', ruleId))
       // RuleTimeout is a non-authoritative liveness fault (D1 ratification 2026-07-01): a guard that hits
       // the wall-clock is an infrastructure fault, not a transition verdict — it PROPAGATES (rethrown).
       throw e
