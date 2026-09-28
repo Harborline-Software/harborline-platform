@@ -11,7 +11,7 @@ import {mkdtempSync, rmSync, statfsSync, writeFileSync} from 'node:fs'
 import {tmpdir} from 'node:os'
 import path from 'node:path'
 import {acquirePhase4GateLock} from './phase4-gate-lock.mjs'
-import {formatGateFailure} from './gate-failure-report.mjs'
+import {formatGateFailure, writeGateFailureReport} from './gate-failure-report.mjs'
 import {checkReleaseReceipt, emitReleaseReceipt} from './release-receipt.mjs'
 import {cleanUpScratchOnSignal, killProcessTreeSync, sweepStaleScratchTrees, writeScratchPidFile} from './resolve-command.mjs'
 
@@ -75,7 +75,7 @@ try {
     let gateReport
     try { gateReport = JSON.parse(gate.stdout) } catch {}
     if (gateReport) {
-      writeFileSync(gateReportPath, `${JSON.stringify(gateReport, null, 2)}\n`)
+      writeGateFailureReport(gateReportPath, gateReport)
       throw new Error(formatGateFailure(gateReportPath, gateReport))
     }
     writeFileSync(gateReportPath, gate.stdout)

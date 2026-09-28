@@ -5,6 +5,8 @@
 // failed leaf step directly in the thrown message, so the operator never has to re-run an
 // 18-minute gate just to learn which step failed.
 
+import {writeFileSync} from 'node:fs'
+
 const HEAD_LINES = 20
 
 // A step is a "spawn failure" when the process never started. No producer in this repo attaches
@@ -86,4 +88,10 @@ export function formatGateFailure(reportPath, report) {
   }
   for (const step of failedSteps) lines.push(formatStep(step))
   return lines.join('\n')
+}
+
+// Kept beside formatting so the receipt's failure sequence is testable: the full report must
+// reach disk before formatting reduces each failed step to an operator-facing excerpt.
+export function writeGateFailureReport(reportPath, report) {
+  writeFileSync(reportPath, `${JSON.stringify(report, null, 2)}\n`)
 }
