@@ -73,7 +73,7 @@ public sealed class LayoutAccessFoldTests
     private static LayoutDefinition Surface(params LayoutBlock[] blocks) => new(
         new("surface.dashboard", "1.0.0", "tenant-a", LayoutCascadeLayer.TenantConfiguration,
             JsonSerializer.SerializeToElement(new { source = "t-583" }), "standard", false,
-            [new LayoutDefinitionRequirement(LayoutPackIdentity.Capability, "1.0.0")]),
+            [new LayoutDefinitionRequirement(LayoutPackIdentity.Capability, "1.0.0")], new(1, 0)),
         1, LayoutMedium.Screen, LayoutIntent.Observe, blocks, [], [], [], null, []);
 
     /// <summary>The reader's Access, as the host builds it for one principal at one instant.</summary>

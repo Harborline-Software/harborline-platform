@@ -13,7 +13,7 @@ public sealed class LayoutRefusalEnvelopeTests
     // One unregistered kind, one measure binding that names no measure, one row that cannot reflow at 320 CSS pixels.
     private static readonly LayoutDefinition ThreeFaults = LayoutBoundRegisterTests.Sealed(new(
         new("surface.orders", "1.0.0", "tenant-a", LayoutCascadeLayer.DomainPackage,
-            JsonSerializer.SerializeToElement(new { source = "test" }), "standard", false, []),
+            JsonSerializer.SerializeToElement(new { source = "test" }), "standard", false, [], new(1, 0)),
         1, LayoutMedium.Screen, LayoutIntent.Observe,
         [
             new("chart", "layout.unregistered", new LayoutQueryBinding("view.orders"), []),

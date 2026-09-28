@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { serializeRuleDefinition, validateRuleDefinitionJson } from '@harborline-software/rule-authoring'
 
 const source = {
-  envelope: { id: 'route', version: '1.0.0', tenant: 'tenant-a', cascadeLayer: 'domain-package', provenance: { id: 'finance' }, requires: [] },
+  envelope: { id: 'route', version: '1.0.0', tenant: 'tenant-a', cascadeLayer: 'domain-package', provenance: { id: 'finance' }, requires: [], contract: { major: 1, minor: 0 } },
   name: 'Route', tier: 'JsonLogic',
   draft: {
     kind: 'Table', scope: 'Field', scopeTarget: 'route', outputType: 'Compute', hitPolicy: 'FirstMatch',

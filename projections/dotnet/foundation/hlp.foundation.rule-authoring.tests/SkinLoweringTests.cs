@@ -240,7 +240,7 @@ public sealed class SkinLoweringTests
             }),
         };
         var invalidDocument = new RuleDefinitionDocument(
-            new("overtime", "1.0.0", "tenant-a", "domain-package", new JsonObject(), []),
+            new("overtime", "1.0.0", "tenant-a", "domain-package", new JsonObject(), [], new(1, 0)),
             "Overtime", RuleDefinitionTier.JsonLogic, invalidDraft);
         var diagnostic = RulesPreviewContract.FromDiagnostic(Assert.Single(
             RuleIntentValidator.Validate(invalidDocument, RuleIntentPhase.Author).Diagnostics), "Overtime", "pay");

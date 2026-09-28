@@ -101,7 +101,7 @@ public sealed class LayoutFlowTests
     {
         var provenance = JsonSerializer.SerializeToElement(new { source = "test" });
         var definition = new LayoutDefinition(
-            new("statement", "1.0.0", "tenant-a", LayoutCascadeLayer.TenantConfiguration, provenance, "standard", false, []),
+            new("statement", "1.0.0", "tenant-a", LayoutCascadeLayer.TenantConfiguration, provenance, "standard", false, [], new(1, 0)),
             1, LayoutMedium.Page, LayoutIntent.Observe,
             [
                 new("first-header", "layout.text", new LayoutStaticBinding(JsonSerializer.SerializeToElement("First")), [], FlowRole: LayoutFlowRole.Static, StaticRegion: "first.center"),
@@ -125,7 +125,7 @@ public sealed class LayoutFlowTests
     {
         var provenance = JsonSerializer.SerializeToElement(new { source = "test" });
         var definition = new LayoutDefinition(
-            new("statement", "1.0.0", "tenant-a", LayoutCascadeLayer.TenantConfiguration, provenance, "standard", false, []),
+            new("statement", "1.0.0", "tenant-a", LayoutCascadeLayer.TenantConfiguration, provenance, "standard", false, [], new(1, 0)),
             1, LayoutMedium.Page, LayoutIntent.Observe,
             [
                 new("first-header", "layout.text", new LayoutStaticBinding(JsonSerializer.SerializeToElement("First")), [], FlowRole: LayoutFlowRole.Static, StaticRegion: "first.center"),
@@ -150,7 +150,7 @@ public sealed class LayoutFlowTests
         });
         var provenance = JsonSerializer.SerializeToElement(new { source = "test" });
         var definition = new LayoutDefinition(
-            new("statement", "1.0.0", "tenant-a", LayoutCascadeLayer.TenantConfiguration, provenance, "standard", false, []),
+            new("statement", "1.0.0", "tenant-a", LayoutCascadeLayer.TenantConfiguration, provenance, "standard", false, [], new(1, 0)),
             1, LayoutMedium.Page, LayoutIntent.Observe,
             [new("summary", "layout.text", new LayoutStaticBinding(JsonSerializer.SerializeToElement("Summary")), [])],
             [], [], [new("run", "pack.letter", "pack.master", ["summary"])], null, []);
@@ -171,7 +171,7 @@ public sealed class LayoutFlowTests
 
     private static LayoutDefinition Definition(LayoutMedium medium) => new(
         new("invoice", "1.0.0", "tenant-a", LayoutCascadeLayer.TenantConfiguration,
-            JsonSerializer.SerializeToElement(new { source = "test" }), "standard", false, []),
+            JsonSerializer.SerializeToElement(new { source = "test" }), "standard", false, [], new(1, 0)),
         1, medium, LayoutIntent.Observe,
         [
             new("title", "layout.text", new LayoutStaticBinding(JsonSerializer.SerializeToElement("Invoice")), [], Container: new(LayoutContainerKind.Stack)),

@@ -90,7 +90,7 @@ public static class BookingDefinitionAdmission
     /// <summary>Envelope members the shared store owns as document metadata; the pack carries them.</summary>
     internal static readonly string[] StoreOwnedEnvelopeMembers = ["identity", "version", "tenant"];
     private static readonly string[] EnvelopeMembers =
-        ["identity", "version", "tenant", "cascade_layer", "provenance", "retention_class", "legal_hold", "requires"];
+        ["identity", "version", "tenant", "cascade_layer", "provenance", "retention_class", "legal_hold", "requires", "contract"];
     private static readonly string[] CascadeLayers =
         ["kernel_core", "subsystem", "platform_package", "domain_package", "tenant_configuration"];
     private static readonly string[] ResourceMembers =

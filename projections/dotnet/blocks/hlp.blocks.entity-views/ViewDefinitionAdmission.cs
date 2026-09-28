@@ -1,3 +1,6 @@
+using Harborline.Blocks.BuilderDefinitions;
+using Harborline.Foundation.Definitions;
+
 namespace Harborline.Blocks.EntityViews;
 
 /// <summary>The authoring payload validated before a definition can be persisted or published.</summary>
@@ -317,8 +320,16 @@ public sealed class ViewDefinitionAuthoring(
         CancellationToken cancellationToken = default)
     {
         await _admission.ValidateAsync(draft, cancellationToken).ConfigureAwait(false);
+        var window = PlatformPackageSeed.ContractWindow;
+        var definition = draft.Definition with
+        {
+            Envelope = draft.Definition.Envelope with
+            {
+                Contract = new DefinitionContractVersion(window.Major, window.Minor),
+            },
+        };
         return await _store.CreateDraftAsync(
-            draft.Definition,
+            definition,
             draft.Binding,
             cancellationToken).ConfigureAwait(false);
     }

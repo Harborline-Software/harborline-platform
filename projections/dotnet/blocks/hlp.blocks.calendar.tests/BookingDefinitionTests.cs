@@ -348,6 +348,7 @@ internal static class Fixtures
         ["retention_class"] = "definition",
         ["legal_hold"] = false,
         ["requires"] = new JsonArray(),
+        ["contract"] = new JsonObject { ["major"] = 1, ["minor"] = 0 },
     };
 
     public static JsonObject Resource(Action<JsonObject>? edit = null)

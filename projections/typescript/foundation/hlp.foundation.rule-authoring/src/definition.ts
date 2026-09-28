@@ -10,6 +10,7 @@ export interface RuleDefinitionEnvelope {
   cascadeLayer: string
   provenance: { [key: string]: Json }
   requires: string[]
+  contract?: { major: number, minor: number }
 }
 
 export type RuleDefinitionValueType = 'Number' | 'Text' | 'Boolean'
@@ -252,15 +253,26 @@ function readDraft(value: Json): RuleDefinitionDocument['draft'] {
 function readDocument(value: Json): RuleDefinitionDocument {
   const root = object(value, '', ['envelope', 'name', 'tier', 'draft'])
   const p = '/envelope'
-  const metadata = object(member(root, 'envelope', ''), p, ['id', 'version', 'tenant', 'cascadeLayer', 'provenance', 'requires'])
+  const metadata = object(member(root, 'envelope', ''), p, ['id', 'version', 'tenant', 'cascadeLayer', 'provenance', 'requires', 'contract'])
   const version = string(metadata, 'version', p)
   const provenance = object(member(metadata, 'provenance', p), `${p}/provenance`)
   const envelope = { id: string(metadata, 'id', p, true), version, tenant: string(metadata, 'tenant', p, true),
     cascadeLayer: string(metadata, 'cascadeLayer', p, true), provenance,
-    requires: array(metadata, 'requires', p).map((item, i) => text(item, `${p}/requires/${i}`)) }
+    requires: array(metadata, 'requires', p).map((item, i) => text(item, `${p}/requires/${i}`)),
+    ...(Object.hasOwn(metadata, 'contract') ? { contract: contract(metadata.contract, `${p}/contract`) } : {}) }
   return { envelope, name: string(root, 'name', '', true),
     tier: choice(root, 'tier', '', ['JsonSchema', 'JsonLogic', 'PowerFx'] as const, 'rule.compile.unsupported_tier'),
     draft: readDraft(member(root, 'draft', '')) }
+}
+
+function contract(value: Json, location: string): { major: number, minor: number } {
+  const declared = object(value, location, ['major', 'minor'])
+  const whole = (key: string): number => {
+    const number = member(declared, key, location)
+    if (typeof number !== 'number' || !Number.isInteger(number)) refuse(invalid, pointer(location, key))
+    return number
+  }
+  return { major: whole('major'), minor: whole('minor') }
 }
 
 const editorType: Record<RuleDefinitionValueType, ColumnValueType> = { Number: 'number', Text: 'text', Boolean: 'boolean' }

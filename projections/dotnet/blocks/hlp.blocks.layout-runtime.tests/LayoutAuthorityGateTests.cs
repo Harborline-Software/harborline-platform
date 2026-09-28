@@ -128,7 +128,7 @@ public sealed class LayoutAuthorityGateTests
     private static LayoutDefinition Surface() => new(
         new("surface.customer-edit", "1.0.0", "tenant-a", LayoutCascadeLayer.TenantConfiguration,
             JsonSerializer.SerializeToElement(new { source = "t-583" }), "standard", false,
-            [new LayoutDefinitionRequirement(LayoutPackIdentity.Capability, "1.0.0")]),
+            [new LayoutDefinitionRequirement(LayoutPackIdentity.Capability, "1.0.0")], new(1, 0)),
         1, LayoutMedium.Screen, LayoutIntent.Capture,
         [
             new LayoutBlock("name", "layout.field", new LayoutRecordFieldBinding("customer.name"), []),

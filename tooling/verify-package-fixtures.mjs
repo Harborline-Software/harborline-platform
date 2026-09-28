@@ -1330,7 +1330,9 @@ function verifyViewsCapability() {
     // T-624: Views reaches measures through the shared catalogue, which brings the catalogue and
     // the aggregates evaluator it resolves declared entries against. Views still owns no math.
     // T-732: RuleEngine now compiles the JsonSchema tier against the kernel's own dialect.
-    ['Harborline.Blocks.EntityViews', 'Harborline.Blocks.MeasureCatalogue', 'Harborline.Blocks.Aggregates', 'Harborline.Contracts', 'Harborline.Foundation.Authorization', 'Harborline.Foundation.MultiTenancy', 'Harborline.Foundation.RuleEngine', 'Harborline.Kernel.SchemaValidation'],
+    // T-572 slice 2: the envelope carries Definitions' contract version, and authoring stamps the
+    // platform seed's window (BuilderDefinitions' PlatformPackageSeed, which brings RuleAuthoring).
+    ['Harborline.Blocks.EntityViews', 'Harborline.Blocks.MeasureCatalogue', 'Harborline.Blocks.Aggregates', 'Harborline.Blocks.BuilderDefinitions', 'Harborline.Contracts', 'Harborline.Foundation.Authorization', 'Harborline.Foundation.Definitions', 'Harborline.Foundation.MultiTenancy', 'Harborline.Foundation.RuleAuthoring', 'Harborline.Foundation.RuleEngine', 'Harborline.Kernel.SchemaValidation'],
     'Views engine',
     /Forms.*(?:Builder|Authoring)|(?:Builder|Authoring).*Forms/i,
   )
@@ -1341,7 +1343,8 @@ function verifyViewsCapability() {
   const blazorDirectReferences = assertDirectPackageReferences(blazorConsumer, ['Harborline.UIAdapters.Blazor'], 'Views Blazor authoring')
   const [blazorAuthoringBehavior] = proofLines(runNugetConsumer(blazorConsumer, blazorPackageCache), ['VIEWS_BLAZOR_AUTHORING_PASS:'], 'Views Blazor package-only authoring lane')
   // T-732: RuleEngine now compiles the JsonSchema tier against the kernel's own dialect.
-  assertPackageClosure(blazorConsumer, ['Harborline.UIAdapters.Blazor', 'Harborline.Foundation', 'Harborline.Foundation.RuleAuthoring', 'Harborline.Foundation.RuleEngine', 'Harborline.Kernel.SchemaValidation', 'Harborline.Contracts'], 'Views Blazor authoring')
+  // T-572 slice 2: RuleAuthoring's envelope carries Definitions' contract version.
+  assertPackageClosure(blazorConsumer, ['Harborline.UIAdapters.Blazor', 'Harborline.Foundation', 'Harborline.Foundation.Definitions', 'Harborline.Foundation.RuleAuthoring', 'Harborline.Foundation.RuleEngine', 'Harborline.Kernel.SchemaValidation', 'Harborline.Contracts'], 'Views Blazor authoring')
 
   return {
     id: 'views-capability-vertical',

@@ -35,13 +35,39 @@ public sealed class TemplateDefinitionTests
         Assert.Equal(canonical, TemplateDefinitionJson.SerializeCanonical(imported));
     }
 
+    [Fact(DisplayName = "T-572 slice 2: the envelope contract survives canonical serialize and deserialize, and TemplatePack.Export then TryParse")]
+    public void EnvelopeContractSurvivesCanonicalRoundTripAndPackExport()
+    {
+        var canonical = TemplateDefinitionJson.SerializeCanonical(Template());
+        var parsed = TemplateDefinitionJson.Deserialize(WithContract(canonical));
+        Assert.Equal("""{"major":1,"minor":0}""", ContractOf(TemplateDefinitionJson.SerializeCanonical(parsed)));
+
+        var entry = TemplatePack.Export(parsed, Surfaces());
+        Assert.True(TemplatePack.TryParse(entry.Content, Tenant, Provenance, out var imported, out var miss), miss?.Code);
+        Assert.Equal("""{"major":1,"minor":0}""", ContractOf(TemplateDefinitionJson.SerializeCanonical(imported!)));
+
+        // Slice 2 changes no admission outcome: a template without the member still parses (slice 3 refuses it).
+        Assert.Null(ContractOf(TemplateDefinitionJson.SerializeCanonical(TemplateDefinitionJson.Deserialize(WithContract(canonical, present: false)))));
+    }
+
+    private static byte[] WithContract(byte[] canonical, bool present = true)
+    {
+        var node = JsonNode.Parse(canonical)!;
+        var envelope = node["envelope"]!.AsObject();
+        envelope.Remove("contract");
+        if (present) envelope["contract"] = new JsonObject { ["major"] = 1, ["minor"] = 0 };
+        return Encoding.UTF8.GetBytes(node.ToJsonString());
+    }
+
+    private static string? ContractOf(byte[] json) => JsonNode.Parse(json)!["envelope"]!["contract"]?.ToJsonString();
+
     [Fact(DisplayName = "documents-ck-2: the envelope carries identity, version, tenant, cascade layer, provenance and requires, and each missing member refuses by name")]
     public void EnvelopeMembersRoundTripAndEachMissingMemberRefuses()
     {
         var template = Template();
         var node = JsonNode.Parse(TemplateDefinitionJson.SerializeCanonical(template))!;
         Assert.Equal(
-            ["cascade_layer", "identity", "provenance", "requires", "tenant", "version"],
+            ["cascade_layer", "contract", "identity", "provenance", "requires", "tenant", "version"],
             node["envelope"]!.AsObject().Select(member => member.Key));
         Assert.Empty(TemplateDefinitionAdmission.Validate(template, Surfaces()));
 

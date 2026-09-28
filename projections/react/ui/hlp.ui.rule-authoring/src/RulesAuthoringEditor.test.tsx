@@ -58,7 +58,7 @@ describe('Rules authoring React projection', () => {
     fireEvent.change(screen.getByLabelText('Rule else branch expression shape'), { target: { value: 'Call' } })
     fireEvent.change(screen.getByLabelText('Rule else branch formula operator'), { target: { value: 'date.today' } })
     fireEvent.click(screen.getByRole('button', { name: 'Remove Rule else branch argument 1' }))
-    const json = serializeRuleDefinition({ envelope: { id: 'nested', version: '1.0.0', tenant: 'tenant-a', cascadeLayer: 'domain-package', provenance: { kind: 'test' }, requires: [] }, name: 'Nested', tier: 'JsonLogic', draft: { kind: 'Formula', scope: 'Field', scopeTarget: 'total', outputType: 'Compute', inputs: [{ id: 'amount', ref: 'amount', type: 'Number' }], expression: authored } })
+    const json = serializeRuleDefinition({ envelope: { id: 'nested', version: '1.0.0', tenant: 'tenant-a', cascadeLayer: 'domain-package', provenance: { kind: 'test' }, requires: [], contract: { major: 1, minor: 0 } }, name: 'Nested', tier: 'JsonLogic', draft: { kind: 'Formula', scope: 'Field', scopeTarget: 'total', outputType: 'Compute', inputs: [{ id: 'amount', ref: 'amount', type: 'Number' }], expression: authored } })
     expect(validateRuleDefinitionJson(json, 'Author').diagnostics).toEqual([])
   })
   it('edits compare values, range bounds, and a real Any catch-all row', () => {
@@ -116,7 +116,7 @@ describe('Rules authoring React projection', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Publish' }))
       const draft = requested.mock.lastCall![0].draft.draft
       expect(draft.expression, item.id).toEqual({ kind: 'Ref', name: item.ref })
-      const json = serializeRuleDefinition({ envelope: { id: item.id, version: '1.0.0', tenant: 'tenant-a', cascadeLayer: 'domain-package', provenance: { kind: 'test' }, requires: [] }, name: item.id, tier: 'JsonLogic', draft })
+      const json = serializeRuleDefinition({ envelope: { id: item.id, version: '1.0.0', tenant: 'tenant-a', cascadeLayer: 'domain-package', provenance: { kind: 'test' }, requires: [], contract: { major: 1, minor: 0 } }, name: item.id, tier: 'JsonLogic', draft })
       const admitted = validateRuleDefinitionJson(json, 'Author')
       expect(admitted.diagnostics, item.id).toEqual([])
       expect(admitted.lowered, item.id).toEqual(item.lowered)
@@ -138,7 +138,7 @@ describe('Rules authoring React projection', () => {
       fireEvent.change(screen.getByLabelText('Rule reference'), { target: { value: item.ref } })
       fireEvent.click(screen.getByRole('button', { name: 'Publish' }))
       const draft = requested.mock.lastCall![0].draft.draft
-      const json = serializeRuleDefinition({ envelope: { id: item.id, version: '1.0.0', tenant: 'tenant-a', cascadeLayer: 'domain-package', provenance: { kind: 'test' }, requires: [] }, name: item.id, tier: 'JsonLogic', draft })
+      const json = serializeRuleDefinition({ envelope: { id: item.id, version: '1.0.0', tenant: 'tenant-a', cascadeLayer: 'domain-package', provenance: { kind: 'test' }, requires: [], contract: { major: 1, minor: 0 } }, name: item.id, tier: 'JsonLogic', draft })
       const admitted = validateRuleDefinitionJson(json, 'Author')
       expect(admitted.diagnostics, item.id).toEqual([])
       expect(admitted.lowered, item.id).toEqual(item.lowered)

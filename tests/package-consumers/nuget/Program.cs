@@ -433,7 +433,7 @@ try
     var packedRuleSource = System.Text.Json.Nodes.JsonNode.Parse("""
         {
           "envelope":{"id":"consumer-route","version":"1.0.0","tenant":"tenant-consumer",
-            "cascadeLayer":"domain-package","provenance":{"id":"finance"},"requires":[]},
+            "cascadeLayer":"domain-package","provenance":{"id":"finance"},"requires":[],"contract":{"major":1,"minor":0}},
           "name":"Consumer route","tier":"JsonLogic",
           "draft":{"kind":"Table","scope":"Field","scopeTarget":"route","outputType":"Compute",
             "hitPolicy":"FirstMatch","columns":[{"id":"amount","input":"field.amount","valueType":"Number"}],
