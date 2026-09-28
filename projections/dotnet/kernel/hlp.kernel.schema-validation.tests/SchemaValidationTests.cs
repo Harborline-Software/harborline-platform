@@ -65,6 +65,21 @@ public sealed class SchemaValidationTests
     }
 
     [Fact]
+    public async Task RequiredErrorOnlyNamesMissingFieldWhenNameContainsClosingBracket()
+    {
+        var registry = new InMemorySchemaRegistry();
+        var schema = await registry.RegisterAsync("""{"type":"object","required":["a]b","present"]}""");
+
+        var result = await registry.ValidateAsync(schema.Id, Utf8("""{"present":true}"""));
+
+        Assert.False(result.IsValid);
+        var error = Assert.Single(result.Errors);
+        Assert.Equal("required", error.Code);
+        Assert.Equal("/a]b", error.JsonPointer);
+        Assert.Equal("a]b", error.Params!["field"]);
+    }
+
+    [Fact]
     public async Task InvalidPayloadJsonFailsClosed()
     {
         var registry = new InMemorySchemaRegistry();

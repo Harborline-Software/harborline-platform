@@ -8,6 +8,7 @@ import { Codes } from './codes.js'
 import type { ComputedValue, Json, RuleDefinition, Validity } from './model.js'
 import { DEFAULT_LIMITS, type RuleEngineLimits } from './limits.js'
 import { compile } from './compiler.js'
+import { CompileError } from './grammar.js'
 import {
   EvalBudget, RuleBudget, RuleEvalError, RulePending,
   err, refError, refPending, refResolved, unavailableAggregate,
@@ -27,7 +28,7 @@ class ContextBagResolver implements ValueResolver {
   resolveVar(path: string): RefValue {
     if (path.startsWith('row.')) return refError(err(Codes.badReference, 'path', path))
     const name = path.startsWith('field.') ? path.slice('field.'.length) : path
-    if (name in this.bag) {
+    if (Object.hasOwn(this.bag, name)) {
       const v = this.bag[name]
       return isPendingSentinel(v) ? refPending : refResolved(v)
     }
@@ -82,15 +83,21 @@ export class GuardEvaluator {
   }
 
   evaluateGuard(rule: RuleDefinition, context: RuleContextSnapshot, admission: EvaluationAdmission | null, signal?: AbortSignal): Validity {
-    const compiled = compile([rule], this.limits)
+    let compiled: ReturnType<typeof compile>
+    try { compiled = compile([rule], this.limits) }
+    catch (error) {
+      if (error instanceof CompileError) return { ok: false, error: err(error.code) }
+      throw error
+    }
     // rules-eng-26: admission evidence is checked before any value is read.
     const refusal = admissionRefusal(admission, compiled.rules.map((r) => r.ast))
     if (refusal !== null) return { ok: false, error: err(refusal) }
-    if (compiled.rules.length === 0) return { ok: true } // Tier-1 guard: nothing for this engine.
     const snapshot = contextValuesOf(context)
     if (!snapshot) return { ok: false, error: err(Codes.contextSnapshotRequired) }
+    if (compiled.rules.length === 0) return { ok: true } // Tier-1 guard: nothing for this engine.
     return this.run<Validity>(
       compiled.rules[0].ast as Json,
+      rule.id,
       snapshot,
       (v) => (isTruthy(v) ? { ok: true } : { ok: false, error: err(rule.id) }),
       (e) => ({ ok: false, error: e }),
@@ -100,14 +107,20 @@ export class GuardEvaluator {
   }
 
   evaluateValue(rule: RuleDefinition, context: RuleContextSnapshot, admission: EvaluationAdmission | null, signal?: AbortSignal): ComputedValue {
-    const compiled = compile([rule], this.limits)
+    let compiled: ReturnType<typeof compile>
+    try { compiled = compile([rule], this.limits) }
+    catch (error) {
+      if (error instanceof CompileError) return { state: 'Error', error: err(error.code) }
+      throw error
+    }
     const refusal = admissionRefusal(admission, compiled.rules.map((r) => r.ast))
     if (refusal !== null) return { state: 'Error', error: err(refusal) }
-    if (compiled.rules.length === 0) return { state: 'Resolved', value: null }
     const snapshot = contextValuesOf(context)
     if (!snapshot) return { state: 'Error', error: err(Codes.contextSnapshotRequired) }
+    if (compiled.rules.length === 0) return { state: 'Resolved', value: null }
     return this.run<ComputedValue>(
       compiled.rules[0].ast as Json,
+      rule.id,
       snapshot,
       (v) => ({ state: 'Resolved', value: detachJson(v) }),
       (e) => ({ state: 'Error', error: e }),
@@ -118,6 +131,7 @@ export class GuardEvaluator {
 
   private run<T>(
     ast: Json,
+    ruleId: string,
     context: Record<string, Json>,
     onValue: (v: Json) => T,
     onError: (e: ReturnType<typeof err>) => T,
@@ -130,7 +144,7 @@ export class GuardEvaluator {
     } catch (e) {
       if (e instanceof RuleEvalError) return onError(e.error)
       if (e instanceof RulePending) return onPending()
-      if (e instanceof RuleBudget) return onError(err(Codes.budgetExceeded))
+      if (e instanceof RuleBudget) return onError(err(Codes.budgetExceeded, 'rule', ruleId))
       // RuleTimeout is a non-authoritative liveness fault (D1 ratification 2026-07-01): a guard that hits
       // the wall-clock is an infrastructure fault, not a transition verdict — it PROPAGATES (rethrown).
       throw e

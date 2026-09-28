@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { spawn } from 'node:child_process'
+import { randomUUID } from 'node:crypto'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -19,6 +20,7 @@ const ruleAuthoringTypeScriptRoot = resolve(root, 'projections/typescript/founda
 const dotnet = resolvePinnedDotnet(root)
 const buildOnly = process.argv.includes('--build')
 const collectCoverage = coverageEnabled()
+const coverageRunId = collectCoverage ? randomUUID() : null
 const blazorTestProject = 'projections/blazor/ui/hlp.ui.button.tests/Harborline.UIAdapters.Blazor.Tests.csproj'
 
 // Every .NET suite the gate runs: [countKey, stepId, project]. Order is load-bearing — it is the
@@ -67,6 +69,11 @@ const DOTNET_SUITES = [
   ['formsEngineDotnet', 'foundation-forms-engine-native', "projections/dotnet/foundation/hlp.foundation.forms-engine.tests/Harborline.Foundation.Forms.Engine.Tests.csproj"],
   ['architecture', 'platform-architecture-native', "projections/dotnet/architecture/hlp.architecture.tests/Harborline.Architecture.Tests.csproj"],
 ]
+const KERNEL_COVERAGE_PREFIXES = {
+  'kernel-core-native': 'projections/dotnet/kernel/hlp.kernel.core/',
+  'kernel-schema-validation-native': 'projections/dotnet/kernel/hlp.kernel.schema-validation/',
+  'kernel-work-items-native': 'projections/dotnet/kernel/hlp.kernel.work-items/',
+}
 
 
 function runAttempt(id, executable, args, cwd = root) {
@@ -176,7 +183,7 @@ if (buildOnly) {
         '--no-restore',
         '--no-build',
         '-v:minimal',
-        ...(collectCoverage ? ['--settings', 'tooling/coverage.runsettings', '--collect:XPlat Code Coverage', '--results-directory', `artifacts/quality/coverage/${id}/results`] : []),
+        ...(collectCoverage ? ['--settings', 'tooling/coverage.runsettings', '--collect:XPlat Code Coverage', '--results-directory', `artifacts/quality/coverage/${id}/results/${coverageRunId}`] : []),
         ...(filter ? ['--filter', filter] : []),
       ])),
     ])
@@ -184,7 +191,7 @@ if (buildOnly) {
   results = [reactResult, blazorBrowserResult, formsTypeScriptResult, ruleRuntimeTypeScriptResult, ruleAuthoringTypeScriptResult, copilotTypeScriptResult, dotnetBuild, ...dotnetTests]
   if (collectCoverage) coverage = DOTNET_SUITES
     .filter(([, id]) => results.find(result => result.id === id)?.passed)
-    .map(([, id]) => copyCoberturaReport({root, resultsDirectory: resolve(root, 'artifacts/quality/coverage', id, 'results'), suite: id}))
+    .map(([, id]) => copyCoberturaReport({root, resultsDirectory: resolve(root, 'artifacts/quality/coverage', id, 'results', coverageRunId), suite: id, sourcePrefix: KERNEL_COVERAGE_PREFIXES[id]}))
 }
 
 let formsTypeScriptTests = 0

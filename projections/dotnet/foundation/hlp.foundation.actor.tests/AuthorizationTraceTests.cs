@@ -58,7 +58,7 @@ public sealed class AuthorizationTraceTests
     {
         var gate = new ReadGate();
         var absent = await new AuthorizationTraceReader(new Store(new("a", "alice", null, [])), gate)
-            .ReadAsync("a", "auditor", "entry", At);
+            .ReadAsync("a", "auditor", "missing", At);
         Assert.Equal(AuthorizationTraceAvailability.NotAvailable, absent.Availability);
         var request = new AccessRequest("records:write", "alice", "a", new("a", "work", "1", new Dictionary<string, System.Text.Json.Nodes.JsonNode?>()), At);
         var evidence = new AuthorizationDecisionEvidence(request, true, "None", "grant:1", [], []);
@@ -68,6 +68,39 @@ public sealed class AuthorizationTraceTests
         Assert.Equal(4, read.Steps.Count);
         Assert.Contains("verdict:allowed", read.Steps[3].Facts);
         Assert.DoesNotContain(read.Steps, step => step.Facts.Contains("approval:denied"));
+    }
+
+    [Fact]
+    public async Task Present_malformed_trace_is_distinct_from_absence()
+    {
+        var request = new AccessRequest("records:write", "alice", "a", new("a", "work", "1",
+            new Dictionary<string, System.Text.Json.Nodes.JsonNode?>()), At);
+        var steps = new AuthorizationDecisionEvidence(request, true, "None", "grant:1", [], []).Project();
+        AuthorizationTraceSnapshot[] malformed =
+        [
+            new("a", "alice", 2, [new(0, "act", []), .. steps.Skip(1)]),
+            new("a", "alice", 2, [.. steps.Take(2), new AuthorizationTraceStep(3, "wrong", []), steps[3]]),
+            new("a", "alice", null, steps),
+            new("a", "alice", 2, [.. steps, steps[3]]),
+            // A step outside the decision (1..4) and approval (5..8) ordinals is malformed, not ignored.
+            new("a", "alice", 2, [.. steps, new AuthorizationTraceStep(0, "act", [])]),
+            new("a", "alice", 2, [.. steps, new AuthorizationTraceStep(9, "act", [])]),
+            // Only evidence versions 1 through CurrentVersion exist.
+            new("a", "alice", 0, steps),
+            new("a", "alice", AuthorizationDecisionEvidence.CurrentVersion + 1, steps),
+        ];
+
+        foreach (var snapshot in malformed)
+        {
+            var reader = new AuthorizationTraceReader(new Store(snapshot), new ReadGate());
+            var read = await reader.ReadAsync("a", "auditor", "entry", At);
+            Assert.Equal(AuthorizationTraceAvailability.Malformed, read.Availability);
+            Assert.Null(read.Version);
+            Assert.Empty(read.Steps);
+            Assert.Null(read.Counterfactual);
+            Assert.Equal(AuthorizationTraceAvailability.NotAvailable,
+                (await reader.ReadAsync("a", "auditor", "missing", At)).Availability);
+        }
     }
 
     private sealed class Store(AuthorizationTraceSnapshot snapshot) : IAuthorizationTraceStore

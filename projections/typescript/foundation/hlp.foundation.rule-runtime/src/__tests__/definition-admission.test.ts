@@ -97,6 +97,51 @@ describe('definition compiler admission', () => {
     expect(compile([compute('a', 'a', { var: 'b' }), compute('b', 'b', 1)], large).rules).toHaveLength(2)
   })
 
+  it('bounds one dynamic computed cell independently of unused graph capacity', () => {
+    const rules = [compute('dynamic', 'result', { missing: [{ var: 'keys' }] })]
+    const oneCell = compile(rules, { ...DEFAULT_LIMITS, maxGraphNodes: 1 }).workProof
+    const defaultCapacity = compile(rules).workProof
+
+    expect(defaultCapacity.maximumResultBytes === oneCell.maximumResultBytes).toBe(true)
+    expect(defaultCapacity.maximumEvaluationWork === oneCell.maximumEvaluationWork).toBe(true)
+  })
+
+  it('increases the dynamic demand bound when an actual computed cell is added', () => {
+    const dynamic = compute('dynamic', 'result', { missing: [{ var: 'keys' }] })
+    const oneCell = compile([dynamic]).workProof
+    const twoCells = compile([dynamic, compute('second', 'second', 1)]).workProof
+
+    expect(twoCells.maximumResultBytes).toBe(oneCell.maximumResultBytes)
+    expect(twoCells.maximumEvaluationWork > oneCell.maximumEvaluationWork).toBe(true)
+  })
+
+  it('includes an aggregate cell in a dynamic proof and accounts for producing its result', () => {
+    const dynamic = compute('dynamic', 'result', { missing: [{ var: 'keys' }] })
+    const oneCell = compile([dynamic]).workProof
+    const aggregateRule: RuleDefinition = {
+      ...compute('aggregate', 'check', { '==': [{ var: 'table.sum(items.amount)' }, 0] }),
+      action: 'Validate',
+    }
+    const withAggregate = compile([dynamic, aggregateRule]).workProof
+    const withSecondCompute = compile([dynamic, compute('second', 'second', 1)]).workProof
+
+    expect(withAggregate.maximumResultBytes).toBe(oneCell.maximumResultBytes)
+    expect(withAggregate.maximumResultBytes === withSecondCompute.maximumResultBytes).toBe(true)
+    expect(oneCell.maximumEvaluationWork >= oneCell.maximumResultBytes).toBe(true)
+  })
+
+  it('does not copy dynamically inspected values into a Row missing result', () => {
+    const row: RuleDefinition = {
+      ...compute('row', 'items/calculated', { missing: [{ var: 'rowKeys' }] }),
+      scope: 'Row',
+    }
+    const oneRow = compile([row], { ...DEFAULT_LIMITS, maxGraphNodes: 1, maxTableRowsPerAggregate: 2 }).workProof
+    const twoRows = compile([row], { ...DEFAULT_LIMITS, maxGraphNodes: 2, maxTableRowsPerAggregate: 2 }).workProof
+
+    expect(twoRows.maximumResultBytes).toBe(oneRow.maximumResultBytes)
+    expect(twoRows.maximumEvaluationWork).toBeGreaterThan(oneRow.maximumEvaluationWork)
+  })
+
   it('instantiates a proof for independently configured graph structural dimensions', () => {
     const compiled = compile([compute('row-aware', 'x', { var: 'table.sum(items.amount)' })],
       { ...DEFAULT_LIMITS, maxTableRowsPerAggregate: 1, maxGraphNodes: 2 })
@@ -137,6 +182,40 @@ describe('definition compiler admission', () => {
     expect(graph.workProof.maximumEvaluationWork).toBeGreaterThan(0)
   })
 
+  it('bounds a Table Compute value copied through an aggregate reference', () => {
+    const aggregate = { var: 'table.sum(items.amount)' }
+    const rules: RuleDefinition[] = [
+      { ...compute('table-value', 'items/sum/amount', { var: 'payload' }), scope: 'Table' },
+      compute('copies', 'result', { cat: Array.from({ length: 10 }, () => aggregate) }),
+    ]
+    const limits = { ...DEFAULT_LIMITS, maxTableRowsPerAggregate: 1, stepBudget: 10_000_000 }
+    const compiled = compile(rules, limits)
+    const result = new FormRuleGraph(compiled, () => new Date('2026-09-22T00:00:00.000Z'), testAdmission, limits)
+      .evaluateInstance(RuleInstance.fromJsonText(JSON.stringify({ payload: 'x'.repeat(80_000) })))
+    const value = result.values.get('field:result')
+
+    expect(value?.state).toBe('Resolved')
+    expect(compiled.workProof.maximumResultBytes).toBeGreaterThanOrEqual(
+      BigInt(new TextEncoder().encode(JSON.stringify(value?.value)).length))
+  })
+
+  it('keeps the larger Table bound when an admitted duplicate target is replaced', () => {
+    const rules: RuleDefinition[] = [
+      { ...compute('small-table', 'items/sum/amount', '"a"'), scope: 'Table' },
+      { ...compute('large-table', 'items/sum/amount', { var: 'payload' }), scope: 'Table' },
+      compute('copies', 'result', { cat: Array.from({ length: 10 }, () => ({ var: 'table.sum(items.amount)' })) }),
+    ]
+    const limits = { ...DEFAULT_LIMITS, maxTableRowsPerAggregate: 1, stepBudget: 10_000_000 }
+    const compiled = compile(rules, limits)
+    const result = new FormRuleGraph(compiled, () => new Date('2026-09-22T00:00:00.000Z'), testAdmission, limits)
+      .evaluateInstance(RuleInstance.fromJsonText(JSON.stringify({ payload: 'x'.repeat(80_000) })))
+    const value = result.values.get('field:result')
+
+    expect(value?.state).toBe('Resolved')
+    expect(compiled.workProof.maximumResultBytes).toBeGreaterThanOrEqual(
+      BigInt(new TextEncoder().encode(JSON.stringify(value?.value)).length))
+  })
+
   // Compiles and runs 8 KB decimals: ~0.9 s locally, just over vitest's 5 s default on hosted macOS runners.
   // The assertions are byte bounds, not speed, so the timeout is explicit.
   it('bounds the public large aligned-money concatenation in serialized JSON bytes', () => {
@@ -147,8 +226,10 @@ describe('definition compiler admission', () => {
         cat: Array.from({ length: 60 }, () => ({ 'money.add': [integer, fraction] })),
       }),
     ])
-    // Deliberately diagnostic-only: this is not a production limit change.
-    const limits = { ...DEFAULT_LIMITS, stepBudget: 2_000_000, wallClockMs: 5000 }
+    // Deliberately diagnostic-only: this is not a production limit change. The wall clock is the
+    // non-authoritative liveness guard; 5 s tripped RuleTimeout on hosted macOS runners, so it sits
+    // under the test's 30 s timeout instead. The step budget stays the authoritative bound.
+    const limits = { ...DEFAULT_LIMITS, stepBudget: 2_000_000, wallClockMs: 25_000 }
     const evaluated = new FormRuleGraph(graph, () => new Date('2026-09-22T00:00:00.000Z'), testAdmission, limits)
       .evaluateInstance(RuleInstance.fromJsonText('{}'))
     const value = evaluated.values.get('field:result')
