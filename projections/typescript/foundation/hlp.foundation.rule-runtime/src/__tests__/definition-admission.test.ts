@@ -141,6 +141,33 @@ describe('definition compiler admission', () => {
     expect(twoRows.maximumResultBytes > oneRow.maximumResultBytes).toBe(true)
   })
 
+  it('caps a dynamic Row result chain at the runtime demand-depth boundary', () => {
+    const row: RuleDefinition = {
+      ...compute('row', 'items/calculated', { missing: [{ var: 'rowKeys' }] }),
+      scope: 'Row',
+    }
+    const limits = { ...DEFAULT_LIMITS, maxDependencyDepth: 1 }
+    const oneCell = compile([row], { ...limits, maxGraphNodes: 1 }).workProof
+    const twoCells = compile([row], { ...limits, maxGraphNodes: 2 }).workProof
+    const threeCells = compile([row], { ...limits, maxGraphNodes: 3 }).workProof
+
+    expect(twoCells.maximumResultBytes > oneCell.maximumResultBytes).toBe(true)
+    expect(threeCells.maximumResultBytes).toBe(twoCells.maximumResultBytes)
+  })
+
+  it('allows one dynamic Row result cell when the demand-depth limit is zero', () => {
+    const row: RuleDefinition = {
+      ...compute('row', 'items/calculated', { missing: [{ if: [true, 'row.amount', 'row.other'] }] }),
+      scope: 'Row',
+    }
+    const limits = { ...DEFAULT_LIMITS, maxDependencyDepth: 0 }
+    const oneCell = compile([row], { ...limits, maxGraphNodes: 1 }).workProof
+    const twoCells = compile([row], { ...limits, maxGraphNodes: 2 }).workProof
+
+    expect(oneCell.maximumResultBytes).toBeGreaterThan(compile([], limits).workProof.maximumResultBytes)
+    expect(twoCells.maximumResultBytes).toBe(oneCell.maximumResultBytes)
+  })
+
   it('instantiates a proof for independently configured graph structural dimensions', () => {
     const compiled = compile([compute('row-aware', 'x', { var: 'table.sum(items.amount)' })],
       { ...DEFAULT_LIMITS, maxTableRowsPerAggregate: 1, maxGraphNodes: 2 })

@@ -219,14 +219,16 @@ export function deriveGraphWork(rules: readonly { source: RuleDefinition, ast: J
   }
   const demandCellBound = Math.min(Math.max(0, limits.maxGraphNodes), potentialCells)
 
-  // A successful dynamic chain has no repeated cell. Each transfer can select a
-  // value or serialize bounded children, so compose that affine map over the
-  // potential cell inventory rather than unused host graph capacity.
+  // A result-carrying var chain is a statically checked DAG; dynamic missing
+  // reads only test presence, and the scheduler bounds live demand depth.
+  // Cached missing reads cannot copy another cell's result into this one.
+  // The full inventory still bounds total work across independent cells.
   const hasDynamicRead = rules.some(rule => rule.references?.some(reference => reference.kind === 'dynamic-read'))
   if (hasDynamicRead) {
     const childrenPerCell = BigInt(Math.max(limits.maxAstNodes, Number(INPUT_NODES)))
+    const chainCells = limits.maxDependencyDepth < 0 ? 0 : Math.min(demandCellBound, limits.maxDependencyDepth + 1)
     dynamicResult = repeatedCellEnvelope(dynamicResult, 6n * childrenPerCell, aggregateResult,
-      demandCellBound)
+      chainCells)
   }
 
   let localWork = 0n

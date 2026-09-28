@@ -265,6 +265,31 @@ public sealed class RuleEngineUnitTests
         Assert.True(twoRows.MaximumResultBytes > oneRow.MaximumResultBytes);
     }
 
+    [Fact]
+    public void Compiler_caps_dynamic_row_result_chain_at_runtime_demand_depth()
+    {
+        var row = Compute("row", "items/calculated", "{\"missing\":[{\"var\":\"rowKeys\"}]}", RuleScope.Row);
+        var limits = RuleEngineLimits.Default with { MaxDependencyDepth = 1 };
+        var oneCell = RuleCompiler.Compile([row], limits with { MaxGraphNodes = 1 }).WorkProof;
+        var twoCells = RuleCompiler.Compile([row], limits with { MaxGraphNodes = 2 }).WorkProof;
+        var threeCells = RuleCompiler.Compile([row], limits with { MaxGraphNodes = 3 }).WorkProof;
+
+        Assert.True(twoCells.MaximumResultBytes > oneCell.MaximumResultBytes);
+        Assert.Equal(twoCells.MaximumResultBytes, threeCells.MaximumResultBytes);
+    }
+
+    [Fact]
+    public void Compiler_allows_one_dynamic_row_result_cell_at_zero_demand_depth()
+    {
+        var row = Compute("row", "items/calculated", "{\"missing\":[{\"if\":[true,\"row.amount\",\"row.other\"]}]}", RuleScope.Row);
+        var limits = RuleEngineLimits.Default with { MaxDependencyDepth = 0 };
+        var oneCell = RuleCompiler.Compile([row], limits with { MaxGraphNodes = 1 }).WorkProof;
+        var twoCells = RuleCompiler.Compile([row], limits with { MaxGraphNodes = 2 }).WorkProof;
+
+        Assert.True(oneCell.MaximumResultBytes > RuleCompiler.Compile([], limits).WorkProof.MaximumResultBytes);
+        Assert.Equal(oneCell.MaximumResultBytes, twoCells.MaximumResultBytes);
+    }
+
     [Theory]
     [InlineData("empty", "16394000", "0")]
     [InlineData("literal", "16394000", "130")]

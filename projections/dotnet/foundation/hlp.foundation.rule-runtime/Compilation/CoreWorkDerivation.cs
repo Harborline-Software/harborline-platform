@@ -79,17 +79,17 @@ internal static class CoreWorkDerivation
         }
         int demandCellBound = (int)BigInteger.Min(Math.Max(0, limits.MaxGraphNodes), potentialCells);
 
-        // Active-cycle refusal and per-generation completion mean a successful dynamic
-        // demand chain has no repeated cell. Its semantic height is bounded by the
-        // potential Compute and aggregate cell inventory. Each closed transfer
-        // either selects a value, makes a fixed scalar, or serializes AST/input-node
-        // children; compose that affine transfer by exponentiation, not by re-walking
-        // a dependency-free expression once for every possible cell.
+        // Result-carrying var chains are statically checked DAGs; dynamic missing
+        // reads only test presence, and the scheduler bounds live demand depth.
+        // Cached missing reads cannot copy another cell's result into this one.
+        // The full cell inventory still bounds total work across independent cells.
         if (rules.Any(rule => rule.References.OfType<DynamicReadRef>().Any()))
         {
             var childrenPerCell = new BigInteger(Math.Max(limits.MaxAstNodes, RuntimeInputEnvelope.MaxNodes));
+            int chainCells = limits.MaxDependencyDepth < 0 ? 0
+                : (int)Math.Min(demandCellBound, (long)limits.MaxDependencyDepth + 1);
             dynamicResult = RepeatedCellEnvelope(dynamicResult, 6 * childrenPerCell, aggregateResult,
-                demandCellBound);
+                chainCells);
         }
 
         BigInteger localWork = 0, resolverReads = 0, aggregateReads = 0, maxCellWork = 1;
