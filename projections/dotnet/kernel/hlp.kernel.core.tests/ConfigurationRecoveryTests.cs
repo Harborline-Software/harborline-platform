@@ -237,7 +237,7 @@ public sealed class ConfigurationRecoveryTests
             return packageState switch
             {
                 "missing" => ValueTask.FromResult<CompiledBootstrapShape?>(null),
-                "deactivated" => ValueTask.FromResult<CompiledBootstrapShape?>(new(identity, "Configuration Management (deactivated)", 0)),
+                "deactivated" => ValueTask.FromResult<CompiledBootstrapShape?>(new(identity, "configuration-management", "Configuration Management (deactivated)", 0, [])),
                 _ => throw new InvalidDataException("configuration-management-package-corrupt"),
             };
         }

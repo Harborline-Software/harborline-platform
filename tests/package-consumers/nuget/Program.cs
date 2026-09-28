@@ -718,7 +718,10 @@ foreach (var shape in CompiledBootstrapCatalogue.Shapes)
     if (await packedFloor.ResolveAsync(shape.Identity) != shape)
         throw new InvalidOperationException($"Packed Kernel Core did not resolve compiled shape {shape.Identity}.");
 }
-if (packedFloorReader.Reads != 0 || CompiledBootstrapCatalogue.Shapes.Count != 3)
+if (packedFloorReader.Reads != 0 || CompiledBootstrapCatalogue.Shapes.Count != 3
+    || CompiledBootstrapCatalogue.Shapes.Single(shape => shape.Identity == CompiledBootstrapCatalogue.DefinitionPackage).Members.Count != 8
+    || CompiledBootstrapCatalogue.Shapes.Single(shape => shape.Identity == CompiledBootstrapCatalogue.RecordType).Members.Count != 12
+    || CompiledBootstrapCatalogue.Shapes.Single(shape => shape.Identity == CompiledBootstrapCatalogue.Field).Members.Count != 15)
     throw new InvalidOperationException("Packed Kernel Core read the seed store before resolving its exact compiled floor.");
 if (!KernelProfile.Capabilities.Contains(KernelProfile.ConfigurationRecovery)
     || typeof(ConfigurationRecovery).Assembly.GetName().Name != "Harborline.Kernel.Core")

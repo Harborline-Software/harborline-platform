@@ -5,16 +5,11 @@ public static class KernelClockErrors
     public const string BackdateCapabilityRequired = "kernel.backdate-capability-required";
 }
 
-public sealed record KernelStampRequest(
-    string ActorId,
-    DateTimeOffset? RequestedRecordedAt = null,
-    DateTimeOffset? CapturedAt = null);
-
 public interface IKernelBackdateCapability
 {
     ValueTask<bool> CanBackdateAsync(
         string actorId,
-        DateTimeOffset requestedRecordedAt,
+        DateTimeOffset requestedEffectiveFrom,
         CancellationToken cancellationToken = default);
 }
 
@@ -35,17 +30,18 @@ public sealed class KernelClock
 
     public bool IsExpired(DateTimeOffset expiresAt) => GetUtcNow() >= expiresAt;
 
-    public async ValueTask<DateTimeOffset> ResolveRecordedAtAsync(
-        KernelStampRequest request,
+    public async ValueTask<DateTimeOffset> ResolveEffectiveFromAsync(
+        string actorId,
+        DateTimeOffset admittedAt,
+        DateTimeOffset? requestedEffectiveFrom,
         IKernelBackdateCapability? backdateCapability = null,
         CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(request);
-        ArgumentException.ThrowIfNullOrWhiteSpace(request.ActorId);
-        var now = GetUtcNow();
-        if (request.RequestedRecordedAt is not { } requested || requested == now) return now;
+        ArgumentException.ThrowIfNullOrWhiteSpace(actorId);
+        if (requestedEffectiveFrom is not { } requested) return admittedAt;
+        if (requested >= admittedAt) return requested;
         if (backdateCapability is null
-            || !await backdateCapability.CanBackdateAsync(request.ActorId, requested, cancellationToken).ConfigureAwait(false))
+            || !await backdateCapability.CanBackdateAsync(actorId, requested, cancellationToken).ConfigureAwait(false))
             throw new KernelClockRefusalException(KernelClockErrors.BackdateCapabilityRequired);
         return requested;
     }
