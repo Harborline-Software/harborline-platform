@@ -8,7 +8,8 @@ const walk = dir => readdirSync(dir, {withFileTypes: true}).flatMap(entry => { c
 export function coverageSummary(xml, root, sourcePrefix) {
   const documents = Array.isArray(xml) ? xml : [xml]
   const lines = new Map()
-  for (const document of documents) for (const match of document.matchAll(/<class\b([^>]*)>([\s\S]*?)<\/class>/g)) {
+  const overlappingBranchFiles = new Set()
+  for (const [documentIndex, document] of documents.entries()) for (const match of document.matchAll(/<class\b([^>]*)>([\s\S]*?)<\/class>/g)) {
     const filename = attr(match[1], 'filename'); if (!filename) throw new Error('Cobertura class has no filename')
     for (const line of match[2].matchAll(/<line\b([^>]*)\/?\s*>/g)) {
       const number = attr(line[1], 'number'), hits = attr(line[1], 'hits')
@@ -18,8 +19,11 @@ export function coverageSummary(xml, root, sourcePrefix) {
       const counts = branch ? /\((\d+)\/(\d+)\)/.exec(branch) : null
       if (branch && !counts) throw new Error(`invalid Cobertura branch in ${filename}`)
       const previous = lines.get(key)
+      if (previous?.documentIndex !== undefined && previous.documentIndex !== documentIndex
+        && previous.validBranches > 0 && Number(counts?.[2] ?? 0) > 0) overlappingBranchFiles.add(filename)
       lines.set(key, {
         filename,
+        documentIndex,
         hits: Math.max(Number(hits), previous?.hits ?? 0),
         coveredBranches: Math.max(Number(counts?.[1] ?? 0), previous?.coveredBranches ?? 0),
         validBranches: Math.max(Number(counts?.[2] ?? 0), previous?.validBranches ?? 0),
@@ -38,11 +42,12 @@ export function coverageSummary(xml, root, sourcePrefix) {
   }
   const values = [...lines.values()].filter(line => !sourcePrefix || map(line.filename)?.startsWith(sourcePrefix))
   const paths = [...new Set(values.map(line => line.filename))].sort()
+  const overlappingBranchReports = [...overlappingBranchFiles].some(file => !sourcePrefix || map(file)?.startsWith(sourcePrefix))
   return {
     coveredLines: values.filter(line => line.hits > 0).length,
     validLines: values.length,
-    coveredBranches: values.reduce((sum, line) => sum + line.coveredBranches, 0),
-    validBranches: values.reduce((sum, line) => sum + line.validBranches, 0),
+    coveredBranches: overlappingBranchReports ? null : values.reduce((sum, line) => sum + line.coveredBranches, 0),
+    validBranches: overlappingBranchReports ? null : values.reduce((sum, line) => sum + line.validBranches, 0),
     mappedPaths: paths.map(map).filter(Boolean).sort(),
     unmappedPaths: paths.filter(file => !map(file)),
   }
@@ -58,6 +63,6 @@ export function copyCoberturaReport({root, resultsDirectory, suite, sourcePrefix
   const summary = {suite, sourcePrefix, artifactPath: relativeArtifacts[0], artifactPaths: relativeArtifacts, sourceReports: sourceReports.map(report => path.relative(root, report).replaceAll('\\', '/')), ...coverageSummary(sourceReports.map(report => readFileSync(report, 'utf8')), root, sourcePrefix)}
   if (sourcePrefix && !summary.validLines) throw new Error(`${suite} coverage contains no lines under ${sourcePrefix}`)
   writeFileSync(path.join(coverageDirectory, 'coverage-summary.json'), `${JSON.stringify(summary, null, 2)}\n`)
-  console.error(`${suite} coverage — lines ${summary.coveredLines}/${summary.validLines} | branches ${summary.coveredBranches}/${summary.validBranches}`)
+  console.error(`${suite} coverage — lines ${summary.coveredLines}/${summary.validLines} | branches ${summary.validBranches === null ? 'unavailable (overlapping reports)' : `${summary.coveredBranches}/${summary.validBranches}`}`)
   return summary
 }

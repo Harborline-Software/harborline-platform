@@ -33,6 +33,16 @@ test('source prefix limits coverage to the implementing project', () => {
   })
 })
 
+test('branch totals are unavailable when separate reports overlap', () => {
+  const root = path.resolve(import.meta.dirname, '../..')
+  const xml = '<coverage><packages><package><classes><class filename="tooling/run-native.mjs"><lines>'
+    + '<line number="1" hits="1" branch="True" condition-coverage="50% (1/2)"/>'
+    + '</lines></class></classes></package></packages></coverage>'
+  const summary = coverageSummary([xml, xml], root)
+  assert.equal(summary.coveredBranches, null)
+  assert.equal(summary.validBranches, null)
+})
+
 test('a coverage-native result remains one JSON document for the gate evaluator', () => {
   const report = {status: 'PASS', coverage: [{suite: 'blazor', artifactPath: 'artifacts/quality/coverage/blazor/reports/1-coverage.cobertura.xml', coveredLines: 2, validLines: 3, mappedPaths: ['tooling/run-native.mjs'], unmappedPaths: ['missing.cs']}]}
   assert.deepEqual(evaluateStepStdout({stepId: 'native-tests', json: true, status: 0, stdout: JSON.stringify(report)}), {status: 0, report})
