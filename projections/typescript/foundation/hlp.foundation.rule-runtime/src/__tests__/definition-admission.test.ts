@@ -97,6 +97,50 @@ describe('definition compiler admission', () => {
     expect(compile([compute('a', 'a', { var: 'b' }), compute('b', 'b', 1)], large).rules).toHaveLength(2)
   })
 
+  it('bounds one dynamic computed cell independently of unused graph capacity', () => {
+    const rules = [compute('dynamic', 'result', { missing: [{ var: 'keys' }] })]
+    const oneCell = compile(rules, { ...DEFAULT_LIMITS, maxGraphNodes: 1 }).workProof
+    const defaultCapacity = compile(rules).workProof
+
+    expect(defaultCapacity.maximumResultBytes === oneCell.maximumResultBytes).toBe(true)
+    expect(defaultCapacity.maximumEvaluationWork === oneCell.maximumEvaluationWork).toBe(true)
+  })
+
+  it('increases the dynamic demand bound when an actual computed cell is added', () => {
+    const dynamic = compute('dynamic', 'result', { missing: [{ var: 'keys' }] })
+    const oneCell = compile([dynamic]).workProof
+    const twoCells = compile([dynamic, compute('second', 'second', 1)]).workProof
+
+    expect(twoCells.maximumResultBytes > oneCell.maximumResultBytes).toBe(true)
+    expect(twoCells.maximumEvaluationWork > oneCell.maximumEvaluationWork).toBe(true)
+  })
+
+  it('includes an aggregate cell in a dynamic proof and accounts for producing its result', () => {
+    const dynamic = compute('dynamic', 'result', { missing: [{ var: 'keys' }] })
+    const oneCell = compile([dynamic]).workProof
+    const aggregateRule: RuleDefinition = {
+      ...compute('aggregate', 'check', { '==': [{ var: 'table.sum(items.amount)' }, 0] }),
+      action: 'Validate',
+    }
+    const withAggregate = compile([dynamic, aggregateRule]).workProof
+    const withSecondCompute = compile([dynamic, compute('second', 'second', 1)]).workProof
+
+    expect(withAggregate.maximumResultBytes > oneCell.maximumResultBytes).toBe(true)
+    expect(withAggregate.maximumResultBytes === withSecondCompute.maximumResultBytes).toBe(true)
+    expect(oneCell.maximumEvaluationWork >= oneCell.maximumResultBytes).toBe(true)
+  })
+
+  it('bounds a row Compute by its admitted row-cell capacity', () => {
+    const row: RuleDefinition = {
+      ...compute('row', 'items/calculated', { missing: [{ var: 'rowKeys' }] }),
+      scope: 'Row',
+    }
+    const oneRow = compile([row], { ...DEFAULT_LIMITS, maxGraphNodes: 1, maxTableRowsPerAggregate: 2 }).workProof
+    const twoRows = compile([row], { ...DEFAULT_LIMITS, maxGraphNodes: 2, maxTableRowsPerAggregate: 2 }).workProof
+
+    expect(twoRows.maximumResultBytes > oneRow.maximumResultBytes).toBe(true)
+  })
+
   it('instantiates a proof for independently configured graph structural dimensions', () => {
     const compiled = compile([compute('row-aware', 'x', { var: 'table.sum(items.amount)' })],
       { ...DEFAULT_LIMITS, maxTableRowsPerAggregate: 1, maxGraphNodes: 2 })

@@ -70,9 +70,18 @@ internal static class CoreWorkDerivation
             if (unchanged) break;
         }
 
+        BigInteger potentialCells = 0;
+        foreach (var rule in rules)
+        {
+            if (rule.Source.Action == RuleActionKind.Compute)
+                potentialCells += rule.Source.Scope == RuleScope.Row ? Math.Max(0, limits.MaxGraphNodes) : 1;
+            potentialCells += rule.References.Count(reference => reference is AggRef);
+        }
+        int demandCellBound = (int)BigInteger.Min(Math.Max(0, limits.MaxGraphNodes), potentialCells);
+
         // Active-cycle refusal and per-generation completion mean a successful dynamic
-        // demand chain has no repeated cell.  Its semantic height is consequently the
-        // validated cell inventory, not the active-stack limit.  Each closed transfer
+        // demand chain has no repeated cell. Its semantic height is bounded by the
+        // potential Compute and aggregate cell inventory. Each closed transfer
         // either selects a value, makes a fixed scalar, or serializes AST/input-node
         // children; compose that affine transfer by exponentiation, not by re-walking
         // a dependency-free expression once for every possible cell.
@@ -80,7 +89,7 @@ internal static class CoreWorkDerivation
         {
             var childrenPerCell = new BigInteger(Math.Max(limits.MaxAstNodes, RuntimeInputEnvelope.MaxNodes));
             dynamicResult = RepeatedCellEnvelope(dynamicResult, 6 * childrenPerCell, aggregateResult,
-                Math.Max(0, limits.MaxGraphNodes));
+                demandCellBound);
         }
 
         BigInteger localWork = 0, resolverReads = 0, aggregateReads = 0, maxCellWork = 1;
@@ -110,7 +119,7 @@ internal static class CoreWorkDerivation
 
         // Dynamic reads are actual scheduling work: a lookup and (at most) the accepted
         // active-chain demand.  Completed cells remain memoized only for this generation.
-        var dynamicDemand = resolverReads * (BigInteger.One + Math.Max(0, limits.MaxGraphNodes) * maxCellWork);
+        var dynamicDemand = resolverReads * (BigInteger.One + demandCellBound * maxCellWork);
         // Each aggregate fold visits only the validated row envelope / configured row cap;
         // conversion and copying of a captured value are bounded by that input envelope.
         var foldWork = aggregateReads * Math.Max(0, limits.MaxTableRowsPerAggregate)

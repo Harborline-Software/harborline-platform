@@ -209,18 +209,24 @@ export function deriveGraphWork(rules: readonly { source: RuleDefinition, ast: J
     if (unchanged) break
   }
 
-  // A successful dynamic demand chain has no repeated cell: the scheduler refuses an
-  // active cycle and retains completed cells only for this generation.  Its semantic
-  // height is therefore bounded by the validated cell inventory, not the active-stack
-  // depth.  Every closed transfer either selects a value, produces a fixed scalar, or
-  // serializes at most AST/input-node children; the latter is at most this affine map.
-  // Exponentiation composes it in log(cell-count) proof work, rather than re-walking a
-  // dependency-free expression once per possible cell.
+  // Dynamic demand can reach only Compute and aggregate cells. A row Compute may
+  // expand to the full graph cap; a field/table Compute and an aggregate reference
+  // contribute one cell each. Repeated references only overcount this inventory.
+  let potentialCells = 0
+  for (const rule of rules) {
+    if (rule.source.action === 'Compute') potentialCells += rule.source.scope === 'Row' ? Math.max(0, limits.maxGraphNodes) : 1
+    potentialCells += rule.references?.filter(reference => reference.kind === 'agg').length ?? 0
+  }
+  const demandCellBound = Math.min(Math.max(0, limits.maxGraphNodes), potentialCells)
+
+  // A successful dynamic chain has no repeated cell. Each transfer can select a
+  // value or serialize bounded children, so compose that affine map over the
+  // potential cell inventory rather than unused host graph capacity.
   const hasDynamicRead = rules.some(rule => rule.references?.some(reference => reference.kind === 'dynamic-read'))
   if (hasDynamicRead) {
     const childrenPerCell = BigInt(Math.max(limits.maxAstNodes, Number(INPUT_NODES)))
     dynamicResult = repeatedCellEnvelope(dynamicResult, 6n * childrenPerCell, aggregateResult,
-      Math.max(0, limits.maxGraphNodes))
+      demandCellBound)
   }
 
   let localWork = 0n
@@ -250,7 +256,7 @@ export function deriveGraphWork(rules: readonly { source: RuleDefinition, ast: J
 
   // Actual dynamic reads can demand a completed graph cell.  The current generation
   // completes each cell once; repeated resolver calls still pay lookup/demand work.
-  const dynamicDemand = resolverReads * add(1n, BigInt(Math.max(0, limits.maxGraphNodes)) * maxCellWork)
+  const dynamicDemand = resolverReads * add(1n, BigInt(demandCellBound) * maxCellWork)
   // Each aggregate fold visits at most the admitted rows and converts/copies a bounded
   // captured row value.  This is separate from the evaluator's agg resolver arm.
   const foldWork = aggregateReads * BigInt(Math.max(0, limits.maxTableRowsPerAggregate))

@@ -221,6 +221,51 @@ public sealed class RuleEngineUnitTests
     }
 
     [Fact]
+    public void Compiler_bounds_one_dynamic_cell_independently_of_unused_graph_capacity()
+    {
+        var rules = new[] { Compute("dynamic", "result", "{\"missing\":[{\"var\":\"keys\"}]}") };
+        var oneCell = RuleCompiler.Compile(rules, RuleEngineLimits.Default with { MaxGraphNodes = 1 }).WorkProof;
+        var defaultCapacity = RuleCompiler.Compile(rules).WorkProof;
+
+        Assert.Equal(oneCell.MaximumResultBytes, defaultCapacity.MaximumResultBytes);
+        Assert.Equal(oneCell.MaximumEvaluationWork, defaultCapacity.MaximumEvaluationWork);
+    }
+
+    [Fact]
+    public void Compiler_counts_actual_computed_and_aggregate_cells_in_dynamic_proof()
+    {
+        var dynamic = Compute("dynamic", "result", "{\"missing\":[{\"var\":\"keys\"}]}");
+        var oneCell = RuleCompiler.Compile([dynamic]).WorkProof;
+        var twoCells = RuleCompiler.Compile([dynamic, Compute("second", "second", "1")]).WorkProof;
+        var aggregate = RuleDefinitionFactory.Create("aggregate", RuleTier.JsonLogic, RuleScope.Field, "check",
+            "{\"==\":[{\"var\":\"table.sum(items.amount)\"},0]}", RuleActionKind.Validate);
+        var withAggregate = RuleCompiler.Compile([dynamic, aggregate]).WorkProof;
+
+        Assert.True(twoCells.MaximumResultBytes > oneCell.MaximumResultBytes);
+        Assert.True(twoCells.MaximumEvaluationWork > oneCell.MaximumEvaluationWork);
+        Assert.True(withAggregate.MaximumResultBytes > oneCell.MaximumResultBytes);
+        Assert.True(oneCell.MaximumEvaluationWork >= oneCell.MaximumResultBytes);
+    }
+
+    [Fact]
+    public void Compiler_bounds_row_compute_by_admitted_row_cell_capacity()
+    {
+        var row = Compute("row", "items/calculated", "{\"missing\":[{\"var\":\"rowKeys\"}]}", RuleScope.Row);
+        var oneRow = RuleCompiler.Compile([row], RuleEngineLimits.Default with
+        {
+            MaxGraphNodes = 1,
+            MaxTableRowsPerAggregate = 2,
+        }).WorkProof;
+        var twoRows = RuleCompiler.Compile([row], RuleEngineLimits.Default with
+        {
+            MaxGraphNodes = 2,
+            MaxTableRowsPerAggregate = 2,
+        }).WorkProof;
+
+        Assert.True(twoRows.MaximumResultBytes > oneRow.MaximumResultBytes);
+    }
+
+    [Fact]
     public void Graph_instantiates_proof_for_independently_configured_structural_dimensions()
     {
         var compiled = RuleCompiler.Compile(new[] { Compute("row-aware", "x", "{\"var\":\"table.sum(items.amount)\"}") },
