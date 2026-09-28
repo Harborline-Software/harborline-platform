@@ -37,7 +37,7 @@ public sealed class InstallReceiptTests
         Assert.All(parsed.Records, record => Assert.Equal(64, record.Digest.Length));
     }
 
-    [Fact]
+    [RequiresControlRepositoryFact]
     public async Task The_checker_accepts_the_receipt_the_real_install_wrote()
     {
         var (node, receipt) = await InstallAsync();
@@ -47,7 +47,7 @@ public sealed class InstallReceiptTests
         Assert.True(check.Accepted, $"{check.RefusalCode} {check.Field}");
     }
 
-    [Fact]
+    [RequiresControlRepositoryFact]
     public async Task A_receipt_whose_installed_digest_differs_from_the_published_digest_is_refused_naming_the_field()
     {
         // The node resolved something other than what was published. The receipt reports what
@@ -75,7 +75,7 @@ public sealed class InstallReceiptTests
         Assert.NotEqual(installedDigest, Digest(drifted));
     }
 
-    [Fact]
+    [RequiresControlRepositoryFact]
     public async Task A_receipt_whose_authorization_outcome_differs_from_the_gate_is_refused_naming_the_capability()
     {
         // Same installed declarations, a node whose gate lets catalogue:read through anyway. That is
@@ -91,7 +91,7 @@ public sealed class InstallReceiptTests
         Assert.Equal("catalogue:read", check.Field);
     }
 
-    [Fact]
+    [RequiresControlRepositoryFact]
     public async Task A_hand_written_receipt_is_refused()
     {
         var (node, real) = await InstallAsync();
@@ -109,7 +109,7 @@ public sealed class InstallReceiptTests
         Assert.Equal("installed[harborline.platform].witness", check.Field);
     }
 
-    [Fact]
+    [RequiresControlRepositoryFact]
     public async Task A_receipt_kept_as_a_fixture_is_refused_against_the_next_install()
     {
         var (_, kept) = await InstallAsync();
@@ -123,7 +123,7 @@ public sealed class InstallReceiptTests
         Assert.Equal("install-receipt-not-written-by-install", check.RefusalCode);
     }
 
-    [Fact]
+    [RequiresControlRepositoryFact]
     public async Task An_edited_receipt_is_refused_on_its_own_digest()
     {
         var (node, receipt) = await InstallAsync();
@@ -135,7 +135,7 @@ public sealed class InstallReceiptTests
         Assert.Equal("install-receipt-digest-mismatch", check.RefusalCode);
     }
 
-    [Fact]
+    [RequiresControlRepositoryFact]
     public void The_design_record_rows_enumerate_the_sealed_types_and_traits_the_receipt_reports()
     {
         var corpus = Corpus();
@@ -145,7 +145,7 @@ public sealed class InstallReceiptTests
         Assert.Equal(["schedulable", "bookable-resource"], corpus.Traits);
     }
 
-    [Theory]
+    [RequiresControlRepositoryTheory]
     [InlineData("platform-package-ck-3", "platform.operational-type.notification", "install-receipt-sealed-type-not-reported", "sealedOperationalTypes[notification]")]
     [InlineData("platform-package-ck-4", "platform.trait.schedulable", "install-receipt-sealed-trait-not-reported", "sealedTraits[schedulable]")]
     public async Task A_sealed_member_the_record_enumerates_and_the_install_does_not_report_is_refused_naming_the_id(
@@ -161,7 +161,7 @@ public sealed class InstallReceiptTests
         Assert.Equal(field, check.Field);
     }
 
-    [Fact]
+    [RequiresControlRepositoryFact]
     public async Task A_sealed_member_the_install_reports_and_the_record_does_not_enumerate_is_refused_naming_the_id()
     {
         var shipped = With("platform-package-ck-4", "platform.trait.inspectable");
@@ -233,5 +233,40 @@ public sealed class InstallReceiptTests
         return new(source.SchemaVersion, source.PackageKey, source.Revision, source.Items.Select(item => item.Id == itemId
             ? new PlatformPackageItem(item.Id, item.Stage, item.Dependencies, PlatformPackageContent.PresentJson(Encoding.UTF8.GetBytes(payload)))
             : item));
+    }
+}
+
+/// <summary>
+/// Marks a fact whose assertions deliberately compare against DES-0007 in a control checkout.
+/// </summary>
+sealed class RequiresControlRepositoryFactAttribute : FactAttribute
+{
+    public RequiresControlRepositoryFactAttribute() => Skip = ControlRepositoryRequirement.SkipReason;
+}
+
+/// <summary>
+/// Marks a theory whose assertions deliberately compare against DES-0007 in a control checkout.
+/// </summary>
+sealed class RequiresControlRepositoryTheoryAttribute : TheoryAttribute
+{
+    public RequiresControlRepositoryTheoryAttribute() => Skip = ControlRepositoryRequirement.SkipReason;
+}
+
+/// <summary>
+/// Makes the external control-checkout prerequisite explicit at test discovery time.
+/// </summary>
+static class ControlRepositoryRequirement
+{
+    private const string DesignRecord = "designs/DES-0007-platform-package/design.md";
+
+    public static string? SkipReason
+    {
+        get
+        {
+            var control = Environment.GetEnvironmentVariable("HARBORLINE_CONTROL_REPO");
+            return !string.IsNullOrWhiteSpace(control) && File.Exists(Path.Combine(control, DesignRecord))
+                ? null
+                : "HARBORLINE_CONTROL_REPO must name a reachable harborline-control checkout; the sealed-type probe reads DES-0007 from it.";
+        }
     }
 }
