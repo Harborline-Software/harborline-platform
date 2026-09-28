@@ -227,6 +227,30 @@ public sealed class WorkItemKernelTests
     }
 
     [Fact]
+    public async Task FileJournal_RestartRetainsIdempotencyReceiptAndOutbox()
+    {
+        var path = TempPath();
+        try
+        {
+            WorkItemMutationResult created;
+            await using (var store = new FileJournalWorkItemStore(path))
+                created = await Kernel("tenant-a", "actor-a", store).CreateAsync(Create("item-1"));
+
+            await using var recovered = new FileJournalWorkItemStore(path);
+            var kernel = Kernel("tenant-a", "actor-a", recovered);
+            var replay = await kernel.CreateAsync(Create("item-1"));
+
+            Assert.Equal(WorkItemMutationDisposition.Replayed, replay.Disposition);
+            Assert.Equal(JsonSerializer.Serialize(created.Snapshot), JsonSerializer.Serialize(replay.Snapshot));
+            Assert.Equal(created.ResultJson, replay.ResultJson);
+            Assert.Single(await recovered.ReadEventsAsync("tenant-a", "item-1"));
+            Assert.Single(await recovered.ReadAuditAsync("tenant-a", "item-1"));
+            Assert.Single(await recovered.ReadOutboxAsync("tenant-a"));
+        }
+        finally { File.Delete(path); }
+    }
+
+    [Fact]
     public async Task FileJournal_TruncatesOnlyIncompleteFinalFrame()
     {
         var path = TempPath();

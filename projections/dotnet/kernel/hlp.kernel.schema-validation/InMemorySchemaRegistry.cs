@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
@@ -333,15 +334,16 @@ public sealed class InMemorySchemaRegistry : ISchemaRegistry
     {
         var names = new HashSet<string>(StringComparer.Ordinal);
         var start = detail.IndexOf('[', StringComparison.Ordinal);
-        var end = detail.IndexOf(']', StringComparison.Ordinal);
-        if (start < 0 || end < start) return names;
+        if (start < 0) return names;
         try
         {
-            if (JsonNode.Parse(detail[start..(end + 1)]) is JsonArray array)
+            var reader = new Utf8JsonReader(Encoding.UTF8.GetBytes(detail[start..]));
+            using var document = JsonDocument.ParseValue(ref reader);
+            if (document.RootElement.ValueKind == JsonValueKind.Array)
             {
-                foreach (var item in array)
+                foreach (var item in document.RootElement.EnumerateArray())
                 {
-                    var name = item?.GetValue<string>();
+                    var name = item.GetString();
                     if (!string.IsNullOrEmpty(name)) names.Add(name);
                 }
             }
