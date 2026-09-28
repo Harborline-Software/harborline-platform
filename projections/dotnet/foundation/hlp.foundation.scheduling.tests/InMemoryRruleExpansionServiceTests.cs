@@ -237,6 +237,28 @@ public sealed class InMemoryRruleExpansionServiceTests
             new[] { DayOfWeek.Monday, DayOfWeek.Wednesday, DayOfWeek.Friday }));
     }
 
+    [Theory]
+    [InlineData("TU", 6, 13)]
+    [InlineData("TH", 1, 8)]
+    public void Expand_Weekly_ByDay_RecognizesTuesdayAndThursdayCodes(
+        string weekdayCode,
+        int firstOccurrenceDay,
+        int secondOccurrenceDay)
+    {
+        var occurrences = Sut.ExpandOccurrences(
+            rrule: $"FREQ=WEEKLY;BYDAY={weekdayCode}",
+            start: Today,
+            end: Today.AddDays(13),
+            lookaheadDays: 13,
+            leadDays: 0,
+            today: Today,
+            timezone: "UTC");
+
+        Assert.Equal(
+            [new DateOnly(2026, 1, firstOccurrenceDay), new DateOnly(2026, 1, secondOccurrenceDay)],
+            occurrences);
+    }
+
     [Fact]
     public void Expand_WeeklyInterval2_ByDay_HonorsIntervalFromStart()
     {
