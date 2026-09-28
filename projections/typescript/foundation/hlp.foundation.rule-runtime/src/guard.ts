@@ -27,7 +27,7 @@ class ContextBagResolver implements ValueResolver {
   resolveVar(path: string): RefValue {
     if (path.startsWith('row.')) return refError(err(Codes.badReference, 'path', path))
     const name = path.startsWith('field.') ? path.slice('field.'.length) : path
-    if (name in this.bag) {
+    if (Object.hasOwn(this.bag, name)) {
       const v = this.bag[name]
       return isPendingSentinel(v) ? refPending : refResolved(v)
     }

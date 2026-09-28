@@ -772,6 +772,11 @@ describe('guard evaluator (workflow transition guards)', () => {
     expect(guard.evaluateGuard(g, snapshot({ amount: 10 }), testAdmission)).toEqual({ ok: false, error: { code: 'g.minAmount', params: {} } })
   })
 
+  it('does not treat an inherited object name as a supplied guard context value', () => {
+    const inheritedName: RuleDefinition = { id: 'g.ownContextOnly', tier: 'JsonLogic', scope: 'Schema', scopeTarget: '', action: 'Validate', expression: { var: 'toString' } }
+    expect(guard.evaluateGuard(inheritedName, snapshot({}), testAdmission)).toEqual({ ok: false, error: { code: 'g.ownContextOnly', params: {} } })
+  })
+
   it('evaluates a value expression', () => {
     const v: RuleDefinition = { id: 'g.fee', tier: 'JsonLogic', scope: 'Schema', scopeTarget: '', action: 'Compute', expression: { 'money.mul': ['10', '3'] } }
     expect(guard.evaluateValue(v, snapshot({}), testAdmission)).toEqual({ state: 'Resolved', value: '30' })
