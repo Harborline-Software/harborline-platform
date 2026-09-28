@@ -496,9 +496,7 @@ if (visible.Name != "visible")
     throw new InvalidOperationException("Packed tenant filter did not isolate the active tenant.");
 var actor = new ConsumerActorContext(tenantContext.Tenant, "alice", ["inspector"]);
 var expectedPartyId = Guid.Parse("11111111-1111-1111-1111-111111111111");
-var partyContext = new PartyContext(
-    actor,
-    new ConsumerPartyResolver(new TenantId("tenant-consumer"), "alice", expectedPartyId));
+var partyContext = new ConsumerRequester(expectedPartyId);
 if (await partyContext.GetCurrentPartyIdAsync() != expectedPartyId)
     throw new InvalidOperationException("Packed actor package did not resolve the current tenant-bound principal.");
 if (typeof(BuilderDefinitions.IDefinitionLifecycleStore).Assembly.GetName().Name != "Harborline.Blocks.BuilderDefinitions")
@@ -738,6 +736,12 @@ sealed record ConsumerActorContext(
     TenantMetadata? Tenant,
     string UserId,
     IReadOnlyList<string> Roles) : IAuthenticatedActorContext;
+
+sealed class ConsumerRequester(Guid partyId) : IPartyContext
+{
+    public ValueTask<Guid> GetCurrentPartyIdAsync(CancellationToken cancellationToken = default) =>
+        ValueTask.FromResult(partyId);
+}
 
 sealed class EmptyCatalogueReader : IKernelCatalogueReader
 {

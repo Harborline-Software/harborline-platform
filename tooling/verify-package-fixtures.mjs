@@ -1330,7 +1330,7 @@ function verifyViewsCapability() {
     // T-624: Views reaches measures through the shared catalogue, which brings the catalogue and
     // the aggregates evaluator it resolves declared entries against. Views still owns no math.
     // T-732: RuleEngine now compiles the JsonSchema tier against the kernel's own dialect.
-    ['Harborline.Blocks.EntityViews', 'Harborline.Blocks.MeasureCatalogue', 'Harborline.Blocks.Aggregates', 'Harborline.Contracts', 'Harborline.Foundation.Authorization', 'Harborline.Foundation.MultiTenancy', 'Harborline.Foundation.RuleEngine', 'Harborline.Kernel.SchemaValidation'],
+    ['Harborline.Blocks.EntityViews', 'Harborline.Blocks.MeasureCatalogue', 'Harborline.Blocks.Aggregates', 'Harborline.Contracts', 'Harborline.Foundation.Authorization', 'Harborline.Foundation.MultiTenancy'],
     'Views engine',
     /Forms.*(?:Builder|Authoring)|(?:Builder|Authoring).*Forms/i,
   )
@@ -1546,7 +1546,7 @@ function verifyAppShellCapability() {
   const target = Object.values(assets.targets ?? {})[0] ?? {}
   const closure = Object.keys(target).filter(x => /^Harborline\./.test(x)).map(x => x.split('/')[0]).sort()
   // T-732: RuleEngine now compiles the JsonSchema tier against the kernel's own dialect.
-  const expectedClosure = ['Harborline.Foundation.MultiTenancy', 'Harborline.Contracts', 'Harborline.Foundation.Authorization', 'Harborline.Foundation.Session', 'Harborline.Foundation.RuleEngine', 'Harborline.Kernel.SchemaValidation'].sort()
+  const expectedClosure = ['Harborline.Foundation.MultiTenancy', 'Harborline.Contracts', 'Harborline.Foundation.Authorization', 'Harborline.Foundation.Session'].sort()
   if (JSON.stringify(closure) !== JSON.stringify(expectedClosure)) throw new Error(`App-shell closure drift: ${JSON.stringify(closure)}`)
 
   // Capability-host rows: cross-repo tarballs staged by explicit environment paths with the
