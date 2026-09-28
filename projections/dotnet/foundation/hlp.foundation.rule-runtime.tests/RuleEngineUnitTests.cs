@@ -265,6 +265,35 @@ public sealed class RuleEngineUnitTests
         Assert.True(twoRows.MaximumResultBytes > oneRow.MaximumResultBytes);
     }
 
+    [Theory]
+    [InlineData("empty", "16394000", "0")]
+    [InlineData("literal", "16394000", "130")]
+    [InlineData("dynamic", "39321766454000", "11801253547021660190518")]
+    [InlineData("two-compute", "1179652993636394000", "708074912910306823677470648")]
+    [InlineData("aggregate-validate", "1179652993636394000", "708148051395913279490506775")]
+    [InlineData("row-two", "1179652502291836394", "1416149235951638144053181324")]
+    public void Compiler_pins_public_work_proof_for_cross_tier_calibration(string name, string resultBytes, string work)
+    {
+        var dynamic = Compute("dynamic", "result", "{\"missing\":[{\"var\":\"keys\"}]}");
+        IReadOnlyList<RuleDefinition> rules = name switch
+        {
+            "empty" => [],
+            "literal" => [Compute("literal", "x", "1")],
+            "dynamic" => [dynamic],
+            "two-compute" => [dynamic, Compute("second", "second", "1")],
+            "aggregate-validate" => [dynamic, RuleDefinitionFactory.Create("aggregate", RuleTier.JsonLogic, RuleScope.Field,
+                "check", "{\"==\":[{\"var\":\"table.sum(items.amount)\"},0]}", RuleActionKind.Validate)],
+            "row-two" => [Compute("row", "items/calculated", "{\"missing\":[{\"var\":\"rowKeys\"}]}", RuleScope.Row)],
+            _ => throw new ArgumentOutOfRangeException(nameof(name)),
+        };
+        var limits = name == "row-two" ? RuleEngineLimits.Default with { MaxGraphNodes = 2, MaxTableRowsPerAggregate = 2 }
+            : RuleEngineLimits.Default;
+        var proof = RuleCompiler.Compile(rules, limits).WorkProof;
+
+        Assert.Equal(resultBytes, proof.MaximumResultBytes.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        Assert.Equal(work, proof.MaximumEvaluationWork.ToString(System.Globalization.CultureInfo.InvariantCulture));
+    }
+
     [Fact]
     public void Graph_instantiates_proof_for_independently_configured_structural_dimensions()
     {

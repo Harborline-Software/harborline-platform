@@ -114,7 +114,7 @@ internal static class CoreWorkDerivation
             // every executable operand position; use the same finite child factor as
             // result composition for one demanded cell's work transfer.
             var childFactor = 6 * new BigInteger(Math.Max(limits.MaxAstNodes, RuntimeInputEnvelope.MaxNodes));
-            maxCellWork = BigInteger.Max(maxCellWork, childFactor * (BigInteger.Max(BigInteger.Max(dynamicResult, aggregateResult), InputBytes)));
+            maxCellWork = BigInteger.Max(maxCellWork, childFactor * (dynamicResult + aggregateResult + InputBytes));
         }
 
         // Dynamic reads are actual scheduling work: a lookup and (at most) the accepted
