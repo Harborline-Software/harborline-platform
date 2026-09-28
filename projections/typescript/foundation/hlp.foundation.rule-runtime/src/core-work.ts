@@ -169,19 +169,9 @@ export function deriveCoreWork(node: Json, ruleId: string, dependencyResult = IN
   return deriveNode(node, dependencyResult, aggregateResult, staticReference)
 }
 
-function repeatedCellEnvelope(seed: bigint, factor: bigint, addend: bigint, cells: number): bigint {
-  const steps = BigInt(Math.max(0, cells))
-  if (steps === 0n) return seed
-  if (factor === 0n) return addend
-  if (factor === 1n) return seed + steps * addend
-  const power = factor ** steps
-  return power * seed + addend * ((power - 1n) / (factor - 1n))
-}
-
 /**
  * Combines actual admitted rules with finite runtime dimensions.  Dynamic paths are
- * not claimed to be static edges: each resolver lookup is charged, and a dynamic chain
- * is unrolled only through the scheduler's validated depth bound.
+ * not claimed to be static edges: each resolver lookup and possible cell demand is charged.
  */
 export function deriveGraphWork(rules: readonly { source: RuleDefinition, ast: Json, references?: readonly { kind: string }[] }[], limits: RuleEngineLimits): WorkProof {
   const aggregateResult = BigInt(Math.max(0, limits.maxTableRowsPerAggregate)) * MONEY_ADD_RESULT_BYTES
@@ -227,17 +217,10 @@ export function deriveGraphWork(rules: readonly { source: RuleDefinition, ast: J
   }
   const demandCellBound = Math.min(Math.max(0, limits.maxGraphNodes), potentialCells)
 
-  // A result-carrying var chain is a statically checked DAG; dynamic missing
-  // reads only test presence, and the scheduler bounds live demand depth.
-  // Cached missing reads cannot copy another cell's result into this one.
-  // The full inventory still bounds total work across independent cells.
+  // A result-carrying var chain is a statically checked DAG. Dynamic missing
+  // reads only test presence and return key names, so they cannot copy a
+  // demanded cell's value into this result. The inventory still bounds demand work.
   const hasDynamicRead = rules.some(rule => rule.references?.some(reference => reference.kind === 'dynamic-read'))
-  if (hasDynamicRead) {
-    const childrenPerCell = BigInt(Math.max(limits.maxAstNodes, Number(INPUT_NODES)))
-    const chainCells = limits.maxDependencyDepth < 0 ? 0 : Math.min(demandCellBound, limits.maxDependencyDepth + 1)
-    dynamicResult = repeatedCellEnvelope(dynamicResult, 6n * childrenPerCell, aggregateResult,
-      chainCells)
-  }
 
   let localWork = 0n
   let resolverReads = 0n

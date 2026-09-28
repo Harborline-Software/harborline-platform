@@ -241,14 +241,14 @@ public sealed class RuleEngineUnitTests
             "{\"==\":[{\"var\":\"table.sum(items.amount)\"},0]}", RuleActionKind.Validate);
         var withAggregate = RuleCompiler.Compile([dynamic, aggregate]).WorkProof;
 
-        Assert.True(twoCells.MaximumResultBytes > oneCell.MaximumResultBytes);
+        Assert.Equal(oneCell.MaximumResultBytes, twoCells.MaximumResultBytes);
         Assert.True(twoCells.MaximumEvaluationWork > oneCell.MaximumEvaluationWork);
-        Assert.True(withAggregate.MaximumResultBytes > oneCell.MaximumResultBytes);
+        Assert.Equal(oneCell.MaximumResultBytes, withAggregate.MaximumResultBytes);
         Assert.True(oneCell.MaximumEvaluationWork >= oneCell.MaximumResultBytes);
     }
 
     [Fact]
-    public void Compiler_bounds_row_compute_by_admitted_row_cell_capacity()
+    public void Compiler_does_not_copy_dynamically_inspected_values_into_row_missing_result()
     {
         var row = Compute("row", "items/calculated", "{\"missing\":[{\"var\":\"rowKeys\"}]}", RuleScope.Row);
         var oneRow = RuleCompiler.Compile([row], RuleEngineLimits.Default with
@@ -262,20 +262,8 @@ public sealed class RuleEngineUnitTests
             MaxTableRowsPerAggregate = 2,
         }).WorkProof;
 
-        Assert.True(twoRows.MaximumResultBytes > oneRow.MaximumResultBytes);
-    }
-
-    [Fact]
-    public void Compiler_caps_dynamic_row_result_chain_at_runtime_demand_depth()
-    {
-        var row = Compute("row", "items/calculated", "{\"missing\":[{\"var\":\"rowKeys\"}]}", RuleScope.Row);
-        var limits = RuleEngineLimits.Default with { MaxDependencyDepth = 1 };
-        var oneCell = RuleCompiler.Compile([row], limits with { MaxGraphNodes = 1 }).WorkProof;
-        var twoCells = RuleCompiler.Compile([row], limits with { MaxGraphNodes = 2 }).WorkProof;
-        var threeCells = RuleCompiler.Compile([row], limits with { MaxGraphNodes = 3 }).WorkProof;
-
-        Assert.True(twoCells.MaximumResultBytes > oneCell.MaximumResultBytes);
-        Assert.Equal(twoCells.MaximumResultBytes, threeCells.MaximumResultBytes);
+        Assert.Equal(oneRow.MaximumResultBytes, twoRows.MaximumResultBytes);
+        Assert.True(twoRows.MaximumEvaluationWork > oneRow.MaximumEvaluationWork);
     }
 
     [Fact]
@@ -317,25 +305,13 @@ public sealed class RuleEngineUnitTests
         Assert.True(compiled.WorkProof.MaximumResultBytes >= Encoding.UTF8.GetByteCount(value.Value!.ToJsonString()));
     }
 
-    [Fact]
-    public void Compiler_allows_one_dynamic_row_result_cell_at_zero_demand_depth()
-    {
-        var row = Compute("row", "items/calculated", "{\"missing\":[{\"if\":[true,\"row.amount\",\"row.other\"]}]}", RuleScope.Row);
-        var limits = RuleEngineLimits.Default with { MaxDependencyDepth = 0 };
-        var oneCell = RuleCompiler.Compile([row], limits with { MaxGraphNodes = 1 }).WorkProof;
-        var twoCells = RuleCompiler.Compile([row], limits with { MaxGraphNodes = 2 }).WorkProof;
-
-        Assert.True(oneCell.MaximumResultBytes > RuleCompiler.Compile([], limits).WorkProof.MaximumResultBytes);
-        Assert.Equal(oneCell.MaximumResultBytes, twoCells.MaximumResultBytes);
-    }
-
     [Theory]
     [InlineData("empty", "16394000", "0")]
     [InlineData("literal", "16394000", "130")]
-    [InlineData("dynamic", "39321766454000", "11801253547021660190518")]
-    [InlineData("two-compute", "1179652993636394000", "708074912910306823677470648")]
-    [InlineData("aggregate-validate", "1179652993636394000", "708148051395913279490506775")]
-    [InlineData("row-two", "1179652502291836394", "1416149235951638144053181324")]
+    [InlineData("dynamic", "1310725002", "398373634780430518")]
+    [InlineData("two-compute", "1310725002", "796747264317950648")]
+    [InlineData("aggregate-validate", "1310725002", "796829528653110775")]
+    [InlineData("row-two", "1310725002", "1573833540185021324")]
     public void Compiler_pins_public_work_proof_for_cross_tier_calibration(string name, string resultBytes, string work)
     {
         var dynamic = Compute("dynamic", "result", "{\"missing\":[{\"var\":\"keys\"}]}");

@@ -84,18 +84,9 @@ internal static class CoreWorkDerivation
         }
         int demandCellBound = (int)BigInteger.Min(Math.Max(0, limits.MaxGraphNodes), potentialCells);
 
-        // Result-carrying var chains are statically checked DAGs; dynamic missing
-        // reads only test presence, and the scheduler bounds live demand depth.
-        // Cached missing reads cannot copy another cell's result into this one.
-        // The full cell inventory still bounds total work across independent cells.
-        if (rules.Any(rule => rule.References.OfType<DynamicReadRef>().Any()))
-        {
-            var childrenPerCell = new BigInteger(Math.Max(limits.MaxAstNodes, RuntimeInputEnvelope.MaxNodes));
-            int chainCells = limits.MaxDependencyDepth < 0 ? 0
-                : (int)Math.Min(demandCellBound, (long)limits.MaxDependencyDepth + 1);
-            dynamicResult = RepeatedCellEnvelope(dynamicResult, 6 * childrenPerCell, aggregateResult,
-                chainCells);
-        }
+        // Result-carrying var chains are statically checked DAGs. Dynamic missing
+        // reads only test presence and return key names, so they cannot copy a
+        // demanded cell's value into this result. The inventory still bounds demand work.
 
         BigInteger localWork = 0, resolverReads = 0, aggregateReads = 0, maxCellWork = 1;
         for (int index = 0; index < rules.Count; index++)
@@ -248,14 +239,6 @@ internal static class CoreWorkDerivation
     private static BigInteger Max(BigInteger initial, IEnumerable<BigInteger> values)
         => values.Aggregate(initial, BigInteger.Max);
 
-    private static BigInteger RepeatedCellEnvelope(BigInteger seed, BigInteger factor, BigInteger addend, int cells)
-    {
-        if (cells <= 0) return seed;
-        if (factor.IsZero) return addend;
-        if (factor.IsOne) return seed + cells * addend;
-        var power = BigInteger.Pow(factor, cells);
-        return power * seed + addend * ((power - BigInteger.One) / (factor - BigInteger.One));
-    }
 }
 
 /// <summary>Non-persisted compiler proof; it never appears in canonical authored definitions.</summary>
