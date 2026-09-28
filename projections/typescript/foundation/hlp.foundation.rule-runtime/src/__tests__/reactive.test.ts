@@ -170,6 +170,20 @@ describe('core outcome and dynamic missing scheduling', () => {
     expect(afterFormerDependency.byRule.get('a.dynamic')).toBe(switched.byRule.get('a.dynamic'))
   })
 
+  it('uses a completed dynamic producer once per incremental run at the step boundary', () => {
+    const graph = new FormRuleGraph(compile([
+      rule('a.dynamic', 'a', 'Compute', { missing: [{ var: 'keys' }] }),
+      rule('b.value', 'b', 'Compute', { var: 'raw' }),
+    ]), fixedClock, testAdmission, { ...DEFAULT_LIMITS, stepBudget: 7 })
+    expect(graph.evaluateInstance(instance({ keys: ['b'], raw: 1 })).isSaveBlocked).toBe(false)
+
+    const result = graph.reevaluate('raw', valueSnapshot(2))
+
+    expect(result.isSaveBlocked).toBe(false)
+    expect(result.values.get('field:b')).toEqual({ state: 'Resolved', value: 2 })
+    expect(result.values.get('field:a')).toEqual({ state: 'Resolved', value: [] })
+  })
+
   it('demands row producers before folding a dynamically demanded aggregate', () => {
     const graph = new FormRuleGraph(compile([
       // Deliberately first: this is the public demand path, not a topo-order test.
@@ -715,6 +729,9 @@ describe('static-cap rejection (identical to the .NET integrity tier)', () => {
     const stepAt = new FormRuleGraph(compile([rule('step-at', 'x', 'Compute', 1)]), fixedClock, testAdmission,
       { ...DEFAULT_LIMITS, stepBudget: 2 })
     expect(stepAt.evaluateInstance(instance({})).values.get('field:x')).toEqual({ state: 'Resolved', value: 1 })
+    const stepOne = new FormRuleGraph(compile([rule('step-one', 'x', 'Compute', 1)]), fixedClock, testAdmission,
+      { ...DEFAULT_LIMITS, stepBudget: 1 })
+    expect(stepOne.evaluateInstance(instance({})).validations[0].validity?.error?.code).toBe(Codes.budgetExceeded)
     const stepOver = new FormRuleGraph(compile([rule('step-over', 'x', 'Compute', 1)]), fixedClock, testAdmission,
       { ...DEFAULT_LIMITS, stepBudget: 0 })
     expect(stepOver.evaluateInstance(instance({})).validations[0].validity?.error?.code).toBe(Codes.budgetExceeded)
