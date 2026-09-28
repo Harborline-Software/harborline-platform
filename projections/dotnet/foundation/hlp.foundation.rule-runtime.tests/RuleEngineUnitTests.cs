@@ -479,6 +479,8 @@ public sealed class RuleEngineUnitTests
 
         var stepAt = Graph(new[] { Compute("step-at", "x", "1") }, RuleEngineLimits.Default with { StepBudget = 2 });
         Assert.Equal(1L, stepAt.EvaluateInstance(Instance("{}")).Values["field:x"].Value!.GetValue<long>());
+        var stepOne = Graph(new[] { Compute("step-one", "x", "1") }, RuleEngineLimits.Default with { StepBudget = 1 });
+        Assert.Equal(RuleEngineCodes.BudgetExceeded, stepOne.EvaluateInstance(Instance("{}")).Validations.Single().Validity!.Error!.Code);
         var stepOver = Graph(new[] { Compute("step-over", "x", "1") }, RuleEngineLimits.Default with { StepBudget = 0 });
         Assert.Equal(RuleEngineCodes.BudgetExceeded, stepOver.EvaluateInstance(Instance("{}")).Validations.Single().Validity!.Error!.Code);
     }
@@ -889,6 +891,23 @@ public sealed class RuleEngineUnitTests
         Assert.Empty(noKeys.Values["field:missing"].Value!.AsArray());
     }
 
+    [Fact]
+    public void Dynamic_reader_drops_a_previous_dependency_when_its_key_changes()
+    {
+        var graph = Graph(new[]
+        {
+            Compute("a.dynamic", "a", "{\"!!\":[{\"missing\":[{\"var\":\"keys\"}]}]}"),
+            Compute("b.value", "b", "{\"var\":\"bRaw\"}"),
+            Compute("c.value", "c", "{\"var\":\"cRaw\"}"),
+        });
+        graph.EvaluateInstance(Instance("{\"keys\":[\"b\"],\"bRaw\":1,\"cRaw\":2}"));
+        var switched = graph.Reevaluate("keys", RuleInputValue.FromJsonText("[\"c\"]"));
+
+        var afterFormerDependency = graph.Reevaluate("bRaw", RuleInputValue.FromJsonText("3"));
+
+        Assert.Same(switched.ByRule["a.dynamic"], afterFormerDependency.ByRule["a.dynamic"]);
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -921,7 +940,7 @@ public sealed class RuleEngineUnitTests
     [Fact]
     public void Dynamic_missing_self_reference_refuses_instead_of_reading_a_raw_shadow()
     {
-        var graph = Graph(new[] { Compute("a.dynamic", "a", "{\"missing\":[{\"var\":\"keys\"}]}" ) });
+        var graph = Graph(new[] { Compute("a.dynamic", "a", "{\"missing\":[{\"var\":\"keys\"}]}" ) }, RuleEngineLimits.Default with { StepBudget = 20 });
         var result = graph.EvaluateInstance(Instance("{\"keys\":[\"a\"],\"a\":1}"));
 
         var value = result.Values["field:a"];
