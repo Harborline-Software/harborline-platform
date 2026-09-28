@@ -225,6 +225,8 @@ interface DemandState {
   active: Set<string>
   completed: Set<string>
   dirty: Set<string> | null
+  inFlightRule: string | null
+  inFlightCell: string | null
 }
 
 /**
@@ -350,7 +352,7 @@ export class FormRuleGraph {
     this.evaluationInstant = this.clock()
     const budget = new EvalBudget(this.limits, signal)
     const adapter = new FormContextAdapter(this.values, this.instance) // ADR 0146 D3 context seam
-    const demand: DemandState = { active: new Set(), completed: new Set(), dirty }
+    const demand: DemandState = { active: new Set(), completed: new Set(), dirty, inFlightRule: null, inFlightCell: null }
     try {
       for (const c of this.order) if (dirty.has(c.key)) this.values.set(c.key, this.evaluateDemand(c, demand, budget, adapter))
       const touched = new Set(dirty)
@@ -361,7 +363,7 @@ export class FormRuleGraph {
         }
       }
     } catch (e) {
-      if (e instanceof RuleBudget) return this.failClosed(Codes.budgetExceeded)
+      if (e instanceof RuleBudget) return this.failClosed(Codes.budgetExceeded, demand.inFlightRule, demand.inFlightCell)
       // RuleTimeout is a non-authoritative liveness fault (D1 ratification): it PROPAGATES (via the
       // rethrow below) rather than becoming a divergent `rule.timeout` outcome.
       throw e
@@ -410,12 +412,12 @@ export class FormRuleGraph {
     this.values = new Map()
     this.outcomes = new Map()
     const adapter = new FormContextAdapter(this.values, this.instance) // ADR 0146 D3 context seam
-    const demand: DemandState = { active: new Set(), completed: new Set(), dirty: null }
+    const demand: DemandState = { active: new Set(), completed: new Set(), dirty: null, inFlightRule: null, inFlightCell: null }
     try {
       for (const c of this.order) this.values.set(c.key, this.evaluateDemand(c, demand, budget, adapter))
       for (const plan of this.plans) this.outcomes.set(plan.key, this.buildPlanOutcome(plan, demand, budget, adapter))
     } catch (e) {
-      if (e instanceof RuleBudget) return this.failClosed(Codes.budgetExceeded)
+      if (e instanceof RuleBudget) return this.failClosed(Codes.budgetExceeded, demand.inFlightRule, demand.inFlightCell)
       // RuleTimeout is a non-authoritative liveness fault (D1 ratification 2026-07-01): it PROPAGATES
       // (rethrown below) so the wall-clock can never emit a divergent evaluation outcome. The op-budget
       // above is the sole authoritative fail-closed bound.
@@ -630,6 +632,10 @@ export class FormRuleGraph {
       state: 'Error', error: { code: Codes.budgetExceeded, params: { cell: c.key, ...(c.rule ? { rule: c.rule.source.id } : {}) } },
     }
 
+    const previousRule = demand.inFlightRule
+    const previousCell = demand.inFlightCell
+    demand.inFlightRule = c.rule?.source.id ?? null
+    demand.inFlightCell = c.rule === null ? c.key : null
     budget.charge()
     demand.active.add(c.key)
     this.clearActualCellReads(c.key)
@@ -637,6 +643,8 @@ export class FormRuleGraph {
       const value = this.evalComputedCell(c, demand, budget, adapter)
       this.values.set(c.key, value)
       demand.completed.add(c.key)
+      demand.inFlightRule = previousRule
+      demand.inFlightCell = previousCell
       return value
     } finally {
       demand.active.delete(c.key)
@@ -692,7 +700,11 @@ export class FormRuleGraph {
       scope.rowId,
     )
     const ctx: EvalContext = { resolver, now: this.evaluationInstant!, budget }
-    return buildOutcome(plan.rule, plan.target, ctx).outcome
+    const previousRule = demand.inFlightRule
+    demand.inFlightRule = plan.rule.source.id
+    const outcome = buildOutcome(plan.rule, plan.target, ctx).outcome
+    demand.inFlightRule = previousRule
+    return outcome
   }
 
   private foldAggregate(fn: string, section: string, col: string, demand: DemandState, budget: EvalBudget, adapter: ContextAdapter): ComputedValue {
@@ -787,8 +799,9 @@ export class FormRuleGraph {
     }
   }
 
-  private failClosed(code: string): RuleEvaluationResult {
-    const synthetic: RuleOutcome = { ruleId: 'rule.engine', target: cell.schema(), outputType: 'Validity', validity: { ok: false, error: err(code) } }
+  private failClosed(code: string, ruleId: string | null = null, cellKey: string | null = null): RuleEvaluationResult {
+    const error = ruleId !== null ? err(code, 'rule', ruleId) : cellKey !== null ? err(code, 'cell', cellKey) : err(code)
+    const synthetic: RuleOutcome = { ruleId: 'rule.engine', target: cell.schema(), outputType: 'Validity', validity: { ok: false, error } }
     return {
       byRule: new Map([['rule.engine', synthetic]]),
       values: new Map(),

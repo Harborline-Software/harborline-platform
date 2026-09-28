@@ -148,11 +148,26 @@ describe('core outcome and dynamic missing scheduling', () => {
   })
 
   it('refuses a dynamic self read instead of using a raw shadow', () => {
-    const graph = new FormRuleGraph(compile([rule('a.dynamic', 'a', 'Compute', { missing: [{ var: 'keys' }] })]), fixedClock, testAdmission)
+    const graph = new FormRuleGraph(compile([rule('a.dynamic', 'a', 'Compute', { missing: [{ var: 'keys' }] })]), fixedClock, testAdmission,
+      { ...DEFAULT_LIMITS, stepBudget: 20 })
     const first = graph.evaluateInstance(instance({ keys: ['a'], a: 1 }))
     expect(first.values.get('field:a')).toEqual({ state: 'Error', error: { code: Codes.cycle, params: { cell: 'field:a' } } })
     graph.evaluateInstance(instance({ keys: ['raw'], raw: 1 }))
     expect(graph.reevaluate('keys', valueSnapshot(['a'])).values.get('field:a')).toEqual({ state: 'Error', error: { code: Codes.cycle, params: { cell: 'field:a' } } })
+  })
+
+  it('drops a previous dynamic dependency when its key changes', () => {
+    const graph = new FormRuleGraph(compile([
+      rule('a.dynamic', 'a', 'Compute', { '!!': [{ missing: [{ var: 'keys' }] }] }),
+      rule('b.value', 'b', 'Compute', { var: 'bRaw' }),
+      rule('c.value', 'c', 'Compute', { var: 'cRaw' }),
+    ]), fixedClock, testAdmission)
+    graph.evaluateInstance(instance({ keys: ['b'], bRaw: 1, cRaw: 2 }))
+    const switched = graph.reevaluate('keys', valueSnapshot(['c']))
+
+    const afterFormerDependency = graph.reevaluate('bRaw', valueSnapshot(3))
+
+    expect(afterFormerDependency.byRule.get('a.dynamic')).toBe(switched.byRule.get('a.dynamic'))
   })
 
   it('demands row producers before folding a dynamically demanded aggregate', () => {
@@ -688,6 +703,7 @@ describe('static-cap rejection (identical to the .NET integrity tier)', () => {
       rule('graph-over-a', 'a', 'Compute', 1), rule('graph-over-b', 'b', 'Compute', 2),
     ]), fixedClock, testAdmission, { ...DEFAULT_LIMITS, maxGraphNodes: 1 })
     expect(graphOver.evaluateInstance(instance({})).validations[0].validity?.error?.code).toBe(Codes.graphTooLarge)
+    expect(graphOver.evaluateInstance(instance({})).validations[0].validity?.error?.params).toEqual({})
 
     const total = rule('table-total', 'total', 'Compute', { var: 'table.sum(items.amount)' })
     const tableAt = new FormRuleGraph(compile([total]), fixedClock, testAdmission, { ...DEFAULT_LIMITS, maxTableRowsPerAggregate: 1 })
@@ -712,6 +728,52 @@ describe('static-cap rejection (identical to the .NET integrity tier)', () => {
     const res = g.evaluateInstance(instance({ a: 1 }))
     expect(res.isSaveBlocked).toBe(true)
     expect(res.validations[0].validity?.error?.code).toBe(Codes.budgetExceeded)
+  })
+
+  it('names the computed rule on an initial whole-graph budget abort', () => {
+    const graph = new FormRuleGraph(compile([rule('c.total', 'total', 'Compute', 1)]), fixedClock, testAdmission,
+      { ...DEFAULT_LIMITS, stepBudget: 0 })
+
+    const result = graph.evaluateInstance(instance({}))
+
+    expect(result.validations[0]).toMatchObject({ ruleId: 'rule.engine', validity: {
+      error: { code: Codes.budgetExceeded, params: { rule: 'c.total' } },
+    } })
+  })
+
+  it('names the validation rule on an initial whole-graph budget abort', () => {
+    const graph = new FormRuleGraph(compile([rule('v.ready', 'ready', 'Validate', true)]), fixedClock, testAdmission,
+      { ...DEFAULT_LIMITS, stepBudget: 0 })
+
+    const result = graph.evaluateInstance(instance({}))
+
+    expect(result.validations[0]).toMatchObject({ ruleId: 'rule.engine', validity: {
+      error: { code: Codes.budgetExceeded, params: { rule: 'v.ready' } },
+    } })
+  })
+
+  it('returns a named refusal when incremental validation exhausts the graph budget', () => {
+    const graph = new FormRuleGraph(compile([rule('v.ready', 'ready', 'Validate',
+      { if: [{ var: 'toggle' }, true, { '+': [1, 2, 3, 4] }] })]), fixedClock, testAdmission,
+    { ...DEFAULT_LIMITS, stepBudget: 5 })
+    expect(graph.evaluateInstance(instance({ toggle: true })).isSaveBlocked).toBe(false)
+
+    const result = graph.reevaluate('toggle', valueSnapshot(false))
+
+    expect(result.validations[0]).toMatchObject({ ruleId: 'rule.engine', validity: {
+      error: { code: Codes.budgetExceeded, params: { rule: 'v.ready' } },
+    } })
+  })
+
+  it('names the aggregate cell when a whole-graph budget abort has no rule in flight', () => {
+    const graph = new FormRuleGraph(compile([rule('c.total', 'total', 'Compute', { var: 'table.sum(items.amount)' })]),
+      fixedClock, testAdmission, { ...DEFAULT_LIMITS, stepBudget: 0 })
+
+    const result = graph.evaluateInstance(instance({ items: [{ amount: 1 }] }))
+
+    expect(result.validations[0]).toMatchObject({ ruleId: 'rule.engine', validity: {
+      error: { code: Codes.budgetExceeded, params: { cell: 'agg:items/sum/amount' } },
+    } })
   })
 })
 
