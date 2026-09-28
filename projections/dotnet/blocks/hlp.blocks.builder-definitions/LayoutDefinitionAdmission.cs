@@ -346,6 +346,8 @@ public static class LayoutDefinitionAdmission
         }
         if (!LayoutVersionSyntax.IsValid(envelope.Version))
             Add(refusals, LayoutDefinitionCodes.VersionInvalid, "/envelope/version");
+        if (envelope.Contract is null || envelope.Contract.Major < 0 || envelope.Contract.Minor < 0)
+            Add(refusals, LayoutDefinitionCodes.EnvelopeInvalid, "/envelope/contract");
         if (!Enum.IsDefined(envelope.CascadeLayer))
             Add(refusals, LayoutDefinitionCodes.EnvelopeInvalid, "/envelope/cascade_layer");
         if (definition.SchemaVersion != 1)

@@ -10,6 +10,23 @@ namespace Harborline.Blocks.BuilderDefinitions.Tests;
 
 public sealed class LayoutDefinitionProducerTests
 {
+    [Fact(DisplayName = "kernel-core-ck-8: Layout without an envelope contract refuses authoring and publication")]
+    public void MissingContractRefusesAuthoringAndPublication()
+    {
+        var source = ScreenDefinition();
+        var definition = source with { Envelope = source.Envelope with { Contract = null } };
+
+        var author = Assert.Throws<DefinitionRefusalException>(() =>
+            LayoutDefinitionAdmission.ValidateForAuthoring(definition, LayoutTestAccess.GrantsAll));
+        Assert.Equal(DefinitionAdmissionPhase.Author, author.Stage);
+        Assert.Contains(new DefinitionRefusal(LayoutDefinitionCodes.EnvelopeInvalid, "/envelope/contract"), author.Refusals);
+
+        var publish = Assert.Throws<DefinitionRefusalException>(() =>
+            LayoutDefinitionAdmission.ValidateForPublish(definition, Hosted, LayoutTestAccess.GrantsAll));
+        Assert.Equal(DefinitionAdmissionPhase.Publish, publish.Stage);
+        Assert.Contains(new DefinitionRefusal(LayoutDefinitionCodes.EnvelopeInvalid, "/envelope/contract"), publish.Refusals);
+    }
+
     // Publication resolves the fixture's named validation rule (T-724 ruling 36).
     private static readonly LayoutHostRegisters Hosted = new(LayoutBlockKindRegistry.Platform, ValidationRules: new LayoutValidationRuleRegistry(
     [
@@ -784,7 +801,8 @@ public sealed class LayoutDefinitionProducerTests
             JsonSerializer.SerializeToElement(new { package = "customer-domain", source = "authoring" }),
             "regulated",
             LegalHold: true,
-            Requires: [new LayoutDefinitionRequirement("records", "1.0.0"), new LayoutDefinitionRequirement(LayoutPackIdentity.Capability, "1.0.0")]),
+            Requires: [new LayoutDefinitionRequirement("records", "1.0.0"), new LayoutDefinitionRequirement(LayoutPackIdentity.Capability, "1.0.0")],
+            Contract: new DefinitionContractVersion(1, 0)),
         SchemaVersion: 1,
         Medium: medium,
         DefaultIntent: defaultIntent,

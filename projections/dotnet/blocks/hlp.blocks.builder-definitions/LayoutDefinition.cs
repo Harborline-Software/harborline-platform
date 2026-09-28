@@ -156,6 +156,7 @@ public sealed record LayoutDefinitionRequirement(
 /// <param name="RetentionClass">The governed retention class.</param>
 /// <param name="LegalHold">Whether legal hold applies.</param>
 /// <param name="Requires">The required platform capabilities.</param>
+/// <param name="Contract">The app contract against which this definition was authored.</param>
 public sealed record LayoutDefinitionEnvelope(
     string Identity,
     string Version,
@@ -164,7 +165,11 @@ public sealed record LayoutDefinitionEnvelope(
     JsonElement Provenance,
     string RetentionClass,
     bool LegalHold,
-    IReadOnlyList<LayoutDefinitionRequirement> Requires);
+    IReadOnlyList<LayoutDefinitionRequirement> Requires,
+    DefinitionContractVersion? Contract = null);
+
+/// <summary>The major and minor contract declared by one definition.</summary>
+public sealed record DefinitionContractVersion(int Major, int Minor);
 
 /// <summary>Describes the tokenized arrangement of a block's children.</summary>
 /// <param name="Kind">The container structure.</param>
