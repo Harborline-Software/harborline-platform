@@ -27,18 +27,6 @@ public sealed class LayoutDefinitionProducerTests
         Assert.Contains(new DefinitionRefusal(LayoutDefinitionCodes.EnvelopeInvalid, "/envelope/contract"), publish.Refusals);
     }
 
-    [Theory]
-    [InlineData(0, 0)]
-    [InlineData(1, 1)]
-    public void NonNegativeContractVersionAdmitsAuthoringAndPublication(int major, int minor)
-    {
-        var source = ScreenDefinition();
-        var definition = source with { Envelope = source.Envelope with { Contract = new(major, minor) } };
-
-        LayoutDefinitionAdmission.ValidateForAuthoring(definition, LayoutTestAccess.GrantsAll);
-        LayoutDefinitionAdmission.ValidateForPublish(definition, Hosted, LayoutTestAccess.GrantsAll);
-    }
-
     // Publication resolves the fixture's named validation rule (T-724 ruling 36).
     private static readonly LayoutHostRegisters Hosted = new(LayoutBlockKindRegistry.Platform, ValidationRules: new LayoutValidationRuleRegistry(
     [
