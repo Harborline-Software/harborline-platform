@@ -769,7 +769,11 @@ public sealed class FormRuleGraph : IFormRuleGraph
             // admission: depth zero permits a leaf, and only depth greater than the cap
             // is refused.
             if (_active.Count > Budget.Limits.MaxDependencyDepth)
-                return ComputedValue.OfError(RuleError.Of(RuleEngineCodes.BudgetExceeded));
+            {
+                var parameters = new Dictionary<string, string> { ["cell"] = cell.Key };
+                if (cell.Rule is not null) parameters["rule"] = cell.Rule.Source.Id;
+                return ComputedValue.OfError(new RuleError(RuleEngineCodes.BudgetExceeded, parameters));
+            }
 
             Budget.Charge();
             _active.Add(cell.Key);
@@ -799,7 +803,7 @@ public sealed class FormRuleGraph : IFormRuleGraph
         {
             ValueState.Resolved => RefValue.Resolved(value.Value),
             ValueState.Pending => RefValue.Pending,
-            _ => RefValue.OfError(value.Error?.Code == RuleEngineCodes.Cycle
+            _ => RefValue.OfError(value.Error?.Code is RuleEngineCodes.Cycle or RuleEngineCodes.BudgetExceeded
                 ? value.Error
                 : RuleError.Of(RuleEngineCodes.UpstreamError, "cell", key)),
         };

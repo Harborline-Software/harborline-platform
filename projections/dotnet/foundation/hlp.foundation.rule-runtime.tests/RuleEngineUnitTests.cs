@@ -904,6 +904,28 @@ public sealed class RuleEngineUnitTests
     }
 
     [Fact]
+    public void Dynamic_demand_depth_refusal_names_the_computed_rule_and_cell()
+    {
+        static RuleDefinition Dynamic(string id, string target, string key)
+            => Compute(id, target, "{\"missing\":[{\"var\":\"" + key + "\"}]}");
+
+        var graph = Graph(new[]
+        {
+            Dynamic("a.dynamic", "a", "keysA"),
+            Dynamic("b.dynamic", "b", "keysB"),
+            Dynamic("c.dynamic", "c", "keysC"),
+            Dynamic("d.dynamic", "d", "keysD"),
+        }, RuleEngineLimits.Default with { MaxDependencyDepth = 2 });
+
+        var result = graph.EvaluateInstance(Instance("{\"keysA\":[\"b\"],\"keysB\":[\"c\"],\"keysC\":[\"d\"],\"keysD\":[\"raw\"],\"raw\":1}"));
+
+        var error = result.Values["field:a"].Error!;
+        Assert.Equal(RuleEngineCodes.BudgetExceeded, error.Code);
+        Assert.Equal("d.dynamic", error.Params["rule"]);
+        Assert.Equal("field:d", error.Params["cell"]);
+    }
+
+    [Fact]
     public void Dynamic_missing_non_compute_plans_recover_when_the_actual_target_changes()
     {
         var graph = Graph(new[]
