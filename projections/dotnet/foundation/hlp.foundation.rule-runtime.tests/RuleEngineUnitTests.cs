@@ -1456,6 +1456,34 @@ public sealed class RuleEngineUnitTests
         Assert.Equal(RuleEngineCodes.PendingAtSave, v.Error!.Code);
     }
 
+    [Fact]
+    public void Guard_budget_refusal_names_the_rule()
+    {
+        var guard = new GuardEvaluator(new FixedClock(Clock), RuleEngineLimits.Default with { StepBudget = 0 });
+        var rule = RuleDefinitionFactory.Create("g.budget", RuleTier.JsonLogic, RuleScope.Schema, "",
+            "true", RuleActionKind.Validate);
+
+        var result = guard.EvaluateGuard(rule, RuleContextSnapshot.Capture(new Dictionary<string, JsonNode?>()), RuleEvalScope.Root, TestAdmission.Any);
+
+        Assert.False(result.Ok);
+        Assert.Equal(RuleEngineCodes.BudgetExceeded, result.Error!.Code);
+        Assert.Equal("g.budget", result.Error.Params["rule"]);
+    }
+
+    [Fact]
+    public void Value_budget_refusal_names_the_rule()
+    {
+        var guard = new GuardEvaluator(new FixedClock(Clock), RuleEngineLimits.Default with { StepBudget = 0 });
+        var rule = RuleDefinitionFactory.Create("v.budget", RuleTier.JsonLogic, RuleScope.Schema, "",
+            "1", RuleActionKind.Compute);
+
+        var result = guard.EvaluateValue(rule, RuleContextSnapshot.Capture(new Dictionary<string, JsonNode?>()), RuleEvalScope.Root, TestAdmission.Any);
+
+        Assert.Equal(ValueState.Error, result.State);
+        Assert.Equal(RuleEngineCodes.BudgetExceeded, result.Error!.Code);
+        Assert.Equal("v.budget", result.Error.Params["rule"]);
+    }
+
     // T-687: a rule that does not compile is a withheld guard carrying the compile code, not an
     // exception, so no caller of the seam has to hand-roll the fail-closed guarantee.
     [Theory]
