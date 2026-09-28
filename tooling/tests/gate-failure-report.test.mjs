@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict'
+import {mkdtempSync, readFileSync, rmSync} from 'node:fs'
+import {tmpdir} from 'node:os'
+import path from 'node:path'
 import test from 'node:test'
 
-import {collectFailedSteps, formatGateFailure} from '../gate-failure-report.mjs'
+import {collectFailedSteps, formatGateFailure, writeGateFailureReport} from '../gate-failure-report.mjs'
 
 // Twenty passing steps, one ordinary failed leaf step (exitCode 1, real output), and one grouped
 // step (like `native-tests`) whose nested `report.results` holds a spawn failure. The two failure
@@ -112,6 +115,19 @@ test('formatGateFailure first takes the HEAD of a long failureOutput, not the ta
   const message = formatGateFailure('/tmp/report.json', fixtureReport())
   assert.match(message, /install-error-line-19/)
   assert.doesNotMatch(message, /install-error-line-20/)
+})
+
+test('writeGateFailureReport persists the complete failed report before the receipt formats its excerpt', () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'gate-failure-report-'))
+  const reportPath = path.join(directory, 'harborline-phase4-gate-report.json')
+  const report = fixtureReport()
+
+  try {
+    writeGateFailureReport(reportPath, report)
+    assert.deepEqual(JSON.parse(readFileSync(reportPath, 'utf8')), report)
+  } finally {
+    rmSync(directory, {recursive: true, force: true})
+  }
 })
 
 test('a grouping step marked failed with no failed children is reported as a fallback', () => {
