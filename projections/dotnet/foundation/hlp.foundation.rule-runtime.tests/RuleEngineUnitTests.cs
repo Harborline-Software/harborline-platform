@@ -355,6 +355,7 @@ public sealed class RuleEngineUnitTests
         var result = Graph(rules, limits).EvaluateInstance(Instance("{\"x\":1,\"y\":2}"));
         Assert.True(result.IsSaveBlocked);
         Assert.Contains(result.Validations, v => v.Validity!.Error!.Code == RuleEngineCodes.GraphTooLarge);
+        Assert.Empty(Assert.Single(result.Validations).Validity!.Error!.Params);
     }
 
     [Fact]
@@ -365,6 +366,101 @@ public sealed class RuleEngineUnitTests
             .EvaluateInstance(Instance("{\"a\":1}"));
         Assert.True(result.IsSaveBlocked);
         Assert.Contains(result.Validations, v => v.Validity!.Error!.Code == RuleEngineCodes.BudgetExceeded);
+    }
+
+    [Fact]
+    public void Initial_graph_budget_abort_names_the_in_flight_rule_without_replacing_the_synthetic_blocker()
+    {
+        var limits = RuleEngineLimits.Default with { StepBudget = 0 };
+        var result = Graph(new[] { Compute("c.b", "b", "{\"+\":[{\"var\":\"a\"},1]}") }, limits)
+            .EvaluateInstance(Instance("{\"a\":1}"));
+
+        var refusal = Assert.Single(result.Validations);
+        Assert.Equal("rule.engine", refusal.RuleId);
+        Assert.Equal(RuleEngineCodes.BudgetExceeded, refusal.Validity!.Error!.Code);
+        Assert.Equal("c.b", refusal.Validity.Error.Params["rule"]);
+        Assert.True(result.IsSaveBlocked);
+    }
+
+    [Fact]
+    public void Incremental_graph_budget_abort_names_the_in_flight_rule_without_replacing_the_synthetic_blocker()
+    {
+        var limits = RuleEngineLimits.Default with { StepBudget = 0 };
+        var graph = Graph(new[] { Compute("c.b", "b", "{\"+\":[{\"var\":\"a\"},1]}") }, limits);
+        graph.EvaluateInstance(Instance("{\"a\":1}"));
+
+        var result = graph.Reevaluate("a", RuleInputValue.FromJsonText("2"));
+
+        var refusal = Assert.Single(result.Validations);
+        Assert.Equal("rule.engine", refusal.RuleId);
+        Assert.Equal(RuleEngineCodes.BudgetExceeded, refusal.Validity!.Error!.Code);
+        Assert.Equal("c.b", refusal.Validity.Error.Params["rule"]);
+        Assert.True(result.IsSaveBlocked);
+    }
+
+    [Fact]
+    public void Validation_plan_budget_abort_names_the_in_flight_rule()
+    {
+        var limits = RuleEngineLimits.Default with { StepBudget = 0 };
+        var rule = RuleDefinitionFactory.Create("v.a", RuleTier.JsonLogic, RuleScope.Field, "a",
+            "{\"==\":[{\"var\":\"a\"},1]}", RuleActionKind.Validate);
+
+        var result = Graph(new[] { rule }, limits).EvaluateInstance(Instance("{\"a\":1}"));
+
+        var refusal = Assert.Single(result.Validations);
+        Assert.Equal("rule.engine", refusal.RuleId);
+        Assert.Equal(RuleEngineCodes.BudgetExceeded, refusal.Validity!.Error!.Code);
+        Assert.Equal("v.a", refusal.Validity.Error.Params["rule"]);
+    }
+
+    [Fact]
+    public void Incremental_validation_plan_budget_abort_names_the_in_flight_rule()
+    {
+        var limits = RuleEngineLimits.Default with { StepBudget = 0 };
+        var rule = RuleDefinitionFactory.Create("v.a", RuleTier.JsonLogic, RuleScope.Field, "a",
+            "{\"==\":[{\"var\":\"a\"},1]}", RuleActionKind.Validate);
+        var graph = Graph(new[] { rule }, limits);
+        graph.EvaluateInstance(Instance("{\"a\":1}"));
+
+        var result = graph.Reevaluate("a", RuleInputValue.FromJsonText("2"));
+
+        var refusal = Assert.Single(result.Validations);
+        Assert.Equal("rule.engine", refusal.RuleId);
+        Assert.Equal(RuleEngineCodes.BudgetExceeded, refusal.Validity!.Error!.Code);
+        Assert.Equal("v.a", refusal.Validity.Error.Params["rule"]);
+    }
+
+    [Fact]
+    public void Aggregate_budget_abort_names_the_cell_when_no_rule_is_in_flight()
+    {
+        var limits = RuleEngineLimits.Default with { StepBudget = 0 };
+        var graph = Graph(new[] { Compute("c.total", "total", "{\"var\":\"table.sum(items.amount)\"}") }, limits);
+
+        var result = graph.EvaluateInstance(Instance("{\"items\":[{\"amount\":1}]}"));
+
+        var refusal = Assert.Single(result.Validations);
+        Assert.Equal("rule.engine", refusal.RuleId);
+        Assert.Equal(RuleEngineCodes.BudgetExceeded, refusal.Validity!.Error!.Code);
+        Assert.Equal("agg:items/sum/amount", refusal.Validity.Error.Params["cell"]);
+        Assert.False(refusal.Validity.Error.Params.ContainsKey("rule"));
+    }
+
+    [Fact]
+    public void Whole_graph_budget_abort_names_the_outer_rule_after_a_nested_demand_succeeds()
+    {
+        var limits = RuleEngineLimits.Default with { StepBudget = 50 };
+        var graph = Graph(new[]
+        {
+            Compute("a.dynamic", "a", "{\"cat\":[{\"missing\":[{\"var\":\"keys\"}]},{\"var\":\"long\"}]}"),
+            Compute("b.dynamic", "b", "\"ok\""),
+        }, limits);
+
+        var result = graph.EvaluateInstance(Instance("{\"keys\":[\"b\"],\"long\":\"" + new string('x', 100) + "\"}"));
+
+        var refusal = Assert.Single(result.Validations);
+        Assert.Equal("rule.engine", refusal.RuleId);
+        Assert.Equal(RuleEngineCodes.BudgetExceeded, refusal.Validity!.Error!.Code);
+        Assert.Equal("a.dynamic", refusal.Validity.Error.Params["rule"]);
     }
 
     [Fact]
