@@ -289,7 +289,7 @@ public sealed class LayoutBoundRegisterTests
 
     private static LayoutDefinition GuardSurface(LayoutShowWhen? surfaceGuard, LayoutShowWhen? rowGuard) => new(
         new("surface.invoice", "1.0.0", "tenant-a", LayoutCascadeLayer.DomainPackage,
-            JsonSerializer.SerializeToElement(new { source = "test" }), "standard", false, [], new DefinitionContractVersion(1, 0)),
+            JsonSerializer.SerializeToElement(new { source = "test" }), "standard", false, []),
         1, LayoutMedium.Screen, LayoutIntent.Observe,
         [
             new("notice", "layout.text", new LayoutStaticBinding(JsonSerializer.SerializeToElement("Overdue")), [], ShowWhen: surfaceGuard),
@@ -321,7 +321,7 @@ public sealed class LayoutBoundRegisterTests
 
         var definition = new LayoutDefinition(
             new("surface.invoice", "1.0.0", "tenant-a", LayoutCascadeLayer.DomainPackage,
-                JsonSerializer.SerializeToElement(new { source = "editor" }), "standard", false, [], new DefinitionContractVersion(1, 0)),
+                JsonSerializer.SerializeToElement(new { source = "editor" }), "standard", false, []),
             1, LayoutMedium.Screen, LayoutIntent.Observe,
             drafted.Where(block => !block.TryGetProperty("parentId", out _)).Select(Build).ToArray(),
             [], [], [], null, []);
@@ -347,7 +347,7 @@ public sealed class LayoutBoundRegisterTests
 
     internal static LayoutDefinition PageSurface(LayoutPageRun run) => new(
         new("surface.statement", "1.0.0", "tenant-a", LayoutCascadeLayer.DomainPackage,
-            JsonSerializer.SerializeToElement(new { source = "test" }), "standard", false, [], new DefinitionContractVersion(1, 0)),
+            JsonSerializer.SerializeToElement(new { source = "test" }), "standard", false, []),
         1, LayoutMedium.Page, LayoutIntent.Observe,
         [
             new("heading", "layout.text", new LayoutStaticBinding(JsonSerializer.SerializeToElement("Statement")), [], FlowRole: LayoutFlowRole.Static, StaticRegion: "first.center"),
@@ -366,7 +366,7 @@ public sealed class LayoutBoundRegisterTests
 
     internal static LayoutDefinition CaptureSurface(LayoutCaptureProperties capture, string fieldPath = "invoice.reference") => new(
         new("surface.invoice", "1.0.0", "tenant-a", LayoutCascadeLayer.DomainPackage,
-            JsonSerializer.SerializeToElement(new { source = "test" }), "standard", false, [], new DefinitionContractVersion(1, 0)),
+            JsonSerializer.SerializeToElement(new { source = "test" }), "standard", false, []),
         1, LayoutMedium.Screen, LayoutIntent.Capture,
         [new("reference", "layout.field", new LayoutRecordFieldBinding(fieldPath), [], Capture: capture)],
         [], [], [], null, []);
