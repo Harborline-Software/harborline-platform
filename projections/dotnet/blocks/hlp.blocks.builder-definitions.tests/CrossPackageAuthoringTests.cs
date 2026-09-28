@@ -17,7 +17,7 @@ public sealed class CrossPackageAuthoringTests
     private static readonly PackageExposure Ledger = new("pkg.ledger", [Balanced, Period]);
 
     private static RuleDefinitionEnvelope Consumer(params string[] requires)
-        => new("rule.overdue", "1.0.0", "tenant-a", "tenant", [], requires);
+        => new("rule.overdue", "1.0.0", "tenant-a", "tenant", [], requires, new(1, 0));
 
     private static CrossPackageReference Reference(string pointer, CrossPackageEndpoint target) => new(pointer, Source, target);
 

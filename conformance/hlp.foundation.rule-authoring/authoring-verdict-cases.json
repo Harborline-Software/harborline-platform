@@ -98,7 +98,7 @@
     {
       "id": "intent-blank-otherwise-refused",
       "op": "definition-intent",
-      "sourceJson": "{\"envelope\":{\"id\":\"invoice-total\",\"version\":\"1.2.3\",\"tenant\":\"tenant-a\",\"cascadeLayer\":\"domain-package\",\"provenance\":{\"kind\":\"package\",\"id\":\"finance\"},\"requires\":[\"records.invoice@2.0.0\"]},\"name\":\"Invoice total\",\"tier\":\"JsonLogic\",\"draft\":{\"kind\":\"Table\",\"scope\":\"Field\",\"scopeTarget\":\"total\",\"outputType\":\"Compute\",\"hitPolicy\":\"Priority\",\"columns\":[{\"id\":\"amount\",\"input\":\"field.amount\",\"valueType\":\"Number\"}],\"rows\":[{\"id\":\"low\",\"cells\":{\"amount\":{\"kind\":\"Range\",\"lo\":\"0\",\"hi\":\"100\"}},\"output\":\"low\",\"priority\":1}],\"noMatch\":{\"kind\":\"Default\",\"value\":\"\"}}}",
+      "sourceJson": "{\"envelope\":{\"id\":\"invoice-total\",\"version\":\"1.2.3\",\"tenant\":\"tenant-a\",\"cascadeLayer\":\"domain-package\",\"provenance\":{\"kind\":\"package\",\"id\":\"finance\"},\"requires\":[\"records.invoice@2.0.0\"],\"contract\":{\"major\":1,\"minor\":0}},\"name\":\"Invoice total\",\"tier\":\"JsonLogic\",\"draft\":{\"kind\":\"Table\",\"scope\":\"Field\",\"scopeTarget\":\"total\",\"outputType\":\"Compute\",\"hitPolicy\":\"Priority\",\"columns\":[{\"id\":\"amount\",\"input\":\"field.amount\",\"valueType\":\"Number\"}],\"rows\":[{\"id\":\"low\",\"cells\":{\"amount\":{\"kind\":\"Range\",\"lo\":\"0\",\"hi\":\"100\"}},\"output\":\"low\",\"priority\":1}],\"noMatch\":{\"kind\":\"Default\",\"value\":\"\"}}}",
       "expected": {
         "ok": false,
         "code": "rule.skin.no_match_unresolved"
@@ -107,7 +107,7 @@
     {
       "id": "intent-undeclared-ref-refused",
       "op": "definition-intent",
-      "sourceJson": "{\"envelope\":{\"id\":\"invoice-total\",\"version\":\"1.2.3\",\"tenant\":\"tenant-a\",\"cascadeLayer\":\"domain-package\",\"provenance\":{\"kind\":\"package\",\"id\":\"finance\"},\"requires\":[\"records.invoice@2.0.0\"]},\"name\":\"Invoice total\",\"tier\":\"JsonLogic\",\"draft\":{\"kind\":\"Formula\",\"scope\":\"Field\",\"scopeTarget\":\"total\",\"outputType\":\"Compute\",\"inputs\":[],\"expression\":{\"kind\":\"Ref\",\"name\":\"field.bonus\"}}}",
+      "sourceJson": "{\"envelope\":{\"id\":\"invoice-total\",\"version\":\"1.2.3\",\"tenant\":\"tenant-a\",\"cascadeLayer\":\"domain-package\",\"provenance\":{\"kind\":\"package\",\"id\":\"finance\"},\"requires\":[\"records.invoice@2.0.0\"],\"contract\":{\"major\":1,\"minor\":0}},\"name\":\"Invoice total\",\"tier\":\"JsonLogic\",\"draft\":{\"kind\":\"Formula\",\"scope\":\"Field\",\"scopeTarget\":\"total\",\"outputType\":\"Compute\",\"inputs\":[],\"expression\":{\"kind\":\"Ref\",\"name\":\"field.bonus\"}}}",
       "expected": {
         "ok": false,
         "code": "rule.skin.formula_undeclared_ref"
@@ -116,7 +116,7 @@
     {
       "id": "table-source-intent",
       "op": "definition-intent",
-      "sourceJson": "{\"envelope\":{\"id\":\"invoice-total\",\"version\":\"1.2.3\",\"tenant\":\"tenant-a\",\"cascadeLayer\":\"domain-package\",\"provenance\":{\"kind\":\"package\",\"id\":\"finance\"},\"requires\":[\"records.invoice@2.0.0\"]},\"name\":\"Invoice total\",\"tier\":\"JsonLogic\",\"draft\":{\"kind\":\"Table\",\"scope\":\"Field\",\"scopeTarget\":\"total\",\"outputType\":\"Compute\",\"hitPolicy\":\"Priority\",\"columns\":[{\"id\":\"amount\",\"input\":\"field.amount\",\"valueType\":\"Number\"}],\"rows\":[{\"id\":\"low\",\"cells\":{\"amount\":{\"kind\":\"Range\",\"lo\":\"0\",\"hi\":\"100\"}},\"output\":\"low\",\"priority\":1}],\"noMatch\":{\"kind\":\"Default\",\"value\":\"high\"}}}",
+      "sourceJson": "{\"envelope\":{\"id\":\"invoice-total\",\"version\":\"1.2.3\",\"tenant\":\"tenant-a\",\"cascadeLayer\":\"domain-package\",\"provenance\":{\"kind\":\"package\",\"id\":\"finance\"},\"requires\":[\"records.invoice@2.0.0\"],\"contract\":{\"major\":1,\"minor\":0}},\"name\":\"Invoice total\",\"tier\":\"JsonLogic\",\"draft\":{\"kind\":\"Table\",\"scope\":\"Field\",\"scopeTarget\":\"total\",\"outputType\":\"Compute\",\"hitPolicy\":\"Priority\",\"columns\":[{\"id\":\"amount\",\"input\":\"field.amount\",\"valueType\":\"Number\"}],\"rows\":[{\"id\":\"low\",\"cells\":{\"amount\":{\"kind\":\"Range\",\"lo\":\"0\",\"hi\":\"100\"}},\"output\":\"low\",\"priority\":1}],\"noMatch\":{\"kind\":\"Default\",\"value\":\"high\"}}}",
       "expected": {
         "ok": true,
         "code": null
@@ -125,7 +125,7 @@
     {
       "id": "formula-source-intent",
       "op": "definition-intent",
-      "sourceJson": "{\"envelope\":{\"id\":\"invoice-total\",\"version\":\"1.2.3\",\"tenant\":\"tenant-a\",\"cascadeLayer\":\"domain-package\",\"provenance\":{\"kind\":\"package\",\"id\":\"finance\"},\"requires\":[\"records.invoice@2.0.0\"]},\"name\":\"Invoice total\",\"tier\":\"JsonLogic\",\"draft\":{\"kind\":\"Formula\",\"scope\":\"Field\",\"scopeTarget\":\"total\",\"outputType\":\"Compute\",\"inputs\":[{\"id\":\"amount\",\"ref\":\"field.amount\",\"type\":\"Number\"}],\"expression\":{\"kind\":\"Ref\",\"name\":\"field.amount\"}}}",
+      "sourceJson": "{\"envelope\":{\"id\":\"invoice-total\",\"version\":\"1.2.3\",\"tenant\":\"tenant-a\",\"cascadeLayer\":\"domain-package\",\"provenance\":{\"kind\":\"package\",\"id\":\"finance\"},\"requires\":[\"records.invoice@2.0.0\"],\"contract\":{\"major\":1,\"minor\":0}},\"name\":\"Invoice total\",\"tier\":\"JsonLogic\",\"draft\":{\"kind\":\"Formula\",\"scope\":\"Field\",\"scopeTarget\":\"total\",\"outputType\":\"Compute\",\"inputs\":[{\"id\":\"amount\",\"ref\":\"field.amount\",\"type\":\"Number\"}],\"expression\":{\"kind\":\"Ref\",\"name\":\"field.amount\"}}}",
       "expected": {
         "ok": true,
         "code": null

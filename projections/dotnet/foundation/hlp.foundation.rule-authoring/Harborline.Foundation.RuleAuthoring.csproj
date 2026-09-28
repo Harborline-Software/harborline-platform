@@ -14,6 +14,7 @@
     <InternalsVisibleTo Include="Harborline.Foundation.RuleAuthoring.Tests" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="../hlp.foundation.definitions/Harborline.Foundation.Definitions.csproj" />
     <ProjectReference Include="../hlp.foundation.rule-runtime/Harborline.Foundation.RuleEngine.csproj" />
   </ItemGroup>
   <ItemGroup>

@@ -8,6 +8,27 @@ namespace Harborline.Foundation.Taxonomy.Tests;
 
 public sealed class TaxonomyDefinitionTests
 {
+    [Fact(DisplayName = "T-572 slice 2: the envelope contract survives canonical serialize and deserialize; an absent one still parses")]
+    public void Envelope_contract_survives_canonical_round_trip()
+    {
+        var canonical = TaxonomyDefinitionJson.SerializeCanonical(Definition());
+        var parsed = TaxonomyDefinitionJson.Deserialize(WithContract(canonical));
+        Assert.Equal("""{"major":1,"minor":0}""", ContractOf(TaxonomyDefinitionJson.SerializeCanonical(parsed)));
+        // Slice 2 changes no admission outcome: a body without the member still parses (slice 3 refuses it).
+        Assert.Null(ContractOf(TaxonomyDefinitionJson.SerializeCanonical(TaxonomyDefinitionJson.Deserialize(WithContract(canonical, present: false)))));
+    }
+
+    private static byte[] WithContract(byte[] canonical, bool present = true)
+    {
+        var node = System.Text.Json.Nodes.JsonNode.Parse(canonical)!;
+        var envelope = node["envelope"]!.AsObject();
+        envelope.Remove("contract");
+        if (present) envelope["contract"] = new System.Text.Json.Nodes.JsonObject { ["major"] = 1, ["minor"] = 0 };
+        return System.Text.Encoding.UTF8.GetBytes(node.ToJsonString());
+    }
+
+    private static string? ContractOf(byte[] json) => System.Text.Json.Nodes.JsonNode.Parse(json)!["envelope"]!["contract"]?.ToJsonString();
+
     [Fact(DisplayName = "taxonomy-ck-1 through taxonomy-ck-15, taxonomy-ck-21 and taxonomy-ck-22: members round-trip through canonical JSON")]
     public void Canonical_json_round_trips_byte_identically()
     {
@@ -198,7 +219,7 @@ public sealed class TaxonomyDefinitionTests
 
     private static readonly TaxonomyDefinitionId Id = new("acme", "health", "icd");
     private static TaxonomyDefinition Definition(IReadOnlyList<TaxonomyNode>? nodes = null) => new("tenant-a", Id, "1.0.0", TaxonomyGovernanceRegime.Civilian, "author", nodes ?? [Node("root")], Envelope: Envelope(), DerivedFrom: new("source", "0.9.0", "author", DateTimeOffset.UnixEpoch, "derivation"));
-    private static TaxonomyDefinitionEnvelope Envelope(string? identity = null) => new(identity ?? Id.ToString(), "1.0.0", "tenant-a", TaxonomyCascadeLayer.Tenant, JsonDocument.Parse("{\"source\":\"tenant\"}").RootElement.Clone(), []);
+    private static TaxonomyDefinitionEnvelope Envelope(string? identity = null) => new(identity ?? Id.ToString(), "1.0.0", "tenant-a", TaxonomyCascadeLayer.Tenant, JsonDocument.Parse("{\"source\":\"tenant\"}").RootElement.Clone(), [], new(1, 0));
     private static TaxonomyNode Node(string code, string? parent = null, TaxonomyNodeStatus status = TaxonomyNodeStatus.Active, string? successor = null, string? reason = "retired", IReadOnlyList<DisplayHistoryEntry>? history = null) => new(code, $"Display {code}", $"Description {code}", status, history ?? [new($"Display {code}", $"Description {code}", DateTimeOffset.UnixEpoch)], ParentCode: parent, PublishedAt: DateTimeOffset.UnixEpoch, TombstonedAt: status == TaxonomyNodeStatus.Tombstoned ? DateTimeOffset.UnixEpoch : null, SuccessorCode: successor, DeprecationReason: reason);
     private static void RefusesThenAdmits(TaxonomyDefinition refused, string code, TaxonomyAdmissionPhase phase = TaxonomyAdmissionPhase.Author, TaxonomyDefinition? previous = null, TaxonomyDefinition? admitted = null)
     {

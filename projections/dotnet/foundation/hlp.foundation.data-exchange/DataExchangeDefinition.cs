@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
+using Harborline.Foundation.Definitions;
 
 namespace Harborline.Foundation.DataExchange;
 
@@ -61,7 +62,8 @@ public sealed record DataExchangeDefinitionEnvelope(
     string Tenant,
     DataExchangeCascadeLayer CascadeLayer,
     JsonElement Provenance,
-    IReadOnlyList<DataExchangeDefinitionRequirement> Requires);
+    IReadOnlyList<DataExchangeDefinitionRequirement> Requires,
+    DefinitionContractVersion? Contract);
 
 public enum MappingMetadataPrecedence
 {

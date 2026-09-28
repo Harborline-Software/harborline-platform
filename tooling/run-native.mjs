@@ -54,6 +54,7 @@ const DOTNET_SUITES = [
   ['dataExchange', 'foundation-data-exchange-native', "projections/dotnet/foundation/hlp.foundation.data-exchange.tests/Harborline.Foundation.DataExchange.Tests.csproj"],
   ['assistance', 'foundation-assistance-native', "projections/dotnet/foundation/hlp.foundation.assistance.tests/Harborline.Foundation.Assistance.Tests.csproj"],
   ['documents', 'foundation-documents-native', "projections/dotnet/foundation/hlp.foundation.documents.tests/Harborline.Foundation.Documents.Tests.csproj"],
+  ['foundationDefinitions', 'foundation-definitions-native', "projections/dotnet/foundation/hlp.foundation.definitions.tests/Harborline.Foundation.Definitions.Tests.csproj"],
   ['foundationScheduling', 'foundation-scheduling-native', "projections/dotnet/foundation/hlp.foundation.scheduling.tests/Harborline.Foundation.Scheduling.Tests.csproj"],
   ['fieldRuntime', 'foundation-field-runtime-native', "projections/dotnet/foundation/hlp.foundation.field-runtime.tests/Harborline.Foundation.FieldRuntime.Tests.csproj"],
   ['blocksScheduling', 'blocks-scheduling-native', "projections/dotnet/blocks/hlp.blocks.scheduling.tests/Harborline.Blocks.Scheduling.Tests.csproj"],

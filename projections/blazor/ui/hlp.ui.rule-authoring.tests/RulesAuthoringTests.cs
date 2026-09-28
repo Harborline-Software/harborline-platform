@@ -92,7 +92,7 @@ public sealed class RulesAuthoringTests : BunitContext
         cut.FindButton("Remove Rule else branch argument 1").Click();
 
         var document = new RuleDefinitionDocument(
-            new RuleDefinitionEnvelope("nested", "1.0.0", "tenant-a", "domain-package", new JsonObject { ["kind"] = "test" }, []),
+            new RuleDefinitionEnvelope("nested", "1.0.0", "tenant-a", "domain-package", new JsonObject { ["kind"] = "test" }, [], new(1, 0)),
             "Nested", RuleDefinitionTier.JsonLogic, changed!.Draft);
         Assert.True(RuleIntentValidator.Validate(document, RuleIntentPhase.Author).IsValid);
     }
@@ -217,7 +217,7 @@ public sealed class RulesAuthoringTests : BunitContext
             var draft = requests[^1].Draft.Draft;
             Assert.Equal(reference, Assert.IsType<FormulaExpr.Ref>(Assert.IsType<FormulaDraft>(draft).Expression).Name);
             var admitted = RuleIntentValidator.Validate(new RuleDefinitionDocument(
-                new RuleDefinitionEnvelope(id, "1.0.0", "tenant-a", "domain-package", new JsonObject { ["kind"] = "test" }, []),
+                new RuleDefinitionEnvelope(id, "1.0.0", "tenant-a", "domain-package", new JsonObject { ["kind"] = "test" }, [], new(1, 0)),
                 id, RuleDefinitionTier.JsonLogic, draft), RuleIntentPhase.Author);
             Assert.True(admitted.IsValid, $"{id}: {string.Join(", ", admitted.Diagnostics.Select(diagnostic => diagnostic.Code))}");
             Assert.True(JsonNode.DeepEquals(JsonNode.Parse(item.GetProperty("lowered").GetRawText()), admitted.Lowered), $"{id}: lowered {admitted.Lowered?.ToJsonString()}");
@@ -254,7 +254,7 @@ public sealed class RulesAuthoringTests : BunitContext
 
             var draft = requests[^1].Draft.Draft;
             var admitted = RuleIntentValidator.Validate(new RuleDefinitionDocument(
-                new RuleDefinitionEnvelope(id, "1.0.0", "tenant-a", "domain-package", new JsonObject { ["kind"] = "test" }, []),
+                new RuleDefinitionEnvelope(id, "1.0.0", "tenant-a", "domain-package", new JsonObject { ["kind"] = "test" }, [], new(1, 0)),
                 id, RuleDefinitionTier.JsonLogic, draft), RuleIntentPhase.Author);
             Assert.True(admitted.IsValid, $"{id}: {string.Join(", ", admitted.Diagnostics.Select(diagnostic => diagnostic.Code))}");
             Assert.True(JsonNode.DeepEquals(JsonNode.Parse(item.GetProperty("lowered").GetRawText()), admitted.Lowered), $"{id}: lowered {admitted.Lowered?.ToJsonString()}");

@@ -767,6 +767,38 @@ public sealed class LayoutDefinitionProducerTests
             pageRuns: [new LayoutPageRun("run.invoice", "page.invoice", "master.invoice", ["page-root"])]);
     }
 
+    [Fact(DisplayName = "T-572 slice 2: the envelope contract survives canonical serialize and deserialize")]
+    public void EnvelopeContractSurvivesCanonicalRoundTrip()
+    {
+        var parsed = LayoutDefinitionJson.Deserialize(WithContract(LayoutDefinitionJson.SerializeCanonical(ScreenDefinition())));
+        Assert.Equal("""{"major":1,"minor":0}""", ContractOf(LayoutDefinitionJson.SerializeCanonical(parsed)));
+    }
+
+    [Fact(DisplayName = "T-572 slice 2: the envelope contract survives pack export and host admission; an absent one is still admitted")]
+    public void EnvelopeContractSurvivesPackExportAndHostAdmission()
+    {
+        var host = new Dictionary<string, string> { [LayoutPackIdentity.Capability] = "1.0.0" };
+        var canonical = LayoutDefinitionJson.SerializeCanonical(ScreenDefinition());
+        var entry = LayoutDefinitionPackageExporter.Export(LayoutDefinitionJson.Deserialize(WithContract(canonical)), Hosted);
+        LayoutPackHostAdmission.Admit([entry], host);
+        Assert.Equal("""{"major":1,"minor":0}""", ContractOf(entry.Content.Payload.ToArray()));
+
+        var absent = LayoutDefinitionPackageExporter.Export(LayoutDefinitionJson.Deserialize(WithContract(canonical, present: false)), Hosted);
+        LayoutPackHostAdmission.Admit([absent], host);
+        Assert.Null(ContractOf(absent.Content.Payload.ToArray()));
+    }
+
+    private static byte[] WithContract(byte[] canonical, bool present = true)
+    {
+        var node = System.Text.Json.Nodes.JsonNode.Parse(canonical)!;
+        var envelope = node["envelope"]!.AsObject();
+        envelope.Remove("contract");
+        if (present) envelope["contract"] = new System.Text.Json.Nodes.JsonObject { ["major"] = 1, ["minor"] = 0 };
+        return Encoding.UTF8.GetBytes(node.ToJsonString());
+    }
+
+    private static string? ContractOf(byte[] json) => System.Text.Json.Nodes.JsonNode.Parse(json)!["envelope"]!["contract"]?.ToJsonString();
+
     private static LayoutDefinition Definition(
         LayoutMedium medium,
         LayoutIntent defaultIntent,
@@ -784,7 +816,7 @@ public sealed class LayoutDefinitionProducerTests
             JsonSerializer.SerializeToElement(new { package = "customer-domain", source = "authoring" }),
             "regulated",
             LegalHold: true,
-            Requires: [new LayoutDefinitionRequirement("records", "1.0.0"), new LayoutDefinitionRequirement(LayoutPackIdentity.Capability, "1.0.0")]),
+            Requires: [new LayoutDefinitionRequirement("records", "1.0.0"), new LayoutDefinitionRequirement(LayoutPackIdentity.Capability, "1.0.0")], Contract: new(1, 0)),
         SchemaVersion: 1,
         Medium: medium,
         DefaultIntent: defaultIntent,

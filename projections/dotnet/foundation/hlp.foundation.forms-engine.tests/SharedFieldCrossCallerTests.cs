@@ -99,7 +99,7 @@ public sealed class SharedFieldCrossCallerTests
         IViewRecordTypeRegistry, IViewAccessFilter, IViewMeasureCatalog
     {
         public ValueTask<ViewDefinition?> ResolvePublishedHeadAsync(string tenant, string key, CancellationToken cancellationToken = default)
-            => ValueTask.FromResult<ViewDefinition?>(new(new(key, "1", tenant, ViewCascadeLayer.Base, JsonSerializer.SerializeToElement(new { }), []),
+            => ValueTask.FromResult<ViewDefinition?>(new(new(key, "1", tenant, ViewCascadeLayer.Base, JsonSerializer.SerializeToElement(new { }), [], new(1, 0)),
                 1, "View", "model", ViewOwnershipTier.System, "read", new([new("name", 100)], [], null, null, null)));
         public ValueTask<ViewAuthority> AuthorizeAsync(ViewDefinition definition, string principal, CancellationToken cancellationToken = default)
             => ValueTask.FromResult(new ViewAuthority(principal == "alice", []));

@@ -117,7 +117,7 @@ public sealed class ViewDefinitionStoreTests
             Tenant: "tenant-a",
             CascadeLayer: ViewCascadeLayer.Tenant,
             Provenance: JsonSerializer.SerializeToElement(new { source = "authoring" }),
-            Requires: [new("records.query", "1.0.0")]),
+            Requires: [new("records.query", "1.0.0")], Contract: new(1, 0)),
         SchemaVersion: 1,
         Title: "Work queue",
         RecordType: "work-item",

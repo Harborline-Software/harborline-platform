@@ -516,7 +516,7 @@ public sealed class LayoutBindingResolutionTests
         => new(id, "layout.list", binding, [], ShowWhen: showWhen is null ? null : new(Expression: showWhen));
 
     private static LayoutDefinition Definition(LayoutMedium medium, LayoutIntent intent, params LayoutBlock[] blocks)
-        => new(new("invoice", "1.0.0", "tenant-a", LayoutCascadeLayer.TenantConfiguration, JsonSerializer.SerializeToElement(new { source = "t-582" }), "standard", false, []), 1, medium, intent, blocks, [], [], [], null, []);
+        => new(new("invoice", "1.0.0", "tenant-a", LayoutCascadeLayer.TenantConfiguration, JsonSerializer.SerializeToElement(new { source = "t-582" }), "standard", false, [], new(1, 0)), 1, medium, intent, blocks, [], [], [], null, []);
 
     private static LayoutDefinition Invoice() => Definition(LayoutMedium.Screen, LayoutIntent.Observe,
         Block("heading", new LayoutStaticBinding(Json("\"Invoice\""))),

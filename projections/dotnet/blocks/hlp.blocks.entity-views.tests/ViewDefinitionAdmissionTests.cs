@@ -54,6 +54,19 @@ public sealed class ViewDefinitionAdmissionTests
         Assert.Empty(await store.ListHistoryAsync("tenant-a", "work.queue"));
     }
 
+    [Fact(DisplayName = "T-572 slice 2 (ruling 85): authoring stamps the platform seed's contract window on a new draft; authors never type it")]
+    public async Task AuthoringStampsTheSeedContractWindowOnANewDraft()
+    {
+        var authoring = new ViewDefinitionAuthoring(Admission(), new InMemoryViewDefinitionStore());
+        var unstamped = Definition() with { Envelope = Definition().Envelope with { Contract = null } };
+        var created = await authoring.CreateDraftAsync(new ViewDefinitionDraft(
+            unstamped,
+            new ViewBinding("layout.table", new Dictionary<ViewShapeRole, string> { [ViewShapeRole.Title] = "title" })));
+
+        var window = Harborline.Blocks.BuilderDefinitions.PlatformPackageSeed.ContractWindow;
+        Assert.Equal(new Harborline.Foundation.Definitions.DefinitionContractVersion(window.Major, window.Minor), created.Definition.Envelope.Contract);
+    }
+
     [Fact(DisplayName = "measure bindings are validated against catalogue parameters")]
     public async Task MeasureBindingsAreValidatedAgainstCatalogueParameters()
     {
@@ -239,7 +252,7 @@ public sealed class ViewDefinitionAdmissionTests
             "tenant-a",
             ViewCascadeLayer.Tenant,
             JsonSerializer.SerializeToElement(new { source = "authoring" }),
-            []),
+            [], new(1, 0)),
         SchemaVersion: 1,
         Title: "Work queue",
         RecordType: "work-item",

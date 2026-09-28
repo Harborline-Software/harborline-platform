@@ -2,6 +2,8 @@ using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
+using Harborline.Foundation.Definitions;
 
 namespace Harborline.Foundation.Taxonomy;
 
@@ -22,7 +24,7 @@ public enum TaxonomyGovernanceRegime { Civilian, Enterprise, Authoritative }
 public enum TaxonomyNodeStatus { Active, Tombstoned }
 public enum TaxonomyCascadeLayer { Base, Tenant }
 public sealed record TaxonomyDefinitionRequirement(string Capability, string? MinimumPlatformVersion = null);
-public sealed record TaxonomyDefinitionEnvelope(string Identity, string Version, string Tenant, TaxonomyCascadeLayer CascadeLayer, JsonElement Provenance, IReadOnlyList<TaxonomyDefinitionRequirement> Requires);
+public sealed record TaxonomyDefinitionEnvelope(string Identity, string Version, string Tenant, TaxonomyCascadeLayer CascadeLayer, JsonElement Provenance, IReadOnlyList<TaxonomyDefinitionRequirement> Requires, DefinitionContractVersion? Contract);
 public sealed record TaxonomyLineage(string Source, string AncestorVersion, string DerivingActor, DateTimeOffset Time, string Reason);
 public sealed record DisplayHistoryEntry(string Display, string Description, DateTimeOffset ChangedAt);
 public sealed record TaxonomyOverlayReference(TaxonomyDefinitionId VendorDefinitionId, string VendorVersion);
@@ -61,6 +63,8 @@ public static class TaxonomyDefinitionJson
         // #154). Neither option enforces nullability of a collection's own ELEMENTS (a JSON `null`
         // inside the nodes array still deserializes), which is why Validate also guards node entries.
         var options = new JsonSerializerOptions(JsonSerializerDefaults.Web) { PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull, UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow, RespectNullableAnnotations = true, RespectRequiredConstructorParameters = true, WriteIndented = false };
+        // T-572 slice 2: an envelope may still omit `contract`; slice 3 refuses that through DefinitionContractWindow.Check, not as a missing constructor member.
+        options.TypeInfoResolver = new DefaultJsonTypeInfoResolver { Modifiers = { info => { foreach (var property in info.Properties) if (property.PropertyType == typeof(DefinitionContractVersion)) property.IsRequired = false; } } };
         options.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.SnakeCaseLower)); options.Converters.Add(new DefinitionIdConverter()); return options;
     }
     private static JsonNode Canonicalize(JsonNode node) => node switch

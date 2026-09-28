@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using Harborline.Contracts.Fields;
 using Harborline.Contracts.Authorization;
+using Harborline.Foundation.Definitions;
 
 namespace Harborline.Blocks.EntityViews;
 
@@ -65,7 +66,8 @@ public sealed record ViewDefinitionEnvelope(
     string Tenant,
     ViewCascadeLayer CascadeLayer,
     JsonElement Provenance,
-    IReadOnlyList<ViewDefinitionRequirement> Requires);
+    IReadOnlyList<ViewDefinitionRequirement> Requires,
+    DefinitionContractVersion? Contract);
 
 /// <summary>The direction of one authored sort key.</summary>
 public enum ViewSortDirection

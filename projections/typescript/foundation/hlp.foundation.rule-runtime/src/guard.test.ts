@@ -45,6 +45,32 @@ describe('GuardEvaluator.evaluateGuard', () => {
     })
   })
 
+  it('recognizes only the exact pending sentinel, never similarly shaped JSON values', () => {
+    const valueGuard = rule('guard.pending-shape', { var: 'amount' })
+
+    expect(evaluator.evaluateGuard(valueGuard, snapshot({ amount: { '@pending': true, extra: 1 } }), testAdmission)).toEqual({ ok: true })
+    expect(evaluator.evaluateGuard(valueGuard, snapshot({ amount: { '@pending': false } }), testAdmission)).toEqual({ ok: true })
+    expect(evaluator.evaluateGuard(valueGuard, snapshot({ amount: ['not pending'] }), testAdmission)).toEqual({ ok: true })
+    expect(evaluator.evaluateGuard(valueGuard, snapshot({ amount: null }), testAdmission)).toEqual({
+      ok: false,
+      error: { code: 'guard.pending-shape', params: {} },
+    })
+  })
+
+  it('refuses row-scoped references instead of treating the flat bag as a row', () => {
+    const rowGuard = { ...rule('guard.no-row-scope', { var: 'row.amount' }), scope: 'Row' as const, scopeTarget: 'items/amount' }
+
+    expect(evaluator.evaluateGuard(rowGuard, snapshot({ amount: 100 }), testAdmission)).toEqual({
+      ok: false,
+      error: { code: Codes.badReference, params: { path: 'row.amount' } },
+    })
+  })
+
+  it('resolves field-prefixed references from the matching flat context member', () => {
+    expect(evaluator.evaluateGuard(rule('guard.field-scope', { var: 'field.amount' }), snapshot({ amount: 100 }), testAdmission)).toEqual({ ok: true })
+    expect(evaluator.evaluateGuard(rule('guard.plain-scope', { var: 'amount' }), snapshot({ amount: 100 }), testAdmission)).toEqual({ ok: true })
+  })
+
   it('returns a stable error result for an invalid division expression', () => {
     expect(evaluator.evaluateGuard(rule('guard.invalid', { '/': [1, 0] }), snapshot({}), testAdmission)).toEqual({
       ok: false,
@@ -137,6 +163,19 @@ describe('GuardEvaluator.evaluateGuard', () => {
     expect(() => RuleContextSnapshot.fromJsonText(nonAsciiAtLimit)).not.toThrow()
     expect(() => RuleContextSnapshot.fromJsonText(`${nonAsciiAtLimit.slice(0, -2)}é${suffix}`)).toThrow(RangeError)
   })
+
+  it('labels malformed JSON contexts and refuses non-object JSON contexts', () => {
+    expect(() => RuleContextSnapshot.fromJsonText('{')).toThrow('rule context is not valid JSON')
+    expect(() => RuleContextSnapshot.fromJsonText('null')).toThrow('rule context must be a JSON object')
+    expect(() => RuleContextSnapshot.fromJsonText('[]')).toThrow('rule context must be a JSON object')
+  })
+
+  it('refuses null contexts with the snapshot-required result rather than inspecting them', () => {
+    expect(evaluator.evaluateGuard(minimumAmount, null as unknown as RuleContextSnapshot, testAdmission)).toEqual({
+      ok: false,
+      error: { code: Codes.contextSnapshotRequired, params: {} },
+    })
+  })
 })
 
 describe('GuardEvaluator.evaluateValue', () => {
@@ -155,6 +194,22 @@ describe('GuardEvaluator.evaluateValue', () => {
     expect(evaluator.evaluateValue(reference, snapshot({ amount: { '@pending': true } }), testAdmission)).toEqual({
       state: 'Pending',
     })
+  })
+
+  it('refuses a forged value-evaluation snapshot before reading its supplied values', () => {
+    let invoked = false
+    const UnsafeConstructor = RuleContextSnapshot as unknown as new () => RuleContextSnapshot
+    const forged = new UnsafeConstructor()
+    Object.defineProperty(forged, 'amount', { get: () => {
+      invoked = true
+      throw new Error('forged values ran')
+    } })
+
+    expect(evaluator.evaluateValue(rule('value.requires-snapshot', { var: 'amount' }, 'Compute'), forged, testAdmission)).toEqual({
+      state: 'Error',
+      error: { code: Codes.contextSnapshotRequired, params: {} },
+    })
+    expect(invoked).toBe(false)
   })
 
   it('returns the stable error result for an invalid division expression', () => {
