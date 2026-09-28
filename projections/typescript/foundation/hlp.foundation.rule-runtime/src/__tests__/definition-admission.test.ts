@@ -97,6 +97,20 @@ describe('definition compiler admission', () => {
     expect(compile([compute('a', 'a', { var: 'b' }), compute('b', 'b', 1)], large).rules).toHaveLength(2)
   })
 
+  it('publishes the finite bound for a mixed dynamic, row, aggregate, and static program', () => {
+    const graph = compile([
+      compute('source', 'source', { cat: ['value-', { var: 'seed' }] }),
+      compute('dynamic', 'dynamic', { missing: [{ var: 'keys' }] }),
+      { id: 'row-copy', tier: 'JsonLogic', scope: 'Row', scopeTarget: 'items/copied', action: 'Compute', expression: { var: 'row.amount' } },
+      compute('total', 'total', { var: 'table.sum(items.amount)' }),
+    ], { ...DEFAULT_LIMITS, maxGraphNodes: 2, maxTableRowsPerAggregate: 3 })
+
+    expect(graph.workProof).toEqual({
+      maximumResultBytes: 1179652502537754591n,
+      maximumEvaluationWork: 708782416702871770794340168n,
+    })
+  })
+
   it('instantiates a proof for independently configured graph structural dimensions', () => {
     const compiled = compile([compute('row-aware', 'x', { var: 'table.sum(items.amount)' })],
       { ...DEFAULT_LIMITS, maxTableRowsPerAggregate: 1, maxGraphNodes: 2 })

@@ -120,6 +120,19 @@ describe('GuardEvaluator.evaluateGuard', () => {
     expect(invoked).toBe(false)
   })
 
+  it('refuses row-scoped reads and resolves field-prefixed reads from the flat workflow bag', () => {
+    const rowRead: RuleDefinition = {
+      id: 'guard.row-read', tier: 'JsonLogic', scope: 'Row', scopeTarget: 'items/approval', action: 'Validate', expression: { var: 'row.amount' },
+    }
+    const fieldRead = rule('guard.field-read', { var: 'field.amount' })
+
+    expect(evaluator.evaluateGuard(rowRead, snapshot({ amount: true }), testAdmission)).toEqual({
+      ok: false,
+      error: { code: Codes.badReference, params: { path: 'row.amount' } },
+    })
+    expect(evaluator.evaluateGuard(fieldRead, snapshot({ amount: true }), testAdmission)).toEqual({ ok: true })
+  })
+
   it('refuses a JSON context over the finite node envelope before evaluation', () => {
     const overLimit = JSON.stringify({ values: Array.from({ length: 4_999 }, () => 0) })
 
@@ -154,6 +167,15 @@ describe('GuardEvaluator.evaluateValue', () => {
     expect(evaluator.evaluateValue(reference, snapshot({}), testAdmission)).toEqual({ state: 'Resolved', value: null })
     expect(evaluator.evaluateValue(reference, snapshot({ amount: { '@pending': true } }), testAdmission)).toEqual({
       state: 'Pending',
+    })
+  })
+
+  it('refuses a forged context snapshot for computed values before reading it', () => {
+    const forged = new (RuleContextSnapshot as unknown as new () => RuleContextSnapshot)()
+
+    expect(evaluator.evaluateValue(rule('value.forged', { var: 'amount' }, 'Compute'), forged, testAdmission)).toEqual({
+      state: 'Error',
+      error: { code: Codes.contextSnapshotRequired, params: {} },
     })
   })
 
