@@ -226,8 +226,10 @@ describe('definition compiler admission', () => {
         cat: Array.from({ length: 60 }, () => ({ 'money.add': [integer, fraction] })),
       }),
     ])
-    // Deliberately diagnostic-only: this is not a production limit change.
-    const limits = { ...DEFAULT_LIMITS, stepBudget: 2_000_000, wallClockMs: 5000 }
+    // Deliberately diagnostic-only: this is not a production limit change. The wall clock is the
+    // non-authoritative liveness guard; 5 s tripped RuleTimeout on hosted macOS runners, so it sits
+    // under the test's 30 s timeout instead. The step budget stays the authoritative bound.
+    const limits = { ...DEFAULT_LIMITS, stepBudget: 2_000_000, wallClockMs: 25_000 }
     const evaluated = new FormRuleGraph(graph, () => new Date('2026-09-22T00:00:00.000Z'), testAdmission, limits)
       .evaluateInstance(RuleInstance.fromJsonText('{}'))
     const value = evaluated.values.get('field:result')
