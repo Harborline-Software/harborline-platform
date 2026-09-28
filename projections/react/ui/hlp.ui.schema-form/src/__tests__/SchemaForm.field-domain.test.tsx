@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, expect, it, vi } from 'vitest'
+import userEvent from '@testing-library/user-event'
 
 import { FormView } from '@harborline-platform/hlp.ui.form-view'
 
@@ -46,6 +47,51 @@ expect(cases.map(value => value.id)).toEqual([
 ])
 
 afterEach(cleanup)
+
+it('real search typing and Enter never implicitly submit a SchemaForm', async () => {
+  const user = userEvent.setup()
+  const submit = vi.fn()
+  const changed = vi.fn()
+  const view = FormView.normalize(form([section('main', [field('status', 'Status', {
+    controlHint: 'RecordPicker', permittedValues: ['Alpha', 'Beta'],
+  })])]))
+  render(<SchemaForm view={view} onChange={changed} onSubmit={submit} />)
+  const input = screen.getByRole('combobox', { name: 'Status' })
+  await user.type(input, 'Be')
+  await user.keyboard('{Enter}')
+  expect(changed).not.toHaveBeenCalled()
+  expect(submit).not.toHaveBeenCalled()
+  await user.keyboard('{ArrowDown}{Enter}')
+  expect(changed).toHaveBeenCalledExactlyOnceWith({ status: 'Beta' })
+  expect(submit).not.toHaveBeenCalled()
+  await user.click(screen.getByRole('button', { name: 'Submit' }))
+  expect(submit).toHaveBeenCalledExactlyOnceWith({ status: 'Beta' })
+})
+
+it('composes multiple choice and submits the explicit candidate without query text', () => {
+  const submit = vi.fn()
+  const changed = vi.fn()
+  const view = FormView.normalize(form([section('main', [
+    field('status', 'Status', { controlHint: 'RecordPicker', permittedValues: ['Alpha', 'Beta'] }),
+    field('tags', 'Tags', { controlHint: 'multiselect' }),
+  ])]), { tags: { options: [{ value: 'one', label: 'One' }, { value: 'two', label: 'Two' }] } })
+  render(<SchemaForm view={view} onChange={changed} onSubmit={submit} />)
+  fireEvent.click(screen.getByRole('button', { name: 'Tags' }))
+  const list = screen.getByRole('listbox', { name: 'Tags' })
+  expect(list).toHaveAttribute('aria-multiselectable', 'true')
+  fireEvent.keyDown(list, { key: 'End' })
+  fireEvent.keyDown(list, { key: ' ' })
+  fireEvent.keyDown(list, { key: 'Escape' })
+  const picker = screen.getByRole('combobox', { name: 'Status' })
+  fireEvent.change(picker, { target: { value: 'Be' } })
+  expect(submit).not.toHaveBeenCalled()
+  expect(changed).toHaveBeenCalledTimes(1)
+  fireEvent.keyDown(picker, { key: 'ArrowDown' })
+  fireEvent.keyDown(picker, { key: 'Enter' })
+  expect(changed).toHaveBeenLastCalledWith({ status: 'Beta', tags: ['two'] })
+  fireEvent.submit(picker.closest('form')!)
+  expect(submit).toHaveBeenCalledWith({ status: 'Beta', tags: ['two'] })
+})
 
 it('a runtime radio editor cannot obtain missing membership from host options', () => {
   const changed = vi.fn()

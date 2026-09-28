@@ -268,6 +268,25 @@ assert.match(waveThreeFourUi, /role="status"/)
 assert.equal((waveThreeFourUi.match(/<main/g) ?? []).length, 1)
 assert.equal((waveThreeFourUi.match(/<nav/g) ?? []).length, 1)
 
+const searchableSelectUi = renderToStaticMarkup(React.createElement(SelectField, {
+  name: 'search-status', accessibleName: 'Search status', searchable: true,
+  options: [{ value: 'active', label: 'Active' }], value: 'active', onValueChange() {},
+}))
+assert.match(searchableSelectUi, /<input\b/)
+assert.match(searchableSelectUi, /hl-input__control/)
+assert.match(searchableSelectUi, /role="combobox"/)
+assert.match(searchableSelectUi, /value="Active"/)
+const multipleSelectUi = renderToStaticMarkup(React.createElement(SelectField, {
+  name: 'statuses', accessibleName: 'Statuses', multiple: true, searchable: true, open: true,
+  options: [{ value: 'active', label: 'Active' }, { value: 'pending', label: 'Pending' }],
+  value: ['active'], onValueChange() {},
+}))
+assert.match(multipleSelectUi, /<button\b/)
+assert.match(multipleSelectUi, /role="searchbox"/)
+assert.match(multipleSelectUi, /aria-multiselectable="true"/)
+assert.match(multipleSelectUi, /aria-selected="true"/)
+assert.doesNotMatch(multipleSelectUi, /role="combobox"/)
+
 const waveThreeFiveUi = renderToStaticMarkup(React.createElement('div', null,
   React.createElement(Chart, { definition: { categories: ['Bay 1', 'Bay 2'], series: [{ name: 'Captured', values: [12, null] }] } }),
   React.createElement(Chat, { messages: [], user: { name: 'Inspector' }, inputValue: '', onInputValueChange() {}, onSubmit() {}, suggestions: [{ title: 'Summarize', prompt: 'Summarize the inspection' }] }),

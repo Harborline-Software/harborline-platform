@@ -13,7 +13,7 @@ internal static class FieldRuntimeDomainProbe
     internal static async Task VerifyAsync()
     {
         var source = new PinnedSource();
-        IFieldDomainRuntime runtime = new ValueDomainRuntime(source, source);
+        IFieldDomainRuntime runtime = new ValueDomainRuntime(source, source, TimeProvider.System);
         var scope = new FieldDomainScope(source.Tenant, "package-reader");
         var taxonomy = new ValueDomainDefinition(TaxonomyScheme: new("status", "1"));
         const string predicate = "{\"var\":\"eligible\"}";

@@ -6,28 +6,51 @@
 @using Harborline.UIAdapters.Blazor.Localization
 @inject IJSRuntime JavaScript
 
-<span @ref="Root" class="hl-select-field" data-hl-size="@SizeToken" dir="@ResolvedDirection">
-  <button @ref="Trigger" type="button" id="@Name" name="@Name" role="combobox" aria-haspopup="listbox"
-          aria-expanded="@IsOpen.ToString().ToLowerInvariant()" aria-controls="@ListboxId" aria-label="@AccessibleName"
-          aria-labelledby="@(AccessibleName is null ? FieldContext?.LabelId : null)" aria-describedby="@FieldContext?.DescribedBy"
-          aria-invalid="@(Error ? "true" : null)" aria-required="@(ResolvedRequired ? "true" : null)"
-          disabled="@ResolvedDisabled" tabindex="@TabIndex" class="@CombineClasses("hl-select-field__trigger", Error ? "hl-select-field__trigger--invalid" : null)"
-          style="@CombineStyles()" @onclick="ToggleAsync" @onkeydown="HandleTriggerKeyAsync" @onfocus="Focused" @onblur="Blurred"
-          @attributes="AdditionalAttributes">
-    <span class="@(Selected is null ? "hl-select-field__value hl-select-field__placeholder" : "hl-select-field__value")">@(Selected?.Label ?? ResolvedPlaceholder)</span>
-    <span aria-hidden="true" class="hl-select-field__indicator"><svg aria-hidden="true" focusable="false" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m4 6 4 4 4-4" /></svg></span>
-  </button>
+<span @ref="Root" class="hl-select-field" data-hl-size="@SizeToken" dir="@ResolvedDirection"
+      data-hl-multiple="@Multiple.ToString().ToLowerInvariant()" data-hl-open="@IsOpen.ToString().ToLowerInvariant()">
+  @if (Searchable && !Multiple)
+  {
+    <HarborlineInput Id="@TriggerId" Name="@Name" Value="@(IsOpen ? query : SelectedLabel)" ValueChanged="SearchAsync"
+      Placeholder="@ResolvedPlaceholder" Disabled="@ResolvedDisabled" ReadOnly="@ReadOnly" Invalid="@Error"
+      Size="@InputSizeValue" Class="@Class" Style="@Style" Autocomplete="off" AdditionalAttributes="@SearchAttributes(false)" />
+  }
+  else
+  {
+    <button type="button" id="@TriggerId" name="@Name" role="@(Multiple ? null : "combobox")" aria-haspopup="listbox"
+      aria-expanded="@IsOpen.ToString().ToLowerInvariant()" aria-controls="@ListboxId" aria-label="@ResolvedAccessibleName"
+      aria-labelledby="@LabelledBy" aria-describedby="@DescribedBy"
+      aria-activedescendant="@(!Multiple && IsOpen ? ActiveId : null)"
+      aria-invalid="@(Error ? "true" : null)" aria-required="@(!Multiple && ResolvedRequired ? "true" : null)"
+      aria-readonly="@(!Multiple && ReadOnly ? "true" : null)" disabled="@ResolvedDisabled" tabindex="@TabIndex"
+      class="@CombineClasses("hl-select-field__trigger", Error ? "hl-select-field__trigger--invalid" : null)"
+      style="@CombineStyles()" @onclick="ToggleAsync" @onkeydown="HandleTriggerKeyAsync" @onfocus="Focused" @onblur="Blurred"
+      @attributes="AdditionalAttributes">
+      <span class="@(SelectedLabel.Length == 0 ? "hl-select-field__value hl-select-field__placeholder" : "hl-select-field__value")">@(SelectedLabel.Length == 0 ? ResolvedPlaceholder : SelectedLabel)</span>
+      <span aria-hidden="true" class="hl-select-field__indicator"><svg focusable="false" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m4 6 4 4 4-4" /></svg></span>
+    </button>
+  }
   @if (IsOpen)
   {
-    <div id="@ListboxId" role="listbox" aria-label="@AccessibleName" class="hl-select-field__listbox" tabindex="-1" @onkeydown="HandleListKeyAsync">
-      @foreach (var pair in Options.Select((option, index) => (option, index)))
+    <div class="hl-select-field__popup">
+      @if (Searchable && Multiple)
       {
-        <div role="option" id="@($"{ListboxId}-option-{pair.index}")" aria-selected="@(pair.option.Value == Value ? "true" : "false")" aria-disabled="@(pair.option.Disabled ? "true" : null)"
-             tabindex="@(pair.index == activeIndex ? 0 : -1)" class="hl-select-field__option" data-hl-option="@pair.option.Value"
-             data-hl-active="@(pair.index == activeIndex ? "true" : null)" @onclick="() => SelectAsync(pair.option)">
-          <span aria-hidden="true" class="hl-select-field__check">@(pair.option.Value == Value ? "✓" : string.Empty)</span><span>@pair.option.Label</span>
-        </div>
+        <HarborlineInput Value="@query" ValueChanged="SearchAsync" Disabled="@ResolvedDisabled" ReadOnly="@ReadOnly"
+          Autocomplete="off" AdditionalAttributes="@SearchAttributes(true)" />
       }
+      <div id="@ListboxId" role="listbox" aria-label="@ResolvedAccessibleName" aria-labelledby="@(LabelledBy ?? (ResolvedAccessibleName is null ? TriggerId : null))"
+        aria-multiselectable="@(Multiple ? "true" : null)" aria-activedescendant="@(Multiple ? ActiveId : null)"
+        aria-required="@(Multiple && ResolvedRequired ? "true" : null)" aria-readonly="@(Multiple && ReadOnly ? "true" : null)"
+        class="hl-select-field__listbox" tabindex="-1" @onkeydown="HandleListKeyAsync">
+        @foreach (var option in visible)
+        {
+          <div @key="option.Value" role="option" id="@OptionId(option)" aria-selected="@IsSelected(option.Value).ToString().ToLowerInvariant()"
+            aria-disabled="@(option.Disabled ? "true" : null)" tabindex="@(!Multiple && !Searchable && option.Value == active ? 0 : -1)"
+            class="hl-select-field__option" data-hl-option="@option.Value" data-hl-active="@(option.Value == active ? "true" : null)"
+            @onmousedown:preventDefault="true" @onclick="() => SelectAsync(option.Value)">
+            <span aria-hidden="true" class="hl-select-field__check">@(IsSelected(option.Value) ? "✓" : string.Empty)</span><span>@option.Label</span>
+          </div>
+        }
+      </div>
     </div>
   }
 </span>
@@ -36,8 +59,14 @@
   [CascadingParameter] private FormFieldContextValue? FieldContext { get; set; }
   [CascadingParameter] private HarborlineLocaleContext? LocaleContext { get; set; }
   [Parameter, EditorRequired] public string Name { get; set; } = string.Empty;
-  [Parameter, EditorRequired] public string Value { get; set; } = string.Empty;
+  [Parameter] public string Value { get; set; } = string.Empty;
   [Parameter] public EventCallback<string> ValueChanged { get; set; }
+  [Parameter] public bool Multiple { get; set; }
+  [Parameter] public IReadOnlyList<string> Values { get; set; } = [];
+  [Parameter] public EventCallback<IReadOnlyList<string>> ValuesChanged { get; set; }
+  [Parameter] public bool Searchable { get; set; }
+  [Parameter] public int MaxVisibleOptions { get; set; } = 25;
+  [Parameter] public bool ReadOnly { get; set; }
   [Parameter, EditorRequired] public IReadOnlyList<SelectOption> Options { get; set; } = [];
   [Parameter] public string? Placeholder { get; set; }
   [Parameter] public bool? Disabled { get; set; }
@@ -52,85 +81,218 @@
   [Parameter] public EventCallback<FocusEventArgs> Blurred { get; set; }
   [Parameter] public string? Direction { get; set; }
 
-  private bool localOpen;
-  private int activeIndex;
-  private string typeahead = string.Empty;
-  private ElementReference Root, Trigger;
+  private bool localOpen, focusOnRender, restoreOnRender;
+  private bool previousOpen;
+  private bool previousMultiple;
+  private string? active;
+  private string query = "", typeahead = "";
+  private long typeaheadTime;
+  private string? previousSelection;
+  private string? pendingToggle;
+  private IReadOnlyList<SelectOption>? previousOptions;
+  private IReadOnlyList<SelectOption> visible = [];
+  private Dictionary<string, int> optionIndices = new(StringComparer.Ordinal);
+  private ElementReference Root;
   private DotNetObjectReference<HarborlineSelectField>? reference;
-  private IJSObjectReference? module;
-  private long outsideId;
+  private IJSObjectReference? module, binding;
   private string ListboxId { get; } = $"hl-select-{Guid.NewGuid():N}";
   private bool IsOpen => Open ?? localOpen;
   private bool ResolvedDisabled => Disabled ?? FieldContext?.Disabled ?? false;
+  private bool Locked => ResolvedDisabled || ReadOnly;
   private bool ResolvedRequired => Required ?? FieldContext?.Required ?? false;
   private string ResolvedDirection => Direction ?? LocaleContext?.Direction ?? "ltr";
   private string ResolvedPlaceholder => LocaleContext?.ResolveString("forms.selectPlaceholder", instanceOverride: Placeholder) ?? Placeholder ?? "Select…";
-  private SelectOption? Selected => Options.FirstOrDefault(option => option.Value == Value);
+  private string SelectedLabel => string.Join(", ", (Multiple ? Values : [Value]).Select(value => Options.FirstOrDefault(option => option.Value == value)?.Label).OfType<string>());
+  private string? HostAttribute(string key) => AdditionalAttributes?.TryGetValue(key, out var value) == true ? value?.ToString() : null;
+  private string? ResolvedAccessibleName => AccessibleName ?? HostAttribute("aria-label");
+  private string? LabelledBy => HostAttribute("aria-labelledby") ?? (ResolvedAccessibleName is null ? FieldContext?.LabelId : null);
+  private string? DescribedBy => string.Join(" ", new[] { FieldContext?.DescribedBy, HostAttribute("aria-describedby") }
+    .OfType<string>().SelectMany(value => value.Split(' ', StringSplitOptions.RemoveEmptyEntries)).Distinct(StringComparer.Ordinal)) is { Length: > 0 } text ? text : null;
+  private string TriggerId => AdditionalAttributes?.TryGetValue("id", out var id) == true ? id?.ToString() ?? Name : Name;
   private string SizeToken => Size.ToString().ToLowerInvariant();
+  private InputSize InputSizeValue => Size switch { SelectFieldSize.Sm => InputSize.Sm, SelectFieldSize.Lg => InputSize.Lg, _ => InputSize.Md };
+  private bool IsSelected(string value) => Multiple ? Values.Contains(value, StringComparer.Ordinal) : Value == value;
+  private string OptionId(SelectOption option) => $"{ListboxId}-option-{optionIndices[option.Value]}";
+  private string? ActiveId => visible.FirstOrDefault(option => option.Value == active && !option.Disabled) is { } option ? OptionId(option) : null;
 
   protected override void OnParametersSet()
   {
     if (string.IsNullOrWhiteSpace(Name)) throw new InvalidOperationException("select-field-name-required");
-    if (Options.GroupBy(option => option.Value, StringComparer.Ordinal).Any(group => group.Count() > 1)) throw new InvalidOperationException("duplicate-select-option-value");
-    activeIndex = Math.Clamp(activeIndex, 0, Math.Max(0, Options.Count - 1));
+    if (!Enum.IsDefined(Size)) throw new InvalidOperationException("unsupported-select-field-size");
+    if (MaxVisibleOptions <= 0) throw new InvalidOperationException("invalid-select-option-limit");
+    if (Options.Select(option => option.Value).Distinct(StringComparer.Ordinal).Count() != Options.Count) throw new InvalidOperationException("duplicate-select-option-value");
+    if (Multiple && Values.Distinct(StringComparer.Ordinal).Count() != Values.Count) throw new InvalidOperationException("duplicate-selected-value");
+    optionIndices = Options.Select((option, index) => (option.Value, index)).ToDictionary(pair => pair.Value, pair => pair.index, StringComparer.Ordinal);
+    var selection = System.Text.Json.JsonSerializer.Serialize(Multiple ? Values : [Value]);
+    var optionsChanged = previousOptions is null || !previousOptions.SequenceEqual(Options);
+    var closed = previousOpen && !IsOpen;
+    if (previousSelection != selection || previousMultiple != Multiple || optionsChanged || closed)
+    {
+      var acknowledged = Multiple && IsOpen && !optionsChanged && pendingToggle is not null && pendingToggle == selection;
+      if (!acknowledged) { query = Multiple ? "" : SelectedLabel; active = null; }
+      pendingToggle = null;
+    }
+    previousSelection = selection;
+    previousOptions = Options;
+    previousMultiple = Multiple;
+    previousOpen = IsOpen;
+    RefreshMatches();
   }
+
+  private Dictionary<string, object> SearchAttributes(bool filter)
+  {
+    var attributes = new Dictionary<string, object>
+    {
+      ["role"] = filter ? "searchbox" : "combobox",
+      ["aria-controls"] = ListboxId,
+      ["onkeydown"] = EventCallback.Factory.Create<KeyboardEventArgs>(this, filter ? HandleFilterKeyAsync : HandleSearchKeyAsync),
+      ["onfocus"] = EventCallback.Factory.Create<FocusEventArgs>(this, async args => { if (!filter) { await Focused.InvokeAsync(args); await SetOpenAsync(true); } }),
+      ["onblur"] = Blurred
+    };
+    if (ResolvedAccessibleName is not null) attributes["aria-label"] = ResolvedAccessibleName;
+    if (LabelledBy is not null) attributes["aria-labelledby"] = LabelledBy;
+    if (!filter)
+    {
+      attributes["aria-expanded"] = IsOpen.ToString().ToLowerInvariant();
+      attributes["aria-autocomplete"] = "list";
+      attributes["aria-haspopup"] = "listbox";
+      if (ActiveId is not null && IsOpen) attributes["aria-activedescendant"] = ActiveId;
+      if (DescribedBy is { } description) attributes["aria-describedby"] = description;
+      if (ResolvedRequired) attributes["aria-required"] = "true";
+      if (Error) attributes["aria-invalid"] = "true";
+      if (ReadOnly) attributes["aria-readonly"] = "true";
+      if (TabIndex is { } tabIndex) attributes["tabindex"] = tabIndex;
+      if (AdditionalAttributes is not null) foreach (var pair in AdditionalAttributes) attributes.TryAdd(pair.Key, pair.Value);
+    }
+    return attributes;
+  }
+
+  private void RefreshMatches() => visible = Searchable
+    ? Options.Where(option => option.Label.Contains(query, StringComparison.OrdinalIgnoreCase)).Take(MaxVisibleOptions).ToArray()
+    : Options;
 
   private async Task SetOpenAsync(bool next, bool restoreFocus = false)
   {
     if (ResolvedDisabled) return;
-    if (Open is null) localOpen = next;
-    await OpenChanged.InvokeAsync(next);
-    if (next) activeIndex = Math.Max(0, Options.ToList().FindIndex(option => option.Value == Value && !option.Disabled));
-    await InvokeAsync(StateHasChanged);
-    if (next) await EnsureOutsideAsync();
-    else if (restoreFocus && module is not null) await module.InvokeVoidAsync("focus", Trigger);
-  }
-
-  private Task ToggleAsync() => SetOpenAsync(!IsOpen);
-  private async Task SelectAsync(SelectOption option)
-  {
-    if (ResolvedDisabled || option.Disabled) return;
-    await ValueChanged.InvokeAsync(option.Value);
-    await SetOpenAsync(false, true);
-  }
-
-  private async Task HandleTriggerKeyAsync(KeyboardEventArgs args)
-  {
-    if (args.Key is "Enter" or " " or "ArrowDown" or "ArrowUp") await SetOpenAsync(true);
-    else if (args.Key == "Escape" && IsOpen) await SetOpenAsync(false, true);
-  }
-
-  private async Task HandleListKeyAsync(KeyboardEventArgs args)
-  {
-    if (args.Key == "Escape") { await SetOpenAsync(false, true); return; }
-    if (args.Key == "Tab") { await SetOpenAsync(false); return; }
-    var enabled = Options.Select((option,index)=>(option,index)).Where(pair=>!pair.option.Disabled).ToArray();
-    if (enabled.Length == 0) return;
-    var current = Array.FindIndex(enabled, pair => pair.index == activeIndex);
-    current = Math.Max(0, current);
-    var next = args.Key switch { "ArrowDown" => (current + 1) % enabled.Length, "ArrowUp" => (current - 1 + enabled.Length) % enabled.Length, "Home" => 0, "End" => enabled.Length - 1, _ => -1 };
-    if (next >= 0) { activeIndex = enabled[next].index; await FocusOptionAsync(); return; }
-    if (args.Key is "Enter" or " ") { await SelectAsync(enabled[current].option); return; }
-    if (args.Key.Length == 1 && !char.IsControl(args.Key[0]))
+    if (next && Locked) return;
+    if (!next) { pendingToggle = null; query = Multiple ? "" : SelectedLabel; active = null; RefreshMatches(); }
+    restoreOnRender |= restoreFocus;
+    if (next != IsOpen)
     {
-      typeahead = (typeahead + args.Key).ToLowerInvariant();
-      var match = enabled.FirstOrDefault(pair => pair.option.Label.StartsWith(typeahead, StringComparison.CurrentCultureIgnoreCase));
-      if (match.option is not null) { activeIndex = match.index; await FocusOptionAsync(); }
+      if (next)
+      {
+        active = Searchable && !Multiple ? null : Options.FirstOrDefault(option => IsSelected(option.Value) && !option.Disabled)?.Value ?? Options.FirstOrDefault(option => !option.Disabled)?.Value;
+        focusOnRender = true;
+      }
+      if (Open is null) localOpen = next;
+      await OpenChanged.InvokeAsync(next);
     }
   }
 
-  private async Task EnsureModuleAsync()
+  private Task ToggleAsync() => SetOpenAsync(!IsOpen);
+  private async Task SearchAsync(string draft)
   {
-    module ??= await JavaScript.InvokeAsync<IJSObjectReference>("import", "./_content/Harborline.UIAdapters.Blazor/select-field.js");
-    reference ??= DotNetObjectReference.Create(this);
+    if (Locked) return;
+    await SetOpenAsync(true);
+    query = draft; active = null; RefreshMatches();
   }
-  private async Task EnsureOutsideAsync(){await EnsureModuleAsync();if(outsideId==0)outsideId=await module!.InvokeAsync<long>("observeOutside",Root,reference);await module!.InvokeVoidAsync("focusOption",Root,activeIndex);}
-  private async Task FocusOptionAsync(){await EnsureModuleAsync();await module!.InvokeVoidAsync("focusOption",Root,activeIndex);}
-  [JSInvokable] public Task OnOutsidePointer() => SetOpenAsync(false);
-
+  private async Task SelectAsync(string identity)
+  {
+    var current = Options.FirstOrDefault(option => option.Value == identity);
+    if (Locked || current is null || current.Disabled) return;
+    if (Multiple)
+    {
+      string[] next = Values.Contains(identity, StringComparer.Ordinal) ? Values.Where(value => value != identity).ToArray() : [.. Values, identity];
+      pendingToggle = System.Text.Json.JsonSerializer.Serialize(next);
+      active = identity;
+      await ValuesChanged.InvokeAsync(next);
+    }
+    else { await ValueChanged.InvokeAsync(identity); await SetOpenAsync(false, true); }
+  }
+  private async Task HandleTriggerKeyAsync(KeyboardEventArgs args)
+  {
+    if (Locked) return;
+    if (!IsOpen && args.Key is "Enter" or " " or "ArrowDown" or "ArrowUp")
+    {
+      await SetOpenAsync(true);
+    }
+    else await HandleListKeyAsync(args);
+  }
+  private async Task HandleSearchKeyAsync(KeyboardEventArgs args)
+  {
+    if (Locked) return;
+    if (args.Key is "Escape" or "Tab") { await SetOpenAsync(false, args.Key == "Escape"); return; }
+    if (args.Key is "ArrowDown" or "ArrowUp") { await SetOpenAsync(true); MoveActive(args.Key); }
+    else if (args.Key == "Enter" && IsOpen && ActiveId is not null) await SelectAsync(active!);
+  }
+  private async Task HandleFilterKeyAsync(KeyboardEventArgs args)
+  {
+    if (Locked) return;
+    if (args.Key is "Escape" or "Tab") await SetOpenAsync(false, args.Key == "Escape");
+    if (args.Key == "ArrowDown") { if (ActiveId is null) MoveActive("Home"); await FocusAsync("listbox"); }
+  }
+  private void MoveActive(string key)
+  {
+    var enabled = visible.Where(option => !option.Disabled).ToArray();
+    if (enabled.Length == 0) { active = null; return; }
+    var index = Array.FindIndex(enabled, option => option.Value == active);
+    var next = key switch {
+      "Home" => 0, "End" => enabled.Length - 1,
+      "ArrowUp" => index < 0 ? enabled.Length - 1 : (index - 1 + enabled.Length) % enabled.Length,
+      _ => index < 0 ? 0 : (index + 1) % enabled.Length
+    };
+    active = enabled[next].Value;
+  }
+  private async Task HandleListKeyAsync(KeyboardEventArgs args)
+  {
+    if (Locked) return;
+    if (args.Key is "Escape" or "Tab") { await SetOpenAsync(false, args.Key == "Escape"); return; }
+    if (!IsOpen) return;
+    if (args.Key is "ArrowDown" or "ArrowUp" or "Home" or "End")
+    {
+      MoveActive(args.Key);
+      if (!Multiple && !Searchable) await FocusAsync("option");
+    }
+    else if (args.Key is "Enter" or " ") { if (ActiveId is not null) await SelectAsync(active!); }
+    else if (args.Key.Length == 1 && !args.AltKey && !args.CtrlKey && !args.MetaKey)
+    {
+      var now = Environment.TickCount64;
+      typeahead = (now - typeaheadTime < 500 ? typeahead : "") + args.Key;
+      typeaheadTime = now;
+      var enabled = visible.Where(option => !option.Disabled).ToArray();
+      var start = Array.FindIndex(enabled, option => option.Value == active) + 1;
+      var match = enabled.Skip(start).Concat(enabled.Take(start)).FirstOrDefault(option => option.Label.StartsWith(typeahead, StringComparison.OrdinalIgnoreCase));
+      if (match is not null) { active = match.Value; if (!Multiple && !Searchable) await FocusAsync("option"); }
+    }
+  }
+  protected override async Task OnAfterRenderAsync(bool firstRender)
+  {
+    if (firstRender)
+    {
+      module = await JavaScript.InvokeAsync<IJSObjectReference>("import", "./_content/Harborline.UIAdapters.Blazor/select-field.js");
+      reference = DotNetObjectReference.Create(this);
+      if (module is not null) binding = await module.InvokeAsync<IJSObjectReference>("bind", Root, reference);
+    }
+    if (restoreOnRender) { restoreOnRender = false; await FocusAsync("trigger"); }
+    else if (focusOnRender && IsOpen)
+    {
+      focusOnRender = false;
+      await FocusAsync(Multiple ? Searchable ? "searchbox" : "listbox" : Searchable ? "trigger" : "option");
+    }
+  }
+  private async Task FocusAsync(string target)
+  {
+    if (module is not null) await module.InvokeVoidAsync("focusTarget", Root, target, active);
+  }
+  [JSInvokable] public async Task OnOutsidePointer() { await SetOpenAsync(false); await InvokeAsync(StateHasChanged); }
   public async ValueTask DisposeAsync()
   {
-    if (module is not null){try{if(outsideId!=0)await module.InvokeVoidAsync("disposeOutside",outsideId);await module.DisposeAsync();}catch(JSDisconnectedException){}}
+    try
+    {
+      if (binding is not null) { await binding.InvokeVoidAsync("dispose"); await binding.DisposeAsync(); }
+      if (module is not null) await module.DisposeAsync();
+    }
+    catch (JSDisconnectedException) { }
     reference?.Dispose();
   }
 }

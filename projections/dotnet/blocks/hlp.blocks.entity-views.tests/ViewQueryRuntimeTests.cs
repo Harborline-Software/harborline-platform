@@ -398,6 +398,7 @@ public sealed class ViewQueryRuntimeTests
             string tenant,
             string principal,
             string recordType,
+            DateTimeOffset at,
             CancellationToken cancellationToken = default)
         {
             calls.Add("access");

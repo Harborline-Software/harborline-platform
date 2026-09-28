@@ -53,6 +53,8 @@ public static class LayoutDefinitionCodes
     public const string ScopedContainerInvalid = "layout.block.scoped_container_invalid";
     /// <summary>A submit gate requires a capture-dominant surface.</summary>
     public const string SubmitGateInvalid = "layout.capture.submit_gate_invalid";
+    /// <summary>A screen arrangement would require two-dimensional scrolling at 320 CSS pixels.</summary>
+    public const string ReflowForbidden = "layout.placement.reflow_forbidden";
 }
 
 /// <summary>Identifies one deterministic Layout admission refusal.</summary>
@@ -217,7 +219,7 @@ public static class LayoutDefinitionAdmission
             Add(refusals, LayoutDefinitionCodes.CaptureOnPage, $"{pointer}/intent");
 
         ValidateBinding(block.Binding, intent, medium, captures, $"{pointer}/binding", refusals);
-        ValidateContainer(block.Container, $"{pointer}/container", refusals);
+        ValidateContainer(block.Container, medium, $"{pointer}/container", refusals);
         ValidatePlacement(block.Placement, parentRegions, $"{pointer}/placement", refusals);
 
         if (!Enum.IsDefined(block.FlowRole))
@@ -309,6 +311,7 @@ public static class LayoutDefinitionAdmission
 
     private static void ValidateContainer(
         LayoutContainer? container,
+        LayoutMedium medium,
         string pointer,
         ICollection<LayoutDefinitionRefusal> refusals)
     {
@@ -324,6 +327,11 @@ public static class LayoutDefinitionAdmission
             Add(refusals, LayoutDefinitionCodes.PlacementTokenUnknown, $"{pointer}/density");
         AddNumeric(container.ColumnCount, LayoutNumericMember.ColumnCount, $"{pointer}/column_count", refusals);
         AddNumeric(container.Gap, LayoutNumericMember.Gap, $"{pointer}/gap", refusals);
+        if (medium == LayoutMedium.Screen
+            && container.Kind == LayoutContainerKind.Flow
+            && container.Wrap == LayoutWrap.NoWrap
+            && container.ColumnCount > 1)
+            Add(refusals, LayoutDefinitionCodes.ReflowForbidden, pointer);
 
         var regions = new HashSet<string>(StringComparer.Ordinal);
         for (var index = 0; index < (container.Regions?.Count ?? 0); index++)
@@ -449,6 +457,12 @@ public static class LayoutDefinitionAdmission
 /// <summary>Both renderer adapters call the same schema-backed persisted-value gate.</summary>
 public static class LayoutPersistedValueAdmission
 {
+    /// <summary>Validates persisted values before the shared Layout runtime derives a render plan.</summary>
+    /// <param name="definition">The immutable persisted Layout definition.</param>
+    /// <param name="kinds">The host register, or the platform grammar when omitted.</param>
+    public static void ValidateForRuntime(LayoutDefinition definition, LayoutBlockKindRegistry? kinds = null)
+        => LayoutDefinitionAdmission.Validate(definition, "render.runtime", kinds);
+
     /// <summary>Validates persisted values before React rendering.</summary>
     /// <param name="definition">The persisted definition.</param>
     /// <param name="kinds">The host register, or the platform grammar when omitted.</param>

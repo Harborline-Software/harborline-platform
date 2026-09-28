@@ -14,5 +14,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../hlp.foundation.actor/Harborline.Foundation.Authorization.csproj" />
+    <Compile Include="../../../../tests/package-consumers/views-nuget/AccessContractProof.cs" Link="AccessContractProof.cs" />
   </ItemGroup>
 </Project>

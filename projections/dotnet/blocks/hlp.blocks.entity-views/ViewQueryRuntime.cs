@@ -367,6 +367,7 @@ public interface IViewAccessFilter
         string tenant,
         string principal,
         string recordType,
+        DateTimeOffset at,
         CancellationToken cancellationToken = default);
 }
 
@@ -454,8 +455,9 @@ public sealed class ViewQueryRuntime
         {
             throw new ViewQueryException(bindingRefusal, "The view binding is incompatible with its record type.");
         }
+        var evaluatedAt = _clock.GetUtcNow();
         var access = await _accessFilter
-            .BuildAsync(request.Tenant, request.Principal, definition.RecordType, cancellationToken)
+            .BuildAsync(request.Tenant, request.Principal, definition.RecordType, evaluatedAt, cancellationToken)
             .ConfigureAwait(false);
 
         var domains = new Dictionary<string, ResolvedFieldConstraints>(StringComparer.Ordinal);
@@ -487,7 +489,6 @@ public sealed class ViewQueryRuntime
             predicates.Add(new(ViewPredicateSource.Authored, authored));
         }
 
-        var evaluatedAt = _clock.GetUtcNow();
         var plan = new ViewQueryPlan(
             request.Tenant,
             definition.RecordType,

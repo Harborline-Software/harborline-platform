@@ -49,6 +49,8 @@ at most 25 matches. Query text is not a submitted value.
 ## Consumer composition
 
 Forms resolves exact tenant/schema field bindings for render, validation and publication.
+Domain-runtime composition requires an explicit, non-null host clock for predicate evaluation;
+the field runtime never supplies an ambient clock fallback.
 Submission checks the accepted/pruned candidate through the shared validator before persistence.
 Configured publication requires all binding/runtime ports, the authenticated caller and the
 matching active tenant; publication authorization remains host-owned. Views exposes the same

@@ -51,7 +51,7 @@ public sealed class SharedFieldPublicationTests
         if (scenario != "missing-bindings") services.AddSingleton<IFormFieldBindingSource>(host);
         if (scenario != "missing-kinds") services.AddSingleton<IFieldKindRuntime>(
             new FieldKindRuntime(new FieldKindRegistry([new("declared", "1", null)])));
-        if (scenario != "missing-domains") services.AddSingleton<IFieldDomainRuntime>(new ValueDomainRuntime(host, host));
+        if (scenario != "missing-domains") services.AddSingleton<IFieldDomainRuntime>(new ValueDomainRuntime(host, host, TimeProvider.System));
         services.AddHarborlineFormsAuthoringPublisher();
         await using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true, ValidateOnBuild = true });
         await using var scope = provider.CreateAsyncScope();
@@ -108,7 +108,7 @@ public sealed class SharedFieldPublicationTests
         services.AddSingleton<IFormFieldBindingSource>(host);
         services.AddSingleton<IFieldKindRuntime>(new FieldKindRuntime(new FieldKindRegistry(
             [new("declared", "1", null, FieldScalarValueShape.Text)])));
-        services.AddSingleton<IFieldDomainRuntime>(new ValueDomainRuntime(host, host));
+        services.AddSingleton<IFieldDomainRuntime>(new ValueDomainRuntime(host, host, TimeProvider.System));
         services.AddHarborlineFormsAuthoringPublisher();
         await using var provider = services.BuildServiceProvider(
             new ServiceProviderOptions { ValidateScopes = true, ValidateOnBuild = true });

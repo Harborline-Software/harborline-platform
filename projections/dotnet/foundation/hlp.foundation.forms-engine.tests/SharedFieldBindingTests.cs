@@ -271,7 +271,7 @@ public sealed class SharedFieldBindingTests
         Func<FormDefinition, FormDefinition>? transform = null, IFormFieldSecurity? security = null)
         => Harness.CreateAsync(schemaJson: "{\"type\":\"object\"}", fieldBindings: host, security: security,
             fieldKinds: new FieldKindRuntime(new FieldKindRegistry([new("declared", "1", null, host.Scalar)])),
-            fieldDomains: new ValueDomainRuntime(host, host),
+            fieldDomains: new ValueDomainRuntime(host, host, TimeProvider.System),
             definitionFactory: (schema, tenant) =>
             {
                 host.Name = name;

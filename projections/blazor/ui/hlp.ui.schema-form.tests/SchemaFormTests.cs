@@ -7,31 +7,55 @@ namespace Harborline.UIAdapters.Blazor.Tests;
 
 public sealed class SchemaFormTests : BunitContext
 {
-    private readonly Func<int> pickerBindingCount;
+    [Fact]
+    public void MultipleChoiceComposesNamedListboxAndSubmitsExplicitCandidate()
+    {
+        IReadOnlyDictionary<string, object?>? submitted = null;
+        var tags = Field("tags", "Tags") with { ControlHint = "multiselect", Options = [new("one", Text("One")), new("two", Text("Two"))] };
+        var cut = RenderForm(Form([Section("main", [RuntimeDomainField("RecordPicker", ["Alpha", "Beta"]), tags])]),
+            submit: values => { submitted = values; return ValueTask.FromResult<SchemaFormValidationResult?>(null); });
+        cut.Find("button[name=tags]").Click();
+        var list = cut.Find("[role=listbox]");
+        Assert.Equal("true", list.GetAttribute("aria-multiselectable"));
+        list.KeyDown("End"); list.KeyDown(" "); list.KeyDown("Escape");
+        var input = cut.Find("input[role=combobox]");
+        input.Input("Be"); input.KeyDown("Enter");
+        Assert.Null(submitted);
+        input.KeyDown("ArrowDown"); input.KeyDown("Enter");
+        cut.Find("form").Submit();
+        Assert.NotNull(submitted);
+        Assert.Equal("Beta", submitted["status"]);
+        Assert.Equal(["two"], Assert.IsAssignableFrom<IEnumerable<string>>(submitted["tags"]));
+    }
 
     public SchemaFormTests()
     {
         JSInterop.SetupModule("./_content/Harborline.UIAdapters.Blazor/select-field.js").Mode = JSRuntimeMode.Loose;
         var schema = JSInterop.SetupModule("./_content/Harborline.UIAdapters.Blazor/schema-form.js");
-        schema.SetupModule("bindDomainPicker", _ => true).Mode = JSRuntimeMode.Loose;
-        pickerBindingCount = () => schema.Invocations["bindDomainPicker"].Count;
+        schema.Mode = JSRuntimeMode.Loose;
     }
 
     [Fact]
-    public void Picker_keyboard_rebinds_when_authorized_membership_removes_then_restores_the_input()
+    public void Picker_requires_fresh_explicit_selection_when_membership_removes_then_restores_the_input()
     {
         var field = RuntimeDomainField("RecordPicker", ["allowed", "second"]);
         var cut = RenderForm(Form([Section("main", [field])]));
         Assert.Single(cut.FindAll("input[role='combobox']"));
-        Assert.Equal(1, pickerBindingCount());
+        cut.Find("input[role=combobox]").Input("second");
+        cut.Find("input[role=combobox]").KeyDown("ArrowDown");
 
         cut.Render(parameters => parameters.Add(component => component.View,
             Form([Section("main", [field with { PermittedValues = [] }])])));
         Assert.Empty(cut.FindAll("input[role='combobox']"));
+        Assert.Empty(cut.FindAll("output"));
 
         cut.Render(parameters => parameters.Add(component => component.View, Form([Section("main", [field])])));
         Assert.Single(cut.FindAll("input[role='combobox']"));
-        Assert.Equal(2, pickerBindingCount());
+        var input = cut.Find("input[role=combobox]");
+        input.KeyDown("Enter");
+        Assert.Equal("", input.GetAttribute("value"));
+        input.Input("second"); input.KeyDown("ArrowDown"); input.KeyDown("Enter");
+        Assert.Equal("second", cut.Find("input").GetAttribute("value"));
     }
 
     [Fact]
@@ -42,6 +66,7 @@ public sealed class SchemaFormTests : BunitContext
         var cut = RenderForm(Form([Section("main", [field])]), valuesChanged: value => changed = value);
 
         Assert.Empty(cut.FindAll("input[name='status'],textarea[name='status'],[role='combobox'],[role='radio']"));
+        Assert.Empty(cut.FindAll("output"));
         Assert.DoesNotContain("Outside", cut.Markup, StringComparison.Ordinal);
         Assert.Null(changed);
     }

@@ -334,6 +334,16 @@
         }
       }
     },
+    "hlp.blocks.layout-runtime": {
+      "interface": {"path": "specs/modules/blocks/hlp.blocks.layout-runtime/interface.yaml", "revision": 1},
+      "moduleKind": "runtime",
+      "presentation": {"disposition": "not-applicable", "rationale": "The definition resolver and flow planner return neutral render plans and own no framework presentation."},
+      "owner": "platform-foundation",
+      "dependencies": ["hlp.blocks.builder-definitions"],
+      "status": "draft-native-green",
+      "depth": {"disposition": "deep-module", "deletionTest": "PASS", "redistributedComplexity": ["exact immutable definition binding, persisted-value admission, and recursive layout flow would otherwise fork across every renderer", "screen and page boundaries, static regions, and break planning would otherwise become inconsistent local projection policy"]},
+      "projections": {"dotnet": {"role": "implementation", "path": "projections/dotnet/blocks/hlp.blocks.layout-runtime", "status": "preview", "artifact": {"type": "nuget", "id": "Harborline.Blocks.LayoutRuntime", "assembly": "Harborline.Blocks.LayoutRuntime", "manifest": "projections/dotnet/blocks/hlp.blocks.layout-runtime/Harborline.Blocks.LayoutRuntime.csproj", "dependencies": ["Harborline.Blocks.BuilderDefinitions"], "identityAuthority": "Harborline", "producerRepository": "harborline-platform", "distribution": "internal-only", "candidateRole": "new-bounded-package", "registryAvailable": false}}}
+    },
     "hlp.blocks.aggregates": {
       "interface": {"path": "specs/modules/blocks/hlp.blocks.aggregates/interface.yaml", "revision": 1},
       "moduleKind": "runtime",
@@ -614,11 +624,11 @@
       }
     },
     "hlp.blocks.entity-views": {
-      "interface": {"path": "specs/modules/blocks/hlp.blocks.entity-views/interface.yaml", "revision": 4},
+      "interface": {"path": "specs/modules/blocks/hlp.blocks.entity-views/interface.yaml", "revision": 5},
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "The entity-views read model produces list/detail/tree/condition data and navigation targets consumed by separate grid/table renderers; it renders nothing."},
       "owner": "platform-blocks",
-      "dependencies": ["hlp.contracts.identities", "hlp.contracts.forms", "hlp.contracts.fields"],
+      "dependencies": ["hlp.contracts.identities", "hlp.contracts.forms", "hlp.contracts.fields", "hlp.foundation.actor"],
       "status": "implemented",
       "depth": {
         "disposition": "deep-module",
@@ -638,7 +648,7 @@
             "id": "Harborline.Blocks.EntityViews",
             "assembly": "Harborline.Blocks.EntityViews",
             "manifest": "projections/dotnet/blocks/hlp.blocks.entity-views/Harborline.Blocks.EntityViews.csproj",
-            "dependencies": ["Harborline.Contracts"],
+            "dependencies": ["Harborline.Contracts", "Harborline.Foundation.Authorization"],
             "identityAuthority": "Harborline",
             "producerRepository": "harborline-platform",
             "distribution": "internal-only",
@@ -956,12 +966,12 @@
       }
     },
     "hlp.foundation.actor": {
-      "interface": {"path": "specs/modules/foundation/hlp.foundation.actor/interface.yaml", "revision": 1},
+      "interface": {"path": "specs/modules/foundation/hlp.foundation.actor/interface.yaml", "revision": 2},
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "Authenticated actor and server-derived Party resolution are host/runtime behavior with no presentation surface."},
       "owner": "platform-foundation",
-      "dependencies": ["hlp.contracts.identities", "hlp.foundation.tenancy"],
-      "status": "implemented-package-consumer-green",
+      "dependencies": ["hlp.contracts.identities", "hlp.foundation.tenancy", "hlp.foundation.rule-runtime"],
+      "status": "implemented",
       "depth": {
         "disposition": "deep-module",
         "deletionTest": "PASS",
@@ -980,7 +990,7 @@
             "id": "Harborline.Foundation.Authorization",
             "assembly": "Harborline.Foundation.Authorization",
             "manifest": "projections/dotnet/foundation/hlp.foundation.actor/Harborline.Foundation.Authorization.csproj",
-            "dependencies": ["Harborline.Contracts", "Harborline.Foundation.MultiTenancy"],
+            "dependencies": ["Harborline.Contracts", "Harborline.Foundation.MultiTenancy", "Harborline.Foundation.RuleEngine"],
             "identityAuthority": "Harborline",
             "producerRepository": "harborline-platform",
             "distribution": "internal-only",
@@ -1627,7 +1637,7 @@
       "interface":{"path":"specs/modules/ui/hlp.ui.segmented-control/interface.yaml","revision":1},"moduleKind":"interactive-component","presentation":{"disposition":"visual"},"qualityProfile":{"path":"specs/modules/ui/hlp.ui.segmented-control/quality.yaml","revision":1},"owner":"platform-ui","dependencies":["hlp.ui.default-strings","hlp.ui.locale-provider","hlp.ui.touch-target","hlp.ui.use-can-show-master-detail","hlp.ui.use-media-query"],"status":"gap-implemented","depth":{"disposition":"deep-module","deletionTest":"PASS","redistributedComplexity":["radio-group naming, controlled selection, roving focus, disabled-option skipping, wrapping arrows, Home and End repeated by every segmented choice surface","rich-label naming, touch density, full-width distribution, logical RTL arrows, themes, and forced colors drifting across projections"]},"projections":{"react":{"role":"adapter","seam":"ui.segmented-control.framework","path":"projections/react/ui/hlp.ui.segmented-control","status":"conformant","packageContribution":"@harborline-software/ui-react","conformanceRunner":"conformance/hlp.ui.segmented-control/runners/run-shared.mjs"},"blazor":{"role":"adapter","seam":"ui.segmented-control.framework","path":"projections/blazor/ui/hlp.ui.segmented-control","status":"conformant","packageContribution":"Harborline.UIAdapters.Blazor","conformanceRunner":"conformance/hlp.ui.segmented-control/runners/run-shared.mjs"}}
     },
     "hlp.ui.select-field": {
-      "interface":{"path":"specs/modules/ui/hlp.ui.select-field/interface.yaml","revision":1},"moduleKind":"interactive-component","presentation":{"disposition":"visual"},"qualityProfile":{"path":"specs/modules/ui/hlp.ui.select-field/quality.yaml","revision":1},"owner":"platform-ui","dependencies":["hlp.ui.cn","hlp.ui.default-strings","hlp.ui.form-field","hlp.ui.locale-provider"],"status":"gap-implemented","depth":{"disposition":"deep-module","deletionTest":"PASS","redistributedComplexity":["controlled combobox state, listbox navigation, typeahead, selection, dismissal, focus return, and Form Field metadata repeated by every enumerated form control","localized placeholder, logical popup geometry, viewport clamping, validation, themes, and projection parity drifting independently"]},"projections":{"react":{"role":"adapter","seam":"ui.select-field.framework","path":"projections/react/ui/hlp.ui.select-field","status":"conformant","packageContribution":"@harborline-software/ui-react","conformanceRunner":"conformance/hlp.ui.select-field/runners/run-shared.mjs"},"blazor":{"role":"adapter","seam":"ui.select-field.framework","path":"projections/blazor/ui/hlp.ui.select-field","status":"conformant","packageContribution":"Harborline.UIAdapters.Blazor","conformanceRunner":"conformance/hlp.ui.select-field/runners/run-shared.mjs"}}
+      "interface":{"path":"specs/modules/ui/hlp.ui.select-field/interface.yaml","revision":2},"moduleKind":"interactive-component","presentation":{"disposition":"visual"},"qualityProfile":{"path":"specs/modules/ui/hlp.ui.select-field/quality.yaml","revision":2},"owner":"platform-ui","dependencies":["hlp.ui.cn","hlp.ui.default-strings","hlp.ui.form-field","hlp.ui.locale-provider","hlp.ui.input"],"status":"gap-implemented","depth":{"disposition":"deep-module","deletionTest":"PASS","redistributedComplexity":["controlled combobox state, listbox navigation, typeahead, selection, dismissal, focus return, and Form Field metadata repeated by every enumerated form control","localized placeholder, logical popup geometry, viewport clamping, validation, themes, and projection parity drifting independently"]},"projections":{"react":{"role":"adapter","seam":"ui.select-field.framework","path":"projections/react/ui/hlp.ui.select-field","status":"conformant","packageContribution":"@harborline-software/ui-react","conformanceRunner":"conformance/hlp.ui.select-field/runners/run-shared.mjs"},"blazor":{"role":"adapter","seam":"ui.select-field.framework","path":"projections/blazor/ui/hlp.ui.select-field","status":"conformant","packageContribution":"Harborline.UIAdapters.Blazor","conformanceRunner":"conformance/hlp.ui.select-field/runners/run-shared.mjs"}}
     },
     "hlp.ui.switch": {
       "interface":{"path":"specs/modules/ui/hlp.ui.switch/interface.yaml","revision":1},"moduleKind":"interactive-component","presentation":{"disposition":"visual"},"qualityProfile":{"path":"specs/modules/ui/hlp.ui.switch/quality.yaml","revision":1},"owner":"platform-ui","dependencies":["hlp.ui.cn","hlp.ui.default-strings","hlp.ui.form-field","hlp.ui.locale-provider","hlp.ui.touch-target","hlp.ui.use-can-show-master-detail","hlp.ui.use-media-query"],"status":"gap-implemented","depth":{"disposition":"deep-module","deletionTest":"PASS","redistributedComplexity":["controlled and uncontrolled binary state, stable naming, native keyboard activation, Form Field metadata, and form values repeated by every boolean control","coarse-pointer overlay, canonical sizing, non-color validation, logical RTL thumb motion, localization, and compatibility aliases drifting across projections"]},"projections":{"react":{"role":"adapter","seam":"ui.switch.framework","path":"projections/react/ui/hlp.ui.switch","status":"conformant","packageContribution":"@harborline-software/ui-react","conformanceRunner":"conformance/hlp.ui.switch/runners/run-shared.mjs"},"blazor":{"role":"adapter","seam":"ui.switch.framework","path":"projections/blazor/ui/hlp.ui.switch","status":"conformant","packageContribution":"Harborline.UIAdapters.Blazor","conformanceRunner":"conformance/hlp.ui.switch/runners/run-shared.mjs"}}
@@ -1662,6 +1672,16 @@
     "hlp.ui.view-runtime": {
       "interface":{"path":"specs/modules/ui/hlp.ui.view-runtime/interface.yaml","revision":6},"moduleKind":"interactive-component","presentation":{"disposition":"visual"},"qualityProfile":{"path":"specs/modules/ui/hlp.ui.view-runtime/quality.yaml","revision":1},"owner":"platform-ui","dependencies":["hlp.ui.data-grid","hlp.ui.button"],"status":"gap-implemented","depth":{"disposition":"deep-module","deletionTest":"PASS","redistributedComplexity":["definition envelope interpretation and field-to-grid translation repeated by every seeded list view","unknown-kind inertness and the definition identity hook drifting across projections"]},"projections":{"react":{"role":"adapter","seam":"ui.view-runtime.framework","path":"projections/react/ui/hlp.ui.view-runtime","status":"conformant","packageContribution":"@harborline-software/ui-react","conformanceRunner":"conformance/hlp.ui.view-runtime/runners/run-shared.mjs"},"blazor":{"role":"adapter","seam":"ui.view-runtime.framework","path":"projections/blazor/ui/hlp.ui.view-runtime","status":"conformant","packageContribution":"Harborline.UIAdapters.Blazor","conformanceRunner":"conformance/hlp.ui.view-runtime/runners/run-shared.mjs"}}
     },
+    "hlp.ui.layout-runtime": {
+      "interface":{"path":"specs/modules/ui/hlp.ui.layout-runtime/interface.yaml","revision":1},
+      "moduleKind":"runtime",
+      "presentation":{"disposition":"not-applicable","rationale":"The aggregate contribution supplies reusable Layout authoring and rendering primitives; products own the surrounding visual composition."},
+      "owner":"platform-ui",
+      "dependencies":["hlp.blocks.layout-runtime"],
+      "status":"draft-native-green",
+      "depth":{"disposition":"deep-module","deletionTest":"PASS","redistributedComplexity":["layout token selection, recursive region editing, and canonical block-kind selection otherwise repeat in every member editor","screen and page render-plan interpretation otherwise diverges across framework-specific hosts"]},
+      "projections":{"react":{"role":"implementation","path":"projections/react/ui/hlp.ui.layout-runtime","status":"preview","packageContribution":"@harborline-software/ui-react"},"blazor":{"role":"implementation","path":"projections/blazor/ui/hlp.ui.layout-runtime","status":"preview","packageContribution":"Harborline.UIAdapters.Blazor"}}
+    },
     "hlp.ui.gantt": {
       "interface":{"path":"specs/modules/ui/hlp.ui.gantt/interface.yaml","revision":1},"moduleKind":"interactive-component","presentation":{"disposition":"visual"},"qualityProfile":{"path":"specs/modules/ui/hlp.ui.gantt/quality.yaml","revision":1},"owner":"platform-ui","dependencies":["hlp.ui.default-strings","hlp.ui.locale-provider"],"status":"gap-implemented","depth":{"disposition":"deep-module","deletionTest":"PASS","redistributedComplexity":["ordered calendar tasks, finish-to-start edges, controlled zoom, columns, and read-only policy repeated by schedule views","provider-private geometry, timezone-stable labels, non-color progress, keyboard access, and replacement parity drifting across renderers"]},"projections":{"react":{"role":"adapter","seam":"ui.gantt.framework","path":"projections/react/ui/hlp.ui.gantt","status":"conformant","packageContribution":"@harborline-software/ui-react","conformanceRunner":"conformance/hlp.ui.gantt/runners/run-shared.mjs"},"blazor":{"role":"adapter","seam":"ui.gantt.framework","path":"projections/blazor/ui/hlp.ui.gantt","status":"conformant","packageContribution":"Harborline.UIAdapters.Blazor","conformanceRunner":"conformance/hlp.ui.gantt/runners/run-shared.mjs"}}
     },
@@ -1687,7 +1707,7 @@
       "interface":{"path":"specs/modules/ui/hlp.ui.scheduler/interface.yaml","revision":1},"moduleKind":"interactive-component","presentation":{"disposition":"visual"},"qualityProfile":{"path":"specs/modules/ui/hlp.ui.scheduler/quality.yaml","revision":1},"owner":"platform-ui","dependencies":["hlp.ui.default-strings","hlp.ui.empty-state","hlp.ui.locale-provider","hlp.ui.use-is-mobile","hlp.ui.use-scroll-affordance"],"status":"gap-implemented","depth":{"disposition":"deep-module","deletionTest":"PASS","redistributedComplexity":["four views, controlled date and view, work-calendar layout, editing, and bounded recurrence repeated by every scheduling surface","overlap geometry, responsive overflow, locale and RTL, read-only enforcement, deterministic large-data replacement, and provider isolation drifting across projections"]},"projections":{"react":{"role":"adapter","seam":"ui.scheduler.framework","path":"projections/react/ui/hlp.ui.scheduler","status":"conformant","packageContribution":"@harborline-software/ui-react","conformanceRunner":"conformance/hlp.ui.scheduler/runners/run-shared.mjs"},"blazor":{"role":"adapter","seam":"ui.scheduler.framework","path":"projections/blazor/ui/hlp.ui.scheduler","status":"conformant","packageContribution":"Harborline.UIAdapters.Blazor","conformanceRunner":"conformance/hlp.ui.scheduler/runners/run-shared.mjs"}}
     },
     "hlp.ui.schema-form": {
-      "interface":{"path":"specs/modules/ui/hlp.ui.schema-form/interface.yaml","revision":3},"moduleKind":"interactive-component","presentation":{"disposition":"visual"},"qualityProfile":{"path":"specs/modules/ui/hlp.ui.schema-form/quality.yaml","revision":1},"owner":"platform-ui","dependencies":["hlp.contracts.forms","hlp.foundation.rule-runtime","hlp.ui.check-box","hlp.ui.cn","hlp.ui.date-field","hlp.ui.date-time-field","hlp.ui.form-field","hlp.ui.form-view","hlp.ui.input","hlp.ui.number-field","hlp.ui.numeric-text-box","hlp.ui.radio-group","hlp.ui.select-field","hlp.ui.switch","hlp.ui.text-area","hlp.ui.text-box"],"status":"extracted-candidate","depth":{"disposition":"deep-module","deletionTest":"PASS","redistributedComplexity":["FormView section and field walking, control-hint resolution, and the five rule outcome projections otherwise repeated by every form host","JSON-Pointer error partitioning, fail-closed unrecognised values, nested group and collection paths, and locale-sensitive field formatting drifting between React and Blazor"]},
+      "interface":{"path":"specs/modules/ui/hlp.ui.schema-form/interface.yaml","revision":4},"moduleKind":"interactive-component","presentation":{"disposition":"visual"},"qualityProfile":{"path":"specs/modules/ui/hlp.ui.schema-form/quality.yaml","revision":1},"owner":"platform-ui","dependencies":["hlp.ui.button", "hlp.contracts.forms","hlp.foundation.rule-runtime","hlp.ui.check-box","hlp.ui.cn","hlp.ui.date-field","hlp.ui.date-time-field","hlp.ui.form-field","hlp.ui.form-view","hlp.ui.input","hlp.ui.number-field","hlp.ui.numeric-text-box","hlp.ui.radio-group","hlp.ui.select-field","hlp.ui.switch","hlp.ui.text-area","hlp.ui.text-box"],"status":"extracted-candidate","depth":{"disposition":"deep-module","deletionTest":"PASS","redistributedComplexity":["FormView section and field walking, control-hint resolution, and the five rule outcome projections otherwise repeated by every form host","JSON-Pointer error partitioning, fail-closed unrecognised values, nested group and collection paths, and locale-sensitive field formatting drifting between React and Blazor"]},
       "projections": {
         "react": {"role":"adapter","seam":"ui.schema-form.framework","path":"projections/react/ui/hlp.ui.schema-form","status":"conformant","packageContribution":"@harborline-software/ui-react","conformanceRunner":"conformance/hlp.ui.schema-form/runners/run-shared.mjs"},
         "blazor": {"role":"adapter","seam":"ui.schema-form.framework","path":"projections/blazor/ui/hlp.ui.schema-form","status":"conformant","packageContribution":"Harborline.UIAdapters.Blazor","conformanceRunner":"conformance/hlp.ui.schema-form/runners/run-shared.mjs"}

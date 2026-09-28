@@ -1,0 +1,6 @@
+{
+  "extends": "./tsconfig.build.json",
+  "compilerOptions": { "noEmit": true, "emitDeclarationOnly": false },
+  "include": ["src/SelectField.tsx", "src/index.ts", "src/__tests__/SelectField.types.tsx"],
+  "exclude": ["dist", "node_modules"]
+}

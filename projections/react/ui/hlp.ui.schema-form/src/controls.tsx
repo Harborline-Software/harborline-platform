@@ -33,79 +33,12 @@ function selectOptions(args: ControlArgs): SelectOption[] {
 }
 
 function DomainPickerControl({ args }: { args: ControlArgs }) {
-  const context = useFormFieldContext()
-  const listId = React.useId()
-  const [query, setQuery] = React.useState(args.strValue)
-  const [open, setOpen] = React.useState(false)
-  const [active, setActive] = React.useState(-1)
-  React.useEffect(() => { setQuery(args.strValue) }, [args.strValue])
-  // These are pinned, authorized domain members supplied by the field runtime.
-  // Search is local; the 25-result display bound is not a domain cardinality decision.
-  const matches = React.useMemo(() => {
-    const result: string[] = []
-    for (const value of args.field.permittedValues ?? []) {
-      if (value.toLocaleLowerCase().includes(query.toLocaleLowerCase())) result.push(value)
-      if (result.length === 25) break
-    }
-    return result
-  }, [args.field.permittedValues, query])
-  const choose = (value: string) => {
-    args.onChange(value)
-    setQuery(value)
-    setOpen(false)
-    setActive(-1)
-  }
-  return (
-    <div className="hl-schema-form__domain-picker">
-      <Input
-        aria-activedescendant={open && active >= 0 ? `${listId}-${active}` : undefined}
-        aria-autocomplete="list"
-        aria-controls={listId}
-        aria-describedby={context.describedBy}
-        aria-expanded={open}
-        aria-invalid={args.hasError || undefined}
-        aria-labelledby={context.labelId}
-        aria-required={args.required || undefined}
-        autoComplete="off"
-        disabled={args.disabled}
-        id={args.field.name}
-        onBlur={() => { setOpen(false); setQuery(args.strValue) }}
-        onChange={event => { setQuery(event.currentTarget.value); setOpen(true); setActive(-1) }}
-        onFocus={() => setOpen(true)}
-        onKeyDown={event => {
-          if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-            event.preventDefault()
-            setOpen(true)
-            setActive(index => event.key === 'ArrowDown'
-              ? Math.min(index + 1, matches.length - 1) : Math.max(index - 1, 0))
-          } else if (event.key === 'Enter' && open) {
-            event.preventDefault()
-            if (matches[active] !== undefined) choose(matches[active])
-          } else if (event.key === 'Escape') {
-            setOpen(false)
-            setQuery(args.strValue)
-          }
-        }}
-        role="combobox"
-        value={query}
-      />
-      {open && !args.disabled ? (
-        <ul aria-labelledby={context.labelId} id={listId} role="listbox">
-          {matches.map((value, index) => (
-            <li
-              aria-selected={args.strValue === value}
-              data-active={index === active || undefined}
-              id={`${listId}-${index}`}
-              key={value}
-              onClick={() => choose(value)}
-              onMouseDown={event => event.preventDefault()}
-              role="option"
-            >{value}</li>
-          ))}
-        </ul>
-      ) : null}
-    </div>
-  )
+  const options = React.useMemo(() => selectOptions(args), [args.field])
+  return <SelectField searchable name={args.field.name} value={args.strValue}
+    options={options} disabled={args.disabled} required={args.required} error={args.hasError}
+    onValueChange={value => {
+      if (!args.disabled && args.field.permittedValues?.includes(value)) args.onChange(value)
+    }} />
 }
 
 const textControl = ({ field, strValue, hasError, disabled, onChange }: ControlArgs) => (
@@ -166,28 +99,10 @@ function NativeInputControl({ args, type }: { args: ControlArgs; type: React.HTM
 }
 
 function MultiSelectControl({ args }: { args: ControlArgs }) {
-  const context = useFormFieldContext()
-  const selected = Array.isArray(args.value) ? args.value.map(String) : []
-  return (
-    <select
-      aria-describedby={context.describedBy}
-      aria-invalid={args.hasError || undefined}
-      aria-labelledby={context.labelId}
-      aria-required={args.required || undefined}
-      className="hl-schema-form__multi-select"
-      disabled={args.disabled}
-      id={args.field.name}
-      multiple
-      name={args.field.name}
-      onChange={event => args.onChange([...event.currentTarget.selectedOptions].map(option => option.value))}
-      required={args.required}
-      value={selected}
-    >
-      {selectOptions(args).map(option => (
-        <option disabled={option.disabled} key={option.value} value={option.value}>{option.label}</option>
-      ))}
-    </select>
-  )
+  const options = React.useMemo(() => selectOptions(args), [args.field])
+  const selected = React.useMemo(() => Array.isArray(args.value) ? args.value.map(String) : [], [args.value])
+  return <SelectField multiple name={args.field.name} value={selected} options={options}
+    disabled={args.disabled} required={args.required} error={args.hasError} onValueChange={args.onChange} />
 }
 
 function NumericControl({ args, kind }: { args: ControlArgs; kind: 'currency' | 'percentage' }) {

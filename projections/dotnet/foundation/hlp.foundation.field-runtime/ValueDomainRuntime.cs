@@ -16,12 +16,13 @@ public sealed class ValueDomainRuntime : IFieldDomainRuntime
     private readonly RuleEngineLimits ruleLimits;
     private readonly GuardEvaluator evaluator;
 
-    /// <summary>Uses the host's pinned source and existing read-authority owner.</summary>
+    /// <summary>Uses the host's pinned source, existing read-authority owner, and explicit clock.</summary>
     public ValueDomainRuntime(IFieldDomainSource source, IFieldDomainReadAuthority authority,
-        RuleEngineLimits? ruleLimits = null, TimeProvider? clock = null)
+        TimeProvider clock, RuleEngineLimits? ruleLimits = null)
     {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(authority);
+        ArgumentNullException.ThrowIfNull(clock);
         this.source = source;
         this.authority = authority;
         this.ruleLimits = ruleLimits ?? RuleEngineLimits.Default;
