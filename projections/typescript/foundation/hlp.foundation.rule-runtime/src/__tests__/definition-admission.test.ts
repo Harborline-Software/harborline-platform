@@ -137,6 +137,8 @@ describe('definition compiler admission', () => {
     expect(graph.workProof.maximumEvaluationWork).toBeGreaterThan(0)
   })
 
+  // Compiles and runs 8 KB decimals: ~0.9 s locally, just over vitest's 5 s default on hosted macOS runners.
+  // The assertions are byte bounds, not speed, so the timeout is explicit.
   it('bounds the public large aligned-money concatenation in serialized JSON bytes', () => {
     const integer = '9'.repeat(4090)
     const fraction = `0.${'0'.repeat(4088)}1`
@@ -155,7 +157,7 @@ describe('definition compiler admission', () => {
     const actualBytes = new TextEncoder().encode(JSON.stringify(value?.value)).length
     expect(actualBytes).toBe(490802)
     expect(graph.workProof.maximumResultBytes).toBeGreaterThanOrEqual(BigInt(actualBytes))
-  })
+  }, 30_000)
 
   it('bounds JSON re-escaping and the empty boolean/date identities through execution', () => {
     const graph = compile([
