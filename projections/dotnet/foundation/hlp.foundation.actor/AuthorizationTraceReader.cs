@@ -9,6 +9,8 @@ public enum AuthorizationTraceAvailability
     Available,
     /// <summary>No decision trace was recorded.</summary>
     NotAvailable,
+    /// <summary>A stored decision trace does not match the versioned four-step shape.</summary>
+    Malformed,
     /// <summary>The read was refused; even existence is hidden.</summary>
     Refused,
     /// <summary>A guard refused before the decider ran.</summary>
@@ -85,6 +87,7 @@ public sealed class AuthorizationTraceReader(IAuthorizationTraceStore store, IAu
             && steps.Select(step => step.Ordinal).SequenceEqual([1, 2, 3, 4])
             && steps.Select(step => step.Stage).SequenceEqual(stages)
                 ? new(AuthorizationTraceAvailability.Available, snapshot.Version, steps, snapshot.Counterfactual)
-                : new(AuthorizationTraceAvailability.NotAvailable, null, [], null);
+                : new(snapshot is null ? AuthorizationTraceAvailability.NotAvailable : AuthorizationTraceAvailability.Malformed,
+                    null, [], null);
     }
 }

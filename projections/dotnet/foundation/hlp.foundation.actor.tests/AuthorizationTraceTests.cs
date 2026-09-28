@@ -57,7 +57,7 @@ public sealed class AuthorizationTraceTests
     public async Task No_recorded_decision_stays_absent_and_approval_ordinals_do_not_replace_gate_steps()
     {
         var gate = new ReadGate();
-        var absent = await new AuthorizationTraceReader(new Store(new("a", "alice", null, [])), gate)
+        var absent = await new AuthorizationTraceReader(new Store(null), gate)
             .ReadAsync("a", "auditor", "entry", At);
         Assert.Equal(AuthorizationTraceAvailability.NotAvailable, absent.Availability);
         var request = new AccessRequest("records:write", "alice", "a", new("a", "work", "1", new Dictionary<string, System.Text.Json.Nodes.JsonNode?>()), At);
@@ -70,7 +70,36 @@ public sealed class AuthorizationTraceTests
         Assert.DoesNotContain(read.Steps, step => step.Facts.Contains("approval:denied"));
     }
 
-    private sealed class Store(AuthorizationTraceSnapshot snapshot) : IAuthorizationTraceStore
+    [Fact]
+    public async Task Present_snapshots_that_do_not_match_the_versioned_four_stage_shape_are_malformed()
+    {
+        var validSteps = new[]
+        {
+            new AuthorizationTraceStep(1, "act", []),
+            new AuthorizationTraceStep(2, "effective-roles", []),
+            new AuthorizationTraceStep(3, "standings", []),
+            new AuthorizationTraceStep(4, "verdict", []),
+        };
+        var malformedSnapshots = new[]
+        {
+            new AuthorizationTraceSnapshot("a", "alice", 2, validSteps.Select(step =>
+                step.Ordinal == 3 ? new AuthorizationTraceStep(5, step.Stage, step.Facts) : step)),
+            new AuthorizationTraceSnapshot("a", "alice", 2, validSteps.Select(step =>
+                step.Ordinal == 2 ? new AuthorizationTraceStep(step.Ordinal, "wrong-stage", step.Facts) : step)),
+            new AuthorizationTraceSnapshot("a", "alice", null, validSteps),
+        };
+        foreach (var snapshot in malformedSnapshots)
+        {
+            var read = await new AuthorizationTraceReader(new Store(snapshot), new ReadGate())
+                .ReadAsync("a", "auditor", "entry", At);
+            Assert.Equal(AuthorizationTraceAvailability.Malformed, read.Availability);
+            Assert.Null(read.Version);
+            Assert.Empty(read.Steps);
+            Assert.Null(read.Counterfactual);
+        }
+    }
+
+    private sealed class Store(AuthorizationTraceSnapshot? snapshot) : IAuthorizationTraceStore
     {
         public ValueTask<AuthorizationTraceSnapshot?> FindAsync(string tenant, string entryId, CancellationToken cancellationToken = default) =>
             ValueTask.FromResult(entryId == "entry" ? snapshot : null);
