@@ -82,6 +82,12 @@ public sealed class AuthorizationTraceTests
             new("a", "alice", 2, [.. steps.Take(2), new AuthorizationTraceStep(3, "wrong", []), steps[3]]),
             new("a", "alice", null, steps),
             new("a", "alice", 2, [.. steps, steps[3]]),
+            // A step outside the decision (1..4) and approval (5..8) ordinals is malformed, not ignored.
+            new("a", "alice", 2, [.. steps, new AuthorizationTraceStep(0, "act", [])]),
+            new("a", "alice", 2, [.. steps, new AuthorizationTraceStep(9, "act", [])]),
+            // Only evidence versions 1 through CurrentVersion exist.
+            new("a", "alice", 0, steps),
+            new("a", "alice", AuthorizationDecisionEvidence.CurrentVersion + 1, steps),
         ];
 
         foreach (var snapshot in malformed)

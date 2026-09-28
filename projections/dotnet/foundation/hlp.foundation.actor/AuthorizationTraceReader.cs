@@ -80,11 +80,14 @@ public sealed class AuthorizationTraceReader(IAuthorizationTraceStore store, IAu
             return new(AuthorizationTraceAvailability.PreDecisionRefusal, null, [], null, refusal);
         if (snapshot is null) return new(AuthorizationTraceAvailability.NotAvailable, null, [], null);
 
-        // Select by ordinal: approval traces reuse the stage names under ordinals 5..8.
+        // Select by ordinal: approval traces reuse the stage names under ordinals 5..8. Any other
+        // ordinal, or a version no evidence was ever written at, makes the trace malformed.
         var steps = snapshot.Steps.Where(step => step.Ordinal is >= 1 and <= AuthorizationDecisionEvidence.StepCount)
             .OrderBy(step => step.Ordinal).ToImmutableArray();
         string[] stages = ["act", "effective-roles", "standings", "verdict"];
-        return steps.Length == AuthorizationDecisionEvidence.StepCount && snapshot.Version is not null
+        return snapshot.Steps.All(step => step.Ordinal is >= 1 and <= 2 * AuthorizationDecisionEvidence.StepCount)
+            && snapshot.Version is >= 1 and <= AuthorizationDecisionEvidence.CurrentVersion
+            && steps.Length == AuthorizationDecisionEvidence.StepCount
             && steps.Select(step => step.Ordinal).SequenceEqual([1, 2, 3, 4])
             && steps.Select(step => step.Stage).SequenceEqual(stages)
                 ? new(AuthorizationTraceAvailability.Available, snapshot.Version, steps, snapshot.Counterfactual)

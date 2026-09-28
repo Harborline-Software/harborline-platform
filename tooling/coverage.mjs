@@ -9,8 +9,19 @@ export function coverageSummary(xml, root, sourcePrefix) {
   const documents = Array.isArray(xml) ? xml : [xml]
   const lines = new Map()
   const overlappingBranchFiles = new Set()
+  const tracked = new Set(execFileSync('git', ['-c', `safe.directory=${root.replaceAll('\\', '/')}`, '-C', root, 'ls-files'], {encoding: 'utf8'}).trim().split(/\r?\n/))
+  // Cobertura filenames are relative to the report's <source> roots (coverlet writes the project's source
+  // root, e.g. projections/dotnet/), not to the repository; map through every root before giving up.
+  const sourceRoots = documents.flatMap(document => [...document.matchAll(/<source>([^<]*)<\/source>/g)].map(m => m[1].trim())).filter(Boolean)
+  const map = filename => {
+    const normalized = filename.replaceAll('\\', '/').replace(/^\.\//, '')
+    const candidates = [normalized, path.relative(root, filename).replaceAll('\\', '/'),
+      ...sourceRoots.map(source => path.relative(root, path.resolve(root, source, normalized)).replaceAll('\\', '/'))]
+    return candidates.find(candidate => tracked.has(candidate))
+  }
   for (const [documentIndex, document] of documents.entries()) for (const match of document.matchAll(/<class\b([^>]*)>([\s\S]*?)<\/class>/g)) {
-    const filename = attr(match[1], 'filename'); if (!filename) throw new Error('Cobertura class has no filename')
+    const reported = attr(match[1], 'filename'); if (!reported) throw new Error('Cobertura class has no filename')
+    const filename = map(reported) ?? reported
     for (const line of match[2].matchAll(/<line\b([^>]*)\/?\s*>/g)) {
       const number = attr(line[1], 'number'), hits = attr(line[1], 'hits')
       if (!/^\d+$/.test(number ?? '') || !/^\d+$/.test(hits ?? '')) throw new Error(`invalid Cobertura line in ${filename}`)
@@ -29,16 +40,6 @@ export function coverageSummary(xml, root, sourcePrefix) {
         validBranches: Math.max(Number(counts?.[2] ?? 0), previous?.validBranches ?? 0),
       })
     }
-  }
-  const tracked = new Set(execFileSync('git', ['-c', `safe.directory=${root.replaceAll('\\', '/')}`, '-C', root, 'ls-files'], {encoding: 'utf8'}).trim().split(/\r?\n/))
-  // Cobertura filenames are relative to the report's <source> roots (coverlet writes the project's source
-  // root, e.g. projections/dotnet/), not to the repository; map through every root before giving up.
-  const sourceRoots = documents.flatMap(document => [...document.matchAll(/<source>([^<]*)<\/source>/g)].map(m => m[1].trim())).filter(Boolean)
-  const map = filename => {
-    const normalized = filename.replaceAll('\\', '/').replace(/^\.\//, '')
-    const candidates = [normalized, path.relative(root, filename).replaceAll('\\', '/'),
-      ...sourceRoots.map(source => path.relative(root, path.resolve(root, source, normalized)).replaceAll('\\', '/'))]
-    return candidates.find(candidate => tracked.has(candidate))
   }
   const values = [...lines.values()].filter(line => !sourcePrefix || map(line.filename)?.startsWith(sourcePrefix))
   const paths = [...new Set(values.map(line => line.filename))].sort()

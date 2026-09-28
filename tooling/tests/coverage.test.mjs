@@ -47,3 +47,15 @@ test('a coverage-native result remains one JSON document for the gate evaluator'
   const report = {status: 'PASS', coverage: [{suite: 'blazor', artifactPath: 'artifacts/quality/coverage/blazor/reports/1-coverage.cobertura.xml', coveredLines: 2, validLines: 3, mappedPaths: ['tooling/run-native.mjs'], unmappedPaths: ['missing.cs']}]}
   assert.deepEqual(evaluateStepStdout({stepId: 'native-tests', json: true, status: 0, stdout: JSON.stringify(report)}), {status: 0, report})
 })
+
+test('one file named two ways across reports is one file, so branch overlap is still detected', () => {
+  const root = path.resolve(import.meta.dirname, '../..')
+  const line = '<line number="1" hits="1" branch="True" condition-coverage="50% (1/2)"/>'
+  const byRepositoryPath = `<coverage><packages><package><classes><class filename="tooling/run-native.mjs"><lines>${line}</lines></class></classes></package></packages></coverage>`
+  const bySourceRoot = '<coverage><sources><source>' + path.join(root, 'tooling') + '/</source></sources><packages><package><classes>'
+    + `<class filename="run-native.mjs"><lines>${line}</lines></class></classes></package></packages></coverage>`
+  const summary = coverageSummary([byRepositoryPath, bySourceRoot], root)
+  assert.equal(summary.validLines, 1)
+  assert.equal(summary.validBranches, null)
+  assert.deepEqual(summary.mappedPaths, ['tooling/run-native.mjs'])
+})
