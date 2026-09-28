@@ -208,6 +208,40 @@ describe('definition compiler admission', () => {
     expect(graph.workProof.maximumEvaluationWork).toBeGreaterThan(0)
   })
 
+  it('bounds a Table Compute value copied through an aggregate reference', () => {
+    const aggregate = { var: 'table.sum(items.amount)' }
+    const rules: RuleDefinition[] = [
+      { ...compute('table-value', 'items/sum/amount', { var: 'payload' }), scope: 'Table' },
+      compute('copies', 'result', { cat: Array.from({ length: 10 }, () => aggregate) }),
+    ]
+    const limits = { ...DEFAULT_LIMITS, maxTableRowsPerAggregate: 1, stepBudget: 10_000_000 }
+    const compiled = compile(rules, limits)
+    const result = new FormRuleGraph(compiled, () => new Date('2026-09-22T00:00:00.000Z'), testAdmission, limits)
+      .evaluateInstance(RuleInstance.fromJsonText(JSON.stringify({ payload: 'x'.repeat(80_000) })))
+    const value = result.values.get('field:result')
+
+    expect(value?.state).toBe('Resolved')
+    expect(compiled.workProof.maximumResultBytes).toBeGreaterThanOrEqual(
+      BigInt(new TextEncoder().encode(JSON.stringify(value?.value)).length))
+  })
+
+  it('keeps the larger Table bound when an admitted duplicate target is replaced', () => {
+    const rules: RuleDefinition[] = [
+      { ...compute('small-table', 'items/sum/amount', '"a"'), scope: 'Table' },
+      { ...compute('large-table', 'items/sum/amount', { var: 'payload' }), scope: 'Table' },
+      compute('copies', 'result', { cat: Array.from({ length: 10 }, () => ({ var: 'table.sum(items.amount)' })) }),
+    ]
+    const limits = { ...DEFAULT_LIMITS, maxTableRowsPerAggregate: 1, stepBudget: 10_000_000 }
+    const compiled = compile(rules, limits)
+    const result = new FormRuleGraph(compiled, () => new Date('2026-09-22T00:00:00.000Z'), testAdmission, limits)
+      .evaluateInstance(RuleInstance.fromJsonText(JSON.stringify({ payload: 'x'.repeat(80_000) })))
+    const value = result.values.get('field:result')
+
+    expect(value?.state).toBe('Resolved')
+    expect(compiled.workProof.maximumResultBytes).toBeGreaterThanOrEqual(
+      BigInt(new TextEncoder().encode(JSON.stringify(value?.value)).length))
+  })
+
   it('bounds the public large aligned-money concatenation in serialized JSON bytes', () => {
     const integer = '9'.repeat(4090)
     const fraction = `0.${'0'.repeat(4088)}1`

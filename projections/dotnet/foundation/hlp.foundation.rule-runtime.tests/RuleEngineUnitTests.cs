@@ -279,6 +279,45 @@ public sealed class RuleEngineUnitTests
     }
 
     [Fact]
+    public void Compiler_bounds_table_compute_value_copied_through_aggregate_reference()
+    {
+        var copies = "{\"cat\":[" + string.Join(',', Enumerable.Repeat("{\"var\":\"table.sum(items.amount)\"}", 10)) + "]}";
+        var rules = new[]
+        {
+            Compute("table-value", "items/sum/amount", "{\"var\":\"payload\"}", RuleScope.Table),
+            Compute("copies", "result", copies),
+        };
+        var limits = RuleEngineLimits.Default with { MaxTableRowsPerAggregate = 1, StepBudget = 10_000_000 };
+        var compiled = RuleCompiler.Compile(rules, limits);
+        var evaluated = new FormRuleGraph(compiled, new FixedClock(Clock), TestAdmission.Any, limits)
+            .EvaluateInstance(Instance(JsonSerializer.Serialize(new { payload = new string('x', 80_000) })));
+        var value = evaluated.Values["field:result"];
+
+        Assert.Equal(ValueState.Resolved, value.State);
+        Assert.True(compiled.WorkProof.MaximumResultBytes >= Encoding.UTF8.GetByteCount(value.Value!.ToJsonString()));
+    }
+
+    [Fact]
+    public void Compiler_keeps_larger_table_bound_for_admitted_duplicate_target()
+    {
+        var copies = "{\"cat\":[" + string.Join(',', Enumerable.Repeat("{\"var\":\"table.sum(items.amount)\"}", 10)) + "]}";
+        var rules = new[]
+        {
+            Compute("small-table", "items/sum/amount", "\"a\"", RuleScope.Table),
+            Compute("large-table", "items/sum/amount", "{\"var\":\"payload\"}", RuleScope.Table),
+            Compute("copies", "result", copies),
+        };
+        var limits = RuleEngineLimits.Default with { MaxTableRowsPerAggregate = 1, StepBudget = 10_000_000 };
+        var compiled = RuleCompiler.Compile(rules, limits);
+        var evaluated = new FormRuleGraph(compiled, new FixedClock(Clock), TestAdmission.Any, limits)
+            .EvaluateInstance(Instance(JsonSerializer.Serialize(new { payload = new string('x', 80_000) })));
+        var value = evaluated.Values["field:result"];
+
+        Assert.Equal(ValueState.Resolved, value.State);
+        Assert.True(compiled.WorkProof.MaximumResultBytes >= Encoding.UTF8.GetByteCount(value.Value!.ToJsonString()));
+    }
+
+    [Fact]
     public void Compiler_allows_one_dynamic_row_result_cell_at_zero_demand_depth()
     {
         var row = Compute("row", "items/calculated", "{\"missing\":[{\"if\":[true,\"row.amount\",\"row.other\"]}]}", RuleScope.Row);

@@ -63,6 +63,11 @@ internal static class CoreWorkDerivation
                         next[key] = next.TryGetValue(key, out var old) ? BigInteger.Max(old, proofs[index].Result) : proofs[index].Result;
                     }
                 }
+                if (rule.Source.Scope == RuleScope.Table && rule.StaticTarget is { } tableTarget)
+                {
+                    var key = tableTarget.Key;
+                    next[key] = next.TryGetValue(key, out var old) ? BigInteger.Max(old, proofs[index].Result) : proofs[index].Result;
+                }
             }
             dynamicResult = Max(BigInteger.Max(InputBytes, aggregateResult), proofs.Select(proof => proof.Result));
             bool unchanged = next.Count == staticResults.Count && next.All(pair => staticResults.TryGetValue(pair.Key, out var old) && old == pair.Value);
@@ -161,7 +166,7 @@ internal static class CoreWorkDerivation
             "+" or "-" or "*" or "/" or "%" or "min" or "max" => Base(NumberBytes, childBytes),
             "in" => Base(5, InputNodes * (childBytes + 1)),
             "cat" => Cat(args.Count, children, childWork, childReads, aggregateReads),
-            "agg" => Base(aggregateResult, childBytes + 1, childReads + 1, aggregateReads + 1),
+            "agg" => Base(AggregateResult(raw, aggregateResult, staticReference), childBytes + 1, childReads + 1, aggregateReads + 1),
             // Parsing scans complete input before refusal; accepted decimal digit/scale and
             // alignment/multiplication retain the existing 4096 bound.
             "money.add" or "money.sub" => Base(MoneyDigits + MoneyScale + args.Count + 4,
@@ -189,6 +194,14 @@ internal static class CoreWorkDerivation
         };
         var resolved = path is null ? dependencyResult : staticReference?.Invoke(path) ?? InputBytes;
         return new(BigInteger.Max(resolved, childResult), 1 + childWork + childBytes + 1, childReads + 1, aggregateReads);
+    }
+
+    private static BigInteger AggregateResult(JsonNode? raw, BigInteger foldResult, Func<string, BigInteger?>? staticReference)
+    {
+        if (raw is not JsonArray { Count: 3 } parts || parts.Any(part => part is not JsonValue value || !value.TryGetValue<string>(out _)))
+            return foldResult;
+        var key = CellAddress.TableAggregate(parts[1]!.GetValue<string>(), parts[0]!.GetValue<string>(), parts[2]!.GetValue<string>()).Key;
+        return BigInteger.Max(foldResult, staticReference?.Invoke(key) ?? BigInteger.Zero);
     }
 
     private static NodeProof Missing(IReadOnlyList<JsonNode?> args, IReadOnlyList<NodeProof> children,

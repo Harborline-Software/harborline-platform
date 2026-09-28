@@ -7,7 +7,7 @@
  */
 import { deriveCoreTypes } from './core-types.js'
 import type { RuleEngineLimits } from './limits.js'
-import type { Json, RuleDefinition } from './model.js'
+import { cell, type Json, type RuleDefinition } from './model.js'
 
 const INPUT_BYTES = 262_144n
 const INPUT_NODES = 5_000n
@@ -133,8 +133,11 @@ function deriveNode(node: Json, dependencyResult: bigint, aggregateResult: bigin
       // Repeated concatenation copies growing prefixes even where a host uses ropes.
       return base(output, BigInt(args.length) * output)
     }
-    case 'agg':
-      return base(aggregateResult, childBytes + 1n, child.reads + 1n, child.aggregateReads + 1n)
+    case 'agg': {
+      const computed = Array.isArray(raw) && raw.length === 3 && raw.every(part => typeof part === 'string')
+        ? staticReference?.(cell.agg(raw[1] as string, raw[0] as string, raw[2] as string)) : undefined
+      return base(max(aggregateResult, computed ?? 0n), childBytes + 1n, child.reads + 1n, child.aggregateReads + 1n)
+    }
     case 'money.add': case 'money.sub': case 'money.mul': {
       // Parse scans the whole captured operand before its 4096-digit refusal; successful
       // decimal alignment/multiply is bounded by the existing 4096 digit/scale contract.
@@ -201,6 +204,11 @@ export function deriveGraphWork(rules: readonly { source: RuleDefinition, ast: J
           const key = `row.${rule.source.scopeTarget.slice(slash + 1)}`
           next.set(key, max(next.get(key) ?? 0n, perRule[index].result))
         }
+      }
+      if (rule.source.scope === 'Table') {
+        const [section, fn, col] = rule.source.scopeTarget.split('/')
+        const key = cell.agg(section, fn, col)
+        next.set(key, max(next.get(key) ?? 0n, perRule[index].result))
       }
     }
     dynamicResult = max(INPUT_BYTES, aggregateResult, ...perRule.map(proof => proof.result))
