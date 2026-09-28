@@ -8,6 +8,7 @@ import { Codes } from './codes.js'
 import type { ComputedValue, Json, RuleDefinition, Validity } from './model.js'
 import { DEFAULT_LIMITS, type RuleEngineLimits } from './limits.js'
 import { compile } from './compiler.js'
+import { CompileError } from './grammar.js'
 import {
   EvalBudget, RuleBudget, RuleEvalError, RulePending,
   err, refError, refPending, refResolved, unavailableAggregate,
@@ -82,7 +83,12 @@ export class GuardEvaluator {
   }
 
   evaluateGuard(rule: RuleDefinition, context: RuleContextSnapshot, admission: EvaluationAdmission | null, signal?: AbortSignal): Validity {
-    const compiled = compile([rule], this.limits)
+    let compiled: ReturnType<typeof compile>
+    try { compiled = compile([rule], this.limits) }
+    catch (error) {
+      if (error instanceof CompileError) return { ok: false, error: err(error.code) }
+      throw error
+    }
     // rules-eng-26: admission evidence is checked before any value is read.
     const refusal = admissionRefusal(admission, compiled.rules.map((r) => r.ast))
     if (refusal !== null) return { ok: false, error: err(refusal) }
@@ -100,7 +106,12 @@ export class GuardEvaluator {
   }
 
   evaluateValue(rule: RuleDefinition, context: RuleContextSnapshot, admission: EvaluationAdmission | null, signal?: AbortSignal): ComputedValue {
-    const compiled = compile([rule], this.limits)
+    let compiled: ReturnType<typeof compile>
+    try { compiled = compile([rule], this.limits) }
+    catch (error) {
+      if (error instanceof CompileError) return { state: 'Error', error: err(error.code) }
+      throw error
+    }
     const refusal = admissionRefusal(admission, compiled.rules.map((r) => r.ast))
     if (refusal !== null) return { state: 'Error', error: err(refusal) }
     if (compiled.rules.length === 0) return { state: 'Resolved', value: null }

@@ -777,9 +777,32 @@ describe('guard evaluator (workflow transition guards)', () => {
     expect(guard.evaluateGuard(inheritedName, snapshot({}), testAdmission)).toEqual({ ok: false, error: { code: 'g.ownContextOnly', params: {} } })
   })
 
+  it('returns a refusal when a guard expression cannot compile', () => {
+    const invalid: RuleDefinition = { id: 'g.invalid', tier: 'JsonLogic', scope: 'Schema', scopeTarget: '', action: 'Validate', expression: { unknown_operator: [] } }
+    expect(guard.evaluateGuard(invalid, snapshot({}), testAdmission)).toEqual({ ok: false, error: { code: Codes.compileInvalidExpression, params: {} } })
+  })
+
   it('evaluates a value expression', () => {
     const v: RuleDefinition = { id: 'g.fee', tier: 'JsonLogic', scope: 'Schema', scopeTarget: '', action: 'Compute', expression: { 'money.mul': ['10', '3'] } }
     expect(guard.evaluateValue(v, snapshot({}), testAdmission)).toEqual({ state: 'Resolved', value: '30' })
+  })
+
+  it('returns an error value when a value expression cannot compile', () => {
+    const invalid: RuleDefinition = { id: 'g.invalidValue', tier: 'JsonLogic', scope: 'Schema', scopeTarget: '', action: 'Compute', expression: { unknown_operator: [] } }
+    expect(guard.evaluateValue(invalid, snapshot({}), testAdmission)).toEqual({ state: 'Error', error: { code: Codes.compileInvalidExpression, params: {} } })
+  })
+
+  it.each([
+    ['guard', (rule: RuleDefinition) => guard.evaluateGuard(rule, snapshot({}), testAdmission)],
+    ['value', (rule: RuleDefinition) => guard.evaluateValue(rule, snapshot({}), testAdmission)],
+  ])('propagates an unexpected compiler fault from %s evaluation', (_, evaluate) => {
+    const failure = new Error('compiler infrastructure fault')
+    const broken = new Proxy(g, { get(target, key, receiver) {
+      if (key === 'tier') throw failure
+      return Reflect.get(target, key, receiver)
+    } })
+
+    expect(() => evaluate(broken)).toThrow(failure)
   })
 
   it('fails closed on a pending dependency (server tier)', () => {
