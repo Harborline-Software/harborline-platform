@@ -1,6 +1,7 @@
 using System.Text.Json.Nodes;
 
 using Harborline.Foundation.RuleEngine;
+using Harborline.Foundation.Definitions;
 
 namespace Harborline.Foundation.RuleAuthoring;
 
@@ -15,7 +16,8 @@ public sealed record RuleDefinitionEnvelope(
     string Tenant,
     string CascadeLayer,
     JsonObject Provenance,
-    IReadOnlyList<string> Requires);
+    IReadOnlyList<string> Requires,
+    DefinitionContractVersion? Contract);
 
 public enum RuleDefinitionTier { JsonSchema, JsonLogic, PowerFx }
 

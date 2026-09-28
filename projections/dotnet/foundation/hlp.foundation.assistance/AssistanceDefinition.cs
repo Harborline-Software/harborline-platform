@@ -2,6 +2,8 @@ using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
+using Harborline.Foundation.Definitions;
 
 namespace Harborline.Foundation.Assistance;
 
@@ -13,7 +15,7 @@ public static class AssistancePackIdentity
 
 public enum AssistanceCascadeLayer { Base, Tenant }
 public sealed record AssistanceDefinitionRequirement(string Capability, string? MinimumPlatformVersion = null);
-public sealed record AssistanceDefinitionEnvelope(string Identity, string Version, string Tenant, AssistanceCascadeLayer CascadeLayer, JsonElement Provenance, string RetentionClass, bool LegalHold, IReadOnlyList<AssistanceDefinitionRequirement> Requires);
+public sealed record AssistanceDefinitionEnvelope(string Identity, string Version, string Tenant, AssistanceCascadeLayer CascadeLayer, JsonElement Provenance, string RetentionClass, bool LegalHold, IReadOnlyList<AssistanceDefinitionRequirement> Requires, DefinitionContractVersion? Contract);
 public enum AssistanceClassificationTier { Ap, Cp, Never }
 public sealed record AssistanceCommandClassification(AssistanceClassificationTier Tier, bool Undoable, string? Archetype = null, string? Justification = null);
 public sealed record AssistanceCommand(string CommandId, IReadOnlyList<string> Aliases, JsonElement ArgsSchema, AssistanceCommandClassification Classification);
@@ -62,6 +64,8 @@ public static class AssistanceDefinitionJson
         // a JsonException at Deserialize, so AdmitJson refuses definition.body_invalid instead of a
         // null reaching Validate/ValidateNarrowing and throwing.
         var options = new JsonSerializerOptions(JsonSerializerDefaults.Web) { PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull, UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow, RespectNullableAnnotations = true, RespectRequiredConstructorParameters = true, WriteIndented = false };
+        // T-572 slice 2: an envelope may still omit `contract`; slice 3 refuses that through DefinitionContractWindow.Check, not as a missing constructor member.
+        options.TypeInfoResolver = new DefaultJsonTypeInfoResolver { Modifiers = { info => { foreach (var property in info.Properties) if (property.PropertyType == typeof(DefinitionContractVersion)) property.IsRequired = false; } } };
         options.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.SnakeCaseLower));
         return options;
     }

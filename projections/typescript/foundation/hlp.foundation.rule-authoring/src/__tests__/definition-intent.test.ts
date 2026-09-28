@@ -7,7 +7,7 @@ function formula() {
   return {
     envelope: {
       id: 'invoice-total', version: '1.2.3', tenant: 'tenant-a', cascadeLayer: 'domain-package',
-      provenance: { kind: 'package', id: 'finance' }, requires: ['records.invoice@2.0.0'],
+      provenance: { kind: 'package', id: 'finance' }, requires: ['records.invoice@2.0.0'], contract: { major: 1, minor: 0 },
     },
     name: 'Invoice total', tier: 'JsonLogic',
     draft: {
@@ -203,6 +203,18 @@ describe('provider-neutral Rules definition intent', () => {
     expect(validateRuleDefinitionJson(JSON.stringify(source), 'Publish').document).toEqual(source)
     set(source, ['draft', 'expression'], chain({ kind: 'Ref', name: 'field.amount' }))
     expect(validateRuleDefinitionJson(JSON.stringify(source), 'Publish').diagnostics).toEqual([{ code: 'rule.compile.ast_too_large', location: '/draft/expression', phase: 'Publish', ruleId: 'invoice-total' }])
+  })
+
+  it('T-572 slice 2: keeps the envelope contract through parse and canonical serialize, and still admits source without it', () => {
+    const kept = validateRuleDefinitionJson(JSON.stringify(formula()), 'Author')
+    expect(kept.diagnostics).toEqual([])
+    expect(JSON.parse(serializeRuleDefinition(kept.document!)).envelope.contract).toEqual({ major: 1, minor: 0 })
+
+    const source = formula()
+    delete (source.envelope as { contract?: unknown }).contract
+    const absent = validateRuleDefinitionJson(JSON.stringify(source), 'Author')
+    expect(absent.diagnostics).toEqual([])
+    expect(absent.document!.envelope).not.toHaveProperty('contract')
   })
 
   it('keeps arbitrary provenance, special map names, array order and detached source', () => {

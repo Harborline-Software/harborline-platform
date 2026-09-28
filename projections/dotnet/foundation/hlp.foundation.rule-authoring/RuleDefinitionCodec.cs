@@ -6,6 +6,7 @@ using System.Text.Json.Nodes;
 using Harborline.Foundation.RuleEngine;
 using Harborline.Foundation.RuleEngine.Conformance;
 using Harborline.Foundation.RuleEngine.Skins;
+using Harborline.Foundation.Definitions;
 
 namespace Harborline.Foundation.RuleAuthoring;
 
@@ -49,6 +50,8 @@ public static class RuleDefinitionCodec
             ["tier"] = document.Tier.ToString(),
             ["draft"] = WriteDraft(document.Draft),
         };
+        if (envelope.Contract is { } contract)
+            json["envelope"]!["contract"] = new JsonObject { ["major"] = contract.Major, ["minor"] = contract.Minor };
         return json;
     }
 
@@ -78,8 +81,8 @@ public static class RuleDefinitionCodec
             CheckDuplicateMembers(parsed.RootElement, "");
             var root = Object(parsed.RootElement, "", "envelope", "name", "tier", "draft");
             var metadata = Object(Member(root, "envelope", ""), "/envelope",
-                header is null ? new[] { "id", "version", "tenant", "cascadeLayer", "provenance", "requires" }
-                    : new[] { "cascadeLayer", "provenance", "requires" });
+                header is null ? new[] { "id", "version", "tenant", "cascadeLayer", "provenance", "requires", "contract" }
+                    : new[] { "cascadeLayer", "provenance", "requires", "contract" });
             string version = header?.Version ?? String(metadata, "version", "/envelope");
             var provenance = Member(metadata, "provenance", "/envelope");
             if (provenance.ValueKind != JsonValueKind.Object)
@@ -92,7 +95,8 @@ public static class RuleDefinitionCodec
                 header?.Tenant ?? Nonblank(metadata, "tenant", "/envelope"), Nonblank(metadata, "cascadeLayer", "/envelope"),
                 provenanceObject,
                 Array(metadata, "requires", "/envelope").Select((item, i) =>
-                    StringValue(item, $"/envelope/requires/{i}")).ToArray());
+                    StringValue(item, $"/envelope/requires/{i}")).ToArray(),
+                Contract(metadata));
             var document = new RuleDefinitionDocument(envelope, Nonblank(root, "name", ""),
                 EnumValue<RuleDefinitionTier>(root, "tier", "", RuleDefinitionCodes.InvalidTier),
                 ReadDraft(Member(root, "draft", "")));
@@ -106,6 +110,21 @@ public static class RuleDefinitionCodec
         {
             return new(null, new[] { new RuleIntentDiagnostic(RuleDefinitionCodes.InvalidDocument, "", phase) });
         }
+    }
+
+    private static DefinitionContractVersion? Contract(JsonElement metadata)
+    {
+        if (!metadata.TryGetProperty("contract", out var contract)) return null;
+        var value = Object(contract, "/envelope/contract", "major", "minor");
+        return new DefinitionContractVersion(Whole(value, "major", "/envelope/contract"), Whole(value, "minor", "/envelope/contract"));
+    }
+
+    private static int Whole(JsonElement node, string member, string pointer)
+    {
+        var value = Member(node, member, pointer);
+        if (value.ValueKind != JsonValueKind.Number || !value.TryGetInt32(out var whole))
+            throw Refuse(RuleDefinitionCodes.InvalidDocument, pointer + "/" + Escape(member));
+        return whole;
     }
 
     private static JsonObject WriteDraft(RuleDraft draft)

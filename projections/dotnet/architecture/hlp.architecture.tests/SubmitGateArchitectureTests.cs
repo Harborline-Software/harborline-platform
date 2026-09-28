@@ -113,7 +113,7 @@ public sealed class SubmitGateArchitectureTests
     private static LayoutDefinition Surface(SubmitGate gate) => new(
         new LayoutDefinitionEnvelope("surface.customer-edit", "1.0.0", "tenant-a", LayoutCascadeLayer.DomainPackage,
             JsonSerializer.SerializeToElement(new { package = "orders-domain" }), "regulated", LegalHold: false,
-            Requires: [new LayoutDefinitionRequirement(LayoutPackIdentity.Capability, "1.0.0")]),
+            Requires: [new LayoutDefinitionRequirement(LayoutPackIdentity.Capability, "1.0.0")], Contract: new(1, 0)),
         SchemaVersion: 1,
         Medium: LayoutMedium.Screen,
         DefaultIntent: LayoutIntent.Capture,

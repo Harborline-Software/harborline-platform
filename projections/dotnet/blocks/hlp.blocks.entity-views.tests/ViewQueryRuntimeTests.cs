@@ -388,7 +388,7 @@ public sealed class ViewQueryRuntimeTests
             Tenant: "tenant-a",
             CascadeLayer: ViewCascadeLayer.Base,
             Provenance: System.Text.Json.JsonSerializer.SerializeToElement(new { source = "test" }),
-            Requires: []),
+            Requires: [], Contract: new(1, 0)),
         SchemaVersion: 1,
         Title: "Work queue",
         RecordType: "work-item",

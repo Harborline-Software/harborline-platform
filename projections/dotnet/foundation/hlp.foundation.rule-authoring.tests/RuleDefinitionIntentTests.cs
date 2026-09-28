@@ -484,6 +484,24 @@ public sealed class RuleDefinitionIntentTests
         Assert.Equal("/draft/expression", Assert.Single(cycleResult.Diagnostics).Location);
     }
 
+    [Fact(DisplayName = "T-572 slice 2: the envelope contract survives the Rule codec's canonical serialize and parse; an absent one still parses")]
+    public void EnvelopeContractSurvivesCanonicalRoundTrip()
+    {
+        string Parsed(bool present)
+        {
+            var source = JsonNode.Parse(RuleDefinitionCodec.SerializeCanonical(FormulaDocument()))!;
+            var envelope = source["envelope"]!.AsObject();
+            envelope.Remove("contract");
+            if (present) envelope["contract"] = new JsonObject { ["major"] = 1, ["minor"] = 0 };
+            var parsed = RuleDefinitionCodec.Parse(source.ToJsonString(), RuleIntentPhase.Author);
+            Assert.True(parsed.IsValid, string.Join(", ", parsed.Diagnostics.Select(diagnostic => $"{diagnostic.Code}@{diagnostic.Location}")));
+            return RuleDefinitionCodec.SerializeCanonical(parsed.Document!);
+        }
+
+        Assert.Equal("""{"major":1,"minor":0}""", JsonNode.Parse(Parsed(present: true))!["envelope"]!["contract"]!.ToJsonString());
+        Assert.Null(JsonNode.Parse(Parsed(present: false))!["envelope"]!["contract"]);
+    }
+
     private static RuleDefinitionDocument FormulaDocument(FormulaExpr? expression = null)
     {
         var draft = RuleSeeds.BlankFormulaDraft() with
@@ -503,7 +521,7 @@ public sealed class RuleDefinitionIntentTests
                 "tenant-a",
                 "domain-package",
                 new JsonObject { ["kind"] = "package", ["id"] = "finance" },
-                new[] { "records.invoice@2.0.0" }),
+                new[] { "records.invoice@2.0.0" }, new(1, 0)),
             "Invoice total",
             RuleDefinitionTier.JsonLogic,
             draft);

@@ -18,6 +18,27 @@ public sealed class DataExchangeDefinitionStoreTests
     private const string Key = "exchange.customers";
     private static readonly DefinitionKey CatalogueKey = new(Tenant, DefinitionKind.DataExchange, Key);
 
+    [Fact(DisplayName = "T-572 slice 2: the envelope contract survives canonical serialize and deserialize; an absent one still parses")]
+    public void Envelope_contract_survives_canonical_round_trip()
+    {
+        var canonical = DataExchangeDefinitionJson.SerializeCanonical(Definition("1.0.0"));
+        var parsed = DataExchangeDefinitionJson.Deserialize(WithContract(canonical));
+        Assert.Equal("""{"major":1,"minor":0}""", ContractOf(DataExchangeDefinitionJson.SerializeCanonical(parsed)));
+        // Slice 2 changes no admission outcome: a body without the member still parses (slice 3 refuses it).
+        Assert.Null(ContractOf(DataExchangeDefinitionJson.SerializeCanonical(DataExchangeDefinitionJson.Deserialize(WithContract(canonical, present: false)))));
+    }
+
+    private static byte[] WithContract(byte[] canonical, bool present = true)
+    {
+        var node = System.Text.Json.Nodes.JsonNode.Parse(canonical)!;
+        var envelope = node["envelope"]!.AsObject();
+        envelope.Remove("contract");
+        if (present) envelope["contract"] = new System.Text.Json.Nodes.JsonObject { ["major"] = 1, ["minor"] = 0 };
+        return System.Text.Encoding.UTF8.GetBytes(node.ToJsonString());
+    }
+
+    private static string? ContractOf(byte[] json) => System.Text.Json.Nodes.JsonNode.Parse(json)!["envelope"]!["contract"]?.ToJsonString();
+
     [Fact]
     [Trait("Holds", "data-exchange-ck-7")]
     public async Task Catalogue_keeps_published_heads_immutable_and_restore_registers_a_new_draft()
@@ -404,7 +425,7 @@ public sealed class DataExchangeDefinitionStoreTests
             Tenant,
             DataExchangeCascadeLayer.Tenant,
             JsonSerializer.SerializeToElement(new { kind = "tenant" }),
-            [new("records.customer", "1.0.0")]));
+            [new("records.customer", "1.0.0")], new(1, 0)));
 }
 
 /// <summary>Registers only <c>erpnext</c> 4.1.0 with the named parameters; every other kind is unregistered.</summary>

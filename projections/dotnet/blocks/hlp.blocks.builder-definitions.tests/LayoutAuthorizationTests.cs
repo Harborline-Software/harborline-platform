@@ -206,7 +206,7 @@ public sealed class LayoutAuthorizationTests
             JsonSerializer.SerializeToElement(new { package = "orders-domain" }),
             "regulated",
             LegalHold: false,
-            Requires: [new LayoutDefinitionRequirement(LayoutPackIdentity.Capability, "1.0.0")]),
+            Requires: [new LayoutDefinitionRequirement(LayoutPackIdentity.Capability, "1.0.0")], Contract: new(1, 0)),
         SchemaVersion: 1,
         Medium: LayoutMedium.Screen,
         DefaultIntent: LayoutIntent.Observe,

@@ -53,7 +53,7 @@ public sealed class ViewFieldDomainTests
             TimeProvider.System, Mismatch == "runtime" ? null : new ValueDomainRuntime(this, this, TimeProvider.System));
         public static ViewQueryRequest Request(string actor) => new("tenant-a", "view", actor, new(0, 10), new("table", new Dictionary<ViewShapeRole, string>()));
         public ValueTask<ViewDefinition?> ResolvePublishedHeadAsync(string tenant, string key, CancellationToken cancellationToken = default)
-            => ValueTask.FromResult<ViewDefinition?>(new(new(key, "1", tenant, ViewCascadeLayer.Base, JsonSerializer.SerializeToElement(new { }), []),
+            => ValueTask.FromResult<ViewDefinition?>(new(new(key, "1", tenant, ViewCascadeLayer.Base, JsonSerializer.SerializeToElement(new { }), [], new(1, 0)),
                 1, "View", "record", ViewOwnershipTier.System, "read", new([new("name", 100)], [], null, null, null)));
         public ValueTask<ViewAuthority> AuthorizeAsync(ViewDefinition definition, string principal, CancellationToken cancellationToken = default)
             => ValueTask.FromResult(new ViewAuthority(true, []));

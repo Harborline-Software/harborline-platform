@@ -25,7 +25,7 @@ public sealed class FieldRuleBindingTests : IDisposable
     }
 
     private static RuleDefinitionEnvelope Envelope(string id, string version = "1.0.0")
-        => new(id, version, "tenant-a", "domain-package", new JsonObject { ["kind"] = "package", ["id"] = "finance" }, []);
+        => new(id, version, "tenant-a", "domain-package", new JsonObject { ["kind"] = "package", ["id"] = "finance" }, [], new(1, 0));
 
     private async Task<RuleDefinitionDocument> RoundTrip(RuleDefinitionDocument document, string versionId, long expected)
     {

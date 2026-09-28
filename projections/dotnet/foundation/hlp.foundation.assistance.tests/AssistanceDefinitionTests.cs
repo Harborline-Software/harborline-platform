@@ -10,6 +10,27 @@ public sealed class AssistanceDefinitionTests
     private const string Tenant = "tenant-a";
     private const string Key = "assistance.customer";
 
+    [Fact(DisplayName = "T-572 slice 2: the envelope contract survives canonical serialize and deserialize; an absent one still parses")]
+    public void Envelope_contract_survives_canonical_round_trip()
+    {
+        var canonical = AssistanceDefinitionJson.SerializeCanonical(Definition());
+        var parsed = AssistanceDefinitionJson.Deserialize(WithContract(canonical));
+        Assert.Equal("""{"major":1,"minor":0}""", ContractOf(AssistanceDefinitionJson.SerializeCanonical(parsed)));
+        // Slice 2 changes no admission outcome: a body without the member still parses (slice 3 refuses it).
+        Assert.Null(ContractOf(AssistanceDefinitionJson.SerializeCanonical(AssistanceDefinitionJson.Deserialize(WithContract(canonical, present: false)))));
+    }
+
+    private static byte[] WithContract(byte[] canonical, bool present = true)
+    {
+        var node = System.Text.Json.Nodes.JsonNode.Parse(canonical)!;
+        var envelope = node["envelope"]!.AsObject();
+        envelope.Remove("contract");
+        if (present) envelope["contract"] = new System.Text.Json.Nodes.JsonObject { ["major"] = 1, ["minor"] = 0 };
+        return System.Text.Encoding.UTF8.GetBytes(node.ToJsonString());
+    }
+
+    private static string? ContractOf(byte[] json) => System.Text.Json.Nodes.JsonNode.Parse(json)!["envelope"]!["contract"]?.ToJsonString();
+
     [Fact(DisplayName = "pilot-ck-2 through pilot-ck-14: every Assistance member round-trips through canonical JSON")]
     public void Canonical_json_round_trips_byte_identically()
     {
@@ -176,7 +197,7 @@ public sealed class AssistanceDefinitionTests
 
     private static AssistanceDefinition Definition(AssistanceClassificationTier tier = AssistanceClassificationTier.Ap, JsonElement? schema = null, IReadOnlyList<string>? recipients = null, string? archetype = "security-access-control", string? justification = "Human review is mandatory.") => new(
         Tenant, Key, "1.0.0", "customer", "/customers/{customerId}", [Command("customer.update", tier, schema, archetype, justification)],
-        [new("records.customer", "status", AssistanceContextRedaction.Value)], recipients ?? ["support"], new("provider-a", "model-a"), Envelope: new(Key, "1.0.0", Tenant, AssistanceCascadeLayer.Tenant, JsonDocument.Parse("{\"source\":\"tenant\"}").RootElement.Clone(), "restricted", false, []));
+        [new("records.customer", "status", AssistanceContextRedaction.Value)], recipients ?? ["support"], new("provider-a", "model-a"), Envelope: new(Key, "1.0.0", Tenant, AssistanceCascadeLayer.Tenant, JsonDocument.Parse("{\"source\":\"tenant\"}").RootElement.Clone(), "restricted", false, [], new(1, 0)));
 
     private static AssistanceCommand Command(string commandId, AssistanceClassificationTier tier = AssistanceClassificationTier.Ap, JsonElement? schema = null, string? archetype = "security-access-control", string? justification = "Human review is mandatory.")
         => new(commandId, ["update customer"], schema ?? Schema("customerId"), new(tier, true, archetype, justification));

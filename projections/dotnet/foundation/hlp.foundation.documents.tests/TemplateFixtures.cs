@@ -19,7 +19,7 @@ internal static class TemplateFixtures
 
     public static TemplateDefinition Template(string version = "1.0.0") => new(
         new TemplateDefinitionEnvelope("template.invoice", version, Tenant, TemplateCascadeLayer.DomainPackage, Provenance,
-            [new TemplateRequirement("platform.documents", "1.0.0")]),
+            [new TemplateRequirement("platform.documents", "1.0.0")], new(1, 0)),
         "invoice",
         new TemplateRecordTypeBinding("invoice", "1"),
         new TemplateLocalePolicy(TemplateLocaleKind.Fixed, "en-US"),
@@ -42,7 +42,7 @@ internal static class TemplateFixtures
         var page = medium == LayoutMedium.Page;
         return new(
             new LayoutDefinitionEnvelope(SurfaceId, SurfaceVersion, Tenant, LayoutCascadeLayer.DomainPackage,
-                Provenance, "standard", false, [new(LayoutPackIdentity.Capability, "1.0.0")]),
+                Provenance, "standard", false, [new(LayoutPackIdentity.Capability, "1.0.0")], new(1, 0)),
             1, medium, intent, blocks,
             page ? [new("a4", "a4", LayoutPageOrientation.Portrait, new("md", "md", "md", "md"), new("sm", "sm"))] : [],
             page ? [new("default", "a4", new(null, null, null), new(null, null, null), new(null, null, null))] : [],

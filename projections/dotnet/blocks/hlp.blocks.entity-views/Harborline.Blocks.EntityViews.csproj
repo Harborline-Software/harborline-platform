@@ -16,6 +16,8 @@
   <ItemGroup>
     <ProjectReference Include="../../contracts/hlp.contracts.identities/Harborline.Contracts.csproj" />
     <ProjectReference Include="../../foundation/hlp.foundation.actor/Harborline.Foundation.Authorization.csproj" />
+    <ProjectReference Include="../../foundation/hlp.foundation.definitions/Harborline.Foundation.Definitions.csproj" />
+    <ProjectReference Include="../hlp.blocks.builder-definitions/Harborline.Blocks.BuilderDefinitions.csproj" />
     <ProjectReference Include="../hlp.blocks.measure-catalogue/Harborline.Blocks.MeasureCatalogue.csproj" />
   </ItemGroup>
   <ItemGroup>

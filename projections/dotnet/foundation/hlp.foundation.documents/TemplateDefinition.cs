@@ -1,6 +1,8 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
+using Harborline.Foundation.Definitions;
 
 namespace Harborline.Foundation.Documents;
 
@@ -38,13 +40,15 @@ public sealed record TemplateRequirement(string Capability, string? MinimumPlatf
 /// <param name="CascadeLayer">The contributing cascade layer.</param>
 /// <param name="Provenance">The producer-supplied provenance; server-derived, never authored pack content.</param>
 /// <param name="Requires">The required platform capabilities.</param>
+/// <param name="Contract">The authored definition contract version.</param>
 public sealed record TemplateDefinitionEnvelope(
     string Identity,
     string Version,
     string Tenant,
     TemplateCascadeLayer CascadeLayer,
     JsonElement Provenance,
-    IReadOnlyList<TemplateRequirement> Requires);
+    IReadOnlyList<TemplateRequirement> Requires,
+    DefinitionContractVersion? Contract);
 
 /// <summary>The record type and pinned record-type version the template merges from.</summary>
 public sealed record TemplateRecordTypeBinding(string RecordType, string Version);
@@ -127,6 +131,8 @@ public static class TemplateDefinitionJson
             UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
             RespectRequiredConstructorParameters = true,
         };
+        // T-572 slice 2: an envelope may still omit `contract`; slice 3 refuses that through DefinitionContractWindow.Check, not as a missing constructor member.
+        options.TypeInfoResolver = new DefaultJsonTypeInfoResolver { Modifiers = { info => { foreach (var property in info.Properties) if (property.PropertyType == typeof(DefinitionContractVersion)) property.IsRequired = false; } } };
         options.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.SnakeCaseLower, allowIntegerValues: false));
         return options;
     }
