@@ -4,4 +4,10 @@ namespace Harborline.UIAdapters.Blazor.Components.Forms;
 public sealed record HarborlineRadioOption(string Value, string Label, string? Description = null, bool Disabled = false);
 
 /// <summary>Presentation-only option flow.</summary>
-public enum RadioGroupOrientation { Vertical, Horizontal }
+public enum RadioGroupOrientation
+{
+    /// <summary>Stacks the radio options top to bottom.</summary>
+    Vertical,
+    /// <summary>Lays the radio options out in a row.</summary>
+    Horizontal
+}

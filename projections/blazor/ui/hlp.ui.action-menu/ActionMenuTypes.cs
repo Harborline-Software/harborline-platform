@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Components;
 
 namespace Harborline.UIAdapters.Blazor.Components.Buttons;
 
+/// <summary>Base type for an entry in an action menu.</summary>
 public abstract record ActionMenuEntry;
 
 /// <summary>
@@ -15,8 +16,16 @@ public abstract record ActionMenuEntry;
 /// the WAI-ARIA 1.2 §6.6.7 aria-keyshortcuts format (UI Events KeyboardEvent.key names).
 /// </summary>
 public sealed record ActionMenuItem(string Id, string Label, bool Disabled = false, bool Destructive = false, RenderFragment? Icon = null, string? ShortcutHint = null, bool? Checked = null, string? KeyShortcuts = null) : ActionMenuEntry;
+/// <summary>A divider line drawn between groups of entries in an action menu.</summary>
 public sealed record ActionMenuSeparator : ActionMenuEntry;
-public enum ActionMenuAlignment { Left, Right }
+/// <summary>Which edge of its trigger an action menu aligns to.</summary>
+public enum ActionMenuAlignment
+{
+    /// <summary>Aligns the menu with the left edge of its trigger.</summary>
+    Left,
+    /// <summary>Aligns the menu with the right edge of its trigger.</summary>
+    Right
+}
 
 /// <summary>
 /// disclosure-model.md §5 - one home per scope. The claim table is keyed on the shell instance
@@ -40,6 +49,7 @@ public static class ActionMenuScopes
 
     private static readonly ConditionalWeakTable<object, ConcurrentDictionary<string, byte>> Shells = new();
 
+/// <summary>Claims an action-menu scope on a shell so only one menu owns it; a second claim of the same scope throws.</summary>
     public static IDisposable Claim(object shell, string scopeId)
     {
         var claimed = Shells.GetOrCreateValue(shell);
@@ -49,6 +59,7 @@ public static class ActionMenuScopes
 
     private sealed class Release(ConcurrentDictionary<string, byte> claimed, string scopeId) : IDisposable
     {
+/// <summary>Releases the scope claim so another menu can take it.</summary>
         public void Dispose() => claimed.TryRemove(scopeId, out _);
     }
 }

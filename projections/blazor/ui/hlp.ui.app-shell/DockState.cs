@@ -6,27 +6,40 @@ namespace Harborline.UIAdapters.Blazor.Components.Layout;
 /// <summary>Serialisable dock node. Mirror of the React projection's DockNodeSnapshot wire shape.</summary>
 public sealed record DockNodeSnapshot
 {
+/// <summary>The panel ids of a pane node; null when the node is a split.</summary>
     [property: JsonPropertyName("pane"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public IReadOnlyList<string>? Pane { get; init; }
+/// <summary>The width fractions of the panels in a pane node.</summary>
     [property: JsonPropertyName("fractions"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public IReadOnlyList<double>? Fractions { get; init; }
+/// <summary>The orientation of a split node, horizontal or vertical.</summary>
     [property: JsonPropertyName("orientation"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? Orientation { get; init; }
+/// <summary>The share of the split given to the first child.</summary>
     [property: JsonPropertyName("ratio"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public double? Ratio { get; init; }
+/// <summary>The first child of a split node.</summary>
     [property: JsonPropertyName("first"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public DockNodeSnapshot? First { get; init; }
+/// <summary>The second child of a split node.</summary>
     [property: JsonPropertyName("second"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public DockNodeSnapshot? Second { get; init; }
 }
 
 /// <summary>Serialisable per-workspace dock state. The HOST persists it; the shell never touches storage.</summary>
 public sealed record DockStateSnapshot
 {
+/// <summary>Schema version of the saved dock state, currently 1.</summary>
     [property: JsonPropertyName("version")] public int Version { get; init; } = 1;
+/// <summary>Ids of the panels open in the dock, in order.</summary>
     [property: JsonPropertyName("openPanelIds")] public IReadOnlyList<string> OpenPanelIds { get; init; } = [];
+/// <summary>The dock layout tree as a serialisable snapshot.</summary>
     [property: JsonPropertyName("tree")] public DockNodeSnapshot? Tree { get; init; }
+/// <summary>Saved panel widths in pixels, keyed by panel id.</summary>
     [property: JsonPropertyName("widths")] public IReadOnlyDictionary<string, double> Widths { get; init; } = new Dictionary<string, double>();
 }
 
+/// <summary>Dock state read back from a snapshot: open panel ids, layout tree and panel widths.</summary>
 public sealed record RestoredDockState(IReadOnlyList<string> OpenPanelIds, DockNode? Root, IReadOnlyDictionary<string, double> Widths);
 
+/// <summary>Converts dock state to and from the serialisable snapshot the host persists.</summary>
 public static class DockState
 {
+/// <summary>Builds the serialisable snapshot of the open panels, layout tree and panel widths.</summary>
     public static DockStateSnapshot Serialize(IReadOnlyList<string> openPanelIds, DockNode? root, IReadOnlyDictionary<string, double> widths)
         => new() { Version = 1, OpenPanelIds = [.. openPanelIds], Tree = root is null ? null : Node(root), Widths = widths.ToDictionary(entry => entry.Key, entry => entry.Value) };
 

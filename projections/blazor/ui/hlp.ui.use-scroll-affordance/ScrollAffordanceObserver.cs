@@ -3,16 +3,26 @@ using Microsoft.JSInterop;
 
 namespace Harborline.UIAdapters.Blazor.Browser;
 
-public enum ScrollAffordanceOrientation { Horizontal, Vertical }
+/// <summary>The scroll axis the scroll-affordance observer watches.</summary>
+public enum ScrollAffordanceOrientation
+{
+    /// <summary>Watches horizontal scrolling to show start and end overflow cues.</summary>
+    Horizontal,
+    /// <summary>Watches vertical scrolling to show top and bottom overflow cues.</summary>
+    Vertical
+}
 
+/// <summary>Settings for scroll fades: direction, fade size, item count and the delay before announcing.</summary>
 public sealed record ScrollAffordanceOptions(
     ScrollAffordanceOrientation Orientation = ScrollAffordanceOrientation.Horizontal,
     double FadeSize = 24,
     int? ItemCount = null,
     int AnnounceDebounceMilliseconds = 300);
 
+/// <summary>A scroll measurement: raw position, scroll size, client size and whether the text runs right to left.</summary>
 public sealed record ScrollAffordanceMeasurement(double RawPosition, double ScrollSize, double ClientSize, bool RightToLeft = false);
 
+/// <summary>What a scroll area should show: whether it scrolls, its start and end, the fade mask and the announcement.</summary>
 public sealed record ScrollAffordanceState(
     bool CanScroll,
     bool AtStart,
@@ -21,10 +31,13 @@ public sealed record ScrollAffordanceState(
     string? AnnouncementKey,
     IReadOnlyDictionary<string, int> AnnouncementArguments);
 
+/// <summary>The result of a key press on a scroll area: whether it was handled and the position to scroll to.</summary>
 public sealed record ScrollAffordanceKeyResult(bool Handled, double LogicalTarget, double RawTarget);
 
+/// <summary>Rules that turn a scroll measurement into fade and announcement state.</summary>
 public static class ScrollAffordancePolicy
 {
+/// <summary>Works out the scroll state, fade mask and announcement from a measurement and the options.</summary>
     public static ScrollAffordanceState Resolve(ScrollAffordanceMeasurement measurement, ScrollAffordanceOptions? options = null)
     {
         options ??= new();
@@ -66,6 +79,7 @@ public static class ScrollAffordancePolicy
         return new(canScroll, atStart, atEnd, mask, key, arguments);
     }
 
+/// <summary>Returns where a scroll key such as Home, End or an arrow should scroll to, allowing for right-to-left text.</summary>
     public static ScrollAffordanceKeyResult ResolveKey(
         string key,
         ScrollAffordanceMeasurement measurement,
@@ -91,10 +105,13 @@ public static class ScrollAffordancePolicy
     }
 }
 
+/// <summary>A live scroll-affordance registration, released by disposing it.</summary>
 public interface IScrollAffordanceRegistration : IAsyncDisposable { }
 
+/// <summary>Watches a scrollable element and reports its fade and announcement state as it scrolls.</summary>
 public interface IScrollAffordanceObserver
 {
+/// <summary>Starts watching an element and calls back with its scroll state whenever it changes.</summary>
     ValueTask<IScrollAffordanceRegistration> ObserveAsync(ElementReference element, ScrollAffordanceOptions options, Func<ScrollAffordanceState, ValueTask> onChanged, CancellationToken cancellationToken = default);
 }
 
@@ -103,6 +120,7 @@ public sealed class ScrollAffordanceObserver(IJSRuntime javascript) : IScrollAff
 {
     private IJSObjectReference? module;
 
+/// <summary>Registers browser scroll listeners on the element and returns the registration.</summary>
     public async ValueTask<IScrollAffordanceRegistration> ObserveAsync(ElementReference element, ScrollAffordanceOptions options, Func<ScrollAffordanceState, ValueTask> onChanged, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(options);
@@ -113,6 +131,7 @@ public sealed class ScrollAffordanceObserver(IJSRuntime javascript) : IScrollAff
         return registration;
     }
 
+/// <summary>Removes the browser listeners and releases their resources.</summary>
     public async ValueTask DisposeAsync()
     {
         if (module is null) return;
@@ -124,12 +143,15 @@ public sealed class ScrollAffordanceObserver(IJSRuntime javascript) : IScrollAff
     {
         private DotNetObjectReference<Registration>? reference;
         private long id;
+/// <summary>Registers the element with the browser and reads the first scroll state.</summary>
         public async ValueTask InitializeAsync(CancellationToken token)
         {
             reference = DotNetObjectReference.Create(this);
             id = await module.InvokeAsync<long>("observe", token, element, reference, options);
         }
+/// <summary>Removes the browser listeners and releases their interop reference.</summary>
         [JSInvokable] public Task OnMeasured(ScrollAffordanceMeasurement measurement) => callback(ScrollAffordancePolicy.Resolve(measurement, options)).AsTask();
+/// <summary>Releases the registration when it is disposed.</summary>
         public async ValueTask DisposeAsync()
         {
             if (id != 0) { try { await module.InvokeVoidAsync("dispose", id); } catch (JSDisconnectedException) { } id = 0; }
