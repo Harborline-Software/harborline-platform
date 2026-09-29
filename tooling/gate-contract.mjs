@@ -44,3 +44,17 @@ export function recordPhase4Gate(evidencePath, report, {headless: isHeadless = f
   writeFileSync(evidencePath, `${JSON.stringify(report, null, 2)}\n`)
   return true
 }
+
+// The gallery half of the gate's pass predicate, in one place: run-phase-4-gate.mjs applies it to
+// its own gallery-gate step, and tooling/collect-gallery-shards.mjs applies it where CI runs the
+// gallery beside a headless gate rather than inside it. `specScenarios` is generation-smoke's count
+// (the UI spec's scenarios.json); the gallery report counts gallery/scenarios. Returns the failures.
+export function galleryReconciliationFailures(gallery, specScenarios) {
+  const counts = gallery?.counts ?? {}
+  return [
+    specScenarios === counts.scenarios ? null : `spec scenarios ${specScenarios} != gallery scenarios ${counts.scenarios}`,
+    gallery?.scenarioReconciliation === 'exact' ? null : `scenarioReconciliation: ${gallery?.scenarioReconciliation}`,
+    counts.scenarioBrowserTests === counts.scenarios ? null : `scenarioBrowserTests ${counts.scenarioBrowserTests} != scenarios ${counts.scenarios}`,
+    gallery?.checkReconciliation === 'exact' ? null : `checkReconciliation: ${gallery?.checkReconciliation}`,
+  ].filter(Boolean)
+}

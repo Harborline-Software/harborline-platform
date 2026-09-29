@@ -1,0 +1,81 @@
+{
+  "_comment": "T-772 (kernel-core-ck-7): a var path operand must be a non-empty string from the rules-ck-7 scope-addressing grammar, which is lowered once at publish. Upstream JsonLogic reads a numeric var as an array index and an empty var as the whole data object; this closed profile has no array data context (map/filter/reduce are excluded) and addresses named cells only, and a computed path cannot be lowered or registered as a static reference. Before this file the TS tier lowered every such operand to a static read of field '' (and String()-coerced an array's first element), while the .NET tier threw an untyped exception. Both tiers now refuse at compile with one code, as Ticket 162 did for an expression-valued agg argument.",
+  "cases": [
+    {
+      "_comment": "The admitted array form: a static string path with a default lowers to the canonical field and falls back when the field is absent. Pins that the refusal above is confined to non-string paths.",
+      "name": "var/string-operand-with-default-resolves",
+      "definitionRules": [
+        { "id": "c.def", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "n", "action": "Compute", "expression": { "var": [ "x", 7 ] } }
+      ],
+      "instance": {},
+      "expectedAst": { "c.def": { "var": [ "field.x", 7 ] } },
+      "expectedOutcomes": {
+        "c.def": { "ruleId": "c.def", "target": "field:n", "outputType": "Value", "value": { "state": "Resolved", "value": 7 } }
+      }
+    },
+    {
+      "name": "var/numeric-operand-refuses-at-compile",
+      "definitionRules": [
+        { "id": "c.num", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "n", "action": "Compute", "expression": { "var": 1 } }
+      ],
+      "instance": {},
+      "expectedCompileError": { "code": "rule.compile.bad_grammar" }
+    },
+    {
+      "name": "var/numeric-operand-with-default-refuses-at-compile",
+      "definitionRules": [
+        { "id": "c.num", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "n", "action": "Compute", "expression": { "var": [ 1, 0 ] } }
+      ],
+      "instance": {},
+      "expectedCompileError": { "code": "rule.compile.bad_grammar" }
+    },
+    {
+      "name": "var/computed-operand-refuses-at-compile",
+      "definitionRules": [
+        { "id": "c.dyn", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "n", "action": "Compute", "expression": { "var": { "cat": [ "a", "b" ] } } }
+      ],
+      "instance": { "ab": 1 },
+      "expectedCompileError": { "code": "rule.compile.bad_grammar" }
+    },
+    {
+      "name": "var/computed-operand-with-default-refuses-at-compile",
+      "definitionRules": [
+        { "id": "c.dyn", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "n", "action": "Compute", "expression": { "var": [ { "cat": [ "a", "b" ] }, 0 ] } }
+      ],
+      "instance": { "ab": 1 },
+      "expectedCompileError": { "code": "rule.compile.bad_grammar" }
+    },
+    {
+      "name": "var/null-operand-refuses-at-compile",
+      "definitionRules": [
+        { "id": "c.null", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "n", "action": "Compute", "expression": { "var": [ null ] } }
+      ],
+      "instance": {},
+      "expectedCompileError": { "code": "rule.compile.bad_grammar" }
+    },
+    {
+      "name": "var/empty-operand-refuses-at-compile",
+      "definitionRules": [
+        { "id": "c.empty", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "n", "action": "Compute", "expression": { "var": [] } }
+      ],
+      "instance": {},
+      "expectedCompileError": { "code": "rule.compile.bad_grammar" }
+    },
+    {
+      "name": "var/empty-string-operand-refuses-at-compile",
+      "definitionRules": [
+        { "id": "c.empty", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "n", "action": "Compute", "expression": { "var": "" } }
+      ],
+      "instance": {},
+      "expectedCompileError": { "code": "rule.compile.bad_grammar" }
+    },
+    {
+      "name": "var/nested-default-operand-refuses-at-compile",
+      "definitionRules": [
+        { "id": "c.nest", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "n", "action": "Compute", "expression": { "var": [ "x", { "var": 1 } ] } }
+      ],
+      "instance": {},
+      "expectedCompileError": { "code": "rule.compile.bad_grammar" }
+    }
+  ]
+}

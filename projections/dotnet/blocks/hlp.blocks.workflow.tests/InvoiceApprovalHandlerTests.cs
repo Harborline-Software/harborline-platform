@@ -51,7 +51,7 @@ public sealed class InvoiceApprovalHandlerTests
         public DateTimeOffset GetBusinessTime(WorkflowInstanceRecord instance) => DateTimeOffset.UnixEpoch;
 
         public WorkflowEffect BuildPostEffect(
-            WorkflowInstanceRecord instance, WorkflowStepKey postStepKey, WorkflowDispatchAuthority? admittedDecision)
+            WorkflowInstanceRecord instance, WorkflowStepKey postStepKey, WorkflowDispatchAuthority admittedDecision)
         {
             PostEffectBuilt = true;
             ReceivedDecision = admittedDecision;
@@ -81,7 +81,8 @@ public sealed class InvoiceApprovalHandlerTests
         var handler = new InvoiceApprovalHandler(Table(), ctx);
 
         var outcome = await handler.DecideAsync(
-            Instance(), WorkflowTrigger.For(WorkflowTriggerKind.Event, "inst-A", InvoiceApprovalSteps.Decide));
+            Instance(), WorkflowTrigger.For(WorkflowTriggerKind.Event, "inst-A", InvoiceApprovalSteps.Decide)
+                with { AdmittedDecision = LedgerPost });
 
         Assert.Equal(WorkflowStepOutcomeKind.Advance, outcome.Kind);
         Assert.Equal(WorkflowStatus.Completed, outcome.NextStatus);
@@ -127,6 +128,44 @@ public sealed class InvoiceApprovalHandlerTests
     private static WorkflowTrigger ApproveTrigger(WorkflowDispatchAuthority? decision) =>
         WorkflowTrigger.For(WorkflowTriggerKind.HumanAction, "inst-A", InvoiceApprovalSteps.Approve,
             "{\"decision\":\"approve\"}") with { AdmittedDecision = decision };
+
+    [Fact(DisplayName = "Handler A (T-525 ruling 2026-09-28): an under-threshold auto-post with no ledger:post decision is refused and builds no post effect")]
+    public async Task UnderThreshold_AutoPost_WithoutAnAdmittedDecision_IsRefused()
+    {
+        var ctx = new FakeContext { Amount = 1000m };
+        var handler = new InvoiceApprovalHandler(Table(), ctx);
+
+        var refusal = await Assert.ThrowsAsync<UnauthorizedAccessException>(async () => await handler.DecideAsync(
+            Instance(), WorkflowTrigger.For(WorkflowTriggerKind.Event, "inst-A", InvoiceApprovalSteps.Decide)));
+
+        Assert.Contains("'ledger:post' decision", refusal.Message, StringComparison.Ordinal);
+        Assert.False(ctx.PostEffectBuilt);
+    }
+
+    [Fact(DisplayName = "Handler A (T-525 ruling 2026-09-28): an under-threshold auto-post under a denied ledger:post decision is refused")]
+    public async Task UnderThreshold_AutoPost_UnderADeniedDecision_IsRefused()
+    {
+        var ctx = new FakeContext { Amount = 1000m };
+        var handler = new InvoiceApprovalHandler(Table(), ctx);
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(async () => await handler.DecideAsync(
+            Instance(), WorkflowTrigger.For(WorkflowTriggerKind.Event, "inst-A", InvoiceApprovalSteps.Decide)
+                with { AdmittedDecision = LedgerPost with { Allowed = false } }));
+
+        Assert.False(ctx.PostEffectBuilt);
+    }
+
+    [Fact(DisplayName = "Handler A (T-525 ruling 2026-09-28): an over-threshold decide parks with no ledger:post decision — it posts nothing")]
+    public async Task OverThreshold_Park_NeedsNoAdmittedDecision()
+    {
+        var ctx = new FakeContext { Amount = 7500m };
+        var handler = new InvoiceApprovalHandler(Table(), ctx);
+
+        var outcome = await handler.DecideAsync(
+            Instance(), WorkflowTrigger.For(WorkflowTriggerKind.Event, "inst-A", InvoiceApprovalSteps.Decide));
+
+        Assert.Equal(WorkflowStepOutcomeKind.Park, outcome.Kind);
+    }
 
     [Fact(DisplayName = "Handler A (T-525): approve with no ledger:post decision is refused and builds no post effect")]
     public async Task Approve_WithoutAnAdmittedDecision_IsRefused()
@@ -252,7 +291,8 @@ public sealed class InvoiceApprovalHandlerTests
         // the handler evaluates the PINNED version (D7), not whichever is newest.
         var outcome = await handler.DecideAsync(
             Instance(pinnedVersion: "2026-09-01.1"),
-            WorkflowTrigger.For(WorkflowTriggerKind.Event, "inst-A", InvoiceApprovalSteps.Decide));
+            WorkflowTrigger.For(WorkflowTriggerKind.Event, "inst-A", InvoiceApprovalSteps.Decide)
+                with { AdmittedDecision = LedgerPost });
 
         Assert.Equal(WorkflowStepOutcomeKind.Advance, outcome.Kind);
         Assert.Equal(InvoiceApprovalSteps.Posted, outcome.NextStep);
