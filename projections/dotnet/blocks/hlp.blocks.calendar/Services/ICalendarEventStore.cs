@@ -59,4 +59,22 @@ public interface ICalendarEventStore
     /// </remarks>
     Task<bool> SaveIfCapacityUnchangedAsync(
         CalendarEvent calendarEvent, ParticipantRef resource, long expectedEpoch, CancellationToken ct = default);
+
+    /// <summary>
+    /// Save every one of <paramref name="calendarEvents"/> only while EVERY resource in
+    /// <paramref name="expectedEpochs"/> still has the epoch read for it. Returns <see langword="false"/>
+    /// and writes NOTHING when any epoch moved: a multi-resource claim commits whole or not at all
+    /// (T-606; DES-0025 <c>booking-eng-24</c> across a conjunction).
+    /// </summary>
+    /// <remarks>
+    /// Same contract as <see cref="SaveIfCapacityUnchangedAsync"/>, widened to a set: every comparison
+    /// and every write are one atomic step in the store. Every event must belong to
+    /// <paramref name="tenantId"/>.
+    /// </remarks>
+    /// <exception cref="ArgumentException">An event belongs to another tenant.</exception>
+    Task<bool> SaveAllIfCapacityUnchangedAsync(
+        TenantId tenantId,
+        IReadOnlyList<CalendarEvent> calendarEvents,
+        IReadOnlyDictionary<ParticipantRef, long> expectedEpochs,
+        CancellationToken ct = default);
 }
