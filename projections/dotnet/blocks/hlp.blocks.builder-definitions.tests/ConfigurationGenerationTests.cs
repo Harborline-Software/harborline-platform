@@ -99,24 +99,25 @@ public sealed class ConfigurationGenerationTests
     public void Incomplete_ambiguous_or_invalid_references_are_refused()
     {
         var input = Input();
-        var invalid = new[]
+        var invalid = new (ResolvedConfiguration Candidate, string Code)[]
         {
-            input with { ActivePackageKeys = [] },
-            input with { ActivePackageKeys = ["missing"] },
-            input with { ActivePackageKeys = ["a", "a"] },
-            input with { Packages = [input.Packages[0], input.Packages[1]] },
-            input with { Packages = [.. input.Packages, new(Ref("unused"), [], [])] },
-            input with { Packages = [.. input.Packages, input.Packages[0]] },
-            input with { Packages = [input.Packages[0] with { Content = [Ref("form"), Ref("form", 'b')] }, input.Packages[1], input.Packages[2]] },
-            input with { Packages = [input.Packages[0] with { Dependencies = ["c", "c"] }, input.Packages[1], input.Packages[2]] },
-            input with { Ownership = [new("form", "c"), new("rule", "a"), new("shared", "c")] },
-            input with { Ownership = [new("form", "a")] },
-            input with { Ownership = [.. input.Ownership, new("form", "b")] },
-            input with { PlatformContract = Ref("platform") with { Digest = "not-a-digest" } },
-            input with { Policies = [Ref("policy") with { Revision = "" }] },
-            input with { Policies = [Ref("policy"), Ref("policy")] },
+            (input with { ActivePackageKeys = [] }, "configuration-active-packages-required"),
+            (input with { ActivePackageKeys = ["missing"] }, "configuration-dependency-missing"),
+            (input with { ActivePackageKeys = ["a", "a"] }, "configuration-reference-duplicate"),
+            (input with { Packages = [input.Packages[0], input.Packages[1]] }, "configuration-dependency-missing"),
+            (input with { Packages = [.. input.Packages, new(Ref("unused"), [], [])] }, "configuration-package-outside-closure"),
+            (input with { Packages = [.. input.Packages, input.Packages[0]] }, "configuration-reference-duplicate"),
+            (input with { Packages = [input.Packages[0] with { Content = [Ref("form"), Ref("form", 'b')] }, input.Packages[1], input.Packages[2]] }, "configuration-reference-duplicate"),
+            (input with { Packages = [input.Packages[0] with { Dependencies = ["c", "c"] }, input.Packages[1], input.Packages[2]] }, "configuration-reference-duplicate"),
+            (input with { Ownership = [new("form", "c"), new("rule", "a"), new("shared", "c")] }, "configuration-owner-content-missing"),
+            (input with { Ownership = [new("form", "a")] }, "configuration-ownership-incomplete"),
+            (input with { Ownership = [.. input.Ownership, new("form", "b")] }, "configuration-reference-duplicate"),
+            (input with { PlatformContract = Ref("platform") with { Digest = "not-a-digest" } }, "configuration-digest-invalid"),
+            (input with { Policies = [Ref("policy") with { Revision = "" }] }, "configuration-reference-required"),
+            (input with { Policies = [Ref("policy"), Ref("policy")] }, "configuration-reference-duplicate"),
         };
-        foreach (var candidate in invalid) Assert.Throws<ArgumentException>(() => ConfigurationGeneration.Resolve(candidate));
+        foreach (var (candidate, code) in invalid)
+            Assert.Equal(code, Assert.Throws<ArgumentException>(() => ConfigurationGeneration.Resolve(candidate)).Message);
     }
 
     [Fact]

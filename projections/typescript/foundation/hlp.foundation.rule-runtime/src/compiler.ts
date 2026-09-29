@@ -114,10 +114,27 @@ export function compile(rules: RuleDefinition[], limits: RuleEngineLimits = DEFA
   // operator set and static DAG have been established, and remains out of the authored
   // RuleDefinition document.
   const workProof = deriveGraphWork(compiled, limits)
+  const workRefusal = staticWorkRefusal(workProof, limits)
+  if (workRefusal !== null) throw workRefusal
   const graph = Object.freeze({ rules: Object.freeze(compiled), workProof })
   compiledGraphBrand.add(graph)
   compiledGraphData.set(graph, compiled)
   return graph
+}
+
+/**
+ * @internal T-818: the static work ceiling shared by compile and graph construction. Null when the
+ * proof fits; a proof equal to the ceiling is admitted. The refusal is graph-level (no rule id).
+ */
+export function staticWorkRefusal(proof: WorkProof, limits: RuleEngineLimits): CompileError | null {
+  const work = proof.maximumEvaluationWork
+  const ceiling = limits.maxStaticWork
+  if (work <= ceiling) return null
+  const factor = ceiling > 0n ? ` (more than ${work / ceiling}x)` : ''
+  return new CompileError(Codes.compileWorkExceeded,
+    `graph work proof ${work} exceeds the static work ceiling ${ceiling}${factor}; `
+    + 'lower maxTableRowsPerAggregate or maxGraphNodes, or author fewer dynamic Row or missing reads and fewer aggregate references',
+    undefined, undefined, { proof: work.toString(), ceiling: ceiling.toString() })
 }
 
 function validateCoreTypes(rules: readonly CompiledRule[]): void {

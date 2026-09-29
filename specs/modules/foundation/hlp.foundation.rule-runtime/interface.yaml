@@ -27,6 +27,7 @@
     "maxReferencesPerRule": 64,
     "maxAstNodes": 256,
     "maxLiteralLength": 4096,
+    "maxStaticWork": "100000000000000000000000000",
     "stepBudget": 250000,
     "wallClockMilliseconds": 250
   },

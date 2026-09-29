@@ -5,6 +5,10 @@ cases:
     contract: Definition Package, Record Type, and Field resolve from stable compiled identities before the first catalogue read.
   - id: compiled-floor-replacement-refusal
     contract: A package cannot replace any compiled floor identity and refuses with kernel.compiled-shape-replacement.
+  - id: package-closure-platform-first
+    contract: A transitive closure resolves harborline.platform first and every dependency before its dependents, one version per key, independent of input order.
+  - id: package-closure-refusals
+    contract: A missing, inactive, below-pin, malformed-version, cyclic or second-version dependency refuses with kernel.closure.dependency-missing, dependency-inactive, dependency-below-pin, version-invalid, cycle or version-conflict and the dependency path.
   - id: one-command-atomic-set
     contract: One command stages its record and audit under one operation identity, then commits all or rolls back all.
   - id: multi-command-refusal
