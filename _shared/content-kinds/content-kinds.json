@@ -1,0 +1,199 @@
+{
+  "schemaVersion": 1,
+  "pillars": [
+    {
+      "name": "Records",
+      "value": 0
+    },
+    {
+      "name": "Forms",
+      "value": 1
+    },
+    {
+      "name": "Automations",
+      "value": 2
+    },
+    {
+      "name": "Navigation",
+      "value": 3
+    },
+    {
+      "name": "Rules",
+      "value": 4
+    },
+    {
+      "name": "Settings",
+      "value": 5
+    },
+    {
+      "name": "Documents",
+      "value": 6
+    },
+    {
+      "name": "Taxonomy",
+      "value": 7
+    },
+    {
+      "name": "Reports",
+      "value": 8
+    },
+    {
+      "name": "Views",
+      "value": 9
+    },
+    {
+      "name": "Scheduling",
+      "value": 10
+    },
+    {
+      "name": "DataExchange",
+      "value": 11
+    },
+    {
+      "name": "Layout",
+      "value": 12
+    },
+    {
+      "name": "Booking",
+      "value": 13
+    },
+    {
+      "name": "Other",
+      "value": 99
+    }
+  ],
+  "kinds": [
+    {
+      "name": "FormDefinition",
+      "value": 0,
+      "pillar": "Forms",
+      "status": "shipped"
+    },
+    {
+      "name": "WorkflowDefinition",
+      "value": 1,
+      "pillar": "Automations",
+      "status": "shipped"
+    },
+    {
+      "name": "StandardsCatalog",
+      "value": 2,
+      "pillar": "Rules",
+      "status": "shipped"
+    },
+    {
+      "name": "NavWorkspaceConfig",
+      "value": 3,
+      "pillar": "Navigation",
+      "status": "shipped"
+    },
+    {
+      "name": "CascadeDefaults",
+      "value": 4,
+      "pillar": "Settings",
+      "status": "shipped"
+    },
+    {
+      "name": "AssetTypeDefinition",
+      "value": 5,
+      "pillar": "Records",
+      "status": "shipped"
+    },
+    {
+      "name": "TerminologyOverride",
+      "value": 6,
+      "pillar": "Settings",
+      "status": "shipped"
+    },
+    {
+      "name": "TemplateDefinition",
+      "value": 7,
+      "pillar": "Documents",
+      "status": "shipped"
+    },
+    {
+      "name": "TaxonomyDefinition",
+      "value": 8,
+      "pillar": "Taxonomy",
+      "status": "shipped"
+    },
+    {
+      "name": "ReportDefinition",
+      "value": 9,
+      "pillar": "Reports",
+      "status": "shipped"
+    },
+    {
+      "name": "ViewDefinition",
+      "value": 10,
+      "pillar": "Views",
+      "status": "shipped"
+    },
+    {
+      "name": "ScheduleDefinition",
+      "value": 11,
+      "pillar": "Scheduling",
+      "status": "shipped"
+    },
+    {
+      "name": "DataExchangeDefinition",
+      "value": 12,
+      "pillar": "DataExchange",
+      "status": "shipped"
+    },
+    {
+      "name": "StandingRuleDefinition",
+      "value": 13,
+      "pillar": "Rules",
+      "status": "shipped"
+    },
+    {
+      "name": "RoleDefinition",
+      "value": 14,
+      "pillar": "Other",
+      "status": "shipped"
+    },
+    {
+      "name": "AuthorizationCapabilityBinding",
+      "value": 15,
+      "pillar": "Other",
+      "status": "shipped"
+    },
+    {
+      "name": "RecordType",
+      "value": 16,
+      "pillar": "Other",
+      "status": "shipped"
+    },
+    {
+      "name": "Layout",
+      "value": 17,
+      "pillar": "Layout",
+      "status": "shipped"
+    },
+    {
+      "name": "Resource",
+      "value": 18,
+      "pillar": "Booking",
+      "status": "shipped"
+    },
+    {
+      "name": "Bookable",
+      "value": 19,
+      "pillar": "Booking",
+      "status": "shipped"
+    },
+    {
+      "name": "AssistanceDefinition",
+      "value": 20,
+      "pillar": "Other",
+      "status": "reserved"
+    },
+    {
+      "name": "ReleasedNavigationDefinition",
+      "value": 21,
+      "pillar": "Navigation",
+      "status": "reserved"
+    }
+  ]
+}

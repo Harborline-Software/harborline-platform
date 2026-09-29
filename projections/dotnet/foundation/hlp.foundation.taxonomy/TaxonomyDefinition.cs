@@ -7,7 +7,8 @@ using Harborline.Foundation.Definitions;
 
 namespace Harborline.Foundation.Taxonomy;
 
-public static class TaxonomyPackIdentity { public const int ContentKind = 7; }
+/// <summary>Content kind 8, the api's <c>PackContentKind.TaxonomyDefinition</c>. 7 is <c>TemplateDefinition</c> and was a collision (T-738).</summary>
+public static class TaxonomyPackIdentity { public const int ContentKind = 8; }
 public sealed record TaxonomyDefinitionId(string Vendor, string Domain, string TaxonomyName)
 {
     public override string ToString() => $"{Vendor}.{Domain}.{TaxonomyName}";
