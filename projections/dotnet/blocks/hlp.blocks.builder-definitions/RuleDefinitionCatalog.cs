@@ -287,7 +287,9 @@ public sealed class RuleDefinitionCatalog
         if (!Enum.IsDefined(phase)) return [new(RuleDefinitionCodes.InvalidDocument, "/phase")];
         var result = ValidateSource(document, phase == DefinitionAdmissionPhase.Publish
             ? RuleIntentPhase.Publish : RuleIntentPhase.Author);
-        return Refusals(result);
+        // T-572 (rulings 85-88): a decoded source must declare a contract inside the seed's window.
+        var contract = result.IsValid ? PlatformPackageSeed.ContractWindow.Check(result.Document!.Envelope.Contract, null) : null;
+        return contract is null ? Refusals(result) : [contract];
     }
 
     private static RuleIntentResult ValidateSource(DefinitionDocument document, RuleIntentPhase phase)

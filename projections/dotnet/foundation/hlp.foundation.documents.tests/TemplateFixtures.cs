@@ -62,7 +62,8 @@ internal static class TemplateFixtures
         IReadOnlyDictionary<TemplateSurfacePin, string> surfaces, Func<string, string, TemplateDefinition?>? templates = null) => new(
         pin => surfaces.TryGetValue(pin, out var json) ? json : null,
         Admit,
-        templates ?? ((_, _) => null));
+        templates ?? ((_, _) => null),
+        PlatformPackageSeed.ContractWindow);
 
     public static string Canonical(LayoutDefinition surface) => Encoding.UTF8.GetString(LayoutDefinitionJson.SerializeCanonical(surface));
 

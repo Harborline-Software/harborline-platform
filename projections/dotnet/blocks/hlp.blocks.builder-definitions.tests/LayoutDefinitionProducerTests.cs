@@ -774,7 +774,7 @@ public sealed class LayoutDefinitionProducerTests
         Assert.Equal("""{"major":1,"minor":0}""", ContractOf(LayoutDefinitionJson.SerializeCanonical(parsed)));
     }
 
-    [Fact(DisplayName = "T-572 slice 2: the envelope contract survives pack export and host admission; an absent one is still admitted")]
+    [Fact(DisplayName = "T-572 slice 2: the envelope contract survives pack export and host admission; an absent one is refused (slice 3)")]
     public void EnvelopeContractSurvivesPackExportAndHostAdmission()
     {
         var host = new Dictionary<string, string> { [LayoutPackIdentity.Capability] = "1.0.0" };
@@ -783,9 +783,10 @@ public sealed class LayoutDefinitionProducerTests
         LayoutPackHostAdmission.Admit([entry], host);
         Assert.Equal("""{"major":1,"minor":0}""", ContractOf(entry.Content.Payload.ToArray()));
 
-        var absent = LayoutDefinitionPackageExporter.Export(LayoutDefinitionJson.Deserialize(WithContract(canonical, present: false)), Hosted);
-        LayoutPackHostAdmission.Admit([absent], host);
-        Assert.Null(ContractOf(absent.Content.Payload.ToArray()));
+        // Slice 3: an absent contract is refused at publication, so export never produces an entry for it.
+        var absent = Assert.Throws<DefinitionRefusalException>(() =>
+            LayoutDefinitionPackageExporter.Export(LayoutDefinitionJson.Deserialize(WithContract(canonical, present: false)), Hosted));
+        Assert.Equal([new DefinitionRefusal("definition.contract.missing", "/envelope/contract")], absent.Refusals);
     }
 
     private static byte[] WithContract(byte[] canonical, bool present = true)
