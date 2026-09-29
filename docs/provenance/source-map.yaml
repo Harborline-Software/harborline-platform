@@ -498,10 +498,11 @@
       "sourceExtracted": true,
       "sourceState": "Scheduling Wave A: the reservation coordinator ported verbatim minus the Razor/localization UI surface (14 pinned cases — the migration substrate-gap said 16, an over-count vs the verified inventory — plus 2 supplemental non-pinned idempotency invariants), the kernel-lease dependency carried as a LOCAL narrow compatibility port under the Harborline.Kernel.Lease namespace until a platform lease kernel exists, and the ticket-084 harvest landed executable: the Planning solver seed (namespace Harborline.Blocks.Scheduling.Planning) with the 12-fixture authored corpus byte-exact against the pinned blobs, 36 adopted fixture rows, and 3 re-authored invariants (cross-process TZ determinism, explanation-trace refs, static-manifest guard).",
       "contentHashes": {
-        "projections/dotnet/blocks/hlp.blocks.scheduling.restart-probe/Program.cs": "6cc3229e54a5a96e7d90713789ba30b688ded42636cc40e191648b7ff8b1572a",
+        "projections/dotnet/blocks/hlp.blocks.scheduling.restart-probe/Program.cs": "0ce14e9a33f6fdc3773ee880b2fcfdeddb9203cd91fd382d96841d4392796c24",
         "projections/dotnet/blocks/hlp.blocks.scheduling.restart-probe/Harborline.Blocks.Scheduling.RestartProbe.csproj": "a691564564535e1ccb409392bb3c287616d7dd923164cb3f63b6586805eb04ee",
         "projections/dotnet/blocks/hlp.blocks.scheduling/DependencyInjection/ServiceCollectionExtensions.cs": "a967a3b6822bbc7909de9f3e18696a9c46130c8493061fe78b4ed7a3012e021a",
-        "projections/dotnet/blocks/hlp.blocks.scheduling/FileJournalSchedulingStore.cs": "385898b352dd143aa72784c2773c12e1bd8a4716a6715bf2ff7a28f08625693b",
+        "projections/dotnet/blocks/hlp.blocks.scheduling/Definitions/ScheduleDefinitionCatalogue.cs": "cf0a3dacd3e5749548fa31b6775e15f7e3d4cfb79942e6ee9fbb7366a455775a",
+        "projections/dotnet/blocks/hlp.blocks.scheduling/FileJournalSchedulingStore.cs": "7ebaf8f3dbaa40c36e381431865f18059354be14c6d79dbea462de72a056f27c",
         "projections/dotnet/blocks/hlp.blocks.scheduling/IScheduleReservationCoordinator.cs": "b752dfcd2a33a29a6a792c173c286338159e081e212f69dc938c69c6bb2de283",
         "projections/dotnet/blocks/hlp.blocks.scheduling/LeaseContracts.cs": "16dd8c98385d004db99f27f5ba8c5d490bbe61a796b2379df5f2e4580d2c3127",
         "projections/dotnet/blocks/hlp.blocks.scheduling/Models/ReservationOutcome.cs": "98c844e82a9417e37dbe750da458339e38d105e4040a4270d25c312eebee5465",
@@ -525,9 +526,9 @@
         "projections/dotnet/blocks/hlp.blocks.scheduling/Planning/PlanningSolvers.cs": "f29ad058e313827f627cb3693b281888614b35245ceda1a8a966eec94b25a056",
         "projections/dotnet/blocks/hlp.blocks.scheduling/README.md": "3332af09788b600bb412ec0014c9d6718ec97f98a1f382e56feec77d5d8ab759",
         "projections/dotnet/blocks/hlp.blocks.scheduling/ScheduleReservationCoordinator.cs": "454d8534626301cac45fa455c0ee509e49de9a274786ba61b2b6d72a5f8b8901",
-        "projections/dotnet/blocks/hlp.blocks.scheduling/SchedulingDurableRecords.cs": "9ab3344de320793bbbf6f2b31dbdd21ecb2c96cf3b422c263384e079dba8cd53",
+        "projections/dotnet/blocks/hlp.blocks.scheduling/SchedulingDurableRecords.cs": "7b5131d955f95b91627dc2f637a4828dd0ef1a3fc36c2a0bbdfc79f746c60e8e",
         "projections/dotnet/blocks/hlp.blocks.scheduling/Telemetry/SchedulingTelemetry.cs": "37288941b4989594928b3fe777dd0bb29c373808a56411aec8494927381e8e05",
-        "projections/dotnet/blocks/hlp.blocks.scheduling/Harborline.Blocks.Scheduling.csproj": "60400869ec955a8d190c62a40c3c8dc55d12371c97f74668f4dfeb82951c9e57"
+        "projections/dotnet/blocks/hlp.blocks.scheduling/Harborline.Blocks.Scheduling.csproj": "1febfd1aa9489a0ecfe3b6e13774c64572141f6e331e79fc02836d7f4bc46b0a"
       },
       "nextGate": "Wave C consumes the coordinator + planning seed in the scheduling-capability-vertical; the relative-chain generator is post-gate ticket 086 behind the foundation-scheduling due-occurrence seam."
     },

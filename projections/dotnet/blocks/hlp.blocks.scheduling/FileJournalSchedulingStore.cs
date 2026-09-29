@@ -32,21 +32,17 @@ public sealed class FileJournalSchedulingStore : IDisposable
     private const int HeaderBytes = 12;
     private const int DigestBytes = 32;
     private readonly SemaphoreSlim gate = new(1, 1);
-    private readonly Dictionary<string, SchedulingDefinitionDraft> drafts = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, List<SchedulingDefinitionAudit>> audits = new(StringComparer.Ordinal);
     private readonly Dictionary<string, SchedulingCalendarEntity> calendars = new(StringComparer.Ordinal);
     private readonly FileJournalSchedulingStoreOptions options;
-    private readonly TimeProvider timeProvider;
     private readonly FileStream processLock;
     private readonly FileStream journal;
     private bool disposed;
 
-    public FileJournalSchedulingStore(FileJournalSchedulingStoreOptions options, TimeProvider? timeProvider = null)
+    public FileJournalSchedulingStore(FileJournalSchedulingStoreOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
         options.Validate();
         this.options = options;
-        this.timeProvider = timeProvider ?? TimeProvider.System;
         var directory = Path.GetDirectoryName(options.JournalPath)!;
         Directory.CreateDirectory(directory);
         processLock = new FileStream(options.JournalPath + ".lock", FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
@@ -61,48 +57,6 @@ public sealed class FileJournalSchedulingStore : IDisposable
             processLock.Dispose();
             throw;
         }
-    }
-
-    /// <summary>
-    /// Saves the next draft revision and its server-actor audit in ONE frame. A stale expected
-    /// revision returns a conflict before serialization or append, so the file length is unchanged.
-    /// </summary>
-    public async Task<SchedulingDraftSaveResult> SaveDraftAsync(string tenantId, string definitionId,
-        long expectedRevision, string documentJson, string serverActorId, CancellationToken cancellationToken = default)
-    {
-        ValidateText(tenantId); ValidateText(definitionId); ValidateText(documentJson); ValidateText(serverActorId);
-        await EnterAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            var key = Key(tenantId, definitionId);
-            var current = drafts.TryGetValue(key, out var found) ? found.Revision : 0;
-            if (current != expectedRevision)
-            {
-                global::Harborline.Blocks.Scheduling.SchedulingTelemetry.RecordStaleCommitRefusal();
-                return SchedulingDraftSaveResult.Conflict(current);
-            }
-            var revision = checked(current + 1);
-            var dto = new DraftCommitDto(tenantId, definitionId, revision, documentJson, serverActorId,
-                timeProvider.GetUtcNow());
-            await AppendAsync(RecordType.DraftAndAuditCommitted, dto, cancellationToken).ConfigureAwait(false);
-            ApplyDraft(dto);
-            return SchedulingDraftSaveResult.Committed(revision);
-        }
-        finally { gate.Release(); }
-    }
-
-    public async Task<SchedulingDefinitionDraft?> GetDraftAsync(string tenantId, string definitionId, CancellationToken cancellationToken = default)
-    {
-        await EnterAsync(cancellationToken).ConfigureAwait(false);
-        try { return drafts.GetValueOrDefault(Key(tenantId, definitionId)); }
-        finally { gate.Release(); }
-    }
-
-    public async Task<IReadOnlyList<SchedulingDefinitionAudit>> GetAuditAsync(string tenantId, string definitionId, CancellationToken cancellationToken = default)
-    {
-        await EnterAsync(cancellationToken).ConfigureAwait(false);
-        try { return audits.TryGetValue(Key(tenantId, definitionId), out var rows) ? rows.ToArray() : []; }
-        finally { gate.Release(); }
     }
 
     public async Task SaveCalendarEntityAsync(SchedulingCalendarEntity entity, CancellationToken cancellationToken = default)
@@ -201,7 +155,11 @@ public sealed class FileJournalSchedulingStore : IDisposable
     {
         switch (type)
         {
-            case RecordType.DraftAndAuditCommitted: ApplyDraft(Deserialize<DraftCommitDto>(payload)); break;
+            // DES-0022 ruling 8 retired L491's integer revisions. Scheduling definitions live in the shared
+            // versioned-definition store; a journal still holding a draft frame is refused, never replayed.
+            case RecordType.RetiredIntegerRevisionDraft:
+                throw new InvalidDataException("Scheduling journal holds a retired integer-revision definition draft; "
+                    + "move it to the shared versioned-definition store before opening this journal.");
             case RecordType.CalendarUpserted:
                 var entity = Deserialize<SchedulingCalendarEntity>(payload);
                 calendars[CalendarKey(entity.TenantId, entity.Kind, entity.EntityId)] = entity;
@@ -210,19 +168,8 @@ public sealed class FileJournalSchedulingStore : IDisposable
         }
     }
 
-    private void ApplyDraft(DraftCommitDto dto)
-    {
-        var key = Key(dto.TenantId, dto.DefinitionId);
-        var expected = drafts.TryGetValue(key, out var current) ? current.Revision + 1 : 1;
-        if (dto.Revision != expected) throw new InvalidDataException("Scheduling draft revisions are not contiguous.");
-        drafts[key] = new(dto.TenantId, dto.DefinitionId, dto.Revision, dto.DocumentJson);
-        if (!audits.TryGetValue(key, out var rows)) audits[key] = rows = [];
-        rows.Add(new(dto.TenantId, dto.DefinitionId, dto.Revision, dto.ActorId, dto.OccurredAt));
-    }
-
     private void Truncate(long start) { journal.SetLength(start); journal.Position = start; journal.Flush(flushToDisk: true); }
     private static T Deserialize<T>(byte[] value) => JsonSerializer.Deserialize<T>(value) ?? throw new InvalidDataException("Scheduling journal payload is empty.");
-    private static string Key(string tenantId, string id) => tenantId + "\u001f" + id;
     private static string CalendarKey(string tenantId, SchedulingCalendarEntityKind kind, string id) => tenantId + "\u001f" + (byte)kind + "\u001f" + id;
     private static void ValidateText(string value) => ArgumentException.ThrowIfNullOrWhiteSpace(value);
     private async ValueTask EnterAsync(CancellationToken token)
@@ -241,6 +188,6 @@ public sealed class FileJournalSchedulingStore : IDisposable
         GC.SuppressFinalize(this);
     }
 
-    private enum RecordType : byte { DraftAndAuditCommitted = 1, CalendarUpserted = 2 }
-    private sealed record DraftCommitDto(string TenantId, string DefinitionId, long Revision, string DocumentJson, string ActorId, DateTimeOffset OccurredAt);
+    // Value 1 stays reserved so a retired draft frame is recognised and refused rather than misread.
+    private enum RecordType : byte { RetiredIntegerRevisionDraft = 1, CalendarUpserted = 2 }
 }

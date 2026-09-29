@@ -520,11 +520,11 @@
       }
     },
     "hlp.blocks.scheduling": {
-      "interface": {"path": "specs/modules/blocks/hlp.blocks.scheduling/interface.yaml", "revision": 3},
+      "interface": {"path": "specs/modules/blocks/hlp.blocks.scheduling/interface.yaml", "revision": 4},
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "Reservation coordination and the planning seed produce outcomes and plans; the pinned Razor view surface is deliberately excluded as UI."},
       "owner": "platform-blocks",
-      "dependencies": [],
+      "dependencies": ["hlp.blocks.builder-definitions"],
       "status": "implemented",
       "depth": {
         "disposition": "deep-module",
