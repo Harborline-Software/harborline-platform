@@ -20,7 +20,6 @@ public interface IFormDefinitionPolicyAdmission
 public sealed class DefaultFormDefinitionPolicyAdmission(
     IFormFieldGovernanceResolver governance) : IFormDefinitionPolicyAdmission
 {
-    /// <inheritdoc />
     public void ValidateOrThrow(FormDefinition definition)
     {
         ArgumentNullException.ThrowIfNull(definition);

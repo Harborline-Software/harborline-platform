@@ -8,12 +8,9 @@ using Harborline.Foundation.Forms.Models;
 
 namespace Harborline.Foundation.Forms.Engine.Persistence;
 
-/// <inheritdoc />
 public sealed class FileJournalFormSubmissionStoreOptions
 {
-    /// <inheritdoc />
     public string JournalPath { get; set; } = string.Empty;
-    /// <inheritdoc />
     public int MaximumFrameBytes { get; set; } = 16 * 1024 * 1024;
 
     internal void Validate()
@@ -49,7 +46,6 @@ public sealed class FileJournalFormSubmissionStore : IFormSubmissionTransactionS
     private readonly FileStream _journal;
     private bool _disposed;
 
-    /// <inheritdoc />
     public FileJournalFormSubmissionStore(FileJournalFormSubmissionStoreOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
@@ -78,7 +74,6 @@ public sealed class FileJournalFormSubmissionStore : IFormSubmissionTransactionS
         }
     }
 
-    /// <inheritdoc />
     public async ValueTask<FormSubmissionCommitResult> CommitAsync(
         FormSubmissionCommit commit,
         CancellationToken cancellationToken = default)
@@ -87,14 +82,12 @@ public sealed class FileJournalFormSubmissionStore : IFormSubmissionTransactionS
         return await transaction.CommitAsync(commit, cancellationToken).ConfigureAwait(false);
     }
 
-    /// <inheritdoc />
     public async ValueTask<IFormSubmissionTransactionScope> BeginTransactionAsync(CancellationToken cancellationToken = default)
     {
         await EnterAsync(cancellationToken).ConfigureAwait(false);
         return new Transaction(this);
     }
 
-    /// <inheritdoc />
     public async ValueTask<FormSubmissionRecord?> GetAsync(
         TenantId tenant,
         EntityId instanceId,
@@ -105,7 +98,6 @@ public sealed class FileJournalFormSubmissionStore : IFormSubmissionTransactionS
         finally { _gate.Release(); }
     }
 
-    /// <inheritdoc />
     public async ValueTask<IReadOnlyList<FormProjectionEnvelope>> LeasePendingAsync(
         int maximum,
         CancellationToken cancellationToken = default)
@@ -122,7 +114,6 @@ public sealed class FileJournalFormSubmissionStore : IFormSubmissionTransactionS
         finally { _gate.Release(); }
     }
 
-    /// <inheritdoc />
     public async ValueTask ReleaseProjectionLeaseAsync(
         string outboxId,
         CancellationToken cancellationToken = default)
@@ -133,7 +124,6 @@ public sealed class FileJournalFormSubmissionStore : IFormSubmissionTransactionS
         finally { _gate.Release(); }
     }
 
-    /// <inheritdoc />
     public async ValueTask CompleteProjectionAsync(
         string outboxId,
         IReadOnlyList<FormProjectionSkip> skips,
@@ -153,7 +143,6 @@ public sealed class FileJournalFormSubmissionStore : IFormSubmissionTransactionS
         finally { _gate.Release(); }
     }
 
-    /// <inheritdoc />
     public async ValueTask RetryProjectionAsync(
         string outboxId,
         string stableErrorCode,
@@ -181,7 +170,6 @@ public sealed class FileJournalFormSubmissionStore : IFormSubmissionTransactionS
         finally { _gate.Release(); }
     }
 
-    /// <inheritdoc />
     public void Dispose()
     {
         _gate.Wait();
@@ -210,7 +198,6 @@ public sealed class FileJournalFormSubmissionStore : IFormSubmissionTransactionS
         private bool _commitAttempted;
         private bool _released;
 
-        /// <inheritdoc />
         public async ValueTask<FormSubmissionCommitResult> CommitAsync(FormSubmissionCommit commit, CancellationToken cancellationToken = default)
         {
             ObjectDisposedException.ThrowIf(_released, this);
@@ -230,14 +217,12 @@ public sealed class FileJournalFormSubmissionStore : IFormSubmissionTransactionS
             return new(FormSubmissionCommitDisposition.Created, snapshot.Receipt);
         }
 
-        /// <inheritdoc />
         public ValueTask RollbackAsync(CancellationToken cancellationToken = default)
         {
             Release();
             return ValueTask.CompletedTask;
         }
 
-        /// <inheritdoc />
         public ValueTask DisposeAsync()
         {
             Release();
