@@ -23,7 +23,7 @@
     "The idempotency key derives from (instance, iteration, step) with a cross-architecture byte-stable v5 GUID derivation, never from a freshly minted id.",
     "The atomic-advance contract co-commits effect, outcome event, idempotency row, and instance position in one store transaction; a redelivered trigger replays as a no-op.",
     "A loop-back park bumps the durable iteration counter and escalates to a terminal Failed state at the max-iterations cap; the counter is read back on resume, never recomputed.",
-    "An action with no explicit CP/AP classification is refused at admission; the declared class must equal the class derived from the canonical capability-authority registry; an unknown capability derives CP.",
+    "An action with no explicit CP/AP classification is refused at admission; the declared class must equal the class derived from the canonical capability-authority registry; an unknown capability is refused (workflow.admission.unknown_capability), never derived to CP.",
     "A CP action admits only when a HumanAction transition gates its firing, or every incoming transition of its non-initial on-enter state is a HumanAction.",
     "The definition store admits fail-closed at register, keeps (tenant, key, version) revisions immutable, resolves current-published to the highest published version, and isolates tenants.",
     "The execution face exposes only re-admitting reads, so a definition loaded for execution is always re-validated against the current registry.",
