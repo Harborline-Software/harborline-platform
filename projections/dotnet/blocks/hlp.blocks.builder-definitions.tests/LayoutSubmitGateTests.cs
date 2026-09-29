@@ -63,6 +63,7 @@ public sealed class LayoutSubmitGateTests
     }
 
     [Fact(DisplayName = "layout-ck-31, layout-auth-23: a surface that pins a form refuses its own submit_gate by name; the form's gate is the sole gate (T-724 ruling 81)")]
+    [Trait("Holds", "layout-ck-31")]
     public void ASurfaceThatPinsAFormRefusesItsOwnSubmitGate()
     {
         var registers = LayoutHostRegisters.Platform with { Roles = Roles };

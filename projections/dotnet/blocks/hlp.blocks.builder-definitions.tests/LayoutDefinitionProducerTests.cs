@@ -28,7 +28,8 @@ public sealed class LayoutDefinitionProducerTests
         new(Guid.Parse("7d4c1a9e-0000-4000-8000-000000000001"), RoleReference.Domain("customer-editor"), "Customer editor", new(RoleOwnerKind.Package, "orders-domain"), IsSealed: false),
     ]));
 
-    [Theory]
+    [Theory(DisplayName = "layout-ck-32: the one-way detach copies the pinned surface into an independent draft and leaves the named, versioned artefact as it was")]
+    [Trait("Holds", "layout-ck-32")]
     [InlineData(LayoutCompositionKind.Form)]
     [InlineData(LayoutCompositionKind.Template)]
     [InlineData(LayoutCompositionKind.Report)]
@@ -187,11 +188,27 @@ public sealed class LayoutDefinitionProducerTests
         Assert.Throws<DefinitionRefusalException>(() => LayoutPersistedValueAdmission.ValidateForReact(definition));
     }
 
-    [Fact]
-    public void UnknownKindsRefuseAndAbsentIntentUsesTheSurfaceDefault()
+    [Fact(DisplayName = "layout-ck-7: a block kind is a token the host's closed register resolves; an unregistered or blank kind refuses")]
+    [Trait("Holds", "layout-ck-7")]
+    public void UnknownKindsRefuse()
     {
         AssertRefusal(ScreenDefinition(block => block.Id == "query" ? block with { Kind = "unknown.component" } : block),
             LayoutDefinitionCodes.BlockKindUnknown, "/blocks/0/children/1/kind");
+        AssertRefusal(ScreenDefinition(block => block.Id == "query" ? block with { Kind = " " } : block),
+            LayoutDefinitionCodes.BlockKindInvalid, "/blocks/0/children/1/kind");
+        // The vocabulary is developer-supplied: a kind the host registers admits there and nowhere else.
+        var hosted = ScreenDefinition(block => block.Id == "query" ? block with { Kind = "host.gantt" } : block);
+        LayoutDefinitionAdmission.ValidateForAuthoring(hosted,
+            new LayoutBlockKindRegistry(["layout.stack", "layout.field", "layout.metric", "layout.text", "host.gantt"]), LayoutTestAccess.GrantsAll);
+        AssertRefusal(hosted, LayoutDefinitionCodes.BlockKindUnknown, "/blocks/0/children/1/kind");
+    }
+
+    [Fact(DisplayName = "layout-ck-26: intent is per block, one of capture, observe or issue; absent means the surface default, never the parent's intent")]
+    [Trait("Holds", "layout-ck-26")]
+    public void AbsentIntentUsesTheSurfaceDefault()
+    {
+        // The root states capture and the query block states nothing. The query block is observe
+        // because the surface is; were it to inherit its parent's capture, its query binding would refuse.
         var definition = ScreenDefinition(block => block.Id switch
         {
             "root" => block with { Intent = LayoutIntent.Capture },
@@ -199,6 +216,12 @@ public sealed class LayoutDefinitionProducerTests
             _ => block,
         });
         LayoutDefinitionAdmission.ValidateForPublish(definition with { DefaultIntent = LayoutIntent.Observe, SubmitGate = null }, Hosted, LayoutTestAccess.GrantsAll);
+
+        // A stated intent overrides the surface default, and the token set is closed.
+        AssertRefusal(ScreenDefinition(block => block.Id == "capture" ? block with { Intent = LayoutIntent.Observe } : block),
+            LayoutDefinitionCodes.CapturePropertiesInvalid, "/blocks/0/children/0/capture");
+        AssertRefusal(ScreenDefinition(block => block.Id == "query" ? block with { Intent = (LayoutIntent)9 } : block),
+            LayoutDefinitionCodes.PlacementTokenUnknown, "/blocks/0/children/1/intent");
     }
 
     [Fact]
@@ -338,14 +361,32 @@ public sealed class LayoutDefinitionProducerTests
             "/blocks/0/children/1/binding");
     }
 
-    [Fact]
-    public void InteractionRefusalsIdentifyTheirArrayElement()
+    [Fact(DisplayName = "layout-ck-35: a filter-propagation edge names a block on the same surface, refuses at its array element otherwise, and travels in the pack")]
+    [Trait("Holds", "layout-ck-35")]
+    public void FilterPropagationEdgesNameLocalBlocksAndTravelInThePack()
     {
         AssertRefusal(ScreenDefinition(block => block.Id == "measure"
             ? block with { FilterTargets = ["query", "missing"] } : block),
             LayoutDefinitionCodes.InteractionTargetUnknown, "/blocks/0/children/2/filter_targets/1");
+
+        var installed = LayoutDefinitionJson.Deserialize(LayoutDefinitionPackageExporter.Export(ScreenDefinition(), Hosted).Content.Payload.Span);
+        Assert.Equal(["query"], Flatten(installed.Blocks).Single(block => block.Id == "measure").FilterTargets);
+    }
+
+    [Fact(DisplayName = "layout-ck-36: drill-through targets are a property of the surface; a blank one refuses at its array element, and they travel in the pack")]
+    [Trait("Holds", "layout-ck-36")]
+    public void DrillThroughTargetsArePropertiesOfTheSurface()
+    {
         AssertRefusal(ScreenDefinition() with { DrillThroughTargets = ["surface.customer-detail", ""] },
             LayoutDefinitionCodes.InteractionTargetUnknown, "/drill_through_targets/1");
+
+        var payload = LayoutDefinitionPackageExporter.Export(ScreenDefinition(), Hosted).Content.Payload;
+        Assert.Equal(["surface.customer-detail"], LayoutDefinitionJson.Deserialize(payload.Span).DrillThroughTargets);
+        // Declared once on the surface, never on a block.
+        var root = System.Text.Json.Nodes.JsonNode.Parse(payload.ToArray())!;
+        Assert.Equal("surface.customer-detail", (string?)root["drill_through_targets"]![0]);
+        Assert.Throws<JsonException>(() => LayoutDefinitionJson.Deserialize(WithMember(ScreenDefinition(),
+            node => node["blocks"]![0]!.AsObject(), "drill_through_targets", new System.Text.Json.Nodes.JsonArray("surface.customer-detail"))));
     }
 
     [Fact(DisplayName = "layout-eng-25,27: validate, publish, React and Blazor admission use the same schema bounds")]
@@ -642,6 +683,285 @@ public sealed class LayoutDefinitionProducerTests
             Code: LayoutDefinitionCodes.NumericOutOfRange,
             Pointer: "/blocks/0/children/0/placement/span",
         });
+    }
+
+    [Fact(DisplayName = "layout-ck-1: the authored surface is a block tree with a medium, a default intent and an envelope; a surface without a tree or an envelope refuses")]
+    [Trait("Holds", "layout-ck-1")]
+    public void TheAuthoredSurfaceIsABlockTreeWithMediumIntentAndEnvelope()
+    {
+        var surface = LayoutDefinitionJson.Deserialize(LayoutDefinitionJson.SerializeCanonical(ScreenDefinition()));
+        Assert.Equal((LayoutMedium.Screen, LayoutIntent.Capture, "surface.customer"), (surface.Medium, surface.DefaultIntent, surface.Envelope.Identity));
+        Assert.Equal("root", Assert.Single(surface.Blocks).Id);
+
+        AssertRefusal(ScreenDefinition() with { Blocks = [] }, LayoutDefinitionCodes.TreeEmpty, "/blocks");
+        AssertRefusal(ScreenDefinition() with { Blocks = null! }, LayoutDefinitionCodes.TreeEmpty, "/blocks");
+        AssertRefusal(ScreenDefinition() with { Envelope = null! }, LayoutDefinitionCodes.EnvelopeInvalid, "/envelope");
+    }
+
+    [Fact(DisplayName = "layout-ck-2: the envelope carries identity, version, tenant, cascade layer, provenance, retention class, legal hold and requires; each missing member refuses by pointer")]
+    [Trait("Holds", "layout-ck-2")]
+    public void TheEnvelopeCarriesEveryMemberAndRefusesEachMissingOne()
+    {
+        var envelope = ScreenDefinition().Envelope;
+        var roundTrip = LayoutDefinitionJson.Deserialize(LayoutDefinitionJson.SerializeCanonical(ScreenDefinition())).Envelope;
+        Assert.Equal(
+            (envelope.Identity, envelope.Version, envelope.Tenant, envelope.CascadeLayer, envelope.RetentionClass, envelope.LegalHold),
+            (roundTrip.Identity, roundTrip.Version, roundTrip.Tenant, roundTrip.CascadeLayer, roundTrip.RetentionClass, roundTrip.LegalHold));
+        Assert.Equal(envelope.Provenance.GetRawText(), roundTrip.Provenance.GetRawText());
+        Assert.Equal(envelope.Requires, roundTrip.Requires);
+
+        foreach (var (mutated, code, pointer) in new (LayoutDefinitionEnvelope, string, string)[]
+        {
+            (envelope with { Identity = " " }, LayoutDefinitionCodes.EnvelopeInvalid, "/envelope"),
+            (envelope with { Tenant = "" }, LayoutDefinitionCodes.EnvelopeInvalid, "/envelope"),
+            (envelope with { RetentionClass = " " }, LayoutDefinitionCodes.EnvelopeInvalid, "/envelope"),
+            (envelope with { Version = "1.0" }, LayoutDefinitionCodes.VersionInvalid, "/envelope/version"),
+            (envelope with { CascadeLayer = (LayoutCascadeLayer)99 }, LayoutDefinitionCodes.EnvelopeInvalid, "/envelope/cascade_layer"),
+            (envelope with { Provenance = default }, LayoutDefinitionCodes.EnvelopeInvalid, "/envelope/provenance"),
+            (envelope with { Requires = [new LayoutDefinitionRequirement(" ", "1.0.0")] }, LayoutDefinitionCodes.EnvelopeInvalid, "/envelope/requires/0/capability"),
+        })
+            AssertRefusal(ScreenDefinition() with { Envelope = mutated }, code, pointer);
+    }
+
+    [Fact(DisplayName = "layout-ck-3: Layout versions on the Forms pattern: a published version is immutable, restore makes a new draft and publishes nothing, history is append-only and the head is the highest semver")]
+    [Trait("Holds", "layout-ck-3")]
+    public async Task LayoutVersioningFollowsTheFormsPattern()
+    {
+        var key = new DefinitionKey("tenant-a", DefinitionKind.Layout, "surface.customer");
+        var store = new InMemoryVersionedDefinitionStore(new Dictionary<DefinitionKind, DefinitionAdmission> { [DefinitionKind.Layout] = LayoutStoreAdmission });
+        var published = new DefinitionDocument(key, "v1", "1.0.0", Encoding.UTF8.GetString(LayoutDefinitionJson.SerializeCanonical(ScreenDefinition())));
+        await store.SaveDraftAsync(published, 0, "draft-1");
+        await store.PublishAsync(key, "v1", 1, "publish-1");
+
+        // A published version is immutable.
+        var edited = published with { BodyJson = Encoding.UTF8.GetString(LayoutDefinitionJson.SerializeCanonical(ScreenDefinition() with { DrillThroughTargets = [] })) };
+        var immutable = await Assert.ThrowsAsync<DefinitionRefusalException>(async () => await store.SaveDraftAsync(edited, 2, "edit-1"));
+        Assert.Equal([new DefinitionRefusal("definition.version_immutable", "/versionId")], immutable.Refusals);
+
+        // Restore copies the published body into a new draft revision and publishes nothing.
+        var restored = await store.RestoreAsDraftAsync(key, "v1", "v2", "1.1.0", 2, "restore-1");
+        Assert.Equal((DefinitionStatus.Draft, "v1", published.BodyJson), (restored.Status, restored.RestoredFromVersionId, restored.Document.BodyJson));
+        Assert.Equal("v1", (await store.GetPublishedHeadAsync(key))!.Document.VersionId);
+        Assert.Null(await store.ResolvePublishedAsync(new DefinitionBinding(key, "v2")));
+
+        // Layout admission guards the store: a surface with no tree never enters history.
+        var empty = new DefinitionDocument(key, "v3", "2.0.0", Encoding.UTF8.GetString(LayoutDefinitionJson.SerializeCanonical(ScreenDefinition() with { Blocks = [] })));
+        var refused = await Assert.ThrowsAsync<DefinitionRefusalException>(async () => await store.SaveDraftAsync(empty, 3, "draft-3"));
+        Assert.Contains(new DefinitionRefusal(LayoutDefinitionCodes.TreeEmpty, "/blocks"), refused.Refusals);
+
+        await store.PublishAsync(key, "v2", 3, "publish-2");
+        Assert.Equal("1.1.0", (await store.GetPublishedHeadAsync(key))!.Document.Version);
+        Assert.Equal(
+            [(1L, DefinitionStatus.Draft, "v1"), (2L, DefinitionStatus.Published, "v1"), (3L, DefinitionStatus.Draft, "v2"), (4L, DefinitionStatus.Published, "v2")],
+            (await store.ListHistoryAsync(key)).Select(revision => (revision.Revision, revision.Status, revision.Document.VersionId)));
+    }
+
+    [Fact(DisplayName = "layout-ck-4: medium is screen or page, declared on the surface; the same tree admits on both media and an unknown medium refuses")]
+    [Trait("Holds", "layout-ck-4")]
+    public void MediumIsScreenOrPageDeclaredOnTheSurface()
+    {
+        LayoutBlock[] tree =
+        [
+            Block("summary", "layout.stack", new LayoutStaticBinding(JsonSerializer.SerializeToElement(new { })), intent: null,
+                container: new LayoutContainer(LayoutContainerKind.Stack),
+                children: [Block("note", "layout.text", new LayoutStaticBinding(JsonSerializer.SerializeToElement(new { text = "Paid" })), intent: null)]),
+        ];
+        var screen = Definition(LayoutMedium.Screen, LayoutIntent.Observe, tree);
+        var page = PageDefinition() with { DefaultIntent = LayoutIntent.Observe, Blocks = tree, PageRuns = [PageDefinition().PageRuns[0] with { BlockIds = ["summary"] }] };
+        LayoutDefinitionAdmission.ValidateForPublish(screen, Hosted, LayoutTestAccess.GrantsAll);
+        LayoutDefinitionAdmission.ValidateForPublish(page, Hosted, LayoutTestAccess.GrantsAll);
+
+        // The medium is the difference between the two; the block tree is the same bytes.
+        System.Text.Json.Nodes.JsonNode Parsed(LayoutDefinition definition) => System.Text.Json.Nodes.JsonNode.Parse(LayoutDefinitionJson.SerializeCanonical(definition))!;
+        Assert.Equal(Parsed(screen)["blocks"]!.ToJsonString(), Parsed(page)["blocks"]!.ToJsonString());
+        Assert.Equal(("screen", "page"), ((string?)Parsed(screen)["medium"], (string?)Parsed(page)["medium"]));
+
+        AssertRefusal(screen with { Medium = (LayoutMedium)7 }, LayoutDefinitionCodes.PlacementTokenUnknown, "/medium");
+    }
+
+    [Fact(DisplayName = "layout-ck-5: default_intent is the surface's dominant intent, inherited by every block that states none; an unknown default refuses")]
+    [Trait("Holds", "layout-ck-5")]
+    public void EveryBlockWithoutAnIntentInheritsTheSurfaceDefault()
+    {
+        // The capture block states no intent: it captures because the surface does,
+        var inheriting = ScreenDefinition(block => block.Id == "capture" ? block with { Intent = null } : block);
+        LayoutDefinitionAdmission.ValidateForPublish(inheriting, Hosted, LayoutTestAccess.GrantsAll);
+        // and on an observe-dominant surface the same block observes, so its capture properties refuse.
+        AssertRefusal(inheriting with { DefaultIntent = LayoutIntent.Observe }, LayoutDefinitionCodes.CapturePropertiesInvalid, "/blocks/0/children/0/capture");
+
+        AssertRefusal(ScreenDefinition() with { DefaultIntent = (LayoutIntent)9 }, LayoutDefinitionCodes.PlacementTokenUnknown, "/default_intent");
+    }
+
+    [Fact(DisplayName = "layout-ck-6: a surface is a tree of blocks with children; every depth is validated, ids are unique across depths and a block with children needs a container")]
+    [Trait("Holds", "layout-ck-6")]
+    public void ASurfaceIsATreeOfBlocksValidatedAtEveryDepth()
+    {
+        LayoutBlock Grandchild(string id, string kind) => Block(id, kind, new LayoutStaticBinding(JsonSerializer.SerializeToElement(new { text = "Row" })), LayoutIntent.Observe);
+
+        var nested = ScreenDefinition(block => block.Id == "query" ? block with { Children = [Grandchild("row", "layout.text")] } : block);
+        LayoutDefinitionAdmission.ValidateForPublish(nested, Hosted, LayoutTestAccess.GrantsAll);
+        Assert.Equal("row", Assert.Single(Flatten(LayoutDefinitionJson.Deserialize(LayoutDefinitionJson.SerializeCanonical(nested)).Blocks)
+            .Single(block => block.Id == "query").Children).Id);
+
+        AssertRefusal(ScreenDefinition(block => block.Id == "query" ? block with { Children = [Grandchild("row", " ")] } : block),
+            LayoutDefinitionCodes.BlockKindInvalid, "/blocks/0/children/1/children/0/kind");
+        AssertRefusal(ScreenDefinition(block => block.Id == "query" ? block with { Children = [Grandchild("capture", "layout.text")] } : block),
+            LayoutDefinitionCodes.BlockIdDuplicate, "/blocks/0/children/1/children/0/id");
+        AssertRefusal(ScreenDefinition(block => block.Id == "measure" ? block with { Children = [Grandchild("row", "layout.text")] } : block),
+            LayoutDefinitionCodes.BlockChildrenInvalid, "/blocks/0/children/2/container");
+    }
+
+    [Fact(DisplayName = "layout-ck-8: placement is nested flow; the grammar has no absolute position, line index or constraint member, and a pixel position refuses")]
+    [Trait("Holds", "layout-ck-8")]
+    public void PlacementIsNestedFlowWithNoAbsolutePosition()
+    {
+        AssertRefusal(ScreenDefinition(block => block.Id == "capture"
+                ? block with { Placement = block.Placement! with { PixelPosition = "12px" } } : block),
+            LayoutDefinitionCodes.PixelPlacementForbidden, "/blocks/0/children/0/placement/pixel_position");
+
+        // Nothing but the tree positions a block: a coordinate, a line index or a constraint is not a member.
+        foreach (var member in new[] { "x", "line", "constraints" })
+            Assert.Throws<JsonException>(() => LayoutDefinitionJson.Deserialize(WithMember(ScreenDefinition(),
+                node => node["blocks"]![0]!["children"]![0]!["placement"]!.AsObject(), member, 3)));
+    }
+
+    [Fact(DisplayName = "layout-ck-15: reading order is tree order; there is no order member, and children keep their authored sequence")]
+    [Trait("Holds", "layout-ck-15")]
+    public void ReadingOrderIsTreeOrder()
+    {
+        Assert.Throws<JsonException>(() => LayoutDefinitionJson.Deserialize(WithMember(ScreenDefinition(),
+            node => node["blocks"]![0]!["children"]![1]!.AsObject(), "order", 1)));
+
+        var reversed = ScreenDefinition(block => block.Id == "root" ? block with { Children = block.Children.Reverse().ToArray() } : block);
+        LayoutDefinitionAdmission.ValidateForPublish(reversed, Hosted, LayoutTestAccess.GrantsAll);
+        Assert.Equal(["root", "static", "measure", "query", "capture"],
+            Flatten(LayoutDefinitionJson.Deserialize(LayoutDefinitionJson.SerializeCanonical(reversed)).Blocks).Select(block => block.Id));
+    }
+
+    [Fact(DisplayName = "layout-ck-21: a record-field binding names a field path and nothing else; a blank path refuses")]
+    [Trait("Holds", "layout-ck-21")]
+    public void ARecordFieldBindingNamesAFieldPath()
+    {
+        Assert.Contains("{\"binding_kind\":\"record_field\",\"field_path\":\"customer.name\"}",
+            Encoding.UTF8.GetString(LayoutDefinitionJson.SerializeCanonical(ScreenDefinition())), StringComparison.Ordinal);
+        AssertRefusal(ScreenDefinition(block => block.Id == "capture" ? block with { Binding = new LayoutRecordFieldBinding(" ") } : block),
+            LayoutDefinitionCodes.BindingInvalid, "/blocks/0/children/0/binding");
+    }
+
+    [Fact(DisplayName = "layout-ck-22: a query binding names a ViewDefinition and never copies it; a blank name or a copied query member refuses")]
+    [Trait("Holds", "layout-ck-22")]
+    public void AQueryBindingNamesAViewDefinition()
+    {
+        Assert.Contains("{\"binding_kind\":\"query\",\"view_definition_id\":\"view.customer-orders\"}",
+            Encoding.UTF8.GetString(LayoutDefinitionJson.SerializeCanonical(ScreenDefinition())), StringComparison.Ordinal);
+        AssertRefusal(ScreenDefinition(block => block.Id == "query" ? block with { Binding = new LayoutQueryBinding("") } : block),
+            LayoutDefinitionCodes.BindingInvalid, "/blocks/0/children/1/binding");
+        Assert.Throws<JsonException>(() => LayoutDefinitionJson.Deserialize(WithMember(ScreenDefinition(),
+            node => node["blocks"]![0]!["children"]![1]!["binding"]!.AsObject(), "columns", new System.Text.Json.Nodes.JsonArray("id", "total"))));
+    }
+
+    [Fact(DisplayName = "layout-ck-23: a measure binding names a catalogue measure by path and carries no aggregation; a blank path or an aggregation member refuses")]
+    [Trait("Holds", "layout-ck-23")]
+    public void AMeasureBindingNamesACatalogueMeasure()
+    {
+        Assert.Contains("{\"binding_kind\":\"measure\",\"measure_path\":\"orders.total\"}",
+            Encoding.UTF8.GetString(LayoutDefinitionJson.SerializeCanonical(ScreenDefinition())), StringComparison.Ordinal);
+        AssertRefusal(ScreenDefinition(block => block.Id == "measure" ? block with { Binding = new LayoutMeasureBinding(" ") } : block),
+            LayoutDefinitionCodes.BindingInvalid, "/blocks/0/children/2/binding");
+        Assert.Throws<JsonException>(() => LayoutDefinitionJson.Deserialize(WithMember(ScreenDefinition(),
+            node => node["blocks"]![0]!["children"]![2]!["binding"]!.AsObject(), "aggregation", "sum(total)")));
+    }
+
+    [Fact(DisplayName = "layout-ck-25: a static binding carries its content on the block and binds nothing, so no read is asked for it; missing content refuses")]
+    [Trait("Holds", "layout-ck-25")]
+    public void AStaticBindingCarriesItsContentAndBindsNothing()
+    {
+        AssertRefusal(ScreenDefinition(block => block.Id == "static" ? block with { Binding = new LayoutStaticBinding(default) } : block),
+            LayoutDefinitionCodes.BindingInvalid, "/blocks/0/children/3/binding");
+
+        // An author who can read nothing is refused every source-reading binding and neither static one.
+        var error = Assert.Throws<DefinitionRefusalException>(() => LayoutDefinitionAdmission.ValidateForAuthoring(ScreenDefinition(), ReadsNothing.Instance));
+        Assert.Equal(
+            ["/blocks/0/children/0/binding", "/blocks/0/children/1/binding", "/blocks/0/children/2/binding"],
+            error.Refusals.Where(refusal => refusal.Code == LayoutDefinitionCodes.BindingUnreadable).Select(refusal => refusal.Pointer));
+    }
+
+    [Fact(DisplayName = "layout-ck-27: a repeating block is a container bound to a collection; a repeating block without a container or with a non-collection binding refuses")]
+    [Trait("Holds", "layout-ck-27")]
+    public void ARepeatingBlockIsAContainerBoundToACollection()
+    {
+        LayoutDefinitionAdmission.ValidateForPublish(ScreenDefinition(), Hosted, LayoutTestAccess.GrantsAll);
+        AssertRefusal(ScreenDefinition(block => block.Id == "query" ? block with { Container = null } : block),
+            LayoutDefinitionCodes.ScopedContainerInvalid, "/blocks/0/children/1/repeating");
+        foreach (var binding in new LayoutBinding[] { new LayoutMeasureBinding("orders.total"), new LayoutStaticBinding(JsonSerializer.SerializeToElement(new { })) })
+            AssertRefusal(ScreenDefinition(block => block.Id == "query" ? block with { Binding = binding } : block),
+                LayoutDefinitionCodes.ScopedContainerInvalid, "/blocks/0/children/1/repeating");
+    }
+
+    [Fact(DisplayName = "layout-ck-30: capture properties (required, named validation rules, prompt override) belong to capture blocks only and name every rule")]
+    [Trait("Holds", "layout-ck-30")]
+    public void CapturePropertiesBelongToCaptureBlocks()
+    {
+        var capture = Flatten(LayoutDefinitionJson.Deserialize(LayoutDefinitionJson.SerializeCanonical(ScreenDefinition())).Blocks).Single(block => block.Id == "capture").Capture!;
+        Assert.Equal((true, "Customer name"), (capture.Required, capture.PromptOverride));
+        Assert.Equal(["customer.name.required"], capture.ValidationRules);
+
+        AssertRefusal(ScreenDefinition(block => block.Id == "query"
+                ? block with { Capture = new LayoutCaptureProperties(true, []) } : block),
+            LayoutDefinitionCodes.CapturePropertiesInvalid, "/blocks/0/children/1/capture");
+        AssertRefusal(ScreenDefinition(block => block.Id == "capture"
+                ? block with { Capture = new LayoutCaptureProperties(true, [" "]) } : block),
+            LayoutDefinitionCodes.CapturePropertiesInvalid, "/blocks/0/children/0/capture/validation_rules/0");
+    }
+
+    [Fact(DisplayName = "layout-ck-34: a block's default selection is authored and persists; a live selection is refused")]
+    [Trait("Holds", "layout-ck-34")]
+    public void DefaultSelectionPersistsAndLiveSelectionRefuses()
+    {
+        var installed = LayoutDefinitionJson.Deserialize(LayoutDefinitionPackageExporter.Export(ScreenDefinition(), Hosted).Content.Payload.Span);
+        Assert.Equal("{\"status\":\"open\"}", Flatten(installed.Blocks).Single(block => block.Id == "query").DefaultSelection!.Value.GetRawText());
+
+        AssertRefusal(ScreenDefinition(block => block.Id == "query"
+                ? block with { LiveSelection = JsonSerializer.SerializeToElement(new { row = "customer-42" }) } : block),
+            LayoutDefinitionCodes.LiveSelectionForbidden, "/blocks/0/children/1/live_selection");
+    }
+
+    private static IReadOnlyList<DefinitionRefusal> LayoutStoreAdmission(DefinitionDocument document, DefinitionAdmissionPhase phase)
+    {
+        var definition = LayoutDefinitionJson.Deserialize(Encoding.UTF8.GetBytes(document.BodyJson));
+        try
+        {
+            if (phase == DefinitionAdmissionPhase.Publish)
+                LayoutDefinitionAdmission.ValidateForPublish(definition, Hosted, LayoutTestAccess.GrantsAll);
+            else
+                LayoutDefinitionAdmission.ValidateForAuthoring(definition, Hosted, LayoutTestAccess.GrantsAll);
+            return [];
+        }
+        catch (DefinitionRefusalException refused)
+        {
+            return refused.Refusals;
+        }
+    }
+
+    private static byte[] WithMember(LayoutDefinition definition, Func<System.Text.Json.Nodes.JsonNode, System.Text.Json.Nodes.JsonObject> target, string member, System.Text.Json.Nodes.JsonNode? value)
+    {
+        var root = System.Text.Json.Nodes.JsonNode.Parse(LayoutDefinitionJson.SerializeCanonical(definition))!;
+        target(root)[member] = value;
+        return Encoding.UTF8.GetBytes(root.ToJsonString());
+    }
+
+    // An author who may author and publish but read no source at all.
+    private sealed class ReadsNothing : ILayoutAccess
+    {
+        public static ReadsNothing Instance { get; } = new();
+
+        public bool CanAuthor() => true;
+
+        public bool CanPublish() => true;
+
+        public bool CanRead(LayoutBinding binding) => false;
+
+        public bool CanOpen(string surfaceId) => true;
     }
 
     private static LayoutDefinition ScreenDefinition(Func<LayoutBlock, LayoutBlock>? mutate = null)
