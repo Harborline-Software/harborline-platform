@@ -118,7 +118,22 @@ function lowerAgg(path: string, ctx: LowerContext, ruleId: string): Json {
   return { agg: [fn, section, col] }
 }
 
+// Scope roots a borrower may declare (Forms forms-ck-13, Documents documents-ck-25) that no R1
+// evaluator supplies. Lowering them as bare field names let a rule read a client-supplied candidate
+// property in place of the authenticated principal, the evaluation instant or the record type, so the
+// compiler refuses them (fail closed) until an evaluator binds them; mirrors the .NET ScopeGrammar.
+// A record field of the same name stays addressable as field.<name>.
+const unsuppliedRoots: ReadonlySet<string> = new Set(['caller', 'clock', 'record_type'])
+
+function refuseUnsuppliedRoot(path: string, ruleId: string): void {
+  const dot = path.indexOf('.')
+  if (unsuppliedRoots.has(dot < 0 ? path : path.slice(0, dot))) {
+    throw bad(ruleId, `'${path}' addresses a scope root no evaluator supplies; use field.${path} for a record field`)
+  }
+}
+
 function lowerVarPath(path: string, ctx: LowerContext, ruleId: string): string {
+  refuseUnsuppliedRoot(path, ruleId)
   if (path === 'self') {
     if (ctx.scope === 'Row') return 'row.' + rowFieldOf(ctx, ruleId)
     if (ctx.scope === 'Field') return 'field.' + ctx.scopeTarget
@@ -218,6 +233,7 @@ function walk(node: Json, refs: RuleRef[], ruleId: string): void {
 function collectMissingKeys(value: Json, refs: RuleRef[], ruleId: string): void {
   if (Array.isArray(value)) { for (const item of value) collectMissingKeys(item, refs, ruleId); return }
   if (typeof value === 'string' && value.length > 0) {
+    refuseUnsuppliedRoot(value, ruleId)
     if (value.startsWith('row.')) refs.push({ kind: 'row', field: value.slice('row.'.length) })
     else refs.push({ kind: 'field', name: value.startsWith('field.') ? value.slice('field.'.length) : value })
     return
