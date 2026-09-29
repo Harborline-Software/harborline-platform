@@ -31,6 +31,8 @@ public enum DefinitionKind
     Templates = 12,
     /// <summary>Released navigation definitions (DES-0052 layout-eng-24).</summary>
     Navigation = 13,
+    /// <summary>Taxonomy concept-scheme definitions (DES-0024, T-493 S7).</summary>
+    Taxonomy = 14,
 }
 
 /// <summary>Identifies one definition inside a tenant- and kind-scoped archive namespace.</summary>

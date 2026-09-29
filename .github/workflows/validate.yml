@@ -47,6 +47,7 @@ jobs:
         Harborline.Foundation.RuleEngine
         Harborline.Foundation.Scheduling
         Harborline.Foundation.Session
+        Harborline.Foundation.Taxonomy
         Harborline.Kernel.Core
         Harborline.Kernel.SchemaValidation
         Harborline.Kernel.WorkItems
