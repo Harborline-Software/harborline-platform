@@ -5,7 +5,6 @@
     <PackageId>Harborline.Kernel.Core</PackageId>
     <AssemblyName>Harborline.Kernel.Core</AssemblyName>
     <RootNamespace>Harborline.Kernel.Core</RootNamespace>
-    <NoWarn>$(NoWarn);CS1591</NoWarn>
     <Description>Clock, atomic command transaction, and compiled bootstrap floor contracts for Harborline Platform.</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageReleaseNotes>Internal-only projection; public distribution is not authorized.</PackageReleaseNotes>

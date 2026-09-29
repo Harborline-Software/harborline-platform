@@ -4,14 +4,22 @@ using System.Text.Json;
 
 namespace Harborline.Kernel.Core;
 
+/// <summary>Refusal codes returned by <see cref="ConfigurationRecovery.RecoverAsync"/>.</summary>
 public static class KernelRecoveryErrors
 {
+    /// <summary>The actor does not hold the configuration-recovery capability for the tenant, or no capability check is configured.</summary>
     public const string CapabilityRequired = "kernel.configuration-recovery-capability-required";
+    /// <summary>The request carries no reason.</summary>
     public const string ReasonRequired = "kernel.recovery-reason-required";
+    /// <summary>The request carries no authority snapshot.</summary>
     public const string AuthoritySnapshotRequired = "kernel.recovery-authority-snapshot-required";
+    /// <summary>The profile read back belongs to a different tenant than the request names.</summary>
     public const string TenantMismatch = "kernel.recovery-tenant-mismatch";
+    /// <summary>The tenant has no profile, no effective pointer, or no effective content.</summary>
     public const string EffectiveGenerationMissing = "kernel.effective-generation-missing";
+    /// <summary>The effective content's SHA-256 does not match the pointer's digest.</summary>
     public const string EffectiveGenerationCorrupt = "kernel.effective-generation-corrupt";
+    /// <summary>The effective pointer was committed without an evidence intent.</summary>
     public const string EffectivePointerUnbound = "kernel.effective-pointer-unbound";
 }
 
@@ -21,14 +29,17 @@ public static class KernelRecoveryErrors
 /// </summary>
 public static class KernelProfile
 {
+    /// <summary>The capability that admits <see cref="Core.ConfigurationRecovery"/>.</summary>
     public const string ConfigurationRecovery = "configuration-recovery";
 
+    /// <summary>Every capability the kernel profile declares.</summary>
     public static IReadOnlyCollection<string> Capabilities { get; } = [ConfigurationRecovery];
 }
 
 /// <summary>Point-of-use admission of the constrained configuration-recovery capability.</summary>
 public interface IKernelConfigurationRecoveryCapability
 {
+    /// <summary>Returns true when <paramref name="actorId"/> may run configuration recovery for <paramref name="tenantKey"/>.</summary>
     ValueTask<bool> CanRecoverAsync(string actorId, string tenantKey, CancellationToken cancellationToken = default);
 }
 
@@ -49,11 +60,19 @@ public sealed record KernelProfileSnapshot(
     PreparedGenerationResidue? Prepared,
     IReadOnlyList<EvidenceOutboxEntry> Outbox);
 
+/// <summary>Reads a tenant's kernel profile from the host's store.</summary>
 public interface IKernelProfileReader
 {
+    /// <summary>Returns the profile for <paramref name="tenantKey"/>, or null when the tenant has none.</summary>
     ValueTask<KernelProfileSnapshot?> ReadAsync(string tenantKey, CancellationToken cancellationToken = default);
 }
 
+/// <summary>An operator's request to recover one tenant's configuration after a crash.</summary>
+/// <param name="RecoveryId">Identifies this recovery; also its idempotency key.</param>
+/// <param name="TenantKey">The tenant to recover.</param>
+/// <param name="ActorId">The operator running the recovery.</param>
+/// <param name="Reason">Why recovery is needed; blank is refused with <see cref="KernelRecoveryErrors.ReasonRequired"/>.</param>
+/// <param name="AuthoritySnapshot">The authority the operator acts under; blank is refused with <see cref="KernelRecoveryErrors.AuthoritySnapshotRequired"/>.</param>
 public sealed record ConfigurationRecoveryRequest(
     string RecoveryId,
     string TenantKey,
@@ -61,10 +80,32 @@ public sealed record ConfigurationRecoveryRequest(
     string Reason,
     string AuthoritySnapshot);
 
-public enum ConfigurationResidue { PreparedGeneration, EffectivePointer, EvidenceOutbox }
+/// <summary>The kind of crash residue a recovery brings to a terminal state.</summary>
+public enum ConfigurationResidue
+{
+    /// <summary>A prepared generation that never became effective.</summary>
+    PreparedGeneration,
+    /// <summary>The tenant's effective pointer.</summary>
+    EffectivePointer,
+    /// <summary>A committed evidence intent the outbox has not published.</summary>
+    EvidenceOutbox,
+}
 
-public enum ConfigurationTerminalState { Abandoned, Confirmed, Published }
+/// <summary>The terminal state a recovery records for one residue.</summary>
+public enum ConfigurationTerminalState
+{
+    /// <summary>A prepared generation is discarded and never activated.</summary>
+    Abandoned,
+    /// <summary>The effective pointer is verified against its content digest and left where it is.</summary>
+    Confirmed,
+    /// <summary>An unpublished evidence intent is marked for publication.</summary>
+    Published,
+}
 
+/// <summary>The terminal state recorded for one residue.</summary>
+/// <param name="Residue">The kind of residue.</param>
+/// <param name="Identity">The residue's identity: a candidate digest, the pointer's digest, or an evidence intent id.</param>
+/// <param name="Terminal">The state it is brought to.</param>
 public sealed record ConfigurationRepair(ConfigurationResidue Residue, string Identity, ConfigurationTerminalState Terminal);
 
 /// <summary>The one record a recovery commits: each residue's terminal state, with the reason and authority snapshot behind it.</summary>
@@ -79,11 +120,17 @@ public sealed record ConfigurationRecoveryRecord(
 /// <summary>Why no write happened; State names the profile state the operator must resolve.</summary>
 public sealed record ConfigurationRecoveryRefusal(string Code, string State);
 
+/// <summary>The outcome of a recovery: the committed record and host value, or a refusal with neither.</summary>
+/// <typeparam name="TResult">The host's commit result type.</typeparam>
+/// <param name="Record">The committed recovery record; null when refused.</param>
+/// <param name="Value">The host's commit result; default when refused.</param>
+/// <param name="Refusal">Null when the recovery committed.</param>
 public sealed record ConfigurationRecoveryResult<TResult>(
     ConfigurationRecoveryRecord? Record,
     TResult? Value,
     ConfigurationRecoveryRefusal? Refusal)
 {
+    /// <summary>True when the recovery committed, that is when <see cref="Refusal"/> is null.</summary>
     public bool Committed => Refusal is null;
 }
 
@@ -101,6 +148,7 @@ public sealed class ConfigurationRecovery
     private readonly IKernelConfigurationRecoveryCapability? _capability;
     private readonly KernelClock _clock;
 
+    /// <summary>Creates a recovery over the host's profile store; a null <paramref name="capability"/> refuses every request.</summary>
     public ConfigurationRecovery(IKernelProfileReader profile, IKernelConfigurationRecoveryCapability? capability, KernelClock clock)
     {
         _profile = profile ?? throw new ArgumentNullException(nameof(profile));
@@ -108,6 +156,11 @@ public sealed class ConfigurationRecovery
         _clock = clock ?? throw new ArgumentNullException(nameof(clock));
     }
 
+    /// <summary>
+    /// Checks the reason, authority snapshot, capability and effective generation, refusing before any write with a
+    /// <see cref="KernelRecoveryErrors"/> code, then commits one <see cref="ConfigurationRecoveryRecord"/> and its audit
+    /// through <see cref="KernelTransactionBoundary"/>.
+    /// </summary>
     public async ValueTask<ConfigurationRecoveryResult<TResult>> RecoverAsync<TResult>(
         ConfigurationRecoveryRequest request,
         IKernelTransactionPort<ConfigurationRecoveryRecord, TResult> port,

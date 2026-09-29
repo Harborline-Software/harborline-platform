@@ -15,8 +15,11 @@ public sealed class RuleContextSnapshot
 {
     // Runtime input envelope, shared with the TS JSON-text capture boundary. These are
     // implementation limits for owned evaluation data, separate from authored AST limits.
+    /// <summary>The largest captured context, in UTF-8 bytes of JSON text (256 KiB); larger input is rejected.</summary>
     public const int MaxUtf8Bytes = RuntimeInputEnvelope.MaxUtf8Bytes;
+    /// <summary>The deepest JSON nesting a captured context may have.</summary>
     public const int MaxDepth = RuntimeInputEnvelope.MaxDepth;
+    /// <summary>The most JSON values, containers and scalars alike, a captured context may hold.</summary>
     public const int MaxNodes = RuntimeInputEnvelope.MaxNodes;
     private readonly IReadOnlyDictionary<string, JsonNode?> _root;
     private readonly IReadOnlyDictionary<string, JsonNode?>? _row;

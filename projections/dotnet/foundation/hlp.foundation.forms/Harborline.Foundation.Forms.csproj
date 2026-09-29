@@ -7,7 +7,6 @@
     <RootNamespace>Harborline.Foundation.Forms</RootNamespace>
     <Description>Tenant-scoped immutable Dynamic Forms definitions, versions, reusable units, and authenticated save/resume draft state.</Description>
     <PackageTags>harborline;forms;dynamic-forms;definitions;drafts;reuse</PackageTags>
-    <NoWarn>$(NoWarn);CS1591</NoWarn>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageReleaseNotes>Internal-only projection; public distribution is not authorized.</PackageReleaseNotes>
   </PropertyGroup>

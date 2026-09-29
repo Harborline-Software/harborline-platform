@@ -32,22 +32,39 @@ namespace Harborline.Foundation.RuleEngine.Explain;
 /// <c>RuleTraceCodes</c>. The client keys a localized template off the code; params interpolate.</summary>
 public static class RuleTraceCodes
 {
+    /// <summary>A compute rule produced a value.</summary>
     public const string ValueComputed = "rule.trace.value_computed";
+    /// <summary>A compute rule produced a coded error; <c>cause</c> names it.</summary>
     public const string ValueError = "rule.trace.value_error";
+    /// <summary>A rule could not settle because an input is pending.</summary>
     public const string Pending = "rule.trace.pending";
+    /// <summary>A validation rule passed.</summary>
     public const string ValidationPassed = "rule.trace.validation_passed";
+    /// <summary>A validation rule failed; <c>cause</c> names the error.</summary>
     public const string ValidationFailed = "rule.trace.validation_failed";
+    /// <summary>A visibility rule showed its target.</summary>
     public const string Shown = "rule.trace.shown";
+    /// <summary>A visibility rule hid its target.</summary>
     public const string Hidden = "rule.trace.hidden";
+    /// <summary>A rule made its target required.</summary>
     public const string Required = "rule.trace.required";
+    /// <summary>A rule left its target optional.</summary>
     public const string NotRequired = "rule.trace.not_required";
+    /// <summary>A rule made its target read-only.</summary>
     public const string ReadOnly = "rule.trace.readonly";
+    /// <summary>A rule left its target editable.</summary>
     public const string Editable = "rule.trace.editable";
+    /// <summary>An options rule set its target's choices.</summary>
     public const string OptionsSet = "rule.trace.options_set";
+    /// <summary>An options rule failed and its target falls back to no dynamic options.</summary>
     public const string OptionsError = "rule.trace.options_error";
+    /// <summary>A presentation rule applied its presentation to the target.</summary>
     public const string Presented = "rule.trace.presented";
+    /// <summary>A presentation rule did not apply.</summary>
     public const string NotPresented = "rule.trace.not_presented";
+    /// <summary>A workflow guard passed, so its transition may fire.</summary>
     public const string GuardPassed = "rule.trace.guard_passed";
+    /// <summary>A workflow guard failed, was pending or errored, so its transition may not fire.</summary>
     public const string GuardFailed = "rule.trace.guard_failed";
 }
 
@@ -79,7 +96,9 @@ public interface ITraceAuthorityFilter
 /// <summary>The no-op filter — every field reference is shown. The default when no authority context is bound.</summary>
 public sealed class PassThroughTraceFilter : ITraceAuthorityFilter
 {
+    /// <summary>The shared instance; the filter holds no state.</summary>
     public static PassThroughTraceFilter Instance { get; } = new();
+    /// <inheritdoc />
     public TraceFieldDisclosure Disclose(string fieldName) => TraceFieldDisclosure.Show;
 }
 

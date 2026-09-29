@@ -8,6 +8,7 @@ public sealed class AuthenticatedFormsActorScope : IFormsActorScope
     private readonly IAuthenticatedActorContext _actor;
     private readonly IPrincipalPartyResolver _resolver;
 
+    /// <summary>Binds the adapter to the request's actor context and Party resolver; neither may be null.</summary>
     public AuthenticatedFormsActorScope(
         IAuthenticatedActorContext actor,
         IPrincipalPartyResolver resolver)
@@ -16,6 +17,7 @@ public sealed class AuthenticatedFormsActorScope : IFormsActorScope
         _resolver = resolver ?? throw new ArgumentNullException(nameof(resolver));
     }
 
+    /// <inheritdoc />
     public async ValueTask<FormsActorScope> GetRequiredAsync(
         CancellationToken cancellationToken = default)
     {

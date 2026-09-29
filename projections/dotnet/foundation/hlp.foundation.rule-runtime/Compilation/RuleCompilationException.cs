@@ -19,6 +19,7 @@ public sealed class RuleCompilationException : Exception
     /// <summary>Stable string params (for <c>rule.compile.work_exceeded</c>: <c>proof</c> and <c>ceiling</c>); empty otherwise.</summary>
     public IReadOnlyDictionary<string, string> Params { get; } = new Dictionary<string, string>();
 
+    /// <summary>A refusal with a stable <paramref name="code"/>, optionally attributed to one rule and, for a cycle, carrying its path.</summary>
     public RuleCompilationException(string code, string message, string? ruleId = null, IReadOnlyList<string>? cyclePath = null)
         : base(message)
     {

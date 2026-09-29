@@ -5,8 +5,10 @@ using Harborline.Foundation.Forms.Drafts;
 
 namespace Harborline.Foundation.Forms.DependencyInjection;
 
+/// <summary>Registers the in-memory Forms stores and services; each call keeps any registration the host already made.</summary>
 public static class FormsServiceCollectionExtensions
 {
+    /// <summary>Adds a singleton in-memory <see cref="IFormDefinitionStore"/>; its contents do not survive the process.</summary>
     public static IServiceCollection AddInMemoryFormDefinitionStore(this IServiceCollection services)
     {
         ArgumentNullException.ThrowIfNull(services);
@@ -14,6 +16,7 @@ public static class FormsServiceCollectionExtensions
         return services;
     }
 
+    /// <summary>Adds a singleton in-memory <see cref="IReusableUnitStore"/> and the <see cref="IReuseResolver"/> over it.</summary>
     public static IServiceCollection AddInMemoryReusableUnitStore(this IServiceCollection services)
     {
         ArgumentNullException.ThrowIfNull(services);
@@ -22,6 +25,10 @@ public static class FormsServiceCollectionExtensions
         return services;
     }
 
+    /// <summary>
+    /// Adds in-memory draft and pre-auth capture stores plus the scoped draft services, which resolve the actor through
+    /// <see cref="AuthenticatedFormsActorScope"/> and use the registered <see cref="TimeProvider"/> or the system clock.
+    /// </summary>
     public static IServiceCollection AddInMemorySubmissionDrafts(this IServiceCollection services)
     {
         ArgumentNullException.ThrowIfNull(services);

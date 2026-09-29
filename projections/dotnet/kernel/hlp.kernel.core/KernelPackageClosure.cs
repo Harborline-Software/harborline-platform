@@ -1,12 +1,19 @@
 namespace Harborline.Kernel.Core;
 
+/// <summary>Refusal codes raised by <see cref="KernelPackageClosure.Resolve"/>.</summary>
 public static class KernelClosureErrors
 {
+    /// <summary>A root or dependency key has no manifest in the supplied package set.</summary>
     public const string DependencyMissing = "kernel.closure.dependency-missing";
+    /// <summary>A required package has a manifest but no active version.</summary>
     public const string DependencyInactive = "kernel.closure.dependency-inactive";
+    /// <summary>The active version of a dependency is below the minimum version its dependent pins.</summary>
     public const string DependencyBelowPin = "kernel.closure.dependency-below-pin";
+    /// <summary>The dependency graph returns to a package already on the current path.</summary>
     public const string Cycle = "kernel.closure.cycle";
+    /// <summary>A key is declared by more than one manifest, or its manifest version differs from its active version.</summary>
     public const string VersionConflict = "kernel.closure.version-conflict";
+    /// <summary>An active version or a pin is not a valid SemVer 2.0.0 string.</summary>
     public const string VersionInvalid = "kernel.closure.version-invalid";
 }
 
@@ -16,9 +23,13 @@ public sealed record KernelPackageDependency(string Key, string MinimumVersion);
 /// <summary>One package version as its own manifest declares it.</summary>
 public sealed record KernelPackageManifest(string Key, string Version, IReadOnlyList<KernelPackageDependency> Dependencies);
 
+/// <summary>Closure resolution refused; <see cref="Code"/> is a <see cref="KernelClosureErrors"/> value and <see cref="Path"/> names where.</summary>
+/// <param name="code">The refusal code.</param>
+/// <param name="path">The dependency path from the closure root to the offending package.</param>
 public sealed class KernelClosureRefusalException(string code, IReadOnlyList<string> path)
     : InvalidOperationException($"{code}: {string.Join(" -> ", path)}")
 {
+    /// <summary>The stable refusal code, one of <see cref="KernelClosureErrors"/>.</summary>
     public string Code { get; } = code;
     /// <summary>The dependency path from the closure root to the package that could not be satisfied.</summary>
     public IReadOnlyList<string> Path { get; } = path;
@@ -27,10 +38,12 @@ public sealed class KernelClosureRefusalException(string code, IReadOnlyList<str
 /// <summary>A resolved package closure in install order: the platform package first, every dependency before its dependents.</summary>
 public sealed class KernelPackageClosure
 {
+    /// <summary>The key of the platform package, the implicit first root of every closure.</summary>
     public const string PlatformPackageKey = "harborline.platform";
 
     private KernelPackageClosure(IReadOnlyList<KernelPackageManifest> packages) => Packages = packages;
 
+    /// <summary>The resolved manifests in install order, one per key, the platform package first.</summary>
     public IReadOnlyList<KernelPackageManifest> Packages { get; }
 
     /// <summary>

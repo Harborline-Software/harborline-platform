@@ -6,7 +6,6 @@
     <IsPackable>false</IsPackable>
     <OverrideHtmlAssetPlaceholders>true</OverrideHtmlAssetPlaceholders>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
-    <NoWarn>$(NoWarn);CS1591</NoWarn>
     <MD2RazorDefaultBaseClass>global::BlazingStory.Internals.Pages.MarkdownPageBase</MD2RazorDefaultBaseClass>
     <!-- Ticket 143: restore into the repository's own packages folder, the one prepare-galleries
          fills and deletes, rather than ~/.nuget/packages. This is the documented RestorePackagesPath

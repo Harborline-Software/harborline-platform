@@ -15,12 +15,18 @@ public readonly struct RefValue
         Error = error;
     }
 
+    /// <summary>Whether the reference resolved, errored, or is still pending.</summary>
     public ValueState State { get; }
+    /// <summary>The resolved value; null when not resolved, and also a legitimate resolved JSON null.</summary>
     public JsonNode? Value { get; }
+    /// <summary>The coded error when <see cref="State"/> is <see cref="ValueState.Error"/>; otherwise null.</summary>
     public RuleError? Error { get; }
 
+    /// <summary>A resolved reference holding <paramref name="value"/>.</summary>
     public static RefValue Resolved(JsonNode? value) => new(ValueState.Resolved, value, null);
+    /// <summary>A reference that failed with <paramref name="error"/>.</summary>
     public static RefValue OfError(RuleError error) => new(ValueState.Error, null, error);
+    /// <summary>A reference whose value is not yet available; rules reading it evaluate to pending.</summary>
     public static RefValue Pending { get; } = new(ValueState.Pending, null, null);
 
     /// <summary>The ONE bad-aggregate refusal shape in this tier (ticket 162): an aggregate the

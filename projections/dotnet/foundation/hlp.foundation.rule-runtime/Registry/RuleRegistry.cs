@@ -123,8 +123,11 @@ public sealed record PublishedRuleVersion(string RuleKey, string Version, bool I
 public sealed class RuleVersionConflictException(string tenant, string ruleKey, string version)
     : InvalidOperationException($"rule publish refused: '{tenant}/{ruleKey}@{version}' already has a different body")
 {
+    /// <summary>The tenant whose registry refused the publish.</summary>
     public string Tenant { get; } = tenant;
+    /// <summary>The key of the rule whose version conflicted.</summary>
     public string RuleKey { get; } = ruleKey;
+    /// <summary>The version already published with a different body.</summary>
     public string Version { get; } = version;
 }
 
