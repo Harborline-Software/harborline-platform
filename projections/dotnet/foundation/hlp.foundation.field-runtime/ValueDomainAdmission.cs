@@ -142,3 +142,11 @@ public static class ValueDomainAdmission
     private static FieldRefusal ShapeRefusal(string pointer)
         => new("field.value_domain_shape_invalid", pointer, "The value domain does not match its declared shape.");
 }
+
+/// <summary>Exposes <see cref="ValueDomainAdmission"/> through the contract other tiers bind to.</summary>
+public sealed class SharedValueDomainAdmission : IValueDomainAdmission
+{
+    /// <inheritdoc />
+    public IReadOnlyList<FieldRefusal> Validate(ValueDomainDefinition domain, string jsonPointer)
+        => ValueDomainAdmission.Validate(domain, jsonPointer);
+}
