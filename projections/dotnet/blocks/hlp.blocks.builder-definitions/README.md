@@ -160,6 +160,8 @@ the author, and `configuration-check-required` when no check was recorded at all
 has to author a release rule of its own. **The platform signs nothing**: transport, signing and installation are the api's, per
 ADR 0097 decision 6.
 
+The released document's `closure.dependencies` is the package's real closure (DES-0029 ck-2): every package its edits reference, the baseline owner of each edited definition and the package each edit names, except the released package itself, each once as `{key, version}` in ordinal key order and pinned at the revision the baseline generation resolved. The pin is a minimum-inclusive floor, and the closure resolves under `Harborline.Kernel.Core.KernelPackageClosure`. A referenced package the baseline does not resolve has no pin, so Release refuses `configuration-release-dependency-unpinned` naming it rather than dropping the dependency. `PlatformPackageManifest` takes the closure as `PlatformPackageDependency` values and refuses a blank key or version, its own key and a repeated key.
+
 ck-7 exports `configurationProposalDetail` and `configurationProposalStatuses`, one released Form and
 the domain-facing **Proposed change**, **Saved version** and **Released package** vocabulary. Both
 SchemaForm lanes render that exported Form over one shared fixture,

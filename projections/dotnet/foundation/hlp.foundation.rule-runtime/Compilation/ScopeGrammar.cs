@@ -132,8 +132,25 @@ internal static class ScopeGrammar
         };
     }
 
+    /// <summary>
+    /// Scope roots a borrower may declare (Forms <c>forms-ck-13</c>, Documents <c>documents-ck-25</c>) that no
+    /// R1 evaluator supplies. Lowering them as bare field names let a rule read a client-supplied candidate
+    /// property in place of the authenticated principal, the evaluation instant or the record type, so the
+    /// compiler refuses them (fail closed) until an evaluator binds them. A record field of the same name
+    /// stays addressable as <c>field.&lt;name&gt;</c>.
+    /// </summary>
+    private static readonly HashSet<string> UnsuppliedRoots = new(StringComparer.Ordinal) { "caller", "clock", "record_type" };
+
+    private static void RefuseUnsuppliedRoot(string path, string ruleId)
+    {
+        int dot = path.IndexOf('.');
+        if (UnsuppliedRoots.Contains(dot < 0 ? path : path[..dot]))
+            throw Bad(ruleId, $"'{path}' addresses a scope root no evaluator supplies; use field.{path} for a record field");
+    }
+
     private static string LowerVarPath(string path, LowerContext ctx, string ruleId)
     {
+        RefuseUnsuppliedRoot(path, ruleId);
         if (path == "self")
         {
             return ctx.Scope switch
@@ -273,6 +290,7 @@ internal static class ScopeGrammar
                 foreach (var item in list) CollectMissingKeys(item, refs, ruleId);
                 return;
             case JsonValue scalar when scalar.TryGetValue<string>(out var key) && key.Length > 0:
+                RefuseUnsuppliedRoot(key, ruleId);
                 if (key.StartsWith("row.", StringComparison.Ordinal)) refs.Add(new RowFieldRef(key["row.".Length..]));
                 else refs.Add(new FieldRef(key.StartsWith("field.", StringComparison.Ordinal) ? key["field.".Length..] : key));
                 return;

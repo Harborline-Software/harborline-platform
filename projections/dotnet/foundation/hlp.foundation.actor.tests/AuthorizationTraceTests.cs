@@ -143,6 +143,79 @@ public sealed class AuthorizationTraceTests
         Assert.Equal("audit:trace-read", Assert.Single(gate.Requests).Operation);
     }
 
+    [Fact]
+    public void Decision_evidence_freezes_the_exact_trace_facts_for_default_target_and_every_role_state()
+    {
+        var request = new AccessRequest("records:write", "alice", "a", new("a", "work", "1",
+            new Dictionary<string, System.Text.Json.Nodes.JsonNode?>()), At);
+        var until = At.AddDays(30);
+        AuthorizationEvidenceRole[] roles =
+        [
+            new("editor", "tenant", At, until, "b1", 7, "def1", "write", true, true),
+            new("viewer", "tenant", At, null, "b2", null, "def2", "read", false, false),
+        ];
+
+        var steps = new AuthorizationDecisionEvidence(request, true, "None", "b1", roles, []).Project();
+
+        Assert.Equal(["kind:Gate", "act:records:write", "target:work/1", "principal:alice", "tenant:a",
+            "at:2026-09-18T12:00:00.0000000+00:00"], steps[0].Facts.ToArray());
+        Assert.Equal([
+            "role:editor;scope:tenant;valid:2026-09-18T12:00:00.0000000+00:00..2026-10-18T12:00:00.0000000+00:00;binding:b1@7;definition:def1;atom:write;in-force:yes;deciding",
+            "role:viewer;scope:tenant;valid:2026-09-18T12:00:00.0000000+00:00..open;binding:b2@-;definition:def2;atom:read;in-force:no",
+            "deciding:b1"], steps[1].Facts.ToArray());
+        Assert.Equal(["standings:none"], steps[2].Facts.ToArray());
+        Assert.Equal(["verdict:allowed", "refusal:None", "version:2"], steps[3].Facts.ToArray());
+    }
+
+    [Fact]
+    public void Decision_evidence_without_roles_records_roles_none()
+    {
+        var request = new AccessRequest("records:write", "alice", "a", new("a", "work", "1",
+            new Dictionary<string, System.Text.Json.Nodes.JsonNode?>()), At);
+
+        var steps = new AuthorizationDecisionEvidence(request, false, "NoEffectiveRole", "none", [], []).Project();
+
+        Assert.Equal(["roles:none", "deciding:none"], steps[1].Facts.ToArray());
+    }
+
+    [Fact]
+    public void Separation_of_duty_evidence_records_the_approvals_instead_of_the_roles()
+    {
+        var request = new AccessRequest("records:approve", "alice", "a", new("a", "work", "1",
+            new Dictionary<string, System.Text.Json.Nodes.JsonNode?>()), At);
+        AuthorizationEvidenceRole[] roles = [new("editor", "tenant", At, null, "b1", null, "def1", "write", null, false)];
+
+        var approved = new AuthorizationDecisionEvidence(request, true, "None", "b1", roles, [],
+            kind: "SeparationOfDuty", approvals: ["approval:bob"]).Project();
+        var unapproved = new AuthorizationDecisionEvidence(request, false, "SeparationRequired", "b1", roles, [],
+            kind: "SeparationOfDuty").Project();
+
+        Assert.Equal("kind:SeparationOfDuty", approved[0].Facts[0]);
+        Assert.Equal(["approval:bob", "deciding:b1"], approved[1].Facts.ToArray());
+        Assert.Equal(["roles:none", "deciding:b1"], unapproved[1].Facts.ToArray());
+    }
+
+    [Fact]
+    public void Decision_evidence_rejects_a_missing_request_as_an_argument_error()
+    {
+        Assert.Throws<ArgumentNullException>(() =>
+            new AuthorizationDecisionEvidence(null!, true, "None", "b1", [], []));
+    }
+
+    [Fact]
+    public async Task A_version_one_trace_is_still_available()
+    {
+        var request = new AccessRequest("records:write", "alice", "a", new("a", "work", "1",
+            new Dictionary<string, System.Text.Json.Nodes.JsonNode?>()), At);
+        var steps = new AuthorizationDecisionEvidence(request, true, "None", "grant:1", [], []).Project();
+
+        var read = await new AuthorizationTraceReader(new Store(new("a", "alice", 1, steps)), new ReadGate())
+            .ReadAsync("a", "auditor", "entry", At);
+
+        Assert.Equal(AuthorizationTraceAvailability.Available, read.Availability);
+        Assert.Equal(1, read.Version);
+    }
+
     private sealed class Store(AuthorizationTraceSnapshot snapshot) : IAuthorizationTraceStore
     {
         public ValueTask<AuthorizationTraceSnapshot?> FindAsync(string tenant, string entryId, CancellationToken cancellationToken = default) =>

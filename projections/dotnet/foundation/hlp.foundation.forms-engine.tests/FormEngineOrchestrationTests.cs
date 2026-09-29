@@ -53,6 +53,115 @@ public sealed class FormEngineOrchestrationTests
         Assert.Equal((1, 1, 0, 1), await harness.Store.CountsAsync());
     }
 
+    // ck-7 S4 (L1217, DES-0018 ruling 3): submit evaluates rules inside the kernel transaction, at the one
+    // instant that stamps the commit. Hoisting EvaluateAsync above ExecutePreparedAsync breaks the order;
+    // a second clock read for evaluation or for the commit breaks the date rule or the stamp.
+    [Fact]
+    public async Task Submit_evaluates_rules_inside_the_transaction_at_the_commit_instant()
+    {
+        var events = new List<string>();
+        var harness = await TransactionHarnessAsync(events, """{"==":[{"date.today":[]},"2026-08-08"]}""");
+        using var candidate = JsonDocument.Parse("""{"name":"Ada"}""");
+
+        var receipt = await harness.Engine.SubmitAsync(new(harness.Definition.Id, candidate, "idem"));
+
+        Assert.Equal(Now, receipt.SubmittedAt);
+        Assert.Equal(["begin", "clock", "evaluate", "commit"], events.Where(row => row != "dispose"));
+        Assert.Equal(1, (await harness.Store.CountsAsync()).Submissions);
+    }
+
+    [Fact]
+    public async Task Submit_rule_refusal_rolls_back_the_transaction_it_ran_in()
+    {
+        var events = new List<string>();
+        var harness = await TransactionHarnessAsync(events, """{"==":[{"var":"name"},"Ada"]}""");
+        using var candidate = JsonDocument.Parse("""{"name":"Bob"}""");
+
+        await Assert.ThrowsAsync<FormEngineValidationException>(async () =>
+            await harness.Engine.SubmitAsync(new(harness.Definition.Id, candidate, "idem")));
+
+        Assert.Equal(["begin", "clock", "evaluate", "rollback"], events.Where(row => row != "dispose"));
+        Assert.Equal(0, (await harness.Store.CountsAsync()).Submissions);
+    }
+
+    private static Task<Harness> TransactionHarnessAsync(List<string> events, string validation) =>
+        Harness.CreateAsync(
+            schemaJson: """{"type":"object"}""",
+            schemaRegistry: new EventSchemas(events),
+            clock: new AdvancingClock(events),
+            storeDecorator: inner => new EventStore(inner, events),
+            definitionFactory: (schema, tenant) =>
+            {
+                var definition = Harness.CreateDefinition(schema, tenant);
+                return definition with
+                {
+                    Overlay = definition.Overlay with
+                    {
+                        Rules = [new("valid.at", RuleTier.JsonLogic, RuleScope.Schema, "", validation, RuleActionKind.Validate)],
+                    },
+                };
+            });
+
+    /// <summary>Each read is one day later than the last, so a second read cannot pass for the first.</summary>
+    private sealed class AdvancingClock(List<string> events) : TimeProvider
+    {
+        private int _reads;
+        public override DateTimeOffset GetUtcNow()
+        {
+            events.Add("clock");
+            return Now.AddDays(_reads++);
+        }
+    }
+
+    /// <summary>Schema validation is the last step of candidate evaluation, after the rule graph.</summary>
+    private sealed class EventSchemas(List<string> events) : ISchemaRegistry
+    {
+        private readonly InMemorySchemaRegistry _inner = new();
+        public ValueTask<Schema?> GetAsync(Harborline.Kernel.SchemaValidation.SchemaId id, CancellationToken cancellationToken = default) => _inner.GetAsync(id, cancellationToken);
+        public ValueTask<Schema> RegisterAsync(string jsonSchemaText, IReadOnlyList<Harborline.Kernel.SchemaValidation.SchemaId>? parents = null, IReadOnlyList<string>? tags = null, CancellationToken cancellationToken = default) =>
+            _inner.RegisterAsync(jsonSchemaText, parents, tags, cancellationToken);
+        public ValueTask<SchemaValidationResult> ValidateAsync(Harborline.Kernel.SchemaValidation.SchemaId id, ReadOnlyMemory<byte> documentBytes, CancellationToken cancellationToken = default)
+        {
+            events.Add("evaluate");
+            return _inner.ValidateAsync(id, documentBytes, cancellationToken);
+        }
+        public IAsyncEnumerable<Schema> ListAsync(string? tagFilter = null, CancellationToken cancellationToken = default) => _inner.ListAsync(tagFilter, cancellationToken);
+    }
+
+    private sealed class EventStore(IFormSubmissionTransactionStore inner, List<string> events) : IFormSubmissionTransactionStore
+    {
+        public async ValueTask<IFormSubmissionTransactionScope> BeginTransactionAsync(CancellationToken cancellationToken = default)
+        {
+            events.Add("begin");
+            return new Scope(await inner.BeginTransactionAsync(cancellationToken), events);
+        }
+        public ValueTask<FormSubmissionCommitResult> CommitAsync(FormSubmissionCommit commit, CancellationToken cancellationToken = default) => inner.CommitAsync(commit, cancellationToken);
+        public ValueTask<FormSubmissionRecord?> GetAsync(TenantId tenant, EntityId instanceId, CancellationToken cancellationToken = default) => inner.GetAsync(tenant, instanceId, cancellationToken);
+        public ValueTask<IReadOnlyList<FormProjectionEnvelope>> LeasePendingAsync(int maximum, CancellationToken cancellationToken = default) => inner.LeasePendingAsync(maximum, cancellationToken);
+        public ValueTask ReleaseProjectionLeaseAsync(string outboxId, CancellationToken cancellationToken = default) => inner.ReleaseProjectionLeaseAsync(outboxId, cancellationToken);
+        public ValueTask CompleteProjectionAsync(string outboxId, IReadOnlyList<FormProjectionSkip> skips, CancellationToken cancellationToken = default) => inner.CompleteProjectionAsync(outboxId, skips, cancellationToken);
+        public ValueTask RetryProjectionAsync(string outboxId, string stableErrorCode, CancellationToken cancellationToken = default) => inner.RetryProjectionAsync(outboxId, stableErrorCode, cancellationToken);
+
+        private sealed class Scope(IFormSubmissionTransactionScope inner, List<string> events) : IFormSubmissionTransactionScope
+        {
+            public ValueTask<FormSubmissionCommitResult> CommitAsync(FormSubmissionCommit commit, CancellationToken cancellationToken = default)
+            {
+                events.Add("commit");
+                return inner.CommitAsync(commit, cancellationToken);
+            }
+            public ValueTask RollbackAsync(CancellationToken cancellationToken = default)
+            {
+                events.Add("rollback");
+                return inner.RollbackAsync(cancellationToken);
+            }
+            public ValueTask DisposeAsync()
+            {
+                events.Add("dispose");
+                return inner.DisposeAsync();
+            }
+        }
+    }
+
     [Fact]
     public async Task ProjectionDelivery_FailureRemainsPendingAndRetries()
     {
@@ -154,7 +263,8 @@ public sealed class FormEngineOrchestrationTests
             Harborline.Contracts.Fields.IFieldKindRuntime? fieldKinds = null,
             Harborline.Contracts.Fields.IFieldDomainRuntime? fieldDomains = null,
             IFormSubmitGateAccess? submitGates = null,
-            IReadOnlySet<FormEngineAction>? grantedActions = null)
+            IReadOnlySet<FormEngineAction>? grantedActions = null,
+            Func<IFormSubmissionTransactionStore, IFormSubmissionTransactionStore>? storeDecorator = null)
         {
             var schemas = schemaRegistry ?? new InMemorySchemaRegistry();
             var schema = await schemas.RegisterAsync(schemaJson ?? """{"type":"object","properties":{"name":{"type":"string","minLength":1},"secret":{"type":"string"}},"required":["name"],"additionalProperties":false}""");
@@ -181,7 +291,7 @@ public sealed class FormEngineOrchestrationTests
             var sink = projectionSink ?? recordingProjection;
             var actualSecurity = security ?? new RecordingSecurity();
             var engine = new FormEngine(context, new DefinitionStore(definition), reuseResolver ?? new IdentityReuseResolver(), schemas, actualSecurity,
-                readAudit ?? new RecordingReadAudit(), store, sink, options, clock ?? new FixedClock(Now), fieldBindings, fieldKinds, fieldDomains, submitGates);
+                readAudit ?? new RecordingReadAudit(), storeDecorator?.Invoke(store) ?? store, sink, options, clock ?? new FixedClock(Now), fieldBindings, fieldKinds, fieldDomains, submitGates);
             return new(definition, actualState, store, context, recordingProjection, engine);
         }
 

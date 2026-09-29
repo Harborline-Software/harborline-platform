@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text.Json;
+using Harborline.Kernel.Core;
 using Xunit;
 
 namespace Harborline.Blocks.BuilderDefinitions.Tests;
@@ -146,7 +147,7 @@ public sealed class ConfigurationProposalTests
         using var document = JsonDocument.Parse(released.Document);
         var root = document.RootElement;
         Assert.Equal("tenant-a.invoice-purchase-order", root.GetProperty("packageKey").GetString());
-        Assert.Empty(root.GetProperty("closure").GetProperty("dependencies").EnumerateArray());
+        Assert.Equal(["finance@1.0.0"], Closure(released.Document));
         var items = root.GetProperty("items").EnumerateArray().ToArray();
         Assert.Equal(3, items.Length);
         var record = items[0].GetProperty("content").GetProperty("payload");
@@ -340,5 +341,108 @@ public sealed class ConfigurationProposalTests
             ConfigurationProposal.Release(state, version, check, elsewhere, "p", "1.0.0").Refusal!.Code);
         Assert.Equal("configuration-release-proposal-mismatch",
             ConfigurationProposal.Release(state, version with { ProposalId = "proposal-2" }, check, baseline, "p", "1.0.0").Refusal!.Code);
+    }
+
+    // ck-2 S7 (DES-0029 ck-2, D1/D2): a released package carries its real package closure. Every
+    // package its edits reference, the baseline owner of each edited definition and the package each
+    // edit names, is a dependency pinned at the revision the baseline generation resolved, never an
+    // empty closure and never a version from anywhere but that baseline.
+    [Fact]
+    public void A_released_package_carries_its_dependency_closure()
+    {
+        var baseline = Generation("1.2.0");
+        var state = Edited(baseline);
+        var version = Save(state);
+        var check = new ProposedChangeCheck("proposal-1", version.Digest, "receipt-1");
+        var released = ConfigurationProposal.Release(state, version, check, baseline, "tenant-a.invoice-purchase-order", "1.1.0").Released!;
+        Assert.Equal(["finance@1.2.0"], Closure(released.Document));
+    }
+
+    // The closure the exporter writes is the one the kernel resolves: read back from the released
+    // bytes alone, it resolves platform first, then the pinned dependency, then the released package,
+    // and it refuses by the kernel's own codes when the dependency is absent or active below the pin.
+    [Fact]
+    public void The_released_closure_resolves_under_the_kernel_package_closure()
+    {
+        var baseline = Generation("1.2.0");
+        var state = Edited(baseline);
+        var version = Save(state);
+        var check = new ProposedChangeCheck("proposal-1", version.Digest, "receipt-1");
+        var released = ConfigurationProposal.Release(state, version, check, baseline, "tenant-a.invoice-purchase-order", "1.1.0").Released!;
+        var package = AsKernelManifest(released.Document);
+        KernelPackageManifest Platform() => new(KernelPackageClosure.PlatformPackageKey, "1.0.0", []);
+        KernelPackageManifest Finance(string at) => new("finance", at, []);
+        IReadOnlyDictionary<string, string> Active(params KernelPackageManifest[] packages) =>
+            packages.ToDictionary(item => item.Key, item => item.Version, StringComparer.Ordinal);
+
+        var resolved = KernelPackageClosure.Resolve([package.Key], [package, Finance("1.2.0"), Platform()],
+            Active(package, Finance("1.2.0"), Platform()));
+        Assert.Equal([KernelPackageClosure.PlatformPackageKey, "finance", "tenant-a.invoice-purchase-order"],
+            resolved.Packages.Select(item => item.Key));
+
+        var missing = Assert.Throws<KernelClosureRefusalException>(() =>
+            KernelPackageClosure.Resolve([package.Key], [package, Platform()], Active(package, Platform())));
+        Assert.Equal(KernelClosureErrors.DependencyMissing, missing.Code);
+        Assert.Equal(["tenant-a.invoice-purchase-order", "finance"], missing.Path);
+
+        var below = Assert.Throws<KernelClosureRefusalException>(() => KernelPackageClosure.Resolve([package.Key],
+            [package, Finance("1.1.9"), Platform()], Active(package, Finance("1.1.9"), Platform())));
+        Assert.Equal(KernelClosureErrors.DependencyBelowPin, below.Code);
+    }
+
+    // A package the release edits into, or whose definition it edits, is a dependency; the released
+    // package itself is not, so an edit that the release owns outright adds nothing to the closure.
+    [Fact]
+    public void The_closure_names_each_referenced_package_once_and_never_the_released_package()
+    {
+        var baseline = ConfigurationGeneration.Resolve(new ResolvedConfiguration("tenant-a", ["finance", "payroll"],
+            [new(Ref("finance", "1.2.0", 'a'), [Ref("records/invoice", "1.2.0", 'b'), Ref("forms/invoice", "1.2.0", 'c')], []),
+             new(Ref("payroll", "3.0.0", 'e'), [Ref("records/payslip", "3.0.0", 'f')], [])],
+            [new("records/invoice", "finance"), new("forms/invoice", "finance"), new("records/payslip", "payroll")],
+            Ref("platform", "1.0.0", 'd'), []));
+        var state = ConfigurationProposal.Start("proposal-1", baseline);
+        // Edits a payroll-owned definition while naming finance as its owner: both are referenced.
+        state = ConfigurationProposal.Autosave(state, new("records/payslip", "finance", RecordsEdit, RecordsKind));
+        state = ConfigurationProposal.Autosave(state, new("forms/invoice", "finance", FormsEdit, FormsKind));
+        // A new definition the released package owns outright references no other package.
+        state = ConfigurationProposal.Autosave(state, new("forms/timesheet", "tenant-a.release", FormsEdit, FormsKind));
+        var version = Save(state);
+        var check = new ProposedChangeCheck("proposal-1", version.Digest, "receipt-1");
+        var released = ConfigurationProposal.Release(state, version, check, baseline, "tenant-a.release", "1.0.0").Released!;
+        Assert.Equal(["finance@1.2.0", "payroll@3.0.0"], Closure(released.Document));
+    }
+
+    // A referenced package the baseline generation does not resolve has no pinned version to carry,
+    // so the release refuses by name rather than exporting a closure with the dependency dropped.
+    [Fact]
+    public void A_release_that_references_a_package_outside_the_baseline_refuses_by_name()
+    {
+        var baseline = Generation();
+        var state = ConfigurationProposal.Autosave(ConfigurationProposal.Start("proposal-1", baseline),
+            new("records/payslip", "payroll", RecordsEdit, RecordsKind));
+        var version = Save(state);
+        var check = new ProposedChangeCheck("proposal-1", version.Digest, "receipt-1");
+        var refused = ConfigurationProposal.Release(state, version, check, baseline, "tenant-a.release", "1.0.0");
+        Assert.Null(refused.Released);
+        Assert.Equal("configuration-release-dependency-unpinned", refused.Refusal!.Code);
+        Assert.Equal("payroll", refused.Refusal.Target);
+        Assert.Contains("payroll", refused.Refusal.Message, StringComparison.Ordinal);
+    }
+
+    private static string[] Closure(ReadOnlyMemory<byte> document)
+    {
+        using var parsed = JsonDocument.Parse(document);
+        return parsed.RootElement.GetProperty("closure").GetProperty("dependencies").EnumerateArray()
+            .Select(item => $"{item.GetProperty("key").GetString()}@{item.GetProperty("version").GetString()}").ToArray();
+    }
+
+    private static KernelPackageManifest AsKernelManifest(ReadOnlyMemory<byte> document)
+    {
+        using var parsed = JsonDocument.Parse(document);
+        var root = parsed.RootElement;
+        return new(root.GetProperty("packageKey").GetString()!, root.GetProperty("revision").GetString()!,
+            root.GetProperty("closure").GetProperty("dependencies").EnumerateArray()
+                .Select(item => new KernelPackageDependency(item.GetProperty("key").GetString()!, item.GetProperty("version").GetString()!))
+                .ToArray());
     }
 }

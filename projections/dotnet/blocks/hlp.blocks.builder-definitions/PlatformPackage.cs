@@ -98,11 +98,26 @@ public sealed record PlatformPackageItem
     public PlatformPackageContent Content { get; }
 }
 
+/// <summary>One package in a manifest's closure, pinned at a minimum-inclusive version floor.</summary>
+/// <param name="Key">The dependency's package key.</param>
+/// <param name="Version">The pinned version; a dependency satisfies it at this version or newer.</param>
+public sealed record PlatformPackageDependency(string Key, string Version);
+
 /// <summary>A versioned, ordered platform package manifest.</summary>
 public sealed record PlatformPackageManifest
 {
-    /// <summary>Creates a manifest and takes an immutable snapshot of its items.</summary>
+    /// <summary>Creates a manifest with an empty closure and takes an immutable snapshot of its items.</summary>
     public PlatformPackageManifest(int schemaVersion, string packageKey, string revision, IEnumerable<PlatformPackageItem> items)
+        : this(schemaVersion, packageKey, revision, items, [])
+    {
+    }
+
+    /// <summary>
+    /// Creates a manifest and takes immutable snapshots of its items and its closure, the packages it
+    /// depends on in ordinal key order. One version per key; a package never depends on itself.
+    /// </summary>
+    public PlatformPackageManifest(int schemaVersion, string packageKey, string revision, IEnumerable<PlatformPackageItem> items,
+        IEnumerable<PlatformPackageDependency> dependencies)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(schemaVersion, 1);
         if (string.IsNullOrWhiteSpace(packageKey)) throw new ArgumentException("platform-package-key-required", nameof(packageKey));
@@ -112,6 +127,17 @@ public sealed record PlatformPackageManifest
         PackageKey = packageKey;
         Revision = revision;
         Items = Array.AsReadOnly(items.ToArray());
+        ArgumentNullException.ThrowIfNull(dependencies);
+        var closure = dependencies.OrderBy(dependency => dependency.Key, StringComparer.Ordinal).ToArray();
+        var keys = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var dependency in closure)
+        {
+            if (string.IsNullOrWhiteSpace(dependency.Key)) throw new ArgumentException("platform-package-dependency-key-required", nameof(dependencies));
+            if (string.IsNullOrWhiteSpace(dependency.Version)) throw new ArgumentException("platform-package-dependency-version-required", nameof(dependencies));
+            if (dependency.Key == packageKey) throw new ArgumentException("platform-package-dependency-self", nameof(dependencies));
+            if (!keys.Add(dependency.Key)) throw new ArgumentException("platform-package-dependency-duplicate", nameof(dependencies));
+        }
+        Dependencies = Array.AsReadOnly(closure);
     }
 
     /// <summary>The manifest wire-schema version.</summary>
@@ -122,6 +148,8 @@ public sealed record PlatformPackageManifest
     public string Revision { get; }
     /// <summary>The items in required replay order.</summary>
     public IReadOnlyList<PlatformPackageItem> Items { get; }
+    /// <summary>The package closure: the packages this one depends on, in ordinal key order.</summary>
+    public IReadOnlyList<PlatformPackageDependency> Dependencies { get; }
 }
 
 /// <summary>Exports the public manifest with stable property and item ordering.</summary>
@@ -151,6 +179,13 @@ public static class PlatformPackageExporter
             writer.WriteString("revision", manifest.Revision);
             writer.WriteStartObject("closure");
             writer.WriteStartArray("dependencies");
+            foreach (var dependency in manifest.Dependencies)
+            {
+                writer.WriteStartObject();
+                writer.WriteString("key", dependency.Key);
+                writer.WriteString("version", dependency.Version);
+                writer.WriteEndObject();
+            }
             writer.WriteEndArray();
             writer.WriteEndObject();
             writer.WriteStartArray("items");
