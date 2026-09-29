@@ -275,8 +275,34 @@ public sealed class FormEngine : IFormEngine
         catch (Harborline.Contracts.Fields.FieldAdmissionException) { throw; }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch (Exception ex) when (ex is RuleEngineTimeoutException or TimeoutException) { throw new FormEngineResourceBoundException(ex); }
-        catch (RuleCompilationException ex) { throw new FormEngineValidationException([new Contract.ValidationError { JsonPointer = "", Message = "A form rule could not be compiled.", Kind = Contract.ValidationErrorKind.Schema, Code = ex.Code }]); }
+        catch (RuleCompilationException ex) { throw new FormEngineValidationException([CompileRefusal(definition, ex)]); }
         catch (Exception ex) { throw new FormEngineProviderUnavailableException(ex); }
+    }
+
+    // ck-7 S5: a compile refusal keeps the compiler's params and names the rule. A graph-level refusal such as the
+    // static work ceiling (rule.compile.work_exceeded, T-818) has no rule id, so it names the first rule refused
+    // with the same code on its own, and none when only the combination is refused.
+    private static Contract.ValidationError CompileRefusal(State.FormDefinition definition, RuleCompilationException exception)
+    {
+        var parameters = new Dictionary<string, string>(exception.Params, StringComparer.Ordinal);
+        var rule = exception.RuleId
+            ?? definition.Overlay.Rules.FirstOrDefault(row => RefusedAlone(row, exception.Code))?.Id;
+        if (rule is not null) parameters["rule"] = rule;
+        return new Contract.ValidationError
+        {
+            JsonPointer = "",
+            Message = "A form rule could not be compiled.",
+            Kind = Contract.ValidationErrorKind.Schema,
+            Code = exception.Code,
+            Params = parameters.Count == 0 ? default : Contract.Optional<IReadOnlyDictionary<string, string>>.Some(parameters),
+        };
+    }
+
+    private static bool RefusedAlone(State.RuleDefinition rule, string code)
+    {
+        try { _ = RuleCompiler.Compile([FormContractMapper.ToContractRule(rule)]); }
+        catch (RuleCompilationException ex) { return ex.Code == code; }
+        return false;
     }
 
     private RuleEvaluationResult? EvaluateRenderRules(State.FormDefinition definition, JsonDocument candidate, DateTimeOffset instant, CancellationToken cancellationToken)
