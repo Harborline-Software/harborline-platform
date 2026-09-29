@@ -7,7 +7,10 @@ namespace Harborline.Kernel.SchemaValidation.Records;
 public sealed record RecordTypeDefinition(string RecordTypeId, IReadOnlyList<FieldDefinition> Fields);
 
 /// <summary>An authored Record Type field whose stable identity is its containing type and key.</summary>
-public sealed record FieldDefinition(string FieldKey, string DisplayName);
+/// <param name="FieldKey">The field's stable key within its record type.</param>
+/// <param name="DisplayName">The author-facing label; not an identity.</param>
+/// <param name="Binding">The field-runtime kind and constraint floor, including the one value domain.</param>
+public sealed record FieldDefinition(string FieldKey, string DisplayName, FieldBindingDefinition? Binding = null);
 
 /// <summary>Validates the Records identity contract before a definition can mutate the schema registry.</summary>
 public sealed class RecordsIntentValidator
@@ -71,11 +74,18 @@ public sealed record RecordTypeSchemaCompilation(Schema? Schema, IReadOnlyList<F
 public sealed class RecordTypeSchemaCompiler
 {
     private readonly RecordsIntentValidator _intentValidator;
+    private readonly IFieldKindRuntime? _fieldKindRuntime;
+    private readonly IValueDomainAdmission? _valueDomainAdmission;
 
-    /// <summary>Creates a compiler using the supplied identity validator.</summary>
-    public RecordTypeSchemaCompiler(RecordsIntentValidator? intentValidator = null)
+    /// <summary>Creates a compiler using the supplied identity validator and field-runtime admission.</summary>
+    public RecordTypeSchemaCompiler(
+        RecordsIntentValidator? intentValidator = null,
+        IFieldKindRuntime? fieldKindRuntime = null,
+        IValueDomainAdmission? valueDomainAdmission = null)
     {
         _intentValidator = intentValidator ?? new RecordsIntentValidator();
+        _fieldKindRuntime = fieldKindRuntime;
+        _valueDomainAdmission = valueDomainAdmission;
     }
 
     /// <summary>
@@ -90,19 +100,20 @@ public sealed class RecordTypeSchemaCompiler
         ArgumentNullException.ThrowIfNull(candidate);
         ArgumentNullException.ThrowIfNull(schemaRegistry);
 
-        var refusals = _intentValidator.Validate(candidate, previousVersion);
-        if (refusals.Count != 0)
+        var refusals = new List<FieldRefusal>(_intentValidator.Validate(candidate, previousVersion));
+        var properties = new Dictionary<string, object>(StringComparer.Ordinal);
+        foreach (var (field, index) in (candidate.Fields ?? []).Select((field, index) => (field, index)))
         {
-            return new(null, refusals);
+            if (BindField(field.Binding, $"/fields/{index}/binding", refusals) is { } fieldSchema
+                && refusals.Count == 0)
+            {
+                properties.Add(field.FieldKey, fieldSchema);
+            }
         }
 
-        var properties = new Dictionary<string, object>(StringComparer.Ordinal);
-        foreach (var field in candidate.Fields ?? [])
+        if (refusals.Count != 0)
         {
-            properties.Add(field.FieldKey, new Dictionary<string, string>
-            {
-                ["type"] = "string",
-            });
+            return new(null, refusals.AsReadOnly());
         }
 
         var document = new Dictionary<string, object>
@@ -116,5 +127,39 @@ public sealed class RecordTypeSchemaCompiler
             JsonSerializer.Serialize(document),
             cancellationToken: cancellationToken);
         return new(schema, []);
+    }
+
+    // The kind's schema and the value domain's source count are the field runtime's rules;
+    // Records only routes each binding to them and keeps the authored pointer.
+    private object? BindField(FieldBindingDefinition? binding, string pointer, List<FieldRefusal> refusals)
+    {
+        if (binding is null)
+        {
+            return new Dictionary<string, string> { ["type"] = "string" };
+        }
+
+        if (_fieldKindRuntime is null || _valueDomainAdmission is null)
+        {
+            refusals.Add(new(
+                "records.field.runtime_required",
+                pointer,
+                "A bound field requires the field runtime to admit its kind and value domain."));
+            return null;
+        }
+
+        if (binding.Constraints?.ValueDomain is { } domain)
+        {
+            refusals.AddRange(_valueDomainAdmission.Validate(domain, pointer + "/constraints/value_domain"));
+        }
+
+        try
+        {
+            return _fieldKindRuntime.Bind(binding.Kind, pointer + "/kind").JsonSchema;
+        }
+        catch (FieldAdmissionException exception)
+        {
+            refusals.AddRange(exception.Refusals);
+            return null;
+        }
     }
 }

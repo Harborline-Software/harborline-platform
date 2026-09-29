@@ -230,6 +230,16 @@ export function testedInChanged(report, changed, repositoryRoot = root) {
   return reportCounts({files}).tested
 }
 
+// True only when Stryker saw every changed .cs file and created no mutant in any of them (an interface, a comment):
+// nothing mutable changed, so "0 tested" is not a gap. A missing report, a changed file absent from it, or a .razor
+// change never qualifies.
+export function nothingMutableInChanged(report, changed, repositoryRoot = root) {
+  if (!report?.files || !changed.length || changed.some(name => !name.endsWith('.cs'))) return false
+  const seen = new Map(Object.entries(report.files).map(([file, {mutants = []}]) =>
+    [path.relative(repositoryRoot, path.resolve(repositoryRoot, file)).replaceAll('\\', '/'), mutants.length]))
+  return changed.every(name => seen.get(name) === 0)
+}
+
 export function survivorsOnChangedLines(report, lines, repositoryRoot = root) {
   const found = []
   for (const [file, {mutants = []}] of Object.entries(report.files ?? {})) {
@@ -265,7 +275,9 @@ function run(repo, only, strykerArgs) {
     if (isRazor && changed.some(file => file.endsWith('.razor')) && !razorTested(report)) {
       summarize(`### ${test}\n\n**FAIL**: a .razor file changed but 0 Razor mutants were tested.`); failed = true; continue
     }
-    // ponytail: a changed .cs file with nothing mutable in it (an interface, a comment) fails here; judge it by the report.
+    if (!testedInChanged(report, changed) && nothingMutableInChanged(report, changed)) {
+      summarize(`### ${test}\n\nNo mutable code in ${changed.length} changed source file(s); Stryker created no mutant in them.`); continue
+    }
     if (!testedInChanged(report, changed)) { summarize(`### ${test}\n\n**FAIL**: ${changed.length} changed source file(s) but 0 mutants tested in them.`); failed = true; continue }
     const survivors = survivorsOnChangedLines(report, changedLines(git('diff', '-U0', 'origin/main', '--', ...changed).join('\n')))
     summarize([`### ${test}`, '', `${counts.tested} mutants tested, score ${counts.score} % (advisory: PR runs are not compared with the project floor).`, '',
