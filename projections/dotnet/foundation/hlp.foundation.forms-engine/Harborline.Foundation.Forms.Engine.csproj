@@ -7,6 +7,7 @@
     <RootNamespace>Harborline.Foundation.Forms.Engine</RootNamespace>
     <Description>Complete tenant-scoped Dynamic Forms render, validate, protect, submit, audit, outbox, and recovery orchestration.</Description>
     <PackageTags>harborline;forms;dynamic-forms;engine;outbox;idempotency</PackageTags>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageReleaseNotes>Internal-only projection; public distribution is not authorized.</PackageReleaseNotes>
   </PropertyGroup>

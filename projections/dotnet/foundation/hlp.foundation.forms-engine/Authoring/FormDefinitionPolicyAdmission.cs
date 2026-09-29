@@ -20,7 +20,6 @@ public interface IFormDefinitionPolicyAdmission
 public sealed class DefaultFormDefinitionPolicyAdmission(
     IFormFieldGovernanceResolver governance) : IFormDefinitionPolicyAdmission
 {
-    /// <summary>Validates the validate or throw contract.</summary>
     public void ValidateOrThrow(FormDefinition definition)
     {
         ArgumentNullException.ThrowIfNull(definition);

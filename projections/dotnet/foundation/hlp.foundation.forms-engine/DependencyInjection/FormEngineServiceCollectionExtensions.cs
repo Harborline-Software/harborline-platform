@@ -9,18 +9,8 @@ using Harborline.Foundation.Forms.Engine.Security;
 
 namespace Harborline.Foundation.Forms.Engine.DependencyInjection;
 
-/// <summary>Defines the supported form engine host environment values.</summary>
-public enum FormEngineHostEnvironment
-{
-    /// <summary>The development option.</summary>
-    Development,
-    /// <summary>The test option.</summary>
-    Test,
-    /// <summary>The production option.</summary>
-    Production
-}
+public enum FormEngineHostEnvironment { Development, Test, Production }
 
-/// <summary>Represents the form engine service collection extensions contract used by this package.</summary>
 public static class FormEngineServiceCollectionExtensions
 {
     private sealed class ProductionFieldSecurityAttestation;
@@ -57,7 +47,6 @@ public static class FormEngineServiceCollectionExtensions
         return services;
     }
 
-    /// <summary>Executes the add harborline forms engine contract.</summary>
     public static IServiceCollection AddHarborlineFormsEngine(
         this IServiceCollection services,
         FormEngineHostEnvironment environment,
@@ -112,7 +101,6 @@ public static class FormEngineServiceCollectionExtensions
         return services;
     }
 
-    /// <summary>Executes the add harborline forms engine tenant bound field security contract.</summary>
     public static IServiceCollection AddHarborlineFormsEngineTenantBoundFieldSecurity(
         this IServiceCollection services,
         FormFieldSecurityOptions options)
@@ -134,7 +122,6 @@ public static class FormEngineServiceCollectionExtensions
         return services;
     }
 
-    /// <summary>Executes the add harborline forms engine current request context contract.</summary>
     public static IServiceCollection AddHarborlineFormsEngineCurrentRequestContext(
         this IServiceCollection services)
     {
@@ -144,7 +131,6 @@ public static class FormEngineServiceCollectionExtensions
         return services;
     }
 
-    /// <summary>Executes the add harborline forms engine macaroon capabilities contract.</summary>
     public static IServiceCollection AddHarborlineFormsEngineMacaroonCapabilities(
         this IServiceCollection services)
     {
@@ -155,7 +141,6 @@ public static class FormEngineServiceCollectionExtensions
         return services;
     }
 
-    /// <summary>Executes the add harborline forms engine in memory submission store contract.</summary>
     public static IServiceCollection AddHarborlineFormsEngineInMemorySubmissionStore(
         this IServiceCollection services,
         FormEngineHostEnvironment environment)
@@ -169,7 +154,6 @@ public static class FormEngineServiceCollectionExtensions
         return services;
     }
 
-    /// <summary>Executes the add harborline forms engine file submission store contract.</summary>
     public static IServiceCollection AddHarborlineFormsEngineFileSubmissionStore(
         this IServiceCollection services,
         Action<FileJournalFormSubmissionStoreOptions> configure)

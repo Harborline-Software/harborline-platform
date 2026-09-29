@@ -9,13 +9,11 @@ public sealed class FormSubmissionKernelTransactionPort(IFormSubmissionTransacti
 {
     private readonly IFormSubmissionTransactionStore _store = store ?? throw new ArgumentNullException(nameof(store));
 
-    /// <summary>Executes the begin async contract.</summary>
     public async ValueTask<IKernelTransaction<FormSubmissionCommit, FormSubmissionCommitResult>> BeginAsync(
         KernelOperationIdentity operation,
         CancellationToken cancellationToken = default) =>
         new Transaction(await _store.BeginTransactionAsync(cancellationToken).ConfigureAwait(false), operation);
 
-    /// <summary>Executes the begin async contract.</summary>
     public async ValueTask<IKernelPreparedTransaction<FormSubmissionCommit, FormSubmissionCommitResult>> BeginAsync(
         CancellationToken cancellationToken = default) =>
         new Transaction(await _store.BeginTransactionAsync(cancellationToken).ConfigureAwait(false), null);
@@ -30,7 +28,6 @@ public sealed class FormSubmissionKernelTransactionPort(IFormSubmissionTransacti
         private KernelAuditEvidence? _audit;
         private KernelOperationIdentity? _operation = operation;
 
-        /// <summary>Executes the stage operation async contract.</summary>
         public ValueTask StageOperationAsync(KernelOperationIdentity operation, CancellationToken cancellationToken = default)
         {
             ArgumentNullException.ThrowIfNull(operation);
@@ -40,7 +37,6 @@ public sealed class FormSubmissionKernelTransactionPort(IFormSubmissionTransacti
             return ValueTask.CompletedTask;
         }
 
-        /// <summary>Executes the stage record async contract.</summary>
         public ValueTask StageRecordAsync(FormSubmissionCommit record, CancellationToken cancellationToken = default)
         {
             ArgumentNullException.ThrowIfNull(record);
@@ -53,7 +49,6 @@ public sealed class FormSubmissionKernelTransactionPort(IFormSubmissionTransacti
             return ValueTask.CompletedTask;
         }
 
-        /// <summary>Executes the stage audit async contract.</summary>
         public ValueTask StageAuditAsync(KernelAuditEvidence audit, CancellationToken cancellationToken = default)
         {
             ArgumentNullException.ThrowIfNull(audit);
@@ -67,14 +62,12 @@ public sealed class FormSubmissionKernelTransactionPort(IFormSubmissionTransacti
             return ValueTask.CompletedTask;
         }
 
-        /// <summary>Executes the commit async contract.</summary>
         public ValueTask<FormSubmissionCommitResult> CommitAsync(CancellationToken cancellationToken = default)
         {
             if (_commit is null || _audit is null) throw new InvalidOperationException("A complete record and audit set is required.");
             return store.CommitAsync(_commit, cancellationToken);
         }
 
-        /// <summary>Executes the rollback async contract.</summary>
         public ValueTask RollbackAsync(CancellationToken cancellationToken = default)
         {
             _commit = null;
@@ -82,7 +75,6 @@ public sealed class FormSubmissionKernelTransactionPort(IFormSubmissionTransacti
             return store.RollbackAsync(cancellationToken);
         }
 
-        /// <summary>Executes the dispose async contract.</summary>
         public async ValueTask DisposeAsync()
         {
             _commit = null;

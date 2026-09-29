@@ -16,7 +16,6 @@ using Harborline.Kernel.Core;
 
 namespace Harborline.Foundation.Forms.Engine;
 
-/// <summary>Represents the form engine contract used by this package.</summary>
 public sealed class FormEngine : IFormEngine
 {
     private readonly IFormExecutionContextProvider _contexts;
@@ -32,7 +31,6 @@ public sealed class FormEngine : IFormEngine
     private readonly FormFieldBinding? _fieldBinding;
     private readonly IFormSubmitGateAccess? _submitGates;
 
-    /// <summary>Initializes the form engine instance with the supplied dependencies.</summary>
     public FormEngine(
         IFormExecutionContextProvider contexts,
         Harborline.Foundation.Forms.IFormDefinitionStore definitions,
@@ -65,7 +63,6 @@ public sealed class FormEngine : IFormEngine
             _fieldBinding = new(fieldBindings, fieldKinds ?? throw new ArgumentNullException(nameof(fieldKinds)), fieldDomains ?? throw new ArgumentNullException(nameof(fieldDomains)));
     }
 
-    /// <summary>Executes the render async contract.</summary>
     public async ValueTask<Contract.FormView> RenderAsync(
         State.FormDefinitionId formId,
         Harborline.Foundation.Assets.Common.EntityId? instanceId,
@@ -115,7 +112,6 @@ public sealed class FormEngine : IFormEngine
             FormCandidateEvaluator.HiddenPages(definition, ruleCandidate, rulesResult, instant, cancellationToken));
     }
 
-    /// <summary>Validates the validate async contract.</summary>
     public async ValueTask<Contract.ValidationResult> ValidateAsync(
         State.FormDefinitionId formId,
         JsonDocument candidate,
@@ -134,7 +130,6 @@ public sealed class FormEngine : IFormEngine
         return new Contract.ValidationResult { IsValid = evaluation.Errors.Count == 0, Errors = evaluation.Errors };
     }
 
-    /// <summary>Executes the submit async contract.</summary>
     public async ValueTask<FormSubmitReceipt> SubmitAsync(FormSubmitRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -200,7 +195,6 @@ public sealed class FormEngine : IFormEngine
         }
     }
 
-    /// <summary>Executes the recover projections async contract.</summary>
     public async ValueTask<FormProjectionRecoveryResult> RecoverProjectionsAsync(
         int maximumDeliveries,
         CancellationToken cancellationToken = default)
@@ -426,7 +420,6 @@ public sealed class FormEngine : IFormEngine
 
     private sealed class PinnedClock(DateTimeOffset instant) : TimeProvider
     {
-        /// <summary>Calculates the get utc now contract.</summary>
         public override DateTimeOffset GetUtcNow() => instant;
     }
 
@@ -444,7 +437,6 @@ public sealed class FormEngine : IFormEngine
         IReadOnlySet<string> SensitiveFields,
         IReadOnlySet<string> WithheldFields) : IDisposable
     {
-        /// <summary>Executes the dispose contract.</summary>
         public void Dispose() => Candidate.Dispose();
     }
 
