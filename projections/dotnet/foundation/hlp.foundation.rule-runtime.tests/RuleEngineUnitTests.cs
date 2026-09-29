@@ -312,6 +312,7 @@ public sealed class RuleEngineUnitTests
     [InlineData("two-compute", "1310725002", "796747264317950648")]
     [InlineData("aggregate-validate", "1310725002", "796829528653110775")]
     [InlineData("row-two", "1310725002", "1573833540185021324")]
+    [InlineData("row-26-over-default", "1310725002", "103577143680027831354424000")]
     public void Compiler_pins_public_work_proof_for_cross_tier_calibration(string name, string resultBytes, string work)
     {
         var dynamic = Compute("dynamic", "result", "{\"missing\":[{\"var\":\"keys\"}]}");
@@ -324,9 +325,12 @@ public sealed class RuleEngineUnitTests
             "aggregate-validate" => [dynamic, RuleDefinitionFactory.Create("aggregate", RuleTier.JsonLogic, RuleScope.Field,
                 "check", "{\"==\":[{\"var\":\"table.sum(items.amount)\"},0]}", RuleActionKind.Validate)],
             "row-two" => [Compute("row", "items/calculated", "{\"missing\":[{\"var\":\"rowKeys\"}]}", RuleScope.Row)],
+            // T-818: the smallest dynamic Row program over the default static work ceiling, compiled under a permissive ceiling.
+            "row-26-over-default" => [.. Enumerable.Range(0, 26).Select(i => Compute($"row{i}", $"items/c{i}", "{\"missing\":[{\"var\":\"rowKeys\"}]}", RuleScope.Row))],
             _ => throw new ArgumentOutOfRangeException(nameof(name)),
         };
         var limits = name == "row-two" ? RuleEngineLimits.Default with { MaxGraphNodes = 2, MaxTableRowsPerAggregate = 2 }
+            : name == "row-26-over-default" ? RuleEngineLimits.Default with { MaxStaticWork = System.Numerics.BigInteger.Pow(10, 27) }
             : RuleEngineLimits.Default;
         var proof = RuleCompiler.Compile(rules, limits).WorkProof;
 

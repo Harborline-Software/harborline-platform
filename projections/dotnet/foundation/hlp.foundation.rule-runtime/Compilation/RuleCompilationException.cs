@@ -16,6 +16,9 @@ public sealed class RuleCompilationException : Exception
     /// <summary>For a cycle rejection, the cycle path (cell keys + the rules forming it).</summary>
     public IReadOnlyList<string>? CyclePath { get; }
 
+    /// <summary>Stable string params (for <c>rule.compile.work_exceeded</c>: <c>proof</c> and <c>ceiling</c>); empty otherwise.</summary>
+    public IReadOnlyDictionary<string, string> Params { get; } = new Dictionary<string, string>();
+
     public RuleCompilationException(string code, string message, string? ruleId = null, IReadOnlyList<string>? cyclePath = null)
         : base(message)
     {
@@ -23,4 +26,9 @@ public sealed class RuleCompilationException : Exception
         RuleId = ruleId;
         CyclePath = cyclePath;
     }
+
+    /// <summary>A graph-level refusal (no single rule) carrying stable string params.</summary>
+    public RuleCompilationException(string code, string message, IReadOnlyDictionary<string, string> @params)
+        : this(code, message)
+        => Params = new Dictionary<string, string>(@params);
 }
