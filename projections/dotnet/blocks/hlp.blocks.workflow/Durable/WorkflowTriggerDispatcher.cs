@@ -82,8 +82,10 @@ public sealed class WorkflowTriggerDispatcher : IWorkflowTriggerDispatcher
     }
 
     /// <inheritdoc />
-    public async Task<WorkflowDispatchResult> DispatchAsync(WorkflowTrigger trigger, CancellationToken ct = default)
+    public async Task<WorkflowDispatchResult> DispatchAsync(
+        WorkflowTrigger trigger, WorkflowDispatchAuthority authority, CancellationToken ct = default)
     {
+        ArgumentNullException.ThrowIfNull(authority);
         var instance = await _store.LoadAsync(trigger.InstanceId, ct).ConfigureAwait(false);
         if (instance is null)
         {
@@ -106,6 +108,21 @@ public sealed class WorkflowTriggerDispatcher : IWorkflowTriggerDispatcher
         if (recorded is not null)
         {
             return WorkflowDispatchResult.ReplayedNoOp;
+        }
+
+        // ── AUTHORITY GATE ── (T-525 item 1) Verified here, before branch selection, so a typed handler runs
+        // under exactly the authority the interpreter does. The engine verifies the host's decision; it never
+        // re-decides it.
+        if (!authority.Allowed
+            || string.IsNullOrWhiteSpace(authority.Principal)
+            || authority.Tenant != instance.TenantId
+            || authority.Operation != WorkflowDispatchAuthority.RequiredOperation
+            || authority.RecordKind != WorkflowDispatchAuthority.RequiredRecordKind
+            || authority.RecordId != instance.Id)
+        {
+            throw new UnauthorizedAccessException(
+                $"Dispatch of workflow instance '{instance.Id}' refused: the authorization decision does not allow " +
+                $"'{WorkflowDispatchAuthority.RequiredOperation}' on this instance in tenant '{instance.TenantId}'.");
         }
 
         // ── PINNED DEFINITION GATE ──

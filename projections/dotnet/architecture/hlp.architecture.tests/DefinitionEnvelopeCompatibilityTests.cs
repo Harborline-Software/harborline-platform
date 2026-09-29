@@ -79,7 +79,7 @@ public sealed class DefinitionEnvelopeCompatibilityTests
         AssertSameEnvelopeType(expectedRefusal, Assert.Single(rulesRefusals).GetType());
 
         // Documents: AdmitCatalogueBody refuses malformed body JSON before touching template or surfaces.
-        var noopSurfaces = new TemplateSurfaces(_ => null, (_, _) => [], (_, _) => null);
+        var noopSurfaces = new TemplateSurfaces(_ => null, (_, _) => [], (_, _) => null, PlatformPackageSeed.ContractWindow);
         var documentsRefusals = TemplateDefinitionAdmission.AdmitCatalogueBody(
             "acme", "not-json-probe", "1.0.0", "not json", publishing: false, noopSurfaces);
         AssertSameEnvelopeType(expectedRefusal, Assert.Single(documentsRefusals).GetType());

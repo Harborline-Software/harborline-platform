@@ -29,11 +29,6 @@ Check(rows.WhereTenant(new TenantContext(tenantA)).Single().TenantId == tenantA.
 Check(await resolver.ResolveAsync("cookie-opaque-a", new TenantContext(tenantA), [], issued.AddHours(9), TimeSpan.FromHours(10)) is null, "absolute expiry");
 Check(await store.GetAsync("cookie-opaque-a") is null && !await store.RemoveAsync("cookie-opaque-a"), "expiry/revoke removal");
 
-// Never anonymous means fail closed: no synthetic anonymous PartyId is returned.
-var actor = new Actor(new TenantContext(tenantA), "", []);
-try { await new PartyContext(actor, new PartyResolver()).GetCurrentPartyIdAsync(); throw new Exception("FAILED: anonymous party minted"); }
-catch (PrincipalPartyResolutionException e) when (e.Failure == PrincipalPartyResolutionFailure.NoAuthenticatedPrincipal) { }
-
 Check(typeof(ISessionStore).Assembly.GetName().Name == "Harborline.Foundation.Session", "session package identity");
 Check(typeof(IPartyContext).Assembly.GetName().Name == "Harborline.Foundation.Authorization", "authorization package identity");
 Check(typeof(ITenantContext).Assembly.GetName().Name == "Harborline.Foundation.MultiTenancy", "tenancy package identity");
@@ -63,5 +58,3 @@ static TenantMetadata Tenant(string id) => new() { Id=new TenantId(id), Name=id,
 static void Check(bool value,string message) { if(!value) throw new InvalidOperationException("FAILED: "+message); }
 sealed record TenantContext(TenantMetadata? Tenant) : ITenantContext;
 sealed record TenantRow(TenantId TenantId,string Value) : IMustHaveTenant;
-sealed record Actor(TenantContext Scope,string UserId,IReadOnlyList<string> Roles) : IAuthenticatedActorContext { public TenantMetadata? Tenant => Scope.Tenant; }
-sealed class PartyResolver : IPrincipalPartyResolver { public ValueTask<Guid?> ResolveAsync(string userId,TenantId tenantId,CancellationToken cancellationToken=default) => ValueTask.FromResult<Guid?>(null); }

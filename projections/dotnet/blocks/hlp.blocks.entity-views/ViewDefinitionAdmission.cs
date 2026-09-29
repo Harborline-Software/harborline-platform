@@ -58,6 +58,12 @@ public sealed class ViewDefinitionAdmission(
                 ViewDefinitionCodes.RowVisibilityRuleForbidden,
                 "/rowVisibilityRule"));
         }
+        // T-572 (rulings 85-88): View maps the shared contract refusal into its own record.
+        var contract = PlatformPackageSeed.ContractWindow.Check(draft.Definition.Envelope.Contract, null);
+        if (contract is not null)
+        {
+            refusals.Add(new(contract.Code, contract.Pointer));
+        }
         if (draft.ScopeToken is not null)
         {
             refusals.Add(new(
@@ -319,17 +325,21 @@ public sealed class ViewDefinitionAuthoring(
         ViewDefinitionDraft draft,
         CancellationToken cancellationToken = default)
     {
-        await _admission.ValidateAsync(draft, cancellationToken).ConfigureAwait(false);
+        // Ruling 85: the authoring surface stamps the app's contract before admission; authors never type it.
         var window = PlatformPackageSeed.ContractWindow;
-        var definition = draft.Definition with
+        var stamped = draft with
         {
-            Envelope = draft.Definition.Envelope with
+            Definition = draft.Definition with
             {
-                Contract = new DefinitionContractVersion(window.Major, window.Minor),
+                Envelope = draft.Definition.Envelope with
+                {
+                    Contract = new DefinitionContractVersion(window.Major, window.Minor),
+                },
             },
         };
+        await _admission.ValidateAsync(stamped, cancellationToken).ConfigureAwait(false);
         return await _store.CreateDraftAsync(
-            definition,
+            stamped.Definition,
             draft.Binding,
             cancellationToken).ConfigureAwait(false);
     }

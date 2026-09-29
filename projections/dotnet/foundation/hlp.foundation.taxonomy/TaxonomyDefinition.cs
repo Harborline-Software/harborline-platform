@@ -88,12 +88,13 @@ public static class TaxonomyDefinitionAdmission
 {
     public const string HarborlineActorId = "harborline";
     public const int MaximumParentTraversalDepth = 64;
-    public static IReadOnlyList<TaxonomyRefusal> AdmitJson(string bodyJson, TaxonomyAdmissionPhase phase, TaxonomyCatalogueCoordinates? catalogue = null, TaxonomyDefinition? previous = null)
+    /// <summary>Admits a canonical JSON body. <paramref name="window"/> is the host's application-contract window from the platform seed (T-572), required at every phase, install included.</summary>
+    public static IReadOnlyList<TaxonomyRefusal> AdmitJson(string bodyJson, TaxonomyAdmissionPhase phase, DefinitionContractWindow window, TaxonomyCatalogueCoordinates? catalogue = null, TaxonomyDefinition? previous = null)
     {
         try { using var document = JsonDocument.Parse(bodyJson); if (document.RootElement.ValueKind != JsonValueKind.Object) return [new("definition.settings_not_object", "/")]; }
         catch (JsonException) { return [new("definition.body_invalid", "/")]; } catch (ArgumentNullException) { return [new("definition.body_invalid", "/")]; }
         TaxonomyDefinition definition; try { definition = TaxonomyDefinitionJson.Deserialize(bodyJson); } catch (JsonException) { return [new("definition.body_invalid", "/")]; }
-        var refusals = Validate(definition, phase, previous).ToList();
+        var refusals = Validate(definition, phase, window, previous).ToList();
         if (catalogue is not null && phase != TaxonomyAdmissionPhase.Author)
         {
             if (definition.Tenant != catalogue.Tenant) refusals.Add(new("definition.catalogue_mismatch", "/tenant"));
@@ -102,22 +103,25 @@ public static class TaxonomyDefinitionAdmission
         }
         return refusals;
     }
-    public static TaxonomyDefinition Require(TaxonomyDefinition definition, TaxonomyAdmissionPhase phase, TaxonomyDefinition? previous = null, TaxonomyDefinition? vendor = null)
+    public static TaxonomyDefinition Require(TaxonomyDefinition definition, TaxonomyAdmissionPhase phase, DefinitionContractWindow window, TaxonomyDefinition? previous = null, TaxonomyDefinition? vendor = null)
     {
-        var refusals = Validate(definition, phase, previous, vendor); return refusals.Count == 0 ? definition : throw new TaxonomyAdmissionException(refusals);
+        var refusals = Validate(definition, phase, window, previous, vendor); return refusals.Count == 0 ? definition : throw new TaxonomyAdmissionException(refusals);
     }
     /// <summary><paramref name="vendor"/> is the resolved vendor scheme an overlay names by reference
     /// (taxonomy-auth-9). It is optional because admission at Author phase may run before the vendor
     /// is resolvable; when supplied, taxonomy-auth-22 (an overlay copying a vendor node) and an
     /// overlay designation naming an unknown vendor node both refuse here, at the same admission call
     /// every other structural refusal runs through, rather than only in a separately callable helper.</summary>
-    public static IReadOnlyList<TaxonomyRefusal> Validate(TaxonomyDefinition definition, TaxonomyAdmissionPhase phase, TaxonomyDefinition? previous = null, TaxonomyDefinition? vendor = null)
+    public static IReadOnlyList<TaxonomyRefusal> Validate(TaxonomyDefinition definition, TaxonomyAdmissionPhase phase, DefinitionContractWindow window, TaxonomyDefinition? previous = null, TaxonomyDefinition? vendor = null)
     {
-        ArgumentNullException.ThrowIfNull(definition); var refusals = new List<TaxonomyRefusal>();
+        ArgumentNullException.ThrowIfNull(definition); ArgumentNullException.ThrowIfNull(window); var refusals = new List<TaxonomyRefusal>();
         if (!IsThreePartVersion(definition.Version)) refusals.Add(new("definition.version_invalid", "/version"));
         if (definition.SchemaVersion != 1) refusals.Add(new("definition.schema_version_unsupported", "/schema_version"));
         if (definition.Envelope is null) { if (phase != TaxonomyAdmissionPhase.Author) refusals.Add(new("definition.envelope_required", "/envelope")); }
         else if (definition.Envelope.Identity != definition.DefinitionId.ToString() || definition.Envelope.Version != definition.Version || definition.Envelope.Tenant != definition.Tenant) refusals.Add(new("definition.envelope_mismatch", "/envelope"));
+        // T-572 (rulings 85-88, Q6): the contract travels with the envelope, inside the host's window.
+        var contract = definition.Envelope is null ? null : window.Check(definition.Envelope.Contract, null);
+        if (contract is not null) refusals.Add(new(contract.Code, contract.Pointer));
         if (phase == TaxonomyAdmissionPhase.Author && definition.Governance == TaxonomyGovernanceRegime.Authoritative) refusals.Add(new("definition.governance_not_authorable", "/governance"));
         if (definition.Governance == TaxonomyGovernanceRegime.Authoritative && definition.Owner != HarborlineActorId) refusals.Add(new("definition.authoritative_owner_invalid", "/owner"));
         ValidateOverlay(definition, refusals);
@@ -235,8 +239,8 @@ public static class TaxonomyDefinitionAdmission
 public sealed record TaxonomyDefinitionPackageEntry(string DefinitionId, string Version, ReadOnlyMemory<byte> Content) { public int ContentKind => TaxonomyPackIdentity.ContentKind; }
 public static class TaxonomyDefinitionPackExporter
 {
-    public static TaxonomyDefinitionPackageEntry Export(TaxonomyDefinition definition, TaxonomyDefinition? previous = null, TaxonomyDefinition? vendor = null)
+    public static TaxonomyDefinitionPackageEntry Export(TaxonomyDefinition definition, DefinitionContractWindow window, TaxonomyDefinition? previous = null, TaxonomyDefinition? vendor = null)
     {
-        TaxonomyDefinitionAdmission.Require(definition, TaxonomyAdmissionPhase.Publish, previous, vendor); return new(definition.DefinitionId.ToString(), definition.Version, TaxonomyDefinitionJson.SerializeCanonical(definition));
+        TaxonomyDefinitionAdmission.Require(definition, TaxonomyAdmissionPhase.Publish, window, previous, vendor); return new(definition.DefinitionId.ToString(), definition.Version, TaxonomyDefinitionJson.SerializeCanonical(definition));
     }
 }

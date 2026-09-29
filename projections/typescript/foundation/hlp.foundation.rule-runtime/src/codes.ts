@@ -30,4 +30,5 @@ export const Codes = {
   compileUnsupportedTier: 'rule.compile.unsupported_tier',
   compileUnknownAction: 'rule.compile.unknown_action',
   compileBadGrammar: 'rule.compile.bad_grammar',
+  compileWorkExceeded: 'rule.compile.work_exceeded',
 } as const

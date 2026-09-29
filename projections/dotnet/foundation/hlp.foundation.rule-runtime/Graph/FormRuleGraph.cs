@@ -53,8 +53,10 @@ public sealed class FormRuleGraph : IFormRuleGraph
         Compiled = compiled ?? throw new ArgumentNullException(nameof(compiled));
         _limits = limits ?? RuleEngineLimits.Default;
         _clock = clock ?? throw new ArgumentNullException(nameof(clock));
-        _refusal = BorrowerEnvironmentAdmission.Check(admission, compiled);
         WorkProof = CoreWorkDerivation.DeriveGraph(Compiled.Rules, _limits);
+        // T-818: the admission refusal keeps priority; otherwise the proof under THIS graph's limits must fit.
+        _refusal = BorrowerEnvironmentAdmission.Check(admission, compiled)
+            ?? RuleCompiler.StaticWorkRefusal(WorkProof, _limits)?.Code;
     }
 
     /// <inheritdoc />

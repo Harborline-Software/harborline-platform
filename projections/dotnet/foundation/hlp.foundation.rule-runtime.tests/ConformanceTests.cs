@@ -58,7 +58,11 @@ public sealed class ConformanceTests
         // of form-graph outcomes.
         if (caseObj.ContainsKey("expectedCompileError"))
         {
-            Assert.Equal(caseObj["expectedCompileError"]!["code"]!.GetValue<string>(), CorpusLoader.CompileRefusalCode(caseObj));
+            var refusal = CorpusLoader.CompileRefusal(caseObj);
+            Assert.Equal(caseObj["expectedCompileError"]!["code"]!.GetValue<string>(), refusal.Code);
+            // T-818: a case that pins params pins them exactly in both tiers.
+            if (caseObj["expectedCompileError"]!["params"] is JsonObject expectedParams)
+                Assert.Equal(expectedParams.ToDictionary(kv => kv.Key, kv => kv.Value!.GetValue<string>()), refusal.Params);
             return;
         }
         if (caseObj.ContainsKey("guardValue"))

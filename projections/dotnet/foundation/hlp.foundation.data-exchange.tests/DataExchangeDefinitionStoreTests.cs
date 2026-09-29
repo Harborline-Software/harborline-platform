@@ -14,6 +14,7 @@ namespace Harborline.Foundation.DataExchange.Tests;
 /// </summary>
 public sealed class DataExchangeDefinitionStoreTests
 {
+    private static readonly Harborline.Foundation.Definitions.DefinitionContractWindow ContractWindow = PlatformPackageSeed.ContractWindow;
     private const string Tenant = "tenant-a";
     private const string Key = "exchange.customers";
     private static readonly DefinitionKey CatalogueKey = new(Tenant, DefinitionKind.DataExchange, Key);
@@ -38,6 +39,47 @@ public sealed class DataExchangeDefinitionStoreTests
     }
 
     private static string? ContractOf(byte[] json) => System.Text.Json.Nodes.JsonNode.Parse(json)!["envelope"]!["contract"]?.ToJsonString();
+
+    [Theory(DisplayName = "T-572 slice 3 (rulings 85-88, Q6): an envelope whose contract is missing or outside the host window is refused at author, publish and install at /envelope/contract; the seed's {1, 0} is admitted")]
+    [InlineData(null, null, "definition.contract.missing")]
+    [InlineData(-1, 0, "definition.contract.missing")]
+    [InlineData(2, 0, "definition.contract.out_of_window")]
+    [InlineData(1, 1, "definition.contract.out_of_window")]
+    [InlineData(0, 0, "definition.contract.out_of_window")]
+    [InlineData(1, 0, null)]
+    public void Envelope_contract_outside_the_window_is_refused_at_every_phase(int? major, int? minor, string? code)
+    {
+        var definition = Definition("1.0.0") with { Envelope = Definition("1.0.0").Envelope! with { Contract = major is null ? null : new(major.Value, minor!.Value) } };
+        var body = System.Text.Encoding.UTF8.GetString(DataExchangeDefinitionJson.SerializeCanonical(definition));
+        (string, string)[] expected = code is null ? [] : [(code, "/envelope/contract")];
+        foreach (var phase in new[] { DataExchangeAdmissionPhase.Author, DataExchangeAdmissionPhase.Publish, DataExchangeAdmissionPhase.Install })
+        {
+            Assert.Equal(expected, DataExchangeDefinitionAdmission.Validate(definition, phase, ContractWindow, Sources()).Select(refusal => (refusal.Code, refusal.Pointer)));
+            Assert.Equal(expected, DataExchangeDefinitionAdmission.AdmitJson(body, phase, ContractWindow, Sources()).Select(refusal => (refusal.Code, refusal.Pointer)));
+        }
+        if (code is null) DataExchangeDefinitionPackExporter.Export(definition, ContractWindow, Sources());
+        else Assert.Throws<DataExchangeAdmissionException>(() => DataExchangeDefinitionPackExporter.Export(definition, ContractWindow, Sources()));
+    }
+
+    [Fact(DisplayName = "T-572 slice 3 (Q6): the contract travels with the envelope; an envelope-less draft is still admitted at author")]
+    public void Envelope_less_author_draft_needs_no_contract()
+        => Assert.Empty(DataExchangeDefinitionAdmission.Validate(Definition("1.0.0") with { Envelope = null }, DataExchangeAdmissionPhase.Author, ContractWindow, Sources()));
+
+    [Fact(DisplayName = "T-572 slice 3: the window is a required argument; a null window throws rather than admitting without the check")]
+    public void Null_window_is_refused_by_argument_check()
+    {
+        Assert.Equal("window", Assert.Throws<ArgumentNullException>(() => DataExchangeDefinitionAdmission.Validate(Definition("1.0.0"), DataExchangeAdmissionPhase.Install, null!, Sources())).ParamName);
+        Assert.Equal("definition", Assert.Throws<ArgumentNullException>(() => DataExchangeDefinitionAdmission.Validate(null!, DataExchangeAdmissionPhase.Install, ContractWindow, Sources())).ParamName);
+    }
+
+    [Fact(DisplayName = "T-572 slice 3: the check reads the supplied window, not a fixed value")]
+    public void Envelope_contract_is_checked_against_the_supplied_window()
+    {
+        var newer = Definition("1.0.0") with { Envelope = Definition("1.0.0").Envelope! with { Contract = new(1, 1) } };
+        Assert.Empty(DataExchangeDefinitionAdmission.Validate(newer, DataExchangeAdmissionPhase.Install, new(1, 1, 1), Sources()));
+        Assert.Equal([("definition.contract.out_of_window", "/envelope/contract")],
+            DataExchangeDefinitionAdmission.Validate(Definition("1.0.0"), DataExchangeAdmissionPhase.Install, new(2, 0, 2), Sources()).Select(refusal => (refusal.Code, refusal.Pointer)));
+    }
 
     [Fact]
     [Trait("Holds", "data-exchange-ck-7")]
@@ -136,7 +178,7 @@ public sealed class DataExchangeDefinitionStoreTests
 
         Assert.Equal(first, second);
         Assert.Equal((byte)'\n', first[^1]);
-        Assert.Empty(DataExchangeDefinitionAdmission.Validate(parsed, DataExchangeAdmissionPhase.Install, Sources("batchSize", "encoding")));
+        Assert.Empty(DataExchangeDefinitionAdmission.Validate(parsed, DataExchangeAdmissionPhase.Install, ContractWindow, Sources("batchSize", "encoding")));
         Assert.Equal(1, parsed.SchemaVersion);
         Assert.Equal("erpnext", parsed.ExchangeKind);
         Assert.Equal("Customer opening load", parsed.Title);
@@ -167,7 +209,7 @@ public sealed class DataExchangeDefinitionStoreTests
     [Trait("Holds", "data-exchange-ck-25")]
     public void Pack_export_carries_content_kind_11_through_the_platform_package_with_closure_and_digest()
     {
-        var entry = DataExchangeDefinitionPackExporter.Export(Definition("1.0.0"), Sources());
+        var entry = DataExchangeDefinitionPackExporter.Export(Definition("1.0.0"), ContractWindow, Sources());
         var manifest = new PlatformPackageManifest(1, "tenant-a.customers", "1.0.0",
         [
             new PlatformPackageItem("package", PlatformSeedStage.PackageRecord, [], PlatformPackageContent.PresentJson("{}"u8)),
@@ -206,7 +248,7 @@ public sealed class DataExchangeDefinitionStoreTests
         Assert.DoesNotContain("refresh_schedule_reference", json, StringComparison.Ordinal);
         Assert.DoesNotContain("cadence", json, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("cron", json, StringComparison.OrdinalIgnoreCase);
-        Assert.Empty(DataExchangeDefinitionAdmission.Validate(created, DataExchangeAdmissionPhase.Publish, Sources()));
+        Assert.Empty(DataExchangeDefinitionAdmission.Validate(created, DataExchangeAdmissionPhase.Publish, ContractWindow, Sources()));
     }
 
     public static TheoryData<string, string, string> AuthoringRefusals => new()
@@ -270,7 +312,7 @@ public sealed class DataExchangeDefinitionStoreTests
         var body = member.Length == 0 ? valueJson : Tamper(Definition("1.0.0"), member, valueJson);
         var catalogue = Catalogue();
 
-        var refusals = DataExchangeDefinitionAdmission.AdmitJson(body, DataExchangeAdmissionPhase.Install, Sources());
+        var refusals = DataExchangeDefinitionAdmission.AdmitJson(body, DataExchangeAdmissionPhase.Install, ContractWindow, Sources());
         var refused = await Assert.ThrowsAsync<DefinitionRefusalException>(
             () => catalogue.SaveDraftAsync(new(CatalogueKey, "1.0.0", "1.0.0", body), 0, "install").AsTask());
 
@@ -302,12 +344,12 @@ public sealed class DataExchangeDefinitionStoreTests
     {
         var draft = Definition("1.0.0") with { Envelope = null };
 
-        Assert.Empty(DataExchangeDefinitionAdmission.Validate(draft, DataExchangeAdmissionPhase.Author, Sources()));
-        Assert.Contains(DataExchangeDefinitionAdmission.Validate(draft, DataExchangeAdmissionPhase.Publish, Sources()),
+        Assert.Empty(DataExchangeDefinitionAdmission.Validate(draft, DataExchangeAdmissionPhase.Author, ContractWindow, Sources()));
+        Assert.Contains(DataExchangeDefinitionAdmission.Validate(draft, DataExchangeAdmissionPhase.Publish, ContractWindow, Sources()),
             refusal => refusal.Code == "definition.envelope_required");
-        Assert.Contains(DataExchangeDefinitionAdmission.Validate(draft, DataExchangeAdmissionPhase.Install, Sources()),
+        Assert.Contains(DataExchangeDefinitionAdmission.Validate(draft, DataExchangeAdmissionPhase.Install, ContractWindow, Sources()),
             refusal => refusal.Code == "definition.envelope_required");
-        Assert.Throws<DataExchangeAdmissionException>(() => DataExchangeDefinitionPackExporter.Export(draft, Sources()));
+        Assert.Throws<DataExchangeAdmissionException>(() => DataExchangeDefinitionPackExporter.Export(draft, ContractWindow, Sources()));
     }
 
     [Theory]
@@ -328,7 +370,7 @@ public sealed class DataExchangeDefinitionStoreTests
             },
         };
 
-        var refusals = DataExchangeDefinitionAdmission.Validate(definition, DataExchangeAdmissionPhase.Author, Sources(parameter));
+        var refusals = DataExchangeDefinitionAdmission.Validate(definition, DataExchangeAdmissionPhase.Author, ContractWindow, Sources(parameter));
 
         Assert.Contains(refusals, refusal => refusal.Code == "definition.credential_forbidden");
     }
@@ -345,7 +387,7 @@ public sealed class DataExchangeDefinitionStoreTests
             Source = Definition("1.0.0").Source with { SecretReference = secretReference },
         };
 
-        var refusals = DataExchangeDefinitionAdmission.Validate(definition, DataExchangeAdmissionPhase.Author, Sources());
+        var refusals = DataExchangeDefinitionAdmission.Validate(definition, DataExchangeAdmissionPhase.Author, ContractWindow, Sources());
 
         Assert.Contains(refusals, refusal => refusal.Code == "definition.secret_reference_invalid");
     }
@@ -389,6 +431,7 @@ public sealed class DataExchangeDefinitionStoreTests
                 .AdmitJson(
                     document.BodyJson,
                     phase == DefinitionAdmissionPhase.Publish ? DataExchangeAdmissionPhase.Publish : DataExchangeAdmissionPhase.Author,
+                    ContractWindow,
                     sources,
                     new(document.Key.Tenant, document.Key.DefinitionId, document.Version))
                 .Select(refusal => new DefinitionRefusal(refusal.Code, refusal.Pointer))

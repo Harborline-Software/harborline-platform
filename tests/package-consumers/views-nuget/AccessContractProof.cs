@@ -2,8 +2,8 @@ using System.Text.Json.Nodes;
 using Harborline.Contracts.Authorization;
 using Harborline.Foundation.Authorization;
 
-// Host boundary fixture: uses the existing role resolver and scope evaluator with effective-dated
-// grants. The package providers are production AccessProvider, AccessScopeEvaluator and trace reader.
+// Host boundary fixture supplies its own effective-dated grant and scope logic. The package providers
+// are production AccessProvider and trace reader; scope evaluation remains the host gate's concern.
 internal sealed class FixtureAuthorizationGate : IAuthorizationDecider
 {
     public static readonly DateTimeOffset Epoch = DateTimeOffset.Parse("2026-09-18T12:00:00Z");
@@ -22,23 +22,19 @@ internal sealed class FixtureAuthorizationGate : IAuthorizationDecider
         cancellationToken.ThrowIfCancellationRequested();
         Requests.Add(request);
         var inForce = !Revoked && request.At >= ValidFrom && request.At < ValidUntil;
-        var scope = new AccessScopeEvaluator(at => new Harborline.Foundation.RuleEngine.GuardEvaluator(new FixedTimeProvider(at))).Evaluate(
-            "{\"and\":[{\"==\":[{\"var\":\"record.owner\"},{\"var\":\"principal\"}]},{\"==\":[{\"var\":\"record.region\"}," + System.Text.Json.JsonSerializer.Serialize(Scope) + "]}]}",
-            request, new(request.Principal, request.Tenant, request.Record.Kind, request.Record.Id, request.At,
-                ["record.owner", "record.region", "principal"]), cancellationToken);
+        var scopeAllowed = request.Record.Fields.TryGetValue("owner", out var owner)
+            && owner?.GetValue<string>() == request.Principal
+            && request.Record.Fields.TryGetValue("region", out var region)
+            && region?.GetValue<string>() == Scope;
         var audit = request.Operation is "audit:read" or "audit:trace-read";
         var open = request.Operation is "work:read" or "work.open";
-        var held = audit ? request.Principal == "auditor" : inForce && (open ? request.Principal == "party:operator-1" : scope.Allowed);
+        var held = audit ? request.Principal == "auditor" : inForce && (open ? request.Principal == "party:operator-1" : scopeAllowed);
         var allowed = RoleGateResolver.Allows(new([Reader]), Vocabulary, new(held ? [Reader] : []));
         return ValueTask.FromResult(new AuthorizationDecisionEvidence(request, allowed,
             allowed ? "None" : "NoEffectiveRole", allowed ? "grant:fixture@1" : "none",
             held ? [new(Reader.Name, Scope, ValidFrom, ValidUntil, "fixture", 1, "reader", request.Operation, true, allowed)] : [], []));
     }
 
-    private sealed class FixedTimeProvider(DateTimeOffset instant) : TimeProvider
-    {
-        public override DateTimeOffset GetUtcNow() => instant;
-    }
 }
 
 internal static class AccessContractProof

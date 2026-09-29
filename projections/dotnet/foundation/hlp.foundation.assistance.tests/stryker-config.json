@@ -9,7 +9,7 @@
     "thresholds": {
       "high": 80,
       "low": 60,
-      "break": 53
+      "break": 59
     },
     "reporters": [
       "json"
