@@ -84,7 +84,51 @@ public sealed class FormEngineOrchestrationTests
         Assert.Equal(0, (await harness.Store.CountsAsync()).Submissions);
     }
 
-    private static Task<Harness> TransactionHarnessAsync(List<string> events, string validation) =>
+    // ck-7 S5 (DES-0029, T-487): a Validate rule that runs past the runtime step budget refuses the submit with
+    // rule.budget_exceeded naming the rule, inside the transaction, and nothing is committed. `cat` charges its
+    // operand's length, so one 250 001-character field is one step past the default 250 000 budget.
+    [Fact]
+    public async Task Submit_rule_over_the_step_budget_refuses_naming_the_rule_and_commits_nothing()
+    {
+        var events = new List<string>();
+        var harness = await TransactionHarnessAsync(events, """{"==":[{"cat":[{"var":"name"}]},"x"]}""", "over.budget");
+        using var candidate = JsonDocument.Parse(JsonSerializer.Serialize(new { name = new string('a', 250_001) }));
+
+        var refusal = await Assert.ThrowsAsync<FormEngineValidationException>(async () =>
+            await harness.Engine.SubmitAsync(new(harness.Definition.Id, candidate, "idem")));
+
+        var error = Assert.Single(refusal.Errors);
+        Assert.Equal("rule.budget_exceeded", error.Code.Value);
+        Assert.Equal("over.budget", error.Params.Value!["rule"]);
+        Assert.Equal(["begin", "clock", "evaluate", "rollback"], events.Where(row => row != "dispose"));
+        Assert.Equal((0, 0, 0, 0), await harness.Store.CountsAsync());
+    }
+
+    // ck-7 S5 (T-818 ceiling): a rule whose static work proof exceeds maxStaticWork is refused with
+    // rule.compile.work_exceeded before it runs. The compiler's refusal is graph-level, so Forms names the rule
+    // that exceeds the ceiling on its own. Each `cat` level multiplies the proof by six: 28 levels over the
+    // 262 144-byte input envelope is about 1.6 x 10^27, past the default 10^26.
+    [Fact]
+    public async Task Submit_rule_over_the_static_work_ceiling_refuses_naming_the_rule_and_commits_nothing()
+    {
+        var events = new List<string>();
+        var expression = """{"var":"name"}""";
+        for (var level = 0; level < 28; level++) expression = $$"""{"cat":[{{expression}}]}""";
+        var harness = await TransactionHarnessAsync(events, $$"""{"==":[{{expression}},"x"]}""", "over.work");
+        using var candidate = JsonDocument.Parse("""{"name":"Ada"}""");
+
+        var refusal = await Assert.ThrowsAsync<FormEngineValidationException>(async () =>
+            await harness.Engine.SubmitAsync(new(harness.Definition.Id, candidate, "idem")));
+
+        var error = Assert.Single(refusal.Errors);
+        Assert.Equal("rule.compile.work_exceeded", error.Code.Value);
+        Assert.Equal("over.work", error.Params.Value!["rule"]);
+        Assert.Equal("100000000000000000000000000", error.Params.Value["ceiling"]);
+        Assert.Equal(["begin", "clock", "rollback"], events.Where(row => row != "dispose"));
+        Assert.Equal((0, 0, 0, 0), await harness.Store.CountsAsync());
+    }
+
+    private static Task<Harness> TransactionHarnessAsync(List<string> events, string validation, string ruleId = "valid.at") =>
         Harness.CreateAsync(
             schemaJson: """{"type":"object"}""",
             schemaRegistry: new EventSchemas(events),
@@ -97,7 +141,7 @@ public sealed class FormEngineOrchestrationTests
                 {
                     Overlay = definition.Overlay with
                     {
-                        Rules = [new("valid.at", RuleTier.JsonLogic, RuleScope.Schema, "", validation, RuleActionKind.Validate)],
+                        Rules = [new(ruleId, RuleTier.JsonLogic, RuleScope.Schema, "", validation, RuleActionKind.Validate)],
                     },
                 };
             });
