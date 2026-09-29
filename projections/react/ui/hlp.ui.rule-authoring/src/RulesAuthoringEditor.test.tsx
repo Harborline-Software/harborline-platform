@@ -5,9 +5,10 @@ import { describe, expect, it, vi } from 'vitest'
 import { useState } from 'react'
 import { formulaCallOps, generatePalette, serializeRuleDefinition, validateRuleDefinitionJson, type RecordFieldSet, type RuleDefinitionExpression } from '@harborline-software/rule-authoring'
 import type { RuleScope } from '@harborline-software/rule-engine'
-import { GuidedExpressionEditor, RulesAuthoringEditor, emptyRulesDraft, type RulesMaterialization, type RulesOperationRequest } from './RulesAuthoringEditor'
+import { GuidedExpressionEditor, RulesAuthoringEditor, emptyRulesDraft, type RulesEditorAuthority, type RulesMaterialization, type RulesOperationRequest, type RulesRefusal } from './RulesAuthoringEditor'
 
 const fixture = JSON.parse(readFileSync(resolve(process.cwd(), '../../../../conformance/hlp.blocks.builder-definitions/rules-editor-contract-fixtures.json'), 'utf8')) as { lifecycle: { responses: readonly { materialization?: RulesMaterialization }[] }; preview: { clockUtc: string; label: string; outcomeKinds: readonly string[]; cases: readonly { expected: { kind: string; value?: string; validity?: string; visibility?: string; presentation?: string; code?: string; ruleName: string; memberName: string } }[] }; referenceForms: { palette: readonly { id: string; label: string; valueType: 'Number' | 'Text' | 'Boolean' }[]; cases: readonly { id: string; ref: string; action: string; scope: string; scopeTarget: string; lowered: unknown }[] } }
+const authorityFixture = JSON.parse(readFileSync(resolve(process.cwd(), '../../../../conformance/hlp.blocks.builder-definitions/rules-editor-authority-fixtures.json'), 'utf8')) as { denyAll: { authority: RulesEditorAuthority }; threeRefusals: { authority: RulesEditorAuthority; operation: RulesOperationRequest['operation']; refusals: readonly RulesRefusal[] } }
 const contracts = [{ site: 'rule', returnContract: 'typed value', executionTimeContract: 'preview', palette: [{ id: 'amount', label: 'Amount', valueType: 'Number' }] }] as const
 const props = (overrides: Partial<React.ComponentProps<typeof RulesAuthoringEditor>> = {}) => ({ value: emptyRulesDraft(), expressionContracts: contracts, previewKind: 'real' as const, onChange: vi.fn(), onOperation: vi.fn(), ...overrides })
 
@@ -171,5 +172,29 @@ describe('Rules authoring React projection', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Preview' }))
     expect(requests[1].requestId).not.toBe(first.requestId)
     expect(screen.getByRole('heading', { name: 'Preview (sample input)' })).toBeInTheDocument()
+  })
+  // T-740 part 1: DES-0018 §6 authority and producer refusals at the editor, from the fixture shared with the Blazor lane.
+  it('deny_all_authority_renders_zero_enabled_publish_controls', () => {
+    const requested = vi.fn(); const { container } = render(<RulesAuthoringEditor {...props({ authority: authorityFixture.denyAll.authority, onOperation: requested })} />)
+    expect(container.querySelector('form')).toHaveAttribute('data-read-only')
+    const lifecycle = Array.from(screen.getByRole('group', { name: 'Rule lifecycle' }).querySelectorAll('button'))
+    expect(lifecycle.map(button => button.textContent)).toEqual(['Save draft', 'Preview', 'Publish', 'Archive'])
+    expect(lifecycle.filter(button => !(button as HTMLButtonElement).disabled)).toHaveLength(0)
+    for (const control of Array.from(container.querySelectorAll('input, select, button'))) expect(control, control.getAttribute('aria-label') ?? control.textContent ?? '').toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Publish' }))
+    expect(requested).not.toHaveBeenCalled()
+  })
+  it('three_refusal_payload_renders_exactly_its_code_pointer_refusals', async () => {
+    const item = authorityFixture.threeRefusals; let request!: RulesOperationRequest
+    const value = { ...emptyRulesDraft(), identity: 'amount-rule', expectedRevision: '1' }
+    const view = render(<RulesAuthoringEditor {...props({ value, authority: item.authority, onOperation: next => { request = next } })} />)
+    expect(screen.queryByRole('list', { name: 'Refusals' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Save draft' }))
+    expect(request.operation).toBe(item.operation)
+    view.rerender(<RulesAuthoringEditor {...props({ value, authority: item.authority, onOperation: vi.fn(), response: { requestId: request.requestId, identity: request.identity, expectedRevision: request.expectedRevision, generation: request.generation, refusals: item.refusals } })} />)
+    await Promise.resolve()
+    const rendered = Array.from(screen.getByRole('list', { name: 'Refusals' }).querySelectorAll('li'))
+    expect(item.refusals).toHaveLength(3)
+    expect(rendered.map(entry => [entry.getAttribute('data-code'), entry.getAttribute('data-pointer'), entry.textContent])).toEqual(item.refusals.map(refusal => [refusal.code, refusal.pointer, `${refusal.code} at ${refusal.pointer}`]))
   })
 })

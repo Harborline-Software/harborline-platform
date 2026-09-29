@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "description": "T-740 part 1 shared editor fixtures for both UI lanes. `granted` lists the host's Access verdicts over the RulesPermissions capability names (DES-0018 §6); the editor asks and never decides. `refusals` is the DefinitionRefusal code/pointer list a producer response carries back to the editor.",
+  "denyAll": {
+    "authority": {
+      "granted": []
+    }
+  },
+  "threeRefusals": {
+    "authority": {
+      "granted": ["rules:author", "rules:publish", "rules:evaluate-explain", "records:read"]
+    },
+    "operation": "save-draft",
+    "refusals": [
+      { "code": "rules.lint.overlap", "pointer": "/draft/rows/1" },
+      { "code": "rules.lint.gap", "pointer": "/draft/columns/0" },
+      { "code": "rules.reference.dependency_undeclared", "pointer": "/draft/expression" }
+    ]
+  }
+}
