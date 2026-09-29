@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.foundation.execution-runtime",
+  "interfaceRevision": 1,
+  "status": "frozen",
+  "purpose": "Own the execution runtime substrate (DES-0056, T-528 slice 1): the run-kind registration every engine makes, the one run identity, the closed run status vocabulary and its legal transitions, the one retry rule an author selects a named profile from, the one dead-letter path, and the tenant-scoped store port runs are read through.",
+  "dependencies": [
+    {"moduleId": "hlp.contracts.identities", "interfaceRevision": 1}
+  ],
+  "callerInterface": {
+    "name": "RunKindRegistry / RunLifecycle / IRunStore",
+    "operations": [
+      "RunKindRegistry.Register(kind, owningEngine) -> the registration; a kind registered twice refuses execution.run_kind_duplicate, and a non-kebab kind refuses execution.run_kind_invalid",
+      "RunLifecycle.StartAsync(StartRun) -> a pending run under a fresh RunId of the request's kind; an unregistered kind, a retry profile outside the capability's allowed set, and a caused_by naming no run the tenant holds all refuse",
+      "RunLifecycle.BeginAttemptAsync / SucceedAsync / FailAttemptAsync / CancelAsync -> the next status under the closed transition table; an illegal move refuses execution.transition_illegal, and an awaiting-retry run begun before it is due refuses execution.retry_not_due",
+      "RunLifecycle.FailAttemptAsync -> awaiting-retry with the profile's capped doubling delay while the failure is retryable and attempts remain; otherwise dead-lettered with reason retries-exhausted or not-retryable",
+      "RunLifecycle.DeadLetteredAsync(tenant) -> every dead-lettered run of every kind, read without touching any engine's store",
+      "RetryProfileName.Parse(name) -> a substrate-defined profile name; anything else, including a raw attempt count or backoff parameter, refuses execution.retry_profile_unknown",
+      "CapabilityRetryPolicy(default, allowed).Resolve(selected) -> the substrate profile, refusing execution.retry_profile_not_allowed outside the allowed set",
+      "IRunStore.CreateAsync / GetAsync / UpdateAsync(expectedVersion) / ListByStatusAsync -> tenant-scoped storage with optimistic concurrency; InMemoryRunStore is the reference implementation"
+    ],
+    "context": "Each engine registers its run kind and keeps its own state (a workflow's position and iteration counter) in its own store keyed by the RunId; the substrate holds identity, status, attempts, the resolved retry profile, the dead-letter entry and caused_by only (owner ruling 2026-09-29 on DES-0056 open ruling 1). Engine adoption, the effect receipt and its status vocabulary (ck-5 to ck-7), the execution trace and the Access decision link (ck-2 to ck-4) and the observe channel are later T-528 slices."
+  },
+  "invariants": [
+    "A RunId carries its RunKind, so runs of two kinds never share an identity even when their opaque values coincide; caused_by correlates runs and never merges them.",
+    "The run status vocabulary is closed: pending, running, awaiting-retry, succeeded, dead-lettered, cancelled; succeeded, dead-lettered and cancelled are terminal.",
+    "Every status change goes through the one transition table; there is no setter for status outside RunLifecycle.",
+    "Retry profiles are defined once by the substrate (immediate-or-fail, external-api-standard, durable-delivery, manual-reconciliation); RetryProfile has no public constructor, so no engine or author can declare attempt counts or backoff.",
+    "Exhausting a profile, or a failure the engine classifies as not retryable, dead-letters the run; there is no other failed terminal status.",
+    "Every read and write is tenant-scoped; a caused_by must name a run the same tenant holds."
+  ],
+  "errors": [
+    "execution.run_kind_invalid",
+    "execution.run_kind_duplicate",
+    "execution.run_kind_unregistered",
+    "execution.run_duplicate",
+    "execution.run_unknown",
+    "execution.run_concurrency_conflict",
+    "execution.caused_by_invalid",
+    "execution.transition_illegal",
+    "execution.retry_profile_unknown",
+    "execution.retry_profile_not_allowed",
+    "execution.retry_not_due"
+  ],
+  "publicSeams": [
+    "run-kind registration for every engine that runs something",
+    "the run lifecycle (start, attempt, succeed, fail, cancel) and the dead-letter read",
+    "the IRunStore port a durable host adapter implements"
+  ],
+  "conformance": {
+    "nativeTests": {
+      "dotnet": 29
+    },
+    "nativeTestNote": "Red first against a non-enforcing skeleton: an illegal status transition refuses and leaves the stored run unmoved; a retry profile outside the capability's allowed set and a raw retry parameter refuse; exhausting external-api-standard dead-letters after three attempts with 2s and 4s waits and a retry-not-due refusal; a workflow-run and the plan-run it causes keep distinct identities joined only by caused_by. Also the exact transition table over all 36 pairs, non-retryable and single-attempt dead-letters, fixed profiles and capped backoff, run-kind registration and kebab validation, tenant scoping, caused_by resolution, cancel paths, a capability allowing an undefined profile, and the store port's duplicate, unknown, stale-version, cancellation and ordering contract."
+  },
+  "selectedDesign": {
+    "choice": "One packable foundation assembly owns run-kind registration, the kind-qualified run identity, the closed status vocabulary and transition table, the substrate retry profiles and the dead-letter path behind a tenant-scoped store port; engines adopt it in later slices and keep their own state in their own stores.",
+    "rejected": [
+      "Make the workflow instance itself the run (merging identities) - ruled out by the owner on 2026-09-29: each engine registers a run kind and keeps its own state; identities never merge.",
+      "Let each engine or author declare attempt counts, error predicates or backoff - ruled out by ADR 0098 amendment point 19 and DES-0056 execution-runtime-ck-8: an author selects a named profile the capability allows.",
+      "Place the substrate in the blocks tier - Scheduling (foundation) must register plan-run, and the tier fence forbids foundation referencing blocks."
+    ],
+    "reason": "Mirrors the substrate-first slices of the field runtime and recurrence expansion: the substrate lands with its own tests before any engine adopts it."
+  },
+  "package": {
+    "nuget": "Harborline.Foundation.ExecutionRuntime",
+    "assembly": "Harborline.Foundation.ExecutionRuntime",
+    "distribution": "internal-only"
+  }
+}

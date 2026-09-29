@@ -199,6 +199,16 @@
     "measured": "2026-09-29",
     "commit": "a23afe320807e7c7775585a6246ca9981b337bb7"
   },
+  "projections/dotnet/foundation/hlp.foundation.execution-runtime.tests/Harborline.Foundation.ExecutionRuntime.Tests.csproj": {
+    "break": 84,
+    "score": 84.1,
+    "tested": 151,
+    "total": 204,
+    "detected": 127,
+    "undetected": 24,
+    "measured": "2026-09-29",
+    "commit": "edddd292b3bbb1bc654f26355aacd049c21e07ed"
+  },
   "projections/dotnet/foundation/hlp.foundation.field-runtime.tests/Harborline.Foundation.FieldRuntime.Tests.csproj": {
     "break": 71,
     "score": 71.23,
