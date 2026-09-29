@@ -36,6 +36,12 @@ public interface ICapabilityAuthorityRegistry
     /// Never returns <see cref="ActionClassification.Unspecified"/>.
     /// </summary>
     ActionClassification AuthorityOf(string capabilityRef);
+
+    /// <summary>
+    /// True iff <paramref name="capabilityRef"/> has a row in the registry. Admission composed without an
+    /// effect catalogue refuses an unregistered capability instead of deriving it to CP (T-525 item 2).
+    /// </summary>
+    bool IsRegistered(string capabilityRef);
 }
 
 /// <summary>
@@ -66,6 +72,9 @@ public sealed class CapabilityAuthorityRegistry : ICapabilityAuthorityRegistry
         // Fail-closed: an unregistered capability is CP (mirrors TS `authorityOf` unknown⇒CP).
         return _byCapability.TryGetValue(capabilityRef, out var c) ? c : ActionClassification.CP;
     }
+
+    /// <inheritdoc />
+    public bool IsRegistered(string capabilityRef) => _byCapability.ContainsKey(capabilityRef);
 
     /// <summary>
     /// Builds a registry from an explicit capability→class map (test seam — lets a unit test pin a

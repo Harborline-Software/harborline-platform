@@ -72,6 +72,7 @@ public sealed class CompiledBootstrapCatalogueTests
             CompiledBootstrapCatalogue.RefusePackageReplacement([new(identity)]));
         Assert.Equal(KernelBootstrapErrors.CompiledShapeReplacement, error.Code);
         Assert.Equal(identity, error.Identity.Value);
+        Assert.Equal($"A package cannot replace compiled bootstrap shape '{identity}'.", error.Message);
     }
 
     [Theory]
