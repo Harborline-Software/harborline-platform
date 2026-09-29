@@ -20,6 +20,17 @@ public sealed class CompiledBootstrapCatalogueTests
     }
 
     [Fact]
+    public async Task Identity_outside_the_floor_resolves_through_the_catalogue_reader()
+    {
+        var identity = new CompiledShapeIdentity("tenant.invoice");
+        var stored = new CompiledBootstrapShape(identity, "invoice", "Invoice", 0, []);
+        var reader = new RecordingReader(stored);
+
+        Assert.Same(stored, await new CompiledBootstrapCatalogue(reader).ResolveAsync(identity));
+        Assert.Equal([identity], reader.Requested);
+    }
+
+    [Fact]
     public void Floor_members_are_exactly_the_DES_0004_section_1_lists()
     {
         AssertShape(CompiledBootstrapCatalogue.DefinitionPackage, "definition-package", [
@@ -117,13 +128,14 @@ public sealed class CompiledBootstrapCatalogueTests
             (member.Key, member.Kind, member.Required, member.Many, member.Target)).ToArray());
     }
 
-    private sealed class RecordingReader : IKernelCatalogueReader
+    private sealed class RecordingReader(CompiledBootstrapShape? stored = null) : IKernelCatalogueReader
     {
-        public int Reads { get; private set; }
+        public int Reads => Requested.Count;
+        public List<CompiledShapeIdentity> Requested { get; } = [];
         public ValueTask<CompiledBootstrapShape?> ReadAsync(CompiledShapeIdentity identity, CancellationToken cancellationToken = default)
         {
-            Reads++;
-            return ValueTask.FromResult<CompiledBootstrapShape?>(null);
+            Requested.Add(identity);
+            return ValueTask.FromResult(stored);
         }
     }
 }

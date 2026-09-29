@@ -302,12 +302,12 @@
   "projections/dotnet/kernel/hlp.kernel.core.tests/Harborline.Kernel.Core.Tests.csproj": {
     "break": 94,
     "score": 94.11,
-    "tested": 321,
+    "tested": 322,
     "total": 361,
     "detected": 304,
     "undetected": 19,
     "measured": "2026-09-29",
-    "commit": "b15f46bce6825f5322b45bd65dd5cc484414f8f1"
+    "commit": "0f30804948db81590c1032b88da9e18ad1dea0d6"
   },
   "projections/dotnet/kernel/hlp.kernel.schema-validation.tests/Harborline.Kernel.SchemaValidation.Tests.csproj": {
     "break": 48,
