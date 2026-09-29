@@ -20,9 +20,9 @@ test('publication uses exactly the gate producer ids and follows a push to main,
   // wait on the ubuntu rerun of that gate, and it must never run for a pull request.
   assert.doesNotMatch(job, /needs: phase-4-gate/)
   assert.match(job, /if: github.event_name == 'push' && github.ref == 'refs\/heads\/main'\n/)
-  // T-579: the push to main is publication only. The ubuntu gate runs in the merge group and never on
-  // the push, so the push run is green exactly when publication is.
-  assert.match(workflow, /  phase-4-gate:\n    if: github.event_name == 'merge_group'\n/)
+  // T-579: the push to main is publication only. The gate runs in verify.yml (pull request and merge
+  // group) and never on the push, so the push run is green exactly when publication is.
+  assert.doesNotMatch(workflow, /merge_group|run-phase-4-gate/)
   assert.doesNotMatch(workflow, /ACTIONS_ENABLED/)
   assert.match(job, /packages: write/)
   assert.match(job, /node tooling\/verify-package-fixtures\.mjs --pack-libraries/)
