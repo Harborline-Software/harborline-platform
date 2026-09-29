@@ -17,6 +17,10 @@ namespace Harborline.Blocks.Workflow.Interpreter.Tests;
 /// </summary>
 public sealed class DurableDeclarativeExecutionTests : IDisposable
 {
+    private static WorkflowDispatchAuthority Authorized(string instanceId) => new(
+        "user:operator", Tenant, WorkflowDispatchAuthority.RequiredOperation,
+        WorkflowDispatchAuthority.RequiredRecordKind, instanceId, Allowed: true);
+
     private const string Tenant = "tenant:acme";
     private const string Key = "vendor-invoice-approval.v1";
     private const string Version = "1.0.0";
@@ -46,7 +50,7 @@ public sealed class DurableDeclarativeExecutionTests : IDisposable
 
         // Autonomous start → durable CP park with the basis.
         Assert.Equal(WorkflowDispatchResult.Parked, await dispatcher.DispatchAsync(
-            WorkflowTrigger.For(WorkflowTriggerKind.Event, "decl-1", "Draft")));
+            WorkflowTrigger.For(WorkflowTriggerKind.Event, "decl-1", "Draft"), Authorized("decl-1")));
         var parked = await store.LoadAsync("decl-1");
         Assert.Equal(WorkflowStatus.Parked, parked!.Status);
         Assert.Equal("PendingApproval", parked.CurrentStep);
@@ -57,16 +61,32 @@ public sealed class DurableDeclarativeExecutionTests : IDisposable
 
         // Human confirm → the CP effect builds through the broker and co-commits durably, once.
         Assert.Equal(WorkflowDispatchResult.Advanced, await dispatcher.DispatchAsync(
-            WorkflowTrigger.For(WorkflowTriggerKind.HumanAction, "decl-1", "PendingApproval", "{\"decision\":\"approve\"}")));
+            WorkflowTrigger.For(WorkflowTriggerKind.HumanAction, "decl-1", "PendingApproval", "{\"decision\":\"approve\"}"), Authorized("decl-1")));
         Assert.Equal(WorkflowStatus.Completed, (await store.LoadAsync("decl-1"))!.Status);
         Assert.Single(await store.CommittedEffectPayloadsAsync("decl-1"));
         Assert.Equal(1, provider.GetRequiredService<CountingWorkflowApprovalDecisionSink>().ConfirmedCount);
 
         // Redelivery of the confirm is a durable no-op.
         Assert.True((await dispatcher.DispatchAsync(WorkflowTrigger.For(
-            WorkflowTriggerKind.HumanAction, "decl-1", "PendingApproval", "{\"decision\":\"approve\"}")))
+            WorkflowTriggerKind.HumanAction, "decl-1", "PendingApproval", "{\"decision\":\"approve\"}"), Authorized("decl-1")))
             is WorkflowDispatchResult.ReplayedNoOp or WorkflowDispatchResult.Terminal);
         Assert.Single(await store.CommittedEffectPayloadsAsync("decl-1"));
+    }
+
+    [Fact]
+    public async Task Declarative_dispatch_under_a_denied_authority_is_refused_before_the_interpreter_runs()
+    {
+        // T-525 item 1: the interpreter branch verifies the same authority as a typed handler.
+        await using var provider = await BuildAsync();
+        var store = provider.GetRequiredService<FileJournalWorkflowStore>();
+        var dispatcher = provider.GetRequiredService<IWorkflowTriggerDispatcher>();
+        await CreateInstanceAsync(store, "decl-denied");
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => dispatcher.DispatchAsync(
+            WorkflowTrigger.For(WorkflowTriggerKind.Event, "decl-denied", "Draft"),
+            Authorized("decl-denied") with { Allowed = false }));
+
+        Assert.Equal("Draft", (await store.LoadAsync("decl-denied"))!.CurrentStep);
     }
 
     [Fact]
@@ -76,10 +96,10 @@ public sealed class DurableDeclarativeExecutionTests : IDisposable
         var store = provider.GetRequiredService<FileJournalWorkflowStore>();
         var dispatcher = provider.GetRequiredService<IWorkflowTriggerDispatcher>();
         await CreateInstanceAsync(store, "decl-2");
-        await dispatcher.DispatchAsync(WorkflowTrigger.For(WorkflowTriggerKind.Event, "decl-2", "Draft"));
+        await dispatcher.DispatchAsync(WorkflowTrigger.For(WorkflowTriggerKind.Event, "decl-2", "Draft"), Authorized("decl-2"));
 
         Assert.Equal(WorkflowDispatchResult.Advanced, await dispatcher.DispatchAsync(
-            WorkflowTrigger.For(WorkflowTriggerKind.HumanAction, "decl-2", "PendingApproval", "{\"decision\":\"reject\"}")));
+            WorkflowTrigger.For(WorkflowTriggerKind.HumanAction, "decl-2", "PendingApproval", "{\"decision\":\"reject\"}"), Authorized("decl-2")));
 
         Assert.Equal(WorkflowStatus.Completed, (await store.LoadAsync("decl-2"))!.Status);
         Assert.Equal("Rejected", (await store.LoadAsync("decl-2"))!.CurrentStep);

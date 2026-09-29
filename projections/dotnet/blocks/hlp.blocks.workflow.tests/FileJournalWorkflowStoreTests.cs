@@ -18,6 +18,10 @@ namespace Harborline.Blocks.Workflow.Tests;
 /// </summary>
 public sealed class FileJournalWorkflowStoreTests
 {
+    private static WorkflowDispatchAuthority Authorized(string instanceId) => new(
+        "user:operator", "tenant:acme", WorkflowDispatchAuthority.RequiredOperation,
+        WorkflowDispatchAuthority.RequiredRecordKind, instanceId, Allowed: true);
+
     // ── The atomic-advance contract ─────────────────────────────────────────
 
     [Fact]
@@ -99,11 +103,11 @@ public sealed class FileJournalWorkflowStoreTests
         var dispatcher = new WorkflowTriggerDispatcher(
             restarted, new[] { new StaticHandler() }, definitionStore: new AlwaysAdmittedDefinitionStore());
         var result = await dispatcher.DispatchAsync(
-            WorkflowTrigger.For(WorkflowTriggerKind.HumanAction, "restart-1", "approve", "{\"decision\":\"approve\"}"));
+            WorkflowTrigger.For(WorkflowTriggerKind.HumanAction, "restart-1", "approve", "{\"decision\":\"approve\"}"), Authorized("restart-1") with { Tenant = "tenant:probe" });
         Assert.Equal(WorkflowDispatchResult.Advanced, result);
 
         var replay = await dispatcher.DispatchAsync(
-            WorkflowTrigger.For(WorkflowTriggerKind.HumanAction, "restart-1", "approve", "{\"decision\":\"approve\"}"));
+            WorkflowTrigger.For(WorkflowTriggerKind.HumanAction, "restart-1", "approve", "{\"decision\":\"approve\"}"), Authorized("restart-1") with { Tenant = "tenant:probe" });
         Assert.True(replay is WorkflowDispatchResult.ReplayedNoOp or WorkflowDispatchResult.Terminal);
         Assert.Equal(new[] { "restart-effect", "resumed-post" }, await restarted.CommittedEffectPayloadsAsync("restart-1"));
     }
