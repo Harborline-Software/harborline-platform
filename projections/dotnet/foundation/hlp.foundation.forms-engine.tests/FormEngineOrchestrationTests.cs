@@ -122,13 +122,83 @@ public sealed class FormEngineOrchestrationTests
 
         var error = Assert.Single(refusal.Errors);
         Assert.Equal("rule.compile.work_exceeded", error.Code.Value);
+        Assert.Equal("", error.JsonPointer);
+        Assert.Equal("A form rule could not be compiled.", error.Message);
         Assert.Equal("over.work", error.Params.Value!["rule"]);
         Assert.Equal("100000000000000000000000000", error.Params.Value["ceiling"]);
         Assert.Equal(["begin", "clock", "rollback"], events.Where(row => row != "dispose"));
         Assert.Equal((0, 0, 0, 0), await harness.Store.CountsAsync());
     }
 
+    // Three 26-level rules each fit under the ceiling alone (about 5 x 10^25) and exceed it together, so the
+    // refusal keeps the proof and ceiling but names no rule.
+    [Fact]
+    public async Task Submit_rule_set_over_the_static_work_ceiling_only_together_refuses_naming_no_rule()
+    {
+        var events = new List<string>();
+        var expression = """{"var":"name"}""";
+        for (var level = 0; level < 26; level++) expression = $$"""{"cat":[{{expression}}]}""";
+        var harness = await TransactionHarnessAsync(events, [.. new[] { "work.a", "work.b", "work.c" }.Select(id =>
+            new RuleDefinition(id, RuleTier.JsonLogic, RuleScope.Schema, "", $$"""{"==":[{{expression}},"x"]}""", RuleActionKind.Validate))]);
+        using var candidate = JsonDocument.Parse("""{"name":"Ada"}""");
+
+        var refusal = await Assert.ThrowsAsync<FormEngineValidationException>(async () =>
+            await harness.Engine.SubmitAsync(new(harness.Definition.Id, candidate, "idem")));
+
+        var error = Assert.Single(refusal.Errors);
+        Assert.Equal("rule.compile.work_exceeded", error.Code.Value);
+        Assert.Equal(["ceiling", "proof"], error.Params.Value!.Keys.Order(StringComparer.Ordinal));
+        Assert.Equal(["begin", "clock", "rollback"], events.Where(row => row != "dispose"));
+        Assert.Equal((0, 0, 0, 0), await harness.Store.CountsAsync());
+    }
+
+    // The compiler's own rule id wins: rule "typed.v" only fails against the boolean that "typed.c" computes, so
+    // neither rule is refused alone and only the compiler can name it.
+    [Fact]
+    public async Task Submit_compile_refusal_names_the_rule_the_compiler_names()
+    {
+        var events = new List<string>();
+        var harness = await TransactionHarnessAsync(events,
+        [
+            new("typed.v", RuleTier.JsonLogic, RuleScope.Schema, "", """{"==":[{"money.add":[{"var":"field.t"},"1"]},"2"]}""", RuleActionKind.Validate),
+            new("typed.c", RuleTier.JsonLogic, RuleScope.Field, "t", """{"==":[1,1]}""", RuleActionKind.Compute),
+        ]);
+        using var candidate = JsonDocument.Parse("""{"name":"Ada"}""");
+
+        var refusal = await Assert.ThrowsAsync<FormEngineValidationException>(async () =>
+            await harness.Engine.SubmitAsync(new(harness.Definition.Id, candidate, "idem")));
+
+        var error = Assert.Single(refusal.Errors);
+        Assert.Equal(new Dictionary<string, string> { ["rule"] = "typed.v" }, error.Params.Value);
+        Assert.Equal(["begin", "clock", "rollback"], events.Where(row => row != "dispose"));
+    }
+
+    // A graph-level refusal with no params of its own (a cycle) stays without params: no rule compiles to it alone.
+    [Fact]
+    public async Task Submit_rule_cycle_refuses_with_no_params_and_commits_nothing()
+    {
+        var events = new List<string>();
+        var harness = await TransactionHarnessAsync(events,
+        [
+            new("cycle.a", RuleTier.JsonLogic, RuleScope.Field, "a", """{"var":"field.b"}""", RuleActionKind.Compute),
+            new("cycle.b", RuleTier.JsonLogic, RuleScope.Field, "b", """{"var":"field.a"}""", RuleActionKind.Compute),
+        ]);
+        using var candidate = JsonDocument.Parse("""{"name":"Ada"}""");
+
+        var refusal = await Assert.ThrowsAsync<FormEngineValidationException>(async () =>
+            await harness.Engine.SubmitAsync(new(harness.Definition.Id, candidate, "idem")));
+
+        var error = Assert.Single(refusal.Errors);
+        Assert.Equal("rule.compile.cycle", error.Code.Value);
+        Assert.False(error.Params.HasValue);
+        Assert.Equal(["begin", "clock", "rollback"], events.Where(row => row != "dispose"));
+        Assert.Equal((0, 0, 0, 0), await harness.Store.CountsAsync());
+    }
+
     private static Task<Harness> TransactionHarnessAsync(List<string> events, string validation, string ruleId = "valid.at") =>
+        TransactionHarnessAsync(events, [new RuleDefinition(ruleId, RuleTier.JsonLogic, RuleScope.Schema, "", validation, RuleActionKind.Validate)]);
+
+    private static Task<Harness> TransactionHarnessAsync(List<string> events, RuleDefinition[] rules) =>
         Harness.CreateAsync(
             schemaJson: """{"type":"object"}""",
             schemaRegistry: new EventSchemas(events),
@@ -141,7 +211,7 @@ public sealed class FormEngineOrchestrationTests
                 {
                     Overlay = definition.Overlay with
                     {
-                        Rules = [new(ruleId, RuleTier.JsonLogic, RuleScope.Schema, "", validation, RuleActionKind.Validate)],
+                        Rules = rules,
                     },
                 };
             });
