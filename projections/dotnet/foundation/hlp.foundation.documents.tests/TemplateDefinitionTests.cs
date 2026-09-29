@@ -10,7 +10,7 @@ using static Harborline.Foundation.Documents.Tests.TemplateFixtures;
 
 namespace Harborline.Foundation.Documents.Tests;
 
-/// <summary>T-593: the Documents definition producer, content kind 6 (DES-0021 section 2).</summary>
+/// <summary>T-593: the Documents definition producer, content kind 7 (DES-0021 section 2; T-738).</summary>
 public sealed class TemplateDefinitionTests
 {
     [Fact(DisplayName = "documents-ck-1: TemplateDefinition travels as content kind 7 (the api's PackContentKind.TemplateDefinition, T-738) and round-trips through canonical JSON and export with identical pin and digest")]
