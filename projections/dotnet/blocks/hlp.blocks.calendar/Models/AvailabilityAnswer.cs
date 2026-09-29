@@ -3,6 +3,7 @@ namespace Harborline.Blocks.Calendar.Models;
 /// <summary>Why one resource cannot hold the requested window; <see cref="None"/> when it can.</summary>
 public enum Unavailability
 {
+    /// <summary>No refusal; the requested capacity is available.</summary>
     None = 0,
 
     /// <summary>The window is not inside the resource's supply (base hours minus exceptions).</summary>

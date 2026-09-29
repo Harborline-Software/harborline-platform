@@ -7,7 +7,9 @@ namespace Harborline.Blocks.Scheduling.Durable;
 /// <summary>Options for the single-process scheduling journal adapter.</summary>
 public sealed class FileJournalSchedulingStoreOptions
 {
+    /// <summary>Absolute path to the append-only scheduling journal.</summary>
     public string JournalPath { get; set; } = string.Empty;
+    /// <summary>Maximum serialized payload size accepted for one journal frame, in bytes.</summary>
     public int MaximumFrameBytes { get; set; } = 16 * 1024 * 1024;
 
     internal void Validate()
@@ -41,6 +43,9 @@ public sealed class FileJournalSchedulingStore : IDisposable
     private readonly FileStream journal;
     private bool disposed;
 
+    /// <summary>Opens or creates the journal and replays its committed frames under an exclusive process lock.</summary>
+    /// <param name="options">Validated journal path and frame-size policy.</param>
+    /// <param name="timeProvider">Clock used for audit timestamps; defaults to system time.</param>
     public FileJournalSchedulingStore(FileJournalSchedulingStoreOptions options, TimeProvider? timeProvider = null)
     {
         ArgumentNullException.ThrowIfNull(options);
@@ -91,6 +96,7 @@ public sealed class FileJournalSchedulingStore : IDisposable
         finally { gate.Release(); }
     }
 
+    /// <summary>Returns the latest draft for a tenant and definition, or <see langword="null"/> when absent.</summary>
     public async Task<SchedulingDefinitionDraft?> GetDraftAsync(string tenantId, string definitionId, CancellationToken cancellationToken = default)
     {
         await EnterAsync(cancellationToken).ConfigureAwait(false);
@@ -98,6 +104,7 @@ public sealed class FileJournalSchedulingStore : IDisposable
         finally { gate.Release(); }
     }
 
+    /// <summary>Returns audit entries in journal order, or an empty list when the definition is unknown.</summary>
     public async Task<IReadOnlyList<SchedulingDefinitionAudit>> GetAuditAsync(string tenantId, string definitionId, CancellationToken cancellationToken = default)
     {
         await EnterAsync(cancellationToken).ConfigureAwait(false);
@@ -105,6 +112,7 @@ public sealed class FileJournalSchedulingStore : IDisposable
         finally { gate.Release(); }
     }
 
+    /// <summary>Appends and indexes a calendar entity; the append is flushed before the index changes.</summary>
     public async Task SaveCalendarEntityAsync(SchedulingCalendarEntity entity, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(entity);
@@ -119,6 +127,7 @@ public sealed class FileJournalSchedulingStore : IDisposable
         finally { gate.Release(); }
     }
 
+    /// <summary>Returns one tenant-scoped calendar entity, or <see langword="null"/> when absent.</summary>
     public async Task<SchedulingCalendarEntity?> GetCalendarEntityAsync(string tenantId,
         SchedulingCalendarEntityKind kind, string entityId, CancellationToken cancellationToken = default)
     {
@@ -127,6 +136,7 @@ public sealed class FileJournalSchedulingStore : IDisposable
         finally { gate.Release(); }
     }
 
+    /// <summary>Lists tenant entities of one kind in stable entity-id order.</summary>
     public async Task<IReadOnlyList<SchedulingCalendarEntity>> ListCalendarEntitiesAsync(string tenantId,
         SchedulingCalendarEntityKind kind, CancellationToken cancellationToken = default)
     {
@@ -139,6 +149,7 @@ public sealed class FileJournalSchedulingStore : IDisposable
         finally { gate.Release(); }
     }
 
+    /// <summary>Current byte length of the append-only journal.</summary>
     public long JournalLength => journal.Length;
 
     private async ValueTask AppendAsync<T>(RecordType type, T value, CancellationToken cancellationToken)
@@ -233,6 +244,7 @@ public sealed class FileJournalSchedulingStore : IDisposable
         gate.Release(); throw new ObjectDisposedException(nameof(FileJournalSchedulingStore));
     }
 
+    /// <summary>Flushes and releases the journal, process lock, and synchronization gate.</summary>
     public void Dispose()
     {
         gate.Wait();
