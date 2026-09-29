@@ -77,12 +77,11 @@ public interface IInvoiceApprovalContext
     /// Builds the post-step <see cref="WorkflowEffect"/> for <paramref name="instance"/> at
     /// <paramref name="postStepKey"/> — the effect stages the balanced JE onto the advance's in-flight
     /// unit-of-work (the host derives a deterministic JE id from the step key, build invariant #2).
-    /// <paramref name="admittedDecision"/> is the trigger's act decision: on approve it is the verified
-    /// <c>ledger:post</c> decision, which the host binds to the journal entry it derives; on the auto-post it
-    /// is whatever the trigger carried, possibly none.
+    /// <paramref name="admittedDecision"/> is the trigger's verified <c>ledger:post</c> decision (approve and
+    /// auto-post alike), which the host binds to the journal entry it derives.
     /// </summary>
     WorkflowEffect BuildPostEffect(
-        WorkflowInstanceRecord instance, WorkflowStepKey postStepKey, WorkflowDispatchAuthority? admittedDecision);
+        WorkflowInstanceRecord instance, WorkflowStepKey postStepKey, WorkflowDispatchAuthority admittedDecision);
 
     /// <summary>
     /// Renders the human-readable posting preview for the FE-1 basis payload (e.g. the debit/credit lines the
@@ -155,7 +154,7 @@ public sealed class InvoiceApprovalHandler : IWorkflowStepHandler
             // straight-through auto-post; the bumped value if a send-back round-trip preceded it) so the
             // derived JE source-reference stays consistent with the dispatcher's advance key.
             var postKey = new WorkflowStepKey(instance.Id, instance.Iteration, InvoiceApprovalSteps.Post);
-            var effect = _context.BuildPostEffect(instance, postKey, trigger.AdmittedDecision);
+            var effect = _context.BuildPostEffect(instance, postKey, RequireLedgerPost(instance, trigger.AdmittedDecision));
             return WorkflowStepOutcome.Complete(
                 finalStep: InvoiceApprovalSteps.Posted,
                 effect: effect,
@@ -171,7 +170,8 @@ public sealed class InvoiceApprovalHandler : IWorkflowStepHandler
     }
 
     /// <summary>
-    /// The approve act posts a journal entry, so it runs only under the host gate's allowed
+    /// Both posting acts — the approve and the under-threshold auto-post (owner ruling 2026-09-28) — post a
+    /// journal entry, so each runs only under the host gate's allowed
     /// <c>ledger:post</c> decision on a journal entry in the instance's tenant (T-525). The host effect binds
     /// the journal-entry id it derives; this handler never resolves or re-decides the decision.
     /// </summary>
@@ -185,7 +185,7 @@ public sealed class InvoiceApprovalHandler : IWorkflowStepHandler
             || decision.RecordKind != PostRecordKind)
         {
             throw new UnauthorizedAccessException(
-                $"Approve of invoice-approval instance '{instance.Id}' refused: it posts a journal entry and needs " +
+                $"Post for invoice-approval instance '{instance.Id}' refused: it posts a journal entry and needs " +
                 $"an allowed '{PostOperation}' decision in tenant '{instance.TenantId}'.");
         }
 
