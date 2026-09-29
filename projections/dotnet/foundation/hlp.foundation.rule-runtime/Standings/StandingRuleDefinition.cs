@@ -41,15 +41,10 @@ public sealed record StandingRuleDefinition
         if (inputFields.Count == 0 || inputFields.Any(string.IsNullOrWhiteSpace)
             || inputFields.Distinct(StringComparer.Ordinal).Count() != inputFields.Count)
             throw new ArgumentException("Input fields must be one or more unique, non-empty names.", nameof(inputFields));
-        if (predicate.Tier != RuleTier.JsonLogic || predicate.Action != RuleActionKind.Validate || predicate.Scope != RuleScope.Schema)
-            throw new ArgumentException("A standing predicate is a schema-scoped harborline-jsonlogic/v1 validation rule.", nameof(predicate));
+        RequireValidationShape(predicate);
         if (!string.Equals(predicate.Id, ruleId, StringComparison.Ordinal))
             throw new ArgumentException("The predicate id must equal the standing rule id.", nameof(predicate));
-
-        var references = RuleCompiler.Compile([predicate]).Rules.Single().References;
-        if (references.Any(reference => reference is not FieldRef))
-            throw new ArgumentException("A standing predicate reads only top-level record fields.", nameof(predicate));
-        if (!references.OfType<FieldRef>().Select(reference => reference.Name).ToHashSet(StringComparer.Ordinal).SetEquals(inputFields))
+        if (!FieldsRead(predicate).SetEquals(inputFields))
             throw new ArgumentException("Input fields must name exactly the record fields the predicate reads.", nameof(inputFields));
 
         (RuleId, RuleVersion, Standing, RecordType, InputFields, Predicate) =
@@ -73,4 +68,20 @@ public sealed record StandingRuleDefinition
 
     /// <summary>The closed-grammar predicate.</summary>
     public RuleDefinition Predicate { get; }
+
+    // The schema-scoped rule shape, shared with the record-write rules that reuse it (T-978 ruling).
+    internal static void RequireValidationShape(RuleDefinition predicate)
+    {
+        if (predicate.Tier != RuleTier.JsonLogic || predicate.Action != RuleActionKind.Validate || predicate.Scope != RuleScope.Schema)
+            throw new ArgumentException("The predicate must be a schema-scoped harborline-jsonlogic/v1 validation rule.", nameof(predicate));
+    }
+
+    // Compiles the predicate and returns the top-level record fields it reads; any other reference refuses.
+    internal static HashSet<string> FieldsRead(RuleDefinition predicate)
+    {
+        var references = RuleCompiler.Compile([predicate]).Rules.Single().References;
+        if (references.Any(reference => reference is not FieldRef))
+            throw new ArgumentException("The predicate may read only top-level record fields.", nameof(predicate));
+        return references.OfType<FieldRef>().Select(reference => reference.Name).ToHashSet(StringComparer.Ordinal);
+    }
 }
