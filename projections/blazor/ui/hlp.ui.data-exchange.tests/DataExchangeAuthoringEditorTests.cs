@@ -9,7 +9,7 @@ public sealed class DataExchangeAuthoringEditorTests : BunitContext
     private static readonly DataExchangeAuthoringCatalogue Catalogue = new(
         [new("connector.csv/v1", "CSV upload")],
         [new("records.customer/v1", "Customer")],
-        [new("string", "Text")],
+        [new("string", "Text"), new("integer", "Integer")],
         [new("trimToNull", "Trim to null")],
         [new("schedule.nightly", "Nightly")]);
 
@@ -70,7 +70,7 @@ public sealed class DataExchangeAuthoringEditorTests : BunitContext
             .Add(component => component.CommitReviewedRun, () => commits++));
 
         cut.Find("input[aria-label='Include Ignored']").Change(false);
-        Assert.False(changed!.DiscoveredColumns[1].Selected);
+        Assert.Equal([true, false], changed!.DiscoveredColumns.Select(column => column.Selected));
         Assert.Contains("mapping.changed", cut.Markup);
         cut.Find("button[aria-label='Commit reviewed run']").Click();
         Assert.Equal(0, commits);
@@ -142,23 +142,105 @@ public sealed class DataExchangeAuthoringEditorTests : BunitContext
         Assert.Equal(!expected.GetProperty("publishEnabled").GetBoolean(), Button(cut, "Publish definition").HasAttribute("disabled"));
         Assert.Equal(!expected.GetProperty("commitEnabled").GetBoolean(), cut.Find("button[aria-label='Commit reviewed run']").HasAttribute("disabled"));
         Assert.Equal(expected.GetProperty("staleness").GetString(), Evidence(cut, "Staleness"));
+        // bUnit dispatches to a disabled control, so each handler's own guard is exercised too.
+        // Each dispatch re-renders, so every control is found afresh before it is triggered.
+        for (var index = 0; index < cut.FindAll("button").Count; index++) cut.FindAll("button")[index].Click();
+        for (var index = 0; index < cut.FindAll("input:not([type='checkbox']), select").Count; index++) cut.FindAll("input:not([type='checkbox']), select")[index].Change("x");
+        for (var index = 0; index < cut.FindAll("input[type='checkbox']").Count; index++) cut.FindAll("input[type='checkbox']")[index].Change(false);
         Assert.Equal(0, intents);
+        Assert.Equal(input.GetProperty("value").GetProperty("name").GetString(), cut.Find("input[aria-label='Definition name']").GetAttribute("value"));
     }
 
     [Fact]
-    public void An_editable_admission_keeps_the_authoring_controls_enabled()
+    public void An_editable_admission_keeps_the_authoring_controls_enabled_and_emits_each_intent()
     {
         var input = FindFixture("data-exchange.read-only").GetProperty("input");
+        var intents = new List<string>();
         var cut = Render<HarborlineDataExchangeAuthoringEditor>(parameters => parameters
             .Add(component => component.Value, DraftOf(input.GetProperty("value")))
             .Add(component => component.Catalogue, Catalogue)
             .Add(component => component.Run, RunOf(input.GetProperty("run")))
             .Add(component => component.CanCommit, true)
-            .Add(component => component.CanPublish, true));
+            .Add(component => component.CanPublish, true)
+            .Add(component => component.DiscoverSource, () => intents.Add("discover"))
+            .Add(component => component.SaveDraft, () => intents.Add("save"))
+            .Add(component => component.PublishDefinition, () => intents.Add("publish"))
+            .Add(component => component.CreateDryRun, () => intents.Add("dry-run"))
+            .Add(component => component.CommitReviewedRun, () => intents.Add("commit")));
 
         Assert.False(cut.Find("input[aria-label='Definition name']").HasAttribute("disabled"));
         Assert.False(Button(cut, "Publish definition").HasAttribute("disabled"));
         Assert.False(cut.Find("button[aria-label='Commit reviewed run']").HasAttribute("disabled"));
+        Assert.DoesNotContain(cut.FindAll("legend"), legend => legend.TextContent == "Authoring refusals");
+        foreach (var name in new[] { "Discover source", "Save draft", "Publish definition", "Create dry run" }) Button(cut, name).Click();
+        cut.Find("button[aria-label='Commit reviewed run']").Click();
+        Assert.Equal(["discover", "save", "publish", "dry-run", "commit"], intents);
+    }
+
+    [Theory]
+    [InlineData("input[aria-label='Definition name']", "Customer intake v2", "Name")]
+    [InlineData("select[aria-label='Source capability']", "connector.csv/v1", "SourceCapability")]
+    [InlineData("input[aria-label='Connector version']", "2.5.0", "ConnectorVersion")]
+    [InlineData("select[aria-label='Format']", "", "FormatCapability")]
+    [InlineData("input[aria-label='Secret reference']", "secretref:other", "SecretReference")]
+    [InlineData("select[aria-label='Replay policy']", "overwrite", "ReplayPolicy")]
+    [InlineData("select[aria-label='Schedule reference']", "schedule.nightly", "ScheduleReference")]
+    [InlineData("input[aria-label='Reference dataset']", "dataset.other", "ReferenceDataset")]
+    [InlineData("input[aria-label='Pack distribution']", "pack://other", "PackDistribution")]
+    [InlineData("input[aria-label='Feed distribution']", "feed://other", "FeedDistribution")]
+    public void Each_draft_field_emits_its_edit(string selector, string next, string property)
+    {
+        var changes = new List<DataExchangeAuthoringDraft>();
+        var cut = Render<HarborlineDataExchangeAuthoringEditor>(parameters => parameters
+            .Add(component => component.Value, DataExchangeAuthoringDraft.Empty)
+            .Add(component => component.Catalogue, Catalogue)
+            .Add(component => component.ValueChanged, changes.Add));
+
+        cut.Find(selector).Change(next);
+        Assert.Equal(next, typeof(DataExchangeAuthoringDraft).GetProperty(property)!.GetValue(Assert.Single(changes)));
+    }
+
+    [Fact]
+    public void Mapping_rows_and_external_keys_emit_the_edited_draft()
+    {
+        var input = FindFixture("data-exchange.read-only").GetProperty("input");
+        DataExchangeAuthoringDraft? changed = null;
+        var value = DraftOf(input.GetProperty("value")) with { DiscoveredColumns = [new("Ignored", false), new("CustomerNumber", true)], ExternalKeyColumns = ["CustomerNumber", "Region"] };
+        var cut = Render<HarborlineDataExchangeAuthoringEditor>(parameters => parameters
+            .Add(component => component.Value, value)
+            .Add(component => component.Catalogue, Catalogue)
+            .Add(component => component.ValueChanged, next => changed = next));
+
+        Assert.Equal("CustomerNumber, Region", cut.Find("input[aria-label='External key columns']").GetAttribute("value"));
+        Assert.Equal(["", "CustomerNumber"], cut.FindAll("select[aria-label='Mapping 1 source column'] option").Select(option => option.GetAttribute("value")));
+        cut.Find("input[aria-label='Include Ignored']").Change(true);
+        Assert.Equal([true, true], changed!.DiscoveredColumns.Select(column => column.Selected));
+        var edits = new (string Selector, object Value, Func<DataExchangeMappingRow, object> Read)[]
+        {
+            ("select[aria-label='Mapping 1 source column']", "Ignored", row => row.SourceColumn),
+            ("select[aria-label='Mapping 1 canonical target']", "", row => row.CanonicalTarget),
+            ("input[aria-label='Mapping 1 target pointer']", "/number", row => row.TargetPointer),
+            ("select[aria-label='Mapping 1 datatype']", "integer", row => row.Datatype),
+            ("input[aria-label='Mapping 1 required']", false, row => row.Required),
+            ("input[aria-label='Mapping 1 null']", "NULL", row => row.NullValue),
+            ("input[aria-label='Mapping 1 default']", "0", row => row.DefaultValue),
+            ("input[aria-label='Mapping 1 separator']", ";", row => row.Separator),
+            ("select[aria-label='Mapping 1 transform']", "", row => row.Transform),
+        };
+        foreach (var (selector, next, read) in edits)
+        {
+            cut.Find(selector).Change(next);
+            Assert.Equal(next, read(Assert.Single(changed!.Mappings)));
+        }
+        cut.Find("input[aria-label='External key columns']").Change(" A , ,B ");
+        Assert.Equal(["A", "B"], changed!.ExternalKeyColumns);
+        Button(cut, "Add mapping").Click();
+        // Ignored was selected above, so it is now the first selected column the new row defaults to.
+        Assert.Equal(new DataExchangeMappingRow("Ignored", "", "", "string", false, "", "", "", ""), changed!.Mappings[^1]);
+        cut.Find("input[aria-label='Mapping 2 target pointer']").Change("/second");
+        Assert.Equal(["/number", "/second"], changed!.Mappings.Select(mapping => mapping.TargetPointer));
+        cut.Find("button[aria-label='Remove mapping 2']").Click();
+        Assert.Equal(["/number"], changed!.Mappings.Select(mapping => mapping.TargetPointer));
     }
 
     [Fact, Trait("Holds", "data-exchange-eng-22")]
@@ -207,6 +289,58 @@ public sealed class DataExchangeAuthoringEditorTests : BunitContext
     }
 
     [Fact]
+    public void A_host_echo_of_the_same_revision_keeps_the_edit_pending_for_the_next_revision_change()
+    {
+        var fixture = FindFixture("data-exchange.pending-revision");
+        var input = fixture.GetProperty("input");
+        var edit = input.GetProperty("edit").GetProperty("name").GetString()!;
+        var cut = Render<HarborlineDataExchangeAuthoringEditor>(parameters => parameters
+            .Add(component => component.Value, DraftOf(input.GetProperty("value")))
+            .Add(component => component.Catalogue, Catalogue));
+
+        cut.Find("input[aria-label='Definition name']").Change(edit);
+        cut.Render(parameters => parameters.Add(component => component.Value, DraftOf(input.GetProperty("value")) with { Name = edit }));
+        Assert.Empty(cut.FindAll("[role='alert']"));
+        cut.Render(parameters => parameters.Add(component => component.Value, DraftOf(input.GetProperty("incoming"))));
+        Assert.Contains(fixture.GetProperty("expected").GetProperty("pendingAlert").GetString()!, cut.Find("[role='alert']").TextContent);
+        cut.Render(parameters => parameters.Add(component => component.CanPublish, true));
+        Assert.Contains(fixture.GetProperty("expected").GetProperty("pendingAlert").GetString()!, cut.Find("[role='alert']").TextContent);
+        Assert.Equal(edit, cut.Find("input[aria-label='Definition name']").GetAttribute("value"));
+    }
+
+    [Fact]
+    public void A_new_identity_at_the_same_revision_is_a_revision_change_too()
+    {
+        var fixture = FindFixture("data-exchange.pending-revision");
+        var input = fixture.GetProperty("input");
+        var cut = Render<HarborlineDataExchangeAuthoringEditor>(parameters => parameters
+            .Add(component => component.Value, DraftOf(input.GetProperty("value")))
+            .Add(component => component.Catalogue, Catalogue));
+
+        cut.Find("input[aria-label='Definition name']").Change(input.GetProperty("edit").GetProperty("name").GetString());
+        cut.Render(parameters => parameters.Add(component => component.Value, DraftOf(input.GetProperty("value")) with { Identity = Text(input.GetProperty("otherIdentity"), "identity") }));
+        Assert.Contains(fixture.GetProperty("expected").GetProperty("pendingAlert").GetString()!, cut.Find("[role='alert']").TextContent);
+    }
+
+    [Fact]
+    public void A_saved_revision_that_echoes_the_local_content_is_adopted_without_an_alert()
+    {
+        var input = FindFixture("data-exchange.pending-revision").GetProperty("input");
+        var edit = input.GetProperty("edit").GetProperty("name").GetString()!;
+        var cut = Render<HarborlineDataExchangeAuthoringEditor>(parameters => parameters
+            .Add(component => component.Value, DraftOf(input.GetProperty("value")))
+            .Add(component => component.Catalogue, Catalogue));
+
+        cut.Find("input[aria-label='Definition name']").Change(edit);
+        cut.Render(parameters => parameters.Add(component => component.Value, DraftOf(input.GetProperty("incoming"))));
+        Assert.NotEmpty(cut.FindAll("[role='alert']"));
+        cut.Render(parameters => parameters.Add(component => component.Value, DraftOf(input.GetProperty("incoming")) with { ExpectedRevision = "5", Name = edit }));
+        Assert.Empty(cut.FindAll("[role='alert']"));
+        cut.Render(parameters => parameters.Add(component => component.Value, DraftOf(input.GetProperty("otherIdentity"))));
+        Assert.Empty(cut.FindAll("[role='alert']"));
+    }
+
+    [Fact]
     public void A_revision_change_without_pending_edits_is_adopted_silently()
     {
         var fixture = FindFixture("data-exchange.pending-revision");
@@ -238,6 +372,8 @@ public sealed class DataExchangeAuthoringEditorTests : BunitContext
         Assert.Equal(discarded, cut.Find("input[aria-label='Definition name']").GetAttribute("value"));
         Assert.Equal(input.GetProperty("incoming").GetProperty("expectedRevision").GetString(), changed?.ExpectedRevision);
         Assert.Equal(discarded, changed?.Name);
+        cut.Render(parameters => parameters.Add(component => component.Value, DraftOf(input.GetProperty("otherIdentity"))));
+        Assert.Empty(cut.FindAll("[role='alert']"));
     }
 
     [Theory, Trait("Holds", "data-exchange-run-4")]
@@ -283,13 +419,57 @@ public sealed class DataExchangeAuthoringEditorTests : BunitContext
     [Fact]
     public void Renders_fallback_sections_for_an_empty_source_shape_no_mappings_and_no_dry_run()
     {
+        var populated = FindFixture("data-exchange.read-only").GetProperty("input");
+        var full = Render<HarborlineDataExchangeAuthoringEditor>(parameters => parameters
+            .Add(component => component.Value, DraftOf(populated.GetProperty("value")))
+            .Add(component => component.Catalogue, Catalogue)
+            .Add(component => component.Run, RunOf(populated.GetProperty("run"))));
+        foreach (var fallback in new[] { "No source columns discovered.", "No mappings authored.", "No dry run recorded." })
+            Assert.DoesNotContain(fallback, full.Markup, StringComparison.Ordinal);
         var cut = Render<HarborlineDataExchangeAuthoringEditor>(parameters => parameters
             .Add(component => component.Value, DataExchangeAuthoringDraft.Empty)
-            .Add(component => component.Catalogue, Catalogue));
+            .Add(component => component.Catalogue, Catalogue)
+            .Add(component => component.CanCommit, true));
+        Assert.True(cut.Find("button[aria-label='Commit reviewed run']").HasAttribute("disabled"));
 
         Assert.Contains("No source columns discovered.", Section(cut, "Discovered source shape").TextContent);
         Assert.Contains("No mappings authored.", Section(cut, "Canonical mappings").TextContent);
         Assert.Contains("No dry run recorded.", EvidenceSection(cut).TextContent);
+        Button(cut, "Add mapping").Click();
+        Assert.Equal("", cut.Find("select[aria-label='Mapping 1 source column']").GetAttribute("value"));
+    }
+
+    [Fact]
+    public void Commit_stays_closed_for_a_current_run_that_is_not_ready()
+    {
+        var run = RunOf(FindFixture("data-exchange.run-evidence").GetProperty("input").GetProperty("run"))! with { Status = "Pending" };
+        var cut = Render<HarborlineDataExchangeAuthoringEditor>(parameters => parameters
+            .Add(component => component.Value, DataExchangeAuthoringDraft.Empty)
+            .Add(component => component.Catalogue, Catalogue)
+            .Add(component => component.Run, run)
+            .Add(component => component.CanCommit, true));
+        Assert.True(cut.Find("button[aria-label='Commit reviewed run']").HasAttribute("disabled"));
+    }
+
+    [Fact]
+    public void The_empty_draft_is_blank_apart_from_its_csv_and_append_defaults()
+    {
+        // A fresh instance, not only the cached Empty, so each property initialiser runs under test.
+        foreach (var empty in new[] { DataExchangeAuthoringDraft.Empty, new DataExchangeAuthoringDraft("", "", "", "", [], [], [], "append", "") })
+            AssertBlank(empty);
+        var cut = Render<HarborlineDataExchangeAuthoringEditor>(parameters => parameters
+            .Add(component => component.Value, DataExchangeAuthoringDraft.Empty)
+            .Add(component => component.Catalogue, Catalogue));
+        Assert.NotNull(cut.Find("form.hl-data-exchange-authoring"));
+    }
+
+    private static void AssertBlank(DataExchangeAuthoringDraft empty)
+    {
+        Assert.Equal(["", "", "", "", "", "", "", "", "", "", ""],
+            new[] { empty.Identity, empty.ExpectedRevision, empty.Name, empty.SourceCapability, empty.ConnectorVersion, empty.SecretReference, empty.ScheduleReference, empty.ReferenceDataset, empty.PackDistribution, empty.FeedDistribution, string.Concat(empty.ExternalKeyColumns) });
+        Assert.Equal(("csv", "append"), (empty.FormatCapability, empty.ReplayPolicy));
+        Assert.Empty(empty.DiscoveredColumns);
+        Assert.Empty(empty.Mappings);
     }
 
     [Fact, Trait("ModuleConformance", "hlp.ui.data-exchange")]

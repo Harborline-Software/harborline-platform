@@ -29,7 +29,6 @@ export function DataExchangeAuthoringEditor({ value: host, catalogue, run, canCo
   const dirty = useRef(false)
   // ADR 0096 pending edits: a new identity or revision never silently overwrites local edits.
   useEffect(() => {
-    if (host === loaded.current) return
     const revisionChanged = revisionKey(host) !== revisionKey(loaded.current)
     loaded.current = host
     if (revisionChanged && dirty.current && authoredContent(host) !== authoredContent(value)) { setIncoming(host); return }
