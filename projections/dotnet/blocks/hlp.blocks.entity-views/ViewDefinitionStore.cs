@@ -5,8 +5,11 @@ namespace Harborline.Blocks.EntityViews;
 /// <summary>The lifecycle state of one immutable view-definition revision.</summary>
 public enum ViewDefinitionStatus
 {
+    /// <summary>Editable and not yet resolvable for opening.</summary>
     Draft,
+    /// <summary>Live: eligible to be the resolved head for opening.</summary>
     Published,
+    /// <summary>Retired from use.</summary>
     Withdrawn,
 }
 
@@ -25,17 +28,20 @@ public sealed record ViewDefinitionPackageEntry(
 /// <summary>The authoring and execution store for immutable view-definition revisions.</summary>
 public interface IViewDefinitionStore : IViewDefinitionSource
 {
+    /// <summary>Persists the definition and binding as a new draft revision; the version must be valid semantic versioning and the tenant, key and version must not already exist.</summary>
     ValueTask<ViewDefinitionRevision> CreateDraftAsync(
         ViewDefinition definition,
         ViewBinding binding,
         CancellationToken cancellationToken = default);
 
+    /// <summary>Marks the tenant's revision at the given key and version as published; throws if that revision does not exist.</summary>
     ValueTask<ViewDefinitionRevision> PublishAsync(
         string tenant,
         string key,
         string version,
         CancellationToken cancellationToken = default);
 
+    /// <summary>Copies an existing revision into a new draft at <paramref name="draftVersion"/>, recording the source version it was restored from; throws if the source does not exist.</summary>
     ValueTask<ViewDefinitionRevision> RestoreAsDraftAsync(
         string tenant,
         string key,
@@ -43,6 +49,7 @@ public interface IViewDefinitionStore : IViewDefinitionSource
         string draftVersion,
         CancellationToken cancellationToken = default);
 
+    /// <summary>Returns every revision of the key for the tenant, oldest semantic version first.</summary>
     ValueTask<IReadOnlyList<ViewDefinitionRevision>> ListHistoryAsync(
         string tenant,
         string key,
@@ -52,6 +59,7 @@ public interface IViewDefinitionStore : IViewDefinitionSource
 /// <summary>Builds the definition payload eligible for signed-pack carriage.</summary>
 public static class ViewDefinitionPackExporter
 {
+    /// <summary>Returns the published, non-personal revisions as pack entries, ordered by key then version; drafts, withdrawn and personal views are left out.</summary>
     public static IReadOnlyList<ViewDefinitionPackageEntry> Export(
         IEnumerable<ViewDefinitionRevision> revisions)
     {
@@ -72,6 +80,7 @@ public sealed class InMemoryViewDefinitionStore : IViewDefinitionStore
     private readonly object _gate = new();
     private readonly Dictionary<(string Tenant, string Key, string Version), ViewDefinitionRevision> _revisions = [];
 
+    /// <summary>Stores a defensive copy of the definition and binding as a Draft; throws <see cref="ViewQueryException"/> with view_definition.version_invalid for a non-semver version or view_definition.revision_conflict when the coordinates already exist.</summary>
     public ValueTask<ViewDefinitionRevision> CreateDraftAsync(
         ViewDefinition definition,
         ViewBinding binding,
@@ -93,6 +102,7 @@ public sealed class InMemoryViewDefinitionStore : IViewDefinitionStore
         return ValueTask.FromResult(revision);
     }
 
+    /// <summary>Sets the revision's status to Published; throws <see cref="ViewQueryException"/> with view_definition.not_found when no such revision exists.</summary>
     public ValueTask<ViewDefinitionRevision> PublishAsync(
         string tenant,
         string key,
@@ -113,6 +123,7 @@ public sealed class InMemoryViewDefinitionStore : IViewDefinitionStore
         }
     }
 
+    /// <summary>Adds a Draft copy of the source revision at the new version, stamped with the source version; throws view_definition.not_found for a missing source, version_invalid for a bad draft version, or revision_conflict when the draft version already exists.</summary>
     public ValueTask<ViewDefinitionRevision> RestoreAsDraftAsync(
         string tenant,
         string key,
@@ -142,6 +153,7 @@ public sealed class InMemoryViewDefinitionStore : IViewDefinitionStore
         }
     }
 
+    /// <summary>Returns the highest-semver Published definition for the tenant and key, or null when none is published.</summary>
     public ValueTask<ViewDefinition?> ResolvePublishedHeadAsync(
         string tenant,
         string key,
@@ -160,6 +172,7 @@ public sealed class InMemoryViewDefinitionStore : IViewDefinitionStore
         }
     }
 
+    /// <summary>Returns all revisions of the key for the tenant, ordered by ascending semantic version.</summary>
     public ValueTask<IReadOnlyList<ViewDefinitionRevision>> ListHistoryAsync(
         string tenant,
         string key,
@@ -258,6 +271,7 @@ public sealed class InMemoryViewDefinitionStore : IViewDefinitionStore
         int Patch,
         IReadOnlyList<string> PreRelease) : IComparable<ViewSemanticVersion>
     {
+        /// <summary>Parses major.minor.patch with optional pre-release and build metadata; build metadata is discarded. Throws <see cref="ViewQueryException"/> with view_definition.version_invalid for a blank value, a wrong core shape, leading zeros or invalid pre-release identifiers.</summary>
         public static ViewSemanticVersion Parse(string value)
         {
             if (string.IsNullOrWhiteSpace(value))
@@ -299,6 +313,7 @@ public sealed class InMemoryViewDefinitionStore : IViewDefinitionStore
                 new("view_definition.version_invalid", "The view-definition version is not semantic versioning.");
         }
 
+        /// <summary>Orders by major, minor and patch, then by pre-release: a release outranks its pre-releases, numeric identifiers compare numerically and sort before alphanumeric ones, and more identifiers outrank fewer when the shared prefix ties.</summary>
         public int CompareTo(ViewSemanticVersion? other)
         {
             if (other is null) return 1;
