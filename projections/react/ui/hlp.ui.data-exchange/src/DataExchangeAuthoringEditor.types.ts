@@ -1,4 +1,6 @@
 export interface DataExchangeOption { readonly id: string; readonly label: string }
+/** A catalogue entry is either a labelled option or a bare id that is also its label (ADR 0096 option shapes). */
+export type DataExchangeCatalogueOption = DataExchangeOption | string
 export interface DiscoveredSourceColumn {
   readonly name: string
   readonly selected: boolean
@@ -15,6 +17,10 @@ export interface DataExchangeMappingRow {
   readonly transform: string
 }
 export interface DataExchangeAuthoringDraft {
+  /** Server identity of the persisted definition; absent for a new draft. */
+  readonly identity?: string
+  /** Server revision the draft was loaded from; a change is a revision change. */
+  readonly expectedRevision?: string
   readonly name: string
   readonly sourceCapability: string
   readonly connectorVersion: string
@@ -30,12 +36,12 @@ export interface DataExchangeAuthoringDraft {
   readonly feedDistribution: string
 }
 export interface DataExchangeAuthoringCatalogue {
-  readonly sourceCapabilities: readonly DataExchangeOption[]
-  readonly formats?: readonly DataExchangeOption[]
-  readonly canonicalTargets: readonly DataExchangeOption[]
-  readonly datatypes: readonly DataExchangeOption[]
-  readonly transforms: readonly DataExchangeOption[]
-  readonly schedules: readonly DataExchangeOption[]
+  readonly sourceCapabilities: readonly DataExchangeCatalogueOption[]
+  readonly formats?: readonly DataExchangeCatalogueOption[]
+  readonly canonicalTargets: readonly DataExchangeCatalogueOption[]
+  readonly datatypes: readonly DataExchangeCatalogueOption[]
+  readonly transforms: readonly DataExchangeCatalogueOption[]
+  readonly schedules: readonly DataExchangeCatalogueOption[]
 }
 export interface DataExchangeRunCensus { readonly applied: number; readonly skipped: number; readonly conflicted: number; readonly rejected: number; readonly failed: number; readonly halted: number }
 export interface DataExchangeRunSummary {
@@ -54,6 +60,8 @@ export interface DataExchangeAuthoringEditorProps {
   readonly run?: DataExchangeRunSummary
   readonly canCommit: boolean
   readonly canPublish?: boolean
+  /** Read-only admission: every authoring control and intent is disabled. */
+  readonly readOnly?: boolean
   readonly authoringRefusals?: readonly DataExchangeAuthoringRefusal[]
   readonly onChange: (value: DataExchangeAuthoringDraft) => void
   readonly onDiscoverSource: () => void

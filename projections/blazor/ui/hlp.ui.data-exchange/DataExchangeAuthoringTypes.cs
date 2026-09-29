@@ -1,6 +1,10 @@
 namespace Harborline.UIAdapters.Blazor.Components.DataExchange;
 
-public sealed record DataExchangeOption(string Id, string Label);
+public sealed record DataExchangeOption(string Id, string Label)
+{
+    /// <summary>A bare catalogue id is also its label (ADR 0096 option shapes).</summary>
+    public static implicit operator DataExchangeOption(string id) => new(id, id);
+}
 public sealed record DiscoveredSourceColumn(string Name, bool Selected);
 public sealed record DataExchangeMappingRow(
     string SourceColumn,
@@ -24,6 +28,10 @@ public sealed record DataExchangeAuthoringDraft(
     string ReplayPolicy,
     string ScheduleReference)
 {
+    /// <summary>Server identity of the persisted definition; empty for a new draft.</summary>
+    public string Identity { get; init; } = "";
+    /// <summary>Server revision the draft was loaded from; a change is a revision change.</summary>
+    public string ExpectedRevision { get; init; } = "";
     public string FormatCapability { get; init; } = "csv";
     public string ReferenceDataset { get; init; } = "";
     public string PackDistribution { get; init; } = "";
