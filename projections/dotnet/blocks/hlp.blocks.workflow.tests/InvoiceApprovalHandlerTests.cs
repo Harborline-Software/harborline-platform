@@ -45,13 +45,16 @@ public sealed class InvoiceApprovalHandlerTests
     {
         public required decimal Amount { get; init; }
         public bool PostEffectBuilt { get; private set; }
+        public WorkflowDispatchAuthority? ReceivedDecision { get; private set; }
 
         public decimal GetInvoiceAmount(WorkflowInstanceRecord instance) => Amount;
         public DateTimeOffset GetBusinessTime(WorkflowInstanceRecord instance) => DateTimeOffset.UnixEpoch;
 
-        public WorkflowEffect BuildPostEffect(WorkflowInstanceRecord instance, WorkflowStepKey postStepKey)
+        public WorkflowEffect BuildPostEffect(
+            WorkflowInstanceRecord instance, WorkflowStepKey postStepKey, WorkflowDispatchAuthority? admittedDecision)
         {
             PostEffectBuilt = true;
+            ReceivedDecision = admittedDecision;
             return new WorkflowEffect((_, _) => Task.CompletedTask);
         }
 
@@ -116,8 +119,68 @@ public sealed class InvoiceApprovalHandlerTests
         Assert.Equal(new[] { "approve", "reject", "send-back" }, outcomes);
     }
 
-    [Fact(DisplayName = "Handler A: approve on the parked human-task advances to the CP post step WITH the effect (the human approval is the ONLY path to post over threshold)")]
-    public async Task Approve_AdvancesToPost_WithEffect()
+    // The host gate's ledger:post decision for the approve act (T-525): tenant "t" is Instance()'s tenant.
+    private static readonly WorkflowDispatchAuthority LedgerPost = new(
+        "user:approver", "t", InvoiceApprovalHandler.PostOperation, InvoiceApprovalHandler.PostRecordKind,
+        "je-for-inst-A", Allowed: true);
+
+    private static WorkflowTrigger ApproveTrigger(WorkflowDispatchAuthority? decision) =>
+        WorkflowTrigger.For(WorkflowTriggerKind.HumanAction, "inst-A", InvoiceApprovalSteps.Approve,
+            "{\"decision\":\"approve\"}") with { AdmittedDecision = decision };
+
+    [Fact(DisplayName = "Handler A (T-525): approve with no ledger:post decision is refused and builds no post effect")]
+    public async Task Approve_WithoutAnAdmittedDecision_IsRefused()
+    {
+        var ctx = new FakeContext { Amount = 7500m };
+        var handler = new InvoiceApprovalHandler(Table(), ctx);
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(async () => await handler.DecideAsync(
+            Instance(currentStep: InvoiceApprovalSteps.Approve), ApproveTrigger(null)));
+
+        Assert.False(ctx.PostEffectBuilt);
+    }
+
+    [Theory(DisplayName = "Handler A (T-525): approve under a decision that does not admit the post is refused and builds no post effect")]
+    [InlineData("denied")]
+    [InlineData("other-tenant")]
+    [InlineData("records-write")]
+    [InlineData("other-record-kind")]
+    [InlineData("no-principal")]
+    public async Task Approve_UnderADecisionThatDoesNotAdmitThePost_IsRefused(string variant)
+    {
+        var ctx = new FakeContext { Amount = 7500m };
+        var handler = new InvoiceApprovalHandler(Table(), ctx);
+        var decision = variant switch
+        {
+            "denied" => LedgerPost with { Allowed = false },
+            "other-tenant" => LedgerPost with { Tenant = "tenant:zenith" },
+            "records-write" => LedgerPost with { Operation = WorkflowDispatchAuthority.RequiredOperation },
+            "other-record-kind" => LedgerPost with { RecordKind = WorkflowDispatchAuthority.RequiredRecordKind },
+            _ => LedgerPost with { Principal = " " },
+        };
+
+        var refusal = await Assert.ThrowsAsync<UnauthorizedAccessException>(async () => await handler.DecideAsync(
+            Instance(currentStep: InvoiceApprovalSteps.Approve), ApproveTrigger(decision)));
+
+        Assert.Contains("'inst-A'", refusal.Message, StringComparison.Ordinal);
+        Assert.Contains("'ledger:post' decision", refusal.Message, StringComparison.Ordinal);
+        Assert.False(ctx.PostEffectBuilt);
+    }
+
+    [Fact(DisplayName = "Handler A (T-525): approve under an allowed ledger:post decision posts and hands that decision to the host effect")]
+    public async Task Approve_UnderAnAllowedLedgerPostDecision_HandsTheDecisionToTheEffect()
+    {
+        var ctx = new FakeContext { Amount = 7500m };
+        var handler = new InvoiceApprovalHandler(Table(), ctx);
+
+        var outcome = await handler.DecideAsync(Instance(currentStep: InvoiceApprovalSteps.Approve), ApproveTrigger(LedgerPost));
+
+        Assert.Equal(InvoiceApprovalSteps.Posted, outcome.NextStep);
+        Assert.Same(LedgerPost, ctx.ReceivedDecision);
+    }
+
+    [Fact(DisplayName = "Handler A (T-525): reject needs no ledger:post decision — it performs no post")]
+    public async Task Reject_WithoutAnAdmittedDecision_Completes()
     {
         var ctx = new FakeContext { Amount = 7500m };
         var handler = new InvoiceApprovalHandler(Table(), ctx);
@@ -125,7 +188,20 @@ public sealed class InvoiceApprovalHandlerTests
         var outcome = await handler.DecideAsync(
             Instance(currentStep: InvoiceApprovalSteps.Approve),
             WorkflowTrigger.For(WorkflowTriggerKind.HumanAction, "inst-A", InvoiceApprovalSteps.Approve,
-                "{\"decision\":\"approve\"}"));
+                "{\"decision\":\"reject\"}"));
+
+        Assert.Equal(InvoiceApprovalSteps.Rejected, outcome.NextStep);
+        Assert.False(ctx.PostEffectBuilt);
+    }
+
+    [Fact(DisplayName = "Handler A: approve on the parked human-task advances to the CP post step WITH the effect (the human approval is the ONLY path to post over threshold)")]
+    public async Task Approve_AdvancesToPost_WithEffect()
+    {
+        var ctx = new FakeContext { Amount = 7500m };
+        var handler = new InvoiceApprovalHandler(Table(), ctx);
+
+        var outcome = await handler.DecideAsync(
+            Instance(currentStep: InvoiceApprovalSteps.Approve), ApproveTrigger(LedgerPost));
 
         Assert.Equal(WorkflowStepOutcomeKind.Advance, outcome.Kind);
         Assert.Equal(WorkflowStatus.Completed, outcome.NextStatus);

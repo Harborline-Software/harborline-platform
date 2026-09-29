@@ -130,14 +130,14 @@
     "commit": "c09cfcacf303b1944afadf7e891428ecc9d737cb"
   },
   "projections/dotnet/blocks/hlp.blocks.workflow.tests/Harborline.Blocks.Workflow.Tests.csproj": {
-    "break": 51,
-    "score": 51.8,
-    "tested": 646,
-    "total": 1107,
-    "detected": 417,
-    "undetected": 388,
-    "measured": "2026-09-26",
-    "commit": "c09cfcacf303b1944afadf7e891428ecc9d737cb"
+    "break": 53,
+    "score": 53.46,
+    "tested": 690,
+    "total": 1157,
+    "detected": 455,
+    "undetected": 396,
+    "measured": "2026-09-29",
+    "commit": "61238024de72f8a36a84931ed821410494c8e976"
   },
   "projections/dotnet/contracts/hlp.contracts.identities.tests/Harborline.Contracts.Tests.csproj": {
     "break": 49,

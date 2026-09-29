@@ -14,6 +14,10 @@ namespace Harborline.Blocks.Workflow.Tests;
 /// </summary>
 public sealed class WorkflowIterationCapTests
 {
+    private static WorkflowDispatchAuthority Authorized(string instanceId) => new(
+        "user:operator", "t", WorkflowDispatchAuthority.RequiredOperation,
+        WorkflowDispatchAuthority.RequiredRecordKind, instanceId, Allowed: true);
+
     private const string DefKey = "test-loop";
     private const string LoopStep = "loop";
 
@@ -104,10 +108,10 @@ public sealed class WorkflowIterationCapTests
 
         Assert.Equal(0, (await store.LoadAsync("loop-1"))!.Iteration);
 
-        await dispatcher.DispatchAsync(WorkflowTrigger.For(WorkflowTriggerKind.Event, "loop-1", LoopStep));
+        await dispatcher.DispatchAsync(WorkflowTrigger.For(WorkflowTriggerKind.Event, "loop-1", LoopStep), Authorized("loop-1"));
         Assert.Equal(1, (await store.LoadAsync("loop-1"))!.Iteration);
 
-        await dispatcher.DispatchAsync(WorkflowTrigger.For(WorkflowTriggerKind.Event, "loop-1", LoopStep));
+        await dispatcher.DispatchAsync(WorkflowTrigger.For(WorkflowTriggerKind.Event, "loop-1", LoopStep), Authorized("loop-1"));
         Assert.Equal(2, (await store.LoadAsync("loop-1"))!.Iteration);
     }
 
@@ -123,7 +127,7 @@ public sealed class WorkflowIterationCapTests
         WorkflowDispatchResult result = WorkflowDispatchResult.Parked;
         for (var i = 0; i < 50 && result != WorkflowDispatchResult.Advanced && result != WorkflowDispatchResult.Terminal; i++)
         {
-            result = await dispatcher.DispatchAsync(WorkflowTrigger.For(WorkflowTriggerKind.Event, "loop-cap", LoopStep));
+            result = await dispatcher.DispatchAsync(WorkflowTrigger.For(WorkflowTriggerKind.Event, "loop-cap", LoopStep), Authorized("loop-cap"));
         }
 
         var inst = await store.LoadAsync("loop-cap");
@@ -154,7 +158,7 @@ public sealed class WorkflowIterationCapTests
         var steps = 0;
         for (; steps < 1000 && result != WorkflowDispatchResult.Advanced && result != WorkflowDispatchResult.Terminal; steps++)
         {
-            result = await dispatcher.DispatchAsync(WorkflowTrigger.For(WorkflowTriggerKind.Event, "loop-default", LoopStep));
+            result = await dispatcher.DispatchAsync(WorkflowTrigger.For(WorkflowTriggerKind.Event, "loop-default", LoopStep), Authorized("loop-default"));
         }
 
         Assert.Equal(WorkflowStatus.Failed, (await store.LoadAsync("loop-default"))!.Status);
