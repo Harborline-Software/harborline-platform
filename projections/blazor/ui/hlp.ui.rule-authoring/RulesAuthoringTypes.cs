@@ -37,4 +37,23 @@ public sealed record RulesDraft(
 public sealed record RulesOutcome(string Kind, string InputLabel, string ClockUtc, string? Value = null, string? Code = null, string? RuleName = null, string? MemberName = null, string? RequestId = null, string? Identity = null, string? ExpectedRevision = null, int? Generation = null, string? Validity = null, string? Visibility = null, string? Presentation = null);
 public sealed record RulesOperationRequest(string Operation, string RequestId, string Identity, string ExpectedRevision, int Generation, RulesDraft Draft);
 public sealed record RulesAuthoritativeState(string Identity, string Revision, string Status);
-public sealed record RulesOperationResponse(string RequestId, string Identity, string ExpectedRevision, int Generation, RulesAuthoritativeState? Authoritative = null, RulesOutcome? Outcome = null, RulesMaterialization? Materialization = null);
+public sealed record RulesOperationResponse(string RequestId, string Identity, string ExpectedRevision, int Generation, RulesAuthoritativeState? Authoritative = null, RulesOutcome? Outcome = null, RulesMaterialization? Materialization = null, IReadOnlyList<RulesRefusal>? Refusals = null);
+
+/// <summary>A producer refusal the editor renders as given: a stable code at an RFC 6901 pointer (DefinitionRefusal).</summary>
+public sealed record RulesRefusal(string Code, string Pointer, string? Target = null);
+
+/// <summary>
+/// The host's Access verdicts for the acting principal over the Rules capability names (DES-0018 §6). The editor asks
+/// and never decides: a name absent from <paramref name="Granted"/> is denied.
+/// </summary>
+public sealed record RulesEditorAuthority(IReadOnlyList<string> Granted)
+{
+    /// <summary>Save, restore or archive a draft (<c>rules:author</c>).</summary>
+    public bool CanAuthor => Granted.Contains("rules:author", StringComparer.Ordinal);
+
+    /// <summary>Publish a version (<c>rules:publish</c>).</summary>
+    public bool CanPublish => Granted.Contains("rules:publish", StringComparer.Ordinal);
+
+    /// <summary>Preview over records, which needs <c>rules:evaluate-explain</c> paired with <c>records:read</c>.</summary>
+    public bool CanPreview => Granted.Contains("rules:evaluate-explain", StringComparer.Ordinal) && Granted.Contains("records:read", StringComparer.Ordinal);
+}
