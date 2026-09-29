@@ -18,6 +18,10 @@ shape carries its stable key and the complete DES-0004 section 1 member list (ke
 requiredness, cardinality and reference target), so no catalogue seed is read to describe it. A
 package may not replace a floor shape by either its key or identity, case-insensitively.
 
+## Package closure (T-979)
+
+`KernelPackageClosure.Resolve(roots, packages, active)` is a pure resolver: the host supplies the root keys, the package manifests it holds and each active key's version, and gets back the closure in install order or a `KernelClosureRefusalException` carrying a `Code` and the dependency `Path` from the root. The walk is transitive over the manifests themselves, never over an author-claimed dependency list. `harborline.platform` is the implicit first root of every closure (DES-0029 ck-2, kernel-floor first), and every dependency precedes its dependents; ties break by ordinal key, so input order never changes the result. A closure holds one version per key, which must be the key's active version (`kernel.closure.version-conflict`). A pin is a minimum-inclusive SemVer 2.0.0 floor checked against the active version on every edge, so a diamond checks each pin on the shared package. The refusals are `kernel.closure.dependency-missing`, `kernel.closure.dependency-inactive`, `kernel.closure.dependency-below-pin`, `kernel.closure.cycle` (the path ends at the repeated key), `kernel.closure.version-conflict` and `kernel.closure.version-invalid`. Prior art: NuGet dependency resolution (one version per package, a bare version is a `>=` floor) and NU1108 for cycles.
+
 ## Configuration recovery (T-587)
 
 `KernelProfile` is the kernel profile record: it declares the `configuration-recovery` capability in
