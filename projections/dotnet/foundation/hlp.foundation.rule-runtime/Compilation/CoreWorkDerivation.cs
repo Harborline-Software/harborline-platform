@@ -38,7 +38,8 @@ internal static class CoreWorkDerivation
 
     internal static WorkProof DeriveGraph(IReadOnlyList<CompiledRule> rules, RuleEngineLimits limits)
     {
-        var aggregateResult = Math.Max(0, limits.MaxTableRowsPerAggregate) * MoneyAddResultBytes;
+        // A table admitting no rows still folds to one value (an empty sum is 0): charge at least one fold result.
+        var aggregateResult = Math.Max(1, limits.MaxTableRowsPerAggregate) * MoneyAddResultBytes;
         BigInteger dynamicResult = InputBytes;
         NodeProof[] proofs = [];
         var staticResults = new Dictionary<string, BigInteger>(StringComparer.Ordinal);
@@ -218,7 +219,8 @@ internal static class CoreWorkDerivation
     private static NodeProof Cat(int count, IReadOnlyList<NodeProof> children, BigInteger childWork,
         BigInteger childReads, BigInteger aggregateReads)
     {
-        var output = children.Aggregate(BigInteger.Zero, (total, child) => total + 2 + 6 * child.Result);
+        // An empty cat still returns the empty JSON string, whose serialized form is two quote bytes.
+        var output = count == 0 ? 2 : children.Aggregate(BigInteger.Zero, (total, child) => total + 2 + 6 * child.Result);
         // Count × final length conservatively covers copying of all growing prefixes.
         return new(output, 1 + childWork + count * output, childReads, aggregateReads);
     }

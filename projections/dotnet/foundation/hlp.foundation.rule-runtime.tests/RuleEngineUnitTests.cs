@@ -338,6 +338,69 @@ public sealed class RuleEngineUnitTests
         Assert.Equal(work, proof.MaximumEvaluationWork.ToString(System.Globalization.CultureInfo.InvariantCulture));
     }
 
+    // T-772: one program per transfer family, so a changed literal size, operator transfer, static
+    // reference or fixed-point pass moves an exact public proof. The TypeScript twin is the
+    // "pins the public %s transfer proof for cross-tier calibration" table in work-proof-parity.test.ts.
+    [Theory]
+    [InlineData("field-chain-reversed", "16394000", "1766")]
+    [InlineData("validate-then-read", "16394000", "1574042")]
+    [InlineData("row-chain-reversed", "16394000", "1340660000")]
+    [InlineData("row-collision", "16394000", "1341196000")]
+    [InlineData("empty-table-aggregate", "262144", "17506")]
+    [InlineData("table-collision", "262144", "118140")]
+    [InlineData("row-target-not-a-field", "16394000", "2414616")]
+    [InlineData("table-target-not-a-row", "16394000", "4549280130")]
+    [InlineData("row-target-not-a-table-cell", "262144", "84046838")]
+    [InlineData("missing-computed-keys", "32788004", "17931176452408")]
+    [InlineData("literals", "16394000", "13114627062")]
+    [InlineData("cat", "16394000", "22021438")]
+    [InlineData("missing-keys", "16394000", "2003311172")]
+    [InlineData("missing-aggregate", "81970005002", "49212329574195094826")]
+    [InlineData("money", "16394000", "235020984")]
+    [InlineData("date-coding", "16394000", "26220152086")]
+    [InlineData("logic", "16394000", "1631522")]
+    public void Compiler_pins_public_transfer_proofs_for_cross_tier_calibration(string name, string resultBytes, string work)
+    {
+        static RuleDefinition Rule(string id, string target, string expr, RuleScope scope = RuleScope.Field, RuleActionKind action = RuleActionKind.Compute)
+            => RuleDefinitionFactory.Create(id, RuleTier.JsonLogic, scope, target, expr, action);
+        // A 1400-character JSON string literal (8402 proof bytes) exceeds one fold result (8197).
+        var longText = "\"" + new string('x', 1400) + "\"";
+        IReadOnlyList<RuleDefinition> rules = name switch
+        {
+            // Declared out of dependency order, so static results need several fixed-point passes.
+            "field-chain-reversed" => [Rule("c", "c", "{\"var\":\"b\"}"), Rule("b", "b", "{\"var\":\"a\"}"), Rule("a", "a", "1")],
+            // A Validate rule's result never stands in for the field it validates.
+            "validate-then-read" => [Rule("v", "amount", "{\"<\":[{\"var\":\"amount\"},10]}", RuleScope.Field, RuleActionKind.Validate), Rule("y", "y", "{\"var\":\"amount\"}")],
+            "row-chain-reversed" => [Rule("rb", "items/b", "{\"var\":\"row.a\"}", RuleScope.Row), Rule("ra", "items/a", "1", RuleScope.Row)],
+            // Two sections computing the same row column: a row.c reader takes the larger result.
+            "row-collision" => [Rule("r1", "items/c", "[\"long\",\"text\"]", RuleScope.Row), Rule("r2", "lines/c", "1", RuleScope.Row), Rule("r3", "items/d", "{\"var\":\"row.c\"}", RuleScope.Row)],
+            // A table admitting no rows still folds to one value (an empty sum is 0), so the aggregate keeps one fold result.
+            "empty-table-aggregate" => [Rule("x", "x", "{\"var\":\"table.sum(items.amount)\"}")],
+            // Two Table rules computing one aggregate cell: a reader takes the larger result (above one fold result).
+            "table-collision" => [Rule("t1", "items/sum/amount", longText, RuleScope.Table), Rule("t2", "items/sum/amount", "1", RuleScope.Table), Rule("x", "x", "{\"var\":\"table.sum(items.amount)\"}")],
+            // A computed Row, Table or Field target is only its own kind of static result.
+            "row-target-not-a-field" => [Rule("rc", "items/c", "1", RuleScope.Row), Rule("y", "y", "{\"var\":\"items/c\"}")],
+            "table-target-not-a-row" => [Rule("t", "items/sum/amount", "1", RuleScope.Table), Rule("rc", "items/c", "{\"var\":\"row.sum/amount\"}", RuleScope.Row)],
+            "row-target-not-a-table-cell" => [Rule("rs", "items/sum", longText, RuleScope.Row), Rule("x", "x", "{\"agg\":[\"sum\",\"items\",\"undefined\"]}")],
+            // A computed first key of a multi-key missing is evaluated once.
+            "missing-computed-keys" => [Rule("m", "m", "{\"missing\":[{\"var\":\"table.sum(items.amount)\"},\"b\"]}")],
+            "literals" => [Rule("l", "l", "{\"in\":[{\"var\":\"k\"},[true,false,null,\"ab\",1.5,[],{},{\"p\":1,\"qr\":[true]}]]}"), Rule("o", "o", "{\"==\":[{\"var\":\"k\"},{\"p\":1,\"qr\":[false]}]}")],
+            "cat" => [Rule("c0", "c0", "{\"cat\":[]}"), Rule("c2", "c2", "{\"cat\":[\"a\",{\"var\":\"k\"}]}")],
+            "missing-keys" => [Rule("m", "m", "{\"missing\":[\"a\",\"b\"]}"), Rule("s", "s", "{\"missing_some\":[1,[\"a\",\"b\"]]}")],
+            "missing-aggregate" => [Rule("m", "m", "{\"missing\":{\"if\":[{\"var\":\"table.sum(items.amount)\"},\"a\",\"b\"]}}")],
+            "money" => [Rule("a", "a", "{\"money.add\":[\"1.00\",\"2.00\"]}"), Rule("s", "s", "{\"money.sub\":[\"1.00\",\"2.00\",\"3\"]}"), Rule("m", "m", "{\"money.mul\":[\"1.5\",\"2\"]}")],
+            "date-coding" => [Rule("a", "a", "{\"date.add\":[{\"date.today\":[]},1,\"day\"]}"), Rule("d", "d", "{\"date.diff\":[{\"var\":\"x\"},{\"var\":\"y\"}]}"), Rule("c", "c", "{\"coding.is\":[{\"var\":\"x\"},\"sys\",\"code\"]}")],
+            "logic" => [Rule("l", "l", "{\"and\":[{\"==\":[1,1]},{\"!\":[{\"var\":\"a\"}]},{\"<=\":[1,2]},{\"!==\":[1,2]},{\"if\":[true,1,2]},{\"max\":[1,2]},{\"in\":[\"a\",\"abc\"]}]}")],
+            _ => throw new ArgumentOutOfRangeException(nameof(name)),
+        };
+        var limits = name is "empty-table-aggregate" or "table-collision" or "row-target-not-a-table-cell"
+            ? RuleEngineLimits.Default with { MaxTableRowsPerAggregate = 0 } : RuleEngineLimits.Default;
+        var proof = RuleCompiler.Compile(rules, limits).WorkProof;
+
+        Assert.Equal(resultBytes, proof.MaximumResultBytes.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        Assert.Equal(work, proof.MaximumEvaluationWork.ToString(System.Globalization.CultureInfo.InvariantCulture));
+    }
+
     [Fact]
     public void Graph_instantiates_proof_for_independently_configured_structural_dimensions()
     {
