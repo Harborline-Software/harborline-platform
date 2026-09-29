@@ -9,8 +9,18 @@ using Harborline.Foundation.Forms.Engine.Security;
 
 namespace Harborline.Foundation.Forms.Engine.DependencyInjection;
 
-public enum FormEngineHostEnvironment { Development, Test, Production }
+/// <inheritdoc />
+public enum FormEngineHostEnvironment
+{
+    /// <summary>Local development behavior.</summary>
+    Development,
+    /// <summary>Test-host behavior.</summary>
+    Test,
+    /// <summary>Production-host behavior with required attestations.</summary>
+    Production
+}
 
+/// <inheritdoc />
 public static class FormEngineServiceCollectionExtensions
 {
     private sealed class ProductionFieldSecurityAttestation;
@@ -47,6 +57,7 @@ public static class FormEngineServiceCollectionExtensions
         return services;
     }
 
+    /// <inheritdoc />
     public static IServiceCollection AddHarborlineFormsEngine(
         this IServiceCollection services,
         FormEngineHostEnvironment environment,
@@ -101,6 +112,7 @@ public static class FormEngineServiceCollectionExtensions
         return services;
     }
 
+    /// <inheritdoc />
     public static IServiceCollection AddHarborlineFormsEngineTenantBoundFieldSecurity(
         this IServiceCollection services,
         FormFieldSecurityOptions options)
@@ -122,6 +134,7 @@ public static class FormEngineServiceCollectionExtensions
         return services;
     }
 
+    /// <inheritdoc />
     public static IServiceCollection AddHarborlineFormsEngineCurrentRequestContext(
         this IServiceCollection services)
     {
@@ -131,6 +144,7 @@ public static class FormEngineServiceCollectionExtensions
         return services;
     }
 
+    /// <inheritdoc />
     public static IServiceCollection AddHarborlineFormsEngineMacaroonCapabilities(
         this IServiceCollection services)
     {
@@ -141,6 +155,7 @@ public static class FormEngineServiceCollectionExtensions
         return services;
     }
 
+    /// <inheritdoc />
     public static IServiceCollection AddHarborlineFormsEngineInMemorySubmissionStore(
         this IServiceCollection services,
         FormEngineHostEnvironment environment)
@@ -154,6 +169,7 @@ public static class FormEngineServiceCollectionExtensions
         return services;
     }
 
+    /// <inheritdoc />
     public static IServiceCollection AddHarborlineFormsEngineFileSubmissionStore(
         this IServiceCollection services,
         Action<FileJournalFormSubmissionStoreOptions> configure)

@@ -2,6 +2,7 @@ using Harborline.Foundation.Assets.Common;
 
 namespace Harborline.Foundation.Forms.Engine.Persistence;
 
+/// <inheritdoc />
 public sealed class InMemoryFormSubmissionState
 {
     internal readonly SemaphoreSlim Gate = new(1, 1);
@@ -13,14 +14,17 @@ public sealed class InMemoryFormSubmissionState
     internal readonly HashSet<string> Leased = new(StringComparer.Ordinal);
 }
 
+/// <inheritdoc />
 public sealed class InMemoryFormSubmissionStore : IFormSubmissionTransactionStore
 {
     private readonly InMemoryFormSubmissionState _state;
     private readonly Func<FormSubmissionCommit, Exception?>? _commitFailure;
 
+    /// <inheritdoc />
     public InMemoryFormSubmissionStore(InMemoryFormSubmissionState? state = null)
         : this(state ?? new InMemoryFormSubmissionState(), null) { }
 
+    /// <inheritdoc />
     internal InMemoryFormSubmissionStore(
         InMemoryFormSubmissionState state,
         Func<FormSubmissionCommit, Exception?>? commitFailure)
@@ -29,6 +33,7 @@ public sealed class InMemoryFormSubmissionStore : IFormSubmissionTransactionStor
         _commitFailure = commitFailure;
     }
 
+    /// <inheritdoc />
     public async ValueTask<FormSubmissionCommitResult> CommitAsync(
         FormSubmissionCommit commit,
         CancellationToken cancellationToken = default)
@@ -37,6 +42,7 @@ public sealed class InMemoryFormSubmissionStore : IFormSubmissionTransactionStor
         return await transaction.CommitAsync(commit, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <inheritdoc />
     public async ValueTask<IFormSubmissionTransactionScope> BeginTransactionAsync(CancellationToken cancellationToken = default)
     {
         await _state.Gate.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -50,6 +56,7 @@ public sealed class InMemoryFormSubmissionStore : IFormSubmissionTransactionStor
         private bool _commitAttempted;
         private bool _released;
 
+        /// <inheritdoc />
         public ValueTask<FormSubmissionCommitResult> CommitAsync(FormSubmissionCommit commit, CancellationToken cancellationToken = default)
         {
             ObjectDisposedException.ThrowIf(_released, this);
@@ -79,12 +86,14 @@ public sealed class InMemoryFormSubmissionStore : IFormSubmissionTransactionStor
             return ValueTask.FromResult(new FormSubmissionCommitResult(FormSubmissionCommitDisposition.Created, snapshot.Receipt));
         }
 
+        /// <inheritdoc />
         public ValueTask RollbackAsync(CancellationToken cancellationToken = default)
         {
             Release();
             return ValueTask.CompletedTask;
         }
 
+        /// <inheritdoc />
         public ValueTask DisposeAsync()
         {
             Release();
@@ -99,6 +108,7 @@ public sealed class InMemoryFormSubmissionStore : IFormSubmissionTransactionStor
         }
     }
 
+    /// <inheritdoc />
     public async ValueTask<FormSubmissionRecord?> GetAsync(
         TenantId tenant,
         EntityId instanceId,
@@ -109,6 +119,7 @@ public sealed class InMemoryFormSubmissionStore : IFormSubmissionTransactionStor
         finally { _state.Gate.Release(); }
     }
 
+    /// <inheritdoc />
     public async ValueTask<IReadOnlyList<FormProjectionEnvelope>> LeasePendingAsync(
         int maximum,
         CancellationToken cancellationToken = default)
@@ -125,6 +136,7 @@ public sealed class InMemoryFormSubmissionStore : IFormSubmissionTransactionStor
         finally { _state.Gate.Release(); }
     }
 
+    /// <inheritdoc />
     public async ValueTask ReleaseProjectionLeaseAsync(string outboxId, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(outboxId);
@@ -133,6 +145,7 @@ public sealed class InMemoryFormSubmissionStore : IFormSubmissionTransactionStor
         finally { _state.Gate.Release(); }
     }
 
+    /// <inheritdoc />
     public async ValueTask CompleteProjectionAsync(string outboxId, IReadOnlyList<FormProjectionSkip> skips, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(skips);
@@ -153,6 +166,7 @@ public sealed class InMemoryFormSubmissionStore : IFormSubmissionTransactionStor
         finally { _state.Gate.Release(); }
     }
 
+    /// <inheritdoc />
     public async ValueTask RetryProjectionAsync(string outboxId, string stableErrorCode, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(stableErrorCode);

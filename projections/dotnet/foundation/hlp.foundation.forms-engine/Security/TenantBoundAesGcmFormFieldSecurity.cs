@@ -7,15 +7,19 @@ using Harborline.Foundation.Forms.Models;
 
 namespace Harborline.Foundation.Forms.Engine.Security;
 
+/// <inheritdoc />
 public sealed record FormTenantProtectionKey(string KeyVersion, ReadOnlyMemory<byte> KeyMaterial);
 
+/// <inheritdoc />
 public interface IFormTenantProtectionKeyProvider
 {
+    /// <inheritdoc />
     ValueTask<FormTenantProtectionKey?> GetCurrentAsync(
         TenantId tenant,
         string keyDomain,
         CancellationToken cancellationToken = default);
 
+    /// <inheritdoc />
     ValueTask<FormTenantProtectionKey?> GetAsync(
         TenantId tenant,
         string keyDomain,
@@ -23,14 +27,17 @@ public interface IFormTenantProtectionKeyProvider
         CancellationToken cancellationToken = default);
 }
 
+/// <inheritdoc />
 public sealed record FormDecryptCapability(
     string CapabilityId,
     TenantId Tenant,
     string Purpose,
     DateTimeOffset ExpiresAt);
 
+/// <inheritdoc />
 public interface IFormDecryptCapabilityProvider
 {
+    /// <inheritdoc />
     ValueTask<FormDecryptCapability?> AcquireAsync(
         TenantId tenant,
         string purpose,
@@ -38,6 +45,7 @@ public interface IFormDecryptCapabilityProvider
         CancellationToken cancellationToken = default);
 }
 
+/// <inheritdoc />
 public sealed record FormFieldGovernancePolicy(
     bool IsResolved,
     bool ProtectAtRest,
@@ -48,18 +56,24 @@ public sealed record FormFieldGovernancePolicy(
     IReadOnlySet<string>? ProhibitedJurisdictions = null,
     FormGovernanceRefusal? Refusal = null);
 
+/// <inheritdoc />
 public sealed class FormFieldSecurityOptions
 {
+    /// <inheritdoc />
     public string? HostJurisdiction { get; init; }
 }
 
+/// <inheritdoc />
 public interface IFormFieldGovernanceResolver
 {
+    /// <inheritdoc />
     FormFieldGovernancePolicy Resolve(FormDefinition definition, string fieldName);
 }
 
+/// <inheritdoc />
 public sealed class DefaultFormFieldGovernanceResolver : IFormFieldGovernanceResolver
 {
+    /// <inheritdoc />
     public const string DataClassificationSystem = "harborline/data-classification";
 
     /// <summary>
@@ -75,6 +89,7 @@ public sealed class DefaultFormFieldGovernanceResolver : IFormFieldGovernanceRes
         string.Equals(tag.System, DataClassificationSystem, StringComparison.Ordinal)
         || string.Equals(tag.System, LegacyDataClassificationSystem, StringComparison.Ordinal);
 
+    /// <inheritdoc />
     public FormFieldGovernancePolicy Resolve(FormDefinition definition, string fieldName)
     {
         ArgumentNullException.ThrowIfNull(definition);
@@ -148,6 +163,7 @@ public sealed class DefaultFormFieldGovernanceResolver : IFormFieldGovernanceRes
         }
     }
 
+    /// <inheritdoc />
     private static (bool IsResolved, IReadOnlySet<string>? Allowed, IReadOnlySet<string> Prohibited) ResolveResidency(
         IReadOnlyList<AspectOverlay> aspects)
     {
@@ -164,10 +180,14 @@ public sealed class DefaultFormFieldGovernanceResolver : IFormFieldGovernanceRes
     }
 }
 
+/// <inheritdoc />
 public sealed class TenantBoundAesGcmFormFieldSecurity : IFormGovernanceEnforcingFieldSecurity
 {
+    /// <inheritdoc />
     public const string FieldEncryptionKeyDomain = "encrypted-field-aes";
+    /// <inheritdoc />
     public const string CryptoSuite = "AES-256-GCM";
+    /// <inheritdoc />
     public static readonly IReadOnlySet<string> AcceptedDecryptPurposes =
         new HashSet<string>([FormEnginePermissions.DecryptOnRenderPurpose], StringComparer.Ordinal);
     private static readonly TimeSpan DecryptCapabilityLifetime = TimeSpan.FromSeconds(30);
@@ -180,6 +200,7 @@ public sealed class TenantBoundAesGcmFormFieldSecurity : IFormGovernanceEnforcin
     private readonly FormFieldSecurityOptions _options;
     private readonly TimeProvider _clock;
 
+    /// <inheritdoc />
     public TenantBoundAesGcmFormFieldSecurity(
         IFormTenantProtectionKeyProvider keys,
         IFormDecryptCapabilityProvider capabilities,
@@ -188,6 +209,7 @@ public sealed class TenantBoundAesGcmFormFieldSecurity : IFormGovernanceEnforcin
     {
     }
 
+    /// <inheritdoc />
     public TenantBoundAesGcmFormFieldSecurity(
         IFormTenantProtectionKeyProvider keys,
         IFormDecryptCapabilityProvider capabilities,
@@ -202,6 +224,7 @@ public sealed class TenantBoundAesGcmFormFieldSecurity : IFormGovernanceEnforcin
         _clock = clock ?? throw new ArgumentNullException(nameof(clock));
     }
 
+    /// <inheritdoc />
     public async ValueTask<FormProtectionResult> ProtectAsync(
         FormExecutionScope scope,
         FormDefinition definition,
@@ -260,6 +283,7 @@ public sealed class TenantBoundAesGcmFormFieldSecurity : IFormGovernanceEnforcin
             throw new FormEngineGovernanceException(fieldName, FormGovernanceRefusal.ResidencyDenied);
     }
 
+    /// <inheritdoc />
     public async ValueTask<FormReadableCandidate> ReadAsync(
         FormExecutionScope scope,
         FormDefinition definition,
@@ -544,6 +568,7 @@ public sealed class WithholdingFormFieldSecurity : IFormGovernanceEnforcingField
 {
     private readonly IFormGovernanceEnforcingFieldSecurity _writeProtection;
 
+    /// <inheritdoc />
     public WithholdingFormFieldSecurity(IFormFieldSecurity writeProtection)
     {
         ArgumentNullException.ThrowIfNull(writeProtection);
@@ -551,6 +576,7 @@ public sealed class WithholdingFormFieldSecurity : IFormGovernanceEnforcingField
             ?? throw new ArgumentException("The withholding profile requires a governance-enforcing write adapter.", nameof(writeProtection));
     }
 
+    /// <inheritdoc />
     public ValueTask<FormProtectionResult> ProtectAsync(
         FormExecutionScope scope,
         FormDefinition definition,
@@ -559,6 +585,7 @@ public sealed class WithholdingFormFieldSecurity : IFormGovernanceEnforcingField
         CancellationToken cancellationToken = default) =>
         _writeProtection.ProtectAsync(scope, definition, instanceId, acceptedCandidate, cancellationToken);
 
+    /// <inheritdoc />
     public ValueTask<FormReadableCandidate> ReadAsync(
         FormExecutionScope scope,
         FormDefinition definition,
