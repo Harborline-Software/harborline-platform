@@ -4,7 +4,7 @@
   "interfaceRevision": 2,
   "status": "frozen",
   "purpose": "Own deterministic snapshot-marked report execution and seven report cartridges (trial balance, balance sheet, P&L, P&L by property, AR aging, AP aging, rent roll) over a Harborline-owned neutral read port.",
-  "dependencies": [{"moduleId": "hlp.contracts.identities", "minimumRevision": 1}, {"moduleId": "hlp.blocks.measure-catalogue", "minimumRevision": 1}],
+  "dependencies": [{"moduleId": "hlp.contracts.identities", "minimumRevision": 1}, {"moduleId": "hlp.blocks.measure-catalogue", "minimumRevision": 1}, {"moduleId": "hlp.foundation.definitions", "minimumRevision": 1}],
   "callerInterface": {
     "name": "IReportRunner / IReportQuerySource",
     "operations": [

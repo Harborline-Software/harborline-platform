@@ -23,6 +23,8 @@ public sealed class ReportDefinitionAdmissionTests
     private static readonly DefinitionContractWindow Window = new(1, 0, 1);
     private static readonly DefinitionContractVersion Contract = new(1, 0);
 
+    [Trait("Holds", "reports-auth-15")]
+    [Trait("Holds", "reports-eng-3")]
     [Theory(DisplayName = "reports-auth-15: a measure the catalogue lacks is refused by name, naming the measure and the catalogue")]
     [InlineData(DefinitionAdmissionPhase.Author)]
     [InlineData(DefinitionAdmissionPhase.Install)]
@@ -37,6 +39,7 @@ public sealed class ReportDefinitionAdmissionTests
             "finance.cash-flow", CatalogueName), refusal);
     }
 
+    [Trait("Holds", "reports-eng-3")]
     [Theory(DisplayName = "reports-eng-3: a definition naming a measure the catalogue lacks is refused at every phase, and Require throws")]
     [InlineData(DefinitionAdmissionPhase.Author)]
     [InlineData(DefinitionAdmissionPhase.Publish)]
@@ -55,6 +58,7 @@ public sealed class ReportDefinitionAdmissionTests
             "occupancy.vacancy-rate", CatalogueName)], refused.Report.Refusals);
     }
 
+    [Trait("Holds", "reports-eng-3")]
     [Fact(DisplayName = "reports-eng-3: every unknown measure is refused, in definition order, and known ones are not")]
     public async Task Every_unknown_measure_is_refused_in_order()
     {
@@ -70,6 +74,9 @@ public sealed class ReportDefinitionAdmissionTests
             report.Refusals);
     }
 
+    [Trait("Holds", "reports-ck-1")]
+    [Trait("Holds", "reports-ck-2")]
+    [Trait("Holds", "reports-ck-9")]
     [Theory(DisplayName = "reports-ck-1,2,9: every shipped measure path is admitted at every phase and kept verbatim")]
     [InlineData(DefinitionAdmissionPhase.Author)]
     [InlineData(DefinitionAdmissionPhase.Publish)]
@@ -87,6 +94,9 @@ public sealed class ReportDefinitionAdmissionTests
         Assert.Equal(paths, admitted.Measures.Select(measure => measure.Measure));
     }
 
+    [Trait("Holds", "reports-ck-1")]
+    [Trait("Holds", "reports-ck-2")]
+    [Trait("Holds", "reports-ck-9")]
     [Fact(DisplayName = "reports-ck-1,2,9: admission resolves each path through ResolveAsync alone and evaluates nothing")]
     public async Task Admission_resolves_by_path_and_evaluates_nothing()
     {
@@ -101,6 +111,9 @@ public sealed class ReportDefinitionAdmissionTests
         Assert.Equal("tenant.catalogue", Assert.Single(report.Refusals).Catalogue);
     }
 
+    [Trait("Holds", "reports-ck-1")]
+    [Trait("Holds", "reports-ck-2")]
+    [Trait("Holds", "reports-ck-9")]
     [Theory(DisplayName = "reports-ck-1,2,9: a path that is not a legal catalogue address is refused by name without being resolved")]
     [InlineData("trial-balance")]
     [InlineData("Finance.Trial-Balance")]
@@ -119,6 +132,9 @@ public sealed class ReportDefinitionAdmissionTests
         Assert.Empty(catalogue.Resolved);
     }
 
+    [Trait("Holds", "reports-ck-1")]
+    [Trait("Holds", "reports-ck-2")]
+    [Trait("Holds", "reports-ck-9")]
     [Fact(DisplayName = "reports-ck-1,2,9: a null path is refused as malformed")]
     public async Task Null_path_is_refused_as_malformed()
     {

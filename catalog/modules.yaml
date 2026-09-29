@@ -628,7 +628,7 @@
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "The report engine and cartridges return typed ReportRunResult envelopes; chart/grid/export rendering is owned by existing UI modules."},
       "owner": "platform-blocks",
-      "dependencies": ["hlp.contracts.identities", "hlp.blocks.measure-catalogue"],
+      "dependencies": ["hlp.contracts.identities", "hlp.blocks.measure-catalogue", "hlp.foundation.definitions"],
       "status": "implemented",
       "depth": {
         "disposition": "deep-module",
@@ -648,7 +648,7 @@
             "id": "Harborline.Blocks.Reports",
             "assembly": "Harborline.Blocks.Reports",
             "manifest": "projections/dotnet/blocks/hlp.blocks.reports/Harborline.Blocks.Reports.csproj",
-            "dependencies": ["Harborline.Contracts", "Harborline.Blocks.MeasureCatalogue"],
+            "dependencies": ["Harborline.Contracts", "Harborline.Blocks.MeasureCatalogue", "Harborline.Foundation.Definitions"],
             "identityAuthority": "Harborline",
             "producerRepository": "harborline-platform",
             "distribution": "internal-only",
