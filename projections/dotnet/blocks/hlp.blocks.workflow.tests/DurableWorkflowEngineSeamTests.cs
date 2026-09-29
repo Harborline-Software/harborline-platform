@@ -296,7 +296,7 @@ public sealed class DurableWorkflowEngineSeamTests
             definitionStore: AdmittedDefinitionStore);
 
         Assert.Equal(WorkflowDispatchResult.Advanced, await dispatcher.DispatchAsync(
-            WorkflowTrigger.For(WorkflowTriggerKind.Event, "inst-under", "decide"), Authorized("inst-under")));
+            WorkflowTrigger.For(WorkflowTriggerKind.Event, "inst-under", "decide") with { AdmittedDecision = LedgerPost() }, Authorized("inst-under")));
         Assert.Equal(WorkflowStatus.Completed, (await store.LoadAsync("inst-under"))!.Status);
         Assert.Single(await store.CommittedEffectPayloadsAsync("inst-under"));
     }
@@ -719,7 +719,7 @@ public sealed class DurableWorkflowEngineSeamTests
             => new(2026, 7, 1, 0, 0, 0, TimeSpan.Zero);
 
         public WorkflowEffect BuildPostEffect(
-            WorkflowInstanceRecord instance, WorkflowStepKey postStepKey, WorkflowDispatchAuthority? admittedDecision)
+            WorkflowInstanceRecord instance, WorkflowStepKey postStepKey, WorkflowDispatchAuthority admittedDecision)
             => Effect($"je:{postStepKey.ToDeterministicGuid("source-reference"):D}");
 
         public string RenderPostingPreview(WorkflowInstanceRecord instance, decimal value)
