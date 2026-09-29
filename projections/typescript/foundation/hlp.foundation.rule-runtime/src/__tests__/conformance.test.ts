@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 
 import type { Json, RuleDefinition } from '../model.js'
+import { DEFAULT_LIMITS, type RuleEngineLimits } from '../limits.js'
 import { compile } from '../compiler.js'
 import { CompileError } from '../grammar.js'
 import { FormRuleGraph } from '../graph.js'
@@ -36,7 +37,8 @@ const artifactDir = join(here, '..', '..', '..', '..', '..', '..', 'artifacts', 
 interface CorpusCase {
   name: string
   clock?: string
-  limits?: Record<string, number>
+  /** Integer limits as numbers; `maxStaticWork` as a decimal string (T-818: it exceeds MAX_SAFE_INTEGER). */
+  limits?: Record<string, number | string>
   definitionRules?: Array<Record<string, Json>>
   skin?: Record<string, Json>
   instance: Record<string, Json>
@@ -44,7 +46,7 @@ interface CorpusCase {
   expectedCompiledExpression?: Record<string, Json>
   expectedOutcomes?: Record<string, Json>
   /** Ticket 162: the case pins a PUBLISH-TIME refusal — compile must throw this stable code. */
-  expectedCompileError?: { code: string }
+  expectedCompileError?: { code: string, params?: Record<string, string> }
   /** Ticket 162: evaluate this rule id through GuardEvaluator.evaluateValue over `instance` as the context bag. */
   guardValue?: string
   expectedGuardValue?: Record<string, Json>
@@ -138,23 +140,43 @@ function declaredRules(c: CorpusCase): RuleDefinition[] {
   return c.skin ? [compileSkin(c.skin)] : (c.definitionRules ?? []).map(parseRule)
 }
 
+// Mirror of the .NET CorpusLoader.ParseLimits key set.
+function limitsOf(c: CorpusCase): RuleEngineLimits {
+  const l = c.limits ?? {}
+  const int = (key: string, fallback: number) => (l[key] as number | undefined) ?? fallback
+  return {
+    ...DEFAULT_LIMITS,
+    maxGraphNodes: int('maxGraphNodes', DEFAULT_LIMITS.maxGraphNodes),
+    maxDependencyDepth: int('maxDependencyDepth', DEFAULT_LIMITS.maxDependencyDepth),
+    maxReferencesPerRule: int('maxReferencesPerRule', DEFAULT_LIMITS.maxReferencesPerRule),
+    maxAstNodes: int('maxAstNodes', DEFAULT_LIMITS.maxAstNodes),
+    stepBudget: int('stepBudget', DEFAULT_LIMITS.stepBudget),
+    maxStaticWork: typeof l.maxStaticWork === 'string' ? BigInt(l.maxStaticWork) : DEFAULT_LIMITS.maxStaticWork,
+  }
+}
+
 function runCase(c: CorpusCase) {
   const rules = declaredRules(c)
-  const compiled = compile(rules)
-  const graph = new FormRuleGraph(compiled, clockOf(c), testAdmission)
+  const limits = limitsOf(c)
+  const compiled = compile(rules, limits)
+  const graph = new FormRuleGraph(compiled, clockOf(c), testAdmission, limits)
   const result = graph.evaluateInstance(RuleInstance.fromJsonText(JSON.stringify(c.instance)))
   return { compiled, result }
 }
 
-// Ticket 162: a case pinning a publish-time refusal — return the stable code compile raises.
-function compileRefusalCode(c: CorpusCase): string {
+// Ticket 162: a case pinning a publish-time refusal — return the refusal compile raises.
+function compileRefusal(c: CorpusCase): CompileError {
   try {
-    compile((c.definitionRules ?? []).map(parseRule))
+    compile((c.definitionRules ?? []).map(parseRule), limitsOf(c))
   } catch (e) {
-    if (e instanceof CompileError) return e.code
+    if (e instanceof CompileError) return e
     throw e
   }
   throw new Error(`case '${c.name}' expected a compile refusal and none was raised`)
+}
+
+function compileRefusalCode(c: CorpusCase): string {
+  return compileRefusal(c).code
 }
 
 // Ticket 162: a case evaluating one rule through the guard tier (flat context bag; no tables).
@@ -168,7 +190,10 @@ describe('SPINE-1 conformance corpus (TS tier — byte-identical to .NET)', () =
   for (const c of allCases()) {
     it(c.name, () => {
       if (c.expectedCompileError) {
-        expect(compileRefusalCode(c)).toBe(c.expectedCompileError.code)
+        const refusal = compileRefusal(c)
+        expect(refusal.code).toBe(c.expectedCompileError.code)
+        // T-818: a case that pins params pins them exactly in both tiers.
+        if (c.expectedCompileError.params) expect(refusal.params).toEqual(c.expectedCompileError.params)
         return
       }
       if (c.guardValue) {

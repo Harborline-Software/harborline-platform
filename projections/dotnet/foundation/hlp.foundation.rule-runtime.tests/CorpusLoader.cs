@@ -38,7 +38,10 @@ internal static class CorpusLoader
     }
 
     /// <summary>Ticket 162: the stable code a publish-time-refusal case expects compile to raise.</summary>
-    public static string CompileRefusalCode(JsonObject caseObj)
+    public static string CompileRefusalCode(JsonObject caseObj) => CompileRefusal(caseObj).Code;
+
+    /// <summary>The refusal a publish-time-refusal case expects compile to raise (T-818: with its params).</summary>
+    public static RuleCompilationException CompileRefusal(JsonObject caseObj)
     {
         var rules = ((JsonArray)caseObj["definitionRules"]!).Select(n => ParseRule((JsonObject)n!)).ToList();
         try
@@ -47,7 +50,7 @@ internal static class CorpusLoader
         }
         catch (RuleCompilationException ex)
         {
-            return ex.Code;
+            return ex;
         }
         throw new InvalidOperationException($"case '{caseObj["name"]}' expected a compile refusal and none was raised");
     }
@@ -200,6 +203,9 @@ internal static class CorpusLoader
             MaxReferencesPerRule = lo["maxReferencesPerRule"]?.GetValue<int>() ?? d.MaxReferencesPerRule,
             MaxAstNodes = lo["maxAstNodes"]?.GetValue<int>() ?? d.MaxAstNodes,
             StepBudget = lo["stepBudget"]?.GetValue<int>() ?? d.StepBudget,
+            // T-818: a decimal string, because the default exceeds int and JavaScript's safe integers.
+            MaxStaticWork = lo["maxStaticWork"] is { } work
+                ? System.Numerics.BigInteger.Parse(work.GetValue<string>(), CultureInfo.InvariantCulture) : d.MaxStaticWork,
         };
     }
 

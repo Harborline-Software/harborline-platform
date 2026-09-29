@@ -1,0 +1,26 @@
+{
+  "_comment": "T-818 — the static work ceiling, shared across tiers. `limits.maxStaticWork` is a decimal string because the default (10^26) exceeds both Number.MAX_SAFE_INTEGER and int. The one-literal program's graph work proof is 130 in both tiers: a ceiling equal to the proof is admitted and evaluates, one unit below it refuses at compile with rule.compile.work_exceeded and the proof/ceiling params as decimal strings.",
+  "cases": [
+    {
+      "name": "work/admitted-at-ceiling",
+      "limits": { "maxStaticWork": "130" },
+      "definitionRules": [
+        { "id": "c.lit", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "x", "action": "Compute", "expression": 1 }
+      ],
+      "instance": {},
+      "expectedAst": { "c.lit": 1 },
+      "expectedOutcomes": {
+        "c.lit": { "ruleId": "c.lit", "target": "field:x", "outputType": "Value", "value": { "state": "Resolved", "value": 1 } }
+      }
+    },
+    {
+      "name": "work/over-ceiling-refuses-at-compile",
+      "limits": { "maxStaticWork": "129" },
+      "definitionRules": [
+        { "id": "c.lit", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "x", "action": "Compute", "expression": 1 }
+      ],
+      "instance": {},
+      "expectedCompileError": { "code": "rule.compile.work_exceeded", "params": { "proof": "130", "ceiling": "129" } }
+    }
+  ]
+}

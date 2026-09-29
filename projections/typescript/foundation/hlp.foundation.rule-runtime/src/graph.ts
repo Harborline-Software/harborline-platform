@@ -11,7 +11,7 @@ import type {
   ComputedValue, Json, OptionsOutcome, RuleActionKind, RuleError, RuleOutcome, VisibilityState,
 } from './model.js'
 import { DEFAULT_LIMITS, type RuleEngineLimits } from './limits.js'
-import { ownedCompiledRulesOf, type CompiledGraph, type CompiledRule } from './compiler.js'
+import { ownedCompiledRulesOf, staticWorkRefusal, type CompiledGraph, type CompiledRule } from './compiler.js'
 import { deriveGraphWork, type WorkProof } from './core-work.js'
 import type { RuleRef } from './grammar.js'
 import { detachJson, ownedInstanceDataOf, ownedRowOf, ownedValueOf, RuleInstance, type RuleRow } from './instance.js'
@@ -297,9 +297,11 @@ export class FormRuleGraph {
     if (!ownedRules) throw new Error(Codes.contextSnapshotRequired)
     this.compiled = compiled
     this.compiledRules = ownedRules
-    this.refusal = admissionRefusal(admission, ownedRules.map((rule) => rule.ast))
     this.limits = { ...limits }
     this.workProof = deriveGraphWork(ownedRules, this.limits)
+    // T-818: the admission refusal keeps priority; otherwise the proof under THIS graph's limits must fit.
+    this.refusal = admissionRefusal(admission, ownedRules.map((rule) => rule.ast))
+      ?? staticWorkRefusal(this.workProof, this.limits)?.code ?? null
     if (typeof clock !== 'function') throw new TypeError('FormRuleGraph requires a caller-supplied clock')
   }
 

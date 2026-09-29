@@ -1,3 +1,5 @@
+using System.Numerics;
+
 namespace Harborline.Foundation.RuleEngine;
 
 /// <summary>
@@ -31,6 +33,14 @@ public sealed record RuleEngineLimits
 
     /// <summary>Max string-literal length inside an expression. Publish-time (static).</summary>
     public int MaxLiteralLength { get; init; } = 4_096;
+
+    /// <summary>
+    /// Max static <c>WorkProof.MaximumEvaluationWork</c> (structural proof units, not steps or time).
+    /// Publish-time (static): compile and graph construction refuse a larger proof with
+    /// <c>rule.compile.work_exceeded</c>; a proof equal to it is admitted (T-818). The default is
+    /// 10^(d+1) for the 25-digit largest proof in the supported calibration set.
+    /// </summary>
+    public BigInteger MaxStaticWork { get; init; } = BigInteger.Pow(10, 26);
 
     /// <summary>Per-instance total evaluation step budget (ops). Runtime.</summary>
     public int StepBudget { get; init; } = 250_000;

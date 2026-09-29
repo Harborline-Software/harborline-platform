@@ -174,7 +174,8 @@ export function deriveCoreWork(node: Json, ruleId: string, dependencyResult = IN
  * not claimed to be static edges: each resolver lookup and possible cell demand is charged.
  */
 export function deriveGraphWork(rules: readonly { source: RuleDefinition, ast: Json, references?: readonly { kind: string }[] }[], limits: RuleEngineLimits): WorkProof {
-  const aggregateResult = BigInt(Math.max(0, limits.maxTableRowsPerAggregate)) * MONEY_ADD_RESULT_BYTES
+  // A table admitting no rows still folds to one value (an empty sum is 0): charge at least one fold result.
+  const aggregateResult = BigInt(Math.max(1, limits.maxTableRowsPerAggregate)) * MONEY_ADD_RESULT_BYTES
   let dynamicResult = INPUT_BYTES
   let perRule: NodeProof[] = []
   let staticResults = new Map<string, bigint>()

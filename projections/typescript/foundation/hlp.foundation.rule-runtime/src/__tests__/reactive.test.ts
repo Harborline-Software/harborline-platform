@@ -740,7 +740,7 @@ describe('static-cap rejection (identical to the .NET integrity tier)', () => {
   it('fails closed when the per-instance step budget is exhausted', () => {
     const g = new FormRuleGraph(compile([rule('c.b', 'b', 'Compute', { '+': [{ var: 'a' }, 1] })]), fixedClock, testAdmission, { ...{
       maxGraphNodes: 5000, maxTableRowsPerAggregate: 2000, maxDependencyDepth: 64, maxReferencesPerRule: 64,
-      maxAstNodes: 256, maxLiteralLength: 4096, stepBudget: 0, wallClockMs: 250,
+      maxAstNodes: 256, maxLiteralLength: 4096, maxStaticWork: DEFAULT_LIMITS.maxStaticWork, stepBudget: 0, wallClockMs: 250,
     } })
     const res = g.evaluateInstance(instance({ a: 1 }))
     expect(res.isSaveBlocked).toBe(true)
@@ -829,7 +829,7 @@ describe('wall-clock is a non-authoritative liveness fault, not a divergent outc
     // remains an outcome-affecting fail-closed result — the two tiers reach it identically.
     const g = new FormRuleGraph(compile([rule('c.b', 'b', 'Compute', { '+': [{ var: 'a' }, 1] })]), fixedClock, testAdmission, {
       maxGraphNodes: 5000, maxTableRowsPerAggregate: 2000, maxDependencyDepth: 64, maxReferencesPerRule: 64,
-      maxAstNodes: 256, maxLiteralLength: 4096, stepBudget: 0, wallClockMs: 250,
+      maxAstNodes: 256, maxLiteralLength: 4096, maxStaticWork: DEFAULT_LIMITS.maxStaticWork, stepBudget: 0, wallClockMs: 250,
     })
     const res = g.evaluateInstance(instance({ a: 1 }))
     expect(res.isSaveBlocked).toBe(true)

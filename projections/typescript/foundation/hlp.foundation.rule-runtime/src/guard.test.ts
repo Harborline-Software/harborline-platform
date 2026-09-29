@@ -71,6 +71,16 @@ describe('GuardEvaluator.evaluateGuard', () => {
     expect(evaluator.evaluateGuard(rule('guard.plain-scope', { var: 'amount' }), snapshot({ amount: 100 }), testAdmission)).toEqual({ ok: true })
   })
 
+  it('resolves process-context wf. and timer. references by their full context member name', () => {
+    const stateGuard = rule('guard.wf-state', { '==': [{ var: 'wf.state' }, 'approved'] })
+
+    expect(evaluator.evaluateGuard(stateGuard, snapshot({ 'wf.state': 'approved' }), testAdmission)).toEqual({ ok: true })
+    expect(evaluator.evaluateGuard(stateGuard, snapshot({ te: 'approved' }), testAdmission)).toEqual({
+      ok: false,
+      error: { code: 'guard.wf-state', params: {} },
+    })
+  })
+
   it('returns a stable error result for an invalid division expression', () => {
     expect(evaluator.evaluateGuard(rule('guard.invalid', { '/': [1, 0] }), snapshot({}), testAdmission)).toEqual({
       ok: false,
@@ -168,6 +178,8 @@ describe('GuardEvaluator.evaluateGuard', () => {
     expect(() => RuleContextSnapshot.fromJsonText('{')).toThrow('rule context is not valid JSON')
     expect(() => RuleContextSnapshot.fromJsonText('null')).toThrow('rule context must be a JSON object')
     expect(() => RuleContextSnapshot.fromJsonText('[]')).toThrow('rule context must be a JSON object')
+    expect(() => RuleContextSnapshot.fromJsonText('1')).toThrow('rule context must be a JSON object')
+    expect(() => RuleContextSnapshot.fromJsonText('"amount"')).toThrow('rule context must be a JSON object')
   })
 
   it('refuses null contexts with the snapshot-required result rather than inspecting them', () => {

@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json.Nodes;
 
 using Harborline.Foundation.RuleEngine.Functions;
@@ -107,7 +108,27 @@ public static class RuleCompiler
         DetectCyclesAndDepth(compiled, lim);
         // Admission proof after closed-operator and static-DAG validation.  It is
         // deliberately distinct from the runtime step/wall-clock backstops.
-        return new CompiledGraph(compiled, CoreWorkDerivation.DeriveGraph(compiled, lim));
+        var workProof = CoreWorkDerivation.DeriveGraph(compiled, lim);
+        var workRefusal = StaticWorkRefusal(workProof, lim);
+        if (workRefusal is not null) throw workRefusal;
+        return new CompiledGraph(compiled, workProof);
+    }
+
+    /// <summary>
+    /// T-818: the static work ceiling shared by compile and graph construction. Null when the proof fits;
+    /// a proof equal to the ceiling is admitted. The refusal is graph-level (no rule id).
+    /// </summary>
+    internal static RuleCompilationException? StaticWorkRefusal(WorkProof proof, RuleEngineLimits limits)
+    {
+        var work = proof.MaximumEvaluationWork;
+        var ceiling = limits.MaxStaticWork;
+        if (work <= ceiling) return null;
+        var invariant = CultureInfo.InvariantCulture;
+        var factor = ceiling > 0 ? $" (more than {(work / ceiling).ToString(invariant)}x)" : "";
+        return new RuleCompilationException(RuleEngineCodes.CompileWorkExceeded,
+            $"graph work proof {work.ToString(invariant)} exceeds the static work ceiling {ceiling.ToString(invariant)}{factor}; "
+            + "lower maxTableRowsPerAggregate or maxGraphNodes, or author fewer dynamic Row or missing reads and fewer aggregate references",
+            new Dictionary<string, string> { ["proof"] = work.ToString(invariant), ["ceiling"] = ceiling.ToString(invariant) });
     }
 
     private static void ValidateJsonSchema(RuleDefinition rule)
