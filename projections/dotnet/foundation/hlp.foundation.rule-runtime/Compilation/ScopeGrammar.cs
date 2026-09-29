@@ -56,16 +56,15 @@ internal static class ScopeGrammar
             {
                 var pathNode = obj["var"];
                 // {"var":[path, default]} or {"var":"path"}
-                string path;
-                JsonNode? def = null;
-                if (pathNode is JsonArray arr)
+                var arr = pathNode as JsonArray;
+                JsonNode? def = arr is { Count: > 1 } ? arr[1]?.DeepClone() : null;
+                // rules-ck-7 addresses named cells with static strings lowered here, once. A
+                // numeric (array-index), computed, null or empty operand has no canonical cell;
+                // it used to throw an untyped InvalidOperationException (the TS tier read field '').
+                if ((arr is null ? pathNode : arr.Count > 0 ? arr[0] : null) is not JsonValue pathValue
+                    || !pathValue.TryGetValue<string>(out var path) || path.Length == 0)
                 {
-                    path = arr.Count > 0 ? (arr[0]?.GetValue<string>() ?? "") : "";
-                    def = arr.Count > 1 ? arr[1]?.DeepClone() : null;
-                }
-                else
-                {
-                    path = pathNode?.GetValue<string>() ?? "";
+                    throw Bad(ruleId, "a var path must be a non-empty string from the scope-addressing grammar");
                 }
 
                 // A table.fn(col) var lowers to the agg operator.
