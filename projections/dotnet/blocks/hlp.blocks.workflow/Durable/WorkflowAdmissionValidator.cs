@@ -144,8 +144,8 @@ public sealed class WorkflowAdmissionValidator : IWorkflowAdmissionValidator
     /// the installed pack's action catalogue (DES-0019 workflows-bound-1) — a capability absent from it
     /// is refused outright. <paramref name="effectCatalog"/> is null in the two legacy overloads above
     /// (a caller that does not yet compose one; e.g. an isolated unit test or the package-consumer
-    /// fixture) — a null catalogue SKIPS the presence check entirely (existing behavior, unchanged), it
-    /// does NOT mean "nothing is known". Production DI (see
+    /// fixture) — a null catalogue makes the registry the catalogue of record, so a capability with no
+    /// registry row is still refused (T-525 item 2). Production DI (see
     /// DurableWorkflowServiceCollectionExtensions) always supplies the real one.
     /// </summary>
     public WorkflowAdmissionValidator(ICapabilityAuthorityRegistry registry, IWorkflowEffectCatalog? effectCatalog)
@@ -245,7 +245,9 @@ public sealed class WorkflowAdmissionValidator : IWorkflowAdmissionValidator
                 // catalogue, the same catalog the broker reads) is consulted BEFORE deriving CP/AP. A
                 // capability absent from it is refused outright — it must never be silently derived to
                 // CP via the registry fallback and admitted on a matching author label (ADR 0143).
-                if (_effectCatalog is not null && !_effectCatalog.IsEffectingCapability(a.CapabilityRef))
+                // Without a catalogue the registry is the catalogue of record, so an unregistered
+                // capability is refused on every constructor (T-525 item 2).
+                if (!(_effectCatalog?.IsEffectingCapability(a.CapabilityRef) ?? _registry.IsRegistered(a.CapabilityRef)))
                 {
                     v.Add(new(WorkflowAdmissionCodes.UnknownCapability,
                         $"action '{a.Id}' names capability '{a.CapabilityRef}', which the installed " +
