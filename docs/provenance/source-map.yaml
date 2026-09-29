@@ -278,7 +278,7 @@
         "projections/dotnet/foundation/hlp.foundation.actor/IPartyContext.cs": "2436629d98a77f575a3fe2b00723843969274565e11657887af39910f8529a9b",
         "projections/dotnet/foundation/hlp.foundation.actor/PrincipalPartyResolutionFailure.cs": "b1104954438bf5087db71fe82184cd3991703af11f337bccfad3ca077b5f3b24",
         "projections/dotnet/foundation/hlp.foundation.actor/PrincipalPartyResolutionException.cs": "a0c18aec1cdaafc116695b64a0d2e92f7222e58793344180882f5fa6f9b5bdfd",
-        "projections/dotnet/foundation/hlp.foundation.actor.tests/ActorContractTests.cs": "66f826a449f5cf4a5be614eb57d32c0163ebccacf8894b89971809ec4fac3dab",
+        "projections/dotnet/foundation/hlp.foundation.actor.tests/ActorContractTests.cs": "c7945d1136828437d42c2f9b43d6fd8d8ad03139567baf0e7fe46a44526aef88",
         "conformance/hlp.foundation.actor/fixtures.yaml": "679bb8ae5e85124ba11ff6d6f9d9b0db1f7fa6f7437651c768b7400fe40e037e",
         "specs/modules/foundation/hlp.foundation.actor/interface.yaml": "b5a39ae7b3c369bc18a0abc7d75f255a5900e312dcecd448066542abb1da9bb3",
         "projections/dotnet/foundation/hlp.foundation.actor/AccessScope.cs": "227c3c2fa8b93172e8faf0b59a989ba1c243c2faf407aa77f0e95e1f3d52798e",
@@ -288,7 +288,7 @@
         "projections/dotnet/foundation/hlp.foundation.actor/Harborline.Foundation.Authorization.csproj": "59e580618b2fa29c31cc4bfcd83e016d2dda2072d7a92984a12e8d90ccfe2fbf",
         "projections/dotnet/foundation/hlp.foundation.actor/README.md": "0b11378409ea8ba7d360a3266acd5a1b38e986cdc3930c0c02aed9304dd8195b",
         "projections/dotnet/foundation/hlp.foundation.actor.tests/AccessProviderTests.cs": "763615a4248287ca2b2ed150ce171be518cadb93a09b9adfd3dbe026b6fbdca5",
-        "projections/dotnet/foundation/hlp.foundation.actor.tests/AuthorizationTraceTests.cs": "95a1a5652f940fdf76c00a4ecc0352e3b8ebed1af695ab52bf6ef867a6a7f6ac",
+        "projections/dotnet/foundation/hlp.foundation.actor.tests/AuthorizationTraceTests.cs": "35ec5b1d1113317c663040d30b9b346df034b4b52e11126d7402550372f546f4",
         "projections/dotnet/foundation/hlp.foundation.actor.tests/AccessConsumerTests.cs": "7b65e1ce1d9506a05e40d4609df92c566c2f89d9bd76d86b3517979f9f086942",
         "projections/dotnet/foundation/hlp.foundation.actor.tests/Harborline.Foundation.Authorization.Tests.csproj": "58eb58df029b7d16473fe3fc536f7544fedb21b53f447f04f85add360b5328bc",
         "projections/dotnet/architecture/hlp.architecture.tests/AccessDeciderArchitectureTests.cs": "43ca7c22e1ca1cc5df4a09e02e114f941ecd47ef0095803730298e1109f6296e"

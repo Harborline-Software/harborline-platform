@@ -150,14 +150,14 @@
     "commit": "c09cfcacf303b1944afadf7e891428ecc9d737cb"
   },
   "projections/dotnet/foundation/hlp.foundation.actor.tests/Harborline.Foundation.Authorization.Tests.csproj": {
-    "break": 80,
-    "score": 80.25,
-    "tested": 149,
+    "break": 96,
+    "score": 96.17,
+    "tested": 157,
     "total": 176,
-    "detected": 126,
-    "undetected": 31,
-    "measured": "2026-09-28",
-    "commit": "1c6a88a9602ac639ab7b91fe87611077c45fa141"
+    "detected": 151,
+    "undetected": 6,
+    "measured": "2026-09-29",
+    "commit": "8bf4129b7e4738a564055ca7de66735eccd1beb1"
   },
   "projections/dotnet/foundation/hlp.foundation.assistance.tests/Harborline.Foundation.Assistance.Tests.csproj": {
     "break": 59,
