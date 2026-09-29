@@ -32,12 +32,12 @@ public sealed record PackContentKindEntry(string Name, int Value, string Pillar,
 /// The one registry of pack content kinds and pillars (T-738). Shipped values are the api's
 /// (<c>packages/foundation-packs/Model/PackEnums.cs</c> and <c>Graph/PackPillar.cs</c>) and never renumber
 /// (owner ruling, 2026-09-29). Every platform pack-identity constant must agree with this table; the
-/// architecture drift gate enforces it. The checked-in <c>_shared/packs/content-kinds/content-kinds.export.json</c>
+/// architecture drift gate enforces it. The checked-in <c>_shared/content-kinds/content-kinds.json</c>
 /// is <see cref="Export"/>'s bytes and ships in the package for the api to consume.
 /// </summary>
 public static class PackContentKindRegistry
 {
-    private const string ResourceName = "Harborline.Foundation.Definitions.content-kinds.export.json";
+    private const string ResourceName = "Harborline.Foundation.Definitions.content-kinds.json";
 
     /// <summary>The pillars, in wire-value order.</summary>
     public static IReadOnlyList<PackPillarEntry> Pillars { get; } =

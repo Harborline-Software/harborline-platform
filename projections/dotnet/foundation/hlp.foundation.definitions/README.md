@@ -11,9 +11,9 @@ pillar it groups under, and whether the api already ships it (`Shipped`) or the 
 value (`Reserved`). Shipped values are the api's `PackContentKind` and `PackPillar` and never renumber
 (owner ruling, 2026-09-29). Reserved today: `AssistanceDefinition` 20 and `ReleasedNavigationDefinition` 21.
 
-`Export()` writes `_shared/packs/content-kinds/content-kinds.export.json`, which is embedded in the
+`Export()` writes `_shared/content-kinds/content-kinds.json`, which is embedded in the
 assembly and packed at the same path for the api to consume. Regenerate it with
-`dotnet run --project tooling/content-kind-export -- _shared/packs/content-kinds/content-kinds.export.json`;
+`dotnet run --project tooling/content-kind-export -- _shared/content-kinds/content-kinds.json`;
 `VerifyCheckedInExport` fails the tests when it is stale. `PackContentKindDriftArchitectureTests` fails
 when any platform `*PackIdentity` constant, or any `PackContentKind`/`PackPillar` enum, disagrees with
 the registry.

@@ -95,8 +95,8 @@ public sealed class PackContentKindRegistryTests
     {
         Assert.True(
             PackContentKindRegistry.VerifyCheckedInExport(),
-            "_shared/packs/content-kinds/content-kinds.export.json is stale; regenerate it with "
-            + "dotnet run --project tooling/content-kind-export -- _shared/packs/content-kinds/content-kinds.export.json");
+            "_shared/content-kinds/content-kinds.json is stale; regenerate it with "
+            + "dotnet run --project tooling/content-kind-export -- _shared/content-kinds/content-kinds.json");
         Assert.Equal(PackContentKindRegistry.Export(), PackContentKindRegistry.LoadCheckedInExport());
     }
 

@@ -13,7 +13,7 @@
       "DefinitionRefusalReport(Stage, Refusals) -> a pure admission verdict, empty Refusals meaning admitted",
       "DefinitionRefusalException(Stage, Refusals) -> the shared refused-operation exception every producer throws; history and published head are unchanged when it throws",
       "PackContentKindRegistry.Kinds / Pillars / Kind(name) / PillarOf(kindName) -> the one content-kind and pillar registry (T-738): every kind's wire value, pillar and Shipped or Reserved status; shipped values are the api's and never renumber; an unknown name throws",
-      "PackContentKindRegistry.Export / LoadCheckedInExport / VerifyCheckedInExport -> the indented, newline-terminated JSON the api consumes, checked in at _shared/packs/content-kinds/content-kinds.export.json, embedded and packed at the same path"
+      "PackContentKindRegistry.Export / LoadCheckedInExport / VerifyCheckedInExport -> the indented, newline-terminated JSON the api consumes, checked in at _shared/content-kinds/content-kinds.json, embedded and packed at the same path"
     ]
   }
 }
