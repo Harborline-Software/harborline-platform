@@ -17,7 +17,7 @@
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="11.0.0-rc.1.26425.128" Justification="R-0047" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="$(HarborlineReleasedMicrosoftPackageVersion)" Justification="R-0051" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.9.0" Justification="R-0034" />
-    <PackageVersion Include="coverlet.collector" Version="10.0.1" Justification="R-0036" />
+    <PackageVersion Include="coverlet.collector" Version="10.1.0" Justification="R-0036" />
     <PackageVersion Include="xunit" Version="2.9.3" Justification="R-0032" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="4.0.0" Justification="R-0033" />
   </ItemGroup>
