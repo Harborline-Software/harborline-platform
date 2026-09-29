@@ -3,18 +3,27 @@ using System.Text.Json;
 
 namespace Harborline.Foundation.DataExchange;
 
+/// <summary>Terminal status of one reviewed effect; ExchangeOutcomePolicies fixes how each of the six arms is retried, corrected and acknowledged.</summary>
 public enum ExchangeEffectStatus
 {
+    /// <summary>The command was applied to the canonical target.</summary>
     Applied,
+    /// <summary>No write was needed, for example a replay whose payload digest matches the ledger.</summary>
     Skipped,
+    /// <summary>The target holds different content for this effect identity; needs forward correction, not retry.</summary>
     Conflicted,
+    /// <summary>The effect was refused, for example by mapping or target access; needs correction and is not retryable.</summary>
     Rejected,
+    /// <summary>The command failed transiently; retryable, and it never advances the checkpoint.</summary>
     Failed,
+    /// <summary>The effect was left incomplete, for example another attempt holds its claim; retryable, and it never advances the checkpoint.</summary>
     Halted,
 }
 
+/// <summary>A terminal effect status with its stable machine-readable code, such as target.access_refused.</summary>
 public sealed record EffectTerminalOutcome(ExchangeEffectStatus Status, string Code);
 
+/// <summary>How readers treat one effect status: retryable, correction required, safe to acknowledge, and the code shown to ordinary readers.</summary>
 public sealed record ExchangeOutcomePolicy(
     ExchangeEffectStatus Status,
     bool Retryable,
@@ -22,6 +31,7 @@ public sealed record ExchangeOutcomePolicy(
     bool AcknowledgementSafe,
     string OrdinaryReaderCode);
 
+/// <summary>The fixed policy table covering the six effect statuses.</summary>
 public static class ExchangeOutcomePolicies
 {
     private static readonly IReadOnlyDictionary<ExchangeEffectStatus, ExchangeOutcomePolicy> Policies =
@@ -35,9 +45,11 @@ public static class ExchangeOutcomePolicies
             [ExchangeEffectStatus.Halted] = new(ExchangeEffectStatus.Halted, true, false, false, "halted"),
         };
 
+    /// <summary>Returns the fixed policy for the status; throws KeyNotFoundException for a status value outside the six defined arms.</summary>
     public static ExchangeOutcomePolicy For(ExchangeEffectStatus status) => Policies[status];
 }
 
+/// <summary>One effect outcome recorded in the target ledger, keyed by batch and effect identity, with attempt, timestamp and optional payload digest.</summary>
 public sealed record EffectLedgerEntry(
     BatchIdentity BatchIdentity,
     EffectIdempotencyIdentity EffectIdentity,
@@ -46,13 +58,18 @@ public sealed record EffectLedgerEntry(
     DateTimeOffset RecordedAt,
     string? PayloadDigest = null);
 
+/// <summary>Overall result of a commit run, derived from its census.</summary>
 public enum ExchangeRunTerminalStatus
 {
+    /// <summary>Every reviewed effect was applied.</summary>
     Completed,
+    /// <summary>Nothing halted, but at least one effect was skipped, conflicted, rejected or failed.</summary>
     CompletedWithRefusals,
+    /// <summary>At least one effect halted, so the run did not finish.</summary>
     Halted,
 }
 
+/// <summary>Per-status effect counts for a run; the total must account for every reviewed effect exactly once.</summary>
 public sealed record ExchangeCensus(
     int Applied,
     int Skipped,
@@ -61,15 +78,18 @@ public sealed record ExchangeCensus(
     int Failed,
     int Halted)
 {
+    /// <summary>Total number of effects represented by the status counters.</summary>
     public int Accounted => Applied + Skipped + Conflicted + Rejected + Failed + Halted;
 }
 
+/// <summary>The terminal outcome of one reviewed effect, flagged when it was replayed from the ledger or a prior access refusal instead of executed now.</summary>
 public sealed record CommitEffectResult(
     ProposedEffect Effect,
     EffectIdempotencyIdentity EffectIdentity,
     EffectTerminalOutcome Outcome,
     bool ReplayedFromLedger);
 
+/// <summary>Immutable evidence of one commit run: approved dry run, batch identity, per-effect results, census, terminal status, durable checkpoint and retention.</summary>
 public sealed record CommitRunArtifact(
     CommitRunId Id,
     DryRunId ApprovedDryRunId,
@@ -84,8 +104,10 @@ public sealed record CommitRunArtifact(
     DateTimeOffset RetainUntil,
     bool LegalHold);
 
+/// <summary>Source-owned policy naming which outcomes may advance the checkpoint, which are retryable, and whether conflicts are forward-corrected.</summary>
 public sealed record AcknowledgementPolicy
 {
+    /// <summary>Creates the policy; throws ArgumentException for a blank id or when a safe outcome is retryable (Failed or Halted), and ArgumentNullException for a null set.</summary>
     public AcknowledgementPolicy(
         string id,
         IReadOnlySet<ExchangeEffectStatus> safeOutcomes,
@@ -106,28 +128,37 @@ public sealed record AcknowledgementPolicy
         CorrectConflicts = correctConflicts;
     }
 
+    /// <summary>Stable identifier of the policy.</summary>
     public string Id { get; init; }
+    /// <summary>Statuses after which the checkpoint may advance.</summary>
     public IReadOnlySet<ExchangeEffectStatus> SafeOutcomes { get; init; }
+    /// <summary>Statuses a later commit re-executes; the committer accepts only Failed or Halted here.</summary>
     public IReadOnlySet<ExchangeEffectStatus> RetryableOutcomes { get; init; }
+    /// <summary>When true, a Conflicted outcome is forward-corrected through the correction port instead of being reported as final.</summary>
     public bool CorrectConflicts { get; init; }
 }
 
+/// <summary>Caller options for a commit; either flag asks for rollback semantics, which are always refused as commit.rollback_refused.</summary>
 public sealed record CommitOptions(bool AllOrNothingRollback = false, bool MultiCommandAtomicCommit = false);
 
 /// <summary>Resolves source-capability-owned outcome metadata; unknown policies return null.</summary>
 public interface ISourceOutcomePolicyPort
 {
+    /// <summary>Resolves the acknowledgement policy for the proposal's source capability; null when the policy is unknown.</summary>
     ValueTask<AcknowledgementPolicy?> ResolveAsync(ProposalFingerprint proposal, CancellationToken cancellationToken = default);
 }
 
 /// <summary>Reevaluates live semantic dependencies and effects through trusted host adapters.</summary>
 public interface IProposalEvaluationPort
 {
+/// <summary>Reevaluates the approved evidence against current semantic dependencies.</summary>
     ValueTask<DryRunRequest> EvaluateAsync(DryRunArtifact approved, CancellationToken cancellationToken = default);
 }
 
+/// <summary>Positive limits on one commit: effect window size, parallelism and serialized command size.</summary>
 public sealed record CommitBounds
 {
+    /// <summary>Creates the bounds; throws ArgumentOutOfRangeException when any value is zero or negative.</summary>
     public CommitBounds(int maxWindowSize, int maxConcurrency, int maxCommandBytes)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxWindowSize);
@@ -138,15 +169,20 @@ public sealed record CommitBounds
         MaxCommandBytes = maxCommandBytes;
     }
 
+    /// <summary>Most reviewed effects one commit may contain; a larger window is refused as commit.window_exceeded.</summary>
     public int MaxWindowSize { get; }
 
+    /// <summary>Maximum number of effects applied in parallel.</summary>
     public int MaxConcurrency { get; }
 
+    /// <summary>Largest serialized command allowed; a larger one is refused as commit.command_payload_exceeded.</summary>
     public int MaxCommandBytes { get; }
 }
 
+/// <summary>Tenant, actor and authorization-context reference the target command port uses to authorize one write.</summary>
 public sealed record TargetAuthorizationContext(string TenantId, string ActorId, string ContextReference);
 
+/// <summary>The command sent to the canonical Records target for one effect: run, batch, effect and attempt identity, contract, payload and authorization.</summary>
 public sealed record CanonicalRecordsCommand(
     CommitRunId CommitRunId,
     BatchIdentity BatchIdentity,
@@ -157,21 +193,28 @@ public sealed record CanonicalRecordsCommand(
     TargetAuthorizationContext Authorization,
     CanonicalEffectPayload Payload);
 
+/// <summary>Thrown when a commit or run-evidence check is refused; Code is the stable refusal code.</summary>
 public sealed class DataExchangeCommitRefusedException(string code, string message, DryRunId? supersedingDryRunId = null) : Exception(message)
 {
+    /// <summary>Stable refusal code, for example run.stale or commit.forbidden.</summary>
     public string Code { get; } = code;
+    /// <summary>The fresh dry run created for review when the refusal is run.stale; null for every other refusal.</summary>
     public DryRunId? SupersedingDryRunId { get; } = supersedingDryRunId;
 }
 
+/// <summary>Decides whether the caller may commit a given dry run.</summary>
 public interface IExchangeCommitAuthority
 {
+    /// <summary>Returns true when the caller may commit the dry run; false is refused as commit.forbidden.</summary>
     ValueTask<bool> CanCommitAsync(
         DryRunArtifact dryRun,
         CancellationToken cancellationToken = default);
 }
 
+/// <summary>Per-effect target access check applied before each target write.</summary>
 public interface ITargetAccessGate
 {
+    /// <summary>Returns true when the target permits the effect; false becomes a Rejected target.access_refused outcome.</summary>
     ValueTask<bool> CanApplyAsync(
         ProposedEffect effect,
         CancellationToken cancellationToken = default);
@@ -180,20 +223,17 @@ public interface ITargetAccessGate
 /// <summary>A domain-owned forward correction of a conflicted canonical command, never batch undo.</summary>
 public sealed record CanonicalForwardCorrectionCommand(CanonicalRecordsCommand OriginalCommand, EffectTerminalOutcome Conflict);
 
+/// <summary>Target port that applies domain-owned forward corrections to conflicted effects.</summary>
 public interface ICanonicalForwardCorrectionPort
 {
+/// <summary>Applies and records a domain-owned forward correction.</summary>
     ValueTask<EffectTerminalOutcome> CorrectAndRecordAsync(CanonicalForwardCorrectionCommand command, CancellationToken cancellationToken = default);
 }
 
-/// <summary>
-/// The only target execution boundary. Each command (including forward correction) independently
-/// performs target authorization, validation, idempotency, audit and its own transaction.
-/// ExecuteAndRecordAsync and CorrectAndRecordAsync atomically commit the target effect and durable
-/// outcome before returning. A lost response must remain discoverable by GetOutcomeAsync; retries
-/// must preserve successful effects. There is no separate caller-owned outcome write.
-/// </summary>
+/// <summary>The target command port enforces authorization, idempotency, audit, and atomic outcome recording.</summary>
 public interface ICanonicalTargetCommandPort : ICanonicalForwardCorrectionPort
 {
+    /// <summary>Claims the effect identity for this attempt until the lease expires; Acquired is false when an outcome is already recorded (returned in ExistingOutcome) or another attempt holds the claim.</summary>
     ValueTask<EffectClaim> ClaimAsync(
         BatchIdentity batchIdentity,
         EffectIdempotencyIdentity effectIdentity,
@@ -202,24 +242,30 @@ public interface ICanonicalTargetCommandPort : ICanonicalForwardCorrectionPort
         DateTimeOffset leaseUntil,
         CancellationToken cancellationToken = default);
 
+    /// <summary>Runs the command against the target and atomically records its terminal outcome, returning that outcome.</summary>
     ValueTask<EffectTerminalOutcome> ExecuteAndRecordAsync(
         CanonicalRecordsCommand command,
         CancellationToken cancellationToken = default);
 
+    /// <summary>Reads the recorded ledger entry for an effect identity; null when nothing has been recorded.</summary>
     ValueTask<EffectLedgerEntry?> GetOutcomeAsync(
         EffectIdempotencyIdentity identity,
         CancellationToken cancellationToken = default);
 }
 
+/// <summary>Result of a claim: whether it was acquired and, if not, the outcome already on record.</summary>
 public sealed record EffectClaim(bool Acquired, EffectLedgerEntry? ExistingOutcome);
 
+/// <summary>Per-tenant, per-definition store of the durable source checkpoint that later runs resume from.</summary>
 public interface IAcquisitionCheckpointStore
 {
+    /// <summary>Returns the current checkpoint for the tenant and definition, or null when none has been promoted.</summary>
     ValueTask<string?> GetAsync(
         string tenantId,
         string definitionId,
         CancellationToken cancellationToken = default);
 
+    /// <summary>Advances the checkpoint when the current one equals the expected value or the same batch is moving forward; otherwise throws CheckpointConflictException.</summary>
     ValueTask PromoteAsync(
         string tenantId,
         string definitionId,
@@ -230,15 +276,20 @@ public interface IAcquisitionCheckpointStore
         CancellationToken cancellationToken = default);
 }
 
+/// <summary>Thrown when a checkpoint promotion finds the expected checkpoint stale.</summary>
 public sealed class CheckpointConflictException(string message) : Exception(message)
 {
+    /// <summary>Stable refusal code emitted when the expected checkpoint is stale.</summary>
     public string Code => "checkpoint.conflict";
 }
+/// <summary>Thread-safe in-memory checkpoint store for tests and single-process hosts; state is lost on exit.</summary>
 public sealed class InMemoryAcquisitionCheckpointStore : IAcquisitionCheckpointStore
 {
+    /// <summary>Guards the checkpoint dictionary.</summary>
     private readonly object _gate = new();
     private readonly Dictionary<(string TenantId, string DefinitionId), CheckpointState> _checkpoints = [];
 
+/// <summary>Reads the current checkpoint for the tenant and definition.</summary>
     public ValueTask<string?> GetAsync(
         string tenantId,
         string definitionId,
@@ -251,6 +302,7 @@ public sealed class InMemoryAcquisitionCheckpointStore : IAcquisitionCheckpointS
         }
     }
 
+/// <summary>Advances a checkpoint only when its expected predecessor still matches.</summary>
     public ValueTask PromoteAsync(
         string tenantId,
         string definitionId,
@@ -280,6 +332,7 @@ public sealed class InMemoryAcquisitionCheckpointStore : IAcquisitionCheckpointS
         return ValueTask.CompletedTask;
     }
 
+    /// <summary>Stored checkpoint value with the batch and source ordinal that produced it.</summary>
     private sealed record CheckpointState(string Value, BatchIdentity BatchIdentity, int SourceOrdinal);
 }
 
@@ -298,21 +351,34 @@ public sealed class DataExchangeCommitter(
     IRunLifecyclePolicyPort lifecycle,
     ICanonicalTargetRegistryPort targets)
 {
+    /// <summary>Store for dry-run and commit-run evidence.</summary>
     private readonly IExchangeRunStore _runs = runs ?? throw new ArgumentNullException(nameof(runs));
+    /// <summary>Decides whether the caller may commit a dry run.</summary>
     private readonly IExchangeCommitAuthority _authority = authority ?? throw new ArgumentNullException(nameof(authority));
+    /// <summary>Per-effect target access check.</summary>
     private readonly ITargetAccessGate _access = access ?? throw new ArgumentNullException(nameof(access));
+    /// <summary>Target command port that claims, executes and records effects.</summary>
     private readonly ICanonicalTargetCommandPort _commands = commands ?? throw new ArgumentNullException(nameof(commands));
+    /// <summary>Durable source checkpoint store.</summary>
     private readonly IAcquisitionCheckpointStore _checkpoints = checkpoints ?? throw new ArgumentNullException(nameof(checkpoints));
+    /// <summary>Protected store holding canonical effect payloads by reference.</summary>
     private readonly IProtectedEffectPayloadStore _payloads = payloads ?? throw new ArgumentNullException(nameof(payloads));
+    /// <summary>Time source for request, claim and record timestamps.</summary>
     private readonly TimeProvider _clock = clock ?? throw new ArgumentNullException(nameof(clock));
+    /// <summary>Window, concurrency and command-size limits.</summary>
     private readonly CommitBounds _bounds = bounds ?? throw new ArgumentNullException(nameof(bounds));
 
+    /// <summary>Re-evaluates the approved proposal against live inputs.</summary>
     private readonly IProposalEvaluationPort _proposals = proposals ?? throw new ArgumentNullException(nameof(proposals));
+    /// <summary>Resolves the source's acknowledgement policy.</summary>
     private readonly ISourceOutcomePolicyPort _sourcePolicies = sourcePolicies ?? throw new ArgumentNullException(nameof(sourcePolicies));
 
+    /// <summary>Derives retention and legal hold for a run.</summary>
     private readonly IRunLifecyclePolicyPort _lifecycle = lifecycle ?? throw new ArgumentNullException(nameof(lifecycle));
+    /// <summary>Resolves the canonical Records contract for the target.</summary>
     private readonly ICanonicalTargetRegistryPort _targets = targets ?? throw new ArgumentNullException(nameof(targets));
 
+    /// <summary>Creates a committer backed by a private in-memory payload store; use the primary constructor to share one.</summary>
     public DataExchangeCommitter(
         IExchangeRunStore runs,
         IExchangeCommitAuthority authority,
@@ -341,6 +407,7 @@ public sealed class DataExchangeCommitter(
     {
     }
 
+    /// <summary>Commits an approved dry run through per-effect audited target commands; every refusal is a DataExchangeCommitRefusedException with a stable code (run.stale, commit.forbidden, commit.window_exceeded, target.contract_unregistered, commit.outcome_policy_unknown) and nothing is partially rolled back.</summary>
     public async ValueTask<CommitRunArtifact> CommitAsync(
         DryRunId dryRunId,
         CommitOptions? options = null,

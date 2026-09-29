@@ -7,8 +7,11 @@ namespace Harborline.Foundation.DataExchange;
 /// <summary>The stable identities of the Harborline Tabular Mapping Profile.</summary>
 public static class TabularMappingProfile
 {
+    /// <summary>Profile family a mapping must declare; anything else is refused as mapping.profile_unknown.</summary>
     public const string Family = "hl:tabular-mapping/v1";
+    /// <summary>Schema URI a mapping must declare; anything else is refused as mapping.schema_mismatch.</summary>
     public const string SchemaUri = "https://schemas.harborline.software/mapping/tabular/v1";
+    /// <summary>The only mapping major version accepted; others are refused as mapping.major_unsupported.</summary>
     public const int SupportedMajorVersion = 1;
 
     internal static readonly HashSet<string> ExtensionTerms = new(StringComparer.Ordinal)
@@ -59,6 +62,7 @@ public static class TabularMappingJson
         "hl:profile", "hl:schemaUri", "hl:version", "hl:target",
     };
 
+/// <summary>Serializes an admitted mapping into deterministic compact JSON.</summary>
     public static string Serialize(TabularMappingDocument mapping)
     {
         _ = TabularMappingAdmission.Validate(mapping);
@@ -106,6 +110,7 @@ public static class TabularMappingJson
         return root.ToJsonString(new JsonSerializerOptions { WriteIndented = false });
     }
 
+    /// <summary>Parses CSVW mapping JSON into a document and admits it; throws ArgumentException for blank input, JsonException for malformed JSON, KeyNotFoundException for a missing required property and DataExchangeAdmissionException listing every refusal.</summary>
     public static TabularMappingDocument Deserialize(string json)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(json);
@@ -151,12 +156,14 @@ public sealed record DataExchangeRefusal(string Code, string Pointer);
 public sealed class DataExchangeAdmissionException(IReadOnlyList<DataExchangeRefusal> refusals)
     : Exception("The Data Exchange definition was refused.")
 {
+    /// <summary>The refusals that made admission fail.</summary>
     public IReadOnlyList<DataExchangeRefusal> Refusals { get; } = refusals;
 }
 
 /// <summary>Validates the named mapping profile without reinterpreting CSVW terms.</summary>
 public static class TabularMappingAdmission
 {
+    /// <summary>Returns the mapping when admitted; otherwise throws DataExchangeAdmissionException carrying every refusal.</summary>
     public static TabularMappingDocument Validate(TabularMappingDocument mapping)
     {
         var refusals = Refusals(mapping);
