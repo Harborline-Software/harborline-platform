@@ -146,7 +146,7 @@ public static class PackContentKindRegistry
     public static byte[] LoadCheckedInExport()
     {
         using var stream = typeof(PackContentKindRegistry).Assembly.GetManifestResourceStream(ResourceName)
-            ?? throw new InvalidDataException("content-kind-export-resource-missing");
+            ?? throw new InvalidDataException(ResourceName);
         using var buffer = new MemoryStream();
         stream.CopyTo(buffer);
         return buffer.ToArray();
