@@ -191,12 +191,40 @@ public sealed class KernelTransactionBoundaryTests
         Assert.Empty(port.Events);
     }
 
+    [Fact]
+    public async Task AReadOnlySingleCommandListIsIndexedWithoutEnumeration()
+    {
+        var port = new RecordingPort();
+        var commands = new NonEnumerableSingleCommandList(Command());
+
+        var result = await KernelTransactionBoundary.ExecuteAsync(commands, port);
+
+        Assert.True(result.Committed);
+        Assert.Equal("committed", result.Value);
+        Assert.False(commands.WasEnumerated);
+    }
+
     private static KernelCommand<string> Command(string id = "one") => new(
         new(id, $"key-{id}", $"fingerprint-{id}"),
         $"record-{id}",
         new($"audit-{id}", "actor", DateTimeOffset.Parse("2030-01-02T03:04:05Z"), "evidence"u8.ToArray()));
 
     private sealed class InjectedFault : Exception { }
+
+    private sealed class NonEnumerableSingleCommandList(KernelCommand<string> command) : IReadOnlyList<KernelCommand<string>>
+    {
+        public bool WasEnumerated { get; private set; }
+        public int Count => 1;
+        public KernelCommand<string> this[int index] => index == 0 ? command : throw new ArgumentOutOfRangeException(nameof(index));
+
+        public IEnumerator<KernelCommand<string>> GetEnumerator()
+        {
+            WasEnumerated = true;
+            throw new InvalidOperationException("The boundary only needs Count and [0] for an IReadOnlyList.");
+        }
+
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
+    }
 
     private sealed class RecordingPort(string? fault = null) : IKernelTransactionPort<string, string>
     {
