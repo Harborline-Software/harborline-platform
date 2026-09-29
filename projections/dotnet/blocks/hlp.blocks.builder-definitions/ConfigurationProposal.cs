@@ -230,7 +230,25 @@ public static class ConfigurationProposal
                 contentKind = edit.ContentKind,
                 body = JsonDocument.Parse(edit.BodyJson).RootElement,
             }))));
-        var manifest = new PlatformPackageManifest(1, packageKey, revision, items.Prepend(record));
+        // The closure is every package the edits reference, the baseline owner of each edited definition
+        // and the package each edit names, pinned at the revision the baseline generation resolved it at.
+        // A referenced package the baseline does not resolve has no pin, so it refuses rather than drops.
+        var references = effectiveNow.References;
+        var pinned = references.GetProperty("packages").EnumerateArray().Select(package => package.GetProperty("reference"))
+            .ToDictionary(reference => reference.GetProperty("key").GetString()!, reference => reference.GetProperty("revision").GetString()!, StringComparer.Ordinal);
+        var owners = references.GetProperty("ownership").EnumerateArray().ToDictionary(
+            owner => owner.GetProperty("definitionKey").GetString()!, owner => owner.GetProperty("packageKey").GetString()!, StringComparer.Ordinal);
+        var dependencies = new List<PlatformPackageDependency>();
+        foreach (var referenced in version.Edits
+            .SelectMany(edit => owners.TryGetValue(edit.DefinitionKey, out var owner) ? [owner, edit.PackageKey] : new[] { edit.PackageKey })
+            .Where(key => key != packageKey).Distinct(StringComparer.Ordinal))
+        {
+            if (!pinned.TryGetValue(referenced, out var pin))
+                return Refuse("configuration-release-dependency-unpinned", referenced,
+                    $"The saved version references package {referenced}, which the baseline generation does not resolve, so it has no pinned version.");
+            dependencies.Add(new(referenced, pin));
+        }
+        var manifest = new PlatformPackageManifest(1, packageKey, revision, items.Prepend(record), dependencies);
         var validation = PlatformPackageReplayer.Validate(manifest);
         if (!validation.Succeeded)
             return Refuse(validation.RefusalCode!, validation.ItemId ?? "savedVersion",

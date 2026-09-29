@@ -1,7 +1,7 @@
 {
   "example": "records-and-forms",
   "baselineDigest": "711d9ed30ecc84ab8957db742ad49fec137481bd688a4577e4f43f53262d52a1",
-  "releasedPackageDigest": "6316104573a6b6f21c6baa8a02c6742c9af34c256738fcc514882e12611660c2",
+  "releasedPackageDigest": "b42f72dbfd26d98ac8fd7522c61ceefd17fd875f3edff334442d4b2701e7346b",
   "cases": [
     {
       "step": "autosaved-one-of-two",
@@ -75,7 +75,7 @@
         "savedBy": "dana.okafor",
         "rationale": "Capture the purchase order number on invoices.",
         "checkState": "Current (receipt-1)",
-        "releasedPackage": "tenant-a.invoice-purchase-order 1.1.0: 6316104573a6b6f21c6baa8a02c6742c9af34c256738fcc514882e12611660c2",
+        "releasedPackage": "tenant-a.invoice-purchase-order 1.1.0: b42f72dbfd26d98ac8fd7522c61ceefd17fd875f3edff334442d4b2701e7346b",
         "refusals": ""
       }
     },

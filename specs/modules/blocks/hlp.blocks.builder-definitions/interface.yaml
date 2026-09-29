@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.blocks.builder-definitions",
-  "interfaceRevision": 11,
+  "interfaceRevision": 12,
   "status": "draft",
   "purpose": "Own the shared definition catalogue substrate: registry-neutral versioned definitions, key suggestion, archive lifecycle, projection-neutral platform package export and empty-store replay, package safety-floor reattachment, and the install receipt that binds a released artifact to installed identity, capabilities, authorization outcomes and digests.",
   "dependencies": [{"moduleId": "hlp.foundation.rule-authoring", "minimumRevision": 3}, {"moduleId": "hlp.foundation.definitions", "minimumRevision": 1}],
@@ -13,7 +13,7 @@
   "capabilities": {
     "verificationSuite": ["declarative invariant and parameterized examples without executable content", "closed action and predicate catalogue with typed expected values", "explicit clock, zone, locale, identifier seed, ordering, actor authority and simulated ports per fixture", "structural refusal of a case with no meaningful assertion", "derived outcome status that cannot report a pass without an observation", "canonical suite and receipt documents with SHA-256 digests", "receipt binding candidate, baseline, suite, per-fixture and engine digests", "released Passed Failed Nothing-was-checked Not-supported Blocked vocabulary and shared Form bindings"],
     "configurationActivation": ["baseline-bound isolated preparation", "explicit projection and compatibility findings", "immutable prepared candidate and canonical ownership", "point-of-use authority and evidence-bound compare-and-swap decision", "API-owned atomic target contract", "released preparing refused effective status vocabulary and shared Form bindings"],
-    "configurationProposal": ["proposed change bound to an exact baseline generation", "autosaved working edits with no effective reach", "immutable saved versions with authorship and rationale", "check invalidation on any later edit", "provider-neutral released package export whose digest is its own bytes",
+    "configurationProposal": ["proposed change bound to an exact baseline generation", "autosaved working edits with no effective reach", "immutable saved versions with authorship and rationale", "check invalidation on any later edit", "provider-neutral released package export whose digest is its own bytes", "released package closure pinned at the baseline generation's revisions",
       "producer-stated transport content kind per edited definition, exported item by item", "released Proposed change, Saved version and Released package vocabulary and shared Form bindings"],
     "configurationGeneration": ["complete tenant-scoped resolved closure identity", "order-independent SHA-256 of public versioned references", "validated definition ownership", "released read-only generation detail definition and bindings"],
     "installReceipt": ["immutable released artifact identity", "installed ids, versions and digests recomputed from the installed state", "declared capability set with its expected authorization outcome", "record digests the install wrote", "per-install witness that only an install mints", "field-naming refusal for every mismatch", "DES-0007 ck-3 and ck-4 sealed-type and sealed-trait corpus probe"],
@@ -21,7 +21,7 @@
     "lifecycle": ["tenant and definition-kind scoped archive", "idempotent archive", "idempotent unarchive", "restart-durable visibility"],
     "versionedDefinitions": ["opaque JSON body and digest", "stable definition id and immutable published version id", "expected stream revision", "exact operation/fence/payload replay", "append-only history", "restore-as-new-draft", "production-only resolution", "in-memory reference implementation"],
     "rulesCatalogue": ["typed source admission at author and publish", "create at revision zero", "detached load and tenant-scoped stable listing", "duplicate into independent history", "archive visibility without pin revocation", "caller-supplied version ids, labels, request ids and revision fences", "Latest/Pinned/Draft caller resolution"],
-    "platformPackage": ["ordered manifest", "deterministic UTF-8 JSON export", "provider-neutral closure and SHA-256 digest metadata", "ADR-0097 canonical seed fixture", "ck-1 contract declaration plus PlatformPackageSeed.ContractWindow and ReadContractWindow readers", "present or explicitly unresolved content", "validated atomic replay into an empty target", "raise-only safety-floor reattachment with named malformed-member refusal"]
+    "platformPackage": ["ordered manifest", "deterministic UTF-8 JSON export", "provider-neutral closure of pinned package dependencies in ordinal key order and SHA-256 digest metadata", "ADR-0097 canonical seed fixture", "ck-1 contract declaration plus PlatformPackageSeed.ContractWindow and ReadContractWindow readers", "present or explicitly unresolved content", "validated atomic replay into an empty target", "raise-only safety-floor reattachment with named malformed-member refusal"]
   },
   "keyAuthoritySeam": {
     "name": "IDefinitionKeyAuthority",
@@ -57,6 +57,7 @@
     "A saved version freezes the working edits with a required author and required rationale at an admitted instant; its frozen edit list is immutable and a later edit changes the working digest without touching it.",
     "A check binds one working digest. Any later edit moves that digest, so the check no longer describes the state and a release naming it refuses configuration-check-invalidated.",
     "Release exports exactly the named saved version as one provider-neutral manifest whose own package record carries the baseline, the saved version, its authorship, its rationale and the check receipt. Each exported definition item carries the content kind its edit stated, so a consumer converts the document mechanically and never derives a kind from a definition key: this block states the mapping once, per edit, and deliberately does not enumerate the transport's kinds. A baseline that is no longer effective refuses configuration-baseline-stale naming both generations, and a proposed change with no recorded check refuses configuration-check-required. The platform signs nothing: transport, signing and installation are the api's (ADR 0097 decision 6).",
+    "A released package's closure.dependencies names every package its edits reference, the baseline owner of each edited definition and the package each edit names, except the released package itself, each once as {key, version} pinned at the revision the baseline generation resolved; the pin is a minimum-inclusive floor and the closure resolves under hlp.kernel.core KernelPackageClosure. A referenced package the baseline does not resolve refuses configuration-release-dependency-unpinned naming it rather than being dropped (DES-0029 ck-2).",
     "The released digest is the SHA-256 of the exported document bytes, so the digest shown to the author cannot drift from the artifact those bytes are.",
     "ck-7 exports configurationProposalDetail and configurationProposalStatuses. One released Form and the domain-facing Proposed change, Saved version and Released package vocabulary render in both SchemaForm lanes over one shared Records-and-Forms example fixture.",
     "A verification suite is declarative data only: a case names one registered action and registered predicates from the closed catalogue, so there is no place for a script, expression, address or prompt, and admission refuses an unregistered name.",
@@ -178,6 +179,11 @@
     {"code":"platform-seed-dependency-missing", "when":"An item dependency is absent from the manifest."},
     {"code":"platform-seed-dependency-not-replayed", "when":"An item dependency is not earlier in replay order."},
     {"code":"platform-seed-content-unresolved", "when":"An item names a policy reference whose content is not yet ruled."},
+    {"code":"platform-package-dependency-key-required", "when":"A manifest closure dependency has a blank package key."},
+    {"code":"platform-package-dependency-version-required", "when":"A manifest closure dependency has a blank pinned version."},
+    {"code":"platform-package-dependency-self", "when":"A manifest names its own package key in its closure."},
+    {"code":"platform-package-dependency-duplicate", "when":"A manifest closure names one package key twice; a closure holds one version per key."},
+    {"code":"configuration-release-dependency-unpinned", "when":"A saved version references a package the baseline generation does not resolve, so it has no pinned version; the refusal names the package."},
     {"code":"platform-package-safety-floor-malformed", "when":"A seeded or reattached safety-floor member is present without an integer value; the result names the member."},
     {"code":"install-receipt-malformed", "when":"A candidate receipt is not a receipt document."},
     {"code":"install-receipt-digest-mismatch", "when":"A receipt does not reproduce its own canonical bytes, so it was edited after it was written."},

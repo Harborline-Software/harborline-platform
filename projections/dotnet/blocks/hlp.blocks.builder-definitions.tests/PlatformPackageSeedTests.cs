@@ -25,6 +25,50 @@ public sealed class PlatformPackageSeedTests
         Assert.Equal(["platform-package", "record-types"], exported.RootElement.GetProperty("items").EnumerateArray().Select(item => item.GetProperty("id").GetString()));
     }
 
+    // ck-2 S7: the manifest's closure is exported as declared dependencies in ordinal key order, so
+    // the bytes and their digest do not depend on the order a producer listed them in.
+    [Fact]
+    public void Export_writes_the_declared_closure_in_ordinal_key_order()
+    {
+        var items = new[] { Entry("package", PlatformSeedStage.PackageRecord, "{}") };
+        var manifest = new PlatformPackageManifest(1, "tenant.release", "1.0.0", items,
+            [new("payroll", "3.0.0"), new("finance", "1.2.0")]);
+        var reordered = new PlatformPackageManifest(1, "tenant.release", "1.0.0", items,
+            [new("finance", "1.2.0"), new("payroll", "3.0.0")]);
+
+        var exported = PlatformPackageExporter.Export(manifest);
+        Assert.Equal(exported, PlatformPackageExporter.Export(reordered));
+        using var document = JsonDocument.Parse(exported);
+        Assert.Equal(["finance@1.2.0", "payroll@3.0.0"], document.RootElement.GetProperty("closure").GetProperty("dependencies")
+            .EnumerateArray().Select(item => $"{item.GetProperty("key").GetString()}@{item.GetProperty("version").GetString()}"));
+        Assert.Equal(["finance", "payroll"], manifest.Dependencies.Select(dependency => dependency.Key));
+        Assert.NotEqual(exported, PlatformPackageExporter.Export(Manifest(items)));
+    }
+
+    // One version per key per closure (D2), and a package is never its own dependency (D3).
+    [Theory]
+    [InlineData("", "1.0.0", "platform-package-dependency-key-required")]
+    [InlineData("finance", " ", "platform-package-dependency-version-required")]
+    [InlineData("tenant.release", "1.0.0", "platform-package-dependency-self")]
+    [InlineData("finance", "2.0.0", "platform-package-dependency-duplicate")]
+    public void A_malformed_closure_refuses_by_name(string key, string version, string code)
+    {
+        var exception = Assert.Throws<ArgumentException>(() => new PlatformPackageManifest(1, "tenant.release", "1.0.0",
+            [Entry("package", PlatformSeedStage.PackageRecord, "{}")], [new("finance", "1.0.0"), new(key, version)]));
+        Assert.StartsWith(code, exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_manifest_without_identity_items_or_a_closure_refuses()
+    {
+        PlatformPackageItem[] items = [Entry("package", PlatformSeedStage.PackageRecord, "{}")];
+        Assert.Throws<ArgumentOutOfRangeException>(() => new PlatformPackageManifest(0, "p", "1.0.0", items, []));
+        Assert.StartsWith("platform-package-key-required", Assert.Throws<ArgumentException>(() => new PlatformPackageManifest(1, " ", "1.0.0", items, [])).Message, StringComparison.Ordinal);
+        Assert.StartsWith("platform-package-revision-required", Assert.Throws<ArgumentException>(() => new PlatformPackageManifest(1, "p", " ", items, [])).Message, StringComparison.Ordinal);
+        Assert.Equal("items", Assert.Throws<ArgumentNullException>(() => new PlatformPackageManifest(1, "p", "1.0.0", null!, [])).ParamName);
+        Assert.Equal("dependencies", Assert.Throws<ArgumentNullException>(() => new PlatformPackageManifest(1, "p", "1.0.0", items, null!)).ParamName);
+    }
+
     [Fact]
     public void Content_classification_can_represent_an_unresolved_absence_without_a_payload()
     {
