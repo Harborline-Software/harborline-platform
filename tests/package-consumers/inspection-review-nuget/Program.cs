@@ -20,7 +20,7 @@ using Harborline.Kernel.WorkItems;
 
 var tenant = new TenantId("tenant-package");
 var actor = new ActorContext(tenant);
-var party = new PartyContext();
+var party = new FixedRequester();
 var subjects = new InMemoryInspectionSubjectDirectory();
 subjects.Upsert(tenant, new InspectionSubject("asset-1", "Pump 1"));
 var bindings = new InMemoryInspectionReviewBindingResolver();
@@ -165,7 +165,7 @@ sealed class ActorContext(TenantId tenant) : IAuthenticatedActorContext
     public TenantMetadata? Tenant { get; } = new() { Id = tenant, Name = tenant.Value, Status = TenantStatus.Active };
 }
 
-sealed class PartyContext : IPartyContext
+sealed class FixedRequester : IPartyContext
 {
     public ValueTask<Guid> GetCurrentPartyIdAsync(CancellationToken cancellationToken = default) =>
         ValueTask.FromResult(Guid.Parse("11111111-1111-1111-1111-111111111111"));

@@ -48,7 +48,7 @@
   "foreignTenantAuthoredChecks": [
     {"id":"foreign-session-is-absent","expectedStatus":404,"proof":"SessionResolver returns null when SessionRecord.TenantId differs from ITenantContext.Tenant.Id"},
     {"id":"tenant-query-does-not-leak","expectedTenant":"tenant-a","proof":"WhereTenant filters IMustHaveTenant by exact resolved TenantId"},
-    {"id":"never-anonymous-party","expectedFailure":"NoAuthenticatedPrincipal","proof":"PartyContext throws stable fail-closed exception rather than minting an anonymous PartyId"}
+    {"id":"never-anonymous-party","expectedFailure":"NoAuthenticatedPrincipal","proof":"The host party adapter throws a stable fail-closed exception rather than minting an anonymous PartyId"}
   ],
   "hullAdminRows": [
     {"caseId":"apps/carrier/src/admin/AdminConsole.test.tsx::AdminConsole — resolve→render > changes the unlocked-pack set when the tenant tier selector changes","seams":["projectForTenant"]},

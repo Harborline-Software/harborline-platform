@@ -9,8 +9,7 @@ bounded module. The package is a local, distribution-blocked shadow; the origina
 contract identity authority under the earlier repository name; see ticket 063.
 # Access filtering and stored trace contracts
 
-The authorization assembly also supplies `AccessProvider`, `AccessScopeEvaluator`, and
-`AuthorizationTraceReader`. A host implements `IAuthorizationDecider` by forwarding to its existing
+The authorization assembly also supplies `AccessProvider` and `AuthorizationTraceReader`. A host implements `IAuthorizationDecider` by forwarding to its existing
 authorization gate and translating that decision's evidence. This port carries the verdict; none
 of the platform providers resolves grants, intersects bindings, or calculates a second verdict.
 
@@ -23,12 +22,6 @@ Call `ValidateAsync` from the write validation stage with its predicate instant 
 callback. It makes a fresh row check before validation and returns the gate's stable refusal.
 Commit only after validation succeeds inside the host's transaction. A stage-one allow is never
 an input to this method and cannot bypass the check.
-
-Scope evaluation receives an `AccessAuthorityContext` from the trusted authority-admission host,
-bound to exactly one principal, tenant, record and instant. Do not deserialize that context from
-client input. Declare every `principal`, `tenant`, `instant` or `record.*` reference. Missing or
-mismatched authority and undeclared references refuse before the shared rule evaluator runs.
-Scope evaluation supplies a scope fact to the existing gate, never an authorization verdict.
 
 Persist `AuthorizationDecisionEvidence.Project()` and the original counterfactual when the host
 records its decision. The storage adapter returns only `AuthorizationTraceSnapshot`, not audit

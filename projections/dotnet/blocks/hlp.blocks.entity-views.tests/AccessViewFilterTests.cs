@@ -29,24 +29,17 @@ public sealed class AccessViewFilterTests
     private static ViewRow Row(string id, string owner, int amount) => new(id,
         new Dictionary<string, object?> { ["owner"] = owner, ["amount"] = amount });
 
-    // Host boundary fixture; exercises the existing scope evaluator rather than an allow-all provider.
+    // Host boundary fixture supplies its own grant-scope check rather than an allow-all provider.
     private sealed class FixtureRecordGate : IAuthorizationDecider
     {
         public List<DateTimeOffset> Instants { get; } = [];
         public ValueTask<AuthorizationDecisionEvidence> DecideAsync(AccessRequest request, CancellationToken cancellationToken = default)
         {
             Instants.Add(request.At);
-            var scope = new AccessScopeEvaluator(at => new Harborline.Foundation.RuleEngine.GuardEvaluator(
-                new AccessViewFilterTimeProvider(at))).Evaluate(
-                "{\"==\":[{\"var\":\"record.owner\"},{\"var\":\"principal\"}]}", request,
-                new(request.Principal, request.Tenant, request.Record.Kind, request.Record.Id, request.At, ["record.owner", "principal"]),
-                cancellationToken);
-            return ValueTask.FromResult(new AuthorizationDecisionEvidence(request, scope.Allowed, scope.Reason, "grant:owner", [], []));
+            var allowed = request.Record.Fields.TryGetValue("owner", out var owner)
+                && owner?.GetValue<string>() == request.Principal;
+            return ValueTask.FromResult(new AuthorizationDecisionEvidence(request, allowed,
+                allowed ? "None" : "NoEffectiveRole", "grant:owner", [], []));
         }
     }
-}
-
-file sealed class AccessViewFilterTimeProvider(DateTimeOffset instant) : TimeProvider
-{
-    public override DateTimeOffset GetUtcNow() => instant;
 }

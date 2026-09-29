@@ -25,7 +25,7 @@ public sealed class InspectionReviewVerticalTests
     {
         var tenant = new TenantId("tenant-a");
         var context = new ActorContext(tenant);
-        var party = new PartyContext();
+        var party = new FixedRequester();
         var subjects = new InMemoryInspectionSubjectDirectory();
         subjects.Upsert(tenant, new InspectionSubject("asset-1", "Pump 1"));
         var bindings = new InMemoryInspectionReviewBindingResolver();
@@ -175,7 +175,7 @@ public sealed class InspectionReviewVerticalTests
         public TenantMetadata? Tenant { get; } = new() { Id = tenant, Name = tenant.Value, Status = TenantStatus.Active };
     }
 
-    private sealed class PartyContext : IPartyContext
+    private sealed class FixedRequester : IPartyContext
     {
         public ValueTask<Guid> GetCurrentPartyIdAsync(CancellationToken cancellationToken = default) =>
             ValueTask.FromResult(Guid.Parse("11111111-1111-1111-1111-111111111111"));

@@ -103,6 +103,46 @@ public sealed class AuthorizationTraceTests
         }
     }
 
+    [Fact]
+    public void Decision_evidence_projects_host_facts_and_role_description_without_recalculation()
+    {
+        var request = new AccessRequest("records:write", "alice", "a", new("a", "work", "1",
+            new Dictionary<string, System.Text.Json.Nodes.JsonNode?>()), At);
+        var role = new AuthorizationEvidenceRole("reviewer", "region:north", At, null, "binding", null,
+            "definition", "approve", null, false);
+        var evidence = new AuthorizationDecisionEvidence(request, false, "SeparationRequired", "binding:1",
+            [role],
+            [new("reviewer", "standing", "v1")], ["binding:host-fact"], "GrantRefused",
+            "Gate", null, "custom-target", "records:approve");
+
+        var steps = evidence.Project();
+
+        Assert.Equal(["kind:Gate", "act:records:approve", "target:custom-target", "principal:alice", "tenant:a"],
+            steps[0].Facts.Take(5).ToArray());
+        Assert.Equal(request.At, evidence.At);
+        Assert.StartsWith("role:reviewer;scope:region:north;valid:", steps[1].Facts[0]);
+        Assert.Contains("..open;binding:binding@-;definition:definition;atom:approve;in-force:not-computed", steps[1].Facts[0]);
+        Assert.Equal(["deciding:binding:1", "binding:host-fact"], steps[1].Facts.Skip(1).ToArray());
+        Assert.Equal(["role:reviewer;rule:standing;evidence:v1"], steps[2].Facts.ToArray());
+        Assert.Equal(["verdict:denied", "refusal:SeparationRequired", "version:2", "grant-refusal:GrantRefused"], steps[3].Facts.ToArray());
+    }
+
+    [Fact]
+    public async Task Custom_principal_comparer_selects_the_self_trace_read_operation()
+    {
+        var request = new AccessRequest("records:read", "alice", "a", new("a", "work", "1",
+            new Dictionary<string, System.Text.Json.Nodes.JsonNode?>()), At);
+        var snapshot = new AuthorizationTraceSnapshot("a", "ALICE", 2,
+            new AuthorizationDecisionEvidence(request, true, "None", "binding:1", [], []).Project());
+        var gate = new ReadGate();
+
+        var read = await new AuthorizationTraceReader(new Store(snapshot), gate, StringComparer.OrdinalIgnoreCase)
+            .ReadAsync("a", "alice", "entry", At);
+
+        Assert.Equal(AuthorizationTraceAvailability.Available, read.Availability);
+        Assert.Equal("audit:trace-read", Assert.Single(gate.Requests).Operation);
+    }
+
     private sealed class Store(AuthorizationTraceSnapshot snapshot) : IAuthorizationTraceStore
     {
         public ValueTask<AuthorizationTraceSnapshot?> FindAsync(string tenant, string entryId, CancellationToken cancellationToken = default) =>
