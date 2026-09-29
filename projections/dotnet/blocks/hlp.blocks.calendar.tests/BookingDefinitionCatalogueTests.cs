@@ -115,7 +115,7 @@ public sealed class BookingDefinitionCatalogueTests
         Assert.Equal([new DefinitionRefusal(BookingDefinitionCodes.PublishedVersionRequired, "/versionId")], refusal.Refusals);
     }
 
-    [Fact(DisplayName = "T-572 slice 2: the envelope contract survives Booking pack export and admission; an absent one is still admitted")]
+    [Fact(DisplayName = "T-572 slice 2: the envelope contract survives Booking pack export and admission; an absent one is refused at install (slice 3)")]
     public async Task EnvelopeContractSurvivesPackExportAndAdmission()
     {
         var contract = new JsonObject { ["major"] = 1, ["minor"] = 0 };
@@ -124,10 +124,15 @@ public sealed class BookingDefinitionCatalogueTests
         Assert.True(JsonNode.DeepEquals(contract, JsonNode.Parse(entry.Content.Payload.Span)!["envelope"]!["contract"]));
         Assert.Empty(BookingDefinitionPackage.Admit([entry], Fixtures.Context()));
 
-        var absent = BookingDefinitionPackage.Export(await PublishAsync(DefinitionKind.Bookables, "1.0.0", 0,
+        // Slice 3: an absent contract is refused when the draft is saved (author) and when a pack carries it (install).
+        var saving = await Assert.ThrowsAsync<DefinitionRefusalException>(async () => await PublishAsync(DefinitionKind.Bookables, "1.0.0", 0,
             body => ((JsonObject)body["envelope"]!).Remove("contract")));
+        Assert.Equal([new DefinitionRefusal("definition.contract.missing", "/envelope/contract")], saving.Refusals);
+        var absent = Entry(BookingPackIdentity.BookableContentKind, "bookable-absent",
+            Fixtures.Bookable(body => ((JsonObject)body["envelope"]!).Remove("contract")));
         Assert.Null(JsonNode.Parse(absent.Content.Payload.Span)!["envelope"]!["contract"]);
-        Assert.Empty(BookingDefinitionPackage.Admit([absent], Fixtures.Context()));
+        Assert.Equal([new DefinitionRefusal("definition.contract.missing", "/entries/0/envelope/contract")],
+            BookingDefinitionPackage.Admit([absent], Fixtures.Context()));
     }
 
     [Fact(DisplayName = "booking-ck-8, T-724 ruling 70: a Resource's hold durations round-trip through pack export and install as whole-minute integers, not ISO 8601")]

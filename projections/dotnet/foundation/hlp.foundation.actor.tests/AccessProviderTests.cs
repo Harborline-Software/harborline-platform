@@ -176,6 +176,24 @@ public sealed class AccessProviderTests
         Assert.Equal("record.invalid", result.Reason);
     }
 
+    [Fact]
+    public async Task Denied_evidence_preserves_the_gate_refusal_without_running_validation()
+    {
+        var request = new AccessRequest("records:write", "alice", "a", new("a", "work", "1",
+            new Dictionary<string, System.Text.Json.Nodes.JsonNode?>()), DateTimeOffset.Parse("2026-09-18T12:00:00Z"));
+        var validations = 0;
+
+        var result = await new AccessProvider(new RevocableGate { Revoked = true }).ValidateAsync(request, (_, _) =>
+        {
+            validations++;
+            return ValueTask.FromResult(new AccessCheck(true, "valid"));
+        });
+
+        Assert.False(result.Allowed);
+        Assert.Equal("permission_revoked", result.Reason);
+        Assert.Equal(0, validations);
+    }
+
     // External host gate seam: this test changes its verdict between the two calls.
     private sealed class RevocableGate : IAuthorizationDecider
     {

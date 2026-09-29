@@ -20,7 +20,7 @@ namespace Harborline.Foundation.Forms.Tests;
 /// a draft keyed by <c>(TenantId, case/subject id, PartyId)</c>, FAIL-CLOSED party
 /// resolution that blocks (never mis-keys across tenants) on an unresolved principal, a
 /// client-mintable case id, and the pre-auth capture buffer's promote-or-purge lifecycle.
-/// Pure substrate-free unit tests over the real <c>PartyContext</c> + in-memory store/buffer.
+/// Pure substrate-free unit tests over the authenticated forms actor scope + in-memory store/buffer.
 /// </summary>
 public sealed class SubmissionDraftTests
 {
@@ -164,7 +164,7 @@ public sealed class SubmissionDraftTests
     public async Task No_authenticated_principal_blocks_fail_closed()
     {
         var store = new InMemorySubmissionDraftStore();
-        // Empty user + null tenant → PartyContext throws NoAuthenticatedPrincipal.
+        // Empty user + null tenant → authenticated forms actor scope throws NoAuthenticatedPrincipal.
         var principal = new FakeTenantContext(userId: "", tenant: null);
         var svc = new SubmissionDraftService(
             new AuthenticatedFormsActorScope(principal, new TestPrincipalPartyResolver(Array.Empty<PrincipalPartyMapping>())),
