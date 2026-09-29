@@ -300,14 +300,14 @@
     "commit": "c09cfcacf303b1944afadf7e891428ecc9d737cb"
   },
   "projections/dotnet/kernel/hlp.kernel.core.tests/Harborline.Kernel.Core.Tests.csproj": {
-    "break": 87,
-    "score": 87.12,
+    "break": 91,
+    "score": 91.84,
     "tested": 231,
     "total": 254,
-    "detected": 203,
-    "undetected": 30,
+    "detected": 214,
+    "undetected": 19,
     "measured": "2026-09-28",
-    "commit": "1c6a88a9602ac639ab7b91fe87611077c45fa141"
+    "commit": "a23afe320807e7c7775585a6246ca9981b337bb7"
   },
   "projections/dotnet/kernel/hlp.kernel.schema-validation.tests/Harborline.Kernel.SchemaValidation.Tests.csproj": {
     "break": 48,

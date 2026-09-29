@@ -127,7 +127,7 @@ public static class KernelTransactionBoundary
         ArgumentNullException.ThrowIfNull(commands);
         ArgumentNullException.ThrowIfNull(port);
 
-        var materialized = commands as IReadOnlyList<KernelCommand<TRecord>> ?? commands.ToArray();
+        IReadOnlyList<KernelCommand<TRecord>> materialized = commands as IReadOnlyList<KernelCommand<TRecord>> ?? commands.ToArray();
         if (materialized.Count != 1)
             return new(default, new(KernelTransactionErrors.MultiCommandBatch, materialized.Count));
 
