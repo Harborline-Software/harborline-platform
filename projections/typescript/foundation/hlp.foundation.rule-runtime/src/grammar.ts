@@ -67,13 +67,13 @@ export function lower(expression: string | Json, ctx: LowerContext, ruleId: stri
 function rewrite(node: Json, ctx: LowerContext, ruleId: string): Json {
   if (isObj(node) && Object.keys(node).length === 1 && 'var' in node) {
     const pathNode = node['var']
-    let path: string
-    let def: Json | undefined
-    if (Array.isArray(pathNode)) {
-      path = pathNode.length > 0 ? String(pathNode[0]) : ''
-      def = pathNode.length > 1 ? pathNode[1] : undefined
-    } else {
-      path = typeof pathNode === 'string' ? pathNode : ''
+    const path = Array.isArray(pathNode) ? pathNode[0] : pathNode
+    const def = Array.isArray(pathNode) ? pathNode[1] : undefined
+    // rules-ck-7 addresses named cells with static strings lowered here, once. A numeric
+    // (array-index), computed, null or empty operand has no canonical cell, and lowering it
+    // to field '' reads the wrong value and hides a dynamic read from the work proof.
+    if (typeof path !== 'string' || path.length === 0) {
+      throw bad(ruleId, 'a var path must be a non-empty string from the scope-addressing grammar')
     }
     if (path.startsWith('table.') && path.includes('(')) {
       return lowerAgg(path, ctx, ruleId)
