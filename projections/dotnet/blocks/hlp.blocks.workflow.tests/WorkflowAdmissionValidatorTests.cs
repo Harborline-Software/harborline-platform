@@ -232,6 +232,28 @@ public sealed class WorkflowAdmissionValidatorTests
         Assert.Contains(result.Violations, x => x.Code == WorkflowAdmissionCodes.UnknownCapability);
     }
 
+    [Fact]
+    public void Refuses_an_unknown_capability_on_the_human_approve_transition_without_an_effect_catalogue()
+    {
+        // T-525 item 2: the registry-only and parameterless constructors compose no effect catalogue. An
+        // unregistered capability must still be refused there, never derived to CP and admitted.
+        var def = InvoiceApproval(Action("totally.unregistered", ActionClassification.CP, "t-approve"));
+        var result = new WorkflowAdmissionValidator().Validate(def);
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Violations, x => x.Code == WorkflowAdmissionCodes.UnknownCapability);
+    }
+
+    [Fact]
+    public void Refuses_a_registered_capability_the_effect_catalogue_does_not_carry()
+    {
+        // T-525 item 3: a composed catalogue decides presence. `ledger.void-payment` has a registry row
+        // but no registered effect, so the registry alone must not admit it.
+        var def = InvoiceApproval(Action("ledger.void-payment", ActionClassification.CP, "t-approve"));
+        var result = Validator.Validate(def);
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Violations, x => x.Code == WorkflowAdmissionCodes.UnknownCapability);
+    }
+
     // ── FINDING 1 — the two taint-model holes the tightened fence must now refuse ─
 
     [Fact]
