@@ -84,19 +84,19 @@
       "contentHashes": {
         "conformance/hlp.foundation.rule-runtime/corpus/output-types.json": "5b202f42008bd60d21dc9a59ef8748e2c6d04c538b66f48ae6431966b7510327",
         "conformance/hlp.foundation.rule-runtime/runners/run-shared.mjs": "e178e67ae3fd0da902b4d962d94f239b096a7078bf52c041b845187416642ff3",
-        "projections/dotnet/foundation/hlp.foundation.rule-runtime.tests/ConformanceTests.cs": "6bf0b5b35d24f3f9d793ac129876998d986f314a3a630ac5b8c58f3c103af02a",
-        "projections/dotnet/foundation/hlp.foundation.rule-runtime/Compilation/RuleCompiler.cs": "68a27604e2e34ee0dbac4bace2fc1d744226a696efee0261e3d055e6d914b5a8",
+        "projections/dotnet/foundation/hlp.foundation.rule-runtime.tests/ConformanceTests.cs": "883978d05d23b88f6d5427a920ff10472cd3e79e001f5a2eb44f58497f151d3c",
+        "projections/dotnet/foundation/hlp.foundation.rule-runtime/Compilation/RuleCompiler.cs": "0dc73b1404f9fb507431c55ec4559aa32dcb3582d535111dbd3df0b042808d1d",
         "projections/dotnet/foundation/hlp.foundation.rule-runtime/Evaluation/HarborlineJsonLogic.cs": "c30478fc1cdde6d6bf94d69afddf23565adc3d888873242e68cd9cb62f805322",
         "projections/dotnet/foundation/hlp.foundation.rule-runtime/Graph/EvaluationCore.cs": "36910fbd86729d18ebc46d9741b808c8a41ed9952915f282ca1955f606c89eae",
         "projections/dotnet/foundation/hlp.foundation.rule-runtime/Model/RuleOutcome.cs": "f3a01ae9ca416d9d564a9482939fd66a680097318c48f5975a073b94d8ff6efa",
-        "projections/dotnet/foundation/hlp.foundation.rule-runtime/RuleEngineLimits.cs": "f2df1e4d55bd151dbd111878cdef82f9163ab0371c36c675fb64fb7b61be2c0c",
+        "projections/dotnet/foundation/hlp.foundation.rule-runtime/RuleEngineLimits.cs": "a4b83401908c379ccaf9d9edd53b4efd5d525f57b033513c39fac2dc4aaaf139",
         "projections/dotnet/foundation/hlp.foundation.rule-runtime/Harborline.Foundation.RuleEngine.csproj": "8c6851d4ec0b0410b9c539310ea4c33b374a243d8c111af3fe2dd09bea8e334c",
         "projections/typescript/foundation/hlp.foundation.rule-runtime/package.json": "ce68d991fec4a63b9eeac801d45a17e7d8a18ca178fdb4c93ba8dfb56877413a",
-        "projections/typescript/foundation/hlp.foundation.rule-runtime/src/compiler.ts": "8d76bb12bc3ee5cf29320d09fe0ace42ba3dbe10663929a40b45b1baf1b4ccf0",
-        "projections/typescript/foundation/hlp.foundation.rule-runtime/src/graph.ts": "ab9f5b18f6e86f0de141544dfe5ab6453ab2d44109a6504914484884336cae97",
+        "projections/typescript/foundation/hlp.foundation.rule-runtime/src/compiler.ts": "8a545631a129d85f1fa261ce134b26673d24f1ebb32d14ece18801a5cfd118aa",
+        "projections/typescript/foundation/hlp.foundation.rule-runtime/src/graph.ts": "d1d0084356071c27fbc1b234fe1a5e25e954ae86ee1588c1cd09a40d3b5259ff",
         "projections/typescript/foundation/hlp.foundation.rule-runtime/src/jsonlogic.ts": "7d15d74fdaf0893f623fcb2882bb1824aac909d8672c60620ce71d29dc22c3e6",
         "projections/typescript/foundation/hlp.foundation.rule-runtime/src/model.ts": "900fc1ed2abb707518e4dc94abac7184e2e6b6827982de0cb52f7f9a0393be5a",
-        "specs/modules/foundation/hlp.foundation.rule-runtime/interface.yaml": "cf027b549195c9c0f99d313330628361295dbb7247db7e71f91c3402ff9cb472"
+        "specs/modules/foundation/hlp.foundation.rule-runtime/interface.yaml": "533939bcf87e370dd7061db30f7d2a54a85272a5f470563c152aab7a6ea44bff"
       },
       "nextGate": "Extract the complete caller-backed Forms definition/version/draft/reuse state, then the executable Forms Engine, against this runtime."
     },

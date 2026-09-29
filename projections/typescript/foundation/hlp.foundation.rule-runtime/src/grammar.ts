@@ -28,6 +28,8 @@ export class CompileError extends Error {
     message: string,
     readonly ruleId?: string,
     readonly cyclePath?: string[],
+    /** Stable string params (for `rule.compile.work_exceeded`: `proof` and `ceiling`). */
+    readonly params: Readonly<Record<string, string>> = {},
   ) {
     super(message)
   }
