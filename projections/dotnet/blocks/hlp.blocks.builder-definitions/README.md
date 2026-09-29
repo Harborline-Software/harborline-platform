@@ -71,6 +71,19 @@ The legacy offline `RuleRegistry` watermark remains separate and is not this sha
 VersionPolicy is a caller selector, absent from authored source. Restore keeps original body
 bytes while reconstructing source with the new shared identity and version metadata.
 
+## Taxonomy catalogue (T-493 S7, DES-0024)
+
+Register `DefinitionKind.Taxonomy` (14) with `TaxonomyDefinitionStore.Admission(window)` in the
+shared store, then `AddTaxonomyDefinitionStore()` registers one `TaxonomyDefinitionStore` over it.
+The key is the tenant plus the dotted `TaxonomyDefinitionId`; the version id is the definition's
+own three-part version. Author runs Author-phase Taxonomy admission, so an Authoritative scheme is
+never saved as a tenant draft; publish runs Publish-phase admission and refuses a body whose
+tenant, id or version disagrees with the catalogue (`definition.catalogue_mismatch`). Resolution
+is pinned-only: `ResolveAsync` returns the exact published version or `TaxonomyDefinitionNotFound`
+(absent, draft, other tenant), and a reference with no exact version refuses
+`definition.reference_unpinned` at `/version` rather than resolving to a head. Foundation never
+depends on blocks.
+
 ## Configuration generations (T-459)
 
 `ConfigurationGeneration.Resolve` identifies a complete host-resolved tenant configuration. Pass active package keys, the full transitive package closure (manifest references, all content references and direct dependency keys), one package ownership selection per distinct content key, the platform contract reference, and all applicable policy references. Empty policy is an explicit host resolution, never an inferred default. Public keys and revisions are case-sensitive; digests are lowercase SHA-256. Duplicate identities, unresolved dependencies, unreachable packages and incomplete or invalid ownership refuse admission.

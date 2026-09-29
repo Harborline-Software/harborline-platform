@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.blocks.builder-definitions",
-  "interfaceRevision": 12,
+  "interfaceRevision": 13,
   "status": "draft",
   "purpose": "Own the shared definition catalogue substrate: registry-neutral versioned definitions, key suggestion, archive lifecycle, projection-neutral platform package export and empty-store replay, package safety-floor reattachment, and the install receipt that binds a released artifact to installed identity, capabilities, authorization outcomes and digests.",
-  "dependencies": [{"moduleId": "hlp.foundation.rule-authoring", "minimumRevision": 3}, {"moduleId": "hlp.foundation.definitions", "minimumRevision": 1}],
+  "dependencies": [{"moduleId": "hlp.foundation.rule-authoring", "minimumRevision": 3}, {"moduleId": "hlp.foundation.definitions", "minimumRevision": 1}, {"moduleId": "hlp.foundation.taxonomy", "minimumRevision": 1}],
   "sourceSurface": {
     "repository": "shipyard",
     "commit": "3410883405996dc8e4871418a441f52970d9994e",
@@ -20,6 +20,7 @@
     "keys": ["deterministic ASCII kebab suggestion", ".v1 suffix", "exact-case collision suffixing"],
     "lifecycle": ["tenant and definition-kind scoped archive", "idempotent archive", "idempotent unarchive", "restart-durable visibility"],
     "versionedDefinitions": ["opaque JSON body and digest", "stable definition id and immutable published version id", "expected stream revision", "exact operation/fence/payload replay", "append-only history", "restore-as-new-draft", "production-only resolution", "in-memory reference implementation"],
+    "taxonomyCatalogue": ["DefinitionKind.Taxonomy (14) namespace keyed by tenant and dotted TaxonomyDefinitionId", "TaxonomyDefinitionStore.Admission(window) binds Author- and Publish-phase Taxonomy admission, publish requiring the body to state the catalogue tenant, id and version", "draft save at the definition's own version and immutable publish", "pinned-only ResolveAsync returning ResolvedTaxonomyDefinition or TaxonomyDefinitionNotFound, never a head", "AddTaxonomyDefinitionStore over the host's registered IVersionedDefinitionStore"],
     "rulesCatalogue": ["typed source admission at author and publish", "create at revision zero", "detached load and tenant-scoped stable listing", "duplicate into independent history", "archive visibility without pin revocation", "caller-supplied version ids, labels, request ids and revision fences", "Latest/Pinned/Draft caller resolution"],
     "platformPackage": ["ordered manifest", "deterministic UTF-8 JSON export", "provider-neutral closure of pinned package dependencies in ordinal key order and SHA-256 digest metadata", "ADR-0097 canonical seed fixture", "ck-1 contract declaration plus PlatformPackageSeed.ContractWindow and ReadContractWindow readers", "present or explicitly unresolved content", "validated atomic replay into an empty target", "raise-only safety-floor reattachment with named malformed-member refusal"]
   },
@@ -31,6 +32,7 @@
   "invariants": [
     "A Layout submit_gate is the shared hlp.contracts.authorization SubmitGate. A surface that pins a form refuses its own submit_gate by name at /submit_gate (layout.capture.submit_gate_on_pinned_form), at whichever stage admission runs; the pinned form's gate is the sole gate for that submit, and only a surface that pins no form keeps its own (layout-ck-31, layout-auth-23, T-724 ruling 81).",
     "The versioned store exposes no member-specific type; host-supplied pure validators admit each supported registry.",
+    "TaxonomyDefinitionStore composes Taxonomy admission with the shared store under DefinitionKind.Taxonomy (T-493 S7, DES-0024); a reference that names no exact three-part version refuses definition.reference_unpinned at /version and never resolves to a published head, and an absent, draft or other-tenant version resolves to TaxonomyDefinitionNotFound.",
     "RuleDefinitionCatalog composes Rules source admission with the shared store and lifecycle; foundation never depends on blocks.",
     "Older published history arrivals cannot lower the highest semantic-version head. The offline RuleRegistry remains a separate mechanism.",
     "Every consumer pin names both the stable definition key and immutable version id.",
@@ -154,6 +156,7 @@
     {"code":"definition.replay_conflict", "when":"A request identity is reused with another operation, fence or payload."},
     {"code":"definition.version_conflict", "when":"An immutable identity or equal-precedence published version conflicts."},
     {"code":"definition.version_immutable", "when":"An edit targets a published version identity."},
+    {"code":"definition.reference_unpinned", "when":"A Taxonomy resolution names no exact semantic version (absent, blank, a label or a range)."},
     {"code":"definition.published_version_required", "when":"Restore targets a draft rather than a publication."},
     {"code":"definition.body_invalid", "when":"The opaque body is not valid JSON."},
     {"code":"definition.admission_invalid", "when":"A configured validator fails to return a refusal list."},

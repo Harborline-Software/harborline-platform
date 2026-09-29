@@ -795,6 +795,7 @@ function verifyNuget() {
   const workflowInterpreter = 'projections/dotnet/blocks/hlp.blocks.workflow-interpreter/Harborline.Blocks.Workflow.Interpreter.csproj'
   const entityViews = 'projections/dotnet/blocks/hlp.blocks.entity-views/Harborline.Blocks.EntityViews.csproj'
   const dataExchange = 'projections/dotnet/foundation/hlp.foundation.data-exchange/Harborline.Foundation.DataExchange.csproj'
+  const taxonomy = 'projections/dotnet/foundation/hlp.foundation.taxonomy/Harborline.Foundation.Taxonomy.csproj'
   const definitions = 'projections/dotnet/foundation/hlp.foundation.definitions/Harborline.Foundation.Definitions.csproj'
   const documents = 'projections/dotnet/foundation/hlp.foundation.documents/Harborline.Foundation.Documents.csproj'
   const foundationScheduling = 'projections/dotnet/foundation/hlp.foundation.scheduling/Harborline.Foundation.Scheduling.csproj'
@@ -825,6 +826,8 @@ function verifyNuget() {
   run(dotnet.executable, ['pack', workflowInterpreter, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
   run(dotnet.executable, ['pack', entityViews, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
   run(dotnet.executable, ['pack', dataExchange, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
+  // T-493 S7: BuilderDefinitions binds DefinitionKind.Taxonomy, so its feed carries Taxonomy.
+  run(dotnet.executable, ['pack', taxonomy, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
   run(dotnet.executable, ['pack', definitions, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
   run(dotnet.executable, ['pack', documents, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
   run(dotnet.executable, ['pack', foundationScheduling, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
@@ -850,6 +853,7 @@ function verifyNuget() {
   const expectedIds = ['Harborline.Blocks.ActivityTimeline', 'Harborline.Blocks.Aggregates', 'Harborline.Blocks.MeasureCatalogue', 'Harborline.Blocks.BuilderDefinitions', 'Harborline.Blocks.Calendar', 'Harborline.Blocks.EntityViews', 'Harborline.Blocks.InspectionReview', 'Harborline.Blocks.RelativeChains', 'Harborline.Blocks.Reports', 'Harborline.Blocks.Scheduling', 'Harborline.Blocks.Workflow', 'Harborline.Blocks.Workflow.Interpreter', 'Harborline.Foundation', 'Harborline.Foundation.DataExchange', 'Harborline.Foundation.Definitions', 'Harborline.Foundation.Documents', 'Harborline.Foundation.Forms.Engine', 'Harborline.Foundation.MultiTenancy', 'Harborline.Foundation.RuleAuthoring', 'Harborline.Foundation.RuleEngine', 'Harborline.Foundation.Scheduling', 'Harborline.Kernel.Core', 'Harborline.Kernel.SchemaValidation', 'Harborline.Kernel.WorkItems', 'Harborline.UIAdapters.Blazor', 'Harborline.Contracts', 'Harborline.Foundation.Authorization', 'Harborline.Foundation.Forms', 'Harborline.Foundation.Session']
   const actualIds = packageMetadata.map(entry => entry.id).sort()
   expectedIds.push('Harborline.Foundation.FieldRuntime')
+  expectedIds.push('Harborline.Foundation.Taxonomy')
   if (JSON.stringify(actualIds) !== JSON.stringify(expectedIds.sort())) {
     throw new Error(`NuGet artifact ownership mismatch: ${JSON.stringify(actualIds)}`)
   }
@@ -1272,6 +1276,8 @@ function verifyCalculationsCapability() {
     'Harborline.Foundation.Definitions',
     'Harborline.Foundation.RuleAuthoring',
     'Harborline.Foundation.RuleEngine',
+    // T-493 S7: BuilderDefinitions binds DefinitionKind.Taxonomy through Foundation.Taxonomy.
+    'Harborline.Foundation.Taxonomy',
     // T-732: RuleEngine now compiles the JsonSchema tier against the kernel's own dialect.
     'Harborline.Kernel.SchemaValidation',
     'Harborline.Contracts',
@@ -1332,7 +1338,8 @@ function verifyViewsCapability() {
     // T-732: RuleEngine now compiles the JsonSchema tier against the kernel's own dialect.
     // T-572 slice 2: the envelope carries Definitions' contract version, and authoring stamps the
     // platform seed's window (BuilderDefinitions' PlatformPackageSeed, which brings RuleAuthoring).
-    ['Harborline.Blocks.EntityViews', 'Harborline.Blocks.MeasureCatalogue', 'Harborline.Blocks.Aggregates', 'Harborline.Blocks.BuilderDefinitions', 'Harborline.Contracts', 'Harborline.Foundation.Authorization', 'Harborline.Foundation.Definitions', 'Harborline.Foundation.MultiTenancy', 'Harborline.Foundation.RuleAuthoring', 'Harborline.Foundation.RuleEngine', 'Harborline.Kernel.SchemaValidation'],
+    // T-493 S7: BuilderDefinitions binds DefinitionKind.Taxonomy through Foundation.Taxonomy.
+    ['Harborline.Blocks.EntityViews', 'Harborline.Blocks.MeasureCatalogue', 'Harborline.Blocks.Aggregates', 'Harborline.Blocks.BuilderDefinitions', 'Harborline.Foundation.Taxonomy', 'Harborline.Contracts', 'Harborline.Foundation.Authorization', 'Harborline.Foundation.Definitions', 'Harborline.Foundation.MultiTenancy', 'Harborline.Foundation.RuleAuthoring', 'Harborline.Foundation.RuleEngine', 'Harborline.Kernel.SchemaValidation'],
     'Views engine',
     /Forms.*(?:Builder|Authoring)|(?:Builder|Authoring).*Forms/i,
   )
@@ -1390,7 +1397,9 @@ function verifySchedulingCapability() {
       'Harborline.Foundation.Authorization', 'Harborline.Foundation.MultiTenancy', 'Harborline.Foundation.RuleEngine',
       // T-732: RuleEngine now compiles the JsonSchema tier against the kernel's own dialect.
       'Harborline.Kernel.SchemaValidation',
-      'Harborline.Blocks.BuilderDefinitions', 'Harborline.Foundation.Definitions', 'Harborline.Foundation.RuleAuthoring'],
+      'Harborline.Blocks.BuilderDefinitions', 'Harborline.Foundation.Definitions', 'Harborline.Foundation.RuleAuthoring',
+      // T-493 S7: BuilderDefinitions binds DefinitionKind.Taxonomy through Foundation.Taxonomy.
+      'Harborline.Foundation.Taxonomy'],
     'Scheduling',
     // T-732: RuleEngine's own Kernel.SchemaValidation dependency (compiling the JsonSchema tier
     // against the kernel's dialect) is now an expected, always-present part of the RuleEngine
