@@ -169,7 +169,49 @@ public sealed class ConfigurationRecoveryTests
         var result = await Recovery(host).RecoverAsync(Request(), host);
 
         Assert.Equal(KernelRecoveryErrors.TenantMismatch, result.Refusal!.Code);
+        Assert.Equal("profile-tenant-differs", result.Refusal.State);
         Assert.Empty(host.Events);
+    }
+
+    [Theory]
+    [InlineData("request")]
+    [InlineData("port")]
+    [InlineData("recovery")]
+    [InlineData("tenant")]
+    [InlineData("actor")]
+    public async Task RecoveryRejectsMissingRequiredInvocationInputsBeforeAnyRead(string missing)
+    {
+        var host = new Host(Profile(), "missing");
+        var request = missing switch
+        {
+            "request" => null,
+            "recovery" => Request() with { RecoveryId = " " },
+            "tenant" => Request() with { TenantKey = " " },
+            "actor" => Request() with { ActorId = " " },
+            _ => Request(),
+        };
+        var port = missing == "port" ? null : host;
+
+        var exception = await Record.ExceptionAsync(async () =>
+            await Recovery(host).RecoverAsync(request!, port!));
+        Assert.IsType(
+            missing is "request" or "port" ? typeof(ArgumentNullException) : typeof(ArgumentException),
+            exception);
+
+        Assert.Equal(0, host.ProfileReads);
+        Assert.Empty(host.Events);
+    }
+
+    [Fact]
+    public async Task RecoveryTreatsANullOutboxAsNoUnpublishedEvidence()
+    {
+        var profile = new KernelProfileSnapshot("tenant-a", new(Digest, "intent-1"), Content, null, null!);
+        var host = new Host(profile, "missing");
+
+        var result = await Recovery(host).RecoverAsync(Request(), host);
+
+        Assert.True(result.Committed);
+        Assert.DoesNotContain(result.Record!.Repairs, repair => repair.Residue == ConfigurationResidue.EvidenceOutbox);
     }
 
     [Fact]
