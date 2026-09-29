@@ -18,23 +18,31 @@ namespace Harborline.Blocks.Workflow.Durable;
 /// <summary>Lifecycle status of a <see cref="WorkflowDefinition"/> revision.</summary>
 public enum WorkflowDefinitionStatus
 {
+    /// <summary>Being authored; not executable.</summary>
     Draft = 0,
+    /// <summary>Admitted and live; the only status the execution store serves.</summary>
     Published = 1,
+    /// <summary>Superseded by a later revision; kept for reference and not served for execution.</summary>
     Deprecated = 2,
+    /// <summary>Taken out of service; not served for execution.</summary>
     Withdrawn = 3,
 }
 
 /// <summary>Editability posture (ADR 0135 §4.4). Locked = rigid orchestration; Editable = re-pinned on edit.</summary>
 public enum WorkflowMutability
 {
+    /// <summary>Rigid orchestration; running instances are not re-pinned to a new revision.</summary>
     Locked = 0,
+    /// <summary>Running instances are re-pinned when the definition is edited.</summary>
     Editable = 1,
 }
 
 /// <summary>A state's kind. A <see cref="Terminal"/> state has no outgoing transitions.</summary>
 public enum WorkflowStateKind
 {
+    /// <summary>An intermediate state; admission requires at least one outgoing transition.</summary>
     Normal = 0,
+    /// <summary>An end state; admission refuses any outgoing transition.</summary>
     Terminal = 1,
 }
 
@@ -58,11 +66,17 @@ public enum ActionClassification
 /// <summary>What an action does (ADR 0140 — the security-relevant surface).</summary>
 public enum WorkflowActionKind
 {
+    /// <summary>Sends a notification.</summary>
     Notify = 0,
+    /// <summary>Creates a record.</summary>
     CreateRecord = 1,
+    /// <summary>Writes a field on an existing record.</summary>
     UpdateField = 2,
+    /// <summary>Calls a service capability.</summary>
     InvokeService = 3,
+    /// <summary>Starts a child workflow instance.</summary>
     StartSubProcess = 4,
+    /// <summary>Publishes a domain event.</summary>
     EmitEvent = 5,
 }
 
@@ -85,6 +99,7 @@ public sealed class WorkflowStateDef
 /// </summary>
 public sealed class WorkflowTransitionDef
 {
+    /// <summary>Stable id, unique among its kind within the definition; admission refuses duplicates.</summary>
     public required string Id { get; init; }
 
     /// <summary>Source state id.</summary>
@@ -103,8 +118,10 @@ public sealed class WorkflowTransitionDef
 /// <summary>A trigger the definition declares against (reuses the four <see cref="WorkflowTriggerKind"/>).</summary>
 public sealed class WorkflowTriggerBindingDef
 {
+    /// <summary>Stable id, unique among its kind within the definition; admission refuses duplicates.</summary>
     public required string Id { get; init; }
 
+    /// <summary>Which of the four trigger kinds this is; it decides which of the fields below applies.</summary>
     public required WorkflowTriggerKind Kind { get; init; }
 
     /// <summary>Event — the subject-form/domain event type that fires this.</summary>
@@ -127,6 +144,7 @@ public sealed class WorkflowTriggerBindingDef
 /// </summary>
 public sealed class WorkflowActionBindingDef
 {
+    /// <summary>Stable id, unique among its kind within the definition; admission refuses duplicates.</summary>
     public required string Id { get; init; }
 
     /// <summary>The state id this action fires on entering. Exactly one of OnState / OnTransition is set.</summary>
@@ -135,6 +153,7 @@ public sealed class WorkflowActionBindingDef
     /// <summary>The transition id this action fires on. Exactly one of OnState / OnTransition is set.</summary>
     public string? OnTransition { get; init; }
 
+    /// <summary>What the action does.</summary>
     public WorkflowActionKind Kind { get; init; }
 
     /// <summary>The guarded capability invoked (a Tool from the action palette).</summary>
@@ -150,7 +169,9 @@ public sealed class WorkflowActionBindingDef
 /// <summary>A content-addressed reference to a FormDefinition (the composition binding, ADR 0140 D3).</summary>
 public sealed class FormDefinitionRef
 {
+    /// <summary>The referenced form definition's id.</summary>
     public required string FormId { get; init; }
+    /// <summary>The exact form definition version the workflow is pinned to.</summary>
     public required string Version { get; init; }
 }
 
@@ -166,6 +187,7 @@ public sealed class WorkflowDefinition
     /// <summary>Canonical "{major}.{minor}.{patch}" — the D7-pinned version.</summary>
     public required string Version { get; init; }
 
+    /// <summary>The revision's lifecycle status; defaults to <see cref="WorkflowDefinitionStatus.Draft"/>.</summary>
     public WorkflowDefinitionStatus Status { get; init; } = WorkflowDefinitionStatus.Draft;
 
     /// <summary>Owning tenant id.</summary>
@@ -174,17 +196,22 @@ public sealed class WorkflowDefinition
     /// <summary>The FormDefinition this process operates on (ADR 0140 D3 composition binding).</summary>
     public FormDefinitionRef? SubjectFormRef { get; init; }
 
+    /// <summary>The editability posture; defaults to <see cref="WorkflowMutability.Locked"/>.</summary>
     public WorkflowMutability Mutability { get; init; } = WorkflowMutability.Locked;
 
     /// <summary>The state new instances start in (must be a <see cref="States"/> id).</summary>
     public required string InitialState { get; init; }
 
+    /// <summary>Every state; ids must be unique and include <see cref="InitialState"/>.</summary>
     public IReadOnlyList<WorkflowStateDef> States { get; init; } = [];
 
+    /// <summary>Every guarded transition; each must reference declared states, a declared trigger and, if guarded, a listed guard rule.</summary>
     public IReadOnlyList<WorkflowTransitionDef> Transitions { get; init; } = [];
 
+    /// <summary>Every trigger transitions may be offered on.</summary>
     public IReadOnlyList<WorkflowTriggerBindingDef> Triggers { get; init; } = [];
 
+    /// <summary>Every action, each bound to exactly one state entry or one transition.</summary>
     public IReadOnlyList<WorkflowActionBindingDef> Actions { get; init; } = [];
 
     /// <summary>The guard rule ids referenced by transitions/actions exist in this set (rule ids only here).</summary>

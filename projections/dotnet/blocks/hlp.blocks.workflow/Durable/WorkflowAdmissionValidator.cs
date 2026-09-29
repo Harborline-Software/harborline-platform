@@ -84,8 +84,10 @@ public sealed class WorkflowAdmissionResult
     /// <summary>True iff there are no violations.</summary>
     public bool IsValid => Violations.Count == 0;
 
+    /// <summary>Every violation found, in detection order; empty when the definition is admissible.</summary>
     public required IReadOnlyList<WorkflowAdmissionViolation> Violations { get; init; }
 
+    /// <summary>The shared admissible result, with no violations.</summary>
     public static WorkflowAdmissionResult Valid { get; } =
         new() { Violations = Array.Empty<WorkflowAdmissionViolation>() };
 }
@@ -96,6 +98,7 @@ public sealed class WorkflowAdmissionException(WorkflowAdmissionResult result)
         "WorkflowDefinition refused at admission: " +
         string.Join("; ", result.Violations.Select(v => $"[{v.Code}] {v.Message}")))
 {
+    /// <summary>The refused admission result, carrying every violation.</summary>
     public WorkflowAdmissionResult Result { get; } = result;
 }
 
@@ -154,6 +157,7 @@ public sealed class WorkflowAdmissionValidator : IWorkflowAdmissionValidator
         _effectCatalog = effectCatalog;
     }
 
+    /// <inheritdoc />
     public void EnsureAdmissible(WorkflowDefinition definition)
     {
         var result = Validate(definition);
@@ -161,6 +165,7 @@ public sealed class WorkflowAdmissionValidator : IWorkflowAdmissionValidator
             throw new WorkflowAdmissionException(result);
     }
 
+    /// <inheritdoc />
     public WorkflowAdmissionResult Validate(WorkflowDefinition definition)
     {
         ArgumentNullException.ThrowIfNull(definition);

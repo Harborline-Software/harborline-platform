@@ -10,11 +10,17 @@ namespace Harborline.Foundation.RuleEngine.Environments;
 /// <summary>The evaluation phases a borrower declaration marks applicable or inapplicable (ADR 0099 decision 8).</summary>
 public enum EvaluationPhase
 {
+    /// <summary>Checking a definition while it is being authored.</summary>
     AuthoringValidation,
+    /// <summary>Admitting a definition when it is published.</summary>
     PublishValidation,
+    /// <summary>Presenting a form or view to a user.</summary>
     Render,
+    /// <summary>Accepting a submitted form or record write.</summary>
     Submission,
+    /// <summary>Executing a workflow, automation or report run.</summary>
     Run,
+    /// <summary>Approving or signing off a completed record.</summary>
     SignOff,
 }
 

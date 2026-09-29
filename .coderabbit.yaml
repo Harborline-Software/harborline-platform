@@ -1,0 +1,6 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+# T-424: the compiler owns XML-doc coverage (CS1591 as an error on packable projects), so CodeRabbit's docstring check is off.
+reviews:
+  pre_merge_checks:
+    docstrings:
+      mode: "off"

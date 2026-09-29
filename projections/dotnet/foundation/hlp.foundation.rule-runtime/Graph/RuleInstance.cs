@@ -23,6 +23,7 @@ public sealed class RuleInputValue
 /// <summary>One child-table row in a <see cref="RuleInstance"/>.</summary>
 public sealed class RuleRow
 {
+    /// <summary>Creates a row with an explicit <paramref name="id"/>, capturing a private copy of each field value.</summary>
     public RuleRow(string id, IReadOnlyDictionary<string, JsonNode?> fields)
         : this(id, fields.ToDictionary(pair => pair.Key, pair => RuleInstance.CaptureHostValue(pair.Value), StringComparer.Ordinal), hasExplicitId: true)
     {

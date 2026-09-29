@@ -1,4 +1,8 @@
 <Project>
+  <!-- T-424: packable packages document their public surface (CS1591 stays an error); tests, tools and apps are exempt. Here, not in the props, because projects set IsPackable after the props import. -->
+  <PropertyGroup Condition="'$(IsPackable)' != 'true'">
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
   <ItemGroup Condition="$([System.String]::Copy('$(MSBuildProjectName)').EndsWith('.Tests'))">
     <PackageReference Include="coverlet.collector" PrivateAssets="all" />
   </ItemGroup>

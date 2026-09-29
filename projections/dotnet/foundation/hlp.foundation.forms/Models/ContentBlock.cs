@@ -22,7 +22,9 @@ public sealed record ContentNode(
 /// admission rejects anything else (<c>form.blocks.content_unknown_node_kind</c>).</summary>
 public static class ContentNodeKinds
 {
+    /// <summary>A heading; <see cref="ContentNode.Level"/> sets its level.</summary>
     public const string Heading = "heading";
+    /// <summary>A paragraph of text.</summary>
     public const string Paragraph = "paragraph";
 
     /// <summary>Is <paramref name="kind"/> a declared content-node kind?</summary>
@@ -57,7 +59,9 @@ public sealed record FormActionConfig(
 /// small and analyzable by design.</summary>
 public static class FormActionKinds
 {
+    /// <summary>The host opens <see cref="FormActionConfig.Url"/>.</summary>
     public const string OpenUrl = "open-url";
+    /// <summary>The renderer scrolls to and focuses <see cref="FormActionConfig.SectionId"/>.</summary>
     public const string ScrollToSection = "scroll-to-section";
 
     /// <summary>Is <paramref name="kind"/> a declared action kind?</summary>
