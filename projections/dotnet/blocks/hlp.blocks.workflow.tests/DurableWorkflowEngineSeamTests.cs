@@ -18,6 +18,11 @@ namespace Harborline.Blocks.Workflow.Tests;
 /// </summary>
 public sealed class DurableWorkflowEngineSeamTests
 {
+    // The host gate's ledger:post decision an invoice approve needs (T-525); the host binds the JE id.
+    private static WorkflowDispatchAuthority LedgerPost(string tenant = Tenant) => new(
+        "user:approver", tenant, InvoiceApprovalHandler.PostOperation, InvoiceApprovalHandler.PostRecordKind,
+        "je", Allowed: true);
+
     private static WorkflowDispatchAuthority Authorized(string instanceId) => new(
         "user:operator", Tenant, WorkflowDispatchAuthority.RequiredOperation,
         WorkflowDispatchAuthority.RequiredRecordKind, instanceId, Allowed: true);
@@ -220,7 +225,7 @@ public sealed class DurableWorkflowEngineSeamTests
         var dispatcher = new WorkflowTriggerDispatcher(
             restarted, new[] { handler }, definitionStore: AdmittedDefinitionStore);
         var result = await dispatcher.DispatchAsync(
-            WorkflowTrigger.For(WorkflowTriggerKind.HumanAction, "restart-1", "approve", "{\"decision\":\"approve\"}"), Authorized("restart-1") with { Tenant = "tenant:probe" });
+            WorkflowTrigger.For(WorkflowTriggerKind.HumanAction, "restart-1", "approve", "{\"decision\":\"approve\"}") with { AdmittedDecision = LedgerPost("tenant:probe") }, Authorized("restart-1") with { Tenant = "tenant:probe" });
 
         Assert.Equal(WorkflowDispatchResult.Advanced, result);
         // Exactly the crash-era effect + the resumed post — never a duplicate of either.
@@ -272,7 +277,7 @@ public sealed class DurableWorkflowEngineSeamTests
                 WorkflowTriggerKind.Event, "inst-sendback", "decide"), Authorized("inst-sendback")));
         }
         Assert.Equal(WorkflowDispatchResult.Advanced, await dispatcher.DispatchAsync(WorkflowTrigger.For(
-            WorkflowTriggerKind.HumanAction, "inst-sendback", "approve", "{\"decision\":\"approve\"}"), Authorized("inst-sendback")));
+            WorkflowTriggerKind.HumanAction, "inst-sendback", "approve", "{\"decision\":\"approve\"}") with { AdmittedDecision = LedgerPost() }, Authorized("inst-sendback")));
 
         Assert.Single(await store.CommittedEffectPayloadsAsync("inst-sendback"));
         Assert.Equal(WorkflowStatus.Completed, (await store.LoadAsync("inst-sendback"))!.Status);
@@ -311,9 +316,9 @@ public sealed class DurableWorkflowEngineSeamTests
         Assert.Empty(await store.CommittedEffectPayloadsAsync("inst-over"));
 
         Assert.Equal(WorkflowDispatchResult.Advanced, await dispatcher.DispatchAsync(
-            WorkflowTrigger.For(WorkflowTriggerKind.HumanAction, "inst-over", "approve", "{\"decision\":\"approve\"}"), Authorized("inst-over")));
+            WorkflowTrigger.For(WorkflowTriggerKind.HumanAction, "inst-over", "approve", "{\"decision\":\"approve\"}") with { AdmittedDecision = LedgerPost() }, Authorized("inst-over")));
         Assert.True((await dispatcher.DispatchAsync(WorkflowTrigger.For(
-            WorkflowTriggerKind.HumanAction, "inst-over", "approve", "{\"decision\":\"approve\"}"), Authorized("inst-over")))
+            WorkflowTriggerKind.HumanAction, "inst-over", "approve", "{\"decision\":\"approve\"}") with { AdmittedDecision = LedgerPost() }, Authorized("inst-over")))
             is WorkflowDispatchResult.ReplayedNoOp or WorkflowDispatchResult.Terminal);
         Assert.Single(await store.CommittedEffectPayloadsAsync("inst-over"));
     }
@@ -713,7 +718,8 @@ public sealed class DurableWorkflowEngineSeamTests
         public DateTimeOffset GetBusinessTime(WorkflowInstanceRecord instance)
             => new(2026, 7, 1, 0, 0, 0, TimeSpan.Zero);
 
-        public WorkflowEffect BuildPostEffect(WorkflowInstanceRecord instance, WorkflowStepKey postStepKey)
+        public WorkflowEffect BuildPostEffect(
+            WorkflowInstanceRecord instance, WorkflowStepKey postStepKey, WorkflowDispatchAuthority? admittedDecision)
             => Effect($"je:{postStepKey.ToDeterministicGuid("source-reference"):D}");
 
         public string RenderPostingPreview(WorkflowInstanceRecord instance, decimal value)

@@ -450,7 +450,7 @@
       }
     },
     "hlp.blocks.workflow": {
-      "interface": {"path": "specs/modules/blocks/hlp.blocks.workflow/interface.yaml", "revision": 3},
+      "interface": {"path": "specs/modules/blocks/hlp.blocks.workflow/interface.yaml", "revision": 4},
       "moduleKind": "runtime",
       "presentation": {"disposition": "not-applicable", "rationale": "The engine core exposes runtime, dispatch, admission, store-port, and broker seams and owns no visual implementation."},
       "owner": "platform-blocks",

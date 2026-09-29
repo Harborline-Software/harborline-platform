@@ -192,6 +192,13 @@ public readonly record struct WorkflowTrigger(
     string Step,
     string PayloadJson)
 {
+    /// <summary>
+    /// The host gate's decision for the act a typed handler performs on this trigger (for example the invoice
+    /// approve's <c>ledger:post</c>), separate from the dispatch's <c>records:write</c> authority. A handler
+    /// that performs an act verifies it and hands it to the host effect; it never resolves or re-decides it.
+    /// </summary>
+    public WorkflowDispatchAuthority? AdmittedDecision { get; init; }
+
     /// <summary>Convenience factory; defaults the payload to an empty JSON object.</summary>
     public static WorkflowTrigger For(WorkflowTriggerKind kind, string instanceId, string step, string payloadJson = "{}")
         => new(kind, instanceId, step, payloadJson);
