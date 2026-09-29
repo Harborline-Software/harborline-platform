@@ -107,8 +107,8 @@
       "sourceState": "Revision 2 adds typed Rules definitions, strict JSON admission, phase-specific intent diagnostics, and key suggestions in both projections. Draft lowering, advisory lint, seeds, and probe-derived preview remain. The builder-definitions RuleDefinitionCatalog composes the shared versioned-definition and lifecycle stores for save, publish, load, history, restore, duplicate, archive, and policy resolution. The former RuleCatalogStore, PublishAdmission, and per-tenant-device localStorage interim are retired rather than retained as alternate persistence or admission producers. The shared intent corpus and packed consumers exercise the released boundaries. Editor and manager surfaces remain assigned to T-589; full-gate evidence is recorded separately.",
       "contentHashes": {
         "conformance/hlp.foundation.rule-authoring/definition-intent-cases.json": "ad455c51c3bfb0ddc98e44275e24d33602ee463fc10a05b782cd0339fa2bfa0a",
-        "projections/dotnet/blocks/hlp.blocks.builder-definitions/RuleDefinitionCatalog.cs": "b4e6188f60fb4fc7087bc7428f465386d2119698940bb10a07aabfdee5fa8e34",
-        "projections/dotnet/blocks/hlp.blocks.builder-definitions.tests/RuleDefinitionCatalogTests.cs": "5f70071705141b2114eeb04e0c8a7ce4ee9fe0ab8fdcaea1af23ac99212be45d",
+        "projections/dotnet/blocks/hlp.blocks.builder-definitions/RuleDefinitionCatalog.cs": "dfe51f92509ba7cd712b5d740a78e22f71634146ec4c1ffe719927b067dc5ad7",
+        "projections/dotnet/blocks/hlp.blocks.builder-definitions.tests/RuleDefinitionCatalogTests.cs": "2276eea6b60048eadc816084b969c34fc29c222393afcd7784bf4cb7f3e72db1",
         "projections/dotnet/foundation/hlp.foundation.rule-authoring/ContractAliases.cs": "ec712c94e073a59aae5828d28932c98589a436df4274c33eaf5a58885738d1fe",
         "projections/dotnet/foundation/hlp.foundation.rule-authoring/JsNumberMirror.cs": "d0c85a75eac8d46948706d03870f77e57c4a0fc64bb2bd334212140ab73dcf10",
         "projections/dotnet/foundation/hlp.foundation.rule-authoring/RuleAuthoringModel.cs": "b8c79ab5fae6598b18ac32d819270215950e7387e060e6e3b8c61f379e897e0f",
@@ -485,7 +485,7 @@
         "projections/dotnet/blocks/hlp.blocks.entity-views/ViewQueryRuntime.cs": "dac66cbee84f49dc294764c1db8a15528de22f56fc8589a442c34b53e98a2ad6",
         "projections/dotnet/blocks/hlp.blocks.entity-views.tests/AccessViewFilterTests.cs": "a506dee30f2096049ddaadd22317fd832043a0bd4f41947bb3c3eb944527a06e",
         "projections/dotnet/blocks/hlp.blocks.entity-views.tests/ViewQueryRuntimeTests.cs": "47b388c1572620fd5df223001ac0e57355762a2fc9885d6eaf37c823fc0808b1",
-        "specs/modules/blocks/hlp.blocks.entity-views/interface.yaml": "6e32d3b1227bc1fe90599bf4fde1416d5c3ef7f2062f3ac3b26d467d1ac36593",
+        "specs/modules/blocks/hlp.blocks.entity-views/interface.yaml": "a22b13f19509245581b479373be172447fbb0597cf367db5ec7462600a55b706",
         "tests/package-consumers/views-nuget/Program.cs": "2f7dcb2dfe37e4b0900d48637613feda91b4e5f12e4403386bb7f34cfc1d9474",
         "tests/package-consumers/views-nuget/AccessContractProof.cs": "398058eee7e2d1997ea3961b0781f7c8086fd06c686d69517edc3ab2a0436a49",
         "projections/dotnet/blocks/hlp.blocks.entity-views/CatalogueViewMeasures.cs": "adbe71355a40402425bc5bad1f3440c62b218ceda27629e529d864e00bc5af86"

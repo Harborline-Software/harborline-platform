@@ -352,6 +352,9 @@ public static class LayoutDefinitionAdmission
             Add(refusals, LayoutDefinitionCodes.EnvelopeInvalid, "/schema_version");
         if (envelope.Provenance.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null)
             Add(refusals, LayoutDefinitionCodes.EnvelopeInvalid, "/envelope/provenance");
+        // T-572 (rulings 85-88): the declared contract must sit inside the seed's window at every stage.
+        var contract = PlatformPackageSeed.ContractWindow.Check(envelope.Contract, null);
+        if (contract is not null) refusals.Add(contract);
         var requirements = envelope.Requires ?? [];
         for (var index = 0; index < requirements.Count; index++)
         {

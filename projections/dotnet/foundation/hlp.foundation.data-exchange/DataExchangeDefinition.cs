@@ -189,10 +189,13 @@ public static class DataExchangeDefinitionAdmission
     /// Admits a canonical JSON body at a boundary; a refusal list is never a partial admission.
     /// <paramref name="catalogue"/> names the catalogue coordinates the body must agree with before it
     /// publishes or installs; a restored draft may disagree until the author re-versions it.
+    /// <paramref name="window"/> is the host's application-contract window from the platform seed (T-572);
+    /// it is required at every phase, install included, because an optional window would fail open.
     /// </summary>
     public static IReadOnlyList<DataExchangeRefusal> AdmitJson(
         string bodyJson,
         DataExchangeAdmissionPhase phase,
+        DefinitionContractWindow window,
         ISourceParameterSchemaRegistry? sources = null,
         DataExchangeCatalogueCoordinates? catalogue = null)
     {
@@ -217,7 +220,7 @@ public static class DataExchangeDefinitionAdmission
         DataExchangeDefinition definition;
         try { definition = DataExchangeDefinitionJson.Deserialize(bodyJson); }
         catch (JsonException) { return [new("definition.body_invalid", "/")]; }
-        var refusals = Validate(definition, phase, sources).ToList();
+        var refusals = Validate(definition, phase, window, sources).ToList();
         if (catalogue is not null && phase != DataExchangeAdmissionPhase.Author)
         {
             if (definition.Tenant != catalogue.Tenant) refusals.Add(new("definition.catalogue_mismatch", "/tenant"));
@@ -231,18 +234,21 @@ public static class DataExchangeDefinitionAdmission
     public static DataExchangeDefinition Require(
         DataExchangeDefinition definition,
         DataExchangeAdmissionPhase phase,
+        DefinitionContractWindow window,
         ISourceParameterSchemaRegistry? sources = null)
     {
-        var refusals = Validate(definition, phase, sources);
+        var refusals = Validate(definition, phase, window, sources);
         return refusals.Count == 0 ? definition : throw new DataExchangeAdmissionException(refusals);
     }
 
     public static IReadOnlyList<DataExchangeRefusal> Validate(
         DataExchangeDefinition definition,
         DataExchangeAdmissionPhase phase,
+        DefinitionContractWindow window,
         ISourceParameterSchemaRegistry? sources = null)
     {
         ArgumentNullException.ThrowIfNull(definition);
+        ArgumentNullException.ThrowIfNull(window);
         sources ??= new EmptySourceParameterSchemaRegistry();
         var refusals = new List<DataExchangeRefusal>();
         if (!TabularMappingAdmission.IsThreePartVersion(definition.Version))
@@ -260,6 +266,10 @@ public static class DataExchangeDefinitionAdmission
         {
             refusals.Add(new("definition.envelope_mismatch", "/envelope"));
         }
+        // T-572 (rulings 85-88, Q6): the contract travels with the envelope, inside the host's window.
+        var contract = definition.Envelope is null ? null : window.Check(definition.Envelope.Contract, null);
+        if (contract is not null)
+            refusals.Add(new(contract.Code, contract.Pointer));
         refusals.AddRange(TabularMappingAdmission.Refusals(definition.Mapping)
             .Select(refusal => refusal with { Pointer = "/mapping" + refusal.Pointer }));
         if (string.IsNullOrWhiteSpace(definition.Source.FormatId))
@@ -331,9 +341,10 @@ public static class DataExchangeDefinitionPackExporter
 {
     public static DataExchangeDefinitionPackageEntry Export(
         DataExchangeDefinition definition,
+        DefinitionContractWindow window,
         ISourceParameterSchemaRegistry? sources = null)
     {
-        DataExchangeDefinitionAdmission.Require(definition, DataExchangeAdmissionPhase.Publish, sources);
+        DataExchangeDefinitionAdmission.Require(definition, DataExchangeAdmissionPhase.Publish, window, sources);
         return new(definition.Key, definition.Version, DataExchangeDefinitionJson.SerializeCanonical(definition));
     }
 }

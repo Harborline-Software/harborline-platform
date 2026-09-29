@@ -117,6 +117,28 @@ public sealed class LayoutAuthorityGateTests
         Assert.Equal([new DefinitionRefusal(LayoutDefinitionCodes.SubmitGateOnPinnedForm, "/submit_gate")], error.Refusals);
     }
 
+    [Theory(DisplayName = "T-572 slice 3 (rulings 85-88): a published Layout body whose contract is missing or outside the seed window is refused at render by the published-surface resolver")]
+    [InlineData(null, "definition.contract.missing")]
+    [InlineData("""{"major":2,"minor":0}""", "definition.contract.out_of_window")]
+    [InlineData("""{"major":1,"minor":1}""", "definition.contract.out_of_window")]
+    public async Task APublishedBodyOutsideTheWindowIsRefusedAtRender(string? contract, string code)
+    {
+        var body = JsonNode.Parse(LayoutDefinitionJson.SerializeCanonical(Surface()))!;
+        var envelope = body["envelope"]!.AsObject();
+        envelope.Remove("contract");
+        if (contract is not null) envelope["contract"] = JsonNode.Parse(contract);
+        var store = new InMemoryVersionedDefinitionStore(new Dictionary<DefinitionKind, DefinitionAdmission> { [DefinitionKind.Layout] = (_, _) => [] });
+        await store.SaveDraftAsync(new(Key, "version-1", "1.0.0", body.ToJsonString()), 0, "draft-1");
+        await store.PublishAsync(Key, "version-1", 1, "publish-1");
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await new LayoutPublishedSurfaceResolver(store).ResolveAsync(new(Key, "version-1"), new Authority(), new Authority()));
+        Assert.Equal("layout.persisted_body_invalid", error.Message);
+        var refused = Assert.IsType<DefinitionRefusalException>(error.InnerException);
+        Assert.Equal(DefinitionAdmissionPhase.Render, refused.Stage);
+        Assert.Equal([new DefinitionRefusal(code, "/envelope/contract")], refused.Refusals);
+    }
+
     private static async Task<InMemoryVersionedDefinitionStore> Published()
     {
         var store = new InMemoryVersionedDefinitionStore(new Dictionary<DefinitionKind, DefinitionAdmission> { [DefinitionKind.Layout] = (_, _) => [] });

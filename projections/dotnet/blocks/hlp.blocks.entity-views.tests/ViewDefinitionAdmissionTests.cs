@@ -67,6 +67,40 @@ public sealed class ViewDefinitionAdmissionTests
         Assert.Equal(new Harborline.Foundation.Definitions.DefinitionContractVersion(window.Major, window.Minor), created.Definition.Envelope.Contract);
     }
 
+    [Theory(DisplayName = "T-572 slice 3 (rulings 85-88): View admission refuses a missing or out-of-window contract at /envelope/contract; the seed's {1, 0} is admitted")]
+    [InlineData(null, null, "definition.contract.missing")]
+    [InlineData(-1, 0, "definition.contract.missing")]
+    [InlineData(2, 0, "definition.contract.out_of_window")]
+    [InlineData(1, 1, "definition.contract.out_of_window")]
+    [InlineData(1, 0, null)]
+    public async Task ContractOutsideTheSeedWindowIsRefused(int? major, int? minor, string? code)
+    {
+        var contract = major is null ? null : new Harborline.Foundation.Definitions.DefinitionContractVersion(major.Value, minor!.Value);
+        var draft = new ViewDefinitionDraft(
+            Definition() with { Envelope = Definition().Envelope with { Contract = contract } },
+            new ViewBinding("layout.table", new Dictionary<ViewShapeRole, string> { [ViewShapeRole.Title] = "title" }));
+
+        if (code is null)
+        {
+            await Admission().ValidateAsync(draft);
+            return;
+        }
+        var error = await Assert.ThrowsAsync<ViewDefinitionAdmissionException>(async () => await Admission().ValidateAsync(draft));
+        Assert.Equal("definition.validate", error.Stage);
+        Assert.Equal([$"{code}:/envelope/contract"], error.Refusals.Select(refusal => $"{refusal.Code}:{refusal.Pointer}"));
+    }
+
+    [Fact(DisplayName = "T-572 slice 3 (ruling 85): authoring stamps the seed contract over an out-of-window one before admission, so the author never types it")]
+    public async Task AuthoringStampsOverAnOutOfWindowContract()
+    {
+        var authoring = new ViewDefinitionAuthoring(Admission(), new InMemoryViewDefinitionStore());
+        var created = await authoring.CreateDraftAsync(new ViewDefinitionDraft(
+            Definition() with { Envelope = Definition().Envelope with { Contract = new(9, 9) } },
+            new ViewBinding("layout.table", new Dictionary<ViewShapeRole, string> { [ViewShapeRole.Title] = "title" })));
+
+        Assert.Equal(new Harborline.Foundation.Definitions.DefinitionContractVersion(1, 0), created.Definition.Envelope.Contract);
+    }
+
     [Fact(DisplayName = "measure bindings are validated against catalogue parameters")]
     public async Task MeasureBindingsAreValidatedAgainstCatalogueParameters()
     {

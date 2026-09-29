@@ -317,6 +317,46 @@ public sealed class BookingDefinitionTests
                 Body(_ => { })), Fixtures.Context()));
     }
 
+    [Theory(DisplayName = "T-572 slice 3 (rulings 85-88): a Booking definition whose contract is missing, malformed or outside the seed window is refused at author, publish and install at /envelope/contract")]
+    [InlineData(DefinitionKind.Resources)]
+    [InlineData(DefinitionKind.Bookables)]
+    public void ContractOutsideTheSeedWindowIsRefusedAtEveryStage(DefinitionKind kind)
+    {
+        JsonObject Body(string? contract)
+        {
+            void Edit(JsonObject body)
+            {
+                var envelope = (JsonObject)body["envelope"]!;
+                envelope.Remove("contract");
+                if (contract is not null) envelope["contract"] = JsonNode.Parse(contract);
+            }
+            return kind == DefinitionKind.Resources ? Fixtures.Resource(Edit) : Fixtures.Bookable(Edit);
+        }
+        var contentKind = BookingPackIdentity.ContentKindOf(kind);
+        IReadOnlyList<DefinitionRefusal> Install(string? contract) => BookingDefinitionPackage.Admit(
+            [new BookingPackEntry(contentKind, "x", "1.0.0", PlatformPackageContent.PresentJson(
+                System.Text.Encoding.UTF8.GetBytes(Fixtures.Packed(Body(contract), "x").ToJsonString())))],
+            Fixtures.Context());
+
+        foreach (var (contract, code) in new (string?, string?)[]
+        {
+            ("""{"major":1,"minor":0}""", null),
+            (null, "definition.contract.missing"),
+            ("""{"major":1}""", "definition.contract.missing"),
+            ("""{"major":1,"minor":"0"}""", "definition.contract.missing"),
+            ("\"1.0\"", "definition.contract.missing"),
+            ("""{"major":1,"minor":-1}""", "definition.contract.missing"),
+            ("""{"major":2,"minor":0}""", "definition.contract.out_of_window"),
+            ("""{"major":1,"minor":1}""", "definition.contract.out_of_window"),
+        })
+        {
+            DefinitionRefusal[] expected = code is null ? [] : [new(code, "/envelope/contract")];
+            foreach (var phase in new[] { DefinitionAdmissionPhase.Author, DefinitionAdmissionPhase.Publish })
+                Assert.Equal(expected, BookingDefinitionAdmission.For(Fixtures.Context())(Fixtures.Document(kind, Body(contract)), phase));
+            Assert.Equal(expected.Select(refusal => refusal with { Pointer = "/entries/0" + refusal.Pointer }), Install(contract));
+        }
+    }
+
     internal static IReadOnlyList<DefinitionRefusal> Admit(DefinitionKind kind, JsonObject body, BookingAdmissionContext? context = null)
         => BookingDefinitionAdmission.For(context ?? Fixtures.Context())(Fixtures.Document(kind, body), DefinitionAdmissionPhase.Author);
 

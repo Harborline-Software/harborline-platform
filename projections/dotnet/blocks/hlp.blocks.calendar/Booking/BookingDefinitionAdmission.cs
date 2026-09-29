@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 
 using Harborline.Blocks.BuilderDefinitions;
+using Harborline.Foundation.Definitions;
 
 namespace Harborline.Blocks.Calendar.Booking;
 
@@ -262,6 +263,13 @@ public static class BookingDefinitionAdmission
             for (var index = 0; index < requires.Count; index++)
                 if (string.IsNullOrWhiteSpace(Text((requires[index] as JsonObject)?["capability"])))
                     refusals.Add(new(BookingDefinitionCodes.EnvelopeInvalid, $"/envelope/requires/{index}"));
+        // T-572 (rulings 85-88): a malformed declaration reads as absent, and the shared check refuses it.
+        var contract = envelope["contract"] as JsonObject;
+        var major = Whole(contract?["major"]);
+        var minor = Whole(contract?["minor"]);
+        var refused = PlatformPackageSeed.ContractWindow.Check(
+            major is null || minor is null ? null : new DefinitionContractVersion(major.Value, minor.Value), null);
+        if (refused is not null) refusals.Add(refused);
     }
 
     private static void Members(JsonObject node, string[] allowed, string pointer, List<DefinitionRefusal> refusals)
