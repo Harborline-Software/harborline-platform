@@ -350,6 +350,47 @@ public sealed class RulesAuthoringTests : BunitContext
             rendered.Select(entry => (entry.GetAttribute("data-code"), entry.GetAttribute("data-pointer"), entry.TextContent)).ToArray());
     }
 
+    [Fact]
+    public void host_echo_of_an_accepted_revision_keeps_the_response_refusals_and_outcome()
+    {
+        using var fixture = JsonDocument.Parse(File.ReadAllText(FindFixture("rules-editor-authority-fixtures.json")));
+        var item = fixture.RootElement.GetProperty("threeRefusals");
+        var refusals = item.GetProperty("refusals").EnumerateArray().Select(refusal => new RulesRefusal(refusal.GetProperty("code").GetString()!, refusal.GetProperty("pointer").GetString()!)).ToArray();
+        var changes = new List<RulesDraft>(); var requests = new List<RulesOperationRequest>();
+        var cut = Render<HarborlineRulesAuthoringEditor>(parameters => parameters
+            .Add(component => component.Value, RulesDraft.Empty with { Identity = "amount-rule", ExpectedRevision = "1" })
+            .Add(component => component.ExpressionContracts, Contracts)
+            .Add(component => component.Authority, ReadAuthority(item))
+            .Add(component => component.ValueChanged, EventCallback.Factory.Create<RulesDraft>(this, changes.Add))
+            .Add(component => component.OperationRequested, EventCallback.Factory.Create<RulesOperationRequest>(this, requests.Add)));
+        cut.FindButton("Save draft").Click();
+        var request = Assert.Single(requests);
+        cut.Render(parameters => parameters.Add(component => component.Response, new RulesOperationResponse(request.RequestId, request.Identity, request.ExpectedRevision, request.Generation, new("amount-rule", "2", "Draft"), new RulesOutcome("Value", "sample", "2026-06-30T00:00:00.0000000Z", Value: "kept"), Refusals: refusals)));
+
+        // The host binds Value to what ValueChanged reported, as @bind-Value does.
+        cut.Render(parameters => parameters.Add(component => component.Value, changes[^1]));
+
+        Assert.Equal(3, cut.FindAll("ul[aria-label='Refusals'] li").Count);
+        Assert.Contains("Value: kept", cut.Markup);
+        Assert.DoesNotContain("Revision changed.", cut.Markup);
+    }
+
+    [Fact]
+    public void each_partial_grant_enables_exactly_its_lifecycle_controls()
+    {
+        using var fixture = JsonDocument.Parse(File.ReadAllText(FindFixture("rules-editor-authority-fixtures.json")));
+        foreach (var item in fixture.RootElement.GetProperty("grantCases").EnumerateArray())
+        {
+            string[] granted = [.. item.GetProperty("granted").EnumerateArray().Select(permission => permission.GetString()!)];
+            var cut = Render<HarborlineRulesAuthoringEditor>(parameters => parameters
+                .Add(component => component.Value, RulesDraft.Empty)
+                .Add(component => component.ExpressionContracts, Contracts)
+                .Add(component => component.Authority, new RulesEditorAuthority(granted)));
+            var enabled = cut.FindAll("[aria-label='Rule lifecycle'] button").Where(button => !button.HasAttribute("disabled")).Select(button => button.TextContent).ToArray();
+            Assert.True(item.GetProperty("enabled").EnumerateArray().Select(name => name.GetString()!).SequenceEqual(enabled), $"{string.Join(",", granted)}: {string.Join(",", enabled)}");
+        }
+    }
+
     private static RulesEditorAuthority ReadAuthority(JsonElement item) => new([.. item.GetProperty("authority").GetProperty("granted").EnumerateArray().Select(permission => permission.GetString()!)]);
 
     private static readonly RulesExpressionContract[] Contracts = [new("rule", "typed value", "preview", [new("amount", "Amount", ColumnValueType.Number)])];

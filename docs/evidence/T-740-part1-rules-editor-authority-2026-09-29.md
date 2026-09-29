@@ -38,6 +38,12 @@ For each mutation, the implementation was edited, the lane's rule-authoring suit
 
 R3 and B3 removed an `if (!allowed(operation)) return` guard at the top of `request` / `Request`, and both survived. The only callers are the lifecycle buttons, and those are already disabled for an ungranted operation. The guard was redundant, so it was deleted rather than tested, following the T-772 precedent. The producer still refuses the operation (T-591, `RulesPermissionGateTests`).
 
+## Review round 1 (CI `stryker`, CodeRabbit)
+
+- **CI `stryker` failed before it mutated anything.** `tooling/stryker.mjs` `razorRun` joined MSBuild's `IntermediateOutputPath`, and on Linux that property reads `obj\Debug/net10.0/`, with the default `obj\` base. Node's POSIX `path.join` keeps the backslash as a literal character, so `readdirSync` hit ENOENT. This PR was the first to change a `.razor` file under the Linux job. The fix normalises the separators. Run locally, `node tooling/stryker.mjs run` then exited 0 with a JSON report. Blazor project in PR mode: 253 tested, 115 detected, score 38.33. No survivor was on the new editor lines.
+- **That run left survivors in `RulesEditorAuthority`:** the `rules:publish` string, both `CanPreview` strings, and `&&` → `||`. The shared fixture gained `grantCases`, and both lanes gained `each_partial_grant_enables_exactly_its_lifecycle_controls`. Manual mutations B7 (`&&` → `||`), B8 (`"rules:publish"` → `""`) and B9 (`"records:read"` → `""`) each fail that Blazor test and pass nothing else. R7 (React preview needs only `rules:evaluate-explain`) fails it in React.
+- **CodeRabbit (major): a host echo cleared the refusals in Blazor.** An accepted `Authoritative` or `Materialization` response reports `Current` through `ValueChanged`. When the host bound it back into `Value`, the revision check took the echo for a clean external revision and cleared the refusals and the outcome. The outcome half predates this PR. The fix advances `_revision` when the accepted response is applied, as React's `latest.current` already did. `host_echo_of_an_accepted_revision_keeps_the_response_refusals_and_outcome` failed red in Blazor (0 refusals, 3 expected) and passes now. The React copy of the test passed before and after, pinning parity.
+
 ## Verification
 
 - React `npm run test:rule-authoring`: 17 passed. Full `npm run test:native` (every React UI module): exit 0.
