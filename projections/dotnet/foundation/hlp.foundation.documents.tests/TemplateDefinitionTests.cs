@@ -13,13 +13,13 @@ namespace Harborline.Foundation.Documents.Tests;
 /// <summary>T-593: the Documents definition producer, content kind 6 (DES-0021 section 2).</summary>
 public sealed class TemplateDefinitionTests
 {
-    [Fact(DisplayName = "documents-ck-1: TemplateDefinition travels as content kind 6 and round-trips through canonical JSON and export with identical pin and digest")]
-    public void TemplateDefinitionIsContentKindSixAndRoundTrips()
+    [Fact(DisplayName = "documents-ck-1: TemplateDefinition travels as content kind 7 (the api's PackContentKind.TemplateDefinition, T-738) and round-trips through canonical JSON and export with identical pin and digest")]
+    public void TemplateDefinitionIsContentKindSevenAndRoundTrips()
     {
         var template = Template();
 
         var entry = TemplatePack.Export(template, Surfaces());
-        Assert.Equal(6, entry.ContentKind);
+        Assert.Equal(7, entry.ContentKind); // 6 is the api's TerminologyOverride
         Assert.Equal("template.invoice", entry.DefinitionId);
         Assert.Equal("1.0.0", entry.Version);
 
