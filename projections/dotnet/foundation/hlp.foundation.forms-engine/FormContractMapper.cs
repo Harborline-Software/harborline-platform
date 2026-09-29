@@ -8,6 +8,7 @@ namespace Harborline.Foundation.Forms.Engine;
 
 internal static class FormContractMapper
 {
+    /// <summary>Executes the to contract rule contract.</summary>
     public static Contract.RuleDefinition ToContractRule(State.RuleDefinition rule) => new()
     {
         Id = rule.Id,
@@ -40,6 +41,7 @@ internal static class FormContractMapper
         },
     };
 
+    /// <summary>Executes the to view contract.</summary>
     public static Contract.FormView ToView(
         FormExecutionScope scope,
         State.FormDefinition definition,
@@ -110,6 +112,7 @@ internal static class FormContractMapper
         };
     }
 
+    /// <summary>Executes the to text contract.</summary>
     public static Contract.InternationalizedText ToText(State.InternationalizedText text) => new()
     {
         DefaultLocale = text.DefaultLocale,

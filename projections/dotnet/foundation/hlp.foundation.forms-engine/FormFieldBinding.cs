@@ -8,9 +8,11 @@ internal sealed record FormBoundField(ICompiledFieldKind Kind, ResolvedFieldCons
 
 internal sealed class FormFieldBinding(IFormFieldBindingSource source, IFieldKindRuntime kinds, IFieldDomainRuntime domains)
 {
+    /// <summary>Validates the validate contract.</summary>
     public IReadOnlyList<FieldRefusal> Validate(FormBoundField binding, System.Text.Json.JsonElement value, string pointer)
         => domains.Validate(binding.Constraints, binding.Kind, value, pointer);
 
+    /// <summary>Executes the resolve async contract.</summary>
     public async ValueTask<IReadOnlyDictionary<string, FormBoundField>> ResolveAsync(
         FormExecutionScope scope, FormDefinition definition, CancellationToken cancellationToken)
     {
@@ -21,6 +23,7 @@ internal sealed class FormFieldBinding(IFormFieldBindingSource source, IFieldKin
         }, StringComparer.Ordinal);
     }
 
+    /// <summary>Executes the resolve async contract.</summary>
     public async ValueTask<IReadOnlyDictionary<string, FormBoundField>> ResolveAsync(
         FieldDomainScope scope, FormDefinition definition, CancellationToken cancellationToken)
     {

@@ -8,9 +8,12 @@ using Harborline.Foundation.Forms.Models;
 
 namespace Harborline.Foundation.Forms.Engine.Persistence;
 
+/// <summary>Represents the file journal form submission store options contract used by this package.</summary>
 public sealed class FileJournalFormSubmissionStoreOptions
 {
+    /// <summary>Provides the journal path associated with this value.</summary>
     public string JournalPath { get; set; } = string.Empty;
+    /// <summary>Provides the maximum frame bytes associated with this value.</summary>
     public int MaximumFrameBytes { get; set; } = 16 * 1024 * 1024;
 
     internal void Validate()
@@ -46,6 +49,7 @@ public sealed class FileJournalFormSubmissionStore : IFormSubmissionTransactionS
     private readonly FileStream _journal;
     private bool _disposed;
 
+    /// <summary>Initializes the file journal form submission store instance with the supplied dependencies.</summary>
     public FileJournalFormSubmissionStore(FileJournalFormSubmissionStoreOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
@@ -74,6 +78,7 @@ public sealed class FileJournalFormSubmissionStore : IFormSubmissionTransactionS
         }
     }
 
+    /// <summary>Executes the commit async contract.</summary>
     public async ValueTask<FormSubmissionCommitResult> CommitAsync(
         FormSubmissionCommit commit,
         CancellationToken cancellationToken = default)
@@ -82,12 +87,14 @@ public sealed class FileJournalFormSubmissionStore : IFormSubmissionTransactionS
         return await transaction.CommitAsync(commit, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>Executes the begin transaction async contract.</summary>
     public async ValueTask<IFormSubmissionTransactionScope> BeginTransactionAsync(CancellationToken cancellationToken = default)
     {
         await EnterAsync(cancellationToken).ConfigureAwait(false);
         return new Transaction(this);
     }
 
+    /// <summary>Calculates the get async contract.</summary>
     public async ValueTask<FormSubmissionRecord?> GetAsync(
         TenantId tenant,
         EntityId instanceId,
@@ -98,6 +105,7 @@ public sealed class FileJournalFormSubmissionStore : IFormSubmissionTransactionS
         finally { _gate.Release(); }
     }
 
+    /// <summary>Executes the lease pending async contract.</summary>
     public async ValueTask<IReadOnlyList<FormProjectionEnvelope>> LeasePendingAsync(
         int maximum,
         CancellationToken cancellationToken = default)
@@ -114,6 +122,7 @@ public sealed class FileJournalFormSubmissionStore : IFormSubmissionTransactionS
         finally { _gate.Release(); }
     }
 
+    /// <summary>Executes the release projection lease async contract.</summary>
     public async ValueTask ReleaseProjectionLeaseAsync(
         string outboxId,
         CancellationToken cancellationToken = default)
@@ -124,6 +133,7 @@ public sealed class FileJournalFormSubmissionStore : IFormSubmissionTransactionS
         finally { _gate.Release(); }
     }
 
+    /// <summary>Executes the complete projection async contract.</summary>
     public async ValueTask CompleteProjectionAsync(
         string outboxId,
         IReadOnlyList<FormProjectionSkip> skips,
@@ -143,6 +153,7 @@ public sealed class FileJournalFormSubmissionStore : IFormSubmissionTransactionS
         finally { _gate.Release(); }
     }
 
+    /// <summary>Executes the retry projection async contract.</summary>
     public async ValueTask RetryProjectionAsync(
         string outboxId,
         string stableErrorCode,
@@ -170,6 +181,7 @@ public sealed class FileJournalFormSubmissionStore : IFormSubmissionTransactionS
         finally { _gate.Release(); }
     }
 
+    /// <summary>Executes the dispose contract.</summary>
     public void Dispose()
     {
         _gate.Wait();
@@ -198,6 +210,7 @@ public sealed class FileJournalFormSubmissionStore : IFormSubmissionTransactionS
         private bool _commitAttempted;
         private bool _released;
 
+        /// <summary>Executes the commit async contract.</summary>
         public async ValueTask<FormSubmissionCommitResult> CommitAsync(FormSubmissionCommit commit, CancellationToken cancellationToken = default)
         {
             ObjectDisposedException.ThrowIf(_released, this);
@@ -217,12 +230,14 @@ public sealed class FileJournalFormSubmissionStore : IFormSubmissionTransactionS
             return new(FormSubmissionCommitDisposition.Created, snapshot.Receipt);
         }
 
+        /// <summary>Executes the rollback async contract.</summary>
         public ValueTask RollbackAsync(CancellationToken cancellationToken = default)
         {
             Release();
             return ValueTask.CompletedTask;
         }
 
+        /// <summary>Executes the dispose async contract.</summary>
         public ValueTask DisposeAsync()
         {
             Release();
