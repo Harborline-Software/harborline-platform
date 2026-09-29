@@ -65,6 +65,8 @@ public sealed class RecordWriteRulesTests
             [RuleDefinitionFactory.Create("f", RuleTier.JsonLogic, RuleScope.Field, "rent", """{">":[{"var":"rent"},0]}""", RuleActionKind.Validate)]));
         Assert.Throws<ArgumentException>(() => RecordWriteRules.Bind("lease", [Rule("t", """{">":[{"agg":["sum","rows","amount"]},0]}""")]));
         Assert.Throws<ArgumentException>(() => RecordWriteRules.Bind("lease", [Rule("m", """{">":[{"agg":["sum","rows","amount"]},{"var":"rent"}]}""")]));
+        foreach (var root in new[] { "caller.id", "clock.now", "record_type" })
+            Assert.ThrowsAny<Exception>(() => RecordWriteRules.Bind("lease", [Rule("p", $$"""{"==":[{"var":"{{root}}"},"x"]}""")]));
         Assert.Throws<ArgumentException>(() => RecordWriteRules.Bind("lease", [PositiveRent, PositiveRent]));
         Assert.Throws<ArgumentException>(() => RecordWriteRules.Bind(" ", [PositiveRent]));
         Assert.Throws<ArgumentNullException>(() => RecordWriteRules.Bind("lease", null!));
@@ -80,6 +82,15 @@ public sealed class RecordWriteRulesTests
         Assert.Equal(["rent-positive", "unit-named"], rules.Rules.Select(rule => rule.Id));
         Assert.Equal("rent-positive", rules.Evaluate(new JsonObject { ["rent"] = 0 }, At)?.RuleId);
         Assert.Equal("lease", rules.RecordType);
+    }
+
+    [Fact(DisplayName = "T-978: the bound rules are read-only, so a caller cannot cast them back and replace a validated rule")]
+    public void Bound_rules_cannot_be_mutated_through_a_cast()
+    {
+        var rules = RecordWriteRules.Bind("lease", [PositiveRent]);
+
+        Assert.IsNotType<RuleDefinition[]>(rules.Rules);
+        Assert.Throws<NotSupportedException>(() => ((IList<RuleDefinition>)rules.Rules)[0] = Rule("x", """{"==":[1,1]}"""));
     }
 
     [Fact(DisplayName = "rules-eng-26: the stage evaluates under the Records borrower declaration released as records-auth-12, in its Submission phase")]

@@ -58,7 +58,7 @@ public sealed class RecordWriteRules
     private readonly RuleEngineLimits _limits;
 
     private RecordWriteRules(string recordType, RuleDefinition[] rules, RuleEngineLimits limits)
-        => (RecordType, Rules, _limits) = (recordType, rules, limits);
+        => (RecordType, Rules, _limits) = (recordType, Array.AsReadOnly(rules), limits);
 
     /// <summary>The record type these rules bind to.</summary>
     public string RecordType { get; }
@@ -106,6 +106,6 @@ public sealed class RecordWriteRules
 
     private sealed class PinnedClock(DateTimeOffset instant) : TimeProvider
     {
-        public override DateTimeOffset GetUtcNow() => instant;
+        public override DateTimeOffset GetUtcNow() => instant.ToUniversalTime();
     }
 }
