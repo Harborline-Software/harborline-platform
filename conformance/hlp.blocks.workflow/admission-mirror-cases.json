@@ -5,7 +5,8 @@
     "repository": "shipyard",
     "commit": "a5036ff8b500e0d857d7e0a698408e7cf7f6cf31",
     "cases": "apps/carrier/src/workflows/builder/__tests__/admission.test.ts (13 cases)",
-    "seed": "apps/carrier/src/workflows/builder/model.ts seedWorkflow()"
+    "seed": "apps/carrier/src/workflows/builder/model.ts seedWorkflow()",
+    "deviation": "T-525 item 2: the two unknown-capability cases refuse with workflow.admission.unknown_capability instead of deriving the capability to CP, as the upstream cases did."
   },
   "registry": {
     "resolve": "AP",
@@ -1712,7 +1713,7 @@
       }
     },
     {
-      "id": "refuses-unknown-capability-declared-ap-fails-closed-to-cp",
+      "id": "refuses-unknown-capability-declared-ap",
       "definition": {
         "key": "invoice-approval.v1",
         "version": "1.0.0",
@@ -1853,11 +1854,11 @@
       },
       "expected": {
         "isValid": false,
-        "code": "workflow.admission.classification_mismatch"
+        "code": "workflow.admission.unknown_capability"
       }
     },
     {
-      "id": "admits-unknown-capability-declared-cp-on-human-approve-transition",
+      "id": "refuses-unknown-capability-declared-cp-on-human-approve-transition",
       "definition": {
         "key": "invoice-approval.v1",
         "version": "1.0.0",
@@ -1997,7 +1998,8 @@
         "updatedAt": "2026-08-16T00:00:00.000Z"
       },
       "expected": {
-        "isValid": true
+        "isValid": false,
+        "code": "workflow.admission.unknown_capability"
       }
     },
     {

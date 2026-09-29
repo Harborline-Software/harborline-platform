@@ -25,7 +25,7 @@
     "The 16-declaration TypeScript authoring surface retains the pinned shape plus revision-2 qualified requiredRoles gates on transitions and actions, resolved through hlp.contracts.authorization.",
     "Unknown closed enum values, missing required members, and action bindings naming both or neither state/transition fail closed; additive object members are ignored.",
     "Admission detects duplicate ids, dangling state/trigger/guard/action references, unreachable states, terminal outgoing edges, and reachable non-terminal dead ends.",
-    "Action classification is derived from the injected immutable registry; an unknown capability derives to CP and an authored mismatch is refused.",
+    "Action classification is derived from the injected immutable registry; an unknown capability is refused and an authored mismatch is refused.",
     "A CP action fires only on a HumanAction transition or on entry to a non-initial state whose every incoming transition is HumanAction.",
     "When a RoleVocabulary is supplied, admission fails closed if any transition or action requiredRoles reference is unresolved.",
     "The TypeScript and .NET projections execute the same neutral fixtures and stable admission codes."

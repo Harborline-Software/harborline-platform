@@ -26,6 +26,7 @@ import type { ActionClassification, WorkflowDefinition } from './workflow.js'
 /** Stable, locale-independent admission-violation codes (mirror WorkflowAdmissionCodes.cs). */
 export const WORKFLOW_ADMISSION_CODES = {
   actionUnclassified: 'workflow.admission.action_unclassified',
+  unknownCapability: 'workflow.admission.unknown_capability',
   classificationMismatch: 'workflow.admission.classification_mismatch',
   cpReachableWithoutHumanTask: 'workflow.admission.cp_reachable_without_human_task',
   initialStateMissing: 'workflow.admission.initial_state_missing',
@@ -72,6 +73,8 @@ function reachableStates(def: WorkflowDefinition): Set<string> {
 
 export interface WorkflowAuthorityResolver {
   authorityOf(capabilityRef: string): ActionClassification
+  /** True iff the registry has a row for the capability; admission refuses one it has not (T-525 item 2). */
+  isRegistered(capabilityRef: string): boolean
 }
 
 export function createWorkflowAuthorityResolver(registry: Readonly<Record<string, ActionClassification>>): WorkflowAuthorityResolver {
@@ -80,7 +83,10 @@ export function createWorkflowAuthorityResolver(registry: Readonly<Record<string
       throw new TypeError(`unknown-closed-value: ActionClassification (${capabilityRef}=${String(classification)})`)
   }
   const snapshot = Object.freeze({...registry})
-  return Object.freeze({authorityOf: (capabilityRef: string) => snapshot[capabilityRef] ?? 'CP'})
+  return Object.freeze({
+    authorityOf: (capabilityRef: string) => snapshot[capabilityRef] ?? 'CP',
+    isRegistered: (capabilityRef: string) => Object.hasOwn(snapshot, capabilityRef),
+  })
 }
 
 /** Validate a WorkflowDefinition; returns the surviving violations (empty means admissible). */
@@ -167,6 +173,17 @@ export function validateWorkflowAdmission(
     for (const a of def.actions) {
       if (a.classification !== 'CP' && a.classification !== 'AP') {
         add(WORKFLOW_ADMISSION_CODES.actionUnclassified, `action '${a.id}' (${a.kind} via '${a.capabilityRef}') declares no CP/AP classification.`, a.id)
+        continue
+      }
+
+      // An unregistered capability is refused, never derived to CP (T-525 item 2; mirrors the
+      // .NET WorkflowAdmissionCodes.UnknownCapability check).
+      if (!authorityResolver.isRegistered(a.capabilityRef)) {
+        add(
+          WORKFLOW_ADMISSION_CODES.unknownCapability,
+          `action '${a.id}' names capability '${a.capabilityRef}', which the authority registry does not recognize.`,
+          a.id,
+        )
         continue
       }
 
