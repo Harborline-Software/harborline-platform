@@ -10,7 +10,7 @@ import {decideStepReuse, evaluateStepStdout, hashStepInputs, loadPreviousPassEvi
 import { resolveAppshellFeed } from './resolve-appshell-feed.mjs'
 import { resolveCommand, runnerEnvironment } from './resolve-command.mjs'
 import { resolvePinnedDotnet } from './resolve-dotnet.mjs'
-import {headless, recordPhase4Gate, requiredStepIds} from './gate-contract.mjs'
+import {galleryReconciliationFailures, headless, recordPhase4Gate, requiredStepIds} from './gate-contract.mjs'
 import {acquirePhase4GateLock} from './phase4-gate-lock.mjs'
 import {boundedReport, gateErrorDetails, interruptionDetails, reportWasTruncated, runPhase4Step} from './phase4-step-runner.mjs'
 
@@ -233,10 +233,7 @@ const passed = results.length === requiredStepIds.length
   // The scenario reconciliation compares generation-smoke's count against the gallery's. With the
   // gallery not run there is nothing to reconcile against, and asserting it would fail the gate for
   // the absence of a step the gate deliberately skipped.
-  && (headless || (byId['generation-smoke']?.scenarios === galleryCounts.scenarios
-    && byId['gallery-gate']?.scenarioReconciliation === 'exact'
-    && galleryCounts.scenarioBrowserTests === galleryCounts.scenarios
-    && byId['gallery-gate']?.checkReconciliation === 'exact'))
+  && (headless || galleryReconciliationFailures(byId['gallery-gate'], byId['generation-smoke']?.scenarios).length === 0)
 const report = {
   schemaVersion: 3,
   phase: 4,
