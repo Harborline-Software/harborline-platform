@@ -7,20 +7,53 @@ using Harborline.Foundation.Definitions;
 
 namespace Harborline.Foundation.Assistance;
 
+/// <summary>Identifies the Assistance package content kind.</summary>
 public static class AssistancePackIdentity
 {
     // DES-0002 §5, row "Assistance"; 19 is the highest previously allocated content kind.
+    /// <summary>The reserved content kind for Assistance definitions.</summary>
     public const int ContentKind = 20;
 }
 
-public enum AssistanceCascadeLayer { Base, Tenant }
+/// <summary>Controls whether a definition is base or tenant scoped.</summary>
+public enum AssistanceCascadeLayer
+{
+    /// <summary>Shared base definition.</summary>
+    Base,
+    /// <summary>Tenant-specific definition.</summary>
+    Tenant
+}
+/// <summary>Declares a required capability and optional platform floor.</summary>
 public sealed record AssistanceDefinitionRequirement(string Capability, string? MinimumPlatformVersion = null);
+/// <summary>Carries identity, provenance, retention, and contract metadata.</summary>
 public sealed record AssistanceDefinitionEnvelope(string Identity, string Version, string Tenant, AssistanceCascadeLayer CascadeLayer, JsonElement Provenance, string RetentionClass, bool LegalHold, IReadOnlyList<AssistanceDefinitionRequirement> Requires, DefinitionContractVersion? Contract);
-public enum AssistanceClassificationTier { Ap, Cp, Never }
+/// <summary>Classifies the risk tier of a command.</summary>
+public enum AssistanceClassificationTier
+{
+    /// <summary>Approval-required command.</summary>
+    Ap,
+    /// <summary>Confirmation-required command.</summary>
+    Cp,
+    /// <summary>Never-admitted command.</summary>
+    Never
+}
+/// <summary>Records command risk and reversibility metadata.</summary>
 public sealed record AssistanceCommandClassification(AssistanceClassificationTier Tier, bool Undoable, string? Archetype = null, string? Justification = null);
+/// <summary>Defines a command, aliases, argument schema, and classification.</summary>
 public sealed record AssistanceCommand(string CommandId, IReadOnlyList<string> Aliases, JsonElement ArgsSchema, AssistanceCommandClassification Classification);
-public enum AssistanceContextRedaction { Value, Presence, Bucket }
+/// <summary>Specifies how an allowlisted context field is exposed.</summary>
+public enum AssistanceContextRedaction
+{
+    /// <summary>Expose the field value.</summary>
+    Value,
+    /// <summary>Expose only whether a value is present.</summary>
+    Presence,
+    /// <summary>Expose a coarse bucket.</summary>
+    Bucket
+}
+/// <summary>Maps a context field to a redaction mode.</summary>
 public sealed record AssistanceContextAllowlistEntry(string Definition, string Field, AssistanceContextRedaction Redaction);
+/// <summary>Identifies the provider and model used by Assistance.</summary>
 public sealed record AssistanceProvider(string ProviderId, string ModelId);
 
 /// <summary>The pilot's portable Assistance definition. It deliberately contains no prompt or instruction text.</summary>
@@ -29,19 +62,46 @@ public sealed record AssistanceDefinition(
     IReadOnlyList<AssistanceContextAllowlistEntry> ContextAllowlist, IReadOnlyList<string> Recipients,
     AssistanceProvider Provider, int SchemaVersion = 1, AssistanceDefinitionEnvelope? Envelope = null);
 
+/// <summary>An entry in the host command catalogue.</summary>
 public sealed record CommandCatalogueEntry(string CommandId);
-public interface ICommandCatalogueRegistry { CommandCatalogueEntry? Resolve(string commandId); }
+/// <summary>Resolves command identifiers against a host catalogue.</summary>
+public interface ICommandCatalogueRegistry
+{
+    /// <summary>Returns the matching entry, or null when unregistered.</summary>
+    CommandCatalogueEntry? Resolve(string commandId);
+}
 /// <summary>The default registry declares no commands; hosts must provide their command catalogue explicitly.</summary>
-public sealed class EmptyCommandCatalogueRegistry : ICommandCatalogueRegistry { public CommandCatalogueEntry? Resolve(string commandId) => null; }
-public enum AssistanceAdmissionPhase { Author, Publish, Install }
+public sealed class EmptyCommandCatalogueRegistry : ICommandCatalogueRegistry
+{
+    /// <summary>Returns null because this registry declares no commands.</summary>
+    public CommandCatalogueEntry? Resolve(string commandId) => null;
+}
+/// <summary>Indicates the lifecycle phase at which a definition is admitted.</summary>
+public enum AssistanceAdmissionPhase
+{
+    /// <summary>Authoring validation.</summary>
+    Author,
+    /// <summary>Publication validation.</summary>
+    Publish,
+    /// <summary>Installation validation.</summary>
+    Install
+}
+/// <summary>Coordinates a definition with its catalogue location.</summary>
 public sealed record AssistanceCatalogueCoordinates(string Tenant, string Key, string Version);
+/// <summary>Describes why a definition was refused and where the problem occurs.</summary>
 public sealed record AssistanceRefusal(string Code, string Pointer);
-public sealed class AssistanceAdmissionException(IReadOnlyList<AssistanceRefusal> refusals) : Exception("The Assistance definition was refused.") { public IReadOnlyList<AssistanceRefusal> Refusals { get; } = refusals; }
+/// <summary>Raised when admission finds one or more refusals.</summary>
+public sealed class AssistanceAdmissionException(IReadOnlyList<AssistanceRefusal> refusals) : Exception("The Assistance definition was refused.")
+{
+    /// <summary>The refusals that caused admission to fail.</summary>
+    public IReadOnlyList<AssistanceRefusal> Refusals { get; } = refusals;
+}
 
 /// <summary>Canonical, projection-neutral Assistance JSON: snake_case, ordinal-sorted keys, one trailing newline.</summary>
 public static class AssistanceDefinitionJson
 {
     private static readonly JsonSerializerOptions Options = CreateOptions();
+    /// <summary>Serializes a definition as canonical snake_case JSON with a trailing newline.</summary>
     public static byte[] SerializeCanonical(AssistanceDefinition definition)
     {
         ArgumentNullException.ThrowIfNull(definition);
@@ -51,7 +111,9 @@ public static class AssistanceDefinitionJson
         stream.WriteByte((byte)'\n');
         return stream.ToArray();
     }
+    /// <summary>Deserializes UTF-8 JSON or throws <see cref="JsonException"/> when invalid.</summary>
     public static AssistanceDefinition Deserialize(ReadOnlySpan<byte> json) => JsonSerializer.Deserialize<AssistanceDefinition>(json, Options) ?? throw new JsonException("The Assistance definition payload is null.");
+    /// <summary>Deserializes JSON text or throws <see cref="JsonException"/> when invalid.</summary>
     public static AssistanceDefinition Deserialize(string json)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(json);
@@ -99,11 +161,13 @@ public static class AssistanceDefinitionAdmission
         }
         return refusals;
     }
+    /// <summary>Returns the definition when valid; otherwise throws with all refusals.</summary>
     public static AssistanceDefinition Require(AssistanceDefinition definition, AssistanceAdmissionPhase phase, DefinitionContractWindow window, ICommandCatalogueRegistry? commands = null, AssistanceDefinition? previous = null)
     {
         var refusals = Validate(definition, phase, window, commands, previous);
         return refusals.Count == 0 ? definition : throw new AssistanceAdmissionException(refusals);
     }
+    /// <summary>Validates a definition and returns machine-readable refusal codes and pointers.</summary>
     public static IReadOnlyList<AssistanceRefusal> Validate(AssistanceDefinition definition, AssistanceAdmissionPhase phase, DefinitionContractWindow window, ICommandCatalogueRegistry? commands = null, AssistanceDefinition? previous = null)
     {
         ArgumentNullException.ThrowIfNull(definition);
@@ -183,10 +247,16 @@ public static class AssistanceDefinitionAdmission
 // the blocks tier once a host actually consumes Pilot definitions - mirroring how DataExchange's own
 // foundation package carries no such adapter either.
 
-public sealed record AssistanceDefinitionPackageEntry(string DefinitionId, string Version, ReadOnlyMemory<byte> Content) { public int ContentKind => AssistancePackIdentity.ContentKind; }
+/// <summary>Canonical bytes and catalogue identity for a packaged definition.</summary>
+public sealed record AssistanceDefinitionPackageEntry(string DefinitionId, string Version, ReadOnlyMemory<byte> Content)
+{
+    /// <summary>Returns the reserved Assistance content kind.</summary>
+    public int ContentKind => AssistancePackIdentity.ContentKind;
+}
 /// <summary>Admits at Publish and projects canonical bytes; publication itself belongs to the shared catalogue.</summary>
 public static class AssistanceDefinitionPackExporter
 {
+    /// <summary>Validates and exports a definition as canonical package bytes.</summary>
     public static AssistanceDefinitionPackageEntry Export(AssistanceDefinition definition, DefinitionContractWindow window, ICommandCatalogueRegistry? commands = null)
     {
         AssistanceDefinitionAdmission.Require(definition, AssistanceAdmissionPhase.Publish, window, commands);
