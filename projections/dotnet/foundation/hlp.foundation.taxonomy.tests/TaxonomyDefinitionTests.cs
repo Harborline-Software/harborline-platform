@@ -8,6 +8,8 @@ namespace Harborline.Foundation.Taxonomy.Tests;
 
 public sealed class TaxonomyDefinitionTests
 {
+    // Mirrors the platform seed's ck-1 window {major 1, minor 0, window [1, 1]}; this project cannot reference the seed.
+    private static readonly Harborline.Foundation.Definitions.DefinitionContractWindow ContractWindow = new(1, 0, 1);
     [Fact(DisplayName = "T-572 slice 2: the envelope contract survives canonical serialize and deserialize; an absent one still parses")]
     public void Envelope_contract_survives_canonical_round_trip()
     {
@@ -29,6 +31,47 @@ public sealed class TaxonomyDefinitionTests
 
     private static string? ContractOf(byte[] json) => System.Text.Json.Nodes.JsonNode.Parse(json)!["envelope"]!["contract"]?.ToJsonString();
 
+    [Theory(DisplayName = "T-572 slice 3 (rulings 85-88, Q6): an envelope whose contract is missing or outside the host window is refused at author, publish and install at /envelope/contract; the seed's {1, 0} is admitted")]
+    [InlineData(null, null, "definition.contract.missing")]
+    [InlineData(-1, 0, "definition.contract.missing")]
+    [InlineData(2, 0, "definition.contract.out_of_window")]
+    [InlineData(1, 1, "definition.contract.out_of_window")]
+    [InlineData(0, 0, "definition.contract.out_of_window")]
+    [InlineData(1, 0, null)]
+    public void Envelope_contract_outside_the_window_is_refused_at_every_phase(int? major, int? minor, string? code)
+    {
+        var definition = Definition() with { Envelope = Definition().Envelope! with { Contract = major is null ? null : new(major.Value, minor!.Value) } };
+        var body = System.Text.Encoding.UTF8.GetString(TaxonomyDefinitionJson.SerializeCanonical(definition));
+        (string, string)[] expected = code is null ? [] : [(code, "/envelope/contract")];
+        foreach (var phase in new[] { TaxonomyAdmissionPhase.Author, TaxonomyAdmissionPhase.Publish, TaxonomyAdmissionPhase.Install })
+        {
+            Assert.Equal(expected, TaxonomyDefinitionAdmission.Validate(definition, phase, ContractWindow).Select(refusal => (refusal.Code, refusal.Pointer)));
+            Assert.Equal(expected, TaxonomyDefinitionAdmission.AdmitJson(body, phase, ContractWindow).Select(refusal => (refusal.Code, refusal.Pointer)));
+        }
+        if (code is null) TaxonomyDefinitionPackExporter.Export(definition, ContractWindow);
+        else Assert.Throws<TaxonomyAdmissionException>(() => TaxonomyDefinitionPackExporter.Export(definition, ContractWindow));
+    }
+
+    [Fact(DisplayName = "T-572 slice 3 (Q6): the contract travels with the envelope; an envelope-less draft is still admitted at author")]
+    public void Envelope_less_author_draft_needs_no_contract()
+        => Assert.Empty(TaxonomyDefinitionAdmission.Validate(Definition() with { Envelope = null }, TaxonomyAdmissionPhase.Author, ContractWindow));
+
+    [Fact(DisplayName = "T-572 slice 3: the window is a required argument; a null window throws rather than admitting without the check")]
+    public void Null_window_is_refused_by_argument_check()
+    {
+        Assert.Equal("window", Assert.Throws<ArgumentNullException>(() => TaxonomyDefinitionAdmission.Validate(Definition(), TaxonomyAdmissionPhase.Install, null!)).ParamName);
+        Assert.Equal("definition", Assert.Throws<ArgumentNullException>(() => TaxonomyDefinitionAdmission.Validate(null!, TaxonomyAdmissionPhase.Install, ContractWindow)).ParamName);
+    }
+
+    [Fact(DisplayName = "T-572 slice 3: the check reads the supplied window, not a fixed value")]
+    public void Envelope_contract_is_checked_against_the_supplied_window()
+    {
+        var newer = Definition() with { Envelope = Definition().Envelope! with { Contract = new(1, 1) } };
+        Assert.Empty(TaxonomyDefinitionAdmission.Validate(newer, TaxonomyAdmissionPhase.Install, new(1, 1, 1)));
+        Assert.Equal([("definition.contract.out_of_window", "/envelope/contract")],
+            TaxonomyDefinitionAdmission.Validate(Definition(), TaxonomyAdmissionPhase.Install, new(2, 0, 2)).Select(refusal => (refusal.Code, refusal.Pointer)));
+    }
+
     [Fact(DisplayName = "taxonomy-ck-1 through taxonomy-ck-15, taxonomy-ck-21 and taxonomy-ck-22: members round-trip through canonical JSON")]
     public void Canonical_json_round_trips_byte_identically()
     {
@@ -38,8 +81,8 @@ public sealed class TaxonomyDefinitionTests
         Assert.Equal((byte)'\n', first[^1]);
         Assert.Equal("acme.health.icd", JsonDocument.Parse(first).RootElement.GetProperty("definition_id").GetString());
         Assert.Equal(new TaxonomyNodeId(Id, "root"), new TaxonomyNodeId(TaxonomyDefinitionId.Parse(parsed.DefinitionId.ToString()), "root"));
-        Assert.Empty(TaxonomyDefinitionAdmission.Validate(parsed, TaxonomyAdmissionPhase.Install));
-        Assert.Equal(7, TaxonomyDefinitionPackExporter.Export(parsed).ContentKind);
+        Assert.Empty(TaxonomyDefinitionAdmission.Validate(parsed, TaxonomyAdmissionPhase.Install, ContractWindow));
+        Assert.Equal(7, TaxonomyDefinitionPackExporter.Export(parsed, ContractWindow).ContentKind);
     }
 
     [Fact(DisplayName = "taxonomy-ck-2: only three non-empty id segments parse")]
@@ -74,9 +117,9 @@ public sealed class TaxonomyDefinitionTests
     public void Parent_graph_rules_admit_corrected_counterparts()
     {
         var cycle = Definition([Node("a", parent: "b"), Node("b", parent: "a")]);
-        var refusals = TaxonomyDefinitionAdmission.Validate(cycle, TaxonomyAdmissionPhase.Author);
+        var refusals = TaxonomyDefinitionAdmission.Validate(cycle, TaxonomyAdmissionPhase.Author, ContractWindow);
         Assert.Contains(refusals, refusal => refusal.Code == "definition.parent_cycle" && refusal.Pointer.Contains("a,b", StringComparison.Ordinal));
-        Assert.Empty(TaxonomyDefinitionAdmission.Validate(Definition(), TaxonomyAdmissionPhase.Author));
+        Assert.Empty(TaxonomyDefinitionAdmission.Validate(Definition(), TaxonomyAdmissionPhase.Author, ContractWindow));
         var deepNodes = Enumerable.Range(0, 66).Select(index => Node($"n{index}", parent: index == 0 ? null : $"n{index - 1}")).ToArray();
         RefusesThenAdmits(Definition(deepNodes), "definition.traversal_depth_exceeded");
     }
@@ -95,8 +138,8 @@ public sealed class TaxonomyDefinitionTests
     public void Catalogue_coordinates_admit_corrected_counterpart()
     {
         var body = Encoding.UTF8.GetString(TaxonomyDefinitionJson.SerializeCanonical(Definition()));
-        var refused = TaxonomyDefinitionAdmission.AdmitJson(body, TaxonomyAdmissionPhase.Install, new("other", Id, "1.0.0"));
-        var admitted = TaxonomyDefinitionAdmission.AdmitJson(body, TaxonomyAdmissionPhase.Install, new("tenant-a", Id, "1.0.0"));
+        var refused = TaxonomyDefinitionAdmission.AdmitJson(body, TaxonomyAdmissionPhase.Install, ContractWindow, new("other", Id, "1.0.0"));
+        var admitted = TaxonomyDefinitionAdmission.AdmitJson(body, TaxonomyAdmissionPhase.Install, ContractWindow, new("tenant-a", Id, "1.0.0"));
         Assert.Contains(refused, refusal => refusal.Code == "definition.catalogue_mismatch"); Assert.Empty(admitted);
     }
 
@@ -119,7 +162,7 @@ public sealed class TaxonomyDefinitionTests
     [Fact(DisplayName = "taxonomy-auth-25: independent structural refusals are accumulated in one list")]
     public void Independent_refusals_are_accumulated()
     {
-        var refusals = TaxonomyDefinitionAdmission.Validate(Definition([Node("a", successor: "missing"), Node("a")]), TaxonomyAdmissionPhase.Author);
+        var refusals = TaxonomyDefinitionAdmission.Validate(Definition([Node("a", successor: "missing"), Node("a")]), TaxonomyAdmissionPhase.Author, ContractWindow);
         Assert.Contains(refusals, refusal => refusal.Code == "definition.node_code_duplicate");
         Assert.Contains(refusals, refusal => refusal.Code == "definition.successor_unknown");
     }
@@ -131,9 +174,9 @@ public sealed class TaxonomyDefinitionTests
         var blankId = Definition() with { Overlay = new(new(" ", "health", "scheme"), "1.0.0") };
         var blankVersion = Definition() with { Overlay = new(Id, " ") };
 
-        Assert.Contains(TaxonomyDefinitionAdmission.Validate(missing, TaxonomyAdmissionPhase.Author), refusal => refusal.Code == "overlay.reference_missing" && refusal.Pointer == "/overlay");
-        Assert.Contains(TaxonomyDefinitionAdmission.Validate(blankId, TaxonomyAdmissionPhase.Author), refusal => refusal.Code == "overlay.vendor_definition_id_invalid" && refusal.Pointer == "/overlay/vendor_definition_id");
-        Assert.Contains(TaxonomyDefinitionAdmission.Validate(blankVersion, TaxonomyAdmissionPhase.Author), refusal => refusal.Code == "overlay.vendor_version_missing" && refusal.Pointer == "/overlay/vendor_version");
+        Assert.Contains(TaxonomyDefinitionAdmission.Validate(missing, TaxonomyAdmissionPhase.Author, ContractWindow), refusal => refusal.Code == "overlay.reference_missing" && refusal.Pointer == "/overlay");
+        Assert.Contains(TaxonomyDefinitionAdmission.Validate(blankId, TaxonomyAdmissionPhase.Author, ContractWindow), refusal => refusal.Code == "overlay.vendor_definition_id_invalid" && refusal.Pointer == "/overlay/vendor_definition_id");
+        Assert.Contains(TaxonomyDefinitionAdmission.Validate(blankVersion, TaxonomyAdmissionPhase.Author, ContractWindow), refusal => refusal.Code == "overlay.vendor_version_missing" && refusal.Pointer == "/overlay/vendor_version");
     }
 
     [Fact(DisplayName = "taxonomy-auth-10: an overlay designates each vendor node at most once")]
@@ -145,7 +188,7 @@ public sealed class TaxonomyDefinitionTests
             OverlayDesignations = [new("shared", "One", null), new("shared", null, "Two"), new(" ", null, null)],
         };
 
-        var refusals = TaxonomyDefinitionAdmission.Validate(overlay, TaxonomyAdmissionPhase.Author);
+        var refusals = TaxonomyDefinitionAdmission.Validate(overlay, TaxonomyAdmissionPhase.Author, ContractWindow);
         Assert.Contains(refusals, refusal => refusal.Code == "overlay.vendor_node_code_duplicate" && refusal.Pointer == "/overlay_designations/1/vendor_node_code");
         Assert.Contains(refusals, refusal => refusal.Code == "overlay.vendor_node_code_missing" && refusal.Pointer == "/overlay_designations/2/vendor_node_code");
     }
@@ -157,9 +200,9 @@ public sealed class TaxonomyDefinitionTests
         var vendor = Definition([Node("shared")]) with { DefinitionId = vendorId };
         var overlay = Definition([Node("shared")]) with { Overlay = new(vendorId, "1.0.0") };
 
-        var refusals = TaxonomyDefinitionAdmission.Validate(overlay, TaxonomyAdmissionPhase.Publish, vendor: vendor);
+        var refusals = TaxonomyDefinitionAdmission.Validate(overlay, TaxonomyAdmissionPhase.Publish, ContractWindow, vendor: vendor);
         Assert.Contains(refusals, refusal => refusal.Code == "overlay.copies_vendor_node" && refusal.Pointer == "/nodes/0/code");
-        Assert.Throws<TaxonomyAdmissionException>(() => TaxonomyDefinitionAdmission.Require(overlay, TaxonomyAdmissionPhase.Publish, vendor: vendor));
+        Assert.Throws<TaxonomyAdmissionException>(() => TaxonomyDefinitionAdmission.Require(overlay, TaxonomyAdmissionPhase.Publish, ContractWindow, vendor: vendor));
     }
 
     [Fact(DisplayName = "taxonomy-auth-10: publish refuses an overlay designation naming an unknown vendor node when the vendor is supplied")]
@@ -173,7 +216,7 @@ public sealed class TaxonomyDefinitionTests
             OverlayDesignations = [new("missing-vendor-code", "Renamed", null)],
         };
 
-        var refusals = TaxonomyDefinitionAdmission.Validate(overlay, TaxonomyAdmissionPhase.Publish, vendor: vendor);
+        var refusals = TaxonomyDefinitionAdmission.Validate(overlay, TaxonomyAdmissionPhase.Publish, ContractWindow, vendor: vendor);
         Assert.Contains(refusals, refusal => refusal.Code == "overlay.designation_vendor_node_unknown" && refusal.Pointer == "/overlay_designations/0/vendor_node_code");
     }
 
@@ -188,14 +231,14 @@ public sealed class TaxonomyDefinitionTests
             OverlayDesignations = [new("root", "Tenant label", null)],
         };
 
-        Assert.Empty(TaxonomyDefinitionAdmission.Validate(overlay, TaxonomyAdmissionPhase.Publish, vendor: vendor));
+        Assert.Empty(TaxonomyDefinitionAdmission.Validate(overlay, TaxonomyAdmissionPhase.Publish, ContractWindow, vendor: vendor));
     }
 
     [Fact(DisplayName = "CodeRabbit 4112629550: a malformed definition_id in the body refuses definition.body_invalid instead of throwing FormatException")]
     public void Malformed_definition_id_refuses_instead_of_throwing()
     {
         var body = CanonicalBody().Replace("\"definition_id\":\"acme.health.icd\"", "\"definition_id\":\"acme..icd\"", StringComparison.Ordinal);
-        var refusals = TaxonomyDefinitionAdmission.AdmitJson(body, TaxonomyAdmissionPhase.Install);
+        var refusals = TaxonomyDefinitionAdmission.AdmitJson(body, TaxonomyAdmissionPhase.Install, ContractWindow);
         Assert.Contains(refusals, refusal => refusal.Code == "definition.body_invalid");
     }
 
@@ -203,7 +246,7 @@ public sealed class TaxonomyDefinitionTests
     public void Null_node_entry_refuses_instead_of_throwing()
     {
         var body = CanonicalBody().Replace("\"nodes\":[{", "\"nodes\":[null,{", StringComparison.Ordinal);
-        var refusals = TaxonomyDefinitionAdmission.AdmitJson(body, TaxonomyAdmissionPhase.Install);
+        var refusals = TaxonomyDefinitionAdmission.AdmitJson(body, TaxonomyAdmissionPhase.Install, ContractWindow);
         Assert.Contains(refusals, refusal => refusal.Code == "definition.body_invalid");
     }
 
@@ -211,7 +254,7 @@ public sealed class TaxonomyDefinitionTests
     public void Missing_required_member_refuses_instead_of_deserializing_a_default()
     {
         var body = CanonicalBody().Replace("\"owner\":\"author\",", "", StringComparison.Ordinal);
-        var refusals = TaxonomyDefinitionAdmission.AdmitJson(body, TaxonomyAdmissionPhase.Install);
+        var refusals = TaxonomyDefinitionAdmission.AdmitJson(body, TaxonomyAdmissionPhase.Install, ContractWindow);
         Assert.Contains(refusals, refusal => refusal.Code == "definition.body_invalid");
     }
 
@@ -223,7 +266,7 @@ public sealed class TaxonomyDefinitionTests
     private static TaxonomyNode Node(string code, string? parent = null, TaxonomyNodeStatus status = TaxonomyNodeStatus.Active, string? successor = null, string? reason = "retired", IReadOnlyList<DisplayHistoryEntry>? history = null) => new(code, $"Display {code}", $"Description {code}", status, history ?? [new($"Display {code}", $"Description {code}", DateTimeOffset.UnixEpoch)], ParentCode: parent, PublishedAt: DateTimeOffset.UnixEpoch, TombstonedAt: status == TaxonomyNodeStatus.Tombstoned ? DateTimeOffset.UnixEpoch : null, SuccessorCode: successor, DeprecationReason: reason);
     private static void RefusesThenAdmits(TaxonomyDefinition refused, string code, TaxonomyAdmissionPhase phase = TaxonomyAdmissionPhase.Author, TaxonomyDefinition? previous = null, TaxonomyDefinition? admitted = null)
     {
-        Assert.Contains(TaxonomyDefinitionAdmission.Validate(refused, phase, previous), refusal => refusal.Code == code);
-        Assert.Empty(TaxonomyDefinitionAdmission.Validate(admitted ?? Definition(), phase, previous));
+        Assert.Contains(TaxonomyDefinitionAdmission.Validate(refused, phase, ContractWindow, previous), refusal => refusal.Code == code);
+        Assert.Empty(TaxonomyDefinitionAdmission.Validate(admitted ?? Definition(), phase, ContractWindow, previous));
     }
 }

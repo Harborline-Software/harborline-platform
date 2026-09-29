@@ -20,6 +20,10 @@ using Harborline.Blocks.Workflow.Durable;
 using Harborline.Blocks.Workflow.Interpreter;
 
 const string Tenant = "tenant:consumer";
+// T-525 item 1: every dispatch carries the host gate's records:write decision on the instance.
+static WorkflowDispatchAuthority Authorized(string instanceId, string tenant = Tenant) => new(
+    "user:consumer", tenant, WorkflowDispatchAuthority.RequiredOperation,
+    WorkflowDispatchAuthority.RequiredRecordKind, instanceId, Allowed: true);
 const string Key = "vendor-invoice-approval.v1";
 const string Version = "1.0.0";
 
@@ -92,7 +96,7 @@ await hostStore.CreateInstanceAsync(new WorkflowInstanceRecord
 });
 var dispatcher = provider.GetRequiredService<IWorkflowTriggerDispatcher>();
 
-var parked = await dispatcher.DispatchAsync(WorkflowTrigger.For(WorkflowTriggerKind.Event, "inst-1", "Draft"));
+var parked = await dispatcher.DispatchAsync(WorkflowTrigger.For(WorkflowTriggerKind.Event, "inst-1", "Draft"), Authorized("inst-1"));
 var afterPark = await hostStore.LoadAsync("inst-1")
     ?? throw new InvalidOperationException("instance vanished after park.");
 if (parked != WorkflowDispatchResult.Parked || afterPark.Status != WorkflowStatus.Parked || afterPark.CurrentStep != "PendingApproval")
@@ -102,7 +106,7 @@ if (parked != WorkflowDispatchResult.Parked || afterPark.Status != WorkflowStatu
 
 // ── 5. Human approve → SoD-gated CP confirm through the broker → atomic advance ──
 var approved = await dispatcher.DispatchAsync(
-    WorkflowTrigger.For(WorkflowTriggerKind.HumanAction, "inst-1", "PendingApproval", "{\"decision\":\"approve\"}"));
+    WorkflowTrigger.For(WorkflowTriggerKind.HumanAction, "inst-1", "PendingApproval", "{\"decision\":\"approve\"}"), Authorized("inst-1"));
 var afterApprove = await hostStore.LoadAsync("inst-1")
     ?? throw new InvalidOperationException("instance vanished after approve.");
 if (approved != WorkflowDispatchResult.Advanced || afterApprove.Status != WorkflowStatus.Completed
@@ -114,7 +118,7 @@ if (approved != WorkflowDispatchResult.Advanced || afterApprove.Status != Workfl
 
 // ── 6. Redelivered trigger → idempotency replay, no double effect ──
 var replayed = await dispatcher.DispatchAsync(
-    WorkflowTrigger.For(WorkflowTriggerKind.HumanAction, "inst-1", "PendingApproval", "{\"decision\":\"approve\"}"));
+    WorkflowTrigger.For(WorkflowTriggerKind.HumanAction, "inst-1", "PendingApproval", "{\"decision\":\"approve\"}"), Authorized("inst-1"));
 if (replayed != WorkflowDispatchResult.Terminal && replayed != WorkflowDispatchResult.ReplayedNoOp)
 {
     throw new InvalidOperationException($"redelivered trigger was not a no-op (got {replayed}).");
@@ -233,7 +237,7 @@ app.MapPost("/api/workflows/confirmations/{instanceId}/action", async (
     {
         var result = await routeDispatcher.DispatchAsync(WorkflowTrigger.For(
             WorkflowTriggerKind.HumanAction, instanceId, instance.CurrentStep,
-            $"{{\"decision\":\"{decision.GetString()}\"}}"));
+            $"{{\"decision\":\"{decision.GetString()}\"}}"), Authorized(instanceId, instance.TenantId));
         return Results.Json(new { result = result.ToString() });
     }
     catch (InvalidOperationException)
@@ -292,7 +296,7 @@ try
         UpdatedAt = DateTimeOffset.UtcNow,
     });
     var routeDispatcher = app.Services.GetRequiredService<IWorkflowTriggerDispatcher>();
-    await routeDispatcher.DispatchAsync(WorkflowTrigger.For(WorkflowTriggerKind.Event, "route-inst-1", "Draft"));
+    await routeDispatcher.DispatchAsync(WorkflowTrigger.For(WorkflowTriggerKind.Event, "route-inst-1", "Draft"), Authorized("route-inst-1"));
 
     var confirmations = JsonDocument.Parse(
         await (await client.GetAsync("/api/workflows/confirmations")).Content.ReadAsStringAsync());
@@ -450,7 +454,7 @@ if (File.Exists("admission-mirror-cases.json") && File.Exists("client-verdicts.j
 
         // TRIGGER: the issued event parks on the human task with the CP basis (ledger-exact).
         await StartInstanceAsync("cap-approve");
-        if (await capabilityDispatcher.DispatchAsync(WorkflowTrigger.For(WorkflowTriggerKind.Event, "cap-approve", "Draft"))
+        if (await capabilityDispatcher.DispatchAsync(WorkflowTrigger.For(WorkflowTriggerKind.Event, "cap-approve", "Draft"), Authorized("cap-approve", seedTenant))
             != WorkflowDispatchResult.Parked)
             throw new InvalidOperationException("the seed's issued event did not park on the human task.");
         var capabilityParked = await capabilityStore.LoadAsync("cap-approve");
@@ -459,7 +463,7 @@ if (File.Exists("admission-mirror-cases.json") && File.Exists("client-verdicts.j
 
         // TRANSITION + COMPLETE: approve -> Posted with exactly one JE effect; redelivery replays.
         if (await capabilityDispatcher.DispatchAsync(WorkflowTrigger.For(
-                WorkflowTriggerKind.HumanAction, "cap-approve", "PendingApproval", "{\"decision\":\"approve\"}"))
+                WorkflowTriggerKind.HumanAction, "cap-approve", "PendingApproval", "{\"decision\":\"approve\"}"), Authorized("cap-approve", seedTenant))
             != WorkflowDispatchResult.Advanced)
             throw new InvalidOperationException("the seed's approve did not advance.");
         var capabilityPosted = await capabilityStore.LoadAsync("cap-approve");
@@ -467,16 +471,16 @@ if (File.Exists("admission-mirror-cases.json") && File.Exists("client-verdicts.j
             || (await capabilityStore.CommittedEffectPayloadsAsync("cap-approve")).Count != 1)
             throw new InvalidOperationException("approve did not complete at Posted with exactly one JE effect.");
         var capabilityReplay = await capabilityDispatcher.DispatchAsync(WorkflowTrigger.For(
-            WorkflowTriggerKind.HumanAction, "cap-approve", "PendingApproval", "{\"decision\":\"approve\"}"));
+            WorkflowTriggerKind.HumanAction, "cap-approve", "PendingApproval", "{\"decision\":\"approve\"}"), Authorized("cap-approve", seedTenant));
         if (capabilityReplay is not (WorkflowDispatchResult.ReplayedNoOp or WorkflowDispatchResult.Terminal)
             || capabilityEffects != 1)
             throw new InvalidOperationException("the redelivered approve was not a no-op.");
 
         // The reject path: Rejected, no effect, one override recorded.
         await StartInstanceAsync("cap-reject");
-        await capabilityDispatcher.DispatchAsync(WorkflowTrigger.For(WorkflowTriggerKind.Event, "cap-reject", "Draft"));
+        await capabilityDispatcher.DispatchAsync(WorkflowTrigger.For(WorkflowTriggerKind.Event, "cap-reject", "Draft"), Authorized("cap-reject", seedTenant));
         if (await capabilityDispatcher.DispatchAsync(WorkflowTrigger.For(
-                WorkflowTriggerKind.HumanAction, "cap-reject", "PendingApproval", "{\"decision\":\"reject\"}"))
+                WorkflowTriggerKind.HumanAction, "cap-reject", "PendingApproval", "{\"decision\":\"reject\"}"), Authorized("cap-reject", seedTenant))
             != WorkflowDispatchResult.Advanced)
             throw new InvalidOperationException("the seed's reject did not advance.");
         var capabilityRejected = await capabilityStore.LoadAsync("cap-reject");

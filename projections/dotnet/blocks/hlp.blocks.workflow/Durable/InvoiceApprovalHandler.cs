@@ -77,8 +77,12 @@ public interface IInvoiceApprovalContext
     /// Builds the post-step <see cref="WorkflowEffect"/> for <paramref name="instance"/> at
     /// <paramref name="postStepKey"/> — the effect stages the balanced JE onto the advance's in-flight
     /// unit-of-work (the host derives a deterministic JE id from the step key, build invariant #2).
+    /// <paramref name="admittedDecision"/> is the trigger's act decision: on approve it is the verified
+    /// <c>ledger:post</c> decision, which the host binds to the journal entry it derives; on the auto-post it
+    /// is whatever the trigger carried, possibly none.
     /// </summary>
-    WorkflowEffect BuildPostEffect(WorkflowInstanceRecord instance, WorkflowStepKey postStepKey);
+    WorkflowEffect BuildPostEffect(
+        WorkflowInstanceRecord instance, WorkflowStepKey postStepKey, WorkflowDispatchAuthority? admittedDecision);
 
     /// <summary>
     /// Renders the human-readable posting preview for the FE-1 basis payload (e.g. the debit/credit lines the
@@ -104,6 +108,12 @@ public sealed class InvoiceApprovalHandler : IWorkflowStepHandler
         _context = context ?? throw new ArgumentNullException(nameof(context));
     }
 
+    /// <summary>The operation the approve act's admitted decision must carry (T-525).</summary>
+    public const string PostOperation = "ledger:post";
+
+    /// <summary>The record kind the approve act's admitted decision must target; the host binds its id.</summary>
+    public const string PostRecordKind = "journal-entry";
+
     /// <inheritdoc />
     public string DefinitionKey => InvoiceApprovalSteps.DefinitionKey;
 
@@ -116,7 +126,7 @@ public sealed class InvoiceApprovalHandler : IWorkflowStepHandler
         ArgumentNullException.ThrowIfNull(instance);
         return ValueTask.FromResult(trigger.Step switch
         {
-            InvoiceApprovalSteps.Decide => DecideThreshold(instance),
+            InvoiceApprovalSteps.Decide => DecideThreshold(instance, trigger),
             InvoiceApprovalSteps.Approve => ResolveHumanAction(instance, trigger),
             _ => throw new InvalidOperationException(
                 $"{nameof(InvoiceApprovalHandler)} received a trigger for unknown step '{trigger.Step}' " +
@@ -130,7 +140,7 @@ public sealed class InvoiceApprovalHandler : IWorkflowStepHandler
     /// on the <c>approve</c> human-task carrying the FE-1 basis (the CP-park gate). The post is NEVER
     /// auto-reached over threshold — that is the arch-tested-by-name invariant.
     /// </summary>
-    private WorkflowStepOutcome DecideThreshold(WorkflowInstanceRecord instance)
+    private WorkflowStepOutcome DecideThreshold(WorkflowInstanceRecord instance, WorkflowTrigger trigger)
     {
         var amount = _context.GetInvoiceAmount(instance);
 
@@ -145,7 +155,7 @@ public sealed class InvoiceApprovalHandler : IWorkflowStepHandler
             // straight-through auto-post; the bumped value if a send-back round-trip preceded it) so the
             // derived JE source-reference stays consistent with the dispatcher's advance key.
             var postKey = new WorkflowStepKey(instance.Id, instance.Iteration, InvoiceApprovalSteps.Post);
-            var effect = _context.BuildPostEffect(instance, postKey);
+            var effect = _context.BuildPostEffect(instance, postKey, trigger.AdmittedDecision);
             return WorkflowStepOutcome.Complete(
                 finalStep: InvoiceApprovalSteps.Posted,
                 effect: effect,
@@ -158,6 +168,28 @@ public sealed class InvoiceApprovalHandler : IWorkflowStepHandler
         // surface can render the basis BEFORE the confirm control.
         var basis = BuildBasisPayload(instance, amount, decision);
         return WorkflowStepOutcome.Park(InvoiceApprovalSteps.Approve, basis);
+    }
+
+    /// <summary>
+    /// The approve act posts a journal entry, so it runs only under the host gate's allowed
+    /// <c>ledger:post</c> decision on a journal entry in the instance's tenant (T-525). The host effect binds
+    /// the journal-entry id it derives; this handler never resolves or re-decides the decision.
+    /// </summary>
+    private static WorkflowDispatchAuthority RequireLedgerPost(
+        WorkflowInstanceRecord instance, WorkflowDispatchAuthority? decision)
+    {
+        if (decision is not { Allowed: true }
+            || string.IsNullOrWhiteSpace(decision.Principal)
+            || decision.Tenant != instance.TenantId
+            || decision.Operation != PostOperation
+            || decision.RecordKind != PostRecordKind)
+        {
+            throw new UnauthorizedAccessException(
+                $"Approve of invoice-approval instance '{instance.Id}' refused: it posts a journal entry and needs " +
+                $"an allowed '{PostOperation}' decision in tenant '{instance.TenantId}'.");
+        }
+
+        return decision;
     }
 
     /// <summary>
@@ -174,7 +206,7 @@ public sealed class InvoiceApprovalHandler : IWorkflowStepHandler
             case "approve":
             {
                 var postKey = new WorkflowStepKey(instance.Id, instance.Iteration, InvoiceApprovalSteps.Post);
-                var effect = _context.BuildPostEffect(instance, postKey);
+                var effect = _context.BuildPostEffect(instance, postKey, RequireLedgerPost(instance, trigger.AdmittedDecision));
                 return WorkflowStepOutcome.Complete(
                     finalStep: InvoiceApprovalSteps.Posted,
                     effect: effect,

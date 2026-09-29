@@ -1421,9 +1421,8 @@ function verifyReportsCapability() {
   const closure = assertPackageClosure(
     consumer,
     ['Harborline.Blocks.Reports', 'Harborline.Blocks.MeasureCatalogue', 'Harborline.Blocks.Aggregates', 'Harborline.Contracts',
-      'Harborline.Foundation.Authorization', 'Harborline.Foundation.MultiTenancy', 'Harborline.Foundation.RuleEngine',
-      // T-732: RuleEngine now compiles the JsonSchema tier against the kernel's own dialect.
-      'Harborline.Kernel.SchemaValidation'],
+      // T-909 slice 3: Authorization no longer references the rule engine, so it and SchemaValidation left the closure.
+      'Harborline.Foundation.Authorization', 'Harborline.Foundation.MultiTenancy'],
     'Reports',
     // T-732: see the identical note in verifySchedulingCapability.
     /(?:Financial|Tax|Forms|Workflows|EntityViews|Kernel(?!\.SchemaValidation\b)|Blazor|React)/i,
@@ -1549,7 +1548,7 @@ function verifyAppShellCapability() {
   const target = Object.values(assets.targets ?? {})[0] ?? {}
   const closure = Object.keys(target).filter(x => /^Harborline\./.test(x)).map(x => x.split('/')[0]).sort()
   // T-732: RuleEngine now compiles the JsonSchema tier against the kernel's own dialect.
-  const expectedClosure = ['Harborline.Foundation.MultiTenancy', 'Harborline.Contracts', 'Harborline.Foundation.Authorization', 'Harborline.Foundation.Session', 'Harborline.Foundation.RuleEngine', 'Harborline.Kernel.SchemaValidation'].sort()
+  const expectedClosure = ['Harborline.Foundation.MultiTenancy', 'Harborline.Contracts', 'Harborline.Foundation.Authorization', 'Harborline.Foundation.Session'].sort()
   if (JSON.stringify(closure) !== JSON.stringify(expectedClosure)) throw new Error(`App-shell closure drift: ${JSON.stringify(closure)}`)
 
   // Capability-host rows: cross-repo tarballs staged by explicit environment paths with the

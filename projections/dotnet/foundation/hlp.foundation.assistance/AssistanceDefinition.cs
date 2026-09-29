@@ -81,7 +81,8 @@ public static class AssistanceDefinitionJson
 public static class AssistanceDefinitionAdmission
 {
     private static readonly HashSet<string> NeverArchetypes = new(StringComparer.Ordinal) { "irreversible-bulk", "security-access-control", "engine-parked", "human-authority-gate", "agent-self-repoint" };
-    public static IReadOnlyList<AssistanceRefusal> AdmitJson(string bodyJson, AssistanceAdmissionPhase phase, ICommandCatalogueRegistry? commands = null, AssistanceCatalogueCoordinates? catalogue = null, AssistanceDefinition? previous = null)
+    /// <summary>Admits a canonical JSON body. <paramref name="window"/> is the host's application-contract window from the platform seed (T-572), required at every phase, install included.</summary>
+    public static IReadOnlyList<AssistanceRefusal> AdmitJson(string bodyJson, AssistanceAdmissionPhase phase, DefinitionContractWindow window, ICommandCatalogueRegistry? commands = null, AssistanceCatalogueCoordinates? catalogue = null, AssistanceDefinition? previous = null)
     {
         try { using var document = JsonDocument.Parse(bodyJson); if (document.RootElement.ValueKind != JsonValueKind.Object) return [new("definition.settings_not_object", "/")]; }
         catch (JsonException) { return [new("definition.body_invalid", "/")]; }
@@ -89,7 +90,7 @@ public static class AssistanceDefinitionAdmission
         AssistanceDefinition definition;
         try { definition = AssistanceDefinitionJson.Deserialize(bodyJson); }
         catch (JsonException) { return [new("definition.body_invalid", "/")]; }
-        var refusals = Validate(definition, phase, commands, previous).ToList();
+        var refusals = Validate(definition, phase, window, commands, previous).ToList();
         if (catalogue is not null && phase != AssistanceAdmissionPhase.Author)
         {
             if (definition.Tenant != catalogue.Tenant) refusals.Add(new("definition.catalogue_mismatch", "/tenant"));
@@ -98,14 +99,15 @@ public static class AssistanceDefinitionAdmission
         }
         return refusals;
     }
-    public static AssistanceDefinition Require(AssistanceDefinition definition, AssistanceAdmissionPhase phase, ICommandCatalogueRegistry? commands = null, AssistanceDefinition? previous = null)
+    public static AssistanceDefinition Require(AssistanceDefinition definition, AssistanceAdmissionPhase phase, DefinitionContractWindow window, ICommandCatalogueRegistry? commands = null, AssistanceDefinition? previous = null)
     {
-        var refusals = Validate(definition, phase, commands, previous);
+        var refusals = Validate(definition, phase, window, commands, previous);
         return refusals.Count == 0 ? definition : throw new AssistanceAdmissionException(refusals);
     }
-    public static IReadOnlyList<AssistanceRefusal> Validate(AssistanceDefinition definition, AssistanceAdmissionPhase phase, ICommandCatalogueRegistry? commands = null, AssistanceDefinition? previous = null)
+    public static IReadOnlyList<AssistanceRefusal> Validate(AssistanceDefinition definition, AssistanceAdmissionPhase phase, DefinitionContractWindow window, ICommandCatalogueRegistry? commands = null, AssistanceDefinition? previous = null)
     {
         ArgumentNullException.ThrowIfNull(definition);
+        ArgumentNullException.ThrowIfNull(window);
         commands ??= new EmptyCommandCatalogueRegistry();
         var refusals = new List<AssistanceRefusal>();
         if (!IsThreePartVersion(definition.Version)) refusals.Add(new("definition.version_invalid", "/version"));
@@ -114,6 +116,9 @@ public static class AssistanceDefinitionAdmission
         if (string.IsNullOrWhiteSpace(definition.Route)) refusals.Add(new("definition.route_required", "/route"));
         if (definition.Envelope is null) { if (phase != AssistanceAdmissionPhase.Author) refusals.Add(new("definition.envelope_required", "/envelope")); }
         else if (definition.Envelope.Identity != definition.Key || definition.Envelope.Version != definition.Version || definition.Envelope.Tenant != definition.Tenant) refusals.Add(new("definition.envelope_mismatch", "/envelope"));
+        // T-572 (rulings 85-88, Q6): the contract travels with the envelope, inside the host's window.
+        var contract = definition.Envelope is null ? null : window.Check(definition.Envelope.Contract, null);
+        if (contract is not null) refusals.Add(new(contract.Code, contract.Pointer));
         if (string.IsNullOrWhiteSpace(definition.Provider.ProviderId)) refusals.Add(new("definition.provider_required", "/provider/provider_id"));
         if (string.IsNullOrWhiteSpace(definition.Provider.ModelId)) refusals.Add(new("definition.model_required", "/provider/model_id"));
         // Registered-provider floors are deferred by DES-0026 open ruling 5.
@@ -182,9 +187,9 @@ public sealed record AssistanceDefinitionPackageEntry(string DefinitionId, strin
 /// <summary>Admits at Publish and projects canonical bytes; publication itself belongs to the shared catalogue.</summary>
 public static class AssistanceDefinitionPackExporter
 {
-    public static AssistanceDefinitionPackageEntry Export(AssistanceDefinition definition, ICommandCatalogueRegistry? commands = null)
+    public static AssistanceDefinitionPackageEntry Export(AssistanceDefinition definition, DefinitionContractWindow window, ICommandCatalogueRegistry? commands = null)
     {
-        AssistanceDefinitionAdmission.Require(definition, AssistanceAdmissionPhase.Publish, commands);
+        AssistanceDefinitionAdmission.Require(definition, AssistanceAdmissionPhase.Publish, window, commands);
         return new(definition.Key, definition.Version, AssistanceDefinitionJson.SerializeCanonical(definition));
     }
 }

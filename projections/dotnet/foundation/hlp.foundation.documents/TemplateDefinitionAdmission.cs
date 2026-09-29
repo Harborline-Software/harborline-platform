@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 
 using Harborline.Blocks.BuilderDefinitions;
+using Harborline.Foundation.Definitions;
 
 namespace Harborline.Foundation.Documents;
 
@@ -48,10 +49,16 @@ public static class TemplateDefinitionCodes
 /// The host resolves that id-and-version pair only: it never follows latest-published or applies a host-side
 /// current-version resolution.
 /// </param>
+/// <param name="ContractWindow">
+/// The host's application-contract window, read from the platform seed (T-572). Required, with no default:
+/// every stage, including install and the persisted read before render, checks the template's declared contract
+/// against it. A host cannot build this binding without one, because an optional window would fail open.
+/// </param>
 public sealed record TemplateSurfaces(
     Func<TemplateSurfacePin, string?> Resolve,
     Func<string, DefinitionAdmissionPhase, IReadOnlyList<DefinitionRefusal>> Admit,
-    Func<string, string, TemplateDefinition?> ResolveTemplate);
+    Func<string, string, TemplateDefinition?> ResolveTemplate,
+    DefinitionContractWindow ContractWindow);
 
 /// <summary>One pure structural validator for authoring, publication, installation and persisted reads.</summary>
 public static class TemplateDefinitionAdmission
@@ -66,7 +73,7 @@ public static class TemplateDefinitionAdmission
         ArgumentNullException.ThrowIfNull(template);
         ArgumentNullException.ThrowIfNull(surfaces);
         var refusals = new List<DefinitionRefusal>();
-        Envelope(template.Envelope, refusals);
+        Envelope(template.Envelope, surfaces.ContractWindow, refusals);
         if (string.IsNullOrWhiteSpace(template.DocumentType))
             refusals.Add(new(TemplateDefinitionCodes.DocumentTypeRequired, "/document_type"));
         if (template.RecordType is null || Blank(template.RecordType.RecordType) || Blank(template.RecordType.Version))
@@ -217,7 +224,7 @@ public static class TemplateDefinitionAdmission
         if (refusals.Count > 0) throw new DefinitionRefusalException(DefinitionAdmissionPhase.Publish, refusals);
     }
 
-    private static void Envelope(TemplateDefinitionEnvelope? envelope, List<DefinitionRefusal> refusals)
+    private static void Envelope(TemplateDefinitionEnvelope? envelope, DefinitionContractWindow window, List<DefinitionRefusal> refusals)
     {
         if (envelope is null)
         {
@@ -230,6 +237,9 @@ public static class TemplateDefinitionAdmission
         if (!Enum.IsDefined(envelope.CascadeLayer)) refusals.Add(new(TemplateDefinitionCodes.EnvelopeInvalid, "/envelope/cascade_layer"));
         if (envelope.Provenance.ValueKind != JsonValueKind.Object)
             refusals.Add(new(TemplateDefinitionCodes.EnvelopeInvalid, "/envelope/provenance"));
+        // T-572 (rulings 85-88): the declared contract must sit inside the host's window at every stage.
+        var contract = window.Check(envelope.Contract, null);
+        if (contract is not null) refusals.Add(contract);
         if (envelope.Requires is null)
         {
             refusals.Add(new(TemplateDefinitionCodes.EnvelopeInvalid, "/envelope/requires"));

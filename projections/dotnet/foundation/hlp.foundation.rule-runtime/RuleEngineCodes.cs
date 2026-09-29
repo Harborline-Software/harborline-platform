@@ -96,6 +96,9 @@ public static class RuleEngineCodes
     /// <summary>A scope-grammar reference was malformed or invalid for the rule's scope.</summary>
     public const string CompileBadGrammar = "rule.compile.bad_grammar";
 
+    /// <summary>The graph's static work proof exceeds <see cref="RuleEngineLimits.MaxStaticWork"/> (params <c>proof</c>, <c>ceiling</c>; T-818).</summary>
+    public const string CompileWorkExceeded = "rule.compile.work_exceeded";
+
     /// <summary>True for a publish-time (compile) rejection code, which a guard returns as its error (T-687).</summary>
     public static bool IsCompileRejection(string? code) => code?.StartsWith("rule.compile.", StringComparison.Ordinal) == true;
 }

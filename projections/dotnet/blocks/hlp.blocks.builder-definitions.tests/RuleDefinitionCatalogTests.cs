@@ -534,6 +534,27 @@ public sealed class RuleDefinitionCatalogTests : IDisposable
         Assert.Equal(new DefinitionRefusal("definition.registry_unknown", "/registry"), foreign);
     }
 
+    [Theory(DisplayName = "T-572 slice 3 (rulings 85-88): a Rules body whose contract is missing or outside the seed window is refused at author and publish at /envelope/contract; {1, 0} is admitted")]
+    [InlineData(DefinitionAdmissionPhase.Author)]
+    [InlineData(DefinitionAdmissionPhase.Publish)]
+    public void ContractOutsideTheSeedWindowIsRefusedAtBothPhases(DefinitionAdmissionPhase phase)
+    {
+        IReadOnlyList<DefinitionRefusal> Admit(JsonNode? contract)
+        {
+            var body = JsonNode.Parse(RuleDefinitionCodec.SerializeBody(RuleDefinitionCodec.Parse(Source(), RuleIntentPhase.Author).Document!))!;
+            var envelope = body["envelope"]!.AsObject();
+            envelope.Remove("contract");
+            if (contract is not null) envelope["contract"] = contract;
+            return RuleDefinitionCatalog.Admit(new(Key, "a", "1.0.0", body.ToJsonString()), phase);
+        }
+
+        Assert.Empty(Admit(JsonNode.Parse("""{"major":1,"minor":0}""")));
+        Assert.Equal([new DefinitionRefusal("definition.contract.missing", "/envelope/contract")], Admit(null));
+        Assert.Equal([new DefinitionRefusal("definition.contract.missing", "/envelope/contract")], Admit(JsonNode.Parse("""{"major":1,"minor":-1}""")));
+        Assert.Equal([new DefinitionRefusal("definition.contract.out_of_window", "/envelope/contract")], Admit(JsonNode.Parse("""{"major":2,"minor":0}""")));
+        Assert.Equal([new DefinitionRefusal("definition.contract.out_of_window", "/envelope/contract")], Admit(JsonNode.Parse("""{"major":1,"minor":1}""")));
+    }
+
     [Theory]
     [InlineData(DefinitionAdmissionPhase.Author)]
     [InlineData(DefinitionAdmissionPhase.Publish)]
@@ -833,7 +854,7 @@ public sealed class RuleDefinitionCatalogTests : IDisposable
               "envelope": {
                 "id": "amount-rule", "version": "1.0.0", "tenant": "tenant-a",
                 "cascadeLayer": "domain-package", "provenance": {"kind": "package", "id": "finance"},
-                "requires": []
+                "requires": [], "contract": {"major": 1, "minor": 0}
               },
               "name": "Amount rule", "tier": "JsonLogic",
               "draft": {

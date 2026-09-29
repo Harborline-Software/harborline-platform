@@ -35,6 +35,8 @@ public sealed class DefinitionContractCheckTests
         { new(0, 3, 0), new(0, 2), "definition.contract.out_of_window" },
         { new(0, 3, 0), new(0, 3), null },
         { new(0, 3, 0), new(0, 4), "definition.contract.out_of_window" },
+        // The major-0 minor rule binds only a 0.x app: an older major 0 inside a 1.x window is admitted at any minor.
+        { new(1, 0, 0), new(0, 5), null },
         { new(1, 0, 1), null, "definition.contract.missing" },
         { new(1, 0, 1), new(-1, 0), "definition.contract.missing" },
         { new(1, 0, 1), new(1, -1), "definition.contract.missing" },

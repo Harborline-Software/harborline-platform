@@ -1,0 +1,22 @@
+# T-772 core-work and guard survivors, 2026-09-29
+
+At Platform parent `08b41a21` (T-818's `maxStaticWork` ceiling, PR #186), hlp.foundation.rule-runtime gains 17 public transfer-proof pins in `src/__tests__/work-proof-parity.test.ts` and two guard tests in `src/guard.test.ts`; the .NET RuleEngine gains the same 17 programs and values in `Compiler_pins_public_transfer_proofs_for_cross_tier_calibration`. Each pin is one program per transfer family (literal sizes, comparison/logic/arithmetic arms, `cat`, `missing`/`missing_some`, money, date, coding, `agg`, Field/Row/Table static results, fixed-point order, Validate rules). With T-818 enforcing `maxStaticWork` at compile and graph construction, `workProof.maximumEvaluationWork` is an admission input: an under-stating change admits more work than proven and an over-stating one refuses programs the proof admits. Both are now visible as a moved public proof.
+
+The cross-tier pins found two under-counts, each fixed red-first with the smallest change:
+
+- .NET `cat` with no arguments claimed 0 result bytes; it returns the empty string, two quote bytes, as TypeScript already charged. The .NET pin failed red at `22021434` versus `22021438`; `CoreWorkDerivation.Cat` now charges 2 for zero arguments.
+- Both tiers charged an aggregate 0 result bytes when `maxTableRowsPerAggregate` is 0, but an empty table still folds to a value (TS evaluation of `table.sum(items.amount)` resolved `0`). Both pins failed red with identical values (`1112` versus `17506`, and `84030444` versus `84046838`); both tiers now charge at least one fold result (`max(1, rows) × 8197`). Default limits are unchanged, so every earlier pin and the T-818 calibration values stand.
+
+Repository-pinned StrykerJS 10.0.0 used `tooling/strykerjs.config.json` with `mutate` `src/core-work.ts` and `src/guard.ts` against the whole vitest suite. Before: 135 undetected (core-work 124 Survived and 2 NoCoverage; guard 9 Survived) of 493. After: core-work 312 Killed, 32 Survived, 2 NoCoverage; guard 140 Killed, 7 Survived, so 41 undetected. The package passed 430 tests, type checking, lint and build; the .NET RuleEngine project passed 334 tests. Twelve representative mutants, including every admission-relevant under-stating class (Validate result standing in for its field, `maxCellWork` not taking the maximum, dynamic-read detection, Row/Table collision maxima, the fixed-point early exit, `missing` aggregate reads, the guard `field.` prefix and non-object context), were also applied by hand and failed the new tests before restoring.
+
+Remaining dispositions, all equivalent under the compiler's public contract:
+
+- Unreachable default arm (core-work 156, 160, NoCoverage): the compiler closes the operator set before the proof, and `deriveCoreWork` is not exported.
+- Internal call contract (98 and 138 `staticReference?.`, 217 and 224 `references?.`, 104, 109, 110 and 114 `children[n]?.`): the graph always passes a resolver and compiled references; a one-argument `missing` has its child and `missing_some` is refused unless it has two arguments.
+- Canonical AST (74, 98 `path === null`, 137 agg shape guard, 194 `slash >= 0`): compiled `var` paths are always strings, the compiler refuses an aggregate that is not a static string triple, and a Row target must be `section/field` with a non-empty section.
+- Same value (117 `'!=='` falls through to the `'!'` group's identical transfer; 37 and 240 `>` versus `>=` return an equal value on ties).
+- Duplicate derivation (168): `validateCoreTypes` has already derived every rule's AST before the proof.
+- Fixed-point early exit (180, 184, 206, 208): these only remove or postpone the `unchanged` break; a checked DAG converges within the pass bound, so the final proofs are identical.
+- Guard 22 (`typeof n === 'object'` to true): a primitive never has exactly the key `@pending`. Guard 72 (six mutants): `snapshotData` holds only branded snapshots and returns `undefined` for any other value, so the type and brand checks cannot change the result.
+
+The unchanged raw [mutation report](mutation/t772-core-work-guard-2026-09-29.json) has SHA-256 `9C941EF4CAB371782B34B5224D720D70970E5BE4414DEBE0BD5EFF1C6989543C`. No Stryker.NET run covers the two .NET changes; their evidence is the red-first .NET pins. This certifies the TS core-work and guard survivor sections of T-772 only; the whole-package break, host composition and `kernel-core-ck-7` remain open.
