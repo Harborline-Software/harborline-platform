@@ -24,6 +24,7 @@
     <ProjectReference Include="../../foundation/hlp.foundation.definitions/Harborline.Foundation.Definitions.csproj" />
     <ProjectReference Include="../../foundation/hlp.foundation.documents/Harborline.Foundation.Documents.csproj" />
     <ProjectReference Include="../../foundation/hlp.foundation.execution-runtime/Harborline.Foundation.ExecutionRuntime.csproj" />
+    <ProjectReference Include="../../foundation/hlp.foundation.content-store/Harborline.Foundation.ContentStore.csproj" />
     <ProjectReference Include="../../foundation/hlp.foundation.forms/Harborline.Foundation.Forms.csproj" />
     <ProjectReference Include="../../foundation/hlp.foundation.field-runtime/Harborline.Foundation.FieldRuntime.csproj" />
     <ProjectReference Include="../../foundation/hlp.foundation.forms-engine/Harborline.Foundation.Forms.Engine.csproj" />

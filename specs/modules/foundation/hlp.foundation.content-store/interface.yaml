@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.foundation.content-store",
+  "interfaceRevision": 1,
+  "status": "frozen",
+  "purpose": "Own the tenant-scoped, envelope-encrypted content store (DES-0054, T-521 slice 2): streamed puts with detected media types and logical-byte quotas, dedup at commit under a tenant-keyed content id, segmented AEAD at rest, single-range streaming reads with typed integrity failures, reclamation and export fixity.",
+  "dependencies": [],
+  "callerInterface": {
+    "name": "InMemoryContentStore / IContentStoreStorage / IContentStoreQuotaBase / ITenantContentKeyProvider",
+    "operations": [
+      "Put(tenant, stream, declaredType, declaredSha256?, field?) -> a stage id; one byte over the effective limit refuses content.too-large with detail.limit and detail.observed and stages nothing",
+      "Commit(tenant, stage, owner, name) -> a content reference; a record or tenant over its logical-byte quota refuses content.record-quota or content.tenant-quota; a duplicate within the tenant collapses to the held item and answers as a promotion",
+      "Read(tenant, reference, authorized, range?, ifRange?, context?) -> a streaming delivery; an unreadable, cross-tenant or unknown id all refuse with the same ContentNotFoundException, and authorization runs before range evaluation",
+      "A failed wrap or segment authentication throws ContentIntegrityException (item key, owner, segment index); the item's state is unchanged and only a full verified read ends the integrity episode",
+      "RemoveReference / SweepExpired / Export / VerifyExport -> reclamation with a reclamation entry, the content-staging-sweep run on sys.sched.content-staging, and per-export keyed fixity",
+      "IContentStoreStorage and IContentStoreQuotaBase are ports a durable host implements; InMemoryContentStoreStorage is the reference implementation"
+    ],
+    "context": "Slice 2 of T-521. Applies DES-0054 section 10 rulings Q27 to Q36. The per-item limit, quota fractions and staging-expiry multiple are required inputs with no default (Q11, Q19). The HTTP request-id header, the 500 or stream abort on the wire, health and audit-read scoping, and the durable backing are api-host work."
+  },
+  "invariants": [
+    "The content id is hmac-sha256 under an HKDF-SHA-256 subkey of the tenant key; plain SHA-256 is never persisted or exported.",
+    "Each item has its own data key, wrapped under a separate HKDF subkey; the two subkeys are never interchangeable.",
+    "Content is sealed in 65,536-byte AES-256-GCM segments with a last-segment flag, so reordering, dropping or truncating a segment fails authentication.",
+    "Read failures are status-only; integrity details never reach a client.",
+    "Every unstated measurement is a required input with no default."
+  ],
+  "errors": [
+    "content.too-large",
+    "content.record-quota",
+    "content.tenant-quota",
+    "content.media-type-not-allowed",
+    "content.media-type-mismatch",
+    "content.digest-mismatch",
+    "content.staging-expired",
+    "content.field-media-type-not-allowed"
+  ],
+  "publicSeams": [
+    "the IContentStoreStorage port a durable host adapter implements",
+    "the IContentStoreQuotaBase port the host implements",
+    "the ITenantContentKeyProvider port that supplies tenant keys"
+  ],
+  "conformance": {
+    "nativeTests": {
+      "dotnet": 31
+    },
+    "nativeTestNote": "DES-0054 section 9 clauses ck-4 to ck-13, cc-4, cc-5, cc-7, eng-1 to eng-11 and Q27 to Q36, including a tampered middle segment under a range read, a wrap-key failure, the integrity episode and a storage-port restart."
+  },
+  "selectedDesign": {
+    "choice": "One packable foundation assembly owns the store engine and its storage and quota ports, so a host supplies durable backing without the engine depending on a host.",
+    "rejected": [
+      "Place the store in the api host - the platform owns the producer and the host implements its ports (Q31, Q32)."
+    ],
+    "reason": "Mirrors the substrate-first packaging of the execution runtime (DES-0056)."
+  },
+  "package": {
+    "nuget": "Harborline.Foundation.ContentStore",
+    "assembly": "Harborline.Foundation.ContentStore",
+    "distribution": "internal-only"
+  }
+}

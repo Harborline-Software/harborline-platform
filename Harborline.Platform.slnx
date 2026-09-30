@@ -36,6 +36,8 @@
   <Project Path="projections/dotnet/foundation/hlp.foundation.scheduling/Harborline.Foundation.Scheduling.csproj" />
   <Project Path="projections/dotnet/foundation/hlp.foundation.execution-runtime/Harborline.Foundation.ExecutionRuntime.csproj" />
   <Project Path="projections/dotnet/foundation/hlp.foundation.execution-runtime.tests/Harborline.Foundation.ExecutionRuntime.Tests.csproj" />
+  <Project Path="projections/dotnet/foundation/hlp.foundation.content-store/Harborline.Foundation.ContentStore.csproj" />
+  <Project Path="projections/dotnet/foundation/hlp.foundation.content-store.tests/Harborline.Foundation.ContentStore.Tests.csproj" />
   <Project Path="projections/dotnet/foundation/hlp.foundation.notification-delivery/Harborline.Foundation.NotificationDelivery.csproj" />
   <Project Path="projections/dotnet/foundation/hlp.foundation.notification-delivery.tests/Harborline.Foundation.NotificationDelivery.Tests.csproj" />
   <Project Path="projections/dotnet/foundation/hlp.foundation.definitions.tests/Harborline.Foundation.Definitions.Tests.csproj" />
