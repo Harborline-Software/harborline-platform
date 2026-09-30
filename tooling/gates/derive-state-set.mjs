@@ -94,7 +94,10 @@ function blazorSurface(platformRoot, moduleId) {
     const source = readFileSync(resolve(dir, entry.name), 'utf8')
     for (const enumBlock of source.matchAll(/enum\s+\w+\s*\{([^}]*)\}/g)) {
       sawEnum = true
-      for (const member of enumBlock[1].split(',')) {
+      // Doc comments sit between members (T-424 made CS1591 enforced), so strip comments before
+      // splitting: otherwise `/// <summary>` is read as the member's name.
+      const body = enumBlock[1].replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '')
+      for (const member of body.split(',')) {
         const name = member.trim().split(/\s|=/)[0]
         if (name) members.add(name.toLowerCase())
       }

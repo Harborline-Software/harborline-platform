@@ -6,6 +6,7 @@ public sealed record TaxonomyDefinitionCoordinates(string Tenant, TaxonomyDefini
 /// <summary>A pinned location of a classification within a taxonomy definition.</summary>
 public sealed record TaxonomyClassificationReference(string Tenant, TaxonomyDefinitionId DefinitionId, string Version, string Code)
 {
+    /// <summary>Coordinates of the definition containing this classification.</summary>
     public TaxonomyDefinitionCoordinates DefinitionCoordinates => new(Tenant, DefinitionId, Version);
 }
 
@@ -56,18 +57,21 @@ public sealed record ResolvedTaxonomyOverlayDesignation(string VendorNodeCode, s
 /// <summary>A classification resolved within its pinned definition.</summary>
 public sealed record ResolvedTaxonomyClassification(TaxonomyClassificationReference Reference, TaxonomyNode Node)
 {
+    /// <summary>Whether the resolved node is selectable rather than tombstoned.</summary>
     public bool IsActive => Node.Status == TaxonomyNodeStatus.Active;
 }
 
 /// <summary>Thrown only when defensive traversal detects malformed graph data.</summary>
 public sealed class TaxonomyTraversalException(string code, string message) : InvalidOperationException(message)
 {
+    /// <summary>Stable refusal code describing the malformed traversal graph.</summary>
     public string Code { get; } = code;
 }
 
 /// <summary>Thrown when an overlay violates its reference-only relationship to its vendor scheme.</summary>
 public sealed class TaxonomyOverlayException(string code, string message) : InvalidOperationException(message)
 {
+    /// <summary>Stable refusal code describing the invalid overlay relationship.</summary>
     public string Code { get; } = code;
 }
 
@@ -80,9 +84,28 @@ public abstract record TaxonomySuccessionResult;
 /// <summary>A successful succession resolution.</summary>
 public sealed record ResolvedTaxonomySuccession(TaxonomyNode Node) : TaxonomySuccessionResult;
 
+/// <summary>Identifies node fields changed between two definition versions.</summary>
 [Flags]
-public enum TaxonomyNodeChangeFields { None = 0, Display = 1, Description = 2, Status = 4, ParentCode = 8, SuccessorCode = 16 }
+public enum TaxonomyNodeChangeFields
+{
+    /// <summary>No tracked fields changed.</summary>
+    None = 0,
+    /// <summary>The display changed.</summary>
+    Display = 1,
+    /// <summary>The description changed.</summary>
+    Description = 2,
+    /// <summary>The lifecycle status changed.</summary>
+    Status = 4,
+    /// <summary>The parent changed.</summary>
+    ParentCode = 8,
+    /// <summary>The successor changed.</summary>
+    SuccessorCode = 16
+}
+/// <summary>Captures the before-and-after values for one changed node.</summary>
+/// <param name="Code">Stable node identifier.</param><param name="Previous">Earlier node snapshot.</param><param name="Current">Later node snapshot.</param><param name="Fields">Tracked fields that differ.</param>
 public sealed record TaxonomyNodeChange(string Code, TaxonomyNode Previous, TaxonomyNode Current, TaxonomyNodeChangeFields Fields);
+/// <summary>Groups added, changed, and newly tombstoned nodes.</summary>
+/// <param name="AddedNodes">Nodes absent from the prior definition.</param><param name="ChangedNodes">Nodes whose tracked values changed.</param><param name="TombstonedNodes">Nodes newly marked tombstoned.</param>
 public sealed record TaxonomyDefinitionChangeSet(IReadOnlyList<TaxonomyNode> AddedNodes, IReadOnlyList<TaxonomyNodeChange> ChangedNodes, IReadOnlyList<TaxonomyNode> TombstonedNodes);
 
 /// <summary>Pure, in-memory resolver and traversal engine for pinned taxonomy definitions.</summary>
@@ -90,6 +113,7 @@ public sealed class TaxonomyInterpreter
 {
     private readonly Dictionary<TaxonomyDefinitionCoordinates, TaxonomyDefinition> definitions;
 
+    /// <summary>Indexes unique pinned definitions and rejects duplicate coordinates.</summary>
     public TaxonomyInterpreter(IEnumerable<TaxonomyDefinition> definitions)
     {
         ArgumentNullException.ThrowIfNull(definitions);
@@ -103,12 +127,14 @@ public sealed class TaxonomyInterpreter
         this.definitions = indexed;
     }
 
+    /// <summary>Resolves pinned coordinates without throwing for a missing definition.</summary>
     public TaxonomyDefinitionResolution ResolveDefinition(TaxonomyDefinitionCoordinates coordinates)
     {
         ArgumentNullException.ThrowIfNull(coordinates);
         return definitions.TryGetValue(coordinates, out var definition) ? new ResolvedTaxonomyDefinition(definition) : new TaxonomyDefinitionNotFound(coordinates);
     }
 
+    /// <summary>Resolves a classification when its reference pins the supplied definition; an unknown code returns null.</summary>
     public ResolvedTaxonomyClassification? ResolveClassification(TaxonomyDefinition definition, TaxonomyClassificationReference reference)
     {
         ArgumentNullException.ThrowIfNull(definition); ArgumentNullException.ThrowIfNull(reference);
@@ -118,12 +144,14 @@ public sealed class TaxonomyInterpreter
         return Index(definition).TryGetValue(reference.Code, out var node) ? new ResolvedTaxonomyClassification(reference, node) : null;
     }
 
+    /// <summary>Resolves each reference in order, preserving null entries and unknown-code misses.</summary>
     public IReadOnlyList<ResolvedTaxonomyClassification?> ResolveClassifications(TaxonomyDefinition definition, IReadOnlyList<TaxonomyClassificationReference> references)
     {
         ArgumentNullException.ThrowIfNull(references);
         return references.Select(reference => reference is null ? null : ResolveClassification(definition, reference)).ToArray();
     }
 
+    /// <summary>Returns direct ancestors from nearest parent to root, or an empty list for an unknown code.</summary>
     public IReadOnlyList<TaxonomyNode> GetAncestors(TaxonomyDefinition definition, string code)
     {
         ArgumentNullException.ThrowIfNull(code);
@@ -151,6 +179,7 @@ public sealed class TaxonomyInterpreter
         }
     }
 
+    /// <summary>Reports whether one node is the same as or an ancestor of another node.</summary>
     public bool Subsumes(TaxonomyDefinition definition, string ancestorCode, string descendantCode)
     {
         ArgumentNullException.ThrowIfNull(ancestorCode); ArgumentNullException.ThrowIfNull(descendantCode);
@@ -160,6 +189,7 @@ public sealed class TaxonomyInterpreter
         return false;
     }
 
+    /// <summary>Follows successor links until an active node is found or returns a typed refusal.</summary>
     public TaxonomySuccessionResult ResolveSuccession(TaxonomyDefinition definition, string code)
     {
         ArgumentNullException.ThrowIfNull(code);
@@ -250,6 +280,7 @@ public sealed class TaxonomyInterpreter
         return results;
     }
 
+    /// <summary>Compares matching tenant and definition coordinates and reports additions and changes.</summary>
     public TaxonomyDefinitionChangeSet Diff(TaxonomyDefinition previous, TaxonomyDefinition current)
     {
         ArgumentNullException.ThrowIfNull(previous); ArgumentNullException.ThrowIfNull(current);

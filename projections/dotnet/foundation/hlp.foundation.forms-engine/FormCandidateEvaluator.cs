@@ -21,11 +21,13 @@ internal sealed record FormCandidateEvaluation(
     IReadOnlySet<string> ReadOnlyFields,
     RuleEvaluationResult? Rules) : IDisposable
 {
+    /// <inheritdoc />
     public void Dispose() => AcceptedCandidate.Dispose();
 }
 
 internal static class FormCandidateEvaluator
 {
+    /// <summary>Evaluates a candidate against the supplied form definition and validation limits.</summary>
     public static ValueTask<FormCandidateEvaluation> EvaluateAsync(
         FormExecutionScope scope,
         State.FormDefinition definition,
@@ -36,6 +38,7 @@ internal static class FormCandidateEvaluator
         CancellationToken cancellationToken) =>
         EvaluateAsync(scope, definition, candidate, schemas, maximumCandidateBytes, clock.GetUtcNow(), cancellationToken);
 
+    /// <summary>Evaluates a candidate with the provided schema, byte limit, and evaluation timestamp.</summary>
     public static async ValueTask<FormCandidateEvaluation> EvaluateAsync(
         FormExecutionScope scope,
         State.FormDefinition definition,
@@ -375,6 +378,7 @@ internal static class FormCandidateEvaluator
 
     private sealed class PinnedClock(DateTimeOffset instant) : TimeProvider
     {
+        /// <inheritdoc />
         public override DateTimeOffset GetUtcNow() => instant;
     }
 

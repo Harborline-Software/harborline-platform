@@ -111,7 +111,9 @@ public sealed record BookingBookableDefinition(
 /// </summary>
 public enum BookingHoldMode
 {
+    /// <summary>No hold is created for the booking attempt.</summary>
     None,
+    /// <summary>A temporary hold may be created before commit.</summary>
     Allowed,
 }
 

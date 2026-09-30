@@ -21,6 +21,7 @@ public sealed class CalendarParticipantCalendarQuery : ICalendarParticipantCalen
     private readonly ICalendarEventStore _store;
     private readonly ICalendarEventExpansionService _expansion;
 
+    /// <summary>Creates a participant query over event storage and recurrence expansion.</summary>
     public CalendarParticipantCalendarQuery(
         ICalendarEventStore store,
         ICalendarEventExpansionService expansion)

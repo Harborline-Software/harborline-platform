@@ -16,6 +16,7 @@ namespace Harborline.Foundation.RuleAuthoring;
 /// </summary>
 public static class RuleDefinitionCodec
 {
+    /// <summary>Serializes a complete document into canonical JSON, preserving identity metadata.</summary>
     public static string SerializeCanonical(RuleDefinitionDocument document)
         => Canonical(WriteSource(document));
 
@@ -62,6 +63,7 @@ public static class RuleDefinitionCodec
         return result.ToString();
     }
 
+    /// <summary>Parses canonical source and returns diagnostics for refusal instead of throwing them.</summary>
     public static RuleIntentResult Parse(string json, RuleIntentPhase phase)
         => ParseCore(json, phase, null);
 

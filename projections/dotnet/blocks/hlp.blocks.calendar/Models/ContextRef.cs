@@ -67,5 +67,6 @@ public sealed record ContextRef
         return new ContextRef(kind, value);
     }
 
+    /// <inheritdoc />
     public override string ToString() => $"{Kind}:{Value}";
 }

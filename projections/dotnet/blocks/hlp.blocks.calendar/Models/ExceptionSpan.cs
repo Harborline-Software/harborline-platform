@@ -71,6 +71,7 @@ public sealed record ExceptionSpan
             yield return d;
     }
 
+    /// <inheritdoc />
     public override string ToString()
         => Reason is null ? $"{Start:O}..{End:O}" : $"{Start:O}..{End:O} ({Reason})";
 }

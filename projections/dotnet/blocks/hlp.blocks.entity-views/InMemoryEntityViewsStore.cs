@@ -1,5 +1,6 @@
 namespace Harborline.Blocks.EntityViews;
 
+/// <summary>In-memory implementation of the entity read, condition-history and form-binding ports, seeded at construction and mutated only by create-entity and add-edge; not thread-safe.</summary>
 public sealed class InMemoryEntityViewsStore : IEntityReadStore, IConditionHistoryStore, IFormBindingSource
 {
     private readonly Dictionary<string, EntityDetail> entities;
@@ -12,6 +13,7 @@ public sealed class InMemoryEntityViewsStore : IEntityReadStore, IConditionHisto
     private int nextEntity;
     private int nextEdge;
 
+    /// <summary>Indexes the seed data by id; throws <see cref="EntityViewsException"/> with <see cref="EntityViewsCodes.UnknownEntity"/> when a seeded containment edge names an unknown endpoint. Known types default to those of the seeded entities.</summary>
     public InMemoryEntityViewsStore(
         IEnumerable<EntityDetail> entities,
         IEnumerable<EdgeSummary>? edges,
@@ -36,6 +38,7 @@ public sealed class InMemoryEntityViewsStore : IEntityReadStore, IConditionHisto
         }
     }
 
+    /// <summary>Returns entity summaries, filtered to <paramref name="type"/> when it is not null, ordered by display name (ordinal).</summary>
     public ValueTask<IReadOnlyList<EntitySummary>> ListEntitiesAsync(string? type)
     {
         IReadOnlyList<EntitySummary> result = entities.Values
@@ -46,8 +49,10 @@ public sealed class InMemoryEntityViewsStore : IEntityReadStore, IConditionHisto
         return ValueTask.FromResult(result);
     }
 
+    /// <summary>Returns the entity, or null when the id is unknown.</summary>
     public ValueTask<EntityDetail?> GetEntityAsync(string id) => ValueTask.FromResult(entities.GetValueOrDefault(id));
 
+    /// <summary>Returns the entities directly contained by the container plus the container's own path, or null when the container is unknown; <paramref name="asOf"/> defaults to the clock's current time and does not filter children.</summary>
     public ValueTask<TreeView?> GetTreeAsync(string containerId, string? asOf)
     {
         if (!entities.TryGetValue(containerId, out var container)) return ValueTask.FromResult<TreeView?>(null);
@@ -55,6 +60,7 @@ public sealed class InMemoryEntityViewsStore : IEntityReadStore, IConditionHisto
         return ValueTask.FromResult<TreeView?>(new(containerId, asOf ?? Now(), container.Path, children));
     }
 
+    /// <summary>Creates a top-level entity with a generated id; throws <see cref="EntityViewsCodes.UnknownType"/> for an unregistered type and <see cref="EntityViewsCodes.InvalidEntity"/> for a blank display name.</summary>
     public ValueTask<EntityDetail> CreateEntityAsync(CreateEntityBody body)
     {
         if (!knownTypes.Contains(body.Type)) throw new EntityViewsException(EntityViewsCodes.UnknownType, "Entity type is not known.");
@@ -65,6 +71,7 @@ public sealed class InMemoryEntityViewsStore : IEntityReadStore, IConditionHisto
         return ValueTask.FromResult(detail);
     }
 
+    /// <summary>Records an edge; throws <see cref="EntityViewsCodes.UnknownEntity"/> when either endpoint is unknown and <see cref="EntityViewsCodes.InvalidEdge"/> for a self-edge. A Contains edge also re-parents the target and extends its path.</summary>
     public ValueTask<EdgeSummary> AddEdgeAsync(AddEdgeBody body)
     {
         if (!entities.TryGetValue(body.From, out var from) || !entities.TryGetValue(body.To, out var to))
@@ -77,6 +84,7 @@ public sealed class InMemoryEntityViewsStore : IEntityReadStore, IConditionHisto
         return ValueTask.FromResult(edge);
     }
 
+    /// <summary>Returns the entity's assessments, or an empty history when it has none; a non-null <paramref name="asOf"/> keeps only assessments observed at or before it (ordinal string comparison of the ISO-8601 timestamps).</summary>
     public ValueTask<ConditionHistory> GetConditionHistoryAsync(string entityId, string? asOf)
     {
         var history = conditions.GetValueOrDefault(entityId) ?? new ConditionHistory(entityId, []);
@@ -84,12 +92,15 @@ public sealed class InMemoryEntityViewsStore : IEntityReadStore, IConditionHisto
         return ValueTask.FromResult(history);
     }
 
+    /// <summary>Returns the entity's submissions, or an empty list when it has none.</summary>
     public ValueTask<SubmissionList> GetSubmissionsAsync(string entityId) =>
         ValueTask.FromResult(submissions.GetValueOrDefault(entityId) ?? new SubmissionList(entityId, []));
 
+    /// <summary>Returns the forms bound to the record type, or an empty list when none are bound.</summary>
     public ValueTask<IReadOnlyList<BoundFormDescriptor>> GetBoundFormsAsync(string recordType) =>
         ValueTask.FromResult(bindings.GetValueOrDefault(recordType) ?? (IReadOnlyList<BoundFormDescriptor>)[]);
 
+    /// <summary>Projects the entity's submissions into submitted-instance descriptors; empty when it has none.</summary>
     public async ValueTask<IReadOnlyList<SubmittedInstanceDescriptor>> GetSubmittedInstancesAsync(string entityId)
     {
         var list = await GetSubmissionsAsync(entityId).ConfigureAwait(false);
