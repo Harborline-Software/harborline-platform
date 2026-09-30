@@ -20,14 +20,14 @@
     "commit": "a66297826031eb80b21cb68a1d628a1a59c68327"
   },
   "projections/dotnet/blocks/hlp.blocks.aggregates.tests/Harborline.Blocks.Aggregates.Tests.csproj": {
-    "break": 50,
-    "score": 50.34,
-    "tested": 312,
+    "break": 93,
+    "score": 93.13,
+    "tested": 425,
     "total": 544,
-    "detected": 220,
-    "undetected": 217,
-    "measured": "2026-09-26",
-    "commit": "a66297826031eb80b21cb68a1d628a1a59c68327"
+    "detected": 407,
+    "undetected": 30,
+    "measured": "2026-09-30",
+    "commit": "9abd9e016a45fc8756ef259763f8079d56352e4e"
   },
   "projections/dotnet/blocks/hlp.blocks.builder-definitions.tests/Harborline.Blocks.BuilderDefinitions.Tests.csproj": {
     "break": 74,
