@@ -147,7 +147,11 @@ public sealed class ReportDefinitionAdmissionTests
     }
 
     [Fact(DisplayName = "T-489 S4a: a report definition is the api's content kind 9, PackContentKind.ReportDefinition")]
-    public void Content_kind_is_the_api_value() => Assert.Equal(9, ReportPackIdentity.ContentKind);
+    public void Content_kind_is_the_api_value()
+    {
+        Assert.Equal(9, ReportPackIdentity.ContentKind);
+        Assert.Equal(ReportPackIdentity.ContentKind, PackContentKindRegistry.Kind("ReportDefinition").Value);
+    }
 
     [Theory(DisplayName = "T-572 (rulings 85-88): a report envelope whose contract is missing or outside the window is refused at /envelope/contract")]
     [InlineData(null, null, "definition.contract.missing")]
