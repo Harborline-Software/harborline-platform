@@ -565,6 +565,59 @@ public sealed class ContentStoreTests
         Assert.Equal("attachment; filename=\"ab%4\"", store.Read(TenantA, percent, true).ContentDisposition);
     }
 
+    private static InMemoryContentStore LargeStore(FakeTimeProvider clock, CapturingLogger log) =>
+        new(new(300_000, 600_000, 600_000, TimeSpan.FromMinutes(1)), new TestKeys(), clock, new InMemoryContentStoreStorage(), log);
+
+    [Fact, Trait("DES-0054", "content-store-ck-18")]
+    public void Clause_q34_erasing_the_last_reference_ends_its_integrity_episode()
+    {
+        var clock = new FakeTimeProvider();
+        var log = new CapturingLogger();
+        var store = LargeStore(clock, log);
+        var reference = Commit(store, TenantA, "record", LargeBytes(2));
+        store.CorruptCiphertext(TenantA, reference.ContentId, 1);
+        Assert.Throws<ContentIntegrityException>(() => store.Read(TenantA, reference, true, new ContentByteRange(65_536, 65_538)));
+        Assert.False(store.IsIntegrityHealthy);
+        Assert.True(store.RemoveReference(TenantA, reference, HoldStatus.None, "run"));
+        Assert.True(store.IsIntegrityHealthy);
+        Assert.False(Assert.Single(store.IntegrityEntries).Active);
+
+        // A different item's later corruption opens a new episode and logs again.
+        var other = Commit(store, TenantA, "record-2", "two"u8.ToArray());
+        store.CorruptCiphertext(TenantA, other.ContentId, 0);
+        Assert.Throws<ContentIntegrityException>(() => store.Read(TenantA, other, true));
+        Assert.False(store.IsIntegrityHealthy);
+        Assert.Equal(2, log.Events.Count);
+
+        store.RemoveReference(TenantA, other, HoldStatus.None, "run-2");
+        Assert.True(store.IsIntegrityHealthy);
+    }
+
+    [Fact, Trait("DES-0054", "content-store-ck-18")]
+    public void Clause_q34_a_read_that_races_erasure_records_no_episode()
+    {
+        var store = LargeStore(new FakeTimeProvider(), new CapturingLogger());
+        var reference = Commit(store, TenantA, "record", LargeBytes(2));
+        var delivery = store.Read(TenantA, reference, true);
+        Assert.True(store.RemoveReference(TenantA, reference, HoldStatus.None, "run"));
+        Assert.Throws<ContentIntegrityException>(() => ReadBytes(delivery));
+        Assert.Empty(store.IntegrityEntries);
+        Assert.True(store.IsIntegrityHealthy);
+    }
+
+    [Fact, Trait("DES-0054", "content-store-cc-7")]
+    public void Clause_cc7_swapping_two_exported_content_ids_fails_fixity()
+    {
+        var store = Store();
+        var a = Commit(store, TenantA, "record-1", "one"u8.ToArray());
+        var b = Commit(store, TenantA, "record-2", "two"u8.ToArray());
+        var export = store.Export(TenantA, [a, b], authorized: true);
+        var swapped = new ContentExport([export.Package.Items[0] with { ContentId = export.Package.Items[1].ContentId },
+            export.Package.Items[1] with { ContentId = export.Package.Items[0].ContentId }]);
+        Assert.Throws<InvalidDataException>(() => InMemoryContentStore.VerifyExport(swapped, export.FixityKey));
+        InMemoryContentStore.VerifyExport(export.Package, export.FixityKey);
+    }
+
     [Fact, Trait("DES-0054", "content-store-eng-6")]
     public void Clause_q30_unauthorized_range_is_indistinguishable_from_not_found_and_never_reveals_a_416_or_content_range()
     {

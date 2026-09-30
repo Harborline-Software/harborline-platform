@@ -616,6 +616,7 @@ public sealed class InMemoryContentStore
             _storage.Items.Remove(new(tenant, item.ContentId));
             item.Destroy();
             item.State = ContentLifecycleState.Reclaimed;
+            ResolveIntegrity(item); // completed erasure ends the episode (DES-0054 Q34, design.md:212)
             _storage.Reclamations.Add(new(item.ContentId, tenant, "last-reference-removed", run));
             return true;
         }
@@ -648,9 +649,22 @@ public sealed class InMemoryContentStore
             using var plaintext = new MemoryStream();
             body.CopyTo(plaintext);
             var bytes = plaintext.ToArray();
-            return new ContentExportItem(item.ContentId, bytes, HMACSHA256.HashData(exportKey, bytes));
+            return new ContentExportItem(item.ContentId, bytes, FixityDigest(exportKey, item.ContentId, bytes));
         }).ToArray();
         return new(new ContentExport(items), exportKey);
+    }
+
+    // DES-0054 cc-7, Q20, Q25: a per-export keyed digest over the length-prefixed content id then the bytes, so swapping ids fails; never a plain SHA-256.
+    private static byte[] FixityDigest(byte[] key, ContentId contentId, byte[] bytes)
+    {
+        using var hmac = IncrementalHash.CreateHMAC(HashAlgorithmName.SHA256, key);
+        var id = Encoding.ASCII.GetBytes(contentId.Value);
+        Span<byte> length = stackalloc byte[4];
+        BinaryPrimitives.WriteUInt32BigEndian(length, (uint)id.Length);
+        hmac.AppendData(length);
+        hmac.AppendData(id);
+        hmac.AppendData(bytes);
+        return hmac.GetHashAndReset();
     }
 
     /// <summary>Re-reads a package: every item's keyed digest must verify, or it throws <see cref="InvalidDataException"/> (cc-7).</summary>
@@ -660,7 +674,7 @@ public sealed class InMemoryContentStore
         ArgumentNullException.ThrowIfNull(fixityKey);
         foreach (var item in package.Items)
         {
-            if (!CryptographicOperations.FixedTimeEquals(item.Digest, HMACSHA256.HashData(fixityKey, item.Bytes)))
+            if (!CryptographicOperations.FixedTimeEquals(item.Digest, FixityDigest(fixityKey, item.ContentId, item.Bytes)))
             {
                 throw new InvalidDataException("An exported item failed its per-export fixity check.");
             }
@@ -782,6 +796,7 @@ public sealed class InMemoryContentStore
         _storage.StagedItems.Remove(item.StageId);
         item.Destroy();
         item.State = ContentLifecycleState.Reclaimed;
+        ResolveIntegrity(item); // completed erasure ends the episode (DES-0054 Q34)
         _storage.Reclamations.Add(new(item.ContentId, item.Tenant, cause, run));
     }
 
@@ -857,6 +872,7 @@ public sealed class InMemoryContentStore
         var beginsEpisode = false;
         lock (_storage.SyncRoot)
         {
+            if (item.State == ContentLifecycleState.Reclaimed) return; // a read racing erasure cannot reopen an episode (Q34)
             var key = (item.Tenant, item.StageId);
             if (!_storage.IntegrityEntries.TryGetValue(key, out var prior) || !prior.Active)
             {

@@ -171,13 +171,13 @@
   },
   "projections/dotnet/foundation/hlp.foundation.content-store.tests/Harborline.Foundation.ContentStore.Tests.csproj": {
     "break": 82,
-    "score": 82.77,
-    "tested": 447,
-    "total": 596,
-    "detected": 370,
-    "undetected": 77,
+    "score": 82.41,
+    "tested": 455,
+    "total": 605,
+    "detected": 375,
+    "undetected": 80,
     "measured": "2026-09-30",
-    "commit": "e7c5d88f062b9b254c66578b3335b4c61d9cd331"
+    "commit": "c7f104fbd452b6519896a6b172279e931dfba371"
   },
   "projections/dotnet/foundation/hlp.foundation.data-exchange.tests/Harborline.Foundation.DataExchange.Tests.csproj": {
     "break": 63,
