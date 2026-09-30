@@ -1,14 +1,22 @@
 namespace Harborline.UIAdapters.Blazor.Components.Layout;
 
+/// <summary>Base type for a node in the dock layout tree.</summary>
 public abstract record DockNode;
+/// <summary>A leaf of the dock tree: the panels shown side by side in one pane and their width fractions.</summary>
 public sealed record DockPane(IReadOnlyList<PackPanelDeclaration> Panels, IReadOnlyList<double> Fractions) : DockNode;
+/// <summary>A split in the dock tree: its orientation, the split ratio and the two child nodes.</summary>
 public sealed record DockSplit(string Orientation, double Ratio, DockNode First, DockNode Second) : DockNode;
+/// <summary>A panel placed in the dock together with the kind of container that holds it.</summary>
 public sealed record DockPanelContainer(PackPanelDeclaration Panel, string Kind);
 
+/// <summary>The computed dock arrangement: open panels, layout tree, containers, breakpoint and whether spreading panels is available.</summary>
 public sealed record DockLayout(IReadOnlyList<PackPanelDeclaration> OpenPanels, bool Spread, DockNode? Root, DockNode? RenderRoot, IReadOnlyList<DockPanelContainer> Containers, ShellBreakpoint Breakpoint, ShellBreakpoint PlacementClass, int PaneCapacity, double ShellInlineSize, double RailInlineSize, bool SpreadUnavailable, string? SpreadUnavailableReason)
 {
+    /// <summary>Minimum width of a dock pane, in pixels.</summary>
     public const int PaneMinimumWidth = 300;
+    /// <summary>Minimum width of a dock pane, in pixels, exposed for callers holding an instance.</summary>
     public int MinimumPaneWidth => PaneMinimumWidth;
+    /// <summary>The panes of the layout tree, flattened in reading order.</summary>
     public IReadOnlyList<DockPane> Panes => Flatten(Root);
 
     /// <summary>
@@ -23,6 +31,7 @@ public sealed record DockLayout(IReadOnlyList<PackPanelDeclaration> OpenPanels, 
     public static double WidthCeiling(double shellInlineSize, double railInlineSize, double contentFloor = ShellChromeContract.ContentFloor)
         => shellInlineSize - railInlineSize - contentFloor;
 
+    /// <summary>Limits a requested panel width so the rail and the content floor still fit in the shell.</summary>
     public static double ClampWidth(double requested, double shellInlineSize, double railInlineSize, double contentFloor = ShellChromeContract.ContentFloor)
         => Math.Max(PaneMinimumWidth, Math.Min(Math.Round(requested, MidpointRounding.AwayFromZero), WidthCeiling(shellInlineSize, railInlineSize, contentFloor)));
 
@@ -30,6 +39,7 @@ public sealed record DockLayout(IReadOnlyList<PackPanelDeclaration> OpenPanels, 
     public static int Capacity(double shellInlineSize, double railInlineSize, double contentFloor = ShellChromeContract.ContentFloor)
         => (int)Math.Max(0, Math.Floor(WidthCeiling(shellInlineSize, railInlineSize, contentFloor) / PaneMinimumWidth));
 
+    /// <summary>Builds a dock layout for the open panels at the given breakpoint, shell size and spread setting.</summary>
     public static DockLayout Create(IReadOnlyList<PackPanelDeclaration> panels, bool spread, ShellBreakpoint breakpoint = ShellBreakpoint.Large, double shellInlineSize = double.PositiveInfinity, double railInlineSize = 0, bool spreadUnavailable = false, string? spreadUnavailableReason = null)
     {
         var depth = spread ? 1 : 2;
@@ -50,8 +60,11 @@ public sealed record DockLayout(IReadOnlyList<PackPanelDeclaration> OpenPanels, 
         return new([.. panels], spread, Build(docked, depth), Build(panels, depth), panels.Select((panel, index) => new DockPanelContainer(panel, index < dockedCount ? "docked" : sheetKind)).ToArray(), breakpoint, placementClass, paneCapacity, shellInlineSize, railInlineSize, spreadUnavailable, spreadUnavailableReason);
     }
 
+    /// <summary>Returns the layout with the panel added, or the same layout if it is already open.</summary>
     public DockLayout Open(PackPanelDeclaration panel) => OpenPanels.Any(open => open.Id == panel.Id) ? this : Create([.. OpenPanels, panel], Spread, Breakpoint, ShellInlineSize, RailInlineSize, SpreadUnavailable, SpreadUnavailableReason);
+    /// <summary>Returns the layout with the given panel closed and the rest re-arranged.</summary>
     public DockLayout Close(string panelId) => Create(OpenPanels.Where(panel => panel.Id != panelId).ToArray(), Spread, Breakpoint, ShellInlineSize, RailInlineSize, SpreadUnavailable, SpreadUnavailableReason);
+    /// <summary>Returns the layout with panels spread across panes or stacked together.</summary>
     public DockLayout WithSpread(bool spread) => Create(OpenPanels, spread, Breakpoint, ShellInlineSize, RailInlineSize, SpreadUnavailable, SpreadUnavailableReason);
 
     private static DockNode? Build(IReadOnlyList<PackPanelDeclaration> panels, int depth)
@@ -69,11 +82,13 @@ public sealed record DockLayout(IReadOnlyList<PackPanelDeclaration> OpenPanels, 
         _ => throw new InvalidOperationException("unknown-dock-node")
     };
 
+    /// <summary>Smallest size a dock node can be laid out at, summed over the panels it holds.</summary>
     public static double NodeMinimum(DockNode node, bool vertical, IReadOnlyList<DockPanelContainer> containers)
     {
         if(node is DockPane pane){var panels=pane.Panels.Where(p=>containers.Any(c=>c.Panel.Id==p.Id&&c.Kind=="docked")).ToArray();return vertical?(panels.Length>0?PaneMinimumWidth:0):panels.Sum(ShellChromeContract.PanelMinimumHeight);}
         var split=(DockSplit)node;var first=NodeMinimum(split.First,vertical,containers);var second=NodeMinimum(split.Second,vertical,containers);
         return (split.Orientation=="horizontal")==vertical?first+second:Math.Max(first,second);
     }
+    /// <summary>Returns the tree with the target node swapped for its replacement.</summary>
     public static DockNode ReplaceNode(DockNode root, DockNode target, DockNode replacement)=>ReferenceEquals(root,target)?replacement:root is DockSplit split?split with{First=ReplaceNode(split.First,target,replacement),Second=ReplaceNode(split.Second,target,replacement)}:root;
 }

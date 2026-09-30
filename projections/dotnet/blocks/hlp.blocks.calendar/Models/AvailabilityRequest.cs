@@ -7,8 +7,10 @@ namespace Harborline.Blocks.Calendar.Models;
 /// </summary>
 public enum CapacityKind
 {
+    /// <summary>One request occupies the entire resource.</summary>
     Exclusive = 0,
 
+    /// <summary>Requests share a resource up to its configured pool size.</summary>
     Pool = 1,
 }
 

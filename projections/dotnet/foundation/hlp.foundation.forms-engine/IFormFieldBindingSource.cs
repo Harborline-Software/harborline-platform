@@ -10,6 +10,7 @@ public sealed record FormSchemaFieldBindings(TenantId Tenant, string SchemaRef,
 /// <summary>Adapts the host's admitted Records/schema model; this is not another definition store.</summary>
 public interface IFormFieldBindingSource
 {
+    /// <summary>Returns the field bindings admitted for the tenant and schema, or null when none exist.</summary>
     ValueTask<FormSchemaFieldBindings?> ResolveAsync(TenantId tenant, string schemaRef,
         CancellationToken cancellationToken = default);
 }
