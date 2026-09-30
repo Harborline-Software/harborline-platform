@@ -70,6 +70,27 @@ public sealed class RecordsTraitBindingTests
     }
 
     [Fact]
+    public void records_ck_37_two_references_binding_one_qualified_slot_to_different_fields_refuse_loudly()
+    {
+        var validator = new RecordsIntentValidator(new TraitSource(new TraitDefinition(
+            "addressable",
+            "1.0.0",
+            [new("street", Constraints(), true, false)])));
+        var candidate = new RecordTypeDefinition(
+            "location",
+            [new("street_address", "Street"), new("mailing_street", "Mailing street")],
+            [
+                new("addressable", "1.0.0", [new("street", "street_address")]),
+                new("addressable", "1.0.0", [new("street", "mailing_street")]),
+            ]);
+
+        var refusal = Assert.Single(validator.Validate(candidate, null));
+
+        Assert.Equal("records.trait.slot_binding_ambiguous", refusal.Code);
+        Assert.Equal("/traits/1/slot_bindings/0/slot_key", refusal.JsonPointer);
+    }
+
+    [Fact]
     public async Task Trait_refusals_prevent_schema_registry_mutation()
     {
         var validator = new RecordsIntentValidator(new TraitSource());

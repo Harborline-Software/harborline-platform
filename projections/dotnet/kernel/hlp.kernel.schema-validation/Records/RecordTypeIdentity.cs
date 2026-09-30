@@ -125,6 +125,8 @@ public sealed class RecordsIntentValidator
         IReadOnlySet<string> fieldKeys,
         List<FieldRefusal> refusals)
     {
+        // A qualified slot is (trait id, slot key), so a second reference to the same Trait may not bind it again.
+        var qualifiedBoundSlots = new HashSet<(string TraitId, string SlotKey)>();
         foreach (var (reference, traitIndex) in (candidate.Traits ?? []).Select((trait, index) => (trait, index)))
         {
             var traitPointer = $"/traits/{traitIndex}";
@@ -145,7 +147,7 @@ public sealed class RecordsIntentValidator
             foreach (var (binding, bindingIndex) in bindings.Select((binding, index) => (binding, index)))
             {
                 var bindingPointer = traitPointer + "/slot_bindings/" + bindingIndex;
-                if (!boundSlots.Add(binding.SlotKey))
+                if (!boundSlots.Add(binding.SlotKey) || !qualifiedBoundSlots.Add((reference.TraitId, binding.SlotKey)))
                 {
                     refusals.Add(new(
                         "records.trait.slot_binding_ambiguous",
