@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Components;
 
 namespace Harborline.UIAdapters.Blazor.Components.Forms;
 
+/// <summary>The built-in controls that schema forms render fields with, keyed by control hint.</summary>
 public static class SchemaFormControls
 {
     private static readonly string[] Hints =
@@ -14,8 +15,10 @@ public static class SchemaFormControls
     private static readonly IReadOnlyDictionary<string, SchemaFormControlRenderer> Defaults =
         Hints.ToDictionary(hint => hint, BuiltIn, StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>The control hints the built-in controls understand.</summary>
     public static IReadOnlyCollection<string> BuiltInHints => Hints;
 
+    /// <summary>Builds a control registry from the built-ins, with optional replacements by hint.</summary>
     public static SchemaFormControlRegistry CreateRegistry(
         IReadOnlyDictionary<string, SchemaFormControlRenderer>? overrides = null)
     {
@@ -31,6 +34,7 @@ public static class SchemaFormControls
         return new SchemaFormControlRegistry(text, merged);
     }
 
+    /// <summary>Whether a control hint can display the given value.</summary>
     public static bool AcceptsValue(string hint, object? value)
     {
         if (value is null || hint.Equals("hidden", StringComparison.OrdinalIgnoreCase)) return true;

@@ -8,6 +8,7 @@ public sealed class DevelopmentPreviewAdapter : IEntityReadStore, IConditionHist
     private const string WaterHeater = "entity:preview/water-heater-1";
     private readonly InMemoryEntityViewsStore store;
 
+    /// <summary>Seeds the fixed preview tree (building, bedroom, water heater, HVAC condenser) with the clock's current time; throws <see cref="EntityViewsException"/> with <see cref="EntityViewsCodes.ProductionPreviewForbidden"/> when the environment name is Production.</summary>
     public DevelopmentPreviewAdapter(string environmentName, TimeProvider clock)
     {
         if (string.Equals(environmentName, "Production", StringComparison.OrdinalIgnoreCase))
@@ -53,13 +54,22 @@ public sealed class DevelopmentPreviewAdapter : IEntityReadStore, IConditionHist
             ["building", "bedroom", "water-heater", "hvac-condenser", "boiler"]);
     }
 
+    /// <summary>Lists the seeded preview entities, optionally filtered to one type, ordered by display name.</summary>
     public ValueTask<IReadOnlyList<EntitySummary>> ListEntitiesAsync(string? type) => store.ListEntitiesAsync(type);
+    /// <summary>Returns the seeded preview entity, or null when the id is not in the preview tree.</summary>
     public ValueTask<EntityDetail?> GetEntityAsync(string id) => store.GetEntityAsync(id);
+    /// <summary>Returns the direct children of a preview container, or null when the container is unknown; a missing <paramref name="asOf"/> defaults to the current time.</summary>
     public ValueTask<TreeView?> GetTreeAsync(string containerId, string? asOf) => store.GetTreeAsync(containerId, asOf);
+    /// <summary>Adds a generated preview entity; throws for an unknown type or a blank display name.</summary>
     public ValueTask<EntityDetail> CreateEntityAsync(CreateEntityBody body) => store.CreateEntityAsync(body);
+    /// <summary>Adds a generated preview edge between two seeded entities; throws for an unknown endpoint or a self-edge.</summary>
     public ValueTask<EdgeSummary> AddEdgeAsync(AddEdgeBody body) => store.AddEdgeAsync(body);
+    /// <summary>Returns the seeded condition assessments for the entity, or an empty history when it has none.</summary>
     public ValueTask<ConditionHistory> GetConditionHistoryAsync(string entityId, string? asOf) => store.GetConditionHistoryAsync(entityId, asOf);
+    /// <summary>Returns the seeded submissions for the entity, or an empty list when it has none.</summary>
     public ValueTask<SubmissionList> GetSubmissionsAsync(string entityId) => store.GetSubmissionsAsync(entityId);
+    /// <summary>Returns the seeded forms bound to the record type, or an empty list when none are bound.</summary>
     public ValueTask<IReadOnlyList<BoundFormDescriptor>> GetBoundFormsAsync(string recordType) => store.GetBoundFormsAsync(recordType);
+    /// <summary>Returns the seeded submissions of the entity projected as submitted-instance descriptors.</summary>
     public ValueTask<IReadOnlyList<SubmittedInstanceDescriptor>> GetSubmittedInstancesAsync(string entityId) => store.GetSubmittedInstancesAsync(entityId);
 }

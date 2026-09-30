@@ -2,8 +2,10 @@ using System.Globalization;
 
 namespace Harborline.Blocks.EntityViews;
 
+/// <summary>Port that records a condition assessment from an accepted form submission.</summary>
 public interface IConditionCaptureService
 {
+    /// <summary>Records a graded condition assessment for an entity from a submitted form field.</summary>
     ValueTask<ConditionCaptureResult> CaptureFromSubmission(
         string entityId, string formId, string fieldId, int grade, int? scaleMax,
         DateTimeOffset observedAt, string? assessorRef, string? observations);
@@ -14,6 +16,7 @@ public sealed class ConditionCapture(IEntityReadStore entities, IEntityViewsArti
 {
     private int nextAssessment;
 
+    /// <summary>Validates the grade against the scale (the supplied maximum, else <see cref="EntityViewsModel.DefaultConditionScaleMax"/>) and returns status "skipped" with refusal code grade-out-of-range when it falls outside 1..scale; throws <see cref="EntityViewsException"/> with <see cref="EntityViewsCodes.UnknownEntity"/> for an unknown entity, otherwise writes the assessment (score = grade/scale) and returns it.</summary>
     public async ValueTask<ConditionCaptureResult> CaptureFromSubmission(
         string entityId, string formId, string fieldId, int grade, int? scaleMax,
         DateTimeOffset observedAt, string? assessorRef, string? observations)

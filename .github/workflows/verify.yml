@@ -35,7 +35,8 @@ jobs:
       vars.ACTIONS_ENABLED == 'true' &&
       (github.event_name == 'merge_group' || github.event_name == 'workflow_dispatch' ||
        (github.event.pull_request.head.repo.full_name == github.repository &&
-        github.event.pull_request.draft == false))
+        github.event.pull_request.draft == false &&
+        !contains(github.event.pull_request.labels.*.name, 'stacked')))
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
@@ -290,8 +291,12 @@ jobs:
     # T-660: the required context. Deliberately unconditional (`always()`), so neither the kill
     # switch nor a fork head nor a failed dependency can leave it skipped-and-therefore-green. It
     # passes only when every job in `needs` reports success; a skipped lane fails it.
+    # 2026-09-29 (owner, CI load): the one exception. A pull request labelled `stacked` skips this
+    # context and its lanes (skipped counts as passing), because the parent's squash merge forces a
+    # rerun anyway. The merge group payload has no pull_request object, so contains() is false and
+    # this context runs and gates exactly as before: nothing lands without the full gate.
     needs: [phase-4-gate, gallery-shard, gallery-collect]
-    if: always()
+    if: always() && !contains(github.event.pull_request.labels.*.name, 'stacked')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

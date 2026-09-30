@@ -103,19 +103,24 @@ public abstract record ParticipantRef
         };
     }
 
+    /// <inheritdoc />
     public sealed override string ToString() => $"{Kind.ToString().ToLowerInvariant()}:{Value}";
 
     /// <summary>A reference to a <b>Party</b> (person / organization).</summary>
     public sealed record PartyRef : ParticipantRef
     {
+        /// <summary>Creates a party reference from its stable identifier.</summary>
         public PartyRef(string partyIdValue) : base(partyIdValue) { }
+        /// <inheritdoc />
         public override ParticipantKind Kind => ParticipantKind.Party;
     }
 
     /// <summary>A reference to an <b>Asset</b> (room / equipment).</summary>
     public sealed record AssetRef : ParticipantRef
     {
+        /// <summary>Creates an asset reference from its stable identifier.</summary>
         public AssetRef(string assetIdValue) : base(assetIdValue) { }
+        /// <inheritdoc />
         public override ParticipantKind Kind => ParticipantKind.Asset;
     }
 }

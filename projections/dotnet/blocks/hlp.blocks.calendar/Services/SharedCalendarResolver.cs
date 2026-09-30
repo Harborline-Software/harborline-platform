@@ -14,6 +14,7 @@ public sealed class SharedCalendarResolver : ISharedCalendarResolver
     private readonly ICalendarSubscriptionStore _subscriptions;
     private readonly ISharedCalendarStore _sharedCalendars;
 
+    /// <summary>Creates a resolver from subscription and shared-calendar stores.</summary>
     public SharedCalendarResolver(ICalendarSubscriptionStore subscriptions, ISharedCalendarStore sharedCalendars)
     {
         ArgumentNullException.ThrowIfNull(subscriptions);

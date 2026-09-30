@@ -7,8 +7,11 @@ namespace Harborline.Blocks.Calendar.Models;
 [JsonConverter(typeof(CalendarEventIdJsonConverter))]
 public readonly record struct CalendarEventId(Guid Value)
 {
+    /// <inheritdoc />
     public override string ToString() => Value.ToString();
+    /// <summary>Creates a new time-sortable event identifier.</summary>
     public static CalendarEventId NewId() => new(Guid.CreateVersion7());
+    /// <summary>Converts the value object to its underlying GUID.</summary>
     public static implicit operator Guid(CalendarEventId id) => id.Value;
 }
 
