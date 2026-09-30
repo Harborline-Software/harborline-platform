@@ -13,6 +13,7 @@ public sealed class CalendarEventExpansionService : ICalendarEventExpansionServi
 {
     private readonly IRruleExpansionService _rrule;
 
+    /// <summary>Creates an event expander backed by the supplied recurrence engine.</summary>
     public CalendarEventExpansionService(IRruleExpansionService rrule)
     {
         ArgumentNullException.ThrowIfNull(rrule);

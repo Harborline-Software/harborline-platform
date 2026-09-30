@@ -16,27 +16,39 @@ namespace Harborline.Foundation.RuleAuthoring;
 /// <summary>The authoring skins, one per type badge. `Condition` is documented but not authored here.</summary>
 public enum RuleSkinType
 {
+    /// <summary>A condition skin, documented for the shared type vocabulary.</summary>
     Condition = 0,
+    /// <summary>A decision-table skin.</summary>
     Table = 1,
+    /// <summary>A guided formula skin.</summary>
     Formula = 2,
 }
 
 /// <summary>The declared type of a condition column's input / a formula input.</summary>
 public enum ColumnValueType
 {
+    /// <summary>A numeric column value.</summary>
     Number = 0,
+    /// <summary>A text column value.</summary>
     Text = 1,
+    /// <summary>A Boolean column value.</summary>
     Boolean = 2,
 }
 
 /// <summary>The closed comparison-operator set the decision-table compare cell accepts.</summary>
 public static class CompareOps
 {
+    /// <summary>Equality comparison.</summary>
     public const string Eq = "==";
+    /// <summary>Inequality comparison.</summary>
     public const string Neq = "!=";
+    /// <summary>Strictly less-than comparison.</summary>
     public const string Lt = "<";
+    /// <summary>Less-than-or-equal comparison.</summary>
     public const string Lte = "<=";
+    /// <summary>Strictly greater-than comparison.</summary>
     public const string Gt = ">";
+    /// <summary>Greater-than-or-equal comparison.</summary>
     public const string Gte = ">=";
 }
 
@@ -83,8 +95,10 @@ public abstract record RuleDraft
 {
     private protected RuleDraft() { }
 
+    /// <summary>The scope in which the authored rule resolves its inputs.</summary>
     public required RuleScope Scope { get; init; }
 
+    /// <summary>The field or other scope target addressed by the rule.</summary>
     public required string ScopeTarget { get; init; }
 
     /// <summary>The output action the produced rule declares (typically Compute).</summary>
@@ -94,12 +108,16 @@ public abstract record RuleDraft
 /// <summary>The full decision-table editor state, persisted per rule.</summary>
 public sealed record DecisionTableDraft : RuleDraft
 {
+    /// <summary>The hit policy used when more than one row matches.</summary>
     public required HitPolicy HitPolicy { get; init; }
 
+    /// <summary>The ordered input columns evaluated by each row.</summary>
     public required IReadOnlyList<ConditionColumn> Columns { get; init; }
 
+    /// <summary>The ordered conditional rows.</summary>
     public required IReadOnlyList<TableRow> Rows { get; init; }
 
+    /// <summary>The explicit default or catch-all posture for unmatched input.</summary>
     public required NoMatchPosture NoMatch { get; init; }
 }
 
@@ -109,9 +127,13 @@ public sealed record FormulaInputDecl(string Id, string Ref, ColumnValueType Typ
 /// <summary>The closed arithmetic operator set (the engine ships + - * /).</summary>
 public static class ArithOps
 {
+    /// <summary>Addition.</summary>
     public const string Add = "+";
+    /// <summary>Subtraction.</summary>
     public const string Subtract = "-";
+    /// <summary>Multiplication.</summary>
     public const string Multiply = "*";
+    /// <summary>Division.</summary>
     public const string Divide = "/";
 }
 
@@ -135,15 +157,23 @@ public abstract record FormulaExpr
 {
     private FormulaExpr() { }
 
+    /// <summary>A reference to one declared formula input.</summary>
+    /// <param name="Name">The declared input name.</param>
     public sealed record Ref(string Name) : FormulaExpr;
 
+    /// <summary>A literal value with its authoring type.</summary>
+    /// <param name="Value">The source text of the literal.</param><param name="ValueType">The type used to coerce it.</param>
     public sealed record Literal(string Value, ColumnValueType ValueType) : FormulaExpr;
 
+    /// <summary>A binary arithmetic or comparison expression.</summary>
+    /// <param name="Op">The admitted operator.</param><param name="Left">The left operand.</param><param name="Right">The right operand.</param>
     public sealed record Binary(string Op, FormulaExpr Left, FormulaExpr Right) : FormulaExpr;
 
     /// <summary>A guided call over the closed engine operator vocabulary; never raw JSON.</summary>
     public sealed record Call(string Op, IReadOnlyList<FormulaExpr> Args) : FormulaExpr;
 
+    /// <summary>A conditional expression selecting one of two branches.</summary>
+    /// <param name="When">The condition to evaluate.</param><param name="Then">The expression for a true condition.</param><param name="Else">The expression for a false condition.</param>
     public sealed record If(FormulaCondition When, FormulaExpr Then, FormulaExpr Else) : FormulaExpr;
 }
 
@@ -153,7 +183,9 @@ public sealed record FormulaCondition(FormulaExpr Left, string Op, FormulaExpr R
 /// <summary>The full formula editor state, persisted per rule.</summary>
 public sealed record FormulaDraft : RuleDraft
 {
+    /// <summary>The declared inputs available to the expression.</summary>
     public required IReadOnlyList<FormulaInputDecl> Inputs { get; init; }
 
+    /// <summary>The expression to evaluate; <c>null</c> means the draft is incomplete.</summary>
     public FormulaExpr? Expression { get; init; }
 }

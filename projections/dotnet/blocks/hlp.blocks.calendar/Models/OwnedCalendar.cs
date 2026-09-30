@@ -88,10 +88,15 @@ public sealed class OwnedCalendar
 
     // ---- Audit -------------------------------------------------------------
 
+    /// <summary>Creation timestamp.</summary>
     public DateTimeOffset CreatedAt { get; private set; }
+    /// <summary>Last update timestamp.</summary>
     public DateTimeOffset UpdatedAt { get; private set; }
+    /// <summary>Actor that created the calendar.</summary>
     public Guid CreatedBy { get; private set; }
+    /// <summary>Actor that last updated the calendar.</summary>
     public Guid UpdatedBy { get; private set; }
+    /// <summary>Optimistic-concurrency version.</summary>
     public long Version { get; private set; }
 
     // ---- Construction ------------------------------------------------------

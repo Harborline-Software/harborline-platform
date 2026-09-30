@@ -12,24 +12,35 @@ namespace Harborline.Blocks.Calendar.Services;
 /// </summary>
 public sealed record CalendarSnapshot
 {
+    /// <summary>Persisted calendar identifier.</summary>
     public required Guid Id { get; init; }
+    /// <summary>Tenant that owns the calendar.</summary>
     public required string TenantId { get; init; }
+    /// <summary>Display name.</summary>
     public required string Name { get; init; }
+    /// <summary>Calendar classification.</summary>
     public required CalendarKind Kind { get; init; }
 
     /// <summary>The design-token colour name (never a hex literal). <see langword="null"/> when unassigned.</summary>
     public string? ColorToken { get; init; }
 
+    /// <summary>Actor who owns the calendar.</summary>
     public required Guid OwnerActorId { get; init; }
 
     /// <summary>The party/asset this calendar is a lens over — set only for a Resource calendar.</summary>
     public ParticipantRefSnapshot? ResourceRef { get; init; }
 
+    /// <summary>Whether this is the tenant's default calendar.</summary>
     public required bool IsDefault { get; init; }
+    /// <summary>Creation timestamp.</summary>
     public required DateTimeOffset CreatedAt { get; init; }
+    /// <summary>Last update timestamp.</summary>
     public required DateTimeOffset UpdatedAt { get; init; }
+    /// <summary>Actor that created the calendar.</summary>
     public required Guid CreatedBy { get; init; }
+    /// <summary>Actor that last updated the calendar.</summary>
     public required Guid UpdatedBy { get; init; }
+    /// <summary>Optimistic-concurrency version.</summary>
     public required long Version { get; init; }
 
     /// <summary>Capture an <see cref="OwnedCalendar"/> into a snapshot for persistence.</summary>

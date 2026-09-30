@@ -14,12 +14,14 @@ public static class RuleIntentValidator
         return parsed.IsValid ? ValidateParsed(parsed.Document!, phase) : parsed;
     }
 
+    /// <summary>Validates complete source JSON for the requested lifecycle phase.</summary>
     public static RuleIntentResult ValidateJson(string json, RuleIntentPhase phase)
     {
         var parsed = RuleDefinitionCodec.Parse(json, phase);
         return parsed.IsValid ? ValidateParsed(parsed.Document!, phase) : parsed;
     }
 
+    /// <summary>Validates an authored document through the same strict wire boundary as parsed source.</summary>
     public static RuleIntentResult Validate(RuleDefinitionDocument document, RuleIntentPhase phase)
     {
         ArgumentNullException.ThrowIfNull(document);

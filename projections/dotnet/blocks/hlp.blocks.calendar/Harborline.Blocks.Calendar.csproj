@@ -8,7 +8,7 @@
     <Description>Calendar domain engine for Harborline Platform.</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageReleaseNotes>Internal-only projection; public distribution is not authorized.</PackageReleaseNotes>
-    <NoWarn>$(NoWarn);CS1591;NU1510</NoWarn>
+    <NoWarn>$(NoWarn);NU1510</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Harborline.Blocks.Calendar.Tests" />
