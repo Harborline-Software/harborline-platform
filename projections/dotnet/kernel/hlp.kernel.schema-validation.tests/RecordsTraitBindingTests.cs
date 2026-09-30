@@ -34,21 +34,26 @@ public sealed class RecordsTraitBindingTests
     }
 
     [Fact]
-    public void records_auth_35_blocking_required_slot_refuses_before_registration()
+    public async Task records_auth_35_blocking_required_slot_refuses_before_registration()
     {
         var validator = new RecordsIntentValidator(new TraitSource(new TraitDefinition(
             "addressable",
             "1.0.0",
             [new("street", Constraints(), true, true)])));
+        var registry = new InMemorySchemaRegistry();
         var candidate = new RecordTypeDefinition("location", [], [new("addressable", "1.0.0", [])]);
 
-        var refusals = validator.Validate(candidate, null);
+        var result = await new RecordTypeSchemaCompiler(validator).CompileAndRegisterAsync(candidate, null, registry);
 
-        Assert.Contains(refusals, refusal => refusal is
+        Assert.Null(result.Schema);
+        Assert.Contains(result.Refusals, refusal => refusal is
         {
             Code: "records.trait.blocking_slot_unbound",
             JsonPointer: "/traits/0/slot_bindings",
         });
+        var registered = new List<Schema>();
+        await foreach (var schema in registry.ListAsync()) registered.Add(schema);
+        Assert.Empty(registered);
     }
 
     [Fact]
