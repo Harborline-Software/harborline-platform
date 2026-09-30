@@ -31,3 +31,8 @@ end_of_line = crlf
 
 [Makefile]
 indent_style = tab
+
+# Frozen by DefinitionStoreOwnershipArchitectureTests (content hash) until T-486 deletes this retiring store,
+# so it cannot gain XML docs; exempt it from CS1591 here rather than evolve the frozen file. Delete with the file.
+[projections/dotnet/blocks/hlp.blocks.entity-views/ViewDefinitionStore.cs]
+dotnet_diagnostic.CS1591.severity = none

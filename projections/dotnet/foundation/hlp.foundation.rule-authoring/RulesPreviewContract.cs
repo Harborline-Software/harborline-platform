@@ -7,12 +7,19 @@ namespace Harborline.Foundation.RuleAuthoring;
 /// <summary>The renderer-neutral state of an actual authoring/runtime preview result.</summary>
 public enum RulesPreviewOutcomeKind
 {
+    /// <summary>A successfully computed value.</summary>
     Value,
+    /// <summary>A validity result.</summary>
     Validity,
+    /// <summary>A visibility and editability result.</summary>
     Visibility,
+    /// <summary>A presentation result.</summary>
     Presentation,
+    /// <summary>A refused computation.</summary>
     Refusal,
+    /// <summary>A computation awaiting inputs or dependencies.</summary>
     Pending,
+    /// <summary>A result that cannot be computed.</summary>
     Uncomputable,
 }
 
@@ -33,6 +40,7 @@ public sealed record RulesPreviewOutcome(
 /// <summary>Projects the real engine preview outcome without interpreting operators in a UI.</summary>
 public static class RulesPreviewContract
 {
+    /// <summary>Projects an engine preview into the renderer-neutral contract.</summary>
     public static RulesPreviewOutcome FromPreview(PreviewResult preview, string ruleName, string memberName)
     {
         ArgumentNullException.ThrowIfNull(preview);
@@ -55,6 +63,7 @@ public static class RulesPreviewContract
         };
     }
 
+    /// <summary>Projects a validation diagnostic into an uncomputable preview outcome.</summary>
     public static RulesPreviewOutcome FromDiagnostic(RuleIntentDiagnostic diagnostic, string ruleName, string memberName)
         => new(RulesPreviewOutcomeKind.Uncomputable, ruleName, memberName, Code: diagnostic.Code);
 

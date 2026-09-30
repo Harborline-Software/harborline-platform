@@ -14,6 +14,7 @@ public sealed class AvailabilityExpansionService : IAvailabilityExpansionService
 {
     private readonly IRruleExpansionService _rrule;
 
+    /// <summary>Creates an availability expander backed by the supplied recurrence engine.</summary>
     public AvailabilityExpansionService(IRruleExpansionService rrule)
     {
         ArgumentNullException.ThrowIfNull(rrule);
