@@ -391,6 +391,30 @@ public sealed class RulesAuthoringTests : BunitContext
         }
     }
 
+    [Fact(DisplayName = "rules-auth-16: the Blazor field-property checkbox writes and clears an ordinary editable rule in the shared catalogue")]
+    public void Field_property_checkbox_writes_and_clears_an_ordinary_editable_rule_in_the_shared_catalogue()
+    {
+        var catalogues = new List<RulesRuleCatalogue>();
+        var cut = Render<HarborlineRulesAuthoringEditor>(parameters => parameters
+            .Add(component => component.Value, RulesDraft.Empty)
+            .Add(component => component.ExpressionContracts, Contracts)
+            .Add(component => component.FieldBindings, [new RulesFieldBinding("amount", "Amount")])
+            .Add(component => component.Catalogue, new RulesRuleCatalogue([]))
+            .Add(component => component.CatalogueChanged, EventCallback.Factory.Create<RulesRuleCatalogue>(this, catalogues.Add)));
+
+        cut.Find("input[aria-label='Amount is required']").Change(true);
+        var created = Assert.Single(catalogues[^1].Rules);
+        Assert.Equal(("field.amount.required", "Amount Required", RuleScope.Field, "amount", RuleActionKind.Required), (created.Identity, created.Name, created.Draft.Scope, created.Draft.ScopeTarget, created.Draft.OutputType));
+        cut.Render(parameters => parameters.Add(component => component.Catalogue, catalogues[^1]));
+        Assert.Contains("Amount Required", cut.Find("ul[aria-label='Rule catalogue']").TextContent);
+        cut.FindButton("Edit Amount Required").Click();
+        Assert.Equal("amount", cut.Find("input[aria-label='Target']").GetAttribute("value"));
+        Assert.Equal("Required", cut.Find("select[aria-label='Rule action']").GetAttribute("value"));
+
+        cut.Find("input[aria-label='Amount is required']").Change(false);
+        Assert.Empty(catalogues[^1].Rules);
+    }
+
     private static RulesEditorAuthority ReadAuthority(JsonElement item) => new([.. item.GetProperty("authority").GetProperty("granted").EnumerateArray().Select(permission => permission.GetString()!)]);
 
     private static readonly RulesExpressionContract[] Contracts = [new("rule", "typed value", "preview", [new("amount", "Amount", ColumnValueType.Number)])];

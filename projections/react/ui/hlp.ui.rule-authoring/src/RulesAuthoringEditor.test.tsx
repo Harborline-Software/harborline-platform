@@ -218,4 +218,21 @@ describe('Rules authoring React projection', () => {
       unmount()
     }
   })
+  it('rules-auth-16: a field-property checkbox writes and clears an ordinary editable rule in the shared catalogue', () => {
+    function Host() {
+      const [catalogue, setCatalogue] = useState({ rules: [] as readonly ReturnType<typeof emptyRulesDraft>[] })
+      return <RulesAuthoringEditor {...props({ fieldBindings: [{ key: 'amount', label: 'Amount' }], catalogue, onCatalogueChange: setCatalogue })} />
+    }
+    render(<Host />)
+
+    fireEvent.click(screen.getByLabelText('Amount is required'))
+    expect(screen.getByRole('list', { name: 'Rule catalogue' })).toHaveTextContent('Amount Required')
+    expect(screen.getByRole('list', { name: 'Rule catalogue' }).querySelector('[data-rule-id="field.amount.required"]')).toHaveTextContent('Amount Required')
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Amount Required' }))
+    expect(screen.getByLabelText('Target')).toHaveValue('amount')
+    expect(screen.getByLabelText('Rule action')).toHaveValue('Required')
+
+    fireEvent.click(screen.getByLabelText('Amount is required'))
+    expect(screen.getByRole('list', { name: 'Rule catalogue' })).toBeEmptyDOMElement()
+  })
 })

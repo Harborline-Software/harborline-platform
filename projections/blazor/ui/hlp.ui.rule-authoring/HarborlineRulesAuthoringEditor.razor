@@ -33,6 +33,11 @@
             @if (table.NoMatch is NoMatchPosture.Default noMatch) { <label>Default output<input aria-label="Default output" value="@noMatch.Value" @onchange="ChangeDefaultOutput" /></label> }
         </fieldset>
     }
+    @if (Catalogue is not null && FieldBindings.Count > 0)
+    {
+        <fieldset><legend>Field properties</legend>@foreach (var field in FieldBindings) { <div>@foreach (var checkbox in FieldCheckboxes) { <label><input aria-label="@($"{field.Label} is {checkbox.Label}")" type="checkbox" checked="@Checked(field, checkbox)" @onchange="eventArgs => ChangeFieldCheckbox(field, checkbox, eventArgs)" />@field.Label is @checkbox.Label</label> }</div> }</fieldset>
+        <section aria-label="Rule catalogue"><h2>Rule catalogue</h2><ul aria-label="Rule catalogue">@foreach (var rule in Catalogue.Rules) { <li data-rule-id="@rule.Identity">@rule.Name<HarborlineButton ButtonType="ButtonType.Button" Variant="ButtonVariant.Secondary" Size="ButtonSize.Small" OnClick="() => Change(rule)">Edit @rule.Name</HarborlineButton></li> }</ul></section>
+    }
 </text>; }
 <form class="hl-rules-authoring" data-read-only="@(ReadOnly ? "" : null)" @onsubmit:preventDefault="true">
     @if (ReadOnly) { <fieldset class="hl-rules-authoring__read-only" disabled>@body</fieldset> } else { @body }
@@ -51,11 +56,18 @@
     [Parameter] public EventCallback<RulesDraft> ValueChanged { get; set; }
     [Parameter] public EventCallback<RulesOperationRequest> OperationRequested { get; set; }
     [Parameter] public RulesEditorAuthority? Authority { get; set; }
+    /// <summary>Fields whose ordinary Rules can be authored through property checkboxes.</summary>
+    [Parameter] public IReadOnlyList<RulesFieldBinding> FieldBindings { get; set; } = [];
+    /// <summary>The shared catalogue read by the rule editor and written by field-property controls.</summary>
+    [Parameter] public RulesRuleCatalogue? Catalogue { get; set; }
+    /// <summary>Receives the replacement shared catalogue after a field-property control changes it.</summary>
+    [Parameter] public EventCallback<RulesRuleCatalogue> CatalogueChanged { get; set; }
 
     private RulesDraft Current = RulesDraft.Empty; private RulesDraft? _incoming; private IReadOnlyList<RulesRefusal> _refusals = []; private RulesOutcome? _outcome; private RulesOutcome? _lastOutcome; private string _revision = ""; private bool _dirty; private int _generation; private static int _intent;
     private readonly Dictionary<string, string> _intentIds = new(StringComparer.Ordinal); private readonly HashSet<string> _outstanding = new(StringComparer.Ordinal);
     private FormulaDraft? Formula => Current.Draft as FormulaDraft; private DecisionTableDraft? Table => Current.Draft as DecisionTableDraft; private RulesExpressionContract? RuleContract => ExpressionContracts.FirstOrDefault(item => item.Site == "rule");
     private static readonly string[] CompareOperators = ["==", "!=", ">", ">=", "<", "<="];
+    private static readonly FieldCheckbox[] FieldCheckboxes = [new("required", "required", RuleActionKind.Required, "true"), new("readOnly", "read only", RuleActionKind.ReadOnly, "true"), new("hidden", "hidden", RuleActionKind.Visibility, "false")];
     private string NoMatchKind => Table?.NoMatch is NoMatchPosture.CatchAll ? "CatchAll" : "Default";
 
     protected override async Task OnParametersSetAsync()
@@ -102,6 +114,16 @@
     private Task ChangePriority(int rowIndex, ChangeEventArgs eventArgs) => ChangeDraft(Table! with { Rows = Table!.Rows.Select((row, index) => index == rowIndex ? row with { Priority = int.TryParse(eventArgs.Value?.ToString(), out var priority) ? priority : row.Priority } : row).ToArray() });
     private Task ChangeNoMatch(ChangeEventArgs eventArgs) => ChangeDraft(Table! with { NoMatch = eventArgs.Value?.ToString() == "CatchAll" ? new NoMatchPosture.CatchAll() : new NoMatchPosture.Default("") });
     private Task ChangeDefaultOutput(ChangeEventArgs eventArgs) => ChangeDraft(Table! with { NoMatch = new NoMatchPosture.Default(eventArgs.Value?.ToString() ?? "") });
+    private static string FieldRuleIdentity(RulesFieldBinding field, FieldCheckbox checkbox) => $"field.{field.Key}.{checkbox.Id}";
+    private bool Checked(RulesFieldBinding field, FieldCheckbox checkbox) => Catalogue?.Rules.Any(rule => rule.Identity == FieldRuleIdentity(field, checkbox)) ?? false;
+    private Task ChangeFieldCheckbox(RulesFieldBinding field, FieldCheckbox checkbox, ChangeEventArgs eventArgs)
+    {
+        if (Catalogue is null) return Task.CompletedTask;
+        var identity = FieldRuleIdentity(field, checkbox);
+        var rules = Catalogue.Rules.Where(rule => rule.Identity != identity).ToList();
+        if (eventArgs.Value is true) rules.Add(new RulesDraft(identity, "", $"{field.Label} {checkbox.Action}", "Draft", "", new FormulaDraft { Scope = RuleScope.Field, ScopeTarget = field.Key, OutputType = checkbox.Action, Inputs = [], Expression = new FormulaExpr.Literal(checkbox.Value, ColumnValueType.Boolean) }));
+        return CatalogueChanged.InvokeAsync(new RulesRuleCatalogue(rules));
+    }
     private Task Save() => Request("save-draft"); private Task Preview() => Request("preview"); private Task Publish() => Request("publish"); private Task Archive() => Request("archive");
     // Without an authority the host gates elsewhere; with one, an ungranted operation's control renders disabled. The producer still enforces the gate (T-591).
     private bool Allowed(string operation) => Authority is null || operation switch { "publish" => Authority.CanPublish, "preview" => Authority.CanPreview, _ => Authority.CanAuthor };
@@ -109,4 +131,5 @@
     private Task Request(string operation) { var key = $"{operation}\u0000{Current.Identity}\u0000{Current.ExpectedRevision}\u0000{_generation}"; if (!_intentIds.TryGetValue(key, out var requestId)) { requestId = $"{Current.Identity}:{Current.ExpectedRevision}:{operation}:{Interlocked.Increment(ref _intent)}"; _intentIds[key] = requestId; } _outstanding.Add(requestId); return OperationRequested.InvokeAsync(new(operation, requestId, Current.Identity, Current.ExpectedRevision, _generation, Current)); }
     private Task Keep() { _incoming = null; return Task.CompletedTask; }
     private Task Discard() { if (_incoming is null) return Task.CompletedTask; Current = _incoming; _incoming = null; _dirty = false; _generation++; return ValueChanged.InvokeAsync(Current); }
+    private sealed record FieldCheckbox(string Id, string Label, RuleActionKind Action, string Value);
 }
