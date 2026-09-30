@@ -57,6 +57,7 @@ const DOTNET_SUITES = [
   ['foundationDefinitions', 'foundation-definitions-native', "projections/dotnet/foundation/hlp.foundation.definitions.tests/Harborline.Foundation.Definitions.Tests.csproj"],
   ['foundationScheduling', 'foundation-scheduling-native', "projections/dotnet/foundation/hlp.foundation.scheduling.tests/Harborline.Foundation.Scheduling.Tests.csproj"],
   ['executionRuntime', 'foundation-execution-runtime-native', "projections/dotnet/foundation/hlp.foundation.execution-runtime.tests/Harborline.Foundation.ExecutionRuntime.Tests.csproj"],
+  ['notificationDelivery', 'foundation-notification-delivery-native', "projections/dotnet/foundation/hlp.foundation.notification-delivery.tests/Harborline.Foundation.NotificationDelivery.Tests.csproj"],
   ['fieldRuntime', 'foundation-field-runtime-native', "projections/dotnet/foundation/hlp.foundation.field-runtime.tests/Harborline.Foundation.FieldRuntime.Tests.csproj"],
   ['blocksScheduling', 'blocks-scheduling-native', "projections/dotnet/blocks/hlp.blocks.scheduling.tests/Harborline.Blocks.Scheduling.Tests.csproj"],
   ['blocksCalendar', 'blocks-calendar-native', "projections/dotnet/blocks/hlp.blocks.calendar.tests/Harborline.Blocks.Calendar.Tests.csproj"],

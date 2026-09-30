@@ -795,6 +795,40 @@
         }
       }
     },
+    "hlp.foundation.notification-delivery": {
+      "interface": {"path": "specs/modules/foundation/hlp.foundation.notification-delivery/interface.yaml", "revision": 1},
+      "moduleKind": "runtime",
+      "presentation": {"disposition": "not-applicable", "rationale": "The foundation package owns the projection-neutral notification delivery substrate (channel registry, tenant channel bindings, on-node inbox); notification centre views are separate projections that read it."},
+      "owner": "platform-foundation",
+      "dependencies": [],
+      "status": "implemented",
+      "depth": {
+        "disposition": "deep-module",
+        "deletionTest": "PASS",
+        "redistributedComplexity": [
+          "a transport registry, secret-reference binding rule and inbox read-state model reinvented inside every feature that notifies a person",
+          "the privacy default for off-node content and the rule that the inbox is always present drifting between notification features instead of being one substrate rule"
+        ]
+      },
+      "projections": {
+        "dotnet": {
+          "role": "implementation",
+          "path": "projections/dotnet/foundation/hlp.foundation.notification-delivery",
+          "status": "preview",
+          "artifact": {
+            "type": "nuget",
+            "id": "Harborline.Foundation.NotificationDelivery",
+            "assembly": "Harborline.Foundation.NotificationDelivery",
+            "manifest": "projections/dotnet/foundation/hlp.foundation.notification-delivery/Harborline.Foundation.NotificationDelivery.csproj",
+            "identityAuthority": "Harborline",
+            "producerRepository": "harborline-platform",
+            "distribution": "internal-only",
+            "candidateRole": "new-bounded-package",
+            "registryAvailable": false
+          }
+        }
+      }
+    },
     "hlp.foundation.taxonomy": {
       "interface": {"path": "specs/modules/foundation/hlp.foundation.taxonomy/interface.yaml", "revision": 1},
       "moduleKind": "runtime",
