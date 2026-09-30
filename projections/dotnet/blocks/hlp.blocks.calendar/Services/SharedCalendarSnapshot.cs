@@ -12,11 +12,16 @@ namespace Harborline.Blocks.Calendar.Services;
 /// </summary>
 public sealed record SharedCalendarSnapshot
 {
+    /// <summary>Persisted shared-calendar identifier.</summary>
     public required Guid Id { get; init; }
+    /// <summary>Tenant owning the shared calendar.</summary>
     public required string TenantId { get; init; }
+    /// <summary>Display name.</summary>
     public required string Name { get; init; }
+    /// <summary>Inclusive exception spans applied by the shared calendar.</summary>
     public required IReadOnlyList<ExceptionSpanSnapshot> Exceptions { get; init; }
 
+    /// <summary>Captures a domain shared calendar for persistence.</summary>
     public static SharedCalendarSnapshot FromEntity(SharedCalendar c)
     {
         ArgumentNullException.ThrowIfNull(c);
@@ -29,6 +34,7 @@ public sealed record SharedCalendarSnapshot
         };
     }
 
+    /// <summary>Rehydrates the domain shared calendar represented by this snapshot.</summary>
     public SharedCalendar ToEntity()
         => SharedCalendar.Rehydrate(
             id:         new SharedCalendarId(Id),

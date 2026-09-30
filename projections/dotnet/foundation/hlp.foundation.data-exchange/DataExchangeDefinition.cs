@@ -12,19 +12,19 @@ public static class DataExchangePackIdentity
     public const int ContentKind = 12;
 }
 
+/// <summary>How a rerun treats source records the target may already hold.</summary>
 public enum ReplayPolicy
 {
+    /// <summary>Writes every source record as a new target record.</summary>
     Append,
+    /// <summary>Writes source records over target records that already exist instead of adding new ones.</summary>
     Overwrite,
+    /// <summary>Appends only source records not already represented by the target identity.</summary>
     [JsonStringEnumMemberName("append_dedup")]
     AppendDeduplicate,
 }
 
-/// <summary>
-/// The acquisition source named by reference and parameterised. <see cref="CapabilityId"/> is the
-/// host-registered exchange kind; <see cref="SecretReference"/> names a tenant-held secret and never
-/// carries its value.
-/// </summary>
+/// <summary>Names the acquisition capability, connector version, secret reference, and parameters.</summary>
 public sealed record ExchangeSourceBinding(
     string CapabilityId,
     string ConnectorVersion,
@@ -32,30 +32,41 @@ public sealed record ExchangeSourceBinding(
     IReadOnlyDictionary<string, string> Parameters,
     string FormatId = "csv");
 
+/// <summary>The parameter names a source capability version accepts in a definition.</summary>
 public sealed record SourceParameterSchema(IReadOnlySet<string> AllowedParameters);
 
+/// <summary>Looks up the declared parameter schema of a source capability version.</summary>
 public interface ISourceParameterSchemaRegistry
 {
+    /// <summary>Returns the parameter schema for the capability and connector version, or null when unregistered (refused as definition.source_capability_unregistered).</summary>
     SourceParameterSchema? Resolve(string capabilityId, string connectorVersion);
 }
 
+/// <summary>Registry that declares no parameters for any source, so every supplied parameter is refused as undeclared.</summary>
 public sealed class EmptySourceParameterSchemaRegistry : ISourceParameterSchemaRegistry
 {
+    /// <summary>Shared schema that allows no parameters.</summary>
     private static readonly SourceParameterSchema Empty = new(new HashSet<string>(StringComparer.Ordinal));
 
+    /// <summary>Always returns the empty schema, whatever the capability and version.</summary>
     public SourceParameterSchema Resolve(string capabilityId, string connectorVersion) => Empty;
 }
 
+/// <summary>The layer an authored definition belongs to.</summary>
 public enum DataExchangeCascadeLayer
 {
+    /// <summary>The base layer, shipped with the pack.</summary>
     Base,
+    /// <summary>The tenant's own layer, which overrides the base.</summary>
     Tenant,
 }
 
+/// <summary>A capability an installing host must provide, with an optional minimum platform version.</summary>
 public sealed record DataExchangeDefinitionRequirement(
     string Capability,
     string? MinimumPlatformVersion = null);
 
+/// <summary>Catalogue identity, version, tenant, cascade layer, provenance, required capabilities and contract version; it must match the definition's key, version and tenant (definition.envelope_mismatch).</summary>
 public sealed record DataExchangeDefinitionEnvelope(
     string Identity,
     string Version,
@@ -65,11 +76,14 @@ public sealed record DataExchangeDefinitionEnvelope(
     IReadOnlyList<DataExchangeDefinitionRequirement> Requires,
     DefinitionContractVersion? Contract);
 
+/// <summary>Which mapping metadata wins when tenant and pack metadata disagree.</summary>
 public enum MappingMetadataPrecedence
 {
+    /// <summary>Tenant metadata overrides pack metadata.</summary>
     TenantOverPack,
 }
 
+/// <summary>Binds a reference dataset to its pack and feed distributions.</summary>
 public sealed record ReferenceSetBinding(
     string DatasetId,
     string PackDistribution,
@@ -99,8 +113,11 @@ public sealed record DataExchangeDefinition(
 /// <summary>The boundary at which a definition is admitted; every boundary runs the same closed checks.</summary>
 public enum DataExchangeAdmissionPhase
 {
+    /// <summary>Admission while a definition is being authored; the envelope and catalogue coordinates are not yet required.</summary>
     Author,
+    /// <summary>Admission at publication; the envelope is required and the body must match its catalogue coordinates.</summary>
     Publish,
+    /// <summary>Admission when a pack is installed; the same closed checks as publication.</summary>
     Install,
 }
 
@@ -110,6 +127,7 @@ public sealed record DataExchangeCatalogueCoordinates(string Tenant, string Key,
 /// <summary>Resolves the published head the interpreter runs; the shared catalogue supplies it.</summary>
 public interface IDataExchangeDefinitionResolver
 {
+    /// <summary>Returns the published head definition for the tenant and key, or null when none is published.</summary>
     ValueTask<DataExchangeDefinition?> ResolvePublishedHeadAsync(
         string tenant,
         string key,
@@ -119,8 +137,10 @@ public interface IDataExchangeDefinitionResolver
 /// <summary>Canonical, projection-neutral definition JSON: snake_case, ordinal-sorted keys, one trailing newline.</summary>
 public static class DataExchangeDefinitionJson
 {
+    /// <summary>Cached serializer options: snake_case names, null members omitted, unmapped members rejected.</summary>
     private static readonly JsonSerializerOptions Options = CreateOptions();
 
+    /// <summary>Serializes a definition to canonical UTF-8 JSON with ordinal-sorted keys and one trailing newline; throws ArgumentNullException for null.</summary>
     public static byte[] SerializeCanonical(DataExchangeDefinition definition)
     {
         ArgumentNullException.ThrowIfNull(definition);
@@ -132,10 +152,12 @@ public static class DataExchangeDefinitionJson
         return stream.ToArray();
     }
 
+    /// <summary>Parses definition JSON bytes; throws JsonException for malformed JSON, unmapped members or a null payload.</summary>
     public static DataExchangeDefinition Deserialize(ReadOnlySpan<byte> json)
         => JsonSerializer.Deserialize<DataExchangeDefinition>(json, Options)
             ?? throw new JsonException("The Data exchange definition payload is null.");
 
+    /// <summary>Parses definition JSON text; throws ArgumentException for blank input and JsonException for malformed JSON, unmapped members or a null payload.</summary>
     public static DataExchangeDefinition Deserialize(string json)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(json);
@@ -169,10 +191,7 @@ public static class DataExchangeDefinitionJson
     };
 }
 
-/// <summary>
-/// The intent validator. Pure and phase-aware; the shared builder-definitions catalogue binds it as
-/// the <c>DataExchange</c> registry's admission, and pack installation admits the same JSON body.
-/// </summary>
+/// <summary>Validates authored Data Exchange definitions at the admission boundary.</summary>
 public static class DataExchangeDefinitionAdmission
 {
     private static readonly HashSet<string> RollbackMembers = new(StringComparer.Ordinal)
@@ -185,13 +204,9 @@ public static class DataExchangeDefinitionAdmission
         "export", "direction", "outbound", "report_shape", "row_set",
     };
 
-    /// <summary>
-    /// Admits a canonical JSON body at a boundary; a refusal list is never a partial admission.
     /// <paramref name="catalogue"/> names the catalogue coordinates the body must agree with before it
-    /// publishes or installs; a restored draft may disagree until the author re-versions it.
     /// <paramref name="window"/> is the host's application-contract window from the platform seed (T-572);
-    /// it is required at every phase, install included, because an optional window would fail open.
-    /// </summary>
+    /// <summary>Parses body JSON and returns every refusal, empty when admitted: body_invalid, settings_not_object, rollback_refused and export_refused shape errors, then definition checks and catalogue_mismatch outside the Author phase.</summary>
     public static IReadOnlyList<DataExchangeRefusal> AdmitJson(
         string bodyJson,
         DataExchangeAdmissionPhase phase,
@@ -241,6 +256,7 @@ public static class DataExchangeDefinitionAdmission
         return refusals.Count == 0 ? definition : throw new DataExchangeAdmissionException(refusals);
     }
 
+    /// <summary>Returns every refusal for the definition in the given phase, empty when admitted: version, schema version, envelope, contract window, mapping, source format, secret reference, parameters and external key columns.</summary>
     public static IReadOnlyList<DataExchangeRefusal> Validate(
         DataExchangeDefinition definition,
         DataExchangeAdmissionPhase phase,
@@ -333,12 +349,14 @@ public sealed record DataExchangeDefinitionPackageEntry(
     string Version,
     ReadOnlyMemory<byte> Content)
 {
+    /// <summary>Always 12, the Data Exchange definition content kind.</summary>
     public int ContentKind => DataExchangePackIdentity.ContentKind;
 }
 
 /// <summary>Admits at the publish boundary and projects canonical bytes; it does not publish a version.</summary>
 public static class DataExchangeDefinitionPackExporter
 {
+    /// <summary>Admits the definition at the publish boundary and returns its canonical bytes as a pack entry; throws DataExchangeAdmissionException listing every refusal.</summary>
     public static DataExchangeDefinitionPackageEntry Export(
         DataExchangeDefinition definition,
         DefinitionContractWindow window,

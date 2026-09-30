@@ -68,6 +68,7 @@ public sealed class BookableClaimService
     private readonly ICalendarEventStore _events;
     private readonly IPartyContext _requester;
 
+    /// <summary>Creates the claim service from availability, event-store, and requester collaborators.</summary>
     public BookableClaimService(IAvailabilityRuntime runtime, ICalendarEventStore events, IPartyContext requester)
     {
         ArgumentNullException.ThrowIfNull(runtime);

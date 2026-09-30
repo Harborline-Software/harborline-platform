@@ -2,6 +2,7 @@ using Harborline.Contracts.Authorization;
 
 namespace Harborline.UIAdapters.Blazor.Components.Layout;
 
+/// <summary>Maps a pack navigation declaration onto the shell rail render model, filtering by role and host state.</summary>
 public static class PackNavigationMapper
 {
     /// <summary>The only Blazor projection mapper from the api#58 declaration into shell render state.</summary>

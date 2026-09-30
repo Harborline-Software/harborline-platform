@@ -6,6 +6,7 @@ namespace Harborline.Blocks.EntityViews;
 /// <summary>Translates the Views port into the production Access set contract; contains no access policy.</summary>
 public sealed class AccessViewFilter(IAccessSetFilter access, string operation) : IViewAccessFilter
 {
+    /// <summary>Builds the runtime-only <see cref="ViewAccessPredicate"/> by binding the configured Access operation to the tenant, principal, record type and instant; throws if cancellation is already requested.</summary>
     public ValueTask<ViewFilter> BuildAsync(string tenant, string principal, string recordType, DateTimeOffset at,
         CancellationToken cancellationToken = default)
     {
@@ -31,6 +32,7 @@ public sealed record ViewAccessPredicate : ViewFilter
 /// <summary>Adapts view opening and registered actions to point-of-use checks through Access.</summary>
 public sealed class AccessViewOpenGate(AccessProvider access, TimeProvider clock, IReadOnlyList<string> actions) : IViewOpenGate
 {
+    /// <summary>Checks the view's open permission through Access; a denial returns CanOpen false with no actions, otherwise CanOpen true with one allowed/denied entry per registered row action, all evaluated at the current clock instant.</summary>
     public async ValueTask<ViewAuthority> AuthorizeAsync(ViewDefinition definition, string principal,
         CancellationToken cancellationToken = default)
     {

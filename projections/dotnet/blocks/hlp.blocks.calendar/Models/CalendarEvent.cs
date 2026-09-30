@@ -55,12 +55,16 @@ public sealed class CalendarEvent
 
     // ---- Identity + tenancy ------------------------------------------------
 
+    /// <summary>Stable event identifier.</summary>
     public CalendarEventId Id { get; private set; }
+    /// <summary>Tenant that owns the event.</summary>
     public TenantId TenantId { get; private set; }
 
     // ---- Temporal core (Slice S0) -----------------------------------------
 
+    /// <summary>Event title.</summary>
     public string Title { get; private set; }
+    /// <summary>Optional event description.</summary>
     public string? Description { get; private set; }
 
     /// <summary>
@@ -97,6 +101,7 @@ public sealed class CalendarEvent
     /// <summary>IANA timezone id (e.g. <c>America/Los_Angeles</c>). Carried now; applied in Slice S1 (S0 is date-granular).</summary>
     public string Timezone { get; private set; }
 
+    /// <summary>Lifecycle status used by expansion and booking.</summary>
     public CalendarEventStatus Status { get; private set; }
 
     /// <summary>True when this event carries an <see cref="Rrule"/> (a recurring series master).</summary>
@@ -211,10 +216,15 @@ public sealed class CalendarEvent
 
     // ---- Audit -------------------------------------------------------------
 
+    /// <summary>Creation timestamp.</summary>
     public DateTimeOffset CreatedAt { get; private set; }
+    /// <summary>Last update timestamp.</summary>
     public DateTimeOffset UpdatedAt { get; private set; }
+    /// <summary>Actor that created the event.</summary>
     public Guid CreatedBy { get; private set; }
+    /// <summary>Actor that last updated the event.</summary>
     public Guid UpdatedBy { get; private set; }
+    /// <summary>Optimistic-concurrency version.</summary>
     public long Version { get; private set; }
 
     // ---- Construction ------------------------------------------------------
@@ -375,6 +385,7 @@ public sealed class CalendarEvent
         Stamp(updatedBy, updatedAt);
     }
 
+    /// <summary>Replaces the optional description and advances the event audit version.</summary>
     public void SetDescription(string? description, Guid updatedBy, DateTimeOffset? updatedAt = null)
     {
         Description = description;
@@ -505,12 +516,14 @@ public sealed class CalendarEvent
         Stamp(updatedBy, updatedAt);
     }
 
+    /// <summary>Marks the event tentative and advances its audit version.</summary>
     public void SetTentative(Guid updatedBy, DateTimeOffset? updatedAt = null)
     {
         Status = CalendarEventStatus.Tentative;
         Stamp(updatedBy, updatedAt);
     }
 
+    /// <summary>Marks the event confirmed and advances its audit version.</summary>
     public void Confirm(Guid updatedBy, DateTimeOffset? updatedAt = null)
     {
         Status = CalendarEventStatus.Confirmed;

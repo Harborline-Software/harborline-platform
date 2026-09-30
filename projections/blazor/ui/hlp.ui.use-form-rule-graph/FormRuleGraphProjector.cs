@@ -28,6 +28,7 @@ public static class FormRuleGraphProjector
     private static readonly IReadOnlyDictionary<string, object?> EmptyTables =
         new Dictionary<string, object?>(StringComparer.Ordinal);
 
+    /// <summary>Works out the state of every field in a form by evaluating its rules against the current values.</summary>
     public static FormRuleGraphProjection Project(
         SchemaFormView view,
         ISchemaFormRuleGraph? graph,
