@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <HarborlinePublicDistributionAuthorized>false</HarborlinePublicDistributionAuthorized>
+    <PackageId>Harborline.Foundation.NotificationDelivery</PackageId>
+    <AssemblyName>Harborline.Foundation.NotificationDelivery</AssemblyName>
+    <RootNamespace>Harborline.Foundation.NotificationDelivery</RootNamespace>
+    <Description>The notification delivery substrate for Harborline Platform: code-registered delivery channels, tenant channel bindings and the on-node inbox.</Description>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageReleaseNotes>Internal-only projection; public distribution is not authorized.</PackageReleaseNotes>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="/" />
+    <None Include="../../../../LICENSE" Link="LICENSE" Pack="true" PackagePath="/" />
+  </ItemGroup>
+</Project>

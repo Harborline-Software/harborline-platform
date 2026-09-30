@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.foundation.notification-delivery",
+  "interfaceRevision": 1,
+  "status": "frozen",
+  "purpose": "Own the notification delivery substrate (DES-0055, T-527 slice 1): the code-registered delivery channel registry, the tenant channel binding that names secrets without holding them, and the on-node inbox store and channel.",
+  "dependencies": [],
+  "callerInterface": {
+    "name": "DeliveryChannels / ChannelBinding / InboxChannel / IInboxStore",
+    "operations": [
+      "DeliveryChannels.Require(key) -> the registered channel; a key this release does not register refuses notification_delivery.channel_unknown",
+      "new ChannelBinding(tenant, channel, enabled, senderIdentity, secretReferenceIds) -> a tenant binding; secret references supplied to a channel that declares none refuse notification_delivery.secret_reference_not_allowed",
+      "InboxChannel.WriteAsync(WriteInboxEntry) -> a stored unread entry carrying the full rendered content; a missing rendered field refuses notification_delivery.inbox_entry_invalid",
+      "IInboxStore.ListAsync / UnreadCountAsync / MarkReadAsync / MarkAllReadAsync -> per-person, tenant-scoped read and read-state transitions; InMemoryInboxStore is the reference implementation, and marking an entry outside the person's inbox refuses notification_delivery.inbox_entry_unknown"
+    ],
+    "context": "Slice 1 of T-527. Applies owner rulings 2026-09-30 on DES-0055: ruling 4 (the inbox is never removable), ruling 5 (external channels default to link-only content; the on-node inbox carries full rendered content) and ruling 7 (the inbox allows no retry profile). Routing, subscriptions, delivery attempts (an execution-runtime run kind) and external transports are later slices; rulings 2, 3 and 6 remain open and nothing here depends on them."
+  },
+  "invariants": [
+    "The inbox is the sole registered channel in release 1; a second transport registers in DeliveryChannels, never as a second delivery path.",
+    "The inbox declares no secret references and no allowed retry profiles.",
+    "A channel binding holds secret reference identifiers, never secret values.",
+    "The external default content class is link-only; the on-node inbox is the only full-content class.",
+    "Every inbox read and write is scoped to one tenant and one recipient."
+  ],
+  "errors": [
+    "notification_delivery.channel_unknown",
+    "notification_delivery.secret_reference_not_allowed",
+    "notification_delivery.inbox_entry_invalid",
+    "notification_delivery.inbox_entry_unknown"
+  ],
+  "publicSeams": [
+    "the delivery channel registry a future transport registers in",
+    "the IInboxStore port a durable host adapter implements"
+  ],
+  "conformance": {
+    "nativeTests": {
+      "dotnet": 4
+    },
+    "nativeTestNote": "Full rendered-content write, query, unread count and mark-read; the sole inbox registration with no secrets or retry profiles and the link-only external default; refusal of a secret reference on the inbox binding; refusal of a blank rendered inbox body."
+  },
+  "selectedDesign": {
+    "choice": "One packable foundation assembly owns the channel registry, tenant bindings and the inbox, so slice 3 can register delivery attempts as an execution-runtime run kind without the kernel tier depending on foundation.",
+    "rejected": [
+      "Place the code in hlp.kernel.core - the kernel tier must not depend on foundation, and delivery attempts must use the foundation execution runtime."
+    ],
+    "reason": "Mirrors the substrate-first packaging of the execution runtime (DES-0056)."
+  },
+  "package": {
+    "nuget": "Harborline.Foundation.NotificationDelivery",
+    "assembly": "Harborline.Foundation.NotificationDelivery",
+    "distribution": "internal-only"
+  }
+}
