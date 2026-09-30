@@ -32,19 +32,19 @@ public sealed class SheetContext
         DescriptionId = $"{prefix}-description";
     }
 
-/// <summary>Whether the sheet is open.</summary>
+    /// <summary>Whether the sheet is open.</summary>
     public bool Open => getOpen();
-/// <summary>Whether the sheet is modal and blocks the page behind it.</summary>
+    /// <summary>Whether the sheet is modal and blocks the page behind it.</summary>
     public bool Modal { get; internal set; }
-/// <summary>Id of the element that opens the sheet.</summary>
+    /// <summary>Id of the element that opens the sheet.</summary>
     public string TriggerId { get; }
-/// <summary>Id of the sheet content element.</summary>
+    /// <summary>Id of the sheet content element.</summary>
     public string ContentId { get; }
-/// <summary>Id of the sheet title, which labels it for assistive technology.</summary>
+    /// <summary>Id of the sheet title, which labels it for assistive technology.</summary>
     public string TitleId { get; }
-/// <summary>Id of the sheet description, read by assistive technology.</summary>
+    /// <summary>Id of the sheet description, read by assistive technology.</summary>
     public string DescriptionId { get; }
     internal ElementReference TriggerElement { get; set; }
-/// <summary>Opens or closes the sheet.</summary>
+    /// <summary>Opens or closes the sheet.</summary>
     public Task SetOpenAsync(bool open) => setOpen(open);
 }

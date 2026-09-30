@@ -3,7 +3,7 @@ namespace Harborline.UIAdapters.Blazor.Components.DataDisplay;
 /// <summary>The ids of the built-in view kinds.</summary>
 public static class ViewKindIds
 {
-/// <summary>Id of the table view kind.</summary>
+    /// <summary>Id of the table view kind.</summary>
     public const string Table = "layout.table";
 }
 

@@ -26,7 +26,7 @@ public sealed record RulesDraft(
     string PinnedVersionId,
     RuleDraft Draft)
 {
-/// <summary>An empty rules draft in the Draft state.</summary>
+    /// <summary>An empty rules draft in the Draft state.</summary>
     public static RulesDraft Empty { get; } = new("", "", "", "Draft", "", new FormulaDraft
     {
         Scope = RuleScope.Field,
@@ -36,7 +36,7 @@ public sealed record RulesDraft(
         Expression = new FormulaExpr.Literal("", ColumnValueType.Text),
     });
 
-/// <summary>The materialised release attached to the draft, when there is one.</summary>
+    /// <summary>The materialised release attached to the draft, when there is one.</summary>
     public RulesMaterialization? Materialization { get; init; }
 }
 

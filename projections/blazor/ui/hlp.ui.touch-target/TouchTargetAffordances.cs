@@ -14,16 +14,16 @@ public enum TouchTargetStrategy
 /// <summary>CSS class mapping for the Harborline 44 CSS-pixel touch target policy.</summary>
 public static class TouchTargetAffordances
 {
-/// <summary>Smallest touch target size, in CSS pixels.</summary>
+    /// <summary>Smallest touch target size, in CSS pixels.</summary>
     public const int MinimumCssPixels = 44;
-/// <summary>Class that grows the box of an element to the minimum touch target size.</summary>
+    /// <summary>Class that grows the box of an element to the minimum touch target size.</summary>
     public const string GrowBox = "hl-touch-target";
-/// <summary>Class that adds an overlay to enlarge the hit area, for elements that already position their children.</summary>
+    /// <summary>Class that adds an overlay to enlarge the hit area, for elements that already position their children.</summary>
     public const string OverlayUsingExistingPositionContext = "hl-touch-target-overlay";
-/// <summary>Class that adds an overlay to enlarge the hit area and makes the element a positioning context.</summary>
+    /// <summary>Class that adds an overlay to enlarge the hit area and makes the element a positioning context.</summary>
     public const string OverlayEstablishingPositionContext = "hl-touch-target-overlay hl-touch-target-overlay--positioned";
 
-/// <summary>Returns the CSS classes for a touch target strategy.</summary>
+    /// <summary>Returns the CSS classes for a touch target strategy.</summary>
     public static string For(TouchTargetStrategy strategy) => strategy switch
     {
         TouchTargetStrategy.GrowBox => GrowBox,

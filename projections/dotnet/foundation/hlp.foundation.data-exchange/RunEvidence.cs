@@ -113,14 +113,14 @@ public interface IExchangeRunStore
     ValueTask<DryRunArtifact?> GetDryRunAsync(DryRunId id, CancellationToken cancellationToken = default);
     /// <summary>Saves the commit run; a duplicate id is refused.</summary>
     ValueTask SaveCommitRunAsync(CommitRunArtifact artifact, CancellationToken cancellationToken = default);
-/// <summary>Stores a commit run together with its checkpoint finalization as one durable record.</summary>
+    /// <summary>Stores a commit run together with its checkpoint finalization as one durable record.</summary>
     ValueTask SaveCommitRunWithCheckpointFinalizationAsync(
         CommitRunArtifact artifact,
         CommitCheckpointFinalization finalization,
         CancellationToken cancellationToken = default);
     /// <summary>Returns the commit run, or null when absent.</summary>
     ValueTask<CommitRunArtifact?> GetCommitRunAsync(CommitRunId id, CancellationToken cancellationToken = default);
-/// <summary>Lists immutable run evidence associated with the supplied dry run.</summary>
+    /// <summary>Lists immutable run evidence associated with the supplied dry run.</summary>
     ValueTask<IReadOnlyList<CommitRunArtifact>> ListCommitRunsAsync(DryRunId approvedDryRunId, CancellationToken cancellationToken = default);
     /// <summary>Saves the finalization; replacing one that is already Finalized is refused.</summary>
     ValueTask SaveCheckpointFinalizationAsync(CommitCheckpointFinalization finalization, CancellationToken cancellationToken = default);

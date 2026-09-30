@@ -151,7 +151,7 @@ public interface ISourceOutcomePolicyPort
 /// <summary>Reevaluates live semantic dependencies and effects through trusted host adapters.</summary>
 public interface IProposalEvaluationPort
 {
-/// <summary>Reevaluates the approved evidence against current semantic dependencies.</summary>
+    /// <summary>Reevaluates the approved evidence against current semantic dependencies.</summary>
     ValueTask<DryRunRequest> EvaluateAsync(DryRunArtifact approved, CancellationToken cancellationToken = default);
 }
 
@@ -226,7 +226,7 @@ public sealed record CanonicalForwardCorrectionCommand(CanonicalRecordsCommand O
 /// <summary>Target port that applies domain-owned forward corrections to conflicted effects.</summary>
 public interface ICanonicalForwardCorrectionPort
 {
-/// <summary>Applies and records a domain-owned forward correction.</summary>
+    /// <summary>Applies and records a domain-owned forward correction.</summary>
     ValueTask<EffectTerminalOutcome> CorrectAndRecordAsync(CanonicalForwardCorrectionCommand command, CancellationToken cancellationToken = default);
 }
 
@@ -289,7 +289,7 @@ public sealed class InMemoryAcquisitionCheckpointStore : IAcquisitionCheckpointS
     private readonly object _gate = new();
     private readonly Dictionary<(string TenantId, string DefinitionId), CheckpointState> _checkpoints = [];
 
-/// <summary>Reads the current checkpoint for the tenant and definition.</summary>
+    /// <summary>Reads the current checkpoint for the tenant and definition.</summary>
     public ValueTask<string?> GetAsync(
         string tenantId,
         string definitionId,
@@ -302,7 +302,7 @@ public sealed class InMemoryAcquisitionCheckpointStore : IAcquisitionCheckpointS
         }
     }
 
-/// <summary>Advances a checkpoint only when its expected predecessor still matches.</summary>
+    /// <summary>Advances a checkpoint only when its expected predecessor still matches.</summary>
     public ValueTask PromoteAsync(
         string tenantId,
         string definitionId,

@@ -1,7 +1,11 @@
 namespace Harborline.UIAdapters.Blazor.Components.DataExchange;
 
 /// <summary>A selectable option in the data exchange authoring form: id and label.</summary>
-public sealed record DataExchangeOption(string Id, string Label);
+public sealed record DataExchangeOption(string Id, string Label)
+{
+    /// <summary>A bare catalogue id is also its label (ADR 0096 option shapes).</summary>
+    public static implicit operator DataExchangeOption(string id) => new(id, id);
+}
 /// <summary>A column found in the source and whether it is selected for import.</summary>
 public sealed record DiscoveredSourceColumn(string Name, bool Selected);
 /// <summary>One column mapping: source column, canonical target, datatype, whether required, null and default values, separator and transform.</summary>
@@ -28,16 +32,20 @@ public sealed record DataExchangeAuthoringDraft(
     string ReplayPolicy,
     string ScheduleReference)
 {
-/// <summary>The file format of the source, csv by default.</summary>
+    /// <summary>Server identity of the persisted definition; empty for a new draft.</summary>
+    public string Identity { get; init; } = "";
+    /// <summary>Server revision the draft was loaded from; a change is a revision change.</summary>
+    public string ExpectedRevision { get; init; } = "";
+    /// <summary>The file format of the source, csv by default.</summary>
     public string FormatCapability { get; init; } = "csv";
-/// <summary>The reference dataset the exchange reads or checks against.</summary>
+    /// <summary>The reference dataset the exchange reads or checks against.</summary>
     public string ReferenceDataset { get; init; } = "";
-/// <summary>The pack distribution the exchange feeds into.</summary>
+    /// <summary>The pack distribution the exchange feeds into.</summary>
     public string PackDistribution { get; init; } = "";
-/// <summary>The feed distribution the exchange publishes to.</summary>
+    /// <summary>The feed distribution the exchange publishes to.</summary>
     public string FeedDistribution { get; init; } = "";
 
-/// <summary>An empty draft with the default append replay policy.</summary>
+    /// <summary>An empty draft with the default append replay policy.</summary>
     public static DataExchangeAuthoringDraft Empty { get; } = new("", "", "", "", [], [], [], "append", "");
 }
 
@@ -49,7 +57,7 @@ public sealed record DataExchangeAuthoringCatalogue(
     IReadOnlyList<DataExchangeOption> Transforms,
     IReadOnlyList<DataExchangeOption> Schedules)
 {
-/// <summary>The file formats offered by the form, csv by default.</summary>
+    /// <summary>The file formats offered by the form, csv by default.</summary>
     public IReadOnlyList<DataExchangeOption> Formats { get; init; } = [new("csv", "CSV")];
 }
 

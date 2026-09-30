@@ -12,6 +12,7 @@
   <ItemGroup><InternalsVisibleTo Include="Harborline.Blocks.Reports.Tests" /></ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../../contracts/hlp.contracts.identities/Harborline.Contracts.csproj" />
+    <ProjectReference Include="../../foundation/hlp.foundation.definitions/Harborline.Foundation.Definitions.csproj" />
     <ProjectReference Include="../hlp.blocks.measure-catalogue/Harborline.Blocks.MeasureCatalogue.csproj" />
   </ItemGroup>
   <ItemGroup>

@@ -21,8 +21,8 @@ public sealed record DonutChartDefinition(
 /// <summary>Whether chart animation follows the host or is turned off.</summary>
 public enum ChartMotion
 {
-/// <summary>Defers to the host motion preference for chart animation.</summary>
+    /// <summary>Defers to the host motion preference for chart animation.</summary>
     Host,
-/// <summary>Turns off chart animation.</summary>
+    /// <summary>Turns off chart animation.</summary>
     Disabled
 }

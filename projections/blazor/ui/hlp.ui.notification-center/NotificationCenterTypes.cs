@@ -27,7 +27,7 @@ public sealed record NotificationCenterLabels(
     Func<string, string> Dismiss,
     string Unread)
 {
-/// <summary>The default English notification center text.</summary>
+    /// <summary>The default English notification center text.</summary>
     public static NotificationCenterLabels English { get; } = new(
         "Notifications", "All", "Confirm", "Deny", "Mark all read", "View all", "No notifications",
         title => $"Dismiss: {title}", "Unread");

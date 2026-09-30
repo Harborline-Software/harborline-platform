@@ -62,7 +62,7 @@ public static class TabularMappingJson
         "hl:profile", "hl:schemaUri", "hl:version", "hl:target",
     };
 
-/// <summary>Serializes an admitted mapping into deterministic compact JSON.</summary>
+    /// <summary>Serializes an admitted mapping into deterministic compact JSON.</summary>
     public static string Serialize(TabularMappingDocument mapping)
     {
         _ = TabularMappingAdmission.Validate(mapping);

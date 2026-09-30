@@ -27,7 +27,7 @@ public sealed record ViewAuthoringDraft(
     string Density,
     string Ownership)
 {
-/// <summary>An empty draft with the standard density and public ownership.</summary>
+    /// <summary>An empty draft with the standard density and public ownership.</summary>
     public static ViewAuthoringDraft Empty { get; } = new(
         "", "", "", [], [], "", "", new Dictionary<string, string>
         {

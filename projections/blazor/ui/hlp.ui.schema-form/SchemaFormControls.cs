@@ -15,10 +15,10 @@ public static class SchemaFormControls
     private static readonly IReadOnlyDictionary<string, SchemaFormControlRenderer> Defaults =
         Hints.ToDictionary(hint => hint, BuiltIn, StringComparer.OrdinalIgnoreCase);
 
-/// <summary>The control hints the built-in controls understand.</summary>
+    /// <summary>The control hints the built-in controls understand.</summary>
     public static IReadOnlyCollection<string> BuiltInHints => Hints;
 
-/// <summary>Builds a control registry from the built-ins, with optional replacements by hint.</summary>
+    /// <summary>Builds a control registry from the built-ins, with optional replacements by hint.</summary>
     public static SchemaFormControlRegistry CreateRegistry(
         IReadOnlyDictionary<string, SchemaFormControlRenderer>? overrides = null)
     {
@@ -34,7 +34,7 @@ public static class SchemaFormControls
         return new SchemaFormControlRegistry(text, merged);
     }
 
-/// <summary>Whether a control hint can display the given value.</summary>
+    /// <summary>Whether a control hint can display the given value.</summary>
     public static bool AcceptsValue(string hint, object? value)
     {
         if (value is null || hint.Equals("hidden", StringComparison.OrdinalIgnoreCase)) return true;

@@ -119,7 +119,7 @@ public sealed record LayoutAuthoringDraft(
     // layout-auth-35: the released surfaces a reader may drill through to from this one.
     IReadOnlyList<string>? DrillThroughTargets = null)
 {
-/// <summary>An empty screen-medium draft with no blocks.</summary>
+    /// <summary>An empty screen-medium draft with no blocks.</summary>
     public static LayoutAuthoringDraft Empty { get; } = new("", "screen", null, []);
 }
 /// <summary>A selectable option in the layout authoring form: id and label.</summary>

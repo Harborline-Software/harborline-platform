@@ -49,7 +49,7 @@ public static class ActionMenuScopes
 
     private static readonly ConditionalWeakTable<object, ConcurrentDictionary<string, byte>> Shells = new();
 
-/// <summary>Claims an action-menu scope on a shell so only one menu owns it; a second claim of the same scope throws.</summary>
+    /// <summary>Claims an action-menu scope on a shell so only one menu owns it; a second claim of the same scope throws.</summary>
     public static IDisposable Claim(object shell, string scopeId)
     {
         var claimed = Shells.GetOrCreateValue(shell);
@@ -59,7 +59,7 @@ public static class ActionMenuScopes
 
     private sealed class Release(ConcurrentDictionary<string, byte> claimed, string scopeId) : IDisposable
     {
-/// <summary>Releases the scope claim so another menu can take it.</summary>
+        /// <summary>Releases the scope claim so another menu can take it.</summary>
         public void Dispose() => claimed.TryRemove(scopeId, out _);
     }
 }

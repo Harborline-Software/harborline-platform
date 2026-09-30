@@ -39,15 +39,15 @@ public sealed class PopoverContext
         ContentId = contentId;
     }
 
-/// <summary>Whether the popover is open.</summary>
+    /// <summary>Whether the popover is open.</summary>
     public bool Open => getOpen();
-/// <summary>Id of the element that opens the popover.</summary>
+    /// <summary>Id of the element that opens the popover.</summary>
     public string TriggerId { get; }
-/// <summary>Id of the popover content element.</summary>
+    /// <summary>Id of the popover content element.</summary>
     public string ContentId { get; }
     internal ElementReference TriggerElement { get; set; }
     internal ElementReference AnchorElement { get; set; }
     internal bool HasAnchor { get; set; }
-/// <summary>Opens or closes the popover.</summary>
+    /// <summary>Opens or closes the popover.</summary>
     public Task SetOpenAsync(bool open) => setOpen(open);
 }

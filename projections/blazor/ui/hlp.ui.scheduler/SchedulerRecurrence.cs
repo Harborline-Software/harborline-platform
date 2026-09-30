@@ -29,12 +29,12 @@ public sealed record SchedulerRecurrenceRule(
 /// <summary>Parses recurrence rules and expands recurring scheduler events into occurrences.</summary>
 public static class SchedulerRecurrence
 {
-/// <summary>The most occurrences expanded from one recurring event.</summary>
+    /// <summary>The most occurrences expanded from one recurring event.</summary>
     public const int OccurrenceCap = 1000;
     private static readonly IReadOnlyDictionary<string, DayOfWeek> Days = new Dictionary<string, DayOfWeek>(StringComparer.OrdinalIgnoreCase)
     { ["SU"] = DayOfWeek.Sunday, ["MO"] = DayOfWeek.Monday, ["TU"] = DayOfWeek.Tuesday, ["WE"] = DayOfWeek.Wednesday, ["TH"] = DayOfWeek.Thursday, ["FR"] = DayOfWeek.Friday, ["SA"] = DayOfWeek.Saturday };
 
-/// <summary>Parses an RRULE string into a recurrence rule, or null when it cannot be read.</summary>
+    /// <summary>Parses an RRULE string into a recurrence rule, or null when it cannot be read.</summary>
     public static SchedulerRecurrenceRule? ParseRRule(string? text)
     {
         if (string.IsNullOrWhiteSpace(text)) return null;
@@ -54,7 +54,7 @@ public static class SchedulerRecurrence
         return new(frequency, interval, count, until, byDay, byMonthDay, byMonth);
     }
 
-/// <summary>Expands a recurring event into its occurrences inside a date range, applying exceptions.</summary>
+    /// <summary>Expands a recurring event into its occurrences inside a date range, applying exceptions.</summary>
     public static IReadOnlyList<SchedulerEvent> Expand(SchedulerEvent master, DateTimeOffset rangeStart, DateTimeOffset rangeEnd)
     {
         if (rangeEnd <= rangeStart) throw new ArgumentOutOfRangeException(nameof(rangeEnd), "invalid-range");
@@ -78,7 +78,7 @@ public static class SchedulerRecurrence
         return occurrences;
     }
 
-/// <summary>Builds the events to draw for a range: plain events kept as they are and recurring ones expanded.</summary>
+    /// <summary>Builds the events to draw for a range: plain events kept as they are and recurring ones expanded.</summary>
     public static IReadOnlyList<SchedulerEvent> BuildRenderedEvents(IEnumerable<SchedulerEvent> input, DateTimeOffset rangeStart, DateTimeOffset rangeEnd)
     {
         var events = input.ToArray();

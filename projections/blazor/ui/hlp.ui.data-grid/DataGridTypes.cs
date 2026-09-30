@@ -37,7 +37,7 @@ public sealed record DataGridChildren<TRow>(int Count, string State, IReadOnlyLi
 /// </summary>
 public static class DataGridChildrenSnapshot
 {
-/// <summary>Returns whether the observed children complete a pending request, comparing by row id.</summary>
+    /// <summary>Returns whether the observed children complete a pending request, comparing by row id.</summary>
     public static bool CompletesRequest<TRow>(
         DataGridChildren<TRow> snapshot,
         DataGridChildren<TRow> observed,
@@ -56,7 +56,7 @@ public static class DataGridChildrenSnapshot
         => snapshot.State is "loaded" or "failed" &&
            !string.Equals(Key(snapshot, getRowId), observedKey, StringComparison.Ordinal);
 
-/// <summary>Builds a stable key for a children snapshot from its count, state and child row ids.</summary>
+    /// <summary>Builds a stable key for a children snapshot from its count, state and child row ids.</summary>
     public static string Key<TRow>(DataGridChildren<TRow> snapshot, Func<TRow, string> getRowId)
         => snapshot.State + "" + string.Join("", snapshot.Children.Select(getRowId));
 
@@ -89,7 +89,7 @@ public sealed record DataGridListState(
     double ScrollTop,
     IReadOnlyDictionary<string, double> ColumnWidths)
 {
-/// <summary>The empty list state: nothing selected, scrolled to the top, no measured column widths.</summary>
+    /// <summary>The empty list state: nothing selected, scrolled to the top, no measured column widths.</summary>
     public static readonly DataGridListState Empty = new(null, 0, new Dictionary<string, double>(StringComparer.Ordinal));
 
     /// <summary>Compared BY VALUE: a re-materialised equal widths map is not a change.</summary>

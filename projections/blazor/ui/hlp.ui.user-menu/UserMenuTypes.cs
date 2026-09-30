@@ -49,6 +49,6 @@ public sealed record UserMenuEntry(
 /// <summary>Text for the user menu: the trigger label built from the user name, the panel label and the sign-out label.</summary>
 public sealed record UserMenuLabels(Func<string,string> Trigger, string Panel, string SignOut)
 {
-/// <summary>The default English user menu text.</summary>
+    /// <summary>The default English user menu text.</summary>
     public static UserMenuLabels English { get; } = new(name => $"Account menu for {name}", "Account menu", "Sign out");
 }

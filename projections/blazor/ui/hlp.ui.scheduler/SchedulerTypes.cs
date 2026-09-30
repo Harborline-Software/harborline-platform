@@ -68,7 +68,7 @@ public sealed record SchedulerModelFields(
 /// <summary>Turns raw data items into scheduler events.</summary>
 public static class SchedulerModel
 {
-/// <summary>Builds a scheduler event from a data item, reading each property from the field name mapped for it.</summary>
+    /// <summary>Builds a scheduler event from a data item, reading each property from the field name mapped for it.</summary>
     public static SchedulerEvent Normalize(IReadOnlyDictionary<string, object?> item, SchedulerModelFields? fields = null)
     {
         ArgumentNullException.ThrowIfNull(item);

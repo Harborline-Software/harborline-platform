@@ -2,6 +2,7 @@ using System.Reflection;
 
 using Harborline.Blocks.BuilderDefinitions;
 using Harborline.Blocks.Calendar.Booking;
+using Harborline.Blocks.Reports.Definitions;
 using Harborline.Foundation.Assistance;
 using Harborline.Foundation.DataExchange;
 using Harborline.Foundation.Definitions;
@@ -31,6 +32,7 @@ public sealed class PackContentKindDriftArchitectureTests
         ("Harborline.Blocks.BuilderDefinitions.ReleasedNavigationPackIdentity.ContentKind", ReleasedNavigationPackIdentity.ContentKind, "ReleasedNavigationDefinition"),
         ("Harborline.Blocks.Calendar.Booking.BookingPackIdentity.ResourceContentKind", BookingPackIdentity.ResourceContentKind, "Resource"),
         ("Harborline.Blocks.Calendar.Booking.BookingPackIdentity.BookableContentKind", BookingPackIdentity.BookableContentKind, "Bookable"),
+        ("Harborline.Blocks.Reports.Definitions.ReportPackIdentity.ContentKind", ReportPackIdentity.ContentKind, "ReportDefinition"),
     ];
 
     // Pillar ("primitive bucket") constants and the registry kind whose pillar each one states.

@@ -14,7 +14,8 @@ namespace Harborline.Architecture.Tests;
 /// </summary>
 public sealed class DefinitionEnvelopeContractArchitectureTests
 {
-    // The seven kinds that carry the contract as a typed *DefinitionEnvelope* record today. Booking's
+    // The kinds that carry the contract as a typed *DefinitionEnvelope* record today: the ruling's seven, plus Reports
+    // (T-489 S4a), which arrived after it and must carry the contract like any future envelope. Booking's
     // Resource/Bookable kind is the ruling's eighth kind, but it has no typed envelope -- its shape is a
     // JSON allow-list (BookingDefinitionAdmission.EnvelopeMembers) that already carries "contract" -- so it
     // is outside this reflection scan by construction, not by oversight.
@@ -27,6 +28,7 @@ public sealed class DefinitionEnvelopeContractArchitectureTests
         "RuleDefinitionEnvelope",
         "AssistanceDefinitionEnvelope",
         "TaxonomyDefinitionEnvelope",
+        "ReportDefinitionEnvelope",
     ];
 
     [Fact]

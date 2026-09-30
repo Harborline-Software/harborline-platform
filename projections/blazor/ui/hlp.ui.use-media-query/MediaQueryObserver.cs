@@ -8,16 +8,16 @@ public sealed record MediaQueryChange(string Query, bool Matches);
 /// <summary>A live subscription to one media query.</summary>
 public interface IMediaQuerySubscription : IAsyncDisposable
 {
-/// <summary>The media query being watched.</summary>
+    /// <summary>The media query being watched.</summary>
     string Query { get; }
-/// <summary>Whether the query currently matches.</summary>
+    /// <summary>Whether the query currently matches.</summary>
     bool Matches { get; }
 }
 
 /// <summary>Watches media queries in the browser and reports changes.</summary>
 public interface IMediaQueryObserver
 {
-/// <summary>Starts watching a media query and calls back whenever whether it matches changes.</summary>
+    /// <summary>Starts watching a media query and calls back whenever whether it matches changes.</summary>
     ValueTask<IMediaQuerySubscription> ObserveAsync(string query, Func<MediaQueryChange, ValueTask> onChanged, CancellationToken cancellationToken = default);
 }
 
@@ -26,7 +26,7 @@ public sealed class MediaQueryObserver(IJSRuntime javascript) : IMediaQueryObser
 {
     private IJSObjectReference? module;
 
-/// <summary>Registers a browser listener for the query and returns the subscription.</summary>
+    /// <summary>Registers a browser listener for the query and returns the subscription.</summary>
     public async ValueTask<IMediaQuerySubscription> ObserveAsync(string query, Func<MediaQueryChange, ValueTask> onChanged, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(query);
@@ -37,7 +37,7 @@ public sealed class MediaQueryObserver(IJSRuntime javascript) : IMediaQueryObser
         return subscription;
     }
 
-/// <summary>Removes the browser listener and releases its resources.</summary>
+    /// <summary>Removes the browser listener and releases its resources.</summary>
     public async ValueTask DisposeAsync()
     {
         if (module is null) return;
@@ -50,12 +50,12 @@ public sealed class MediaQueryObserver(IJSRuntime javascript) : IMediaQueryObser
     {
         private DotNetObjectReference<Subscription>? reference;
         private long id;
-/// <summary>The media query being watched.</summary>
+        /// <summary>The media query being watched.</summary>
         public string Query { get; } = query;
-/// <summary>Whether the query currently matches.</summary>
+        /// <summary>Whether the query currently matches.</summary>
         public bool Matches { get; private set; }
 
-/// <summary>Registers the query with the browser and reads its first match state.</summary>
+        /// <summary>Registers the query with the browser and reads its first match state.</summary>
         public async ValueTask InitializeAsync(CancellationToken cancellationToken)
         {
             reference = DotNetObjectReference.Create(this);
@@ -72,7 +72,7 @@ public sealed class MediaQueryObserver(IJSRuntime javascript) : IMediaQueryObser
             await callback(new(Query, matches));
         }
 
-/// <summary>Removes the browser listener and releases its interop reference.</summary>
+        /// <summary>Removes the browser listener and releases its interop reference.</summary>
         public async ValueTask DisposeAsync()
         {
             if (id != 0)

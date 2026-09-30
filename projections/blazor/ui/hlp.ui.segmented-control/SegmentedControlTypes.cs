@@ -23,7 +23,7 @@ public sealed record SegmentedOption(
     bool Disabled = false,
     string? AutomationId = null)
 {
-/// <summary>Creates an option with a plain-text label.</summary>
+    /// <summary>Creates an option with a plain-text label.</summary>
     public SegmentedOption(string value, string label, bool disabled = false, string? accessibleLabel = null, string? automationId = null)
         : this(value, builder => builder.AddContent(0, label), accessibleLabel, disabled, automationId) { }
 }

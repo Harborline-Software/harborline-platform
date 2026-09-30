@@ -75,49 +75,49 @@ public enum ShellBreakpoint
 /// <summary>Fixed measurements and rules of the shell chrome, shared by the rail, dock and panels.</summary>
 public static class ShellChromeContract
 {
-/// <summary>The top-to-bottom order of the zones in the shell rail.</summary>
+    /// <summary>The top-to-bottom order of the zones in the shell rail.</summary>
     public static readonly string[] RailZoneOrder = ["head", "mode", "primary-action", "workspaces", "pinned", "groups", "recent", "suggested", "footer"];
-/// <summary>The Material width breakpoints, in pixels, that the shell layout switches on.</summary>
+    /// <summary>The Material width breakpoints, in pixels, that the shell layout switches on.</summary>
     public static readonly int[] MaterialBreakpoints = [600, 840, 1200, 1600];
-/// <summary>Maps a viewport width in pixels to the shell breakpoint class.</summary>
+    /// <summary>Maps a viewport width in pixels to the shell breakpoint class.</summary>
     public static ShellBreakpoint Breakpoint(int width) => width switch { >= 1600 => ShellBreakpoint.ExtraLarge, >= 1200 => ShellBreakpoint.Large, >= 840 => ShellBreakpoint.Expanded, >= 600 => ShellBreakpoint.Medium, _ => ShellBreakpoint.Compact };
-/// <summary>Returns the lowercase CSS name of a shell breakpoint, such as extra-large.</summary>
+    /// <summary>Returns the lowercase CSS name of a shell breakpoint, such as extra-large.</summary>
     public static string BreakpointName(ShellBreakpoint value) => value switch { ShellBreakpoint.ExtraLarge => "extra-large", _ => value.ToString().ToLowerInvariant() };
-/// <summary>Keyboard shortcut chords for the built-in shell commands, by command id.</summary>
+    /// <summary>Keyboard shortcut chords for the built-in shell commands, by command id.</summary>
     public static readonly IReadOnlyDictionary<string, string> Shortcuts = new Dictionary<string, string>
     {
         ["find"] = "Mod+K", ["create"] = "Mod+N", ["rail"] = "Mod+\\", ["inspector"] = "Mod+Shift+I", ["workspace"] = "Mod+1..9"
     };
     // RailWidth and ContentFloor are spec-owned taste, not values derived from published guidance.
-/// <summary>Height of the shell top bar, in pixels.</summary>
+    /// <summary>Height of the shell top bar, in pixels.</summary>
     public const int BarHeight = 34;
-/// <summary>Default width of the navigation rail, in pixels.</summary>
+    /// <summary>Default width of the navigation rail, in pixels.</summary>
     public const int RailWidth = 216;
-/// <summary>Narrowest the navigation rail can be resized to, in pixels.</summary>
+    /// <summary>Narrowest the navigation rail can be resized to, in pixels.</summary>
     public const int RailMinimum = 120;
-/// <summary>Minimum width kept for the main content when panels are docked, in pixels.</summary>
+    /// <summary>Minimum width kept for the main content when panels are docked, in pixels.</summary>
     public const int ContentFloor = 420;
     // chrome-spec 6:174 - the shell header is 33px; the toolbar and footer are the body's other content-sized slots.
-/// <summary>Height of a panel header, in pixels.</summary>
+    /// <summary>Height of a panel header, in pixels.</summary>
     public const int PanelHeaderHeight = 33;
-/// <summary>Height of a panel toolbar, in pixels.</summary>
+    /// <summary>Height of a panel toolbar, in pixels.</summary>
     public const int PanelToolbarHeight = 32;
-/// <summary>Height of a panel footer, in pixels.</summary>
+    /// <summary>Height of a panel footer, in pixels.</summary>
     public const int PanelFooterHeight = 28;
     // chrome-spec 6:188-190 - "The header has exactly two forms ... Only panels that open one item take the second."
-/// <summary>Picks how a panel header renders: a toggle chip for panels that open one item, otherwise a plain title.</summary>
+    /// <summary>Picks how a panel header renders: a toggle chip for panels that open one item, otherwise a plain title.</summary>
     public static string PanelHeaderForm(PackPanelDeclaration panel) => panel.Traits?.Contains("OpensOne") == true ? "toggle-chip" : "title";
     // chrome-spec 6:218 - "the overflow is earned by OpensOne or Consequential"; every other header is three affordances.
-/// <summary>Whether a panel needs an overflow menu, which panels that open one item or carry consequential actions do.</summary>
+    /// <summary>Whether a panel needs an overflow menu, which panels that open one item or carry consequential actions do.</summary>
     public static bool PanelEarnsOverflow(PackPanelDeclaration panel) => panel.Traits?.Contains("OpensOne") == true || panel.Traits?.Contains("Consequential") == true;
     // chrome-spec 6:236-238 - the minimum is the content-sized slots ABOVE the one flexible slot; the body,
     // which is allowed to scroll, contributes nothing to it.
-/// <summary>Smallest height a panel slot can take: header, toolbar and footer when it has one.</summary>
+    /// <summary>Smallest height a panel slot can take: header, toolbar and footer when it has one.</summary>
     public static int PanelSlotMinimum(PackPanelDeclaration panel) => PanelHeaderHeight + PanelToolbarHeight + (panel.Footer is null ? 0 : PanelFooterHeight);
-/// <summary>Smallest height a panel is laid out at: its declared minimum or its chrome height, whichever is larger.</summary>
+    /// <summary>Smallest height a panel is laid out at: its declared minimum or its chrome height, whichever is larger.</summary>
     public static int PanelMinimumHeight(PackPanelDeclaration panel) => Math.Max(panel.MinimumHeight, PanelSlotMinimum(panel));
     /// <summary>Half-up rounding (floor(x + 0.5)) - the same rule the React projection's drags use.</summary>
     public static int RoundHalfUp(double value) => (int)Math.Floor(value + 0.5);
-/// <summary>Builds the route address for a record from its kind and id, escaping each segment.</summary>
+    /// <summary>Builds the route address for a record from its kind and id, escaping each segment.</summary>
     public static string Address(string kind, string id) => $"/{Uri.EscapeDataString(kind.Trim('/'))}/{Uri.EscapeDataString(id)}";
 }

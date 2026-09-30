@@ -50,29 +50,29 @@ public sealed record ToastEntry(ToastId Id, string Message, ToastVariant Variant
 /// <summary>Queues toast notifications for the current circuit and dismisses them on timeout or user action.</summary>
 public interface IToastService
 {
-/// <summary>Raised whenever the queue changes so the host can re-render.</summary>
+    /// <summary>Raised whenever the queue changes so the host can re-render.</summary>
     event Action? Changed;
-/// <summary>The toasts currently queued.</summary>
+    /// <summary>The toasts currently queued.</summary>
     IReadOnlyList<ToastEntry> Entries { get; }
-/// <summary>Applies the host toast settings, such as duration and how many show at once.</summary>
+    /// <summary>Applies the host toast settings, such as duration and how many show at once.</summary>
     void ConfigureHost(ToastHostConfiguration configuration);
-/// <summary>Shows a plain toast and returns its id.</summary>
+    /// <summary>Shows a plain toast and returns its id.</summary>
     ToastId Show(string message, ToastOptions? options = null);
-/// <summary>Shows a success toast and returns its id.</summary>
+    /// <summary>Shows a success toast and returns its id.</summary>
     ToastId Success(string message, ToastOptions? options = null);
-/// <summary>Shows an error toast and returns its id.</summary>
+    /// <summary>Shows an error toast and returns its id.</summary>
     ToastId Error(string message, ToastOptions? options = null);
-/// <summary>Shows a warning toast and returns its id.</summary>
+    /// <summary>Shows a warning toast and returns its id.</summary>
     ToastId Warning(string message, ToastOptions? options = null);
-/// <summary>Shows an information toast and returns its id.</summary>
+    /// <summary>Shows an information toast and returns its id.</summary>
     ToastId Information(string message, ToastOptions? options = null);
-/// <summary>Shows a loading toast and returns its id.</summary>
+    /// <summary>Shows a loading toast and returns its id.</summary>
     ToastId Loading(string message, ToastOptions? options = null);
-/// <summary>Shows a loading toast while a task runs, then replaces it with a success or error toast.</summary>
+    /// <summary>Shows a loading toast while a task runs, then replaces it with a success or error toast.</summary>
     Task<T> TrackAsync<T>(Task<T> operation, string loadingMessage, Func<T, string> successMessage, Func<Exception, string> errorMessage, ToastOptions? options = null);
-/// <summary>Dismisses the toast with the given id, or the newest toast when none is given.</summary>
+    /// <summary>Dismisses the toast with the given id, or the newest toast when none is given.</summary>
     void Dismiss(ToastId? id = null);
-/// <summary>Dismisses every toast.</summary>
+    /// <summary>Dismisses every toast.</summary>
     void Clear();
 }
 
@@ -84,12 +84,12 @@ public sealed class ToastService : IToastService, IDisposable
     private readonly Dictionary<ToastId, CancellationTokenSource> timers = [];
     private ToastHostConfiguration configuration = new();
     private long nextId;
-/// <summary>Raised whenever the queue changes so the host can re-render.</summary>
+    /// <summary>Raised whenever the queue changes so the host can re-render.</summary>
     public event Action? Changed;
-/// <summary>A snapshot of the toasts currently queued.</summary>
+    /// <summary>A snapshot of the toasts currently queued.</summary>
     public IReadOnlyList<ToastEntry> Entries { get { lock (gate) return entries.ToArray(); } }
 
-/// <summary>Stores the host toast settings and applies them to toasts already queued.</summary>
+    /// <summary>Stores the host toast settings and applies them to toasts already queued.</summary>
     public void ConfigureHost(ToastHostConfiguration value)
     {
         if (value.MaximumVisible <= 0) throw new InvalidOperationException("invalid-toast-limit");
@@ -97,17 +97,17 @@ public sealed class ToastService : IToastService, IDisposable
         configuration = value;
     }
 
-/// <summary>Queues a plain toast and starts its timeout.</summary>
+    /// <summary>Queues a plain toast and starts its timeout.</summary>
     public ToastId Show(string message, ToastOptions? options = null) => Add(message, ToastVariant.Default, options);
-/// <summary>Queues a success toast and starts its timeout.</summary>
+    /// <summary>Queues a success toast and starts its timeout.</summary>
     public ToastId Success(string message, ToastOptions? options = null) => Add(message, ToastVariant.Success, options);
-/// <summary>Queues an error toast; errors stay until dismissed unless the host says otherwise.</summary>
+    /// <summary>Queues an error toast; errors stay until dismissed unless the host says otherwise.</summary>
     public ToastId Error(string message, ToastOptions? options = null) => Add(message, ToastVariant.Error, options);
-/// <summary>Queues a warning toast and starts its timeout.</summary>
+    /// <summary>Queues a warning toast and starts its timeout.</summary>
     public ToastId Warning(string message, ToastOptions? options = null) => Add(message, ToastVariant.Warning, options);
-/// <summary>Queues an information toast and starts its timeout.</summary>
+    /// <summary>Queues an information toast and starts its timeout.</summary>
     public ToastId Information(string message, ToastOptions? options = null) => Add(message, ToastVariant.Information, options);
-/// <summary>Queues a loading toast, which stays until it is replaced or dismissed.</summary>
+    /// <summary>Queues a loading toast, which stays until it is replaced or dismissed.</summary>
     public ToastId Loading(string message, ToastOptions? options = null) => Add(message, ToastVariant.Loading, options);
 
     private ToastId Add(string message, ToastVariant variant, ToastOptions? options)
@@ -146,7 +146,7 @@ public sealed class ToastService : IToastService, IDisposable
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
     }
 
-/// <summary>Shows a loading toast while the task runs, then replaces it with a success or error toast and returns the task result.</summary>
+    /// <summary>Shows a loading toast while the task runs, then replaces it with a success or error toast and returns the task result.</summary>
     public async Task<T> TrackAsync<T>(Task<T> operation, string loadingMessage, Func<T, string> successMessage, Func<Exception, string> errorMessage, ToastOptions? options = null)
     {
         ArgumentNullException.ThrowIfNull(operation);
@@ -155,7 +155,7 @@ public sealed class ToastService : IToastService, IDisposable
         catch (Exception error) { Upsert(id, errorMessage(error), ToastVariant.Error, options); throw; }
     }
 
-/// <summary>Removes the toast with the given id, or the newest one when none is given, and cancels its timer.</summary>
+    /// <summary>Removes the toast with the given id, or the newest one when none is given, and cancels its timer.</summary>
     public void Dismiss(ToastId? id = null)
     {
         lock (gate)
@@ -165,9 +165,9 @@ public sealed class ToastService : IToastService, IDisposable
         }
         Changed?.Invoke();
     }
-/// <summary>Removes every toast.</summary>
+    /// <summary>Removes every toast.</summary>
     public void Clear() => Dismiss();
     private void CancelTimer(ToastId id){if(!timers.Remove(id,out var timer))return;timer.Cancel();timer.Dispose();}
-/// <summary>Cancels all timers and clears the queue when the service is disposed.</summary>
+    /// <summary>Cancels all timers and clears the queue when the service is disposed.</summary>
     public void Dispose(){lock(gate){foreach(var key in timers.Keys.ToArray())CancelTimer(key);entries.Clear();}}
 }
