@@ -1,4 +1,3 @@
-using Harborline.Blocks.Aggregates;
 using Xunit;
 
 namespace Harborline.Blocks.Aggregates.Tests;
@@ -214,5 +213,35 @@ public sealed class EngineSemanticsTests
     {
         var definition = Grouped() with { Grouping = [new("a", "a", Str, AggregateDimensionNullPolicy.Exclude, AggregateSortDirection.Asc)] };
         Assert.Equal("Detail1[A]=1", Shape(await TestFixture.Evaluate(definition, G(S("A"), "x"), G(AggregateValue.Null(Str), "x"))));
+    }
+
+    [Fact] public async Task DecimalSumOfNoValuesIsTheWireStringZero() { var cell = await Cell(Fold(AggregateOperator.Sum, Dec), AggregateValue.Null(Dec)); Assert.Equal("0", cell.Value); Assert.IsType<string>(cell.Value); }
+
+    [Fact]
+    public async Task IntegerSumOverflowIsACodedRefusal()
+    {
+        var error = await Assert.ThrowsAsync<AggregateException>(() => Cell(Fold(AggregateOperator.Sum, Int), I(long.MaxValue), I(1)));
+        Assert.Equal("aggregates.source.contract_mismatch", error.Code);
+    }
+
+    [Fact]
+    public async Task IntegerAverageOverflowIsACodedRefusal()
+    {
+        var error = await Assert.ThrowsAsync<AggregateException>(() => Cell(Fold(AggregateOperator.Average, Int, Num), I(long.MaxValue), I(1)));
+        Assert.Equal("aggregates.source.contract_mismatch", error.Code);
+    }
+
+    [Fact]
+    public async Task NullKeyAndTheTextNullAreDistinctGroups()
+    {
+        var result = await TestFixture.Evaluate(Grouped(), G(AggregateValue.Null(Str), "x"), G(S("null"), "x"));
+        Assert.Equal(2, result.Groups.Count);
+    }
+
+    [Fact]
+    public async Task KeyPairsThatCollideUnderPipeJoiningStayDistinctGroups()
+    {
+        var result = await TestFixture.Evaluate(Grouped(), G(S("a|String:b"), "c"), G(S("a"), "b|String:c"));
+        Assert.Equal(2, result.Groups.Count);
     }
 }
