@@ -6,6 +6,7 @@ import {fileURLToPath} from 'node:url'
 import {readFileSync} from 'node:fs'
 import {resolveCommand, runnerEnvironment} from './resolve-command.mjs'
 import {resolvePinnedDotnet} from './resolve-dotnet.mjs'
+import {moduleEvidence} from './shared-module-evidence.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const reactRoot = resolve(root, 'projections/react/ui/hlp.ui.button')
@@ -73,7 +74,8 @@ async function executeModules(moduleIds) {
       }
       // One retry, mirroring run-native.mjs: a test host can die on teardown (observed as
       // 0xC0000005 after its own summary printed Failed: 0) under parallel dotnet load. A
-      // genuine failure fails twice; both attempts are recorded so a retried pass is visible.
+      // genuine failure fails twice; both attempts are recorded so a retried pass is visible, and
+      // the first attempt keeps its output so a failure that clears on retry can still be named.
       const second = await execute(
         moduleId,
         process.execPath,
@@ -81,7 +83,7 @@ async function executeModules(moduleIds) {
         root,
         {HARBORLINE_SHARED_SKIP_BUILD: '1'},
       )
-      results[index] = {...second, attempts: 2, firstAttempt: {exitCode: first.exitCode, durationMs: first.durationMs}}
+      results[index] = {...second, attempts: 2, firstAttempt: first}
     }
   })
   await Promise.all(workers)
@@ -148,22 +150,15 @@ process.stdout.write(`${JSON.stringify({
     // the authority here, and its failing results carry the diagnosis the count can only imply.
     const report = reports.find(entry => entry.moduleId === result.id)
     const passed = result.exitCode === 0 && report?.status !== 'FAIL'
-    const failures = []
-    for (const entry of report?.results ?? []) {
-      if (entry.passed || failures.some(seen => seen.projection === entry.projection)) continue
-      failures.push(entry)
-    }
     return {
       moduleId: result.id,
       exitCode: result.exitCode,
       durationMs: result.durationMs,
       passed,
       counts: report?.counts,
-      failureOutput: passed
-        ? undefined
-        : failures.length > 0
-          ? JSON.stringify(failures, null, 2)
-          : `${result.stdout}\n${result.stderr}`.trim().split('\n').slice(-80).join('\n'),
+      // A failing module's report is still on its stdout; the evidence names its failing cases
+      // instead of the passing tail of the pretty-printed results array.
+      ...moduleEvidence(result, passed),
     }
   }),
 }, null, 2)}\n`)

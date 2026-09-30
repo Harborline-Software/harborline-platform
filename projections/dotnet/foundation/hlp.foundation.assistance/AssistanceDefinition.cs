@@ -9,7 +9,7 @@ namespace Harborline.Foundation.Assistance;
 
 public static class AssistancePackIdentity
 {
-    // DES-0002 §5, row "Assistance"; 19 is the highest previously allocated content kind.
+    // DES-0002 §5, row "Assistance"; 19 is the api's highest. Reserved in PackContentKindRegistry (T-738).
     public const int ContentKind = 20;
 }
 

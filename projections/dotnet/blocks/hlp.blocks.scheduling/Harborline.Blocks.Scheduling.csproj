@@ -11,6 +11,9 @@
     <NoWarn>$(NoWarn);CS1591</NoWarn>
   </PropertyGroup>
   <ItemGroup>
+    <ProjectReference Include="../hlp.blocks.builder-definitions/Harborline.Blocks.BuilderDefinitions.csproj" />
+  </ItemGroup>
+  <ItemGroup>
     <InternalsVisibleTo Include="Harborline.Blocks.Scheduling.Tests" />
   </ItemGroup>
   <ItemGroup>

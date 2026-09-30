@@ -301,6 +301,9 @@ public sealed class AvailabilityRuntimeTests
         public Task<IReadOnlyList<CalendarEvent>> ListAsync(TenantId tenantId, CancellationToken ct = default)
         { Reads++; return _inner.ListAsync(tenantId, ct); }
         public Task<bool> RemoveAsync(TenantId tenantId, CalendarEventId id, CancellationToken ct = default) => _inner.RemoveAsync(tenantId, id, ct);
+        public Task<bool> SaveAllIfCapacityUnchangedAsync(TenantId tenantId, IReadOnlyList<CalendarEvent> calendarEvents,
+            IReadOnlyDictionary<ParticipantRef, long> expectedEpochs, CancellationToken ct = default)
+            => _inner.SaveAllIfCapacityUnchangedAsync(tenantId, calendarEvents, expectedEpochs, ct);
         public Task<long> GetCapacityEpochAsync(TenantId tenantId, ParticipantRef resource, CancellationToken ct = default)
             => _inner.GetCapacityEpochAsync(tenantId, resource, ct);
         public Task<bool> SaveIfCapacityUnchangedAsync(

@@ -63,6 +63,28 @@ public sealed class InMemoryCalendarEventStore : ICalendarEventStore
         }
     }
 
+    /// <inheritdoc />
+    public Task<bool> SaveAllIfCapacityUnchangedAsync(
+        TenantId tenantId,
+        IReadOnlyList<CalendarEvent> calendarEvents,
+        IReadOnlyDictionary<ParticipantRef, long> expectedEpochs,
+        CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(calendarEvents);
+        ArgumentNullException.ThrowIfNull(expectedEpochs);
+        if (calendarEvents.Any(e => e.TenantId != tenantId))
+            throw new ArgumentException("Every event must belong to the claiming tenant.", nameof(calendarEvents));
+        lock (_gate)
+        {
+            // Every epoch is compared before anything is written, under the one gate: the set commits
+            // whole or not at all.
+            if (expectedEpochs.Any(e => _epochs.GetValueOrDefault((tenantId.Value, EpochKey(e.Key))) != e.Value))
+                return Task.FromResult(false);
+            foreach (var calendarEvent in calendarEvents) Write(calendarEvent);
+            return Task.FromResult(true);
+        }
+    }
+
     /// <summary>Serialize into the store and move the epoch of every resource the event occupies. Call under <c>_gate</c>.</summary>
     private void Write(CalendarEvent calendarEvent)
     {

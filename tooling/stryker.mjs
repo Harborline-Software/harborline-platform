@@ -156,7 +156,7 @@ const dotnet = (...args) => execFileSync('dotnet', args, {cwd: root, encoding: '
 function razorRun(target, changed) {
   dotnet('build', target, '-c', 'Debug', '-nologo', '-v', 'q', '-p:EmitCompilerGeneratedFiles=true')
   const projectDirectory = path.join(root, path.posix.dirname(target))
-  // MSBuild reports the default as obj\Debug/<tfm>/ on every OS; a backslash is not a separator off win32.
+  // MSBuild's default BaseIntermediateOutputPath is `obj\` on every OS, so off Windows the property reads `obj\Debug/...`.
   const intermediate = path.join(projectDirectory, dotnet('msbuild', target, '-nologo', '-getProperty:IntermediateOutputPath', '-p:Configuration=Debug').trim().replaceAll('\\', '/'))
   const generated = path.join(intermediate, 'generated', 'Microsoft.CodeAnalysis.Razor.Compiler'), plain = path.join(intermediate, 'stryker-razor')
   rmSync(plain, {recursive: true, force: true})

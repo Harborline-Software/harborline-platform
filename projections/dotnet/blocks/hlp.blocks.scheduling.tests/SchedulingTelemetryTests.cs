@@ -1,5 +1,6 @@
 using System.Diagnostics.Metrics;
-using Harborline.Blocks.Scheduling.Durable;
+using Harborline.Blocks.BuilderDefinitions;
+using Harborline.Blocks.Scheduling.Definitions;
 using Harborline.Blocks.Scheduling.Planning;
 
 namespace Harborline.Blocks.Scheduling.Tests;
@@ -81,25 +82,53 @@ public sealed class SchedulingTelemetryTests
     }
 
     [Fact]
-    public async Task Stale_draft_save_records_one_commit_refusal()
+    public async Task Stale_definition_draft_save_records_one_commit_refusal()
     {
         using var measurements = new SchedulingMeterMeasurements();
-        var directory = Path.Combine(Path.GetTempPath(), "hl-scheduling-telemetry-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(directory);
-        try
-        {
-            using var store = new FileJournalSchedulingStore(new() { JournalPath = Path.Combine(directory, "scheduling.journal") });
-            Assert.True((await store.SaveDraftAsync("tenant-a", "definition-1", 0, "{}", "actor")).Saved);
-            Assert.False((await store.SaveDraftAsync("tenant-a", "definition-1", 0, "{}", "actor")).Saved);
+        var catalogue = new ScheduleDefinitionCatalogue(new InMemoryVersionedDefinitionStore(
+            new Dictionary<DefinitionKind, DefinitionAdmission> { [DefinitionKind.Schedules] = ScheduleDefinitionCatalogue.Admission }));
+        await catalogue.SaveDraftAsync("tenant-a", "definition-1", "1.0.0", "{}", 0, "first");
+        var stale = await Assert.ThrowsAsync<DefinitionRefusalException>(
+            () => catalogue.SaveDraftAsync("tenant-a", "definition-1", "1.0.1", "{}", 0, "second").AsTask());
+        Assert.Equal([new DefinitionRefusal("definition.revision_conflict", "/expectedRevision")], stale.Refusals);
 
-            var refusal = Assert.Single(measurements.ForInstrument("scheduling.commit.stale_refusals"));
-            Assert.Equal(1, refusal.Value);
-            Assert.Equal("changed_facts", refusal.Tags["reason"]);
-        }
-        finally
-        {
-            try { Directory.Delete(directory, recursive: true); } catch { }
-        }
+        var refusal = Assert.Single(measurements.ForInstrument("scheduling.commit.stale_refusals"));
+        Assert.Equal(1, refusal.Value);
+        Assert.Equal("changed_facts", refusal.Tags["reason"]);
+    }
+
+    [Fact]
+    public async Task Other_definition_refusals_record_no_commit_refusal()
+    {
+        using var measurements = new SchedulingMeterMeasurements();
+        var catalogue = new ScheduleDefinitionCatalogue(new InMemoryVersionedDefinitionStore(
+            new Dictionary<DefinitionKind, DefinitionAdmission> { [DefinitionKind.Schedules] = ScheduleDefinitionCatalogue.Admission }));
+        await Assert.ThrowsAsync<DefinitionRefusalException>(
+            () => catalogue.SaveDraftAsync("tenant-a", "definition-1", "3", "{}", 0, "first").AsTask());
+        Assert.Empty(measurements.ForInstrument("scheduling.commit.stale_refusals"));
+    }
+
+    [Fact]
+    public async Task A_refusal_naming_no_fence_conflict_records_no_commit_refusal()
+    {
+        using var measurements = new SchedulingMeterMeasurements();
+        var catalogue = new ScheduleDefinitionCatalogue(new RefusingStore());
+        await Assert.ThrowsAsync<DefinitionRefusalException>(
+            () => catalogue.SaveDraftAsync("tenant-a", "definition-1", "1.0.0", "{}", 0, "first").AsTask());
+        Assert.Empty(measurements.ForInstrument("scheduling.commit.stale_refusals"));
+    }
+
+    // A store whose draft save refuses with no reasons: nothing in it names a stale fence.
+    private sealed class RefusingStore : IVersionedDefinitionStore
+    {
+        public ValueTask<DefinitionRevision> SaveDraftAsync(DefinitionDocument document, long expectedRevision, string requestId,
+            CancellationToken cancellationToken = default) => throw new DefinitionRefusalException(DefinitionAdmissionPhase.Author, []);
+        public ValueTask<IReadOnlyList<DefinitionKey>> ListKeysAsync(string tenant, DefinitionKind kind, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public ValueTask<DefinitionRevision> PublishAsync(DefinitionKey key, string versionId, long expectedRevision, string requestId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public ValueTask<DefinitionRevision> RestoreAsDraftAsync(DefinitionKey key, string sourceVersionId, string draftVersionId, string draftVersion, long expectedRevision, string requestId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public ValueTask<IReadOnlyList<DefinitionRevision>> ListHistoryAsync(DefinitionKey key, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public ValueTask<DefinitionRevision?> GetPublishedHeadAsync(DefinitionKey key, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public ValueTask<DefinitionRevision?> ResolvePublishedAsync(DefinitionBinding binding, CancellationToken cancellationToken = default) => throw new NotSupportedException();
     }
 
     private static SchedulingProfile Profile(

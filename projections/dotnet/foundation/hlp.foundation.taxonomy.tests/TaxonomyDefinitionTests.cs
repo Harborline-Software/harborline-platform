@@ -82,7 +82,7 @@ public sealed class TaxonomyDefinitionTests
         Assert.Equal("acme.health.icd", JsonDocument.Parse(first).RootElement.GetProperty("definition_id").GetString());
         Assert.Equal(new TaxonomyNodeId(Id, "root"), new TaxonomyNodeId(TaxonomyDefinitionId.Parse(parsed.DefinitionId.ToString()), "root"));
         Assert.Empty(TaxonomyDefinitionAdmission.Validate(parsed, TaxonomyAdmissionPhase.Install, ContractWindow));
-        Assert.Equal(7, TaxonomyDefinitionPackExporter.Export(parsed, ContractWindow).ContentKind);
+        Assert.Equal(8, TaxonomyDefinitionPackExporter.Export(parsed, ContractWindow).ContentKind); // the api's TaxonomyDefinition; 7 is TemplateDefinition (T-738)
     }
 
     [Fact(DisplayName = "taxonomy-ck-2: only three non-empty id segments parse")]

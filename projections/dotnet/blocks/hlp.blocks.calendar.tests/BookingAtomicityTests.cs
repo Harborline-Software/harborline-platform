@@ -272,6 +272,9 @@ public sealed class BookingAtomicityTests
             => _inner.GetAsync(tenantId, id, ct);
         public Task<bool> RemoveAsync(TenantId tenantId, CalendarEventId id, CancellationToken ct = default)
             => _inner.RemoveAsync(tenantId, id, ct);
+        public Task<bool> SaveAllIfCapacityUnchangedAsync(TenantId tenantId, IReadOnlyList<CalendarEvent> calendarEvents,
+            IReadOnlyDictionary<ParticipantRef, long> expectedEpochs, CancellationToken ct = default)
+            => _inner.SaveAllIfCapacityUnchangedAsync(tenantId, calendarEvents, expectedEpochs, ct);
     }
 
     /// <summary>
@@ -319,5 +322,8 @@ public sealed class BookingAtomicityTests
             => _inner.ListAsync(tenantId, ct);
         public Task<bool> RemoveAsync(TenantId tenantId, CalendarEventId id, CancellationToken ct = default)
             => _inner.RemoveAsync(tenantId, id, ct);
+        public Task<bool> SaveAllIfCapacityUnchangedAsync(TenantId tenantId, IReadOnlyList<CalendarEvent> calendarEvents,
+            IReadOnlyDictionary<ParticipantRef, long> expectedEpochs, CancellationToken ct = default)
+            => _inner.SaveAllIfCapacityUnchangedAsync(tenantId, calendarEvents, expectedEpochs, ct);
     }
 }

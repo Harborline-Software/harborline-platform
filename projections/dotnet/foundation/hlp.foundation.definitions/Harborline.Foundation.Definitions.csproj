@@ -5,12 +5,15 @@
     <PackageId>Harborline.Foundation.Definitions</PackageId>
     <AssemblyName>Harborline.Foundation.Definitions</AssemblyName>
     <RootNamespace>Harborline.Foundation.Definitions</RootNamespace>
-    <Description>Shared definition-admission refusal envelope.</Description>
+    <Description>Shared definition-admission refusal envelope and the pack content-kind and pillar registry.</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageReleaseNotes>New package (owner ruling Q48 / T-724 ruling 116): the shared definition-admission refusal envelope (DefinitionAdmissionPhase, DefinitionRefusal, DefinitionRefusalReport, DefinitionRefusalException), moved here from Harborline.Blocks.BuilderDefinitions, which now forwards those four types to this package with [TypeForwardedTo] for binary compatibility. Internal-only projection; public distribution is not authorized.</PackageReleaseNotes>
   </PropertyGroup>
   <ItemGroup>
     <None Include="README.md" Pack="true" PackagePath="/" />
+    <!-- T-738: the content-kind and pillar registry export the api consumes. -->
+    <EmbeddedResource Include="../../../../_shared/content-kinds/content-kinds.json" LogicalName="Harborline.Foundation.Definitions.content-kinds.json" />
+    <None Include="../../../../_shared/content-kinds/content-kinds.json" Pack="true" PackagePath="_shared/content-kinds/" />
     <None Include="../../../../LICENSE" Link="LICENSE" Pack="true" PackagePath="/" />
   </ItemGroup>
 </Project>

@@ -24,41 +24,34 @@ public sealed class FileJournalSchedulingStoreTests
     public async Task NodeEfCalendarStoreTests_ResourceAvailability_RoundTrips_AcrossContextReopen()
         => await RoundTrip(SchedulingCalendarEntityKind.ResourceAvailability, "party:1", "{\"windows\":[\"09:00\"]}");
 
-    [Fact]
-    public async Task NodeSchedulingDraftStoreTests_Save_survives_new_store_and_records_server_actor_audit()
+    [Fact(DisplayName = "DES-0022 ruling 8: a journal holding a retired integer-revision draft frame refuses at startup")]
+    public async Task Retired_integer_revision_draft_frame_refuses_at_startup()
     {
         using var fixture = new JournalFixture();
-        var instant = new DateTimeOffset(2026, 3, 8, 13, 0, 0, TimeSpan.Zero);
-        using (var store = fixture.Open(new FrozenTimeProvider(instant)))
-            Assert.True((await store.SaveDraftAsync("tenant-a", "definition-1", 0, "{}", "server-actor")).Saved);
-        using var reopened = fixture.Open();
-        Assert.Equal(1, (await reopened.GetDraftAsync("tenant-a", "definition-1"))!.Revision);
-        var audit = Assert.Single(await reopened.GetAuditAsync("tenant-a", "definition-1"));
-        Assert.Equal("server-actor", audit.ActorId);
-        Assert.Equal(instant, audit.OccurredAt);
-    }
-
-    [Fact]
-    public async Task Draft_and_audit_are_physically_co_committed_in_one_flushed_frame()
-    {
-        using var fixture = new JournalFixture(); using var store = fixture.Open();
-        var before = store.JournalLength;
-        await store.SaveDraftAsync("tenant-a", "definition-1", 0, "{}", "actor");
-        Assert.True(store.JournalLength > before);
-        Assert.NotNull(await store.GetDraftAsync("tenant-a", "definition-1"));
-        Assert.Single(await store.GetAuditAsync("tenant-a", "definition-1"));
-    }
-
-    [Fact]
-    public async Task NodeSchedulingDraftStoreTests_Expected_revision_conflict_writes_neither_revision_nor_audit_at_file_level()
-    {
-        using var fixture = new JournalFixture(); using var store = fixture.Open();
-        await store.SaveDraftAsync("tenant-a", "definition-1", 0, "{}", "actor");
+        using (var store = fixture.Open()) await store.SaveCalendarEntityAsync(Calendar());
         var before = new FileInfo(fixture.Path).Length;
-        var result = await store.SaveDraftAsync("tenant-a", "definition-1", 0, "{\"stale\":true}", "actor");
-        Assert.False(result.Saved);
-        Assert.Equal(before, new FileInfo(fixture.Path).Length);
-        Assert.Single(await store.GetAuditAsync("tenant-a", "definition-1"));
+        await using (var file = new FileStream(fixture.Path, FileMode.Append, FileAccess.Write, FileShare.None))
+        {
+            var payload = System.Text.Encoding.UTF8.GetBytes(
+                "{\"TenantId\":\"tenant-a\",\"DefinitionId\":\"definition-1\",\"Revision\":1,\"DocumentJson\":\"{}\",\"ActorId\":\"actor\",\"OccurredAt\":\"2026-03-08T13:00:00+00:00\"}");
+            await file.WriteAsync(Frame(1, payload));
+            file.Flush(true);
+        }
+        var refusal = Assert.Throws<InvalidDataException>(() => fixture.Open());
+        Assert.Contains("integer-revision", refusal.Message, StringComparison.Ordinal);
+        Assert.Contains("shared versioned-definition store", refusal.Message, StringComparison.Ordinal);
+        Assert.True(new FileInfo(fixture.Path).Length > before);
+    }
+
+    [Fact(DisplayName = "DES-0022 ruling 8: the journal no longer stores scheduling definitions or exposes an integer revision")]
+    public void Journal_exposes_no_definition_draft_or_integer_revision()
+    {
+        var members = typeof(FileJournalSchedulingStore).GetMembers(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance)
+            .Select(member => member.Name).ToArray();
+        Assert.DoesNotContain(members, name => name.Contains("Draft", StringComparison.Ordinal) || name.Contains("Audit", StringComparison.Ordinal));
+        var exported = typeof(FileJournalSchedulingStore).Assembly.GetExportedTypes();
+        Assert.DoesNotContain(exported, type => type.GetProperties().Any(property =>
+            property.Name.Contains("Revision", StringComparison.Ordinal) && property.PropertyType == typeof(long)));
     }
 
     [Fact]
@@ -76,14 +69,14 @@ public sealed class FileJournalSchedulingStoreTests
         var tornLength = new FileInfo(fixture.Path).Length;
         using var reopened = fixture.Open();
         Assert.True(reopened.JournalLength < tornLength);
-        Assert.NotNull(await reopened.GetDraftAsync("tenant:probe", "definition-1"));
+        Assert.NotNull(await reopened.GetCalendarEntityAsync("tenant:probe", SchedulingCalendarEntityKind.ResourceAvailability, "party:1"));
     }
 
     [Fact]
     public async Task Corruption_in_a_complete_frame_fails_startup()
     {
         using var fixture = new JournalFixture();
-        using (var store = fixture.Open()) await store.SaveDraftAsync("tenant", "id", 0, "{}", "actor");
+        using (var store = fixture.Open()) await store.SaveCalendarEntityAsync(Calendar());
         using (var file = new FileStream(fixture.Path, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
         { file.Position = 44; var value = file.ReadByte(); file.Position = 44; file.WriteByte((byte)(value ^ 0xff)); file.Flush(true); }
         Assert.Throws<InvalidDataException>(() => fixture.Open());
@@ -95,7 +88,6 @@ public sealed class FileJournalSchedulingStoreTests
         using var fixture = new JournalFixture();
         await RunProbeAsync("write-wait", fixture.Path, killAfterReady: true);
         using var reopened = fixture.Open();
-        Assert.NotNull(await reopened.GetDraftAsync("tenant:probe", "definition-1"));
         Assert.NotNull(await reopened.GetCalendarEntityAsync("tenant:probe", SchedulingCalendarEntityKind.OwnedCalendar, "calendar-1"));
         Assert.NotNull(await reopened.GetCalendarEntityAsync("tenant:probe", SchedulingCalendarEntityKind.CalendarEvent, "event-1"));
         Assert.NotNull(await reopened.GetCalendarEntityAsync("tenant:probe", SchedulingCalendarEntityKind.ResourceAvailability, "party:1"));
@@ -110,10 +102,24 @@ public sealed class FileJournalSchedulingStoreTests
     public async Task Unknown_journal_format_version_fails_startup()
     {
         using var fixture = new JournalFixture();
-        using (var store = fixture.Open()) await store.SaveDraftAsync("tenant", "id", 0, "{}", "actor");
+        using (var store = fixture.Open()) await store.SaveCalendarEntityAsync(Calendar());
         using (var file = new FileStream(fixture.Path, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
         { file.Position = 4; file.WriteByte(0xff); file.Flush(true); }
         Assert.Throws<InvalidDataException>(() => fixture.Open());
+    }
+
+    private static SchedulingCalendarEntity Calendar()
+        => new("tenant", SchedulingCalendarEntityKind.OwnedCalendar, "calendar-1", "{}");
+
+    // The journal's frame layout: 12-byte header, SHA-256 of the header, payload, SHA-256 of header+payload.
+    private static byte[] Frame(byte recordType, byte[] payload)
+    {
+        var header = new byte[12];
+        System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(header, 0x4A534C48);
+        header[4] = 1; header[5] = recordType;
+        System.Buffers.Binary.BinaryPrimitives.WriteInt32LittleEndian(header.AsSpan(8), payload.Length);
+        var framed = header.Concat(payload).ToArray();
+        return [.. header, .. System.Security.Cryptography.SHA256.HashData(header), .. payload, .. System.Security.Cryptography.SHA256.HashData(framed)];
     }
 
     private static async Task RoundTrip(SchedulingCalendarEntityKind kind, string id, string json)
@@ -150,13 +156,12 @@ public sealed class FileJournalSchedulingStoreTests
         if (!killAfterReady) Assert.Equal(0, process.ExitCode);
     }
 
-    private sealed class FrozenTimeProvider(DateTimeOffset value) : TimeProvider { public override DateTimeOffset GetUtcNow() => value; }
     private sealed class JournalFixture : IDisposable
     {
         private readonly string directory = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "hl-scheduling-" + Guid.NewGuid().ToString("N"));
         public JournalFixture() => Directory.CreateDirectory(directory);
         public string Path => System.IO.Path.Combine(directory, "scheduling.journal");
-        public FileJournalSchedulingStore Open(TimeProvider? provider = null) => new(new() { JournalPath = Path }, provider);
+        public FileJournalSchedulingStore Open() => new(new() { JournalPath = Path });
         public void Dispose() { try { Directory.Delete(directory, recursive: true); } catch { } }
     }
 }

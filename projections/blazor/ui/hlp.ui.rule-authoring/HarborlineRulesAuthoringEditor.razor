@@ -4,7 +4,7 @@
 @using Harborline.Foundation.RuleEngine.Skins
 @using Harborline.UIAdapters.Blazor.Components.Buttons
 
-<form class="hl-rules-authoring" @onsubmit:preventDefault="true">
+@{ RenderFragment body = @<text>
     <header class="hl-rules-authoring__header">
         <label>Rule name<input aria-label="Rule name" value="@Current.Name" @onchange="ChangeName" /></label>
         <label>Target<input aria-label="Target" value="@Current.Draft.ScopeTarget" @onchange="ChangeTarget" /></label>
@@ -33,7 +33,11 @@
             @if (table.NoMatch is NoMatchPosture.Default noMatch) { <label>Default output<input aria-label="Default output" value="@noMatch.Value" @onchange="ChangeDefaultOutput" /></label> }
         </fieldset>
     }
-    <div role="group" aria-label="Rule lifecycle" class="hl-rules-authoring__actions"><HarborlineButton ButtonType="ButtonType.Button" OnClick="Save">Save draft</HarborlineButton><HarborlineButton ButtonType="ButtonType.Button" OnClick="Preview">Preview</HarborlineButton><HarborlineButton ButtonType="ButtonType.Button" OnClick="Publish">Publish</HarborlineButton><HarborlineButton ButtonType="ButtonType.Button" OnClick="Archive">Archive</HarborlineButton></div>
+</text>; }
+<form class="hl-rules-authoring" data-read-only="@(ReadOnly ? "" : null)" @onsubmit:preventDefault="true">
+    @if (ReadOnly) { <fieldset class="hl-rules-authoring__read-only" disabled>@body</fieldset> } else { @body }
+    <div role="group" aria-label="Rule lifecycle" class="hl-rules-authoring__actions"><HarborlineButton ButtonType="ButtonType.Button" Enabled="@Allowed("save-draft")" OnClick="Save">Save draft</HarborlineButton><HarborlineButton ButtonType="ButtonType.Button" Enabled="@Allowed("preview")" OnClick="Preview">Preview</HarborlineButton><HarborlineButton ButtonType="ButtonType.Button" Enabled="@Allowed("publish")" OnClick="Publish">Publish</HarborlineButton><HarborlineButton ButtonType="ButtonType.Button" Enabled="@Allowed("archive")" OnClick="Archive">Archive</HarborlineButton></div>
+    @if (_refusals.Count > 0) { <ul class="hl-rules-authoring__refusals" aria-label="Refusals">@foreach (var refusal in _refusals) { <li data-code="@refusal.Code" data-pointer="@refusal.Pointer">@refusal.Code at @refusal.Pointer</li> }</ul> }
     @if (_incoming is not null) { <aside role="alert">Revision changed.<HarborlineButton ButtonType="ButtonType.Button" OnClick="Keep">Keep edits</HarborlineButton><HarborlineButton ButtonType="ButtonType.Button" OnClick="Discard">Discard edits</HarborlineButton></aside> }
     <aside class="hl-rules-authoring__preview" aria-live="polite"><h2>Preview (@(_outcome?.InputLabel ?? PreviewKind) input)</h2><p>@OutcomeText</p></aside>
 </form>
@@ -46,8 +50,9 @@
     [Parameter] public string PreviewKind { get; set; } = "sample";
     [Parameter] public EventCallback<RulesDraft> ValueChanged { get; set; }
     [Parameter] public EventCallback<RulesOperationRequest> OperationRequested { get; set; }
+    [Parameter] public RulesEditorAuthority? Authority { get; set; }
 
-    private RulesDraft Current = RulesDraft.Empty; private RulesDraft? _incoming; private RulesOutcome? _outcome; private RulesOutcome? _lastOutcome; private string _revision = ""; private bool _dirty; private int _generation; private static int _intent;
+    private RulesDraft Current = RulesDraft.Empty; private RulesDraft? _incoming; private IReadOnlyList<RulesRefusal> _refusals = []; private RulesOutcome? _outcome; private RulesOutcome? _lastOutcome; private string _revision = ""; private bool _dirty; private int _generation; private static int _intent;
     private readonly Dictionary<string, string> _intentIds = new(StringComparer.Ordinal); private readonly HashSet<string> _outstanding = new(StringComparer.Ordinal);
     private FormulaDraft? Formula => Current.Draft as FormulaDraft; private DecisionTableDraft? Table => Current.Draft as DecisionTableDraft; private RulesExpressionContract? RuleContract => ExpressionContracts.FirstOrDefault(item => item.Site == "rule");
     private static readonly string[] CompareOperators = ["==", "!=", ">", ">=", "<", "<="];
@@ -56,16 +61,16 @@
     protected override async Task OnParametersSetAsync()
     {
         var key = RevisionKey(Value);
-        if (_revision != key) { if (_dirty) _incoming = Value; else { Current = Value; _generation++; _outcome = null; _outstanding.Clear(); _intentIds.Clear(); } _revision = key; }
+        if (_revision != key) { if (_dirty) _incoming = Value; else { Current = Value; _generation++; _outcome = null; _refusals = []; _outstanding.Clear(); _intentIds.Clear(); } _revision = key; }
         if (Outcome is not null && !ReferenceEquals(Outcome, _lastOutcome)) { _lastOutcome = Outcome; if (Outcome.RequestId is null && _outstanding.Count == 0) _outcome = Outcome; else if (Matches(Outcome.RequestId, Outcome.Identity, Outcome.ExpectedRevision, Outcome.Generation)) { _outstanding.Remove(Outcome.RequestId!); foreach (var item in _intentIds.Where(item => item.Value == Outcome.RequestId).ToArray()) _intentIds.Remove(item.Key); _outcome = Outcome; } }
-        if (Response is not null && Matches(Response.RequestId, Response.Identity, Response.ExpectedRevision, Response.Generation)) { _outstanding.Remove(Response.RequestId); foreach (var item in _intentIds.Where(item => item.Value == Response.RequestId).ToArray()) _intentIds.Remove(item.Key); if (Response.Outcome is not null) _outcome = Response.Outcome; if (Response.Authoritative is not null || Response.Materialization is not null) { var identity = Response.Authoritative?.Identity ?? Current.Identity; var binding = Response.Materialization?.Bindings.FirstOrDefault(item => item.DefinitionId == identity) ?? Response.Materialization?.Bindings.FirstOrDefault(); Current = Current with { Identity = identity, ExpectedRevision = Response.Authoritative?.Revision ?? Current.ExpectedRevision, Materialization = Response.Materialization ?? Current.Materialization, VersionSelection = binding is null ? Current.VersionSelection : "Pinned", PinnedVersionId = binding?.VersionId ?? Current.PinnedVersionId }; _dirty = false; await ValueChanged.InvokeAsync(Current); } }
+        if (Response is not null && Matches(Response.RequestId, Response.Identity, Response.ExpectedRevision, Response.Generation)) { _outstanding.Remove(Response.RequestId); foreach (var item in _intentIds.Where(item => item.Value == Response.RequestId).ToArray()) _intentIds.Remove(item.Key); if (Response.Outcome is not null) _outcome = Response.Outcome; _refusals = Response.Refusals ?? []; if (Response.Authoritative is not null || Response.Materialization is not null) { var identity = Response.Authoritative?.Identity ?? Current.Identity; var binding = Response.Materialization?.Bindings.FirstOrDefault(item => item.DefinitionId == identity) ?? Response.Materialization?.Bindings.FirstOrDefault(); Current = Current with { Identity = identity, ExpectedRevision = Response.Authoritative?.Revision ?? Current.ExpectedRevision, Materialization = Response.Materialization ?? Current.Materialization, VersionSelection = binding is null ? Current.VersionSelection : "Pinned", PinnedVersionId = binding?.VersionId ?? Current.PinnedVersionId }; _dirty = false; _revision = RevisionKey(Current); await ValueChanged.InvokeAsync(Current); } }
     }
 
     private static FormulaExpr.Literal EmptyLiteral() => new("", ColumnValueType.Text);
     private static string RevisionKey(RulesDraft value) => $"{value.Identity}\u0000{value.ExpectedRevision}\u0000{value.Materialization?.ContentDigest}";
     private bool Matches(string? request, string? identity, string? revision, int? generation) => request is not null && _outstanding.Contains(request) && identity == Current.Identity && revision == Current.ExpectedRevision && generation == _generation;
     private string OutcomeText { get { if (_outcome is null) return "No preview has run."; var subject = string.Join(" / ", new[] { _outcome.RuleName, _outcome.MemberName }.Where(value => !string.IsNullOrWhiteSpace(value))); var result = _outcome.Kind switch { "Value" => $"Value: {_outcome.Value}", "Validity" => $"Validity: {_outcome.Validity}", "Visibility" => $"Visibility: {_outcome.Visibility}", "Presentation" => $"Presentation: {_outcome.Presentation}", "Pending" => "Preview pending.", "Uncomputable" => $"Uncomputable: {_outcome.Code}", _ => $"Refused: {_outcome.Code}" }; return $"{(subject == "" ? "" : subject + ": ")}{result} ({_outcome.InputLabel} @ {_outcome.ClockUtc})"; } }
-    private async Task Change(RulesDraft value) { Current = value; _dirty = true; _generation++; _outcome = null; await ValueChanged.InvokeAsync(value); }
+    private async Task Change(RulesDraft value) { Current = value; _dirty = true; _generation++; _outcome = null; _refusals = []; await ValueChanged.InvokeAsync(value); }
     private Task ChangeDraft(RuleDraft draft) => Change(Current with { Draft = draft });
     private Task ChangeName(ChangeEventArgs eventArgs) => Change(Current with { Name = eventArgs.Value?.ToString() ?? "" });
     private Task ChangeTarget(ChangeEventArgs eventArgs) => ChangeDraft(Current.Draft with { ScopeTarget = eventArgs.Value?.ToString() ?? "" });
@@ -98,6 +103,9 @@
     private Task ChangeNoMatch(ChangeEventArgs eventArgs) => ChangeDraft(Table! with { NoMatch = eventArgs.Value?.ToString() == "CatchAll" ? new NoMatchPosture.CatchAll() : new NoMatchPosture.Default("") });
     private Task ChangeDefaultOutput(ChangeEventArgs eventArgs) => ChangeDraft(Table! with { NoMatch = new NoMatchPosture.Default(eventArgs.Value?.ToString() ?? "") });
     private Task Save() => Request("save-draft"); private Task Preview() => Request("preview"); private Task Publish() => Request("publish"); private Task Archive() => Request("archive");
+    // Without an authority the host gates elsewhere; with one, an ungranted operation's control renders disabled. The producer still enforces the gate (T-591).
+    private bool Allowed(string operation) => Authority is null || operation switch { "publish" => Authority.CanPublish, "preview" => Authority.CanPreview, _ => Authority.CanAuthor };
+    private bool ReadOnly => !Allowed("save-draft");
     private Task Request(string operation) { var key = $"{operation}\u0000{Current.Identity}\u0000{Current.ExpectedRevision}\u0000{_generation}"; if (!_intentIds.TryGetValue(key, out var requestId)) { requestId = $"{Current.Identity}:{Current.ExpectedRevision}:{operation}:{Interlocked.Increment(ref _intent)}"; _intentIds[key] = requestId; } _outstanding.Add(requestId); return OperationRequested.InvokeAsync(new(operation, requestId, Current.Identity, Current.ExpectedRevision, _generation, Current)); }
     private Task Keep() { _incoming = null; return Task.CompletedTask; }
     private Task Discard() { if (_incoming is null) return Task.CompletedTask; Current = _incoming; _incoming = null; _dirty = false; _generation++; return ValueChanged.InvokeAsync(Current); }

@@ -110,14 +110,14 @@
     "commit": "c09cfcacf303b1944afadf7e891428ecc9d737cb"
   },
   "projections/dotnet/blocks/hlp.blocks.scheduling.tests/Harborline.Blocks.Scheduling.Tests.csproj": {
-    "break": 40,
-    "score": 40.79,
-    "tested": 329,
-    "total": 701,
-    "detected": 195,
-    "undetected": 283,
-    "measured": "2026-09-26",
-    "commit": "c09cfcacf303b1944afadf7e891428ecc9d737cb"
+    "break": 51,
+    "score": 51.52,
+    "tested": 411,
+    "total": 752,
+    "detected": 271,
+    "undetected": 255,
+    "measured": "2026-09-29",
+    "commit": "7384db7d75695cd7de7a29baf64f83b5bbfc5894"
   },
   "projections/dotnet/blocks/hlp.blocks.workflow-interpreter.tests/Harborline.Blocks.Workflow.Interpreter.Tests.csproj": {
     "break": 46,
@@ -198,6 +198,16 @@
     "undetected": 54,
     "measured": "2026-09-29",
     "commit": "a23afe320807e7c7775585a6246ca9981b337bb7"
+  },
+  "projections/dotnet/foundation/hlp.foundation.execution-runtime.tests/Harborline.Foundation.ExecutionRuntime.Tests.csproj": {
+    "break": 84,
+    "score": 84.1,
+    "tested": 151,
+    "total": 204,
+    "detected": 127,
+    "undetected": 24,
+    "measured": "2026-09-29",
+    "commit": "edddd292b3bbb1bc654f26355aacd049c21e07ed"
   },
   "projections/dotnet/foundation/hlp.foundation.field-runtime.tests/Harborline.Foundation.FieldRuntime.Tests.csproj": {
     "break": 71,
