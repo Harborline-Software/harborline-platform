@@ -52,7 +52,7 @@ Each mutation was applied to one lane, the named test was run alone, and the sou
 
 ## Stryker
 
-`tooling/stryker.mjs` read MSBuild's `IntermediateOutputPath` as `obj\Debug/net10.0/`, and the backslash made the Razor run fail on Linux with `ENOENT`. The PR workflow runs on ubuntu-latest, so this change normalises the separator.
+`tooling/stryker.mjs` read MSBuild's `IntermediateOutputPath` as `obj\Debug/net10.0/`, and the backslash made the Razor run fail on Linux with `ENOENT`. The PR workflow runs on ubuntu-latest. These runs used a local separator fix; main later landed the same fix in #208, so this PR no longer carries it.
 
 Stryker.NET 5.0.0, PR mode (`node tooling/stryker.mjs run hlp.ui.button.tests`), mutated the changed data-exchange sources. It tested 132 mutants: 126 detected and 7 undetected, a score of 94.73. The first run scored 48.12; the tests added since then close the gaps it found. Killing tests for the new logic, matched by `.razor` line:
 
