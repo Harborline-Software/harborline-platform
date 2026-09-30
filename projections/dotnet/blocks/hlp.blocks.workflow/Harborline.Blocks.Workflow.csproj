@@ -8,7 +8,6 @@
     <Description>Workflow engine core for Harborline Platform: typed state-machine runtime (declarative definition, fluent builder, in-memory runtime) plus the provider-neutral durable-execution core — the IWorkflowStore seam, the durable model, atomic-advance contract, cross-architecture-stable idempotency key, the four triggers and dispatcher with iteration caps, the fail-closed admission gate over a Harborline-owned capability-authority registry, the effect broker-PEP with confirm-time separation of duties, and the two-faced workflow definition store port.</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageReleaseNotes>Internal-only projection; public distribution is not authorized.</PackageReleaseNotes>
-    <NoWarn>$(NoWarn);CS1591</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <!-- The Harborline-owned canonical capability→authority registry the admission validator and

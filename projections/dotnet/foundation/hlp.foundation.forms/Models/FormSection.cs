@@ -74,14 +74,18 @@ public enum SectionLayoutKind
 /// maps it to a logical-property utility so it is RTL-correct).</summary>
 public enum FlexDirection
 {
+    /// <summary>Children flow along the inline axis, start to end in the reading direction.</summary>
     Row = 0,
+    /// <summary>Children stack along the block axis.</summary>
     Column = 1,
 }
 
 /// <summary>Flex wrapping mode.</summary>
 public enum FlexWrap
 {
+    /// <summary>Children wrap onto new lines when they overflow.</summary>
     Wrap = 0,
+    /// <summary>Children stay on one line.</summary>
     NoWrap = 1,
 }
 

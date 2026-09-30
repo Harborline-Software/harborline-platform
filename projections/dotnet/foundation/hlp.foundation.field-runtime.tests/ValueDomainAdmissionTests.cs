@@ -18,6 +18,19 @@ public sealed class ValueDomainAdmissionTests
     }
 
     [Fact]
+    public void The_shared_admission_contract_applies_the_same_source_count_rule()
+    {
+        IValueDomainAdmission admission = new SharedValueDomainAdmission();
+
+        var refusal = Assert.Single(admission.Validate(
+            new(["open"], RecordQuery: new("customer", "active-customers")), "/fields/2/value_domain"));
+
+        Assert.Equal("field.value_domain_source_count", refusal.Code);
+        Assert.Equal("/fields/2/value_domain", refusal.JsonPointer);
+        Assert.Empty(admission.Validate(new(LiteralValues: ["open"]), "/fields/2/value_domain"));
+    }
+
+    [Fact]
     public void An_inline_enum_cannot_supply_domain_membership()
     {
         var refusals = ValueDomainAdmission.ValidateJson(

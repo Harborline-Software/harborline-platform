@@ -28,6 +28,7 @@ public sealed class RruleDueOccurrenceSource(
 {
     private readonly IReadOnlyList<DueQueueSchedule> schedules = schedules.ToArray();
 
+    /// <inheritdoc />
     public IReadOnlyList<DueQueueItem> DeriveDue(
         IEnumerable<DueQueueCompletion> completionHistory,
         DateOnly windowStart,
@@ -42,6 +43,7 @@ public sealed class CompositeDueOccurrenceSource(IEnumerable<IDueOccurrenceSourc
 {
     private readonly IReadOnlyList<IDueOccurrenceSource> sources = sources.ToArray();
 
+    /// <inheritdoc />
     public IReadOnlyList<DueQueueItem> DeriveDue(
         IEnumerable<DueQueueCompletion> completionHistory,
         DateOnly windowStart,

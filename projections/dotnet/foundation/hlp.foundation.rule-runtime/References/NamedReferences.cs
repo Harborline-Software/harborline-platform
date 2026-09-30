@@ -37,9 +37,13 @@ public sealed record NamedPredicate
         Pin = new ExactPin(Name, Version, NamedReferences.Digest("predicate", Name, Version, Expression));
     }
 
+    /// <summary>The reference's name.</summary>
     public string Name { get; }
+    /// <summary>The exact version; never floating.</summary>
     public string Version { get; }
+    /// <summary>The canonical JSON of the admitted JsonLogic expression.</summary>
     public string Expression { get; }
+    /// <summary>The exact pin a consumer stores: name, version and a digest of the canonical expression.</summary>
     public ExactPin Pin { get; }
 }
 
@@ -59,9 +63,13 @@ public sealed record NamedCalculation
         Pin = new ExactPin(Name, Version, NamedReferences.Digest("calculation", Name, Version, Expression));
     }
 
+    /// <summary>The reference's name.</summary>
     public string Name { get; }
+    /// <summary>The exact version; never floating.</summary>
     public string Version { get; }
+    /// <summary>The canonical JSON of the admitted JsonLogic expression.</summary>
     public string Expression { get; }
+    /// <summary>The exact pin a consumer stores: name, version and a digest of the canonical expression.</summary>
     public ExactPin Pin { get; }
 }
 
@@ -72,6 +80,11 @@ public sealed record NamedCalculation
 /// </summary>
 public sealed record LegalityRuleSetCitation
 {
+    /// <summary>
+    /// Creates the citation; throws <see cref="NamedReferenceException"/> with <see cref="NamedReferences.Floating"/> for a
+    /// non-exact version, or <see cref="NamedReferences.Malformed"/> for a blank package or jurisdiction, a digest that is not
+    /// 64 hex characters, or an end date before the start.
+    /// </summary>
     public LegalityRuleSetCitation(string packageId, string name, string version, string digest, string jurisdiction,
         DateOnly effectiveFrom, DateOnly? effectiveTo)
     {
@@ -82,10 +95,15 @@ public sealed record LegalityRuleSetCitation
         (PackageId, Pin, Jurisdiction, EffectiveFrom, EffectiveTo) = (packageId, new ExactPin(name, version, digest), jurisdiction, effectiveFrom, effectiveTo);
     }
 
+    /// <summary>The package that owns the rule set.</summary>
     public string PackageId { get; }
+    /// <summary>The rule set's exact name, version and package-supplied digest.</summary>
     public ExactPin Pin { get; }
+    /// <summary>The jurisdiction the rule set governs.</summary>
     public string Jurisdiction { get; }
+    /// <summary>The first day the rule set applies.</summary>
     public DateOnly EffectiveFrom { get; }
+    /// <summary>The last day the rule set applies; null when open-ended.</summary>
     public DateOnly? EffectiveTo { get; }
 
     /// <summary>Canonical JSON preserving provenance, dates and jurisdiction.</summary>
@@ -104,9 +122,13 @@ public sealed record LegalityRuleSetCitation
 /// <summary>What a named predicate is reused by (<c>rules-auth-9</c>).</summary>
 public enum PredicateConsumer
 {
+    /// <summary>A view's row filter.</summary>
     ViewFilter,
+    /// <summary>A rule's condition.</summary>
     RuleCondition,
+    /// <summary>An automation's trigger condition.</summary>
     AutomationCondition,
+    /// <summary>A report's population filter.</summary>
     ReportPopulation,
     /// <summary>A Layout block's <c>show_when</c> guard (DES-0052 <c>layout-ck-29</c>, T-724 ruling 72).</summary>
     LayoutGuard,
@@ -121,6 +143,7 @@ public sealed class PinnedClosure
     private readonly Dictionary<(string, string), NamedPredicate> _predicates;
     private readonly Dictionary<(string, string), NamedCalculation> _calculations;
 
+    /// <summary>Freezes the closure; a duplicate name and version throws <see cref="ArgumentException"/>.</summary>
     public PinnedClosure(IEnumerable<NamedPredicate> predicates, IEnumerable<NamedCalculation> calculations)
     {
         _predicates = predicates.ToDictionary(p => (p.Name, p.Version));
@@ -143,9 +166,13 @@ public sealed class PinnedClosure
 /// <summary>Resolution of named predicates and calculations through exact pins.</summary>
 public static class NamedReferences
 {
+    /// <summary>A version is blank or floating (<c>latest</c>, <c>*</c>, <c>^</c>, <c>~</c>).</summary>
     public const string Floating = "rule.reference.floating";
+    /// <summary>A pin names a version absent from the pinned closure.</summary>
     public const string Unresolved = "rule.reference.unresolved";
+    /// <summary>A pin's digest differs from the closure entry's digest.</summary>
     public const string DigestMismatch = "rule.reference.digest_mismatch";
+    /// <summary>A reference is missing a name, its expression is not JSON, or a citation's fields are invalid.</summary>
     public const string Malformed = "rule.reference.malformed";
 
     /// <summary>

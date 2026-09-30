@@ -9,6 +9,7 @@ public sealed class RruleDueQueueQueryService : IDueQueueQueryService
 {
     private readonly IRruleExpansionService _rrule;
 
+    /// <summary>Builds the query over <paramref name="rrule"/>; throws <see cref="ArgumentNullException"/> when it is null.</summary>
     public RruleDueQueueQueryService(IRruleExpansionService rrule)
     {
         _rrule = rrule ?? throw new ArgumentNullException(nameof(rrule));

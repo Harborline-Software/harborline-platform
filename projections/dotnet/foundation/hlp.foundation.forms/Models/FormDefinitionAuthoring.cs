@@ -8,6 +8,7 @@ namespace Harborline.Foundation.Forms.Models;
 /// </summary>
 public sealed record FormDefinitionAuthoring
 {
+    /// <summary>Snapshots <paramref name="fields"/> with ordinal keys, copying each entry so later changes to the input do not leak in.</summary>
     public FormDefinitionAuthoring(IReadOnlyDictionary<string, FormFieldAuthoringMetadata> fields)
     {
         ArgumentNullException.ThrowIfNull(fields);
@@ -25,6 +26,7 @@ public sealed record FormDefinitionAuthoring
 /// <summary>Exact field type, validation constraints, and option values authored by Harborline App.</summary>
 public sealed record FormFieldAuthoringMetadata
 {
+    /// <summary>Snapshots one field's authored metadata; the lists are copied.</summary>
     public FormFieldAuthoringMetadata(
         string type,
         bool required,
@@ -37,9 +39,13 @@ public sealed record FormFieldAuthoringMetadata
         Options = options?.ToArray();
     }
 
+    /// <summary>The exact authored field type, such as radio versus select, which the JSON Schema alone cannot recover.</summary>
     public string Type { get; }
+    /// <summary>True when the author marked the field required.</summary>
     public bool Required { get; }
+    /// <summary>The authored validation constraints in order; null when none were authored.</summary>
     public IReadOnlyList<FormFieldValidation>? Validations { get; }
+    /// <summary>The authored option values in order; null for a field without options.</summary>
     public IReadOnlyList<string>? Options { get; }
 
     internal FormFieldAuthoringMetadata Copy() =>

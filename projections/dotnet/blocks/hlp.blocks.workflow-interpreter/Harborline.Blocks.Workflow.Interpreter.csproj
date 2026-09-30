@@ -8,7 +8,6 @@
     <Description>The general declarative workflow interpreter for Harborline Platform. Executes an authored + admitted + persisted WorkflowDefinition through the engine core: it loads the pinned definition via the re-validating IWorkflowDefinitionExecutionStore (never the lenient authoring face) and reaches every side-effect ONLY through the public IWorkflowEffectBroker (AP autonomously; CP through the SoD-gated confirm path). A SEPARATE assembly from the engine core by design: it composes only the public broker/catalog seams and cannot name the internal effect-factory surface (compiler-enforced containment).</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageReleaseNotes>Internal-only projection; public distribution is not authorized.</PackageReleaseNotes>
-    <NoWarn>$(NoWarn);CS1591</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Harborline.Blocks.Workflow.Interpreter.Tests" />

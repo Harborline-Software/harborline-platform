@@ -12,6 +12,7 @@
          framework; net10 requires the package. Keep the dependency on its actual callers. -->
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions"
                       Condition="'$(PackageId)' == 'Harborline.Blocks.ActivityTimeline'
+                        or '$(PackageId)' == 'Harborline.Blocks.BuilderDefinitions'
                         or '$(PackageId)' == 'Harborline.Blocks.Calendar'
                         or '$(PackageId)' == 'Harborline.Blocks.Reports'
                         or '$(PackageId)' == 'Harborline.Blocks.Scheduling'

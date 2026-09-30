@@ -13,6 +13,7 @@ public static class LiveInvalidationWire
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
     };
 
+    /// <summary>Encodes the invalidation as camel-case UTF-8 JSON; throws when it is null or its resource id is blank.</summary>
     public static byte[] Serialize(LiveInvalidation invalidation)
     {
         ArgumentNullException.ThrowIfNull(invalidation);

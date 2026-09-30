@@ -246,6 +246,25 @@ public sealed class FormLayoutBreadthTests
                 Placement: new Dictionary<string, FieldPlacement> { ["name"] = new(Align: "top") })),
             FormDefinitionCodes.LayoutUnknownAlign);
 
+    [Fact(DisplayName = "layout-eng-3: one validator refuses the closed responsive vocabulary at both the section and the group-zone grain, with the same stable form.layout code")]
+    [Trait("Holds", "layout-eng-3")]
+    public void Both_layout_grains_refuse_each_unknown_intent_token_with_the_same_code()
+    {
+        foreach (var (layout, placement, code) in new (SectionLayout, FieldPlacement?, string)[]
+        {
+            (Grid() with { CollapseBelow = "compact" }, null, FormDefinitionCodes.LayoutUnknownBreakpoint),
+            (Grid() with { Density = "cozy" }, null, FormDefinitionCodes.LayoutUnknownDensity),
+            (Grid() with { Align = "middle" }, null, FormDefinitionCodes.LayoutUnknownAlign),
+            (Grid(), new FieldPlacement(Width: "37px"), FormDefinitionCodes.LayoutUnknownWidth),
+            (Grid(), new FieldPlacement(Align: "top"), FormDefinitionCodes.LayoutUnknownAlign),
+        })
+        {
+            var placements = placement is null ? null : new Dictionary<string, FieldPlacement> { ["name"] = placement };
+            AssertRejected(SectionLayoutForm(layout, placements), code);
+            AssertRejected(Items(new FormItem(FormItemKind.Group, "zone", Items: new[] { FormItem.OfField("name") }, Layout: layout, Placement: placements)), code);
+        }
+    }
+
     // ── reusable-unit posture (F-23 × D4) ─────────────────────────────────────
 
     [Fact]

@@ -4,8 +4,8 @@ import {test} from 'node:test'
 
 import path from 'node:path'
 
-import {changedLines, commentOnlyChange, configProblems, fullModeBreak, isTestProject, plainRazor, razorTested, reportCounts, repository, sourceDirectories,
-  survivorsOnChangedLines, testedInChanged, thresholdsFor} from '../stryker.mjs'
+import {changedLines, configProblems, fullModeBreak, isTestProject, plainRazor, razorTested, reportCounts, repository, sourceDirectories,
+  nothingMutableInChanged, survivorsOnChangedLines, testedInChanged, thresholdsFor} from '../stryker.mjs'
 
 const repoRoot = path.resolve('stryker-fixture-repo')
 
@@ -128,6 +128,21 @@ test('the zero-mutant guard counts only mutants tested in the changed source, no
   assert.equal(testedInChanged(razor, ['p/ui/Y.cs'], repoRoot), 0)
 })
 
+test('a changed file Stryker saw but created no mutant in is not a zero-tested gap; anything less proves nothing', () => {
+  const file = name => path.join(repoRoot, 'p', 'lib', name)
+  // An interface: present in the report with no mutants of any status.
+  assert.equal(nothingMutableInChanged({files: {[file('IA.cs')]: {mutants: []}}}, ['p/lib/IA.cs'], repoRoot), true)
+  // A changed file with mutants that were not tested is still a gap.
+  assert.equal(nothingMutableInChanged({files: {[file('A.cs')]: {mutants: [{status: 'Ignored'}]}}}, ['p/lib/A.cs'], repoRoot), false)
+  assert.equal(nothingMutableInChanged({files: {[file('IA.cs')]: {mutants: []}, [file('A.cs')]: {mutants: [{status: 'CompileError'}]}}},
+    ['p/lib/IA.cs', 'p/lib/A.cs'], repoRoot), false)
+  // No report, a changed file the report never saw, or a .razor change never qualifies.
+  assert.equal(nothingMutableInChanged(undefined, ['p/lib/IA.cs'], repoRoot), false)
+  assert.equal(nothingMutableInChanged({files: {}}, ['p/lib/IA.cs'], repoRoot), false)
+  assert.equal(nothingMutableInChanged({files: {[file('IA.cs')]: {mutants: []}}}, ['p/lib/IA.cs', 'p/ui/X.razor'], repoRoot), false)
+  assert.equal(nothingMutableInChanged({files: {}}, [], repoRoot), false)
+})
+
 test('full mode holds a project to the higher of its recorded baseline and its configured break', () => {
   // Recorded 50, configured 70 by hand, score 60: the configured 70 binds.
   assert.equal(fullModeBreak({break: 50}, {thresholds: {break: 70}}), 70)
@@ -147,10 +162,4 @@ test('a Razor report with no tested mutant in a .razor span is caught however ma
   // Stryker writes Windows paths with backslashes; the check normalizes them.
   const withRazor = {files: {...csOnly.files, 'C:\\r\\ui\\a\\obj\\Debug\\net10.0\\stryker-razor\\G\\X_razor.cs': {mutants: [{status: 'Killed'}, {status: 'Ignored'}]}}}
   assert.equal(razorTested(withRazor), 1)
-})
-
-test('a change that only adds comments or blank lines has no mutable code; any code line makes it a code change', () => {
-  const docsOnly = '--- a/X.cs\n+++ b/X.cs\n@@ -3,0 +4,2 @@\n+    /// <summary>What it does.</summary>\n+\n@@ -9 +11 @@\n-    // old note\n+    // new note'
-  assert.equal(commentOnlyChange(docsOnly), true)
-  assert.equal(commentOnlyChange(docsOnly + '\n@@ -20 +22 @@\n+    return total + 1;'), false)
 })

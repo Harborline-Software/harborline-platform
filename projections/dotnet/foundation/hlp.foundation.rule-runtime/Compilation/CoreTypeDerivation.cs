@@ -6,7 +6,21 @@ namespace Harborline.Foundation.RuleEngine.Compilation;
 [Flags]
 public enum CoreJsonType
 {
-    None = 0, Null = 1, Boolean = 2, Number = 4, String = 8, Array = 16, Object = 32,
+    /// <summary>No possible result; the empty set.</summary>
+    None = 0,
+    /// <summary>JSON null.</summary>
+    Null = 1,
+    /// <summary>A JSON boolean.</summary>
+    Boolean = 2,
+    /// <summary>A JSON number.</summary>
+    Number = 4,
+    /// <summary>A JSON string, including dates and money, which travel as strings.</summary>
+    String = 8,
+    /// <summary>A JSON array.</summary>
+    Array = 16,
+    /// <summary>A JSON object.</summary>
+    Object = 32,
+    /// <summary>Any JSON value; the full set.</summary>
     AnyJson = Null | Boolean | Number | String | Array | Object,
 }
 
@@ -18,8 +32,17 @@ public enum CoreJsonType
 /// </summary>
 public static class CoreTypeDerivation
 {
+    /// <summary>What one expression node can produce at run time.</summary>
+    /// <param name="Types">The set of JSON types the node may return.</param>
+    /// <param name="CanError">True when evaluation may yield a coded runtime error instead of a value.</param>
+    /// <param name="CanPending">True when evaluation may yield pending because an input is not yet resolved.</param>
     public sealed record Result(CoreJsonType Types, bool CanError = false, bool CanPending = false);
 
+    /// <summary>
+    /// Derives <paramref name="node"/>'s possible results, typing <c>var</c> reads through <paramref name="declaredInput"/> (any JSON when null).
+    /// Throws the exception <paramref name="refusal"/> builds, or a <see cref="RuleEngineCodes.CompileInvalidExpression"/>
+    /// <see cref="RuleCompilationException"/>, when an operator is given an operand type it can never coerce.
+    /// </summary>
     public static Result Derive(JsonNode? node, string ruleId,
         Func<string, CoreJsonType>? declaredInput = null,
         Func<string, RuleCompilationException>? refusal = null)
@@ -103,6 +126,10 @@ public static class CoreTypeDerivation
         return Visit(node);
     }
 
+    /// <summary>
+    /// Maps an input's declared type name, case-insensitively, to its JSON types; null means <c>any</c>, and money, date,
+    /// text and coding map to their wire types. An unknown name throws the exception <paramref name="refusal"/> builds.
+    /// </summary>
     public static CoreJsonType ParseDeclaredType(string? type, string ruleId, Func<string, RuleCompilationException> refusal)
         => (type ?? "any").ToLowerInvariant() switch
         {

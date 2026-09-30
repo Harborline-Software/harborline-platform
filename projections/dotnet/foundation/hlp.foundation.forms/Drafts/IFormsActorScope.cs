@@ -11,5 +11,9 @@ public sealed record FormsActorScope(TenantId Tenant, Guid PartyId, string Actor
 /// </summary>
 public interface IFormsActorScope
 {
+    /// <summary>
+    /// Returns the current tenant, Party and actor, or throws <see cref="Harborline.Foundation.Authorization.PrincipalPartyResolutionException"/>
+    /// when there is no authenticated principal, the tenant is unresolved or the system sentinel, or no Party maps to the principal.
+    /// </summary>
     ValueTask<FormsActorScope> GetRequiredAsync(CancellationToken cancellationToken = default);
 }

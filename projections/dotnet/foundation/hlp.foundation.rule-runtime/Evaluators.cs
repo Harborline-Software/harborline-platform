@@ -78,6 +78,7 @@ public sealed class GuardEvaluator : IGuardEvaluator
     private readonly RuleEngineLimits _limits;
     private readonly TimeProvider _clock;
 
+    /// <summary>Creates an evaluator reading time from <paramref name="clock"/>, bounded by <paramref name="limits"/> or <see cref="RuleEngineLimits.Default"/>.</summary>
     public GuardEvaluator(TimeProvider clock, RuleEngineLimits? limits = null)
     {
         _limits = limits ?? RuleEngineLimits.Default;
