@@ -85,6 +85,33 @@ public sealed class TaxonomyDefinitionTests
         Assert.Equal(8, TaxonomyDefinitionPackExporter.Export(parsed, ContractWindow).ContentKind); // the api's TaxonomyDefinition; 7 is TemplateDefinition (T-738)
     }
 
+    [Fact(DisplayName = "taxonomy-ck-18, taxonomy-auth-8: a named collection round-trips and admits when all of its concepts belong to the scheme")]
+    public void Collection_round_trips_and_admits_when_its_members_are_scheme_concepts()
+    {
+        var definition = Definition() with { Collections = [new("powered-equipment", ["root"])] };
+
+        var parsed = TaxonomyDefinitionJson.Deserialize(TaxonomyDefinitionJson.SerializeCanonical(definition));
+
+        Assert.NotNull(parsed.Collections);
+        var collection = Assert.Single(parsed.Collections);
+        Assert.Equal("powered-equipment", collection.Name);
+        Assert.Equal(["root"], collection.NodeCodes);
+        Assert.Equal(TaxonomyDefinitionJson.SerializeCanonical(definition), TaxonomyDefinitionJson.SerializeCanonical(parsed));
+        Assert.Empty(TaxonomyDefinitionAdmission.Validate(parsed, TaxonomyAdmissionPhase.Publish, ContractWindow));
+    }
+
+    [Fact(DisplayName = "taxonomy-ck-18: admission refuses a collection member outside its scheme instead of leaving an inert value-domain entry")]
+    public void Collection_member_outside_its_scheme_is_refused()
+    {
+        var definition = Definition() with { Collections = [new("powered-equipment", ["not-a-concept"])] };
+
+        var refusal = Assert.Single(
+            TaxonomyDefinitionAdmission.Validate(definition, TaxonomyAdmissionPhase.Publish, ContractWindow),
+            candidate => candidate.Code == "collection.node_unknown");
+
+        Assert.Equal("/collections/0/node_codes/0", refusal.Pointer);
+    }
+
     [Fact(DisplayName = "taxonomy-ck-2: only three non-empty id segments parse")]
     public void Definition_id_parse_refuses_invalid_shape() => Assert.Throws<FormatException>(() => TaxonomyDefinitionId.Parse("acme..icd"));
 

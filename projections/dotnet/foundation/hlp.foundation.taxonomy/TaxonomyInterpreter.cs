@@ -18,6 +18,15 @@ public sealed record TaxonomyDefinitionNotFound(TaxonomyDefinitionCoordinates Co
 /// <summary>The result of resolving a pinned definition; misses do not throw.</summary>
 public abstract record TaxonomyDefinitionResolution;
 
+/// <summary>The result of expanding a named collection in a pinned taxonomy definition.</summary>
+public abstract record TaxonomyCollectionExpansionResult;
+
+/// <summary>A successful named-collection expansion in the collection's declared concept order.</summary>
+public sealed record ResolvedTaxonomyCollectionExpansion(IReadOnlyList<string> Codes) : TaxonomyCollectionExpansionResult;
+
+/// <summary>A typed refusal for a collection name absent from the pinned taxonomy definition.</summary>
+public sealed record TaxonomyCollectionExpansionNotFound(string CollectionName) : TaxonomyCollectionExpansionResult;
+
 /// <summary>The result of expanding an overlay; a missing overlay or vendor definition is a typed
 /// refusal naming which coordinates were not found, never an empty expansion.</summary>
 public abstract record TaxonomyOverlayExpansionResult;
@@ -167,10 +176,26 @@ public sealed class TaxonomyInterpreter
             depth++;
         }
     }
-    /// <summary>Expands the whole pinned scheme, including tombstoned nodes; collection expansion is intentionally not provided.</summary>
+    /// <summary>Expands the whole pinned scheme, including tombstoned nodes.</summary>
     public IReadOnlyList<string> ExpandWholeScheme(TaxonomyDefinition definition)
     {
         Index(definition); return definition.Nodes.Select(node => node.Code).ToArray();
+    }
+
+    /// <summary>Expands a named collection from the supplied pinned definition. An absent name is a
+    /// typed refusal rather than an empty expansion, so a caller cannot treat a miss as an allowed
+    /// value domain.</summary>
+    /// <param name="definition">The pinned scheme that owns the named collection.</param>
+    /// <param name="collectionName">The collection name declared by that scheme.</param>
+    /// <returns>The declared concept codes in their authored order, or a refusal naming the missing collection.</returns>
+    public TaxonomyCollectionExpansionResult ExpandCollection(TaxonomyDefinition definition, string collectionName)
+    {
+        ArgumentNullException.ThrowIfNull(definition); ArgumentNullException.ThrowIfNull(collectionName);
+        Index(definition);
+        var collection = (definition.Collections ?? []).FirstOrDefault(candidate => candidate is not null && StringComparer.Ordinal.Equals(candidate.Name, collectionName));
+        if (collection is null) return new TaxonomyCollectionExpansionNotFound(collectionName);
+        if (collection.NodeCodes is null) throw new TaxonomyTraversalException("taxonomy.definition_malformed", "The collection has no node-code collection.");
+        return new ResolvedTaxonomyCollectionExpansion(collection.NodeCodes.ToArray());
     }
 
     /// <summary>Expands an overlay against the vendor version selected for this call, not the version

@@ -30,13 +30,21 @@ public sealed record TaxonomyLineage(string Source, string AncestorVersion, stri
 public sealed record DisplayHistoryEntry(string Display, string Description, DateTimeOffset ChangedAt);
 public sealed record TaxonomyOverlayReference(TaxonomyDefinitionId VendorDefinitionId, string VendorVersion);
 public sealed record TaxonomyOverlayDesignation(string VendorNodeCode, string? Display = null, string? Description = null);
+/// <summary>A named subset of the concepts owned by one taxonomy definition, for a pinned value domain.</summary>
+/// <param name="Name">The name by which an author binds this subset.</param>
+/// <param name="NodeCodes">The opaque codes of concepts owned by the containing definition.</param>
+public sealed record TaxonomyCollection(string Name, IReadOnlyList<string> NodeCodes);
 // Nullable members with no positional default (ParentCode, PublishedAt, TombstonedAt, SuccessorCode,
 // DeprecationReason) trail the required ones: RespectRequiredConstructorParameters treats a
 // parameter with no default as required regardless of its nullable annotation, and our own writer
 // (DefaultIgnoreCondition.WhenWritingNull) omits a null member from canonical JSON, so an omitted
 // member needs a default to round-trip.
 public sealed record TaxonomyNode(string Code, string Display, string Description, TaxonomyNodeStatus Status, IReadOnlyList<DisplayHistoryEntry> DisplayHistoryEntries, string? ParentCode = null, DateTimeOffset? PublishedAt = null, DateTimeOffset? TombstonedAt = null, string? SuccessorCode = null, string? DeprecationReason = null);
-public sealed record TaxonomyDefinition(string Tenant, TaxonomyDefinitionId DefinitionId, string Version, TaxonomyGovernanceRegime Governance, string Owner, IReadOnlyList<TaxonomyNode> Nodes, int SchemaVersion = 1, TaxonomyDefinitionEnvelope? Envelope = null, TaxonomyLineage? DerivedFrom = null, TaxonomyOverlayReference? Overlay = null, IReadOnlyList<TaxonomyOverlayDesignation>? OverlayDesignations = null);
+public sealed record TaxonomyDefinition(string Tenant, TaxonomyDefinitionId DefinitionId, string Version, TaxonomyGovernanceRegime Governance, string Owner, IReadOnlyList<TaxonomyNode> Nodes, int SchemaVersion = 1, TaxonomyDefinitionEnvelope? Envelope = null, TaxonomyLineage? DerivedFrom = null, TaxonomyOverlayReference? Overlay = null, IReadOnlyList<TaxonomyOverlayDesignation>? OverlayDesignations = null)
+{
+    /// <summary>Named concept subsets owned by this definition; a value-domain binding names one rather than widening to the whole scheme.</summary>
+    public IReadOnlyList<TaxonomyCollection>? Collections { get; init; }
+}
 public enum TaxonomyAdmissionPhase { Author, Publish, Install }
 public sealed record TaxonomyCatalogueCoordinates(string Tenant, TaxonomyDefinitionId DefinitionId, string Version);
 public sealed record TaxonomyRefusal(string Code, string Pointer);
@@ -71,7 +79,8 @@ public static class TaxonomyDefinitionJson
     private static JsonNode Canonicalize(JsonNode node) => node switch
     {
         JsonObject value => new JsonObject(value.OrderBy(property => property.Key, StringComparer.Ordinal).Select(property => KeyValuePair.Create(property.Key, property.Value is null ? null : Canonicalize(property.Value)))),
-        JsonArray value => new JsonArray(value.Select(item => item is null ? null : Canonicalize(item)).ToArray()), _ => node.DeepClone(),
+        JsonArray value => new JsonArray(value.Select(item => item is null ? null : Canonicalize(item)).ToArray()),
+        _ => node.DeepClone(),
     };
     private sealed class DefinitionIdConverter : JsonConverter<TaxonomyDefinitionId>
     {
@@ -93,7 +102,8 @@ public static class TaxonomyDefinitionAdmission
     public static IReadOnlyList<TaxonomyRefusal> AdmitJson(string bodyJson, TaxonomyAdmissionPhase phase, DefinitionContractWindow window, TaxonomyCatalogueCoordinates? catalogue = null, TaxonomyDefinition? previous = null)
     {
         try { using var document = JsonDocument.Parse(bodyJson); if (document.RootElement.ValueKind != JsonValueKind.Object) return [new("definition.settings_not_object", "/")]; }
-        catch (JsonException) { return [new("definition.body_invalid", "/")]; } catch (ArgumentNullException) { return [new("definition.body_invalid", "/")]; }
+        catch (JsonException) { return [new("definition.body_invalid", "/")]; }
+        catch (ArgumentNullException) { return [new("definition.body_invalid", "/")]; }
         TaxonomyDefinition definition; try { definition = TaxonomyDefinitionJson.Deserialize(bodyJson); } catch (JsonException) { return [new("definition.body_invalid", "/")]; }
         var refusals = Validate(definition, phase, window, previous).ToList();
         if (catalogue is not null && phase != TaxonomyAdmissionPhase.Author)
@@ -149,6 +159,7 @@ public static class TaxonomyDefinitionAdmission
             if (node.Status == TaxonomyNodeStatus.Tombstoned && string.IsNullOrWhiteSpace(node.DeprecationReason)) refusals.Add(new("definition.deprecation_reason_required", $"/nodes/{index}/deprecation_reason"));
             if (node.SuccessorCode is not null) { if (!byCode.TryGetValue(node.SuccessorCode, out var successor)) refusals.Add(new("definition.successor_unknown", $"/nodes/{index}/successor_code")); else if (definition.Nodes[successor].Status == TaxonomyNodeStatus.Tombstoned) refusals.Add(new("definition.successor_tombstoned", $"/nodes/{index}/successor_code")); }
         }
+        ValidateCollections(definition.Collections, byCode, refusals);
         ValidateParents(definition.Nodes, byCode, refusals); if (previous is not null) ValidatePrevious(definition, previous, refusals);
         if (vendor is not null && definition.Overlay is not null) ValidateOverlayAgainstVendor(definition, vendor, refusals);
         return refusals;
@@ -195,6 +206,28 @@ public static class TaxonomyDefinitionAdmission
             if (designation is null) { refusals.Add(new("overlay.designation_invalid", $"/overlay_designations/{index}")); continue; }
             if (string.IsNullOrWhiteSpace(designation.VendorNodeCode)) { refusals.Add(new("overlay.vendor_node_code_missing", $"/overlay_designations/{index}/vendor_node_code")); continue; }
             if (!designatedCodes.TryAdd(designation.VendorNodeCode, index)) refusals.Add(new("overlay.vendor_node_code_duplicate", $"/overlay_designations/{index}/vendor_node_code"));
+        }
+    }
+    private static void ValidateCollections(IReadOnlyList<TaxonomyCollection>? collections, IReadOnlyDictionary<string, int> definitionNodeCodes, List<TaxonomyRefusal> refusals)
+    {
+        if (collections is null) return;
+        var collectionNames = new Dictionary<string, int>(StringComparer.Ordinal);
+        for (var collectionIndex = 0; collectionIndex < collections.Count; collectionIndex++)
+        {
+            var collection = collections[collectionIndex];
+            if (collection is null) { refusals.Add(new("collection.invalid", $"/collections/{collectionIndex}")); continue; }
+            if (string.IsNullOrWhiteSpace(collection.Name)) refusals.Add(new("collection.name_missing", $"/collections/{collectionIndex}/name"));
+            else if (!collectionNames.TryAdd(collection.Name, collectionIndex)) refusals.Add(new("collection.name_duplicate", $"/collections/{collectionIndex}/name"));
+            if (collection.NodeCodes is null) { refusals.Add(new("collection.node_codes_invalid", $"/collections/{collectionIndex}/node_codes")); continue; }
+            var nodeCodes = new HashSet<string>(StringComparer.Ordinal);
+            for (var nodeIndex = 0; nodeIndex < collection.NodeCodes.Count; nodeIndex++)
+            {
+                var nodeCode = collection.NodeCodes[nodeIndex];
+                var pointer = $"/collections/{collectionIndex}/node_codes/{nodeIndex}";
+                if (string.IsNullOrWhiteSpace(nodeCode)) refusals.Add(new("collection.node_code_missing", pointer));
+                else if (!nodeCodes.Add(nodeCode)) refusals.Add(new("collection.node_code_duplicate", pointer));
+                else if (!definitionNodeCodes.ContainsKey(nodeCode)) refusals.Add(new("collection.node_unknown", pointer));
+            }
         }
     }
     private static void ValidateParents(IReadOnlyList<TaxonomyNode> nodes, IReadOnlyDictionary<string, int> byCode, List<TaxonomyRefusal> refusals)
