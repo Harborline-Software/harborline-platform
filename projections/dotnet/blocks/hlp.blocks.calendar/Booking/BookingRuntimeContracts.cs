@@ -36,6 +36,8 @@ public static class BookingHoldCodes
     public const string LifetimeInvalid = "booking.hold.lifetime_invalid";
     /// <summary>A requested hold lifetime above the Bookable's effective maximum (T-724 ruling Q21).</summary>
     public const string LifetimeExceedsMaximum = "booking.hold.lifetime_exceeds_maximum";
+    /// <summary>The hold changed after the caller read its version; the current state decides the retry.</summary>
+    public const string VersionConflict = "booking.hold.version_conflict";
 }
 
 /// <summary>The hold after a transition, and the refusal when the requested transition did not happen.</summary>
