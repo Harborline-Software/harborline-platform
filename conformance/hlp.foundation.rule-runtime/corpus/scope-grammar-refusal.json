@@ -105,6 +105,16 @@
       "expectedCompileError": { "code": "rule.compile.bad_grammar" }
     },
     {
+      "_comment": "JsonLogic's unary sugar keeps a single non-array operand; its references must still be walked.",
+      "name": "refs/cycle-through-unary-operand-refuses",
+      "definitionRules": [
+        { "id": "c.a", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "a", "action": "Compute", "expression": { "!": { "var": "b" } } },
+        { "id": "c.b", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "b", "action": "Compute", "expression": { "!": { "var": "a" } } }
+      ],
+      "instance": {},
+      "expectedCompileError": { "code": "rule.compile.cycle" }
+    },
+    {
       "name": "refs/cycle-through-var-default-refuses",
       "definitionRules": [
         { "id": "c.a", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "a", "action": "Compute", "expression": { "var": [ "x", { "var": "b" } ] } },
