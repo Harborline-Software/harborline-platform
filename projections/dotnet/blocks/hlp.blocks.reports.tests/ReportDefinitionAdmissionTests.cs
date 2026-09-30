@@ -146,6 +146,74 @@ public sealed class ReportDefinitionAdmissionTests
             report.Refusals);
     }
 
+    [Trait("Holds", "reports-ck-12")]
+    [Trait("Holds", "reports-auth-8")]
+    [Theory(DisplayName = "reports-ck-12: the five ratified parameter types carry only a matching typed default")]
+    [MemberData(nameof(TypedParameters))]
+    public async Task reports_ck_12_closed_typed_parameters_are_admitted(ReportParameterDefinition parameter)
+    {
+        var definition = Definition("finance.trial-balance") with { Parameters = [parameter] };
+
+        var report = await ReportDefinitionAdmission.AdmitAsync(definition, DefinitionAdmissionPhase.Author, Window, Shipped());
+
+        Assert.Empty(report.Refusals);
+        Assert.Equal(parameter, Assert.Single(definition.Parameters!));
+    }
+
+    [Trait("Holds", "reports-auth-22")]
+    [Theory(DisplayName = "reports-auth-22: unknown types and mismatched defaults are refused before publish with their parameter named")]
+    [MemberData(nameof(UntypedOrMismatchedParameters))]
+    public async Task reports_auth_22_untyped_or_mismatched_parameter_is_refused(
+        ReportParameterDefinition parameter, string expectedCode)
+    {
+        var definition = Definition("finance.trial-balance") with { Parameters = [parameter] };
+
+        var report = await ReportDefinitionAdmission.AdmitAsync(definition, DefinitionAdmissionPhase.Author, Window, Shipped());
+
+        Assert.Equal([new ReportRefusal(expectedCode, "/parameters/0", parameter.Name)], report.Refusals);
+    }
+
+    [Trait("Holds", "reports-ck-13")]
+    [Trait("Holds", "reports-auth-9")]
+    [Theory(DisplayName = "reports-ck-13: as_at is a DateTime parameter over a named effective-dated type")]
+    [MemberData(nameof(AsAtParameters))]
+    public async Task reports_ck_13_as_at_declaration_is_admitted_or_refused(
+        ReportParameterDefinition parameter, string? expectedCode)
+    {
+        var definition = Definition("finance.trial-balance") with { Parameters = [parameter] };
+
+        var report = await ReportDefinitionAdmission.AdmitAsync(definition, DefinitionAdmissionPhase.Author, Window, Shipped());
+
+        Assert.Equal(expectedCode is null ? [] : [new ReportRefusal(expectedCode, "/parameters/0", parameter.Name)], report.Refusals);
+    }
+
+    /// <summary>Provides every parameter type that the Reports definition grammar permits.</summary>
+    public static IEnumerable<object[]> TypedParameters()
+    {
+        yield return [new ReportParameterDefinition("include_closed", ReportParameterType.Boolean, new BooleanReportParameterDefault(false))];
+        yield return [new ReportParameterDefinition("as_of", ReportParameterType.DateTime, new DateTimeReportParameterDefault(new DateTimeOffset(2026, 9, 29, 0, 0, 0, TimeSpan.Zero)))];
+        yield return [new ReportParameterDefinition("period_count", ReportParameterType.Integer, new IntegerReportParameterDefault(12))];
+        yield return [new ReportParameterDefinition("threshold", ReportParameterType.Float, new FloatReportParameterDefault(0.95))];
+        yield return [new ReportParameterDefinition("title", ReportParameterType.String, new StringReportParameterDefault("Quarterly return"))];
+    }
+
+    /// <summary>Provides parameter declarations that would reintroduce an untyped payload.</summary>
+    public static IEnumerable<object[]> UntypedOrMismatchedParameters()
+    {
+        yield return [new ReportParameterDefinition("legacy", (ReportParameterType)99, null!), ReportDefinitionCodes.ParameterTypeUnsupported];
+        yield return [new ReportParameterDefinition("threshold", ReportParameterType.Float, new StringReportParameterDefault("0.95")), ReportDefinitionCodes.ParameterDefaultTypeMismatch];
+        yield return [new ReportParameterDefinition("threshold", ReportParameterType.Float, new FloatReportParameterDefault(double.NaN)), ReportDefinitionCodes.ParameterDefaultInvalid];
+    }
+
+    /// <summary>Provides valid and invalid <c>as_at</c> declarations.</summary>
+    public static IEnumerable<object[]> AsAtParameters()
+    {
+        yield return [new ReportParameterDefinition("as_at", ReportParameterType.DateTime, new DateTimeReportParameterDefault(new DateTimeOffset(2026, 9, 29, 0, 0, 0, TimeSpan.Zero)), "lease"), null!];
+        yield return [new ReportParameterDefinition("as_at", ReportParameterType.String, new StringReportParameterDefault("2026-09-29"), "lease"), ReportDefinitionCodes.AsAtMustBeDateTime];
+        yield return [new ReportParameterDefinition("as_at", ReportParameterType.DateTime, new DateTimeReportParameterDefault(new DateTimeOffset(2026, 9, 29, 0, 0, 0, TimeSpan.Zero)), ""), ReportDefinitionCodes.AsAtEffectiveTypeRequired];
+        yield return [new ReportParameterDefinition("observed_at", ReportParameterType.DateTime, new DateTimeReportParameterDefault(new DateTimeOffset(2026, 9, 29, 0, 0, 0, TimeSpan.Zero)), "lease"), ReportDefinitionCodes.AsAtNameRequired];
+    }
+
     [Fact(DisplayName = "T-489 S4a: a report definition is the api's content kind 9, PackContentKind.ReportDefinition")]
     public void Content_kind_is_the_api_value()
     {
