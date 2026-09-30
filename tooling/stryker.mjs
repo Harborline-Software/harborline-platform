@@ -203,6 +203,12 @@ function mutateProject(test, changed, strykerArgs) {
 }
 
 // Lines added or changed since origin/main, per repository-relative file, from `git diff -U0` hunk headers.
+// True when every line a change adds to a C# file is blank or a `//` comment (XML docs included): such a change has
+// no mutable code, so it cannot be held to "mutants tested in the changed files".
+export const commentOnlyChange = diff => diff.split('\n')
+  .filter(line => line.startsWith('+') && !line.startsWith('+++'))
+  .every(line => { const code = line.slice(1).trim(); return code === '' || code.startsWith('//') })
+
 export function changedLines(diff) {
   const lines = {}
   let file
@@ -260,12 +266,14 @@ function run(repo, only, strykerArgs) {
     const changed = git('diff', '--numstat', '--diff-filter=d', 'origin/main', '--', ...sourceDirectories(target, targetText).flatMap(directory =>
       razor ? [`${directory}/*.cs`, `${directory}/*.razor`] : [`${directory}/*.cs`]))
       .map(row => row.split('\t')).filter(([added]) => added !== '0').map(([, , file]) => file).filter(file => !/\.tests\//.test(file))
-    if (!changed.length) { console.log(`${test}: no source change in ${path.posix.dirname(target)} since origin/main, skipped`); continue }
+      .filter(file => file.endsWith('.razor') || !commentOnlyChange(git('diff', '-U0', 'origin/main', '--', file).join('\n')))
+    if (!changed.length) { console.log(`${test}: no code change in ${path.posix.dirname(target)} since origin/main (comments only, or none), skipped`); continue }
     const {counts, report, razor: isRazor} = mutateProject(test, changed, strykerArgs)
     if (isRazor && changed.some(file => file.endsWith('.razor')) && !razorTested(report)) {
       summarize(`### ${test}\n\n**FAIL**: a .razor file changed but 0 Razor mutants were tested.`); failed = true; continue
     }
-    // ponytail: a changed .cs file with nothing mutable in it (an interface, a comment) fails here; judge it by the report.
+    // ponytail: comment-only changes are filtered out above; a changed .cs file with no mutable code (an interface) still
+    // fails here -- judge it by the report.
     if (!testedInChanged(report, changed)) { summarize(`### ${test}\n\n**FAIL**: ${changed.length} changed source file(s) but 0 mutants tested in them.`); failed = true; continue }
     const survivors = survivorsOnChangedLines(report, changedLines(git('diff', '-U0', 'origin/main', '--', ...changed).join('\n')))
     summarize([`### ${test}`, '', `${counts.tested} mutants tested, score ${counts.score} % (advisory: PR runs are not compared with the project floor).`, '',

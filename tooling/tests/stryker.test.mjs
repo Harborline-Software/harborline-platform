@@ -4,7 +4,7 @@ import {test} from 'node:test'
 
 import path from 'node:path'
 
-import {changedLines, configProblems, fullModeBreak, isTestProject, plainRazor, razorTested, reportCounts, repository, sourceDirectories,
+import {changedLines, commentOnlyChange, configProblems, fullModeBreak, isTestProject, plainRazor, razorTested, reportCounts, repository, sourceDirectories,
   survivorsOnChangedLines, testedInChanged, thresholdsFor} from '../stryker.mjs'
 
 const repoRoot = path.resolve('stryker-fixture-repo')
@@ -147,4 +147,10 @@ test('a Razor report with no tested mutant in a .razor span is caught however ma
   // Stryker writes Windows paths with backslashes; the check normalizes them.
   const withRazor = {files: {...csOnly.files, 'C:\\r\\ui\\a\\obj\\Debug\\net10.0\\stryker-razor\\G\\X_razor.cs': {mutants: [{status: 'Killed'}, {status: 'Ignored'}]}}}
   assert.equal(razorTested(withRazor), 1)
+})
+
+test('a change that only adds comments or blank lines has no mutable code; any code line makes it a code change', () => {
+  const docsOnly = '--- a/X.cs\n+++ b/X.cs\n@@ -3,0 +4,2 @@\n+    /// <summary>What it does.</summary>\n+\n@@ -9 +11 @@\n-    // old note\n+    // new note'
+  assert.equal(commentOnlyChange(docsOnly), true)
+  assert.equal(commentOnlyChange(docsOnly + '\n@@ -20 +22 @@\n+    return total + 1;'), false)
 })
