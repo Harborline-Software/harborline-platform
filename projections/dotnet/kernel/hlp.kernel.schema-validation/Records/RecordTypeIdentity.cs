@@ -120,6 +120,9 @@ public sealed class RecordsIntentValidator
         return refusals;
     }
 
+    internal TraitDefinition? ResolveTrait(string traitId, string version)
+        => _traitSource?.Resolve(traitId, version);
+
     private void ValidateTraitBindings(
         RecordTypeDefinition candidate,
         IReadOnlySet<string> fieldKeys,
@@ -190,16 +193,19 @@ public sealed class RecordTypeSchemaCompiler
     private readonly RecordsIntentValidator _intentValidator;
     private readonly IFieldKindRuntime? _fieldKindRuntime;
     private readonly IValueDomainAdmission? _valueDomainAdmission;
+    private readonly IFieldDomainRuntime? _fieldDomainRuntime;
 
     /// <summary>Creates a compiler using the supplied identity validator and field-runtime admission.</summary>
     public RecordTypeSchemaCompiler(
         RecordsIntentValidator? intentValidator = null,
         IFieldKindRuntime? fieldKindRuntime = null,
-        IValueDomainAdmission? valueDomainAdmission = null)
+        IValueDomainAdmission? valueDomainAdmission = null,
+        IFieldDomainRuntime? fieldDomainRuntime = null)
     {
         _intentValidator = intentValidator ?? new RecordsIntentValidator();
         _fieldKindRuntime = fieldKindRuntime;
         _valueDomainAdmission = valueDomainAdmission;
+        _fieldDomainRuntime = fieldDomainRuntime;
     }
 
     /// <summary>
@@ -209,12 +215,18 @@ public sealed class RecordTypeSchemaCompiler
         RecordTypeDefinition candidate,
         RecordTypeDefinition? previousVersion,
         ISchemaRegistry schemaRegistry,
+        FieldDomainScope? fieldDomainScope = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(candidate);
         ArgumentNullException.ThrowIfNull(schemaRegistry);
 
         var refusals = new List<FieldRefusal>(_intentValidator.Validate(candidate, previousVersion));
+        // C:/Projects/Harborline/harborline-control/designs/DES-0015-records/design.md:102 (records-ck-37)
+        // requires a shared field to satisfy every bound slot's admitted intersection.
+        // C:/Projects/Harborline/harborline-control/designs/DES-0015-records/design.md:104 (records-ck-39)
+        // permits narrowing a slot floor but forbids widening its domain.
+        await NarrowTraitBindingsAsync(candidate, fieldDomainScope, refusals, cancellationToken);
         var properties = new Dictionary<string, object>(StringComparer.Ordinal);
         foreach (var (field, index) in (candidate.Fields ?? []).Select((field, index) => (field, index)))
         {
@@ -241,6 +253,67 @@ public sealed class RecordTypeSchemaCompiler
             JsonSerializer.Serialize(document),
             cancellationToken: cancellationToken);
         return new(schema, []);
+    }
+
+    // A field without a binding declares no constraint, so each member takes the absent meaning the
+    // contract documents (Harborline.Contracts FieldDefinitions.cs FieldConstraintDefinition params):
+    // not always required, no minimum, no finite maximum, no read roles, no value domain. The field
+    // runtime then decides whether that widens the slot; Records never skips the proof.
+    private static readonly FieldConstraintDefinition Unconstrained = new(false, 0, null, [], null);
+
+    private async ValueTask NarrowTraitBindingsAsync(
+        RecordTypeDefinition candidate,
+        FieldDomainScope? fieldDomainScope,
+        List<FieldRefusal> refusals,
+        CancellationToken cancellationToken)
+    {
+        var fields = new Dictionary<string, FieldDefinition>(StringComparer.Ordinal);
+        foreach (var field in candidate.Fields ?? [])
+        {
+            fields.TryAdd(field.FieldKey, field);
+        }
+
+        foreach (var (reference, traitIndex) in (candidate.Traits ?? []).Select((trait, index) => (trait, index)))
+        {
+            var trait = _intentValidator.ResolveTrait(reference.TraitId, reference.Version);
+            if (trait is null)
+            {
+                continue;
+            }
+
+            foreach (var (binding, bindingIndex) in (reference.SlotBindings ?? []).Select((binding, index) => (binding, index)))
+            {
+                var slot = (trait.Slots ?? []).FirstOrDefault(candidateSlot => candidateSlot.SlotKey == binding.SlotKey);
+                if (slot is null || !fields.TryGetValue(binding.FieldKey, out var field))
+                {
+                    continue;
+                }
+
+                var pointer = $"/traits/{traitIndex}/slot_bindings/{bindingIndex}";
+                if (_fieldDomainRuntime is null || fieldDomainScope is null)
+                {
+                    refusals.Add(new(
+                        "records.field.runtime_required",
+                        pointer,
+                        "A Trait Slot binding requires the field runtime and its domain scope to prove it does not widen the slot."));
+                    continue;
+                }
+
+                try
+                {
+                    await _fieldDomainRuntime.NarrowAsync(
+                        slot.Constraints,
+                        field.Binding?.Constraints ?? Unconstrained,
+                        fieldDomainScope,
+                        pointer,
+                        cancellationToken);
+                }
+                catch (FieldAdmissionException exception)
+                {
+                    refusals.AddRange(exception.Refusals);
+                }
+            }
+        }
     }
 
     // The kind's schema and the value domain's source count are the field runtime's rules;
