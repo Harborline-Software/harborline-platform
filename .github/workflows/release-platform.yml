@@ -1,0 +1,120 @@
+name: release-platform
+on:
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: Approved full main commit SHA
+        required: true
+        type: string
+      publish:
+        description: Separately authorized R1 publication (creates tag and attestations)
+        default: false
+        type: boolean
+permissions:
+  contents: read
+concurrency:
+  group: release-platform-v0.1.0
+  cancel-in-progress: false
+jobs:
+  release:
+    if: vars.ACTIONS_ENABLED == 'true' && github.ref == 'refs/heads/main' && github.repository == 'Harborline-Software/harborline-platform'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    # These are ephemeral job permissions; dispatch with publish=false never uses signing/release APIs.
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      APPROVED_COMMIT: ${{ inputs.commit }}
+      REPOSITORY: Harborline-Software/harborline-platform
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.commit }}
+          persist-credentials: false
+      - name: Require an approved main commit and trusted workflow
+        run: |
+          [[ "$APPROVED_COMMIT" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$APPROVED_COMMIT"
+          # Dispatch provenance names GITHUB_SHA; refuse a different checkout source.
+          test "$APPROVED_COMMIT" = "$GITHUB_SHA"
+          git merge-base --is-ancestor "$APPROVED_COMMIT" origin/main
+          # The signer workflow/ref must also exist unchanged in the approved source.
+          git diff --exit-code "$APPROVED_COMMIT" "$GITHUB_SHA" -- .github/workflows/release-platform.yml tooling/platform-release.mjs
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+      - name: Install browser dependencies
+        working-directory: gallery/tests
+        run: |
+          pnpm install --frozen-lockfile --ignore-scripts
+          npx playwright install --with-deps chromium
+      - name: Mirror existing gate dependencies
+        env:
+          PINS_TOKEN: ${{ secrets.HARBORLINE_PINS_TOKEN }}
+        run: |
+          git clone --quiet https://github.com/Harborline-Software/harborline-api.git "$RUNNER_TEMP/harborline-api"
+          git clone --quiet "https://x-access-token:${PINS_TOKEN}@github.com/Harborline-Software/harborline-control.git" "$RUNNER_TEMP/harborline-control"
+      - name: Full exact-tree receipt (including gallery and design reviews)
+        run: node tooling/run-phase4-receipt.mjs
+        env:
+          HARBORLINE_API_REPO: ${{ runner.temp }}/harborline-api
+          HARBORLINE_CONTROL_REPO: ${{ runner.temp }}/harborline-control
+          HARBORLINE_CI_GALLERY: '1'
+      - name: Stage and strictly check seed, receipt and checksums
+        run: node tooling/platform-release.mjs stage "$RUNNER_TEMP/release" "$APPROVED_COMMIT"
+      - name: Attest all payloads, including checksums, on the hosted producer
+        if: inputs.publish
+        id: attest
+        uses: actions/attest@v4
+        with:
+          subject-path: |
+            ${{ runner.temp }}/release/platform-pack.export.json
+            ${{ runner.temp }}/release/release-receipt.json
+            ${{ runner.temp }}/release/SHA256SUMS
+      - name: Verify provenance before creating any draft
+        if: inputs.publish
+        env:
+          BUNDLE: ${{ steps.attest.outputs.bundle-path }}
+        run: |
+          cp "$BUNDLE" "$RUNNER_TEMP/release/provenance.sigstore.json"
+          node tooling/platform-release.mjs check "$RUNNER_TEMP/release" "$APPROVED_COMMIT" --bundle
+          for asset in platform-pack.export.json release-receipt.json SHA256SUMS; do
+            gh attestation verify "$RUNNER_TEMP/release/$asset" --repo "$REPOSITORY" \
+              --bundle "$RUNNER_TEMP/release/provenance.sigstore.json" \
+              --signer-workflow "$REPOSITORY/.github/workflows/release-platform.yml" \
+              --source-ref refs/heads/main --source-digest "$APPROVED_COMMIT" --deny-self-hosted-runners
+          done
+      - name: Create draft with complete asset set
+        if: inputs.publish
+        run: |
+          # Never resume or replace an existing release/tag: failure leaves a draft for investigation.
+          if gh api "repos/$REPOSITORY/git/ref/tags/v0.1.0" >/dev/null 2>&1; then exit 1; fi
+          gh release create v0.1.0 "$RUNNER_TEMP/release/"* --repo "$REPOSITORY" \
+            --target "$APPROVED_COMMIT" --title R1 --draft --notes-file docs/releases/R1-notes.md
+      - name: Download draft and verify every uploaded byte before publication
+        if: inputs.publish
+        run: |
+          gh release view v0.1.0 --repo "$REPOSITORY" --json isDraft,targetCommitish | jq -e ' .isDraft == true'
+          mkdir "$RUNNER_TEMP/downloaded"
+          gh release download v0.1.0 --repo "$REPOSITORY" --dir "$RUNNER_TEMP/downloaded"
+          node tooling/platform-release.mjs check "$RUNNER_TEMP/downloaded" "$APPROVED_COMMIT" --bundle
+          for asset in platform-pack.export.json release-receipt.json SHA256SUMS provenance.sigstore.json; do
+            cmp "$RUNNER_TEMP/release/$asset" "$RUNNER_TEMP/downloaded/$asset"
+          done
+          for asset in platform-pack.export.json release-receipt.json SHA256SUMS; do
+            gh attestation verify "$RUNNER_TEMP/downloaded/$asset" --repo "$REPOSITORY" \
+              --bundle "$RUNNER_TEMP/downloaded/provenance.sigstore.json" \
+              --signer-workflow "$REPOSITORY/.github/workflows/release-platform.yml" \
+              --source-ref refs/heads/main --source-digest "$APPROVED_COMMIT" --deny-self-hosted-runners
+          done
+      - name: Publish verified draft (immutable release)
+        if: inputs.publish
+        run: gh release edit v0.1.0 --repo "$REPOSITORY" --draft=false

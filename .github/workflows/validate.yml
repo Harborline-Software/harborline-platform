@@ -19,6 +19,8 @@ jobs:
     permissions:
       contents: read
       packages: write
+      id-token: write
+      attestations: write
     env:
       PACKAGE_IDS: >-
         Harborline.Blocks.ActivityTimeline
@@ -70,6 +72,10 @@ jobs:
           name: platform-libraries-${{ github.sha }}
           path: artifacts/packages/nuget/manifest.json
           if-no-files-found: error
+      - name: Attest every packed library before push (T-705 ruling 107)
+        uses: actions/attest@v4
+        with:
+          subject-path: artifacts/packages/nuget/*.nupkg
       - name: Publish to GitHub Packages
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
