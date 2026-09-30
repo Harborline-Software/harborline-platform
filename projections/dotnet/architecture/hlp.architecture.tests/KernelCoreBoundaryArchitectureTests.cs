@@ -20,7 +20,6 @@ public sealed class KernelCoreBoundaryArchitectureTests
     {
         ["projections/dotnet/blocks/hlp.blocks.activity-timeline/ActivityTimeline.cs"] = (2, "member-local reference adapter"),
         ["projections/dotnet/blocks/hlp.blocks.reports/DependencyInjection/ReportSubstrateServiceCollectionExtensions.cs"] = (1, "report host composition"),
-        ["projections/dotnet/blocks/hlp.blocks.scheduling/FileJournalSchedulingStore.cs"] = (2, "scheduling store adapter"),
         ["projections/dotnet/blocks/hlp.blocks.workflow.restart-probe/Program.cs"] = (2, "restart fixture executable"),
         ["projections/dotnet/blocks/hlp.blocks.workflow/Durable/DurableWorkflowServiceCollectionExtensions.cs"] = (1, "workflow host composition"),
         ["projections/dotnet/blocks/hlp.blocks.workflow/Durable/FileJournalWorkflowStore.cs"] = (2, "workflow store adapter"),

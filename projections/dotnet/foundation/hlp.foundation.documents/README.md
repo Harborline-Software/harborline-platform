@@ -1,6 +1,6 @@
 # Harborline Foundation Documents
 
-Owns the Documents composition's `TemplateDefinition`, content kind 6 (DES-0021): its envelope,
+Owns the Documents composition's `TemplateDefinition`, content kind 7 (DES-0021; the api's value, T-738): its envelope,
 canonical JSON, pack content and structural admission.
 
 A template pins one published Layout page surface with intent `issue` by exact identity and version

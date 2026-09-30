@@ -1457,7 +1457,7 @@
         {
           "id": "assertStateCompleteness",
           "status": "PARTIAL",
-          "note": "derived [\"collapsed\",\"expanded\"] from the interface; no scenario names [\"collapsed\",\"expanded\"]"
+          "note": "derived [\"collapsed\",\"default\",\"error\",\"expanded\"] from the interface; no scenario names [\"collapsed\",\"default\",\"error\",\"expanded\"]"
         },
         {
           "id": "assertFocusQuality",
@@ -3890,7 +3890,7 @@
         {
           "id": "assertEmptyAndErrorStates",
           "status": "UNBUILT",
-          "note": "no empty or error property, but bindings, expressionContracts, palette can be handed an empty collection; that state is reachable and undesigned"
+          "note": "no empty or error property, but bindings, expressionContracts, granted, palette, refusals can be handed an empty collection; that state is reachable and undesigned"
         },
         {
           "id": "assertContentResilience",

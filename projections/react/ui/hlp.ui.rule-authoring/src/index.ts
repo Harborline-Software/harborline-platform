@@ -1,2 +1,2 @@
 export { GuidedExpressionEditor, RulesAuthoringEditor, emptyRulesDraft } from './RulesAuthoringEditor'
-export type { GuidedExpressionEditorProps, RulesAuthoringEditorProps, RulesDraft, RulesExpression, RulesRuleDraft, RulesOutcome, RulesOperationRequest, RulesOperationResponse, RulesExpressionContract, RulesMaterialization, RulesReleaseBinding, RulesAuthoritativeState } from './RulesAuthoringEditor'
+export type { GuidedExpressionEditorProps, RulesAuthoringEditorProps, RulesDraft, RulesExpression, RulesRuleDraft, RulesOutcome, RulesOperationRequest, RulesOperationResponse, RulesExpressionContract, RulesMaterialization, RulesReleaseBinding, RulesAuthoritativeState, RulesEditorAuthority, RulesRefusal } from './RulesAuthoringEditor'

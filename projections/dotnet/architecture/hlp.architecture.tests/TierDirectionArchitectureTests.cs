@@ -86,7 +86,7 @@ public sealed class TierDirectionArchitectureTests
             .ToList();
     }
 
-    private static IReadOnlyDictionary<string, IReadOnlyDictionary<string, Assembly>> LoadTierAssemblies()
+    internal static IReadOnlyDictionary<string, IReadOnlyDictionary<string, Assembly>> LoadTierAssemblies()
     {
         var repositoryRoot = RepositoryRoot();
         return new[] { "kernel", "foundation", "blocks" }.ToDictionary(

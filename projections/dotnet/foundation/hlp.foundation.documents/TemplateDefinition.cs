@@ -6,11 +6,11 @@ using Harborline.Foundation.Definitions;
 
 namespace Harborline.Foundation.Documents;
 
-/// <summary>Documents' pack wire identity (DES-0021 documents-ck-1). Kept at 6; no number is allocated here.</summary>
+/// <summary>Documents' pack wire identity (DES-0021 documents-ck-1); the value is <see cref="PackContentKindRegistry"/>'s.</summary>
 public static class DocumentsPackIdentity
 {
-    /// <summary>Content kind 6, <c>TemplateDefinition</c>.</summary>
-    public const int ContentKind = 6;
+    /// <summary>Content kind 7, the api's <c>PackContentKind.TemplateDefinition</c>. 6 is <c>TerminologyOverride</c> and was a collision (T-738).</summary>
+    public const int ContentKind = 7;
 }
 
 /// <summary>The definition layer that supplied a template revision.</summary>

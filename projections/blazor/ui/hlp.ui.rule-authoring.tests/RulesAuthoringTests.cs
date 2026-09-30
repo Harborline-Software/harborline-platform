@@ -302,6 +302,97 @@ public sealed class RulesAuthoringTests : BunitContext
         Assert.NotNull(cut.Find("tr[data-catch-all]"));
     }
 
+    // T-740 part 1: DES-0018 §6 authority and producer refusals at the editor, from the fixture shared with the React lane.
+    [Fact]
+    public void deny_all_authority_renders_zero_enabled_publish_controls()
+    {
+        using var fixture = JsonDocument.Parse(File.ReadAllText(FindFixture("rules-editor-authority-fixtures.json")));
+        var requests = new List<RulesOperationRequest>();
+        var cut = Render<HarborlineRulesAuthoringEditor>(parameters => parameters
+            .Add(component => component.Value, RulesDraft.Empty)
+            .Add(component => component.ExpressionContracts, Contracts)
+            .Add(component => component.Authority, ReadAuthority(fixture.RootElement.GetProperty("denyAll")))
+            .Add(component => component.OperationRequested, EventCallback.Factory.Create<RulesOperationRequest>(this, requests.Add)));
+
+        Assert.True(cut.Find("form").HasAttribute("data-read-only"));
+        var lifecycle = cut.FindAll("[aria-label='Rule lifecycle'] button");
+        Assert.Equal(["Save draft", "Preview", "Publish", "Archive"], lifecycle.Select(button => button.TextContent).ToArray());
+        Assert.DoesNotContain(lifecycle, button => !button.HasAttribute("disabled"));
+        // Every control sits inside the disabled fieldset, so none of them is editable.
+        Assert.All(cut.FindAll("input, select, button"), control => Assert.True(control.HasAttribute("disabled") || control.Closest("fieldset[disabled]") is not null, control.OuterHtml));
+        cut.FindButton("Publish").Click();
+        Assert.Empty(requests);
+    }
+
+    [Fact]
+    public void three_refusal_payload_renders_exactly_its_code_pointer_refusals()
+    {
+        using var fixture = JsonDocument.Parse(File.ReadAllText(FindFixture("rules-editor-authority-fixtures.json")));
+        var item = fixture.RootElement.GetProperty("threeRefusals");
+        var refusals = item.GetProperty("refusals").EnumerateArray().Select(refusal => new RulesRefusal(refusal.GetProperty("code").GetString()!, refusal.GetProperty("pointer").GetString()!)).ToArray();
+        var requests = new List<RulesOperationRequest>();
+        var cut = Render<HarborlineRulesAuthoringEditor>(parameters => parameters
+            .Add(component => component.Value, RulesDraft.Empty with { Identity = "amount-rule", ExpectedRevision = "1" })
+            .Add(component => component.ExpressionContracts, Contracts)
+            .Add(component => component.Authority, ReadAuthority(item))
+            .Add(component => component.OperationRequested, EventCallback.Factory.Create<RulesOperationRequest>(this, requests.Add)));
+        Assert.Empty(cut.FindAll("ul[aria-label='Refusals']"));
+
+        cut.FindButton("Save draft").Click();
+        var request = Assert.Single(requests);
+        Assert.Equal(item.GetProperty("operation").GetString(), request.Operation);
+        cut.Render(parameters => parameters.Add(component => component.Response, new RulesOperationResponse(request.RequestId, request.Identity, request.ExpectedRevision, request.Generation, Refusals: refusals)));
+
+        Assert.Equal(3, refusals.Length);
+        var rendered = cut.FindAll("ul[aria-label='Refusals'] li");
+        Assert.Equal(
+            refusals.Select(refusal => ((string?)refusal.Code, (string?)refusal.Pointer, $"{refusal.Code} at {refusal.Pointer}")).ToArray(),
+            rendered.Select(entry => (entry.GetAttribute("data-code"), entry.GetAttribute("data-pointer"), entry.TextContent)).ToArray());
+    }
+
+    [Fact]
+    public void host_echo_of_an_accepted_revision_keeps_the_response_refusals_and_outcome()
+    {
+        using var fixture = JsonDocument.Parse(File.ReadAllText(FindFixture("rules-editor-authority-fixtures.json")));
+        var item = fixture.RootElement.GetProperty("threeRefusals");
+        var refusals = item.GetProperty("refusals").EnumerateArray().Select(refusal => new RulesRefusal(refusal.GetProperty("code").GetString()!, refusal.GetProperty("pointer").GetString()!)).ToArray();
+        var changes = new List<RulesDraft>(); var requests = new List<RulesOperationRequest>();
+        var cut = Render<HarborlineRulesAuthoringEditor>(parameters => parameters
+            .Add(component => component.Value, RulesDraft.Empty with { Identity = "amount-rule", ExpectedRevision = "1" })
+            .Add(component => component.ExpressionContracts, Contracts)
+            .Add(component => component.Authority, ReadAuthority(item))
+            .Add(component => component.ValueChanged, EventCallback.Factory.Create<RulesDraft>(this, changes.Add))
+            .Add(component => component.OperationRequested, EventCallback.Factory.Create<RulesOperationRequest>(this, requests.Add)));
+        cut.FindButton("Save draft").Click();
+        var request = Assert.Single(requests);
+        cut.Render(parameters => parameters.Add(component => component.Response, new RulesOperationResponse(request.RequestId, request.Identity, request.ExpectedRevision, request.Generation, new("amount-rule", "2", "Draft"), new RulesOutcome("Value", "sample", "2026-06-30T00:00:00.0000000Z", Value: "kept"), Refusals: refusals)));
+
+        // The host binds Value to what ValueChanged reported, as @bind-Value does.
+        cut.Render(parameters => parameters.Add(component => component.Value, changes[^1]));
+
+        Assert.Equal(3, cut.FindAll("ul[aria-label='Refusals'] li").Count);
+        Assert.Contains("Value: kept", cut.Markup);
+        Assert.DoesNotContain("Revision changed.", cut.Markup);
+    }
+
+    [Fact]
+    public void each_partial_grant_enables_exactly_its_lifecycle_controls()
+    {
+        using var fixture = JsonDocument.Parse(File.ReadAllText(FindFixture("rules-editor-authority-fixtures.json")));
+        foreach (var item in fixture.RootElement.GetProperty("grantCases").EnumerateArray())
+        {
+            string[] granted = [.. item.GetProperty("granted").EnumerateArray().Select(permission => permission.GetString()!)];
+            var cut = Render<HarborlineRulesAuthoringEditor>(parameters => parameters
+                .Add(component => component.Value, RulesDraft.Empty)
+                .Add(component => component.ExpressionContracts, Contracts)
+                .Add(component => component.Authority, new RulesEditorAuthority(granted)));
+            var enabled = cut.FindAll("[aria-label='Rule lifecycle'] button").Where(button => !button.HasAttribute("disabled")).Select(button => button.TextContent).ToArray();
+            Assert.True(item.GetProperty("enabled").EnumerateArray().Select(name => name.GetString()!).SequenceEqual(enabled), $"{string.Join(",", granted)}: {string.Join(",", enabled)}");
+        }
+    }
+
+    private static RulesEditorAuthority ReadAuthority(JsonElement item) => new([.. item.GetProperty("authority").GetProperty("granted").EnumerateArray().Select(permission => permission.GetString()!)]);
+
     private static readonly RulesExpressionContract[] Contracts = [new("rule", "typed value", "preview", [new("amount", "Amount", ColumnValueType.Number)])];
     private IRenderedComponent<HarborlineRulesAuthoringEditor> RenderEditor(Action<RulesDraft> changed, Action<RulesOperationRequest>? requested = null, RulesDraft? value = null) => Render<HarborlineRulesAuthoringEditor>(parameters => parameters
         .Add(component => component.Value, value ?? RulesDraft.Empty)
@@ -315,14 +406,14 @@ public sealed class RulesAuthoringTests : BunitContext
         var value = document.RootElement.GetProperty("lifecycle").GetProperty("responses")[4].GetProperty("materialization");
         return JsonSerializer.Deserialize<RulesMaterialization>(value, new JsonSerializerOptions(JsonSerializerDefaults.Web))!;
     }
-    private static string FindFixture()
+    private static string FindFixture(string name = "rules-editor-contract-fixtures.json")
     {
         for (var directory = new DirectoryInfo(Directory.GetCurrentDirectory()); directory is not null; directory = directory.Parent)
         {
-            var candidate = Path.Combine(directory.FullName, "conformance", "hlp.blocks.builder-definitions", "rules-editor-contract-fixtures.json");
+            var candidate = Path.Combine(directory.FullName, "conformance", "hlp.blocks.builder-definitions", name);
             if (File.Exists(candidate)) return candidate;
         }
-        throw new FileNotFoundException("rules-editor-contract-fixtures.json was not found from the test working directory.");
+        throw new FileNotFoundException($"{name} was not found from the test working directory.");
     }
 }
 

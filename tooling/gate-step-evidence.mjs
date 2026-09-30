@@ -50,6 +50,7 @@ export const reusableStepInputs = {
   'ui-shared-conformance': [
     ...BUILD_INPUTS,
     'tooling/run-shared.mjs',
+    'tooling/shared-module-evidence.mjs',
     'tooling/resolve-command.mjs',
     'tooling/resolve-dotnet.mjs',
   ],
