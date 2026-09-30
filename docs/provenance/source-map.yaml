@@ -689,7 +689,7 @@
         "projections/dotnet/blocks/hlp.blocks.reports/Services/ReportCartridgeRegistry.cs": "6ff977da36e8e3ba9eda0b0fce5d6dec3d304a2bb46747c2083cc2966231c8a5",
         "projections/dotnet/blocks/hlp.blocks.reports/Services/ReportRunner.cs": "fd9862096c5809b609dc947fd69646cfd9db1d340368ac219d96c52ec72beb48",
         "projections/dotnet/blocks/hlp.blocks.reports/Services/ReportRunnerOptions.cs": "5d65b38d55b5c4866beaf6e045dfae7cf4dfbb01af1aa87eb22a672666a1118a",
-        "projections/dotnet/blocks/hlp.blocks.reports/Harborline.Blocks.Reports.csproj": "cbc38b92458e26f02047f3051bfa4d97625fa617969efadaed8459b1396e4464",
+        "projections/dotnet/blocks/hlp.blocks.reports/Harborline.Blocks.Reports.csproj": "5fd3f17848664b4f8506d37346b6a4f7f3f1e13c2ef8e1f86cda2d5b03d8160f",
         "projections/dotnet/contracts/hlp.contracts.identities/PrincipalId.cs": "d0c4284045208ea2c409dd2b11c629c8833823227173da61bc8aa516301bef3e",
         "projections/dotnet/blocks/hlp.blocks.reports/Measures/ReportMeasureBasis.cs": "3fc51efef7ebe2c37a603f3c916df1e05d8441fb1353f007ca06b1505998fbec",
         "projections/dotnet/blocks/hlp.blocks.reports/Measures/AccessFilteredReportQuerySource.cs": "d9ae5c54a18d57d5c4acd6b2771cc76102f13c0f6dbb2f581e7c82780645e6e6",
