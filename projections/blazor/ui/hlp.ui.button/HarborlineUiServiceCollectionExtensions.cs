@@ -5,8 +5,10 @@ using Harborline.UIAdapters.Blazor.Components.Feedback;
 
 namespace Harborline.UIAdapters.Blazor;
 
+/// <summary>Registers the Blazor UI services with dependency injection.</summary>
 public static class HarborlineUiServiceCollectionExtensions
 {
+    /// <summary>Adds the Harborline Blazor UI services, such as toasts and observers, to the service collection.</summary>
     public static IServiceCollection AddHarborlineUiAdapters(this IServiceCollection services)
     {
         ArgumentNullException.ThrowIfNull(services);

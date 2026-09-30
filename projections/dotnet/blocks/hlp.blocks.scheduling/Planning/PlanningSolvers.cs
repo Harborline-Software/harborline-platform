@@ -1,11 +1,18 @@
 namespace Harborline.Blocks.Scheduling.Planning;
 
+/// <summary>Exhaustively searches candidates in deterministic order until it proves feasibility or exhaustion.</summary>
 public sealed class DeterministicExhaustiveProofSolver : IPlanningSolver
 {
+    /// <summary>Stable identifier used in proposal ids and telemetry.</summary>
     public string SolverId => "prototype.exhaustive-proof.v1";
 
+    /// <summary>This solver proves feasibility or infeasibility when its search completes.</summary>
     public SolverGuarantee Guarantee => SolverGuarantee.FeasibleProof;
 
+    /// <summary>Solves the problem using the bounded exhaustive search.</summary>
+    /// <param name="problem">Compiled finite planning problem.</param>
+    /// <param name="deterministicWorkBudget">Maximum candidate evaluations.</param>
+    /// <returns>A deterministic proposal describing feasibility, exhaustion, or budget exhaustion.</returns>
     public SchedulingProposal Solve(CompiledPlanningProblem problem, int deterministicWorkBudget) =>
         AssignmentRules.MeasureSolve(
             SolverId,
@@ -113,12 +120,19 @@ public sealed class DeterministicExhaustiveProofSolver : IPlanningSolver
             incompleteFactSets ?? []);
 }
 
+/// <summary>Assigns the first compatible candidate for each activity in stable id order.</summary>
 public sealed class GreedyFirstFitSolver : IPlanningSolver
 {
+    /// <summary>Stable identifier used in proposal ids and telemetry.</summary>
     public string SolverId => "prototype.greedy-first-fit.v1";
 
+    /// <summary>This solver provides a bounded heuristic result rather than a proof of optimality.</summary>
     public SolverGuarantee Guarantee => SolverGuarantee.BoundedHeuristic;
 
+    /// <summary>Solves the problem with deterministic first-fit selection.</summary>
+    /// <param name="problem">Compiled finite planning problem.</param>
+    /// <param name="deterministicWorkBudget">Maximum candidate evaluations.</param>
+    /// <returns>A complete, partial, or budget-exhausted heuristic proposal.</returns>
     public SchedulingProposal Solve(CompiledPlanningProblem problem, int deterministicWorkBudget) =>
         AssignmentRules.MeasureSolve(
             SolverId,

@@ -3,14 +3,18 @@ using Harborline.Foundation.RuleAuthoring;
 
 namespace Harborline.UIAdapters.Blazor.Components.RuleAuthoring;
 
+/// <summary>A draggable item in the rules palette: id, label and the type of value it produces.</summary>
 public sealed record RulesPaletteItem(string Id, string Label, ColumnValueType ValueType)
 {
     /// <summary>The references of a palette generated from the register and Records fields (rules-auth-20).</summary>
     public static IReadOnlyList<RulesPaletteItem> From(RulesPalette palette)
         => [.. palette.References.Select(reference => new RulesPaletteItem(reference.Id, reference.Label, reference.ValueType))];
 }
+/// <summary>What an expression site accepts: where it sits, its return and timing contracts and its palette.</summary>
 public sealed record RulesExpressionContract(string Site, string ReturnContract, string ExecutionTimeContract, IReadOnlyList<RulesPaletteItem> Palette);
+/// <summary>Where a released rule definition is bound: tenant, definition, version, winning watermark and source.</summary>
 public sealed record RulesReleaseBinding(string Tenant, string DefinitionId, string VersionId, string WinningWatermark, string CanonicalSource);
+/// <summary>The materialised release of a rule: its bindings, canonical content and content digest.</summary>
 public sealed record RulesMaterialization(IReadOnlyList<RulesReleaseBinding> Bindings, string CanonicalContent, string ContentDigest);
 
 /// <summary>Lifecycle envelope around the producer-owned <see cref="RuleDraft"/>.</summary>
@@ -22,6 +26,7 @@ public sealed record RulesDraft(
     string PinnedVersionId,
     RuleDraft Draft)
 {
+    /// <summary>An empty rules draft in the Draft state.</summary>
     public static RulesDraft Empty { get; } = new("", "", "", "Draft", "", new FormulaDraft
     {
         Scope = RuleScope.Field,
@@ -31,6 +36,7 @@ public sealed record RulesDraft(
         Expression = new FormulaExpr.Literal("", ColumnValueType.Text),
     });
 
+    /// <summary>The materialised release attached to the draft, when there is one.</summary>
     public RulesMaterialization? Materialization { get; init; }
 }
 
@@ -40,9 +46,13 @@ public sealed record RulesFieldBinding(string Key, string Label);
 /// <summary>The shared catalogue of ordinary editable Rules drafts.</summary>
 public sealed record RulesRuleCatalogue(IReadOnlyList<RulesDraft> Rules);
 
+/// <summary>The outcome of a rules operation or test: kind, input, clock, value, code and rule or member involved.</summary>
 public sealed record RulesOutcome(string Kind, string InputLabel, string ClockUtc, string? Value = null, string? Code = null, string? RuleName = null, string? MemberName = null, string? RequestId = null, string? Identity = null, string? ExpectedRevision = null, int? Generation = null, string? Validity = null, string? Visibility = null, string? Presentation = null);
+/// <summary>A request to run an operation on a rules draft, with the identity, expected revision and generation.</summary>
 public sealed record RulesOperationRequest(string Operation, string RequestId, string Identity, string ExpectedRevision, int Generation, RulesDraft Draft);
+/// <summary>The server current identity, revision and status for a rules draft.</summary>
 public sealed record RulesAuthoritativeState(string Identity, string Revision, string Status);
+/// <summary>The server answer to a rules operation: request echo, authoritative state, outcome and materialisation.</summary>
 public sealed record RulesOperationResponse(string RequestId, string Identity, string ExpectedRevision, int Generation, RulesAuthoritativeState? Authoritative = null, RulesOutcome? Outcome = null, RulesMaterialization? Materialization = null, IReadOnlyList<RulesRefusal>? Refusals = null);
 
 /// <summary>A producer refusal the editor renders as given: a stable code at an RFC 6901 pointer (DefinitionRefusal).</summary>

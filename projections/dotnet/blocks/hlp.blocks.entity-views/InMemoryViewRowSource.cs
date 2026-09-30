@@ -9,11 +9,13 @@ public sealed class InMemoryViewRowSource : IViewRowSource
     private readonly IReadOnlyList<ViewRow> _rows;
     private readonly IViewExpressionFunctionRegistry _functions;
 
+    /// <summary>Creates a row source over the rows using a default <see cref="ViewExpressionFunctionRegistry"/>.</summary>
     public InMemoryViewRowSource(IEnumerable<ViewRow> rows)
         : this(rows, new ViewExpressionFunctionRegistry())
     {
     }
 
+    /// <summary>Creates a row source over a snapshot of the rows and the registry that evaluates filter functions; throws <see cref="ArgumentNullException"/> when either is null.</summary>
     public InMemoryViewRowSource(
         IEnumerable<ViewRow> rows,
         IViewExpressionFunctionRegistry functions)
@@ -22,6 +24,7 @@ public sealed class InMemoryViewRowSource : IViewRowSource
         _functions = functions ?? throw new ArgumentNullException(nameof(functions));
     }
 
+    /// <summary>Applies the plan's predicates in order (access predicates delegate to <see cref="ViewAccessPredicate"/>), then its sort, and only then counts, groups and pages, so counts never include rows the caller may not see. Throws <see cref="ViewQueryException"/> for an unregistered filter kind.</summary>
     public async ValueTask<ViewRowPage> QueryAsync(
         ViewQueryPlan plan,
         CancellationToken cancellationToken = default)
@@ -228,6 +231,7 @@ public sealed class InMemoryViewRowSource : IViewRowSource
 
     private sealed class ViewValueComparer(ViewRecordFieldKind? fieldKind) : IComparer<object?>
     {
+        /// <summary>Orders two values by the field's kind, delegating to the row source's ordering rules.</summary>
         public int Compare(object? left, object? right) => Order(left, right, fieldKind);
     }
 }

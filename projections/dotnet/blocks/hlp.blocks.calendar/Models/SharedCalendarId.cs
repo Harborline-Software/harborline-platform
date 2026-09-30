@@ -12,8 +12,11 @@ namespace Harborline.Blocks.Calendar.Models;
 [JsonConverter(typeof(SharedCalendarIdJsonConverter))]
 public readonly record struct SharedCalendarId(Guid Value)
 {
+    /// <inheritdoc />
     public override string ToString() => Value.ToString();
+    /// <summary>Creates a new time-sortable shared-calendar identifier.</summary>
     public static SharedCalendarId NewId() => new(Guid.CreateVersion7());
+    /// <summary>Converts the value object to its underlying GUID.</summary>
     public static implicit operator Guid(SharedCalendarId id) => id.Value;
 }
 

@@ -9,6 +9,7 @@ public sealed partial class InMemoryTypeCatalogStore
     private readonly Dictionary<string, TenantRows> tenants = new(StringComparer.Ordinal);
     private readonly object sync = new();
 
+    /// <summary>Indexes the pack seeds by id, marking each as Pack provenance with no override; throws if the seed list is null.</summary>
     public InMemoryTypeCatalogStore(IEnumerable<TypeDetailWire> packSeeds)
     {
         ArgumentNullException.ThrowIfNull(packSeeds);
@@ -21,6 +22,7 @@ public sealed partial class InMemoryTypeCatalogStore
             StringComparer.Ordinal);
     }
 
+    /// <summary>Returns the tenant's catalog view, creating its empty override and created-type maps on first use; throws for a null or blank tenant id.</summary>
     public ITypeCatalogStore ForTenant(string tenantId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
@@ -37,6 +39,7 @@ public sealed partial class InMemoryTypeCatalogStore
 
     private sealed class Scope(InMemoryTypeCatalogStore owner, TenantRows rows) : ITypeCatalogStore
     {
+        /// <summary>Returns every type visible to the tenant as catalog rows, with tenant overrides and created types replacing pack seeds of the same id, ordered by display name.</summary>
         public ValueTask<IReadOnlyList<TypeWire>> GetEffectiveCatalogAsync()
         {
             lock (owner.sync)
@@ -50,6 +53,7 @@ public sealed partial class InMemoryTypeCatalogStore
             }
         }
 
+        /// <summary>Returns a copy of the tenant's override, created type or pack seed, in that order of precedence; null when the id is unknown.</summary>
         public ValueTask<TypeDetailWire?> GetTypeAsync(string id)
         {
             lock (owner.sync)
@@ -61,6 +65,7 @@ public sealed partial class InMemoryTypeCatalogStore
             }
         }
 
+        /// <summary>Validates the body and creates a tenant type, generating an id when none is given; throws <see cref="EntityViewsException"/> with <see cref="EntityViewsTypeCodes.SeedExistsUsePut"/> when the id is a pack seed and <see cref="EntityViewsTypeCodes.TypeExistsUsePut"/> when the tenant already created it, besides the validation codes.</summary>
         public ValueTask<TypeDetailWire> CreateTypeAsync(TypeUpsertBody body)
         {
             var valid = Validate(body);
@@ -75,6 +80,7 @@ public sealed partial class InMemoryTypeCatalogStore
             }
         }
 
+        /// <summary>Validates the body, then stores a tenant override when the id is a pack seed or updates the tenant's created type; returns null when the id is neither.</summary>
         public ValueTask<TypeDetailWire?> UpdateTypeAsync(string id, TypeUpsertBody body)
         {
             var valid = Validate(body);
@@ -93,6 +99,7 @@ public sealed partial class InMemoryTypeCatalogStore
             }
         }
 
+        /// <summary>Removes the tenant's override of a pack seed and returns the seed; returns null when the id is not a pack seed.</summary>
         public ValueTask<TypeDetailWire?> RevertTypeAsync(string id)
         {
             lock (owner.sync)
@@ -106,7 +113,9 @@ public sealed partial class InMemoryTypeCatalogStore
 
     private sealed class TenantRows
     {
+        /// <summary>Tenant overrides of pack seeds, keyed by type id.</summary>
         public Dictionary<string, TypeDetailWire> Overrides { get; } = new(StringComparer.Ordinal);
+        /// <summary>Types created by the tenant, keyed by type id.</summary>
         public Dictionary<string, TypeDetailWire> Created { get; } = new(StringComparer.Ordinal);
     }
 
