@@ -599,7 +599,7 @@
         "projections/dotnet/blocks/hlp.blocks.calendar/Services/SharedCalendarResolver.cs": "c3d8be8fb2da97b1df2b208ea4a6d036f223d499e2de4616817376710cdf5560",
         "projections/dotnet/blocks/hlp.blocks.calendar/Services/SharedCalendarSnapshot.cs": "e9051db2ccc3bb2fd0f7760914207bb0d5b3d5259f8b224b0a5c73009139b324",
         "projections/dotnet/blocks/hlp.blocks.calendar/Services/TimezoneResolver.cs": "771d92ff09002873c2a575e946f952571194bd83e453c208cf3d81fcf9c0f95a",
-        "projections/dotnet/blocks/hlp.blocks.calendar/Harborline.Blocks.Calendar.csproj": "fb865e3006991bb2c8969eb5d47369ecb4fea2b65a7ab5884fc492a4a1e3ae95",
+        "projections/dotnet/blocks/hlp.blocks.calendar/Harborline.Blocks.Calendar.csproj": "96ecfe49dd26e178553677e0bcb0f0e586ea2746b68745bfca873509fc21bcb2",
         "projections/dotnet/blocks/hlp.blocks.calendar/Models/AvailabilityRequest.cs": "a39073353f99dc4dabbf4ce5daae8c2d094abc39b5e3d6edfe5e2d107d7e4d4b",
         "projections/dotnet/blocks/hlp.blocks.calendar/Models/AvailabilityAnswer.cs": "8b9f36949f12280bae335520c08c1559f18477e8d47e4f335e1fab828fe7de56",
         "projections/dotnet/blocks/hlp.blocks.calendar/Services/IAvailabilityRuntime.cs": "3019ca717d63231b6a629990ffb8abf3be6c3c952334766b5805742cb1cbf38d"
