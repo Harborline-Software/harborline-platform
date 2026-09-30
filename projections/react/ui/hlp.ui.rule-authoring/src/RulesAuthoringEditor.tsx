@@ -90,7 +90,9 @@ export function RulesAuthoringEditor(props: RulesAuthoringEditorProps) {
   const change = (next: RulesDraft) => { dirty.current = true; generation.current++; latest.current = next; setValue(next); setResult(undefined); setRefusals(noRefusals); props.onChange(next) }
   const updateDraft = (draft: RulesRuleDraft) => change({ ...latest.current, draft })
   // A dirty draft is never replaced silently: the catalogue rule waits behind the same Keep/Discard choice as a changed revision.
-  const editRule = (rule: RulesDraft) => { if (dirty.current) setIncoming({ draft: rule, reason: `Editing ${rule.name} replaces unsaved edits.` }); else change(rule) }
+  // A clean replacement: the loaded draft is the new baseline, so nothing earlier (preview, refusals, requests) survives.
+  const load = (next: RulesDraft) => { dirty.current = false; generation.current++; latest.current = next; setValue(next); setIncoming(undefined); setResult(undefined); setRefusals(noRefusals); outstanding.current.clear(); intentIds.current.clear(); props.onChange(next) }
+  const editRule = (rule: RulesDraft) => { if (dirty.current) setIncoming({ draft: rule, reason: `Editing ${rule.name} replaces unsaved edits.` }); else load(rule) }
   const formula = value.draft.kind === 'Formula' ? value.draft : undefined; const table = value.draft.kind === 'Table' ? value.draft : undefined; const contract = props.expressionContracts.find(item => item.site === 'rule')
   const toggleFieldCheckbox = (field: RulesFieldBinding, checkbox: FieldCheckbox, checked: boolean) => {
     if (!props.catalogue || !props.onCatalogueChange) return
@@ -112,7 +114,7 @@ export function RulesAuthoringEditor(props: RulesAuthoringEditorProps) {
     {readOnly ? <fieldset className="hl-rules-authoring__read-only" disabled>{body}</fieldset> : body}
     <div className="hl-rules-authoring__actions" role="group" aria-label="Rule lifecycle"><Button type="button" disabled={!allowed('save-draft')} onClick={() => void request('save-draft')}>Save draft</Button><Button type="button" disabled={!allowed('preview')} onClick={() => void request('preview')}>Preview</Button><Button type="button" disabled={!allowed('publish')} onClick={() => void request('publish')}>Publish</Button><Button type="button" disabled={!allowed('archive')} onClick={() => void request('archive')}>Archive</Button></div>
     {refusals.length > 0 && <ul className="hl-rules-authoring__refusals" aria-label="Refusals">{refusals.map((refusal, index) => <li key={index} data-code={refusal.code} data-pointer={refusal.pointer}>{refusal.code} at {refusal.pointer}</li>)}</ul>}
-    {incoming && <aside role="alert">{incoming.reason}<Button type="button" onClick={() => setIncoming(undefined)}>Keep edits</Button><Button type="button" onClick={() => { dirty.current = false; generation.current++; latest.current = incoming.draft; setValue(incoming.draft); setIncoming(undefined); props.onChange(incoming.draft) }}>Discard edits</Button></aside>}<aside className="hl-rules-authoring__preview" aria-live="polite"><h2>Preview ({result?.inputLabel ?? (props.previewKind === 'real' ? 'real' : 'sample')} input)</h2><p>{outcomeText(result)}</p></aside>
+    {incoming && <aside role="alert">{incoming.reason}<Button type="button" onClick={() => setIncoming(undefined)}>Keep edits</Button><Button type="button" onClick={() => load(incoming.draft)}>Discard edits</Button></aside>}<aside className="hl-rules-authoring__preview" aria-live="polite"><h2>Preview ({result?.inputLabel ?? (props.previewKind === 'real' ? 'real' : 'sample')} input)</h2><p>{outcomeText(result)}</p></aside>
   </form>
 }
 

@@ -246,6 +246,33 @@ describe('Rules authoring React projection', () => {
     fireEvent.click(screen.getByLabelText('Amount is required'))
     expect(onCatalogueChange.mock.calls[0][0].rules.map((rule: { identity: string }) => rule.identity)).toEqual(['field.amount.required'])
   })
+  it('rules-auth-16: opening one catalogue rule after another with no edits asks nothing', () => {
+    const rule = (identity: string, name: string) => ({ ...emptyRulesDraft(), identity, expectedRevision: '1', name })
+    function Host() {
+      const [value, setValue] = useState(emptyRulesDraft())
+      return <RulesAuthoringEditor {...props({ value, onChange: setValue, fieldBindings: [{ key: 'amount', label: 'Amount' }], catalogue: { rules: [rule('rule-a', 'Rule A'), rule('rule-b', 'Rule B')] }, onCatalogueChange: vi.fn() })} />
+    }
+    render(<Host />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Rule A' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Rule B' }))
+
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(screen.getByLabelText('Rule name')).toHaveValue('Rule B')
+  })
+  it('rules-auth-16: discarding a previewed draft for a catalogue rule leaves no stale preview or refusals', async () => {
+    const onOperation = async (request: RulesOperationRequest) => ({ requestId: request.requestId, identity: request.identity, expectedRevision: request.expectedRevision, generation: request.generation, outcome: { kind: 'Value' as const, inputLabel: 'sample', clockUtc: '2026-06-30T00:00:00.0000000Z', value: 'stale' }, refusals: [{ code: 'rules.stale', pointer: '/draft' }] })
+    render(<RulesAuthoringEditor {...props({ value: { ...emptyRulesDraft(), identity: 'rule-a', expectedRevision: '1' }, onOperation, fieldBindings: [{ key: 'amount', label: 'Amount' }], catalogue: { rules: [{ ...emptyRulesDraft(), identity: 'rule-b', expectedRevision: '1', name: 'Rule B' }] }, onCatalogueChange: vi.fn() })} />)
+    fireEvent.change(screen.getByLabelText('Rule name'), { target: { value: 'local' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Preview' }))
+    expect(await screen.findByText(/Value: stale/)).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Rule B' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Discard edits' }))
+
+    expect(screen.queryByText(/Value: stale/)).toBeNull()
+    expect(screen.queryByRole('list', { name: 'Refusals' })).toBeNull()
+  })
   it('rules-auth-16: editing a catalogue rule over a dirty draft keeps the draft on Keep edits and replaces it on Discard edits', () => {
     const catalogue = { rules: [{ ...emptyRulesDraft(), identity: 'field.amount.required', name: 'Amount Required', draft: { ...emptyRulesDraft().draft, scopeTarget: 'amount' } }] }
     render(<RulesAuthoringEditor {...props({ fieldBindings: [{ key: 'amount', label: 'Amount' }], catalogue, onCatalogueChange: vi.fn() })} />)

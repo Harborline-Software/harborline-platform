@@ -83,7 +83,7 @@
     private bool Matches(string? request, string? identity, string? revision, int? generation) => request is not null && _outstanding.Contains(request) && identity == Current.Identity && revision == Current.ExpectedRevision && generation == _generation;
     private string OutcomeText { get { if (_outcome is null) return "No preview has run."; var subject = string.Join(" / ", new[] { _outcome.RuleName, _outcome.MemberName }.Where(value => !string.IsNullOrWhiteSpace(value))); var result = _outcome.Kind switch { "Value" => $"Value: {_outcome.Value}", "Validity" => $"Validity: {_outcome.Validity}", "Visibility" => $"Visibility: {_outcome.Visibility}", "Presentation" => $"Presentation: {_outcome.Presentation}", "Pending" => "Preview pending.", "Uncomputable" => $"Uncomputable: {_outcome.Code}", _ => $"Refused: {_outcome.Code}" }; return $"{(subject == "" ? "" : subject + ": ")}{result} ({_outcome.InputLabel} @ {_outcome.ClockUtc})"; } }
     // A dirty draft is never replaced silently: the catalogue rule waits behind the same Keep/Discard choice as a changed revision.
-    private Task Edit(RulesDraft rule) { if (!_dirty) return Change(rule); _incoming = rule; _incomingReason = $"Editing {rule.Name} replaces unsaved edits."; return Task.CompletedTask; }
+    private Task Edit(RulesDraft rule) { if (!_dirty) return Load(rule); _incoming = rule; _incomingReason = $"Editing {rule.Name} replaces unsaved edits."; return Task.CompletedTask; }
     private async Task Change(RulesDraft value) { Current = value; _dirty = true; _generation++; _outcome = null; _refusals = []; await ValueChanged.InvokeAsync(value); }
     private Task ChangeDraft(RuleDraft draft) => Change(Current with { Draft = draft });
     private Task ChangeName(ChangeEventArgs eventArgs) => Change(Current with { Name = eventArgs.Value?.ToString() ?? "" });
@@ -132,6 +132,8 @@
     private bool ReadOnly => !Allowed("save-draft");
     private Task Request(string operation) { var key = $"{operation}\u0000{Current.Identity}\u0000{Current.ExpectedRevision}\u0000{_generation}"; if (!_intentIds.TryGetValue(key, out var requestId)) { requestId = $"{Current.Identity}:{Current.ExpectedRevision}:{operation}:{Interlocked.Increment(ref _intent)}"; _intentIds[key] = requestId; } _outstanding.Add(requestId); return OperationRequested.InvokeAsync(new(operation, requestId, Current.Identity, Current.ExpectedRevision, _generation, Current)); }
     private Task Keep() { _incoming = null; return Task.CompletedTask; }
-    private Task Discard() { if (_incoming is null) return Task.CompletedTask; Current = _incoming; _incoming = null; _dirty = false; _generation++; return ValueChanged.InvokeAsync(Current); }
+    private Task Discard() => _incoming is null ? Task.CompletedTask : Load(_incoming);
+    // A clean replacement: the loaded draft is the new baseline, so the host's echo is not a revision change and nothing earlier survives.
+    private Task Load(RulesDraft value) { Current = value; _incoming = null; _dirty = false; _generation++; _outcome = null; _refusals = []; _outstanding.Clear(); _intentIds.Clear(); _revision = RevisionKey(value); return ValueChanged.InvokeAsync(value); }
     private sealed record FieldCheckbox(string Id, string Label, RuleActionKind Action, string Value);
 }

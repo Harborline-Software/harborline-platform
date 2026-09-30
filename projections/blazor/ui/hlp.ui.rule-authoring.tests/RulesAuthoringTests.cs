@@ -438,6 +438,51 @@ public sealed class RulesAuthoringTests : BunitContext
         Assert.Equal("field.amount.required", Assert.Single(catalogues[^1].Rules).Identity);
     }
 
+    [Fact(DisplayName = "rules-auth-16: opening one Blazor catalogue rule after another with no edits asks nothing")]
+    public void Opening_catalogue_rules_without_edits_neither_confirms_nor_reports_a_revision_change()
+    {
+        var changes = new List<RulesDraft>();
+        RulesDraft Rule(string id, string name) => RulesDraft.Empty with { Identity = id, ExpectedRevision = "1", Name = name };
+        var cut = Render<HarborlineRulesAuthoringEditor>(parameters => parameters
+            .Add(component => component.Value, RulesDraft.Empty)
+            .Add(component => component.ExpressionContracts, Contracts)
+            .Add(component => component.FieldBindings, [new RulesFieldBinding("amount", "Amount")])
+            .Add(component => component.Catalogue, new RulesRuleCatalogue([Rule("rule-a", "Rule A"), Rule("rule-b", "Rule B")]))
+            .Add(component => component.ValueChanged, EventCallback.Factory.Create<RulesDraft>(this, changes.Add)));
+
+        cut.FindButton("Edit Rule A").Click();
+        cut.Render(parameters => parameters.Add(component => component.Value, changes[^1]));
+        cut.FindButton("Edit Rule B").Click();
+        cut.Render(parameters => parameters.Add(component => component.Value, changes[^1]));
+
+        Assert.Empty(cut.FindAll("aside[role='alert']"));
+        Assert.Equal("Rule B", cut.Find("input[aria-label='Rule name']").GetAttribute("value"));
+    }
+
+    [Fact(DisplayName = "rules-auth-16: discarding a previewed Blazor draft for a catalogue rule leaves no stale preview or refusals")]
+    public void Discarding_a_previewed_draft_for_a_catalogue_rule_clears_the_stale_preview()
+    {
+        var requests = new List<RulesOperationRequest>();
+        var cut = Render<HarborlineRulesAuthoringEditor>(parameters => parameters
+            .Add(component => component.Value, RulesDraft.Empty with { Identity = "rule-a", ExpectedRevision = "1" })
+            .Add(component => component.ExpressionContracts, Contracts)
+            .Add(component => component.FieldBindings, [new RulesFieldBinding("amount", "Amount")])
+            .Add(component => component.Catalogue, new RulesRuleCatalogue([RulesDraft.Empty with { Identity = "rule-b", ExpectedRevision = "1", Name = "Rule B" }]))
+            .Add(component => component.OperationRequested, EventCallback.Factory.Create<RulesOperationRequest>(this, requests.Add)));
+        cut.Find("input[aria-label='Rule name']").Change("local");
+        cut.FindButton("Preview").Click();
+        var request = requests[^1];
+        cut.Render(parameters => parameters.Add(component => component.Response, new RulesOperationResponse(request.RequestId, request.Identity, request.ExpectedRevision, request.Generation,
+            Outcome: new RulesOutcome("Value", "sample", "2026-06-30T00:00:00.0000000Z", Value: "stale"), Refusals: [new RulesRefusal("rules.stale", "/draft")])));
+        Assert.Contains("Value: stale", cut.Markup);
+
+        cut.FindButton("Edit Rule B").Click();
+        cut.FindButton("Discard edits").Click();
+
+        Assert.DoesNotContain("Value: stale", cut.Markup);
+        Assert.Empty(cut.FindAll("ul[aria-label='Refusals']"));
+    }
+
     [Fact(DisplayName = "rules-auth-16: editing a Blazor catalogue rule over a dirty draft keeps the draft on Keep edits and replaces it on Discard edits")]
     public void Editing_a_catalogue_rule_over_a_dirty_draft_asks_before_replacing_it()
     {
