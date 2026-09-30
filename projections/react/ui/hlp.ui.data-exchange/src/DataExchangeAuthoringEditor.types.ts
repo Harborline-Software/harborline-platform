@@ -46,12 +46,18 @@ export interface DataExchangeAuthoringCatalogue {
 export interface DataExchangeRunCensus { readonly applied: number; readonly skipped: number; readonly conflicted: number; readonly rejected: number; readonly failed: number; readonly halted: number }
 export interface DataExchangeRunSummary {
   readonly dryRunId: string
+  /** Immutable commit run that promoted this review, if the review has been committed. */
+  readonly commitRunId?: string
   readonly status: string
   readonly stale: boolean
   readonly candidateCheckpoint: string
   readonly census: DataExchangeRunCensus
   readonly refusals: readonly string[]
   readonly batchIdentity?: string
+  /** Logical identity for the reviewed effect, distinct from its delivery attempt. */
+  readonly effectIdentity?: string
+  /** At-least-once delivery identity for the reviewed effect. */
+  readonly attemptId?: string
 }
 export interface DataExchangeAuthoringRefusal { readonly stage: string; readonly code: string; readonly targetHref: string }
 export interface DataExchangeAuthoringEditorProps {
