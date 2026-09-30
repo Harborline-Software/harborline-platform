@@ -8,7 +8,6 @@
     <Description>Tenant- and session-scoped attributed activity timeline for Harborline Platform.</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageReleaseNotes>Internal-only projection; public distribution is not authorized.</PackageReleaseNotes>
-    <NoWarn>$(NoWarn);CS1591</NoWarn>
   </PropertyGroup>
   <ItemGroup><InternalsVisibleTo Include="Harborline.Blocks.ActivityTimeline.Tests" /></ItemGroup>
   <ItemGroup>
