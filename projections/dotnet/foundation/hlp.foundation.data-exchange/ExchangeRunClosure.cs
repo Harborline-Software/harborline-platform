@@ -3,12 +3,14 @@ namespace Harborline.Foundation.DataExchange;
 /// <summary>Admission for closed, exactly conserved run evidence. Durable stores must enforce this too.</summary>
 public static class ExchangeRunClosure
 {
+    /// <summary>Throws run.outcome_unknown when the outcome is null or its status is not a defined arm.</summary>
     public static void ValidateOutcome(EffectTerminalOutcome outcome)
     {
         if (outcome is null || !Enum.IsDefined(outcome.Status))
             throw new DataExchangeCommitRefusedException("run.outcome_unknown", "Every effect requires a known terminal outcome.");
     }
 
+    /// <summary>Counts the results per terminal status.</summary>
     public static ExchangeCensus Census(IEnumerable<CommitEffectResult> effects)
     {
         var statuses = effects.Select(effect => effect.Outcome.Status).ToArray();
@@ -21,6 +23,7 @@ public static class ExchangeRunClosure
             statuses.Count(status => status == ExchangeEffectStatus.Halted));
     }
 
+    /// <summary>Throws run.census_incomplete unless the results account for each reviewed effect exactly once, and run.stale when a result's effect differs from the reviewed one.</summary>
     public static void ValidateEffects(DryRunArtifact approved, BatchIdentity batch, IReadOnlyList<CommitEffectResult> effects)
     {
         foreach (var effect in effects) ValidateOutcome(effect.Outcome);
@@ -39,6 +42,7 @@ public static class ExchangeRunClosure
             throw new DataExchangeCommitRefusedException("run.stale", "Commit effects must exactly match the reviewed effects.");
     }
 
+    /// <summary>Throws unless the commit run matches its approved dry run: run.terminal_unknown, run.stale, run.census_incomplete, or run.terminal_inconsistent when the terminal status disagrees with the census.</summary>
     public static void Validate(DryRunArtifact approved, CommitRunArtifact artifact)
     {
         ArgumentNullException.ThrowIfNull(approved);

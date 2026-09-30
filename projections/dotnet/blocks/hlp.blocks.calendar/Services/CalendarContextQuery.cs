@@ -17,6 +17,7 @@ public sealed class CalendarContextQuery : ICalendarContextQuery
     private readonly ICalendarEventStore _store;
     private readonly ICalendarEventExpansionService _expansion;
 
+    /// <summary>Creates a context query over the event store and occurrence expander.</summary>
     public CalendarContextQuery(ICalendarEventStore store, ICalendarEventExpansionService expansion)
     {
         ArgumentNullException.ThrowIfNull(store);

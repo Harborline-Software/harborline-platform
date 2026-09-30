@@ -5,6 +5,27 @@ public static class KernelTransactionErrors
 {
     /// <summary>The batch did not hold exactly one command; the boundary commits one command per transaction.</summary>
     public const string MultiCommandBatch = "kernel.multi-command-batch";
+
+    /// <summary>A participant tried to join, but no boundary execution was open on its flow to own the commit.</summary>
+    public const string JoinWithoutEnclosingExecution = "kernel.join-without-enclosing-execution";
+
+    /// <summary>A boundary execution began inside another; a second commit would escape the enclosing rollback.</summary>
+    public const string NestedExecution = "kernel.nested-execution";
+
+    /// <summary>A joined participant failed, so the enclosing execution rolled back instead of committing.</summary>
+    public const string EnclosingExecutionDoomed = "kernel.enclosing-execution-doomed";
+}
+
+/// <summary>Thrown when a boundary call is made in a transaction state that cannot commit it safely.</summary>
+public sealed class KernelTransactionStateException : InvalidOperationException
+{
+    /// <summary>Creates the exception for one of the <see cref="KernelTransactionErrors"/> codes.</summary>
+    /// <param name="code">The refusal code.</param>
+    public KernelTransactionStateException(string code)
+        : base(code) => Code = code;
+
+    /// <summary>The refusal code, one of <see cref="KernelTransactionErrors"/>.</summary>
+    public string Code { get; }
 }
 
 /// <summary>Identifies one command for idempotent replay and duplicate detection.</summary>
@@ -123,13 +144,39 @@ public interface IKernelPreparedTransactionPort<TRecord, TResult>
     ValueTask<IKernelPreparedTransaction<TRecord, TResult>> BeginAsync(CancellationToken cancellationToken = default);
 }
 
-/// <summary>Owns one command's record, operation identity and audit commit or rollback.</summary>
+/// <summary>
+/// A participant that stages one command into an enclosing boundary execution's transaction. It has no commit or
+/// rollback: the enclosing execution owns the single commit, and a participant failure dooms it.
+/// </summary>
+public interface IKernelTransactionParticipant<TRecord>
+{
+    /// <summary>Stages the joined command's operation identity; the host enforces idempotency on it before the enclosing commit.</summary>
+    ValueTask StageOperationAsync(KernelOperationIdentity operation, CancellationToken cancellationToken = default);
+    /// <summary>Stages the joined command's record into the enclosing transaction; it stays invisible until that commit.</summary>
+    ValueTask StageRecordAsync(TRecord record, CancellationToken cancellationToken = default);
+    /// <summary>Stages the audit evidence that commits or rolls back with the joined record.</summary>
+    ValueTask StageAuditAsync(KernelAuditEvidence audit, CancellationToken cancellationToken = default);
+}
+
+/// <summary>
+/// Owns one command's record, operation identity and audit commit or rollback. An execution is ambient on its
+/// async flow while it runs, so a nested participant can <see cref="JoinAsync{TRecord}"/> it: the enclosing
+/// execution stays the one commit point, and a participant failure dooms it.
+/// </summary>
 public static class KernelTransactionBoundary
 {
+    // ponytail: one execution per async flow, joined sequentially; no locking for participants racing on parallel tasks.
+    private static readonly AsyncLocal<Execution?> Ambient = new();
+
     /// <summary>
     /// Opens the host transaction before preparing its one command, then stages that command's
     /// operation, record, and audit before committing. The producer is never called after commit.
+    /// Participants the producer joins stage into this transaction; if any of them failed, the transaction rolls back
+    /// and <see cref="KernelTransactionErrors.EnclosingExecutionDoomed"/> is thrown instead of committing.
     /// </summary>
+    /// <exception cref="KernelTransactionStateException">
+    /// <see cref="KernelTransactionErrors.NestedExecution"/> when called inside another execution, before the port begins.
+    /// </exception>
     public static async ValueTask<KernelTransactionResult<TResult>> ExecutePreparedAsync<TRecord, TResult>(
         Func<CancellationToken, ValueTask<KernelCommand<TRecord>>> prepare,
         IKernelPreparedTransactionPort<TRecord, TResult> port,
@@ -138,31 +185,44 @@ public static class KernelTransactionBoundary
         ArgumentNullException.ThrowIfNull(prepare);
         ArgumentNullException.ThrowIfNull(port);
 
-        await using var transaction = await port.BeginAsync(cancellationToken).ConfigureAwait(false);
+        var execution = Enter();
         try
         {
-            var command = await prepare(cancellationToken).ConfigureAwait(false);
-            ArgumentNullException.ThrowIfNull(command);
-            command.Operation.Validate();
-            command.Audit.Validate();
-            await transaction.StageOperationAsync(command.Operation, cancellationToken).ConfigureAwait(false);
-            await transaction.StageRecordAsync(command.Record, cancellationToken).ConfigureAwait(false);
-            await transaction.StageAuditAsync(command.Audit, cancellationToken).ConfigureAwait(false);
-            var value = await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
-            return new(value, null);
+            await using var transaction = await port.BeginAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                var command = await prepare(cancellationToken).ConfigureAwait(false);
+                ArgumentNullException.ThrowIfNull(command);
+                command.Operation.Validate();
+                command.Audit.Validate();
+                await transaction.StageOperationAsync(command.Operation, cancellationToken).ConfigureAwait(false);
+                await transaction.StageRecordAsync(command.Record, cancellationToken).ConfigureAwait(false);
+                await transaction.StageAuditAsync(command.Audit, cancellationToken).ConfigureAwait(false);
+                execution.ThrowIfDoomed();
+                var value = await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+                return new(value, null);
+            }
+            catch
+            {
+                await transaction.RollbackAsync(CancellationToken.None).ConfigureAwait(false);
+                throw;
+            }
         }
-        catch
+        finally
         {
-            await transaction.RollbackAsync(CancellationToken.None).ConfigureAwait(false);
-            throw;
+            execution.Ended = true;
         }
     }
 
     /// <summary>
     /// Commits exactly one command: stages its record and audit in one host transaction, then commits, rolling back on any
     /// failure. A batch of any other size is refused with <see cref="KernelTransactionErrors.MultiCommandBatch"/> before a
-    /// transaction opens.
+    /// transaction opens. Participants the port's staging joins commit or roll back with this transaction, and a failed
+    /// participant dooms it with <see cref="KernelTransactionErrors.EnclosingExecutionDoomed"/>.
     /// </summary>
+    /// <exception cref="KernelTransactionStateException">
+    /// <see cref="KernelTransactionErrors.NestedExecution"/> when called inside another execution, before the port begins.
+    /// </exception>
     public static async ValueTask<KernelTransactionResult<TResult>> ExecuteAsync<TRecord, TResult>(
         IEnumerable<KernelCommand<TRecord>> commands,
         IKernelTransactionPort<TRecord, TResult> port,
@@ -180,19 +240,80 @@ public static class KernelTransactionBoundary
         command.Operation.Validate();
         command.Audit.Validate();
 
-        await using var transaction = await port.BeginAsync(command.Operation, cancellationToken)
-            .ConfigureAwait(false);
+        var execution = Enter();
         try
         {
-            await transaction.StageRecordAsync(command.Record, cancellationToken).ConfigureAwait(false);
-            await transaction.StageAuditAsync(command.Audit, cancellationToken).ConfigureAwait(false);
-            var value = await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
-            return new(value, null);
+            await using var transaction = await port.BeginAsync(command.Operation, cancellationToken)
+                .ConfigureAwait(false);
+            try
+            {
+                await transaction.StageRecordAsync(command.Record, cancellationToken).ConfigureAwait(false);
+                await transaction.StageAuditAsync(command.Audit, cancellationToken).ConfigureAwait(false);
+                execution.ThrowIfDoomed();
+                var value = await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+                return new(value, null);
+            }
+            catch
+            {
+                await transaction.RollbackAsync(CancellationToken.None).ConfigureAwait(false);
+                throw;
+            }
+        }
+        finally
+        {
+            execution.Ended = true;
+        }
+    }
+
+    /// <summary>
+    /// Stages one command into the boundary execution running on the caller's async flow, without committing: the
+    /// participant stages the operation identity, record and audit, and the enclosing execution's commit publishes them
+    /// with its own command or not at all. Any failure here, including invalid identity or audit evidence, dooms the
+    /// enclosing execution even if the caller catches it.
+    /// </summary>
+    /// <exception cref="KernelTransactionStateException">
+    /// <see cref="KernelTransactionErrors.JoinWithoutEnclosingExecution"/> when no execution is running on this flow.
+    /// </exception>
+    public static async ValueTask JoinAsync<TRecord>(
+        KernelCommand<TRecord> command,
+        IKernelTransactionParticipant<TRecord> participant,
+        CancellationToken cancellationToken = default)
+    {
+        var execution = Ambient.Value is { Ended: false } open ? open : null;
+        try
+        {
+            ArgumentNullException.ThrowIfNull(command);
+            ArgumentNullException.ThrowIfNull(participant);
+            if (execution is null)
+                throw new KernelTransactionStateException(KernelTransactionErrors.JoinWithoutEnclosingExecution);
+            command.Operation.Validate();
+            command.Audit.Validate();
+            await participant.StageOperationAsync(command.Operation, cancellationToken).ConfigureAwait(false);
+            await participant.StageRecordAsync(command.Record, cancellationToken).ConfigureAwait(false);
+            await participant.StageAuditAsync(command.Audit, cancellationToken).ConfigureAwait(false);
         }
         catch
         {
-            await transaction.RollbackAsync(CancellationToken.None).ConfigureAwait(false);
+            if (execution is not null) execution.Doomed = true;
             throw;
+        }
+    }
+
+    private static Execution Enter()
+    {
+        if (Ambient.Value is { Ended: false })
+            throw new KernelTransactionStateException(KernelTransactionErrors.NestedExecution);
+        return Ambient.Value = new Execution();
+    }
+
+    private sealed class Execution
+    {
+        public bool Ended { get; set; }
+        public bool Doomed { get; set; }
+
+        public void ThrowIfDoomed()
+        {
+            if (Doomed) throw new KernelTransactionStateException(KernelTransactionErrors.EnclosingExecutionDoomed);
         }
     }
 }

@@ -18,9 +18,13 @@ namespace Harborline.Blocks.Calendar.Services;
 /// </remarks>
 public sealed record CalendarEventSnapshot
 {
+    /// <summary>Persisted calendar-event identifier.</summary>
     public required Guid Id { get; init; }
+    /// <summary>Tenant that owns the event.</summary>
     public required string TenantId { get; init; }
+    /// <summary>Event title.</summary>
     public required string Title { get; init; }
+    /// <summary>Optional event description.</summary>
     public string? Description { get; init; }
 
     /// <summary>
@@ -29,7 +33,9 @@ public sealed record CalendarEventSnapshot
     /// </summary>
     public bool AllDay { get; init; }
 
+    /// <summary>Event start date.</summary>
     public required DateOnly Start { get; init; }
+    /// <summary>Event end date.</summary>
     public required DateOnly End { get; init; }
 
     /// <summary>
@@ -41,15 +47,25 @@ public sealed record CalendarEventSnapshot
     /// <summary>Wall-clock end time-of-day (Slice S1). Defaults to <c>00:00</c> for an older S0 snapshot.</summary>
     public TimeOnly EndTime { get; init; }
 
+    /// <summary>Optional recurrence rule in RFC 5545 form.</summary>
     public string? Rrule { get; init; }
+    /// <summary>IANA timezone used to interpret local event times.</summary>
     public required string Timezone { get; init; }
+    /// <summary>Persisted lifecycle status.</summary>
     public required CalendarEventStatus Status { get; init; }
+    /// <summary>Dates excluded from recurrence expansion.</summary>
     public required IReadOnlyList<DateOnly> ExceptionDates { get; init; }
+    /// <summary>Persisted per-occurrence overrides.</summary>
     public required IReadOnlyList<OccurrenceOverride> Overrides { get; init; }
+    /// <summary>Creation timestamp.</summary>
     public required DateTimeOffset CreatedAt { get; init; }
+    /// <summary>Last update timestamp.</summary>
     public required DateTimeOffset UpdatedAt { get; init; }
+    /// <summary>Actor that created the event.</summary>
     public required Guid CreatedBy { get; init; }
+    /// <summary>Actor that last updated the event.</summary>
     public required Guid UpdatedBy { get; init; }
+    /// <summary>Optimistic-concurrency version.</summary>
     public required long Version { get; init; }
 
     // ---- Slice S2 participation / resource model (not required → S0/S1-snapshot-compatible) ----
@@ -182,12 +198,16 @@ public sealed record CalendarEventSnapshot
 /// </summary>
 public sealed record ParticipantRefSnapshot
 {
+    /// <summary>Discriminator identifying a party or asset reference.</summary>
     public required ParticipantKind Kind { get; init; }
+    /// <summary>Opaque identifier within the discriminator's namespace.</summary>
     public required string Value { get; init; }
 
+    /// <summary>Converts an optional domain reference to its flat persistence form.</summary>
     public static ParticipantRefSnapshot? FromModel(ParticipantRef? r)
         => r is null ? null : new ParticipantRefSnapshot { Kind = r.Kind, Value = r.Value };
 
+    /// <summary>Recreates the domain reference represented by this snapshot.</summary>
     public ParticipantRef ToModel()
         => Kind == ParticipantKind.Party ? ParticipantRef.Party(Value) : ParticipantRef.Asset(Value);
 }
@@ -198,22 +218,30 @@ public sealed record ParticipantRefSnapshot
 /// </summary>
 public sealed record ContextRefSnapshot
 {
+    /// <summary>Opaque context discriminator.</summary>
     public required string Kind { get; init; }
+    /// <summary>Opaque context identifier.</summary>
     public required string Value { get; init; }
 
+    /// <summary>Converts an optional domain context to its flat persistence form.</summary>
     public static ContextRefSnapshot? FromModel(ContextRef? c)
         => c is null ? null : new ContextRefSnapshot { Kind = c.Kind, Value = c.Value };
 
+    /// <summary>Recreates the domain context represented by this snapshot.</summary>
     public ContextRef ToModel() => ContextRef.Of(Kind, Value);
 }
 
 /// <summary>Flat, serializable form of a <see cref="CalendarParticipation"/>.</summary>
 public sealed record ParticipationSnapshot
 {
+    /// <summary>Participant reference.</summary>
     public required ParticipantRefSnapshot Participant { get; init; }
+    /// <summary>Role held by the participant.</summary>
     public required ParticipationRole Role { get; init; }
+    /// <summary>Role-specific participation status.</summary>
     public required ParticipationStatus Status { get; init; }
 
+    /// <summary>Converts a domain participation to its flat persistence form.</summary>
     public static ParticipationSnapshot FromModel(CalendarParticipation p)
         => new()
         {
@@ -222,6 +250,7 @@ public sealed record ParticipationSnapshot
             Status      = p.Status,
         };
 
+    /// <summary>Recreates the validated domain participation represented by this snapshot.</summary>
     public CalendarParticipation ToModel()
         => CalendarParticipation.Create(Participant.ToModel(), Role, Status);
 }

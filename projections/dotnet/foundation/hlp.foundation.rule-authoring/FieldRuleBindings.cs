@@ -5,16 +5,22 @@ namespace Harborline.Foundation.RuleAuthoring;
 /// <summary>A field-property checkbox (DES-0018 <c>rules-auth-16</c>).</summary>
 public enum FieldCheckbox
 {
+    /// <summary>Requires a value for the field.</summary>
     Required,
+    /// <summary>Prevents the field from being edited.</summary>
     ReadOnly,
+    /// <summary>Hides the field from the authored surface.</summary>
     Hidden,
 }
 
 /// <summary>A one-click preset per field kind (DES-0018 <c>rules-auth-17</c>).</summary>
 public enum FieldPreset
 {
+    /// <summary>Requires a numeric value that is zero or greater.</summary>
     NonNegative,
+    /// <summary>Requires a text value that is not blank.</summary>
     NotBlank,
+    /// <summary>Requires a Boolean value of <c>true</c>.</summary>
     MustBeTrue,
 }
 
