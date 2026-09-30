@@ -546,7 +546,12 @@ public sealed class DataExchangeAuthoringEditorTests : BunitContext
             new(census.GetProperty("applied").GetInt32(), census.GetProperty("skipped").GetInt32(), census.GetProperty("conflicted").GetInt32(),
                 census.GetProperty("rejected").GetInt32(), census.GetProperty("failed").GetInt32(), census.GetProperty("halted").GetInt32()),
             run.GetProperty("refusals").EnumerateArray().Select(value => value.GetString()!).ToArray(),
-            run.TryGetProperty("batchIdentity", out var batch) ? batch.GetString() : null);
+            run.TryGetProperty("batchIdentity", out var batch) ? batch.GetString() : null)
+        {
+            CommitRunId = Text(run, "commitRunId"),
+            EffectIdentity = Text(run, "effectIdentity"),
+            AttemptId = Text(run, "attemptId"),
+        };
     }
 
     private static AngleSharp.Dom.IElement Button(IRenderedComponent<HarborlineDataExchangeAuthoringEditor> cut, string text) =>
