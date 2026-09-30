@@ -646,9 +646,12 @@ describe('incremental child-table edit', () => {
     const g = new FormRuleGraph(compiled, fixedClock, testAdmission, { ...DEFAULT_LIMITS, maxTableRowsPerAggregate: 1 })
     g.evaluateInstance(instance({ items: [{ amount: 1 }] }))
 
-    expect(g.addRow('items', rowSnapshot({ id: 'r2', fields: { amount: 2 } })).values.get('agg:items/sum/amount')).toEqual({
+    const refused = g.addRow('items', rowSnapshot({ id: 'r2', fields: { amount: 2 } }))
+    expect(refused.values.get('agg:items/sum/amount')).toEqual({
       state: 'Error', error: { code: Codes.tableTooLarge, params: { section: 'items' } },
     })
+    expect(refused.isSaveBlocked).toBe(true)
+    expect(refused.values.get('field:total')).toEqual({ state: 'Resolved', value: 1 })
     const after = g.reevaluate('unrelated', valueSnapshot(null))
 
     expect(after.values.get('field:total')).toEqual({ state: 'Resolved', value: 1 })

@@ -124,6 +124,31 @@
       }
     },
     {
+      "_comment": "An aggregate over a row whose value is still pending is Pending, never a fold of the resolved rows alone.",
+      "name": "fail-closed/aggregate-over-pending-row-is-pending",
+      "definitionRules": [
+        { "id": "c.total", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "total", "action": "Compute", "expression": { "var": "table.sum(items.amount)" } }
+      ],
+      "instance": { "items": [ { "_id": "r1", "amount": 1 }, { "_id": "r2", "amount": { "@pending": true } } ] },
+      "expectedOutcomes": {
+        "c.total": { "ruleId": "c.total", "target": "field:total", "outputType": "Value", "value": { "state": "Pending" } }
+      }
+    },
+    {
+      "_comment": "An aggregate over a computed row cell that errors is itself an error, so a reader of the aggregate gets an upstream error naming the aggregate cell, never a fold that skips the failed row.",
+      "name": "fail-closed/aggregate-over-error-row-is-upstream-error",
+      "definitionRules": [
+        { "id": "rc.line", "tier": "JsonLogic", "scope": "Row", "scopeTarget": "items/line", "action": "Compute", "expression": { "/": [ { "var": "row.a" }, { "var": "row.b" } ] } },
+        { "id": "c.total", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "total", "action": "Compute", "expression": { "var": "table.sum(items.line)" } }
+      ],
+      "instance": { "items": [ { "_id": "r1", "a": 4, "b": 2 }, { "_id": "r2", "a": 1, "b": 0 } ] },
+      "expectedOutcomes": {
+        "rc.line#r1": { "ruleId": "rc.line", "target": "row:items/r1/line", "outputType": "Value", "value": { "state": "Resolved", "value": 2 } },
+        "rc.line#r2": { "ruleId": "rc.line", "target": "row:items/r2/line", "outputType": "Value", "value": { "state": "Error", "error": { "code": "rule.div_by_zero", "params": {} } } },
+        "c.total": { "ruleId": "c.total", "target": "field:total", "outputType": "Value", "value": { "state": "Error", "error": { "code": "rule.upstream_error", "params": { "cell": "agg:items/sum/line" } } } }
+      }
+    },
+    {
       "_comment": "A Compute rule scoped to a Section addresses no form cell; the graph refuses the whole instance rather than silently computing nothing (F8).",
       "name": "fail-closed/section-compute-refuses-instance",
       "definitionRules": [

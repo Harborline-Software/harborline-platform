@@ -23,6 +23,32 @@
       "expectedCompileError": { "code": "rule.compile.ast_too_large" }
     },
     {
+      "_comment": "Admitted forms the refusals above must not catch: 'self' in a Row rule lowers to its own row cell, and a bare table.<fn>(<col>) in a Row rule folds its own section.",
+      "name": "grammar/self-and-implicit-section-in-row-rule",
+      "definitionRules": [
+        { "id": "v.qty", "tier": "JsonLogic", "scope": "Row", "scopeTarget": "items/qty", "action": "Validate", "expression": { "<": [ { "var": "self" }, { "var": "table.sum(qty)" } ] } }
+      ],
+      "instance": { "items": [ { "_id": "r1", "qty": 2 }, { "_id": "r2", "qty": 3 } ] },
+      "expectedAst": { "v.qty": { "<": [ { "var": "row.qty" }, { "agg": [ "sum", "items", "qty" ] } ] } },
+      "expectedOutcomes": {
+        "v.qty#r1": { "ruleId": "v.qty", "target": "row:items/r1/qty", "outputType": "Validity", "validity": { "ok": true } },
+        "v.qty#r2": { "ruleId": "v.qty", "target": "row:items/r2/qty", "outputType": "Validity", "validity": { "ok": true } }
+      }
+    },
+    {
+      "_comment": "A string literal operand is data, not a reference: c.a concatenates the literal 'b' and c.b reads a, so there is no cycle.",
+      "name": "refs/string-literal-operand-is-not-a-reference",
+      "definitionRules": [
+        { "id": "c.a", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "a", "action": "Compute", "expression": { "cat": [ "b", "!" ] } },
+        { "id": "c.b", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "b", "action": "Compute", "expression": { "var": "a" } }
+      ],
+      "instance": {},
+      "expectedOutcomes": {
+        "c.a": { "ruleId": "c.a", "target": "field:a", "outputType": "Value", "value": { "state": "Resolved", "value": "b!" } },
+        "c.b": { "ruleId": "c.b", "target": "field:b", "outputType": "Value", "value": { "state": "Resolved", "value": "b!" } }
+      }
+    },
+    {
       "name": "grammar/self-outside-field-or-row-refuses",
       "definitionRules": [
         { "id": "vis.self", "tier": "JsonLogic", "scope": "Section", "scopeTarget": "details", "action": "Visibility", "expression": { "var": "self" } }
