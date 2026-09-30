@@ -78,6 +78,20 @@ public sealed class BookingRuntimeContractTests
         Assert.Equal(BookingHoldState.Expired, port.Current!.State);
     }
 
+    [Fact(DisplayName = "booking-eng-18: the kernel clock is read after the transaction opens, so expiry reached while opening wins")]
+    public async Task ConfirmReadsTheClockOnlyAfterTheTransactionOpens()
+    {
+        var hold = new BookingHold("hold.1", Expiry);
+        var clock = new SteppingTimeProvider(Expiry.AddMinutes(-1));
+        var port = new HoldPort(hold, version: 0) { OnBegin = () => clock.Now = Expiry };
+        var effect = new BookingHoldEffect(new KernelClock(clock));
+
+        var result = await effect.ConfirmAsync(hold, expectedVersion: 0, Operation("confirm"), port);
+
+        Assert.Equal((BookingHoldState.Expired, BookingHoldCodes.Expired), (result.Outcome.Hold.State, result.Outcome.Refusal));
+        Assert.Equal(BookingHoldCapacityEffect.Release, port.LastCommit!.CapacityEffect);
+    }
+
     [Fact(DisplayName = "booking-eng-10, booking-run-4: concurrent confirm and expiry at one version produce one terminal outcome and release once after restart")]
     public async Task ConfirmAndExpiryContentionHasOneTerminalOutcomeAndOneRelease()
     {
@@ -108,12 +122,13 @@ public sealed class BookingRuntimeContractTests
         var effect = new BookingHoldEffect(new KernelClock(new FixedTimeProvider(Expiry.AddMinutes(-5))));
 
         var acquired = await effect.AcquireAsync(hold, Operation("acquire"), port);
-        var retry = await effect.AcquireAsync(hold, Operation("acquire-retry"), port);
+        var retry = await effect.AcquireAsync(hold with { ExpiresAtUtc = Expiry.AddMinutes(1) }, Operation("acquire-retry"), port);
 
         Assert.True(acquired.Committed);
         Assert.Equal(BookingHoldState.Held, acquired.Outcome.Hold.State);
         Assert.False(retry.Committed);
         Assert.Equal(BookingHoldCodes.VersionConflict, retry.Outcome.Refusal);
+        Assert.Equal(hold, retry.Outcome.Hold);
         Assert.Equal(1, port.Published);
         Assert.Equal(1, port.Acquires);
     }
@@ -153,8 +168,15 @@ public sealed class BookingRuntimeContractTests
         public override DateTimeOffset GetUtcNow() => now;
     }
 
+    private sealed class SteppingTimeProvider(DateTimeOffset now) : TimeProvider
+    {
+        public DateTimeOffset Now { get; set; } = now;
+        public override DateTimeOffset GetUtcNow() => Now;
+    }
+
     private sealed class HoldPort(BookingHold? current, long version) : IBookingHoldTransactionPort
     {
+        public Action? OnBegin { get; init; }
         public BookingHold? Current { get; private set; } = current;
         public long Version { get; private set; } = version;
         public int Published { get; private set; }
@@ -163,7 +185,10 @@ public sealed class BookingRuntimeContractTests
         public BookingHoldCommit? LastCommit { get; private set; }
 
         public ValueTask<IKernelPreparedTransaction<BookingHoldCommit, BookingHoldStoreResult>> BeginAsync(CancellationToken cancellationToken = default)
-            => ValueTask.FromResult<IKernelPreparedTransaction<BookingHoldCommit, BookingHoldStoreResult>>(new Transaction(this));
+        {
+            OnBegin?.Invoke();
+            return ValueTask.FromResult<IKernelPreparedTransaction<BookingHoldCommit, BookingHoldStoreResult>>(new Transaction(this));
+        }
 
         private sealed class Transaction(HoldPort owner) : IKernelPreparedTransaction<BookingHoldCommit, BookingHoldStoreResult>
         {
