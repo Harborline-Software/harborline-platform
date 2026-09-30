@@ -239,6 +239,16 @@
     "measured": "2026-09-26",
     "commit": "c09cfcacf303b1944afadf7e891428ecc9d737cb"
   },
+  "projections/dotnet/foundation/hlp.foundation.notification-delivery.tests/Harborline.Foundation.NotificationDelivery.Tests.csproj": {
+    "break": 40,
+    "score": 40.35,
+    "tested": 57,
+    "total": 78,
+    "detected": 23,
+    "undetected": 34,
+    "measured": "2026-09-30",
+    "commit": "03a9de0c301be4b7589ad19e7b96d84722a24f8a"
+  },
   "projections/dotnet/foundation/hlp.foundation.rule-authoring.tests/Harborline.Foundation.RuleAuthoring.Tests.csproj": {
     "break": 55,
     "score": 55.73,
