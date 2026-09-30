@@ -1,10 +1,9 @@
 # stryker: Stryker.NET mutation testing (control T-720; PROC-0002 "Mutation evidence as an artefact"; owner ruling Q43).
 #
-# Pull request: `node tooling/stryker.mjs run` mutates each project whose .cs/.razor source changed since origin/main
-# and writes the Survived and NoCoverage mutants on changed lines to the step summary, as review feedback. It is
-# never compared with a project's floor. It fails only when mutable code changed and 0 mutants were tested, because
-# Stryker exits 0 having mutated nothing (T-720 spike). No source change: skipped, green. Advisory: not in `verify`'s
-# needs, not a required check.
+# Pull request: `node tooling/stryker.mjs run` mutates in full each project whose .cs/.razor source changed since
+# origin/main and fails when that project's score is below max(its baseline in tooling/stryker-baselines.json, its
+# configured break), or when 0 mutants were tested. Survivors on changed lines go to the step summary as review
+# feedback. No source change: skipped, green. (Owner order 2026-09-30; PR #227 lost 16 points and merged green.)
 #
 # Schedule (03:00 America/New_York, 07:00 UTC) and workflow_dispatch: `node tooling/stryker.mjs full` runs every
 # configured project on main and fails when a project scores below its baseline in tooling/stryker-baselines.json.
@@ -13,7 +12,7 @@
 # (T-724 ruling 8). The fork guard is verify-shared's, character for character, so a fork pull request never runs
 # its author's code on our machine; a draft waits until it is marked ready.
 #
-# T-724 ruling 118 (Q50): the pull_request path (changed-lines feedback) moved to a standard GitHub-hosted
+# T-724 ruling 118 (Q50): the pull_request path (changed-project score gate) moved to a standard GitHub-hosted
 # ubuntu-latest runner -- Stryker.NET and its msbuild-path fallback are both no-ops off win32 (tooling/stryker.mjs),
 # so nothing in `node tooling/stryker.mjs run` is Windows-only. The schedule/workflow_dispatch path (full run held
 # to baselines) stays on winbox exactly as before.
@@ -89,7 +88,7 @@ jobs:
           git clone --quiet https://github.com/Harborline-Software/harborline-control.git "$env:RUNNER_TEMP/harborline-control"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-      - name: Mutate changed .NET source (pull request)
+      - name: Mutate changed projects and hold each to its break (pull request)
         if: github.event_name == 'pull_request'
         run: node tooling/stryker.mjs run
         env:

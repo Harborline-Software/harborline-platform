@@ -6,8 +6,9 @@
 //                                    reporter, low = max(60, break), high = max(80, break), break >= the project's baseline in
 //                                    tooling/stryker-baselines.json); every source project a test references is
 //                                    mutated by some config or excluded. No silent gaps.
-//   node tooling/stryker.mjs run     PR mode: mutate each project whose .cs/.razor source differs from origin/main,
-//                                    report survivors on changed lines, fail only if 0 mutants were tested (Q43).
+//   node tooling/stryker.mjs run     PR mode: mutate in full each project whose .cs/.razor source differs from origin/main;
+//                                    fail when its score is below max(baseline, configured break) or 0 mutants were tested;
+//                                    list survivors on changed lines as feedback.
 //   node tooling/stryker.mjs full    scheduled mode: every mutant of every project; fail on 0 tested or a score
 //                                    below the project's recorded baseline.
 //   node tooling/stryker.mjs baseline   a full run that records each project's baseline and sets its break.
@@ -219,27 +220,6 @@ export function changedLines(diff) {
 
 // Review feedback (Q43): the Survived and NoCoverage mutants on changed lines. Generated Razor files are not in git,
 // so every survivor in them is listed; they were only mutated because their .razor changed.
-// Mutants tested in the changed source itself: a changed .cs, or the Razor output when a .razor changed. A PR that also
-// changes tests can have Stryker test mutants elsewhere, so the report's overall tested count proves nothing here.
-export function testedInChanged(report, changed, repositoryRoot = root) {
-  const razorChanged = changed.some(name => name.endsWith('.razor'))
-  const files = Object.fromEntries(Object.entries(report?.files ?? {}).filter(([file]) => {
-    const relative = path.relative(repositoryRoot, path.resolve(repositoryRoot, file)).replaceAll('\\', '/')
-    return changed.includes(relative) || (razorChanged && relative.includes('/stryker-razor/'))
-  }))
-  return reportCounts({files}).tested
-}
-
-// True only when Stryker saw every changed .cs file and created no mutant in any of them (an interface, a comment):
-// nothing mutable changed, so "0 tested" is not a gap. A missing report, a changed file absent from it, or a .razor
-// change never qualifies.
-export function nothingMutableInChanged(report, changed, repositoryRoot = root) {
-  if (!report?.files || !changed.length || changed.some(name => !name.endsWith('.cs'))) return false
-  const seen = new Map(Object.entries(report.files).map(([file, {mutants = []}]) =>
-    [path.relative(repositoryRoot, path.resolve(repositoryRoot, file)).replaceAll('\\', '/'), mutants.length]))
-  return changed.every(name => seen.get(name) === 0)
-}
-
 export function survivorsOnChangedLines(report, lines, repositoryRoot = root) {
   const found = []
   for (const [file, {mutants = []}] of Object.entries(report.files ?? {})) {
@@ -261,7 +241,19 @@ function summarize(markdown) {
 
 const selected = (repo, only) => repo.testProjects.filter(test => !(test in repo.exclusions) && (!only || test.includes(only)))
 
-// PR mode: mutate what changed, report the survivors on changed lines, fail only when mutable code changed and 0 mutants were tested.
+// The gate both modes share: a run with no tested mutant, or a score below the floor, fails. A null score (nothing
+// detected or undetected) fails too, because `null >= floor` is false.
+export function scoreVerdict(report, floor) {
+  const counts = reportCounts(report ?? {})
+  if (!counts.tested) return {ok: false, counts, reason: '0 mutants tested'}
+  if (!(counts.score >= floor)) return {ok: false, counts, reason: `score ${counts.score} % is below the break ${floor}`}
+  return {ok: true, counts}
+}
+
+// PR mode (owner ruling 2026-09-30): each project whose source changed is mutated in full (since off, so the score is the
+// project's own, comparable with its break) and fails when that score is below max(baseline, configured break). Survivors
+// on changed lines are still listed as review feedback. The Stryker.NET `since` score covers changed mutants only, which
+// is noisy and gameable (a one-line change hides a project's regression); its incremental mode needs a stored baseline report.
 function run(repo, only, strykerArgs) {
   let failed = false
   for (const test of selected(repo, only)) {
@@ -271,16 +263,13 @@ function run(repo, only, strykerArgs) {
       razor ? [`${directory}/*.cs`, `${directory}/*.razor`] : [`${directory}/*.cs`]))
       .map(row => row.split('\t')).filter(([added]) => added !== '0').map(([, , file]) => file).filter(file => !/\.tests\//.test(file))
     if (!changed.length) { console.log(`${test}: no source change in ${path.posix.dirname(target)} since origin/main, skipped`); continue }
-    const {counts, report, razor: isRazor} = mutateProject(test, changed, strykerArgs)
-    if (isRazor && changed.some(file => file.endsWith('.razor')) && !razorTested(report)) {
-      summarize(`### ${test}\n\n**FAIL**: a .razor file changed but 0 Razor mutants were tested.`); failed = true; continue
-    }
-    if (!testedInChanged(report, changed) && nothingMutableInChanged(report, changed)) {
-      summarize(`### ${test}\n\nNo mutable code in ${changed.length} changed source file(s); Stryker created no mutant in them.`); continue
-    }
-    if (!testedInChanged(report, changed)) { summarize(`### ${test}\n\n**FAIL**: ${changed.length} changed source file(s) but 0 mutants tested in them.`); failed = true; continue }
-    const survivors = survivorsOnChangedLines(report, changedLines(git('diff', '-U0', 'origin/main', '--', ...changed).join('\n')))
-    summarize([`### ${test}`, '', `${counts.tested} mutants tested, score ${counts.score} % (advisory: PR runs are not compared with the project floor).`, '',
+    const {report, razor: isRazor} = mutateProject(test, undefined, strykerArgs)
+    const floor = fullModeBreak(repo.baselines[test], configOf(test, read)), verdict = scoreVerdict(report, floor)
+    const razorMissing = isRazor && !razorTested(report)
+    const survivors = report ? survivorsOnChangedLines(report, changedLines(git('diff', '-U0', 'origin/main', '--', ...changed).join('\n'))) : []
+    if (!verdict.ok || razorMissing) failed = true
+    summarize([`### ${test}`, '', !verdict.ok ? `**FAIL**: ${verdict.reason}.` : razorMissing ? '**FAIL**: Razor project but 0 Razor mutants tested.'
+      : `${verdict.counts.tested} mutants tested, score ${verdict.counts.score} %, break ${floor}.`, '',
       survivors.length ? '| file | line | status | mutator | replacement |\n|---|---|---|---|---|' : 'No surviving or uncovered mutant on a changed line.',
       ...survivors.map(s => `| ${s.file} | ${s.line} | ${s.status} | ${s.mutator} | \`${String(s.replacement ?? '').replaceAll('|', '\\|').replaceAll('\n', ' ').slice(0, 80)}\` |`)].join('\n'))
   }

@@ -5,7 +5,7 @@ import {test} from 'node:test'
 import path from 'node:path'
 
 import {changedLines, configProblems, fullModeBreak, isTestProject, plainRazor, razorTested, reportCounts, repository, sourceDirectories,
-  nothingMutableInChanged, survivorsOnChangedLines, testedInChanged, thresholdsFor} from '../stryker.mjs'
+  scoreVerdict, survivorsOnChangedLines, thresholdsFor} from '../stryker.mjs'
 
 const repoRoot = path.resolve('stryker-fixture-repo')
 
@@ -115,32 +115,19 @@ test('PR feedback lists Survived and NoCoverage mutants on changed lines only (Q
     ['p/lib/A.cs:11:Survived', 'p/lib/A.cs:22:NoCoverage', 'p/ui/obj/Debug/net10.0/stryker-razor/X_razor.cs:400:Survived'])
 })
 
-test('the zero-mutant guard counts only mutants tested in the changed source, not ones a changed test pulled in', () => {
-  const killed = {mutants: [{status: 'Killed'}, {status: 'Survived'}]}
-  // A PR that changes A.cs and a test: Stryker tests B.cs mutants (covered by the changed test) and none in A.cs.
-  const elsewhere = {files: {[path.join(repoRoot, 'p', 'lib', 'B.cs')]: killed, [path.join(repoRoot, 'p', 'lib', 'A.cs')]: {mutants: [{status: 'Ignored'}]}}}
-  assert.equal(reportCounts(elsewhere).tested, 2)
-  assert.equal(testedInChanged(elsewhere, ['p/lib/A.cs'], repoRoot), 0)
-  assert.equal(testedInChanged({files: {[path.join(repoRoot, 'p', 'lib', 'A.cs')]: killed}}, ['p/lib/A.cs'], repoRoot), 2)
-  // Razor output counts only when a .razor changed.
-  const razor = {files: {[path.join(repoRoot, 'p', 'ui', 'obj', 'stryker-razor', 'X_razor.cs')]: killed}}
-  assert.equal(testedInChanged(razor, ['p/ui/X.razor'], repoRoot), 2)
-  assert.equal(testedInChanged(razor, ['p/ui/Y.cs'], repoRoot), 0)
+// A fixture report: 100 mutants, of which `killed` are Killed and the rest Survived, in one file.
+const fixture = killed => ({files: {'p/lib/A.cs': {mutants: Array.from({length: 100}, (_, i) => ({status: i < killed ? 'Killed' : 'Survived'}))}}})
+
+test('PR mode: a score below the project break fails, an unchanged or higher one passes (PR #227: 84 % to 67.77 %)', () => {
+  assert.deepEqual(scoreVerdict(fixture(67), 84).ok, false)
+  assert.match(scoreVerdict(fixture(67), 84).reason, /67 % is below the break 84/)
+  assert.equal(scoreVerdict(fixture(84), 84).ok, true)
+  assert.equal(scoreVerdict(fixture(90), 84).ok, true)
 })
 
-test('a changed file Stryker saw but created no mutant in is not a zero-tested gap; anything less proves nothing', () => {
-  const file = name => path.join(repoRoot, 'p', 'lib', name)
-  // An interface: present in the report with no mutants of any status.
-  assert.equal(nothingMutableInChanged({files: {[file('IA.cs')]: {mutants: []}}}, ['p/lib/IA.cs'], repoRoot), true)
-  // A changed file with mutants that were not tested is still a gap.
-  assert.equal(nothingMutableInChanged({files: {[file('A.cs')]: {mutants: [{status: 'Ignored'}]}}}, ['p/lib/A.cs'], repoRoot), false)
-  assert.equal(nothingMutableInChanged({files: {[file('IA.cs')]: {mutants: []}, [file('A.cs')]: {mutants: [{status: 'CompileError'}]}}},
-    ['p/lib/IA.cs', 'p/lib/A.cs'], repoRoot), false)
-  // No report, a changed file the report never saw, or a .razor change never qualifies.
-  assert.equal(nothingMutableInChanged(undefined, ['p/lib/IA.cs'], repoRoot), false)
-  assert.equal(nothingMutableInChanged({files: {}}, ['p/lib/IA.cs'], repoRoot), false)
-  assert.equal(nothingMutableInChanged({files: {[file('IA.cs')]: {mutants: []}}}, ['p/lib/IA.cs', 'p/ui/X.razor'], repoRoot), false)
-  assert.equal(nothingMutableInChanged({files: {}}, [], repoRoot), false)
+test('PR mode: a report with no tested mutant, or no report, fails however low the break', () => {
+  assert.equal(scoreVerdict({files: {'p/lib/A.cs': {mutants: [{status: 'Ignored'}]}}}, 0).ok, false)
+  assert.match(scoreVerdict(undefined, 0).reason, /0 mutants tested/)
 })
 
 test('full mode holds a project to the higher of its recorded baseline and its configured break', () => {
