@@ -1,6 +1,8 @@
 using System.Buffers.Binary;
 using System.Collections;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
+using System.Diagnostics.Metrics;
 using System.Security.Cryptography;
 using System.Text;
 using Harborline.Foundation.Assets.Common;
@@ -17,32 +19,35 @@ namespace Harborline.Foundation.ContentStore;
 /// <summary>Supplies a tenant's 256-bit key without prescribing where keys are stored (DES-0054 ck-2, eng-10).</summary>
 public interface ITenantContentKeyProvider
 {
-    /// <summary>Returns the tenant key that keys content ids and wraps each item's data key. Must be 32 bytes.</summary>
+    /// <summary>Returns the 32-byte tenant root key from which purpose-bound content-store subkeys are derived.</summary>
     byte[] GetKey(TenantId tenantId);
+}
+
+/// <summary>Reports the runtime quota base that only the host and its physical backing can measure (DES-0054 Q22, Q32).</summary>
+public interface IContentStoreQuotaBase
+{
+    /// <summary>Returns free space available to the store's caller plus this store's physical bytes on that same volume.</summary>
+    long GetQuotaBaseBytes();
 }
 
 /// <summary>
 /// The installation values DES-0054 does not state. Each is required and positive; none has a default, because
-/// DES-0054 ck-7, ck-8 and ck-13 assign them to the first DES-0037 measurement (§10 ruling 1, board P3, Q19), and no
-/// segment size is stated for eng-10.
+/// DES-0054 ck-7, ck-8 and ck-13 assign them to the first DES-0037 measurement (§10 ruling 1, board P3, Q19).
 /// </summary>
 /// <param name="ItemLimitBytes">The store's per-item plaintext limit (ck-7), set from the streamed-upload evidence.</param>
 /// <param name="RecordQuotaBytes">The logical-byte quota per record (ck-8): the stated share of the tenant quota.</param>
 /// <param name="TenantQuotaBytes">The logical-byte quota per tenant (ck-8): the stated fraction of the runtime base (Q22).</param>
 /// <param name="StagingExpiry">How long an uncommitted staged item lives (ck-13): the stated multiple of the measured put time.</param>
-/// <param name="SegmentSizeBytes">The plaintext bytes per AEAD segment (eng-10).</param>
 public sealed record ContentStoreOptions(
     long ItemLimitBytes,
     long RecordQuotaBytes,
     long TenantQuotaBytes,
-    TimeSpan StagingExpiry,
-    int SegmentSizeBytes)
+    TimeSpan StagingExpiry)
 {
     /// <summary>Refuses a missing or non-positive value; the store never substitutes one.</summary>
     public void Validate()
     {
-        if (ItemLimitBytes <= 0 || RecordQuotaBytes <= 0 || TenantQuotaBytes <= 0 ||
-            StagingExpiry <= TimeSpan.Zero || SegmentSizeBytes <= 0)
+        if (ItemLimitBytes <= 0 || RecordQuotaBytes <= 0 || TenantQuotaBytes <= 0 || StagingExpiry <= TimeSpan.Zero)
         {
             throw new ArgumentException("Every content-store measurement must be supplied and positive; none has a default.");
         }
@@ -65,6 +70,7 @@ public enum ContentLifecycleState
 /// <summary>The closed refusal vocabulary, DES-0054 ck-9.</summary>
 public static class ContentRefusals
 {
+    // DES-0054 design.md:44 (ck-9) fixes this closed refusal vocabulary.
     /// <summary>The item exceeds the effective limit, the lower of the store's and the field's.</summary>
     public const string TooLarge = "content.too-large";
     /// <summary>A record would exceed its logical-byte quota.</summary>
@@ -122,7 +128,7 @@ public sealed class ContentNotFoundException : Exception
 /// <summary>A content id: <c>hmac-sha256:&lt;64 lower-case hex&gt;</c> under the tenant key (DES-0054 ck-2, board P1).</summary>
 public readonly record struct ContentId
 {
-    /// <summary>The algorithm tag (ck-2; §10 ruling 3 as superseded by board P1).</summary>
+    /// <summary>The algorithm tag (DES-0054 design.md:37, ck-2; §10 ruling 3 as superseded by board P1).</summary>
     public const string Algorithm = "hmac-sha256:";
 
     /// <summary>Validates the algorithm-tagged, lower-case hexadecimal form.</summary>
@@ -182,16 +188,155 @@ public enum HoldStatus
 /// <param name="Run">The disposal or sweep run that reclaimed it.</param>
 public sealed record ReclamationEntry(ContentId ContentId, TenantId TenantId, string Cause, string Run);
 
+/// <summary>Identifies one content item in a backing without exposing its tenant-keyed content id to telemetry.</summary>
+/// <param name="TenantId">The ambient tenant that owns the item.</param>
+/// <param name="ContentId">The item identity within that tenant.</param>
+public readonly record struct ContentStorageItemKey(TenantId TenantId, ContentId ContentId);
+
+/// <summary>One encrypted segment held by a content-store backing (DES-0054 eng-10).</summary>
+/// <param name="Ciphertext">The ciphertext for this segment.</param>
+/// <param name="Tag">The AES-GCM authentication tag for this segment.</param>
+public sealed record ContentCiphertextSegment(byte[] Ciphertext, byte[] Tag);
+
+/// <summary>All durable item metadata, wrapped-key material and ciphertext that a storage backing must preserve (DES-0054 Q31).</summary>
+public sealed class ContentStoreItem
+{
+    /// <summary>Creates an item that is initially staged and whose fixed segment size is stored with the item.</summary>
+    public ContentStoreItem(Guid stageId, TenantId tenant, ContentId contentId, long length, string mediaType, DateTimeOffset createdUtc,
+        byte[] wrappedDataKey, byte[] wrapNonce, byte[] wrapTag, byte[] noncePrefix, int segmentSize, List<ContentCiphertextSegment> segments)
+    {
+        StageId = stageId;
+        Tenant = tenant;
+        ContentId = contentId;
+        Length = length;
+        MediaType = mediaType;
+        CreatedUtc = createdUtc;
+        WrappedDataKey = wrappedDataKey;
+        WrapNonce = wrapNonce;
+        WrapTag = wrapTag;
+        NoncePrefix = noncePrefix;
+        SegmentSize = segmentSize;
+        Segments = segments;
+    }
+
+    /// <summary>The upload-stage key until commit.</summary>
+    public Guid StageId { get; }
+    /// <summary>The tenant that owns this item.</summary>
+    public TenantId Tenant { get; }
+    /// <summary>The tenant-keyed identity.</summary>
+    public ContentId ContentId { get; }
+    /// <summary>The plaintext length used for delivery and range validation.</summary>
+    public long Length { get; set; }
+    /// <summary>The detected, stored media type.</summary>
+    public string MediaType { get; }
+    /// <summary>The server time at which the upload was staged.</summary>
+    public DateTimeOffset CreatedUtc { get; }
+    /// <summary>The data key wrapped under the tenant's data-key-wrap subkey.</summary>
+    public byte[] WrappedDataKey { get; }
+    /// <summary>The nonce used to wrap the per-item data key.</summary>
+    public byte[] WrapNonce { get; }
+    /// <summary>The authentication tag for the wrapped data key.</summary>
+    public byte[] WrapTag { get; }
+    /// <summary>The random prefix from which segment nonces are built.</summary>
+    public byte[] NoncePrefix { get; }
+    /// <summary>The immutable plaintext segment size selected when the item was written.</summary>
+    public int SegmentSize { get; }
+    /// <summary>The ordered ciphertext segments.</summary>
+    public List<ContentCiphertextSegment> Segments { get; }
+    /// <summary>The committed owners that currently reference the item.</summary>
+    public List<ContentOwner> Owners { get; } = [];
+    /// <summary>The item's lifecycle state.</summary>
+    public ContentLifecycleState State { get; set; } = ContentLifecycleState.Staged;
+    /// <summary>The index that a complete stored item must end at, calculated from durable metadata.</summary>
+    public int LastSegment => (int)Math.Max(0, (Length - 1) / SegmentSize);
+
+    /// <summary>Destroys wrapped-key and ciphertext material when a staged copy or last reference is reclaimed.</summary>
+    public void Destroy()
+    {
+        CryptographicOperations.ZeroMemory(WrappedDataKey);
+        foreach (var segment in Segments) CryptographicOperations.ZeroMemory(segment.Ciphertext);
+        Segments.Clear();
+    }
+}
+
+/// <summary>A durable integrity episode for one item; generic health reads only whether any episode remains active (DES-0054 Q34-Q36).</summary>
+public sealed record ContentIntegrityEntry(Guid ItemKey, TenantId TenantId, DateTimeOffset FirstSeenUtc, DateTimeOffset LastSeenUtc,
+    long Count, int SegmentIndex, bool Active, string TraceId, string OperationId, string PrincipalId, ContentOwner Owner);
+
+/// <summary>Structured information emitted only for the first failure of an integrity episode (DES-0054 §10 Q34-Q36).</summary>
+public sealed record ContentIntegrityLogEvent(string TraceId, string OperationId, string OpaqueTenantId, string PrincipalId,
+    Guid ItemKey, ContentOwner Owner, int SegmentIndex);
+
+/// <summary>Receives the one structured event emitted when an integrity episode begins, without imposing a logging package.</summary>
+public interface IContentIntegrityLogger
+{
+    /// <summary>Records the first failure of an item integrity episode.</summary>
+    void LogIntegrityFailure(ContentIntegrityLogEvent integrityEvent);
+}
+
+/// <summary>Optional read correlation supplied by the host after it has minted trace and operation identifiers.</summary>
+public sealed record ContentReadContext(string TraceId, string OperationId, string OpaqueTenantId, string PrincipalId);
+
+/// <summary>Typed encrypted-content failure that preserves host-only item, owner and segment context and never becomes a refusal code.</summary>
+public sealed class ContentIntegrityException : CryptographicException
+{
+    /// <summary>Creates the typed failure from the failed backing operation.</summary>
+    public ContentIntegrityException(Guid itemKey, ContentOwner owner, int segmentIndex, Exception innerException)
+        : base("Content integrity verification failed.", innerException)
+    {
+        ItemKey = itemKey;
+        Owner = owner;
+        SegmentIndex = segmentIndex;
+    }
+
+    /// <summary>The internal item key, not the content id.</summary>
+    public Guid ItemKey { get; }
+    /// <summary>The authorized reference owner through which the item was read.</summary>
+    public ContentOwner Owner { get; }
+    /// <summary>The failed segment index; zero denotes data-key unwrapping before the first segment.</summary>
+    public int SegmentIndex { get; }
+}
+
+/// <summary>Storage port implemented by the host's durable backing or the supplied in-memory backing (DES-0054 Q31).</summary>
+public interface IContentStoreStorage
+{
+    /// <summary>Supplies one synchronization boundary for conditional duplicate collapse and quota accounting.</summary>
+    object SyncRoot { get; }
+    /// <summary>Stores committed item metadata, ciphertext segments and wrapped data keys by tenant and content id.</summary>
+    IDictionary<ContentStorageItemKey, ContentStoreItem> Items { get; }
+    /// <summary>Stores uploads that are verified but not committed.</summary>
+    IDictionary<Guid, ContentStoreItem> StagedItems { get; }
+    /// <summary>Stores the append-only reclamation audit log.</summary>
+    IList<ReclamationEntry> Reclamations { get; }
+    /// <summary>Stores durable integrity episode entries keyed by tenant and internal item key.</summary>
+    IDictionary<(TenantId TenantId, Guid ItemKey), ContentIntegrityEntry> IntegrityEntries { get; }
+}
+
+/// <summary>One non-durable storage-port implementation for tests, prototypes and a host that explicitly chooses process-local state.</summary>
+public sealed class InMemoryContentStoreStorage : IContentStoreStorage
+{
+    /// <inheritdoc />
+    public object SyncRoot { get; } = new object();
+    /// <inheritdoc />
+    public IDictionary<ContentStorageItemKey, ContentStoreItem> Items { get; } = new Dictionary<ContentStorageItemKey, ContentStoreItem>();
+    /// <inheritdoc />
+    public IDictionary<Guid, ContentStoreItem> StagedItems { get; } = new Dictionary<Guid, ContentStoreItem>();
+    /// <inheritdoc />
+    public IList<ReclamationEntry> Reclamations { get; } = new List<ReclamationEntry>();
+    /// <inheritdoc />
+    public IDictionary<(TenantId TenantId, Guid ItemKey), ContentIntegrityEntry> IntegrityEntries { get; } = new Dictionary<(TenantId TenantId, Guid ItemKey), ContentIntegrityEntry>();
+}
+
 /// <summary>A served item and its headers (DES-0054 eng-7, eng-8).</summary>
-/// <param name="Bytes">The selected bytes: the whole item, one range, or none on 416.</param>
+/// <param name="Body">The selected bytes as a streaming body; it throws <see cref="ContentIntegrityException"/> rather than completing after tampering.</param>
 /// <param name="StatusCode">200, 206 or 416 (RFC 9110 §14, §15.3.7, §15.5.17).</param>
 /// <param name="ContentType">The detected type, never another.</param>
 /// <param name="ContentDisposition"><c>attachment</c> with the reference's file name (RFC 6266).</param>
 /// <param name="ETag">The strong ETag: the quoted content id (RFC 9110 §8.8.3).</param>
 /// <param name="ContentRange">The <c>Content-Range</c> value on 206 and 416; null on 200.</param>
-public sealed record ContentDelivery(byte[] Bytes, int StatusCode, string ContentType, string ContentDisposition, string ETag, string? ContentRange)
+public sealed record ContentDelivery(Stream Body, int StatusCode, string ContentType, string ContentDisposition, string ETag, string? ContentRange)
 {
-    /// <summary>Always <c>nosniff</c> (eng-7).</summary>
+    /// <summary>Always <c>nosniff</c> (DES-0054 design.md:74, eng-7).</summary>
     public static string XContentTypeOptions => "nosniff";
 }
 
@@ -218,11 +363,15 @@ public sealed record ContentExportResult(ContentExport Package, byte[] FixityKey
 /// <summary>The staging sweep's registration with the execution runtime (DES-0054 §5, eng-9; ADR 0099 decision 2).</summary>
 public static class ContentStoreRunRegistration
 {
+    // DES-0054 design.md:114 and :207 (Q29) fix this lower-case kebab run kind.
     /// <summary>The run kind of the store's one run of its own, the staging sweep.</summary>
     public static RunKind StagingSweepKind { get; } = new("content-staging-sweep");
 
-    /// <summary>The trigger the platform schedules the sweep on: staged items past the staging expiry (ck-13).</summary>
-    public const string StagingSweepTrigger = "content-staging-expiry";
+    /// <summary>The trigger kind registered for the platform schedule (DES-0054 design.md:114, Q29).</summary>
+    public const string StagingSweepTriggerKind = "schedule";
+
+    /// <summary>The platform-owned schedule that fires the staging sweep (DES-0054 design.md:114, Q29).</summary>
+    public const string StagingSweepSchedule = "sys.sched.content-staging";
 
     /// <summary>Registers the sweep kind once, owned by the content store.</summary>
     public static RunKindRegistration Register(RunKindRegistry registry)
@@ -239,7 +388,7 @@ public static class ContentStoreRunRegistration
 /// </summary>
 public sealed class InMemoryContentStore
 {
-    /// <summary>The name a refusal gives when the store's own declaration set the limit (C3 <c>definition</c>).</summary>
+    /// <summary>The name a refusal gives when the store's own declaration set the limit (DES-0054 design.md:207, Q29).</summary>
     public const string StoreDeclaration = "content-store";
 
     // The R1 allowlist, exactly: DES-0054 §10 ruling 4 (owner, 2026-09-30); ck-5.
@@ -248,11 +397,11 @@ public sealed class InMemoryContentStore
         "application/pdf", "image/png", "image/jpeg", "image/webp", "text/plain", "text/csv",
     };
 
-    // WHATWG MIME Sniffing §5 resource header: at most 1,445 bytes (DES-0054 ck-6, eng-3; Q21).
+    // DES-0054 design.md:41 (ck-6, eng-3; Q21): WHATWG MIME Sniffing's resource header is at most 1,445 bytes.
     private const int ResourceHeaderBytes = 1445;
 
-    // AES-256-GCM, 12-byte nonce, 16-byte tag, as Tink's AES-GCM-HKDF streaming AEAD uses them (DES-0054 eng-10,
-    // §12 Tink Streaming AEAD). The segment nonce is Tink's: 7-byte random prefix || 4-byte big-endian segment
+    // DES-0054 design.md:77 (eng-10): AES-256-GCM, 12-byte nonce and 16-byte tag, as Tink's streaming AEAD uses them.
+    // R-0136 note.md:19: the segment nonce is Tink's 7-byte random prefix || 4-byte big-endian segment
     // number || 1-byte last-segment flag, so reordering, dropping or truncating a segment fails authentication.
     private const int KeyBytes = 32;
     private const int NonceBytes = 12;
@@ -261,24 +410,41 @@ public sealed class InMemoryContentStore
 
     // ponytail: one lock over all state; per-tenant locks if contention shows. It makes commit's quota check and
     // insert atomic, which eng-5 requires.
-    private readonly Lock _gate = new();
     private readonly ContentStoreOptions _options;
     private readonly ITenantContentKeyProvider _keys;
     private readonly TimeProvider _clock;
-    private readonly Dictionary<(TenantId Tenant, ContentId Id), Item> _items = [];
-    private readonly Dictionary<Guid, Item> _staged = [];
-    private readonly List<ReclamationEntry> _reclamations = [];
+    private readonly IContentStoreStorage _storage;
+    private readonly IContentIntegrityLogger? _integrityLogger;
+
+    // DES-0054 design.md:205 (Q27): 65,536 plaintext bytes is a store constant recorded on every item, not an installation option.
+    private const int SegmentSizeBytes = 65_536;
+    // DES-0054 design.md:206 (Q28): these RFC 5869 HKDF info labels separate the HMAC and data-key-wrap purposes.
+    private const string ContentIdKeyInfo = "harborline-content-store:content-id:v1";
+    private const string DataKeyWrapKeyInfo = "harborline-content-store:data-key-wrap:v1";
+    private static readonly ActivitySource IntegrityActivitySource = new("Harborline.Foundation.ContentStore");
+    private static readonly Meter IntegrityMeter = new("Harborline.Foundation.ContentStore");
+    private static readonly Counter<long> IntegrityFailures = IntegrityMeter.CreateCounter<long>("content.integrity.failures");
 
     /// <summary>Creates a store; refuses unless every unstated measurement is supplied. The clock is the host's server clock (kernel-core-ck-9).</summary>
     public InMemoryContentStore(ContentStoreOptions options, ITenantContentKeyProvider keys, TimeProvider clock)
+        : this(options, keys, clock, new InMemoryContentStoreStorage())
+    {
+    }
+
+    /// <summary>Creates a store over the supplied backing so a host can preserve committed, staged and audit state across store reconstruction.</summary>
+    public InMemoryContentStore(ContentStoreOptions options, ITenantContentKeyProvider keys, TimeProvider clock, IContentStoreStorage storage,
+        IContentIntegrityLogger? integrityLogger = null)
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(keys);
         ArgumentNullException.ThrowIfNull(clock);
+        ArgumentNullException.ThrowIfNull(storage);
         options.Validate();
         _options = options;
         _keys = keys;
         _clock = clock;
+        _storage = storage;
+        _integrityLogger = integrityLogger;
     }
 
     /// <summary>
@@ -295,14 +461,16 @@ public sealed class InMemoryContentStore
         if (limit <= 0) throw new ArgumentOutOfRangeException(nameof(field), "A field size limit must be positive.");
 
         var tenantKey = RequireKey(tenant);
+        var contentIdKey = DeriveSubkey(tenantKey, tenant, ContentIdKeyInfo);
+        var dataKeyWrapKey = DeriveSubkey(tenantKey, tenant, DataKeyWrapKeyInfo);
         var dataKey = RandomNumberGenerator.GetBytes(KeyBytes); // a fresh data key per item (ck-11, eng-10, §10 ruling 8)
         var noncePrefix = RandomNumberGenerator.GetBytes(NoncePrefixBytes);
         try
         {
-            using var id = IncrementalHash.CreateHMAC(HashAlgorithmName.SHA256, tenantKey);
+            using var id = IncrementalHash.CreateHMAC(HashAlgorithmName.SHA256, contentIdKey);
             using var wire = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
             var header = new List<byte>(ResourceHeaderBytes);
-            var segments = new List<Segment>();
+            var segments = new List<ContentCiphertextSegment>();
             long length = 0;
             byte[]? pending = null;
             using (var aead = new AesGcm(dataKey, TagBytes))
@@ -336,14 +504,16 @@ public sealed class InMemoryContentStore
             }
 
             var contentId = new ContentId(ContentId.Algorithm + Convert.ToHexStringLower(id.GetHashAndReset()));
-            var (wrapped, wrapNonce, wrapTag) = Wrap(tenantKey, dataKey, contentId);
-            var item = new Item(Guid.NewGuid(), tenant, contentId, length, mediaType, _clock.GetUtcNow(), wrapped, wrapNonce, wrapTag, noncePrefix, _options.SegmentSizeBytes, segments);
-            lock (_gate) _staged.Add(item.StageId, item);
+            var (wrapped, wrapNonce, wrapTag) = Wrap(dataKeyWrapKey, dataKey, contentId);
+            var item = new ContentStoreItem(Guid.NewGuid(), tenant, contentId, length, mediaType, _clock.GetUtcNow(), wrapped, wrapNonce, wrapTag, noncePrefix, SegmentSizeBytes, segments);
+            lock (_storage.SyncRoot) _storage.StagedItems.Add(item.StageId, item);
             return item.StageId;
         }
         finally
         {
             CryptographicOperations.ZeroMemory(dataKey);
+            CryptographicOperations.ZeroMemory(contentIdKey);
+            CryptographicOperations.ZeroMemory(dataKeyWrapKey);
         }
     }
 
@@ -357,9 +527,9 @@ public sealed class InMemoryContentStore
     {
         ArgumentNullException.ThrowIfNull(owner);
         ArgumentException.ThrowIfNullOrWhiteSpace(displayName);
-        lock (_gate)
+        lock (_storage.SyncRoot)
         {
-            if (!_staged.TryGetValue(stageId, out var staged) || staged.Tenant != tenant)
+            if (!_storage.StagedItems.TryGetValue(stageId, out var staged) || staged.Tenant != tenant)
             {
                 throw new ContentRefusedException(ContentRefusals.StagingExpired, "The staged item is no longer available.", StoreDeclaration);
             }
@@ -382,8 +552,8 @@ public sealed class InMemoryContentStore
                 throw new ContentRefusedException(ContentRefusals.TenantQuota, "The tenant's quota would be exceeded.", StoreDeclaration, Detail(_options.TenantQuotaBytes, tenantObserved));
             }
 
-            _staged.Remove(stageId);
-            if (_items.TryGetValue((tenant, staged.ContentId), out var existing))
+            _storage.StagedItems.Remove(stageId);
+            if (_storage.Items.TryGetValue(new(tenant, staged.ContentId), out var existing))
             {
                 staged.Destroy();
                 existing.Owners.Add(owner);
@@ -392,19 +562,20 @@ public sealed class InMemoryContentStore
 
             staged.State = ContentLifecycleState.Committed;
             staged.Owners.Add(owner);
-            _items.Add((tenant, staged.ContentId), staged);
+            _storage.Items.Add(new(tenant, staged.ContentId), staged);
             return new(staged.ContentId, staged.Length, staged.MediaType, displayName, owner);
         }
     }
 
     /// <summary>
-    /// Serves bytes through a reference the upstream gate has authorized (<paramref name="authorized"/>, eng-6). A
+    /// Opens a streaming body through a reference the upstream gate has authorized (<paramref name="authorized"/>, eng-6). A
     /// missing id, an unauthorized owner and another tenant's id all throw the same <see cref="ContentNotFoundException"/>.
     /// A single range is served as 206, or 416 when unsatisfiable; an <paramref name="ifRange"/> that is not the current
     /// ETag, or an invalid range, is answered with the whole item (RFC 9110 §13.1.5, §14.2). The caller answers a
     /// multi-range request with the whole item by passing no range (§10 ruling 5).
     /// </summary>
-    public ContentDelivery Read(TenantId tenant, ContentReference reference, bool authorized, ContentByteRange? range = null, string? ifRange = null)
+    public ContentDelivery Read(TenantId tenant, ContentReference reference, bool authorized, ContentByteRange? range = null, string? ifRange = null,
+        ContentReadContext? context = null)
     {
         ArgumentNullException.ThrowIfNull(reference);
         var item = Readable(tenant, reference, authorized);
@@ -412,20 +583,20 @@ public sealed class InMemoryContentStore
         var disposition = Attachment(reference.DisplayName);
         if (range is not { } requested || (ifRange is not null && ifRange != etag) || requested.Start < 0 || requested.End < requested.Start)
         {
-            return new(Decrypt(item, RequireKey(tenant), 0, item.LastSegment + 1), 200, item.MediaType, disposition, etag, null);
+            return new(OpenRead(item, reference.Owner, RequireKey(tenant), 0, item.LastSegment, 0, item.Length, true, context), 200, item.MediaType, disposition, etag, null);
         }
 
         if (requested.Start >= item.Length)
         {
-            return new([], 416, item.MediaType, disposition, etag, $"bytes */{item.Length}");
+            return new(Stream.Null, 416, item.MediaType, disposition, etag, $"bytes */{item.Length}");
         }
 
         var end = Math.Min(requested.End, item.Length - 1);
         var first = (int)(requested.Start / item.SegmentSize);
         var last = (int)(end / item.SegmentSize);
-        var covered = Decrypt(item, RequireKey(tenant), first, last + 1); // only the covering segments (eng-10)
         var offset = requested.Start - ((long)first * item.SegmentSize);
-        return new(covered.AsSpan((int)offset, (int)(end - requested.Start + 1)).ToArray(), 206, item.MediaType, disposition, etag, $"bytes {requested.Start}-{end}/{item.Length}");
+        return new(OpenRead(item, reference.Owner, RequireKey(tenant), first, last, offset, end - requested.Start + 1, false, context), 206,
+            item.MediaType, disposition, etag, $"bytes {requested.Start}-{end}/{item.Length}");
     }
 
     /// <summary>
@@ -438,14 +609,14 @@ public sealed class InMemoryContentStore
         ArgumentNullException.ThrowIfNull(reference);
         ArgumentException.ThrowIfNullOrWhiteSpace(run);
         if (hold != HoldStatus.None) return false;
-        lock (_gate)
+        lock (_storage.SyncRoot)
         {
-            if (!_items.TryGetValue((tenant, reference.ContentId), out var item) || !item.Owners.Remove(reference.Owner)) return false;
+            if (!_storage.Items.TryGetValue(new(tenant, reference.ContentId), out var item) || !item.Owners.Remove(reference.Owner)) return false;
             if (item.Owners.Count != 0) return false;
-            _items.Remove((tenant, item.ContentId));
+            _storage.Items.Remove(new(tenant, item.ContentId));
             item.Destroy();
             item.State = ContentLifecycleState.Reclaimed;
-            _reclamations.Add(new(item.ContentId, tenant, "last-reference-removed", run));
+            _storage.Reclamations.Add(new(item.ContentId, tenant, "last-reference-removed", run));
             return true;
         }
     }
@@ -454,9 +625,9 @@ public sealed class InMemoryContentStore
     public int SweepExpired(string run)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(run);
-        lock (_gate)
+        lock (_storage.SyncRoot)
         {
-            var expired = _staged.Values.Where(Expired).ToArray();
+            var expired = _storage.StagedItems.Values.Where(Expired).ToArray();
             foreach (var item in expired) ReclaimStaged(item, "staging-expired", run);
             return expired.Length;
         }
@@ -473,7 +644,10 @@ public sealed class InMemoryContentStore
         var items = references.Select(reference =>
         {
             var item = Readable(tenant, reference, authorized);
-            var bytes = Decrypt(item, RequireKey(tenant), 0, item.LastSegment + 1);
+            using var body = Read(tenant, reference, authorized).Body;
+            using var plaintext = new MemoryStream();
+            body.CopyTo(plaintext);
+            var bytes = plaintext.ToArray();
             return new ContentExportItem(item.ContentId, bytes, HMACSHA256.HashData(exportKey, bytes));
         }).ToArray();
         return new(new ContentExport(items), exportKey);
@@ -496,31 +670,81 @@ public sealed class InMemoryContentStore
     /// <summary>The reclamation entries, append-only (ck-18).</summary>
     public IReadOnlyList<ReclamationEntry> Reclamations
     {
-        get { lock (_gate) return [.. _reclamations]; }
+        get { lock (_storage.SyncRoot) return [.. _storage.Reclamations]; }
     }
 
     /// <summary>How many staged items exist, for the sweep's operators.</summary>
     public int StagedCount
     {
-        get { lock (_gate) return _staged.Count; }
+        get { lock (_storage.SyncRoot) return _storage.StagedItems.Count; }
     }
 
     /// <summary>How many committed items exist, across tenants.</summary>
     public int CommittedCount
     {
-        get { lock (_gate) return _items.Count; }
+        get { lock (_storage.SyncRoot) return _storage.Items.Count; }
+    }
+
+    /// <summary>Returns durable integrity episodes for an authorized host audit reader; an unauthenticated health surface must use only <see cref="IsIntegrityHealthy"/>.</summary>
+    public IReadOnlyList<ContentIntegrityEntry> IntegrityEntries
+    {
+        get { lock (_storage.SyncRoot) return [.. _storage.IntegrityEntries.Values]; }
+    }
+
+    /// <summary>Reports the generic count-free health signal: true when no unresolved item integrity episode exists.</summary>
+    public bool IsIntegrityHealthy
+    {
+        get { lock (_storage.SyncRoot) return !_storage.IntegrityEntries.Values.Any(entry => entry.Active); }
     }
 
     internal void CorruptCiphertext(TenantId tenant, ContentId contentId, int segment)
     {
-        lock (_gate) _items[(tenant, contentId)].Segments[segment].Ciphertext[0] ^= 1;
+        lock (_storage.SyncRoot) _storage.Items[new(tenant, contentId)].Segments[segment].Ciphertext[0] ^= 1;
+    }
+
+    internal void CorruptWrapTag(TenantId tenant, ContentId contentId)
+    {
+        lock (_storage.SyncRoot) _storage.Items[new(tenant, contentId)].WrapTag[0] ^= 1;
+    }
+
+    internal void RewrapWithContentIdSubkey(TenantId tenant, ContentId contentId)
+    {
+        lock (_storage.SyncRoot)
+        {
+            var item = _storage.Items[new(tenant, contentId)];
+            var root = RequireKey(tenant);
+            var (_, correctWrapKey) = DeriveSubkeys(root, tenant);
+            var (contentIdKey, _) = DeriveSubkeys(root, tenant);
+            var dataKey = new byte[KeyBytes];
+            try
+            {
+                using (var wrapper = new AesGcm(correctWrapKey, TagBytes))
+                {
+                    wrapper.Decrypt(item.WrapNonce, item.WrappedDataKey, item.WrapTag, dataKey, Encoding.ASCII.GetBytes(item.ContentId.Value));
+                }
+
+                using var wrongWrapper = new AesGcm(contentIdKey, TagBytes);
+                wrongWrapper.Encrypt(item.WrapNonce, dataKey, item.WrappedDataKey, item.WrapTag, Encoding.ASCII.GetBytes(item.ContentId.Value));
+            }
+            finally
+            {
+                CryptographicOperations.ZeroMemory(correctWrapKey);
+                CryptographicOperations.ZeroMemory(contentIdKey);
+                CryptographicOperations.ZeroMemory(dataKey);
+            }
+        }
+    }
+
+    internal ContentStoreItem StorageItem(TenantId tenant, ContentId contentId)
+    {
+        lock (_storage.SyncRoot) return _storage.Items[new(tenant, contentId)];
     }
 
     internal void DropLastSegmentKeepingLength(TenantId tenant, ContentId contentId)
     {
-        lock (_gate)
+        lock (_storage.SyncRoot)
         {
-            var segments = _items[(tenant, contentId)].Segments;
+            var segments = _storage.Items[new(tenant, contentId)].Segments;
             segments.RemoveAt(segments.Count - 1);
         }
     }
@@ -528,21 +752,21 @@ public sealed class InMemoryContentStore
     // Live references to an item's key material, captured before an erase so a test can see it destroyed.
     internal (byte[] WrappedDataKey, ICollection Segments) KeyMaterial(TenantId tenant, ContentId contentId)
     {
-        lock (_gate) return (_items[(tenant, contentId)].WrappedDataKey, _items[(tenant, contentId)].Segments);
+        lock (_storage.SyncRoot) return (_storage.Items[new(tenant, contentId)].WrappedDataKey, _storage.Items[new(tenant, contentId)].Segments);
     }
 
     internal (byte[] WrappedDataKey, ICollection Segments) KeyMaterial(Guid stageId)
     {
-        lock (_gate) return (_staged[stageId].WrappedDataKey, _staged[stageId].Segments);
+        lock (_storage.SyncRoot) return (_storage.StagedItems[stageId].WrappedDataKey, _storage.StagedItems[stageId].Segments);
     }
 
     // Simulates an attacker who drops the tail segment and shortens the length to match, so only the last-segment
     // flag in the nonce can detect it.
     internal void TruncateLastSegment(TenantId tenant, ContentId contentId)
     {
-        lock (_gate)
+        lock (_storage.SyncRoot)
         {
-            var item = _items[(tenant, contentId)];
+            var item = _storage.Items[new(tenant, contentId)];
             item.Segments.RemoveAt(item.Segments.Count - 1);
             item.Length = (long)item.Segments.Count * item.SegmentSize;
         }
@@ -551,21 +775,21 @@ public sealed class InMemoryContentStore
     private static ReadOnlyDictionary<string, long> Detail(long limit, long observed) =>
         new ReadOnlyDictionary<string, long>(new Dictionary<string, long> { ["limit"] = limit, ["observed"] = observed });
 
-    private bool Expired(Item item) => _clock.GetUtcNow() - item.CreatedUtc >= _options.StagingExpiry;
+    private bool Expired(ContentStoreItem item) => _clock.GetUtcNow() - item.CreatedUtc >= _options.StagingExpiry;
 
-    private void ReclaimStaged(Item item, string cause, string run)
+    private void ReclaimStaged(ContentStoreItem item, string cause, string run)
     {
-        _staged.Remove(item.StageId);
+        _storage.StagedItems.Remove(item.StageId);
         item.Destroy();
         item.State = ContentLifecycleState.Reclaimed;
-        _reclamations.Add(new(item.ContentId, item.Tenant, cause, run));
+        _storage.Reclamations.Add(new(item.ContentId, item.Tenant, cause, run));
     }
 
-    private Item Readable(TenantId tenant, ContentReference reference, bool authorized)
+    private ContentStoreItem Readable(TenantId tenant, ContentReference reference, bool authorized)
     {
-        lock (_gate)
+        lock (_storage.SyncRoot)
         {
-            if (!authorized || !_items.TryGetValue((tenant, reference.ContentId), out var item) || !item.Owners.Contains(reference.Owner))
+            if (!authorized || !_storage.Items.TryGetValue(new(tenant, reference.ContentId), out var item) || !item.Owners.Contains(reference.Owner))
             {
                 throw new ContentNotFoundException();
             }
@@ -574,20 +798,20 @@ public sealed class InMemoryContentStore
         }
     }
 
-    private byte[] ReadSegment(Stream stream)
+    private static byte[] ReadSegment(Stream stream)
     {
-        var buffer = new byte[_options.SegmentSizeBytes];
+        var buffer = new byte[SegmentSizeBytes];
         var filled = stream.ReadAtLeast(buffer, buffer.Length, throwOnEndOfStream: false);
         return filled == buffer.Length ? buffer : buffer[..filled];
     }
 
-    private static Segment Seal(AesGcm aead, byte[] noncePrefix, int index, byte[] plaintext, bool last)
+    private static ContentCiphertextSegment Seal(AesGcm aead, byte[] noncePrefix, int index, byte[] plaintext, bool last)
     {
         var nonce = SegmentNonce(noncePrefix, index, last);
         var cipher = new byte[plaintext.Length];
         var tag = new byte[TagBytes];
         aead.Encrypt(nonce, plaintext, cipher, tag);
-        return new(cipher, tag);
+        return new ContentCiphertextSegment(cipher, tag);
     }
 
     private static byte[] SegmentNonce(byte[] prefix, int index, bool last)
@@ -609,33 +833,60 @@ public sealed class InMemoryContentStore
         return (wrapped, nonce, tag);
     }
 
-    // Throws CryptographicException (AuthenticationTagMismatchException) on any tampered, reordered or truncated segment.
-    private static byte[] Decrypt(Item item, byte[] tenantKey, int first, int end)
+    private ContentReadStream OpenRead(ContentStoreItem item, ContentOwner owner, byte[] tenantKey, int first, int last, long offset, long length,
+        bool verifiesWholeItem, ContentReadContext? context)
     {
-        var dataKey = new byte[KeyBytes];
-        using (var wrapper = new AesGcm(tenantKey, TagBytes))
-        {
-            wrapper.Decrypt(item.WrapNonce, item.WrappedDataKey, item.WrapTag, dataKey, Encoding.ASCII.GetBytes(item.ContentId.Value));
-        }
-
+        var wrapKey = DeriveSubkey(tenantKey, item.Tenant, DataKeyWrapKeyInfo);
         try
         {
-            using var aead = new AesGcm(dataKey, TagBytes);
-            using var plaintext = new MemoryStream();
-            for (var index = first; index < end; index++)
-            {
-                if (index >= item.Segments.Count) throw new AuthenticationTagMismatchException("A ciphertext segment is missing.");
-                var segment = item.Segments[index];
-                var clear = new byte[segment.Ciphertext.Length];
-                aead.Decrypt(SegmentNonce(item.NoncePrefix, index, index == item.LastSegment), segment.Ciphertext, segment.Tag, clear);
-                plaintext.Write(clear);
-            }
-
-            return plaintext.ToArray();
+            return new ContentReadStream(item, owner, wrapKey, first, last, offset, length, verifiesWholeItem, context, ReportIntegrity, ResolveIntegrity);
         }
         finally
         {
-            CryptographicOperations.ZeroMemory(dataKey);
+            CryptographicOperations.ZeroMemory(wrapKey);
+        }
+    }
+
+    private void ReportIntegrity(ContentStoreItem item, ContentOwner owner, int segmentIndex, ContentReadContext? context)
+    {
+        var effective = context ?? new ContentReadContext(Activity.Current?.TraceId.ToString() ?? string.Empty, string.Empty, item.Tenant.Value, string.Empty);
+        using var activity = IntegrityActivitySource.StartActivity("content.integrity");
+        (activity ?? Activity.Current)?.SetStatus(ActivityStatusCode.Error);
+        (activity ?? Activity.Current)?.SetTag("error.type", "content.integrity");
+        IntegrityFailures.Add(1);
+        var beginsEpisode = false;
+        lock (_storage.SyncRoot)
+        {
+            var key = (item.Tenant, item.StageId);
+            if (!_storage.IntegrityEntries.TryGetValue(key, out var prior) || !prior.Active)
+            {
+                beginsEpisode = true;
+                _storage.IntegrityEntries[key] = new(item.StageId, item.Tenant, _clock.GetUtcNow(), _clock.GetUtcNow(), 1, segmentIndex, true,
+                    effective.TraceId, effective.OperationId, effective.PrincipalId, owner);
+            }
+            else
+            {
+                _storage.IntegrityEntries[key] = prior with { LastSeenUtc = _clock.GetUtcNow(), Count = prior.Count + 1, SegmentIndex = segmentIndex,
+                    TraceId = effective.TraceId, OperationId = effective.OperationId, PrincipalId = effective.PrincipalId, Owner = owner };
+            }
+        }
+
+        if (beginsEpisode)
+        {
+            _integrityLogger?.LogIntegrityFailure(new(effective.TraceId, effective.OperationId, effective.OpaqueTenantId, effective.PrincipalId,
+                item.StageId, owner, segmentIndex));
+        }
+    }
+
+    private void ResolveIntegrity(ContentStoreItem item)
+    {
+        lock (_storage.SyncRoot)
+        {
+            var key = (item.Tenant, item.StageId);
+            if (_storage.IntegrityEntries.TryGetValue(key, out var entry) && entry.Active)
+            {
+                _storage.IntegrityEntries[key] = entry with { Active = false };
+            }
         }
     }
 
@@ -699,9 +950,37 @@ public sealed class InMemoryContentStore
         }
     }
 
-    // RFC 6266 §4.3: quotes, backslashes and control characters cannot enter the header (no header injection).
-    private static string Attachment(string name) =>
-        "attachment; filename=\"" + new string([.. name.Where(character => character is not ('"' or '\\') && !char.IsControl(character))]) + "\"";
+    // DES-0054 design.md:74 and :211 (Q33): filename is ASCII-safe and filename* is RFC 8187 UTF-8 percent-encoded.
+    private static string Attachment(string name)
+    {
+        var fallback = new string([.. name.Select(character => character <= 0x7f && character is not ('"' or '\\') && !char.IsControl(character) ? character : '_')]);
+        var faithful = fallback == name && !HasPercentHexPair(fallback);
+        var filename = faithful ? fallback : fallback.Replace("%", "_", StringComparison.Ordinal);
+        return faithful
+            ? "attachment; filename=\"" + filename + "\""
+            : "attachment; filename=\"" + filename + "\"; filename*=UTF-8''" + EncodeFilenameStar(name);
+    }
+
+    private static bool HasPercentHexPair(string value) => value.Select((character, index) => (character, index))
+        .Any(pair => pair.character == '%' && pair.index + 2 < value.Length && Uri.IsHexDigit(value[pair.index + 1]) && Uri.IsHexDigit(value[pair.index + 2]));
+
+    private static string EncodeFilenameStar(string value)
+    {
+        var output = new StringBuilder();
+        foreach (var octet in Encoding.UTF8.GetBytes(value))
+        {
+            if (octet is >= (byte)'a' and <= (byte)'z' or >= (byte)'A' and <= (byte)'Z' or >= (byte)'0' and <= (byte)'9' or (byte)'!' or (byte)'#' or (byte)'$' or (byte)'&' or (byte)'+' or (byte)'-' or (byte)'.' or (byte)'^' or (byte)'_' or (byte)'`' or (byte)'|' or (byte)'~')
+            {
+                output.Append((char)octet);
+            }
+            else
+            {
+                output.Append('%').Append(octet.ToString("X2", System.Globalization.CultureInfo.InvariantCulture));
+            }
+        }
+
+        return output.ToString();
+    }
 
     private byte[] RequireKey(TenantId tenant)
     {
@@ -710,39 +989,139 @@ public sealed class InMemoryContentStore
         return key;
     }
 
-    private long LogicalUsage(TenantId tenant, string? record) =>
-        _items.Values.Where(item => item.Tenant == tenant)
-            .Sum(item => item.Owners.Count(owner => record is null || owner.Record == record) * item.Length);
-
-    private sealed class Item(Guid stageId, TenantId tenant, ContentId contentId, long length, string mediaType, DateTimeOffset createdUtc,
-        byte[] wrappedDataKey, byte[] wrapNonce, byte[] wrapTag, byte[] noncePrefix, int segmentSize, List<Segment> segments)
+    internal static (byte[] ContentIdKey, byte[] DataKeyWrapKey) DeriveSubkeys(byte[] tenantKey, TenantId tenant)
     {
-        public Guid StageId { get; } = stageId;
-        public TenantId Tenant { get; } = tenant;
-        public ContentId ContentId { get; } = contentId;
-        public long Length { get; set; } = length;
-        public string MediaType { get; } = mediaType;
-        public DateTimeOffset CreatedUtc { get; } = createdUtc;
-        public byte[] WrappedDataKey { get; } = wrappedDataKey;
-        public byte[] WrapNonce { get; } = wrapNonce;
-        public byte[] WrapTag { get; } = wrapTag;
-        public byte[] NoncePrefix { get; } = noncePrefix;
-        public int SegmentSize { get; } = segmentSize;
-        public List<Segment> Segments { get; } = segments;
-        public List<ContentOwner> Owners { get; } = [];
-        public ContentLifecycleState State { get; set; } = ContentLifecycleState.Staged;
-
-        // The last segment index comes from the length, never from the stored list, so a dropped tail is detected.
-        public int LastSegment => (int)Math.Max(0, (Length - 1) / SegmentSize);
-
-        // Key destruction is the erase (ck-11): the wrapped key and the ciphertext are zeroed and dropped.
-        public void Destroy()
-        {
-            CryptographicOperations.ZeroMemory(WrappedDataKey);
-            foreach (var segment in Segments) CryptographicOperations.ZeroMemory(segment.Ciphertext);
-            Segments.Clear();
-        }
+        return (DeriveSubkey(tenantKey, tenant, ContentIdKeyInfo), DeriveSubkey(tenantKey, tenant, DataKeyWrapKeyInfo));
     }
 
-    private sealed record Segment(byte[] Ciphertext, byte[] Tag);
+    private static byte[] DeriveSubkey(byte[] tenantKey, TenantId tenant, string info)
+    {
+        var derived = new byte[KeyBytes];
+        HKDF.DeriveKey(HashAlgorithmName.SHA256, tenantKey, derived, Encoding.UTF8.GetBytes(tenant.Value), Encoding.ASCII.GetBytes(info));
+        return derived;
+    }
+
+    private long LogicalUsage(TenantId tenant, string? record) =>
+        _storage.Items.Values.Where(item => item.Tenant == tenant)
+            .Sum(item => item.Owners.Count(owner => record is null || owner.Record == record) * item.Length);
+
+    private sealed class ContentReadStream : Stream
+    {
+        private readonly ContentStoreItem _item;
+        private readonly ContentOwner _owner;
+        private readonly int _last;
+        private readonly bool _verifiesWholeItem;
+        private readonly ContentReadContext? _context;
+        private readonly Action<ContentStoreItem, ContentOwner, int, ContentReadContext?> _report;
+        private readonly Action<ContentStoreItem> _resolve;
+        private readonly byte[] _dataKey = new byte[KeyBytes];
+        private long _remaining;
+        private int _index;
+        private int _offset;
+        private byte[] _clear = [];
+        private bool _completed;
+
+        public ContentReadStream(ContentStoreItem item, ContentOwner owner, byte[] wrapKey, int first, int last, long offset, long length,
+            bool verifiesWholeItem, ContentReadContext? context, Action<ContentStoreItem, ContentOwner, int, ContentReadContext?> report,
+            Action<ContentStoreItem> resolve)
+        {
+            _item = item;
+            _owner = owner;
+            _last = last;
+            _remaining = length;
+            _index = first;
+            _offset = checked((int)offset);
+            _verifiesWholeItem = verifiesWholeItem;
+            _context = context;
+            _report = report;
+            _resolve = resolve;
+            try
+            {
+                using var wrapper = new AesGcm(wrapKey, TagBytes);
+                wrapper.Decrypt(item.WrapNonce, item.WrappedDataKey, item.WrapTag, _dataKey, Encoding.ASCII.GetBytes(item.ContentId.Value));
+                LoadSegment(); // Verify the first covering segment before the host writes headers.
+            }
+            catch (Exception exception) when (exception is CryptographicException or IndexOutOfRangeException)
+            {
+                Fail(exception);
+            }
+        }
+
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => _remaining;
+        public override long Position { get => 0; set => throw new NotSupportedException(); }
+        public override void Flush() { }
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+        public override int Read(byte[] buffer, int offset, int count) => Read(buffer.AsSpan(offset, count));
+
+        public override int Read(Span<byte> buffer)
+        {
+            try
+            {
+                var copied = 0;
+                while (!buffer.IsEmpty && _remaining > 0)
+                {
+                    if (_offset == _clear.Length)
+                    {
+                        _index++;
+                        LoadSegment();
+                        _offset = 0;
+                    }
+
+                    var take = (int)Math.Min(Math.Min(_clear.Length - _offset, buffer.Length), _remaining);
+                    _clear.AsSpan(_offset, take).CopyTo(buffer);
+                    _offset += take;
+                    _remaining -= take;
+                    copied += take;
+                    buffer = buffer[take..];
+                }
+
+                if (_remaining == 0 && !_completed)
+                {
+                    _completed = true;
+                    if (_verifiesWholeItem) _resolve(_item);
+                }
+
+                return copied;
+            }
+            catch (ContentIntegrityException)
+            {
+                throw;
+            }
+            catch (Exception exception) when (exception is CryptographicException or IndexOutOfRangeException)
+            {
+                return Fail(exception);
+            }
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing) CryptographicOperations.ZeroMemory(_dataKey);
+            base.Dispose(disposing);
+        }
+
+        private void LoadSegment()
+        {
+            if (_index > _last || _index >= _item.Segments.Count)
+            {
+                throw new AuthenticationTagMismatchException("A ciphertext segment is missing.");
+            }
+
+            var segment = _item.Segments[_index];
+            _clear = new byte[segment.Ciphertext.Length];
+            using var aead = new AesGcm(_dataKey, TagBytes);
+            aead.Decrypt(SegmentNonce(_item.NoncePrefix, _index, _index == _item.LastSegment), segment.Ciphertext, segment.Tag, _clear);
+        }
+
+        private int Fail(Exception exception)
+        {
+            _report(_item, _owner, _index, _context);
+            throw new ContentIntegrityException(_item.StageId, _owner, _index, exception);
+        }
+    }
 }
