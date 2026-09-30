@@ -1431,7 +1431,10 @@ function verifyReportsCapability() {
     consumer,
     ['Harborline.Blocks.Reports', 'Harborline.Blocks.MeasureCatalogue', 'Harborline.Blocks.Aggregates', 'Harborline.Contracts',
       // T-909 slice 3: Authorization no longer references the rule engine, so it and SchemaValidation left the closure.
-      'Harborline.Foundation.Authorization', 'Harborline.Foundation.MultiTenancy'],
+      'Harborline.Foundation.Authorization', 'Harborline.Foundation.MultiTenancy',
+      // T-489 S4a: ReportDefinitionEnvelope carries the shared DefinitionContractVersion (T-572), and admission
+      // reports its stage with the shared DefinitionAdmissionPhase, both from Foundation.Definitions.
+      'Harborline.Foundation.Definitions'],
     'Reports',
     // T-732: see the identical note in verifySchedulingCapability.
     /(?:Financial|Tax|Forms|Workflows|EntityViews|Kernel(?!\.SchemaValidation\b)|Blazor|React)/i,
