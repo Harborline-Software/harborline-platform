@@ -36,14 +36,14 @@
     @if (Catalogue is not null && FieldBindings.Count > 0)
     {
         <fieldset><legend>Field properties</legend>@foreach (var field in FieldBindings) { <div>@foreach (var checkbox in FieldCheckboxes) { <label><input aria-label="@($"{field.Label} is {checkbox.Label}")" type="checkbox" checked="@Checked(field, checkbox)" @onchange="eventArgs => ChangeFieldCheckbox(field, checkbox, eventArgs)" />@field.Label is @checkbox.Label</label> }</div> }</fieldset>
-        <section aria-label="Rule catalogue"><h2>Rule catalogue</h2><ul aria-label="Rule catalogue">@foreach (var rule in Catalogue.Rules) { <li data-rule-id="@rule.Identity">@rule.Name<HarborlineButton ButtonType="ButtonType.Button" Variant="ButtonVariant.Secondary" Size="ButtonSize.Small" OnClick="() => Change(rule)">Edit @rule.Name</HarborlineButton></li> }</ul></section>
+        <section aria-label="Rule catalogue"><h2>Rule catalogue</h2><ul aria-label="Rule catalogue">@foreach (var rule in Catalogue.Rules) { <li data-rule-id="@rule.Identity">@rule.Name<HarborlineButton ButtonType="ButtonType.Button" Variant="ButtonVariant.Secondary" Size="ButtonSize.Small" OnClick="() => Edit(rule)">Edit @rule.Name</HarborlineButton></li> }</ul></section>
     }
 </text>; }
 <form class="hl-rules-authoring" data-read-only="@(ReadOnly ? "" : null)" @onsubmit:preventDefault="true">
     @if (ReadOnly) { <fieldset class="hl-rules-authoring__read-only" disabled>@body</fieldset> } else { @body }
     <div role="group" aria-label="Rule lifecycle" class="hl-rules-authoring__actions"><HarborlineButton ButtonType="ButtonType.Button" Enabled="@Allowed("save-draft")" OnClick="Save">Save draft</HarborlineButton><HarborlineButton ButtonType="ButtonType.Button" Enabled="@Allowed("preview")" OnClick="Preview">Preview</HarborlineButton><HarborlineButton ButtonType="ButtonType.Button" Enabled="@Allowed("publish")" OnClick="Publish">Publish</HarborlineButton><HarborlineButton ButtonType="ButtonType.Button" Enabled="@Allowed("archive")" OnClick="Archive">Archive</HarborlineButton></div>
     @if (_refusals.Count > 0) { <ul class="hl-rules-authoring__refusals" aria-label="Refusals">@foreach (var refusal in _refusals) { <li data-code="@refusal.Code" data-pointer="@refusal.Pointer">@refusal.Code at @refusal.Pointer</li> }</ul> }
-    @if (_incoming is not null) { <aside role="alert">Revision changed.<HarborlineButton ButtonType="ButtonType.Button" OnClick="Keep">Keep edits</HarborlineButton><HarborlineButton ButtonType="ButtonType.Button" OnClick="Discard">Discard edits</HarborlineButton></aside> }
+    @if (_incoming is not null) { <aside role="alert">@_incomingReason<HarborlineButton ButtonType="ButtonType.Button" OnClick="Keep">Keep edits</HarborlineButton><HarborlineButton ButtonType="ButtonType.Button" OnClick="Discard">Discard edits</HarborlineButton></aside> }
     <aside class="hl-rules-authoring__preview" aria-live="polite"><h2>Preview (@(_outcome?.InputLabel ?? PreviewKind) input)</h2><p>@OutcomeText</p></aside>
 </form>
 
@@ -63,7 +63,7 @@
     /// <summary>Receives the replacement shared catalogue after a field-property control changes it.</summary>
     [Parameter] public EventCallback<RulesRuleCatalogue> CatalogueChanged { get; set; }
 
-    private RulesDraft Current = RulesDraft.Empty; private RulesDraft? _incoming; private IReadOnlyList<RulesRefusal> _refusals = []; private RulesOutcome? _outcome; private RulesOutcome? _lastOutcome; private string _revision = ""; private bool _dirty; private int _generation; private static int _intent;
+    private RulesDraft Current = RulesDraft.Empty; private RulesDraft? _incoming; private string _incomingReason = ""; private IReadOnlyList<RulesRefusal> _refusals = []; private RulesOutcome? _outcome; private RulesOutcome? _lastOutcome; private string _revision = ""; private bool _dirty; private int _generation; private static int _intent;
     private readonly Dictionary<string, string> _intentIds = new(StringComparer.Ordinal); private readonly HashSet<string> _outstanding = new(StringComparer.Ordinal);
     private FormulaDraft? Formula => Current.Draft as FormulaDraft; private DecisionTableDraft? Table => Current.Draft as DecisionTableDraft; private RulesExpressionContract? RuleContract => ExpressionContracts.FirstOrDefault(item => item.Site == "rule");
     private static readonly string[] CompareOperators = ["==", "!=", ">", ">=", "<", "<="];
@@ -73,7 +73,7 @@
     protected override async Task OnParametersSetAsync()
     {
         var key = RevisionKey(Value);
-        if (_revision != key) { if (_dirty) _incoming = Value; else { Current = Value; _generation++; _outcome = null; _refusals = []; _outstanding.Clear(); _intentIds.Clear(); } _revision = key; }
+        if (_revision != key) { if (_dirty) { _incoming = Value; _incomingReason = "Revision changed."; } else { Current = Value; _generation++; _outcome = null; _refusals = []; _outstanding.Clear(); _intentIds.Clear(); } _revision = key; }
         if (Outcome is not null && !ReferenceEquals(Outcome, _lastOutcome)) { _lastOutcome = Outcome; if (Outcome.RequestId is null && _outstanding.Count == 0) _outcome = Outcome; else if (Matches(Outcome.RequestId, Outcome.Identity, Outcome.ExpectedRevision, Outcome.Generation)) { _outstanding.Remove(Outcome.RequestId!); foreach (var item in _intentIds.Where(item => item.Value == Outcome.RequestId).ToArray()) _intentIds.Remove(item.Key); _outcome = Outcome; } }
         if (Response is not null && Matches(Response.RequestId, Response.Identity, Response.ExpectedRevision, Response.Generation)) { _outstanding.Remove(Response.RequestId); foreach (var item in _intentIds.Where(item => item.Value == Response.RequestId).ToArray()) _intentIds.Remove(item.Key); if (Response.Outcome is not null) _outcome = Response.Outcome; _refusals = Response.Refusals ?? []; if (Response.Authoritative is not null || Response.Materialization is not null) { var identity = Response.Authoritative?.Identity ?? Current.Identity; var binding = Response.Materialization?.Bindings.FirstOrDefault(item => item.DefinitionId == identity) ?? Response.Materialization?.Bindings.FirstOrDefault(); Current = Current with { Identity = identity, ExpectedRevision = Response.Authoritative?.Revision ?? Current.ExpectedRevision, Materialization = Response.Materialization ?? Current.Materialization, VersionSelection = binding is null ? Current.VersionSelection : "Pinned", PinnedVersionId = binding?.VersionId ?? Current.PinnedVersionId }; _dirty = false; _revision = RevisionKey(Current); await ValueChanged.InvokeAsync(Current); } }
     }
@@ -82,6 +82,8 @@
     private static string RevisionKey(RulesDraft value) => $"{value.Identity}\u0000{value.ExpectedRevision}\u0000{value.Materialization?.ContentDigest}";
     private bool Matches(string? request, string? identity, string? revision, int? generation) => request is not null && _outstanding.Contains(request) && identity == Current.Identity && revision == Current.ExpectedRevision && generation == _generation;
     private string OutcomeText { get { if (_outcome is null) return "No preview has run."; var subject = string.Join(" / ", new[] { _outcome.RuleName, _outcome.MemberName }.Where(value => !string.IsNullOrWhiteSpace(value))); var result = _outcome.Kind switch { "Value" => $"Value: {_outcome.Value}", "Validity" => $"Validity: {_outcome.Validity}", "Visibility" => $"Visibility: {_outcome.Visibility}", "Presentation" => $"Presentation: {_outcome.Presentation}", "Pending" => "Preview pending.", "Uncomputable" => $"Uncomputable: {_outcome.Code}", _ => $"Refused: {_outcome.Code}" }; return $"{(subject == "" ? "" : subject + ": ")}{result} ({_outcome.InputLabel} @ {_outcome.ClockUtc})"; } }
+    // A dirty draft is never replaced silently: the catalogue rule waits behind the same Keep/Discard choice as a changed revision.
+    private Task Edit(RulesDraft rule) { if (!_dirty) return Change(rule); _incoming = rule; _incomingReason = $"Editing {rule.Name} replaces unsaved edits."; return Task.CompletedTask; }
     private async Task Change(RulesDraft value) { Current = value; _dirty = true; _generation++; _outcome = null; _refusals = []; await ValueChanged.InvokeAsync(value); }
     private Task ChangeDraft(RuleDraft draft) => Change(Current with { Draft = draft });
     private Task ChangeName(ChangeEventArgs eventArgs) => Change(Current with { Name = eventArgs.Value?.ToString() ?? "" });

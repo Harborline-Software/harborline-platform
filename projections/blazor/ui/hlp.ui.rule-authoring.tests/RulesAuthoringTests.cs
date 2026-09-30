@@ -415,6 +415,29 @@ public sealed class RulesAuthoringTests : BunitContext
         Assert.Empty(catalogues[^1].Rules);
     }
 
+    [Fact(DisplayName = "rules-auth-16: editing a Blazor catalogue rule over a dirty draft keeps the draft on Keep edits and replaces it on Discard edits")]
+    public void Editing_a_catalogue_rule_over_a_dirty_draft_asks_before_replacing_it()
+    {
+        var rule = RulesDraft.Empty with { Identity = "field.amount.required", Name = "Amount Required", Draft = RulesDraft.Empty.Draft with { ScopeTarget = "amount" } };
+        var cut = Render<HarborlineRulesAuthoringEditor>(parameters => parameters
+            .Add(component => component.Value, RulesDraft.Empty)
+            .Add(component => component.ExpressionContracts, Contracts)
+            .Add(component => component.FieldBindings, [new RulesFieldBinding("amount", "Amount")])
+            .Add(component => component.Catalogue, new RulesRuleCatalogue([rule])));
+        cut.Find("input[aria-label='Rule name']").Change("local");
+
+        cut.FindButton("Edit Amount Required").Click();
+        Assert.Contains("Editing Amount Required replaces unsaved edits.", cut.Find("aside[role='alert']").TextContent);
+        cut.FindButton("Keep edits").Click();
+        Assert.Equal("local", cut.Find("input[aria-label='Rule name']").GetAttribute("value"));
+        Assert.Empty(cut.FindAll("aside[role='alert']"));
+
+        cut.FindButton("Edit Amount Required").Click();
+        cut.FindButton("Discard edits").Click();
+        Assert.Equal("Amount Required", cut.Find("input[aria-label='Rule name']").GetAttribute("value"));
+        Assert.Equal("amount", cut.Find("input[aria-label='Target']").GetAttribute("value"));
+    }
+
     private static RulesEditorAuthority ReadAuthority(JsonElement item) => new([.. item.GetProperty("authority").GetProperty("granted").EnumerateArray().Select(permission => permission.GetString()!)]);
 
     private static readonly RulesExpressionContract[] Contracts = [new("rule", "typed value", "preview", [new("amount", "Amount", ColumnValueType.Number)])];

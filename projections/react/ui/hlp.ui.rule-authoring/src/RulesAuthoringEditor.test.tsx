@@ -235,4 +235,20 @@ describe('Rules authoring React projection', () => {
     fireEvent.click(screen.getByLabelText('Amount is required'))
     expect(screen.getByRole('list', { name: 'Rule catalogue' })).toBeEmptyDOMElement()
   })
+  it('rules-auth-16: editing a catalogue rule over a dirty draft keeps the draft on Keep edits and replaces it on Discard edits', () => {
+    const catalogue = { rules: [{ ...emptyRulesDraft(), identity: 'field.amount.required', name: 'Amount Required', draft: { ...emptyRulesDraft().draft, scopeTarget: 'amount' } }] }
+    render(<RulesAuthoringEditor {...props({ fieldBindings: [{ key: 'amount', label: 'Amount' }], catalogue, onCatalogueChange: vi.fn() })} />)
+    fireEvent.change(screen.getByLabelText('Rule name'), { target: { value: 'local' } })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Amount Required' }))
+    expect(screen.getByRole('alert')).toHaveTextContent('Editing Amount Required replaces unsaved edits.')
+    fireEvent.click(screen.getByRole('button', { name: 'Keep edits' }))
+    expect(screen.getByLabelText('Rule name')).toHaveValue('local')
+    expect(screen.queryByRole('alert')).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Amount Required' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Discard edits' }))
+    expect(screen.getByLabelText('Rule name')).toHaveValue('Amount Required')
+    expect(screen.getByLabelText('Target')).toHaveValue('amount')
+  })
 })
