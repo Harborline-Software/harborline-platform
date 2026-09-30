@@ -17,9 +17,13 @@ public sealed record BookingAllocation(
 /// <summary>A hold's states; every state but <see cref="Held"/> is terminal.</summary>
 public enum BookingHoldState
 {
+    /// <summary>The hold is active and may be confirmed.</summary>
     Held,
+    /// <summary>The hold has been committed.</summary>
     Confirmed,
+    /// <summary>The hold was explicitly cancelled.</summary>
     Cancelled,
+    /// <summary>The hold passed its expiry instant.</summary>
     Expired,
 }
 

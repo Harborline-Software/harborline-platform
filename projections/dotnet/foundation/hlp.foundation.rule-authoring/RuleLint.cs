@@ -13,8 +13,11 @@ namespace Harborline.Foundation.RuleAuthoring;
 /// <summary>Finding severity, mirroring the TS <c>'error' | 'warn' | 'info'</c> union.</summary>
 public enum LintSeverity
 {
+    /// <summary>A finding that blocks admission.</summary>
     Error = 0,
+    /// <summary>A finding that should be reviewed but does not block admission.</summary>
     Warn = 1,
+    /// <summary>An informational finding about the authored table.</summary>
     Info = 2,
 }
 
@@ -30,10 +33,15 @@ public sealed record TableLintFinding(
 /// <c>RuleLintCodes</c>.</summary>
 public static class RuleLintCodes
 {
+    /// <summary>No default or catch-all resolves unmatched input.</summary>
     public const string NoMatchUnresolved = "rules.lint.no_match_unresolved";
+    /// <summary>A catch-all row shadows rows that follow it.</summary>
     public const string NonTerminalCatchAll = "rules.lint.non_terminal_catch_all";
+    /// <summary>A row has no output value.</summary>
     public const string EmptyOutput = "rules.lint.empty_output";
+    /// <summary>Adjacent numeric intervals leave a gap.</summary>
     public const string Gap = "rules.lint.gap";
+    /// <summary>Adjacent numeric intervals overlap.</summary>
     public const string Overlap = "rules.lint.overlap";
 }
 

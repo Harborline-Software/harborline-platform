@@ -3,6 +3,7 @@ using Harborline.UIAdapters.Blazor.Components.RuleAuthoring;
 
 namespace Harborline.UIAdapters.Blazor.Components.Layout;
 
+/// <summary>A layout problem found at render time: a code and the location it applies to.</summary>
 public sealed record LayoutRuntimeDiagnostic(string Code, string Pointer);
 
 /// <summary>One stable refusal tuple; <paramref name="Target"/> names the fetchable definition and is present only when the platform judged it safe to reveal (T-724 ruling 61).</summary>
@@ -13,6 +14,7 @@ public sealed record LayoutRefusal(string Code, string Pointer, string? Target =
 /// always stated, one of <c>author</c>, <c>publish</c>, <c>install</c> or <c>render</c> (T-724 rulings 79 and 80).
 /// </summary>
 public sealed record LayoutRefusalEnvelope(string Stage, IReadOnlyList<LayoutRefusal> Refusals);
+/// <summary>One block of a layout plan: id, kind, nesting depth and optional zone.</summary>
 public sealed record LayoutRuntimeBlock(string Id, string Kind, int Depth, string? Zone = null);
 /// <summary>DES-0052 C1, layout-eng-26: the authority the platform returned with the surface. The lane derives nothing from it.</summary>
 public sealed record LayoutRuntimeAuthority(bool CanSubmit);
@@ -28,6 +30,7 @@ public sealed record LayoutAccessTraceStage(int Ordinal, string Stage, IReadOnly
 /// <c>absent</c>, <c>missing</c>, <c>forbidden</c>, <c>malformed</c> or <c>valid</c>. The lane derives nothing.
 /// </summary>
 public sealed record LayoutAccessTrace(string Evidence, int? Version, IReadOnlyList<LayoutAccessTraceStage> Stages, string? DecidingGrant);
+/// <summary>A resolved layout plan for a surface: definition and version, medium, flow, static regions, diagnostics and authority.</summary>
 public sealed record LayoutRuntimePlan(
     string DefinitionId,
     string DefinitionVersionId,
@@ -56,6 +59,7 @@ public sealed record LayoutAuthoringShowWhen(string? Expression = null, LayoutAu
 /// <summary>A named predicate a show_when guard may cite (layout-ck-29).</summary>
 public sealed record LayoutAuthoringPredicate(string Label, LayoutAuthoringPredicatePin Pin);
 
+/// <summary>One block in a layout being authored: kind, binding, parent, zone, sizing, alignment and page-break settings.</summary>
 public sealed record LayoutAuthoringBlock(
     string Id,
     string Kind,
@@ -99,7 +103,9 @@ public sealed record LayoutAuthoringCapture(
     string? PromptOverride = null,
     // layout-bound-3: the registered field control this capture field uses; absent is the runtime's choice.
     string? Control = null);
+/// <summary>A page run in an authored layout: the page layout and page master it uses.</summary>
 public sealed record LayoutAuthoringPageRun(string Id, string PageLayoutId, string PageMasterId);
+/// <summary>The draft of a layout being authored: name, medium, blocks, flow, gap, density, page runs and drill-through targets.</summary>
 public sealed record LayoutAuthoringDraft(
     string Name,
     string Medium,
@@ -113,9 +119,12 @@ public sealed record LayoutAuthoringDraft(
     // layout-auth-35: the released surfaces a reader may drill through to from this one.
     IReadOnlyList<string>? DrillThroughTargets = null)
 {
+    /// <summary>An empty screen-medium draft with no blocks.</summary>
     public static LayoutAuthoringDraft Empty { get; } = new("", "screen", null, []);
 }
+/// <summary>A selectable option in the layout authoring form: id and label.</summary>
 public sealed record LayoutAuthoringOption(string Id, string Label);
+/// <summary>The options the layout authoring form offers: block kinds, zones, page layouts, masters, widgets and bindables.</summary>
 public sealed record LayoutAuthoringCatalogue(
     IReadOnlyList<LayoutAuthoringOption> BlockKinds,
     IReadOnlyList<string> Zones,

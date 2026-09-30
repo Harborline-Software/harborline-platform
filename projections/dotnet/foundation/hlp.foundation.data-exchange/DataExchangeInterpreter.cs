@@ -6,10 +6,13 @@ using System.Text.Json;
 
 namespace Harborline.Foundation.DataExchange;
 
+/// <summary>A source column name and datatype found during discovery.</summary>
 public sealed record DiscoveredSourceColumn(string Name, string Datatype);
 
+/// <summary>The columns a source reports, checked against the mapping before any row is read.</summary>
 public sealed record DiscoveredSourceShape(IReadOnlyList<DiscoveredSourceColumn> Columns);
 
+/// <summary>One source row: ordinal, identity, version, the checkpoint boundary after it and its raw string values.</summary>
 public sealed record AcquiredSourceRecord(
     int SourceOrdinal,
     string SourceRecordIdentity,
@@ -20,76 +23,91 @@ public sealed record AcquiredSourceRecord(
 /// <summary>A read-only source capability. Acquisition has no write member by construction.</summary>
 public interface IReadOnlyAcquisitionSource
 {
+    /// <summary>Identifier of the acquisition capability.</summary>
     string CapabilityId { get; }
 
+    /// <summary>Version of the connector implementing the capability.</summary>
     string ConnectorVersion { get; }
 
+    /// <summary>Reports the source's columns without reading rows.</summary>
     ValueTask<DiscoveredSourceShape> DiscoverAsync(
         ExchangeSourceBinding binding,
         CancellationToken cancellationToken = default);
 
+    /// <summary>Streams source records from the input boundary onward in source order.</summary>
     IAsyncEnumerable<AcquiredSourceRecord> ReadAsync(
         ExchangeSourceBinding binding,
         string inputBoundary,
         CancellationToken cancellationToken = default);
 }
 
+/// <summary>A host-registered value transform that a mapping column names through hl:transform.</summary>
 public interface INamedMappingTransform
 {
+    /// <summary>Returns the transformed value for one coerced column value.</summary>
     object? Apply(object? value);
 }
 
 /// <summary>Host-owned capabilities named by an authored definition.</summary>
 public interface IDataExchangeCapabilityRegistry
 {
+    /// <summary>Returns the registered read-only source for the capability and connector version.</summary>
     IReadOnlyAcquisitionSource ResolveSource(string capabilityId, string connectorVersion);
 
+    /// <summary>Returns the registered transform with the given name.</summary>
     INamedMappingTransform ResolveTransform(string name);
 
+    /// <summary>Returns whether the host permits writing the target pointer on the target contract; false becomes mapping.target_forbidden.</summary>
     bool CanWrite(string targetContract, string targetPointer);
 
+    /// <summary>Returns the target's command port for reading recorded outcomes, or null when the contract has no ledger.</summary>
     ICanonicalTargetCommandPort? ResolveTargetLedger(string targetContract);
 }
 
+/// <summary>Thrown when a capability or published definition cannot be resolved; Code is the stable code.</summary>
 public sealed class DataExchangeCapabilityException(string code) : Exception(code)
 {
+    /// <summary>Stable refusal code, for example definition.published_head_not_found.</summary>
     public string Code { get; } = code;
 }
 
+/// <summary>The mapped column values for one effect, keyed by canonical target pointer, for a target contract.</summary>
 public sealed record CanonicalEffectPayload(
     string TargetContract,
     IReadOnlyDictionary<string, object?> Values);
 
-/// <summary>
-/// The one canonicalization of a <see cref="CanonicalEffectPayload"/> into the digest a dry run
-/// compares against a ledger's recorded <see cref="EffectLedgerEntry.PayloadDigest"/>. Shared by
-/// the interpreter and by every target-ledger writer so a replayed effect's "same content" check
-/// (data-exchange-eng-8) never drifts between the two sides of that comparison.
-/// </summary>
+/// <summary>Computes stable payload digests for idempotent effect handling.</summary>
 public static class ExchangePayloadDigest
 {
+    /// <summary>Returns sha256: followed by the lowercase hex digest of the payload's JSON, used to tell replays from conflicts.</summary>
     public static string Compute(CanonicalEffectPayload payload)
         => "sha256:" + Convert.ToHexStringLower(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(payload)));
 }
 
+/// <summary>Protected store for canonical effect payloads, so run evidence holds only references.</summary>
 public interface IProtectedEffectPayloadStore
 {
+    /// <summary>Stores the payload for the dry run and source ordinal and returns its reference.</summary>
     ValueTask<string> SaveAsync(
         DryRunId dryRunId,
         int sourceOrdinal,
         CanonicalEffectPayload payload,
         CancellationToken cancellationToken = default);
 
+    /// <summary>Returns the payload for a reference, or null when absent.</summary>
     ValueTask<CanonicalEffectPayload?> GetAsync(
         string reference,
         CancellationToken cancellationToken = default);
 }
 
+/// <summary>Thread-safe in-memory payload store for tests and single-process hosts.</summary>
 public sealed class InMemoryProtectedEffectPayloadStore : IProtectedEffectPayloadStore
 {
+    /// <summary>Guards the payload dictionary.</summary>
     private readonly object _gate = new();
     private readonly Dictionary<string, CanonicalEffectPayload> _payloads = [];
 
+    /// <summary>Stores a snapshot under a reference built from dry run id and ordinal; throws ExchangeRunConflictException when that reference already exists.</summary>
     public ValueTask<string> SaveAsync(
         DryRunId dryRunId,
         int sourceOrdinal,
@@ -108,6 +126,7 @@ public sealed class InMemoryProtectedEffectPayloadStore : IProtectedEffectPayloa
         return ValueTask.FromResult(reference);
     }
 
+    /// <summary>Returns a snapshot copy of the payload for the reference, or null when absent.</summary>
     public ValueTask<CanonicalEffectPayload?> GetAsync(
         string reference,
         CancellationToken cancellationToken = default)
@@ -127,6 +146,7 @@ public sealed class InMemoryProtectedEffectPayloadStore : IProtectedEffectPayloa
     };
 }
 
+/// <summary>Caller and source inputs for one dry run: requester, fingerprints, boundaries, snapshot, authorization and retention references, and expected checkpoint.</summary>
 public sealed record ExchangeEvaluationContext(
     string RequestedBy,
     string SourceFingerprint,
@@ -141,15 +161,20 @@ public sealed record ExchangeEvaluationContext(
     string? SelectedBoundary = null,
     string? ExpectedCheckpoint = null);
 
+/// <summary>Turns a published definition and a read-only source into a dry run: discovers the shape, maps rows, classifies each against the target ledger and records review evidence.</summary>
 public sealed class DataExchangeInterpreter(
     IDataExchangeCapabilityRegistry capabilities,
     DataExchangeRuntime runtime,
     IProtectedEffectPayloadStore payloads)
 {
+    /// <summary>Host registry of sources, transforms, writable targets and target ledgers.</summary>
     private readonly IDataExchangeCapabilityRegistry _capabilities = capabilities ?? throw new ArgumentNullException(nameof(capabilities));
+    /// <summary>Runtime that persists the dry-run evidence.</summary>
     private readonly DataExchangeRuntime _runtime = runtime ?? throw new ArgumentNullException(nameof(runtime));
+    /// <summary>Protected store the mapped payloads are saved to.</summary>
     private readonly IProtectedEffectPayloadStore _payloads = payloads ?? throw new ArgumentNullException(nameof(payloads));
 
+    /// <summary>Resolves the published head, then creates its dry run; throws DataExchangeCapabilityException definition.published_head_not_found when none exists.</summary>
     public async ValueTask<DryRunArtifact> CreateDryRunAsync(
         IDataExchangeDefinitionResolver definitions,
         string tenant,
@@ -164,6 +189,7 @@ public sealed class DataExchangeInterpreter(
         return await CreateDryRunAsync(definition, context, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>Creates a dry run: unmappable rows become Rejected mapping refusals, mapped rows are classified against the ledger, and evidence is persisted without writing target records; throws DataExchangeAdmissionException when a mapped column is missing from the source.</summary>
     public async ValueTask<DryRunArtifact> CreateDryRunAsync(
         DataExchangeDefinition definition,
         ExchangeEvaluationContext context,
@@ -295,11 +321,6 @@ public sealed class DataExchangeInterpreter(
             cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>
-    /// Classifies one successfully-mapped row against its prior ledger outcome, if any, into one of
-    /// the six terminal arms (data-exchange-eng-8). A dry run only ever reads the ledger; it never
-    /// claims or writes to it.
-    /// </summary>
     private static EffectTerminalOutcome Classify(EffectLedgerEntry? existing, string payloadDigest)
     {
         if (existing is null)
@@ -426,8 +447,10 @@ public sealed class DataExchangeInterpreter(
 
     private sealed class MappingRowException(string code, string pointer) : Exception(code)
     {
+        /// <summary>Stable mapping refusal code, for example mapping.required_missing.</summary>
         public string Code { get; } = code;
 
+        /// <summary>JSON pointer of the refused column.</summary>
         public string Pointer { get; } = pointer;
     }
 }

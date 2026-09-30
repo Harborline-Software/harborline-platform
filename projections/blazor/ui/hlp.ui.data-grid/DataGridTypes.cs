@@ -2,7 +2,18 @@ using Microsoft.AspNetCore.Components;
 
 namespace Harborline.UIAdapters.Blazor.Components.DataDisplay;
 
-public enum DataGridValueKind { Text, Number, Date, Boolean }
+/// <summary>The kind of value a data grid column holds, which drives its formatting and alignment.</summary>
+public enum DataGridValueKind
+{
+    /// <summary>Treats column values as text and sorts and filters them as strings.</summary>
+    Text,
+    /// <summary>Treats column values as numbers and sorts and filters them numerically.</summary>
+    Number,
+    /// <summary>Treats column values as dates and sorts and filters them chronologically.</summary>
+    Date,
+    /// <summary>Treats column values as true or false flags.</summary>
+    Boolean
+}
 
 /// <summary>A grid column with a required integer removal priority; lower priorities are removed first.</summary>
 public sealed record DataGridColumn<TRow>(
@@ -13,6 +24,7 @@ public sealed record DataGridColumn<TRow>(
     DataGridValueKind ValueKind = DataGridValueKind.Text,
     RenderFragment<TRow>? CellTemplate = null);
 
+/// <summary>A snapshot of one grid row loaded children: a count, load state and the child rows.</summary>
 public sealed record DataGridChildren<TRow>(int Count, string State, IReadOnlyList<TRow> Children);
 
 /// <summary>
@@ -25,6 +37,7 @@ public sealed record DataGridChildren<TRow>(int Count, string State, IReadOnlyLi
 /// </summary>
 public static class DataGridChildrenSnapshot
 {
+    /// <summary>Returns whether the observed children complete a pending request, comparing by row id.</summary>
     public static bool CompletesRequest<TRow>(
         DataGridChildren<TRow> snapshot,
         DataGridChildren<TRow> observed,
@@ -43,6 +56,7 @@ public static class DataGridChildrenSnapshot
         => snapshot.State is "loaded" or "failed" &&
            !string.Equals(Key(snapshot, getRowId), observedKey, StringComparison.Ordinal);
 
+    /// <summary>Builds a stable key for a children snapshot from its count, state and child row ids.</summary>
     public static string Key<TRow>(DataGridChildren<TRow> snapshot, Func<TRow, string> getRowId)
         => snapshot.State + "" + string.Join("", snapshot.Children.Select(getRowId));
 
@@ -54,6 +68,7 @@ public static class DataGridChildrenSnapshot
            snapshot.Children.Count == observed.Children.Count &&
            snapshot.Children.Select(getRowId).SequenceEqual(observed.Children.Select(getRowId), StringComparer.Ordinal);
 }
+/// <summary>A request to load the children of one grid row.</summary>
 public sealed record DataGridChildrenRequest(
     [property: System.Text.Json.Serialization.JsonPropertyName("rowId")] string RowId);
 
@@ -74,6 +89,7 @@ public sealed record DataGridListState(
     double ScrollTop,
     IReadOnlyDictionary<string, double> ColumnWidths)
 {
+    /// <summary>The empty list state: nothing selected, scrolled to the top, no measured column widths.</summary>
     public static readonly DataGridListState Empty = new(null, 0, new Dictionary<string, double>(StringComparer.Ordinal));
 
     /// <summary>Compared BY VALUE: a re-materialised equal widths map is not a change.</summary>
