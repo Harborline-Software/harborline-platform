@@ -205,7 +205,22 @@ test('release preflight fails closed for API errors, disabled immutability and e
   const workflow = readFileSync(new URL('../../.github/workflows/release-platform.yml', import.meta.url), 'utf8')
   const block = workflow.split('      - name: Require immutable releases and no existing version\n')[1].split('      - name: Attest')[0]
   const script = block.split('        run: |\n')[1].split('\n').map(line => line.replace(/^          /, '')).join('\n')
-  const mock = `gh() {
+  // Keep this tooling test independent of a host-installed jq. This fixture-only JSON
+  // oracle implements the three stated preconditions; workflow expressions are pinned above.
+  const mock = `jq() {
+    "$NODE_BINARY" --input-type=module -e '
+      let input = "";
+      for await (const chunk of process.stdin) input += chunk;
+      if (!input.trim()) process.exit(1);
+      const document = JSON.parse(input);
+      const pass = Array.isArray(document)
+        ? document.length === 0 || (document.every(Array.isArray)
+          && document.flat().every(release => release.tag_name !== "v0.1.0"))
+        : document.enabled === true && document.enforced_by_owner === true;
+      process.exit(pass ? 0 : 1);
+    '
+  }
+  gh() {
     case "$FAULT" in error) return 1;; esac
     case "$*" in
       *immutable-releases*)
@@ -222,7 +237,7 @@ test('release preflight fails closed for API errors, disabled immutability and e
   `
   for (const fault of ['none', 'error', 'disabled', 'tag', 'draft']) {
     const result = spawnSync('bash', ['-e', '-o', 'pipefail', '-c', mock + script], {
-      env: {...process.env, REPOSITORY: 'fixture/repository', FAULT: fault}, encoding: 'utf8'})
+      env: {...process.env, REPOSITORY: 'fixture/repository', FAULT: fault, NODE_BINARY: process.execPath.replaceAll('\\', '/')}, encoding: 'utf8'})
     if (fault === 'none') assert.equal(result.status, 0, result.stderr)
     else assert.notEqual(result.status, 0, `must refuse ${fault}`)
   }
