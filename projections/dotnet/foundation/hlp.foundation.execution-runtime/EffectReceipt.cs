@@ -140,7 +140,11 @@ public sealed record EffectReceipt
     /// <summary>The substrate-owned retry profile selected for this effect.</summary>
     public required RetryProfileName RetryProfile { get; init; }
 
-    /// <summary>The separate logical effect that compensates this one, when compensation was started.</summary>
+    /// <summary>
+    /// The separate logical effect that compensates this one; required and distinct from <see cref="EffectId"/> for
+    /// compensated and compensation-failed receipts, optional for succeeded and failed receipts, and null while an
+    /// ambiguous receipt awaits reconciliation.
+    /// </summary>
     public EffectId? CompensationEffectId { get; init; }
 
     /// <summary>Opaque references to secrets used by the capability; the receipt never stores their values.</summary>
@@ -274,6 +278,12 @@ public sealed class EffectReceiptLedger
             RequireText(reconciliation.CapabilityReconciliation, "capability reconciliation");
             RequireText(reconciliation.Outcome, "reconciliation outcome");
             RequireEffectId(reconciliation.ResolvesToReceiptId);
+        }
+
+        var requiresCompensationEffect = receipt.Status == EffectStatus.Compensated || receipt.Status == EffectStatus.CompensationFailed;
+        if (requiresCompensationEffect && receipt.CompensationEffectId is null)
+        {
+            Refuse(ExecutionRuntimeRefusals.EffectReceiptInvalid, "A compensated effect receipt must name its separate compensation effect.");
         }
 
         if (receipt.CompensationEffectId is { } compensation)
