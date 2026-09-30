@@ -40,6 +40,12 @@ public sealed record RulesDraft(
     public RulesMaterialization? Materialization { get; init; }
 }
 
+/// <summary>A field the host exposes to Rules field-property controls.</summary>
+public sealed record RulesFieldBinding(string Key, string Label);
+
+/// <summary>The shared catalogue of ordinary editable Rules drafts.</summary>
+public sealed record RulesRuleCatalogue(IReadOnlyList<RulesDraft> Rules);
+
 /// <summary>The outcome of a rules operation or test: kind, input, clock, value, code and rule or member involved.</summary>
 public sealed record RulesOutcome(string Kind, string InputLabel, string ClockUtc, string? Value = null, string? Code = null, string? RuleName = null, string? MemberName = null, string? RequestId = null, string? Identity = null, string? ExpectedRevision = null, int? Generation = null, string? Validity = null, string? Visibility = null, string? Presentation = null);
 /// <summary>A request to run an operation on a rules draft, with the identity, expected revision and generation.</summary>

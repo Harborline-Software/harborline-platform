@@ -391,6 +391,121 @@ public sealed class RulesAuthoringTests : BunitContext
         }
     }
 
+    [Fact(DisplayName = "rules-auth-16: the Blazor field-property checkbox writes and clears an ordinary editable rule in the shared catalogue")]
+    public void Field_property_checkbox_writes_and_clears_an_ordinary_editable_rule_in_the_shared_catalogue()
+    {
+        var catalogues = new List<RulesRuleCatalogue>();
+        var cut = Render<HarborlineRulesAuthoringEditor>(parameters => parameters
+            .Add(component => component.Value, RulesDraft.Empty)
+            .Add(component => component.ExpressionContracts, Contracts)
+            .Add(component => component.FieldBindings, [new RulesFieldBinding("amount", "Amount")])
+            .Add(component => component.Catalogue, new RulesRuleCatalogue([]))
+            .Add(component => component.CatalogueChanged, EventCallback.Factory.Create<RulesRuleCatalogue>(this, catalogues.Add)));
+
+        cut.Find("input[aria-label='Amount is required']").Change(true);
+        var created = Assert.Single(catalogues[^1].Rules);
+        Assert.Equal(("field.amount.required", "Amount Required", RuleScope.Field, "amount", RuleActionKind.Required), (created.Identity, created.Name, created.Draft.Scope, created.Draft.ScopeTarget, created.Draft.OutputType));
+        cut.Render(parameters => parameters.Add(component => component.Catalogue, catalogues[^1]));
+        Assert.Contains("Amount Required", cut.Find("ul[aria-label='Rule catalogue']").TextContent);
+        cut.FindButton("Edit Amount Required").Click();
+        Assert.Equal("amount", cut.Find("input[aria-label='Target']").GetAttribute("value"));
+        Assert.Equal("Required", cut.Find("select[aria-label='Rule action']").GetAttribute("value"));
+
+        cut.Find("input[aria-label='Amount is required']").Change(false);
+        Assert.Empty(catalogues[^1].Rules);
+    }
+
+    [Fact(DisplayName = "rules-auth-16: the Blazor field-property checkbox is disabled without a CatalogueChanged callback and persists with one")]
+    public void Field_property_checkbox_is_disabled_without_a_catalogue_change_callback()
+    {
+        var readOnly = Render<HarborlineRulesAuthoringEditor>(parameters => parameters
+            .Add(component => component.Value, RulesDraft.Empty)
+            .Add(component => component.ExpressionContracts, Contracts)
+            .Add(component => component.FieldBindings, [new RulesFieldBinding("amount", "Amount")])
+            .Add(component => component.Catalogue, new RulesRuleCatalogue([])));
+        Assert.True(readOnly.Find("input[aria-label='Amount is required']").HasAttribute("disabled"));
+
+        var catalogues = new List<RulesRuleCatalogue>();
+        var editable = Render<HarborlineRulesAuthoringEditor>(parameters => parameters
+            .Add(component => component.Value, RulesDraft.Empty)
+            .Add(component => component.ExpressionContracts, Contracts)
+            .Add(component => component.FieldBindings, [new RulesFieldBinding("amount", "Amount")])
+            .Add(component => component.Catalogue, new RulesRuleCatalogue([]))
+            .Add(component => component.CatalogueChanged, EventCallback.Factory.Create<RulesRuleCatalogue>(this, catalogues.Add)));
+        var checkbox = editable.Find("input[aria-label='Amount is required']");
+        Assert.False(checkbox.HasAttribute("disabled"));
+        checkbox.Change(true);
+        Assert.Equal("field.amount.required", Assert.Single(catalogues[^1].Rules).Identity);
+    }
+
+    [Fact(DisplayName = "rules-auth-16: opening one Blazor catalogue rule after another with no edits asks nothing")]
+    public void Opening_catalogue_rules_without_edits_neither_confirms_nor_reports_a_revision_change()
+    {
+        var changes = new List<RulesDraft>();
+        RulesDraft Rule(string id, string name) => RulesDraft.Empty with { Identity = id, ExpectedRevision = "1", Name = name };
+        var cut = Render<HarborlineRulesAuthoringEditor>(parameters => parameters
+            .Add(component => component.Value, RulesDraft.Empty)
+            .Add(component => component.ExpressionContracts, Contracts)
+            .Add(component => component.FieldBindings, [new RulesFieldBinding("amount", "Amount")])
+            .Add(component => component.Catalogue, new RulesRuleCatalogue([Rule("rule-a", "Rule A"), Rule("rule-b", "Rule B")]))
+            .Add(component => component.ValueChanged, EventCallback.Factory.Create<RulesDraft>(this, changes.Add)));
+
+        cut.FindButton("Edit Rule A").Click();
+        cut.Render(parameters => parameters.Add(component => component.Value, changes[^1]));
+        cut.FindButton("Edit Rule B").Click();
+        cut.Render(parameters => parameters.Add(component => component.Value, changes[^1]));
+
+        Assert.Empty(cut.FindAll("aside[role='alert']"));
+        Assert.Equal("Rule B", cut.Find("input[aria-label='Rule name']").GetAttribute("value"));
+    }
+
+    [Fact(DisplayName = "rules-auth-16: discarding a previewed Blazor draft for a catalogue rule leaves no stale preview or refusals")]
+    public void Discarding_a_previewed_draft_for_a_catalogue_rule_clears_the_stale_preview()
+    {
+        var requests = new List<RulesOperationRequest>();
+        var cut = Render<HarborlineRulesAuthoringEditor>(parameters => parameters
+            .Add(component => component.Value, RulesDraft.Empty with { Identity = "rule-a", ExpectedRevision = "1" })
+            .Add(component => component.ExpressionContracts, Contracts)
+            .Add(component => component.FieldBindings, [new RulesFieldBinding("amount", "Amount")])
+            .Add(component => component.Catalogue, new RulesRuleCatalogue([RulesDraft.Empty with { Identity = "rule-b", ExpectedRevision = "1", Name = "Rule B" }]))
+            .Add(component => component.OperationRequested, EventCallback.Factory.Create<RulesOperationRequest>(this, requests.Add)));
+        cut.Find("input[aria-label='Rule name']").Change("local");
+        cut.FindButton("Preview").Click();
+        var request = requests[^1];
+        cut.Render(parameters => parameters.Add(component => component.Response, new RulesOperationResponse(request.RequestId, request.Identity, request.ExpectedRevision, request.Generation,
+            Outcome: new RulesOutcome("Value", "sample", "2026-06-30T00:00:00.0000000Z", Value: "stale"), Refusals: [new RulesRefusal("rules.stale", "/draft")])));
+        Assert.Contains("Value: stale", cut.Markup);
+
+        cut.FindButton("Edit Rule B").Click();
+        cut.FindButton("Discard edits").Click();
+
+        Assert.DoesNotContain("Value: stale", cut.Markup);
+        Assert.Empty(cut.FindAll("ul[aria-label='Refusals']"));
+    }
+
+    [Fact(DisplayName = "rules-auth-16: editing a Blazor catalogue rule over a dirty draft keeps the draft on Keep edits and replaces it on Discard edits")]
+    public void Editing_a_catalogue_rule_over_a_dirty_draft_asks_before_replacing_it()
+    {
+        var rule = RulesDraft.Empty with { Identity = "field.amount.required", Name = "Amount Required", Draft = RulesDraft.Empty.Draft with { ScopeTarget = "amount" } };
+        var cut = Render<HarborlineRulesAuthoringEditor>(parameters => parameters
+            .Add(component => component.Value, RulesDraft.Empty)
+            .Add(component => component.ExpressionContracts, Contracts)
+            .Add(component => component.FieldBindings, [new RulesFieldBinding("amount", "Amount")])
+            .Add(component => component.Catalogue, new RulesRuleCatalogue([rule])));
+        cut.Find("input[aria-label='Rule name']").Change("local");
+
+        cut.FindButton("Edit Amount Required").Click();
+        Assert.Contains("Editing Amount Required replaces unsaved edits.", cut.Find("aside[role='alert']").TextContent);
+        cut.FindButton("Keep edits").Click();
+        Assert.Equal("local", cut.Find("input[aria-label='Rule name']").GetAttribute("value"));
+        Assert.Empty(cut.FindAll("aside[role='alert']"));
+
+        cut.FindButton("Edit Amount Required").Click();
+        cut.FindButton("Discard edits").Click();
+        Assert.Equal("Amount Required", cut.Find("input[aria-label='Rule name']").GetAttribute("value"));
+        Assert.Equal("amount", cut.Find("input[aria-label='Target']").GetAttribute("value"));
+    }
+
     private static RulesEditorAuthority ReadAuthority(JsonElement item) => new([.. item.GetProperty("authority").GetProperty("granted").EnumerateArray().Select(permission => permission.GetString()!)]);
 
     private static readonly RulesExpressionContract[] Contracts = [new("rule", "typed value", "preview", [new("amount", "Amount", ColumnValueType.Number)])];

@@ -71,7 +71,17 @@ public sealed record DataExchangeRunSummary(
     string CandidateCheckpoint,
     DataExchangeRunCensus Census,
     IReadOnlyList<string> Refusals,
-    string? BatchIdentity = null);
+    string? BatchIdentity = null)
+{
+    /// <summary>Identifies the immutable commit that promoted this reviewed run, when one exists.</summary>
+    public string? CommitRunId { get; init; }
+
+    /// <summary>Identifies the effect represented by the review evidence, without conflating it with the batch.</summary>
+    public string? EffectIdentity { get; init; }
+
+    /// <summary>Identifies the at-least-once delivery attempt for the represented effect.</summary>
+    public string? AttemptId { get; init; }
+}
 
 /// <summary>A refusal from the authoring flow: the stage it happened at, its code and where to go to fix it.</summary>
 public sealed record DataExchangeAuthoringRefusal(string Stage, string Code, string TargetHref);
