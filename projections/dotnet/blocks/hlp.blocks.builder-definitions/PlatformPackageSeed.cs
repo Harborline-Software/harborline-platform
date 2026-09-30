@@ -228,6 +228,42 @@ public static class PlatformPackageSeed
                         documentVersion = "1.0.0",
                     },
                 },
+                schedulingAuthoring = new
+                {
+                    workspace = "platform.workspace.workshop",
+                    navigationEntry = new
+                    {
+                        id = "platform.navigation.schedules.author",
+                        pillar = "schedules",
+                        label = "Create schedule",
+                        surface = "platform.editor.scheduling",
+                    },
+                    editor = new
+                    {
+                        id = "platform.editor.scheduling",
+                        definitionKinds = new[] { "ScheduleDefinition", "Protocol", "Constraint" },
+                        projections = new[] { "react", "blazor" },
+                    },
+                    createActions = new[]
+                    {
+                        new { id = "platform.action.schedules.create", kind = "schedule", definitionKind = "ScheduleDefinition" },
+                        new { id = "platform.action.protocols.create", kind = "protocol", definitionKind = "Protocol" },
+                        new { id = "platform.action.constraints.create", kind = "constraint", definitionKind = "Constraint" },
+                    },
+                    // Editor defaults the records rule on, and nothing else: problem class and planner start
+                    // at none (scheduling-ck-10, L1149), the plan horizon has no default and is authored
+                    // (ADR-0097 ruling 5), no constraint scope is preselected and chain is never chosen
+                    // implicitly (L1148), and Protocol instances are domain-package-owned with none in the
+                    // platform seed (ADR-0097 ruling 3). The grammar itself is the definition kinds' own.
+                    defaults = new
+                    {
+                        problemClass = "None",
+                        planner = "none",
+                        planHorizon = (string?)null,
+                        constraintScopes = Array.Empty<string>(),
+                        protocolInstanceOwner = "domain-package",
+                    },
+                },
             }, "platform-package-ck-6"),
             Item("platform-package-ck-8", PlatformSeedStage.Views, new
             {
