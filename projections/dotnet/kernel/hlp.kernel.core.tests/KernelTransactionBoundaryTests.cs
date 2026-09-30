@@ -204,6 +204,217 @@ public sealed class KernelTransactionBoundaryTests
         Assert.False(commands.WasEnumerated);
     }
 
+    [Fact]
+    public async Task JoinOutsideAnEnclosingExecutionIsRefused()
+    {
+        var participant = new RecordingParticipant([]);
+
+        var error = await Assert.ThrowsAsync<KernelTransactionStateException>(async () =>
+            await KernelTransactionBoundary.JoinAsync(Command("joined"), participant));
+
+        Assert.Equal(KernelTransactionErrors.JoinWithoutEnclosingExecution, error.Code);
+        Assert.Empty(participant.Events);
+    }
+
+    [Fact]
+    public async Task JoinAfterTheEnclosingExecutionEndsIsRefused()
+    {
+        var port = new PreparedRecordingPort();
+        var release = new TaskCompletionSource();
+        Task<KernelTransactionStateException>? late = null;
+
+        await KernelTransactionBoundary.ExecutePreparedAsync<string, string>(_ =>
+        {
+            // The captured flow still carries the ambient execution after it commits.
+            late = Task.Run(async () =>
+            {
+                await release.Task;
+                return await Assert.ThrowsAsync<KernelTransactionStateException>(async () =>
+                    await KernelTransactionBoundary.JoinAsync(Command("joined"), new RecordingParticipant(port.Events)));
+            });
+            return ValueTask.FromResult(Command());
+        }, port);
+        release.SetResult();
+
+        Assert.Equal(KernelTransactionErrors.JoinWithoutEnclosingExecution, (await late!).Code);
+        Assert.Equal(["begin", "operation", "record", "audit", "commit", "dispose"], port.Events);
+    }
+
+    [Fact]
+    public async Task JoinedParticipantStagesIntoTheEnclosingCommitAndNeverCommits()
+    {
+        var port = new PreparedRecordingPort();
+
+        var result = await KernelTransactionBoundary.ExecutePreparedAsync<string, string>(async ct =>
+        {
+            await KernelTransactionBoundary.JoinAsync(Command("joined"), new RecordingParticipant(port.Events), ct);
+            port.Events.Add("joined");
+            return Command();
+        }, port);
+
+        Assert.True(result.Committed);
+        Assert.Equal(
+            ["begin", "join-operation:joined", "join-record:record-joined", "join-audit:audit-joined", "joined",
+             "operation", "record", "audit", "commit", "dispose"],
+            port.Events);
+    }
+
+    [Fact]
+    public async Task JoinedParticipantJoinsAnExecuteAsyncFromItsPort()
+    {
+        var port = new RecordingPort();
+        port.OnRecord = () => KernelTransactionBoundary.JoinAsync(Command("joined"), new RecordingParticipant(port.Events));
+
+        var result = await KernelTransactionBoundary.ExecuteAsync([Command()], port);
+
+        Assert.True(result.Committed);
+        Assert.Equal(
+            ["begin", "record", "join-operation:joined", "join-record:record-joined", "join-audit:audit-joined",
+             "audit", "commit", "dispose"],
+            port.Events);
+    }
+
+    [Theory]
+    [InlineData("operation")]
+    [InlineData("record")]
+    [InlineData("audit")]
+    public async Task JoinedFailureRollsBackTheEnclosingExecution(string fault)
+    {
+        var port = new PreparedRecordingPort();
+
+        await Assert.ThrowsAsync<InjectedFault>(async () =>
+            await KernelTransactionBoundary.ExecutePreparedAsync<string, string>(async ct =>
+            {
+                await KernelTransactionBoundary.JoinAsync(Command("joined"), new RecordingParticipant(port.Events, fault), ct);
+                return Command();
+            }, port));
+
+        Assert.DoesNotContain("commit", port.Events);
+        Assert.Equal(["rollback", "dispose"], port.Events[^2..]);
+    }
+
+    [Fact]
+    public async Task SwallowedJoinedFailureStillDoomsThePreparedCommit()
+    {
+        var port = new PreparedRecordingPort();
+
+        var error = await Assert.ThrowsAsync<KernelTransactionStateException>(async () =>
+            await KernelTransactionBoundary.ExecutePreparedAsync<string, string>(async ct =>
+            {
+                await SwallowAsync(KernelTransactionBoundary.JoinAsync(Command("joined"), new RecordingParticipant(port.Events, "record"), ct));
+                return Command();
+            }, port));
+
+        Assert.Equal(KernelTransactionErrors.EnclosingExecutionDoomed, error.Code);
+        Assert.DoesNotContain("commit", port.Events);
+        Assert.Equal(["rollback", "dispose"], port.Events[^2..]);
+    }
+
+    [Fact]
+    public async Task SwallowedJoinedFailureStillDoomsTheExecuteCommit()
+    {
+        var port = new RecordingPort();
+        port.OnRecord = () => SwallowAsync(
+            KernelTransactionBoundary.JoinAsync(Command("joined"), new RecordingParticipant(port.Events, "audit")));
+
+        var error = await Assert.ThrowsAsync<KernelTransactionStateException>(async () =>
+            await KernelTransactionBoundary.ExecuteAsync([Command()], port));
+
+        Assert.Equal(KernelTransactionErrors.EnclosingExecutionDoomed, error.Code);
+        Assert.DoesNotContain("commit", port.Events);
+        Assert.Equal(0, port.Published);
+    }
+
+    [Theory]
+    [InlineData(" ", "key-joined", "fingerprint-joined", "audit-joined", "actor")]
+    [InlineData("joined", " ", "fingerprint-joined", "audit-joined", "actor")]
+    [InlineData("joined", "key-joined", " ", "audit-joined", "actor")]
+    [InlineData("joined", "key-joined", "fingerprint-joined", " ", "actor")]
+    [InlineData("joined", "key-joined", "fingerprint-joined", "audit-joined", " ")]
+    public async Task JoinedCommandNeedsValidOperationAndAuditOrDoomsTheCommit(
+        string commandId, string idempotencyKey, string fingerprint, string auditId, string actorId)
+    {
+        var port = new PreparedRecordingPort();
+        var invalid = Command("joined") with
+        {
+            Operation = new(commandId, idempotencyKey, fingerprint),
+            Audit = Command("joined").Audit with { AuditId = auditId, ActorId = actorId },
+        };
+        ArgumentException? joinError = null;
+
+        var error = await Assert.ThrowsAsync<KernelTransactionStateException>(async () =>
+            await KernelTransactionBoundary.ExecutePreparedAsync<string, string>(async ct =>
+            {
+                joinError = await Assert.ThrowsAsync<ArgumentException>(async () =>
+                    await KernelTransactionBoundary.JoinAsync(invalid, new RecordingParticipant(port.Events), ct));
+                return Command();
+            }, port));
+
+        Assert.NotNull(joinError);
+        Assert.Equal(KernelTransactionErrors.EnclosingExecutionDoomed, error.Code);
+        Assert.DoesNotContain(port.Events, e => e.StartsWith("join-", StringComparison.Ordinal));
+        Assert.DoesNotContain("commit", port.Events);
+    }
+
+    [Fact]
+    public async Task JoinRejectsNullArguments()
+    {
+        var participant = new RecordingParticipant([]);
+
+        Assert.Equal("command", (await Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            await KernelTransactionBoundary.JoinAsync(null!, participant))).ParamName);
+        Assert.Equal("participant", (await Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            await KernelTransactionBoundary.JoinAsync<string>(Command("joined"), null!))).ParamName);
+    }
+
+    [Fact]
+    public async Task ExecutionInsideAnEnclosingExecutionIsRefusedBeforeItBegins()
+    {
+        var outer = new PreparedRecordingPort();
+        var inner = new RecordingPort();
+        var innerPrepared = new PreparedRecordingPort();
+        KernelTransactionStateException? execute = null, prepared = null;
+
+        await KernelTransactionBoundary.ExecutePreparedAsync<string, string>(async ct =>
+        {
+            execute = await Assert.ThrowsAsync<KernelTransactionStateException>(async () =>
+                await KernelTransactionBoundary.ExecuteAsync([Command("inner")], inner, ct));
+            prepared = await Assert.ThrowsAsync<KernelTransactionStateException>(async () =>
+                await KernelTransactionBoundary.ExecutePreparedAsync<string, string>(_ => ValueTask.FromResult(Command("inner")), innerPrepared, ct));
+            return Command();
+        }, outer);
+
+        Assert.Equal(KernelTransactionErrors.NestedExecution, execute!.Code);
+        Assert.Equal(KernelTransactionErrors.NestedExecution, prepared!.Code);
+        Assert.Empty(inner.Events);
+        Assert.Empty(innerPrepared.Events);
+    }
+
+    [Fact]
+    public async Task SequentialExecutionsAreNotNested()
+    {
+        var port = new PreparedRecordingPort();
+        await KernelTransactionBoundary.ExecutePreparedAsync<string, string>(_ => ValueTask.FromResult(Command()), port);
+        await Assert.ThrowsAsync<InjectedFault>(async () =>
+            await KernelTransactionBoundary.ExecutePreparedAsync<string, string>(_ => throw new InjectedFault(), port));
+
+        var result = await KernelTransactionBoundary.ExecuteAsync([Command("two")], new RecordingPort());
+
+        Assert.True(result.Committed);
+    }
+
+    private static async ValueTask SwallowAsync(ValueTask join)
+    {
+        try
+        {
+            await join;
+        }
+        catch (Exception)
+        {
+            // The caller hides the participant failure; the enclosing commit must still refuse.
+        }
+    }
+
     private static KernelCommand<string> Command(string id = "one") => new(
         new(id, $"key-{id}", $"fingerprint-{id}"),
         $"record-{id}",
@@ -229,6 +440,7 @@ public sealed class KernelTransactionBoundaryTests
     private sealed class RecordingPort(string? fault = null) : IKernelTransactionPort<string, string>
     {
         public List<string> Events { get; } = [];
+        public Func<ValueTask>? OnRecord { get; set; }
         public int Published { get; private set; }
         public (KernelOperationIdentity Operation, string Record, KernelAuditEvidence Audit)? PublishedSet { get; private set; }
 
@@ -247,12 +459,12 @@ public sealed class KernelTransactionBoundaryTests
             private string? _record;
             private KernelAuditEvidence? _audit;
 
-            public ValueTask StageRecordAsync(string record, CancellationToken cancellationToken = default)
+            public async ValueTask StageRecordAsync(string record, CancellationToken cancellationToken = default)
             {
                 owner.Events.Add("record");
                 if (fault == "record") throw new InjectedFault();
                 _record = record;
-                return ValueTask.CompletedTask;
+                if (owner.OnRecord is { } onRecord) await onRecord();
             }
 
             public ValueTask StageAuditAsync(KernelAuditEvidence audit, CancellationToken cancellationToken = default)
@@ -336,6 +548,27 @@ public sealed class KernelTransactionBoundaryTests
                 events.Add("dispose");
                 return ValueTask.CompletedTask;
             }
+        }
+    }
+
+    private sealed class RecordingParticipant(List<string> events, string? fault = null) : IKernelTransactionParticipant<string>
+    {
+        public List<string> Events => events;
+
+        public ValueTask StageOperationAsync(KernelOperationIdentity operation, CancellationToken cancellationToken = default) =>
+            Stage("operation", operation.CommandId);
+
+        public ValueTask StageRecordAsync(string record, CancellationToken cancellationToken = default) =>
+            Stage("record", record);
+
+        public ValueTask StageAuditAsync(KernelAuditEvidence audit, CancellationToken cancellationToken = default) =>
+            Stage("audit", audit.AuditId);
+
+        private ValueTask Stage(string step, string value)
+        {
+            if (fault == step) throw new InjectedFault();
+            events.Add($"join-{step}:{value}");
+            return ValueTask.CompletedTask;
         }
     }
 }

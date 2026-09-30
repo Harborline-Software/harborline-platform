@@ -5,6 +5,27 @@ public static class KernelTransactionErrors
 {
     /// <summary>The batch did not hold exactly one command; the boundary commits one command per transaction.</summary>
     public const string MultiCommandBatch = "kernel.multi-command-batch";
+
+    /// <summary>A participant tried to join, but no boundary execution was open on its flow to own the commit.</summary>
+    public const string JoinWithoutEnclosingExecution = "kernel.join-without-enclosing-execution";
+
+    /// <summary>A boundary execution began inside another; a second commit would escape the enclosing rollback.</summary>
+    public const string NestedExecution = "kernel.nested-execution";
+
+    /// <summary>A joined participant failed, so the enclosing execution rolled back instead of committing.</summary>
+    public const string EnclosingExecutionDoomed = "kernel.enclosing-execution-doomed";
+}
+
+/// <summary>Thrown when a boundary call is made in a transaction state that cannot commit it safely.</summary>
+public sealed class KernelTransactionStateException : InvalidOperationException
+{
+    /// <summary>Creates the exception for one of the <see cref="KernelTransactionErrors"/> codes.</summary>
+    /// <param name="code">The refusal code.</param>
+    public KernelTransactionStateException(string code)
+        : base(code) => Code = code;
+
+    /// <summary>The refusal code, one of <see cref="KernelTransactionErrors"/>.</summary>
+    public string Code { get; }
 }
 
 /// <summary>Identifies one command for idempotent replay and duplicate detection.</summary>
@@ -123,6 +144,20 @@ public interface IKernelPreparedTransactionPort<TRecord, TResult>
     ValueTask<IKernelPreparedTransaction<TRecord, TResult>> BeginAsync(CancellationToken cancellationToken = default);
 }
 
+/// <summary>
+/// A participant that stages one command into an enclosing boundary execution's transaction. It has no commit or
+/// rollback: the enclosing execution owns the single commit, and a participant failure dooms it.
+/// </summary>
+public interface IKernelTransactionParticipant<TRecord>
+{
+    /// <summary>Stages the joined command's operation identity; the host enforces idempotency on it before the enclosing commit.</summary>
+    ValueTask StageOperationAsync(KernelOperationIdentity operation, CancellationToken cancellationToken = default);
+    /// <summary>Stages the joined command's record into the enclosing transaction; it stays invisible until that commit.</summary>
+    ValueTask StageRecordAsync(TRecord record, CancellationToken cancellationToken = default);
+    /// <summary>Stages the audit evidence that commits or rolls back with the joined record.</summary>
+    ValueTask StageAuditAsync(KernelAuditEvidence audit, CancellationToken cancellationToken = default);
+}
+
 /// <summary>Owns one command's record, operation identity and audit commit or rollback.</summary>
 public static class KernelTransactionBoundary
 {
@@ -195,4 +230,12 @@ public static class KernelTransactionBoundary
             throw;
         }
     }
+
+    /// <summary>
+    /// Stages one command into the boundary execution open on the caller's flow, without committing.
+    /// </summary>
+    public static ValueTask JoinAsync<TRecord>(
+        KernelCommand<TRecord> command,
+        IKernelTransactionParticipant<TRecord> participant,
+        CancellationToken cancellationToken = default) => throw new NotImplementedException();
 }
