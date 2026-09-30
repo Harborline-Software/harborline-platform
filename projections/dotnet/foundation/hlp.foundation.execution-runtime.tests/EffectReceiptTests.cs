@@ -102,6 +102,17 @@ public sealed class EffectReceiptTests
         Assert.Equal(ExecutionRuntimeRefusals.SecretReferenceInvalid, refused.Code);
     }
 
+    [Fact(DisplayName = "T-528 S2 ck-5: a null secret reference id is refused as an invalid secret reference")]
+    public async Task A_null_secret_reference_id_is_refused()
+    {
+        var ledger = new EffectReceiptLedger(new InMemoryEffectReceiptStore());
+        var value = Receipt() with { SecretReferenceIds = ["secret://smtp/password", null!] };
+
+        var refused = await Assert.ThrowsAsync<ExecutionRuntimeRefusedException>(() => ledger.RecordAsync(value).AsTask());
+
+        Assert.Equal(ExecutionRuntimeRefusals.SecretReferenceInvalid, refused.Code);
+    }
+
     private static EffectReceipt Receipt() => new()
     {
         EffectId = Effect,

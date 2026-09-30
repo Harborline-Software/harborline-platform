@@ -308,8 +308,9 @@ public sealed class EffectReceiptLedger
         && value.StartsWith("sha256:", StringComparison.Ordinal)
         && value[7..].All(character => character is >= '0' and <= '9' or >= 'a' and <= 'f');
 
-    private static bool IsSecretReference(string value)
+    private static bool IsSecretReference(string? value)
     {
+        if (value is null) return false;
         const string SecretScheme = "secret://";
         const string ReferenceScheme = "secretref:";
         var remainder = value.StartsWith(SecretScheme, StringComparison.Ordinal)
