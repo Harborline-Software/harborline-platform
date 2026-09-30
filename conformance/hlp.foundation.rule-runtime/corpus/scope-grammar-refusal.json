@@ -167,6 +167,118 @@
       ],
       "instance": {},
       "expectedCompileError": { "code": "rule.compile.cycle" }
+    },
+    {
+      "_comment": "T-1019: section.<id>.<field> requires both non-empty components. An empty id previously lowered silently to field.x.",
+      "name": "grammar/section-reference-with-empty-id-refuses",
+      "definitionRules": [
+        { "id": "c.total", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "total", "action": "Compute", "expression": { "var": "section..x" } }
+      ],
+      "instance": {},
+      "expectedCompileError": { "code": "rule.compile.bad_grammar" }
+    },
+    {
+      "_comment": "The sibling malformed section reference must not manufacture a field with an empty name.",
+      "name": "grammar/section-reference-with-empty-field-refuses",
+      "definitionRules": [
+        { "id": "c.total", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "total", "action": "Compute", "expression": { "var": "section.items." } }
+      ],
+      "instance": {},
+      "expectedCompileError": { "code": "rule.compile.bad_grammar" }
+    },
+    {
+      "_comment": "DES-0018 does not yet say whether bare table.x is a field name. Pin the existing flat-form lowering until its owner settles the grammar.",
+      "name": "grammar/bare-table-path-is-a-field-read",
+      "definitionRules": [
+        { "id": "c.total", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "total", "action": "Compute", "expression": { "var": "table.x" } }
+      ],
+      "instance": { "table.x": 7 },
+      "expectedAst": { "c.total": { "var": "field.table.x" } },
+      "expectedOutcomes": {
+        "c.total": { "ruleId": "c.total", "target": "field:total", "outputType": "Value", "value": { "state": "Resolved", "value": 7 } }
+      }
+    },
+    {
+      "_comment": "DES-0018 does not yet say whether a parenthesized non-table path is a field name. Pin the existing flat-form lowering until its owner settles the grammar.",
+      "name": "grammar/non-table-parenthesized-path-is-a-field-read",
+      "definitionRules": [
+        { "id": "c.total", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "total", "action": "Compute", "expression": { "var": "rate(standard)" } }
+      ],
+      "instance": { "rate(standard)": 9 },
+      "expectedAst": { "c.total": { "var": "field.rate(standard)" } },
+      "expectedOutcomes": {
+        "c.total": { "ruleId": "c.total", "target": "field:total", "outputType": "Value", "value": { "state": "Resolved", "value": 9 } }
+      }
+    },
+    {
+      "_comment": "An empty missing key is dynamically selected, not field ''. The low ceiling makes the DynamicReadRef observable in the static work proof.",
+      "name": "refs/missing-empty-key-registers-dynamic-read",
+      "limits": { "maxStaticWork": "10000000000" },
+      "definitionRules": [
+        { "id": "c.missing", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "missing", "action": "Compute", "expression": { "missing": [ "" ] } }
+      ],
+      "instance": {},
+      "expectedCompileError": { "code": "rule.compile.work_exceeded" }
+    },
+    {
+      "_comment": "A numeric missing key is dynamically selected, not a named field. The low ceiling makes the DynamicReadRef observable in the static work proof.",
+      "name": "refs/missing-number-key-registers-dynamic-read",
+      "limits": { "maxStaticWork": "10000000000" },
+      "definitionRules": [
+        { "id": "c.missing", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "missing", "action": "Compute", "expression": { "missing": [ 1 ] } }
+      ],
+      "instance": {},
+      "expectedCompileError": { "code": "rule.compile.work_exceeded" }
+    },
+    {
+      "_comment": "A null missing key is dynamically selected, not a named field. The low ceiling makes the DynamicReadRef observable in the static work proof.",
+      "name": "refs/missing-null-key-registers-dynamic-read",
+      "limits": { "maxStaticWork": "10000000000" },
+      "definitionRules": [
+        { "id": "c.missing", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "missing", "action": "Compute", "expression": { "missing": [ null ] } }
+      ],
+      "instance": {},
+      "expectedCompileError": { "code": "rule.compile.work_exceeded" }
+    },
+    {
+      "_comment": "An empty missing_some key is dynamically selected, not field ''. The low ceiling makes the DynamicReadRef observable in the static work proof.",
+      "name": "refs/missing-some-empty-key-registers-dynamic-read",
+      "limits": { "maxStaticWork": "10000000000" },
+      "definitionRules": [
+        { "id": "c.missing", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "missing", "action": "Compute", "expression": { "missing_some": [ 1, [ "" ] ] } }
+      ],
+      "instance": {},
+      "expectedCompileError": { "code": "rule.compile.work_exceeded" }
+    },
+    {
+      "_comment": "A numeric missing_some key is dynamically selected, not a named field. The low ceiling makes the DynamicReadRef observable in the static work proof.",
+      "name": "refs/missing-some-number-key-registers-dynamic-read",
+      "limits": { "maxStaticWork": "10000000000" },
+      "definitionRules": [
+        { "id": "c.missing", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "missing", "action": "Compute", "expression": { "missing_some": [ 1, [ 1 ] ] } }
+      ],
+      "instance": {},
+      "expectedCompileError": { "code": "rule.compile.work_exceeded" }
+    },
+    {
+      "_comment": "A null missing_some key is dynamically selected, not a named field. The low ceiling makes the DynamicReadRef observable in the static work proof.",
+      "name": "refs/missing-some-null-key-registers-dynamic-read",
+      "limits": { "maxStaticWork": "10000000000" },
+      "definitionRules": [
+        { "id": "c.missing", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "missing", "action": "Compute", "expression": { "missing_some": [ 1, [ null ] ] } }
+      ],
+      "instance": {},
+      "expectedCompileError": { "code": "rule.compile.work_exceeded" }
+    },
+    {
+      "_comment": "An expression-valued missing key contributes both its executable reads and the dynamic-read work proof.",
+      "name": "refs/cycle-through-expression-missing-key-refuses",
+      "definitionRules": [
+        { "id": "c.a", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "a", "action": "Compute", "expression": { "missing": [ { "var": "b" } ] } },
+        { "id": "c.b", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "b", "action": "Compute", "expression": { "var": "a" } }
+      ],
+      "instance": {},
+      "expectedCompileError": { "code": "rule.compile.cycle" }
     }
   ]
 }
