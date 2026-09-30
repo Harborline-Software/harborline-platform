@@ -5,7 +5,7 @@
     <PackageId>Harborline.Foundation.ExecutionRuntime</PackageId>
     <AssemblyName>Harborline.Foundation.ExecutionRuntime</AssemblyName>
     <RootNamespace>Harborline.Foundation.ExecutionRuntime</RootNamespace>
-    <Description>The execution runtime substrate for Harborline Platform: run-kind registration, one run identity, a closed run status vocabulary, the substrate retry rule and the dead-letter path.</Description>
+    <Description>The execution runtime substrate for Harborline Platform: run identity, status, retry, dead-letter, and durable non-secret effect receipts.</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageReleaseNotes>Internal-only projection; public distribution is not authorized.</PackageReleaseNotes>
   </PropertyGroup>
