@@ -1,0 +1,172 @@
+{
+  "_comment": "T-984 (kernel-core-ck-7): scope-grammar refusals and static references the compiler must register. A Stryker run at platform a911bf28 left each refusal below and each reference path below surviving in the TS grammar: a mutant that accepted the program, or dropped the reference, passed every test. A dropped reference is silent: compile-time cycle detection, the reference bound and the work proof all read the extracted references.",
+  "cases": [
+    {
+      "_comment": "The AST node bound counts the operand array and each operand: {\"+\":[1,2,3,4]} is 1 object + 1 array + 4 literals = 6 nodes. Not counting arrays admitted every operand list uncounted.",
+      "name": "bounds/ast-node-count-at-bound-admitted",
+      "limits": { "maxAstNodes": 6 },
+      "definitionRules": [
+        { "id": "c.sum", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "sum", "action": "Compute", "expression": { "+": [ 1, 2, 3, 4 ] } }
+      ],
+      "instance": {},
+      "expectedOutcomes": {
+        "c.sum": { "ruleId": "c.sum", "target": "field:sum", "outputType": "Value", "value": { "state": "Resolved", "value": 10 } }
+      }
+    },
+    {
+      "name": "bounds/ast-node-count-over-bound-refuses",
+      "limits": { "maxAstNodes": 5 },
+      "definitionRules": [
+        { "id": "c.sum", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "sum", "action": "Compute", "expression": { "+": [ 1, 2, 3, 4 ] } }
+      ],
+      "instance": {},
+      "expectedCompileError": { "code": "rule.compile.ast_too_large" }
+    },
+    {
+      "_comment": "Admitted forms the refusals above must not catch: 'self' in a Row rule lowers to its own row cell, and a bare table.<fn>(<col>) in a Row rule folds its own section.",
+      "name": "grammar/self-and-implicit-section-in-row-rule",
+      "definitionRules": [
+        { "id": "v.qty", "tier": "JsonLogic", "scope": "Row", "scopeTarget": "items/qty", "action": "Validate", "expression": { "<": [ { "var": "self" }, { "var": "table.sum(qty)" } ] } }
+      ],
+      "instance": { "items": [ { "_id": "r1", "qty": 2 }, { "_id": "r2", "qty": 3 } ] },
+      "expectedAst": { "v.qty": { "<": [ { "var": "row.qty" }, { "agg": [ "sum", "items", "qty" ] } ] } },
+      "expectedOutcomes": {
+        "v.qty#r1": { "ruleId": "v.qty", "target": "row:items/r1/qty", "outputType": "Validity", "validity": { "ok": true } },
+        "v.qty#r2": { "ruleId": "v.qty", "target": "row:items/r2/qty", "outputType": "Validity", "validity": { "ok": true } }
+      }
+    },
+    {
+      "_comment": "A string literal operand is data, not a reference: c.a concatenates the literal 'b' and c.b reads a, so there is no cycle.",
+      "name": "refs/string-literal-operand-is-not-a-reference",
+      "definitionRules": [
+        { "id": "c.a", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "a", "action": "Compute", "expression": { "cat": [ "b", "!" ] } },
+        { "id": "c.b", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "b", "action": "Compute", "expression": { "var": "a" } }
+      ],
+      "instance": {},
+      "expectedOutcomes": {
+        "c.a": { "ruleId": "c.a", "target": "field:a", "outputType": "Value", "value": { "state": "Resolved", "value": "b!" } },
+        "c.b": { "ruleId": "c.b", "target": "field:b", "outputType": "Value", "value": { "state": "Resolved", "value": "b!" } }
+      }
+    },
+    {
+      "name": "grammar/self-outside-field-or-row-refuses",
+      "definitionRules": [
+        { "id": "vis.self", "tier": "JsonLogic", "scope": "Section", "scopeTarget": "details", "action": "Visibility", "expression": { "var": "self" } }
+      ],
+      "instance": {},
+      "expectedCompileError": { "code": "rule.compile.bad_grammar" }
+    },
+    {
+      "name": "grammar/row-reference-outside-row-rule-refuses",
+      "definitionRules": [
+        { "id": "c.total", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "total", "action": "Compute", "expression": { "var": "row.amount" } }
+      ],
+      "instance": {},
+      "expectedCompileError": { "code": "rule.compile.bad_grammar" }
+    },
+    {
+      "name": "grammar/section-reference-without-field-refuses",
+      "definitionRules": [
+        { "id": "c.total", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "total", "action": "Compute", "expression": { "var": "section.items" } }
+      ],
+      "instance": {},
+      "expectedCompileError": { "code": "rule.compile.bad_grammar" }
+    },
+    {
+      "name": "grammar/aggregate-without-section-outside-row-rule-refuses",
+      "definitionRules": [
+        { "id": "c.total", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "total", "action": "Compute", "expression": { "var": "table.sum(amount)" } }
+      ],
+      "instance": {},
+      "expectedCompileError": { "code": "rule.compile.bad_grammar" }
+    },
+    {
+      "name": "grammar/aggregate-with-empty-section-refuses",
+      "definitionRules": [
+        { "id": "c.total", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "total", "action": "Compute", "expression": { "var": "table.sum(.amount)" } }
+      ],
+      "instance": {},
+      "expectedCompileError": { "code": "rule.compile.bad_grammar" }
+    },
+    {
+      "name": "grammar/aggregate-with-empty-column-refuses",
+      "definitionRules": [
+        { "id": "c.total", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "total", "action": "Compute", "expression": { "var": "table.sum(items.)" } }
+      ],
+      "instance": {},
+      "expectedCompileError": { "code": "rule.compile.bad_grammar" }
+    },
+    {
+      "name": "grammar/aggregate-with-reversed-parentheses-refuses",
+      "definitionRules": [
+        { "id": "c.total", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "total", "action": "Compute", "expression": { "var": "table.sum)items.amount(" } }
+      ],
+      "instance": {},
+      "expectedCompileError": { "code": "rule.compile.bad_grammar" }
+    },
+    {
+      "_comment": "JsonLogic's unary sugar keeps a single non-array operand; its references must still be walked.",
+      "name": "refs/cycle-through-unary-operand-refuses",
+      "definitionRules": [
+        { "id": "c.a", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "a", "action": "Compute", "expression": { "!": { "var": "b" } } },
+        { "id": "c.b", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "b", "action": "Compute", "expression": { "!": { "var": "a" } } }
+      ],
+      "instance": {},
+      "expectedCompileError": { "code": "rule.compile.cycle" }
+    },
+    {
+      "name": "refs/cycle-through-var-default-refuses",
+      "definitionRules": [
+        { "id": "c.a", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "a", "action": "Compute", "expression": { "var": [ "x", { "var": "b" } ] } },
+        { "id": "c.b", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "b", "action": "Compute", "expression": { "var": "a" } }
+      ],
+      "instance": {},
+      "expectedCompileError": { "code": "rule.compile.cycle" }
+    },
+    {
+      "name": "refs/cycle-through-row-reference-refuses",
+      "definitionRules": [
+        { "id": "r.a", "tier": "JsonLogic", "scope": "Row", "scopeTarget": "items/a", "action": "Compute", "expression": { "var": "row.b" } },
+        { "id": "r.b", "tier": "JsonLogic", "scope": "Row", "scopeTarget": "items/b", "action": "Compute", "expression": { "var": "row.a" } }
+      ],
+      "instance": {},
+      "expectedCompileError": { "code": "rule.compile.cycle" }
+    },
+    {
+      "name": "refs/cycle-through-missing-some-minimum-refuses",
+      "definitionRules": [
+        { "id": "c.a", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "a", "action": "Compute", "expression": { "missing_some": [ { "var": "b" }, [ "x" ] ] } },
+        { "id": "c.b", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "b", "action": "Compute", "expression": { "var": "a" } }
+      ],
+      "instance": {},
+      "expectedCompileError": { "code": "rule.compile.cycle" }
+    },
+    {
+      "name": "refs/cycle-through-missing-some-key-refuses",
+      "definitionRules": [
+        { "id": "c.a", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "a", "action": "Compute", "expression": { "missing_some": [ 1, [ "b" ] ] } },
+        { "id": "c.b", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "b", "action": "Compute", "expression": { "var": "a" } }
+      ],
+      "instance": {},
+      "expectedCompileError": { "code": "rule.compile.cycle" }
+    },
+    {
+      "name": "refs/cycle-through-prefixed-missing-key-refuses",
+      "definitionRules": [
+        { "id": "c.a", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "a", "action": "Compute", "expression": { "missing": [ "field.b" ] } },
+        { "id": "c.b", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "b", "action": "Compute", "expression": { "var": "a" } }
+      ],
+      "instance": {},
+      "expectedCompileError": { "code": "rule.compile.cycle" }
+    },
+    {
+      "name": "refs/cycle-through-missing-row-key-refuses",
+      "definitionRules": [
+        { "id": "r.a", "tier": "JsonLogic", "scope": "Row", "scopeTarget": "items/a", "action": "Compute", "expression": { "missing": [ "row.b" ] } },
+        { "id": "r.b", "tier": "JsonLogic", "scope": "Row", "scopeTarget": "items/b", "action": "Compute", "expression": { "var": "row.a" } }
+      ],
+      "instance": {},
+      "expectedCompileError": { "code": "rule.compile.cycle" }
+    }
+  ]
+}

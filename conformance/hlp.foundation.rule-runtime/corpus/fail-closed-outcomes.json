@@ -1,0 +1,163 @@
+{
+  "_comment": "T-984 (kernel-core-ck-7): a Visibility, ReadOnly, Validate, Options or Presentation rule whose expression is Pending or raises an evaluation error. The Required cases live in output-types.json; the rest had no case, so a Stryker run at platform a911bf28 left every fail-closed branch of the TS outcome builder NoCoverage. A hidden-on-error Visibility, a read-only-on-error ReadOnly and a blocking Validate are the fail-closed contract: a rule that cannot decide must never show, unlock or pass.",
+  "cases": [
+    {
+      "name": "fail-closed/visibility-pending-hides",
+      "definitionRules": [
+        { "id": "vis.details", "tier": "JsonLogic", "scope": "Section", "scopeTarget": "details", "action": "Visibility", "expression": { "==": [ { "var": "showDetails" }, true ] } }
+      ],
+      "instance": { "showDetails": { "@pending": true } },
+      "expectedOutcomes": {
+        "vis.details": { "ruleId": "vis.details", "target": "section:details", "outputType": "Visibility", "visibility": { "visible": false, "required": false, "readOnly": false } }
+      }
+    },
+    {
+      "name": "fail-closed/visibility-error-hides",
+      "definitionRules": [
+        { "id": "vis.details", "tier": "JsonLogic", "scope": "Section", "scopeTarget": "details", "action": "Visibility", "expression": { "/": [ { "var": "a" }, { "var": "b" } ] } }
+      ],
+      "instance": { "a": 1, "b": 0 },
+      "expectedOutcomes": {
+        "vis.details": { "ruleId": "vis.details", "target": "section:details", "outputType": "Visibility", "visibility": { "visible": false, "required": false, "readOnly": false } }
+      }
+    },
+    {
+      "name": "fail-closed/readonly-pending-locks",
+      "definitionRules": [
+        { "id": "ro.notes", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "notes", "action": "ReadOnly", "expression": { "==": [ { "var": "locked" }, true ] } }
+      ],
+      "instance": { "locked": { "@pending": true } },
+      "expectedOutcomes": {
+        "ro.notes": { "ruleId": "ro.notes", "target": "field:notes", "outputType": "Visibility", "visibility": { "visible": true, "required": false, "readOnly": true } }
+      }
+    },
+    {
+      "name": "fail-closed/readonly-error-locks",
+      "definitionRules": [
+        { "id": "ro.notes", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "notes", "action": "ReadOnly", "expression": { "/": [ { "var": "a" }, { "var": "b" } ] } }
+      ],
+      "instance": { "a": 1, "b": 0 },
+      "expectedOutcomes": {
+        "ro.notes": { "ruleId": "ro.notes", "target": "field:notes", "outputType": "Visibility", "visibility": { "visible": true, "required": false, "readOnly": true } }
+      }
+    },
+    {
+      "name": "fail-closed/validate-pending-blocks",
+      "definitionRules": [
+        { "id": "v.age", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "age", "action": "Validate", "expression": { ">=": [ { "var": "age" }, 18 ] } }
+      ],
+      "instance": { "age": { "@pending": true } },
+      "expectedOutcomes": {
+        "v.age": { "ruleId": "v.age", "target": "field:age", "outputType": "Validity", "validity": { "ok": false, "error": { "code": "rule.pending_at_save", "params": {} } } }
+      }
+    },
+    {
+      "name": "fail-closed/validate-error-blocks",
+      "definitionRules": [
+        { "id": "v.ratio", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "ratio", "action": "Validate", "expression": { "/": [ { "var": "a" }, { "var": "b" } ] } }
+      ],
+      "instance": { "a": 1, "b": 0 },
+      "expectedOutcomes": {
+        "v.ratio": { "ruleId": "v.ratio", "target": "field:ratio", "outputType": "Validity", "validity": { "ok": false, "error": { "code": "rule.div_by_zero", "params": {} } } }
+      }
+    },
+    {
+      "name": "fail-closed/options-pending",
+      "definitionRules": [
+        { "id": "opt.city", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "city", "action": "Options", "expression": { "if": [ { "var": "country" }, [ "a", "b" ], [] ] } }
+      ],
+      "instance": { "country": { "@pending": true } },
+      "expectedOutcomes": {
+        "opt.city": { "ruleId": "opt.city", "target": "field:city", "outputType": "Options", "options": { "state": "Pending" } }
+      }
+    },
+    {
+      "name": "fail-closed/options-error",
+      "definitionRules": [
+        { "id": "opt.city", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "city", "action": "Options", "expression": { "if": [ { "/": [ { "var": "a" }, { "var": "b" } ] }, [ "a" ], [] ] } }
+      ],
+      "instance": { "a": 1, "b": 0 },
+      "expectedOutcomes": {
+        "opt.city": { "ruleId": "opt.city", "target": "field:city", "outputType": "Options", "options": { "state": "Error", "error": { "code": "rule.div_by_zero", "params": {} } } }
+      }
+    },
+    {
+      "name": "fail-closed/presentation-pending-is-empty",
+      "definitionRules": [
+        { "id": "pres.score", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "score", "action": "Presentation", "expression": { "<": [ { "var": "score" }, 50 ] }, "presentation": { "severity": "warn", "styleToken": "low" } }
+      ],
+      "instance": { "score": { "@pending": true } },
+      "expectedOutcomes": {
+        "pres.score": { "ruleId": "pres.score", "target": "field:score", "outputType": "Presentation", "presentation": { "severity": null } }
+      }
+    },
+    {
+      "name": "fail-closed/presentation-error-is-error-severity",
+      "definitionRules": [
+        { "id": "pres.score", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "score", "action": "Presentation", "expression": { "/": [ { "var": "a" }, { "var": "b" } ] }, "presentation": { "severity": "warn", "styleToken": "low" } }
+      ],
+      "instance": { "a": 1, "b": 0 },
+      "expectedOutcomes": {
+        "pres.score": { "ruleId": "pres.score", "target": "field:score", "outputType": "Presentation", "presentation": { "severity": "error" } }
+      }
+    },
+    {
+      "name": "fail-closed/presentation-without-hint-is-empty",
+      "definitionRules": [
+        { "id": "pres.plain", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "plain", "action": "Presentation", "expression": true }
+      ],
+      "instance": {},
+      "expectedOutcomes": {
+        "pres.plain": { "ruleId": "pres.plain", "target": "field:plain", "outputType": "Presentation", "presentation": { "severity": null } }
+      }
+    },
+    {
+      "_comment": "A Row-scoped non-Compute rule yields one outcome per row. Before this case no test evaluated one, so dropping the per-row plans survived.",
+      "name": "fail-closed/row-validate-per-row",
+      "definitionRules": [
+        { "id": "v.qty", "tier": "JsonLogic", "scope": "Row", "scopeTarget": "items/qty", "action": "Validate", "expression": { ">": [ { "var": "row.qty" }, 0 ] } }
+      ],
+      "instance": { "items": [ { "_id": "r1", "qty": 2 }, { "_id": "r2", "qty": 0 } ] },
+      "expectedOutcomes": {
+        "v.qty#r1": { "ruleId": "v.qty", "target": "row:items/r1/qty", "outputType": "Validity", "validity": { "ok": true } },
+        "v.qty#r2": { "ruleId": "v.qty", "target": "row:items/r2/qty", "outputType": "Validity", "validity": { "ok": false, "error": { "code": "v.qty", "params": {} } } }
+      }
+    },
+    {
+      "_comment": "An aggregate over a row whose value is still pending is Pending, never a fold of the resolved rows alone.",
+      "name": "fail-closed/aggregate-over-pending-row-is-pending",
+      "definitionRules": [
+        { "id": "c.total", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "total", "action": "Compute", "expression": { "var": "table.sum(items.amount)" } }
+      ],
+      "instance": { "items": [ { "_id": "r1", "amount": 1 }, { "_id": "r2", "amount": { "@pending": true } } ] },
+      "expectedOutcomes": {
+        "c.total": { "ruleId": "c.total", "target": "field:total", "outputType": "Value", "value": { "state": "Pending" } }
+      }
+    },
+    {
+      "_comment": "An aggregate over a computed row cell that errors is itself an error, so a reader of the aggregate gets an upstream error naming the aggregate cell, never a fold that skips the failed row.",
+      "name": "fail-closed/aggregate-over-error-row-is-upstream-error",
+      "definitionRules": [
+        { "id": "rc.line", "tier": "JsonLogic", "scope": "Row", "scopeTarget": "items/line", "action": "Compute", "expression": { "/": [ { "var": "row.a" }, { "var": "row.b" } ] } },
+        { "id": "c.total", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "total", "action": "Compute", "expression": { "var": "table.sum(items.line)" } }
+      ],
+      "instance": { "items": [ { "_id": "r1", "a": 4, "b": 2 }, { "_id": "r2", "a": 1, "b": 0 } ] },
+      "expectedOutcomes": {
+        "rc.line#r1": { "ruleId": "rc.line", "target": "row:items/r1/line", "outputType": "Value", "value": { "state": "Resolved", "value": 2 } },
+        "rc.line#r2": { "ruleId": "rc.line", "target": "row:items/r2/line", "outputType": "Value", "value": { "state": "Error", "error": { "code": "rule.div_by_zero", "params": {} } } },
+        "c.total": { "ruleId": "c.total", "target": "field:total", "outputType": "Value", "value": { "state": "Error", "error": { "code": "rule.upstream_error", "params": { "cell": "agg:items/sum/line" } } } }
+      }
+    },
+    {
+      "_comment": "A Compute rule scoped to a Section addresses no form cell; the graph refuses the whole instance rather than silently computing nothing (F8).",
+      "name": "fail-closed/section-compute-refuses-instance",
+      "definitionRules": [
+        { "id": "c.section", "tier": "JsonLogic", "scope": "Section", "scopeTarget": "details", "action": "Compute", "expression": 1 }
+      ],
+      "instance": {},
+      "expectedOutcomes": {
+        "rule.engine": { "ruleId": "rule.engine", "target": "schema:", "outputType": "Validity", "validity": { "ok": false, "error": { "code": "rule.compute_scope_invalid", "params": {} } } }
+      }
+    }
+  ]
+}
