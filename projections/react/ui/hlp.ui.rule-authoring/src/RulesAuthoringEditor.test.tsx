@@ -235,6 +235,17 @@ describe('Rules authoring React projection', () => {
     fireEvent.click(screen.getByLabelText('Amount is required'))
     expect(screen.getByRole('list', { name: 'Rule catalogue' })).toBeEmptyDOMElement()
   })
+  it('rules-auth-16: the field-property checkbox is disabled without onCatalogueChange and persists with it', () => {
+    const readOnly = render(<RulesAuthoringEditor {...props({ fieldBindings: [{ key: 'amount', label: 'Amount' }], catalogue: { rules: [] } })} />)
+    expect(screen.getByLabelText('Amount is required')).toBeDisabled()
+    readOnly.unmount()
+
+    const onCatalogueChange = vi.fn()
+    render(<RulesAuthoringEditor {...props({ fieldBindings: [{ key: 'amount', label: 'Amount' }], catalogue: { rules: [] }, onCatalogueChange })} />)
+    expect(screen.getByLabelText('Amount is required')).toBeEnabled()
+    fireEvent.click(screen.getByLabelText('Amount is required'))
+    expect(onCatalogueChange.mock.calls[0][0].rules.map((rule: { identity: string }) => rule.identity)).toEqual(['field.amount.required'])
+  })
   it('rules-auth-16: editing a catalogue rule over a dirty draft keeps the draft on Keep edits and replaces it on Discard edits', () => {
     const catalogue = { rules: [{ ...emptyRulesDraft(), identity: 'field.amount.required', name: 'Amount Required', draft: { ...emptyRulesDraft().draft, scopeTarget: 'amount' } }] }
     render(<RulesAuthoringEditor {...props({ fieldBindings: [{ key: 'amount', label: 'Amount' }], catalogue, onCatalogueChange: vi.fn() })} />)

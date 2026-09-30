@@ -415,6 +415,29 @@ public sealed class RulesAuthoringTests : BunitContext
         Assert.Empty(catalogues[^1].Rules);
     }
 
+    [Fact(DisplayName = "rules-auth-16: the Blazor field-property checkbox is disabled without a CatalogueChanged callback and persists with one")]
+    public void Field_property_checkbox_is_disabled_without_a_catalogue_change_callback()
+    {
+        var readOnly = Render<HarborlineRulesAuthoringEditor>(parameters => parameters
+            .Add(component => component.Value, RulesDraft.Empty)
+            .Add(component => component.ExpressionContracts, Contracts)
+            .Add(component => component.FieldBindings, [new RulesFieldBinding("amount", "Amount")])
+            .Add(component => component.Catalogue, new RulesRuleCatalogue([])));
+        Assert.True(readOnly.Find("input[aria-label='Amount is required']").HasAttribute("disabled"));
+
+        var catalogues = new List<RulesRuleCatalogue>();
+        var editable = Render<HarborlineRulesAuthoringEditor>(parameters => parameters
+            .Add(component => component.Value, RulesDraft.Empty)
+            .Add(component => component.ExpressionContracts, Contracts)
+            .Add(component => component.FieldBindings, [new RulesFieldBinding("amount", "Amount")])
+            .Add(component => component.Catalogue, new RulesRuleCatalogue([]))
+            .Add(component => component.CatalogueChanged, EventCallback.Factory.Create<RulesRuleCatalogue>(this, catalogues.Add)));
+        var checkbox = editable.Find("input[aria-label='Amount is required']");
+        Assert.False(checkbox.HasAttribute("disabled"));
+        checkbox.Change(true);
+        Assert.Equal("field.amount.required", Assert.Single(catalogues[^1].Rules).Identity);
+    }
+
     [Fact(DisplayName = "rules-auth-16: editing a Blazor catalogue rule over a dirty draft keeps the draft on Keep edits and replaces it on Discard edits")]
     public void Editing_a_catalogue_rule_over_a_dirty_draft_asks_before_replacing_it()
     {
