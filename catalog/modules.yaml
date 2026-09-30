@@ -829,6 +829,40 @@
         }
       }
     },
+    "hlp.foundation.content-store": {
+      "interface": {"path": "specs/modules/foundation/hlp.foundation.content-store/interface.yaml", "revision": 1},
+      "moduleKind": "runtime",
+      "presentation": {"disposition": "not-applicable", "rationale": "The foundation package owns the projection-neutral tenant content store (envelope encryption, quotas, dedup, reclamation, export fixity); attachment fields and document views are separate projections that reference it."},
+      "owner": "platform-foundation",
+      "dependencies": [],
+      "status": "implemented",
+      "depth": {
+        "disposition": "deep-module",
+        "deletionTest": "PASS",
+        "redistributedComplexity": [
+          "keyed content ids, segmented authenticated encryption and dedup-at-commit reinvented inside every feature that stores bytes",
+          "quota, reclamation and integrity-failure handling drifting between attachments and issued documents instead of being one substrate rule"
+        ]
+      },
+      "projections": {
+        "dotnet": {
+          "role": "implementation",
+          "path": "projections/dotnet/foundation/hlp.foundation.content-store",
+          "status": "preview",
+          "artifact": {
+            "type": "nuget",
+            "id": "Harborline.Foundation.ContentStore",
+            "assembly": "Harborline.Foundation.ContentStore",
+            "manifest": "projections/dotnet/foundation/hlp.foundation.content-store/Harborline.Foundation.ContentStore.csproj",
+            "identityAuthority": "Harborline",
+            "producerRepository": "harborline-platform",
+            "distribution": "internal-only",
+            "candidateRole": "new-bounded-package",
+            "registryAvailable": false
+          }
+        }
+      }
+    },
     "hlp.foundation.taxonomy": {
       "interface": {"path": "specs/modules/foundation/hlp.foundation.taxonomy/interface.yaml", "revision": 1},
       "moduleKind": "runtime",
