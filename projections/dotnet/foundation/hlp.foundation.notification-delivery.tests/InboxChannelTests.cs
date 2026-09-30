@@ -76,4 +76,26 @@ public sealed class InboxChannelTests
 
         Assert.Equal(NotificationDeliveryRefusals.InboxEntryInvalid, exception.Code);
     }
+
+    [Theory]
+    [InlineData(" ", "principal-a")]
+    [InlineData("tenant-a", " ")]
+    public async Task Inbox_refuses_and_does_not_persist_an_entry_with_a_blank_tenant_or_recipient(string tenant, string recipient)
+    {
+        var inbox = new InMemoryInboxStore();
+        var channel = new InboxChannel(inbox, TimeProvider.System);
+
+        var exception = await Assert.ThrowsAsync<NotificationDeliveryRefusedException>(() => channel.WriteAsync(new WriteInboxEntry(
+            tenant,
+            recipient,
+            "information",
+            "Update",
+            "The full rendered message stays on the node.",
+            "Record 17",
+            "/records/17",
+            false)));
+
+        Assert.Equal(NotificationDeliveryRefusals.InboxEntryInvalid, exception.Code);
+        Assert.Empty(await inbox.ListAsync(tenant, recipient));
+    }
 }

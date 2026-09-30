@@ -156,6 +156,8 @@ public sealed class InboxChannel
     public async Task<InboxEntry> WriteAsync(WriteInboxEntry request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
+        RequireContent(request.Tenant, nameof(request.Tenant));
+        RequireContent(request.Recipient, nameof(request.Recipient));
         RequireContent(request.Tier, nameof(request.Tier));
         RequireContent(request.Title, nameof(request.Title));
         RequireContent(request.RenderedContent, nameof(request.RenderedContent));
