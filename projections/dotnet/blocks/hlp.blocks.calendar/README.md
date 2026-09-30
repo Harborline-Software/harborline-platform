@@ -257,6 +257,20 @@ S0/S1 left these `null`/empty; **S2 (below) populates them** — the participati
     compares and then writes in two steps, or that relies on a lock held by one host process, does not
     satisfy the contract.
 
+- **T-606 S1 — Booking claims a Bookable across pool and mixed Resources (DES-0025 `booking-eng-1`,
+  `-5`, `-6`, `-8`, `-21`).** `BookableClaimService.Claim` resolves each Resource the Bookable
+  `requires` by name, reads capacity through `IAvailabilityRuntime` (exclusive: any overlap refuses;
+  pool: overlap depth up to the size; the required set as a conjunction), and commits one `Bookable`
+  event per Resource. Refusals are stable `booking.claim.*` codes and write nothing.
+  - **Buffers are the Resource's `SetupMinutes` and `CleanupMinutes`.** Each Resource's footprint is
+    widened by its own buffers, and each committed event carries them as its padding, so the next read
+    sees the full buffered footprint. The DES-0025 ruling on where buffers live is still open; the
+    Resource fields are the recommended answer.
+  - **Atomic across the conjunction.** `SaveAllIfCapacityUnchangedAsync(tenant, events, epochs)` is
+    the multi-resource form of the T-659 epoch-conditional save: every epoch is compared and every event
+    written in one store step, or nothing is written. A claim that loses an epoch re-reads, up to three
+    passes, then refuses `booking.claim.contended`.
+
 ## Dependencies
 
 - `Harborline.Foundation` — `TenantId`.

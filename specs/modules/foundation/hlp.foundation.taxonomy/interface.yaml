@@ -3,7 +3,7 @@
   "moduleId": "hlp.foundation.taxonomy",
   "interfaceRevision": 1,
   "status": "frozen",
-  "purpose": "Own the portable Taxonomy definition (content kind 7, DES-0024), its canonical projection-neutral JSON, and the phase-aware structural admission that authoring, publish and install all run before any traversal, tenancy or authorization gate is reached.",
+  "purpose": "Own the portable Taxonomy definition (content kind 8, DES-0024; the api's PackContentKind.TaxonomyDefinition, T-738), its canonical projection-neutral JSON, and the phase-aware structural admission that authoring, publish and install all run before any traversal, tenancy or authorization gate is reached.",
   "dependencies": [],
   "callerInterface": {
     "name": "TaxonomyDefinitionAdmission / TaxonomyDefinitionJson / TaxonomyDefinitionPackExporter",
@@ -11,7 +11,7 @@
       "TaxonomyDefinitionAdmission.Validate / AdmitJson(body, phase, window, catalogue, previous) -> the complete structural refusal list at the Author, Publish and Install boundaries against the required host DefinitionContractWindow; an envelope contract that is missing or outside the host window (definition.contract.missing or definition.contract.out_of_window at /envelope/contract, T-572), unpinned/malformed version, unsupported schema version, missing or mismatched envelope, Authoritative governance authored tenant-side, an Authoritative definition owned by anyone but the Harborline actor, a definition published with no nodes, duplicate node codes, an unknown parent code, a parent-edge cycle or a chain past the depth bound, a missing deprecation reason at tombstone, a successor naming an unknown or tombstoned node, and — against a supplied previous version — a tombstoned node reactivated or its display history rewritten, all refuse",
       "TaxonomyDefinitionAdmission.Require -> the definition, or throws TaxonomyAdmissionException carrying the same refusal list",
       "TaxonomyDefinitionJson.SerializeCanonical / Deserialize -> canonical snake_case, ordinal-sorted, newline-terminated UTF-8 JSON for every definition member, including the three-part TaxonomyDefinitionId as one dotted string",
-      "TaxonomyDefinitionPackExporter.Export(definition, window, previous, vendor) -> content kind 7 entry of canonical bytes after Publish-phase admission"
+      "TaxonomyDefinitionPackExporter.Export(definition, window, previous, vendor) -> content kind 8 entry of canonical bytes after Publish-phase admission"
     ],
     "context": "The definition is portable pack content: a concept scheme (TaxonomyDefinition) owning its own node set (TaxonomyNode), never a separate primitive and never a store. This package owns only the typed shape, canonical JSON and structural admission; it holds no catalogue, no traversal interpreter (ancestors, descendants, subsumption, succession, value-domain/overlay expansion, release diffing), no kernel-core tenancy or authorization gate, and no authoring UI. Those are later T-493 slices."
   },
@@ -47,7 +47,7 @@
   ],
   "publicSeams": [
     "definition intent admission (author, publish, install) and canonical JSON",
-    "content kind 7 pack entry for the platform package"
+    "content kind 8 pack entry for the platform package"
   ],
   "conformance": {
     "nativeTests": {

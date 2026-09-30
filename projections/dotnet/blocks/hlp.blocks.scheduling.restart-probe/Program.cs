@@ -7,7 +7,6 @@ if (args.Length != 2 || args[0] is not ("write-wait" or "write-partial"))
 }
 
 var store = new FileJournalSchedulingStore(new() { JournalPath = args[1] });
-await store.SaveDraftAsync("tenant:probe", "definition-1", 0, "{\"name\":\"durable\"}", "actor:server");
 await store.SaveCalendarEntityAsync(new("tenant:probe", SchedulingCalendarEntityKind.OwnedCalendar, "calendar-1", "{\"default\":true}"));
 await store.SaveCalendarEntityAsync(new("tenant:probe", SchedulingCalendarEntityKind.CalendarEvent, "event-1", "{\"title\":\"restart\"}"));
 await store.SaveCalendarEntityAsync(new("tenant:probe", SchedulingCalendarEntityKind.ResourceAvailability, "party:1", "{\"timezone\":\"America/New_York\"}"));

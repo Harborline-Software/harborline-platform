@@ -31,6 +31,8 @@ public sealed class ReleasedNavigationDefinitionProducerTests
         var resolved = installed.Resolve("platform.navigation.views", AllowsAll);
 
         Assert.Equal(DefinitionKind.Navigation, exported.Kind);
+        Assert.Equal(21, exported.ContentKind); // owner ruling 2026-09-29: the next free value; 18 is the api's Resource (T-738)
+        Assert.Equal(3, exported.Primitive); // the Navigation pillar; 13 is Booking
         Assert.Equal("platform.navigation.workshop", exported.DefinitionId);
         Assert.Equal("1.0.0", exported.Version);
         Assert.Equal("harborline.platform.navigation", artifact.Id);
