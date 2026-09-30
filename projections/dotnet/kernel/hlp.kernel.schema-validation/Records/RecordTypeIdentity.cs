@@ -3,8 +3,14 @@ using Harborline.Contracts.Fields;
 
 namespace Harborline.Kernel.SchemaValidation.Records;
 
-/// <summary>The authored identity and fields of one Record Type definition.</summary>
-public sealed record RecordTypeDefinition(string RecordTypeId, IReadOnlyList<FieldDefinition> Fields);
+/// <summary>The authored identity, fields, and explicit Trait memberships of one Record Type definition.</summary>
+/// <param name="RecordTypeId">The stable identity that scopes every field key.</param>
+/// <param name="Fields">The fields owned by this Record Type.</param>
+/// <param name="Traits">The exact Trait revisions and their slot-to-field bindings.</param>
+public sealed record RecordTypeDefinition(
+    string RecordTypeId,
+    IReadOnlyList<FieldDefinition> Fields,
+    IReadOnlyList<TraitReference>? Traits = null);
 
 /// <summary>An authored Record Type field whose stable identity is its containing type and key.</summary>
 /// <param name="FieldKey">The field's stable key within its record type.</param>
@@ -12,9 +18,55 @@ public sealed record RecordTypeDefinition(string RecordTypeId, IReadOnlyList<Fie
 /// <param name="Binding">The field-runtime kind and constraint floor, including the one value domain.</param>
 public sealed record FieldDefinition(string FieldKey, string DisplayName, FieldBindingDefinition? Binding = null);
 
+/// <summary>A versioned Trait revision that declares the slots a member Record Type may bind.</summary>
+/// <param name="TraitId">The stable Trait identity.</param>
+/// <param name="Version">The immutable Trait revision required by a member type.</param>
+/// <param name="Slots">The slots declared by this exact Trait revision.</param>
+public sealed record TraitDefinition(string TraitId, string Version, IReadOnlyList<TraitSlotDefinition> Slots);
+
+/// <summary>A qualified Trait field slot and the constraint floor every binding must satisfy.</summary>
+/// <param name="SlotKey">The stable slot key within the Trait identity.</param>
+/// <param name="Constraints">The field constraints supplied by the Trait revision.</param>
+/// <param name="Required">Whether a member type must bind this slot before publication.</param>
+/// <param name="BlocksRelease">Whether an absent binding of this required slot refuses release with the <c>records.trait.blocking_slot_unbound</c> code (records-auth-35) rather than <c>records.trait.required_slot_unbound</c>.</param>
+public sealed record TraitSlotDefinition(
+    string SlotKey,
+    FieldConstraintDefinition Constraints,
+    bool Required,
+    bool BlocksRelease);
+
+/// <summary>An exact Trait revision selected by a Record Type and its explicit slot bindings.</summary>
+/// <param name="TraitId">The selected Trait identity.</param>
+/// <param name="Version">The selected immutable Trait revision.</param>
+/// <param name="SlotBindings">The authored mapping from qualified Trait slots to Record Type fields.</param>
+public sealed record TraitReference(
+    string TraitId,
+    string Version,
+    IReadOnlyList<TraitSlotBinding> SlotBindings);
+
+/// <summary>One explicit mapping from a Trait Slot to a field owned by the containing Record Type.</summary>
+/// <param name="SlotKey">The selected Trait Slot key.</param>
+/// <param name="FieldKey">The Record Type field key that fulfils the slot.</param>
+public sealed record TraitSlotBinding(string SlotKey, string FieldKey);
+
+/// <summary>Resolves an exact Trait revision without selecting a latest revision or an alternate identity.</summary>
+public interface IRecordTraitSource
+{
+    /// <summary>Returns the requested exact Trait revision, or null when that revision is unavailable.</summary>
+    TraitDefinition? Resolve(string traitId, string version);
+}
+
 /// <summary>Validates the Records identity contract before a definition can mutate the schema registry.</summary>
 public sealed class RecordsIntentValidator
 {
+    private readonly IRecordTraitSource? _traitSource;
+
+    /// <summary>Creates an intent validator that resolves Trait revisions through the supplied source.</summary>
+    public RecordsIntentValidator(IRecordTraitSource? traitSource = null)
+    {
+        _traitSource = traitSource;
+    }
+
     /// <summary>Returns every identity refusal for a candidate and its optional preceding version.</summary>
     public IReadOnlyList<FieldRefusal> Validate(
         RecordTypeDefinition candidate,
@@ -63,7 +115,69 @@ public sealed class RecordsIntentValidator
             }
         }
 
+        ValidateTraitBindings(candidate, fieldKeys, refusals);
+
         return refusals;
+    }
+
+    private void ValidateTraitBindings(
+        RecordTypeDefinition candidate,
+        IReadOnlySet<string> fieldKeys,
+        List<FieldRefusal> refusals)
+    {
+        // A qualified slot is (trait id, slot key), so a second reference to the same Trait may not bind it again.
+        var qualifiedBoundSlots = new HashSet<(string TraitId, string SlotKey)>();
+        foreach (var (reference, traitIndex) in (candidate.Traits ?? []).Select((trait, index) => (trait, index)))
+        {
+            var traitPointer = $"/traits/{traitIndex}";
+            var definition = _traitSource?.Resolve(reference.TraitId, reference.Version);
+            if (definition is null)
+            {
+                refusals.Add(new(
+                    "records.trait.version_unresolved",
+                    traitPointer,
+                    "The selected Trait identity and version are not available."));
+                continue;
+            }
+
+            var slots = definition.Slots ?? [];
+            var declaredSlots = new HashSet<string>(slots.Select(slot => slot.SlotKey), StringComparer.Ordinal);
+            var bindings = reference.SlotBindings ?? [];
+            var boundSlots = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var (binding, bindingIndex) in bindings.Select((binding, index) => (binding, index)))
+            {
+                var bindingPointer = traitPointer + "/slot_bindings/" + bindingIndex;
+                if (!boundSlots.Add(binding.SlotKey) || !qualifiedBoundSlots.Add((reference.TraitId, binding.SlotKey)))
+                {
+                    refusals.Add(new(
+                        "records.trait.slot_binding_ambiguous",
+                        bindingPointer + "/slot_key",
+                        "A Trait Slot can bind to only one Record Type field."));
+                }
+                if (!declaredSlots.Contains(binding.SlotKey))
+                {
+                    refusals.Add(new(
+                        "records.trait.slot_unknown",
+                        bindingPointer + "/slot_key",
+                        "The binding names no Slot in the selected Trait revision."));
+                }
+                if (!fieldKeys.Contains(binding.FieldKey))
+                {
+                    refusals.Add(new(
+                        "records.trait.field_unresolved",
+                        bindingPointer + "/field_key",
+                        "The binding must name a field owned by this Record Type."));
+                }
+            }
+
+            foreach (var slot in slots.Where(slot => slot.Required && !boundSlots.Contains(slot.SlotKey)))
+            {
+                refusals.Add(new(
+                    slot.BlocksRelease ? "records.trait.blocking_slot_unbound" : "records.trait.required_slot_unbound",
+                    traitPointer + "/slot_bindings",
+                    "A required Trait Slot must bind to a Record Type field before publication."));
+            }
+        }
     }
 }
 

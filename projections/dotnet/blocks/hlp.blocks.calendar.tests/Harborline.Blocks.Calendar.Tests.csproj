@@ -14,5 +14,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../hlp.blocks.calendar/Harborline.Blocks.Calendar.csproj" />
+    <ProjectReference Include="../../kernel/hlp.kernel.core/Harborline.Kernel.Core.csproj" />
   </ItemGroup>
 </Project>
