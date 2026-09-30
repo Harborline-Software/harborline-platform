@@ -485,6 +485,15 @@ describe('public input envelope boundaries', () => {
     expect(graph.reevaluate('a', valueSnapshot(2)).values.get('field:b')).toEqual({ state: 'Resolved', value: 3 })
   })
 
+  it('restores an existing field when a reactive edit of it is refused by the byte envelope', () => {
+    const prefix = '{"a":"1","payload":"'
+    const source = `${prefix}${'é'.repeat((INPUT_MAX_UTF8_BYTES - prefix.length - 2) / 2 - 8)}"}`
+    const graph = new FormRuleGraph(compile([rule('c.b', 'b', 'Compute', { cat: [{ var: 'a' }, { var: 'payload' }] })]), fixedClock, testAdmission)
+    graph.evaluateInstance(RuleInstance.fromJsonText(source))
+    expect(graph.reevaluate('a', valueSnapshot('é'.repeat(64))).validations[0].validity?.error?.code).toBe(Codes.inputTooLarge)
+    expect(graph.reevaluate('payload', valueSnapshot('')).values.get('field:b')).toEqual({ state: 'Resolved', value: '1' })
+  })
+
   it('refuses an oversized dynamic member name before it can enter reactive state', () => {
     const graph = new FormRuleGraph(compile([rule('c.b', 'b', 'Compute', { '+': [{ var: 'a' }, 1] })]), fixedClock, testAdmission)
     graph.evaluateInstance(instance({ a: 1 }))
@@ -637,9 +646,12 @@ describe('incremental child-table edit', () => {
     const g = new FormRuleGraph(compiled, fixedClock, testAdmission, { ...DEFAULT_LIMITS, maxTableRowsPerAggregate: 1 })
     g.evaluateInstance(instance({ items: [{ amount: 1 }] }))
 
-    expect(g.addRow('items', rowSnapshot({ id: 'r2', fields: { amount: 2 } })).values.get('agg:items/sum/amount')).toEqual({
+    const refused = g.addRow('items', rowSnapshot({ id: 'r2', fields: { amount: 2 } }))
+    expect(refused.values.get('agg:items/sum/amount')).toEqual({
       state: 'Error', error: { code: Codes.tableTooLarge, params: { section: 'items' } },
     })
+    expect(refused.isSaveBlocked).toBe(true)
+    expect(refused.values.get('field:total')).toEqual({ state: 'Resolved', value: 1 })
     const after = g.reevaluate('unrelated', valueSnapshot(null))
 
     expect(after.values.get('field:total')).toEqual({ state: 'Resolved', value: 1 })
@@ -688,6 +700,10 @@ describe('static-cap rejection (identical to the .NET integrity tier)', () => {
     expect(e).toBeInstanceOf(CompileError)
     expect((e as CompileError).code).toBe(Codes.compileCycle)
     expect((e as CompileError).cyclePath?.length).toBeGreaterThan(0)
+  })
+
+  it('rejects expression text that is not JSON with a stable code', () => {
+    expect(() => compile([rule('c.x', 'x', 'Compute', '{"var":')])).toThrow(expect.objectContaining({ code: Codes.compileInvalidExpression, ruleId: 'c.x' }))
   })
 
   it('rejects a Power-Fx (demoted) rule', () => {
@@ -948,5 +964,69 @@ describe('guard evaluator (workflow transition guards)', () => {
 
   it('fails closed on a pending dependency (server tier)', () => {
     expect(guard.evaluateGuard(g, snapshot({ amount: { '@pending': true } }), testAdmission)).toEqual({ ok: false, error: { code: Codes.pendingAtSave, params: {} } })
+  })
+})
+
+describe('projected save gate, validations, options and visibility', () => {
+  it('blocks save and exports the failing validation only while a Validate rule fails', () => {
+    const { g, first } = graphOf([rule('v.age', 'age', 'Validate', { '>=': [{ var: 'age' }, 18] })], { age: 10 })
+    expect(first.isSaveBlocked).toBe(true)
+    expect(first.hasPending).toBe(false)
+    expect(first.validations.map((outcome) => outcome.ruleId)).toEqual(['v.age'])
+    const fixed = g.reevaluate('age', valueSnapshot(20))
+    expect(fixed.isSaveBlocked).toBe(false)
+    expect(fixed.validations).toEqual([])
+  })
+
+  it('blocks save while a computed value is pending', () => {
+    const { first } = graphOf([rule('c.ship', 'ship', 'Compute', { cat: [{ var: 'city' }, '!'] })], { city: { '@pending': true } })
+    expect(first.hasPending).toBe(true)
+    expect(first.isSaveBlocked).toBe(true)
+    expect(first.validations).toEqual([])
+  })
+
+  it('blocks save when a computed value is an evaluation error', () => {
+    const { first } = graphOf([rule('c.ratio', 'ratio', 'Compute', { '/': [{ var: 'a' }, { var: 'b' }] })], { a: 1, b: 0 })
+    expect(first.hasPending).toBe(false)
+    expect(first.isSaveBlocked).toBe(true)
+  })
+
+  it('does not block save when every value resolves and every validation passes', () => {
+    const { first } = graphOf([
+      rule('c.ratio', 'ratio', 'Compute', { '/': [{ var: 'a' }, { var: 'b' }] }),
+      rule('v.ratio', 'ratio', 'Validate', { '>': [{ var: 'ratio' }, 0] }),
+    ], { a: 1, b: 2 })
+    expect(first.isSaveBlocked).toBe(false)
+    expect(first.hasPending).toBe(false)
+  })
+
+  it('exports each Options outcome by its target', () => {
+    const { first } = graphOf([rule('opt.city', 'city', 'Options', { if: [{ var: 'country' }, ['a', 'b'], []] })], { country: 'us' })
+    expect(first.options.get('field:city')).toEqual({ state: 'Resolved', options: ['a', 'b'] })
+  })
+
+  it('merges visibility rules on one target: any hide wins, required and read-only accumulate', () => {
+    const rules = [
+      rule('vis.show', 'x', 'Visibility', true),
+      rule('vis.hide', 'x', 'Visibility', { '!': [{ var: 'hide' }] }),
+      rule('req.x', 'x', 'Required', { var: 'need' }),
+      rule('ro.x', 'x', 'ReadOnly', { var: 'lock' }),
+    ]
+    expect(graphOf(rules, { hide: false, need: false, lock: false }).first.visibility.get('field:x')).toEqual({ visible: true, required: false, readOnly: false })
+    expect(graphOf(rules, { hide: true, need: true, lock: false }).first.visibility.get('field:x')).toEqual({ visible: false, required: true, readOnly: false })
+    expect(graphOf(rules, { hide: true, need: false, lock: true }).first.visibility.get('field:x')).toEqual({ visible: false, required: false, readOnly: true })
+    expect(graphOf([...rules].reverse(), { hide: true, need: true, lock: true }).first.visibility.get('field:x')).toEqual({ visible: false, required: true, readOnly: true })
+  })
+})
+
+describe('compiled output types', () => {
+  it('maps every action to its public output type', () => {
+    const actions: Array<[RuleDefinition['action'], string]> = [
+      ['Compute', 'Value'], ['Validate', 'Validity'], ['Presentation', 'Presentation'], ['Options', 'Options'],
+      ['Visibility', 'Visibility'], ['Required', 'Visibility'], ['ReadOnly', 'Visibility'],
+    ]
+    for (const [action, outputType] of actions) {
+      expect(compile([rule(`r.${action}`, 'x', action, true)]).rules[0].outputType).toBe(outputType)
+    }
   })
 })

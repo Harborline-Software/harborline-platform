@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.foundation.documents",
-  "interfaceRevision": 1,
+  "interfaceRevision": 2,
   "status": "frozen",
   "purpose": "Own the Documents composition's TemplateDefinition (content kind 7): its envelope, canonical JSON, pack content and structural admission over an exactly pinned Layout page surface with intent issue (DES-0021, ADR 0092, ADR 0094).",
   "dependencies": [
@@ -18,7 +18,9 @@
       "TemplatePack.Export(template, surfaces) -> content kind 7 entry of canonical authored bytes and SHA-256 digest after publish admission; server-derived members are never exported",
       "TemplatePack.TryParse(content, tenant, provenance) -> a template stamped with the installing tenant and provenance, or a named miss; never an exception; owner, tenant, pack_key and provenance in authored content refuse by name",
       "TemplatePack.InstallAsync(entries, target) -> one outcome per entry (Published, AlreadyPresent, Refused); a refused entry never blocks its siblings; a stored key and version with a different body refuses with pinned_tuple_conflict and is never replaced",
-      "DocumentsExpressionEnvironment.Declaration / Admitted -> documents-ck-25 stated in Rules' shared BorrowerEnvironmentDeclaration and admitted by Rules; EvaluateGuard(evaluator, blockId, expression, snapshot, phase) presents the admission for the phase before the shared engine reads a value"
+      "DocumentsExpressionEnvironment.Declaration / Admitted -> documents-ck-25 stated in Rules' shared BorrowerEnvironmentDeclaration and admitted by Rules; EvaluateGuard(evaluator, blockId, expression, snapshot, phase) presents the admission for the phase before the shared engine reads a value",
+      "DocumentRuntime.PreviewAsync(input, layoutPageFlow, context, authoringUiLocale) -> parses published and inline template bodies through TemplateDefinitionJson, re-admits the pinned surface at render, resolves only the authored document locale policy, and emits a non-minting RenderedDocument; Layout supplies page flow through DocumentPageFlow so foundation never references blocks",
+      "IDocumentOutputWriter.WriteAsync(renderedDocument) -> a host-selected, library-neutral bytes-out adapter consumes semantic output without changing its order"
     ],
     "context": "Templates are portable pack content stored in the shared builder-definitions catalogue; this package owns their typed shape, canonical JSON and admission, never a store and never a Layout type. The host binds the catalogue and Layout's validator."
   },
@@ -49,13 +51,15 @@
     "template intent admission and canonical JSON",
     "content kind 7 pack entry and per-entry install",
     "TemplateSurfaces: exact surface pin resolution, Layout admission and the required application-contract window supplied by the host",
-    "TemplateInstallTarget: stored-tuple lookup and publication over the shared catalogue supplied by the host"
+    "TemplateInstallTarget: stored-tuple lookup and publication over the shared catalogue supplied by the host",
+    "DocumentRuntime: published or inline template resolution, semantic preview and Layout page-flow boundary",
+    "IDocumentOutputWriter: host-selected library-neutral output writer"
   ],
   "conformance": {
     "nativeTests": {
       "dotnet": 27
     },
-    "nativeTestNote": "Covers content kind 7 round trip with identical pin and digest, envelope members, document type, page/issue surface pin, Layout schema ranges at publish and at the persisted read, authority fields, column-less regions, named misses with sibling install, Forms-pattern versioning in the shared catalogue and the pinned-tuple body conflict. Adds the documents-ck-25 declaration against the released borrower fixture and guard admission, and parity tests for the retired documents-ck-8 and documents-ck-9. Adds the owner ruling Q8 cycle refusal: direct and longer cycles, a different version, and a detached copy."
+    "nativeTestNote": "Covers content kind 7 round trip with identical pin and digest, envelope members, document type, page/issue surface pin, Layout schema ranges at publish and at the persisted read, authority fields, column-less regions, named misses with sibling install, Forms-pattern versioning in the shared catalogue and the pinned-tuple body conflict. Adds the documents-ck-25 declaration against the released borrower fixture and guard admission, and parity tests for the retired documents-ck-8 and documents-ck-9. Adds the owner ruling Q8 cycle refusal: direct and longer cycles, a different version, and a detached copy. Revision 2 adds published/inline shared-parser semantic previews, document-locale selection isolated from the UI locale, Layout page-flow boundary and writer-adapter equivalence."
   },
   "selectedDesign": {
     "choice": "One packable foundation assembly owns the template definition and its admission; the Layout surface is reached only through a host-supplied pin resolver and validator, because foundation assemblies may not reference the blocks tier where Layout lives.",

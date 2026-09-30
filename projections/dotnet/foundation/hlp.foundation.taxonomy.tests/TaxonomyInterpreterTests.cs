@@ -86,6 +86,26 @@ public sealed class TaxonomyInterpreterTests
         var definition = Definition(); Assert.Equal(["root", "child", "leaf", "retired"], Interpreter(definition).ExpandWholeScheme(definition));
     }
 
+    [Fact(DisplayName = "taxonomy-eng-11, taxonomy-run-5: a named collection expands its declared concepts at the pinned scheme version")]
+    public void Expands_a_named_collection_at_the_pinned_scheme_version()
+    {
+        var definition = Definition() with { Collections = [new("active-branch", ["child", "leaf"])] };
+
+        var expansion = Assert.IsType<ResolvedTaxonomyCollectionExpansion>(Interpreter(definition).ExpandCollection(definition, "active-branch"));
+
+        Assert.Equal(["child", "leaf"], expansion.Codes);
+    }
+
+    [Fact(DisplayName = "taxonomy-eng-11: an unknown named collection returns a typed refusal instead of silently expanding no values")]
+    public void Expanding_an_unknown_named_collection_returns_a_typed_refusal()
+    {
+        var definition = Definition() with { Collections = [new("active-branch", ["child"])] };
+
+        var refusal = Assert.IsType<TaxonomyCollectionExpansionNotFound>(Interpreter(definition).ExpandCollection(definition, "unknown-branch"));
+
+        Assert.Equal("unknown-branch", refusal.CollectionName);
+    }
+
     [Fact(DisplayName = "DES-0024 taxonomy-eng-12: an overlay is re-expanded against the vendor's next release")]
     public void Expands_overlay_by_reference_against_the_requested_vendor_version()
     {

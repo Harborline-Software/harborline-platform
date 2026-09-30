@@ -49,4 +49,22 @@ public static class ExecutionRuntimeRefusals
 
     /// <summary>A run awaiting retry is started before its next attempt is due.</summary>
     public const string RetryNotDue = "execution.retry_not_due";
+
+    /// <summary>An effect identity is missing or cannot safely serve as a stable opaque identity.</summary>
+    public const string EffectIdentityInvalid = "execution.effect_identity_invalid";
+
+    /// <summary>A second receipt is recorded for one logical effect in the same tenant.</summary>
+    public const string EffectReceiptDuplicate = "execution.effect_receipt_duplicate";
+
+    /// <summary>Required effect evidence is absent, inconsistent or outside its closed domain.</summary>
+    public const string EffectReceiptInvalid = "execution.effect_receipt_invalid";
+
+    /// <summary>An effect receipt contains a secret value instead of an opaque secret reference.</summary>
+    public const string SecretReferenceInvalid = "execution.secret_reference_invalid";
+
+    /// <summary>An ambiguous effect receipt lacks the reconciliation state the capability owes.</summary>
+    public const string EffectReconciliationRequired = "execution.effect_reconciliation_required";
+
+    /// <summary>A compensation is recorded while the original effect remains ambiguous.</summary>
+    public const string BlindCompensationRefused = "execution.blind_compensation_refused";
 }

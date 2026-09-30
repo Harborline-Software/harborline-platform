@@ -2,16 +2,13 @@
   <PropertyGroup>
     <IsPackable>true</IsPackable>
     <HarborlinePublicDistributionAuthorized>false</HarborlinePublicDistributionAuthorized>
-    <PackageId>Harborline.Foundation.ExecutionRuntime</PackageId>
-    <AssemblyName>Harborline.Foundation.ExecutionRuntime</AssemblyName>
-    <RootNamespace>Harborline.Foundation.ExecutionRuntime</RootNamespace>
-    <Description>The execution runtime substrate for Harborline Platform: run identity, status, retry, dead-letter, and durable non-secret effect receipts.</Description>
+    <PackageId>Harborline.Foundation.NotificationDelivery</PackageId>
+    <AssemblyName>Harborline.Foundation.NotificationDelivery</AssemblyName>
+    <RootNamespace>Harborline.Foundation.NotificationDelivery</RootNamespace>
+    <Description>The notification delivery substrate for Harborline Platform: code-registered delivery channels, tenant channel bindings and the on-node inbox.</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageReleaseNotes>Internal-only projection; public distribution is not authorized.</PackageReleaseNotes>
   </PropertyGroup>
-  <ItemGroup>
-    <ProjectReference Include="../../contracts/hlp.contracts.identities/Harborline.Contracts.csproj" />
-  </ItemGroup>
   <ItemGroup>
     <None Include="README.md" Pack="true" PackagePath="/" />
     <None Include="../../../../LICENSE" Link="LICENSE" Pack="true" PackagePath="/" />
