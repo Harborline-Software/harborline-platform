@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <HarborlinePublicDistributionAuthorized>false</HarborlinePublicDistributionAuthorized>
+    <PackageId>Harborline.Foundation.ContentStore</PackageId>
+    <AssemblyName>Harborline.Foundation.ContentStore</AssemblyName>
+    <RootNamespace>Harborline.Foundation.ContentStore</RootNamespace>
+    <Description>The content store substrate for Harborline Platform (DES-0054): immutable tenant-keyed content items, staged then committed, refused at write, envelope-encrypted per item.</Description>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageReleaseNotes>Internal-only projection; public distribution is not authorized.</PackageReleaseNotes>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../contracts/hlp.contracts.identities/Harborline.Contracts.csproj" />
+    <ProjectReference Include="../hlp.foundation.execution-runtime/Harborline.Foundation.ExecutionRuntime.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="/" />
+    <None Include="../../../../LICENSE" Link="LICENSE" Pack="true" PackagePath="/" />
+  </ItemGroup>
+</Project>
