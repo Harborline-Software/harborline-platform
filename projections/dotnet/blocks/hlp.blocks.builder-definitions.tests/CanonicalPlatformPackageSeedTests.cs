@@ -65,6 +65,28 @@ public sealed class CanonicalPlatformPackageSeedTests
     }
 
     [Fact]
+    public void Scheduling_authoring_is_mounted_in_Workshop_with_only_ruled_defaults()
+    {
+        var authoring = Payload("platform-package-ck-7").GetProperty("schedulingAuthoring");
+
+        Assert.Equal("platform.workspace.workshop", authoring.GetProperty("workspace").GetString());
+        Assert.Equal("platform.navigation.schedules.author", authoring.GetProperty("navigationEntry").GetProperty("id").GetString());
+        Assert.Equal("schedules", authoring.GetProperty("navigationEntry").GetProperty("pillar").GetString());
+        Assert.Equal("platform.editor.scheduling", authoring.GetProperty("editor").GetProperty("id").GetString());
+        Assert.Equal(["ScheduleDefinition", "Protocol", "Constraint"], authoring.GetProperty("editor").GetProperty("definitionKinds").EnumerateArray().Select(value => value.GetString()));
+        Assert.Equal(["react", "blazor"], authoring.GetProperty("editor").GetProperty("projections").EnumerateArray().Select(value => value.GetString()));
+        Assert.Equal(["schedule", "protocol", "constraint"], authoring.GetProperty("createActions").EnumerateArray().Select(action => action.GetProperty("kind").GetString()));
+
+        var defaults = authoring.GetProperty("defaults");
+        Assert.Equal("None", defaults.GetProperty("problemClass").GetString());
+        Assert.Equal("none", defaults.GetProperty("planner").GetString());
+        Assert.Equal(JsonValueKind.Null, defaults.GetProperty("planHorizon").ValueKind);
+        Assert.Empty(defaults.GetProperty("constraintScopes").EnumerateArray());
+        Assert.Equal("domain-package", defaults.GetProperty("protocolInstanceOwner").GetString());
+        Assert.False(authoring.TryGetProperty("grammar", out _));
+    }
+
+    [Fact]
     public void Every_seed_member_has_a_stable_unique_id()
     {
         var memberGroups = new[] { 2, 3, 4, 6, 7, 8 };
