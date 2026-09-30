@@ -241,6 +241,30 @@ public sealed class KernelTransactionBoundaryTests
     }
 
     [Fact]
+    public async Task JoinAfterAnEnclosingExecuteAsyncEndsIsRefused()
+    {
+        var port = new RecordingPort();
+        var release = new TaskCompletionSource();
+        Task<KernelTransactionStateException>? late = null;
+        port.OnRecord = () =>
+        {
+            late = Task.Run(async () =>
+            {
+                await release.Task;
+                return await Assert.ThrowsAsync<KernelTransactionStateException>(async () =>
+                    await KernelTransactionBoundary.JoinAsync(Command("joined"), new RecordingParticipant(port.Events)));
+            });
+            return ValueTask.CompletedTask;
+        };
+
+        await KernelTransactionBoundary.ExecuteAsync([Command()], port);
+        release.SetResult();
+
+        Assert.Equal(KernelTransactionErrors.JoinWithoutEnclosingExecution, (await late!).Code);
+        Assert.Equal(1, port.Published);
+    }
+
+    [Fact]
     public async Task JoinedParticipantStagesIntoTheEnclosingCommitAndNeverCommits()
     {
         var port = new PreparedRecordingPort();
