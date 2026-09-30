@@ -61,6 +61,42 @@ public static class ReportDefinitionAdmission
             }
         }
 
+        var parameters = definition.Parameters ?? Array.Empty<ReportParameterDefinition>();
+        for (var index = 0; index < parameters.Count; index++)
+        {
+            var parameter = parameters[index];
+            var pointer = $"/parameters/{index}";
+            if (!Enum.IsDefined(parameter.Type))
+            {
+                refusals.Add(new(ReportDefinitionCodes.ParameterTypeUnsupported, pointer, parameter.Name));
+                continue;
+            }
+            if (parameter.Default is null || parameter.Default.Type != parameter.Type)
+            {
+                refusals.Add(new(ReportDefinitionCodes.ParameterDefaultTypeMismatch, pointer, parameter.Name));
+                continue;
+            }
+            if (!parameter.Default.IsValid)
+            {
+                refusals.Add(new(ReportDefinitionCodes.ParameterDefaultInvalid, pointer, parameter.Name));
+                continue;
+            }
+
+            var isAsAt = string.Equals(parameter.Name, "as_at", StringComparison.Ordinal);
+            if (isAsAt && parameter.Type != ReportParameterType.DateTime)
+            {
+                refusals.Add(new(ReportDefinitionCodes.AsAtMustBeDateTime, pointer, parameter.Name));
+            }
+            else if (isAsAt && string.IsNullOrWhiteSpace(parameter.EffectiveDatedType))
+            {
+                refusals.Add(new(ReportDefinitionCodes.AsAtEffectiveTypeRequired, pointer, parameter.Name));
+            }
+            else if (!isAsAt && parameter.EffectiveDatedType is not null)
+            {
+                refusals.Add(new(ReportDefinitionCodes.AsAtNameRequired, pointer, parameter.Name));
+            }
+        }
+
         return new ReportAdmissionReport(phase, refusals);
     }
 
