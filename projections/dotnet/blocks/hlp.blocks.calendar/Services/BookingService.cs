@@ -29,6 +29,7 @@ public sealed class BookingService : IBookingService
     private readonly IPaddingPolicy _paddingPolicy;
     private readonly IPartyContext _requester;
 
+    /// <summary>Creates the booking service from availability, event, policy, and requester collaborators.</summary>
     public BookingService(
         IAvailabilityRuntime runtime,
         IResourceAvailabilityStore availabilityStore,

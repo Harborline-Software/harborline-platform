@@ -20,8 +20,10 @@ public sealed class ViewDefinitionAdmissionException(
     IReadOnlyList<ViewDefinitionRefusal> refusals)
     : Exception("The view definition was refused.")
 {
+    /// <summary>The validation stage that produced the refusals.</summary>
     public string Stage { get; } = stage;
 
+    /// <summary>Every refusal found in the stage, each with a code and JSON-pointer target.</summary>
     public IReadOnlyList<ViewDefinitionRefusal> Refusals { get; } = refusals;
 }
 
@@ -40,6 +42,7 @@ public sealed class ViewDefinitionAdmission(
     private readonly IViewExpressionFunctionRegistry _functions = functions ?? throw new ArgumentNullException(nameof(functions));
     private readonly IViewInteractionRegistry _interactions = interactions ?? throw new ArgumentNullException(nameof(interactions));
 
+    /// <summary>Checks the draft and throws <see cref="ViewDefinitionAdmissionException"/> listing every refusal found: forbidden aggregation, row-visibility and scope-token inputs, a contract outside the platform window, unknown kind, incompatible shape roles, unknown fields, measure, widget and filter-function names, missing or unknown parameters, and unknown row actions or workflow transitions. Returns normally only when there are none.</summary>
     public async ValueTask ValidateAsync(
         ViewDefinitionDraft draft,
         CancellationToken cancellationToken = default)
@@ -221,6 +224,7 @@ public sealed class ViewDefinitionAdmission(
         }
     }
 
+    /// <summary>Lists the registered view kinds that can bind to the record type, ordered by kind name; empty when the record type is unknown.</summary>
     public async ValueTask<IReadOnlyList<ViewKindDescriptor>> ListOfferedKindsAsync(
         string recordType,
         CancellationToken cancellationToken = default)
@@ -321,6 +325,7 @@ public sealed class ViewDefinitionAuthoring(
     private readonly ViewDefinitionAdmission _admission = admission ?? throw new ArgumentNullException(nameof(admission));
     private readonly IViewDefinitionStore _store = store ?? throw new ArgumentNullException(nameof(store));
 
+    /// <summary>Stamps the platform's current contract version onto the draft, validates it (throwing <see cref="ViewDefinitionAdmissionException"/> on refusal) and only then persists it as a draft revision.</summary>
     public async ValueTask<ViewDefinitionRevision> CreateDraftAsync(
         ViewDefinitionDraft draft,
         CancellationToken cancellationToken = default)

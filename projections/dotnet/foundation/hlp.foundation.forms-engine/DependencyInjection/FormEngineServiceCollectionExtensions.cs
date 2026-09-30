@@ -9,8 +9,18 @@ using Harborline.Foundation.Forms.Engine.Security;
 
 namespace Harborline.Foundation.Forms.Engine.DependencyInjection;
 
-public enum FormEngineHostEnvironment { Development, Test, Production }
+/// <summary>Selects the composition policy applied when registering Forms Engine services.</summary>
+public enum FormEngineHostEnvironment
+{
+    /// <summary>Local development behavior.</summary>
+    Development,
+    /// <summary>Test-host behavior.</summary>
+    Test,
+    /// <summary>Production-host behavior with required attestations.</summary>
+    Production
+}
 
+/// <summary>Registers Forms Engine services and its host-supplied infrastructure ports.</summary>
 public static class FormEngineServiceCollectionExtensions
 {
     private sealed class ProductionFieldSecurityAttestation;
@@ -47,6 +57,7 @@ public static class FormEngineServiceCollectionExtensions
         return services;
     }
 
+    /// <summary>Registers the core Forms Engine graph and validates production-only composition requirements.</summary>
     public static IServiceCollection AddHarborlineFormsEngine(
         this IServiceCollection services,
         FormEngineHostEnvironment environment,
@@ -101,6 +112,7 @@ public static class FormEngineServiceCollectionExtensions
         return services;
     }
 
+    /// <summary>Registers tenant-bound field protection and its governance resolver.</summary>
     public static IServiceCollection AddHarborlineFormsEngineTenantBoundFieldSecurity(
         this IServiceCollection services,
         FormFieldSecurityOptions options)
@@ -122,6 +134,7 @@ public static class FormEngineServiceCollectionExtensions
         return services;
     }
 
+    /// <summary>Registers the request-scoped execution-context adapter.</summary>
     public static IServiceCollection AddHarborlineFormsEngineCurrentRequestContext(
         this IServiceCollection services)
     {
@@ -131,6 +144,7 @@ public static class FormEngineServiceCollectionExtensions
         return services;
     }
 
+    /// <summary>Registers macaroon capability verification and issuance services.</summary>
     public static IServiceCollection AddHarborlineFormsEngineMacaroonCapabilities(
         this IServiceCollection services)
     {
@@ -141,6 +155,7 @@ public static class FormEngineServiceCollectionExtensions
         return services;
     }
 
+    /// <summary>Registers the in-memory submission store for non-production environments.</summary>
     public static IServiceCollection AddHarborlineFormsEngineInMemorySubmissionStore(
         this IServiceCollection services,
         FormEngineHostEnvironment environment)
@@ -154,6 +169,7 @@ public static class FormEngineServiceCollectionExtensions
         return services;
     }
 
+    /// <summary>Registers the configured single-process append-only journal submission store.</summary>
     public static IServiceCollection AddHarborlineFormsEngineFileSubmissionStore(
         this IServiceCollection services,
         Action<FileJournalFormSubmissionStoreOptions> configure)

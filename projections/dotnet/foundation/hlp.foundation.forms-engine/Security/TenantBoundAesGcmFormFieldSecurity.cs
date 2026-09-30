@@ -7,15 +7,19 @@ using Harborline.Foundation.Forms.Models;
 
 namespace Harborline.Foundation.Forms.Engine.Security;
 
+/// <summary>Holds a tenant key version and key material used to protect form fields.</summary>
 public sealed record FormTenantProtectionKey(string KeyVersion, ReadOnlyMemory<byte> KeyMaterial);
 
+/// <summary>Resolves the tenant-specific key used for field protection.</summary>
 public interface IFormTenantProtectionKeyProvider
 {
+    /// <summary>Returns the tenant's current key for the domain, or null when none is provisioned.</summary>
     ValueTask<FormTenantProtectionKey?> GetCurrentAsync(
         TenantId tenant,
         string keyDomain,
         CancellationToken cancellationToken = default);
 
+    /// <summary>Returns the tenant's key for the domain at the given version, or null when unknown.</summary>
     ValueTask<FormTenantProtectionKey?> GetAsync(
         TenantId tenant,
         string keyDomain,
@@ -23,14 +27,17 @@ public interface IFormTenantProtectionKeyProvider
         CancellationToken cancellationToken = default);
 }
 
+/// <summary>Carries a capability that authorizes decryption for a specific form read.</summary>
 public sealed record FormDecryptCapability(
     string CapabilityId,
     TenantId Tenant,
     string Purpose,
     DateTimeOffset ExpiresAt);
 
+/// <summary>Resolves a decryption capability for an authorized form read.</summary>
 public interface IFormDecryptCapabilityProvider
 {
+    /// <summary>Issues a decryption capability for the purpose, valid for the lifetime, or null when refused.</summary>
     ValueTask<FormDecryptCapability?> AcquireAsync(
         TenantId tenant,
         string purpose,
@@ -38,6 +45,7 @@ public interface IFormDecryptCapabilityProvider
         CancellationToken cancellationToken = default);
 }
 
+/// <summary>Defines jurisdiction and classification policy for protected form fields.</summary>
 public sealed record FormFieldGovernancePolicy(
     bool IsResolved,
     bool ProtectAtRest,
@@ -48,18 +56,24 @@ public sealed record FormFieldGovernancePolicy(
     IReadOnlySet<string>? ProhibitedJurisdictions = null,
     FormGovernanceRefusal? Refusal = null);
 
+/// <summary>Configures tenant-bound field protection and governance resolution.</summary>
 public sealed class FormFieldSecurityOptions
 {
+    /// <summary>Jurisdiction where this host runs, checked against each field's allowed and prohibited jurisdictions.</summary>
     public string? HostJurisdiction { get; init; }
 }
 
+/// <summary>Resolves governance policy for a field in a form definition.</summary>
 public interface IFormFieldGovernanceResolver
 {
+    /// <summary>Returns the governance policy for the field, unresolved when no classification applies.</summary>
     FormFieldGovernancePolicy Resolve(FormDefinition definition, string fieldName);
 }
 
+/// <summary>Applies the configured governance policy to tenant-bound field protection.</summary>
 public sealed class DefaultFormFieldGovernanceResolver : IFormFieldGovernanceResolver
 {
+    /// <summary>Names the classification system used when resolving field governance.</summary>
     public const string DataClassificationSystem = "harborline/data-classification";
 
     /// <summary>
@@ -75,6 +89,7 @@ public sealed class DefaultFormFieldGovernanceResolver : IFormFieldGovernanceRes
         string.Equals(tag.System, DataClassificationSystem, StringComparison.Ordinal)
         || string.Equals(tag.System, LegacyDataClassificationSystem, StringComparison.Ordinal);
 
+    /// <inheritdoc />
     public FormFieldGovernancePolicy Resolve(FormDefinition definition, string fieldName)
     {
         ArgumentNullException.ThrowIfNull(definition);
@@ -148,6 +163,7 @@ public sealed class DefaultFormFieldGovernanceResolver : IFormFieldGovernanceRes
         }
     }
 
+    /// <inheritdoc />
     private static (bool IsResolved, IReadOnlySet<string>? Allowed, IReadOnlySet<string> Prohibited) ResolveResidency(
         IReadOnlyList<AspectOverlay> aspects)
     {
@@ -164,10 +180,14 @@ public sealed class DefaultFormFieldGovernanceResolver : IFormFieldGovernanceRes
     }
 }
 
+/// <summary>Protects sensitive form fields with tenant-bound encryption and governance checks.</summary>
 public sealed class TenantBoundAesGcmFormFieldSecurity : IFormGovernanceEnforcingFieldSecurity
 {
+    /// <summary>Names the tenant key domain used for field encryption.</summary>
     public const string FieldEncryptionKeyDomain = "encrypted-field-aes";
+    /// <summary>Identifies the authenticated encryption suite used by this adapter.</summary>
     public const string CryptoSuite = "AES-256-GCM";
+    /// <summary>Lists the accepted purposes for decrypting protected field values.</summary>
     public static readonly IReadOnlySet<string> AcceptedDecryptPurposes =
         new HashSet<string>([FormEnginePermissions.DecryptOnRenderPurpose], StringComparer.Ordinal);
     private static readonly TimeSpan DecryptCapabilityLifetime = TimeSpan.FromSeconds(30);
@@ -180,6 +200,7 @@ public sealed class TenantBoundAesGcmFormFieldSecurity : IFormGovernanceEnforcin
     private readonly FormFieldSecurityOptions _options;
     private readonly TimeProvider _clock;
 
+    /// <summary>Creates a tenant-bound field security adapter from host capability and policy providers.</summary>
     public TenantBoundAesGcmFormFieldSecurity(
         IFormTenantProtectionKeyProvider keys,
         IFormDecryptCapabilityProvider capabilities,
@@ -188,6 +209,7 @@ public sealed class TenantBoundAesGcmFormFieldSecurity : IFormGovernanceEnforcin
     {
     }
 
+    /// <summary>Creates a tenant-bound field security adapter with an explicit clock.</summary>
     public TenantBoundAesGcmFormFieldSecurity(
         IFormTenantProtectionKeyProvider keys,
         IFormDecryptCapabilityProvider capabilities,
@@ -202,6 +224,7 @@ public sealed class TenantBoundAesGcmFormFieldSecurity : IFormGovernanceEnforcin
         _clock = clock ?? throw new ArgumentNullException(nameof(clock));
     }
 
+    /// <inheritdoc />
     public async ValueTask<FormProtectionResult> ProtectAsync(
         FormExecutionScope scope,
         FormDefinition definition,
@@ -260,6 +283,7 @@ public sealed class TenantBoundAesGcmFormFieldSecurity : IFormGovernanceEnforcin
             throw new FormEngineGovernanceException(fieldName, FormGovernanceRefusal.ResidencyDenied);
     }
 
+    /// <inheritdoc />
     public async ValueTask<FormReadableCandidate> ReadAsync(
         FormExecutionScope scope,
         FormDefinition definition,
@@ -544,6 +568,7 @@ public sealed class WithholdingFormFieldSecurity : IFormGovernanceEnforcingField
 {
     private readonly IFormGovernanceEnforcingFieldSecurity _writeProtection;
 
+    /// <summary>Creates a read-through adapter that withholds all values returned by its write-security port.</summary>
     public WithholdingFormFieldSecurity(IFormFieldSecurity writeProtection)
     {
         ArgumentNullException.ThrowIfNull(writeProtection);
@@ -551,6 +576,7 @@ public sealed class WithholdingFormFieldSecurity : IFormGovernanceEnforcingField
             ?? throw new ArgumentException("The withholding profile requires a governance-enforcing write adapter.", nameof(writeProtection));
     }
 
+    /// <inheritdoc />
     public ValueTask<FormProtectionResult> ProtectAsync(
         FormExecutionScope scope,
         FormDefinition definition,
@@ -559,6 +585,7 @@ public sealed class WithholdingFormFieldSecurity : IFormGovernanceEnforcingField
         CancellationToken cancellationToken = default) =>
         _writeProtection.ProtectAsync(scope, definition, instanceId, acceptedCandidate, cancellationToken);
 
+    /// <inheritdoc />
     public ValueTask<FormReadableCandidate> ReadAsync(
         FormExecutionScope scope,
         FormDefinition definition,

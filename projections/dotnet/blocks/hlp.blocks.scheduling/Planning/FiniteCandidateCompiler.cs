@@ -1,7 +1,11 @@
 namespace Harborline.Blocks.Scheduling.Planning;
 
+/// <summary>Validates a scheduling profile and expands it into a finite candidate problem.</summary>
 public sealed class FiniteCandidateCompiler
 {
+    /// <summary>Compiles every valid start/resource combination in deterministic order.</summary>
+    /// <param name="profile">Profile whose activities, windows, resources, and constraints are compiled.</param>
+    /// <returns>A solver-ready problem with candidates keyed by activity id.</returns>
     public CompiledPlanningProblem Compile(SchedulingProfile profile)
     {
         Validate(profile);

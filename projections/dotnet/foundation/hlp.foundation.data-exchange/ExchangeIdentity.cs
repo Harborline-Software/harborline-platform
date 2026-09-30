@@ -3,17 +3,23 @@ using System.Text;
 
 namespace Harborline.Foundation.DataExchange;
 
+/// <summary>Opaque identity of a dry run.</summary>
 public readonly record struct DryRunId(string Value)
 {
+    /// <summary>Creates a dry run id from a new GUID in N format.</summary>
     public static DryRunId New() => new(Guid.NewGuid().ToString("N"));
 }
+/// <summary>Opaque identity of a commit run.</summary>
 public readonly record struct CommitRunId(string Value);
+/// <summary>Opaque batch identity derived from semantic inputs and stable across delivery retries.</summary>
 public readonly record struct BatchIdentity(string Value);
+/// <summary>Opaque idempotency identity of one effect within a batch.</summary>
 public readonly record struct EffectIdempotencyIdentity(string Value);
 
 /// <summary>An infrastructure delivery try with no business semantics.</summary>
 public readonly record struct AttemptId(Guid Value)
 {
+    /// <summary>Creates an attempt id from a new GUID.</summary>
     public static AttemptId New() => new(Guid.NewGuid());
 }
 
@@ -37,6 +43,7 @@ public sealed record BatchIdentityInputs(
     string MatchingInputsFingerprint,
     string SelectedBoundary)
 {
+    /// <summary>Builds the batch preimage from the tenant and the proposal fingerprint fields.</summary>
     public static BatchIdentityInputs From(string tenantId, ProposalFingerprint proposal) => new(
         tenantId, proposal.DefinitionId, proposal.DefinitionVersion, proposal.MappingId,
         proposal.MappingVersion, proposal.MappingDigest, proposal.ConnectorId, proposal.ConnectorVersion,
@@ -48,6 +55,7 @@ public sealed record BatchIdentityInputs(
 /// <summary>Derives opaque versioned identities above any delivery retry loop.</summary>
 public static class ExchangeIdentity
 {
+    /// <summary>Derives an hl-batch-v2 identity from the semantic inputs; throws ArgumentNullException for null and ArgumentException when a component is blank or contains the pipe separator.</summary>
     public static BatchIdentity DeriveBatch(BatchIdentityInputs inputs)
     {
         ArgumentNullException.ThrowIfNull(inputs);
@@ -72,6 +80,7 @@ public static class ExchangeIdentity
             inputs.SelectedBoundary))}");
     }
 
+    /// <summary>Derives an hl-effect-v1 identity from batch, target contract, source record identity and version and discriminator; throws ArgumentException when a component is blank or contains the pipe separator.</summary>
     public static EffectIdempotencyIdentity DeriveEffect(
         BatchIdentity batch,
         string targetContract,
