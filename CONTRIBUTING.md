@@ -16,6 +16,8 @@ Keep product workflows and cross-repository source links out of Platform.
 
 The retained aggregate identities are local shadow candidates; never place them on a shared feed or mix them with earlier source artifacts.
 
+Tests that mean it: Expected values come from an oracle independent of the code under test (AGENTS.md, Test oracles).
+
 New module package identities require two real consumers, a deletion-test pass, an explicit aggregate facade, and a separate authority decision.
 
 The earlier repository name has no npm or NuGet registry source (ticket 063); never add a registry fallback for that name or include contract-evidence archives in a published package.
