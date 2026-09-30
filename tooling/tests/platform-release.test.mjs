@@ -1,6 +1,6 @@
 // T-705 oracle: owner asset inventory and strict failure properties; isolated git corpus.
 import assert from 'node:assert/strict'
-import {execFileSync} from 'node:child_process'
+import {execFileSync, spawnSync} from 'node:child_process'
 import {createHash} from 'node:crypto'
 import {mkdirSync, mkdtempSync, rmSync, writeFileSync, readFileSync, readdirSync} from 'node:fs'
 import {tmpdir} from 'node:os'
@@ -122,14 +122,27 @@ test('a different approved commit and an incomplete current gate prevent staging
 test('release workflow constrains producer/ref, defaults to dry-run, and verifies before publish', () => {
   const workflow = readFileSync(new URL('../../.github/workflows/release-platform.yml', import.meta.url), 'utf8')
   assert.match(workflow, /default: false/)
+  assert.match(workflow, /defaults:\n  run:\n    shell: bash/)
   assert.match(workflow, /runs-on: ubuntu-latest/)
   assert.match(workflow, /--signer-workflow/)
   assert.match(workflow, /--source-ref refs\/heads\/main --source-digest "\$APPROVED_COMMIT" --deny-self-hosted-runners/)
-  assert.ok(workflow.indexOf('platform-release.mjs stage') < workflow.indexOf('uses: actions/attest@v4'))
+  assert.ok(workflow.indexOf('platform-release.mjs stage') < workflow.indexOf('uses: actions/attest@'))
   assert.ok(workflow.indexOf('gh release download') < workflow.indexOf('--draft=false'))
   assert.match(workflow, /cmp "\$RUNNER_TEMP\/release\/\$asset"/)
-  const publication = workflow.slice(workflow.indexOf('      - name: Attest'))
-  for (const step of publication.split('      - name: ').filter(Boolean)) assert.match(step, /if: inputs.publish/)
+  const staging = workflow.split('\n  stage:\n')[1].split('\n  publish:\n')[0]
+  const publication = workflow.split('\n  publish:\n')[1]
+  assert.doesNotMatch(staging, /(?:id-token|attestations|contents): write|gh release|gh attestation|uses: actions\/attest@|GH_TOKEN:/)
+  assert.match(staging, /permissions:\n      contents: read/)
+  assert.match(publication, /needs: stage/)
+  assert.match(publication, /if: inputs.publish == true && github.ref == 'refs\/heads\/main'/)
+  assert.match(publication, /platform-release-staging-\$\{\{ github.run_id \}\}-\$\{\{ github.run_attempt \}\}/)
+  assert.ok(publication.indexOf('platform-release.mjs check') < publication.indexOf('uses: actions/attest@'))
+  assert.ok(publication.indexOf('immutable-releases') < publication.indexOf('uses: actions/attest@'))
+  assert.match(publication, /\.enabled == true and \.enforced_by_owner == true/)
+  assert.match(publication, /matching-refs\/tags\/v0\.1\.0" \| jq -e 'length == 0'/)
+  assert.match(publication, /\.isDraft == true and \.targetCommitish == \$commit/)
+  for (const line of workflow.split('\n').filter(line => /uses:/.test(line)))
+    assert.match(line, /uses: [a-zA-Z0-9_./-]+@[0-9a-f]{40} # v\d/)
 })
 
 test('no self-hosted workflow may grant publishing or signing permissions', () => {
@@ -137,6 +150,80 @@ test('no self-hosted workflow may grant publishing or signing permissions', () =
   for (const file of readdirSync(directory).filter(name => /\.ya?ml$/.test(name))) {
     const workflow = readFileSync(new URL(file, directory), 'utf8')
     // Conservative lint: refuse even if the sensitive grant belongs to a different job.
-    if (/runs-on:[^\n]*self-hosted/.test(workflow)) assert.doesNotMatch(workflow, /(?:id-token|attestations|packages):\s*write/, file)
+    const lines = workflow.split('\n')
+    for (let index = 0; index < lines.length; index++) {
+      const runner = /^(\s*)runs-on:(.*)$/.exec(lines[index])
+      if (!runner) continue
+      let value = runner[2]
+      let next = index + 1
+      while (next < lines.length && (lines[next].trim() === '' || lines[next].match(/^\s*/)[0].length > runner[1].length)) value += lines[next++]
+      if (/self-hosted|\$\{\{/.test(value)) assert.doesNotMatch(workflow, /(?:id-token|attestations|packages):\s*write/, file)
+    }
+  }
+})
+
+
+test('library attestations are pinned and precede package push only on main publication', () => {
+  const workflow = readFileSync(new URL('../../.github/workflows/validate.yml', import.meta.url), 'utf8')
+  assert.ok(workflow.indexOf('uses: actions/attest@') < workflow.indexOf('dotnet nuget push'))
+  assert.match(workflow, /subject-path: artifacts\/packages\/nuget\/\*\.nupkg/)
+  assert.match(workflow, /id-token: write\n      attestations: write/)
+  for (const line of workflow.split('\n').filter(line => /uses:/.test(line)))
+    assert.match(line, /uses: [a-zA-Z0-9_./-]+@[0-9a-f]{40} # v\d/)
+})
+
+test('a fresh current run with expired or absent reviews blocks even with clean committed evidence', () => {
+  for (const designReview of [{expired: ['hlp.ui.button']}, undefined]) {
+    const f = ready()
+    try {
+      f.gate.designReview = designReview
+      write(f.root, '.git/harborline-phase4-receipt.json', JSON.stringify({schemaVersion: 3,
+        repository: 'harborline-platform', phase: 4, baseHead: f.commit,
+        testedTree: f.git('rev-parse', 'HEAD^{tree}'), gate: f.gate,
+        reportSha256: sha256(JSON.stringify(f.gate))}))
+      assert.throws(() => stage(f.root, f.directory, f.commit), /current design reviews absent or expired/)
+    } finally { f.dispose() }
+  }
+})
+
+test('downloaded inventory must include a nonempty bundle and unchanged receipt', () => {
+  const f = ready()
+  try {
+    stage(f.root, f.directory, f.commit)
+    write(f.root, 'assets/provenance.sigstore.json', '')
+    assert.throws(() => check(f.root, f.directory, f.commit, true), /empty provenance bundle/)
+    // A structural bundle placeholder is not claimed cryptographic evidence; gh verifies it in workflow.
+    write(f.root, 'assets/provenance.sigstore.json', '{"fixture":"not cryptographic evidence"}')
+    check(f.root, f.directory, f.commit, true)
+    write(f.root, 'assets/release-receipt.json', '{}')
+    assert.throws(() => check(f.root, f.directory, f.commit, true), /release-receipt/)
+  } finally { f.dispose() }
+})
+
+
+test('release preflight fails closed for API errors, disabled immutability and existing versions (mock gh only)', () => {
+  const workflow = readFileSync(new URL('../../.github/workflows/release-platform.yml', import.meta.url), 'utf8')
+  const block = workflow.split('      - name: Require immutable releases and no existing version\n')[1].split('      - name: Attest')[0]
+  const script = block.split('        run: |\n')[1].split('\n').map(line => line.replace(/^          /, '')).join('\n')
+  const mock = `gh() {
+    case "$FAULT" in error) return 1;; esac
+    case "$*" in
+      *immutable-releases*)
+        if [ "$FAULT" = disabled ]; then printf '%s' '{"enabled":false,"enforced_by_owner":true}';
+        else printf '%s' '{"enabled":true,"enforced_by_owner":true}'; fi;;
+      *matching-refs*)
+        if [ "$FAULT" = tag ]; then printf '%s' '[{"ref":"refs/tags/v0.1.0"}]'; else printf '%s' '[]'; fi;;
+      *releases*)
+        if [ "$FAULT" = draft ]; then printf '%s' '[[{"tag_name":"v0.1.0","draft":true}]]';
+        else printf '%s' '[[]]'; fi;;
+      *) return 99;;
+    esac
+  }
+  `
+  for (const fault of ['none', 'error', 'disabled', 'tag', 'draft']) {
+    const result = spawnSync('bash', ['-e', '-o', 'pipefail', '-c', mock + script], {
+      env: {...process.env, REPOSITORY: 'fixture/repository', FAULT: fault}, encoding: 'utf8'})
+    if (fault === 'none') assert.equal(result.status, 0, result.stderr)
+    else assert.notEqual(result.status, 0, `must refuse ${fault}`)
   }
 })

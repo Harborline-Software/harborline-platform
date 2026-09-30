@@ -12,25 +12,24 @@ on:
         type: boolean
 permissions:
   contents: read
+defaults:
+  run:
+    shell: bash
 concurrency:
   group: release-platform-v0.1.0
   cancel-in-progress: false
 jobs:
-  release:
+  stage:
     if: vars.ACTIONS_ENABLED == 'true' && github.ref == 'refs/heads/main' && github.repository == 'Harborline-Software/harborline-platform'
     runs-on: ubuntu-latest
     timeout-minutes: 120
-    # These are ephemeral job permissions; dispatch with publish=false never uses signing/release APIs.
     permissions:
-      contents: write
-      id-token: write
-      attestations: write
+      contents: read
     env:
-      GH_TOKEN: ${{ github.token }}
       APPROVED_COMMIT: ${{ inputs.commit }}
       REPOSITORY: Harborline-Software/harborline-platform
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
           ref: ${{ inputs.commit }}
@@ -42,13 +41,11 @@ jobs:
           # Dispatch provenance names GITHUB_SHA; refuse a different checkout source.
           test "$APPROVED_COMMIT" = "$GITHUB_SHA"
           git merge-base --is-ancestor "$APPROVED_COMMIT" origin/main
-          # The signer workflow/ref must also exist unchanged in the approved source.
-          git diff --exit-code "$APPROVED_COMMIT" "$GITHUB_SHA" -- .github/workflows/release-platform.yml tooling/platform-release.mjs
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 24
-      - uses: actions/setup-dotnet@v6
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
           global-json-file: global.json
       - name: Install browser dependencies
@@ -62,6 +59,7 @@ jobs:
         run: |
           git clone --quiet https://github.com/Harborline-Software/harborline-api.git "$RUNNER_TEMP/harborline-api"
           git clone --quiet "https://x-access-token:${PINS_TOKEN}@github.com/Harborline-Software/harborline-control.git" "$RUNNER_TEMP/harborline-control"
+          git -C "$RUNNER_TEMP/harborline-control" remote set-url origin https://github.com/Harborline-Software/harborline-control.git
       - name: Full exact-tree receipt (including gallery and design reviews)
         run: node tooling/run-phase4-receipt.mjs
         env:
@@ -70,18 +68,71 @@ jobs:
           HARBORLINE_CI_GALLERY: '1'
       - name: Stage and strictly check seed, receipt and checksums
         run: node tooling/platform-release.mjs stage "$RUNNER_TEMP/release" "$APPROVED_COMMIT"
+      - name: Keep same-run staging and gate corroboration
+        run: |
+          mkdir "$RUNNER_TEMP/staging"
+          mv "$RUNNER_TEMP/release" "$RUNNER_TEMP/staging/release"
+          cp "$(git rev-parse --git-dir)/harborline-phase4-receipt.json" "$RUNNER_TEMP/staging/phase4-receipt.json"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: platform-release-staging-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/staging/
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    needs: stage
+    if: inputs.publish == true && github.ref == 'refs/heads/main' && github.repository == 'Harborline-Software/harborline-platform'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    env:
+      APPROVED_COMMIT: ${{ inputs.commit }}
+      REPOSITORY: Harborline-Software/harborline-platform
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ inputs.commit }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: platform-release-staging-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/staging
+      - name: Validate same-run staging before granting it provenance
+        run: |
+          [[ "$APPROVED_COMMIT" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$APPROVED_COMMIT"
+          test "$APPROVED_COMMIT" = "$GITHUB_SHA"
+          git merge-base --is-ancestor "$APPROVED_COMMIT" origin/main
+          mv "$RUNNER_TEMP/staging/release" "$RUNNER_TEMP/release"
+          cp "$RUNNER_TEMP/staging/phase4-receipt.json" "$(git rev-parse --git-dir)/harborline-phase4-receipt.json"
+          node tooling/platform-release.mjs check "$RUNNER_TEMP/release" "$APPROVED_COMMIT"
+      - name: Require immutable releases and no existing version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api "repos/$REPOSITORY/immutable-releases" | jq -e '.enabled == true and .enforced_by_owner == true'
+          # A lookup failure blocks, rather than treating authentication/network failure as absence.
+          gh api "repos/$REPOSITORY/git/matching-refs/tags/v0.1.0" | jq -e 'length == 0'
+          gh api "repos/$REPOSITORY/releases" --paginate --slurp | jq -e 'all(.[][]; .tag_name != "v0.1.0")'
       - name: Attest all payloads, including checksums, on the hosted producer
-        if: inputs.publish
         id: attest
-        uses: actions/attest@v4
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
         with:
           subject-path: |
             ${{ runner.temp }}/release/platform-pack.export.json
             ${{ runner.temp }}/release/release-receipt.json
             ${{ runner.temp }}/release/SHA256SUMS
       - name: Verify provenance before creating any draft
-        if: inputs.publish
         env:
+          GH_TOKEN: ${{ github.token }}
           BUNDLE: ${{ steps.attest.outputs.bundle-path }}
         run: |
           cp "$BUNDLE" "$RUNNER_TEMP/release/provenance.sigstore.json"
@@ -93,16 +144,18 @@ jobs:
               --source-ref refs/heads/main --source-digest "$APPROVED_COMMIT" --deny-self-hosted-runners
           done
       - name: Create draft with complete asset set
-        if: inputs.publish
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           # Never resume or replace an existing release/tag: failure leaves a draft for investigation.
-          if gh api "repos/$REPOSITORY/git/ref/tags/v0.1.0" >/dev/null 2>&1; then exit 1; fi
+          gh api "repos/$REPOSITORY/git/matching-refs/tags/v0.1.0" | jq -e 'length == 0'
           gh release create v0.1.0 "$RUNNER_TEMP/release/"* --repo "$REPOSITORY" \
             --target "$APPROVED_COMMIT" --title R1 --draft --notes-file docs/releases/R1-notes.md
       - name: Download draft and verify every uploaded byte before publication
-        if: inputs.publish
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          gh release view v0.1.0 --repo "$REPOSITORY" --json isDraft,targetCommitish | jq -e ' .isDraft == true'
+          gh release view v0.1.0 --repo "$REPOSITORY" --json isDraft,targetCommitish | jq -e --arg commit "$APPROVED_COMMIT" ' .isDraft == true and .targetCommitish == $commit'
           mkdir "$RUNNER_TEMP/downloaded"
           gh release download v0.1.0 --repo "$REPOSITORY" --dir "$RUNNER_TEMP/downloaded"
           node tooling/platform-release.mjs check "$RUNNER_TEMP/downloaded" "$APPROVED_COMMIT" --bundle
@@ -116,5 +169,6 @@ jobs:
               --source-ref refs/heads/main --source-digest "$APPROVED_COMMIT" --deny-self-hosted-runners
           done
       - name: Publish verified draft (immutable release)
-        if: inputs.publish
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: gh release edit v0.1.0 --repo "$REPOSITORY" --draft=false
