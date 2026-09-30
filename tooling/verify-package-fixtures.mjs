@@ -1391,20 +1391,25 @@ function verifySchedulingCapability() {
   // (T-568: the booking requester is the kernel's authenticated context), and Authorization ->
   // MultiTenancy + RuleEngine; Blocks.Scheduling and Foundation.Scheduling add no Harborline package edges.
   // T-605: Calendar -> BuilderDefinitions (Booking definitions bind the shared store) -> RuleAuthoring.
+  // T-606 S2: Calendar -> Kernel.Core (the Booking hold effect commits through KernelTransactionBoundary).
   const closure = assertPackageClosure(
     consumer,
     ['Harborline.Blocks.Calendar', 'Harborline.Blocks.Scheduling', 'Harborline.Foundation.Scheduling', 'Harborline.Contracts',
       'Harborline.Foundation.Authorization', 'Harborline.Foundation.MultiTenancy', 'Harborline.Foundation.RuleEngine',
       // T-732: RuleEngine now compiles the JsonSchema tier against the kernel's own dialect.
       'Harborline.Kernel.SchemaValidation',
+      // T-606 S2: the Booking hold effect.
+      'Harborline.Kernel.Core',
       'Harborline.Blocks.BuilderDefinitions', 'Harborline.Foundation.Definitions', 'Harborline.Foundation.RuleAuthoring',
       // T-493 S7: BuilderDefinitions binds DefinitionKind.Taxonomy through Foundation.Taxonomy.
       'Harborline.Foundation.Taxonomy'],
     'Scheduling',
     // T-732: RuleEngine's own Kernel.SchemaValidation dependency (compiling the JsonSchema tier
     // against the kernel's dialect) is now an expected, always-present part of the RuleEngine
-    // closure every consumer inherits; every OTHER Kernel package remains excluded pollution.
-    /(?:Forms|Reports|Workflows|EntityViews|Kernel(?!\.SchemaValidation\b)|Blazor|React)/i,
+    // closure every consumer inherits. T-606 S2: Kernel.Core, the transaction boundary the Booking hold
+    // effect commits through (ADR 0028 lets packages depend on kernel contracts), is expected too;
+    // every OTHER Kernel package remains excluded pollution.
+    /(?:Forms|Reports|Workflows|EntityViews|Kernel(?!\.(?:SchemaValidation|Core)\b)|Blazor|React)/i,
   )
 
   return { id: 'scheduling-capability-vertical', status: 'PASS', anchors: 174, hostRows: 88, crossLanePairs: 0, corpusSha256: sha256(corpusSource), directPackageReferences: direct, packageClosure: closure, sourceOrProjectDependencies: 0, packageProof, availabilityProof, capabilityProof }
