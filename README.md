@@ -37,3 +37,5 @@ For focused checks, run `npm run` to list the commands available in this checkou
 See [CONTRIBUTING.md](CONTRIBUTING.md) for change and compatibility requirements.
 
 For usage questions and bug reports, see [SUPPORT.md](SUPPORT.md). Report sensitive vulnerabilities through [SECURITY.md](SECURITY.md).
+
+![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/Harborline-Software/harborline-platform?utm_source=oss&utm_medium=github&utm_campaign=Harborline-Software%2Fharborline-platform&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews)

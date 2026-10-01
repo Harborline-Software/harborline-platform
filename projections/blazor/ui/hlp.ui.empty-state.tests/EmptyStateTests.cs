@@ -36,16 +36,19 @@ public sealed class EmptyStateNativeTests : BunitContext
         Assert.Contains("action-incomplete", error.ToString());
     }
 
-    [Fact]
+    [Theory]
     [Trait("ModuleConformance", "hlp.ui.empty-state")]
-    public void SharedFixtureConforms()
+    [MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.empty-state", MemberType = typeof(SharedFixtureBatch))]
+    public void SharedFixtureConforms(string caseId, string? rawFixture)
     {
-        var raw = Environment.GetEnvironmentVariable("HARBORLINE_CONFORMANCE_FIXTURE");
-        if (string.IsNullOrWhiteSpace(raw)) return;
-        using var fixture = System.Text.Json.JsonDocument.Parse(raw);
-        Assert.StartsWith("empty-state.", fixture.RootElement.GetProperty("id").GetString());
-        var cut = Render<HarborlineEmptyState>(parameters => parameters.Add(component => component.Title, "No results"));
-        Assert.Empty(cut.FindAll("[role=status]"));
-        Assert.Equal("true", cut.Find("[data-hl-icon]").GetAttribute("aria-hidden"));
+        SharedFixtureBatch.Run(caseId, rawFixture, () => {
+            var raw = SharedFixtureBatch.Current;
+            if (string.IsNullOrWhiteSpace(raw)) return;
+            using var fixture = System.Text.Json.JsonDocument.Parse(raw);
+            Assert.StartsWith("empty-state.", fixture.RootElement.GetProperty("id").GetString());
+            var cut = Render<HarborlineEmptyState>(parameters => parameters.Add(component => component.Title, "No results"));
+            Assert.Empty(cut.FindAll("[role=status]"));
+            Assert.Equal("true", cut.Find("[data-hl-icon]").GetAttribute("aria-hidden"));
+        });
     }
 }

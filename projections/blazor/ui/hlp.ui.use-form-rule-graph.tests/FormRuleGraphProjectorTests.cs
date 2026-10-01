@@ -173,20 +173,23 @@ public sealed class FormRuleGraphProjectorNativeTests
         Assert.Equal(("a,total", (object?)"3"), outcomes[2]);
     }
 
-    [Fact]
+    [Theory]
     [Trait("ModuleConformance", "hlp.ui.use-form-rule-graph")]
-    public void SharedFixtureConforms()
+    [MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.use-form-rule-graph", MemberType = typeof(SharedFixtureBatch))]
+    public void SharedFixtureConforms(string caseId, string? rawFixture)
     {
-        var raw = Environment.GetEnvironmentVariable("HARBORLINE_CONFORMANCE_FIXTURE");
-        if (string.IsNullOrWhiteSpace(raw)) return;
-        using var fixture = System.Text.Json.JsonDocument.Parse(raw);
-        Assert.StartsWith("form-rule-graph.", fixture.RootElement.GetProperty("id").GetString());
-        var view = View(Section("s1", Field("a"), Field("b"), Field("total") with { ReadOnly = true }));
-        var projection = FormRuleGraphProjector.Project(
-            view, RevealGraph("show"), new Dictionary<string, object?>(StringComparer.Ordinal) { ["a"] = "show" });
-        Assert.Equal(["a", "b", "total"], projection.View.Sections[0].Fields.Select(field => field.Name));
-        Assert.Equal("4", projection.Values["total"]);
-        Assert.False(projection.SaveBlocked);
+        SharedFixtureBatch.Run(caseId, rawFixture, () => {
+            var raw = SharedFixtureBatch.Current;
+            if (string.IsNullOrWhiteSpace(raw)) return;
+            using var fixture = System.Text.Json.JsonDocument.Parse(raw);
+            Assert.StartsWith("form-rule-graph.", fixture.RootElement.GetProperty("id").GetString());
+            var view = View(Section("s1", Field("a"), Field("b"), Field("total") with { ReadOnly = true }));
+            var projection = FormRuleGraphProjector.Project(
+                view, RevealGraph("show"), new Dictionary<string, object?>(StringComparer.Ordinal) { ["a"] = "show" });
+            Assert.Equal(["a", "b", "total"], projection.View.Sections[0].Fields.Select(field => field.Name));
+            Assert.Equal("4", projection.Values["total"]);
+            Assert.False(projection.SaveBlocked);
+        });
     }
 
     private static ISchemaFormRuleGraph RevealGraph(string revealValue) => Graph(instance =>

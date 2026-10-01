@@ -21,12 +21,15 @@ public sealed class TableTests : BunitContext
         Assert.False(cut.Find(".hl-table-scroll").HasAttribute("data-owner"));
     }
 
-    [Fact, Trait("ModuleConformance", "hlp.ui.table")]
-    public void SharedFixtureConforms()
+    [Theory, Trait("ModuleConformance", "hlp.ui.table")]
+    [MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.table", MemberType = typeof(SharedFixtureBatch))]
+    public void SharedFixtureConforms(string caseId, string? rawFixture)
     {
-        var raw = Environment.GetEnvironmentVariable("HARBORLINE_CONFORMANCE_FIXTURE"); if (string.IsNullOrWhiteSpace(raw)) return;
-        using var fixture = System.Text.Json.JsonDocument.Parse(raw); Assert.StartsWith("table.", fixture.RootElement.GetProperty("id").GetString());
-        Assert.Single(Render(BuildTable(TableDensity.Medium, ["one"])).FindAll("table"));
+        SharedFixtureBatch.Run(caseId, rawFixture, () => {
+            var raw = SharedFixtureBatch.Current; if (string.IsNullOrWhiteSpace(raw)) return;
+            using var fixture = System.Text.Json.JsonDocument.Parse(raw); Assert.StartsWith("table.", fixture.RootElement.GetProperty("id").GetString());
+            Assert.Single(Render(BuildTable(TableDensity.Medium, ["one"])).FindAll("table"));
+        });
     }
 
     internal static RenderFragment BuildTable(TableDensity density, IReadOnlyList<string> rows) => builder =>

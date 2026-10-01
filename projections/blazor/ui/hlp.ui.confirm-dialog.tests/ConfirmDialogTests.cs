@@ -187,28 +187,31 @@ public sealed class ConfirmDialogTests : BunitContext
         Assert.Equal(2, cut.FindAll(".hl-dialog__footer button[type='button']").Count);
     }
 
-    [Fact, Trait("ModuleConformance", "hlp.ui.confirm-dialog")]
-    public void SharedFixtureConforms()
+    [Theory, Trait("ModuleConformance", "hlp.ui.confirm-dialog")]
+    [MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.confirm-dialog", MemberType = typeof(SharedFixtureBatch))]
+    public void SharedFixtureConforms(string caseId, string? rawFixture)
     {
-        var raw = Environment.GetEnvironmentVariable("HARBORLINE_CONFORMANCE_FIXTURE");
-        if (string.IsNullOrWhiteSpace(raw)) return;
-        using var fixture = System.Text.Json.JsonDocument.Parse(raw);
-        Assert.StartsWith("confirm-dialog.", fixture.RootElement.GetProperty("id").GetString());
-        var cut = RenderConfirm();
-        Assert.Single(cut.FindAll("[role='dialog']"));
-        Assert.Equal(["Cancel", "Confirm"], ActionLabels(cut));
+        SharedFixtureBatch.Run(caseId, rawFixture, () => {
+            var raw = SharedFixtureBatch.Current;
+            if (string.IsNullOrWhiteSpace(raw)) return;
+            using var fixture = System.Text.Json.JsonDocument.Parse(raw);
+            Assert.StartsWith("confirm-dialog.", fixture.RootElement.GetProperty("id").GetString());
+            var cut = RenderConfirm();
+            Assert.Single(cut.FindAll("[role='dialog']"));
+            Assert.Equal(["Cancel", "Confirm"], ActionLabels(cut));
 
-        if (fixture.RootElement.GetProperty("id").GetString() != "confirm-dialog.action-classes") return;
+            if (fixture.RootElement.GetProperty("id").GetString() != "confirm-dialog.action-classes") return;
 
-        // The spelling of these classes IS the parity: the React lane asserts the same fixture row,
-        // so a lane-only class or a dropped modifier turns both suites red instead of hiding in a
-        // hand-written lane stylesheet (ticket 282).
-        var expected = fixture.RootElement.GetProperty("expected");
-        Assert.Equal(Classes(expected, "cancelClasses"), cut.Find(".hl-confirm-dialog__cancel").ClassList);
-        Assert.Equal(Classes(expected, "confirmClasses"), cut.Find(".hl-confirm-dialog__confirm").ClassList);
+            // The spelling of these classes IS the parity: the React lane asserts the same fixture row,
+            // so a lane-only class or a dropped modifier turns both suites red instead of hiding in a
+            // hand-written lane stylesheet (ticket 282).
+            var expected = fixture.RootElement.GetProperty("expected");
+            Assert.Equal(Classes(expected, "cancelClasses"), cut.Find(".hl-confirm-dialog__cancel").ClassList);
+            Assert.Equal(Classes(expected, "confirmClasses"), cut.Find(".hl-confirm-dialog__confirm").ClassList);
 
-        var destructive = RenderConfirm(variant: ConfirmDialogVariant.Destructive);
-        Assert.Equal(Classes(expected, "destructiveConfirmClasses"), destructive.Find(".hl-confirm-dialog__confirm").ClassList);
+            var destructive = RenderConfirm(variant: ConfirmDialogVariant.Destructive);
+            Assert.Equal(Classes(expected, "destructiveConfirmClasses"), destructive.Find(".hl-confirm-dialog__confirm").ClassList);
+        });
     }
 
     private static string[] Classes(System.Text.Json.JsonElement expected, string property) =>

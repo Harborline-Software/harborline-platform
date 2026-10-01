@@ -210,14 +210,14 @@
     "commit": "a23afe320807e7c7775585a6246ca9981b337bb7"
   },
   "projections/dotnet/foundation/hlp.foundation.execution-runtime.tests/Harborline.Foundation.ExecutionRuntime.Tests.csproj": {
-    "break": 84,
-    "score": 84.1,
-    "tested": 151,
-    "total": 204,
-    "detected": 127,
-    "undetected": 24,
-    "measured": "2026-09-29",
-    "commit": "edddd292b3bbb1bc654f26355aacd049c21e07ed"
+    "break": 94,
+    "score": 94,
+    "tested": 300,
+    "total": 394,
+    "detected": 282,
+    "undetected": 18,
+    "measured": "2026-09-30",
+    "commit": "418910efdddb32bfe8d8828e46217d3a16aaeb65"
   },
   "projections/dotnet/foundation/hlp.foundation.field-runtime.tests/Harborline.Foundation.FieldRuntime.Tests.csproj": {
     "break": 71,
@@ -271,13 +271,13 @@
   },
   "projections/dotnet/foundation/hlp.foundation.rule-runtime.tests/Harborline.Foundation.RuleEngine.Tests.csproj": {
     "break": 63,
-    "score": 63.11,
-    "tested": 3047,
-    "total": 4161,
-    "detected": 1923,
-    "undetected": 1124,
+    "score": 63.5,
+    "tested": 3050,
+    "total": 4164,
+    "detected": 1937,
+    "undetected": 1113,
     "measured": "2026-09-30",
-    "commit": "418910efdddb32bfe8d8828e46217d3a16aaeb65"
+    "commit": "e381df5a"
   },
   "projections/dotnet/foundation/hlp.foundation.scheduling.tests/Harborline.Foundation.Scheduling.Tests.csproj": {
     "break": 72,
@@ -330,14 +330,14 @@
     "commit": "c09cfcacf303b1944afadf7e891428ecc9d737cb"
   },
   "projections/dotnet/kernel/hlp.kernel.core.tests/Harborline.Kernel.Core.Tests.csproj": {
-    "break": 94,
-    "score": 94.11,
-    "tested": 322,
-    "total": 361,
-    "detected": 304,
-    "undetected": 19,
-    "measured": "2026-09-29",
-    "commit": "0f30804948db81590c1032b88da9e18ad1dea0d6"
+    "break": 99,
+    "score": 99.42,
+    "tested": 346,
+    "total": 398,
+    "detected": 345,
+    "undetected": 2,
+    "measured": "2026-09-30",
+    "commit": "9abd9e016a45fc8756ef259763f8079d56352e4e"
   },
   "projections/dotnet/kernel/hlp.kernel.schema-validation.tests/Harborline.Kernel.SchemaValidation.Tests.csproj": {
     "break": 48,

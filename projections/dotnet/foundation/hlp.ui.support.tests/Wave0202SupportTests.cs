@@ -69,78 +69,82 @@ public sealed class Wave0202SupportTests
         return int.Parse(match.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture);
     }
 
-    [Fact, Trait("ModuleConformance", "hlp.ui.tone-style")]
-    public void ToneStyleSharedFixturesRemainBoundToThePublicDotnetSurface() =>
-        AssertSharedFixture("tone-style.", "hlp.ui.tone-style");
+    [Theory, Trait("ModuleConformance", "hlp.ui.tone-style")]
+    [MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.tone-style", MemberType = typeof(SharedFixtureBatch))]
+    public void ToneStyleSharedFixturesRemainBoundToThePublicDotnetSurface(string caseId, string? rawFixture) =>
+        SharedFixtureBatch.Run(caseId, rawFixture, () => AssertSharedFixture("tone-style.", "hlp.ui.tone-style"));
 
-    [Fact, Trait("ModuleConformance", "hlp.ui.use-can-show-master-detail")]
-    public void FormFactorSharedFixturesRemainBoundToThePublicDotnetSurface()
+    [Theory, Trait("ModuleConformance", "hlp.ui.use-can-show-master-detail")]
+    [MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.use-can-show-master-detail", MemberType = typeof(SharedFixtureBatch))]
+    public void FormFactorSharedFixturesRemainBoundToThePublicDotnetSurface(string caseId, string? rawFixture)
     {
-        using var fixture = Fixture.Read("form-factor.");
-        if (fixture is null) return;
-        var root = fixture.RootElement;
-        string id = root.GetProperty("id").GetString()!;
-        Assert.Contains(id, Fixture.CaseIds("hlp.ui.use-can-show-master-detail"));
-        Assert.Equal("Harborline.Foundation", typeof(FormFactorPolicy).Assembly.GetName().Name);
+        SharedFixtureBatch.Run(caseId, rawFixture, () => {
+            using var fixture = Fixture.Read("form-factor.");
+            if (fixture is null) return;
+            var root = fixture.RootElement;
+            string id = root.GetProperty("id").GetString()!;
+            Assert.Contains(id, Fixture.CaseIds("hlp.ui.use-can-show-master-detail"));
+            Assert.Equal("Harborline.Foundation", typeof(FormFactorPolicy).Assembly.GetName().Name);
 
-        // Ticket 154 review: EXECUTE the fixture — drive the case's inputs through
-        // FormFactorPolicy.Resolve and compare against its expected values, so deleting a
-        // policy conjunct fails this lane instead of leaving everything green.
-        var input = root.GetProperty("input");
-        var expected = root.GetProperty("expected");
-        switch (id)
-        {
-            case "form-factor.phone-width":
-            case "form-factor.tablet-residual":
-            case "form-factor.desktop-width":
-            case "form-factor.short-landscape-fold":
-                AssertResolvedShape(FormFactorPolicy.Resolve(ParseSignals(input)), expected);
-                break;
-            case "form-factor.master-detail":
-                AssertCaseValues(input, expected, resolved => resolved.CanShowMasterDetail);
-                break;
-            case "form-factor.touch-sizing":
-                AssertCaseValues(input, expected, resolved => resolved.TouchSizing);
-                break;
-            case "form-factor.hover-affordance":
-                AssertCaseValues(input, expected, resolved => resolved.ShowHoverAffordance);
-                break;
-            case "form-factor.split-builder":
+            // Ticket 154 review: EXECUTE the fixture — drive the case's inputs through
+            // FormFactorPolicy.Resolve and compare against its expected values, so deleting a
+            // policy conjunct fails this lane instead of leaving everything green.
+            var input = root.GetProperty("input");
+            var expected = root.GetProperty("expected");
+            switch (id)
             {
-                Assert.Equal(FormFactorQueries.CanSplitBuilderPanes, input.GetProperty("query").GetString());
-                var resolved = FormFactorPolicy.Resolve(new(CanSplitBuilderPanes: input.GetProperty("matches").GetBoolean()));
-                Assert.Equal(expected.GetProperty("value").GetBoolean(), resolved.CanSplitBuilderPanes);
-                break;
-            }
-            case "form-factor.ssr-fail-closed":
-            {
-                // No browser: every signal defaults false — resolving the default record IS the SSR answer.
-                var resolved = FormFactorPolicy.Resolve(new());
-                Assert.Equal(expected.GetProperty("mode").GetString(), resolved.Mode.ToString().ToLowerInvariant());
-                Assert.Equal(expected.GetProperty("masterDetail").GetBoolean(), resolved.CanShowMasterDetail);
-                Assert.Equal(expected.GetProperty("touchSizing").GetBoolean(), resolved.TouchSizing);
-                Assert.Equal(expected.GetProperty("hoverAffordance").GetBoolean(), resolved.ShowHoverAffordance);
-                Assert.Equal(expected.GetProperty("splitBuilder").GetBoolean(), resolved.CanSplitBuilderPanes);
-                break;
-            }
-            case "form-factor.projection-equivalence":
-            {
-                // Totality over every Boolean signal combination (the TS suite iterates the same mask;
-                // outcome equivalence is proven by the value-carrying cases above resolving identically).
-                for (int mask = 0; mask < 256; mask++)
+                case "form-factor.phone-width":
+                case "form-factor.tablet-residual":
+                case "form-factor.desktop-width":
+                case "form-factor.short-landscape-fold":
+                    AssertResolvedShape(FormFactorPolicy.Resolve(ParseSignals(input)), expected);
+                    break;
+                case "form-factor.master-detail":
+                    AssertCaseValues(input, expected, resolved => resolved.CanShowMasterDetail);
+                    break;
+                case "form-factor.touch-sizing":
+                    AssertCaseValues(input, expected, resolved => resolved.TouchSizing);
+                    break;
+                case "form-factor.hover-affordance":
+                    AssertCaseValues(input, expected, resolved => resolved.ShowHoverAffordance);
+                    break;
+                case "form-factor.split-builder":
                 {
-                    _ = FormFactorPolicy.Resolve(new(
-                        PhoneWidth: (mask & 1) != 0, DesktopWidth: (mask & 2) != 0, Landscape: (mask & 4) != 0,
-                        ShortHeight: (mask & 8) != 0, AnyCoarsePointer: (mask & 16) != 0, AnyFinePointer: (mask & 32) != 0,
-                        Hover: (mask & 64) != 0, MasterDetailRail: (mask & 128) != 0));
+                    Assert.Equal(FormFactorQueries.CanSplitBuilderPanes, input.GetProperty("query").GetString());
+                    var resolved = FormFactorPolicy.Resolve(new(CanSplitBuilderPanes: input.GetProperty("matches").GetBoolean()));
+                    Assert.Equal(expected.GetProperty("value").GetBoolean(), resolved.CanSplitBuilderPanes);
+                    break;
                 }
-                Assert.True(expected.GetProperty("typescriptEqualsDotnet").GetBoolean());
-                break;
+                case "form-factor.ssr-fail-closed":
+                {
+                    // No browser: every signal defaults false — resolving the default record IS the SSR answer.
+                    var resolved = FormFactorPolicy.Resolve(new());
+                    Assert.Equal(expected.GetProperty("mode").GetString(), resolved.Mode.ToString().ToLowerInvariant());
+                    Assert.Equal(expected.GetProperty("masterDetail").GetBoolean(), resolved.CanShowMasterDetail);
+                    Assert.Equal(expected.GetProperty("touchSizing").GetBoolean(), resolved.TouchSizing);
+                    Assert.Equal(expected.GetProperty("hoverAffordance").GetBoolean(), resolved.ShowHoverAffordance);
+                    Assert.Equal(expected.GetProperty("splitBuilder").GetBoolean(), resolved.CanSplitBuilderPanes);
+                    break;
+                }
+                case "form-factor.projection-equivalence":
+                {
+                    // Totality over every Boolean signal combination (the TS suite iterates the same mask;
+                    // outcome equivalence is proven by the value-carrying cases above resolving identically).
+                    for (int mask = 0; mask < 256; mask++)
+                    {
+                        _ = FormFactorPolicy.Resolve(new(
+                            PhoneWidth: (mask & 1) != 0, DesktopWidth: (mask & 2) != 0, Landscape: (mask & 4) != 0,
+                            ShortHeight: (mask & 8) != 0, AnyCoarsePointer: (mask & 16) != 0, AnyFinePointer: (mask & 32) != 0,
+                            Hover: (mask & 64) != 0, MasterDetailRail: (mask & 128) != 0));
+                    }
+                    Assert.True(expected.GetProperty("typescriptEqualsDotnet").GetBoolean());
+                    break;
+                }
+                default:
+                    Assert.Fail($"form-factor fixture '{id}' has no dotnet executor — add one before extending the fixture set.");
+                    break;
             }
-            default:
-                Assert.Fail($"form-factor fixture '{id}' has no dotnet executor — add one before extending the fixture set.");
-                break;
-        }
+        });
     }
 
     private static FormFactorSignals ParseSignals(System.Text.Json.JsonElement input) => new(
@@ -175,9 +179,10 @@ public sealed class Wave0202SupportTests
         Assert.Equal(wanted, actual);
     }
 
-    [Fact, Trait("ModuleConformance", "hlp.ui.use-is-mobile")]
-    public void BreakpointSharedFixturesRemainBoundToThePublicDotnetSurface() =>
-        AssertSharedFixture("breakpoint.", "hlp.ui.use-is-mobile");
+    [Theory, Trait("ModuleConformance", "hlp.ui.use-is-mobile")]
+    [MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.use-is-mobile", MemberType = typeof(SharedFixtureBatch))]
+    public void BreakpointSharedFixturesRemainBoundToThePublicDotnetSurface(string caseId, string? rawFixture) =>
+        SharedFixtureBatch.Run(caseId, rawFixture, () => AssertSharedFixture("breakpoint.", "hlp.ui.use-is-mobile"));
 
     private static void AssertSharedFixture(string prefix, string moduleId)
     {

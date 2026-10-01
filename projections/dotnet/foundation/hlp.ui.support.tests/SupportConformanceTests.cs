@@ -31,16 +31,19 @@ public sealed class AspectLensConformanceTests
         Assert.False(unresolved.Resolved);
     }
 
-    [Fact]
+    [Theory]
     [Trait("ModuleConformance", "hlp.ui.aspect-lens")]
-    public void SharedFixtureConforms()
+    [MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.aspect-lens", MemberType = typeof(SharedFixtureBatch))]
+    public void SharedFixtureConforms(string caseId, string? rawFixture)
     {
-        using var fixture = Fixture.Read("aspect-lens.");
-        if (fixture is null) return;
-        var id = fixture.RootElement.GetProperty("id").GetString();
-        Assert.Contains(id, Fixture.CaseIds("hlp.ui.aspect-lens"));
-        Assert.Equal(9, typeof(CanvasNode).Assembly.GetTypes().Count(type => type.Namespace == "Harborline.Foundation.Builder" &&
-            type.Name is "CanvasNode" or "CanvasModel" or "LensTone" or "AspectState" or "AspectEdge" or "AspectLens" or "ProvenanceSource" or "ProvenanceInfo" or "ProvenanceResolver"));
+        SharedFixtureBatch.Run(caseId, rawFixture, () => {
+            using var fixture = Fixture.Read("aspect-lens.");
+            if (fixture is null) return;
+            var id = fixture.RootElement.GetProperty("id").GetString();
+            Assert.Contains(id, Fixture.CaseIds("hlp.ui.aspect-lens"));
+            Assert.Equal(9, typeof(CanvasNode).Assembly.GetTypes().Count(type => type.Namespace == "Harborline.Foundation.Builder" &&
+                type.Name is "CanvasNode" or "CanvasModel" or "LensTone" or "AspectState" or "AspectEdge" or "AspectLens" or "ProvenanceSource" or "ProvenanceInfo" or "ProvenanceResolver"));
+        });
     }
 }
 
@@ -61,34 +64,37 @@ public sealed class CssClassComposerConformanceTests
         Assert.Equal("block custom custom", CssClassComposer.Combine("block", "block", "custom", "custom"));
     }
 
-    [Fact]
+    [Theory]
     [Trait("ModuleConformance", "hlp.ui.cn")]
-    public void SharedFixtureConforms()
+    [MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.cn", MemberType = typeof(SharedFixtureBatch))]
+    public void SharedFixtureConforms(string caseId, string? rawFixture)
     {
-        using var fixture = Fixture.Read("cn.");
-        if (fixture is null) return;
-        var id = fixture.RootElement.GetProperty("id").GetString();
-        Assert.Contains(id, Fixture.CaseIds("hlp.ui.cn"));
-        var expected = id switch
-        {
-            "cn.strings" => CssClassComposer.Combine("button", "primary"),
-            "cn.nested-arrays" => CssClassComposer.Combine("root", new object?[] { "child", new[] { "leaf" } }),
-            "cn.object-map" => CssClassComposer.Combine(new[] { new KeyValuePair<string, bool>("enabled", true), new("disabled", false), new("selected", true) }),
-            "cn.tailwind-conflict" => CssClassComposer.Combine("p-2", "text-sm", "p-4", "text-lg"),
-            "cn.modifier-conflict" => CssClassComposer.Combine("hover:bg-red-500", "hover:bg-blue-500", "focus:bg-green-500"),
-            "cn.responsive-conflict" => CssClassComposer.Combine("md:p-2", "p-1", "md:p-6", "lg:p-8"),
-            "cn.arbitrary-value-conflict" => CssClassComposer.Combine("w-[12px]", "w-[2rem]", "h-[12px]"),
-            "cn.important-modifier" => CssClassComposer.Combine("p-2", "p-4!", "p-6"),
-            "cn.negative-utility" => CssClassComposer.Combine("mt-2", "-mt-4", "mx-1"),
-            "cn.duplicate" => CssClassComposer.Combine("block", "block", "custom", "custom"),
-            "cn.arbitrary-token" => CssClassComposer.Combine("custom-token", "tenant-theme", "data-[open=true]:block"),
-            "cn.empty" => CssClassComposer.Combine(false, null, ""),
-            "cn.projection-equivalence" => CssClassComposer.Combine("rtl:ms-2", "rtl:ms-4", "forced-colors:border", "theme-token"),
-            _ => "button active",
-        };
-        var expectedNode = fixture.RootElement.GetProperty("expected");
-        var fixtureValue = expectedNode.ValueKind == JsonValueKind.String ? expectedNode.GetString() : expectedNode.GetProperty("value").GetString();
-        Assert.Equal(fixtureValue, expected);
+        SharedFixtureBatch.Run(caseId, rawFixture, () => {
+            using var fixture = Fixture.Read("cn.");
+            if (fixture is null) return;
+            var id = fixture.RootElement.GetProperty("id").GetString();
+            Assert.Contains(id, Fixture.CaseIds("hlp.ui.cn"));
+            var expected = id switch
+            {
+                "cn.strings" => CssClassComposer.Combine("button", "primary"),
+                "cn.nested-arrays" => CssClassComposer.Combine("root", new object?[] { "child", new[] { "leaf" } }),
+                "cn.object-map" => CssClassComposer.Combine(new[] { new KeyValuePair<string, bool>("enabled", true), new("disabled", false), new("selected", true) }),
+                "cn.tailwind-conflict" => CssClassComposer.Combine("p-2", "text-sm", "p-4", "text-lg"),
+                "cn.modifier-conflict" => CssClassComposer.Combine("hover:bg-red-500", "hover:bg-blue-500", "focus:bg-green-500"),
+                "cn.responsive-conflict" => CssClassComposer.Combine("md:p-2", "p-1", "md:p-6", "lg:p-8"),
+                "cn.arbitrary-value-conflict" => CssClassComposer.Combine("w-[12px]", "w-[2rem]", "h-[12px]"),
+                "cn.important-modifier" => CssClassComposer.Combine("p-2", "p-4!", "p-6"),
+                "cn.negative-utility" => CssClassComposer.Combine("mt-2", "-mt-4", "mx-1"),
+                "cn.duplicate" => CssClassComposer.Combine("block", "block", "custom", "custom"),
+                "cn.arbitrary-token" => CssClassComposer.Combine("custom-token", "tenant-theme", "data-[open=true]:block"),
+                "cn.empty" => CssClassComposer.Combine(false, null, ""),
+                "cn.projection-equivalence" => CssClassComposer.Combine("rtl:ms-2", "rtl:ms-4", "forced-colors:border", "theme-token"),
+                _ => "button active",
+            };
+            var expectedNode = fixture.RootElement.GetProperty("expected");
+            var fixtureValue = expectedNode.ValueKind == JsonValueKind.String ? expectedNode.GetString() : expectedNode.GetProperty("value").GetString();
+            Assert.Equal(fixtureValue, expected);
+        });
     }
 }
 
@@ -103,25 +109,28 @@ public sealed class DefaultStringsConformanceTests
         Assert.Equal("73c7cec0b07f0058d0a48784e76fe8aa86f8e421f85716ff2ea9cc53975c3f7c", CatalogDigest());
     }
 
-    [Fact]
+    [Theory]
     [Trait("ModuleConformance", "hlp.ui.default-strings")]
-    public void SharedFixtureConforms()
+    [MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.default-strings", MemberType = typeof(SharedFixtureBatch))]
+    public void SharedFixtureConforms(string caseId, string? rawFixture)
     {
-        using var fixture = Fixture.Read("default-strings.");
-        if (fixture is null) return;
-        var id = fixture.RootElement.GetProperty("id").GetString();
-        Assert.Contains(id, Fixture.CaseIds("hlp.ui.default-strings"));
-        switch (id)
-        {
-            case "default-strings.keyset": Assert.Equal(713, HarborlineDefaultStrings.Values.Count); break;
-            case "default-strings.digest": Assert.Equal("73c7cec0b07f0058d0a48784e76fe8aa86f8e421f85716ff2ea9cc53975c3f7c", CatalogDigest()); break;
-            case "default-strings.english-fallback": Assert.Equal("Loading", HarborlineDefaultStrings.Get("common.loading")); break;
-            case "default-strings.interpolate-string": Assert.Equal("Remove Invoice", HarborlineDefaultStrings.Interpolate("Remove {label}", new Dictionary<string, object?> { ["label"] = "Invoice" })); break;
-            case "default-strings.interpolate-number": Assert.Equal("Page 12", HarborlineDefaultStrings.Interpolate("Page {page}", new Dictionary<string, object?> { ["page"] = 12 })); break;
-            case "default-strings.missing-variable": Assert.Equal("Step 2 of {total}", HarborlineDefaultStrings.Interpolate("Step {current} of {total}", new Dictionary<string, object?> { ["current"] = 2 })); break;
-            case "default-strings.no-variables": Assert.Equal("Loading", HarborlineDefaultStrings.Interpolate("Loading")); break;
-            default: Assert.NotEmpty(HarborlineDefaultStrings.Values); break;
-        }
+        SharedFixtureBatch.Run(caseId, rawFixture, () => {
+            using var fixture = Fixture.Read("default-strings.");
+            if (fixture is null) return;
+            var id = fixture.RootElement.GetProperty("id").GetString();
+            Assert.Contains(id, Fixture.CaseIds("hlp.ui.default-strings"));
+            switch (id)
+            {
+                case "default-strings.keyset": Assert.Equal(713, HarborlineDefaultStrings.Values.Count); break;
+                case "default-strings.digest": Assert.Equal("73c7cec0b07f0058d0a48784e76fe8aa86f8e421f85716ff2ea9cc53975c3f7c", CatalogDigest()); break;
+                case "default-strings.english-fallback": Assert.Equal("Loading", HarborlineDefaultStrings.Get("common.loading")); break;
+                case "default-strings.interpolate-string": Assert.Equal("Remove Invoice", HarborlineDefaultStrings.Interpolate("Remove {label}", new Dictionary<string, object?> { ["label"] = "Invoice" })); break;
+                case "default-strings.interpolate-number": Assert.Equal("Page 12", HarborlineDefaultStrings.Interpolate("Page {page}", new Dictionary<string, object?> { ["page"] = 12 })); break;
+                case "default-strings.missing-variable": Assert.Equal("Step 2 of {total}", HarborlineDefaultStrings.Interpolate("Step {current} of {total}", new Dictionary<string, object?> { ["current"] = 2 })); break;
+                case "default-strings.no-variables": Assert.Equal("Loading", HarborlineDefaultStrings.Interpolate("Loading")); break;
+                default: Assert.NotEmpty(HarborlineDefaultStrings.Values); break;
+            }
+        });
     }
 
     private static string CatalogDigest()
@@ -184,25 +193,28 @@ public sealed class FormViewConformanceTests
         Assert.True(merged.Canonical.Value.HasValue);
     }
 
-    [Fact]
+    [Theory]
     [Trait("ModuleConformance", "hlp.ui.form-view")]
-    public void SharedFixtureConforms()
+    [MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.form-view", MemberType = typeof(SharedFixtureBatch))]
+    public void SharedFixtureConforms(string caseId, string? rawFixture)
     {
-        using var fixture = Fixture.Read("form-view.");
-        if (fixture is null) return;
-        var id = fixture.RootElement.GetProperty("id").GetString();
-        Assert.Contains(id, Fixture.CaseIds("hlp.ui.form-view"));
-        if (id!.StartsWith("form-view.domain-", StringComparison.Ordinal))
-        {
-            FormViewDomainTests.AssertFixture(fixture.RootElement);
-            return;
-        }
-        var text = new InternationalizedText { DefaultLocale = "en", Values = new Dictionary<string, string> { ["en"] = "Amount", ["fr-CA"] = "Montant", ["ar"] = "المبلغ" } };
-        if (id == "form-view.locale-exact") Assert.Equal("Montant", FormViewText.Resolve(text, ["fr-CA"]));
-        if (id == "form-view.locale-primary") Assert.Equal("المبلغ", FormViewText.Resolve(text, ["ar-AE"]));
-        if (id == "form-view.locale-fallback") Assert.Equal("Field", FormViewText.Resolve(null, ["es-MX"], "Field"));
-        Assert.Equal("Harborline.Contracts", typeof(FormView).Assembly.GetName().Name);
-        Assert.Equal("Harborline.Foundation", typeof(FormViewBinding).Assembly.GetName().Name);
+        SharedFixtureBatch.Run(caseId, rawFixture, () => {
+            using var fixture = Fixture.Read("form-view.");
+            if (fixture is null) return;
+            var id = fixture.RootElement.GetProperty("id").GetString();
+            Assert.Contains(id, Fixture.CaseIds("hlp.ui.form-view"));
+            if (id!.StartsWith("form-view.domain-", StringComparison.Ordinal))
+            {
+                FormViewDomainTests.AssertFixture(fixture.RootElement);
+                return;
+            }
+            var text = new InternationalizedText { DefaultLocale = "en", Values = new Dictionary<string, string> { ["en"] = "Amount", ["fr-CA"] = "Montant", ["ar"] = "المبلغ" } };
+            if (id == "form-view.locale-exact") Assert.Equal("Montant", FormViewText.Resolve(text, ["fr-CA"]));
+            if (id == "form-view.locale-primary") Assert.Equal("المبلغ", FormViewText.Resolve(text, ["ar-AE"]));
+            if (id == "form-view.locale-fallback") Assert.Equal("Field", FormViewText.Resolve(null, ["es-MX"], "Field"));
+            Assert.Equal("Harborline.Contracts", typeof(FormView).Assembly.GetName().Name);
+            Assert.Equal("Harborline.Foundation", typeof(FormViewBinding).Assembly.GetName().Name);
+        });
     }
 }
 
@@ -210,7 +222,7 @@ internal static class Fixture
 {
     internal static JsonDocument? Read(string prefix)
     {
-        var raw = Environment.GetEnvironmentVariable("HARBORLINE_CONFORMANCE_FIXTURE");
+        var raw = SharedFixtureBatch.Current;
         if (string.IsNullOrWhiteSpace(raw)) return null;
         var document = JsonDocument.Parse(raw);
         var id = document.RootElement.GetProperty("id").GetString();

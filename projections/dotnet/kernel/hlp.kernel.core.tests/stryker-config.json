@@ -7,9 +7,9 @@
       "target": "origin/main"
     },
     "thresholds": {
-      "high": 94,
-      "low": 94,
-      "break": 94
+      "high": 99,
+      "low": 99,
+      "break": 99
     },
     "reporters": [
       "json"

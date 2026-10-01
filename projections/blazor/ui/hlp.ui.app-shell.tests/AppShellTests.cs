@@ -382,33 +382,36 @@ public sealed class AppShellTests : BunitContext
         Assert.DoesNotMatch($@"\.hl-app-shell__page\{{[^}}]*min-inline-size:{attemptedFloor}px",css);
         Assert.Equal(ShellChromeContract.ContentFloor,requiredFloor);Assert.True(ShellChromeContract.ContentFloor>attemptedFloor);
     }
-    [Fact,Trait("ModuleConformance","hlp.ui.app-shell")]
-    public void SharedFixtureDrivesActualRender()
+    [Theory,Trait("ModuleConformance","hlp.ui.app-shell")]
+    [MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.app-shell", MemberType = typeof(SharedFixtureBatch))]
+    public void SharedFixtureDrivesActualRender(string caseId, string? rawFixture)
     {
-        var raw=Environment.GetEnvironmentVariable("HARBORLINE_CONFORMANCE_FIXTURE");
-        if(string.IsNullOrWhiteSpace(raw)){Assert.NotNull(Shell());return;}
-        using var fixture=JsonDocument.Parse(raw);
-        var input=fixture.RootElement.GetProperty("input");
-        var id=fixture.RootElement.GetProperty("id").GetString();
-        if(id=="app-shell.id-required"){Assert.Equal("app-shell-id-required",Assert.Throws<InvalidOperationException>(()=>Render<HarborlineAppShell>(p=>p.Add(x=>x.Navigation,Nav()).Add(x=>x.ChildContent,Content("Body")))).Message);return;}
-        if(id=="app-shell.body-required"){Assert.Equal("app-shell-body-required",Assert.Throws<InvalidOperationException>(()=>Render<HarborlineAppShell>(p=>p.Add(x=>x.ShellId,"ops").Add(x=>x.Navigation,Nav()))).Message);return;}
-        if(id=="app-shell.chrome-law-mutations"){SharedChromeLawFixtureIsAppliedByBlazor();return;}
-        if(id=="app-shell.panel-set-live-absent")
-        {
-            var declaration=JsonSerializer.Deserialize<PackNavigationDeclaration>(File.ReadAllText(Repo("conformance/hlp.ui.app-shell/api-58-pack-navigation.json")),new JsonSerializerOptions{PropertyNameCaseInsensitive=true})!;
-            var absent=Shell(nav:declaration);
-            Assert.Empty(absent.FindAll("button[aria-label=Notifications]"));Assert.Empty(absent.FindAll("button[aria-label=Pilot]"));return;
-        }
-        if(id=="app-shell.panel-set-live-present")
-        {
-            var panels=input.GetProperty("declaredPanelSet").EnumerateArray().Select(x=>x.GetString()!).Select(panelId=>new PackPanelDeclaration(panelId,$"panels.{panelId}.toggle",$"mod+shift+{panelId[0]}",400,panelId=="pilot"?300:180,false)).ToArray();
-            var gate=input.GetProperty("capabilityGate");var guidance=gate.GetProperty("guidance").GetString()!;
-            var present=Shell(nav:Nav([Action("create","Create asset",gate.GetProperty("binding").GetString()!,["tax.roles/maintainer"])],panels),state:State(guidance));
-            Assert.Single(present.FindAll("button[aria-label=Notifications]"));Assert.Single(present.FindAll("button[aria-label=Pilot]"));Assert.Empty(present.FindAll(".hl-app-shell__create"));Assert.Contains(guidance,present.Find("[data-capability-guidance]").TextContent);return;
-        }
-        var shellId=input.TryGetProperty("shellId",out var shell)&&shell.ValueKind==JsonValueKind.String?shell.GetString()!:"ops";
-        var cut=Render<HarborlineAppShell>(p=>p.Add(x=>x.ShellId,shellId).Add(x=>x.Navigation,Nav()).Add(x=>x.NavigationState,State()).Add(x=>x.RoleVocabulary,Vocabulary).Add(x=>x.HeldRoles,NoRoles).Add(x=>x.ChildContent,Content("content")));
-        Assert.Single(cut.FindAll($"[data-shell-id='{shellId}']"));Assert.Single(cut.FindAll("main#main"));
+        SharedFixtureBatch.Run(caseId, rawFixture, () => {
+            var raw=SharedFixtureBatch.Current;
+            if(string.IsNullOrWhiteSpace(raw)){Assert.NotNull(Shell());return;}
+            using var fixture=JsonDocument.Parse(raw);
+            var input=fixture.RootElement.GetProperty("input");
+            var id=fixture.RootElement.GetProperty("id").GetString();
+            if(id=="app-shell.id-required"){Assert.Equal("app-shell-id-required",Assert.Throws<InvalidOperationException>(()=>Render<HarborlineAppShell>(p=>p.Add(x=>x.Navigation,Nav()).Add(x=>x.ChildContent,Content("Body")))).Message);return;}
+            if(id=="app-shell.body-required"){Assert.Equal("app-shell-body-required",Assert.Throws<InvalidOperationException>(()=>Render<HarborlineAppShell>(p=>p.Add(x=>x.ShellId,"ops").Add(x=>x.Navigation,Nav()))).Message);return;}
+            if(id=="app-shell.chrome-law-mutations"){SharedChromeLawFixtureIsAppliedByBlazor();return;}
+            if(id=="app-shell.panel-set-live-absent")
+            {
+                var declaration=JsonSerializer.Deserialize<PackNavigationDeclaration>(File.ReadAllText(Repo("conformance/hlp.ui.app-shell/api-58-pack-navigation.json")),new JsonSerializerOptions{PropertyNameCaseInsensitive=true})!;
+                var absent=Shell(nav:declaration);
+                Assert.Empty(absent.FindAll("button[aria-label=Notifications]"));Assert.Empty(absent.FindAll("button[aria-label=Pilot]"));return;
+            }
+            if(id=="app-shell.panel-set-live-present")
+            {
+                var panels=input.GetProperty("declaredPanelSet").EnumerateArray().Select(x=>x.GetString()!).Select(panelId=>new PackPanelDeclaration(panelId,$"panels.{panelId}.toggle",$"mod+shift+{panelId[0]}",400,panelId=="pilot"?300:180,false)).ToArray();
+                var gate=input.GetProperty("capabilityGate");var guidance=gate.GetProperty("guidance").GetString()!;
+                var present=Shell(nav:Nav([Action("create","Create asset",gate.GetProperty("binding").GetString()!,["tax.roles/maintainer"])],panels),state:State(guidance));
+                Assert.Single(present.FindAll("button[aria-label=Notifications]"));Assert.Single(present.FindAll("button[aria-label=Pilot]"));Assert.Empty(present.FindAll(".hl-app-shell__create"));Assert.Contains(guidance,present.Find("[data-capability-guidance]").TextContent);return;
+            }
+            var shellId=input.TryGetProperty("shellId",out var shell)&&shell.ValueKind==JsonValueKind.String?shell.GetString()!:"ops";
+            var cut=Render<HarborlineAppShell>(p=>p.Add(x=>x.ShellId,shellId).Add(x=>x.Navigation,Nav()).Add(x=>x.NavigationState,State()).Add(x=>x.RoleVocabulary,Vocabulary).Add(x=>x.HeldRoles,NoRoles).Add(x=>x.ChildContent,Content("content")));
+            Assert.Single(cut.FindAll($"[data-shell-id='{shellId}']"));Assert.Single(cut.FindAll("main#main"));
+        });
     }
     private static void AssertDockTree(JsonElement expected,DockNode? actual)
     {

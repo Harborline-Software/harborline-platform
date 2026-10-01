@@ -887,16 +887,17 @@
       "measured": "2026-09-26, winbox, 2 quiet-host runs, patched StrykerJS 10.0.0, --concurrency 4 (winbox is also a CI runner tonight), run1 RuntimeError 11 / CompileError 0, run2 RuntimeError 11 / CompileError 0; lower run is the floor (ruling T-724 98)."
     },
     "projections/typescript/foundation/hlp.foundation.rule-runtime": {
-      "baseline": 71,
-      "break": 71,
-      "score": 71.87,
-      "tested": 5128,
+      "baseline": 59,
+      "break": 72,
+      "score": 72.16,
+      "tested": 5145,
       "observed": [
-        72.04,
-        71.87
+        59.34,
+        59.38,
+        72.16
       ],
-      "report": "C:/hl-ab/rb-reports/platform/hlp.foundation.rule-runtime/t1018-run1.json",
-      "measured": "2026-09-30, winbox, 2 quiet-host runs with the T-1018 tests, patched StrykerJS 10.0.0, default concurrency (15), run1 72.04 and run2 71.87, RuntimeError 2 / CompileError 0 in both; lower run is the floor (ruling T-724 98). The rise from 59.34 is mostly the T-984 tests (#231) merged since the 2026-09-26 measurement."
+      "report": "C:/hl-ab/rb-reports/platform/hlp.foundation.rule-runtime/run1.json",
+      "measured": "2026-09-30, winbox, T-1020 full run at e381df5a (every mutable file, StrykerJS 10.0.0, default concurrency), 3898 Killed / 13 Timeout / 1234 Survived / 275 NoCoverage / 2 RuntimeError; break raised 59 to 72 with 8 mutants of headroom (ruling T-724 95). The 2026-09-26 observations above are the older, lower floor."
     }
   }
 }

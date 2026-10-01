@@ -88,14 +88,17 @@ public sealed class ChartTests : BunitContext
         Assert.Equal(2, cut.FindAll(".hl-chart__axis").Count);
     }
 
-    [Fact, Trait("ModuleConformance", "hlp.ui.chart")]
-    public void SharedFixtureConforms()
+    [Theory, Trait("ModuleConformance", "hlp.ui.chart")]
+    [MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.chart", MemberType = typeof(SharedFixtureBatch))]
+    public void SharedFixtureConforms(string caseId, string? rawFixture)
     {
-        var raw = Environment.GetEnvironmentVariable("HARBORLINE_CONFORMANCE_FIXTURE");
-        if (string.IsNullOrWhiteSpace(raw)) return;
-        using var fixture = System.Text.Json.JsonDocument.Parse(raw);
-        Assert.StartsWith("chart.", fixture.RootElement.GetProperty("id").GetString());
-        Assert.Equal("line", RenderLine(1, 0).Find("figure").GetAttribute("data-hl-chart-kind"));
+        SharedFixtureBatch.Run(caseId, rawFixture, () => {
+            var raw = SharedFixtureBatch.Current;
+            if (string.IsNullOrWhiteSpace(raw)) return;
+            using var fixture = System.Text.Json.JsonDocument.Parse(raw);
+            Assert.StartsWith("chart.", fixture.RootElement.GetProperty("id").GetString());
+            Assert.Equal("line", RenderLine(1, 0).Find("figure").GetAttribute("data-hl-chart-kind"));
+        });
     }
 
     internal IRenderedComponent<HarborlineChart> RenderLine(int seriesCount, int cycle)

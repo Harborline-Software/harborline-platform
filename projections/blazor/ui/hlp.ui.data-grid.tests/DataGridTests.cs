@@ -72,28 +72,31 @@ public sealed partial class DataGridTests : BunitContext
         Assert.Single(cut.FindAll("[data-hl-row-id='2']"));
     }
 
-    [Fact, Trait("ModuleConformance", "hlp.ui.data-grid")]
-    public async Task SharedFixtureConforms()
+    [Theory, Trait("ModuleConformance", "hlp.ui.data-grid")]
+    [MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.data-grid", MemberType = typeof(SharedFixtureBatch))]
+    public Task SharedFixtureConforms(string caseId, string? rawFixture)
     {
-        var raw = Environment.GetEnvironmentVariable("HARBORLINE_CONFORMANCE_FIXTURE");
-        if (string.IsNullOrWhiteSpace(raw)) return;
-        using var fixture = JsonDocument.Parse(raw);
-        var fixtureId = fixture.RootElement.GetProperty("id").GetString();
-        Assert.StartsWith("data-grid.", fixtureId);
-        if (fixtureId == "data-grid.lazy-children") { await LazyFixtureReplaysEveryStateReplacementAndFocusEntryPoint(); LazyFixtureInterleavesRequestsAndNestedResponses(); StaticAncestorKeepsFirstLoadedRepresentative(); EveryStaticAncestorAggregateFollowsIndependentSourceTraversal(); return; }
-        if (fixtureId == "data-grid.removal-priority-required")
-        {
-            var parameter = typeof(DataGridColumn<Row>).GetConstructors().Single().GetParameters()
-                .Single(candidate => candidate.Name == nameof(DataGridColumn<Row>.RemovalPriority));
-            Assert.Equal(typeof(int), parameter.ParameterType);
-            Assert.False(parameter.IsOptional);
-            Assert.False(parameter.HasDefaultValue);
-            Assert.Equal("column-removal-priority-required", fixture.RootElement.GetProperty("expected").GetProperty("error").GetString());
-        }
-        Assert.Equal("grid", Render<HarborlineDataGrid<Row>>(parameters => parameters
-            .Add(component => component.Rows, Array.Empty<Row>())
-            .Add(component => component.GetRowId, row => row.Id)
-            .Add(component => component.Columns, Columns)).Find(".hl-data-grid").GetAttribute("role"));
+        return SharedFixtureBatch.RunAsync(caseId, rawFixture, async () => {
+            var raw = SharedFixtureBatch.Current;
+            if (string.IsNullOrWhiteSpace(raw)) return;
+            using var fixture = JsonDocument.Parse(raw);
+            var fixtureId = fixture.RootElement.GetProperty("id").GetString();
+            Assert.StartsWith("data-grid.", fixtureId);
+            if (fixtureId == "data-grid.lazy-children") { await LazyFixtureReplaysEveryStateReplacementAndFocusEntryPoint(); LazyFixtureInterleavesRequestsAndNestedResponses(); StaticAncestorKeepsFirstLoadedRepresentative(); EveryStaticAncestorAggregateFollowsIndependentSourceTraversal(); return; }
+            if (fixtureId == "data-grid.removal-priority-required")
+            {
+                var parameter = typeof(DataGridColumn<Row>).GetConstructors().Single().GetParameters()
+                    .Single(candidate => candidate.Name == nameof(DataGridColumn<Row>.RemovalPriority));
+                Assert.Equal(typeof(int), parameter.ParameterType);
+                Assert.False(parameter.IsOptional);
+                Assert.False(parameter.HasDefaultValue);
+                Assert.Equal("column-removal-priority-required", fixture.RootElement.GetProperty("expected").GetProperty("error").GetString());
+            }
+            Assert.Equal("grid", Render<HarborlineDataGrid<Row>>(parameters => parameters
+                .Add(component => component.Rows, Array.Empty<Row>())
+                .Add(component => component.GetRowId, row => row.Id)
+                .Add(component => component.Columns, Columns)).Find(".hl-data-grid").GetAttribute("role"));
+        });
     }
 
     [Fact]

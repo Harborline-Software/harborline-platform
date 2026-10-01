@@ -40,40 +40,43 @@ public sealed class CheckBoxTests : BunitContext
         Assert.False(cut.Find("input").HasAttribute("checked"));
     }
 
-    [Fact, Trait("ModuleConformance", "hlp.ui.check-box")]
-    public void SharedFixtureConforms()
+    [Theory, Trait("ModuleConformance", "hlp.ui.check-box")]
+    [MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.check-box", MemberType = typeof(SharedFixtureBatch))]
+    public void SharedFixtureConforms(string caseId, string? rawFixture)
     {
-        var raw = Environment.GetEnvironmentVariable("HARBORLINE_CONFORMANCE_FIXTURE");
-        if (string.IsNullOrWhiteSpace(raw)) return;
-        using var fixture = System.Text.Json.JsonDocument.Parse(raw);
-        var id = fixture.RootElement.GetProperty("id").GetString();
-        Assert.StartsWith("check-box.", id);
-        Assert.Equal("checkbox", Render<HarborlineCheckBox>().Find("input").GetAttribute("type"));
+        SharedFixtureBatch.Run(caseId, rawFixture, () => {
+            var raw = SharedFixtureBatch.Current;
+            if (string.IsNullOrWhiteSpace(raw)) return;
+            using var fixture = System.Text.Json.JsonDocument.Parse(raw);
+            var id = fixture.RootElement.GetProperty("id").GetString();
+            Assert.StartsWith("check-box.", id);
+            Assert.Equal("checkbox", Render<HarborlineCheckBox>().Find("input").GetAttribute("type"));
 
-        if (id != "check-box.class-parity") return;
-        var input = fixture.RootElement.GetProperty("input");
-        var expected = fixture.RootElement.GetProperty("expected");
-        var size = input.GetProperty("size").GetString() switch
-        {
-            "sm" => CheckBoxSize.Small,
-            "lg" => CheckBoxSize.Large,
-            _ => CheckBoxSize.Medium,
-        };
+            if (id != "check-box.class-parity") return;
+            var input = fixture.RootElement.GetProperty("input");
+            var expected = fixture.RootElement.GetProperty("expected");
+            var size = input.GetProperty("size").GetString() switch
+            {
+                "sm" => CheckBoxSize.Small,
+                "lg" => CheckBoxSize.Large,
+                _ => CheckBoxSize.Medium,
+            };
 
-        var labelled = Render<HarborlineCheckBox>(p => p
-            .Add(x => x.Label, input.GetProperty("label").GetString())
-            .Add(x => x.Size, size)
-            .Add(x => x.Error, input.GetProperty("error").GetBoolean()));
-        Assert.Equal(Classes(expected, "controlClasses"), labelled.Find("input").ClassList);
-        Assert.Equal(Classes(expected, "rootClasses"), labelled.Find("label").ClassList);
+            var labelled = Render<HarborlineCheckBox>(p => p
+                .Add(x => x.Label, input.GetProperty("label").GetString())
+                .Add(x => x.Size, size)
+                .Add(x => x.Error, input.GetProperty("error").GetBoolean()));
+            Assert.Equal(Classes(expected, "controlClasses"), labelled.Find("input").ClassList);
+            Assert.Equal(Classes(expected, "rootClasses"), labelled.Find("label").ClassList);
 
-        // The root class list must not depend on whether a label is present: this lane used to
-        // render a hl-check-box__standalone root in that case, which the authority never defined.
-        var bare = Render<HarborlineCheckBox>(p => p
-            .Add(x => x.Size, size)
-            .Add(x => x.Error, input.GetProperty("error").GetBoolean()));
-        Assert.Equal(Classes(expected, "controlClasses"), bare.Find("input").ClassList);
-        Assert.Equal(Classes(expected, "rootClasses"), bare.Find("span").ClassList);
+            // The root class list must not depend on whether a label is present: this lane used to
+            // render a hl-check-box__standalone root in that case, which the authority never defined.
+            var bare = Render<HarborlineCheckBox>(p => p
+                .Add(x => x.Size, size)
+                .Add(x => x.Error, input.GetProperty("error").GetBoolean()));
+            Assert.Equal(Classes(expected, "controlClasses"), bare.Find("input").ClassList);
+            Assert.Equal(Classes(expected, "rootClasses"), bare.Find("span").ClassList);
+        });
     }
 
     private static string[] Classes(System.Text.Json.JsonElement expected, string property) =>

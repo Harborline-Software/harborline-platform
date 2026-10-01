@@ -24,12 +24,15 @@ public sealed class LayersStateTests
         Assert.Same(active, active.Activate("rules"));
     }
 
-    [Fact, Trait("ModuleConformance", "hlp.ui.layers-state")]
-    public void SharedFixtureConforms()
+    [Theory, Trait("ModuleConformance", "hlp.ui.layers-state")]
+    [MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.layers-state", MemberType = typeof(SharedFixtureBatch))]
+    public void SharedFixtureConforms(string caseId, string? rawFixture)
     {
-        using var fixture = Fixture.Read("layers.");
-        if (fixture is null) return;
-        Assert.Contains(fixture.RootElement.GetProperty("id").GetString(), Fixture.CaseIds("hlp.ui.layers-state"));
-        Assert.Null(LayersState.Initialize([], null).ActiveId);
+        SharedFixtureBatch.Run(caseId, rawFixture, () => {
+            using var fixture = Fixture.Read("layers.");
+            if (fixture is null) return;
+            Assert.Contains(fixture.RootElement.GetProperty("id").GetString(), Fixture.CaseIds("hlp.ui.layers-state"));
+            Assert.Null(LayersState.Initialize([], null).ActiveId);
+        });
     }
 }

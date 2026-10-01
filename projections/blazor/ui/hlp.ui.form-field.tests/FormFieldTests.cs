@@ -36,14 +36,17 @@ public sealed class FormFieldTests : BunitContext
         Assert.NotEmpty(cut.FindAll("#amount-hint"));
     }
 
-    [Fact, Trait("ModuleConformance", "hlp.ui.form-field")]
-    public void SharedFixtureConforms()
+    [Theory, Trait("ModuleConformance", "hlp.ui.form-field")]
+    [MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.form-field", MemberType = typeof(SharedFixtureBatch))]
+    public void SharedFixtureConforms(string caseId, string? rawFixture)
     {
-        var raw = Environment.GetEnvironmentVariable("HARBORLINE_CONFORMANCE_FIXTURE");
-        if (string.IsNullOrWhiteSpace(raw)) return;
-        using var fixture = System.Text.Json.JsonDocument.Parse(raw);
-        Assert.StartsWith("form-field.", fixture.RootElement.GetProperty("id").GetString());
-        Assert.Equal("x", Render<HarborlineFormField>(p => p.Add(x => x.Name, "x").Add(x => x.Label, "X")).Find("label").GetAttribute("for"));
+        SharedFixtureBatch.Run(caseId, rawFixture, () => {
+            var raw = SharedFixtureBatch.Current;
+            if (string.IsNullOrWhiteSpace(raw)) return;
+            using var fixture = System.Text.Json.JsonDocument.Parse(raw);
+            Assert.StartsWith("form-field.", fixture.RootElement.GetProperty("id").GetString());
+            Assert.Equal("x", Render<HarborlineFormField>(p => p.Add(x => x.Name, "x").Add(x => x.Label, "X")).Find("label").GetAttribute("for"));
+        });
     }
 
     private sealed class ContextProbe : ComponentBase

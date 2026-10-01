@@ -11,10 +11,16 @@ public sealed class SideNavTests : BunitContext
     [Fact] public void ActiveDescendantExpandsAndCarriesCurrentPage() { var cut = Render<HarborlineSideNav>(p => p.Add(x => x.Items, Items).Add(x => x.ActiveItemId, "daily")); Assert.Equal("true", cut.Find("button[aria-expanded]").GetAttribute("aria-expanded")); Assert.Equal("page", cut.Find("[data-item-id=daily] [aria-current]").GetAttribute("aria-current")); }
     [Fact] public void DisabledLeafDoesNotActivateAndCollapsedKeepsName() { var count = 0; var items = new[] { new SideNavNavigationItem("locked", "Locked", Disabled: true) }; var cut = Render<HarborlineSideNav>(p => p.Add(x => x.Items, items).Add(x => x.Collapsed, true).Add(x => x.ItemActivated, _ => count++)); cut.Find("button").Click(); Assert.Equal(0, count); Assert.Equal("Locked", cut.Find("button").GetAttribute("aria-label")); Assert.Equal("tooltip", cut.Find("[role=tooltip]").GetAttribute("role")); }
     [Fact] public void InteractiveTrailingContentIsSibling() { RenderFragment accessory = builder => { builder.OpenElement(0, "button"); builder.AddContent(1, "Pin"); builder.CloseElement(); }; var cut = Render<HarborlineSideNav>(p => p.Add(x => x.Items, new[] { new SideNavNavigationItem("home", "Home", TrailingContent: accessory) })); Assert.Single(cut.FindAll(".hl-side-nav__row > .hl-side-nav__accessory > button")); Assert.Empty(cut.FindAll(".hl-side-nav__control button")); }
-    [Fact, Trait("ModuleConformance", "hlp.ui.side-nav")] public void SharedFixtureConforms() { AssertFixture("side-nav."); }
+    [Theory, Trait("ModuleConformance", "hlp.ui.side-nav")] [MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.side-nav", MemberType = typeof(SharedFixtureBatch))]
+    public void SharedFixtureConforms(string caseId, string? rawFixture)
+    {
+        SharedFixtureBatch.Run(caseId, rawFixture, () => {
+            AssertFixture("side-nav.");
+        });
+    }
     private void AssertFixture(string prefix)
     {
-        var raw = Environment.GetEnvironmentVariable("HARBORLINE_CONFORMANCE_FIXTURE");
+        var raw = SharedFixtureBatch.Current;
         if (string.IsNullOrWhiteSpace(raw)) return;
         using var fixture = System.Text.Json.JsonDocument.Parse(raw);
         var id = fixture.RootElement.GetProperty("id").GetString();

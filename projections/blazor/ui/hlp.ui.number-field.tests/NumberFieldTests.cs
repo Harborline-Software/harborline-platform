@@ -40,11 +40,14 @@ public sealed class NumberFieldTests : BunitContext
         Assert.Equal("quantity-hint", input.GetAttribute("aria-describedby"));
     }
 
-    [Fact, Trait("ModuleConformance", "hlp.ui.number-field")]
-    public void SharedFixtureConforms()
+    [Theory, Trait("ModuleConformance", "hlp.ui.number-field")]
+    [MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.number-field", MemberType = typeof(SharedFixtureBatch))]
+    public void SharedFixtureConforms(string caseId, string? rawFixture)
     {
-        var raw = Environment.GetEnvironmentVariable("HARBORLINE_CONFORMANCE_FIXTURE"); if (string.IsNullOrWhiteSpace(raw)) return;
-        using var fixture = System.Text.Json.JsonDocument.Parse(raw); Assert.StartsWith("number-field.", fixture.RootElement.GetProperty("id").GetString());
-        Assert.Equal("number", Render<HarborlineNumberField>(p => p.Add(x => x.Name, "x").Add(x => x.Value, string.Empty)).Find("input").GetAttribute("type"));
+        SharedFixtureBatch.Run(caseId, rawFixture, () => {
+            var raw = SharedFixtureBatch.Current; if (string.IsNullOrWhiteSpace(raw)) return;
+            using var fixture = System.Text.Json.JsonDocument.Parse(raw); Assert.StartsWith("number-field.", fixture.RootElement.GetProperty("id").GetString());
+            Assert.Equal("number", Render<HarborlineNumberField>(p => p.Add(x => x.Name, "x").Add(x => x.Value, string.Empty)).Find("input").GetAttribute("type"));
+        });
     }
 }
