@@ -1,7 +1,7 @@
 // Oracles: explicit owner-approved event/lane table, T-577, PROC-0001 and GitHub event semantics.
 import assert from 'node:assert/strict'
-import {spawnSync} from 'node:child_process'
-import {readFileSync, mkdtempSync, writeFileSync, rmSync} from 'node:fs'
+import {execFileSync, spawnSync} from 'node:child_process'
+import {readFileSync, mkdtempSync, mkdirSync, writeFileSync, rmSync} from 'node:fs'
 import {tmpdir} from 'node:os'
 import {resolve} from 'node:path'
 import test from 'node:test'
@@ -81,6 +81,52 @@ test('implementation and uncertain inputs retain early headless behavioral valid
   assert.equal(selected('phase-4-gate', {...c, payload: pr(false, [], 'outsider/platform')}), false)
   for (const event of ['merge_group', 'workflow_dispatch']) {
     assert.equal(selected('phase-4-gate', {...context(event, {}), preflightResult: 'skipped'}), true)
+  }
+})
+
+test('planner CLI handles real Git docs, cross-boundary renames, deletions, empty and unreadable diffs', () => {
+  const dir = mkdtempSync(resolve(tmpdir(), 'pr-plan-git-'))
+  const git = (...args) => execFileSync('git', ['-C', dir, ...args], {encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe']}).trim()
+  const commit = paths => {
+    if (paths.length) git('add', '--', ...paths)
+    git('-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', '-c', 'core.hooksPath=', 'commit', '-qm', 'fixture change')
+    return git('rev-parse', 'HEAD')
+  }
+  const event = resolve(dir, '.fixture-event.json')
+  const output = resolve(dir, '.fixture-output.txt')
+  const plan = (base, head) => {
+    writeFileSync(event, JSON.stringify({pull_request: {base: {sha: base}, head: {sha: head}}}))
+    writeFileSync(output, '')
+    const run = spawnSync(process.execPath, [resolve(root, 'tooling/plan-pr-validation.mjs')], {
+      cwd: dir, encoding: 'utf8', env: {...process.env, GITHUB_EVENT_PATH: event, GITHUB_OUTPUT: output},
+    })
+    assert.equal(run.status, 0, run.stderr)
+    return {output: readFileSync(output, 'utf8'), stdout: run.stdout}
+  }
+  try {
+    git('init', '-q')
+    mkdirSync(resolve(dir, 'projections'), {recursive: true})
+    mkdirSync(resolve(dir, 'tooling'), {recursive: true})
+    writeFileSync(resolve(dir, 'CONTRIBUTING.md'), 'fixture guidance\n')
+    writeFileSync(resolve(dir, 'projections/source.cs'), 'fixture source\n')
+    writeFileSync(resolve(dir, 'projections/other.cs'), 'other fixture source\n')
+    const base = commit(['CONTRIBUTING.md', 'projections/source.cs', 'projections/other.cs'])
+    writeFileSync(resolve(dir, 'CONTRIBUTING.md'), 'updated fixture guidance\n')
+    const docs = commit(['CONTRIBUTING.md'])
+    assert.equal(plan(base, docs).output, 'headless-required=false\n')
+    // The destination alone is allowlisted. The removed implementation path must still be seen.
+    git('mv', 'projections/source.cs', 'tooling/verify-ci-lanes.mjs')
+    const renamed = commit([]) // git mv already staged both sides.
+    assert.equal(plan(docs, renamed).output, 'headless-required=true\n')
+    git('rm', 'projections/other.cs')
+    const deleted = commit([]) // git rm already staged the deletion.
+    assert.equal(plan(renamed, deleted).output, 'headless-required=true\n')
+    assert.equal(plan(deleted, deleted).output, 'headless-required=true\n')
+    const unreadable = plan(deleted, 'ffffffffffffffffffffffffffffffffffffffff')
+    assert.equal(unreadable.output, 'headless-required=true\n')
+    assert.match(unreadable.stdout, /Unable to classify PR inputs; retaining headless validation/)
+  } finally {
+    rmSync(dir, {recursive: true, force: true})
   }
 })
 
