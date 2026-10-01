@@ -6,5 +6,11 @@ public sealed class GanttTests:BunitContext
     [Fact]public void TasksColumnsAndValidDependenciesPreserveOrder(){var cut=Render<HarborlineGantt>(p=>p.Add(x=>x.Tasks,Tasks).Add(x=>x.Dependencies,new[]{new GanttDependency("b","a"),new GanttDependency("missing","a")}));Assert.Equal(new[]{"b","a"},cut.FindAll("tbody tr").Select(r=>r.GetAttribute("data-hl-task-id")));Assert.Equal(4,cut.FindAll("th").Count);Assert.Single(cut.FindAll("path[data-hl-from]"));}
     [Fact]public void ZoomRequestDoesNotMutateControlledValue(){GanttZoom? requested=null;var cut=Render<HarborlineGantt>(p=>p.Add(x=>x.Tasks,Tasks).Add(x=>x.Zoom,GanttZoom.Week).Add(x=>x.ShowZoomPicker,true).Add(x=>x.ZoomChanged,z=>requested=z));cut.Find("select").Change("month");Assert.Equal(GanttZoom.Month,requested);Assert.Equal("week",cut.Find(".hl-gantt").GetAttribute("data-hl-zoom"));}
     [Fact]public void EmptyScheduleKeepsScrollViewportKeyboardReachable(){var cut=Render<HarborlineGantt>(p=>p.Add(x=>x.AccessibleLabel,"Dock schedule").Add(x=>x.Tasks,Array.Empty<GanttTask>()));var viewport=cut.Find(".hl-gantt__scroll");Assert.Equal("group",viewport.GetAttribute("role"));Assert.Equal("Dock schedule",viewport.GetAttribute("aria-label"));Assert.Equal("0",viewport.GetAttribute("tabindex"));}
-    [Fact,Trait("ModuleConformance","hlp.ui.gantt")]public void SharedFixtureConforms(){var raw=Environment.GetEnvironmentVariable("HARBORLINE_CONFORMANCE_FIXTURE");if(string.IsNullOrWhiteSpace(raw))return;using var fixture=System.Text.Json.JsonDocument.Parse(raw);Assert.StartsWith("gantt.",fixture.RootElement.GetProperty("id").GetString());Assert.Equal("true",Render<HarborlineGantt>(p=>p.Add(x=>x.Tasks,Tasks)).Find(".hl-gantt").GetAttribute("data-hl-readonly"));}
+    [Theory,Trait("ModuleConformance","hlp.ui.gantt")][MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.gantt", MemberType = typeof(SharedFixtureBatch))]
+    public void SharedFixtureConforms(string caseId, string? rawFixture)
+    {
+        SharedFixtureBatch.Run(caseId, rawFixture, () => {
+            var raw=SharedFixtureBatch.Current;if(string.IsNullOrWhiteSpace(raw))return;using var fixture=System.Text.Json.JsonDocument.Parse(raw);Assert.StartsWith("gantt.",fixture.RootElement.GetProperty("id").GetString());Assert.Equal("true",Render<HarborlineGantt>(p=>p.Add(x=>x.Tasks,Tasks)).Find(".hl-gantt").GetAttribute("data-hl-readonly"));
+        });
+    }
 }

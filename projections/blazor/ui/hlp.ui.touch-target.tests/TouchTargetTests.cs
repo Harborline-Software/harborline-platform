@@ -14,14 +14,17 @@ public sealed class TouchTargetNativeTests
         Assert.Contains("positioned", TouchTargetAffordances.For(TouchTargetStrategy.OverlayEstablishingPositionContext));
     }
 
-    [Fact]
+    [Theory]
     [Trait("ModuleConformance", "hlp.ui.touch-target")]
-    public void SharedFixtureConforms()
+    [MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.touch-target", MemberType = typeof(SharedFixtureBatch))]
+    public void SharedFixtureConforms(string caseId, string? rawFixture)
     {
-        var raw = Environment.GetEnvironmentVariable("HARBORLINE_CONFORMANCE_FIXTURE");
-        if (string.IsNullOrWhiteSpace(raw)) return;
-        using var fixture = System.Text.Json.JsonDocument.Parse(raw);
-        Assert.StartsWith("touch-target.", fixture.RootElement.GetProperty("id").GetString());
-        Assert.Equal(44, TouchTargetAffordances.MinimumCssPixels);
+        SharedFixtureBatch.Run(caseId, rawFixture, () => {
+            var raw = SharedFixtureBatch.Current;
+            if (string.IsNullOrWhiteSpace(raw)) return;
+            using var fixture = System.Text.Json.JsonDocument.Parse(raw);
+            Assert.StartsWith("touch-target.", fixture.RootElement.GetProperty("id").GetString());
+            Assert.Equal(44, TouchTargetAffordances.MinimumCssPixels);
+        });
     }
 }

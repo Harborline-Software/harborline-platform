@@ -18,17 +18,20 @@ public sealed class MediaQueryObserverNativeTests
         Assert.Contains("dispose", module.Calls);
     }
 
-    [Fact]
+    [Theory]
     [Trait("ModuleConformance", "hlp.ui.use-media-query")]
-    public async Task SharedFixtureConforms()
+    [MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.use-media-query", MemberType = typeof(SharedFixtureBatch))]
+    public Task SharedFixtureConforms(string caseId, string? rawFixture)
     {
-        var raw = Environment.GetEnvironmentVariable("HARBORLINE_CONFORMANCE_FIXTURE");
-        if (string.IsNullOrWhiteSpace(raw)) return;
-        using var fixture = System.Text.Json.JsonDocument.Parse(raw);
-        Assert.StartsWith("media-query.", fixture.RootElement.GetProperty("id").GetString());
-        await using var observer = new MediaQueryObserver(new FakeRuntime(new FakeModule()));
-        await using var subscription = await observer.ObserveAsync("(prefers-reduced-motion: reduce)", _ => ValueTask.CompletedTask);
-        Assert.True(subscription.Matches);
+        return SharedFixtureBatch.RunAsync(caseId, rawFixture, async () => {
+            var raw = SharedFixtureBatch.Current;
+            if (string.IsNullOrWhiteSpace(raw)) return;
+            using var fixture = System.Text.Json.JsonDocument.Parse(raw);
+            Assert.StartsWith("media-query.", fixture.RootElement.GetProperty("id").GetString());
+            await using var observer = new MediaQueryObserver(new FakeRuntime(new FakeModule()));
+            await using var subscription = await observer.ObserveAsync("(prefers-reduced-motion: reduce)", _ => ValueTask.CompletedTask);
+            Assert.True(subscription.Matches);
+        });
     }
 
     private sealed class FakeRuntime(IJSObjectReference module) : IJSRuntime

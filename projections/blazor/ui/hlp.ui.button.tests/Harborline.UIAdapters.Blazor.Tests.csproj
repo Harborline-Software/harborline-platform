@@ -119,4 +119,7 @@
              Link="compatibility/legacy-button-provider-fixtures.json"
              CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
+  <ItemGroup>
+    <Compile Include="../../../shared.tests/SharedFixtureBatch.cs" Link="SharedFixtureBatch.cs" />
+  </ItemGroup>
 </Project>

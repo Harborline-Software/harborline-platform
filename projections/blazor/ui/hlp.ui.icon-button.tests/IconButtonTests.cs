@@ -24,11 +24,14 @@ public sealed class IconButtonTests : BunitContext
     [Fact]
     public void EmptyAccessibleNameFailsClosed() => Assert.Contains("accessible-name-required", Assert.ThrowsAny<Exception>(() => Render<HarborlineIconButton>()).ToString());
 
-    [Fact, Trait("ModuleConformance", "hlp.ui.icon-button")]
-    public void SharedFixtureConforms()
+    [Theory, Trait("ModuleConformance", "hlp.ui.icon-button")]
+    [MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.icon-button", MemberType = typeof(SharedFixtureBatch))]
+    public void SharedFixtureConforms(string caseId, string? rawFixture)
     {
-        var raw = Environment.GetEnvironmentVariable("HARBORLINE_CONFORMANCE_FIXTURE"); if (string.IsNullOrWhiteSpace(raw)) return;
-        using var fixture = System.Text.Json.JsonDocument.Parse(raw); Assert.StartsWith("icon-button.", fixture.RootElement.GetProperty("id").GetString());
-        Assert.Equal("button", Render<HarborlineIconButton>(p => p.Add(x => x.AccessibleName, "Action")).Find("button").GetAttribute("type"));
+        SharedFixtureBatch.Run(caseId, rawFixture, () => {
+            var raw = SharedFixtureBatch.Current; if (string.IsNullOrWhiteSpace(raw)) return;
+            using var fixture = System.Text.Json.JsonDocument.Parse(raw); Assert.StartsWith("icon-button.", fixture.RootElement.GetProperty("id").GetString());
+            Assert.Equal("button", Render<HarborlineIconButton>(p => p.Add(x => x.AccessibleName, "Action")).Find("button").GetAttribute("type"));
+        });
     }
 }

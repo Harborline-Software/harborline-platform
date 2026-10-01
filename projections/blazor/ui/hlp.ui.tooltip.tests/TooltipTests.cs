@@ -32,12 +32,15 @@ public sealed class TooltipTests : BunitContext
         Assert.Empty(cut.FindAll("[role=tooltip]"));
     }
 
-    [Fact, Trait("ModuleConformance", "hlp.ui.tooltip")]
-    public void SharedFixtureConforms()
+    [Theory, Trait("ModuleConformance", "hlp.ui.tooltip")]
+    [MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.tooltip", MemberType = typeof(SharedFixtureBatch))]
+    public void SharedFixtureConforms(string caseId, string? rawFixture)
     {
-        var raw = Environment.GetEnvironmentVariable("HARBORLINE_CONFORMANCE_FIXTURE"); if (string.IsNullOrWhiteSpace(raw)) return;
-        using var fixture = System.Text.Json.JsonDocument.Parse(raw); Assert.StartsWith("tooltip.", fixture.RootElement.GetProperty("id").GetString());
-        Assert.Empty(Render<HarborlineTooltip>(p => p.Add(x => x.Content, "Hint").Add(x => x.ChildContent, Trigger())).FindAll("[role=tooltip]"));
+        SharedFixtureBatch.Run(caseId, rawFixture, () => {
+            var raw = SharedFixtureBatch.Current; if (string.IsNullOrWhiteSpace(raw)) return;
+            using var fixture = System.Text.Json.JsonDocument.Parse(raw); Assert.StartsWith("tooltip.", fixture.RootElement.GetProperty("id").GetString());
+            Assert.Empty(Render<HarborlineTooltip>(p => p.Add(x => x.Content, "Hint").Add(x => x.ChildContent, Trigger())).FindAll("[role=tooltip]"));
+        });
     }
 
     private static RenderFragment Trigger() => builder =>

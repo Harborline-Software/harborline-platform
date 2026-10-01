@@ -49,44 +49,47 @@ public sealed class WindowTests : BunitContext
         Assert.Single(cut.FindAll("[data-hl-window-overlay]"));
     }
 
-    [Fact, Trait("ModuleConformance", "hlp.ui.window")]
-    public void SharedFixtureConforms()
+    [Theory, Trait("ModuleConformance", "hlp.ui.window")]
+    [MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.window", MemberType = typeof(SharedFixtureBatch))]
+    public void SharedFixtureConforms(string caseId, string? rawFixture)
     {
-        var raw = Environment.GetEnvironmentVariable("HARBORLINE_CONFORMANCE_FIXTURE"); if (string.IsNullOrWhiteSpace(raw)) return;
-        using var fixture = System.Text.Json.JsonDocument.Parse(raw);
-        var id = fixture.RootElement.GetProperty("id").GetString();
-        Assert.StartsWith("window.", id);
-        Assert.Equal("default", RenderWindow().Find("[role=dialog]").GetAttribute("data-state"));
+        SharedFixtureBatch.Run(caseId, rawFixture, () => {
+            var raw = SharedFixtureBatch.Current; if (string.IsNullOrWhiteSpace(raw)) return;
+            using var fixture = System.Text.Json.JsonDocument.Parse(raw);
+            var id = fixture.RootElement.GetProperty("id").GetString();
+            Assert.StartsWith("window.", id);
+            Assert.Equal("default", RenderWindow().Find("[role=dialog]").GetAttribute("data-state"));
 
-        if (id != "window.class-parity") return;
-        var input = fixture.RootElement.GetProperty("input");
-        var expected = fixture.RootElement.GetProperty("expected");
-        foreach (var state in input.GetProperty("states").EnumerateArray().Select(value => value.GetString()!))
-        {
-            var cut = RenderWindow(p => p
-                .Add(x => x.State, Enum.Parse<HarborlineWindowState>(state, ignoreCase: true))
-                .Add(x => x.Modal, input.GetProperty("modal").GetBoolean())
-                .Add(x => x.Resizable, input.GetProperty("resizable").GetBoolean())
-                .Add(x => x.Draggable, input.GetProperty("draggable").GetBoolean()));
-            var dialog = cut.Find("[role=dialog]");
-            Assert.Equal(Classes(expected.GetProperty("rootClasses"), state), dialog.ClassList);
-            var style = dialog.GetAttribute("style") ?? string.Empty;
-            Assert.Contains($"position:{expected.GetProperty("inlinePosition").GetString()}", style);
-            Assert.Contains($"z-index:{expected.GetProperty("inlineZIndex").GetString()}", style);
-            if (state == "default")
+            if (id != "window.class-parity") return;
+            var input = fixture.RootElement.GetProperty("input");
+            var expected = fixture.RootElement.GetProperty("expected");
+            foreach (var state in input.GetProperty("states").EnumerateArray().Select(value => value.GetString()!))
             {
-                Assert.Equal(Classes(expected, "resizeWidthClasses"), cut.Find("[data-resize-edge=e]").ClassList);
-                Assert.Equal(Classes(expected, "resizeHeightClasses"), cut.Find("[data-resize-edge=s]").ClassList);
-                Assert.Equal(Classes(expected, "resizeCornerClasses"), cut.Find("[data-resize-edge=se]").ClassList);
-            }
+                var cut = RenderWindow(p => p
+                    .Add(x => x.State, Enum.Parse<HarborlineWindowState>(state, ignoreCase: true))
+                    .Add(x => x.Modal, input.GetProperty("modal").GetBoolean())
+                    .Add(x => x.Resizable, input.GetProperty("resizable").GetBoolean())
+                    .Add(x => x.Draggable, input.GetProperty("draggable").GetBoolean()));
+                var dialog = cut.Find("[role=dialog]");
+                Assert.Equal(Classes(expected.GetProperty("rootClasses"), state), dialog.ClassList);
+                var style = dialog.GetAttribute("style") ?? string.Empty;
+                Assert.Contains($"position:{expected.GetProperty("inlinePosition").GetString()}", style);
+                Assert.Contains($"z-index:{expected.GetProperty("inlineZIndex").GetString()}", style);
+                if (state == "default")
+                {
+                    Assert.Equal(Classes(expected, "resizeWidthClasses"), cut.Find("[data-resize-edge=e]").ClassList);
+                    Assert.Equal(Classes(expected, "resizeHeightClasses"), cut.Find("[data-resize-edge=s]").ClassList);
+                    Assert.Equal(Classes(expected, "resizeCornerClasses"), cut.Find("[data-resize-edge=se]").ClassList);
+                }
 
-            // This lane used to wrap its portal in hl-window__portal and to spell the resize handles
-            // --east/--south; the authority never defined any of the three.
-            foreach (var absent in expected.GetProperty("absentClasses").EnumerateArray())
-            {
-                Assert.Empty(cut.FindAll($".{absent.GetString()}"));
+                // This lane used to wrap its portal in hl-window__portal and to spell the resize handles
+                // --east/--south; the authority never defined any of the three.
+                foreach (var absent in expected.GetProperty("absentClasses").EnumerateArray())
+                {
+                    Assert.Empty(cut.FindAll($".{absent.GetString()}"));
+                }
             }
-        }
+        });
     }
 
     private static string[] Classes(System.Text.Json.JsonElement element, string property) =>

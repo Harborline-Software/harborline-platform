@@ -67,6 +67,12 @@ public sealed class ActionMenuTests:BunitContext
  }
  private static string FixturePath=>Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,"../../../../../../../conformance/hlp.ui.action-menu/fixtures.yaml"));
  private static IReadOnlyList<ActionMenuEntry> Build(IReadOnlyList<string> set)=>[..set.Select<string,ActionMenuEntry>(kind=>kind=="separator"?new ActionMenuSeparator():new ActionMenuItem("blocked","Blocked",Disabled:kind=="disabled"))];
- [Fact,Trait("ModuleConformance","hlp.ui.action-menu")] public void SharedFixtureConforms(){var raw=Environment.GetEnvironmentVariable("HARBORLINE_CONFORMANCE_FIXTURE");if(string.IsNullOrWhiteSpace(raw))return;using var fixture=System.Text.Json.JsonDocument.Parse(raw);Assert.StartsWith("action-menu.",fixture.RootElement.GetProperty("id").GetString());Assert.NotNull(RenderMenu());}
+ [Theory,Trait("ModuleConformance","hlp.ui.action-menu")] [MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.action-menu", MemberType = typeof(SharedFixtureBatch))]
+    public void SharedFixtureConforms(string caseId, string? rawFixture)
+    {
+        SharedFixtureBatch.Run(caseId, rawFixture, () => {
+            var raw=SharedFixtureBatch.Current;if(string.IsNullOrWhiteSpace(raw))return;using var fixture=System.Text.Json.JsonDocument.Parse(raw);Assert.StartsWith("action-menu.",fixture.RootElement.GetProperty("id").GetString());Assert.NotNull(RenderMenu());
+        });
+    }
  private sealed class FakeOutside:IOutsidePointerObserver{public ValueTask<IOutsidePointerRegistration> ObserveAsync(Microsoft.AspNetCore.Components.ElementReference e,Func<OutsidePointerEvent,ValueTask> c,OutsidePointerOptions? o=null,CancellationToken t=default)=>throw new NotSupportedException();public ValueTask<IOutsidePointerRegistration> ObserveAsync(IReadOnlyList<Microsoft.AspNetCore.Components.ElementReference> e,Func<OutsidePointerEvent,ValueTask> c,OutsidePointerOptions? o=null,CancellationToken t=default)=>new(new Registration());private sealed class Registration:IOutsidePointerRegistration{public ValueTask DisposeAsync()=>ValueTask.CompletedTask;public ValueTask SetEnabledAsync(bool enabled)=>ValueTask.CompletedTask;public void SetCallback(Func<OutsidePointerEvent,ValueTask> c){}}}
 }

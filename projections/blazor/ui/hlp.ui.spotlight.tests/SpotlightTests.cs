@@ -46,22 +46,25 @@ public sealed class SpotlightTests : BunitContext
             .Add(x => x.Sections, [new SpotlightSection("x", "X", [new SpotlightItem("same", "A", () => Task.CompletedTask), new SpotlightItem("same", "B", () => Task.CompletedTask)])])));
     }
 
-    [Fact, Trait("ModuleConformance", "hlp.ui.spotlight")]
-    public void SharedFixtureConforms()
+    [Theory, Trait("ModuleConformance", "hlp.ui.spotlight")]
+    [MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.spotlight", MemberType = typeof(SharedFixtureBatch))]
+    public void SharedFixtureConforms(string caseId, string? rawFixture)
     {
-        var raw = Environment.GetEnvironmentVariable("HARBORLINE_CONFORMANCE_FIXTURE"); if (string.IsNullOrWhiteSpace(raw)) return;
-        using var fixture = System.Text.Json.JsonDocument.Parse(raw); var id = fixture.RootElement.GetProperty("id").GetString(); Assert.StartsWith("spotlight.", id);
-        if (id != "spotlight.classes") { Assert.Empty(Render<HarborlineSpotlight>(p => p.Add(x => x.AriaLabel, "Search")).FindAll("[role=dialog]")); return; }
+        SharedFixtureBatch.Run(caseId, rawFixture, () => {
+            var raw = SharedFixtureBatch.Current; if (string.IsNullOrWhiteSpace(raw)) return;
+            using var fixture = System.Text.Json.JsonDocument.Parse(raw); var id = fixture.RootElement.GetProperty("id").GetString(); Assert.StartsWith("spotlight.", id);
+            if (id != "spotlight.classes") { Assert.Empty(Render<HarborlineSpotlight>(p => p.Add(x => x.AriaLabel, "Search")).FindAll("[role=dialog]")); return; }
 
-        // 282 s11: this lane once spelled the query input hl-spotlight__input as well and put
-        // hl-visually-hidden on the status node; neither is defined by the authority stylesheet, and
-        // hl-spotlight__group was styled by neither lane. The React case asserts the same fixture row.
-        var expected = fixture.RootElement.GetProperty("expected");
-        var cut = Render<HarborlineSpotlight>(p => p.Add(x => x.Open, true).Add(x => x.AriaLabel, "Search")
-            .Add(x => x.Sections, [new SpotlightSection("commands", "Commands", [new SpotlightItem("one", "One", () => Task.CompletedTask)])]));
-        Assert.Equal(Classes(expected, "queryClasses"), cut.Find("[role=combobox]").ClassList);
-        Assert.Equal(Classes(expected, "statusClasses"), cut.Find("[role=status]").ClassList);
-        Assert.Equal(Classes(expected, "groupClasses"), cut.Find("[role=group]").ClassList);
+            // 282 s11: this lane once spelled the query input hl-spotlight__input as well and put
+            // hl-visually-hidden on the status node; neither is defined by the authority stylesheet, and
+            // hl-spotlight__group was styled by neither lane. The React case asserts the same fixture row.
+            var expected = fixture.RootElement.GetProperty("expected");
+            var cut = Render<HarborlineSpotlight>(p => p.Add(x => x.Open, true).Add(x => x.AriaLabel, "Search")
+                .Add(x => x.Sections, [new SpotlightSection("commands", "Commands", [new SpotlightItem("one", "One", () => Task.CompletedTask)])]));
+            Assert.Equal(Classes(expected, "queryClasses"), cut.Find("[role=combobox]").ClassList);
+            Assert.Equal(Classes(expected, "statusClasses"), cut.Find("[role=status]").ClassList);
+            Assert.Equal(Classes(expected, "groupClasses"), cut.Find("[role=group]").ClassList);
+        });
     }
 
     private static string[] Classes(System.Text.Json.JsonElement expected, string property) =>

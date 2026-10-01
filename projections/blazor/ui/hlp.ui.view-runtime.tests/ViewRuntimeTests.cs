@@ -88,51 +88,54 @@ public sealed class ViewRuntimeTests : BunitContext
         var cut = Render<HarborlineViewRuntime>(p => p.Add(x => x.Plan, Grid).Add(x => x.Rows, rows));
         Assert.Contains(content, cut.Markup);
     }
-    [Fact, Trait("ModuleConformance", "hlp.ui.view-runtime")]
-    public void SharedFixtureConforms()
+    [Theory, Trait("ModuleConformance", "hlp.ui.view-runtime")]
+    [MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.view-runtime", MemberType = typeof(SharedFixtureBatch))]
+    public void SharedFixtureConforms(string caseId, string? rawFixture)
     {
-        var raw = Environment.GetEnvironmentVariable("HARBORLINE_CONFORMANCE_FIXTURE");
-        if (string.IsNullOrWhiteSpace(raw)) return;
-        using var fixture = System.Text.Json.JsonDocument.Parse(raw);
-        var root = fixture.RootElement;
-        var input = root.GetProperty("input");
-        var plan = ReadPlan(input.GetProperty("plan"));
-        var rows = input.TryGetProperty("rows", out var rowElements)
-            ? rowElements.EnumerateArray().Select(ReadRow).ToArray()
-            : [];
-        var activated = new List<string>();
-        var cut = Render<HarborlineViewRuntime>(p => p.Add(x => x.Plan, plan).Add(x => x.Rows, rows)
-            .Add(x => x.OnAction, id => activated.Add(id))
-            .Add(x => x.Empty, input.TryGetProperty("empty", out var empty) ? empty.GetString() : null));
-        var expected = root.GetProperty("expected");
-        if (expected.TryGetProperty("nodes", out var nodes))
-        {
-            Assert.Equal(nodes.GetInt32(), cut.Nodes.Length);
-            Assert.Empty(JSInterop.Invocations);
-            Assert.Empty(activated);
-            return;
-        }
-        if (expected.TryGetProperty("columns", out var columns))
-            Assert.Equal(columns.EnumerateArray().Select(value => value.GetString()), cut.FindAll("[role=columnheader]").Select(node => node.TextContent));
-        if (expected.TryGetProperty("rowCount", out var rowCount))
-            Assert.Equal(rowCount.GetInt32(), cut.FindAll("[data-row-id]").Count);
-        if (expected.TryGetProperty("content", out var content))
-            Assert.Contains(content.GetString()!, cut.Markup);
-        var buttons = cut.FindAll("button");
-        Assert.Equal(expected.TryGetProperty("actions", out var labels)
-            ? labels.EnumerateArray().Select(label => label.GetString()) : [], buttons.Select(button => button.TextContent));
-        if (input.TryGetProperty("activateActions", out var actions))
-        {
-            foreach (var id in actions.EnumerateArray())
+        SharedFixtureBatch.Run(caseId, rawFixture, () => {
+            var raw = SharedFixtureBatch.Current;
+            if (string.IsNullOrWhiteSpace(raw)) return;
+            using var fixture = System.Text.Json.JsonDocument.Parse(raw);
+            var root = fixture.RootElement;
+            var input = root.GetProperty("input");
+            var plan = ReadPlan(input.GetProperty("plan"));
+            var rows = input.TryGetProperty("rows", out var rowElements)
+                ? rowElements.EnumerateArray().Select(ReadRow).ToArray()
+                : [];
+            var activated = new List<string>();
+            var cut = Render<HarborlineViewRuntime>(p => p.Add(x => x.Plan, plan).Add(x => x.Rows, rows)
+                .Add(x => x.OnAction, id => activated.Add(id))
+                .Add(x => x.Empty, input.TryGetProperty("empty", out var empty) ? empty.GetString() : null));
+            var expected = root.GetProperty("expected");
+            if (expected.TryGetProperty("nodes", out var nodes))
             {
-                var action = plan.Bindings.Actions!.Single(candidate => candidate.Id == id.GetString());
-                var button = cut.FindAll("button").Single(candidate => candidate.TextContent == action.Label);
-                Assert.Equal("button", button.GetAttribute("type"));
-                button.Click();
+                Assert.Equal(nodes.GetInt32(), cut.Nodes.Length);
+                Assert.Empty(JSInterop.Invocations);
+                Assert.Empty(activated);
+                return;
             }
-        }
-        Assert.Equal(expected.TryGetProperty("activated", out var ids)
-            ? ids.EnumerateArray().Select(id => id.GetString()) : [], activated);
+            if (expected.TryGetProperty("columns", out var columns))
+                Assert.Equal(columns.EnumerateArray().Select(value => value.GetString()), cut.FindAll("[role=columnheader]").Select(node => node.TextContent));
+            if (expected.TryGetProperty("rowCount", out var rowCount))
+                Assert.Equal(rowCount.GetInt32(), cut.FindAll("[data-row-id]").Count);
+            if (expected.TryGetProperty("content", out var content))
+                Assert.Contains(content.GetString()!, cut.Markup);
+            var buttons = cut.FindAll("button");
+            Assert.Equal(expected.TryGetProperty("actions", out var labels)
+                ? labels.EnumerateArray().Select(label => label.GetString()) : [], buttons.Select(button => button.TextContent));
+            if (input.TryGetProperty("activateActions", out var actions))
+            {
+                foreach (var id in actions.EnumerateArray())
+                {
+                    var action = plan.Bindings.Actions!.Single(candidate => candidate.Id == id.GetString());
+                    var button = cut.FindAll("button").Single(candidate => candidate.TextContent == action.Label);
+                    Assert.Equal("button", button.GetAttribute("type"));
+                    button.Click();
+                }
+            }
+            Assert.Equal(expected.TryGetProperty("activated", out var ids)
+                ? ids.EnumerateArray().Select(id => id.GetString()) : [], activated);
+        });
     }
 
     private static ViewRenderPlan ReadPlan(System.Text.Json.JsonElement plan)
