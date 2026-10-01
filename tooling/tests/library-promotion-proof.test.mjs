@@ -13,6 +13,25 @@ const version = '0.1.0-preview.probe'
 const sha256 = 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad'
 const manifest = [{ id, version, sha256 }]
 
+function assertPublicationProofOrder(workflow) {
+  const verifier = workflow.indexOf('run: node tooling/library-promotion-proof.mjs')
+  const attestation = workflow.indexOf('subject-path:')
+  const push = workflow.indexOf('dotnet nuget push')
+  assert.ok(verifier >= 0, 'publication verifier is required')
+  assert.ok(attestation >= 0, 'attestation is required')
+  assert.ok(push >= 0, 'publication push is required')
+  assert.ok(verifier < attestation, 'proof must precede attestation')
+  assert.ok(verifier < push, 'proof must precede push')
+}
+
+function assertConsumerProofOrder(producer) {
+  const consumer = producer.indexOf('NuGet consumer Harborline closure mismatch')
+  const proof = producer.indexOf('writeLibraryProof(nugetArtifacts')
+  assert.ok(consumer >= 0, 'consumer closure assertion is required')
+  assert.ok(proof >= 0, 'consumption proof writer is required')
+  assert.ok(proof > consumer, 'proof must follow the consumer closure assertion')
+}
+
 function fixture(t) {
   const root = mkdtempSync(resolve(tmpdir(), 'library-proof-test-'))
   t.after(() => rmSync(root, { recursive: true, force: true }))
@@ -66,7 +85,33 @@ test('wrong manifest, source, workflow, run and attempt cannot promote another p
 test('publication proof follows the real consumer and closure assertions, and precedes attest/push', () => {
   const producer = readFileSync(resolve(import.meta.dirname, '../verify-package-fixtures.mjs'), 'utf8')
   const workflow = readFileSync(resolve(import.meta.dirname, '../../.github/workflows/validate.yml'), 'utf8')
-  assert.ok(producer.indexOf('writeLibraryProof(nugetArtifacts') > producer.indexOf('NuGet consumer Harborline closure mismatch'))
-  assert.ok(workflow.indexOf('run: node tooling/library-promotion-proof.mjs') < workflow.indexOf('subject-path:'))
-  assert.ok(workflow.indexOf('run: node tooling/library-promotion-proof.mjs') < workflow.indexOf('dotnet nuget push'))
+  assertConsumerProofOrder(producer)
+  assertPublicationProofOrder(workflow)
+})
+
+test('deleting any required publication marker is refused before comparing order', () => {
+  const workflow = readFileSync(resolve(import.meta.dirname, '../../.github/workflows/validate.yml'), 'utf8')
+  const deleted = workflow.replace(
+    /      - name: Verify exact consumed bytes before attestation and publication\n        run: node tooling\/library-promotion-proof\.mjs\n/,
+    '')
+  assert.notEqual(deleted, workflow, 'the planted deletion must remove the verifier step')
+  assert.throws(() => assertPublicationProofOrder(deleted), /publication verifier is required/)
+  for (const [marker, refusal] of [['subject-path:', /attestation is required/],
+    ['dotnet nuget push', /publication push is required/]]) {
+    const removed = workflow.replace(marker, '')
+    assert.notEqual(removed, workflow, `planted deletion must remove ${marker}`)
+    assert.throws(() => assertPublicationProofOrder(removed), refusal)
+  }
+})
+
+test('deleting either consumer/proof marker is refused before comparing order', () => {
+  const producer = readFileSync(resolve(import.meta.dirname, '../verify-package-fixtures.mjs'), 'utf8')
+  for (const [marker, refusal] of [
+    ['NuGet consumer Harborline closure mismatch', /consumer closure assertion is required/],
+    ['writeLibraryProof(nugetArtifacts', /consumption proof writer is required/],
+  ]) {
+    const removed = producer.replace(marker, '')
+    assert.notEqual(removed, producer, `planted deletion must remove ${marker}`)
+    assert.throws(() => assertConsumerProofOrder(removed), refusal)
+  }
 })

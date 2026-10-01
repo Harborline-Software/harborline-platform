@@ -19,3 +19,7 @@ Manifest SHA-256: `7b0b9ac1b39f8233c4f686cbe3dd44bde049d2b602e44f98b96a53ffbe02e
 This is main-library package publication evidence, separate from the existing platform seed-release/receipt checks and T-670's published seed referent. Existing T-705 attestation permissions and steps are preserved. No registry push, release, tag, signing permission, credential or settings change was performed. The hash receipt itself is not a signature. Full specialized consumer coverage is not newly rerun in publication mode; its existing normal gate behavior is unchanged.
 
 Existing `--skip-duplicate` behavior is preserved. This check binds the bytes supplied to the push command; it does not verify bytes already stored in a registry when a duplicate version is skipped.
+
+## Review follow-up
+
+Independent review identified an ordering-test false positive: an absent marker produced `indexOf == -1`, which could satisfy the comparison. The tests now require the consumer closure assertion, proof writer, publication verifier, attestation and push markers before comparing order. Planted deletions of each marker are refused. Eight light guard/inventory tests passed after this test-only correction; production checks were already present. No heavy local validation was repeated.
