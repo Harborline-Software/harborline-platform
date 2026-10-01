@@ -128,6 +128,17 @@ function msbuildArgs() {
 export const sourceDirectories = (project, text) => [path.posix.dirname(project), ...[...text.matchAll(/<(?:Compile|RazorComponent)\s+Include="([^"*]+)\/\*\*/g)]
   .map(match => path.posix.normalize(`${path.posix.dirname(project)}/${match[1].replaceAll('\\', '/')}`))]
 
+// Selection concerns the whole project's score, not just new lines: deletions change the remaining behaviour too.
+// Disable rename folding so a move selects both the old and new owners. NUL delimiters preserve spaces, tabs and
+// non-ASCII names without Git's pathname quoting. Test-only changes stay outside PR #236's source-change policy.
+export function changedSourceFiles(project, text, repositoryRoot = root, base = 'origin/main') {
+  const razor = text.includes('Microsoft.NET.Sdk.Razor')
+  const patterns = sourceDirectories(project, text).flatMap(directory =>
+    razor ? [`${directory}/*.cs`, `${directory}/*.razor`] : [`${directory}/*.cs`])
+  return execFileSync('git', ['-C', repositoryRoot, 'diff', '--name-only', '-z', '--no-renames', base, '--', ...patterns],
+    {encoding: 'utf8'}).split('\0').filter(file => file && !/\.tests\//.test(file))
+}
+
 // Generator output -> plain C# Stryker will mutate: drop the BOM and the auto-generated marker (and the script drops
 // the .g.cs name; Stryker skips all three). Return the .razor the file came from, named by its #pragma checksum line,
 // and the character spans #line maps to that .razor: the author's code, not the generator's render scaffolding.
@@ -180,8 +191,8 @@ function razorRun(target, changed) {
 }
 
 // One Stryker run for a configured test project. changed: the source files changed since origin/main (PR mode), or
-// undefined for a full run over every mutant. Stryker never judges the score itself (break 0 here): PR mode reports
-// and does not compare (owner ruling Q43), and full mode compares against the baselines file below.
+// undefined for a full run over every mutant. Stryker never judges the score itself (break 0 here): the wrapper
+// compares the full-project report against the floor in both PR and full modes (owner order 2026-09-30).
 function mutateProject(test, changed, strykerArgs) {
   const testDirectory = path.posix.dirname(test), target = targetOf(test, read), config = configOf(test, read)
   const output = path.join(root, 'StrykerOutput', path.posix.basename(testDirectory))
@@ -257,12 +268,10 @@ export function scoreVerdict(report, floor) {
 function run(repo, only, strykerArgs) {
   let failed = false
   for (const test of selected(repo, only)) {
-    const target = targetOf(test, read), targetText = read(target), razor = targetText.includes('Microsoft.NET.Sdk.Razor')
-    // A file the change only deletes from (removed outright, or lines removed and none added) has no new code to mutate.
-    const changed = git('diff', '--numstat', '--diff-filter=d', 'origin/main', '--', ...sourceDirectories(target, targetText).flatMap(directory =>
-      razor ? [`${directory}/*.cs`, `${directory}/*.razor`] : [`${directory}/*.cs`]))
-      .map(row => row.split('\t')).filter(([added]) => added !== '0').map(([, , file]) => file).filter(file => !/\.tests\//.test(file))
-    if (!changed.length) { console.log(`${test}: no source change in ${path.posix.dirname(target)} since origin/main, skipped`); continue }
+    const target = targetOf(test, read), targetText = read(target)
+    const changed = changedSourceFiles(target, targetText)
+    if (!changed.length) { summarize(`- ${test}: skipped; no production .cs${targetText.includes('Microsoft.NET.Sdk.Razor') ? '/.razor' : ''} change since origin/main (test-only changes do not select a project under PR #236).`); continue }
+    summarize(`- ${test}: selected for full-project mutation; changed source: ${changed.map(file => `\`${file}\``).join(', ')}.`)
     const {report, razor: isRazor} = mutateProject(test, undefined, strykerArgs)
     const floor = fullModeBreak(repo.baselines[test], configOf(test, read)), verdict = scoreVerdict(report, floor)
     const razorMissing = isRazor && !razorTested(report)
