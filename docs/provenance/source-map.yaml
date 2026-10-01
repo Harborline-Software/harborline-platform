@@ -84,7 +84,7 @@
       "contentHashes": {
         "conformance/hlp.foundation.rule-runtime/corpus/output-types.json": "5b202f42008bd60d21dc9a59ef8748e2c6d04c538b66f48ae6431966b7510327",
         "conformance/hlp.foundation.rule-runtime/runners/run-shared.mjs": "e178e67ae3fd0da902b4d962d94f239b096a7078bf52c041b845187416642ff3",
-        "projections/dotnet/foundation/hlp.foundation.rule-runtime.tests/ConformanceTests.cs": "883978d05d23b88f6d5427a920ff10472cd3e79e001f5a2eb44f58497f151d3c",
+        "projections/dotnet/foundation/hlp.foundation.rule-runtime.tests/ConformanceTests.cs": "71ae99761addacd772c810b6473af9cc9c9be4afa0267c9aac45ddad65fa2ad1",
         "projections/dotnet/foundation/hlp.foundation.rule-runtime/Compilation/RuleCompiler.cs": "0dc73b1404f9fb507431c55ec4559aa32dcb3582d535111dbd3df0b042808d1d",
         "projections/dotnet/foundation/hlp.foundation.rule-runtime/Evaluation/HarborlineJsonLogic.cs": "c30478fc1cdde6d6bf94d69afddf23565adc3d888873242e68cd9cb62f805322",
         "projections/dotnet/foundation/hlp.foundation.rule-runtime/Graph/EvaluationCore.cs": "36910fbd86729d18ebc46d9741b808c8a41ed9952915f282ca1955f606c89eae",
