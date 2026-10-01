@@ -2,6 +2,18 @@
   "_comment": "SPINE-1 conformance corpus — child-table grain: per-row compute, table aggregates (sum/avg/min/max/count/any/all), parent reach-out, cross-section reference, empty aggregate.",
   "cases": [
     {
+      "_comment": "T-1018: Table-scoped Compute owns an aggregate address and evaluates its expression. Native differential tests in both tiers then prove the same rule after row add, remove, and replacement-row edit; the existing corpus case format has no edit sequence.",
+      "name": "table/table-scoped-compute",
+      "definitionRules": [
+        { "id": "table.lineTotal", "tier": "JsonLogic", "scope": "Table", "scopeTarget": "items/sum/lineTotal", "action": "Compute", "expression": { "var": "table.sum(items.amount)" } }
+      ],
+      "instance": { "items": [ { "_id": "r1", "amount": 10 }, { "_id": "r2", "amount": 20 } ] },
+      "expectedAst": { "table.lineTotal": { "agg": [ "sum", "items", "amount" ] } },
+      "expectedOutcomes": {
+        "table.lineTotal": { "ruleId": "table.lineTotal", "target": "agg:items/sum/lineTotal", "outputType": "Value", "value": { "state": "Resolved", "value": 30 } }
+      }
+    },
+    {
       "name": "table/aggregate-sum",
       "definitionRules": [
         { "id": "c.grandTotal", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "grandTotal", "action": "Compute",
