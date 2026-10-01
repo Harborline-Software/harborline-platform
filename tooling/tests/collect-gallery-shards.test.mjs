@@ -55,7 +55,7 @@ test('CI runs the headless gate beside the gallery shards, and verify needs all 
     assert.match(guard, /github\.event_name == 'merge_group' \|\| github\.event_name == 'workflow_dispatch'\)/)
     assert.doesNotMatch(guard, /pull_request/)
   }
-  assert.match(verify, /run: node tooling\/verify-ci-lanes\.mjs/)
+  assert.match(verify, /node tooling\/run-base-policy\.mjs aggregate\n\s+else\n\s+node tooling\/verify-ci-lanes\.mjs/)
   const validate = readFileSync(resolve(root, '.github/workflows/validate.yml'), 'utf8')
   assert.doesNotMatch(validate, /run-phase-4-gate|run-gallery-gate/, 'one copy of the gate only')
 })

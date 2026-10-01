@@ -30,15 +30,16 @@ function selected(job, c) {
     'github.event.pull_request.head.repo.full_name': c.payload?.pull_request?.head?.repo?.full_name,
     'github.event.pull_request.draft': c.payload?.pull_request?.draft,
     'needs.pr-preflight.result': c.preflightResult ?? 'success',
-    'needs.pr-preflight.outputs.headless-required': c.headless ?? 'false',
+    'needs.pr-preflight.outputs.headless-required': 'headless' in c ? c.headless : 'false',
   }
-  let expression = guard(job).replace(/always\(\)/g, 'true')
+  // Fixtures model a run that was not cancelled; a missing job output is GitHub's empty string.
+  let expression = guard(job).replace(/always\(\)/g, 'true').replace(/cancelled\(\)/g, 'false')
     .replace(/contains\(github\.event\.pull_request\.labels\.\*\.name, 'stacked'\)/g,
       String(c.payload?.pull_request?.labels?.some(label => label.name === 'stacked') ?? false))
   for (const [name, value] of Object.entries(values).sort((a, b) => b[0].length - a[0].length)) {
     expression = expression.replaceAll(name, JSON.stringify(value) ?? 'undefined')
   }
-  assert.doesNotMatch(expression, /github\.|vars\.|needs\.|contains|always/, 'unsupported guard token')
+  assert.doesNotMatch(expression, /github\.|vars\.|needs\.|contains|always|cancelled/, 'unsupported guard token')
   return Function(`"use strict"; return (${expression});`)()
 }
 
@@ -62,7 +63,12 @@ test('PR event types produce preliminary feedback; full lanes are reserved for q
 })
 
 test('implementation and uncertain inputs retain early headless behavioral validation', () => {
-  assert.equal(requiresPrHeadless(['CONTRIBUTING.md', '.github/workflows/verify.yml', 'tooling/verify-ci-lanes.mjs']), false)
+  assert.equal(requiresPrHeadless(['CONTRIBUTING.md', 'tooling/tests/ci-verification.test.mjs']), false)
+  // Wiring and policy changes always take the headless gate (owner 2026-10-01).
+  for (const path of ['.github/workflows/verify.yml', '.github/workflows/validate.yml', 'tooling/plan-pr-validation.mjs',
+    'tooling/run-pr-preflight.mjs', 'tooling/verify-ci-lanes.mjs', 'tooling/run-base-policy.mjs']) {
+    assert.equal(requiresPrHeadless(['CONTRIBUTING.md', path]), true, path)
+  }
   for (const paths of [[], undefined, ['package.json'], ['pnpm-lock.yaml'], ['global.json'],
     ['projections/dotnet/blocks/hlp.blocks.entity-views/Index.cs'],
     ['projections/react/ui/hlp.ui.button/src/index.ts'], ['conformance/hlp.ui.button/corpus/basic.json'],
@@ -75,7 +81,10 @@ test('implementation and uncertain inputs retain early headless behavioral valid
     assert.equal(verifyCiLanes(c, {...implementation, 'phase-4-gate': {result}}).status, 'FAIL')
   }
   assert.equal(verifyCiLanes(context(), {...preliminary, 'pr-preflight': {result: 'success'}}).status, 'FAIL')
-  assert.equal(selected('phase-4-gate', {...c, preflightResult: 'failure'}), false)
+  // A failed preflight or an unset plan must not stop the gate from starting; only an explicit `false` skips it.
+  assert.equal(selected('phase-4-gate', {...c, preflightResult: 'failure'}), true)
+  for (const headless of ['', 'garbage']) assert.equal(selected('phase-4-gate', {...context(), headless}), true, headless)
+  assert.equal(selected('phase-4-gate', {...context(), headless: 'false'}), false)
   assert.equal(selected('phase-4-gate', {...c, payload: pr(true)}), false)
   assert.equal(selected('phase-4-gate', {...c, payload: pr(false, ['stacked'])}), false)
   assert.equal(selected('phase-4-gate', {...c, payload: pr(false, [], 'outsider/platform')}), false)
@@ -92,16 +101,12 @@ test('planner CLI handles real Git docs, cross-boundary renames, deletions, empt
     git('-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', '-c', 'core.hooksPath=', 'commit', '-qm', 'fixture change')
     return git('rev-parse', 'HEAD')
   }
-  const event = resolve(dir, '.fixture-event.json')
-  const output = resolve(dir, '.fixture-output.txt')
-  const plan = (base, head) => {
-    writeFileSync(event, JSON.stringify({pull_request: {base: {sha: base}, head: {sha: head}}}))
-    writeFileSync(output, '')
-    const run = spawnSync(process.execPath, [resolve(root, 'tooling/plan-pr-validation.mjs')], {
-      cwd: dir, encoding: 'utf8', env: {...process.env, GITHUB_EVENT_PATH: event, GITHUB_OUTPUT: output},
-    })
+  const plan = (...args) => spawnSync(process.execPath, [resolve(root, 'tooling/plan-pr-validation.mjs'), ...args],
+    {cwd: dir, encoding: 'utf8'})
+  const classified = (base, head) => {
+    const run = plan(base, head)
     assert.equal(run.status, 0, run.stderr)
-    return {output: readFileSync(output, 'utf8'), stdout: run.stdout}
+    return run.stdout
   }
   try {
     git('init', '-q')
@@ -113,18 +118,24 @@ test('planner CLI handles real Git docs, cross-boundary renames, deletions, empt
     const base = commit(['CONTRIBUTING.md', 'projections/source.cs', 'projections/other.cs'])
     writeFileSync(resolve(dir, 'CONTRIBUTING.md'), 'updated fixture guidance\n')
     const docs = commit(['CONTRIBUTING.md'])
-    assert.equal(plan(base, docs).output, 'headless-required=false\n')
+    assert.equal(classified(base, docs), 'false\n')
     // The destination alone is allowlisted. The removed implementation path must still be seen.
     git('mv', 'projections/source.cs', 'tooling/verify-ci-lanes.mjs')
     const renamed = commit([]) // git mv already staged both sides.
-    assert.equal(plan(docs, renamed).output, 'headless-required=true\n')
+    assert.equal(classified(docs, renamed), 'true\n')
     git('rm', 'projections/other.cs')
     const deleted = commit([]) // git rm already staged the deletion.
-    assert.equal(plan(renamed, deleted).output, 'headless-required=true\n')
-    assert.equal(plan(deleted, deleted).output, 'headless-required=true\n')
+    assert.equal(classified(renamed, deleted), 'true\n')
+    assert.equal(classified(deleted, deleted), 'true\n')
+    // An unreadable diff or malformed commits is a failure, never a classification.
     const unreadable = plan(deleted, 'ffffffffffffffffffffffffffffffffffffffff')
-    assert.equal(unreadable.output, 'headless-required=true\n')
-    assert.match(unreadable.stdout, /Unable to classify PR inputs; retaining headless validation/)
+    assert.notEqual(unreadable.status, 0)
+    assert.equal(unreadable.stdout, '')
+    for (const args of [[], [deleted], ['main', deleted]]) {
+      const malformed = plan(...args)
+      assert.equal(malformed.status, 1, JSON.stringify(args))
+      assert.equal(malformed.stdout, '')
+    }
   } finally {
     rmSync(dir, {recursive: true, force: true})
   }
@@ -177,8 +188,16 @@ test('workflow wiring preserves full coverage, guard order, permissions and sour
   assert.match(workflow, /needs: \[pr-preflight, phase-4-gate, gallery-shard, gallery-collect\]/)
   assert.match(block('pr-preflight'), /node tooling\/run-pr-preflight\.mjs/)
   assert.match(block('pr-preflight'), /headless-required: \$\{\{ steps.plan.outputs.headless-required \}\}/)
-  assert.match(block('pr-preflight'), /id: plan\n\s+run: node tooling\/plan-pr-validation\.mjs/)
-  assert.match(guard('phase-4-gate'), /always\(\)/)
+  assert.match(block('pr-preflight'), /ref: \$\{\{ github\.event\.pull_request\.base\.sha \}\}\n\s+path: \.base-policy\n\s+fetch-depth: 0\n\s+persist-credentials: false/)
+  assert.match(block('pr-preflight'), /BASE_SHA: \$\{\{ github\.event\.pull_request\.base\.sha \}\}\n\s+HEAD_SHA: \$\{\{ github\.event\.pull_request\.head\.sha \}\}/)
+  assert.match(block('pr-preflight'), /node tooling\/run-base-policy\.mjs plan/)
+  assert.doesNotMatch(block('pr-preflight'), /node tooling\/plan-pr-validation\.mjs/, 'the candidate planner never classifies its own PR')
+  assert.ok(block('pr-preflight').indexOf('run-base-policy.mjs plan') < block('pr-preflight').indexOf('run-pr-preflight.mjs'),
+    'the plan is published before a preflight failure can stop the job')
+  // The gate is expensive work: it stops on cancellation. Only the verify collector reports regardless.
+  assert.match(guard('phase-4-gate'), /^!cancelled\(\) &&/)
+  assert.doesNotMatch(guard('phase-4-gate'), /always\(\)/)
+  assert.match(guard('verify'), /^always\(\) &&/)
   assert.match(block('phase-4-gate'), /node tooling\/run-phase-4-gate\.mjs/)
   assert.match(block('gallery-shard'), /fail-fast: false/)
   assert.match(block('gallery-shard'), /shard: \[1, 2, 3, 4, 5, 6\]/)
@@ -186,7 +205,9 @@ test('workflow wiring preserves full coverage, guard order, permissions and sour
   assert.match(block('gallery-collect'), /node tooling\/collect-gallery-shards\.mjs/)
   assert.match(block('verify'), /NEEDS: \$\{\{ toJSON\(needs\) \}\}/)
   assert.match(block('verify'), /ACTIONS_ENABLED: \$\{\{ vars.ACTIONS_ENABLED \}\}/)
-  assert.match(block('verify'), /run: node tooling\/verify-ci-lanes\.mjs/)
+  assert.match(block('verify'), /ref: \$\{\{ github\.event\.merge_group\.base_sha \}\}\n\s+path: \.base-policy\n\s+persist-credentials: false/)
+  assert.match(block('verify'), /BASE_SHA: \$\{\{ github\.event\.merge_group\.base_sha \}\}/)
+  assert.match(block('verify'), /if \[ "\$GITHUB_EVENT_NAME" = "merge_group" \]; then\n\s+node tooling\/run-base-policy\.mjs aggregate\n\s+else\n\s+node tooling\/verify-ci-lanes\.mjs/)
   assert.ok(block('verify').indexOf('Admission guard') < block('verify').indexOf('actions/checkout@'))
   assert.match(block('verify'), /if \[ "\$HEAD_REPOSITORY" != "\$GITHUB_REPOSITORY" \]; then[\s\S]*?exit 1/)
   assert.match(block('verify'), /if \[ "\$DRAFT" != "false" \]; then[\s\S]*?exit 1/)
@@ -245,11 +266,155 @@ test('CLI labels preliminary success, blocks a draft without a test-failure clai
     assert.doesNotMatch(draft.stdout, /test.*fail/i)
     writeFileSync(payloadPath, '{bad JSON')
     assert.equal(run().status, 1)
-    env.GITHUB_OUTPUT = resolve(dir, 'output.txt')
-    const fallback = spawnSync(process.execPath, ['tooling/plan-pr-validation.mjs'], {cwd: root, env, encoding: 'utf8'})
-    assert.equal(fallback.status, 0)
-    assert.equal(readFileSync(env.GITHUB_OUTPUT, 'utf8'), 'headless-required=true\n')
+    const unclassified = spawnSync(process.execPath, ['tooling/plan-pr-validation.mjs'], {cwd: root, env, encoding: 'utf8'})
+    assert.equal(unclassified.status, 1)
+    assert.equal(unclassified.stdout, '')
   } finally {
     rmSync(dir, {recursive: true, force: true})
   }
 })
+
+// Base-sourced policy (owner 2026-10-01). Oracles: the owner's rulings (one validated plan output, headless on
+// any doubt; fallback only for an absent base aggregator, with the three named lanes), literal fixture results,
+// and real child processes for every planner and aggregator, never stubs of the wrapper's own decisions.
+function policyRepo(files) {
+  const dir = mkdtempSync(resolve(tmpdir(), 'base-policy-'))
+  const git = (...args) => execFileSync('git', ['-C', dir, ...args], {encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe']}).trim()
+  git('init', '-q')
+  for (const [file, text] of Object.entries({'README.md': 'base\n', ...files})) {
+    mkdirSync(resolve(dir, file, '..'), {recursive: true})
+    writeFileSync(resolve(dir, file), text)
+  }
+  git('add', '-A')
+  git('-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', '-c', 'core.hooksPath=', 'commit', '-qm', 'base policy')
+  return {dir, git, sha: git('rev-parse', 'HEAD')}
+}
+const wrapper = (mode, env) => spawnSync(process.execPath, [resolve(root, 'tooling/run-base-policy.mjs'), mode],
+  {cwd: root, encoding: 'utf8', env: {...process.env, ...env}})
+const planned = (policyRoot, env = {}) => {
+  const output = resolve(mkdtempSync(resolve(tmpdir(), 'plan-output-')), 'output.txt')
+  writeFileSync(output, '')
+  const run = wrapper('plan', {BASE_POLICY_ROOT: policyRoot, BASE_SHA: 'a'.repeat(40), HEAD_SHA: 'b'.repeat(40), GITHUB_OUTPUT: output, ...env})
+  assert.equal(run.status, 0, `the plan step never fails: ${run.stderr}`)
+  const published = readFileSync(output, 'utf8')
+  rmSync(resolve(output, '..'), {recursive: true, force: true})
+  return published
+}
+
+test('the plan wrapper runs the base planner and publishes exactly one validated output', () => {
+  const base = policyRepo({'tooling/plan-pr-validation.mjs': readFileSync(resolve(root, 'tooling/plan-pr-validation.mjs'), 'utf8'),
+    'CONTRIBUTING.md': 'guidance\n', 'projections/source.cs': 'source\n'})
+  try {
+    const commit = (file, text) => {
+      writeFileSync(resolve(base.dir, file), text)
+      base.git('-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', '-c', 'core.hooksPath=', 'commit', '-qam', file)
+      return base.git('rev-parse', 'HEAD')
+    }
+    const docs = commit('CONTRIBUTING.md', 'new guidance\n')
+    assert.equal(planned(base.dir, {BASE_SHA: base.sha, HEAD_SHA: docs}), 'headless-required=false\n')
+    const source = commit('projections/source.cs', 'changed source\n')
+    assert.equal(planned(base.dir, {BASE_SHA: base.sha, HEAD_SHA: source}), 'headless-required=true\n')
+  } finally {
+    rmSync(base.dir, {recursive: true, force: true})
+  }
+})
+
+test('every planner failure keeps the headless gate, and the planner cannot publish its own output', () => {
+  const planners = {
+    'non-zero exit': 'process.exit(3)',
+    'syntax error': 'console.log(',
+    'partial output': "console.log('fals')",
+    'two answers': "console.log('true'); console.log('false')",
+    'false then failure': "console.log('false'); process.exit(1)",
+    'writes the workflow output itself': "import {appendFileSync} from 'node:fs'\nappendFileSync(process.env.GITHUB_OUTPUT ?? 'unset', 'headless-required=false\\n')\nconsole.log('true')",
+  }
+  for (const [name, source] of Object.entries(planners)) {
+    const base = policyRepo({'tooling/plan-pr-validation.mjs': source})
+    try {
+      assert.equal(planned(base.dir), 'headless-required=true\n', name)
+    } finally {
+      rmSync(base.dir, {recursive: true, force: true})
+    }
+  }
+  const clean = policyRepo({'tooling/plan-pr-validation.mjs': "console.log('false')"})
+  const empty = policyRepo({})
+  try {
+    assert.equal(planned(clean.dir), 'headless-required=false\n', 'the one accepted skip: a clean, exact `false`')
+    for (const [name, env] of Object.entries({'malformed base': {BASE_SHA: 'main'}, 'missing head': {HEAD_SHA: ''}})) {
+      assert.equal(planned(clean.dir, env), 'headless-required=true\n', name)
+    }
+    assert.equal(planned(empty.dir), 'headless-required=true\n', 'a base commit without a planner')
+    assert.equal(planned(resolve(empty.dir, 'absent')), 'headless-required=true\n', 'a missing base checkout')
+    assert.equal(planned(''), 'headless-required=true\n', 'no base checkout configured')
+  } finally {
+    rmSync(clean.dir, {recursive: true, force: true})
+    rmSync(empty.dir, {recursive: true, force: true})
+  }
+})
+
+test('merge-group aggregation falls back to the named lanes only when the base commit has no aggregator', () => {
+  const lanes = {'pr-preflight': {result: 'skipped'}, 'phase-4-gate': {result: 'success'}, 'gallery-shard': {result: 'success'}, 'gallery-collect': {result: 'success'}}
+  const absent = policyRepo({})
+  const aggregate = (policy, needs, env = {}) => wrapper('aggregate', {BASE_POLICY_ROOT: policy.dir, BASE_SHA: policy.sha,
+    NEEDS: typeof needs === 'string' ? needs : JSON.stringify(needs), ...env})
+  try {
+    const bootstrap = aggregate(absent, lanes)
+    assert.equal(bootstrap.status, 0, bootstrap.stdout)
+    assert.match(bootstrap.stdout, /PASS \(bootstrap aggregator\)/)
+    for (const lane of ['phase-4-gate', 'gallery-shard', 'gallery-collect']) {
+      for (const result of ['failure', 'cancelled', 'skipped', undefined]) {
+        const run = aggregate(absent, {...lanes, [lane]: result === undefined ? undefined : {result}})
+        assert.equal(run.status, 1, `${lane} ${result}`)
+        assert.match(run.stdout, new RegExp(`${lane}: expected success, observed ${result ?? 'missing'}`))
+      }
+    }
+    // A lane removed from `needs` is missing, not passing.
+    const {['gallery-collect']: _, ...removed} = lanes
+    assert.equal(aggregate(absent, removed).status, 1)
+    assert.equal(aggregate(absent, '{bad JSON').status, 1)
+    // Absence must be the base commit's, never a checkout that is missing or at another commit.
+    assert.equal(aggregate({dir: absent.dir, sha: 'c'.repeat(40)}, lanes).status, 1)
+    assert.equal(aggregate({dir: resolve(absent.dir, 'absent'), sha: absent.sha}, lanes).status, 1)
+    assert.equal(aggregate({dir: absent.dir, sha: 'main'}, lanes).status, 1)
+  } finally {
+    rmSync(absent.dir, {recursive: true, force: true})
+  }
+})
+
+test('an existing base aggregator decides; its failure or error blocks and never falls back', () => {
+  const lanes = {'pr-preflight': {result: 'skipped'}, 'phase-4-gate': {result: 'success'}, 'gallery-shard': {result: 'success'}, 'gallery-collect': {result: 'success'}}
+  const aggregators = {
+    'rejects the evidence': 'process.exit(1)',
+    'throws': "throw new Error('aggregator bug')",
+    'syntax error': 'export const = 1',
+  }
+  for (const [name, source] of Object.entries(aggregators)) {
+    const base = policyRepo({'tooling/verify-ci-lanes.mjs': source})
+    try {
+      // Every bootstrap lane succeeded, so a fallback would pass: the block proves no fallback happened.
+      const run = wrapper('aggregate', {BASE_POLICY_ROOT: base.dir, BASE_SHA: base.sha, NEEDS: JSON.stringify(lanes)})
+      assert.equal(run.status, 1, name)
+      assert.match(run.stdout, /FAIL \(base aggregator\)/, name)
+      assert.doesNotMatch(run.stdout, /bootstrap/, name)
+    } finally {
+      rmSync(base.dir, {recursive: true, force: true})
+    }
+  }
+  // The real aggregator, sourced from the base commit, judges the merge group itself.
+  const base = policyRepo({'tooling/verify-ci-lanes.mjs': readFileSync(resolve(root, 'tooling/verify-ci-lanes.mjs'), 'utf8')})
+  try {
+    const payload = resolve(base.dir, 'event.json')
+    writeFileSync(payload, '{}')
+    const env = {BASE_POLICY_ROOT: base.dir, BASE_SHA: base.sha, GITHUB_EVENT_NAME: 'merge_group', GITHUB_EVENT_PATH: payload,
+      GITHUB_REPOSITORY: repository, ACTIONS_ENABLED: 'true', GITHUB_STEP_SUMMARY: ''}
+    const passed = wrapper('aggregate', {...env, NEEDS: JSON.stringify(lanes)})
+    assert.equal(passed.status, 0, passed.stdout)
+    assert.match(passed.stdout, /PASS \(base aggregator\)/)
+    const skipped = wrapper('aggregate', {...env, NEEDS: JSON.stringify({...lanes, 'gallery-shard': {result: 'skipped'}})})
+    assert.equal(skipped.status, 1)
+    assert.match(skipped.stdout, /gallery-shard: expected success, observed skipped/)
+  } finally {
+    rmSync(base.dir, {recursive: true, force: true})
+  }
+})
+

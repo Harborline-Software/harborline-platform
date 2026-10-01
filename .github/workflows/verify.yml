@@ -1,13 +1,16 @@
 # verify: preliminary PR feedback, complete landing proof (T-577, owner 2026-10-01).
 #
-#   pr-preflight    cheap source-policy and CI-contract validation, including draft PR pushes.
+#   pr-preflight    cheap source-policy and CI-contract validation, including draft PR pushes. Its
+#                   headless plan comes from the BASE commit's planner (tooling/run-base-policy.mjs).
 #   phase-4-gate    the unchanged headless gate: implementation PRs, merge groups and dispatch.
 #   gallery-shard   the browser suite, a matrix of six ubuntu runners (T-349). Merge group and
 #                   dispatch only (T-577), IN PARALLEL with the gate.
 #   gallery-collect needs the shards; merges their reports and reconciles them (the gallery half of
 #                   the gate's pass predicate, tooling/collect-gallery-shards.mjs). No browsers.
 # Required `verify` distinguishes preliminary success from full proof. Draft/fork admission stays
-# blocked and the existing stacked-PR deferment remains. Merge groups require every full lane.
+# blocked and the existing stacked-PR deferment remains. Merge groups require every full lane, judged
+# by the queue base commit's aggregator. Base-sourced policy reduces self-classification risk; this
+# workflow's wiring remains candidate-controlled and has no enforced independent review (PROC-0001).
 name: verify
 
 on:
@@ -40,26 +43,46 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+      # The PR cannot classify itself: the planner comes from the base commit, with full history so the
+      # three-dot diff can be computed once the head commit is fetched into it. No credentials persist.
+      - name: Check out the base commit's policy
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: .base-policy
+          fetch-depth: 0
+          persist-credentials: false
       - uses: actions/setup-node@v7
         with:
           node-version: 24
+      # Planned before the preflight so a preflight failure cannot leave the plan unset. The wrapper
+      # publishes one validated output and defaults to the headless gate on any doubt.
+      - name: Retain early behavioral feedback for implementation changes
+        id: plan
+        env:
+          BASE_POLICY_ROOT: .base-policy
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          git -C .base-policy fetch --no-tags --quiet origin "$HEAD_SHA" || echo "::warning::the base planner cannot see the head commit; headless gate kept"
+          node tooling/run-base-policy.mjs plan
+          rm -rf .base-policy
       - name: Fetch main history for recorded evidence provenance
         run: git fetch --no-tags --quiet origin main
       - name: Preliminary PR validation (not full landing proof)
         run: node tooling/run-pr-preflight.mjs
-      - name: Retain early behavioral feedback for implementation changes
-        id: plan
-        run: node tooling/plan-pr-validation.mjs
 
   phase-4-gate:
     # Unknown inputs retain PR headless coverage. Queue/manual never depend on a PR routing result.
+    # Only an explicit `false` plan skips it, so a failed or unset plan still starts the gate.
+    # !cancelled(), not always(): expensive work stops when the run is cancelled.
     needs: pr-preflight
     if: >-
-      always() &&
+      !cancelled() &&
       vars.ACTIONS_ENABLED == 'true' &&
       (github.event_name == 'merge_group' || github.event_name == 'workflow_dispatch' ||
-       (github.event_name == 'pull_request' && needs.pr-preflight.result == 'success' &&
-        needs.pr-preflight.outputs.headless-required == 'true' &&
+       (github.event_name == 'pull_request' &&
+        needs.pr-preflight.outputs.headless-required != 'false' &&
         github.event.pull_request.head.repo.full_name == github.repository &&
         github.event.pull_request.draft == false &&
         !contains(github.event.pull_request.labels.*.name, 'stacked')))
@@ -341,6 +364,14 @@ jobs:
             fi
           fi
       - uses: actions/checkout@v7
+      # Merge group: the lane aggregator comes from the queue's base commit, not from the candidate.
+      - name: Check out the merge group base commit's aggregator
+        if: github.event_name == 'merge_group'
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.merge_group.base_sha }}
+          path: .base-policy
+          persist-credentials: false
       - uses: actions/setup-node@v7
         with:
           node-version: 24
@@ -348,4 +379,11 @@ jobs:
         env:
           NEEDS: ${{ toJSON(needs) }}
           ACTIONS_ENABLED: ${{ vars.ACTIONS_ENABLED }}
-        run: node tooling/verify-ci-lanes.mjs
+          BASE_POLICY_ROOT: .base-policy
+          BASE_SHA: ${{ github.event.merge_group.base_sha }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = "merge_group" ]; then
+            node tooling/run-base-policy.mjs aggregate
+          else
+            node tooling/verify-ci-lanes.mjs
+          fi
