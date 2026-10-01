@@ -17,6 +17,7 @@ public static class SharedFixtureBatch
         if (string.IsNullOrEmpty(path))
         {
             var single = Environment.GetEnvironmentVariable("HARBORLINE_CONFORMANCE_FIXTURE");
+            if (string.IsNullOrWhiteSpace(single)) single = null;
             using var fixture = string.IsNullOrEmpty(single) ? null : JsonDocument.Parse(single);
             yield return new object?[] { fixture?.RootElement.GetProperty("id").GetString() ?? "(native)", single };
             yield break;

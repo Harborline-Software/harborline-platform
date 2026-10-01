@@ -3,9 +3,40 @@ using Xunit;
 
 namespace Harborline.Foundation.UI.Tests;
 
+[CollectionDefinition("Shared fixture environment", DisableParallelization = true)]
+public sealed class SharedFixtureEnvironmentCollection { }
+
+[Collection("Shared fixture environment")]
 public sealed class SharedFixtureBatchTests
 {
     private int instanceRuns;
+
+    [Theory]
+    [InlineData(null, "(native)")]
+    [InlineData("", "(native)")]
+    [InlineData(" \t\r\n", "(native)")]
+    [InlineData("{\"id\":\"singleton\"}", "singleton")]
+    public void SingletonFallbackNormalizesBlankFixturesAndRetainsValidIdentity(string? raw, string expectedId)
+    {
+        var previousBatch = Environment.GetEnvironmentVariable("HARBORLINE_CONFORMANCE_BATCH");
+        var previousFixture = Environment.GetEnvironmentVariable("HARBORLINE_CONFORMANCE_FIXTURE");
+        try
+        {
+            Environment.SetEnvironmentVariable("HARBORLINE_CONFORMANCE_BATCH", null);
+            Environment.SetEnvironmentVariable("HARBORLINE_CONFORMANCE_FIXTURE", raw);
+            var row = SharedFixtureBatch.Cases("unused-for-singleton").Single();
+            Assert.Equal(expectedId, row[0]);
+            Assert.Equal(expectedId == "(native)" ? null : raw, row[1]);
+            var called = false;
+            SharedFixtureBatch.Run((string)row[0]!, (string?)row[1], () => called = true);
+            Assert.True(called);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("HARBORLINE_CONFORMANCE_BATCH", previousBatch);
+            Environment.SetEnvironmentVariable("HARBORLINE_CONFORMANCE_FIXTURE", previousFixture);
+        }
+    }
 
     [Fact]
     public void CaseScopePreservesCallerCultureAndNeverWritesTheFixtureToTheProcessEnvironment()
