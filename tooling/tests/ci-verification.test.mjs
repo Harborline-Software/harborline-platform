@@ -301,6 +301,32 @@ const planned = (policyRoot, env = {}) => {
   return published
 }
 
+// PROC-0001 (Control #936): ANY deletion or rename requires headless, even between allowed paths.
+for (const operation of ['deletion', 'rename']) {
+  test(`the base planner retains headless for an allowlisted ${operation}`, () => {
+    const base = policyRepo({
+      'tooling/plan-pr-validation.mjs': readFileSync(resolve(root, 'tooling/plan-pr-validation.mjs'), 'utf8'),
+      'CONTRIBUTING.md': 'fixture guidance\n', 'tooling/tests/ci-load.test.mjs': 'fixture test\n',
+    })
+    try {
+      writeFileSync(resolve(base.dir, 'CONTRIBUTING.md'), 'modified fixture guidance\n')
+      const commit = () => {
+        base.git('-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', '-c', 'core.hooksPath=', 'commit', '-qam', 'fixture change')
+        return base.git('rev-parse', 'HEAD')
+      }
+      const modified = commit()
+      assert.equal(planned(base.dir, {BASE_SHA: base.sha, HEAD_SHA: modified}), 'headless-required=false\n',
+        'ordinary allowlisted modification remains fast')
+      if (operation === 'deletion') base.git('rm', 'CONTRIBUTING.md')
+      else base.git('mv', 'tooling/tests/ci-load.test.mjs', 'tooling/tests/ci-verification.test.mjs')
+      const changed = commit()
+      assert.equal(planned(base.dir, {BASE_SHA: modified, HEAD_SHA: changed}), 'headless-required=true\n')
+    } finally {
+      rmSync(base.dir, {recursive: true, force: true})
+    }
+  })
+}
+
 test('the plan wrapper runs the base planner and publishes exactly one validated output', () => {
   const base = policyRepo({'tooling/plan-pr-validation.mjs': readFileSync(resolve(root, 'tooling/plan-pr-validation.mjs'), 'utf8'),
     'CONTRIBUTING.md': 'guidance\n', 'projections/source.cs': 'source\n'})
@@ -417,4 +443,3 @@ test('an existing base aggregator decides; its failure or error blocks and never
     rmSync(base.dir, {recursive: true, force: true})
   }
 })
-

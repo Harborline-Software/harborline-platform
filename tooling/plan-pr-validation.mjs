@@ -23,8 +23,17 @@ if (import.meta.main) {
     console.error('usage: plan-pr-validation.mjs <base-sha> <head-sha>')
     process.exit(1)
   }
-  // No rename compression: deletion of an implementation path still requires behavioral coverage.
-  const paths = execFileSync('git', ['diff', '--no-renames', '--name-only', '-z', `${base}...${head}`, '--'],
-    {encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe']}).split('\0').filter(Boolean)
-  console.log(String(requiresPrHeadless(paths)))
+  // PROC-0001: every deletion/rename requires headless, including allowlisted paths. No rename
+  // compression means even a rename between two allowed paths includes a deletion. Keep statuses;
+  // path-only output cannot distinguish an allowed modification from an allowed deletion.
+  const changes = execFileSync('git', ['diff', '--no-renames', '--name-status', '-z', `${base}...${head}`, '--'],
+    {encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe']}).split('\0')
+  if (changes.pop() !== '' || changes.length % 2 !== 0) throw new Error('unreadable Git change-status records')
+  const paths = []
+  let structuralChange = false
+  for (let index = 0; index < changes.length; index += 2) {
+    if (!['A', 'M'].includes(changes[index]) || !changes[index + 1]) structuralChange = true
+    paths.push(changes[index + 1])
+  }
+  console.log(String(structuralChange || requiresPrHeadless(paths)))
 }
