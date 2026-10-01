@@ -17,6 +17,7 @@ import { INPUT_MAX_NODES, INPUT_MAX_UTF8_BYTES } from '../input-envelope.js'
 import { deriveCoreTypes, type CoreJsonType } from '../core-types.js'
 import { admitEnvironment as admitTestEnvironment, fieldReadEffect as testFieldRead, lentGrammar as testGrammar } from '../environment.js'
 import { builtInFunctions as testBuiltIns } from '../functions.js'
+import { serializeComputedValue, serializeOutcome } from '../canonical.js'
 // The suite's own borrower: the whole register, every scope token, every phase (T-590 rules-eng-26).
 const testAdmission = admitTestEnvironment({ borrower: 'rule-engine-tests', grammar: testGrammar, variables: { field: 'test', row: 'test', wf: 'test', timer: 'test' }, operations: testBuiltIns.map((f) => f.key), effects: [testFieldRead], missingValues: 'missing-field-reads-null', timeSource: 'injected-test-clock', timeZone: 'utc', phases: { AuthoringValidation: true, PublishValidation: true, Render: true, Submission: true, Run: true, SignOff: true }, replay: 'deterministic' }).forPhase('Run')
 
@@ -33,6 +34,27 @@ function rule(id: string, scopeTarget: string, action: RuleDefinition['action'],
 function graphOf(rules: RuleDefinition[], instance: Record<string, Json>) {
   const g = new FormRuleGraph(compile(rules), fixedClock, testAdmission)
   return { g, first: g.evaluateInstance(RuleInstance.fromJsonText(JSON.stringify(instance))) }
+}
+
+function reactiveProjection(result: import('../graph.js').RuleEvaluationResult): string {
+  return JSON.stringify({
+    outcomes: [...result.byRule].sort(([a], [b]) => a.localeCompare(b)).map(([key, outcome]) => [key, serializeOutcome(outcome)]),
+    values: [...result.values].sort(([a], [b]) => a.localeCompare(b)).map(([key, value]) => [key, serializeComputedValue(value)]),
+    visibility: [...result.visibility].sort(([a], [b]) => a.localeCompare(b)),
+    validations: result.validations.map(serializeOutcome).sort(),
+    options: [...result.options].sort(([a], [b]) => a.localeCompare(b)),
+    hasPending: result.hasPending,
+    isSaveBlocked: result.isSaveBlocked,
+  })
+}
+
+function mulberry32(seed: number): () => number {
+  return () => {
+    let value = seed += 0x6d2b79f5
+    value = Math.imul(value ^ value >>> 15, value | 1)
+    value ^= value + Math.imul(value ^ value >>> 7, value | 61)
+    return ((value ^ value >>> 14) >>> 0) / 4294967296
+  }
 }
 
 describe('business-clock pinning', () => {
@@ -1029,4 +1051,130 @@ describe('compiled output types', () => {
       expect(compile([rule(`r.${action}`, 'x', action, true)]).rules[0].outputType).toBe(outputType)
     }
   })
+})
+
+describe('T-1018 reactive differential', () => {
+  it('refreshes a clock-dependent computed cell after an unrelated edit', () => {
+    const instants = [new Date('2026-06-30T23:59:59.000Z'), new Date('2026-07-01T00:00:01.000Z')]
+    let reads = 0
+    const graph = new FormRuleGraph(compile([
+      rule('clock.today', 'today', 'Compute', { 'date.today': [] }),
+      rule('clock.label', 'label', 'Compute', { cat: [{ var: 'today' }, '!'] }),
+      rule('unrelated.copy', 'copy', 'Compute', { var: 'unrelated' }),
+    ]), () => instants[reads++], testAdmission)
+
+    graph.evaluateInstance(instance({ unrelated: 'before' }))
+    const next = graph.reevaluate('unrelated', valueSnapshot('after'))
+
+    // Oracle: the injected UTC instants above, not a production-derived result.
+    expect(next.values.get('field:label')).toEqual({ state: 'Resolved', value: '2026-07-01!' })
+  })
+
+  it('tracks field-prefixed dynamic reads independently of their key list', () => {
+    const graph = new FormRuleGraph(compile([
+      rule('dynamic.missing', 'missing', 'Compute', { missing: [{ var: 'keys' }] }),
+    ]), fixedClock, testAdmission)
+    graph.evaluateInstance(instance({ keys: ['field.amount'], amount: 1 }))
+
+    const next = graph.reevaluate('amount', valueSnapshot(null))
+
+    // Oracle: JsonLogic missing reports the requested path when its value is null.
+    expect(next.values.get('field:missing')).toEqual({ state: 'Resolved', value: ['field.amount'] })
+  })
+
+  it('keeps every actual dynamic read of a computed cell', () => {
+    const graph = new FormRuleGraph(compile([
+      rule('dynamic.two', 'two', 'Compute', {
+        and: [
+          { '!!': [{ missing: [{ var: 'keysA' }] }] },
+          { '!!': [{ missing: [{ var: 'keysB' }] }] },
+        ],
+      }),
+    ]), fixedClock, testAdmission)
+    graph.evaluateInstance(instance({ keysA: ['rawA'], keysB: ['rawB'], rawA: null, rawB: null }))
+
+    const next = graph.reevaluate('rawA', valueSnapshot(1))
+
+    expect(next.values.get('field:two')).toEqual({ state: 'Resolved', value: false })
+  })
+
+  it('keeps every actual dynamic read of a non-compute plan', () => {
+    const graph = new FormRuleGraph(compile([
+      rule('dynamic.validate', 'result', 'Validate', {
+        and: [
+          { '!!': [{ missing: [{ var: 'keysA' }] }] },
+          { '!!': [{ missing: [{ var: 'keysB' }] }] },
+        ],
+      }),
+    ]), fixedClock, testAdmission)
+    graph.evaluateInstance(instance({ keysA: ['rawA'], keysB: ['rawB'], rawA: null, rawB: null }))
+
+    const next = graph.reevaluate('rawA', valueSnapshot(1))
+
+    expect(next.byRule.get('dynamic.validate')?.validity).toEqual({ ok: false, error: { code: 'dynamic.validate', params: {} } })
+  })
+
+  it('evaluates a table-scoped compute and its aggregate with no table present', () => {
+    const result = new FormRuleGraph(compile([
+      rule('table.total', 'items/sum/total', 'Compute', { var: 'table.sum(items.amount)' }, 'Table'),
+    ]), fixedClock, testAdmission).evaluateInstance(instance({}))
+
+    // Oracle: sum's empty-input identity is zero.
+    expect(result.values.get('agg:items/sum/total')).toEqual({ state: 'Resolved', value: 0 })
+    expect(result.byRule.get('table.total')?.value).toEqual({ state: 'Resolved', value: 0 })
+  })
+
+  it('matches a fresh evaluation after 200 deterministic field and table edit sequences', () => {
+    const rules = [
+      rule('field.adjusted', 'adjusted', 'Compute', { '*': [{ var: 'amount' }, { var: 'multiplier' }] }),
+      rule('field.total', 'total', 'Compute', { var: 'table.sum(items.line)' }),
+      rule('row.line', 'items/line', 'Compute', { '*': [{ var: 'row.qty' }, { var: 'row.price' }] }, 'Row'),
+      rule('table.lineTotal', 'items/sum/lineTotal', 'Compute', { var: 'table.sum(items.line)' }, 'Table'),
+      rule('validate.amount', 'amount', 'Validate', { '>=': [{ var: 'amount' }, 0] }),
+      rule('visible.summary', 'summary', 'Visibility', { '>': [{ var: 'table.sum(items.line)' }, 0] }),
+      rule('options.mode', 'mode', 'Options', { if: [{ var: 'mode' }, ['on'], ['off']] }),
+    ]
+    const fresh = (data: Record<string, Json>) => new FormRuleGraph(compile(rules), fixedClock, testAdmission)
+      .evaluateInstance(instance(data))
+    for (let seed = 1; seed <= 200; seed++) {
+      const random = mulberry32(seed)
+      const data: Record<string, Json> = {
+        amount: 1,
+        multiplier: 2,
+        mode: false,
+        items: [{ _id: 'r0', qty: 1, price: 2 }],
+      }
+      const graph = new FormRuleGraph(compile(rules), fixedClock, testAdmission)
+      graph.evaluateInstance(instance(data))
+      for (let step = 0; step < 12; step++) {
+        const kind = Math.floor(random() * 4)
+        let actual: import('../graph.js').RuleEvaluationResult
+        if (kind === 0) {
+          const field = random() < 0.5 ? 'amount' : random() < 0.5 ? 'multiplier' : 'mode'
+          const value: Json = field === 'mode' ? random() < 0.5 : Math.floor(random() * 9) - 2
+          data[field] = value
+          actual = graph.reevaluate(field, valueSnapshot(value))
+        } else if (kind === 1 || (data.items as Json[]).length === 0) {
+          const id = `s${seed}-${step}`
+          const row = { _id: id, qty: 1 + Math.floor(random() * 4), price: Math.floor(random() * 9) }
+          ;(data.items as Json[]).push(row)
+          actual = graph.addRow('items', rowSnapshot({ id, fields: { qty: row.qty, price: row.price } }))
+        } else if (kind === 2) {
+          const rows = data.items as Array<Record<string, Json>>
+          const index = Math.floor(random() * rows.length)
+          const [removed] = rows.splice(index, 1)
+          actual = graph.removeRow('items', removed._id as string)
+        } else {
+          const rows = data.items as Array<Record<string, Json>>
+          const index = Math.floor(random() * rows.length)
+          const prior = rows[index]
+          const replacement = { _id: prior._id as string, qty: 1 + Math.floor(random() * 4), price: Math.floor(random() * 9) }
+          rows[index] = replacement
+          graph.removeRow('items', replacement._id)
+          actual = graph.addRow('items', rowSnapshot({ id: replacement._id, fields: { qty: replacement.qty, price: replacement.price } }))
+        }
+        expect(reactiveProjection(actual), `seed ${seed}, step ${step}`).toBe(reactiveProjection(fresh(data)))
+      }
+    }
+  }, 60_000)
 })
