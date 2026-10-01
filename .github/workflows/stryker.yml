@@ -5,7 +5,7 @@
 # configured break), or when 0 mutants were tested. Survivors on changed lines go to the step summary as review
 # feedback. No source change: skipped, green. (Owner order 2026-09-30; PR #227 lost 16 points and merged green.)
 #
-# Schedule (03:00 America/New_York, 07:00 UTC) and workflow_dispatch: `node tooling/stryker.mjs full` runs every
+# Schedule (07:40 UTC) and workflow_dispatch: `node tooling/stryker.mjs full` runs every
 # configured project on main and fails when a project scores below its baseline in tooling/stryker-baselines.json.
 #
 # winbox, not the Macs: macpro carries verify-shared, the platform bottleneck, and mac16 is the perf-quiet runner
@@ -49,7 +49,7 @@ jobs:
           BACKGROUND_MUTATION_ROUTE: ${{ vars.BACKGROUND_MUTATION_ROUTE }}
           LOCAL_BACKGROUND_RESERVATION: ${{ vars.LOCAL_BACKGROUND_RESERVATION }}
         run: |
-          node --test .github/workloads/workload-route.test.mjs
+          node --test .github/workloads/workload-route.test.mjs .github/workloads/windows-default.test.mjs
           python3 .github/workloads/host-workload-lock.test.py
           node .github/workloads/workload-route.mjs
   stryker:
@@ -88,7 +88,7 @@ jobs:
           node-version: 24
 
       - uses: actions/setup-python@v6
-        if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request' && runner.os != 'Windows'
         with:
           python-version: '3.14'
 
@@ -118,7 +118,13 @@ jobs:
 
       - name: Mutate every project and hold each to its baseline (scheduled)
         if: github.event_name != 'pull_request'
-        run: python .github/workloads/host-workload-lock.py -- pwsh -NoProfile -File .github/workloads/full-mutation.ps1
+        run: |
+          if ($env:RUNNER_OS -eq 'Windows') {
+            & ./.github/workloads/full-mutation.ps1
+            exit $LASTEXITCODE
+          }
+          python .github/workloads/host-workload-lock.py -- pwsh -NoProfile -File .github/workloads/full-mutation.ps1
+          exit $LASTEXITCODE
         env:
           HARBORLINE_CONTROL_REPO: ${{ runner.temp }}/harborline-control
           NUGET_PACKAGES: ${{ runner.temp }}/mutation-nuget-${{ github.run_id }}-${{ github.run_attempt }}
