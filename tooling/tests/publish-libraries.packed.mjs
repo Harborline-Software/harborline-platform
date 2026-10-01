@@ -7,6 +7,7 @@ import { inflateRawSync } from 'node:zlib'
 import test from 'node:test'
 import { computePackageVersion, readPackageVersionProps } from '../package-version.mjs'
 import { producerIds } from '../package-producers.mjs'
+import { readLibraryManifest } from '../library-promotion-proof.mjs'
 
 const root = resolve(import.meta.dirname, '../..')
 function zipEntries(path) {
@@ -57,7 +58,8 @@ test('every packed nuspec and manifest hash agrees with the version derived by t
   const version = computePackageVersion(root)
   assert.equal(readPackageVersionProps(root), version)
   const feed = resolve(root, 'artifacts/packages/nuget')
-  const manifest = JSON.parse(readFileSync(resolve(feed, 'manifest.json'), 'utf8'))
+  const wrapper = readLibraryManifest(feed)
+  const manifest = wrapper.packages
   const files = readdirSync(feed).filter(name => name.endsWith('.nupkg')).sort()
   // The inventory is derived from the producer, never restated as a count: a literal here went stale
   // when the 28th package landed and failed publication silently for nine commits (T-682). A deepEqual

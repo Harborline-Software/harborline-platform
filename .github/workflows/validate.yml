@@ -68,6 +68,8 @@ jobs:
         run: node tooling/verify-package-fixtures.mjs --pack-libraries
       - name: Verify publication inventory and packed versions
         run: node --test tooling/tests/publish-libraries.test.mjs tooling/tests/publish-libraries.packed.mjs
+      - name: Verify exact consumed bytes before attestation and publication
+        run: node tooling/library-promotion-proof.mjs
       - name: Upload package manifest
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
@@ -76,8 +78,6 @@ jobs:
             artifacts/packages/nuget/manifest.json
             artifacts/packages/nuget/consumer-proof.json
           if-no-files-found: error
-      - name: Verify exact consumed bytes before attestation and publication
-        run: node tooling/library-promotion-proof.mjs
       - name: Attest every packed library before push (T-705 ruling 107)
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
         with:

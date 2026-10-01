@@ -995,7 +995,9 @@ function verifyNuget() {
     for (const entry of manifest) {
       if (entry.version !== packedVersion) throw new Error(`Packed version mismatch: ${entry.id} ${entry.version} != ${packedVersion}`)
     }
-    writeLibraryProof(nugetArtifacts, packageCache, manifest, sourceIdentity(root))
+    writeLibraryProof(nugetArtifacts, packageCache, {
+      schema: 'harborline-platform/library-manifest/1', packages: manifest,
+    }, sourceIdentity(root))
     // The offline consumer's third-party dependencies are feed inputs, not published libraries.
     const published = new Set(manifest.map(({ id, version }) => `${id}.${version}.nupkg`))
     for (const name of readdirSync(nugetArtifacts).filter(name => name.endsWith('.nupkg'))) {
