@@ -123,6 +123,18 @@ public sealed class ConformanceTests
             string actual = CanonicalJson.SerializeOutcome(result.ByRule[ruleKey]);
             Assert.Equal(Canonical(expected), actual);
         }
+
+        // Aggregate cells are observable through the evaluation result as well as through a
+        // consuming Compute outcome. Cases that name one pin its native value/refusal rather than
+        // the consumer's deliberately wrapped upstream-error projection.
+        if (caseObj.TryGetPropertyValue("expectedValues", out var valuesNode) && valuesNode is JsonObject expectedValues)
+        {
+            foreach (var (cellKey, expected) in expectedValues)
+            {
+                Assert.True(result.Values.TryGetValue(cellKey, out var actual), $"[{name}] expectedValues names unknown cell '{cellKey}'");
+                Assert.Equal(Canonical(expected), CanonicalJson.SerializeComputedValue(actual!));
+            }
+        }
     }
 
     [Fact]

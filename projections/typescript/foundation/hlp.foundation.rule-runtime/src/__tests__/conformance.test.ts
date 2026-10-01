@@ -45,6 +45,8 @@ interface CorpusCase {
   expectedAst?: Record<string, Json>
   expectedCompiledExpression?: Record<string, Json>
   expectedOutcomes?: Record<string, Json>
+  /** Selected computed cells whose internal refusal/value is part of the shared contract. */
+  expectedValues?: Record<string, Json>
   /** Ticket 162: the case pins a PUBLISH-TIME refusal — compile must throw this stable code. */
   expectedCompileError?: { code: string, params?: Record<string, string> }
   /** Ticket 162: evaluate this rule id through GuardEvaluator.evaluateValue over `instance` as the context bag. */
@@ -239,6 +241,9 @@ describe('SPINE-1 conformance corpus (TS tier — byte-identical to .NET)', () =
       expect([...result.byRule.keys()].sort()).toEqual(Object.keys(expectedOutcomes).sort())
       for (const [ruleKey, expected] of Object.entries(expectedOutcomes)) {
         expect(serializeOutcome(result.byRule.get(ruleKey)!)).toBe(write(expected))
+      }
+      for (const [cellKey, expected] of Object.entries(c.expectedValues ?? {})) {
+        expect(serializeComputedValue(result.values.get(cellKey)!)).toBe(write(expected))
       }
     })
   }

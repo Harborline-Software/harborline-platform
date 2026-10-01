@@ -44,6 +44,145 @@
       ],
       "instance": {},
       "expectedGuardValue": { "state": "Error", "error": { "code": "rule.bad_reference", "params": { "agg": "items/sum/amount" } } }
+    },
+    {
+      "_comment": "The seven registered folds have literal identities over an empty child table. In particular, average is zero and extrema are null rather than fabricated numeric values.",
+      "name": "agg/empty-table-every-registered-fold",
+      "definitionRules": [
+        { "id": "c.sum", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "sum", "action": "Compute", "expression": { "var": "table.sum(items.value)" } },
+        { "id": "c.avg", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "avg", "action": "Compute", "expression": { "var": "table.avg(items.value)" } },
+        { "id": "c.min", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "min", "action": "Compute", "expression": { "var": "table.min(items.value)" } },
+        { "id": "c.max", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "max", "action": "Compute", "expression": { "var": "table.max(items.value)" } },
+        { "id": "c.count", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "count", "action": "Compute", "expression": { "var": "table.count(items.value)" } },
+        { "id": "c.any", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "any", "action": "Compute", "expression": { "var": "table.any(items.value)" } },
+        { "id": "c.all", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "all", "action": "Compute", "expression": { "var": "table.all(items.value)" } }
+      ],
+      "instance": { "items": [] },
+      "expectedOutcomes": {
+        "c.sum": { "ruleId": "c.sum", "target": "field:sum", "outputType": "Value", "value": { "state": "Resolved", "value": 0 } },
+        "c.avg": { "ruleId": "c.avg", "target": "field:avg", "outputType": "Value", "value": { "state": "Resolved", "value": 0 } },
+        "c.min": { "ruleId": "c.min", "target": "field:min", "outputType": "Value", "value": { "state": "Resolved", "value": null } },
+        "c.max": { "ruleId": "c.max", "target": "field:max", "outputType": "Value", "value": { "state": "Resolved", "value": null } },
+        "c.count": { "ruleId": "c.count", "target": "field:count", "outputType": "Value", "value": { "state": "Resolved", "value": 0 } },
+        "c.any": { "ruleId": "c.any", "target": "field:any", "outputType": "Value", "value": { "state": "Resolved", "value": false } },
+        "c.all": { "ruleId": "c.all", "target": "field:all", "outputType": "Value", "value": { "state": "Resolved", "value": true } }
+      }
+    },
+    {
+      "_comment": "All decimal strings select exact money arithmetic. The first value is neither the minimum nor maximum, and 0.1 + 0.2 must not expose IEEE-754's 0.30000000000000004.",
+      "name": "agg/decimal-strings-use-exact-money-sum-min-and-max",
+      "definitionRules": [
+        { "id": "c.sum", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "sum", "action": "Compute", "expression": { "var": "table.sum(items.price)" } },
+        { "id": "c.min", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "min", "action": "Compute", "expression": { "var": "table.min(items.price)" } },
+        { "id": "c.max", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "max", "action": "Compute", "expression": { "var": "table.max(items.price)" } }
+      ],
+      "instance": { "items": [ { "price": "0.2" }, { "price": "0.1" }, { "price": "0.3" } ] },
+      "expectedOutcomes": {
+        "c.sum": { "ruleId": "c.sum", "target": "field:sum", "outputType": "Value", "value": { "state": "Resolved", "value": "0.6" } },
+        "c.min": { "ruleId": "c.min", "target": "field:min", "outputType": "Value", "value": { "state": "Resolved", "value": "0.1" } },
+        "c.max": { "ruleId": "c.max", "target": "field:max", "outputType": "Value", "value": { "state": "Resolved", "value": "0.3" } }
+      }
+    },
+    {
+      "_comment": "A one-element decimal-string column is still money and returns a canonical decimal result, not the raw source spelling.",
+      "name": "agg/one-element-money-column-is-canonical",
+      "definitionRules": [
+        { "id": "c.sum", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "sum", "action": "Compute", "expression": { "var": "table.sum(items.price)" } },
+        { "id": "c.min", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "min", "action": "Compute", "expression": { "var": "table.min(items.price)" } },
+        { "id": "c.max", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "max", "action": "Compute", "expression": { "var": "table.max(items.price)" } }
+      ],
+      "instance": { "items": [ { "price": "12.3400" } ] },
+      "expectedOutcomes": {
+        "c.sum": { "ruleId": "c.sum", "target": "field:sum", "outputType": "Value", "value": { "state": "Resolved", "value": "12.34" } },
+        "c.min": { "ruleId": "c.min", "target": "field:min", "outputType": "Value", "value": { "state": "Resolved", "value": "12.34" } },
+        "c.max": { "ruleId": "c.max", "target": "field:max", "outputType": "Value", "value": { "state": "Resolved", "value": "12.34" } }
+      }
+    },
+    {
+      "_comment": "Average requires decimal division, which v1 does not define. A money average therefore refuses rather than falling back to double arithmetic.",
+      "name": "agg/money-average-refuses",
+      "definitionRules": [
+        { "id": "c.avg", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "avg", "action": "Compute", "expression": { "var": "table.avg(items.price)" } }
+      ],
+      "instance": { "items": [ { "price": "0.1" }, { "price": "0.2" } ] },
+      "expectedOutcomes": {
+        "c.avg": { "ruleId": "c.avg", "target": "field:avg", "outputType": "Value", "value": { "state": "Error", "error": { "code": "rule.upstream_error", "params": { "cell": "agg:items/avg/price" } } } }
+      },
+      "expectedValues": {
+        "agg:items/avg/price": { "state": "Error", "error": { "code": "rule.money_agg_unsupported", "params": { "section": "items" } } }
+      }
+    },
+    {
+      "_comment": "A mixed number/string column remains a numeric fold; it must not silently select the money branch.",
+      "name": "agg/mixed-number-and-string-column-is-not-money",
+      "definitionRules": [
+        { "id": "c.sum", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "sum", "action": "Compute", "expression": { "var": "table.sum(items.value)" } }
+      ],
+      "instance": { "items": [ { "value": "0.1" }, { "value": 0.2 } ] },
+      "expectedOutcomes": {
+        "c.sum": { "ruleId": "c.sum", "target": "field:sum", "outputType": "Value", "value": { "state": "Resolved", "value": 0.30000000000000004 } }
+      }
+    },
+    {
+      "_comment": "An all-string column containing a non-decimal is detected as intended money input, then refuses with the aggregate type error rather than returning a partial or numeric result.",
+      "name": "agg/non-decimal-string-money-column-refuses-type-error",
+      "definitionRules": [
+        { "id": "c.sum", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "sum", "action": "Compute", "expression": { "var": "table.sum(items.price)" } }
+      ],
+      "instance": { "items": [ { "price": "1.0" }, { "price": "not-decimal" } ] },
+      "expectedOutcomes": {
+        "c.sum": { "ruleId": "c.sum", "target": "field:sum", "outputType": "Value", "value": { "state": "Error", "error": { "code": "rule.upstream_error", "params": { "cell": "agg:items/sum/price" } } } }
+      },
+      "expectedValues": {
+        "agg:items/sum/price": { "state": "Error", "error": { "code": "rule.type_error", "params": { "op": "agg" } } }
+      }
+    },
+    {
+      "_comment": "A mixed column with a non-decimal string cannot use money arithmetic and its ordinary numeric fold also refuses as a type error; it never silently skips or coerces the bad row.",
+      "name": "agg/mixed-non-decimal-string-refuses-type-error",
+      "definitionRules": [
+        { "id": "c.sum", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "sum", "action": "Compute", "expression": { "var": "table.sum(items.value)" } }
+      ],
+      "instance": { "items": [ { "value": "not-decimal" }, { "value": 2 } ] },
+      "expectedOutcomes": {
+        "c.sum": { "ruleId": "c.sum", "target": "field:sum", "outputType": "Value", "value": { "state": "Error", "error": { "code": "rule.upstream_error", "params": { "cell": "agg:items/sum/value" } } } }
+      },
+      "expectedValues": {
+        "agg:items/sum/value": { "state": "Error", "error": { "code": "rule.type_error", "params": { "reason": "not-a-number" } } }
+      }
+    },
+    {
+      "_comment": "The compiler admits only its bounded aggregate-fold register. An unknown fold cannot reach FoldAggregate's defensive default arm.",
+      "name": "agg/unknown-fold-refuses-at-compile",
+      "definitionRules": [
+        { "id": "c.unknown", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "unknown", "action": "Compute", "expression": { "agg": [ "median", "items", "price" ] } }
+      ],
+      "instance": {},
+      "expectedCompileError": { "code": "rule.compile.bad_grammar" }
+    },
+    {
+      "_comment": "An aggregate evaluation has six non-row charges (aggregate cell, consuming cell, agg node, and three static agg arguments). With a budget of nine, three rows pass exactly: each row contributes exactly one charge.",
+      "name": "agg/budget-charges-each-of-three-rows-once",
+      "limits": { "stepBudget": 9 },
+      "definitionRules": [
+        { "id": "c.total", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "total", "action": "Compute", "expression": { "var": "table.sum(items.amount)" } }
+      ],
+      "instance": { "items": [ { "amount": 1 }, { "amount": 2 }, { "amount": 3 } ] },
+      "expectedOutcomes": {
+        "c.total": { "ruleId": "c.total", "target": "field:total", "outputType": "Value", "value": { "state": "Resolved", "value": 6 } }
+      }
+    },
+    {
+      "_comment": "At the same nine-step limit, the fourth aggregate row is the tenth charge and fails closed. Together with the preceding case this distinguishes zero, one, and multiple charges per row.",
+      "name": "agg/budget-refuses-fourth-row-at-the-same-limit",
+      "limits": { "stepBudget": 9 },
+      "definitionRules": [
+        { "id": "c.total", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "total", "action": "Compute", "expression": { "var": "table.sum(items.amount)" } }
+      ],
+      "instance": { "items": [ { "amount": 1 }, { "amount": 2 }, { "amount": 3 }, { "amount": 4 } ] },
+      "expectedOutcomes": {
+        "rule.engine": { "ruleId": "rule.engine", "target": "schema:", "outputType": "Validity", "validity": { "ok": false, "error": { "code": "rule.budget_exceeded", "params": { "rule": "c.total" } } } }
+      }
     }
   ]
 }
