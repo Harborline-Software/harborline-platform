@@ -130,13 +130,24 @@ export const sourceDirectories = (project, text) => [path.posix.dirname(project)
 
 // Selection concerns the whole project's score, not just new lines: deletions change the remaining behaviour too.
 // Disable rename folding so a move selects both the old and new owners. NUL delimiters preserve spaces, tabs and
-// non-ASCII names without Git's pathname quoting. Test-only changes stay outside PR #236's source-change policy.
+// non-ASCII names without Git's pathname quoting. Reconcile base and current ownership: deleting an Include must
+// not erase the old owner's source change. Test-only changes stay outside PR #236's source-change policy.
 export function changedSourceFiles(project, text, repositoryRoot = root, base = 'origin/main') {
-  const razor = text.includes('Microsoft.NET.Sdk.Razor')
-  const patterns = sourceDirectories(project, text).flatMap(directory =>
+  const command = (...args) => execFileSync('git', ['-C', repositoryRoot, ...args],
+    {encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe']})
+  // Resolve the base first: a bad ref is an error, not an absent project. A new project legitimately has no base
+  // blob; a deleted project has only its base blob. The normal config checker still refuses deleted targets.
+  const baseCommit = command('rev-parse', '--verify', '--end-of-options', `${base}^{commit}`).trim()
+  const existed = command('ls-tree', '--name-only', '-z', baseCommit, '--', project).length > 0
+  const before = existed ? command('show', `${baseCommit}:${project}`) : undefined
+  const versions = [before, text].filter(version => version !== undefined)
+  if (!versions.length) throw new Error(`${project}: absent from both ${base} and the current tree`)
+  const razor = versions.some(version => version.includes('Microsoft.NET.Sdk.Razor'))
+  const directories = [...new Set(versions.flatMap(version => sourceDirectories(project, version)))]
+  const patterns = directories.flatMap(directory =>
     razor ? [`${directory}/*.cs`, `${directory}/*.razor`] : [`${directory}/*.cs`])
-  return execFileSync('git', ['-C', repositoryRoot, 'diff', '--name-only', '-z', '--no-renames', base, '--', ...patterns],
-    {encoding: 'utf8'}).split('\0').filter(file => file && !/\.tests\//.test(file))
+  return command('diff', '--name-only', '-z', '--no-renames', baseCommit, '--', ...patterns)
+    .split('\0').filter(file => file && !/\.tests\//.test(file))
 }
 
 // Generator output -> plain C# Stryker will mutate: drop the BOM and the auto-generated marker (and the script drops
