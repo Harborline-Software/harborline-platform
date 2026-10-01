@@ -226,7 +226,17 @@ test('PR selection preserves base ownership when linked source and its Compile I
   const fixture = selectionFixture(t, '<Compile Include="../linked/**/*.cs" />')
   fixture.write('p/lib/Lib.csproj', '<Project />')
   rmSync(path.join(fixture.directory, 'p/linked/L.cs'))
-  assert.deepEqual(fixture.changed(), ['p/linked/L.cs'])
+  assert.deepEqual(fixture.changed(), ['p/lib/Lib.csproj', 'p/linked/L.cs'])
+})
+
+test('PR selection includes a project file that alone removes compiled source', t => {
+  const unlinked = selectionFixture(t, '<Compile Include="../linked/**/*.cs" />')
+  unlinked.write('p/lib/Lib.csproj', '<Project />')
+  assert.deepEqual(unlinked.changed(), ['p/lib/Lib.csproj'])
+  const removed = selectionFixture(t)
+  removed.write('p/lib/Lib.csproj', '<Compile Remove="A.cs" />')
+  assert.deepEqual(removed.changed('p/lib/Lib.csproj', '<Compile Remove="A.cs" />'), ['p/lib/Lib.csproj'])
+  assert.deepEqual(removed.changed('p/other/Other.csproj'), [])
 })
 
 test('PR selection preserves both owners when linked source is moved and its old Include removed', t => {
@@ -234,7 +244,7 @@ test('PR selection preserves both owners when linked source is moved and its old
   fixture.write('p/lib/Lib.csproj', '<Project />')
   renameSync(path.join(fixture.directory, 'p/linked/L.cs'), path.join(fixture.directory, 'p/other/Moved.cs'))
   fixture.git('add', '-A')
-  assert.deepEqual(fixture.changed(), ['p/linked/L.cs'])
+  assert.deepEqual(fixture.changed(), ['p/lib/Lib.csproj', 'p/linked/L.cs'])
   assert.deepEqual(fixture.changed('p/other/Other.csproj'), ['p/other/Moved.cs'])
 })
 
@@ -242,7 +252,7 @@ test('PR selection preserves deleted Razor ownership when the current project re
   const fixture = selectionFixture(t, '<Project Sdk="Microsoft.NET.Sdk.Razor" />')
   fixture.write('p/lib/Lib.csproj', '<Project />')
   rmSync(path.join(fixture.directory, 'p/lib/View.razor'))
-  assert.deepEqual(fixture.changed(), ['p/lib/View.razor'])
+  assert.deepEqual(fixture.changed(), ['p/lib/Lib.csproj', 'p/lib/View.razor'])
 })
 
 test('PR selection accepts a new project absent from base and a deleted project absent from the current tree', t => {
@@ -250,10 +260,10 @@ test('PR selection accepts a new project absent from base and a deleted project 
   fixture.write('p/new/New.csproj', '<Project />')
   fixture.write('p/new/New.cs', 'new source\n')
   fixture.git('add', '-A')
-  assert.deepEqual(fixture.changed('p/new/New.csproj'), ['p/new/New.cs'])
+  assert.deepEqual(fixture.changed('p/new/New.csproj'), ['p/new/New.cs', 'p/new/New.csproj'])
   rmSync(path.join(fixture.directory, 'p/lib/Lib.csproj'))
   rmSync(path.join(fixture.directory, 'p/lib/Gone.cs'))
-  assert.deepEqual(changedSourceFiles('p/lib/Lib.csproj', undefined, fixture.directory, 'HEAD'), ['p/lib/Gone.cs'])
+  assert.deepEqual(changedSourceFiles('p/lib/Lib.csproj', undefined, fixture.directory, 'HEAD'), ['p/lib/Gone.cs', 'p/lib/Lib.csproj'])
 })
 
 test('PR selection refuses an unknown base or a project absent from both trees instead of silently skipping', t => {

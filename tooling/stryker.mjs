@@ -131,7 +131,8 @@ export const sourceDirectories = (project, text) => [path.posix.dirname(project)
 // Selection concerns the whole project's score, not just new lines: deletions change the remaining behaviour too.
 // Disable rename folding so a move selects both the old and new owners. NUL delimiters preserve spaces, tabs and
 // non-ASCII names without Git's pathname quoting. Reconcile base and current ownership: deleting an Include must
-// not erase the old owner's source change. Test-only changes stay outside PR #236's source-change policy.
+// not erase the old owner's source change. The project file itself counts: an Include or Remove edit alone changes
+// what compiles. Test-only changes stay outside PR #236's source-change policy.
 export function changedSourceFiles(project, text, repositoryRoot = root, base = 'origin/main') {
   const command = (...args) => execFileSync('git', ['-C', repositoryRoot, ...args],
     {encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe']})
@@ -144,8 +145,8 @@ export function changedSourceFiles(project, text, repositoryRoot = root, base = 
   if (!versions.length) throw new Error(`${project}: absent from both ${base} and the current tree`)
   const razor = versions.some(version => version.includes('Microsoft.NET.Sdk.Razor'))
   const directories = [...new Set(versions.flatMap(version => sourceDirectories(project, version)))]
-  const patterns = directories.flatMap(directory =>
-    razor ? [`${directory}/*.cs`, `${directory}/*.razor`] : [`${directory}/*.cs`])
+  const patterns = [project, ...directories.flatMap(directory =>
+    razor ? [`${directory}/*.cs`, `${directory}/*.razor`] : [`${directory}/*.cs`])]
   return command('diff', '--name-only', '-z', '--no-renames', baseCommit, '--', ...patterns)
     .split('\0').filter(file => file && !/\.tests\//.test(file))
 }
@@ -281,7 +282,7 @@ function run(repo, only, strykerArgs) {
   for (const test of selected(repo, only)) {
     const target = targetOf(test, read), targetText = read(target)
     const changed = changedSourceFiles(target, targetText)
-    if (!changed.length) { summarize(`- ${test}: skipped; no production .cs${targetText.includes('Microsoft.NET.Sdk.Razor') ? '/.razor' : ''} change since origin/main (test-only changes do not select a project under PR #236).`); continue }
+    if (!changed.length) { summarize(`- ${test}: skipped; no project-file or production .cs${targetText.includes('Microsoft.NET.Sdk.Razor') ? '/.razor' : ''} change since origin/main (test-only changes do not select a project under PR #236).`); continue }
     summarize(`- ${test}: selected for full-project mutation; changed source: ${changed.map(file => `\`${file}\``).join(', ')}.`)
     const {report, razor: isRazor} = mutateProject(test, undefined, strykerArgs)
     const floor = fullModeBreak(repo.baselines[test], configOf(test, read)), verdict = scoreVerdict(report, floor)
