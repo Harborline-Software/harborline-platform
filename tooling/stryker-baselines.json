@@ -270,14 +270,14 @@
     "commit": "c09cfcacf303b1944afadf7e891428ecc9d737cb"
   },
   "projections/dotnet/foundation/hlp.foundation.rule-runtime.tests/Harborline.Foundation.RuleEngine.Tests.csproj": {
-    "break": 60,
-    "score": 60.67,
-    "tested": 2983,
-    "total": 4088,
-    "detected": 1810,
-    "undetected": 1173,
-    "measured": "2026-09-29",
-    "commit": "6e5936b4fab7b73512f3574099751d148725ca99"
+    "break": 63,
+    "score": 63.5,
+    "tested": 3050,
+    "total": 4164,
+    "detected": 1937,
+    "undetected": 1113,
+    "measured": "2026-09-30",
+    "commit": "e381df5a"
   },
   "projections/dotnet/foundation/hlp.foundation.scheduling.tests/Harborline.Foundation.Scheduling.Tests.csproj": {
     "break": 72,
