@@ -37,8 +37,8 @@ export function executeConformanceBatch({moduleId, fixtures, command, root, exec
     const skipped = Number(/Skipped:\s+(\d+)/.exec(run.output)?.[1] ?? 0)
     if (skipped) throw new Error('conformance batch skipped tests')
     if (!existsSync(output)) throw new Error(`${moduleId}: no executed-case evidence\n${run.output.split('\n').slice(-60).join('\n')}`)
-    const rows = readFileSync(output, 'utf8').trim().split('\n').map(line => JSON.parse(line))
     try {
+      const rows = readFileSync(output, 'utf8').split('\n').filter(line => line.trim()).map(line => JSON.parse(line))
       return {run, rows: reconcileBatchResults(fixtures, rows, {exitCode: run.exitCode, passedCount: passed, failedCount: failed})}
     } catch (error) {
       throw new Error(`${moduleId}: ${error.message}\n${run.output.split('\n').slice(-60).join('\n')}`, {cause: error})

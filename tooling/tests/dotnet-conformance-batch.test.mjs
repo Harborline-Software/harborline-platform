@@ -58,3 +58,18 @@ test('an assertion failure cannot mask another case failing during xUnit teardow
   assert.equal(result[0].failureOutput, 'planted assertion failure')
   assert.equal(result[1].passed, true)
 })
+
+test('empty and malformed result files retain module identity and the test host diagnostic', () => {
+  for (const contents of ['', ' \n\t\n', '{malformed json']) {
+    let inputPath
+    assert.throws(() => executeConformanceBatch({moduleId: 'hlp.ui.empty-probe', fixtures,
+      command: ['dotnet', 'test'], root: '.', execute(command, root, env) {
+        inputPath = env.HARBORLINE_CONFORMANCE_BATCH
+        writeFileSync(env.HARBORLINE_CONFORMANCE_RESULTS, contents)
+        return {exitCode: 1, output: 'Failed: 0, Passed: 0, Skipped: 0\nhost terminated before recording cases'}
+      }}), error => error.message.startsWith('hlp.ui.empty-probe: ')
+        && error.message.includes('host terminated before recording cases')
+        && (contents.includes('{') ? error.cause instanceof SyntaxError : error.message.includes('case evidence is missing')))
+    assert.equal(existsSync(inputPath), false)
+  }
+})
