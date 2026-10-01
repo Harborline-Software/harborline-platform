@@ -54,6 +54,14 @@ sums execution only; it excludes waiting and does not claim to be elapsed workfl
 time. Without a graph, the report gives the last completing job and marks the
 critical path unavailable.
 
+Completed skipped nodes carry their prerequisite paths through the explicit graph
+without contributing execution or appearing in `jobIds`/`jobNames`. Any skipped
+intermediate nodes on the selected path are identified by `skippedJobNames`; their
+report-row durations remain null. This is dependency contraction, not a claim that
+a skipped job executed in zero time. An all-skipped graph has no execution path.
+Unknown durations and unassigned cancellation still make a complete path unavailable.
+Executed ancestors' completion times constrain downstream execution even across skips.
+
 ```sh
 node tooling/actions-timing-report.mjs run.json jobs.json needs.json
 node tooling/actions-timing-report.mjs run.json jobs.json needs.json gate.json JOB_ID checkout.json

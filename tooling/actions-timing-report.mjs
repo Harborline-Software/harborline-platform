@@ -64,30 +64,36 @@ function criticalPath(jobs, dependencies) {
     if (!job || !Array.isArray(dependencies[name])) throw new Error(`Unknown or invalid dependency: ${name}`)
     visiting.add(name)
     const parents = dependencies[name].map(visit)
-    for (const parentName of dependencies[name]) {
-      const parent = byName.get(parentName)
-      if (parent.executionMs !== null && job.executionMs !== null
-          && instant(job.startedAt) < instant(parent.completedAt)) {
-        throw new Error(`Dependency timestamps overlap: ${parentName} -> ${name}`)
-      }
-    }
-    if (job.executionMs === null || parents.some(path => path === null)) {
+    const skipped = job.status === 'completed' && job.conclusion === 'skipped'
+    if ((!skipped && job.executionMs === null) || parents.some(path => path === null)) {
       visiting.delete(name)
       paths.set(name, null)
       return null
     }
-    const longest = parents.sort((a, b) => b.executionMs - a.executionMs)[0]
-    const path = {jobIds: [...(longest?.jobIds ?? []), job.id], jobNames: [...(longest?.jobNames ?? []), name],
-      executionMs: (longest?.executionMs ?? 0) + job.executionMs}
+    const latestParentCompletionMs = Math.max(-Infinity, ...parents.map(path => path.latestCompletionMs))
+    if (!skipped && instant(job.startedAt) < latestParentCompletionMs) {
+      throw new Error(`Dependency timestamps overlap before ${name}`)
+    }
+    const longest = parents.sort((a, b) => b.executionMs - a.executionMs || b.jobIds.length - a.jobIds.length)[0]
+    // Skips carry the dependency path but add no executed job. Their duration
+    // remains unknown in report rows; this is graph contraction, not a zero run.
+    const path = {jobIds: [...(longest?.jobIds ?? []), ...(skipped ? [] : [job.id])],
+      jobNames: [...(longest?.jobNames ?? []), ...(skipped ? [] : [name])],
+      skippedJobNames: [...(longest?.skippedJobNames ?? []), ...(skipped ? [name] : [])],
+      executionMs: (longest?.executionMs ?? 0) + (skipped ? 0 : job.executionMs),
+      latestCompletionMs: Math.max(latestParentCompletionMs, skipped ? -Infinity : instant(job.completedAt))}
     visiting.delete(name)
     paths.set(name, path)
     return path
   }
   const all = jobs.map(job => visit(job.name))
   if (all.some(path => path === null)) return {available: false, reason: 'Incomplete execution timestamps; no complete critical path.'}
+  const executedPaths = all.filter((path, index) => jobs[index].conclusion !== 'skipped')
+  if (executedPaths.length === 0) return {available: false, reason: 'No executed jobs.'}
+  const {latestCompletionMs, ...longestPath} = executedPaths.sort((a, b) => b.executionMs - a.executionMs)[0]
   return {available: true, dependenciesVerified: false,
-    basis: 'Longest execution-duration path through caller-supplied graph; actual workflow dependencies are not independently verified; excludes waiting.',
-    ...all.sort((a, b) => b.executionMs - a.executionMs)[0]}
+    basis: 'Longest execution-duration path through caller-supplied graph; completed skipped nodes carry dependencies without execution; actual workflow dependencies are not independently verified; excludes waiting.',
+    ...longestPath}
 }
 
 export function buildActionsTimingReport({run, jobs, dependencies, gateReports = []}) {

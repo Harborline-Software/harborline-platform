@@ -73,6 +73,38 @@ test('parallel branches are not summed in the critical execution path', () => {
   assert.equal(result.criticalExecutionPath.executionMs, 25000)
 })
 
+test('mixed executed and intentionally skipped lanes retain an execution-only path', () => {
+  const skipped = {...job, id: 11, name: 'gallery', conclusion: 'skipped', steps: []}
+  const verify = {...job, id: 12, name: 'verify', started_at: '2026-10-01T00:00:40Z', completed_at: '2026-10-01T00:00:45Z'}
+  const result = report([job, skipped, verify], {dependencies: {gate: [], gallery: [], verify: ['gate', 'gallery']}})
+  assert.equal(result.criticalExecutionPath.available, true)
+  assert.deepEqual(result.criticalExecutionPath.jobIds, [10, 12])
+  assert.equal(result.criticalExecutionPath.executionMs, 25000)
+  assert.equal(result.jobs[1].executionMs, null)
+  assert.equal(result.jobs[1].conclusion, 'skipped')
+})
+
+test('skipped intermediates preserve executed ancestors and transitive timing constraints', () => {
+  const skipped = {...job, id: 11, name: 'skip', conclusion: 'skipped', steps: []}
+  const child = {...job, id: 12, name: 'child', started_at: '2026-10-01T00:00:40Z', completed_at: '2026-10-01T00:00:45Z'}
+  const dependencies = {gate: [], skip: ['gate'], child: ['skip']}
+  const result = report([job, skipped, child], {dependencies})
+  assert.deepEqual(result.criticalExecutionPath.jobNames, ['gate', 'child'])
+  assert.deepEqual(result.criticalExecutionPath.skippedJobNames, ['skip'])
+  assert.equal(result.criticalExecutionPath.executionMs, 25000)
+  assert.throws(() => report([job, skipped, {...child, started_at: '2026-10-01T00:00:30Z'}], {dependencies}), /timestamps overlap/)
+})
+
+test('skips do not hide unknown execution, unassigned cancellation or malformed graphs', () => {
+  const skipped = {...job, id: 11, name: 'skip', conclusion: 'skipped', steps: []}
+  const dependencies = {gate: [], skip: ['gate']}
+  for (const changed of [{...job, started_at: null}, {...job, conclusion: 'cancelled', runner_id: 0, steps: []}]) {
+    assert.equal(report([changed, skipped], {dependencies}).criticalExecutionPath.available, false)
+  }
+  assert.throws(() => report([skipped], {dependencies: {skip: ['missing']}}), /Unknown/)
+  assert.throws(() => report([skipped], {dependencies: {skip: ['skip']}}), /cycle/)
+})
+
 test('rejects incomplete, unknown and cyclic graphs; incomplete timing is unavailable', () => {
   for (const dependencies of [{}, {gate: ['missing']}, {gate: ['gate']}]) {
     assert.throws(() => report([job], {dependencies}))
