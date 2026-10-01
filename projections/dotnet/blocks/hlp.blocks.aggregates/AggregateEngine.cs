@@ -154,7 +154,7 @@ public sealed class AggregateEngine
                 keys[index] = value;
             }
             if (excluded) continue;
-            var id = string.Join("|", keys.Select(KeyBytes));
+            var id = string.Concat(keys.Select(KeyBytes));
             if (!groups.TryGetValue(id, out var group)) groups[id] = group = (keys, new());
             group.Rows.Add(row);
         }
@@ -179,17 +179,19 @@ public sealed class AggregateEngine
         if (measure.Operator == AggregateOperator.Count) return new AggregateCell(measure.Key, AggregateValueType.Integer, AggregateCellState.Value, (long)concrete.Length);
         if (concrete.Length == 0)
         {
-            if (measure.Operator == AggregateOperator.Sum) return new AggregateCell(measure.Key, measure.ResultType, AggregateCellState.Value, Zero(measure.ResultType));
+            if (measure.Operator == AggregateOperator.Sum) return new AggregateCell(measure.Key, measure.ResultType, AggregateCellState.Value, WireValue(new AggregateValue(measure.ResultType, Zero(measure.ResultType))));
             return new AggregateCell(measure.Key, measure.ResultType, AggregateCellState.Null, null);
         }
-        object result = measure.Operator switch
+        object result;
+        try { result = measure.Operator switch
         {
             AggregateOperator.Sum => Sum(measure.ResultType, concrete),
             AggregateOperator.Average => Average(measure.InputType!.Value, concrete),
             AggregateOperator.Min => concrete.MinBy(value => value, new TypedComparer(measure.ResultType))!,
             AggregateOperator.Max => concrete.MaxBy(value => value, new TypedComparer(measure.ResultType))!,
             _ => throw new AggregateException("aggregates.definition.invalid", "Unknown measure operator."),
-        };
+        }; }
+        catch (OverflowException) { throw new AggregateException("aggregates.source.contract_mismatch", $"Measure '{measure.Key}' overflows its result type '{measure.ResultType}'."); }
         return new AggregateCell(measure.Key, measure.ResultType, AggregateCellState.Value, WireValue(new AggregateValue(measure.ResultType, result)));
     }
 
@@ -211,7 +213,13 @@ public sealed class AggregateEngine
 
     private static object Zero(AggregateValueType type) => type switch { AggregateValueType.Integer => 0L, AggregateValueType.Number => 0d, AggregateValueType.Decimal => new CanonicalDecimal(0, 0), _ => throw new AggregateException("aggregates.measure.type_mismatch", "Sum requires numeric values.") };
     private static object? WireValue(AggregateValue value) => value.State != AggregateCellState.Value ? null : value.Type switch { AggregateValueType.Decimal => ((CanonicalDecimal)value.Value!).ToString(), AggregateValueType.Date => ((DateOnly)value.Value!).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture), AggregateValueType.DateTime => ((DateTimeOffset)value.Value!).ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm:ss.FFFFFFF'Z'", CultureInfo.InvariantCulture), _ => value.Value };
-    private static string KeyBytes(AggregateValue value) => value.State == AggregateCellState.Null ? $"{value.Type}:null" : $"{value.Type}:{WireValue(value)}";
+    // Injective, self-delimiting key part: "Type:N" for null, "Type:<length>:<wire text>" otherwise. Parts concatenate without a separator. Internal only: never published.
+    private static string KeyBytes(AggregateValue value)
+    {
+        if (value.State == AggregateCellState.Null) return $"{value.Type}:N";
+        var text = Convert.ToString(WireValue(value), CultureInfo.InvariantCulture)!;
+        return $"{value.Type}:{text.Length}:{text}";
+    }
 
     private static int CompareValues(AggregateValueType type, object left, object right) => type switch
     {
@@ -234,7 +242,7 @@ public sealed class AggregateEngine
                 if (comparison != 0) return dimensions[index].Direction == AggregateSortDirection.Asc ? comparison : -comparison;
             }
             if (x.Keys.Count != y.Keys.Count) return y.Keys.Count.CompareTo(x.Keys.Count);
-            return StringComparer.Ordinal.Compare(string.Join("|", x.Keys.Select(KeyBytes)), string.Join("|", y.Keys.Select(KeyBytes)));
+            return StringComparer.Ordinal.Compare(string.Concat(x.Keys.Select(KeyBytes)), string.Concat(y.Keys.Select(KeyBytes)));
         }
     }
 }

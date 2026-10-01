@@ -182,7 +182,8 @@ internal static class ScopeGrammar
             // section.<id>.<field> disambiguates authoring; resolves to the top-level field.
             var rest = path["section.".Length..];
             int lastDot = rest.IndexOf('.');
-            if (lastDot < 0) throw Bad(ruleId, $"malformed section reference '{path}' (expected section.<id>.<field>)");
+            if (lastDot <= 0 || lastDot == rest.Length - 1)
+                throw Bad(ruleId, $"malformed section reference '{path}' (expected section.<id>.<field> with non-empty id and field)");
             return "field." + rest[(lastDot + 1)..];
         }
         // Declared context prefixes are preserved so borrower admission can distinguish them from

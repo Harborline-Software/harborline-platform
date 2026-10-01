@@ -150,7 +150,9 @@ function lowerVarPath(path: string, ctx: LowerContext, ruleId: string): string {
   if (path.startsWith('section.')) {
     const rest = path.slice('section.'.length)
     const firstDot = rest.indexOf('.')
-    if (firstDot < 0) throw bad(ruleId, `malformed section reference '${path}' (expected section.<id>.<field>)`)
+    if (firstDot <= 0 || firstDot === rest.length - 1) {
+      throw bad(ruleId, `malformed section reference '${path}' (expected section.<id>.<field> with non-empty id and field)`)
+    }
     return 'field.' + rest.slice(firstDot + 1)
   }
   // WF-KEY (ADR 0140) process-context prefixes: wf.state / wf.actor / wf.iteration /
