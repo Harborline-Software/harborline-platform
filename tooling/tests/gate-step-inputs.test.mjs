@@ -68,6 +68,11 @@ test('native evidence includes the Blazor browser adapter test harness', () => {
   ], reusableStepInputs['native-tests']), [])
 })
 
+test('shared evidence hashes the dynamically selected module runner and its batching protocol', () => {
+  assert.deepEqual(uncovered(scriptClosure(root, 'tooling/run-ui-module-shared.mjs'), reusableStepInputs['ui-shared-conformance']), [])
+  assert.deepEqual(uncovered(['projections/shared.tests/SharedFixtureBatch.cs'], reusableStepInputs['ui-shared-conformance']), [])
+})
+
 test('an undeclared import is caught', () => {
   // Positive control. Without it this file passes just as happily when scriptClosure silently
   // returns nothing but the entry -- the exact failure it exists to prevent.

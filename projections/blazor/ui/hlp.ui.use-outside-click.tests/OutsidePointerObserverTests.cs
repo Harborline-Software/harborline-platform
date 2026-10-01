@@ -19,17 +19,20 @@ public sealed class OutsidePointerObserverNativeTests
         Assert.Equal(["observe", "setEnabled", "dispose"], module.Calls.Take(3));
     }
 
-    [Fact]
+    [Theory]
     [Trait("ModuleConformance", "hlp.ui.use-outside-click")]
-    public async Task SharedFixtureConforms()
+    [MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.use-outside-click", MemberType = typeof(SharedFixtureBatch))]
+    public Task SharedFixtureConforms(string caseId, string? rawFixture)
     {
-        var raw = Environment.GetEnvironmentVariable("HARBORLINE_CONFORMANCE_FIXTURE");
-        if (string.IsNullOrWhiteSpace(raw)) return;
-        using var fixture = System.Text.Json.JsonDocument.Parse(raw);
-        Assert.StartsWith("outside-click.", fixture.RootElement.GetProperty("id").GetString());
-        await using var observer = new OutsidePointerObserver(new FakeRuntime(new FakeModule()));
-        await using var registration = await observer.ObserveAsync([], _ => ValueTask.CompletedTask);
-        Assert.NotNull(registration);
+        return SharedFixtureBatch.RunAsync(caseId, rawFixture, async () => {
+            var raw = SharedFixtureBatch.Current;
+            if (string.IsNullOrWhiteSpace(raw)) return;
+            using var fixture = System.Text.Json.JsonDocument.Parse(raw);
+            Assert.StartsWith("outside-click.", fixture.RootElement.GetProperty("id").GetString());
+            await using var observer = new OutsidePointerObserver(new FakeRuntime(new FakeModule()));
+            await using var registration = await observer.ObserveAsync([], _ => ValueTask.CompletedTask);
+            Assert.NotNull(registration);
+        });
     }
 
     private sealed class FakeRuntime(IJSObjectReference module) : IJSRuntime

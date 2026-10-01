@@ -47,11 +47,14 @@ public sealed class TextAreaTests : BunitContext
         Assert.Equal("notes-hint", textarea.GetAttribute("aria-describedby"));
     }
 
-    [Fact, Trait("ModuleConformance", "hlp.ui.text-area")]
-    public void SharedFixtureConforms()
+    [Theory, Trait("ModuleConformance", "hlp.ui.text-area")]
+    [MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.text-area", MemberType = typeof(SharedFixtureBatch))]
+    public void SharedFixtureConforms(string caseId, string? rawFixture)
     {
-        var raw = Environment.GetEnvironmentVariable("HARBORLINE_CONFORMANCE_FIXTURE"); if (string.IsNullOrWhiteSpace(raw)) return;
-        using var fixture = System.Text.Json.JsonDocument.Parse(raw); Assert.StartsWith("text-area.", fixture.RootElement.GetProperty("id").GetString());
-        Assert.Equal("3", Render<HarborlineTextArea>().Find("textarea").GetAttribute("rows"));
+        SharedFixtureBatch.Run(caseId, rawFixture, () => {
+            var raw = SharedFixtureBatch.Current; if (string.IsNullOrWhiteSpace(raw)) return;
+            using var fixture = System.Text.Json.JsonDocument.Parse(raw); Assert.StartsWith("text-area.", fixture.RootElement.GetProperty("id").GetString());
+            Assert.Equal("3", Render<HarborlineTextArea>().Find("textarea").GetAttribute("rows"));
+        });
     }
 }

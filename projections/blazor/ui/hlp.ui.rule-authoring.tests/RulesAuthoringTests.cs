@@ -13,41 +13,44 @@ namespace Harborline.UIAdapters.Blazor.Tests;
 
 public sealed class RulesAuthoringTests : BunitContext
 {
-    [Fact]
+    [Theory]
     [Trait("ModuleConformance", "hlp.ui.rule-authoring")]
-    public void Replays_every_producer_lifecycle_and_preview_payload_from_the_exact_shared_fixture()
+    [MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.rule-authoring", MemberType = typeof(SharedFixtureBatch))]
+    public void Replays_every_producer_lifecycle_and_preview_payload_from_the_exact_shared_fixture(string caseId, string? rawFixture)
     {
-        var sharedFixture = Environment.GetEnvironmentVariable("HARBORLINE_CONFORMANCE_FIXTURE");
-        if (!string.IsNullOrWhiteSpace(sharedFixture))
-        {
-            using var fixtureDocument = JsonDocument.Parse(sharedFixture);
-            Assert.StartsWith("rule-authoring.", fixtureDocument.RootElement.GetProperty("id").GetString());
-        }
+        SharedFixtureBatch.Run(caseId, rawFixture, () => {
+            var sharedFixture = SharedFixtureBatch.Current;
+            if (!string.IsNullOrWhiteSpace(sharedFixture))
+            {
+                using var fixtureDocument = JsonDocument.Parse(sharedFixture);
+                Assert.StartsWith("rule-authoring.", fixtureDocument.RootElement.GetProperty("id").GetString());
+            }
 
-        using var document = JsonDocument.Parse(File.ReadAllText(FindFixture()));
-        var previewFixture = document.RootElement.GetProperty("preview");
-        var inputLabel = previewFixture.GetProperty("label").GetString()!;
-        var clockUtc = previewFixture.GetProperty("clockUtc").GetString()!;
-        var responses = document.RootElement.GetProperty("lifecycle").GetProperty("responses").EnumerateArray().ToArray();
-        Assert.Equal(6, responses.Length);
-        Assert.Equal(("Draft", 1, "amount-rule"), (responses[0].GetProperty("status").GetString(), responses[0].GetProperty("revision").GetInt32(), responses[0].GetProperty("identity").GetProperty("definitionId").GetString()));
-        Assert.Equal(("Published", 2), (responses[1].GetProperty("status").GetString(), responses[1].GetProperty("revision").GetInt32()));
-        Assert.Equal("definition.revision_conflict", responses[3].GetProperty("refusal").GetProperty("code").GetString());
-        var materializedBinding = responses[4].GetProperty("materialization").GetProperty("bindings")[0];
-        Assert.Equal(("fixture-v1", "1.0.0"), (materializedBinding.GetProperty("versionId").GetString(), materializedBinding.GetProperty("winningWatermark").GetString()));
-        Assert.False(responses[5].GetProperty("listVisible").GetBoolean());
+            using var document = JsonDocument.Parse(File.ReadAllText(FindFixture()));
+            var previewFixture = document.RootElement.GetProperty("preview");
+            var inputLabel = previewFixture.GetProperty("label").GetString()!;
+            var clockUtc = previewFixture.GetProperty("clockUtc").GetString()!;
+            var responses = document.RootElement.GetProperty("lifecycle").GetProperty("responses").EnumerateArray().ToArray();
+            Assert.Equal(6, responses.Length);
+            Assert.Equal(("Draft", 1, "amount-rule"), (responses[0].GetProperty("status").GetString(), responses[0].GetProperty("revision").GetInt32(), responses[0].GetProperty("identity").GetProperty("definitionId").GetString()));
+            Assert.Equal(("Published", 2), (responses[1].GetProperty("status").GetString(), responses[1].GetProperty("revision").GetInt32()));
+            Assert.Equal("definition.revision_conflict", responses[3].GetProperty("refusal").GetProperty("code").GetString());
+            var materializedBinding = responses[4].GetProperty("materialization").GetProperty("bindings")[0];
+            Assert.Equal(("fixture-v1", "1.0.0"), (materializedBinding.GetProperty("versionId").GetString(), materializedBinding.GetProperty("winningWatermark").GetString()));
+            Assert.False(responses[5].GetProperty("listVisible").GetBoolean());
 
-        foreach (var preview in previewFixture.GetProperty("cases").EnumerateArray())
-        {
-            var expected = preview.GetProperty("expected");
-            var outcome = new RulesOutcome(expected.GetProperty("kind").GetString()!, inputLabel, clockUtc, Value: Read(expected, "value"), Code: Read(expected, "code"), RuleName: Read(expected, "ruleName"), MemberName: Read(expected, "memberName"), Validity: Read(expected, "validity"), Visibility: Read(expected, "visibility"), Presentation: Read(expected, "presentation"));
-            var formula = (FormulaDraft)RulesDraft.Empty.Draft;
-            var cut = Render<HarborlineRulesAuthoringEditor>(parameters => parameters
-                .Add(component => component.Value, RulesDraft.Empty with { Identity = outcome.RuleName!, Draft = formula with { ScopeTarget = outcome.MemberName! } })
-                .Add(component => component.Outcome, outcome));
-            Assert.Contains(outcome.RuleName!, cut.Markup);
-            Assert.Contains(outcome.Kind switch { "Value" => outcome.Value!, "Validity" => outcome.Validity!, "Visibility" => outcome.Visibility!, "Presentation" => outcome.Presentation!, "Pending" => "Preview pending.", _ => outcome.Code! }, cut.Markup);
-        }
+            foreach (var preview in previewFixture.GetProperty("cases").EnumerateArray())
+            {
+                var expected = preview.GetProperty("expected");
+                var outcome = new RulesOutcome(expected.GetProperty("kind").GetString()!, inputLabel, clockUtc, Value: Read(expected, "value"), Code: Read(expected, "code"), RuleName: Read(expected, "ruleName"), MemberName: Read(expected, "memberName"), Validity: Read(expected, "validity"), Visibility: Read(expected, "visibility"), Presentation: Read(expected, "presentation"));
+                var formula = (FormulaDraft)RulesDraft.Empty.Draft;
+                var cut = Render<HarborlineRulesAuthoringEditor>(parameters => parameters
+                    .Add(component => component.Value, RulesDraft.Empty with { Identity = outcome.RuleName!, Draft = formula with { ScopeTarget = outcome.MemberName! } })
+                    .Add(component => component.Outcome, outcome));
+                Assert.Contains(outcome.RuleName!, cut.Markup);
+                Assert.Contains(outcome.Kind switch { "Value" => outcome.Value!, "Validity" => outcome.Validity!, "Visibility" => outcome.Visibility!, "Presentation" => outcome.Presentation!, "Pending" => "Preview pending.", _ => outcome.Code! }, cut.Markup);
+            }
+        });
     }
 
     [Fact]

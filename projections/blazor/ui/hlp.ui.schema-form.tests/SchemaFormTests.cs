@@ -757,24 +757,27 @@ public sealed class SchemaFormTests : BunitContext
         Assert.Contains(JSInterop.Invocations.Identifiers, identifier => identifier.Contains("focus", StringComparison.OrdinalIgnoreCase));
     }
 
-    [Fact, Trait("ModuleConformance", "hlp.ui.schema-form")]
-    public void SharedFixtureConforms()
+    [Theory, Trait("ModuleConformance", "hlp.ui.schema-form")]
+    [MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.schema-form", MemberType = typeof(SharedFixtureBatch))]
+    public void SharedFixtureConforms(string caseId, string? rawFixture)
     {
-        var raw = Environment.GetEnvironmentVariable("HARBORLINE_CONFORMANCE_FIXTURE");
-        if (string.IsNullOrWhiteSpace(raw)) return;
-        using var fixture = System.Text.Json.JsonDocument.Parse(raw);
-        Assert.StartsWith("schema-form.", fixture.RootElement.GetProperty("id").GetString());
-        if (fixture.RootElement.GetProperty("id").GetString()!.StartsWith("schema-form.domain-", StringComparison.Ordinal))
-        {
-            AssertRuntimeDomainFixture(fixture.RootElement);
-            return;
-        }
-        var cut = Render<HarborlineSchemaForm>(parameters => parameters
-            .Add(component => component.View, Form([Section("shared", [Field("fixture-field", "Shared fixture")])]))
-            .Add(component => component.InitialValues, new Dictionary<string, object?> { ["fixture-field"] = "rendered" })
-            .Add(component => component.OnSubmit, _ => ValueTask.FromResult<SchemaFormValidationResult?>(null)));
-        Assert.Equal("Shared fixture", cut.Find("label").TextContent);
-        Assert.Equal("rendered", cut.Find("input[name='fixture-field']").GetAttribute("value"));
+        SharedFixtureBatch.Run(caseId, rawFixture, () => {
+            var raw = SharedFixtureBatch.Current;
+            if (string.IsNullOrWhiteSpace(raw)) return;
+            using var fixture = System.Text.Json.JsonDocument.Parse(raw);
+            Assert.StartsWith("schema-form.", fixture.RootElement.GetProperty("id").GetString());
+            if (fixture.RootElement.GetProperty("id").GetString()!.StartsWith("schema-form.domain-", StringComparison.Ordinal))
+            {
+                AssertRuntimeDomainFixture(fixture.RootElement);
+                return;
+            }
+            var cut = Render<HarborlineSchemaForm>(parameters => parameters
+                .Add(component => component.View, Form([Section("shared", [Field("fixture-field", "Shared fixture")])]))
+                .Add(component => component.InitialValues, new Dictionary<string, object?> { ["fixture-field"] = "rendered" })
+                .Add(component => component.OnSubmit, _ => ValueTask.FromResult<SchemaFormValidationResult?>(null)));
+            Assert.Equal("Shared fixture", cut.Find("label").TextContent);
+            Assert.Equal("rendered", cut.Find("input[name='fixture-field']").GetAttribute("value"));
+        });
     }
 
     private void AssertRuntimeDomainFixture(System.Text.Json.JsonElement fixture)

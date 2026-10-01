@@ -21,13 +21,16 @@ public sealed class LocaleProviderTests : BunitContext
         Assert.Equal("", cut.Find("[role=status]").GetAttribute("aria-label"));
     }
 
-    [Fact, Trait("ModuleConformance", "hlp.ui.locale-provider")]
-    public void SharedFixtureConforms()
+    [Theory, Trait("ModuleConformance", "hlp.ui.locale-provider")]
+    [MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.locale-provider", MemberType = typeof(SharedFixtureBatch))]
+    public void SharedFixtureConforms(string caseId, string? rawFixture)
     {
-        var raw = Environment.GetEnvironmentVariable("HARBORLINE_CONFORMANCE_FIXTURE");
-        if (string.IsNullOrWhiteSpace(raw)) return;
-        using var fixture = System.Text.Json.JsonDocument.Parse(raw);
-        Assert.StartsWith("locale.", fixture.RootElement.GetProperty("id").GetString());
-        Assert.Equal("en", Render<HarborlineLocaleProvider>().Instance.Locale);
+        SharedFixtureBatch.Run(caseId, rawFixture, () => {
+            var raw = SharedFixtureBatch.Current;
+            if (string.IsNullOrWhiteSpace(raw)) return;
+            using var fixture = System.Text.Json.JsonDocument.Parse(raw);
+            Assert.StartsWith("locale.", fixture.RootElement.GetProperty("id").GetString());
+            Assert.Equal("en", Render<HarborlineLocaleProvider>().Instance.Locale);
+        });
     }
 }

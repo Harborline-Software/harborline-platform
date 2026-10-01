@@ -17,11 +17,14 @@ public sealed class CardTests : BunitContext
         Assert.Null(cut.Find(".hl-card").GetAttribute("role"));
     }
 
-    [Fact, Trait("ModuleConformance", "hlp.ui.card")]
-    public void SharedFixtureConforms()
+    [Theory, Trait("ModuleConformance", "hlp.ui.card")]
+    [MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.card", MemberType = typeof(SharedFixtureBatch))]
+    public void SharedFixtureConforms(string caseId, string? rawFixture)
     {
-        var raw = Environment.GetEnvironmentVariable("HARBORLINE_CONFORMANCE_FIXTURE"); if (string.IsNullOrWhiteSpace(raw)) return;
-        using var fixture = System.Text.Json.JsonDocument.Parse(raw); Assert.StartsWith("card.", fixture.RootElement.GetProperty("id").GetString());
-        Assert.Equal("outlined", Render<HarborlineCard>().Find(".hl-card").GetAttribute("data-hl-variant"));
+        SharedFixtureBatch.Run(caseId, rawFixture, () => {
+            var raw = SharedFixtureBatch.Current; if (string.IsNullOrWhiteSpace(raw)) return;
+            using var fixture = System.Text.Json.JsonDocument.Parse(raw); Assert.StartsWith("card.", fixture.RootElement.GetProperty("id").GetString());
+            Assert.Equal("outlined", Render<HarborlineCard>().Find(".hl-card").GetAttribute("data-hl-variant"));
+        });
     }
 }

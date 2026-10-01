@@ -472,38 +472,41 @@ public sealed class DataExchangeAuthoringEditorTests : BunitContext
         Assert.Empty(empty.Mappings);
     }
 
-    [Fact, Trait("ModuleConformance", "hlp.ui.data-exchange")]
-    public void Shared_fixture_conforms()
+    [Theory, Trait("ModuleConformance", "hlp.ui.data-exchange")]
+    [MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.data-exchange", MemberType = typeof(SharedFixtureBatch))]
+    public void Shared_fixture_conforms(string caseId, string? rawFixture)
     {
-        var raw = Environment.GetEnvironmentVariable("HARBORLINE_CONFORMANCE_FIXTURE");
-        if (string.IsNullOrWhiteSpace(raw)) return;
-        using var fixture = System.Text.Json.JsonDocument.Parse(raw);
-        var input = fixture.RootElement.GetProperty("input");
-        DataExchangeRunSummary? run = null;
-        if (input.TryGetProperty("run", out var runElement) && runElement.ValueKind != System.Text.Json.JsonValueKind.Null)
-        {
-            run = new(
-                runElement.GetProperty("dryRunId").GetString()!,
-                runElement.GetProperty("status").GetString()!,
-                runElement.GetProperty("stale").GetBoolean(),
-                runElement.GetProperty("candidateCheckpoint").GetString()!,
-                runElement.TryGetProperty("census", out _) ? RunOf(runElement)!.Census : new(0, 0, 0, 0, 0, 0),
-                runElement.GetProperty("refusals").EnumerateArray().Select(value => value.GetString()!).ToArray());
-        }
-        var cut = Render<HarborlineDataExchangeAuthoringEditor>(parameters => parameters
-            .Add(component => component.Value, input.TryGetProperty("value", out var value) ? DraftOf(value) : DataExchangeAuthoringDraft.Empty)
-            .Add(component => component.ReadOnly, input.TryGetProperty("readOnly", out var readOnly) && readOnly.GetBoolean())
-            .Add(component => component.Catalogue, Catalogue)
-            .Add(component => component.Run, run)
-            .Add(component => component.CanCommit, input.GetProperty("canCommit").GetBoolean()));
-        var expected = fixture.RootElement.GetProperty("expected");
-        if (expected.TryGetProperty("profile", out var profile)) Assert.Contains(profile.GetString()!, cut.Markup);
-        if (expected.TryGetProperty("schemaUri", out var schema)) Assert.Contains(schema.GetString()!, cut.Markup);
-        if (expected.TryGetProperty("documentVersion", out var version)) Assert.Contains(version.GetString()!, cut.Markup);
-        Assert.Equal(!expected.GetProperty("commitEnabled").GetBoolean(), cut.Find("button[aria-label='Commit reviewed run']").HasAttribute("disabled"));
-        if (expected.TryGetProperty("refusal", out var refusal)) Assert.Contains(refusal.GetString()!, cut.Markup);
-        if (expected.TryGetProperty("staleness", out var staleness)) Assert.Equal(staleness.GetString(), Evidence(cut, "Staleness"));
-        if (expected.TryGetProperty("census", out var census)) Assert.Equal(census.GetString(), EvidenceSection(cut).QuerySelector("p")!.TextContent);
+        SharedFixtureBatch.Run(caseId, rawFixture, () => {
+            var raw = SharedFixtureBatch.Current;
+            if (string.IsNullOrWhiteSpace(raw)) return;
+            using var fixture = System.Text.Json.JsonDocument.Parse(raw);
+            var input = fixture.RootElement.GetProperty("input");
+            DataExchangeRunSummary? run = null;
+            if (input.TryGetProperty("run", out var runElement) && runElement.ValueKind != System.Text.Json.JsonValueKind.Null)
+            {
+                run = new(
+                    runElement.GetProperty("dryRunId").GetString()!,
+                    runElement.GetProperty("status").GetString()!,
+                    runElement.GetProperty("stale").GetBoolean(),
+                    runElement.GetProperty("candidateCheckpoint").GetString()!,
+                    runElement.TryGetProperty("census", out _) ? RunOf(runElement)!.Census : new(0, 0, 0, 0, 0, 0),
+                    runElement.GetProperty("refusals").EnumerateArray().Select(value => value.GetString()!).ToArray());
+            }
+            var cut = Render<HarborlineDataExchangeAuthoringEditor>(parameters => parameters
+                .Add(component => component.Value, input.TryGetProperty("value", out var value) ? DraftOf(value) : DataExchangeAuthoringDraft.Empty)
+                .Add(component => component.ReadOnly, input.TryGetProperty("readOnly", out var readOnly) && readOnly.GetBoolean())
+                .Add(component => component.Catalogue, Catalogue)
+                .Add(component => component.Run, run)
+                .Add(component => component.CanCommit, input.GetProperty("canCommit").GetBoolean()));
+            var expected = fixture.RootElement.GetProperty("expected");
+            if (expected.TryGetProperty("profile", out var profile)) Assert.Contains(profile.GetString()!, cut.Markup);
+            if (expected.TryGetProperty("schemaUri", out var schema)) Assert.Contains(schema.GetString()!, cut.Markup);
+            if (expected.TryGetProperty("documentVersion", out var version)) Assert.Contains(version.GetString()!, cut.Markup);
+            Assert.Equal(!expected.GetProperty("commitEnabled").GetBoolean(), cut.Find("button[aria-label='Commit reviewed run']").HasAttribute("disabled"));
+            if (expected.TryGetProperty("refusal", out var refusal)) Assert.Contains(refusal.GetString()!, cut.Markup);
+            if (expected.TryGetProperty("staleness", out var staleness)) Assert.Equal(staleness.GetString(), Evidence(cut, "Staleness"));
+            if (expected.TryGetProperty("census", out var census)) Assert.Equal(census.GetString(), EvidenceSection(cut).QuerySelector("p")!.TextContent);
+        });
     }
 
     private static System.Text.Json.JsonElement FindFixture(string id)

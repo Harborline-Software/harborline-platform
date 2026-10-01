@@ -20,11 +20,14 @@ public sealed class DateTimeFieldTests : BunitContext
         Assert.Equal("2026-03-08T02:30", next);
     }
 
-    [Fact, Trait("ModuleConformance", "hlp.ui.date-time-field")]
-    public void SharedFixtureConforms()
+    [Theory, Trait("ModuleConformance", "hlp.ui.date-time-field")]
+    [MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.date-time-field", MemberType = typeof(SharedFixtureBatch))]
+    public void SharedFixtureConforms(string caseId, string? rawFixture)
     {
-        var raw = Environment.GetEnvironmentVariable("HARBORLINE_CONFORMANCE_FIXTURE"); if (string.IsNullOrWhiteSpace(raw)) return;
-        using var fixture = System.Text.Json.JsonDocument.Parse(raw); Assert.StartsWith("date-time-field.", fixture.RootElement.GetProperty("id").GetString());
-        Assert.Equal("datetime-local", Render<HarborlineDateTimeField>(p => p.Add(x => x.Name, "x").Add(x => x.Value, string.Empty)).Find("input").GetAttribute("type"));
+        SharedFixtureBatch.Run(caseId, rawFixture, () => {
+            var raw = SharedFixtureBatch.Current; if (string.IsNullOrWhiteSpace(raw)) return;
+            using var fixture = System.Text.Json.JsonDocument.Parse(raw); Assert.StartsWith("date-time-field.", fixture.RootElement.GetProperty("id").GetString());
+            Assert.Equal("datetime-local", Render<HarborlineDateTimeField>(p => p.Add(x => x.Name, "x").Add(x => x.Value, string.Empty)).Find("input").GetAttribute("type"));
+        });
     }
 }

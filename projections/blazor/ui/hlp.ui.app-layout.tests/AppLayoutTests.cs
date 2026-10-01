@@ -48,7 +48,13 @@ public sealed class AppLayoutTests : BunitContext
         Assert.Equal([false, false], values);
     }
     [Fact] public void HiddenModeMountsNoNavigation(){var cut=Render<HarborlineAppLayout>(p=>p.Add(x=>x.SideNav,Content("Nav")).Add(x=>x.SideNavMode,SideNavMode.Hidden).Add(x=>x.ChildContent,Content("Body")));Assert.Empty(cut.FindAll("nav"));Assert.Empty(cut.FindAll(".hl-app-layout__nav-trigger"));Assert.Single(cut.FindAll("main"));}
-    [Fact,Trait("ModuleConformance","hlp.ui.app-layout")] public void SharedFixtureConforms(){AssertFixturePrefix("app-layout.");Assert.NotNull(Render<HarborlineAppLayout>(p=>p.Add(x=>x.ChildContent,Content("Body"))));}
-    private static void AssertFixturePrefix(string prefix){var raw=Environment.GetEnvironmentVariable("HARBORLINE_CONFORMANCE_FIXTURE");if(string.IsNullOrWhiteSpace(raw))return;using var fixture=System.Text.Json.JsonDocument.Parse(raw);Assert.StartsWith(prefix,fixture.RootElement.GetProperty("id").GetString());}
+    [Theory,Trait("ModuleConformance","hlp.ui.app-layout")] [MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.app-layout", MemberType = typeof(SharedFixtureBatch))]
+    public void SharedFixtureConforms(string caseId, string? rawFixture)
+    {
+        SharedFixtureBatch.Run(caseId, rawFixture, () => {
+            AssertFixturePrefix("app-layout.");Assert.NotNull(Render<HarborlineAppLayout>(p=>p.Add(x=>x.ChildContent,Content("Body"))));
+        });
+    }
+    private static void AssertFixturePrefix(string prefix){var raw=SharedFixtureBatch.Current;if(string.IsNullOrWhiteSpace(raw))return;using var fixture=System.Text.Json.JsonDocument.Parse(raw);Assert.StartsWith(prefix,fixture.RootElement.GetProperty("id").GetString());}
     private sealed class FakeMedia(bool initial):IMediaQueryObserver{private Func<MediaQueryChange,ValueTask>? callback;private readonly FakeSubscription subscription=new(initial);public ValueTask<IMediaQuerySubscription> ObserveAsync(string query,Func<MediaQueryChange,ValueTask> onChanged,CancellationToken cancellationToken=default){callback=onChanged;subscription.QueryValue=query;return new(subscription);}public async Task SetAsync(bool value){subscription.MatchesValue=value;if(callback is not null)await callback(new(subscription.Query,value));}private sealed class FakeSubscription(bool matches):IMediaQuerySubscription{public string QueryValue="";public bool MatchesValue=matches;public string Query=>QueryValue;public bool Matches=>MatchesValue;public ValueTask DisposeAsync()=>ValueTask.CompletedTask;}}
 }
