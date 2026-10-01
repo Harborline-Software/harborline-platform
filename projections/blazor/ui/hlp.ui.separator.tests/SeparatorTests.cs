@@ -19,11 +19,14 @@ public sealed class SeparatorTests : BunitContext
         Assert.Equal("or", semantic.Find(".hl-separator__label").TextContent);
     }
 
-    [Fact, Trait("ModuleConformance", "hlp.ui.separator")]
-    public void SharedFixtureConforms()
+    [Theory, Trait("ModuleConformance", "hlp.ui.separator")]
+    [MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.separator", MemberType = typeof(SharedFixtureBatch))]
+    public void SharedFixtureConforms(string caseId, string? rawFixture)
     {
-        var raw = Environment.GetEnvironmentVariable("HARBORLINE_CONFORMANCE_FIXTURE"); if (string.IsNullOrWhiteSpace(raw)) return;
-        using var fixture = System.Text.Json.JsonDocument.Parse(raw); Assert.StartsWith("separator.", fixture.RootElement.GetProperty("id").GetString());
-        Assert.Null(Render<HarborlineSeparator>().Find(".hl-separator").GetAttribute("role"));
+        SharedFixtureBatch.Run(caseId, rawFixture, () => {
+            var raw = SharedFixtureBatch.Current; if (string.IsNullOrWhiteSpace(raw)) return;
+            using var fixture = System.Text.Json.JsonDocument.Parse(raw); Assert.StartsWith("separator.", fixture.RootElement.GetProperty("id").GetString());
+            Assert.Null(Render<HarborlineSeparator>().Find(".hl-separator").GetAttribute("role"));
+        });
     }
 }

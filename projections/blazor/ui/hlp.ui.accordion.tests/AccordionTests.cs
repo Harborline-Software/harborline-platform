@@ -85,13 +85,16 @@ public sealed class AccordionTests : BunitContext
         throw new Xunit.Sdk.XunitException($"missing-neutral-fixture: {id}");
     }
 
-    [Fact, Trait("ModuleConformance", "hlp.ui.accordion")]
-    public void SharedFixtureConforms()
+    [Theory, Trait("ModuleConformance", "hlp.ui.accordion")]
+    [MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.accordion", MemberType = typeof(SharedFixtureBatch))]
+    public void SharedFixtureConforms(string caseId, string? rawFixture)
     {
-        var raw = Environment.GetEnvironmentVariable("HARBORLINE_CONFORMANCE_FIXTURE");
-        if (string.IsNullOrWhiteSpace(raw)) return;
-        using var fixture = System.Text.Json.JsonDocument.Parse(raw);
-        Assert.StartsWith("accordion.", fixture.RootElement.GetProperty("id").GetString());
-        Assert.Equal(3, Render<HarborlineAccordion>(p => p.Add(x => x.Items, Items)).FindAll("button").Count);
+        SharedFixtureBatch.Run(caseId, rawFixture, () => {
+            var raw = SharedFixtureBatch.Current;
+            if (string.IsNullOrWhiteSpace(raw)) return;
+            using var fixture = System.Text.Json.JsonDocument.Parse(raw);
+            Assert.StartsWith("accordion.", fixture.RootElement.GetProperty("id").GetString());
+            Assert.Equal(3, Render<HarborlineAccordion>(p => p.Add(x => x.Items, Items)).FindAll("button").Count);
+        });
     }
 }

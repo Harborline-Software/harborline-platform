@@ -49,12 +49,15 @@ public sealed class Wave0302SupportTests
         Assert.Equal(new(false, false, false, false), controller.Snapshot);
     }
 
-    [Fact, Trait("ModuleConformance", "hlp.ui.use-nav-collapsed")]
-    public void SharedFixturesRemainBoundToFoundation()
+    [Theory, Trait("ModuleConformance", "hlp.ui.use-nav-collapsed")]
+    [MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.use-nav-collapsed", MemberType = typeof(SharedFixtureBatch))]
+    public void SharedFixturesRemainBoundToFoundation(string caseId, string? rawFixture)
     {
-        using var fixture = Fixture.Read("nav-collapse.");
-        if (fixture is null) return;
-        Assert.Contains(fixture.RootElement.GetProperty("id").GetString(), Fixture.CaseIds("hlp.ui.use-nav-collapsed"));
-        Assert.Equal("Harborline.Foundation", typeof(NavCollapseController).Assembly.GetName().Name);
+        SharedFixtureBatch.Run(caseId, rawFixture, () => {
+            using var fixture = Fixture.Read("nav-collapse.");
+            if (fixture is null) return;
+            Assert.Contains(fixture.RootElement.GetProperty("id").GetString(), Fixture.CaseIds("hlp.ui.use-nav-collapsed"));
+            Assert.Equal("Harborline.Foundation", typeof(NavCollapseController).Assembly.GetName().Name);
+        });
     }
 }

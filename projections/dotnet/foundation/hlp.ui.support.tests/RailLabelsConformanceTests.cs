@@ -18,14 +18,17 @@ public sealed class RailLabelsConformanceTests
         Assert.Equal(16, typeof(RailLabels).GetProperties().Length);
     }
 
-    [Fact]
+    [Theory]
     [Trait("ModuleConformance", "hlp.ui.rail-labels")]
-    public void SharedFixtureConforms()
+    [MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.rail-labels", MemberType = typeof(SharedFixtureBatch))]
+    public void SharedFixtureConforms(string caseId, string? rawFixture)
     {
-        using var fixture = Fixture.Read("rail-labels.");
-        if (fixture is null) return;
-        Assert.Contains(fixture.RootElement.GetProperty("id").GetString(), Fixture.CaseIds("hlp.ui.rail-labels"));
-        Assert.Equal(16, typeof(RailLabels).GetProperties().Length);
-        Assert.Equal("سلامة", DefaultRailLabels.Value.Source("سلامة"));
+        SharedFixtureBatch.Run(caseId, rawFixture, () => {
+            using var fixture = Fixture.Read("rail-labels.");
+            if (fixture is null) return;
+            Assert.Contains(fixture.RootElement.GetProperty("id").GetString(), Fixture.CaseIds("hlp.ui.rail-labels"));
+            Assert.Equal(16, typeof(RailLabels).GetProperties().Length);
+            Assert.Equal("سلامة", DefaultRailLabels.Value.Source("سلامة"));
+        });
     }
 }

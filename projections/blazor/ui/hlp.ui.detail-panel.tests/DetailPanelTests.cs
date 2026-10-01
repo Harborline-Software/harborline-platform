@@ -126,15 +126,18 @@ public sealed class DetailPanelTests : BunitContext
         Assert.Equal("detail-panel-content-required", exception.Message);
     }
 
-    [Fact, Trait("ModuleConformance", "hlp.ui.detail-panel")]
-    public void SharedFixtureConforms()
+    [Theory, Trait("ModuleConformance", "hlp.ui.detail-panel")]
+    [MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.detail-panel", MemberType = typeof(SharedFixtureBatch))]
+    public void SharedFixtureConforms(string caseId, string? rawFixture)
     {
-        AssertFixturePrefix("detail-panel.");
-        Assert.NotNull(Render<HarborlineDetailPanel>(parameters => parameters
-            .Add(component => component.Label, "Elevator 2")
-            .Add(component => component.ChildContent, Content("Properties"))));
+        SharedFixtureBatch.Run(caseId, rawFixture, () => {
+            AssertFixturePrefix("detail-panel.");
+            Assert.NotNull(Render<HarborlineDetailPanel>(parameters => parameters
+                .Add(component => component.Label, "Elevator 2")
+                .Add(component => component.ChildContent, Content("Properties"))));
+        });
     }
 
-    private static void AssertFixturePrefix(string prefix){var raw=Environment.GetEnvironmentVariable("HARBORLINE_CONFORMANCE_FIXTURE");if(string.IsNullOrWhiteSpace(raw))return;using var fixture=System.Text.Json.JsonDocument.Parse(raw);Assert.StartsWith(prefix,fixture.RootElement.GetProperty("id").GetString());}
+    private static void AssertFixturePrefix(string prefix){var raw=SharedFixtureBatch.Current;if(string.IsNullOrWhiteSpace(raw))return;using var fixture=System.Text.Json.JsonDocument.Parse(raw);Assert.StartsWith(prefix,fixture.RootElement.GetProperty("id").GetString());}
     private sealed class FakeMedia(bool initial):IMediaQueryObserver{private Func<MediaQueryChange,ValueTask>? callback;private readonly FakeSubscription subscription=new(initial);public ValueTask<IMediaQuerySubscription> ObserveAsync(string query,Func<MediaQueryChange,ValueTask> onChanged,CancellationToken cancellationToken=default){callback=onChanged;subscription.QueryValue=query;return new(subscription);}public async Task SetAsync(bool value){subscription.MatchesValue=value;if(callback is not null)await callback(new(subscription.Query,value));}private sealed class FakeSubscription(bool matches):IMediaQuerySubscription{public string QueryValue="";public bool MatchesValue=matches;public string Query=>QueryValue;public bool Matches=>MatchesValue;public ValueTask DisposeAsync()=>ValueTask.CompletedTask;}}
 }

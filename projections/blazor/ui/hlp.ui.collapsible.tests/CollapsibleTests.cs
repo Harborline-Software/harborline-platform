@@ -48,13 +48,16 @@ public sealed class CollapsibleTests : BunitContext
         Assert.ThrowsAny<Exception>(() => Render<HarborlineCollapsible>());
     }
 
-    [Fact, Trait("ModuleConformance", "hlp.ui.collapsible")]
-    public void SharedFixtureConforms()
+    [Theory, Trait("ModuleConformance", "hlp.ui.collapsible")]
+    [MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.collapsible", MemberType = typeof(SharedFixtureBatch))]
+    public void SharedFixtureConforms(string caseId, string? rawFixture)
     {
-        var raw = Environment.GetEnvironmentVariable("HARBORLINE_CONFORMANCE_FIXTURE");
-        if (string.IsNullOrWhiteSpace(raw)) return;
-        using var fixture = System.Text.Json.JsonDocument.Parse(raw);
-        Assert.StartsWith("collapsible.", fixture.RootElement.GetProperty("id").GetString());
-        Assert.Equal("button", Render<HarborlineCollapsible>(p => p.Add(x => x.Title, "Settings")).Find("button").GetAttribute("type"));
+        SharedFixtureBatch.Run(caseId, rawFixture, () => {
+            var raw = SharedFixtureBatch.Current;
+            if (string.IsNullOrWhiteSpace(raw)) return;
+            using var fixture = System.Text.Json.JsonDocument.Parse(raw);
+            Assert.StartsWith("collapsible.", fixture.RootElement.GetProperty("id").GetString());
+            Assert.Equal("button", Render<HarborlineCollapsible>(p => p.Add(x => x.Title, "Settings")).Find("button").GetAttribute("type"));
+        });
     }
 }

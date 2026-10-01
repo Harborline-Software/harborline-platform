@@ -36,26 +36,29 @@ public sealed class SheetTests : BunitContext
         Assert.Equal("false", open.Find("[role=dialog]").GetAttribute("aria-modal"));
     }
 
-    [Fact, Trait("ModuleConformance", "hlp.ui.sheet")]
-    public void SharedFixtureConforms()
+    [Theory, Trait("ModuleConformance", "hlp.ui.sheet")]
+    [MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.sheet", MemberType = typeof(SharedFixtureBatch))]
+    public void SharedFixtureConforms(string caseId, string? rawFixture)
     {
-        var raw = Environment.GetEnvironmentVariable("HARBORLINE_CONFORMANCE_FIXTURE"); if (string.IsNullOrWhiteSpace(raw)) return;
-        using var fixture = System.Text.Json.JsonDocument.Parse(raw);
-        var id = fixture.RootElement.GetProperty("id").GetString(); Assert.StartsWith("sheet.", id);
-        if (id != "sheet.close-classes")
-        {
-            Assert.Empty(Render<HarborlineSheet>(p => p.Add(x => x.ChildContent, Content())).FindAll("[role=dialog]"));
-            return;
-        }
+        SharedFixtureBatch.Run(caseId, rawFixture, () => {
+            var raw = SharedFixtureBatch.Current; if (string.IsNullOrWhiteSpace(raw)) return;
+            using var fixture = System.Text.Json.JsonDocument.Parse(raw);
+            var id = fixture.RootElement.GetProperty("id").GetString(); Assert.StartsWith("sheet.", id);
+            if (id != "sheet.close-classes")
+            {
+                Assert.Empty(Render<HarborlineSheet>(p => p.Add(x => x.ChildContent, Content())).FindAll("[role=dialog]"));
+                return;
+            }
 
-        // 282 s9: the Blazor lane also spelled the built-in close hl-sheet__builtin-close, which the
-        // authority stylesheet never defined. This asserts the one spelling in this lane; the React
-        // case asserts the same fixture row in the other.
-        var expected = fixture.RootElement.GetProperty("expected").GetProperty("builtInCloseClasses")
-            .EnumerateArray().Select(value => value.GetString()!).ToArray();
-        var open = Render<HarborlineSheet>(p => p.Add(x => x.Open, true).Add(x => x.ChildContent, Content()));
-        var close = open.Find("[role=dialog] button[aria-label=Close]");
-        Assert.Equal(expected, close.ClassList);
+            // 282 s9: the Blazor lane also spelled the built-in close hl-sheet__builtin-close, which the
+            // authority stylesheet never defined. This asserts the one spelling in this lane; the React
+            // case asserts the same fixture row in the other.
+            var expected = fixture.RootElement.GetProperty("expected").GetProperty("builtInCloseClasses")
+                .EnumerateArray().Select(value => value.GetString()!).ToArray();
+            var open = Render<HarborlineSheet>(p => p.Add(x => x.Open, true).Add(x => x.ChildContent, Content()));
+            var close = open.Find("[role=dialog] button[aria-label=Close]");
+            Assert.Equal(expected, close.ClassList);
+        });
     }
 
     private static RenderFragment Content() => builder =>

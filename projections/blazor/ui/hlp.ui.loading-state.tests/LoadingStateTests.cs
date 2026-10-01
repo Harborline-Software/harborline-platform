@@ -55,54 +55,57 @@ public sealed class LoadingStateNativeTests : BunitContext
 
 public sealed class LoadingStateConformanceTests : BunitContext
 {
-    [Fact]
+    [Theory]
     [Trait("ModuleConformance", "hlp.ui.loading-state")]
-    public void SharedFixtureConforms()
+    [MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.loading-state", MemberType = typeof(SharedFixtureBatch))]
+    public void SharedFixtureConforms(string caseId, string? rawFixture)
     {
-        var raw = Environment.GetEnvironmentVariable("HARBORLINE_CONFORMANCE_FIXTURE");
-        if (string.IsNullOrWhiteSpace(raw)) return;
-        using var fixture = System.Text.Json.JsonDocument.Parse(raw!);
-        var id = fixture.RootElement.GetProperty("id").GetString();
-        Assert.StartsWith("loading-state.", id);
+        SharedFixtureBatch.Run(caseId, rawFixture, () => {
+            var raw = SharedFixtureBatch.Current;
+            if (string.IsNullOrWhiteSpace(raw)) return;
+            using var fixture = System.Text.Json.JsonDocument.Parse(raw!);
+            var id = fixture.RootElement.GetProperty("id").GetString();
+            Assert.StartsWith("loading-state.", id);
 
-        if (id == "loading-state.variant-classes")
-        {
-            // 282 s5: these three selectors used to live only in the error-card lane stylesheet
-            // (projections/blazor/ui/hlp.ui.error-card/wwwroot/feedback.css), never in an authority
-            // the other lane shared. Both lanes assert the spellings from this row.
-            var expected = fixture.RootElement.GetProperty("expected");
-            var page = Render<HarborlineLoadingState>(parameters => parameters.Add(component => component.Label, "Loading inspections"));
-            Assert.Equal(Classes(expected, "pageClasses"), page.Find("[role=status]").ClassList);
-            Assert.Equal(Classes(expected, "labelClasses"), page.Find(".hl-loading-state__label").ClassList);
-            var inlineCut = Render<HarborlineLoadingState>(parameters => parameters
-                .Add(component => component.Label, "Loading inspections")
-                .Add(component => component.Variant, LoadingStateVariant.Inline));
-            Assert.Equal(Classes(expected, "inlineClasses"), inlineCut.Find("[role=status]").ClassList);
-            return;
-        }
+            if (id == "loading-state.variant-classes")
+            {
+                // 282 s5: these three selectors used to live only in the error-card lane stylesheet
+                // (projections/blazor/ui/hlp.ui.error-card/wwwroot/feedback.css), never in an authority
+                // the other lane shared. Both lanes assert the spellings from this row.
+                var expected = fixture.RootElement.GetProperty("expected");
+                var page = Render<HarborlineLoadingState>(parameters => parameters.Add(component => component.Label, "Loading inspections"));
+                Assert.Equal(Classes(expected, "pageClasses"), page.Find("[role=status]").ClassList);
+                Assert.Equal(Classes(expected, "labelClasses"), page.Find(".hl-loading-state__label").ClassList);
+                var inlineCut = Render<HarborlineLoadingState>(parameters => parameters
+                    .Add(component => component.Label, "Loading inspections")
+                    .Add(component => component.Variant, LoadingStateVariant.Inline));
+                Assert.Equal(Classes(expected, "inlineClasses"), inlineCut.Find("[role=status]").ClassList);
+                return;
+            }
 
-        var inline = id == "loading-state.inline";
-        var label = id == "loading-state.locale-direction" ? "جارٍ التحميل" : "Loading inspections";
-        var cut = Render<HarborlineLoadingState>(parameters =>
-        {
-            parameters.Add(component => component.Label, label);
-            parameters.Add(component => component.Variant, inline ? LoadingStateVariant.Inline : LoadingStateVariant.Page);
-            if (id == "loading-state.locale-direction")
+            var inline = id == "loading-state.inline";
+            var label = id == "loading-state.locale-direction" ? "جارٍ التحميل" : "Loading inspections";
+            var cut = Render<HarborlineLoadingState>(parameters =>
             {
-                parameters.AddUnmatched("lang", "ar-SA");
-                parameters.AddUnmatched("dir", "rtl");
-            }
-            if (id == "loading-state.host-attributes")
-            {
-                parameters.Add(component => component.Class, "consumer");
-                parameters.AddUnmatched("data-case", "shared");
-                parameters.AddUnmatched("aria-atomic", "true");
-            }
+                parameters.Add(component => component.Label, label);
+                parameters.Add(component => component.Variant, inline ? LoadingStateVariant.Inline : LoadingStateVariant.Page);
+                if (id == "loading-state.locale-direction")
+                {
+                    parameters.AddUnmatched("lang", "ar-SA");
+                    parameters.AddUnmatched("dir", "rtl");
+                }
+                if (id == "loading-state.host-attributes")
+                {
+                    parameters.Add(component => component.Class, "consumer");
+                    parameters.AddUnmatched("data-case", "shared");
+                    parameters.AddUnmatched("aria-atomic", "true");
+                }
+            });
+            var status = cut.Find("[role=status]");
+            Assert.Equal("polite", status.GetAttribute("aria-live"));
+            Assert.Equal(label, status.TextContent);
+            Assert.Equal(inline ? "p" : "div", status.TagName.ToLowerInvariant());
         });
-        var status = cut.Find("[role=status]");
-        Assert.Equal("polite", status.GetAttribute("aria-live"));
-        Assert.Equal(label, status.TextContent);
-        Assert.Equal(inline ? "p" : "div", status.TagName.ToLowerInvariant());
     }
 
     private static string[] Classes(System.Text.Json.JsonElement expected, string property) =>

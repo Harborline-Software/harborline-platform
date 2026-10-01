@@ -6,6 +6,7 @@ import {dirname, resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
 import {resolveCommand, runnerEnvironment} from './resolve-command.mjs'
 import {resolvePinnedDotnet} from './resolve-dotnet.mjs'
+import {executeConformanceBatch} from './dotnet-conformance-batch.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const catalog = JSON.parse(readFileSync(resolve(root, 'catalog/modules.yaml'), 'utf8'))
@@ -79,27 +80,20 @@ export function runUiModuleShared(moduleId) {
     passed: reactPassed,
     failureOutput: reactPassed ? undefined : react.output.split('\n').slice(-50).join('\n'),
   })
-  for (const fixture of fixtures.cases) {
-    const dotnetRun = execute([
-      dotnet.executable,
-      'test',
-      project,
-      '--configuration', 'Release',
-      '--no-build', '--no-restore',
-      '--filter', `ModuleConformance=${moduleId}`,
-      '-v:minimal',
-    ], root, {HARBORLINE_CONFORMANCE_FIXTURE: JSON.stringify(fixture)})
-    const testCount = Number(/Passed:\s+(\d+)/.exec(dotnetRun.output)?.[1] ?? 0)
-    const passed = dotnetRun.exitCode === 0 && testCount === 1
+  const command = [dotnet.executable, 'test', project, '--configuration', 'Release',
+    '--no-build', '--no-restore', '--filter', `ModuleConformance=${moduleId}`, '-v:minimal']
+  const batch = executeConformanceBatch({moduleId, fixtures: fixtures.cases, command, root, execute})
+  for (const row of batch.rows) {
     results.push({
       moduleId,
-      caseId: fixture.id,
+      caseId: row.caseId,
       projection: 'blazor-support',
-      command: dotnetRun.command,
-      testCount,
-      exitCode: dotnetRun.exitCode,
-      passed,
-      failureOutput: passed ? undefined : dotnetRun.output.split('\n').slice(-50).join('\n'),
+      command,
+      // Preserve the existing field's meaning: the number of passing tests for this case.
+      testCount: row.passed ? 1 : 0,
+      exitCode: row.passed ? 0 : 1,
+      passed: row.passed,
+      failureOutput: row.failureOutput ?? undefined,
     })
   }
 

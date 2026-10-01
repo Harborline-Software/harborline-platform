@@ -20,7 +20,7 @@ public sealed class BreadcrumbTests : BunitContext
     // a hardcoded list is not consuming the fixture -- mutating `expected` leaves it green.
     private static JsonElement Case(string id)
     {
-        var injected = Environment.GetEnvironmentVariable("HARBORLINE_CONFORMANCE_FIXTURE");
+        var injected = SharedFixtureBatch.Current;
         if (!string.IsNullOrWhiteSpace(injected))
         {
             var value = JsonDocument.Parse(injected).RootElement;
@@ -98,41 +98,44 @@ public sealed class BreadcrumbTests : BunitContext
         Assert.Empty(cut.FindAll("ol"));
     }
 
-    [Fact, Trait("ModuleConformance", "hlp.ui.breadcrumb")]
-    public void SharedFixtureConforms()
+    [Theory, Trait("ModuleConformance", "hlp.ui.breadcrumb")]
+    [MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.breadcrumb", MemberType = typeof(SharedFixtureBatch))]
+    public void SharedFixtureConforms(string caseId, string? rawFixture)
     {
-        var raw = Environment.GetEnvironmentVariable("HARBORLINE_CONFORMANCE_FIXTURE");
-        if (string.IsNullOrWhiteSpace(raw)) return;
+        SharedFixtureBatch.Run(caseId, rawFixture, () => {
+            var raw = SharedFixtureBatch.Current;
+            if (string.IsNullOrWhiteSpace(raw)) return;
 
-        var fixture = JsonDocument.Parse(raw).RootElement;
-        var id = fixture.GetProperty("id").GetString();
-        Assert.StartsWith("breadcrumb.", id);
+            var fixture = JsonDocument.Parse(raw).RootElement;
+            var id = fixture.GetProperty("id").GetString();
+            Assert.StartsWith("breadcrumb.", id);
 
-        var expected = fixture.GetProperty("expected");
-        var cut = Render<HarborlineBreadcrumb>(p => p.Add(x => x.Items, ItemsOf(fixture)));
+            var expected = fixture.GetProperty("expected");
+            var cut = Render<HarborlineBreadcrumb>(p => p.Add(x => x.Items, ItemsOf(fixture)));
 
-        if (expected.TryGetProperty("rendered", out var rendered) && !rendered.GetBoolean())
-        {
-            Assert.Empty(cut.Markup.Trim());
-            return;
-        }
+            if (expected.TryGetProperty("rendered", out var rendered) && !rendered.GetBoolean())
+            {
+                Assert.Empty(cut.Markup.Trim());
+                return;
+            }
 
-        Assert.NotEmpty(cut.FindAll("nav"));
-        if (expected.TryGetProperty("separators", out var separators))
-        {
-            Assert.Equal(separators.GetInt32(), cut.FindAll(".hl-breadcrumb__separator").Count);
-        }
+            Assert.NotEmpty(cut.FindAll("nav"));
+            if (expected.TryGetProperty("separators", out var separators))
+            {
+                Assert.Equal(separators.GetInt32(), cut.FindAll(".hl-breadcrumb__separator").Count);
+            }
 
-        Assert.Equal("page", cut.Find("[aria-current=page]").GetAttribute("aria-current"));
+            Assert.Equal("page", cut.Find("[aria-current=page]").GetAttribute("aria-current"));
 
-        if (id != "breadcrumb.current-class") return;
-        Assert.Equal(Classes(expected, "currentClasses"), cut.Find("[aria-current=page]").ClassList);
+            if (id != "breadcrumb.current-class") return;
+            Assert.Equal(Classes(expected, "currentClasses"), cut.Find("[aria-current=page]").ClassList);
 
-        // The parity this case exists to prove needs both kinds of text span in one trail: the
-        // current one carries the modifier, every other one carries the base class alone.
-        var plain = cut.FindAll(".hl-breadcrumb__text:not([aria-current])");
-        Assert.NotEmpty(plain);
-        foreach (var span in plain) Assert.Equal(Classes(expected, "textClasses"), span.ClassList);
+            // The parity this case exists to prove needs both kinds of text span in one trail: the
+            // current one carries the modifier, every other one carries the base class alone.
+            var plain = cut.FindAll(".hl-breadcrumb__text:not([aria-current])");
+            Assert.NotEmpty(plain);
+            foreach (var span in plain) Assert.Equal(Classes(expected, "textClasses"), span.ClassList);
+        });
     }
 
     private static string[] Classes(System.Text.Json.JsonElement expected, string property) =>

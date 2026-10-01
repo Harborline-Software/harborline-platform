@@ -18,4 +18,7 @@
     <ProjectReference Include="../hlp.ui.button/Harborline.Foundation.csproj" />
     <ProjectReference Include="../../contracts/hlp.contracts.identities/Harborline.Contracts.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <Compile Include="../../../shared.tests/SharedFixtureBatch.cs" Link="SharedFixtureBatch.cs" />
+  </ItemGroup>
 </Project>

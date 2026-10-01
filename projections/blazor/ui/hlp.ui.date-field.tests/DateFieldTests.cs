@@ -24,11 +24,13 @@ public sealed class DateFieldTests : BunitContext
         Assert.Equal(string.Empty, next);
     }
 
-    [Fact, Trait("ModuleConformance", "hlp.ui.date-field")]
-    public void SharedFixtureConforms() => AssertFixture("date-field.", "date");
+    [Theory, Trait("ModuleConformance", "hlp.ui.date-field")]
+    [MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.date-field", MemberType = typeof(SharedFixtureBatch))]
+    public void SharedFixtureConforms(string caseId, string? rawFixture) =>
+        SharedFixtureBatch.Run(caseId, rawFixture, () => AssertFixture("date-field.", "date"));
     private void AssertFixture(string prefix, string type)
     {
-        var raw = Environment.GetEnvironmentVariable("HARBORLINE_CONFORMANCE_FIXTURE"); if (string.IsNullOrWhiteSpace(raw)) return;
+        var raw = SharedFixtureBatch.Current; if (string.IsNullOrWhiteSpace(raw)) return;
         using var fixture = System.Text.Json.JsonDocument.Parse(raw); Assert.StartsWith(prefix, fixture.RootElement.GetProperty("id").GetString());
         Assert.Equal(type, Render<HarborlineDateField>(p => p.Add(x => x.Name, "x").Add(x => x.Value, string.Empty)).Find("input").GetAttribute("type"));
     }

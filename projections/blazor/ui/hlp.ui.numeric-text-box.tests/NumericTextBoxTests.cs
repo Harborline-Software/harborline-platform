@@ -50,11 +50,14 @@ public sealed class NumericTextBoxTests : BunitContext
         Assert.Equal("$1,234,567.89", cut.Find("input").GetAttribute("value"));
     }
 
-    [Fact, Trait("ModuleConformance", "hlp.ui.numeric-text-box")]
-    public void SharedFixtureConforms()
+    [Theory, Trait("ModuleConformance", "hlp.ui.numeric-text-box")]
+    [MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.numeric-text-box", MemberType = typeof(SharedFixtureBatch))]
+    public void SharedFixtureConforms(string caseId, string? rawFixture)
     {
-        var raw = Environment.GetEnvironmentVariable("HARBORLINE_CONFORMANCE_FIXTURE"); if (string.IsNullOrWhiteSpace(raw)) return;
-        using var fixture = System.Text.Json.JsonDocument.Parse(raw); Assert.StartsWith("numeric-text-box.", fixture.RootElement.GetProperty("id").GetString());
-        Assert.Equal("text", Render<HarborlineNumericTextBox>().Find("input").GetAttribute("type"));
+        SharedFixtureBatch.Run(caseId, rawFixture, () => {
+            var raw = SharedFixtureBatch.Current; if (string.IsNullOrWhiteSpace(raw)) return;
+            using var fixture = System.Text.Json.JsonDocument.Parse(raw); Assert.StartsWith("numeric-text-box.", fixture.RootElement.GetProperty("id").GetString());
+            Assert.Equal("text", Render<HarborlineNumericTextBox>().Find("input").GetAttribute("type"));
+        });
     }
 }
