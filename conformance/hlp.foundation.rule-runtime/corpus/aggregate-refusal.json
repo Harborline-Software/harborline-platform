@@ -183,6 +183,140 @@
       "expectedOutcomes": {
         "rule.engine": { "ruleId": "rule.engine", "target": "schema:", "outputType": "Validity", "validity": { "ok": false, "error": { "code": "rule.budget_exceeded", "params": { "rule": "c.total" } } } }
       }
+    },
+    {
+      "_comment": "Money max/min where the maximum is the FIRST value and the minimum is the LAST: a comparison that always replaces the accumulator, or one that never does, returns a different value.",
+      "name": "agg/money-max-is-first-and-min-is-last",
+      "definitionRules": [
+        {
+          "id": "c.max",
+          "tier": "JsonLogic",
+          "scope": "Field",
+          "scopeTarget": "max",
+          "action": "Compute",
+          "expression": {
+            "var": "table.max(items.price)"
+          }
+        },
+        {
+          "id": "c.min",
+          "tier": "JsonLogic",
+          "scope": "Field",
+          "scopeTarget": "min",
+          "action": "Compute",
+          "expression": {
+            "var": "table.min(items.price)"
+          }
+        }
+      ],
+      "instance": {
+        "items": [
+          {
+            "price": "0.3"
+          },
+          {
+            "price": "0.2"
+          },
+          {
+            "price": "0.1"
+          }
+        ]
+      },
+      "expectedOutcomes": {
+        "c.max": {
+          "ruleId": "c.max",
+          "target": "field:max",
+          "outputType": "Value",
+          "value": {
+            "state": "Resolved",
+            "value": "0.3"
+          }
+        },
+        "c.min": {
+          "ruleId": "c.min",
+          "target": "field:min",
+          "outputType": "Value",
+          "value": {
+            "state": "Resolved",
+            "value": "0.1"
+          }
+        }
+      }
+    },
+    {
+      "_comment": "count, any and all over an all-decimal-string column are not money folds: they keep their count and boolean results (only sum, min, max and avg take the exact-decimal path).",
+      "name": "agg/count-any-all-over-decimal-strings-are-not-money-folds",
+      "definitionRules": [
+        {
+          "id": "c.count",
+          "tier": "JsonLogic",
+          "scope": "Field",
+          "scopeTarget": "count",
+          "action": "Compute",
+          "expression": {
+            "var": "table.count(items.price)"
+          }
+        },
+        {
+          "id": "c.any",
+          "tier": "JsonLogic",
+          "scope": "Field",
+          "scopeTarget": "any",
+          "action": "Compute",
+          "expression": {
+            "var": "table.any(items.price)"
+          }
+        },
+        {
+          "id": "c.all",
+          "tier": "JsonLogic",
+          "scope": "Field",
+          "scopeTarget": "all",
+          "action": "Compute",
+          "expression": {
+            "var": "table.all(items.price)"
+          }
+        }
+      ],
+      "instance": {
+        "items": [
+          {
+            "price": "0.2"
+          },
+          {
+            "price": "0.1"
+          }
+        ]
+      },
+      "expectedOutcomes": {
+        "c.count": {
+          "ruleId": "c.count",
+          "target": "field:count",
+          "outputType": "Value",
+          "value": {
+            "state": "Resolved",
+            "value": 2
+          }
+        },
+        "c.any": {
+          "ruleId": "c.any",
+          "target": "field:any",
+          "outputType": "Value",
+          "value": {
+            "state": "Resolved",
+            "value": true
+          }
+        },
+        "c.all": {
+          "ruleId": "c.all",
+          "target": "field:all",
+          "outputType": "Value",
+          "value": {
+            "state": "Resolved",
+            "value": true
+          }
+        }
+      }
     }
   ]
 }

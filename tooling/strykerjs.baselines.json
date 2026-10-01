@@ -888,15 +888,16 @@
     },
     "projections/typescript/foundation/hlp.foundation.rule-runtime": {
       "baseline": 59,
-      "break": 59,
-      "score": 59.34,
-      "tested": 4845,
+      "break": 72,
+      "score": 72.16,
+      "tested": 5145,
       "observed": [
         59.34,
-        59.38
+        59.38,
+        72.16
       ],
       "report": "C:/hl-ab/rb-reports/platform/hlp.foundation.rule-runtime/run1.json",
-      "measured": "2026-09-26, winbox, 2 quiet-host runs, patched StrykerJS 10.0.0, --concurrency 4 (winbox is also a CI runner tonight), run1 RuntimeError 2 / CompileError 0, run2 RuntimeError 2 / CompileError 0; lower run is the floor (ruling T-724 98). Old break 63 was measured before #148 fixed static-mutant activation and counted false static survivors/timeouts as kills; the new floor is genuinely lower, not a regression."
+      "measured": "2026-09-30, winbox, T-1020 full run at e381df5a (every mutable file, StrykerJS 10.0.0, default concurrency), 3898 Killed / 13 Timeout / 1234 Survived / 275 NoCoverage / 2 RuntimeError; break raised 59 to 72 with 8 mutants of headroom (ruling T-724 95). The 2026-09-26 observations above are the older, lower floor."
     }
   }
 }
