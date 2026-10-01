@@ -3,8 +3,11 @@ import assert from 'node:assert/strict'
 import {test} from 'node:test'
 
 import path from 'node:path'
+import {execFileSync} from 'node:child_process'
+import {mkdirSync, mkdtempSync, renameSync, rmSync, writeFileSync} from 'node:fs'
+import {tmpdir} from 'node:os'
 
-import {changedLines, configProblems, fullModeBreak, isTestProject, plainRazor, razorTested, reportCounts, repository, sourceDirectories,
+import {changedLines, changedSourceFiles, configProblems, fullModeBreak, isTestProject, plainRazor, razorTested, reportCounts, repository, sourceDirectories,
   scoreVerdict, survivorsOnChangedLines, thresholdsFor} from '../stryker.mjs'
 
 const repoRoot = path.resolve('stryker-fixture-repo')
@@ -140,6 +143,133 @@ test('full mode holds a project to the higher of its recorded baseline and its c
 test('a project compiles from its own directory and every directory it links', () => {
   assert.deepEqual(sourceDirectories('p/ui/a/A.csproj', '<Compile Include="../b/**/*.cs" /><RazorComponent Include="../c/**/*.razor" />'),
     ['p/ui/a', 'p/ui/b', 'p/ui/c'])
+})
+
+// Real Git fixtures exercise deletion and rename output, not a hand-written imitation of that output. Expected
+// paths are literals from this fixture corpus; PR #236 supplies the source-only selection boundary.
+function selectionFixture(t, projectText = '<Project />') {
+  const directory = mkdtempSync(path.join(tmpdir(), 'hlp-stryker-selection-'))
+  t.after(() => rmSync(directory, {recursive: true, force: true}))
+  const git = (...args) => execFileSync('git', ['-C', directory, ...args], {encoding: 'utf8'})
+  const write = (file, text) => {
+    mkdirSync(path.dirname(path.join(directory, file)), {recursive: true})
+    writeFileSync(path.join(directory, file), text)
+  }
+  git('init', '-q')
+  write('p/lib/Lib.csproj', projectText)
+  write('p/other/Other.csproj', '<Project />')
+  for (const file of ['p/lib/A.cs', 'p/lib/Gone.cs', 'p/lib/View.razor', 'p/lib/nested/Name space.cs',
+    'p/lib/Unicode-λ.cs', 'p/other/B.cs', 'p/lib.tests/Test.cs', 'p/lib/nested.tests/Test.cs', 'p/linked/L.cs']) {
+    write(file, 'first line\nsecond line\nthird line\n')
+  }
+  git('add', '.')
+  git('-c', 'user.name=Selection fixture', '-c', 'user.email=fixture@example.invalid',
+    '-c', 'commit.gpgsign=false', '-c', 'core.hooksPath=', 'commit', '-qm', 'fixture base')
+  return {directory, git, write, changed: (project = 'p/lib/Lib.csproj', text = '<Project />') =>
+    changedSourceFiles(project, text, directory, 'HEAD')}
+}
+
+test('PR selection includes a source file with only removed lines and skips an unchanged project', t => {
+  const fixture = selectionFixture(t)
+  fixture.write('p/lib/A.cs', 'first line\nthird line\n')
+  assert.deepEqual(fixture.changed(), ['p/lib/A.cs'])
+  assert.deepEqual(fixture.changed('p/other/Other.csproj'), [])
+})
+
+test('PR selection includes a deleted source file even though no new line can be mutated', t => {
+  const fixture = selectionFixture(t)
+  rmSync(path.join(fixture.directory, 'p/lib/Gone.cs'))
+  assert.deepEqual(fixture.changed(), ['p/lib/Gone.cs'])
+})
+
+test('PR selection includes both owners of a rename and keeps an unrelated project skipped', t => {
+  const fixture = selectionFixture(t)
+  renameSync(path.join(fixture.directory, 'p/lib/Gone.cs'), path.join(fixture.directory, 'p/other/Moved.cs'))
+  fixture.git('add', '-A')
+  assert.deepEqual(fixture.changed(), ['p/lib/Gone.cs'])
+  assert.deepEqual(fixture.changed('p/other/Other.csproj'), ['p/other/Moved.cs'])
+  assert.deepEqual(fixture.changed('p/linked/Linked.csproj'), [])
+})
+
+test('PR selection includes an in-project rename, nested files and names requiring Git quoting', t => {
+  const fixture = selectionFixture(t)
+  renameSync(path.join(fixture.directory, 'p/lib/nested/Name space.cs'), path.join(fixture.directory, 'p/lib/nested/New name.cs'))
+  fixture.write('p/lib/Unicode-λ.cs', 'changed\n')
+  fixture.git('add', '-A')
+  assert.deepEqual(fixture.changed(), ['p/lib/Unicode-λ.cs', 'p/lib/nested/Name space.cs', 'p/lib/nested/New name.cs'])
+})
+
+test('PR selection keeps test-only edits and test deletions skipped under the PR #236 source-only policy', t => {
+  const fixture = selectionFixture(t)
+  fixture.write('p/lib.tests/Test.cs', 'changed test\n')
+  rmSync(path.join(fixture.directory, 'p/lib/nested.tests/Test.cs'))
+  assert.deepEqual(fixture.changed(), [])
+})
+
+test('PR selection sees linked source deletion but not a similarly prefixed directory', t => {
+  const fixture = selectionFixture(t)
+  fixture.write('p/library/A.cs', 'unrelated\n')
+  fixture.git('add', '-A')
+  assert.deepEqual(fixture.changed(), [])
+  rmSync(path.join(fixture.directory, 'p/linked/L.cs'))
+  assert.deepEqual(fixture.changed('p/lib/Lib.csproj', '<Compile Include="../linked/**/*.cs" />'), ['p/linked/L.cs'])
+})
+
+test('PR selection includes deleted Razor source only for a Razor target', t => {
+  const fixture = selectionFixture(t)
+  rmSync(path.join(fixture.directory, 'p/lib/View.razor'))
+  assert.deepEqual(fixture.changed(), [])
+  assert.deepEqual(fixture.changed('p/lib/Lib.csproj', '<Project Sdk="Microsoft.NET.Sdk.Razor" />'), ['p/lib/View.razor'])
+})
+
+test('PR selection preserves base ownership when linked source and its Compile Include are deleted together', t => {
+  const fixture = selectionFixture(t, '<Compile Include="../linked/**/*.cs" />')
+  fixture.write('p/lib/Lib.csproj', '<Project />')
+  rmSync(path.join(fixture.directory, 'p/linked/L.cs'))
+  assert.deepEqual(fixture.changed(), ['p/lib/Lib.csproj', 'p/linked/L.cs'])
+})
+
+test('PR selection includes a project file that alone removes compiled source', t => {
+  const unlinked = selectionFixture(t, '<Compile Include="../linked/**/*.cs" />')
+  unlinked.write('p/lib/Lib.csproj', '<Project />')
+  assert.deepEqual(unlinked.changed(), ['p/lib/Lib.csproj'])
+  const removed = selectionFixture(t)
+  removed.write('p/lib/Lib.csproj', '<Compile Remove="A.cs" />')
+  assert.deepEqual(removed.changed('p/lib/Lib.csproj', '<Compile Remove="A.cs" />'), ['p/lib/Lib.csproj'])
+  assert.deepEqual(removed.changed('p/other/Other.csproj'), [])
+})
+
+test('PR selection preserves both owners when linked source is moved and its old Include removed', t => {
+  const fixture = selectionFixture(t, '<Compile Include="../linked/**/*.cs" />')
+  fixture.write('p/lib/Lib.csproj', '<Project />')
+  renameSync(path.join(fixture.directory, 'p/linked/L.cs'), path.join(fixture.directory, 'p/other/Moved.cs'))
+  fixture.git('add', '-A')
+  assert.deepEqual(fixture.changed(), ['p/lib/Lib.csproj', 'p/linked/L.cs'])
+  assert.deepEqual(fixture.changed('p/other/Other.csproj'), ['p/other/Moved.cs'])
+})
+
+test('PR selection preserves deleted Razor ownership when the current project removes Razor capability', t => {
+  const fixture = selectionFixture(t, '<Project Sdk="Microsoft.NET.Sdk.Razor" />')
+  fixture.write('p/lib/Lib.csproj', '<Project />')
+  rmSync(path.join(fixture.directory, 'p/lib/View.razor'))
+  assert.deepEqual(fixture.changed(), ['p/lib/Lib.csproj', 'p/lib/View.razor'])
+})
+
+test('PR selection accepts a new project absent from base and a deleted project absent from the current tree', t => {
+  const fixture = selectionFixture(t)
+  fixture.write('p/new/New.csproj', '<Project />')
+  fixture.write('p/new/New.cs', 'new source\n')
+  fixture.git('add', '-A')
+  assert.deepEqual(fixture.changed('p/new/New.csproj'), ['p/new/New.cs', 'p/new/New.csproj'])
+  rmSync(path.join(fixture.directory, 'p/lib/Lib.csproj'))
+  rmSync(path.join(fixture.directory, 'p/lib/Gone.cs'))
+  assert.deepEqual(changedSourceFiles('p/lib/Lib.csproj', undefined, fixture.directory, 'HEAD'), ['p/lib/Gone.cs', 'p/lib/Lib.csproj'])
+})
+
+test('PR selection refuses an unknown base or a project absent from both trees instead of silently skipping', t => {
+  const fixture = selectionFixture(t)
+  assert.throws(() => changedSourceFiles('p/lib/Lib.csproj', '<Project />', fixture.directory, 'missing-base'), /Command failed/)
+  assert.throws(() => changedSourceFiles('p/missing/Missing.csproj', undefined, fixture.directory, 'HEAD'), /absent from both/)
 })
 
 test('a Razor report with no tested mutant in a .razor span is caught however many .cs mutants it tested (ruling 91)', () => {
