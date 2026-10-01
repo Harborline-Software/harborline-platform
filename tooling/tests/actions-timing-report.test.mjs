@@ -9,14 +9,17 @@ import {buildActionsTimingReport} from '../actions-timing-report.mjs'
 
 // Literal UTC times form the oracle: 10 seconds before creation, 5 waiting,
 // then 20 executing. No expected value is read from production output.
-const run = {id: 1, head_sha: 'abc', run_attempt: 2, status: 'completed', conclusion: 'failure',
+const run = {id: 1, head_sha: 'abc', event: 'push', run_attempt: 2, status: 'completed', conclusion: 'failure',
   created_at: '2026-10-01T00:00:00Z', run_started_at: '2026-10-01T00:00:02Z'}
 const job = {id: 10, name: 'gate', run_id: 1, run_attempt: 2, head_sha: 'abc',
+  html_url: 'https://github.com/example/repo/actions/runs/1/job/10', runner_id: 7,
   status: 'completed', conclusion: 'failure', created_at: '2026-10-01T00:00:10Z',
   started_at: '2026-10-01T00:00:15Z', completed_at: '2026-10-01T00:00:35Z',
   steps: [{number: 1, name: 'test', status: 'completed', conclusion: 'failure',
     started_at: '2026-10-01T00:00:20Z', completed_at: '2026-10-01T00:00:30Z'}]}
 const report = (jobs = [job], extra = {}) => buildActionsTimingReport({run, jobs, ...extra})
+const checkout = {verifiedByCaller: true, runId: 1, runAttempt: 2, jobId: 10,
+  headSha: 'abc', event: 'push', sourceJobUrl: job.html_url, checkoutSha: 'abc', checkoutTree: 'tree', parents: []}
 
 test('separates dispatch, dependency/orchestration delay, waiting and execution', () => {
   const result = report()
@@ -78,7 +81,7 @@ test('rejects incomplete, unknown and cyclic graphs; incomplete timing is unavai
 })
 
 test('retains successful gate timing, failures, nested durations and reuse provenance', () => {
-  const result = report([job], {gateReports: [{jobId: 10, report: {status: 'PASS', subject: {baseHead: 'abc', testedTree: 'tree'},
+  const result = report([job], {gateReports: [{jobId: 10, checkout, report: {status: 'PASS', subject: {baseHead: 'abc', testedTree: 'tree'},
     results: [{id: 'native', passed: true, durationMs: 500, report: {results: [{id: 'suite', passed: true, durationMs: 400}]}},
       {id: 'shared', passed: true, durationMs: 0, reusedFrom: {testedTree: 'previous'}},
       {id: 'failed', passed: false, durationMs: 600, exitCode: 1}]}}]})
@@ -108,13 +111,62 @@ test('skipped bookkeeping timestamps never become job or step execution', () => 
   assert.equal(result.criticalExecutionPath.available, false)
 })
 
-test('rejects a stale or unpinned gate artifact and never claims tested-tree verification', () => {
+test('rejects a stale or unpinned gate artifact and never claims evidence authentication', () => {
   for (const subject of [{baseHead: 'old'}, {testedTree: 'tree'}, undefined]) {
-    assert.throws(() => report([job], {gateReports: [{jobId: 10, report: {subject, results: []}}]}), /Actions head SHA/)
+    assert.throws(() => report([job], {gateReports: [{jobId: 10, checkout, report: {subject, results: []}}]}), /checkout commit and tree/)
   }
-  const gate = report([job], {gateReports: [{jobId: 10, report: {subject: {baseHead: 'abc'}, results: [{id: 'negative', durationMs: -1}]}}]}).gateReports[0]
-  assert.deepEqual(gate.provenance, {baseHeadMatchesActionsSha: true, testedTreeVerified: false, artifactJobAndAttemptVerified: false})
+  const gate = report([job], {gateReports: [{jobId: 10, checkout, report: {subject: {baseHead: 'abc', testedTree: 'tree'}, results: [{id: 'negative', durationMs: -1}]}}]}).gateReports[0]
+  assert.equal(gate.provenance.checkoutRecordMatched, true)
+  assert.equal(gate.provenance.checkoutEvidenceAuthenticated, false)
+  assert.equal(gate.provenance.artifactJobAndAttemptVerified, false)
   assert.equal(gate.steps[0].executionMs, null)
+})
+
+test('PR REST head differs from the verified synthetic merge checkout: Platform PR 246', () => {
+  // Independently read run/job REST, source checkout log and Git commit resource.
+  const prRun = {...run, id: 36803894385, run_attempt: 1, event: 'pull_request', head_sha: '3722601bd1142031b965a13e07e772842f339e37'}
+  const prJob = {...job, id: 110183939270, run_id: 36803894385, run_attempt: 1,
+    head_sha: '3722601bd1142031b965a13e07e772842f339e37',
+    html_url: 'https://github.com/Harborline-Software/harborline-platform/actions/runs/36803894385/job/110183939270'}
+  const prCheckout = {verifiedByCaller: true, runId: 36803894385, runAttempt: 1, jobId: 110183939270,
+    event: 'pull_request', headSha: '3722601bd1142031b965a13e07e772842f339e37', sourceJobUrl: prJob.html_url,
+    checkoutSha: 'f6ee8ad943f9db1abc05477301fe7275d28f8c34', checkoutTree: '51e1b2f3217e73056dce8dbf53dceba43ecec799',
+    parents: ['de97dfc12a28d75fa3e450522d7eba6b561e2126', '3722601bd1142031b965a13e07e772842f339e37']}
+  const gate = {jobId: 110183939270, checkout: prCheckout, report: {status: 'PASS',
+    subject: {baseHead: 'f6ee8ad943f9db1abc05477301fe7275d28f8c34', testedTree: '51e1b2f3217e73056dce8dbf53dceba43ecec799'}, results: []}}
+  const build = (gateInput = gate) => buildActionsTimingReport({run: prRun, jobs: [prJob], gateReports: [gateInput]})
+  assert.equal(build().gateReports[0].provenance.binding, 'pull-request-synthetic-merge')
+  for (const change of [{runId: 2}, {runAttempt: 2}, {jobId: 2}, {event: 'push'}, {headSha: 'wrong'},
+    {sourceJobUrl: 'wrong'}, {verifiedByCaller: false}, {parents: ['base', 'wrong-head']}]) {
+    assert.throws(() => build({...gate, checkout: {...prCheckout, ...change}}))
+  }
+  assert.throws(() => build({...gate, checkout: undefined}), /caller-verified/)
+  assert.throws(() => build({...gate, report: {...gate.report, subject: {...gate.report.subject, testedTree: 'wrong'}}}), /checkout commit and tree/)
+  assert.throws(() => buildActionsTimingReport({run: {...prRun, event: 'merge_group'}, jobs: [prJob],
+    gateReports: [{...gate, checkout: {...prCheckout, event: 'merge_group'}}]}), /Non-PR checkout/)
+})
+
+test('cancelled before runner assignment is time to cancellation, never execution: run 36776666123', () => {
+  const cancelledRun = {...run, id: 36776666123, run_attempt: 1, conclusion: 'cancelled',
+    head_sha: 'df8d298cb25c57f70d6ef6381e7a246f166ffb7c', run_started_at: '2026-09-30T21:01:26Z', created_at: '2026-09-30T21:01:26Z'}
+  const cancelledJob = {...job, id: 110096189734, run_id: 36776666123, run_attempt: 1,
+    head_sha: 'df8d298cb25c57f70d6ef6381e7a246f166ffb7c', conclusion: 'cancelled', runner_id: 0, runner_name: '', steps: [],
+    created_at: '2026-09-30T21:01:26Z', started_at: '2026-09-30T21:01:26Z', completed_at: '2026-09-30T21:07:04Z'}
+  const result = buildActionsTimingReport({run: cancelledRun, jobs: [cancelledJob], dependencies: {gate: []}})
+  assert.equal(result.jobs[0].conclusion, 'cancelled')
+  assert.equal(result.jobs[0].timeToCancellationMs, 338000)
+  assert.equal(result.jobs[0].observableWaitMs, null)
+  assert.equal(result.jobs[0].executionMs, null)
+  assert.equal(result.criticalExecutionPath.available, false)
+  assert.equal(result.lastCompletingJob, null)
+})
+
+test('assigned cancelled jobs retain their observed execution, including before the first step', () => {
+  const result = report([{...job, conclusion: 'cancelled', runner_id: 42, steps: []}])
+  assert.equal(result.jobs[0].cancelledWithoutRunner, false)
+  assert.equal(result.jobs[0].timeToCancellationMs, null)
+  assert.equal(result.jobs[0].observableWaitMs, 5000)
+  assert.equal(result.jobs[0].executionMs, 20000)
 })
 
 test('explicit graphs cannot contradict observed execution order or claim workflow verification', () => {
@@ -129,12 +181,19 @@ test('CLI reads paginated exports, refuses incomplete pages and keeps failure ou
   try {
     const runPath = join(scratch, 'run.json'), jobsPath = join(scratch, 'jobs.json')
     writeFileSync(runPath, JSON.stringify(run))
-    const cli = () => spawnSync(process.execPath, [fileURLToPath(new URL('../actions-timing-report.mjs', import.meta.url)), runPath, jobsPath], {encoding: 'utf8'})
+    const cli = (extra = []) => spawnSync(process.execPath, [fileURLToPath(new URL('../actions-timing-report.mjs', import.meta.url)), runPath, jobsPath, ...extra], {encoding: 'utf8'})
     writeFileSync(jobsPath, JSON.stringify([{total_count: 2, jobs: [job]}, {total_count: 2, jobs: [{...job, id: 11, name: 'other'}]}]))
     const result = cli()
     assert.equal(result.status, 0)
     assert.equal(JSON.parse(result.stdout).run.conclusion, 'failure')
     assert.equal(JSON.parse(result.stdout).jobs.length, 2)
+    const gatePath = join(scratch, 'gate.json'), checkoutPath = join(scratch, 'checkout.json')
+    writeFileSync(gatePath, JSON.stringify({status: 'PASS', subject: {baseHead: 'abc', testedTree: 'tree'}, results: []}))
+    writeFileSync(checkoutPath, JSON.stringify(checkout))
+    assert.equal(cli(['-', gatePath, '10']).status, 1)
+    const withGate = cli(['-', gatePath, '10', checkoutPath])
+    assert.equal(withGate.status, 0)
+    assert.equal(JSON.parse(withGate.stdout).gateReports[0].provenance.checkoutRecordMatched, true)
     writeFileSync(jobsPath, JSON.stringify({total_count: 2, jobs: [job]}))
     const incomplete = cli()
     assert.equal(incomplete.status, 1)

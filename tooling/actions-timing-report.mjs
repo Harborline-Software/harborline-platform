@@ -19,6 +19,33 @@ function ranked(rows) {
     .sort((a, b) => b.executionMs - a.executionMs)
 }
 
+// This offline reporter can check consistency, not authenticate downloaded logs.
+// A gate requires a caller-verified checkout record from this exact source job.
+function bindGateCheckout(run, job, report, checkout) {
+  if (!checkout || checkout.verifiedByCaller !== true
+      || checkout.runId !== run.id || checkout.runAttempt !== run.run_attempt
+      || checkout.jobId !== job.id || checkout.headSha !== run.head_sha
+      || checkout.event !== run.event || !job.html_url || checkout.sourceJobUrl !== job.html_url
+      || !checkout.checkoutSha || !checkout.checkoutTree || !Array.isArray(checkout.parents)) {
+    throw new Error(`Gate report for job ${job.id} requires caller-verified checkout provenance for the exact run, attempt, job, event and head SHA`)
+  }
+  const isPrMerge = run.event === 'pull_request' && checkout.checkoutSha !== run.head_sha
+  if (isPrMerge) {
+    if (checkout.parents.length !== 2 || checkout.parents[1] !== run.head_sha) {
+      throw new Error('PR synthetic checkout must have the recorded PR head as its second merge parent')
+    }
+  } else if (checkout.checkoutSha !== run.head_sha) {
+    throw new Error('Non-PR checkout must match the Actions head SHA')
+  }
+  if (report.subject?.baseHead !== checkout.checkoutSha || report.subject?.testedTree !== checkout.checkoutTree) {
+    throw new Error('Gate subject does not match the verified checkout commit and tree')
+  }
+  return {binding: isPrMerge ? 'pull-request-synthetic-merge' : 'run-head',
+    checkoutSha: checkout.checkoutSha, checkoutTree: checkout.checkoutTree,
+    sourceJobUrl: checkout.sourceJobUrl, checkoutRecordMatched: true,
+    checkoutEvidenceAuthenticated: false, artifactJobAndAttemptVerified: false}
+}
+
 // A graph is keyed by exact REST job name, including each matrix expansion.
 // REST has no `needs` field. Refuse to invent dependencies from timestamp order.
 function criticalPath(jobs, dependencies) {
@@ -74,20 +101,25 @@ export function buildActionsTimingReport({run, jobs, dependencies, gateReports =
       throw new Error(`Job ${job.id} does not belong to this exact run, attempt and SHA`)
     }
   }
-  const rows = jobs.map(job => ({id: job.id, name: job.name, url: job.html_url,
+  const rows = jobs.map(job => {
+    const cancelledWithoutRunner = job.conclusion === 'cancelled' && job.runner_id === 0 && (job.steps ?? []).length === 0
+    const noExecution = job.conclusion === 'skipped' || cancelledWithoutRunner
+    return {id: job.id, name: job.name, url: job.html_url,
     status: job.status, conclusion: job.conclusion, attempt: job.run_attempt,
     createdAt: job.created_at, startedAt: job.started_at, completedAt: job.completed_at,
-    observableWaitMs: job.conclusion === 'skipped' ? null : interval(job.created_at, job.started_at),
+    cancelledWithoutRunner,
+    timeToCancellationMs: cancelledWithoutRunner ? interval(job.created_at, job.completed_at) : null,
+    observableWaitMs: noExecution ? null : interval(job.created_at, job.started_at),
     attemptStartToJobCreatedMs: interval(run.run_started_at, job.created_at),
-    executionMs: job.conclusion === 'skipped' ? null : interval(job.started_at, job.completed_at),
+    executionMs: noExecution ? null : interval(job.started_at, job.completed_at),
     runner: {id: job.runner_id, name: job.runner_name, labels: job.labels},
     steps: (job.steps ?? []).map(step => ({number: step.number, name: step.name,
       status: step.status, conclusion: step.conclusion,
       executionMs: step.conclusion === 'skipped' ? null : interval(step.started_at, step.completed_at)})),
-  }))
-  const gates = gateReports.map(({jobId, report}) => {
+  }})
+  const gates = gateReports.map(({jobId, report, checkout}) => {
     if (!ids.has(jobId)) throw new Error(`Gate report references unknown job ${jobId}`)
-    if (report.subject?.baseHead !== run.head_sha) throw new Error(`Gate report for job ${jobId} does not name the Actions head SHA`)
+    const provenance = bindGateCheckout(run, jobs.find(job => job.id === jobId), report, checkout)
     // Keep the gate's own subject separate: baseHead/testedTree are not the Actions head SHA.
     const steps = []
     function walk(results, parents = []) {
@@ -101,7 +133,7 @@ export function buildActionsTimingReport({run, jobs, dependencies, gateReports =
     }
     walk(report.results)
     return {jobId, status: report.status, subject: report.subject,
-      provenance: {baseHeadMatchesActionsSha: true, testedTreeVerified: false, artifactJobAndAttemptVerified: false},
+      provenance,
       steps, slowSteps: ranked([...steps])}
   })
   const executed = rows.filter(row => row.conclusion !== 'skipped')
@@ -120,10 +152,11 @@ export function buildActionsTimingReport({run, jobs, dependencies, gateReports =
       'Time before job creation is measured from this attempt start and includes dependency/orchestration delay.',
       'Run creation is shared across reruns: run lifetime and creation-to-attempt-start can include previous attempts and idle time. Do not sum overlapping attempt reports.',
       'Skipped job and step timestamps are bookkeeping, not execution or waiting evidence.',
+      'Cancelled jobs with no assigned runner and no steps expose only time to cancellation, not execution or runner waiting.',
       'Null duration means missing, incomplete or reversed timestamps, never zero.',
       'Attempt count records reruns, not automatic step retries. Fetch every attempt separately.',
       'updated_at is metadata update time, not execution completion.',
-      'Gate baseHead must match Actions head SHA; testedTree and artifact job/attempt provenance remain caller-verified. Nested durations overlap their parent and must not be summed.',
+      'Gate subject must match caller-verified checkout provenance bound to this run, attempt and job; PR merge checkout parents must include the recorded PR head. The reporter cannot authenticate caller evidence or artifact provenance. Nested durations overlap their parent and must not be summed.',
       'These measurements are not an individual or team performance signal.'],
     jobs: rows, slowSteps: ranked(rows.flatMap(job => job.steps.map(step => ({jobId: job.id, jobName: job.name, ...step})))),
     criticalExecutionPath: criticalPath(rows, dependencies),
@@ -133,8 +166,8 @@ export function buildActionsTimingReport({run, jobs, dependencies, gateReports =
 
 if (import.meta.main) {
   try {
-    const [runPath, jobsPath, graphPath, gatePath, gateJobId] = process.argv.slice(2)
-    if (!runPath || !jobsPath) throw new Error('Usage: node tooling/actions-timing-report.mjs RUN.json JOBS.json [NEEDS.json|-] [GATE.json JOB_ID]')
+    const [runPath, jobsPath, graphPath, gatePath, gateJobId, checkoutPath] = process.argv.slice(2)
+    if (!runPath || !jobsPath) throw new Error('Usage: node tooling/actions-timing-report.mjs RUN.json JOBS.json [NEEDS.json|-] [GATE.json JOB_ID CHECKOUT.json]')
     const read = path => JSON.parse(readFileSync(path, 'utf8'))
     const exported = read(jobsPath)
     const pages = Array.isArray(exported) ? exported : [exported]
@@ -143,10 +176,10 @@ if (import.meta.main) {
     }
     const jobs = pages.flatMap(page => page.jobs)
     if (pages.some(page => page.total_count !== jobs.length)) throw new Error('Incomplete or inconsistent job pages; fetch all pages for this attempt')
-    if (gatePath && !gateJobId) throw new Error('GATE.json requires its source JOB_ID')
+    if (gatePath && (!gateJobId || !checkoutPath)) throw new Error('GATE.json requires its source JOB_ID and caller-verified CHECKOUT.json')
     process.stdout.write(`${JSON.stringify(buildActionsTimingReport({run: read(runPath), jobs,
       dependencies: graphPath && graphPath !== '-' ? read(graphPath) : undefined,
-      gateReports: gatePath ? [{jobId: Number(gateJobId), report: read(gatePath)}] : []}), null, 2)}\n`)
+      gateReports: gatePath ? [{jobId: Number(gateJobId), report: read(gatePath), checkout: read(checkoutPath)}] : []}), null, 2)}\n`)
   } catch (error) {
     process.stderr.write(`${error.message}\n`)
     process.exitCode = 1
