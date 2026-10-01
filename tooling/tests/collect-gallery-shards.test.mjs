@@ -43,19 +43,19 @@ test('the collector fails closed when no shard report is present', () => {
 test('CI runs the headless gate beside the gallery shards, and verify needs all three', () => {
   const verify = readFileSync(resolve(root, '.github/workflows/verify.yml'), 'utf8')
   assert.doesNotMatch(verify, /runs-on: macos|\n  verify-shared:/)
-  assert.match(verify, /needs: \[phase-4-gate, gallery-shard, gallery-collect\]/)
+  assert.match(verify, /needs: \[pr-preflight, phase-4-gate, gallery-shard, gallery-collect\]/)
   assert.match(verify, /HARBORLINE_GATE_HEADLESS: "1"/)
   assert.match(verify, /node tooling\/collect-gallery-shards\.mjs/)
   const gate = verify.split('\n  phase-4-gate:\n')[1].split('\n  gallery-shard:\n')[0]
-  assert.doesNotMatch(gate, /needs:/, 'the headless gate must not wait for the shards')
+  assert.doesNotMatch(gate, /needs:.*gallery/, 'the headless gate must not wait for the shards')
   // T-577: the gallery lanes run in the merge group and on dispatch, never on a pull request, and
-  // verify accepts their skip on a pull request only.
+  // the preliminary PR check never claims full proof (ci-verification.test.mjs checks outcomes).
   for (const lane of ['gallery-shard', 'gallery-collect']) {
     const guard = verify.split(`\n  ${lane}:\n`)[1].split('runs-on:')[0]
     assert.match(guard, /github\.event_name == 'merge_group' \|\| github\.event_name == 'workflow_dispatch'\)/)
     assert.doesNotMatch(guard, /pull_request/)
   }
-  assert.match(verify, /\$event == "pull_request" and \.result == "skipped"/)
+  assert.match(verify, /run: node tooling\/verify-ci-lanes\.mjs/)
   const validate = readFileSync(resolve(root, '.github/workflows/validate.yml'), 'utf8')
   assert.doesNotMatch(validate, /run-phase-4-gate|run-gallery-gate/, 'one copy of the gate only')
 })
