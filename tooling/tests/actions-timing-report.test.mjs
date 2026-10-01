@@ -20,10 +20,11 @@ const report = (jobs = [job], extra = {}) => buildActionsTimingReport({run, jobs
 
 test('separates dispatch, dependency/orchestration delay, waiting and execution', () => {
   const result = report()
-  assert.equal(result.run.dispatchWaitMs, 2000)
-  assert.equal(result.run.observedWallMs, 35000)
-  assert.equal(result.jobs[0].beforeJobCreatedMs, 10000)
-  assert.equal(result.jobs[0].waitMs, 5000)
+  assert.equal(result.run.runCreatedToAttemptStartMs, 2000)
+  assert.equal(result.run.runLifetimeToLastJobMs, 35000)
+  assert.equal(result.run.attemptObservedWallMs, 33000)
+  assert.equal(result.jobs[0].attemptStartToJobCreatedMs, 8000)
+  assert.equal(result.jobs[0].observableWaitMs, 5000)
   assert.equal(result.jobs[0].executionMs, 20000)
   assert.equal(result.slowSteps[0].executionMs, 10000)
   assert.equal(result.run.headSha, 'abc')
@@ -38,8 +39,8 @@ test('cancelled, skipped and incomplete jobs remain visible with unknown duratio
     const result = report([{...job, conclusion, started_at: null, completed_at: null}])
     assert.equal(result.jobs[0].conclusion, conclusion)
     assert.equal(result.jobs[0].executionMs, null)
-    assert.equal(result.jobs[0].waitMs, null)
-    assert.equal(result.run.observedWallMs, null)
+    assert.equal(result.jobs[0].observableWaitMs, null)
+    assert.equal(result.run.attemptObservedWallMs, null)
   }
 })
 
@@ -77,16 +78,50 @@ test('rejects incomplete, unknown and cyclic graphs; incomplete timing is unavai
 })
 
 test('retains successful gate timing, failures, nested durations and reuse provenance', () => {
-  const result = report([job], {gateReports: [{jobId: 10, report: {status: 'PASS', subject: {testedTree: 'tree'},
+  const result = report([job], {gateReports: [{jobId: 10, report: {status: 'PASS', subject: {baseHead: 'abc', testedTree: 'tree'},
     results: [{id: 'native', passed: true, durationMs: 500, report: {results: [{id: 'suite', passed: true, durationMs: 400}]}},
       {id: 'shared', passed: true, durationMs: 0, reusedFrom: {testedTree: 'previous'}},
       {id: 'failed', passed: false, durationMs: 600, exitCode: 1}]}}]})
   assert.equal(result.gateReports[0].status, 'PASS')
-  assert.deepEqual(result.gateReports[0].subject, {testedTree: 'tree'})
+  assert.deepEqual(result.gateReports[0].subject, {baseHead: 'abc', testedTree: 'tree'})
   assert.deepEqual(result.gateReports[0].slowSteps.map(step => step.executionMs), [600, 500, 400, 0])
   assert.equal(result.gateReports[0].slowSteps[0].passed, false)
   assert.deepEqual(result.gateReports[0].slowSteps[3].reusedFrom, {testedTree: 'previous'})
   assert.throws(() => report([job], {gateReports: [{jobId: 99, report: {}}]}), /unknown job/)
+})
+
+test('rerun attempt elapsed time excludes the previous attempt and idle time', () => {
+  const result = buildActionsTimingReport({run: {...run, run_started_at: '2026-10-01T00:00:15Z'}, jobs: [job]})
+  assert.equal(result.run.attemptObservedWallMs, 20000)
+  assert.equal(result.run.runLifetimeToLastJobMs, 35000)
+  assert.equal(result.jobs[0].attemptStartToJobCreatedMs, null)
+  assert.match(result.caveats.join(' '), /Do not sum overlapping attempt/)
+})
+
+test('skipped bookkeeping timestamps never become job or step execution', () => {
+  const result = report([{...job, conclusion: 'skipped', steps: [{...job.steps[0], conclusion: 'skipped'}]}], {dependencies: {gate: []}})
+  assert.equal(result.jobs[0].observableWaitMs, null)
+  assert.equal(result.jobs[0].executionMs, null)
+  assert.equal(result.jobs[0].steps[0].executionMs, null)
+  assert.equal(result.run.attemptObservedWallMs, null)
+  assert.equal(result.lastCompletingJob, null)
+  assert.equal(result.criticalExecutionPath.available, false)
+})
+
+test('rejects a stale or unpinned gate artifact and never claims tested-tree verification', () => {
+  for (const subject of [{baseHead: 'old'}, {testedTree: 'tree'}, undefined]) {
+    assert.throws(() => report([job], {gateReports: [{jobId: 10, report: {subject, results: []}}]}), /Actions head SHA/)
+  }
+  const gate = report([job], {gateReports: [{jobId: 10, report: {subject: {baseHead: 'abc'}, results: [{id: 'negative', durationMs: -1}]}}]}).gateReports[0]
+  assert.deepEqual(gate.provenance, {baseHeadMatchesActionsSha: true, testedTreeVerified: false, artifactJobAndAttemptVerified: false})
+  assert.equal(gate.steps[0].executionMs, null)
+})
+
+test('explicit graphs cannot contradict observed execution order or claim workflow verification', () => {
+  const child = {...job, id: 11, name: 'child'}
+  assert.throws(() => report([job, child], {dependencies: {gate: [], child: ['gate']}}), /timestamps overlap/)
+  assert.equal(report([job], {dependencies: {gate: []}}).criticalExecutionPath.dependenciesVerified, false)
+  assert.equal(report([{...job, completed_at: job.created_at}]).run.attemptObservedWallMs, null)
 })
 
 test('CLI reads paginated exports, refuses incomplete pages and keeps failure outcome', () => {

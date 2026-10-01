@@ -27,17 +27,24 @@ attempt or SHA. Supply complete REST exports; job pagination and artifact proven
 remain the caller's responsibility. `run_attempt > 1` records a rerun, not a flaky
 test or a step retry. Step outcomes, including skipped and cancelled, remain visible.
 
-Job waiting is `created_at` to `started_at`; time before job creation is reported
-separately because it includes dependency and orchestration delay. Neither proves
-runner saturation. Execution is `started_at` to `completed_at`. Null means unknown,
+Job `observableWaitMs` is `created_at` to `started_at`; it may include dependency or
+orchestration delay, not exclusively runner congestion. `attemptStartToJobCreatedMs`
+reports the delay before job creation separately. Neither proves runner saturation.
+Execution is `started_at` to `completed_at`. Null means unknown,
 including unfinished or reversed timestamps. Workflow `updated_at` is not a finish
-timestamp. Observed wall time ends at the last completed job, only for completed
-runs with complete job timestamps. It excludes final workflow bookkeeping.
+timestamp. `attemptObservedWallMs` starts at this attempt's `run_started_at` and ends
+at the last executed job, only for completed runs with complete execution timestamps.
+Skipped-job and skipped-step timestamps are bookkeeping and never count as waiting
+or execution. `runLifetimeToLastJobMs` starts at original run creation and can include
+previous attempts and idle time. `runCreatedToAttemptStartMs` has the same limitation.
+Do not sum reports for overlapping attempts. Wall time excludes final workflow bookkeeping.
 
 REST jobs do not carry `needs`. For a critical execution path, supply an explicit
 JSON graph whose keys are every exact REST job name (including matrix expansions)
 and whose values are arrays of prerequisite job names. Read the workflow **at the
-reported SHA**. An incomplete, cyclic or unknown graph is refused. The longest path
+reported SHA**. An incomplete, cyclic, unknown or timestamp-contradicting graph is refused.
+`dependenciesVerified: false` explicitly records that the tool cannot detect omitted
+real dependencies or independently confirm the graph against the workflow. The longest path
 sums execution only; it excludes waiting and does not claim to be elapsed workflow
 time. Without a graph, the report gives the last completing job and marks the
 critical path unavailable.
@@ -49,9 +56,11 @@ node tooling/actions-timing-report.mjs run.json jobs.json needs.json gate.json J
 
 Download `gate.json` from the source job's uploaded phase-4 artifact. An optional
 gate report retains its own status and subject (`baseHead`/`testedTree`); these are
-not replaced with the Actions SHA. Successful step timing is retained alongside
+not replaced with the Actions SHA. Its `baseHead` must match the Actions SHA; a stale
+or unpinned report is refused. Successful step timing is retained alongside
 failures and `reusedFrom`. Nested durations overlap their parents, so never sum the
 ranked list. The tool checks that JOB_ID belongs to the run; the caller must verify
-that the artifact came from that job and attempt. No report can turn a failed or
+that the artifact came from that job and attempt and that `testedTree` is the tree
+actually tested. Those unverified properties are explicit in `provenance`. No report can turn a failed or
 skipped check into a pass. These measurements are not an individual or team
 performance signal.

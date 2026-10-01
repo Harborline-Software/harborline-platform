@@ -37,6 +37,13 @@ function criticalPath(jobs, dependencies) {
     if (!job || !Array.isArray(dependencies[name])) throw new Error(`Unknown or invalid dependency: ${name}`)
     visiting.add(name)
     const parents = dependencies[name].map(visit)
+    for (const parentName of dependencies[name]) {
+      const parent = byName.get(parentName)
+      if (parent.executionMs !== null && job.executionMs !== null
+          && instant(job.startedAt) < instant(parent.completedAt)) {
+        throw new Error(`Dependency timestamps overlap: ${parentName} -> ${name}`)
+      }
+    }
     if (job.executionMs === null || parents.some(path => path === null)) {
       visiting.delete(name)
       paths.set(name, null)
@@ -51,7 +58,8 @@ function criticalPath(jobs, dependencies) {
   }
   const all = jobs.map(job => visit(job.name))
   if (all.some(path => path === null)) return {available: false, reason: 'Incomplete execution timestamps; no complete critical path.'}
-  return {available: true, basis: 'Longest execution-duration path through supplied needs graph; excludes waiting.',
+  return {available: true, dependenciesVerified: false,
+    basis: 'Longest execution-duration path through caller-supplied graph; actual workflow dependencies are not independently verified; excludes waiting.',
     ...all.sort((a, b) => b.executionMs - a.executionMs)[0]}
 }
 
@@ -69,16 +77,17 @@ export function buildActionsTimingReport({run, jobs, dependencies, gateReports =
   const rows = jobs.map(job => ({id: job.id, name: job.name, url: job.html_url,
     status: job.status, conclusion: job.conclusion, attempt: job.run_attempt,
     createdAt: job.created_at, startedAt: job.started_at, completedAt: job.completed_at,
-    waitMs: interval(job.created_at, job.started_at),
-    beforeJobCreatedMs: interval(run.created_at, job.created_at),
-    executionMs: interval(job.started_at, job.completed_at),
+    observableWaitMs: job.conclusion === 'skipped' ? null : interval(job.created_at, job.started_at),
+    attemptStartToJobCreatedMs: interval(run.run_started_at, job.created_at),
+    executionMs: job.conclusion === 'skipped' ? null : interval(job.started_at, job.completed_at),
     runner: {id: job.runner_id, name: job.runner_name, labels: job.labels},
     steps: (job.steps ?? []).map(step => ({number: step.number, name: step.name,
       status: step.status, conclusion: step.conclusion,
-      executionMs: interval(step.started_at, step.completed_at)})),
+      executionMs: step.conclusion === 'skipped' ? null : interval(step.started_at, step.completed_at)})),
   }))
   const gates = gateReports.map(({jobId, report}) => {
     if (!ids.has(jobId)) throw new Error(`Gate report references unknown job ${jobId}`)
+    if (report.subject?.baseHead !== run.head_sha) throw new Error(`Gate report for job ${jobId} does not name the Actions head SHA`)
     // Keep the gate's own subject separate: baseHead/testedTree are not the Actions head SHA.
     const steps = []
     function walk(results, parents = []) {
@@ -91,24 +100,30 @@ export function buildActionsTimingReport({run, jobs, dependencies, gateReports =
       }
     }
     walk(report.results)
-    return {jobId, status: report.status, subject: report.subject, steps, slowSteps: ranked([...steps])}
+    return {jobId, status: report.status, subject: report.subject,
+      provenance: {baseHeadMatchesActionsSha: true, testedTreeVerified: false, artifactJobAndAttemptVerified: false},
+      steps, slowSteps: ranked([...steps])}
   })
-  const completed = rows.filter(row => instant(row.completedAt) !== null)
+  const executed = rows.filter(row => row.conclusion !== 'skipped')
+  const completed = executed.filter(row => row.status === 'completed' && row.executionMs !== null)
     .sort((a, b) => instant(b.completedAt) - instant(a.completedAt))
-  const end = run.status === 'completed' && completed.length === rows.length && rows.length > 0 ? completed[0].completedAt : null
+  const end = run.status === 'completed' && completed.length === executed.length && completed.length > 0 ? completed[0].completedAt : null
   return {schemaVersion: 1, reportOnly: true,
     run: {id: run.id, url: run.html_url, headSha: run.head_sha, event: run.event,
       status: run.status, conclusion: run.conclusion, attempt: run.run_attempt,
       retried: run.run_attempt > 1, previousAttemptCount: run.run_attempt - 1,
       createdAt: run.created_at, startedAt: run.run_started_at,
-      dispatchWaitMs: interval(run.created_at, run.run_started_at),
-      observedWallMs: interval(run.created_at, end)},
-    caveats: ['Job wait is created_at to started_at; it is not proof of runner saturation.',
-      'Time before job creation includes dependency/orchestration delay, not measured runner queue time.',
+      runCreatedToAttemptStartMs: interval(run.created_at, run.run_started_at),
+      runLifetimeToLastJobMs: interval(run.created_at, end),
+      attemptObservedWallMs: interval(run.run_started_at, end)},
+    caveats: ['Job observable waiting is created_at to started_at; it can include dependency/orchestration delay and is not exclusively runner queue time or proof of saturation.',
+      'Time before job creation is measured from this attempt start and includes dependency/orchestration delay.',
+      'Run creation is shared across reruns: run lifetime and creation-to-attempt-start can include previous attempts and idle time. Do not sum overlapping attempt reports.',
+      'Skipped job and step timestamps are bookkeeping, not execution or waiting evidence.',
       'Null duration means missing, incomplete or reversed timestamps, never zero.',
       'Attempt count records reruns, not automatic step retries. Fetch every attempt separately.',
       'updated_at is metadata update time, not execution completion.',
-      'Gate subjects are retained separately; nested durations overlap their parent and must not be summed.',
+      'Gate baseHead must match Actions head SHA; testedTree and artifact job/attempt provenance remain caller-verified. Nested durations overlap their parent and must not be summed.',
       'These measurements are not an individual or team performance signal.'],
     jobs: rows, slowSteps: ranked(rows.flatMap(job => job.steps.map(step => ({jobId: job.id, jobName: job.name, ...step})))),
     criticalExecutionPath: criticalPath(rows, dependencies),
