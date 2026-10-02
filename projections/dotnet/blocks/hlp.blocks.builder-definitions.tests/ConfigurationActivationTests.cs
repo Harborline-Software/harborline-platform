@@ -86,20 +86,27 @@ public sealed class ConfigurationActivationTests
     }
 
     [Fact]
-    public void Cross_tenant_preparation_and_switch_refuse_before_callbacks()
+    public void Cross_tenant_preparation_refuses_before_callbacks_and_an_allowed_switch_refuses_for_tenant()
     {
         var other = ConfigurationGeneration.Resolve(Input("other-tenant"));
         var preparation = ConfigurationPreparation.Prepare(Baseline(), Baseline().Digest, other, (_, _) => throw new InvalidOperationException());
         Assert.Equal("configuration-tenant-mismatch", Assert.Single(preparation.Refusals).Code);
-        var decision = ConfigurationActivation.DecideCompareAndSwap(other, Request(), _ => throw new InvalidOperationException());
+        var decision = ConfigurationActivation.DecideCompareAndSwap(other, Request(), Allow);
         Assert.Equal("configuration-tenant-mismatch", decision.Refusal!.Code);
+        Assert.Null(decision.NewGeneration);
     }
 
     [Fact]
-    public void Baseline_changed_after_preparation_refuses_without_reauthorizing_or_retrying()
+    public void Baseline_changed_after_preparation_refuses_an_allowed_caller_without_retrying()
     {
         var current = Candidate();
-        var decision = ConfigurationActivation.DecideCompareAndSwap(current, Request(), _ => throw new InvalidOperationException());
+        var authorizations = 0;
+        var decision = ConfigurationActivation.DecideCompareAndSwap(current, Request(), request =>
+        {
+            authorizations++;
+            return Allow(request);
+        });
+        Assert.Equal(1, authorizations);
         Assert.Null(decision.NewGeneration);
         Assert.Equal("configuration-baseline-stale", decision.Refusal!.Code);
         Assert.Same(current, ConfigurationActivationOutcome.Refused(decision).EffectiveGeneration);
@@ -121,6 +128,72 @@ public sealed class ConfigurationActivationTests
         };
         var decision = ConfigurationActivation.DecideCompareAndSwap(Baseline(), request, _ => throw new InvalidOperationException());
         Assert.Equal(code, decision.Refusal!.Code);
+    }
+
+    // T-1046: a refused caller gets the same refusal whatever state the current generation is in, so the refusal
+    // cannot tell it whether its baseline is stale or the generation belongs to another tenant.
+    [Theory]
+    [InlineData("fresh", false, "access-denial")]
+    [InlineData("stale", false, "access-denial")]
+    [InlineData("other-tenant", false, "access-denial")]
+    [InlineData("fresh", true, "")]
+    [InlineData("stale", true, "")]
+    [InlineData("other-tenant", true, "")]
+    public void A_refused_caller_gets_the_authority_refusal_in_every_generation_state(string state, bool allowed, string decisionId)
+    {
+        var current = state switch
+        {
+            "fresh" => Baseline(),
+            "stale" => Candidate(),
+            _ => ConfigurationGeneration.Resolve(Input("other-tenant")),
+        };
+        var decision = ConfigurationActivation.DecideCompareAndSwap(current, Request(), _ => new(allowed, decisionId));
+        Assert.Equal("configuration-authority-refused", decision.Refusal!.Code);
+        Assert.Equal("authority", decision.Refusal.Target);
+        Assert.Null(decision.NewGeneration);
+        Assert.Same(current, ConfigurationActivationOutcome.Refused(decision).EffectiveGeneration);
+    }
+
+    // Each refusal names the input it is about; the pairs are the contract the API binds into its refusal detail.
+    [Theory]
+    [InlineData("principal", "configuration-principal-required", "principal")]
+    [InlineData("intent", "configuration-evidence-required", "evidenceIntent")]
+    [InlineData("tenant", "configuration-tenant-mismatch", "candidate")]
+    [InlineData("stale", "configuration-baseline-stale", "expectedBaselineDigest")]
+    public void Each_switch_refusal_names_its_target(string cause, string code, string target)
+    {
+        var request = cause switch
+        {
+            "principal" => Request() with { Principal = " " },
+            "intent" => Request() with { EvidenceIntent = new("", "reason") },
+            _ => Request(),
+        };
+        var current = cause switch
+        {
+            "tenant" => ConfigurationGeneration.Resolve(Input("other-tenant")),
+            "stale" => Candidate(),
+            _ => Baseline(),
+        };
+        var decision = ConfigurationActivation.DecideCompareAndSwap(current, request, Allow);
+        Assert.Equal(code, decision.Refusal!.Code);
+        Assert.Equal(target, decision.Refusal.Target);
+        Assert.False(string.IsNullOrWhiteSpace(decision.Refusal.Message));
+    }
+
+    [Fact]
+    public void Missing_switch_arguments_throw_before_authority()
+    {
+        var calls = 0;
+        ConfigurationActivationAuthority Counting(ConfigurationActivationRequest request) { calls++; return Allow(request); }
+        Assert.Equal("current", Assert.Throws<ArgumentNullException>(() =>
+            ConfigurationActivation.DecideCompareAndSwap(null!, Request(), Counting)).ParamName);
+        Assert.Equal("request", Assert.Throws<ArgumentNullException>(() =>
+            ConfigurationActivation.DecideCompareAndSwap(Baseline(), null!, Counting)).ParamName);
+        Assert.Equal("request.Prepared", Assert.Throws<ArgumentNullException>(() =>
+            ConfigurationActivation.DecideCompareAndSwap(Baseline(), Request() with { Prepared = null! }, Counting)).ParamName);
+        Assert.Equal("authorize", Assert.Throws<ArgumentNullException>(() =>
+            ConfigurationActivation.DecideCompareAndSwap(Baseline(), Request(), null!)).ParamName);
+        Assert.Equal(0, calls);
     }
 
     [Theory]
@@ -222,7 +295,7 @@ public sealed class ConfigurationActivationTests
         var firstDecision = ConfigurationActivation.DecideCompareAndSwap(pinnedRead, first, Allow);
         // Model the host's committed snapshot as an immutable value; no persistence implementation is claimed.
         var current = ConfigurationActivationOutcome.ConfirmCommitted(firstDecision).EffectiveGeneration;
-        var secondDecision = ConfigurationActivation.DecideCompareAndSwap(current, second, _ => throw new InvalidOperationException());
+        var secondDecision = ConfigurationActivation.DecideCompareAndSwap(current, second, Allow);
         Assert.Equal("configuration-baseline-stale", secondDecision.Refusal!.Code);
         Assert.Same(current, ConfigurationActivationOutcome.Refused(secondDecision).EffectiveGeneration);
         Assert.Equal(Baseline().Digest, pinnedRead.Digest);

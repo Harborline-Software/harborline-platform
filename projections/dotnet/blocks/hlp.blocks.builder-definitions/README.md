@@ -105,8 +105,7 @@ The prepared token binds the baseline, candidate, projection reference and canon
 Preparation neither authorizes activation nor changes the effective generation.
 
 `ConfigurationActivationRequest` adds the server-derived acting principal and evidence intent identity
-and reason to that token. `DecideCompareAndSwap` compares the complete current baseline again, refuses
-staleness without retrying, and asks the host's live Access callback to authorize that exact request.
+and reason to that token. `DecideCompareAndSwap` asks the host's live Access callback to authorize that exact request, then compares the complete current baseline again and refuses staleness without retrying. A refused caller gets `configuration-authority-refused` whatever the current generation's state, so it cannot learn whether its baseline is stale (T-1046).
 The returned decision binds the request and retained Access decision identity. No independent ownership
 list or workflow approval can substitute for those inputs. Host-provided projection validation and
 Access callbacks are trusted adapters, not client-supplied assertions.
