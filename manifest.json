@@ -18,5 +18,10 @@
     "path": "docs/evidence/mutation/t1025-typescript-before.json",
     "sha256": "3c22f9fed3b379b7024d42741a302ad0b5a578987236f31bc08364a649108c2a",
     "bytes": 529917
+  },
+  {
+    "path": "docs/evidence/mutation/t1024-two-character-final-72bb0d63.json",
+    "sha256": "fc04f12fd023cf281936356f01670b0d84c541c2ca94b3c46fd39a08395e48b4",
+    "bytes": 653286
   }
 ]
