@@ -639,6 +639,25 @@ describe('reactive re-evaluation — transitive dependents only', () => {
     // c.d does not depend on a — its outcome object is the SAME reference (not re-evaluated).
     expect(next.byRule.get('c.d')).toBe(dOutcomeBefore)
   })
+
+  // T-1023: the exported VALUE keeps its identity too, not just the outcome. An unchanged value is the same
+  // reference after reevaluate, so a consumer comparing by reference does not re-render it; a changed one is new.
+  it('an exported value unchanged by an edit is the same reference; a changed one is not', () => {
+    const rules = [
+      rule('c.b', 'b', 'Compute', { '+': [{ var: 'a' }, 1] }),
+      rule('c.d', 'd', 'Compute', { '+': [{ var: 'x' }, 1] }),
+    ]
+    const { g, first } = graphOf(rules, { a: 10, x: 100 })
+    const dBefore = first.values.get('field:d')
+    const bBefore = first.values.get('field:b')
+
+    const next = g.reevaluate('a', valueSnapshot(20))
+
+    expect(next.values.get('field:d')).toBe(dBefore)
+    expect(next.byRule.get('c.d')?.value).toBe(dBefore)
+    expect(next.values.get('field:b')).not.toBe(bBefore)
+    expect(next.values.get('field:b')).toEqual({ state: 'Resolved', value: 21 })
+  })
 })
 
 describe('numeric / collation determinism (D1 ratification fix 2)', () => {
