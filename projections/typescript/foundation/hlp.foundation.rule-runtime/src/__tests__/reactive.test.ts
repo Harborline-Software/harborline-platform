@@ -639,6 +639,25 @@ describe('reactive re-evaluation — transitive dependents only', () => {
     // c.d does not depend on a — its outcome object is the SAME reference (not re-evaluated).
     expect(next.byRule.get('c.d')).toBe(dOutcomeBefore)
   })
+
+  // T-1023: the exported VALUE keeps its identity too, not just the outcome. An unchanged value is the same
+  // reference after reevaluate, so a consumer comparing by reference does not re-render it; a changed one is new.
+  it('an exported value unchanged by an edit is the same reference; a changed one is not', () => {
+    const rules = [
+      rule('c.b', 'b', 'Compute', { '+': [{ var: 'a' }, 1] }),
+      rule('c.d', 'd', 'Compute', { '+': [{ var: 'x' }, 1] }),
+    ]
+    const { g, first } = graphOf(rules, { a: 10, x: 100 })
+    const dBefore = first.values.get('field:d')
+    const bBefore = first.values.get('field:b')
+
+    const next = g.reevaluate('a', valueSnapshot(20))
+
+    expect(next.values.get('field:d')).toBe(dBefore)
+    expect(next.byRule.get('c.d')?.value).toBe(dBefore)
+    expect(next.values.get('field:b')).not.toBe(bBefore)
+    expect(next.values.get('field:b')).toEqual({ state: 'Resolved', value: 21 })
+  })
 })
 
 describe('numeric / collation determinism (D1 ratification fix 2)', () => {
@@ -661,6 +680,23 @@ describe('incremental child-table edit', () => {
     expect(first.values.get('field:total')).toEqual({ state: 'Resolved', value: 30 })
     const after = g.addRow('items', rowSnapshot({ id: 'r3', fields: { amount: 5 } }))
     expect(after.values.get('field:total')).toEqual({ state: 'Resolved', value: 35 })
+  })
+
+  // T-1025 (G6): removing a row from a section the instance never had is a no-op re-evaluation, not a throw.
+  it('removing a row from a section that was never added re-evaluates without throwing', () => {
+    const { g } = graphOf([rule('c.b', 'b', 'Compute', { '+': [{ var: 'a' }, 1] })], { a: 1 })
+    const after = g.removeRow('never-added', 'r1')
+    expect(after.values.get('field:b')).toEqual({ state: 'Resolved', value: 2 })
+  })
+
+  // T-1025 (G6): a fail-closed refusal is not a pending result; it blocks save through its own validity.
+  it('a fail-closed graph reports no pending work and blocks save', () => {
+    const g = new FormRuleGraph(compile([rule('a.x', 'x', 'Compute', 1), rule('a.y', 'y', 'Compute', 2)]), fixedClock, testAdmission,
+      { ...DEFAULT_LIMITS, maxGraphNodes: 1 })
+    const refused = g.evaluateInstance(instance({}))
+    expect(refused.validations[0].validity?.error?.code).toBe(Codes.graphTooLarge)
+    expect(refused.hasPending).toBe(false)
+    expect(refused.isSaveBlocked).toBe(true)
   })
 
   it('does not retain a rejected over-limit reactive row', () => {
