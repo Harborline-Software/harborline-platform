@@ -63,3 +63,13 @@ test('no tooling entry point reintroduces the argv[1] main-module guard', () => 
   walk(path.join(repositoryRoot, 'tooling'))
   assert.deepEqual(offenders, [], 'use `import.meta.main`; an argv[1] guard is false under a linked path')
 })
+
+
+test('the library proof verifier runs through a linked path instead of silently succeeding', t => {
+  const link = linkedRepositoryRoot(t)
+  if (!link) return t.skip('symlink creation not permitted on this host')
+  const result = spawnSync(process.execPath, [path.join(link, 'tooling/library-promotion-proof.mjs')], {encoding: 'utf8'})
+  assert.ok(result.stdout.trim() || result.stderr.trim(), 'proof verifier silently skipped its main body')
+  if (result.status === 0) assert.match(result.stdout, /Exact library promotion proof: PASS/)
+  else assert.ok(result.stderr.trim(), 'failed proof verification must explain its refusal')
+})
