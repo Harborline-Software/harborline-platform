@@ -15,6 +15,9 @@ export default {
     },
   },
   test: {
+    // The shared runner already runs multiple modules concurrently. Avoid adding
+    // DataGrid file workers inside that lane; ordinary package tests keep Vitest defaults.
+    ...(process.env.HARBORLINE_SHARED_CONFORMANCE === '1' ? {fileParallelism: false} : {}),
     globals: true,
     environment: 'jsdom',
     setupFiles: ['./src/test-setup.ts'],

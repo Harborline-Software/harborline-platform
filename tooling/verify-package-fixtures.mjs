@@ -22,6 +22,7 @@ import { inflateRawSync } from 'node:zlib'
 import { parsePackageFixtureArguments } from './package-fixture-selection.mjs'
 import { computePackageVersion, writePackageVersionProps } from './package-version.mjs'
 import { resolvePinnedDotnet } from './resolve-dotnet.mjs'
+import { sourceIdentity, writeLibraryProof } from './library-promotion-proof.mjs'
 
 // Publication reuses the gate producer; combining this mode with gate/record flags is refused.
 const packLibraries = process.argv.length === 3 && process.argv[2] === '--pack-libraries'
@@ -778,6 +779,10 @@ function verifyNuget() {
   // pack` below carries a version derived from the sources it is packing. Two packs of the same
   // tree agree; any edit to a packaged source produces a version that is not in anyone's
   // global-packages folder, which is what forces NuGet back to the feed.
+  if (packLibraries) {
+    rmSync(resolve(nugetArtifacts, 'consumer-proof.json'), { force: true })
+    rmSync(resolve(nugetArtifacts, 'manifest.json'), { force: true })
+  }
   const { version: packedVersion } = writePackageVersionProps(root)
   const contracts = 'projections/dotnet/contracts/hlp.contracts.identities/Harborline.Contracts.csproj'
   const tenancy = 'projections/dotnet/foundation/hlp.foundation.tenancy/Harborline.Foundation.MultiTenancy.csproj'
@@ -932,14 +937,6 @@ function verifyNuget() {
   const ambiguousAssemblies = [...assemblyOwners].filter(([, owners]) => owners.length > 1)
   if (ambiguousAssemblies.length) throw new Error(`NuGet assembly ambiguity: ${JSON.stringify(ambiguousAssemblies)}`)
 
-  if (packLibraries) {
-    for (const entry of inspections) {
-      if (entry.version !== packedVersion) throw new Error(`Packed version mismatch: ${entry.id} ${entry.version} != ${packedVersion}`)
-    }
-    const manifest = inspections.map(({ id, version, artifactSha256 }) => ({ id, version, sha256: artifactSha256 }))
-    writeFileSync(resolve(nugetArtifacts, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`)
-    return { id: 'platform-dotnet-package-group', status: 'PASS', packages: manifest }
-  }
 
   const consumer = resolve(fixtureRoot, 'nuget-consumer')
   const packageCache = resolve(fixtureRoot, 'nuget-packages')
@@ -991,6 +988,22 @@ function verifyNuget() {
   const expectedNodes = inspections.map(entry => `${entry.id}/${entry.version}`).sort()
   if (JSON.stringify(harborlineNodes.sort()) !== JSON.stringify(expectedNodes)) {
     throw new Error(`NuGet consumer Harborline closure mismatch: ${JSON.stringify({ harborlineNodes, expectedNodes })}`)
+  }
+
+  if (packLibraries) {
+    const manifest = inspections.map(({ id, version, artifactSha256 }) => ({ id, version, sha256: artifactSha256 }))
+    for (const entry of manifest) {
+      if (entry.version !== packedVersion) throw new Error(`Packed version mismatch: ${entry.id} ${entry.version} != ${packedVersion}`)
+    }
+    writeLibraryProof(nugetArtifacts, packageCache, {
+      schema: 'harborline-platform/library-manifest/1', packages: manifest,
+    }, sourceIdentity(root))
+    // The offline consumer's third-party dependencies are feed inputs, not published libraries.
+    const published = new Set(manifest.map(({ id, version }) => `${id}.${version}.nupkg`))
+    for (const name of readdirSync(nugetArtifacts).filter(name => name.endsWith('.nupkg'))) {
+      if (!published.has(name)) rmSync(resolve(nugetArtifacts, name))
+    }
+    return { id: 'platform-dotnet-package-group', status: 'PASS', packages: manifest }
   }
 
   const formsEngineConsumer = resolve(fixtureRoot, 'forms-engine-nuget-consumer')

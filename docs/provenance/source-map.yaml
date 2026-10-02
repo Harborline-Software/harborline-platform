@@ -1361,7 +1361,7 @@
         "projections/react/ui/hlp.ui.data-grid/src/index.ts": "22aae4c237fc4b354d68ce97e1731206c4b182f1d74fee4319c3db61ee9046a4",
         "projections/react/ui/hlp.ui.data-grid/src/test-setup.ts": "977afde26bba6a51325908cd7713cbfdc87d18f06b78b237c8f364c44864b7de",
         "projections/react/ui/hlp.ui.data-grid/tsconfig.build.json": "4f378d9282fd2ed762e78129804ee444e144446dbe54f5e7fceadb0c65fd0bc0",
-        "projections/react/ui/hlp.ui.data-grid/vitest.config.ts": "39213afd4b86c80b274e7b1aa98b7499c21bae8bc65341a59c159c86d2dc17f8",
+        "projections/react/ui/hlp.ui.data-grid/vitest.config.ts": "a657eb7a27b05017282736e288ff32cf4edf58b2f83f2b1a976e4dd91847fe50",
         "specs/modules/ui/hlp.ui.data-grid/interface.yaml": "502126f29cab4780cb097944152cfa165c8b918162d180ab1f685e45ff58b4d8",
         "specs/modules/ui/hlp.ui.data-grid/quality.yaml": "7be010880cb1a39aed9f91c3ad74742f7bb9df47a9c7e84aec6bc559710cf30d",
         "specs/modules/ui/hlp.ui.data-grid/scenarios.json": "0309583902292de8f4c1163fcb5d72249db1a63eedca0c4685f31cfe1c6d492e",
