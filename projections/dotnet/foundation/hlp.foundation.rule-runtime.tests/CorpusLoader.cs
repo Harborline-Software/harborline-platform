@@ -203,6 +203,7 @@ internal static class CorpusLoader
             MaxReferencesPerRule = lo["maxReferencesPerRule"]?.GetValue<int>() ?? d.MaxReferencesPerRule,
             MaxAstNodes = lo["maxAstNodes"]?.GetValue<int>() ?? d.MaxAstNodes,
             StepBudget = lo["stepBudget"]?.GetValue<int>() ?? d.StepBudget,
+            MaxTableRowsPerAggregate = lo["maxTableRowsPerAggregate"]?.GetValue<int>() ?? d.MaxTableRowsPerAggregate,
             // T-818: a decimal string, because the default exceeds int and JavaScript's safe integers.
             MaxStaticWork = lo["maxStaticWork"] is { } work
                 ? System.Numerics.BigInteger.Parse(work.GetValue<string>(), CultureInfo.InvariantCulture) : d.MaxStaticWork,
