@@ -25,7 +25,7 @@ first 64 characters retained that marker and omitted the last hash digit. The
 hashes above were recomputed directly over the file bytes, without parsing that
 escaped display. No missing digit was inferred.
 
-## T-1024: final two-character fixture still requires a run
+## T-1024: final two-character fixture rerun
 
 The shared corpus case `work/single-key-object-literal-is-charged-as-data` at
 the source head above uses `[{"kk":"v"}]`. The independent literal cost
@@ -39,12 +39,39 @@ Arithmetic mutation `6 * pair.Key.Length` to `6 / pair.Key.Length`, is
 not the score of the final two-character fixture. Prior hand-mutation claims
 do not establish an exact-tree Stryker rerun.
 
-Required follow-up: a scoped native Stryker run over
-`Compilation/CoreWorkDerivation.cs` using the final fixture, with coverage
-analysis off and the normal checked-in threshold retained. Read the JSON and
-match that arithmetic mutant by file, location and replacement; record its
-named killing test and final report hash. The shared Windows test slot must be
-allocated before running it. T-1024's mutation acceptance remains open.
+After a normal merge of current main, source head
+`72bb0d63eafbdab61da7d79b0d8a0ba743779e07` was run natively in the allocated
+Windows slot with Stryker.NET 5.0.0 and pinned SDK
+`11.0.100-rc.1.26425.128`. The since filter was disabled, the whole
+`Compilation/CoreWorkDerivation.cs` file was selected, coverage analysis was
+off, and the checked-in threshold remained `break: 63` (`low: 63`, `high: 80`).
+No test filter was applied; Stryker ran the rule-runtime test project.
+
+The run tested 234 mutants and scored **94.87%**, exiting successfully. Its
+raw report, retained locally as `t1024-two-character-final-72bb0d63.json`, has
+SHA-256 `fc04f12fd023cf281936356f01670b0d84c541c2ca94b3c46fd39a08395e48b4`.
+Publication approval is still pending; this is local evidence rather than a
+reachable remote archive. The source `CoreWorkDerivation.cs` embedded in the
+report matches that source head exactly after normalizing line endings.
+
+All six arithmetic mutants on the single-key arm (report IDs 594-599 at lines
+234-235) are **Killed**. The previously surviving mutant 599 is at line 235,
+columns 42-61, replacement `6 / pair.Key.Length`. Its named killing tests are
+`ConformanceTests.Corpus_case_matches_byte_identical` (report test ID
+`d47f6313-34fa-758a-2906-162f4305eb8e`) and
+`ConformanceTests.Emit_cross_tier_artifact` (test ID
+`04bc0bc4-6a99-d66a-0a8a-6577d0692346`). Both names resolve from the raw report's
+`killedBy` and `testFiles`. Other arm mutants are killed by one or both of those
+tests. The report gives method-level test names; it does not name each theory
+fixture argument separately.
+
+The exact shared corpus file used for the run has SHA-256
+`bf4bd53ca8a75918819ac162239f0db2f325287b01ac23b57e24254216a9a49f`; it contains the final two-character `kk` fixture. The
+Stryker config and raw-report manifest are retained with the local result.
+Project-wide instrumentation rolled back 717 mutants as CompileError and
+ignored the out-of-scope mutants; those statuses supply no kill evidence.
+This scoped result clears the final-fixture mutation gap, not the required
+whole-project rerun/floor or aggregate ck-7 acceptance.
 
 ## T-1025: what the recovered .NET report actually proves
 
@@ -79,9 +106,9 @@ The same qualification applies to the corresponding TS cyclic-cell parameter.
 
 ## Validation and remaining acceptance
 
-This repair reads existing reports and preserves their bytes. It introduces no
-production or test behavior change and claims no new local suite, mutation run
-or full platform gate. Previous author-reported suite results remain historical.
+This repair preserves existing reports and adds the allocated native T-1024
+scoped rerun above. It introduces no production or test behavior change and
+claims no new full platform gate. Previous author-reported suite results remain historical.
 No skipped JavaScript mutation job is credited to a C# change. Scoped scores do
 not establish whole-project scores or justify changing whole-project floors;
 the prescribed slice reruns, final-fixture kills, and ticket-owner equivalence
