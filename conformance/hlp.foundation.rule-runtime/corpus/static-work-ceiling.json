@@ -14,6 +14,16 @@
       }
     },
     {
+      "_comment": "T-1024: a single-key object inside a literal array is data, not an operator, so the work proof charges it as literal bytes on both tiers. [{\"kk\":\"v\"}] is 2 + (2 + (2 + 6*2 + 1 + (2 + 6*1))) = 27 bytes with no separator for one key (a two-character key, so 6*len and 6/len differ); a Compute evaluates twice, so the proof is 2 * (1 + 2 * 27) = 110 (the one-literal case above is 2 * (1 + 2 * 32) = 130).",
+      "name": "work/single-key-object-literal-is-charged-as-data",
+      "limits": { "maxStaticWork": "109" },
+      "definitionRules": [
+        { "id": "c.lit", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "x", "action": "Compute", "expression": [ { "kk": "v" } ] }
+      ],
+      "instance": {},
+      "expectedCompileError": { "code": "rule.compile.work_exceeded", "params": { "proof": "110", "ceiling": "109" } }
+    },
+    {
       "name": "work/over-ceiling-refuses-at-compile",
       "limits": { "maxStaticWork": "129" },
       "definitionRules": [
