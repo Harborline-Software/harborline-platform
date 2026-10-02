@@ -5,7 +5,7 @@
 # configured break), or when 0 mutants were tested. Survivors on changed lines go to the step summary as review
 # feedback. No source change: skipped, green. (Owner order 2026-09-30; PR #227 lost 16 points and merged green.)
 #
-# Schedule (03:00 America/New_York, 07:00 UTC) and workflow_dispatch: `node tooling/stryker.mjs full` runs every
+# Schedule (07:40 UTC) and workflow_dispatch: `node tooling/stryker.mjs full` runs every
 # configured project on main and fails when a project scores below its baseline in tooling/stryker-baselines.json.
 #
 # winbox, not the Macs: macpro carries verify-shared, the platform bottleneck, and mac16 is the perf-quiet runner
@@ -22,7 +22,7 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
   schedule:
-    - cron: '0 7 * * *'
+    - cron: '40 7 * * *'
   workflow_dispatch:
 
 concurrency:
@@ -33,15 +33,35 @@ permissions:
   contents: read
 
 jobs:
+  workload-route:
+    if: vars.ACTIONS_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      enabled: ${{ steps.route.outputs.enabled }}
+      labels: ${{ steps.route.outputs.labels }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Explain background routing
+        id: route
+        env:
+          BACKGROUND_MUTATION_ROUTE: ${{ vars.BACKGROUND_MUTATION_ROUTE }}
+          LOCAL_BACKGROUND_RESERVATION: ${{ vars.LOCAL_BACKGROUND_RESERVATION }}
+        run: |
+          node --test .github/workloads/workload-route.test.mjs .github/workloads/windows-default.test.mjs
+          python3 .github/workloads/host-workload-lock.test.py
+          node .github/workloads/workload-route.mjs
   stryker:
+    needs: workload-route
     if: >-
-      vars.ACTIONS_ENABLED == 'true' &&
+      vars.ACTIONS_ENABLED == 'true' && needs.workload-route.outputs.enabled == 'true' &&
       (github.event_name == 'schedule' ||
        github.event_name == 'workflow_dispatch' ||
        (github.event.pull_request.head.repo.full_name == github.repository &&
         github.event.pull_request.draft == false &&
         !contains(github.event.pull_request.labels.*.name, 'stacked')))
-    runs-on: ${{ github.event_name == 'pull_request' && 'ubuntu-latest' || fromJSON('["self-hosted","Windows","winbox"]') }}
+    runs-on: ${{ fromJSON(needs.workload-route.outputs.labels) }}
     timeout-minutes: ${{ github.event_name == 'pull_request' && 60 || 720 }}
     defaults:
       run:
@@ -58,20 +78,19 @@ jobs:
           clean: true
           persist-credentials: false
 
-      # winbox already carries the pinned SDK and Node on PATH (see verify.yml); the hosted PR runner needs both
-      # installed -- tooling/stryker.mjs itself runs under node, same version as the repo's other hosted jobs.
+      # Provision the pinned toolchain on every route, using the hosted Node version.
       - uses: actions/setup-dotnet@v6
-        if: github.event_name == 'pull_request'
         with:
           global-json-file: global.json
 
       - uses: actions/setup-node@v7
-        if: github.event_name == 'pull_request'
         with:
           node-version: 24
 
-      - name: Restore the pinned dotnet-stryker
-        run: dotnet tool restore
+      - uses: actions/setup-python@v6
+        if: github.event_name != 'pull_request' && runner.os != 'Windows'
+        with:
+          python-version: '3.14'
 
       # The builder-definitions tests read DES-0007 from a control checkout, as verify's gate does. The token reaches
       # git as an environment-only config entry (GIT_CONFIG_COUNT): it is not in the URL, not in git's argv, and not
@@ -90,15 +109,25 @@ jobs:
 
       - name: Mutate changed projects and hold each to its break (pull request)
         if: github.event_name == 'pull_request'
-        run: node tooling/stryker.mjs run
+        run: |
+          dotnet tool restore
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node tooling/stryker.mjs run
         env:
           HARBORLINE_CONTROL_REPO: ${{ runner.temp }}/harborline-control
 
       - name: Mutate every project and hold each to its baseline (scheduled)
         if: github.event_name != 'pull_request'
-        run: node tooling/stryker.mjs full
+        run: |
+          if ($env:RUNNER_OS -eq 'Windows') {
+            & ./.github/workloads/full-mutation.ps1
+            exit $LASTEXITCODE
+          }
+          python .github/workloads/host-workload-lock.py -- pwsh -NoProfile -File .github/workloads/full-mutation.ps1
+          exit $LASTEXITCODE
         env:
           HARBORLINE_CONTROL_REPO: ${{ runner.temp }}/harborline-control
+          NUGET_PACKAGES: ${{ runner.temp }}/mutation-nuget-${{ github.run_id }}-${{ github.run_attempt }}
 
       - name: Mutation reports
         if: always()
