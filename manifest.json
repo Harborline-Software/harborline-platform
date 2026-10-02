@@ -1,0 +1,22 @@
+[
+  {
+    "path": "docs/evidence/mutation/t1024-one-character-draft.json",
+    "sha256": "c27430c6b1725b17adfbb9e57c39190ac4864b8ac2d32bd668f90bcfabc7b425",
+    "bytes": 650042
+  },
+  {
+    "path": "docs/evidence/mutation/t1025-dotnet-before.json",
+    "sha256": "ffde852330e753f367674112fd7f43ca0a7c435e6e2c15e5e0831722ed647074",
+    "bytes": 708234
+  },
+  {
+    "path": "docs/evidence/mutation/t1025-dotnet-after-before-final-items2-assertion.json",
+    "sha256": "a91459f44d3dfac649f58bef7bf47b9a48e0957186188513ef428fb44f0b220f",
+    "bytes": 710795
+  },
+  {
+    "path": "docs/evidence/mutation/t1025-typescript-before.json",
+    "sha256": "3c22f9fed3b379b7024d42741a302ad0b5a578987236f31bc08364a649108c2a",
+    "bytes": 529917
+  }
+]
