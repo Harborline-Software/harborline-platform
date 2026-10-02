@@ -7,17 +7,20 @@ or certify `kernel-core-ck-7`.
 
 ## Exact report hashes
 
-The recovered report bytes are prepared in local archive commit
-`0b83710eb41b40445ab43dff790a4541807a2778` on `archive/pr255-pr254-mutation-reports-20261002`,
-under `docs/evidence/mutation/`. Archive publication approval is pending because
-the repository is public. No reachable remote archive is claimed yet.
+The recovered reports and the final T-1024 rerun are published on
+`archive/pr255-pr254-mutation-reports-20261002`, at commit
+`0a971613cdca53a7ef6831b3605df1a74f1b2b62`, under `docs/evidence/mutation/`,
+following the owner's explicit approval of this public archive disclosure.
+A fresh remote fetch verified all five report bytes and the manifest against
+the locally prepared SHA-256 values and byte counts.
 
 | Raw report | SHA-256 |
 | --- | --- |
-| `t1024-one-character-draft.json` | `c27430c6b1725b17adfbb9e57c39190ac4864b8ac2d32bd668f90bcfabc7b425` |
-| `t1025-dotnet-before.json` | `ffde852330e753f367674112fd7f43ca0a7c435e6e2c15e5e0831722ed647074` |
-| `t1025-dotnet-after-before-final-items2-assertion.json` | `a91459f44d3dfac649f58bef7bf47b9a48e0957186188513ef428fb44f0b220f` |
-| `t1025-typescript-before.json` | `3c22f9fed3b379b7024d42741a302ad0b5a578987236f31bc08364a649108c2a` |
+| [t1024-one-character-draft.json](https://github.com/Harborline-Software/harborline-platform/blob/0a971613cdca53a7ef6831b3605df1a74f1b2b62/docs/evidence/mutation/t1024-one-character-draft.json) | `c27430c6b1725b17adfbb9e57c39190ac4864b8ac2d32bd668f90bcfabc7b425` |
+| [t1025-dotnet-before.json](https://github.com/Harborline-Software/harborline-platform/blob/0a971613cdca53a7ef6831b3605df1a74f1b2b62/docs/evidence/mutation/t1025-dotnet-before.json) | `ffde852330e753f367674112fd7f43ca0a7c435e6e2c15e5e0831722ed647074` |
+| [t1025-dotnet-after-before-final-items2-assertion.json](https://github.com/Harborline-Software/harborline-platform/blob/0a971613cdca53a7ef6831b3605df1a74f1b2b62/docs/evidence/mutation/t1025-dotnet-after-before-final-items2-assertion.json) | `a91459f44d3dfac649f58bef7bf47b9a48e0957186188513ef428fb44f0b220f` |
+| [t1025-typescript-before.json](https://github.com/Harborline-Software/harborline-platform/blob/0a971613cdca53a7ef6831b3605df1a74f1b2b62/docs/evidence/mutation/t1025-typescript-before.json) | `3c22f9fed3b379b7024d42741a302ad0b5a578987236f31bc08364a649108c2a` |
+| [t1024-two-character-final-72bb0d63.json](https://github.com/Harborline-Software/harborline-platform/blob/0a971613cdca53a7ef6831b3605df1a74f1b2b62/docs/evidence/mutation/t1024-two-character-final-72bb0d63.json) | `fc04f12fd023cf281936356f01670b0d84c541c2ca94b3c46fd39a08395e48b4` |
 
 The three previous .NET hash strings had 63 hexadecimal digits. GNU
 `sha256sum` escaped these files' output with a leading backslash; cutting the
@@ -48,10 +51,9 @@ off, and the checked-in threshold remained `break: 63` (`low: 63`, `high: 80`).
 No test filter was applied; Stryker ran the rule-runtime test project.
 
 The run tested 234 mutants and scored **94.87%**, exiting successfully. Its
-raw report, retained locally as `t1024-two-character-final-72bb0d63.json`, has
+raw [final-fixture report](https://github.com/Harborline-Software/harborline-platform/blob/0a971613cdca53a7ef6831b3605df1a74f1b2b62/docs/evidence/mutation/t1024-two-character-final-72bb0d63.json) has
 SHA-256 `fc04f12fd023cf281936356f01670b0d84c541c2ca94b3c46fd39a08395e48b4`.
-Publication approval is still pending; this is local evidence rather than a
-reachable remote archive. The source `CoreWorkDerivation.cs` embedded in the
+The source `CoreWorkDerivation.cs` embedded in the
 report matches that source head exactly after normalizing line endings.
 
 All six arithmetic mutants on the single-key arm (report IDs 594-599 at lines
