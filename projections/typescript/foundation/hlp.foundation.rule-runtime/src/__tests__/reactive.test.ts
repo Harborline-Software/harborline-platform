@@ -682,6 +682,23 @@ describe('incremental child-table edit', () => {
     expect(after.values.get('field:total')).toEqual({ state: 'Resolved', value: 35 })
   })
 
+  // T-1025 (G6): removing a row from a section the instance never had is a no-op re-evaluation, not a throw.
+  it('removing a row from a section that was never added re-evaluates without throwing', () => {
+    const { g } = graphOf([rule('c.b', 'b', 'Compute', { '+': [{ var: 'a' }, 1] })], { a: 1 })
+    const after = g.removeRow('never-added', 'r1')
+    expect(after.values.get('field:b')).toEqual({ state: 'Resolved', value: 2 })
+  })
+
+  // T-1025 (G6): a fail-closed refusal is not a pending result; it blocks save through its own validity.
+  it('a fail-closed graph reports no pending work and blocks save', () => {
+    const g = new FormRuleGraph(compile([rule('a.x', 'x', 'Compute', 1), rule('a.y', 'y', 'Compute', 2)]), fixedClock, testAdmission,
+      { ...DEFAULT_LIMITS, maxGraphNodes: 1 })
+    const refused = g.evaluateInstance(instance({}))
+    expect(refused.validations[0].validity?.error?.code).toBe(Codes.graphTooLarge)
+    expect(refused.hasPending).toBe(false)
+    expect(refused.isSaveBlocked).toBe(true)
+  })
+
   it('does not retain a rejected over-limit reactive row', () => {
     const compiled = compile(rules, { ...DEFAULT_LIMITS, maxTableRowsPerAggregate: 1 })
     const g = new FormRuleGraph(compiled, fixedClock, testAdmission, { ...DEFAULT_LIMITS, maxTableRowsPerAggregate: 1 })

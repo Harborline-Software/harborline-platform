@@ -99,6 +99,51 @@
       }
     },
     {
+      "_comment": "T-1025: an aggregate over more rows than maxTableRowsPerAggregate fails closed, and the refusal names the section under the parameter key 'section'; the consuming cell names the aggregate cell under 'cell'. Both keys reach the public error payload.",
+      "name": "agg/too-many-rows-names-the-section",
+      "limits": { "maxTableRowsPerAggregate": 2 },
+      "definitionRules": [
+        { "id": "c.total", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "total", "action": "Compute", "expression": { "var": "table.sum(items.amount)" } }
+      ],
+      "instance": { "items": [ { "amount": 1 }, { "amount": 2 }, { "amount": 3 } ] },
+      "expectedOutcomes": {
+        "c.total": { "ruleId": "c.total", "target": "field:total", "outputType": "Value", "value": { "state": "Error", "error": { "code": "rule.upstream_error", "params": { "cell": "agg:items/sum/amount" } } } }
+      },
+      "expectedValues": {
+        "agg:items/sum/amount": { "state": "Error", "error": { "code": "rule.table_too_large", "params": { "section": "items" } } }
+      }
+    },
+    {
+      "_comment": "T-1025: a rule whose dynamic missing read names its own target is a cycle, and the refusal names the cell under the parameter key 'cell' on both tiers.",
+      "name": "graph/dynamic-self-read-cycle-names-the-cell",
+      "definitionRules": [
+        { "id": "a.dynamic", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "a", "action": "Compute", "expression": { "missing": [ { "var": "keys" } ] } }
+      ],
+      "instance": { "keys": [ "a" ], "a": 1 },
+      "expectedOutcomes": {
+        "a.dynamic": { "ruleId": "a.dynamic", "target": "field:a", "outputType": "Value", "value": { "state": "Error", "error": { "code": "rule.cycle", "params": { "cell": "field:a" } } } }
+      },
+      "expectedValues": {
+        "field:a": { "state": "Error", "error": { "code": "rule.cycle", "params": { "cell": "field:a" } } }
+      }
+    },
+    {
+      "_comment": "T-1025: an aggregate over a row-computed column whose row value is an error fails closed, and the refusal names that row's cell under the parameter key 'cell' on both tiers.",
+      "name": "agg/row-error-names-the-row-cell",
+      "definitionRules": [
+        { "id": "rc.net", "tier": "JsonLogic", "scope": "Row", "scopeTarget": "items/net", "action": "Compute", "expression": { "+": [ { "var": "row.amount" }, 0 ] } },
+        { "id": "c.total", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "total", "action": "Compute", "expression": { "var": "table.sum(items.net)" } }
+      ],
+      "instance": { "items": [ { "_id": "r1", "amount": "1,000" } ] },
+      "expectedOutcomes": {
+        "rc.net#r1": { "ruleId": "rc.net", "target": "row:items/r1/net", "outputType": "Value", "value": { "state": "Error", "error": { "code": "rule.type_error", "params": { "reason": "not-a-number" } } } },
+        "c.total": { "ruleId": "c.total", "target": "field:total", "outputType": "Value", "value": { "state": "Error", "error": { "code": "rule.upstream_error", "params": { "cell": "agg:items/sum/net" } } } }
+      },
+      "expectedValues": {
+        "agg:items/sum/net": { "state": "Error", "error": { "code": "rule.upstream_error", "params": { "cell": "row:items/r1/net" } } }
+      }
+    },
+    {
       "_comment": "Average requires decimal division, which v1 does not define. A money average therefore refuses rather than falling back to double arithmetic.",
       "name": "agg/money-average-refuses",
       "definitionRules": [

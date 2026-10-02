@@ -153,6 +153,7 @@ function limitsOf(c: CorpusCase): RuleEngineLimits {
     maxReferencesPerRule: int('maxReferencesPerRule', DEFAULT_LIMITS.maxReferencesPerRule),
     maxAstNodes: int('maxAstNodes', DEFAULT_LIMITS.maxAstNodes),
     stepBudget: int('stepBudget', DEFAULT_LIMITS.stepBudget),
+    maxTableRowsPerAggregate: int('maxTableRowsPerAggregate', DEFAULT_LIMITS.maxTableRowsPerAggregate),
     maxStaticWork: typeof l.maxStaticWork === 'string' ? BigInt(l.maxStaticWork) : DEFAULT_LIMITS.maxStaticWork,
   }
 }
