@@ -39,12 +39,15 @@ public sealed class ConfigurationActivationDecision
 /// <summary>The platform's deterministic compare-and-swap decision contract.</summary>
 public static class ConfigurationActivation
 {
-    /// <summary>Checks the baseline again and resolves authority at the switch's point of use.</summary>
+    /// <summary>Resolves authority at the switch's point of use, then checks the baseline again.</summary>
     /// <remarks>
     /// Call inside the host transaction that fences the current generation. The host must also fence
     /// destination compatibility and verify the prepared projection remains available and unchanged.
     /// Do not publish this decision as effective until ownership, pointer, authority and evidence intent
     /// commit together. An exception or cancellation produces no decision and must abort that transaction.
+    /// Authority is decided before any refusal derived from the current generation (tenant, baseline), so a
+    /// refused caller gets <c>configuration-authority-refused</c> whatever state that generation is in and
+    /// cannot learn it through the refusal (T-1046). Only the request's own inputs are checked first.
     /// </remarks>
     public static ConfigurationActivationDecision DecideCompareAndSwap(ConfigurationGeneration current,
         ConfigurationActivationRequest request,
@@ -56,10 +59,6 @@ public static class ConfigurationActivation
         ArgumentNullException.ThrowIfNull(authorize);
         ConfigurationActivationDecision Refuse(string code, string target, string message,
             ConfigurationActivationAuthority? authority = null) => new(request, current, authority, new(code, target, message));
-        if (ConfigurationPreparation.Tenant(current) != ConfigurationPreparation.Tenant(request.Prepared.Candidate))
-            return Refuse("configuration-tenant-mismatch", "candidate", "The candidate belongs to another tenant.");
-        if (current.Digest != request.Prepared.Baseline.Digest)
-            return Refuse("configuration-baseline-stale", "expectedBaselineDigest", "The expected baseline is no longer effective.");
         if (string.IsNullOrWhiteSpace(request.Principal))
             return Refuse("configuration-principal-required", "principal", "An acting principal is required.");
         if (request.EvidenceIntent is null || string.IsNullOrWhiteSpace(request.EvidenceIntent.Id)
@@ -68,6 +67,10 @@ public static class ConfigurationActivation
         var authority = authorize(request);
         if (authority is null || !authority.Allowed || string.IsNullOrWhiteSpace(authority.DecisionId))
             return Refuse("configuration-authority-refused", "authority", "Point-of-use activation authority was not established.", authority);
+        if (ConfigurationPreparation.Tenant(current) != ConfigurationPreparation.Tenant(request.Prepared.Candidate))
+            return Refuse("configuration-tenant-mismatch", "candidate", "The candidate belongs to another tenant.");
+        if (current.Digest != request.Prepared.Baseline.Digest)
+            return Refuse("configuration-baseline-stale", "expectedBaselineDigest", "The expected baseline is no longer effective.");
         return new(request, current, authority, null);
     }
 }
