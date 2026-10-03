@@ -7,6 +7,7 @@ using Harborline.Experiments.SchedulingDecisionModel.Data;
 using Harborline.Experiments.SchedulingDecisionModel.Engine;
 using Harborline.Experiments.SchedulingDecisionModel.Evaluation;
 using Harborline.Experiments.SchedulingDecisionModel.Oracle;
+using static Harborline.Experiments.SchedulingDecisionModel.Evaluation.Stats;
 
 // T-1053 evaluation tool.
 //   equivalence <corpus> <split>                   engine "incumbent" vs production solver, exact
@@ -32,6 +33,7 @@ switch (args.ElementAtOrDefault(0))
     case "select":
         Select(args[1], args[2], long.Parse(args[3], inv), long.Parse(args[4], inv), long.Parse(args[5], inv), double.Parse(args[6], inv), args[7]);
         return 0;
+    case "decide": Decide(long.Parse(args[1], inv), args[2..]); return 0;
     case "pilot-hardness":
         PilotHardness(args[1], Corpus.ParseSize(args[2]), int.Parse(args[3], inv), long.Parse(args[4], inv));
         return 0;
@@ -423,6 +425,84 @@ void Select(string corpus, string modelsDir, long budget, long chargeA, long cha
     File.WriteAllText(outPath, string.Join('\n', results.OrderBy(r => r.InstanceId, StringComparer.Ordinal).ThenBy(r => r.Method, StringComparer.Ordinal)
         .Select(r => JsonSerializer.Serialize(r, json))) + "\n");
     Report(corpus, outPath, budget);
+}
+
+// Applies the pre-registered T-1053 sdm-03 criteria to Phase 3 result files (any order; split read from rows).
+void Decide(long budget, string[] files)
+{
+    const string Model = "learned";
+    const string Base = "dom-dynamic";
+    var rows = files.SelectMany(f => File.ReadLines(f).Where(l => l.Length > 0).Select(l => JsonSerializer.Deserialize<RunResult>(l, json)!)).ToArray();
+    var by = rows.GroupBy(r => r.Method).ToDictionary(g => g.Key, g => g.ToDictionary(r => r.InstanceId, StringComparer.Ordinal));
+    var model = by[Model];
+    var baseline = by[Base];
+
+    Interval Solved(IEnumerable<string> ids) => Stats.SolvedDifference(ids.Select(i => (model[i].GroupId, model[i].Solved, baseline[i].Solved)).ToArray(), 1053);
+    Interval Work(IEnumerable<string> ids) => Stats.WorkRatio(ids
+        .Where(i => model[i].Oracle == "Feasible" && (model[i].Solved || baseline[i].Solved))
+        .Select(i => (model[i].GroupId, (double)(model[i].Solved ? model[i].Work : budget), (double)(baseline[i].Solved ? baseline[i].Work : budget)))
+        .ToArray(), 1053);
+    string Fmt(Interval x, string unit) => string.Create(inv, $"{x.Estimate:F3}{unit} [{x.Low:F3}, {x.High:F3}]");
+
+    var all = model.Keys.ToArray();
+    var invalid = all.Count(i => model[i].InvalidAccepted);
+    var falseInf = all.Count(i => model[i].FalseInfeasible);
+    var fallbacks = all.Sum(i => model[i].Fallbacks);
+    var baseUnsafe = by.Where(kv => kv.Key != Model).Sum(kv => kv.Value.Values.Count(r => r.InvalidAccepted || r.FalseInfeasible));
+    Console.WriteLine($"## Phase 3 decision ({all.Length} holdout instances, budget {budget})");
+    Console.WriteLine();
+    Console.WriteLine($"3. Hard gates (model): invalid accepted {invalid}; false infeasible {falseInf}; fallbacks {fallbacks}. Baseline unsafe outcomes: {baseUnsafe}.");
+    var gatesPass = invalid == 0 && falseInf == 0;
+
+    var unseen = all.Where(i => model[i].Split == "test-unseen-family").ToArray();
+    var a = Solved(unseen);
+    var b = Work(unseen);
+    var passA = a.Low >= 10;
+    var passB = b.High <= 0.5;
+    Console.WriteLine($"4. Primary, test-unseen-family (n={unseen.Length}): (a) solved diff {Fmt(a, " pts")} -> {(passA ? "PASS" : "fail")} (needs low >= +10); (b) work ratio {Fmt(b, "x")} -> {(passB ? "PASS" : "fail")} (needs high <= 0.5).");
+
+    var regressions = new List<string>();
+    var cells = unseen.GroupBy(i => model[i].Family).Select(g => ($"unseen family {g.Key}", g.ToArray()))
+        .Concat(new[] { ("unseen size (all)", all.Where(i => model[i].Split == "test-unseen-size").ToArray()) })
+        .Concat(all.Where(i => model[i].Split == "test-unseen-size").GroupBy(i => model[i].Family).Select(g => ($"unseen size {g.Key}", g.ToArray())));
+    foreach (var (name, ids) in cells)
+    {
+        var d = Solved(ids);
+        var w = Work(ids);
+        var regress = d.High < 0;
+        if (regress)
+        {
+            regressions.Add(name);
+        }
+
+        Console.WriteLine($"5. {name} (n={ids.Length}): solved diff {Fmt(d, " pts")}{(regress ? " REGRESSION" : "")}; work ratio {Fmt(w, "x")}");
+    }
+
+    var hard = unseen.Count(i => !baseline[i].Solved || baseline[i].Work > budget / 100);
+    var floor = hard >= 300;
+    Console.WriteLine($"6. Hard cases for {Base} in test-unseen-family: {hard} (needs >= 300) -> {(floor ? "met" : "NOT MET")}");
+
+    var seen = all.Where(i => model[i].Split == "test-seen").ToArray();
+    if (seen.Length > 0)
+    {
+        Console.WriteLine($"   secondary, test-seen (n={seen.Length}): solved diff {Fmt(Solved(seen), " pts")}; work ratio {Fmt(Work(seen), "x")}");
+    }
+
+    var hardIds = unseen.Where(i => !baseline[i].Solved || baseline[i].Work > budget / 100).ToArray();
+    Console.WriteLine($"   secondary, hard subset of test-unseen-family (n={hardIds.Length}): solved diff {Fmt(Solved(hardIds), " pts")}; work ratio {Fmt(Work(hardIds), "x")}");
+    if (by.TryGetValue("cpsat", out var cp))
+    {
+        var c = Stats.SolvedDifference(unseen.Select(i => (model[i].GroupId, cp[i].Solved, baseline[i].Solved)).ToArray(), 1053);
+        Console.WriteLine($"   CP-SAT vs {Base}, test-unseen-family: solved diff {Fmt(c, " pts")}; CP-SAT solved {100.0 * unseen.Count(i => cp[i].Solved) / unseen.Length:F1}% vs {Base} {100.0 * unseen.Count(i => baseline[i].Solved) / unseen.Length:F1}% vs model {100.0 * unseen.Count(i => model[i].Solved) / unseen.Length:F1}%");
+    }
+
+    var decision = !gatesPass ? "NO GO (hard gate)"
+        : !floor ? "INCONCLUSIVE (hard-case floor not met) -> NO GO for adoption"
+        : regressions.Count > 0 ? $"NO GO (regression: {string.Join(", ", regressions)})"
+        : passA || passB ? "GO"
+        : "NO GO (gain below both pre-registered thresholds)";
+    Console.WriteLine();
+    Console.WriteLine($"7. Decision: {decision}");
 }
 
 internal static class Grid
