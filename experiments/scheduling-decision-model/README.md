@@ -19,6 +19,11 @@ This folder is an isolated experiment for Control ticket **T-1053**. It tests wh
 
 ```bash
 dotnet test experiments/scheduling-decision-model/tests
+dotnet run -c Release --project experiments/scheduling-decision-model/data -- verify experiments/scheduling-decision-model/data/corpus-v1
+dotnet run -c Release --project experiments/scheduling-decision-model/evaluation -- equivalence experiments/scheduling-decision-model/data/corpus-v1 validation
+dotnet run -c Release --project experiments/scheduling-decision-model/evaluation -- baselines experiments/scheduling-decision-model/data/corpus-v1 validation 1826301 out.jsonl 6
 ```
+
+The evaluation tool refuses `test-*` splits unless given `--phase3`. The holdout opens once.
 
 The CP-SAT runs use one worker (`num_workers = 1`) so results are reproducible on this host. A seed is recorded per run, but it does not guarantee identical results across runtimes or hardware.
