@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- T-1053 experiment: seeded instance generator, manifests and labels. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <AssemblyName>Harborline.Experiments.SchedulingDecisionModel.Data</AssemblyName>
+    <RootNamespace>Harborline.Experiments.SchedulingDecisionModel.Data</RootNamespace>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../oracle/Harborline.Experiments.SchedulingDecisionModel.Oracle.csproj" />
+    <ProjectReference Include="../baselines/Harborline.Experiments.SchedulingDecisionModel.Baselines.csproj" />
+    <ProjectReference Include="../../../projections/dotnet/blocks/hlp.blocks.scheduling/Harborline.Blocks.Scheduling.csproj" />
+  </ItemGroup>
+</Project>
