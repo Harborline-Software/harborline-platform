@@ -33,8 +33,12 @@ public static class Corpus
     public const string TestUnseenFamily = "test-unseen-family";
     public const string TestUnseenSize = "test-unseen-size";
 
-    /// <summary>(family, size, group count, split policy).</summary>
-    public static IEnumerable<(string Family, SizeClass Size, int Groups, string? FixedSplit)> Plan()
+    /// <summary>
+    /// (family, size, group count, split policy). v2 (T-1053 owner ruling, before the holdout was
+    /// opened) adds medium groups 200-399 to each held-out family, because pilot seeds projected
+    /// too few holdout instances hard for the selected baseline. Every v1 row is unchanged.
+    /// </summary>
+    public static IEnumerable<(string Family, SizeClass Size, int Groups, string? FixedSplit)> Plan(int version = 1)
     {
         foreach (var family in Families.Seen)
         {
@@ -46,7 +50,7 @@ public static class Corpus
         foreach (var family in Families.Unseen)
         {
             yield return (family, SizeClass.Small, 200, TestUnseenFamily);
-            yield return (family, SizeClass.Medium, 200, TestUnseenFamily);
+            yield return (family, SizeClass.Medium, version >= 2 ? 400 : 200, TestUnseenFamily);
         }
     }
 
@@ -79,10 +83,10 @@ public static class Corpus
     public static readonly string[] Variants = ["base", "tightened"];
 
     /// <summary>Builds the full manifest. Seen-family small/medium groups are shuffled and cut 60/20/20 by group.</summary>
-    public static IReadOnlyList<ManifestEntry> Build()
+    public static IReadOnlyList<ManifestEntry> Build(int version = 1)
     {
         var entries = new List<ManifestEntry>();
-        foreach (var (family, size, groups, fixedSplit) in Plan())
+        foreach (var (family, size, groups, fixedSplit) in Plan(version))
         {
             var splits = fixedSplit is not null
                 ? Enumerable.Repeat(fixedSplit, groups).ToArray()

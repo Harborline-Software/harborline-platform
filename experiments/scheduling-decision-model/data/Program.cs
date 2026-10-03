@@ -17,12 +17,12 @@ switch (command)
         Pilot(args[1], Corpus.ParseSize(args[2]), int.Parse(args[3], CultureInfo.InvariantCulture), Threads(args.ElementAtOrDefault(4)));
         return 0;
     case "freeze":
-        Freeze(args[1]);
+        Freeze(args[1], args.Length > 2 ? int.Parse(args[2], CultureInfo.InvariantCulture) : 1);
         return 0;
     case "verify":
         return Verify(args[1]) ? 0 : 1;
     case "label":
-        LabelAll(args[1], Threads(args.ElementAtOrDefault(2)));
+        LabelAll(args[1], Threads(args.ElementAtOrDefault(2)), args.SkipWhile(a => a != "--reuse").Skip(1).FirstOrDefault());
         return 0;
     default:
         Console.Error.WriteLine("usage: pilot|freeze|verify|label");
@@ -70,7 +70,7 @@ void Summarise(string title, IReadOnlyList<InstanceLabel> labels)
     }
 }
 
-void Freeze(string dir)
+void Freeze(string dir, int version)
 {
     Directory.CreateDirectory(dir);
     var path = Path.Combine(dir, "manifest.jsonl");
@@ -79,7 +79,7 @@ void Freeze(string dir)
         throw new InvalidOperationException($"{path} already exists; a frozen manifest is never overwritten.");
     }
 
-    var lines = Corpus.Build().Select(e => JsonSerializer.Serialize(e, json)).ToArray();
+    var lines = Corpus.Build(version).Select(e => JsonSerializer.Serialize(e, json)).ToArray();
     File.WriteAllText(path, string.Join('\n', lines) + "\n");
     File.WriteAllText(Path.Combine(dir, "manifest.sha256"), $"{Canonical.Sha256(File.ReadAllText(path))}  manifest.jsonl\n");
     Console.WriteLine($"froze {lines.Length} instances");
@@ -111,12 +111,33 @@ bool Verify(string dir)
     return bad.Length == 0;
 }
 
-void LabelAll(string dir, int threads)
+void LabelAll(string dir, int threads, string? reuseDir)
 {
     var manifest = ReadManifest(dir);
     var labels = new ConcurrentBag<InstanceLabel>();
+
+    // Reuse labels from an earlier corpus only where the instance id AND input hash match.
+    var reused = reuseDir is null
+        ? new Dictionary<string, InstanceLabel>(StringComparer.Ordinal)
+        : File.ReadLines(Path.Combine(reuseDir, "labels.jsonl")).Where(l => l.Length > 0)
+            .Select(l => JsonSerializer.Deserialize<InstanceLabel>(l, json)!)
+            .ToDictionary(l => l.InstanceId, StringComparer.Ordinal);
+    var todo = new List<ManifestEntry>();
+    foreach (var entry in manifest)
+    {
+        if (reused.TryGetValue(entry.InstanceId, out var old) && old.InputSha256 == entry.InputSha256)
+        {
+            labels.Add(old);
+        }
+        else
+        {
+            todo.Add(entry);
+        }
+    }
+
+    Console.WriteLine($"reused {labels.Count} labels; labelling {todo.Count}");
     var done = 0;
-    Parallel.ForEach(manifest, new ParallelOptions { MaxDegreeOfParallelism = threads }, entry =>
+    Parallel.ForEach(todo, new ParallelOptions { MaxDegreeOfParallelism = threads }, entry =>
     {
         var profile = Corpus.Regenerate(entry);
         if (Canonical.Sha256(Canonical.Json(profile)) != entry.InputSha256)
