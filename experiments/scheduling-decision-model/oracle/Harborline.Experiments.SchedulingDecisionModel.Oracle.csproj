@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- T-1053 experiment. Independent of the production compiler and solvers; production records are used as data shapes only. -->
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <AssemblyName>Harborline.Experiments.SchedulingDecisionModel.Oracle</AssemblyName>
+    <RootNamespace>Harborline.Experiments.SchedulingDecisionModel.Oracle</RootNamespace>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../../projections/dotnet/blocks/hlp.blocks.scheduling/Harborline.Blocks.Scheduling.csproj" />
+  </ItemGroup>
+</Project>
