@@ -21,6 +21,9 @@ switch (command)
         return 0;
     case "verify":
         return Verify(args[1]) ? 0 : 1;
+    case "resolve-unknown":
+        ResolveUnknown(args[1], double.Parse(args[2], CultureInfo.InvariantCulture));
+        return 0;
     case "label":
         LabelAll(args[1], Threads(args.ElementAtOrDefault(2)), args.SkipWhile(a => a != "--reuse").Skip(1).FirstOrDefault());
         return 0;
@@ -162,4 +165,42 @@ void LabelAll(string dir, int threads, string? reuseDir)
     {
         Summarise(group.Key, group.ToArray());
     }
+}
+
+// Re-runs CP-SAT with a longer limit for Unknown labels only; provenance becomes "cpsat-<seconds>s".
+void ResolveUnknown(string dir, double seconds)
+{
+    var manifest = ReadManifest(dir).ToDictionary(e => e.InstanceId, StringComparer.Ordinal);
+    var path = Path.Combine(dir, "labels.jsonl");
+    var labels = File.ReadLines(path).Where(l => l.Length > 0).Select(l => JsonSerializer.Deserialize<InstanceLabel>(l, json)!).ToArray();
+    for (var i = 0; i < labels.Length; i++)
+    {
+        if (labels[i].OracleOutcome != "Unknown")
+        {
+            continue;
+        }
+
+        var entry = manifest[labels[i].InstanceId];
+        var profile = Corpus.Regenerate(entry);
+        var result = new Harborline.Experiments.SchedulingDecisionModel.Baselines.CpSatFeasibility().Solve(profile, seconds, seed: 0);
+        var checkedOk = result.Outcome != Harborline.Experiments.SchedulingDecisionModel.Baselines.CpSatOutcome.Feasible ||
+            new Harborline.Experiments.SchedulingDecisionModel.Oracle.PlanChecker(profile).Check(result.Plan).IsFeasible;
+        var outcome = result.Outcome switch
+        {
+            Harborline.Experiments.SchedulingDecisionModel.Baselines.CpSatOutcome.Feasible when checkedOk => "Feasible",
+            Harborline.Experiments.SchedulingDecisionModel.Baselines.CpSatOutcome.Infeasible => "Infeasible",
+            _ => "Unknown",
+        };
+        Console.WriteLine(string.Create(CultureInfo.InvariantCulture, $"{entry.InstanceId}: cpsat {result.Outcome} in {result.WallSeconds:F1} s, plan checked {checkedOk} -> {outcome}"));
+        labels[i] = labels[i] with
+        {
+            OracleMethod = outcome == "Unknown" ? "none" : $"cpsat-{seconds:F0}s",
+            OracleOutcome = outcome,
+            CpSatOutcome = result.Outcome.ToString(),
+            CpSatWallMs = Math.Round(result.WallSeconds * 1000, 3),
+            CpSatPlanChecked = checkedOk,
+        };
+    }
+
+    File.WriteAllText(path, string.Join('\n', labels.Select(l => JsonSerializer.Serialize(l, json))) + "\n");
 }

@@ -101,3 +101,30 @@ public sealed class CorpusTests
         }
     }
 }
+
+public sealed class CorpusV2Tests
+{
+    private static readonly string Root = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "data");
+
+    [Fact]
+    public void V2Manifest_MatchesItsRecordedHash_AndKeepsEveryV1RowByteIdentical()
+    {
+        // Oracle: the hash recorded at the v2 freeze (control T-1053 log) and the v1 file itself.
+        const string Frozen = "d6916b48c35a40c3ead99445a36e25499aeec174431df553f4c082b41d4341c3";
+        var v2Text = File.ReadAllText(Path.Combine(Root, "corpus-v2", "manifest.jsonl"));
+        Assert.Equal(Frozen, Canonical.Sha256(v2Text));
+
+        var v2 = v2Text.Split('\n').Where(l => l.Length > 0).ToHashSet(StringComparer.Ordinal);
+        var v1 = File.ReadLines(Path.Combine(Root, "corpus-v1", "manifest.jsonl")).Where(l => l.Length > 0).ToArray();
+        Assert.All(v1, row => Assert.Contains(row, v2));
+        Assert.Equal(800, v2.Count - v1.Length);
+    }
+
+    [Fact]
+    public void V2Labels_AreDefiniteForEveryInstance()
+    {
+        var labels = File.ReadLines(Path.Combine(Root, "corpus-v2", "labels.jsonl")).Where(l => l.Length > 0).ToArray();
+        Assert.Equal(6000, labels.Length);
+        Assert.DoesNotContain(labels, l => l.Contains("\"oracleOutcome\":\"Unknown\"", StringComparison.Ordinal));
+    }
+}
