@@ -465,7 +465,7 @@ void Decide(long budget, string[] files)
     var cells = unseen.GroupBy(i => model[i].Family).Select(g => ($"unseen family {g.Key}", g.ToArray()))
         .Concat(new[] { ("unseen size (all)", all.Where(i => model[i].Split == "test-unseen-size").ToArray()) })
         .Concat(all.Where(i => model[i].Split == "test-unseen-size").GroupBy(i => model[i].Family).Select(g => ($"unseen size {g.Key}", g.ToArray())));
-    foreach (var (name, ids) in cells)
+    foreach (var (name, ids) in cells.Where(c => c.Item2.Length > 0))
     {
         var d = Solved(ids);
         var w = Work(ids);

@@ -72,7 +72,7 @@
 | CP-SAT | 100.0% |
 | learned | 94.4% |
 
-The incumbent's p90 wall time of 8.0 s exceeds the nominal 5 s, because its throughput on multi-skill is below the train-calibrated rate. Work units, not wall time, bound the engine methods. See `evaluation/results/phase3-decision-5s-secondary.md`.
+The incumbent's p90 wall time of 8.0 s exceeds the nominal 5 s, because its throughput on multi-skill is below the train-calibrated rate. Work units, not wall time, bound the engine methods. Applied at 5 s, `decide` reads INCONCLUSIVE. The "hard" threshold scales with the budget (more than 1% of it), so only 217 instances qualify, against the 300 required. As a secondary budget, this does not change the 0.5 s verdict. See `evaluation/results/phase3-decision-5s-secondary.md`.
 
 Every result file is under `evaluation/results/` (`phase3-*.jsonl`, `*.report.md`, `phase3-decision.md`).
 
