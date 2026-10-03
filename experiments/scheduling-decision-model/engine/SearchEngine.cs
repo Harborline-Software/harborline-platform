@@ -1,6 +1,6 @@
 using Harborline.Blocks.Scheduling.Planning;
 
-namespace Harborline.Experiments.SchedulingDecisionModel.Evaluation;
+namespace Harborline.Experiments.SchedulingDecisionModel.Engine;
 
 /// <summary>
 /// Search state visible to an ordering policy. Policies may only read it and pay for consistency
@@ -121,6 +121,16 @@ public interface IOrderingPolicy
     IReadOnlyList<AssignmentCandidate> OrderValues(SearchState state, string activity, IReadOnlyList<AssignmentCandidate> candidates);
 }
 
+/// <summary>Read-only search trace hooks, for training-data collection. Never affects the search.</summary>
+public interface ISearchObserver
+{
+    /// <summary>A candidate was found consistent and is about to be explored.</summary>
+    void Enter(SearchState state, string activity, AssignmentCandidate candidate);
+
+    /// <summary>The subtree below <paramref name="candidate"/> finished: true if it led to a complete plan.</summary>
+    void Leave(SearchState state, string activity, AssignmentCandidate candidate, bool succeeded, bool budgetExhausted);
+}
+
 public sealed record EngineResult(
     string PolicyId,
     SolveStatus Status,
@@ -137,7 +147,7 @@ public sealed record EngineResult(
 /// </summary>
 public sealed class SearchEngine
 {
-    public EngineResult Run(CompiledPlanningProblem problem, IOrderingPolicy policy, long budget, bool dedupe = false)
+    public EngineResult Run(CompiledPlanningProblem problem, IOrderingPolicy policy, long budget, bool dedupe = false, ISearchObserver? observer = null)
     {
         if (problem.IncompleteFactSets.Count > 0)
         {
@@ -187,13 +197,16 @@ public sealed class SearchEngine
                     continue;
                 }
 
+                observer?.Enter(state, activity, candidate);
                 state.Assign(activity, candidate);
                 if (Search())
                 {
+                    observer?.Leave(state, activity, candidate, true, false);
                     return true;
                 }
 
                 state.Unassign(activity);
+                observer?.Leave(state, activity, candidate, false, state.Exhausted);
                 if (state.Exhausted)
                 {
                     return false;
@@ -300,7 +313,7 @@ public sealed class SearchEngine
 }
 
 /// <summary>Pairwise consistency, re-stated from the profile spec (R7, R8) for the search engine.</summary>
-internal static class Consistency
+public static class Consistency
 {
     public static bool CanAdd(
         AssignmentCandidate candidate,

@@ -1,0 +1,17 @@
+{
+  "frozenAt": "2026-10-03",
+  "ticket": "T-1053",
+  "selectionRule": "validation only: solved-rate diff vs dom-dynamic CI upper >= 0; lowest work-ratio CI upper; ties to simpler",
+  "selectedFrom": "evaluation/results/select-validation-0.5s.jsonl",
+  "validation": "solved diff -0.7 [-1.7, +0.2] pts; work ratio 0.814 [0.750, 0.881] vs dom-dynamic",
+  "activityModel": "activity-l2-1e-2.json",
+  "activityModelSha256": "1bdd9d809ff6ee84e15e53ec49f9302975884750f714f981c19628287681ce91",
+  "valueModel": "",
+  "valueModelSha256": "",
+  "shortlist": 1,
+  "chargePerActivity": 2,
+  "chargePerCandidate": 2,
+  "contextChargePerOperation": 1.25,
+  "featureVersion": "sdm-features.v1",
+  "budget05s": 1826301
+}

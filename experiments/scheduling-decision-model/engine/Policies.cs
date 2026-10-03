@@ -1,6 +1,6 @@
 using Harborline.Blocks.Scheduling.Planning;
 
-namespace Harborline.Experiments.SchedulingDecisionModel.Evaluation;
+namespace Harborline.Experiments.SchedulingDecisionModel.Engine;
 
 /// <summary>
 /// The pinned production ordering: activities by compiled candidate count, then ordinal id, fixed

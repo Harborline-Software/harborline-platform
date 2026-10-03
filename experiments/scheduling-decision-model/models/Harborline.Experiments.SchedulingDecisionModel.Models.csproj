@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- T-1053 experiment: feature contract, tiny linear scorers and the learned ordering policy. -->
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <AssemblyName>Harborline.Experiments.SchedulingDecisionModel.Models</AssemblyName>
+    <RootNamespace>Harborline.Experiments.SchedulingDecisionModel.Models</RootNamespace>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../engine/Harborline.Experiments.SchedulingDecisionModel.Engine.csproj" />
+    <ProjectReference Include="../../../projections/dotnet/blocks/hlp.blocks.scheduling/Harborline.Blocks.Scheduling.csproj" />
+  </ItemGroup>
+</Project>

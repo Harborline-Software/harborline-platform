@@ -1,0 +1,7 @@
+train instances: 1800; activity snapshots: 63537; value rows: 351066 (positive 1401); trace collection 10 s
+l2=1e-4: activity sha256 54d29e3ed2cb1ca79964abe634d2eac4878db8d504034e0e21cce3f002f6316c, value sha256 2948e749c7554491dc2c78c902a46e156f2baf4fe6854b2b429997802afa804d; fit 17 s
+  activity weights: log-domain=-1.389, window-slack=0.569, effective-slack=-1.446, duration=1.271, prec-assigned-frac=0.119, prec-pred-unassigned=-0.295, res-neigh-assigned=1.800, res-neigh-unassigned=-0.504, resources-needed=0.139, mean-resource-demand=0.491, domain-in-effective-window=-1.255
+  value weights: rel-start-in-window=-1.387, resource-demand=-0.699, resources=-0.197, successor-room=2.480, pred-gap=0.332, resource-busy=0.820, is-earliest=0.423; bias=-2.553
+l2=1e-2: activity sha256 1bdd9d809ff6ee84e15e53ec49f9302975884750f714f981c19628287681ce91, value sha256 39ab5d7650369718889b93d76a99c4bd0ece8eb979aef0b572165216a68ec67a; fit 18 s
+  activity weights: log-domain=-0.979, window-slack=0.192, effective-slack=-0.973, duration=0.964, prec-assigned-frac=0.169, prec-pred-unassigned=-0.215, res-neigh-assigned=1.261, res-neigh-unassigned=-0.452, resources-needed=0.123, mean-resource-demand=0.456, domain-in-effective-window=-0.932
+  value weights: rel-start-in-window=-1.002, resource-demand=-0.620, resources=-0.164, successor-room=1.601, pred-gap=-0.020, resource-busy=0.726, is-earliest=0.430; bias=-1.890

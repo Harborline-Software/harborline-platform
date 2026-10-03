@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Harborline.Blocks.Scheduling.Planning;
 using Harborline.Experiments.SchedulingDecisionModel.Baselines;
+using Harborline.Experiments.SchedulingDecisionModel.Engine;
 using Harborline.Experiments.SchedulingDecisionModel.Oracle;
 
 namespace Harborline.Experiments.SchedulingDecisionModel.Evaluation;
@@ -24,8 +25,24 @@ public sealed record RunResult(
     int Fallbacks,
     string? FallbackReason);
 
+/// <summary>A frozen learned-policy configuration (models are loaded and hash-checked once).</summary>
+public sealed record LearnedConfig(
+    string Name,
+    Models.LinearModel? Activity,
+    Models.LinearModel? Value,
+    int Shortlist,
+    long ChargePerActivity,
+    long ChargePerCandidate,
+    double ContextChargePerOperation)
+{
+    public Models.LearnedPolicy NewPolicy() => new(Activity, Value, Shortlist, ChargePerActivity, ChargePerCandidate, ContextChargePerOperation);
+}
+
 public static class Methods
 {
+    /// <summary>Learned configurations to run alongside the baselines (keyed by method name).</summary>
+    public static Dictionary<string, LearnedConfig> Learned { get; } = new(StringComparer.Ordinal);
+
     public static readonly string[] All =
     [
         "incumbent",
@@ -84,6 +101,11 @@ public static class Methods
             }
 
             default:
+                if (Learned.TryGetValue(method, out var config))
+                {
+                    return From(R(config.NewPolicy(), true, budget));
+                }
+
                 throw new ArgumentOutOfRangeException(nameof(method));
         }
     }

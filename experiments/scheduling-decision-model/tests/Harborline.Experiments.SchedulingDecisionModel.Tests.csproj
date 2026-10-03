@@ -17,6 +17,8 @@
     <ProjectReference Include="../baselines/Harborline.Experiments.SchedulingDecisionModel.Baselines.csproj" />
     <ProjectReference Include="../data/Harborline.Experiments.SchedulingDecisionModel.Data.csproj" />
     <ProjectReference Include="../evaluation/Harborline.Experiments.SchedulingDecisionModel.Evaluation.csproj" />
+    <ProjectReference Include="../engine/Harborline.Experiments.SchedulingDecisionModel.Engine.csproj" />
+    <ProjectReference Include="../models/Harborline.Experiments.SchedulingDecisionModel.Models.csproj" />
     <ProjectReference Include="../../../projections/dotnet/blocks/hlp.blocks.scheduling/Harborline.Blocks.Scheduling.csproj" />
   </ItemGroup>
 </Project>
