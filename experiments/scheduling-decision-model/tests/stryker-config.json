@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json.schemastore.org/stryker-config",
+  "stryker-config": {
+    "project": "Harborline.Experiments.SchedulingDecisionModel.Oracle.csproj",
+    "since": {
+      "enabled": true,
+      "target": "origin/main"
+    },
+    "coverage-analysis": "off",
+    "thresholds": {
+      "high": 80,
+      "low": 78,
+      "break": 78
+    },
+    "reporters": [
+      "json"
+    ]
+  }
+}

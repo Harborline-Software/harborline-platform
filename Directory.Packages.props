@@ -7,6 +7,7 @@
     <PackageVersion Include="AngleSharp" Version="1.8.2" Justification="R-0039" />
     <PackageVersion Include="BlazingStory" Version="1.0.0-preview.91" Justification="R-0058" />
     <PackageVersion Include="bunit" Version="2.11.3" Justification="R-0038" />
+    <PackageVersion Include="Google.OrTools" Version="9.15.6755" Justification="R-0139" />
     <PackageVersion Include="Harborline.UIAdapters.Blazor" Version="$(HarborlinePackedVersion)" Justification="platform" />
     <PackageVersion Include="JsonSchema.Net" Version="9.4.0" Justification="R-0068" />
     <PackageVersion Include="MD2RazorGenerator" Version="1.2.4" Justification="R-0059" />

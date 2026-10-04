@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- T-1053 experiment comparators. Google.OrTools is held by T-1053 (control R-0139). -->
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <AssemblyName>Harborline.Experiments.SchedulingDecisionModel.Baselines</AssemblyName>
+    <RootNamespace>Harborline.Experiments.SchedulingDecisionModel.Baselines</RootNamespace>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Google.OrTools" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../../projections/dotnet/blocks/hlp.blocks.scheduling/Harborline.Blocks.Scheduling.csproj" />
+  </ItemGroup>
+</Project>

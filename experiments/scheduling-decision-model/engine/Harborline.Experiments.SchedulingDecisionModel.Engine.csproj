@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- T-1053 experiment: pluggable-order exhaustive search and non-ML ordering policies. -->
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <AssemblyName>Harborline.Experiments.SchedulingDecisionModel.Engine</AssemblyName>
+    <RootNamespace>Harborline.Experiments.SchedulingDecisionModel.Engine</RootNamespace>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../../projections/dotnet/blocks/hlp.blocks.scheduling/Harborline.Blocks.Scheduling.csproj" />
+  </ItemGroup>
+</Project>

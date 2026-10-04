@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- T-1053 experiment: ordering seam, budget harness and baseline comparisons. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <AssemblyName>Harborline.Experiments.SchedulingDecisionModel.Evaluation</AssemblyName>
+    <RootNamespace>Harborline.Experiments.SchedulingDecisionModel.Evaluation</RootNamespace>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../oracle/Harborline.Experiments.SchedulingDecisionModel.Oracle.csproj" />
+    <ProjectReference Include="../baselines/Harborline.Experiments.SchedulingDecisionModel.Baselines.csproj" />
+    <ProjectReference Include="../data/Harborline.Experiments.SchedulingDecisionModel.Data.csproj" />
+    <ProjectReference Include="../engine/Harborline.Experiments.SchedulingDecisionModel.Engine.csproj" />
+    <ProjectReference Include="../models/Harborline.Experiments.SchedulingDecisionModel.Models.csproj" />
+    <ProjectReference Include="../../../projections/dotnet/blocks/hlp.blocks.scheduling/Harborline.Blocks.Scheduling.csproj" />
+  </ItemGroup>
+</Project>
