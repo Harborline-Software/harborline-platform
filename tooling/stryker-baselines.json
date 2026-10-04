@@ -1,4 +1,14 @@
 {
+  "experiments/scheduling-decision-model/tests/Harborline.Experiments.SchedulingDecisionModel.Tests.csproj": {
+    "break": 78,
+    "score": 78.76,
+    "tested": 226,
+    "total": 296,
+    "detected": 178,
+    "undetected": 48,
+    "measured": "2026-10-04",
+    "commit": "c8f4ba58e7dd09d12c4a6b485ae0b99c7fa47883"
+  },
   "projections/blazor/ui/hlp.ui.button.tests/Harborline.UIAdapters.Blazor.Tests.csproj": {
     "break": 38,
     "score": 38.87,
