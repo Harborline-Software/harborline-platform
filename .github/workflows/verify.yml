@@ -1,5 +1,6 @@
 # Isolated evidence branch only; never substitutes for protected PR or merge-group gates.
 name: Frozen Platform full-project mutation evidence
+run-name: "Frozen PR${{ inputs.pr }} ${{ inputs.mode }} ${{ inputs.project }} ${{ inputs.head }}"
 on:
   workflow_dispatch:
     inputs:
@@ -16,11 +17,19 @@ on:
         description: Scoped PR number for evidence naming
         required: true
         type: string
+      mode:
+        description: Full configured project or separately measured focused hand proof
+        required: true
+        default: full-project
+        type: choice
+        options:
+          - full-project
+          - hand-proof
 permissions:
   contents: read
 jobs:
   frozen-mutation:
-    if: vars.ACTIONS_ENABLED == 'true'
+    if: vars.ACTIONS_ENABLED == 'true' && inputs.mode != 'hand-proof'
     runs-on: ubuntu-latest
     timeout-minutes: 120
     env:
@@ -79,5 +88,48 @@ jobs:
           path: |
             StrykerOutput/*/reports/mutation-report.json
             frozen-mutation-evidence
+          if-no-files-found: error
+          retention-days: 14
+  hand-mutations:
+    if: vars.ACTIONS_ENABLED == 'true' && inputs.mode == 'hand-proof'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+      - name: Mirror authoritative control test fixtures
+        env:
+          PINS_TOKEN: ${{ secrets.HARBORLINE_PINS_TOKEN }}
+        shell: pwsh
+        run: |
+          $basic = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("x-access-token:$env:PINS_TOKEN"))
+          Write-Output "::add-mask::$basic"
+          $env:GIT_CONFIG_COUNT = '1'
+          $env:GIT_CONFIG_KEY_0 = 'http.https://github.com/.extraheader'
+          $env:GIT_CONFIG_VALUE_0 = "AUTHORIZATION: basic $basic"
+          git clone --quiet https://github.com/Harborline-Software/harborline-control.git "$env:RUNNER_TEMP/harborline-control"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Measure focused compiled hand mutations at exact requested head
+        env:
+          HARBORLINE_CONTROL_REPO: ${{ runner.temp }}/harborline-control
+          EXPECTED_HEAD: ${{ inputs.head }}
+          SCOPED_PR: ${{ inputs.pr }}
+        run: python tooling/records-hand-mutation-evidence.py --pr "$SCOPED_PR" --cases tooling/records-publication-hand-mutation-cases.json --expected-head "$EXPECTED_HEAD"
+      - name: Preserve raw logs, TRX, diffs and source hashes
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: records-publication-hand-mutants-${{ inputs.pr }}-${{ github.run_id }}
+          path: hand-mutation-evidence/${{ inputs.pr }}
           if-no-files-found: error
           retention-days: 14

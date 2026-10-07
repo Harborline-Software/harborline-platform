@@ -10,12 +10,16 @@ from pathlib import Path
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--pr', type=int, required=True)
+parser.add_argument('--cases', choices=['tooling/records-hand-mutation-cases.json', 'tooling/records-publication-hand-mutation-cases.json'], default='tooling/records-hand-mutation-cases.json')
+parser.add_argument('--expected-head')
 args = parser.parse_args()
 root = Path(__file__).resolve().parents[1]
-cases = [c for c in json.loads((root / 'tooling/records-hand-mutation-cases.json').read_text()) if c['pr'] == args.pr]
+cases = [c for c in json.loads((root / args.cases).read_text()) if c['pr'] == args.pr]
 if not cases or len({c['head'] for c in cases}) != 1:
     raise ValueError('Exactly one frozen head must be selected')
 head = cases[0]['head']
+if args.expected_head is not None and head != args.expected_head:
+    raise ValueError('Case manifest does not match the requested frozen head')
 work = Path(os.environ['RUNNER_TEMP']) / f'hand-pr-{args.pr}'
 out = root / 'hand-mutation-evidence' / str(args.pr)
 out.mkdir(parents=True, exist_ok=True)
