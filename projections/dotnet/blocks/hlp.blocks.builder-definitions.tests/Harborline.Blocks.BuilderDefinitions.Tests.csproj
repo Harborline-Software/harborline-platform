@@ -4,6 +4,7 @@
   <ItemGroup><PackageReference Include="Microsoft.NET.Test.Sdk" /><PackageReference Include="xunit" /><PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all" /><PackageReference Include="Microsoft.Extensions.DependencyInjection" /></ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../hlp.blocks.builder-definitions/Harborline.Blocks.BuilderDefinitions.csproj" />
+    <ProjectReference Include="../../foundation/hlp.foundation.field-runtime/Harborline.Foundation.FieldRuntime.csproj" />
     <ProjectReference Include="../../foundation/hlp.foundation.rule-authoring/Harborline.Foundation.RuleAuthoring.csproj" />
     <!-- ck-2 S7: a released closure is proven to resolve under the kernel resolver. -->
     <ProjectReference Include="../../kernel/hlp.kernel.core/Harborline.Kernel.Core.csproj" />

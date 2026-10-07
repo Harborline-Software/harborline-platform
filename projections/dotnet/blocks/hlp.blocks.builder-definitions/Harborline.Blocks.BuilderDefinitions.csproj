@@ -13,6 +13,8 @@
   <ItemGroup>
     <ProjectReference Include="../../foundation/hlp.foundation.definitions/Harborline.Foundation.Definitions.csproj" />
     <ProjectReference Include="../../foundation/hlp.foundation.rule-authoring/Harborline.Foundation.RuleAuthoring.csproj" />
+    <!-- T-615: RecordTypeDefinitionStore binds Records admission and its schema compile to DefinitionKind.Records. -->
+    <ProjectReference Include="../../kernel/hlp.kernel.schema-validation/Harborline.Kernel.SchemaValidation.csproj" />
     <!-- T-493 S7: TaxonomyDefinitionStore binds Taxonomy admission to DefinitionKind.Taxonomy. -->
     <ProjectReference Include="../../foundation/hlp.foundation.taxonomy/Harborline.Foundation.Taxonomy.csproj" />
     <!-- T-582 (T-724 ruling 38): a field control's parameters validate against the schema it declares. -->

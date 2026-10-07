@@ -187,6 +187,12 @@ public sealed class RecordsIntentValidator
 /// <summary>The result of compiling one Record Type grammar to a registered schema.</summary>
 public sealed record RecordTypeSchemaCompilation(Schema? Schema, IReadOnlyList<FieldRefusal> Refusals);
 
+/// <summary>
+/// The result of compiling one Record Type grammar without registering it: the draft 2020-12 schema text the
+/// registry would derive its content-addressed identity from, or every refusal and no text.
+/// </summary>
+public sealed record RecordTypeSchemaDraft(string? JsonSchemaText, IReadOnlyList<FieldRefusal> Refusals);
+
 /// <summary>Compiles admitted Record Type grammar to a draft 2020-12 JSON Schema document.</summary>
 public sealed class RecordTypeSchemaCompiler
 {
@@ -208,6 +214,9 @@ public sealed class RecordTypeSchemaCompiler
         _fieldDomainRuntime = fieldDomainRuntime;
     }
 
+    /// <summary>The identity validator this compiler runs first, so a caller's structural admission applies the same rules.</summary>
+    public RecordsIntentValidator IntentValidator => _intentValidator;
+
     /// <summary>
     /// Validates a candidate before registering its derived schema. Refused candidates never mutate the registry.
     /// </summary>
@@ -220,6 +229,29 @@ public sealed class RecordTypeSchemaCompiler
     {
         ArgumentNullException.ThrowIfNull(candidate);
         ArgumentNullException.ThrowIfNull(schemaRegistry);
+
+        var draft = await CompileAsync(candidate, previousVersion, fieldDomainScope, cancellationToken);
+        if (draft.JsonSchemaText is null)
+        {
+            return new(null, draft.Refusals);
+        }
+
+        var schema = await schemaRegistry.RegisterAsync(draft.JsonSchemaText, cancellationToken: cancellationToken);
+        return new(schema, []);
+    }
+
+    /// <summary>
+    /// Validates and compiles a candidate without touching any registry, so an admission can collect every
+    /// refusal before the caller commits anything. Registering the returned text yields the same schema
+    /// identity <see cref="CompileAndRegisterAsync"/> would.
+    /// </summary>
+    public async ValueTask<RecordTypeSchemaDraft> CompileAsync(
+        RecordTypeDefinition candidate,
+        RecordTypeDefinition? previousVersion,
+        FieldDomainScope? fieldDomainScope = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(candidate);
 
         var refusals = new List<FieldRefusal>(_intentValidator.Validate(candidate, previousVersion));
         // C:/Projects/Harborline/harborline-control/designs/DES-0015-records/design.md:102 (records-ck-37)
@@ -249,10 +281,7 @@ public sealed class RecordTypeSchemaCompiler
             ["properties"] = properties,
             ["additionalProperties"] = false,
         };
-        var schema = await schemaRegistry.RegisterAsync(
-            JsonSerializer.Serialize(document),
-            cancellationToken: cancellationToken);
-        return new(schema, []);
+        return new(JsonSerializer.Serialize(document), []);
     }
 
     // A field without a binding declares no constraint, so each member takes the absent meaning the
