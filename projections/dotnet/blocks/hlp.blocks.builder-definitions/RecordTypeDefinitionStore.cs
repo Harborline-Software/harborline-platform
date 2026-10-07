@@ -1,6 +1,5 @@
 using System.Text;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 using Harborline.Contracts.Fields;
 using Harborline.Foundation.Definitions;
 using Harborline.Kernel.SchemaValidation;
@@ -17,6 +16,8 @@ namespace Harborline.Blocks.BuilderDefinitions;
 /// <param name="Contract">The authored definition contract version.</param>
 /// <param name="Traits">The exact Trait revisions and their slot bindings.</param>
 /// <param name="RetentionClockFieldId">The <c>field_key</c> of the field whose date starts the retention clock.</param>
+/// <param name="ClassId">The type's one Class, required before publication.</param>
+/// <param name="RecordClass">Reference, master or transactional, required before publication.</param>
 public sealed record NewRecordType(
     string Tenant,
     string Section,
@@ -25,7 +26,9 @@ public sealed record NewRecordType(
     IReadOnlyList<FieldDefinition> Fields,
     DefinitionContractVersion? Contract,
     IReadOnlyList<TraitReference>? Traits = null,
-    string? RetentionClockFieldId = null);
+    string? RetentionClockFieldId = null,
+    string? ClassId = null,
+    RecordClass? RecordClass = null);
 
 /// <summary>A created Record Type draft and the id the authoring boundary minted for it.</summary>
 public sealed record RecordTypeDraft(string RecordTypeId, DefinitionRevision Revision);
@@ -48,7 +51,7 @@ public sealed record RecordTypePublication(DefinitionRevision Revision, Schema S
 /// snapshot to the store, fenced on the same expected revision the store commits at. Every refusal, structural
 /// or compiled, is raised before the store or the schema registry changes.
 /// </remarks>
-public sealed partial class RecordTypeDefinitionStore
+public sealed class RecordTypeDefinitionStore
 {
     private readonly IVersionedDefinitionStore _store;
     private readonly RecordTypeSchemaCompiler _compiler;
@@ -104,30 +107,15 @@ public sealed partial class RecordTypeDefinitionStore
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
-        // The section is checked by structural admission below; only an empty slug needs refusing here, since
-        // a name of punctuation alone is not blank yet would mint the id "section.".
-        var slug = Slug(request.Name ?? "");
-        if (slug.Length == 0)
-            throw new DefinitionRefusalException(DefinitionAdmissionPhase.Author, [new("records.identity.name_required", "/name")]);
-
-        var recordTypeId = $"{request.Section}.{slug}";
+        var recordTypeId = RecordsCatalogueIdentity.Mint(request.Section, request.Name);
         var document = Materialize(new RecordTypeDocument(
             new(request.Tenant, request.Section, request.Contract),
-            request.Name!, recordTypeId, request.Fields, request.Traits, request.RetentionClockFieldId));
+            request.Name!, recordTypeId, request.Fields, request.Traits, request.RetentionClockFieldId,
+            request.ClassId, request.RecordClass));
         var candidate = await AdmitAsync(Catalogue(document, recordTypeId, request.Version), DefinitionAdmissionPhase.Author,
             cancellationToken).ConfigureAwait(false);
-        try
-        {
-            // Creation is the zero-revision fence: a stream already at this key fails it, so the collision
-            // check and the write are one atomic step, and an identical replay still returns its draft.
-            return new(recordTypeId, await _store.SaveDraftAsync(candidate.Document, 0, requestId, cancellationToken)
-                .ConfigureAwait(false));
-        }
-        catch (DefinitionRefusalException refused) when (refused.Refusals is [{ Code: "definition.revision_conflict" }])
-        {
-            throw new DefinitionRefusalException(DefinitionAdmissionPhase.Author,
-                [new("records.identity.record_type_id_collision", "/record_type_id")]);
-        }
+        return new(recordTypeId, await RecordsCatalogueIdentity.CreateAsync(_store, candidate.Document, requestId,
+            "record_type_id", cancellationToken).ConfigureAwait(false));
     }
 
     /// <summary>
@@ -142,9 +130,8 @@ public sealed partial class RecordTypeDefinitionStore
         ArgumentNullException.ThrowIfNull(document);
         var catalogue = Catalogue(Materialize(document), recordTypeId, version);
         var candidate = await AdmitAsync(catalogue, DefinitionAdmissionPhase.Author, cancellationToken).ConfigureAwait(false);
-        if ((await _store.ListHistoryAsync(catalogue.Key, cancellationToken).ConfigureAwait(false)).Count == 0)
-            throw new DefinitionRefusalException(DefinitionAdmissionPhase.Author,
-                [new("records.identity.record_type_id_unminted", "/record_type_id")]);
+        await RecordsCatalogueIdentity.RequireMintedAsync(_store, catalogue.Key, "record_type_id", cancellationToken)
+            .ConfigureAwait(false);
         return await _store.SaveDraftAsync(candidate.Document, expectedRevision, requestId, cancellationToken)
             .ConfigureAwait(false);
     }
@@ -163,6 +150,12 @@ public sealed partial class RecordTypeDefinitionStore
             ?? throw new DefinitionRefusalException(DefinitionAdmissionPhase.Publish, [new("definition.not_found", "/versionId")]);
 
         var admitted = await AdmitAsync(source.Document, DefinitionAdmissionPhase.Publish, cancellationToken).ConfigureAwait(false);
+        // records-ck-18: the catalogue home must be a published Class of this tenant. The registered validator
+        // cannot see other definitions, so this boundary resolves it before the store publishes.
+        var classId = RecordTypeDefinitionJson.Deserialize(Encoding.UTF8.GetBytes(source.Document.BodyJson)).ClassId!;
+        if (await _store.GetPublishedHeadAsync(ClassDefinitionStore.KeyOf(tenant, classId), cancellationToken)
+                .ConfigureAwait(false) is null)
+            throw new DefinitionRefusalException(DefinitionAdmissionPhase.Publish, [new("records.class.unresolved", "/class_id")]);
         var published = await _store.PublishAsync(key, version, expectedRevision, requestId, cancellationToken)
             .ConfigureAwait(false);
         var schema = await _registry.RegisterAsync(admitted.JsonSchemaText, cancellationToken: cancellationToken)
@@ -225,31 +218,21 @@ public sealed partial class RecordTypeDefinitionStore
         RecordTypeDocument parsed;
         try { parsed = RecordTypeDefinitionJson.Deserialize(Encoding.UTF8.GetBytes(document.BodyJson ?? "")); }
         catch (JsonException) { return (null, [new("records.document_invalid", "")]); }
-
-        var refusals = new List<DefinitionRefusal>();
         if (parsed.Envelope is null)
             return (null, [new("records.envelope_required", "/envelope")]);
-        if (window.Check(parsed.Envelope.Contract, null) is { } contract)
-            refusals.Add(contract);
-        if (phase != DefinitionAdmissionPhase.Install
-            && !StringComparer.Ordinal.Equals(parsed.Envelope.Tenant, document.Key.Tenant))
-            refusals.Add(new("definition.catalogue_mismatch", "/envelope/tenant"));
-        var sectionValid = IsSection(parsed.Envelope.Section);
-        if (!sectionValid)
-            refusals.Add(new("records.identity.section_invalid", "/envelope/section"));
-        if (string.IsNullOrWhiteSpace(parsed.Name))
-            refusals.Add(new("records.identity.name_required", "/name"));
 
+        var refusals = new List<DefinitionRefusal>(RecordsCatalogueIdentity.CheckEnvelope(
+            parsed.Envelope, parsed.Name, parsed.RecordTypeId, "record_type_id", document.Key, phase, window));
         refusals.AddRange(validator.Validate(parsed.ToDefinition(), previousVersion: null)
             .Select(refusal => new DefinitionRefusal(refusal.Code, refusal.JsonPointer)));
-        if (!string.IsNullOrWhiteSpace(parsed.RecordTypeId))
+        // A draft may still be choosing its home and its data category; a published type has exactly one of each
+        // (records-ck-17, records-ck-18, records-auth-1), with no default (DES-0046 ck-1, ADR 0025).
+        if (phase != DefinitionAdmissionPhase.Author)
         {
-            // The catalogue key is the id every earlier version was stored under, so a body naming any other
-            // id changes the type's identity, whether inside one version or across versions.
-            if (!StringComparer.Ordinal.Equals(parsed.RecordTypeId, document.Key.DefinitionId))
-                refusals.Add(new("records.identity.record_type_id_immutable", "/record_type_id"));
-            else if (sectionValid && !parsed.RecordTypeId.StartsWith(parsed.Envelope.Section + ".", StringComparison.Ordinal))
-                refusals.Add(new("records.identity.section_mismatch", "/record_type_id"));
+            if (string.IsNullOrWhiteSpace(parsed.ClassId))
+                refusals.Add(new("records.class.required", "/class_id"));
+            if (parsed.RecordClass is null)
+                refusals.Add(new("records.record_class.required", "/record_class"));
         }
         return (parsed, refusals);
     }
@@ -263,17 +246,6 @@ public sealed partial class RecordTypeDefinitionStore
         => new(KeyOf(document.Envelope?.Tenant ?? "", recordTypeId), version, version,
             Encoding.UTF8.GetString(RecordTypeDefinitionJson.SerializeCanonical(document)));
 
-    private static bool IsSection(string? section) => section is not null && SectionPattern().IsMatch(section);
-
-    // The same lowercase ASCII kebab slug the builders suggest keys with (DefinitionKeySuggester), without its
-    // version suffix or collision sequencing: a Record Type id collision is loud, never renumbered.
-    private static string Slug(string name) => NonAsciiAlphaNumeric().Replace(name.Trim().ToLowerInvariant(), "-").Trim('-');
-
-    [GeneratedRegex("^[a-z0-9]+(-[a-z0-9]+)*$", RegexOptions.CultureInvariant)]
-    private static partial Regex SectionPattern();
-
-    [GeneratedRegex("[^a-z0-9]+", RegexOptions.CultureInvariant)]
-    private static partial Regex NonAsciiAlphaNumeric();
 }
 
 /// <summary>A provider-neutral Record Type entry; publication lifecycle belongs to the shared catalogue.</summary>
