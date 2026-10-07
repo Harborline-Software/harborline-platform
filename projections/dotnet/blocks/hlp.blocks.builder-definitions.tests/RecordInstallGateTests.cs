@@ -16,8 +16,8 @@ public sealed class RecordInstallGateTests
     private const string Digest = "sha256:1111111111111111111111111111111111111111111111111111111111111111";
     private static readonly DefinitionContractVersion Contract = new(1, 0);
     private static readonly RecordReferencePin Pin = new("eam-core", "eam.meter", "1.0.0", Digest, 1);
-    private static readonly PinnedExposure Declared = new("eam-core", "eam.meter", "1.0.0", Digest, 1);
-    private static readonly RecordsInstallClosure Closure = new(["fleet-ops.work-order", "fleet-ops.route"], [Declared]);
+    private static readonly PinnedExposure Declared = new("eam-core", DefinitionKind.Records, "eam.meter", "1.0.0", Digest, 1);
+    private static readonly RecordsInstallClosure Closure = new([new(DefinitionKind.Records, "fleet-ops.work-order"), new(DefinitionKind.Records, "fleet-ops.route")], [Declared]);
 
     [Fact]
     [Trait("Holds", "records-ck-41")]
@@ -55,12 +55,70 @@ public sealed class RecordInstallGateTests
     {
         var host = Host();
 
-        var missing = await host.Records.AdmitInstallAsync("tenant-b", Entry(WorkOrder()), Closure with { PackDefinitionIds = ["fleet-ops.work-order"] });
-        var self = await host.Records.AdmitInstallAsync("tenant-b",
-            Entry(WorkOrder(route: Field("parent", "fleet-ops.work-order", null))), Closure with { PackDefinitionIds = [] });
-
+        var missing = await host.Records.AdmitInstallAsync("tenant-b", Entry(WorkOrder()), Closure with { PackDefinitions = [new(DefinitionKind.Records, "fleet-ops.work-order")] });
         Assert.Equal([("records.reference.target_unresolved", "/fields/1/reference/target_type_id")], Pairs(missing));
-        Assert.Empty(self.Refusals);
+    }
+
+    [Fact]
+    [Trait("Holds", "records-ck-41")]
+    public async Task a_record_type_self_reference_installs_without_a_pack_membership_entry()
+    {
+        var report = await Host().Records.AdmitInstallAsync("tenant-b",
+            Entry(WorkOrder(route: Field("parent", "fleet-ops.work-order", null))), Closure with { PackDefinitions = [] });
+
+        Assert.Empty(report.Refusals);
+    }
+
+    // Oracle: catalogue identity is (kind, id); a Class and a Record Type with the same id are distinct.
+    [Theory]
+    [InlineData(false, DefinitionKind.Classes, "/fields/1/reference/target_type_id")]
+    [InlineData(true, DefinitionKind.Records, "/fields/1/reference/target_class_id")]
+    [Trait("Holds", "records-ck-41")]
+    public async Task an_in_pack_definition_of_the_wrong_kind_cannot_satisfy_the_same_id(
+        bool classTarget, DefinitionKind suppliedKind, string pointer)
+    {
+        var report = await Host().Records.AdmitInstallAsync("tenant-b",
+            Entry(WorkOrder(route: TargetField("route", "fleet-ops.route", classTarget))),
+            Closure with { PackDefinitions = [new(suppliedKind, "fleet-ops.route")] });
+
+        Assert.Equal([("records.reference.target_unresolved", pointer)], Pairs(report));
+    }
+
+    [Fact]
+    [Trait("Holds", "records-ck-41")]
+    public async Task a_class_target_with_the_record_type_id_is_not_a_self_reference()
+    {
+        var report = await Host().Records.AdmitInstallAsync("tenant-b",
+            Entry(WorkOrder(route: TargetField("parent", "fleet-ops.work-order", true))),
+            Closure with { PackDefinitions = [] });
+
+        Assert.Equal([("records.reference.target_unresolved", "/fields/1/reference/target_class_id")], Pairs(report));
+    }
+
+    [Theory]
+    [InlineData(false, DefinitionKind.Classes)]
+    [InlineData(true, DefinitionKind.Records)]
+    [Trait("Holds", "records-ck-41")]
+    public async Task a_dependency_exposure_of_the_wrong_kind_cannot_satisfy_the_same_id(
+        bool classTarget, DefinitionKind suppliedKind)
+    {
+        var report = await Host().Records.AdmitInstallAsync("tenant-b",
+            Entry(WorkOrder(meter: TargetField("meter", "eam.meter", classTarget, Pin))),
+            Closure with { Exposures = [Declared with { Kind = suppliedKind }] });
+
+        Assert.Equal([("records.reference.closure_missing", "/fields/0/reference/pin")], Pairs(report));
+    }
+
+    [Fact]
+    [Trait("Holds", "records-ck-41")]
+    public async Task class_targets_install_when_both_pack_and_dependency_kinds_match()
+    {
+        var report = await Host().Records.AdmitInstallAsync("tenant-b",
+            Entry(WorkOrder(meter: TargetField("meter", "eam.meter", true, Pin),
+                route: TargetField("route", "fleet-ops.route", true))),
+            new([new(DefinitionKind.Classes, "fleet-ops.route")], [Declared with { Kind = DefinitionKind.Classes }]));
+
+        Assert.Empty(report.Refusals);
     }
 
     public static TheoryData<string, RecordTypeDocument, string, string> Tampered() => new()
@@ -86,7 +144,7 @@ public sealed class RecordInstallGateTests
     public async Task every_missing_or_changed_edge_is_reported_together()
     {
         var report = await Host().Records.AdmitInstallAsync("tenant-b", Entry(WorkOrder()),
-            new(["fleet-ops.work-order"], [Declared with { Digest = "sha256:" + new string('3', 64) }]));
+            new([new(DefinitionKind.Records, "fleet-ops.work-order")], [Declared with { Digest = "sha256:" + new string('3', 64) }]));
 
         Assert.Equal([
             ("records.reference.closure_changed", "/fields/0/reference/pin"),
@@ -116,6 +174,10 @@ public sealed class RecordInstallGateTests
 
     private static FieldDefinition Field(string key, string target, RecordReferencePin? pin)
         => new(key, key, Reference: new(target, null, ReferenceCardinality.One, ReferenceDeleteBehavior.Block, Pin: pin));
+
+    private static FieldDefinition TargetField(string key, string target, bool classTarget, RecordReferencePin? pin = null)
+        => new(key, key, Reference: new(classTarget ? null : target, classTarget ? target : null,
+            ReferenceCardinality.One, ReferenceDeleteBehavior.Block, Pin: pin));
 
     private static RecordTypeDefinitionPackageEntry Entry(RecordTypeDocument document)
         => new(document.RecordTypeId, "1.0.0", PlatformPackageContent.PresentJson(RecordTypeDefinitionJson.SerializeCanonical(document)));

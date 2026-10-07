@@ -576,7 +576,7 @@ public sealed class RecordTypeDefinitionStoreTests
     }
 
     // A pack that ships only the type under test and depends on no other package.
-    internal static readonly RecordsInstallClosure NoDependencies = new(["eam.asset-class"], []);
+    internal static readonly RecordsInstallClosure NoDependencies = new([new(DefinitionKind.Records, "eam.asset-class")], []);
 
     internal static NewRecordType AssetClass(string version) => new(Tenant, "eam", "Asset Class", version,
         Document().Fields, Contract, ClassId: "eam.equipment", RecordClass: RecordClass.Master, PackageId: "eam-core");

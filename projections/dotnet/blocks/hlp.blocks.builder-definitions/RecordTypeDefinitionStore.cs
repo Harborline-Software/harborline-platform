@@ -370,12 +370,13 @@ public sealed class RecordTypeDefinitionStore
                 continue;
             var pointer = $"/fields/{index}/reference";
             var classTarget = !string.IsNullOrWhiteSpace(reference.TargetClassId);
+            var targetKind = classTarget ? DefinitionKind.Classes : DefinitionKind.Records;
             var targetId = classTarget ? reference.TargetClassId! : reference.TargetTypeId!;
             if (reference.Pin is not { } pin)
             {
                 // An edge inside the pack: its target ships beside it, or is this type itself.
-                if (!StringComparer.Ordinal.Equals(targetId, document.RecordTypeId)
-                    && !closure.PackDefinitionIds.Contains(targetId, StringComparer.Ordinal))
+                if (!(targetKind == DefinitionKind.Records && StringComparer.Ordinal.Equals(targetId, document.RecordTypeId))
+                    && !closure.PackDefinitions.Contains(new InstallDefinitionTarget(targetKind, targetId)))
                     yield return new("records.reference.target_unresolved", pointer + (classTarget ? "/target_class_id" : "/target_type_id"));
                 continue;
             }
@@ -396,10 +397,11 @@ public sealed class RecordTypeDefinitionStore
                 yield return new("records.reference.interface_incompatible", pointer);
 
             var declared = closure.Exposures.FirstOrDefault(exposure =>
-                StringComparer.Ordinal.Equals(exposure.PackageId, pin.PackageId) && StringComparer.Ordinal.Equals(exposure.DefinitionId, pin.DefinitionId));
+                StringComparer.Ordinal.Equals(exposure.PackageId, pin.PackageId) && exposure.Kind == targetKind
+                && StringComparer.Ordinal.Equals(exposure.DefinitionId, pin.DefinitionId));
             if (declared is null)
                 yield return new("records.reference.closure_missing", pointer + "/pin");
-            else if (declared != new PinnedExposure(pin.PackageId, pin.DefinitionId, pin.Version, pin.Digest, pin.InterfaceVersion))
+            else if (declared != new PinnedExposure(pin.PackageId, targetKind, pin.DefinitionId, pin.Version, pin.Digest, pin.InterfaceVersion))
                 yield return new("records.reference.closure_changed", pointer + "/pin");
         }
     }
@@ -486,15 +488,18 @@ public static class RecordTypeDefinitionPackageExporter
     }
 }
 
-/// <summary>
-/// One exposure the pinned dependency closure declares (records-ck-41): a producer package's definition, at the exact
-/// version and <c>sha256:</c> body digest its signed pack carries, exposed at an interface version.
-/// </summary>
-public sealed record PinnedExposure(string PackageId, string DefinitionId, string Version, string Digest, int InterfaceVersion);
+/// <summary>A definition the installing pack ships, identified by its catalogue kind and id.</summary>
+public sealed record InstallDefinitionTarget(DefinitionKind Kind, string DefinitionId);
 
 /// <summary>
-/// What an installing host hands the Records install gate: the definition ids the pack itself ships, and the exposures
+/// One exposure the pinned dependency closure declares (records-ck-41): a producer package's definition kind and id, at the exact
+/// version and <c>sha256:</c> body digest its signed pack carries, exposed at an interface version.
+/// </summary>
+public sealed record PinnedExposure(string PackageId, DefinitionKind Kind, string DefinitionId, string Version, string Digest, int InterfaceVersion);
+
+/// <summary>
+/// What an installing host hands the Records install gate: the definition kinds and ids the pack itself ships, and the exposures
 /// declared by the exact producer versions in the pack's pinned dependency closure. It is read from the signed packs,
 /// never from the node's live catalogue.
 /// </summary>
-public sealed record RecordsInstallClosure(IReadOnlyCollection<string> PackDefinitionIds, IReadOnlyList<PinnedExposure> Exposures);
+public sealed record RecordsInstallClosure(IReadOnlyCollection<InstallDefinitionTarget> PackDefinitions, IReadOnlyList<PinnedExposure> Exposures);
