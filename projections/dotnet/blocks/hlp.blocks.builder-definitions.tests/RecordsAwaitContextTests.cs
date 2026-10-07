@@ -1,5 +1,7 @@
+using Harborline.Contracts.Fields;
 using Harborline.Foundation.Definitions;
 using Harborline.Kernel.SchemaValidation;
+using Harborline.Kernel.SchemaValidation.Records;
 using Xunit;
 using static Harborline.Blocks.BuilderDefinitions.Tests.RecordTypeDefinitionStoreTests;
 
@@ -23,6 +25,7 @@ public sealed class RecordsAwaitContextTests
         { "publish", "GetPublishedHeadAsync" },
         { "publish", "PublishAsync" },
         { "publish", "RegisterAsync" },
+        { "replay", "RegisterAsync" },
         { "head", "GetPublishedHeadAsync" },
         { "pin", "GetPublishedHeadAsync" },
         { "diagnose", "GetPublishedHeadAsync" },
@@ -40,7 +43,7 @@ public sealed class RecordsAwaitContextTests
     {
         var host = Host();
         await host.Records.CreateDraftAsync(AssetClass("1.0.0"), "setup");
-        if (operation is "head" or "install" or "field" or "health")
+        if (operation is "head" or "install" or "field" or "health" or "replay")
             await host.Records.PublishAsync(Tenant, "eam.asset-class", "1.0.0", 1, "setup-publish");
         var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var store = new HoppingStore(host.Catalogue, hopAt, release.Task);
@@ -58,6 +61,7 @@ public sealed class RecordsAwaitContextTests
             "create" => () => records.CreateDraftAsync(AssetClass("1.0.0") with { Name = "Pump" }, "create").AsTask(),
             "save" => () => records.SaveDraftAsync("eam.asset-class", body, "1.0.0", 1, "save").AsTask(),
             "publish" => () => records.PublishAsync(Tenant, "eam.asset-class", "1.0.0", 1, "publish").AsTask(),
+            "replay" => () => records.PublishAsync(Tenant, "eam.asset-class", "1.0.0", 1, "setup-publish").AsTask(),
             "head" => () => records.GetPublishedHeadAsync(Tenant, "eam.asset-class").AsTask(),
             "pin" => () => records.PinReferencesAsync(Tenant, body with { Fields = [.. body.Fields, new("home", "Home",
                 Reference: new(null, "eam.equipment", Harborline.Kernel.SchemaValidation.Records.ReferenceCardinality.One,
@@ -73,6 +77,81 @@ public sealed class RecordsAwaitContextTests
         await NeverResumesOnTheCallersContext(act, release);
         // The delayed step ran exactly once, so the case exercised the await it names.
         Assert.Equal(hopAt == "none" ? 0 : 1, store.Hops + registry.Hops);
+    }
+
+    [Fact]
+    public async Task replay_admission_with_incomplete_trait_narrowing_never_resumes_on_the_callers_context()
+    {
+        var host = Host();
+        var domains = new HoppingDomainRuntime();
+        var validator = new RecordsIntentValidator(new SlotTraitSource());
+        var compiler = new RecordTypeSchemaCompiler(validator, fieldDomainRuntime: domains);
+        var catalogue = new InMemoryVersionedDefinitionStore(new Dictionary<DefinitionKind, DefinitionAdmission>
+        {
+            [DefinitionKind.Records] = RecordTypeDefinitionStore.Admission(Window, validator),
+            [DefinitionKind.Classes] = ClassDefinitionStore.Admission(Window),
+        });
+        var classes = new ClassDefinitionStore(catalogue);
+        await classes.CreateDraftAsync(new(Tenant, "eam", "Equipment", "1.0.0", new(1, 0), "eam-core"), "equipment");
+        await classes.PublishAsync(Tenant, "eam.equipment", "1.0.0", 1, "equipment-publish");
+        var scope = new FieldDomainScope(new(Tenant), "author");
+        var records = new RecordTypeDefinitionStore(catalogue, compiler, host.Defaults, host.Registry, Window, scope);
+        var created = await records.CreateDraftAsync(AssetClass("1.0.0") with
+        {
+            Fields = [new("asset_tag", "Asset tag")],
+            Traits = [new("locatable", "1.0.0", [new("code", "asset_tag")])],
+        }, "create");
+        await records.PublishAsync(Tenant, created.RecordTypeId, "1.0.0", 1, "publish");
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        domains.Release = release.Task;
+        domains.Calls = 0;
+        var recreated = new RecordTypeDefinitionStore(catalogue, compiler, host.Defaults, host.Registry, Window, scope);
+
+        // The runtime stays incomplete until PublishAsync has returned to this helper, so the replay
+        // admission and both compiler awaits must suspend while the caller's context is installed.
+        await NeverResumesOnTheCallersContext(() =>
+            recreated.PublishAsync(Tenant, created.RecordTypeId, "1.0.0", 1, "publish").AsTask(), release);
+
+        Assert.Equal(1, domains.Calls);
+        Assert.Equal(2, (await catalogue.ListHistoryAsync(RecordTypeDefinitionStore.KeyOf(Tenant, created.RecordTypeId))).Count);
+    }
+
+    private sealed class SlotTraitSource : IRecordTraitSource
+    {
+        public TraitDefinition? Resolve(string traitId, string version)
+            => traitId == "locatable" && version == "1.0.0"
+                ? new(traitId, version, [new("code", new(false, 0, null, [], null), true, false)]) : null;
+    }
+
+    // A host runtime fixture for one known unconstrained slot. All other operations refuse use,
+    // keeping the incomplete task specific to the replay admission being proved.
+    private sealed class HoppingDomainRuntime : IFieldDomainRuntime
+    {
+        public Task Release = Task.CompletedTask;
+        public int Calls;
+
+        public async ValueTask<ResolvedFieldConstraints> NarrowAsync(FieldConstraintDefinition declared,
+            FieldConstraintDefinition narrowed, FieldDomainScope scope, string jsonPointer,
+            CancellationToken cancellationToken = default)
+        {
+            Calls++;
+            Assert.False(declared.Required);
+            Assert.False(narrowed.Required);
+            Assert.Equal(0, declared.MinimumCount);
+            Assert.Equal(0, narrowed.MinimumCount);
+            Assert.Null(declared.MaximumCount);
+            Assert.Null(narrowed.MaximumCount);
+            Assert.Equal("/traits/0/slot_bindings/0", jsonPointer);
+            await Release.WaitAsync(cancellationToken).ConfigureAwait(false);
+            return new(false, 0, null, [], null, [], "pinned-test-revision");
+        }
+
+        public ValueTask<ResolvedValueDomain> ResolveAsync(ValueDomainDefinition domain, FieldDomainScope scope,
+            string jsonPointer, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public ValueTask<ResolvedFieldConstraints> IntersectAsync(IReadOnlyList<FieldConstraintDefinition> constraints,
+            FieldDomainScope scope, string jsonPointer, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public IReadOnlyList<FieldRefusal> Validate(ResolvedFieldConstraints constraints, ICompiledFieldKind kind,
+            System.Text.Json.JsonElement value, string jsonPointer) => throw new NotSupportedException();
     }
 
     private sealed class CountingContext : SynchronizationContext
