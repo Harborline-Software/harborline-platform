@@ -326,6 +326,15 @@ public sealed class RecordTypeDefinitionStoreTests
     [InlineData("""{"envelope":{"contract":{"major":1,"minor":0},"section":"eam","tenant":"tenant-a"},"name":" ","record_type_id":"eam.asset-class","fields":[]}""", "records.identity.name_required", "/name")]
     [InlineData("""{"envelope":{"contract":{"major":1,"minor":0},"section":"EAM","tenant":"tenant-a"},"name":"Asset Class","record_type_id":"eam.asset-class","fields":[]}""", "records.identity.section_invalid", "/envelope/section")]
     [InlineData("null", "records.document_invalid", "")]
+    [InlineData("""{"envelope":null,"name":"Asset Class","record_type_id":"eam.asset-class","fields":[]}""", "records.document_invalid", "")]
+    [InlineData("""{"envelope":{"contract":{"major":1,"minor":0},"section":"eam","tenant":"tenant-a"},"name":"Asset Class","record_type_id":"eam.asset-class"}""", "records.document_invalid", "/fields")]
+    [InlineData("""{"envelope":{"contract":{"major":1,"minor":0},"section":"eam","tenant":"tenant-a"},"name":"Asset Class","record_type_id":"eam.asset-class","fields":[null]}""", "records.document_invalid", "/fields/0")]
+    [InlineData("""{"envelope":{"contract":{"major":1,"minor":0},"section":"eam","tenant":"tenant-a"},"name":"Asset Class","record_type_id":"eam.asset-class","fields":[{"display_name":"A"}]}""", "records.document_invalid", "/fields/0/field_key")]
+    [InlineData("""{"envelope":{"contract":{"major":1,"minor":0},"section":"eam","tenant":"tenant-a"},"name":"Asset Class","record_type_id":"eam.asset-class","fields":[{"field_key":"a","display_name":null}]}""", "records.document_invalid", "")]
+    [InlineData("""{"envelope":{"contract":{"major":1,"minor":0},"section":"eam","tenant":"tenant-a"},"name":"Asset Class","record_type_id":"eam.asset-class","fields":[{"field_key":"a","display_name":"A","binding":{"constraints":{"required":false,"minimum_count":0,"read_role_ids":[]}}}]}""", "records.document_invalid", "/fields/0/binding/kind")]
+    [InlineData("""{"envelope":{"contract":{"major":1,"minor":0},"section":"eam","tenant":"tenant-a"},"name":"Asset Class","record_type_id":"eam.asset-class","fields":[{"field_key":"a","display_name":"A","binding":{"kind":{"kind_id":"text","version":"1.0.0","parameters":{}}}}]}""", "records.document_invalid", "/fields/0/binding/constraints")]
+    [InlineData("""{"envelope":{"contract":{"major":1,"minor":0},"section":"eam","tenant":"tenant-a"},"name":"Asset Class","record_type_id":"eam.asset-class","fields":[],"traits":[null]}""", "records.document_invalid", "/traits/0")]
+    [InlineData("""{"envelope":{"contract":{"major":1,"minor":0},"section":"eam","tenant":"tenant-a"},"name":"Asset Class","record_type_id":"eam.asset-class","fields":[{"field_key":"a","display_name":"A","defaults_provenance":{"kind_id":"text"}}]}""", "records.document_invalid", "/fields/0/defaults_provenance/kind_version")]
     [InlineData("""{"envelope":{"contract":{"major":1,"minor":0},"section":"eam","tenant":"tenant-a"},"name":"Asset Class","record_type_id":"eam.asset-class","fields":[{"display_name":"A","field_key":"a"},{"display_name":"B","field_key":"a"}]}""", "records.identity.duplicate_field_key", "/fields/1/field_key")]
     public async Task the_registered_validator_refuses_a_malformed_body_before_any_write(string body, string code, string pointer)
     {
@@ -526,7 +535,22 @@ public sealed class RecordTypeDefinitionStoreTests
 
     private static readonly RecordFieldDefaults Defaults = new(new FieldKindRuntime(new FieldKindRegistry([])));
 
-    internal static TestHost Host()
+    [Fact]
+    [Trait("Holds", "records-eng-33")]
+    public async Task a_schema_the_registry_refuses_leaves_the_version_unpublished()
+    {
+        var host = Host(new SchemaRegistryOptions { MaxSchemaBytes = 64 });
+        await host.Records.CreateDraftAsync(AssetClass("1.0.0"), "create");
+
+        await Assert.ThrowsAnyAsync<Exception>(() => host.Records.PublishAsync(Tenant, "eam.asset-class", "1.0.0", 1, "publish").AsTask());
+
+        Assert.Null(await host.Records.GetPublishedHeadAsync(Tenant, "eam.asset-class"));
+        Assert.Equal([DefinitionStatus.Draft],
+            (await host.Catalogue.ListHistoryAsync(RecordTypeDefinitionStore.KeyOf(Tenant, "eam.asset-class"))).Select(revision => revision.Status));
+        Assert.Empty(await Registered(host.Registry));
+    }
+
+    internal static TestHost Host(SchemaRegistryOptions? registryOptions = null)
     {
         var kinds = new FieldKindRuntime(new FieldKindRegistry([
             new("count", "1.0.0", null, FieldScalarValueShape.Integer),
@@ -536,7 +560,7 @@ public sealed class RecordTypeDefinitionStoreTests
         ]));
         var validator = new RecordsIntentValidator(new LocatableTraitSource());
         var compiler = new RecordTypeSchemaCompiler(validator, kinds, new SharedValueDomainAdmission());
-        var registry = new InMemorySchemaRegistry(fieldKindRuntime: kinds);
+        var registry = new InMemorySchemaRegistry(registryOptions, fieldKindRuntime: kinds);
         var catalogue = new InMemoryVersionedDefinitionStore(new Dictionary<DefinitionKind, DefinitionAdmission>
         {
             [DefinitionKind.Records] = RecordTypeDefinitionStore.Admission(Window, validator),
