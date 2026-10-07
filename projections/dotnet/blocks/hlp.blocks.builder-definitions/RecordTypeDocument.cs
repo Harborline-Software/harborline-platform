@@ -66,8 +66,54 @@ public static class RecordTypeDefinitionJson
     /// <summary>Serializes a Record Type definition to canonical UTF-8 JSON with a trailing newline.</summary>
     public static byte[] SerializeCanonical(RecordTypeDocument document) => RecordsJson.SerializeCanonical(document);
 
-    /// <summary>Deserializes a Record Type definition. An unknown member or a null payload is a <see cref="JsonException"/>.</summary>
+    /// <summary>
+    /// Deserializes a Record Type definition. An unknown member, a null payload or an explicit null for a non-nullable
+    /// member is a <see cref="JsonException"/>; an absent required member is reported by <see cref="FirstMissing"/>.
+    /// </summary>
     public static RecordTypeDocument Deserialize(ReadOnlySpan<byte> json) => RecordsJson.Deserialize<RecordTypeDocument>(json);
+
+    /// <summary>
+    /// The RFC 6901 pointer of the first required member the JSON left absent, or of a null list element; null when
+    /// the document is whole. The serializer leaves an absent constructor member null rather than refusing it, because
+    /// optional members are omitted from the canonical form; this walk names the required ones, so admission refuses
+    /// a partial document instead of dereferencing it.
+    /// </summary>
+    public static string? FirstMissing(RecordTypeDocument document)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+        if (document.Envelope is null) return null;
+        if (document.Fields is null) return "/fields";
+        foreach (var (field, index) in document.Fields.Select((field, index) => (field, index)))
+        {
+            var pointer = $"/fields/{index}";
+            if (field is null) return pointer;
+            if (field.FieldKey is null) return pointer + "/field_key";
+            if (field.DisplayName is null) return pointer + "/display_name";
+            if (field.DefaultsProvenance is { KindId: null }) return pointer + "/defaults_provenance/kind_id";
+            if (field.DefaultsProvenance is { KindVersion: null }) return pointer + "/defaults_provenance/kind_version";
+            if (field.Binding is not { } binding) continue;
+            if (binding.Kind is null) return pointer + "/binding/kind";
+            if (binding.Kind.KindId is null) return pointer + "/binding/kind/kind_id";
+            if (binding.Kind.Version is null) return pointer + "/binding/kind/version";
+            if (binding.Kind.Parameters is null) return pointer + "/binding/kind/parameters";
+            if (binding.Constraints is null) return pointer + "/binding/constraints";
+            if (binding.Constraints.ReadRoleIds is null) return pointer + "/binding/constraints/read_role_ids";
+        }
+        foreach (var (trait, index) in (document.Traits ?? []).Select((trait, index) => (trait, index)))
+        {
+            var pointer = $"/traits/{index}";
+            if (trait is null) return pointer;
+            if (trait.TraitId is null) return pointer + "/trait_id";
+            if (trait.Version is null) return pointer + "/version";
+            foreach (var (binding, slot) in (trait.SlotBindings ?? []).Select((binding, slot) => (binding, slot)))
+            {
+                if (binding is null) return $"{pointer}/slot_bindings/{slot}";
+                if (binding.SlotKey is null) return $"{pointer}/slot_bindings/{slot}/slot_key";
+                if (binding.FieldKey is null) return $"{pointer}/slot_bindings/{slot}/field_key";
+            }
+        }
+        return null;
+    }
 }
 
 /// <summary>The canonical JSON form shared by the Records definition families.</summary>
@@ -99,6 +145,9 @@ internal static class RecordsJson
             PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
             UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
+            // An explicit null for a non-nullable member is malformed. Absent members are named by FirstMissing,
+            // since the canonical form omits optional ones and required-parameter enforcement would refuse those too.
+            RespectNullableAnnotations = true,
         };
         options.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.SnakeCaseLower, allowIntegerValues: false));
         return options;
