@@ -284,11 +284,21 @@ public sealed class RecordsIntentValidator
                 refusals.Add(new("records.reference.cardinality_required", pointer + "/cardinality",
                     "A reference declares whether it names one record or many."));
             }
+            else if (!Enum.IsDefined(reference.Cardinality.Value))
+            {
+                refusals.Add(new("records.reference.cardinality_invalid", pointer + "/cardinality",
+                    "A reference cardinality is one or many."));
+            }
 
             if (reference.OnDelete is null)
             {
                 refusals.Add(new("records.reference.on_delete_required", pointer + "/on_delete",
                     "A reference declares block, orphan or cascade."));
+            }
+            else if (!Enum.IsDefined(reference.OnDelete.Value))
+            {
+                refusals.Add(new("records.reference.on_delete_invalid", pointer + "/on_delete",
+                    "A reference delete behaviour is block, orphan or cascade."));
             }
 
             if (reference.RequiredTraitId is { } trait && string.IsNullOrWhiteSpace(trait))

@@ -150,6 +150,8 @@ public sealed class RecordTypeDefinitionStore
     /// <paramref name="expectedRevision"/> refuses before registration; one that goes stale between that check and
     /// the store's own fence is still refused by the store, leaving at most an unreferenced registered schema. The
     /// store commits only at <paramref name="expectedRevision"/>, so the published body is the one compiled.
+    /// Referenced published heads are fenced atomically at that commit. A head that changes after schema
+    /// registration refuses publication and may leave an unreferenced content-addressed schema.
     /// </summary>
     public async ValueTask<RecordTypePublication> PublishAsync(string tenant, string recordTypeId, string version,
         long expectedRevision, string requestId, CancellationToken cancellationToken = default)
@@ -163,7 +165,8 @@ public sealed class RecordTypeDefinitionStore
         // The registered validator cannot see other definitions, so this boundary resolves the type's catalogue
         // edges before the store publishes: its home (records-ck-18) and every reference target (records-ck-10).
         var document = RecordTypeDefinitionJson.Deserialize(Encoding.UTF8.GetBytes(source.Document.BodyJson));
-        var unresolved = await ResolveCatalogueEdgesAsync(tenant, document, cancellationToken).ConfigureAwait(false);
+        var conditions = new List<DefinitionPublishedHeadCondition>();
+        var unresolved = await ResolveCatalogueEdgesAsync(tenant, document, cancellationToken, conditions).ConfigureAwait(false);
         if (unresolved.Count > 0)
             throw new DefinitionRefusalException(DefinitionAdmissionPhase.Publish, unresolved);
         // A published source is a replay, which the store answers from its record at any revision.
@@ -171,9 +174,17 @@ public sealed class RecordTypeDefinitionStore
             throw new DefinitionRefusalException(DefinitionAdmissionPhase.Publish, [new("definition.revision_conflict", "/expectedRevision")]);
         var schema = await _registry.RegisterAsync(admitted.JsonSchemaText, cancellationToken: cancellationToken)
             .ConfigureAwait(false);
-        var published = await _store.PublishAsync(key, version, expectedRevision, requestId, cancellationToken)
-            .ConfigureAwait(false);
-        return new(published, schema);
+        try
+        {
+            var published = await _store.PublishAsync(key, version, expectedRevision, requestId, conditions, cancellationToken)
+                .ConfigureAwait(false);
+            return new(published, schema);
+        }
+        catch (DefinitionRefusalException refused) when (refused.Refusals.Any(item => item.Code == "definition.published_head_conflict"))
+        {
+            throw new DefinitionRefusalException(DefinitionAdmissionPhase.Publish, refused.Refusals.Select(item =>
+                item.Code == "definition.published_head_conflict" ? new DefinitionRefusal("records.reference.pin_stale", item.Pointer) : item).ToArray());
+        }
     }
 
     /// <summary>
@@ -218,7 +229,7 @@ public sealed class RecordTypeDefinitionStore
     }
 
     private async ValueTask<List<DefinitionRefusal>> ResolveCatalogueEdgesAsync(string tenant, RecordTypeDocument document,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken, List<DefinitionPublishedHeadCondition>? conditions = null)
     {
         var refusals = new List<DefinitionRefusal>();
         if (document.ClassId is { } classId
@@ -236,6 +247,9 @@ public sealed class RecordTypeDefinitionStore
                     pointer + (string.IsNullOrWhiteSpace(reference.TargetClassId) ? "/target_type_id" : "/target_class_id")));
                 continue;
             }
+
+            if (target.Revision is { } observed)
+                conditions?.Add(new(observed.Document.Key, observed.Revision, pointer));
 
             // A required trait is checked against a target type; Class membership is derived (ADR-0054), so a Class
             // target's trait is checked per record at write time.

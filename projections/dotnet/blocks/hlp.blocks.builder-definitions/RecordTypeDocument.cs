@@ -186,8 +186,35 @@ internal static class RecordsJson
             // since the canonical form omits optional ones and required-parameter enforcement would refuse those too.
             RespectNullableAnnotations = true,
         };
+        options.Converters.Add(new RecordClassJsonConverter());
         options.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.SnakeCaseLower, allowIntegerValues: false));
         return options;
+    }
+
+    // Record class has an exact lowercase grammar; the general enum converter accepts case variants.
+    private sealed class RecordClassJsonConverter : JsonConverter<RecordClass>
+    {
+        public override RecordClass Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            if (reader.TokenType != JsonTokenType.String)
+                throw new JsonException("A record class must be a lowercase named value.");
+            return reader.GetString() switch
+            {
+                "reference" => RecordClass.Reference,
+                "master" => RecordClass.Master,
+                "transactional" => RecordClass.Transactional,
+                _ => throw new JsonException("Unknown record class."),
+            };
+        }
+
+        public override void Write(Utf8JsonWriter writer, RecordClass value, JsonSerializerOptions options)
+            => writer.WriteStringValue(value switch
+            {
+                RecordClass.Reference => "reference",
+                RecordClass.Master => "master",
+                RecordClass.Transactional => "transactional",
+                _ => throw new JsonException("Unknown record class."),
+            });
     }
 
     private static JsonNode Canonicalize(JsonNode node) => node switch

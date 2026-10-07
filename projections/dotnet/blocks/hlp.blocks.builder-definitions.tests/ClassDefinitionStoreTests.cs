@@ -149,6 +149,33 @@ public sealed class ClassDefinitionStoreTests
     }
 
     [Theory]
+    [Trait("Holds", "records-ck-17")]
+    [InlineData("REFERENCE")]
+    [InlineData("Reference")]
+    [InlineData("MASTER")]
+    [InlineData("Master")]
+    [InlineData("TRANSACTIONAL")]
+    [InlineData("Transactional")]
+    [InlineData(" master ")]
+    [InlineData("reference, master")]
+    public async Task only_exact_lowercase_record_classes_pass_json_and_raw_store_admission(string wire)
+    {
+        // DES-0015 records-ck-17 names exactly reference, master and transactional.
+        var body = AssetClassJson.Replace("\"record_class\":\"master\"", $"\"record_class\":\"{wire}\"", StringComparison.Ordinal);
+        Assert.Throws<System.Text.Json.JsonException>(
+            () => RecordTypeDefinitionJson.Deserialize(Encoding.UTF8.GetBytes(body)));
+
+        var host = Host();
+        await host.Records.CreateDraftAsync(AssetClass("1.0.0"), "create");
+        var key = RecordTypeDefinitionStore.KeyOf(Tenant, "eam.asset-class");
+        var refused = await Assert.ThrowsAsync<DefinitionRefusalException>(() => host.Catalogue.SaveDraftAsync(
+            new(key, "1.0.0", "1.0.0", body), 1, "raw").AsTask());
+
+        Assert.Equal([("records.document_invalid", "")], Pairs(refused));
+        Assert.Single(await host.Catalogue.ListHistoryAsync(key));
+    }
+
+    [Theory]
     [Trait("Holds", "records-auth-2")]
     [InlineData("""{"envelope":{"contract":{"major":1,"minor":0},"section":"eam","tenant":"tenant-a"},"name":"Equipment","class_id":"eam.equipment","tag":"x"}""", "records.document_invalid", "")]
     [InlineData("""{"envelope":{"contract":{"major":1,"minor":0},"section":"eam","tenant":"tenant-a"},"name":"Equipment","class_id":""}""", "records.identity.class_id_required", "/class_id")]

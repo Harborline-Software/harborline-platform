@@ -74,6 +74,28 @@ public sealed class InMemoryVersionedDefinitionStore : IVersionedDefinitionStore
     }
 
     /// <inheritdoc />
+    public ValueTask<DefinitionRevision> PublishAsync(DefinitionKey key, string versionId, long expectedRevision,
+        string requestId, IReadOnlyList<DefinitionPublishedHeadCondition> conditions,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(conditions);
+        Require(versionId, "definition.version_id_required", "/versionId", DefinitionAdmissionPhase.Publish);
+        if (conditions.Count == 0) return PublishAsync(key, versionId, expectedRevision, requestId, cancellationToken);
+        var snapshot = conditions.OrderBy(condition => condition.Key.Tenant, StringComparer.Ordinal)
+            .ThenBy(condition => condition.Key.Kind).ThenBy(condition => condition.Key.DefinitionId, StringComparer.Ordinal)
+            .ThenBy(condition => condition.Pointer, StringComparer.Ordinal).ThenBy(condition => condition.Revision).ToArray();
+        foreach (var condition in snapshot)
+        {
+            ValidateKey(condition.Key, DefinitionAdmissionPhase.Publish);
+            if (condition.Revision <= 0)
+                throw Refuse("definition.published_head_conflict", condition.Pointer, DefinitionAdmissionPhase.Publish);
+        }
+        return Apply(key, expectedRevision, requestId, Signature("publish", new { versionId, conditions = snapshot }),
+            DefinitionAdmissionPhase.Publish, () => Find(key, versionId, DefinitionAdmissionPhase.Publish),
+            cancellationToken, snapshot);
+    }
+
+    /// <inheritdoc />
     public ValueTask<DefinitionRevision> RestoreAsDraftAsync(DefinitionKey key, string sourceVersionId,
         string draftVersionId, string draftVersion, long expectedRevision, string requestId,
         CancellationToken cancellationToken = default)
@@ -139,7 +161,7 @@ public sealed class InMemoryVersionedDefinitionStore : IVersionedDefinitionStore
 
     private ValueTask<DefinitionRevision> Apply(DefinitionKey key, long expectedRevision, string requestId,
         string signature, DefinitionAdmissionPhase phase, Func<DefinitionRevision> prepare,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken, IReadOnlyList<DefinitionPublishedHeadCondition>? conditions = null)
     {
         cancellationToken.ThrowIfCancellationRequested();
         ValidateKey(key, phase);
@@ -161,6 +183,15 @@ public sealed class InMemoryVersionedDefinitionStore : IVersionedDefinitionStore
         {
             var replay = ReplayOrFence(key, expectedRevision, requestId, signature, phase);
             if (replay is not null) return ValueTask.FromResult(replay);
+            if (conditions is not null)
+            {
+                var changed = conditions.Where(condition => _revisions.Values
+                    .Where(item => item.Document.Key == condition.Key && item.Status == DefinitionStatus.Published)
+                    .OrderByDescending(item => DefinitionSemanticVersion.Parse(item.Document.Version))
+                    .FirstOrDefault()?.Revision != condition.Revision)
+                    .Select(condition => new DefinitionRefusal("definition.published_head_conflict", condition.Pointer)).ToArray();
+                if (changed.Length > 0) throw new DefinitionRefusalException(phase, changed);
+            }
             if (phase == DefinitionAdmissionPhase.Publish)
             {
                 var version = DefinitionSemanticVersion.Parse(candidate.Document.Version);

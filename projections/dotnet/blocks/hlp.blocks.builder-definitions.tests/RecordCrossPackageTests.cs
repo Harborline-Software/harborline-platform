@@ -187,6 +187,100 @@ public sealed class RecordCrossPackageTests
     private static FieldDefinition ToMeter => new("meter", "Meter",
         Reference: new("eam.meter", null, ReferenceCardinality.One, ReferenceDeleteBehavior.Block));
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    [Trait("Holds", "records-ck-41")]
+    public async Task target_changes_between_edge_admission_and_commit_are_fenced(bool publishTarget)
+    {
+        var (host, _) = await WithExposedMeter();
+        var pinned = await host.Records.PinReferencesAsync(Tenant, await Consumer(host, "eam-core@1"));
+        await host.Records.SaveDraftAsync("fleet-ops.work-order", pinned, "1.0.0", 1, "pin");
+        var target = (await host.Records.GetPublishedHeadAsync(Tenant, "eam.meter"))!;
+        var intervening = new InterveningStore(host.Catalogue, async () =>
+        {
+            await host.Records.SaveDraftAsync("eam.meter", target with { Name = "Updated meter" }, "1.1.0", 2, "next-target");
+            if (publishTarget) await host.Records.PublishAsync(Tenant, "eam.meter", "1.1.0", 3, "publish-next-target");
+        });
+        var records = new RecordTypeDefinitionStore(intervening, host.Compiler, host.Defaults, host.Registry, Window);
+        if (publishTarget)
+        {
+            var refusal = await Assert.ThrowsAsync<DefinitionRefusalException>(() =>
+                records.PublishAsync(Tenant, "fleet-ops.work-order", "1.0.0", 2, "publish-consumer").AsTask());
+            Assert.Equal(DefinitionAdmissionPhase.Publish, refusal.Stage);
+            Assert.Equal([("records.reference.pin_stale", "/fields/0/reference")],
+                refusal.Refusals.Select(item => (item.Code, item.Pointer)).ToArray());
+            Assert.Null(await host.Catalogue.GetPublishedHeadAsync(RecordTypeDefinitionStore.KeyOf(Tenant, "fleet-ops.work-order")));
+            Assert.Equal(2, (await host.Catalogue.ListHistoryAsync(RecordTypeDefinitionStore.KeyOf(Tenant, "fleet-ops.work-order"))).Count);
+        }
+        else
+            Assert.Equal(DefinitionStatus.Published,
+                (await records.PublishAsync(Tenant, "fleet-ops.work-order", "1.0.0", 2, "publish-consumer")).Revision.Status);
+        Assert.True(intervening.Called);
+    }
+
+    private sealed class InterveningStore(IVersionedDefinitionStore inner, Func<Task> intervene) : IVersionedDefinitionStore
+    {
+        public bool Called;
+        public ValueTask<IReadOnlyList<DefinitionKey>> ListKeysAsync(string tenant, DefinitionKind kind, CancellationToken cancellationToken = default)
+            => inner.ListKeysAsync(tenant, kind, cancellationToken);
+        public ValueTask<DefinitionRevision> SaveDraftAsync(DefinitionDocument document, long expectedRevision, string requestId, CancellationToken cancellationToken = default)
+            => inner.SaveDraftAsync(document, expectedRevision, requestId, cancellationToken);
+        public ValueTask<DefinitionRevision> PublishAsync(DefinitionKey key, string versionId, long expectedRevision, string requestId, CancellationToken cancellationToken = default)
+            => inner.PublishAsync(key, versionId, expectedRevision, requestId, cancellationToken);
+        public async ValueTask<DefinitionRevision> PublishAsync(DefinitionKey key, string versionId, long expectedRevision, string requestId,
+            IReadOnlyList<DefinitionPublishedHeadCondition> conditions, CancellationToken cancellationToken = default)
+        {
+            Assert.Equal(2, Assert.Single(conditions).Revision);
+            Called = true;
+            await intervene();
+            return await inner.PublishAsync(key, versionId, expectedRevision, requestId, conditions, cancellationToken);
+        }
+        public ValueTask<DefinitionRevision> RestoreAsDraftAsync(DefinitionKey key, string sourceVersionId, string draftVersionId, string draftVersion,
+            long expectedRevision, string requestId, CancellationToken cancellationToken = default)
+            => inner.RestoreAsDraftAsync(key, sourceVersionId, draftVersionId, draftVersion, expectedRevision, requestId, cancellationToken);
+        public ValueTask<IReadOnlyList<DefinitionRevision>> ListHistoryAsync(DefinitionKey key, CancellationToken cancellationToken = default)
+            => inner.ListHistoryAsync(key, cancellationToken);
+        public ValueTask<DefinitionRevision?> GetPublishedHeadAsync(DefinitionKey key, CancellationToken cancellationToken = default)
+            => inner.GetPublishedHeadAsync(key, cancellationToken);
+        public ValueTask<DefinitionRevision?> ResolvePublishedAsync(DefinitionBinding binding, CancellationToken cancellationToken = default)
+            => inner.ResolvePublishedAsync(binding, cancellationToken);
+    }
+
+    [Fact]
+    public async Task AStoreWithoutAtomicPublicationSupportRefusesTheReferencePublication()
+    {
+        var (host, _) = await WithExposedMeter();
+        var pinned = await host.Records.PinReferencesAsync(Tenant, await Consumer(host, "eam-core@1"));
+        await host.Records.SaveDraftAsync("fleet-ops.work-order", pinned, "1.0.0", 1, "pin");
+        var records = new RecordTypeDefinitionStore(new LegacyStore(host.Catalogue), host.Compiler, host.Defaults, host.Registry, Window);
+        var refused = await Assert.ThrowsAsync<DefinitionRefusalException>(() =>
+            records.PublishAsync(Tenant, "fleet-ops.work-order", "1.0.0", 2, "publish").AsTask());
+        Assert.Equal(DefinitionAdmissionPhase.Publish, refused.Stage);
+        Assert.Equal([("definition.atomic_publish_unsupported", "/conditions")],
+            refused.Refusals.Select(item => (item.Code, item.Pointer)).ToArray());
+        Assert.Null(await host.Catalogue.GetPublishedHeadAsync(RecordTypeDefinitionStore.KeyOf(Tenant, "fleet-ops.work-order")));
+    }
+
+    private sealed class LegacyStore(IVersionedDefinitionStore inner) : IVersionedDefinitionStore
+    {
+        public ValueTask<IReadOnlyList<DefinitionKey>> ListKeysAsync(string tenant, DefinitionKind kind, CancellationToken cancellationToken = default)
+            => inner.ListKeysAsync(tenant, kind, cancellationToken);
+        public ValueTask<DefinitionRevision> SaveDraftAsync(DefinitionDocument document, long expectedRevision, string requestId, CancellationToken cancellationToken = default)
+            => inner.SaveDraftAsync(document, expectedRevision, requestId, cancellationToken);
+        public ValueTask<DefinitionRevision> PublishAsync(DefinitionKey key, string versionId, long expectedRevision, string requestId, CancellationToken cancellationToken = default)
+            => inner.PublishAsync(key, versionId, expectedRevision, requestId, cancellationToken);
+        public ValueTask<DefinitionRevision> RestoreAsDraftAsync(DefinitionKey key, string sourceVersionId, string draftVersionId, string draftVersion,
+            long expectedRevision, string requestId, CancellationToken cancellationToken = default)
+            => inner.RestoreAsDraftAsync(key, sourceVersionId, draftVersionId, draftVersion, expectedRevision, requestId, cancellationToken);
+        public ValueTask<IReadOnlyList<DefinitionRevision>> ListHistoryAsync(DefinitionKey key, CancellationToken cancellationToken = default)
+            => inner.ListHistoryAsync(key, cancellationToken);
+        public ValueTask<DefinitionRevision?> GetPublishedHeadAsync(DefinitionKey key, CancellationToken cancellationToken = default)
+            => inner.GetPublishedHeadAsync(key, cancellationToken);
+        public ValueTask<DefinitionRevision?> ResolvePublishedAsync(DefinitionBinding binding, CancellationToken cancellationToken = default)
+            => inner.ResolvePublishedAsync(binding, cancellationToken);
+    }
+
     private static async Task<(TestHost Host, DefinitionRevision Meter)> WithExposedMeter()
     {
         var host = Host();

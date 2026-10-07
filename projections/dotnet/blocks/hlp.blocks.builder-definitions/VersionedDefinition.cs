@@ -13,6 +13,9 @@ public sealed record DefinitionDocument(DefinitionKey Key, string VersionId, str
 /// <summary>A consumer pin. Both the definition identity and immutable version identity are required.</summary>
 public sealed record DefinitionBinding(DefinitionKey Key, string VersionId);
 
+/// <summary>An observed immutable published head and the caller's diagnostic pointer.</summary>
+public sealed record DefinitionPublishedHeadCondition(DefinitionKey Key, long Revision, string Pointer);
+
 /// <summary>The state recorded by an append-only lifecycle event.</summary>
 public enum DefinitionStatus
 {
@@ -56,6 +59,22 @@ public interface IVersionedDefinitionStore
     /// <summary>Re-admits and immutably publishes an existing draft.</summary>
     ValueTask<DefinitionRevision> PublishAsync(DefinitionKey key, string versionId, long expectedRevision,
         string requestId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Publishes only if every observed published head still matches, atomically with the source fence
+    /// and commit. Conditions are part of replay identity. Exact replays return before current-head checks.
+    /// Implementations without atomic support refuse nonempty conditions; checking then publishing is unsafe.
+    /// </summary>
+    ValueTask<DefinitionRevision> PublishAsync(DefinitionKey key, string versionId, long expectedRevision,
+        string requestId, IReadOnlyList<DefinitionPublishedHeadCondition> conditions,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(conditions);
+        if (conditions.Count != 0)
+            throw new DefinitionRefusalException(DefinitionAdmissionPhase.Publish,
+                [new("definition.atomic_publish_unsupported", "/conditions")]);
+        return PublishAsync(key, versionId, expectedRevision, requestId, cancellationToken);
+    }
 
     /// <summary>Copies a published body into a new draft identity and semantic version.</summary>
     ValueTask<DefinitionRevision> RestoreAsDraftAsync(DefinitionKey key, string sourceVersionId,
