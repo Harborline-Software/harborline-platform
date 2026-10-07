@@ -103,6 +103,15 @@ public sealed record PlatformPackageItem
 /// <param name="Version">The pinned version; a dependency satisfies it at this version or newer.</param>
 public sealed record PlatformPackageDependency(string Key, string Version);
 
+/// <summary>
+/// The definitions a package lets other packages reference, at the package's one interface version (ADR-0028; T-396's
+/// signed <c>Exposes</c> list). It is derived at release from the definitions that declare themselves exposed, never
+/// authored a second time.
+/// </summary>
+/// <param name="InterfaceVersion">The package interface version a consumer's <c>pack-key@N</c> requirement names.</param>
+/// <param name="Definitions">The exposed definition keys.</param>
+public sealed record PlatformPackageExposure(int InterfaceVersion, IReadOnlyList<string> Definitions);
+
 /// <summary>A versioned, ordered platform package manifest.</summary>
 public sealed record PlatformPackageManifest
 {
@@ -118,6 +127,16 @@ public sealed record PlatformPackageManifest
     /// </summary>
     public PlatformPackageManifest(int schemaVersion, string packageKey, string revision, IEnumerable<PlatformPackageItem> items,
         IEnumerable<PlatformPackageDependency> dependencies)
+        : this(schemaVersion, packageKey, revision, items, dependencies, exposure: null)
+    {
+    }
+
+    /// <summary>
+    /// Creates a manifest with its closure and, when the package exposes definitions to other packages, its exposure:
+    /// a positive interface version and distinct, non-blank definition keys, held in ordinal order.
+    /// </summary>
+    public PlatformPackageManifest(int schemaVersion, string packageKey, string revision, IEnumerable<PlatformPackageItem> items,
+        IEnumerable<PlatformPackageDependency> dependencies, PlatformPackageExposure? exposure)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(schemaVersion, 1);
         if (string.IsNullOrWhiteSpace(packageKey)) throw new ArgumentException("platform-package-key-required", nameof(packageKey));
@@ -138,6 +157,16 @@ public sealed record PlatformPackageManifest
             if (!keys.Add(dependency.Key)) throw new ArgumentException("platform-package-dependency-duplicate", nameof(dependencies));
         }
         Dependencies = Array.AsReadOnly(closure);
+        if (exposure is not null)
+        {
+            ArgumentOutOfRangeException.ThrowIfLessThan(exposure.InterfaceVersion, 1, nameof(exposure));
+            ArgumentNullException.ThrowIfNull(exposure.Definitions, nameof(exposure));
+            var exposed = exposure.Definitions.Order(StringComparer.Ordinal).ToArray();
+            if (exposed.Length == 0 || exposed.Any(string.IsNullOrWhiteSpace)
+                || exposed.Distinct(StringComparer.Ordinal).Count() != exposed.Length)
+                throw new ArgumentException("platform-package-exposure-malformed", nameof(exposure));
+            Exposure = exposure with { Definitions = Array.AsReadOnly(exposed) };
+        }
     }
 
     /// <summary>The manifest wire-schema version.</summary>
@@ -150,6 +179,8 @@ public sealed record PlatformPackageManifest
     public IReadOnlyList<PlatformPackageItem> Items { get; }
     /// <summary>The package closure: the packages this one depends on, in ordinal key order.</summary>
     public IReadOnlyList<PlatformPackageDependency> Dependencies { get; }
+    /// <summary>The definitions other packages may reference, or null when the package exposes none.</summary>
+    public PlatformPackageExposure? Exposure { get; }
 }
 
 /// <summary>Exports the public manifest with stable property and item ordering.</summary>
@@ -188,6 +219,15 @@ public static class PlatformPackageExporter
             }
             writer.WriteEndArray();
             writer.WriteEndObject();
+            // Written only for a package that exposes definitions, so a package exposing none exports the bytes it
+            // always did. The names match the api manifest's Exposes and InterfaceVersion (T-396).
+            if (manifest.Exposure is { } exposure)
+            {
+                writer.WriteStartArray("exposes");
+                foreach (var definition in exposure.Definitions) writer.WriteStringValue(definition);
+                writer.WriteEndArray();
+                writer.WriteNumber("interfaceVersion", exposure.InterfaceVersion);
+            }
             writer.WriteStartArray("items");
             foreach (var item in manifest.Items)
             {

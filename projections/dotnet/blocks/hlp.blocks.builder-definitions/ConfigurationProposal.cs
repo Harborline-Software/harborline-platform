@@ -238,9 +238,13 @@ public static class ConfigurationProposal
             .ToDictionary(reference => reference.GetProperty("key").GetString()!, reference => reference.GetProperty("revision").GetString()!, StringComparer.Ordinal);
         var owners = references.GetProperty("ownership").EnumerateArray().ToDictionary(
             owner => owner.GetProperty("definitionKey").GetString()!, owner => owner.GetProperty("packageKey").GetString()!, StringComparer.Ordinal);
+        // An edited definition's own envelope can also name packages: each ADR-0006 requires entry spelled
+        // pack-key@interfaceVersion is a package its cross-package references depend on (records-ck-41).
+        var declarations = version.Edits.Select(edit => (edit, Declared: DeclaredPackages(edit.BodyJson))).ToArray();
         var dependencies = new List<PlatformPackageDependency>();
-        foreach (var referenced in version.Edits
-            .SelectMany(edit => owners.TryGetValue(edit.DefinitionKey, out var owner) ? [owner, edit.PackageKey] : new[] { edit.PackageKey })
+        foreach (var referenced in declarations
+            .SelectMany(declared => (owners.TryGetValue(declared.edit.DefinitionKey, out var owner) ? [owner, declared.edit.PackageKey] : new[] { declared.edit.PackageKey })
+                .Concat(declared.Declared.Requires))
             .Where(key => key != packageKey).Distinct(StringComparer.Ordinal))
         {
             if (!pinned.TryGetValue(referenced, out var pin))
@@ -248,7 +252,16 @@ public static class ConfigurationProposal
                     $"The saved version references package {referenced}, which the baseline generation does not resolve, so it has no pinned version.");
             dependencies.Add(new(referenced, pin));
         }
-        var manifest = new PlatformPackageManifest(1, packageKey, revision, items.Prepend(record), dependencies);
+        // The exposure is derived from the edited definitions that declare themselves exposed (ADR-0028), at the package's
+        // one interface version; definitions that disagree on it have no single version a consumer could require.
+        var exposed = declarations.Where(declared => declared.Declared.InterfaceVersion is not null).ToArray();
+        var interfaces = exposed.Select(declared => declared.Declared.InterfaceVersion!.Value).Distinct().ToArray();
+        if (interfaces.Length > 1)
+            return Refuse("configuration-release-interface-ambiguous", "exposes",
+                $"The saved version exposes definitions at interface versions {string.Join(", ", interfaces.Order())}; a package has one interface version.");
+        var exposure = interfaces.Length == 0 ? null
+            : new PlatformPackageExposure(interfaces[0], exposed.Select(declared => declared.edit.DefinitionKey).ToArray());
+        var manifest = new PlatformPackageManifest(1, packageKey, revision, items.Prepend(record), dependencies, exposure);
         var validation = PlatformPackageReplayer.Validate(manifest);
         if (!validation.Succeeded)
             return Refuse(validation.RefusalCode!, validation.ItemId ?? "savedVersion",
@@ -256,6 +269,27 @@ public static class ConfigurationProposal
         var document = PlatformPackageExporter.Export(manifest);
         return new(new ReleasedPackage(state.ProposalId, state.BaselineDigest, version.Digest, packageKey,
             revision, document, Convert.ToHexStringLower(SHA256.HashData(document))), null);
+    }
+
+    // Reads only the envelope members every kind spells the same way: requires entries (ADR-0006, the api installer's
+    // pack-key@interfaceVersion capability) and the exposure declaration's interface version. Anything else, including a
+    // requires entry naming a platform capability rather than a package, is not a package declaration.
+    private static (string[] Requires, int? InterfaceVersion) DeclaredPackages(string bodyJson)
+    {
+        using var body = JsonDocument.Parse(bodyJson);
+        if (body.RootElement.ValueKind != JsonValueKind.Object
+            || !body.RootElement.TryGetProperty("envelope", out var envelope) || envelope.ValueKind != JsonValueKind.Object)
+            return ([], null);
+        var requires = envelope.TryGetProperty("requires", out var entries) && entries.ValueKind == JsonValueKind.Array
+            ? entries.EnumerateArray()
+                .Select(entry => entry.ValueKind == JsonValueKind.Object && entry.TryGetProperty("capability", out var capability)
+                    && capability.ValueKind == JsonValueKind.String
+                    && RecordsRequirement.TryParse(capability.GetString(), out var package, out _) ? package : null)
+                .OfType<string>().ToArray()
+            : [];
+        int? interfaceVersion = envelope.TryGetProperty("exposes", out var exposes) && exposes.ValueKind == JsonValueKind.Object
+            && exposes.TryGetProperty("interface_version", out var declared) && declared.TryGetInt32(out var parsed) ? parsed : null;
+        return (requires, interfaceVersion);
     }
 
     private static string Digest(string proposalId, string tenantKey, string baselineDigest,
