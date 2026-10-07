@@ -7,16 +7,88 @@ namespace Harborline.Kernel.SchemaValidation.Records;
 /// <param name="RecordTypeId">The stable identity that scopes every field key.</param>
 /// <param name="Fields">The fields owned by this Record Type.</param>
 /// <param name="Traits">The exact Trait revisions and their slot-to-field bindings.</param>
+/// <param name="RetentionClockFieldId">
+/// The field whose date starts the type's retention clock (records-ck-2 <c>retention_clock_field_id</c>), named
+/// by its <c>field_key</c> since a field's identity is scoped by this type. The type still owns the retention
+/// policy; the field only supplies the clock (records-ck-21, ADR 0095 ruling 3).
+/// </param>
 public sealed record RecordTypeDefinition(
     string RecordTypeId,
     IReadOnlyList<FieldDefinition> Fields,
-    IReadOnlyList<TraitReference>? Traits = null);
+    IReadOnlyList<TraitReference>? Traits = null,
+    string? RetentionClockFieldId = null);
 
 /// <summary>An authored Record Type field whose stable identity is its containing type and key.</summary>
 /// <param name="FieldKey">The field's stable key within its record type.</param>
 /// <param name="DisplayName">The author-facing label; not an identity.</param>
 /// <param name="Binding">The field-runtime kind and constraint floor, including the one value domain.</param>
-public sealed record FieldDefinition(string FieldKey, string DisplayName, FieldBindingDefinition? Binding = null);
+/// <param name="Governance">
+/// The field's governance members (records-ck-13): created from its kind's defaults and editable afterwards.
+/// </param>
+/// <param name="DefaultsProvenance">
+/// The kind revision whose creation defaults were materialized into this field, once (records-ck-38). Absent
+/// until the field is first created through <see cref="RecordFieldDefaults"/>.
+/// </param>
+public sealed record FieldDefinition(
+    string FieldKey,
+    string DisplayName,
+    FieldBindingDefinition? Binding = null,
+    FieldGovernanceDefinition? Governance = null,
+    FieldKindDefaultProvenance? DefaultsProvenance = null);
+
+/// <summary>
+/// Materializes a field kind's creation defaults into each newly created bound field (DES-0015 records-ck-38,
+/// ADR 0095 ruling 3). A field is new until it carries <see cref="FieldDefinition.DefaultsProvenance"/>: this
+/// fills its absent governance from the bound kind's defaults and stamps that kind revision as provenance.
+/// A field that already carries provenance is left exactly as authored, so the defaults apply once and an
+/// edit survives every later save, including a change of kind, which the compile then re-binds.
+/// </summary>
+public sealed class RecordFieldDefaults
+{
+    private readonly IFieldKindRuntime _kinds;
+
+    /// <summary>Creates a materializer that reads defaults from the admitted field kinds.</summary>
+    public RecordFieldDefaults(IFieldKindRuntime kinds)
+    {
+        ArgumentNullException.ThrowIfNull(kinds);
+        _kinds = kinds;
+    }
+
+    /// <summary>
+    /// Returns the definition with defaults materialized into every new bound field. A field whose kind does
+    /// not resolve is left unchanged for the compile to refuse with its own pointer.
+    /// </summary>
+    public RecordTypeDefinition Materialize(RecordTypeDefinition definition)
+    {
+        ArgumentNullException.ThrowIfNull(definition);
+        var fields = (definition.Fields ?? []).Select((field, index) => Materialize(field, index)).ToArray();
+        return definition with { Fields = fields };
+    }
+
+    private FieldDefinition Materialize(FieldDefinition field, int index)
+    {
+        if (field.DefaultsProvenance is not null || field.Binding is null)
+        {
+            return field;
+        }
+
+        AdmittedFieldKind kind;
+        try
+        {
+            kind = _kinds.Bind(field.Binding.Kind, $"/fields/{index}/binding/kind").Kind;
+        }
+        catch (FieldAdmissionException)
+        {
+            return field;
+        }
+
+        return field with
+        {
+            Governance = field.Governance ?? kind.GovernanceDefaults,
+            DefaultsProvenance = new(kind.KindId, kind.Version),
+        };
+    }
+}
 
 /// <summary>A versioned Trait revision that declares the slots a member Record Type may bind.</summary>
 /// <param name="TraitId">The stable Trait identity.</param>
@@ -260,14 +332,24 @@ public sealed class RecordTypeSchemaCompiler
         // permits narrowing a slot floor but forbids widening its domain.
         await NarrowTraitBindingsAsync(candidate, fieldDomainScope, refusals, cancellationToken);
         var properties = new Dictionary<string, object>(StringComparer.Ordinal);
+        var boundKinds = new Dictionary<string, AdmittedFieldKind>(StringComparer.Ordinal);
         foreach (var (field, index) in (candidate.Fields ?? []).Select((field, index) => (field, index)))
         {
-            if (BindField(field.Binding, $"/fields/{index}/binding", refusals) is { } fieldSchema
-                && refusals.Count == 0)
+            if (BindField(field.Binding, $"/fields/{index}/binding", refusals) is { } compiled)
             {
-                properties.Add(field.FieldKey, fieldSchema);
+                boundKinds.TryAdd(field.FieldKey, compiled.Kind);
+                if (refusals.Count == 0)
+                {
+                    properties.Add(field.FieldKey, compiled.Schema);
+                }
+            }
+            else if (field.Binding is null && refusals.Count == 0)
+            {
+                properties.Add(field.FieldKey, new Dictionary<string, string> { ["type"] = "string" });
             }
         }
+
+        ValidateRetentionClock(candidate, boundKinds, refusals);
 
         if (refusals.Count != 0)
         {
@@ -345,13 +427,45 @@ public sealed class RecordTypeSchemaCompiler
         }
     }
 
+    // records-ck-38 / ADR 0095 ruling 3: the clock field must be this type's own and its bound kind revision must
+    // declare the retention_clock capability. Records checks the capability's presence only; the date/time
+    // meaning belongs to the kind's schema.
+    private static void ValidateRetentionClock(
+        RecordTypeDefinition candidate,
+        IReadOnlyDictionary<string, AdmittedFieldKind> boundKinds,
+        List<FieldRefusal> refusals)
+    {
+        if (candidate.RetentionClockFieldId is not { } clock)
+        {
+            return;
+        }
+
+        if (!(candidate.Fields ?? []).Any(field => string.Equals(field.FieldKey, clock, StringComparison.Ordinal)))
+        {
+            refusals.Add(new(
+                "records.retention.clock_field_unresolved",
+                "/retention_clock_field_id",
+                "The retention clock must name a field owned by this Record Type."));
+            return;
+        }
+
+        if (!boundKinds.TryGetValue(clock, out var kind)
+            || !(kind.Capabilities ?? []).Contains(FieldKindCapability.RetentionClock))
+        {
+            refusals.Add(new(
+                "records.retention.clock_capability_absent",
+                "/retention_clock_field_id",
+                "The retention clock field's bound kind revision does not declare the retention_clock capability."));
+        }
+    }
+
     // The kind's schema and the value domain's source count are the field runtime's rules;
-    // Records only routes each binding to them and keeps the authored pointer.
-    private object? BindField(FieldBindingDefinition? binding, string pointer, List<FieldRefusal> refusals)
+    // Records only routes each binding to them and keeps the authored pointer. An unbound field returns null.
+    private (object Schema, AdmittedFieldKind Kind)? BindField(FieldBindingDefinition? binding, string pointer, List<FieldRefusal> refusals)
     {
         if (binding is null)
         {
-            return new Dictionary<string, string> { ["type"] = "string" };
+            return null;
         }
 
         if (_fieldKindRuntime is null || _valueDomainAdmission is null)
@@ -370,7 +484,8 @@ public sealed class RecordTypeSchemaCompiler
 
         try
         {
-            return _fieldKindRuntime.Bind(binding.Kind, pointer + "/kind").JsonSchema;
+            var compiled = _fieldKindRuntime.Bind(binding.Kind, pointer + "/kind");
+            return (compiled.JsonSchema, compiled.Kind);
         }
         catch (FieldAdmissionException exception)
         {

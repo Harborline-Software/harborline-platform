@@ -20,9 +20,10 @@ public sealed class RecordTypeDefinitionStoreTests
     private static readonly DefinitionContractWindow Window = new(1, 0, 1);
     private static readonly DefinitionContractVersion Contract = new(1, 0);
 
-    // The canonical body of the asset-class fixture, as the store holds it and the fixture file carries it.
+    // The canonical body of the asset-class fixture, as the store holds it and the fixture file carries it: the
+    // created bound fields carry their kind's governance defaults and that kind revision as provenance.
     private const string AssetClassJson =
-        """{"envelope":{"contract":{"major":1,"minor":0},"section":"eam","tenant":"tenant-a"},"fields":[{"binding":{"constraints":{"maximum_count":1,"minimum_count":0,"read_role_ids":[],"required":true},"kind":{"kind_id":"text","parameters":{},"version":"1.0.0"}},"display_name":"Asset tag","field_key":"asset_tag"},{"binding":{"constraints":{"maximum_count":1,"minimum_count":0,"read_role_ids":[],"required":false},"kind":{"kind_id":"count","parameters":{},"version":"1.0.0"}},"display_name":"Quantity","field_key":"quantity"},{"display_name":"Notes","field_key":"notes"}],"name":"Asset Class","record_type_id":"eam.asset-class"}""" + "\n";
+        """{"envelope":{"contract":{"major":1,"minor":0},"section":"eam","tenant":"tenant-a"},"fields":[{"binding":{"constraints":{"maximum_count":1,"minimum_count":0,"read_role_ids":[],"required":true},"kind":{"kind_id":"text","parameters":{},"version":"1.0.0"}},"defaults_provenance":{"kind_id":"text","kind_version":"1.0.0"},"display_name":"Asset tag","field_key":"asset_tag","governance":{"classification":"internal","confidential":false,"masked":true,"personal_data":true}},{"binding":{"constraints":{"maximum_count":1,"minimum_count":0,"read_role_ids":[],"required":false},"kind":{"kind_id":"count","parameters":{},"version":"1.0.0"}},"defaults_provenance":{"kind_id":"count","kind_version":"1.0.0"},"display_name":"Quantity","field_key":"quantity"},{"display_name":"Notes","field_key":"notes"}],"name":"Asset Class","record_type_id":"eam.asset-class"}""" + "\n";
 
     [Fact]
     [Trait("Holds", "records-ck-1")]
@@ -333,6 +334,7 @@ public sealed class RecordTypeDefinitionStoreTests
     [InlineData("""{"envelope":{"contract":{"major":1,"minor":0},"section":"eam","tenant":"tenant-a"},"name":"Asset Class","record_type_id":"eam.asset-class","fields":[{"field_key":"a","display_name":"A","binding":{"constraints":{"required":false,"minimum_count":0,"read_role_ids":[]}}}]}""", "records.document_invalid", "/fields/0/binding/kind")]
     [InlineData("""{"envelope":{"contract":{"major":1,"minor":0},"section":"eam","tenant":"tenant-a"},"name":"Asset Class","record_type_id":"eam.asset-class","fields":[{"field_key":"a","display_name":"A","binding":{"kind":{"kind_id":"text","version":"1.0.0","parameters":{}}}}]}""", "records.document_invalid", "/fields/0/binding/constraints")]
     [InlineData("""{"envelope":{"contract":{"major":1,"minor":0},"section":"eam","tenant":"tenant-a"},"name":"Asset Class","record_type_id":"eam.asset-class","fields":[],"traits":[null]}""", "records.document_invalid", "/traits/0")]
+    [InlineData("""{"envelope":{"contract":{"major":1,"minor":0},"section":"eam","tenant":"tenant-a"},"name":"Asset Class","record_type_id":"eam.asset-class","fields":[{"field_key":"a","display_name":"A","defaults_provenance":{"kind_id":"text"}}]}""", "records.document_invalid", "/fields/0/defaults_provenance/kind_version")]
     [InlineData("""{"envelope":{"contract":{"major":1,"minor":0},"section":"eam","tenant":"tenant-a"},"name":"Asset Class","record_type_id":"eam.asset-class","fields":[{"display_name":"A","field_key":"a"},{"display_name":"B","field_key":"a"}]}""", "records.identity.duplicate_field_key", "/fields/1/field_key")]
     public async Task the_registered_validator_refuses_a_malformed_body_before_any_write(string body, string code, string pointer)
     {
@@ -381,10 +383,11 @@ public sealed class RecordTypeDefinitionStoreTests
     {
         var host = Host();
         var compiler = host.Compiler;
-        Assert.Equal("store", Assert.Throws<ArgumentNullException>(() => new RecordTypeDefinitionStore(null!, compiler, host.Registry, Window)).ParamName);
-        Assert.Equal("compiler", Assert.Throws<ArgumentNullException>(() => new RecordTypeDefinitionStore(host.Catalogue, null!, host.Registry, Window)).ParamName);
-        Assert.Equal("registry", Assert.Throws<ArgumentNullException>(() => new RecordTypeDefinitionStore(host.Catalogue, compiler, null!, Window)).ParamName);
-        Assert.Equal("window", Assert.Throws<ArgumentNullException>(() => new RecordTypeDefinitionStore(host.Catalogue, compiler, host.Registry, null!)).ParamName);
+        Assert.Equal("store", Assert.Throws<ArgumentNullException>(() => new RecordTypeDefinitionStore(null!, compiler, Defaults, host.Registry, Window)).ParamName);
+        Assert.Equal("defaults", Assert.Throws<ArgumentNullException>(() => new RecordTypeDefinitionStore(host.Catalogue, compiler, null!, host.Registry, Window)).ParamName);
+        Assert.Equal("compiler", Assert.Throws<ArgumentNullException>(() => new RecordTypeDefinitionStore(host.Catalogue, null!, Defaults, host.Registry, Window)).ParamName);
+        Assert.Equal("registry", Assert.Throws<ArgumentNullException>(() => new RecordTypeDefinitionStore(host.Catalogue, compiler, Defaults, null!, Window)).ParamName);
+        Assert.Equal("window", Assert.Throws<ArgumentNullException>(() => new RecordTypeDefinitionStore(host.Catalogue, compiler, Defaults, host.Registry, null!)).ParamName);
         Assert.Equal("window", Assert.Throws<ArgumentNullException>(() => RecordTypeDefinitionStore.Admission(null!, compiler.IntentValidator)).ParamName);
         Assert.Equal("validator", Assert.Throws<ArgumentNullException>(() => RecordTypeDefinitionStore.Admission(Window, null!)).ParamName);
         Assert.Equal("published", Assert.Throws<ArgumentNullException>(() => RecordTypeDefinitionPackageExporter.Export(null!)).ParamName);
@@ -394,8 +397,136 @@ public sealed class RecordTypeDefinitionStoreTests
         Assert.Equal("entry", (await Assert.ThrowsAsync<ArgumentNullException>(() => host.Records.AdmitInstallAsync(Tenant, null!).AsTask())).ParamName);
     }
 
+    [Fact]
+    [Trait("Holds", "records-ck-38")]
+    public async Task creation_materializes_kind_defaults_once_with_provenance_and_keeps_an_authored_value()
+    {
+        var host = Host();
+        var authored = new FieldGovernanceDefinition(false, true, false, "restricted");
+        var request = AssetClass("1.0.0") with
+        {
+            Fields = [.. Document().Fields, new("serial", "Serial", Bound("text", required: false), authored)],
+        };
+
+        await host.Records.CreateDraftAsync(request, "create");
+
+        var fields = (await Draft(host, "1.0.0")).Fields;
+        Assert.Equal(new FieldGovernanceDefinition(true, false, true, "internal"), fields[0].Governance);
+        Assert.Equal(new FieldKindDefaultProvenance("text", "1.0.0"), fields[0].DefaultsProvenance);
+        Assert.Null(fields[1].Governance);
+        Assert.Equal(new FieldKindDefaultProvenance("count", "1.0.0"), fields[1].DefaultsProvenance);
+        Assert.Null(fields[2].Governance);
+        Assert.Null(fields[2].DefaultsProvenance);
+        Assert.Equal(authored, fields[3].Governance);
+        Assert.Equal(new FieldKindDefaultProvenance("text", "1.0.0"), fields[3].DefaultsProvenance);
+    }
+
+    [Fact]
+    [Trait("Holds", "records-auth-19")]
+    public async Task an_edited_or_cleared_default_survives_later_saves_and_a_kind_change_keeps_its_provenance()
+    {
+        var host = Host();
+        await host.Records.CreateDraftAsync(AssetClass("1.0.0"), "create");
+        var created = await Draft(host, "1.0.0");
+        var edited = created with
+        {
+            Fields =
+            [
+                created.Fields[0] with { Governance = new(false, false, false, null) },
+                created.Fields[1],
+                created.Fields[2],
+            ],
+        };
+        await host.Records.SaveDraftAsync("eam.asset-class", edited, "1.0.0", 1, "edit");
+        Assert.Equal(new FieldGovernanceDefinition(false, false, false, null), (await Draft(host, "1.0.0")).Fields[0].Governance);
+
+        var cleared = edited with { Fields = [edited.Fields[0] with { Governance = null }, edited.Fields[1], edited.Fields[2]] };
+        await host.Records.SaveDraftAsync("eam.asset-class", cleared, "1.0.0", 2, "clear");
+        Assert.Null((await Draft(host, "1.0.0")).Fields[0].Governance);
+
+        var rekinded = cleared with
+        {
+            Fields = [cleared.Fields[0] with { Binding = Bound("count", required: true) }, cleared.Fields[1], cleared.Fields[2]],
+        };
+        await host.Records.SaveDraftAsync("eam.asset-class", rekinded, "1.0.0", 3, "rekind");
+        var after = (await Draft(host, "1.0.0")).Fields[0];
+        Assert.Null(after.Governance);
+        Assert.Equal(new FieldKindDefaultProvenance("text", "1.0.0"), after.DefaultsProvenance);
+
+        // The compile re-binds the new kind: the published schema now types asset_tag as an integer.
+        var published = await host.Records.PublishAsync(Tenant, "eam.asset-class", "1.0.0", 4, "publish");
+        Assert.True((await host.Registry.ValidateAsync(published.Schema.Id, Encoding.UTF8.GetBytes("""{"asset_tag":7}"""))).IsValid);
+        Assert.False((await host.Registry.ValidateAsync(published.Schema.Id, Encoding.UTF8.GetBytes("""{"asset_tag":"A-1"}"""))).IsValid);
+    }
+
+    [Fact]
+    [Trait("Holds", "records-ck-38")]
+    public async Task a_field_added_in_a_later_save_is_created_there_with_its_kinds_defaults()
+    {
+        var host = Host();
+        await host.Records.CreateDraftAsync(AssetClass("1.0.0"), "create");
+        var created = await Draft(host, "1.0.0");
+
+        await host.Records.SaveDraftAsync("eam.asset-class",
+            created with { Fields = [.. created.Fields, new("serial", "Serial", Bound("text", required: false))] },
+            "1.0.0", 1, "add-serial");
+
+        var serial = (await Draft(host, "1.0.0")).Fields[3];
+        Assert.Equal(new FieldGovernanceDefinition(true, false, true, "internal"), serial.Governance);
+        Assert.Equal(new FieldKindDefaultProvenance("text", "1.0.0"), serial.DefaultsProvenance);
+    }
+
+    [Fact]
+    [Trait("Holds", "records-ck-38")]
+    public async Task a_field_whose_kind_declares_the_retention_clock_capability_may_start_the_clock()
+    {
+        var host = Host();
+        var request = AssetClass("1.0.0") with
+        {
+            Fields = [.. Document().Fields, new("acquired_on", "Acquired on", Bound("date", required: true))],
+            RetentionClockFieldId = "acquired_on",
+        };
+
+        await host.Records.CreateDraftAsync(request, "create");
+        await host.Records.PublishAsync(Tenant, "eam.asset-class", "1.0.0", 1, "publish");
+
+        Assert.Equal("acquired_on", (await host.Records.GetPublishedHeadAsync(Tenant, "eam.asset-class"))!.RetentionClockFieldId);
+    }
+
+    [Theory]
+    [Trait("Holds", "records-auth-21")]
+    [InlineData("date", "2.0.0", "acquired_on", "records.retention.clock_capability_absent")]
+    [InlineData("text", "1.0.0", "acquired_on", "records.retention.clock_capability_absent")]
+    [InlineData(null, null, "acquired_on", "records.retention.clock_capability_absent")]
+    [InlineData("date", "1.0.0", "disposed_on", "records.retention.clock_field_unresolved")]
+    public async Task a_retention_clock_without_the_capability_or_without_its_field_refuses_before_any_write(
+        string? kind, string? version, string clock, string code)
+    {
+        var host = Host();
+        FieldBindingDefinition? binding = kind is null ? null : new(new(kind, version!, new Dictionary<string, string>()), new(true, 0, 1, [], null));
+        var request = AssetClass("1.0.0") with
+        {
+            Fields = [.. Document().Fields, new("acquired_on", "Acquired on", binding)],
+            RetentionClockFieldId = clock,
+        };
+
+        var refused = await Assert.ThrowsAsync<DefinitionRefusalException>(() => host.Records.CreateDraftAsync(request, "create").AsTask());
+
+        Assert.Equal([(code, "/retention_clock_field_id")], Pairs(refused));
+        Assert.Empty(await host.Catalogue.ListKeysAsync(Tenant, DefinitionKind.Records));
+        Assert.Empty(await Registered(host.Registry));
+    }
+
+    private static async Task<RecordTypeDocument> Draft(TestHost host, string version)
+    {
+        var history = await host.Catalogue.ListHistoryAsync(RecordTypeDefinitionStore.KeyOf(Tenant, "eam.asset-class"));
+        return RecordTypeDefinitionJson.Deserialize(Encoding.UTF8.GetBytes(history.Last(revision => revision.Document.Version == version).Document.BodyJson));
+    }
+
     private sealed record TestHost(InMemoryVersionedDefinitionStore Catalogue, RecordTypeDefinitionStore Records,
         RecordTypeSchemaCompiler Compiler, InMemorySchemaRegistry Registry);
+
+    private static readonly RecordFieldDefaults Defaults = new(new FieldKindRuntime(new FieldKindRegistry([])));
 
     [Fact]
     [Trait("Holds", "records-eng-33")]
@@ -416,7 +547,9 @@ public sealed class RecordTypeDefinitionStoreTests
     {
         var kinds = new FieldKindRuntime(new FieldKindRegistry([
             new("count", "1.0.0", null, FieldScalarValueShape.Integer),
-            new("text", "1.0.0", null, FieldScalarValueShape.Text),
+            new("text", "1.0.0", new FieldGovernanceDefinition(true, false, true, "internal"), FieldScalarValueShape.Text),
+            new("date", "1.0.0", null, FieldScalarValueShape.Text, [FieldKindCapability.RetentionClock]),
+            new("date", "2.0.0", null, FieldScalarValueShape.Text),
         ]));
         var validator = new RecordsIntentValidator();
         var compiler = new RecordTypeSchemaCompiler(validator, kinds, new SharedValueDomainAdmission());
@@ -425,7 +558,7 @@ public sealed class RecordTypeDefinitionStoreTests
         {
             [DefinitionKind.Records] = RecordTypeDefinitionStore.Admission(Window, validator),
         });
-        return new(catalogue, new RecordTypeDefinitionStore(catalogue, compiler, registry, Window), compiler, registry);
+        return new(catalogue, new RecordTypeDefinitionStore(catalogue, compiler, new RecordFieldDefaults(kinds), registry, Window), compiler, registry);
     }
 
     private static NewRecordType AssetClass(string version) => new(Tenant, "eam", "Asset Class", version,

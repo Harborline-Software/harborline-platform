@@ -31,15 +31,17 @@ public sealed record RecordTypeDefinitionEnvelope(
 /// <param name="RecordTypeId">The section-scoped identity, immutable across every version of the definition.</param>
 /// <param name="Fields">The fields owned by this Record Type.</param>
 /// <param name="Traits">The exact Trait revisions and their slot-to-field bindings.</param>
+/// <param name="RetentionClockFieldId">The <c>field_key</c> of the field whose date starts the retention clock.</param>
 public sealed record RecordTypeDocument(
     RecordTypeDefinitionEnvelope Envelope,
     string Name,
     string RecordTypeId,
     IReadOnlyList<FieldDefinition> Fields,
-    IReadOnlyList<TraitReference>? Traits = null)
+    IReadOnlyList<TraitReference>? Traits = null,
+    string? RetentionClockFieldId = null)
 {
     /// <summary>The typed Records grammar the validator and schema compiler read.</summary>
-    public RecordTypeDefinition ToDefinition() => new(RecordTypeId, Fields, Traits);
+    public RecordTypeDefinition ToDefinition() => new(RecordTypeId, Fields, Traits, RetentionClockFieldId);
 }
 
 /// <summary>Canonical, projection-neutral Record Type definition JSON.</summary>
@@ -84,6 +86,8 @@ public static class RecordTypeDefinitionJson
             if (field is null) return pointer;
             if (field.FieldKey is null) return pointer + "/field_key";
             if (field.DisplayName is null) return pointer + "/display_name";
+            if (field.DefaultsProvenance is { KindId: null }) return pointer + "/defaults_provenance/kind_id";
+            if (field.DefaultsProvenance is { KindVersion: null }) return pointer + "/defaults_provenance/kind_version";
             if (field.Binding is not { } binding) continue;
             if (binding.Kind is null) return pointer + "/binding/kind";
             if (binding.Kind.KindId is null) return pointer + "/binding/kind/kind_id";

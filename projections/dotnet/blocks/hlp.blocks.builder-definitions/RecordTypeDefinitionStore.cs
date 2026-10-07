@@ -16,6 +16,7 @@ namespace Harborline.Blocks.BuilderDefinitions;
 /// <param name="Fields">The fields owned by the type.</param>
 /// <param name="Contract">The authored definition contract version.</param>
 /// <param name="Traits">The exact Trait revisions and their slot bindings.</param>
+/// <param name="RetentionClockFieldId">The <c>field_key</c> of the field whose date starts the retention clock.</param>
 public sealed record NewRecordType(
     string Tenant,
     string Section,
@@ -23,7 +24,8 @@ public sealed record NewRecordType(
     string Version,
     IReadOnlyList<FieldDefinition> Fields,
     DefinitionContractVersion? Contract,
-    IReadOnlyList<TraitReference>? Traits = null);
+    IReadOnlyList<TraitReference>? Traits = null,
+    string? RetentionClockFieldId = null);
 
 /// <summary>A created Record Type draft and the id the authoring boundary minted for it.</summary>
 public sealed record RecordTypeDraft(string RecordTypeId, DefinitionRevision Revision);
@@ -51,6 +53,7 @@ public sealed partial class RecordTypeDefinitionStore
 {
     private readonly IVersionedDefinitionStore _store;
     private readonly RecordTypeSchemaCompiler _compiler;
+    private readonly RecordFieldDefaults _defaults;
     private readonly ISchemaRegistry _registry;
     private readonly DefinitionContractWindow _window;
     private readonly FieldDomainScope? _fieldDomainScope;
@@ -60,10 +63,13 @@ public sealed partial class RecordTypeDefinitionStore
     /// <see cref="DefinitionKind.Records"/> with the same validator the compiler uses.
     /// </summary>
     public RecordTypeDefinitionStore(IVersionedDefinitionStore store, RecordTypeSchemaCompiler compiler,
-        ISchemaRegistry registry, DefinitionContractWindow window, FieldDomainScope? fieldDomainScope = null)
+        RecordFieldDefaults defaults, ISchemaRegistry registry, DefinitionContractWindow window,
+        FieldDomainScope? fieldDomainScope = null)
     {
         ArgumentNullException.ThrowIfNull(store);
         ArgumentNullException.ThrowIfNull(compiler);
+        ArgumentNullException.ThrowIfNull(defaults);
+        _defaults = defaults;
         ArgumentNullException.ThrowIfNull(registry);
         ArgumentNullException.ThrowIfNull(window);
         _store = store;
@@ -106,9 +112,9 @@ public sealed partial class RecordTypeDefinitionStore
             throw new DefinitionRefusalException(DefinitionAdmissionPhase.Author, [new("records.identity.name_required", "/name")]);
 
         var recordTypeId = $"{request.Section}.{slug}";
-        var document = new RecordTypeDocument(
+        var document = Materialize(new RecordTypeDocument(
             new(request.Tenant, request.Section, request.Contract),
-            request.Name!, recordTypeId, request.Fields, request.Traits);
+            request.Name!, recordTypeId, request.Fields, request.Traits, request.RetentionClockFieldId));
         var candidate = await AdmitAsync(Catalogue(document, recordTypeId, request.Version), DefinitionAdmissionPhase.Author,
             cancellationToken).ConfigureAwait(false);
         try
@@ -135,7 +141,7 @@ public sealed partial class RecordTypeDefinitionStore
         string version, long expectedRevision, string requestId, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(document);
-        var catalogue = Catalogue(document, recordTypeId, version);
+        var catalogue = Catalogue(Materialize(document), recordTypeId, version);
         var candidate = await AdmitAsync(catalogue, DefinitionAdmissionPhase.Author, cancellationToken).ConfigureAwait(false);
         if ((await _store.ListHistoryAsync(catalogue.Key, cancellationToken).ConfigureAwait(false)).Count == 0)
             throw new DefinitionRefusalException(DefinitionAdmissionPhase.Author,
@@ -256,6 +262,11 @@ public sealed partial class RecordTypeDefinitionStore
         }
         return (parsed, refusals);
     }
+
+    // The creation path for fields: a field saved for the first time takes its kind's defaults here, before
+    // admission, so the stored draft already carries them with their provenance (records-ck-38).
+    private RecordTypeDocument Materialize(RecordTypeDocument document)
+        => document with { Fields = _defaults.Materialize(document.ToDefinition()).Fields };
 
     private static DefinitionDocument Catalogue(RecordTypeDocument document, string recordTypeId, string version)
         => new(KeyOf(document.Envelope?.Tenant ?? "", recordTypeId), version, version,
