@@ -101,6 +101,12 @@ public sealed record LayoutFieldControlDescriptor(
 /// </summary>
 public sealed class LayoutFieldControlRegistry
 {
+    /// <summary>
+    /// The released text and currency controls and their parameter schemas (T-1012).
+    /// These declarations ship in this library; hosts consume them without restating control ids.
+    /// </summary>
+    public static LayoutFieldControlRegistry Released { get; } = new(LayoutReleasedFieldControls.Read());
+
     private readonly FrozenDictionary<string, (LayoutFieldControlDescriptor Descriptor, JsonSchema? Schema)> _controls;
 
     /// <summary>Creates an immutable register; each declared parameter schema must build.</summary>
@@ -111,12 +117,15 @@ public sealed class LayoutFieldControlRegistry
         var values = controls.ToArray();
         if (values.Any(control => control is null || string.IsNullOrWhiteSpace(control.Id) || control.ValueShapes is null))
             throw new ArgumentException("A field-control register requires identified controls with value shapes.", nameof(controls));
+        // A host's control declaration must not overwrite this release's schema at the same URI,
+        // or vice versa. Schema compilation and reference resolution belong to this register.
+        var schemaOptions = new BuildOptions { SchemaRegistry = new SchemaRegistry() };
         // ponytail: developer-declared schemas run without the kernel's pattern timeout; route through
         // hlp.kernel.schema-validation if a control ever declares an untrusted pattern.
         _controls = values.ToFrozenDictionary(
             control => control.Id,
             control => (control, control.ParameterSchema is { } schema
-                ? JsonSchema.Build(schema, new BuildOptions(), new Uri($"urn:harborline:layout:field-control:{Uri.EscapeDataString(control.Id)}"))
+                ? JsonSchema.Build(schema, schemaOptions, new Uri($"urn:harborline:layout:field-control:{Uri.EscapeDataString(control.Id)}"))
                 : (JsonSchema?)null),
             StringComparer.Ordinal);
     }
@@ -149,6 +158,13 @@ public sealed class LayoutFieldControlRegistry
 /// </summary>
 public sealed class LayoutValidationRuleRegistry
 {
+    /// <summary>
+    /// The released named-rule register. It is empty until published Validate-action rules are
+    /// supplied by the installed Rules catalogue; no built-in rule duplicates capture.required.
+    /// Hosts may construct a separate register from their admitted installed closure.
+    /// </summary>
+    public static LayoutValidationRuleRegistry Released { get; } = new([]);
+
     private readonly FrozenDictionary<string, RuleDefinition> _rules;
 
     /// <summary>Creates a register keyed by each rule's unique identifier.</summary>

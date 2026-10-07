@@ -243,3 +243,16 @@ table and ADR 0096 decision 3, under which producers are built in the platform a
 the released feed; the app pages are the app's.
 
 `IDefinitionKeyAuthority` remains intentionally unimplemented until allocation authority is ruled. This package owns no API transport, signing, installation, Pilot bridge, or UI renderer.
+## Released Layout registers
+
+`LayoutFieldControlRegistry.Released` exposes the existing `text` and `currency` controls from
+metadata embedded in this library. The first bounded release carries these two controls; other
+schema-form hints do not become authored Layout controls merely because a lane can render them.
+Text takes no parameters. Currency accepts `decimals` (integer), `currencyCode` (string), `min`
+and `max` (number); other names, including `precision`, refuse at admission. The ids and parameter
+names are checked against both schema-form lane implementations.
+
+`LayoutValidationRuleRegistry.Released` is empty while the installed Rules catalogue supplies no
+published Validate-action rules. A host can construct a register from its admitted closure using
+the existing constructor. The release invents no named rule for capture's `required` property.
+Hosts supply these registers to the existing `LayoutHostRegisters` seam; API adoption is T-1013.
