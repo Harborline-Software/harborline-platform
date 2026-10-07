@@ -36,7 +36,10 @@ public sealed record CatalogueFieldResolution(FieldDefinition Field, DefinitionR
 /// 2026-09-21): a read-only adapter over the shared versioned-definition store. It resolves only an exact
 /// published revision, and only when the coordinate's digest equals the store's digest of that revision's
 /// stored body. A digest of any other representation of the same definition is a mismatch, never an
-/// equivalent (records-ck-40). It is not a value-domain source, and it has no write path.
+/// equivalent (records-ck-40). Tenant provenance is supported. Pack and platform claims refuse until their
+/// ownership of the exact stored revision can be verified: the shared store exposes no installation provenance.
+/// A caller-supplied package key and version are not evidence of ownership. It is not a value-domain source,
+/// and it has no write path.
 /// </summary>
 public sealed class CatalogueFieldSource
 {
@@ -73,6 +76,10 @@ public sealed class CatalogueFieldSource
         ArgumentNullException.ThrowIfNull(coordinate);
         var refusals = Structural(coordinate);
         if (refusals.Count > 0) throw Refuse(refusals);
+        // A well-shaped package claim is still unverified. DefinitionRevision carries the tenant and body
+        // digest, but no installed package identity; never resolve tenant content under a claimed package pin.
+        if (coordinate.Provenance.Kind != "tenant")
+            throw Refuse([new("records.field_source.provenance_unverified", "/provenance")]);
 
         var revision = await _store.ResolvePublishedAsync(
             new(RecordTypeDefinitionStore.KeyOf(tenant, coordinate.DefinitionId), coordinate.VersionId),

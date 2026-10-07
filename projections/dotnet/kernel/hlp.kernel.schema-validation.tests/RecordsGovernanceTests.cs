@@ -60,6 +60,38 @@ public sealed class RecordsGovernanceTests
         Assert.Null(missing.JsonSchemaText);
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task records_ck_38_mutation_cannot_change_a_registered_revisions_retention_eligibility(bool declared)
+    {
+        // Oracle: DES-0015 records-ck-38 / ADR 0095 ruling 3, applied to the original revision declaration.
+        var capabilities = new List<FieldKindCapability>();
+        if (declared) capabilities.Add(FieldKindCapability.RetentionClock);
+        var registry = new FieldKindRegistry([new("date", "1.0.0", null, FieldScalarValueShape.Text, capabilities)]);
+        var kinds = new FieldKindRuntime(registry);
+        var bound = kinds.Bind(new("date", "1.0.0", new Dictionary<string, string>()), "/kind");
+
+        if (declared) capabilities.Clear();
+        else capabilities.Add(FieldKindCapability.RetentionClock);
+        var exposed = Assert.IsAssignableFrom<IList<FieldKindCapability>>(bound.Kind.Capabilities);
+        Assert.Throws<NotSupportedException>(() => exposed.Clear());
+        Assert.Throws<NotSupportedException>(() => exposed.Add(FieldKindCapability.RetentionClock));
+
+        var compiler = new RecordTypeSchemaCompiler(new RecordsIntentValidator(), kinds, new SharedValueDomainAdmission());
+        var draft = await compiler.CompileAsync(Clocked(Binding("date", "1.0.0"), "acquired_on"), null);
+        if (declared)
+        {
+            Assert.Empty(draft.Refusals);
+            Assert.NotNull(draft.JsonSchemaText);
+        }
+        else
+        {
+            Assert.Equal(("records.retention.clock_capability_absent", "/retention_clock_field_id"), Single(draft));
+            Assert.Null(draft.JsonSchemaText);
+        }
+    }
+
     private static RecordTypeDefinition Clocked(FieldBindingDefinition? binding, string clock)
         => new("asset", [new("acquired_on", "Acquired on", binding)], RetentionClockFieldId: clock);
 
