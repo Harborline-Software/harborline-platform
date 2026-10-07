@@ -29,6 +29,7 @@ public sealed class DefinitionEnvelopeContractArchitectureTests
         "AssistanceDefinitionEnvelope",
         "TaxonomyDefinitionEnvelope",
         "ReportDefinitionEnvelope",
+        "RecordTypeDefinitionEnvelope",
     ];
 
     [Fact]
