@@ -18,7 +18,11 @@ public sealed class FieldKindRegistry
                 throw new FieldAdmissionException([new("field.kind_registration_invalid", "",
                     "A kind registration requires an identity, version and supported scalar shape.")]);
 
-            if (!_kinds.TryAdd((kind.KindId, kind.Version), kind))
+            var snapshot = kind with
+            {
+                Capabilities = kind.Capabilities is null ? null : Array.AsReadOnly(kind.Capabilities.ToArray()),
+            };
+            if (!_kinds.TryAdd((kind.KindId, kind.Version), snapshot))
                 throw new FieldAdmissionException([new("field.kind_registration_duplicate", "",
                     "A kind revision can only be registered once.")]);
         }
