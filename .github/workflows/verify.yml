@@ -1,389 +1,52 @@
-# verify: preliminary PR feedback, complete landing proof (T-577, owner 2026-10-01).
-#
-#   pr-preflight    cheap source-policy and CI-contract validation, including draft PR pushes. Its
-#                   headless plan comes from the BASE commit's planner (tooling/run-base-policy.mjs).
-#   phase-4-gate    the unchanged headless gate: implementation PRs, merge groups and dispatch.
-#   gallery-shard   the browser suite, a matrix of six ubuntu runners (T-349). Merge group and
-#                   dispatch only (T-577), IN PARALLEL with the gate.
-#   gallery-collect needs the shards; merges their reports and reconciles them (the gallery half of
-#                   the gate's pass predicate, tooling/collect-gallery-shards.mjs). No browsers.
-# Required `verify` distinguishes preliminary success from full proof. Draft/fork admission stays
-# blocked and the existing stacked-PR deferment remains. Merge groups require every full lane, judged
-# by the queue base commit's aggregator. Base-sourced policy reduces self-classification risk; this
-# workflow's wiring remains candidate-controlled and has no enforced independent review (PROC-0001).
-name: verify
-
+# Isolated evidence branch only. This workflow never substitutes for a protected PR gate.
+name: Records focused hand mutation evidence
 on:
-  pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
-  merge_group:
   workflow_dispatch:
-
-concurrency:
-  group: verify-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
-
 permissions:
   contents: read
-
-env:
-  DOTNET_CLI_TELEMETRY_OPTOUT: '1'
-
 jobs:
-  pr-preflight:
-    # No secrets, dependency installation, build or receipt generation. Drafts get cheap feedback.
-    if: >-
-      vars.ACTIONS_ENABLED == 'true' && github.event_name == 'pull_request' &&
-      github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    outputs:
-      headless-required: ${{ steps.plan.outputs.headless-required }}
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-      # The PR cannot classify itself: the planner comes from the base commit, with full history so the
-      # three-dot diff can be computed once the head commit is fetched into it. No credentials persist.
-      - name: Check out the base commit's policy
-        uses: actions/checkout@v7
-        with:
-          ref: ${{ github.event.pull_request.base.sha }}
-          path: .base-policy
-          fetch-depth: 0
-          persist-credentials: false
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 24
-      # Planned before the preflight so a preflight failure cannot leave the plan unset. The wrapper
-      # publishes one validated output and defaults to the headless gate on any doubt.
-      - name: Retain early behavioral feedback for implementation changes
-        id: plan
-        env:
-          BASE_POLICY_ROOT: .base-policy
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: |
-          git -C .base-policy fetch --no-tags --quiet origin "$HEAD_SHA" || echo "::warning::the base planner cannot see the head commit; headless gate kept"
-          node tooling/run-base-policy.mjs plan
-          rm -rf .base-policy
-      - name: Fetch main history for recorded evidence provenance
-        run: git fetch --no-tags --quiet origin main
-      - name: Preliminary PR validation (not full landing proof)
-        run: node tooling/run-pr-preflight.mjs
-
-  phase-4-gate:
-    # Unknown inputs retain PR headless coverage. Queue/manual never depend on a PR routing result.
-    # Only an explicit `false` plan skips it, so a failed or unset plan still starts the gate.
-    # !cancelled(), not always(): expensive work stops when the run is cancelled.
-    needs: pr-preflight
-    if: >-
-      !cancelled() &&
-      vars.ACTIONS_ENABLED == 'true' &&
-      (github.event_name == 'merge_group' || github.event_name == 'workflow_dispatch' ||
-       (github.event_name == 'pull_request' &&
-        needs.pr-preflight.outputs.headless-required != 'false' &&
-        github.event.pull_request.head.repo.full_name == github.repository &&
-        github.event.pull_request.draft == false &&
-        !contains(github.event.pull_request.labels.*.name, 'stacked')))
-    runs-on: ubuntu-latest
-    timeout-minutes: 90
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-
-      # Placed first: it is a git-grep and costs a second, and there is no reason to spend half an hour
-      # of gate before reporting a name that should not be in the tree. The gate's requiredStepIds do
-      # not include it, so it stays an explicit step: adding one means changing requiredStepIds, which
-      # invalidates every existing receipt.
-      - name: Consumer-neutral boundary
-        run: bash eng/verify-boundaries.sh
-
-      # T-674, placed here for the same reason and at the same cost: two git commands, before the
-      # gate. docs/evidence/phase-4/gate.json must name a run this repository can produce from main
-      # (a squash-merged lane commit is not one, and a merge group fetches only the queue ref). The
-      # same scanner runs from .githooks/pre-commit, which is earlier but skippable; this is the copy
-      # that cannot be skipped.
-      - name: Recorded phase-4 evidence names a commit main holds
-        run: |
-          git fetch --no-tags --quiet origin main
-          node tooling/gates/scan-evidence-provenance.mjs .
-
-      - uses: pnpm/action-setup@v6  # version comes from package.json packageManager
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 24
-          cache: pnpm
-          cache-dependency-path: |
-            package.json
-            pnpm-lock.yaml
-            projections/react/ui/hlp.ui.button/pnpm-lock.yaml
-            projections/typescript/application/hlp.copilot.contracts/pnpm-lock.yaml
-            projections/typescript/contracts/hlp.contracts.forms/pnpm-lock.yaml
-            projections/typescript/foundation/hlp.foundation.rule-authoring/pnpm-lock.yaml
-            projections/typescript/foundation/hlp.foundation.rule-runtime/pnpm-lock.yaml
-            gallery/projections/react/pnpm-lock.yaml
-            gallery/tests/pnpm-lock.yaml
-      - uses: actions/setup-dotnet@v6
-        with:
-          # The pinned SDK lives in global.json; reading it here means an SDK bump cannot strand CI.
-          global-json-file: global.json
-
-      # The headless gate starts no gallery, but the tooling self-tests probe a Playwright launch
-      # (tooling/tests reach gallery/tests/verify-browser.mjs), so the install stays.
-      - name: Install gallery browser dependencies
-        working-directory: gallery/tests
-        run: |
-          pnpm install --frozen-lockfile --ignore-scripts
-          npx playwright install --with-deps chromium
-
-      # The app-shell package fixtures stage two cross-repo tarballs that
-      # tooling/resolve-appshell-feed.mjs rebuilds from harborline-api refs (this repo deliberately
-      # never stores the bytes). harborline-api is public, so this needs no token. It is cloned
-      # OUTSIDE the workspace on purpose: a nested checkout inside the tree would be walked by
-      # eng/verify-boundaries.sh's git-grep and by the gate's own tree hash.
-      - name: Mirror harborline-api for the feed resolver
-        run: git clone --quiet https://github.com/Harborline-Software/harborline-api.git "$RUNNER_TEMP/harborline-api"
-
-      - name: Mirror harborline-control for the dependency ledger
-        # Private; the pins token is the same one the api hosted job clones with.
-        run: git clone --quiet "https://x-access-token:${{ secrets.HARBORLINE_PINS_TOKEN }}@github.com/Harborline-Software/harborline-control.git" "$RUNNER_TEMP/harborline-control"
-
-      # run-phase-4-gate.mjs writes its report to stdout only (the receipt runner is what writes it
-      # to disk, and CI does not run the receipt runner). Capture it so the upload step has a file;
-      # pipefail keeps the gate's exit code (ticket 330 s4c).
-      - name: Phase-4 gate (headless)
-        # HARBORLINE_GATE_HEADLESS: gallery-gate is not run here; the gallery-shard matrix and
-        # gallery-collect run it beside this job, and `verify` requires all three. Every non-browser
-        # step still runs here and still blocks.
-        run: |
-          set -o pipefail
-          node tooling/run-phase-4-gate.mjs | tee harborline-phase4-gate-report.json
-        env:
-          HARBORLINE_API_REPO: ${{ runner.temp }}/harborline-api
-          HARBORLINE_CONTROL_REPO: ${{ runner.temp }}/harborline-control
-          HARBORLINE_GATE_HEADLESS: "1"
-
-      - name: Evidence
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: verify-evidence-${{ github.run_id }}
-          if-no-files-found: ignore
-          retention-days: 14
-          path: |
-            harborline-phase4-gate-report.json
-            docs/evidence/phase-4/gate.json
-            .claude/gate-evidence/
-            gallery/tests/playwright-report/
-
-  # T-349. The browser suite, split across a MATRIX of ubuntu jobs -- one shard per job, each on its
-  # own hosted runner.
-  #
-  # Why a matrix and not GALLERY_SHARDS. In-process sharding (tooling/run-gallery-gate.mjs's
-  # runShardedGallery) DIVIDES one host's worker budget (`workersPerShard = totalWorkers /
-  # shardCount`), so it buys nothing on a small runner. A matrix job is genuinely separate capacity,
-  # so each shard gets the whole budget.
-  #
-  # The shard count is NOT repeated anywhere: `--shard=<i>/${{ strategy.job-total }}` derives the
-  # total from the matrix itself, so the two cannot drift.
-  #
-  # SIX, from measurement (run 35618436213): per-shard suite time 320-510s against the 900s step
-  # budget; summed, the suite is ~2380s of work. Past six, a shard's ~500s fixed setup exceeds its
-  # slice of the suite; at four the slowest shard would sit near 750s, inside the budget only until a
-  # retry eats the margin.
-  gallery-shard:
-    # T-577: the browser suite runs where its result lands a change -- the merge group -- and on
-    # demand; a pull request runs preliminary validation only.
-    if: >-
-      vars.ACTIONS_ENABLED == 'true' &&
-      (github.event_name == 'merge_group' || github.event_name == 'workflow_dispatch')
+  hand-mutations:
+    if: vars.ACTIONS_ENABLED == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     strategy:
-      # One slow or flaky shard must not cancel the others: the collector needs every shard's
-      # report to reconcile, and a cancelled shard would be indistinguishable from a broken one.
       fail-fast: false
+      max-parallel: 4
       matrix:
-        shard: [1, 2, 3, 4, 5, 6]
+        pr: [260, 264, 265, 266]
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      HARBORLINE_CONTROL_REPO: ${{ runner.temp }}/harborline-control
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: pnpm/action-setup@v6  # version comes from package.json packageManager
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 24
-          cache: pnpm
-          cache-dependency-path: |
-            package.json
-            pnpm-lock.yaml
-            projections/react/ui/hlp.ui.button/pnpm-lock.yaml
-            projections/typescript/application/hlp.copilot.contracts/pnpm-lock.yaml
-            projections/typescript/contracts/hlp.contracts.forms/pnpm-lock.yaml
-            projections/typescript/foundation/hlp.foundation.rule-authoring/pnpm-lock.yaml
-            projections/typescript/foundation/hlp.foundation.rule-runtime/pnpm-lock.yaml
-            gallery/projections/react/pnpm-lock.yaml
-            gallery/tests/pnpm-lock.yaml
+          persist-credentials: false
       - uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
-      - name: Install gallery browser dependencies
-        working-directory: gallery/tests
-        run: |
-          pnpm install --frozen-lockfile --ignore-scripts
-          npx playwright install --with-deps chromium
-      - name: Mirror harborline-api for the feed resolver
-        # prepareGalleries resolves the app-shell feed from harborline-api refs. A shard job packs its
-        # own fixtures -- it has no phase-4 gate ahead of it to do that -- so it needs the mirror.
-        run: git clone --quiet https://github.com/Harborline-Software/harborline-api.git "$RUNNER_TEMP/harborline-api"
-      - name: Install the projection dependencies the fixtures build from
-        # prepareGalleries packs the three npm tarballs and the NuGet feed the galleries consume, and
-        # builds them from these projections. In the phase-4 gate those installs are its own first
-        # steps; a shard job has no gate ahead of it, and without this it dies in
-        # verify-package-fixtures with "Cannot find package 'esbuild'".
-        #
-        # Six shards each packing for themselves is redundant CPU and NOT redundant wall clock. Sharing
-        # one pack through an artifact is worse: packageReadiness() compares an artifact's mtime against
-        # its sources', and download-artifact does not preserve mtimes.
-        run: |
-          pnpm install --frozen-lockfile --ignore-scripts
-          for project in \
-            projections/react/ui/hlp.ui.button \
-            projections/typescript/contracts/hlp.contracts.forms \
-            projections/typescript/foundation/hlp.foundation.rule-runtime \
-            projections/typescript/foundation/hlp.foundation.rule-authoring \
-            projections/typescript/application/hlp.copilot.contracts; do
-            pnpm --dir "$project" install --frozen-lockfile --ignore-scripts
-          done
-          dotnet restore Harborline.Platform.slnx -v:minimal
-          node tooling/run-native.mjs --build
-      - name: Run gallery shard ${{ matrix.shard }} of ${{ strategy.job-total }}
-        run: |
-          set -o pipefail
-          node tooling/run-gallery-gate.mjs --shard=${{ matrix.shard }}/${{ strategy.job-total }} \
-            | tee gallery-shard-${{ matrix.shard }}.json
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+      - name: Mirror authoritative control test fixtures
         env:
-          HARBORLINE_API_REPO: ${{ runner.temp }}/harborline-api
-          # Control ticket 083. The gallery's ONLY leniency, and it exists only in CI: on a small shared
-          # runner four visual-parity comparisons diverge, two wall-clock-budget scenarios measure the
-          # runner rather than the component, and the Blazor circuit's cold start eats most of a 45s
-          # budget. Each exemption is named by scenario id in gallery/ci-exemptions.json, the a11y half
-          # of every exempted scenario still runs, and a test asserts the named ids still exist.
-          #
-          # It must MATCH gallery-collect's setting: expectedChecks() derives the declared counts from
-          # this flag, so shards and collector that disagree would diverge on every check family.
-          HARBORLINE_CI_GALLERY: "1"
-          # One worker per core, UNDIVIDED: the shard has this runner to itself.
-          PW_WORKERS: "2"
-      - name: Keep the shard report whatever the outcome
-        # Carries both the shard's step outcomes and its Playwright report inline; the collector
-        # refuses unless all of them are present, so this upload is load-bearing, not diagnostic.
+          PINS_TOKEN: ${{ secrets.HARBORLINE_PINS_TOKEN }}
+        shell: pwsh
+        run: |
+          $basic = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("x-access-token:$env:PINS_TOKEN"))
+          Write-Output "::add-mask::$basic"
+          $env:GIT_CONFIG_COUNT = '1'
+          $env:GIT_CONFIG_KEY_0 = 'http.https://github.com/.extraheader'
+          $env:GIT_CONFIG_VALUE_0 = "AUTHORIZATION: basic $basic"
+          git clone --quiet https://github.com/Harborline-Software/harborline-control.git "$env:RUNNER_TEMP/harborline-control"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Measure independent focused hand mutants
+        run: python tooling/records-hand-mutation-evidence.py --pr ${{ matrix.pr }}
+      - name: Preserve raw logs, TRX, diffs and source hashes
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: gallery-shard-${{ matrix.shard }}
-          path: gallery-shard-${{ matrix.shard }}.json
+          name: records-hand-mutants-${{ matrix.pr }}-${{ github.run_id }}
+          path: hand-mutation-evidence/${{ matrix.pr }}
           if-no-files-found: error
           retention-days: 14
-      - name: Upload gallery failure evidence
-        if: failure()
-        uses: actions/upload-artifact@v7
-        with:
-          name: gallery-failure-evidence-${{ matrix.shard }}
-          path: gallery/tests/playwright-report/
-          if-no-files-found: warn
-          retention-days: 14
-
-  gallery-collect:
-    # A failed or skipped shard skips this job, and `verify` fails on a skipped lane, so the gallery
-    # cannot go green without every shard. The merge itself also refuses a missing shard.
-    needs: gallery-shard
-    # T-577: the browser suite runs where its result lands a change -- the merge group -- and on
-    # demand; a pull request runs preliminary validation only.
-    if: >-
-      vars.ACTIONS_ENABLED == 'true' &&
-      (github.event_name == 'merge_group' || github.event_name == 'workflow_dispatch')
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 24
-      - name: Collect the gallery shard reports
-        uses: actions/download-artifact@v8
-        with:
-          pattern: gallery-shard-*
-          path: ${{ runner.temp }}/gallery-shards
-      - name: Merge and reconcile the gallery
-        run: |
-          set -o pipefail
-          node tooling/collect-gallery-shards.mjs "$RUNNER_TEMP/gallery-shards" | tee harborline-gallery-gate-report.json
-        env:
-          # Required even though no browser runs here: expectedChecks() reads it to derive the
-          # declared counts the shards' measurements are reconciled against. Must match the shards.
-          HARBORLINE_CI_GALLERY: "1"
-      - name: Keep the gallery report whatever the outcome
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: gallery-gate-report-${{ github.run_id }}
-          path: harborline-gallery-gate-report.json
-          if-no-files-found: error
-          retention-days: 14
-
-  verify:
-    # T-660: the required context. Deliberately unconditional (`always()`), so neither the kill
-    # switch nor a fork head nor a failed dependency can leave it skipped-and-therefore-green. It
-    # passes only when the event's declared validation lanes succeed.
-    # 2026-09-29 (owner, CI load): the one exception. A pull request labelled `stacked` skips this
-    # admission context (skipped counts as passing), because the parent's squash merge forces a
-    # rerun anyway. The merge group payload has no pull_request object, so contains() is false and
-    # this context runs and gates exactly as before: nothing lands without the full gate.
-    needs: [pr-preflight, phase-4-gate, gallery-shard, gallery-collect]
-    if: always() && !contains(github.event.pull_request.labels.*.name, 'stacked')
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - name: Admission guard (defer drafts; refuse fork code)
-        env:
-          EVENT: ${{ github.event_name }}
-          HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
-          DRAFT: ${{ github.event.pull_request.draft }}
-        run: |
-          if [ "$EVENT" = "pull_request" ]; then
-            if [ "$HEAD_REPOSITORY" != "$GITHUB_REPOSITORY" ]; then
-              echo "::error::BLOCKED: fork admission requires maintainer validation"
-              exit 1
-            fi
-            if [ "$DRAFT" != "false" ]; then
-              echo "::error::BLOCKED: draft admission deferred; preliminary feedback is not landing proof"
-              exit 1
-            fi
-          fi
-      - uses: actions/checkout@v7
-      # Merge group: the lane aggregator comes from the queue's base commit, not from the candidate.
-      - name: Check out the merge group base commit's aggregator
-        if: github.event_name == 'merge_group'
-        uses: actions/checkout@v7
-        with:
-          ref: ${{ github.event.merge_group.base_sha }}
-          path: .base-policy
-          persist-credentials: false
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 24
-      - name: Required validation for this event ran and passed
-        env:
-          NEEDS: ${{ toJSON(needs) }}
-          ACTIONS_ENABLED: ${{ vars.ACTIONS_ENABLED }}
-          BASE_POLICY_ROOT: .base-policy
-          BASE_SHA: ${{ github.event.merge_group.base_sha }}
-        run: |
-          if [ "$GITHUB_EVENT_NAME" = "merge_group" ]; then
-            node tooling/run-base-policy.mjs aggregate
-          else
-            node tooling/verify-ci-lanes.mjs
-          fi

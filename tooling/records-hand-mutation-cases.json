@@ -1,0 +1,243 @@
+[
+  {
+    "id": "260-original-capabilities-alias",
+    "head": "3bbf338d7bf901de558c69f33d74e4458b1875d2",
+    "path": "projections/dotnet/foundation/hlp.foundation.field-runtime/FieldKindRegistry.cs",
+    "find": "                Capabilities = kind.Capabilities is null ? null : Array.AsReadOnly(kind.Capabilities.ToArray()),",
+    "replace": "                Capabilities = kind.Capabilities,",
+    "project": "projections/dotnet/foundation/hlp.foundation.field-runtime.tests/Harborline.Foundation.FieldRuntime.Tests.csproj",
+    "filter": "FullyQualifiedName~FieldKindRegistryTests.Registered_capabilities_are_detached_and_cannot_be_mutated_through_resolution",
+    "oracleFailure": "Original mutable list Clear/Add changes resolved revision declaration; expected membership assertion fails.",
+    "expectedMatchCount": 1,
+    "command": [
+      "dotnet",
+      "test",
+      "projections/dotnet/foundation/hlp.foundation.field-runtime.tests/Harborline.Foundation.FieldRuntime.Tests.csproj",
+      "--configuration",
+      "Release",
+      "--filter",
+      "FullyQualifiedName~FieldKindRegistryTests.Registered_capabilities_are_detached_and_cannot_be_mutated_through_resolution"
+    ],
+    "expectedResult": "Build succeeds, focused test execution fails. A build/compile error is invalid mutation evidence.",
+    "pr": 260,
+    "expectedFailures": [
+      "FieldKindRegistryTests.Registered_capabilities_are_detached_and_cannot_be_mutated_through_resolution"
+    ]
+  },
+  {
+    "id": "260-mutable-array-exposure",
+    "head": "3bbf338d7bf901de558c69f33d74e4458b1875d2",
+    "path": "projections/dotnet/foundation/hlp.foundation.field-runtime/FieldKindRegistry.cs",
+    "find": "                Capabilities = kind.Capabilities is null ? null : Array.AsReadOnly(kind.Capabilities.ToArray()),",
+    "replace": "                Capabilities = kind.Capabilities is null ? null : kind.Capabilities.ToArray(),",
+    "project": "projections/dotnet/foundation/hlp.foundation.field-runtime.tests/Harborline.Foundation.FieldRuntime.Tests.csproj",
+    "filter": "FullyQualifiedName~FieldKindRegistryTests.Registered_capabilities_are_detached_and_cannot_be_mutated_through_resolution",
+    "oracleFailure": "Array remains detached but its IList permits indexed assignment for declared=true; the assertion requiring NotSupportedException must fail. Clear/Add checks may also fail; use raw test failure rather than assuming which assertion fires first.",
+    "expectedMatchCount": 1,
+    "command": [
+      "dotnet",
+      "test",
+      "projections/dotnet/foundation/hlp.foundation.field-runtime.tests/Harborline.Foundation.FieldRuntime.Tests.csproj",
+      "--configuration",
+      "Release",
+      "--filter",
+      "FullyQualifiedName~FieldKindRegistryTests.Registered_capabilities_are_detached_and_cannot_be_mutated_through_resolution"
+    ],
+    "expectedResult": "Build succeeds, focused test execution fails. A build/compile error is invalid mutation evidence.",
+    "pr": 260,
+    "expectedFailures": [
+      "FieldKindRegistryTests.Registered_capabilities_are_detached_and_cannot_be_mutated_through_resolution"
+    ]
+  },
+  {
+    "id": "260-negated-retention-capability",
+    "head": "3bbf338d7bf901de558c69f33d74e4458b1875d2",
+    "path": "projections/dotnet/kernel/hlp.kernel.schema-validation/Records/RecordTypeIdentity.cs",
+    "find": "            || !(kind.Capabilities ?? []).Contains(FieldKindCapability.RetentionClock))",
+    "replace": "            || (kind.Capabilities ?? []).Contains(FieldKindCapability.RetentionClock))",
+    "project": "projections/dotnet/kernel/hlp.kernel.schema-validation.tests/Harborline.Kernel.SchemaValidation.Tests.csproj",
+    "filter": "FullyQualifiedName~RecordsGovernanceTests.records_ck_38_mutation_cannot_change_a_registered_revisions_retention_eligibility",
+    "oracleFailure": "Originally declared capability refuses, originally absent capability succeeds; both violate independent eligibility oracle.",
+    "expectedMatchCount": 1,
+    "command": [
+      "dotnet",
+      "test",
+      "projections/dotnet/kernel/hlp.kernel.schema-validation.tests/Harborline.Kernel.SchemaValidation.Tests.csproj",
+      "--configuration",
+      "Release",
+      "--filter",
+      "FullyQualifiedName~RecordsGovernanceTests.records_ck_38_mutation_cannot_change_a_registered_revisions_retention_eligibility"
+    ],
+    "expectedResult": "Build succeeds, focused test execution fails. A build/compile error is invalid mutation evidence.",
+    "pr": 260,
+    "expectedFailures": [
+      "RecordsGovernanceTests.records_ck_38_mutation_cannot_change_a_registered_revisions_retention_eligibility"
+    ]
+  },
+  {
+    "id": "264-health-records-list",
+    "head": "e203d170d7195b4644f28a6755955adac5b9d80e",
+    "path": "projections/dotnet/blocks/hlp.blocks.builder-definitions/RecordsCatalogueHealth.cs",
+    "find": "        foreach (var key in await _store.ListKeysAsync(tenant, DefinitionKind.Records, cancellationToken).ConfigureAwait(false))",
+    "replace": "        foreach (var key in await _store.ListKeysAsync(tenant, DefinitionKind.Records, cancellationToken).ConfigureAwait(true))",
+    "project": "projections/dotnet/blocks/hlp.blocks.builder-definitions.tests/Harborline.Blocks.BuilderDefinitions.Tests.csproj",
+    "filter": "FullyQualifiedName~RecordsAwaitContextTests.no_records_operation_resumes_on_the_callers_context",
+    "oracleFailure": "Corresponding health theory selects this exact kind/step with incomplete TCS task; CountingContext.Posts becomes nonzero.",
+    "expectedMatchCount": 1,
+    "command": [
+      "dotnet",
+      "test",
+      "projections/dotnet/blocks/hlp.blocks.builder-definitions.tests/Harborline.Blocks.BuilderDefinitions.Tests.csproj",
+      "--configuration",
+      "Release",
+      "--filter",
+      "FullyQualifiedName~RecordsAwaitContextTests.no_records_operation_resumes_on_the_callers_context"
+    ],
+    "expectedResult": "Build succeeds, focused test execution fails. A build/compile error is invalid mutation evidence.",
+    "pr": 264,
+    "expectedFailures": [
+      "RecordsAwaitContextTests.no_records_operation_resumes_on_the_callers_context"
+    ]
+  },
+  {
+    "id": "264-health-records-head",
+    "head": "e203d170d7195b4644f28a6755955adac5b9d80e",
+    "path": "projections/dotnet/blocks/hlp.blocks.builder-definitions/RecordsCatalogueHealth.cs",
+    "find": "            var head = await _store.GetPublishedHeadAsync(key, cancellationToken).ConfigureAwait(false);",
+    "replace": "            var head = await _store.GetPublishedHeadAsync(key, cancellationToken).ConfigureAwait(true);",
+    "project": "projections/dotnet/blocks/hlp.blocks.builder-definitions.tests/Harborline.Blocks.BuilderDefinitions.Tests.csproj",
+    "filter": "FullyQualifiedName~RecordsAwaitContextTests.no_records_operation_resumes_on_the_callers_context",
+    "oracleFailure": "Corresponding health theory selects this exact kind/step with incomplete TCS task; CountingContext.Posts becomes nonzero.",
+    "expectedMatchCount": 1,
+    "command": [
+      "dotnet",
+      "test",
+      "projections/dotnet/blocks/hlp.blocks.builder-definitions.tests/Harborline.Blocks.BuilderDefinitions.Tests.csproj",
+      "--configuration",
+      "Release",
+      "--filter",
+      "FullyQualifiedName~RecordsAwaitContextTests.no_records_operation_resumes_on_the_callers_context"
+    ],
+    "expectedResult": "Build succeeds, focused test execution fails. A build/compile error is invalid mutation evidence.",
+    "pr": 264,
+    "expectedFailures": [
+      "RecordsAwaitContextTests.no_records_operation_resumes_on_the_callers_context"
+    ]
+  },
+  {
+    "id": "264-health-classes-list",
+    "head": "e203d170d7195b4644f28a6755955adac5b9d80e",
+    "path": "projections/dotnet/blocks/hlp.blocks.builder-definitions/RecordsCatalogueHealth.cs",
+    "find": "        foreach (var key in await _store.ListKeysAsync(tenant, DefinitionKind.Classes, cancellationToken).ConfigureAwait(false))",
+    "replace": "        foreach (var key in await _store.ListKeysAsync(tenant, DefinitionKind.Classes, cancellationToken).ConfigureAwait(true))",
+    "project": "projections/dotnet/blocks/hlp.blocks.builder-definitions.tests/Harborline.Blocks.BuilderDefinitions.Tests.csproj",
+    "filter": "FullyQualifiedName~RecordsAwaitContextTests.no_records_operation_resumes_on_the_callers_context",
+    "oracleFailure": "Corresponding health theory selects this exact kind/step with incomplete TCS task; CountingContext.Posts becomes nonzero.",
+    "expectedMatchCount": 1,
+    "command": [
+      "dotnet",
+      "test",
+      "projections/dotnet/blocks/hlp.blocks.builder-definitions.tests/Harborline.Blocks.BuilderDefinitions.Tests.csproj",
+      "--configuration",
+      "Release",
+      "--filter",
+      "FullyQualifiedName~RecordsAwaitContextTests.no_records_operation_resumes_on_the_callers_context"
+    ],
+    "expectedResult": "Build succeeds, focused test execution fails. A build/compile error is invalid mutation evidence.",
+    "pr": 264,
+    "expectedFailures": [
+      "RecordsAwaitContextTests.no_records_operation_resumes_on_the_callers_context"
+    ]
+  },
+  {
+    "id": "264-health-classes-head",
+    "head": "e203d170d7195b4644f28a6755955adac5b9d80e",
+    "path": "projections/dotnet/blocks/hlp.blocks.builder-definitions/RecordsCatalogueHealth.cs",
+    "find": "            if (await _store.GetPublishedHeadAsync(key, cancellationToken).ConfigureAwait(false) is null) continue;",
+    "replace": "            if (await _store.GetPublishedHeadAsync(key, cancellationToken).ConfigureAwait(true) is null) continue;",
+    "project": "projections/dotnet/blocks/hlp.blocks.builder-definitions.tests/Harborline.Blocks.BuilderDefinitions.Tests.csproj",
+    "filter": "FullyQualifiedName~RecordsAwaitContextTests.no_records_operation_resumes_on_the_callers_context",
+    "oracleFailure": "Corresponding health theory selects this exact kind/step with incomplete TCS task; CountingContext.Posts becomes nonzero.",
+    "expectedMatchCount": 1,
+    "command": [
+      "dotnet",
+      "test",
+      "projections/dotnet/blocks/hlp.blocks.builder-definitions.tests/Harborline.Blocks.BuilderDefinitions.Tests.csproj",
+      "--configuration",
+      "Release",
+      "--filter",
+      "FullyQualifiedName~RecordsAwaitContextTests.no_records_operation_resumes_on_the_callers_context"
+    ],
+    "expectedResult": "Build succeeds, focused test execution fails. A build/compile error is invalid mutation evidence.",
+    "pr": 264,
+    "expectedFailures": [
+      "RecordsAwaitContextTests.no_records_operation_resumes_on_the_callers_context"
+    ]
+  },
+  {
+    "pr": 265,
+    "id": "265-final-atomic-fence",
+    "head": "e8166c773e7c87cb3eede43b8428bdcc634c01c0",
+    "path": "projections/dotnet/blocks/hlp.blocks.builder-definitions/VersionedDefinitionStore.cs",
+    "find": "if (conditions is not null)",
+    "replace": "if (conditions is not null && conditions.Count < 0)",
+    "project": "projections/dotnet/blocks/hlp.blocks.builder-definitions.tests/Harborline.Blocks.BuilderDefinitions.Tests.csproj",
+    "filter": "FullyQualifiedName~GuardedPublicationChecksHeadsAfterReentrantAdmissionAndDoesNotAppendOnConflict|FullyQualifiedName~target_changes_between_edge_admission_and_commit_are_fenced",
+    "expectedFailures": [
+      "GuardedPublicationChecksHeadsAfterReentrantAdmissionAndDoesNotAppendOnConflict",
+      "target_changes_between_edge_admission_and_commit_are_fenced"
+    ]
+  },
+  {
+    "pr": 265,
+    "id": "265-publication-replay",
+    "head": "e8166c773e7c87cb3eede43b8428bdcc634c01c0",
+    "path": "projections/dotnet/blocks/hlp.blocks.builder-definitions/RecordTypeDefinitionStore.cs",
+    "find": "var replay = await _store.GetPublicationReplayAsync(key, version, expectedRevision, requestId, cancellationToken)\n            .ConfigureAwait(false);",
+    "replace": "DefinitionRevision? replay = null;",
+    "project": "projections/dotnet/blocks/hlp.blocks.builder-definitions.tests/Harborline.Blocks.BuilderDefinitions.Tests.csproj",
+    "filter": "FullyQualifiedName~ARecreatedAdapterReplaysTheOriginalPublicationAfterAReferencedHeadAdvances",
+    "expectedFailures": [
+      "ARecreatedAdapterReplaysTheOriginalPublicationAfterAReferencedHeadAdvances"
+    ]
+  },
+  {
+    "pr": 266,
+    "id": "266-local-kind",
+    "head": "a632bb3c61dde40731d9c84ecc28ad9111469344",
+    "path": "projections/dotnet/blocks/hlp.blocks.builder-definitions/RecordTypeDefinitionStore.cs",
+    "find": "!closure.PackDefinitions.Contains(new InstallDefinitionTarget(targetKind, targetId))",
+    "replace": "!closure.PackDefinitions.Any(target => StringComparer.Ordinal.Equals(target.DefinitionId, targetId))",
+    "project": "projections/dotnet/blocks/hlp.blocks.builder-definitions.tests/Harborline.Blocks.BuilderDefinitions.Tests.csproj",
+    "filter": "FullyQualifiedName~RecordInstallGateTests.an_in_pack_definition_of_the_wrong_kind_cannot_satisfy_the_same_id",
+    "expectedFailures": [
+      "RecordInstallGateTests.an_in_pack_definition_of_the_wrong_kind_cannot_satisfy_the_same_id"
+    ]
+  },
+  {
+    "pr": 266,
+    "id": "266-exposure-kind",
+    "head": "a632bb3c61dde40731d9c84ecc28ad9111469344",
+    "path": "projections/dotnet/blocks/hlp.blocks.builder-definitions/RecordTypeDefinitionStore.cs",
+    "find": "StringComparer.Ordinal.Equals(exposure.PackageId, pin.PackageId) && exposure.Kind == targetKind",
+    "replace": "StringComparer.Ordinal.Equals(exposure.PackageId, pin.PackageId)",
+    "project": "projections/dotnet/blocks/hlp.blocks.builder-definitions.tests/Harborline.Blocks.BuilderDefinitions.Tests.csproj",
+    "filter": "FullyQualifiedName~RecordInstallGateTests.a_dependency_exposure_of_the_wrong_kind_cannot_satisfy_the_same_id",
+    "expectedFailures": [
+      "RecordInstallGateTests.a_dependency_exposure_of_the_wrong_kind_cannot_satisfy_the_same_id"
+    ]
+  },
+  {
+    "pr": 266,
+    "id": "266-records-self-kind",
+    "head": "a632bb3c61dde40731d9c84ecc28ad9111469344",
+    "path": "projections/dotnet/blocks/hlp.blocks.builder-definitions/RecordTypeDefinitionStore.cs",
+    "find": "if (!(targetKind == DefinitionKind.Records && StringComparer.Ordinal.Equals(targetId, document.RecordTypeId))",
+    "replace": "if (!(StringComparer.Ordinal.Equals(targetId, document.RecordTypeId))",
+    "project": "projections/dotnet/blocks/hlp.blocks.builder-definitions.tests/Harborline.Blocks.BuilderDefinitions.Tests.csproj",
+    "filter": "FullyQualifiedName~RecordInstallGateTests.a_class_target_with_the_record_type_id_is_not_a_self_reference",
+    "expectedFailures": [
+      "RecordInstallGateTests.a_class_target_with_the_record_type_id_is_not_a_self_reference"
+    ]
+  }
+]
