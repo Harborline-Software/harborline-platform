@@ -14,7 +14,8 @@ namespace Harborline.Blocks.BuilderDefinitions;
 public sealed record ClassDocument(RecordsDefinitionEnvelope Envelope, string Name, string ClassId);
 
 /// <summary>A new Class as its author describes it. The caller never supplies its id.</summary>
-public sealed record NewClass(string Tenant, string Section, string Name, string Version, DefinitionContractVersion? Contract);
+public sealed record NewClass(string Tenant, string Section, string Name, string Version, DefinitionContractVersion? Contract,
+    string? PackageId = null, IReadOnlyList<RecordsRequirement>? Requires = null, RecordsExposure? Exposes = null);
 
 /// <summary>
 /// Composes Class admission with the shared versioned-definition store under <see cref="DefinitionKind.Classes"/>
@@ -58,7 +59,8 @@ public sealed class ClassDefinitionStore
         ArgumentNullException.ThrowIfNull(request);
         var classId = RecordsCatalogueIdentity.Mint(request.Section, request.Name);
         return RecordsCatalogueIdentity.CreateAsync(_store,
-            Catalogue(new(new(request.Tenant, request.Section, request.Contract), request.Name, classId), classId, request.Version),
+            Catalogue(new(new(request.Tenant, request.Section, request.Contract, request.PackageId, request.Requires, request.Exposes),
+                request.Name, classId), classId, request.Version),
             requestId, "class_id", cancellationToken);
     }
 

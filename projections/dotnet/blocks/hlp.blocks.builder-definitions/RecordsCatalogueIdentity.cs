@@ -74,6 +74,7 @@ internal static partial class RecordsCatalogueIdentity
             refusals.Add(new("records.identity.section_invalid", "/envelope/section"));
         if (string.IsNullOrWhiteSpace(name))
             refusals.Add(new("records.identity.name_required", "/name"));
+        CheckPackage(envelope, phase, refusals);
         if (string.IsNullOrWhiteSpace(id))
             return refusals;
         // The catalogue key is the id every earlier version was stored under, so a body naming any other id
@@ -83,6 +84,18 @@ internal static partial class RecordsCatalogueIdentity
         else if (sectionValid && !id.StartsWith(envelope.Section + ".", StringComparison.Ordinal))
             refusals.Add(new("records.identity.section_mismatch", "/" + idMember));
         return refusals;
+    }
+
+    // records-ck-2 / ADR-0006: a published definition names its package, and its declarations parse.
+    private static void CheckPackage(RecordsDefinitionEnvelope envelope, DefinitionAdmissionPhase phase, List<DefinitionRefusal> refusals)
+    {
+        if (phase != DefinitionAdmissionPhase.Author && string.IsNullOrWhiteSpace(envelope.PackageId))
+            refusals.Add(new("records.package.required", "/envelope/package_id"));
+        foreach (var (requirement, index) in (envelope.Requires ?? []).Select((requirement, index) => (requirement, index)))
+            if (!RecordsRequirement.TryParse(requirement?.Capability, out _, out _))
+                refusals.Add(new("records.package.requirement_invalid", $"/envelope/requires/{index}"));
+        if (envelope.Exposes is { InterfaceVersion: <= 0 })
+            refusals.Add(new("records.package.exposure_invalid", "/envelope/exposes/interface_version"));
     }
 
     private static bool IsSection(string? section) => section is not null && SectionPattern().IsMatch(section);

@@ -165,7 +165,7 @@ public sealed class RecordReferenceTests
     private static ValueTask<RecordTypeDraft> Create(TestHost host, string name, FieldDefinition[] fields,
         IReadOnlyList<TraitReference>? traits = null, string tenant = Tenant, string? classId = "eam.equipment")
         => host.Records.CreateDraftAsync(new(tenant, "eam", name, "1.0.0", fields, Contract, traits,
-            ClassId: classId ?? "eam.equipment", RecordClass: RecordClass.Transactional), "create-" + name);
+            ClassId: classId ?? "eam.equipment", RecordClass: RecordClass.Transactional, PackageId: "eam-core"), "create-" + name);
 
     private static FieldDefinition Reference(string key, string? type, string? @class, ReferenceCardinality? cardinality,
         ReferenceDeleteBehavior? onDelete, string? trait = null, bool parent = false)

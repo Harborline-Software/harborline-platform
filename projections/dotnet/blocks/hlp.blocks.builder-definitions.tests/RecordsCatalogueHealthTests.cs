@@ -19,7 +19,7 @@ public sealed class RecordsCatalogueHealthTests
     {
         var host = Host();
         var health = new RecordsCatalogueHealth(host.Catalogue);
-        await host.Classes.CreateDraftAsync(new(Tenant, "eam", "Location", "1.0.0", Contract), "location");
+        await host.Classes.CreateDraftAsync(new(Tenant, "eam", "Location", "1.0.0", Contract, "eam-core"), "location");
         await host.Classes.PublishAsync(Tenant, "eam.location", "1.0.0", 1, "location-publish");
 
         Assert.Equal([
@@ -43,7 +43,7 @@ public sealed class RecordsCatalogueHealthTests
         var health = new RecordsCatalogueHealth(host.Catalogue);
         await Publish(host, "Pump", "eam.equipment");
         await host.Records.CreateDraftAsync(AssetClass("1.0.0"), "draft-member");
-        await host.Classes.CreateDraftAsync(new(Tenant, "eam", "Plant", "1.0.0", Contract), "draft-class");
+        await host.Classes.CreateDraftAsync(new(Tenant, "eam", "Plant", "1.0.0", Contract, "eam-core"), "draft-class");
 
         Assert.Equal([new RecordsHealthFinding("records.class.membership_degenerate", "eam.equipment", ["eam.pump"])],
             await health.ReportAsync(Tenant), Comparer);
@@ -64,7 +64,7 @@ public sealed class RecordsCatalogueHealthTests
     {
         var host = Host();
         var other = new ClassDefinitionStore(host.Catalogue);
-        await other.CreateDraftAsync(new("tenant-b", "eam", "Equipment", "1.0.0", Contract), "b-class");
+        await other.CreateDraftAsync(new("tenant-b", "eam", "Equipment", "1.0.0", Contract, "eam-core"), "b-class");
         await other.PublishAsync("tenant-b", "eam.equipment", "1.0.0", 1, "b-publish");
         await Publish(host, "Pump", "eam.equipment", "tenant-b");
         await Publish(host, "Valve", "eam.equipment", "tenant-b");
@@ -81,7 +81,7 @@ public sealed class RecordsCatalogueHealthTests
     private static async Task Publish(TestHost host, string name, string classId, string tenant = Tenant)
     {
         var draft = await host.Records.CreateDraftAsync(new(tenant, "eam", name, "1.0.0", [new("code", "Code")], Contract,
-            ClassId: classId, RecordClass: RecordClass.Master), $"{tenant}-{name}");
+            ClassId: classId, RecordClass: RecordClass.Master, PackageId: "eam-core"), $"{tenant}-{name}");
         await host.Records.PublishAsync(tenant, draft.RecordTypeId, "1.0.0", 1, $"{tenant}-{name}-publish");
     }
 

@@ -75,13 +75,26 @@ public enum ReferenceDeleteBehavior
 /// third target kind (owner ruling 2026-10-07).
 /// </param>
 /// <param name="Parent">Marks this reference as the type's one hierarchy edge (records-ck-12; L092).</param>
+/// <param name="Pin">
+/// For a target in another package only: the sealed cross-package pin (records-ck-41). Authoring writes it from
+/// current state, publication refuses unless it still matches, and installation checks it against the pinned
+/// dependency closure.
+/// </param>
 public sealed record RecordReferenceDefinition(
     string? TargetTypeId,
     string? TargetClassId,
     ReferenceCardinality? Cardinality,
     ReferenceDeleteBehavior? OnDelete,
     string? RequiredTraitId = null,
-    bool Parent = false);
+    bool Parent = false,
+    RecordReferencePin? Pin = null);
+
+/// <summary>
+/// One sealed cross-package edge (records-ck-41): the target's package, definition id, exact published version and
+/// algorithm-qualified body digest, and the interface version at which the target declared itself exposed. The source
+/// side's declaration is the referencing definition's own envelope <c>requires</c> entry, in the same signed body.
+/// </summary>
+public sealed record RecordReferencePin(string PackageId, string DefinitionId, string Version, string Digest, int InterfaceVersion);
 
 /// <summary>
 /// Materializes a field kind's creation defaults into each newly created bound field (DES-0015 records-ck-38,

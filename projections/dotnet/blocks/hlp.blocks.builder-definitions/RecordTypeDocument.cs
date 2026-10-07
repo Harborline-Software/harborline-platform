@@ -16,10 +16,38 @@ namespace Harborline.Blocks.BuilderDefinitions;
 /// <param name="Tenant">The owning tenant identifier.</param>
 /// <param name="Section">The catalogue section that scopes the Record Type id (L102), such as <c>finance</c> or <c>eam</c>.</param>
 /// <param name="Contract">The authored definition contract version.</param>
+/// <param name="PackageId">The owning package (records-ck-2 <c>package_id</c>; ADR-0006: control lives in the envelope). Required at publication.</param>
+/// <param name="Requires">The packages this definition depends on, each as <c>pack-key@interfaceVersion</c> (ADR-0006; the api installer's spelling).</param>
+/// <param name="Exposes">Present when other packages may reference this definition: the target-side declaration (ADR-0028; L127).</param>
 public sealed record RecordsDefinitionEnvelope(
     string Tenant,
     string Section,
-    DefinitionContractVersion? Contract);
+    DefinitionContractVersion? Contract,
+    string? PackageId = null,
+    IReadOnlyList<RecordsRequirement>? Requires = null,
+    RecordsExposure? Exposes = null);
+
+/// <summary>One declared package dependency, spelled <c>pack-key@interfaceVersion</c> (ADR-0006).</summary>
+/// <param name="Capability">The requirement, for example <c>eam-core@1</c>.</param>
+public sealed record RecordsRequirement(string Capability)
+{
+    /// <summary>Parses the spelling; <c>@</c> is a structural separator, and the interface version is a positive integer.</summary>
+    public static bool TryParse(string? capability, out string packageId, out int interfaceVersion)
+    {
+        packageId = "";
+        interfaceVersion = 0;
+        var separator = capability?.LastIndexOf('@') ?? -1;
+        if (separator <= 0 || separator == capability!.Length - 1
+            || !int.TryParse(capability.AsSpan(separator + 1), System.Globalization.NumberStyles.None,
+                System.Globalization.CultureInfo.InvariantCulture, out interfaceVersion)
+            || interfaceVersion <= 0) return false;
+        packageId = capability[..separator];
+        return !string.IsNullOrWhiteSpace(packageId);
+    }
+}
+
+/// <summary>The target-side declaration of a definition other packages may reference, at an interface version (ADR-0028).</summary>
+public sealed record RecordsExposure(int InterfaceVersion);
 
 /// <summary>
 /// One authored Record Type as the shared catalogue stores it: its envelope, its author-facing name and the
