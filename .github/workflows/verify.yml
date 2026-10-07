@@ -1,32 +1,42 @@
-# Isolated evidence branch only. This workflow never substitutes for a protected PR gate.
-name: Records focused hand mutation evidence
+# Isolated evidence branch only; never substitutes for protected PR or merge-group gates.
+name: Frozen Platform full-project mutation evidence
 on:
   workflow_dispatch:
+    inputs:
+      head:
+        description: Exact reviewed Platform commit
+        required: true
+        type: string
+      project:
+        description: Whole configured test-project fragment
+        required: true
+        default: hlp.blocks.builder-definitions.tests
+        type: string
+      pr:
+        description: Scoped PR number for evidence naming
+        required: true
+        type: string
 permissions:
   contents: read
 jobs:
-  hand-mutations:
+  frozen-mutation:
     if: vars.ACTIONS_ENABLED == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 45
-    strategy:
-      fail-fast: false
-      max-parallel: 4
-      matrix:
-        pr: [263]
+    timeout-minutes: 120
     env:
       DOTNET_CLI_TELEMETRY_OPTOUT: '1'
     steps:
       - uses: actions/checkout@v7
         with:
+          ref: ${{ inputs.head }}
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-node@v7
         with:
-          python-version: '3.14'
+          node-version: 24
       - name: Mirror authoritative control test fixtures
         env:
           PINS_TOKEN: ${{ secrets.HARBORLINE_PINS_TOKEN }}
@@ -39,15 +49,35 @@ jobs:
           $env:GIT_CONFIG_VALUE_0 = "AUTHORIZATION: basic $basic"
           git clone --quiet https://github.com/Harborline-Software/harborline-control.git "$env:RUNNER_TEMP/harborline-control"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: Measure independent focused hand mutants
-        run: python tooling/records-hand-mutation-evidence.py --pr ${{ matrix.pr }}
+      - name: Record exact source and unchanged full-project command
+        env:
+          EXPECTED_HEAD: ${{ inputs.head }}
+          TEST_PROJECT: ${{ inputs.project }}
+        run: |
+          mkdir -p frozen-mutation-evidence
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          git rev-parse HEAD > frozen-mutation-evidence/source-head.txt
+          git rev-parse HEAD^{tree} > frozen-mutation-evidence/source-tree.txt
+          git -C "$RUNNER_TEMP/harborline-control" rev-parse HEAD > frozen-mutation-evidence/control-head.txt
+          git status --porcelain=v1 > frozen-mutation-evidence/status-before.txt
+          dotnet --info > frozen-mutation-evidence/dotnet-info.txt
+          node --version > frozen-mutation-evidence/node-version.txt
+          printf '%s\n' "node tooling/stryker.mjs full $TEST_PROJECT" > frozen-mutation-evidence/command.txt
+      - name: Mutate entire frozen project and enforce existing score floors
         env:
           HARBORLINE_CONTROL_REPO: ${{ runner.temp }}/harborline-control
-      - name: Preserve raw logs, TRX, diffs and source hashes
+          TEST_PROJECT: ${{ inputs.project }}
+        run: |
+          set -o pipefail
+          dotnet tool restore 2>&1 | tee frozen-mutation-evidence/tool-restore.log
+          node tooling/stryker.mjs full "$TEST_PROJECT" 2>&1 | tee frozen-mutation-evidence/full-project.log
+      - name: Preserve reports, provenance and complete output
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: records-hand-mutants-${{ matrix.pr }}-${{ github.run_id }}
-          path: hand-mutation-evidence/${{ matrix.pr }}
+          name: frozen-mutation-${{ inputs.pr }}-${{ github.run_id }}
+          path: |
+            StrykerOutput/*/reports/mutation-report.json
+            frozen-mutation-evidence
           if-no-files-found: error
           retention-days: 14
