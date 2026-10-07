@@ -465,6 +465,34 @@ public sealed class VersionedDefinitionStoreTests
         Assert.Equal(2, (await store.ListHistoryAsync(source.Key)).Count);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task GuardedPublicationWithNoPublishedTargetRefusesWithoutAppendingOrConsumingTheRequest(bool targetHasDraft)
+    {
+        var store = Store();
+        var source = Document();
+        var target = source with { Key = source.Key with { DefinitionId = "target" } };
+        await store.SaveDraftAsync(source, 0, "source-draft");
+        if (targetHasDraft) await store.SaveDraftAsync(target, 0, "target-draft");
+
+        var refused = await Assert.ThrowsAsync<DefinitionRefusalException>(async () =>
+            await store.PublishAsync(source.Key, source.VersionId, 1, "publish", [new(target.Key, 2, "/fields/0/reference")]));
+
+        // Atomic preconditions refuse absent published heads, whether the target is missing or still a draft.
+        Assert.Equal(DefinitionAdmissionPhase.Publish, refused.Stage);
+        AssertRefusal(refused, "definition.published_head_conflict", "/fields/0/reference");
+        Assert.Null(await store.GetPublishedHeadAsync(source.Key));
+        Assert.Single(await store.ListHistoryAsync(source.Key));
+        Assert.Null(await store.GetPublicationReplayAsync(source.Key, source.VersionId, 1, "publish"));
+        if (!targetHasDraft) await store.SaveDraftAsync(target, 0, "target-draft");
+        await store.PublishAsync(target.Key, target.VersionId, 1, "target-publish");
+        var published = await store.PublishAsync(source.Key, source.VersionId, 1, "publish", [new(target.Key, 2, "/fields/0/reference")]);
+        Assert.Equal(DefinitionStatus.Published, published.Status);
+        Assert.Equal(2, published.Revision);
+        Assert.Equal(2, (await store.ListHistoryAsync(source.Key)).Count);
+    }
+
     private static InMemoryVersionedDefinitionStore Store(DefinitionAdmission? admission = null)
         => new(Enum.GetValues<DefinitionKind>().ToDictionary(kind => kind,
             _ => admission ?? ((_, _) => Array.Empty<DefinitionRefusal>())));

@@ -464,7 +464,7 @@ public sealed class RecordTypeSchemaCompiler
         // requires a shared field to satisfy every bound slot's admitted intersection.
         // C:/Projects/Harborline/harborline-control/designs/DES-0015-records/design.md:104 (records-ck-39)
         // permits narrowing a slot floor but forbids widening its domain.
-        await NarrowTraitBindingsAsync(candidate, fieldDomainScope, refusals, cancellationToken);
+        await NarrowTraitBindingsAsync(candidate, fieldDomainScope, refusals, cancellationToken).ConfigureAwait(false);
         var properties = new Dictionary<string, object>(StringComparer.Ordinal);
         var boundKinds = new Dictionary<string, AdmittedFieldKind>(StringComparer.Ordinal);
         foreach (var (field, index) in (candidate.Fields ?? []).Select((field, index) => (field, index)))
@@ -553,7 +553,7 @@ public sealed class RecordTypeSchemaCompiler
                         field.Binding?.Constraints ?? Unconstrained,
                         fieldDomainScope,
                         pointer,
-                        cancellationToken);
+                        cancellationToken).ConfigureAwait(false);
                 }
                 catch (FieldAdmissionException exception)
                 {
