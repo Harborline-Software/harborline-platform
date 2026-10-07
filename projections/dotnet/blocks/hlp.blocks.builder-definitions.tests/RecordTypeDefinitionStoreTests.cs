@@ -16,13 +16,13 @@ namespace Harborline.Blocks.BuilderDefinitions.Tests;
 /// </summary>
 public sealed class RecordTypeDefinitionStoreTests
 {
-    private const string Tenant = "tenant-a";
+    internal const string Tenant = "tenant-a";
     private static readonly DefinitionContractWindow Window = new(1, 0, 1);
     private static readonly DefinitionContractVersion Contract = new(1, 0);
 
     // The canonical body of the asset-class fixture, as the store holds it and the fixture file carries it: the
     // created bound fields carry their kind's governance defaults and that kind revision as provenance.
-    private const string AssetClassJson =
+    internal const string AssetClassJson =
         """{"envelope":{"contract":{"major":1,"minor":0},"section":"eam","tenant":"tenant-a"},"fields":[{"binding":{"constraints":{"maximum_count":1,"minimum_count":0,"read_role_ids":[],"required":true},"kind":{"kind_id":"text","parameters":{},"version":"1.0.0"}},"defaults_provenance":{"kind_id":"text","kind_version":"1.0.0"},"display_name":"Asset tag","field_key":"asset_tag","governance":{"classification":"internal","confidential":false,"masked":true,"personal_data":true}},{"binding":{"constraints":{"maximum_count":1,"minimum_count":0,"read_role_ids":[],"required":false},"kind":{"kind_id":"count","parameters":{},"version":"1.0.0"}},"defaults_provenance":{"kind_id":"count","kind_version":"1.0.0"},"display_name":"Quantity","field_key":"quantity"},{"display_name":"Notes","field_key":"notes"}],"name":"Asset Class","record_type_id":"eam.asset-class"}""" + "\n";
 
     [Fact]
@@ -523,7 +523,7 @@ public sealed class RecordTypeDefinitionStoreTests
         return RecordTypeDefinitionJson.Deserialize(Encoding.UTF8.GetBytes(history.Last(revision => revision.Document.Version == version).Document.BodyJson));
     }
 
-    private sealed record TestHost(InMemoryVersionedDefinitionStore Catalogue, RecordTypeDefinitionStore Records,
+    internal sealed record TestHost(InMemoryVersionedDefinitionStore Catalogue, RecordTypeDefinitionStore Records,
         RecordTypeSchemaCompiler Compiler, InMemorySchemaRegistry Registry);
 
     private static readonly RecordFieldDefaults Defaults = new(new FieldKindRuntime(new FieldKindRegistry([])));
@@ -543,7 +543,7 @@ public sealed class RecordTypeDefinitionStoreTests
         Assert.Empty(await Registered(host.Registry));
     }
 
-    private static TestHost Host(SchemaRegistryOptions? registryOptions = null)
+    internal static TestHost Host(SchemaRegistryOptions? registryOptions = null)
     {
         var kinds = new FieldKindRuntime(new FieldKindRegistry([
             new("count", "1.0.0", null, FieldScalarValueShape.Integer),
@@ -561,7 +561,7 @@ public sealed class RecordTypeDefinitionStoreTests
         return new(catalogue, new RecordTypeDefinitionStore(catalogue, compiler, new RecordFieldDefaults(kinds), registry, Window), compiler, registry);
     }
 
-    private static NewRecordType AssetClass(string version) => new(Tenant, "eam", "Asset Class", version,
+    internal static NewRecordType AssetClass(string version) => new(Tenant, "eam", "Asset Class", version,
         Document().Fields, Contract);
 
     private static RecordTypeDocument Document() => new(new(Tenant, "eam", Contract), "Asset Class", "eam.asset-class",
