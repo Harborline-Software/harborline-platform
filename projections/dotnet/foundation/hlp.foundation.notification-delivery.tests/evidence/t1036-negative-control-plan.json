@@ -1,0 +1,360 @@
+{
+  "ticket": "T-1036",
+  "platformBase": "b10d86e5045a2acd89e6522f04b95ccda788b1eb",
+  "historicalRun": 36874901580,
+  "historicalCommit": "e679734cfa84a81cce5f3bcdae6263dfe6294d8a",
+  "artifactId": 11205339011,
+  "archiveSha256": "ec47cf49a65f2c887bf5c6b321372fb8f702795e75727dc5d8e367aef7c9de07",
+  "reportSha256": "6f780be2191cfd95df50155ea882a63386e21568d98c38b47ddea4d6f17c4dfd",
+  "counts": {
+    "total": 80,
+    "tested": 59,
+    "detected": 25,
+    "undetected": 34,
+    "ignored": 16,
+    "compileError": 5,
+    "score": 42.37
+  },
+  "controls": [
+    {
+      "historicalId": 0,
+      "file": "DeliveryChannels.cs",
+      "line": 12,
+      "mutator": "String mutation",
+      "test": "Harborline.Foundation.NotificationDelivery.Tests.DeliveryChannelBoundaryTests.Notification_delivery_ck_1_inbox_key_renders_its_stable_name_and_default_renders_empty",
+      "priority": "2: stable channel identity and empty default rendering",
+      "oracle": "DES-0055 ck-1 literal inbox; default rendering is local compatibility",
+      "status": "planned-not-executed"
+    },
+    {
+      "historicalId": 1,
+      "file": "DeliveryChannels.cs",
+      "line": 18,
+      "mutator": "Null coalescing mutation (remove left)",
+      "test": "Harborline.Foundation.NotificationDelivery.Tests.DeliveryChannelBoundaryTests.Notification_delivery_ck_1_inbox_key_renders_its_stable_name_and_default_renders_empty",
+      "priority": "2: stable channel identity and empty default rendering",
+      "oracle": "DES-0055 ck-1 literal inbox; default rendering is local compatibility",
+      "status": "planned-not-executed"
+    },
+    {
+      "historicalId": 2,
+      "file": "DeliveryChannels.cs",
+      "line": 18,
+      "mutator": "String mutation",
+      "test": "Harborline.Foundation.NotificationDelivery.Tests.DeliveryChannelBoundaryTests.Notification_delivery_ck_1_inbox_key_renders_its_stable_name_and_default_renders_empty",
+      "priority": "2: stable channel identity and empty default rendering",
+      "oracle": "DES-0055 ck-1 literal inbox; default rendering is local compatibility",
+      "status": "planned-not-executed"
+    },
+    {
+      "historicalId": 4,
+      "file": "DeliveryChannels.cs",
+      "line": 57,
+      "mutator": "Statement mutation",
+      "test": "Harborline.Foundation.NotificationDelivery.Tests.DeliveryChannelBoundaryTests.Notification_delivery_ck_2_null_reference_collection_is_refused_before_binding",
+      "priority": "1: fail-closed configuration boundary",
+      "oracle": "local public API null argument and literal parameter name",
+      "status": "planned-not-executed"
+    },
+    {
+      "historicalId": 5,
+      "file": "DeliveryChannels.cs",
+      "line": 59,
+      "mutator": "Logical mutation",
+      "test": "Harborline.Foundation.NotificationDelivery.Tests.DeliveryChannelBoundaryTests.Notification_delivery_ck_2_empty_binding_preserves_tenant_channel_enablement_and_sender",
+      "priority": "2: valid binding availability and tenant configuration",
+      "oracle": "DES-0055 ck-2 fixture fields; inbox has no secret requirements",
+      "status": "planned-not-executed"
+    },
+    {
+      "historicalId": 13,
+      "file": "DeliveryChannels.cs",
+      "line": 63,
+      "mutator": "String mutation",
+      "test": "Harborline.Foundation.NotificationDelivery.Tests.DeliveryChannelBoundaryTests.Notification_delivery_ck_2_inbox_secrets_refuse_even_when_the_binding_is_disabled",
+      "priority": "3: operator diagnostics",
+      "oracle": "literal local refusal message",
+      "status": "planned-not-executed"
+    },
+    {
+      "historicalId": 17,
+      "file": "DeliveryChannels.cs",
+      "line": 134,
+      "mutator": "String mutation",
+      "test": "Harborline.Foundation.NotificationDelivery.Tests.DeliveryChannelBoundaryTests.Notification_delivery_ck_1_unknown_channel_refuses_with_a_code_and_operator_explanation",
+      "priority": "3: operator diagnostics",
+      "oracle": "literal local refusal message",
+      "status": "planned-not-executed"
+    },
+    {
+      "historicalId": 19,
+      "file": "InboxChannel.cs",
+      "line": 70,
+      "mutator": "Statement mutation",
+      "test": "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_ck_10_append_rejects_null_and_duplicate_ids_without_losing_the_first_entry",
+      "priority": "1: fail-closed persistence boundary",
+      "oracle": "local API null argument and duplicate-ID integrity property",
+      "status": "planned-not-executed"
+    },
+    {
+      "historicalId": 20,
+      "file": "InboxChannel.cs",
+      "line": 71,
+      "mutator": "Statement mutation",
+      "test": "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Inbox_cancelled_operation_throws_without_changing_any_inbox",
+      "priority": "2: cancellation and unchanged durable data",
+      "oracle": "cancelled token plus complete independent before/after fixture",
+      "status": "planned-not-executed"
+    },
+    {
+      "historicalId": 24,
+      "file": "InboxChannel.cs",
+      "line": 82,
+      "mutator": "Statement mutation",
+      "test": "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Inbox_cancelled_operation_throws_without_changing_any_inbox",
+      "priority": "2: cancellation and unchanged durable data",
+      "oracle": "cancelled token plus complete independent before/after fixture",
+      "status": "planned-not-executed"
+    },
+    {
+      "historicalId": 26,
+      "file": "InboxChannel.cs",
+      "line": 85,
+      "mutator": "Linq method mutation (ThenBy() to ThenByDescending())",
+      "test": "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Inbox_equal_timestamp_entries_use_ascending_id_as_a_repeatable_tiebreak",
+      "priority": "3: deterministic compatibility ordering",
+      "oracle": "hand-picked literal ID sequence; DES-0055 leaves ties unspecified",
+      "status": "planned-not-executed"
+    },
+    {
+      "historicalId": 27,
+      "file": "InboxChannel.cs",
+      "line": 85,
+      "mutator": "Linq method mutation (OrderByDescending() to OrderBy())",
+      "test": "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_cc_2_entries_are_newest_first_even_when_appended_out_of_order",
+      "priority": "2: inbox presentation ordering",
+      "oracle": "DES-0055 cc-2 newest first, fixed timestamp fixture and literal ID sequence",
+      "status": "planned-not-executed"
+    },
+    {
+      "historicalId": 28,
+      "file": "InboxChannel.cs",
+      "line": 86,
+      "mutator": "Logical mutation",
+      "test": "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_cc_2_list_isolates_both_tenant_and_recipient",
+      "priority": "1: silent disclosure across tenant or recipient",
+      "oracle": "DES-0055 ck-10 per-person tenant data; explicit owned ID sequence",
+      "status": "planned-not-executed"
+    },
+    {
+      "historicalId": 32,
+      "file": "InboxChannel.cs",
+      "line": 97,
+      "mutator": "Statement mutation",
+      "test": "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Inbox_cancelled_operation_throws_without_changing_any_inbox",
+      "priority": "2: cancellation and unchanged durable data",
+      "oracle": "cancelled token plus complete independent before/after fixture",
+      "status": "planned-not-executed"
+    },
+    {
+      "historicalId": 36,
+      "file": "InboxChannel.cs",
+      "line": 100,
+      "mutator": "Logical mutation",
+      "test": "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_cc_2_unread_count_excludes_read_dismissed_and_other_inboxes",
+      "priority": "1: silent scope and read-state count corruption",
+      "oracle": "DES-0055 ck-7 and cc-2; literal counts from mixed-scope fixture",
+      "status": "planned-not-executed"
+    },
+    {
+      "historicalId": 41,
+      "file": "InboxChannel.cs",
+      "line": 109,
+      "mutator": "Statement mutation",
+      "test": "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Inbox_cancelled_operation_throws_without_changing_any_inbox",
+      "priority": "2: cancellation and unchanged durable data",
+      "oracle": "cancelled token plus complete independent before/after fixture",
+      "status": "planned-not-executed"
+    },
+    {
+      "historicalId": 43,
+      "file": "InboxChannel.cs",
+      "line": 112,
+      "mutator": "Logical mutation",
+      "test": "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_ck_7_wrong_scope_or_missing_entry_refuses_without_changing_any_inbox",
+      "priority": "1: silent unauthorized state mutation; 51 diagnostics",
+      "oracle": "DES-0055 ck-7/ck-10 per-person state; literal local code and diagnostic; complete fixture unchanged",
+      "status": "planned-not-executed"
+    },
+    {
+      "historicalId": 45,
+      "file": "InboxChannel.cs",
+      "line": 112,
+      "mutator": "Logical mutation",
+      "test": "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_ck_7_wrong_scope_or_missing_entry_refuses_without_changing_any_inbox",
+      "priority": "1: silent unauthorized state mutation; 51 diagnostics",
+      "oracle": "DES-0055 ck-7/ck-10 per-person state; literal local code and diagnostic; complete fixture unchanged",
+      "status": "planned-not-executed"
+    },
+    {
+      "historicalId": 50,
+      "file": "InboxChannel.cs",
+      "line": 114,
+      "mutator": "Statement mutation",
+      "test": "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_ck_7_wrong_scope_or_missing_entry_refuses_without_changing_any_inbox",
+      "priority": "1: silent unauthorized state mutation; 51 diagnostics",
+      "oracle": "DES-0055 ck-7/ck-10 per-person state; literal local code and diagnostic; complete fixture unchanged",
+      "status": "planned-not-executed"
+    },
+    {
+      "historicalId": 51,
+      "file": "InboxChannel.cs",
+      "line": 116,
+      "mutator": "String mutation",
+      "test": "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_ck_7_wrong_scope_or_missing_entry_refuses_without_changing_any_inbox",
+      "priority": "1: silent unauthorized state mutation; 51 diagnostics",
+      "oracle": "DES-0055 ck-7/ck-10 per-person state; literal local code and diagnostic; complete fixture unchanged",
+      "status": "planned-not-executed"
+    },
+    {
+      "historicalId": 53,
+      "file": "InboxChannel.cs",
+      "line": 127,
+      "mutator": "Statement mutation",
+      "test": "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Inbox_cancelled_operation_throws_without_changing_any_inbox",
+      "priority": "2: cancellation and unchanged durable data",
+      "oracle": "cancelled token plus complete independent before/after fixture",
+      "status": "planned-not-executed"
+    },
+    {
+      "historicalId": 55,
+      "file": "InboxChannel.cs",
+      "line": 130,
+      "mutator": "Logical mutation",
+      "test": "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_ck_7_mark_all_read_changes_only_scoped_unread_entries_and_is_idempotent",
+      "priority": "1: silent cross-scope bulk state corruption",
+      "oracle": "DES-0055 ck-7/cc-2; public API unread-only operation; fixture IDs1,2 alone become Read",
+      "status": "planned-not-executed"
+    },
+    {
+      "historicalId": 56,
+      "file": "InboxChannel.cs",
+      "line": 130,
+      "mutator": "Logical mutation",
+      "test": "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_ck_7_mark_all_read_changes_only_scoped_unread_entries_and_is_idempotent",
+      "priority": "1: silent cross-scope bulk state corruption",
+      "oracle": "DES-0055 ck-7/cc-2; public API unread-only operation; fixture IDs1,2 alone become Read",
+      "status": "planned-not-executed"
+    },
+    {
+      "historicalId": 57,
+      "file": "InboxChannel.cs",
+      "line": 130,
+      "mutator": "Equality mutation",
+      "test": "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_ck_7_mark_all_read_changes_only_scoped_unread_entries_and_is_idempotent",
+      "priority": "1: silent cross-scope bulk state corruption",
+      "oracle": "DES-0055 ck-7/cc-2; public API unread-only operation; fixture IDs1,2 alone become Read",
+      "status": "planned-not-executed"
+    },
+    {
+      "historicalId": 58,
+      "file": "InboxChannel.cs",
+      "line": 131,
+      "mutator": "Equality mutation",
+      "test": "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_ck_7_mark_all_read_changes_only_scoped_unread_entries_and_is_idempotent",
+      "priority": "1: silent cross-scope bulk state corruption",
+      "oracle": "DES-0055 ck-7/cc-2; public API unread-only operation; fixture IDs1,2 alone become Read",
+      "status": "planned-not-executed"
+    },
+    {
+      "historicalId": 59,
+      "file": "InboxChannel.cs",
+      "line": 132,
+      "mutator": "Equality mutation",
+      "test": "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_ck_7_mark_all_read_changes_only_scoped_unread_entries_and_is_idempotent",
+      "priority": "1: silent cross-scope bulk state corruption",
+      "oracle": "DES-0055 ck-7/cc-2; public API unread-only operation; fixture IDs1,2 alone become Read",
+      "status": "planned-not-executed"
+    },
+    {
+      "historicalId": 60,
+      "file": "InboxChannel.cs",
+      "line": 133,
+      "mutator": "Block removal mutation",
+      "test": "Harborline.Foundation.NotificationDelivery.Tests.InboxStoreBoundaryTests.Notification_delivery_ck_7_mark_all_read_changes_only_scoped_unread_entries_and_is_idempotent",
+      "priority": "1: silent cross-scope bulk state corruption",
+      "oracle": "DES-0055 ck-7/cc-2; public API unread-only operation; fixture IDs1,2 alone become Read",
+      "status": "planned-not-executed"
+    },
+    {
+      "historicalId": 63,
+      "file": "InboxChannel.cs",
+      "line": 158,
+      "mutator": "Statement mutation",
+      "test": "Harborline.Foundation.NotificationDelivery.Tests.InboxWriteBoundaryTests.Notification_delivery_ck_10_null_request_refuses_before_any_append",
+      "priority": "1: fail-closed write boundary",
+      "oracle": "local public API null argument and recording store append count0",
+      "status": "planned-not-executed"
+    },
+    {
+      "historicalId": 66,
+      "file": "InboxChannel.cs",
+      "line": 161,
+      "mutator": "Statement mutation",
+      "test": "Harborline.Foundation.NotificationDelivery.Tests.InboxWriteBoundaryTests.Notification_delivery_ck_10_missing_required_content_refuses_before_any_append",
+      "priority": "1: silent invalid content persistence; 79 diagnostics",
+      "oracle": "local public API required fields and literal code/message; recording store append count0",
+      "status": "planned-not-executed"
+    },
+    {
+      "historicalId": 67,
+      "file": "InboxChannel.cs",
+      "line": 162,
+      "mutator": "Statement mutation",
+      "test": "Harborline.Foundation.NotificationDelivery.Tests.InboxWriteBoundaryTests.Notification_delivery_ck_10_missing_required_content_refuses_before_any_append",
+      "priority": "1: silent invalid content persistence; 79 diagnostics",
+      "oracle": "local public API required fields and literal code/message; recording store append count0",
+      "status": "planned-not-executed"
+    },
+    {
+      "historicalId": 69,
+      "file": "InboxChannel.cs",
+      "line": 164,
+      "mutator": "Statement mutation",
+      "test": "Harborline.Foundation.NotificationDelivery.Tests.InboxWriteBoundaryTests.Notification_delivery_ck_10_missing_required_content_refuses_before_any_append",
+      "priority": "1: silent invalid content persistence; 79 diagnostics",
+      "oracle": "local public API required fields and literal code/message; recording store append count0",
+      "status": "planned-not-executed"
+    },
+    {
+      "historicalId": 70,
+      "file": "InboxChannel.cs",
+      "line": 165,
+      "mutator": "Statement mutation",
+      "test": "Harborline.Foundation.NotificationDelivery.Tests.InboxWriteBoundaryTests.Notification_delivery_ck_10_missing_required_content_refuses_before_any_append",
+      "priority": "1: silent invalid content persistence; 79 diagnostics",
+      "oracle": "local public API required fields and literal code/message; recording store append count0",
+      "status": "planned-not-executed"
+    },
+    {
+      "historicalId": 71,
+      "file": "InboxChannel.cs",
+      "line": 178,
+      "mutator": "Boolean mutation",
+      "test": "Harborline.Foundation.NotificationDelivery.Tests.InboxWriteBoundaryTests.Notification_delivery_ck_10_write_preserves_all_content_and_stamps_a_new_unread_entry",
+      "priority": "1: silent answer-owed corruption",
+      "oracle": "DES-0055 ck-10; true/false input fixtures, literal payload and fixed clock",
+      "status": "planned-not-executed"
+    },
+    {
+      "historicalId": 79,
+      "file": "InboxChannel.cs",
+      "line": 187,
+      "mutator": "String mutation",
+      "test": "Harborline.Foundation.NotificationDelivery.Tests.InboxWriteBoundaryTests.Notification_delivery_ck_10_missing_required_content_refuses_before_any_append",
+      "priority": "1: silent invalid content persistence; 79 diagnostics",
+      "oracle": "local public API required fields and literal code/message; recording store append count0",
+      "status": "planned-not-executed"
+    }
+  ]
+}
