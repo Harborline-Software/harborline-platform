@@ -111,15 +111,39 @@ public sealed class CatalogueFieldSourceTests
         Assert.Equal([(code, pointer)], Pairs(refused));
     }
 
-    [Fact]
+    [Theory]
     [Trait("Holds", "records-ck-40")]
-    public async Task pack_and_platform_provenance_resolve_at_an_exact_pack_version()
+    [InlineData("pack", "eam-pack", "2.1.0")]
+    [InlineData("platform", "platform", "1.0.0")]
+    public async Task a_package_claim_cannot_resolve_a_tenant_authored_revision(
+        string kind, string packKey, string packVersion)
     {
         var host = await Published();
         var source = new CatalogueFieldSource(host.Catalogue);
 
-        Assert.Equal("asset_tag", (await source.ResolveAsync(Tenant, Coordinate() with { Provenance = new("pack", "eam-pack", "2.1.0") })).Field.FieldKey);
-        Assert.Equal("asset_tag", (await source.ResolveAsync(Tenant, Coordinate() with { Provenance = new("platform", "platform", "1.0.0") })).Field.FieldKey);
+        // Oracle: publishing tenant content does not establish ownership by any package, regardless of
+        // whether the coordinate names a syntactically valid exact package version.
+        var refused = await Assert.ThrowsAsync<DefinitionRefusalException>(() => source.ResolveAsync(Tenant,
+            Coordinate() with { Provenance = new(kind, packKey, packVersion) }).AsTask());
+
+        Assert.Equal(DefinitionAdmissionPhase.Render, refused.Stage);
+        Assert.Equal([("records.field_source.provenance_unverified", "/provenance")], Pairs(refused));
+        Assert.Equal("asset_tag", (await source.ResolveAsync(Tenant, Coordinate())).Field.FieldKey);
+    }
+
+    [Theory]
+    [Trait("Holds", "records-ck-40")]
+    [InlineData("pack")]
+    [InlineData("platform")]
+    public async Task an_unverified_package_claim_refuses_before_catalogue_resolution(string kind)
+    {
+        var host = Host(); // No revision exists: version lookup would instead refuse version_unavailable.
+
+        var refused = await Assert.ThrowsAsync<DefinitionRefusalException>(() => new CatalogueFieldSource(host.Catalogue)
+            .ResolveAsync(Tenant, Coordinate() with { Provenance = new(kind, "uninstalled", "9.9.9") }).AsTask());
+
+        Assert.Equal(DefinitionAdmissionPhase.Render, refused.Stage);
+        Assert.Equal([("records.field_source.provenance_unverified", "/provenance")], Pairs(refused));
     }
 
     [Fact]
