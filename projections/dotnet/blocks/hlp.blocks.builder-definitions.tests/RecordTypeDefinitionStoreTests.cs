@@ -514,6 +514,13 @@ public sealed class RecordTypeDefinitionStoreTests
         return RecordTypeDefinitionJson.Deserialize(Encoding.UTF8.GetBytes(history.Last(revision => revision.Document.Version == version).Document.BodyJson));
     }
 
+    // One slotless Trait, so a test type can declare a trait a reference requires.
+    private sealed class LocatableTraitSource : IRecordTraitSource
+    {
+        public TraitDefinition? Resolve(string traitId, string version)
+            => traitId == "locatable" && version == "1.0.0" ? new("locatable", "1.0.0", []) : null;
+    }
+
     internal sealed record TestHost(InMemoryVersionedDefinitionStore Catalogue, RecordTypeDefinitionStore Records,
         RecordTypeSchemaCompiler Compiler, InMemorySchemaRegistry Registry, ClassDefinitionStore Classes);
 
@@ -527,7 +534,7 @@ public sealed class RecordTypeDefinitionStoreTests
             new("date", "1.0.0", null, FieldScalarValueShape.Text, [FieldKindCapability.RetentionClock]),
             new("date", "2.0.0", null, FieldScalarValueShape.Text),
         ]));
-        var validator = new RecordsIntentValidator();
+        var validator = new RecordsIntentValidator(new LocatableTraitSource());
         var compiler = new RecordTypeSchemaCompiler(validator, kinds, new SharedValueDomainAdmission());
         var registry = new InMemorySchemaRegistry(fieldKindRuntime: kinds);
         var catalogue = new InMemoryVersionedDefinitionStore(new Dictionary<DefinitionKind, DefinitionAdmission>
