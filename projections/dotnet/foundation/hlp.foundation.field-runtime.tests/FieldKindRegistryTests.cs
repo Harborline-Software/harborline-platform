@@ -42,6 +42,31 @@ public sealed class FieldKindRegistryTests
             new("amount", "1.0.0", new Dictionary<string, string>()), "/kind").KindId);
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Registered_capabilities_are_detached_and_cannot_be_mutated_through_resolution(bool declared)
+    {
+        // Oracle: the exact revision's declaration at registration, independently of either later mutation.
+        var capabilities = new List<FieldKindCapability>();
+        if (declared) capabilities.Add(FieldKindCapability.RetentionClock);
+        var registry = new FieldKindRegistry([new("date", "1.0.0", null, FieldScalarValueShape.Text, capabilities)]);
+        var reference = new FieldKindReference("date", "1.0.0", new Dictionary<string, string>());
+        var resolved = registry.Resolve(reference, "/kind");
+
+        if (declared) capabilities.Clear();
+        else capabilities.Add(FieldKindCapability.RetentionClock);
+        Assert.Equal(declared ? new[] { FieldKindCapability.RetentionClock } : Array.Empty<FieldKindCapability>(), resolved.Capabilities);
+
+        var exposed = Assert.IsAssignableFrom<IList<FieldKindCapability>>(resolved.Capabilities);
+        Assert.Throws<NotSupportedException>(() => exposed.Clear());
+        Assert.Throws<NotSupportedException>(() => exposed.Add(FieldKindCapability.RetentionClock));
+        if (declared)
+            Assert.Throws<NotSupportedException>(() => exposed[0] = (FieldKindCapability)99);
+        Assert.Equal(declared ? new[] { FieldKindCapability.RetentionClock } : Array.Empty<FieldKindCapability>(),
+            registry.Resolve(reference, "/kind").Capabilities);
+    }
+
     [Fact]
     public void Duplicate_registrations_and_unsupported_shapes_fail_closed()
     {
