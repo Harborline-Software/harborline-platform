@@ -13,7 +13,7 @@ jobs:
       fail-fast: false
       max-parallel: 4
       matrix:
-        pr: [260, 264, 265, 266]
+        pr: [263]
     env:
       DOTNET_CLI_TELEMETRY_OPTOUT: '1'
     steps:

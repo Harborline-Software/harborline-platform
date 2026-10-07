@@ -239,5 +239,31 @@
     "expectedFailures": [
       "RecordInstallGateTests.a_class_target_with_the_record_type_id_is_not_a_self_reference"
     ]
+  },
+  {
+    "pr": 263,
+    "id": "263-cardinality-guard",
+    "head": "5122d7a57f6383a5db08911023b023600d6559ba",
+    "path": "projections/dotnet/kernel/hlp.kernel.schema-validation/Records/RecordTypeIdentity.cs",
+    "find": "            else if (!Enum.IsDefined(reference.Cardinality.Value))\n            {\n                refusals.Add(new(\"records.reference.cardinality_invalid\", pointer + \"/cardinality\",\n                    \"A reference cardinality is one or many.\"));\n            }",
+    "replace": "",
+    "project": "projections/dotnet/kernel/hlp.kernel.schema-validation.tests/Harborline.Kernel.SchemaValidation.Tests.csproj",
+    "filter": "FullyQualifiedName~Undefined_enum_values_are_refused_by_validator_and_compiler|FullyQualifiedName~Every_declared_cardinality_and_delete_behaviour_combination_is_admitted",
+    "expectedFailures": [
+      "Undefined_enum_values_are_refused_by_validator_and_compiler"
+    ]
+  },
+  {
+    "pr": 263,
+    "id": "263-on-delete-guard",
+    "head": "5122d7a57f6383a5db08911023b023600d6559ba",
+    "path": "projections/dotnet/kernel/hlp.kernel.schema-validation/Records/RecordTypeIdentity.cs",
+    "find": "            else if (!Enum.IsDefined(reference.OnDelete.Value))\n            {\n                refusals.Add(new(\"records.reference.on_delete_invalid\", pointer + \"/on_delete\",\n                    \"A reference delete behaviour is block, orphan or cascade.\"));\n            }",
+    "replace": "",
+    "project": "projections/dotnet/kernel/hlp.kernel.schema-validation.tests/Harborline.Kernel.SchemaValidation.Tests.csproj",
+    "filter": "FullyQualifiedName~Undefined_enum_values_are_refused_by_validator_and_compiler|FullyQualifiedName~Every_declared_cardinality_and_delete_behaviour_combination_is_admitted",
+    "expectedFailures": [
+      "Undefined_enum_values_are_refused_by_validator_and_compiler"
+    ]
   }
 ]
