@@ -87,6 +87,20 @@ public sealed class RecordReferenceTests
     }
 
     [Theory]
+    [InlineData(42, 0)]
+    [InlineData(0, 42)]
+    public async Task undefined_reference_enums_cannot_be_serialized_or_written_to_the_catalogue(int cardinality, int onDelete)
+    {
+        var host = Host();
+
+        await Assert.ThrowsAsync<System.Text.Json.JsonException>(() => Create(host, "Space",
+            Reference("asset", "eam.asset-class", null, (ReferenceCardinality)cardinality,
+                (ReferenceDeleteBehavior)onDelete)).AsTask());
+
+        Assert.Empty(await host.Catalogue.ListKeysAsync(Tenant, DefinitionKind.Records));
+    }
+
+    [Theory]
     [Trait("Holds", "records-ck-10")]
     [InlineData("eam.asset-class", null, "/fields/0/reference/target_type_id")]
     [InlineData("eam.pump", null, "/fields/0/reference/target_type_id")]
