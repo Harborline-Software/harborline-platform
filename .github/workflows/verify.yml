@@ -16,7 +16,6 @@ jobs:
         pr: [260, 264, 265, 266]
     env:
       DOTNET_CLI_TELEMETRY_OPTOUT: '1'
-      HARBORLINE_CONTROL_REPO: ${{ runner.temp }}/harborline-control
     steps:
       - uses: actions/checkout@v7
         with:
@@ -42,6 +41,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Measure independent focused hand mutants
         run: python tooling/records-hand-mutation-evidence.py --pr ${{ matrix.pr }}
+        env:
+          HARBORLINE_CONTROL_REPO: ${{ runner.temp }}/harborline-control
       - name: Preserve raw logs, TRX, diffs and source hashes
         if: always()
         uses: actions/upload-artifact@v7
