@@ -76,6 +76,19 @@ public interface IVersionedDefinitionStore
         return PublishAsync(key, versionId, expectedRevision, requestId, cancellationToken);
     }
 
+    /// <summary>
+    /// Returns an already committed publication from the original operation's replay record, without
+    /// replacing its stored target conditions or resolving those targets again. A missing request returns null; an id
+    /// reused for a different operation, version or source fence refuses replay conflict. Implementations
+    /// supporting guarded publication must provide this lookup from the same transaction's replay record.
+    /// </summary>
+    ValueTask<DefinitionRevision?> GetPublicationReplayAsync(DefinitionKey key, string versionId,
+        long expectedRevision, string requestId, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return ValueTask.FromResult<DefinitionRevision?>(null);
+    }
+
     /// <summary>Copies a published body into a new draft identity and semantic version.</summary>
     ValueTask<DefinitionRevision> RestoreAsDraftAsync(DefinitionKey key, string sourceVersionId,
         string draftVersionId, string draftVersion, long expectedRevision, string requestId,

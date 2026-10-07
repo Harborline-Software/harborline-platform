@@ -151,12 +151,25 @@ public sealed class RecordTypeDefinitionStore
     /// the store's own fence is still refused by the store, leaving at most an unreferenced registered schema. The
     /// store commits only at <paramref name="expectedRevision"/>, so the published body is the one compiled.
     /// Referenced published heads are fenced atomically at that commit. A head that changes after schema
-    /// registration refuses publication and may leave an unreferenced content-addressed schema.
+    /// registration refuses publication and may leave an unreferenced content-addressed schema. Exact request
+    /// replays recover the committed body and original target observations before consulting live heads.
     /// </summary>
     public async ValueTask<RecordTypePublication> PublishAsync(string tenant, string recordTypeId, string version,
         long expectedRevision, string requestId, CancellationToken cancellationToken = default)
     {
         var key = KeyOf(tenant, recordTypeId);
+        var replay = await _store.GetPublicationReplayAsync(key, version, expectedRevision, requestId, cancellationToken)
+            .ConfigureAwait(false);
+        if (replay is not null)
+        {
+            // Conditions are observations belonging to the first committed operation, not new input
+            // from a retry. Recover its immutable body before consulting any live target catalogue.
+            var replayAdmission = await AdmitAsync(replay.Document, DefinitionAdmissionPhase.Publish, cancellationToken)
+                .ConfigureAwait(false);
+            var replaySchema = await _registry.RegisterAsync(replayAdmission.JsonSchemaText, cancellationToken: cancellationToken)
+                .ConfigureAwait(false);
+            return new(replay, replaySchema);
+        }
         var history = await _store.ListHistoryAsync(key, cancellationToken).ConfigureAwait(false);
         var source = history.LastOrDefault(revision => revision.Document.VersionId == version)
             ?? throw new DefinitionRefusalException(DefinitionAdmissionPhase.Publish, [new("definition.not_found", "/versionId")]);

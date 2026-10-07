@@ -18,6 +18,7 @@ public sealed class RecordsAwaitContextTests
         { "create", "SaveDraftAsync" },
         { "save", "ListHistoryAsync" },
         { "save", "SaveDraftAsync" },
+        { "publish", "GetPublicationReplayAsync" },
         { "publish", "ListHistoryAsync" },
         { "publish", "GetPublishedHeadAsync" },
         { "publish", "PublishAsync" },
@@ -127,6 +128,10 @@ public sealed class RecordsAwaitContextTests
         public async ValueTask<DefinitionRevision> PublishAsync(DefinitionKey key, string versionId, long expectedRevision,
             string requestId, IReadOnlyList<DefinitionPublishedHeadCondition> conditions, CancellationToken cancellationToken = default)
         { await Hop(nameof(PublishAsync)).ConfigureAwait(false); return await inner.PublishAsync(key, versionId, expectedRevision, requestId, conditions, cancellationToken).ConfigureAwait(false); }
+
+        public async ValueTask<DefinitionRevision?> GetPublicationReplayAsync(DefinitionKey key, string versionId, long expectedRevision,
+            string requestId, CancellationToken cancellationToken = default)
+        { await Hop(nameof(GetPublicationReplayAsync)).ConfigureAwait(false); return await inner.GetPublicationReplayAsync(key, versionId, expectedRevision, requestId, cancellationToken).ConfigureAwait(false); }
 
         public async ValueTask<DefinitionRevision> RestoreAsDraftAsync(DefinitionKey key, string sourceVersionId, string draftVersionId, string draftVersion, long expectedRevision, string requestId, CancellationToken cancellationToken = default)
         { await Hop(nameof(RestoreAsDraftAsync)).ConfigureAwait(false); return await inner.RestoreAsDraftAsync(key, sourceVersionId, draftVersionId, draftVersion, expectedRevision, requestId, cancellationToken).ConfigureAwait(false); }

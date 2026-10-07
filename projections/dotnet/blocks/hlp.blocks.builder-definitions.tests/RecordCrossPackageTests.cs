@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using Harborline.Foundation.Definitions;
+using Harborline.Kernel.SchemaValidation;
 using Harborline.Kernel.SchemaValidation.Records;
 using Xunit;
 using static Harborline.Blocks.BuilderDefinitions.Tests.RecordTypeDefinitionStoreTests;
@@ -236,6 +237,9 @@ public sealed class RecordCrossPackageTests
             await intervene();
             return await inner.PublishAsync(key, versionId, expectedRevision, requestId, conditions, cancellationToken);
         }
+        public ValueTask<DefinitionRevision?> GetPublicationReplayAsync(DefinitionKey key, string versionId, long expectedRevision,
+            string requestId, CancellationToken cancellationToken = default)
+            => inner.GetPublicationReplayAsync(key, versionId, expectedRevision, requestId, cancellationToken);
         public ValueTask<DefinitionRevision> RestoreAsDraftAsync(DefinitionKey key, string sourceVersionId, string draftVersionId, string draftVersion,
             long expectedRevision, string requestId, CancellationToken cancellationToken = default)
             => inner.RestoreAsDraftAsync(key, sourceVersionId, draftVersionId, draftVersion, expectedRevision, requestId, cancellationToken);
@@ -245,6 +249,39 @@ public sealed class RecordCrossPackageTests
             => inner.GetPublishedHeadAsync(key, cancellationToken);
         public ValueTask<DefinitionRevision?> ResolvePublishedAsync(DefinitionBinding binding, CancellationToken cancellationToken = default)
             => inner.ResolvePublishedAsync(binding, cancellationToken);
+    }
+
+    [Theory]
+    [InlineData("eam-core")]
+    [InlineData("fleet-ops")]
+    public async Task ARecreatedAdapterReplaysTheOriginalPublicationAfterAReferencedHeadAdvances(string package)
+    {
+        var (host, _) = await WithExposedMeter();
+        var created = await host.Records.CreateDraftAsync(new(Tenant, "fleet-ops", "Replay", "1.0.0", [ToMeter], Contract,
+            ClassId: "eam.equipment", RecordClass: RecordClass.Transactional, PackageId: package,
+            Requires: [new("eam-core@1")]), "create-replay");
+        var pinned = await host.Records.PinReferencesAsync(Tenant, Draft(host, created.RecordTypeId));
+        await host.Records.SaveDraftAsync(created.RecordTypeId, pinned, "1.0.0", 1, "pin-replay");
+        var original = await host.Records.PublishAsync(Tenant, created.RecordTypeId, "1.0.0", 2, "publish-replay");
+        var meter = (await host.Records.GetPublishedHeadAsync(Tenant, "eam.meter"))!;
+        await host.Records.SaveDraftAsync("eam.meter", meter with { Name = "Updated meter" }, "1.1.0", 2, "update-meter");
+        await host.Records.PublishAsync(Tenant, "eam.meter", "1.1.0", 3, "publish-update-meter");
+        var restoredRegistry = new InMemorySchemaRegistry();
+        var recreated = new RecordTypeDefinitionStore(host.Catalogue, host.Compiler, host.Defaults, restoredRegistry, Window);
+
+        var replay = await recreated.PublishAsync(Tenant, created.RecordTypeId, "1.0.0", 2, "publish-replay");
+
+        // The original caller request, source revision, immutable body and schema survive live head changes.
+        Assert.Equal(original.Revision, replay.Revision);
+        Assert.Equal(original.Schema.Id, replay.Schema.Id);
+        Assert.Equal(original.Schema.JsonSchemaText, replay.Schema.JsonSchemaText);
+        Assert.NotNull(await restoredRegistry.GetAsync(original.Schema.Id));
+        Assert.Equal(3, replay.Revision.Revision);
+        Assert.Equal(3, (await host.Catalogue.ListHistoryAsync(RecordTypeDefinitionStore.KeyOf(Tenant, created.RecordTypeId))).Count);
+        var conflict = await Assert.ThrowsAsync<DefinitionRefusalException>(() =>
+            recreated.PublishAsync(Tenant, created.RecordTypeId, "1.0.0", 3, "publish-replay").AsTask());
+        Assert.Equal([("definition.replay_conflict", "/requestId")],
+            conflict.Refusals.Select(item => (item.Code, item.Pointer)).ToArray());
     }
 
     [Fact]

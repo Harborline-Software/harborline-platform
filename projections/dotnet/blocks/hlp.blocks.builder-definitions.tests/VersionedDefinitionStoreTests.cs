@@ -442,6 +442,29 @@ public sealed class VersionedDefinitionStoreTests
         AssertRefusal(refusal, "definition.replay_conflict", "/requestId");
     }
 
+    [Fact]
+    public async Task PublicationReplayLookupMatchesTheOriginalOperationVersionFenceAndKey()
+    {
+        var store = Store();
+        var source = Document();
+        var other = source.Key with { DefinitionId = "other" };
+        Assert.Null(await store.GetPublicationReplayAsync(source.Key, source.VersionId, 0, "missing"));
+        await store.SaveDraftAsync(source, 0, "draft");
+        var published = await store.PublishAsync(source.Key, source.VersionId, 1, "publish");
+        Assert.Equal(published, await store.GetPublicationReplayAsync(source.Key, source.VersionId, 1, "publish"));
+        Assert.Null(await store.GetPublicationReplayAsync(other, source.VersionId, 1, "publish"));
+        AssertRefusal(await Assert.ThrowsAsync<DefinitionRefusalException>(async () =>
+            await store.GetPublicationReplayAsync(source.Key, source.VersionId, 0, "draft")),
+            "definition.replay_conflict", "/requestId");
+        AssertRefusal(await Assert.ThrowsAsync<DefinitionRefusalException>(async () =>
+            await store.GetPublicationReplayAsync(source.Key, "other-version", 1, "publish")),
+            "definition.replay_conflict", "/requestId");
+        AssertRefusal(await Assert.ThrowsAsync<DefinitionRefusalException>(async () =>
+            await store.GetPublicationReplayAsync(source.Key, source.VersionId, 2, "publish")),
+            "definition.replay_conflict", "/requestId");
+        Assert.Equal(2, (await store.ListHistoryAsync(source.Key)).Count);
+    }
+
     private static InMemoryVersionedDefinitionStore Store(DefinitionAdmission? admission = null)
         => new(Enum.GetValues<DefinitionKind>().ToDictionary(kind => kind,
             _ => admission ?? ((_, _) => Array.Empty<DefinitionRefusal>())));
