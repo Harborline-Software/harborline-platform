@@ -46,7 +46,8 @@ public sealed record RecordTypePublication(DefinitionRevision Revision, Schema S
 /// The store's own validator (<see cref="Admission"/>) is synchronous and structural. The schema compile is
 /// asynchronous because the field runtime proves trait-slot narrowing, so this type runs it before handing a
 /// snapshot to the store, fenced on the same expected revision the store commits at. Every refusal, structural
-/// or compiled, is raised before the store or the schema registry changes.
+/// or compiled, is raised before the store or the schema registry changes. Publication registers the compiled
+/// schema before the store makes the version visible, so a published version always has its schema.
 /// </remarks>
 public sealed partial class RecordTypeDefinitionStore
 {
@@ -150,9 +151,12 @@ public sealed partial class RecordTypeDefinitionStore
     }
 
     /// <summary>
-    /// Compiles the stored version, immutably publishes it, then registers exactly the compiled schema. The
-    /// store commits only at <paramref name="expectedRevision"/>, so a body changed after this compile read it
-    /// fails the store's fence and the registered schema is always the published body's.
+    /// Compiles the stored version, registers exactly the compiled schema, then immutably publishes it. A registry
+    /// failure (a fault, cancellation, or a schema over the registry's size limit) therefore leaves nothing
+    /// published. Registration is content-addressed and idempotent, so a replay re-registers harmlessly. A stale
+    /// <paramref name="expectedRevision"/> refuses before registration; one that goes stale between that check and
+    /// the store's own fence is still refused by the store, leaving at most an unreferenced registered schema. The
+    /// store commits only at <paramref name="expectedRevision"/>, so the published body is the one compiled.
     /// </summary>
     public async ValueTask<RecordTypePublication> PublishAsync(string tenant, string recordTypeId, string version,
         long expectedRevision, string requestId, CancellationToken cancellationToken = default)
@@ -163,9 +167,12 @@ public sealed partial class RecordTypeDefinitionStore
             ?? throw new DefinitionRefusalException(DefinitionAdmissionPhase.Publish, [new("definition.not_found", "/versionId")]);
 
         var admitted = await AdmitAsync(source.Document, DefinitionAdmissionPhase.Publish, cancellationToken).ConfigureAwait(false);
-        var published = await _store.PublishAsync(key, version, expectedRevision, requestId, cancellationToken)
-            .ConfigureAwait(false);
+        // A published source is a replay, which the store answers from its record at any revision.
+        if (source.Status != DefinitionStatus.Published && history[^1].Revision != expectedRevision)
+            throw new DefinitionRefusalException(DefinitionAdmissionPhase.Publish, [new("definition.revision_conflict", "/expectedRevision")]);
         var schema = await _registry.RegisterAsync(admitted.JsonSchemaText, cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
+        var published = await _store.PublishAsync(key, version, expectedRevision, requestId, cancellationToken)
             .ConfigureAwait(false);
         return new(published, schema);
     }
@@ -225,6 +232,8 @@ public sealed partial class RecordTypeDefinitionStore
         RecordTypeDocument parsed;
         try { parsed = RecordTypeDefinitionJson.Deserialize(Encoding.UTF8.GetBytes(document.BodyJson ?? "")); }
         catch (JsonException) { return (null, [new("records.document_invalid", "")]); }
+        if (RecordTypeDefinitionJson.FirstMissing(parsed) is { } missing)
+            return (null, [new("records.document_invalid", missing)]);
 
         var refusals = new List<DefinitionRefusal>();
         if (parsed.Envelope is null)
