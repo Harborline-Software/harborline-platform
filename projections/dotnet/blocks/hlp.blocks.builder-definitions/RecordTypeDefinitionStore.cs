@@ -325,23 +325,75 @@ public sealed class RecordTypeDefinitionStore
     }
 
     /// <summary>
-    /// Runs Install-phase admission and the schema compile over an exported entry, as a receiving host would
-    /// before it installs it. Returns every refusal; it writes nothing.
+    /// The installation gate (records-ck-41): Install-phase admission and the schema compile over an exported entry, then
+    /// every reference checked against what the installing host was handed, never its live catalogue. An unpinned
+    /// reference must target a definition the same pack ships; a pinned one needs this definition's <c>requires</c> entry
+    /// at the pin's interface version and must equal the exposure its pinned dependency closure declares. Every refusal
+    /// comes back together and nothing is written, so a host installs the edge set whole or not at all.
     /// </summary>
     public async ValueTask<DefinitionRefusalReport> AdmitInstallAsync(string tenant, RecordTypeDefinitionPackageEntry entry,
-        CancellationToken cancellationToken = default)
+        RecordsInstallClosure closure, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(entry);
+        ArgumentNullException.ThrowIfNull(closure);
         var document = new DefinitionDocument(KeyOf(tenant, entry.DefinitionId), entry.Version, entry.Version,
             Encoding.UTF8.GetString(entry.Content.Payload.Span));
         try
         {
             await AdmitAsync(document, DefinitionAdmissionPhase.Install, cancellationToken).ConfigureAwait(false);
-            return new(DefinitionAdmissionPhase.Install, []);
         }
         catch (DefinitionRefusalException refused)
         {
             return new(refused.Stage, refused.Refusals);
+        }
+        var parsed = RecordTypeDefinitionJson.Deserialize(entry.Content.Payload.Span);
+        return new(DefinitionAdmissionPhase.Install, InstallEdges(parsed, closure).ToArray());
+    }
+
+    private static IEnumerable<DefinitionRefusal> InstallEdges(RecordTypeDocument document, RecordsInstallClosure closure)
+    {
+        var own = document.Envelope?.PackageId ?? "";
+        var requires = (document.Envelope?.Requires ?? [])
+            .Select(requirement => RecordsRequirement.TryParse(requirement?.Capability, out var package, out var version)
+                ? (Package: package, Version: version) : (Package: "", Version: 0))
+            .ToArray();
+        foreach (var (field, index) in (document.Fields ?? []).Select((field, index) => (field, index)))
+        {
+            if (field.Reference is not { } reference)
+                continue;
+            var pointer = $"/fields/{index}/reference";
+            var classTarget = !string.IsNullOrWhiteSpace(reference.TargetClassId);
+            var targetId = classTarget ? reference.TargetClassId! : reference.TargetTypeId!;
+            if (reference.Pin is not { } pin)
+            {
+                // An edge inside the pack: its target ships beside it, or is this type itself.
+                if (!StringComparer.Ordinal.Equals(targetId, document.RecordTypeId)
+                    && !closure.PackDefinitionIds.Contains(targetId, StringComparer.Ordinal))
+                    yield return new("records.reference.target_unresolved", pointer + (classTarget ? "/target_class_id" : "/target_type_id"));
+                continue;
+            }
+
+            if (StringComparer.Ordinal.Equals(pin.PackageId, own))
+            {
+                yield return new("records.reference.pin_unexpected", pointer + "/pin");
+                continue;
+            }
+            if (!StringComparer.Ordinal.Equals(pin.DefinitionId, targetId))
+            {
+                yield return new("records.reference.pin_stale", pointer);
+                continue;
+            }
+            if (!requires.Any(requirement => requirement.Package == pin.PackageId))
+                yield return new("records.reference.dependency_undeclared", pointer);
+            else if (!requires.Any(requirement => requirement.Package == pin.PackageId && requirement.Version == pin.InterfaceVersion))
+                yield return new("records.reference.interface_incompatible", pointer);
+
+            var declared = closure.Exposures.FirstOrDefault(exposure =>
+                StringComparer.Ordinal.Equals(exposure.PackageId, pin.PackageId) && StringComparer.Ordinal.Equals(exposure.DefinitionId, pin.DefinitionId));
+            if (declared is null)
+                yield return new("records.reference.closure_missing", pointer + "/pin");
+            else if (declared != new PinnedExposure(pin.PackageId, pin.DefinitionId, pin.Version, pin.Digest, pin.InterfaceVersion))
+                yield return new("records.reference.closure_changed", pointer + "/pin");
         }
     }
 
@@ -423,3 +475,16 @@ public static class RecordTypeDefinitionPackageExporter
             PlatformPackageContent.PresentJson(Encoding.UTF8.GetBytes(published.Document.BodyJson)));
     }
 }
+
+/// <summary>
+/// One exposure the pinned dependency closure declares (records-ck-41): a producer package's definition, at the exact
+/// version and <c>sha256:</c> body digest its signed pack carries, exposed at an interface version.
+/// </summary>
+public sealed record PinnedExposure(string PackageId, string DefinitionId, string Version, string Digest, int InterfaceVersion);
+
+/// <summary>
+/// What an installing host hands the Records install gate: the definition ids the pack itself ships, and the exposures
+/// declared by the exact producer versions in the pack's pinned dependency closure. It is read from the signed packs,
+/// never from the node's live catalogue.
+/// </summary>
+public sealed record RecordsInstallClosure(IReadOnlyCollection<string> PackDefinitionIds, IReadOnlyList<PinnedExposure> Exposures);

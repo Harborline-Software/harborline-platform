@@ -59,7 +59,7 @@ public sealed class RecordsAwaitContextTests
                 Reference: new(null, "eam.equipment", Harborline.Kernel.SchemaValidation.Records.ReferenceCardinality.One,
                     Harborline.Kernel.SchemaValidation.Records.ReferenceDeleteBehavior.Block))] }).AsTask(),
             "diagnose" => () => records.DiagnoseAsync(Tenant, body).AsTask(),
-            "install" => () => records.AdmitInstallAsync("tenant-b", entry).AsTask(),
+            "install" => () => records.AdmitInstallAsync("tenant-b", entry, NoDependencies).AsTask(),
             "field" => () => new CatalogueFieldSource(store).ResolveAsync(Tenant, new("records.catalogue-field-source", 1,
                 DefinitionKind.Records, "eam.asset-class", "1.0.0", "asset_tag", digest, new("tenant"))).AsTask(),
             "health" => () => new RecordsCatalogueHealth(store).ReportAsync(Tenant).AsTask(),
