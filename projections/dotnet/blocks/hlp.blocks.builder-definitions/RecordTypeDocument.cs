@@ -110,6 +110,8 @@ public static class RecordTypeDefinitionJson
     {
         ArgumentNullException.ThrowIfNull(document);
         if (document.Envelope is null) return null;
+        foreach (var (requirement, index) in (document.Envelope.Requires ?? []).Select((requirement, index) => (requirement, index)))
+            if (requirement is null) return $"/envelope/requires/{index}";
         if (document.Fields is null) return "/fields";
         foreach (var (field, index) in document.Fields.Select((field, index) => (field, index)))
         {
@@ -119,6 +121,13 @@ public static class RecordTypeDefinitionJson
             if (field.DisplayName is null) return pointer + "/display_name";
             if (field.DefaultsProvenance is { KindId: null }) return pointer + "/defaults_provenance/kind_id";
             if (field.DefaultsProvenance is { KindVersion: null }) return pointer + "/defaults_provenance/kind_version";
+            if (field.Reference?.Pin is { } pin)
+            {
+                if (pin.PackageId is null) return pointer + "/reference/pin/package_id";
+                if (pin.DefinitionId is null) return pointer + "/reference/pin/definition_id";
+                if (pin.Version is null) return pointer + "/reference/pin/version";
+                if (pin.Digest is null) return pointer + "/reference/pin/digest";
+            }
             if (field.Binding is not { } binding) continue;
             if (binding.Kind is null) return pointer + "/binding/kind";
             if (binding.Kind.KindId is null) return pointer + "/binding/kind/kind_id";
