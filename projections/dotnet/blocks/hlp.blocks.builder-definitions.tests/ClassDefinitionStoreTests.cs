@@ -21,12 +21,12 @@ public sealed class ClassDefinitionStoreTests
     {
         var host = Host();
 
-        var finance = await host.Classes.CreateDraftAsync(new(Tenant, "finance", "Equipment", "1.0.0", Contract), "finance");
+        var finance = await host.Classes.CreateDraftAsync(new(Tenant, "finance", "Equipment", "1.0.0", Contract, "eam-core"), "finance");
         var collision = await Assert.ThrowsAsync<DefinitionRefusalException>(
-            () => host.Classes.CreateDraftAsync(new(Tenant, "eam", " equipment ", "1.0.0", Contract), "again").AsTask());
+            () => host.Classes.CreateDraftAsync(new(Tenant, "eam", " equipment ", "1.0.0", Contract, "eam-core"), "again").AsTask());
 
         Assert.Equal("finance.equipment", finance.Document.Key.DefinitionId);
-        Assert.Equal("""{"class_id":"finance.equipment","envelope":{"contract":{"major":1,"minor":0},"section":"finance","tenant":"tenant-a"},"name":"Equipment"}""" + "\n",
+        Assert.Equal("""{"class_id":"finance.equipment","envelope":{"contract":{"major":1,"minor":0},"package_id":"eam-core","section":"finance","tenant":"tenant-a"},"name":"Equipment"}""" + "\n",
             finance.Document.BodyJson);
         Assert.Equal([("records.identity.class_id_collision", "/class_id")], Pairs(collision));
         Assert.Equal(["eam.equipment", "finance.equipment"],
@@ -38,8 +38,8 @@ public sealed class ClassDefinitionStoreTests
     public async Task a_class_id_is_never_constructed_or_changed()
     {
         var host = Host();
-        var forged = new ClassDocument(new(Tenant, "eam", Contract), "Forged", "eam.forged");
-        var renamed = new ClassDocument(new(Tenant, "eam", Contract), "Equipment", "eam.plant");
+        var forged = new ClassDocument(new(Tenant, "eam", Contract, "eam-core"), "Forged", "eam.forged");
+        var renamed = new ClassDocument(new(Tenant, "eam", Contract, "eam-core"), "Equipment", "eam.plant");
 
         var unminted = await Assert.ThrowsAsync<DefinitionRefusalException>(
             () => host.Classes.SaveDraftAsync("eam.forged", forged, "1.0.0", 0, "forge").AsTask());
@@ -77,7 +77,7 @@ public sealed class ClassDefinitionStoreTests
     public async Task a_type_whose_class_is_unpublished_or_unknown_does_not_publish(string classId)
     {
         var host = Host();
-        await host.Classes.CreateDraftAsync(new(Tenant, "eam", "Plant", "1.0.0", Contract), "plant-draft");
+        await host.Classes.CreateDraftAsync(new(Tenant, "eam", "Plant", "1.0.0", Contract, "eam-core"), "plant-draft");
         await host.Records.CreateDraftAsync(AssetClass("1.0.0") with { ClassId = classId }, "create");
 
         var refused = await Assert.ThrowsAsync<DefinitionRefusalException>(
@@ -94,7 +94,7 @@ public sealed class ClassDefinitionStoreTests
     {
         var host = Host();
         var other = new ClassDefinitionStore(host.Catalogue);
-        await other.CreateDraftAsync(new("tenant-b", "eam", "Plant", "1.0.0", Contract), "b-plant");
+        await other.CreateDraftAsync(new("tenant-b", "eam", "Plant", "1.0.0", Contract, "eam-core"), "b-plant");
         await other.PublishAsync("tenant-b", "eam.plant", "1.0.0", 1, "b-publish");
         await host.Records.CreateDraftAsync(AssetClass("1.0.0") with { ClassId = "eam.plant" }, "create");
 

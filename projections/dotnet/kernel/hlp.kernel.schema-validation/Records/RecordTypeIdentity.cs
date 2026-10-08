@@ -75,13 +75,26 @@ public enum ReferenceDeleteBehavior
 /// third target kind (owner ruling 2026-10-07).
 /// </param>
 /// <param name="Parent">Marks this reference as the type's one hierarchy edge (records-ck-12; L092).</param>
+/// <param name="Pin">
+/// For a target in another package only: the sealed cross-package pin (records-ck-41). Authoring writes it from
+/// current state, publication refuses unless it still matches, and installation checks it against the pinned
+/// dependency closure.
+/// </param>
 public sealed record RecordReferenceDefinition(
     string? TargetTypeId,
     string? TargetClassId,
     ReferenceCardinality? Cardinality,
     ReferenceDeleteBehavior? OnDelete,
     string? RequiredTraitId = null,
-    bool Parent = false);
+    bool Parent = false,
+    RecordReferencePin? Pin = null);
+
+/// <summary>
+/// One sealed cross-package edge (records-ck-41): the target's package, definition id, exact published version and
+/// algorithm-qualified body digest, and the interface version at which the target declared itself exposed. The source
+/// side's declaration is the referencing definition's own envelope <c>requires</c> entry, in the same signed body.
+/// </summary>
+public sealed record RecordReferencePin(string PackageId, string DefinitionId, string Version, string Digest, int InterfaceVersion);
 
 /// <summary>
 /// Materializes a field kind's creation defaults into each newly created bound field (DES-0015 records-ck-38,
@@ -451,7 +464,7 @@ public sealed class RecordTypeSchemaCompiler
         // requires a shared field to satisfy every bound slot's admitted intersection.
         // C:/Projects/Harborline/harborline-control/designs/DES-0015-records/design.md:104 (records-ck-39)
         // permits narrowing a slot floor but forbids widening its domain.
-        await NarrowTraitBindingsAsync(candidate, fieldDomainScope, refusals, cancellationToken);
+        await NarrowTraitBindingsAsync(candidate, fieldDomainScope, refusals, cancellationToken).ConfigureAwait(false);
         var properties = new Dictionary<string, object>(StringComparer.Ordinal);
         var boundKinds = new Dictionary<string, AdmittedFieldKind>(StringComparer.Ordinal);
         foreach (var (field, index) in (candidate.Fields ?? []).Select((field, index) => (field, index)))
@@ -540,7 +553,7 @@ public sealed class RecordTypeSchemaCompiler
                         field.Binding?.Constraints ?? Unconstrained,
                         fieldDomainScope,
                         pointer,
-                        cancellationToken);
+                        cancellationToken).ConfigureAwait(false);
                 }
                 catch (FieldAdmissionException exception)
                 {

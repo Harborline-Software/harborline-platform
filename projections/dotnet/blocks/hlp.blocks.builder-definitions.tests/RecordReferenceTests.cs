@@ -164,6 +164,25 @@ public sealed class RecordReferenceTests
         Assert.True(await Valid(host, published, """{"within":{"type":"eam.space","id":"S-1"}}"""));
     }
 
+    [Fact]
+    [Trait("Holds", "records-auth-34")]
+    public async Task a_self_reference_with_no_declared_traits_refuses_its_required_trait()
+    {
+        var host = Host();
+        await Create(host, "Space", Reference("within", "eam.space", null, ReferenceCardinality.One,
+            ReferenceDeleteBehavior.Block, trait: "locatable"), traits: null);
+
+        var refused = await Assert.ThrowsAsync<DefinitionRefusalException>(() =>
+            host.Records.PublishAsync(Tenant, "eam.space", "1.0.0", 1, "publish").AsTask());
+
+        // records-auth-34 applies to the authored self target too: absent traits cannot satisfy a requirement.
+        Assert.Equal(DefinitionAdmissionPhase.Publish, refused.Stage);
+        Assert.Equal([("records.reference.trait_absent", "/fields/0/reference/required_trait_id")], Pairs(refused));
+        Assert.Null(await host.Catalogue.GetPublishedHeadAsync(RecordTypeDefinitionStore.KeyOf(Tenant, "eam.space")));
+        Assert.Single(await host.Catalogue.ListHistoryAsync(RecordTypeDefinitionStore.KeyOf(Tenant, "eam.space")));
+        Assert.Null(await host.Catalogue.GetPublicationReplayAsync(RecordTypeDefinitionStore.KeyOf(Tenant, "eam.space"), "1.0.0", 1, "publish"));
+    }
+
     private static async Task<TestHost> WithAssetClass()
     {
         var host = Host();
@@ -179,7 +198,7 @@ public sealed class RecordReferenceTests
     private static ValueTask<RecordTypeDraft> Create(TestHost host, string name, FieldDefinition[] fields,
         IReadOnlyList<TraitReference>? traits = null, string tenant = Tenant, string? classId = "eam.equipment")
         => host.Records.CreateDraftAsync(new(tenant, "eam", name, "1.0.0", fields, Contract, traits,
-            ClassId: classId ?? "eam.equipment", RecordClass: RecordClass.Transactional), "create-" + name);
+            ClassId: classId ?? "eam.equipment", RecordClass: RecordClass.Transactional, PackageId: "eam-core"), "create-" + name);
 
     private static FieldDefinition Reference(string key, string? type, string? @class, ReferenceCardinality? cardinality,
         ReferenceDeleteBehavior? onDelete, string? trait = null, bool parent = false)

@@ -14,7 +14,7 @@ namespace Harborline.Blocks.BuilderDefinitions.Tests;
 public sealed class CatalogueFieldSourceTests
 {
     // sha256 of _shared/records/record-type.asset-class.json, the body the asset-class type is stored with.
-    private const string StoredDigest = "sha256:4eab2f5deb063f03f4ac0e64bd7c4d91f32a1d26d7b94ebbfad7b99b07a2a738";
+    private const string StoredDigest = "sha256:8d8b83bd4050af00fe7d6411b1432b6470c6bfd3b8d0842929f475cb0ae613e6";
 
     [Fact]
     [Trait("Holds", "records-ck-40")]
@@ -38,7 +38,7 @@ public sealed class CatalogueFieldSourceTests
     {
         var host = await Published();
         // The same definition serialized another way (indented): equal content, different bytes.
-        var indented = "sha256:aab3c81b490b9be30fef169a5e434502b564b8f57187a9b94a00e87f77892fb1";
+        var indented = "sha256:be36510d69c4461a1a19c86c09c16187688a3be844fd576c070948c8d859ba2b";
 
         var refused = await Assert.ThrowsAsync<DefinitionRefusalException>(
             () => new CatalogueFieldSource(host.Catalogue).ResolveAsync(Tenant, Coordinate() with { BodyDigest = indented }).AsTask());
