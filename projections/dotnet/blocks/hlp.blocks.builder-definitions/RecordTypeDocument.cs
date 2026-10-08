@@ -7,16 +7,16 @@ using Harborline.Kernel.SchemaValidation.Records;
 namespace Harborline.Blocks.BuilderDefinitions;
 
 /// <summary>
-/// The provider-neutral envelope of one Record Type definition (DES-0015 records-ck-1). The definition's
-/// identity is its body's <c>record_type_id</c>, which the minting caller derives once from this section and
-/// the type's name; the envelope therefore carries no second identity to disagree with it. The version is
+/// The provider-neutral envelope of one Records definition, a Record Type or a Class (DES-0015 records-ck-1).
+/// The definition's identity is its body's id (<c>record_type_id</c>, <c>class_id</c>), which the minting caller
+/// derives once from this section and the definition's name; the envelope carries no second identity. The version is
 /// the catalogue's, not the body's: restore-as-draft copies a published body under a new version unchanged,
 /// so a version inside the body would contradict the draft it was copied into.
 /// </summary>
 /// <param name="Tenant">The owning tenant identifier.</param>
 /// <param name="Section">The catalogue section that scopes the Record Type id (L102), such as <c>finance</c> or <c>eam</c>.</param>
 /// <param name="Contract">The authored definition contract version.</param>
-public sealed record RecordTypeDefinitionEnvelope(
+public sealed record RecordsDefinitionEnvelope(
     string Tenant,
     string Section,
     DefinitionContractVersion? Contract);
@@ -32,42 +32,45 @@ public sealed record RecordTypeDefinitionEnvelope(
 /// <param name="Fields">The fields owned by this Record Type.</param>
 /// <param name="Traits">The exact Trait revisions and their slot-to-field bindings.</param>
 /// <param name="RetentionClockFieldId">The <c>field_key</c> of the field whose date starts the retention clock.</param>
+/// <param name="ClassId">The type's one Class, its catalogue home (records-ck-18). Required at publication.</param>
+/// <param name="RecordClass">Whether the type's records are reference, master or transactional data (records-ck-17).
+/// Required at publication with no default: it decides whether the records may travel in a pack (ADR 0025).</param>
 public sealed record RecordTypeDocument(
-    RecordTypeDefinitionEnvelope Envelope,
+    RecordsDefinitionEnvelope Envelope,
     string Name,
     string RecordTypeId,
     IReadOnlyList<FieldDefinition> Fields,
     IReadOnlyList<TraitReference>? Traits = null,
-    string? RetentionClockFieldId = null)
+    string? RetentionClockFieldId = null,
+    string? ClassId = null,
+    RecordClass? RecordClass = null)
 {
     /// <summary>The typed Records grammar the validator and schema compiler read.</summary>
     public RecordTypeDefinition ToDefinition() => new(RecordTypeId, Fields, Traits, RetentionClockFieldId);
 }
 
+/// <summary>The data category of a Record Type's records (DES-0015 records-ck-17; ADR 0025; L088, L191-L194).</summary>
+public enum RecordClass
+{
+    /// <summary>Shared standard data. The only class whose records travel in a pack, and they install tenant-read-only.</summary>
+    Reference,
+    /// <summary>The tenant's own lasting entities, independent of its transactions (ISO 8000-2). Never travels.</summary>
+    Master,
+    /// <summary>Activity the tenant accrues over time. Never travels.</summary>
+    Transactional,
+}
+
 /// <summary>Canonical, projection-neutral Record Type definition JSON.</summary>
 public static class RecordTypeDefinitionJson
 {
-    private static readonly JsonSerializerOptions Options = CreateOptions();
-
     /// <summary>Serializes a Record Type definition to canonical UTF-8 JSON with a trailing newline.</summary>
-    public static byte[] SerializeCanonical(RecordTypeDocument document)
-    {
-        ArgumentNullException.ThrowIfNull(document);
-        var source = JsonSerializer.SerializeToNode(document, Options)
-            ?? throw new JsonException("The Record Type definition serialized to no JSON value.");
-        using var stream = new MemoryStream();
-        using (var writer = new Utf8JsonWriter(stream)) Canonicalize(source).WriteTo(writer, Options);
-        stream.WriteByte((byte)'\n');
-        return stream.ToArray();
-    }
+    public static byte[] SerializeCanonical(RecordTypeDocument document) => RecordsJson.SerializeCanonical(document);
 
     /// <summary>
     /// Deserializes a Record Type definition. An unknown member, a null payload or an explicit null for a non-nullable
     /// member is a <see cref="JsonException"/>; an absent required member is reported by <see cref="FirstMissing"/>.
     /// </summary>
-    public static RecordTypeDocument Deserialize(ReadOnlySpan<byte> json)
-        => JsonSerializer.Deserialize<RecordTypeDocument>(json, Options)
-            ?? throw new JsonException("The Record Type definition payload is null.");
+    public static RecordTypeDocument Deserialize(ReadOnlySpan<byte> json) => RecordsJson.Deserialize<RecordTypeDocument>(json);
 
     /// <summary>
     /// The RFC 6901 pointer of the first required member the JSON left absent, or of a null list element; null when
@@ -111,13 +114,33 @@ public static class RecordTypeDefinitionJson
         }
         return null;
     }
+}
+
+/// <summary>The canonical JSON form shared by the Records definition families.</summary>
+internal static class RecordsJson
+{
+    private static readonly JsonSerializerOptions Options = CreateOptions();
+
+    public static byte[] SerializeCanonical<T>(T document) where T : class
+    {
+        ArgumentNullException.ThrowIfNull(document);
+        var source = JsonSerializer.SerializeToNode(document, Options)
+            ?? throw new JsonException("The Records definition serialized to no JSON value.");
+        using var stream = new MemoryStream();
+        using (var writer = new Utf8JsonWriter(stream)) Canonicalize(source).WriteTo(writer, Options);
+        stream.WriteByte((byte)'\n');
+        return stream.ToArray();
+    }
+
+    public static T Deserialize<T>(ReadOnlySpan<byte> json) where T : class
+        => JsonSerializer.Deserialize<T>(json, Options)
+            ?? throw new JsonException("The Records definition payload is null.");
 
     private static JsonSerializerOptions CreateOptions()
     {
         // No dictionary key policy: field-kind parameter names are the kind's own wire names and must
         // round-trip unchanged.
-        // The grammar has no enum members, so it needs no enum converter.
-        return new JsonSerializerOptions(JsonSerializerDefaults.Web)
+        var options = new JsonSerializerOptions(JsonSerializerDefaults.Web)
         {
             PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
@@ -126,6 +149,35 @@ public static class RecordTypeDefinitionJson
             // since the canonical form omits optional ones and required-parameter enforcement would refuse those too.
             RespectNullableAnnotations = true,
         };
+        options.Converters.Add(new RecordClassJsonConverter());
+        options.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.SnakeCaseLower, allowIntegerValues: false));
+        return options;
+    }
+
+    // Record class has an exact lowercase grammar; the general enum converter accepts case variants.
+    private sealed class RecordClassJsonConverter : JsonConverter<RecordClass>
+    {
+        public override RecordClass Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            if (reader.TokenType != JsonTokenType.String)
+                throw new JsonException("A record class must be a lowercase named value.");
+            return reader.GetString() switch
+            {
+                "reference" => RecordClass.Reference,
+                "master" => RecordClass.Master,
+                "transactional" => RecordClass.Transactional,
+                _ => throw new JsonException("Unknown record class."),
+            };
+        }
+
+        public override void Write(Utf8JsonWriter writer, RecordClass value, JsonSerializerOptions options)
+            => writer.WriteStringValue(value switch
+            {
+                RecordClass.Reference => "reference",
+                RecordClass.Master => "master",
+                RecordClass.Transactional => "transactional",
+                _ => throw new JsonException("Unknown record class."),
+            });
     }
 
     private static JsonNode Canonicalize(JsonNode node) => node switch

@@ -23,7 +23,7 @@ public sealed class RecordTypeDefinitionStoreTests
     // The canonical body of the asset-class fixture, as the store holds it and the fixture file carries it: the
     // created bound fields carry their kind's governance defaults and that kind revision as provenance.
     internal const string AssetClassJson =
-        """{"envelope":{"contract":{"major":1,"minor":0},"section":"eam","tenant":"tenant-a"},"fields":[{"binding":{"constraints":{"maximum_count":1,"minimum_count":0,"read_role_ids":[],"required":true},"kind":{"kind_id":"text","parameters":{},"version":"1.0.0"}},"defaults_provenance":{"kind_id":"text","kind_version":"1.0.0"},"display_name":"Asset tag","field_key":"asset_tag","governance":{"classification":"internal","confidential":false,"masked":true,"personal_data":true}},{"binding":{"constraints":{"maximum_count":1,"minimum_count":0,"read_role_ids":[],"required":false},"kind":{"kind_id":"count","parameters":{},"version":"1.0.0"}},"defaults_provenance":{"kind_id":"count","kind_version":"1.0.0"},"display_name":"Quantity","field_key":"quantity"},{"display_name":"Notes","field_key":"notes"}],"name":"Asset Class","record_type_id":"eam.asset-class"}""" + "\n";
+        """{"class_id":"eam.equipment","envelope":{"contract":{"major":1,"minor":0},"section":"eam","tenant":"tenant-a"},"fields":[{"binding":{"constraints":{"maximum_count":1,"minimum_count":0,"read_role_ids":[],"required":true},"kind":{"kind_id":"text","parameters":{},"version":"1.0.0"}},"defaults_provenance":{"kind_id":"text","kind_version":"1.0.0"},"display_name":"Asset tag","field_key":"asset_tag","governance":{"classification":"internal","confidential":false,"masked":true,"personal_data":true}},{"binding":{"constraints":{"maximum_count":1,"minimum_count":0,"read_role_ids":[],"required":false},"kind":{"kind_id":"count","parameters":{},"version":"1.0.0"}},"defaults_provenance":{"kind_id":"count","kind_version":"1.0.0"},"display_name":"Quantity","field_key":"quantity"},{"display_name":"Notes","field_key":"notes"}],"name":"Asset Class","record_class":"master","record_type_id":"eam.asset-class"}""" + "\n";
 
     [Fact]
     [Trait("Holds", "records-ck-1")]
@@ -524,7 +524,7 @@ public sealed class RecordTypeDefinitionStoreTests
     }
 
     internal sealed record TestHost(InMemoryVersionedDefinitionStore Catalogue, RecordTypeDefinitionStore Records,
-        RecordTypeSchemaCompiler Compiler, InMemorySchemaRegistry Registry);
+        RecordTypeSchemaCompiler Compiler, InMemorySchemaRegistry Registry, ClassDefinitionStore Classes);
 
     private static readonly RecordFieldDefaults Defaults = new(new FieldKindRuntime(new FieldKindRegistry([])));
 
@@ -557,19 +557,23 @@ public sealed class RecordTypeDefinitionStoreTests
         var catalogue = new InMemoryVersionedDefinitionStore(new Dictionary<DefinitionKind, DefinitionAdmission>
         {
             [DefinitionKind.Records] = RecordTypeDefinitionStore.Admission(Window, validator),
+            [DefinitionKind.Classes] = ClassDefinitionStore.Admission(Window),
         });
-        return new(catalogue, new RecordTypeDefinitionStore(catalogue, compiler, new RecordFieldDefaults(kinds), registry, Window), compiler, registry);
+        var classes = new ClassDefinitionStore(catalogue);
+        classes.CreateDraftAsync(new(Tenant, "eam", "Equipment", "1.0.0", Contract), "equipment").AsTask().GetAwaiter().GetResult();
+        classes.PublishAsync(Tenant, "eam.equipment", "1.0.0", 1, "equipment-publish").AsTask().GetAwaiter().GetResult();
+        return new(catalogue, new RecordTypeDefinitionStore(catalogue, compiler, new RecordFieldDefaults(kinds), registry, Window), compiler, registry, classes);
     }
 
     internal static NewRecordType AssetClass(string version) => new(Tenant, "eam", "Asset Class", version,
-        Document().Fields, Contract);
+        Document().Fields, Contract, ClassId: "eam.equipment", RecordClass: RecordClass.Master);
 
     private static RecordTypeDocument Document() => new(new(Tenant, "eam", Contract), "Asset Class", "eam.asset-class",
     [
         new("asset_tag", "Asset tag", Bound("text", required: true)),
         new("quantity", "Quantity", Bound("count", required: false)),
         new("notes", "Notes"),
-    ]);
+    ], ClassId: "eam.equipment", RecordClass: RecordClass.Master);
 
     private static FieldBindingDefinition Bound(string kind, bool required)
         => new(new(kind, "1.0.0", new Dictionary<string, string>()), new(required, 0, 1, [], null));
